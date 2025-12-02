@@ -24,12 +24,16 @@ export default function RootLayout({
   return (
     <html lang="en" className={clsx(jetbrainsMono.variable, "dark")}>
       <body className="antialiased min-h-screen flex flex-col items-center bg-background text-foreground selection:bg-accent-400/20 selection:text-accent-400 font-mono">
-        <div className="w-full max-w-3xl px-6 md:px-8 flex flex-col min-h-screen">
-          <Navbar />
-          <main className="flex-grow w-full">
-            {children}
-          </main>
-          <Footer />
+        <div className="w-full min-h-screen p-4 md:p-8 flex justify-center">
+          <div className="w-full max-w-3xl bg-card border border-white/10 rounded-xl shadow-2xl flex flex-col relative">
+            <div className="px-6 md:px-10 flex flex-col min-h-[calc(100vh-4rem-2px)]">
+              <Navbar />
+              <main className="flex-grow w-full">
+                {children}
+              </main>
+              <Footer />
+            </div>
+          </div>
         </div>
       </body>
     </html>

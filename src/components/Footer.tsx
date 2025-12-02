@@ -8,7 +8,6 @@ export default function Footer() {
       <div className="text-xs text-gray-600 font-mono flex justify-between">
         <div>© {new Date().getFullYear()} ani potts</div>
         <div className="flex gap-2">
-          <span>live time:</span>
           <LiveTime />
         </div>
       </div>
