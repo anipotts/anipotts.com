@@ -18,7 +18,7 @@ export const projects: Project[] = [
   {
     slug: "pgi-research-platform",
     title: "PGI Research Portal",
-    subtitle: "Internal macro + markets research platform for quants.",
+    subtitle: "Macro research platform for quants.",
     description:
       "Rebuilt PGI’s static site into a TypeScript PWA backed by Postgres, aggregating RSS feeds and cutting manual research overhead. Gives analysts mobile access to curated event signals.",
     year: "2025",
@@ -30,7 +30,7 @@ export const projects: Project[] = [
   {
     slug: "chainedchat",
     title: "ChainedChat",
-    subtitle: "Multi-LLM comparison and workflow orchestration platform.",
+    subtitle: "Multi-LLM workflow orchestration platform.",
     description:
       "Built a full-stack app to intuitively chat with multiple LLMs, caching shared context to cut redundant token usage.",
     year: "2025",
@@ -46,7 +46,7 @@ export const projects: Project[] = [
   {
     slug: "underground-artist-ig-analytics",
     title: "IG Analytics Tool",
-    subtitle: "A&R-facing analytics tool for tracking 3,000+ underground artists.",
+    subtitle: "Track viral posts from potential artists.",
     description:
       "Automated daily scraping of +3k Instagram artists with robust retry logic, normalizing post, comment, and follower deltas into SQLite + streamlit dashboard.",
     year: "2024",

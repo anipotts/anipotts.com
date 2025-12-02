@@ -73,8 +73,7 @@ export default function ProjectCard({ project }: { project: Project }) {
                 className="text-xs font-bold uppercase tracking-widest text-accent-400 hover:text-accent-300 flex items-center gap-1"
                 onClick={(e) => e.stopPropagation()}
               >
-                details 
-                <span className="text-lg leading-none">→</span>
+                {/* details */}
               </Link>
             </div>
           </motion.div>

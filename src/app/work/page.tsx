@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { projects } from "@/data/projects";
 import FadeIn from "@/components/FadeIn";
+import ProjectCard from "@/components/ProjectCard";
 import { motion, AnimatePresence } from "framer-motion";
 
 const categories = ["all", "ai", "product", "quant", "music"];
@@ -39,7 +40,7 @@ export default function WorkPage() {
             </div>
           </FadeIn>
 
-          <div className="flex flex-col gap-12 mt-4">
+          <div className="flex flex-col gap-6 mt-4">
             <AnimatePresence mode="popLayout">
               {filteredProjects.map((project) => (
                 <motion.div
@@ -49,53 +50,8 @@ export default function WorkPage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.4 }}
-                  id={project.slug}
-                  className="group block"
                 >
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="md:col-span-2 flex flex-col gap-2">
-                      <div className="flex items-baseline justify-between md:hidden">
-                        <h2 className="text-xl font-bold text-gray-200 group-hover:text-accent-400 transition-colors">
-                          {project.title}
-                        </h2>
-                      </div>
-                      <h2 className="hidden md:block text-xl font-bold text-gray-200 group-hover:text-accent-400 transition-colors">
-                        {project.title}
-                      </h2>
-                      <p className="text-lg text-gray-300 font-medium">{project.subtitle}</p>
-                      <p className="text-gray-400 leading-relaxed max-w-2xl text-sm md:text-base mt-2">
-                        {project.description}
-                      </p>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {project.tags.map(tag => (
-                          <span key={tag} className="text-[10px] uppercase tracking-wider text-gray-500 border border-white/10 px-2 py-1 rounded-sm">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                      {project.links && (
-                        <div className="flex gap-4 mt-2 text-xs font-medium uppercase tracking-wide">
-                          {project.links.live && (
-                            <a href={project.links.live} target="_blank" rel="noopener noreferrer" className="text-accent-400 hover:underline hover:text-accent-300 transition-colors">
-                              view project ↗
-                            </a>
-                          )}
-                          {project.links.repo && (
-                            <a href={project.links.repo} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-gray-200 transition-colors">
-                              view code ↗
-                            </a>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <div className="md:col-span-1 flex flex-col md:items-end text-xs text-gray-500 uppercase tracking-wide gap-1 order-first md:order-last">
-                      <span>{project.year}</span>
-                      <span>{project.role}</span>
-                      <span className="flex items-center gap-2">
-                        {project.duration}
-                      </span>
-                    </div>
-                  </div>
+                  <ProjectCard project={project} />
                 </motion.div>
               ))}
             </AnimatePresence>
