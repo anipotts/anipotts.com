@@ -46,8 +46,8 @@ export default function SignalsBar() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-gray-600">market:</span>
-          <span className={marketStatus === "open" ? "text-signal-green flex items-center gap-2" : "text-gray-300"}>
-            {marketStatus === "open" && <StatusDot />}
+          <span className={`flex items-center gap-2 ${marketStatus === "open" ? "text-signal-green" : "text-gray-400"}`}>
+            <StatusDot color={marketStatus === "open" ? "green" : "red"} />
             {marketStatus}
           </span>
         </div>

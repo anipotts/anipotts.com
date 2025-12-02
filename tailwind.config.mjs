@@ -17,6 +17,7 @@ export default {
         },
         signal: {
           green: "#4ade80", // green-400
+          red: "#ef4444",   // red-500
         },
         card: "var(--card)",
         "card-foreground": "var(--card-foreground)",
