@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import StatusDot from "./StatusDot";
 
 export default function SignalsBar() {
   const [marketStatus, setMarketStatus] = useState<"open" | "closed">("closed");
@@ -45,7 +46,8 @@ export default function SignalsBar() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-gray-600">market:</span>
-          <span className={marketStatus === "open" ? "text-green-400" : "text-gray-300"}>
+          <span className={marketStatus === "open" ? "text-signal-green flex items-center gap-2" : "text-gray-300"}>
+            {marketStatus === "open" && <StatusDot />}
             {marketStatus}
           </span>
         </div>

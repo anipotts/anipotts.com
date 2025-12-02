@@ -1,4 +1,13 @@
 import FadeIn from "@/components/FadeIn";
+import StatusDot from "@/components/StatusDot";
+
+const socials = [
+  { name: "email", value: "anirudhpottammal@nyu.edu", href: "mailto:anirudhpottammal@nyu.edu", label: "reach out" },
+  { name: "x (twitter)", value: "@anirxdhp", href: "https://x.com/anirxdhp", label: "follow" },
+  { name: "github", value: "anipotts", href: "https://github.com/anipotts", label: "code" },
+  { name: "instagram", value: "@anirxdhp", href: "https://instagram.com/anirxdhp", label: "life" },
+  { name: "tiktok", value: "@anirxdhp", href: "https://tiktok.com/@anirxdhp", label: "content" },
+];
 
 export default function ConnectPage() {
   return (
@@ -9,33 +18,42 @@ export default function ConnectPage() {
             <h1 className="text-xs font-bold uppercase tracking-widest text-gray-500">connect</h1>
           </FadeIn>
         </div>
-        <div className="col-span-1 md:col-span-3 flex flex-col gap-8">
+        <div className="col-span-1 md:col-span-3 flex flex-col gap-12">
           <FadeIn delay={0.1}>
-            <p className="text-lg md:text-xl text-gray-300 leading-relaxed max-w-2xl">
-              If you're working with llm orchestration systems and think I can help, I'd love to hear from you.
-            </p>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-signal-green">
+                <StatusDot />
+                <span>open to work</span>
+              </div>
+              <p className="text-lg md:text-xl text-gray-300 leading-relaxed max-w-2xl">
+                If you're working with llm orchestration systems and think I can help, I'd love to hear from you.
+              </p>
+            </div>
           </FadeIn>
 
           <FadeIn delay={0.2}>
-            <div className="flex flex-col gap-8 mt-4">
-              <div className="flex flex-col gap-2">
-                <span className="text-xs uppercase tracking-widest text-gray-500">email</span>
-                <a href="mailto:anirudhpottammal@nyu.edu" className="text-lg text-gray-200 hover:text-accent-400 transition-colors">
-                  anirudhpottammal@nyu.edu
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {socials.map((social) => (
+                <a 
+                  key={social.name}
+                  href={social.href}
+                  target={social.name === "email" ? undefined : "_blank"}
+                  rel={social.name === "email" ? undefined : "noopener noreferrer"}
+                  className="group flex flex-col gap-1 p-4 border border-white/5 rounded-sm bg-white/5 hover:bg-white/10 hover:border-white/10 transition-all duration-300"
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs uppercase tracking-widest text-gray-500 group-hover:text-accent-400 transition-colors">
+                      {social.name}
+                    </span>
+                    <span className="text-xs text-gray-600 group-hover:text-gray-400 transition-colors">
+                      ↗
+                    </span>
+                  </div>
+                  <span className="text-sm text-gray-200 font-medium">
+                    {social.value}
+                  </span>
                 </a>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <span className="text-xs uppercase tracking-widest text-gray-500">socials</span>
-                <div className="flex gap-6 text-lg">
-                  <a href="https://x.com/anirxdhp" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-accent-400 transition-colors">
-                    x → @anirxdhp
-                  </a>
-                  <a href="https://github.com/anipotts" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-accent-400 transition-colors">
-                    github → anipotts
-                  </a>
-                </div>
-              </div>
+              ))}
             </div>
           </FadeIn>
         </div>

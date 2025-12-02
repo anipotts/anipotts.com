@@ -15,14 +15,26 @@ export default {
           DEFAULT: "#a78bfa", // lavender-400
           400: "#a78bfa",
         },
+        signal: {
+          green: "#4ade80", // green-400
+        },
         card: "var(--card)",
         "card-foreground": "var(--card-foreground)",
       },
       fontFamily: {
-        sans: ["var(--font-mono)", "monospace"], // Override sans to use mono
+        sans: ["var(--font-mono)", "monospace"],
         mono: ["var(--font-mono)", "monospace"],
-        heading: ["var(--font-mono)", "monospace"], // Override heading too
+        heading: ["var(--font-mono)", "monospace"],
       },
+      animation: {
+        'signal-pulse': 'signal-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+      },
+      keyframes: {
+        'signal-pulse': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.4' },
+        }
+      }
     },
   },
   plugins: [
