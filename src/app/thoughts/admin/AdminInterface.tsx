@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { FaCheck } from "react-icons/fa";
-import { upsertThought, deleteThought, logout, getAdminThoughts } from "../actions";
+import { upsertThought, deleteThought, getAdminThoughts } from "../actions";
 import Editor from "@/components/Editor";
 import posthog from "posthog-js";
+import { useAdmin } from "@/context/AdminContext";
 
 export default function AdminInterface() {
+  const { logout } = useAdmin();
   const [thoughts, setThoughts] = useState<any[]>([]);
   const [editing, setEditing] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -65,14 +67,6 @@ export default function AdminInterface() {
     }
   };
 
-  const handleLogout = async () => {
-    // Capture logout event and reset PostHog
-    posthog.capture('admin_logout');
-    posthog.reset();
-    await logout();
-    window.location.reload();
-  };
-
   const startNew = () => {
     setEditing({
       title: "",
@@ -85,10 +79,10 @@ export default function AdminInterface() {
   };
 
   return (
-    <div className="flex flex-col gap-8 pb-20">
+    <div className="flex flex-col gap-8">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold font-heading text-gray-100">Admin</h1>
-        <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-gray-300">
+        <button onClick={() => logout()} className="text-sm text-gray-500 hover:text-gray-300">
           Logout
         </button>
       </div>

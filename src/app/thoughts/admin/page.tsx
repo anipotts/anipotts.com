@@ -21,5 +21,9 @@ export default async function AdminPage() {
     return <LoginForm />;
   }
 
-  return <AdminInterface />;
+  return (
+    <div className="pb-20">
+      <AdminInterface />
+    </div>
+  );
 }

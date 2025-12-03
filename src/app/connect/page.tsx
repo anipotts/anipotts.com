@@ -5,10 +5,10 @@ import posthog from "posthog-js";
 
 const socials = [
   { name: "email", value: "anirudhpottammal@nyu.edu", href: "mailto:anirudhpottammal@nyu.edu", label: "reach out" },
-  { name: "x (twitter)", value: "@anirxdhp", href: "https://x.com/anirxdhp", label: "follow" },
+  { name: "x (twitter)", value: "@anirxdhp", href: "https://x.com/anipottsbuilds", label: "follow" },
   { name: "github", value: "anipotts", href: "https://github.com/anipotts", label: "code" },
-  { name: "instagram", value: "@anirxdhp", href: "https://instagram.com/anirxdhp", label: "life" },
-  { name: "tiktok", value: "@anirxdhp", href: "https://tiktok.com/@anirxdhp", label: "content" },
+  { name: "instagram", value: "@anirxdhp", href: "https://instagram.com/ani_potts", label: "life" },
+  { name: "tiktok", value: "@anirxdhp", href: "https://tiktok.com/@anipots", label: "content" },
 ];
 
 const handleSocialClick = (social: typeof socials[0]) => {
@@ -35,7 +35,7 @@ export default function ConnectPage() {
                 <span>open to work</span>
               </div>
               <p className="text-lg md:text-xl text-gray-300 leading-relaxed max-w-2xl">
-                If you're working with llm orchestration systems and think I can help, I'd love to hear from you.
+                If you're working with LLM orchestration systems and think I can help, I'd love to hear from you.
               </p>
             </div>
           </FadeIn>
