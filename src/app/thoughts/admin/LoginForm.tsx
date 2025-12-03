@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { login } from "../actions";
+import posthog from "posthog-js";
 
 export default function LoginForm() {
   const [password, setPassword] = useState("");
@@ -8,10 +9,23 @@ export default function LoginForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Capture login attempt
+    posthog.capture('admin_login_attempted');
+
     const res = await login(password);
     if (res.success) {
+      // Identify admin user on successful login
+      posthog.identify('admin_user', {
+        role: 'admin',
+      });
+      posthog.capture('admin_login_success');
       window.location.reload();
     } else {
+      // Capture failed login attempt
+      posthog.capture('admin_login_failed', {
+        error: res.error || "Unknown error",
+      });
       setError(res.error || "Error");
     }
   };

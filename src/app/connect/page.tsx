@@ -1,4 +1,7 @@
+"use client";
+
 import FadeIn from "@/components/FadeIn";
+import posthog from "posthog-js";
 
 const socials = [
   { name: "email", value: "anirudhpottammal@nyu.edu", href: "mailto:anirudhpottammal@nyu.edu", label: "reach out" },
@@ -7,6 +10,14 @@ const socials = [
   { name: "instagram", value: "@anirxdhp", href: "https://instagram.com/anirxdhp", label: "life" },
   { name: "tiktok", value: "@anirxdhp", href: "https://tiktok.com/@anirxdhp", label: "content" },
 ];
+
+const handleSocialClick = (social: typeof socials[0]) => {
+  posthog.capture('social_link_clicked', {
+    platform: social.name,
+    link_value: social.value,
+    href: social.href,
+  });
+};
 
 export default function ConnectPage() {
   return (
@@ -32,12 +43,13 @@ export default function ConnectPage() {
           <FadeIn delay={0.2}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {socials.map((social) => (
-                <a 
+                <a
                   key={social.name}
                   href={social.href}
                   target={social.name === "email" ? undefined : "_blank"}
                   rel={social.name === "email" ? undefined : "noopener noreferrer"}
                   className="group flex flex-col gap-1 p-4 border border-white/5 rounded-sm bg-white/5 hover:bg-white/10 hover:border-white/10 transition-all duration-300"
+                  onClick={() => handleSocialClick(social)}
                 >
                   <div className="flex justify-between items-center">
                     <span className="text-xs uppercase tracking-widest text-gray-500 group-hover:text-accent-400 transition-colors">

@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import ReactMarkdown from "react-markdown";
 import FadeIn from "@/components/FadeIn";
+import { getPostHogClient } from "@/lib/posthog-server";
+import { headers } from "next/headers";
 
 export const revalidate = 60;
 
@@ -20,6 +22,31 @@ export default async function ThoughtPage({ params }: { params: Promise<{ slug: 
   const { slug } = await params;
   const thought = await getThought(slug);
 
+  // Track thought_read event on the server
+  if (thought) {
+    try {
+      const headersList = await headers();
+      const posthog = getPostHogClient();
+      // Use an anonymous distinct ID based on IP or fallback
+      const forwardedFor = headersList.get('x-forwarded-for');
+      const ip = forwardedFor ? forwardedFor.split(',')[0] : 'anonymous';
+      const distinctId = `anon_${ip}`;
+
+      posthog.capture({
+        distinctId: distinctId,
+        event: 'thought_read',
+        properties: {
+          thought_slug: thought.slug,
+          thought_title: thought.title,
+          thought_tags: thought.tags,
+          $current_url: `/thoughts/${slug}`,
+        },
+      });
+    } catch (error) {
+      console.error('PostHog capture error:', error);
+    }
+  }
+
   if (!thought) {
     if (!supabase) {
        return (
@@ -28,7 +55,7 @@ export default async function ThoughtPage({ params }: { params: Promise<{ slug: 
             <div className="col-span-1">
               <FadeIn>
                 <Link href="/thoughts" className="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-accent-400 transition-colors">
-                  ← back
+                  back
                 </Link>
               </FadeIn>
             </div>
@@ -52,7 +79,7 @@ export default async function ThoughtPage({ params }: { params: Promise<{ slug: 
         <div className="col-span-1 flex flex-col gap-4">
           <FadeIn>
             <Link href="/thoughts" className="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-accent-400 transition-colors">
-              ← back
+              back
             </Link>
           </FadeIn>
           <FadeIn delay={0.1}>

@@ -5,6 +5,7 @@ import { projects } from "@/data/projects";
 import FadeIn from "@/components/FadeIn";
 import ProjectCard from "@/components/ProjectCard";
 import { motion, AnimatePresence } from "framer-motion";
+import posthog from "posthog-js";
 
 const categories = ["all", "ai", "product", "quant", "music"];
 
@@ -12,6 +13,14 @@ export default function WorkPage() {
   const [filter, setFilter] = useState("all");
 
   const filteredProjects = projects.filter(p => filter === "all" || p.category === filter);
+
+  const handleCategoryFilter = (category: string) => {
+    setFilter(category);
+    posthog.capture('work_category_filtered', {
+      category: category,
+      results_count: projects.filter(p => category === "all" || p.category === category).length,
+    });
+  };
 
   return (
     <div className="flex flex-col gap-12 pb-20">
@@ -27,7 +36,7 @@ export default function WorkPage() {
               {categories.map(cat => (
                 <button
                   key={cat}
-                  onClick={() => setFilter(cat)}
+                  onClick={() => handleCategoryFilter(cat)}
                   className={`px-3 py-1 text-[10px] uppercase tracking-wider rounded-sm border transition-all duration-300 ${
                     filter === cat 
                       ? "border-accent-400 text-accent-400 bg-accent-400/10" 

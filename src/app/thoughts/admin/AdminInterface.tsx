@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { FaCheck } from "react-icons/fa";
 import { upsertThought, deleteThought, logout, getAdminThoughts } from "../actions";
 import Editor from "@/components/Editor";
+import posthog from "posthog-js";
 
 export default function AdminInterface() {
   const [thoughts, setThoughts] = useState<any[]>([]);
@@ -24,23 +25,52 @@ export default function AdminInterface() {
     setLoading(true);
     try {
       await upsertThought(editing);
+
+      // Capture thought saved event
+      posthog.capture('thought_saved', {
+        thought_title: editing.title,
+        thought_slug: editing.slug,
+        is_new: !editing.id,
+        is_published: editing.published,
+      });
+
       setEditing(null);
       fetchThoughts();
     } catch (err) {
+      // Capture error
+      posthog.captureException(err);
       alert("Error saving");
       console.error(err);
     }
     setLoading(false);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, thought: any) => {
     if (!confirm("Delete this thought?")) return;
     try {
       await deleteThought(id);
+
+      // Capture thought deleted event
+      posthog.capture('thought_deleted', {
+        thought_id: id,
+        thought_title: thought.title,
+        thought_slug: thought.slug,
+      });
+
       fetchThoughts();
     } catch (err) {
+      // Capture error
+      posthog.captureException(err);
       alert("Error deleting");
     }
+  };
+
+  const handleLogout = async () => {
+    // Capture logout event and reset PostHog
+    posthog.capture('admin_logout');
+    posthog.reset();
+    await logout();
+    window.location.reload();
   };
 
   const startNew = () => {
@@ -58,7 +88,7 @@ export default function AdminInterface() {
     <div className="flex flex-col gap-8 pb-20">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold font-heading text-gray-100">Admin</h1>
-        <button onClick={() => logout().then(() => window.location.reload())} className="text-sm text-gray-500 hover:text-gray-300">
+        <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-gray-300">
           Logout
         </button>
       </div>
@@ -166,7 +196,7 @@ export default function AdminInterface() {
             </div>
             <div className="flex gap-4 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
               <button onClick={() => setEditing(thought)} className="text-gray-400 hover:text-accent-400 transition-colors">Edit</button>
-              <button onClick={() => handleDelete(thought.id)} className="text-gray-400 hover:text-red-400 transition-colors">Delete</button>
+              <button onClick={() => handleDelete(thought.id, thought)} className="text-gray-400 hover:text-red-400 transition-colors">Delete</button>
             </div>
           </div>
         ))}

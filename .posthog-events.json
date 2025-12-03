@@ -1,0 +1,62 @@
+[
+  {
+    "event_name": "project_card_clicked",
+    "event_description": "User clicked to expand/collapse a project card to view details",
+    "file_path": "src/components/ProjectCard.tsx"
+  },
+  {
+    "event_name": "work_category_filtered",
+    "event_description": "User filtered projects by category (all, ai, product, quant, music)",
+    "file_path": "src/app/work/page.tsx"
+  },
+  {
+    "event_name": "social_link_clicked",
+    "event_description": "User clicked on a social/contact link (email, twitter, github, instagram, tiktok)",
+    "file_path": "src/app/connect/page.tsx"
+  },
+  {
+    "event_name": "thought_clicked",
+    "event_description": "User clicked on a blog post/thought from the list to read it",
+    "file_path": "src/app/thoughts/page.tsx"
+  },
+  {
+    "event_name": "thought_read",
+    "event_description": "User viewed a specific blog post/thought detail page (conversion event for content engagement)",
+    "file_path": "src/app/thoughts/[slug]/page.tsx"
+  },
+  {
+    "event_name": "admin_login_attempted",
+    "event_description": "Admin user attempted to login to the admin interface",
+    "file_path": "src/app/thoughts/admin/LoginForm.tsx"
+  },
+  {
+    "event_name": "admin_login_failed",
+    "event_description": "Admin login attempt failed with invalid credentials (potential security/churn indicator)",
+    "file_path": "src/app/thoughts/admin/LoginForm.tsx"
+  },
+  {
+    "event_name": "thought_saved",
+    "event_description": "Admin saved/created a new thought/blog post",
+    "file_path": "src/app/thoughts/admin/AdminInterface.tsx"
+  },
+  {
+    "event_name": "thought_deleted",
+    "event_description": "Admin deleted a thought/blog post",
+    "file_path": "src/app/thoughts/admin/AdminInterface.tsx"
+  },
+  {
+    "event_name": "company_link_clicked",
+    "event_description": "User clicked on a company link (PGI, Atlantic, Range Media) in the about section",
+    "file_path": "src/app/page.tsx"
+  },
+  {
+    "event_name": "nav_link_clicked",
+    "event_description": "User clicked a navigation link in the navbar",
+    "file_path": "src/components/Navbar.tsx"
+  },
+  {
+    "event_name": "admin_logout",
+    "event_description": "Admin user logged out of the admin interface",
+    "file_path": "src/app/thoughts/admin/AdminInterface.tsx"
+  }
+]

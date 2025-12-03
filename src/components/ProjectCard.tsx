@@ -5,14 +5,27 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Project } from "@/data/projects";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react"; // We might not have lucide-react, I'll use a simple SVG or text if needed.
+import posthog from "posthog-js";
 
 export default function ProjectCard({ project }: { project: Project }) {
   const [isOpen, setIsOpen] = useState(false);
 
+  const handleCardClick = () => {
+    const newOpenState = !isOpen;
+    setIsOpen(newOpenState);
+
+    posthog.capture('project_card_clicked', {
+      project_title: project.title,
+      project_slug: project.slug,
+      project_category: project.category,
+      action: newOpenState ? 'expanded' : 'collapsed',
+    });
+  };
+
   return (
     <motion.div
       layout
-      onClick={() => setIsOpen(!isOpen)}
+      onClick={handleCardClick}
       className="group w-full cursor-pointer rounded-lg border border-white/5 bg-white/5 p-6 transition-all duration-300 hover:bg-white/10 hover:border-white/10 hover:shadow-lg hover:shadow-black/20"
       initial={{ borderRadius: 8 }}
     >

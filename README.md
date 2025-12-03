@@ -1,6 +1,4 @@
-# Ani Potts - Minimal Portfolio
-
-A production-ready, dark, ultra-minimal personal portfolio website built with Next.js 15 (App Router), Tailwind CSS, Framer Motion, and Supabase.
+# Ani Potts 
 
 ## Quick Start
 
