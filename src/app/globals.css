@@ -38,6 +38,17 @@ body {
   background: #555;
 }
 
+/* Hide scrollbar on mobile devices */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    display: none;
+  }
+  body {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+  }
+}
+
 /* Custom Quill Styles for Admin Editor */
 .ql-toolbar.ql-snow {
   border: none !important;
