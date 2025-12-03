@@ -27,7 +27,7 @@ export default function RootLayout({
       <PostHogProvider>
         <body className="antialiased min-h-screen flex flex-col items-center bg-background text-foreground selection:bg-accent-400/20 selection:text-accent-400 font-mono">
           <div className="w-full min-h-screen p-8 md:p-16 flex justify-center">
-            <div className="w-full max-w-4xl bg-gray-950 border border-white/10 rounded-2xl shadow-2xl flex flex-col relative">
+            <div className="w-full max-w-4xl bg-gray-950/50 border border-white/10 rounded-2xl shadow-2xl flex flex-col relative">
               <div className="px-6 md:px-16 flex flex-col min-h-[calc(100vh-4rem-2px)]">
                 <Navbar />
                 <main className="flex-grow w-full">
