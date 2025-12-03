@@ -28,7 +28,7 @@ export default function Navbar() {
         ani potts
       </Link>
       
-      <div className="flex flex-wrap gap-6 text-sm font-medium tracking-wide">
+      <div className="flex w-full justify-between items-center md:flex-wrap gap-6 text-sm font-medium tracking-wide">
         {navItems.map((item) => {
           const isActive = pathname === item.path;
           return (

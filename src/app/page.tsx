@@ -42,7 +42,7 @@ export default async function Home() {
           </FadeIn>
           <FadeIn delay={0.2}>
             <p className="text-lg md:text-xl text-gray-400 leading-relaxed">
-              i'm a 21 y/o SWE based in NYC, building minimal interfaces for orchestration systems.
+              i'm a 21 y/o SWE based in NYC, who builds minimal interfaces for orchestrating complex systems.
             </p>
           </FadeIn>
         </div>
