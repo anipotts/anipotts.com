@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { upsertThought, deleteThought, logout, getAdminThoughts } from "../actions";
+import Editor from "@/components/Editor";
 
 export default function AdminInterface() {
   const [thoughts, setThoughts] = useState<any[]>([]);
@@ -62,85 +63,109 @@ export default function AdminInterface() {
       </div>
 
       {editing ? (
-        <form onSubmit={handleSave} className="flex flex-col gap-4 bg-white/5 p-6 rounded-lg border border-white/10">
-          <h2 className="text-xl font-bold text-gray-200">{editing.id ? "Edit" : "New"} Thought</h2>
+        <form onSubmit={handleSave} className="flex flex-col gap-6 bg-white/5 p-8 rounded-xl border border-white/10 shadow-2xl">
+          <div className="flex justify-between items-center border-b border-white/10 pb-4">
+            <h2 className="text-xl font-bold text-gray-200">{editing.id ? "Edit" : "New"} Thought</h2>
+            <div className="flex gap-4">
+              <button type="button" onClick={() => setEditing(null)} className="text-gray-400 hover:text-gray-200 text-sm">
+                Cancel
+              </button>
+              <button type="submit" disabled={loading} className="bg-accent-400 text-black px-6 py-2 rounded-md font-bold hover:bg-accent-400/90 text-sm shadow-lg shadow-accent-400/20 transition-all">
+                {loading ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              className="bg-black/50 border border-white/10 p-2 rounded text-gray-200"
-              placeholder="Title"
-              value={editing.title}
-              onChange={e => setEditing({ ...editing, title: e.target.value, slug: !editing.id ? e.target.value.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '') : editing.slug })}
-            />
-            <input
-              className="bg-black/50 border border-white/10 p-2 rounded text-gray-200"
-              placeholder="Slug"
-              value={editing.slug}
-              onChange={e => setEditing({ ...editing, slug: e.target.value })}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex flex-col gap-2">
+              <label className="text-xs uppercase tracking-widest text-gray-500">Title</label>
+              <input
+                className="bg-black/20 border border-white/10 p-3 rounded-lg text-gray-200 focus:border-accent-400/50 focus:outline-none transition-colors"
+                placeholder="Enter title..."
+                value={editing.title}
+                onChange={e => setEditing({ ...editing, title: e.target.value, slug: !editing.id ? e.target.value.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '') : editing.slug })}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-xs uppercase tracking-widest text-gray-500">Slug</label>
+              <input
+                className="bg-black/20 border border-white/10 p-3 rounded-lg text-gray-200 focus:border-accent-400/50 focus:outline-none transition-colors font-mono text-sm"
+                placeholder="url-slug"
+                value={editing.slug}
+                onChange={e => setEditing({ ...editing, slug: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-xs uppercase tracking-widest text-gray-500">Summary</label>
+            <textarea
+              className="bg-black/20 border border-white/10 p-3 rounded-lg text-gray-200 h-24 focus:border-accent-400/50 focus:outline-none transition-colors resize-none"
+              placeholder="Brief summary for the list view..."
+              value={editing.summary}
+              onChange={e => setEditing({ ...editing, summary: e.target.value })}
             />
           </div>
 
-          <textarea
-            className="bg-black/50 border border-white/10 p-2 rounded text-gray-200 h-20"
-            placeholder="Summary"
-            value={editing.summary}
-            onChange={e => setEditing({ ...editing, summary: e.target.value })}
-          />
-
-          <textarea
-            className="bg-black/50 border border-white/10 p-2 rounded text-gray-200 h-64 font-mono text-sm"
-            placeholder="Content (Markdown)"
-            value={editing.content}
-            onChange={e => setEditing({ ...editing, content: e.target.value })}
-          />
-
-          <input
-            className="bg-black/50 border border-white/10 p-2 rounded text-gray-200"
-            placeholder="Tags (comma separated)"
-            value={Array.isArray(editing.tags) ? editing.tags.join(", ") : editing.tags}
-            onChange={e => setEditing({ ...editing, tags: e.target.value.split(",").map((t: string) => t.trim()) })}
-          />
-
-          <label className="flex items-center gap-2 text-gray-300">
-            <input
-              type="checkbox"
-              checked={editing.published}
-              onChange={e => setEditing({ ...editing, published: e.target.checked })}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs uppercase tracking-widest text-gray-500">Content</label>
+            <Editor 
+              value={editing.content} 
+              onChange={(val) => setEditing({ ...editing, content: val })} 
             />
-            Published
-          </label>
-
-          <div className="flex gap-4">
-            <button type="submit" disabled={loading} className="bg-accent-400 text-black px-4 py-2 rounded font-bold hover:bg-accent-400/90">
-              {loading ? "Saving..." : "Save"}
-            </button>
-            <button type="button" onClick={() => setEditing(null)} className="text-gray-400 hover:text-gray-200">
-              Cancel
-            </button>
           </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+            <div className="flex flex-col gap-2">
+              <label className="text-xs uppercase tracking-widest text-gray-500">Tags</label>
+              <input
+                className="bg-black/20 border border-white/10 p-3 rounded-lg text-gray-200 focus:border-accent-400/50 focus:outline-none transition-colors"
+                placeholder="ai, engineering, life"
+                value={Array.isArray(editing.tags) ? editing.tags.join(", ") : editing.tags}
+                onChange={e => setEditing({ ...editing, tags: e.target.value.split(",").map((t: string) => t.trim()) })}
+              />
+            </div>
+            
+            <label className="flex items-center gap-3 text-gray-300 cursor-pointer p-3 rounded-lg hover:bg-white/5 transition-colors self-end">
+              <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${editing.published ? "bg-accent-400 border-accent-400" : "border-gray-500"}`}>
+                {editing.published && <span className="text-black text-xs font-bold">✓</span>}
+              </div>
+              <input
+                type="checkbox"
+                className="hidden"
+                checked={editing.published}
+                onChange={e => setEditing({ ...editing, published: e.target.checked })}
+              />
+              <span className="text-sm font-medium">Publish to site</span>
+            </label>
+          </div>
+
         </form>
       ) : (
-        <button onClick={startNew} className="bg-white/10 text-gray-200 px-4 py-2 rounded hover:bg-white/20 self-start">
-          + New Thought
+        <button onClick={startNew} className="bg-white/10 text-gray-200 px-6 py-3 rounded-lg hover:bg-white/20 self-start flex items-center gap-2 transition-all hover:shadow-lg">
+          <span className="text-xl leading-none">+</span>
+          <span className="font-medium">New Thought</span>
         </button>
       )}
 
       <div className="flex flex-col gap-4">
         {thoughts.map(thought => (
-          <div key={thought.id} className="flex items-center justify-between p-4 bg-white/5 rounded border border-white/5">
-            <div>
-              <h3 className="font-bold text-gray-200">{thought.title}</h3>
-              <div className="flex gap-2 text-xs text-gray-500">
+          <div key={thought.id} className="group flex items-center justify-between p-6 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-all">
+            <div className="flex flex-col gap-1">
+              <h3 className="font-bold text-gray-200 text-lg group-hover:text-accent-400 transition-colors">{thought.title}</h3>
+              <div className="flex gap-3 text-xs text-gray-500 font-mono items-center">
                 <span>{thought.slug}</span>
-                <span>•</span>
+                <span className="w-1 h-1 rounded-full bg-gray-700"></span>
                 <span className={thought.published ? "text-green-400" : "text-yellow-400"}>
                   {thought.published ? "Published" : "Draft"}
                 </span>
+                <span className="w-1 h-1 rounded-full bg-gray-700"></span>
+                <span>{new Date(thought.created_at).toLocaleDateString()}</span>
               </div>
             </div>
-            <div className="flex gap-4 text-sm">
-              <button onClick={() => setEditing(thought)} className="text-accent-400 hover:underline">Edit</button>
-              <button onClick={() => handleDelete(thought.id)} className="text-red-400 hover:underline">Delete</button>
+            <div className="flex gap-4 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={() => setEditing(thought)} className="text-gray-400 hover:text-accent-400 transition-colors">Edit</button>
+              <button onClick={() => handleDelete(thought.id)} className="text-gray-400 hover:text-red-400 transition-colors">Delete</button>
             </div>
           </div>
         ))}
