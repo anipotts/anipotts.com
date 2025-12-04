@@ -70,7 +70,7 @@ lineColor="rgba(167, 139, 250, 0.96)"
                     </span>
                   </div>
                   <div className="text-[10px] md:text-xs text-gray-600 font-mono">
-                    zsh • v1.0.0
+                    zsh • v3.0.1
                   </div>
                 </div>
 

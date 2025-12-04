@@ -33,9 +33,14 @@ export default function AdminLoginModal() {
   return (
     <div className="w-full max-w-md bg-black/80 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl">
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2 text-center">
-          <h1 className="text-2xl font-bold font-heading text-gray-100">System Access</h1>
-          <p className="text-sm text-gray-500">Enter authorization code to proceed.</p>
+        <div className="flex flex-col gap-4 text-center border-b border-white/10 pb-6 mb-2">
+          <div className="flex flex-col gap-1 font-mono text-xs text-gray-500 uppercase tracking-widest">
+            <span>System Access</span>
+            <span>ani@nyc</span>
+          </div>
+          <div className="font-mono text-[10px] text-gray-600">
+            uptime: {Math.floor(process.uptime() || 0)}s
+          </div>
         </div>
         
         <div className="flex flex-col gap-2">

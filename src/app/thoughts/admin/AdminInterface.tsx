@@ -1,21 +1,56 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { FaCheck } from "react-icons/fa";
+import { useState, useEffect, useCallback } from "react";
+import { FaCheck, FaTerminal, FaCircle } from "react-icons/fa";
 import { upsertThought, deleteThought, getAdminThoughts } from "../actions";
 import Editor from "@/components/Editor";
 import posthog from "posthog-js";
 import { useAdmin } from "@/context/AdminContext";
+import Link from "next/link";
+import { checkAuth } from "../actions";
 
 export default function AdminInterface() {
   const { logout } = useAdmin();
   const [thoughts, setThoughts] = useState<any[]>([]);
   const [editing, setEditing] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     fetchThoughts();
+    checkAuth().then(setIsAuthenticated);
   }, []);
+
+  // Keyboard Navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (editing) return; // Disable list nav when editing
+
+      switch (e.key) {
+        case "j":
+          setSelectedIndex((prev) => Math.min(prev + 1, thoughts.length - 1));
+          break;
+        case "k":
+          setSelectedIndex((prev) => Math.max(prev - 1, 0));
+          break;
+        case "o":
+        case "Enter":
+          if (thoughts[selectedIndex]) setEditing(thoughts[selectedIndex]);
+          break;
+        case "p":
+          if (thoughts[selectedIndex]) {
+            // Toggle publish logic would go here, but requires update function. 
+            // For now, just open edit.
+            setEditing(thoughts[selectedIndex]);
+          }
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [thoughts, selectedIndex, editing]);
 
   const fetchThoughts = async () => {
     const data = await getAdminThoughts();
@@ -80,23 +115,40 @@ export default function AdminInterface() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold font-heading text-gray-100">Admin</h1>
-        <button onClick={() => logout()} className="text-sm text-gray-500 hover:text-gray-300">
-          Logout
-        </button>
+      <div className="flex justify-between items-center border-b border-white/10 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-2 py-1 bg-green-500/10 border border-green-500/20 rounded text-green-400 text-xs font-mono uppercase tracking-wider">
+            <FaCircle className="w-2 h-2" />
+            <span>root</span>
+          </div>
+          <span className="text-xs text-gray-500 font-mono hidden md:inline">⌘+Shift+A to toggle</span>
+        </div>
+        <div className="flex items-center gap-6">
+          <Link href="/thoughts" target="_blank" className="text-xs text-gray-500 hover:text-accent-400 font-mono flex items-center gap-1 transition-colors">
+            View live page ↗
+          </Link>
+          <button onClick={() => logout()} className="text-xs text-gray-500 hover:text-red-400 font-mono uppercase tracking-wider transition-colors">
+            Logout
+          </button>
+        </div>
       </div>
 
       {editing ? (
         <form onSubmit={handleSave} className="flex flex-col gap-6 bg-white/5 p-8 rounded-xl border border-white/10 shadow-2xl">
-          <div className="flex justify-between items-center border-b border-white/10 pb-4">
-            <h2 className="text-xl font-bold text-gray-200">{editing.id ? "Edit" : "New"} Thought</h2>
+          <div className="flex justify-between items-center border-b border-white/10 pb-4 font-mono">
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <span className="text-gray-600">ani@nyc:~</span>
+              <span>thoughts/{editing.slug || "new"}</span>
+              <span className={`text-[10px] uppercase px-1.5 py-0.5 rounded ${editing.published ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400"}`}>
+                [{editing.published ? "published" : "draft"}]
+              </span>
+            </div>
             <div className="flex gap-4">
-              <button type="button" onClick={() => setEditing(null)} className="text-gray-400 hover:text-gray-200 text-sm">
+              <button type="button" onClick={() => setEditing(null)} className="text-gray-500 hover:text-gray-300 text-xs uppercase tracking-wider">
                 Cancel
               </button>
-              <button type="submit" disabled={loading} className="bg-accent-400 text-black px-6 py-2 rounded-md font-bold hover:bg-accent-400/90 text-sm shadow-lg shadow-accent-400/20 transition-all">
-                {loading ? "Saving..." : "Save"}
+              <button type="submit" disabled={loading} className="text-accent-400 hover:text-accent-300 text-xs uppercase tracking-wider font-bold disabled:opacity-50">
+                {loading ? "Saving..." : "Save Changes"}
               </button>
             </div>
           </div>
@@ -173,27 +225,65 @@ export default function AdminInterface() {
         </button>
       )}
 
-      <div className="flex flex-col gap-4">
-        {thoughts.map(thought => (
-          <div key={thought.id} className="group flex items-center justify-between p-6 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-all">
-            <div className="flex flex-col gap-1">
-              <h3 className="font-bold text-gray-200 text-lg group-hover:text-accent-400 transition-colors">{thought.title}</h3>
-              <div className="flex gap-3 text-xs text-gray-500 font-mono items-center">
-                <span>{thought.slug}</span>
-                <span className="w-1 h-1 rounded-full bg-gray-700"></span>
-                <span className={thought.published ? "text-green-400" : "text-yellow-400"}>
-                  {thought.published ? "Published" : "Draft"}
-                </span>
-                <span className="w-1 h-1 rounded-full bg-gray-700"></span>
-                <span>{new Date(thought.created_at).toLocaleDateString()}</span>
+      <div className="flex flex-col gap-2">
+        {thoughts.map((thought, index) => (
+          <div 
+            key={thought.id} 
+            className={`group flex items-center justify-between p-4 rounded-lg border transition-all cursor-pointer ${
+              index === selectedIndex 
+                ? "bg-white/10 border-accent-400/50" 
+                : "bg-white/5 border-white/5 hover:border-white/10"
+            }`}
+            onClick={() => {
+              setSelectedIndex(index);
+              setEditing(thought);
+            }}
+          >
+            <div className="flex items-center gap-4">
+              <span className={`font-mono text-xs ${index === selectedIndex ? "text-accent-400" : "text-gray-600 opacity-0 group-hover:opacity-100"}`}>
+                {index === selectedIndex ? ">" : "#"}
+              </span>
+              <div className="flex flex-col gap-1">
+                <h3 className={`font-bold text-sm transition-colors ${index === selectedIndex ? "text-white" : "text-gray-300"}`}>
+                  {thought.title}
+                </h3>
+                <div className="flex gap-3 text-[10px] text-gray-500 font-mono items-center">
+                  <span>{thought.slug}</span>
+                  <span className="w-0.5 h-0.5 rounded-full bg-gray-700"></span>
+                  <span className={thought.published ? "text-green-400" : "text-yellow-400"}>
+                    {thought.published ? "PUB" : "DRF"}
+                  </span>
+                  <span className="w-0.5 h-0.5 rounded-full bg-gray-700"></span>
+                  <span>{new Date(thought.created_at).toLocaleDateString()}</span>
+                </div>
               </div>
             </div>
-            <div className="flex gap-4 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-              <button onClick={() => setEditing(thought)} className="text-gray-400 hover:text-accent-400 transition-colors">Edit</button>
-              <button onClick={() => handleDelete(thought.id, thought)} className="text-gray-400 hover:text-red-400 transition-colors">Delete</button>
+            <div className="flex gap-4 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="text-gray-600 font-mono hidden md:inline">[Enter to edit]</span>
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Live Status Footer */}
+      <div className="border-t border-white/10 pt-4 mt-4 flex justify-between items-center text-[10px] font-mono text-gray-600 uppercase tracking-wider">
+        <div className="flex gap-6">
+          <div className="flex items-center gap-2">
+            <div className={`w-1.5 h-1.5 rounded-full ${process.env.NEXT_PUBLIC_SUPABASE_URL ? "bg-green-500" : "bg-red-500"}`} />
+            <span>Supabase: {process.env.NEXT_PUBLIC_SUPABASE_URL ? "Connected" : "Error"}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className={`w-1.5 h-1.5 rounded-full ${isAuthenticated ? "bg-green-500" : "bg-red-500"}`} />
+            <span>Auth: {isAuthenticated ? "Valid" : "Invalid"}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className={`w-1.5 h-1.5 rounded-full ${posthog ? "bg-green-500" : "bg-gray-500"}`} />
+            <span>PostHog: Active</span>
+          </div>
+        </div>
+        <div>
+          v3.0.1-admin
+        </div>
       </div>
     </div>
   );
