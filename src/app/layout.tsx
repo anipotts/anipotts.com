@@ -77,6 +77,18 @@ export default function RootLayout({
                   {/* Subtle Grid Overlay inside terminal body */}
                   <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none opacity-20" />
                 </div>
+
+                {/* Terminal Status Bar */}
+                <div className="bg-white/5 border-t border-white/5 px-4 py-1.5 flex justify-between items-center text-[10px] md:text-xs font-mono text-gray-500 select-none">
+                  <div className="flex gap-4">
+                    <span>NORMAL</span>
+                    <span className="hidden md:inline">git:(main)</span>
+                  </div>
+                  <div className="flex gap-4">
+                    <span className="hidden md:inline">utf-8</span>
+                    <span>100%</span>
+                  </div>
+                </div>
               </div>
             </div>
             
