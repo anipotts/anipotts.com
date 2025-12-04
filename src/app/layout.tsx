@@ -71,10 +71,6 @@ export default function RootLayout({
 
                   {/* Footer as System Status */}
                   <div className="relative z-10 mt-auto pt-12">
-                    <div className="border-t border-white/5 pt-4 mb-8 flex justify-between items-center text-[10px] uppercase tracking-widest text-gray-600">
-                      <span>status: online</span>
-                      <span>mode: portfolio</span>
-                    </div>
                     <Footer />
                   </div>
 

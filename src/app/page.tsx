@@ -13,7 +13,7 @@ async function getLatestThoughts() {
       .select("slug, title, summary, created_at")
       .eq("published", true)
       .order("created_at", { ascending: false })
-      .limit(3);
+      .limit(5);
     return data || [];
   } catch (e) {
     console.error("Error fetching thoughts:", e);
