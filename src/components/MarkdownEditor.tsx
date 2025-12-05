@@ -9,8 +9,11 @@ interface MarkdownEditorProps {
   onChange: (value: string) => void;
 }
 
+import { supabase } from "@/lib/supabaseClient";
+
 export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps) {
   const [viewMode, setViewMode] = useState<"split" | "edit" | "preview">("split");
+  const [isUploading, setIsUploading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const insertText = (before: string, after: string = "") => {
@@ -32,6 +35,63 @@ export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps)
     }, 0);
   };
 
+  const handleImageUpload = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload an image file.");
+      return;
+    }
+
+    if (!supabase) {
+      alert("Supabase is not configured. Cannot upload image.");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("images")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("images")
+        .getPublicUrl(filePath);
+
+      insertText(`![${file.name}](${publicUrl})`);
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      alert("Failed to upload image. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const onDrop = async (e: React.DragEvent<HTMLTextAreaElement>) => {
+    e.preventDefault();
+    const files = Array.from(e.dataTransfer.files);
+    const imageFile = files.find(file => file.type.startsWith("image/"));
+    if (imageFile) {
+      await handleImageUpload(imageFile);
+    }
+  };
+
+  const onPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = Array.from(e.clipboardData.items);
+    const imageItem = items.find(item => item.type.startsWith("image/"));
+    if (imageItem) {
+      e.preventDefault();
+      const file = imageItem.getAsFile();
+      if (file) {
+        await handleImageUpload(file);
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col h-full border border-white/10 rounded-lg overflow-hidden bg-[#0a0a0a]">
       {/* Toolbar */}
@@ -50,25 +110,28 @@ export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps)
           <ToolbarButton icon={<FaListOl />} onClick={() => insertText("1. ")} tooltip="Numbered List" />
         </div>
 
-        <div className="flex items-center gap-1 bg-black/40 rounded p-0.5 border border-white/10">
-          <button
-            onClick={() => setViewMode("edit")}
-            className={`px-2 py-1 text-[10px] uppercase font-mono rounded transition-colors ${viewMode === "edit" ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300"}`}
-          >
-            Edit
-          </button>
-          <button
-            onClick={() => setViewMode("split")}
-            className={`px-2 py-1 text-[10px] uppercase font-mono rounded transition-colors ${viewMode === "split" ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300"}`}
-          >
-            Split
-          </button>
-          <button
-            onClick={() => setViewMode("preview")}
-            className={`px-2 py-1 text-[10px] uppercase font-mono rounded transition-colors ${viewMode === "preview" ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300"}`}
-          >
-            Preview
-          </button>
+        <div className="flex items-center gap-2">
+            {isUploading && <span className="text-xs text-accent-400 animate-pulse">Uploading...</span>}
+            <div className="flex items-center gap-1 bg-black/40 rounded p-0.5 border border-white/10">
+            <button
+                onClick={() => setViewMode("edit")}
+                className={`px-2 py-1 text-[10px] uppercase font-mono rounded transition-colors ${viewMode === "edit" ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300"}`}
+            >
+                Edit
+            </button>
+            <button
+                onClick={() => setViewMode("split")}
+                className={`px-2 py-1 text-[10px] uppercase font-mono rounded transition-colors ${viewMode === "split" ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300"}`}
+            >
+                Split
+            </button>
+            <button
+                onClick={() => setViewMode("preview")}
+                className={`px-2 py-1 text-[10px] uppercase font-mono rounded transition-colors ${viewMode === "preview" ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300"}`}
+            >
+                Preview
+            </button>
+            </div>
         </div>
       </div>
 
@@ -80,8 +143,10 @@ export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps)
             ref={textareaRef}
             value={value}
             onChange={(e) => onChange(e.target.value)}
+            onDrop={onDrop}
+            onPaste={onPaste}
             className="flex-grow bg-[#0a0a0a] text-gray-300 font-mono text-sm p-4 resize-none focus:outline-none leading-relaxed"
-            placeholder="Write your thought here..."
+            placeholder="Write your thought here... (Drag & Drop images supported)"
             spellCheck={false}
           />
         </div>
@@ -89,7 +154,17 @@ export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps)
         {/* Preview */}
         <div className={`h-full overflow-y-auto bg-[#0a0a0a] p-4 md:p-8 ${viewMode === "split" ? "w-1/2" : viewMode === "preview" ? "w-full" : "hidden"}`}>
           <div className="prose prose-invert prose-sm max-w-none prose-headings:font-bold prose-a:text-accent-400 prose-pre:bg-white/5 prose-pre:border prose-pre:border-white/10">
-            <ReactMarkdown>{value || "*Nothing to preview*"}</ReactMarkdown>
+            <ReactMarkdown
+              components={{
+                img: ({ node, ...props }) => {
+                  if (!props.src) return null;
+                  // eslint-disable-next-line @next/next/no-img-element
+                  return <img {...props} alt={props.alt || ""} style={{ maxWidth: "100%" }} />;
+                },
+              }}
+            >
+              {value || "*Nothing to preview*"}
+            </ReactMarkdown>
           </div>
         </div>
       </div>

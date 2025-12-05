@@ -121,7 +121,17 @@ export default async function ThoughtPage({ params }: { params: Promise<{ slug: 
 
           <FadeIn delay={0.2}>
             <div className="prose prose-invert prose-gray max-w-none prose-headings:font-bold prose-a:text-accent-400 prose-a:no-underline hover:prose-a:underline prose-img:rounded-lg prose-p:leading-relaxed prose-li:marker:text-gray-500">
-              <ReactMarkdown>{thought.content}</ReactMarkdown>
+              <ReactMarkdown
+                components={{
+                  img: ({ node, ...props }) => {
+                    if (!props.src) return null;
+                    // eslint-disable-next-line @next/next/no-img-element
+                    return <img {...props} alt={props.alt || ""} style={{ maxWidth: "100%" }} />;
+                  },
+                }}
+              >
+                {thought.content}
+              </ReactMarkdown>
             </div>
           </FadeIn>
         </div>

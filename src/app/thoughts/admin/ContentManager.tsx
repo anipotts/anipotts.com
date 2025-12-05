@@ -162,12 +162,20 @@ export default function ContentManager() {
             {/* Editor Header */}
             <div className="h-14 border-b border-white/10 flex items-center justify-between px-6 bg-white/5">
               <div className="flex items-center gap-4 flex-grow">
-                <input 
-                  className="bg-transparent text-sm font-bold text-white focus:outline-none w-full placeholder-gray-600"
-                  placeholder="Thought Title"
-                  value={editing.title}
-                  onChange={e => setEditing({ ...editing, title: e.target.value, slug: !editing.id ? e.target.value.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '') : editing.slug })}
-                />
+                <div className="flex flex-col w-full">
+                  <input 
+                    className="bg-transparent text-sm font-bold text-white focus:outline-none w-full placeholder-gray-600"
+                    placeholder="Thought Title"
+                    value={editing.title}
+                    onChange={e => setEditing({ ...editing, title: e.target.value, slug: !editing.id ? e.target.value.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '') : editing.slug })}
+                  />
+                  <input 
+                    className="bg-transparent text-xs text-gray-400 focus:outline-none w-full placeholder-gray-700 mt-1 font-mono"
+                    placeholder="Subtext / Summary (displayed under title)"
+                    value={editing.summary || ""}
+                    onChange={e => setEditing({ ...editing, summary: e.target.value })}
+                  />
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 mr-4">
@@ -193,8 +201,8 @@ export default function ContentManager() {
             </div>
 
             {/* Metadata Bar */}
-            <div className="px-6 py-3 border-b border-white/10 flex gap-4 items-center bg-black/20">
-              <div className="flex items-center gap-2 flex-grow">
+            <div className="px-6 py-3 border-b border-white/10 flex gap-4 items-center bg-black/20 flex-wrap">
+              <div className="flex items-center gap-2 min-w-[200px]">
                 <span className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">Slug:</span>
                 <input 
                   className="bg-transparent text-xs text-accent-400 font-mono focus:outline-none flex-grow"
@@ -203,7 +211,46 @@ export default function ContentManager() {
                   placeholder="url-slug"
                 />
               </div>
+              
               <div className="w-px h-4 bg-white/10" />
+
+              {/* Tags Input */}
+              <div className="flex items-center gap-2 flex-grow">
+                <span className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">Tags:</span>
+                <div className="flex flex-wrap gap-2 items-center">
+                  {(Array.isArray(editing.tags) ? editing.tags : []).map((tag: string) => (
+                    <span key={tag} className="bg-white/10 text-gray-300 px-1.5 py-0.5 rounded text-[10px] font-mono flex items-center gap-1">
+                      {tag}
+                      <button 
+                        onClick={() => setEditing({ ...editing, tags: editing.tags.filter((t: string) => t !== tag) })}
+                        className="hover:text-red-400"
+                      >
+                        &times;
+                      </button>
+                    </span>
+                  ))}
+                  <input 
+                    className="bg-transparent text-xs text-gray-400 font-mono focus:outline-none min-w-[60px]"
+                    placeholder="Add tag..."
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const val = e.currentTarget.value.trim();
+                        if (val && !editing.tags?.includes(val)) {
+                          setEditing({ 
+                            ...editing, 
+                            tags: [...(Array.isArray(editing.tags) ? editing.tags : []), val] 
+                          });
+                          e.currentTarget.value = "";
+                        }
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="w-px h-4 bg-white/10" />
+
               <label className="flex items-center gap-2 cursor-pointer">
                 <input 
                   type="checkbox"
