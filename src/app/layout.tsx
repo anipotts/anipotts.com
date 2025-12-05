@@ -15,6 +15,7 @@ import TerminalPromptCentered from "@/components/window/TerminalPromptCentered";
 import MinimizedPill from "@/components/window/MinimizedPill";
 import WindowInner from "@/components/window/WindowInner";
 import WindowLayoutWrapper from "@/components/window/WindowLayoutWrapper";
+import TerminalHeaderTitle from "@/components/window/TerminalHeaderTitle";
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
@@ -72,9 +73,7 @@ export default function RootLayout({
                   <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/5 select-none">
                     <div className="flex items-center gap-2">
                       <WindowControls />
-                      <span className="ml-3 text-[10px] md:text-xs text-gray-500 font-medium tracking-wide">
-                        ani@potts:~/anipotts.com
-                      </span>
+                      <TerminalHeaderTitle />
                     </div>
                     <div className="text-[10px] md:text-xs text-gray-600 font-mono">
                       zsh • v3.0.1
