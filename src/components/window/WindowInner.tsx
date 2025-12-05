@@ -12,7 +12,7 @@ export default function WindowInner({ children }: { children: React.ReactNode })
   return (
     <div className={clsx("px-6 md:px-12 lg:px-16 flex flex-col flex-grow overflow-y-auto overscroll-y-none min-h-0 bg-black/40 relative transition-all duration-[240ms] ease-[cubic-bezier(0.16,1,0.3,1)] scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent", !isFullscreen && "min-h-[calc(100vh-8rem)]")}>
       
-      <div className={clsx("w-full mx-auto transition-[max-width] duration-[240ms] ease-[cubic-bezier(0.16,1,0.3,1)]", isFullscreen ? "max-w-4xl" : "max-w-full")}>
+      <div className={clsx("w-full mx-auto transition-[max-width] duration-[240ms] ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col flex-grow", isFullscreen ? "max-w-4xl" : "max-w-full")}>
         {/* Navbar as Command Row */}
         <div className={clsx("relative z-10 transition-all duration-[240ms] ease-[cubic-bezier(0.16,1,0.3,1)]", isFullscreen ? "translate-y-0" : "translate-y-0")}>
           <Navbar />

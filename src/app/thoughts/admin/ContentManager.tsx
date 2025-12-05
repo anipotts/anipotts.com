@@ -1,62 +1,59 @@
-import { useState, useEffect } from "react";
-import { FaCheck, FaCircle } from "react-icons/fa";
+import { useState, useEffect, useCallback } from "react";
+import { FaCheck, FaCircle, FaPlus, FaSearch, FaSave, FaTrash } from "react-icons/fa";
 import { upsertThought, deleteThought, getAdminThoughts } from "../actions";
-import Editor from "@/components/Editor";
+import MarkdownEditor from "@/components/MarkdownEditor";
 import posthog from "posthog-js";
 import Link from "next/link";
+import { useDebounce } from "@/hooks/useDebounce";
 
 export default function ContentManager() {
   const [thoughts, setThoughts] = useState<any[]>([]);
   const [editing, setEditing] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [unsavedChanges, setUnsavedChanges] = useState(false);
+
+  // Debounce content for auto-save (optional, or just for "unsaved" indicator)
+  const debouncedEditing = useDebounce(editing, 1000);
 
   useEffect(() => {
     fetchThoughts();
   }, []);
 
-  // Keyboard Navigation
+  // Check for unsaved changes
+  useEffect(() => {
+    if (!editing) return;
+    // Simple check: if debounced version matches current, we are "synced" locally.
+    // Real "unsaved" check would compare against DB version, but for now we just track if user typed recently.
+    // Actually, let's just use a manual save for clarity, but show "Unsaved" if dirty.
+    setUnsavedChanges(true);
+  }, [editing]);
+
+  // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (editing) return; // Disable list nav when editing
-
-      switch (e.key) {
-        case "j":
-          setSelectedIndex((prev) => Math.min(prev + 1, thoughts.length - 1));
-          break;
-        case "k":
-          setSelectedIndex((prev) => Math.max(prev - 1, 0));
-          break;
-        case "o":
-        case "Enter":
-          if (thoughts[selectedIndex]) setEditing(thoughts[selectedIndex]);
-          break;
-        case "p":
-          if (thoughts[selectedIndex]) {
-            // Toggle publish logic would go here, but requires update function. 
-            // For now, just open edit.
-            setEditing(thoughts[selectedIndex]);
-          }
-          break;
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        if (editing) handleSave();
       }
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [thoughts, selectedIndex, editing]);
+  }, [editing]);
 
   const fetchThoughts = async () => {
     const data = await getAdminThoughts();
     if (data) setThoughts(data);
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!editing) return;
+
     setLoading(true);
     try {
-      await upsertThought(editing);
+      const savedThought = await upsertThought(editing);
 
-      // Capture thought saved event
       posthog.capture('thought_saved', {
         thought_title: editing.title,
         thought_slug: editing.slug,
@@ -64,10 +61,16 @@ export default function ContentManager() {
         is_published: editing.published,
       });
 
-      setEditing(null);
-      fetchThoughts();
+      // Update local list with saved data
+      setThoughts(prev => {
+        const exists = prev.find(t => t.id === savedThought.id);
+        if (exists) return prev.map(t => t.id === savedThought.id ? savedThought : t);
+        return [savedThought, ...prev];
+      });
+      
+      setEditing(savedThought); // Update editing ref to match DB
+      setUnsavedChanges(false);
     } catch (err) {
-      // Capture error
       posthog.captureException(err);
       alert("Error saving");
       console.error(err);
@@ -75,175 +78,162 @@ export default function ContentManager() {
     setLoading(false);
   };
 
-  const handleDelete = async (id: string, thought: any) => {
-    if (!confirm("Delete this thought?")) return;
+  const handleDelete = async () => {
+    if (!editing || !editing.id) return;
+    if (!confirm("Delete this thought? This cannot be undone.")) return;
+    
     try {
-      await deleteThought(id);
-
-      // Capture thought deleted event
-      posthog.capture('thought_deleted', {
-        thought_id: id,
-        thought_title: thought.title,
-        thought_slug: thought.slug,
-      });
-
-      fetchThoughts();
+      await deleteThought(editing.id);
+      posthog.capture('thought_deleted', { thought_id: editing.id });
+      
+      setThoughts(prev => prev.filter(t => t.id !== editing.id));
+      setEditing(null);
     } catch (err) {
-      // Capture error
-      posthog.captureException(err);
       alert("Error deleting");
     }
   };
 
   const startNew = () => {
-    setEditing({
+    const newThought = {
       title: "",
       slug: "",
       summary: "",
       content: "",
       tags: [],
       published: false,
-    });
+    };
+    setEditing(newThought);
+    setUnsavedChanges(false);
   };
 
+  const filteredThoughts = thoughts.filter(t => 
+    t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    t.slug.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="flex flex-col gap-8">
-
-      {editing ? (
-        <form onSubmit={handleSave} className="flex flex-col gap-6 bg-white/5 p-8 rounded-xl border border-white/10 shadow-2xl">
-          <div className="flex justify-between items-center border-b border-white/10 pb-4 font-mono">
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <span className="text-gray-600">ani@nyc:~</span>
-              <span>thoughts/{editing.slug || "new"}</span>
-              <span className={`text-[10px] uppercase px-1.5 py-0.5 rounded ${editing.published ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400"}`}>
-                [{editing.published ? "published" : "draft"}]
-              </span>
-            </div>
-            <div className="flex gap-4">
-              <button type="button" onClick={() => setEditing(null)} className="text-gray-500 hover:text-gray-300 text-xs uppercase tracking-wider">
-                Cancel
-              </button>
-              <button type="submit" disabled={loading} className="text-accent-400 hover:text-accent-300 text-xs uppercase tracking-wider font-bold disabled:opacity-50">
-                {loading ? "Saving..." : "Save Changes"}
-              </button>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="flex flex-col gap-2">
-              <label className="text-xs uppercase tracking-widest text-gray-500">Title</label>
-              <input
-                className="bg-black/20 border border-white/10 p-3 rounded-lg text-gray-200 focus:border-accent-400/50 focus:outline-none transition-colors"
-                placeholder="Enter title..."
-                value={editing.title}
-                onChange={e => setEditing({ ...editing, title: e.target.value, slug: !editing.id ? e.target.value.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '') : editing.slug })}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-xs uppercase tracking-widest text-gray-500">Slug</label>
-              <input
-                className="bg-black/20 border border-white/10 p-3 rounded-lg text-gray-200 focus:border-accent-400/50 focus:outline-none transition-colors font-mono text-sm"
-                placeholder="url-slug"
-                value={editing.slug}
-                onChange={e => setEditing({ ...editing, slug: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-xs uppercase tracking-widest text-gray-500">Summary</label>
-            <textarea
-              className="bg-black/20 border border-white/10 p-3 rounded-lg text-gray-200 h-24 focus:border-accent-400/50 focus:outline-none transition-colors resize-none"
-              placeholder="Brief summary for the list view..."
-              value={editing.summary}
-              onChange={e => setEditing({ ...editing, summary: e.target.value })}
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-xs uppercase tracking-widest text-gray-500">Content</label>
-            <Editor 
-              value={editing.content} 
-              onChange={(val) => setEditing({ ...editing, content: val })} 
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-            <div className="flex flex-col gap-2">
-              <label className="text-xs uppercase tracking-widest text-gray-500">Tags</label>
-              <input
-                className="bg-black/20 border border-white/10 p-3 rounded-lg text-gray-200 focus:border-accent-400/50 focus:outline-none transition-colors"
-                placeholder="ai, engineering, life"
-                value={Array.isArray(editing.tags) ? editing.tags.join(", ") : editing.tags}
-                onChange={e => setEditing({ ...editing, tags: e.target.value.split(",").map((t: string) => t.trim()) })}
-              />
-            </div>
-            
-            <label className="flex items-center gap-3 text-gray-300 cursor-pointer p-3 rounded-lg hover:bg-white/5 transition-colors self-end">
-              <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${editing.published ? "bg-accent-400 border-accent-400" : "border-gray-500"}`}>
-                {editing.published && <span className="text-black text-xs font-bold"><FaCheck />  </span>}
-              </div>
-              <input
-                type="checkbox"
-                className="hidden"
-                checked={editing.published}
-                onChange={e => setEditing({ ...editing, published: e.target.checked })}
-              />
-              <span className="text-sm font-medium">Publish to site</span>
-            </label>
-          </div>
-
-        </form>
-      ) : (
-        <button onClick={startNew} className="bg-white/10 text-gray-200 px-6 py-3 rounded-lg hover:bg-white/20 self-start flex items-center gap-2 transition-all hover:shadow-lg">
-          <span className="text-xl leading-none">+</span>
-          <span className="font-medium">New Thought</span>
-        </button>
-      )}
-
-      <div className="flex flex-col gap-2">
-        {thoughts.map((thought, index) => (
-          <div 
-            key={thought.id} 
-            className={`group flex items-center justify-between p-4 rounded-lg border transition-all cursor-pointer ${
-              index === selectedIndex 
-                ? "bg-white/10 border-accent-400/50" 
-                : "bg-white/5 border-white/5 hover:border-white/10"
-            }`}
-            onClick={() => {
-              setSelectedIndex(index);
-              setEditing(thought);
-            }}
+    <div className="flex h-[75vh] border border-white/10 rounded-xl overflow-hidden bg-black/40 backdrop-blur-sm">
+      {/* Sidebar */}
+      <div className="w-64 border-r border-white/10 flex flex-col bg-black/20">
+        <div className="p-4 border-b border-white/10 flex flex-col gap-3">
+          <button 
+            onClick={startNew}
+            className="w-full bg-accent-400/10 hover:bg-accent-400/20 text-accent-400 border border-accent-400/20 py-2 rounded text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 transition-colors"
           >
-            <div className="flex items-center gap-4">
-              <span className={`font-mono text-xs ${index === selectedIndex ? "text-accent-400" : "text-gray-600 opacity-0 group-hover:opacity-100"}`}>
-                {index === selectedIndex ? ">" : "#"}
-              </span>
-              <div className="flex flex-col gap-1">
-                <h3 className={`font-bold text-sm transition-colors ${index === selectedIndex ? "text-white" : "text-gray-300"}`}>
-                  {thought.title}
-                </h3>
-                <div className="flex gap-3 text-[10px] text-gray-500 font-mono items-center">
-                  <span>{thought.slug}</span>
-                  <span className="w-0.5 h-0.5 rounded-full bg-gray-700"></span>
-                  <span className={thought.published ? "text-green-400" : "text-yellow-400"}>
-                    {thought.published ? "PUB" : "DRF"}
-                  </span>
-                  <span className="w-0.5 h-0.5 rounded-full bg-gray-700"></span>
-                  <span>{new Date(thought.created_at).toLocaleDateString()}</span>
-                  <span className="w-0.5 h-0.5 rounded-full bg-gray-700"></span>
-                  <span>{thought.views || 0} views</span>
-                </div>
+            <FaPlus /> New Thought
+          </button>
+          <div className="relative">
+            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 text-xs" />
+            <input 
+              className="w-full bg-black/40 border border-white/10 rounded py-1.5 pl-8 pr-2 text-xs text-gray-300 focus:border-accent-400/50 focus:outline-none"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+        
+        <div className="flex-grow overflow-y-auto custom-scrollbar">
+          {filteredThoughts.map(thought => (
+            <div 
+              key={thought.id}
+              onClick={() => setEditing(thought)}
+              className={`p-3 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors ${editing?.id === thought.id ? "bg-white/10 border-l-2 border-l-accent-400" : "border-l-2 border-l-transparent"}`}
+            >
+              <div className="flex justify-between items-start mb-1">
+                <h4 className={`text-xs font-bold truncate pr-2 ${editing?.id === thought.id ? "text-white" : "text-gray-400"}`}>
+                  {thought.title || "Untitled"}
+                </h4>
+                {thought.published && <div className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0 mt-1" />}
+              </div>
+              <div className="flex justify-between items-center text-[10px] text-gray-600 font-mono">
+                <span className="truncate max-w-[100px]">{thought.slug}</span>
+                <span>{new Date(thought.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
               </div>
             </div>
-            <div className="flex gap-4 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-              <span className="text-gray-600 font-mono hidden md:inline">[Enter to edit]</span>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
-      {/* Live Status Footer */}
+      {/* Main Editor Area */}
+      <div className="flex-grow flex flex-col bg-[#050505]">
+        {editing ? (
+          <>
+            {/* Editor Header */}
+            <div className="h-14 border-b border-white/10 flex items-center justify-between px-6 bg-white/5">
+              <div className="flex items-center gap-4 flex-grow">
+                <input 
+                  className="bg-transparent text-sm font-bold text-white focus:outline-none w-full placeholder-gray-600"
+                  placeholder="Thought Title"
+                  value={editing.title}
+                  onChange={e => setEditing({ ...editing, title: e.target.value, slug: !editing.id ? e.target.value.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '') : editing.slug })}
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 mr-4">
+                  <span className={`text-[10px] uppercase tracking-wider ${unsavedChanges ? "text-yellow-500" : "text-gray-600"}`}>
+                    {unsavedChanges ? "Unsaved" : "Saved"}
+                  </span>
+                </div>
+                <button 
+                  onClick={() => handleDelete()}
+                  className="p-2 text-gray-500 hover:text-red-400 transition-colors"
+                  title="Delete"
+                >
+                  <FaTrash />
+                </button>
+                <button 
+                  onClick={(e) => handleSave(e)}
+                  disabled={loading}
+                  className="bg-white/10 hover:bg-white/20 text-white px-4 py-1.5 rounded text-xs font-mono uppercase tracking-wider flex items-center gap-2 transition-colors disabled:opacity-50"
+                >
+                  <FaSave /> {loading ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </div>
+
+            {/* Metadata Bar */}
+            <div className="px-6 py-3 border-b border-white/10 flex gap-4 items-center bg-black/20">
+              <div className="flex items-center gap-2 flex-grow">
+                <span className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">Slug:</span>
+                <input 
+                  className="bg-transparent text-xs text-accent-400 font-mono focus:outline-none flex-grow"
+                  value={editing.slug}
+                  onChange={e => setEditing({ ...editing, slug: e.target.value })}
+                  placeholder="url-slug"
+                />
+              </div>
+              <div className="w-px h-4 bg-white/10" />
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="checkbox"
+                  checked={editing.published}
+                  onChange={e => setEditing({ ...editing, published: e.target.checked })}
+                  className="accent-accent-400"
+                />
+                <span className={`text-[10px] uppercase tracking-widest font-mono ${editing.published ? "text-green-400" : "text-gray-500"}`}>
+                  {editing.published ? "Published" : "Draft"}
+                </span>
+              </label>
+            </div>
+
+            {/* Editor Body */}
+            <div className="flex-grow overflow-hidden p-4">
+              <MarkdownEditor 
+                value={editing.content || ""} 
+                onChange={val => setEditing({ ...editing, content: val })} 
+              />
+            </div>
+          </>
+        ) : (
+          <div className="flex-grow flex flex-col items-center justify-center text-gray-600 gap-4">
+            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center text-2xl">
+              <FaCircle className="text-gray-700" />
+            </div>
+            <p className="font-mono text-xs uppercase tracking-widest">Select a thought or create new</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
