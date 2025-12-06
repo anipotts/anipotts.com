@@ -30,7 +30,7 @@ export default function Navbar() {
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
       >
-        <Link href="/" className="text-lg font-bold tracking-tight whitespace-nowrap text-accent-400 hover:text-accent-400/80 transition-colors duration-300 mb-4 md:mb-0 font-heading">
+        <Link href="/" className="text-lg font-bold tracking-tight whitespace-nowrap text-accent-400 hover:text-accent-400/80 transition-colors duration-300 mb-10 md:mb-0 font-heading">
           ani potts
         </Link>
       </motion.div>

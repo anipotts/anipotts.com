@@ -44,7 +44,7 @@ export default function RootLayout({
           <div className="absolute inset-0 z-10 opacity-[0.03] bg-noise pointer-events-none mix-blend-overlay" />
           
           {/* Waves Animation */}
-          <div className="absolute inset-0 z-20 opacity-30 pointer-events-none">
+          <div className="hidden md:block absolute inset-0 z-20 opacity-30 pointer-events-none">
             <Waves
               lineColor="rgba(167, 139, 250, 0.96)"
               backgroundColor="transparent"

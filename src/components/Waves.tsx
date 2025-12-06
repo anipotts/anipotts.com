@@ -314,6 +314,10 @@ const Waves: React.FC<WavesProps> = ({
 
     function tick(t: number) {
       if (!container) return;
+      if (boundingRef.current.width <= 0) {
+        frameIdRef.current = requestAnimationFrame(tick);
+        return;
+      }
       const mouse = mouseRef.current;
       mouse.sx += (mouse.x - mouse.sx) * 0.1;
       mouse.sy += (mouse.y - mouse.sy) * 0.1;
