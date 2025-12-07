@@ -24,7 +24,7 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="w-full flex flex-col md:flex-row md:items-center justify-between md:gap-28 py-8 md:py-12 mb-8 md:mb-16">
+    <nav className="w-full flex flex-col md:flex-row md:items-center justify-between md:gap-28 py-8 md:py-12 gap-6 md:mb-16">
       <motion.div
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
