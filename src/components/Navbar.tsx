@@ -24,13 +24,13 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="w-full flex flex-col md:flex-row md:items-center justify-between md:gap-28 py-8 md:py-12 gap-6 md:mb-16">
+    <nav className="w-full flex flex-col md:flex-row md:items-center justify-between md:gap-28 pb-12 md:py-12 gap-6 md:mb-16">
       <motion.div
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
       >
-        <Link href="/" className="text-lg font-bold tracking-tight whitespace-nowrap text-accent-400 hover:text-accent-400/80 transition-colors duration-300 mb-10 md:mb-0 font-heading hidden md:block">
+        <Link href="/" className="text-lg font-bold tracking-tight whitespace-nowrap text-accent-400 hover:text-accent-400/80 transition-colors duration-300 font-heading hidden md:block">
           ani potts
         </Link>
       </motion.div>
