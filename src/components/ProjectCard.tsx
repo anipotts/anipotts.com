@@ -25,10 +25,10 @@ export default function ProjectCard({ project }: { project: Project }) {
     <div
       onClick={handleCardClick}
       className={`
-        group w-full cursor-pointer border-l-2 pl-4 py-2 transition-all duration-200
+        group w-full cursor-pointer border-l-2 pl-4 pr-4 transition-all duration-300 ease-in-out
         ${isOpen 
-          ? "border-accent-400 bg-white/5" 
-          : "border-white/10 hover:border-white/30 hover:bg-white/[0.02]"
+          ? "py-6 border-accent-400 bg-white/[0.03] rounded-r-xl" 
+          : "py-3 border-white/10 hover:border-white/30 hover:bg-white/[0.02]"
         }
       `}
     >
@@ -53,10 +53,10 @@ export default function ProjectCard({ project }: { project: Project }) {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: "easeInOut" }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
             className="overflow-hidden"
           >
-            <div className="pl-6 pt-4 pb-2 flex flex-col gap-4">
+            <div className="pl-6 pt-6 pb-2 flex flex-col gap-6">
               <p className="text-sm text-gray-300 leading-relaxed max-w-2xl border-l border-white/10 pl-4">
                 {project.description}
               </p>

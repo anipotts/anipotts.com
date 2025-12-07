@@ -52,7 +52,7 @@ export const projects: Project[] = [
     title: "Document-Scoped Cache Simulator",
     subtitle: "Caching optimization for simulated hedge-fund workflows.",
     description:
-      "A Jupyter-based simulation exploring document-scoped caching policies, TTL strategies, and eviction behavior under hedge-fund-style research workloads. Models reuse distributions, cost reduction, and latency improvements for versioned documents at scale.",
+      "A simulation exploring document-scoped caching policies, TTL strategies, and eviction behavior under hedge-fund-style research workloads. Models reuse distributions, cost reduction, and latency improvements for versioned documents at scale.",
     year: "2025",
     category: "quant",
     role: "Research Engineer",

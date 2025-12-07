@@ -57,7 +57,7 @@ export default async function ThoughtPage({ params }: { params: Promise<{ slug: 
             <div className="col-span-1">
               <FadeIn>
                 <Link href="/thoughts" className="text-xs font-bold uppercase tracking-widest text-accent-400 hover:text-accent-400 transition-colors">
-                  back
+                  back to index
                 </Link>
               </FadeIn>
             </div>
@@ -82,7 +82,7 @@ export default async function ThoughtPage({ params }: { params: Promise<{ slug: 
         <div className="col-span-1 flex flex-col gap-4">
           <FadeIn>
             <Link href="/thoughts" className="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-accent-400 transition-colors">
-              back
+              back to index
             </Link>
           </FadeIn>
           <FadeIn delay={0.1}>

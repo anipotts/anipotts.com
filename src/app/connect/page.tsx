@@ -36,10 +36,10 @@ export default function ConnectPage() {
           <FadeIn delay={0.1}>
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-signal-green">
-                <span>open to work</span>
+                <span>open to collaboration</span>
               </div>
               <p className="text-lg md:text-xl text-gray-300 leading-relaxed max-w-2xl">
-                If you're working with LLM orchestration systems and think I can help, I'd love to hear from you.
+                If you're working with LLM orchestration systems and think I can help, feel free to reach out:
               </p>
             </div>
           </FadeIn>
