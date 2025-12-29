@@ -40,9 +40,6 @@ export function useActivityTracker() {
 
   // Track scroll speed
   useEffect(() => {
-    let animationFrame: number;
-    let decayInterval: NodeJS.Timeout;
-
     const handleScroll = () => {
       const now = Date.now();
       const deltaY = Math.abs(window.scrollY - lastScrollY.current);
@@ -59,7 +56,7 @@ export function useActivityTracker() {
     };
 
     // Decay scroll speed over time
-    decayInterval = setInterval(() => {
+    const decayInterval = setInterval(() => {
       scrollSpeedRef.current = Math.max(0, scrollSpeedRef.current * 0.9);
       setMetrics((prev) => ({
         ...prev,
@@ -72,7 +69,6 @@ export function useActivityTracker() {
     return () => {
       window.removeEventListener("scroll", handleScroll);
       clearInterval(decayInterval);
-      if (animationFrame) cancelAnimationFrame(animationFrame);
     };
   }, []);
 
