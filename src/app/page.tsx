@@ -4,7 +4,6 @@ import FadeIn from "@/components/FadeIn";
 import ProjectCard from "@/components/ProjectCard";
 import CompanyLink from "@/components/CompanyLink";
 import ThoughtLink from "@/app/thoughts/ThoughtLink";
-import FavoriteNumberHero from "@/components/FavoriteNumberHero";
 import Link from "next/link";
 
 export const revalidate = 0;
@@ -52,9 +51,6 @@ export default async function Home() {
               i'm a SWE based in NYC, who builds minimal interfaces to orchestrate complex systems.
             </p>
             </FadeIn>
-          {/* <FadeIn delay={0.25}>
-            <FavoriteNumberHero />
-          </FadeIn> */}
         </div>
       </section>
 
