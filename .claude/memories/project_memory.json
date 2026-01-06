@@ -1,0 +1,20 @@
+{
+  "memories": [],
+  "manual_memories": [],
+  "realtime_memories": [
+    {
+      "type": "claude_response",
+      "content": "The **anipotts.com Turborepo monorepo** is now fully scaffolded.\n\n`★ Insight ─────────────────────────────────────`\nThe Turborepo architecture provides several key benefits:\n1. **Smart caching** - Onl",
+      "added_at": "2026-01-05T21:51:27.244174",
+      "source": "realtime_capture"
+    },
+    {
+      "type": "message",
+      "content": "Can you explain to me exactly how do I commit all these changes and what do I mean by the changes for the anipods.com folder? Like how do I get a repository? How do I track everything and get when I m",
+      "added_at": "2026-01-05T21:51:27.244264",
+      "source": "realtime_capture"
+    }
+  ],
+  "created_at": "2026-01-05T21:51:27.232246",
+  "updated_at": "2026-01-05T21:51:27.244267"
+}

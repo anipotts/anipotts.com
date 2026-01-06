@@ -1,0 +1,20 @@
+{
+  "name": "@anipotts/config",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    "./tailwind": "./tailwind/base.config.mjs",
+    "./eslint/next": "./eslint/next.mjs",
+    "./typescript/base": "./typescript/base.json",
+    "./typescript/next": "./typescript/next.json",
+    "./postcss": "./postcss.config.mjs"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/typography": "^0.5.19",
+    "eslint": "^9",
+    "eslint-config-next": "^16.0.7",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

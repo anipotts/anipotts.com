@@ -1,0 +1,10 @@
+{
+  "name": "@anipotts/styles",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    "./globals.css": "./src/globals.css",
+    "./quill.css": "./src/quill.css",
+    "./tokens.css": "./src/tokens.css"
+  }
+}

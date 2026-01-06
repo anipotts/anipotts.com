@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
     "target": "ES2020",
     "lib": ["dom", "dom.iterable", "esnext"],
@@ -14,6 +15,5 @@
     "jsx": "react-jsx",
     "incremental": true
   },
-  "include": [],
   "exclude": ["node_modules"]
 }

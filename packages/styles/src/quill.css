@@ -1,0 +1,84 @@
+/* Custom Quill Styles for Admin Editor */
+.ql-toolbar.ql-snow {
+  border: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 12px !important;
+  border-radius: 8px 8px 0 0;
+}
+
+.ql-container.ql-snow {
+  border: none !important;
+  font-family: var(--font-mono) !important;
+  font-size: 0.95rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 0 0 8px 8px;
+}
+
+.ql-editor {
+  min-height: 400px;
+  color: #e5e7eb; /* gray-200 */
+  padding: 24px !important;
+  line-height: 1.7;
+}
+
+.ql-editor.ql-blank::before {
+  color: rgba(255, 255, 255, 0.3) !important;
+  font-style: normal !important;
+}
+
+/* Toolbar Icons */
+.ql-stroke {
+  stroke: #6b7280 !important; /* gray-500 */
+  transition: stroke 0.2s;
+}
+
+.ql-fill {
+  fill: #6b7280 !important;
+  transition: fill 0.2s;
+}
+
+.ql-picker {
+  color: #6b7280 !important;
+}
+
+.ql-picker-label {
+  color: #6b7280 !important;
+}
+
+/* Hover/Active States */
+.ql-snow .ql-toolbar button:hover .ql-stroke,
+.ql-snow .ql-toolbar button.ql-active .ql-stroke,
+.ql-snow .ql-toolbar .ql-picker-label:hover .ql-stroke,
+.ql-snow .ql-toolbar .ql-picker-label.ql-active .ql-stroke {
+  stroke: #a78bfa !important; /* accent-400 */
+}
+
+.ql-snow .ql-toolbar button:hover .ql-fill,
+.ql-snow .ql-toolbar button.ql-active .ql-fill,
+.ql-snow .ql-toolbar .ql-picker-label:hover .ql-fill,
+.ql-snow .ql-toolbar .ql-picker-label.ql-active .ql-fill {
+  fill: #a78bfa !important;
+}
+
+.ql-snow .ql-toolbar .ql-picker-label:hover,
+.ql-snow .ql-toolbar .ql-picker-label.ql-active {
+  color: #a78bfa !important;
+}
+
+/* Dropdowns */
+.ql-snow .ql-picker-options {
+  background-color: #1a1a1a !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5) !important;
+  border-radius: 6px !important;
+}
+
+.ql-snow .ql-picker-item {
+  color: #9ca3af !important;
+}
+
+.ql-snow .ql-picker-item:hover,
+.ql-snow .ql-picker-item.ql-selected {
+  color: #a78bfa !important;
+}

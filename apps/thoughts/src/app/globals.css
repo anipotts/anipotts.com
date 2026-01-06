@@ -1,0 +1,165 @@
+@import "tailwindcss";
+@config "../../tailwind.config.mjs";
+
+:root {
+  /* Dark mode only defaults */
+  --background: #020308;
+  --foreground: #e5e7eb; /* gray-200 */
+
+  --card: #0a0a0a;
+  --card-foreground: #e5e7eb;
+
+  /* Font variables will be defined in layout.tsx */
+}
+
+/* Subtle Noise Texture */
+.bg-noise {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E");
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-mono), monospace;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar for a premium feel */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Hide scrollbar on mobile devices */
+@media (max-width: 768px) {
+  html, body {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+  }
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  *::-webkit-scrollbar {
+    display: none;
+    width: 0px;
+    background: transparent;
+  }
+}
+
+/* Prose styling for markdown content */
+.prose {
+  color: var(--foreground);
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  color: #f3f4f6;
+  font-weight: 700;
+}
+
+.prose a {
+  color: #a78bfa;
+  text-decoration: none;
+}
+
+.prose a:hover {
+  text-decoration: underline;
+}
+
+.prose code {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-size: 0.875em;
+}
+
+.prose pre {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.prose blockquote {
+  border-left-color: #a78bfa;
+  color: #9ca3af;
+}
+
+/* Quill Editor Styles */
+.ql-toolbar.ql-snow {
+  border: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 12px !important;
+  border-radius: 8px 8px 0 0;
+}
+
+.ql-container.ql-snow {
+  border: none !important;
+  font-family: var(--font-mono) !important;
+  font-size: 0.95rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 0 0 8px 8px;
+}
+
+.ql-editor {
+  min-height: 400px;
+  color: #e5e7eb;
+  padding: 24px !important;
+  line-height: 1.7;
+}
+
+.ql-editor.ql-blank::before {
+  color: rgba(255, 255, 255, 0.3) !important;
+  font-style: normal !important;
+}
+
+.ql-stroke {
+  stroke: #6b7280 !important;
+  transition: stroke 0.2s;
+}
+
+.ql-fill {
+  fill: #6b7280 !important;
+  transition: fill 0.2s;
+}
+
+.ql-picker {
+  color: #6b7280 !important;
+}
+
+.ql-snow .ql-toolbar button:hover .ql-stroke,
+.ql-snow .ql-toolbar button.ql-active .ql-stroke {
+  stroke: #a78bfa !important;
+}
+
+.ql-snow .ql-toolbar button:hover .ql-fill,
+.ql-snow .ql-toolbar button.ql-active .ql-fill {
+  fill: #a78bfa !important;
+}
+
+.ql-snow .ql-picker-options {
+  background-color: #1a1a1a !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5) !important;
+  border-radius: 6px !important;
+}
+
+.ql-snow .ql-picker-item {
+  color: #9ca3af !important;
+}
+
+.ql-snow .ql-picker-item:hover,
+.ql-snow .ql-picker-item.ql-selected {
+  color: #a78bfa !important;
+}

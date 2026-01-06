@@ -1,0 +1,48 @@
+{
+  "name": "@anipotts/www",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anipotts/ui": "workspace:*",
+    "@anipotts/lib": "workspace:*",
+    "@anipotts/types": "workspace:*",
+    "@supabase/supabase-js": "^2.86.0",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "framer-motion": "^12.23.25",
+    "lucide-react": "^0.555.0",
+    "marked": "^17.0.1",
+    "next": "^16.0.7",
+    "posthog-js": "^1.300.0",
+    "posthog-node": "^5.17.0",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "react-icons": "^5.5.0",
+    "react-markdown": "^10.1.0",
+    "react-quill-new": "^3.6.0",
+    "resend": "^6.5.2",
+    "tailwind-merge": "^3.4.0",
+    "turndown": "^7.2.2"
+  },
+  "devDependencies": {
+    "@anipotts/config": "workspace:*",
+    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/typography": "^0.5.19",
+    "@types/marked": "^5.0.2",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/turndown": "^5.0.6",
+    "eslint": "^9",
+    "eslint-config-next": "^16.0.7",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

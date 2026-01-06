@@ -1,0 +1,34 @@
+{
+  "name": "@anipotts/links",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack --port 3002",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .next .turbo node_modules"
+  },
+  "dependencies": {
+    "@anipotts/ui": "workspace:*",
+    "@anipotts/lib": "workspace:*",
+    "@anipotts/types": "workspace:*",
+    "clsx": "^2.1.1",
+    "framer-motion": "^11.15.0",
+    "next": "15.1.3",
+    "posthog-js": "^1.194.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-icons": "^5.4.0"
+  },
+  "devDependencies": {
+    "@anipotts/config": "workspace:*",
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^22.10.3",
+    "@types/react": "^19.0.3",
+    "@types/react-dom": "^19.0.2",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.2"
+  }
+}
