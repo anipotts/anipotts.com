@@ -6,6 +6,31 @@ import { Project } from "@/data/projects";
 import Link from "next/link";
 import posthog from "posthog-js";
 
+function StatusBadge({ status, featured }: { status?: string; featured?: boolean }) {
+  if (featured) {
+    return (
+      <span className="text-[9px] uppercase tracking-wider text-accent-400 bg-accent-400/10 px-1.5 py-0.5 rounded font-medium">
+        featured
+      </span>
+    );
+  }
+  if (status === "in-progress") {
+    return (
+      <span className="text-[9px] uppercase tracking-wider text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded font-medium">
+        in progress
+      </span>
+    );
+  }
+  if (status === "coming-soon") {
+    return (
+      <span className="text-[9px] uppercase tracking-wider text-gray-400 bg-gray-400/10 px-1.5 py-0.5 rounded font-medium">
+        coming soon
+      </span>
+    );
+  }
+  return null;
+}
+
 export default function ProjectCard({ project }: { project: Project }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -26,8 +51,8 @@ export default function ProjectCard({ project }: { project: Project }) {
       onClick={handleCardClick}
       className={`
         group w-full cursor-pointer border-l-2 pl-4 pr-4 transition-all duration-300 ease-in-out
-        ${isOpen 
-          ? "py-6 border-accent-400 bg-white/[0.03] rounded-r-xl" 
+        ${isOpen
+          ? "py-6 border-accent-400 bg-white/[0.03] rounded-r-xl"
           : "py-3 border-white/10 hover:border-white/30 hover:bg-white/[0.02]"
         }
       `}
@@ -41,6 +66,7 @@ export default function ProjectCard({ project }: { project: Project }) {
             <h3 className={`font-bold ${isOpen ? "text-gray-100" : "text-gray-300 group-hover:text-gray-100"}`}>
               {project.title}
             </h3>
+            <StatusBadge status={project.status} featured={project.featured} />
           </div>
           <p className="text-xs text-gray-500 pl-6">{project.subtitle}</p>
         </div>
@@ -69,10 +95,19 @@ export default function ProjectCard({ project }: { project: Project }) {
                 ))}
               </div>
 
-              {(project.links?.live || project.links?.repo) && (
+              {(project.links?.live || project.links?.repo || project.links?.page) && (
                 <div className="flex gap-4 text-xs font-mono pt-2">
-                  {project.links.live && (
-                    <a 
+                  {project.links?.page && (
+                    <Link
+                      href={project.links.page}
+                      className="text-accent-400 hover:underline decoration-accent-400/30 underline-offset-4"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      ./deep_dive.md
+                    </Link>
+                  )}
+                  {project.links?.live && (
+                    <a
                       href={project.links.live}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -82,8 +117,8 @@ export default function ProjectCard({ project }: { project: Project }) {
                       ./launch_site.sh
                     </a>
                   )}
-                  {project.links.repo && (
-                    <a 
+                  {project.links?.repo && (
+                    <a
                       href={project.links.repo}
                       target="_blank"
                       rel="noopener noreferrer"

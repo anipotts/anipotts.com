@@ -1,3 +1,5 @@
+export type ProjectStatus = "live" | "in-progress" | "coming-soon";
+
 export type Project = {
   slug: string;
   title: string;
@@ -8,56 +10,69 @@ export type Project = {
   role: string;
   duration: string;
   tags: string[];
+  status?: ProjectStatus; // defaults to "live" if not specified
+  featured?: boolean; // for dedicated project pages
   links?: {
     live?: string;
     repo?: string;
+    page?: string; // internal dedicated page route
   };
 };
 
 export const projects: Project[] = [
+  // === FLAGSHIP PRODUCTS ===
+  {
+    slug: "quantercise",
+    title: "Quantercise",
+    subtitle: "Quant interview prep for Jane Street, Citadel, Two Sigma.",
+    description:
+      "400+ problems with Python code editor, KaTeX math rendering, instant grading, and gamification. Next.js 15, React 19, Postgres (Aurora → Neon migration), Lambda for sandboxed execution. Actively used by candidates targeting top trading firms.",
+    year: "2024–",
+    category: "product",
+    role: "Founder & Engineer",
+    duration: "Ongoing",
+    tags: ["Next.js 15", "TypeScript", "Postgres", "AWS Lambda", "Monaco", "Stripe"],
+    status: "live",
+    featured: true,
+    links: {
+      live: "https://quantercise.com",
+      page: "/projects/quantercise",
+    },
+  },
+
+  {
+    slug: "quantercise-extension",
+    title: "Quantercise Quick Drill",
+    subtitle: "Mental math Chrome extension—2-min timed drills.",
+    description:
+      "Brings quantercise.com's mental math mode to the browser. Keyboard-driven, sound feedback, progress tracking. Vanilla JS, Manifest V3, zero external dependencies.",
+    year: "2026",
+    category: "product",
+    role: "Creator",
+    duration: "Winter 2026",
+    tags: ["Chrome Extension", "JavaScript", "Manifest V3"],
+    status: "live",
+    links: {
+      repo: "https://github.com/anipotts/quantercise-mental-math-extension",
+    },
+  },
+
+  // === ACTIVE WORK ===
   {
     slug: "pgi-research-platform",
     title: "PGI Research Portal",
     subtitle: "Macro research platform for quants.",
     description:
-      "Rebuilt PGI’s static site into a TypeScript PWA backed by Postgres, aggregating RSS feeds and cutting manual research overhead. Enables analysts to monitor macro catalysts and event signals directly from mobile.",
+      "Rebuilt PGI's static site into a TypeScript PWA backed by Postgres, aggregating RSS feeds and cutting manual research overhead. Enables analysts to monitor macro catalysts and event signals directly from mobile.",
     year: "2025",
     category: "quant",
     role: "Chief Tech Officer",
-    duration: "Fall 2025",
+    duration: "2025–",
     tags: ["Next.js", "TypeScript", "Postgres", "TailwindCSS", "RSS"],
+    status: "live",
     links: {
-      live: "https://paragoninvestments.org"
+      live: "https://paragoninvestments.org",
     },
-  },
-
-  {
-    slug: "hebbiani",
-    title: "Hebbiani",
-    subtitle: "Local cross-encoder reranking (inspired by Hebbia’s Matrix).",
-    description:
-      "A local, MIME-agnostic playground inspired by Hebbia’s Matrix—supporting cross-encoder reranking, late-interaction token matching, and multi-document search evaluation. Designed for reproducible backend search experiments without relying on cloud inference.",
-    year: "2025",
-    category: "ai",
-    role: "Creator",
-    duration: "Winter 2025",
-    tags: ["Python", "Jupyter", "Transformers", "Retrieval", "Reranking"],
-    links: {
-      repo: "https://github.com/anipotts/hebbiani",
-    },
-  },
-
-  {
-    slug: "hedgefund-cache-simulator",
-    title: "Document-Scoped Cache Simulator",
-    subtitle: "Caching optimization for simulated hedge-fund workflows.",
-    description:
-      "A simulation exploring document-scoped caching policies, TTL strategies, and eviction behavior under hedge-fund-style research workloads. Models reuse distributions, cost reduction, and latency improvements for versioned documents at scale.",
-    year: "2025",
-    category: "quant",
-    role: "Research Engineer",
-    duration: "Fall 2025",
-    tags: ["Python", "NumPy", "Simulation", "Caching", "Distributed Systems"],
   },
 
   {
@@ -71,9 +86,10 @@ export const projects: Project[] = [
     role: "Founder",
     duration: "Summer 2025",
     tags: ["Next.js", "TypeScript", "Convex", "LangGraph", "Stripe", "TailwindCSS"],
+    status: "live",
     links: {
       live: "https://chained.chat",
-      repo: "https://github.com/anipotts/chained"
+      repo: "https://github.com/anipotts/chained-chat",
     },
   },
 
@@ -88,41 +104,14 @@ export const projects: Project[] = [
     role: "Creator",
     duration: "Fall 2024",
     tags: ["TypeScript", "React", "Next.js", "TailwindCSS", "Analytics"],
+    status: "live",
     links: {
       live: "https://nyupuritytest.com",
-      repo: "https://github.com/anipotts/nyu-rice-purity"
+      repo: "https://github.com/anipotts/nyu-rice-purity",
     },
   },
 
-  {
-    slug: "mimicry",
-    title: "mimicry",
-    subtitle: "IG Reel script extraction + content analysis workflow tool.",
-    description:
-      "A TypeScript workflow tool that parses IG reels from a single link, extracts transcripts, normalizes metadata, and runs lightweight analysis to identify hooks, pacing, and content structure. Built for creators exploring what makes reels go viral.",
-    year: "2024",
-    category: "ai",
-    role: "Engineer",
-    duration: "Summer 2024",
-    tags: ["TypeScript", "Next.js", "APIs", "Content Analysis"],
-    links: {
-      repo: "https://github.com/anipotts/mimicry"
-    },
-  },
-
-  {
-    slug: "underground-artist-ig-analytics",
-    title: "Instagram Scraper",
-    subtitle: "Tracks viral posts from 3k+ potential artists.",
-    description:
-      "Automated daily scraping of 3k+ Instagram artists with robust retry logic, normalizing post, comment, and follower deltas into a SQLite + Streamlit dashboard.",
-    year: "2024",
-    category: "music",
-    role: "Software Engineer",
-    duration: "Spring 2025",
-    tags: ["Python", "Streamlit", "SQLite", "Instaloader", "Pandas"],
-  },
-
+  // === PROFESSIONAL EXPERIENCE ===
   {
     slug: "habittracker-obh",
     title: "Artist Scouting Dashboard",
@@ -134,8 +123,10 @@ export const projects: Project[] = [
     role: "Data Engineering Intern",
     duration: "Summer 2024",
     tags: ["Python", "Streamlit", "SQL", "APIs", "Data Pipelines"],
+    status: "live",
   },
 
+  // === QUANT/FINANCE ===
   {
     slug: "options-pricing-sensitivity",
     title: "Options Pricing + Sensitivity Analysis",
@@ -147,6 +138,7 @@ export const projects: Project[] = [
     role: "Developer",
     duration: "Spring 2023",
     tags: ["Python", "NumPy", "Pandas", "Quantitative Finance"],
+    status: "live",
     links: {
       repo: "https://github.com/anirudhp15/Options-Pricing-and-Sensitivity-Analysis-Tool",
     },
