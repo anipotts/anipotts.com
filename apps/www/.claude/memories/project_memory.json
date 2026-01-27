@@ -1,0 +1,98 @@
+{
+  "memories": [],
+  "manual_memories": [],
+  "realtime_memories": [
+    {
+      "type": "claude_response",
+      "content": "TypeScript compiled successfully. Here's a summary of everything implemented:\n\n`★ Insight ─────────────────────────────────────`\n- `generateMetadata` is Next.js's way of providing dynamic metadata per",
+      "added_at": "2026-01-27T04:23:08.126605",
+      "source": "realtime_capture"
+    },
+    {
+      "type": "message",
+      "content": "how do i start the dev server [WARN] - (starship::modules::custom): Executing custom command \"~/.config/ani-os/prompt-scripts/weather.sh\" timed out. [WARN] - (starship::modules::custom): You can set c",
+      "added_at": "2026-01-27T04:23:08.126623",
+      "source": "realtime_capture"
+    },
+    {
+      "type": "claude_response",
+      "content": "You need to increase the concurrency. Run:\n\n```bash\npnpm turbo dev --concurrency=15\n```\n\nOr for a permanent fix, you can add it to your `turbo.json`. But the quick command above should work.\n\nAlso, co",
+      "added_at": "2026-01-27T04:26:16.170080",
+      "source": "realtime_capture"
+    },
+    {
+      "type": "message",
+      "content": "i got this server error: ## Error Type Console Error ## Error Message [PostHog.js] \"PostHog was initialized without a token. This likely indicates a misconfiguration. Please check the first argument p",
+      "added_at": "2026-01-27T04:26:16.170116",
+      "source": "realtime_capture"
+    },
+    {
+      "type": "claude_response",
+      "content": "I created an HTML template for your OG image at `apps/www/scripts/generate-og-image.html`. To create the actual image:\n\n1. Open the HTML file in Chrome\n2. Use Chrome DevTools → More Tools → Capture sc",
+      "added_at": "2026-01-27T04:28:17.347968",
+      "source": "realtime_capture"
+    },
+    {
+      "type": "message",
+      "content": "fix the google chrome icon its fucked up make it right 100%",
+      "added_at": "2026-01-27T04:28:17.347983",
+      "source": "realtime_capture"
+    },
+    {
+      "type": "claude_response",
+      "content": "Refresh and check - this cleaner version should show the proper Chrome logo with red/yellow/green swirl and blue center. Let me know if it still needs adjustment.",
+      "added_at": "2026-01-27T04:29:21.230928",
+      "source": "realtime_capture"
+    },
+    {
+      "type": "message",
+      "content": "can u use the lucidereact icon for google chrome",
+      "added_at": "2026-01-27T04:29:21.230952",
+      "source": "realtime_capture"
+    },
+    {
+      "type": "message",
+      "content": "Wikidata Search Wikidata Search English Donate Create account Log in Permission error Tools Appearance hide Text Small Standard Large This page always uses small font size Width Standard Wide Color (b",
+      "added_at": "2026-01-27T04:33:20.161673",
+      "source": "realtime_capture"
+    },
+    {
+      "type": "claude_response",
+      "content": "Got it, keeping the current Chrome icon.\n\n---\n\n## 2. Sitemap 404 Issue\n\nThe sitemap returns 404 because **you need to deploy first**. The sitemap.ts file I created only works after deployment:\n\n```bas",
+      "added_at": "2026-01-27T04:38:27.819648",
+      "source": "realtime_capture"
+    },
+    {
+      "type": "message",
+      "content": "change the chrome icon back to what it just was it looks weird now, also my anipotts/anipotts on github has my old portfolio site what shud i do shud i rename this legacy and then make a new clean rep",
+      "added_at": "2026-01-27T04:38:27.819694",
+      "source": "realtime_capture"
+    },
+    {
+      "type": "claude_response",
+      "content": "[Hook loop - press Ctrl+C to exit, or type a message]",
+      "added_at": "2026-01-27T04:47:08.958915",
+      "source": "realtime_capture"
+    },
+    {
+      "type": "message",
+      "content": "got on proton vpn still ip blocked: Wikidata Search Wikidata Search English Donate Create account Log in Permission error Tools Appearance hide Text Small Standard Large This page always uses small fo",
+      "added_at": "2026-01-27T04:47:08.958952",
+      "source": "realtime_capture"
+    },
+    {
+      "type": "claude_response",
+      "content": "✓ 5 memories",
+      "added_at": "2026-01-27T04:50:50.072074",
+      "source": "realtime_capture"
+    },
+    {
+      "type": "message",
+      "content": "i added a screenshot of the og image to the root of anipotts.com directory appropraiely rename it and use it approriaely and also can you give me a cleaner nicely organized version of the following to",
+      "added_at": "2026-01-27T04:50:50.072097",
+      "source": "realtime_capture"
+    }
+  ],
+  "created_at": "2026-01-27T04:23:08.123130",
+  "updated_at": "2026-01-27T04:50:50.072098"
+}

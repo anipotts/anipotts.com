@@ -83,6 +83,22 @@ export const metadata: Metadata = {
   alternates: {
     canonical: 'https://anipotts.com',
   },
+  manifest: '/site.webmanifest',
+  icons: {
+    icon: [
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Ani Potts',
+  },
+  other: {
+    'msapplication-TileColor': '#0a0a0a',
+    'msapplication-config': '/browserconfig.xml',
+  },
 };
 
 export default function RootLayout({
