@@ -6,7 +6,7 @@ const links = [
   { name: "GitHub", url: "https://github.com/anipotts", icon: FaGithub, description: "@anipotts" },
   { name: "LinkedIn", url: "https://linkedin.com/in/anipotts", icon: FaLinkedin, description: "Professional" },
   { name: "Twitter", url: "https://twitter.com/anipotts", icon: FaTwitter, description: "@anipotts" },
-  { name: "Email", url: "mailto:hi@anipotts.com", icon: FaEnvelope, description: "hi@anipotts.com" },
+  { name: "Email", url: "mailto:contact@anipotts.com", icon: FaEnvelope, description: "contact@anipotts.com" },
 ];
 
 const projects = [

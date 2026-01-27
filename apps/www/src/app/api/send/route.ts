@@ -16,7 +16,7 @@ export async function POST(request: Request) {
 
     const data = await resend.emails.send({
       from: 'Contact Form <onboarding@resend.dev>', // Update this to your verified domain if you have one, e.g., contact@anipotts.com
-      to: ['anirudhpottammal@nyu.edu'],
+      to: ['contact@anipotts.com'],
       subject: `New Message from ${name}`,
       replyTo: email,
       text: `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`,

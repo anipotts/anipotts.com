@@ -4,7 +4,7 @@ import FadeIn from "@/components/FadeIn";
 import posthog from "posthog-js";
 
 const socials = [
-  { name: "email", value: "anirudhpottammal@nyu.edu", href: "mailto:anirudhpottammal@nyu.edu", label: "reach out" },
+  { name: "email", value: "contact@anipotts.com", href: "mailto:contact@anipotts.com", label: "reach out" },
   { name: "x", value: "@anipottsbuilds", href: "https://x.com/anipottsbuilds", label: "follow" },
   { name: "github", value: "anipotts", href: "https://github.com/anipotts", label: "code" },
   { name: "instagram", value: "@ani_potts", href: "https://instagram.com/ani_potts", label: "life" },
