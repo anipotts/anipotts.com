@@ -12,6 +12,7 @@ export type Project = {
   tags: string[];
   status?: ProjectStatus; // defaults to "live" if not specified
   featured?: boolean; // for dedicated project pages
+  icon?: "chrome"; // optional icon override
   links?: {
     live?: string;
     repo?: string;
@@ -42,8 +43,8 @@ export const projects: Project[] = [
 
   {
     slug: "quantercise-extension",
-    title: "Quantercise Quick Drill",
-    subtitle: "Mental math Chrome extension—2-min timed drills.",
+    title: "Mental Math Chrome Extension",
+    subtitle: "2-min timed drills for quant interview prep.",
     description:
       "Brings quantercise.com's mental math mode to the browser. Keyboard-driven, sound feedback, progress tracking. Vanilla JS, Manifest V3, zero external dependencies.",
     year: "2026",
@@ -52,6 +53,7 @@ export const projects: Project[] = [
     duration: "Winter 2026",
     tags: ["Chrome Extension", "JavaScript", "Manifest V3"],
     status: "live",
+    icon: "chrome",
     links: {
       repo: "https://github.com/anipotts/quantercise-mental-math-extension",
     },

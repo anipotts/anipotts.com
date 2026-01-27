@@ -111,19 +111,19 @@ body {
 .ql-snow .ql-toolbar button.ql-active .ql-stroke,
 .ql-snow .ql-toolbar .ql-picker-label:hover .ql-stroke,
 .ql-snow .ql-toolbar .ql-picker-label.ql-active .ql-stroke {
-  stroke: #a78bfa !important; /* accent-400 */
+  stroke: #61ABEA !important; /* accent-400 */
 }
 
 .ql-snow .ql-toolbar button:hover .ql-fill,
 .ql-snow .ql-toolbar button.ql-active .ql-fill,
 .ql-snow .ql-toolbar .ql-picker-label:hover .ql-fill,
 .ql-snow .ql-toolbar .ql-picker-label.ql-active .ql-fill {
-  fill: #a78bfa !important;
+  fill: #61ABEA !important;
 }
 
 .ql-snow .ql-toolbar .ql-picker-label:hover,
 .ql-snow .ql-toolbar .ql-picker-label.ql-active {
-  color: #a78bfa !important;
+  color: #61ABEA !important;
 }
 
 /* Dropdowns */
@@ -140,5 +140,5 @@ body {
 
 .ql-snow .ql-picker-item:hover,
 .ql-snow .ql-picker-item.ql-selected {
-  color: #a78bfa !important;
+  color: #61ABEA !important;
 }

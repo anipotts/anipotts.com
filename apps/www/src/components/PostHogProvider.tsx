@@ -28,7 +28,12 @@ function PostHogPageView() {
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
+    const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+    if (!key) {
+      console.warn("[PostHog] No NEXT_PUBLIC_POSTHOG_KEY found, skipping initialization");
+      return;
+    }
+    posthog.init(key, {
       api_host: "/ingest",
       ui_host: "https://us.posthog.com",
       person_profiles: "identified_only",

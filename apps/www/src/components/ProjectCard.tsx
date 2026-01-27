@@ -6,6 +6,24 @@ import { Project } from "@/data/projects";
 import Link from "next/link";
 import posthog from "posthog-js";
 
+function ChromeIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 100 100"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <circle cx="50" cy="50" r="50" fill="#fff" />
+      <path d="M50 5 A45 45 0 0 1 89.4 27.5 L50 50 Z" fill="#EA4335" />
+      <path d="M89.4 27.5 A45 45 0 0 1 50 95 L50 50 Z" fill="#FBBC05" />
+      <path d="M50 95 A45 45 0 0 1 10.6 27.5 L50 50 Z" fill="#34A853" />
+      <path d="M10.6 27.5 A45 45 0 0 1 50 5 L50 50 Z" fill="#EA4335" />
+      <circle cx="50" cy="50" r="22" fill="#fff" />
+      <circle cx="50" cy="50" r="18" fill="#4285F4" />
+    </svg>
+  );
+}
+
 function StatusBadge({ status, featured }: { status?: string; featured?: boolean }) {
   if (featured) {
     return (
@@ -63,6 +81,9 @@ export default function ProjectCard({ project }: { project: Project }) {
             <span className={isOpen ? "text-accent-400" : "text-gray-500 group-hover:text-gray-300"}>
               {isOpen ? "[-]" : "[+]"}
             </span>
+            {project.icon === "chrome" && (
+              <ChromeIcon className="w-4 h-4 flex-shrink-0" />
+            )}
             <h3 className={`font-bold ${isOpen ? "text-gray-100" : "text-gray-300 group-hover:text-gray-100"}`}>
               {project.title}
             </h3>

@@ -7,8 +7,8 @@ export default {
         background: "var(--background)",
         foreground: "var(--foreground)",
         accent: {
-          DEFAULT: "#a78bfa", // lavender-400
-          400: "#a78bfa",
+          DEFAULT: "#61ABEA", // ani-blue
+          400: "#61ABEA",
         },
         signal: {
           green: "#4ade80", // green-400

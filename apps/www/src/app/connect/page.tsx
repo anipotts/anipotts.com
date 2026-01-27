@@ -7,9 +7,9 @@ const socials = [
   { name: "email", value: "contact@anipotts.com", href: "mailto:contact@anipotts.com", label: "reach out" },
   { name: "x", value: "@anipottsbuilds", href: "https://x.com/anipottsbuilds", label: "follow" },
   { name: "github", value: "anipotts", href: "https://github.com/anipotts", label: "code" },
-  { name: "instagram", value: "@ani_potts", href: "https://instagram.com/ani_potts", label: "life" },
-  { name: "tiktok", value: "@anipotts", href: "https://tiktok.com/@anipotts", label: "content" },
-  { name: "linkedin", value: "anipotts", href: "https://www.linkedin.com/in/anirudh-pottammal-01b186216/", label: "professional" },
+  { name: "instagram", value: "@anipottsbuilds", href: "https://instagram.com/anipottsbuilds", label: "life" },
+  { name: "tiktok", value: "@anipottsbuilds", href: "https://tiktok.com/@anipottsbuilds", label: "content" },
+  { name: "linkedin", value: "anipotts", href: "https://www.linkedin.com/in/anipotts", label: "professional" },
 ];
 
 const handleSocialClick = (social: typeof socials[0]) => {

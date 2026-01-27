@@ -50,7 +50,7 @@ export default async function Home() {
             <p className="text-lg md:text-xl text-gray-400 leading-relaxed">
               i'm a SWE based in NYC, who builds minimal interfaces to orchestrate complex systems.
             </p>
-            </FadeIn>
+          </FadeIn>
         </div>
       </section>
 

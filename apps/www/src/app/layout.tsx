@@ -17,6 +17,7 @@ import WindowInner from "@/components/window/WindowInner";
 import WindowLayoutWrapper from "@/components/window/WindowLayoutWrapper";
 import TerminalHeaderTitle from "@/components/window/TerminalHeaderTitle";
 import TerminalStatusBar from "@/components/window/TerminalStatusBar";
+import PersonSchema from "@/components/PersonSchema";
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
@@ -25,8 +26,63 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ani Potts",
-  description: "ani@nyc:~/anipotts.com",
+  metadataBase: new URL('https://anipotts.com'),
+  title: {
+    default: 'Ani Potts | Software Engineer',
+    template: '%s | Ani Potts',
+  },
+  description:
+    'Ani Potts (Anirudh Pottammal) is a software engineer based in NYC who builds minimal interfaces to orchestrate complex systems. NYU \'26.',
+  keywords: [
+    'Ani Potts',
+    'Anirudh Pottammal',
+    'software engineer',
+    'NYC',
+    'developer',
+    'NYU',
+  ],
+  authors: [{ name: 'Ani Potts', url: 'https://anipotts.com' }],
+  creator: 'Ani Potts',
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: 'https://anipotts.com',
+    siteName: 'Ani Potts',
+    title: 'Ani Potts | Software Engineer',
+    description:
+      'Software engineer based in NYC who builds minimal interfaces to orchestrate complex systems.',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Ani Potts - Software Engineer',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    creator: '@anipottsbuilds',
+    site: '@anipottsbuilds',
+    title: 'Ani Potts | Software Engineer',
+    description:
+      'Software engineer based in NYC who builds minimal interfaces to orchestrate complex systems.',
+    images: ['/og-image.png'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  alternates: {
+    canonical: 'https://anipotts.com',
+  },
 };
 
 export default function RootLayout({
@@ -36,8 +92,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={clsx(jetbrainsMono.variable, "dark")}>
+      <head>
+        <PersonSchema />
+      </head>
       <body className="relative min-h-screen antialiased text-foreground bg-transparent font-mono selection:bg-accent-400/20 selection:text-accent-400 overflow-x-hidden">
-        
+
         {/* Fixed Background Container */}
         <div className="fixed inset-0 -z-10 min-h-[100svh] bg-background">
           {/* Ambient Background Effects */}
@@ -47,7 +106,7 @@ export default function RootLayout({
           {/* Waves Animation */}
           <div className="hidden md:block absolute inset-0 z-20 opacity-30 pointer-events-none">
             <Waves
-              lineColor="rgba(167, 139, 250, 0.96)"
+              lineColor="rgba(97, 171, 234, 0.96)"
               backgroundColor="transparent"
               waveSpeedX={0.02}
               waveSpeedY={0.01}

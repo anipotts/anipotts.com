@@ -41,7 +41,7 @@ export default function SignalsBar() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-gray-600">focus:</span>
-          <span className="text-gray-300">distilled context caching</span>
+          <span className="text-gray-300">durable execution</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-gray-600">market:</span>

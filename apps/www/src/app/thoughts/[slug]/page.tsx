@@ -7,6 +7,7 @@ import { getPostHogClient } from "@/lib/posthog-server";
 import { headers } from "next/headers";
 import ViewCounter from "@/components/ViewCounter";
 import IncrementView from "@/components/IncrementView";
+import type { Metadata } from "next";
 
 export const revalidate = 60;
 
@@ -18,6 +19,47 @@ async function getThought(slug: string) {
     .eq("slug", slug)
     .single();
   return data;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const thought = await getThought(slug);
+
+  if (!thought) {
+    return {
+      title: "Thought Not Found",
+    };
+  }
+
+  const description = thought.summary || `${thought.content?.slice(0, 155)}...`;
+
+  return {
+    title: thought.title,
+    description,
+    openGraph: {
+      title: thought.title,
+      description,
+      type: "article",
+      publishedTime: thought.created_at,
+      modifiedTime: thought.updated_at,
+      authors: ["Ani Potts"],
+      tags: thought.tags || [],
+      url: `https://anipotts.com/thoughts/${slug}`,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: thought.title,
+      description,
+      creator: "@anipottsbuilds",
+    },
+    alternates: {
+      canonical: `https://anipotts.com/thoughts/${slug}`,
+    },
+  };
 }
 
 export default async function ThoughtPage({ params }: { params: Promise<{ slug: string }> }) {
