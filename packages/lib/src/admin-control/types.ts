@@ -31,10 +31,44 @@ export type InboxActionKind =
   | "open"
   | "none";
 
+export type AdminAttentionKind =
+  | "action"
+  | "approval"
+  | "awareness"
+  | "blocked"
+  | "decision"
+  | "proof"
+  | "review"
+  | "waiting";
+
+export type AdminAgentSource = "ani" | "codex" | "claude" | "system" | "mixed";
+
+export type AdminLifecycleState =
+  | "active"
+  | "archived"
+  | "blocked"
+  | "complete"
+  | "draft"
+  | "parked"
+  | "planned"
+  | "ready"
+  | "review";
+
+export type AdminNativeRuntimeStatus =
+  | "none"
+  | "local-only"
+  | "runtime"
+  | "scheduled"
+  | "service"
+  | "deployed";
+
 export interface AdminInboxItem {
   item_id: string;
   dedupe_key: string;
   event_refs: string[];
+  domain: string;
+  entity_ref: string | null;
+  attention_kind: AdminAttentionKind | string;
   source: string;
   account: string | null;
   title: string;
@@ -76,6 +110,52 @@ export interface AdminPieceState {
   state: PieceStateName | string;
   channels: string[];
   source_refs: string[];
+  updated_at: string | null;
+}
+
+export interface AdminProjectState {
+  project_id: string;
+  dedupe_key: string;
+  title: string;
+  domain: string;
+  entity_ref: string | null;
+  lifecycle: AdminLifecycleState | string;
+  attention_kind: AdminAttentionKind | string;
+  native_runtime_status: AdminNativeRuntimeStatus | string;
+  status_summary: string;
+  owner: string;
+  agent_source: AdminAgentSource | string;
+  event_refs: string[];
+  task_refs: string[];
+  updated_at: string | null;
+}
+
+export interface AdminTaskState {
+  task_id: string;
+  dedupe_key: string;
+  project_ref: string;
+  title: string;
+  domain: string;
+  entity_ref: string | null;
+  lifecycle: AdminLifecycleState | string;
+  attention_kind: AdminAttentionKind | string;
+  native_runtime_status: AdminNativeRuntimeStatus | string;
+  status_summary: string;
+  owner: string;
+  agent_source: AdminAgentSource | string;
+  event_refs: string[];
+  blocked_by: string[];
+  updated_at: string | null;
+}
+
+export interface AdminTaskLineage {
+  lineage_id: string;
+  task_ref: string;
+  parent_task_ref: string | null;
+  root_task_ref: string;
+  relation: string;
+  agent_source: AdminAgentSource | string;
+  event_refs: string[];
   updated_at: string | null;
 }
 
@@ -147,6 +227,9 @@ export interface AdminControlAuthContract {
 export interface AdminControlContracts {
   event_fields: (keyof AdminEventEnvelope)[];
   inbox_card_fields: (keyof AdminInboxItem)[];
+  project_state_fields: (keyof AdminProjectState)[];
+  task_state_fields: (keyof AdminTaskState)[];
+  task_lineage_fields: (keyof AdminTaskLineage)[];
   sent_mail_metadata_fields: (keyof AdminSentMailMetadata)[];
   sent_mail_card_policy: {
     dedupe: "gmail-message-id-derived-ref";
@@ -154,7 +237,7 @@ export interface AdminControlContracts {
     followups: "separate-inbox-items";
     sync: "refresh-on-open-plus-light-polling";
     raw_identifiers: "omitted";
-    snippet: "omitted";
+    preview_text: "omitted";
   };
   piece_states: PieceStateName[];
   legal_piece_cycles: string[];
@@ -162,6 +245,9 @@ export interface AdminControlContracts {
 
 export interface AdminControlProjections {
   inbox_items: AdminInboxItem[];
+  project_states: AdminProjectState[];
+  task_states: AdminTaskState[];
+  task_lineage: AdminTaskLineage[];
   piece_states: AdminPieceState[];
   fleet_status: AdminFleetStatus[];
   deploy_states: AdminDeployState[];

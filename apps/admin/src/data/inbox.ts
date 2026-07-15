@@ -36,6 +36,9 @@ export type AdminInboxTimeframe =
 export type AdminInboxItem = {
   id: string;
   dedupe_key: string;
+  domain: string;
+  entity_ref: string | null;
+  attention_kind: string;
   source: string;
   owner: string;
   action_kind: string;
@@ -93,6 +96,9 @@ export async function readAdminInbox(
       .map<AdminInboxItem>((entry) => ({
         id: entry.id,
         dedupe_key: `proof:${entry.id}`,
+        domain: "proof",
+        entity_ref: `proof:${entry.id}`,
+        attention_kind: "proof",
         source: entry.kind === "auth" ? "auth" : "deploy",
         owner: "site/admin",
         action_kind: "verify",
@@ -124,6 +130,9 @@ export async function readAdminInbox(
         return {
           id: operation.operation_id,
           dedupe_key: `content-operation:${operation.operation_id}`,
+          domain: "content",
+          entity_ref: `content-operation:${operation.operation_id}`,
+          attention_kind: operation.status === "blocked" ? "blocked" : "review",
           source: "content",
           owner: operation.created_by,
           action_kind: operation.status === "blocked" ? "approve" : "review",
@@ -153,6 +162,10 @@ export async function readAdminInbox(
       .map<AdminInboxItem>((overlay) => ({
         id: overlay.repo_state_id,
         dedupe_key: `fleet:${overlay.repo_state_id}`,
+        domain: "fleet",
+        entity_ref: `repo-state:${overlay.repo_state_id}`,
+        attention_kind:
+          overlay.deploy_impact === "production" ? "action" : "review",
         source: "fleet",
         owner: "chief/infra",
         action_kind: "review",
@@ -181,6 +194,9 @@ export async function readAdminInbox(
         return {
           id: item.item_id,
           dedupe_key: item.dedupe_key,
+          domain: item.domain ?? "mail",
+          entity_ref: item.entity_ref ?? null,
+          attention_kind: item.attention_kind ?? item.action_kind,
           source: "gmail",
           owner: item.owner,
           action_kind: item.action_kind,
@@ -204,6 +220,9 @@ export async function readAdminInbox(
       .map<AdminInboxItem>((draft) => ({
         id: draft.id,
         dedupe_key: `newsletter:${draft.id}`,
+        domain: "content",
+        entity_ref: `newsletter:${draft.id}`,
+        attention_kind: draft.status === "blocked" ? "blocked" : "review",
         source: "newsletter",
         owner: "chief/site",
         action_kind: "review",
@@ -231,6 +250,9 @@ export async function readAdminInbox(
         return {
           id: post.id,
           dedupe_key: `carousel:${post.id}`,
+          domain: "content",
+          entity_ref: `carousel:${post.id}`,
+          attention_kind: "review",
           source: "carousel",
           owner: "media/carousels",
           action_kind: "review",
@@ -253,6 +275,9 @@ export async function readAdminInbox(
     items.push({
       id: "admin-control.read-unavailable",
       dedupe_key: "admin-control:read-unavailable",
+      domain: "fleet",
+      entity_ref: "admin-control:read",
+      attention_kind: "proof",
       source: "system",
       owner: "site/admin",
       action_kind: "verify",
@@ -275,6 +300,9 @@ export async function readAdminInbox(
     items.push({
       id: "content.page-content.unavailable",
       dedupe_key: "content:page-content:unavailable",
+      domain: "content",
+      entity_ref: "page-content:d1",
+      attention_kind: "proof",
       source: "content",
       owner: "chief/site",
       action_kind: "verify",
@@ -320,7 +348,9 @@ export async function readAdminInbox(
   };
 }
 
-function isOpenProjectionItem(item: AdminControlInboxItem): boolean {
+function isOpenProjectionItem(
+  item: Pick<AdminControlInboxItem, "action_kind" | "status">,
+): boolean {
   return item.action_kind !== "none" && !CLOSED_STATUSES.has(item.status);
 }
 
@@ -333,6 +363,9 @@ function inboxItemFromProjection(
   return {
     id: item.item_id,
     dedupe_key: item.dedupe_key,
+    domain: item.domain,
+    entity_ref: item.entity_ref,
+    attention_kind: item.attention_kind,
     source: item.source,
     owner: item.owner,
     action_kind: item.action_kind,

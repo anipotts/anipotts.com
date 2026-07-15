@@ -9,6 +9,9 @@ export type McpJsonRpcRequest = {
 
 export const ADMIN_MCP_RESOURCE_URIS = [
   "admin://projections/inbox_items",
+  "admin://projections/project_states",
+  "admin://projections/task_states",
+  "admin://projections/task_lineage",
   "admin://projections/piece_states",
   "admin://projections/fleet_status",
   "admin://projections/deploy_states",
@@ -20,8 +23,23 @@ export const ADMIN_MCP_RESOURCE_URIS = [
 export const ADMIN_MCP_TOOL_NAMES = [
   "admin.get_projection",
   "admin.get_inbox",
+  "admin.get_projects",
+  "admin.get_tasks",
+  "admin.get_task_lineage",
   "admin.get_capabilities",
 ] as const;
+
+const PROJECTION_NAMES = [
+  "inbox_items",
+  "project_states",
+  "task_states",
+  "task_lineage",
+  "piece_states",
+  "fleet_status",
+  "deploy_states",
+  "capability_states",
+  "service_registry_view",
+] as const satisfies readonly ProjectionName[];
 
 type ProjectionName = keyof AdminControlProjections;
 
@@ -96,6 +114,21 @@ export function handleAdminMcpRequest(
             inputSchema: { type: "object", properties: {} },
           },
           {
+            name: "admin.get_projects",
+            description: "read current project states",
+            inputSchema: { type: "object", properties: {} },
+          },
+          {
+            name: "admin.get_tasks",
+            description: "read current task states",
+            inputSchema: { type: "object", properties: {} },
+          },
+          {
+            name: "admin.get_task_lineage",
+            description: "read current task lineage",
+            inputSchema: { type: "object", properties: {} },
+          },
+          {
             name: "admin.get_capabilities",
             description: "read machine capability states",
             inputSchema: { type: "object", properties: {} },
@@ -121,6 +154,18 @@ function callTool(
 
   if (toolName === "admin.get_inbox") {
     return toolResult(id, snapshot.projections.inbox_items);
+  }
+
+  if (toolName === "admin.get_projects") {
+    return toolResult(id, snapshot.projections.project_states);
+  }
+
+  if (toolName === "admin.get_tasks") {
+    return toolResult(id, snapshot.projections.task_states);
+  }
+
+  if (toolName === "admin.get_task_lineage") {
+    return toolResult(id, snapshot.projections.task_lineage);
   }
 
   if (toolName === "admin.get_capabilities") {
@@ -167,14 +212,7 @@ function resourceValue(snapshot: AdminControlSnapshot, uri: string) {
 }
 
 function isProjectionName(value: string): value is ProjectionName {
-  return [
-    "inbox_items",
-    "piece_states",
-    "fleet_status",
-    "deploy_states",
-    "capability_states",
-    "service_registry_view",
-  ].includes(value);
+  return (PROJECTION_NAMES as readonly string[]).includes(value);
 }
 
 function projectionInputSchema() {
@@ -183,14 +221,7 @@ function projectionInputSchema() {
     properties: {
       projection: {
         type: "string",
-        enum: [
-          "inbox_items",
-          "piece_states",
-          "fleet_status",
-          "deploy_states",
-          "capability_states",
-          "service_registry_view",
-        ],
+        enum: PROJECTION_NAMES,
       },
     },
     required: ["projection"],

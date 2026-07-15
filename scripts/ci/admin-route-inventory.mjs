@@ -90,6 +90,24 @@ export const ADMIN_ROUTES = [
     smoke: false,
   },
   {
+    route: "/api/admin/project-states",
+    file: "apps/admin/src/pages/api/admin/project-states.ts",
+    nav: false,
+    smoke: false,
+  },
+  {
+    route: "/api/admin/task-states",
+    file: "apps/admin/src/pages/api/admin/task-states.ts",
+    nav: false,
+    smoke: false,
+  },
+  {
+    route: "/api/admin/task-lineage",
+    file: "apps/admin/src/pages/api/admin/task-lineage.ts",
+    nav: false,
+    smoke: false,
+  },
+  {
     route: "/api/admin/content/draft-operation",
     file: "apps/admin/src/pages/api/admin/content/draft-operation.ts",
     nav: false,

@@ -1,5 +1,6 @@
 import { ADMIN_EVENT_SCHEMA_VERSION } from "./types";
 import type {
+  AdminAttentionKind,
   AdminEventEnvelope,
   AdminEventPrivacy,
   AdminInboxItem,
@@ -16,6 +17,9 @@ export type SentMailFollowUp = {
   title: string;
   summary: string;
   owner: string;
+  domain?: string;
+  entity_ref?: string | null;
+  attention_kind?: AdminAttentionKind | string;
   urgency?: AdminInboxItem["urgency"];
   status?: string;
   href?: string | null;
@@ -81,7 +85,7 @@ export function buildSentMailEvent(
     ts: metadata.sent_at,
     privacy: options.privacy ?? "private",
     title: `sent ${metadata.subject}`,
-    summary: `sent mail recorded as metadata-only proof; ${attachmentText}; raw message id, thread id, recipients, and snippet omitted.`,
+    summary: `sent mail recorded as metadata-only proof; ${attachmentText}; raw gmail identifiers and preview text omitted.`,
     href: metadata.href,
     payload_ref: null,
     created_by: options.created_by ?? "admin-sent-mail-adapter",
@@ -97,6 +101,11 @@ export function buildSentMailFollowUpCard(
     item_id: followUp.id,
     dedupe_key: followUp.dedupe_key,
     event_refs: [event.event_id],
+    domain: followUp.domain ?? "mail",
+    entity_ref: followUp.entity_ref ?? `gmail:sent:${metadata.sent_ref}`,
+    attention_kind:
+      followUp.attention_kind ??
+      (followUp.kind === "payment" ? "waiting" : "action"),
     source: "gmail",
     account: metadata.account,
     title: followUp.title,

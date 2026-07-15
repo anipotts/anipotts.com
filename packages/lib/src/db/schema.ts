@@ -945,6 +945,9 @@ export const adminInboxItems = sqliteTable(
     item_id: text("item_id").primaryKey(),
     dedupe_key: text("dedupe_key").notNull().unique(),
     event_refs: text("event_refs").notNull().default("[]"),
+    domain: text("domain").notNull().default("general"),
+    entity_ref: text("entity_ref"),
+    attention_kind: text("attention_kind").notNull().default("awareness"),
     source: text("source").notNull(),
     account: text("account"),
     title: text("title").notNull(),
@@ -962,6 +965,76 @@ export const adminInboxItems = sqliteTable(
     index("idx_admin_inbox_status_urgency").on(table.status, table.urgency),
     index("idx_admin_inbox_source").on(table.source, table.updated_at),
     index("idx_admin_inbox_expires").on(table.expires_at),
+  ],
+);
+
+export const adminProjectStates = sqliteTable(
+  "admin_project_states",
+  {
+    project_id: text("project_id").primaryKey(),
+    dedupe_key: text("dedupe_key").notNull().unique(),
+    title: text("title").notNull(),
+    domain: text("domain").notNull(),
+    entity_ref: text("entity_ref"),
+    lifecycle: text("lifecycle").notNull(),
+    attention_kind: text("attention_kind").notNull(),
+    native_runtime_status: text("native_runtime_status").notNull(),
+    status_summary: text("status_summary").notNull(),
+    owner: text("owner").notNull(),
+    agent_source: text("agent_source").notNull(),
+    event_refs: text("event_refs").notNull().default("[]"),
+    task_refs: text("task_refs").notNull().default("[]"),
+    updated_at: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("idx_admin_project_domain_lifecycle").on(
+      table.domain,
+      table.lifecycle,
+    ),
+    index("idx_admin_project_attention").on(table.attention_kind),
+  ],
+);
+
+export const adminTaskStates = sqliteTable(
+  "admin_task_states",
+  {
+    task_id: text("task_id").primaryKey(),
+    dedupe_key: text("dedupe_key").notNull().unique(),
+    project_ref: text("project_ref").notNull(),
+    title: text("title").notNull(),
+    domain: text("domain").notNull(),
+    entity_ref: text("entity_ref"),
+    lifecycle: text("lifecycle").notNull(),
+    attention_kind: text("attention_kind").notNull(),
+    native_runtime_status: text("native_runtime_status").notNull(),
+    status_summary: text("status_summary").notNull(),
+    owner: text("owner").notNull(),
+    agent_source: text("agent_source").notNull(),
+    event_refs: text("event_refs").notNull().default("[]"),
+    blocked_by: text("blocked_by").notNull().default("[]"),
+    updated_at: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("idx_admin_task_project").on(table.project_ref, table.lifecycle),
+    index("idx_admin_task_attention").on(table.attention_kind),
+  ],
+);
+
+export const adminTaskLineage = sqliteTable(
+  "admin_task_lineage",
+  {
+    lineage_id: text("lineage_id").primaryKey(),
+    task_ref: text("task_ref").notNull(),
+    parent_task_ref: text("parent_task_ref"),
+    root_task_ref: text("root_task_ref").notNull(),
+    relation: text("relation").notNull(),
+    agent_source: text("agent_source").notNull(),
+    event_refs: text("event_refs").notNull().default("[]"),
+    updated_at: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("idx_admin_task_lineage_task").on(table.task_ref),
+    index("idx_admin_task_lineage_root").on(table.root_task_ref),
   ],
 );
 

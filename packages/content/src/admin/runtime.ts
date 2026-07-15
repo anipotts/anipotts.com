@@ -59,6 +59,9 @@ export type RuntimeAdminInboxItem = {
   item_id: string;
   dedupe_key: string;
   event_refs: string[];
+  domain?: string;
+  entity_ref?: string | null;
+  attention_kind?: string;
   source: string;
   account: string | null;
   title: string;
@@ -306,6 +309,11 @@ function adminInboxItemFromJson(value: unknown): RuntimeAdminInboxItem | null {
     item_id: value.item_id,
     dedupe_key: value.dedupe_key,
     event_refs: stringArrayFromJson(value.event_refs),
+    domain: isString(value.domain) ? value.domain : undefined,
+    entity_ref: stringOrNull(value.entity_ref),
+    attention_kind: isString(value.attention_kind)
+      ? value.attention_kind
+      : undefined,
     source: value.source,
     account: stringOrNull(value.account),
     title: value.title,

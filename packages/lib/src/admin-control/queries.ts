@@ -14,7 +14,10 @@ import {
   type AdminFleetStatus,
   type AdminInboxItem,
   type AdminPieceState,
+  type AdminProjectState,
   type AdminServiceRegistryViewItem,
+  type AdminTaskLineage,
+  type AdminTaskState,
 } from "./types";
 
 type D1Result<T> = { results?: T[] };
@@ -64,6 +67,9 @@ export async function loadAdminControlSnapshot(
   const [
     events,
     inboxItems,
+    projectStates,
+    taskStates,
+    taskLineage,
     pieceStates,
     fleetStatus,
     deployStates,
@@ -72,6 +78,9 @@ export async function loadAdminControlSnapshot(
   ] = await Promise.all([
     readAdminEvents(db),
     readInboxItems(db),
+    readProjectStates(db),
+    readTaskStates(db),
+    readTaskLineage(db),
     readPieceStates(db),
     readFleetStatus(db),
     readDeployStates(db),
@@ -82,6 +91,9 @@ export async function loadAdminControlSnapshot(
   const reads = [
     events,
     inboxItems,
+    projectStates,
+    taskStates,
+    taskLineage,
     pieceStates,
     fleetStatus,
     deployStates,
@@ -90,7 +102,10 @@ export async function loadAdminControlSnapshot(
   ];
 
   const projections: AdminControlProjections = {
-    inbox_items: sortInbox(inboxItems.rows),
+    inbox_items: sortInbox(dedupeByKey(inboxItems.rows, "dedupe_key")),
+    project_states: dedupeByKey(projectStates.rows, "dedupe_key"),
+    task_states: dedupeByKey(taskStates.rows, "dedupe_key"),
+    task_lineage: dedupeByKey(taskLineage.rows, "lineage_id"),
     piece_states: pieceStates.rows,
     fleet_status: fleetStatus.rows,
     deploy_states: deployStates.rows,
@@ -106,7 +121,7 @@ export async function loadAdminControlSnapshot(
     retention: RETENTION_CONTRACT,
     auth: AUTH_CONTRACT,
     contracts: adminControlContracts,
-    events: events.rows,
+    events: dedupeByKey(events.rows, "dedupe_key"),
     projections,
     errors: reads.flatMap((read) => (read.error ? [read.error] : [])),
   };
@@ -151,7 +166,8 @@ async function readInboxItems(
   return readRows(
     db,
     "admin_inbox_items",
-    `SELECT item_id, dedupe_key, event_refs, source, account, title, summary,
+    `SELECT item_id, dedupe_key, event_refs, domain, entity_ref,
+            attention_kind, source, account, title, summary,
             href, status, urgency, owner, action_kind, expires_at, last_seen_at
        FROM admin_inbox_items
       ORDER BY
@@ -167,6 +183,9 @@ async function readInboxItems(
       item_id: asString(row.item_id),
       dedupe_key: asString(row.dedupe_key),
       event_refs: parseStringArray(row.event_refs),
+      domain: asString(row.domain),
+      entity_ref: nullableString(row.entity_ref),
+      attention_kind: asString(row.attention_kind),
       source: asString(row.source),
       account: nullableString(row.account),
       title: asString(row.title),
@@ -178,6 +197,93 @@ async function readInboxItems(
       action_kind: asString(row.action_kind),
       expires_at: nullableString(row.expires_at),
       last_seen_at: nullableString(row.last_seen_at),
+    }),
+  );
+}
+
+async function readProjectStates(
+  db: AdminControlDatabase,
+): Promise<ReadResult<AdminProjectState>> {
+  return readRows(
+    db,
+    "admin_project_states",
+    `SELECT project_id, dedupe_key, title, domain, entity_ref, lifecycle,
+            attention_kind, native_runtime_status, status_summary, owner,
+            agent_source, event_refs, task_refs, updated_at
+       FROM admin_project_states
+      ORDER BY updated_at DESC`,
+    fixtureProjections.project_states,
+    (row) => ({
+      project_id: asString(row.project_id),
+      dedupe_key: asString(row.dedupe_key),
+      title: asString(row.title),
+      domain: asString(row.domain),
+      entity_ref: nullableString(row.entity_ref),
+      lifecycle: asString(row.lifecycle),
+      attention_kind: asString(row.attention_kind),
+      native_runtime_status: asString(row.native_runtime_status),
+      status_summary: asString(row.status_summary),
+      owner: asString(row.owner),
+      agent_source: asString(row.agent_source),
+      event_refs: parseStringArray(row.event_refs),
+      task_refs: parseStringArray(row.task_refs),
+      updated_at: nullableString(row.updated_at),
+    }),
+  );
+}
+
+async function readTaskStates(
+  db: AdminControlDatabase,
+): Promise<ReadResult<AdminTaskState>> {
+  return readRows(
+    db,
+    "admin_task_states",
+    `SELECT task_id, dedupe_key, project_ref, title, domain, entity_ref,
+            lifecycle, attention_kind, native_runtime_status, status_summary,
+            owner, agent_source, event_refs, blocked_by, updated_at
+       FROM admin_task_states
+      ORDER BY updated_at DESC`,
+    fixtureProjections.task_states,
+    (row) => ({
+      task_id: asString(row.task_id),
+      dedupe_key: asString(row.dedupe_key),
+      project_ref: asString(row.project_ref),
+      title: asString(row.title),
+      domain: asString(row.domain),
+      entity_ref: nullableString(row.entity_ref),
+      lifecycle: asString(row.lifecycle),
+      attention_kind: asString(row.attention_kind),
+      native_runtime_status: asString(row.native_runtime_status),
+      status_summary: asString(row.status_summary),
+      owner: asString(row.owner),
+      agent_source: asString(row.agent_source),
+      event_refs: parseStringArray(row.event_refs),
+      blocked_by: parseStringArray(row.blocked_by),
+      updated_at: nullableString(row.updated_at),
+    }),
+  );
+}
+
+async function readTaskLineage(
+  db: AdminControlDatabase,
+): Promise<ReadResult<AdminTaskLineage>> {
+  return readRows(
+    db,
+    "admin_task_lineage",
+    `SELECT lineage_id, task_ref, parent_task_ref, root_task_ref, relation,
+            agent_source, event_refs, updated_at
+       FROM admin_task_lineage
+      ORDER BY updated_at DESC`,
+    fixtureProjections.task_lineage,
+    (row) => ({
+      lineage_id: asString(row.lineage_id),
+      task_ref: asString(row.task_ref),
+      parent_task_ref: nullableString(row.parent_task_ref),
+      root_task_ref: asString(row.root_task_ref),
+      relation: asString(row.relation),
+      agent_source: asString(row.agent_source),
+      event_refs: parseStringArray(row.event_refs),
+      updated_at: nullableString(row.updated_at),
     }),
   );
 }
@@ -357,6 +463,15 @@ function sortInbox(items: AdminInboxItem[]): AdminInboxItem[] {
     if (urgency !== 0) return urgency;
     return (a.expires_at ?? "9999").localeCompare(b.expires_at ?? "9999");
   });
+}
+
+function dedupeByKey<T extends object>(rows: T[], key: keyof T): T[] {
+  const unique = new Map<string, T>();
+  for (const row of rows) {
+    const dedupeKey = asString(row[key]);
+    if (dedupeKey.length > 0) unique.set(dedupeKey, row);
+  }
+  return [...unique.values()];
 }
 
 function asString(value: unknown): string {
