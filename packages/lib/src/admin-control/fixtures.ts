@@ -21,6 +21,10 @@ import {
 
 const NOW = "2026-07-02T16:45:00.000Z";
 const RAYBAN_SENT_AT = "2026-07-08T00:00:00.000Z";
+const PERSONAL_SYSTEM_CLEANUP_AT = "2026-07-15T16:00:00.000Z";
+const PERSONAL_SYSTEM_CLEANUP_EVENT_ID =
+  "evt-personal-system-cleanup-audit-2026-07-15";
+const PERSONAL_SYSTEM_CLEANUP_TASK_ID = "task-personal-system-cleanup-current";
 
 const raybanSentMail = buildSentMailMetadata({
   account: "hello@anipotts.com",
@@ -274,6 +278,24 @@ export const fixtureEvents: AdminEventEnvelope[] = [
     payload_ref: null,
     created_by: "codex",
   },
+  {
+    schema_version: ADMIN_EVENT_SCHEMA_VERSION,
+    event_id: PERSONAL_SYSTEM_CLEANUP_EVENT_ID,
+    dedupe_key: "fleet:personal-system-cleanup:audit:2026-07-15",
+    source: "fleet",
+    provider: "audit",
+    account: "ap-mini",
+    actor: "fleet/boss",
+    kind: "audit.verified",
+    ts: PERSONAL_SYSTEM_CLEANUP_AT,
+    privacy: "internal",
+    title: "personal system cleanup audit verified",
+    summary:
+      "metadata-only audit records durable roots, host roles, migration exceptions, and cleanup routing without moving files.",
+    href: "/fleet",
+    payload_ref: null,
+    created_by: "codex",
+  },
 ];
 
 export const fixtureInboxItems: AdminInboxItem[] = [
@@ -338,6 +360,198 @@ export const fixtureInboxItems: AdminInboxItem[] = [
     expires_at: null,
     last_seen_at: null,
   },
+];
+
+type PersonalCleanupProjectInput = {
+  project_id: string;
+  project_key: string;
+  display_name: string;
+  domain?: string;
+  entity_ref: string;
+  owner_chief?: string;
+  repository?: string | null;
+  canonical_remote?: string | null;
+  pro_path?: string | null;
+  mini_path?: string | null;
+  canonical_host_role: string;
+  lifecycle?: string;
+};
+
+function personalCleanupProject(
+  input: PersonalCleanupProjectInput,
+): AdminProjectState {
+  return {
+    project_id: input.project_id,
+    dedupe_key: `project:${input.project_key}`,
+    project_key: input.project_key,
+    display_name: input.display_name,
+    domain: input.domain ?? "work",
+    entity_ref: input.entity_ref,
+    owner_chief: input.owner_chief ?? "fleet/boss",
+    repository: input.repository ?? null,
+    canonical_remote: input.canonical_remote ?? null,
+    pro_path: input.pro_path ?? null,
+    mini_path: input.mini_path ?? null,
+    canonical_host_role: input.canonical_host_role,
+    lifecycle: input.lifecycle ?? "active",
+    attention_kind: "review",
+    last_observed_at: PERSONAL_SYSTEM_CLEANUP_AT,
+    agent_source: "codex",
+    event_refs: [PERSONAL_SYSTEM_CLEANUP_EVENT_ID],
+    task_refs: [PERSONAL_SYSTEM_CLEANUP_TASK_ID],
+  };
+}
+
+const personalSystemCleanupProjectStates: AdminProjectState[] = [
+  personalCleanupProject({
+    project_id: "project-pro-projects-brain",
+    project_key: "pro-projects-brain",
+    display_name: "brain",
+    entity_ref: "audit:brain-parity-mismatch",
+    pro_path: "/Users/anipotts/Projects/brain",
+    canonical_host_role: "source",
+  }),
+  personalCleanupProject({
+    project_id: "project-pro-projects-claudeface",
+    project_key: "pro-projects-claudeface",
+    display_name: "claudeface",
+    entity_ref: "audit:pro-human-authoring-root",
+    pro_path: "/Users/anipotts/Projects/claudeface",
+    canonical_host_role: "source",
+  }),
+  personalCleanupProject({
+    project_id: "project-pro-projects-claudemon",
+    project_key: "pro-projects-claudemon",
+    display_name: "claudemon",
+    entity_ref: "audit:pro-human-authoring-root",
+    pro_path: "/Users/anipotts/Projects/claudemon",
+    canonical_host_role: "source",
+  }),
+  personalCleanupProject({
+    project_id: "project-pro-projects-four-twenty",
+    project_key: "pro-projects-four-twenty",
+    display_name: "four-twenty",
+    entity_ref: "audit:pro-human-authoring-root",
+    pro_path: "/Users/anipotts/Projects/four-twenty",
+    canonical_host_role: "source",
+  }),
+  personalCleanupProject({
+    project_id: "project-pro-projects-glasskeeper",
+    project_key: "pro-projects-glasskeeper",
+    display_name: "glasskeeper",
+    entity_ref: "audit:pro-human-authoring-root",
+    pro_path: "/Users/anipotts/Projects/glasskeeper",
+    canonical_host_role: "source",
+  }),
+  personalCleanupProject({
+    project_id: "project-pro-projects-labs",
+    project_key: "pro-projects-labs",
+    display_name: "labs",
+    entity_ref: "audit:pro-human-authoring-root",
+    pro_path: "/Users/anipotts/Projects/labs",
+    canonical_host_role: "source",
+  }),
+  personalCleanupProject({
+    project_id: "project-pro-projects-opencursor",
+    project_key: "pro-projects-opencursor",
+    display_name: "opencursor",
+    entity_ref: "audit:pro-human-authoring-root",
+    pro_path: "/Users/anipotts/Projects/opencursor",
+    canonical_host_role: "source",
+  }),
+  personalCleanupProject({
+    project_id: "project-pro-projects-pr-cart",
+    project_key: "pro-projects-pr-cart",
+    display_name: "pr-cart",
+    entity_ref: "audit:pro-human-authoring-root",
+    pro_path: "/Users/anipotts/Projects/pr-cart",
+    canonical_host_role: "source",
+  }),
+  personalCleanupProject({
+    project_id: "project-pro-projects-quantercise",
+    project_key: "pro-projects-quantercise",
+    display_name: "quantercise",
+    entity_ref: "audit:pro-human-authoring-root",
+    pro_path: "/Users/anipotts/Projects/quantercise",
+    canonical_host_role: "source",
+  }),
+  personalCleanupProject({
+    project_id: "project-pro-projects-rudy",
+    project_key: "pro-projects-rudy",
+    display_name: "rudy",
+    entity_ref: "audit:rudy-aligned-89ad643",
+    repository: "anipotts/rudy",
+    canonical_remote: "https://github.com/anipotts/rudy.git",
+    pro_path: "/Users/anipotts/Projects/rudy",
+    canonical_host_role: "source",
+  }),
+  personalCleanupProject({
+    project_id: "project-mini-projects-rudy",
+    project_key: "mini-projects-rudy",
+    display_name: "rudy mini runtime",
+    entity_ref: "audit:rudy-aligned-89ad643",
+    repository: "anipotts/rudy",
+    canonical_remote: "https://github.com/anipotts/rudy.git",
+    mini_path: "/Users/anipotts/Projects/rudy",
+    canonical_host_role: "runtime",
+  }),
+  personalCleanupProject({
+    project_id: "project-mini-projects-phone-agent",
+    project_key: "mini-projects-phone-agent",
+    display_name: "phone-agent",
+    entity_ref: "audit:phone-agent-no-git-role-codex-project",
+    mini_path: "/Users/anipotts/Projects/phone-agent",
+    canonical_host_role: "scratch",
+    lifecycle: "review",
+  }),
+  personalCleanupProject({
+    project_id: "project-mini-code-brain",
+    project_key: "mini-code-brain",
+    display_name: "brain mini legacy",
+    entity_ref: "audit:brain-parity-mismatch",
+    mini_path: "/Users/anipotts/Code/projects/brain",
+    canonical_host_role: "mirror",
+  }),
+  personalCleanupProject({
+    project_id: "project-mini-code-anipotts-com",
+    project_key: "mini-code-anipotts-com",
+    display_name: "anipotts-com mini legacy",
+    entity_ref: "audit:mini-legacy-code-project",
+    owner_chief: "chief/site",
+    repository: "anipotts/anipotts.com",
+    canonical_remote: "https://github.com/anipotts/anipotts.com.git",
+    mini_path: "/Users/anipotts/Code/projects/anipotts-com",
+    canonical_host_role: "mirror",
+  }),
+  personalCleanupProject({
+    project_id: "project-mini-code-health",
+    project_key: "mini-code-health",
+    display_name: "health mini runtime",
+    domain: "health",
+    entity_ref: "audit:health-non-git-runtime",
+    owner_chief: "chief/health",
+    mini_path: "/Users/anipotts/Code/projects/health",
+    canonical_host_role: "runtime",
+  }),
+  personalCleanupProject({
+    project_id: "project-mini-code-kalshi-amma",
+    project_key: "mini-code-kalshi-amma",
+    display_name: "kalshi-amma mini legacy",
+    domain: "finance",
+    entity_ref: "audit:kalshi-durability-undecided",
+    mini_path: "/Users/anipotts/Code/projects/kalshi-amma",
+    canonical_host_role: "scratch",
+    lifecycle: "review",
+  }),
+  personalCleanupProject({
+    project_id: "project-mini-code-x-reader",
+    project_key: "mini-code-x-reader",
+    display_name: "x-reader mini legacy",
+    entity_ref: "audit:x-reader-pro-source-unborn-mini",
+    mini_path: "/Users/anipotts/Code/projects/x-reader",
+    canonical_host_role: "mirror",
+    lifecycle: "review",
+  }),
 ];
 
 export const fixtureProjectStates: AdminProjectState[] = [
@@ -428,6 +642,27 @@ export const fixtureProjectStates: AdminProjectState[] = [
       "task-site-jobs-destination",
     ],
   },
+  {
+    project_id: "project-personal-system-cleanup",
+    dedupe_key: "project:personal-system-cleanup",
+    project_key: "personal-system-cleanup",
+    display_name: "personal system cleanup",
+    domain: "work",
+    entity_ref: "audit:personal-system-cleanup:2026-07-15",
+    owner_chief: "fleet/boss",
+    repository: "anipotts/Infra",
+    canonical_remote: "https://github.com/anipotts/Infra.git",
+    pro_path: null,
+    mini_path: null,
+    canonical_host_role: "source",
+    lifecycle: "active",
+    attention_kind: "review",
+    last_observed_at: PERSONAL_SYSTEM_CLEANUP_AT,
+    agent_source: "codex",
+    event_refs: [PERSONAL_SYSTEM_CLEANUP_EVENT_ID],
+    task_refs: [PERSONAL_SYSTEM_CLEANUP_TASK_ID],
+  },
+  ...personalSystemCleanupProjectStates,
 ];
 
 export const fixtureTaskStates: AdminTaskState[] = [
@@ -600,6 +835,31 @@ export const fixtureTaskStates: AdminTaskState[] = [
     event_refs: ["evt-site-jobs-migration-2026-07-15"],
     blocked_by: ["task-site-jobs-controller"],
   },
+  {
+    task_id: PERSONAL_SYSTEM_CLEANUP_TASK_ID,
+    dedupe_key: "task:personal-system-cleanup:current",
+    native_thread_id: null,
+    machine: "ap-mini",
+    host: "ap-mini.local",
+    project_ref: "project-personal-system-cleanup",
+    cwd: "/Users/anipotts/Infra",
+    goal: "sequence personal system cleanup after durable-root audit",
+    current_summary:
+      "ordered cleanup workstream is modeled as one Work task; root-level reconciliation stays metadata-only until exact proof and approval.",
+    final_summary: null,
+    next_action:
+      "route root reconciliation to owner chiefs, keep GitHub main as committed truth, use pro for human authoring, and keep mini runtime mirrors clean.",
+    proof_refs: ["audit:personal-system-cleanup:2026-07-15"],
+    lifecycle: "active",
+    attention_kind: "review",
+    native_runtime_status: "idle",
+    created_at: PERSONAL_SYSTEM_CLEANUP_AT,
+    updated_at: PERSONAL_SYSTEM_CLEANUP_AT,
+    completed_at: null,
+    agent_source: "codex",
+    event_refs: [PERSONAL_SYSTEM_CLEANUP_EVENT_ID],
+    blocked_by: [],
+  },
 ];
 
 export const fixtureTaskLineage: AdminTaskLineage[] = [
@@ -722,6 +982,54 @@ export const fixtureFleetStatus: AdminFleetStatus[] = [
     href: "/fleet",
     event_refs: ["evt-admin-contract-2026-07-02"],
     updated_at: NOW,
+  },
+  {
+    subject_id: "fleet-personal-structural-migration-coverage",
+    kind: "cleanup-coverage",
+    title: "personal structural migration coverage",
+    status: "verified audit",
+    summary:
+      "GitHub main is committed truth; ap-pro is source and human authoring; ap-mini is runtime, mirrors, and services.",
+    owner: "fleet/boss",
+    href: "/fleet",
+    event_refs: [PERSONAL_SYSTEM_CLEANUP_EVENT_ID],
+    updated_at: PERSONAL_SYSTEM_CLEANUP_AT,
+  },
+  {
+    subject_id: "fleet-personal-routing-coverage",
+    kind: "cleanup-routing",
+    title: "personal cleanup routing coverage",
+    status: "active",
+    summary:
+      "cleanup is routed by durable root and owner chief; umbrella Code and Projects roots remain observed context only.",
+    owner: "fleet/boss",
+    href: "/fleet",
+    event_refs: [PERSONAL_SYSTEM_CLEANUP_EVENT_ID],
+    updated_at: PERSONAL_SYSTEM_CLEANUP_AT,
+  },
+  {
+    subject_id: "fleet-compatibility-alias-drain",
+    kind: "compatibility-alias",
+    title: "compatibility alias drain",
+    status: "gated",
+    summary:
+      "compatibility aliases and legacy paths drain only after live consumer proof; no symlink or path removal is implied.",
+    owner: "chief/infra",
+    href: "/fleet",
+    event_refs: [PERSONAL_SYSTEM_CLEANUP_EVENT_ID],
+    updated_at: PERSONAL_SYSTEM_CLEANUP_AT,
+  },
+  {
+    subject_id: "fleet-personal-documented-exceptions",
+    kind: "documented-exception",
+    title: "personal cleanup documented exceptions",
+    status: "tracked",
+    summary:
+      "rudy aligned at 89ad643; brain has parity mismatch; x-reader has pro source versus unborn mini; health is intentional non-Git runtime; phone-agent lacks Git, role, and Codex project; kalshi durability is undecided.",
+    owner: "fleet/boss",
+    href: "/fleet",
+    event_refs: [PERSONAL_SYSTEM_CLEANUP_EVENT_ID],
+    updated_at: PERSONAL_SYSTEM_CLEANUP_AT,
   },
 ];
 

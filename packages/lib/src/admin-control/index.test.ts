@@ -133,6 +133,76 @@ describe("admin-control", () => {
     }
   });
 
+  it("models personal-system-cleanup in work and fleet without inbox noise", async () => {
+    const snapshot = await loadAdminControlSnapshot(null);
+    const project = snapshot.projections.project_states.find(
+      (item) => item.project_key === "personal-system-cleanup",
+    );
+    const task = snapshot.projections.task_states.find(
+      (item) => item.task_id === "task-personal-system-cleanup-current",
+    );
+
+    expect(project?.domain).toBe("work");
+    expect(project?.owner_chief).toBe("fleet/boss");
+    expect(project?.task_refs).toEqual([
+      "task-personal-system-cleanup-current",
+    ]);
+    expect(task?.project_ref).toBe("project-personal-system-cleanup");
+    expect(task?.current_summary).toContain("one Work task");
+    expect(
+      snapshot.projections.fleet_status.map((row) => row.subject_id),
+    ).toEqual(
+      expect.arrayContaining([
+        "fleet-personal-structural-migration-coverage",
+        "fleet-personal-routing-coverage",
+        "fleet-compatibility-alias-drain",
+        "fleet-personal-documented-exceptions",
+      ]),
+    );
+    expect(
+      snapshot.projections.inbox_items.some((item) =>
+        item.dedupe_key.includes("personal-system-cleanup"),
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps umbrella workspace roots out of project states", async () => {
+    const snapshot = await loadAdminControlSnapshot(null);
+    const paths = snapshot.projections.project_states.flatMap((project) => [
+      project.pro_path,
+      project.mini_path,
+    ]);
+
+    expect(paths).not.toContain("/Users/anipotts/Code");
+    expect(paths).not.toContain("/Users/anipotts/Projects");
+    expect(paths).toEqual(
+      expect.arrayContaining([
+        "/Users/anipotts/Projects/brain",
+        "/Users/anipotts/Projects/phone-agent",
+        "/Users/anipotts/Code/projects/health",
+      ]),
+    );
+  });
+
+  it("allows audited exceptions to omit repository remotes", async () => {
+    const snapshot = await loadAdminControlSnapshot(null);
+    const health = snapshot.projections.project_states.find(
+      (item) => item.project_key === "mini-code-health",
+    );
+    const phoneAgent = snapshot.projections.project_states.find(
+      (item) => item.project_key === "mini-projects-phone-agent",
+    );
+
+    expect(health?.entity_ref).toBe("audit:health-non-git-runtime");
+    expect(health?.repository).toBeNull();
+    expect(health?.canonical_remote).toBeNull();
+    expect(phoneAgent?.entity_ref).toBe(
+      "audit:phone-agent-no-git-role-codex-project",
+    );
+    expect(phoneAgent?.repository).toBeNull();
+    expect(phoneAgent?.canonical_remote).toBeNull();
+  });
+
   it("keeps checkpoint out of the piece statechart", async () => {
     const snapshot = await loadAdminControlSnapshot(null);
 

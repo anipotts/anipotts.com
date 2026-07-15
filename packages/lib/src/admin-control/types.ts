@@ -124,8 +124,8 @@ export interface AdminProjectState {
   domain: string;
   entity_ref: string | null;
   owner_chief: string;
-  repository: string;
-  canonical_remote: string;
+  repository: string | null;
+  canonical_remote: string | null;
   pro_path: string | null;
   mini_path: string | null;
   canonical_host_role: AdminCanonicalHostRole | string;
