@@ -105,7 +105,7 @@ export function buildSentMailFollowUpCard(
     entity_ref: followUp.entity_ref ?? `gmail:sent:${metadata.sent_ref}`,
     attention_kind:
       followUp.attention_kind ??
-      (followUp.kind === "payment" ? "waiting" : "action"),
+      (followUp.kind === "payment" ? "verification" : "review"),
     source: "gmail",
     account: metadata.account,
     title: followUp.title,

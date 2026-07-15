@@ -32,14 +32,12 @@ export type InboxActionKind =
   | "none";
 
 export type AdminAttentionKind =
-  | "action"
   | "approval"
-  | "awareness"
-  | "blocked"
   | "decision"
-  | "proof"
+  | "deadline"
+  | "error"
   | "review"
-  | "waiting";
+  | "verification";
 
 export type AdminAgentSource = "ani" | "codex" | "claude" | "system" | "mixed";
 
@@ -55,12 +53,17 @@ export type AdminLifecycleState =
   | "review";
 
 export type AdminNativeRuntimeStatus =
-  | "none"
-  | "local-only"
+  | "notLoaded"
+  | "idle"
+  | "active"
+  | "systemError";
+
+export type AdminCanonicalHostRole =
+  | "source"
   | "runtime"
-  | "scheduled"
-  | "service"
-  | "deployed";
+  | "mirror"
+  | "archive"
+  | "scratch";
 
 export interface AdminInboxItem {
   item_id: string;
@@ -116,44 +119,56 @@ export interface AdminPieceState {
 export interface AdminProjectState {
   project_id: string;
   dedupe_key: string;
-  title: string;
+  project_key: string;
+  display_name: string;
   domain: string;
   entity_ref: string | null;
+  owner_chief: string;
+  repository: string;
+  canonical_remote: string;
+  pro_path: string | null;
+  mini_path: string | null;
+  canonical_host_role: AdminCanonicalHostRole | string;
   lifecycle: AdminLifecycleState | string;
   attention_kind: AdminAttentionKind | string;
-  native_runtime_status: AdminNativeRuntimeStatus | string;
-  status_summary: string;
-  owner: string;
+  last_observed_at: string | null;
   agent_source: AdminAgentSource | string;
   event_refs: string[];
   task_refs: string[];
-  updated_at: string | null;
 }
 
 export interface AdminTaskState {
   task_id: string;
   dedupe_key: string;
+  native_thread_id: string | null;
+  machine: string;
+  host: string;
   project_ref: string;
-  title: string;
-  domain: string;
-  entity_ref: string | null;
+  cwd: string;
+  goal: string;
+  current_summary: string;
+  final_summary: string | null;
+  next_action: string;
+  proof_refs: string[];
   lifecycle: AdminLifecycleState | string;
   attention_kind: AdminAttentionKind | string;
   native_runtime_status: AdminNativeRuntimeStatus | string;
-  status_summary: string;
-  owner: string;
+  created_at: string | null;
+  updated_at: string | null;
+  completed_at: string | null;
   agent_source: AdminAgentSource | string;
   event_refs: string[];
   blocked_by: string[];
-  updated_at: string | null;
 }
 
 export interface AdminTaskLineage {
   lineage_id: string;
+  lineage_group_id: string;
   task_ref: string;
   parent_task_ref: string | null;
   root_task_ref: string;
   relation: string;
+  controller_ref: string | null;
   agent_source: AdminAgentSource | string;
   event_refs: string[];
   updated_at: string | null;

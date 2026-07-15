@@ -1,4 +1,9 @@
 import type { AdminControlProjections, AdminControlSnapshot } from "./types";
+import {
+  filterAdminTaskLineage,
+  findAdminProjectState,
+  findAdminTaskState,
+} from "./queries";
 
 export type McpJsonRpcRequest = {
   jsonrpc?: "2.0";
@@ -17,6 +22,8 @@ export const ADMIN_MCP_RESOURCE_URIS = [
   "admin://projections/deploy_states",
   "admin://projections/capability_states",
   "admin://projections/service_registry_view",
+  "admin://projects/{project_id}",
+  "admin://tasks/{task_id}",
   "admin://contracts/event",
 ] as const;
 
@@ -24,7 +31,9 @@ export const ADMIN_MCP_TOOL_NAMES = [
   "admin.get_projection",
   "admin.get_inbox",
   "admin.get_projects",
+  "admin.get_project",
   "admin.get_tasks",
+  "admin.get_task",
   "admin.get_task_lineage",
   "admin.get_capabilities",
 ] as const;
@@ -119,14 +128,25 @@ export function handleAdminMcpRequest(
             inputSchema: { type: "object", properties: {} },
           },
           {
+            name: "admin.get_project",
+            description: "read one project state by project_id or project_key",
+            inputSchema: idInputSchema("project_id"),
+          },
+          {
             name: "admin.get_tasks",
             description: "read current task states",
             inputSchema: { type: "object", properties: {} },
           },
           {
+            name: "admin.get_task",
+            description: "read one task state by task_id",
+            inputSchema: idInputSchema("task_id"),
+          },
+          {
             name: "admin.get_task_lineage",
-            description: "read current task lineage",
-            inputSchema: { type: "object", properties: {} },
+            description:
+              "read current task lineage, optionally scoped by task_id",
+            inputSchema: optionalIdInputSchema("task_id"),
           },
           {
             name: "admin.get_capabilities",
@@ -160,12 +180,37 @@ function callTool(
     return toolResult(id, snapshot.projections.project_states);
   }
 
+  if (toolName === "admin.get_project") {
+    const projectId =
+      readStringParam(args, "project_id") || readStringParam(args, "id");
+    const project = findAdminProjectState(snapshot, projectId);
+    return project
+      ? toolResult(id, project)
+      : error(id, -32602, `unknown project: ${projectId}`);
+  }
+
   if (toolName === "admin.get_tasks") {
     return toolResult(id, snapshot.projections.task_states);
   }
 
+  if (toolName === "admin.get_task") {
+    const taskId =
+      readStringParam(args, "task_id") || readStringParam(args, "id");
+    const task = findAdminTaskState(snapshot, taskId);
+    return task
+      ? toolResult(id, task)
+      : error(id, -32602, `unknown task: ${taskId}`);
+  }
+
   if (toolName === "admin.get_task_lineage") {
-    return toolResult(id, snapshot.projections.task_lineage);
+    const taskId =
+      readStringParam(args, "task_id") || readStringParam(args, "id");
+    return toolResult(
+      id,
+      taskId.length > 0
+        ? filterAdminTaskLineage(snapshot, taskId)
+        : snapshot.projections.task_lineage,
+    );
   }
 
   if (toolName === "admin.get_capabilities") {
@@ -206,9 +251,24 @@ function resourceValue(snapshot: AdminControlSnapshot, uri: string) {
   }
 
   const prefix = "admin://projections/";
-  if (!uri.startsWith(prefix)) return null;
-  const projection = uri.slice(prefix.length) as ProjectionName;
-  return isProjectionName(projection) ? snapshot.projections[projection] : null;
+  if (uri.startsWith(prefix)) {
+    const projection = uri.slice(prefix.length) as ProjectionName;
+    return isProjectionName(projection)
+      ? snapshot.projections[projection]
+      : null;
+  }
+
+  const projectPrefix = "admin://projects/";
+  if (uri.startsWith(projectPrefix)) {
+    return findAdminProjectState(snapshot, uri.slice(projectPrefix.length));
+  }
+
+  const taskPrefix = "admin://tasks/";
+  if (uri.startsWith(taskPrefix)) {
+    return findAdminTaskState(snapshot, uri.slice(taskPrefix.length));
+  }
+
+  return null;
 }
 
 function isProjectionName(value: string): value is ProjectionName {
@@ -225,6 +285,27 @@ function projectionInputSchema() {
       },
     },
     required: ["projection"],
+  };
+}
+
+function idInputSchema(name: string) {
+  return {
+    type: "object",
+    properties: {
+      [name]: { type: "string" },
+      id: { type: "string" },
+    },
+    anyOf: [{ required: [name] }, { required: ["id"] }],
+  };
+}
+
+function optionalIdInputSchema(name: string) {
+  return {
+    type: "object",
+    properties: {
+      [name]: { type: "string" },
+      id: { type: "string" },
+    },
   };
 }
 

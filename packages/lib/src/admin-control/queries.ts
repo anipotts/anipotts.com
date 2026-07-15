@@ -127,6 +127,41 @@ export async function loadAdminControlSnapshot(
   };
 }
 
+export function findAdminProjectState(
+  snapshot: AdminControlSnapshot,
+  projectId: string,
+): AdminProjectState | null {
+  return (
+    snapshot.projections.project_states.find(
+      (project) =>
+        project.project_id === projectId || project.project_key === projectId,
+    ) ?? null
+  );
+}
+
+export function findAdminTaskState(
+  snapshot: AdminControlSnapshot,
+  taskId: string,
+): AdminTaskState | null {
+  return (
+    snapshot.projections.task_states.find((task) => task.task_id === taskId) ??
+    null
+  );
+}
+
+export function filterAdminTaskLineage(
+  snapshot: AdminControlSnapshot,
+  taskId: string,
+): AdminTaskLineage[] {
+  const row = snapshot.projections.task_lineage.find(
+    (lineage) => lineage.task_ref === taskId,
+  );
+  if (!row) return [];
+  return snapshot.projections.task_lineage.filter(
+    (lineage) => lineage.lineage_group_id === row.lineage_group_id,
+  );
+}
+
 async function readAdminEvents(
   db: AdminControlDatabase,
 ): Promise<ReadResult<AdminEventEnvelope>> {
@@ -185,7 +220,7 @@ async function readInboxItems(
       event_refs: parseStringArray(row.event_refs),
       domain: asString(row.domain),
       entity_ref: nullableString(row.entity_ref),
-      attention_kind: asString(row.attention_kind),
+      attention_kind: canonicalAttentionKind(row.attention_kind),
       source: asString(row.source),
       account: nullableString(row.account),
       title: asString(row.title),
@@ -207,27 +242,32 @@ async function readProjectStates(
   return readRows(
     db,
     "admin_project_states",
-    `SELECT project_id, dedupe_key, title, domain, entity_ref, lifecycle,
-            attention_kind, native_runtime_status, status_summary, owner,
-            agent_source, event_refs, task_refs, updated_at
+    `SELECT project_id, dedupe_key, project_key, display_name, domain,
+            entity_ref, owner_chief, repository, canonical_remote, pro_path,
+            mini_path, canonical_host_role, lifecycle, attention_kind,
+            last_observed_at, agent_source, event_refs, task_refs
        FROM admin_project_states
-      ORDER BY updated_at DESC`,
+      ORDER BY last_observed_at DESC`,
     fixtureProjections.project_states,
     (row) => ({
       project_id: asString(row.project_id),
       dedupe_key: asString(row.dedupe_key),
-      title: asString(row.title),
+      project_key: asString(row.project_key),
+      display_name: asString(row.display_name),
       domain: asString(row.domain),
       entity_ref: nullableString(row.entity_ref),
+      owner_chief: asString(row.owner_chief),
+      repository: asString(row.repository),
+      canonical_remote: asString(row.canonical_remote),
+      pro_path: nullableString(row.pro_path),
+      mini_path: nullableString(row.mini_path),
+      canonical_host_role: asString(row.canonical_host_role),
       lifecycle: asString(row.lifecycle),
-      attention_kind: asString(row.attention_kind),
-      native_runtime_status: asString(row.native_runtime_status),
-      status_summary: asString(row.status_summary),
-      owner: asString(row.owner),
+      attention_kind: canonicalAttentionKind(row.attention_kind),
+      last_observed_at: nullableString(row.last_observed_at),
       agent_source: asString(row.agent_source),
       event_refs: parseStringArray(row.event_refs),
       task_refs: parseStringArray(row.task_refs),
-      updated_at: nullableString(row.updated_at),
     }),
   );
 }
@@ -238,28 +278,37 @@ async function readTaskStates(
   return readRows(
     db,
     "admin_task_states",
-    `SELECT task_id, dedupe_key, project_ref, title, domain, entity_ref,
-            lifecycle, attention_kind, native_runtime_status, status_summary,
-            owner, agent_source, event_refs, blocked_by, updated_at
+    `SELECT task_id, dedupe_key, native_thread_id, machine, host, project_ref,
+            cwd, goal, current_summary, final_summary, next_action, proof_refs,
+            lifecycle, attention_kind, native_runtime_status, created_at,
+            updated_at, completed_at, agent_source, event_refs, blocked_by
        FROM admin_task_states
       ORDER BY updated_at DESC`,
     fixtureProjections.task_states,
     (row) => ({
       task_id: asString(row.task_id),
       dedupe_key: asString(row.dedupe_key),
+      native_thread_id: nullableString(row.native_thread_id),
+      machine: asString(row.machine),
+      host: asString(row.host),
       project_ref: asString(row.project_ref),
-      title: asString(row.title),
-      domain: asString(row.domain),
-      entity_ref: nullableString(row.entity_ref),
+      cwd: asString(row.cwd),
+      goal: asString(row.goal),
+      current_summary: asString(row.current_summary),
+      final_summary: nullableString(row.final_summary),
+      next_action: asString(row.next_action),
+      proof_refs: parseStringArray(row.proof_refs),
       lifecycle: asString(row.lifecycle),
-      attention_kind: asString(row.attention_kind),
-      native_runtime_status: asString(row.native_runtime_status),
-      status_summary: asString(row.status_summary),
-      owner: asString(row.owner),
+      attention_kind: canonicalAttentionKind(row.attention_kind),
+      native_runtime_status: canonicalNativeRuntimeStatus(
+        row.native_runtime_status,
+      ),
+      created_at: nullableString(row.created_at),
+      updated_at: nullableString(row.updated_at),
+      completed_at: nullableString(row.completed_at),
       agent_source: asString(row.agent_source),
       event_refs: parseStringArray(row.event_refs),
       blocked_by: parseStringArray(row.blocked_by),
-      updated_at: nullableString(row.updated_at),
     }),
   );
 }
@@ -270,17 +319,20 @@ async function readTaskLineage(
   return readRows(
     db,
     "admin_task_lineage",
-    `SELECT lineage_id, task_ref, parent_task_ref, root_task_ref, relation,
-            agent_source, event_refs, updated_at
+    `SELECT lineage_id, lineage_group_id, task_ref, parent_task_ref,
+            root_task_ref, relation, controller_ref, agent_source, event_refs,
+            updated_at
        FROM admin_task_lineage
       ORDER BY updated_at DESC`,
     fixtureProjections.task_lineage,
     (row) => ({
       lineage_id: asString(row.lineage_id),
+      lineage_group_id: asString(row.lineage_group_id),
       task_ref: asString(row.task_ref),
       parent_task_ref: nullableString(row.parent_task_ref),
       root_task_ref: asString(row.root_task_ref),
       relation: asString(row.relation),
+      controller_ref: nullableString(row.controller_ref),
       agent_source: asString(row.agent_source),
       event_refs: parseStringArray(row.event_refs),
       updated_at: nullableString(row.updated_at),
@@ -472,6 +524,33 @@ function dedupeByKey<T extends object>(rows: T[], key: keyof T): T[] {
     if (dedupeKey.length > 0) unique.set(dedupeKey, row);
   }
   return [...unique.values()];
+}
+
+function canonicalAttentionKind(value: unknown): string {
+  const text = asString(value);
+  if (
+    [
+      "review",
+      "approval",
+      "decision",
+      "deadline",
+      "error",
+      "verification",
+    ].includes(text)
+  ) {
+    return text;
+  }
+  if (["proof", "verify"].includes(text)) return "verification";
+  if (["blocked", "systemError"].includes(text)) return "error";
+  if (["action", "awareness", "waiting"].includes(text)) return "decision";
+  return text;
+}
+
+function canonicalNativeRuntimeStatus(value: unknown): string {
+  const text = asString(value);
+  return ["notLoaded", "idle", "active", "systemError"].includes(text)
+    ? text
+    : "notLoaded";
 }
 
 function asString(value: unknown): string {
