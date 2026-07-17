@@ -1,4 +1,6 @@
 ---
+import { Icon } from "astro-icon/components";
+
 interface Props {
   mode?: "link" | "form";
   lede?: string;
@@ -7,6 +9,7 @@ interface Props {
   footerText?: string;
   successMessage?: string;
   errorMessage?: string;
+  variant?: "default" | "minimal";
 }
 
 const {
@@ -17,10 +20,11 @@ const {
   footerText = "",
   successMessage = "subscribed. check your inbox.",
   errorMessage = "could not subscribe. try again in a minute.",
+  variant = "default",
 } = Astro.props;
 ---
 
-<div class="subscribe card">
+<div class:list={["subscribe", "card", { minimal: variant === "minimal" }]}>
   <div class="copy">
     <span class="label mono">newsletter</span>
     <p class="lede">{lede}</p>
@@ -59,6 +63,7 @@ const {
     ) : (
       <a class="fill cta" href={href}>
         {ctaLabel}
+        <Icon name="ph:arrow-up-right" />
       </a>
     )
   }
@@ -168,10 +173,63 @@ const {
     color: var(--accent);
   }
 
+  .minimal {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    padding: var(--s-4) 0 var(--s-4) var(--s-4);
+    border: 0;
+    border-left: 2px solid var(--accent);
+  }
+
+  .minimal .copy {
+    display: grid;
+    grid-template-columns: 6rem minmax(0, 1fr);
+    align-items: baseline;
+    gap: var(--s-4);
+  }
+
+  .minimal .lede {
+    max-width: 48ch;
+  }
+
+  .minimal .cta {
+    gap: 0.45em;
+    padding-inline: 0;
+    color: var(--ink);
+    background: transparent;
+  }
+
+  .minimal .cta:hover {
+    color: var(--accent);
+  }
+
+  .minimal .footer {
+    grid-column: 1 / -1;
+    padding-left: calc(6rem + var(--s-4));
+  }
+
   @media (max-width: 720px) {
     .subscribe {
       grid-template-columns: 1fr;
       align-items: stretch;
+    }
+
+    .minimal {
+      grid-template-columns: 1fr;
+      padding-left: var(--s-3);
+    }
+
+    .minimal .copy {
+      grid-template-columns: 1fr;
+      gap: var(--s-2);
+    }
+
+    .minimal .cta {
+      justify-self: start;
+    }
+
+    .minimal .footer {
+      padding-left: 0;
     }
 
     .row {

@@ -71,6 +71,7 @@ h3 {
 }
 
 h1 {
+  color: var(--accent);
   -webkit-text-stroke: 1px var(--display-outline);
   paint-order: stroke fill;
 }

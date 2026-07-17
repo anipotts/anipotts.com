@@ -102,7 +102,7 @@ const summaryText = homepageSummaryText(cmsHome);
         </span>
         <div class="grid mobile-carousel">
           {projects.map((project) => (
-            <ProjectCard project={project} />
+            <ProjectCard project={project} preview />
           ))}
         </div>
       </section>
@@ -137,6 +137,7 @@ const summaryText = homepageSummaryText(cmsHome);
       href={newsletterCopy.buttondown_url}
       ctaLabel={newsletterCopy.cta_label}
       footerText={newsletterCopy.footer_text}
+      variant="minimal"
     />
   </section>
 </Shell>
@@ -207,29 +208,33 @@ const summaryText = homepageSummaryText(cmsHome);
 
   .proof-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--s-3);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     margin-top: var(--s-6);
+    border-top: 1px solid var(--border);
   }
 
   .proof-card {
-    display: flex;
-    min-height: 15rem;
-    flex-direction: column;
-    justify-content: space-between;
-    gap: var(--s-4);
+    display: grid;
+    grid-template-columns: minmax(8rem, 0.72fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    min-height: 11rem;
+    column-gap: var(--s-4);
+    row-gap: var(--s-3);
     padding: var(--s-4);
-    border: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
     color: inherit;
     text-decoration: none;
     transition:
-      border-color 160ms ease,
-      transform 160ms ease;
+      background 160ms ease,
+      color 160ms ease;
+  }
+
+  .proof-card:nth-child(odd) {
+    border-right: 1px solid var(--border);
   }
 
   .proof-card:hover {
-    border-color: var(--accent);
-    transform: translateY(-2px);
+    background: var(--accent-soft);
   }
 
   .proof-label {
@@ -240,6 +245,8 @@ const summaryText = homepageSummaryText(cmsHome);
   }
 
   .proof-title {
+    grid-column: 1;
+    align-self: end;
     font-family: var(--display);
     color: var(--ink);
     font-size: clamp(1.1rem, 2vw, 1.45rem);
@@ -250,6 +257,11 @@ const summaryText = homepageSummaryText(cmsHome);
   }
 
   .proof-detail {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    align-self: center;
+    padding-left: var(--s-4);
+    border-left: 1px solid var(--border);
     color: var(--ink-muted);
     font-size: var(--p-small);
     line-height: 1.45;
@@ -286,12 +298,6 @@ const summaryText = homepageSummaryText(cmsHome);
     gap: var(--s-4);
   }
 
-  @media (max-width: 960px) {
-    .proof-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-
   @media (max-width: 640px) {
     .home-hero {
       margin-bottom: var(--s-3);
@@ -310,8 +316,30 @@ const summaryText = homepageSummaryText(cmsHome);
       grid-template-columns: 1fr;
     }
 
+    .proof-card:nth-child(odd) {
+      border-right: 0;
+    }
+
     .proof-card {
-      min-height: 0;
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto 1fr;
+      min-height: 14rem;
+      padding-inline: 0;
+    }
+
+    .proof-title {
+      grid-column: 1;
+      align-self: auto;
+    }
+
+    .proof-detail {
+      grid-column: 1;
+      grid-row: auto;
+      align-self: end;
+      padding-top: var(--s-3);
+      padding-left: 0;
+      border-top: 1px solid var(--border);
+      border-left: 0;
     }
   }
 </style>

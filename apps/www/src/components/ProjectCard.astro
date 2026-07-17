@@ -4,18 +4,60 @@ import { projectSlug, type Project } from "../lib/content";
 
 interface Props {
   project: Project;
+  preview?: boolean;
 }
 
-const { project } = Astro.props;
+const { project, preview = false } = Astro.props;
 const slug = projectSlug(project);
 const { title, subtitle, year, status, category, tags } = project.data;
+const previews: Record<
+  string,
+  { eyebrow: string; primary: string; detail: string }
+> = {
+  quantercise: {
+    eyebrow: "graded rep",
+    primary: "12 × 17",
+    detail: "204 · correct",
+  },
+  "quantercise-extension": {
+    eyebrow: "quick drill",
+    primary: "47 + 86",
+    detail: "1.8s",
+  },
+  saeshify: {
+    eyebrow: "live rhyme map",
+    primary: "time / line",
+    detail: "audio synced",
+  },
+  "nyu-purity-test": {
+    eyebrow: "campus run",
+    primary: "72 / 100",
+    detail: "3,000+ scores",
+  },
+};
+const previewCopy = previews[slug] ?? {
+  eyebrow: category,
+  primary: title,
+  detail: status,
+};
 ---
 
 <a
   href={`/projects/${slug}`}
-  class="card project-card"
   data-category={category}
+  data-project={slug}
+  class:list={["card", "project-card", { "with-preview": preview }]}
 >
+  {
+    preview && (
+      <span class="preview" aria-hidden="true">
+        <span class="preview-eyebrow mono">{previewCopy.eyebrow}</span>
+        <span class="preview-primary">{previewCopy.primary}</span>
+        <span class="preview-detail mono">{previewCopy.detail}</span>
+        <span class="preview-signal" />
+      </span>
+    )
+  }
   <span class="head">
     <span class="title">{title}</span>
     <Icon name="ph:arrow-bend-right-up" class="affordance" />
@@ -38,6 +80,86 @@ const { title, subtitle, year, status, category, tags } = project.data;
   }
 
   .project-card:hover {
+    background: var(--accent-soft);
+  }
+
+  .with-preview {
+    padding: 0;
+    overflow: hidden;
+    gap: 0;
+    border: 1px solid var(--border);
+    background: transparent;
+  }
+
+  .with-preview > :not(.preview) {
+    margin-inline: var(--s-4);
+  }
+
+  .with-preview > .head {
+    margin-top: var(--s-4);
+  }
+
+  .with-preview > .meta {
+    margin-bottom: var(--s-4);
+  }
+
+  .preview {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-content: space-between;
+    min-height: 9rem;
+    padding: var(--s-3) var(--s-4);
+    overflow: hidden;
+    color: var(--ink);
+    background:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px),
+      color-mix(in srgb, var(--accent) 12%, var(--surface));
+    background-size: 1.5rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .preview-eyebrow,
+  .preview-detail {
+    position: relative;
+    z-index: 1;
+    font-size: 0.68rem;
+    color: var(--ink-muted);
+  }
+
+  .preview-detail {
+    align-self: end;
+    justify-self: end;
+  }
+
+  .preview-primary {
+    position: relative;
+    z-index: 1;
+    grid-column: 1 / -1;
+    align-self: center;
+    font-family: var(--display);
+    font-size: clamp(1.8rem, 4vw, 2.65rem);
+    line-height: 0.95;
+    font-weight: 900;
+    color: var(--accent);
+    -webkit-text-stroke: 0.75px var(--display-outline);
+    paint-order: stroke fill;
+  }
+
+  .preview-signal {
+    position: absolute;
+    right: 1.5rem;
+    top: 50%;
+    width: 4.5rem;
+    height: 4.5rem;
+    border: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
+    border-radius: 50%;
+    transform: translateY(-50%);
+    opacity: 0.55;
+  }
+
+  .with-preview:hover .preview-signal {
     background: var(--accent-soft);
   }
 
