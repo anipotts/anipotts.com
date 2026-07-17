@@ -70,6 +70,11 @@ h3 {
   font-synthesis: none;
 }
 
+h1 {
+  -webkit-text-stroke: 1px var(--display-outline);
+  paint-order: stroke fill;
+}
+
 /* one orchestrated reveal on first paint. opacity:0 stays INSIDE the
    no-preference query so reduced-motion users never see invisible content. */
 @media (prefers-reduced-motion: no-preference) {
