@@ -173,6 +173,10 @@ const logoClass = ["logo", logoTone === "white" ? "logo-white" : ""]
   }
 
   .logo-white {
+    filter: none;
+  }
+
+  :global(html[data-theme="dark"]) .logo-white {
     filter: brightness(0) invert(1);
   }
 
