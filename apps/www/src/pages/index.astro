@@ -155,34 +155,41 @@ const summaryText = homepageSummaryText(cmsHome);
   }
 
   .hero-line {
-    max-width: none;
-    line-height: 1.58;
+    max-width: 64ch;
+    line-height: 1.6;
     text-wrap: pretty;
   }
 
-  .mention-cluster {
-    display: inline-flex;
-    align-items: baseline;
-    flex-wrap: wrap;
-    column-gap: 0.22em;
-    row-gap: 0;
-    white-space: normal;
+  .hero-line :global(.mention-cluster) {
+    display: inline;
   }
 
-  .mention-cluster :global(.inline-mention) {
-    transform: translateY(0.04em);
+  .hero-line :global(.inline-mention) {
+    gap: 0.2em;
+    vertical-align: -0.06em;
   }
 
-  .brand-parens {
+  .hero-line :global(.brand-parens) {
     display: inline-flex;
     align-items: baseline;
-    gap: 0.08em;
+    gap: 0;
     white-space: nowrap;
   }
 
-  .brand-parens > span,
-  .brand-parens :global(.inline-mention) {
-    font-size: inherit;
+  .hero-line :global(.inline-mention .brand-mark) {
+    width: 0.92em;
+    height: 0.92em;
+    flex-basis: 0.92em;
+    padding: 0;
+    border-radius: 0.14em;
+    background: transparent;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .hero-line :global(.inline-mention .brand-mark-wide) {
+    width: 1.24em;
+    flex-basis: 1.24em;
   }
 
   .text-link {
@@ -292,32 +299,11 @@ const summaryText = homepageSummaryText(cmsHome);
 
     .hero-line {
       font-size: clamp(1rem, 3.9vw, 1.12rem);
-      line-height: 1.5;
-    }
-
-    .mention-cluster {
-      display: inline;
-      min-width: 0;
-      white-space: normal;
-    }
-
-    .brand-parens {
-      white-space: normal;
+      line-height: 1.55;
     }
 
     .hero-line :global(.inline-mention) {
-      gap: 0.22em;
-    }
-
-    .hero-line :global(.brand-mark) {
-      width: 1em;
-      height: 1em;
-      flex-basis: 1em;
-    }
-
-    .hero-line :global(.brand-mark-wide) {
-      width: 1.34em;
-      flex-basis: 1.34em;
+      gap: 0.18em;
     }
 
     .proof-grid {
