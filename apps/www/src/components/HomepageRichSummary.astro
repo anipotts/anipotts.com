@@ -39,25 +39,69 @@ function isMention(segment: HomepageRichSummarySegment): segment is {
 {
   sentences.map((sentence: HomepageRichSummarySentence, index: number) => (
     <>
-      <span class="hero-sentence">
-        {sentence.segments.map((segment: HomepageRichSummarySegment) => (
-          <>
-            {isText(segment) && segment.text}
-            {isMention(segment) &&
-              (() => {
-                const props = mentionProps(segment.key);
-                return props ? (
-                  <InlineMention {...props} suffix={segment.suffix} />
-                ) : (
-                  `${segment.key}${segment.suffix ?? ""}`
-                );
-              })()}
-            {segment.kind === "cluster" && (
-              <span class="mention-cluster">
-                {segment.segments.map((child: HomepageRichSummarySegment) => (
+      {sentence.segments.map((segment: HomepageRichSummarySegment) => (
+        <>
+          {isText(segment) && segment.text}
+          {isMention(segment) &&
+            (() => {
+              const props = mentionProps(segment.key);
+              return props ? (
+                <InlineMention {...props} suffix={segment.suffix} />
+              ) : (
+                `${segment.key}${segment.suffix ?? ""}`
+              );
+            })()}
+          {segment.kind === "cluster" && (
+            <span class="mention-cluster">
+              {segment.segments.map((child: HomepageRichSummarySegment) => (
+                <>
+                  {isText(child) && child.text}
+                  {isMention(child) &&
+                    (() => {
+                      const props = mentionProps(child.key);
+                      return props ? (
+                        <InlineMention {...props} suffix={child.suffix} />
+                      ) : (
+                        `${child.key}${child.suffix ?? ""}`
+                      );
+                    })()}
+                  {child.kind === "parens" && (
+                    <span class="brand-parens">
+                      <span>(</span>
+                      {child.segments.map(
+                        (parenChild: HomepageRichSummarySimpleSegment) => (
+                          <>
+                            {parenChild.kind === "text" && parenChild.text}
+                            {parenChild.kind === "mention" &&
+                              (() => {
+                                const props = mentionProps(parenChild.key);
+                                return props ? (
+                                  <InlineMention
+                                    {...props}
+                                    suffix={parenChild.suffix}
+                                  />
+                                ) : (
+                                  `${parenChild.key}${parenChild.suffix ?? ""}`
+                                );
+                              })()}
+                          </>
+                        ),
+                      )}
+                      <span>)</span>
+                    </span>
+                  )}
+                </>
+              ))}
+            </span>
+          )}
+          {segment.kind === "parens" && (
+            <span class="brand-parens">
+              <span>(</span>
+              {segment.segments.map(
+                (child: HomepageRichSummarySimpleSegment) => (
                   <>
-                    {isText(child) && child.text}
-                    {isMention(child) &&
+                    {child.kind === "text" && child.text}
+                    {child.kind === "mention" &&
                       (() => {
                         const props = mentionProps(child.key);
                         return props ? (
@@ -66,63 +110,15 @@ function isMention(segment: HomepageRichSummarySegment): segment is {
                           `${child.key}${child.suffix ?? ""}`
                         );
                       })()}
-                    {child.kind === "parens" && (
-                      <span class="brand-parens">
-                        <span>(</span>
-                        {child.segments.map(
-                          (parenChild: HomepageRichSummarySimpleSegment) => (
-                            <>
-                              {parenChild.kind === "text" && parenChild.text}
-                              {parenChild.kind === "mention" &&
-                                (() => {
-                                  const props = mentionProps(parenChild.key);
-                                  return props ? (
-                                    <InlineMention
-                                      {...props}
-                                      suffix={parenChild.suffix}
-                                    />
-                                  ) : (
-                                    `${parenChild.key}${parenChild.suffix ?? ""}`
-                                  );
-                                })()}
-                            </>
-                          ),
-                        )}
-                        <span>)</span>
-                      </span>
-                    )}
                   </>
-                ))}
-              </span>
-            )}
-            {segment.kind === "parens" && (
-              <span class="brand-parens">
-                <span>(</span>
-                {segment.segments.map(
-                  (child: HomepageRichSummarySimpleSegment) => (
-                    <>
-                      {child.kind === "text" && child.text}
-                      {child.kind === "mention" &&
-                        (() => {
-                          const props = mentionProps(child.key);
-                          return props ? (
-                            <InlineMention {...props} suffix={child.suffix} />
-                          ) : (
-                            `${child.key}${child.suffix ?? ""}`
-                          );
-                        })()}
-                    </>
-                  ),
-                )}
-                <span>)</span>
-              </span>
-            )}
-          </>
-        ))}
-      </span>
-      {index < sentences.length - 1 && (
-        <span class="hero-break" aria-hidden="true" />
-      )}
+                ),
+              )}
+              <span>)</span>
+            </span>
+          )}
+        </>
+      ))}
+      {index < sentences.length - 1 && " "}
     </>
   ))
 }
