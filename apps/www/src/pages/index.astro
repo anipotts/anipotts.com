@@ -66,21 +66,35 @@ const ycMention = homeContent.mentions.yCombinatorF25;
         intro.subheading ?? homeContent.summary
       ) : (
         <>
-          previously worked on real-time agent i/o at{" "}
-          <InlineMention {...homeContent.mentions.structuredAi} />{" "}
-          <span class="brand-parens"><span>(</span><InlineMention {...ycMention} /><span>)</span></span>{" "}
-          and{" "}
-          <InlineMention {...homeContent.mentions.badHabit} suffix="," /> an{" "}
-          <span class="no-break"
-            ><InlineMention {...homeContent.mentions.atlanticRecords} />
-            venture.</span
-          >{" "}
-          every now and then i post about what i'm doing with claude code and
-          codex, as featured on{" "}
-          <InlineMention
-            {...homeContent.mentions.businessInsider}
-            suffix="."
-          />
+          <span class="hero-sentence">
+            previously worked on real-time agent i/o at{" "}
+            <span class="mention-cluster"
+              ><InlineMention {...homeContent.mentions.structuredAi} />
+              <span class="brand-parens"
+                ><span>(</span><InlineMention {...ycMention} /><span
+                  >)</span
+                ></span
+              ></span
+            >{" "}
+            and{" "}
+            <span class="mention-cluster"
+              ><InlineMention {...homeContent.mentions.badHabit} suffix="," />
+              <span>an</span>
+              <InlineMention {...homeContent.mentions.atlanticRecords} />
+              <span>venture.</span></span
+            >
+          </span>
+          <span class="hero-break" aria-hidden="true"></span>
+          <span class="hero-sentence">
+            every so often i post about my coding agent workflows,{" "}
+            <span class="mention-cluster"
+              ><span>which</span>
+              <InlineMention {...homeContent.mentions.businessInsider} />
+              <span>covered</span></span
+            >{" "}
+            in a story on how work is being restructured around agents and
+            skills.
+          </span>
         </>
       )}
     </p>
@@ -145,30 +159,45 @@ const ycMention = homeContent.mentions.yCombinatorF25;
   }
 
   .hero-line {
+    display: grid;
+    max-width: none;
+    gap: 0.3rem;
+    line-height: 1.58;
+    text-wrap: pretty;
+  }
+
+  .hero-sentence {
+    display: block;
     max-width: none;
   }
 
-  .no-break {
+  .hero-break {
+    display: none;
+  }
+
+  .mention-cluster {
     display: inline-flex;
     align-items: baseline;
-    gap: 0 0.35em;
-    white-space: nowrap;
+    flex-wrap: wrap;
+    column-gap: 0.22em;
+    row-gap: 0;
+    white-space: normal;
+  }
+
+  .mention-cluster :global(.inline-mention) {
+    transform: translateY(0.04em);
   }
 
   .brand-parens {
     display: inline-flex;
     align-items: baseline;
-    font-size: 0;
+    gap: 0.08em;
     white-space: nowrap;
   }
 
   .brand-parens > span,
   .brand-parens :global(.inline-mention) {
-    font-size: var(--p-body);
-  }
-
-  .brand-parens > span:first-child {
-    margin-right: 0.14rem;
+    font-size: inherit;
   }
 
   .text-link {
@@ -269,6 +298,43 @@ const ycMention = homeContent.mentions.yCombinatorF25;
   }
 
   @media (max-width: 640px) {
+    .home-hero {
+      margin-bottom: var(--s-3);
+    }
+
+    .hero-line {
+      gap: 0.55rem;
+      font-size: clamp(1rem, 3.9vw, 1.12rem);
+      line-height: 1.5;
+    }
+
+    .hero-break {
+      display: block;
+    }
+
+    .hero-sentence {
+      max-width: 32rem;
+    }
+
+    .mention-cluster {
+      column-gap: 0.18em;
+    }
+
+    .hero-line :global(.inline-mention) {
+      gap: 0.22em;
+    }
+
+    .hero-line :global(.brand-mark) {
+      width: 1em;
+      height: 1em;
+      flex-basis: 1em;
+    }
+
+    .hero-line :global(.brand-mark-wide) {
+      width: 1.34em;
+      flex-basis: 1.34em;
+    }
+
     .proof-grid {
       grid-template-columns: 1fr;
     }

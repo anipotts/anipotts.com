@@ -24,7 +24,7 @@ export const navItems = [
 export const homeContent = {
   heading: "hi, i'm ani",
   summary:
-    "previously worked on real-time agent i/o at structured ai (YC F25) and our bad habit, an atlantic records venture. every now and then i post about what i'm doing with claude code and codex.",
+    "previously worked on real-time agent i/o at structured ai (YC F25) and our bad habit, an atlantic records venture. every so often i post about my coding agent workflows, which business insider covered in a story on how work is being restructured around agents and skills.",
   proof: [
     {
       label: "structured ai",
