@@ -34,10 +34,10 @@ require_tool() {
 
 require_node_runtime() {
   require_tool node
-  local node_major
-  node_major="$(node -p 'process.versions.node.split(".")[0]')"
-  if [ "$node_major" -lt 24 ]; then
-    echo "anipotts.com local tools require Node 24 or newer; found $(node -v)" >&2
+  local node_supported
+  node_supported="$(node -p 'const [major, minor] = process.versions.node.split(".").map(Number); (major === 24 && minor >= 19) || major === 25 ? "yes" : "no"')"
+  if [ "$node_supported" != "yes" ]; then
+    echo "anipotts.com local tools require Node >=24.19.0 <26; found $(node -v)" >&2
     echo "install the pinned runtime with: nvm install $node_version" >&2
     exit 1
   fi
