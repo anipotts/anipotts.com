@@ -12,7 +12,7 @@
   "description": "Personal website and content platform for anipotts.com",
   "packageManager": "pnpm@10.5.2",
   "engines": {
-    "node": ">=22.13.0"
+    "node": ">=24.19.0 <26"
   },
   "scripts": {
     "dev": "turbo dev",

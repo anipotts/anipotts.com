@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+node_version="$(tr -d '[:space:]' < "$repo_root/.nvmrc")"
+
 prepend_path() {
   case ":$PATH:" in
     *":$1:"*) ;;
@@ -11,9 +14,7 @@ prepend_path() {
 for bin_dir in \
   "/opt/homebrew/bin" \
   "/usr/local/bin" \
-  "$HOME/.nvm/versions/node/v20.11.1/bin" \
-  "$HOME/.nvm/versions/node/v20.18.0/bin" \
-  "$HOME/.nvm/versions/node/v22.22.3/bin"
+  "$HOME/.nvm/versions/node/v${node_version}/bin"
 do
   if [ -d "$bin_dir" ]; then
     prepend_path "$bin_dir"
@@ -21,7 +22,6 @@ do
 done
 export PATH
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${CODEX_WORKTREE_PATH:-$repo_root}"
 
 require_tool() {
@@ -32,9 +32,27 @@ require_tool() {
   fi
 }
 
+require_node_runtime() {
+  require_tool node
+  local node_major
+  node_major="$(node -p 'process.versions.node.split(".")[0]')"
+  if [ "$node_major" -lt 24 ]; then
+    echo "anipotts.com local tools require Node 24 or newer; found $(node -v)" >&2
+    echo "install the pinned runtime with: nvm install $node_version" >&2
+    exit 1
+  fi
+}
+
 pnpm_cmd() {
+  require_node_runtime
   require_tool pnpm
   pnpm "$@"
+}
+
+exec_pnpm() {
+  require_node_runtime
+  require_tool pnpm
+  exec pnpm "$@"
 }
 
 case "${1:-}" in
@@ -45,12 +63,10 @@ case "${1:-}" in
     pnpm_cmd install --frozen-lockfile
     ;;
   www-dev)
-    require_tool pnpm
-    exec pnpm turbo dev --filter=@anipotts/www
+    exec_pnpm turbo dev --filter=@anipotts/www
     ;;
   admin-dev)
-    require_tool pnpm
-    exec pnpm turbo dev --filter=@anipotts/admin
+    exec_pnpm turbo dev --filter=@anipotts/admin
     ;;
   local-dev)
     pnpm_cmd dev:local:ensure

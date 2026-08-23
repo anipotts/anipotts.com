@@ -7,6 +7,11 @@ default setup is deliberately rootless and loopback-only:
 - Admin: `http://admin.anipotts.localhost:1355/`
 - Admin fallback: `http://localhost:4311/`
 
+All local actions, CI, and deploy jobs use the Node `24.19.0` line pinned in
+`.nvmrc`. The Codex quick-action launcher selects that local NVM runtime when it
+is installed and rejects Node 22 with an exact install command instead of
+starting a partially compatible preview.
+
 Start or reuse both named previews:
 
 ```bash
