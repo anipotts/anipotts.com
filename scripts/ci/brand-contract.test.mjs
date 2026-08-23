@@ -6,11 +6,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = "packages/brand";
-const PACKET = join(ROOT, "ap-structural-v0.1.0-candidate.1");
+const PACKET = join(ROOT, "ap-structural-v0.2.0-candidate.1");
 const MANIFEST_HASH =
-  "5d4d300ea05478f717fdd3eb6a52bb8e58281920d8994c1c4bb758d59070db75";
+  "0465d108ffbcfff5816a15125ce0b54528419dbc522e1a7c0d0483ff9d9b766c";
 const WOFF2_HASH =
-  "23c442113f828b5afdec48f2b5ffc12287bc48511458c05632d98eda64c976ae";
+  "ee8a297c8baf6311c8700f4119df7a84219298d29597a6aa09d9978effb894dd";
 
 const manifestBytes = readFileSync(join(PACKET, "MANIFEST.json"));
 assert.equal(sha256(manifestBytes), MANIFEST_HASH);
@@ -26,7 +26,25 @@ for (const file of manifest.files) {
 const release = JSON.parse(readFileSync(join(ROOT, "RELEASE.json"), "utf8"));
 assert.equal(release.status, "web-ready");
 assert.equal(release.display_face, "AP Structural");
+assert.equal(
+  release.display_face_source_packet,
+  "ap-structural-v0.2.0-candidate.1",
+);
 assert.equal(release.display_face_woff2_sha256, WOFF2_HASH);
+assert.equal(manifest.status, "web-ready");
+assert.equal(manifest.coverage.glyphs, 487);
+assert.equal(manifest.coverage.mappedCodePoints, 491);
+assert.equal(manifest.correction.compositeTransformsRestored, true);
+assert.equal(manifest.correction.widthClass, 5);
+assert.deepEqual(manifest.correction.referenceAdvances, {
+  I: 600,
+  a: 1218,
+  h: 1139,
+  i: 540,
+  m: 1777,
+  n: 1139,
+  o: 1120,
+});
 assert.deepEqual(release.semantic_colors, {
   light_background: "#61abea",
   light_text: "#ffffff",
@@ -48,7 +66,7 @@ const typography = readFileSync(join(ROOT, "src/typography.css"), "utf8");
 assert.ok(typography.includes('font-family: "AP Structural"'));
 assert.ok(typography.includes('"Instrument Sans Variable"'));
 assert.ok(
-  typography.includes("APStructuralDisplayBlack-v0.1.0-candidate.1.woff2"),
+  typography.includes("APStructuralDisplayBlack-v0.2.0-candidate.1.woff2"),
 );
 
 const www = readFileSync("apps/www/src/styles/global.css", "utf8");

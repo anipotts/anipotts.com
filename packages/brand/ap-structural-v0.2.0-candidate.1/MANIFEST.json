@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "family": "AP Structural",
+  "master": "Display Black",
+  "version": "0.2.0-candidate.1",
+  "status": "web-ready",
+  "builtOn": "2026-08-23",
+  "intendedUse": "brand display headings",
+  "license": {
+    "name": "SIL Open Font License 1.1",
+    "file": "license/OFL.txt",
+    "provenance": "license/PROVENANCE.md"
+  },
+  "correction": {
+    "sourcePacket": "ap-structural-v0.1.0-candidate.1",
+    "sourceTtfSha256": "2933d7de53354e86842249c415e50aba4f6692b1b0f398c9e87dad4ba6ce83bc",
+    "reversedHorizontalScale": 0.9000244140625,
+    "compositeTransformsRestored": true,
+    "widthClass": 5,
+    "referenceAdvances": {
+      "I": 600,
+      "a": 1218,
+      "h": 1139,
+      "i": 540,
+      "m": 1777,
+      "n": 1139,
+      "o": 1120
+    }
+  },
+  "coverage": {
+    "glyphs": 487,
+    "mappedCodePoints": 491,
+    "mapFile": "coverage/unicode-codepoints.txt"
+  },
+  "fonts": {
+    "web": {
+      "path": "fonts/APStructuralDisplayBlack-v0.2.0-candidate.1.woff2",
+      "format": "woff2"
+    },
+    "source": {
+      "path": "fonts/APStructuralDisplayBlack-v0.2.0-candidate.1.ttf",
+      "format": "truetype"
+    }
+  },
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 824,
+      "sha256": "b8ba95c335533d516aaf68fd8b9a327be51b4457a9f9e24bfc78f39010c60617"
+    },
+    {
+      "path": "coverage/unicode-codepoints.txt",
+      "bytes": 3437,
+      "sha256": "f2b90a4ff3692b9d5190b2edfd7d4bc1490251b7d2def07f7aafe48bc658f4a5"
+    },
+    {
+      "path": "css/ap-structural.css",
+      "bytes": 447,
+      "sha256": "c6ab95cf654f21fec331e32e6d4c8c8a7ea49085b301548dd72e07485b64bf1d"
+    },
+    {
+      "path": "fonts/APStructuralDisplayBlack-v0.2.0-candidate.1.ttf",
+      "bytes": 43784,
+      "sha256": "624073a0b943f7243cfd9aae1b2addea7da8d7f981e3097d8f7b391eb158c47b"
+    },
+    {
+      "path": "fonts/APStructuralDisplayBlack-v0.2.0-candidate.1.woff2",
+      "bytes": 16896,
+      "sha256": "ee8a297c8baf6311c8700f4119df7a84219298d29597a6aa09d9978effb894dd"
+    },
+    {
+      "path": "icons/app-icon-1024.png",
+      "bytes": 71872,
+      "sha256": "a5ddc00e1b1db6a222383551cd93a5f953dfdeaa4867b746dbd0a9c1901fb354"
+    },
+    {
+      "path": "icons/app-icon-180.png",
+      "bytes": 8115,
+      "sha256": "a267f49a47039e32469cf7eaaeab864a9afdd2354ad2fedd3966434813c0c149"
+    },
+    {
+      "path": "icons/app-icon-512.png",
+      "bytes": 17698,
+      "sha256": "c7c88ca7d041e4223d69e0f5ee30d512d396a81c337264cc469b83366479bb84"
+    },
+    {
+      "path": "icons/app-icon.svg",
+      "bytes": 1361,
+      "sha256": "fa749ea97b0404a1f709e2ee52bd69b4a659c87d2c44505e12d3152a5390f0fb"
+    },
+    {
+      "path": "icons/favicon-16.png",
+      "bytes": 1206,
+      "sha256": "f1eaa414f2603e648f9ecd041850d322ba4d630bc7161f998920464e6e88cf9d"
+    },
+    {
+      "path": "icons/favicon-32.png",
+      "bytes": 1922,
+      "sha256": "17fa76fde0cf585d947b5600eba10f77e3242dc3fd3db55eff6dab09ab79b75b"
+    },
+    {
+      "path": "icons/favicon-48.png",
+      "bytes": 2537,
+      "sha256": "c5d994202476676ef33538c8ab4fe524e2e1bce601ce5f7e69e5234278d379e5"
+    },
+    {
+      "path": "icons/favicon-dark.svg",
+      "bytes": 1361,
+      "sha256": "37bc13736568e62dbcc6ce1f7d48aa6c03a0014fd7faca07b1ce9431ef476466"
+    },
+    {
+      "path": "icons/favicon-light.svg",
+      "bytes": 1361,
+      "sha256": "0893e41903df4962ee45e51421d935b6d3c7878519d29680ad37843c499f9019"
+    },
+    {
+      "path": "icons/favicon.svg",
+      "bytes": 1549,
+      "sha256": "8fa9b329aee5328b92a68c8863240858eb04c7d4edfe09c1881d131041311fb0"
+    },
+    {
+      "path": "license/OFL.txt",
+      "bytes": 4384,
+      "sha256": "701954706522139355e4ce4032e771ed1c265fa2c7f41f53f24dcaefd6402562"
+    },
+    {
+      "path": "license/PROVENANCE.md",
+      "bytes": 1225,
+      "sha256": "f57bff6ae8ddfa211511e18970e2203261d1fa8064b2b4bf8583c80fae7ec008"
+    },
+    {
+      "path": "marks/ap-mark-on-dark.svg",
+      "bytes": 1317,
+      "sha256": "0bd3246b9a2a69a536e415b570fa16330efc8fdfd4d5e74907ce3aefef410a2a"
+    },
+    {
+      "path": "marks/ap-mark-on-light.svg",
+      "bytes": 1317,
+      "sha256": "425c3c30a9b3fa5a0c2be1bc1b0af6f1c13c322ce2b3c6a49736c68781c54c5e"
+    }
+  ]
+}

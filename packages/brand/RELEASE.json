@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "brand_version": "0.3.0",
+  "brand_version": "0.4.0",
   "status": "web-ready",
   "display_face": "AP Structural",
-  "display_face_source_packet": "ap-structural-v0.1.0-candidate.1",
-  "display_face_woff2_sha256": "23c442113f828b5afdec48f2b5ffc12287bc48511458c05632d98eda64c976ae",
+  "display_face_source_packet": "ap-structural-v0.2.0-candidate.1",
+  "display_face_woff2_sha256": "ee8a297c8baf6311c8700f4119df7a84219298d29597a6aa09d9978effb894dd",
   "display_face_fallback": "Urbanist",
   "interface_face": "Instrument Sans",
   "semantic_colors": {

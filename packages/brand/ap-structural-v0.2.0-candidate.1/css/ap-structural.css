@@ -1,0 +1,18 @@
+@font-face {
+  font-family: "AP Structural";
+  src:
+    url("../fonts/APStructuralDisplayBlack-v0.2.0-candidate.1.woff2")
+      format("woff2"),
+    url("../fonts/APStructuralDisplayBlack-v0.2.0-candidate.1.ttf")
+      format("truetype");
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+}
+
+.ap-structural {
+  font-family: "AP Structural", "Urbanist", sans-serif;
+  font-style: normal;
+  font-weight: 900;
+  font-synthesis: none;
+}
