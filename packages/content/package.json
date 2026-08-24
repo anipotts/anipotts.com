@@ -41,6 +41,6 @@
     "@anipotts/types": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^5"
+    "typescript": "^7"
   }
 }
