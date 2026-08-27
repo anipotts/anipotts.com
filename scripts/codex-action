@@ -41,12 +41,6 @@ case "${1:-}" in
   local-dev)
     pnpm_cmd dev:all
     ;;
-  local-status)
-    pnpm_cmd dev:local:status
-    ;;
-  local-stop)
-    pnpm_cmd dev:local:stop
-    ;;
   check-www)
     pnpm_cmd turbo build --filter=@anipotts/www...
     pnpm_cmd turbo typecheck --filter=@anipotts/www...
@@ -75,7 +69,7 @@ case "${1:-}" in
     done
     ;;
   *)
-    echo "usage: $0 {setup|www-dev|admin-dev|local-dev|local-status|local-stop|check-www|check-all|check-changed|pr-status|live-state}" >&2
+    echo "usage: $0 {setup|www-dev|admin-dev|local-dev|check-www|check-all|check-changed|pr-status|live-state}" >&2
     exit 2
     ;;
 esac

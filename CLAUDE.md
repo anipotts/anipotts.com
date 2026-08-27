@@ -142,14 +142,12 @@ Use Node `24.19.0` and start only the surface under review:
 pnpm dev:www
 pnpm dev:admin
 pnpm dev:all
-pnpm dev:status
-pnpm dev:stop
 ```
 
-The public URL is `http://anipotts.localhost:1355/`; Admin is
-`http://admin.anipotts.localhost:1355/`. Portless is pinned, rootless,
-loopback-only, and worktree-aware. `dev:www` does not start Admin or its fallback.
-See `docs/local-development.md`.
+The public URL is `http://localhost:4321/`; Admin is
+`http://localhost:4322/`. Each command runs in the foreground and stops with
+`Ctrl+C`. `dev:www` does not start Admin or its fallback. See
+`docs/local-development.md`.
 
 The canonical local review URL is `http://localhost:4311/`.
 

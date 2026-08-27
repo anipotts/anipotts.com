@@ -12,7 +12,7 @@ export default defineConfig({
   vite: {
     plugins: [publicContentHotReload()],
     server: {
-      allowedHosts: ["news.anipotts.com", ".anipotts.localhost"],
+      allowedHosts: ["news.anipotts.com"],
     },
   },
   adapter: cloudflare({

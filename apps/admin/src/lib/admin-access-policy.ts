@@ -41,6 +41,8 @@ const PUBLIC_PREFIXES = ["/_astro/", "/assets/"];
 const DEV_LOOPBACK_ORIGINS = new Set([
   "http://localhost:4311",
   "http://127.0.0.1:4311",
+  "http://localhost:4322",
+  "http://127.0.0.1:4322",
 ]);
 const DEV_LOOPBACK_PREVIEW_PATHS = new Set([
   "/",
@@ -68,8 +70,6 @@ const DEV_LOOPBACK_PREVIEW_PATHS = new Set([
 ]);
 const DEV_PREVIEW_ASSET_PATHS = new Set(["/@react-refresh"]);
 const DEV_PREVIEW_ASSET_PREFIXES = ["/@id/", "/@vite/", "/src/"];
-const DEV_PORTLESS_HOST_PATTERN =
-  /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)?admin\.anipotts\.localhost$/;
 
 type AdminAccessInput = {
   isDev: boolean;
@@ -113,12 +113,7 @@ export function isDevLoopbackPreviewRequest({
 }
 
 function isApprovedDevPreviewOrigin(url: URL): boolean {
-  if (DEV_LOOPBACK_ORIGINS.has(url.origin)) return true;
-  if (!DEV_PORTLESS_HOST_PATTERN.test(url.hostname)) return false;
-  return (
-    (url.protocol === "http:" && url.port === "1355") ||
-    (url.protocol === "https:" && (url.port === "" || url.port === "443"))
-  );
+  return DEV_LOOPBACK_ORIGINS.has(url.origin);
 }
 
 export function isPublicAdminPath(pathname: string): boolean {

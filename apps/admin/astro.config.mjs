@@ -15,9 +15,6 @@ export default defineConfig({
   },
   vite: {
     plugins: [publicContentHotReload()],
-    server: {
-      allowedHosts: [".admin.anipotts.localhost"],
-    },
   },
   adapter: cloudflare({
     platformProxy: { enabled: true },

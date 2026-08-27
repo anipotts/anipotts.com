@@ -69,19 +69,18 @@ describe("admin access policy", () => {
     ).toBe(true);
   });
 
-  test.each([
-    "http://admin.anipotts.localhost:1355",
-    "http://portless-local-2026-08-21.admin.anipotts.localhost:1355",
-    "https://admin.anipotts.localhost",
-  ])("accepts an exact Portless development origin %s", (origin) => {
-    expect(
-      isDevLoopbackPreviewRequest({
-        isDev: true,
-        method: "GET",
-        url: local("/inbox", origin),
-      }),
-    ).toBe(true);
-  });
+  test.each(["http://localhost:4322", "http://127.0.0.1:4322"])(
+    "accepts the direct Admin development origin %s",
+    (origin) => {
+      expect(
+        isDevLoopbackPreviewRequest({
+          isDev: true,
+          method: "GET",
+          url: local("/inbox", origin),
+        }),
+      ).toBe(true);
+    },
+  );
 
   test.each([
     "/@vite/client",
@@ -93,7 +92,7 @@ describe("admin access policy", () => {
       isDevLoopbackPreviewRequest({
         isDev: true,
         method: "GET",
-        url: local(path, "http://admin.anipotts.localhost:1355"),
+        url: local(path, "http://localhost:4322"),
       }),
     ).toBe(true);
   });
@@ -123,7 +122,7 @@ describe("admin access policy", () => {
       method: "POST",
       url: local(
         "/src/components/astryx/AdminCommandPalette.tsx",
-        "http://admin.anipotts.localhost:1355",
+        "http://localhost:4322",
       ),
     },
     {
@@ -145,19 +144,19 @@ describe("admin access policy", () => {
       url: local("/auth/device/opaque-request"),
     },
     {
-      name: "wrong Portless port",
+      name: "retired named development host",
       isDev: true,
       method: "GET",
-      url: local("/inbox", "http://admin.anipotts.localhost:4311"),
+      url: local("/inbox", "http://admin.anipotts.localhost:1355"),
     },
     {
-      name: "lookalike Portless host",
+      name: "lookalike named development host",
       isDev: true,
       method: "GET",
       url: local("/inbox", "http://admin.anipotts.localhost.example:1355"),
     },
     {
-      name: "nested Portless subdomain",
+      name: "nested named development host",
       isDev: true,
       method: "GET",
       url: local(

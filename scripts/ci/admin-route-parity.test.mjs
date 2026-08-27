@@ -169,7 +169,9 @@ assert.deepEqual(publicPasskeyApiPaths, [
 assert.deepEqual(publicPrefixes, ["/_astro/", "/assets/"]);
 assert.deepEqual(devLoopbackOrigins, [
   "http://127.0.0.1:4311",
+  "http://127.0.0.1:4322",
   "http://localhost:4311",
+  "http://localhost:4322",
 ]);
 assert.deepEqual(devLoopbackPreviewPaths, [
   "/",
@@ -197,16 +199,14 @@ assert.deepEqual(devLoopbackPreviewPaths, [
 ]);
 assert.deepEqual(devPreviewAssetPaths, ["/@react-refresh"]);
 assert.deepEqual(devPreviewAssetPrefixes, ["/@id/", "/@vite/", "/src/"]);
-assert.match(
-  accessPolicySource,
-  /DEV_PORTLESS_HOST_PATTERN[\s\S]*admin\\\.anipotts\\\.localhost/,
-  "Portless preview must match only the exact Admin localhost suffix",
+assert.ok(
+  accessPolicySource.includes('"http://localhost:4322"') &&
+    accessPolicySource.includes('"http://127.0.0.1:4322"'),
+  "direct Admin development must use the exact loopback port 4322",
 );
 assert.ok(
-  accessPolicySource.includes(
-    'url.protocol === "http:" && url.port === "1355"',
-  ),
-  "rootless Portless preview must stay pinned to HTTP port 1355",
+  !accessPolicySource.includes("anipotts.localhost"),
+  "retired named development hosts must not bypass native auth",
 );
 assert.ok(
   middlewareSource.includes("isDev: import.meta.env.DEV"),
