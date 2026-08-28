@@ -102,6 +102,20 @@ export interface CmsEditorLink {
   url: string;
 }
 
+export interface CmsProjectMedia {
+  kind: "image" | "gif" | "video";
+  src: string;
+  alt: string;
+  caption?: string;
+  fit?: "cover" | "contain";
+}
+
+export interface CmsProjectStorySection {
+  title: string;
+  paragraphs: string[];
+  media?: CmsProjectMedia;
+}
+
 export interface CmsProjectContent {
   id?: string;
   slug: string;
@@ -117,19 +131,18 @@ export interface CmsProjectContent {
   kind: "experience" | "project";
   public_state: "featured" | "listed" | "hidden";
   homepage_placement: "experience" | "making" | "none";
+  catalog_group: "active" | "past" | "taken_down";
   homepage_order: number;
   card_copy: string;
   detail_path: string;
   identity: {
     logo_src?: string;
     logo_alt?: string;
+    logo_tone?: "default" | "light" | "adaptive";
     icon?: string;
   };
-  preview_media: {
-    kind: "image" | "gif" | "video";
-    src: string;
-    alt: string;
-  } | null;
+  preview_media: CmsProjectMedia | null;
+  story: CmsProjectStorySection[];
   updated_at?: string | null;
 }
 
@@ -233,11 +246,18 @@ export interface SystemsLinkCard {
   detail: string;
 }
 
+export interface SystemsMapDomain {
+  label: string;
+  children: string[];
+}
+
 export interface SystemsPageContent {
   title: string;
   description: string;
   hero_title: string;
   hero_summary: string;
+  map_principle: string;
+  map_domains: SystemsMapDomain[];
   principles_label: string;
   principles: SystemsPrinciple[];
   writing_label: string;

@@ -40,10 +40,13 @@ import {
 import {
   contentInventorySource as rootContentInventorySource,
   DEFAULT_HOMEPAGE_CONTENT,
+  DEFAULT_SYSTEMS_CONTENT,
   normalizeHomepageContent,
   normalizeOrchestratingPageContent,
+  normalizeSystemsPageContent,
   segmentHomepageSummaryParagraph,
   validateOrchestratingPageContent,
+  validateSystemsPageContent,
 } from "../../packages/content/dist/index.js";
 
 const EXPECTED_OPERATION_IDS = [
@@ -624,6 +627,59 @@ assert.equal(
   ).ok,
   true,
   "invalid orchestrating cards fall back to safe defaults before validation",
+);
+
+const systemsContent = normalizeSystemsPageContent({
+  map_principle: " autonomy is an attention-routing problem. ",
+  map_domains: [
+    { label: "career", children: ["business", "content"] },
+    { label: "learning", children: [] },
+    { label: "wellbeing", children: [] },
+    { label: "personal", children: [] },
+  ],
+});
+assert.equal(
+  systemsContent.map_principle,
+  "autonomy is an attention-routing problem.",
+);
+assert.deepEqual(validateSystemsPageContent(systemsContent), { ok: true });
+assert.deepEqual(
+  normalizeSystemsPageContent({}).map_domains,
+  DEFAULT_SYSTEMS_CONTENT.map_domains,
+  "systems map domains must fall back to the reviewed public taxonomy",
+);
+assert.deepEqual(
+  normalizeSystemsPageContent({ map_domains: [] }).map_domains,
+  DEFAULT_SYSTEMS_CONTENT.map_domains,
+  "an empty systems map must not erase the public taxonomy",
+);
+assert.equal(
+  validateSystemsPageContent(
+    normalizeSystemsPageContent({
+      map_domains: [
+        { label: "career", children: [] },
+        { label: "career", children: [] },
+        { label: "wellbeing", children: [] },
+        { label: "personal", children: [] },
+      ],
+    }),
+  ).ok,
+  false,
+  "systems map domain identities must remain unique",
+);
+assert.equal(
+  validateSystemsPageContent(
+    normalizeSystemsPageContent({
+      map_domains: [
+        { label: "career", children: ["business", "business"] },
+        { label: "learning", children: [] },
+        { label: "wellbeing", children: [] },
+        { label: "personal", children: [] },
+      ],
+    }),
+  ).ok,
+  false,
+  "systems map domain children must remain unique",
 );
 
 assert.equal(

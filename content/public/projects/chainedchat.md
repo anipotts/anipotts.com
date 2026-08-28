@@ -10,11 +10,12 @@ status: archived
 kind: project
 public_state: listed
 homepage_placement: none
+catalog_group: taken_down
 homepage_order: 0
 card_copy: shared multi-model chat with one preserved context.
 detail_path: /projects/chainedchat
 identity:
-  logo_src: /images/brand/chainedchat-favicon.svg
+  logo_src: /images/brand/chainedchat-logo.png
   logo_alt: chainedchat
 sort_order: 89
 link_repo: https://github.com/anipotts/chained-chat

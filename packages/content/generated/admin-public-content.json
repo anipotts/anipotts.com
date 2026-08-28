@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "source_hash": "c9dc4c03efb24f3464f7638f7d4a12f770b593247eb19da6ff1d30e0e64bb615",
+  "source_hash": "4c72a73d44a19e75ec8ac8746847f2fe92db49f1e08a344b448b161d16943968",
   "source_records": [
     {
       "id": "projects.quantercise",
@@ -35,10 +35,11 @@
         { "path": "kind", "value": "project", "kind": "string" },
         { "path": "public_state", "value": "featured", "kind": "string" },
         { "path": "homepage_placement", "value": "making", "kind": "string" },
+        { "path": "catalog_group", "value": "past", "kind": "string" },
         { "path": "homepage_order", "value": "100", "kind": "number" },
         {
           "path": "card_copy",
-          "value": "quant interview practice with instant grading and real Python execution.",
+          "value": "quant interview practice with mental math and sandboxed Python execution.",
           "kind": "string"
         },
         {
@@ -79,10 +80,10 @@
       "status": "archived",
       "source_ref": "content/public/projects/structured-ai.md",
       "summary": "real-time agent i/o for architectural work.",
-      "body_words": 23,
+      "body_words": 72,
       "body_state": "short body",
       "body_section_count": 0,
-      "body_preview": "I worked on real-time agent interaction for architectural workflows, including cited answers and execution that people could inspect while the system was working.",
+      "body_preview": "A drawing question is only useful when the answer can be checked against the set. Drawing Set Chat links responses to exact sheet locations, follows references across drawings, and brings earlier QA findings into the...",
       "fields": [
         { "path": "title", "value": "structured ai", "kind": "string" },
         {
@@ -111,6 +112,7 @@
           "value": "experience",
           "kind": "string"
         },
+        { "path": "catalog_group", "value": "past", "kind": "string" },
         { "path": "homepage_order", "value": "100", "kind": "number" },
         {
           "path": "card_copy",
@@ -123,8 +125,13 @@
           "kind": "string"
         },
         {
+          "path": "preview_media",
+          "value": "{\"kind\":\"image\",\"src\":\"/images/work/structured-drawing-chat.webp\",\"alt\":\"Structured AI Drawing Set Chat flags an issue on an architectural plan and explains it with citations.\",\"fit\":\"contain\"}",
+          "kind": "object"
+        },
+        {
           "path": "identity",
-          "value": "{\"logo_src\":\"/images/brand/structured-ai-favicon.png\",\"logo_alt\":\"structured ai\"}",
+          "value": "{\"logo_src\":\"/images/brand/structured-ai-favicon.png\",\"logo_alt\":\"structured ai\",\"logo_tone\":\"adaptive\"}",
           "kind": "object"
         },
         { "path": "sort_order", "value": "99", "kind": "number" },
@@ -173,7 +180,7 @@
         { "path": "year", "value": "2025", "kind": "string" },
         { "path": "category", "value": "quant", "kind": "string" },
         { "path": "role", "value": "Chief Tech Officer", "kind": "string" },
-        { "path": "duration", "value": "2025-", "kind": "string" },
+        { "path": "duration", "value": "2025–present", "kind": "string" },
         { "path": "status", "value": "live", "kind": "string" },
         { "path": "kind", "value": "experience", "kind": "string" },
         { "path": "public_state", "value": "featured", "kind": "string" },
@@ -182,6 +189,7 @@
           "value": "experience",
           "kind": "string"
         },
+        { "path": "catalog_group", "value": "past", "kind": "string" },
         { "path": "homepage_order", "value": "90", "kind": "number" },
         {
           "path": "card_copy",
@@ -192,6 +200,16 @@
           "path": "detail_path",
           "value": "/projects/pgi-research-platform",
           "kind": "string"
+        },
+        {
+          "path": "preview_media",
+          "value": "{\"kind\":\"image\",\"src\":\"/images/work/paragon-portal-directory.png\",\"alt\":\"Paragon Global Investments member directory showing its intercollegiate research community.\",\"caption\":\"member directory\"}",
+          "kind": "object"
+        },
+        {
+          "path": "story",
+          "value": "[object Object], [object Object], [object Object], [object Object]",
+          "kind": "array"
         },
         {
           "path": "identity",
@@ -206,7 +224,7 @@
         },
         {
           "path": "tags",
-          "value": "Next.js, TypeScript, Supabase, TailwindCSS, Research",
+          "value": "Next.js, TypeScript, Supabase, Vercel, TailwindCSS, Research",
           "kind": "array"
         }
       ],
@@ -237,7 +255,7 @@
           "value": "Reference repo built from hundreds of Claude Code sessions. Includes hooks, custom agents, MC...",
           "kind": "string"
         },
-        { "path": "year", "value": "2025-", "kind": "string" },
+        { "path": "year", "value": "2025–present", "kind": "string" },
         { "path": "category", "value": "ai", "kind": "string" },
         { "path": "role", "value": "Creator", "kind": "string" },
         { "path": "duration", "value": "Ongoing", "kind": "string" },
@@ -245,6 +263,7 @@
         { "path": "kind", "value": "project", "kind": "string" },
         { "path": "public_state", "value": "featured", "kind": "string" },
         { "path": "homepage_placement", "value": "making", "kind": "string" },
+        { "path": "catalog_group", "value": "active", "kind": "string" },
         { "path": "homepage_order", "value": "80", "kind": "number" },
         {
           "path": "card_copy",
@@ -300,7 +319,7 @@
           "value": "Built a read-only macOS MCP server for local iMessage search, contact stats, streaks, and pri...",
           "kind": "string"
         },
-        { "path": "year", "value": "2025-", "kind": "string" },
+        { "path": "year", "value": "2025–present", "kind": "string" },
         { "path": "category", "value": "ai", "kind": "string" },
         { "path": "role", "value": "Creator", "kind": "string" },
         { "path": "duration", "value": "Ongoing", "kind": "string" },
@@ -308,6 +327,7 @@
         { "path": "kind", "value": "project", "kind": "string" },
         { "path": "public_state", "value": "featured", "kind": "string" },
         { "path": "homepage_placement", "value": "making", "kind": "string" },
+        { "path": "catalog_group", "value": "active", "kind": "string" },
         { "path": "homepage_order", "value": "90", "kind": "number" },
         {
           "path": "card_copy",
@@ -376,6 +396,7 @@
         { "path": "kind", "value": "project", "kind": "string" },
         { "path": "public_state", "value": "listed", "kind": "string" },
         { "path": "homepage_placement", "value": "none", "kind": "string" },
+        { "path": "catalog_group", "value": "past", "kind": "string" },
         { "path": "homepage_order", "value": "0", "kind": "number" },
         {
           "path": "card_copy",
@@ -389,7 +410,7 @@
         },
         {
           "path": "identity",
-          "value": "{\"icon\":\"google-chrome-logo\"}",
+          "value": "{\"logo_src\":\"/images/brand/google-chrome-logo.svg\",\"logo_alt\":\"Google Chrome\"}",
           "kind": "object"
         },
         { "path": "sort_order", "value": "90", "kind": "number" },
@@ -439,6 +460,7 @@
         { "path": "kind", "value": "project", "kind": "string" },
         { "path": "public_state", "value": "listed", "kind": "string" },
         { "path": "homepage_placement", "value": "none", "kind": "string" },
+        { "path": "catalog_group", "value": "taken_down", "kind": "string" },
         { "path": "homepage_order", "value": "0", "kind": "number" },
         {
           "path": "card_copy",
@@ -452,7 +474,7 @@
         },
         {
           "path": "identity",
-          "value": "{\"logo_src\":\"/images/brand/chainedchat-favicon.svg\",\"logo_alt\":\"chainedchat\"}",
+          "value": "{\"logo_src\":\"/images/brand/chainedchat-logo.png\",\"logo_alt\":\"chainedchat\"}",
           "kind": "object"
         },
         { "path": "sort_order", "value": "89", "kind": "number" },
@@ -494,7 +516,7 @@
           "value": "Built a WebGL and Web Audio pipeline that follows lyrics as they play and makes rhyme pattern...",
           "kind": "string"
         },
-        { "path": "year", "value": "2025-", "kind": "string" },
+        { "path": "year", "value": "2025–present", "kind": "string" },
         { "path": "category", "value": "music", "kind": "string" },
         { "path": "role", "value": "Creator", "kind": "string" },
         { "path": "duration", "value": "Ongoing", "kind": "string" },
@@ -502,6 +524,7 @@
         { "path": "kind", "value": "project", "kind": "string" },
         { "path": "public_state", "value": "hidden", "kind": "string" },
         { "path": "homepage_placement", "value": "none", "kind": "string" },
+        { "path": "catalog_group", "value": "active", "kind": "string" },
         { "path": "homepage_order", "value": "0", "kind": "number" },
         {
           "path": "card_copy",
@@ -570,6 +593,7 @@
         { "path": "kind", "value": "project", "kind": "string" },
         { "path": "public_state", "value": "featured", "kind": "string" },
         { "path": "homepage_placement", "value": "making", "kind": "string" },
+        { "path": "catalog_group", "value": "past", "kind": "string" },
         { "path": "homepage_order", "value": "70", "kind": "number" },
         {
           "path": "card_copy",
@@ -632,11 +656,8 @@
         { "path": "status", "value": "wip", "kind": "string" },
         { "path": "kind", "value": "experience", "kind": "string" },
         { "path": "public_state", "value": "featured", "kind": "string" },
-        {
-          "path": "homepage_placement",
-          "value": "experience",
-          "kind": "string"
-        },
+        { "path": "homepage_placement", "value": "none", "kind": "string" },
+        { "path": "catalog_group", "value": "active", "kind": "string" },
         { "path": "homepage_order", "value": "70", "kind": "number" },
         {
           "path": "card_copy",
@@ -694,11 +715,8 @@
         { "path": "status", "value": "live", "kind": "string" },
         { "path": "kind", "value": "experience", "kind": "string" },
         { "path": "public_state", "value": "featured", "kind": "string" },
-        {
-          "path": "homepage_placement",
-          "value": "experience",
-          "kind": "string"
-        },
+        { "path": "homepage_placement", "value": "none", "kind": "string" },
+        { "path": "catalog_group", "value": "past", "kind": "string" },
         { "path": "homepage_order", "value": "80", "kind": "number" },
         {
           "path": "card_copy",
@@ -761,6 +779,7 @@
         { "path": "kind", "value": "project", "kind": "string" },
         { "path": "public_state", "value": "listed", "kind": "string" },
         { "path": "homepage_placement", "value": "none", "kind": "string" },
+        { "path": "catalog_group", "value": "past", "kind": "string" },
         { "path": "homepage_order", "value": "0", "kind": "number" },
         {
           "path": "card_copy",
@@ -1028,7 +1047,7 @@
       "status": "source_controlled",
       "route": "/",
       "source_ref": "content/public/pages/home.md",
-      "source_hash": "ecc68d49a4cd6747a1b149f0bf94aa339e9af7b9cc1a461be328075eb1dc1948"
+      "source_hash": "baee7559ef159e3f4bad1aa67c6c9065e830a2094cb6b7286851dfa0efd03e89"
     },
     {
       "entity_id": "public-page:making",
@@ -1037,7 +1056,7 @@
       "status": "source_controlled",
       "route": "/making",
       "source_ref": "content/public/pages/making.md",
-      "source_hash": "b5061082ac58c7d9ce0c74599103f877edea00292e82654f5cd513df2dfa343a"
+      "source_hash": "fb175136d109ff7e43277abfb261b0a8b6b58656c3b15e9fde9da4bf7cd9bc31"
     },
     {
       "entity_id": "public-page:newsletter",
@@ -1082,7 +1101,7 @@
       "status": "source_controlled",
       "route": "/systems",
       "source_ref": "content/public/pages/systems.md",
-      "source_hash": "26abdf8d4045a70e09419b9a9edbd1aab37aac5218f03a3dd967c6670f8c84bf"
+      "source_hash": "c4b6667c42f95297bdeef2c3d6ec18e474e95e398b189949c5453d2a0362dbb9"
     },
     {
       "entity_id": "public-page:writing",
@@ -1100,7 +1119,7 @@
       "status": "archived",
       "route": "/projects/chainedchat",
       "source_ref": "content/public/projects/chainedchat.md",
-      "source_hash": "ba77603ab2a5fe6849398cb26800c4dac59b6a982648efae7f9656a62d4f0dba"
+      "source_hash": "2fe160412514b5c714131e275f94ebda10e2e77c2bba55e41f18ae3fb96c0a9b"
     },
     {
       "entity_id": "public-project:claude-code-tips",
@@ -1109,7 +1128,7 @@
       "status": "live",
       "route": "/projects/claude-code-tips",
       "source_ref": "content/public/projects/claude-code-tips.md",
-      "source_hash": "8c3bd85d1e58efe3ab16741f42feb1480009f86bc3621b70da0901e1de86f847"
+      "source_hash": "187746649476952e6e555cdc7228e3cbb85f580fa7d88b89178bb66dba816a3d"
     },
     {
       "entity_id": "public-project:habittracker-obh",
@@ -1118,7 +1137,7 @@
       "status": "live",
       "route": "/projects/habittracker-obh",
       "source_ref": "content/public/projects/habittracker-obh.md",
-      "source_hash": "f842548d22c30530f0b937d9342da68cabce5da7a2cf389d38ffdcfb875dd437"
+      "source_hash": "67d8bda6161fd480b071b9887844e07c20d4e9ddc6babda21dc8e7f53ea5bcc5"
     },
     {
       "entity_id": "public-project:imessage-mcp",
@@ -1127,7 +1146,7 @@
       "status": "live",
       "route": "/projects/imessage-mcp",
       "source_ref": "content/public/projects/imessage-mcp.md",
-      "source_hash": "a1e3748b2c74707d60a78415f279b160b21f6fa3524b00e2e7ef7a65b4a78273"
+      "source_hash": "f26a57362289dd5985b9f46f1546cd6d8dfa8044921186b8bc69aaf604633b24"
     },
     {
       "entity_id": "public-project:nyu-purity-test",
@@ -1136,7 +1155,7 @@
       "status": "live",
       "route": "/projects/nyu-purity-test",
       "source_ref": "content/public/projects/nyu-purity-test.md",
-      "source_hash": "b3fd62871de2d6bd6cb55416b5610d6b629f64106cf74ac92dbcbf63f801c119"
+      "source_hash": "551bde74e1eef0969fb5f60835db93c4f01e695616d3822a177016a999f094d8"
     },
     {
       "entity_id": "public-project:options-pricing-sensitivity",
@@ -1145,7 +1164,7 @@
       "status": "live",
       "route": "/projects/options-pricing-sensitivity",
       "source_ref": "content/public/projects/options-pricing-sensitivity.md",
-      "source_hash": "2ac67f5f2d929c1f73d4aeb49d2b6078164ce6b3feea4830fe2282f0aa226e6a"
+      "source_hash": "2109c90b34898f9252ae9a9889f1ee8a1f420f8f5549d12dc5723b109e07e403"
     },
     {
       "entity_id": "public-project:pgi-research-platform",
@@ -1154,7 +1173,7 @@
       "status": "live",
       "route": "/projects/pgi-research-platform",
       "source_ref": "content/public/projects/pgi-research-platform.md",
-      "source_hash": "1a391bab26364a386f5182748594105c09175f90e27154f27d1da9a7ccea3413"
+      "source_hash": "6915e7ce85c84ccd6165bb42041ddbd074ec3c105ff85f0d7cee060d44013c41"
     },
     {
       "entity_id": "public-project:quantercise-extension",
@@ -1163,7 +1182,7 @@
       "status": "archived",
       "route": "/projects/quantercise-extension",
       "source_ref": "content/public/projects/quantercise-extension.md",
-      "source_hash": "e5b483f78f80c45354918e5bb7892dc5d864dedfd0af3213f116175e445422bb"
+      "source_hash": "32e85dbc0201541288d6259df902539407e4ebe1a35feca37c522665825b69e1"
     },
     {
       "entity_id": "public-project:quantercise",
@@ -1172,7 +1191,7 @@
       "status": "live",
       "route": "/projects/quantercise",
       "source_ref": "content/public/projects/quantercise.md",
-      "source_hash": "5f54186d13e1b07a1a641525191bd93b6180485da14c1b825fe45ee411392308"
+      "source_hash": "67f8abfd3b064eea04b7950cb94371160c84237355e2005389c55e03b350ebb8"
     },
     {
       "entity_id": "public-project:range-media-partners",
@@ -1181,7 +1200,7 @@
       "status": "wip",
       "route": "/projects/range-media-partners",
       "source_ref": "content/public/projects/range-media-partners.md",
-      "source_hash": "e23360eec8ad4537433c2f123f703d3d7d6e3ab8e422bf7748be24e8e9c33ff4"
+      "source_hash": "18b39d6c9fb1405ea7e03f464d696a4633ff3069a0148bbddf7584603ce19faa"
     },
     {
       "entity_id": "public-project:saeshify",
@@ -1190,7 +1209,7 @@
       "status": "live",
       "route": "/projects/saeshify",
       "source_ref": "content/public/projects/saeshify.md",
-      "source_hash": "e05754d33b8f40f8aa6dbbba253280b3178cb273462322347cbb6c5854f76c05"
+      "source_hash": "eae3ba93fc010ffae8ae87093f430a4c69d3c9ae015c78ab1fc13721a60589c4"
     },
     {
       "entity_id": "public-project:structured-ai",
@@ -1199,7 +1218,7 @@
       "status": "archived",
       "route": "/projects/structured-ai",
       "source_ref": "content/public/projects/structured-ai.md",
-      "source_hash": "abe82e951f03d44380717e298980123971370e6276e4206556e8c5d7a1e92b7e"
+      "source_hash": "f588a6366b53c21be2756cf0e4c5301e174feefcfdd1306d9afdc59f1e281363"
     },
     {
       "entity_id": "public-writing:awareness-is-alpha",

@@ -303,7 +303,7 @@ describe("homepage cms validation", () => {
     const content = normalizeHomepageContent(DEFAULT_HOMEPAGE_CONTENT);
 
     expect(homepageSummaryText(content)).toBe(
-      "i work on realtime agent systems and write about how they work. i previously worked on real-time agent i/o at structured ai (YC F25) and our bad habit, an atlantic records venture, and business insider also covered my everyday workflow.",
+      "i work on realtime agent systems and make content about how they work. i previously worked on real-time agent i/o at structured ai (YC F25) and our bad habit, an atlantic records venture, and business insider also covered my everyday workflow.",
     );
   });
 

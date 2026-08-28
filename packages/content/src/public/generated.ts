@@ -10,7 +10,7 @@ import type {
 } from "@anipotts/types";
 
 export const PUBLIC_CONTENT_SOURCE_HASH =
-  "c9dc4c03efb24f3464f7638f7d4a12f770b593247eb19da6ff1d30e0e64bb615";
+  "4c72a73d44a19e75ec8ac8746847f2fe92db49f1e08a344b448b161d16943968";
 
 export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
   sections: {
@@ -19,7 +19,7 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
       label: "index",
       heading: "hi, i'm ani!",
       subheading:
-        "i work on realtime agent systems and write about how they work. i previously worked on real-time agent i/o at structured ai (YC F25) and our bad habit, an atlantic records venture, and business insider also covered my everyday workflow.",
+        "i work on realtime agent systems and make content about how they work. i previously worked on real-time agent i/o at structured ai (YC F25) and our bad habit, an atlantic records venture, and business insider also covered my everyday workflow.",
       mention_keys: [
         "structuredAi",
         "yCombinatorF25",
@@ -129,17 +129,17 @@ export const DEFAULT_MAKING_INDEX_CONTENT: ListingPageContent = {
     {
       id: "active",
       label: "active",
-      note: "things still moving or maintained",
+      note: "developing and maintaining",
     },
     {
       id: "past",
       label: "past",
-      note: "finished work and older receipts",
+      note: "past projects",
     },
     {
-      id: "archive",
+      id: "taken_down",
       label: "archive",
-      note: "sunsetted projects kept for context",
+      note: "taken down",
     },
   ],
 };
@@ -259,6 +259,25 @@ export const DEFAULT_SYSTEMS_CONTENT: SystemsPageContent = {
   hero_title: "systems",
   hero_summary:
     "how i work with agents: one clear target, durable context, visible proof, and a real stopping condition.",
+  map_principle: "autonomy is an attention-routing problem.",
+  map_domains: [
+    {
+      label: "career",
+      children: ["business", "content"],
+    },
+    {
+      label: "learning",
+      children: [],
+    },
+    {
+      label: "wellbeing",
+      children: [],
+    },
+    {
+      label: "personal",
+      children: [],
+    },
+  ],
   principles_label: "the loop",
   principles: [
     {
@@ -340,20 +359,22 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
     kind: "project",
     public_state: "listed",
     homepage_placement: "none",
+    catalog_group: "taken_down",
     homepage_order: 0,
     card_copy: "shared multi-model chat with one preserved context.",
     detail_path: "/projects/chainedchat",
     identity: {
-      logo_src: "/images/brand/chainedchat-favicon.svg",
+      logo_src: "/images/brand/chainedchat-logo.png",
       logo_alt: "chainedchat",
     },
     preview_media: null,
+    story: [],
   },
   {
     slug: "claude-code-tips",
     title: "claude code tips",
     status: "live",
-    year: "2025-",
+    year: "2025–present",
     range: "Ongoing",
     tags: ["python", "claude code", "hooks", "agents", "mcp", "plugins"],
     summary: "public notes from running agent workflows in real repos.",
@@ -368,6 +389,7 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
     kind: "project",
     public_state: "featured",
     homepage_placement: "making",
+    catalog_group: "active",
     homepage_order: 80,
     card_copy:
       "practical patterns from running coding agents in real repositories.",
@@ -377,6 +399,7 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
       logo_alt: "claude code tips",
     },
     preview_media: null,
+    story: [],
   },
   {
     slug: "habittracker-obh",
@@ -391,7 +414,8 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
     order: 41,
     kind: "experience",
     public_state: "featured",
-    homepage_placement: "experience",
+    homepage_placement: "none",
+    catalog_group: "past",
     homepage_order: 80,
     card_copy: "discovery and growth in one scouting workflow.",
     detail_path: "/projects/habittracker-obh",
@@ -400,12 +424,13 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
       logo_alt: "our bad habit",
     },
     preview_media: null,
+    story: [],
   },
   {
     slug: "imessage-mcp",
     title: "imessage mcp",
     status: "live",
-    year: "2025-",
+    year: "2025–present",
     range: "Ongoing",
     tags: ["typescript", "mcp", "sqlite", "macos", "privacy"],
     summary: "local-first mcp over imessage search and stats.",
@@ -424,6 +449,7 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
     kind: "project",
     public_state: "featured",
     homepage_placement: "making",
+    catalog_group: "active",
     homepage_order: 90,
     card_copy: "private, read-only search and stats for Apple Messages.",
     detail_path: "/projects/imessage-mcp",
@@ -432,6 +458,7 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
       logo_alt: "npm",
     },
     preview_media: null,
+    story: [],
   },
   {
     slug: "nyu-purity-test",
@@ -452,6 +479,7 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
     kind: "project",
     public_state: "featured",
     homepage_placement: "making",
+    catalog_group: "past",
     homepage_order: 70,
     card_copy: "a campus quiz that spread through NYU group chats overnight.",
     detail_path: "/projects/nyu-purity-test",
@@ -460,6 +488,7 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
       logo_alt: "nyu purity test",
     },
     preview_media: null,
+    story: [],
   },
   {
     slug: "options-pricing-sensitivity",
@@ -480,6 +509,7 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
     kind: "project",
     public_state: "listed",
     homepage_placement: "none",
+    catalog_group: "past",
     homepage_order: 0,
     card_copy:
       "options pricing with Black-Scholes, binomial models, and volatility sweeps.",
@@ -488,14 +518,22 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
       icon: "chart-line-up",
     },
     preview_media: null,
+    story: [],
   },
   {
     slug: "pgi-research-platform",
     title: "paragon global investments",
     status: "live",
     year: "2025",
-    range: "2025-",
-    tags: ["next.js", "typescript", "supabase", "tailwindcss", "research"],
+    range: "2025–present",
+    tags: [
+      "next.js",
+      "typescript",
+      "supabase",
+      "vercel",
+      "tailwindcss",
+      "research",
+    ],
     summary: "next.js and supabase portal for an nyu quant fund.",
     body: "Built a Next.js and TypeScript research portal backed by Supabase for Paragon Global Investments, NYU's quant fund. Organized internal research so members could read and share fund material from mobile.",
     links: [
@@ -508,6 +546,7 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
     kind: "experience",
     public_state: "featured",
     homepage_placement: "experience",
+    catalog_group: "past",
     homepage_order: 90,
     card_copy: "research platform for an intercollegiate quant fund.",
     detail_path: "/projects/pgi-research-platform",
@@ -515,7 +554,60 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
       logo_src: "/images/brand/paragon-favicon.png",
       logo_alt: "paragon global investments",
     },
-    preview_media: null,
+    preview_media: {
+      kind: "image",
+      src: "/images/work/paragon-portal-directory.png",
+      alt: "Paragon Global Investments member directory showing its intercollegiate research community.",
+      caption: "member directory",
+    },
+    story: [
+      {
+        title: "start with the actual job",
+        paragraphs: [
+          "PGI had more than 300 student members across its chapters, plus research, educational resources, and people information living in too many places.",
+          "I wanted one portal that made the club feel like one organization instead of a collection of docs and spreadsheets.",
+        ],
+      },
+      {
+        title: "pick the shortest useful stack",
+        paragraphs: [
+          "I built the first useful version in a couple of days with Next.js, Supabase, and Vercel. It is the kind of setup people now reach for when they want to vibe code something quickly, but used carefully it is also a real application stack: typed UI, authentication, relational data, file storage, and straightforward deploys.",
+          "The goal was to get members from sign-in to people, research, and resources with as little friction as possible.",
+        ],
+        media: {
+          kind: "image",
+          src: "/images/work/paragon-portal-resources.png",
+          alt: "Paragon member resource library with educational material organized for the club.",
+          caption: "member resources",
+        },
+      },
+      {
+        title: "make the admin work easy too",
+        paragraphs: [
+          "A member portal only stays useful if someone can maintain it. Admins could add resources, manage what members saw, and keep the portal current without opening the codebase.",
+          "That separation let the website move quickly while the club stayed in control of its information.",
+        ],
+        media: {
+          kind: "image",
+          src: "/images/work/paragon-portal-content-admin.png",
+          alt: "Paragon portal content manager used by club administrators.",
+          caption: "content manager",
+        },
+      },
+      {
+        title: "learn from the real loop",
+        paragraphs: [
+          "The interesting part was how little stack was required once the product loop was clear. Next.js handled the interface and server routes. Supabase handled identity and data. Vercel handled the release path.",
+          "The stack still needed product judgment: the schema, permissions, admin controls, and the actions a member needed on the first screen.",
+        ],
+        media: {
+          kind: "image",
+          src: "/images/work/paragon-portal-analytics.png",
+          alt: "Paragon portal analytics showing how members used the site.",
+          caption: "portal analytics",
+        },
+      },
+    ],
   },
   {
     slug: "quantercise-extension",
@@ -536,13 +628,16 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
     kind: "project",
     public_state: "listed",
     homepage_placement: "none",
+    catalog_group: "past",
     homepage_order: 0,
     card_copy: "keyboard-first browser drills for faster mental math.",
     detail_path: "/projects/quantercise-extension",
     identity: {
-      icon: "google-chrome-logo",
+      logo_src: "/images/brand/google-chrome-logo.svg",
+      logo_alt: "Google Chrome",
     },
     preview_media: null,
+    story: [],
   },
   {
     slug: "quantercise",
@@ -564,15 +659,17 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
     kind: "project",
     public_state: "featured",
     homepage_placement: "making",
+    catalog_group: "past",
     homepage_order: 100,
     card_copy:
-      "quant interview practice with instant grading and real Python execution.",
+      "quant interview practice with mental math and sandboxed Python execution.",
     detail_path: "/projects/quantercise",
     identity: {
       logo_src: "/images/brand/quantercise-legacy-icon.png",
       logo_alt: "quantercise",
     },
     preview_media: null,
+    story: [],
   },
   {
     slug: "range-media-partners",
@@ -587,7 +684,8 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
     order: 70,
     kind: "experience",
     public_state: "featured",
-    homepage_placement: "experience",
+    homepage_placement: "none",
+    catalog_group: "active",
     homepage_order: 70,
     card_copy: "client A&R research and artist monitoring.",
     detail_path: "/projects/range-media-partners",
@@ -595,12 +693,13 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
       icon: "waveform",
     },
     preview_media: null,
+    story: [],
   },
   {
     slug: "saeshify",
     title: "saeshify",
     status: "live",
-    year: "2025-",
+    year: "2025–present",
     range: "Ongoing",
     tags: ["typescript", "webgl", "audio", "visualization"],
     summary: "real-time rhyme visualizer for lyrics and audio.",
@@ -619,6 +718,7 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
     kind: "project",
     public_state: "hidden",
     homepage_placement: "none",
+    catalog_group: "active",
     homepage_order: 0,
     card_copy: "real-time rhyme visualization for lyrics and audio.",
     detail_path: "/projects/saeshify",
@@ -626,6 +726,7 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
       icon: "waveform",
     },
     preview_media: null,
+    story: [],
   },
   {
     slug: "structured-ai",
@@ -635,7 +736,7 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
     range: "2025",
     tags: ["agents", "realtime", "citations", "observability"],
     summary: "real-time agent i/o for architectural work.",
-    body: "I worked on real-time agent interaction for architectural workflows, including cited answers and execution that people could inspect while the system was working.",
+    body: "A drawing question is only useful when the answer can be checked against the set. Drawing Set Chat links responses to exact sheet locations, follows references across drawings, and brings earlier QA findings into the same thread.\n\nThe interaction work was keeping that execution understandable in real time. The question, the agent's search, the cited drawing context, and the answer needed to read as one continuous review instead of four separate tools.",
     links: [
       {
         label: "live site",
@@ -646,6 +747,7 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
     kind: "experience",
     public_state: "featured",
     homepage_placement: "experience",
+    catalog_group: "past",
     homepage_order: 100,
     card_copy:
       "real-time agent interaction with citations and visible execution.",
@@ -653,8 +755,15 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
     identity: {
       logo_src: "/images/brand/structured-ai-favicon.png",
       logo_alt: "structured ai",
+      logo_tone: "adaptive",
     },
-    preview_media: null,
+    preview_media: {
+      kind: "image",
+      src: "/images/work/structured-drawing-chat.webp",
+      alt: "Structured AI Drawing Set Chat flags an issue on an architectural plan and explains it with citations.",
+      fit: "contain",
+    },
+    story: [],
   },
 ];
 

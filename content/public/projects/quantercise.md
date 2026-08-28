@@ -10,8 +10,9 @@ status: live
 kind: project
 public_state: featured
 homepage_placement: making
+catalog_group: past
 homepage_order: 100
-card_copy: quant interview practice with instant grading and real Python execution.
+card_copy: quant interview practice with mental math and sandboxed Python execution.
 detail_path: /projects/quantercise
 identity:
   logo_src: /images/brand/quantercise-legacy-icon.png

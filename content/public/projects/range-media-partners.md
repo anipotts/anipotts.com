@@ -9,7 +9,8 @@ duration: Client work
 status: wip
 kind: experience
 public_state: featured
-homepage_placement: experience
+homepage_placement: none
+catalog_group: active
 homepage_order: 70
 card_copy: client A&R research and artist monitoring.
 detail_path: /projects/range-media-partners

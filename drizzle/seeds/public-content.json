@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "source_hash": "c9dc4c03efb24f3464f7638f7d4a12f770b593247eb19da6ff1d30e0e64bb615",
+  "source_hash": "4c72a73d44a19e75ec8ac8746847f2fe92db49f1e08a344b448b161d16943968",
   "policy": "future_additive_seed_input_only",
   "rows": [
     {
@@ -12,7 +12,7 @@
             "visible": true,
             "label": "index",
             "heading": "hi, i'm ani!",
-            "subheading": "i work on realtime agent systems and write about how they work. i previously worked on real-time agent i/o at structured ai (YC F25) and our bad habit, an atlantic records venture, and business insider also covered my everyday workflow.",
+            "subheading": "i work on realtime agent systems and make content about how they work. i previously worked on real-time agent i/o at structured ai (YC F25) and our bad habit, an atlantic records venture, and business insider also covered my everyday workflow.",
             "mention_keys": [
               "structuredAi",
               "yCombinatorF25",
@@ -102,7 +102,7 @@
         }
       },
       "source_ref": "content/public/pages/home.md",
-      "source_hash": "ecc68d49a4cd6747a1b149f0bf94aa339e9af7b9cc1a461be328075eb1dc1948"
+      "source_hash": "baee7559ef159e3f4bad1aa67c6c9065e830a2094cb6b7286851dfa0efd03e89"
     },
     {
       "page_key": "making",
@@ -116,22 +116,14 @@
           {
             "id": "active",
             "label": "active",
-            "note": "things still moving or maintained"
+            "note": "developing and maintaining"
           },
-          {
-            "id": "past",
-            "label": "past",
-            "note": "finished work and older receipts"
-          },
-          {
-            "id": "archive",
-            "label": "archive",
-            "note": "sunsetted projects kept for context"
-          }
+          { "id": "past", "label": "past", "note": "past projects" },
+          { "id": "taken_down", "label": "archive", "note": "taken down" }
         ]
       },
       "source_ref": "content/public/pages/making.md",
-      "source_hash": "b5061082ac58c7d9ce0c74599103f877edea00292e82654f5cd513df2dfa343a"
+      "source_hash": "fb175136d109ff7e43277abfb261b0a8b6b58656c3b15e9fde9da4bf7cd9bc31"
     },
     {
       "page_key": "newsletter",
@@ -252,6 +244,13 @@
         "description": "how ani works with agents: clear targets, durable context, visible proof, and real stopping conditions.",
         "hero_title": "systems",
         "hero_summary": "how i work with agents: one clear target, durable context, visible proof, and a real stopping condition.",
+        "map_principle": "autonomy is an attention-routing problem.",
+        "map_domains": [
+          { "label": "career", "children": ["business", "content"] },
+          { "label": "learning", "children": [] },
+          { "label": "wellbeing", "children": [] },
+          { "label": "personal", "children": [] }
+        ],
         "principles_label": "the loop",
         "principles": [
           {
@@ -296,7 +295,7 @@
         ]
       },
       "source_ref": "content/public/pages/systems.md",
-      "source_hash": "26abdf8d4045a70e09419b9a9edbd1aab37aac5218f03a3dd967c6670f8c84bf"
+      "source_hash": "c4b6667c42f95297bdeef2c3d6ec18e474e95e398b189949c5453d2a0362dbb9"
     },
     {
       "page_key": "writing",
@@ -339,17 +338,19 @@
         "kind": "project",
         "public_state": "listed",
         "homepage_placement": "none",
+        "catalog_group": "taken_down",
         "homepage_order": 0,
         "card_copy": "shared multi-model chat with one preserved context.",
         "detail_path": "/projects/chainedchat",
         "identity": {
-          "logo_src": "/images/brand/chainedchat-favicon.svg",
+          "logo_src": "/images/brand/chainedchat-logo.png",
           "logo_alt": "chainedchat"
         },
-        "preview_media": null
+        "preview_media": null,
+        "story": []
       },
       "source_ref": "content/public/projects/chainedchat.md",
-      "source_hash": "ba77603ab2a5fe6849398cb26800c4dac59b6a982648efae7f9656a62d4f0dba"
+      "source_hash": "2fe160412514b5c714131e275f94ebda10e2e77c2bba55e41f18ae3fb96c0a9b"
     },
     {
       "page_key": "project:claude-code-tips",
@@ -358,7 +359,7 @@
         "slug": "claude-code-tips",
         "title": "claude code tips",
         "status": "live",
-        "year": "2025-",
+        "year": "2025–present",
         "range": "Ongoing",
         "tags": ["python", "claude code", "hooks", "agents", "mcp", "plugins"],
         "summary": "public notes from running agent workflows in real repos.",
@@ -373,6 +374,7 @@
         "kind": "project",
         "public_state": "featured",
         "homepage_placement": "making",
+        "catalog_group": "active",
         "homepage_order": 80,
         "card_copy": "practical patterns from running coding agents in real repositories.",
         "detail_path": "/projects/claude-code-tips",
@@ -380,10 +382,11 @@
           "logo_src": "/images/brand/claude-code-tips-favicon.svg",
           "logo_alt": "claude code tips"
         },
-        "preview_media": null
+        "preview_media": null,
+        "story": []
       },
       "source_ref": "content/public/projects/claude-code-tips.md",
-      "source_hash": "8c3bd85d1e58efe3ab16741f42feb1480009f86bc3621b70da0901e1de86f847"
+      "source_hash": "187746649476952e6e555cdc7228e3cbb85f580fa7d88b89178bb66dba816a3d"
     },
     {
       "page_key": "project:habittracker-obh",
@@ -401,7 +404,8 @@
         "order": 41,
         "kind": "experience",
         "public_state": "featured",
-        "homepage_placement": "experience",
+        "homepage_placement": "none",
+        "catalog_group": "past",
         "homepage_order": 80,
         "card_copy": "discovery and growth in one scouting workflow.",
         "detail_path": "/projects/habittracker-obh",
@@ -409,10 +413,11 @@
           "logo_src": "/images/brand/bad-habit-favicon.png",
           "logo_alt": "our bad habit"
         },
-        "preview_media": null
+        "preview_media": null,
+        "story": []
       },
       "source_ref": "content/public/projects/habittracker-obh.md",
-      "source_hash": "f842548d22c30530f0b937d9342da68cabce5da7a2cf389d38ffdcfb875dd437"
+      "source_hash": "67d8bda6161fd480b071b9887844e07c20d4e9ddc6babda21dc8e7f53ea5bcc5"
     },
     {
       "page_key": "project:imessage-mcp",
@@ -421,7 +426,7 @@
         "slug": "imessage-mcp",
         "title": "imessage mcp",
         "status": "live",
-        "year": "2025-",
+        "year": "2025–present",
         "range": "Ongoing",
         "tags": ["typescript", "mcp", "sqlite", "macos", "privacy"],
         "summary": "local-first mcp over imessage search and stats.",
@@ -440,6 +445,7 @@
         "kind": "project",
         "public_state": "featured",
         "homepage_placement": "making",
+        "catalog_group": "active",
         "homepage_order": 90,
         "card_copy": "private, read-only search and stats for Apple Messages.",
         "detail_path": "/projects/imessage-mcp",
@@ -447,10 +453,11 @@
           "logo_src": "/images/brand/npm-icon.svg",
           "logo_alt": "npm"
         },
-        "preview_media": null
+        "preview_media": null,
+        "story": []
       },
       "source_ref": "content/public/projects/imessage-mcp.md",
-      "source_hash": "a1e3748b2c74707d60a78415f279b160b21f6fa3524b00e2e7ef7a65b4a78273"
+      "source_hash": "f26a57362289dd5985b9f46f1546cd6d8dfa8044921186b8bc69aaf604633b24"
     },
     {
       "page_key": "project:nyu-purity-test",
@@ -469,6 +476,7 @@
         "kind": "project",
         "public_state": "featured",
         "homepage_placement": "making",
+        "catalog_group": "past",
         "homepage_order": 70,
         "card_copy": "a campus quiz that spread through NYU group chats overnight.",
         "detail_path": "/projects/nyu-purity-test",
@@ -476,10 +484,11 @@
           "logo_src": "/images/brand/nyu-purity-test-favicon.png",
           "logo_alt": "nyu purity test"
         },
-        "preview_media": null
+        "preview_media": null,
+        "story": []
       },
       "source_ref": "content/public/projects/nyu-purity-test.md",
-      "source_hash": "b3fd62871de2d6bd6cb55416b5610d6b629f64106cf74ac92dbcbf63f801c119"
+      "source_hash": "551bde74e1eef0969fb5f60835db93c4f01e695616d3822a177016a999f094d8"
     },
     {
       "page_key": "project:options-pricing-sensitivity",
@@ -503,14 +512,16 @@
         "kind": "project",
         "public_state": "listed",
         "homepage_placement": "none",
+        "catalog_group": "past",
         "homepage_order": 0,
         "card_copy": "options pricing with Black-Scholes, binomial models, and volatility sweeps.",
         "detail_path": "/projects/options-pricing-sensitivity",
         "identity": { "icon": "chart-line-up" },
-        "preview_media": null
+        "preview_media": null,
+        "story": []
       },
       "source_ref": "content/public/projects/options-pricing-sensitivity.md",
-      "source_hash": "2ac67f5f2d929c1f73d4aeb49d2b6078164ce6b3feea4830fe2282f0aa226e6a"
+      "source_hash": "2109c90b34898f9252ae9a9889f1ee8a1f420f8f5549d12dc5723b109e07e403"
     },
     {
       "page_key": "project:pgi-research-platform",
@@ -520,11 +531,12 @@
         "title": "paragon global investments",
         "status": "live",
         "year": "2025",
-        "range": "2025-",
+        "range": "2025–present",
         "tags": [
           "next.js",
           "typescript",
           "supabase",
+          "vercel",
           "tailwindcss",
           "research"
         ],
@@ -537,6 +549,7 @@
         "kind": "experience",
         "public_state": "featured",
         "homepage_placement": "experience",
+        "catalog_group": "past",
         "homepage_order": 90,
         "card_copy": "research platform for an intercollegiate quant fund.",
         "detail_path": "/projects/pgi-research-platform",
@@ -544,10 +557,63 @@
           "logo_src": "/images/brand/paragon-favicon.png",
           "logo_alt": "paragon global investments"
         },
-        "preview_media": null
+        "preview_media": {
+          "kind": "image",
+          "src": "/images/work/paragon-portal-directory.png",
+          "alt": "Paragon Global Investments member directory showing its intercollegiate research community.",
+          "caption": "member directory"
+        },
+        "story": [
+          {
+            "title": "start with the actual job",
+            "paragraphs": [
+              "PGI had more than 300 student members across its chapters, plus research, educational resources, and people information living in too many places.",
+              "I wanted one portal that made the club feel like one organization instead of a collection of docs and spreadsheets."
+            ]
+          },
+          {
+            "title": "pick the shortest useful stack",
+            "paragraphs": [
+              "I built the first useful version in a couple of days with Next.js, Supabase, and Vercel. It is the kind of setup people now reach for when they want to vibe code something quickly, but used carefully it is also a real application stack: typed UI, authentication, relational data, file storage, and straightforward deploys.",
+              "The goal was to get members from sign-in to people, research, and resources with as little friction as possible."
+            ],
+            "media": {
+              "kind": "image",
+              "src": "/images/work/paragon-portal-resources.png",
+              "alt": "Paragon member resource library with educational material organized for the club.",
+              "caption": "member resources"
+            }
+          },
+          {
+            "title": "make the admin work easy too",
+            "paragraphs": [
+              "A member portal only stays useful if someone can maintain it. Admins could add resources, manage what members saw, and keep the portal current without opening the codebase.",
+              "That separation let the website move quickly while the club stayed in control of its information."
+            ],
+            "media": {
+              "kind": "image",
+              "src": "/images/work/paragon-portal-content-admin.png",
+              "alt": "Paragon portal content manager used by club administrators.",
+              "caption": "content manager"
+            }
+          },
+          {
+            "title": "learn from the real loop",
+            "paragraphs": [
+              "The interesting part was how little stack was required once the product loop was clear. Next.js handled the interface and server routes. Supabase handled identity and data. Vercel handled the release path.",
+              "The stack still needed product judgment: the schema, permissions, admin controls, and the actions a member needed on the first screen."
+            ],
+            "media": {
+              "kind": "image",
+              "src": "/images/work/paragon-portal-analytics.png",
+              "alt": "Paragon portal analytics showing how members used the site.",
+              "caption": "portal analytics"
+            }
+          }
+        ]
       },
       "source_ref": "content/public/projects/pgi-research-platform.md",
-      "source_hash": "1a391bab26364a386f5182748594105c09175f90e27154f27d1da9a7ccea3413"
+      "source_hash": "6915e7ce85c84ccd6165bb42041ddbd074ec3c105ff85f0d7cee060d44013c41"
     },
     {
       "page_key": "project:quantercise-extension",
@@ -571,14 +637,19 @@
         "kind": "project",
         "public_state": "listed",
         "homepage_placement": "none",
+        "catalog_group": "past",
         "homepage_order": 0,
         "card_copy": "keyboard-first browser drills for faster mental math.",
         "detail_path": "/projects/quantercise-extension",
-        "identity": { "icon": "google-chrome-logo" },
-        "preview_media": null
+        "identity": {
+          "logo_src": "/images/brand/google-chrome-logo.svg",
+          "logo_alt": "Google Chrome"
+        },
+        "preview_media": null,
+        "story": []
       },
       "source_ref": "content/public/projects/quantercise-extension.md",
-      "source_hash": "e5b483f78f80c45354918e5bb7892dc5d864dedfd0af3213f116175e445422bb"
+      "source_hash": "32e85dbc0201541288d6259df902539407e4ebe1a35feca37c522665825b69e1"
     },
     {
       "page_key": "project:quantercise",
@@ -604,17 +675,19 @@
         "kind": "project",
         "public_state": "featured",
         "homepage_placement": "making",
+        "catalog_group": "past",
         "homepage_order": 100,
-        "card_copy": "quant interview practice with instant grading and real Python execution.",
+        "card_copy": "quant interview practice with mental math and sandboxed Python execution.",
         "detail_path": "/projects/quantercise",
         "identity": {
           "logo_src": "/images/brand/quantercise-legacy-icon.png",
           "logo_alt": "quantercise"
         },
-        "preview_media": null
+        "preview_media": null,
+        "story": []
       },
       "source_ref": "content/public/projects/quantercise.md",
-      "source_hash": "5f54186d13e1b07a1a641525191bd93b6180485da14c1b825fe45ee411392308"
+      "source_hash": "67f8abfd3b064eea04b7950cb94371160c84237355e2005389c55e03b350ebb8"
     },
     {
       "page_key": "project:range-media-partners",
@@ -632,15 +705,17 @@
         "order": 70,
         "kind": "experience",
         "public_state": "featured",
-        "homepage_placement": "experience",
+        "homepage_placement": "none",
+        "catalog_group": "active",
         "homepage_order": 70,
         "card_copy": "client A&R research and artist monitoring.",
         "detail_path": "/projects/range-media-partners",
         "identity": { "icon": "waveform" },
-        "preview_media": null
+        "preview_media": null,
+        "story": []
       },
       "source_ref": "content/public/projects/range-media-partners.md",
-      "source_hash": "e23360eec8ad4537433c2f123f703d3d7d6e3ab8e422bf7748be24e8e9c33ff4"
+      "source_hash": "18b39d6c9fb1405ea7e03f464d696a4633ff3069a0148bbddf7584603ce19faa"
     },
     {
       "page_key": "project:saeshify",
@@ -649,7 +724,7 @@
         "slug": "saeshify",
         "title": "saeshify",
         "status": "live",
-        "year": "2025-",
+        "year": "2025–present",
         "range": "Ongoing",
         "tags": ["typescript", "webgl", "audio", "visualization"],
         "summary": "real-time rhyme visualizer for lyrics and audio.",
@@ -662,14 +737,16 @@
         "kind": "project",
         "public_state": "hidden",
         "homepage_placement": "none",
+        "catalog_group": "active",
         "homepage_order": 0,
         "card_copy": "real-time rhyme visualization for lyrics and audio.",
         "detail_path": "/projects/saeshify",
         "identity": { "icon": "waveform" },
-        "preview_media": null
+        "preview_media": null,
+        "story": []
       },
       "source_ref": "content/public/projects/saeshify.md",
-      "source_hash": "e05754d33b8f40f8aa6dbbba253280b3178cb273462322347cbb6c5854f76c05"
+      "source_hash": "eae3ba93fc010ffae8ae87093f430a4c69d3c9ae015c78ab1fc13721a60589c4"
     },
     {
       "page_key": "project:structured-ai",
@@ -682,23 +759,31 @@
         "range": "2025",
         "tags": ["agents", "realtime", "citations", "observability"],
         "summary": "real-time agent i/o for architectural work.",
-        "body": "I worked on real-time agent interaction for architectural workflows, including cited answers and execution that people could inspect while the system was working.",
+        "body": "A drawing question is only useful when the answer can be checked against the set. Drawing Set Chat links responses to exact sheet locations, follows references across drawings, and brings earlier QA findings into the same thread.\n\nThe interaction work was keeping that execution understandable in real time. The question, the agent's search, the cited drawing context, and the answer needed to read as one continuous review instead of four separate tools.",
         "links": [{ "label": "live site", "url": "https://getstructured.ai/" }],
         "order": 99,
         "kind": "experience",
         "public_state": "featured",
         "homepage_placement": "experience",
+        "catalog_group": "past",
         "homepage_order": 100,
         "card_copy": "real-time agent interaction with citations and visible execution.",
         "detail_path": "/projects/structured-ai",
         "identity": {
           "logo_src": "/images/brand/structured-ai-favicon.png",
-          "logo_alt": "structured ai"
+          "logo_alt": "structured ai",
+          "logo_tone": "adaptive"
         },
-        "preview_media": null
+        "preview_media": {
+          "kind": "image",
+          "src": "/images/work/structured-drawing-chat.webp",
+          "alt": "Structured AI Drawing Set Chat flags an issue on an architectural plan and explains it with citations.",
+          "fit": "contain"
+        },
+        "story": []
       },
       "source_ref": "content/public/projects/structured-ai.md",
-      "source_hash": "abe82e951f03d44380717e298980123971370e6276e4206556e8c5d7a1e92b7e"
+      "source_hash": "f588a6366b53c21be2756cf0e4c5301e174feefcfdd1306d9afdc59f1e281363"
     },
     {
       "page_key": "writing:awareness-is-alpha",

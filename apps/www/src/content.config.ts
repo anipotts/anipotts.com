@@ -7,6 +7,14 @@ const phosphor = z
   .regex(/^[a-z-]+$/, "phosphor icon name only")
   .optional();
 
+const projectMedia = z.object({
+  kind: z.enum(["image", "gif", "video"]),
+  src: z.string().startsWith("/"),
+  alt: z.string().min(1),
+  caption: z.string().min(1).optional(),
+  fit: z.enum(["cover", "contain"]).default("cover"),
+});
+
 const writing = defineCollection({
   loader: glob({ pattern: "*.md", base: "../../content/public/writing" }),
   schema: z
@@ -50,22 +58,26 @@ const projects = defineCollection({
     kind: z.enum(["experience", "project"]),
     public_state: z.enum(["featured", "listed", "hidden"]),
     homepage_placement: z.enum(["experience", "making", "none"]),
+    catalog_group: z.enum(["active", "past", "taken_down"]),
     homepage_order: z.number().default(0),
     card_copy: z.string().min(1).max(180),
     detail_path: z.string().regex(/^\/projects\/[a-z0-9-]+$/),
     identity: z.object({
       logo_src: z.string().startsWith("/").optional(),
       logo_alt: z.string().min(1).optional(),
+      logo_tone: z.enum(["default", "light", "adaptive"]).default("default"),
       icon: phosphor,
     }),
-    preview_media: z
-      .object({
-        kind: z.enum(["image", "gif", "video"]),
-        src: z.string().startsWith("/"),
-        alt: z.string().min(1),
-      })
-      .nullable()
-      .default(null),
+    preview_media: projectMedia.nullable().default(null),
+    story: z
+      .array(
+        z.object({
+          title: z.string().min(1),
+          paragraphs: z.array(z.string().min(1)).min(1),
+          media: projectMedia.optional(),
+        }),
+      )
+      .default([]),
     sort_order: z.number().default(0),
     icon: phosphor,
     link_live: z.string().url().optional(),

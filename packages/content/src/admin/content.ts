@@ -649,7 +649,7 @@ export const contentPreviewItems: ContentPreviewItem[] = [
     current_value:
       "homepage intro copy as rendered from the published `home` content record or source fallback.",
     proposed_value:
-      "i work on realtime agent systems and write about how they work. i previously worked on real-time agent i/o at structured ai (YC F25) and our bad habit, an atlantic records venture, and business insider also covered my everyday workflow.",
+      "i work on realtime agent systems and make content about how they work. i previously worked on real-time agent i/o at structured ai (YC F25) and our bad habit, an atlantic records venture, and business insider also covered my everyday workflow.",
     preview_route: "/",
     authority_state: "preview_only_no_write",
     required_approval_ids: [],

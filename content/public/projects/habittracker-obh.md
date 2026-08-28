@@ -9,7 +9,8 @@ duration: Summer 2024
 status: live
 kind: experience
 public_state: featured
-homepage_placement: experience
+homepage_placement: none
+catalog_group: past
 homepage_order: 80
 card_copy: discovery and growth in one scouting workflow.
 detail_path: /projects/habittracker-obh

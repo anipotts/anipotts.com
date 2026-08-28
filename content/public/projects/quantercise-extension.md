@@ -10,11 +10,13 @@ status: archived
 kind: project
 public_state: listed
 homepage_placement: none
+catalog_group: past
 homepage_order: 0
 card_copy: keyboard-first browser drills for faster mental math.
 detail_path: /projects/quantercise-extension
 identity:
-  icon: google-chrome-logo
+  logo_src: /images/brand/google-chrome-logo.svg
+  logo_alt: Google Chrome
 sort_order: 90
 link_repo: https://github.com/anipotts/quantercise-mental-math-extension
 tags: [Chrome Extension, JavaScript, Manifest V3]

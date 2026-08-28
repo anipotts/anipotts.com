@@ -10,6 +10,7 @@ status: live
 kind: project
 public_state: featured
 homepage_placement: making
+catalog_group: past
 homepage_order: 70
 card_copy: a campus quiz that spread through NYU group chats overnight.
 detail_path: /projects/nyu-purity-test

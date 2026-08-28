@@ -10,6 +10,7 @@ status: live
 kind: project
 public_state: listed
 homepage_placement: none
+catalog_group: past
 homepage_order: 0
 card_copy: options pricing with Black-Scholes, binomial models, and volatility sweeps.
 detail_path: /projects/options-pricing-sensitivity

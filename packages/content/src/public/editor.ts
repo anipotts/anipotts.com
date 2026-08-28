@@ -182,6 +182,14 @@ function normalizeHomepagePlacement(
   return "none";
 }
 
+function normalizeCatalogGroup(
+  value: unknown,
+): CmsProjectContent["catalog_group"] {
+  if (value === "active") return "active";
+  if (value === "taken_down") return "taken_down";
+  return "past";
+}
+
 export function normalizeCmsProject(
   project: unknown,
   fallback?: Partial<CmsProjectContent>,
@@ -229,6 +237,9 @@ export function normalizeCmsProject(
     homepage_placement: normalizeHomepagePlacement(
       source.homepage_placement ?? fallback?.homepage_placement,
     ),
+    catalog_group: normalizeCatalogGroup(
+      source.catalog_group ?? fallback?.catalog_group,
+    ),
     homepage_order: coerceNumber(
       source.homepage_order,
       fallback?.homepage_order ?? 0,
@@ -250,6 +261,9 @@ export function normalizeCmsProject(
       source.preview_media && typeof source.preview_media === "object"
         ? (source.preview_media as CmsProjectContent["preview_media"])
         : (fallback?.preview_media ?? null),
+    story: Array.isArray(source.story)
+      ? (source.story as CmsProjectContent["story"])
+      : (fallback?.story ?? []),
     updated_at:
       coerceString(source.updated_at, fallback?.updated_at ?? "") || null,
   };
@@ -292,6 +306,15 @@ export function validateCmsProject(project: CmsProjectContent): {
     (project.preview_media && !project.preview_media.src.startsWith("/")
       ? "Project preview media must use a local path"
       : null) ??
+    project.story
+      .map((section) =>
+        !section.title.trim() || section.paragraphs.length === 0
+          ? "Project story sections require a title and paragraph"
+          : section.media && !section.media.src.startsWith("/")
+            ? "Project story media must use a local path"
+            : null,
+      )
+      .find(Boolean) ??
     (project.kind === "experience" && project.homepage_placement === "making"
       ? "Experience records cannot use the making placement"
       : null) ??
@@ -743,6 +766,23 @@ export function normalizeSystemsPageContent(
     source.featured_writing && typeof source.featured_writing === "object"
       ? (source.featured_writing as Record<string, unknown>)
       : {};
+  const mapDomains = Array.isArray(source.map_domains)
+    ? source.map_domains
+        .filter((item): item is Record<string, unknown> =>
+          Boolean(item && typeof item === "object" && !Array.isArray(item)),
+        )
+        .map((item) => ({
+          label: coerceString(item.label, "").trim(),
+          children: Array.isArray(item.children)
+            ? item.children
+                .map((child) => coerceString(child, "").trim())
+                .filter(Boolean)
+                .slice(0, 4)
+            : [],
+        }))
+        .filter((item) => item.label)
+        .slice(0, 4)
+    : DEFAULT_SYSTEMS_CONTENT.map_domains;
 
   return {
     title: coerceString(source.title, DEFAULT_SYSTEMS_CONTENT.title).trim(),
@@ -758,6 +798,13 @@ export function normalizeSystemsPageContent(
       source.hero_summary,
       DEFAULT_SYSTEMS_CONTENT.hero_summary,
     ).trim(),
+    map_principle: coerceString(
+      source.map_principle,
+      DEFAULT_SYSTEMS_CONTENT.map_principle,
+    ).trim(),
+    map_domains: mapDomains.length
+      ? mapDomains
+      : DEFAULT_SYSTEMS_CONTENT.map_domains,
     principles_label: coerceString(
       source.principles_label,
       DEFAULT_SYSTEMS_CONTENT.principles_label,
@@ -800,6 +847,7 @@ export function validateSystemsPageContent(content: SystemsPageContent): {
     [content.description, "Systems description"],
     [content.hero_title, "Systems hero title"],
     [content.hero_summary, "Systems hero summary"],
+    [content.map_principle, "Systems map principle"],
     [content.principles_label, "Systems principles label"],
     [content.writing_label, "Systems writing label"],
     [content.tools_label, "Systems tools label"],
@@ -807,6 +855,26 @@ export function validateSystemsPageContent(content: SystemsPageContent): {
   for (const [value, label] of baseFields) {
     const error = validateCmsString(value, label, CMS_TEXT_LIMITS.summary);
     if (error) return { ok: false, error };
+  }
+  const canonicalDomains = ["career", "learning", "wellbeing", "personal"];
+  const domainLabels = content.map_domains.map(({ label }) => label);
+  if (
+    domainLabels.length !== canonicalDomains.length ||
+    new Set(domainLabels).size !== domainLabels.length ||
+    !canonicalDomains.every((label) => domainLabels.includes(label))
+  ) {
+    return {
+      ok: false,
+      error: "Systems map needs the four canonical, unique life domains",
+    };
+  }
+  for (const domain of content.map_domains) {
+    if (new Set(domain.children).size !== domain.children.length) {
+      return {
+        ok: false,
+        error: `Systems map domain ${domain.label} has duplicate children`,
+      };
+    }
   }
   if (content.principles.length === 0) {
     return { ok: false, error: "Systems principles are required" };

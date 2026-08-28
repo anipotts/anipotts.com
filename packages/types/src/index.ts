@@ -47,6 +47,7 @@ export type {
   OrchestratingPageContent,
   OrchestratingSectionLabels,
   SystemsLinkCard,
+  SystemsMapDomain,
   SystemsPageContent,
   SystemsPrinciple,
   FooterContent,

@@ -6,11 +6,11 @@ hero_summary: work i built or helped developed.
 buckets:
   - id: active
     label: active
-    note: things still moving or maintained
+    note: developing and maintaining
   - id: past
     label: past
-    note: finished work and older receipts
-  - id: archive
+    note: past projects
+  - id: taken_down
     label: archive
-    note: sunsetted projects kept for context
+    note: taken down
 ---

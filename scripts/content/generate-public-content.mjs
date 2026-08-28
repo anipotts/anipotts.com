@@ -231,11 +231,13 @@ function projectRecord(file) {
     kind: String(frontmatter.kind),
     public_state: String(frontmatter.public_state),
     homepage_placement: String(frontmatter.homepage_placement),
+    catalog_group: String(frontmatter.catalog_group),
     homepage_order: Number(frontmatter.homepage_order ?? 0),
     card_copy: String(frontmatter.card_copy),
     detail_path: String(frontmatter.detail_path),
     identity: frontmatter.identity ?? {},
     preview_media: frontmatter.preview_media ?? null,
+    story: Array.isArray(frontmatter.story) ? frontmatter.story : [],
   };
 }
 

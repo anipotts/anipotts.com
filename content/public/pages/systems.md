@@ -3,6 +3,18 @@ title: systems
 description: "how ani works with agents: clear targets, durable context, visible proof, and real stopping conditions."
 hero_title: systems
 hero_summary: "how i work with agents: one clear target, durable context, visible proof, and a real stopping condition."
+map_principle: autonomy is an attention-routing problem.
+map_domains:
+  - label: career
+    children:
+      - business
+      - content
+  - label: learning
+    children: []
+  - label: wellbeing
+    children: []
+  - label: personal
+    children: []
 principles_label: the loop
 principles:
   - label: target
