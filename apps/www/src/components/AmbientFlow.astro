@@ -1,0 +1,213 @@
+---
+interface Props {
+  kind: "making" | "writing";
+  seed: string;
+  variant?: number;
+}
+
+const { kind, seed, variant: requestedVariant } = Astro.props;
+const stableHash = [...seed].reduce(
+  (sum, character) => (sum * 31 + character.charCodeAt(0)) >>> 0,
+  7,
+);
+
+const makingPaths = [
+  [
+    "M70 300c42-70 103-81 167-41 58 36 105 32 153-16 54-54 119-63 210-18v75H70Z",
+    "M224 300c45-52 95-57 145-24 50 32 95 27 143-17 28-25 58-32 88-21v62H224Z",
+    "M378 300c33-35 68-39 106-15 36 23 73 21 116-6v21H378Z",
+    "M505 300c25-21 55-22 95-5v5h-95Z",
+  ],
+  [
+    "M-28 300V112c52-39 107-27 134 19 28 49 5 92 54 126 45 31 99 3 141 43H-28Z",
+    "M-28 300V178c39-24 80-15 101 20 22 38 4 69 42 91l25 11H-28Z",
+    "M-28 300v-70c25-15 53-7 66 17 14 27 5 40 27 53H-28Z",
+    "M118 300c28-37 68-42 111-14l19 14H118Z",
+  ],
+  [
+    "M116 300c7-64 51-91 107-78 56 13 91-1 119-50 31-55 75-73 132-51 53 21 86 2 126-43v222H116Z",
+    "M250 300c16-45 53-63 97-49 44 14 72 0 98-38 30-42 67-49 109-25 15 9 30 11 46 8v104H250Z",
+    "M398 300c24-38 57-45 94-24 36 21 70 16 108-13v37H398Z",
+    "M488 300c29-21 62-21 112 4v-4H488Z",
+  ],
+  [
+    "M252 300c-10-54 18-94 82-118 58-22 84-58 77-108 70-9 133 13 189 66v160H252Z",
+    "M340 300c-4-44 21-76 75-96 50-18 73-48 69-89 47 5 86 26 116 62v123H340Z",
+    "M425 300c7-35 31-59 73-71 39-12 60-34 64-67 14 8 27 19 38 32v106H425Z",
+    "M510 300c13-28 43-46 90-54v54h-90Z",
+  ],
+  [
+    "M30 300c35-43 73-57 115-43 50 16 75 1 104-42 27-41 68-48 111-25 42 23 76 11 105-25 39-48 80-56 135-22v157H30Z",
+    "M153 300c25-32 55-41 89-28 39 15 66 7 89-28 29-43 67-48 106-24 38 24 70 16 100-20 18-22 39-30 63-25v125H153Z",
+    "M322 300c27-31 55-34 86-12 34 24 65 17 94-20 26-32 57-38 98-18v50H322Z",
+    "M472 300c24-24 62-24 128 4v-4H472Z",
+  ],
+  [
+    "M-34 300c64-63 124-69 180-18 54 49 109 43 166-18 56-60 114-68 176-21 41 31 78 33 112 8v49H-34Z",
+    "M55 300c56-47 106-48 151-4 43 42 89 39 138-11 49-50 101-52 156-7 33 27 66 32 100 17v5H55Z",
+    "M207 300c43-36 85-34 125 7l7 7H207Z",
+    "M420 300c45-35 96-33 180 10v-10H420Z",
+  ],
+  [
+    "M48 300c9-60 42-99 98-115 48-14 79-47 93-101 14-54 47-82 98-84h263v300H48Z",
+    "M196 300c10-50 39-81 87-95 47-13 74-45 83-96 8-47 37-72 88-76h146v267H196Z",
+    "M352 300c8-43 34-70 78-80 43-10 65-39 67-87h103v167H352Z",
+    "M492 300c6-37 42-60 108-70v70H492Z",
+  ],
+  [
+    "M-20 300v-49c55-26 108-22 159 12 50 34 99 32 147-7 54-45 105-48 154-9 55 43 108 46 160 9v44H-20Z",
+    "M95 300c41-27 80-26 119 4l4 3H95Z",
+    "M289 300c48-38 93-37 137 4 43 39 87 40 132 3l13-7H289Z",
+    "M490 300c27-20 64-17 110 10v-10H490Z",
+  ],
+];
+
+const writingPaths = [
+  [
+    "M205 194c109-74 195-36 289-92 96-57 174-61 272-15 66 31 130 22 210-31v138H205Z",
+    "M430 194c84-59 164-31 244-72 79-41 154-40 239 10l63 35v27H430Z",
+    "M668 194c49-31 99-32 149-5 48 25 96 19 159-18v23H668Z",
+    "M836 194c44-23 89-22 140 6v-6H836Z",
+  ],
+  [
+    "M-35 194V90c91-44 164-31 220 41 48 62 109 72 183 31 77-43 144-38 201 16l17 16H-35Z",
+    "M-35 194v-59c70-29 128-14 174 44l12 15H-35Z",
+    "M274 194c63-41 119-37 169 13l7 7H274Z",
+    "M475 194c46-32 85-29 119 8l9 12H475Z",
+  ],
+  [
+    "M35 194c74-43 145-46 214-8 69 38 135 31 198-23 67-57 137-66 210-26 74 41 145 39 213-5 35-22 70-31 106-27v89H35Z",
+    "M176 194c57-37 113-36 168 4 54 39 108 35 162-11 57-49 114-53 172-13 54 37 106 36 156-3 40-31 87-37 142-20v43H176Z",
+    "M482 194c54-35 105-33 151 7l6 6H482Z",
+    "M757 194c54-30 113-26 219 29v-29H757Z",
+  ],
+  [
+    "M390 194c-15-45-2-82 39-112 38-28 55-57 51-87h496v199H390Z",
+    "M540 194c-7-37 10-66 52-87 38-19 57-44 56-74h328v161H540Z",
+    "M710 194c2-30 23-53 65-68 38-14 57-34 58-61h143v129H710Z",
+    "M850 194c18-30 60-49 126-56v56H850Z",
+  ],
+  [
+    "M-20 194v-48c69-30 134-24 196 17 62 41 122 38 181-9 64-51 128-54 193-8 68 49 134 52 197 9 62-43 138-52 229-26v65H-20Z",
+    "M115 194c53-32 103-30 150 9l12 10H115Z",
+    "M422 194c58-41 114-39 168 7 52 45 107 46 166 3 46-34 101-41 165-20l55 18v12H422Z",
+    "M775 194c55-28 111-22 201 31v-31H775Z",
+  ],
+  [
+    "M140 194c21-51 62-79 123-84 58-5 98-34 120-87 22-53 63-78 123-75h470v246H140Z",
+    "M326 194c21-42 57-64 109-66 52-3 87-27 105-73 15-38 46-60 92-66h344v205H326Z",
+    "M570 194c17-34 49-51 94-51 46 0 74-20 85-59h227v110H570Z",
+    "M794 194c18-26 53-41 105-44l77-1v45H794Z",
+  ],
+];
+
+const library = kind === "making" ? makingPaths : writingPaths;
+const variant = Math.abs(requestedVariant ?? stableHash) % library.length;
+const paths = library[variant];
+---
+
+<span
+  class:list={[
+    "ambient-flow",
+    `ambient-flow--${kind}`,
+    `ambient-flow--${variant}`,
+  ]}
+  aria-hidden="true"
+>
+  <svg
+    viewBox={kind === "making" ? "0 0 600 300" : "0 0 960 194"}
+    preserveAspectRatio="none"
+  >
+    {
+      paths.map((path, index) => (
+        <path
+          class={`ambient-flow__shape ambient-flow__shape--${index + 1}`}
+          d={path}
+        />
+      ))
+    }
+  </svg>
+</span>
+
+<style>
+  .ambient-flow {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    border-radius: inherit;
+    pointer-events: none;
+    contain: strict;
+    --flow-1: #bfe7ff;
+    --flow-2: #83c7f4;
+    --flow-3: #4d8bea;
+    --flow-4: #174ee8;
+    --flow-opacity-1: 0.72;
+    --flow-opacity-2: 0.62;
+    --flow-opacity-3: 0.5;
+    --flow-opacity-4: 0.44;
+  }
+
+  .ambient-flow svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+  .ambient-flow__shape {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition:
+      transform 260ms cubic-bezier(0.2, 0.7, 0.2, 1),
+      opacity 200ms ease;
+  }
+  .ambient-flow__shape--1 {
+    fill: var(--flow-1);
+    opacity: var(--flow-opacity-1);
+  }
+  .ambient-flow__shape--2 {
+    fill: var(--flow-2);
+    opacity: var(--flow-opacity-2);
+  }
+  .ambient-flow__shape--3 {
+    fill: var(--flow-3);
+    opacity: var(--flow-opacity-3);
+  }
+  .ambient-flow__shape--4 {
+    fill: var(--flow-4);
+    opacity: var(--flow-opacity-4);
+  }
+
+  :global(html[data-theme="dark"]) .ambient-flow {
+    --flow-1: #61abea;
+    --flow-2: #3e82e8;
+    --flow-3: #2459d8;
+    --flow-4: #173b91;
+    --flow-opacity-1: 0.18;
+    --flow-opacity-2: 0.2;
+    --flow-opacity-3: 0.24;
+    --flow-opacity-4: 0.28;
+  }
+
+  @media (hover: hover) {
+    :global(a:hover) > .ambient-flow .ambient-flow__shape--1 {
+      transform: translate3d(-0.3rem, -0.12rem, 0);
+    }
+    :global(a:hover) > .ambient-flow .ambient-flow__shape--2 {
+      transform: translate3d(0.22rem, -0.2rem, 0);
+    }
+    :global(a:hover) > .ambient-flow .ambient-flow__shape--3 {
+      transform: translate3d(-0.18rem, 0.18rem, 0);
+    }
+    :global(a:hover) > .ambient-flow .ambient-flow__shape--4 {
+      transform: translate3d(0.12rem, 0.1rem, 0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ambient-flow__shape {
+      transition: none;
+    }
+  }
+</style>

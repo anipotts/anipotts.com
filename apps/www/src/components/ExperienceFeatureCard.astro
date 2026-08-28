@@ -1,0 +1,386 @@
+---
+import { Icon } from "astro-icon/components";
+import type { Project } from "../lib/content";
+
+interface Props {
+  project: Project;
+}
+
+const { project } = Astro.props;
+const d = project.data;
+const preview = d.preview_media;
+const identity = d.identity;
+const isPgi = project.slug === "pgi-research-platform";
+const treatment = project.slug === "structured-ai" ? "current" : "community";
+const displayTitle = isPgi ? "pgi research" : d.title;
+---
+
+<a
+  href={d.detail_path}
+  class:list={[
+    "experience-feature",
+    `experience-feature--${treatment}`,
+    { "experience-feature--pgi": isPgi },
+  ]}
+>
+  <span class="experience-feature__visual">
+    <svg
+      class="experience-feature__geometry"
+      viewBox="0 0 640 380"
+      preserveAspectRatio="xMidYMid slice"
+      aria-hidden="true"
+    >
+      <defs>
+        <radialGradient id={`${treatment}-pool`} cx="50%" cy="50%" r="58%">
+          <stop
+            offset="0"
+            stop-color={treatment === "current" ? "#8fcbff" : "#a9e4ff"}></stop>
+          <stop
+            offset="1"
+            stop-color={treatment === "current" ? "#174ee8" : "#305ce0"}></stop>
+        </radialGradient>
+      </defs>
+      <rect class="experience-feature__water-base" width="640" height="380"
+      ></rect>
+      {
+        treatment === "current" ? (
+          <g class="geometry-layer geometry-layer--current">
+            <path
+              d="M-95 95C32 5 116 7 206 79s164 83 260 22S610 43 704 78v129c-107-52-180-37-259 26s-174 55-258-22S25 129-95 221Z"
+              fill="#174ee8"
+              opacity=".88"
+            />
+            <path
+              d="M-88 238C14 162 97 167 185 238s175 76 270 7 167-67 259-18v153H-88Z"
+              fill={`url(#${treatment}-pool)`}
+              opacity=".84"
+            />
+            <ellipse
+              cx="116"
+              cy="68"
+              rx="104"
+              ry="54"
+              fill="#d8f1ff"
+              opacity=".2"
+            />
+            <ellipse
+              cx="540"
+              cy="288"
+              rx="150"
+              ry="82"
+              fill="#0c38c7"
+              opacity=".32"
+            />
+          </g>
+        ) : (
+          <g class="geometry-layer geometry-layer--community">
+            <circle cx="52" cy="78" r="148" fill="#174ee8" opacity=".72" />
+            <circle cx="232" cy="48" r="126" fill="#a7e2ff" opacity=".42" />
+            <circle
+              cx="414"
+              cy="126"
+              r="188"
+              fill={`url(#${treatment}-pool)`}
+              opacity=".9"
+            />
+            <circle cx="618" cy="68" r="142" fill="#0b36bd" opacity=".56" />
+            <circle cx="146" cy="346" r="172" fill="#86d3f6" opacity=".42" />
+            <circle cx="520" cy="354" r="192" fill="#174ee8" opacity=".48" />
+            <ellipse
+              cx="338"
+              cy="288"
+              rx="232"
+              ry="112"
+              fill="#d5f1ff"
+              opacity=".16"
+            />
+          </g>
+        )
+      }
+    </svg>
+
+    {
+      preview && (
+        <span class="experience-feature__window">
+          {preview.kind === "video" ? (
+            <video
+              src={preview.src}
+              muted
+              playsinline
+              preload="metadata"
+              aria-label={preview.alt}
+            />
+          ) : (
+            <img
+              src={preview.src}
+              alt={preview.alt}
+              loading="eager"
+              decoding="async"
+            />
+          )}
+        </span>
+      )
+    }
+  </span>
+
+  <span class="experience-feature__body">
+    <span class="experience-feature__heading">
+      <span class="experience-feature__identity">
+        <span class="experience-feature__name">{displayTitle}</span>
+        {
+          identity.logo_src ? (
+            <img
+              class:list={[
+                "experience-feature__mark",
+                {
+                  "experience-feature__mark--pgi": isPgi,
+                  "experience-feature__mark--adaptive":
+                    identity.logo_tone === "adaptive",
+                },
+              ]}
+              src={identity.logo_src}
+              alt={identity.logo_alt ?? ""}
+              loading="lazy"
+              decoding="async"
+            />
+          ) : identity.icon ? (
+            <Icon
+              name={`ph:${identity.icon}`}
+              class="experience-feature__mark experience-feature__glyph"
+              aria-hidden="true"
+            />
+          ) : null
+        }
+      </span>
+      <span class="experience-feature__action" aria-hidden="true">
+        <Icon name="ph:arrow-bend-right-up" />
+      </span>
+    </span>
+    <span class="experience-feature__copy">{d.card_copy}</span>
+  </span>
+</a>
+
+<style>
+  .experience-feature {
+    --experience-water-base: #79c8f3;
+    --feature-blue: #1247e6;
+    --feature-shell: var(--paper-surface);
+    --feature-ink: var(--paper-ink);
+    --feature-muted: var(--paper-muted);
+    --feature-control: #e7f0ff;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+    border-radius: var(--paper-radius);
+    background: var(--feature-shell);
+    color: var(--feature-ink);
+    text-decoration: none;
+    box-shadow: var(--paper-shadow);
+    transition:
+      transform 180ms ease,
+      box-shadow 180ms ease;
+  }
+
+  .experience-feature--current {
+    --experience-water-base: #b8e7ff;
+  }
+
+  .experience-feature__visual {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-height: 15rem;
+    padding: clamp(0.8rem, 2.6vw, 1.35rem);
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .experience-feature__geometry {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    width: 100%;
+    height: 100%;
+  }
+
+  .experience-feature__water-base {
+    fill: var(--experience-water-base);
+    transition: fill 0.2s ease;
+  }
+
+  .experience-feature__window {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-radius: var(--radius-desktop-ui-media);
+    box-shadow: 0 1.1rem 2.7rem rgb(7 32 93 / 28%);
+    transition: transform 180ms ease;
+  }
+
+  .experience-feature__window :is(img, video) {
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    min-width: 0;
+    min-height: 0;
+    display: block;
+    object-fit: contain;
+    object-position: center;
+    border-radius: var(--radius-desktop-ui-media);
+    background: transparent;
+  }
+
+  .experience-feature__body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    min-height: 8.5rem;
+    padding: var(--s-4) var(--s-5) var(--s-5);
+  }
+
+  .experience-feature__heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-3);
+  }
+
+  .experience-feature__identity {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-width: 0;
+  }
+
+  .experience-feature__name {
+    font-family: var(--display);
+    font-size: clamp(1rem, 2vw, var(--p-h2));
+    font-weight: 900;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .experience-feature__mark {
+    width: 1.5rem;
+    height: 1.5rem;
+    flex: 0 0 1.5rem;
+    object-fit: contain;
+    border-radius: 0.25rem;
+  }
+
+  .experience-feature__glyph {
+    color: var(--feature-muted);
+  }
+
+  .experience-feature__action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: 0 0 1.25rem;
+    color: var(--paper-muted);
+    transition:
+      color 180ms ease,
+      transform 180ms ease;
+  }
+
+  .experience-feature__action :global(svg) {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .experience-feature__copy {
+    max-width: 38ch;
+    color: var(--feature-muted);
+    font-size: var(--p-small);
+    line-height: 1.45;
+    text-wrap: pretty;
+  }
+
+  .experience-feature:focus-visible {
+    outline: 3px solid var(--feature-blue);
+    outline-offset: 3px;
+  }
+
+  @media (hover: hover) {
+    .experience-feature:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 1.35rem 3rem rgb(11 18 32 / 20%);
+    }
+
+    .experience-feature:hover .experience-feature__window {
+      transform: translateY(-2px);
+    }
+
+    .experience-feature:hover .experience-feature__action {
+      color: var(--paper-accent);
+      transform: translate(0.1rem, -0.1rem);
+    }
+
+    .geometry-layer {
+      transition: transform 240ms ease;
+      transform-origin: center;
+    }
+
+    .experience-feature:hover .geometry-layer--current {
+      transform: translate3d(0.35rem, -0.2rem, 0);
+    }
+
+    .experience-feature:hover .geometry-layer--community {
+      transform: translate3d(-0.3rem, 0.2rem, 0);
+    }
+  }
+
+  .experience-feature:focus-visible .experience-feature__action {
+    color: var(--paper-accent);
+  }
+
+  .experience-feature__mark--pgi {
+    filter: brightness(0);
+  }
+
+  .experience-feature__mark--adaptive {
+    filter: brightness(0);
+  }
+
+  :global(html[data-theme="dark"]) .experience-feature {
+    --experience-water-base: var(--bg);
+    --feature-control: color-mix(in srgb, #61abea 16%, #11151d);
+  }
+
+  :global(html[data-theme="dark"]) .experience-feature__mark--pgi {
+    filter: brightness(0) invert(1);
+  }
+
+  :global(html[data-theme="dark"]) .experience-feature__mark--adaptive {
+    filter: brightness(0) invert(1);
+  }
+
+  @media (max-width: 640px) {
+    .experience-feature__visual {
+      min-height: 13rem;
+    }
+
+    .experience-feature__body {
+      min-height: auto;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .experience-feature,
+    .experience-feature__window,
+    .experience-feature__action,
+    .experience-feature__geometry,
+    .experience-feature__water-base,
+    .geometry-layer {
+      transition: none;
+    }
+  }
+</style>

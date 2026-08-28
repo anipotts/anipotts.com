@@ -25,43 +25,77 @@ const {
     <span class="label mono">newsletter</span>
     <p class="lede">{lede}</p>
   </div>
-  {
-    mode === "form" ? (
-      <>
-        <form
-          id="subscribe-form"
-          class="row"
-          data-success-message={successMessage}
-          data-error-message={errorMessage}
-        >
-          <input
-            class="hp"
-            type="text"
-            name="website"
-            tabindex="-1"
-            autocomplete="off"
-            aria-hidden="true"
-          />
-          <input
-            class="field"
-            type="email"
-            name="email"
-            placeholder="you@wherever.com"
-            aria-label="email address"
-            required
-          />
-          <button class="fill" type="submit">
-            {ctaLabel}
-          </button>
-        </form>
-        <p class="status mono" id="subscribe-status" aria-live="polite" />
-      </>
-    ) : (
-      <a class="fill cta" href={href}>
-        {ctaLabel}
-      </a>
-    )
-  }
+  <div class="newsletter-side">
+    <div class="newsletter-art" aria-hidden="true">
+      <svg viewBox="0 0 520 220" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <linearGradient id="newsletter-sky" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#8fd3ff"></stop>
+            <stop offset="0.52" stop-color="#61abea"></stop>
+            <stop offset="1" stop-color="#174ee8"></stop>
+          </linearGradient>
+          <linearGradient id="newsletter-fold" x1="0" y1="0" x2="0.88" y2="1">
+            <stop offset="0" stop-color="#4b7cff"></stop>
+            <stop offset="1" stop-color="#082faf"></stop>
+          </linearGradient>
+        </defs>
+        <rect width="520" height="220" rx="28" fill="url(#newsletter-sky)"
+        ></rect>
+        <path
+          d="M-34 197 88 20c10-14 29-20 45-13l118 50-98 165H-34Z"
+          fill="#1247e6"></path>
+        <path
+          d="m117 220 98-175c8-14 25-21 41-16l134 44-79 147H117Z"
+          fill="url(#newsletter-fold)"></path>
+        <path
+          d="M290 220 371 64c7-14 24-22 39-17l144 44v129H290Z"
+          fill="#174ee8"></path>
+        <path d="m49 194 91-132 56 24-79 134H49Z" fill="#b9e6ff" opacity="0.38"
+        ></path>
+        <path
+          d="m313 198 67-113 65 20-61 115h-71Z"
+          fill="#61abea"
+          opacity="0.46"></path>
+      </svg>
+    </div>
+    {
+      mode === "form" ? (
+        <div class="newsletter-form">
+          <form
+            id="subscribe-form"
+            class="row"
+            data-success-message={successMessage}
+            data-error-message={errorMessage}
+          >
+            <input
+              class="hp"
+              type="text"
+              name="website"
+              tabindex="-1"
+              autocomplete="off"
+              aria-hidden="true"
+            />
+            <input
+              class="field"
+              type="email"
+              name="email"
+              placeholder="you@wherever.com"
+              aria-label="email address"
+              required
+            />
+            <button class="fill" type="submit">
+              {ctaLabel}
+            </button>
+          </form>
+          <p class="status mono" id="subscribe-status" aria-live="polite" />
+        </div>
+      ) : (
+        <a class="fill cta" href={href}>
+          {ctaLabel}
+        </a>
+      )
+    }
+  </div>
   {footerText && <p class="footer mono">{footerText}</p>}
 </div>
 
@@ -69,8 +103,8 @@ const {
   .subscribe {
     --newsletter-accent: #1247e6;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(20rem, 0.82fr);
-    align-items: end;
+    grid-template-columns: minmax(15rem, 0.78fr) minmax(22rem, 1.22fr);
+    align-items: stretch;
     gap: var(--s-5);
     width: 100%;
     max-width: none;
@@ -101,6 +135,39 @@ const {
     line-height: 1.45;
   }
 
+  .newsletter-side {
+    position: relative;
+    min-width: 0;
+    min-height: 9rem;
+    display: grid;
+    align-items: end;
+    border-radius: 0.7rem;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .newsletter-art {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    border-radius: inherit;
+    background: #61abea;
+  }
+
+  .newsletter-art svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .newsletter-form {
+    display: grid;
+    gap: var(--s-2);
+    padding: var(--s-3);
+    background: linear-gradient(180deg, transparent, rgb(5 30 103 / 58%));
+  }
+
   .row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -114,12 +181,12 @@ const {
     padding: 0;
     background: transparent;
     border-radius: 0;
-    border-bottom: 1px solid #aab6ca;
-    color: #0b1220;
+    border-bottom: 1px solid rgb(255 255 255 / 72%);
+    color: #ffffff;
   }
 
   .row .field::placeholder {
-    color: #526078;
+    color: rgb(255 255 255 / 82%);
   }
 
   .hp {
@@ -145,6 +212,8 @@ const {
 
   .cta {
     justify-self: end;
+    align-self: end;
+    margin: var(--s-3);
     min-height: 44px;
     display: inline-flex;
     align-items: center;
@@ -152,15 +221,15 @@ const {
     border-radius: 0.45rem;
     padding-inline: var(--s-4);
     text-decoration: none;
-    background: var(--newsletter-accent);
-    color: #ffffff;
+    background: #ffffff;
+    color: var(--newsletter-accent);
+    box-shadow: 0 0.5rem 1.4rem rgb(6 26 93 / 24%);
   }
 
   .status {
-    grid-column: 2;
     margin: 0;
     font-size: 0.8rem;
-    color: #8c1d2f;
+    color: #ffffff;
     min-height: 1em;
   }
 
@@ -181,16 +250,35 @@ const {
       align-items: stretch;
     }
 
+    .newsletter-side {
+      min-height: 10rem;
+    }
+
     .row {
       grid-template-columns: 1fr;
     }
 
     .cta {
-      justify-self: stretch;
+      justify-self: end;
     }
 
     .status {
       grid-column: auto;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .newsletter-art path {
+      transition: transform 220ms ease;
+      transform-origin: center;
+    }
+
+    .subscribe:hover .newsletter-art path:nth-of-type(2) {
+      transform: translate3d(0.35rem, -0.2rem, 0);
+    }
+
+    .subscribe:hover .newsletter-art path:nth-of-type(3) {
+      transform: translate3d(-0.25rem, 0.15rem, 0);
     }
   }
 </style>

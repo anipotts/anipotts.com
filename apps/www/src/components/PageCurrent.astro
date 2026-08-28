@@ -1,0 +1,81 @@
+<div class="page-current" aria-hidden="true">
+  <svg viewBox="0 0 1600 1200" preserveAspectRatio="xMidYMid slice">
+    <path
+      class="current current--one"
+      d="M-240 278C38 96 250 106 472 254s434 148 662-8 408-148 706-6v250c-284-126-492-103-708 55s-448 145-666-18S46 336-240 526Z"
+    ></path>
+    <path
+      class="current current--two"
+      d="M-260 782C2 610 238 635 460 782s442 136 666-24 422-146 736 8v268c-300-139-510-105-724 49s-447 142-672-14S34 854-260 1044Z"
+    ></path>
+    <path
+      class="current current--three"
+      d="M188 1258c174-205 348-264 542-157s374 92 584-66 392-172 616-36v259H188Z"
+    ></path>
+  </svg>
+</div>
+
+<style>
+  .page-current {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    opacity: 0.052;
+  }
+
+  .page-current svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .current {
+    fill: #1247e6;
+    transform-origin: center;
+  }
+
+  .current--one {
+    opacity: 0.7;
+    animation: current-one 40s ease-in-out infinite alternate;
+  }
+
+  .current--two {
+    opacity: 0.46;
+    animation: current-two 48s ease-in-out infinite alternate;
+  }
+
+  .current--three {
+    opacity: 0.28;
+    animation: current-three 36s ease-in-out infinite alternate;
+  }
+
+  :global(html[data-theme="dark"]) .page-current {
+    opacity: 0.035;
+  }
+
+  @keyframes current-one {
+    to {
+      transform: translate3d(2.5rem, -1.25rem, 0);
+    }
+  }
+
+  @keyframes current-two {
+    to {
+      transform: translate3d(-2rem, 1.5rem, 0);
+    }
+  }
+
+  @keyframes current-three {
+    to {
+      transform: translate3d(1.25rem, -1rem, 0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .current {
+      animation: none;
+    }
+  }
+</style>

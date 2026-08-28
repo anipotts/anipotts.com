@@ -3,6 +3,7 @@ import "../styles/global.css";
 import Nav from "../components/Nav.astro";
 import Footer from "../components/Footer.astro";
 import CursorPet from "../components/CursorPet.astro";
+import PageCurrent from "../components/PageCurrent.astro";
 import { siteConfig } from "../data/site";
 
 interface Props {
@@ -145,6 +146,7 @@ posthog.init(posthogKey,{api_host:"/ingest",ui_host:"https://us.posthog.com",def
   </head>
   <body>
     <CursorPet mood={mood} />
+    <PageCurrent />
     <Nav />
     <main class="frame page">
       <slot />

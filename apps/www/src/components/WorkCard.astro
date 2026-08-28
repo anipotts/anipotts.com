@@ -1,26 +1,54 @@
 ---
 import { Icon } from "astro-icon/components";
 import type { Project } from "../lib/content";
+import AmbientFlow from "./AmbientFlow.astro";
 
 interface Props {
   project: Project;
   variant?: "experience" | "project";
+  flowVariant?: number;
 }
 
-const { project, variant = project.data.kind } = Astro.props;
+const { project, variant = project.data.kind, flowVariant } = Astro.props;
 const d = project.data;
 const identity = d.identity;
 const preview = d.preview_media;
+const stateIcon =
+  d.status === "live"
+    ? "ph:activity"
+    : d.status === "wip"
+      ? "ph:spinner-gap"
+      : "ph:archive";
+const stateLabel = d.status === "wip" ? "in progress" : d.status;
 ---
 
-<a href={d.detail_path} class:list={["work-card", `work-card--${variant}`]}>
+<a
+  href={d.detail_path}
+  class:list={[
+    "work-card",
+    `work-card--${variant}`,
+    preview ? "work-card--visual" : "work-card--compact",
+  ]}
+>
+  <AmbientFlow kind="making" seed={project.slug} variant={flowVariant} />
   {
     preview && (
-      <span class="work-card__media" aria-hidden="true">
+      <span class="work-card__media">
         {preview.kind === "video" ? (
-          <video src={preview.src} muted playsinline preload="metadata" />
+          <video
+            src={preview.src}
+            muted
+            playsinline
+            preload="metadata"
+            aria-label={preview.alt}
+          />
         ) : (
-          <img src={preview.src} alt="" loading="lazy" decoding="async" />
+          <img
+            src={preview.src}
+            alt={preview.alt}
+            loading="lazy"
+            decoding="async"
+          />
         )}
       </span>
     )
@@ -32,7 +60,13 @@ const preview = d.preview_media;
         {
           identity.logo_src ? (
             <img
-              class="work-card__mark"
+              class:list={[
+                "work-card__mark",
+                {
+                  "work-card__mark--adaptive":
+                    identity.logo_tone === "adaptive",
+                },
+              ]}
               src={identity.logo_src}
               alt={identity.logo_alt ?? ""}
               loading="lazy"
@@ -53,9 +87,14 @@ const preview = d.preview_media;
     {
       variant === "project" && (
         <span class="work-card__state mono">
-          {d.status}
-          <span aria-hidden="true">·</span>
-          {d.year}
+          <span class="work-card__state-item">
+            <Icon name={stateIcon} aria-hidden="true" />
+            {stateLabel}
+          </span>
+          <span class="work-card__state-item">
+            <Icon name="ph:calendar-blank" aria-hidden="true" />
+            {d.year}
+          </span>
         </span>
       )
     }
@@ -64,14 +103,18 @@ const preview = d.preview_media;
 
 <style>
   .work-card {
+    --work-card-mark-size: 1.875rem;
     position: relative;
-    display: block;
+    isolation: isolate;
+    contain: paint;
+    display: flex;
+    flex-direction: column;
     min-height: 12rem;
     overflow: hidden;
-    padding: var(--s-5);
-    border-radius: 0.75rem;
-    background: var(--surface);
-    color: var(--ink);
+    border-radius: var(--paper-radius);
+    background: var(--paper-surface);
+    color: var(--paper-ink);
+    box-shadow: var(--paper-shadow);
     text-decoration: none;
     transition:
       background 160ms ease,
@@ -79,7 +122,7 @@ const preview = d.preview_media;
   }
 
   .work-card:hover {
-    background: var(--accent-soft);
+    background: var(--paper-surface-hover);
     transform: translateY(-2px);
   }
 
@@ -87,27 +130,60 @@ const preview = d.preview_media;
     min-height: 13rem;
   }
 
+  .work-card--compact {
+    padding: var(--s-5);
+  }
+
+  .work-card--visual {
+    min-height: 22rem;
+    padding: 0;
+    background: var(--paper-surface);
+    color: var(--paper-ink);
+  }
+
+  .work-card--visual:hover {
+    background: var(--paper-surface-hover);
+  }
+
   .work-card__media {
-    grid-column: 1 / -1;
-    margin: calc(-1 * var(--s-5)) calc(-1 * var(--s-5)) var(--s-4);
+    position: relative;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
     aspect-ratio: 16 / 9;
     overflow: hidden;
-    background: var(--accent-soft);
+    padding: var(--s-2);
+    background: color-mix(in srgb, var(--paper-surface) 82%, transparent);
   }
 
   .work-card__media :is(img, video) {
-    width: 100%;
-    height: 100%;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
     display: block;
-    object-fit: cover;
+    object-fit: contain;
+    object-position: center;
+    border-radius: var(--radius-desktop-ui-media);
   }
 
   .work-card__body {
+    position: relative;
+    z-index: 1;
     display: flex;
     flex-direction: column;
     gap: var(--s-2);
     height: 100%;
     justify-content: center;
+  }
+
+  .work-card--visual .work-card__body {
+    flex: 1;
+    height: auto;
+    min-height: 8rem;
+    padding: var(--s-4) var(--s-5) var(--s-5);
+    background: var(--paper-surface);
   }
 
   .work-card__header {
@@ -121,50 +197,89 @@ const preview = d.preview_media;
     display: inline-flex;
     align-items: center;
     gap: var(--s-2);
+    min-width: 0;
     width: fit-content;
   }
 
   .work-card__name {
     font-family: var(--display);
-    font-size: var(--p-h2);
+    font-size: clamp(1rem, 2vw, var(--p-h2));
     font-weight: 900;
     line-height: 1;
     font-synthesis: none;
+    white-space: nowrap;
   }
 
   .work-card__mark {
-    width: 1.25rem;
-    height: 1.25rem;
-    flex: 0 0 1.25rem;
+    width: var(--work-card-mark-size);
+    height: var(--work-card-mark-size);
+    flex: 0 0 var(--work-card-mark-size);
+    background: transparent;
     object-fit: contain;
+    border-radius: 0.25rem;
+  }
+
+  .work-card__mark--adaptive {
+    filter: brightness(0);
+  }
+
+  :global(html[data-theme="dark"]) .work-card__mark--adaptive {
+    filter: brightness(0) invert(1);
   }
 
   .work-card__glyph {
-    color: var(--ink-muted);
+    color: var(--paper-muted);
   }
 
   .work-card__copy {
     max-width: 38ch;
-    color: var(--ink-muted);
+    color: var(--paper-muted);
     font-size: var(--p-small);
     line-height: 1.45;
   }
 
+  .work-card--visual .work-card__copy,
+  .work-card--visual .work-card__affordance,
+  .work-card--visual .work-card__glyph {
+    color: var(--paper-muted);
+  }
+
+  .work-card--visual:hover .work-card__affordance,
+  .work-card--visual:focus-visible .work-card__affordance {
+    color: var(--paper-accent);
+  }
+
   .work-card__state {
-    color: var(--ink-muted);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-3);
+    color: var(--paper-muted);
     font-size: 0.78rem;
+  }
+
+  .work-card__state-item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+  }
+
+  .work-card__state-item :global(svg) {
+    width: 0.95rem;
+    height: 0.95rem;
   }
 
   .work-card__affordance {
     flex: 0 0 auto;
-    color: var(--ink-muted);
+    color: var(--paper-muted);
     transition:
       color 160ms ease,
       transform 160ms ease;
   }
 
-  .work-card:hover .work-card__affordance {
-    color: var(--interactive);
+  .work-card:hover .work-card__affordance,
+  .work-card:focus-visible .work-card__affordance {
+    color: var(--paper-accent);
     transform: translate(0.14em, -0.14em);
   }
 

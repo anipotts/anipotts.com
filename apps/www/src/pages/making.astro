@@ -18,21 +18,12 @@ const projects = allProjects.filter(
   (project) => project.data.kind === "project",
 );
 
-type BucketId = "active" | "past" | "archive";
-const bucketFor = (project: Project): BucketId => {
-  if (project.data.status === "archived") return "archive";
-  const range = `${project.data.year} ${project.data.duration}`.toLowerCase();
-  if (
-    project.data.status === "wip" ||
-    range.includes("ongoing") ||
-    /2025-|2026-/.test(range)
-  ) {
-    return "active";
-  }
-  return "past";
-};
+type BucketId = Project["data"]["catalog_group"];
 const bucketCopy = new Map(
-  (copy.buckets ?? []).map((bucket) => [bucket.id, bucket]),
+  (copy.buckets ?? []).map((bucket) => [
+    bucket.id.replaceAll("-", "_"),
+    bucket,
+  ]),
 );
 const bucketLabel = (id: BucketId) => bucketCopy.get(id)?.label ?? id;
 const bucketNote = (id: BucketId) => bucketCopy.get(id)?.note ?? "";
@@ -47,19 +38,25 @@ const buckets: Array<{
     id: "active",
     label: bucketLabel("active"),
     note: bucketNote("active"),
-    projects: projects.filter((project) => bucketFor(project) === "active"),
+    projects: projects.filter(
+      (project) => project.data.catalog_group === "active",
+    ),
   },
   {
     id: "past",
     label: bucketLabel("past"),
     note: bucketNote("past"),
-    projects: projects.filter((project) => bucketFor(project) === "past"),
+    projects: projects.filter(
+      (project) => project.data.catalog_group === "past",
+    ),
   },
   {
-    id: "archive",
-    label: bucketLabel("archive"),
-    note: bucketNote("archive"),
-    projects: projects.filter((project) => bucketFor(project) === "archive"),
+    id: "taken_down",
+    label: bucketLabel("taken_down"),
+    note: bucketNote("taken_down"),
+    projects: projects.filter(
+      (project) => project.data.catalog_group === "taken_down",
+    ),
   },
 ];
 ---
@@ -80,7 +77,7 @@ const buckets: Array<{
       {
         buckets
           .filter((bucket) => bucket.projects.length > 0)
-          .map((bucket) => (
+          .map((bucket, bucketIndex) => (
             <section class="bucket" aria-labelledby={`bucket-${bucket.id}`}>
               <span class="bucket-head">
                 <h3 id={`bucket-${bucket.id}`} class="bucket-title">
@@ -89,8 +86,11 @@ const buckets: Array<{
                 <span class="mono muted">{bucket.note}</span>
               </span>
               <div class="grid mobile-carousel">
-                {bucket.projects.map((project) => (
-                  <WorkCard project={project} />
+                {bucket.projects.map((project, projectIndex) => (
+                  <WorkCard
+                    project={project}
+                    flowVariant={bucketIndex * 3 + projectIndex}
+                  />
                 ))}
               </div>
             </section>

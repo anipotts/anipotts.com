@@ -1,0 +1,187 @@
+---
+import { Icon } from "astro-icon/components";
+
+const href = "https://agents.anipotts.com";
+---
+
+<a
+  class="coding-agent-card card"
+  href={href}
+  aria-label="Open Coding Agent Tips"
+>
+  <span class="copy">
+    <span class="label mono">coding agent tips</span>
+    <span class="lede">
+      patterns from working with coding agents under real world constraints
+    </span>
+  </span>
+
+  <span class="visual" aria-hidden="true">
+    <svg viewBox="0 0 520 220" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <linearGradient id="agent-tips-sky" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#8fd3ff"></stop>
+          <stop offset="0.52" stop-color="#61abea"></stop>
+          <stop offset="1" stop-color="#174ee8"></stop>
+        </linearGradient>
+        <linearGradient id="agent-tips-fold" x1="0" y1="0" x2="0.88" y2="1">
+          <stop offset="0" stop-color="#4b7cff"></stop>
+          <stop offset="1" stop-color="#082faf"></stop>
+        </linearGradient>
+      </defs>
+      <rect width="520" height="220" rx="28" fill="url(#agent-tips-sky)">
+      </rect>
+      <path
+        d="M-34 197 88 20c10-14 29-20 45-13l118 50-98 165H-34Z"
+        fill="#1247e6"></path>
+      <path
+        d="m117 220 98-175c8-14 25-21 41-16l134 44-79 147H117Z"
+        fill="url(#agent-tips-fold)"></path>
+      <path d="M290 220 371 64c7-14 24-22 39-17l144 44v129H290Z" fill="#174ee8"
+      ></path>
+      <path d="m49 194 91-132 56 24-79 134H49Z" fill="#b9e6ff" opacity="0.38"
+      ></path>
+      <path d="m313 198 67-113 65 20-61 115h-71Z" fill="#61abea" opacity="0.46"
+      ></path>
+    </svg>
+
+    <span class="cta">
+      read the guide
+      <Icon name="ph:arrow-up-right" />
+    </span>
+  </span>
+</a>
+
+<style>
+  .coding-agent-card {
+    --agent-tips-accent: #1247e6;
+    --agent-tips-shell: var(--paper-surface);
+    --agent-tips-ink: var(--paper-ink);
+    --agent-tips-control: #ffffff;
+    --agent-tips-control-ink: var(--agent-tips-accent);
+    display: grid;
+    grid-template-columns: minmax(15rem, 0.78fr) minmax(22rem, 1.22fr);
+    align-items: stretch;
+    gap: var(--s-5);
+    width: 100%;
+    padding: var(--s-5);
+    overflow: hidden;
+    border-radius: var(--paper-radius);
+    background: var(--agent-tips-shell);
+    color: var(--agent-tips-ink);
+    box-shadow: var(--paper-shadow);
+    text-decoration: none;
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease;
+  }
+
+  .copy {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    align-self: center;
+  }
+
+  .label {
+    color: var(--agent-tips-accent);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+  }
+
+  .lede {
+    color: var(--agent-tips-ink);
+    font-size: var(--p-body);
+    line-height: 1.45;
+    text-wrap: pretty;
+  }
+
+  .visual {
+    position: relative;
+    min-width: 0;
+    min-height: 9rem;
+    display: grid;
+    align-items: end;
+    overflow: hidden;
+    isolation: isolate;
+    border-radius: 0.7rem;
+    background: #61abea;
+  }
+
+  .visual svg {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .cta {
+    justify-self: end;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-height: 44px;
+    margin: var(--s-3);
+    padding-inline: var(--s-4);
+    border-radius: 0.45rem;
+    background: var(--agent-tips-control);
+    color: var(--agent-tips-control-ink);
+    box-shadow: 0 0.5rem 1.4rem rgb(6 26 93 / 24%);
+    font-weight: 650;
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease;
+  }
+
+  .cta :global(svg) {
+    width: 1rem;
+    height: 1rem;
+    color: #ffffff;
+  }
+
+  .coding-agent-card:focus-visible {
+    outline: 3px solid var(--agent-tips-accent);
+    outline-offset: 3px;
+  }
+
+  :global(html[data-theme="dark"]) .coding-agent-card {
+    --agent-tips-accent: #61abea;
+    --agent-tips-control: color-mix(in srgb, #61abea 16%, #11151d);
+    --agent-tips-control-ink: #f7faff;
+  }
+
+  @media (hover: hover) {
+    .visual path {
+      transition: transform 220ms ease;
+      transform-origin: center;
+    }
+
+    .coding-agent-card:hover .visual path:nth-of-type(2) {
+      transform: translate3d(0.35rem, -0.2rem, 0);
+    }
+
+    .coding-agent-card:hover .visual path:nth-of-type(3) {
+      transform: translate3d(-0.25rem, 0.15rem, 0);
+    }
+  }
+
+  @media (max-width: 720px) {
+    .coding-agent-card {
+      grid-template-columns: 1fr;
+    }
+
+    .visual {
+      min-height: 10rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .coding-agent-card,
+    .cta,
+    .visual path {
+      transition: none;
+    }
+  }
+</style>

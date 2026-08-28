@@ -1,17 +1,20 @@
 ---
 import { Icon } from "astro-icon/components";
 import { formatDate, writingSlug, type Writing } from "../lib/content";
+import AmbientFlow from "./AmbientFlow.astro";
 
 interface Props {
   item: Writing;
+  flowVariant?: number;
 }
 
-const { item } = Astro.props;
+const { item, flowVariant } = Astro.props;
 const slug = writingSlug(item);
 const { title, summary, published_at } = item.data;
 ---
 
 <a href={`/writing/${slug}`} class="card writing-card">
+  <AmbientFlow kind="writing" seed={slug} variant={flowVariant} />
   <span class="head">
     <span class="title-group">
       <span class="title">{title}</span>
@@ -28,18 +31,28 @@ const { title, summary, published_at } = item.data;
 
 <style is:global>
   .writing-card {
+    position: relative;
+    isolation: isolate;
+    contain: paint;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     gap: var(--s-1);
+    border-radius: var(--paper-radius);
+    background: var(--paper-surface);
+    color: var(--paper-ink);
+    box-shadow: var(--paper-shadow);
     text-decoration: none;
     transition: background 0.2s;
   }
 
   .writing-card:hover {
-    background: var(--accent-soft);
+    background: var(--paper-surface-hover);
   }
 
   .writing-card .head {
+    position: relative;
+    z-index: 1;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -64,25 +77,28 @@ const { title, summary, published_at } = item.data;
   }
 
   .writing-card .affordance {
-    color: var(--ink-muted);
+    color: var(--paper-muted);
     flex-shrink: 0;
     transition:
       color 0.2s,
       transform 0.2s;
   }
 
-  .writing-card:hover .affordance {
-    color: var(--interactive);
+  .writing-card:hover .affordance,
+  .writing-card:focus-visible .affordance {
+    color: var(--paper-accent);
     transform: translate(0.14em, -0.14em);
   }
 
   .writing-card .sub {
-    color: var(--ink-muted);
+    position: relative;
+    z-index: 1;
+    color: var(--paper-muted);
     font-size: var(--p-small);
   }
 
   .writing-card .date {
-    color: var(--ink-muted);
+    color: var(--paper-muted);
     font-size: 0.8rem;
   }
 </style>

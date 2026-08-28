@@ -16,6 +16,14 @@
 
 /* shiki css-variables theme: tint-on-tint, accent on one token role */
 :root {
+  --radius-desktop-ui-media: 0.35rem;
+  --paper-radius: 0.75rem;
+  --paper-surface: #ffffff;
+  --paper-surface-hover: #f7faff;
+  --paper-ink: #0b1220;
+  --paper-muted: #53627a;
+  --paper-accent: #1247e6;
+  --paper-shadow: 0 0.9rem 2.25rem rgb(14 55 110 / 10%);
   --astro-code-foreground: var(--ink);
   --astro-code-background: var(--surface);
   --astro-code-token-constant: var(--ink);
@@ -41,6 +49,12 @@ html {
 
 html[data-theme="dark"] {
   color-scheme: dark;
+  --paper-surface: #11151d;
+  --paper-surface-hover: #151b26;
+  --paper-ink: #f7faff;
+  --paper-muted: #abb2be;
+  --paper-accent: #61abea;
+  --paper-shadow: 0 1rem 2.5rem rgb(0 0 0 / 24%);
 }
 
 body {
@@ -57,6 +71,11 @@ body {
   overflow-x: clip;
   display: flex;
   flex-direction: column;
+}
+
+body > :where(header, main, footer) {
+  position: relative;
+  z-index: 1;
 }
 
 ::selection {
@@ -227,9 +246,11 @@ h2.section-label {
 }
 
 .card {
-  background: var(--surface);
-  border-radius: 0.75rem;
+  background: var(--paper-surface);
+  color: var(--paper-ink);
+  border-radius: var(--paper-radius);
   padding: var(--s-5);
+  box-shadow: var(--paper-shadow);
 }
 
 .pill {

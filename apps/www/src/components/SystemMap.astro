@@ -1,0 +1,743 @@
+---
+import type { SystemsMapDomain } from "@anipotts/content/public";
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  principle: string;
+  domains: SystemsMapDomain[];
+}
+
+const { principle, domains } = Astro.props;
+
+const domainIcons: Record<string, string> = {
+  career: "ph:briefcase",
+  learning: "ph:book-open-text",
+  wellbeing: "ph:heart",
+  personal: "ph:user-circle",
+};
+
+const attentionSteps = [
+  { icon: "ph:circles-four", text: "life creates signals worth noticing." },
+  {
+    icon: "ph:notebook",
+    text: "notes and reminders give those signals somewhere to land.",
+  },
+  { icon: "ph:tray", text: "admin makes the next decision visible." },
+  {
+    icon: "ph:user-focus",
+    text: "ani decides what stays human and what can keep moving.",
+  },
+];
+
+const executionSteps = [
+  {
+    icon: "ph:terminal-window",
+    text: "ani gives codex or claude code a bounded outcome.",
+  },
+  {
+    icon: "ph:shield-check",
+    text: "authority sits between intent and consequential work.",
+  },
+  {
+    icon: "ph:brackets-curly",
+    text: "work returns proof, not just activity.",
+  },
+  {
+    icon: "ph:check-circle",
+    text: "proof returns through admin when judgment is needed.",
+  },
+];
+
+const attentionRelations = attentionSteps.map((step) => step.text);
+const executionRelations = executionSteps.map((step) => step.text);
+---
+
+<figure class="system-map" aria-labelledby="system-map-caption">
+  <figcaption id="system-map-caption" class="system-map__caption">
+    <span class="section-label">work and life system</span>
+    <strong>{principle}</strong>
+  </figcaption>
+
+  <div class="system-map__canvas" aria-hidden="true">
+    <svg viewBox="0 0 960 620" role="presentation">
+      <defs>
+        <marker
+          id="map-arrow"
+          viewBox="0 0 10 10"
+          refX="8"
+          refY="5"
+          markerWidth="5"
+          markerHeight="5"
+          orient="auto-start-reverse"
+        >
+          <path d="M 0 0 L 10 5 L 0 10 z"></path>
+        </marker>
+      </defs>
+
+      <g class="map-loop-headings">
+        <text x="300" y="72">attention loop</text>
+        <text x="580" y="72">execution loop</text>
+      </g>
+
+      <g class="map-edges map-edges--stable">
+        <path id="attention-a" d="M 270 265 C 290 245 290 180 300 165"></path>
+        <path id="attention-b" d="M 380 215 L 380 280"></path>
+        <path id="attention-c" d="M 455 325 C 468 325 475 315 485 310"></path>
+        <path id="attention-d" d="M 470 355 C 405 485 210 505 150 460"></path>
+        <path id="execution-a" d="M 535 285 C 552 242 566 185 580 165"></path>
+        <path id="execution-b" d="M 750 165 C 820 178 842 235 825 270"></path>
+        <path id="execution-c" d="M 825 350 C 820 390 790 420 755 420"></path>
+        <path id="execution-d" d="M 620 420 C 610 445 600 460 590 470"></path>
+        <path id="execution-e" d="M 465 470 C 410 458 380 415 380 370"></path>
+      </g>
+
+      <g class="map-edges map-edges--evolving">
+        <path d="M 175 535 C 215 465 300 420 340 370"></path>
+        <path d="M 480 535 C 505 420 560 285 645 215"></path>
+        <path d="M 790 535 C 748 495 700 468 665 455"></path>
+      </g>
+
+      <g class="map-currents">
+        <path
+          class="map-current map-current--attention"
+          d="M 270 265 C 290 245 290 180 300 165 L 380 165 L 380 280 C 415 292 450 310 485 310 C 425 490 215 505 150 460"
+        ></path>
+        <path
+          class="map-current map-current--execution"
+          d="M 535 285 C 552 242 566 185 580 165 L 750 165 C 820 178 842 235 825 270 L 825 350 C 820 390 790 420 755 420 L 620 420 C 610 445 600 460 590 470 L 465 470 C 410 458 380 415 380 370 C 405 350 448 325 485 310"
+        ></path>
+      </g>
+
+      <rect class="map-group" x="35" y="110" width="235" height="350" rx="22"
+      ></rect>
+      <foreignObject x="55" y="130" width="195" height="310">
+        <div class="map-life">
+          <span class="map-kicker">life</span>
+          {
+            domains.map((domain) => (
+              <div class="map-domain">
+                <span class="map-identity">
+                  <Icon
+                    name={domainIcons[domain.label] ?? "ph:circle"}
+                    class="map-icon"
+                    size={14}
+                    aria-hidden="true"
+                  />
+                  <strong>{domain.label}</strong>
+                </span>
+                {domain.children.length > 0 && (
+                  <span>{domain.children.join(" / ")}</span>
+                )}
+              </div>
+            ))
+          }
+        </div>
+      </foreignObject>
+
+      <rect class="map-node" x="300" y="110" width="160" height="105" rx="18"
+      ></rect>
+      <foreignObject x="318" y="128" width="124" height="70">
+        <div class="map-copy">
+          <span class="map-kicker">capture</span>
+          <span class="map-identity">
+            <Icon
+              name="ph:notebook"
+              class="map-icon"
+              size={14}
+              aria-hidden="true"
+            />
+            <strong>notes</strong>
+          </span>
+          <span class="map-identity">
+            <Icon
+              name="ph:bell"
+              class="map-icon"
+              size={14}
+              aria-hidden="true"
+            />
+            <strong>reminders</strong>
+          </span>
+        </div>
+      </foreignObject>
+
+      <rect class="map-node" x="305" y="280" width="150" height="90" rx="18"
+      ></rect>
+      <foreignObject x="323" y="300" width="114" height="52">
+        <div class="map-copy">
+          <span class="map-kicker">attention</span>
+          <span class="map-identity">
+            <Icon
+              name="ph:tray"
+              class="map-icon"
+              size={14}
+              aria-hidden="true"
+            />
+            <strong>admin</strong>
+          </span>
+        </div>
+      </foreignObject>
+
+      <rect class="map-center" x="475" y="255" width="70" height="110" rx="35"
+      ></rect>
+      <foreignObject x="480" y="288" width="60" height="44">
+        <div class="map-center-copy">
+          <Icon
+            name="ph:user-focus"
+            class="map-center-icon"
+            size={14}
+            aria-hidden="true"
+          />
+          <strong>ani</strong>
+          <span>decides</span>
+        </div>
+      </foreignObject>
+
+      <rect class="map-node" x="580" y="110" width="170" height="105" rx="18"
+      ></rect>
+      <foreignObject x="598" y="128" width="134" height="70">
+        <div class="map-copy">
+          <span class="map-kicker">runtimes</span>
+          <span class="map-identity">
+            <Icon
+              name="ph:terminal-window"
+              class="map-icon"
+              size={14}
+              aria-hidden="true"
+            />
+            <strong>codex</strong>
+          </span>
+          <span class="map-identity">
+            <Icon
+              name="ph:sparkle"
+              class="map-icon"
+              size={14}
+              aria-hidden="true"
+            />
+            <strong>claude code</strong>
+          </span>
+        </div>
+      </foreignObject>
+
+      <path class="map-authority" d="M 825 270 L 875 310 L 825 350 L 775 310 Z"
+      ></path>
+      <foreignObject x="788" y="290" width="74" height="40">
+        <div class="map-authority-copy">
+          <Icon
+            name="ph:shield-check"
+            class="map-authority-icon"
+            size={16}
+            aria-hidden="true"
+          />
+          <strong>authority</strong>
+        </div>
+      </foreignObject>
+
+      <rect class="map-node" x="620" y="382" width="135" height="76" rx="18"
+      ></rect>
+      <foreignObject x="638" y="399" width="99" height="42">
+        <div class="map-copy">
+          <span class="map-kicker">bounded</span>
+          <span class="map-identity">
+            <Icon
+              name="ph:brackets-curly"
+              class="map-icon"
+              size={14}
+              aria-hidden="true"
+            />
+            <strong>work</strong>
+          </span>
+        </div>
+      </foreignObject>
+
+      <rect class="map-node" x="465" y="435" width="125" height="76" rx="18"
+      ></rect>
+      <foreignObject x="483" y="452" width="89" height="42">
+        <div class="map-copy">
+          <span class="map-kicker">returns</span>
+          <span class="map-identity">
+            <Icon
+              name="ph:check-circle"
+              class="map-icon"
+              size={14}
+              aria-hidden="true"
+            />
+            <strong>proof</strong>
+          </span>
+        </div>
+      </foreignObject>
+
+      <rect class="map-support" x="35" y="535" width="890" height="60" rx="18"
+      ></rect>
+      <foreignObject x="55" y="548" width="850" height="35">
+        <div class="map-support-copy">
+          <span>
+            <Icon
+              name="ph:calendar-dots"
+              class="map-icon"
+              size={14}
+              aria-hidden="true"
+            />
+            <small>initiates</small><strong>schedules</strong>
+          </span>
+          <span>
+            <Icon
+              name="ph:lock-key"
+              class="map-icon"
+              size={14}
+              aria-hidden="true"
+            />
+            <small>supports</small><strong>private context</strong>
+          </span>
+          <span>
+            <Icon
+              name="ph:github-logo"
+              class="map-icon"
+              size={14}
+              aria-hidden="true"
+            />
+            <small>preserves</small><strong>github</strong>
+          </span>
+        </div>
+      </foreignObject>
+    </svg>
+  </div>
+
+  <div class="system-map__mobile">
+    <section aria-labelledby="attention-loop-title">
+      <span class="map-mobile-label">attention loop</span>
+      <h3 id="attention-loop-title">life becomes a decision</h3>
+      <ol>
+        {
+          attentionSteps.map((step) => (
+            <li>
+              <Icon
+                name={step.icon}
+                class="map-mobile-icon"
+                size={18}
+                aria-hidden="true"
+              />
+              <span>{step.text}</span>
+            </li>
+          ))
+        }
+      </ol>
+    </section>
+    <section aria-labelledby="execution-loop-title">
+      <span class="map-mobile-label">execution loop</span>
+      <h3 id="execution-loop-title">work comes back with proof</h3>
+      <ol>
+        {
+          executionSteps.map((step) => (
+            <li>
+              <Icon
+                name={step.icon}
+                class="map-mobile-icon"
+                size={18}
+                aria-hidden="true"
+              />
+              <span>{step.text}</span>
+            </li>
+          ))
+        }
+      </ol>
+    </section>
+    <div class="system-map__support" aria-label="supporting systems">
+      <span>
+        <Icon name="ph:calendar-dots" size={18} aria-hidden="true" />
+        schedules can start bounded work
+      </span>
+      <span>
+        <Icon name="ph:lock-key" size={18} aria-hidden="true" />
+        private context supports it
+      </span>
+      <span>
+        <Icon name="ph:github-logo" size={18} aria-hidden="true" />
+        github preserves committed state
+      </span>
+    </div>
+  </div>
+
+  <div class="system-map__legend" aria-label="connection legend">
+    <span><i class="legend-line"></i>stable</span>
+    <span><i class="legend-line legend-line--evolving"></i>evolving</span>
+  </div>
+
+  <div class="sr-only">
+    <p>{principle}</p>
+    <ol>
+      {attentionRelations.map((relation) => <li>{relation}</li>)}
+      {executionRelations.map((relation) => <li>{relation}</li>)}
+    </ol>
+  </div>
+</figure>
+
+<style>
+  .system-map {
+    display: grid;
+    gap: var(--s-4);
+    margin: 0;
+  }
+
+  .system-map__caption {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-4);
+  }
+
+  .system-map__caption strong {
+    max-width: 34ch;
+    font-size: clamp(1.1rem, 2vw, 1.35rem);
+    line-height: 1.2;
+    text-align: right;
+  }
+
+  .system-map__canvas {
+    padding: clamp(0.5rem, 2vw, 1rem);
+    border-radius: 0.75rem;
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .system-map__canvas > svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    color: var(--ink);
+  }
+
+  .map-group,
+  .map-node,
+  .map-support,
+  .map-authority {
+    fill: var(--bg);
+    stroke: color-mix(in srgb, var(--ink-muted) 28%, transparent);
+    stroke-width: 1.5;
+  }
+
+  .map-group {
+    fill: color-mix(in srgb, var(--surface) 70%, var(--bg));
+  }
+
+  .map-center {
+    fill: var(--ink);
+  }
+
+  .map-life,
+  .map-copy,
+  .map-center-copy,
+  .map-authority-copy,
+  .map-support-copy {
+    width: 100%;
+    height: 100%;
+    color: var(--ink);
+    font-family: var(--sans);
+  }
+
+  .map-life {
+    display: grid;
+    align-content: start;
+    gap: 0.65rem;
+  }
+
+  .map-domain {
+    display: grid;
+    gap: 0.12rem;
+    padding: 0.45rem 0.55rem;
+    border-radius: 0.45rem;
+    background: var(--surface);
+  }
+
+  .map-domain strong,
+  .map-copy strong {
+    font-size: 0.86rem;
+    line-height: 1.1;
+  }
+
+  .map-identity {
+    display: flex;
+    align-items: center;
+    gap: 0.42rem;
+    min-width: 0;
+  }
+
+  :global(.map-icon) {
+    flex: 0 0 auto;
+    width: 14px;
+    height: 14px;
+    color: var(--interactive);
+  }
+
+  .map-domain span {
+    color: var(--ink-muted);
+    font-size: 0.66rem;
+    line-height: 1.2;
+  }
+
+  .map-copy {
+    display: grid;
+    align-content: start;
+    gap: 0.34rem;
+  }
+
+  .map-kicker,
+  .map-support-copy small,
+  .map-mobile-label {
+    color: var(--ink-muted);
+    font-family: var(--sans);
+    font-size: 0.58rem;
+    font-weight: 600;
+    line-height: 1.1;
+    text-transform: uppercase;
+  }
+
+  .map-center-copy {
+    display: grid;
+    place-content: center;
+    gap: 0.1rem;
+    text-align: center;
+    color: var(--interactive-ink);
+  }
+
+  :global(.map-center-icon) {
+    width: 14px;
+    height: 14px;
+    margin: 0 auto 0.1rem;
+  }
+
+  .map-center-copy strong {
+    font-size: 0.7rem;
+    line-height: 1;
+  }
+
+  .map-center-copy span {
+    margin-top: 0.2rem;
+    font-size: 0.55rem;
+    opacity: 0.72;
+  }
+
+  .map-authority-copy {
+    display: grid;
+    place-content: center;
+    gap: 0.2rem;
+    text-align: center;
+  }
+
+  :global(.map-authority-icon) {
+    width: 16px;
+    height: 16px;
+    margin: 0 auto;
+    color: var(--interactive);
+  }
+
+  .map-authority-copy strong {
+    font-size: 0.62rem;
+    line-height: 1;
+  }
+
+  .map-support-copy {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    align-items: center;
+    gap: 2rem;
+  }
+
+  .map-support-copy > span {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 0;
+  }
+
+  .map-support-copy strong {
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+
+  .map-edges path,
+  .map-current {
+    fill: none;
+    marker-end: url(#map-arrow);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .map-edges--stable path {
+    stroke: color-mix(in srgb, var(--ink-muted) 56%, transparent);
+    stroke-width: 2;
+  }
+
+  .map-edges--evolving path {
+    stroke: color-mix(in srgb, var(--ink-muted) 44%, transparent);
+    stroke-width: 1.75;
+    stroke-dasharray: 4 7;
+  }
+
+  :global(#map-arrow path) {
+    fill: var(--ink-muted);
+  }
+
+  .map-current {
+    stroke: var(--interactive);
+    stroke-width: 4;
+    stroke-dasharray: 38 720;
+    marker-end: none;
+  }
+
+  .map-current--attention {
+    animation: attention-current 8.5s linear infinite;
+  }
+
+  .map-current--execution {
+    animation: execution-current 11s linear infinite;
+  }
+
+  .map-loop-headings {
+    fill: var(--ink-muted);
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .system-map__legend {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--s-4);
+    color: var(--ink-muted);
+    font-size: 0.75rem;
+  }
+
+  .system-map__legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+  }
+
+  .legend-line {
+    width: 2rem;
+    border-top: 2px solid currentColor;
+  }
+
+  .legend-line--evolving {
+    border-top-style: dotted;
+  }
+
+  .system-map__mobile {
+    display: none;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @keyframes attention-current {
+    to {
+      stroke-dashoffset: -758;
+    }
+  }
+
+  @keyframes execution-current {
+    to {
+      stroke-dashoffset: -920;
+    }
+  }
+
+  @media (max-width: 680px) {
+    .system-map__caption {
+      display: grid;
+      gap: var(--s-2);
+    }
+
+    .system-map__caption strong {
+      text-align: left;
+    }
+
+    .system-map__canvas {
+      display: none;
+    }
+
+    .system-map__mobile {
+      display: grid;
+      gap: var(--s-3);
+    }
+
+    .system-map__mobile section,
+    .system-map__support {
+      display: grid;
+      gap: var(--s-2);
+      margin: 0;
+      padding: var(--s-4);
+      border-radius: 0.75rem;
+      background: var(--surface);
+    }
+
+    .system-map__mobile h3 {
+      font-family: var(--display);
+      font-size: 1.15rem;
+      line-height: 1.05;
+    }
+
+    .system-map__mobile ol {
+      display: grid;
+      gap: var(--s-2);
+      margin: 0;
+      padding: 0;
+      color: var(--ink-muted);
+      line-height: 1.45;
+      list-style: none;
+    }
+
+    .system-map__mobile li {
+      display: grid;
+      grid-template-columns: 1.25rem 1fr;
+      align-items: start;
+      gap: var(--s-2);
+    }
+
+    :global(.map-mobile-icon) {
+      width: 18px;
+      height: 18px;
+      margin-top: 0.12rem;
+      color: var(--interactive);
+    }
+
+    .system-map__support {
+      color: var(--ink-muted);
+      line-height: 1.45;
+    }
+
+    .system-map__support span {
+      display: grid;
+      grid-template-columns: 1.25rem 1fr;
+      align-items: start;
+      gap: var(--s-2);
+    }
+
+    .system-map__support :global(svg) {
+      width: 18px;
+      height: 18px;
+      margin-top: 0.12rem;
+      color: var(--interactive);
+    }
+
+    .system-map__legend {
+      justify-content: flex-start;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .map-currents {
+      display: none;
+    }
+  }
+</style>

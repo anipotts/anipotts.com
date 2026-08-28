@@ -29,7 +29,11 @@ const copy = normalizeListingPageContent(
 
   <section data-rise class="stack">
     <div class="list">
-      {writingEntries.map((item) => <WritingRow item={item} />)}
+      {
+        writingEntries.map((item, index) => (
+          <WritingRow item={item} flowVariant={index} />
+        ))
+      }
     </div>
   </section>
 </Shell>

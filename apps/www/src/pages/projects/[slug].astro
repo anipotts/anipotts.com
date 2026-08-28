@@ -1,8 +1,9 @@
 ---
 import { render } from "astro:content";
-import Shell from "../../layouts/Shell.astro";
-import CmsMarkdown from "../../components/CmsMarkdown.astro";
 import { Icon } from "astro-icon/components";
+import CmsMarkdown from "../../components/CmsMarkdown.astro";
+import ProjectMediaStage from "../../components/ProjectMediaStage.astro";
+import Shell from "../../layouts/Shell.astro";
 import { projectSlug, visibleProjects } from "../../lib/content";
 
 export const prerender = false;
@@ -12,6 +13,7 @@ const project = (await visibleProjects()).find(
   (candidate) => projectSlug(candidate) === requestedSlug,
 );
 if (!project) return Astro.redirect("/projects", 302);
+
 const slug = projectSlug(project);
 const rendered =
   project.source === "markdown" && project.entry
@@ -20,6 +22,14 @@ const rendered =
 const Content = rendered?.Content;
 const hasBody = Boolean(project.body?.trim());
 const d = project.data;
+const displayYear = d.year.replace(/-$/u, "–present");
+const mediaItems = [
+  d.preview_media,
+  ...d.story.map((section) => section.media ?? null),
+].filter((item): item is NonNullable<typeof item> => Boolean(item));
+const uniqueMedia = Array.from(
+  new Map(mediaItems.map((item) => [item.src, item])).values(),
+);
 ---
 
 <Shell
@@ -28,202 +38,496 @@ const d = project.data;
   path={`/projects/${slug}`}
   mood="alert"
 >
-  <section data-rise class="head">
-    <a href="/making" class="quiet-link mono back">
-      <Icon name="ph:arrow-bend-up-left" /> back to making
-    </a>
-    <span class="title-row">
-      <h1 class="hero-title">{d.title}</h1>
-      <span class="pill">{d.status}</span>
-    </span>
-    {d.subtitle && <p class="hero-summary">{d.subtitle}</p>}
-    <p class="meta mono muted">
-      <span>role: {d.role}</span>
-      <span>duration: {d.duration}</span>
-    </p>
-    <p class="meta mono muted">
-      {d.tags.map((t) => <span>{t.toLowerCase()}</span>)}
-    </p>
-    <span class="links mono">
-      {
-        d.link_live && (
-          <a
-            href={d.link_live}
-            class="accent-link ext"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            live site <Icon name="ph:arrow-bend-right-up" />
-          </a>
-        )
-      }
-      {
-        d.link_repo && (
-          <a
-            href={d.link_repo}
-            class="quiet-link ext"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            source <Icon name="ph:arrow-bend-right-up" />
-          </a>
-        )
-      }
-    </span>
-  </section>
+  <article class="project-page">
+    <header data-rise class="project-head">
+      <div class="project-topline">
+        <a href="/making" class="quiet-link back">
+          <Icon name="ph:arrow-left" /> making
+        </a>
 
-  <section data-rise class="block">
-    <h2 class="section-label">overview</h2>
-    {
-      hasBody ? (
-        <div class="article-body">
-          {Content ? <Content /> : <CmsMarkdown body={project.body} />}
+        <div class="project-actions">
+          {
+            d.link_live && (
+              <a
+                href={d.link_live}
+                class="quiet-link project-action"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                visit project <Icon name="ph:arrow-up-right" />
+              </a>
+            )
+          }
+          {
+            d.link_repo && (
+              <a
+                href={d.link_repo}
+                class="quiet-link project-action"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                source <Icon name="ph:github-logo" />
+              </a>
+            )
+          }
         </div>
-      ) : (
-        <p class="overview">{d.description}</p>
+      </div>
+
+      <div class="project-heading">
+        <div class="project-identity">
+          {
+            d.identity.logo_src ? (
+              <img
+                src={d.identity.logo_src}
+                alt={d.identity.logo_alt ?? ""}
+                class:list={[
+                  "project-mark",
+                  d.identity.logo_tone === "light" && "project-mark--light",
+                  d.identity.logo_tone === "adaptive" &&
+                    "project-mark--adaptive",
+                ]}
+              />
+            ) : d.identity.icon ? (
+              <Icon name={`ph:${d.identity.icon}`} class="project-mark-icon" />
+            ) : null
+          }
+          <h1
+            class:list={[
+              "hero-title",
+              d.title.length > 20 && "hero-title--long",
+            ]}
+          >
+            {d.title}
+          </h1>
+        </div>
+        <p class="project-summary">
+          {d.card_copy || d.subtitle || d.description}
+        </p>
+      </div>
+
+      <div class="project-meta" aria-label="project details">
+        <span>{d.status}</span>
+        <span>{displayYear}</span>
+        <span>{d.role}</span>
+      </div>
+    </header>
+
+    {
+      uniqueMedia.length > 0 && (
+        <section
+          data-rise
+          class="project-visual"
+          aria-label={`${d.title} preview`}
+        >
+          <ProjectMediaStage items={uniqueMedia} label={d.title} />
+        </section>
       )
     }
-  </section>
 
-  {
-    d.technical && (
-      <section data-rise class="block">
-        <h2 class="section-label">technical</h2>
-        <div class="tech">
-          {d.technical.map((t) => (
-            <div class="card">
-              <h3 class="tech-title">{t.title}</h3>
-              <p class="tech-body">{t.content}</p>
-            </div>
+    {
+      hasBody && (
+        <section data-rise class="project-overview">
+          <div class="article-body project-prose">
+            {Content ? <Content /> : <CmsMarkdown body={project.body} />}
+          </div>
+        </section>
+      )
+    }
+
+    {
+      d.story.length > 0 && (
+        <div class="project-story">
+          {d.story.map((section, index) => (
+            <section
+              data-rise
+              class:list={[
+                "story-section",
+                section.media && "story-section--with-media",
+                index % 2 === 1 && "story-section--reverse",
+              ]}
+            >
+              <div class="story-copy">
+                <span class="story-index" aria-hidden="true">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <h2>{section.title}</h2>
+                {section.paragraphs.map((paragraph) => (
+                  <p>{paragraph}</p>
+                ))}
+              </div>
+              {section.media && (
+                <figure class="story-media">
+                  {section.media.kind === "video" ? (
+                    <video
+                      controls
+                      muted
+                      playsinline
+                      preload="metadata"
+                      aria-label={section.media.alt}
+                    >
+                      <source src={section.media.src} />
+                    </video>
+                  ) : (
+                    <img
+                      src={section.media.src}
+                      alt={section.media.alt}
+                      loading="lazy"
+                    />
+                  )}
+                  {section.media.caption && (
+                    <figcaption>{section.media.caption}</figcaption>
+                  )}
+                </figure>
+              )}
+            </section>
           ))}
         </div>
-      </section>
-    )
-  }
+      )
+    }
 
-  {
-    d.roadmap && (
-      <section data-rise class="block">
-        <h2 class="section-label">next</h2>
-        <ul class="roadmap">
-          {d.roadmap.map((item) => (
-            <li class={item.status}>
-              <Icon
-                name={
-                  item.status === "done"
-                    ? "ph:check-circle"
-                    : item.status === "in-progress"
-                      ? "ph:circle-half"
-                      : "ph:circle"
-                }
-              />
-              <span>{item.text}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-    )
-  }
+    {
+      !hasBody && d.story.length === 0 && (
+        <section data-rise class="project-overview">
+          <p class="project-fallback">{d.description}</p>
+        </section>
+      )
+    }
+
+    {
+      d.technical && (
+        <section data-rise class="project-detail-block">
+          <h2 class="section-label">under the hood</h2>
+          <div class="project-detail-grid">
+            {d.technical.map((item) => (
+              <article class="project-detail-card">
+                <h3>{item.title}</h3>
+                <p>{item.content}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      )
+    }
+
+    {
+      d.roadmap && (
+        <section data-rise class="project-detail-block">
+          <h2 class="section-label">next</h2>
+          <ul class="project-roadmap">
+            {d.roadmap.map((item) => (
+              <li class={item.status}>
+                <Icon
+                  name={
+                    item.status === "done"
+                      ? "ph:check-circle"
+                      : item.status === "in-progress"
+                        ? "ph:circle-half"
+                        : "ph:circle"
+                  }
+                />
+                <span>{item.text}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+  </article>
 </Shell>
 
 <style>
-  .head {
+  .project-page {
+    display: grid;
+    gap: clamp(4rem, 10vw, 7.5rem);
+  }
+
+  .project-head {
+    display: grid;
+    gap: var(--s-4);
+    width: 100%;
+  }
+
+  .project-topline {
+    min-width: 0;
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
     gap: var(--s-3);
   }
 
   .back {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4em;
-    font-size: 0.85rem;
     width: fit-content;
     min-height: 44px;
-  }
-
-  .title-row {
-    display: flex;
-    align-items: baseline;
-    gap: var(--s-3);
-    flex-wrap: wrap;
-  }
-
-  .meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--s-4);
-    margin: 0;
-    font-size: 0.85rem;
-  }
-
-  .links {
-    display: flex;
-    gap: var(--s-4);
-    font-size: 0.9rem;
-  }
-
-  .ext {
     display: inline-flex;
     align-items: center;
-    gap: 0.35em;
-    min-height: 44px;
+    gap: var(--s-2);
+    font-size: var(--p-small);
+    font-weight: 600;
   }
 
-  .block {
-    display: flex;
-    flex-direction: column;
+  .project-heading {
+    display: grid;
     gap: var(--s-3);
   }
 
-  .overview {
-    max-width: var(--measure);
-    margin: 0;
+  .project-identity {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    min-width: 0;
   }
 
-  .tech {
+  .project-mark,
+  :global(.project-mark-icon) {
+    flex: 0 0 auto;
+    width: clamp(2.25rem, 5vw, 3.5rem);
+    height: clamp(2.25rem, 5vw, 3.5rem);
+    object-fit: contain;
+  }
+
+  .project-mark--light {
+    filter: brightness(0) invert(1);
+  }
+
+  .project-mark--adaptive {
+    filter: brightness(0);
+  }
+
+  :global(html[data-theme="dark"]) .project-mark--adaptive {
+    filter: brightness(0) invert(1);
+  }
+
+  .hero-title {
+    font-size: clamp(3.1rem, 9vw, 7rem);
+    white-space: nowrap;
+  }
+
+  .hero-title--long {
+    font-size: clamp(1.15rem, 5vw, 5rem);
+  }
+
+  .project-summary {
+    max-width: 38rem;
+    margin: 0;
+    color: var(--ink-muted);
+    font-size: var(--p-h2);
+    line-height: 1.2;
+  }
+
+  .project-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+  }
+
+  .project-meta span {
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--ink-muted);
+    font-size: var(--p-small);
+    font-weight: 600;
+  }
+
+  .project-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    justify-content: flex-end;
+  }
+
+  .project-action {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-2);
+    padding-inline: var(--s-2);
+    font-size: var(--p-small);
+  }
+
+  .project-overview {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(20rem, 100%), 1fr));
+    grid-template-columns: minmax(0, 42rem);
+    justify-content: center;
+  }
+
+  .story-index {
+    color: var(--ink-muted);
+    font-size: var(--p-small);
+    font-weight: 600;
+  }
+
+  .project-prose,
+  .project-fallback {
+    max-width: 42rem;
+  }
+
+  .project-fallback {
+    margin: 0;
+    color: var(--ink-muted);
+    font-size: var(--p-h2);
+    line-height: 1.3;
+  }
+
+  .project-story {
+    display: grid;
+    gap: clamp(4rem, 10vw, 8rem);
+  }
+
+  .story-section {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: clamp(2rem, 6vw, 5rem);
+    align-items: center;
+  }
+
+  .story-section:not(.story-section--with-media) {
+    grid-template-columns: minmax(0, 42rem);
+    justify-content: center;
+  }
+
+  .story-section--reverse .story-copy {
+    order: 2;
+  }
+
+  .story-section--reverse .story-media {
+    order: 1;
+  }
+
+  .story-copy {
+    display: grid;
+    gap: var(--s-3);
+  }
+
+  .story-copy h2 {
+    font-size: clamp(2rem, 5vw, 3.8rem);
+  }
+
+  .story-copy p {
+    margin: 0;
+    color: var(--ink-muted);
+    font-size: var(--p-body);
+    line-height: var(--lh-body);
+  }
+
+  .story-media {
+    margin: 0;
+    display: grid;
+    gap: var(--s-2);
+    padding: clamp(0.65rem, 2vw, 1rem);
+    border-radius: 0.85rem;
+    background: var(--surface);
+  }
+
+  .story-media img,
+  .story-media video {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    display: block;
+    object-fit: cover;
+    object-position: center;
+    border-radius: var(--radius-desktop-ui-media);
+    background: #f7faff;
+  }
+
+  .story-media figcaption {
+    color: var(--ink-muted);
+    font-size: var(--p-small);
+  }
+
+  .project-detail-block {
+    display: grid;
     gap: var(--s-4);
   }
 
-  .tech-title {
-    font-size: var(--p-h3);
-    margin-bottom: var(--s-2);
+  .project-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+    gap: var(--s-3);
   }
 
-  .tech-body {
+  .project-detail-card {
+    display: grid;
+    gap: var(--s-3);
+    padding: var(--s-5);
+    border-radius: 0.75rem;
+    background: var(--surface);
+  }
+
+  .project-detail-card h3 {
+    font-size: var(--p-h3);
+  }
+
+  .project-detail-card p {
     margin: 0;
-    font-size: var(--p-small);
     color: var(--ink-muted);
   }
 
-  .roadmap {
+  .project-roadmap {
     list-style: none;
     margin: 0;
     padding: 0;
-    display: flex;
-    flex-direction: column;
+    display: grid;
     gap: var(--s-2);
-    max-width: var(--measure);
+    max-width: 42rem;
   }
 
-  .roadmap li {
+  .project-roadmap li {
     display: flex;
     align-items: baseline;
     gap: var(--s-2);
+    padding: var(--s-3);
+    border-radius: 0.65rem;
+    background: var(--surface);
   }
 
-  .roadmap li.done {
+  .project-roadmap li.done {
     color: var(--ink-muted);
   }
 
-  .roadmap li.done [data-icon],
-  .roadmap li.in-progress [data-icon] {
-    color: var(--brand-blue);
+  .project-roadmap li.done :global([data-icon]),
+  .project-roadmap li.in-progress :global([data-icon]) {
+    color: var(--interactive);
   }
 
-  .roadmap li.planned [data-icon] {
-    color: var(--ink-muted);
+  @media (max-width: 44rem) {
+    .project-page {
+      gap: var(--s-7);
+    }
+
+    .hero-title {
+      font-size: clamp(2rem, 10vw, 2.5rem);
+    }
+
+    .hero-title--long {
+      font-size: clamp(1.1rem, 5vw, 1.25rem);
+    }
+
+    .project-overview,
+    .story-section {
+      grid-template-columns: 1fr;
+      gap: var(--s-4);
+    }
+
+    .story-section--reverse .story-copy,
+    .story-section--reverse .story-media {
+      order: initial;
+    }
+
+    .project-meta span {
+      min-height: 36px;
+    }
+
+    .project-topline {
+      align-items: flex-start;
+    }
+
+    .project-actions {
+      flex-wrap: nowrap;
+    }
   }
 </style>

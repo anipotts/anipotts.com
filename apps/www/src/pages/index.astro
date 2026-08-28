@@ -1,23 +1,21 @@
 ---
 import Shell from "../layouts/Shell.astro";
 import WorkCard from "../components/WorkCard.astro";
+import ExperienceFeatureCard from "../components/ExperienceFeatureCard.astro";
 import WritingRow from "../components/WritingRow.astro";
-import NewsletterSubscribe from "../components/NewsletterSubscribe.astro";
+import CodingAgentTipsCard from "../components/CodingAgentTipsCard.astro";
 import HomepageRichSummary from "../components/HomepageRichSummary.astro";
 import { Icon } from "astro-icon/components";
 import { publishedWriting, visibleProjects } from "../lib/content";
 import {
   DEFAULT_HOMEPAGE_CONTENT,
-  DEFAULT_NEWSLETTER_CONTENT,
   homepageSummaryText,
   normalizeHomepageContent,
-  normalizeNewsletterContent,
 } from "@anipotts/content/public";
 
 export const prerender = false;
 
 const cmsHome = normalizeHomepageContent(DEFAULT_HOMEPAGE_CONTENT);
-const newsletterCopy = normalizeNewsletterContent(DEFAULT_NEWSLETTER_CONTENT);
 const intro = cmsHome.sections.intro;
 const work = cmsHome.sections.past_work;
 const writing = cmsHome.sections.latest_thoughts;
@@ -81,7 +79,15 @@ const profileLd = {
       }
     </p>
     <div class="experience-grid" aria-label="experience">
-      {experiences.map((experience) => <WorkCard project={experience} />)}
+      {
+        experiences.map((experience) =>
+          experience.data.preview_media ? (
+            <ExperienceFeatureCard project={experience} />
+          ) : (
+            <WorkCard project={experience} />
+          ),
+        )
+      }
     </div>
   </section>
 
@@ -96,8 +102,8 @@ const profileLd = {
           </a>
         </span>
         <div class="grid">
-          {projects.map((project) => (
-            <WorkCard project={project} />
+          {projects.map((project, index) => (
+            <WorkCard project={project} flowVariant={index} />
           ))}
         </div>
       </section>
@@ -118,8 +124,8 @@ const profileLd = {
           </a>
         </span>
         <div class="writing-list">
-          {writingEntries.map((item) => (
-            <WritingRow item={item} />
+          {writingEntries.map((item, index) => (
+            <WritingRow item={item} flowVariant={index} />
           ))}
         </div>
       </section>
@@ -127,12 +133,7 @@ const profileLd = {
   }
 
   <section data-rise>
-    <NewsletterSubscribe
-      lede={newsletterCopy.deck}
-      href={newsletterCopy.buttondown_url}
-      ctaLabel={newsletterCopy.cta_label}
-      footerText={newsletterCopy.footer_text}
-    />
+    <CodingAgentTipsCard />
   </section>
 </Shell>
 
