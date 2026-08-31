@@ -23,9 +23,9 @@
     "vinxi": "^0.5.11"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20260822.1",
+    "@cloudflare/workers-types": "^5.20260828.1",
     "@types/node": "^22",
     "typescript": "^5",
-    "wrangler": "^4.125.0"
+    "wrangler": "^4.127.0"
   }
 }
