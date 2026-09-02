@@ -14,7 +14,7 @@
   "dependencies": {
     "@anipotts/content": "workspace:*",
     "@anipotts/brand": "workspace:*",
-    "@astrojs/cloudflare": "^12.6.0",
+    "@astrojs/cloudflare": "^14.2.3",
     "@astrojs/rss": "^4.0.19",
     "@fontsource-variable/instrument-sans": "^5.2.8",
     "astro": "^5.16.0",
