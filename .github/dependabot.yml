@@ -6,9 +6,8 @@
 #   - github-actions: monthly, low traffic.
 #   - open-pull-requests-limit caps the queue so a quiet week doesn't pile up.
 #
-# Dependency PRs follow the normal CI and Security Review path, then require
-# manual review and merge. Agent auto-merge is limited to non-draft PRs from
-# codex/, claude/, or worktree/ branches.
+# Dependency PRs follow the normal protected CI and Security Review path.
+# The website task maintains candidates and enables native auto-merge after review.
 
 version: 2
 updates:
@@ -35,8 +34,6 @@ updates:
       prefix: "deps"
       prefix-development: "deps(dev)"
       include: "scope"
-    labels:
-      - "dependencies"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -45,6 +42,3 @@ updates:
     open-pull-requests-limit: 3
     commit-message:
       prefix: "ci"
-    labels:
-      - "ci"
-      - "dependencies"

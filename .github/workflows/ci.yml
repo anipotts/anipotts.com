@@ -14,6 +14,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  draft:
+    name: Draft diff validation
+    if: github.event.pull_request.draft == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Check draft diff
+        run: git diff --check "origin/${{ github.event.pull_request.base.ref }}"...HEAD
+
   classify:
     name: Classify release
     runs-on: ubuntu-latest
@@ -53,11 +65,13 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Setup pnpm
+        if: github.event.pull_request.draft == false
         uses: pnpm/action-setup@v6
         with:
           version: "10.5.2"
 
       - name: Setup Node
+        if: github.event.pull_request.draft == false
         uses: actions/setup-node@v7
         with:
           node-version: "24.19.0"
@@ -73,9 +87,13 @@ jobs:
         if: github.event.pull_request.draft == false
         run: pnpm install --frozen-lockfile
 
-      - name: Check draft diff
+      # Required context must not be green from a draft-only diff check. GitHub
+      # treats skipped jobs as successful, so explicitly fail this release gate.
+      - name: Full validation requires ready for review
         if: github.event.pull_request.draft == true
-        run: git diff --check "origin/${{ github.event.pull_request.base.ref }}"...HEAD
+        run: |
+          echo '::error::Draft diff validation is separate. Mark ready for full release checks.'
+          exit 1
 
       - name: Validate formatting and path hygiene
         if: github.event.pull_request.draft == false
