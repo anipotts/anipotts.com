@@ -47,8 +47,8 @@
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "prebuild": "node ../../scripts/content/generate-public-content.mjs",
-    "pretypecheck": "node ../../scripts/content/generate-public-content.mjs"
+    "prebuild": "node ../../scripts/content/generate-public-content.mjs --root ../..",
+    "pretypecheck": "node ../../scripts/content/generate-public-content.mjs --root ../.."
   },
   "dependencies": {
     "@anipotts/types": "workspace:*",

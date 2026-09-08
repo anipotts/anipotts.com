@@ -1,6 +1,6 @@
 /** shared guards for the POST endpoints: origin allowlist + d1 sliding-window
  *  rate limit (5 requests / 10 min per ip, table rate_limits). */
-import { siteConfig } from "@anipotts/content/public/site";
+import { siteConfig } from "@anipotts/content/public";
 
 export function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -21,7 +21,7 @@ export function checkOrigin(request: Request): Response | null {
   if (!origin) return null;
   if (CANONICAL_ORIGINS.has(origin)) return null;
   try {
-    if (new URL(origin).origin === new URL(request.url).origin) return null;
+    if (new URL(origin).host === new URL(request.url).host) return null;
   } catch {
     /* malformed origin header falls through to forbidden */
   }
@@ -29,9 +29,9 @@ export function checkOrigin(request: Request): Response | null {
 }
 
 function requestIp(request: Request): string {
-  // Only the private service entrypoint calls these handlers. WWW overwrites
-  // this value with the edge identity before crossing the service binding.
-  return request.headers.get("x-newsletter-client-ip")?.trim() || "unknown";
+  // Cloudflare supplies this identity. Client-supplied forwarding chains do
+  // not select a bucket; local requests without the edge header share one.
+  return request.headers.get("cf-connecting-ip")?.trim() || "unknown";
 }
 
 export async function checkRateLimit(

@@ -69,6 +69,11 @@ export class EditorialDraftStore extends DurableObject<unknown> {
       this.ctx.storage,
       this.jobs,
       async (job) => {
+        if (
+          job.checkpoint.cancelRequested === "true" &&
+          ["validate", "commit"].includes(job.phase)
+        )
+          return { next: "cancelled" };
         if (!runtime?.publishing)
           return { blocked: "publisher_not_configured" };
         const publication = this.readPublication(job.id);
@@ -148,6 +153,24 @@ export class EditorialDraftStore extends DurableObject<unknown> {
     // runnable job. The transaction rechecks the version after this await.
     await this.ctx.storage.setAlarm(Date.now() + 1000);
     return this.jobs.retry(id, expectedVersion, Date.now())
+      ? { ok: true }
+      : { ok: false, code: "publication_conflict" };
+  }
+  async cancelPublication(
+    record: EditorialRecord,
+    id: string,
+    expectedVersion: number,
+  ): Promise<{ ok: true } | { ok: false; code: "publication_conflict" }> {
+    const job = await this.publicationStatus(record, id);
+    if (
+      !job ||
+      job.version !== expectedVersion ||
+      job.lease !== null ||
+      !["validate", "commit", "branch", "pr", "checks"].includes(job.phase)
+    )
+      return { ok: false, code: "publication_conflict" };
+    await this.ctx.storage.setAlarm(Date.now() + 1000);
+    return this.jobs.requestCancel(id, expectedVersion, Date.now())
       ? { ok: true }
       : { ok: false, code: "publication_conflict" };
   }
@@ -257,6 +280,13 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         } catch {
           return { ok: false, code: "invalid_source" };
         }
+        const bytes = Buffer.from(draft.source);
+        const sourceHash = createHash("sha1")
+          .update(`blob ${bytes.length}\0`)
+          .update(bytes)
+          .digest("hex");
+        if (sourceHash === draft.baseFileHash)
+          return { ok: false, code: "no_changes" };
         publication = {
           id: input.operationId,
           record: input.record,

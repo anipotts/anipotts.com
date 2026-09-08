@@ -34,12 +34,6 @@ const FORBIDDEN_PAGE_SEGMENTS = new Set([
 
 const FORBIDDEN_SOURCE_PATTERNS = [
   {
-    pattern:
-      /\b(?:D1Database|NEWSLETTER_QUEUE|RESEND_API_KEY|RESEND_WEBHOOK_SECRET)\b/,
-    message:
-      "apps/www forwards newsletter HTTP without database, queue or email-secret ownership",
-  },
-  {
     pattern: /@anipotts\/lib\/(?:cms|db)\b/,
     message: "apps/www must render canonical content without D1 CMS adapters",
   },

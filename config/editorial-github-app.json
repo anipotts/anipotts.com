@@ -1,0 +1,20 @@
+{
+  "name": "anipotts editorial publisher",
+  "url": "https://admin.anipotts.com",
+  "public": false,
+  "hook_attributes": {
+    "active": false
+  },
+  "default_permissions": {
+    "contents": "write",
+    "pull_requests": "write",
+    "checks": "read",
+    "statuses": "read",
+    "deployments": "read",
+    "actions": "read",
+    "administration": "read",
+    "metadata": "read"
+  },
+  "default_events": [],
+  "request_oauth_on_install": false
+}

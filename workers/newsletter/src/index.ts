@@ -1,16 +1,25 @@
-import { WorkerEntrypoint } from "cloudflare:workers";
-import { handleNewsletterRequest } from "./http";
-import {
-  createToken,
-  recordNewsletterEvent as recordEvent,
-  type NewsletterEnv as Env,
-  type NewsletterQueueMessage,
-} from "./storage";
+type NewsletterQueueMessage =
+  | {
+      type: "confirm";
+      subscriberId: string;
+      email: string;
+      token: string;
+      baseUrl: string;
+    }
+  | {
+      type: "issue_delivery";
+      deliveryId: string;
+      issueId: string;
+      subscriberId: string;
+    };
 
-export class NewsletterApi extends WorkerEntrypoint<Env> {
-  async fetch(request: Request): Promise<Response> {
-    return handleNewsletterRequest(request, this.env);
-  }
+interface Env {
+  DB: D1Database;
+  RESEND_API_KEY?: string;
+  NEWSLETTER_BASE_URL?: string;
+  NEWSLETTER_FROM?: string;
+  NEWSLETTER_REPLY_TO?: string;
+  NEWSLETTER_MAILING_ADDRESS?: string;
 }
 
 type DeliveryRow = {
@@ -74,17 +83,15 @@ export default {
         handleQueuedMessage(message.body, env)
           .then(() => message.ack())
           .catch(async (error) => {
-            try {
-              await recordEvent(env.DB, {
-                type: "queue_error",
-                payload: {
-                  message: sanitizeQueueMessage(message.body),
-                  error: "delivery failed",
-                },
-              });
-            } finally {
-              message.retry({ delaySeconds: 60 });
-            }
+            console.error("newsletter queue error", error);
+            await recordEvent(env.DB, {
+              type: "queue_error",
+              payload: {
+                message: sanitizeQueueMessage(message.body),
+                error: error instanceof Error ? error.message : String(error),
+              },
+            });
+            message.retry({ delaySeconds: 60 });
           }),
       ),
     );
@@ -243,7 +250,19 @@ function createTransport(env: Env): EmailTransport {
   const from = env.NEWSLETTER_FROM ?? DEFAULT_NEWSLETTER_FROM;
   const replyTo = env.NEWSLETTER_REPLY_TO ?? DEFAULT_NEWSLETTER_REPLY_TO;
 
-  if (!env.RESEND_API_KEY) throw new Error("email transport unavailable");
+  if (!env.RESEND_API_KEY) {
+    return {
+      async send(input) {
+        console.log("newsletter email mocked", {
+          to: input.to,
+          subject: input.subject,
+          from,
+          replyTo,
+        });
+        return { id: null, mocked: true };
+      },
+    };
+  }
 
   return {
     async send(input) {
@@ -309,6 +328,67 @@ async function markDeliverySkipped(
   ]);
 }
 
+async function createToken(
+  db: D1Database,
+  input: {
+    subscriberId: string;
+    email: string;
+    purpose: "confirm" | "unsubscribe";
+    ttlMs: number;
+  },
+): Promise<string> {
+  const token = randomToken();
+  const createdAt = nowIso();
+  const expiresAt = new Date(Date.now() + input.ttlMs).toISOString();
+  await db
+    .prepare(
+      "INSERT INTO newsletter_tokens (id, subscriber_id, email, purpose, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(
+      crypto.randomUUID(),
+      input.subscriberId,
+      input.email,
+      input.purpose,
+      await tokenHash(token),
+      expiresAt,
+      createdAt,
+    )
+    .run();
+  return token;
+}
+
+async function recordEvent(
+  db: D1Database,
+  event: {
+    type: string;
+    subscriberId?: string | null;
+    issueId?: string | null;
+    deliveryId?: string | null;
+    email?: string | null;
+    provider?: string | null;
+    providerEmailId?: string | null;
+    payload?: unknown;
+  },
+): Promise<void> {
+  await db
+    .prepare(
+      "INSERT INTO newsletter_events (id, subscriber_id, issue_id, delivery_id, email, type, provider, provider_email_id, payload, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(
+      crypto.randomUUID(),
+      event.subscriberId ?? null,
+      event.issueId ?? null,
+      event.deliveryId ?? null,
+      event.email ?? null,
+      event.type,
+      event.provider ?? null,
+      event.providerEmailId ?? null,
+      JSON.stringify(event.payload ?? {}),
+      nowIso(),
+    )
+    .run();
+}
+
 function appendComplianceFooter(
   html: string,
   mailingAddress: string,
@@ -335,12 +415,35 @@ function sanitizeQueueMessage(message: NewsletterQueueMessage): unknown {
   return message;
 }
 
+async function tokenHash(token: string): Promise<string> {
+  const bytes = new TextEncoder().encode(token);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return hex(new Uint8Array(digest));
+}
+
+function randomToken(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function hex(bytes: Uint8Array): string {
+  return Array.from(bytes)
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function nowIso(): string {

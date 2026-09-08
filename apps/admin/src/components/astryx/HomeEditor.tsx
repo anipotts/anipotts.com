@@ -90,7 +90,11 @@ export function HomeEditor({ record }: { record: EditorialRecord }) {
     };
   }, []);
   useEffect(() => {
-    if (!publication || publication.blocked || publication.phase === "live")
+    if (
+      !publication ||
+      publication.blocked ||
+      ["live", "cancelled"].includes(publication.phase)
+    )
       return;
     let cancelled = false;
     const timer = setTimeout(async () => {
@@ -105,10 +109,12 @@ export function HomeEditor({ record }: { record: EditorialRecord }) {
           setPublication(data.publication);
         }
       } catch {
-        if (!cancelled)
+        if (!cancelled) {
           setError(
-            "status unavailable. publishing continues; reload to check.",
+            "status unavailable. publishing continues; retrying status.",
           );
+          setPublication({ ...publication });
+        }
       }
     }, 4000);
     return () => {
@@ -216,9 +222,12 @@ export function HomeEditor({ record }: { record: EditorialRecord }) {
           size="sm"
           isDisabled={
             snapshot.publishing !== "ready" ||
+            state.source === snapshot.base.source ||
             !valid ||
             Boolean(snapshot.draft?.discardedAt) ||
-            Boolean(publication && publication.phase !== "live")
+            Boolean(
+              publication && !["live", "cancelled"].includes(publication.phase),
+            )
           }
           isLoading={publishing}
           tooltip={
@@ -273,6 +282,7 @@ export function HomeEditor({ record }: { record: EditorialRecord }) {
                   deploy: "deploying",
                   verify: "verifying website",
                   live: "live",
+                  cancelled: "stopped. edit your draft to publish again",
                 }[publication.phase]}
           </Text>
           {publication.checkpoint.prNumber && (
@@ -282,6 +292,31 @@ export function HomeEditor({ record }: { record: EditorialRecord }) {
               href={`https://github.com/anipotts/anipotts.com/pull/${publication.checkpoint.prNumber}`}
             />
           )}
+          {publication.blocked &&
+            ["validate", "commit", "branch", "pr", "checks"].includes(
+              publication.phase,
+            ) && (
+              <Button
+                label="stop publishing"
+                size="sm"
+                clickAction={async () => {
+                  try {
+                    const result = await post("cancel-publication", {
+                      expectedRevision: state.revision,
+                      operationId: publication.id,
+                      expectedVersion: publication.version,
+                    });
+                    if (!result.ok) throw new Error();
+                    setError("");
+                    setPublication({ ...publication, blocked: null });
+                  } catch {
+                    setError(
+                      "couldn’t stop. reload to check the latest publication.",
+                    );
+                  }
+                }}
+              />
+            )}
           {publication.blocked && (
             <Button
               label="retry publishing"

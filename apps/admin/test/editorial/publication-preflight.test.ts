@@ -78,6 +78,9 @@ describe("publication content preflight", () => {
     const calls: string[] = [];
     const publisher = {
       ...git,
+      async stopPublication() {
+        return { mergeCommit: null };
+      },
       async ensureProtectedMerge() {
         calls.push("merge");
       },
@@ -218,6 +221,23 @@ describe("publication content preflight", () => {
       next: "deploy",
       checkpoint: { mergeCommit: "e".repeat(40) },
     });
+    job.checkpoint.cancelRequested = "true";
+    expect(await publicationStage(job, publication, observer, ready)).toEqual({
+      next: "cancelled",
+    });
+    expect(
+      await publicationStage(
+        job,
+        publication,
+        {
+          ...observer,
+          async stopPublication() {
+            return { mergeCommit: "e".repeat(40) };
+          },
+        },
+        ready,
+      ),
+    ).toEqual({ next: "deploy", checkpoint: { mergeCommit: "e".repeat(40) } });
     job.phase = "deploy";
     job.checkpoint.mergeCommit = "e".repeat(40);
     expect(await publicationStage(job, publication, observer, ready)).toEqual({

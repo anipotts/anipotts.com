@@ -8,8 +8,7 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
-import { basename, join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
+import { basename, join, relative, resolve } from "node:path";
 import { format } from "prettier";
 import { parse } from "yaml";
 import {
@@ -22,7 +21,9 @@ import {
   writingSchema,
 } from "../../packages/content/src/public/schema.ts";
 
-const ROOT = fileURLToPath(new URL("../../", import.meta.url));
+const rootArgument = process.argv.indexOf("--root");
+const ROOT =
+  rootArgument < 0 ? process.cwd() : resolve(process.argv[rootArgument + 1]);
 const SOURCE_ROOT = join(ROOT, "content/public");
 const PROJECTS_ROOT = join(SOURCE_ROOT, "projects");
 const WRITING_ROOT = join(SOURCE_ROOT, "writing");
@@ -38,7 +39,10 @@ const pageExports = {
   home: ["DEFAULT_HOMEPAGE_CONTENT", "HomepageContent"],
   work: ["DEFAULT_WORK_INDEX_CONTENT", "ListingPageContent"],
   writing: ["DEFAULT_WRITING_INDEX_CONTENT", "ListingPageContent"],
-  newsletter: ["DEFAULT_NEWSLETTER_CONTENT", "NewsletterContent"],
+  newsletter: [
+    "DEFAULT_NEWSLETTER_CONTENT",
+    'NewsletterContent & { status?: "draft" }',
+  ],
   newsletter_archive: [
     "DEFAULT_NEWSLETTER_ARCHIVE_CONTENT",
     "ListingPageContent",

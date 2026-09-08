@@ -21,6 +21,85 @@ const request = (action: string, body: unknown, headers = {}) =>
     body: JSON.stringify(body),
   });
 describe("home API with real SQLite", () => {
+  it("requires disclosure and CSRF, freezes a revision once, and isolates status", async () => {
+    const storage = env.EDITORIAL.getByName(crypto.randomUUID());
+    const record = { kind: "writing", id: "essay" } as const;
+    const source =
+      "---\ntitle: my essay\nsummary: summary\nstatus: published\npublished_at: 2026-09-08\n---\nprivate until published\n";
+    await storage.save({
+      ...(await base()),
+      record,
+      source,
+      expectedRevision: 0,
+      requestId: crypto.randomUUID(),
+    });
+    const body = {
+      expectedRevision: 1,
+      operationId: crypto.randomUUID(),
+      discloseSource: true,
+    };
+    const scoped = (action: string, payload: unknown, headers = {}) => {
+      const original = request(action, payload, headers);
+      return new Request(`${original.url}?kind=writing&id=essay`, original);
+    };
+    const publisher = { storage, enabled: true };
+    expect(
+      (
+        await homeEditorApi(
+          scoped("publish", body, { Origin: "https://evil.example" }),
+          storage,
+          base,
+          publisher,
+        )
+      ).status,
+    ).toBe(403);
+    expect(
+      (
+        await homeEditorApi(
+          scoped("publish", { ...body, discloseSource: false }),
+          storage,
+          base,
+          publisher,
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await homeEditorApi(scoped("publish", body), storage, base, {
+          ...publisher,
+          enabled: false,
+        })
+      ).status,
+    ).toBe(503);
+    expect(await storage.latestPublication(record)).toBeNull();
+    for (let i = 0; i < 2; i++) {
+      const response = await homeEditorApi(
+        scoped("publish", body),
+        storage,
+        base,
+        publisher,
+      );
+      expect(response.status).toBe(202);
+      const value = await response.json();
+      expect(value).toMatchObject({
+        publication: { id: body.operationId, phase: "validate" },
+      });
+      expect(JSON.stringify(value)).not.toContain(source);
+      expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    }
+    expect((await storage.publication(record, body.operationId))?.source).toBe(
+      source,
+    );
+    const wrong = await homeEditorApi(
+      new Request(
+        `https://admin.anipotts.com/api/editorial/publication?kind=work&id=essay&operationId=${body.operationId}`,
+      ),
+      storage,
+      base,
+      publisher,
+    );
+    expect(await wrong.json()).toEqual({ publication: null });
+  });
   it("isolates work and writing drafts even when they share an id", async () => {
     const storage = env.EDITORIAL.getByName(crypto.randomUUID());
     for (const kind of ["work", "writing"] as const) {

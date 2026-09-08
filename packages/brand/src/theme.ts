@@ -13,12 +13,21 @@ export function savedTheme(): ThemePreference {
     saveTheme(incoming);
     const url = new URL(location.href);
     url.searchParams.delete("theme");
-    history.replaceState(history.state, "", url);
+    try {
+      history.replaceState(history.state, "", url);
+    } catch {
+      /* Sandboxed previews cannot rewrite history. */
+    }
     return incoming;
   }
-  const cookie = document.cookie.match(
-    /(?:^|;\s*)ap-theme=(light|dark|system)(?:;|$)/,
-  )?.[1];
+  let cookie: string | undefined;
+  try {
+    cookie = document.cookie.match(
+      /(?:^|;\s*)ap-theme=(light|dark|system)(?:;|$)/,
+    )?.[1];
+  } catch {
+    /* Sandboxed previews cannot read cookies. */
+  }
   if (cookie === "light" || cookie === "dark" || cookie === "system")
     return cookie;
   try {
@@ -43,7 +52,11 @@ export function saveTheme(theme: ThemePreference) {
       : host === "anipotts.localhost" || host.endsWith(".anipotts.localhost")
         ? "; Domain=anipotts.localhost"
         : "";
-  document.cookie = `ap-theme=${theme}; Path=/; Max-Age=31536000; SameSite=Lax${domain}${location.protocol === "https:" ? "; Secure" : ""}`;
+  try {
+    document.cookie = `ap-theme=${theme}; Path=/; Max-Age=31536000; SameSite=Lax${domain}${location.protocol === "https:" ? "; Secure" : ""}`;
+  } catch {
+    /* Theme changes remain usable without cookie access. */
+  }
 }
 
 export function themedUrl(destination: string, theme: ThemePreference) {

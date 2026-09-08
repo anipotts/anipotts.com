@@ -24,7 +24,3 @@ max_retries = 5
 
 [observability]
 enabled = true
-
-[[queues.producers]]
-binding = "NEWSLETTER_QUEUE"
-queue = "newsletter-send"

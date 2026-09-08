@@ -292,13 +292,6 @@ importers:
         version: 4.125.0(@cloudflare/workers-types@5.20260822.1)
 
   workers/newsletter:
-    dependencies:
-      '@anipotts/content':
-        specifier: workspace:*
-        version: link:../../packages/content
-      zod:
-        specifier: ^3.24.2
-        version: 3.25.76
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^5.20260822.1

@@ -730,6 +730,36 @@ export class EditorialGitHub {
     };
   }
 
+  /** Closing is reconciled after a lost response. A racing merge must finish
+   * deployment verification; it cannot be represented as a stopped publication. */
+  async stopPublication(
+    id: string,
+    commit: string,
+  ): Promise<{ mergeCommit: string | null }> {
+    const existing = await this.existingPR(id, commit);
+    if (!existing) return { mergeCommit: null };
+    let pr = await this.readPullRequest(
+      id,
+      commit,
+      existing.number,
+      existing.nodeId,
+    );
+    if (pr.state === "open") {
+      const response = await this.request(`/pulls/${pr.number}`, "PATCH", {
+        state: "closed",
+      });
+      if (!response.ok) throw new GitHubFailure("rejected");
+      pr = await this.readPullRequest(
+        id,
+        commit,
+        existing.number,
+        existing.nodeId,
+      );
+    }
+    if (pr.state !== "closed") throw new GitHubFailure("unavailable");
+    return { mergeCommit: pr.mergeCommit };
+  }
+
   /** Reconcile all PR states before creation: a closed publication is never silently reopened.
    * The durable job must serialize calls. Creation is public disclosure, not autosave.
    */

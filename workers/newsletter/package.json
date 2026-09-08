@@ -3,10 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "dependencies": {
-    "@anipotts/content": "workspace:*",
-    "zod": "^3.24.2"
-  },
   "scripts": {
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",

@@ -9,6 +9,11 @@ main = "./dist/_worker.js/index.js"
 workers_dev = true
 account_id = "0f856093bdcd34a7da1bde5ee4385163"
 
+[vars]
+NEWSLETTER_BASE_URL = "https://news.anipotts.com"
+NEWSLETTER_FROM = "Ani Potts <news@anipotts.com>"
+NEWSLETTER_REPLY_TO = "contact@anipotts.com"
+
 [[routes]]
 pattern = "staging.anipotts.com"
 custom_domain = true
@@ -31,10 +36,14 @@ directory = "./dist"
 # news.anipotts.com/ canonical instead of serving the apex index.html.
 run_worker_first = true
 
-[[services]]
-binding = "NEWSLETTER"
-service = "anipotts-newsletter-worker"
-entrypoint = "NewsletterApi"
+[[d1_databases]]
+binding = "DB"
+database_name = "anipotts-db"
+database_id = "a8aadf73-bbf4-447c-97db-cb3e50b4e26f"
+
+[[queues.producers]]
+binding = "NEWSLETTER_QUEUE"
+queue = "newsletter-send"
 
 [observability]
 enabled = true

@@ -26,5 +26,6 @@ export type FreezeResult =
         | "invalid_request"
         | "revision_conflict"
         | "invalid_source"
+        | "no_changes"
         | "idempotency_key_reused";
     };

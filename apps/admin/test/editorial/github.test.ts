@@ -24,6 +24,37 @@ describe("restricted GitHub branch adapter", () => {
     base: { ref: "main", repo: { full_name: "anipotts/anipotts.com" } },
   });
 
+  it("reconciles a lost close response and preserves a racing merge", async () => {
+    for (const race of [false, true]) {
+      let closed = false,
+        writes = 0;
+      const client = new EditorialGitHub(
+        async () => "test-token",
+        async (url, init) => {
+          const pr = {
+            ...pull(),
+            state: closed ? "closed" : "open",
+            merged: closed && race,
+            merged_at: closed && race ? "2026-09-08T12:00:00Z" : null,
+            merge_commit_sha: closed && race ? "b".repeat(40) : null,
+          };
+          if (init?.method === "PATCH") {
+            writes++;
+            closed = true;
+            throw new Error("response lost");
+          }
+          return Response.json(String(url).includes("/pulls?") ? [pr] : pr);
+        },
+      );
+      await expect(client.stopPublication(id, sha)).rejects.toMatchObject({
+        code: "unavailable",
+      });
+      expect(await client.stopPublication(id, sha)).toEqual({
+        mergeCommit: race ? "b".repeat(40) : null,
+      });
+      expect(writes).toBe(1);
+    }
+  });
   it("recovers a lost PR creation response without another PR", async () => {
     let created = false;
     let writes = 0;

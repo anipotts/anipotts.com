@@ -95,3 +95,43 @@ it("persists backoff, blocks later publications, and prevents skipped verificati
     expect(jobs.enqueue("first", 100000).blocked).toBe("permission_required");
   });
 });
+
+it("serializes cancellation and keeps merged work on the verification path", async () => {
+  const stub = env.EDITORIAL.getByName(crypto.randomUUID());
+  await runInDurableObject(stub, (_instance, state) => {
+    const jobs = new PublicationJobs(state.storage);
+    jobs.enqueue("first", 1000);
+    jobs.enqueue("second", 1000);
+    let claim = jobs.claim(1000)!;
+    expect(jobs.requestCancel("first", claim.version, 1001)).toBe(false);
+    expect(() => jobs.settle(claim, { next: "cancelled" }, 1001)).toThrow(
+      "invalid_publication_transition",
+    );
+    jobs.settle(claim, { blocked: "invalid_content" }, 1001);
+    expect(jobs.requestCancel("first", 0, 1002)).toBe(false);
+    expect(jobs.requestCancel("first", jobs.get("first")!.version, 1002)).toBe(
+      true,
+    );
+    claim = jobs.claim(1002)!;
+    expect(claim.id).toBe("first");
+    jobs.settle(claim, { next: "cancelled" }, 1003);
+    expect(jobs.retry("first", jobs.get("first")!.version, 1004)).toBe(false);
+    claim = jobs.claim(1004)!;
+    expect(claim.id).toBe("second");
+    jobs.settle(claim, { blocked: "publication_hold" }, 1005);
+    jobs.requestCancel("second", jobs.get("second")!.version, 1006);
+    claim = jobs.claim(1006)!;
+    expect(() => jobs.settle(claim, { next: "deploy" }, 1007)).toThrow(
+      "invalid_publication_transition",
+    );
+    jobs.settle(
+      claim,
+      { next: "deploy", checkpoint: { mergeCommit: "a".repeat(40) } },
+      1007,
+    );
+    expect(
+      jobs.requestCancel("second", jobs.get("second")!.version, 1008),
+    ).toBe(false);
+    expect(jobs.claim(1008)?.phase).toBe("deploy");
+  });
+});

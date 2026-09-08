@@ -1,4 +1,5 @@
 /// <reference types="@cloudflare/vitest-plugin/types" />
+import { createHash } from "node:crypto";
 import { env } from "cloudflare:workers";
 import {
   runInDurableObject,
@@ -62,6 +63,56 @@ describe("private publication authorization in real SQLite", () => {
     expect(
       await store.retryPublication(record, operationId, blocked.version),
     ).toEqual({ ok: false, code: "publication_conflict" });
+  });
+  it("stops a blocked publication durably without losing a newer draft", async () => {
+    const store = env.EDITORIAL.getByName(crypto.randomUUID());
+    await store.save(draft());
+    const operationId = crypto.randomUUID();
+    await store.startPublication({ record, operationId, expectedRevision: 1 });
+    await runDurableObjectAlarm(store);
+    const blocked = (await store.publicationStatus(record, operationId))!;
+    expect(
+      await store.cancelPublication(
+        { kind: "writing", id: "other" },
+        operationId,
+        blocked.version,
+      ),
+    ).toEqual({ ok: false, code: "publication_conflict" });
+    await store.save(draft(source.replace("my title", "corrected title"), 1));
+    expect(
+      await store.cancelPublication(record, operationId, blocked.version),
+    ).toEqual({ ok: true });
+    await evictDurableObject(store);
+    await runDurableObjectAlarm(store);
+    expect((await store.publicationStatus(record, operationId))?.phase).toBe(
+      "cancelled",
+    );
+    expect((await store.get(record))?.source).toContain("corrected title");
+    expect(
+      (
+        await store.startPublication({
+          record,
+          operationId: crypto.randomUUID(),
+          expectedRevision: 2,
+        })
+      ).ok,
+    ).toBe(true);
+  });
+  it("rejects publication when source matches the published Git blob", async () => {
+    const store = env.EDITORIAL.getByName(crypto.randomUUID());
+    const bytes = Buffer.from(source);
+    const baseFileHash = createHash("sha1")
+      .update(`blob ${bytes.length}\0`)
+      .update(bytes)
+      .digest("hex");
+    await store.save({ ...draft(), baseFileHash });
+    expect(
+      await store.freezePublication({
+        record,
+        operationId: crypto.randomUUID(),
+        expectedRevision: 1,
+      }),
+    ).toEqual({ ok: false, code: "no_changes" });
   });
   it("freezes one revision and deduplicates concurrent clicks and lost-response retries", async () => {
     const store = env.EDITORIAL.getByName(crypto.randomUUID());

@@ -29,7 +29,7 @@ test("owner smoke accepts only the configured Access denial", async () => {
     }),
   ])
     await assert.rejects(
-      verifyEditorialBoundary(async () => response.clone()),
+      verifyEditorialBoundary(async () => response),
       /owner boundary/,
     );
 });

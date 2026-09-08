@@ -28,6 +28,7 @@ export type PublicationStorage = Pick<
   | "latestPublication"
   | "publicationStatus"
   | "retryPublication"
+  | "cancelPublication"
 >;
 
 /** Called only after owner verification. The browser never supplies a Git path or base. */
@@ -93,7 +94,11 @@ export async function homeEditorApi(
   )
     return json({ error: "invalid_revision" }, 400);
   const expectedRevision = Number(body.expectedRevision);
-  if (action === "publish" || action === "retry-publication") {
+  if (
+    action === "publish" ||
+    action === "retry-publication" ||
+    action === "cancel-publication"
+  ) {
     if (!publisher?.enabled)
       return json({ error: "publisher_not_configured" }, 503);
     if (
@@ -130,11 +135,18 @@ export async function homeEditorApi(
       !Number.isSafeInteger(body.expectedVersion)
     )
       return json({ error: "invalid_request" }, 400);
-    const result = await publisher.storage.retryPublication(
-      record,
-      body.operationId,
-      Number(body.expectedVersion),
-    );
+    const result =
+      action === "cancel-publication"
+        ? await publisher.storage.cancelPublication(
+            record,
+            body.operationId,
+            Number(body.expectedVersion),
+          )
+        : await publisher.storage.retryPublication(
+            record,
+            body.operationId,
+            Number(body.expectedVersion),
+          );
     return json(result, result.ok ? 202 : 409);
   }
   if (action === "save") {

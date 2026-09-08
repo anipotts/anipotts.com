@@ -22,3 +22,11 @@ packages/brand/ap-structural-v0.1.0-candidate.1/
 # content collection bodies are data, not code. the markdown -> d1 sync
 # depends on byte fidelity, so no formatter ever touches them.
 content/public/
+
+# Exact Astryx CLI outputs are checked by theme:check.
+apps/admin/src/themes/editorial.d.ts
+apps/admin/src/themes/editorial.variants.d.ts
+apps/admin/src/themes/editorial.js
+
+# Generated Cloudflare runtime declarations
+apps/admin/test/bindings.d.ts

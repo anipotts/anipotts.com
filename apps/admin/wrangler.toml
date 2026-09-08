@@ -5,8 +5,8 @@ account_id = "0f856093bdcd34a7da1bde5ee4385163"
 main = "./dist/_worker.js/index.js"
 workers_dev = false
 
-# Canonical admin route. Cloudflare Access remains in front until app-native
-# passkey proof is complete and Access removal is separately verified.
+# Canonical admin route. Editorial pages require the verified owner through
+# Cloudflare Access; provider cutover remains held until separately approved.
 [[routes]]
 pattern = "admin.anipotts.com"
 custom_domain = true

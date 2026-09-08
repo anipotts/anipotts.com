@@ -6,7 +6,8 @@ export type PublishPhase =
   | "checks"
   | "deploy"
   | "verify"
-  | "live";
+  | "live"
+  | "cancelled";
 export type PublishJob = {
   id: string;
   phase: PublishPhase;
@@ -69,7 +70,7 @@ export class PublicationJobs {
   nextWake(now: number): number | null {
     const row = this.storage.sql
       .exec<{ id: string }>(
-        "SELECT id FROM publication_jobs WHERE phase != 'live' ORDER BY rowid LIMIT 1",
+        "SELECT id FROM publication_jobs WHERE phase NOT IN ('live', 'cancelled') ORDER BY rowid LIMIT 1",
       )
       .toArray()[0];
     const job = row ? this.get(row.id) : null;
@@ -89,11 +90,31 @@ export class PublicationJobs {
         job.version !== expectedVersion ||
         !job.blocked ||
         job.phase === "live" ||
+        job.phase === "cancelled" ||
         job.lease !== null
       )
         return false;
       this.storage.sql.exec(
         "UPDATE publication_jobs SET blocked = NULL, dueAt = ?, version = version + 1 WHERE id = ?",
+        now,
+        id,
+      );
+      return true;
+    });
+  }
+  requestCancel(id: string, expectedVersion: number, now: number): boolean {
+    return this.storage.transactionSync(() => {
+      const job = this.get(id);
+      if (
+        !job ||
+        job.version !== expectedVersion ||
+        job.lease !== null ||
+        !["validate", "commit", "branch", "pr", "checks"].includes(job.phase)
+      )
+        return false;
+      this.storage.sql.exec(
+        "UPDATE publication_jobs SET checkpoint = ?, blocked = NULL, dueAt = ?, version = version + 1 WHERE id = ?",
+        JSON.stringify({ ...job.checkpoint, cancelRequested: "true" }),
         now,
         id,
       );
@@ -106,7 +127,7 @@ export class PublicationJobs {
       // backing off. A later publication must not overtake an ambiguous merge.
       const row = this.storage.sql
         .exec<{ id: string }>(
-          "SELECT id FROM publication_jobs WHERE phase != 'live' ORDER BY rowid LIMIT 1",
+          "SELECT id FROM publication_jobs WHERE phase NOT IN ('live', 'cancelled') ORDER BY rowid LIMIT 1",
         )
         .toArray()[0];
       const job = row ? this.get(row.id) : null;
@@ -135,7 +156,16 @@ export class PublicationJobs {
       const next = outcome.next ?? job.phase;
       if (
         next !== job.phase &&
-        phases.indexOf(next) !== phases.indexOf(job.phase) + 1
+        phases.indexOf(next) !== phases.indexOf(job.phase) + 1 &&
+        !(
+          job.checkpoint.cancelRequested === "true" &&
+          ["validate", "commit", "branch", "pr", "checks"].includes(
+            job.phase,
+          ) &&
+          (next === "cancelled" ||
+            (next === "deploy" &&
+              /^[a-f0-9]{40}$/.test(outcome.checkpoint?.mergeCommit ?? "")))
+        )
       )
         throw new Error("invalid_publication_transition");
       if (outcome.blocked && !/^[a-z_]{1,64}$/.test(outcome.blocked))
@@ -149,6 +179,7 @@ export class PublicationJobs {
         Object.entries(checkpoint).some(
           ([key, value]) =>
             ![
+              "cancelRequested",
               "baseHead",
               "baseTree",
               "commit",

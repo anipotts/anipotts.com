@@ -16,6 +16,7 @@ type PublisherGit = Pick<
   | "readRequiredChecks"
   | "ensureProtectedMerge"
   | "readDeploymentRun"
+  | "stopPublication"
 >;
 export type ReleaseReadiness = (head: string) => Promise<
   | { ready: true; head: string }
@@ -40,7 +41,23 @@ export async function publicationStage(
   verifyRelease?: (publication: Publication, merge: string) => Promise<boolean>,
 ): Promise<PublishOutcome> {
   if (job.id !== publication.id) return { blocked: "publication_mismatch" };
-  if (job.phase === "live") return {};
+  if (job.phase === "live" || job.phase === "cancelled") return {};
+  if (
+    job.checkpoint.cancelRequested === "true" &&
+    job.phase !== "deploy" &&
+    job.phase !== "verify"
+  ) {
+    if (job.phase === "validate" || job.phase === "commit")
+      return { next: "cancelled" };
+    if (!job.checkpoint.commit) return { blocked: "missing_checkpoint" };
+    const stopped = await git.stopPublication(
+      publication.id,
+      job.checkpoint.commit,
+    );
+    return stopped.mergeCommit
+      ? { next: "deploy", checkpoint: { mergeCommit: stopped.mergeCommit } }
+      : { next: "cancelled" };
+  }
   if (job.phase === "deploy" || job.phase === "verify") {
     const merge = job.checkpoint.mergeCommit;
     if (!merge) return { blocked: "missing_checkpoint" };
