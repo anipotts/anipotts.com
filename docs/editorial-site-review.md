@@ -218,8 +218,11 @@ Year ranges use spaces around the dash. Writing list entries share the main
 site's full-card artwork and title/date row. Article headers use compact spacing,
 plain navigation, and the publication date; reading-time labels are omitted.
 Topics appear as individual chips. In light mode, writing pages use the main
-site's blue canvas and white header, with dark prose on a light reading surface.
-The dark palette remains unchanged. Project screenshots keep their natural ratio
+site's original blue canvas and white text, with subtle waves at the header.
+Both themes use the same open reading layout, measure, and spacing. There is no
+separate reading panel or additional current behind the prose. The dark palette
+remains unchanged.
+Project screenshots keep their natural ratio
 and can open in a keyboard-accessible fit/actual-size viewer.
 
 NYU Purity Test uses March 2025, based on the complete local repository history's

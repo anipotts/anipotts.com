@@ -148,32 +148,6 @@ const articleLd = {
   .article-body {
     align-self: center;
   }
-  :global(html:not([data-theme="dark"])) .article-body {
-    --ink: var(--paper-ink);
-    --ink-muted: var(--paper-muted);
-    --interactive: var(--paper-accent);
-    --interactive-ink: #ffffff;
-    --focus: var(--paper-accent);
-    --surface: var(--paper-surface-hover);
-    --border: color-mix(in srgb, var(--paper-ink) 16%, transparent);
-    --astro-code-foreground: var(--ink);
-    --astro-code-background: var(--surface);
-    --astro-code-token-constant: var(--ink);
-    --astro-code-token-string: var(--ink-muted);
-    --astro-code-token-comment: var(--ink-muted);
-    --astro-code-token-keyword: var(--ink-muted);
-    --astro-code-token-parameter: var(--ink);
-    --astro-code-token-function: var(--interactive);
-    --astro-code-token-string-expression: var(--ink-muted);
-    --astro-code-token-punctuation: var(--ink-muted);
-    --astro-code-token-link: var(--interactive);
-    padding: clamp(1.25rem, 4vw, 3rem);
-    max-width: calc(65ch + 6rem);
-    border-radius: var(--paper-radius);
-    background: var(--paper-surface);
-    color: var(--paper-ink);
-    box-shadow: var(--paper-shadow);
-  }
   .article-end {
     padding-top: 2rem;
     border-top: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
