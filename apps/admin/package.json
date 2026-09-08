@@ -19,7 +19,7 @@
     "@anipotts/brand": "workspace:*",
     "@anipotts/types": "workspace:*",
     "@astrojs/cloudflare": "^12.6.0",
-    "@astrojs/react": "^6.0.4",
+    "@astrojs/react": "^6.0.5",
     "@astryxdesign/core": "^0.4.6",
     "@astryxdesign/theme-neutral": "^0.4.6",
     "@fontsource-variable/instrument-sans": "^5.2.8",
@@ -29,7 +29,7 @@
     "@simplewebauthn/server": "13.3.2",
     "@stylexjs/stylex": "^0.19.0",
     "astro": "^5.16.0",
-    "jose": "^6.2.8",
+    "jose": "^6.2.12",
     "qrcode": "^1.5.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
