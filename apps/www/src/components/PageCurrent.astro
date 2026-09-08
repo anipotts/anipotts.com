@@ -1,16 +1,20 @@
 <div class="page-current" aria-hidden="true">
-  <svg viewBox="0 0 1600 1200" preserveAspectRatio="xMidYMid slice">
+  <svg
+    viewBox="0 0 1600 1200"
+    preserveAspectRatio="xMidYMid slice"
+    focusable="false"
+  >
     <path
       class="current current--one"
-      d="M-240 278C38 96 250 106 472 254s434 148 662-8 408-148 706-6v250c-284-126-492-103-708 55s-448 145-666-18S46 336-240 526Z"
+      d="M-180 132C110 20 295 55 490 159S765 233 909 121 1190 8 1410 60L1720-30V54C1460 191 1230 118 1035 233S708 336 470 235 118 161-180 281Z"
     ></path>
     <path
       class="current current--two"
-      d="M-260 782C2 610 238 635 460 782s442 136 666-24 422-146 736 8v268c-300-139-510-105-724 49s-447 142-672-14S34 854-260 1044Z"
+      d="M1810 654C1518 490 1390 770 1120 768S796 573 591 640 263 844-190 728V817C196 949 458 750 641 748S893 914 1145 875 1498 644 1810 765Z"
     ></path>
     <path
       class="current current--three"
-      d="M188 1258c174-205 348-264 542-157s374 92 584-66 392-172 616-36v259H188Z"
+      d="M-190 1020C124 931 260 1059 447 1091S793 1029 984 1100 1333 1280 1790 1045V1184C1380 1390 1121 1240 910 1194S577 1248 380 1193 99 1085-190 1153Z"
     ></path>
   </svg>
 </div>
@@ -22,7 +26,8 @@
     z-index: 0;
     overflow: hidden;
     pointer-events: none;
-    opacity: 0.052;
+    /* Narrower areas of color keep the page quieter without bleaching the palette. */
+    opacity: 0.14;
   }
 
   .page-current svg {
@@ -31,51 +36,31 @@
     display: block;
   }
 
-  .current {
-    fill: #1247e6;
-    transform-origin: center;
-  }
-
   .current--one {
-    opacity: 0.7;
-    animation: current-one 40s ease-in-out infinite alternate;
+    fill: #2259bf;
   }
 
   .current--two {
-    opacity: 0.46;
-    animation: current-two 48s ease-in-out infinite alternate;
+    fill: #3d80d4;
   }
 
   .current--three {
-    opacity: 0.28;
-    animation: current-three 36s ease-in-out infinite alternate;
+    fill: #b0d8f5;
   }
 
   :global(html[data-theme="dark"]) .page-current {
-    opacity: 0.035;
+    opacity: 0.12;
   }
 
-  @keyframes current-one {
-    to {
-      transform: translate3d(2.5rem, -1.25rem, 0);
-    }
+  :global(html[data-theme="dark"]) .current--one {
+    fill: #315787;
   }
 
-  @keyframes current-two {
-    to {
-      transform: translate3d(-2rem, 1.5rem, 0);
-    }
+  :global(html[data-theme="dark"]) .current--two {
+    fill: #284677;
   }
 
-  @keyframes current-three {
-    to {
-      transform: translate3d(1.25rem, -1rem, 0);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .current {
-      animation: none;
-    }
+  :global(html[data-theme="dark"]) .current--three {
+    fill: #426f97;
   }
 </style>
