@@ -100,6 +100,10 @@ jobs:
         if: github.event.pull_request.draft == false
         run: pnpm install --frozen-lockfile
 
+      - name: Generate canonical content projections
+        if: github.event.pull_request.draft == false
+        run: pnpm content:generate
+
       # Required context must not be green from a draft-only diff check. GitHub
       # treats skipped jobs as successful, so explicitly fail this release gate.
       - name: Full validation requires ready for review
