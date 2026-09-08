@@ -68,6 +68,7 @@ const stateLabel = d.status === "wip" ? "in progress" : d.status;
                     identity.logo_tone === "adaptive",
                 },
               ]}
+              style={slug === "nyu-purity-test" ? "scale: 1.3" : undefined}
               src={identity.logo_src}
               alt={identity.logo_alt ?? ""}
               loading="lazy"
