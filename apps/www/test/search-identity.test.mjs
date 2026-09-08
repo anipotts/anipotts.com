@@ -62,7 +62,9 @@ test("selected profiles have accessible footer links and the current contact add
   const footer = html.match(/<footer\b[^>]*>.*?<\/footer>/s)?.[0];
   assert.ok(footer, "footer is rendered");
   const anchors = [...footer.matchAll(/<a\b[^>]*>/g)].map((match) => match[0]);
-  for (const href of profiles.filter((href) => !href.includes("youtube.com"))) {
+  for (const href of profiles.filter(
+    (href) => href !== "https://www.youtube.com/@anipottsbuilds",
+  )) {
     const matches = anchors.filter((anchor) =>
       anchor.includes(`href="${href}"`),
     );
