@@ -2,6 +2,7 @@
 import { Icon } from "astro-icon/components";
 import type { Project } from "../lib/content";
 import AmbientFlow from "./AmbientFlow.astro";
+import ProjectMeta from "./ProjectMeta.astro";
 
 interface Props {
   project: Project;
@@ -14,13 +15,6 @@ const d = project.data;
 const slug = project.slug;
 const identity = d.identity;
 const preview = d.preview_media;
-const stateIcon =
-  d.status === "live"
-    ? "ph:activity"
-    : d.status === "wip"
-      ? "ph:spinner-gap"
-      : "ph:archive";
-const stateLabel = d.status === "wip" ? "in progress" : d.status;
 ---
 
 <a
@@ -86,20 +80,7 @@ const stateLabel = d.status === "wip" ? "in progress" : d.status;
       <Icon name="ph:arrow-bend-right-up" class="work-card__affordance" />
     </span>
     <span class="work-card__copy">{d.card_copy}</span>
-    {
-      variant === "project" && (
-        <span class="work-card__state mono">
-          <span class="work-card__state-item">
-            <Icon name={stateIcon} aria-hidden="true" />
-            {stateLabel}
-          </span>
-          <span class="work-card__state-item">
-            <Icon name="ph:calendar-blank" aria-hidden="true" />
-            {d.year}
-          </span>
-        </span>
-      )
-    }
+    {variant === "project" && <ProjectMeta status={d.status} year={d.year} />}
   </span>
 </a>
 
@@ -249,26 +230,6 @@ const stateLabel = d.status === "wip" ? "in progress" : d.status;
   .work-card--visual:hover .work-card__affordance,
   .work-card--visual:focus-visible .work-card__affordance {
     color: var(--paper-accent);
-  }
-
-  .work-card__state {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--s-3);
-    color: var(--paper-muted);
-    font-size: 0.78rem;
-  }
-
-  .work-card__state-item {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--s-1);
-  }
-
-  .work-card__state-item :global(svg) {
-    width: 0.95rem;
-    height: 0.95rem;
   }
 
   .work-card__affordance {

@@ -1,8 +1,12 @@
 ---
 import { render } from "astro:content";
+import DetailWaves from "./DetailWaves.astro";
+import "./editorial/editorial-media.css";
+import WritingRow from "./WritingRow.astro";
 import Shell from "../layouts/Shell.astro";
 import { Icon } from "astro-icon/components";
 import {
+  publishedWriting,
   formatDate,
   readingTime,
   writingSlug,
@@ -19,6 +23,9 @@ const slug = writingSlug(item);
 const { Content } = await render(item.entry);
 const d = item.data;
 const minutes = readingTime(item.body ?? "");
+const moreWriting = (await publishedWriting())
+  .filter((post) => post.slug !== slug)
+  .slice(0, 2);
 
 const articleLd = {
   "@context": "https://schema.org",
@@ -43,26 +50,27 @@ const articleLd = {
   ogType="article"
   jsonLd={articleLd}
   mood="drowsy"
+  detail
 >
   <article class="article">
+    <DetailWaves seed={`writing/${slug}`} />
     <header data-rise class="head">
       <a href="/writing" class="quiet-link mono back">
         <Icon name="ph:arrow-bend-up-left" /> all writing
       </a>
       <h1 class="title">{d.title}</h1>
+      <p class="summary">{d.summary}</p>
       <p class="meta mono muted">
-        {d.published_at && <span>{formatDate(d.published_at)}</span>}
+        {
+          d.published_at && (
+            <time datetime={d.published_at.toISOString()}>
+              {formatDate(d.published_at)}
+            </time>
+          )
+        }
+        <span aria-hidden="true">/</span>
         <span>{minutes} min read</span>
       </p>
-      {
-        d.tags.length > 0 && (
-          <p class="meta mono muted">
-            {d.tags.map((t) => (
-              <span>{t}</span>
-            ))}
-          </p>
-        )
-      }
       {
         d.artifact_url && (
           <a
@@ -81,49 +89,110 @@ const articleLd = {
     <div data-rise class="article-body">
       <Content />
     </div>
+    <footer class="article-end">
+      {
+        d.tags.length > 0 && (
+          <p class="topics" aria-label="Topics">
+            {d.tags.join(" · ")}
+          </p>
+        )
+      }
+      <div class="more-heading">
+        <h2>more writing</h2><a href="/writing" class="quiet-link"
+          >view all <Icon name="ph:arrow-up-right" /></a
+        >
+      </div>
+      <div class="more-writing">
+        {moreWriting.map((post) => <WritingRow item={post} />)}
+      </div>
+    </footer>
   </article>
 </Shell>
 
 <style>
   .article {
+    position: relative;
+    isolation: isolate;
     display: flex;
     flex-direction: column;
-    gap: var(--s-6);
+    gap: clamp(3rem, 7vw, 5rem);
   }
-
   .head {
     display: flex;
     flex-direction: column;
-    gap: var(--s-3);
-    max-width: var(--measure);
+    gap: 1.2rem;
+    padding: clamp(1rem, 3vw, 2.5rem) 0 clamp(1rem, 4vw, 3rem);
   }
-
   .back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    font-size: 0.85rem;
+    width: fit-content;
+    min-height: 44px;
+    margin-bottom: clamp(0.5rem, 2vw, 1.5rem);
+  }
+  .title {
+    font-size: clamp(2.7rem, 6.5vw, 5.5rem);
+    line-height: 1.03;
+    max-width: 20ch;
+    text-wrap: balance;
+    overflow-wrap: anywhere;
+  }
+  .summary {
+    max-width: 52ch;
+    margin: 0;
+    color: var(--ink-muted);
+    font-size: clamp(1.15rem, 2.25vw, 1.65rem);
+    line-height: 1.55;
+    text-wrap: pretty;
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin: 0;
+    font-size: 0.85rem;
+  }
+  .artifact {
     display: inline-flex;
     align-items: center;
     gap: 0.4em;
     font-size: 0.85rem;
     width: fit-content;
-    min-height: 44px;
   }
-
-  .title {
-    font-size: var(--p-h1);
+  .article-body {
+    align-self: center;
   }
-
-  .meta {
+  .article-end {
+    padding-top: 2rem;
+    border-top: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
+    display: grid;
+    gap: 1.5rem;
+  }
+  .topics {
+    margin: 0 0 1rem;
+    color: var(--ink-muted);
+    font-size: 0.8rem;
+  }
+  .more-heading {
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--s-3);
-    margin: 0;
-    font-size: 0.85rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
   }
-
-  .artifact {
+  .more-heading h2 {
+    font-size: 1.3rem;
+  }
+  .more-heading a {
     display: inline-flex;
     align-items: center;
-    gap: 0.35em;
+    gap: 0.35rem;
     font-size: 0.85rem;
-    width: fit-content;
+    min-height: 44px;
+  }
+  .more-writing {
+    display: grid;
+    gap: 1rem;
   }
 </style>

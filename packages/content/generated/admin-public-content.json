@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "source_hash": "8a7cfd4c734d7896f0242815e54ad96c8f2c75718244ade544d9ebcb1700b743",
+  "source_hash": "e7f48e575681e75a9519e25147b628050d0f60da5200df319755f3bf2934d9ed",
   "source_records": [
     {
       "id": "projects.quantercise",
@@ -749,7 +749,7 @@
       "slug": "options-pricing-sensitivity",
       "title": "options pricing + sensitivity analysis",
       "route": "/work/options-pricing-sensitivity",
-      "status": "live",
+      "status": "hidden",
       "source_ref": "content/public/projects/options-pricing-sensitivity.md",
       "summary": "exploring how volatility changes an option's price",
       "body_words": 0,
@@ -778,7 +778,7 @@
         { "path": "duration", "value": "Spring 2023", "kind": "string" },
         { "path": "status", "value": "live", "kind": "string" },
         { "path": "kind", "value": "project", "kind": "string" },
-        { "path": "public_state", "value": "listed", "kind": "string" },
+        { "path": "public_state", "value": "hidden", "kind": "string" },
         { "path": "homepage_placement", "value": "none", "kind": "string" },
         { "path": "catalog_group", "value": "past", "kind": "string" },
         { "path": "homepage_order", "value": "0", "kind": "number" },
@@ -1139,10 +1139,10 @@
       "entity_id": "public-project:options-pricing-sensitivity",
       "kind": "project",
       "title": "options pricing + sensitivity analysis",
-      "status": "live",
+      "status": "hidden",
       "route": "/work/options-pricing-sensitivity",
       "source_ref": "content/public/projects/options-pricing-sensitivity.md",
-      "source_hash": "8f68b5fc535b0c19596c1a8ce09b70751cf7d500932f7d62c4f5f218a8aa1127"
+      "source_hash": "4321e6501020ae5e001c4b40b887e353bfbb7bba1f152f4f6927edfcb46ad158"
     },
     {
       "entity_id": "public-project:pgi-research-platform",

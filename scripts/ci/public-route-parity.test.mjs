@@ -9,7 +9,7 @@ const smokeWorkflow = readFileSync(".github/workflows/smoke.yml", "utf8");
 const releaseSmoke = readFileSync("scripts/ci/release-smoke.mjs", "utf8");
 const contentProof = readFileSync("scripts/admin/content-proof.mjs", "utf8");
 
-assert.equal(PUBLIC_SMOKE_ROUTES.length, 23);
+assert.equal(PUBLIC_SMOKE_ROUTES.length, 22);
 
 for (const [sourceName, source] of [
   ["deploy.yml", deployWorkflow],

@@ -1,0 +1,103 @@
+.editorial-media {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  margin: 2rem 0;
+  color: var(--paper-ink, var(--ink));
+}
+.editorial-media__stage {
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  border-radius: var(--paper-radius, 0.75rem);
+  background: var(--paper-surface-hover, var(--surface));
+}
+.editorial-media__stage > :is(img, video, iframe) {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+.editorial-media__stage > :is(img, video) {
+  height: auto;
+}
+.editorial-media__stage--crop > img {
+  height: 100%;
+  object-fit: cover;
+  object-position: var(--media-focus-x, 50%) var(--media-focus-y, 50%);
+}
+.editorial-media__caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 1rem;
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--paper-muted, var(--ink-muted));
+}
+.editorial-media__caption > span {
+  flex: 1 1 20rem;
+}
+.editorial-media a {
+  text-underline-offset: 0.2em;
+  text-decoration: underline;
+}
+.editorial-media__embed {
+  display: block;
+}
+.editorial-media__embed-stage {
+  display: grid;
+  place-items: center;
+  aspect-ratio: var(--media-ratio, 1.7778);
+  min-height: 200px;
+}
+.editorial-media__embed-stage > iframe {
+  height: 100%;
+  min-height: 200px;
+}
+.editorial-media__load {
+  display: grid;
+  gap: 0.65rem;
+  justify-items: center;
+  max-width: 30rem;
+  min-height: 44px;
+  margin: 1.5rem;
+  padding: 1rem 1.5rem;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: 0.65rem;
+  background: var(--paper-surface, var(--surface));
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.editorial-media__load small {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--paper-muted, var(--ink-muted));
+}
+.editorial-media__unload {
+  display: block;
+  min-height: 44px;
+  margin-top: 0.25rem;
+  padding: 0.5rem 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+.editorial-media [hidden] {
+  display: none;
+}
+.editorial-media :is(button, a, iframe):focus-visible {
+  outline: 2px solid var(--paper-accent, var(--focus));
+  outline-offset: 4px;
+}

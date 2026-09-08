@@ -361,15 +361,51 @@ const projectDetailSource = readFileSync(
   "apps/www/src/components/WorkDetail.astro",
   "utf8",
 );
-assert.match(
-  projectDetailSource,
-  /section\.media\.fit === "contain"/,
-  "project story media must honor the canonical contain fit setting",
+const projectMediaSource = readFileSync(
+  "apps/www/src/components/ProjectMediaStage.astro",
+  "utf8",
 );
 assert.match(
   projectDetailSource,
-  /\.story-media--contain img,[\s\S]*object-fit: contain;/,
-  "project story media contain fit must reach rendered images and videos",
+  /<ProjectMediaStage\s+items=\{\[d\.preview_media\]\}/,
+  "the hero must show only the canonical preview, not repeat all story media",
+);
+assert.match(
+  projectDetailSource,
+  /<ProjectMediaStage\s+items=\{\[section\.media\]\}/,
+  "story media must reach the shared viewer intact with its source, alt text, caption, and fit",
+);
+const projectMediaImageRule = projectMediaSource.match(
+  /\.project-media__panel img,\s*\.project-media__panel video\s*\{([^}]+)\}/,
+)?.[1];
+assert.ok(
+  projectMediaImageRule,
+  "project images and videos need a shared size rule",
+);
+assert.match(
+  projectMediaImageRule,
+  /width:\s*100%;[\s\S]*height:\s*auto;/,
+  "project screenshots and videos must retain their intrinsic proportions",
+);
+assert.doesNotMatch(
+  projectMediaSource,
+  /aspect-ratio:\s*16\s*\/\s*9|object-fit:\s*cover/,
+  "project media must remain uncropped, including canonical contain-fit media",
+);
+assert.match(
+  projectMediaSource,
+  /<a\s+class="project-media__enlarge"\s+href=\{item\.src\}[\s\S]*?aria-label=\{`enlarge image: \$\{item\.alt\}`\}/,
+  "image enlargement must retain an accessible original-file link without JavaScript",
+);
+assert.match(
+  projectMediaSource,
+  /<img\s+src=\{item\.src\}\s+alt=\{item\.alt\}/,
+  "the shared viewer must preserve canonical image sources and alternative text",
+);
+assert.match(
+  projectMediaSource,
+  /typeof dialog\.showModal !== "function"\) return;\s*event\.preventDefault\(\);/,
+  "native enlargement must progressively enhance the original-file link",
 );
 
 const alternateSlugRoot = mkdtempSync(join(tmpdir(), "public-content-slug-"));

@@ -1,0 +1,58 @@
+---
+import "./editorial-media.css";
+import { mediaHref } from "./media";
+
+interface Props {
+  src: string;
+  title: string;
+  caption: string;
+  width: number;
+  height: number;
+  poster?: string;
+  captions?: { src: string; language: string; label: string };
+  transcriptHref?: string;
+}
+const { src, title, caption, width, height, poster, captions, transcriptHref } =
+  Astro.props;
+if (
+  !Number.isFinite(width) ||
+  !Number.isFinite(height) ||
+  width <= 0 ||
+  height <= 0
+) {
+  throw new Error("EditorialVideo dimensions must be positive.");
+}
+---
+
+<figure class="editorial-media">
+  <div class="editorial-media__stage">
+    <video
+      src={mediaHref(src)}
+      aria-label={title}
+      {width}
+      {height}
+      poster={poster ? mediaHref(poster) : undefined}
+      controls
+      playsinline
+      preload="none"
+    >
+      {
+        captions && (
+          <track
+            kind="captions"
+            src={mediaHref(captions.src)}
+            srclang={captions.language}
+            label={captions.label}
+            default
+          />
+        )
+      }
+      <a href={mediaHref(src)}>watch {title}</a>
+    </video>
+  </div>
+  <figcaption class="editorial-media__caption">
+    <span>{caption}</span>
+    {transcriptHref && <a href={mediaHref(transcriptHref)}>read transcript</a>}
+    <a href={mediaHref(src)}>open video</a>
+  </figcaption>
+</figure>

@@ -1,0 +1,70 @@
+---
+import "./editorial-media.css";
+import { mediaHref } from "./media";
+
+interface Props {
+  src: string;
+  alt: string;
+  width: number;
+  height: number;
+  caption: string;
+  sourceHref?: string;
+  sourceLabel?: string;
+  /** Omit to preserve the entire image. Use a ratio only for a deliberate crop. */
+  aspectRatio?: number;
+  focusX?: number;
+  focusY?: number;
+}
+const {
+  src,
+  alt,
+  width,
+  height,
+  caption,
+  sourceHref,
+  sourceLabel = "view original",
+  aspectRatio,
+  focusX = 50,
+  focusY = 50,
+} = Astro.props;
+if (
+  !Number.isFinite(width) ||
+  !Number.isFinite(height) ||
+  width <= 0 ||
+  height <= 0 ||
+  (aspectRatio !== undefined &&
+    (!Number.isFinite(aspectRatio) || aspectRatio <= 0))
+) {
+  throw new Error(
+    "EditorialFigure dimensions and aspect ratio must be positive.",
+  );
+}
+const clamp = (value: number) => Math.max(0, Math.min(100, value));
+---
+
+<figure class="editorial-media">
+  <div
+    class:list={[
+      "editorial-media__stage",
+      { "editorial-media__stage--crop": aspectRatio !== undefined },
+    ]}
+    style={{
+      "aspect-ratio": aspectRatio,
+      "--media-focus-x": `${clamp(focusX)}%`,
+      "--media-focus-y": `${clamp(focusY)}%`,
+    }}
+  >
+    <img
+      src={mediaHref(src)}
+      {alt}
+      {width}
+      {height}
+      loading="lazy"
+      decoding="async"
+    />
+  </div>
+  <figcaption class="editorial-media__caption">
+    <span>{caption}</span>
+    {sourceHref && <a href={mediaHref(sourceHref)}>{sourceLabel}</a>}
+  </figcaption>
+</figure>

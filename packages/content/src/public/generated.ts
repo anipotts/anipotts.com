@@ -9,7 +9,7 @@ import type {
 } from "@anipotts/types";
 
 export const PUBLIC_CONTENT_SOURCE_HASH =
-  "8a7cfd4c734d7896f0242815e54ad96c8f2c75718244ade544d9ebcb1700b743";
+  "e7f48e575681e75a9519e25147b628050d0f60da5200df319755f3bf2934d9ed";
 
 export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
   sections: {
@@ -428,7 +428,7 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
     links: [],
     order: 40,
     kind: "project",
-    public_state: "listed",
+    public_state: "hidden",
     homepage_placement: "none",
     catalog_group: "past",
     homepage_order: 0,

@@ -2,6 +2,9 @@
 import { render } from "astro:content";
 import { Icon } from "astro-icon/components";
 import ProjectMediaStage from "./ProjectMediaStage.astro";
+import DetailWaves from "./DetailWaves.astro";
+import "./editorial/editorial-media.css";
+import ProjectMeta from "./ProjectMeta.astro";
 import Shell from "../layouts/Shell.astro";
 import { projectSlug, type Project } from "../lib/content";
 
@@ -14,14 +17,6 @@ const slug = projectSlug(project);
 const { Content } = await render(project.entry);
 const hasBody = Boolean(project.body?.trim());
 const d = project.data;
-const displayYear = d.year.replace(/-$/u, "–present");
-const mediaItems = [
-  d.preview_media,
-  ...d.story.map((section) => section.media ?? null),
-].filter((item): item is NonNullable<typeof item> => Boolean(item));
-const uniqueMedia = Array.from(
-  new Map(mediaItems.map((item) => [item.src, item])).values(),
-);
 ---
 
 <Shell
@@ -29,8 +24,10 @@ const uniqueMedia = Array.from(
   description={d.description}
   path={`/work/${slug}`}
   mood="alert"
+  detail
 >
   <article class="project-page">
+    <DetailWaves seed={`work/${slug}`} tone="work" />
     <header data-rise class="project-head">
       <div class="project-topline">
         <a href="/work" class="quiet-link back">
@@ -83,12 +80,7 @@ const uniqueMedia = Array.from(
               <Icon name={`ph:${d.identity.icon}`} class="project-mark-icon" />
             ) : null
           }
-          <h1
-            class:list={[
-              "hero-title",
-              d.title.length > 20 && "hero-title--long",
-            ]}
-          >
+          <h1 class="hero-title">
             {d.title}
           </h1>
         </div>
@@ -97,21 +89,21 @@ const uniqueMedia = Array.from(
         </p>
       </div>
 
-      <div class="project-meta" aria-label="project details">
-        <span>{d.status}</span>
-        <span>{displayYear}</span>
-        <span>{d.role}</span>
-      </div>
+      <ProjectMeta status={d.status} year={d.year} role={d.role} />
     </header>
 
     {
-      uniqueMedia.length > 0 && (
+      d.preview_media && (
         <section
           data-rise
           class="project-visual"
           aria-label={`${d.title} preview`}
         >
-          <ProjectMediaStage items={uniqueMedia} label={d.title} />
+          <ProjectMediaStage
+            items={[d.preview_media]}
+            label={`${slug}-preview`}
+            eager
+          />
         </section>
       )
     }
@@ -130,14 +122,7 @@ const uniqueMedia = Array.from(
       d.story.length > 0 && (
         <div class="project-story">
           {d.story.map((section, index) => (
-            <section
-              data-rise
-              class:list={[
-                "story-section",
-                section.media && "story-section--with-media",
-                index % 2 === 1 && "story-section--reverse",
-              ]}
-            >
+            <section data-rise class="story-section">
               <div class="story-copy">
                 <span class="story-index" aria-hidden="true">
                   {String(index + 1).padStart(2, "0")}
@@ -148,33 +133,12 @@ const uniqueMedia = Array.from(
                 ))}
               </div>
               {section.media && (
-                <figure
-                  class:list={[
-                    "story-media",
-                    section.media.fit === "contain" && "story-media--contain",
-                  ]}
-                >
-                  {section.media.kind === "video" ? (
-                    <video
-                      controls
-                      muted
-                      playsinline
-                      preload="metadata"
-                      aria-label={section.media.alt}
-                    >
-                      <source src={section.media.src} />
-                    </video>
-                  ) : (
-                    <img
-                      src={section.media.src}
-                      alt={section.media.alt}
-                      loading="lazy"
-                    />
-                  )}
-                  {section.media.caption && (
-                    <figcaption>{section.media.caption}</figcaption>
-                  )}
-                </figure>
+                <div class="story-media">
+                  <ProjectMediaStage
+                    items={[section.media]}
+                    label={`${slug}-section-${index + 1}`}
+                  />
+                </div>
               )}
             </section>
           ))}
@@ -234,239 +198,205 @@ const uniqueMedia = Array.from(
 
 <style>
   .project-page {
+    position: relative;
+    isolation: isolate;
     display: grid;
-    gap: clamp(4rem, 10vw, 7.5rem);
+    gap: clamp(3.5rem, 8vw, 6.5rem);
+    color: var(--paper-ink);
   }
 
   .project-head {
     display: grid;
-    gap: var(--s-4);
+    gap: clamp(1.5rem, 4vw, 2.5rem);
     width: 100%;
+    padding-block: 0 clamp(0.5rem, 2vw, 2rem);
   }
 
   .project-topline {
-    min-width: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: var(--s-3);
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+    margin-bottom: clamp(1rem, 3vw, 2.5rem);
   }
 
-  .back {
-    width: fit-content;
+  .back,
+  .project-action {
     min-height: 44px;
     display: inline-flex;
     align-items: center;
-    gap: var(--s-2);
-    font-size: var(--p-small);
-    font-weight: 600;
-  }
-
-  .project-heading {
-    display: grid;
-    gap: var(--s-3);
-  }
-
-  .project-identity {
-    display: flex;
-    align-items: center;
-    gap: var(--s-3);
-    min-width: 0;
-  }
-
-  .project-mark,
-  :global(.project-mark-icon) {
-    flex: 0 0 auto;
-    width: clamp(2.25rem, 5vw, 3.5rem);
-    height: clamp(2.25rem, 5vw, 3.5rem);
-    object-fit: contain;
-  }
-
-  .project-mark--light {
-    filter: brightness(0) invert(1);
-  }
-
-  .project-mark--adaptive {
-    filter: brightness(0);
-  }
-
-  :global(html[data-theme="dark"]) .project-mark--adaptive {
-    filter: brightness(0) invert(1);
-  }
-
-  .hero-title {
-    font-size: clamp(3.1rem, 9vw, 7rem);
-    white-space: nowrap;
-  }
-
-  .hero-title--long {
-    font-size: clamp(1.15rem, 5vw, 5rem);
-  }
-
-  .project-summary {
-    max-width: 38rem;
-    margin: 0;
-    color: var(--ink-muted);
-    font-size: var(--p-h2);
-    line-height: 1.2;
-  }
-
-  .project-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--s-2);
-  }
-
-  .project-meta span {
-    min-height: 32px;
-    display: inline-flex;
-    align-items: center;
-    padding: 0.25rem 0.75rem;
-    border-radius: 999px;
-    background: var(--surface);
-    color: var(--ink-muted);
-    font-size: var(--p-small);
-    font-weight: 600;
+    gap: 0.55rem;
+    font-size: 0.9rem;
+    color: var(--paper-muted);
   }
 
   .project-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--s-2);
-    justify-content: flex-end;
+    gap: 0.4rem 1.4rem;
   }
 
-  .project-action {
-    min-height: 44px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--s-2);
-    padding-inline: var(--s-2);
-    font-size: var(--p-small);
+  .project-heading {
+    display: grid;
+    gap: clamp(1.25rem, 3vw, 2rem);
+    max-width: 58rem;
+  }
+
+  .project-identity {
+    display: grid;
+    gap: 1.5rem;
+    min-width: 0;
+  }
+
+  .project-mark,
+  :global(.project-mark-icon) {
+    width: clamp(2.5rem, 6vw, 3.5rem);
+    height: clamp(2.5rem, 6vw, 3.5rem);
+    object-fit: contain;
+    object-position: left center;
+  }
+
+  .project-mark--light,
+  .project-mark--adaptive {
+    filter: brightness(0);
+  }
+
+  :global(html[data-theme="dark"]) .project-mark--light,
+  :global(html[data-theme="dark"]) .project-mark--adaptive {
+    filter: brightness(0) invert(1);
+  }
+
+  .hero-title {
+    color: var(--paper-ink);
+    font-size: clamp(2.6rem, 6.6vw, 5.6rem);
+    line-height: 1.03;
+    letter-spacing: -0.035em;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-wrap: balance;
+  }
+
+  .project-summary {
+    max-width: 41rem;
+    margin: 0;
+    color: var(--paper-muted);
+    font-size: clamp(1.15rem, 2.15vw, 1.5rem);
+    line-height: 1.55;
+    text-wrap: pretty;
+  }
+
+  .project-visual,
+  .story-media {
+    min-width: 0;
   }
 
   .project-overview {
     display: grid;
-    grid-template-columns: minmax(0, 42rem);
+    grid-template-columns: minmax(0, 65ch);
     justify-content: center;
-  }
-
-  .story-index {
-    color: var(--ink-muted);
-    font-size: var(--p-small);
-    font-weight: 600;
   }
 
   .project-prose,
   .project-fallback {
-    max-width: 42rem;
+    max-width: 65ch;
+    font-size: clamp(1.05rem, 1.8vw, 1.2rem);
+    line-height: 1.75;
   }
 
   .project-fallback {
     margin: 0;
-    color: var(--ink-muted);
-    font-size: var(--p-h2);
-    line-height: 1.3;
+    color: var(--paper-muted);
+  }
+
+  .project-prose :global(h2) {
+    line-height: 1.2;
+    font-size: clamp(1.6rem, 3vw, 2.1rem);
+  }
+
+  .project-prose :global(h3) {
+    line-height: 1.25;
+    font-size: 1.35rem;
+  }
+
+  .project-prose :global(a) {
+    color: var(--paper-accent);
+  }
+
+  .project-prose :global(video),
+  .project-prose :global(iframe) {
+    max-width: 100%;
   }
 
   .project-story {
     display: grid;
-    gap: clamp(4rem, 10vw, 8rem);
+    gap: clamp(4rem, 9vw, 7rem);
   }
 
   .story-section {
     display: grid;
-    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-    gap: clamp(2rem, 6vw, 5rem);
-    align-items: center;
-  }
-
-  .story-section:not(.story-section--with-media) {
-    grid-template-columns: minmax(0, 42rem);
-    justify-content: center;
-  }
-
-  .story-section--reverse .story-copy {
-    order: 2;
-  }
-
-  .story-section--reverse .story-media {
-    order: 1;
+    gap: clamp(1.75rem, 4vw, 3rem);
+    padding-top: clamp(1.75rem, 4vw, 3rem);
+    border-top: 1px solid color-mix(in srgb, var(--paper-ink) 13%, transparent);
   }
 
   .story-copy {
+    width: min(100%, 65ch);
+    margin-inline: auto;
     display: grid;
-    gap: var(--s-3);
+    gap: 1.15rem;
+  }
+
+  .story-index {
+    color: var(--paper-muted);
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
   }
 
   .story-copy h2 {
-    font-size: clamp(2rem, 5vw, 3.8rem);
+    font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+    line-height: 1.13;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
   }
 
   .story-copy p {
     margin: 0;
-    color: var(--ink-muted);
-    font-size: var(--p-body);
-    line-height: var(--lh-body);
-  }
-
-  .story-media {
-    margin: 0;
-    display: grid;
-    gap: var(--s-2);
-    padding: clamp(0.65rem, 2vw, 1rem);
-    border-radius: 0.85rem;
-    background: var(--surface);
-  }
-
-  .story-media img,
-  .story-media video {
-    width: 100%;
-    aspect-ratio: 16 / 9;
-    display: block;
-    object-fit: cover;
-    object-position: center;
-    border-radius: var(--radius-desktop-ui-media);
-    background: #f7faff;
-  }
-
-  .story-media--contain img,
-  .story-media--contain video {
-    object-fit: contain;
-  }
-
-  .story-media figcaption {
-    color: var(--ink-muted);
-    font-size: var(--p-small);
+    color: var(--paper-muted);
+    font-size: clamp(1.05rem, 1.8vw, 1.2rem);
+    line-height: 1.75;
+    text-wrap: pretty;
   }
 
   .project-detail-block {
     display: grid;
-    gap: var(--s-4);
+    gap: 1.5rem;
+    padding-top: 2rem;
+    border-top: 1px solid color-mix(in srgb, var(--paper-ink) 13%, transparent);
   }
 
   .project-detail-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
-    gap: var(--s-3);
+    gap: 2rem;
   }
 
   .project-detail-card {
     display: grid;
-    gap: var(--s-3);
-    padding: var(--s-5);
-    border-radius: 0.75rem;
-    background: var(--surface);
+    align-content: start;
+    gap: 0.85rem;
   }
 
   .project-detail-card h3 {
-    font-size: var(--p-h3);
+    font-size: 1.25rem;
+    line-height: 1.2;
   }
 
   .project-detail-card p {
     margin: 0;
-    color: var(--ink-muted);
+    color: var(--paper-muted);
+    line-height: 1.7;
   }
 
   .project-roadmap {
@@ -474,62 +404,36 @@ const uniqueMedia = Array.from(
     margin: 0;
     padding: 0;
     display: grid;
-    gap: var(--s-2);
-    max-width: 42rem;
+    gap: 0.75rem;
+    max-width: 65ch;
   }
 
   .project-roadmap li {
     display: flex;
     align-items: baseline;
-    gap: var(--s-2);
-    padding: var(--s-3);
-    border-radius: 0.65rem;
-    background: var(--surface);
+    gap: 0.75rem;
   }
 
   .project-roadmap li.done {
-    color: var(--ink-muted);
+    color: var(--paper-muted);
   }
 
-  .project-roadmap li.done :global([data-icon]),
-  .project-roadmap li.in-progress :global([data-icon]) {
-    color: var(--interactive);
+  .project-roadmap li :global([data-icon]) {
+    flex: 0 0 auto;
+    color: var(--paper-accent);
   }
 
-  @media (max-width: 44rem) {
+  @media (max-width: 40rem) {
     .project-page {
-      gap: var(--s-7);
-    }
-
-    .hero-title {
-      font-size: clamp(2rem, 10vw, 2.5rem);
-    }
-
-    .hero-title--long {
-      font-size: clamp(1.1rem, 5vw, 1.25rem);
-    }
-
-    .project-overview,
-    .story-section {
-      grid-template-columns: 1fr;
-      gap: var(--s-4);
-    }
-
-    .story-section--reverse .story-copy,
-    .story-section--reverse .story-media {
-      order: initial;
-    }
-
-    .project-meta span {
-      min-height: 36px;
+      gap: 3rem;
     }
 
     .project-topline {
       align-items: flex-start;
     }
 
-    .project-actions {
-      flex-wrap: nowrap;
+    .hero-title {
+      font-size: clamp(2.3rem, 10vw, 3.5rem);
     }
   }
 </style>

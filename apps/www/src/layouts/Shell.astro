@@ -16,6 +16,7 @@ interface Props {
   robots?: string;
   mood?: "drowsy" | "alert" | "jittery" | "calm";
   canonicalUrl?: string;
+  detail?: boolean;
 }
 
 const {
@@ -27,6 +28,7 @@ const {
   mood = "calm",
   canonicalUrl,
   robots,
+  detail = false,
 } = Astro.props;
 const canonical =
   canonicalUrl ?? `${siteConfig.url}${path === "/" ? "" : path}`;
@@ -48,7 +50,7 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" class:list={{ "editorial-detail": detail }}>
   <head>
     <meta charset="utf-8" />
     <meta
@@ -163,7 +165,7 @@ posthog.init(posthogKey,{api_host:"/ingest",ui_host:"https://us.posthog.com",def
   </head>
   <body>
     <CursorPet mood={mood} />
-    <PageCurrent />
+    {!detail && <PageCurrent />}
     <Nav />
     <main
       class:list={[
