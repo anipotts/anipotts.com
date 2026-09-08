@@ -27,6 +27,7 @@ export default defineConfig({
     icon({
       include: {
         ph: [
+          "arrow-up-right-bold",
           "activity",
           "archive",
           "arrow-bend-right-up",

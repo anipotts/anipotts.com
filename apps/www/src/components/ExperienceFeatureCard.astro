@@ -11,8 +11,9 @@ const { project } = Astro.props;
 const d = project.data;
 const preview = d.preview_media;
 const identity = d.identity;
-const isPgi = project.slug === "pgi-research-platform";
-const treatment = project.slug === "structured-ai" ? "current" : "community";
+const slug = project.slug;
+const isPgi = slug === "pgi-research-platform";
+const treatment = slug === "structured-ai" ? "current" : "community";
 const displayTitle = isPgi ? "pgi research" : d.title;
 ---
 
@@ -24,9 +25,8 @@ const displayTitle = isPgi ? "pgi research" : d.title;
     { "experience-feature--pgi": isPgi },
   ]}
 >
+  <AmbientFlow kind="work" seed={slug} />
   <span class="experience-feature__visual landscape-frame">
-    <AmbientFlow kind="work" seed={project.slug} />
-
     {
       preview && (
         <span class="experience-feature__window">

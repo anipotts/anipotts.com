@@ -1,7 +1,7 @@
 ---
+import AmbientFlow from "./AmbientFlow.astro";
 import { Icon } from "astro-icon/components";
 import type { Project } from "../lib/content";
-
 interface Props {
   project: Project;
 }
@@ -11,174 +11,117 @@ const { project } = Astro.props;
 <a
   class="coding-agent-card card"
   href={project.data.link_live ?? project.data.detail_path}
-  aria-label={`Open ${project.data.title}`}
 >
-  <span class="copy">
-    <span class="label mono">{project.data.title}</span>
-    <span class="lede">{project.data.subtitle}</span>
+  <AmbientFlow kind="work" seed={project.slug} />
+  <span class="guide-content">
+    <span class="guide-identity">
+      {
+        project.data.identity.logo_src && (
+          <img
+            src={project.data.identity.logo_src}
+            width="32"
+            height="32"
+            alt=""
+            loading="lazy"
+          />
+        )
+      }
+      <span class="guide-label">{project.data.title}</span>
+    </span>
+    <span class="guide-title">{project.data.subtitle}</span>
   </span>
-
-  <span class="visual" aria-hidden="true">
-    <svg
-      class="visual-geometry"
-      viewBox="0 0 520 220"
-      preserveAspectRatio="xMidYMid slice"
-    >
-      <defs>
-        <linearGradient id="agent-tips-sky" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#8fd3ff"></stop>
-          <stop offset="0.52" stop-color="#61abea"></stop>
-          <stop offset="1" stop-color="#174ee8"></stop>
-        </linearGradient>
-        <linearGradient id="agent-tips-fold" x1="0" y1="0" x2="0.88" y2="1">
-          <stop offset="0" stop-color="#4b7cff"></stop>
-          <stop offset="1" stop-color="#082faf"></stop>
-        </linearGradient>
-      </defs>
-      <rect width="520" height="220" fill="url(#agent-tips-sky)"></rect>
-      <path
-        d="M-34 197 88 20c10-14 29-20 45-13l118 50-98 165H-34Z"
-        fill="#1247e6"></path>
-      <path
-        d="m117 220 98-175c8-14 25-21 41-16l134 44-79 147H117Z"
-        fill="url(#agent-tips-fold)"></path>
-      <path d="M290 220 371 64c7-14 24-22 39-17l144 44v129H290Z" fill="#174ee8"
-      ></path>
-      <path d="m49 194 91-132 56 24-79 134H49Z" fill="#7094ef"></path>
-      <path d="m313 198 67-113 65 20-61 115h-71Z" fill="#3c7ee9"></path>
-    </svg>
-
-    <Icon class="visual-arrow" name="ph:arrow-up-right" />
-
-    <span class="cta">read the guide</span>
-  </span>
+  <span class="guide-action"
+    >read the guide <span class="action-arrow"
+      ><Icon name="ph:arrow-up-right-bold" aria-hidden="true" /></span
+    ></span
+  >
 </a>
 
 <style>
   .coding-agent-card {
-    --agent-tips-accent: #1247e6;
-    --agent-tips-shell: var(--paper-surface);
-    --agent-tips-ink: var(--paper-ink);
-    --agent-tips-control: #ffffff;
-    --agent-tips-control-ink: var(--agent-tips-accent);
-    display: grid;
-    grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr);
-    align-items: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: var(--s-5);
-    width: 100%;
-    padding: var(--s-5);
-    overflow: hidden;
+    padding: clamp(1.5rem, 3vw, 2rem);
     border-radius: var(--paper-radius);
-    background: var(--agent-tips-shell);
-    color: var(--agent-tips-ink);
-    box-shadow: var(--paper-shadow);
+    color: var(--paper-ink);
     text-decoration: none;
-    transition:
-      background-color 0.2s ease,
-      color 0.2s ease;
+    box-shadow: var(--paper-shadow);
   }
-
-  .copy {
+  .guide-content {
     display: flex;
     flex-direction: column;
-    gap: var(--s-2);
-    align-self: center;
+    gap: 1rem;
+    min-width: 0;
   }
-
-  .label {
-    color: var(--agent-tips-accent);
-    font-size: 0.72rem;
-    text-transform: uppercase;
+  .guide-identity {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
   }
-
-  .lede {
-    color: var(--agent-tips-ink);
-    font-size: var(--p-body);
-    line-height: 1.45;
+  .guide-identity img {
+    width: 2rem;
+    height: 2rem;
+    flex: none;
+    border-radius: 0.4rem;
+  }
+  .guide-label {
+    color: var(--paper-muted);
+    font-size: 0.8rem;
+    font-weight: 550;
+  }
+  .guide-title {
+    max-width: 29ch;
+    font-size: clamp(1.2rem, 2.3vw, 1.6rem);
+    font-weight: 650;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
     text-wrap: pretty;
   }
-
-  .visual {
-    position: relative;
-    min-width: 0;
-    min-height: 9rem;
-    display: grid;
-    grid-template-rows: minmax(min-content, 1fr) auto;
-    justify-items: center;
-    align-items: center;
-    gap: var(--s-2);
-    padding: var(--s-3);
-    overflow: hidden;
-    isolation: isolate;
-    border-radius: 0.7rem;
-    background: #61abea;
-  }
-
-  .visual > .visual-geometry {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    display: block;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-  }
-
-  .visual > .visual-arrow {
-    position: relative;
-    z-index: 1;
-    width: clamp(3.75rem, 8vw, 5.5rem);
-    height: clamp(3.75rem, 8vw, 5.5rem);
-    color: #ffffff;
-    pointer-events: none;
-  }
-
-  .cta {
-    position: relative;
-    z-index: 2;
-    justify-self: end;
+  .guide-action {
     display: inline-flex;
     align-items: center;
-    gap: var(--s-2);
+    gap: 0.8rem;
+    flex: none;
     min-height: 44px;
-    max-width: 100%;
-    text-align: center;
-    justify-content: center;
-    padding-inline: var(--s-4);
-    border-radius: 0.45rem;
-    background: var(--agent-tips-control);
-    color: var(--agent-tips-control-ink);
-    box-shadow: 0 0.5rem 1.4rem rgb(6 26 93 / 24%);
-    font-weight: 650;
-    transition:
-      background-color 0.2s ease,
-      color 0.2s ease;
+    color: var(--paper-ink);
+    font-size: 0.85rem;
+    font-weight: 600;
   }
-
+  .action-arrow {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 0.6rem;
+    background: #1247e6;
+    color: #fff;
+  }
+  .action-arrow :global(svg) {
+    width: 1.3rem;
+    height: 1.3rem;
+    transition: transform 0.18s ease;
+  }
+  .coding-agent-card:hover .action-arrow :global(svg) {
+    transform: translate(2px, -2px);
+  }
   .coding-agent-card:focus-visible {
-    outline: 3px solid var(--agent-tips-accent);
-    outline-offset: 3px;
+    outline: 3px solid #1247e6;
+    outline-offset: 4px;
   }
-
-  :global(html[data-theme="dark"]) .coding-agent-card {
-    --agent-tips-accent: #61abea;
-    --agent-tips-control: color-mix(in srgb, #61abea 16%, #11151d);
-    --agent-tips-control-ink: #f7faff;
-  }
-
-  @media (max-width: 720px) {
+  @media (max-width: 600px) {
     .coding-agent-card {
-      grid-template-columns: 1fr;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 1.25rem;
     }
-
-    .visual {
-      min-height: 10rem;
+    .guide-action {
+      justify-content: space-between;
     }
   }
-
   @media (prefers-reduced-motion: reduce) {
-    .coding-agent-card,
-    .cta {
+    .action-arrow :global(svg) {
       transition: none;
     }
   }
