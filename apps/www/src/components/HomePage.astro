@@ -8,7 +8,8 @@ import HomepageRichSummary from "../components/HomepageRichSummary.astro";
 import { Icon } from "astro-icon/components";
 import type { CollectionEntry } from "astro:content";
 import { projectSlug, writingSlug } from "../lib/content";
-import { siteConfig, siteLinks } from "@anipotts/content/public";
+import { personIdentity, websiteId } from "../lib/identity";
+import { siteConfig } from "@anipotts/content/public";
 
 type Props = {
   cmsHome: CollectionEntry<"home">["data"];
@@ -51,12 +52,11 @@ const introMentionKeys = intro.mention_keys ?? [];
 const profileLd = {
   "@context": "https://schema.org",
   "@type": "ProfilePage",
+  url: siteConfig.url,
+  isPartOf: { "@id": websiteId },
   mainEntity: {
-    "@type": "Person",
-    name: siteConfig.name,
-    url: siteConfig.url,
+    ...personIdentity,
     jobTitle: siteConfig.title,
-    sameAs: [siteLinks.github.href, siteLinks.linkedin.href, siteLinks.x.href],
   },
 };
 ---

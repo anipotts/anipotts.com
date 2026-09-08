@@ -9,6 +9,7 @@
     "preview": "astro preview",
     "check": "astro check",
     "typecheck": "astro check",
+    "test": "node --test test/*.test.mjs",
     "deploy:preview": "wrangler deploy"
   },
   "dependencies": {

@@ -28,6 +28,7 @@ export default defineConfig({
     icon({
       include: {
         ph: [
+          "arrow-up-right-bold",
           "activity",
           "archive",
           "arrow-bend-right-up",
@@ -47,16 +48,19 @@ export default defineConfig({
           "github-logo",
           "hard-drives",
           "heart",
+          "instagram-logo",
           "linkedin-logo",
           "lock-key",
           "play",
           "rss-simple",
           "seal-check",
           "spinner-gap",
+          "tiktok-logo",
           "user-circle",
           "user-focus",
           "waveform",
           "x-logo",
+          "youtube-logo",
         ],
       },
     }),

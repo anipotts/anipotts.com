@@ -156,6 +156,7 @@ const current = Astro.url.pathname;
     align-items: center;
     gap: var(--s-5);
     padding-block: var(--s-4);
+    padding-top: calc(var(--s-4) + env(safe-area-inset-top, 0px));
     margin-bottom: var(--s-6);
   }
 
@@ -261,10 +262,10 @@ const current = Astro.url.pathname;
       column-gap: var(--s-2);
       row-gap: 0;
       padding-block: 0.5rem;
+      padding-top: calc(0.5rem + env(safe-area-inset-top, 0px));
       margin-bottom: var(--s-5);
-      background: color-mix(in srgb, var(--bg) 92%, transparent);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
+      /* Safari extends this opaque surface into its top browser area. */
+      background: var(--bg);
     }
 
     .wordmark {

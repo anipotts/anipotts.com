@@ -39,6 +39,22 @@
 
 * {
   box-sizing: border-box;
+  /* Hide indicators without changing overflow or reserving scrollbar tracks. */
+  scrollbar-width: none;
+  scrollbar-gutter: auto;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+html,
+body {
+  /* Also paints Safari's automatic safe-area and overscroll canvas. */
+  background-color: var(--bg);
+  transition: none;
 }
 
 html {
@@ -58,8 +74,12 @@ html[data-theme="dark"] {
 }
 
 body {
+  position: relative;
   min-height: 100vh;
   margin: 0;
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   background: var(--bg);
   color: var(--ink);
   font-family: var(--sans);

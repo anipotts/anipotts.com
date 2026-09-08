@@ -4,7 +4,7 @@ export const siteConfig = {
   displayName: "ani potts",
   title: "builder and writer working with agents",
   url: "https://anipotts.com",
-  email: "contact@anipotts.com",
+  email: "hello@anipotts.com",
   ogImage: "/og-image.png",
   newsletterUrl: "https://news.anipotts.com",
   adminUrl: "https://admin.anipotts.com",

@@ -4,39 +4,72 @@ interface Props {
   seed: string;
   variant?: number;
 }
-const { kind, seed, variant } = Astro.props;
-const mirrored =
-  (variant ?? [...seed].reduce((sum, char) => sum + char.charCodeAt(0), 0)) %
-    2 ===
-  1;
-// The same landscape is cropped at different scales, never stretched.
-const paths = [
-  "M-80 410C90 185 220 170 410 300S715 425 880 240 1100 135 1280 230V680H-80Z",
-  "M-80 500C95 335 245 320 425 415S735 520 910 360 1110 285 1280 335V680H-80Z",
-  "M-80 595C120 470 295 470 465 535S760 600 930 470 1120 435 1280 460V680H-80Z",
-];
 ---
 
-<span class:list={["ambient-flow", `ambient-flow--${kind}`]} aria-hidden="true">
+<span class="ambient-flow" data-shared-current aria-hidden="true">
   <svg
-    viewBox="0 0 1200 600"
+    viewBox="0 0 600 320"
     preserveAspectRatio="xMidYMid slice"
     focusable="false"
   >
-    <g transform={mirrored ? "translate(1200 0) scale(-1 1)" : undefined}>
+    <g opacity="var(--flow-opacity)">
       {
-        paths.map((d, index) => (
+        [1, 2, 3, 3, 1, 2].map((color) => (
           <path
-            class={`ambient-flow__shape ambient-flow__shape--${index + 1}`}
-            d={d}
+            fill={`var(--flow-${color})`}
+            d="M0 160Q150 60 300 160T600 160V320H0Z"
           />
         ))
       }
     </g>
   </svg>
 </span>
-
-<style>
+<script>
+  import { mountSharedCurrents } from "../lib/shared-currents";
+  let cleanup = mountSharedCurrents();
+  document.addEventListener("astro:before-swap", () => cleanup());
+  document.addEventListener("astro:page-load", () => {
+    cleanup();
+    cleanup = mountSharedCurrents();
+  });
+  if (import.meta.hot) import.meta.hot.dispose(() => cleanup());
+</script>
+<style is:global>
+  :is(.work-card, .writing-card, .experience-feature, .coding-agent-card):has(
+    > .ambient-flow
+  ) {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    --paper-surface: #f7faff;
+    --paper-surface-hover: #f7faff;
+    --paper-ink: #0e2034;
+    --paper-muted: #14263a;
+    --paper-accent: #14263a;
+    --feature-muted: #14263a;
+    --agent-tips-accent: #14263a;
+    --flow-1: #83c7f4;
+    --flow-2: #5c9eed;
+    --flow-3: #5c8bea;
+    --flow-opacity: 0.64;
+    background: var(--paper-surface);
+  }
+  html[data-theme="dark"]
+    :is(.work-card, .writing-card, .experience-feature, .coding-agent-card):has(
+      > .ambient-flow
+    ) {
+    --paper-surface: #151b26;
+    --paper-surface-hover: #151b26;
+    --paper-ink: #eff4fc;
+    --paper-muted: #c2cfdf;
+    --paper-accent: #eff4fc;
+    --feature-muted: #c2cfdf;
+    --agent-tips-accent: #c2cfdf;
+    --flow-1: #61abea;
+    --flow-2: #3e82e8;
+    --flow-3: #2459d8;
+    --flow-opacity: 0.38;
+  }
   .ambient-flow {
     position: absolute;
     inset: 0;
@@ -45,82 +78,20 @@ const paths = [
     border-radius: inherit;
     pointer-events: none;
     contain: strict;
-    --flow-1: #83c7f4;
-    --flow-2: #4d8bea;
-    --flow-3: #174ee8;
-    --flow-opacity: 0.64;
-    --flow-shift: 0px;
   }
   .ambient-flow svg {
-    position: absolute;
-    inset: -6px;
-    width: calc(100% + 12px);
-    height: calc(100% + 12px);
+    width: 100%;
+    height: 100%;
     display: block;
-    opacity: var(--flow-opacity);
-    transform: translateY(var(--flow-shift));
-    transition:
-      transform 220ms ease,
-      opacity 220ms ease;
   }
-  .ambient-flow__shape--1 {
-    fill: var(--flow-1);
+  :is(.experience-feature, .coding-agent-card) > :not(.ambient-flow) {
+    position: relative;
+    z-index: 1;
   }
-  .ambient-flow__shape--2 {
-    fill: var(--flow-2);
+  .work-card:has(> .ambient-flow) :is(.work-card__media, .work-card__body) {
+    background: transparent;
   }
-  .ambient-flow__shape--3 {
-    fill: var(--flow-3);
-  }
-  .ambient-flow--writing {
-    inset: auto -2rem -3rem auto;
-    width: 20rem;
-    height: 10rem;
-    mask-image: linear-gradient(to right, transparent, black 45%);
-    --flow-opacity: 0.28;
-  }
-  :global(html[data-theme="dark"]) .ambient-flow {
-    --flow-1: #61abea;
-    --flow-2: #3e82e8;
-    --flow-3: #2459d8;
-    --flow-opacity: 0.38;
-  }
-  :global(html[data-theme="dark"]) .ambient-flow--writing {
-    --flow-opacity: 0.22;
-  }
-
-  @media (min-width: 880px) and (prefers-reduced-motion: no-preference) {
-    :global(a:focus-visible) > .ambient-flow,
-    :global(a:focus-visible .landscape-frame) > .ambient-flow {
-      --flow-shift: -4px;
-      --flow-opacity: 0.76;
-    }
-    :global(a:focus-visible) > .ambient-flow--writing {
-      --flow-opacity: 0.4;
-    }
-  }
-  @media (min-width: 880px) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
-    :global(a:hover) > .ambient-flow,
-    :global(a:hover .landscape-frame) > .ambient-flow {
-      --flow-shift: -4px;
-      --flow-opacity: 0.76;
-    }
-    :global(a:hover) > .ambient-flow--writing {
-      --flow-opacity: 0.4;
-    }
-  }
-  @media (width < 880px), (pointer: coarse), (prefers-reduced-motion: reduce) {
-    .ambient-flow__shape--3 {
-      display: none;
-    }
-    .ambient-flow svg {
-      transition: none;
-      transform: none;
-    }
-    .ambient-flow--writing {
-      width: 16rem;
-      height: 8rem;
-      bottom: -2.5rem;
-    }
+  .coding-agent-card:has(> .ambient-flow) .visual-arrow {
+    color: var(--paper-ink);
   }
 </style>

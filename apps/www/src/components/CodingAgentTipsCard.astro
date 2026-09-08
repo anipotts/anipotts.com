@@ -1,8 +1,7 @@
 ---
-import { Icon } from "astro-icon/components";
 import AmbientFlow from "./AmbientFlow.astro";
-import { projectSlug, type Project } from "../lib/content";
-
+import { Icon } from "astro-icon/components";
+import type { Project } from "../lib/content";
 interface Props {
   project: Project;
 }
@@ -11,135 +10,118 @@ const { project } = Astro.props;
 
 <a
   class="coding-agent-card card"
-  href={project.data.link_live ?? `/work/${projectSlug(project)}`}
-  aria-label={`Open ${project.data.title}`}
+  href={project.data.link_live ?? project.data.detail_path}
 >
-  <span class="copy">
-    <span class="label mono">{project.data.title}</span>
-    <span class="lede">{project.data.subtitle}</span>
+  <AmbientFlow kind="work" seed={project.slug} />
+  <span class="guide-content">
+    <span class="guide-identity">
+      {
+        project.data.identity.logo_src && (
+          <img
+            src={project.data.identity.logo_src}
+            width="32"
+            height="32"
+            alt=""
+            loading="lazy"
+          />
+        )
+      }
+      <span class="guide-label">{project.data.title}</span>
+    </span>
+    <span class="guide-title">{project.data.subtitle}</span>
   </span>
-
-  <span class="visual landscape-frame" aria-hidden="true">
-    <AmbientFlow kind="work" seed="coding-agent-tips" />
-
-    <Icon class="visual-arrow" name="ph:arrow-up-right" />
-
-    <span class="cta">read the guide</span>
-  </span>
+  <span class="guide-action"
+    >read the guide <span class="action-arrow"
+      ><Icon name="ph:arrow-up-right-bold" aria-hidden="true" /></span
+    ></span
+  >
 </a>
 
 <style>
   .coding-agent-card {
-    --agent-tips-accent: #1247e6;
-    --agent-tips-shell: var(--paper-surface);
-    --agent-tips-ink: var(--paper-ink);
-    --agent-tips-control: #ffffff;
-    --agent-tips-control-ink: var(--agent-tips-accent);
-    display: grid;
-    grid-template-columns: minmax(15rem, 0.78fr) minmax(22rem, 1.22fr);
-    align-items: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: var(--s-5);
-    width: 100%;
-    padding: var(--s-5);
-    overflow: hidden;
+    padding: clamp(1.5rem, 3vw, 2rem);
     border-radius: var(--paper-radius);
-    background: var(--agent-tips-shell);
-    color: var(--agent-tips-ink);
-    box-shadow: var(--paper-shadow);
+    color: var(--paper-ink);
     text-decoration: none;
-    transition:
-      background-color 0.2s ease,
-      color 0.2s ease;
+    box-shadow: var(--paper-shadow);
   }
-
-  .copy {
+  .guide-content {
     display: flex;
     flex-direction: column;
-    gap: var(--s-2);
-    align-self: center;
+    gap: 1rem;
+    min-width: 0;
   }
-
-  .label {
-    color: var(--agent-tips-accent);
-    font-size: 0.72rem;
-    text-transform: uppercase;
+  .guide-identity {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
   }
-
-  .lede {
-    color: var(--agent-tips-ink);
-    font-size: var(--p-body);
-    line-height: 1.45;
+  .guide-identity img {
+    width: 2rem;
+    height: 2rem;
+    flex: none;
+    border-radius: 0.4rem;
+  }
+  .guide-label {
+    color: var(--paper-muted);
+    font-size: 0.8rem;
+    font-weight: 550;
+  }
+  .guide-title {
+    max-width: 29ch;
+    font-size: clamp(1.2rem, 2.3vw, 1.6rem);
+    font-weight: 650;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
     text-wrap: pretty;
   }
-
-  .visual {
-    position: relative;
-    min-width: 0;
-    min-height: 9rem;
-    display: grid;
-    align-items: end;
-    overflow: hidden;
-    isolation: isolate;
-    border-radius: 0.7rem;
-    background: #61abea;
-  }
-
-  .visual > .visual-arrow {
-    position: absolute;
-    top: 50%;
-    left: 52%;
-    z-index: 1;
-    width: clamp(3.75rem, 8vw, 5.5rem);
-    height: clamp(3.75rem, 8vw, 5.5rem);
-    color: #ffffff;
-    pointer-events: none;
-    transform: translate(-50%, -50%);
-  }
-
-  .cta {
-    position: relative;
-    z-index: 2;
-    justify-self: end;
+  .guide-action {
     display: inline-flex;
     align-items: center;
-    gap: var(--s-2);
+    gap: 0.8rem;
+    flex: none;
     min-height: 44px;
-    margin: var(--s-3);
-    padding-inline: var(--s-4);
-    border-radius: 0.45rem;
-    background: var(--agent-tips-control);
-    color: var(--agent-tips-control-ink);
-    box-shadow: 0 0.5rem 1.4rem rgb(6 26 93 / 24%);
-    font-weight: 650;
-    transition:
-      background-color 0.2s ease,
-      color 0.2s ease;
+    color: var(--paper-ink);
+    font-size: 0.85rem;
+    font-weight: 600;
   }
-
+  .action-arrow {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 0.6rem;
+    background: #1247e6;
+    color: #fff;
+  }
+  .action-arrow :global(svg) {
+    width: 1.3rem;
+    height: 1.3rem;
+    transition: transform 0.18s ease;
+  }
+  .coding-agent-card:hover .action-arrow :global(svg) {
+    transform: translate(2px, -2px);
+  }
   .coding-agent-card:focus-visible {
-    outline: 3px solid var(--agent-tips-accent);
-    outline-offset: 3px;
+    outline: 3px solid #1247e6;
+    outline-offset: 4px;
   }
-
-  :global(html[data-theme="dark"]) .coding-agent-card {
-    --agent-tips-accent: #61abea;
-    --agent-tips-control: color-mix(in srgb, #61abea 16%, #11151d);
-    --agent-tips-control-ink: #f7faff;
-  }
-
-  @media (max-width: 720px) {
+  @media (max-width: 600px) {
     .coding-agent-card {
-      grid-template-columns: 1fr;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 1.25rem;
     }
-
-    .visual {
-      min-height: 10rem;
+    .guide-action {
+      justify-content: space-between;
     }
   }
-
   @media (prefers-reduced-motion: reduce) {
-    .coding-agent-card,
-    .cta {
+    .action-arrow :global(svg) {
       transition: none;
     }
   }

@@ -9,6 +9,7 @@ import {
   type Writing,
 } from "../lib/content";
 import { siteConfig } from "@anipotts/content/public";
+import { personId } from "../lib/identity";
 
 interface Props {
   item: Writing;
@@ -25,7 +26,12 @@ const articleLd = {
   headline: d.title,
   description: d.summary,
   datePublished: d.published_at?.toISOString(),
-  author: { "@type": "Person", name: siteConfig.name, url: siteConfig.url },
+  author: {
+    "@type": "Person",
+    "@id": personId,
+    name: siteConfig.name,
+    url: siteConfig.url,
+  },
   mainEntityOfPage: `${siteConfig.url}/writing/${slug}`,
 };
 ---

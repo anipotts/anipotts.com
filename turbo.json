@@ -78,6 +78,11 @@
       "inputs": ["src/**", "vitest.config.*", "package.json"],
       "outputs": []
     },
+    "@anipotts/www#test": {
+      "dependsOn": ["build"],
+      "inputs": ["test/**", "package.json"],
+      "outputs": []
+    },
     "clean": {
       "cache": false
     },
