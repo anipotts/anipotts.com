@@ -103,6 +103,8 @@ const { workflow } = Astro.props;
     --app-tile-size: 36px;
     --app-tile-bg: linear-gradient(#fff, #f4f4f4);
     --app-tile-border: rgb(0 0 0 / 16%);
+    /* Centers of the outer columns, accounting for three 2.25rem gaps. */
+    --edge-step-center: calc(12.5% - 0.84375rem);
     margin: 0;
     position: relative;
   }
@@ -181,7 +183,7 @@ const { workflow } = Astro.props;
     display: block;
     position: relative;
     height: 1.75rem;
-    margin: 0.75rem 12.5% 0;
+    margin: 0.75rem var(--edge-step-center) 0;
     border: 1px solid var(--border-strong);
     border-top: 0;
   }
@@ -214,8 +216,9 @@ const { workflow } = Astro.props;
     .step {
       display: flex;
       flex-direction: column;
-      justify-content: center;
+      justify-content: flex-start;
       padding-block: 2rem;
+      text-align: center;
     }
     .step-flow::after {
       content: "";
@@ -223,7 +226,7 @@ const { workflow } = Astro.props;
       top: 0;
       /* Fourth column starts at 75% plus three quarters of the 2.25rem gap. */
       left: calc(75% + 1.6875rem);
-      right: 12.5%;
+      right: var(--edge-step-center);
       height: 0.75rem;
       border-top: 1px solid var(--border-strong);
       border-right: 1px solid var(--border-strong);
@@ -237,18 +240,21 @@ const { workflow } = Astro.props;
       content: "";
       position: absolute;
       top: -1px;
-      /* Half the column plus 3/8 of the grid gap meets the 12.5% intake. */
-      left: calc(50% + 0.84375rem);
+      left: 50%;
       right: 0;
       border-top: 1px solid var(--border-strong);
     }
     .step h2 {
       display: grid;
-      grid-template-rows: 2.5em 36px;
+      grid-template-rows: 1.25em 36px;
       align-items: start;
+      justify-items: center;
+      min-height: 0;
+      font-size: clamp(1rem, 1.5vw, 1.18rem);
+      white-space: nowrap;
     }
     .step-mark {
-      justify-content: flex-start;
+      justify-content: center;
     }
   }
   @media (width < 880px) {
@@ -291,14 +297,6 @@ const { workflow } = Astro.props;
     }
     .step:first-child {
       border-top-color: transparent;
-    }
-    .step:first-child::before {
-      content: "";
-      position: absolute;
-      top: -1px;
-      left: 50%;
-      right: 0;
-      border-top: 1px solid var(--border-strong);
     }
     .step:not(:last-child)::after {
       content: none;
@@ -457,7 +455,7 @@ const { workflow } = Astro.props;
   }
   .intake-line {
     position: absolute;
-    left: 12.5%;
+    left: var(--edge-step-center);
     top: 0;
     bottom: 0;
     border-left: 1px solid var(--border-strong);
