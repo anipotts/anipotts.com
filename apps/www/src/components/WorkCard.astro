@@ -11,6 +11,7 @@ interface Props {
 
 const { project, variant = project.data.kind, flowVariant } = Astro.props;
 const d = project.data;
+const slug = project.slug;
 const identity = d.identity;
 const preview = d.preview_media;
 const stateIcon =
@@ -30,15 +31,10 @@ const stateLabel = d.status === "wip" ? "in progress" : d.status;
     preview ? "work-card--visual" : "work-card--compact",
   ]}
 >
-  {
-    !preview && (
-      <AmbientFlow kind="writing" seed={project.slug} variant={flowVariant} />
-    )
-  }
+  <AmbientFlow kind="work" seed={slug} variant={flowVariant} />
   {
     preview && (
       <span class="work-card__media landscape-frame">
-        <AmbientFlow kind="work" seed={project.slug} variant={flowVariant} />
         {preview.kind === "video" ? (
           <video
             src={preview.src}
@@ -188,7 +184,7 @@ const stateLabel = d.status === "wip" ? "in progress" : d.status;
     height: auto;
     min-height: 8rem;
     padding: var(--s-4) var(--s-5) var(--s-5);
-    background: var(--paper-surface);
+    background: transparent;
   }
 
   .work-card__header {
