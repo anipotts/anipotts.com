@@ -9,6 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 import { format } from "prettier";
 import { parse } from "yaml";
 import {
@@ -21,7 +22,7 @@ import {
   writingSchema,
 } from "../../packages/content/src/public/schema.ts";
 
-const ROOT = process.cwd();
+const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const SOURCE_ROOT = join(ROOT, "content/public");
 const PROJECTS_ROOT = join(SOURCE_ROOT, "projects");
 const WRITING_ROOT = join(SOURCE_ROOT, "writing");

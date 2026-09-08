@@ -1,9 +1,9 @@
 ---
 import { Icon } from "astro-icon/components";
 import { siteConfig, siteLinks } from "@anipotts/content/public";
-const footerLinks = (
-  ["github", "x", "linkedin", "newsletter", "rss", "admin"] as const
-).map((key) => ({ key, link: siteLinks[key] }));
+const footerLinks = (["github", "x", "linkedin", "rss", "admin"] as const).map(
+  (key) => ({ key, link: siteLinks[key] }),
+);
 ---
 
 <footer id="contact" class="frame foot">

@@ -93,6 +93,7 @@ export const systemsPageSchema = listingPageSchema.extend({
 });
 
 export const newsletterPageSchema = z.object({
+  status: z.literal("draft").default("draft"),
   headline: text,
   deck: text,
   cta_label: text,

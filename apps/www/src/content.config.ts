@@ -6,7 +6,6 @@ import {
   listingPageSchema,
   workPageSchema,
   systemsPageSchema,
-  newsletterPageSchema,
 } from "@anipotts/content/public/pages";
 
 export const collections = {
@@ -25,20 +24,6 @@ export const collections = {
   systemsPage: defineCollection({
     loader: glob({ pattern: "systems.md", base: "../../content/public/pages" }),
     schema: systemsPageSchema,
-  }),
-  newsletterPage: defineCollection({
-    loader: glob({
-      pattern: "newsletter.md",
-      base: "../../content/public/pages",
-    }),
-    schema: newsletterPageSchema,
-  }),
-  newsletterArchivePage: defineCollection({
-    loader: glob({
-      pattern: "newsletter_archive.md",
-      base: "../../content/public/pages",
-    }),
-    schema: listingPageSchema,
   }),
   writing: defineCollection({
     loader: glob({ pattern: "*.md", base: "../../content/public/writing" }),

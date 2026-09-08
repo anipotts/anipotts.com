@@ -1,4 +1,7 @@
 import { defineMiddleware } from "astro:middleware";
+import { verifyEditorialOwner } from "./lib/access-identity";
+import { privateEditorialResponse } from "./lib/editorial-security";
+import { publicSiteUrl } from "./lib/editorial-content";
 import {
   isDevLoopbackPreviewRequest,
   isPublicAdminPath,
@@ -11,6 +14,54 @@ import {
 } from "./lib/admin-auth";
 
 export const onRequest = defineMiddleware(async (context, next) => {
+  if (
+    context.url.pathname === "/" ||
+    context.url.pathname === "/content" ||
+    context.url.pathname.startsWith("/content/") ||
+    context.url.pathname === "/newsletter" ||
+    context.url.pathname.startsWith("/newsletter/") ||
+    context.url.pathname.startsWith("/api/editorial/") ||
+    context.url.pathname === "/preview/home"
+  ) {
+    const local =
+      import.meta.env.DEV &&
+      import.meta.env.EDITORIAL_LOCAL_PREVIEW === true &&
+      context.url.origin === "http://localhost:4311";
+    // This namespace never accepts legacy passwords, sessions, or identity headers.
+    if (
+      !local &&
+      !(await verifyEditorialOwner(
+        context.request,
+        context.locals.runtime?.env ?? {},
+      ))
+    ) {
+      return privateEditorialResponse({ error: "owner_required" }, 401);
+    }
+    let response = await next();
+    if (
+      context.url.pathname === "/preview/home" &&
+      response.headers.get("Content-Type")?.includes("text/html")
+    ) {
+      // Existing public assets are served by www; drafts never acquire public URLs.
+      const html = (await response.text()).replace(
+        /(src|poster)="(\/(?:images|media|fonts)\/[^"<>]*)"/g,
+        (_match, attribute, path) =>
+          `${attribute}="${new URL(path, publicSiteUrl).href}"`,
+      );
+      response = new Response(html, {
+        status: response.status,
+        headers: response.headers,
+      });
+    }
+    response.headers.set("Cache-Control", "private, no-store");
+    response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+    if (context.url.pathname === "/preview/home")
+      response.headers.set(
+        "Content-Security-Policy",
+        "sandbox allow-scripts; form-action 'none'; frame-ancestors 'self'; connect-src 'none'",
+      );
+    return response;
+  }
   if (
     isDevLoopbackPreviewRequest({
       isDev: import.meta.env.DEV,

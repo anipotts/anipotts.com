@@ -1,0 +1,227 @@
+---
+import Shell from "../layouts/Shell.astro";
+import WorkCard from "../components/WorkCard.astro";
+import ExperienceFeatureCard from "../components/ExperienceFeatureCard.astro";
+import WritingRow from "../components/WritingRow.astro";
+import CodingAgentTipsCard from "../components/CodingAgentTipsCard.astro";
+import HomepageRichSummary from "../components/HomepageRichSummary.astro";
+import { Icon } from "astro-icon/components";
+import type { CollectionEntry } from "astro:content";
+import { projectSlug, writingSlug } from "../lib/content";
+import { siteConfig, siteLinks } from "@anipotts/content/public";
+
+type Props = {
+  cmsHome: CollectionEntry<"home">["data"];
+  allWork: CollectionEntry<"projects">[];
+  allWriting: CollectionEntry<"writing">[];
+  preview?: boolean;
+};
+const { cmsHome, allWork, allWriting } = Astro.props;
+const intro = cmsHome.sections.intro;
+const work = cmsHome.sections.past_work;
+const writing = cmsHome.sections.latest_thoughts;
+const heading = intro.heading;
+const mentionMap = cmsHome.mentions;
+const selectedWritingSlugs = writing.writing_slugs ?? [];
+const homeWritingOrder = new Map<string, number>(
+  selectedWritingSlugs.map((slug, index) => [slug, index]),
+);
+const codingAgentGuide = allWork.find(
+  (project) => projectSlug(project) === "claude-code-tips",
+);
+const experiences = allWork
+  .filter((project) => project.data.homepage_placement === "experience")
+  .sort((a, b) => b.data.homepage_order - a.data.homepage_order);
+const projects = allWork
+  .filter((project) => project.data.homepage_placement === "work")
+  .sort((a, b) => b.data.homepage_order - a.data.homepage_order)
+  .slice(0, work.limit ?? 4);
+const writingEntries = allWriting
+  .filter((item) => homeWritingOrder.has(writingSlug(item)))
+  .sort(
+    (a, b) =>
+      (homeWritingOrder.get(writingSlug(a)) ?? 0) -
+      (homeWritingOrder.get(writingSlug(b)) ?? 0),
+  )
+  .slice(0, writing.limit ?? 3);
+const workLabel = work.label || "work";
+const workHref = work.view_all ?? work.links?.[0]?.href ?? "/work";
+const summaryText = intro.subheading;
+const introMentionKeys = intro.mention_keys ?? [];
+const profileLd = {
+  "@context": "https://schema.org",
+  "@type": "ProfilePage",
+  mainEntity: {
+    "@type": "Person",
+    name: siteConfig.name,
+    url: siteConfig.url,
+    jobTitle: siteConfig.title,
+    sameAs: [siteLinks.github.href, siteLinks.linkedin.href, siteLinks.x.href],
+  },
+};
+---
+
+<Shell
+  title={siteConfig.displayName}
+  description={summaryText}
+  path="/"
+  jsonLd={profileLd}
+  robots={Astro.props.preview ? "noindex, nofollow, noarchive" : undefined}
+>
+  <section data-rise>
+    <h1 class="home-hero">
+      {heading}
+    </h1>
+    <p class="hero-summary hero-line">
+      {
+        (
+          <HomepageRichSummary
+            text={summaryText}
+            mentionKeys={introMentionKeys}
+            mentions={mentionMap}
+          />
+        )
+      }
+    </p>
+    <div class="experience-grid" aria-label="experience">
+      {
+        experiences.map((experience) =>
+          experience.data.preview_media ? (
+            <ExperienceFeatureCard project={experience} />
+          ) : (
+            <WorkCard project={experience} />
+          ),
+        )
+      }
+    </div>
+  </section>
+
+  {
+    work.visible && (
+      <section data-rise class="stack">
+        <span class="head-row">
+          <h2 class="section-label">{workLabel}</h2>
+          <a href={workHref} class="quiet-link mono view-all">
+            {work.links?.[0]?.label ?? "view all"}
+            <Icon name="ph:arrow-bend-right-up" />
+          </a>
+        </span>
+        <div class="grid">
+          {projects.map((project, index) => (
+            <WorkCard project={project} flowVariant={index} />
+          ))}
+        </div>
+      </section>
+    )
+  }
+
+  {
+    writing.visible && (
+      <section data-rise class="stack">
+        <span class="head-row">
+          <h2 class="section-label">{writing.label}</h2>
+          <a
+            href={writing.view_all ?? "/writing"}
+            class="quiet-link mono view-all"
+          >
+            {writing.links?.[0]?.label ?? "view all"}
+            <Icon name="ph:arrow-bend-right-up" />
+          </a>
+        </span>
+        <div class="writing-list">
+          {writingEntries.map((item, index) => (
+            <WritingRow item={item} flowVariant={index} />
+          ))}
+        </div>
+      </section>
+    )
+  }
+
+  <section data-rise>
+    {codingAgentGuide && <CodingAgentTipsCard project={codingAgentGuide} />}
+  </section>
+</Shell>
+
+<style>
+  .home-hero {
+    font-size: clamp(3rem, 12vw, 7rem);
+    letter-spacing: 0;
+    line-height: 0.9;
+    margin-bottom: var(--s-4);
+    font-weight: 900;
+  }
+
+  .hero-line {
+    display: block;
+    margin: 0;
+    max-width: none;
+    font-size: clamp(1.08rem, 2.2vw, 1.42rem);
+    line-height: 1.52;
+    text-wrap: pretty;
+  }
+
+  .text-link {
+    color: var(--ink);
+    text-decoration: underline;
+    text-decoration-color: var(--border-strong);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.14em;
+  }
+
+  .text-link:hover {
+    color: var(--interactive);
+    text-decoration-color: var(--interactive);
+  }
+
+  .experience-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-4);
+    margin-top: var(--s-6);
+  }
+
+  .stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+  }
+
+  .head-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
+  .view-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+    font-size: 0.85rem;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(20rem, 100%), 1fr));
+    gap: var(--s-4);
+  }
+
+  .writing-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+  }
+
+  @media (max-width: 640px) {
+    .home-hero {
+      margin-bottom: var(--s-3);
+    }
+
+    .hero-line {
+      font-size: 1.05rem;
+    }
+
+    .experience-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

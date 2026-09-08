@@ -1,0 +1,36 @@
+---
+import HomePage from "../../../../www/src/components/HomePage.astro";
+import { homepageSchema } from "@anipotts/content/public/pages";
+import { parseEditorialSource } from "@anipotts/content/editorial/source";
+import {
+  publishedWriting,
+  visibleProjects,
+} from "../../../../www/src/lib/content";
+import { productionEditor } from "../../lib/editorial-server";
+let home;
+{
+  const storage = import.meta.env.DEV
+    ? await (await import("../../lib/editorial-local")).localDraftStorage()
+    : productionEditor(Astro.locals.runtime?.env)?.storage;
+  const draft = await storage?.get({ kind: "page", id: "home" });
+  if (
+    draft &&
+    !draft.discardedAt &&
+    String(draft.revision) === Astro.url.searchParams.get("revision")
+  ) {
+    try {
+      home = homepageSchema.parse(parseEditorialSource(draft.source).data);
+    } catch {
+      /* Invalid source never renders. */
+    }
+  }
+}
+if (!home) return new Response("preview unavailable", { status: 409 });
+---
+
+<HomePage
+  cmsHome={home}
+  allWork={await visibleProjects()}
+  allWriting={await publishedWriting()}
+  preview
+/>

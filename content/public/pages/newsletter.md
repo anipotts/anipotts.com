@@ -1,4 +1,5 @@
 ---
+status: draft
 headline: notes from the build loop
 deck: my personal notes on agent workflows and product builds
 cta_label: subscribe

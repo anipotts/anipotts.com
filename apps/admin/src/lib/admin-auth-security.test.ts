@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   createAdminSession,
@@ -75,18 +75,18 @@ describe("admin auth security boundaries", () => {
     ).toBe(false);
   });
 
-  it("moves invitation bearers into an http-only cookie before rendering", () => {
-    const source = readFileSync(
-      new URL("../pages/auth/invite.astro", import.meta.url),
-      "utf8",
-    );
-    expect(source).toContain("Astro.cookies.set(ADMIN_INVITE_COOKIE");
-    expect(source).toContain("httpOnly: true");
-    expect(source).toContain('Astro.redirect("/auth/invite", 303)');
-    expect(source).toContain('Referrer-Policy", "no-referrer"');
-    expect(source).not.toContain("data-token=");
-    expect(source).not.toContain("status?token=");
-    expect(source).not.toContain("{ token, display_name");
+  it("retires invitation entry and token exchange routes from the editorial app", () => {
+    for (const path of [
+      "auth/invite.astro",
+      "api/admin/invites/status.ts",
+      "api/admin/invites/register-options.ts",
+      "api/admin/invites/register-verify.ts",
+      "api/admin/members/invite.ts",
+    ]) {
+      expect(existsSync(new URL(`../pages/${path}`, import.meta.url))).toBe(
+        false,
+      );
+    }
   });
 });
 

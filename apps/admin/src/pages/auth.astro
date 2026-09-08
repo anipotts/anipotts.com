@@ -1,484 +1,84 @@
 ---
-import AuthFrame from "../components/auth/AuthFrame.astro";
-import AdminLayout from "../layouts/AdminLayout.astro";
-import { sanitizeAdminReturnPath } from "../lib/admin-auth";
+import "@fontsource-variable/instrument-sans";
+import "../styles/scrollbars.css";
+import BrandMark from "@anipotts/brand/BrandMark.astro";
+import { editorialReturnPath } from "../lib/editorial-return-path";
+import { isDevLoopbackPreviewRequest } from "../lib/admin-access-policy";
 
-const nextPath = sanitizeAdminReturnPath(Astro.url.searchParams.get("next"));
-const allowedPreviewStates = new Set([
-  "direct",
-  "phone",
-  "invite",
-  "pending",
-  "recover",
-  "error",
-  "expired",
-]);
-const requestedState = Astro.url.searchParams.get("state") ?? "direct";
-const initialState = allowedPreviewStates.has(requestedState)
-  ? requestedState
-  : "direct";
-const stepUp = Astro.url.searchParams.get("stepup") === "1";
-
-const stateCopy: Record<string, { title: string; subtitle: string }> = {
-  direct: {
-    title: stepUp ? "confirm it’s you" : "sign in",
-    subtitle: "admin.anipotts.com",
-  },
-  phone: {
-    title: "approve on your phone",
-    subtitle: "scan with your iphone, then approve this browser.",
-  },
-  invite: {
-    title: "join admin",
-    subtitle: "create a passkey to finish your invitation.",
-  },
-  pending: {
-    title: "waiting for approval",
-    subtitle: "your passkey is ready. ani still needs to approve access.",
-  },
-  recover: {
-    title: "recover access",
-    subtitle: "verify with Google, then replace your owner passkeys.",
-  },
-  error: {
-    title: "couldn’t sign in",
-    subtitle: "nothing changed. try your passkey again.",
-  },
-  expired: {
-    title: "request expired",
-    subtitle: "start a new phone approval from this browser.",
-  },
-};
-const initialCopy = stateCopy[initialState] ?? stateCopy.direct;
+const destination = editorialReturnPath(Astro.url.searchParams.get("next"));
+const localPreview = isDevLoopbackPreviewRequest({
+  isDev: import.meta.env.DEV,
+  method: "GET",
+  url: new URL(destination, Astro.url),
+});
 ---
 
-<AdminLayout title="sign in" chrome="auth" hideHeader>
-  <AuthFrame title={initialCopy.title} subtitle={initialCopy.subtitle}>
-    <div
-      id="auth-flow"
-      data-next-path={nextPath}
-      data-initial-state={initialState}
-      data-step-up={String(stepUp)}
-    >
-      <section class="auth-state" data-auth-state="direct">
-        <button class="auth-primary" id="continue-passkey" type="button">
-          continue with passkey
-        </button>
-        <div class="auth-link-row">
-          <button class="auth-quiet-button" id="use-phone" type="button">
-            use phone
-          </button>
-          <a class="auth-link" href="/auth/recover">recover access</a>
-        </div>
-        <p class="auth-message" id="direct-message" aria-live="polite"></p>
-      </section>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow, noarchive" />
+    <title>sign in | admin</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <main aria-label="sign in">
+      <a
+        class="sign-in wordmark"
+        href={destination}
+        aria-label={localPreview ? "open preview" : "sign in"}
+        title={localPreview ? "open preview" : "sign in"}
+      >
+        <BrandMark />
+      </a>
+    </main>
+  </body>
+</html>
 
-      <section class="auth-state auth-phone" data-auth-state="phone" hidden>
-        <div class="auth-qr-frame">
-          <img id="device-qr" alt="phone approval QR code" hidden />
-          <span class="auth-qr-label" id="device-qr-label"
-            >preparing approval</span
-          >
-        </div>
-        <p class="auth-detail" id="phone-message" aria-live="polite">
-          waiting for approval
-        </p>
-        <div class="auth-link-row">
-          <button class="auth-quiet-button" id="cancel-phone" type="button">
-            cancel
-          </button>
-          <a class="auth-link" href="/auth/recover">recover access</a>
-        </div>
-      </section>
-
-      <section class="auth-state" data-auth-state="invite" hidden>
-        <form class="auth-form" id="preview-invite-form">
-          <label class="auth-field">
-            <span>your name</span>
-            <input
-              class="auth-input"
-              name="display_name"
-              autocomplete="name"
-              value="ani"
-              required
-            />
-          </label>
-          <button class="auth-primary" type="submit">create passkey</button>
-        </form>
-      </section>
-
-      <section class="auth-state" data-auth-state="pending" hidden>
-        <a class="auth-primary" href="/auth">back to sign in</a>
-      </section>
-
-      <section class="auth-state" data-auth-state="recover" hidden>
-        <a class="auth-primary" href="/auth/recover">continue with Google</a>
-        <div class="auth-link-row">
-          <a class="auth-link" href="/auth">back to sign in</a>
-        </div>
-      </section>
-
-      <section class="auth-state" data-auth-state="error" hidden>
-        <button class="auth-primary" id="retry-passkey" type="button">
-          try again
-        </button>
-        <div class="auth-link-row">
-          <button class="auth-quiet-button" id="error-use-phone" type="button"
-            >use phone</button
-          >
-          <a class="auth-link" href="/auth/recover">recover access</a>
-        </div>
-        <p class="auth-message" id="error-message" aria-live="polite"></p>
-      </section>
-
-      <section class="auth-state" data-auth-state="expired" hidden>
-        <button class="auth-primary" id="restart-phone" type="button">
-          start again
-        </button>
-        <div class="auth-link-row">
-          <a class="auth-link" href="/auth/recover">recover access</a>
-        </div>
-      </section>
-    </div>
-  </AuthFrame>
-</AdminLayout>
-
-<script>
-  import {
-    startAuthentication,
-    startRegistration,
-  } from "@simplewebauthn/browser";
-  import type {
-    PublicKeyCredentialCreationOptionsJSON,
-    PublicKeyCredentialRequestOptionsJSON,
-  } from "@simplewebauthn/server";
-  import QRCode from "qrcode";
-
-  type AuthenticationEnvelope = {
-    options: PublicKeyCredentialRequestOptionsJSON;
-    challenge_id: string;
-  };
-
-  type RegistrationEnvelope = {
-    options: PublicKeyCredentialCreationOptionsJSON;
-    challenge_id: string;
-  };
-
-  type DeviceStart = {
-    request_id: string;
-    approval_path: string;
-    expires_at: string;
-  };
-
-  type DeviceStatus = {
-    state: "pending" | "approved" | "denied" | "claimed" | "expired";
-    expires_at: string;
-  };
-
-  const copy = {
-    direct: {
-      title: "sign in",
-      subtitle: "admin.anipotts.com",
-    },
-    phone: {
-      title: "approve on your phone",
-      subtitle: "scan with your iphone, then approve this browser.",
-    },
-    invite: {
-      title: "join admin",
-      subtitle: "create a passkey to finish your invitation.",
-    },
-    pending: {
-      title: "waiting for approval",
-      subtitle: "your passkey is ready. ani still needs to approve access.",
-    },
-    recover: {
-      title: "recover access",
-      subtitle: "verify with Google, then replace your owner passkeys.",
-    },
-    error: {
-      title: "couldn’t sign in",
-      subtitle: "nothing changed. try your passkey again.",
-    },
-    expired: {
-      title: "request expired",
-      subtitle: "start a new phone approval from this browser.",
-    },
-  } as const;
-
-  type AuthState = keyof typeof copy;
-
-  const flow = document.querySelector<HTMLElement>("#auth-flow");
-  const title = document.querySelector<HTMLElement>("[data-auth-title]");
-  const subtitle = document.querySelector<HTMLElement>("[data-auth-subtitle]");
-  const continueButton =
-    document.querySelector<HTMLButtonElement>("#continue-passkey");
-  const directMessage = document.querySelector<HTMLElement>("#direct-message");
-  const phoneMessage = document.querySelector<HTMLElement>("#phone-message");
-  const errorMessage = document.querySelector<HTMLElement>("#error-message");
-  const qrImage = document.querySelector<HTMLImageElement>("#device-qr");
-  const qrLabel = document.querySelector<HTMLElement>("#device-qr-label");
-  const nextPath = flow?.dataset.nextPath ?? "/";
-  const stepUp = flow?.dataset.stepUp === "true";
-  let activeRequestId: string | null = null;
-  let pollTimer: number | null = null;
-
-  document
-    .querySelector<HTMLButtonElement>("#continue-passkey")
-    ?.addEventListener("click", () => void continueWithPasskey());
-  document
-    .querySelector<HTMLButtonElement>("#retry-passkey")
-    ?.addEventListener("click", () => void continueWithPasskey());
-  document
-    .querySelector<HTMLButtonElement>("#use-phone")
-    ?.addEventListener("click", () => void startPhoneApproval());
-  document
-    .querySelector<HTMLButtonElement>("#error-use-phone")
-    ?.addEventListener("click", () => void startPhoneApproval());
-  document
-    .querySelector<HTMLButtonElement>("#restart-phone")
-    ?.addEventListener("click", () => void startPhoneApproval());
-  document
-    .querySelector<HTMLButtonElement>("#cancel-phone")
-    ?.addEventListener("click", showDirect);
-  document
-    .querySelector<HTMLFormElement>("#preview-invite-form")
-    ?.addEventListener("submit", (event) => {
-      event.preventDefault();
-      setState("pending");
-    });
-
-  const initialState = (flow?.dataset.initialState ?? "direct") as AuthState;
-  setState(initialState);
-  if (initialState === "phone") {
-    void renderPhoneQr(
-      new URL("/auth/device/preview-request", window.location.origin).href,
-    );
+<style>
+  :global(html) {
+    color-scheme: light dark;
+    --paper: #f7f9fc;
+    --ink: #182334;
+    --accent: #175ea8;
+    background: var(--paper);
+    font-family: "Instrument Sans Variable", sans-serif;
   }
-
-  async function continueWithPasskey() {
-    if (!("PublicKeyCredential" in window)) {
-      await startPhoneApproval();
-      return;
-    }
-
-    setButtonBusy(true);
-    setText(directMessage, stepUp ? "confirming" : "opening passkey");
-    try {
-      await authenticateOrRegister();
-      window.location.assign(nextPath);
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "NotAllowedError") {
-        setText(directMessage, "passkey prompt closed. try again when ready.");
-        return;
-      }
-      setText(errorMessage, humanError(error));
-      setState("error");
-    } finally {
-      setButtonBusy(false);
+  @media (prefers-color-scheme: dark) {
+    :global(html) {
+      --paper: #0b111a;
+      --ink: #edf3fd;
+      --accent: #8abfff;
     }
   }
-
-  async function authenticateOrRegister() {
-    try {
-      const envelope = await postJson<AuthenticationEnvelope>(
-        "/api/admin/passkey/login-options",
-      );
-      const credential = await startAuthentication({
-        optionsJSON: envelope.options,
-      });
-      await postJson("/api/admin/passkey/login-verify", {
-        challenge_id: envelope.challenge_id,
-        credential,
-      });
-    } catch (error) {
-      if (!(error instanceof AuthApiError) || error.code !== "no_credentials") {
-        throw error;
-      }
-      const envelope = await postJson<RegistrationEnvelope>(
-        "/api/admin/passkey/register-options",
-      );
-      const credential = await startRegistration({
-        optionsJSON: envelope.options,
-      });
-      await postJson("/api/admin/passkey/register-verify", {
-        challenge_id: envelope.challenge_id,
-        credential,
-      });
-    }
+  :global(body) {
+    margin: 0;
+  }
+  main {
+    box-sizing: border-box;
+  }
+  .sign-in:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+  }
+  main {
+    min-height: 100svh;
+    display: grid;
+    place-items: center;
+    padding: 2rem;
   }
 
-  async function startPhoneApproval() {
-    clearPhonePolling();
-    setState("phone");
-    setText(phoneMessage, "preparing approval");
-    setQrLoading();
-    try {
-      const request = await postJson<DeviceStart>("/api/admin/device/start");
-      activeRequestId = request.request_id;
-      await renderPhoneQr(
-        new URL(request.approval_path, window.location.origin).href,
-      );
-      setText(phoneMessage, "waiting for approval");
-      schedulePoll();
-    } catch (error) {
-      setText(errorMessage, humanError(error));
-      setState("error");
-    }
+  .sign-in {
+    display: block;
+    width: 8rem;
+    height: 8rem;
+    color: var(--ink);
+    text-decoration: none;
+    border-radius: 1rem;
   }
 
-  function schedulePoll() {
-    clearPhonePolling();
-    pollTimer = window.setTimeout(() => void pollPhoneApproval(), 1400);
+  .sign-in:active {
+    color: var(--accent);
   }
-
-  async function pollPhoneApproval() {
-    if (!activeRequestId) return;
-    try {
-      const status = await getJson<DeviceStatus>(
-        `/api/admin/device/status?request_id=${encodeURIComponent(activeRequestId)}`,
-      );
-      if (status.state === "approved") {
-        await postJson("/api/admin/device/claim", {
-          request_id: activeRequestId,
-        });
-        window.location.assign(nextPath);
-        return;
-      }
-      if (
-        status.state === "expired" ||
-        Date.parse(status.expires_at) <= Date.now()
-      ) {
-        activeRequestId = null;
-        setState("expired");
-        return;
-      }
-      if (status.state === "denied" || status.state === "claimed") {
-        setText(errorMessage, "this approval request is no longer available.");
-        setState("error");
-        return;
-      }
-      schedulePoll();
-    } catch (error) {
-      setText(errorMessage, humanError(error));
-      setState("error");
-    }
-  }
-
-  async function renderPhoneQr(approvalUrl: string) {
-    const dataUrl = await QRCode.toDataURL(approvalUrl, {
-      errorCorrectionLevel: "M",
-      margin: 1,
-      width: 360,
-      color: { dark: "#11111b", light: "#ffffff" },
-    });
-    if (qrImage) {
-      qrImage.src = dataUrl;
-      qrImage.hidden = false;
-    }
-    if (qrLabel) qrLabel.hidden = true;
-  }
-
-  function setQrLoading() {
-    if (qrImage) {
-      qrImage.removeAttribute("src");
-      qrImage.hidden = true;
-    }
-    if (qrLabel) {
-      qrLabel.hidden = false;
-      qrLabel.textContent = "preparing approval";
-    }
-  }
-
-  function showDirect() {
-    clearPhonePolling();
-    activeRequestId = null;
-    setText(directMessage, "");
-    setState("direct");
-  }
-
-  function setState(state: AuthState) {
-    for (const panel of document.querySelectorAll<HTMLElement>(
-      "[data-auth-state]",
-    )) {
-      panel.hidden = panel.dataset.authState !== state;
-    }
-    const stateCopy = copy[state];
-    setText(
-      title,
-      state === "direct" && stepUp ? "confirm it’s you" : stateCopy.title,
-    );
-    setText(subtitle, stateCopy.subtitle);
-  }
-
-  function clearPhonePolling() {
-    if (pollTimer !== null) window.clearTimeout(pollTimer);
-    pollTimer = null;
-  }
-
-  function setButtonBusy(busy: boolean) {
-    if (!continueButton) return;
-    continueButton.disabled = busy;
-    continueButton.setAttribute("aria-busy", String(busy));
-  }
-
-  async function getJson<T>(path: string): Promise<T> {
-    const response = await fetch(path, {
-      cache: "no-store",
-      credentials: "same-origin",
-      headers: { accept: "application/json" },
-    });
-    return responseJson<T>(response);
-  }
-
-  async function postJson<T>(path: string, body?: unknown): Promise<T> {
-    const headers = new Headers({ accept: "application/json" });
-    if (body !== undefined) headers.set("content-type", "application/json");
-    const response = await fetch(path, {
-      method: "POST",
-      credentials: "same-origin",
-      headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-    return responseJson<T>(response);
-  }
-
-  async function responseJson<T>(response: Response): Promise<T> {
-    const data = (await response.json().catch(() => null)) as
-      (T & { error?: string; detail?: string }) | null;
-    if (!response.ok || !data) {
-      throw new AuthApiError(
-        response.status,
-        data?.error ?? "auth_request_failed",
-      );
-    }
-    return data;
-  }
-
-  function humanError(error: unknown): string {
-    if (error instanceof AuthApiError) {
-      if (error.code === "no_credentials") return "no passkey is ready yet.";
-      if (error.code === "db_binding_missing") {
-        return "auth is unavailable in this preview.";
-      }
-      if (error.status === 410) return "this request expired.";
-    }
-    return "try again or use phone approval.";
-  }
-
-  function setText(node: Element | null, value: string) {
-    if (node) node.textContent = value;
-  }
-
-  class AuthApiError extends Error {
-    readonly status: number;
-    readonly code: string;
-
-    constructor(status: number, code: string) {
-      super(code);
-      this.name = "AuthApiError";
-      this.status = status;
-      this.code = code;
-    }
-  }
-</script>
+</style>

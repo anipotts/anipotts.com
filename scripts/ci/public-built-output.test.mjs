@@ -25,6 +25,8 @@ const visible = projects.filter(({ data }) =>
 );
 const published = writing.filter(({ data }) => data.status === "published");
 const privateRoutes = [
+  "/newsletter",
+  "/newsletter/archive",
   ...projects
     .filter(({ data }) => data.public_state === "hidden")
     .map(({ slug }) => `/work/${slug}`),
@@ -37,8 +39,6 @@ const pages = [
   "/work",
   "/writing",
   "/systems",
-  "/newsletter",
-  "/newsletter/archive",
   ...visible.map(({ slug }) => `/work/${slug}`),
   ...published.map(({ slug }) => `/writing/${slug}`),
 ];

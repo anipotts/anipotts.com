@@ -92,6 +92,7 @@ jobs:
       migration_schema_after: ${{ steps.release.outputs.migration_schema_after }}
       production_enabled: ${{ steps.gates.outputs.production_enabled }}
       admin_enabled: ${{ steps.gates.outputs.admin_enabled }}
+      editorial_admin: ${{ steps.gates.outputs.editorial_admin }}
       app_rollback_enabled: ${{ steps.gates.outputs.app_rollback_enabled }}
       deployment_required: ${{ steps.release.outputs.deployment_required }}
       deployment_disposition: ${{ steps.release.outputs.deployment_disposition }}
@@ -152,7 +153,8 @@ jobs:
           const policy = require("./config/release-train.json");
           console.log(`production_enabled=${policy.production_promotion === "enabled"}`);
           console.log(`automatic_migrations_enabled=${policy.automatic_migrations === "enabled_safe_additive"}`);
-          console.log(`admin_enabled=${policy.authenticated_admin_smoke === "enabled"}`);
+          console.log(`admin_enabled=${policy.authenticated_admin_smoke === "enabled" || policy.editorial_admin_release === "enabled"}`);
+          console.log(`editorial_admin=${policy.editorial_admin_release === "enabled"}`);
           console.log(`app_rollback_enabled=${policy.automatic_app_rollback === "enabled"}`);
           NODE
 
@@ -313,6 +315,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Editorial update dates come from file history, not the release date.
+          fetch-depth: 0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -335,6 +340,7 @@ jobs:
           PUBLIC_RELEASE_SCHEMA_VERSION: ${{ needs.release.outputs.database_schema_version }}
 
       - name: Verify read-only production smoke identity
+        if: needs.release.outputs.editorial_admin != 'true'
         run: |
           test -n "$ADMIN_CI_ACCESS_CLIENT_ID"
           test -n "$ADMIN_CI_ACCESS_CLIENT_SECRET"
@@ -345,6 +351,7 @@ jobs:
           ADMIN_CI_READ_TOKEN: ${{ secrets.ADMIN_CI_READ_TOKEN }}
 
       - name: Capture active admin version
+        if: needs.release.outputs.editorial_admin != 'true'
         id: previous
         run: |
           node scripts/ci/worker-version.mjs capture apps/admin/wrangler.toml >> "$GITHUB_OUTPUT"
@@ -356,14 +363,24 @@ jobs:
           ADMIN_CI_ACCESS_CLIENT_SECRET: ${{ secrets.ADMIN_CI_ACCESS_CLIENT_SECRET }}
           ADMIN_CI_READ_TOKEN: ${{ secrets.ADMIN_CI_READ_TOKEN }}
 
+      - name: Capture active editorial version
+        if: needs.release.outputs.editorial_admin == 'true'
+        id: previous_editorial
+        run: node scripts/ci/editorial-release-smoke.mjs capture >> "$GITHUB_OUTPUT"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:
           workingDirectory: apps/admin
+          command: deploy --message "release:${{ github.sha }}"
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Smoke admin access boundary
+        if: needs.release.outputs.editorial_admin != 'true'
         id: boundary_smoke
         continue-on-error: true
         run: node scripts/ci/release-smoke.mjs --target admin --mode unauthenticated --base-url https://admin.anipotts.com --expected-sha "${{ github.sha }}"
@@ -373,6 +390,7 @@ jobs:
           ADMIN_CI_READ_TOKEN: ${{ secrets.ADMIN_CI_READ_TOKEN }}
 
       - name: Smoke admin read-only identity
+        if: needs.release.outputs.editorial_admin != 'true'
         id: identity_smoke
         continue-on-error: true
         run: node scripts/ci/release-smoke.mjs --target admin --mode authenticated --base-url https://admin.anipotts.com --expected-sha "${{ github.sha }}"
@@ -402,6 +420,28 @@ jobs:
         run: |
           echo "::error::admin smoke failed; rollback state is recorded above"
           exit 1
+
+      - name: Verify editorial release and owner boundary
+        if: needs.release.outputs.editorial_admin == 'true'
+        id: editorial_smoke
+        continue-on-error: true
+        run: node scripts/ci/editorial-release-smoke.mjs verify "${{ github.sha }}"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Restore previous editorial version after smoke failure
+        if: steps.editorial_smoke.outcome == 'failure' && needs.release.outputs.app_rollback_enabled == 'true' && needs.release.outputs.d1_changed != 'true'
+        run: |
+          node scripts/ci/worker-version.mjs rollback apps/admin/wrangler.toml "${{ steps.previous_editorial.outputs.previous_version }}"
+          node scripts/ci/editorial-release-smoke.mjs boundary
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Fail unsuccessful editorial release
+        if: steps.editorial_smoke.outcome == 'failure'
+        run: exit 1
 
   deploy-ingest:
     name: Deploy ingest worker

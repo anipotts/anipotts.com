@@ -1,7 +1,7 @@
 ---
 import { Icon } from "astro-icon/components";
 import { navItems } from "@anipotts/content/public";
-import BrandMark from "./BrandMark.astro";
+import BrandMark from "@anipotts/brand/BrandMark.astro";
 
 const current = Astro.url.pathname;
 ---
@@ -356,6 +356,19 @@ const current = Astro.url.pathname;
 </style>
 
 <script>
+  import {
+    savedTheme,
+    saveTheme,
+    themedUrl,
+    resolvedTheme,
+  } from "@anipotts/brand/theme";
+  document.documentElement.dataset.theme = resolvedTheme(savedTheme());
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    if (savedTheme() === "system") {
+      document.documentElement.dataset.theme = resolvedTheme("system");
+      sync();
+    }
+  });
   const btn = document.getElementById("theme-toggle");
   const nav = document.getElementById("primary-nav");
   const navToggle = document.getElementById("nav-toggle");
@@ -378,12 +391,15 @@ const current = Astro.url.pathname;
     const next =
       document.documentElement.dataset.theme === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = next;
-    try {
-      localStorage.setItem("theme", next);
-    } catch {
-      // Theme changes remain usable without persistent browser storage.
-    }
+    saveTheme(next);
     sync();
+  });
+  document.addEventListener("click", (event) => {
+    const link =
+      event.target instanceof Element
+        ? event.target.closest<HTMLAnchorElement>("a.admin-glyph")
+        : null;
+    if (link) link.href = themedUrl("/admin", savedTheme());
   });
   navToggle?.addEventListener("click", () => {
     setNavOpen(navToggle.getAttribute("aria-expanded") !== "true");

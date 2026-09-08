@@ -1,144 +1,71 @@
 ---
-import AdminLayout from "../../layouts/AdminLayout.astro";
-import SemanticInspector from "../../components/SemanticInspector.astro";
-import SemanticReference from "../../components/SemanticReference.astro";
-import { readPageContentInventoryStore } from "../../data/content";
-import { sourceContentRecords } from "../../data/source-content";
-import { carouselPosts } from "../../data/carousels";
-import {
-  internalRecordReference,
-  type SemanticReference as SemanticReferenceModel,
-} from "../../data/semantic-reference";
-
-const pageContentState = await readPageContentInventoryStore(
-  Astro.locals.runtime?.env.DB,
-);
-const stageFor = (status: string) =>
-  status === "published" ? "published" : status.replaceAll("_", " ");
-const pageReferences = pageContentState.rows.map((row) =>
-  internalRecordReference({
-    id: row.id,
-    kind: "graph_entity",
-    label: row.page_key,
-    value: row.page_key,
-    summary: row.summary,
-    source: "page_content",
-    source_ref: row.source_ref,
-    checked_at: row.updated_at || null,
-    source_state: row.updated_at ? "verified" : "unknown",
-  }),
-);
-const sourceReferences = sourceContentRecords.map((record) =>
-  internalRecordReference({
-    id: record.id,
-    kind: "graph_entity",
-    label: record.title,
-    value: record.title,
-    summary: record.summary,
-    source: "tracked content",
-    source_ref: record.source_ref,
-    source_state: "stale",
-  }),
-);
-const contentReferences = [...pageReferences, ...sourceReferences];
+import EditorialLayout from "../../layouts/EditorialLayout.astro";
+import { editorialInventory, recordUpdate } from "../../lib/editorial-content";
+const { pages, projects, writing } = await editorialInventory();
+const sections = {
+  home: "home",
+  projects: "work",
+  workPage: "work",
+  writing: "writing",
+  writingPage: "writing",
+  systemsPage: "systems",
+  newsletterPage: "newsletter",
+} as const;
+const groups = [
+  {
+    name: "pages",
+    href: "/content?group=pages",
+    records: [...pages, ...projects, ...writing].map((item) => ({
+      section: sections[item.collection],
+      title: "title" in item.data ? item.data.title : item.id,
+      status:
+        item.collection === "projects"
+          ? item.data.public_state
+          : item.collection === "writing" ||
+              item.collection === "newsletterPage"
+            ? item.data.status
+            : "published",
+      href: `/content/${item.collection}/${encodeURIComponent(item.id)}`,
+      updated: recordUpdate(item.collection, item.id),
+    })),
+  },
+  {
+    name: "work",
+    href: "/content?group=work",
+    records: projects.map((item) => ({
+      title: item.data.title,
+      status: item.data.public_state,
+      href: `/content/${item.collection}/${encodeURIComponent(item.id)}`,
+      updated: recordUpdate(item.collection, item.id),
+    })),
+  },
+  {
+    name: "writing",
+    href: "/content?group=writing",
+    records: writing.map((item) => ({
+      title: item.data.title,
+      status: item.data.status,
+      href: `/content/${item.collection}/${encodeURIComponent(item.id)}`,
+      updated: recordUpdate(item.collection, item.id),
+    })),
+  },
+  {
+    name: "systems",
+    href: "/content?group=systems",
+    records: pages
+      .filter((item) => item.collection === "systemsPage")
+      .map((item) => ({
+        title: "systems",
+        status: "published",
+        href: `/content/${item.collection}/${encodeURIComponent(item.id)}`,
+        updated: recordUpdate(item.collection, item.id),
+      })),
+  },
+];
 ---
 
-<AdminLayout title="content" hideHeader>
-  <main class="quiet-page quiet-content-page">
-    <header class="quiet-page-header">
-      <h1 class="brand-display">Content</h1>
-      <a class="quiet-primary-action" href="/content/edit/new">new piece</a>
-    </header>
-
-    <nav class="quiet-view-tabs" aria-label="content views">
-      <a href="/content" aria-current="page">library</a>
-      <a href="/content/review">review</a>
-      <a href="/content/drafts">drafts</a>
-      <a href="/content/carousels">carousels</a>
-      <a href="/newsletter">newsletter</a>
-    </nav>
-
-    <section class="quiet-content-section" aria-labelledby="writing-heading">
-      <header>
-        <h2 id="writing-heading">Writing</h2>
-        <span>{sourceContentRecords.length + pageContentState.rows.length}</span
-        >
-      </header>
-      <div class="quiet-editorial-list">
-        {
-          pageContentState.rows.map((row, index) => (
-            <article>
-              <div>
-                <span>{row.page_key}</span>
-                <h3>{row.summary}</h3>
-              </div>
-              <span>{row.published ? "published" : "draft"}</span>
-              <time datetime={row.updated_at || undefined}>
-                {row.updated_at || "not observed"}
-              </time>
-              <div class="quiet-row-actions">
-                <SemanticReference
-                  reference={pageReferences[index]!}
-                  variant="action"
-                  label="details"
-                />
-                <a href={`/content/edit/${encodeURIComponent(row.page_key)}`}>
-                  edit
-                </a>
-                <a href="/content/preview">preview</a>
-              </div>
-            </article>
-          ))
-        }
-        {
-          sourceContentRecords.map((record, index) => (
-            <article>
-              <div>
-                <span>{record.surface}</span>
-                <h3>{record.title}</h3>
-              </div>
-              <span>{stageFor(record.status)}</span>
-              <span>{record.body_words} words</span>
-              <div class="quiet-row-actions">
-                <SemanticReference
-                  reference={sourceReferences[index]!}
-                  variant="action"
-                  label="details"
-                />
-                <a href={record.route}>view</a>
-                <a href="/content/review">review</a>
-              </div>
-            </article>
-          ))
-        }
-      </div>
-    </section>
-
-    <section class="quiet-content-section" aria-labelledby="media-heading">
-      <header>
-        <h2 id="media-heading">Media</h2>
-        <a href="/content/carousels">open carousels</a>
-      </header>
-      <div class="quiet-media-rail">
-        {
-          carouselPosts.slice(0, 6).map((post) => (
-            <a href={`/content/carousels#${post.id}`}>
-              {post.phoneMockInstagram ? (
-                <img src={post.phoneMockInstagram} alt="" loading="lazy" />
-              ) : (
-                <span class="quiet-media-empty" aria-hidden="true" />
-              )}
-              <strong>{post.title}</strong>
-              <small>
-                {post.slideCount} slides · {stageFor(post.status)}
-              </small>
-            </a>
-          ))
-        }
-      </div>
-    </section>
-    <SemanticInspector
-      references={contentReferences as SemanticReferenceModel[]}
-    />
-  </main>
-</AdminLayout>
+<EditorialLayout
+  title="content"
+  groups={groups}
+  selectedGroup={Astro.url.searchParams.get("group") ?? "pages"}
+/>

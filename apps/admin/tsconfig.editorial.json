@@ -1,0 +1,14 @@
+{
+  "extends": "../../config/typescript/base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"],
+    "lib": ["ES2022"]
+  },
+  "include": [
+    "src/editorial/**/*.ts",
+    "test/**/*.ts",
+    "vitest.editorial.config.ts"
+  ],
+  "exclude": []
+}

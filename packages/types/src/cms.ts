@@ -138,6 +138,7 @@ export interface CmsWritingContent {
 }
 
 export interface NewsletterContent {
+  status?: "draft";
   headline: string;
   deck: string;
   cta_label: string;

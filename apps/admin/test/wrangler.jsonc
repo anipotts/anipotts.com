@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../node_modules/wrangler/config-schema.json",
+  "name": "editorial-storage-test",
+  "main": "./editorial-worker.ts",
+  "compatibility_date": "2026-09-08",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [{ "name": "EDITORIAL", "class_name": "EditorialDraftStore" }],
+  },
+  "migrations": [
+    { "tag": "editorial-v1", "new_sqlite_classes": ["EditorialDraftStore"] },
+  ],
+}
