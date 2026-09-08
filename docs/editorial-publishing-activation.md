@@ -5,7 +5,7 @@ The release connects `admin.anipotts.com` to canonical Markdown in `anipotts/ani
 ## Prepared configuration
 
 - GitHub owner: `anipotts`; repository: `anipotts/anipotts.com` (1107959197).
-- Dedicated private GitHub App: `anipotts editorial publisher`. [Permission manifest](../config/editorial-github-app.json). Install on this repository only. No organization permissions, webhook, workflow write permission, or branch-protection bypass.
+- Dedicated private GitHub App: `anipotts editorial publisher`. [Permission manifest](../config/editorial-github-app.json). Install on this repository only. No organization permissions, active webhook, workflow write permission, or branch-protection bypass. GitHub's manifest schema requires a URL in the disabled webhook object; it names the existing admin origin and does not add a receiver.
 - App permissions: contents and pull requests write; actions, administration, checks, statuses, deployments and metadata read. Administration read inspects protection; it cannot modify repository policy.
 - Cloudflare account: `0f856093bdcd34a7da1bde5ee4385163`; Worker: `anipotts-admin`; domain: `admin.anipotts.com`.
 - Runtime App identifiers: `EDITORIAL_GITHUB_APP_ID` and `EDITORIAL_GITHUB_INSTALLATION_ID`.

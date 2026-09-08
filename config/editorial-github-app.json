@@ -3,7 +3,8 @@
   "url": "https://admin.anipotts.com",
   "public": false,
   "hook_attributes": {
-    "active": false
+    "active": false,
+    "url": "https://admin.anipotts.com/"
   },
   "default_permissions": {
     "contents": "write",
