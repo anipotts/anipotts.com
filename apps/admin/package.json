@@ -18,7 +18,7 @@
     "@anipotts/lib": "workspace:*",
     "@anipotts/brand": "workspace:*",
     "@anipotts/types": "workspace:*",
-    "@astrojs/cloudflare": "^12.6.0",
+    "@astrojs/cloudflare": "^14.3.0",
     "@astrojs/react": "^6.0.4",
     "@astryxdesign/core": "^0.4.6",
     "@astryxdesign/theme-neutral": "^0.4.6",
