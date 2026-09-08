@@ -8,7 +8,6 @@ import { Icon } from "astro-icon/components";
 import {
   publishedWriting,
   formatDate,
-  readingTime,
   writingSlug,
   type Writing,
 } from "../lib/content";
@@ -22,7 +21,6 @@ const { item } = Astro.props;
 const slug = writingSlug(item);
 const { Content } = await render(item.entry);
 const d = item.data;
-const minutes = readingTime(item.body ?? "");
 const moreWriting = (await publishedWriting())
   .filter((post) => post.slug !== slug)
   .slice(0, 2);
@@ -55,35 +53,23 @@ const articleLd = {
   <article class="article">
     <DetailWaves seed={`writing/${slug}`} />
     <header data-rise class="head">
-      <a href="/writing" class="quiet-link mono back">
-        <Icon name="ph:arrow-bend-up-left" /> all writing
-      </a>
-      <h1 class="title">{d.title}</h1>
-      <p class="summary">{d.summary}</p>
-      <p class="meta mono muted">
+      <div class="article-topline">
+        <a href="/writing" class="quiet-link mono back">
+          <Icon name="ph:arrow-left" /> all writing
+        </a>
         {
           d.published_at && (
-            <time datetime={d.published_at.toISOString()}>
+            <time
+              class="date mono muted"
+              datetime={d.published_at.toISOString()}
+            >
               {formatDate(d.published_at)}
             </time>
           )
         }
-        <span aria-hidden="true">/</span>
-        <span>{minutes} min read</span>
-      </p>
-      {
-        d.artifact_url && (
-          <a
-            href={d.artifact_url}
-            class="accent-link mono artifact"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            proof artifact ({d.artifact_type ?? "link"})
-            <Icon name="ph:arrow-bend-right-up" />
-          </a>
-        )
-      }
+      </div>
+      <h1 class="title">{d.title}</h1>
+      <p class="summary">{d.summary}</p>
     </header>
 
     <div data-rise class="article-body">
@@ -92,14 +78,18 @@ const articleLd = {
     <footer class="article-end">
       {
         d.tags.length > 0 && (
-          <p class="topics" aria-label="Topics">
-            {d.tags.join(" · ")}
-          </p>
+          <ul class="topics" aria-label="Topics" role="list">
+            {d.tags.map((tag) => (
+              <li class="pill">{tag.replaceAll("-", " ")}</li>
+            ))}
+          </ul>
         )
       }
       <div class="more-heading">
-        <h2>more writing</h2><a href="/writing" class="quiet-link"
-          >view all <Icon name="ph:arrow-up-right" /></a
+        <h2 class="section-label">more writing</h2><a
+          href="/writing"
+          class="quiet-link mono"
+          >view all <Icon name="ph:arrow-bend-right-up" /></a
         >
       </div>
       <div class="more-writing">
@@ -115,13 +105,22 @@ const articleLd = {
     isolation: isolate;
     display: flex;
     flex-direction: column;
-    gap: clamp(3rem, 7vw, 5rem);
+    gap: clamp(2rem, 4vw, 3rem);
   }
   .head {
     display: flex;
     flex-direction: column;
-    gap: 1.2rem;
-    padding: clamp(1rem, 3vw, 2.5rem) 0 clamp(1rem, 4vw, 3rem);
+    gap: var(--s-3);
+  }
+  .article-topline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+  }
+  .date {
+    font-size: 0.85rem;
   }
   .back {
     display: inline-flex;
@@ -130,7 +129,6 @@ const articleLd = {
     font-size: 0.85rem;
     width: fit-content;
     min-height: 44px;
-    margin-bottom: clamp(0.5rem, 2vw, 1.5rem);
   }
   .title {
     font-size: clamp(2.7rem, 6.5vw, 5.5rem);
@@ -143,26 +141,38 @@ const articleLd = {
     max-width: 52ch;
     margin: 0;
     color: var(--ink-muted);
-    font-size: clamp(1.15rem, 2.25vw, 1.65rem);
-    line-height: 1.55;
+    font-size: clamp(1.05rem, 2.2vw, 1.42rem);
+    line-height: 1.52;
     text-wrap: pretty;
-  }
-  .meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    margin: 0;
-    font-size: 0.85rem;
-  }
-  .artifact {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4em;
-    font-size: 0.85rem;
-    width: fit-content;
   }
   .article-body {
     align-self: center;
+  }
+  :global(html:not([data-theme="dark"])) .article-body {
+    --ink: var(--paper-ink);
+    --ink-muted: var(--paper-muted);
+    --interactive: var(--paper-accent);
+    --interactive-ink: #ffffff;
+    --focus: var(--paper-accent);
+    --surface: var(--paper-surface-hover);
+    --border: color-mix(in srgb, var(--paper-ink) 16%, transparent);
+    --astro-code-foreground: var(--ink);
+    --astro-code-background: var(--surface);
+    --astro-code-token-constant: var(--ink);
+    --astro-code-token-string: var(--ink-muted);
+    --astro-code-token-comment: var(--ink-muted);
+    --astro-code-token-keyword: var(--ink-muted);
+    --astro-code-token-parameter: var(--ink);
+    --astro-code-token-function: var(--interactive);
+    --astro-code-token-string-expression: var(--ink-muted);
+    --astro-code-token-punctuation: var(--ink-muted);
+    --astro-code-token-link: var(--interactive);
+    padding: clamp(1.25rem, 4vw, 3rem);
+    max-width: calc(65ch + 6rem);
+    border-radius: var(--paper-radius);
+    background: var(--paper-surface);
+    color: var(--paper-ink);
+    box-shadow: var(--paper-shadow);
   }
   .article-end {
     padding-top: 2rem;
@@ -171,18 +181,26 @@ const articleLd = {
     gap: 1.5rem;
   }
   .topics {
-    margin: 0 0 1rem;
-    color: var(--ink-muted);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+  .topics .pill {
+    border: 1px solid var(--border);
+    padding: 0.4rem 0.7rem;
+    border-radius: 0.6rem;
     font-size: 0.8rem;
+    line-height: 1.3;
+    background: color-mix(in srgb, var(--ink) 4%, transparent);
   }
   .more-heading {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-  }
-  .more-heading h2 {
-    font-size: 1.3rem;
   }
   .more-heading a {
     display: inline-flex;

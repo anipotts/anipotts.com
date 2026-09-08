@@ -15,16 +15,16 @@ const { title, summary, published_at } = item.data;
 
 <a href={`/writing/${slug}`} class="card writing-card">
   <AmbientFlow kind="writing" seed={slug} variant={flowVariant} />
-  {
-    published_at && (
-      <time class="date mono" datetime={published_at.toISOString()}>
-        {formatDate(published_at)}
-      </time>
-    )
-  }
   <span class="head">
     <span class="title-group">
       <span class="title">{title}</span>
+      {
+        published_at && (
+          <time class="date mono" datetime={published_at.toISOString()}>
+            {formatDate(published_at)}
+          </time>
+        )
+      }
     </span>
     <Icon name="ph:arrow-bend-right-up" class="affordance" />
   </span>
@@ -39,7 +39,7 @@ const { title, summary, published_at } = item.data;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    gap: 0.65rem;
+    gap: var(--s-1);
     border-radius: var(--paper-radius);
     background: var(--paper-surface);
     color: var(--paper-ink);
@@ -71,9 +71,9 @@ const { title, summary, published_at } = item.data;
 
   .writing-card .title {
     font-family: var(--display);
-    font-size: clamp(1.2rem, 2.5vw, 1.7rem);
+    font-size: var(--p-h2);
     font-weight: 900;
-    line-height: 1.2;
+    line-height: 1;
     letter-spacing: 0;
     font-synthesis: none;
   }
@@ -99,14 +99,12 @@ const { title, summary, published_at } = item.data;
   }
 
   .writing-card > .ambient-flow {
-    inset: 0 0 auto;
-    height: 0.5rem;
-    border-radius: 0;
+    inset: 0;
+    height: 100%;
+    border-radius: inherit;
   }
 
   .writing-card .date {
-    position: relative;
-    z-index: 1;
     color: var(--paper-muted);
     font-size: 0.8rem;
   }

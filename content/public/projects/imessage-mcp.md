@@ -2,10 +2,10 @@
 title: imessage mcp
 subtitle: letting agents search messages that stay on my Mac
 description: Built a read-only macOS MCP server for local iMessage search, contact stats, streaks, and private on-device analytics. Published on npm as a small local-first tool.
-year: "2025–present"
+year: "Feb 2026"
 category: ai
 role: Creator
-duration: Ongoing
+duration: February 2026
 status: live
 kind: project
 public_state: featured

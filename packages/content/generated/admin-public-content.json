@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "source_hash": "e7f48e575681e75a9519e25147b628050d0f60da5200df319755f3bf2934d9ed",
+  "source_hash": "3fd9550d970b68e98ed53c082e6f293e66009ccc1cbe09b8fa108876c054b919",
   "source_records": [
     {
       "id": "projects.quantercise",
@@ -324,10 +324,10 @@
           "value": "Built a read-only macOS MCP server for local iMessage search, contact stats, streaks, and pri...",
           "kind": "string"
         },
-        { "path": "year", "value": "2025–present", "kind": "string" },
+        { "path": "year", "value": "Feb 2026", "kind": "string" },
         { "path": "category", "value": "ai", "kind": "string" },
         { "path": "role", "value": "Creator", "kind": "string" },
-        { "path": "duration", "value": "Ongoing", "kind": "string" },
+        { "path": "duration", "value": "February 2026", "kind": "string" },
         { "path": "status", "value": "live", "kind": "string" },
         { "path": "kind", "value": "project", "kind": "string" },
         { "path": "public_state", "value": "featured", "kind": "string" },
@@ -586,10 +586,10 @@
           "value": "Built and launched a TypeScript campus quiz in one night. It reached 1,000+ completions in un...",
           "kind": "string"
         },
-        { "path": "year", "value": "2024", "kind": "string" },
+        { "path": "year", "value": "Mar 2025", "kind": "string" },
         { "path": "category", "value": "product", "kind": "string" },
         { "path": "role", "value": "Creator", "kind": "string" },
-        { "path": "duration", "value": "Fall 2024", "kind": "string" },
+        { "path": "duration", "value": "March 2025", "kind": "string" },
         { "path": "status", "value": "live", "kind": "string" },
         { "path": "kind", "value": "project", "kind": "string" },
         { "path": "public_state", "value": "featured", "kind": "string" },
@@ -1124,7 +1124,7 @@
       "status": "live",
       "route": "/work/imessage-mcp",
       "source_ref": "content/public/projects/imessage-mcp.md",
-      "source_hash": "5b8d79960e5aff3419eea39724d12caba42a9524f4c150b8001cf9eb9424b651"
+      "source_hash": "e2adff479fcad7f2ac346b738de52f08daa776e14f8640c55f187fd6d2736d38"
     },
     {
       "entity_id": "public-project:nyu-purity-test",
@@ -1133,7 +1133,7 @@
       "status": "live",
       "route": "/work/nyu-purity-test",
       "source_ref": "content/public/projects/nyu-purity-test.md",
-      "source_hash": "d6252b7649da030029873ddbed18a7afe562e5159deb8a96e8c5bafdeddf5c1f"
+      "source_hash": "2341a0d406a3e16be92ee714220f49e7d9119b4e93cc3168602fb5e188afbe0d"
     },
     {
       "entity_id": "public-project:options-pricing-sensitivity",

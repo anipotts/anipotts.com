@@ -64,6 +64,19 @@ const curves = [0, 1, 2].map((layer) => {
   .layer-2 {
     fill: #b6c8f5;
   }
+  /* Writing uses the main page's blue canvas and restrained light currents. */
+  :global(html:not([data-theme="dark"])) .detail-waves--writing {
+    opacity: 0.14;
+  }
+  :global(html:not([data-theme="dark"])) .detail-waves--writing .layer-0 {
+    fill: #b0d8f5;
+  }
+  :global(html:not([data-theme="dark"])) .detail-waves--writing .layer-1 {
+    fill: #3d80d4;
+  }
+  :global(html:not([data-theme="dark"])) .detail-waves--writing .layer-2 {
+    fill: #2259bf;
+  }
   :global(html[data-theme="dark"]) .layer-0 {
     fill: #132640;
   }

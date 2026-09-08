@@ -50,7 +50,13 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
 ---
 
 <!doctype html>
-<html lang="en" class:list={{ "editorial-detail": detail }}>
+<html
+  lang="en"
+  class:list={{
+    "editorial-detail": detail,
+    "writing-detail": detail && ogType === "article",
+  }}
+>
   <head>
     <meta charset="utf-8" />
     <meta

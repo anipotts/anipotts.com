@@ -67,11 +67,6 @@ export async function visibleProjects(): Promise<Project[]> {
     .sort((a, b) => b.data.sort_order - a.data.sort_order);
 }
 
-export function readingTime(body: string): number {
-  const words = body.trim().split(/\s+/).filter(Boolean).length;
-  return Math.max(1, Math.round(words / 220));
-}
-
 export function formatDate(d: Date): string {
   return d.toLocaleDateString("en-US", {
     year: "numeric",

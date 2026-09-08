@@ -553,7 +553,16 @@ button.fill:disabled {
 }
 
 /* Long-form surfaces keep the same brand palette with stable reading contrast. */
-html.editorial-detail {
+html.editorial-detail .nav {
+  z-index: 20;
+  margin-bottom: 0;
+}
+html.editorial-detail .page {
+  padding-top: clamp(1rem, 2vw, 2rem);
+}
+
+html.editorial-detail:not(.writing-detail),
+html.editorial-detail[data-theme="dark"] {
   --brand-primary-text: #0e2034;
   --brand-display: var(--ink);
   --focus: #1247e6;

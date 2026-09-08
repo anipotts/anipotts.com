@@ -9,7 +9,7 @@ import type {
 } from "@anipotts/types";
 
 export const PUBLIC_CONTENT_SOURCE_HASH =
-  "e7f48e575681e75a9519e25147b628050d0f60da5200df319755f3bf2934d9ed";
+  "3fd9550d970b68e98ed53c082e6f293e66009ccc1cbe09b8fa108876c054b919";
 
 export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
   sections: {
@@ -352,8 +352,8 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
     slug: "imessage-mcp",
     title: "imessage mcp",
     status: "live",
-    year: "2025–present",
-    range: "Ongoing",
+    year: "Feb 2026",
+    range: "February 2026",
     tags: ["typescript", "mcp", "sqlite", "macos", "privacy"],
     summary: "letting agents search messages that stay on my Mac",
     body: "Built a read-only macOS MCP server for local iMessage search, contact stats, streaks, and private on-device analytics. Published on npm as a small local-first tool.",
@@ -388,8 +388,8 @@ export const DEFAULT_CMS_PROJECTS: CmsProjectContent[] = [
     slug: "nyu-purity-test",
     title: "nyu purity test",
     status: "live",
-    year: "2024",
-    range: "Fall 2024",
+    year: "Mar 2025",
+    range: "March 2025",
     tags: ["typescript", "react", "next.js", "tailwindcss", "analytics"],
     summary: "a quiz i built in a night that made its way around NYU",
     body: "Built and launched a TypeScript campus quiz in one night. It reached 1,000+ completions in under 17 hours and 200k+ visits through NYU group chats and social sharing.",

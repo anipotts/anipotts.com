@@ -214,9 +214,18 @@ The shared writing and work detail templates now use option 3's layered-blue
 masthead with a curved lower boundary and stable per-route composition. Reading
 surfaces share typography and light/dark tokens; work retains distinct project
 identity, status/timeframe, actions, story media, and technical sections.
-Year ranges use spaces around the dash. Writing list entries use date-first
-hierarchy and a narrow artwork accent. Project screenshots keep their natural
-ratio and can open in a keyboard-accessible fit/actual-size viewer.
+Year ranges use spaces around the dash. Writing list entries share the main
+site's full-card artwork and title/date row. Article headers use compact spacing,
+plain navigation, and the publication date; reading-time labels are omitted.
+Topics appear as individual chips. In light mode, writing pages use the main
+site's blue canvas and white header, with dark prose on a light reading surface.
+The dark palette remains unchanged. Project screenshots keep their natural ratio
+and can open in a keyboard-accessible fit/actual-size viewer.
+
+NYU Purity Test uses March 2025, based on the complete local repository history's
+first commit and deployment attempts on March 30. iMessage MCP uses February
+2026, based on its first commits on February 24 and npm's first-publication
+timestamp on February 25. These replace the older unsupported year labels.
 
 Options pricing is hidden in canonical content and generated projections. Local
 HTTP checks confirm 404 on its old route and absence from home, work, and sitemap.
