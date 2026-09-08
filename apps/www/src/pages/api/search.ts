@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { json } from "../../lib/api";
+const json = (data: unknown, status = 200) => Response.json(data, { status });
 
 export const prerender = false;
 

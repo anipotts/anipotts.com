@@ -61,7 +61,7 @@ async function verifyHealth(
   baseUrl,
   expectedSha,
   fetchImpl,
-  { allowUnversioned, attempts, delayMs, requestInit },
+  { allowUnversioned, attempts, delayMs, requestInit, target },
 ) {
   let lastHealth;
   let lastError;
@@ -75,7 +75,9 @@ async function verifyHealth(
           ? !health.release_sha
           : health.release_sha === expectedSha;
         const schemaMatches =
-          allowUnversioned || Boolean(health.schema_version);
+          target === "www" ||
+          allowUnversioned ||
+          Boolean(health.schema_version);
         if (versionMatches && schemaMatches) return health;
       } else {
         lastError = `HTTP ${response.status}`;
@@ -116,6 +118,7 @@ export async function smokeRelease(options) {
   }
 
   const health = await verifyHealth(baseUrl, expectedSha, fetchImpl, {
+    target,
     allowUnversioned,
     attempts: healthAttempts,
     delayMs: retryDelayMs,

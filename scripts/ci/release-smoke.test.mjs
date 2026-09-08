@@ -23,7 +23,7 @@ const publicReceipt = await smokeRelease({
   retryDelayMs: 0,
   fetchImpl: async (url) =>
     url.endsWith("/api/health")
-      ? response(200, { release_sha: expectedSha, schema_version: "0042" })
+      ? response(200, { release_sha: expectedSha, ok: true })
       : response(200),
 });
 assert.equal(publicReceipt.release_sha, expectedSha);

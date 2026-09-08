@@ -5,6 +5,9 @@ import icon from "astro-icon";
 import { siteConfig } from "@anipotts/content/public";
 
 export default defineConfig({
+  // Public POST routes enforce their own boundary: subscription origin checks,
+  // signed webhooks, and token-based one-click unsubscribe without browser Origin.
+  security: { checkOrigin: false },
   site: siteConfig.url,
   output: "static",
   trailingSlash: "never",

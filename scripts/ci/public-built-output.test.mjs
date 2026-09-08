@@ -139,6 +139,49 @@ if (origin) {
     await (await fetch(new URL("/api/search?q=%20", origin))).json(),
     { results: [] },
   );
+  if (process.argv.includes("--newsletter")) {
+    for (const [path, options, status] of [
+      ["/api/health", {}, 200],
+      ["/api/newsletter/confirm", {}, 400],
+      ["/api/newsletter/unsubscribe?token=local-test", {}, 200],
+      [
+        "/api/newsletter/unsubscribe",
+        {
+          method: "POST",
+          headers: { "content-type": "application/x-www-form-urlencoded" },
+          body: "List-Unsubscribe=One-Click",
+        },
+        200,
+      ],
+      ["/api/newsletter/webhooks/resend", { method: "POST", body: "{}" }, 501],
+      [
+        "/api/newsletter/subscribe",
+        {
+          method: "POST",
+          headers: { origin: "https://invalid.example" },
+          body: "{}",
+        },
+        403,
+      ],
+      [
+        "/api/subscribe",
+        {
+          method: "POST",
+          headers: { origin: "https://invalid.example" },
+          body: "{}",
+        },
+        403,
+      ],
+    ]) {
+      const response = await fetch(new URL(path, origin), options);
+      assert.equal(response.status, status, path);
+      if (path === "/api/health") {
+        const health = await response.json();
+        assert.equal(health.ok, true);
+        assert.equal("d1" in health, false);
+      }
+    }
+  }
 }
 console.log(
   `Static editorial output: ${pages.length} pages, ${published.length} search records, private exclusions${origin ? ", served routes and redirects" : ""} passed`,

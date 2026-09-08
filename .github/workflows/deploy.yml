@@ -216,8 +216,10 @@ jobs:
 
   deploy-www:
     name: Deploy www
-    needs: [release]
+    needs: [release, deploy-newsletter]
     if: >
+      !cancelled() &&
+      (needs.deploy-newsletter.result == 'success' || needs.deploy-newsletter.result == 'skipped') &&
       needs.release.outputs.production_enabled == 'true' &&
       (
         (github.event_name == 'workflow_dispatch' && inputs.www == 'true') ||
@@ -247,7 +249,6 @@ jobs:
         run: pnpm turbo build --filter=@anipotts/www
         env:
           PUBLIC_RELEASE_SHA: ${{ github.sha }}
-          PUBLIC_RELEASE_SCHEMA_VERSION: ${{ needs.release.outputs.database_schema_version }}
           # Astro's static build bakes PUBLIC_* vars at build time. Add this
           # GitHub Actions secret to enable analytics.
           # Absent = those features no-op and the build still succeeds.
