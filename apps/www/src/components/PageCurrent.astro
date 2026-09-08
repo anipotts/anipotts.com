@@ -19,6 +19,21 @@
   </svg>
 </div>
 
+<script>
+  if (
+    import.meta.env.DEV &&
+    new URL(location.href).searchParams.get("currents") === "motion"
+  ) {
+    document
+      .querySelectorAll(".page-current, .ambient-flow")
+      .forEach((element, index) => {
+        element.setAttribute("data-motion-preview", "");
+        if (element instanceof HTMLElement)
+          element.style.setProperty("--motion-phase", `-${index * 3}s`);
+      });
+  }
+</script>
+
 <style>
   .page-current {
     position: fixed;
@@ -62,5 +77,26 @@
 
   :global(html[data-theme="dark"]) .current--three {
     fill: #426f97;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .page-current[data-motion-preview] .current {
+      animation: preview-current 32s ease-in-out infinite alternate;
+      will-change: transform;
+    }
+    .page-current[data-motion-preview] .current--two {
+      animation-direction: alternate-reverse;
+      animation-delay: -11s;
+    }
+    .page-current[data-motion-preview] .current--three {
+      animation-delay: -19s;
+    }
+  }
+  @keyframes preview-current {
+    from {
+      transform: translate(-8px, 3px);
+    }
+    to {
+      transform: translate(8px, -3px);
+    }
   }
 </style>

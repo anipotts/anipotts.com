@@ -110,4 +110,19 @@ const paths = [
       height: min(80%, 9rem);
     }
   }
+  @media (prefers-reduced-motion: no-preference) {
+    .ambient-flow[data-motion-preview] svg {
+      animation: preview-drift 18s ease-in-out var(--motion-phase) infinite
+        alternate;
+      will-change: transform;
+    }
+  }
+  @keyframes preview-drift {
+    from {
+      transform: translate(-3px, 2px);
+    }
+    to {
+      transform: translate(3px, -2px);
+    }
+  }
 </style>
