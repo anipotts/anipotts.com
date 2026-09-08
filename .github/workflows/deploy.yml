@@ -266,7 +266,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           workingDirectory: apps/www
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -356,7 +356,7 @@ jobs:
           ADMIN_CI_READ_TOKEN: ${{ secrets.ADMIN_CI_READ_TOKEN }}
 
       - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           workingDirectory: apps/admin
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -435,7 +435,7 @@ jobs:
         run: pnpm --filter @anipotts/ingest typecheck
 
       - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           workingDirectory: workers/ingest
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -474,7 +474,7 @@ jobs:
         run: pnpm --filter anipotts-weekly-email typecheck
 
       - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           workingDirectory: workers/weekly-email
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -513,7 +513,7 @@ jobs:
         run: pnpm turbo typecheck --filter=@anipotts/state
 
       - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           workingDirectory: workers/state
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
