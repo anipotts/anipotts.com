@@ -1,10 +1,13 @@
 ---
+import { staticCurrents } from "../lib/static-currents";
+
 interface Props {
   kind: "work" | "writing";
   seed: string;
   variant?: number;
 }
 const { kind, seed, variant } = Astro.props;
+const currents = staticCurrents(seed);
 const mirrored =
   (variant ?? [...seed].reduce((sum, char) => sum + char.charCodeAt(0), 0)) %
     2 ===
@@ -18,22 +21,33 @@ const paths = [
 ---
 
 <span class:list={["ambient-flow", `ambient-flow--${kind}`]} aria-hidden="true">
-  <svg
-    viewBox="0 0 1200 600"
-    preserveAspectRatio="xMidYMid slice"
-    focusable="false"
-  >
-    <g transform={mirrored ? "translate(1200 0) scale(-1 1)" : undefined}>
-      {
-        paths.map((d, index) => (
+  {
+    kind === "writing" ? (
+      <svg viewBox="0 0 600 320" preserveAspectRatio="none" focusable="false">
+        {currents.map(({ d, color }) => (
           <path
-            class={`ambient-flow__shape ambient-flow__shape--${index + 1}`}
+            class={`ambient-flow__shape ambient-flow__shape--${color + 1}`}
             d={d}
           />
-        ))
-      }
-    </g>
-  </svg>
+        ))}
+      </svg>
+    ) : (
+      <svg
+        viewBox="0 0 1200 600"
+        preserveAspectRatio="xMidYMid slice"
+        focusable="false"
+      >
+        <g transform={mirrored ? "translate(1200 0) scale(-1 1)" : undefined}>
+          {paths.map((d, index) => (
+            <path
+              class={`ambient-flow__shape ambient-flow__shape--${index + 1}`}
+              d={d}
+            />
+          ))}
+        </g>
+      </svg>
+    )
+  }
 </span>
 
 <style>
@@ -49,7 +63,6 @@ const paths = [
     --flow-2: #4d8bea;
     --flow-3: #174ee8;
     --flow-opacity: 0.64;
-    --flow-shift: 0px;
   }
   .ambient-flow svg {
     position: absolute;
@@ -58,10 +71,6 @@ const paths = [
     height: calc(100% + 12px);
     display: block;
     opacity: var(--flow-opacity);
-    transform: translateY(var(--flow-shift));
-    transition:
-      transform 220ms ease,
-      opacity 220ms ease;
   }
   .ambient-flow__shape--1 {
     fill: var(--flow-1);
@@ -73,11 +82,14 @@ const paths = [
     fill: var(--flow-3);
   }
   .ambient-flow--writing {
-    inset: auto -2rem -3rem auto;
-    width: 20rem;
-    height: 10rem;
-    mask-image: linear-gradient(to right, transparent, black 45%);
-    --flow-opacity: 0.28;
+    inset: auto -1rem -1rem auto;
+    width: min(44%, 22rem);
+    height: 80%;
+    mask-image: linear-gradient(to right, transparent, black 42%);
+    --flow-1: #83c7f4;
+    --flow-2: #4d8bea;
+    --flow-3: #2459d8;
+    --flow-opacity: 0.7;
   }
   :global(html[data-theme="dark"]) .ambient-flow {
     --flow-1: #61abea;
@@ -86,41 +98,16 @@ const paths = [
     --flow-opacity: 0.38;
   }
   :global(html[data-theme="dark"]) .ambient-flow--writing {
-    --flow-opacity: 0.22;
+    --flow-1: #416c94;
+    --flow-2: #2e5590;
+    --flow-3: #244273;
+    --flow-opacity: 0.72;
   }
 
-  @media (min-width: 880px) and (prefers-reduced-motion: no-preference) {
-    :global(a:focus-visible) > .ambient-flow,
-    :global(a:focus-visible .landscape-frame) > .ambient-flow {
-      --flow-shift: -4px;
-      --flow-opacity: 0.76;
-    }
-    :global(a:focus-visible) > .ambient-flow--writing {
-      --flow-opacity: 0.4;
-    }
-  }
-  @media (min-width: 880px) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
-    :global(a:hover) > .ambient-flow,
-    :global(a:hover .landscape-frame) > .ambient-flow {
-      --flow-shift: -4px;
-      --flow-opacity: 0.76;
-    }
-    :global(a:hover) > .ambient-flow--writing {
-      --flow-opacity: 0.4;
-    }
-  }
-  @media (width < 880px), (pointer: coarse), (prefers-reduced-motion: reduce) {
-    .ambient-flow__shape--3 {
-      display: none;
-    }
-    .ambient-flow svg {
-      transition: none;
-      transform: none;
-    }
+  @media (width < 880px) {
     .ambient-flow--writing {
-      width: 16rem;
-      height: 8rem;
-      bottom: -2.5rem;
+      width: 45%;
+      height: min(80%, 9rem);
     }
   }
 </style>

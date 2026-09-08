@@ -7,12 +7,12 @@ import CodingAgentTipsCard from "../components/CodingAgentTipsCard.astro";
 import HomepageRichSummary from "../components/HomepageRichSummary.astro";
 import { Icon } from "astro-icon/components";
 import { publishedWriting, visibleProjects } from "../lib/content";
+import { personIdentity, websiteId } from "../lib/identity";
 import {
   DEFAULT_HOMEPAGE_CONTENT,
   homepageSummaryText,
   normalizeHomepageContent,
   siteConfig,
-  siteLinks,
 } from "@anipotts/content/public";
 
 export const prerender = true;
@@ -52,17 +52,11 @@ const introMentionKeys = intro.mention_keys ?? [];
 const profileLd = {
   "@context": "https://schema.org",
   "@type": "ProfilePage",
+  url: siteConfig.url,
+  isPartOf: { "@id": websiteId },
   mainEntity: {
-    "@type": "Person",
-    name: siteConfig.name,
-    url: siteConfig.url,
+    ...personIdentity,
     jobTitle: siteConfig.title,
-    sameAs: [
-      siteLinks.github.href,
-      siteLinks.linkedin.href,
-      siteLinks.x.href,
-      siteLinks.newsletter.href,
-    ],
   },
 };
 ---
