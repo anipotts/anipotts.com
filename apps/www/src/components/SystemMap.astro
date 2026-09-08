@@ -254,6 +254,14 @@ const { workflow } = Astro.props;
   @media (width < 880px) {
     .workflow {
       --step-inset: 4rem;
+      --step-padding: 1.35rem;
+      --step-title-size: 1.18rem;
+      --step-title-leading: 1.25;
+      /* Step border + padding + half the first title's line box. */
+      --return-top: calc(
+        1px + var(--step-padding) + var(--step-title-size) *
+          var(--step-title-leading) / 2
+      );
     }
     .diagram {
       position: relative;
@@ -267,7 +275,7 @@ const { workflow } = Astro.props;
       display: grid;
       grid-template-columns: minmax(0, 1fr);
       row-gap: 0.75rem;
-      padding: 1.35rem 0;
+      padding: var(--step-padding) 0;
       text-align: center;
     }
     .step h2 {
@@ -276,7 +284,8 @@ const { workflow } = Astro.props;
       justify-items: center;
       gap: 0.75rem;
       min-height: 0;
-      font-size: 1.18rem;
+      font-size: var(--step-title-size);
+      line-height: var(--step-title-leading);
       margin: 0;
       text-wrap: initial;
     }
@@ -326,24 +335,35 @@ const { workflow } = Astro.props;
     }
     .return-route {
       position: absolute;
-      top: 1.6rem;
+      top: var(--return-top);
       bottom: 0;
       left: 2rem;
-      width: 1.25rem;
+      right: calc((100% - var(--step-inset)) / 2);
+      width: auto;
       height: auto;
       margin: 0;
       border: 1px solid var(--border-strong);
+      border-top: 0;
       border-right: 0;
+      pointer-events: none;
     }
     .return-route::before {
-      top: -4px;
-      left: auto;
-      right: 0;
+      top: -3px;
+      left: calc(1.25rem - 7px);
+      right: auto;
       transform: rotate(135deg);
+    }
+    .return-route::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1.25rem;
+      border-top: 1px solid var(--border-strong);
     }
     .loop-note {
       position: absolute;
-      top: 1.6rem;
+      top: var(--return-top);
       bottom: 0;
       left: 0;
       width: 1.25rem;
