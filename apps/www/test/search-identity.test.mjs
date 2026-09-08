@@ -58,11 +58,11 @@ test("sameAs contains only established public identity profiles", () => {
   );
 });
 
-test("every identity has an accessible secure footer link", () => {
+test("selected profiles have accessible footer links and the current contact address", () => {
   const footer = html.match(/<footer\b[^>]*>.*?<\/footer>/s)?.[0];
   assert.ok(footer, "footer is rendered");
   const anchors = [...footer.matchAll(/<a\b[^>]*>/g)].map((match) => match[0]);
-  for (const href of profiles) {
+  for (const href of profiles.filter((href) => !href.includes("youtube.com"))) {
     const matches = anchors.filter((anchor) =>
       anchor.includes(`href="${href}"`),
     );
@@ -74,9 +74,14 @@ test("every identity has an accessible secure footer link", () => {
   }
   assert.ok(
     anchors.some((anchor) =>
-      anchor.includes('href="mailto:contact@anipotts.com"'),
+      anchor.includes('href="mailto:hello@anipotts.com"'),
     ),
   );
+  assert.doesNotMatch(
+    footer,
+    /youtube\.com|news\.anipotts\.com|contact@anipotts\.com/,
+  );
+  assert.match(footer, /href="\/feed\.xml"/);
 });
 
 test("homepage canonical and ordinary crawl destination remain HTTPS apex", () => {

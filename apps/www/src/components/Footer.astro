@@ -4,17 +4,7 @@ import { siteConfig, siteLinks } from "@anipotts/content/public";
 import { creatorLinks } from "../lib/identity";
 const links = { ...siteLinks, ...creatorLinks };
 const footerLinks = (
-  [
-    "github",
-    "x",
-    "linkedin",
-    "instagram",
-    "tiktok",
-    "youtube",
-    "newsletter",
-    "rss",
-    "admin",
-  ] as const
+  ["github", "x", "linkedin", "instagram", "tiktok", "rss", "admin"] as const
 ).map((key) => ({ key, link: links[key] }));
 const externalProfiles = [
   "github",
@@ -34,7 +24,10 @@ const externalProfiles = [
       footerLinks.map(({ key, link }) => (
         <a
           href={link.href}
-          class:list={["glyph", { "admin-glyph": key === "admin" }]}
+          class:list={[
+            "glyph",
+            { "admin-glyph": key === "admin", "rss-glyph": key === "rss" },
+          ]}
           aria-label={link.label}
           title={link.title}
           target={externalProfiles.includes(key) ? "_blank" : undefined}
@@ -136,6 +129,10 @@ const externalProfiles = [
   }
 
   @media (max-width: 720px) {
+    .rss-glyph {
+      display: none;
+    }
+
     .foot {
       grid-template-columns: minmax(0, 1fr);
       align-items: start;
