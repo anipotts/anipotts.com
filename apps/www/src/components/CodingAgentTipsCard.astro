@@ -1,7 +1,7 @@
 ---
 import { Icon } from "astro-icon/components";
 import AmbientFlow from "./AmbientFlow.astro";
-import type { Project } from "../lib/content";
+import { projectSlug, type Project } from "../lib/content";
 
 interface Props {
   project: Project;
@@ -11,7 +11,7 @@ const { project } = Astro.props;
 
 <a
   class="coding-agent-card card"
-  href={project.data.link_live ?? project.data.detail_path}
+  href={project.data.link_live ?? `/work/${projectSlug(project)}`}
   aria-label={`Open ${project.data.title}`}
 >
   <span class="copy">

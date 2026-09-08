@@ -6,18 +6,20 @@ import WritingRow from "../components/WritingRow.astro";
 import CodingAgentTipsCard from "../components/CodingAgentTipsCard.astro";
 import HomepageRichSummary from "../components/HomepageRichSummary.astro";
 import { Icon } from "astro-icon/components";
-import { publishedWriting, visibleProjects } from "../lib/content";
+import { getEntry } from "astro:content";
 import {
-  DEFAULT_HOMEPAGE_CONTENT,
-  homepageSummaryText,
-  normalizeHomepageContent,
-  siteConfig,
-  siteLinks,
-} from "@anipotts/content/public";
+  publishedWriting,
+  visibleProjects,
+  projectSlug,
+  writingSlug,
+} from "../lib/content";
+import { siteConfig, siteLinks } from "@anipotts/content/public";
 
 export const prerender = true;
 
-const cmsHome = normalizeHomepageContent(DEFAULT_HOMEPAGE_CONTENT);
+const homeEntry = await getEntry("home", "home");
+if (!homeEntry) throw new Error("Missing canonical homepage content");
+const cmsHome = homeEntry.data;
 const intro = cmsHome.sections.intro;
 const work = cmsHome.sections.past_work;
 const writing = cmsHome.sections.latest_thoughts;
@@ -29,7 +31,7 @@ const homeWritingOrder = new Map<string, number>(
 );
 const allWork = await visibleProjects();
 const codingAgentGuide = allWork.find(
-  (project) => project.slug === "claude-code-tips",
+  (project) => projectSlug(project) === "claude-code-tips",
 );
 const experiences = allWork
   .filter((project) => project.data.homepage_placement === "experience")
@@ -39,15 +41,16 @@ const projects = allWork
   .sort((a, b) => b.data.homepage_order - a.data.homepage_order)
   .slice(0, work.limit ?? 4);
 const writingEntries = (await publishedWriting())
-  .filter((item) => homeWritingOrder.has(item.slug))
+  .filter((item) => homeWritingOrder.has(writingSlug(item)))
   .sort(
     (a, b) =>
-      (homeWritingOrder.get(a.slug) ?? 0) - (homeWritingOrder.get(b.slug) ?? 0),
+      (homeWritingOrder.get(writingSlug(a)) ?? 0) -
+      (homeWritingOrder.get(writingSlug(b)) ?? 0),
   )
   .slice(0, writing.limit ?? 3);
 const workLabel = work.label || "work";
 const workHref = work.view_all ?? work.links?.[0]?.href ?? "/work";
-const summaryText = homepageSummaryText(cmsHome);
+const summaryText = intro.subheading;
 const introMentionKeys = intro.mention_keys ?? [];
 const profileLd = {
   "@context": "https://schema.org",

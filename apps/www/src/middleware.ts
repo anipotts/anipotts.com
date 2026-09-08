@@ -47,6 +47,7 @@ const SECURITY_HEADERS: Record<string, string> = {
 function applyHtmlSecurityHeaders(response: Response): Response {
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.includes("text/html")) return response;
+  response = new Response(response.body, response);
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
     response.headers.set(key, value);
   }
@@ -56,19 +57,27 @@ function applyHtmlSecurityHeaders(response: Response): Response {
 export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname, search } = context.url;
   const host = context.url.hostname.toLowerCase();
+  const servePage = (path: string) => {
+    const url = new URL(path, context.url);
+    return import.meta.env.DEV
+      ? next(url)
+      : context.locals.runtime.env.ASSETS.fetch(
+          new Request(url, context.request),
+        );
+  };
 
   if (host === NEWS_HOST) {
     if (pathname === "/") {
-      const page = await next(new URL("/newsletter", context.url));
+      const page = await servePage("/newsletter");
       return applyHtmlSecurityHeaders(page);
     }
 
     if (pathname === "/newsletter") {
-      return context.redirect("/", 301);
+      return context.redirect(`/${search}`, 301);
     }
 
-    if (pathname === "/archive" || pathname.startsWith("/archive/")) {
-      const page = await next(new URL("/newsletter/archive", context.url));
+    if (pathname === "/archive") {
+      const page = await servePage("/newsletter/archive");
       return applyHtmlSecurityHeaders(page);
     }
   }
@@ -100,6 +109,20 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return context.redirect(`${siteConfig.adminUrl}${adminPath}${search}`, 308);
   }
 
+  // Worker-first routing handles aliases and the newsletter host before assets.
+  // Known prebuilt pages bypass Astro's on-demand catch-all entirely.
+  if (
+    !import.meta.env.DEV &&
+    !context.isPrerendered &&
+    ["GET", "HEAD"].includes(context.request.method) &&
+    !pathname.startsWith("/api/") &&
+    !pathname.startsWith("/ingest/")
+  ) {
+    const asset = await context.locals.runtime.env.ASSETS.fetch(
+      context.request,
+    );
+    if (asset.status !== 404) return applyHtmlSecurityHeaders(asset);
+  }
   const response = await next();
 
   return applyHtmlSecurityHeaders(response);

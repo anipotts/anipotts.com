@@ -3,7 +3,6 @@ import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import icon from "astro-icon";
 import { siteConfig } from "@anipotts/content/public";
-import { publicContentHotReload } from "../../scripts/dev/public-content-hot-reload.mjs";
 
 export default defineConfig({
   site: siteConfig.url,
@@ -11,7 +10,6 @@ export default defineConfig({
   trailingSlash: "never",
   build: { format: "file" },
   vite: {
-    plugins: [publicContentHotReload()],
     server: {
       allowedHosts: [
         new URL(siteConfig.newsletterUrl).hostname,

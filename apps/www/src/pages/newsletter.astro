@@ -2,14 +2,13 @@
 import { siteConfig } from "@anipotts/content/public";
 import Shell from "../layouts/Shell.astro";
 import NewsletterSubscribe from "../components/NewsletterSubscribe.astro";
-import {
-  DEFAULT_NEWSLETTER_CONTENT,
-  normalizeNewsletterContent,
-} from "@anipotts/content/public";
+import { getEntry } from "astro:content";
 
-export const prerender = false;
+export const prerender = true;
 
-const copy = normalizeNewsletterContent(DEFAULT_NEWSLETTER_CONTENT);
+const page = await getEntry("newsletterPage", "newsletter");
+if (!page) throw new Error("Missing canonical newsletter page");
+const copy = page.data;
 ---
 
 <Shell

@@ -49,7 +49,10 @@ for (const from of ["making", "projects", "shipping", "running"])
 assert.ok(!middleware.includes('"/work": "/making"'));
 assert.ok(middleware.includes("`${to}${search}`"));
 const route = readFileSync("apps/www/src/pages/work/[slug].astro", "utf8");
-assert.ok(route.includes("Astro.response.status = 404"));
+// Missing/hidden 404 behavior is exercised against the built worker by
+// public-built-output.test.mjs; detail routes now enumerate only public entries.
+assert.ok(route.includes("getStaticPaths"));
+assert.ok(route.includes("await visibleProjects()"));
 assert.ok(!route.includes("Astro.redirect"));
 console.log(
   "work migration: legacy inputs, stable IDs, hidden records, smoke coverage passed",

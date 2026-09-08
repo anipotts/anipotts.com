@@ -7,6 +7,8 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
+    "./public/pages": "./src/public/pages.ts",
+    "./public/references": "./src/public/references.ts",
     "./public/schema": {
       "types": "./dist/public/schema.d.ts",
       "import": "./dist/public/schema.js"

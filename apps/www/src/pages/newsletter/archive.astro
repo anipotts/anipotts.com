@@ -1,17 +1,13 @@
 ---
 import { siteConfig } from "@anipotts/content/public";
 import Shell from "../../layouts/Shell.astro";
-import {
-  DEFAULT_NEWSLETTER_ARCHIVE_CONTENT,
-  normalizeListingPageContent,
-} from "@anipotts/content/public";
+import { getEntry } from "astro:content";
 
-export const prerender = false;
+export const prerender = true;
 
-const copy = normalizeListingPageContent(
-  DEFAULT_NEWSLETTER_ARCHIVE_CONTENT,
-  DEFAULT_NEWSLETTER_ARCHIVE_CONTENT,
-);
+const page = await getEntry("newsletterArchivePage", "newsletter_archive");
+if (!page) throw new Error("Missing canonical newsletter archive page");
+const copy = page.data;
 ---
 
 <Shell

@@ -1,7 +1,7 @@
 ---
 import { Icon } from "astro-icon/components";
 import AmbientFlow from "./AmbientFlow.astro";
-import type { Project } from "../lib/content";
+import { projectSlug, type Project } from "../lib/content";
 
 interface Props {
   project: Project;
@@ -11,13 +11,14 @@ const { project } = Astro.props;
 const d = project.data;
 const preview = d.preview_media;
 const identity = d.identity;
-const isPgi = project.slug === "pgi-research-platform";
-const treatment = project.slug === "structured-ai" ? "current" : "community";
+const slug = projectSlug(project);
+const isPgi = slug === "pgi-research-platform";
+const treatment = slug === "structured-ai" ? "current" : "community";
 const displayTitle = isPgi ? "pgi research" : d.title;
 ---
 
 <a
-  href={d.detail_path}
+  href={`/work/${slug}`}
   class:list={[
     "experience-feature",
     `experience-feature--${treatment}`,
@@ -25,7 +26,7 @@ const displayTitle = isPgi ? "pgi research" : d.title;
   ]}
 >
   <span class="experience-feature__visual landscape-frame">
-    <AmbientFlow kind="work" seed={project.slug} />
+    <AmbientFlow kind="work" seed={slug} />
 
     {
       preview && (

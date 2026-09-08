@@ -1,5 +1,21 @@
 # Site release review: engineer with taste
 
+## September 8 editorial architecture execution
+
+The approved target supersedes the earlier cleanup scope: a static editorial website, an Access-authenticated read-only editorial admin, and the existing newsletter worker. Operational APIs, workers, runner, and database migration ownership move to the existing private System project. Production data and private stored drafts remain untouched.
+
+Execution starts at clean main `7fe5074af292517e1470f51cdeb0f2cadc59f31d` on `codex/editorial-site-simplification`. The replacement execution goal is active. Existing recovery refs and worktree dispositions below remain in force; running previews are preserved.
+
+Baseline: full `pnpm validate` passed before restructuring. The first sandboxed attempt stopped at Wrangler's local server/log permissions; the same suite passed with the required local execution permission. This was an environment restriction, not an application test failure.
+
+Current slice: landing pages read validated Markdown through Astro collections; detail pages, newsletter landing/archive, RSS and sitemap render at build time. Native collection entries replace duplicate wrapper objects. A build-produced published search index serves the existing search API. Cross-record validation rejects duplicate slugs, unknown project references and unpublished homepage selections. Page schemas reject missing fields and unknown provider IDs.
+
+Confirmed regression caught during local built-worker QA: `run_worker_first` plus the on-demand catch-all returned 404 for existing prebuilt detail pages. Runtime routing now consults the assets binding after legacy redirects; build-time rendering bypasses that serving boundary. Query-preserving redirects and genuine missing-record 404s remain acceptance checks.
+
+First-slice verification: full `pnpm validate` passed after the changes. Built-output tests prove 22 editorial pages, five published search records, private-record exclusion, served detail pages, genuine 404s and query-preserving legacy redirects. Browser checks on systems covered the seven requested widths in both themes with no document overflow or broken images; navigation between work and writing passed without console errors. Browser viewport and media overrides were restored. Newsletter-host routing and the full final interaction matrix still require dedicated verification.
+
+Not released: generated projections and legacy admin consumers remain until their replacement is complete. Newsletter isolation, operations extraction, Access cutover, dependency/build cleanup, exact-head CI and production proof are still pending. No provider authentication, secrets, bindings, database contents, or release ownership have been changed in this slice.
+
 ## September 8 cleanup execution
 
 Status: cleanup merged through protected PR [#308](https://github.com/anipotts/anipotts.com/pull/308) and verified in production. Release SHA: `7dc131d19706569e545f93f5a31ef8d4f405bb1f`. Admin promotion and two dirty historical worktree removals remain independently held as described below.

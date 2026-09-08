@@ -2,18 +2,14 @@
 import Shell from "../../layouts/Shell.astro";
 import WorkCard from "../../components/WorkCard.astro";
 import PageHero from "../../components/PageHero.astro";
-import { visibleProjects } from "../../lib/content";
-import {
-  DEFAULT_WORK_INDEX_CONTENT,
-  normalizeListingPageContent,
-} from "@anipotts/content/public";
+import { projectSlug, visibleProjects } from "../../lib/content";
+import { getEntry } from "astro:content";
 
 export const prerender = true;
 const projects = await visibleProjects();
-const copy = normalizeListingPageContent(
-  DEFAULT_WORK_INDEX_CONTENT,
-  DEFAULT_WORK_INDEX_CONTENT,
-);
+const page = await getEntry("workPage", "work");
+if (!page) throw new Error("Missing canonical work page");
+const copy = page.data;
 const groups = [
   {
     id: "experience",
@@ -56,7 +52,7 @@ const groups = [
                 {group.items.map((project) => (
                   <a
                     class="archive-item row-link"
-                    href={project.data.detail_path}
+                    href={`/work/${projectSlug(project)}`}
                   >
                     <span class="archive-heading">
                       <span>{project.data.title}</span>
