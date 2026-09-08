@@ -5,6 +5,7 @@ import Footer from "../components/Footer.astro";
 import CursorPet from "../components/CursorPet.astro";
 import PageCurrent from "../components/PageCurrent.astro";
 import { siteConfig } from "@anipotts/content/public";
+import { personId, websiteId } from "../lib/identity";
 
 interface Props {
   title: string;
@@ -38,8 +39,10 @@ const posthogKey = import.meta.env.PUBLIC_POSTHOG_KEY;
 const siteLd = {
   "@context": "https://schema.org",
   "@type": "WebSite",
+  "@id": websiteId,
   name: siteConfig.displayName,
   url: siteConfig.url,
+  author: { "@id": personId },
 };
 const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
 ---

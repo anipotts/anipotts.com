@@ -1,9 +1,27 @@
 ---
 import { Icon } from "astro-icon/components";
 import { siteConfig, siteLinks } from "@anipotts/content/public";
+import { creatorLinks } from "../lib/identity";
+const links = { ...siteLinks, ...creatorLinks };
 const footerLinks = (
-  ["github", "x", "linkedin", "newsletter", "rss", "admin"] as const
-).map((key) => ({ key, link: siteLinks[key] }));
+  [
+    "github",
+    "x",
+    "linkedin",
+    "instagram",
+    "tiktok",
+    "youtube",
+    "newsletter",
+    "rss",
+    "admin",
+  ] as const
+).map((key) => ({ key, link: links[key] }));
+const externalProfiles = [
+  "github",
+  "x",
+  "linkedin",
+  ...Object.keys(creatorLinks),
+];
 ---
 
 <footer id="contact" class="frame foot">
@@ -19,13 +37,9 @@ const footerLinks = (
           class:list={["glyph", { "admin-glyph": key === "admin" }]}
           aria-label={link.label}
           title={link.title}
-          target={
-            ["github", "x", "linkedin"].includes(key) ? "_blank" : undefined
-          }
+          target={externalProfiles.includes(key) ? "_blank" : undefined}
           rel={
-            ["github", "x", "linkedin"].includes(key)
-              ? "noopener noreferrer"
-              : undefined
+            externalProfiles.includes(key) ? "noopener noreferrer" : undefined
           }
         >
           <Icon name={link.icon} />
