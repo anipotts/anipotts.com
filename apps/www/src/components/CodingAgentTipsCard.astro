@@ -1,6 +1,5 @@
 ---
 import { Icon } from "astro-icon/components";
-import AmbientFlow from "./AmbientFlow.astro";
 import type { Project } from "../lib/content";
 
 interface Props {
@@ -19,8 +18,35 @@ const { project } = Astro.props;
     <span class="lede">{project.data.subtitle}</span>
   </span>
 
-  <span class="visual landscape-frame" aria-hidden="true">
-    <AmbientFlow kind="work" seed="coding-agent-tips" />
+  <span class="visual" aria-hidden="true">
+    <svg
+      class="visual-geometry"
+      viewBox="0 0 520 220"
+      preserveAspectRatio="xMidYMid slice"
+    >
+      <defs>
+        <linearGradient id="agent-tips-sky" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#8fd3ff"></stop>
+          <stop offset="0.52" stop-color="#61abea"></stop>
+          <stop offset="1" stop-color="#174ee8"></stop>
+        </linearGradient>
+        <linearGradient id="agent-tips-fold" x1="0" y1="0" x2="0.88" y2="1">
+          <stop offset="0" stop-color="#4b7cff"></stop>
+          <stop offset="1" stop-color="#082faf"></stop>
+        </linearGradient>
+      </defs>
+      <rect width="520" height="220" fill="url(#agent-tips-sky)"></rect>
+      <path
+        d="M-34 197 88 20c10-14 29-20 45-13l118 50-98 165H-34Z"
+        fill="#1247e6"></path>
+      <path
+        d="m117 220 98-175c8-14 25-21 41-16l134 44-79 147H117Z"
+        fill="url(#agent-tips-fold)"></path>
+      <path d="M290 220 371 64c7-14 24-22 39-17l144 44v129H290Z" fill="#174ee8"
+      ></path>
+      <path d="m49 194 91-132 56 24-79 134H49Z" fill="#7094ef"></path>
+      <path d="m313 198 67-113 65 20-61 115h-71Z" fill="#3c7ee9"></path>
+    </svg>
 
     <Icon class="visual-arrow" name="ph:arrow-up-right" />
 
@@ -36,7 +62,7 @@ const { project } = Astro.props;
     --agent-tips-control: #ffffff;
     --agent-tips-control-ink: var(--agent-tips-accent);
     display: grid;
-    grid-template-columns: minmax(15rem, 0.78fr) minmax(22rem, 1.22fr);
+    grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr);
     align-items: stretch;
     gap: var(--s-5);
     width: 100%;
@@ -77,23 +103,34 @@ const { project } = Astro.props;
     min-width: 0;
     min-height: 9rem;
     display: grid;
-    align-items: end;
+    grid-template-rows: minmax(min-content, 1fr) auto;
+    justify-items: center;
+    align-items: center;
+    gap: var(--s-2);
+    padding: var(--s-3);
     overflow: hidden;
     isolation: isolate;
     border-radius: 0.7rem;
     background: #61abea;
   }
 
-  .visual > .visual-arrow {
+  .visual > .visual-geometry {
     position: absolute;
-    top: 50%;
-    left: 52%;
+    inset: 0;
+    z-index: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  .visual > .visual-arrow {
+    position: relative;
     z-index: 1;
     width: clamp(3.75rem, 8vw, 5.5rem);
     height: clamp(3.75rem, 8vw, 5.5rem);
     color: #ffffff;
     pointer-events: none;
-    transform: translate(-50%, -50%);
   }
 
   .cta {
@@ -104,7 +141,9 @@ const { project } = Astro.props;
     align-items: center;
     gap: var(--s-2);
     min-height: 44px;
-    margin: var(--s-3);
+    max-width: 100%;
+    text-align: center;
+    justify-content: center;
     padding-inline: var(--s-4);
     border-radius: 0.45rem;
     background: var(--agent-tips-control);

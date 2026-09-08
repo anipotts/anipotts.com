@@ -9,8 +9,7 @@ const footerLinks = (
 <footer id="contact" class="frame foot">
   <div class="contact-copy">
     <span>have a question?</span>
-    <a href={siteLinks.email.href} class="quiet-link mono">{siteConfig.email}</a
-    >
+    <a href={siteLinks.email.href} class="contact-email">{siteConfig.email}</a>
   </div>
   <nav class="glyphs" aria-label="Social and site links">
     {
@@ -38,18 +37,27 @@ const footerLinks = (
 
 <style>
   .foot {
-    margin-top: var(--s-8);
-    padding-block: var(--s-6);
-    display: flex;
+    position: relative;
+    margin-top: 0;
+    padding-block: var(--s-5)
+      calc(var(--s-5) + env(safe-area-inset-bottom, 0px));
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    flex-wrap: wrap;
-    justify-content: space-between;
     gap: var(--s-5);
     font-size: var(--p-small);
   }
 
+  .foot::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    inset-inline: clamp(1.25rem, 5vw, 2.5rem);
+    border-top: 1px solid var(--border);
+  }
+
   .glyphs {
-    display: inline-flex;
+    display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: var(--s-2);
@@ -57,7 +65,31 @@ const footerLinks = (
 
   .contact-copy {
     display: grid;
-    gap: 0.35rem;
+    min-width: 0;
+    justify-items: start;
+  }
+
+  .contact-copy > span {
+    color: var(--ink-muted);
+    font-size: var(--p-small);
+  }
+
+  .contact-email {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    max-width: 100%;
+    color: var(--ink);
+    font-size: 1.05rem;
+    font-weight: 600;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+  }
+
+  .contact-email:hover {
+    color: var(--interactive);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
   }
 
   .glyph {
@@ -65,76 +97,44 @@ const footerLinks = (
     transition: color 0.2s;
     width: 44px;
     height: 44px;
+    flex: 0 0 44px;
+    border-radius: 0.5rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     font-size: 1.1rem;
   }
 
-  .glyph:hover {
+  .glyph:hover,
+  .glyph:focus-visible {
     color: var(--interactive);
+    background: color-mix(in srgb, var(--ink) 7%, transparent);
+  }
+
+  :is(.glyph, .contact-email):focus-visible {
+    outline: 2px solid var(--interactive);
+    outline-offset: 4px;
+    border-radius: 0.5rem;
   }
 
   .admin-glyph {
     font-size: 0.95rem;
-    opacity: 0.78;
   }
 
-  @media (width < 880px) {
+  @media (max-width: 720px) {
     .foot {
-      position: relative;
-      display: grid;
       grid-template-columns: minmax(0, 1fr);
       align-items: start;
-      gap: 1rem;
-      margin-top: 0;
-      padding-block: 1.5rem calc(1.5rem + env(safe-area-inset-bottom, 0px));
-    }
-    .foot::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      inset-inline: clamp(1.25rem, 5vw, 2.5rem);
-      border-top: 1px solid var(--border-strong);
-    }
-    .contact-copy {
-      gap: 0;
-    }
-    .contact-copy > span {
-      color: var(--ink-muted);
-      font-size: 0.85rem;
-    }
-    .contact-copy > a {
-      display: flex;
-      align-items: center;
-      width: fit-content;
-      max-width: 100%;
-      min-height: 44px;
-      color: var(--ink);
-      font-size: 1.05rem;
-      overflow-wrap: anywhere;
+      gap: var(--s-3);
     }
     .glyphs {
-      display: grid;
-      grid-template-columns: repeat(6, minmax(44px, 1fr));
-      width: 100%;
-      max-width: 22rem;
-      gap: 0;
-    }
-    .glyph {
-      width: 100%;
-      border-radius: 9px;
-      color: var(--ink);
-      opacity: 1;
-    }
-    .glyph:hover,
-    .glyph:focus-visible {
-      background: color-mix(in srgb, var(--ink) 8%, transparent);
+      justify-content: flex-start;
     }
   }
-  @media (max-width: 303px) {
-    .glyphs {
-      grid-template-columns: repeat(3, minmax(44px, 1fr));
+
+  @media (prefers-reduced-motion: reduce) {
+    .glyph {
+      transition: none;
     }
   }
 </style>
