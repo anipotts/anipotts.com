@@ -80,16 +80,7 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
       href="/brand/apple-touch-icon.png?v=20260908"
     />
     <link rel="alternate" type="application/rss+xml" href="/feed.xml" />
-    <meta
-      name="theme-color"
-      media="(prefers-color-scheme: light)"
-      content="#61abea"
-    />
-    <meta
-      name="theme-color"
-      media="(prefers-color-scheme: dark)"
-      content="#0b1220"
-    />
+    <meta name="theme-color" content="#61abea" />
     <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content={ogType} />
@@ -114,7 +105,33 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
           // Storage can be disabled; the default theme still renders normally.
         }
         const theme = stored === "dark" ? "dark" : "light";
-        document.documentElement.dataset.theme = theme;
+        const root = document.documentElement;
+        root.dataset.theme = theme;
+        // Safari's surrounding canvas and older theme-color consumers must use
+        // the site's selected theme, even when it differs from the OS theme.
+        const syncBrowserTheme = () => {
+          root.style.colorScheme =
+            root.dataset.theme === "dark" ? "dark" : "light";
+          const background = getComputedStyle(root).backgroundColor;
+          if (
+            background &&
+            background !== "rgba(0, 0, 0, 0)" &&
+            background !== "transparent"
+          ) {
+            document
+              .querySelector('meta[name="theme-color"]')
+              ?.setAttribute("content", background);
+          }
+        };
+        syncBrowserTheme();
+        new MutationObserver(syncBrowserTheme).observe(root, {
+          attributes: true,
+          attributeFilter: ["data-theme"],
+        });
+        document.addEventListener("DOMContentLoaded", syncBrowserTheme, {
+          once: true,
+        });
+        window.addEventListener("pageshow", syncBrowserTheme);
       })();
     </script>
     <script
