@@ -32,6 +32,20 @@ const securityWorkflow = readFileSync(
 );
 const smokeWorkflow = readFileSync(join(WORKFLOW_DIR, "smoke.yml"), "utf8");
 const codeRabbit = readFileSync(".coderabbit.yaml", "utf8");
+assert.match(ciWorkflow, /types:.*ready_for_review/);
+assert.match(
+  ciWorkflow,
+  /name: Setup Node\n\s+if: github.event.pull_request.draft == false/,
+);
+assert.match(
+  ciWorkflow,
+  /name: Setup pnpm\n\s+if: github.event.pull_request.draft == false/,
+);
+assert.match(ciWorkflow, /name: Draft diff validation/);
+assert.match(
+  ciWorkflow,
+  /name: Full validation requires ready for review[\s\S]*?exit 1/,
+);
 
 assert.deepEqual(
   workflowFiles,
