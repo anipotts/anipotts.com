@@ -393,3 +393,22 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   padding-inline: var(--spacing-1);
   border-radius: var(--radius-inner);
 }
+
+.publication-progress {
+  border-block: var(--border-width) solid var(--color-border);
+}
+.publication-step {
+  flex: 1;
+  min-width: 0;
+  padding-block-end: var(--spacing-2);
+  border-block-end: var(--spacing-0-5) solid var(--color-border);
+}
+.publication-step[data-state="complete"] {
+  border-block-end-color: var(--color-success);
+}
+.publication-step[data-state="active"] {
+  border-block-end-color: var(--color-accent);
+}
+.publication-step[data-state="blocked"] {
+  border-block-end-color: var(--color-error);
+}
