@@ -1,3 +1,4 @@
+import { refreshSharedCurrents } from "../lib/shared-currents";
 import type { TransitionBeforeSwapEvent } from "astro:transitions/client";
 
 const DURATION = 550;
@@ -367,6 +368,7 @@ function motion(event: TransitionBeforeSwapEvent) {
       nav?.style.removeProperty("position");
       nav?.style.removeProperty("z-index");
       document.documentElement.removeAttribute("data-writing-transition");
+      document.dispatchEvent(new Event("writing:transition-end"));
       const focus = shrinking
         ? destination
         : document.querySelector<HTMLElement>("main h1");
@@ -453,6 +455,7 @@ document.addEventListener("astro:before-swap", (raw) => {
     motion(event);
 });
 document.addEventListener("astro:after-swap", () => {
+  refreshSharedCurrents();
   syncTheme();
   const run = pending;
   pending = undefined;

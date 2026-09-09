@@ -665,6 +665,9 @@ html[data-navigation-settled] [data-rise] {
 .writing-card {
   -webkit-tap-highlight-color: transparent;
 }
+.writing-card:active {
+  box-shadow: var(--paper-shadow);
+}
 .writing-transition-word {
   font-synthesis: none;
 }
