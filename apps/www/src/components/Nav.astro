@@ -6,7 +6,7 @@ import BrandMark from "@anipotts/brand/BrandMark.astro";
 const current = Astro.url.pathname;
 ---
 
-<header class="frame nav">
+<header class="frame nav" transition:persist="site-navigation">
   <a href="/" class="wordmark" aria-label="home">
     <BrandMark />
   </a>
@@ -60,7 +60,8 @@ const current = Astro.url.pathname;
 <script is:inline>
   (() => {
     const mark = document.querySelector(".wordmark");
-    if (!mark) return;
+    if (!mark || mark.dataset.pointerReady) return;
+    mark.dataset.pointerReady = "true";
     const key = "ap-hover-continuity";
     const finePointer = matchMedia("(hover: hover) and (pointer: fine)");
     let pointer = null;
@@ -266,6 +267,13 @@ const current = Astro.url.pathname;
       margin-bottom: var(--s-5);
       /* Safari extends this opaque surface into its top browser area. */
       background: var(--bg);
+    }
+
+    /* The article artwork is the header surface. Keep controls above the
+       opaque expanding card without laying a separate dark strip over it. */
+    :global(html[data-theme="dark"][data-writing-transition]) .nav,
+    :global(html[data-theme="dark"] body:has([data-writing-article])) .nav {
+      background: transparent;
     }
 
     .wordmark {

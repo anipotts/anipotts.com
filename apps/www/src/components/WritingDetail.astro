@@ -22,7 +22,7 @@ const slug = writingSlug(item);
 const { Content } = await render(item);
 const d = item.data;
 const moreWriting = (await publishedWriting())
-  .filter((post) => post.slug !== slug)
+  .filter((post) => writingSlug(post) !== slug)
   .slice(0, 2);
 
 const articleLd = {
@@ -50,7 +50,7 @@ const articleLd = {
   mood="drowsy"
   detail
 >
-  <article class="article">
+  <article class="article" data-writing-article>
     <DetailWaves seed={`writing/${slug}`} />
     <header data-rise class="head">
       <div class="article-topline">

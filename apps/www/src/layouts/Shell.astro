@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import { ClientRouter } from "astro:transitions";
 import Nav from "../components/Nav.astro";
 import Footer from "../components/Footer.astro";
 import CursorPet from "../components/CursorPet.astro";
@@ -58,6 +59,7 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
   }}
 >
   <head>
+    <ClientRouter fallback="swap" />
     <meta charset="utf-8" />
     <meta
       name="viewport"
@@ -134,6 +136,10 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
               : "light";
         const root = document.documentElement;
         root.dataset.theme = theme;
+        if (window.__apThemeSync) {
+          window.__apThemeSync();
+          return;
+        }
         // Safari's surrounding canvas and older theme-color consumers must use
         // the site's selected theme, even when it differs from the OS theme.
         const syncBrowserTheme = () => {
@@ -150,6 +156,7 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
               ?.setAttribute("content", background);
           }
         };
+        window.__apThemeSync = syncBrowserTheme;
         syncBrowserTheme();
         new MutationObserver(syncBrowserTheme).observe(root, {
           attributes: true,
@@ -198,5 +205,8 @@ posthog.init(posthogKey,{api_host:"/ingest",ui_host:"https://us.posthog.com",def
       <slot />
     </main>
     <Footer />
+    <script>
+      import "../scripts/writing-transitions";
+    </script>
   </body>
 </html>

@@ -644,3 +644,15 @@ html.editorial-detail[data-theme="dark"] {
   border-left: 2px solid var(--interactive);
   font-style: normal;
 }
+
+/* Navigation snapshots are replaced by the writing card surface. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+html[data-writing-transition] [data-rise] {
+  animation: none !important;
+}
+.writing-transition-word {
+  font-synthesis: none;
+}

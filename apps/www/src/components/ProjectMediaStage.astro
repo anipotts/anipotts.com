@@ -120,98 +120,105 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
 }
 
 <script>
-  document
-    .querySelectorAll<HTMLElement>("[data-project-media]")
-    .forEach((stage) => {
-      const panels = [
-        ...stage.querySelectorAll<HTMLElement>("[data-media-panel]"),
-      ];
-      const choices = [
-        ...stage.querySelectorAll<HTMLButtonElement>("[data-media-choice]"),
-      ];
-      const caption = stage.querySelector("[data-media-figcaption]");
+  function mount() {
+    document
+      .querySelectorAll<HTMLElement>("[data-project-media]")
+      .forEach((stage) => {
+        if (stage.dataset.mounted) return;
+        stage.dataset.mounted = "true";
+        const panels = [
+          ...stage.querySelectorAll<HTMLElement>("[data-media-panel]"),
+        ];
+        const choices = [
+          ...stage.querySelectorAll<HTMLButtonElement>("[data-media-choice]"),
+        ];
+        const caption = stage.querySelector("[data-media-figcaption]");
 
-      choices.forEach((choice, index) => {
-        choice.addEventListener("click", () => {
-          panels.forEach((panel, panelIndex) => {
-            panel.hidden = panelIndex !== index;
-            if (panel.hidden) panel.querySelector("video")?.pause();
-          });
-          choices.forEach((candidate, choiceIndex) => {
-            candidate.setAttribute(
-              "aria-pressed",
-              String(choiceIndex === index),
-            );
-          });
-          if (caption) caption.textContent = choice.dataset.mediaCaption ?? "";
-        });
-      });
-
-      const dialog = stage.querySelector<HTMLDialogElement>(
-        "[data-image-viewer]",
-      );
-      const image = dialog?.querySelector<HTMLImageElement>(
-        "[data-viewer-image]",
-      );
-      const zoom =
-        dialog?.querySelector<HTMLButtonElement>("[data-image-zoom]");
-      const original = dialog?.querySelector<HTMLAnchorElement>(
-        "[data-image-original]",
-      );
-      const description = dialog?.querySelector("[data-image-description]");
-      const canvas = dialog?.querySelector<HTMLElement>(
-        ".image-viewer__canvas",
-      );
-      if (!dialog || !image || !zoom || !original || !canvas) return;
-
-      stage
-        .querySelectorAll<HTMLAnchorElement>("[data-media-enlarge]")
-        .forEach((link) => {
-          link.addEventListener("click", (event) => {
-            if (
-              event.metaKey ||
-              event.ctrlKey ||
-              event.shiftKey ||
-              event.altKey
-            )
-              return;
-            if (typeof dialog.showModal !== "function") return;
-            event.preventDefault();
-            image.src = link.href;
-            image.alt = link.dataset.mediaAlt ?? "";
-            original.href = link.href;
-            if (description) description.textContent = image.alt;
-            dialog.dataset.zoomed = "false";
-            zoom.setAttribute("aria-pressed", "false");
-            zoom.textContent = "actual size";
-            dialog.showModal();
-            canvas.scrollTo(0, 0);
+        choices.forEach((choice, index) => {
+          choice.addEventListener("click", () => {
+            panels.forEach((panel, panelIndex) => {
+              panel.hidden = panelIndex !== index;
+              if (panel.hidden) panel.querySelector("video")?.pause();
+            });
+            choices.forEach((candidate, choiceIndex) => {
+              candidate.setAttribute(
+                "aria-pressed",
+                String(choiceIndex === index),
+              );
+            });
+            if (caption)
+              caption.textContent = choice.dataset.mediaCaption ?? "";
           });
         });
 
-      zoom.addEventListener("click", () => {
-        const zoomed = dialog.dataset.zoomed !== "true";
-        dialog.dataset.zoomed = String(zoomed);
-        zoom.setAttribute("aria-pressed", String(zoomed));
-        zoom.textContent = zoomed ? "fit image" : "actual size";
-        canvas.scrollTo(0, 0);
-        canvas.focus();
+        const dialog = stage.querySelector<HTMLDialogElement>(
+          "[data-image-viewer]",
+        );
+        const image = dialog?.querySelector<HTMLImageElement>(
+          "[data-viewer-image]",
+        );
+        const zoom =
+          dialog?.querySelector<HTMLButtonElement>("[data-image-zoom]");
+        const original = dialog?.querySelector<HTMLAnchorElement>(
+          "[data-image-original]",
+        );
+        const description = dialog?.querySelector("[data-image-description]");
+        const canvas = dialog?.querySelector<HTMLElement>(
+          ".image-viewer__canvas",
+        );
+        if (!dialog || !image || !zoom || !original || !canvas) return;
+
+        stage
+          .querySelectorAll<HTMLAnchorElement>("[data-media-enlarge]")
+          .forEach((link) => {
+            link.addEventListener("click", (event) => {
+              if (
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey
+              )
+                return;
+              if (typeof dialog.showModal !== "function") return;
+              event.preventDefault();
+              image.src = link.href;
+              image.alt = link.dataset.mediaAlt ?? "";
+              original.href = link.href;
+              if (description) description.textContent = image.alt;
+              dialog.dataset.zoomed = "false";
+              zoom.setAttribute("aria-pressed", "false");
+              zoom.textContent = "actual size";
+              dialog.showModal();
+              canvas.scrollTo(0, 0);
+            });
+          });
+
+        zoom.addEventListener("click", () => {
+          const zoomed = dialog.dataset.zoomed !== "true";
+          dialog.dataset.zoomed = String(zoomed);
+          zoom.setAttribute("aria-pressed", String(zoomed));
+          zoom.textContent = zoomed ? "fit image" : "actual size";
+          canvas.scrollTo(0, 0);
+          canvas.focus();
+        });
+        dialog
+          .querySelector("[data-image-close]")
+          ?.addEventListener("click", () => dialog.close());
+        dialog.addEventListener("click", (event) => {
+          if (event.target !== dialog) return;
+          const box = dialog.getBoundingClientRect();
+          if (
+            event.clientX < box.left ||
+            event.clientX > box.right ||
+            event.clientY < box.top ||
+            event.clientY > box.bottom
+          )
+            dialog.close();
+        });
       });
-      dialog
-        .querySelector("[data-image-close]")
-        ?.addEventListener("click", () => dialog.close());
-      dialog.addEventListener("click", (event) => {
-        if (event.target !== dialog) return;
-        const box = dialog.getBoundingClientRect();
-        if (
-          event.clientX < box.left ||
-          event.clientX > box.right ||
-          event.clientY < box.top ||
-          event.clientY > box.bottom
-        )
-          dialog.close();
-      });
-    });
+  }
+  mount();
+  document.addEventListener("astro:page-load", mount);
 </script>
 
 <style>
