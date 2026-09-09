@@ -8,6 +8,22 @@ const found = (head = sha) =>
   Response.json({ ref, object: { type: "commit", sha: head } });
 
 describe("restricted GitHub branch adapter", () => {
+  it("invokes the transport without a client receiver, as Workers native fetch requires", async () => {
+    let receiver: unknown = "not called";
+    const client = new EditorialGitHub(
+      async () => "test-token",
+      async function (this: unknown, url, init) {
+        receiver = this;
+        // Construct the actual Workers Request too, rather than accepting an
+        // unsupported request configuration inside a permissive transport mock.
+        expect(new Request(url, init).redirect).toBe("manual");
+        if (this !== undefined) throw new TypeError("Illegal invocation");
+        return found();
+      },
+    );
+    expect(await client.branchHead(id)).toBe(sha);
+    expect(receiver).toBeUndefined();
+  });
   const pull = () => ({
     number: 10,
     node_id: "PR_test",
