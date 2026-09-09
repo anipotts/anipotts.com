@@ -224,7 +224,7 @@ h2.section-label {
 .hero-summary {
   font-size: var(--p-body);
   color: var(--ink-muted);
-  max-width: var(--measure);
+  max-width: none;
   margin: 0;
 }
 

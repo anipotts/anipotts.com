@@ -62,14 +62,22 @@ const timeframe = year
     flex: none;
   }
   .status-dot--live {
-    background: #1247e6;
+    background: #16834a;
   }
   :global(html[data-theme="dark"]) .status-dot--live {
-    background: #8cc8f5;
+    background: #4ade80;
   }
   .status-dot--wip {
-    border: 1px solid currentColor;
-    background: transparent;
+    background: #a86708;
+  }
+  :global(html[data-theme="dark"]) .status-dot--wip {
+    background: #f5bd4f;
+  }
+  .status-dot--archived {
+    background: #7b8491;
+  }
+  :global(html[data-theme="dark"]) .status-dot--archived {
+    background: #8b96a6;
   }
   .timeframe {
     padding-left: 0.8rem;
