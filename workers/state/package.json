@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@anipotts/types": "workspace:*",
-    "hono": "^4.12.18"
+    "hono": "^4.13.7"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260822.1",
