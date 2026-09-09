@@ -1,5 +1,15 @@
 # Site release review: engineer with taste
 
+## September 8 recovered Browser follow-through
+
+Native fork `01a0837d-8547-7e33-a34d-2c7ba78b8036` owns publishing continuation. The in-app Browser works in this task. Ani's table feedback is applied consistently to editorial headers and cells: horizontal padding increases from 8px to the 12px spacing token, preserving row height. Browser measurement and visual review confirm the change without horizontal page overflow.
+
+Browser QA exposed stale optimized dependencies returning HTTP 504 and preventing editor hydration. The managed preview now uses an isolated development cache; the editor remains usable after a production build and type checks. Private autosave, a two-tab revision conflict, use-saved recovery, history restore and actual home preview passed. The original subheading was restored exactly and verified after reload. No test text was published.
+
+Release review fixes restore a bounded newsletter-table probe in public health and require database readiness in www smoke. Verified Access owner assertions also permit read-only access to retained dashboards and read APIs without a legacy login cookie; existing mutation gates remain in place. Owner boundary smoke includes inbox, proof, deploys and control-plane reads.
+
+The dedicated GitHub App form is prepared with the reviewed repository permissions. Creation, installation, keys and Cloudflare Access verification remain activation steps; no operational publishing receipt is claimed by this local/browser evidence.
+
 ## September 8 website task succession
 
 Ani authorized task `01a08347-87d8-7341-806e-f0ad7f9baffb` (`website successor`) to continue the failed `website` task `01a026ea-1eee-7d11-a9cf-5a7f8a518644`. The source transcript and its compacted user requests were recovered read-only. The original task remains preserved: its paginated history expects inherited ordinal 518, while resume recognizes a final durable ordinal of 517. No runtime database or transcript was edited.

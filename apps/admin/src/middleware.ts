@@ -1,5 +1,8 @@
 import { defineMiddleware } from "astro:middleware";
-import { verifyEditorialOwner } from "./lib/access-identity";
+import {
+  retainedAccessPrincipal,
+  verifyEditorialOwner,
+} from "./lib/access-identity";
 import { privateEditorialResponse } from "./lib/editorial-security";
 import { publicSiteUrl } from "./lib/editorial-content";
 import {
@@ -70,6 +73,20 @@ export const onRequest = defineMiddleware(async (context, next) => {
     })
   ) {
     return next();
+  }
+
+  if (!isPublicAdminPath(context.url.pathname)) {
+    const principal = await retainedAccessPrincipal(
+      context.request,
+      context.locals.runtime?.env ?? {},
+    );
+    if (principal) {
+      context.locals.adminPrincipal = principal;
+      const response = await next();
+      response.headers.set("Cache-Control", "private, no-store");
+      response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+      return response;
+    }
   }
 
   const resolved = await resolveAdminSession(context);

@@ -11,7 +11,11 @@ export const ADMIN_RECOVERY_SESSION_SECONDS = 10 * 60;
 
 export type AdminRole = "owner" | "operator" | "viewer";
 export type AdminAuthMethod =
-  "passkey" | "device_approval" | "google_recovery" | "legacy_passkey";
+  | "passkey"
+  | "device_approval"
+  | "google_recovery"
+  | "legacy_passkey"
+  | "cloudflare_access";
 export type AdminSessionRestriction = "recovery" | null;
 
 export type AdminPrincipal = {

@@ -1,4 +1,5 @@
 import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
+import type { AdminPrincipal } from "./admin-auth";
 
 // Owner confirmed by Ani for the editorial-only admin.
 export const EDITORIAL_OWNER_EMAIL = "hello@anipotts.com";
@@ -9,6 +10,27 @@ type AccessConfig = {
 };
 
 const keySets = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
+
+/** Retained dashboards expose reads; editorial writes use their own CSRF gate. */
+export async function retainedAccessPrincipal(
+  request: Request,
+  config: AccessConfig,
+  resolveKey?: JWTVerifyGetKey,
+): Promise<AdminPrincipal | null> {
+  if (request.method !== "GET" && request.method !== "HEAD") return null;
+  const owner = await verifyEditorialOwner(request, config, resolveKey);
+  if (!owner) return null;
+  return {
+    userId: owner.subject,
+    role: "viewer",
+    sessionId: `access:${owner.subject}`,
+    authMethod: "cloudflare_access",
+    stepUpAt: null,
+    restriction: null,
+    displayName: owner.email,
+    credentialId: null,
+  };
+}
 
 /** Only the signed application assertion can establish an owner session. */
 export async function verifyEditorialOwner(

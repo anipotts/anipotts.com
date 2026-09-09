@@ -38,6 +38,10 @@ export async function verifyEditorialBoundary(fetchImpl = fetch) {
     "/content/home/home",
     "/api/editorial/record",
     "/preview/home?revision=1",
+    "/inbox",
+    "/proof",
+    "/deploys",
+    "/api/admin/control-plane",
   ]) {
     const response = await fetchImpl(`https://admin.anipotts.com${path}`, {
       redirect: "manual",

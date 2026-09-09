@@ -75,10 +75,14 @@ async function verifyHealth(
           ? !health.release_sha
           : health.release_sha === expectedSha;
         const schemaMatches =
-          target === "www" ||
-          allowUnversioned ||
-          Boolean(health.schema_version);
-        if (versionMatches && schemaMatches) return health;
+          allowUnversioned || Boolean(health.schema_version);
+        const databaseHealthy =
+          target !== "www" ||
+          (health.ok === true &&
+            health.d1 === "connected" &&
+            health.tables_ok === true);
+        if (versionMatches && schemaMatches && databaseHealthy) return health;
+        if (!databaseHealthy) lastError = "newsletter database unavailable";
       } else {
         lastError = `HTTP ${response.status}`;
       }
@@ -98,7 +102,7 @@ async function verifyHealth(
       `release SHA mismatch at ${baseUrl}: expected ${expectedSha}, received ${lastHealth?.release_sha || lastError || "missing"}`,
     );
   }
-  throw new Error(`schema version missing at ${baseUrl}`);
+  throw new Error(`${lastError || "schema version missing"} at ${baseUrl}`);
 }
 
 export async function smokeRelease(options) {

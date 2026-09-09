@@ -178,7 +178,8 @@ if (origin) {
       if (path === "/api/health") {
         const health = await response.json();
         assert.equal(health.ok, true);
-        assert.equal("d1" in health, false);
+        assert.equal(health.d1, "connected");
+        assert.equal(health.tables_ok, true);
       }
     }
   }

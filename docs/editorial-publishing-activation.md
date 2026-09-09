@@ -21,7 +21,7 @@ The manifest is configuration to review, not a credential-creating executable. G
 
 ## Activation sequence
 
-1. Finish local owner review in the managed `http://localhost:4311/` preview, including autosave, revision conflict, recovery and actual-page preview. Preserve the existing local draft. Browser execution is currently unavailable in this successor task; use the requested Browser once its runtime is available.
+1. Finish local owner review in the managed `http://localhost:4311/` preview, including autosave, revision conflict, recovery and actual-page preview. The recovered native Browser verified these flows on September 8; temporary whitespace edits were restored from the original revision and the exact original subheading survived reload. The preview dependency cache is isolated from builds and checks. Preserve the existing local draft.
 2. Obtain exact native setup approval. Verify or create the dedicated App, repository-only installation and private Worker secrets. Record only IDs, permission names and key fingerprints. Inspect the actual owner Access policy before any cutover.
 3. Add the public signing key and verified non-secret App IDs in a reviewed PR. Enable `EDITORIAL_ENABLED`, keep `EDITORIAL_PUBLISH_ENABLED=false` until private owner flows pass. Set `editorial_admin_release=enabled` only with the reviewed owner cutover.
 4. Re-read live protection and the exact PR head; require the GitHub Actions Build/lint/typecheck/test and Security Review checks, strict checking, required PRs, conversation resolution, admin enforcement, no bypass, and no force-push/deletion. Merge only through the protected provider path. The public build must include the renderer used by admin before publishing is enabled.

@@ -7,7 +7,12 @@ import {
   type JWTPayload,
   type JWTVerifyGetKey,
 } from "jose";
-import { EDITORIAL_OWNER_EMAIL, verifyEditorialOwner } from "./access-identity";
+import {
+  EDITORIAL_OWNER_EMAIL,
+  retainedAccessPrincipal,
+  verifyEditorialOwner,
+} from "./access-identity";
+import { hasAdminCapability } from "./admin-auth";
 
 const config = {
   ACCESS_TEAM_DOMAIN: "https://anipotts.cloudflareaccess.com",
@@ -50,6 +55,35 @@ function request(token?: string) {
 }
 
 describe("editorial Access identity", () => {
+  it.each(["/inbox", "/proof", "/deploys", "/api/admin/control-plane"])(
+    "permits owner reads of %s without an expired legacy cookie",
+    async (path) => {
+      const req = new Request(`https://admin.anipotts.com${path}`, {
+        headers: { "cf-access-jwt-assertion": await assertion() },
+      });
+      const principal = await retainedAccessPrincipal(req, config, keys);
+      expect(principal?.authMethod).toBe("cloudflare_access");
+      expect(principal?.displayName).toBe(EDITORIAL_OWNER_EMAIL);
+      expect(hasAdminCapability(principal!.role, "admin:read")).toBe(true);
+      expect(hasAdminCapability(principal!.role, "control:execute")).toBe(
+        false,
+      );
+      expect(hasAdminCapability(principal!.role, "content:publish")).toBe(
+        false,
+      );
+      expect(
+        await retainedAccessPrincipal(
+          new Request(req, { method: "POST" }),
+          config,
+          keys,
+        ),
+      ).toBeNull();
+      expect(
+        await retainedAccessPrincipal(new Request(req.url), config, keys),
+      ).toBeNull();
+    },
+  );
+
   it("accepts the exact owner only after real signature verification", async () => {
     expect(
       await verifyEditorialOwner(request(await assertion()), config, keys),

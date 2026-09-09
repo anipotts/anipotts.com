@@ -109,14 +109,26 @@ console.log(
 const ts = createRequire(resolve("apps/www/package.json"))("typescript");
 let outboundCalls = 0;
 function endpoint(file, imports) {
-  const compiled = ts.transpileModule(readFileSync(file, "utf8"), {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022,
+  const compiled = ts.transpileModule(
+    readFileSync(file, "utf8")
+      .replaceAll(
+        "import.meta.env.PUBLIC_RELEASE_SHA",
+        JSON.stringify("test-release"),
+      )
+      .replaceAll(
+        "import.meta.env.PUBLIC_RELEASE_SCHEMA_VERSION",
+        JSON.stringify("0043"),
+      ),
+    {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2022,
+      },
     },
-  }).outputText;
+  ).outputText;
   const context = {
     exports: {},
+    Response,
     console: { error() {} },
     require(name) {
       if (!(name in imports))
@@ -185,3 +197,55 @@ for (const route of [subscribe, alias]) {
 console.log(
   "subscribe and legacy alias: success, validation, origin, unavailable guard, and exceeded-limit behavior passed without outbound effects",
 );
+
+const healthRoute = endpoint("apps/www/src/pages/api/health.ts", {});
+for (const [db, expected] of [
+  [undefined, 503],
+  [
+    {
+      prepare() {
+        throw new Error("private database failure");
+      },
+    },
+    503,
+  ],
+  [
+    {
+      prepare(sql) {
+        assert.match(sql, /newsletter_subscribers/);
+        return {
+          async first() {
+            return { cnt: 0 };
+          },
+        };
+      },
+    },
+    200,
+  ],
+  [
+    {
+      prepare() {
+        return {
+          async first() {
+            return null;
+          },
+        };
+      },
+    },
+    503,
+  ],
+]) {
+  const result = await healthRoute.GET({
+    locals: { runtime: { env: { DB: db } } },
+  });
+  assert.equal(result.status, expected);
+  const body = await result.json();
+  assert.equal(body.ok, expected === 200);
+  assert.equal(body.tables_ok, expected === 200);
+  assert.equal(body.d1, expected === 200 ? "connected" : "error");
+  assert.equal(body.release_sha, "test-release");
+  assert.equal(
+    JSON.stringify(body).includes("private database failure"),
+    false,
+  );
+}
