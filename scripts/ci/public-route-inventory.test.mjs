@@ -123,3 +123,8 @@ for (const unsafeFile of [
     /invalid file/,
   );
 }
+
+assert.equal(
+  PUBLIC_SMOKE_ROUTES.includes("/work/options-pricing-sensitivity"),
+  false,
+);

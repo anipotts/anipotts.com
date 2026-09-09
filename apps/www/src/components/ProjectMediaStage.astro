@@ -1,6 +1,4 @@
 ---
-import { Icon } from "astro-icon/components";
-
 interface MediaItem {
   kind: "image" | "gif" | "video";
   src: string;
@@ -12,32 +10,27 @@ interface MediaItem {
 interface Props {
   items: MediaItem[];
   label: string;
+  eager?: boolean;
 }
 
-const { items, label } = Astro.props;
+const { items, label, eager = false } = Astro.props;
 const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 ---
 
 {
   items.length > 0 && (
-    <figure
-      class="project-media"
-      data-project-media
-      style={`--media-count: ${items.length}`}
-    >
-      <div class="project-media__stage" aria-live="polite">
+    <figure class="project-media" data-project-media>
+      <div class="project-media__stage">
         {items.map((item, index) => (
           <div
             class="project-media__panel"
             id={`${stageId}-panel-${index}`}
             data-media-panel={index}
-            data-media-fit={item.fit ?? "cover"}
             hidden={index !== 0}
           >
             {item.kind === "video" ? (
               <video
                 controls
-                muted
                 playsinline
                 preload="metadata"
                 aria-label={item.alt}
@@ -45,41 +38,42 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
                 <source src={item.src} />
               </video>
             ) : (
-              <img
-                src={item.src}
-                alt={item.alt}
-                loading={index === 0 ? "eager" : "lazy"}
-              />
+              <a
+                class="project-media__enlarge"
+                href={item.src}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-media-enlarge
+                data-media-alt={item.alt}
+                aria-label={`enlarge image: ${item.alt}`}
+              >
+                <img
+                  src={item.src}
+                  alt={item.alt}
+                  loading={eager && index === 0 ? "eager" : "lazy"}
+                  decoding="async"
+                />
+                <span class="project-media__hint" aria-hidden="true">
+                  enlarge ↗
+                </span>
+              </a>
             )}
           </div>
         ))}
       </div>
 
       {items.length > 1 && (
-        <div
-          class="project-media__rail"
-          role="tablist"
-          aria-label={`${label} views`}
-        >
+        <div class="project-media__rail" aria-label={`${label} views`}>
           {items.map((item, index) => (
             <button
               type="button"
               class="project-media__choice"
-              role="tab"
               aria-controls={`${stageId}-panel-${index}`}
-              aria-selected={index === 0 ? "true" : "false"}
-              aria-label={`show ${item.caption ?? item.alt}`}
+              aria-pressed={index === 0 ? "true" : "false"}
               data-media-choice={index}
               data-media-caption={item.caption ?? item.alt}
             >
-              {item.kind === "video" ? (
-                <span class="project-media__video-icon" aria-hidden="true">
-                  <Icon name="ph:play" />
-                </span>
-              ) : (
-                <img src={item.src} alt="" loading="lazy" />
-              )}
-              <span>{item.caption ?? `view ${index + 1}`}</span>
+              {item.caption ?? `view ${index + 1}`}
             </button>
           ))}
         </div>
@@ -88,58 +82,158 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
       <figcaption data-media-figcaption>
         {items[0]?.caption ?? items[0]?.alt}
       </figcaption>
+
+      {items.some((item) => item.kind !== "video") && (
+        <dialog
+          class="image-viewer"
+          data-image-viewer
+          aria-label="enlarged project image"
+        >
+          <div class="image-viewer__toolbar">
+            <button type="button" data-image-zoom aria-pressed="false">
+              actual size
+            </button>
+            <a
+              href={items[0]?.src}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-image-original
+            >
+              open original ↗
+            </a>
+            <button type="button" data-image-close autofocus>
+              close
+            </button>
+          </div>
+          <div
+            class="image-viewer__canvas"
+            tabindex="0"
+            aria-label="image, scroll to inspect at actual size"
+          >
+            <img data-viewer-image alt="" />
+          </div>
+          <p class="image-viewer__description" data-image-description />
+        </dialog>
+      )}
     </figure>
   )
 }
 
-<script is:inline>
-  document.querySelectorAll("[data-project-media]").forEach((stage) => {
-    const panels = [...stage.querySelectorAll("[data-media-panel]")];
-    const choices = [...stage.querySelectorAll("[data-media-choice]")];
-    const caption = stage.querySelector("[data-media-figcaption]");
+<script>
+  function mount() {
+    document
+      .querySelectorAll<HTMLElement>("[data-project-media]")
+      .forEach((stage) => {
+        if (stage.dataset.mounted) return;
+        stage.dataset.mounted = "true";
+        const panels = [
+          ...stage.querySelectorAll<HTMLElement>("[data-media-panel]"),
+        ];
+        const choices = [
+          ...stage.querySelectorAll<HTMLButtonElement>("[data-media-choice]"),
+        ];
+        const caption = stage.querySelector("[data-media-figcaption]");
 
-    choices.forEach((choice, index) => {
-      choice.addEventListener("click", () => {
-        panels.forEach((panel, panelIndex) => {
-          panel.hidden = panelIndex !== index;
+        choices.forEach((choice, index) => {
+          choice.addEventListener("click", () => {
+            panels.forEach((panel, panelIndex) => {
+              panel.hidden = panelIndex !== index;
+              if (panel.hidden) panel.querySelector("video")?.pause();
+            });
+            choices.forEach((candidate, choiceIndex) => {
+              candidate.setAttribute(
+                "aria-pressed",
+                String(choiceIndex === index),
+              );
+            });
+            if (caption)
+              caption.textContent = choice.dataset.mediaCaption ?? "";
+          });
         });
-        choices.forEach((candidate, choiceIndex) => {
-          candidate.setAttribute(
-            "aria-selected",
-            choiceIndex === index ? "true" : "false",
-          );
+
+        const dialog = stage.querySelector<HTMLDialogElement>(
+          "[data-image-viewer]",
+        );
+        const image = dialog?.querySelector<HTMLImageElement>(
+          "[data-viewer-image]",
+        );
+        const zoom =
+          dialog?.querySelector<HTMLButtonElement>("[data-image-zoom]");
+        const original = dialog?.querySelector<HTMLAnchorElement>(
+          "[data-image-original]",
+        );
+        const description = dialog?.querySelector("[data-image-description]");
+        const canvas = dialog?.querySelector<HTMLElement>(
+          ".image-viewer__canvas",
+        );
+        if (!dialog || !image || !zoom || !original || !canvas) return;
+
+        stage
+          .querySelectorAll<HTMLAnchorElement>("[data-media-enlarge]")
+          .forEach((link) => {
+            link.addEventListener("click", (event) => {
+              if (
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey
+              )
+                return;
+              if (typeof dialog.showModal !== "function") return;
+              event.preventDefault();
+              image.src = link.href;
+              image.alt = link.dataset.mediaAlt ?? "";
+              original.href = link.href;
+              if (description) description.textContent = image.alt;
+              dialog.dataset.zoomed = "false";
+              zoom.setAttribute("aria-pressed", "false");
+              zoom.textContent = "actual size";
+              dialog.showModal();
+              canvas.scrollTo(0, 0);
+            });
+          });
+
+        zoom.addEventListener("click", () => {
+          const zoomed = dialog.dataset.zoomed !== "true";
+          dialog.dataset.zoomed = String(zoomed);
+          zoom.setAttribute("aria-pressed", String(zoomed));
+          zoom.textContent = zoomed ? "fit image" : "actual size";
+          canvas.scrollTo(0, 0);
+          canvas.focus();
         });
-        if (caption) {
-          caption.textContent = choice.getAttribute("data-media-caption") ?? "";
-        }
+        dialog
+          .querySelector("[data-image-close]")
+          ?.addEventListener("click", () => dialog.close());
+        dialog.addEventListener("click", (event) => {
+          if (event.target !== dialog) return;
+          const box = dialog.getBoundingClientRect();
+          if (
+            event.clientX < box.left ||
+            event.clientX > box.right ||
+            event.clientY < box.top ||
+            event.clientY > box.bottom
+          )
+            dialog.close();
+        });
       });
-    });
-  });
+  }
+  mount();
+  document.addEventListener("astro:page-load", mount);
 </script>
 
 <style>
   .project-media {
     margin: 0;
     display: grid;
-    gap: var(--s-3);
+    gap: 0.85rem;
+    color: var(--paper-ink);
   }
 
   .project-media__stage {
-    position: relative;
-    aspect-ratio: 16 / 9;
-    background: var(--surface);
+    border: 1px solid color-mix(in srgb, var(--paper-ink) 12%, transparent);
     border-radius: 1rem;
-    overflow: hidden;
-  }
-
-  .project-media__panel {
-    position: absolute;
-    inset: 0;
-    padding: clamp(0.75rem, 2vw, 1.5rem);
-  }
-
-  .project-media__panel:not([hidden]) {
-    animation: media-in 160ms ease-out both;
+    padding: clamp(0.5rem, 1.8vw, 1.25rem);
+    background: color-mix(in srgb, var(--paper-ink) 4%, var(--paper-surface));
   }
 
   .project-media__panel[hidden] {
@@ -150,115 +244,132 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
   .project-media__panel video {
     display: block;
     width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center;
-    border-radius: var(--radius-desktop-ui-media);
-    background: #f7faff;
-  }
-
-  .project-media__panel[data-media-fit="contain"] img,
-  .project-media__panel[data-media-fit="contain"] video {
-    width: auto;
     height: auto;
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
+    border-radius: var(--radius-desktop-ui-media);
   }
 
-  .project-media__panel[data-media-fit="contain"] {
-    display: grid;
-    place-items: center;
+  .project-media__enlarge {
+    position: relative;
+    display: block;
+    border-radius: var(--radius-desktop-ui-media);
+    cursor: zoom-in;
+  }
+
+  .project-media__hint {
+    position: absolute;
+    right: 0.65rem;
+    bottom: 0.65rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 0.35rem;
+    background: var(--paper-surface);
+    color: var(--paper-ink);
+    box-shadow: 0 1px 8px rgb(0 0 0 / 15%);
+    font-size: 0.75rem;
+    line-height: 1.4;
   }
 
   .project-media__rail {
-    display: grid;
-    grid-template-columns: repeat(var(--media-count), minmax(0, 1fr));
-    gap: var(--s-2);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 
   .project-media__choice {
-    min-width: 0;
-    min-height: 64px;
-    border: 0;
-    border-radius: 0.65rem;
-    padding: var(--s-2);
-    background: var(--surface);
-    color: var(--ink-muted);
-    display: grid;
-    grid-template-columns: 3.25rem minmax(0, 1fr);
-    align-items: center;
-    gap: var(--s-2);
-    text-align: left;
-    font: inherit;
-    cursor: pointer;
-    transition:
-      background 160ms ease,
-      color 160ms ease;
-  }
-
-  .project-media__choice[aria-selected="true"] {
-    background: color-mix(in srgb, var(--surface) 78%, var(--interactive) 22%);
-    color: var(--ink);
-  }
-
-  .project-media__choice img,
-  .project-media__video-icon {
-    display: grid;
-    place-items: center;
-    width: 3.25rem;
-    height: 2.4rem;
+    border: 1px solid color-mix(in srgb, var(--paper-ink) 18%, transparent);
     border-radius: 0.4rem;
-    object-fit: cover;
-    background: var(--bg);
+    padding: 0.5rem 0.75rem;
+    min-height: 44px;
+    background: transparent;
+    color: var(--paper-muted);
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
   }
 
-  .project-media__choice span:last-child {
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-height: 1.2;
-    font-size: var(--p-small);
-    font-weight: 600;
+  .project-media__choice[aria-pressed="true"] {
+    color: var(--paper-ink);
+    background: color-mix(
+      in srgb,
+      var(--paper-accent) 10%,
+      var(--paper-surface)
+    );
+    border-color: var(--paper-accent);
   }
 
   figcaption {
-    color: var(--ink-muted);
-    font-size: var(--p-small);
+    max-width: 65ch;
+    color: var(--paper-muted);
+    font-size: 0.85rem;
+    line-height: 1.55;
   }
 
-  @keyframes media-in {
-    from {
-      opacity: 0.35;
-    }
+  .image-viewer {
+    width: min(96vw, 90rem);
+    max-width: calc(100% - 1rem);
+    max-height: calc(100dvh - 2rem);
+    padding: 0.75rem;
+    border: 1px solid color-mix(in srgb, var(--paper-ink) 15%, transparent);
+    border-radius: 0.8rem;
+    color: var(--paper-ink);
+    background: var(--paper-surface);
+    overflow: auto;
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .project-media__panel:not([hidden]) {
-      animation: none;
-    }
-
-    .project-media__choice {
-      transition: none;
-    }
+  .image-viewer::backdrop {
+    background: rgb(0 0 0 / 78%);
   }
 
-  @media (max-width: 40rem) {
-    .project-media__stage {
-      border-radius: 0.75rem;
-    }
+  .image-viewer__toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    padding-bottom: 0.5rem;
+  }
 
-    .project-media__rail {
-      display: flex;
-      overflow-x: auto;
-      scroll-snap-type: x mandatory;
-      padding-bottom: var(--s-1);
-    }
+  .image-viewer__toolbar button,
+  .image-viewer__toolbar a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0.4rem 0.55rem;
+    background: transparent;
+    color: inherit;
+    border: 0;
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
 
-    .project-media__choice {
-      flex: 0 0 min(15rem, 78vw);
-      scroll-snap-align: start;
-    }
+  .image-viewer__toolbar [data-image-close] {
+    margin-left: auto;
+  }
+
+  .image-viewer__canvas {
+    overflow: auto;
+    overscroll-behavior: contain;
+    max-height: 72dvh;
+  }
+
+  .image-viewer__canvas img {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 72dvh;
+    margin-inline: auto;
+    object-fit: contain;
+  }
+
+  .image-viewer[data-zoomed="true"] .image-viewer__canvas img {
+    max-width: none;
+    max-height: none;
+  }
+
+  .image-viewer__description {
+    margin: 0.75rem 0 0;
+    color: var(--paper-muted);
+    font-size: 0.85rem;
+    line-height: 1.5;
   }
 </style>

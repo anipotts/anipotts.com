@@ -1,3 +1,4 @@
+const pageCurrents = new Map<string, { composition: number; time: number }>();
 // One document-space composition, cropped by each card. No per-card animation clocks.
 export function mountSharedCurrents() {
   const hosts = [
@@ -5,17 +6,19 @@ export function mountSharedCurrents() {
   ];
   if (!hosts.length) return () => {};
   // Choose once per page mount; scrolling, resizing, and theme changes retain it.
+  const key = location.pathname;
+  const previous = pageCurrents.get(key);
   const state = {
     speed: 0.5,
     amount: 10,
     coverage: 1,
-    composition: Math.random() * Math.PI * 2,
+    composition: previous?.composition ?? Math.random() * Math.PI * 2,
   };
   const media = matchMedia("(prefers-reduced-motion: reduce)");
   const visible = new Set<HTMLElement>();
   let w = 1,
     h = 1,
-    time = 0,
+    time = previous?.time ?? 0,
     frame = 0,
     last = 0;
   const svgs = hosts.map((host) => host.querySelector("svg")!);
@@ -135,6 +138,9 @@ export function mountSharedCurrents() {
   window.addEventListener("resize", resize);
   resize();
   return () => {
+    pageCurrents.set(key, { composition: state.composition, time });
+    if (pageCurrents.size > 40)
+      pageCurrents.delete(pageCurrents.keys().next().value!);
     cancelAnimationFrame(frame);
     observer.disconnect();
     intersection.disconnect();

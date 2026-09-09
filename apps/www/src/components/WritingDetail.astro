@@ -1,10 +1,13 @@
 ---
 import { render } from "astro:content";
+import DetailWaves from "./DetailWaves.astro";
+import "./editorial/editorial-media.css";
+import WritingRow from "./WritingRow.astro";
 import Shell from "../layouts/Shell.astro";
 import { Icon } from "astro-icon/components";
 import {
+  publishedWriting,
   formatDate,
-  readingTime,
   writingSlug,
   type Writing,
 } from "../lib/content";
@@ -18,7 +21,9 @@ const { item } = Astro.props;
 const slug = writingSlug(item);
 const { Content } = await render(item);
 const d = item.data;
-const minutes = readingTime(item.body ?? "");
+const moreWriting = (await publishedWriting())
+  .filter((post) => writingSlug(post) !== slug)
+  .slice(0, 2);
 
 const articleLd = {
   "@context": "https://schema.org",
@@ -43,87 +48,143 @@ const articleLd = {
   ogType="article"
   jsonLd={articleLd}
   mood="drowsy"
+  detail
 >
-  <article class="article">
+  <article class="article" data-writing-article>
+    <DetailWaves seed={`writing/${slug}`} />
     <header data-rise class="head">
-      <a href="/writing" class="quiet-link mono back">
-        <Icon name="ph:arrow-bend-up-left" /> all writing
-      </a>
+      <div class="article-topline">
+        <a href="/writing" class="quiet-link mono back">
+          <Icon name="ph:arrow-left" /> all writing
+        </a>
+        {
+          d.published_at && (
+            <time
+              class="date mono muted"
+              datetime={d.published_at.toISOString()}
+            >
+              {formatDate(d.published_at)}
+            </time>
+          )
+        }
+      </div>
       <h1 class="title">{d.title}</h1>
-      <p class="meta mono muted">
-        {d.published_at && <span>{formatDate(d.published_at)}</span>}
-        <span>{minutes} min read</span>
-      </p>
-      {
-        d.tags.length > 0 && (
-          <p class="meta mono muted">
-            {d.tags.map((t) => (
-              <span>{t}</span>
-            ))}
-          </p>
-        )
-      }
-      {
-        d.artifact_url && (
-          <a
-            href={d.artifact_url}
-            class="accent-link mono artifact"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            proof artifact ({d.artifact_type ?? "link"})
-            <Icon name="ph:arrow-bend-right-up" />
-          </a>
-        )
-      }
+      <p class="summary">{d.summary}</p>
     </header>
 
     <div data-rise class="article-body">
       <Content />
     </div>
+    <footer class="article-end">
+      {
+        d.tags.length > 0 && (
+          <ul class="topics" aria-label="Topics" role="list">
+            {d.tags.map((tag) => (
+              <li class="pill">{tag.replaceAll("-", " ")}</li>
+            ))}
+          </ul>
+        )
+      }
+      <div class="more-heading">
+        <h2 class="section-label">more writing</h2><a
+          href="/writing"
+          class="quiet-link mono"
+          >view all <Icon name="ph:arrow-bend-right-up" /></a
+        >
+      </div>
+      <div class="more-writing">
+        {moreWriting.map((post) => <WritingRow item={post} />)}
+      </div>
+    </footer>
   </article>
 </Shell>
 
 <style>
   .article {
+    position: relative;
+    isolation: isolate;
     display: flex;
     flex-direction: column;
-    gap: var(--s-6);
+    gap: clamp(2rem, 4vw, 3rem);
   }
-
   .head {
     display: flex;
     flex-direction: column;
     gap: var(--s-3);
-    max-width: var(--measure);
   }
-
+  .article-topline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+  }
+  .date {
+    font-size: 0.85rem;
+  }
   .back {
     display: inline-flex;
     align-items: center;
-    gap: 0.4em;
+    gap: 0.5em;
     font-size: 0.85rem;
     width: fit-content;
     min-height: 44px;
   }
-
   .title {
-    font-size: var(--p-h1);
+    font-size: clamp(2.7rem, 6.5vw, 5.5rem);
+    line-height: 1.03;
+    max-width: none;
+    text-wrap: wrap;
+    overflow-wrap: anywhere;
   }
-
-  .meta {
+  .summary {
+    max-width: none;
+    margin: 0;
+    color: var(--ink-muted);
+    font-size: clamp(1.05rem, 2.2vw, 1.42rem);
+    line-height: 1.52;
+    text-wrap: pretty;
+  }
+  .article-body {
+    align-self: center;
+  }
+  .article-end {
+    padding-top: 2rem;
+    border-top: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
+    display: grid;
+    gap: 1.5rem;
+  }
+  .topics {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--s-3);
+    gap: 0.5rem;
+    padding: 0;
     margin: 0;
-    font-size: 0.85rem;
+    list-style: none;
   }
-
-  .artifact {
+  .topics .pill {
+    border: 1px solid var(--border);
+    padding: 0.4rem 0.7rem;
+    border-radius: 0.6rem;
+    font-size: 0.8rem;
+    line-height: 1.3;
+    background: color-mix(in srgb, var(--ink) 4%, transparent);
+  }
+  .more-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .more-heading a {
     display: inline-flex;
     align-items: center;
-    gap: 0.35em;
+    gap: 0.35rem;
     font-size: 0.85rem;
-    width: fit-content;
+    min-height: 44px;
+  }
+  .more-writing {
+    display: grid;
+    gap: 1rem;
   }
 </style>

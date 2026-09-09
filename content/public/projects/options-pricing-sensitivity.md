@@ -8,7 +8,7 @@ role: Developer
 duration: Spring 2023
 status: live
 kind: project
-public_state: listed
+public_state: hidden
 homepage_placement: none
 catalog_group: past
 homepage_order: 0

@@ -1,0 +1,115 @@
+---
+import "./editorial-media.css";
+import { demoHref } from "./media";
+
+type Props = {
+  title: string;
+  caption: string;
+  aspectRatio?: number;
+} & (
+  | { kind: "youtube"; videoId: string }
+  | { kind: "demo"; src: string; allowedOrigin?: string }
+);
+const { title, caption, aspectRatio = 16 / 9 } = Astro.props;
+const youtube = Astro.props.kind === "youtube";
+let src: string;
+let original: string;
+if (Astro.props.kind === "youtube") {
+  if (!/^[A-Za-z0-9_-]{11}$/.test(Astro.props.videoId)) {
+    throw new Error(
+      "EditorialEmbed requires an 11-character YouTube video ID.",
+    );
+  }
+  src = `https://www.youtube-nocookie.com/embed/${Astro.props.videoId}`;
+  original = `https://www.youtube.com/watch?v=${Astro.props.videoId}`;
+} else {
+  src = demoHref(Astro.props.src, Astro.props.allowedOrigin);
+  original = src;
+}
+if (!Number.isFinite(aspectRatio) || aspectRatio <= 0) {
+  throw new Error("EditorialEmbed aspect ratio must be positive.");
+}
+---
+
+<figure class="editorial-media">
+  <editorial-embed class="editorial-media__embed">
+    <div
+      class="editorial-media__stage editorial-media__embed-stage"
+      style={{ "--media-ratio": aspectRatio }}
+    >
+      <button
+        type="button"
+        class="editorial-media__load"
+        data-load
+        disabled
+        aria-label={`${youtube ? "load video" : "open interactive preview"}: ${title}`}
+      >
+        <span>{youtube ? "load video" : "open interactive preview"}</span>
+        <small>
+          {
+            youtube
+              ? "Loads a YouTube player when selected."
+              : "Loads a separate, sandboxed demo when selected."
+          }
+        </small>
+      </button>
+    </div>
+    <template>
+      <iframe
+        {src}
+        {title}
+        sandbox={youtube
+          ? "allow-scripts allow-same-origin allow-presentation"
+          : "allow-scripts"}
+        allow={youtube
+          ? "encrypted-media; picture-in-picture; fullscreen"
+          : undefined}
+        referrerpolicy={youtube
+          ? "strict-origin-when-cross-origin"
+          : "no-referrer"}
+        allowfullscreen={youtube}></iframe>
+    </template>
+    <button type="button" class="editorial-media__unload" data-unload hidden>
+      close {youtube ? "video" : "preview"}
+    </button>
+    <noscript><p>Use the link below to open {title}.</p></noscript>
+  </editorial-embed>
+  <figcaption class="editorial-media__caption">
+    <span>{caption}</span>
+    <a href={original}
+      >{youtube ? "watch on YouTube" : "open demo separately"}</a
+    >
+  </figcaption>
+</figure>
+
+<script>
+  class EditorialEmbed extends HTMLElement {
+    connectedCallback() {
+      if (this.dataset.ready) return;
+      const stage = this.querySelector<HTMLDivElement>(
+        ".editorial-media__embed-stage",
+      );
+      const template = this.querySelector("template");
+      const load = this.querySelector<HTMLButtonElement>("[data-load]");
+      const unload = this.querySelector<HTMLButtonElement>("[data-unload]");
+      if (!stage || !template || !load || !unload) return;
+      this.dataset.ready = "true";
+      load.disabled = false;
+      load.addEventListener("click", () => {
+        stage.appendChild(template.content.cloneNode(true));
+        load.hidden = true;
+        unload.hidden = false;
+        stage.querySelector("iframe")?.focus();
+      });
+      unload.addEventListener("click", () => {
+        stage.querySelector("iframe")?.remove();
+        unload.hidden = true;
+        load.hidden = false;
+        load.focus();
+      });
+    }
+  }
+  if (!customElements.get("editorial-embed")) {
+    customElements.define("editorial-embed", EditorialEmbed);
+  }
+</script>

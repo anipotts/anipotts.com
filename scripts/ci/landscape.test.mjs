@@ -177,6 +177,7 @@ function harness(hostCount = 3, reduced = false) {
   Math.random = () => (++randomCalls * 0.173) % 1;
   install("document", document);
   install("window", window);
+  install("location", { pathname: "/writing" });
   install("performance", { now: () => clock });
   install("matchMedia", (query) => {
     assert.equal(query, "(prefers-reduced-motion: reduce)");
@@ -438,8 +439,17 @@ try {
   cleanup = mountSharedCurrents();
   assert.equal(
     scene.randomCalls,
+    1,
+    "returning to a page preserves its composition",
+  );
+  assert.deepEqual(shapes(first), previousMount);
+  cleanup();
+  location.pathname = "/work";
+  cleanup = mountSharedCurrents();
+  assert.equal(
+    scene.randomCalls,
     2,
-    "a fresh page mount chooses a fresh composition",
+    "another page chooses its own composition",
   );
   assert.notDeepEqual(shapes(first), previousMount);
   cleanup();

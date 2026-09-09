@@ -1,0 +1,92 @@
+---
+interface Props {
+  status: string;
+  year: string;
+  role?: string;
+}
+const { status, year, role } = Astro.props;
+const label = status === "wip" ? "in progress" : status;
+const timeframe = year
+  .trim()
+  .replace(/\s*[-–—]\s*$/u, " – present")
+  .replace(/\s*[-–—]\s*/gu, " – ");
+---
+
+<span class="project-meta-group">
+  <span
+    class="project-meta-ui"
+    aria-label={`Status: ${label}. Timeframe: ${timeframe}`}
+  >
+    <span class="status"
+      ><span
+        class:list={["status-dot", `status-dot--${status}`]}
+        aria-hidden="true"></span>{label}</span
+    >
+    <span class="timeframe">{timeframe}</span>
+  </span>
+  {role && <span class="role">{role}</span>}
+</span>
+<style>
+  .project-meta-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem 1rem;
+  }
+  .project-meta-ui {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.8rem;
+    width: fit-content;
+    max-width: 100%;
+    padding: 0.5rem 0.7rem;
+    border: 1px solid color-mix(in srgb, var(--paper-ink) 15%, transparent);
+    border-radius: 0.6rem;
+    background: color-mix(in srgb, var(--paper-surface) 80%, transparent);
+    color: var(--paper-muted);
+    font-size: 0.78rem;
+    line-height: 1.25;
+  }
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .status-dot {
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 50%;
+    background: currentColor;
+    flex: none;
+  }
+  .status-dot--live {
+    background: #16834a;
+  }
+  :global(html[data-theme="dark"]) .status-dot--live {
+    background: #4ade80;
+  }
+  .status-dot--wip {
+    background: #a86708;
+  }
+  :global(html[data-theme="dark"]) .status-dot--wip {
+    background: #f5bd4f;
+  }
+  .status-dot--archived {
+    background: #7b8491;
+  }
+  :global(html[data-theme="dark"]) .status-dot--archived {
+    background: #8b96a6;
+  }
+  .timeframe {
+    padding-left: 0.8rem;
+    border-left: 1px solid color-mix(in srgb, currentColor 23%, transparent);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .role {
+    font-size: 0.82rem;
+    color: var(--ink-muted);
+  }
+</style>

@@ -1,0 +1,98 @@
+---
+interface Props {
+  seed: string;
+  tone?: "writing" | "work";
+}
+const { seed, tone = "writing" } = Astro.props;
+// Stable per page, using the same smooth, layered curves as the card artwork.
+let hash = 2166136261;
+for (const char of seed) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+const phase = ((hash >>> 0) / 4294967296) * Math.PI * 2;
+const curves = [0, 1, 2].map((layer) => {
+  const points = Array.from({ length: 8 }, (_, i) => ({
+    x: -120 + i * 240,
+    y:
+      150 +
+      layer * 82 +
+      Math.sin(i * 0.78 + phase) * 92 +
+      Math.cos(i * 1.24 + phase) * 35,
+  }));
+  let path = `M-120 -240H1560V${points.at(-1)!.y}`;
+  const reverse = [...points].reverse();
+  for (let i = 0; i < reverse.length - 1; i++) {
+    const a = reverse[Math.max(0, i - 1)],
+      b = reverse[i],
+      c = reverse[i + 1],
+      d = reverse[Math.min(reverse.length - 1, i + 2)];
+    path += `C${b.x + (c.x - a.x) / 6} ${b.y + (c.y - a.y) / 6} ${c.x - (d.x - b.x) / 6} ${c.y - (d.y - b.y) / 6} ${c.x} ${c.y}`;
+  }
+  return path + "Z";
+});
+---
+
+<div
+  class:list={["detail-waves", `detail-waves--${tone}`]}
+  aria-hidden="true"
+  data-composition={hash >>> 0}
+>
+  <svg viewBox="0 -200 1440 800" preserveAspectRatio="none" focusable="false">
+    {curves.toReversed().map((d, i) => <path d={d} class={`layer-${i}`} />)}
+  </svg>
+</div>
+<style>
+  .detail-waves {
+    position: absolute;
+    left: calc(50% - 50vw);
+    width: 100vw;
+    top: -11rem;
+    height: clamp(32rem, 76svh, 52rem);
+    z-index: -1;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .layer-0 {
+    fill: #b5ddf7;
+  }
+  .layer-1 {
+    fill: #a1c7f2;
+  }
+  .layer-2 {
+    fill: #b6c8f5;
+  }
+  /* Writing uses the main page's blue canvas and restrained light currents. */
+  :global(html:not([data-theme="dark"])) .detail-waves--writing {
+    opacity: 0.14;
+  }
+  :global(html:not([data-theme="dark"])) .detail-waves--writing .layer-0 {
+    fill: #b0d8f5;
+  }
+  :global(html:not([data-theme="dark"])) .detail-waves--writing .layer-1 {
+    fill: #3d80d4;
+  }
+  :global(html:not([data-theme="dark"])) .detail-waves--writing .layer-2 {
+    fill: #2259bf;
+  }
+  :global(html[data-theme="dark"]) .layer-0 {
+    fill: #132640;
+  }
+  :global(html[data-theme="dark"]) .layer-1 {
+    fill: #1b3760;
+  }
+  :global(html[data-theme="dark"]) .layer-2 {
+    fill: #234b7b;
+  }
+  .detail-waves--work {
+    opacity: 0.65;
+  }
+  @media (max-width: 44rem) {
+    .detail-waves {
+      top: -8rem;
+      height: clamp(29rem, 80svh, 42rem);
+    }
+  }
+</style>

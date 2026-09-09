@@ -50,7 +50,9 @@ const remainingLabel = remainingWords.join(" ");
   {
     hasVisual && visualLabel ? (
       <span class="mention-lead mention-lead-compact">
-        {visualPrefix && <span class="text">{visualPrefix}</span>}
+        {visualPrefix && (
+          <span class="mention-punctuation">{visualPrefix.trim()}</span>
+        )}
         <span
           class:list={{
             "brand-mark": true,
@@ -76,9 +78,11 @@ const remainingLabel = remainingWords.join(" ");
         <span class="sr-only">{logoAlt ?? label}</span>
         <span class="text">
           {visualLabel}
-          {visualSuffix}
           {suffix}
         </span>
+        {visualSuffix && (
+          <span class="mention-punctuation">{visualSuffix.trim()}</span>
+        )}
       </span>
     ) : hasVisual ? (
       <>
@@ -149,6 +153,8 @@ const remainingLabel = remainingWords.join(" ");
 <style>
   .inline-mention {
     display: inline;
+    margin-inline: 0.1em;
+    font-weight: inherit;
     color: var(--ink);
     line-height: inherit;
     text-decoration: none;
@@ -160,17 +166,24 @@ const remainingLabel = remainingWords.join(" ");
     display: inline-grid;
     grid-auto-flow: column;
     align-items: baseline;
-    gap: 0.24em;
+    gap: 0.32em;
     white-space: nowrap;
     vertical-align: baseline;
   }
 
   .mention-lead-compact {
-    gap: 0;
+    gap: 0.16em;
+    font-weight: inherit;
   }
 
   .mention-lead-compact .brand-mark {
-    margin-right: 0.14em;
+    margin-right: 0.08em;
+  }
+
+  .mention-punctuation {
+    font: inherit;
+    line-height: inherit;
+    letter-spacing: 0;
   }
 
   .sr-only {

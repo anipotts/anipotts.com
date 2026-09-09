@@ -2,10 +2,10 @@
 title: nyu purity test
 subtitle: a quiz i built in a night that made its way around NYU
 description: Built and launched a TypeScript campus quiz in one night. It reached 1,000+ completions in under 17 hours and 200k+ visits through NYU group chats and social sharing.
-year: "2024"
+year: "Mar 2025"
 category: product
 role: Creator
-duration: Fall 2024
+duration: March 2025
 status: live
 kind: project
 public_state: featured

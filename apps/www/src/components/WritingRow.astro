@@ -20,7 +20,9 @@ const { title, summary, published_at } = item.data;
       <span class="title">{title}</span>
       {
         published_at && (
-          <span class="date mono">{formatDate(published_at)}</span>
+          <time class="date mono" datetime={published_at.toISOString()}>
+            {formatDate(published_at)}
+          </time>
         )
       }
     </span>
@@ -94,6 +96,12 @@ const { title, summary, published_at } = item.data;
     z-index: 1;
     color: var(--paper-muted);
     font-size: var(--p-small);
+  }
+
+  .writing-card > .ambient-flow {
+    inset: 0;
+    height: 100%;
+    border-radius: inherit;
   }
 
   .writing-card .date {

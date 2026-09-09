@@ -19,6 +19,7 @@ function boot(
     handlers[`${target}:${name}`] = fn;
   };
   const mark = {
+    dataset: {},
     getBoundingClientRect: () => ({ left: 10, right: 74, top: 10, bottom: 74 }),
     setAttribute: (name) => attrs.add(name),
     removeAttribute: (name) => attrs.delete(name),
