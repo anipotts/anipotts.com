@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { mountSharedCurrents } from "../../apps/www/src/lib/shared-currents.ts";
+import {
+  mountSharedCurrents,
+  refreshSharedCurrents,
+  pauseSharedCurrents,
+} from "../../apps/www/src/lib/shared-currents.ts";
 
 const component = (name) =>
   readFileSync(`apps/www/src/components/${name}.astro`, "utf8");
@@ -32,10 +36,10 @@ for (const color of [
 }
 assert.match(flow, /--flow-opacity:\s*0\.64/);
 assert.match(flow, /--flow-opacity:\s*0\.38/);
-assert.ok(flow.includes("mountSharedCurrents()"));
-assert.ok(flow.includes('"astro:before-swap", () => cleanup()'));
+assert.ok(flow.includes("refreshSharedCurrents()"));
+assert.ok(flow.includes('"astro:before-preparation", pauseSharedCurrents'));
 assert.ok(flow.includes('"astro:page-load"'));
-assert.ok(flow.includes("import.meta.hot.dispose(() => cleanup())"));
+assert.ok(flow.includes("import.meta.hot.dispose(pauseSharedCurrents)"));
 
 const page = component("PageCurrent");
 assert.ok(page.includes('preserveAspectRatio="xMidYMid slice"'));
@@ -114,6 +118,9 @@ function harness(hostCount = 3, reduced = false) {
     }));
     const svg = {
       attributes,
+      getAttribute(name) {
+        return attributes.get(name);
+      },
       setAttribute(name, value) {
         attributes.set(name, value);
       },
@@ -148,7 +155,7 @@ function harness(hostCount = 3, reduced = false) {
   const document = Object.assign(new Events(), {
     hidden: false,
     querySelectorAll(selector) {
-      assert.equal(selector, "[data-shared-current]");
+      assert.equal(selector, "main:not([inert]) [data-shared-current]");
       return hosts;
     },
     querySelector(selector) {
@@ -340,6 +347,23 @@ try {
   );
   assert.deepEqual(shapes(first), shapes(second));
 
+  let transitioning = true;
+  scene.document.documentElement = {
+    hasAttribute: () => transitioning,
+  };
+  const handoff = shapes(first);
+  const handoffTime = first.dataset.motionTime;
+  scene.step(550);
+  assert.deepEqual(shapes(first), handoff, "hold the captured handoff frame");
+  assert.equal(first.dataset.motionTime, handoffTime);
+  transitioning = false;
+  scene.step(40);
+  assert.equal(
+    Number(first.dataset.motionTime),
+    Number(handoffTime) + 0.02,
+    "resume without advancing through the transition",
+  );
+
   scene.visibility([[1, false]]);
   const offscreen = shapes(second);
   scene.step(40);
@@ -436,7 +460,18 @@ try {
   );
   cleanup();
   const previousMount = shapes(first);
+  first.box.height += 0.5;
+  transitioning = true;
   cleanup = mountSharedCurrents();
+  scene.resizes.at(-1).callback();
+  assert.deepEqual(
+    shapes(first),
+    previousMount,
+    "transient swap metrics cannot recompose a returning scene",
+  );
+  first.box.height -= 0.5;
+  transitioning = false;
+  scene.document.dispatch("writing:transition-end");
   assert.equal(
     scene.randomCalls,
     1,
@@ -453,6 +488,28 @@ try {
   );
   assert.notDeepEqual(shapes(first), previousMount);
   cleanup();
+  scene.document.body = {};
+  const observerCount = scene.resizes.length;
+  refreshSharedCurrents();
+  const stableShapes = shapes(first);
+  refreshSharedCurrents();
+  assert.equal(
+    scene.resizes.length,
+    observerCount + 1,
+    "after-swap and page-load share one scene instead of remounting",
+  );
+  assert.deepEqual(shapes(first), stableShapes);
+  pauseSharedCurrents();
+  pauseSharedCurrents();
+  scene.document.body = {};
+  refreshSharedCurrents();
+  assert.equal(scene.resizes.length, observerCount + 2);
+  assert.deepEqual(
+    shapes(first),
+    stableShapes,
+    "restored document starts with the previous composition before page-load",
+  );
+  pauseSharedCurrents();
 } finally {
   scene.restore();
 }

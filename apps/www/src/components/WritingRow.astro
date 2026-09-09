@@ -14,7 +14,11 @@ const slug = writingSlug(item);
 const { title, summary, published_at } = item.data;
 ---
 
-<a href={`/writing/${slug}`} class="card writing-card">
+<a
+  href={`/writing/${slug}`}
+  class="card writing-card"
+  data-astro-prefetch="viewport"
+>
   <AmbientFlow kind="writing" seed={slug} variant={flowVariant} />
   <span class="head">
     <span class="title-group">
