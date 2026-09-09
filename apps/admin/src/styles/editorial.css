@@ -56,6 +56,10 @@
 .editorial-date-note {
   display: block;
 }
+.editorial-content .astryx-table-header-cell,
+.editorial-content .astryx-table-cell {
+  padding-inline: var(--spacing-3);
+}
 .editorial-record-table .record-link {
   padding-inline: 0;
 }
