@@ -43,6 +43,15 @@ const laneLabel: Record<OperatorWorkLane, string> = {
 const stateLabel = (row: WorkRow) =>
   row.source_state === "verified" ? laneLabel[row.lane] : "last verified";
 
+const stateVariant = (row: WorkRow) =>
+  row.source_state === "stale" || row.lane === "waiting"
+    ? "warning"
+    : row.lane === "recently_completed"
+      ? "success"
+      : row.lane === "foreground"
+        ? "accent"
+        : "neutral";
+
 function WorkActions({
   row,
   mobile = false,
@@ -112,16 +121,7 @@ export function OperatorWorkTable({ rows }: Props) {
         width: pixel(132),
         renderCell: (row) => (
           <HStack gap={2} vAlign="center">
-            <StatusDot
-              variant={
-                row.source_state === "stale"
-                  ? "warning"
-                  : row.lane === "recently_completed"
-                    ? "success"
-                    : "neutral"
-              }
-              label={stateLabel(row)}
-            />
+            <StatusDot variant={stateVariant(row)} label={stateLabel(row)} />
             <VStack gap={1}>
               <Text weight="semibold">{stateLabel(row)}</Text>
               <Text color="secondary" type="supporting">
@@ -202,7 +202,7 @@ export function OperatorWorkTable({ rows }: Props) {
                 <SourceMark provider={row.provider} compact />
                 <Text weight="semibold">{row.canonical_title}</Text>
                 <StatusDot
-                  variant={row.source_state === "stale" ? "warning" : "neutral"}
+                  variant={stateVariant(row)}
                   label={stateLabel(row)}
                 />
                 <Text type="supporting">{stateLabel(row)}</Text>
