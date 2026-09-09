@@ -7,6 +7,12 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
+    "./editorial/snapshot": "./src/editorial/snapshot.ts",
+    "./editorial/source": "./src/editorial/source.ts",
+    "./newsletter-draft": "./src/newsletter-draft.ts",
+    "./public/site": "./src/public/site.ts",
+    "./public/pages": "./src/public/pages.ts",
+    "./public/references": "./src/public/references.ts",
     "./public/schema": {
       "types": "./dist/public/schema.d.ts",
       "import": "./dist/public/schema.js"
@@ -40,10 +46,13 @@
     "build": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true })\" && tsc",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prebuild": "node ../../scripts/content/generate-public-content.mjs --root ../..",
+    "pretypecheck": "node ../../scripts/content/generate-public-content.mjs --root ../.."
   },
   "dependencies": {
     "@anipotts/types": "workspace:*",
+    "yaml": "2.8.2",
     "zod": "^3.24.2"
   },
   "devDependencies": {

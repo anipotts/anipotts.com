@@ -162,9 +162,9 @@ assert.equal(
 );
 assert.ok(
   deployWorkflow.includes(
-    'admin_enabled=${policy.authenticated_admin_smoke === "enabled"}',
+    'admin_enabled=${policy.authenticated_admin_smoke === "enabled" || policy.editorial_admin_release === "enabled"}',
   ) && deployWorkflow.includes("needs.release.outputs.admin_enabled == 'true'"),
-  "Admin deployment must retain its independent authenticated smoke gate",
+  "Admin deployment must retain its independently approved identity or editorial boundary gate",
 );
 assert.ok(
   deployWorkflow.includes(

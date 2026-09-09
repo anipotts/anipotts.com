@@ -78,3 +78,7 @@ sample_event.md
 task_*.md
 qaqc-scaling.md
 scripts/d1-migration-data.sql
+
+# Compatibility projections are derived from canonical Markdown at build time.
+/packages/content/src/public/generated.ts
+/packages/content/generated/admin-public-content.json

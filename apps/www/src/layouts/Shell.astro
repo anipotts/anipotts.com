@@ -111,11 +111,27 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
       (() => {
         let stored;
         try {
-          stored = localStorage.getItem("theme");
+          const incoming = new URL(location.href).searchParams.get("theme");
+          const cookie = document.cookie.match(
+            /(?:^|;\s*)ap-theme=(light|dark|system)(?:;|$)/,
+          )?.[1];
+          stored =
+            (["light", "dark", "system"].includes(incoming)
+              ? incoming
+              : null) ||
+            cookie ||
+            localStorage.getItem("theme");
         } catch {
           // Storage can be disabled; the default theme still renders normally.
         }
-        const theme = stored === "dark" ? "dark" : "light";
+        const theme =
+          stored === "system"
+            ? matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light"
+            : stored === "dark"
+              ? "dark"
+              : "light";
         const root = document.documentElement;
         root.dataset.theme = theme;
         // Safari's surrounding canvas and older theme-color consumers must use

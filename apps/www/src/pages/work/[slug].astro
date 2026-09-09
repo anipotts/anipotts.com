@@ -1,13 +1,18 @@
 ---
 import WorkDetail from "../../components/WorkDetail.astro";
-import NotFoundPage from "../../components/NotFoundPage.astro";
-import { projectSlug, visibleProjects } from "../../lib/content";
+import { projectSlug, visibleProjects, type Project } from "../../lib/content";
 
-export const prerender = false;
-const project = (await visibleProjects()).find(
-  (candidate) => projectSlug(candidate) === (Astro.params.slug ?? ""),
-);
-if (!project) Astro.response.status = 404;
+export const prerender = true;
+export async function getStaticPaths() {
+  return (await visibleProjects()).map((project) => ({
+    params: { slug: projectSlug(project) },
+    props: { project },
+  }));
+}
+interface Props {
+  project: Project;
+}
+const { project } = Astro.props;
 ---
 
-{project ? <WorkDetail project={project} /> : <NotFoundPage />}
+<WorkDetail project={project} />

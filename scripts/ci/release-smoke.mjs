@@ -61,7 +61,7 @@ async function verifyHealth(
   baseUrl,
   expectedSha,
   fetchImpl,
-  { allowUnversioned, attempts, delayMs, requestInit },
+  { allowUnversioned, attempts, delayMs, requestInit, target },
 ) {
   let lastHealth;
   let lastError;
@@ -76,7 +76,13 @@ async function verifyHealth(
           : health.release_sha === expectedSha;
         const schemaMatches =
           allowUnversioned || Boolean(health.schema_version);
-        if (versionMatches && schemaMatches) return health;
+        const databaseHealthy =
+          target !== "www" ||
+          (health.ok === true &&
+            health.d1 === "connected" &&
+            health.tables_ok === true);
+        if (versionMatches && schemaMatches && databaseHealthy) return health;
+        if (!databaseHealthy) lastError = "newsletter database unavailable";
       } else {
         lastError = `HTTP ${response.status}`;
       }
@@ -96,7 +102,7 @@ async function verifyHealth(
       `release SHA mismatch at ${baseUrl}: expected ${expectedSha}, received ${lastHealth?.release_sha || lastError || "missing"}`,
     );
   }
-  throw new Error(`schema version missing at ${baseUrl}`);
+  throw new Error(`${lastError || "schema version missing"} at ${baseUrl}`);
 }
 
 export async function smokeRelease(options) {
@@ -116,6 +122,7 @@ export async function smokeRelease(options) {
   }
 
   const health = await verifyHealth(baseUrl, expectedSha, fetchImpl, {
+    target,
     allowUnversioned,
     attempts: healthAttempts,
     delayMs: retryDelayMs,

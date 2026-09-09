@@ -119,6 +119,9 @@ function bootTheme(
   stored,
   {
     blockedStorage = false,
+    incoming = "",
+    cookie = "",
+    darkSystem = false,
     earlyBackground,
     metaPresent = true,
     palette = { light: "rgb(97, 171, 234)", dark: "rgb(8, 11, 16)" },
@@ -138,7 +141,11 @@ function bootTheme(
   const observers = [];
   let background = earlyBackground;
   runInNewContext(themeBoot, {
+    URL,
+    location: { href: `https://anipotts.com/${incoming}` },
+    matchMedia: () => ({ matches: darkSystem }),
     document: {
+      cookie,
       documentElement: root,
       querySelector(selector) {
         assert.equal(selector, 'meta[name="theme-color"]');
@@ -265,4 +272,14 @@ assert.ok(nav.includes("min-height: 52px"));
 assert.ok(nav.includes("navToggle.focus()"));
 console.log(
   "navigation: hover continuity, expiry, touch, theme lifecycle, storage fallback, and menu contracts passed",
+);
+
+assert.equal(
+  bootTheme("light", { incoming: "?theme=dark" }).root.dataset.theme,
+  "dark",
+);
+assert.equal(
+  bootTheme("light", { cookie: "ap-theme=system", darkSystem: true }).root
+    .dataset.theme,
+  "dark",
 );

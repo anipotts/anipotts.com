@@ -10,11 +10,6 @@ import { isPublicProject } from "../../packages/content/src/public/visibility.ts
 
 const inventory = [
   { route: "/", file: "apps/www/src/pages/index.astro" },
-  { route: "/newsletter", file: "apps/www/src/pages/newsletter.astro" },
-  {
-    route: "/newsletter/archive",
-    file: "apps/www/src/pages/newsletter/archive.astro",
-  },
   { route: "/work", file: "apps/www/src/pages/work/index.astro" },
   { route: "/systems", file: "apps/www/src/pages/systems.astro" },
   { route: "/links", file: "apps/www/src/pages/links.astro" },

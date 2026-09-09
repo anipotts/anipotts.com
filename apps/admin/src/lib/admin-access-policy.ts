@@ -105,6 +105,10 @@ export function isDevLoopbackPreviewRequest({
     (method === "GET" || method === "HEAD") &&
     isApprovedDevPreviewOrigin(url) &&
     (DEV_LOOPBACK_PREVIEW_PATHS.has(url.pathname) ||
+      /^\/content\/(?:home|workPage|writingPage|systemsPage|newsletterPage|newsletterArchivePage|projects|writing)\/[a-z0-9_-]+$/.test(
+        url.pathname,
+      ) ||
+      /^\/newsletter\/[a-z0-9-]+$/.test(url.pathname) ||
       DEV_PREVIEW_ASSET_PATHS.has(url.pathname) ||
       DEV_PREVIEW_ASSET_PREFIXES.some((prefix) =>
         url.pathname.startsWith(prefix),
@@ -112,7 +116,7 @@ export function isDevLoopbackPreviewRequest({
   );
 }
 
-function isApprovedDevPreviewOrigin(url: URL): boolean {
+export function isApprovedDevPreviewOrigin(url: URL): boolean {
   if (DEV_LOOPBACK_ORIGINS.has(url.origin)) return true;
   if (!DEV_PORTLESS_HOST_PATTERN.test(url.hostname)) return false;
   return (

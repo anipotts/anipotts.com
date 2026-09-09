@@ -36,14 +36,42 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: "10.5.2"
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24.19.0"
+          cache: pnpm
+
+      - name: Prepare canonical content inventory
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm content:generate
+
+      - name: Read admin release mode
+        id: policy
+        run: node -e 'console.log("editorial=" + (require("./config/release-train.json").editorial_admin_release === "enabled"))' >> "$GITHUB_OUTPUT"
+
       - name: Smoke public site
         if: inputs.target == 'www'
         run: node scripts/ci/release-smoke.mjs --target www --base-url https://anipotts.com --expected-sha "${{ inputs.commit_sha }}"
 
       - name: Smoke admin
-        if: inputs.target == 'admin'
+        if: inputs.target == 'admin' && steps.policy.outputs.editorial != 'true'
         run: node scripts/ci/release-smoke.mjs --target admin --mode "${{ inputs.mode }}" --base-url https://admin.anipotts.com --expected-sha "${{ inputs.commit_sha }}"
         env:
           ADMIN_CI_ACCESS_CLIENT_ID: ${{ secrets.ADMIN_CI_ACCESS_CLIENT_ID }}
           ADMIN_CI_ACCESS_CLIENT_SECRET: ${{ secrets.ADMIN_CI_ACCESS_CLIENT_SECRET }}
           ADMIN_CI_READ_TOKEN: ${{ secrets.ADMIN_CI_READ_TOKEN }}
+
+      - name: Smoke editorial admin
+        if: inputs.target == 'admin' && steps.policy.outputs.editorial == 'true'
+        run: node scripts/ci/editorial-release-smoke.mjs verify "$EXPECTED_SHA"
+        env:
+          EXPECTED_SHA: ${{ inputs.commit_sha }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

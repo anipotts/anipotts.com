@@ -22,6 +22,7 @@ const MIGRATION_PREFLIGHT_PATHS = [
 ];
 
 const CI_POLICY_PATHS = [
+  /^\.github\/editorial-publisher\.pem$/,
   /^\.coderabbit\.yaml$/,
   /^\.github\/workflows\//,
   /^config\//,
@@ -37,6 +38,7 @@ const LOCAL_DEV_PATHS = [
 ];
 
 const APPROVAL_PATHS = [
+  /^\.github\/editorial-publisher\.pem$/,
   /^\.github\/workflows\//,
   /^apps\/admin-solid\//,
   /^config\/release-train\.json$/,
@@ -55,6 +57,7 @@ const KNOWN_SAFE_ROOTS = [
   /^apps\/(?:admin|www)\//,
   /^packages\//,
   /^content\/public\//,
+  /^content\/publication\.json$/,
   /^drizzle\/seeds\/public-content\.json$/,
   /^scripts\//,
   /^config\//,

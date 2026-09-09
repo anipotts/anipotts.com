@@ -17,13 +17,27 @@ const base = { sourceSha: "a".repeat(40), eventName: "pull_request" };
 
 assert.equal(classifyRelease(["docs/release.md"], base).docs_only, true);
 const canonicalContentRelease = classifyRelease(
-  ["M\tcontent/public/pages/home.md"],
+  ["M\tcontent/public/pages/home.md", "A\tcontent/publication.json"],
   base,
 );
 assert.equal(canonicalContentRelease.docs_only, false);
 assert.equal(canonicalContentRelease.risk, "automatic");
 assert.equal(canonicalContentRelease.deploy_targets.www, true);
 assert.equal(canonicalContentRelease.deploy_targets.admin, true);
+assert.equal(
+  classifyRelease(["M\tcontent/publication.json"], base).risk,
+  "automatic",
+);
+assert.equal(
+  classifyRelease(["M\tcontent/publication-other.json"], base).risk,
+  "unknown",
+);
+const publisherKeyRelease = classifyRelease(
+  ["A\t.github/editorial-publisher.pem"],
+  base,
+);
+assert.equal(publisherKeyRelease.risk, "approval");
+assert.equal(publisherKeyRelease.ci_policy_changed, true);
 assert.equal(
   classifyRelease(["M\tdrizzle/seeds/public-content.json"], base).risk,
   "automatic",

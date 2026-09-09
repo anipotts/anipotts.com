@@ -1,31 +1,32 @@
 import type { APIRoute } from "astro";
-import { json } from "../../lib/api";
-import { publishedWriting } from "../../lib/content";
+const json = (data: unknown, status = 200) => Response.json(data, { status });
 
 export const prerender = false;
 
-/** Search the same canonical writing collection rendered by the public site. */
-export const GET: APIRoute = async ({ url }) => {
+type SearchItem = {
+  slug: string;
+  title: string;
+  summary: string;
+  date: string | null;
+  text: string;
+};
+
+/** Search the build's published-content artifact without loading Markdown at runtime. */
+export const GET: APIRoute = async ({ url, locals }) => {
   const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
   if (!q) return json({ results: [] });
 
   try {
-    const results = (await publishedWriting())
-      .filter((item) =>
-        [item.data.title, item.data.summary, item.body]
-          .join(" ")
-          .toLowerCase()
-          .includes(q),
-      )
-      .slice(0, 20);
+    const indexUrl = new URL("/search-index.json", url);
+    const response = import.meta.env.DEV
+      ? await fetch(indexUrl)
+      : await locals.runtime.env.ASSETS.fetch(new Request(indexUrl));
+    if (!response.ok) throw new Error("Published search index unavailable");
+    const items = (await response.json()) as SearchItem[];
+    const results = items.filter((item) => item.text.includes(q)).slice(0, 20);
 
     return json({
-      results: results.map((item) => ({
-        slug: item.slug,
-        title: item.data.title,
-        summary: item.data.summary,
-        date: item.data.published_at?.toISOString() ?? null,
-      })),
+      results: results.map(({ text: _text, ...item }) => item),
     });
   } catch (error) {
     console.error("search api error", error);

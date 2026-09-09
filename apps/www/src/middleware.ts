@@ -47,6 +47,7 @@ const SECURITY_HEADERS: Record<string, string> = {
 function applyHtmlSecurityHeaders(response: Response): Response {
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.includes("text/html")) return response;
+  response = new Response(response.body, response);
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
     response.headers.set(key, value);
   }
@@ -56,21 +57,16 @@ function applyHtmlSecurityHeaders(response: Response): Response {
 export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname, search } = context.url;
   const host = context.url.hostname.toLowerCase();
-
-  if (host === NEWS_HOST) {
-    if (pathname === "/") {
-      const page = await next(new URL("/newsletter", context.url));
-      return applyHtmlSecurityHeaders(page);
-    }
-
-    if (pathname === "/newsletter") {
-      return context.redirect("/", 301);
-    }
-
-    if (pathname === "/archive" || pathname.startsWith("/archive/")) {
-      const page = await next(new URL("/newsletter/archive", context.url));
-      return applyHtmlSecurityHeaders(page);
-    }
+  // Newsletter delivery endpoints remain available; its editorial pages are unpublished.
+  if (
+    pathname === "/newsletter" ||
+    pathname === "/newsletter/archive" ||
+    (host === NEWS_HOST && ["/", "/archive"].includes(pathname))
+  ) {
+    return new Response("not found", {
+      status: 404,
+      headers: { "Content-Type": "text/plain", "X-Robots-Tag": "noindex" },
+    });
   }
 
   // segment renames: preserve the tail. /thoughts/foo -> /writing/foo.
@@ -97,9 +93,26 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // /admin moved to the admin subdomain
   if (pathname === "/admin" || pathname.startsWith("/admin/")) {
     const adminPath = pathname.replace(/^\/admin/, "") || "/";
-    return context.redirect(`${siteConfig.adminUrl}${adminPath}${search}`, 308);
+    const origin = import.meta.env.DEV
+      ? "http://localhost:4311"
+      : siteConfig.adminUrl;
+    return context.redirect(`${origin}${adminPath}${search}`, 308);
   }
 
+  // Worker-first routing handles aliases and the newsletter host before assets.
+  // Known prebuilt pages bypass Astro's on-demand catch-all entirely.
+  if (
+    !import.meta.env.DEV &&
+    !context.isPrerendered &&
+    ["GET", "HEAD"].includes(context.request.method) &&
+    !pathname.startsWith("/api/") &&
+    !pathname.startsWith("/ingest/")
+  ) {
+    const asset = await context.locals.runtime.env.ASSETS.fetch(
+      context.request,
+    );
+    if (asset.status !== 404) return applyHtmlSecurityHeaders(asset);
+  }
   const response = await next();
 
   return applyHtmlSecurityHeaders(response);

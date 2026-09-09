@@ -19,7 +19,7 @@ interface Props {
 }
 const { item } = Astro.props;
 const slug = writingSlug(item);
-const { Content } = await render(item.entry);
+const { Content } = await render(item);
 const d = item.data;
 const moreWriting = (await publishedWriting())
   .filter((post) => post.slug !== slug)

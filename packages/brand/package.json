@@ -3,6 +3,8 @@
   "version": "0.4.0",
   "private": true,
   "exports": {
+    "./theme": "./src/theme.ts",
+    "./BrandMark.astro": "./src/BrandMark.astro",
     "./tokens.css": "./src/tokens.css",
     "./typography.css": "./src/typography.css",
     "./motion.css": "./src/motion.css",
