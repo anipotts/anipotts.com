@@ -11,7 +11,7 @@ interface Props {
 const { project } = Astro.props;
 
 const slug = projectSlug(project);
-const { Content } = await render(project.entry);
+const { Content } = await render(project);
 const hasBody = Boolean(project.body?.trim());
 const d = project.data;
 const displayYear = d.year.replace(/-$/u, "–present");

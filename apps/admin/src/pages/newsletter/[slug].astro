@@ -1,172 +1,39 @@
 ---
-import AdminLayout from "../../layouts/AdminLayout.astro";
-import {
-  newsletterDrafts,
-  newsletterDraftsSource,
-} from "../../data/newsletter";
-
-const { slug } = Astro.params;
-const draft = newsletterDrafts.find((item) => item.slug === slug);
-
-if (!draft) {
-  Astro.response.status = 404;
-}
+import { getCollection } from "astro:content";
+import EditorialLayout from "../../layouts/EditorialLayout.astro";
+import { recordUpdate } from "../../lib/editorial-content";
+import type { Review } from "../../components/astryx/EditorialApp";
+const entry = (await getCollection("newsletterDrafts")).find(
+  (item) => item.data.slug === Astro.params.slug,
+);
+const draft = entry?.data;
+if (!draft) Astro.response.status = 404;
+const review: Review | undefined = draft
+  ? {
+      back: "/newsletter",
+      updated: entry ? recordUpdate("newsletterDrafts", entry.id) : undefined,
+      status: draft.status,
+      metadata: draft.subject === draft.title ? [] : [draft.subject],
+      summary: draft.dek,
+      sections: [
+        { heading: "", paragraphs: [draft.hook.body] },
+        ...draft.sections.map((section) => ({
+          heading: section.heading ?? section.label ?? "",
+          paragraphs: [section.body],
+          items: section.items,
+        })),
+        { heading: "", paragraphs: [draft.close.body, draft.close.cta] },
+      ],
+      claims: draft.claims,
+      sources: draft.source_refs,
+      fields: {
+        audience: draft.audience,
+        outline: draft.spine,
+        thread: draft.x_thread_beats,
+        notes: draft.preview_notes,
+      },
+    }
+  : undefined;
 ---
 
-<AdminLayout
-  title={draft ? `newsletter / ${draft.slug}` : "newsletter / missing"}
-  deck="Read-only issue preview. This route reviews draft shape and public-post aesthetics without D1 writes, archive publishing, sends, or worker controls."
->
-  {
-    draft ? (
-      <>
-        <section class="meta-strip" aria-label="newsletter preview source">
-          <span>{draft.status}</span>
-          <span>{newsletterDraftsSource.mode}</span>
-          <span>{draft.source_fixture}</span>
-          <span>write path inactive</span>
-        </section>
-
-        <div class="newsletter-preview-layout">
-          <article
-            class="newsletter-article-preview"
-            aria-label="issue preview"
-          >
-            <a class="back-link" href="/newsletter">
-              back to issue queue
-            </a>
-            <header class="newsletter-article-head">
-              <p>draft newsletter issue</p>
-              <h2>{draft.title}</h2>
-              <div
-                class="newsletter-media-slot"
-                role="img"
-                aria-label="draft media preview placeholder"
-              >
-                <div>
-                  <span>media preview slot</span>
-                  <strong>image, screenshot, or article preview</strong>
-                </div>
-              </div>
-              <p class="newsletter-dek">{draft.dek}</p>
-            </header>
-
-            <p>{draft.hook.body}</p>
-
-            <div class="newsletter-spine">
-              {draft.spine.map((item) => (
-                <span>{item}</span>
-              ))}
-            </div>
-
-            {draft.sections.map((section) => (
-              <section class="newsletter-section">
-                {section.heading && <h3>{section.heading}</h3>}
-                {section.label && <h3>{section.label}</h3>}
-                <p>{section.body}</p>
-                {section.items && (
-                  <ul>
-                    {section.items.map((item) => (
-                      <li>{item}</li>
-                    ))}
-                  </ul>
-                )}
-                {section.thread_beat && <small>{section.thread_beat}</small>}
-              </section>
-            ))}
-
-            <aside class="newsletter-close">
-              <h3>working close</h3>
-              <p>{draft.close.body}</p>
-              <small>{draft.close.cta}</small>
-            </aside>
-          </article>
-
-          <aside
-            class="newsletter-proof-panel"
-            aria-label="draft proof and gates"
-          >
-            <section class="table-card">
-              <div class="section-head">
-                <div>
-                  <p>proof</p>
-                  <h2>{draft.claims.length} claims</h2>
-                </div>
-                <span>{newsletterDraftsSource.blocked}</span>
-              </div>
-              <div class="record-list">
-                {draft.claims.map((claim) => (
-                  <article class="compact-row">
-                    <strong>{claim.claim}</strong>
-                    <span>{claim.status}</span>
-                    <small>{claim.source_refs.join(", ")}</small>
-                  </article>
-                ))}
-              </div>
-            </section>
-
-            <section class="table-card">
-              <div class="section-head">
-                <div>
-                  <p>sources</p>
-                  <h2>{draft.source_refs.length} refs</h2>
-                </div>
-                <span>{newsletterDraftsSource.source_doc}</span>
-              </div>
-              <div class="record-list">
-                {draft.source_refs.map((source) => (
-                  <article class="compact-row">
-                    <strong>{source.ref}</strong>
-                    <small>{source.use}</small>
-                  </article>
-                ))}
-              </div>
-            </section>
-
-            <section class="table-card">
-              <div class="section-head">
-                <div>
-                  <p>blocked live actions</p>
-                  <h2>{draft.blocked_actions.length} gates</h2>
-                </div>
-                <span>no controls</span>
-              </div>
-              <div class="record-list">
-                {draft.blocked_actions.map((action) => (
-                  <article class="compact-row">
-                    <strong>{action}</strong>
-                    <small>
-                      requires separate authority before implementation
-                    </small>
-                  </article>
-                ))}
-              </div>
-            </section>
-
-            <section class="table-card">
-              <div class="section-head">
-                <div>
-                  <p>thread beats</p>
-                  <h2>{draft.x_thread_beats.length} lines</h2>
-                </div>
-                <span>draft only</span>
-              </div>
-              <div class="record-list">
-                {draft.x_thread_beats.map((beat) => (
-                  <article class="compact-row">
-                    <strong>{beat}</strong>
-                  </article>
-                ))}
-              </div>
-            </section>
-          </aside>
-        </div>
-      </>
-    ) : (
-      <section class="notice">
-        Newsletter draft not found. Return to the newsletter queue and select a
-        known draft slug.
-      </section>
-    )
-  }
-</AdminLayout>
+<EditorialLayout title={draft?.title ?? "draft not found"} review={review} />

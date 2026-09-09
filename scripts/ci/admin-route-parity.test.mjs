@@ -6,6 +6,7 @@ import { join } from "node:path";
 import {
   ADMIN_PROTECTED_SMOKE_ROUTES,
   ADMIN_ROUTES,
+  RETIRED_ADMIN_AUTH_FILES,
   PUBLIC_UNSMOKED_ROUTE_FILES,
 } from "./admin-route-inventory.mjs";
 
@@ -80,10 +81,6 @@ const passkeyProofSource = readFileSync(
   "utf8",
 );
 const authSource = readFileSync("apps/admin/src/pages/auth.astro", "utf8");
-const passkeyRedirectSource = readFileSync(
-  "apps/admin/src/pages/auth/passkey.ts",
-  "utf8",
-);
 const contentEditorSource = readFileSync(
   "apps/admin/src/pages/content/edit/[pageKey].astro",
   "utf8",
@@ -293,17 +290,18 @@ assert.equal(
   "admin nav must expose one primary inbox entry",
 );
 assert.ok(
-  rootSource.includes('import AdminHome from "../components/AdminHome.astro"'),
-  "admin root must render the canonical home projection",
+  rootSource.includes("Astro.redirect(`/content${Astro.url.search}`"),
+  "root opens editorial content and preserves its query",
 );
 assert.ok(
   inboxSource.includes('import AdminHome from "../components/AdminHome.astro"'),
-  "/inbox must render the same canonical home projection",
+  "legacy inbox keeps its projection",
 );
-assert.equal(
-  inboxSource,
-  rootSource,
-  "/ and /inbox must resolve the identical attention component",
+for (const file of RETIRED_ADMIN_AUTH_FILES)
+  assert.equal(existsSync(file), false, `${file} must remain retired`);
+assert.ok(
+  middlewareSource.includes("verifyEditorialOwner"),
+  "editorial requests require signed owner identity",
 );
 assert.ok(
   navSource.includes('href: "/",\n    label: "inbox"'),
@@ -520,31 +518,18 @@ assert.equal(
 );
 
 for (const marker of [
-  "continue with passkey",
-  "use phone",
-  "recover access",
-  'data-auth-state="phone"',
-  'data-auth-state="invite"',
-  'data-auth-state="pending"',
-  'data-auth-state="error"',
-  'data-auth-state="expired"',
-  "sanitizeAdminReturnPath",
+  "BrandMark",
+  "editorialReturnPath",
+  "href={destination}",
+  "sign-in:focus-visible",
 ]) {
   assert.ok(
     authSource.includes(marker),
-    `/auth missing passkey-first marker ${marker}`,
+    `/auth missing editorial sign-in requirement ${marker}`,
   );
 }
-for (const marker of [
-  "sanitizeAdminReturnPath",
-  "context.redirect",
-  "encodeURIComponent",
-]) {
-  assert.ok(
-    passkeyRedirectSource.includes(marker),
-    `/auth/passkey compatibility redirect missing ${marker}`,
-  );
-}
+for (const retired of ["continue with passkey", "recover access", "use phone"])
+  assert.equal(authSource.includes(retired), false);
 
 for (const marker of [
   "readPageContentInventoryStore",

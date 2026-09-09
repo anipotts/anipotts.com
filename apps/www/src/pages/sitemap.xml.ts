@@ -7,7 +7,7 @@ import {
   visibleProjects,
 } from "../lib/content";
 
-export const prerender = false;
+export const prerender = true;
 
 const BASE = siteConfig.url;
 

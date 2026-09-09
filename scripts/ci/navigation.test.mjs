@@ -113,28 +113,173 @@ assert.equal(boot(previous, false).attrs.size, 0, "touch never restores hover");
 assert.doesNotThrow(() => boot(previous, true, true));
 const shell = readFileSync("apps/www/src/layouts/Shell.astro", "utf8");
 const themeBoot = shell.match(/<script is:inline>([\s\S]*?)<\/script>/)[1];
-for (const stored of ["dark", "light", "invalid", null]) {
-  const dataset = {};
+// Model the browser inputs used by the inline boot script. These assertions
+// verify page theme state and hints, not native Safari chrome repaint behavior.
+function bootTheme(
+  stored,
+  {
+    blockedStorage = false,
+    incoming = "",
+    cookie = "",
+    darkSystem = false,
+    earlyBackground,
+    metaPresent = true,
+    palette = { light: "rgb(97, 171, 234)", dark: "rgb(8, 11, 16)" },
+  } = {},
+) {
+  const root = { dataset: {}, style: {} };
+  const meta = {
+    content: "#61abea",
+    writes: [],
+    setAttribute(name, value) {
+      assert.equal(name, "content");
+      this.content = value;
+      this.writes.push(value);
+    },
+  };
+  const handlers = {};
+  const observers = [];
+  let background = earlyBackground;
   runInNewContext(themeBoot, {
-    document: { documentElement: { dataset } },
-    localStorage: { getItem: () => stored },
-  });
-  assert.equal(dataset.theme, stored === "dark" ? "dark" : "light");
-}
-const blockedTheme = {};
-assert.doesNotThrow(() =>
-  runInNewContext(themeBoot, {
-    document: { documentElement: { dataset: blockedTheme } },
-    localStorage: {
-      getItem: () => {
-        throw new Error("storage unavailable");
+    URL,
+    location: { href: `https://anipotts.com/${incoming}` },
+    matchMedia: () => ({ matches: darkSystem }),
+    document: {
+      cookie,
+      documentElement: root,
+      querySelector(selector) {
+        assert.equal(selector, 'meta[name="theme-color"]');
+        return metaPresent ? meta : null;
+      },
+      addEventListener(name, callback, options) {
+        assert.equal(name, "DOMContentLoaded");
+        assert.equal(options.once, true);
+        handlers[name] = callback;
       },
     },
-  }),
+    window: {
+      addEventListener(name, callback) {
+        assert.equal(name, "pageshow");
+        handlers[name] = callback;
+      },
+    },
+    localStorage: {
+      getItem(key) {
+        assert.equal(key, "theme");
+        if (blockedStorage) throw new Error("storage unavailable");
+        return stored;
+      },
+    },
+    getComputedStyle(element) {
+      assert.equal(element, root);
+      return { backgroundColor: background ?? palette[root.dataset.theme] };
+    },
+    MutationObserver: class {
+      constructor(callback) {
+        this.callback = callback;
+        observers.push(this);
+      }
+      observe(element, options) {
+        assert.equal(element, root);
+        assert.equal(options.attributes, true);
+        assert.deepEqual(Array.from(options.attributeFilter), ["data-theme"]);
+      }
+    },
+  });
+  assert.equal(observers.length, 1, "theme changes have one root observer");
+  return {
+    root,
+    meta,
+    palette,
+    handlers,
+    cssReady() {
+      background = undefined;
+      handlers.DOMContentLoaded();
+    },
+    toggle(theme) {
+      root.dataset.theme = theme;
+      observers[0].callback();
+    },
+  };
+}
+
+assert.equal(
+  (shell.match(/<meta name="theme-color"/g) ?? []).length,
+  1,
+  "one theme hint follows the site instead of competing OS-specific hints",
 );
-assert.equal(blockedTheme.theme, "light");
+for (const stored of ["dark", "light", "invalid", null]) {
+  const state = bootTheme(stored);
+  const expected = stored === "dark" ? "dark" : "light";
+  assert.equal(state.root.dataset.theme, expected);
+  assert.equal(state.root.style.colorScheme, expected);
+  assert.equal(state.meta.content, state.palette[expected]);
+  for (const next of ["dark", "light", "dark"]) {
+    state.toggle(next);
+    assert.equal(state.root.style.colorScheme, next);
+    assert.equal(
+      state.meta.content,
+      state.palette[next],
+      "browser hint follows each site toggle",
+    );
+  }
+  state.meta.content = "stale cached tint";
+  state.root.style.colorScheme = "light";
+  state.handlers.pageshow();
+  assert.equal(
+    state.meta.content,
+    state.palette.dark,
+    "restore theme hints after back/forward cache",
+  );
+  assert.equal(state.root.style.colorScheme, "dark");
+}
+const blockedTheme = bootTheme(null, { blockedStorage: true });
+assert.equal(blockedTheme.root.dataset.theme, "light");
+blockedTheme.toggle("dark");
+assert.equal(
+  blockedTheme.meta.content,
+  blockedTheme.palette.dark,
+  "disabled persistence does not prevent the active theme changing",
+);
+for (const earlyBackground of ["transparent", "rgba(0, 0, 0, 0)", ""]) {
+  const state = bootTheme("dark", { earlyBackground });
+  assert.equal(
+    state.meta.writes.length,
+    0,
+    "do not replace the browser hint with unpainted CSS",
+  );
+  state.cssReady();
+  assert.equal(
+    state.meta.content,
+    state.palette.dark,
+    "synchronize once page CSS is available",
+  );
+}
+assert.doesNotThrow(() =>
+  bootTheme("dark", { metaPresent: false }).toggle("light"),
+);
+const editorialTheme = bootTheme("light", {
+  palette: { light: "rgb(255, 255, 255)", dark: "rgb(17, 21, 29)" },
+});
+assert.equal(editorialTheme.meta.content, editorialTheme.palette.light);
+editorialTheme.toggle("dark");
+assert.equal(
+  editorialTheme.meta.content,
+  editorialTheme.palette.dark,
+  "browser hints follow computed page colors, including the editorial surface",
+);
 assert.ok(nav.includes("min-height: 52px"));
 assert.ok(nav.includes("navToggle.focus()"));
 console.log(
-  "navigation: hover continuity, expiry, touch, storage fallback, and menu contracts passed",
+  "navigation: hover continuity, expiry, touch, theme lifecycle, storage fallback, and menu contracts passed",
+);
+
+assert.equal(
+  bootTheme("light", { incoming: "?theme=dark" }).root.dataset.theme,
+  "dark",
+);
+assert.equal(
+  bootTheme("light", { cookie: "ap-theme=system", darkSystem: true }).root
+    .dataset.theme,
+  "dark",
 );

@@ -1,32 +1,28 @@
 import type { APIRoute } from "astro";
-import { json } from "../../lib/api";
 
 export const prerender = false;
 
 export const GET: APIRoute = async ({ locals }) => {
-  let d1: "connected" | "error" = "error";
   let tablesOk = false;
   try {
-    const db = locals.runtime.env.DB;
-    const result = await db
-      .prepare("SELECT COUNT(*) as cnt FROM thoughts LIMIT 1")
-      .first<{ cnt: number }>();
-    if (result && result.cnt >= 0) {
-      d1 = "connected";
-      tablesOk = true;
-    }
+    const result = await locals.runtime.env.DB.prepare(
+      "SELECT COUNT(*) AS cnt FROM (SELECT id, email, status FROM newsletter_subscribers LIMIT 1)",
+    ).first<{ cnt: number }>();
+    tablesOk = typeof result?.cnt === "number" && result.cnt >= 0;
   } catch {
-    d1 = "error";
+    // Report only availability, never database errors or subscriber data.
   }
-
-  return json({
-    app: "www",
-    ok: d1 === "connected",
-    d1,
-    tables_ok: tablesOk,
-    release_sha: import.meta.env.PUBLIC_RELEASE_SHA || "dev",
-    schema_version:
-      import.meta.env.PUBLIC_RELEASE_SCHEMA_VERSION || "0042-unverified",
-    ts: new Date().toISOString(),
-  });
+  return Response.json(
+    {
+      app: "www",
+      ok: tablesOk,
+      d1: tablesOk ? "connected" : "error",
+      tables_ok: tablesOk,
+      release_sha: import.meta.env.PUBLIC_RELEASE_SHA || "dev",
+      schema_version:
+        import.meta.env.PUBLIC_RELEASE_SCHEMA_VERSION || "0042-unverified",
+      ts: new Date().toISOString(),
+    },
+    { status: tablesOk ? 200 : 503 },
+  );
 };

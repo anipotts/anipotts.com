@@ -1,0 +1,185 @@
+/* Layout budgets and server-rendered prose; Astryx owns component styling. */
+.editorial-content {
+  width: 100%;
+  max-width: 68rem;
+  margin-inline: auto;
+  padding-block: var(--spacing-6);
+  min-width: 0;
+}
+.editorial-prose {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.editorial-prose img,
+.editorial-prose video {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-element);
+}
+.editorial-prose p {
+  line-height: var(--line-height-relaxed, 1.65);
+}
+.editorial-prose pre {
+  overflow: auto;
+  max-width: 100%;
+  padding: var(--spacing-4);
+}
+.editorial-prose ul,
+.editorial-prose ol {
+  padding-left: var(--spacing-6);
+}
+.editorial-prose astro-slot > * + * {
+  margin-top: var(--spacing-4);
+}
+.record-link {
+  max-width: 100%;
+  height: auto;
+  text-align: left;
+  justify-content: flex-start;
+  white-space: normal;
+}
+.record-link span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.editorial-content .astryx-stack,
+.editorial-content .astryx-card {
+  min-width: 0;
+  max-width: 100%;
+}
+.editorial-nav-icon {
+  display: none;
+}
+.editorial-mobile-status {
+  display: none;
+}
+.editorial-date-note {
+  display: block;
+}
+.editorial-content .astryx-table-header-cell,
+.editorial-content .astryx-table-cell {
+  padding-inline: var(--spacing-3);
+}
+.editorial-record-table .record-link {
+  padding-inline: 0;
+}
+.editorial-record-heading .record-link {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+.editorial-record-heading > .astryx-token {
+  flex-shrink: 0;
+}
+.editorial-record-count {
+  margin-inline-start: auto;
+  white-space: nowrap;
+}
+.editorial-filter-row .editorial-status-filter {
+  width: auto;
+  flex: 0 1 auto;
+}
+/* Responsive region contract (Astryx `docs layout`, Breakpoints):
+ * <=640: text navigation becomes icon controls; main gutters tighten.
+ * <=480: status joins the record title so the date column remains visible.
+ * <=540 or coarse pointer: controls keep a full touch target.
+ * These are structural viewport budgets, as in Astryx's useMediaQuery examples.
+ * Astryx supplies no theme breakpoint tokens for media-query conditions, and
+ * CSS custom properties cannot be substituted there. Interior sizes use tokens.
+ * CSS keeps the server-rendered table responsive before React hydrates.
+ */
+@media (max-width: 640px) {
+  .astryx-top-nav {
+    flex-wrap: nowrap;
+    height: auto;
+    gap: var(--spacing-2);
+    padding: var(--spacing-2);
+  }
+  .astryx-top-nav > :last-child {
+    width: auto;
+    min-width: 0;
+    flex-shrink: 1;
+  }
+  .editorial-nav-actions {
+    gap: var(--spacing-1);
+  }
+  .editorial-nav-label {
+    display: none;
+  }
+  .editorial-nav-icon {
+    display: inline-flex;
+  }
+  .editorial-nav-link {
+    width: var(--spacing-11);
+    min-width: var(--spacing-11);
+    padding-inline: 0;
+  }
+  .astryx-top-nav-heading {
+    min-height: var(--spacing-11);
+  }
+  #astryx-app-shell-main {
+    padding-inline: var(--spacing-2);
+  }
+  .editorial-content {
+    padding-block: var(--spacing-3);
+  }
+  .editorial-status-filter .astryx-segmented-control-item {
+    padding-inline: var(--spacing-2);
+  }
+}
+/* Keep the date column on phones; status stays with its record title. */
+@media (max-width: 480px) {
+  .editorial-record-table {
+    min-width: 0 !important;
+  }
+  .editorial-record-table th:first-child {
+    width: auto !important;
+    min-width: 0 !important;
+  }
+  .editorial-record-table th:nth-child(2),
+  .editorial-record-table td:nth-child(2) {
+    display: none;
+  }
+  .editorial-mobile-status {
+    display: flex;
+  }
+}
+@media (pointer: coarse), (max-width: 540px) {
+  .astryx-button,
+  .astryx-tab,
+  .astryx-segmented-control-item,
+  .astryx-dropdown-menu-checkbox,
+  .astryx-text-input,
+  .astryx-collapsible-trigger {
+    min-height: var(--spacing-11);
+  }
+  .astryx-button[data-icon-only="true"] {
+    min-width: var(--spacing-11);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-astryx-theme] *,
+  [data-astryx-theme] *::before,
+  [data-astryx-theme] *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+/* Source editing and the actual page preview each own one full-width region. */
+.editorial-source {
+  min-width: 0;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+}
+.editorial-source .cm-editor {
+  min-height: 24rem;
+}
+.editorial-source .cm-scroller {
+  overflow: auto;
+}
+.editorial-preview {
+  width: 100%;
+  height: 70vh;
+  border: 0;
+  border-radius: var(--radius-md);
+}

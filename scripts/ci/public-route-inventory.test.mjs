@@ -4,13 +4,21 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import {
+  DEFAULT_CMS_PROJECTS,
+  DEFAULT_CMS_WRITING,
+} from "../../packages/content/src/public/generated.ts";
+import { isPublicProject } from "../../packages/content/src/public/visibility.ts";
+import {
   PUBLIC_ROUTE_INVENTORY,
   PUBLIC_SMOKE_ROUTES,
   validatePublicRouteInventory,
 } from "./public-route-inventory.mjs";
 
-assert.equal(PUBLIC_ROUTE_INVENTORY.length, 23);
-assert.equal(PUBLIC_SMOKE_ROUTES.length, 23);
+assert.ok(PUBLIC_ROUTE_INVENTORY.length >= 5);
+for (const route of ["/", "/work", "/writing", "/systems", "/links"])
+  assert.ok(PUBLIC_SMOKE_ROUTES.includes(route));
+for (const route of ["/newsletter", "/newsletter/archive"])
+  assert.equal(PUBLIC_SMOKE_ROUTES.includes(route), false);
 assert.deepEqual(
   PUBLIC_SMOKE_ROUTES,
   PUBLIC_ROUTE_INVENTORY.map((record) => record.route),
@@ -29,13 +37,13 @@ assert.equal(
   PUBLIC_ROUTE_INVENTORY.filter(
     (record) => record.file === "apps/www/src/pages/work/[slug].astro",
   ).length,
-  11,
+  DEFAULT_CMS_PROJECTS.filter(isPublicProject).length,
 );
 assert.equal(
   PUBLIC_ROUTE_INVENTORY.filter(
     (record) => record.file === "apps/www/src/pages/writing/[slug].astro",
   ).length,
-  5,
+  DEFAULT_CMS_WRITING.filter((item) => item.visible).length,
 );
 
 const cli = spawnSync(

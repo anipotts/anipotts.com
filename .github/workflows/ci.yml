@@ -64,6 +64,19 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
 
+      - name: Verify frozen editorial publication
+        if: startsWith(github.event.pull_request.head.ref, 'codex/editorial-')
+        env:
+          PUBLISH_BASE: ${{ github.event.pull_request.base.sha }}
+          PUBLISH_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUBLISH_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          [[ "$PUBLISH_BRANCH" =~ ^codex/editorial-[a-f0-9]{8}-([a-f0-9]{4}-){3}[a-f0-9]{12}$ ]] || exit 0
+          verifier="$RUNNER_TEMP/editorial-publication.mjs"
+          git show "$PUBLISH_BASE:scripts/ci/editorial-publication.mjs" > "$verifier"
+          node "$verifier"
+
       - name: Setup pnpm
         if: github.event.pull_request.draft == false
         uses: pnpm/action-setup@v6
@@ -86,6 +99,10 @@ jobs:
       - name: Install dependencies
         if: github.event.pull_request.draft == false
         run: pnpm install --frozen-lockfile
+
+      - name: Generate canonical content projections
+        if: github.event.pull_request.draft == false
+        run: pnpm content:generate
 
       # Required context must not be green from a draft-only diff check. GitHub
       # treats skipped jobs as successful, so explicitly fail this release gate.

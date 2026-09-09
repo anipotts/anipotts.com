@@ -1,6 +1,14 @@
 export const ADMIN_ROUTES = [
-  { route: "/", file: "apps/admin/src/pages/index.astro", nav: true },
-  { route: "/inbox", file: "apps/admin/src/pages/inbox.astro", nav: false },
+  {
+    route: "/",
+    file: "apps/admin/src/pages/index.astro",
+    nav: true,
+  },
+  {
+    route: "/inbox",
+    file: "apps/admin/src/pages/inbox.astro",
+    nav: false,
+  },
   {
     route: "/knowledge",
     file: "apps/admin/src/pages/knowledge.astro",
@@ -35,18 +43,6 @@ export const ADMIN_ROUTES = [
     route: "/life/aesthetics",
     file: "apps/admin/src/pages/life/aesthetics.astro",
     nav: true,
-    smoke: false,
-  },
-  {
-    route: "/auth/device/:requestId",
-    file: "apps/admin/src/pages/auth/device/[requestId].astro",
-    nav: false,
-    smoke: false,
-  },
-  {
-    route: "/auth/recover/passkey",
-    file: "apps/admin/src/pages/auth/recover/passkey.astro",
-    nav: false,
     smoke: false,
   },
   {
@@ -95,15 +91,31 @@ export const ADMIN_ROUTES = [
     file: "apps/admin/src/pages/newsletter/[slug].astro",
     nav: false,
   },
-  { route: "/proof", file: "apps/admin/src/pages/proof.astro", nav: true },
-  { route: "/deploys", file: "apps/admin/src/pages/deploys.astro", nav: true },
-  { route: "/repos", file: "apps/admin/src/pages/repos.astro", nav: true },
+  {
+    route: "/proof",
+    file: "apps/admin/src/pages/proof.astro",
+    nav: true,
+  },
+  {
+    route: "/deploys",
+    file: "apps/admin/src/pages/deploys.astro",
+    nav: true,
+  },
+  {
+    route: "/repos",
+    file: "apps/admin/src/pages/repos.astro",
+    nav: true,
+  },
   {
     route: "/handoffs",
     file: "apps/admin/src/pages/handoffs.astro",
     nav: true,
   },
-  { route: "/fleet", file: "apps/admin/src/pages/fleet.astro", nav: true },
+  {
+    route: "/fleet",
+    file: "apps/admin/src/pages/fleet.astro",
+    nav: true,
+  },
   {
     route: "/system",
     file: "apps/admin/src/pages/system.astro",
@@ -162,62 +174,20 @@ export const ADMIN_ROUTES = [
     smoke: false,
   },
   {
-    route: "/api/admin/device/approve",
-    file: "apps/admin/src/pages/api/admin/device/approve.ts",
+    route: "/content/home/home",
+    file: "apps/admin/src/pages/content/[collection]/[id].astro",
     nav: false,
     smoke: false,
   },
   {
-    route: "/api/admin/device/review",
-    file: "apps/admin/src/pages/api/admin/device/review.ts",
+    route: "/preview/home",
+    file: "apps/admin/src/pages/preview/home.astro",
     nav: false,
     smoke: false,
   },
   {
-    route: "/api/admin/machine-tokens/create",
-    file: "apps/admin/src/pages/api/admin/machine-tokens/create.ts",
-    nav: false,
-    smoke: false,
-  },
-  {
-    route: "/api/admin/machine-tokens/revoke",
-    file: "apps/admin/src/pages/api/admin/machine-tokens/revoke.ts",
-    nav: false,
-    smoke: false,
-  },
-  {
-    route: "/api/admin/machine-tokens/rotate",
-    file: "apps/admin/src/pages/api/admin/machine-tokens/rotate.ts",
-    nav: false,
-    smoke: false,
-  },
-  {
-    route: "/api/admin/members/approve",
-    file: "apps/admin/src/pages/api/admin/members/approve.ts",
-    nav: false,
-    smoke: false,
-  },
-  {
-    route: "/api/admin/members/invite",
-    file: "apps/admin/src/pages/api/admin/members/invite.ts",
-    nav: false,
-    smoke: false,
-  },
-  {
-    route: "/api/admin/recovery/google/bootstrap",
-    file: "apps/admin/src/pages/api/admin/recovery/google/bootstrap.ts",
-    nav: false,
-    smoke: false,
-  },
-  {
-    route: "/api/admin/recovery/passkey/options",
-    file: "apps/admin/src/pages/api/admin/recovery/passkey/options.ts",
-    nav: false,
-    smoke: false,
-  },
-  {
-    route: "/api/admin/recovery/passkey/verify",
-    file: "apps/admin/src/pages/api/admin/recovery/passkey/verify.ts",
+    route: "/api/editorial/record",
+    file: "apps/admin/src/pages/api/editorial/[action].ts",
     nav: false,
     smoke: false,
   },
@@ -225,18 +195,25 @@ export const ADMIN_ROUTES = [
 
 export const PUBLIC_UNSMOKED_ROUTE_FILES = [
   "apps/admin/src/pages/auth.astro",
-  "apps/admin/src/pages/auth/invite.astro",
-  "apps/admin/src/pages/auth/passkey.ts",
-  "apps/admin/src/pages/auth/recover.astro",
   "apps/admin/src/pages/api/health.ts",
   "apps/admin/src/pages/api/mcp.ts",
+];
+
+export const RETIRED_ADMIN_AUTH_FILES = [
   "apps/admin/src/pages/api/admin/auth/session.ts",
+  "apps/admin/src/pages/api/admin/device/approve.ts",
   "apps/admin/src/pages/api/admin/device/claim.ts",
+  "apps/admin/src/pages/api/admin/device/review.ts",
   "apps/admin/src/pages/api/admin/device/start.ts",
   "apps/admin/src/pages/api/admin/device/status.ts",
   "apps/admin/src/pages/api/admin/invites/register-options.ts",
   "apps/admin/src/pages/api/admin/invites/register-verify.ts",
   "apps/admin/src/pages/api/admin/invites/status.ts",
+  "apps/admin/src/pages/api/admin/machine-tokens/create.ts",
+  "apps/admin/src/pages/api/admin/machine-tokens/revoke.ts",
+  "apps/admin/src/pages/api/admin/machine-tokens/rotate.ts",
+  "apps/admin/src/pages/api/admin/members/approve.ts",
+  "apps/admin/src/pages/api/admin/members/invite.ts",
   "apps/admin/src/pages/api/admin/passkey/login-options.ts",
   "apps/admin/src/pages/api/admin/passkey/login-verify.ts",
   "apps/admin/src/pages/api/admin/passkey/logout.ts",
@@ -247,8 +224,16 @@ export const PUBLIC_UNSMOKED_ROUTE_FILES = [
   "apps/admin/src/pages/api/admin/password/login.ts",
   "apps/admin/src/pages/api/admin/password/logout.ts",
   "apps/admin/src/pages/api/admin/password/status.ts",
+  "apps/admin/src/pages/api/admin/recovery/google/bootstrap.ts",
   "apps/admin/src/pages/api/admin/recovery/google/callback.ts",
   "apps/admin/src/pages/api/admin/recovery/google/start.ts",
+  "apps/admin/src/pages/api/admin/recovery/passkey/options.ts",
+  "apps/admin/src/pages/api/admin/recovery/passkey/verify.ts",
+  "apps/admin/src/pages/auth/device/[requestId].astro",
+  "apps/admin/src/pages/auth/invite.astro",
+  "apps/admin/src/pages/auth/passkey.ts",
+  "apps/admin/src/pages/auth/recover.astro",
+  "apps/admin/src/pages/auth/recover/passkey.astro",
 ];
 
 export const ADMIN_PROTECTED_SMOKE_ROUTES = ADMIN_ROUTES.filter(

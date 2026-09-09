@@ -25,11 +25,19 @@
         "wrangler.toml"
       ],
       "outputs": ["dist/**"],
-      "env": ["NODE_ENV", "PUBLIC_POSTHOG_KEY", "PUBLIC_TURNSTILE_SITE_KEY"]
+      "env": [
+        "NODE_ENV",
+        "PUBLIC_POSTHOG_KEY",
+        "PUBLIC_TURNSTILE_SITE_KEY",
+        "PUBLIC_RELEASE_SHA"
+      ]
     },
     "@anipotts/admin#build": {
       "dependsOn": ["^build"],
       "inputs": [
+        "$TURBO_ROOT$/content/public/**",
+        "$TURBO_ROOT$/content/editorial/**",
+        "$TURBO_ROOT$/scripts/dev/editorial-updates.mjs",
         "src/**",
         "public/**",
         "tsconfig.json",
@@ -38,7 +46,12 @@
         "wrangler.toml"
       ],
       "outputs": ["dist/**"],
-      "env": ["NODE_ENV", "PUBLIC_STATE_API"]
+      "env": [
+        "NODE_ENV",
+        "PUBLIC_STATE_API",
+        "PUBLIC_RELEASE_SHA",
+        "PUBLIC_RELEASE_SCHEMA_VERSION"
+      ]
     },
     "@anipotts/state#build": {
       "dependsOn": ["^build"],
@@ -72,6 +85,27 @@
     },
     "clean": {
       "cache": false
+    },
+    "@anipotts/content#build": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_ROOT$/content/public/**",
+        "$TURBO_ROOT$/scripts/content/generate-public-content.mjs",
+        "src/**",
+        "!src/public/generated.ts",
+        "tsconfig.json",
+        "package.json"
+      ],
+      "outputs": [
+        "dist/**",
+        "src/public/generated.ts",
+        "generated/admin-public-content.json"
+      ]
+    },
+    "@anipotts/admin#test": {
+      "dependsOn": ["^build"],
+      "inputs": ["src/**", "test/**", "vitest*.config.ts", "package.json"],
+      "outputs": []
     }
   }
 }

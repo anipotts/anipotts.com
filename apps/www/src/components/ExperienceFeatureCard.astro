@@ -11,7 +11,7 @@ const { project } = Astro.props;
 const d = project.data;
 const preview = d.preview_media;
 const identity = d.identity;
-const slug = project.slug;
+const slug = project.data.slug ?? project.id;
 const isPgi = slug === "pgi-research-platform";
 const treatment = slug === "structured-ai" ? "current" : "community";
 const displayTitle = isPgi ? "pgi research" : d.title;

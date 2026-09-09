@@ -94,7 +94,10 @@ assert.ok(environment.includes('name = "inspect live state"'));
 assert.ok(adminConfig.includes('[".admin.anipotts.localhost"]'));
 assert.ok(publicConfig.includes('".anipotts.localhost"'));
 assert.ok(adminConfig.includes("publicContentHotReload()"));
-assert.ok(publicConfig.includes("publicContentHotReload()"));
+assert.ok(
+  !publicConfig.includes("publicContentHotReload()"),
+  "public development must use Astro's Markdown loader without regenerating editable projections",
+);
 for (const invariant of [
   "server.watcher.add(CONTENT_ROOT)",
   'server.watcher.on("change", schedule)',

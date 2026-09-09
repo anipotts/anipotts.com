@@ -11,7 +11,7 @@ interface Props {
 
 const { project, variant = project.data.kind, flowVariant } = Astro.props;
 const d = project.data;
-const slug = project.slug;
+const slug = project.data.slug ?? project.id;
 const identity = d.identity;
 const preview = d.preview_media;
 const stateIcon =

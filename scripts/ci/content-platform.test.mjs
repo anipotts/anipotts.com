@@ -131,7 +131,13 @@ assert.deepEqual(
   "homepage summary segmentation must preserve casing, longest matches, and word boundaries",
 );
 
-const homepageSource = readFileSync("apps/www/src/pages/index.astro", "utf8");
+const homepageSource = readFileSync(
+  "apps/www/src/components/HomePage.astro",
+  "utf8",
+);
+assert.ok(
+  readFileSync("apps/www/src/pages/index.astro", "utf8").includes("<HomePage"),
+);
 const inlineMentionSource = readFileSync(
   "apps/www/src/components/InlineMention.astro",
   "utf8",

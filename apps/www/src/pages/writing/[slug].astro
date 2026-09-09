@@ -1,13 +1,18 @@
 ---
 import WritingDetail from "../../components/WritingDetail.astro";
-import NotFoundPage from "../../components/NotFoundPage.astro";
-import { publishedWriting, writingSlug } from "../../lib/content";
+import { publishedWriting, writingSlug, type Writing } from "../../lib/content";
 
-export const prerender = false;
-const item = (await publishedWriting()).find(
-  (candidate) => writingSlug(candidate) === (Astro.params.slug ?? ""),
-);
-if (!item) Astro.response.status = 404;
+export const prerender = true;
+export async function getStaticPaths() {
+  return (await publishedWriting()).map((item) => ({
+    params: { slug: writingSlug(item) },
+    props: { item },
+  }));
+}
+interface Props {
+  item: Writing;
+}
+const { item } = Astro.props;
 ---
 
-{item ? <WritingDetail item={item} /> : <NotFoundPage />}
+<WritingDetail item={item} />

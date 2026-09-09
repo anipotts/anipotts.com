@@ -3,17 +3,13 @@ import Shell from "../../layouts/Shell.astro";
 import WorkCard from "../../components/WorkCard.astro";
 import PageHero from "../../components/PageHero.astro";
 import { visibleProjects } from "../../lib/content";
-import {
-  DEFAULT_WORK_INDEX_CONTENT,
-  normalizeListingPageContent,
-} from "@anipotts/content/public";
+import { getEntry } from "astro:content";
 
 export const prerender = true;
 const projects = await visibleProjects();
-const copy = normalizeListingPageContent(
-  DEFAULT_WORK_INDEX_CONTENT,
-  DEFAULT_WORK_INDEX_CONTENT,
-);
+const entry = await getEntry("workPage", "work");
+if (!entry) throw new Error("Missing canonical work page");
+const copy = entry.data;
 const groups = [
   {
     id: "experience",

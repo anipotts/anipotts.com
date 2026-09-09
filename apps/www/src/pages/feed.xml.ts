@@ -3,7 +3,7 @@ import type { APIRoute } from "astro";
 import { siteConfig } from "@anipotts/content/public";
 import { publishedWriting, writingSlug } from "../lib/content";
 
-export const prerender = false;
+export const prerender = true;
 
 export const GET: APIRoute = async (context) => {
   const writingEntries = (await publishedWriting()).slice(0, 50);

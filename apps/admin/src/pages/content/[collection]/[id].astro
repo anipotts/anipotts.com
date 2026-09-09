@@ -1,0 +1,103 @@
+---
+import { render } from "astro:content";
+import EditorialLayout from "../../../layouts/EditorialLayout.astro";
+import {
+  editorialInventory,
+  publicSiteUrl,
+  recordUpdate,
+} from "../../../lib/editorial-content";
+import type { Review } from "../../../components/astryx/EditorialApp";
+const inventory = await editorialInventory();
+const entry = [
+  ...inventory.pages,
+  ...inventory.projects,
+  ...inventory.writing,
+].find(
+  (item) =>
+    item.collection === Astro.params.collection && item.id === Astro.params.id,
+);
+if (!entry) Astro.response.status = 404;
+const title =
+  entry && "title" in entry.data
+    ? entry.data.title
+    : (entry?.id ?? "record not found");
+const rendered = entry ? await render(entry) : null;
+const Content = rendered?.Content;
+const project = entry?.collection === "projects" ? entry.data : null;
+const writing = entry?.collection === "writing" ? entry.data : null;
+const publicPath =
+  entry && project && project.public_state !== "hidden"
+    ? `/work/${project.slug ?? entry.id}`
+    : entry && writing?.status === "published"
+      ? `/writing/${writing.slug ?? entry.id}`
+      : entry &&
+          ["home", "workPage", "writingPage", "systemsPage"].includes(
+            entry.collection,
+          )
+        ? entry.collection === "home"
+          ? "/"
+          : `/${entry.id}`
+        : null;
+const review: Review | undefined = entry
+  ? {
+      updated: recordUpdate(entry.collection, entry.id),
+      back: `/content?group=${project ? "work" : writing ? "writing" : entry.collection === "systemsPage" ? "systems" : "pages"}`,
+      status:
+        project?.public_state ??
+        writing?.status ??
+        (entry.collection === "newsletterPage"
+          ? entry.data.status
+          : "published"),
+      publicUrl: publicPath ? new URL(publicPath, publicSiteUrl).href : null,
+      metadata: project ? [project.role, project.year] : [],
+      summary: project?.description ?? writing?.summary,
+      media: project?.preview_media
+        ? {
+            ...project.preview_media,
+            src: new URL(project.preview_media.src, publicSiteUrl).href,
+          }
+        : null,
+      sections: project?.story.map((section) => ({
+        heading: section.title,
+        paragraphs: section.paragraphs,
+      })),
+      fields: project
+        ? {
+            subtitle: project.subtitle,
+            card_copy: project.card_copy,
+            duration: project.duration,
+            status: project.status,
+            live: project.link_live,
+            repository: project.link_repo,
+            tags: project.tags,
+            technical: project.technical,
+            roadmap: project.roadmap,
+          }
+        : writing
+          ? {
+              published: writing.published_at,
+              scheduled: writing.scheduled_at,
+              tags: writing.tags,
+              type: writing.content_type,
+              series: writing.series_type,
+              project: writing.project,
+              artifact: writing.artifact_url,
+            }
+          : undefined,
+      contentFields: !project && !writing ? entry.data : undefined,
+    }
+  : undefined;
+---
+
+<EditorialLayout
+  title={title}
+  review={review}
+  editHome={entry?.collection === "home"}
+  editorRecord={entry?.collection === "projects"
+    ? { kind: "work", id: entry.id }
+    : entry?.collection === "writing"
+      ? { kind: "writing", id: entry.id }
+      : undefined}
+>
+  {Content && <Content />}
+</EditorialLayout>

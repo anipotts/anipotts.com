@@ -3,15 +3,16 @@ import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import icon from "astro-icon";
 import { siteConfig } from "@anipotts/content/public";
-import { publicContentHotReload } from "../../scripts/dev/public-content-hot-reload.mjs";
 
 export default defineConfig({
+  // Public POST routes enforce their own boundary: subscription origin checks,
+  // signed webhooks, and token-based one-click unsubscribe without browser Origin.
+  security: { checkOrigin: false },
   site: siteConfig.url,
   output: "static",
   trailingSlash: "never",
   build: { format: "file" },
   vite: {
-    plugins: [publicContentHotReload()],
     server: {
       allowedHosts: [
         new URL(siteConfig.newsletterUrl).hostname,

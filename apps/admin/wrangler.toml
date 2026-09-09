@@ -5,8 +5,8 @@ account_id = "0f856093bdcd34a7da1bde5ee4385163"
 main = "./dist/_worker.js/index.js"
 workers_dev = false
 
-# Canonical admin route. Cloudflare Access remains in front until app-native
-# passkey proof is complete and Access removal is separately verified.
+# Canonical admin route. Editorial pages require the verified owner through
+# Cloudflare Access; the existing single-owner policy is retained.
 [[routes]]
 pattern = "admin.anipotts.com"
 custom_domain = true
@@ -22,6 +22,20 @@ run_worker_first = true
 PUBLIC_STATE_API = "https://api.anipotts.com"
 ACCESS_TEAM_DOMAIN = "https://anipotts.cloudflareaccess.com"
 ACCESS_POLICY_AUD = "ca3ea64cba714dee7d50eae63f62b18d6c2aeeecc0fc16ec0335ed0aa863a49f"
+# Owner editing is enabled with the repository-only App and private Worker keys.
+EDITORIAL_ENABLED = "true"
+EDITORIAL_PUBLISH_ENABLED = "false"
+EDITORIAL_GITHUB_APP_ID = "4879372"
+EDITORIAL_GITHUB_INSTALLATION_ID = "160192316"
+# Secrets: EDITORIAL_GITHUB_PRIVATE_KEY and EDITORIAL_SIGNING_PRIVATE_KEY.
+
+[[durable_objects.bindings]]
+name = "EDITORIAL"
+class_name = "EditorialDraftStore"
+
+[[migrations]]
+tag = "editorial-v1"
+new_sqlite_classes = ["EditorialDraftStore"]
 
 # D1 database binding
 [[d1_databases]]

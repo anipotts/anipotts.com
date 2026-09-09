@@ -16,6 +16,13 @@ const response = (status, body = {}) =>
     headers: { "content-type": "application/json" },
   });
 
+const healthyDatabase = {
+  ok: true,
+  d1: "connected",
+  tables_ok: true,
+  schema_version: "0043",
+};
+
 const publicReceipt = await smokeRelease({
   target: "www",
   baseUrl: "https://example.test",
@@ -23,7 +30,7 @@ const publicReceipt = await smokeRelease({
   retryDelayMs: 0,
   fetchImpl: async (url) =>
     url.endsWith("/api/health")
-      ? response(200, { release_sha: expectedSha, schema_version: "0042" })
+      ? response(200, { ...healthyDatabase, release_sha: expectedSha })
       : response(200),
 });
 assert.equal(publicReceipt.release_sha, expectedSha);
@@ -127,6 +134,7 @@ const propagatedReceipt = await smokeRelease({
     if (!url.endsWith("/api/health")) return response(200);
     healthAttempts += 1;
     return response(200, {
+      ...healthyDatabase,
       release_sha: healthAttempts === 1 ? "stale" : expectedSha,
       schema_version: "0042",
     });
@@ -140,7 +148,7 @@ const unversionedRollbackReceipt = await smokeRelease({
   baseUrl: "https://example.test",
   allowUnversioned: true,
   retryDelayMs: 0,
-  fetchImpl: async () => response(200, { ok: true }),
+  fetchImpl: async () => response(200, healthyDatabase),
 });
 assert.equal(unversionedRollbackReceipt.release_sha, "unversioned");
 assert.equal(unversionedRollbackReceipt.rollback_unversioned, true);
@@ -216,3 +224,22 @@ assert.equal(
 );
 
 console.log("release smoke tests passed");
+
+for (const unhealthy of [
+  { ...healthyDatabase, ok: false },
+  { ...healthyDatabase, d1: "error" },
+  { ...healthyDatabase, tables_ok: false },
+]) {
+  await assert.rejects(
+    smokeRelease({
+      target: "www",
+      baseUrl: "https://example.test",
+      expectedSha,
+      healthAttempts: 1,
+      retryDelayMs: 0,
+      fetchImpl: async () =>
+        response(200, { ...unhealthy, release_sha: expectedSha }),
+    }),
+    /newsletter database unavailable/,
+  );
+}

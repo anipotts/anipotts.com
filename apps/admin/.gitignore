@@ -2,6 +2,7 @@
 dist/
 .astro/
 .wrangler/
+test/bindings.d.ts
 
 # local
 node_modules/

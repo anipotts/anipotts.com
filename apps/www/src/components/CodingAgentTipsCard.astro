@@ -12,7 +12,7 @@ const { project } = Astro.props;
   class="coding-agent-card card"
   href={project.data.link_live ?? project.data.detail_path}
 >
-  <AmbientFlow kind="work" seed={project.slug} />
+  <AmbientFlow kind="work" seed={project.data.slug ?? project.id} />
   <span class="guide-content">
     <span class="guide-identity">
       {
