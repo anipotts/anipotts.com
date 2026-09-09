@@ -1,4 +1,5 @@
 ---
+import InlineText from "./InlineText.astro";
 import type { SystemsPageContent } from "@anipotts/content/public";
 import WorkflowMark from "./WorkflowMark.astro";
 
@@ -78,14 +79,18 @@ const { workflow } = Astro.props;
                   ))}
                 </span>
               </h2>
-              <p>{step.detail}</p>
+              <p>
+                <InlineText text={step.detail} />
+              </p>
             </li>
           ))
         }
       </ol>
       <span class="return-route" aria-hidden="true"></span>
     </div>
-    <div class="loop-note"><p class="feedback">{workflow.feedback}</p></div>
+    <div class="loop-note">
+      <p class="feedback"><InlineText text={workflow.feedback} /></p>
+    </div>
   </div>
 </figure>
 

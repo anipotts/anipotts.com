@@ -150,8 +150,9 @@ describe("editorial catalog", () => {
     expect(html).toContain('aria-label="writing records"');
     expect(html).toContain('aria-label="light theme: switch to dark"');
     expect(html.match(/aria-label="[^"]*theme[^"]*"/g)).toHaveLength(1);
-    expect(html).toContain("view site");
-    const siteLink = html.match(/<a\b[^>]*aria-label="view site"[^>]*>/)?.[0];
+    expect(html).toContain("live site");
+    const siteLink = html.match(/<a\b[^>]*aria-label="live site"[^>]*>/)?.[0];
+    expect(siteLink).toContain('href="https://anipotts.com/"');
     expect(siteLink).toContain('target="_blank"');
     expect(siteLink).toContain('rel="noopener noreferrer"');
     expect(html).not.toContain("log out");

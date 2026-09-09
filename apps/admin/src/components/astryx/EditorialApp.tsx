@@ -178,10 +178,18 @@ function NavigationLink({
       aria-current={active ? "page" : undefined}
       className="editorial-nav-link"
     >
-      <Text as="span" className="editorial-nav-icon">
+      <Text
+        as="span"
+        className="editorial-nav-icon"
+        style={{ color: "inherit" }}
+      >
         {icon}
       </Text>
-      <Text as="span" className="editorial-nav-label">
+      <Text
+        as="span"
+        className="editorial-nav-label"
+        style={{ color: "inherit" }}
+      >
         {label}
       </Text>
     </Button>
@@ -218,16 +226,17 @@ export function EditorialApp({
   children,
 }: EditorialAppProps) {
   const [mode, setMode] = useState<ThemePreference>(initialMode);
-  const [siteHref, setSiteHref] = useState(siteUrl);
+  const comparisonSiteUrl = localPreview ? "https://anipotts.com/" : siteUrl;
+  const [siteHref, setSiteHref] = useState(comparisonSiteUrl);
   useEffect(() => {
     const saved = savedTheme();
     setMode(saved);
-    setSiteHref(themedUrl(siteUrl, saved));
+    setSiteHref(themedUrl(comparisonSiteUrl, saved));
   }, []);
   function changeTheme(next: ThemePreference) {
     setMode(next);
     saveTheme(next);
-    setSiteHref(themedUrl(siteUrl, next));
+    setSiteHref(themedUrl(comparisonSiteUrl, next));
   }
   const nextMode = { light: "dark", dark: "system", system: "light" }[
     mode
@@ -261,7 +270,7 @@ export function EditorialApp({
                   icon={<EnvelopeSimpleIcon size={20} />}
                 />
                 <NavigationLink
-                  label="view site"
+                  label={localPreview ? "live site" : "view site"}
                   newTab
                   href={siteHref}
                   icon={<ArrowUpRightIcon size={20} />}
@@ -293,6 +302,7 @@ export function EditorialApp({
           {(editHome || editorRecord) && (
             <React.Suspense fallback={<Text>loading editor</Text>}>
               <HomeEditor
+                localPreview={localPreview}
                 key={editorRecord?.id ?? "home"}
                 record={editorRecord ?? { kind: "page", id: "home" }}
               />

@@ -1,3 +1,4 @@
+import { inlinePlainText } from "./inline.ts";
 import { z } from "zod";
 const status = z.enum(["draft", "scheduled", "published"]);
 export const publicSlugSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
@@ -56,7 +57,14 @@ export const projectSchema = z.object({
     .transform((value) => (value === "making" ? ("work" as const) : value)),
   catalog_group: z.enum(["active", "past", "taken_down"]),
   homepage_order: z.number().default(0),
-  card_copy: z.string().min(1).max(180),
+  card_copy: z
+    .string()
+    .min(1)
+    .max(6000)
+    .refine(
+      (value) => inlinePlainText(value).length <= 180,
+      "Card copy must be 180 visible characters or fewer",
+    ),
   detail_path: z
     .string()
     .regex(/^\/(?:work|projects)\/[a-z0-9]+(?:-[a-z0-9]+)*$/)

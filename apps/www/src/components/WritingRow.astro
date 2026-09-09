@@ -1,4 +1,5 @@
 ---
+import InlineText from "./InlineText.astro";
 import { Icon } from "astro-icon/components";
 import { formatDate, writingSlug, type Writing } from "../lib/content";
 import AmbientFlow from "./AmbientFlow.astro";
@@ -28,7 +29,7 @@ const { title, summary, published_at } = item.data;
     </span>
     <Icon name="ph:arrow-bend-right-up" class="affordance" />
   </span>
-  <span class="sub">{summary}</span>
+  <span class="sub"><InlineText text={summary} links={false} /></span>
 </a>
 
 <style is:global>

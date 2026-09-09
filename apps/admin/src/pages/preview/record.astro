@@ -1,0 +1,118 @@
+---
+import { getEntry } from "astro:content";
+import {
+  editorialRecordSchema,
+  parseEditorialSource,
+  validateEditorialSource,
+} from "@anipotts/content/editorial/source";
+import {
+  listingPageSchema,
+  systemsPageSchema,
+} from "@anipotts/content/public/pages";
+import { projectSchema, writingSchema } from "@anipotts/content/public/schema";
+import { productionEditor } from "../../lib/editorial-server";
+import WritingDetail from "../../../../www/src/components/WritingDetail.astro";
+import WorkDetail from "../../../../www/src/components/WorkDetail.astro";
+import Shell from "../../../../www/src/layouts/Shell.astro";
+import PageHero from "../../../../www/src/components/PageHero.astro";
+import SystemMap from "../../../../www/src/components/SystemMap.astro";
+import InlineText from "../../../../www/src/components/InlineText.astro";
+import type { Writing, Project } from "../../../../www/src/lib/content";
+
+const parsedRecord = editorialRecordSchema.safeParse({
+  kind: Astro.url.searchParams.get("kind"),
+  id: Astro.url.searchParams.get("id"),
+});
+if (!parsedRecord.success)
+  return new Response("Unknown preview record", { status: 400 });
+const record = parsedRecord.data;
+const storage = import.meta.env.DEV
+  ? await (await import("../../lib/editorial-local")).localDraftStorage()
+  : productionEditor(Astro.locals.runtime?.env)?.storage;
+const draft = await storage?.get(record);
+if (
+  !draft ||
+  draft.discardedAt ||
+  String(draft.revision) !== Astro.url.searchParams.get("revision")
+)
+  return new Response("Save the draft and refresh its preview.", {
+    status: 409,
+  });
+let data: unknown;
+let body = "";
+try {
+  if (!validateEditorialSource(record, draft.source).success) throw new Error();
+  const parsed = parseEditorialSource(draft.source);
+  data = parsed.data;
+  body = parsed.body;
+} catch {
+  return new Response("Correct the draft source before previewing.", {
+    status: 409,
+  });
+}
+let writing: Writing | undefined;
+let project: Project | undefined;
+if (record.kind === "writing") {
+  const original = await getEntry("writing", record.id);
+  if (!original)
+    return new Response("Writing record unavailable", { status: 404 });
+  if (body.trim() !== (original.body ?? "").trim())
+    return new Response(
+      "This preview covers titles, subtitles, and formatting. The article body also changed; review those edits in Source before publishing.",
+      { status: 409 },
+    );
+  writing = { ...original, data: writingSchema.parse(data) };
+} else if (record.kind === "work") {
+  const original = await getEntry("projects", record.id);
+  if (!original) return new Response("Project unavailable", { status: 404 });
+  if (body.trim() !== (original.body ?? "").trim())
+    return new Response(
+      "This preview covers project fields. The article body also changed; review those edits in Source before publishing.",
+      { status: 409 },
+    );
+  project = { ...original, data: projectSchema.parse(data) };
+}
+const page = record.kind === "page" ? listingPageSchema.safeParse(data) : null;
+const systems =
+  record.kind === "page" && record.id === "systems"
+    ? systemsPageSchema.parse(data)
+    : null;
+if (!writing && !project && !page?.success)
+  return new Response("This page is reviewed in Source.", { status: 409 });
+---
+
+{
+  writing ? (
+    <WritingDetail item={writing} preview />
+  ) : project ? (
+    <WorkDetail project={project} preview />
+  ) : (
+    page?.success && (
+      <Shell
+        title={page.data.title}
+        description={page.data.description}
+        path={`/${record.id}`}
+        robots="noindex, nofollow, noarchive"
+      >
+        <p class="muted">Page introduction preview</p>
+        <PageHero
+          title={page.data.hero_title}
+          summary={page.data.hero_summary}
+        />
+        {systems && (
+          <>
+            <p>
+              <InlineText text={systems.workflow.intro} />
+            </p>
+            <SystemMap workflow={systems.workflow} />
+            {systems.workflow.outro && (
+              <p>
+                <InlineText text={systems.workflow.outro} />
+              </p>
+            )}
+          </>
+        )}
+      </Shell>
+    )
+  )
+}

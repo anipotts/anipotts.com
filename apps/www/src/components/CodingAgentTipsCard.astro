@@ -1,4 +1,5 @@
 ---
+import InlineText from "./InlineText.astro";
 import AmbientFlow from "./AmbientFlow.astro";
 import { Icon } from "astro-icon/components";
 import type { Project } from "../lib/content";
@@ -28,7 +29,9 @@ const { project } = Astro.props;
       }
       <span class="guide-label">{project.data.title}</span>
     </span>
-    <span class="guide-title">{project.data.subtitle}</span>
+    <span class="guide-title"
+      ><InlineText text={project.data.subtitle ?? ""} links={false} /></span
+    >
   </span>
   <span class="guide-action"
     >read the guide <span class="action-arrow"

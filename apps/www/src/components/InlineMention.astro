@@ -76,10 +76,7 @@ const remainingLabel = remainingWords.join(" ");
           {mark && <span class="mark">{mark}</span>}
         </span>
         <span class="sr-only">{logoAlt ?? label}</span>
-        <span class="text">
-          {visualLabel}
-          {suffix}
-        </span>
+        <span class="text">{`${visualLabel}${suffix ?? ""}`}</span>
         {visualSuffix && (
           <span class="mention-punctuation">{visualSuffix.trim()}</span>
         )}
@@ -172,12 +169,12 @@ const remainingLabel = remainingWords.join(" ");
   }
 
   .mention-lead-compact {
-    gap: 0.16em;
+    gap: 0;
     font-weight: inherit;
   }
 
   .mention-lead-compact .brand-mark {
-    margin-right: 0.08em;
+    margin-right: 0.15em;
   }
 
   .mention-punctuation {

@@ -1,4 +1,5 @@
 ---
+import { inlinePlainText } from "@anipotts/content/public/inline";
 import "../styles/global.css";
 import { ClientRouter } from "astro:transitions";
 import Nav from "../components/Nav.astro";
@@ -22,7 +23,7 @@ interface Props {
 
 const {
   title,
-  description,
+  description: rawDescription,
   path,
   ogType = "website",
   jsonLd,
@@ -31,6 +32,7 @@ const {
   robots,
   detail = false,
 } = Astro.props;
+const description = inlinePlainText(rawDescription);
 const canonical =
   canonicalUrl ?? `${siteConfig.url}${path === "/" ? "" : path}`;
 const fullTitle =

@@ -1,4 +1,6 @@
 ---
+import InlineText from "./InlineText.astro";
+import WorkCard from "./WorkCard.astro";
 import { render } from "astro:content";
 import { Icon } from "astro-icon/components";
 import ProjectMediaStage from "./ProjectMediaStage.astro";
@@ -9,6 +11,7 @@ import Shell from "../layouts/Shell.astro";
 import { projectSlug, type Project } from "../lib/content";
 
 interface Props {
+  preview?: boolean;
   project: Project;
 }
 const { project } = Astro.props;
@@ -25,7 +28,19 @@ const d = project.data;
   path={`/work/${slug}`}
   mood="alert"
   detail
+  robots={Astro.props.preview ? "noindex, nofollow, noarchive" : undefined}
 >
+  {
+    Astro.props.preview && (
+      <aside class="editorial-card-preview">
+        <>
+          <p class="muted">Card preview</p>
+          <WorkCard project={project} />
+          <p class="muted">Article preview</p>
+        </>
+      </aside>
+    )
+  }
   <article class="project-page">
     <DetailWaves seed={`work/${slug}`} tone="work" />
     <header data-rise class="project-head">
@@ -85,7 +100,7 @@ const d = project.data;
           </h1>
         </div>
         <p class="project-summary">
-          {d.card_copy || d.subtitle || d.description}
+          <InlineText text={d.card_copy || d.subtitle || d.description} />
         </p>
       </div>
 
@@ -129,7 +144,9 @@ const d = project.data;
                 </span>
                 <h2>{section.title}</h2>
                 {section.paragraphs.map((paragraph) => (
-                  <p>{paragraph}</p>
+                  <p>
+                    <InlineText text={paragraph} />
+                  </p>
                 ))}
               </div>
               {section.media && (
@@ -149,7 +166,9 @@ const d = project.data;
     {
       !hasBody && d.story.length === 0 && (
         <section data-rise class="project-overview">
-          <p class="project-fallback">{d.description}</p>
+          <p class="project-fallback">
+            <InlineText text={d.description} />
+          </p>
         </section>
       )
     }
@@ -162,7 +181,9 @@ const d = project.data;
             {d.technical.map((item) => (
               <article class="project-detail-card">
                 <h3>{item.title}</h3>
-                <p>{item.content}</p>
+                <p>
+                  <InlineText text={item.content} />
+                </p>
               </article>
             ))}
           </div>
@@ -197,6 +218,11 @@ const d = project.data;
 </Shell>
 
 <style>
+  .editorial-card-preview {
+    display: grid;
+    gap: var(--s-3);
+    margin-bottom: var(--s-6);
+  }
   .project-page {
     position: relative;
     isolation: isolate;

@@ -1,4 +1,5 @@
 ---
+import InlineText from "../components/InlineText.astro";
 import Shell from "../layouts/Shell.astro";
 import SystemMap from "../components/SystemMap.astro";
 import PageHero from "../components/PageHero.astro";
@@ -18,13 +19,19 @@ const content = page.data;
         content.workflow.intro
           .split(/\n\s*\n/)
           .filter(Boolean)
-          .map((paragraph) => <p class="page-intro">{paragraph}</p>)
+          .map((paragraph) => (
+            <p class="page-intro">
+              <InlineText text={paragraph} />
+            </p>
+          ))
       }
     </div>
     <SystemMap workflow={content.workflow} />
     {
       content.workflow.outro && (
-        <p class="page-intro workflow-outro">{content.workflow.outro}</p>
+        <p class="page-intro workflow-outro">
+          <InlineText text={content.workflow.outro} />
+        </p>
       )
     }
   </section>

@@ -168,7 +168,7 @@
 /* Source editing and the actual page preview each own one full-width region. */
 .editorial-source {
   min-width: 0;
-  background: var(--color-bg-surface);
+  background: var(--color-background-surface);
   color: var(--color-text-primary);
 }
 .editorial-source .cm-editor {
@@ -182,4 +182,177 @@
   height: 70vh;
   border: 0;
   border-radius: var(--radius-md);
+}
+/* One document region, capped for comfortable writing. Controls stay compact. */
+.editor-actionbar {
+  padding-bottom: var(--spacing-4);
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+.editor-save-group {
+  flex: 1 1 auto;
+}
+.editor-primary-actions {
+  margin-inline-start: auto;
+}
+.editorial-content .editor-fields {
+  width: 100%;
+  max-width: 52rem;
+}
+.rich-field,
+.rich-field-surface,
+.rich-writing {
+  min-width: 0;
+  width: 100%;
+}
+.rich-field-surface {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-element);
+  background: var(--color-background-surface);
+  overflow: hidden;
+}
+.rich-field-surface:focus-within {
+  border-color: var(--color-accent);
+  outline: var(--focus-outline-width) solid var(--color-accent-muted);
+  outline-offset: var(--focus-outline-offset);
+}
+.rich-toolbar {
+  padding: var(--spacing-2);
+  background: var(--color-background-muted);
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+.rich-history-actions {
+  margin-inline-start: auto;
+}
+.rich-writing .tiptap {
+  padding: var(--spacing-4);
+  min-height: 9rem;
+  outline: none;
+  line-height: 1.8;
+  font-size: var(--font-size-lg);
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+.rich-writing .tiptap p {
+  margin: 0;
+}
+.rich-writing .tiptap p + p {
+  margin-top: var(--spacing-3);
+}
+.rich-writing a {
+  color: var(--color-text-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: text;
+}
+.rich-writing strong {
+  font-weight: var(--font-weight-bold);
+}
+.rich-writing em {
+  font-style: italic;
+}
+.rich-writing u {
+  text-underline-offset: 0.2em;
+}
+.rich-writing .inline-image {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  margin: 0 0.15em 0 0;
+  vertical-align: -0.1em;
+  object-fit: contain;
+  border-radius: var(--radius-inner);
+}
+.rich-writing .inline-image-wide {
+  width: 1.24em;
+}
+.rich-writing .inline-image-mark {
+  width: 1.08em;
+  height: 1.08em;
+}
+.rich-writing .inline-image-white {
+  filter: brightness(0) invert(1);
+}
+.rich-writing .ProseMirror-selectednode {
+  outline: var(--focus-outline-width) solid var(--color-accent);
+}
+.rich-inspector {
+  padding: var(--spacing-4);
+  border-top: var(--border-width) solid var(--color-border);
+}
+.editorial-content .editor-review {
+  max-width: 52rem;
+}
+.editor-change {
+  padding-block: var(--spacing-3);
+  border-block-start: var(--border-width) solid var(--color-border);
+}
+.editor-source-tools {
+  padding-block: var(--spacing-2);
+}
+.editor-import {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--spacing-9);
+  padding-inline: var(--spacing-3);
+  border-radius: var(--radius-element);
+  background: var(--color-neutral);
+  font-size: var(--font-size-base);
+  cursor: pointer;
+  overflow: hidden;
+}
+.editor-import input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  cursor: pointer;
+}
+.editor-import:focus-within {
+  outline: var(--focus-outline-width) solid var(--color-accent);
+}
+.editorial-source {
+  background: var(--color-background-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-element);
+  overflow: hidden;
+}
+.editorial-source .cm-content {
+  font-family: var(--font-family-code);
+  padding: var(--spacing-4);
+}
+.editorial-source .cm-cursor {
+  border-left-color: var(--color-text-primary);
+}
+.editorial-source .cm-focused .cm-selectionBackground {
+  background: var(--color-accent-muted);
+}
+.editorial-preview {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-element);
+  background: var(--color-background-surface);
+}
+@media (max-width: 640px) {
+  .editor-primary-actions {
+    width: 100%;
+    margin-inline-start: 0;
+  }
+  .editor-primary-actions > .astryx-button {
+    flex: 1;
+  }
+  .rich-writing .tiptap {
+    padding: var(--spacing-3);
+  }
+  .editor-import {
+    min-height: var(--spacing-11);
+  }
+}
+
+html[data-theme="light"] .rich-writing .inline-image-white {
+  filter: brightness(0);
+}
+@media (prefers-color-scheme: light) {
+  html:not([data-theme="dark"]) .rich-writing .inline-image-white {
+    filter: brightness(0);
+  }
 }

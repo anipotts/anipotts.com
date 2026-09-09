@@ -40,7 +40,8 @@
     "./admin": {
       "types": "./dist/admin/index.d.ts",
       "import": "./dist/admin/index.js"
-    }
+    },
+    "./public/inline": "./src/public/inline.ts"
   },
   "scripts": {
     "build": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true })\" && tsc",
@@ -52,6 +53,7 @@
   },
   "dependencies": {
     "@anipotts/types": "workspace:*",
+    "marked": "^18.0.12",
     "yaml": "2.8.2",
     "zod": "^3.24.2"
   },

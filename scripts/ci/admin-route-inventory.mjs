@@ -186,6 +186,12 @@ export const ADMIN_ROUTES = [
     smoke: false,
   },
   {
+    route: "/preview/record",
+    file: "apps/admin/src/pages/preview/record.astro",
+    nav: false,
+    smoke: false,
+  },
+  {
     route: "/api/editorial/record",
     file: "apps/admin/src/pages/api/editorial/[action].ts",
     nav: false,

@@ -4,6 +4,7 @@ import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
 import icon from "astro-icon";
 import { publicContentHotReload } from "../../scripts/dev/public-content-hot-reload.mjs";
+import { editorialPublicAssets } from "../../scripts/dev/editorial-public-assets.mjs";
 import { editorialUpdates } from "../../scripts/dev/editorial-updates.mjs";
 
 export default defineConfig({
@@ -29,6 +30,7 @@ export default defineConfig({
         },
       },
       publicContentHotReload(),
+      editorialPublicAssets(),
       editorialUpdates(),
       {
         name: "exclude-local-editor-runtime",

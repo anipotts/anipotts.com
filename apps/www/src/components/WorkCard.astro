@@ -1,4 +1,5 @@
 ---
+import InlineText from "./InlineText.astro";
 import { Icon } from "astro-icon/components";
 import type { Project } from "../lib/content";
 import AmbientFlow from "./AmbientFlow.astro";
@@ -79,7 +80,9 @@ const preview = d.preview_media;
       </span>
       <Icon name="ph:arrow-bend-right-up" class="work-card__affordance" />
     </span>
-    <span class="work-card__copy">{d.card_copy}</span>
+    <span class="work-card__copy"
+      ><InlineText text={d.card_copy} links={false} /></span
+    >
     {variant === "project" && <ProjectMeta status={d.status} year={d.year} />}
   </span>
 </a>
