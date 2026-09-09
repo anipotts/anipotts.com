@@ -378,8 +378,6 @@ export class EditorialGitHub {
         ruleset.id !== id ||
         ruleset.enforcement !== "active" ||
         ruleset.target !== "branch" ||
-        !Array.isArray(ruleset.bypass_actors) ||
-        ruleset.bypass_actors.length ||
         !Array.isArray(refs.exclude) ||
         refs.exclude.length ||
         !Array.isArray(refs.include) ||
@@ -389,6 +387,7 @@ export class EditorialGitHub {
         !Array.isArray(ruleset.rules)
       )
         throw new GitHubFailure("rejected");
+      await this.requireNoRulesetBypass(ruleset, id);
       for (const raw of ruleset.rules) {
         const rule = object(raw);
         if (rule.type === "pull_request") {
@@ -410,6 +409,42 @@ export class EditorialGitHub {
     )
       throw new GitHubFailure("rejected");
     return required;
+  }
+
+  private async requireNoRulesetBypass(
+    ruleset: Record<string, unknown>,
+    id: number,
+  ): Promise<void> {
+    if (Object.hasOwn(ruleset, "bypass_actors")) {
+      if (!Array.isArray(ruleset.bypass_actors) || ruleset.bypass_actors.length)
+        throw new GitHubFailure("rejected");
+      return;
+    }
+    // REST omits bypass_actors without ruleset-write permission. GraphQL exposes
+    // the connection to our administration-read App; omitted data is never empty.
+    // https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset
+    if (
+      typeof ruleset.node_id !== "string" ||
+      !ruleset.node_id ||
+      ruleset.node_id.length > 256
+    )
+      throw new GitHubFailure("rejected");
+    const result = await this.graphql({
+      query: `query($id: ID!) { node(id: $id) { ... on RepositoryRuleset { id databaseId enforcement bypassActors(first: 100) { totalCount nodes { id } pageInfo { hasNextPage } } } } }`,
+      variables: { id: ruleset.node_id },
+    });
+    const node = object(result.node);
+    const bypass = object(node.bypassActors);
+    if (
+      node.id !== ruleset.node_id ||
+      node.databaseId !== id ||
+      node.enforcement !== "ACTIVE" ||
+      bypass.totalCount !== 0 ||
+      !Array.isArray(bypass.nodes) ||
+      bypass.nodes.length !== 0 ||
+      object(bypass.pageInfo).hasNextPage !== false
+    )
+      throw new GitHubFailure("rejected");
   }
 
   async readRequiredChecks(

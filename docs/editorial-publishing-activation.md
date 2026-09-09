@@ -18,7 +18,14 @@ The release connects `admin.anipotts.com` to canonical Markdown in `anipotts/ani
 
 The signed-in Cloudflare Browser on September 8 showed the existing `admin.anipotts.com` application (`69e90546-e54c-4fd9-b589-2c2f2350d3de`) protecting the whole hostname. Its only policy, `Allow Ani` (`a231936f-a6da-439e-9c8c-87754aeeaf6c`), allows only `hello@anipotts.com`. The application audience matches `ACCESS_POLICY_AUD` in the checked Worker configuration. No Access policy change is needed or was made.
 
-The GitHub App registration form is prepared but remains unsubmitted pending its exact native approval. The signed publication manifest is classified as a known release path; changes to its trusted public verification key require review. When the base branch advances, an immutable publication blocks with instructions to stop it and publish a new edited revision; it cannot rebase silently or wait indefinitely on an already enabled auto-merge.
+Ani registered App `4879372` and authorized its installation and private-key setup. Installation `160192316` selects only `anipotts/anipotts.com`; the prepared read/write permissions were verified in GitHub. The white AP logo and blue badge background are applied. The App private key and distinct RSA publication-signing key are stored in the Agent Runtime 1Password vault, verified through the value-silent broker, and installed as the two named Worker secrets. No existing secrets were replaced. Public SHA-256 fingerprints (SPKI DER):
+
+- GitHub App key: `TtI0nDzpJSyBrDRIZZt835hFlhcpXmXjNAGUbFM3V6o=`.
+- Publication key: `h/tT5RQ6a6pZ0xcLRWfQokyLJpBpRE/CCzSahjaPU8s=`.
+
+GitHub's REST response omits bypass actors for the App's read-only administration permission. The verifier uses the documented GraphQL ruleset connection when that field is absent, requiring the exact ruleset identity, active enforcement, zero actors and a complete page. Missing, nonempty or incomplete results still block publication. Live reads confirmed the App can mint a repository-only token and inspect these fields without administration-write permission. See [GitHub's REST caveat](https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset) and [GraphQL ruleset fields](https://docs.github.com/en/enterprise-cloud%40latest/graphql/reference/repos#repositoryruleset).
+
+This activation enables private owner editing and the admin deploy gate. Publication remains disabled until the production owner flows pass. The signed publication manifest is classified as a known release path; changes to its trusted public verification key require review. When the base branch advances, an immutable publication blocks with instructions to stop it and publish a new edited revision; it cannot rebase silently or wait indefinitely on an already enabled auto-merge.
 
 ## Exact approval boundary
 

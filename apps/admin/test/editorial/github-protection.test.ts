@@ -25,6 +25,7 @@ function fixture() {
   };
   const ruleset = {
     id: 123,
+    node_id: "RRS_test",
     target: "branch",
     enforcement: "active",
     bypass_actors: [] as unknown[],
@@ -50,9 +51,28 @@ function fixture() {
     })),
     "/rulesets/123": ruleset,
   };
+  const graph = {
+    node: {
+      id: "RRS_test",
+      databaseId: 123,
+      enforcement: "ACTIVE",
+      bypassActors: {
+        totalCount: 0,
+        nodes: [] as unknown[],
+        pageInfo: { hasNextPage: false },
+      },
+    },
+  };
   const client = new EditorialGitHub(
     async () => "synthetic",
     async (url, init) => {
+      if (String(url) === "https://api.github.com/graphql") {
+        expect(init?.method).toBe("POST");
+        expect(JSON.parse(String(init?.body)).variables).toEqual({
+          id: "RRS_test",
+        });
+        return Response.json({ data: graph });
+      }
       expect(init?.method).toBe("GET");
       const path = String(url).replace(
         "https://api.github.com/repos/anipotts/anipotts.com",
@@ -62,9 +82,43 @@ function fixture() {
       return Response.json(responses[path]);
     },
   );
-  return { client, protection, ruleset, repo, responses };
+  return { client, protection, ruleset, repo, responses, graph };
 }
 describe("live provider publishing protection", () => {
+  it("verifies the full GraphQL connection when REST withholds bypass actors", async () => {
+    const f = fixture();
+    Reflect.deleteProperty(f.ruleset, "bypass_actors");
+    expect(await f.client.requireProtectedPublishing()).toHaveLength(2);
+  });
+  it("rejects missing, nonempty, paginated or substituted GraphQL bypass proof", async () => {
+    for (const change of [
+      (f: ReturnType<typeof fixture>) => {
+        Reflect.deleteProperty(f.graph.node, "bypassActors");
+      },
+      (f: ReturnType<typeof fixture>) => {
+        f.graph.node.bypassActors.totalCount = 1;
+      },
+      (f: ReturnType<typeof fixture>) => {
+        f.graph.node.bypassActors.nodes.push({ id: "actor" });
+      },
+      (f: ReturnType<typeof fixture>) => {
+        f.graph.node.bypassActors.pageInfo.hasNextPage = true;
+      },
+      (f: ReturnType<typeof fixture>) => {
+        f.graph.node.databaseId = 124;
+      },
+      (f: ReturnType<typeof fixture>) => {
+        f.graph.node.enforcement = "DISABLED";
+      },
+    ]) {
+      const f = fixture();
+      Reflect.deleteProperty(f.ruleset, "bypass_actors");
+      change(f);
+      await expect(f.client.requireProtectedPublishing()).rejects.toMatchObject(
+        { code: "rejected" },
+      );
+    }
+  });
   it("accepts this site's combined strict-check and no-bypass PR rules", async () => {
     expect(await fixture().client.requireProtectedPublishing()).toEqual([
       { context: "Build, lint, typecheck, test", appId: 15368 },

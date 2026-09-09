@@ -4,5 +4,5 @@
   "automatic_migrations": "enabled_safe_additive",
   "authenticated_admin_smoke": "held_identity_required",
   "automatic_app_rollback": "enabled",
-  "editorial_admin_release": "held_owner_cutover_required"
+  "editorial_admin_release": "enabled"
 }
