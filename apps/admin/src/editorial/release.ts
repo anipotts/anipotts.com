@@ -17,7 +17,7 @@ export async function liveRelease(
   let response: Response;
   try {
     response = await transport(`${origin}/api/health`, {
-      redirect: "error",
+      redirect: "manual",
       cache: "no-store",
       signal: AbortSignal.timeout(15_000),
       headers: { "Cache-Control": "no-cache" },
@@ -80,7 +80,14 @@ export function releaseReadiness(
     if (live !== head) {
       const unreleased = await git.compare(live, head);
       // Even unrelated public edits must not be silently swept into Publish.
-      if (unreleased.some((path) => !isNonRuntimeChange(path)))
+      // Admin-only releases do not deploy www. The renderer check above still
+      // requires that these changes are already running in this admin Worker.
+      if (
+        unreleased.some(
+          (path) =>
+            !isNonRuntimeChange(path) && !path.startsWith("apps/admin/"),
+        )
+      )
         return { ready: false, code: "unreleased_public_changes" };
     }
     return { ready: true, head };

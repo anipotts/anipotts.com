@@ -209,7 +209,7 @@ describe("restricted GitHub branch adapter", () => {
         expect(String(url)).toMatch(
           /^https:\/\/api\.github\.com\/repos\/anipotts\/anipotts\.com\/git\//,
         );
-        expect(init?.redirect).toBe("error");
+        expect(new Request(url, init).redirect).toBe("manual");
         expect(init?.signal).toBeDefined();
         if (init?.method === "POST") {
           writes++;
