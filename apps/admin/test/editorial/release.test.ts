@@ -24,6 +24,30 @@ const fileHash = createHash("sha1")
   .digest("hex");
 const health = (release = head) =>
   Response.json({ app: "www", ok: true, release_sha: release });
+it("allows docs and tests after the deployed renderer while holding runtime changes", async () => {
+  for (const path of [
+    "docs/editorial-publishing-activation.md",
+    "apps/admin/test/editorial/release.test.ts",
+    "scripts/ci/release.test.mjs",
+  ]) {
+    const compare = vi.fn().mockResolvedValue([path]);
+    expect(
+      await releaseReadiness({ compare }, head, async () => health())(later),
+    ).toEqual({ ready: true, head: later });
+    expect(compare).toHaveBeenCalledTimes(2);
+  }
+  for (const path of [
+    "apps/admin/wrangler.toml",
+    "packages/content/src/index.ts",
+    ".github/editorial-publisher.pem",
+  ]) {
+    expect(
+      await releaseReadiness({ compare: async () => [path] }, head, async () =>
+        health(),
+      )(later),
+    ).toEqual({ ready: false, code: "stale_renderer" });
+  }
+});
 it("holds a stale renderer and unreleased changes before public disclosure", async () => {
   const compare = vi.fn().mockResolvedValue([]);
   expect(

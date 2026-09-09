@@ -20,7 +20,7 @@ export type HomeBase = {
 };
 export type DraftStorage = Pick<
   EditorialDraftStore,
-  "get" | "save" | "history" | "discard" | "restore" | "conflict"
+  "get" | "save" | "rebase" | "history" | "discard" | "restore" | "conflict"
 >;
 export type PublicationStorage = Pick<
   EditorialDraftStore,
@@ -149,7 +149,7 @@ export async function homeEditorApi(
           );
     return json(result, result.ok ? 202 : 409);
   }
-  if (action === "save") {
+  if (action === "save" || action === "rebase") {
     if (
       !("source" in body) ||
       typeof body.source !== "string" ||
@@ -158,8 +158,19 @@ export async function homeEditorApi(
     )
       return json({ error: "invalid_request" }, 400);
     const current = await storage.get(record);
-    const base = current ?? (await readBase(record));
-    const result = await storage.save({
+    const base =
+      action === "rebase"
+        ? await readBase(record)
+        : (current ?? (await readBase(record)));
+    if (
+      action === "rebase" &&
+      (!("reviewedBaseCommit" in body) ||
+        body.reviewedBaseCommit !== base.baseCommit ||
+        !("reviewedBaseFileHash" in body) ||
+        body.reviewedBaseFileHash !== base.baseFileHash)
+    )
+      return json({ error: "upstream_changed", base }, 409);
+    const result = await storage[action]({
       record,
       source: body.source,
       expectedRevision,

@@ -27,6 +27,8 @@ GitHub's REST response omits bypass actors for the App's read-only administratio
 
 This activation enables private owner editing and the admin deploy gate. Publication remains disabled until the production owner flows pass. The signed publication manifest is classified as a known release path; changes to its trusted public verification key require review. When the base branch advances, an immutable publication blocks with instructions to stop it and publish a new edited revision; it cannot rebase silently or wait indefinitely on an already enabled auto-merge.
 
+If the canonical record changes upstream, the owner can stop the blocked publication, compare the current website source with the retained draft, and explicitly keep the reconciled draft over that version. The server verifies the compared Git base again and saves a new revision with history intact; stale comparisons and competing saves fail without overwriting the draft. Docs-only and test-only changes do not require an unnecessary renderer deployment. The native Browser verified local comparison, reconciliation and reload while retaining the original home text.
+
 ## Exact approval boundary
 
 Provider setup creates a repository-scoped GitHub App/installation, creates and stores the two private keys, and may change the Cloudflare Access application protecting `admin.anipotts.com` to the verified single owner. These are credential/account/access changes and need native approval immediately before their effect under the project AGENTS.md. Existing broad fleet tokens must not be copied into the publisher. Keys must move value-silently through the approved credential broker; never print them, put them in argv or commit them.

@@ -40,6 +40,7 @@ export function HomeEditor({ record }: { record: EditorialRecord }) {
   const csrf = useRef("");
   const [publication, setPublication] = useState<PublishJob | null>(null);
   const [publishing, setPublishing] = useState(false);
+  const [comparison, setComparison] = useState<HomeBase | null>(null);
   const publishRequest = useRef<{ revision: number; id: string } | null>(null);
   async function post(action: string, body: unknown) {
     if (!csrf.current) {
@@ -209,6 +210,21 @@ export function HomeEditor({ record }: { record: EditorialRecord }) {
           {snapshot.draft?.discardedAt ? "discarded draft" : state.status}
         </Text>
         <Button label="download source" size="sm" onClick={download} />
+        <Button
+          label="compare website"
+          size="sm"
+          clickAction={async () => {
+            try {
+              const response = await fetch(endpoint("record"));
+              if (!response.ok) throw new Error();
+              const data: Snapshot = await response.json();
+              setComparison(data.base);
+              setError("");
+            } catch {
+              setError("couldn’t load the current website source. try again.");
+            }
+          }}
+        />
         {state.status === "unsaved" && (
           <Button
             label="retry save"
@@ -274,7 +290,9 @@ export function HomeEditor({ record }: { record: EditorialRecord }) {
             {publication.blocked
               ? publication.blocked === "publication_base_changed"
                 ? "website changed. stop this publication, then edit your draft and publish again"
-                : `blocked: ${publication.blocked.replaceAll("_", " ")}`
+                : publication.blocked === "record_changed"
+                  ? "this record changed on the website. stop publishing, then compare website to reconcile your draft"
+                  : `blocked: ${publication.blocked.replaceAll("_", " ")}`
               : {
                   validate: "checking content",
                   commit: "preparing publication",
@@ -320,7 +338,9 @@ export function HomeEditor({ record }: { record: EditorialRecord }) {
               />
             )}
           {publication.blocked &&
-            publication.blocked !== "publication_base_changed" && (
+            !["publication_base_changed", "record_changed"].includes(
+              publication.blocked,
+            ) && (
               <Button
                 label="retry publishing"
                 size="sm"
@@ -364,6 +384,79 @@ export function HomeEditor({ record }: { record: EditorialRecord }) {
         />
       )}
       {error && <Text role="alert">{error}</Text>}
+      {comparison && (
+        <VStack gap={2}>
+          <Text>
+            compare the current website with your draft. update your draft below
+            before keeping it over the website version.
+          </Text>
+          <TextArea
+            label="current website source"
+            value={comparison.source}
+            isReadOnly
+            rows={5}
+          />
+          <TextArea
+            label="your draft source"
+            value={state.source}
+            isReadOnly
+            rows={5}
+          />
+          <Button
+            label="keep draft over this website version"
+            isDisabled={
+              state.status !== "saved" ||
+              Boolean(snapshot.draft?.discardedAt) ||
+              Boolean(
+                publication &&
+                !["live", "cancelled"].includes(publication.phase),
+              )
+            }
+            clickAction={async () => {
+              try {
+                await editor.current!.ensureDraft();
+                const current = editor.current!.state;
+                if (current.status !== "saved") throw new Error();
+                const result = await post("rebase", {
+                  source: current.source,
+                  expectedRevision: current.revision,
+                  requestId: crypto.randomUUID(),
+                  reviewedBaseCommit: comparison.baseCommit,
+                  reviewedBaseFileHash: comparison.baseFileHash,
+                });
+                if (result.error === "upstream_changed") {
+                  setComparison(result.base);
+                  setError(
+                    "website changed again. compare the updated source before continuing.",
+                  );
+                  return;
+                }
+                if (!result.ok) throw new Error();
+                setSnapshot({
+                  ...snapshot,
+                  base: comparison,
+                  draft: result.draft,
+                });
+                editor.current!.resolve(
+                  result.draft,
+                  editor.current!.state.source !== result.draft.source,
+                );
+                setComparison(null);
+                setPreviewRevision(null);
+                setError("");
+              } catch {
+                setError(
+                  "couldn’t update the draft base. reload to compare the latest saved revision.",
+                );
+              }
+            }}
+          />
+          <Button
+            label="close comparison"
+            onClick={() => setComparison(null)}
+          />
+        </VStack>
+      )}
       {state.conflict && (
         <VStack gap={2}>
           <Text role="alert">

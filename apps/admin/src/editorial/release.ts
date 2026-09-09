@@ -6,6 +6,10 @@ import type { ReleaseReadiness } from "./publication-stage";
 
 const sha = /^[a-f0-9]{40}$/;
 const origin = "https://anipotts.com";
+const isNonRuntimeChange = (path: string) =>
+  path.startsWith("docs/") ||
+  path.endsWith(".test.ts") ||
+  path.endsWith(".test.mjs");
 
 export async function liveRelease(
   transport: typeof fetch = fetch,
@@ -67,7 +71,8 @@ export function releaseReadiness(
       changes.some(
         (path) =>
           !path.startsWith("content/public/") &&
-          path !== "content/publication.json",
+          path !== "content/publication.json" &&
+          !isNonRuntimeChange(path),
       )
     )
       return { ready: false, code: "stale_renderer" };
@@ -75,14 +80,7 @@ export function releaseReadiness(
     if (live !== head) {
       const unreleased = await git.compare(live, head);
       // Even unrelated public edits must not be silently swept into Publish.
-      if (
-        unreleased.some(
-          (path) =>
-            !path.startsWith("docs/") &&
-            !path.endsWith(".test.ts") &&
-            !path.endsWith(".test.mjs"),
-        )
-      )
+      if (unreleased.some((path) => !isNonRuntimeChange(path)))
         return { ready: false, code: "unreleased_public_changes" };
     }
     return { ready: true, head };

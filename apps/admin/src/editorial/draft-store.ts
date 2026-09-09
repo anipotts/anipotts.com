@@ -336,6 +336,18 @@ export class EditorialDraftStore extends DurableObject<unknown> {
   }
 
   async save(input: SaveDraft): Promise<SaveResult> {
+    return this.saveDraft(input, false);
+  }
+
+  /** Only the owner API supplies a freshly verified, explicitly compared base. */
+  async rebase(input: SaveDraft): Promise<SaveResult> {
+    return this.saveDraft(input, true);
+  }
+
+  private async saveDraft(
+    input: SaveDraft,
+    rebase: boolean,
+  ): Promise<SaveResult> {
     let key: string;
     try {
       key = editorialRecordPath(input.record);
@@ -363,6 +375,7 @@ export class EditorialDraftStore extends DurableObject<unknown> {
           expectedRevision: input.expectedRevision,
           baseCommit: input.baseCommit,
           baseFileHash: input.baseFileHash,
+          ...(rebase ? { rebase: true } : {}),
         }),
       ),
     );
@@ -385,7 +398,8 @@ export class EditorialDraftStore extends DurableObject<unknown> {
       let result: SaveResult;
       if (
         (current?.revision ?? 0) !== input.expectedRevision ||
-        (current !== null && current.discardedAt !== null)
+        (current !== null && current.discardedAt !== null) ||
+        (rebase && current === null)
       ) {
         const conflictId = input.requestId;
         this.ctx.storage.sql.exec(
@@ -401,6 +415,7 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         // A save never changes the Git base of an existing draft. Rebase is a
         // separate, explicit operation after comparing current Git content.
         if (
+          !rebase &&
           current &&
           (current.baseCommit !== input.baseCommit ||
             current.baseFileHash !== input.baseFileHash)

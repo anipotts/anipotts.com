@@ -6,6 +6,7 @@ import {
 import { privateEditorialResponse } from "./lib/editorial-security";
 import { publicSiteUrl } from "./lib/editorial-content";
 import {
+  isApprovedDevPreviewOrigin,
   isDevLoopbackPreviewRequest,
   isPublicAdminPath,
 } from "./lib/admin-access-policy";
@@ -29,7 +30,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     const local =
       import.meta.env.DEV &&
       import.meta.env.EDITORIAL_LOCAL_PREVIEW === true &&
-      context.url.origin === "http://localhost:4311";
+      isApprovedDevPreviewOrigin(context.url);
     // This namespace never accepts legacy passwords, sessions, or identity headers.
     if (
       !local &&

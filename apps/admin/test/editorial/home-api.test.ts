@@ -21,6 +21,77 @@ const request = (action: string, body: unknown, headers = {}) =>
     body: JSON.stringify(body),
   });
 describe("home API with real SQLite", () => {
+  it("rebases only an explicitly reviewed upstream version and retains source history", async () => {
+    const storage = env.EDITORIAL.getByName(crypto.randomUUID());
+    await storage.save({
+      ...(await base()),
+      record: homeRecord,
+      source: "retained draft",
+      expectedRevision: 0,
+      requestId: crypto.randomUUID(),
+    });
+    const upstream = {
+      source: "upstream edit",
+      baseCommit: "d".repeat(40),
+      baseFileHash: "e".repeat(40),
+    };
+    const input = {
+      source: "reconciled draft",
+      expectedRevision: 1,
+      requestId: crypto.randomUUID(),
+      reviewedBaseCommit: upstream.baseCommit,
+      reviewedBaseFileHash: upstream.baseFileHash,
+    };
+    const rebase = (body: unknown, headers = {}) =>
+      homeEditorApi(
+        request("rebase", body, headers),
+        storage,
+        async () => upstream,
+      );
+    expect(
+      (await rebase(input, { Origin: "https://evil.example" })).status,
+    ).toBe(403);
+    expect(
+      (await rebase({ ...input, reviewedBaseFileHash: "f".repeat(40) })).status,
+    ).toBe(409);
+    expect((await storage.get(homeRecord))?.revision).toBe(1);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const response = await rebase(input);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        ok: true,
+        draft: {
+          source: input.source,
+          baseCommit: upstream.baseCommit,
+          baseFileHash: upstream.baseFileHash,
+          revision: 2,
+        },
+      });
+    }
+    expect(
+      (await rebase({ ...input, requestId: crypto.randomUUID() })).status,
+    ).toBe(409);
+    expect(
+      (await storage.history(homeRecord)).map((draft) => draft.source),
+    ).toEqual(["reconciled draft", "retained draft"]);
+    const saved = await homeEditorApi(
+      request("save", {
+        source: "further edit",
+        expectedRevision: 2,
+        requestId: crypto.randomUUID(),
+      }),
+      storage,
+      base,
+    );
+    expect(await saved.json()).toMatchObject({
+      ok: true,
+      draft: {
+        revision: 3,
+        baseCommit: upstream.baseCommit,
+        baseFileHash: upstream.baseFileHash,
+      },
+    });
+  });
   it("requires disclosure and CSRF, freezes a revision once, and isolates status", async () => {
     const storage = env.EDITORIAL.getByName(crypto.randomUUID());
     const record = { kind: "writing", id: "essay" } as const;

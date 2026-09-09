@@ -116,7 +116,7 @@ export function isDevLoopbackPreviewRequest({
   );
 }
 
-function isApprovedDevPreviewOrigin(url: URL): boolean {
+export function isApprovedDevPreviewOrigin(url: URL): boolean {
   if (DEV_LOOPBACK_ORIGINS.has(url.origin)) return true;
   if (!DEV_PORTLESS_HOST_PATTERN.test(url.hostname)) return false;
   return (
