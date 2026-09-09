@@ -11,7 +11,10 @@ Select an inline image to replace its URL, change its description, or remove it.
 Image descriptions may be blank for decorative logos beside a written name.
 Use existing `/images/…` paths or HTTPS image URLs. Files are not uploaded by this
 editor. Undo and redo remain available while editing, and History retains saved
-revisions across reloads.
+revisions across reloads. The **Document actions** menu contains **View source**,
+**Version history**, **Compare with website**, **Download draft**, and **Import draft**.
+History and preview refresh when opened; **Edit** and **Preview** are the two main
+views. **Review changes** opens a separate confirmation step.
 
 Formatted fields use inline Markdown in the canonical file. Underline uses paired
 `<u>` tags. Raw HTML otherwise displays as text. Images support the optional title
@@ -25,7 +28,7 @@ previews its workflow. Article-body changes remain editable in Source and need
 source review; they are not rendered by the field preview.
 
 After reviewing locally, release the editor and public renderer together. Download
-the local draft, open the same record in production, and import it in Source.
+the local draft, open the same record in production, and import it from **Document actions**.
 Review the saved draft and its preview, then choose **Review changes → Approve
 and publish**. That action sends the record to the public repository, runs required
 checks, and publishes the checked change. Local publishing stays disabled.

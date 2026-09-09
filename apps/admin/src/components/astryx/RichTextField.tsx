@@ -353,8 +353,7 @@ export function RichTextField({
         )}
       </VStack>
       <Text color="secondary" type="supporting">
-        {inlinePlainText(value).length} characters · Select text to format it.
-        Changes save automatically.
+        {inlinePlainText(value).length} characters
       </Text>
     </VStack>
   );

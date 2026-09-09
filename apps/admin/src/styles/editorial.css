@@ -193,6 +193,18 @@
 }
 .editor-primary-actions {
   margin-inline-start: auto;
+  flex-wrap: nowrap;
+}
+.editor-primary-actions > [aria-haspopup="menu"] {
+  flex: 0 0 auto;
+  width: var(--spacing-9);
+  min-height: var(--spacing-9);
+  padding-inline: 0;
+}
+.editor-history-row {
+  padding-block: var(--spacing-3);
+  border-bottom: var(--border-width) solid var(--color-border);
+  justify-content: space-between;
 }
 .editorial-content .editor-fields {
   width: 100%;
@@ -286,31 +298,6 @@
   padding-block: var(--spacing-3);
   border-block-start: var(--border-width) solid var(--color-border);
 }
-.editor-source-tools {
-  padding-block: var(--spacing-2);
-}
-.editor-import {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--spacing-9);
-  padding-inline: var(--spacing-3);
-  border-radius: var(--radius-element);
-  background: var(--color-neutral);
-  font-size: var(--font-size-base);
-  cursor: pointer;
-  overflow: hidden;
-}
-.editor-import input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  width: 100%;
-  cursor: pointer;
-}
-.editor-import:focus-within {
-  outline: var(--focus-outline-width) solid var(--color-accent);
-}
 .editorial-source {
   background: var(--color-background-surface);
   border: var(--border-width) solid var(--color-border);
@@ -332,19 +319,25 @@
   border-radius: var(--radius-element);
   background: var(--color-background-surface);
 }
-@media (max-width: 640px) {
+@media (max-width: 540px) {
+  .editor-primary-actions > [aria-haspopup="menu"] {
+    width: var(--spacing-11);
+    min-height: var(--spacing-11);
+  }
+}
+@media (max-width: 480px) {
   .editor-primary-actions {
     width: 100%;
     margin-inline-start: 0;
+    justify-content: flex-end;
   }
-  .editor-primary-actions > .astryx-button {
+  .editor-primary-actions > .astryx-button[data-variant="primary"] {
     flex: 1;
   }
+}
+@media (max-width: 640px) {
   .rich-writing .tiptap {
     padding: var(--spacing-3);
-  }
-  .editor-import {
-    min-height: var(--spacing-11);
   }
 }
 

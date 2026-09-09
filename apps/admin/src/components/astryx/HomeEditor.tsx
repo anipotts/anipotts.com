@@ -2,12 +2,13 @@ import React, { useEffect, useRef, useState } from "react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
+import { Heading } from "@astryxdesign/core/Heading";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { StatusDot } from "@astryxdesign/core/StatusDot";
 import {
   ArrowLeftIcon,
-  EyeIcon,
   ArrowSquareOutIcon,
+  DotsThreeIcon,
 } from "@phosphor-icons/react";
 import { RichTextField } from "./RichTextField";
 import { editableHomeSummary } from "../../lib/rich-text";
@@ -15,6 +16,7 @@ import { editorialFields } from "../../lib/editorial-fields";
 import { inlinePlainText } from "@anipotts/content/public/inline";
 import { TextArea } from "@astryxdesign/core/TextArea";
 import { Button } from "@astryxdesign/core/Button";
+import { MoreMenu } from "@astryxdesign/core/MoreMenu";
 import { TabList, Tab } from "@astryxdesign/core/TabList";
 import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
@@ -55,6 +57,8 @@ export function HomeEditor({
   const [previewRevision, setPreviewRevision] = useState<number | null>(null);
   const editor = useRef<HomeAutosave | null>(null);
   const csrf = useRef("");
+  const importInput = useRef<HTMLInputElement | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [publication, setPublication] = useState<PublishJob | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [reviewSource, setReviewSource] = useState<string | null>(null);
@@ -198,7 +202,11 @@ export function HomeEditor({
     URL.revokeObjectURL(url);
   };
   const refreshPreview = async () => {
-    if (!valid || snapshot.draft?.discardedAt) return;
+    setPreviewRevision(null);
+    if (!valid || snapshot.draft?.discardedAt) {
+      setError("Save a valid, active draft before previewing.");
+      return;
+    }
     await editor.current!.ensureDraft();
     const current = editor.current!.state;
     try {
@@ -216,15 +224,50 @@ export function HomeEditor({
     }
     setError("save a valid draft before previewing.");
   };
+  const openHistory = async () => {
+    setTab("history");
+    setHistoryLoading(true);
+    try {
+      await editor.current!.flush();
+      const response = await fetch(endpoint("record"));
+      if (!response.ok) throw new Error();
+      const data: Snapshot = await response.json();
+      setSnapshot((previous) =>
+        previous ? { ...previous, history: data.history } : previous,
+      );
+      setError("");
+    } catch {
+      setError("Couldn’t load history. Reopen Version history to try again.");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+  const compareWebsite = async () => {
+    try {
+      const response = await fetch(endpoint("record"));
+      if (!response.ok) throw new Error();
+      const data: Snapshot = await response.json();
+      setComparison(data.base);
+      setError("");
+    } catch {
+      setError("Couldn’t load the current website source. Try again.");
+    }
+  };
+  const isDocumentView = tab === "edit" || tab === "preview";
   return (
     <VStack gap={5} className="editor-workspace">
       <HStack gap={3} wrap="wrap" className="editor-actionbar" vAlign="center">
         <HStack gap={3} vAlign="center" className="editor-save-group">
           <Button
-            label="Content"
+            label={isDocumentView ? "Content" : "Back to editor"}
             variant="ghost"
             icon={<ArrowLeftIcon size={18} />}
-            href={`/content?group=${record.kind === "page" ? "pages" : record.kind}`}
+            href={
+              isDocumentView
+                ? `/content?group=${record.kind === "page" ? "pages" : record.kind}`
+                : undefined
+            }
+            onClick={isDocumentView ? undefined : () => setTab("edit")}
             size="sm"
           />
           <HStack gap={2} vAlign="center" role="status">
@@ -236,7 +279,9 @@ export function HomeEditor({
               {snapshot.draft?.discardedAt
                 ? "Discarded draft"
                 : state.status === "saved"
-                  ? "Saved privately"
+                  ? localPreview
+                    ? "Saved locally"
+                    : "Saved privately"
                   : state.status === "saving"
                     ? "Saving…"
                     : state.status === "conflict"
@@ -246,41 +291,60 @@ export function HomeEditor({
           </HStack>
         </HStack>
         <HStack gap={2} wrap="wrap" className="editor-primary-actions">
-          {state.status === "unsaved" && (
+          {tab !== "publish" && (
             <Button
-              label="retry save"
+              label="Review changes"
+              variant="primary"
               size="sm"
-              clickAction={() => editor.current!.flush()}
+              onClick={() => {
+                setReviewSource(state.source);
+                setTab("publish");
+              }}
+              isDisabled={!valid || Boolean(snapshot.draft?.discardedAt)}
             />
           )}
-          <Button
-            label="Preview"
-            icon={<EyeIcon size={18} />}
+          <MoreMenu
+            label="Document actions"
+            icon={<DotsThreeIcon size={20} />}
             size="sm"
-            onClick={() => {
-              setTab("preview");
-              void refreshPreview();
-            }}
-            isDisabled={!valid}
-          />
-          <Button
-            label="Review changes"
-            variant="primary"
-            size="sm"
-            onClick={() => {
-              setReviewSource(state.source);
-              setTab("publish");
-            }}
-            isDisabled={!valid}
+            alignment="end"
+            items={[
+              { label: "View source", onClick: () => setTab("source") },
+              {
+                label: "Version history",
+                onClick: () => {
+                  void openHistory();
+                },
+              },
+              {
+                label: "Compare with website",
+                onClick: () => {
+                  void compareWebsite();
+                },
+              },
+              { type: "divider" },
+              { label: "Download draft", onClick: download },
+              {
+                label: "Import draft…",
+                isDisabled: Boolean(snapshot.draft?.discardedAt),
+                onClick: () => importInput.current?.click(),
+              },
+              ...(state.status === "unsaved"
+                ? [
+                    { type: "divider" as const },
+                    {
+                      label: "Save now",
+                      isDisabled: Boolean(snapshot.draft?.discardedAt),
+                      onClick: () => {
+                        void editor.current!.flush();
+                      },
+                    },
+                  ]
+                : []),
+            ]}
           />
         </HStack>
       </HStack>
-      {localPreview && (
-        <Text color="secondary" type="supporting">
-          Local editor · Changes stay on this Mac until you move the draft to
-          production.
-        </Text>
-      )}
       {publication && (
         <HStack gap={2} wrap="wrap">
           <Text role="status">
@@ -490,35 +554,32 @@ export function HomeEditor({
           </HStack>
         </VStack>
       )}
-      <TabList
-        size="sm"
-        value={tab}
-        onChange={(next) => {
-          setTab(next);
-          if (next === "publish") setReviewSource(state.source);
-          if (next === "preview") void refreshPreview();
-        }}
-      >
-        {["edit", "preview", "history", "source", "publish"].map((name) => (
-          <Tab
-            key={name}
-            label={
-              name === "publish"
-                ? "Review"
-                : name[0]!.toUpperCase() + name.slice(1)
-            }
-            value={name}
-          />
-        ))}
-      </TabList>
+      {isDocumentView ? (
+        <HStack gap={3} wrap="wrap" vAlign="center" className="editor-viewbar">
+          <TabList
+            size="sm"
+            value={tab}
+            onChange={(next) => {
+              setTab(next);
+              if (next === "preview") void refreshPreview();
+            }}
+          >
+            <Tab label="Edit" value="edit" />
+            <Tab label="Preview" value="preview" />
+          </TabList>
+        </HStack>
+      ) : (
+        <Heading level={2}>
+          {tab === "publish"
+            ? "Review changes"
+            : tab === "source"
+              ? "Source"
+              : "Version history"}
+        </Heading>
+      )}
       {tab === "preview" && (
         <VStack gap={2}>
-          <Button
-            label="refresh preview"
-            isDisabled={!valid || Boolean(snapshot.draft?.discardedAt)}
-            clickAction={refreshPreview}
-          />
-          {previewRevision && (
+          {previewRevision ? (
             <iframe
               title={`${record.id} draft preview`}
               src={`/preview/${record.kind === "page" && record.id === "home" ? "home" : "record"}?${query}&revision=${previewRevision}`}
@@ -526,6 +587,12 @@ export function HomeEditor({
               referrerPolicy="no-referrer"
               className="editorial-preview"
             />
+          ) : (
+            <Text role="status">
+              {error
+                ? "Preview unavailable. Return to Edit to check your draft."
+                : "Preparing preview…"}
+            </Text>
           )}
         </VStack>
       )}
@@ -576,10 +643,9 @@ export function HomeEditor({
       )}
       {tab === "publish" && (
         <VStack gap={4} className="editor-review">
-          <Text weight="semibold">Review this change</Text>
           <Text color="secondary">
             {localPreview
-              ? "This is a local rehearsal. Publishing is disabled on this Mac. After the editor is released, download your draft, open the production editor, and import it in Source to review and publish."
+              ? "Review your local draft here. To publish after the editor is released, use Document actions to download it, then import it in the production editor."
               : "Approving sends this record to the public repository, runs the required checks, and publishes it to anipotts.com. Saving and previewing keep it private."}
           </Text>
           <Text>
@@ -609,10 +675,18 @@ export function HomeEditor({
                   className="editor-change"
                 >
                   <Text weight="semibold">{field.label}</Text>
-                  <Text color="secondary">
-                    Before: {inlinePlainText(before)}
-                  </Text>
-                  <Text>After: {inlinePlainText(after)}</Text>
+                  {inlinePlainText(before) === inlinePlainText(after) ? (
+                    <Text color="secondary">
+                      Formatting updated. Check Preview for links and images.
+                    </Text>
+                  ) : (
+                    <>
+                      <Text color="secondary">
+                        Before: {inlinePlainText(before)}
+                      </Text>
+                      <Text>After: {inlinePlainText(after)}</Text>
+                    </>
+                  )}
                 </VStack>
               );
             } catch {
@@ -620,8 +694,8 @@ export function HomeEditor({
             }
           })}
           <Text color="secondary">
-            Review the preview for images and formatting. Source shows the
-            complete file, including changes outside these fields.
+            Preview shows the final appearance. View source in Document actions
+            to inspect the complete file.
           </Text>
           {state.source !== reviewSource && (
             <Text role="alert">
@@ -648,9 +722,11 @@ export function HomeEditor({
               }
               isLoading={publishing}
               tooltip={
-                snapshot.publishing === "ready"
-                  ? "publishes this record’s source to GitHub and the website"
-                  : "publishing is not connected yet"
+                localPreview
+                  ? "Publishing is available in the production editor"
+                  : snapshot.publishing === "ready"
+                    ? "publishes this record’s source to GitHub and the website"
+                    : "publishing is not connected yet"
               }
               clickAction={async () => {
                 setPublishing(true);
@@ -685,7 +761,6 @@ export function HomeEditor({
                 }
               }}
             />
-            <Button label="Download draft" size="sm" onClick={download} />
             {localPreview && (
               <Button
                 label="Open production editor"
@@ -703,61 +778,41 @@ export function HomeEditor({
         <VStack gap={3}>
           <Text color="secondary">
             The complete Markdown file. Formatting uses standard Markdown;
-            underlines use &lt;u&gt;. Importing replaces this private draft and
-            saves a recoverable revision.
+            underlines use &lt;u&gt;. Use Document actions to import or download
+            a draft. Imports replace this private draft and retain revision
+            history.
           </Text>
-          <HStack gap={2} wrap="wrap">
-            <Button label="download source" size="sm" onClick={download} />
-            <Button
-              label="compare website"
-              size="sm"
-              clickAction={async () => {
-                try {
-                  const response = await fetch(endpoint("record"));
-                  if (!response.ok) throw new Error();
-                  const data: Snapshot = await response.json();
-                  setComparison(data.base);
-                  setError("");
-                } catch {
-                  setError(
-                    "couldn’t load the current website source. try again.",
-                  );
-                }
-              }}
-            />
-
-            <label className="editor-import">
-              Import draft
-              <input
-                type="file"
-                accept=".md,text/markdown,text/plain"
-                aria-label="Import draft"
-                disabled={Boolean(snapshot.draft?.discardedAt)}
-                onChange={async (event) => {
-                  const file = event.target.files?.[0];
-                  if (!file) return;
-                  if (file.size > 512 * 1024) {
-                    setError("Choose a Markdown file smaller than 512 KB.");
-                    return;
-                  }
-                  try {
-                    const source = await file.text();
-                    if (!validateEditorialSource(record, source).success)
-                      throw new Error();
-                    editor.current!.edit(source);
-                    setError("");
-                  } catch {
-                    setError(
-                      "That file does not match this record. Your draft was kept.",
-                    );
-                  }
-                  event.target.value = "";
-                }}
-              />
-            </label>
-          </HStack>
         </VStack>
       )}
+      <input
+        ref={importInput}
+        type="file"
+        hidden
+        accept=".md,text/markdown,text/plain"
+        aria-label="Import draft"
+        disabled={Boolean(snapshot.draft?.discardedAt)}
+        onChange={async (event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (!file) return;
+          if (file.size > 512 * 1024) {
+            setError("Choose a Markdown file smaller than 512 KB.");
+            return;
+          }
+          try {
+            const source = await file.text();
+            if (!validateEditorialSource(record, source).success)
+              throw new Error();
+            editor.current!.edit(source);
+            setTab("edit");
+            setError("");
+          } catch {
+            setError(
+              "That file does not match this record. Your draft was kept.",
+            );
+          }
+        }}
+      />
       <SourceEditor
         source={state.source}
         onChange={(source) => editor.current!.edit(source)}
@@ -771,30 +826,41 @@ export function HomeEditor({
       )}
       {tab === "history" && (
         <VStack gap={2}>
-          <Button
-            label="refresh history"
-            clickAction={async () => {
-              const response = await fetch(endpoint("record"));
-              if (response.ok) {
-                const data: Snapshot = await response.json();
-                setSnapshot((previous) =>
-                  previous ? { ...previous, history: data.history } : previous,
-                );
-              }
-            }}
-          />
+          <Text color="secondary">
+            Restore an earlier version as a new draft. Existing revisions stay
+            available.
+          </Text>
+          {historyLoading && <Text role="status">Loading revisions…</Text>}
           {snapshot.history.map((revision) => (
-            <HStack key={revision.revision} gap={2} wrap="wrap">
-              <Text>{new Date(revision.updatedAt).toLocaleString()}</Text>
+            <HStack
+              key={revision.revision}
+              gap={3}
+              wrap="wrap"
+              vAlign="center"
+              className="editor-history-row"
+            >
+              <VStack gap={1}>
+                <Text weight="semibold">Revision {revision.revision}</Text>
+                <Text color="secondary" type="supporting">
+                  {new Date(revision.updatedAt).toLocaleString()}
+                </Text>
+              </VStack>
               <Button
-                label={`restore revision ${revision.revision}`}
+                label="Restore"
+                aria-label={`Restore revision ${revision.revision}`}
+                variant="ghost"
                 size="sm"
                 isDisabled={Boolean(snapshot.draft?.discardedAt)}
-                onClick={() => editor.current!.edit(revision.source)}
+                onClick={() => {
+                  editor.current!.edit(revision.source);
+                  setTab("edit");
+                }}
               />
             </HStack>
           ))}
-          {snapshot.history.length === 0 && <Text>no saved revisions yet</Text>}
+          {!historyLoading && snapshot.history.length === 0 && (
+            <Text>No saved revisions yet.</Text>
+          )}
         </VStack>
       )}
     </VStack>
