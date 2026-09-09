@@ -1,9 +1,9 @@
 ---
-title: "awareness is alpha"
+title: "awareness is really alpha"
 slug: awareness-is-alpha
 published_at: 2026-07-14
-tags: ["agents", "systems", "operations", "building"]
-summary: keeping track of what my agents are doing and whether it's getting me where i want to go
+tags: [ "agents", "systems", "operations", "building" ]
+summary: some shower thoughts about keeping track of whether my AI usage is getting me where i want to go
 status: published
 ---
 
