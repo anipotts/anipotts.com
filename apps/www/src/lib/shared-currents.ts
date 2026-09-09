@@ -1,8 +1,18 @@
-const pageCurrents = new Map<string, { composition: number; time: number }>();
+type Scene = {
+  composition: number;
+  time: number;
+  viewport: number;
+  width: number;
+  height: number;
+  crops: string[];
+};
+const pageCurrents = new Map<string, Scene>();
 // One document-space composition, cropped by each card. No per-card animation clocks.
 export function mountSharedCurrents() {
   const hosts = [
-    ...document.querySelectorAll<HTMLElement>("[data-shared-current]"),
+    ...document.querySelectorAll<HTMLElement>(
+      "main:not([inert]) [data-shared-current]",
+    ),
   ];
   if (!hosts.length) return () => {};
   // Choose once per page mount; scrolling, resizing, and theme changes retain it.
@@ -82,10 +92,21 @@ export function mountSharedCurrents() {
       host.dataset.motionTime = time.toFixed(4);
     });
   }
+  let layout = "";
   function resize() {
+    if (document.documentElement?.hasAttribute("data-writing-transition"))
+      return;
     const boxes = hosts.map((host) => host.getBoundingClientRect());
     const left = Math.min(...boxes.map((b) => b.left));
     const top = Math.min(...boxes.map((b) => b.top));
+    const nextLayout = boxes
+      .map(
+        (box) =>
+          `${box.left - left},${box.top - top},${box.width},${box.height}`,
+      )
+      .join(";");
+    if (nextLayout === layout) return;
+    layout = nextLayout;
     w = Math.max(...boxes.map((b) => b.right)) - left;
     h = Math.max(...boxes.map((b) => b.bottom)) - top;
     boxes.forEach((box, i) =>
@@ -99,6 +120,13 @@ export function mountSharedCurrents() {
   function tick(now: number) {
     frame = 0;
     if (media.matches || document.hidden || !visible.size) return;
+    // Hold the destination artwork at the captured phase until its overlay
+    // hands back to the real card. Do not accumulate the paused time.
+    if (document.documentElement?.hasAttribute("data-writing-transition")) {
+      last = now;
+      frame = requestAnimationFrame(tick);
+      return;
+    }
     const elapsed = now - last;
     if (elapsed >= 1000 / 30) {
       time += Math.min(elapsed, 100) * 0.001 * state.speed;
@@ -136,9 +164,31 @@ export function mountSharedCurrents() {
   media.addEventListener("change", sync);
   document.addEventListener("visibilitychange", sync);
   window.addEventListener("resize", resize);
-  resize();
+  document.addEventListener("writing:transition-end", resize);
+  document.addEventListener("astro:page-load", resize);
+  // Restore the known layout before painting. Incoming styles can briefly
+  // report fallback font metrics during the document swap.
+  if (
+    previous &&
+    previous.viewport === window.innerWidth &&
+    previous.crops.length === svgs.length
+  ) {
+    w = previous.width;
+    h = previous.height;
+    previous.crops.forEach((crop, i) => svgs[i].setAttribute("viewBox", crop));
+    draw(true);
+  } else resize();
   return () => {
-    pageCurrents.set(key, { composition: state.composition, time });
+    // Offscreen cards catch up before capture, preserving one shared phase.
+    draw(true);
+    pageCurrents.set(key, {
+      composition: state.composition,
+      time,
+      viewport: window.innerWidth,
+      width: w,
+      height: h,
+      crops: svgs.map((svg) => svg.getAttribute("viewBox")!),
+    });
     if (pageCurrents.size > 40)
       pageCurrents.delete(pageCurrents.keys().next().value!);
     cancelAnimationFrame(frame);
@@ -147,5 +197,23 @@ export function mountSharedCurrents() {
     media.removeEventListener("change", sync);
     document.removeEventListener("visibilitychange", sync);
     window.removeEventListener("resize", resize);
+    document.removeEventListener("writing:transition-end", resize);
+    document.removeEventListener("astro:page-load", resize);
   };
+}
+
+// One controller per real document body. Both page-load and the transition
+// handoff may request initialization; neither should remount a live scene.
+let activeBody: HTMLElement | undefined;
+let stopScene: (() => void) | undefined;
+export function pauseSharedCurrents() {
+  stopScene?.();
+  stopScene = undefined;
+  activeBody = undefined;
+}
+export function refreshSharedCurrents() {
+  if (activeBody === document.body) return;
+  pauseSharedCurrents();
+  activeBody = document.body;
+  stopScene = mountSharedCurrents();
 }

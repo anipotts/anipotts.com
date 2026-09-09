@@ -54,7 +54,11 @@ const articleLd = {
     <DetailWaves seed={`writing/${slug}`} />
     <header data-rise class="head">
       <div class="article-topline">
-        <a href="/writing" class="quiet-link mono back">
+        <a
+          href="/writing"
+          data-astro-prefetch="viewport"
+          class="quiet-link mono back"
+        >
           <Icon name="ph:arrow-left" /> all writing
         </a>
         {

@@ -25,14 +25,15 @@ interface Props {
   </svg>
 </span>
 <script>
-  import { mountSharedCurrents } from "../lib/shared-currents";
-  let cleanup = mountSharedCurrents();
-  document.addEventListener("astro:before-swap", () => cleanup());
-  document.addEventListener("astro:page-load", () => {
-    cleanup();
-    cleanup = mountSharedCurrents();
-  });
-  if (import.meta.hot) import.meta.hot.dispose(() => cleanup());
+  import {
+    refreshSharedCurrents,
+    pauseSharedCurrents,
+  } from "../lib/shared-currents";
+  refreshSharedCurrents();
+  document.addEventListener("astro:before-preparation", pauseSharedCurrents);
+  document.addEventListener("astro:after-swap", refreshSharedCurrents);
+  document.addEventListener("astro:page-load", refreshSharedCurrents);
+  if (import.meta.hot) import.meta.hot.dispose(pauseSharedCurrents);
 </script>
 <style is:global>
   :is(.work-card, .writing-card, .experience-feature, .coding-agent-card):has(
