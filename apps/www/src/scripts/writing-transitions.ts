@@ -386,9 +386,13 @@ function motion(event: TransitionBeforeSwapEvent) {
       const q = clamp((now - started) / DURATION),
         e = smooth(q);
       ghost.style.opacity = String(1 - smooth(q / 0.42));
-      main.style.opacity = String(
-        smooth((q - (expanding ? 0.65 : 0.18)) / (expanding ? 0.35 : 0.65)),
-      );
+      // The list is already in its final state underneath a returning card.
+      // Shrinking the opaque surface reveals it; no second reveal is needed.
+      main.style.opacity = shrinking
+        ? "1"
+        : String(
+            smooth((q - (expanding ? 0.45 : 0.18)) / (expanding ? 0.35 : 0.65)),
+          );
       if ((expanding || shrinking) && surface && svg) {
         shapeMotion?.draw(e);
         const a = shrinking ? 1 - e : e;
@@ -437,6 +441,7 @@ document.addEventListener("astro:before-swap", (raw) => {
   const event = raw as TransitionBeforeSwapEvent;
   const theme = document.documentElement.dataset.theme || "light";
   event.newDocument.documentElement.dataset.theme = theme;
+  event.newDocument.documentElement.dataset.navigationSettled = "";
   void event.viewTransition.ready.catch(() => {});
   event.viewTransition.skipTransition();
   if (

@@ -10,6 +10,7 @@ export default defineConfig({
   security: { checkOrigin: false },
   site: siteConfig.url,
   output: "static",
+  prefetch: true,
   trailingSlash: "never",
   build: { format: "file" },
   vite: {

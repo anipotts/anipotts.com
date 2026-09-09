@@ -645,13 +645,25 @@ html.editorial-detail[data-theme="dark"] {
   font-style: normal;
 }
 
+/* The DOM card surface owns navigation. Never paint the native snapshot
+   overlay as well: its old/new layers can briefly blend into a bright flash. */
+::view-transition {
+  display: none;
+}
 /* Navigation snapshots are replaced by the writing card surface. */
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none;
 }
-html[data-writing-transition] [data-rise] {
+/* Client navigation owns its own movement. This state survives overlay
+   cleanup, so the first-load reveal cannot hide/reanimate the destination. */
+html[data-navigation-settled] [data-rise] {
   animation: none !important;
+  opacity: 1;
+  transform: none;
+}
+.writing-card {
+  -webkit-tap-highlight-color: transparent;
 }
 .writing-transition-word {
   font-synthesis: none;
