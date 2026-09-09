@@ -9,6 +9,7 @@ const section = z.object({
   label: text,
   heading: z.string(),
   subheading: text.optional(),
+  subheading_format: z.literal("markdown").optional(),
   mention_keys: z.array(text).optional(),
   links: z.array(link).optional(),
   limit: z.number().int().positive().optional(),

@@ -1,4 +1,5 @@
 ---
+import InlineText from "./InlineText.astro";
 import { Icon } from "astro-icon/components";
 import AmbientFlow from "./AmbientFlow.astro";
 import type { Project } from "../lib/content";
@@ -84,7 +85,9 @@ const displayTitle = isPgi ? "pgi research" : d.title;
         <Icon name="ph:arrow-bend-right-up" />
       </span>
     </span>
-    <span class="experience-feature__copy">{d.card_copy}</span>
+    <span class="experience-feature__copy"
+      ><InlineText text={d.card_copy} links={false} /></span
+    >
   </span>
 </a>
 

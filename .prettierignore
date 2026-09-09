@@ -24,6 +24,7 @@ packages/brand/ap-structural-v0.1.0-candidate.1/
 content/public/
 
 # Exact Astryx CLI outputs are checked by theme:check.
+apps/admin/src/themes/editorial.generated.css
 apps/admin/src/themes/editorial.d.ts
 apps/admin/src/themes/editorial.variants.d.ts
 apps/admin/src/themes/editorial.js

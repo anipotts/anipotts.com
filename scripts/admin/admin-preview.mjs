@@ -21,6 +21,7 @@ const STATE_ROOT = join(REPO_ROOT, ".local/admin-preview");
 const METADATA_PATH = join(STATE_ROOT, "process.json");
 const LOG_PATH = join(STATE_ROOT, "server.log");
 const DEFAULT_HOST = "localhost";
+const BIND_HOST = "127.0.0.1";
 const DEFAULT_PORT = 4311;
 const HEALTH_PATH = "/api/health";
 const START_TIMEOUT_MS = 20_000;
@@ -72,7 +73,7 @@ async function ensurePreview() {
   chmodSync(LOG_PATH, 0o600);
   const child = spawn(
     "pnpm",
-    ["exec", "astro", "dev", "--host", host, "--port", String(port)],
+    ["exec", "astro", "dev", "--host", BIND_HOST, "--port", String(port)],
     {
       cwd: ADMIN_ROOT,
       detached: true,
@@ -214,7 +215,7 @@ function processIsRunning(pid) {
 
 async function probeHealth() {
   try {
-    const response = await fetch(`${origin}${HEALTH_PATH}`, {
+    const response = await fetch(`http://${BIND_HOST}:${port}${HEALTH_PATH}`, {
       redirect: "manual",
       signal: AbortSignal.timeout(1_500),
     });

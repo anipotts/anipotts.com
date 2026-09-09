@@ -7,6 +7,7 @@ export interface HomepageSection {
   label: string;
   heading: string;
   subheading?: string;
+  subheading_format?: "markdown";
   rich_summary?: HomepageRichSummarySentence[];
   mention_keys?: string[];
   paragraphs?: string[];

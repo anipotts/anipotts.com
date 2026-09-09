@@ -1,3 +1,4 @@
+import { inlinePlainText } from "@anipotts/content/public/inline";
 import rss from "@astrojs/rss";
 import type { APIRoute } from "astro";
 import { siteConfig } from "@anipotts/content/public";
@@ -17,7 +18,7 @@ export const GET: APIRoute = async (context) => {
     site: context.site ?? siteConfig.url,
     items: writingEntries.map((t) => ({
       title: t.data.title,
-      description: t.data.summary,
+      description: inlinePlainText(t.data.summary),
       link: `/writing/${writingSlug(t)}`,
       pubDate: t.data.published_at ?? new Date(0),
     })),

@@ -97,24 +97,24 @@ export const editorialTheme = {
     "--color-syntax-property": "light-dark(#005348, #83dac9)",
     "--color-syntax-punctuation": "light-dark(#a3a3a3, #525252)",
     "--color-syntax-background": "light-dark(#fafafa, #0a0a0a)",
-    "--color-background-surface": "light-dark(#61abea, #080b10)",
-    "--color-background-body": "light-dark(#61abea, #080b10)",
-    "--color-background-card": "light-dark(#f7faff, #11151d)",
-    "--color-background-popover": "light-dark(#f7faff, #11151d)",
-    "--color-background-muted": "light-dark(#e4effa, #1b2636)",
-    "--color-accent": "light-dark(#123d65, #61abea)",
-    "--color-accent-muted": "light-dark(#e4effa, #172c40)",
-    "--color-neutral": "light-dark(#123d6540, #ffffff12)",
+    "--color-background-surface": "light-dark(#ffffff, #1a1d23)",
+    "--color-background-body": "light-dark(#f4f5f7, #111317)",
+    "--color-background-card": "light-dark(#ffffff, #1a1d23)",
+    "--color-background-popover": "light-dark(#ffffff, #23272f)",
+    "--color-background-muted": "light-dark(#eceef2, #242932)",
+    "--color-accent": "light-dark(#245dbe, #90baff)",
+    "--color-accent-muted": "light-dark(#e8effc, #263650)",
+    "--color-neutral": "light-dark(#2026310d, #eef0f410)",
     "--color-overlay": "light-dark(#00000080, #000000CC)",
     "--color-overlay-hover": "light-dark(#0000000D, #FFFFFF0D)",
     "--color-overlay-pressed": "light-dark(#0000001A, #FFFFFF1A)",
-    "--color-text-primary": "light-dark(#ffffff, #f7faff)",
-    "--color-text-secondary": "light-dark(#f1f7ff, #abb2be)",
+    "--color-text-primary": "light-dark(#202631, #eef0f4)",
+    "--color-text-secondary": "light-dark(#586271, #aab3c1)",
     "--color-text-disabled": "light-dark(#a3a3a3, #525252)",
     "--color-text-accent": "var(--color-accent)",
     "--color-on-dark": "#ffffff",
     "--color-on-light": "#171717",
-    "--color-on-accent": "light-dark(#ffffff, #07111a)",
+    "--color-on-accent": "light-dark(#ffffff, #13233d)",
     "--color-on-success": "light-dark(#ffffff, #171717)",
     "--color-on-error": "light-dark(#ffffff, #171717)",
     "--color-on-warning": "#171717",
@@ -128,8 +128,8 @@ export const editorialTheme = {
     "--color-success-muted": "light-dark(#c5e5c0, #84c9803D)",
     "--color-error-muted": "light-dark(#facecb, #ff9e973D)",
     "--color-warning-muted": "light-dark(#f8da9d, #deb4333D)",
-    "--color-border": "light-dark(#123d6533, #ffffff26)",
-    "--color-border-emphasized": "light-dark(#123d6566, #ffffff55)",
+    "--color-border": "light-dark(#d9dee6, #343b47)",
+    "--color-border-emphasized": "light-dark(#8795a8, #707f94)",
     "--color-skeleton": "light-dark(#ebebeb, #525252)",
     "--color-shadow": "light-dark(#0000001A, #0000004D)",
     "--color-tint-hover": "light-dark(black, white)",
@@ -290,7 +290,8 @@ export const editorialTheme = {
         "color": "var(--color-error)"
       },
       "base": {
-        "minHeight": "var(--spacing-9)"
+        "minHeight": "var(--spacing-9)",
+        "borderRadius": "var(--radius-element)"
       }
     },
     "badge": {
@@ -416,13 +417,7 @@ export const editorialTheme = {
     },
     "card": {
       "base": {
-        "padding": "var(--spacing-3)",
-        "--color-text-primary": "light-dark(#0b1220, #f7faff)",
-        "--color-text-secondary": "light-dark(#263c55, #abb2be)",
-        "--color-icon-primary": "var(--color-text-primary)",
-        "--color-icon-secondary": "var(--color-text-secondary)",
-        "--color-neutral": "light-dark(#123d6510, #ffffff12)",
-        "color": "var(--color-text-primary)"
+        "padding": "var(--spacing-3)"
       }
     },
     "section": {
@@ -432,7 +427,7 @@ export const editorialTheme = {
     },
     "top-nav": {
       "base": {
-        "backgroundColor": "var(--color-background-body)"
+        "backgroundColor": "var(--color-background-surface)"
       }
     },
     "tab": {
@@ -445,23 +440,15 @@ export const editorialTheme = {
         "minHeight": "var(--spacing-9)"
       }
     },
-    "dropdown-menu": {
+    "text-input": {
       "base": {
-        "--color-text-primary": "light-dark(#0b1220, #f7faff)",
-        "--color-text-secondary": "light-dark(#263c55, #abb2be)",
-        "--color-icon-primary": "var(--color-text-primary)",
-        "--color-icon-secondary": "var(--color-text-secondary)",
-        "--color-neutral": "light-dark(#123d6510, #ffffff12)",
+        "backgroundColor": "var(--color-background-surface)",
         "color": "var(--color-text-primary)"
       }
     },
-    "text-input": {
+    "textarea": {
       "base": {
-        "backgroundColor": "#ffffff",
-        "--color-text-primary": "#0b1220",
-        "--color-text-secondary": "#526174",
-        "--color-icon-primary": "#526174",
-        "--color-icon-secondary": "#526174",
+        "backgroundColor": "var(--color-background-surface)",
         "color": "var(--color-text-primary)"
       }
     },

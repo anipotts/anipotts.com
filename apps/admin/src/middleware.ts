@@ -25,7 +25,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     context.url.pathname === "/newsletter" ||
     context.url.pathname.startsWith("/newsletter/") ||
     context.url.pathname.startsWith("/api/editorial/") ||
-    context.url.pathname === "/preview/home"
+    ["/preview/home", "/preview/record"].includes(context.url.pathname)
   ) {
     const local =
       import.meta.env.DEV &&
@@ -43,14 +43,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
     let response = await next();
     if (
-      context.url.pathname === "/preview/home" &&
+      ["/preview/home", "/preview/record"].includes(context.url.pathname) &&
       response.headers.get("Content-Type")?.includes("text/html")
     ) {
       // Existing public assets are served by www; drafts never acquire public URLs.
       const html = (await response.text()).replace(
         /(src|poster)="(\/(?:images|media|fonts)\/[^"<>]*)"/g,
         (_match, attribute, path) =>
-          `${attribute}="${new URL(path, publicSiteUrl).href}"`,
+          `${attribute}="${new URL(path, import.meta.env.DEV ? context.url : publicSiteUrl).href}"`,
       );
       response = new Response(html, {
         status: response.status,
@@ -59,7 +59,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
     response.headers.set("Cache-Control", "private, no-store");
     response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
-    if (context.url.pathname === "/preview/home")
+    if (["/preview/home", "/preview/record"].includes(context.url.pathname))
       response.headers.set(
         "Content-Security-Policy",
         "sandbox allow-scripts; form-action 'none'; frame-ancestors 'self'; connect-src 'none'",

@@ -1,3 +1,4 @@
+import { inlinePlainText } from "./inline.js";
 import type {
   HomepageContent,
   HomepageMention,
@@ -142,6 +143,9 @@ function normalizeSection(
         ? fallback.subheading
         : coerceString(source.subheading, fallback.subheading ?? "").trim();
   }
+
+  if (source.subheading_format === "markdown")
+    normalized.subheading_format = "markdown";
 
   const hasSourceSubheading =
     typeof source.subheading === "string" &&
@@ -759,7 +763,7 @@ export function normalizeHomepageContent(content: unknown): HomepageContent {
 export function homepageSummaryText(content: HomepageContent): string {
   const intro = content.sections.intro;
   const subheading = intro.subheading?.trim();
-  if (subheading) return subheading;
+  if (subheading) return inlinePlainText(subheading);
 
   const richSummary = intro.rich_summary ?? [];
   const plainText = richSummary

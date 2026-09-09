@@ -1,0 +1,55 @@
+---
+import { inlineHtml } from "@anipotts/content/public/inline";
+interface Props {
+  text: string;
+  links?: boolean;
+}
+const { text, links = true } = Astro.props;
+---
+
+<span class="inline-copy" set:html={inlineHtml(text, links)} />
+<style is:global>
+  .inline-copy {
+    overflow-wrap: anywhere;
+  }
+  .inline-copy a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+    text-decoration-thickness: 0.06em;
+  }
+  .inline-copy a:hover,
+  .inline-copy a:focus-visible {
+    color: var(--interactive);
+  }
+  .inline-copy .inline-image-run {
+    white-space: nowrap;
+  }
+  .inline-copy strong {
+    font-weight: 700;
+  }
+  .inline-copy u {
+    text-underline-offset: 0.2em;
+  }
+  .inline-copy .inline-image {
+    display: inline-block;
+    width: 0.94em;
+    height: 0.94em;
+    object-fit: contain;
+    vertical-align: -0.08em;
+    margin: 0 0.15em 0 0;
+    border-radius: 0.16em;
+  }
+  .inline-copy .inline-image-wide {
+    width: 1.24em;
+    border-radius: 0;
+  }
+  .inline-copy .inline-image-mark {
+    width: 1.08em;
+    height: 1.08em;
+    border-radius: 0;
+  }
+  .inline-copy .inline-image-white {
+    filter: brightness(0) invert(1);
+  }
+</style>

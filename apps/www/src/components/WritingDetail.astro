@@ -1,4 +1,6 @@
 ---
+import InlineText from "./InlineText.astro";
+import { inlinePlainText } from "@anipotts/content/public/inline";
 import { render } from "astro:content";
 import DetailWaves from "./DetailWaves.astro";
 import "./editorial/editorial-media.css";
@@ -15,6 +17,7 @@ import { siteConfig } from "@anipotts/content/public";
 import { personId } from "../lib/identity";
 
 interface Props {
+  preview?: boolean;
   item: Writing;
 }
 const { item } = Astro.props;
@@ -29,7 +32,7 @@ const articleLd = {
   "@context": "https://schema.org",
   "@type": "Article",
   headline: d.title,
-  description: d.summary,
+  description: inlinePlainText(d.summary),
   datePublished: d.published_at?.toISOString(),
   author: {
     "@type": "Person",
@@ -49,7 +52,19 @@ const articleLd = {
   jsonLd={articleLd}
   mood="drowsy"
   detail
+  robots={Astro.props.preview ? "noindex, nofollow, noarchive" : undefined}
 >
+  {
+    Astro.props.preview && (
+      <aside class="editorial-card-preview">
+        <>
+          <p class="muted">Card preview</p>
+          <WritingRow item={item} />
+          <p class="muted">Article preview</p>
+        </>
+      </aside>
+    )
+  }
   <article class="article" data-writing-article>
     <DetailWaves seed={`writing/${slug}`} />
     <header data-rise class="head">
@@ -73,7 +88,7 @@ const articleLd = {
         }
       </div>
       <h1 class="title">{d.title}</h1>
-      <p class="summary">{d.summary}</p>
+      <p class="summary"><InlineText text={d.summary} /></p>
     </header>
 
     <div data-rise class="article-body">
@@ -104,6 +119,11 @@ const articleLd = {
 </Shell>
 
 <style>
+  .editorial-card-preview {
+    display: grid;
+    gap: var(--s-3);
+    margin-bottom: var(--s-6);
+  }
   .article {
     position: relative;
     isolation: isolate;
