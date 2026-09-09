@@ -73,11 +73,14 @@ export class EditorialGitHub {
   ): Promise<Response> {
     let response: Response;
     try {
-      response = await this.transport(
+      // Workers' native fetch requires an unbound call. Calling this.transport
+      // supplies the GitHub client as `this` and throws before any network I/O.
+      const transport = this.transport;
+      response = await transport(
         graphql ? "https://api.github.com/graphql" : `${root}${path}`,
         {
           method,
-          redirect: "error",
+          redirect: "manual",
           signal: AbortSignal.timeout(15_000),
           headers: {
             Authorization: `Bearer ${await this.token()}`,

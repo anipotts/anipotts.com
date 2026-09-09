@@ -46,6 +46,12 @@ The manifest is configuration to review, not a credential-creating executable. G
 7. Enable `EDITORIAL_PUBLISH_ENABLED=true` through checked configuration. Use the approved home subheading revision for the first real publication. The owner Publish action explicitly discloses that revision's source. Verify exactly one signed PR, exact-head required checks, native merge, successful www deploy and the live home text. Reload admin and confirm the job is live and the draft base matches the merge.
 8. Test another saved revision remains private while the first publishes. Confirm failed publications remain recoverable. Record the actual production receipt; passing local tests or a configured button is insufficient.
 
-## Release scope
+## Initial production release
+
+PR #323 merged as `6702fd3f3eaeeb5ac7967128f58aa6c94f546651`. [Deploy run 34298781665](https://github.com/anipotts/anipotts.com/actions/runs/34298781665) passed www/admin and skipped newsletter, ingest, weekly-email and state. The live www health returned that exact SHA with D1 connected and its newsletter table probe passing. Admin version `402debf1-87f1-4815-80bf-01966f8c42e8` served the owner content list, with 12px horizontal cell padding and the retained Access gate.
+
+The initial owner draft request returned 503. An isolated Workers reproduction traced this to `redirect: "error"`, which Workers rejects before the GitHub request. Using `manual` and rejecting redirect responses allowed the installed App to read the immutable home source successfully in Workers. The activation follow-up also permits an already deployed admin-only change while www remains current for public files. Production save, preview and publication receipts remain pending that follow-up deployment.
+
+## Excluded work
 
 This release includes the editor and the public renderer needed for Git-backed publication. The inherited newsletter service extraction is excluded and recoverable at `49e7526`. The separate `codex/writing-work-editorial` public-design checkpoint `0315960` remains under Ani's local review and is excluded. No newsletter sends, public test comments, or artificial public copy are needed for verification.

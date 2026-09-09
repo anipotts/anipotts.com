@@ -64,6 +64,26 @@ it("holds a stale renderer and unreleased changes before public disclosure", asy
     await releaseReadiness({ compare }, head, async () => health())(later),
   ).toEqual({ ready: false, code: "unreleased_public_changes" });
 });
+it("allows a deployed admin-only activation while www is already current for public files", async () => {
+  const compare = vi
+    .fn()
+    .mockResolvedValueOnce([])
+    .mockResolvedValueOnce([
+      "apps/admin/wrangler.toml",
+      "apps/admin/src/editorial/release.ts",
+    ]);
+  expect(
+    await releaseReadiness({ compare }, later, async () => health())(later),
+  ).toEqual({ ready: true, head: later });
+  expect(compare.mock.calls).toEqual([
+    [later, later],
+    [head, later],
+  ]);
+  compare.mockResolvedValueOnce(["apps/admin/wrangler.toml"]);
+  expect(
+    await releaseReadiness({ compare }, head, async () => health())(later),
+  ).toEqual({ ready: false, code: "stale_renderer" });
+});
 it("requires the deployed source bytes, ancestry, route and stable release identity", async () => {
   const git = {
     compare: vi.fn().mockResolvedValue([]),
@@ -109,6 +129,15 @@ it("requires the deployed source bytes, ancestry, route and stable release ident
   ).toBe(false);
 });
 it("rejects missing, spoofed, malformed or oversized health receipts", async () => {
+  await expect(
+    liveRelease(async (url, init) => {
+      expect(new Request(url, init).redirect).toBe("manual");
+      return new Response(null, {
+        status: 302,
+        headers: { Location: "https://example.com" },
+      });
+    }),
+  ).rejects.toMatchObject({ code: "unavailable" });
   for (const value of [
     { app: "admin", ok: true, release_sha: head },
     { app: "www", ok: true, release_sha: "dev" },

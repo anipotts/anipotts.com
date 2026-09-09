@@ -60,7 +60,7 @@ export async function publisherInstallationToken(
       `https://api.github.com/app/installations/${app.installationId}/access_tokens`,
       {
         method: "POST",
-        redirect: "error",
+        redirect: "manual",
         signal: AbortSignal.timeout(15_000),
         headers: {
           Authorization: `Bearer ${jwt}`,
