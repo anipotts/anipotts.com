@@ -1,5 +1,8 @@
 ---
 import "@fontsource-variable/instrument-sans";
+import "@astryxdesign/core/reset.css";
+import "@astryxdesign/core/astryx.css";
+import "../themes/editorial.generated.css";
 import "../styles/scrollbars.css";
 import BrandMark from "@anipotts/brand/BrandMark.astro";
 import { editorialReturnPath } from "../lib/editorial-return-path";
@@ -14,7 +17,7 @@ const localPreview = isDevLoopbackPreviewRequest({
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" data-astryx-theme="editorial">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -39,18 +42,8 @@ const localPreview = isDevLoopbackPreviewRequest({
 <style>
   :global(html) {
     color-scheme: light dark;
-    --paper: #f7f9fc;
-    --ink: #182334;
-    --accent: #175ea8;
-    background: var(--paper);
-    font-family: "Instrument Sans Variable", sans-serif;
-  }
-  @media (prefers-color-scheme: dark) {
-    :global(html) {
-      --paper: #0b111a;
-      --ink: #edf3fd;
-      --accent: #8abfff;
-    }
+    background: var(--color-background-body);
+    font-family: var(--font-family-body);
   }
   :global(body) {
     margin: 0;
@@ -59,26 +52,27 @@ const localPreview = isDevLoopbackPreviewRequest({
     box-sizing: border-box;
   }
   .sign-in:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 4px;
+    outline: var(--focus-outline-width) var(--focus-outline-style)
+      var(--focus-outline-color);
+    outline-offset: var(--focus-outline-offset);
   }
   main {
     min-height: 100svh;
     display: grid;
     place-items: center;
-    padding: 2rem;
+    padding: var(--spacing-8);
   }
 
   .sign-in {
     display: block;
-    width: 8rem;
-    height: 8rem;
-    color: var(--ink);
+    width: calc(var(--spacing-8) * 4);
+    height: calc(var(--spacing-8) * 4);
+    color: var(--color-text-primary);
     text-decoration: none;
-    border-radius: 1rem;
+    border-radius: var(--radius-container);
   }
 
   .sign-in:active {
-    color: var(--accent);
+    color: var(--color-accent);
   }
 </style>

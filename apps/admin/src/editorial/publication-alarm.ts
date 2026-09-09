@@ -35,6 +35,7 @@ export async function publicationAlarm(
         "rejected",
         "invalid_response",
         "unexpected_branch",
+        "publication_base_changed",
       ].includes(error.code)
     ) {
       outcome = { blocked: error.code };

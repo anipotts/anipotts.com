@@ -6,12 +6,19 @@ The release connects `admin.anipotts.com` to canonical Markdown in `anipotts/ani
 
 - GitHub owner: `anipotts`; repository: `anipotts/anipotts.com` (1107959197).
 - Dedicated private GitHub App: `anipotts editorial publisher`. [Permission manifest](../config/editorial-github-app.json). Install on this repository only. No organization permissions, active webhook, workflow write permission, or branch-protection bypass. GitHub's manifest schema requires a URL in the disabled webhook object; it names the existing admin origin and does not add a receiver.
+- App logo: the existing white AP Structural mark on blue from `apps/www/public/brand/ap-favicon.svg`, exported at 2048 × 2048 into `.local/editorial-publisher-logo-2048.png`. Ani selected this logo during setup.
 - App permissions: contents and pull requests write; actions, administration, checks, statuses, deployments and metadata read. Administration read inspects protection; it cannot modify repository policy.
 - Cloudflare account: `0f856093bdcd34a7da1bde5ee4385163`; Worker: `anipotts-admin`; domain: `admin.anipotts.com`.
 - Runtime App identifiers: `EDITORIAL_GITHUB_APP_ID` and `EDITORIAL_GITHUB_INSTALLATION_ID`.
 - Private Worker bindings: `EDITORIAL_GITHUB_PRIVATE_KEY` and `EDITORIAL_SIGNING_PRIVATE_KEY`. The latter is a distinct RSA publication-signing key; only its public half belongs in `.github/editorial-publisher.pem`.
 - Owner: `hello@anipotts.com` through `https://anipotts.cloudflareaccess.com`. Verify the actual application policy and audience before changing `ACCESS_POLICY_AUD`. Signed application assertions establish identity; service-token assertions cannot access the editor.
 - The additive `editorial-v1` migration creates the SQLite Durable Object. Existing D1, command relay and newsletter resources remain in place.
+
+## Verified provider state
+
+The signed-in Cloudflare Browser on September 8 showed the existing `admin.anipotts.com` application (`69e90546-e54c-4fd9-b589-2c2f2350d3de`) protecting the whole hostname. Its only policy, `Allow Ani` (`a231936f-a6da-439e-9c8c-87754aeeaf6c`), allows only `hello@anipotts.com`. The application audience matches `ACCESS_POLICY_AUD` in the checked Worker configuration. No Access policy change is needed or was made.
+
+The GitHub App registration form is prepared but remains unsubmitted pending its exact native approval. The signed publication manifest is classified as a known release path; changes to its trusted public verification key require review. When the base branch advances, an immutable publication blocks with instructions to stop it and publish a new edited revision; it cannot rebase silently or wait indefinitely on an already enabled auto-merge.
 
 ## Exact approval boundary
 

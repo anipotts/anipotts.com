@@ -44,7 +44,8 @@ export class GitHubFailure extends Error {
       | "rate_limited"
       | "rejected"
       | "invalid_response"
-      | "unexpected_branch",
+      | "unexpected_branch"
+      | "publication_base_changed",
     readonly retryAfterMs = 0,
   ) {
     super(code);
@@ -186,6 +187,10 @@ export class EditorialGitHub {
       object(node.headRepository).nameWithOwner !== repository
     )
       throw new GitHubFailure("unexpected_branch");
+    // Frozen signed publications cannot rebase without a new reviewed revision.
+    // Check this before reconciling auto-merge, which otherwise waits forever.
+    if (["BEHIND", "DIRTY"].includes(String(node.mergeStateStatus)))
+      throw new GitHubFailure("publication_base_changed");
     if (node.autoMergeRequest !== null) {
       if (object(node.autoMergeRequest).mergeMethod !== "SQUASH")
         throw new GitHubFailure("rejected");

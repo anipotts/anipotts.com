@@ -56,6 +56,20 @@ function mergeFixture(change: Record<string, unknown> = {}) {
   return { git, requests };
 }
 describe("native protected publication merge", () => {
+  it("blocks stale frozen publications even with auto-merge already enabled", async () => {
+    for (const mergeStateStatus of ["BEHIND", "DIRTY"]) {
+      for (const autoMergeRequest of [null, { mergeMethod: "SQUASH" }]) {
+        const { git, requests } = mergeFixture({
+          mergeStateStatus,
+          autoMergeRequest,
+        });
+        await expect(
+          git.ensureProtectedMerge(id, head, 10, "PR_test"),
+        ).rejects.toMatchObject({ code: "publication_base_changed" });
+        expect(requests).toHaveLength(1);
+      }
+    }
+  });
   it("pins both immediate merge and auto-merge to the checked head", async () => {
     for (const mergeStateStatus of ["CLEAN", "BLOCKED"]) {
       const { git, requests } = mergeFixture({ mergeStateStatus });

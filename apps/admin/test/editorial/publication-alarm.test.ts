@@ -10,6 +10,41 @@ import { PublicationJobs } from "../../src/editorial/publication-jobs";
 import { publicationAlarm } from "../../src/editorial/publication-alarm";
 import { GitHubFailure } from "../../src/editorial/github";
 
+it("persists a stale publication block without repeating provider work", async () => {
+  const stub = env.EDITORIAL.getByName(crypto.randomUUID());
+  const now = Date.now();
+  await runInDurableObject(stub, async (_instance, state) => {
+    const jobs = new PublicationJobs(state.storage);
+    jobs.enqueue("first", now);
+    await publicationAlarm(
+      state.storage,
+      jobs,
+      async () => {
+        throw new GitHubFailure("publication_base_changed");
+      },
+      () => now,
+    );
+  });
+  await evictDurableObject(stub);
+  await runInDurableObject(stub, async (_instance, state) => {
+    const jobs = new PublicationJobs(state.storage);
+    expect(jobs.get("first")?.blocked).toBe("publication_base_changed");
+    let calls = 0;
+    await publicationAlarm(
+      state.storage,
+      jobs,
+      async () => {
+        calls++;
+        return {};
+      },
+      () => now + 120_000,
+    );
+    expect(calls).toBe(0);
+    expect(jobs.nextWake(now + 120_000)).toBeNull();
+    await state.storage.deleteAlarm();
+  });
+});
+
 it("arms recovery before external work and deduplicates a repeated alarm", async () => {
   const stub = env.EDITORIAL.getByName(crypto.randomUUID());
   await runInDurableObject(stub, async (_instance, state) => {

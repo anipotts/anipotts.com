@@ -272,7 +272,9 @@ export function HomeEditor({ record }: { record: EditorialRecord }) {
         <HStack gap={2} wrap="wrap">
           <Text role="status">
             {publication.blocked
-              ? `blocked: ${publication.blocked.replaceAll("_", " ")}`
+              ? publication.blocked === "publication_base_changed"
+                ? "website changed. stop this publication, then edit your draft and publish again"
+                : `blocked: ${publication.blocked.replaceAll("_", " ")}`
               : {
                   validate: "checking content",
                   commit: "preparing publication",
@@ -317,28 +319,29 @@ export function HomeEditor({ record }: { record: EditorialRecord }) {
                 }}
               />
             )}
-          {publication.blocked && (
-            <Button
-              label="retry publishing"
-              size="sm"
-              clickAction={async () => {
-                try {
-                  const result = await post("retry-publication", {
-                    expectedRevision: state.revision,
-                    operationId: publication.id,
-                    expectedVersion: publication.version,
-                  });
-                  if (!result.ok) throw new Error();
-                  setError("");
-                  setPublication({ ...publication, blocked: null });
-                } catch {
-                  setError(
-                    "couldn’t retry. reload to check the latest publication.",
-                  );
-                }
-              }}
-            />
-          )}
+          {publication.blocked &&
+            publication.blocked !== "publication_base_changed" && (
+              <Button
+                label="retry publishing"
+                size="sm"
+                clickAction={async () => {
+                  try {
+                    const result = await post("retry-publication", {
+                      expectedRevision: state.revision,
+                      operationId: publication.id,
+                      expectedVersion: publication.version,
+                    });
+                    if (!result.ok) throw new Error();
+                    setError("");
+                    setPublication({ ...publication, blocked: null });
+                  } catch {
+                    setError(
+                      "couldn’t retry. reload to check the latest publication.",
+                    );
+                  }
+                }}
+              />
+            )}
         </HStack>
       )}
       {snapshot.draft?.discardedAt && (
