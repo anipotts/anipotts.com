@@ -77,7 +77,7 @@ export class EditorialGitHub {
         graphql ? "https://api.github.com/graphql" : `${root}${path}`,
         {
           method,
-          redirect: "error",
+          redirect: "manual",
           signal: AbortSignal.timeout(15_000),
           headers: {
             Authorization: `Bearer ${await this.token()}`,

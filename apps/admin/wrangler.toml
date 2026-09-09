@@ -24,7 +24,7 @@ ACCESS_TEAM_DOMAIN = "https://anipotts.cloudflareaccess.com"
 ACCESS_POLICY_AUD = "ca3ea64cba714dee7d50eae63f62b18d6c2aeeecc0fc16ec0335ed0aa863a49f"
 # Owner editing is enabled with the repository-only App and private Worker keys.
 EDITORIAL_ENABLED = "true"
-EDITORIAL_PUBLISH_ENABLED = "false"
+EDITORIAL_PUBLISH_ENABLED = "true"
 EDITORIAL_GITHUB_APP_ID = "4879372"
 EDITORIAL_GITHUB_INSTALLATION_ID = "160192316"
 # Secrets: EDITORIAL_GITHUB_PRIVATE_KEY and EDITORIAL_SIGNING_PRIVATE_KEY.

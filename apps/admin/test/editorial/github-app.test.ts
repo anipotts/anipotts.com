@@ -50,7 +50,7 @@ describe("server publisher installation authentication", () => {
           expect(String(url)).toBe(
             "https://api.github.com/app/installations/123/access_tokens",
           );
-          expect(init?.redirect).toBe("error");
+          expect(new Request(url, init).redirect).toBe("manual");
           const jwt = new Headers(init?.headers).get("Authorization")!.slice(7);
           const verified = await jwtVerify(jwt, keys.publicKey, {
             issuer: app.issuer,
@@ -116,6 +116,7 @@ describe("server publisher installation authentication", () => {
       [401, "unauthorized"],
       [503, "unavailable"],
       [422, "rejected"],
+      [302, "rejected"],
     ] as const) {
       await expect(
         publisherInstallationToken(
