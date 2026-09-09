@@ -14,6 +14,7 @@ import { RichTextField } from "./RichTextField";
 import { editableHomeSummary } from "../../lib/rich-text";
 import { editorialFields } from "../../lib/editorial-fields";
 import { ReviewChanges } from "./ReviewChanges";
+import { PublicationProgress } from "./PublicationProgress";
 import { TextArea } from "@astryxdesign/core/TextArea";
 import { Button } from "@astryxdesign/core/Button";
 import { MoreMenu } from "@astryxdesign/core/MoreMenu";
@@ -61,6 +62,7 @@ export function HomeEditor({
   const [historyLoading, setHistoryLoading] = useState(false);
   const [publication, setPublication] = useState<PublishJob | null>(null);
   const [publishing, setPublishing] = useState(false);
+  const [publicationStale, setPublicationStale] = useState(false);
   const [reviewSource, setReviewSource] = useState<string | null>(null);
   const [comparison, setComparison] = useState<HomeBase | null>(null);
   const publishRequest = useRef<{ revision: number; id: string } | null>(null);
@@ -129,13 +131,12 @@ export function HomeEditor({
         const data = await response.json();
         if (!cancelled) {
           if (!data.publication) throw new Error();
+          setPublicationStale(false);
           setPublication(data.publication);
         }
       } catch {
         if (!cancelled) {
-          setError(
-            "status unavailable. publishing continues; retrying status.",
-          );
+          setPublicationStale(true);
           setPublication({ ...publication });
         }
       }
@@ -346,33 +347,7 @@ export function HomeEditor({
         </HStack>
       </HStack>
       {publication && (
-        <HStack gap={2} wrap="wrap">
-          <Text role="status">
-            {publication.blocked
-              ? publication.blocked === "publication_base_changed"
-                ? "website changed. stop this publication, then edit your draft and publish again"
-                : publication.blocked === "record_changed"
-                  ? "this record changed on the website. stop publishing, then compare website to reconcile your draft"
-                  : `blocked: ${publication.blocked.replaceAll("_", " ")}`
-              : {
-                  validate: "checking content",
-                  commit: "preparing publication",
-                  branch: "preparing publication",
-                  pr: "opening review",
-                  checks: "checking changes",
-                  deploy: "deploying",
-                  verify: "verifying website",
-                  live: "live",
-                  cancelled: "stopped. edit your draft to publish again",
-                }[publication.phase]}
-          </Text>
-          {publication.checkpoint.prNumber && (
-            <Button
-              label="view changes"
-              size="sm"
-              href={`https://github.com/anipotts/anipotts.com/pull/${publication.checkpoint.prNumber}`}
-            />
-          )}
+        <PublicationProgress publication={publication} stale={publicationStale}>
           {publication.blocked &&
             ["validate", "commit", "branch", "pr", "checks"].includes(
               publication.phase,
@@ -389,6 +364,7 @@ export function HomeEditor({
                     });
                     if (!result.ok) throw new Error();
                     setError("");
+                    setPublicationStale(false);
                     setPublication({ ...publication, blocked: null });
                   } catch {
                     setError(
@@ -414,6 +390,7 @@ export function HomeEditor({
                     });
                     if (!result.ok) throw new Error();
                     setError("");
+                    setPublicationStale(false);
                     setPublication({ ...publication, blocked: null });
                   } catch {
                     setError(
@@ -423,7 +400,7 @@ export function HomeEditor({
                 }}
               />
             )}
-        </HStack>
+        </PublicationProgress>
       )}
       {snapshot.draft?.discardedAt && (
         <Button
@@ -724,6 +701,7 @@ export function HomeEditor({
                     discloseSource: true,
                   });
                   if (!result.publication) throw new Error();
+                  setPublicationStale(false);
                   setPublication(result.publication);
                 } catch {
                   setError(
