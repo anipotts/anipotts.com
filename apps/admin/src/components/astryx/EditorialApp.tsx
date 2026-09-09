@@ -16,7 +16,17 @@ import { Button } from "@astryxdesign/core/Button";
 import { IconButton } from "@astryxdesign/core/IconButton";
 import { Token } from "@astryxdesign/core/Token";
 import { Card } from "@astryxdesign/core/Card";
-import { Collapsible } from "@astryxdesign/core/Collapsible";
+import { Collapsible, CollapsibleGroup } from "@astryxdesign/core/Collapsible";
+import { Breadcrumbs, BreadcrumbItem } from "@astryxdesign/core/Breadcrumbs";
+import { Timestamp } from "@astryxdesign/core/Timestamp";
+import {
+  MetadataList,
+  MetadataListItem,
+} from "@astryxdesign/core/MetadataList";
+import { editorialFields } from "../../lib/editorial-fields";
+import { AdminSkeleton } from "./AdminFeedback";
+import { AdminCommandPalette } from "./AdminCommandPalette";
+import type { AdminSearchResult } from "../../data/admin-search";
 import { Heading } from "@astryxdesign/core/Heading";
 import { HStack } from "@astryxdesign/core/HStack";
 import { VStack } from "@astryxdesign/core/VStack";
@@ -33,7 +43,6 @@ import {
   SegmentedControl,
   SegmentedControlItem,
 } from "@astryxdesign/core/SegmentedControl";
-import { Tooltip } from "@astryxdesign/core/Tooltip";
 import { StatusDot } from "@astryxdesign/core/StatusDot";
 import {
   CaretDownIcon,
@@ -87,6 +96,7 @@ export type Review = {
 };
 export type EditorialAppProps = {
   title: string;
+  searchEntries?: AdminSearchResult[];
   area: "content" | "newsletter";
   localPreview: boolean;
   siteUrl: string;
@@ -135,20 +145,26 @@ function Updated({
     return column ? <Text color="secondary">not recorded</Text> : null;
   const date = new Date(updated.at);
   if (!Number.isFinite(date.getTime())) return null;
-  const label = `${column ? "" : updated.source === "local" ? "local edit " : "updated "}${date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}`;
   return (
-    <Tooltip
-      content={`${updated.source === "local" ? "uncommitted local edit" : "latest Git change"}: ${date.toLocaleString("en-US", { dateStyle: "long", timeStyle: "short", timeZone: "UTC" })} UTC`}
-    >
-      <Text type="supporting" color="secondary">
-        <time dateTime={date.toISOString()}>{label}</time>
-        {column && updated.source === "local" && (
-          <Text as="span" className="editorial-date-note">
-            local edit
-          </Text>
-        )}
-      </Text>
-    </Tooltip>
+    <HStack gap={2} wrap="wrap">
+      <Timestamp
+        value={updated.at}
+        format="date"
+        tooltipEntries={[
+          {
+            label:
+              updated.source === "local" ? "Local edit" : "Latest Git change",
+            timezoneID: "UTC",
+            format: "full",
+          },
+        ]}
+      />
+      {updated.source === "local" && (
+        <Text type="supporting" color="secondary">
+          local edit
+        </Text>
+      )}
+    </HStack>
   );
 }
 
@@ -218,6 +234,7 @@ export function EditorialApp({
   localPreview,
   siteUrl,
   initialMode = "light",
+  searchEntries,
   groups,
   selectedGroup,
   review,
@@ -257,6 +274,12 @@ export function EditorialApp({
             heading={<TopNavHeading heading="admin" headingHref="/content" />}
             endContent={
               <HStack gap={2} className="editorial-nav-actions" vAlign="center">
+                <AdminCommandPalette
+                  entries={searchEntries}
+                  navItems={[]}
+                  scope="editorial"
+                  compact
+                />
                 <NavigationLink
                   label="content"
                   href="/content"
@@ -295,12 +318,33 @@ export function EditorialApp({
         }
       >
         <VStack gap={6} className="editorial-content">
+          {(review || editHome || editorRecord) && (
+            <Breadcrumbs variant="supporting">
+              <BreadcrumbItem
+                href={
+                  review?.back ??
+                  (area === "newsletter" ? "/newsletter" : "/content")
+                }
+              >
+                {area === "newsletter" ? "Newsletter" : "Content"}
+              </BreadcrumbItem>
+              <BreadcrumbItem isCurrent>{title}</BreadcrumbItem>
+            </Breadcrumbs>
+          )}
           {(groups || review || children) && (
             <Heading level={1}>{title}</Heading>
           )}
           {groups && <Catalog groups={groups} selectedGroup={selectedGroup} />}
           {(editHome || editorRecord) && (
-            <React.Suspense fallback={<Text>loading editor</Text>}>
+            <React.Suspense
+              fallback={
+                <AdminSkeleton
+                  fields={editorialFields(
+                    editorRecord ?? { kind: "page", id: "home" },
+                  )}
+                />
+              }
+            >
               <HomeEditor
                 localPreview={localPreview}
                 key={editorRecord?.id ?? "home"}
@@ -310,29 +354,27 @@ export function EditorialApp({
           )}
           {review && !editHome && !editorRecord && (
             <>
-              <HStack gap={2} wrap="wrap">
+              {review.publicUrl && (
                 <Button
-                  label={
-                    area === "content" ? "back to content" : "back to drafts"
-                  }
-                  href={review.back}
+                  label="View published page"
+                  href={themedUrl(review.publicUrl, mode)}
                 />
-                {review.publicUrl && (
-                  <Button
-                    label="view published page"
-                    href={themedUrl(review.publicUrl, mode)}
-                  />
+              )}
+              <MetadataList orientation="horizontal">
+                <MetadataListItem label="Status">
+                  <RecordStatus status={review.status} />
+                </MetadataListItem>
+                {review.updated && (
+                  <MetadataListItem label="Updated">
+                    <Updated updated={review.updated} />
+                  </MetadataListItem>
                 )}
-              </HStack>
-              <HStack gap={3} wrap="wrap">
-                <RecordStatus status={review.status} />
-                <Updated updated={review.updated} />
-                {review.metadata?.filter(Boolean).map((value, i) => (
-                  <Text key={i} color="secondary">
-                    {value}
-                  </Text>
-                ))}
-              </HStack>
+              </MetadataList>
+              {review.metadata?.filter(Boolean).map((value, i) => (
+                <Text key={i} color="secondary">
+                  {value}
+                </Text>
+              ))}
               <Card padding={5}>
                 <VStack gap={5} className="editorial-prose">
                   {review.summary && <Text as="p">{review.summary}</Text>}
@@ -372,27 +414,23 @@ export function EditorialApp({
                   {children}
                 </VStack>
               </Card>
-              {review.claims != null && (
-                <Card padding={4}>
-                  <Collapsible trigger="claims to review" defaultIsOpen={false}>
+              <CollapsibleGroup type="multiple" hasDividers>
+                {review.claims != null && (
+                  <Collapsible value="claims" trigger="Claims to review">
                     <Fields value={review.claims} />
                   </Collapsible>
-                </Card>
-              )}
-              {review.sources != null && (
-                <Card padding={4}>
-                  <Collapsible trigger="sources" defaultIsOpen={false}>
+                )}
+                {review.sources != null && (
+                  <Collapsible value="sources" trigger="Sources">
                     <Fields value={review.sources} />
                   </Collapsible>
-                </Card>
-              )}
-              {review.fields != null && (
-                <Card padding={4}>
-                  <Collapsible trigger="details" defaultIsOpen={false}>
+                )}
+                {review.fields != null && (
+                  <Collapsible value="details" trigger="Details">
                     <Fields value={review.fields} />
                   </Collapsible>
-                </Card>
-              )}
+                )}
+              </CollapsibleGroup>
             </>
           )}
           {!groups &&
@@ -627,7 +665,7 @@ function Fields({ value }: { value: unknown }): ReactNode {
   if (typeof value === "boolean")
     return <Token size="sm" label={value ? "enabled" : "disabled"} />;
   if (value instanceof Date)
-    return <Text>{value.toISOString().slice(0, 10)}</Text>;
+    return <Timestamp value={value.toISOString()} format="date" />;
   if (
     Array.isArray(value) &&
     value.every((item) => typeof item === "string" && item.length <= 64)
@@ -641,15 +679,15 @@ function Fields({ value }: { value: unknown }): ReactNode {
     );
   if (Array.isArray(value))
     return (
-      <VStack gap={3}>
+      <CollapsibleGroup type="multiple" hasDividers>
         {value.map((item, index) =>
           item &&
           typeof item === "object" &&
           (typeof item.label === "string" || typeof item.title === "string") ? (
             <Collapsible
               key={index}
+              value={String(index)}
               trigger={item.label ?? item.title}
-              defaultIsOpen
             >
               <VStack padding={3}>
                 <Fields
@@ -665,11 +703,11 @@ function Fields({ value }: { value: unknown }): ReactNode {
             <Fields key={index} value={item} />
           ),
         )}
-      </VStack>
+      </CollapsibleGroup>
     );
   if (value && typeof value === "object")
     return (
-      <VStack gap={4}>
+      <CollapsibleGroup type="multiple" hasDividers>
         {Object.entries(value)
           .filter(
             ([, item]) =>
@@ -679,21 +717,22 @@ function Fields({ value }: { value: unknown }): ReactNode {
             item && typeof item === "object" && !(item instanceof Date) ? (
               <Collapsible
                 key={key}
+                value={key}
                 trigger={key.replaceAll("_", " ")}
-                defaultIsOpen
               >
                 <VStack gap={3} padding={3}>
                   <Fields value={item} />
                 </VStack>
               </Collapsible>
             ) : (
-              <VStack gap={1} key={key}>
-                <Text weight="semibold">{key.replaceAll("_", " ")}</Text>
-                <Fields value={item} />
-              </VStack>
+              <MetadataList key={key}>
+                <MetadataListItem label={key.replaceAll("_", " ")}>
+                  <Fields value={item} />
+                </MetadataListItem>
+              </MetadataList>
             ),
           )}
-      </VStack>
+      </CollapsibleGroup>
     );
   return (
     <Text color="secondary">{value == null ? "not set" : String(value)}</Text>

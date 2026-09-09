@@ -1,11 +1,12 @@
 ---
 import "@astryxdesign/core/reset.css";
 import "@astryxdesign/core/astryx.css";
+import "../styles/admin-interactions.css";
 import "../themes/editorial.generated.css";
 import "@fontsource-variable/instrument-sans";
 import "../styles/editorial.css";
 import "../styles/scrollbars.css";
-import { publicSiteUrl } from "../lib/editorial-content";
+import { publicSiteUrl, editorialInventory } from "../lib/editorial-content";
 import {
   EditorialApp,
   type EditorialAppProps,
@@ -22,7 +23,29 @@ const area = Astro.url.pathname.startsWith("/newsletter")
   ? "newsletter"
   : "content";
 const hasContent = Boolean((await Astro.slots.render("default"))?.trim());
+const inventory = await editorialInventory();
+const searchEntries = [
+  ...inventory.pages,
+  ...inventory.projects,
+  ...inventory.writing,
+].map((entry) => ({
+  id: `content:${entry.collection}:${entry.id}`,
+  label: "title" in entry.data ? entry.data.title : entry.id,
+  domain: "content" as const,
+  kind: entry.collection,
+  currentFact:
+    entry.collection === "projects"
+      ? entry.data.public_state
+      : entry.collection === "writing" || entry.collection === "newsletterPage"
+        ? entry.data.status
+        : "published",
+  source: "content inventory",
+  freshness: "current",
+  href: `/content/${entry.collection}/${encodeURIComponent(entry.id)}`,
+  keywords: [entry.id, entry.collection],
+}));
 const appProps = {
+  searchEntries,
   ...Astro.props,
   area,
   siteUrl: publicSiteUrl,

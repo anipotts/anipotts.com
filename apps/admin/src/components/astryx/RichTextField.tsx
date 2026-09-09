@@ -2,6 +2,13 @@ import { useEffect, useId, useRef, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
+import { Field } from "@astryxdesign/core/Field";
+import { FormLayout } from "@astryxdesign/core/FormLayout";
+import { Toolbar } from "@astryxdesign/core/Toolbar";
+import {
+  ToggleButton,
+  ToggleButtonGroup,
+} from "@astryxdesign/core/ToggleButton";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
@@ -69,12 +76,14 @@ const InlineImage = Image.extend({
 export function RichTextField({
   label,
   description,
+  validationError,
   value,
   disabled,
   onChange,
 }: {
   label: string;
   description?: string;
+  validationError?: string;
   value: string;
   disabled?: boolean;
   onChange: (value: string) => void;
@@ -116,10 +125,11 @@ export function RichTextField({
     editable: !disabled,
     editorProps: {
       attributes: {
+        id,
         role: "textbox",
         "aria-label": label,
         "aria-multiline": "true",
-        "aria-describedby": `${id}-help`,
+        "aria-describedby": description ? `${id}-help` : "",
         spellcheck: "true",
       },
     },
@@ -137,7 +147,25 @@ export function RichTextField({
   }, [value, editor]);
   useEffect(() => {
     editor?.setEditable(!disabled, false);
-  }, [disabled, editor]);
+    editor?.setOptions({
+      editorProps: {
+        attributes: {
+          id,
+          role: "textbox",
+          "aria-label": label,
+          "aria-multiline": "true",
+          spellcheck: "true",
+          "aria-invalid": validationError ? "true" : "false",
+          "aria-describedby": [
+            description ? `${id}-help` : "",
+            validationError ? `${id}-error` : "",
+          ]
+            .filter(Boolean)
+            .join(" "),
+        },
+      },
+    });
+  }, [disabled, editor, id, label, description, validationError]);
   function openPanel(next: "link" | "image") {
     if (!editor) return;
     const attrs = editor.getAttributes(next);
@@ -181,180 +209,226 @@ export function RichTextField({
   ];
   return (
     <VStack gap={2} className="rich-field">
-      <Text weight="semibold">{label}</Text>
-      {description && (
-        <Text color="secondary" id={`${id}-help`}>
-          {description}
-        </Text>
-      )}
-      <VStack
-        gap={0}
-        className="rich-field-surface"
-        data-disabled={disabled || undefined}
+      <Field
+        label={label}
+        inputID={id}
+        description={description}
+        descriptionID={`${id}-help`}
+        isDisabled={disabled}
+        status={
+          validationError
+            ? {
+                type: "error",
+                message: validationError,
+                messageID: `${id}-error`,
+              }
+            : undefined
+        }
+        statusVariant="detached"
       >
-        <HStack
-          gap={1}
-          wrap="wrap"
-          className="rich-toolbar"
-          aria-label={`${label} formatting`}
+        <VStack
+          gap={0}
+          className="rich-field-surface"
+          data-disabled={disabled || undefined}
         >
-          {actions.map((action) => (
-            <Button
-              key={action.label}
-              label={action.label}
-              tooltip={action.label}
-              icon={<action.icon size={18} />}
-              isIconOnly
-              size="sm"
-              variant={editor?.isActive(action.active) ? "secondary" : "ghost"}
-              aria-pressed={editor?.isActive(action.active) ?? false}
-              isDisabled={disabled || !editor}
-              onClick={action.run}
-            />
-          ))}
-          <HStack gap={1} className="rich-history-actions">
-            <Button
-              label="Undo"
-              tooltip="Undo"
-              icon={<ArrowCounterClockwiseIcon size={18} />}
-              isIconOnly
-              size="sm"
-              variant="ghost"
-              isDisabled={disabled || !editor?.can().undo()}
-              onClick={() => editor?.chain().focus().undo().run()}
-            />
-            <Button
-              label="Redo"
-              tooltip="Redo"
-              icon={<ArrowClockwiseIcon size={18} />}
-              isIconOnly
-              size="sm"
-              variant="ghost"
-              isDisabled={disabled || !editor?.can().redo()}
-              onClick={() => editor?.chain().focus().redo().run()}
-            />
-          </HStack>
-        </HStack>
-        <EditorContent editor={editor} className="rich-writing" />
-        {panel && (
-          <VStack gap={3} className="rich-inspector">
-            <Text weight="semibold">
-              {panel === "link" ? "Link destination" : "Inline image"}
-            </Text>
-            <TextInput
-              label={panel === "link" ? "Link URL" : "Image URL"}
-              value={url}
-              onChange={setUrl}
-              placeholder={
-                panel === "link"
-                  ? "https://example.com or /writing/post"
-                  : "/images/brand/logo.svg"
-              }
-              description={
-                panel === "link"
-                  ? "Edit the wording directly in the writing area. The destination stays attached."
-                  : "Use an existing image path or an HTTPS image URL. Select an image in the text to replace it."
-              }
-            />
-            {panel === "image" && (
-              <TextInput
-                label="Image description"
-                value={alt}
-                onChange={setAlt}
-                description="Describe meaningful images. Leave blank for a logo beside its written name."
-              />
-            )}
-            {urlError && <Text role="alert">{urlError}</Text>}
-            <HStack gap={2} wrap="wrap">
-              <Button
-                label={
-                  panel === "link"
-                    ? "Apply link"
-                    : editingImage
-                      ? "Update image"
-                      : "Insert image"
-                }
-                size="sm"
-                onClick={() => {
-                  if (!editor) return;
-                  if (
-                    !safeInlineUrl(url, panel === "image") ||
-                    /[<>"']/u.test(url)
-                  ) {
-                    setUrlError(
-                      "Use a relative path or a complete HTTPS URL without spaces.",
-                    );
-                    return;
+          <Toolbar
+            label={`${label} formatting`}
+            size="sm"
+            startContent={
+              <HStack gap={1} wrap="wrap" className="rich-toolbar">
+                <ToggleButtonGroup
+                  label="Text style"
+                  type="multiple"
+                  size="sm"
+                  isDisabled={disabled || !editor}
+                  value={actions
+                    .slice(0, 3)
+                    .filter((action) => editor?.isActive(action.active))
+                    .map((action) => action.active)}
+                  onChange={(next) => {
+                    const changed = actions
+                      .slice(0, 3)
+                      .find(
+                        (action) =>
+                          next.includes(action.active) !==
+                          Boolean(editor?.isActive(action.active)),
+                      );
+                    changed?.run();
+                  }}
+                >
+                  {actions.slice(0, 3).map((action) => (
+                    <ToggleButton
+                      isIconOnly
+                      key={action.active}
+                      value={action.active}
+                      label={action.label}
+                      icon={<action.icon size={18} />}
+                    />
+                  ))}
+                </ToggleButtonGroup>
+                {actions.slice(3).map((action) => (
+                  <Button
+                    key={action.active}
+                    label={action.label}
+                    tooltip={action.label}
+                    icon={<action.icon size={18} />}
+                    isIconOnly
+                    variant="ghost"
+                    isDisabled={disabled || !editor}
+                    onClick={action.run}
+                  />
+                ))}
+                <Button
+                  label="Undo"
+                  tooltip="Undo"
+                  icon={<ArrowCounterClockwiseIcon size={18} />}
+                  isIconOnly
+                  variant="ghost"
+                  isDisabled={disabled || !editor?.can().undo()}
+                  onClick={() => editor?.chain().focus().undo().run()}
+                />
+                <Button
+                  label="Redo"
+                  tooltip="Redo"
+                  icon={<ArrowClockwiseIcon size={18} />}
+                  isIconOnly
+                  variant="ghost"
+                  isDisabled={disabled || !editor?.can().redo()}
+                  onClick={() => editor?.chain().focus().redo().run()}
+                />
+              </HStack>
+            }
+          />
+          <EditorContent editor={editor} className="rich-writing" />
+          {panel && (
+            <VStack gap={3} className="rich-inspector">
+              <Text weight="semibold">
+                {panel === "link" ? "Link destination" : "Inline image"}
+              </Text>
+              <FormLayout>
+                <TextInput
+                  status={
+                    urlError ? { type: "error", message: urlError } : undefined
                   }
-                  if (panel === "link") {
+                  statusVariant="detached"
+                  label={panel === "link" ? "Link URL" : "Image URL"}
+                  value={url}
+                  onChange={(next) => {
+                    setUrl(next);
+                    setUrlError("");
+                  }}
+                  placeholder={
+                    panel === "link"
+                      ? "https://example.com or /writing/post"
+                      : "/images/brand/logo.svg"
+                  }
+                  description={
+                    panel === "link"
+                      ? "Edit the wording directly in the writing area. The destination stays attached."
+                      : "Use an existing image path or an HTTPS image URL. Select an image in the text to replace it."
+                  }
+                />
+                {panel === "image" && (
+                  <TextInput
+                    label="Image description"
+                    value={alt}
+                    onChange={setAlt}
+                    description="Describe meaningful images. Leave blank for a logo beside its written name."
+                  />
+                )}
+              </FormLayout>
+              <HStack gap={2} wrap="wrap">
+                <Button
+                  label={
+                    panel === "link"
+                      ? "Apply link"
+                      : editingImage
+                        ? "Update image"
+                        : "Insert image"
+                  }
+                  size="sm"
+                  onClick={() => {
+                    if (!editor) return;
                     if (
-                      editor.state.selection.empty &&
-                      !editor.isActive("link")
+                      !safeInlineUrl(url, panel === "image") ||
+                      /[<>"']/u.test(url)
                     ) {
                       setUrlError(
-                        "Select the words to link in the writing area first.",
+                        "Use a relative path or a complete HTTPS URL without spaces.",
                       );
                       return;
                     }
-                    editor
-                      .chain()
-                      .focus()
-                      .extendMarkRange("link")
-                      .setLink({ href: url })
-                      .run();
-                  } else if (editingImage)
-                    editor
-                      .chain()
-                      .focus()
-                      .updateAttributes("image", { src: url, alt })
-                      .run();
-                  else editor.chain().focus().setImage({ src: url, alt }).run();
-                  setPanel(null);
-                }}
-              />
-              {panel === "link" && editor?.isActive("link") && (
-                <Button
-                  label="Remove link"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    editor
-                      .chain()
-                      .focus()
-                      .extendMarkRange("link")
-                      .unsetLink()
-                      .run();
+                    if (panel === "link") {
+                      if (
+                        editor.state.selection.empty &&
+                        !editor.isActive("link")
+                      ) {
+                        setUrlError(
+                          "Select the words to link in the writing area first.",
+                        );
+                        return;
+                      }
+                      editor
+                        .chain()
+                        .focus()
+                        .extendMarkRange("link")
+                        .setLink({ href: url })
+                        .run();
+                    } else if (editingImage)
+                      editor
+                        .chain()
+                        .focus()
+                        .updateAttributes("image", { src: url, alt })
+                        .run();
+                    else
+                      editor.chain().focus().setImage({ src: url, alt }).run();
                     setPanel(null);
                   }}
                 />
-              )}
-              {panel === "image" && editingImage && (
+                {panel === "link" && editor?.isActive("link") && (
+                  <Button
+                    label="Remove link"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      editor
+                        .chain()
+                        .focus()
+                        .extendMarkRange("link")
+                        .unsetLink()
+                        .run();
+                      setPanel(null);
+                    }}
+                  />
+                )}
+                {panel === "image" && editingImage && (
+                  <Button
+                    label="Remove image"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      editor?.chain().focus().deleteSelection().run();
+                      setPanel(null);
+                    }}
+                  />
+                )}
                 <Button
-                  label="Remove image"
+                  label="Cancel"
                   size="sm"
                   variant="ghost"
                   onClick={() => {
-                    editor?.chain().focus().deleteSelection().run();
                     setPanel(null);
+                    editor?.commands.focus();
                   }}
                 />
-              )}
-              <Button
-                label="Cancel"
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setPanel(null);
-                  editor?.commands.focus();
-                }}
-              />
-            </HStack>
-          </VStack>
-        )}
-      </VStack>
-      <Text color="secondary" type="supporting">
-        {inlinePlainText(value).length} characters
-      </Text>
+              </HStack>
+            </VStack>
+          )}
+        </VStack>
+        <Text color="secondary" type="supporting">
+          {inlinePlainText(value).length} characters
+        </Text>
+      </Field>
     </VStack>
   );
 }

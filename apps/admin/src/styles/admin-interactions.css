@@ -1,0 +1,32 @@
+/* Shared interaction targets and motion policy for both admin shells. */
+.astryx-icon-button,
+.astryx-toggle-button,
+.astryx-button[data-icon-only="true"],
+.astryx-button[aria-haspopup="menu"] {
+  min-width: var(--spacing-9);
+  min-height: var(--spacing-9);
+}
+.astryx-command-palette {
+  overflow-wrap: anywhere;
+}
+@media (pointer: coarse), (max-width: 540px) {
+  .astryx-button {
+    min-height: var(--spacing-11);
+  }
+  .astryx-icon-button,
+  .astryx-toggle-button,
+  .astryx-button[data-icon-only="true"],
+  .astryx-button[aria-haspopup="menu"] {
+    min-width: var(--spacing-11);
+    min-height: var(--spacing-11);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-astryx-theme] *,
+  [data-astryx-theme] *::before,
+  [data-astryx-theme] *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
