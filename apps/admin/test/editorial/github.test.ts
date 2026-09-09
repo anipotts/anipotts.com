@@ -207,7 +207,7 @@ describe("restricted GitHub branch adapter", () => {
       async () => "test-token",
       async (url, init) => {
         expect(String(url)).toMatch(
-          /^https:\/\/api.github.com\/repos\/anipotts\/anipotts.com\/git\//,
+          /^https:\/\/api\.github\.com\/repos\/anipotts\/anipotts\.com\/git\//,
         );
         expect(init?.redirect).toBe("error");
         expect(init?.signal).toBeDefined();
