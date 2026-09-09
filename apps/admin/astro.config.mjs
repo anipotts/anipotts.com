@@ -20,6 +20,14 @@ export default defineConfig({
     // Explicit loopback-only editor development. Production compilation ignores it.
     define: { "import.meta.env.EDITORIAL_LOCAL_PREVIEW": "true" },
     plugins: [
+      {
+        name: "admin-preview-cache",
+        apply: "serve",
+        config() {
+          // Builds and checks must not invalidate the running editor's imports.
+          return { cacheDir: "node_modules/.vite/editorial-preview" };
+        },
+      },
       publicContentHotReload(),
       editorialUpdates(),
       {
