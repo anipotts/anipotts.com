@@ -1,4 +1,5 @@
 ---
+import { Timestamp } from "@astryxdesign/core/Timestamp";
 import AdminLayout from "../layouts/AdminLayout.astro";
 import SemanticInspector from "../components/SemanticInspector.astro";
 import SemanticReference from "../components/SemanticReference.astro";
@@ -60,9 +61,16 @@ const fleetReferences = [...machineReferences, ...repoReferences];
       <h1 class="brand-display">Fleet</h1>
       <span>
         reconciled {
-          runtime.generated_at
-            ? new Date(runtime.generated_at).toLocaleString()
-            : "unknown"
+          runtime.generated_at ? (
+            <Timestamp
+              value={runtime.generated_at}
+              format="date_time"
+              isTimezoneShown
+              client:load
+            />
+          ) : (
+            "unknown"
+          )
         }
       </span>
     </header>

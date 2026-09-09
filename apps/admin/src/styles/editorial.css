@@ -156,15 +156,6 @@
     min-width: var(--spacing-11);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  [data-astryx-theme] *,
-  [data-astryx-theme] *::before,
-  [data-astryx-theme] *::after {
-    animation: none !important;
-    transition: none !important;
-    scroll-behavior: auto !important;
-  }
-}
 /* Source editing and the actual page preview each own one full-width region. */
 .editorial-source {
   min-width: 0;
@@ -206,7 +197,8 @@
   border-bottom: var(--border-width) solid var(--color-border);
   justify-content: space-between;
 }
-.editorial-content .editor-fields {
+.editorial-content .editor-fields,
+.editor-workspace > .astryx-form-layout {
   width: 100%;
   max-width: 52rem;
 }
@@ -227,13 +219,9 @@
   outline: var(--focus-outline-width) solid var(--color-accent-muted);
   outline-offset: var(--focus-outline-offset);
 }
-.rich-toolbar {
-  padding: var(--spacing-2);
+.rich-field .astryx-toolbar {
   background: var(--color-background-muted);
   border-bottom: var(--border-width) solid var(--color-border);
-}
-.rich-history-actions {
-  margin-inline-start: auto;
 }
 .rich-writing .tiptap {
   padding: var(--spacing-4);
@@ -411,4 +399,37 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 }
 .publication-step[data-state="blocked"] {
   border-block-end-color: var(--color-error);
+}
+
+/* New shared controls follow the same pointer target and content budgets. */
+.admin-loading {
+  min-width: 0;
+}
+.admin-loading .astryx-stack {
+  width: 100%;
+}
+.rich-field .astryx-toolbar {
+  min-width: 0;
+}
+.editor-actionbar > .astryx-toolbar {
+  width: 100%;
+}
+@media (max-width: 540px) {
+  .editor-actionbar .astryx-toolbar {
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+  }
+  .editor-actionbar .astryx-toolbar > * {
+    width: 100%;
+  }
+  .editor-actionbar .editor-primary-actions {
+    width: 100%;
+  }
+}
+/* Keep the production logout control reachable on narrow phones. */
+@media (max-width: 360px) {
+  .editorial-nav-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
 }

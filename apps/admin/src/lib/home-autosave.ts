@@ -5,6 +5,7 @@ export type SaveState = {
   source: string;
   revision: number;
   status: "saved" | "unsaved" | "saving" | "conflict";
+  saveFailed?: boolean;
   conflict: Extract<SaveResult, { code: "revision_conflict" }> | null;
 };
 
@@ -64,7 +65,7 @@ export class HomeAutosave {
         expectedRevision: this.state.revision,
         requestId: crypto.randomUUID(),
       };
-      this.state = { ...this.state, status: "saving" };
+      this.state = { ...this.state, status: "saving", saveFailed: false };
       this.notify(this.state);
       try {
         const result = await this.send(this.pending);
@@ -74,6 +75,7 @@ export class HomeAutosave {
             status:
               result.code === "revision_conflict" ? "conflict" : "unsaved",
             conflict: result.code === "revision_conflict" ? result : null,
+            saveFailed: result.code !== "revision_conflict",
           };
           this.notify(this.state);
           return;
@@ -87,7 +89,7 @@ export class HomeAutosave {
         };
         this.notify(this.state);
       } catch {
-        this.state = { ...this.state, status: "unsaved" };
+        this.state = { ...this.state, status: "unsaved", saveFailed: true };
         this.notify(this.state);
         return;
       }

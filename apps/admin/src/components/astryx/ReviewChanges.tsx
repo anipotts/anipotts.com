@@ -3,7 +3,7 @@ import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { Button } from "@astryxdesign/core/Button";
-import { Collapsible } from "@astryxdesign/core/Collapsible";
+import { Collapsible, CollapsibleGroup } from "@astryxdesign/core/Collapsible";
 import { inlinePlainText } from "@anipotts/content/public/inline";
 import { compactDiff, textDiff } from "../../lib/text-diff";
 
@@ -77,57 +77,61 @@ export function ReviewChanges({
   const [sourceView, setSourceView] = useState(false);
   const changed = changes.filter((change) => change.before !== change.after);
   return (
-    <Collapsible
-      defaultIsOpen
-      trigger={
-        <HStack
-          gap={3}
-          wrap="wrap"
-          vAlign="center"
-          className="editor-destination"
-        >
-          <Text weight="semibold">{destination}</Text>
-          <Text type="supporting">
-            {changed.length
-              ? `${changed.length} ${changed.length === 1 ? "field" : "fields"} changed`
-              : before === after
-                ? "No changes"
-                : "Source changed"}
-          </Text>
-        </HStack>
-      }
-    >
-      <VStack gap={2} className="editor-diff-body">
-        <HStack
-          gap={3}
-          wrap="wrap"
-          vAlign="center"
-          className="editor-diff-tools"
-        >
-          <Text type="supporting" className="editor-diff-added">
-            + Added
-          </Text>
-          <Text type="supporting" className="editor-diff-removed">
-            − Removed
-          </Text>
-          <Button
-            label={sourceView ? "Field changes" : "Source diff"}
-            aria-pressed={sourceView}
-            variant="ghost"
-            size="sm"
-            onClick={() => setSourceView(!sourceView)}
-          />
-        </HStack>
-        {sourceView || !changed.length ? (
-          before === after ? (
-            <Text color="secondary">This draft matches the website.</Text>
+    <CollapsibleGroup type="multiple" defaultValue={[destination]} hasDividers>
+      <Collapsible
+        value={destination}
+        trigger={
+          <HStack
+            gap={3}
+            wrap="wrap"
+            vAlign="center"
+            className="editor-destination"
+          >
+            <Text weight="semibold">{destination}</Text>
+            <Text type="supporting">
+              {changed.length
+                ? `${changed.length} ${changed.length === 1 ? "field" : "fields"} changed`
+                : before === after
+                  ? "No changes"
+                  : "Source changed"}
+            </Text>
+          </HStack>
+        }
+      >
+        <VStack gap={2} className="editor-diff-body">
+          <HStack
+            gap={3}
+            wrap="wrap"
+            vAlign="center"
+            className="editor-diff-tools"
+          >
+            <Text type="supporting" className="editor-diff-added">
+              + Added
+            </Text>
+            <Text type="supporting" className="editor-diff-removed">
+              − Removed
+            </Text>
+            <Button
+              label={sourceView ? "Field changes" : "Source diff"}
+              aria-pressed={sourceView}
+              variant="ghost"
+              size="sm"
+              onClick={() => setSourceView(!sourceView)}
+            />
+          </HStack>
+          {sourceView || !changed.length ? (
+            before === after ? (
+              <Text color="secondary">This draft matches the website.</Text>
+            ) : (
+              <FieldDiff label="Source" before={before} after={after} />
+            )
           ) : (
-            <FieldDiff label="Source" before={before} after={after} />
-          )
-        ) : (
-          changed.map((change) => <FieldDiff key={change.label} {...change} />)
-        )}
-      </VStack>
-    </Collapsible>
+            changed.map((change) => (
+              <FieldDiff key={change.label} {...change} />
+            ))
+          )}
+        </VStack>
+      </Collapsible>
+    </CollapsibleGroup>
   );
 }

@@ -21,7 +21,9 @@ describe("home autosave", () => {
     expect(send).not.toHaveBeenCalled();
     await editor.ensureDraft();
     expect(editor.state.status).toBe("unsaved");
+    expect(editor.state.saveFailed).toBe(true);
     await editor.ensureDraft();
+    expect(editor.state.saveFailed).toBe(false);
     expect(send.mock.calls[0]).toEqual(send.mock.calls[1]);
     expect(editor.state).toMatchObject({
       source: "base",
@@ -54,8 +56,11 @@ describe("home autosave", () => {
     editor.edit("one");
     await editor.flush();
     expect(editor.state.status).toBe("unsaved");
+    expect(editor.state.saveFailed).toBe(true);
     editor.edit("two");
+    expect(editor.state.saveFailed).toBe(true);
     await editor.flush();
+    expect(editor.state.saveFailed).toBe(false);
     expect(send.mock.calls[0]).toEqual(send.mock.calls[1]);
     expect(send.mock.calls[2][0]).toMatchObject({
       source: "two",

@@ -1,3 +1,12 @@
+import { HStack } from "@astryxdesign/core/HStack";
+import { VStack } from "@astryxdesign/core/VStack";
+import { Text } from "@astryxdesign/core/Text";
+import { Timestamp } from "@astryxdesign/core/Timestamp";
+import { MoreMenu } from "@astryxdesign/core/MoreMenu";
+import { Button } from "@astryxdesign/core/Button";
+import { IconButton } from "@astryxdesign/core/IconButton";
+import { EmptyState } from "@astryxdesign/core/EmptyState";
+import { StatusDot } from "@astryxdesign/core/StatusDot";
 import { useMemo } from "react";
 import {
   Table,
@@ -5,7 +14,7 @@ import {
   proportional,
   type TableColumn,
 } from "@astryxdesign/core/Table";
-import { ArrowSquareOutIcon, MagnifyingGlassIcon } from "../admin-icons";
+import { MagnifyingGlassIcon } from "../admin-icons";
 import { SourceMark } from "../SourceMark";
 import type {
   OperatorTaskState,
@@ -31,19 +40,61 @@ const laneLabel: Record<OperatorWorkLane, string> = {
   recently_completed: "completed",
 };
 
-const displayTime = (value: string) =>
-  new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(value));
-
 const stateLabel = (row: WorkRow) =>
   row.source_state === "verified" ? laneLabel[row.lane] : "last verified";
 
-const stateClass = (row: WorkRow) =>
-  row.source_state === "verified" ? row.operator_state : "unknown";
+const stateVariant = (row: WorkRow) =>
+  row.source_state === "stale" || row.lane === "waiting"
+    ? "warning"
+    : row.lane === "recently_completed"
+      ? "success"
+      : row.lane === "foreground"
+        ? "accent"
+        : "neutral";
+
+function WorkActions({
+  row,
+  mobile = false,
+}: {
+  row: WorkRow;
+  mobile?: boolean;
+}) {
+  return (
+    <HStack gap={1}>
+      {mobile ? (
+        <Button
+          label="Inspect"
+          size="sm"
+          variant="ghost"
+          data-semantic-open={row.semantic_reference_id}
+        />
+      ) : (
+        <IconButton
+          size="sm"
+          label={`Inspect ${row.canonical_title}`}
+          tooltip="Inspect record"
+          icon={<MagnifyingGlassIcon size={18} />}
+          data-semantic-open={row.semantic_reference_id}
+        />
+      )}
+      {row.attention_ref && (
+        <MoreMenu
+          label={`${row.canonical_title} actions`}
+          size="sm"
+          items={[
+            {
+              label: "Open linked inbox item",
+              onClick: () =>
+                window.location.assign(
+                  `/?item=${encodeURIComponent(row.attention_ref!)}`,
+                ),
+            },
+          ]}
+        />
+      )}
+    </HStack>
+  );
+}
 
 export function OperatorWorkTable({ rows }: Props) {
   const columns = useMemo<Array<TableColumn<WorkRow>>>(
@@ -53,13 +104,15 @@ export function OperatorWorkTable({ rows }: Props) {
         header: "Work",
         width: proportional(1.45),
         renderCell: (row) => (
-          <div className="quiet-work-identity">
+          <HStack gap={2} vAlign="center" className="quiet-work-identity">
             <SourceMark provider={row.provider} compact />
-            <span>
-              <strong>{row.canonical_title}</strong>
-              <small>{row.project_label}</small>
-            </span>
-          </div>
+            <VStack gap={1}>
+              <Text weight="semibold">{row.canonical_title}</Text>
+              <Text color="secondary" type="supporting">
+                {row.project_label}
+              </Text>
+            </VStack>
+          </HStack>
         ),
       },
       {
@@ -67,20 +120,17 @@ export function OperatorWorkTable({ rows }: Props) {
         header: "State",
         width: pixel(132),
         renderCell: (row) => (
-          <div className="quiet-work-state">
-            <span
-              className={`quiet-state-dot is-${stateClass(row)}`}
-              aria-hidden="true"
-            />
-            <span>
-              <strong>{stateLabel(row)}</strong>
-              <small>
+          <HStack gap={2} vAlign="center">
+            <StatusDot variant={stateVariant(row)} label={stateLabel(row)} />
+            <VStack gap={1}>
+              <Text weight="semibold">{stateLabel(row)}</Text>
+              <Text color="secondary" type="supporting">
                 {row.source_state === "verified"
                   ? row.runtime_state
                   : "source stale"}
-              </small>
-            </span>
-          </div>
+              </Text>
+            </VStack>
+          </HStack>
         ),
       },
       {
@@ -88,10 +138,14 @@ export function OperatorWorkTable({ rows }: Props) {
         header: "Now",
         width: proportional(2),
         renderCell: (row) => (
-          <div className="quiet-work-now">
-            <strong>{operatorTaskDisplay(row).bounded_goal}</strong>
-            <small>{operatorTaskDisplay(row).next_action}</small>
-          </div>
+          <VStack gap={1}>
+            <Text weight="semibold">
+              {operatorTaskDisplay(row).bounded_goal}
+            </Text>
+            <Text color="secondary" type="supporting">
+              {operatorTaskDisplay(row).next_action}
+            </Text>
+          </VStack>
         ),
       },
       {
@@ -99,51 +153,36 @@ export function OperatorWorkTable({ rows }: Props) {
         header: "Updated",
         width: pixel(132),
         renderCell: (row) => (
-          <div className="quiet-work-time">
-            <time dateTime={row.last_observed_at}>
-              {displayTime(row.last_observed_at)}
-            </time>
-            <small>{row.host}</small>
-          </div>
+          <VStack gap={1}>
+            <Timestamp value={row.last_observed_at} format="auto" />
+            <Text color="secondary" type="supporting">
+              {row.host}
+            </Text>
+          </VStack>
         ),
       },
       {
         key: "actions",
-        header: <span className="sr-only">Actions</span>,
+        header: <Text className="sr-only">Actions</Text>,
         width: pixel(92),
         align: "end",
         resizable: false,
-        renderCell: (row) => (
-          <div className="quiet-row-actions">
-            {row.attention_ref ? (
-              <a
-                className="quiet-icon-action"
-                href={`/?item=${encodeURIComponent(row.attention_ref)}`}
-                aria-label={`open linked Inbox item for ${row.canonical_title}`}
-                title="open linked Inbox item"
-              >
-                <ArrowSquareOutIcon size={17} aria-hidden="true" />
-              </a>
-            ) : null}
-            <button
-              className="quiet-icon-action"
-              type="button"
-              data-semantic-open={row.semantic_reference_id}
-              aria-label={`inspect ${row.canonical_title}`}
-              title="inspect"
-            >
-              <MagnifyingGlassIcon size={17} aria-hidden="true" />
-            </button>
-          </div>
-        ),
+        renderCell: (row) => <WorkActions row={row} />,
       },
     ],
     [],
   );
 
+  if (!rows.length)
+    return (
+      <EmptyState
+        title="No work in this view"
+        description="Choose another work view to see retained records."
+      />
+    );
   return (
     <>
-      <div className="quiet-work-table" data-operator-work-table>
+      <VStack className="quiet-work-table" data-operator-work-table>
         <Table
           data={rows}
           columns={columns}
@@ -154,33 +193,32 @@ export function OperatorWorkTable({ rows }: Props) {
           verticalAlign="middle"
           textOverflow="truncate"
         />
-      </div>
-      <div className="quiet-work-stack">
+      </VStack>
+      <VStack gap={4} className="quiet-work-stack">
         {rows.map((row) => (
           <article key={row.task_id} id={`task-${row.task_id}`}>
-            <header>
-              <SourceMark provider={row.provider} compact />
-              <strong>{row.canonical_title}</strong>
-              <span className={`quiet-state-dot is-${stateClass(row)}`} />
-              <span>{stateLabel(row)}</span>
-            </header>
-            <p>{operatorTaskDisplay(row).bounded_goal}</p>
-            <small>{operatorTaskDisplay(row).next_action}</small>
-            <footer>
-              <time dateTime={row.last_observed_at}>
-                {displayTime(row.last_observed_at)}
-              </time>
-              <button
-                type="button"
-                data-semantic-open={row.semantic_reference_id}
-                aria-label={`inspect ${row.canonical_title}`}
-              >
-                inspect
-              </button>
-            </footer>
+            <VStack gap={3}>
+              <HStack gap={2} wrap="wrap" vAlign="center">
+                <SourceMark provider={row.provider} compact />
+                <Text weight="semibold">{row.canonical_title}</Text>
+                <StatusDot
+                  variant={stateVariant(row)}
+                  label={stateLabel(row)}
+                />
+                <Text type="supporting">{stateLabel(row)}</Text>
+              </HStack>
+              <Text>{operatorTaskDisplay(row).bounded_goal}</Text>
+              <Text type="supporting" color="secondary">
+                {operatorTaskDisplay(row).next_action}
+              </Text>
+              <HStack gap={2} wrap="wrap" hAlign="between" vAlign="center">
+                <Timestamp value={row.last_observed_at} format="auto" />
+                <WorkActions row={row} mobile />
+              </HStack>
+            </VStack>
           </article>
         ))}
-      </div>
+      </VStack>
     </>
   );
 }

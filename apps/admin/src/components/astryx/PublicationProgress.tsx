@@ -3,6 +3,7 @@ import { HStack } from "@astryxdesign/core/HStack";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Text } from "@astryxdesign/core/Text";
 import { StatusDot } from "@astryxdesign/core/StatusDot";
+import { Banner } from "@astryxdesign/core/Banner";
 import { Button } from "@astryxdesign/core/Button";
 import { CheckIcon, PauseIcon, WarningIcon } from "@phosphor-icons/react";
 import type {
@@ -141,15 +142,22 @@ export function PublicationProgress({
         ))}
       </HStack>
       <HStack gap={3} wrap="wrap" vAlign="center" hAlign="between">
-        <Text
-          type="supporting"
-          color="secondary"
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-        >
-          {progress.message}
-        </Text>
+        {publication.blocked || stale ? (
+          <Banner
+            status={publication.blocked ? "error" : "warning"}
+            title={progress.message}
+          />
+        ) : (
+          <Text
+            type="supporting"
+            color="secondary"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            {progress.message}
+          </Text>
+        )}
         <HStack gap={2} wrap="wrap">
           {publication.checkpoint.prNumber && (
             <Button

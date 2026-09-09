@@ -1,11 +1,12 @@
 ---
 import "@astryxdesign/core/reset.css";
 import "@astryxdesign/core/astryx.css";
+import "../styles/admin-interactions.css";
 import "@astryxdesign/theme-neutral/theme.css";
 import "../styles/admin.css";
 import "../styles/admin-canvas.css";
 import { AdminShell } from "../components/astryx/AdminShell";
-import { AdminCommandPalette } from "../components/astryx/AdminCommandPalette";
+import { OperationalCommandPalette } from "../components/astryx/OperationalCommandPalette";
 import { navItems, routeTitle } from "../data/admin";
 import brandFaviconDark from "@anipotts/brand/ap-structural/icons/favicon-dark.svg?url";
 import brandFaviconLight from "@anipotts/brand/ap-structural/icons/favicon-light.svg?url";
@@ -128,7 +129,7 @@ const currentRoute = `${currentPath}${Astro.url.search}`;
     </AdminShell>
     {
       chrome === "admin" && (
-        <AdminCommandPalette
+        <OperationalCommandPalette
           client:load
           navItems={navItems}
           showTrigger={false}

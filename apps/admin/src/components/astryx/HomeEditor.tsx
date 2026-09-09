@@ -10,6 +10,14 @@ import {
   ArrowSquareOutIcon,
   DotsThreeIcon,
 } from "@phosphor-icons/react";
+import { Toolbar } from "@astryxdesign/core/Toolbar";
+import { Banner } from "@astryxdesign/core/Banner";
+import { FormLayout } from "@astryxdesign/core/FormLayout";
+import { Spinner } from "@astryxdesign/core/Spinner";
+import { EmptyState } from "@astryxdesign/core/EmptyState";
+import { Timestamp } from "@astryxdesign/core/Timestamp";
+import { useToast } from "@astryxdesign/core/Toast";
+import { AdminSkeleton, RecoveryBanner } from "./AdminFeedback";
 import { RichTextField } from "./RichTextField";
 import { editableHomeSummary } from "../../lib/rich-text";
 import { editorialFields } from "../../lib/editorial-fields";
@@ -49,6 +57,10 @@ export function HomeEditor({
   record: EditorialRecord;
   localPreview?: boolean;
 }) {
+  const toast = useToast();
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [historyError, setHistoryError] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const query = new URLSearchParams(record).toString();
   const endpoint = (action: string) => `/api/editorial/${action}?${query}`;
   const [state, setState] = useState<SaveState | null>(null);
@@ -59,6 +71,8 @@ export function HomeEditor({
   const editor = useRef<HomeAutosave | null>(null);
   const csrf = useRef("");
   const importInput = useRef<HTMLInputElement | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [comparisonLoading, setComparisonLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [publication, setPublication] = useState<PublishJob | null>(null);
   const [publishing, setPublishing] = useState(false);
@@ -68,12 +82,15 @@ export function HomeEditor({
   const publishRequest = useRef<{ revision: number; id: string } | null>(null);
   async function post(action: string, body: unknown) {
     if (!csrf.current) {
-      const response = await fetch("/api/editorial/csrf");
+      const response = await fetch("/api/editorial/csrf", {
+        signal: AbortSignal.timeout(15000),
+      });
       if (!response.ok) throw new Error("session expired");
       csrf.current = (await response.json()).csrf;
     }
     const response = await fetch(endpoint(action), {
       method: "POST",
+      signal: AbortSignal.timeout(15000),
       headers: {
         "Content-Type": "application/json",
         "X-Editorial-CSRF": csrf.current,
@@ -90,7 +107,8 @@ export function HomeEditor({
   }
   useEffect(() => {
     let cancelled = false;
-    fetch(endpoint("record"))
+    setError("");
+    fetch(endpoint("record"), { signal: AbortSignal.timeout(15000) })
       .then(async (response) => {
         if (!response.ok) throw new Error("draft storage unavailable");
         const data: Snapshot = await response.json();
@@ -107,13 +125,12 @@ export function HomeEditor({
         setState(editor.current.state);
       })
       .catch(() => {
-        if (!cancelled)
-          setError("couldn’t load this draft. reload to try again.");
+        if (!cancelled) setError("Couldn’t load this draft.");
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadAttempt]);
   useEffect(() => {
     if (
       !publication ||
@@ -126,6 +143,7 @@ export function HomeEditor({
       try {
         const response = await fetch(
           `${endpoint("publication")}&operationId=${publication.id}`,
+          { signal: AbortSignal.timeout(15000) },
         );
         if (!response.ok) throw new Error();
         const data = await response.json();
@@ -164,11 +182,19 @@ export function HomeEditor({
     return () => window.removeEventListener("beforeunload", guard);
   }, []);
   if (!state || !snapshot)
-    return <Text role="status">{error || "loading draft"}</Text>;
+    return error ? (
+      <RecoveryBanner
+        title={error}
+        onRetry={() => setLoadAttempt((attempt) => attempt + 1)}
+      />
+    ) : (
+      <AdminSkeleton fields={editorialFields(record)} />
+    );
   let fields = editorialFields(record);
   let values: string[] = [];
   let parseable = false;
   let valid = false;
+  const fieldErrors = new Map<string, string>();
   try {
     const parsed = parseEditorialSource(state.source);
     parseable = true;
@@ -188,27 +214,32 @@ export function HomeEditor({
           "markdown",
       );
     }
-    valid = validateEditorialSource(record, state.source).success;
+    const validation = validateEditorialSource(record, state.source);
+    valid = validation.success;
+    if (!validation.success)
+      for (const issue of validation.error.issues)
+        fieldErrors.set(issue.path.join("."), issue.message);
   } catch {
     /* Source remains editable and recoverable while malformed. */
   }
-  const download = () => {
+  const download = (source = state.source, name = `${record.id}-draft.md`) => {
     const url = URL.createObjectURL(
-      new Blob([state.source], { type: "text/markdown;charset=utf-8" }),
+      new Blob([source], { type: "text/markdown;charset=utf-8" }),
     );
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${record.id}-draft.md`;
+    link.download = name;
     link.click();
     URL.revokeObjectURL(url);
   };
   const refreshPreview = async () => {
-    setPreviewRevision(null);
     if (!valid || snapshot.draft?.discardedAt) {
       setError("Save a valid, active draft before previewing.");
       return;
     }
+    setPreviewLoading(true);
     await editor.current!.ensureDraft();
+    setPreviewLoading(false);
     const current = editor.current!.state;
     try {
       if (
@@ -227,10 +258,14 @@ export function HomeEditor({
   };
   const openHistory = async () => {
     setTab("history");
+    if (historyLoading) return;
     setHistoryLoading(true);
+    setHistoryError(false);
     try {
       await editor.current!.flush();
-      const response = await fetch(endpoint("record"));
+      const response = await fetch(endpoint("record"), {
+        signal: AbortSignal.timeout(15000),
+      });
       if (!response.ok) throw new Error();
       const data: Snapshot = await response.json();
       setSnapshot((previous) =>
@@ -238,114 +273,127 @@ export function HomeEditor({
       );
       setError("");
     } catch {
-      setError("Couldn’t load history. Reopen Version history to try again.");
+      setHistoryError(true);
     } finally {
       setHistoryLoading(false);
     }
   };
   const compareWebsite = async () => {
+    if (comparisonLoading) return;
+    setComparisonLoading(true);
     try {
-      const response = await fetch(endpoint("record"));
+      const response = await fetch(endpoint("record"), {
+        signal: AbortSignal.timeout(15000),
+      });
       if (!response.ok) throw new Error();
       const data: Snapshot = await response.json();
       setComparison(data.base);
       setError("");
     } catch {
       setError("Couldn’t load the current website source. Try again.");
+    } finally {
+      setComparisonLoading(false);
     }
   };
   const isDocumentView = tab === "edit" || tab === "preview";
   return (
     <VStack gap={5} className="editor-workspace">
-      <HStack gap={3} wrap="wrap" className="editor-actionbar" vAlign="center">
-        <HStack gap={3} vAlign="center" className="editor-save-group">
-          <Button
-            label={isDocumentView ? "Content" : "Back to editor"}
-            variant="ghost"
-            icon={<ArrowLeftIcon size={18} />}
-            href={
-              isDocumentView
-                ? `/content?group=${record.kind === "page" ? "pages" : record.kind}`
-                : undefined
-            }
-            onClick={isDocumentView ? undefined : () => setTab("edit")}
-            size="sm"
-          />
-          <HStack gap={2} vAlign="center" role="status">
-            <StatusDot
-              variant={state.status === "saved" ? "success" : "warning"}
-              label={state.status}
-            />
-            <Text color="secondary">
-              {snapshot.draft?.discardedAt
-                ? "Discarded draft"
-                : state.status === "saved"
-                  ? localPreview
-                    ? "Saved locally"
-                    : "Saved privately"
-                  : state.status === "saving"
-                    ? "Saving…"
-                    : state.status === "conflict"
-                      ? "Resolve conflicting edits"
-                      : "Unsaved changes"}
-            </Text>
-          </HStack>
-        </HStack>
-        <HStack gap={2} wrap="wrap" className="editor-primary-actions">
-          {tab !== "publish" && (
-            <Button
-              label="Review changes"
-              variant="primary"
-              size="sm"
-              onClick={() => {
-                setReviewSource(state.source);
-                setTab("publish");
-              }}
-              isDisabled={!valid || Boolean(snapshot.draft?.discardedAt)}
-            />
-          )}
-          <MoreMenu
-            label="Document actions"
-            icon={<DotsThreeIcon size={20} />}
-            size="sm"
-            alignment="end"
-            items={[
-              { label: "View source", onClick: () => setTab("source") },
-              {
-                label: "Version history",
-                onClick: () => {
-                  void openHistory();
-                },
-              },
-              {
-                label: "Compare with website",
-                onClick: () => {
-                  void compareWebsite();
-                },
-              },
-              { type: "divider" },
-              { label: "Download draft", onClick: download },
-              {
-                label: "Import draft…",
-                isDisabled: Boolean(snapshot.draft?.discardedAt),
-                onClick: () => importInput.current?.click(),
-              },
-              ...(state.status === "unsaved"
-                ? [
-                    { type: "divider" as const },
-                    {
-                      label: "Save now",
-                      isDisabled: Boolean(snapshot.draft?.discardedAt),
-                      onClick: () => {
-                        void editor.current!.flush();
-                      },
+      <VStack className="editor-actionbar">
+        <Toolbar
+          label="Document actions"
+          size="sm"
+          startContent={
+            <HStack gap={3} vAlign="center" className="editor-save-group">
+              {!isDocumentView && (
+                <Button
+                  label="Back to editor"
+                  variant="ghost"
+                  icon={<ArrowLeftIcon size={18} />}
+                  onClick={() => setTab("edit")}
+                  size="sm"
+                />
+              )}
+              <HStack gap={2} vAlign="center" role="status">
+                <StatusDot
+                  variant={state.status === "saved" ? "success" : "warning"}
+                  label={state.status}
+                />
+                <Text color="secondary">
+                  {snapshot.draft?.discardedAt
+                    ? "Discarded draft"
+                    : state.status === "saved"
+                      ? localPreview
+                        ? "Saved locally"
+                        : "Saved privately"
+                      : state.status === "saving"
+                        ? "Saving…"
+                        : state.status === "conflict"
+                          ? "Resolve conflicting edits"
+                          : "Unsaved changes"}
+                </Text>
+              </HStack>
+            </HStack>
+          }
+          endContent={
+            <HStack gap={2} wrap="wrap" className="editor-primary-actions">
+              {tab !== "publish" && (
+                <Button
+                  label="Review changes"
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    setReviewSource(state.source);
+                    setTab("publish");
+                  }}
+                  isDisabled={!valid || Boolean(snapshot.draft?.discardedAt)}
+                />
+              )}
+              <MoreMenu
+                label="Document actions"
+                icon={<DotsThreeIcon size={20} />}
+                size="sm"
+                alignment="end"
+                items={[
+                  { label: "View source", onClick: () => setTab("source") },
+                  {
+                    label: "Version history",
+                    onClick: () => {
+                      void openHistory();
                     },
-                  ]
-                : []),
-            ]}
-          />
-        </HStack>
-      </HStack>
+                  },
+                  {
+                    label: "Compare with website",
+                    isDisabled: comparisonLoading,
+                    onClick: () => {
+                      void compareWebsite();
+                    },
+                  },
+                  { type: "divider" },
+                  { label: "Download draft", onClick: () => download() },
+                  {
+                    label: "Import draft…",
+                    isDisabled:
+                      importing || Boolean(snapshot.draft?.discardedAt),
+                    onClick: () => importInput.current?.click(),
+                  },
+                  ...(state.status === "unsaved"
+                    ? [
+                        { type: "divider" as const },
+                        {
+                          label: "Save now",
+                          isDisabled: Boolean(snapshot.draft?.discardedAt),
+                          onClick: () => {
+                            void editor.current!.flush();
+                          },
+                        },
+                      ]
+                    : []),
+                ]}
+              />
+            </HStack>
+          }
+        />
+      </VStack>
       {publication && (
         <PublicationProgress publication={publication} stale={publicationStale}>
           {publication.blocked &&
@@ -413,6 +461,7 @@ export function HomeEditor({
               if (!result.draft) throw new Error();
               setSnapshot({ ...snapshot, draft: result.draft });
               editor.current!.resolve(result.draft, false);
+              toast({ body: "Draft recovered", uniqueID: "draft-recover" });
             } catch {
               setError(
                 "recovery failed. reload to compare the latest revision.",
@@ -421,7 +470,22 @@ export function HomeEditor({
           }}
         />
       )}
-      {error && <Text role="alert">{error}</Text>}
+      {error && (
+        <RecoveryBanner
+          title={error}
+          actionLabel="Download draft"
+          onRetry={() => download()}
+        />
+      )}
+      {state.saveFailed && (
+        <RecoveryBanner
+          title="Draft could not be saved"
+          description="Your edits are still here. Retry saving before leaving this page."
+          actionLabel="Retry save"
+          onRetry={() => editor.current!.flush()}
+        />
+      )}
+      {comparisonLoading && <Spinner label="Loading website source…" />}
       {comparison && (
         <VStack gap={2}>
           <Text>
@@ -497,9 +561,11 @@ export function HomeEditor({
       )}
       {state.conflict && (
         <VStack gap={2}>
-          <Text role="alert">
-            another edit was saved. compare before continuing.
-          </Text>
+          <Banner
+            status="warning"
+            title="Another edit was saved"
+            description="Compare the saved source with your draft before choosing which version to keep."
+          />
           <TextArea
             label="saved on another tab or device"
             value={state.conflict.current?.source ?? ""}
@@ -556,6 +622,20 @@ export function HomeEditor({
       )}
       {tab === "preview" && (
         <VStack gap={2}>
+          {previewRevision && (
+            <HStack gap={3} wrap="wrap" vAlign="center">
+              <Text color="secondary" type="supporting">
+                Preview of saved revision {previewRevision}
+              </Text>
+              <Button
+                label="Refresh preview"
+                size="sm"
+                variant="ghost"
+                isLoading={previewLoading}
+                clickAction={refreshPreview}
+              />
+            </HStack>
+          )}
           {previewRevision ? (
             <iframe
               title={`${record.id} draft preview`}
@@ -564,23 +644,28 @@ export function HomeEditor({
               referrerPolicy="no-referrer"
               className="editorial-preview"
             />
+          ) : previewLoading ? (
+            <Spinner label="Preparing preview…" />
           ) : (
-            <Text role="status">
-              {error
-                ? "Preview unavailable. Return to Edit to check your draft."
-                : "Preparing preview…"}
-            </Text>
+            <EmptyState
+              title="Preview unavailable"
+              description="Check your draft, then try again."
+              actions={
+                <Button label="Retry preview" clickAction={refreshPreview} />
+              }
+            />
           )}
         </VStack>
       )}
       {tab === "edit" && (
-        <VStack gap={6} className="editor-fields">
+        <FormLayout>
           {fields.map((field, index) =>
             field.rich ? (
               <RichTextField
                 key={field.path.join(".")}
                 label={field.label}
                 description={field.description}
+                validationError={fieldErrors.get(field.path.join("."))}
                 value={values[index] ?? ""}
                 disabled={!parseable || Boolean(snapshot.draft?.discardedAt)}
                 onChange={(value) => {
@@ -602,6 +687,15 @@ export function HomeEditor({
               <TextInput
                 key={field.path.join(".")}
                 label={field.label}
+                description={field.description}
+                status={
+                  fieldErrors.has(field.path.join("."))
+                    ? {
+                        type: "error",
+                        message: fieldErrors.get(field.path.join(".")),
+                      }
+                    : undefined
+                }
                 value={values[index] ?? ""}
                 isDisabled={!parseable || Boolean(snapshot.draft?.discardedAt)}
                 onChange={(value) =>
@@ -616,7 +710,7 @@ export function HomeEditor({
               />
             ),
           )}
-        </VStack>
+        </FormLayout>
       )}
       {tab === "publish" && (
         <VStack gap={4} className="editor-review">
@@ -648,10 +742,17 @@ export function HomeEditor({
             })}
           />
           {state.source !== reviewSource && (
-            <Text role="alert">
-              The draft changed after this review opened. Open Review changes
-              again before approving.
-            </Text>
+            <Banner
+              status="warning"
+              title="This review is out of date"
+              description="The draft changed after this review opened."
+              endContent={
+                <Button
+                  label="Review latest changes"
+                  onClick={() => setReviewSource(state.source)}
+                />
+              }
+            />
           )}
           <HStack gap={2} wrap="wrap">
             <Button
@@ -750,17 +851,31 @@ export function HomeEditor({
             setError("Choose a Markdown file smaller than 512 KB.");
             return;
           }
+          const beforeImport = editor.current!.state.source;
+          setImporting(true);
           try {
             const source = await file.text();
+            if (editor.current!.state.source !== beforeImport) {
+              setError(
+                "Your draft changed while the file was opening. Import it again when you are ready.",
+              );
+              return;
+            }
             if (!validateEditorialSource(record, source).success)
               throw new Error();
             editor.current!.edit(source);
             setTab("edit");
             setError("");
+            toast({
+              body: "Draft imported. Saving your changes…",
+              uniqueID: "draft-import",
+            });
           } catch {
             setError(
               "That file does not match this record. Your draft was kept.",
             );
+          } finally {
+            setImporting(false);
           }
         }}
       />
@@ -771,9 +886,14 @@ export function HomeEditor({
         readOnly={Boolean(snapshot.draft?.discardedAt)}
       />
       {!valid && (
-        <Text role="alert">
-          source needs correction before preview or publishing.
-        </Text>
+        <Banner
+          status="warning"
+          title="Source needs correction"
+          description="Fix the source before previewing or publishing. Your edits are retained."
+          endContent={
+            <Button label="Edit source" onClick={() => setTab("source")} />
+          }
+        />
       )}
       {tab === "history" && (
         <VStack gap={2}>
@@ -781,7 +901,20 @@ export function HomeEditor({
             Restore an earlier version as a new draft. Existing revisions stay
             available.
           </Text>
-          {historyLoading && <Text role="status">Loading revisions…</Text>}
+          {historyError && (
+            <RecoveryBanner
+              title="Couldn’t load history"
+              onRetry={openHistory}
+            />
+          )}
+          {historyLoading &&
+            (snapshot.history.length ? (
+              <Text role="status" color="secondary">
+                Refreshing history…
+              </Text>
+            ) : (
+              <AdminSkeleton kind="history" />
+            ))}
           {snapshot.history.map((revision) => (
             <HStack
               key={revision.revision}
@@ -792,26 +925,59 @@ export function HomeEditor({
             >
               <VStack gap={1}>
                 <Text weight="semibold">Revision {revision.revision}</Text>
-                <Text color="secondary" type="supporting">
-                  {new Date(revision.updatedAt).toLocaleString()}
-                </Text>
+                <Timestamp
+                  value={new Date(revision.updatedAt).toISOString()}
+                  format="date_time"
+                  isTimezoneShown
+                />
               </VStack>
-              <Button
-                label="Restore"
-                aria-label={`Restore revision ${revision.revision}`}
-                variant="ghost"
-                size="sm"
-                isDisabled={Boolean(snapshot.draft?.discardedAt)}
-                onClick={() => {
-                  editor.current!.edit(revision.source);
-                  setTab("edit");
-                }}
-              />
+              <HStack gap={2}>
+                <Button
+                  label="Restore"
+                  aria-label={`Restore revision ${revision.revision}`}
+                  variant="ghost"
+                  size="sm"
+                  isDisabled={Boolean(snapshot.draft?.discardedAt)}
+                  onClick={() => {
+                    editor.current!.edit(revision.source);
+                    setTab("edit");
+                    toast({
+                      body: `Revision ${revision.revision} restored as a draft.`,
+                      uniqueID: "draft-restore",
+                    });
+                  }}
+                />
+                <MoreMenu
+                  label={`Revision ${revision.revision} actions`}
+                  size="sm"
+                  items={[
+                    {
+                      label: "Download revision",
+                      onClick: () =>
+                        download(
+                          revision.source,
+                          `${record.id}-revision-${revision.revision}.md`,
+                        ),
+                    },
+                  ]}
+                />
+              </HStack>
             </HStack>
           ))}
-          {!historyLoading && snapshot.history.length === 0 && (
-            <Text>No saved revisions yet.</Text>
-          )}
+          {!historyLoading &&
+            !historyError &&
+            snapshot.history.length === 0 && (
+              <EmptyState
+                title="No saved revisions yet"
+                description="Revisions appear after you save an edit."
+                actions={
+                  <Button
+                    label="Back to editor"
+                    onClick={() => setTab("edit")}
+                  />
+                }
+              />
+            )}
         </VStack>
       )}
     </VStack>

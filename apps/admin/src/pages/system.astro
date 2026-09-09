@@ -1,4 +1,5 @@
 ---
+import { Timestamp } from "@astryxdesign/core/Timestamp";
 import AdminLayout from "../layouts/AdminLayout.astro";
 import SemanticInspector from "../components/SemanticInspector.astro";
 import SemanticReference from "../components/SemanticReference.astro";
@@ -93,13 +94,18 @@ const destinationReferences = destinations.map((item) =>
     >
       <header>
         <h2 id="system-status-heading">Current status</h2>
-        <time datetime={runtime.generated_at ?? undefined}>
-          {
-            runtime.generated_at
-              ? new Date(runtime.generated_at).toLocaleString()
-              : "not reconciled"
-          }
-        </time>
+        {
+          runtime.generated_at ? (
+            <Timestamp
+              value={runtime.generated_at}
+              format="date_time"
+              isTimezoneShown
+              client:load
+            />
+          ) : (
+            <span>not reconciled</span>
+          )
+        }
       </header>
       <div>
         <article>
