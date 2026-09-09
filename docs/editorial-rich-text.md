@@ -14,7 +14,10 @@ editor. Undo and redo remain available while editing, and History retains saved
 revisions across reloads. The **Document actions** menu contains **View source**,
 **Version history**, **Compare with website**, **Download draft**, and **Import draft**.
 History and preview refresh when opened; **Edit** and **Preview** are the two main
-views. **Review changes** opens a separate confirmation step.
+views. **Review changes** opens a separate confirmation step. Each destination
+expands into compact word-level additions and removals. **Full context** reveals
+unchanged text; **Source diff** also covers URLs, images, formatting, and fields
+outside the form. Collapsing a destination keeps its change count visible.
 
 Formatted fields use inline Markdown in the canonical file. Underline uses paired
 `<u>` tags. Raw HTML otherwise displays as text. Images support the optional title

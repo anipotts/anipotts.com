@@ -13,7 +13,7 @@ import {
 import { RichTextField } from "./RichTextField";
 import { editableHomeSummary } from "../../lib/rich-text";
 import { editorialFields } from "../../lib/editorial-fields";
-import { inlinePlainText } from "@anipotts/content/public/inline";
+import { ReviewChanges } from "./ReviewChanges";
 import { TextArea } from "@astryxdesign/core/TextArea";
 import { Button } from "@astryxdesign/core/Button";
 import { MoreMenu } from "@astryxdesign/core/MoreMenu";
@@ -643,60 +643,33 @@ export function HomeEditor({
       )}
       {tab === "publish" && (
         <VStack gap={4} className="editor-review">
-          <Text color="secondary">
-            {localPreview
-              ? "Review your local draft here. To publish after the editor is released, use Document actions to download it, then import it in the production editor."
-              : "Approving sends this record to the public repository, runs the required checks, and publishes it to anipotts.com. Saving and previewing keep it private."}
-          </Text>
-          <Text>
-            Destination: anipotts.com
-            {record.kind === "page"
-              ? record.id === "home"
-                ? "/"
-                : `/${record.id}`
-              : `/${record.kind}/${record.id}`}
-          </Text>
-          {fields.map((field) => {
-            try {
-              const before = String(
-                parseEditorialSource(snapshot.base.source).document.getIn(
-                  field.path,
-                ) ?? "",
-              );
-              const after = String(
-                parseEditorialSource(state.source).document.getIn(field.path) ??
-                  "",
-              );
-              if (before === after) return null;
-              return (
-                <VStack
-                  key={field.path.join(".")}
-                  gap={2}
-                  className="editor-change"
-                >
-                  <Text weight="semibold">{field.label}</Text>
-                  {inlinePlainText(before) === inlinePlainText(after) ? (
-                    <Text color="secondary">
-                      Formatting updated. Check Preview for links and images.
-                    </Text>
-                  ) : (
-                    <>
-                      <Text color="secondary">
-                        Before: {inlinePlainText(before)}
-                      </Text>
-                      <Text>After: {inlinePlainText(after)}</Text>
-                    </>
-                  )}
-                </VStack>
-              );
-            } catch {
-              return null;
-            }
-          })}
-          <Text color="secondary">
-            Preview shows the final appearance. View source in Document actions
-            to inspect the complete file.
-          </Text>
+          <ReviewChanges
+            destination={`anipotts.com${record.kind === "page" ? (record.id === "home" ? "/" : `/${record.id}`) : `/${record.kind}/${record.id}`}`}
+            before={snapshot.base.source}
+            after={state.source}
+            changes={fields.flatMap((field) => {
+              try {
+                return [
+                  {
+                    label: field.label,
+                    rich: field.rich,
+                    before: String(
+                      parseEditorialSource(snapshot.base.source).document.getIn(
+                        field.path,
+                      ) ?? "",
+                    ),
+                    after: String(
+                      parseEditorialSource(state.source).document.getIn(
+                        field.path,
+                      ) ?? "",
+                    ),
+                  },
+                ];
+              } catch {
+                return [];
+              }
+            })}
+          />
           {state.source !== reviewSource && (
             <Text role="alert">
               The draft changed after this review opened. Open Review changes

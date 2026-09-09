@@ -334,6 +334,10 @@
   .editor-primary-actions > .astryx-button[data-variant="primary"] {
     flex: 1;
   }
+  .editor-primary-actions:not(:has(> .astryx-button[data-variant="primary"])) {
+    width: auto;
+    margin-inline-start: auto;
+  }
 }
 @media (max-width: 640px) {
   .rich-writing .tiptap {
@@ -348,4 +352,44 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   html:not([data-theme="dark"]) .rich-writing .inline-image-white {
     filter: brightness(0);
   }
+}
+
+.editor-destination {
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+.editor-diff-body {
+  padding-block: var(--spacing-3);
+}
+.editor-diff-tools > .astryx-button,
+.editor-diff-heading > .astryx-button {
+  margin-inline-start: auto;
+}
+.editor-inline-diff {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.8;
+}
+.editor-inline-diff ins {
+  color: var(--color-text-primary);
+  background: var(--color-success-muted);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.editor-inline-diff del {
+  color: var(--color-text-primary);
+  background: var(--color-error-muted);
+  text-decoration: line-through;
+}
+.editor-diff-added {
+  color: var(--color-text-primary);
+  background: var(--color-success-muted);
+  padding-inline: var(--spacing-1);
+  border-radius: var(--radius-inner);
+}
+.editor-diff-removed {
+  color: var(--color-text-primary);
+  background: var(--color-error-muted);
+  padding-inline: var(--spacing-1);
+  border-radius: var(--radius-inner);
 }
