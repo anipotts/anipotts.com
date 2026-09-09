@@ -78,6 +78,15 @@
   width: auto;
   flex: 0 1 auto;
 }
+/* Responsive region contract (Astryx `docs layout`, Breakpoints):
+ * <=640: text navigation becomes icon controls; main gutters tighten.
+ * <=480: status joins the record title so the date column remains visible.
+ * <=540 or coarse pointer: controls keep a full touch target.
+ * These are structural viewport budgets, as in Astryx's useMediaQuery examples.
+ * Astryx supplies no theme breakpoint tokens for media-query conditions, and
+ * CSS custom properties cannot be substituted there. Interior sizes use tokens.
+ * CSS keeps the server-rendered table responsive before React hydrates.
+ */
 @media (max-width: 640px) {
   .astryx-top-nav {
     flex-wrap: nowrap;
