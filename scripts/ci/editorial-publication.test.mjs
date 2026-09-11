@@ -240,3 +240,83 @@ test("rejects code paths, oversized source and unsupported signature envelopes",
     /invalid_editorial_publication/,
   );
 });
+
+test("checkout verification accepts both newly added and unchanged reused images", () => {
+  for (const reused of [false, true]) {
+    const cwd = mkdtempSync(join(tmpdir(), "editorial-image-checkout-"));
+    const git = (...args) =>
+      execFileSync("git", args, {
+        cwd,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      }).trim();
+    try {
+      git("init", "-q");
+      git("config", "user.name", "Editorial test");
+      git("config", "user.email", "test@example.invalid");
+      mkdirSync(join(cwd, ".github"));
+      mkdirSync(join(cwd, "content/public/pages"), { recursive: true });
+      mkdirSync(join(cwd, "apps/www/public/images/editorial"), {
+        recursive: true,
+      });
+      writeFileSync(join(cwd, ".github/editorial-publisher.pem"), pem);
+      writeFileSync(join(cwd, path), "original");
+      const imageBytes = Buffer.from("unchanged referenced image bytes");
+      const digest = createHash("sha256").update(imageBytes).digest("hex");
+      const imagePath = `apps/www/public/images/editorial/${digest}.png`;
+      if (reused) {
+        writeFileSync(join(cwd, imagePath), imageBytes);
+        git("add", imagePath);
+      }
+      git("add", ".github/editorial-publisher.pem", path);
+      git("commit", "-qm", "test base");
+      const base = git("rev-parse", "HEAD");
+      if (!reused) writeFileSync(join(cwd, imagePath), imageBytes);
+      const article = Buffer.from(
+        `Article with photo.\n\n![Photo](/images/editorial/${digest}.png)\n`,
+      );
+      writeFileSync(join(cwd, path), article);
+      writeFileSync(
+        join(cwd, "content/publication.json"),
+        signed({
+          ...payload,
+          baseHead: base,
+          files: [
+            {
+              path,
+              sha256: createHash("sha256").update(article).digest("hex"),
+            },
+            { path: imagePath, sha256: digest },
+          ],
+        }),
+      );
+      git("add", path, imagePath, "content/publication.json");
+      git("commit", "-qm", "test image publication");
+      const head = git("rev-parse", "HEAD");
+      const changed = git("diff", "--name-only", base, head).split("\n");
+      assert.equal(changed.includes(imagePath), !reused);
+      const result = spawnSync(
+        process.execPath,
+        [
+          fileURLToPath(
+            new URL("./editorial-publication.mjs", import.meta.url),
+          ),
+        ],
+        {
+          cwd,
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            PUBLISH_BASE: base,
+            PUBLISH_HEAD: head,
+            PUBLISH_BRANCH: `codex/editorial-${payload.operationId}`,
+          },
+        },
+      );
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(JSON.parse(result.stdout).files, 2);
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  }
+});
