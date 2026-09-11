@@ -229,7 +229,14 @@ export function HomeEditor({
     valid = validation.success;
     if (!validation.success)
       for (const issue of validation.error.issues)
-        fieldErrors.set(issue.path.join("."), issue.message);
+        fieldErrors.set(
+          issue.path.join("."),
+          issue.code === "too_small" &&
+            issue.type === "string" &&
+            issue.minimum === 1
+            ? "This field is required."
+            : issue.message,
+        );
   } catch {
     /* Source remains editable and recoverable while malformed. */
   }
