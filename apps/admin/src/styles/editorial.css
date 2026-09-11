@@ -449,7 +449,7 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 }
 .article-composer .tiptap {
   min-height: 24rem;
-  padding: var(--spacing-6);
+  padding: var(--spacing-4);
   outline: none;
   line-height: var(--line-height-relaxed, 1.65);
   overflow-wrap: anywhere;
@@ -463,12 +463,9 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 .article-composer .tiptap img { max-width: 100%; height: auto; border-radius: var(--radius-element); }
 .article-composer .tiptap a { color: var(--color-accent); text-decoration: underline; }
 .article-composer .tiptap pre { white-space: pre-wrap; padding: var(--spacing-3); }
-@media (max-width: 540px) {
-  .article-composer .tiptap { padding: var(--spacing-4); }
-}
 .article-image-preview {
   width: 100%;
   max-height: 24rem;
   object-fit: contain;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-element);
 }

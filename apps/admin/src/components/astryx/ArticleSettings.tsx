@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ArticleDate } from "./ArticleDate";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { Selector } from "@astryxdesign/core/Selector";
 import { FormLayout } from "@astryxdesign/core/FormLayout";
@@ -14,20 +15,19 @@ export function ArticleSettings({
   id,
   disabled,
   onChange,
+  errors,
 }: {
+  errors: Map<string, string>;
   source: string;
   id: string;
   disabled?: boolean;
   onChange: (value: string) => void;
 }) {
-  const data = parseEditorialSource(source).data as {
-    tags?: string[];
-    slug?: string;
-    status?: string;
-    content_type?: string;
-    published_at?: string | Date;
-    scheduled_at?: string | Date;
-  };
+  const data = parseEditorialSource(source).data as Record<string, unknown>;
+  const fieldStatus = (name: string) =>
+    errors.has(name)
+      ? { type: "error" as const, message: errors.get(name) }
+      : undefined;
   const canonicalTags = Array.isArray(data.tags)
     ? data.tags.filter((tag) => typeof tag === "string").join(", ")
     : typeof data.tags === "string"
@@ -46,7 +46,12 @@ export function ArticleSettings({
         <FormLayout>
           <Selector
             label="Type"
-            value={data.content_type ?? "article"}
+            value={
+              typeof data.content_type === "string"
+                ? data.content_type
+                : "article"
+            }
+            status={fieldStatus("content_type")}
             isDisabled={disabled}
             options={[
               { value: "article", label: "Article" },
@@ -57,7 +62,8 @@ export function ArticleSettings({
           />
           <Selector
             label="Visibility after publication"
-            value={data.status ?? "draft"}
+            value={typeof data.status === "string" ? data.status : "draft"}
+            status={fieldStatus("status")}
             isDisabled={disabled}
             description="Changes take effect only after you approve publication."
             options={[
@@ -80,19 +86,21 @@ export function ArticleSettings({
             }}
           />
           {(data.status === "published" || data.status === "scheduled") && (
-            <TextInput
+            <ArticleDate
               label={
                 data.status === "scheduled"
                   ? "Scheduled date"
                   : "Publication date"
               }
-              description="Use an ISO date, for example 2026-09-11T16:00:00Z."
-              value={String(
-                (data.status === "scheduled"
+              value={
+                data.status === "scheduled"
                   ? data.scheduled_at
-                  : data.published_at) ?? "",
+                  : data.published_at
+              }
+              error={errors.get(
+                data.status === "scheduled" ? "scheduled_at" : "published_at",
               )}
-              isDisabled={disabled}
+              disabled={disabled}
               onChange={(value) =>
                 update(
                   data.status === "scheduled" ? "scheduled_at" : "published_at",
@@ -103,6 +111,7 @@ export function ArticleSettings({
           )}
           <TextInput
             label="Tags"
+            status={fieldStatus("tags")}
             value={tags}
             isDisabled={disabled}
             description="Separate tags with commas."
@@ -119,7 +128,10 @@ export function ArticleSettings({
             }}
             onBlur={() => setFocused(false)}
           />
-          <Text color="secondary">Address: /writing/{data.slug || id}</Text>
+          <Text color="secondary">
+            Address: /writing/
+            {typeof data.slug === "string" && data.slug ? data.slug : id}
+          </Text>
         </FormLayout>
       </Collapsible>
     </CollapsibleGroup>

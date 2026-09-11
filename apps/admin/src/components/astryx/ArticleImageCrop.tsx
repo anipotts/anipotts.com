@@ -5,7 +5,8 @@ import { Selector } from "@astryxdesign/core/Selector";
 import { Slider } from "@astryxdesign/core/Slider";
 import { Button } from "@astryxdesign/core/Button";
 import { Banner } from "@astryxdesign/core/Banner";
-import { imageCrop } from "../../lib/image-crop";
+import { Text } from "@astryxdesign/core/Text";
+import { cropOutputSize, imageCrop } from "../../lib/image-crop";
 
 export function ArticleImageCrop({
   file,
@@ -60,9 +61,11 @@ export function ArticleImageCrop({
       x,
       y,
     );
-    target.width = Math.max(1, Math.round(crop.width));
-    target.height = Math.max(1, Math.round(crop.height));
+    const output = cropOutputSize(crop.width, crop.height);
+    target.width = output.width;
+    target.height = output.height;
     const context = target.getContext("2d");
+    if (context) context.imageSmoothingQuality = "high";
     context?.drawImage(
       image,
       crop.x,
@@ -109,6 +112,9 @@ export function ArticleImageCrop({
         role="img"
         aria-label="Selected image crop preview"
       />
+      <Text color="secondary">
+        Crops are saved up to 2 megapixels. Your original image is kept.
+      </Text>
       <Selector
         label="Crop shape"
         value={ratio}

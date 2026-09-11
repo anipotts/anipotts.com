@@ -735,6 +735,7 @@ export function HomeEditor({
                 }}
               />
               <ArticleSettings
+                errors={fieldErrors}
                 source={state.source}
                 id={record.id}
                 disabled={Boolean(snapshot.draft?.discardedAt)}
@@ -925,10 +926,18 @@ export function HomeEditor({
       {!valid && (
         <Banner
           status="warning"
-          title="Source needs correction"
-          description="Fix the source before previewing or publishing. Your edits are retained."
+          title={
+            parseable ? "Complete the draft details" : "Source needs correction"
+          }
+          description={
+            parseable
+              ? "Review the highlighted fields and article settings before previewing or publishing. Your edits are retained."
+              : "Fix the source before previewing or publishing. Your edits are retained."
+          }
           endContent={
-            <Button label="Edit source" onClick={() => setTab("source")} />
+            !parseable && (
+              <Button label="Edit source" onClick={() => setTab("source")} />
+            )
           }
         />
       )}

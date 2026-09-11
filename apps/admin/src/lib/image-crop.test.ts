@@ -1,7 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { imageCrop } from "./image-crop";
+import { cropOutputSize, imageCrop } from "./image-crop";
 
 describe("photographic crops", () => {
+  it("bounds large phone photos while preserving smaller original pixels", () => {
+    expect(cropOutputSize(1179, 663)).toEqual({ width: 1179, height: 663 });
+    for (const [width, height] of [
+      [8064, 6048],
+      [4032, 3024],
+      [12000, 1000],
+      [1000, 12000],
+    ]) {
+      const result = cropOutputSize(width!, height!);
+      expect(Math.max(result.width, result.height)).toBeLessThanOrEqual(2560);
+      // Includes scanline filter bytes and ample deflate/PNG overhead headroom.
+      expect((result.width * 4 + 1) * result.height + 65536).toBeLessThan(
+        10 * 1024 * 1024,
+      );
+      expect(result.width / result.height).toBeCloseTo(width! / height!, 1);
+    }
+  });
   it("keeps every crop inside portrait and landscape originals at every edge", () => {
     for (const [width, height] of [
       [1179, 2091],
