@@ -10,6 +10,8 @@ export type Publication = {
   baseCommit: string;
   baseFileHash: string | null;
   createdAt: number;
+  /** Hydrated from immutable private media only while advancing the publication. */
+  attachments?: Array<{ id: string; base64: string }>;
 };
 
 export type FreezePublication = {

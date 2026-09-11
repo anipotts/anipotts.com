@@ -192,6 +192,18 @@ export const ADMIN_ROUTES = [
     smoke: false,
   },
   {
+    route: "/content/new",
+    file: "apps/admin/src/pages/content/new.astro",
+    nav: false,
+    smoke: false,
+  },
+  {
+    route: "/api/editorial/media",
+    file: "apps/admin/src/pages/api/editorial/media.ts",
+    nav: false,
+    smoke: false,
+  },
+  {
     route: "/api/editorial/record",
     file: "apps/admin/src/pages/api/editorial/[action].ts",
     nav: false,

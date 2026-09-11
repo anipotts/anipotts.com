@@ -1,3 +1,5 @@
+import { Banner } from "@astryxdesign/core/Banner";
+import { NewWriting } from "./NewWriting";
 import React, { useEffect, useState, type ReactNode } from "react";
 const HomeEditor = React.lazy(() =>
   import("./HomeEditor").then((module) => ({ default: module.HomeEditor })),
@@ -73,7 +75,7 @@ export type CatalogRecord = {
   status: string;
   summary?: string;
   section?: string;
-  updated?: { at: string; source: "git" | "local" };
+  updated?: { at: string; source: "git" | "local" | "private" };
 };
 export type CatalogGroup = {
   name: string;
@@ -104,6 +106,8 @@ export type EditorialAppProps = {
   groups?: CatalogGroup[];
   selectedGroup?: string;
   review?: Review;
+  inventoryError?: boolean;
+  newWriting?: boolean;
   editHome?: boolean;
   editorRecord?: import("@anipotts/content/editorial/source").EditorialRecord;
   children?: ReactNode;
@@ -153,7 +157,11 @@ function Updated({
         tooltipEntries={[
           {
             label:
-              updated.source === "local" ? "Local edit" : "Latest Git change",
+              updated.source === "private"
+                ? "Private draft saved"
+                : updated.source === "local"
+                  ? "Local edit"
+                  : "Latest Git change",
             timezoneID: "UTC",
             format: "full",
           },
@@ -239,6 +247,8 @@ export function EditorialApp({
   selectedGroup,
   review,
   editHome,
+  newWriting,
+  inventoryError,
   editorRecord,
   children,
 }: EditorialAppProps) {
@@ -318,22 +328,54 @@ export function EditorialApp({
         }
       >
         <VStack gap={6} className="editorial-content">
-          {(review || editHome || editorRecord) && (
+          {(review || editHome || editorRecord || newWriting) && (
             <Breadcrumbs variant="supporting">
               <BreadcrumbItem
                 href={
                   review?.back ??
-                  (area === "newsletter" ? "/newsletter" : "/content")
+                  (area === "newsletter"
+                    ? "/newsletter"
+                    : editorRecord?.kind === "writing" || newWriting
+                      ? "/content?group=writing"
+                      : "/content")
                 }
               >
-                {area === "newsletter" ? "Newsletter" : "Content"}
+                {area === "newsletter"
+                  ? "Newsletter"
+                  : editorRecord?.kind === "writing" || newWriting
+                    ? "Writing"
+                    : "Content"}
               </BreadcrumbItem>
               <BreadcrumbItem isCurrent>{title}</BreadcrumbItem>
             </Breadcrumbs>
           )}
-          {(groups || review || children) && (
-            <Heading level={1}>{title}</Heading>
+          {(groups || review || children || newWriting || editorRecord) && (
+            <HStack gap={3} hAlign="between" vAlign="center" wrap="wrap">
+              <Heading level={1}>
+                {newWriting
+                  ? "New article"
+                  : groups && selectedGroup === "writing"
+                    ? "Writing"
+                    : title}
+              </Heading>
+              {groups && selectedGroup === "writing" && (
+                <Button
+                  label="New article"
+                  href="/content/new"
+                  variant="primary"
+                  size="sm"
+                />
+              )}
+            </HStack>
           )}
+          {inventoryError && (
+            <Banner
+              status="warning"
+              title="Private drafts couldn’t be loaded"
+              description="Published records are still available. Reload to try your private drafts again."
+            />
+          )}
+          {newWriting && <NewWriting />}
           {groups && <Catalog groups={groups} selectedGroup={selectedGroup} />}
           {(editHome || editorRecord) && (
             <React.Suspense
@@ -435,6 +477,9 @@ export function EditorialApp({
           )}
           {!groups &&
             !review &&
+            !newWriting &&
+            !editorRecord &&
+            !editHome &&
             (children || (
               <EmptyState
                 title={title}
@@ -480,7 +525,7 @@ function Catalog({
       group.records,
       query,
       status,
-      sectionOptions.length ? sections : undefined,
+      sectionOptions.length > 1 ? sections : undefined,
     ),
   );
   const statuses = [...new Set(group.records.map((item) => item.status))];

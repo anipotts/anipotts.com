@@ -4,6 +4,7 @@ import { EditorialGitHub } from "./github";
 import { publisherInstallationToken } from "./github-app";
 import { signPublication } from "./publication-signature";
 import { releaseReadiness, verifyPublishedContent } from "./release";
+import { newWritingSource } from "../lib/writing-draft";
 
 /** Parse deployment-owned bindings. Browser input cannot select identities,
  * repositories, keys, release origins or an enabled publisher.
@@ -54,7 +55,14 @@ export function editorialRuntime(
     ) => verifyPublishedContent(publication, merge, git, transport),
     async readBase(record: EditorialRecord) {
       const base = await git.readBase(record);
-      if (!base.file) throw new Error("record_not_found");
+      if (!base.file) {
+        if (record.kind !== "writing") throw new Error("record_not_found");
+        return {
+          baseCommit: base.head,
+          baseFileHash: null,
+          source: newWritingSource(),
+        };
+      }
       return {
         baseCommit: base.head,
         baseFileHash: base.file.sha,

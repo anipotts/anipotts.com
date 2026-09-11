@@ -122,3 +122,69 @@ it("fails before token minting or GitHub writes when signing is unavailable", as
   expect(tokenCalls).toBe(0);
   expect(requests).toBe(0);
 });
+
+it("commits an image and its signed content reference in the same Git tree", async () => {
+  const keys = await generateKeyPair("RS256", { extractable: true });
+  const privateKey = await exportPKCS8(keys.privateKey);
+  const image = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 1, 2, 3]);
+  const digest = createHash("sha256").update(image).digest("hex");
+  const id = `${digest}.png`;
+  const snapshot = {
+    ...publication,
+    source: `${publication.source}\n![Photo](/images/editorial/${id})`,
+    attachments: [{ id, base64: image.toString("base64") }],
+  };
+  const calls: string[] = [];
+  const client = new EditorialGitHub(
+    async () => "synthetic",
+    async (url, init) => {
+      const path = new URL(String(url)).pathname;
+      calls.push(path);
+      const body = JSON.parse(String(init?.body));
+      if (path.endsWith("/git/blobs")) {
+        expect(body).toEqual({
+          encoding: "base64",
+          content: image.toString("base64"),
+        });
+        return Response.json({ sha: "1".repeat(40) }, { status: 201 });
+      }
+      if (path.endsWith("/git/trees")) {
+        expect(body.tree).toHaveLength(3);
+        expect(body.tree[0].content).toBe(snapshot.source);
+        expect(body.tree[1]).toEqual({
+          path: `apps/www/public/images/editorial/${id}`,
+          mode: "100644",
+          type: "blob",
+          sha: "1".repeat(40),
+        });
+        const verified = await flattenedVerify(
+          JSON.parse(body.tree[2].content),
+          keys.publicKey,
+          { algorithms: ["RS256"] },
+        );
+        expect(
+          JSON.parse(new TextDecoder().decode(verified.payload)).files,
+        ).toContainEqual({
+          path: `apps/www/public/images/editorial/${id}`,
+          sha256: digest,
+        });
+        return Response.json({ sha: "e".repeat(40) }, { status: 201 });
+      }
+      expect(path.endsWith("/git/commits")).toBe(true);
+      expect(body.parents).toEqual([base.head]);
+      return Response.json({ sha: "f".repeat(40) }, { status: 201 });
+    },
+    (value, head) => signPublication(value, head, privateKey),
+  );
+  expect(await client.createCommit(snapshot, base)).toBe("f".repeat(40));
+  expect(calls.map((path) => path.split("/").at(-1))).toEqual([
+    "blobs",
+    "trees",
+    "commits",
+  ]);
+  calls.length = 0;
+  await expect(
+    client.createCommit({ ...snapshot, attachments: [] }, base),
+  ).rejects.toThrow();
+  expect(calls).toEqual([]);
+});

@@ -7,6 +7,8 @@ import "@fontsource-variable/instrument-sans";
 import "../styles/editorial.css";
 import "../styles/scrollbars.css";
 import { publicSiteUrl, editorialInventory } from "../lib/editorial-content";
+import { privateWritingRecords } from "../lib/writing-inventory";
+import { productionEditor } from "../lib/editorial-server";
 import {
   EditorialApp,
   type EditorialAppProps,
@@ -44,9 +46,37 @@ const searchEntries = [
   href: `/content/${entry.collection}/${encodeURIComponent(entry.id)}`,
   keywords: [entry.id, entry.collection],
 }));
+let privateSearchUnavailable = false;
+try {
+  const storage = import.meta.env.DEV
+    ? await (await import("../lib/editorial-local")).localDraftStorage()
+    : productionEditor(Astro.locals.runtime?.env)?.storage;
+  if (!storage) throw new Error("storage_unavailable");
+  for (const record of privateWritingRecords(
+    await storage.listWritingDrafts(),
+  )) {
+    if (searchEntries.some((entry) => entry.href === record.href)) continue;
+    searchEntries.push({
+      id: `private:${record.href}`,
+      label: record.title,
+      domain: "content",
+      kind: "writing",
+      currentFact: "draft",
+      source: "private content inventory",
+      freshness: "current",
+      href: record.href,
+      keywords: [record.title, "writing", "draft"],
+    });
+  }
+} catch {
+  privateSearchUnavailable = true;
+}
 const appProps = {
   searchEntries,
   ...Astro.props,
+  inventoryError: Boolean(
+    Astro.props.inventoryError || privateSearchUnavailable,
+  ),
   area,
   siteUrl: publicSiteUrl,
   initialMode,

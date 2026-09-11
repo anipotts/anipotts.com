@@ -1,7 +1,26 @@
 ---
 import EditorialLayout from "../../layouts/EditorialLayout.astro";
 import { editorialInventory, recordUpdate } from "../../lib/editorial-content";
+import { productionEditor } from "../../lib/editorial-server";
+import { privateWritingRecords } from "../../lib/writing-inventory";
 const { pages, projects, writing } = await editorialInventory();
+let privateRecords: import("../../components/astryx/EditorialApp").CatalogRecord[] =
+  [];
+let inventoryError = false;
+try {
+  const storage = import.meta.env.DEV
+    ? await (await import("../../lib/editorial-local")).localDraftStorage()
+    : productionEditor(Astro.locals.runtime?.env)?.storage;
+  if (!storage) throw new Error("storage_unavailable");
+  privateRecords = privateWritingRecords(
+    await storage.listWritingDrafts(),
+  ).filter(
+    (record) =>
+      !writing.some((item) => record.href === `/content/writing/${item.id}`),
+  );
+} catch {
+  inventoryError = true;
+}
 const sections = {
   home: "home",
   projects: "work",
@@ -15,19 +34,22 @@ const groups = [
   {
     name: "pages",
     href: "/content?group=pages",
-    records: [...pages, ...projects, ...writing].map((item) => ({
-      section: sections[item.collection],
-      title: "title" in item.data ? item.data.title : item.id,
-      status:
-        item.collection === "projects"
-          ? item.data.public_state
-          : item.collection === "writing" ||
-              item.collection === "newsletterPage"
-            ? item.data.status
-            : "published",
-      href: `/content/${item.collection}/${encodeURIComponent(item.id)}`,
-      updated: recordUpdate(item.collection, item.id),
-    })),
+    records: [
+      ...privateRecords,
+      ...[...pages, ...projects, ...writing].map((item) => ({
+        section: sections[item.collection],
+        title: "title" in item.data ? item.data.title : item.id,
+        status:
+          item.collection === "projects"
+            ? item.data.public_state
+            : item.collection === "writing" ||
+                item.collection === "newsletterPage"
+              ? item.data.status
+              : "published",
+        href: `/content/${item.collection}/${encodeURIComponent(item.id)}`,
+        updated: recordUpdate(item.collection, item.id),
+      })),
+    ],
   },
   {
     name: "work",
@@ -42,12 +64,15 @@ const groups = [
   {
     name: "writing",
     href: "/content?group=writing",
-    records: writing.map((item) => ({
-      title: item.data.title,
-      status: item.data.status,
-      href: `/content/${item.collection}/${encodeURIComponent(item.id)}`,
-      updated: recordUpdate(item.collection, item.id),
-    })),
+    records: [
+      ...privateRecords,
+      ...writing.map((item) => ({
+        title: item.data.title,
+        status: item.data.status,
+        href: `/content/${item.collection}/${encodeURIComponent(item.id)}`,
+        updated: recordUpdate(item.collection, item.id),
+      })),
+    ],
   },
   {
     name: "systems",
@@ -65,6 +90,7 @@ const groups = [
 ---
 
 <EditorialLayout
+  inventoryError={inventoryError}
   title="content"
   groups={groups}
   selectedGroup={Astro.url.searchParams.get("group") ?? "pages"}

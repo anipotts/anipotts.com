@@ -150,3 +150,58 @@ it("rejects missing, spoofed, malformed or oversized health receipts", async () 
     liveRelease(async () => new Response("x".repeat(5000))),
   ).rejects.toMatchObject({ code: "invalid_response" });
 });
+it("verifies deployed image bytes and rejects missing, substituted or wrong-type media", async () => {
+  const image = Buffer.from("exact image bytes");
+  const id = `${createHash("sha256").update(image).digest("hex")}.png`;
+  const source = `${publication.source}\n![Photo](/images/editorial/${id})`;
+  const git = {
+    compare: vi.fn().mockResolvedValue([]),
+    readBase: vi.fn().mockResolvedValue({
+      head: later,
+      tree: head,
+      file: {
+        sha: createHash("sha1")
+          .update(`blob ${Buffer.byteLength(source)}\0`)
+          .update(source)
+          .digest("hex"),
+        mode: "100644",
+        type: "blob",
+        path: publication.path,
+      },
+    }),
+  };
+  for (const [status, body, contentType, expected] of [
+    [200, image, "image/png", true],
+    [404, image, "image/png", false],
+    [200, Buffer.from("changed image"), "image/png", false],
+    [200, image, "text/html", false],
+  ] as const) {
+    const transport: typeof fetch = async (url) =>
+      String(url).endsWith("/api/health")
+        ? health(later)
+        : String(url).includes("/images/editorial/")
+          ? new Response(body, {
+              status,
+              headers: { "Content-Type": contentType },
+            })
+          : new Response("page");
+    expect(
+      await verifyPublishedContent(
+        { ...publication, source },
+        head,
+        git,
+        transport,
+      ),
+    ).toBe(expected);
+  }
+});
+it("permits already deployed immutable content images without requiring a new renderer", async () => {
+  const compare = vi
+    .fn()
+    .mockResolvedValue([
+      `apps/www/public/images/editorial/${"a".repeat(64)}.jpg`,
+    ]);
+  expect(
+    await releaseReadiness({ compare }, head, async () => health(later))(later),
+  ).toEqual({ ready: true, head: later });
+});

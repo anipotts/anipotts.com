@@ -7,6 +7,8 @@ const sha = /^[a-f0-9]{40}$/;
 const uuid = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
 const allowedPath =
   /^content\/public\/(?:pages\/(?:home|work|writing|systems|newsletter)|(?:projects|writing)\/[a-z0-9]+(?:-[a-z0-9]+)*)\.md$/;
+const imagePath =
+  /^apps\/www\/public\/images\/editorial\/([a-f0-9]{64})\.(?:jpg|png|webp)$/;
 const reject = () => {
   throw new Error("invalid_editorial_publication");
 };
@@ -75,25 +77,57 @@ export function verifyPublication({
     !sha.test(payload.baseHead) ||
     payload.baseHead !== baseHead ||
     !Array.isArray(payload.files) ||
-    payload.files.length !== 1 ||
+    payload.files.length < 1 ||
+    payload.files.length > 11 ||
     !Array.isArray(files) ||
     files.length !== payload.files.length
   )
     reject();
-  const expected = payload.files[0];
-  const actual = files[0];
   if (
-    !expected ||
-    !allowedPath.test(expected.path) ||
-    !/^[a-f0-9]{64}$/.test(expected.sha256) ||
-    actual.path !== expected.path ||
-    actual.mode !== "100644" ||
-    actual.type !== "blob" ||
-    !Buffer.isBuffer(actual.bytes) ||
-    actual.bytes.length > 512 * 1024 ||
-    createHash("sha256").update(actual.bytes).digest("hex") !== expected.sha256
+    new Set(payload.files.map((file) => file?.path)).size !==
+      payload.files.length ||
+    payload.files.filter((file) => allowedPath.test(file?.path)).length !== 1
   )
     reject();
+  let mediaBytes = 0;
+  for (const expected of payload.files) {
+    const actual = files.find((file) => file.path === expected?.path);
+    const image = imagePath.exec(expected?.path);
+    if (
+      !expected ||
+      (!allowedPath.test(expected.path) && !image) ||
+      !/^[a-f0-9]{64}$/.test(expected.sha256) ||
+      !actual ||
+      actual.mode !== "100644" ||
+      actual.type !== "blob" ||
+      !Buffer.isBuffer(actual.bytes) ||
+      actual.bytes.length > (image ? 10 * 1024 * 1024 : 512 * 1024) ||
+      createHash("sha256").update(actual.bytes).digest("hex") !==
+        expected.sha256
+    )
+      reject();
+    if (image) {
+      mediaBytes += actual.bytes.length;
+      if (image[1] !== expected.sha256 || mediaBytes > 10 * 1024 * 1024)
+        reject();
+    }
+  }
+  const content = files.find((file) => allowedPath.test(file.path));
+  const references = [
+    ...new Set(
+      Array.from(
+        content.bytes
+          .toString("utf8")
+          .matchAll(/\/images\/editorial\/([a-f0-9]{64}\.(?:jpg|png|webp))/g),
+        (match) => `apps/www/public/images/editorial/${match[1]}`,
+      ),
+    ),
+  ].sort();
+  const images = files
+    .filter((file) => imagePath.test(file.path))
+    .map((file) => file.path)
+    .sort();
+  if (JSON.stringify(references) !== JSON.stringify(images)) reject();
   return {
     operationId: payload.operationId,
     revision: payload.revision,
@@ -103,7 +137,7 @@ export function verifyPublication({
 
 function git(...args) {
   return execFileSync("git", args, {
-    maxBuffer: 2 * 1024 * 1024,
+    maxBuffer: 12 * 1024 * 1024,
     stdio: ["ignore", "pipe", "pipe"],
   });
 }
@@ -117,9 +151,39 @@ export function verifyCheckout({ base, head, branch }) {
     .toString()
     .split("\0")
     .filter(Boolean);
-  if (changed.length !== 2 || !changed.includes(manifestPath)) reject();
-  const paths = changed.filter((path) => path !== manifestPath);
-  if (paths.some((path) => !allowedPath.test(path))) reject();
+  if (
+    changed.length < 2 ||
+    changed.length > 12 ||
+    !changed.includes(manifestPath)
+  )
+    reject();
+  const envelope = git("show", `${head}:${manifestPath}`).toString();
+  let declarations;
+  try {
+    if (envelope.length > 32_768) reject();
+    declarations = JSON.parse(
+      Buffer.from(JSON.parse(envelope).payload, "base64url").toString("utf8"),
+    ).files;
+  } catch {
+    reject();
+  }
+  if (
+    !Array.isArray(declarations) ||
+    declarations.length < 1 ||
+    declarations.length > 11
+  )
+    reject();
+  const paths = declarations.map((file) => file?.path);
+  if (
+    paths.some(
+      (path) =>
+        typeof path !== "string" ||
+        (!allowedPath.test(path) && !imagePath.test(path)),
+    ) ||
+    changed.some((path) => path !== manifestPath && !paths.includes(path)) ||
+    !changed.some((path) => allowedPath.test(path))
+  )
+    reject();
   const files = paths.map((path) => {
     const entry = git("ls-tree", head, "--", path).toString();
     const match = /^(\d+) (blob) ([a-f0-9]{40})\t/.exec(entry);
@@ -132,7 +196,7 @@ export function verifyCheckout({ base, head, branch }) {
     };
   });
   return verifyPublication({
-    envelope: git("show", `${head}:${manifestPath}`).toString(),
+    envelope,
     publicKey: git(
       "show",
       `${base}:.github/editorial-publisher.pem`,

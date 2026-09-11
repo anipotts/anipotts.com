@@ -5,6 +5,7 @@ import {
 } from "./lib/access-identity";
 import { privateEditorialResponse } from "./lib/editorial-security";
 import { publicSiteUrl } from "./lib/editorial-content";
+import { editorialImagePreview } from "./lib/editorial-media";
 import {
   isApprovedDevPreviewOrigin,
   isDevLoopbackPreviewRequest,
@@ -47,11 +48,19 @@ export const onRequest = defineMiddleware(async (context, next) => {
       response.headers.get("Content-Type")?.includes("text/html")
     ) {
       // Existing public assets are served by www; drafts never acquire public URLs.
-      const html = (await response.text()).replace(
-        /(src|poster)="(\/(?:images|media|fonts)\/[^"<>]*)"/g,
-        (_match, attribute, path) =>
-          `${attribute}="${new URL(path, import.meta.env.DEV ? context.url : publicSiteUrl).href}"`,
-      );
+      const html = (await response.text())
+        .replace(
+          /(src|poster)="(\/(?:images|media|fonts)\/[^"<>]*)"/g,
+          (_match, attribute, path) => {
+            const preview = editorialImagePreview(path);
+            return `${attribute}="${new URL(preview, preview !== path || import.meta.env.DEV ? context.url : publicSiteUrl).href}"`;
+          },
+        )
+        .replace(
+          /<a(\s[^>]*?)href="(\/(?!\/)[^"<>]*)"/g,
+          (_match, attributes, path) =>
+            `<a${attributes}href="${new URL(path, publicSiteUrl).href}"`,
+        );
       response = new Response(html, {
         status: response.status,
         headers: response.headers,

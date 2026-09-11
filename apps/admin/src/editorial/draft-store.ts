@@ -1,4 +1,10 @@
 import { DurableObject } from "cloudflare:workers";
+import { EditorialMediaStore } from "./media-store";
+import {
+  referencedMediaIds,
+  MAX_PUBLICATION_IMAGES,
+  MAX_PUBLICATION_MEDIA_BYTES,
+} from "../lib/editorial-media";
 import { createHash } from "node:crypto";
 import { PublicationJobs, type PublishJob } from "./publication-jobs";
 import { publicationAlarm } from "./publication-alarm";
@@ -56,6 +62,12 @@ const retainedRevisions = 100;
 
 /** One object per site/environment is the serialization boundary for its editor. */
 export class EditorialDraftStore extends DurableObject<unknown> {
+  async saveMedia(bytes: Uint8Array) {
+    return new EditorialMediaStore(this.ctx.storage).save(bytes);
+  }
+  async readMedia(id: string) {
+    return new EditorialMediaStore(this.ctx.storage).read(id);
+  }
   private jobs: PublicationJobs;
   async startPublication(input: FreezePublication): Promise<FreezeResult> {
     // Arm first: interruption before freezing leaves only a harmless empty wake.
@@ -78,6 +90,24 @@ export class EditorialDraftStore extends DurableObject<unknown> {
           return { blocked: "publisher_not_configured" };
         const publication = this.readPublication(job.id);
         if (!publication) return { blocked: "publication_missing" };
+        if (job.phase === "validate" || job.phase === "commit") {
+          const ids = referencedMediaIds(publication.source);
+          if (ids.length > MAX_PUBLICATION_IMAGES)
+            return { blocked: "too_many_images" };
+          let total = 0;
+          publication.attachments = [];
+          for (const id of ids) {
+            const media = await this.readMedia(id);
+            if (!media) return { blocked: "publication_image_missing" };
+            total += media.bytes.length;
+            if (total > MAX_PUBLICATION_MEDIA_BYTES)
+              return { blocked: "publication_images_too_large" };
+            publication.attachments.push({
+              id,
+              base64: Buffer.from(media.bytes).toString("base64"),
+            });
+          }
+        }
         return publicationStage(
           job,
           publication,
@@ -224,6 +254,15 @@ export class EditorialDraftStore extends DurableObject<unknown> {
 
   async get(record: EditorialRecord): Promise<Draft | null> {
     return this.read(editorialRecordPath(record));
+  }
+
+  /** Owner-only inventory. Draft source never enters a public content collection. */
+  async listWritingDrafts(): Promise<Draft[]> {
+    return this.ctx.storage.sql
+      .exec<Draft>(
+        "SELECT * FROM drafts WHERE key LIKE 'content/public/writing/%' AND discardedAt IS NULL ORDER BY updatedAt DESC",
+      )
+      .toArray();
   }
 
   /** Only the authenticated publish route may call this, after disclosure consent.
