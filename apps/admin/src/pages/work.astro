@@ -1,5 +1,7 @@
 ---
 import { Timestamp } from "@astryxdesign/core/Timestamp";
+import { Banner } from "@astryxdesign/core/Banner";
+import { EmptyState } from "@astryxdesign/core/EmptyState";
 import AdminLayout from "../layouts/AdminLayout.astro";
 import { SourceMark } from "../components/SourceMark";
 import { OperatorWorkTable } from "../components/astryx/OperatorWorkTable";
@@ -20,6 +22,7 @@ if (!Astro.url.searchParams.has("view")) {
 }
 
 const projection = readOperatorWorkProjection();
+const unavailable = projection.mode === "disconnected";
 assertValidOperatorWorkProjection(projection);
 
 const groups = groupOperatorTasks(projection);
@@ -64,12 +67,18 @@ const semanticReferences = projection.task_states.flatMap((task) =>
             ? "Projects"
             : view === "history"
               ? "Work history"
-              : visibleRows.some((task) => task.source_state === "verified")
-                ? "Currently working"
-                : "Last verified work"
+              : unavailable
+                ? "Work"
+                : visibleRows.some((task) => task.source_state === "verified")
+                  ? "Currently working"
+                  : "Last verified work"
         }
       </h1>
-      <span>{visibleRows.length} visible</span>
+      <span
+        >{
+          unavailable ? "Source unavailable" : `${visibleRows.length} visible`
+        }</span
+      >
     </header>
 
     <nav class="quiet-view-tabs" aria-label="work views">
@@ -95,10 +104,24 @@ const semanticReferences = projection.task_states.flatMap((task) =>
 
     <section class="operator-ledger" aria-label="current work">
       {
-        visibleRows.length > 0 ? (
+        unavailable ? (
+          <>
+            <Banner
+              status="warning"
+              title="Work source unavailable"
+              description="Current tasks cannot be shown until the work feed is connected. Source status is available in System."
+            />
+            <a href="/system">View source status</a>
+          </>
+        ) : visibleRows.length > 0 ? (
           <OperatorWorkTable rows={visibleRows} client:load />
         ) : (
-          <p class="quiet-empty-state">Nothing here yet.</p>
+          <EmptyState
+            title={
+              view === "history" ? "No completed work yet" : "No work to show"
+            }
+            description="Choose another view to see other tracked work."
+          />
         )
       }
     </section>
