@@ -4,6 +4,14 @@ import { EditorialGitHub, GitHubFailure } from "./github";
 import type { Publication } from "./publication";
 import type { ReleaseReadiness } from "./publication-stage";
 
+import {
+  editorialMediaGitPrefix,
+  editorialMediaId,
+  editorialMediaPrefix,
+  referencedMediaIds,
+  MAX_PUBLICATION_MEDIA_BYTES,
+} from "../lib/editorial-media";
+
 const sha = /^[a-f0-9]{40}$/;
 const origin = "https://anipotts.com";
 const isNonRuntimeChange = (path: string) =>
@@ -71,6 +79,10 @@ export function releaseReadiness(
       changes.some(
         (path) =>
           !path.startsWith("content/public/") &&
+          !(
+            path.startsWith(editorialMediaGitPrefix) &&
+            editorialMediaId.test(path.slice(editorialMediaGitPrefix.length))
+          ) &&
           path !== "content/publication.json" &&
           !isNonRuntimeChange(path),
       )
@@ -143,8 +155,44 @@ export async function verifyPublishedContent(
     signal: AbortSignal.timeout(15_000),
   });
   await response.body?.cancel();
-  return (
-    response.status === (hidden ? 404 : 200) &&
-    (await liveRelease(transport)) === live
-  );
+  if (response.status !== (hidden ? 404 : 200)) return false;
+  let mediaBytes = 0;
+  for (const id of referencedMediaIds(publication.source)) {
+    const image = await transport(`${origin}${editorialMediaPrefix}${id}`, {
+      redirect: "manual",
+      cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
+    });
+    const expectedType = id.endsWith(".jpg")
+      ? "image/jpeg"
+      : id.endsWith(".png")
+        ? "image/png"
+        : "image/webp";
+    if (
+      !image.ok ||
+      !image.body ||
+      image.headers.get("Content-Type")?.split(";")[0] !== expectedType
+    ) {
+      await image.body?.cancel();
+      return false;
+    }
+    const reader = image.body.getReader();
+    const digest = createHash("sha256");
+    try {
+      while (true) {
+        const part = await reader.read();
+        if (part.done) break;
+        mediaBytes += part.value.byteLength;
+        if (mediaBytes > MAX_PUBLICATION_MEDIA_BYTES) {
+          await reader.cancel();
+          return false;
+        }
+        digest.update(part.value);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    if (digest.digest("hex") !== id.split(".")[0]) return false;
+  }
+  return (await liveRelease(transport)) === live;
 }

@@ -5,6 +5,7 @@ import {
   validateEditorialSource,
 } from "@anipotts/content/editorial/source";
 import type { EditorialDraftStore } from "../editorial/draft-store";
+import { newWritingSource } from "./writing-draft";
 import {
   checkEditorialMutation,
   issueEditorialCsrf,
@@ -16,7 +17,7 @@ export const homeRecord = { kind: "page", id: "home" } as const;
 export type HomeBase = {
   source: string;
   baseCommit: string;
-  baseFileHash: string;
+  baseFileHash: string | null;
 };
 export type DraftStorage = Pick<
   EditorialDraftStore,
@@ -94,6 +95,31 @@ export async function homeEditorApi(
   )
     return json({ error: "invalid_revision" }, 400);
   const expectedRevision = Number(body.expectedRevision);
+  if (action === "create") {
+    if (
+      record.kind !== "writing" ||
+      expectedRevision !== 0 ||
+      !("title" in body) ||
+      typeof body.title !== "string" ||
+      !body.title.trim() ||
+      body.title.length > 300 ||
+      !("requestId" in body) ||
+      typeof body.requestId !== "string"
+    )
+      return json({ error: "invalid_request" }, 400);
+    const base = await readBase(record);
+    if (base.baseFileHash !== null)
+      return json({ error: "record_exists" }, 409);
+    const result = await storage.save({
+      record,
+      source: newWritingSource(body.title),
+      expectedRevision: 0,
+      requestId: body.requestId,
+      baseCommit: base.baseCommit,
+      baseFileHash: null,
+    });
+    return json(result, result.ok ? 201 : 409);
+  }
   if (
     action === "publish" ||
     action === "retry-publication" ||

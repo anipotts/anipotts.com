@@ -1,3 +1,6 @@
+import { ArticleBody } from "./ArticleBody";
+import { writingReviewChanges } from "../../lib/writing-review";
+import { ArticleSettings } from "./ArticleSettings";
 import React, { useEffect, useRef, useState } from "react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
@@ -194,10 +197,18 @@ export function HomeEditor({
   let values: string[] = [];
   let parseable = false;
   let valid = false;
+  let destinationId = record.id;
   const fieldErrors = new Map<string, string>();
   try {
     const parsed = parseEditorialSource(state.source);
     parseable = true;
+    const configuredSlug = (parsed.data as Record<string, unknown>).slug;
+    if (
+      record.kind !== "page" &&
+      typeof configuredSlug === "string" &&
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(configuredSlug)
+    )
+      destinationId = configuredSlug;
     fields = editorialFields(record, parsed.data);
     values = fields.map((field) =>
       String(parsed.document.getIn(field.path) ?? ""),
@@ -710,36 +721,62 @@ export function HomeEditor({
               />
             ),
           )}
+          {record.kind === "writing" && parseable && (
+            <>
+              <ArticleBody
+                value={parseEditorialSource(state.source).body}
+                disabled={Boolean(snapshot.draft?.discardedAt)}
+                onChange={(body) => {
+                  const source = editor.current!.state.source;
+                  const oldBody = parseEditorialSource(source).body;
+                  editor.current!.edit(
+                    source.slice(0, source.length - oldBody.length) + body,
+                  );
+                }}
+              />
+              <ArticleSettings
+                source={state.source}
+                id={record.id}
+                disabled={Boolean(snapshot.draft?.discardedAt)}
+                onChange={(source) => editor.current!.edit(source)}
+              />
+            </>
+          )}
         </FormLayout>
       )}
       {tab === "publish" && (
         <VStack gap={4} className="editor-review">
           <ReviewChanges
-            destination={`anipotts.com${record.kind === "page" ? (record.id === "home" ? "/" : `/${record.id}`) : `/${record.kind}/${record.id}`}`}
+            destination={`anipotts.com${record.kind === "page" ? (record.id === "home" ? "/" : `/${record.id}`) : `/${record.kind}/${destinationId}`}`}
             before={snapshot.base.source}
             after={state.source}
-            changes={fields.flatMap((field) => {
-              try {
-                return [
-                  {
-                    label: field.label,
-                    rich: field.rich,
-                    before: String(
-                      parseEditorialSource(snapshot.base.source).document.getIn(
-                        field.path,
-                      ) ?? "",
-                    ),
-                    after: String(
-                      parseEditorialSource(state.source).document.getIn(
-                        field.path,
-                      ) ?? "",
-                    ),
-                  },
-                ];
-              } catch {
-                return [];
-              }
-            })}
+            changes={[
+              ...fields.flatMap((field) => {
+                try {
+                  return [
+                    {
+                      label: field.label,
+                      rich: field.rich,
+                      before: String(
+                        parseEditorialSource(
+                          snapshot.base.source,
+                        ).document.getIn(field.path) ?? "",
+                      ),
+                      after: String(
+                        parseEditorialSource(state.source).document.getIn(
+                          field.path,
+                        ) ?? "",
+                      ),
+                    },
+                  ];
+                } catch {
+                  return [];
+                }
+              }),
+              ...(record.kind === "writing" && parseable
+                ? writingReviewChanges(snapshot.base.source, state.source)
+                : []),
+            ]}
           />
           {state.source !== reviewSource && (
             <Banner

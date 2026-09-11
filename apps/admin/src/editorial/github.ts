@@ -1,5 +1,6 @@
 import { preparePublication, type GitBase } from "./prepare-publication";
 import type { Publication } from "./publication";
+import { publicationMediaFiles } from "./publication-media";
 import {
   editorialRecordPath,
   editorialRecordSchema,
@@ -873,11 +874,22 @@ export class EditorialGitHub {
     } catch {
       throw new GitHubFailure("unauthorized");
     }
+    const images = [];
+    for (const file of publicationMediaFiles(publication)) {
+      const sha = await this.returnedSha(
+        await this.request("/git/blobs", "POST", {
+          content: file.bytes.toString("base64"),
+          encoding: "base64",
+        }),
+      );
+      images.push({ path: file.path, mode: "100644", type: "blob", sha });
+    }
     const tree = await this.returnedSha(
       await this.request("/git/trees", "POST", {
         base_tree: plan.baseTree,
         tree: [
           plan.file,
+          ...images,
           {
             path: "content/publication.json",
             mode: "100644",

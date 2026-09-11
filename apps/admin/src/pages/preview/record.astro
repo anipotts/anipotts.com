@@ -1,4 +1,5 @@
 ---
+import { renderArticlePreview } from "../../lib/article-preview";
 import { getEntry } from "astro:content";
 import {
   editorialRecordSchema,
@@ -54,14 +55,14 @@ let writing: Writing | undefined;
 let project: Project | undefined;
 if (record.kind === "writing") {
   const original = await getEntry("writing", record.id);
-  if (!original)
-    return new Response("Writing record unavailable", { status: 404 });
-  if (body.trim() !== (original.body ?? "").trim())
-    return new Response(
-      "This preview covers titles, subtitles, and formatting. The article body also changed; review those edits in Source before publishing.",
-      { status: 409 },
-    );
-  writing = { ...original, data: writingSchema.parse(data) };
+  writing = {
+    ...original,
+    id: record.id,
+    collection: "writing",
+    body,
+    data: writingSchema.parse(data),
+    rendered: { html: await renderArticlePreview(body) },
+  };
 } else if (record.kind === "work") {
   const original = await getEntry("projects", record.id);
   if (!original) return new Response("Project unavailable", { status: 404 });

@@ -225,7 +225,7 @@
 }
 .rich-writing .tiptap {
   padding: var(--spacing-4);
-  min-height: 9rem;
+  min-height: 4.5rem;
   outline: none;
   line-height: 1.8;
   font-size: var(--font-size-lg);
@@ -432,4 +432,43 @@ html[data-theme="light"] .rich-writing .inline-image-white {
     flex-wrap: wrap;
     justify-content: flex-end;
   }
+}
+
+/* Writing uses a single readable column; controls wrap rather than squeeze it. */
+.new-writing-form { width: 100%; max-width: 40rem; }
+.article-composer {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-element);
+  background: var(--color-background-surface);
+  overflow: hidden;
+}
+.article-composer:focus-within { border-color: var(--color-accent); }
+.article-composer .astryx-toolbar {
+  padding: var(--spacing-2);
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+.article-composer .tiptap {
+  min-height: 24rem;
+  padding: var(--spacing-6);
+  outline: none;
+  line-height: var(--line-height-relaxed, 1.65);
+  overflow-wrap: anywhere;
+}
+.article-composer .tiptap > * + * { margin-top: var(--spacing-4); }
+.article-composer .tiptap h2 { font-size: var(--text-heading-2-size); font-weight: var(--font-weight-semibold); }
+.article-composer .tiptap h3 { font-size: var(--text-heading-3-size); font-weight: var(--font-weight-semibold); }
+.article-composer .tiptap ul { list-style: disc; padding-inline-start: var(--spacing-6); }
+.article-composer .tiptap ol { list-style: decimal; padding-inline-start: var(--spacing-6); }
+.article-composer .tiptap blockquote { border-inline-start: var(--spacing-1) solid var(--color-border); padding-inline-start: var(--spacing-4); }
+.article-composer .tiptap img { max-width: 100%; height: auto; border-radius: var(--radius-element); }
+.article-composer .tiptap a { color: var(--color-accent); text-decoration: underline; }
+.article-composer .tiptap pre { white-space: pre-wrap; padding: var(--spacing-3); }
+@media (max-width: 540px) {
+  .article-composer .tiptap { padding: var(--spacing-4); }
+}
+.article-image-preview {
+  width: 100%;
+  max-height: 24rem;
+  object-fit: contain;
+  border-radius: var(--radius-md);
 }

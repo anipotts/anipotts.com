@@ -1,5 +1,6 @@
 import { editorialRecordPath } from "@anipotts/content/editorial/source";
 import type { Publication } from "./publication";
+import { publicationMediaFiles } from "./publication-media";
 
 const sha = /^[a-f0-9]{40}$/;
 export type GitBase = {
@@ -18,6 +19,11 @@ export function preparePublication(publication: Publication, base: GitBase) {
   const path = editorialRecordPath(publication.record);
   if (path !== publication.path)
     return { ok: false, code: "invalid_publication_path" } as const;
+  try {
+    publicationMediaFiles(publication);
+  } catch {
+    return { ok: false, code: "invalid_publication_media" } as const;
+  }
   if (publication.baseFileHash === null) {
     if (base.file !== null)
       return { ok: false, code: "record_already_exists" } as const;

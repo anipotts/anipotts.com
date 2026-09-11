@@ -48,6 +48,61 @@ const input = () => ({
   baseHead: payload.baseHead,
   files: [{ path, bytes, mode: "100644", type: "blob" }],
 });
+test("accepts only referenced content-addressed images and rejects substitutions", () => {
+  const imageBytes = Buffer.from("image fixture");
+  const digest = createHash("sha256").update(imageBytes).digest("hex");
+  const image = `apps/www/public/images/editorial/${digest}.jpg`;
+  const articleBytes = Buffer.from(`![Photo](/images/editorial/${digest}.jpg)`);
+  const declarations = [
+    { path, sha256: createHash("sha256").update(articleBytes).digest("hex") },
+    { path: image, sha256: digest },
+  ];
+  const data = {
+    ...input(),
+    envelope: signed({ ...payload, files: declarations }),
+    files: [
+      { path, bytes: articleBytes, mode: "100644", type: "blob" },
+      { path: image, bytes: imageBytes, mode: "100644", type: "blob" },
+    ],
+  };
+  assert.equal(verifyPublication(data).files, 2);
+  assert.throws(() => verifyPublication({ ...data, files: [data.files[0]] }));
+  assert.throws(() =>
+    verifyPublication({
+      ...data,
+      files: [
+        data.files[0],
+        { ...data.files[1], bytes: Buffer.from("changed") },
+      ],
+    }),
+  );
+  assert.throws(() =>
+    verifyPublication({
+      ...data,
+      envelope: signed({
+        ...payload,
+        files: [declarations[0], declarations[1], declarations[1]],
+      }),
+    }),
+  );
+  const noReference = Buffer.from("article without image");
+  assert.throws(() =>
+    verifyPublication({
+      ...data,
+      envelope: signed({
+        ...payload,
+        files: [
+          {
+            path,
+            sha256: createHash("sha256").update(noReference).digest("hex"),
+          },
+          declarations[1],
+        ],
+      }),
+      files: [{ ...data.files[0], bytes: noReference }, data.files[1]],
+    }),
+  );
+});
 test("verifies committed Git bytes and refuses extra files or an advanced base", () => {
   const cwd = mkdtempSync(join(tmpdir(), "editorial-manifest-test-"));
   const git = (...args) =>

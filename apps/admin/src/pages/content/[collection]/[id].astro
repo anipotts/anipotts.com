@@ -7,6 +7,11 @@ import {
   recordUpdate,
 } from "../../../lib/editorial-content";
 import type { Review } from "../../../components/astryx/EditorialApp";
+import {
+  editorialRecordSchema,
+  parseEditorialSource,
+} from "@anipotts/content/editorial/source";
+import { productionEditor } from "../../../lib/editorial-server";
 const inventory = await editorialInventory();
 const entry = [
   ...inventory.pages,
@@ -16,11 +21,37 @@ const entry = [
   (item) =>
     item.collection === Astro.params.collection && item.id === Astro.params.id,
 );
-if (!entry) Astro.response.status = 404;
+let privateDraft: import("../../../editorial/draft-store").Draft | null = null;
+const privateIdentity = editorialRecordSchema.safeParse({
+  kind: Astro.params.collection,
+  id: Astro.params.id,
+});
+if (
+  !entry &&
+  privateIdentity.success &&
+  privateIdentity.data.kind === "writing"
+) {
+  const storage = import.meta.env.DEV
+    ? await (await import("../../../lib/editorial-local")).localDraftStorage()
+    : productionEditor(Astro.locals.runtime?.env)?.storage;
+  privateDraft = (await storage?.get(privateIdentity.data)) ?? null;
+}
+if (!entry && !privateDraft) Astro.response.status = 404;
+let privateTitle = "Untitled article";
+if (privateDraft) {
+  try {
+    privateTitle = String(
+      parseEditorialSource(privateDraft.source).document.get("title") ||
+        privateTitle,
+    );
+  } catch {}
+}
 const title =
   entry && "title" in entry.data
     ? entry.data.title
-    : (entry?.id ?? "record not found");
+    : privateDraft
+      ? privateTitle
+      : (entry?.id ?? "record not found");
 const rendered = entry ? await render(entry) : null;
 const Content = rendered?.Content;
 const project = entry?.collection === "projects" ? entry.data : null;
@@ -97,7 +128,9 @@ const review: Review | undefined = entry
     ? { kind: "work", id: entry.id }
     : entry?.collection === "writing"
       ? { kind: "writing", id: entry.id }
-      : undefined}
+      : privateDraft && privateIdentity.success
+        ? privateIdentity.data
+        : undefined}
 >
   {Content && <Content />}
 </EditorialLayout>

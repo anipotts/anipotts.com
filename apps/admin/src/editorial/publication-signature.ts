@@ -5,6 +5,7 @@ import {
   MAX_SOURCE_BYTES,
 } from "@anipotts/content/editorial/source";
 import type { Publication } from "./publication";
+import { publicationMediaFiles } from "./publication-media";
 
 /** Server-owned signing key only. The manifest contains hashes, never draft
  * bodies or credentials. Identical snapshots produce identical signatures. */
@@ -34,7 +35,13 @@ export async function signPublication(
       operationId: publication.id,
       revision: publication.revision,
       baseHead,
-      files: [{ path: publication.path, sha256 }],
+      files: [
+        { path: publication.path, sha256 },
+        ...publicationMediaFiles(publication).map(({ path, sha256 }) => ({
+          path,
+          sha256,
+        })),
+      ],
     };
     const pem = createPrivateKey(privateKey).export({
       type: "pkcs8",
