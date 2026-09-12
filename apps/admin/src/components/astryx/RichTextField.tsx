@@ -1,7 +1,7 @@
 import { EditorSelectionBookmark } from "../../lib/editor-selection-bookmark";
 import { SelectionOverlay } from "./SelectionOverlay";
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
-import { EditorContent, useEditor } from "@tiptap/react";
+import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import { Field } from "@astryxdesign/core/Field";
@@ -104,32 +104,17 @@ export function RichTextField({
   change.current = onChange;
   const lastValue = useRef(value);
   const lastReset = useRef(resetGeneration);
-  const pending = useRef<string | null>(null);
+  const pending = useRef(false);
   const dirtyCallback = useRef(onDirty);
   dirtyCallback.current = onDirty;
-  useEffect(() => {
-    if (!flushRef) return;
-    const flush = () => {
-      if (pending.current === null) return;
-      const next = pending.current;
-      pending.current = null;
-      change.current(next);
-    };
-    flushRef.current = flush;
-    return () => {
-      flush();
-      if (flushRef.current === flush) flushRef.current = null;
-    };
-  }, [flushRef]);
   const [panel, setPanel] = useState<"link" | "image" | null>(null);
   const [url, setUrl] = useState("");
   const [alt, setAlt] = useState("");
   const [urlError, setUrlError] = useState("");
   const [editingImage, setEditingImage] = useState(false);
-  const [hasSelection, setHasSelection] = useState(false);
   const editor = useEditor({
     immediatelyRender: false,
-    shouldRerenderOnTransaction: true,
+    shouldRerenderOnTransaction: false,
     extensions: [
       EditorialStarterKit.configure({
         heading: false,
@@ -178,23 +163,53 @@ export function RichTextField({
     },
     onTransaction: ({ transaction }) => panelSelection.current.map(transaction),
     onUpdate: ({ editor }) => {
+      if (flushRef && dirtyCallback.current) {
+        pending.current = true;
+        dirtyCallback.current();
+      } else {
+        const next = inlineMarkdown(editor.getJSON());
+        lastValue.current = next;
+        change.current(next);
+      }
+    },
+  });
+  const toolbarState = useEditorState({
+    editor,
+    selector: ({ editor }) =>
+      editor
+        ? {
+            hasSelection: !editor.state.selection.empty,
+            bold: editor.isActive("bold"),
+            italic: editor.isActive("italic"),
+            underline: editor.isActive("underline"),
+            undo: editor.can().undo(),
+            redo: editor.can().redo(),
+          }
+        : null,
+  });
+  const hasSelection = toolbarState?.hasSelection ?? false;
+  useEffect(() => {
+    if (!flushRef || !editor) return;
+    const flush = () => {
+      if (!pending.current) return;
+      pending.current = false;
       const next = inlineMarkdown(editor.getJSON());
       lastValue.current = next;
-      if (flushRef && dirtyCallback.current) {
-        pending.current = next;
-        dirtyCallback.current();
-      } else change.current(next);
-    },
-    onSelectionUpdate: ({ editor }) =>
-      setHasSelection(!editor.state.selection.empty),
-  });
+      change.current(next);
+    };
+    flushRef.current = flush;
+    return () => {
+      flush();
+      if (flushRef.current === flush) flushRef.current = null;
+    };
+  }, [editor, flushRef]);
   useEffect(() => {
     if (
       editor &&
       (value !== lastValue.current || resetGeneration !== lastReset.current)
     ) {
       lastReset.current = resetGeneration;
-      pending.current = null;
+      pending.current = false;
       lastValue.current = value;
       editor.commands.setContent(inlineDocument(value), { emitUpdate: false });
     }
@@ -336,7 +351,12 @@ export function RichTextField({
                     isDisabled={disabled || !editor}
                     value={actions
                       .slice(0, 3)
-                      .filter((action) => editor?.isActive(action.active))
+                      .filter(
+                        (action) =>
+                          toolbarState?.[
+                            action.active as "bold" | "italic" | "underline"
+                          ],
+                      )
                       .map((action) => action.active)}
                     onChange={(next) => {
                       const changed = actions
@@ -377,7 +397,7 @@ export function RichTextField({
                     icon={<ArrowCounterClockwiseIcon size={18} />}
                     isIconOnly
                     variant="ghost"
-                    isDisabled={disabled || !editor?.can().undo()}
+                    isDisabled={disabled || !toolbarState?.undo}
                     onClick={() => editor?.chain().focus().undo().run()}
                   />
                   <Button
@@ -386,7 +406,7 @@ export function RichTextField({
                     icon={<ArrowClockwiseIcon size={18} />}
                     isIconOnly
                     variant="ghost"
-                    isDisabled={disabled || !editor?.can().redo()}
+                    isDisabled={disabled || !toolbarState?.redo}
                     onClick={() => editor?.chain().focus().redo().run()}
                   />
                 </HStack>

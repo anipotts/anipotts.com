@@ -1034,9 +1034,11 @@
     {
       "path": "apps/admin/src/components/astryx/RichTextField.tsx",
       "area": "ui",
-      "sha256": "ed4fa3dc7c6c57cfaf243715e92210e81530f6295b19628e4af2043ac9929572",
-      "disposition": "pending",
-      "evidence": []
+      "sha256": "9ab1737af1604e819941d122b98fd671f59ade1debedc4b923c7a6f4977ef425",
+      "disposition": "updated",
+      "evidence": [
+        "docs/design/admin-workspace/editor-interaction-audit.md: buffered inline editor follow-up; real TipTap transaction and serialization regression tests; browser profiling pending."
+      ]
     },
     {
       "path": "apps/admin/src/components/astryx/SavedArticlePreview.tsx",
@@ -2842,6 +2844,15 @@
       "disposition": "updated",
       "evidence": [
         "docs/design/admin-workspace/legacy-content-audit.md: exact-hash source audit; limitations and browser QA tracked explicitly."
+      ]
+    },
+    {
+      "path": "apps/admin/src/components/astryx/RichTextField.test.tsx",
+      "area": "components",
+      "sha256": "56d1389ecad285b76f5f5fbf55493aa440de26e87fee43d6a764b65c4f1cb948",
+      "disposition": "updated",
+      "evidence": [
+        "docs/design/admin-workspace/editor-interaction-audit.md: buffered inline editor follow-up; real TipTap transaction and serialization regression tests; browser profiling pending."
       ]
     }
   ]
