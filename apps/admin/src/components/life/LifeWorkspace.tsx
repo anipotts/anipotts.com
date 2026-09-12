@@ -4,7 +4,6 @@ import { VStack } from "@astryxdesign/core/VStack";
 import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
 import { Button } from "@astryxdesign/core/Button";
-import { TabList, Tab, TabMenu } from "@astryxdesign/core/TabList";
 import { List, ListItem } from "@astryxdesign/core/List";
 import { Token } from "@astryxdesign/core/Token";
 import {
@@ -33,8 +32,6 @@ import {
   type LifeSection,
 } from "../../lib/life-sections";
 export { lifeSections, type LifeSection };
-const href = (section: string) =>
-  section === "overview" ? "/life" : `/life/${section}`;
 const scalar = (value: unknown, fallback = "Not reported") =>
   typeof value === "string" || typeof value === "number"
     ? String(value)
@@ -120,14 +117,10 @@ export function LifeReadView({
         <Text weight="semibold">
           {result.state === "disconnected"
             ? "Life is not connected yet"
-            : "Life is unavailable"}
+            : result.state === "denied"
+              ? "Access to these records is unavailable"
+              : "Records could not be loaded"}
         </Text>
-        <Button
-          label="Check again"
-          href={href(section)}
-          variant="ghost"
-          size="sm"
-        />
       </VStack>
     );
   const data = result.data;
@@ -333,7 +326,7 @@ export function LifeExplorer({
   }
   return (
     <VStack gap={4}>
-      {searchable && (
+      {searchable && reader && (
         <VStack
           as="form"
           gap={2}
@@ -346,13 +339,10 @@ export function LifeExplorer({
             label={section === "preview" ? "Question" : "Search records"}
             value={query}
             onChange={(value) => setQuery(value.slice(0, 2048))}
-            isDisabled={!reader}
-            disabledMessage="Life is not connected yet"
           />
           <Button
             type="submit"
             label={section === "preview" ? "Preview context" : "Search"}
-            isDisabled={!reader}
             isLoading={busy}
           />
         </VStack>
@@ -435,9 +425,6 @@ export function LifeWorkspace({
   result: LifeResult;
   reader?: LifeReader;
 }) {
-  const navigate = (value: string) => {
-    if (Object.hasOwn(lifeSections, value)) window.location.assign(href(value));
-  };
   return (
     <Layout
       height="auto"
@@ -445,19 +432,7 @@ export function LifeWorkspace({
       padding={4}
       header={
         <LayoutHeader>
-          <VStack gap={3}>
-            <Heading level={1}>{lifeSections[section]}</Heading>
-            <TabList value={section} onChange={navigate} hasDivider>
-              <Tab value="overview" label="Overview" href="/life" />
-              <Tab value="people" label="People" href="/life/people" />
-              <TabMenu
-                label="More"
-                options={Object.entries(lifeSections)
-                  .filter(([key]) => key !== "overview" && key !== "people")
-                  .map(([value, label]) => ({ value, label }))}
-              />
-            </TabList>
-          </VStack>
+          <Heading level={1}>{lifeSections[section]}</Heading>
         </LayoutHeader>
       }
       content={
@@ -484,13 +459,13 @@ export function LifeWorkspace({
             {section === "overview" && (
               <List
                 hasDividers
-                header={<Heading level={2}>Existing views</Heading>}
+                header={<Heading level={2}>Your views</Heading>}
               >
                 <ListItem label="Health" href="/life/health" />
                 <ListItem label="Aesthetics" href="/life/aesthetics" />
-                <ListItem label="Legacy knowledge" href="/knowledge" />
+                <ListItem label="Knowledge" href="/knowledge" />
                 <ListItem
-                  label="Legacy locations and fleet"
+                  label="Locations and fleet"
                   href="/knowledge/locations"
                 />
               </List>
