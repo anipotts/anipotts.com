@@ -1,6 +1,6 @@
+// @vitest-environment jsdom
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { JSDOM } from "jsdom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LifeExplorer } from "./LifeWorkspace";
 import { LifeActivityView } from "./LifeActivityView";
@@ -23,26 +23,8 @@ const record = {
 };
 let root: Root;
 let container: HTMLElement;
-let dom: JSDOM;
 beforeEach(() => {
-  dom = new JSDOM("<main></main>", { url: "http://fixture.invalid" });
-  // DOM interaction tests do not claim canvas or visual measurement coverage.
-  vi.spyOn(
-    dom.window.HTMLCanvasElement.prototype,
-    "getContext",
-  ).mockReturnValue(null);
-  for (const key of [
-    "window",
-    "document",
-    "navigator",
-    "HTMLElement",
-    "HTMLInputElement",
-    "Element",
-    "Node",
-    "MutationObserver",
-    "getComputedStyle",
-  ] as const)
-    vi.stubGlobal(key, dom.window[key]);
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.stubGlobal(
     "ResizeObserver",
@@ -52,7 +34,7 @@ beforeEach(() => {
       disconnect() {}
     },
   );
-  dom.window.matchMedia = () => ({
+  window.matchMedia = () => ({
     matches: false,
     addEventListener() {},
     removeEventListener() {},
@@ -62,12 +44,14 @@ beforeEach(() => {
     media: "",
     onchange: null,
   });
-  container = document.querySelector("main")!;
+  container = document.createElement("main");
+  document.body.append(container);
   root = createRoot(container);
 });
 afterEach(async () => {
   await act(async () => root.unmount());
-  dom.window.close();
+  container.remove();
+  vi.restoreAllMocks();
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
@@ -133,10 +117,10 @@ describe("Life reader interactions", () => {
     await act(async () => {
       const form = container.querySelector("form")!;
       form.dispatchEvent(
-        new dom.window.Event("submit", { bubbles: true, cancelable: true }),
+        new Event("submit", { bubbles: true, cancelable: true }),
       );
       form.dispatchEvent(
-        new dom.window.Event("submit", { bubbles: true, cancelable: true }),
+        new Event("submit", { bubbles: true, cancelable: true }),
       );
     });
     expect(reader).toHaveBeenCalledTimes(1);

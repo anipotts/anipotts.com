@@ -61,3 +61,15 @@ Both Astro routes compiled without diagnostics at the initial increment.
 Full dependency-ready checks belong to the integration checkout; these focused
 checks are not build or browser proof. Route dispatch now validates the section
 before reading and selects its correct method instead of using status globally.
+
+## Root integration
+
+Feature chain 33ae8191 through 532d0f0e integrated through root 188d7c0c.
+Root runs the six Life test files directly in repository Vitest: 31 tests pass.
+Corrected the shared AdminFeedback React import and changed the interaction
+harness to Vitest's existing jsdom environment, avoiding an undeclared direct
+jsdom import. Isolated bundled checks had not exposed these integration failures.
+
+No transport is configured, no personal records read, no new network access.
+Shared-shell and real connected-data acceptance remain explicitly incomplete.
+Approved refinement: three-workspace-checklist.md.

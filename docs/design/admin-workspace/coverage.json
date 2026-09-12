@@ -843,10 +843,11 @@
     {
       "path": "apps/admin/src/components/astryx/AdminFeedback.tsx",
       "area": "ui",
-      "sha256": "491acd49130c8a382d0c27895eb52ed3abfc2a6a20a8c525fe2382f0c11fcb39",
-      "disposition": "reviewed-retained",
+      "sha256": "ea038bd10077946c701f4eb82fa8de79612b54fc961734c63eabffdf77bcaa75",
+      "disposition": "pending",
       "evidence": [
-        "docs/design/admin-workspace/feedback-navigation-audit.md: exact-hash source review; seven focused tests; browser gates remain explicit."
+        "docs/design/admin-workspace/feedback-navigation-audit.md: exact-hash source review; seven focused tests; browser gates remain explicit.",
+        "docs/design/admin-workspace/life-integration.md: feature integrated; full root source and connected/browser audit pending."
       ]
     },
     {
@@ -2408,10 +2409,11 @@
     {
       "path": "apps/admin/src/pages/life/index.astro",
       "area": "routes",
-      "sha256": "739e5bde756bdff552123e7c716d8bd0065423221d693d9a58f9129d2b1d5dea",
-      "disposition": "updated",
+      "sha256": "66ea679ca37d0c07f41e1b8e5da6304129919da98e06f0cc22a2a73ade291685",
+      "disposition": "pending",
       "evidence": [
-        "docs/design/admin-workspace/operations-audit.md: exact-hash source audit; limitations and browser QA tracked explicitly."
+        "docs/design/admin-workspace/operations-audit.md: exact-hash source audit; limitations and browser QA tracked explicitly.",
+        "docs/design/admin-workspace/life-integration.md: feature integrated; full root source and connected/browser audit pending."
       ]
     },
     {
@@ -3203,6 +3205,123 @@
       "disposition": "updated",
       "evidence": [
         "docs/design/admin-workspace/identity-preview-audit.md: scoped source review and verification; shared shell files remain pending full audit."
+      ]
+    },
+    {
+      "path": "apps/admin/src/components/life/LifeActivityView.tsx",
+      "area": "life",
+      "sha256": "60e6428c393cfb097e815b82e50ecb6e894b6d6be809b043f7ca1707bb03ec08",
+      "disposition": "pending",
+      "evidence": [
+        "docs/design/admin-workspace/life-integration.md: feature integrated; full root source and connected/browser audit pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/components/life/LifeExplorer.test.tsx",
+      "area": "life",
+      "sha256": "19c5e95b7b66248d99b680ecf01b927c03656ba7a5f58ea70fadf3945ed843ab",
+      "disposition": "pending",
+      "evidence": [
+        "docs/design/admin-workspace/life-integration.md: feature integrated; full root source and connected/browser audit pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/components/life/LifeWorkspace.test.tsx",
+      "area": "life",
+      "sha256": "939e81439119fcc03451a91702365404a3b4c6eb0d661850c29b39fcd119bd92",
+      "disposition": "pending",
+      "evidence": [
+        "docs/design/admin-workspace/life-integration.md: feature integrated; full root source and connected/browser audit pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/components/life/LifeWorkspace.tsx",
+      "area": "life",
+      "sha256": "941b55ebadc266df8bb6c8c3a4d6bbe8b9fa3ce7de7bd8f5a61f1f05327c914a",
+      "disposition": "pending",
+      "evidence": [
+        "docs/design/admin-workspace/life-integration.md: feature integrated; full root source and connected/browser audit pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/data/personal-context.test.ts",
+      "area": "life",
+      "sha256": "5a92c781301c68ac7af365c7a575181b0c89e2f37d3324466856ce9ba035d339",
+      "disposition": "pending",
+      "evidence": [
+        "docs/design/admin-workspace/life-integration.md: feature integrated; full root source and connected/browser audit pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/data/personal-context.ts",
+      "area": "life",
+      "sha256": "4493be1c489202ecfeafc8d7067e996530881f0afa5f6bda4ca34fa87173506e",
+      "disposition": "pending",
+      "evidence": [
+        "docs/design/admin-workspace/life-integration.md: feature integrated; full root source and connected/browser audit pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/life-activity.test.ts",
+      "area": "life",
+      "sha256": "da03b0f29e4ca9d3b0fbcd601cebf4d2698c3a9290dd59302dcca86b95f41f96",
+      "disposition": "pending",
+      "evidence": [
+        "docs/design/admin-workspace/life-integration.md: feature integrated; full root source and connected/browser audit pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/life-activity.ts",
+      "area": "life",
+      "sha256": "41c1cb078ea522cf5f1e96460fdaa50e470a57480cfa8b5452ac7e26ae3b66c3",
+      "disposition": "pending",
+      "evidence": [
+        "docs/design/admin-workspace/life-integration.md: feature integrated; full root source and connected/browser audit pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/life-read-session.test.ts",
+      "area": "life",
+      "sha256": "ab9d8de96b7b019d6c734cfeb548d9669fa37118dbcf58593b07fb77b68a3b87",
+      "disposition": "pending",
+      "evidence": [
+        "docs/design/admin-workspace/life-integration.md: feature integrated; full root source and connected/browser audit pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/life-read-session.ts",
+      "area": "life",
+      "sha256": "ae9c4db5a519e4a9bcd46b677e2f33a0824c47ac83b48574f89a5369694d854b",
+      "disposition": "pending",
+      "evidence": [
+        "docs/design/admin-workspace/life-integration.md: feature integrated; full root source and connected/browser audit pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/life-sections.test.ts",
+      "area": "life",
+      "sha256": "fb16ce8409e320d61708b82f5c0ca235f0a3d78ce13e18b8f7b37c924e59cbb4",
+      "disposition": "pending",
+      "evidence": [
+        "docs/design/admin-workspace/life-integration.md: feature integrated; full root source and connected/browser audit pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/life-sections.ts",
+      "area": "life",
+      "sha256": "deb83f79d84b518f05d8fdf2d63e0344f47ed28978b8392476ace16f5b8904fe",
+      "disposition": "pending",
+      "evidence": [
+        "docs/design/admin-workspace/life-integration.md: feature integrated; full root source and connected/browser audit pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/pages/life/[section].astro",
+      "area": "life",
+      "sha256": "cb59de84b7d469ee03ea1a78a0fafa9efd94f931fd3093705c5d823c6ff89790",
+      "disposition": "pending",
+      "evidence": [
+        "docs/design/admin-workspace/life-integration.md: feature integrated; full root source and connected/browser audit pending."
       ]
     }
   ]

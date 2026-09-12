@@ -1,5 +1,9 @@
 # Admin workspace implementation plan
 
+Current approved refinement: [Content / Operations / Life checklist](three-workspace-checklist.md).
+Its September 12 user decisions supersede conflicting earlier navigation/branding
+proposals below. Completion evidence remains separately tracked.
+
 Status: proposed implementation plan. No implementation or release is authorized
 by this document itself. It translates Ani's selected first generated board and
 subsequent page/flow decisions into a concrete delivery sequence.
