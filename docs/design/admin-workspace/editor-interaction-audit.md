@@ -55,3 +55,11 @@ Paths below are relative to `apps/admin/src`; SHA-256 hashes identify the review
 ## Integration boundary
 
 Changed only ArticleBody, RichTextField, SelectionOverlay, ArticleImageCrop, the new mapped-bookmark helper and focused tests, plus this audit. HomeEditor, EditorialApp, publishing APIs, global CSS, credentials and authored drafts were not edited in this chunk. The integration owner should rerun checks on the exact PR head and keep the browser QA requirement open.
+
+## Upload cancellation follow-up, 2026-09-12
+
+Closing or replacing the keyed upload panel now aborts its owned controller. The signal propagates through CSRF fetch, FileReader and media POST, retaining existing request timeouts. Cancellation during bitmap decoding prevents a later network request; the decoded bitmap is still closed. An older operation cannot unlock or complete a newer operation. The crop upload uses the same controller ownership. Cancellation cannot roll back an asset already accepted by the server; no deletion is attempted and a canceled result cannot enter the draft.
+
+A mounted regression first failed because the POST signal remained active after unmount (`/private/tmp/admin-upload-cancel-before.log`). After the fix, six uploader/crop lifecycle tests passed (`/private/tmp/admin-upload-cancel-final.log`), including cancellation during decoding, CSRF preparation and FileReader, and successful uncanceled completion. This supersedes remaining item 3 above. Actual network/browser cancellation and pixel QA remain open.
+
+The preview failure gap in remaining item 1 was separately addressed in foundation commit a3f4e992 by request-scoped ready/failure messages, bounded timeout, loading skeleton and retry. See SavedArticlePreview.test.tsx and preview-status.test.ts; visual verification remains open. The inline-editor performance gap remains unresolved.

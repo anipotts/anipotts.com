@@ -873,23 +873,19 @@
     {
       "path": "apps/admin/src/components/astryx/ArticleImageUpload.test.tsx",
       "area": "tests",
-      "sha256": "1592ed0336604a2ccea3f4a24c6aca1f303dc63744e012384a2b19e19ba2e850",
+      "sha256": "40cc0c2e90095eb4cf2d7b99d5f1b3cd86601b858954506ffdcb421e3a3e3bda",
       "disposition": "updated",
       "evidence": [
-        "Source review: closed upload/crop inspector ignores late completion; original asset preserved.",
-        "Vitest: 2 mounted/unmounted lifecycle tests passed; /private/tmp/admin-workspace-focused-tests.log.",
-        "Browser image/crop cancellation and keyboard QA pending."
+        "docs/design/admin-workspace/editor-interaction-audit.md: upload cancellation follow-up; failing regression and six passing lifecycle tests; browser verification pending."
       ]
     },
     {
       "path": "apps/admin/src/components/astryx/ArticleImageUpload.tsx",
       "area": "ui",
-      "sha256": "b199d37aa8138dcdd72baaacff45a2848fb3e905fab1e17e89981f2efa40ecca",
+      "sha256": "70ffcf316e1e147015a299ed2baf91fe4ace0fb58d825bd0d9ffd1eec0ec466b",
       "disposition": "updated",
       "evidence": [
-        "Source review: closed upload/crop inspector ignores late completion; original asset preserved.",
-        "Vitest: 2 mounted/unmounted lifecycle tests passed; /private/tmp/admin-workspace-focused-tests.log.",
-        "Browser image/crop cancellation and keyboard QA pending."
+        "docs/design/admin-workspace/editor-interaction-audit.md: upload cancellation follow-up; failing regression and six passing lifecycle tests; browser verification pending."
       ]
     },
     {
