@@ -1067,9 +1067,9 @@
       "path": "apps/admin/src/components/astryx/ReviewChanges.tsx",
       "area": "ui",
       "sha256": "4ad3b6b27241a9c22bdaeca443adabd69c55c090369bb3be745ff7047389bbb7",
-      "disposition": "pending",
+      "disposition": "reviewed-retained",
       "evidence": [
-        "2026-09-12 reconciliation: source changed since recorded SHA-256 cd625546d02c79db167ceb9699fc78351ef555998f2e85996324c7fe935b0828; earlier audit references are historical, current source review required."
+        "docs/design/admin-workspace/diff-review-audit.md: exact source review, twenty focused tests; Browser/release proof pending."
       ]
     },
     {
@@ -1995,22 +1995,18 @@
       "path": "apps/admin/src/lib/reviewed-draft.test.ts",
       "area": "tests",
       "sha256": "dd6b9eb371f6f9e2a2200ae0bfd08e5ccfe8be1a00cc094fbec644b5f23edb61",
-      "disposition": "updated",
+      "disposition": "reviewed-retained",
       "evidence": [
-        "Source review: URL mode owner, exclusive panels, exact acknowledged review source/revision, post-CSRF navigation guard.",
-        "HomeEditor navigation: four DOM interaction tests passed; helper and inspector focus tests passed.",
-        "Actual Browser responsive, live and latency QA remain pending; full check receipt in coverage.md."
+        "docs/design/admin-workspace/diff-review-audit.md: exact source review, twenty focused tests; Browser/release proof pending."
       ]
     },
     {
       "path": "apps/admin/src/lib/reviewed-draft.ts",
       "area": "editorial-services",
       "sha256": "b29085d11b8ff1a6c605bfabfa44ed91717a1e6fc20daf2cfdd97b4a88f20ad9",
-      "disposition": "updated",
+      "disposition": "reviewed-retained",
       "evidence": [
-        "Source review: URL mode owner, exclusive panels, exact acknowledged review source/revision, post-CSRF navigation guard.",
-        "HomeEditor navigation: four DOM interaction tests passed; helper and inspector focus tests passed.",
-        "Actual Browser responsive, live and latency QA remain pending; full check receipt in coverage.md."
+        "docs/design/admin-workspace/diff-review-audit.md: exact source review, twenty focused tests; Browser/release proof pending."
       ]
     },
     {
@@ -2057,16 +2053,20 @@
     {
       "path": "apps/admin/src/lib/text-diff.test.ts",
       "area": "tests",
-      "sha256": "eaf69926cfd2f93284c5526bbb229de7c2eb1d5fe20adeaab4eaad6644466e17",
-      "disposition": "pending",
-      "evidence": []
+      "sha256": "b33afce5d00500571b279cfd6418ed5d73872c7447be57edfaf559238ff701d5",
+      "disposition": "updated",
+      "evidence": [
+        "docs/design/admin-workspace/diff-review-audit.md: exact source review, twenty focused tests; Browser/release proof pending."
+      ]
     },
     {
       "path": "apps/admin/src/lib/text-diff.ts",
       "area": "data-and-contracts",
-      "sha256": "55461e948e7a5b29742dcfb05770b8276ca57c42d02c310680c2250bfd15cd68",
-      "disposition": "pending",
-      "evidence": []
+      "sha256": "af0ea2f9b74dce6a557f8fafb018c707e3cecdfffdeebce73587954373332710",
+      "disposition": "updated",
+      "evidence": [
+        "docs/design/admin-workspace/diff-review-audit.md: exact source review, twenty focused tests; Browser/release proof pending."
+      ]
     },
     {
       "path": "apps/admin/src/lib/writing-draft.ts",
@@ -3013,9 +3013,9 @@
       "path": "apps/admin/src/components/astryx/ReviewChanges.test.tsx",
       "area": "components",
       "sha256": "4fe745c30dfb232bc3ca0c34dc2e6d2911c39dbe3754359eb0ac651821e8e054",
-      "disposition": "pending",
+      "disposition": "reviewed-retained",
       "evidence": [
-        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+        "docs/design/admin-workspace/diff-review-audit.md: exact source review, twenty focused tests; Browser/release proof pending."
       ]
     },
     {

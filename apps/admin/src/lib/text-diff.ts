@@ -24,8 +24,8 @@ export function textDiff(before: string, after: string): DiffPart[] {
   append("equal", a.slice(0, start).join(""));
   const rows = endA - start,
     cols = endB - start;
-  // Large source replacements get a bounded coarse diff, never quadratic work.
-  if (rows * cols > 1_000_000) {
+  // Insertions/deletions need no matrix. Large replacements use a bounded coarse diff.
+  if (rows === 0 || cols === 0 || rows * cols > 1_000_000) {
     append("removed", a.slice(start, endA).join(""));
     append("added", b.slice(start, endB).join(""));
   } else {
