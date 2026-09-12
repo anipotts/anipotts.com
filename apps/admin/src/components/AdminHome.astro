@@ -119,14 +119,14 @@ const handledTitle = workReferencesAreCurrent
   : "last verified work";
 ---
 
-<AdminLayout title="inbox" hideHeader>
+<AdminLayout title="Inbox" hideHeader>
   <main class="operator-page operator-inbox-page admin-canvas">
     <header class="operator-page-header admin-canvas-header">
       <div>
         <p class="operator-eyebrow">current attention</p>
         <h1 class="brand-display">Inbox</h1>
       </div>
-      <div class="admin-canvas-summary" aria-label="inbox source summary">
+      <div class="admin-canvas-summary" aria-label="Inbox source summary">
         <span>
           <EyeIcon size={18} weight="regular" aria-hidden="true" />
           <strong>{inbox.counts.total}</strong>
@@ -150,8 +150,8 @@ const handledTitle = workReferencesAreCurrent
           type="button"
           class="admin-canvas-refresh is-icon-only"
           data-canvas-refresh
-          aria-label="refresh current read-only sources"
-          title="refresh current read-only sources"
+          aria-label="Refresh current read-only sources"
+          title="Refresh current read-only sources"
         >
           <ArrowsClockwiseIcon size={20} weight="regular" aria-hidden="true" />
         </button>
@@ -160,21 +160,21 @@ const handledTitle = workReferencesAreCurrent
 
     <nav
       class="operator-segmented-filter inbox-category-filter"
-      aria-label="filter attention"
+      aria-label="Filter attention"
     >
       <a
-        href="/"
+        href="/inbox"
         class:list={[!selectedCategory && !requestedView && "is-active"]}
         aria-current={!selectedCategory && !requestedView ? "page" : undefined}
         >all</a
       >
       <a
-        href="/?view=urgent"
+        href="/inbox?view=urgent"
         class:list={[requestedView === "urgent" && "is-active"]}
         aria-current={requestedView === "urgent" ? "page" : undefined}>urgent</a
       >
       <a
-        href="/?view=waiting"
+        href="/inbox?view=waiting"
         class:list={[requestedView === "waiting" && "is-active"]}
         aria-current={requestedView === "waiting" ? "page" : undefined}
         >waiting</a
@@ -182,7 +182,7 @@ const handledTitle = workReferencesAreCurrent
       {
         categories.map((category) => (
           <a
-            href={`/?category=${category}`}
+            href={`/inbox?category=${category}`}
             class:list={[selectedCategory === category && "is-active"]}
             aria-current={selectedCategory === category ? "page" : undefined}
           >
@@ -279,7 +279,7 @@ const handledTitle = workReferencesAreCurrent
           <div class="operator-section-heading">
             <div>
               <p>lower in the same projection</p>
-              <h2 id="remaining-attention-title">everything else</h2>
+              <h2 id="remaining-attention-title">Everything else</h2>
             </div>
             <span>{remainingItems.length} visible</span>
           </div>

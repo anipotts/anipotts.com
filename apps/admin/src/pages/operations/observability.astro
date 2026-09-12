@@ -1,0 +1,14 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { ObservabilityWorkspace } from "../../components/astryx/ObservabilityWorkspace";
+import { readObservability } from "../../lib/observability-reader";
+const initial = await readObservability();
+---
+
+<AdminLayout title="Observability" hideHeader>
+  <ObservabilityWorkspace
+    initial={initial}
+    initialView={Astro.url.searchParams.get("view") ?? "machines"}
+    client:load
+  />
+</AdminLayout>

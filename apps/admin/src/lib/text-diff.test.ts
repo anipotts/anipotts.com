@@ -9,6 +9,8 @@ describe("publication text diff", () => {
     ["same", "same"],
     ["", "new"],
     ["old", ""],
+    ["", "added words ".repeat(10000)],
+    ["removed words ".repeat(10000), ""],
     ["café 👋\n你好", "café! 👋\n你好"],
     ["[link](/old)", "[link](/new)"],
     ["**bold**", "bold"],

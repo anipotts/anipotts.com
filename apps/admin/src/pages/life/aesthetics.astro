@@ -1,37 +1,8 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
-
-const futureAreas = [
-  "wardrobe",
-  "outfits",
-  "looks",
-  "references",
-  "personal style",
-];
+import { LifeSupportingView } from "../../components/life/LifeSupportingView";
 ---
 
-<AdminLayout
-  title="aesthetics"
-  deck="A clean personal-style boundary. No wardrobe automation or image ingestion is active."
->
-  <section class="meta-strip" aria-label="aesthetics boundary">
-    <span>shell only</span>
-    <span>no ingestion</span>
-    <span>no automation</span>
-    <span>global Inbox for future actions</span>
-  </section>
-
-  <section class="aesthetics-canvas">
-    <div>
-      <p>life / aesthetics</p>
-      <h2>space reserved for a personal visual language</h2>
-      <span>
-        This page establishes a predictable home without inventing data or
-        workflows before the source model is reviewed.
-      </span>
-    </div>
-    <ul aria-label="future aesthetics areas">
-      {futureAreas.map((area) => <li>{area}</li>)}
-    </ul>
-  </section>
+<AdminLayout title="Aesthetics" hideHeader>
+  <LifeSupportingView section="aesthetics" />
 </AdminLayout>

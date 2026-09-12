@@ -11,6 +11,10 @@ import {
 } from "./admin-route-inventory.mjs";
 
 const navSource = readFileSync("apps/admin/src/data/admin.ts", "utf8");
+const websiteNavSource = readFileSync(
+  "apps/admin/src/components/astryx/EditorialWorkspaceShell.tsx",
+  "utf8",
+);
 const inboxDataSource = readFileSync("apps/admin/src/data/inbox.ts", "utf8");
 const inboxSource = readFileSync("apps/admin/src/pages/inbox.astro", "utf8");
 const rootSource = readFileSync("apps/admin/src/pages/index.astro", "utf8");
@@ -127,6 +131,7 @@ const retiredActionQueueFiles = [
 ];
 
 assert.deepEqual(publicPaths, [
+  "/admin-bracket.svg",
   "/api/health",
   "/api/mcp",
   "/apple-touch-icon.png",
@@ -185,8 +190,15 @@ assert.deepEqual(devLoopbackPreviewPaths, [
   "/life",
   "/life/aesthetics",
   "/life/health",
+  "/life/people",
+  "/life/places",
+  "/life/preview",
+  "/life/projects",
+  "/life/sources",
+  "/life/timeline",
   "/mutations",
   "/newsletter",
+  "/operations/observability",
   "/proof",
   "/repos",
   "/system",
@@ -263,7 +275,9 @@ for (const route of ADMIN_ROUTES) {
   if (route.nav) {
     const navHref = route.route === "/work" ? "/work?view=now" : route.route;
     assert.ok(
-      navSource.includes(`href: "${navHref}"`),
+      (route.route === "/newsletter" ? websiteNavSource : navSource).includes(
+        `href: "${navHref}"`,
+      ),
       `${route.route} missing from admin nav`,
     );
   }
@@ -285,7 +299,7 @@ for (const route of ADMIN_ROUTES) {
 }
 
 assert.equal(
-  [...navSource.matchAll(/label: "inbox"/g)].length,
+  [...navSource.matchAll(/label: "Inbox"/g)].length,
   1,
   "admin nav must expose one primary inbox entry",
 );
@@ -304,8 +318,8 @@ assert.ok(
   "editorial requests require signed owner identity",
 );
 assert.ok(
-  navSource.includes('href: "/",\n    label: "inbox"'),
-  "admin inbox navigation must use the canonical root URL",
+  navSource.includes('href: "/inbox",\n    label: "Inbox"'),
+  "Operations Inbox navigation must use its dedicated URL",
 );
 for (const file of retiredActionQueueFiles) {
   assert.equal(existsSync(file), false, `${file} must stay retired`);
@@ -335,7 +349,7 @@ for (const marker of [
   "being handled",
   "/work?view=now",
   "inbox-category-filter",
-  "everything else",
+  "Everything else",
 ]) {
   assert.ok(homeSource.includes(marker), `admin home missing marker ${marker}`);
 }
@@ -429,7 +443,7 @@ for (const marker of [
   "OperatorWorkTable",
   "view=projects",
   "view=history",
-  "loose conversations",
+  "Loose conversations",
   "preserved",
 ]) {
   assert.ok(workSource.includes(marker), `admin work missing marker ${marker}`);
@@ -451,22 +465,59 @@ for (const marker of [
 }
 
 for (const marker of [
-  "Today",
-  "Recent changes",
-  "/knowledge?kind=people",
+  'readPersonalContext({ method: "status" })',
+  "private, no-store",
+  "LifeWorkspace",
+]) {
+  assert.ok(
+    lifeSource.includes(marker),
+    `admin life missing boundary ${marker}`,
+  );
+}
+const lifeWorkspaceSource = readFileSync(
+  "apps/admin/src/components/life/LifeWorkspace.tsx",
+  "utf8",
+);
+for (const path of [
   "/life/health",
   "/life/aesthetics",
+  "/knowledge",
+  "/knowledge/locations",
 ]) {
-  assert.ok(lifeSource.includes(marker), `admin life missing marker ${marker}`);
+  assert.ok(
+    lifeWorkspaceSource.includes(path),
+    `Life compatibility link missing ${path}`,
+  );
 }
+const lifeSectionSource = readFileSync(
+  "apps/admin/src/pages/life/[section].astro",
+  "utf8",
+);
+assert.ok(lifeSectionSource.includes("isLifeSection(section)"));
+assert.ok(
+  lifeSectionSource.indexOf("isLifeSection(section)") <
+    lifeSectionSource.indexOf("readPersonalContext(lifeSectionRead(section))"),
+);
+assert.ok(lifeSectionSource.includes("private, no-store"));
 assert.ok(
   healthSource.includes("does not infer tasks"),
   "health must remain status only",
 );
 assert.ok(
-  aestheticsSource.includes("No wardrobe automation or image ingestion"),
-  "aesthetics must remain a clean data boundary",
+  aestheticsSource.includes('<LifeSupportingView section="aesthetics" />'),
+  "aesthetics must use the presentation-only supporting view without data props",
 );
+const lifeSupportingSource = readFileSync(
+  "apps/admin/src/components/life/LifeSupportingView.tsx",
+  "utf8",
+);
+for (const source of [aestheticsSource, lifeSupportingSource]) {
+  assert.doesNotMatch(
+    source,
+    /\bfetch\s*\(|from\s+["'][^"']*\/data\/|type=["']file["']|onDrop\s*=|onPaste\s*=/,
+    "aesthetics presentation must not add a data reader or image-ingestion control",
+  );
+}
 
 for (const removedNarration of [
   "source → entity → outcome → attention → history",
@@ -534,9 +585,7 @@ for (const retired of ["continue with passkey", "recover access", "use phone"])
 for (const marker of [
   "readPageContentInventoryStore",
   "/api/admin/content/editor",
-  "publish selected draft",
-  "content_draft_operations",
-  "new content starts as a private draft",
+  "Legacy content diagnostics",
 ]) {
   assert.ok(
     contentEditorSource.includes(marker),

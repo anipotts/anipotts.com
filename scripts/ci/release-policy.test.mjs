@@ -314,3 +314,32 @@ assert.throws(
 );
 
 console.log("release policy tests passed");
+
+for (const path of [".gitignore", ".prettierignore"]) {
+  const release = classifyRelease([`M\t${path}`], base);
+  assert.equal(release.risk, "automatic");
+  assert.equal(release.ci_policy_changed, true);
+  assert.equal(Object.values(release.deploy_targets).some(Boolean), false);
+}
+const astryxPatch = classifyRelease(
+  ["M\tpatches/@astryxdesign__core@0.4.6.patch"],
+  base,
+);
+assert.equal(astryxPatch.risk, "automatic");
+assert.equal(astryxPatch.ci_policy_changed, true);
+assert.deepEqual(astryxPatch.deploy_targets, {
+  www: false,
+  admin: true,
+  ingest: false,
+  newsletter: false,
+  state: false,
+  weekly_email: false,
+});
+for (const path of [
+  "patches/@astryxdesign__core@0.4.7.patch",
+  "patches/other.patch",
+  ".gitignore-extra",
+  ".prettierignore/other",
+]) {
+  assert.equal(classifyRelease([`A\t${path}`], base).risk, "unknown");
+}

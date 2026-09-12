@@ -24,7 +24,7 @@ describe("photographic crops", () => {
       [1179, 2091],
       [2400, 1600],
     ])
-      for (const ratio of [1, 1.5, 16 / 9])
+      for (const ratio of [1, 1.5, 16 / 9, 2.4])
         for (const zoom of [1, 2, 3])
           for (const x of [0, 50, 100])
             for (const y of [0, 50, 100]) {

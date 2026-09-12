@@ -1,8 +1,8 @@
 import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
 import type { AdminPrincipal } from "./admin-auth";
 
-// Owner confirmed by Ani for the editorial-only admin.
-export const EDITORIAL_OWNER_EMAIL = "hello@anipotts.com";
+import { EDITORIAL_OWNER_EMAIL } from "./editorial-owner";
+export { EDITORIAL_OWNER_EMAIL } from "./editorial-owner";
 
 type AccessConfig = {
   ACCESS_TEAM_DOMAIN?: string;

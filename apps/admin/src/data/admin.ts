@@ -2,7 +2,8 @@ export type NavItem = {
   href: string;
   label: string;
   status: string;
-  group: "home" | "work" | "content" | "life" | "knowledge" | "system";
+  group:
+    "home" | "work" | "content" | "life" | "knowledge" | "system" | "website";
   description: string;
   icon:
     | "inbox"
@@ -47,8 +48,8 @@ export type DeployRow = {
 
 export const navItems: NavItem[] = [
   {
-    href: "/",
-    label: "inbox",
+    href: "/inbox",
+    label: "Inbox",
     status: "queue",
     group: "home",
     description: "what needs attention and what can move next",
@@ -57,7 +58,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/work?view=now",
-    label: "work",
+    label: "Work",
     status: "now",
     group: "work",
     description: "current execution, waiting, proof, and lineage",
@@ -66,7 +67,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/work?view=projects",
-    label: "projects",
+    label: "Projects",
     status: "view",
     group: "work",
     description: "work grouped by project",
@@ -75,7 +76,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/work?view=history",
-    label: "history",
+    label: "History",
     status: "view",
     group: "work",
     description: "recently completed and preserved work",
@@ -84,34 +85,23 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/content",
-    label: "content",
-    status: "D1",
-    group: "content",
-    description: "pieces, drafts, exports",
+    label: "Website",
+    status: "workspace",
+    group: "website",
+    description: "Website content and private writing drafts",
     icon: "content",
-    mobile: true,
-  },
-  {
-    href: "/content/new",
-    label: "new article",
-    status: "editor",
-    group: "content",
-    description: "create a private article",
-    icon: "edit",
-    parent: "content",
   },
   {
     href: "/content/review",
-    label: "review",
+    label: "Legacy content diagnostics",
     status: "content",
     group: "content",
-    description: "proposed copy and review state",
+    description: "Retained D1 content review; separate from the Website editor",
     icon: "review",
-    parent: "content",
   },
   {
     href: "/content/carousels",
-    label: "carousels",
+    label: "Carousels",
     status: "media",
     group: "content",
     description: "carousel sets and export review",
@@ -120,7 +110,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/content/preview",
-    label: "preview",
+    label: "Preview",
     status: "content",
     group: "content",
     description: "draft preview surfaces",
@@ -129,7 +119,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/content/drafts",
-    label: "drafts",
+    label: "Drafts",
     status: "content",
     group: "content",
     description: "saved draft operations and publish state",
@@ -138,7 +128,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/content/operations",
-    label: "history",
+    label: "History",
     status: "content",
     group: "content",
     description: "draft operation metadata",
@@ -146,17 +136,8 @@ export const navItems: NavItem[] = [
     parent: "content",
   },
   {
-    href: "/newsletter",
-    label: "newsletter",
-    status: "retained",
-    group: "content",
-    description: "issue preview without sends",
-    icon: "newsletter",
-    parent: "content",
-  },
-  {
     href: "/life",
-    label: "life",
+    label: "Personal",
     status: "status",
     group: "life",
     description: "quiet personal overview",
@@ -165,7 +146,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/life/health",
-    label: "health",
+    label: "Health",
     status: "status",
     group: "life",
     description: "status-only health visibility",
@@ -174,7 +155,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/life/aesthetics",
-    label: "aesthetics",
+    label: "Aesthetics",
     status: "shell",
     group: "life",
     description: "wardrobe, outfits, looks, and references",
@@ -183,15 +164,16 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/knowledge",
-    label: "knowledge",
+    label: "Knowledge",
     status: "index",
     group: "knowledge",
     description: "current context and source proof",
     icon: "knowledge",
+    mobile: true,
   },
   {
     href: "/knowledge?kind=people",
-    label: "people",
+    label: "People",
     status: "index",
     group: "knowledge",
     description: "people and current relationships",
@@ -200,7 +182,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/knowledge/locations",
-    label: "locations",
+    label: "Locations",
     status: "map",
     group: "knowledge",
     description: "fleet topology and known places",
@@ -209,15 +191,25 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/system",
-    label: "system",
+    label: "System",
     status: "status",
     group: "system",
     description: "machines, deploys, proof, and governance",
     icon: "system",
+    mobile: true,
+  },
+  {
+    href: "/operations/observability",
+    label: "Observability",
+    status: "coverage",
+    group: "system",
+    description: "service coverage and operational evidence",
+    icon: "system",
+    parent: "system",
   },
   {
     href: "/fleet",
-    label: "fleet",
+    label: "Fleet",
     status: "runtime",
     group: "system",
     description: "machines, repo state, current work",
@@ -226,7 +218,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/proof",
-    label: "proof",
+    label: "Proof",
     status: "passkeys",
     group: "system",
     description: "auth, proof, and blocked checks",
@@ -235,7 +227,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/deploys",
-    label: "deploys",
+    label: "Deployments",
     status: "scoped",
     group: "system",
     description: "target map and deploy proof",
@@ -244,7 +236,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/repos",
-    label: "repositories",
+    label: "Repositories",
     status: "details",
     group: "system",
     description: "dirty state and branch drift",
@@ -253,16 +245,16 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/handoffs",
-    label: "handoffs",
+    label: "Handoffs",
     status: "details",
-    group: "system",
+    group: "work",
     description: "handoff freshness and absorption",
     icon: "handoff",
-    parent: "system",
+    parent: "work",
   },
   {
     href: "/mutations",
-    label: "mutations",
+    label: "Mutations",
     status: "gated",
     group: "system",
     description: "proposed, approved, running, verified",
@@ -271,7 +263,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/ops/destructive",
-    label: "gates",
+    label: "Gates",
     status: "gated",
     group: "system",
     description: "delete, dns, auth, deploy, secrets",
@@ -285,18 +277,19 @@ export const handoffRows: QueueRow[] = [
     title: "passkey registration proof",
     owner: "site/admin",
     status: "needed before Access removal",
-    evidence: "D1 admin_passkey_credentials count must be greater than zero",
+    evidence:
+      "Required: verify registration, login, logout, session persistence and blocked access",
   },
   {
     title: "Astro admin route parity",
     owner: "site/admin",
-    status: "covered by route parity guard",
+    status: "route parity reference",
     evidence: "scripts/ci/admin-route-inventory.mjs",
   },
   {
     title: "legacy worker review",
     owner: "site/platform",
-    status: "retained after 2026-06-29 review",
+    status: "worker review reference",
     evidence: "docs/worker-inventory.md",
   },
 ];
@@ -305,8 +298,8 @@ export const repoRows: QueueRow[] = [
   {
     title: "anipotts-com",
     owner: "main",
-    status: "production-reflective",
-    evidence: "agent PRs merge after checks",
+    status: "protected release branch",
+    evidence: "Required: passing checks and an exact-head protected merge",
   },
   {
     title: "apps/admin",
@@ -322,7 +315,8 @@ export const deployRows: DeployRow[] = [
     input: "www=true",
     scope: "apps/www and proven public consumers",
     status: "automatic safe lane",
-    proof: "public routes return 200 after scoped deploy",
+    proof:
+      "Required: verify public routes and deployed release SHA after a scoped deploy",
     next: "keep public content/layout changes isolated from admin code",
   },
   {
@@ -330,15 +324,17 @@ export const deployRows: DeployRow[] = [
     input: "admin=true",
     scope: "apps/admin and proven admin consumers",
     status: "automatic safe lane",
-    proof: "admin routes return Cloudflare Access 302 until passkey removal",
-    next: "enroll passkey, then prove app-native blocking before Access removal",
+    proof:
+      "Required: verify authenticated access, unauthenticated blocking and deployed release SHA",
+    next: "verify current authentication protections before any Access change",
   },
   {
     target: "state worker",
     input: "state=true",
     scope: "workers/state only",
     status: "retained worker",
-    proof: "state deploy job is skipped unless the target is selected",
+    proof:
+      "Required: verify state target selection and skipped-target evidence in the deployment run",
     next: "keep write routes behind STATE_PUBLISH_KEY and route-level proof",
   },
   {
@@ -346,7 +342,8 @@ export const deployRows: DeployRow[] = [
     input: "ingest=true",
     scope: "workers/ingest only",
     status: "retained worker",
-    proof: "ingest deploy job is skipped unless the target is selected",
+    proof:
+      "Required: verify ingest target selection and skipped-target evidence in the deployment run",
     next: "do not expand receivers without source-specific proof",
   },
   {
@@ -354,7 +351,8 @@ export const deployRows: DeployRow[] = [
     input: "newsletter=true",
     scope: "workers/newsletter only",
     status: "retained worker",
-    proof: "newsletter deploy job is skipped unless the target is selected",
+    proof:
+      "Required: verify newsletter target selection and skipped-target evidence in the deployment run",
     next: "keep sends gated until newsletter publishing proof exists",
   },
   {
@@ -362,7 +360,8 @@ export const deployRows: DeployRow[] = [
     input: "weekly_email=true",
     scope: "workers/weekly-email only",
     status: "retained worker",
-    proof: "weekly email deploy job is skipped unless the target is selected",
+    proof:
+      "Required: verify weekly email target selection and skipped-target evidence in the deployment run",
     next: "fold or retire after newsletter/content system owns the summary path",
   },
 ];
@@ -371,19 +370,21 @@ export const mutationRows: QueueRow[] = [
   {
     title: "remove Cloudflare Access",
     owner: "admin auth",
-    status: "blocked by proof",
-    evidence: "no active passkey credential yet",
+    status: "requires verified authentication proof",
+    evidence:
+      "Required: verify app-native authentication and blocking before changing Access",
   },
   {
     title: "publish content edits",
     owner: "content admin",
-    status: "selected-draft publish with proof",
-    evidence: "content_publish_events and page_content version history",
+    status: "requires draft review and approval",
+    evidence:
+      "Required: approved private revision, Git-backed publication and release verification",
   },
 ];
 
 export function routeTitle(pathname: string): string {
-  if (pathname.startsWith("/content/edit/")) return "writing editor";
+  if (pathname.startsWith("/content/edit/")) return "Writing editor";
 
   const match =
     navItems.find((item) => item.href === pathname) ??
@@ -392,5 +393,5 @@ export function routeTitle(pathname: string): string {
       .find(
         (item) => item.href !== "/" && pathname.startsWith(`${item.href}/`),
       );
-  return match?.label ?? "admin";
+  return match?.label ?? "Admin";
 }

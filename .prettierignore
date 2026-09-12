@@ -31,3 +31,13 @@ apps/admin/src/themes/editorial.js
 
 # Generated Cloudflare runtime declarations
 apps/admin/test/bindings.d.ts
+
+# Additional workspace themes use the same exact generated-output contract.
+apps/admin/src/themes/operations.generated.css
+apps/admin/src/themes/operations.d.ts
+apps/admin/src/themes/operations.variants.d.ts
+apps/admin/src/themes/operations.js
+apps/admin/src/themes/life.generated.css
+apps/admin/src/themes/life.d.ts
+apps/admin/src/themes/life.variants.d.ts
+apps/admin/src/themes/life.js

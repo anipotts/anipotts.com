@@ -1,6 +1,12 @@
 import type { Draft, SaveResult } from "../editorial/draft-store";
 
 type Pending = { source: string; expectedRevision: number; requestId: string };
+export type RecoverySnapshot = {
+  source: string;
+  saved: string;
+  revision: number;
+  pending: Pending | null;
+};
 export type SaveState = {
   source: string;
   revision: number;
@@ -23,6 +29,21 @@ export class HomeAutosave {
   ) {
     this.saved = source;
     this.state = { source, revision, status: "saved", conflict: null };
+  }
+  recovery(): RecoverySnapshot {
+    return {
+      source: this.state.source,
+      saved: this.saved,
+      revision: this.state.revision,
+      pending: this.pending ? { ...this.pending } : null,
+    };
+  }
+  recover(snapshot: RecoverySnapshot) {
+    // Preserve the old revision and operation identity. Server changes must conflict.
+    this.saved = snapshot.saved;
+    this.pending = snapshot.pending;
+    this.state = { ...this.state, revision: snapshot.revision };
+    this.edit(snapshot.source);
   }
   edit(source: string) {
     this.state = {

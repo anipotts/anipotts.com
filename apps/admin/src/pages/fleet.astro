@@ -55,7 +55,7 @@ const repoReferences = runtime.overlays.map((row) =>
 const fleetReferences = [...machineReferences, ...repoReferences];
 ---
 
-<AdminLayout title="fleet" hideHeader>
+<AdminLayout title="Fleet" hideHeader>
   <main class="quiet-page quiet-fleet-page">
     <header class="quiet-page-header">
       <h1 class="brand-display">Fleet</h1>
@@ -75,7 +75,7 @@ const fleetReferences = [...machineReferences, ...repoReferences];
       </span>
     </header>
 
-    <section class="quiet-machine-grid" aria-label="machines">
+    <section class="quiet-machine-grid" aria-label="Machines">
       {
         machines.map((machine, index) => (
           <article>
@@ -88,26 +88,26 @@ const fleetReferences = [...machineReferences, ...repoReferences];
             <p>{machine.role}</p>
             <dl>
               <div>
-                <dt>repositories</dt>
+                <dt>Repositories</dt>
                 <dd>{machine.repos.length || "unknown"}</dd>
               </div>
               <div>
-                <dt>tracked changes</dt>
+                <dt>Tracked changes</dt>
                 <dd>{machine.repos.length ? machine.dirty : "unknown"}</dd>
               </div>
               <div>
-                <dt>drift</dt>
+                <dt>Drift</dt>
                 <dd>{machine.repos.length ? machine.drift : "unknown"}</dd>
               </div>
               <div>
-                <dt>agents</dt>
+                <dt>Agents</dt>
                 <dd>see Work</dd>
               </div>
             </dl>
             <SemanticReference
               reference={machineReferences[index]!}
               variant="action"
-              label="details"
+              label="Details"
             />
           </article>
         ))
@@ -117,17 +117,17 @@ const fleetReferences = [...machineReferences, ...repoReferences];
     <section class="quiet-fleet-matrix" aria-labelledby="repo-health-heading">
       <header>
         <h2 id="repo-health-heading">Repository health</h2>
-        <a href="/repos">all repositories</a>
+        <a href="/repos">All repositories</a>
       </header>
       {
         runtime.overlays.length > 0 ? (
-          <div role="table" aria-label="runtime repository health">
+          <div role="table" aria-label="Runtime repository health">
             <div role="row" class="quiet-matrix-header">
-              <span role="columnheader">repository</span>
-              <span role="columnheader">host</span>
-              <span role="columnheader">branch</span>
-              <span role="columnheader">pressure</span>
-              <span role="columnheader">impact</span>
+              <span role="columnheader">Repository</span>
+              <span role="columnheader">Host</span>
+              <span role="columnheader">Branch</span>
+              <span role="columnheader">Pressure</span>
+              <span role="columnheader">Impact</span>
               <span role="columnheader" class="sr-only">
                 details
               </span>
@@ -145,7 +145,7 @@ const fleetReferences = [...machineReferences, ...repoReferences];
                   <SemanticReference
                     reference={repoReferences[index]!}
                     variant="action"
-                    label="details"
+                    label="Details"
                   />
                 </span>
               </div>

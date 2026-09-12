@@ -82,3 +82,6 @@ scripts/d1-migration-data.sql
 # Compatibility projections are derived from canonical Markdown at build time.
 /packages/content/src/public/generated.ts
 /packages/content/generated/admin-public-content.json
+
+# Local pnpm content-addressed cache
+.pnpm-store/

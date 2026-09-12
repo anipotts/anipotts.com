@@ -1,0 +1,321 @@
+diff --git a/src/Tooltip/Tooltip.tsx b/src/Tooltip/Tooltip.tsx
+index 1243d875..a49fa114 100644
+--- a/src/Tooltip/Tooltip.tsx
++++ b/src/Tooltip/Tooltip.tsx
+@@ -191,7 +191,7 @@ export function Tooltip({
+   content,
+   placement = 'above',
+   alignment = 'center',
+-  delay = 200,
++  delay = 0,
+   hideDelay = 0,
+   focusTrigger = 'auto',
+   touchTrigger = 'auto',
+diff --git a/src/Tooltip/useTooltip.tsx b/src/Tooltip/useTooltip.tsx
+index 79e17725..68af0b03 100644
+--- a/src/Tooltip/useTooltip.tsx
++++ b/src/Tooltip/useTooltip.tsx
+@@ -41,12 +41,6 @@ import {
+   typeScaleVars,
+ } from '../theme/tokens.stylex';
+ 
+-/**
+- * Grace period (ms) before hiding on pointer-leave when no explicit `hideDelay`
+- * is set, so the pointer can travel across the small gap from the trigger onto
+- * the tooltip surface without the tooltip disappearing (WCAG 1.4.13 hoverable).
+- */
+-const HOVER_BRIDGE_DELAY = 100;
+ 
+ const styles = stylex.create({
+   // Base container styles - inverted colors for high contrast
+@@ -263,7 +257,7 @@ export function useTooltip(options: TooltipOptions = {}): TooltipReturn {
+   const {
+     placement = 'above',
+     alignment = 'center',
+-    delay = 200,
++    delay = 0,
+     hideDelay = 0,
+     focusTrigger = 'auto',
+     touchTrigger = 'auto',
+@@ -333,18 +327,16 @@ export function useTooltip(options: TooltipOptions = {}): TooltipReturn {
+   }, [isEnabled, isOpen, clearTimeouts, layer, delay]);
+ 
+   // Schedule hide with delay (suppressed when isOpen is true).
+-  // A small hover bridge (when hideDelay is 0) lets the pointer travel from the
+-  // trigger onto the tooltip surface without the tooltip vanishing — required
+-  // for WCAG 1.4.13 (Content on Hover or Focus: hoverable).
++  // The zero-offset surface touches its trigger, retaining pointer access
++  // without a timed dismissal grace period.
+   const scheduleHide = useCallback(() => {
+     if (isOpen === true) {
+       return;
+     }
+     clearTimeouts();
+-    const effectiveHideDelay = hideDelay > 0 ? hideDelay : HOVER_BRIDGE_DELAY;
+     hideTimeoutRef.current = setTimeout(() => {
+       layer.hide();
+-    }, effectiveHideDelay);
++    }, hideDelay);
+   }, [isOpen, clearTimeouts, layer, hideDelay]);
+ 
+   // Cancel a pending hide (e.g. the pointer entered the tooltip surface).
+@@ -366,15 +358,20 @@ export function useTooltip(options: TooltipOptions = {}): TooltipReturn {
+     scheduleShow();
+   }, [touch, scheduleShow]);
+ 
+-  const handleMouseLeave = useCallback(() => {
++  const handleMouseLeave = useCallback((event: MouseEvent) => {
+     // On touch the synthesized mouseleave arrives with the next tap elsewhere,
+     // which the outside-tap dismissal already handles — and handling it here
+     // too would close the tooltip behind the tap-open bookkeeping's back.
+     if (touch.isTouchPointerRef.current) {
+       return;
+     }
++    // Direct pointer travel onto the touching surface must remain hoverable.
++    const next = event.relatedTarget;
++    if (next instanceof Node && document.getElementById(layer.id)?.contains(next)) {
++      return;
++    }
+     scheduleHide();
+-  }, [touch, scheduleHide]);
++  }, [touch, scheduleHide, layer.id]);
+ 
+   const handleFocusIn = useCallback(
+     (e: Event) => {
+@@ -557,7 +554,7 @@ export function useTooltip(options: TooltipOptions = {}): TooltipReturn {
+       const renderProps = {
+         placement: renderPlacement,
+         alignment: props?.alignment ?? alignment,
+-        offset: spacingVars['--spacing-1'],
++        offset: 0,
+         role: 'tooltip',
+         xstyle: [popoverXstyle, layerAnimations[renderPlacement]],
+         className: themeProps('tooltip').className,
+diff --git a/src/DropdownMenu/DropdownMenuSubMenu.tsx b/src/DropdownMenu/DropdownMenuSubMenu.tsx
+index afdddafe..ed31d23e 100644
+--- a/src/DropdownMenu/DropdownMenuSubMenu.tsx
++++ b/src/DropdownMenu/DropdownMenuSubMenu.tsx
+@@ -561,7 +561,7 @@ export function DropdownMenuSubMenu(
+         {
+           placement: 'end',
+           alignment: 'start',
+-          offset: spacingVars['--spacing-1'],
++          offset: 0,
+           xstyle: [popoverXstyle, layerAnimations.end],
+         },
+       )}
+diff --git a/src/hooks/useMenuHover.ts b/src/hooks/useMenuHover.ts
+index aa1560c9..f8d7928b 100644
+--- a/src/hooks/useMenuHover.ts
++++ b/src/hooks/useMenuHover.ts
+@@ -133,8 +133,8 @@ export function useMenuHover<T extends HTMLElement = HTMLElement>(
+     hide,
+     isOpen,
+     isEnabled,
+-    showDelay = 150,
+-    hideDelay = 200,
++    showDelay = 0,
++    hideDelay = 0,
+     clickGuardMs = DEFAULT_CLICK_GUARD_MS,
+     itemSelector,
+     popoverId,
+diff --git a/src/HoverCard/useHoverCard.tsx b/src/HoverCard/useHoverCard.tsx
+index 822eb17e..3578aa8d 100644
+--- a/src/HoverCard/useHoverCard.tsx
++++ b/src/HoverCard/useHoverCard.tsx
+@@ -257,8 +257,8 @@ export function useHoverCard(options: HoverCardOptions = {}): HoverCardReturn {
+   const {
+     placement = 'above',
+     alignment = 'center',
+-    delay = 300,
+-    hideDelay = 200,
++    delay = 0,
++    hideDelay = 0,
+     focusTrigger = 'auto',
+     touchTrigger = 'auto',
+     isEnabled = true,
+@@ -533,7 +533,7 @@ export function useHoverCard(options: HoverCardOptions = {}): HoverCardReturn {
+       const renderProps = {
+         placement: renderPlacement,
+         alignment: props?.alignment ?? alignment,
+-        offset: spacingVars['--spacing-1'],
++        offset: 0,
+         // A named dialog when a label is provided; otherwise a group. A group
+         // may validly be unnamed, an unnamed dialog may not — and hover cards
+         // are non-modal, so group is honest semantics without a name.
+diff --git a/src/HoverCard/HoverCard.tsx b/src/HoverCard/HoverCard.tsx
+index ee534c44..1d1b21dc 100644
+--- a/src/HoverCard/HoverCard.tsx
++++ b/src/HoverCard/HoverCard.tsx
+@@ -189,8 +189,8 @@ export function HoverCard({
+   content,
+   placement = 'above',
+   alignment = 'center',
+-  delay = 300,
+-  hideDelay = 200,
++  delay = 0,
++  hideDelay = 0,
+   focusTrigger = 'auto',
+   touchTrigger = 'auto',
+   isEnabled = true,
+diff --git a/dist/Tooltip/Tooltip.js b/dist/Tooltip/Tooltip.js
+index bfb7c650..a05ca6b0 100644
+--- a/dist/Tooltip/Tooltip.js
++++ b/dist/Tooltip/Tooltip.js
+@@ -55,7 +55,7 @@ export function Tooltip({
+   content,
+   placement = 'above',
+   alignment = 'center',
+-  delay = 200,
++  delay = 0,
+   hideDelay = 0,
+   focusTrigger = 'auto',
+   touchTrigger = 'auto',
+diff --git a/dist/Tooltip/useTooltip.js b/dist/Tooltip/useTooltip.js
+index 7ea137f1..2bac9527 100644
+--- a/dist/Tooltip/useTooltip.js
++++ b/dist/Tooltip/useTooltip.js
+@@ -21,13 +21,7 @@ import { isImeKeyEvent } from "../utils/ime.js";
+ import "../theme/tokens.stylex.js";
+ import { colorVars, radiusVars, spacingVars, typographyVars, typeScaleVars } from "../theme/tokens.stylex.js";
+ 
+-/**
+- * Grace period (ms) before hiding on pointer-leave when no explicit `hideDelay`
+- * is set, so the pointer can travel across the small gap from the trigger onto
+- * the tooltip surface without the tooltip disappearing (WCAG 1.4.13 hoverable).
+- */
+ import { jsx as _jsx } from "react/jsx-runtime";
+-const HOVER_BRIDGE_DELAY = 100;
+ const styles = {
+   container: {
+     kWkggS: "x19aspcf",
+@@ -98,7 +92,7 @@ export function useTooltip(options = {}) {
+   const {
+     placement = 'above',
+     alignment = 'center',
+-    delay = 200,
++    delay = 0,
+     hideDelay = 0,
+     focusTrigger = 'auto',
+     touchTrigger = 'auto',
+@@ -163,18 +157,16 @@ export function useTooltip(options = {}) {
+   }, [isEnabled, isOpen, clearTimeouts, layer, delay]);
+ 
+   // Schedule hide with delay (suppressed when isOpen is true).
+-  // A small hover bridge (when hideDelay is 0) lets the pointer travel from the
+-  // trigger onto the tooltip surface without the tooltip vanishing — required
+-  // for WCAG 1.4.13 (Content on Hover or Focus: hoverable).
++  // The zero-offset surface touches its trigger, retaining pointer access
++  // without a timed dismissal grace period.
+   const scheduleHide = useCallback(() => {
+     if (isOpen === true) {
+       return;
+     }
+     clearTimeouts();
+-    const effectiveHideDelay = hideDelay > 0 ? hideDelay : HOVER_BRIDGE_DELAY;
+     hideTimeoutRef.current = setTimeout(() => {
+       layer.hide();
+-    }, effectiveHideDelay);
++    }, hideDelay);
+   }, [isOpen, clearTimeouts, layer, hideDelay]);
+ 
+   // Cancel a pending hide (e.g. the pointer entered the tooltip surface).
+@@ -195,15 +187,20 @@ export function useTooltip(options = {}) {
+     }
+     scheduleShow();
+   }, [touch, scheduleShow]);
+-  const handleMouseLeave = useCallback(() => {
++  const handleMouseLeave = useCallback((event) => {
+     // On touch the synthesized mouseleave arrives with the next tap elsewhere,
+     // which the outside-tap dismissal already handles — and handling it here
+     // too would close the tooltip behind the tap-open bookkeeping's back.
+     if (touch.isTouchPointerRef.current) {
+       return;
+     }
++    // Direct pointer travel onto the touching surface must remain hoverable.
++    const next = event.relatedTarget;
++    if (next instanceof Node && document.getElementById(layer.id)?.contains(next)) {
++      return;
++    }
+     scheduleHide();
+-  }, [touch, scheduleHide]);
++  }, [touch, scheduleHide, layer.id]);
+   const handleFocusIn = useCallback(e => {
+     if (!isEnabled) {
+       return;
+@@ -352,7 +349,7 @@ export function useTooltip(options = {}) {
+     const renderProps = {
+       placement: renderPlacement,
+       alignment: props?.alignment ?? alignment,
+-      offset: spacingVars['--spacing-1'],
++      offset: 0,
+       role: 'tooltip',
+       xstyle: [popoverXstyle, layerAnimations[renderPlacement]],
+       className: themeProps('tooltip').className,
+diff --git a/dist/DropdownMenu/DropdownMenuSubMenu.js b/dist/DropdownMenu/DropdownMenuSubMenu.js
+index 3eb31428..4f267cfb 100644
+--- a/dist/DropdownMenu/DropdownMenuSubMenu.js
++++ b/dist/DropdownMenu/DropdownMenuSubMenu.js
+@@ -425,7 +425,7 @@ export function DropdownMenuSubMenu(props) {
+     }), {
+       placement: 'end',
+       alignment: 'start',
+-      offset: spacingVars['--spacing-1'],
++      offset: 0,
+       xstyle: [popoverXstyle, layerAnimations.end]
+     })]
+   });
+diff --git a/dist/hooks/useMenuHover.js b/dist/hooks/useMenuHover.js
+index aece9c70..cd765932 100644
+--- a/dist/hooks/useMenuHover.js
++++ b/dist/hooks/useMenuHover.js
+@@ -57,8 +57,8 @@ export function useMenuHover(options) {
+     hide,
+     isOpen,
+     isEnabled,
+-    showDelay = 150,
+-    hideDelay = 200,
++    showDelay = 0,
++    hideDelay = 0,
+     clickGuardMs = DEFAULT_CLICK_GUARD_MS,
+     itemSelector,
+     popoverId,
+diff --git a/dist/HoverCard/HoverCard.js b/dist/HoverCard/HoverCard.js
+index 01064192..bf8a0b2e 100644
+--- a/dist/HoverCard/HoverCard.js
++++ b/dist/HoverCard/HoverCard.js
+@@ -56,8 +56,8 @@ export function HoverCard({
+   content,
+   placement = 'above',
+   alignment = 'center',
+-  delay = 300,
+-  hideDelay = 200,
++  delay = 0,
++  hideDelay = 0,
+   focusTrigger = 'auto',
+   touchTrigger = 'auto',
+   isEnabled = true,
+diff --git a/dist/HoverCard/useHoverCard.js b/dist/HoverCard/useHoverCard.js
+index 2822d7f7..7f050d2b 100644
+--- a/dist/HoverCard/useHoverCard.js
++++ b/dist/HoverCard/useHoverCard.js
+@@ -81,8 +81,8 @@ export function useHoverCard(options = {}) {
+   const {
+     placement = 'above',
+     alignment = 'center',
+-    delay = 300,
+-    hideDelay = 200,
++    delay = 0,
++    hideDelay = 0,
+     focusTrigger = 'auto',
+     touchTrigger = 'auto',
+     isEnabled = true,
+@@ -306,7 +306,7 @@ export function useHoverCard(options = {}) {
+     const renderProps = {
+       placement: renderPlacement,
+       alignment: props?.alignment ?? alignment,
+-      offset: spacingVars['--spacing-1'],
++      offset: 0,
+       // A named dialog when a label is provided; otherwise a group. A group
+       // may validly be unnamed, an unnamed dialog may not — and hover cards
+       // are non-modal, so group is honest semantics without a name.

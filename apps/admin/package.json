@@ -8,8 +8,8 @@
   },
   "scripts": {
     "astryx": "astryx",
-    "theme:build": "astryx theme build src/themes/editorial.ts --out src/themes/editorial.generated.css",
-    "theme:check": "astryx theme build src/themes/editorial.ts --out src/themes/editorial.generated.css --check",
+    "theme:build": "astryx theme build src/themes/editorial.ts --out src/themes/editorial.generated.css && astryx theme build src/themes/operations.ts --out src/themes/operations.generated.css && astryx theme build src/themes/life.ts --out src/themes/life.generated.css",
+    "theme:check": "astryx theme build src/themes/editorial.ts --out src/themes/editorial.generated.css --check && astryx theme build src/themes/operations.ts --out src/themes/operations.generated.css --check && astryx theme build src/themes/life.ts --out src/themes/life.generated.css --check",
     "dev": "astro dev --port 3001",
     "build": "pnpm theme:check && astro build",
     "preview": "astro preview",
@@ -66,6 +66,7 @@
     "@types/react-dom": "^19.2.4",
     "esbuild": "^0.28.2",
     "gpt-tokenizer": "^3.4.0",
+    "jsdom": "^30.0.1",
     "miniflare": "4.20260114.0",
     "typescript": "^5",
     "vitest": "^4.1.11"

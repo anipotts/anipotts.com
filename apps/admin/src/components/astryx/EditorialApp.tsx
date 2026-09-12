@@ -1,3 +1,9 @@
+import {
+  RECORD_SAVED_EVENT,
+  createInventoryView,
+  applyEditorialRecordSaved,
+} from "../../lib/editorial-inventory-events";
+import { clearEditorialRecovery } from "../../lib/draft-recovery";
 import { Banner } from "@astryxdesign/core/Banner";
 import { NewWriting } from "./NewWriting";
 import React, { useEffect, useState, type ReactNode } from "react";
@@ -9,13 +15,11 @@ import {
   saveTheme,
   themedUrl,
   type ThemePreference,
-} from "@anipotts/brand/theme";
+} from "../../lib/admin-theme";
 import { Theme } from "@astryxdesign/core/theme";
 import { editorialTheme } from "../../themes/editorial.js";
-import { AppShell } from "@astryxdesign/core/AppShell";
-import { TopNav, TopNavHeading } from "@astryxdesign/core/TopNav";
+import { EditorialWorkspaceShell } from "./EditorialWorkspaceShell";
 import { Button } from "@astryxdesign/core/Button";
-import { IconButton } from "@astryxdesign/core/IconButton";
 import { Token } from "@astryxdesign/core/Token";
 import { Card } from "@astryxdesign/core/Card";
 import { Collapsible, CollapsibleGroup } from "@astryxdesign/core/Collapsible";
@@ -27,36 +31,18 @@ import {
 } from "@astryxdesign/core/MetadataList";
 import { editorialFields } from "../../lib/editorial-fields";
 import { AdminSkeleton } from "./AdminFeedback";
-import { AdminCommandPalette } from "./AdminCommandPalette";
 import type { AdminSearchResult } from "../../data/admin-search";
 import { Heading } from "@astryxdesign/core/Heading";
 import { HStack } from "@astryxdesign/core/HStack";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Text } from "@astryxdesign/core/Text";
-import { TextInput } from "@astryxdesign/core/TextInput";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-} from "@astryxdesign/core/DropdownMenu";
+import { ContentLibrary, Updated, RecordStatus } from "./ContentLibrary";
+export { matchingRecords, recentlyUpdated } from "./ContentLibrary";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
-import { Table, proportional, pixel } from "@astryxdesign/core/Table";
-import { TabList, Tab } from "@astryxdesign/core/TabList";
-import {
-  SegmentedControl,
-  SegmentedControlItem,
-} from "@astryxdesign/core/SegmentedControl";
-import { StatusDot } from "@astryxdesign/core/StatusDot";
 import {
   CaretDownIcon,
   XIcon,
   MagnifyingGlassIcon,
-  SunIcon,
-  MoonIcon,
-  DesktopIcon,
-  FilesIcon,
-  EnvelopeSimpleIcon,
-  ArrowUpRightIcon,
-  SignOutIcon,
 } from "@phosphor-icons/react";
 
 // The library owns the theme. Only the icons used by this interface differ.
@@ -75,6 +61,19 @@ export type CatalogRecord = {
   status: string;
   summary?: string;
   section?: string;
+  collection?: string;
+  id?: string;
+  changesPending?: boolean;
+  changedFields?: string[];
+  privateRevision?: number;
+  privateUpdatedAt?: string;
+  publishedUpdated?: { at: string; source: "git" | "local" | "private" };
+  intendedVisibility?: string;
+  capabilities?: {
+    editable: boolean;
+    previewable: boolean;
+    reviewOnly: boolean;
+  };
   updated?: { at: string; source: "git" | "local" | "private" };
 };
 export type CatalogGroup = {
@@ -105,136 +104,15 @@ export type EditorialAppProps = {
   initialMode?: ThemePreference;
   groups?: CatalogGroup[];
   selectedGroup?: string;
+  librarySearch?: string;
   review?: Review;
   inventoryError?: boolean;
   newWriting?: boolean;
+  recoveryScope?: string;
   editHome?: boolean;
   editorRecord?: import("@anipotts/content/editorial/source").EditorialRecord;
   children?: ReactNode;
 };
-
-export function matchingRecords(
-  records: CatalogRecord[],
-  query: string,
-  status: string,
-  sections?: string[],
-): CatalogRecord[] {
-  const text = query.trim().toLocaleLowerCase();
-  return records.filter(
-    (record) =>
-      (status === "all" || record.status === status) &&
-      (sections === undefined || sections.includes(record.section ?? "")) &&
-      `${record.title} ${record.summary ?? ""} ${record.section ?? ""}`
-        .toLocaleLowerCase()
-        .includes(text),
-  );
-}
-
-export function recentlyUpdated(records: CatalogRecord[]): CatalogRecord[] {
-  const latest = (record: CatalogRecord): number =>
-    Date.parse(record.updated?.at ?? "") || 0;
-  return [...records].sort(
-    (a, b) => latest(b) - latest(a) || a.title.localeCompare(b.title),
-  );
-}
-
-function Updated({
-  updated,
-  column = false,
-}: {
-  updated: CatalogRecord["updated"];
-  column?: boolean;
-}) {
-  if (!updated)
-    return column ? <Text color="secondary">not recorded</Text> : null;
-  const date = new Date(updated.at);
-  if (!Number.isFinite(date.getTime())) return null;
-  return (
-    <HStack gap={2} wrap="wrap">
-      <Timestamp
-        value={updated.at}
-        format="date"
-        tooltipEntries={[
-          {
-            label:
-              updated.source === "private"
-                ? "Private draft saved"
-                : updated.source === "local"
-                  ? "Local edit"
-                  : "Latest Git change",
-            timezoneID: "UTC",
-            format: "full",
-          },
-        ]}
-      />
-      {updated.source === "local" && (
-        <Text type="supporting" color="secondary">
-          local edit
-        </Text>
-      )}
-    </HStack>
-  );
-}
-
-/** One link per destination: visible words on desktop, named icons on mobile. */
-function NavigationLink({
-  label,
-  href,
-  icon,
-  active = false,
-  newTab = false,
-}: {
-  label: string;
-  href: string;
-  icon: ReactNode;
-  active?: boolean;
-  newTab?: boolean;
-}) {
-  return (
-    <Button
-      label={label}
-      href={href}
-      target={newTab ? "_blank" : undefined}
-      rel={newTab ? "noopener noreferrer" : undefined}
-      tooltip={newTab ? `${label} in a new tab` : label}
-      size="sm"
-      variant={active ? "primary" : "secondary"}
-      aria-current={active ? "page" : undefined}
-      className="editorial-nav-link"
-    >
-      <Text
-        as="span"
-        className="editorial-nav-icon"
-        style={{ color: "inherit" }}
-      >
-        {icon}
-      </Text>
-      <Text
-        as="span"
-        className="editorial-nav-label"
-        style={{ color: "inherit" }}
-      >
-        {label}
-      </Text>
-    </Button>
-  );
-}
-
-function RecordStatus({ status }: { status: string }) {
-  const visible = ["published", "featured", "listed"].includes(status);
-  return (
-    <Token
-      size="sm"
-      label={status.replaceAll("_", " ")}
-      icon={
-        <StatusDot
-          variant={visible ? "success" : "neutral"}
-          label={visible ? "public" : "not public"}
-        />
-      }
-    />
-  );
-}
 
 export function EditorialApp({
   title,
@@ -245,14 +123,48 @@ export function EditorialApp({
   searchEntries,
   groups,
   selectedGroup,
+  librarySearch,
   review,
   editHome,
   newWriting,
+  recoveryScope,
   inventoryError,
   editorRecord,
   children,
 }: EditorialAppProps) {
   const [mode, setMode] = useState<ThemePreference>(initialMode);
+  const [inventoryView, setInventoryView] = useState(() =>
+    createInventoryView(groups, searchEntries),
+  );
+  useEffect(() => {
+    setInventoryView(createInventoryView(groups, searchEntries));
+  }, [groups, searchEntries]);
+  useEffect(() => {
+    const saved = (event: Event) => {
+      if (event instanceof CustomEvent)
+        setInventoryView((current) =>
+          applyEditorialRecordSaved(current, event.detail),
+        );
+    };
+    window.addEventListener(RECORD_SAVED_EVENT, saved);
+    return () => window.removeEventListener(RECORD_SAVED_EVENT, saved);
+  }, []);
+
+  useEffect(() => {
+    const logout = (event: MouseEvent) => {
+      const link = (event.target as Element | null)?.closest?.("a");
+      if (link && new URL(link.href).pathname === "/cdn-cgi/access/logout") {
+        try {
+          clearEditorialRecovery(localStorage);
+        } catch {
+          /* Storage may be disabled. */
+        }
+      }
+    };
+    document.addEventListener("click", logout, true);
+    return () => document.removeEventListener("click", logout, true);
+  }, []);
+  const [draftTitle, setDraftTitle] = useState(title);
   const comparisonSiteUrl = localPreview ? "https://anipotts.com/" : siteUrl;
   const [siteHref, setSiteHref] = useState(comparisonSiteUrl);
   useEffect(() => {
@@ -265,69 +177,25 @@ export function EditorialApp({
     saveTheme(next);
     setSiteHref(themedUrl(comparisonSiteUrl, next));
   }
-  const nextMode = { light: "dark", dark: "system", system: "light" }[
-    mode
-  ] as ThemePreference;
-  const ThemeIcon = { light: SunIcon, dark: MoonIcon, system: DesktopIcon }[
-    mode
-  ];
   return (
     <Theme theme={theme} mode={mode}>
-      <AppShell
-        height="auto"
-        variant="section"
-        mobileNav={false}
-        contentPadding={4}
-        topNav={
-          <TopNav
-            label="admin"
-            heading={<TopNavHeading heading="admin" headingHref="/content" />}
-            endContent={
-              <HStack gap={2} className="editorial-nav-actions" vAlign="center">
-                <AdminCommandPalette
-                  entries={searchEntries}
-                  navItems={[]}
-                  scope="editorial"
-                  compact
-                />
-                <NavigationLink
-                  label="content"
-                  href="/content"
-                  active={area === "content"}
-                  icon={<FilesIcon size={20} />}
-                />
-                <NavigationLink
-                  label="newsletter"
-                  href="/newsletter"
-                  active={area === "newsletter"}
-                  icon={<EnvelopeSimpleIcon size={20} />}
-                />
-                <NavigationLink
-                  label={localPreview ? "live site" : "view site"}
-                  newTab
-                  href={siteHref}
-                  icon={<ArrowUpRightIcon size={20} />}
-                />
-                <IconButton
-                  size="sm"
-                  label={`${mode} theme: switch to ${nextMode}`}
-                  tooltip={`${mode} theme: switch to ${nextMode}`}
-                  icon={<ThemeIcon size={18} />}
-                  onClick={() => changeTheme(nextMode)}
-                />
-                {!localPreview && (
-                  <NavigationLink
-                    label="log out"
-                    href="/cdn-cgi/access/logout"
-                    icon={<SignOutIcon size={20} />}
-                  />
-                )}
-              </HStack>
-            }
-          />
+      <EditorialWorkspaceShell
+        area={area}
+        selectedGroup={selectedGroup}
+        recordKind={
+          editorRecord?.kind ??
+          (newWriting ? "writing" : editHome ? "home" : undefined)
         }
+        mode={mode}
+        changeTheme={changeTheme}
+        siteHref={siteHref}
+        localPreview={localPreview}
+        searchEntries={inventoryView.searchEntries}
       >
-        <VStack gap={6} className="editorial-content">
+        <VStack
+          gap={editorRecord?.kind === "writing" ? 4 : 6}
+          className={`editorial-content${editorRecord?.kind === "writing" ? " writing-content" : ""}`}
+        >
           {(review || editHome || editorRecord || newWriting) && (
             <Breadcrumbs variant="supporting">
               <BreadcrumbItem
@@ -346,37 +214,63 @@ export function EditorialApp({
                     ? "Writing"
                     : "Content"}
               </BreadcrumbItem>
-              <BreadcrumbItem isCurrent>{title}</BreadcrumbItem>
+              <BreadcrumbItem isCurrent>
+                {editorRecord?.kind === "writing"
+                  ? draftTitle || "Untitled article"
+                  : title}
+              </BreadcrumbItem>
             </Breadcrumbs>
           )}
-          {(groups || review || children || newWriting || editorRecord) && (
-            <HStack gap={3} hAlign="between" vAlign="center" wrap="wrap">
-              <Heading level={1}>
-                {newWriting
-                  ? "New article"
-                  : groups && selectedGroup === "writing"
-                    ? "Writing"
-                    : title}
-              </Heading>
-              {groups && selectedGroup === "writing" && (
-                <Button
-                  label="New article"
-                  href="/content/new"
-                  variant="primary"
-                  size="sm"
-                />
-              )}
-            </HStack>
-          )}
+          {editorRecord?.kind !== "writing" &&
+            (groups || review || children || newWriting || editorRecord) && (
+              <HStack gap={3} hAlign="between" vAlign="center" wrap="wrap">
+                <Heading level={1}>
+                  {newWriting
+                    ? "New article"
+                    : groups && selectedGroup === "writing"
+                      ? "Writing"
+                      : groups && selectedGroup === "website"
+                        ? "Pages"
+                        : groups &&
+                            area === "content" &&
+                            (!selectedGroup || selectedGroup === "pages")
+                          ? "Overview"
+                          : title}
+                </Heading>
+                {groups && selectedGroup === "writing" && (
+                  <Button
+                    label="New article"
+                    href="/content/new"
+                    variant="primary"
+                    size="sm"
+                  />
+                )}
+              </HStack>
+            )}
           {inventoryError && (
             <Banner
               status="warning"
               title="Private drafts couldn’t be loaded"
-              description="Published records are still available. Reload to try your private drafts again."
+              description="Published records are still available."
+              endContent={
+                <Button
+                  label="Reload"
+                  size="sm"
+                  onClick={() => window.location.reload()}
+                />
+              }
             />
           )}
-          {newWriting && <NewWriting />}
-          {groups && <Catalog groups={groups} selectedGroup={selectedGroup} />}
+          {newWriting && <NewWriting recoveryScope={recoveryScope} />}
+          {groups && (
+            <ContentLibrary
+              groups={inventoryView.groups ?? groups}
+              selectedGroup={selectedGroup}
+              initialSearch={librarySearch}
+              inventoryError={inventoryError}
+              area={area}
+            />
+          )}
           {(editHome || editorRecord) && (
             <React.Suspense
               fallback={
@@ -388,6 +282,7 @@ export function EditorialApp({
               }
             >
               <HomeEditor
+                onTitleChange={setDraftTitle}
                 localPreview={localPreview}
                 key={editorRecord?.id ?? "home"}
                 record={editorRecord ?? { kind: "page", id: "home" }}
@@ -488,8 +383,8 @@ export function EditorialApp({
                   <Button
                     label={
                       area === "newsletter"
-                        ? "back to drafts"
-                        : "back to content"
+                        ? "Back to drafts"
+                        : "Back to content"
                     }
                     href={area === "newsletter" ? "/newsletter" : "/content"}
                   />
@@ -497,218 +392,14 @@ export function EditorialApp({
               />
             ))}
         </VStack>
-      </AppShell>
+      </EditorialWorkspaceShell>
     </Theme>
-  );
-}
-
-function Catalog({
-  groups,
-  selectedGroup,
-}: {
-  groups: CatalogGroup[];
-  selectedGroup?: string;
-}) {
-  const group = groups.find((item) => item.name === selectedGroup) ?? groups[0];
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("all");
-  const sectionOptions = [
-    ...new Set(
-      group?.records.flatMap((item) => (item.section ? [item.section] : [])) ??
-        [],
-    ),
-  ].sort();
-  const [sections, setSections] = useState<string[]>(() => sectionOptions);
-  if (!group) return <EmptyState title="no records" />;
-  const records = recentlyUpdated(
-    matchingRecords(
-      group.records,
-      query,
-      status,
-      sectionOptions.length > 1 ? sections : undefined,
-    ),
-  );
-  const statuses = [...new Set(group.records.map((item) => item.status))];
-  return (
-    <VStack gap={4}>
-      {groups.length > 1 && (
-        <TabList size="sm" value={group.name} onChange={() => {}} hasDivider>
-          {groups.map((item) => (
-            <Tab
-              key={item.name}
-              value={item.name}
-              label={item.name === "pages" ? "all pages" : item.name}
-              href={item.href}
-            />
-          ))}
-        </TabList>
-      )}
-      <TextInput
-        label="search records"
-        isLabelHidden
-        placeholder="search records"
-        startIcon="search"
-        value={query}
-        onChange={setQuery}
-        hasClear
-      />
-      <HStack
-        gap={2}
-        hAlign="between"
-        vAlign="center"
-        className="editorial-filter-row"
-      >
-        {sectionOptions.length > 1 && (
-          <DropdownMenu
-            button={{
-              label:
-                sections.length === sectionOptions.length
-                  ? "all sections"
-                  : sections.length === 0
-                    ? "no sections"
-                    : sections.length <= 2
-                      ? sections.join(", ")
-                      : `${sections.length} sections`,
-              size: "sm",
-              variant: "secondary",
-            }}
-          >
-            <DropdownMenuCheckboxItem
-              label="all sections"
-              value={sections.length === sectionOptions.length}
-              onChange={(checked) => setSections(checked ? sectionOptions : [])}
-            />
-            {sectionOptions.map((section) => (
-              <DropdownMenuCheckboxItem
-                key={section}
-                label={section}
-                value={sections.includes(section)}
-                onChange={(checked) =>
-                  setSections((current) =>
-                    checked
-                      ? [...current, section]
-                      : current.filter((item) => item !== section),
-                  )
-                }
-              />
-            ))}
-          </DropdownMenu>
-        )}
-        {statuses.length > 1 && group.name !== "pages" && (
-          <SegmentedControl
-            size="sm"
-            label="publication status"
-            value={status}
-            onChange={setStatus}
-            className="editorial-status-filter"
-          >
-            {["all", ...statuses].map((item) => (
-              <SegmentedControlItem
-                key={item}
-                value={item}
-                label={item.replaceAll("_", " ")}
-              />
-            ))}
-          </SegmentedControl>
-        )}
-        <Text
-          type="supporting"
-          color="secondary"
-          aria-live="polite"
-          className="editorial-record-count"
-        >
-          {records.length} {records.length === 1 ? "record" : "records"}
-        </Text>
-      </HStack>
-      {records.length ? (
-        <Card padding={0}>
-          <Table
-            className="editorial-record-table"
-            data={records}
-            idKey="href"
-            density="compact"
-            hasHover
-            aria-label={`${group.name} records`}
-            columns={[
-              {
-                key: "title",
-                header: "title",
-                width: proportional(1, { minWidth: 80 }),
-                renderCell: (item) => (
-                  <VStack gap={1}>
-                    <HStack
-                      gap={2}
-                      vAlign="center"
-                      className="editorial-record-heading"
-                    >
-                      <Button
-                        size="sm"
-                        label={item.title}
-                        href={item.href}
-                        variant="ghost"
-                        className="record-link"
-                      />
-                      {item.section && item.title !== item.section && (
-                        <Token
-                          size="sm"
-                          label={item.section}
-                          color={
-                            item.section === "work"
-                              ? "blue"
-                              : item.section === "writing"
-                                ? "purple"
-                                : "default"
-                          }
-                          description="page section"
-                        />
-                      )}
-                    </HStack>
-                    {item.summary && (
-                      <Text color="secondary">{item.summary}</Text>
-                    )}
-                    <HStack className="editorial-mobile-status">
-                      <RecordStatus status={item.status} />
-                    </HStack>
-                  </VStack>
-                ),
-              },
-              {
-                key: "status",
-                header: "status",
-                width: pixel(112),
-                renderCell: (item) => <RecordStatus status={item.status} />,
-              },
-              {
-                key: "updated",
-                header: "last updated",
-                width: pixel(112),
-                renderCell: (item) => <Updated updated={item.updated} column />,
-              },
-            ]}
-          />
-        </Card>
-      ) : (
-        <EmptyState
-          title="no matching records"
-          actions={
-            <Button
-              label="clear filters"
-              onClick={() => {
-                setQuery("");
-                setStatus("all");
-                setSections(sectionOptions);
-              }}
-            />
-          }
-        />
-      )}
-    </VStack>
   );
 }
 
 function Fields({ value }: { value: unknown }): ReactNode {
   if (typeof value === "boolean")
-    return <Token size="sm" label={value ? "enabled" : "disabled"} />;
+    return <Token size="sm" label={value ? "Enabled" : "Disabled"} />;
   if (value instanceof Date)
     return <Timestamp value={value.toISOString()} format="date" />;
   if (
@@ -763,7 +454,9 @@ function Fields({ value }: { value: unknown }): ReactNode {
               <Collapsible
                 key={key}
                 value={key}
-                trigger={key.replaceAll("_", " ")}
+                trigger={key
+                  .replaceAll("_", " ")
+                  .replace(/^./, (letter) => letter.toUpperCase())}
               >
                 <VStack gap={3} padding={3}>
                   <Fields value={item} />
@@ -771,7 +464,11 @@ function Fields({ value }: { value: unknown }): ReactNode {
               </Collapsible>
             ) : (
               <MetadataList key={key}>
-                <MetadataListItem label={key.replaceAll("_", " ")}>
+                <MetadataListItem
+                  label={key
+                    .replaceAll("_", " ")
+                    .replace(/^./, (letter) => letter.toUpperCase())}
+                >
                   <Fields value={item} />
                 </MetadataListItem>
               </MetadataList>
@@ -780,6 +477,6 @@ function Fields({ value }: { value: unknown }): ReactNode {
       </CollapsibleGroup>
     );
   return (
-    <Text color="secondary">{value == null ? "not set" : String(value)}</Text>
+    <Text color="secondary">{value == null ? "Not set" : String(value)}</Text>
   );
 }

@@ -104,6 +104,9 @@
       "picomatch@>=4 <4.0.4": "4.0.4",
       "protobufjs@<7.5.5": "7.5.5",
       "fast-xml-builder@<1.1.7": "1.1.7"
+    },
+    "patchedDependencies": {
+      "@astryxdesign/core@0.4.6": "patches/@astryxdesign__core@0.4.6.patch"
     }
   },
   "devDependencies": {

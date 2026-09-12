@@ -1,13 +1,55 @@
 export const ADMIN_ROUTES = [
   {
+    route: "/life/people",
+    file: "apps/admin/src/pages/life/[section].astro",
+    nav: false,
+  },
+  {
+    route: "/life/projects",
+    file: "apps/admin/src/pages/life/[section].astro",
+    nav: false,
+  },
+  {
+    route: "/life/places",
+    file: "apps/admin/src/pages/life/[section].astro",
+    nav: false,
+  },
+  {
+    route: "/life/timeline",
+    file: "apps/admin/src/pages/life/[section].astro",
+    nav: false,
+  },
+  {
+    route: "/life/sources",
+    file: "apps/admin/src/pages/life/[section].astro",
+    nav: false,
+  },
+  {
+    route: "/life/preview",
+    file: "apps/admin/src/pages/life/[section].astro",
+    nav: false,
+  },
+
+  {
+    route: "/api/admin/observability",
+    file: "apps/admin/src/pages/api/admin/observability.ts",
+    nav: false,
+  },
+  {
+    route: "/operations/observability",
+    file: "apps/admin/src/pages/operations/observability.astro",
+    nav: true,
+    smoke: false,
+  },
+  {
     route: "/",
     file: "apps/admin/src/pages/index.astro",
-    nav: true,
+    nav: false,
   },
   {
     route: "/inbox",
     file: "apps/admin/src/pages/inbox.astro",
-    nav: false,
+    nav: true,
   },
   {
     route: "/knowledge",
