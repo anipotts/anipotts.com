@@ -20,7 +20,11 @@ export type ConnectObservation = {
 };
 
 /** Project the existing status command locally; only this result crosses the adapter. */
-export function projectConnectStatus(raw: unknown, observedAt: string, now = Date.now()): ConnectObservation {
+export function projectConnectStatus(
+  raw: unknown,
+  observedAt: string,
+  now = Date.now(),
+): ConnectObservation {
   const instant = Date.parse(observedAt);
   if (!Number.isFinite(instant) || instant < 0 || instant > now)
     throw new Error("Invalid observation time");
@@ -33,14 +37,27 @@ export function projectConnectStatus(raw: unknown, observedAt: string, now = Dat
   for (const key of Object.keys(CONNECT_FIELDS) as ConnectField[]) {
     const value = (runtime as Record<string, unknown>)[key];
     const allowed = CONNECT_FIELDS[key];
-    fields[key] = typeof value === "string" && (allowed
-      ? (allowed as readonly string[]).includes(value)
-      : /^(000|[1-5][0-9]{2})$/.test(value)) ? value : null;
+    fields[key] =
+      typeof value === "string" &&
+      (allowed
+        ? (allowed as readonly string[]).includes(value)
+        : /^(000|[1-5][0-9]{2})$/.test(value))
+        ? value
+        : null;
   }
-  return { version: 1, origin: "mini-operator-runtime", observedAt: new Date(instant).toISOString(), fields, activity: "unknown" };
+  return {
+    version: 1,
+    origin: "mini-operator-runtime",
+    observedAt: new Date(instant).toISOString(),
+    fields,
+    activity: "unknown",
+  };
 }
 
-export function connectFreshness(observation: ConnectObservation | null, now = Date.now()) {
+export function connectFreshness(
+  observation: ConnectObservation | null,
+  now = Date.now(),
+) {
   if (!observation) return "unavailable";
   const age = now - Date.parse(observation.observedAt);
   return !Number.isFinite(age) || age < 0 || age > 60_000 ? "stale" : "current";
