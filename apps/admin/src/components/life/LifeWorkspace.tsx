@@ -14,6 +14,7 @@ import {
 import { Collapsible } from "@astryxdesign/core/Collapsible";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { Toolbar } from "@astryxdesign/core/Toolbar";
+import { LifeActivityView } from "./LifeActivityView";
 import type { LifeResult } from "../../data/personal-context";
 import {
   LifeReadSession,
@@ -462,6 +463,9 @@ export function LifeWorkspace({
               initial={result}
               reader={reader}
             />
+            {section === "overview" && reader && (
+              <LifeActivityView reader={reader} />
+            )}
             {section === "overview" && (
               <List
                 hasDividers
