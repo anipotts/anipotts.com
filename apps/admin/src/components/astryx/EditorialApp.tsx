@@ -229,11 +229,13 @@ export function EditorialApp({
                     ? "New article"
                     : groups && selectedGroup === "writing"
                       ? "Writing"
-                      : groups &&
-                          area === "content" &&
-                          (!selectedGroup || selectedGroup === "pages")
-                        ? "Overview"
-                        : title}
+                      : groups && selectedGroup === "website"
+                        ? "Pages"
+                        : groups &&
+                            area === "content" &&
+                            (!selectedGroup || selectedGroup === "pages")
+                          ? "Overview"
+                          : title}
                 </Heading>
                 {groups && selectedGroup === "writing" && (
                   <Button

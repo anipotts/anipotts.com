@@ -19,21 +19,28 @@ describe("Editorial entry and retained inbox", () => {
     expect(navItems.find((item) => item.label === "Inbox")?.href).toBe(
       "/inbox",
     );
-    const [home, life] = await Promise.all([
+    const [home, palette] = await Promise.all([
       readFile(
         new URL("../components/AdminHome.astro", import.meta.url),
         "utf8",
       ),
-      readFile(new URL("../pages/life/index.astro", import.meta.url), "utf8"),
+      readFile(
+        new URL(
+          "../components/astryx/OperationalCommandPalette.tsx",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
     ]);
     expect(home).toContain('href="/inbox"');
     expect(home).toContain('href="/inbox?view=urgent"');
     expect(home).toContain('href="/inbox?view=waiting"');
     expect(home).toContain("href={`/inbox?category=${category}`}");
-    expect(life).toContain(
-      "href={`/inbox?item=${encodeURIComponent(item.id)}`}",
-    );
+    expect(palette).toContain('"/inbox"');
+    expect(palette).toContain('fetch("/api/admin/runtime-feed"');
+    expect(palette).not.toContain('fetch("/api/admin/inbox"');
+    expect(palette).not.toContain('fetch("/api/admin/knowledge');
     expect(home).not.toMatch(/href=["{]`?\/\?/);
-    expect(life).not.toMatch(/href=["{]`?\/\?item=/);
+    expect(palette).not.toMatch(/href:\s*["`]\/\?item=/);
   });
 });

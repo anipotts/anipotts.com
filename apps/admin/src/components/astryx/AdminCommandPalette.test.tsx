@@ -121,3 +121,75 @@ it("does not replace a newer outside focus target during the close commit", asyn
   expect(document.activeElement).toBe(newer);
   newer.remove();
 });
+
+it("does not run delayed opening autofocus after a rapid dismissal", async () => {
+  const frames = new Map<number, FrameRequestCallback>();
+  let nextFrame = 0;
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    frames.set(++nextFrame, callback);
+    return nextFrame;
+  });
+  vi.spyOn(window, "cancelAnimationFrame").mockImplementation((id) => {
+    frames.delete(id);
+  });
+  const dialog = await open();
+  expect(document.activeElement).toBe(dialog.querySelector("input"));
+  await act(async () => {
+    dialog.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    outside.focus();
+  });
+  // Opening frames may run after the close commit while the exit animation
+  // keeps the input mounted. They must not reclaim keyboard focus.
+  await act(async () => {
+    const queued = [...frames.values()];
+    frames.clear();
+    queued.forEach((callback) => callback(performance.now()));
+  });
+  expect(dialog.open).toBe(false);
+  expect(document.activeElement).toBe(outside);
+});
+
+it("clears a query in one click and returns focus to search", async () => {
+  const dialog = await open();
+  const input = dialog.querySelector("input")!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )!.set!.call(input, "no matching record");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  const clear = [...dialog.querySelectorAll("button")].find(
+    (button) => button.textContent === "Clear",
+  )!;
+  expect(clear).toBeTruthy();
+  await act(async () => clear.click());
+  expect(input.value).toBe("");
+  expect(document.activeElement).toBe(input);
+  expect(dialog.querySelector(".astryx-command-palette-footer")).not.toBeNull();
+});
+
+it("keeps source failure concise, accessible and retryable", async () => {
+  await act(async () =>
+    root.render(
+      <AdminCommandPalette
+        navItems={[]}
+        showTrigger={false}
+        loadEntries={async () => {
+          throw new Error("private failure");
+        }}
+      />,
+    ),
+  );
+  const dialog = await open();
+  expect(
+    dialog.querySelector('.admin-palette-error [role="status"]')?.textContent,
+  ).toBe("Search unavailable");
+  expect(dialog.textContent).not.toContain("private failure");
+  expect(
+    [...dialog.querySelectorAll("button")].some(
+      (button) => button.textContent === "Retry search",
+    ),
+  ).toBe(true);
+  expect(dialog.querySelector(".astryx-command-palette-footer")).not.toBeNull();
+});

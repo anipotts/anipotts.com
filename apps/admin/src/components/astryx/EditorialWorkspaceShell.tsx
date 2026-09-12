@@ -3,7 +3,13 @@ import {
   workspaceReturnPath,
   type Workspace,
 } from "../../lib/workspace-navigation";
-import React, { useEffect, useMemo, useState, type ReactNode } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   libraryReturnPath,
   libraryStateUrl,
@@ -11,7 +17,8 @@ import {
 } from "../../lib/content-library-state";
 import type { ThemePreference } from "@anipotts/brand/theme";
 import { HStack } from "@astryxdesign/core/HStack";
-import { Text } from "@astryxdesign/core/Text";
+import { Popover } from "@astryxdesign/core/Popover";
+import "./WorkspaceHeader.css";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Button } from "@astryxdesign/core/Button";
 import { AppShell, useAppShellMobile } from "@astryxdesign/core/AppShell";
@@ -19,7 +26,6 @@ import {
   SideNav,
   SideNavItem,
   SideNavSection,
-  SideNavHeading,
   SideNavCollapseButton,
 } from "@astryxdesign/core/SideNav";
 import {
@@ -38,6 +44,11 @@ import {
   DesktopIcon,
   SunIcon,
   SignOutIcon,
+  FileTextIcon,
+  DesktopTowerIcon,
+  IdentificationCardIcon,
+  CaretDownIcon,
+  ArrowUpRightIcon,
 } from "@phosphor-icons/react";
 import { AdminCommandPalette } from "./AdminCommandPalette";
 import type { AdminSearchResult } from "../../data/admin-search";
@@ -103,15 +114,27 @@ export function workspaceSelection(
   return group === "systems" ? "website" : (group ?? "pages");
 }
 
+const workspaceIcons = {
+  content: FileTextIcon,
+  operations: DesktopTowerIcon,
+  life: IdentificationCardIcon,
+};
+
 /** AppShell reuses this slot in its fixed-height mobile topbar and drawer. */
 export function WorkspaceIdentity({
   collapsed = false,
   workspace = "content",
+  siteHref = "https://anipotts.com",
 }: {
   collapsed?: boolean;
   workspace?: Workspace;
+  siteHref?: string;
 }) {
   const { isMobile } = useAppShellMobile();
+  const compact = collapsed && !isMobile;
+  const selectorRef = useRef<HTMLButtonElement>(null);
+  const [menuWidth, setMenuWidth] = useState<number>();
+  const WorkspaceIcon = workspaceIcons[workspace];
   const [destinations, setDestinations] = useState<Record<Workspace, string>>({
     content: "/content",
     operations: "/operations/observability",
@@ -151,99 +174,114 @@ export function WorkspaceIdentity({
   }, [workspace]);
   return (
     <VStack
-      className="editorial-workspace-identity"
-      gap={1}
-      data-collapsed={collapsed}
+      className="editorial-workspace-identity approved-workspace-header"
+      gap={2}
+      data-collapsed={compact}
     >
       <HStack
         className="editorial-identity-primary-row"
-        gap={1}
+        gap={2}
         vAlign="center"
       >
-        {!isMobile && collapsed && (
+        {!isMobile && (
           <SideNavCollapseButton size="md">
             <SidebarSimpleIcon size={18} aria-hidden="true" />
           </SideNavCollapseButton>
         )}
-        <SideNavHeading
-          className="editorial-workspace-brand"
-          heading="Admin"
-          subheading="ani potts"
-          icon={collapsed && !isMobile ? <Text>ap</Text> : undefined}
-        />
-        {!isMobile && !collapsed && (
-          <SideNavCollapseButton size="md">
-            <SidebarSimpleIcon size={18} aria-hidden="true" />
-          </SideNavCollapseButton>
+        {!compact && (
+          <span className="admin-bracket-wordmark" aria-label="Admin">
+            <span aria-hidden="true">[</span>admin
+            <span aria-hidden="true">]</span>
+          </span>
+        )}
+        {!compact && !isMobile && (
+          <Button
+            className="editorial-header-site"
+            label="Visit site"
+            aria-label="Visit site"
+            tooltip="Visit anipotts.com"
+            isIconOnly
+            variant="ghost"
+            size="md"
+            icon={<ArrowUpRightIcon size={18} aria-hidden="true" />}
+            href={siteHref}
+            target="_blank"
+            rel="noopener noreferrer"
+          />
         )}
       </HStack>
-      <HStack
-        className="editorial-identity-workspace-row"
-        gap={1}
-        vAlign="center"
-      >
-        <SideNavHeading
-          className="admin-workspace-selector"
-          heading={workspaces[workspace].label}
-          icon={
-            collapsed && !isMobile ? (
-              <Text>{workspaces[workspace].label[0]}</Text>
-            ) : undefined
-          }
-          menu={
-            <VStack
-              padding={2}
-              gap={1}
-              className="editorial-workspace-switcher"
-            >
-              {(Object.keys(workspaces) as Workspace[]).map((key) => (
+      <Popover
+        className="editorial-workspace-popover"
+        width={menuWidth}
+        onOpenChange={(open) => {
+          if (open)
+            setMenuWidth(
+              compact
+                ? 224
+                : selectorRef.current?.getBoundingClientRect().width,
+            );
+        }}
+        label="Switch workspace"
+        placement={compact ? "end" : "below"}
+        content={
+          <VStack padding={2} gap={1} className="editorial-workspace-switcher">
+            {(Object.keys(workspaces) as Workspace[]).map((key) => {
+              const Icon = workspaceIcons[key];
+              return (
                 <SideNavItem
                   key={key}
                   label={workspaces[key].label}
                   href={destinations[key]}
                   isSelected={workspace === key}
+                  icon={<Icon size={18} aria-hidden="true" />}
                 />
-              ))}
-            </VStack>
+              );
+            })}
+          </VStack>
+        }
+      >
+        <Button
+          ref={selectorRef}
+          className="admin-workspace-selector"
+          label={workspaces[workspace].label}
+          aria-label={`Switch workspace: ${workspaces[workspace].label}`}
+          tooltip={`Switch workspace: ${workspaces[workspace].label}`}
+          isIconOnly={compact}
+          variant="secondary"
+          size="md"
+          icon={<WorkspaceIcon size={18} aria-hidden="true" />}
+        >
+          {!compact && (
+            <>
+              <span className="workspace-control-label">
+                {workspaces[workspace].label}
+              </span>
+              <CaretDownIcon
+                className="workspace-caret"
+                size={16}
+                weight="fill"
+                aria-hidden="true"
+              />
+            </>
+          )}
+        </Button>
+      </Popover>
+      {!isMobile && (
+        <Button
+          className="editorial-header-search"
+          label="Search"
+          aria-label="Search"
+          tooltip="Search (⌘K / Ctrl+K)"
+          isIconOnly={compact}
+          variant="ghost"
+          size="md"
+          icon={<MagnifyingGlassIcon size={18} aria-hidden="true" />}
+          onClick={() =>
+            document.dispatchEvent(new CustomEvent("admin:search"))
           }
         />
-        {!isMobile && (
-          <Button
-            className="editorial-header-search"
-            label="Search"
-            tooltip="Search"
-            isIconOnly
-            variant="ghost"
-            size="md"
-            icon={<MagnifyingGlassIcon size={18} aria-hidden="true" />}
-            onClick={() =>
-              document.dispatchEvent(new CustomEvent("admin:search"))
-            }
-          />
-        )}
-      </HStack>
+      )}
     </VStack>
-  );
-}
-
-/** Exact approved AP paths from public/favicon.svg; background deliberately omitted. */
-function APMark() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 512 512" aria-hidden="true">
-      {" "}
-      <g transform="translate(28.9776,308.8984) scale(0.20037279,-0.20037279)">
-        <path
-          d="M838 1000H1138V0H837L823 90Q786 38 729.5 6.0Q673 -26 598 -26Q486 -26 388.5 16.0Q291 58 217.0 132.5Q143 207 101.5 304.5Q60 402 60 514Q60 621 99.0 714.0Q138 807 208.5 877.5Q279 948 371.5 988.0Q464 1028 570 1028Q656 1028 726.5 992.5Q797 957 852 904ZM590 262Q652 262 703.0 294.0Q754 326 784.0 380.0Q814 434 814 500Q814 566 784.0 620.0Q754 674 703.0 706.0Q652 738 590 738Q528 738 477.5 706.0Q427 674 397.5 620.0Q368 566 368 500Q368 434 398.0 380.0Q428 326 478.5 294.0Q529 262 590 262Z"
-          transform="translate(0.0,0)"
-          fill="currentColor"
-        />
-        <path
-          d="M420 -500H120V1000H420V906Q467 959 529.0 992.5Q591 1026 672 1026Q782 1026 877.0 985.0Q972 944 1044.5 871.5Q1117 799 1157.5 704.0Q1198 609 1198 500Q1198 391 1157.5 295.0Q1117 199 1044.5 126.5Q972 54 877.0 13.0Q782 -28 672 -28Q591 -28 529.0 6.0Q467 40 420 92ZM668 738Q607 738 556.5 705.5Q506 673 476.0 619.0Q446 565 446 500Q446 434 476.0 380.0Q506 326 556.5 294.0Q607 262 668 262Q730 262 781.0 294.0Q832 326 862.0 380.0Q892 434 892 500Q892 565 862.0 619.0Q832 673 781.0 705.5Q730 738 668 738Z"
-          transform="translate(1008.0,0)"
-          fill="currentColor"
-        />
-      </g>
-    </svg>
   );
 }
 
@@ -369,7 +407,11 @@ export function EditorialWorkspaceShell({
               hasButton: false,
             }}
             header={
-              <WorkspaceIdentity collapsed={rail} workspace={workspace} />
+              <WorkspaceIdentity
+                collapsed={rail}
+                workspace={workspace}
+                siteHref={siteHref}
+              />
             }
             footer={
               <VStack
@@ -380,19 +422,6 @@ export function EditorialWorkspaceShell({
                 paddingBlock={2}
               >
                 <VStack gap={0} className="editorial-site-appearance">
-                  <Button
-                    className="editorial-live-site-tab"
-                    label="anipotts.com"
-                    icon={rail ? <APMark /> : undefined}
-                    isIconOnly={rail}
-                    tooltip="Live site"
-                    variant="ghost"
-                    size="md"
-                    href={siteHref}
-                    aria-label="Live site"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  />
                   <ToggleButtonGroup
                     type="single"
                     label="Appearance"

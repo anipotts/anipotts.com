@@ -1,0 +1,434 @@
+@font-face {
+  font-family: "AP Structural";
+  src: url("@anipotts/brand/ap-structural/fonts/APStructuralDisplayBlack-v0.2.0-candidate.1.woff2")
+    format("woff2");
+  font-weight: 900;
+  font-display: swap;
+}
+/* Shared geometry: one square target and icon column in either sidebar state. */
+.editorial-workspace-nav .approved-workspace-header {
+  --workspace-control-size: var(--spacing-9);
+  gap: var(--spacing-2);
+}
+.approved-workspace-header .editorial-identity-primary-row {
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 0;
+  min-height: var(--workspace-control-size);
+}
+.approved-workspace-header .admin-bracket-wordmark {
+  display: inline-flex;
+  align-items: center;
+  flex: 1;
+  justify-content: center;
+  gap: calc(var(--spacing-1) / 2);
+  font-family: "AP Structural", sans-serif;
+  font-weight: 900;
+  font-size: var(--font-size-xl, 24px);
+  line-height: 1;
+  white-space: nowrap;
+}
+.admin-bracket-wordmark > span {
+  color: var(--color-text-accent);
+}
+.editorial-workspace-nav .approved-workspace-header button,
+.editorial-workspace-nav .approved-workspace-header > a {
+  min-height: var(--workspace-control-size);
+  height: var(--workspace-control-size);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.approved-workspace-header .editorial-identity-primary-row button {
+  width: var(--workspace-control-size);
+  min-width: var(--workspace-control-size);
+  padding: 0;
+  flex: none;
+}
+.approved-workspace-header .admin-workspace-selector,
+.approved-workspace-header .editorial-header-search,
+.approved-workspace-header .editorial-header-site {
+  width: 100%;
+  justify-content: flex-start;
+  padding-inline: var(--spacing-2);
+  gap: var(--spacing-2);
+}
+.approved-workspace-header svg {
+  flex-shrink: 0;
+}
+.approved-workspace-header .workspace-control-label {
+  flex: 1;
+  text-align: start;
+  white-space: nowrap;
+}
+.approved-workspace-header .workspace-caret,
+.approved-workspace-header .editorial-identity-primary-row button,
+.approved-workspace-header .editorial-header-search svg,
+.approved-workspace-header .editorial-header-site svg {
+  color: var(--color-text-secondary);
+}
+.editorial-workspace-nav
+  .approved-workspace-header[data-collapsed="true"]
+  .editorial-identity-primary-row {
+  flex-direction: row;
+}
+.editorial-workspace-nav
+  .approved-workspace-header[data-collapsed="true"]
+  button,
+.editorial-workspace-nav .approved-workspace-header[data-collapsed="true"] > a {
+  width: var(--workspace-control-size);
+  min-width: var(--workspace-control-size);
+  padding: 0;
+  justify-content: center;
+}
+.editorial-workspace-nav .approved-workspace-header[data-collapsed="true"] {
+  align-items: center;
+}
+.approved-workspace-header[data-collapsed="true"]
+  .editorial-identity-primary-row {
+  justify-content: center;
+}
+.editorial-workspace-nav .astryx-side-nav-item {
+  white-space: nowrap;
+}
+@media (pointer: coarse), (max-width: 767px) {
+  .editorial-workspace-nav .approved-workspace-header {
+    --workspace-control-size: var(--spacing-11);
+  }
+}
+@media (max-width: 767px) {
+  .editorial-workspace-nav[data-mode="topbar"]
+    .approved-workspace-header
+    > .editorial-header-site {
+    display: none;
+  }
+  .editorial-workspace-nav[data-mode="topbar"] .approved-workspace-header {
+    align-items: center;
+  }
+}
+.approved-workspace-header .admin-workspace-selector > span:first-child {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.approved-workspace-header
+  .admin-workspace-selector
+  > span:first-child
+  > span:has(.workspace-control-label) {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: var(--spacing-2);
+}
+.approved-workspace-header[data-collapsed="true"]
+  .admin-workspace-selector
+  > span:first-child {
+  justify-content: center;
+}
+/* The surface owns the trigger width; use one padding layer inside it.
+   Scope beats the retained legacy fixed-width switcher rule. */
+.astryx-popover.editorial-workspace-popover {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+}
+.editorial-workspace-popover .editorial-workspace-switcher {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.editorial-workspace-popover
+  .editorial-workspace-switcher
+  .astryx-side-nav-item {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding-inline: var(--spacing-2);
+}
+
+.approved-workspace-header .admin-workspace-selector > span:first-child {
+  gap: var(--spacing-2);
+}
+.approved-workspace-header[data-collapsed="true"]
+  .admin-workspace-selector
+  > span:first-child {
+  gap: 0;
+}
+.editorial-workspace-nav
+  .approved-workspace-header
+  .editorial-identity-primary-row
+  .editorial-header-site {
+  flex: none;
+  width: var(--workspace-control-size);
+  min-width: var(--workspace-control-size);
+  height: var(--workspace-control-size);
+  padding: 0;
+  justify-content: center;
+}
+/* The icon column is stationary while the native rail animates its width. */
+@media (min-width: 768px) {
+  .editorial-workspace-nav .approved-workspace-header[data-collapsed="true"] {
+    align-items: flex-start;
+  }
+  .editorial-workspace-nav
+    .approved-workspace-header[data-collapsed="true"]
+    .editorial-identity-primary-row {
+    justify-content: flex-start;
+  }
+  .editorial-workspace-nav .astryx-side-nav-item {
+    justify-content: flex-start;
+    padding-inline-start: var(--spacing-2);
+  }
+  .editorial-workspace-nav .astryx-side-nav-item > svg {
+    flex: none;
+    width: var(--spacing-5);
+    margin-inline: 0;
+  }
+  .editorial-workspace-utilities[data-collapsed="true"] {
+    align-items: flex-start;
+  }
+  .editorial-workspace-utilities[data-collapsed="true"]
+    .astryx-toggle-button-group {
+    margin-inline: 0;
+    align-self: flex-start;
+  }
+}
+@media (min-width: 768px) {
+  .editorial-workspace-nav > :has(> .astryx-side-nav-section) {
+    align-items: stretch;
+  }
+  .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    .editorial-workspace-nav
+    .astryx-side-nav-item {
+    width: var(--spacing-9);
+    min-width: var(--spacing-9);
+  }
+  .editorial-workspace-nav .astryx-side-nav-item > svg {
+    width: 18px;
+  }
+  .editorial-workspace-nav .astryx-side-nav-item {
+    padding-inline-start: 9px;
+  }
+  .approved-workspace-header .admin-workspace-selector,
+  .approved-workspace-header .editorial-header-search {
+    padding-inline-start: 9px;
+  }
+}
+/* Symmetric rail targets, including the appearance group's inner padding. */
+@media (min-width: 768px) {
+  .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    .editorial-workspace-nav
+    .astryx-side-nav-item {
+    height: var(--spacing-9);
+    padding-inline: 0;
+    justify-content: center;
+  }
+  .editorial-workspace-utilities[data-collapsed="true"]
+    .astryx-toggle-button-group {
+    padding: 0;
+    border: 0;
+    width: var(--spacing-9);
+    background: transparent;
+  }
+  .editorial-workspace-utilities[data-collapsed="true"]
+    .astryx-toggle-button-group
+    button {
+    box-sizing: border-box;
+    width: var(--spacing-9);
+    min-width: var(--spacing-9);
+    height: var(--spacing-9);
+    padding: 0;
+    justify-content: center;
+  }
+  .editorial-workspace-utilities[data-collapsed="true"]
+    .astryx-toggle-button-group
+    svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+/* Astryx supplies the anchor inline. Keep its tooltips outside the rail;
+   only vertical fallback is allowed so they never cover sidebar controls. */
+.editorial-workspace-nav .astryx-tooltip {
+  position-area: right !important;
+  position-try-fallbacks: flip-block !important;
+  margin-inline-start: var(--spacing-2) !important;
+  margin-block: 0 !important;
+}
+.editorial-workspace-nav > :has(> .editorial-workspace-utilities) {
+  align-items: stretch;
+}
+.editorial-workspace-nav
+  .editorial-workspace-utilities
+  .astryx-toggle-button-group {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+@media (min-width: 768px) {
+  .editorial-workspace-nav
+    .editorial-workspace-utilities[data-collapsed="true"] {
+    align-self: flex-start;
+    width: var(--spacing-9);
+  }
+  .editorial-workspace-nav
+    .editorial-workspace-utilities[data-collapsed="true"]
+    .astryx-toggle-button-group {
+    width: var(--spacing-9);
+    padding: 0;
+    border: 0;
+  }
+  .editorial-workspace-nav
+    .editorial-workspace-utilities[data-collapsed="true"]
+    .astryx-toggle-button-group
+    button {
+    width: var(--spacing-9);
+    min-width: var(--spacing-9);
+    height: var(--spacing-9);
+    padding: 0;
+  }
+  .editorial-workspace-nav
+    .editorial-workspace-utilities
+    .astryx-toggle-button-group
+    svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+@media (min-width: 768px) {
+  .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    .editorial-workspace-nav {
+    width: calc(var(--spacing-9) + var(--spacing-2) * 2);
+    min-width: calc(var(--spacing-9) + var(--spacing-2) * 2);
+  }
+  .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    .editorial-workspace-nav
+    > :has(> .editorial-workspace-utilities) {
+    align-items: flex-start;
+    padding-inline: var(--spacing-2);
+  }
+}
+@media (min-width: 768px) {
+  .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    .astryx-app-shell-sidenav {
+    width: calc(var(--spacing-9) + var(--spacing-2) * 2);
+    min-width: calc(var(--spacing-9) + var(--spacing-2) * 2);
+    flex-basis: calc(var(--spacing-9) + var(--spacing-2) * 2);
+  }
+}
+@media (min-width: 768px) {
+  .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    nav.astryx-side-nav.editorial-workspace-nav {
+    width: calc(var(--spacing-9) + var(--spacing-2) * 2);
+  }
+}
+/* Theme segments share an outline, with only the outer ends rounded. */
+.editorial-workspace-nav
+  .editorial-workspace-utilities
+  .astryx-toggle-button-group
+  > button {
+  border-radius: 0;
+  margin: 0;
+}
+.editorial-workspace-nav
+  .editorial-workspace-utilities[data-collapsed="false"]
+  .astryx-toggle-button-group
+  > button:first-of-type {
+  border-start-start-radius: var(--radius-element);
+  border-end-start-radius: var(--radius-element);
+}
+.editorial-workspace-nav
+  .editorial-workspace-utilities[data-collapsed="false"]
+  .astryx-toggle-button-group
+  > button:last-of-type {
+  border-start-end-radius: var(--radius-element);
+  border-end-end-radius: var(--radius-element);
+}
+.editorial-workspace-nav
+  .editorial-workspace-utilities[data-collapsed="true"]
+  .astryx-toggle-button-group
+  > button:first-of-type {
+  border-start-start-radius: var(--radius-element);
+  border-start-end-radius: var(--radius-element);
+}
+.editorial-workspace-nav
+  .editorial-workspace-utilities[data-collapsed="true"]
+  .astryx-toggle-button-group
+  > button:last-of-type {
+  border-end-start-radius: var(--radius-element);
+  border-end-end-radius: var(--radius-element);
+}
+/* Appearance is the sole sidebar tooltip exception: above its segment. */
+.editorial-workspace-nav
+  .editorial-workspace-utilities[data-collapsed="false"]
+  .astryx-toggle-button-group
+  .astryx-tooltip {
+  position-area: top !important;
+  position-try-fallbacks: flip-inline !important;
+  margin-inline: 0 !important;
+  margin-block-end: var(--spacing-2) !important;
+}
+/* One width animation owns the shell. Avoid a snapping parent constraining
+   a separately animated child on collapse. Keep the existing 125ms token. */
+@media (min-width: 768px) {
+  .editorial-workspace-shell .astryx-app-shell-sidenav {
+    flex: 0 0 auto;
+    min-width: 0;
+    width: calc(var(--spacing-10) * 5);
+    transition: width var(--duration-fast) cubic-bezier(0.2, 0, 0, 1);
+  }
+  .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    .astryx-app-shell-sidenav {
+    flex-basis: auto;
+    min-width: 0;
+    width: calc(var(--spacing-9) + var(--spacing-2) * 2);
+  }
+  .editorial-workspace-shell[data-sidebar-collapsed]
+    nav.astryx-side-nav.editorial-workspace-nav {
+    width: 100%;
+    min-width: 0;
+    transition: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .editorial-workspace-shell .astryx-app-shell-sidenav {
+    transition: none;
+  }
+}
+
+/* Touch tablets retain the 52px rail: 44px targets plus 4px on each side.
+   Desktop pointer geometry and the mobile drawer keep their existing rules. */
+@media (min-width: 768px) and (pointer: coarse) {
+  .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    .editorial-workspace-nav
+    > :is(
+      :has(> .approved-workspace-header),
+      :has(> .astryx-side-nav-section),
+      :has(> .editorial-workspace-utilities)
+    ) {
+    padding-inline: var(--spacing-1);
+    align-items: flex-start;
+  }
+  .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    .editorial-workspace-nav
+    :is(
+      .astryx-side-nav-item,
+      .editorial-workspace-utilities,
+      .astryx-toggle-button-group,
+      .astryx-toggle-button-group > button
+    ) {
+    box-sizing: border-box;
+    width: var(--spacing-11);
+    min-width: var(--spacing-11);
+  }
+  .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    .editorial-workspace-nav
+    :is(.astryx-side-nav-item, .astryx-toggle-button-group > button) {
+    height: var(--spacing-11);
+    min-height: var(--spacing-11);
+    padding-inline: 0;
+    justify-content: center;
+  }
+}

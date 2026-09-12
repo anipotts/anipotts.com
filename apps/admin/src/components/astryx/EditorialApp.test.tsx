@@ -150,8 +150,8 @@ describe("editorial catalog", () => {
     expect(html).toContain('aria-label="Writing records"');
     expect(html).toContain("Appearance");
     expect(html.match(/aria-label="Appearance"/g)).toHaveLength(1);
-    expect(html).toContain("Live site");
-    const siteLink = html.match(/<a\b[^>]*aria-label="Live site"[^>]*>/)?.[0];
+    expect(html).toContain("Visit site");
+    const siteLink = html.match(/<a\b[^>]*aria-label="Visit site"[^>]*>/)?.[0];
     expect(siteLink).toContain('href="https://anipotts.com/"');
     expect(siteLink).toContain('target="_blank"');
     expect(siteLink).toContain('rel="noopener noreferrer"');
@@ -287,4 +287,23 @@ it("sentence-cases generated metadata labels without changing authored values", 
   expect(html).toContain("Enabled");
   expect(html).toContain("Personal note");
   expect(html).toContain("i like this lowercase");
+});
+
+it("uses Pages for the website-only group and Overview for the all-record group", () => {
+  for (const [selectedGroup, heading] of [
+    ["website", "Pages"],
+    ["pages", "Overview"],
+  ]) {
+    const html = renderToStaticMarkup(
+      <EditorialApp
+        title="Content"
+        area="content"
+        localPreview
+        siteUrl="https://anipotts.com"
+        selectedGroup={selectedGroup}
+        groups={[{ name: selectedGroup, href: "/content", records: [] }]}
+      />,
+    );
+    expect(html).toMatch(new RegExp(`<h1[^>]*>${heading}</h1>`));
+  }
 });

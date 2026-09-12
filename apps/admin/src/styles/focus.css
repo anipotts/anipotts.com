@@ -1,0 +1,71 @@
+/* Admin-only focus policy, inherited by native top-layer popovers and dialogs.
+   Astryx's focus tokens preserve its keyboard and composite-control behavior. */
+html[data-astryx-theme],
+html[data-astryx-theme] [data-astryx-theme] {
+  --focus-outline-color: var(--color-text-secondary);
+}
+
+/* Plain controls share the same visible keyboard affordance as Astryx. */
+html[data-astryx-theme]
+  :where(
+    a[href],
+    button,
+    input,
+    textarea,
+    select,
+    [tabindex],
+    [contenteditable="true"]
+  ):focus-visible {
+  outline: var(--focus-outline-width) var(--focus-outline-style)
+    var(--focus-outline-color);
+  outline-offset: var(--focus-outline-offset);
+}
+html[data-astryx-theme]
+  :where(a[href], button, [tabindex]):focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* TextInput/TextArea already draw a field boundary. Neutralize only normal
+   focused fields; validation states retain Astryx's semantic border/shadow. */
+html[data-astryx-theme]
+  :is(.astryx-text-input, .astryx-textarea):not([data-status]):focus-within {
+  border-color: var(--color-text-secondary);
+  box-shadow: none;
+}
+html[data-astryx-theme]
+  :is(.astryx-text-input, .astryx-textarea):has(:focus-visible) {
+  outline: var(--focus-outline-width) var(--focus-outline-style)
+    var(--focus-outline-color);
+  outline-offset: var(--focus-outline-offset);
+}
+/* The enclosing field owns the ring, so its editable node never adds a second. */
+html[data-astryx-theme]
+  :is(.astryx-text-input, .astryx-textarea)
+  :is(input, textarea):focus {
+  outline: none;
+}
+html[data-astryx-theme] .document-title textarea:focus-visible {
+  outline-color: var(--focus-outline-color);
+}
+
+@media (forced-colors: active) {
+  html[data-astryx-theme],
+  html[data-astryx-theme] [data-astryx-theme] {
+    --focus-outline-color: CanvasText;
+  }
+}
+
+html[data-astryx-theme] .rich-field-surface:focus-within,
+html[data-astryx-theme] .article-composer:focus-within {
+  border-color: var(--color-text-secondary);
+}
+html[data-astryx-theme] .rich-field-surface:has(:focus-visible) {
+  outline: var(--focus-outline-width) var(--focus-outline-style)
+    var(--focus-outline-color);
+  outline-offset: var(--focus-outline-offset);
+}
+html[data-astryx-theme]
+  .rich-field-surface:focus-within:not(:has(:focus-visible)),
+html[data-astryx-theme] .rich-field-surface [contenteditable="true"]:focus {
+  outline: none;
+}

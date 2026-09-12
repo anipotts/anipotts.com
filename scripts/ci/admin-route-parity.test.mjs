@@ -131,6 +131,7 @@ const retiredActionQueueFiles = [
 ];
 
 assert.deepEqual(publicPaths, [
+  "/admin-bracket.svg",
   "/api/health",
   "/api/mcp",
   "/apple-touch-icon.png",

@@ -82,8 +82,8 @@ describe("responsive workspace navigation", () => {
     expect(
       topbar.querySelector('button[aria-label="Collapse sidebar"]'),
     ).toBeNull();
-    expect(topbar.querySelector(".astryx-side-nav-heading")?.textContent).toBe(
-      "Adminani potts",
+    expect(topbar.querySelector(".admin-bracket-wordmark")?.textContent).toBe(
+      "[admin]",
     );
     expect(
       host.querySelector(
@@ -132,7 +132,6 @@ describe("responsive workspace navigation", () => {
     expect(identity).not.toBeNull();
     expect(identity.querySelector("button")).toBe(expand);
     for (const control of [
-      identity.querySelector(".editorial-workspace-brand"),
       identity.querySelector(".admin-workspace-selector"),
       identity.querySelector('button[aria-label="Search"]'),
     ]) {
@@ -151,7 +150,7 @@ describe("responsive workspace navigation", () => {
         ?.getAttribute("data-sidebar-collapsed"),
     ).toBe("false");
   });
-  it("keeps desktop search beside the workspace selector and identity above it", () => {
+  it("keeps desktop search below the workspace selector and identity above it", () => {
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
       value: 1280,
@@ -165,7 +164,7 @@ describe("responsive workspace navigation", () => {
     );
     expect(search).not.toBeNull();
     expect(collapse).not.toBeNull();
-    expect(selector.parentElement?.contains(search)).toBe(true);
+    expect(identity.contains(search)).toBe(true);
     expect(selector.parentElement?.contains(collapse)).toBe(false);
     expect(
       identity.querySelectorAll('button[aria-label="Search"]'),
@@ -176,7 +175,7 @@ describe("responsive workspace navigation", () => {
     document.removeEventListener("admin:search", announce);
     expect(announce).toHaveBeenCalledTimes(1);
   });
-  it("offers direct appearance choices and an attached live-site tab", () => {
+  it("offers direct appearance choices and a header visit-site link", () => {
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
       value: 1280,
@@ -206,10 +205,10 @@ describe("responsive workspace navigation", () => {
     expect(writing.closest(".astryx-side-nav-section")).toBe(
       newsletter.closest(".astryx-side-nav-section"),
     );
-    const live = host.querySelector('a[aria-label="Live site"]')!;
+    const live = host.querySelector('a[aria-label="Visit site"]')!;
     expect(live.querySelector("rect")).toBeNull();
-    expect(live.textContent).toBe("anipotts.com");
-    expect(live.closest(".editorial-site-appearance")).not.toBeNull();
+    expect(live.getAttribute("aria-label")).toBe("Visit site");
+    expect(live.closest(".approved-workspace-header")).not.toBeNull();
     act(() =>
       (
         host.querySelector(
@@ -217,12 +216,6 @@ describe("responsive workspace navigation", () => {
         ) as HTMLButtonElement
       ).click(),
     );
-    const collapsedLive = host.querySelector('a[href="https://anipotts.com"]')!;
-    expect(collapsedLive.getAttribute("aria-label")).toMatch(
-      /Live site|anipotts.com/,
-    );
-    expect(
-      collapsedLive.querySelectorAll('path[fill="currentColor"]'),
-    ).toHaveLength(2);
+    expect(host.querySelector('a[aria-label="Visit site"]')).toBeNull();
   });
 });
