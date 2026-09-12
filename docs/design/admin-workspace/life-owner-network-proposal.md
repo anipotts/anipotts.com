@@ -17,6 +17,44 @@ against current Mini services before an activation request. The Mini database
 root is fixed in an owner-only deployment file; neither requests nor browser
 settings can select a filesystem root, principal or sensitivity scope.
 
+Read-only Mini inspection on September 12 found Serve port 18443 already proxies
+an existing localhost service. Preserve that reservation. Port 18444 had no TCP
+listener at inspection; that observation is not a reservation or permission to
+activate it. System must confirm the final endpoint and current conflicts.
+
+## Candidate session design for Website review
+
+Prefer a separate Life grant attached to the exact owner, with a short-lived
+asymmetrically signed ticket issued by the existing admin authentication service.
+This is a proposed additional capability, not a privilege inherited from ordinary
+editorial login. Website owns the issuer and its approval boundary; Mini holds
+only the verification key. Private query and response bodies bypass the issuer.
+
+Proposed ticket lifetime is 60 seconds. Pin issuer, exact subject, audience,
+algorithm, key identifier, allowed read methods and expiry. Reject unknown keys,
+invalid signatures, missing claims and expired tickets before reading records.
+Do not accept a key URL, principal, database root or algorithm supplied by a
+request. Ticket renewal requires a still-valid owner session and explicit Life
+grant. Browser storage is memory only; reload requires a new ticket.
+
+The browser sends the ticket in an authorization header to a private POST read
+endpoint. That endpoint accepts a bounded request envelope rather than placing
+search text in a URL. CORS and browser local-network checks remain required.
+Cryptographic verification removes reliance on local proxy identity headers;
+it does not protect against compromise of the approved browser origin.
+
+Revoking the issuer grant prevents renewal, but an already-issued ticket remains
+usable for at most its remaining 60-second lifetime unless Mini receives a
+separate revocation event. This limitation must be explicit in approval. Local
+lock/logout immediately clears results, drops the ticket and cancels pending
+reads. Tests must reject late completions after lock. No automatic fallback to
+agent scope or a public server relay is permitted after an access failure.
+
+The alternative is an independent passkey session issued on the private origin.
+It needs its own enrollment, recovery and phone UX. Neither alternative is
+implemented or approved. Signing-key creation, issuer changes and grant creation
+remain native access actions after a concrete implementation is reviewable.
+
 ## Authentication contract to implement and prove
 
 Tailnet reachability alone is insufficient. A reviewed server must authenticate
