@@ -74,9 +74,15 @@
   margin-inline-start: auto;
   white-space: nowrap;
 }
-.editorial-filter-row .editorial-status-filter {
-  width: auto;
-  flex: 0 1 auto;
+.editorial-filter-row {
+  flex-wrap: nowrap;
+  width: 100%;
+}
+.editorial-filter-row > * {
+  min-width: 0;
+}
+.editorial-record-count {
+  flex-shrink: 0;
 }
 /* Responsive region contract (Astryx `docs layout`, Breakpoints):
  * <=640: text navigation becomes icon controls; main gutters tighten.
@@ -122,12 +128,15 @@
   .editorial-content {
     padding-block: var(--spacing-3);
   }
-  .editorial-status-filter .astryx-segmented-control-item {
-    padding-inline: var(--spacing-2);
-  }
 }
 /* Keep the date column on phones; status stays with its record title. */
 @media (max-width: 480px) {
+  .editorial-filter-row {
+    gap: var(--spacing-1);
+  }
+  .editorial-record-count-label {
+    display: none;
+  }
   .editorial-record-table {
     min-width: 0 !important;
   }
@@ -216,8 +225,8 @@
 }
 .rich-field-surface:focus-within {
   border-color: var(--color-accent);
-  outline: var(--focus-outline-width) solid var(--color-accent-muted);
-  outline-offset: var(--focus-outline-offset);
+  outline: 2px solid var(--color-accent-muted);
+  outline-offset: 2px;
 }
 .rich-field .astryx-toolbar {
   background: var(--color-background-muted);
@@ -273,7 +282,7 @@
   filter: brightness(0) invert(1);
 }
 .rich-writing .ProseMirror-selectednode {
-  outline: var(--focus-outline-width) solid var(--color-accent);
+  outline: 2px solid var(--color-accent);
 }
 .rich-inspector {
   padding: var(--spacing-4);
@@ -435,14 +444,19 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 }
 
 /* Writing uses a single readable column; controls wrap rather than squeeze it. */
-.new-writing-form { width: 100%; max-width: 40rem; }
+.new-writing-form {
+  width: 100%;
+  max-width: 40rem;
+}
 .article-composer {
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-element);
   background: var(--color-background-surface);
   overflow: hidden;
 }
-.article-composer:focus-within { border-color: var(--color-accent); }
+.article-composer:focus-within {
+  border-color: var(--color-accent);
+}
 .article-composer .astryx-toolbar {
   padding: var(--spacing-2);
   border-bottom: var(--border-width) solid var(--color-border);
@@ -454,18 +468,383 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   line-height: var(--line-height-relaxed, 1.65);
   overflow-wrap: anywhere;
 }
-.article-composer .tiptap > * + * { margin-top: var(--spacing-4); }
-.article-composer .tiptap h2 { font-size: var(--text-heading-2-size); font-weight: var(--font-weight-semibold); }
-.article-composer .tiptap h3 { font-size: var(--text-heading-3-size); font-weight: var(--font-weight-semibold); }
-.article-composer .tiptap ul { list-style: disc; padding-inline-start: var(--spacing-6); }
-.article-composer .tiptap ol { list-style: decimal; padding-inline-start: var(--spacing-6); }
-.article-composer .tiptap blockquote { border-inline-start: var(--spacing-1) solid var(--color-border); padding-inline-start: var(--spacing-4); }
-.article-composer .tiptap img { max-width: 100%; height: auto; border-radius: var(--radius-element); }
-.article-composer .tiptap a { color: var(--color-accent); text-decoration: underline; }
-.article-composer .tiptap pre { white-space: pre-wrap; padding: var(--spacing-3); }
+.article-composer .tiptap > * + * {
+  margin-top: var(--spacing-4);
+}
+.article-composer .tiptap h2 {
+  font-size: var(--text-heading-2-size);
+  font-weight: var(--font-weight-semibold);
+}
+.article-composer .tiptap h3 {
+  font-size: var(--text-heading-3-size);
+  font-weight: var(--font-weight-semibold);
+}
+.article-composer .tiptap ul {
+  list-style: disc;
+  padding-inline-start: var(--spacing-6);
+}
+.article-composer .tiptap ol {
+  list-style: decimal;
+  padding-inline-start: var(--spacing-6);
+}
+.article-composer .tiptap blockquote {
+  border-inline-start: var(--spacing-1) solid var(--color-border);
+  padding-inline-start: var(--spacing-4);
+}
+.article-composer .tiptap img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-element);
+}
+.article-composer .tiptap a {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+.article-composer .tiptap pre {
+  white-space: pre-wrap;
+  padding: var(--spacing-3);
+}
 .article-image-preview {
   width: 100%;
   max-height: 24rem;
   object-fit: contain;
   border-radius: var(--radius-element);
+}
+
+/* A document has one reading measure and one shared left edge. */
+.editorial-content.writing-content,
+.editorial-content .writing-workspace {
+  width: 100%;
+  max-width: none;
+  margin-inline: auto;
+}
+.record-workspace-layout {
+  width: 100%;
+}
+.record-workspace-main {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
+.writing-workspace .record-workspace-main {
+  max-width: 45rem;
+  margin-inline: auto;
+}
+.writing-workspace .editor-actionbar {
+  position: sticky;
+  top: var(--_app-shell-header-height, 0px);
+  z-index: 20;
+  background: var(--color-background-body);
+  padding-block: var(--spacing-2);
+}
+.writing-workspace .document-title {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+.document-title textarea {
+  font-family: var(--font-family-heading);
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.25;
+  min-height: 0;
+  field-sizing: content;
+  resize: none;
+  padding: var(--spacing-2) 0;
+  background: transparent;
+}
+.document-subtitle .rich-field-surface,
+.writing-workspace .article-composer {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+.document-subtitle .rich-writing {
+  min-height: 0;
+  padding: var(--spacing-2) 0;
+  color: var(--color-text-secondary);
+}
+.document-subtitle .rich-writing .tiptap {
+  padding: 0;
+  min-height: 0;
+}
+.writing-workspace .article-composer .tiptap {
+  min-height: 12rem;
+  padding: var(--spacing-3) 0;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+.writing-workspace .article-composer .tiptap img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: 15rem;
+  object-fit: contain;
+  margin-block: var(--spacing-4);
+}
+.document-title textarea:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.document-preview {
+  width: 100%;
+  border: 0;
+  display: block;
+}
+
+.document-selection-toolbar {
+  padding: var(--spacing-1);
+  background: var(--color-background-popover);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-element);
+  box-shadow: var(--shadow-med);
+  max-width: calc(100vw - 24px);
+}
+
+@media (max-width: 540px) {
+  .editorial-content.writing-content {
+    padding-inline: var(--spacing-2);
+  }
+}
+
+/* Website workspace: a persistent navigation column, one document scroll. */
+.editorial-workspace-shell .editorial-workspace-nav {
+  width: calc(var(--spacing-10) * 5);
+}
+.editorial-workspace-utilities > .astryx-button {
+  width: 100%;
+  justify-content: flex-start;
+}
+.editorial-workspace-shell .editorial-content {
+  padding-inline: var(--spacing-6);
+  box-sizing: border-box;
+}
+.editorial-workspace-shell .editorial-content.writing-content {
+  max-width: calc(45rem + 2 * var(--spacing-6));
+}
+@media (min-width: 768px) and (max-width: 1279px) {
+  .editorial-workspace-shell .editorial-workspace-nav {
+    width: calc(var(--spacing-8) * 2);
+  }
+  .editorial-workspace-utilities {
+    align-items: center;
+  }
+}
+@media (max-width: 767px) {
+  .editorial-workspace-shell .editorial-workspace-nav {
+    width: auto;
+  }
+  .editorial-workspace-shell .editorial-content {
+    padding-inline: var(--spacing-4);
+  }
+  .editorial-workspace-nav button,
+  .editorial-workspace-nav a {
+    min-height: var(--spacing-11);
+  }
+}
+
+.editorial-workspace-mobile-search {
+  display: none;
+}
+.editorial-workspace-shell .astryx-app-shell-sidenav {
+  background-color: var(--color-background-body);
+}
+.editorial-workspace-shell .editorial-workspace-nav[data-mode="topbar"] {
+  width: 100%;
+  flex: 1;
+  min-width: 0;
+}
+.editorial-workspace-nav[data-mode="topbar"]
+  .editorial-workspace-mobile-search {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+/* Record detail panels share a measured workspace; the document owns its scroll. */
+.record-panel-host {
+  display: contents;
+}
+.record-inspector {
+  position: sticky;
+  top: var(--_app-shell-header-height, 0px);
+  align-self: flex-start;
+  max-height: calc(100dvh - var(--_app-shell-header-height, 0px));
+  background-color: var(--color-background-surface);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.record-inspector .astryx-heading {
+  font-size: var(--text-body-size);
+}
+.record-panel-dialog {
+  height: 100dvh;
+  max-height: 100dvh;
+  border-radius: 0;
+  margin: 0;
+}
+.record-panel-dialog .astryx-layout-content {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+/* Workspace switcher is a compact menu with room for complete destination names. */
+.editorial-workspace-switcher {
+  width: min(
+    calc(var(--spacing-10) * 5 - var(--spacing-2)),
+    calc(100vw - var(--spacing-8))
+  );
+  box-sizing: border-box;
+}
+.editorial-workspace-switcher .astryx-side-nav-item {
+  min-height: var(--spacing-11);
+  padding-inline: var(--spacing-3);
+}
+
+/* Content inventory emphasizes the next decision over repeated public-state badges. */
+.record-decision-link {
+  padding-inline: 0;
+}
+.editorial-record-summary {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+
+/* Match native SideNavItem's collapsed icon hitbox and shared rail centerline. */
+.editorial-workspace-utilities[data-collapsed="true"] > .astryx-button {
+  width: var(--size-element-md);
+  min-width: var(--size-element-md);
+  height: var(--size-element-md);
+  justify-content: center;
+  align-self: center;
+  padding-inline: 0;
+  margin-inline: 0;
+}
+@media (pointer: coarse) {
+  .editorial-workspace-utilities[data-collapsed="true"] > .astryx-button {
+    width: max(var(--size-element-md), var(--spacing-11));
+    min-width: var(--spacing-11);
+    height: max(var(--size-element-md), var(--spacing-11));
+  }
+}
+
+/* The user controls desktop/rail width; the mobile drawer remains independent. */
+@media (min-width: 768px) {
+  .editorial-workspace-shell[data-sidebar-collapsed="false"]
+    .editorial-workspace-nav {
+    width: calc(var(--spacing-10) * 5);
+  }
+  .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    .editorial-workspace-nav {
+    width: calc(var(--spacing-8) * 2);
+  }
+  .editorial-workspace-shell {
+    background: var(--color-background-body);
+  }
+  .editorial-workspace-shell[data-sidebar-collapsed="false"]
+    #astryx-app-shell-main {
+    margin-block-start: var(--spacing-3);
+    border-start-start-radius: var(--radius-container);
+    background: var(--color-background-surface);
+  }
+}
+@media (max-width: 767px) {
+  .editorial-desktop-search {
+    display: none;
+  }
+}
+.admin-command-palette-centered {
+  inset: 0;
+  margin: auto;
+}
+
+/* Identity and collapse form one header, with a quiet, contained utility block. */
+.editorial-workspace-identity {
+  width: 100%;
+  min-width: 0;
+}
+.editorial-workspace-brand {
+  flex: 1;
+  min-width: 0;
+}
+.editorial-workspace-identity[data-collapsed="true"] {
+  flex-direction: column;
+}
+.editorial-workspace-utilities .astryx-toggle-button-group {
+  width: 100%;
+  padding: var(--spacing-1);
+  box-sizing: border-box;
+  border-radius: var(--radius-element);
+  background: var(--color-background-surface);
+}
+.editorial-workspace-utilities[data-collapsed="false"]
+  .astryx-toggle-button-group
+  > button {
+  flex: 1;
+  min-width: 0;
+}
+.editorial-workspace-utilities[data-collapsed="true"]
+  .astryx-toggle-button-group {
+  width: auto;
+  align-items: center;
+}
+@media (min-width: 768px) {
+  .editorial-workspace-shell[data-sidebar-collapsed="false"]
+    .astryx-app-shell-sidenav {
+    border-inline-end: 0;
+  }
+  .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    #astryx-app-shell-main {
+    margin-block-start: 0;
+    border-radius: 0;
+  }
+}
+
+/* Consistent top baselines and a compact, responsive return-to-work strip. */
+.editorial-record-table .astryx-table-cell {
+  vertical-align: top;
+  padding-block: var(--spacing-3);
+}
+.editorial-record-table .astryx-timestamp {
+  display: inline-block;
+  padding-block: var(--spacing-2);
+  white-space: nowrap;
+}
+.editorial-record-heading {
+  min-height: var(--size-element-sm);
+}
+.editorial-record-heading > .astryx-text {
+  flex-shrink: 0;
+}
+.editorial-record-content,
+.editorial-record-decision {
+  align-items: stretch;
+}
+.editorial-record-decision .record-decision-link {
+  justify-content: flex-start;
+}
+.editorial-resume-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.editorial-resume-item {
+  padding: var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+.editorial-resume-item .record-link {
+  justify-content: flex-start;
+  padding-inline: 0;
+}
+@media (max-width: 767px) {
+  .editorial-resume-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .editorial-resume-item:nth-child(n + 2) {
+    display: none;
+  }
 }

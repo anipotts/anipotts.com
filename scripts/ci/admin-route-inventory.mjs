@@ -2,12 +2,12 @@ export const ADMIN_ROUTES = [
   {
     route: "/",
     file: "apps/admin/src/pages/index.astro",
-    nav: true,
+    nav: false,
   },
   {
     route: "/inbox",
     file: "apps/admin/src/pages/inbox.astro",
-    nav: false,
+    nav: true,
   },
   {
     route: "/knowledge",

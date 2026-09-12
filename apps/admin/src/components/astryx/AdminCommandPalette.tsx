@@ -135,6 +135,12 @@ export function AdminCommandPalette({
         (event.metaKey || event.ctrlKey) &&
         event.key.toLowerCase() === "k"
       ) {
+        if (
+          document.activeElement?.closest(
+            'input, textarea, [contenteditable="true"]',
+          )
+        )
+          return;
         event.preventDefault();
         if (document.activeElement?.closest('[role="dialog"]')) return;
         previousFocus.current = document.activeElement as HTMLElement;
@@ -176,6 +182,7 @@ export function AdminCommandPalette({
       ) : null}
       <CommandPalette
         key={attempt}
+        className="admin-command-palette-centered"
         isOpen={isOpen}
         onOpenChange={(open) => {
           setIsOpen(open);

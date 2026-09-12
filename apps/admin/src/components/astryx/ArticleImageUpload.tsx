@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { FileInput } from "@astryxdesign/core/FileInput";
 import { Button } from "@astryxdesign/core/Button";
 import { VStack } from "@astryxdesign/core/VStack";
 import {
   editorialMediaId,
   editorialMediaPrefix,
+  editorialImagePreview,
 } from "../../lib/editorial-media";
 
 import { ArticleImageCrop } from "./ArticleImageCrop";
@@ -48,23 +49,73 @@ export function ArticleImageUpload({
   disabled,
   onUploaded,
   onPendingChange,
+  initialFile,
+  existingSrc,
+  startCropping = false,
 }: {
   disabled?: boolean;
   onUploaded: (src: string) => void;
   onPendingChange: (pending: boolean) => void;
+  initialFile?: File | null;
+  existingSrc?: string;
+  startCropping?: boolean;
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const pending = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const [cropping, setCropping] = useState(false);
   const [original, setOriginal] = useState("");
+  useEffect(() => {
+    if (
+      !existingSrc?.startsWith(editorialMediaPrefix) ||
+      initialFile ||
+      disabled
+    )
+      return;
+    const controller = new AbortController();
+    setBusy(true);
+    fetch(editorialImagePreview(existingSrc), { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok)
+          throw new Error(
+            "Couldn’t load this image. Choose its original file to crop it.",
+          );
+        const blob = await response.blob();
+        if (blob.size > 10 * 1024 * 1024)
+          throw new Error("Choose an image smaller than 10 MB.");
+        if (controller.signal.aborted) return;
+        setFile(new File([blob], "original-image", { type: blob.type }));
+        setOriginal(existingSrc);
+        setCropping(startCropping);
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) setError(error.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setBusy(false);
+      });
+    return () => controller.abort();
+  }, [existingSrc, initialFile, disabled, startCropping]);
+  useEffect(() => {
+    if (initialFile && !disabled) {
+      setFile(initialFile);
+      void upload(initialFile);
+    }
+  }, [initialFile, disabled]);
   useEffect(() => {
     onPendingChange(busy || cropping);
   }, [busy, cropping, onPendingChange]);
   useEffect(() => () => onPendingChange(false), [onPendingChange]);
   async function upload(selected: File) {
-    if (pending.current) return;
+    if (pending.current || disabled) return;
     pending.current = true;
     setBusy(true);
     setError("");
@@ -72,16 +123,18 @@ export function ArticleImageUpload({
       const decoded = await createImageBitmap(selected);
       decoded.close();
       const src = await uploadEditorialImage(selected);
+      if (!mounted.current) return;
       setOriginal(src);
       onUploaded(src);
     } catch (error) {
+      if (!mounted.current) return;
       setError(
         error instanceof Error
           ? error.message
           : "Couldn’t save the image. Try again.",
       );
     } finally {
-      setBusy(false);
+      if (mounted.current) setBusy(false);
       pending.current = false;
     }
   }
@@ -121,15 +174,17 @@ export function ArticleImageUpload({
           busy={busy}
           onCancel={() => setCropping(false)}
           onApply={async (blob) => {
-            if (pending.current) return;
+            if (pending.current || disabled) return;
             pending.current = true;
             setBusy(true);
             try {
-              onUploaded(await uploadEditorialImage(blob));
+              const src = await uploadEditorialImage(blob);
+              if (!mounted.current) return;
+              onUploaded(src);
               setCropping(false);
             } finally {
               pending.current = false;
-              setBusy(false);
+              if (mounted.current) setBusy(false);
             }
           }}
         />

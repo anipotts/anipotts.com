@@ -40,7 +40,7 @@ const recentReferences = recent.map((card) =>
 );
 ---
 
-<AdminLayout title="life" hideHeader>
+<AdminLayout title="Life" hideHeader>
   <main class="quiet-page quiet-life-page">
     <header class="quiet-page-header">
       <h1 class="brand-display">Life</h1>
@@ -64,7 +64,7 @@ const recentReferences = recent.map((card) =>
         lifeAttention.length > 0 ? (
           <div class="quiet-life-attention">
             {lifeAttention.map((item) => (
-              <a href={`/?item=${encodeURIComponent(item.id)}`}>
+              <a href={`/inbox?item=${encodeURIComponent(item.id)}`}>
                 <strong>{item.title}</strong>
                 <span>{item.next_action}</span>
                 <small>{item.timeframe}</small>
@@ -77,25 +77,25 @@ const recentReferences = recent.map((card) =>
       }
     </section>
 
-    <section class="quiet-life-areas" aria-label="life areas">
+    <section class="quiet-life-areas" aria-label="Life areas">
       <a href="/life/health">
         <strong>Health</strong>
-        <span>status and source freshness</span>
+        <span>Status and source freshness</span>
       </a>
       <a href="/life/aesthetics">
         <strong>Aesthetics</strong>
-        <span>style, wardrobe, and references</span>
+        <span>Style, wardrobe, and references</span>
       </a>
       <a href="/knowledge?kind=people">
         <strong>People</strong>
-        <span>current relationships and commitments</span>
+        <span>Current relationships and commitments</span>
       </a>
     </section>
 
     <section class="quiet-life-updates" aria-labelledby="changes-heading">
       <header>
         <h2 id="changes-heading">Recent changes</h2>
-        <a href="/knowledge">search knowledge</a>
+        <a href="/knowledge">Search knowledge</a>
       </header>
       <div>
         {
@@ -108,7 +108,7 @@ const recentReferences = recent.map((card) =>
               <SemanticReference
                 reference={recentReferences[index]!}
                 variant="action"
-                label="details"
+                label="Details"
               />
             </article>
           ))

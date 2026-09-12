@@ -11,6 +11,10 @@ import {
 } from "./admin-route-inventory.mjs";
 
 const navSource = readFileSync("apps/admin/src/data/admin.ts", "utf8");
+const websiteNavSource = readFileSync(
+  "apps/admin/src/components/astryx/EditorialWorkspaceShell.tsx",
+  "utf8",
+);
 const inboxDataSource = readFileSync("apps/admin/src/data/inbox.ts", "utf8");
 const inboxSource = readFileSync("apps/admin/src/pages/inbox.astro", "utf8");
 const rootSource = readFileSync("apps/admin/src/pages/index.astro", "utf8");
@@ -263,7 +267,9 @@ for (const route of ADMIN_ROUTES) {
   if (route.nav) {
     const navHref = route.route === "/work" ? "/work?view=now" : route.route;
     assert.ok(
-      navSource.includes(`href: "${navHref}"`),
+      (route.route === "/newsletter" ? websiteNavSource : navSource).includes(
+        `href: "${navHref}"`,
+      ),
       `${route.route} missing from admin nav`,
     );
   }
@@ -285,7 +291,7 @@ for (const route of ADMIN_ROUTES) {
 }
 
 assert.equal(
-  [...navSource.matchAll(/label: "inbox"/g)].length,
+  [...navSource.matchAll(/label: "Inbox"/g)].length,
   1,
   "admin nav must expose one primary inbox entry",
 );
@@ -304,8 +310,8 @@ assert.ok(
   "editorial requests require signed owner identity",
 );
 assert.ok(
-  navSource.includes('href: "/",\n    label: "inbox"'),
-  "admin inbox navigation must use the canonical root URL",
+  navSource.includes('href: "/inbox",\n    label: "Inbox"'),
+  "Operations Inbox navigation must use its dedicated URL",
 );
 for (const file of retiredActionQueueFiles) {
   assert.equal(existsSync(file), false, `${file} must stay retired`);
@@ -335,7 +341,7 @@ for (const marker of [
   "being handled",
   "/work?view=now",
   "inbox-category-filter",
-  "everything else",
+  "Everything else",
 ]) {
   assert.ok(homeSource.includes(marker), `admin home missing marker ${marker}`);
 }
@@ -429,7 +435,7 @@ for (const marker of [
   "OperatorWorkTable",
   "view=projects",
   "view=history",
-  "loose conversations",
+  "Loose conversations",
   "preserved",
 ]) {
   assert.ok(workSource.includes(marker), `admin work missing marker ${marker}`);
@@ -534,9 +540,7 @@ for (const retired of ["continue with passkey", "recover access", "use phone"])
 for (const marker of [
   "readPageContentInventoryStore",
   "/api/admin/content/editor",
-  "publish selected draft",
-  "content_draft_operations",
-  "new content starts as a private draft",
+  "Legacy content diagnostics",
 ]) {
   assert.ok(
     contentEditorSource.includes(marker),

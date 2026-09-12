@@ -37,12 +37,27 @@ describe("admin search and navigation", () => {
   });
 
   it("keeps Inbox pinned and Fleet nested under System", () => {
-    expect(navItems[0]).toMatchObject({ href: "/", group: "home" });
+    expect(navItems[0]).toMatchObject({ href: "/inbox", group: "home" });
     expect(navItems.find((item) => item.href === "/fleet")).toMatchObject({
       group: "system",
       parent: "system",
     });
     expect(navItems.find((item) => item.href === "/system")).toBeDefined();
+    expect(navItems.find((item) => item.href === "/handoffs")).toMatchObject({
+      group: "work",
+      parent: "work",
+    });
+    expect(navItems.find((item) => item.href === "/deploys")?.label).toBe(
+      "Deployments",
+    );
+    expect(navItems.find((item) => item.href === "/content")).toMatchObject({
+      group: "website",
+      label: "Website",
+    });
+    expect(
+      navItems.find((item) => item.href === "/content/review")?.label,
+    ).toBe("Legacy content diagnostics");
+    expect(navItems.some((item) => item.href === "/content/new")).toBe(false);
     expect(
       navItems.find((item) => item.href === "/knowledge?kind=people"),
     ).toMatchObject({ group: "knowledge", parent: "knowledge" });

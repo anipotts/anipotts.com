@@ -18,9 +18,45 @@ describe("AdminShell mobile navigation", () => {
       </AdminShell>,
     );
 
-    expect(markup).toContain('aria-label="toggle navigation"');
+    expect(markup).toContain('aria-label="Toggle navigation"');
     expect(markup).toContain('aria-controls="admin-mobile-menu-panel"');
     expect(markup).toContain('id="admin-mobile-menu-panel"');
+  });
+
+  it("keeps search desktop-only and marks retained Inbox active", () => {
+    const markup = renderToStaticMarkup(
+      <AdminShell
+        chrome="admin"
+        currentRoute="/inbox?category=work"
+        navItems={navItems}
+        title="Inbox"
+      >
+        <div />
+      </AdminShell>,
+    );
+    expect(markup).not.toContain('class="admin-mobile-search"');
+    expect(markup.match(/data-admin-search-trigger=/g)).toHaveLength(1);
+    expect(markup).toContain('href="/inbox" aria-current="page"');
+    expect(markup).toContain("ani potts");
+    expect(markup).toContain("operations");
+  });
+
+  it("opens Work for Handoffs and names legacy content separately", () => {
+    const markup = renderToStaticMarkup(
+      <AdminShell
+        chrome="admin"
+        currentRoute="/handoffs"
+        navItems={navItems}
+        title="Handoffs"
+      >
+        <div />
+      </AdminShell>,
+    );
+    expect(markup).toContain('data-admin-nav-group="work" open=""');
+    expect(markup).toContain("Legacy content diagnostics");
+    expect(markup).toContain("Personal");
+    expect(markup).not.toContain('href="/content/new"');
+    expect(markup).toContain('href="/content"');
   });
 
   it("keeps the tablet sheet opaque and scroll-contained", () => {

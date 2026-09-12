@@ -30,10 +30,11 @@ const GROUPS: Array<{
   label: string;
 }> = [
   { id: "work", label: "Work" },
-  { id: "content", label: "Content" },
-  { id: "life", label: "Life" },
   { id: "knowledge", label: "Knowledge" },
   { id: "system", label: "System" },
+  { id: "life", label: "Personal" },
+  { id: "content", label: "Legacy content diagnostics" },
+  { id: "website", label: "Website" },
 ];
 
 export function AdminShell({
@@ -67,7 +68,7 @@ export function AdminShell({
             type="button"
             className="admin-global-search"
             data-admin-search-trigger=""
-            aria-label="search everything"
+            aria-label="Search everything"
             aria-keyshortcuts="Meta+K Control+K"
             onClick={() =>
               document.dispatchEvent(new CustomEvent("admin:search"))
@@ -125,42 +126,42 @@ export function AdminShell({
     <div className="admin-astryx-root">
       <header className="admin-mobile-topbar">
         <AdminBrand mobile />
-        <button
-          type="button"
-          className="admin-mobile-search"
-          data-admin-search-trigger=""
-          aria-label="search everything"
-          onClick={() =>
-            document.dispatchEvent(new CustomEvent("admin:search"))
-          }
-        >
-          <MagnifyingGlassIcon size={20} aria-hidden="true" />
-        </button>
         <details className="admin-mobile-menu">
           <summary
             aria-controls="admin-mobile-menu-panel"
-            aria-label="toggle navigation"
+            aria-label="Toggle navigation"
           >
             <CaretDownIcon size={20} aria-hidden="true" />
           </summary>
-          <nav id="admin-mobile-menu-panel" aria-label="all admin destinations">
-            {navItems
-              .filter((item) => !item.mobile && item.href !== "/mutations")
-              .map((item) => (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  aria-current={
-                    isActive(currentRoute, item.href) ? "page" : undefined
-                  }
-                >
-                  {item.label}
-                </a>
-              ))}
+          <nav id="admin-mobile-menu-panel" aria-label="All admin destinations">
+            {GROUPS.map((group) => {
+              const items = navItems.filter(
+                (item) => item.group === group.id && !item.mobile,
+              );
+              if (!items.length) return null;
+              return (
+                <section key={group.id} aria-label={group.label}>
+                  <h2>{group.label}</h2>
+                  {items.map((item) => (
+                    <a
+                      key={item.href}
+                      href={item.href}
+                      aria-current={
+                        isActive(currentRoute, item.href) ? "page" : undefined
+                      }
+                    >
+                      {item.group === "content" && !item.parent
+                        ? "Review"
+                        : item.label}
+                    </a>
+                  ))}
+                </section>
+              );
+            })}
           </nav>
         </details>
       </header>
-      <nav className="admin-mobile-nav" aria-label="admin mobile navigation">
+      <nav className="admin-mobile-nav" aria-label="Admin mobile navigation">
         {mobileItems.map((item) => {
           const Icon = iconForNav[item.icon];
           return (
@@ -177,21 +178,6 @@ export function AdminShell({
             </a>
           );
         })}
-        <button
-          type="button"
-          className={
-            currentRoute.split("?")[0] === "/knowledge" ? "is-active" : ""
-          }
-          aria-label="search everything"
-          data-admin-search-trigger=""
-          aria-pressed={currentRoute.split("?")[0] === "/knowledge"}
-          onClick={() =>
-            document.dispatchEvent(new CustomEvent("admin:search"))
-          }
-        >
-          <MagnifyingGlassIcon size={20} aria-hidden="true" />
-          <span>search</span>
-        </button>
       </nav>
       <AppShell
         variant="section"
@@ -229,11 +215,11 @@ function NavEntry({
   const groupIsActive = isGroupActive(currentRoute, item);
   if (collapsible) {
     const firstLabel: Record<string, string> = {
-      work: "now",
-      content: "library",
-      life: "today",
-      knowledge: "all",
-      system: "overview",
+      work: "Now",
+      content: "Review",
+      life: "Life",
+      knowledge: "All knowledge",
+      system: "Overview",
     };
     return (
       <details
@@ -279,24 +265,12 @@ function NavEntry({
 function AdminBrand({ mobile = false }: { mobile?: boolean }) {
   return (
     <a
-      href="/"
+      href="/inbox"
       className={mobile ? "admin-mobile-brand" : "admin-brand-lockup"}
-      aria-label="admin home"
+      aria-label="ani potts operations"
     >
-      <svg
-        className="admin-brand-mark"
-        viewBox="0 0 512 512"
-        aria-hidden="true"
-      >
-        <g transform="translate(28.9776,308.8984) scale(0.20037279,-0.20037279)">
-          <path d="M838 1000H1138V0H837L823 90Q786 38 729.5 6Q673 -26 598 -26Q486 -26 388.5 16Q291 58 217 132.5Q143 207 101.5 304.5Q60 402 60 514Q60 621 99 714Q138 807 208.5 877.5Q279 948 371.5 988Q464 1028 570 1028Q656 1028 726.5 992.5Q797 957 852 904ZM590 262Q652 262 703 294Q754 326 784 380Q814 434 814 500Q814 566 784 620Q754 674 703 706Q652 738 590 738Q528 738 477.5 706Q427 674 397.5 620Q368 566 368 500Q368 434 398 380Q428 326 478.5 294Q529 262 590 262Z" />
-          <path
-            transform="translate(1008,0)"
-            d="M420 -500H120V1000H420V906Q467 959 529 992.5Q591 1026 672 1026Q782 1026 877 985Q972 944 1044.5 871.5Q1117 799 1157.5 704Q1198 609 1198 500Q1198 391 1157.5 295Q1117 199 1044.5 126.5Q972 54 877 13Q782 -28 672 -28Q591 -28 529 6Q467 40 420 92ZM668 738Q607 738 556.5 705.5Q506 673 476 619Q446 565 446 500Q446 434 476 380Q506 326 556.5 294Q607 262 668 262Q730 262 781 294Q832 326 862 380Q892 434 892 500Q892 565 862 619Q832 673 781 705.5Q730 738 668 738Z"
-          />
-        </g>
-      </svg>
-      <span>admin</span>
+      <span>ani potts</span>
+      <span className="admin-brand-workspace">operations</span>
     </a>
   );
 }
@@ -307,9 +281,9 @@ function ThemeToggle() {
       type="button"
       className="admin-theme-toggle"
       data-theme-toggle=""
-      aria-label="switch color theme"
+      aria-label="Switch color theme"
       aria-pressed={false}
-      title="switch color theme"
+      title="Switch color theme"
     >
       <SunIcon
         className="admin-theme-icon is-light"
@@ -337,18 +311,20 @@ function isGroupActive(currentRoute: string, item: NavItem) {
       "/proof",
       "/deploys",
       "/repos",
-      "/handoffs",
       "/mutations",
       "/ops/destructive",
     ].some((prefix) => pathname.startsWith(prefix));
   }
+  if (item.group === "work")
+    return pathname === "/work" || pathname === "/handoffs";
+  if (item.group === "content") return pathname.startsWith("/content/");
   return pathname.startsWith(item.href.split("?")[0]);
 }
 
 function isActive(currentRoute: string, href: string): boolean {
   const [currentPath, currentQuery = ""] = currentRoute.split("?");
   const [targetPath, targetQuery = ""] = href.split("?");
-  const canonicalCurrentPath = currentPath === "/inbox" ? "/" : currentPath;
+  const canonicalCurrentPath = currentPath;
   const currentParams = new URLSearchParams(currentQuery);
 
   if (targetQuery) {
@@ -361,9 +337,7 @@ function isActive(currentRoute: string, href: string): boolean {
     );
   }
 
-  if (href === "/") {
-    return canonicalCurrentPath === "/" && !currentParams.has("category");
-  }
+  if (href === "/inbox") return canonicalCurrentPath === "/inbox";
   if (href === "/knowledge") {
     return canonicalCurrentPath === "/knowledge" && !currentParams.has("kind");
   }

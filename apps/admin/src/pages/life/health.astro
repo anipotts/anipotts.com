@@ -16,23 +16,23 @@ const healthCards = knowledge.bundle.cards.filter(
 ---
 
 <AdminLayout
-  title="health"
+  title="Health"
   deck="Status-only health visibility. This page does not infer tasks, diagnose, or expose raw readings."
 >
-  <section class="meta-strip" aria-label="health boundary">
-    <span>status only</span>
+  <section class="meta-strip" aria-label="Health boundary">
+    <span>Status only</span>
     <span>{healthCards.length} source pointers</span>
-    <span>no inferred tasks</span>
-    <span>no raw vitals</span>
+    <span>No inferred tasks</span>
+    <span>No raw vitals</span>
   </section>
 
   <section class="table-card life-boundary">
     <div class="section-head">
       <div>
         <p>privacy boundary</p>
-        <h2>health source state</h2>
+        <h2>Health source state</h2>
       </div>
-      <span>read only</span>
+      <span>Read only</span>
     </div>
     <div class="life-reference-list">
       {
@@ -40,7 +40,7 @@ const healthCards = knowledge.bundle.cards.filter(
           <article>
             <div>
               <p>unavailable</p>
-              <h3>no sanitized health pointer is visible</h3>
+              <h3>No sanitized health pointer is visible</h3>
             </div>
             <span>Verify the private source locally before asking Ani.</span>
           </article>

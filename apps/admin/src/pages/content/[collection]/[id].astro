@@ -51,7 +51,7 @@ const title =
     ? entry.data.title
     : privateDraft
       ? privateTitle
-      : (entry?.id ?? "record not found");
+      : (entry?.id ?? "Record not found");
 const rendered = entry ? await render(entry) : null;
 const Content = rendered?.Content;
 const project = entry?.collection === "projects" ? entry.data : null;

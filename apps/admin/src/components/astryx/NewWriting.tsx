@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { FormLayout } from "@astryxdesign/core/FormLayout";
@@ -7,8 +7,21 @@ import { Button } from "@astryxdesign/core/Button";
 import { Banner } from "@astryxdesign/core/Banner";
 import { Text } from "@astryxdesign/core/Text";
 import { writingId, validWritingId } from "../../lib/writing-draft";
+import {
+  newWritingRecoveryKey,
+  readNewWritingRecovery,
+  recoveryLogoutKey,
+} from "../../lib/draft-recovery";
 
-export function NewWriting() {
+export function NewWriting({ recoveryScope }: { recoveryScope?: string }) {
+  return (
+    <NewWritingForm
+      key={recoveryScope ?? "unavailable"}
+      recoveryScope={recoveryScope}
+    />
+  );
+}
+function NewWritingForm({ recoveryScope }: { recoveryScope?: string }) {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [customSlug, setCustomSlug] = useState(false);
@@ -17,35 +30,54 @@ export function NewWriting() {
   const pending = useRef(false);
   const [restored, setRestored] = useState(false);
   const [recoveryFailed, setRecoveryFailed] = useState(false);
-  const recoveryKey = "editorial:new-writing";
+  const recoveryKey = recoveryScope
+    ? newWritingRecoveryKey(recoveryScope)
+    : null;
   const request = useRef<{ key: string; id: string } | null>(null);
+  const active = useRef(true);
+  const createAbort = useRef<AbortController | null>(null);
+  const [loggedOut, setLoggedOut] = useState(false);
   useEffect(() => {
+    active.current = true;
+    const logout = (event: Event) => {
+      if (event instanceof StorageEvent && event.key !== recoveryLogoutKey)
+        return;
+      active.current = false;
+      createAbort.current?.abort();
+      request.current = null;
+      setLoggedOut(true);
+      setTitle("");
+      setSlug("");
+      setError("");
+    };
+    window.addEventListener("storage", logout);
+    window.addEventListener(recoveryLogoutKey, logout);
     try {
-      const saved = JSON.parse(sessionStorage.getItem(recoveryKey) ?? "null");
-      if (
-        saved &&
-        typeof saved.title === "string" &&
-        typeof saved.slug === "string"
-      ) {
-        setTitle(saved.title);
-        setSlug(saved.slug);
-        setCustomSlug(saved.customSlug === true);
-        if (
-          saved.request &&
-          typeof saved.request.key === "string" &&
-          typeof saved.request.id === "string"
-        )
+      if (!recoveryKey) setRecoveryFailed(true);
+      else {
+        const saved = readNewWritingRecovery(localStorage, recoveryKey);
+        if (saved) {
+          setTitle(saved.title);
+          setSlug(saved.slug);
+          setCustomSlug(saved.customSlug);
           request.current = saved.request;
+        }
       }
     } catch {
       setRecoveryFailed(true);
     }
     setRestored(true);
-  }, []);
+    return () => {
+      active.current = false;
+      createAbort.current?.abort();
+      window.removeEventListener("storage", logout);
+      window.removeEventListener(recoveryLogoutKey, logout);
+    };
+  }, [recoveryKey]);
   useEffect(() => {
-    if (!restored) return;
+    if (!restored || !recoveryKey || !active.current) return;
     try {
-      sessionStorage.setItem(
+      localStorage.setItem(
         recoveryKey,
         JSON.stringify({ title, slug, customSlug, request: request.current }),
       );
@@ -53,7 +85,7 @@ export function NewWriting() {
     } catch {
       setRecoveryFailed(true);
     }
-  }, [title, slug, customSlug, restored]);
+  }, [title, slug, customSlug, restored, recoveryKey]);
   useEffect(() => {
     if (!recoveryFailed || (!title && !slug)) return;
     const preventLoss = (event: BeforeUnloadEvent) => {
@@ -65,39 +97,49 @@ export function NewWriting() {
   }, [recoveryFailed, title, slug]);
   const valid =
     restored &&
+    !loggedOut &&
     Boolean(title.trim()) &&
     title.length <= 300 &&
     validWritingId(slug);
   async function create() {
-    if (!valid || pending.current) return;
+    if (!valid || pending.current || !active.current) return;
     pending.current = true;
     setBusy(true);
     setError("");
+    const abort = new AbortController();
+    createAbort.current = abort;
     const key = JSON.stringify([title.trim(), slug]);
     if (request.current?.key !== key)
       request.current = { key, id: crypto.randomUUID() };
     try {
       try {
-        sessionStorage.setItem(
-          recoveryKey,
-          JSON.stringify({ title, slug, customSlug, request: request.current }),
-        );
+        if (recoveryKey)
+          localStorage.setItem(
+            recoveryKey,
+            JSON.stringify({
+              title,
+              slug,
+              customSlug,
+              request: request.current,
+            }),
+          );
       } catch {
         setRecoveryFailed(true);
       }
       const csrfResponse = await fetch("/api/editorial/csrf", {
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.any([abort.signal, AbortSignal.timeout(15000)]),
       });
       if (!csrfResponse.ok)
         throw new Error(
           "Your session needs refreshing. Your title is still here.",
         );
       const { csrf } = await csrfResponse.json();
+      if (!active.current || abort.signal.aborted) return;
       const response = await fetch(
         `/api/editorial/create?kind=writing&id=${encodeURIComponent(slug)}`,
         {
           method: "POST",
-          signal: AbortSignal.timeout(15000),
+          signal: AbortSignal.any([abort.signal, AbortSignal.timeout(15000)]),
           headers: {
             "Content-Type": "application/json",
             "X-Editorial-CSRF": csrf,
@@ -110,6 +152,7 @@ export function NewWriting() {
         },
       );
       const result = await response.json();
+      if (!active.current || abort.signal.aborted) return;
       if (!response.ok || !result.ok)
         throw new Error(
           response.status === 409
@@ -117,12 +160,13 @@ export function NewWriting() {
             : "Couldn’t create the draft. Your details are retained; try again.",
         );
       try {
-        sessionStorage.removeItem(recoveryKey);
+        if (recoveryKey) localStorage.removeItem(recoveryKey);
       } catch {
         /* Server draft is saved. */
       }
       window.location.assign(`/content/writing/${slug}`);
     } catch (error) {
+      if (!active.current || abort.signal.aborted) return;
       setError(
         error instanceof Error
           ? error.message
@@ -130,7 +174,7 @@ export function NewWriting() {
       );
     } finally {
       pending.current = false;
-      setBusy(false);
+      if (active.current) setBusy(false);
     }
   }
   return (
@@ -149,7 +193,7 @@ export function NewWriting() {
             label="Title"
             value={title}
             isRequired
-            isDisabled={busy}
+            isDisabled={busy || loggedOut}
             status={
               title.length > 300
                 ? {
@@ -167,7 +211,7 @@ export function NewWriting() {
             label="Article address"
             value={slug}
             isRequired
-            isDisabled={busy}
+            isDisabled={busy || loggedOut}
             description={`anipotts.com/writing/${slug || "your-article"}`}
             status={
               slug && !validWritingId(slug)
@@ -184,7 +228,14 @@ export function NewWriting() {
             }}
           />
         </FormLayout>
-        {recoveryFailed && (
+        {loggedOut && (
+          <Banner
+            status="warning"
+            title="Session ended"
+            description="Sign in again before creating an article."
+          />
+        )}
+        {recoveryFailed && !loggedOut && (
           <Banner
             status="warning"
             title="Browser recovery unavailable"
@@ -210,7 +261,7 @@ export function NewWriting() {
             label="Cancel"
             variant="ghost"
             href="/content?group=writing"
-            isDisabled={busy}
+            isDisabled={busy || loggedOut}
           />
         </HStack>
       </VStack>

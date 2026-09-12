@@ -6,17 +6,19 @@ import "../themes/editorial.generated.css";
 import "@fontsource-variable/instrument-sans";
 import "../styles/editorial.css";
 import "../styles/scrollbars.css";
-import { publicSiteUrl, editorialInventory } from "../lib/editorial-content";
-import { privateWritingRecords } from "../lib/writing-inventory";
-import { productionEditor } from "../lib/editorial-server";
+import { publicSiteUrl } from "../lib/editorial-content";
+import { EDITORIAL_OWNER_EMAIL } from "../lib/editorial-owner";
+import { loadEditorialInventory } from "../lib/editorial-inventory-server";
 import {
   EditorialApp,
   type EditorialAppProps,
 } from "../components/astryx/EditorialApp";
 type Props = Omit<
   EditorialAppProps,
-  "area" | "localPreview" | "siteUrl" | "initialMode"
->;
+  "area" | "localPreview" | "siteUrl" | "initialMode" | "recoveryScope"
+> & {
+  inventoryProjection?: Awaited<ReturnType<typeof loadEditorialInventory>>;
+};
 const preference =
   Astro.url.searchParams.get("theme") ?? Astro.cookies.get("ap-theme")?.value;
 const initialMode =
@@ -25,62 +27,20 @@ const area = Astro.url.pathname.startsWith("/newsletter")
   ? "newsletter"
   : "content";
 const hasContent = Boolean((await Astro.slots.render("default"))?.trim());
-const inventory = await editorialInventory();
-const searchEntries = [
-  ...inventory.pages,
-  ...inventory.projects,
-  ...inventory.writing,
-].map((entry) => ({
-  id: `content:${entry.collection}:${entry.id}`,
-  label: "title" in entry.data ? entry.data.title : entry.id,
-  domain: "content" as const,
-  kind: entry.collection,
-  currentFact:
-    entry.collection === "projects"
-      ? entry.data.public_state
-      : entry.collection === "writing" || entry.collection === "newsletterPage"
-        ? entry.data.status
-        : "published",
-  source: "content inventory",
-  freshness: "current",
-  href: `/content/${entry.collection}/${encodeURIComponent(entry.id)}`,
-  keywords: [entry.id, entry.collection],
-}));
-let privateSearchUnavailable = false;
-try {
-  const storage = import.meta.env.DEV
-    ? await (await import("../lib/editorial-local")).localDraftStorage()
-    : productionEditor(Astro.locals.runtime?.env)?.storage;
-  if (!storage) throw new Error("storage_unavailable");
-  for (const record of privateWritingRecords(
-    await storage.listWritingDrafts(),
-  )) {
-    if (searchEntries.some((entry) => entry.href === record.href)) continue;
-    searchEntries.push({
-      id: `private:${record.href}`,
-      label: record.title,
-      domain: "content",
-      kind: "writing",
-      currentFact: "draft",
-      source: "private content inventory",
-      freshness: "current",
-      href: record.href,
-      keywords: [record.title, "writing", "draft"],
-    });
-  }
-} catch {
-  privateSearchUnavailable = true;
-}
+const { inventoryProjection: suppliedInventory, ...pageProps } = Astro.props;
+const inventory =
+  suppliedInventory ??
+  (await loadEditorialInventory(Astro.locals.runtime?.env));
 const appProps = {
-  searchEntries,
-  ...Astro.props,
-  inventoryError: Boolean(
-    Astro.props.inventoryError || privateSearchUnavailable,
-  ),
+  searchEntries: inventory.searchEntries,
+  ...pageProps,
+  inventoryError: Boolean(Astro.props.inventoryError || inventory.unavailable),
   area,
   siteUrl: publicSiteUrl,
   initialMode,
   localPreview: import.meta.env.DEV,
+  recoveryScope: EDITORIAL_OWNER_EMAIL,
+  librarySearch: Astro.url.search,
 } satisfies EditorialAppProps;
 ---
 
@@ -90,7 +50,7 @@ const appProps = {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow, noarchive" />
-    <title>{Astro.props.title} | admin</title>
+    <title>{Astro.props.title} | Admin</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   </head>
   <body>

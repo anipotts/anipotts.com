@@ -14,35 +14,35 @@ const rollbackCount = deployRows.filter(
 ---
 
 <AdminLayout
-  title="deploys"
+  title="Deploys"
   deck="Read-only deployment target map. This route shows what may deploy, what must skip, and what remains rollback-only."
 >
-  <section class="meta-strip" aria-label="deploy target summary">
+  <section class="meta-strip" aria-label="Deploy target summary">
     <span>{deployRows.length} deploy targets</span>
     <span>{safeLaneCount} automatic safe lanes</span>
     <span>{retainedWorkerCount} retained workers</span>
     <span>{rollbackCount} manual rollback</span>
-    <span>no dispatch controls</span>
+    <span>No dispatch controls</span>
   </section>
 
   <section class="table-card" aria-labelledby="deploy-targets-heading">
     <div class="section-head">
       <div>
         <p>deploy matrix</p>
-        <h2 id="deploy-targets-heading">scoped targets</h2>
+        <h2 id="deploy-targets-heading">Scoped targets</h2>
       </div>
-      <span>workflow_dispatch inputs only</span>
+      <span>Workflow_dispatch inputs only</span>
     </div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>target</th>
-            <th>input</th>
-            <th>scope</th>
-            <th>status</th>
-            <th>proof</th>
-            <th>next</th>
+            <th>Target</th>
+            <th>Input</th>
+            <th>Scope</th>
+            <th>Status</th>
+            <th>Proof</th>
+            <th>Next</th>
           </tr>
         </thead>
         <tbody>
@@ -63,22 +63,22 @@ const rollbackCount = deployRows.filter(
     </div>
   </section>
 
-  <section class="grid" aria-label="deploy gates">
+  <section class="grid" aria-label="Deploy gates">
     <article class="panel">
       <p class="risk-low">safe</p>
-      <h2>docs-only</h2>
+      <h2>Docs-only</h2>
       <p>merge after green checks</p>
       <p>deploy nothing</p>
     </article>
     <article class="panel">
       <p class="risk-low">safe</p>
-      <h2>public site</h2>
+      <h2>Public site</h2>
       <p>deploy <code>www=true</code> only</p>
       <p>prove public routes return 200</p>
     </article>
     <article class="panel">
       <p class="risk-medium">gated</p>
-      <h2>admin</h2>
+      <h2>Admin</h2>
       <p>deploy <code>admin=true</code> only</p>
       <p>prove protected routes block unauthenticated access</p>
     </article>

@@ -1,4 +1,6 @@
 ---
+import { Banner } from "@astryxdesign/core/Banner";
+import { Button } from "@astryxdesign/core/Button";
 import AdminLayout from "../layouts/AdminLayout.astro";
 import SemanticInspector from "../components/SemanticInspector.astro";
 import SemanticReference from "../components/SemanticReference.astro";
@@ -59,14 +61,18 @@ const referenceByCard = new Map(
 );
 ---
 
-<AdminLayout title="knowledge" hideHeader>
+<AdminLayout title="Knowledge" hideHeader>
   <main class="quiet-page quiet-knowledge-page">
     <header class="quiet-page-header">
       <h1 class="brand-display">Knowledge</h1>
-      <span data-knowledge-count>{cards.length} results</span>
+      <span data-knowledge-count
+        >{
+          knowledge.available ? `${cards.length} results` : "Source unavailable"
+        }</span
+      >
     </header>
 
-    <nav class="quiet-view-tabs" aria-label="knowledge filters">
+    <nav class="quiet-view-tabs" aria-label="Knowledge filters">
       {
         filters.map(([kind, label]) => (
           <a
@@ -79,7 +85,23 @@ const referenceByCard = new Map(
       }
     </nav>
 
-    <section class="quiet-result-list" aria-label="knowledge results">
+    {
+      !knowledge.available && (
+        <aside class="quiet-inline-notice">
+          <Banner
+            status="warning"
+            title="Knowledge unavailable"
+            description="Your records could not be loaded. Try again when the source is available."
+          />
+          <Button
+            label="Try again"
+            href={`${Astro.url.pathname}${Astro.url.search}`}
+            size="sm"
+          />
+        </aside>
+      )
+    }
+    <section class="quiet-result-list" aria-label="Knowledge results">
       {
         cards.map((card) => {
           return (
@@ -105,25 +127,21 @@ const referenceByCard = new Map(
               <SemanticReference
                 reference={referenceByCard.get(card.card_id)!}
                 variant="action"
-                label="details"
+                label="Details"
                 class="quiet-row-link"
               />
             </article>
           );
         })
       }
-      <p class="quiet-empty-state" hidden={cards.length > 0}>
+      <p
+        class="quiet-empty-state"
+        hidden={cards.length > 0 || !knowledge.available}
+      >
         No current result matches.
       </p>
     </section>
 
-    {
-      knowledge.errors.length > 0 && (
-        <aside class="quiet-inline-notice">
-          Some sources are unavailable. Details are in System.
-        </aside>
-      )
-    }
     <SemanticInspector references={references as SemanticReferenceModel[]} />
   </main>
 

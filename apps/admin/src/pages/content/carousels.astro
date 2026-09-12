@@ -15,10 +15,10 @@ const reviewGates = [
 ---
 
 <AdminLayout
-  title="carousels"
+  title="Carousels"
   deck="Owner review for prepared carousel sets. Read-only assets, crops, captions, and render state."
 >
-  <section class="meta-strip" aria-label="carousel feed state">
+  <section class="meta-strip" aria-label="Carousel feed state">
     <span>{carouselSeries.status}</span>
     <span>{carouselSummary.posts} posts</span>
     <span>{carouselSummary.slides} slides</span>
@@ -32,7 +32,7 @@ const reviewGates = [
     <div class="section-head">
       <div>
         <p>durable agent workflows v2</p>
-        <h2>review, do not publish</h2>
+        <h2>Review, do not publish</h2>
       </div>
       <span
         >instagram {carouselSeries.cropTargets.instagram} / tiktok {
@@ -50,29 +50,29 @@ const reviewGates = [
       </div>
       <dl>
         <div>
-          <dt>source</dt>
+          <dt>Source</dt>
           <dd>media/carousel handoff 2026-07-01</dd>
         </div>
         <div>
-          <dt>local editor</dt>
+          <dt>Local editor</dt>
           <dd>{carouselSeries.localEditorUrl || "not linked in production"}</dd>
         </div>
         <div>
-          <dt>assets copied</dt>
+          <dt>Assets copied</dt>
           <dd>phone mocks, contact strips, 1080 platform exports</dd>
         </div>
         <div>
-          <dt>not copied</dt>
+          <dt>Not copied</dt>
           <dd>raw photos, highres sources, 2x masters</dd>
         </div>
       </dl>
-      <div class="gate-list" aria-label="approval gates">
+      <div class="gate-list" aria-label="Approval gates">
         {reviewGates.map((gate) => <span>{gate}</span>)}
       </div>
     </div>
   </section>
 
-  <section class="carousel-post-grid" aria-label="carousel posts">
+  <section class="carousel-post-grid" aria-label="Carousel posts">
     {
       carouselPosts.map((post) => (
         <article class="carousel-post-card">
@@ -90,19 +90,19 @@ const reviewGates = [
             <h2>{post.title}</h2>
             <dl>
               <div>
-                <dt>slides</dt>
+                <dt>Slides</dt>
                 <dd>{post.slideCount}</dd>
               </div>
               <div>
-                <dt>ready exports</dt>
+                <dt>Ready exports</dt>
                 <dd>{post.readyExports}</dd>
               </div>
               <div>
-                <dt>stale</dt>
+                <dt>Stale</dt>
                 <dd>{post.staleCount}</dd>
               </div>
               <div>
-                <dt>sound</dt>
+                <dt>Sound</dt>
                 <dd>{post.soundStatus}</dd>
               </div>
             </dl>
@@ -129,7 +129,7 @@ const reviewGates = [
 
         <div class="carousel-review-grid">
           <div class="carousel-copy-panel">
-            <span>caption</span>
+            <span>Caption</span>
             <p>{post.caption}</p>
             <div class="hashtag-list" aria-label={`${post.title} hashtags`}>
               {post.hashtags.map((tag) => (
@@ -171,23 +171,23 @@ const reviewGates = [
                 <h3>{slide.text}</h3>
                 <dl>
                   <div>
-                    <dt>visual</dt>
+                    <dt>Visual</dt>
                     <dd>{slide.visualId}</dd>
                   </div>
                   <div>
-                    <dt>source</dt>
+                    <dt>Source</dt>
                     <dd>
                       {slide.sourceStatus} / {slide.sourceSize}
                     </dd>
                   </div>
                   <div>
-                    <dt>ig</dt>
+                    <dt>IG</dt>
                     <dd>
                       {slide.instagram.freshness} / {slide.instagram.size}
                     </dd>
                   </div>
                   <div>
-                    <dt>tt</dt>
+                    <dt>TT</dt>
                     <dd>
                       {slide.tiktok.freshness} / {slide.tiktok.size}
                     </dd>

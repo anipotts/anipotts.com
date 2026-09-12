@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Selector } from "@astryxdesign/core/Selector";
@@ -28,8 +28,14 @@ export function ArticleImageCrop({
   const [y, setY] = useState(50);
   const [error, setError] = useState("");
   const applying = useRef(false);
+  const [encoding, setEncoding] = useState(false);
+  const generation = useRef(0);
+  const locked = busy || encoding;
   useEffect(() => {
+    const current = ++generation.current;
     let active = true;
+    setError("");
+    setEncoding(false);
     setReady(false);
     void createImageBitmap(file)
       .then((value) => {
@@ -45,6 +51,7 @@ export function ArticleImageCrop({
       });
     return () => {
       active = false;
+      if (generation.current === current) generation.current++;
       bitmap.current?.close();
       bitmap.current = null;
     };
@@ -56,7 +63,13 @@ export function ArticleImageCrop({
     const crop = imageCrop(
       image.width,
       image.height,
-      ratio === "wide" ? 16 / 9 : ratio === "landscape" ? 1.5 : 1,
+      ratio === "panorama"
+        ? 2.4
+        : ratio === "wide"
+          ? 16 / 9
+          : ratio === "landscape"
+            ? 1.5
+            : 1,
       zoom,
       x,
       y,
@@ -81,6 +94,8 @@ export function ArticleImageCrop({
   async function apply() {
     if (!ready || busy || applying.current || !canvas.current) return;
     applying.current = true;
+    const current = generation.current;
+    setEncoding(true);
     setError("");
     try {
       // PNG preserves the selected pixels without introducing JPEG artifacts.
@@ -93,8 +108,10 @@ export function ArticleImageCrop({
           "image/png",
         ),
       );
+      if (generation.current !== current) return;
       await onApply(blob);
     } catch (error) {
+      if (generation.current !== current) return;
       setError(
         error instanceof Error
           ? error.message
@@ -102,6 +119,7 @@ export function ArticleImageCrop({
       );
     } finally {
       applying.current = false;
+      if (generation.current === current) setEncoding(false);
     }
   }
   return (
@@ -118,9 +136,10 @@ export function ArticleImageCrop({
       <Selector
         label="Crop shape"
         value={ratio}
-        isDisabled={busy}
+        isDisabled={locked}
         onChange={setRatio}
         options={[
+          { value: "panorama", label: "Panorama · 2.4:1" },
           { value: "wide", label: "Wide · 16:9" },
           { value: "landscape", label: "Landscape · 3:2" },
           { value: "square", label: "Square · 1:1" },
@@ -132,20 +151,20 @@ export function ArticleImageCrop({
         min={1}
         max={3}
         step={0.05}
-        isDisabled={busy}
+        isDisabled={locked}
         onChange={setZoom}
         formatValue={(value) => `${value.toFixed(2)}×`}
       />
       <Slider
         label="Horizontal position"
         value={x}
-        isDisabled={busy}
+        isDisabled={locked}
         onChange={setX}
       />
       <Slider
         label="Vertical position"
         value={y}
-        isDisabled={busy}
+        isDisabled={locked}
         onChange={setY}
       />
       {error && (
@@ -156,15 +175,15 @@ export function ArticleImageCrop({
           label="Apply crop"
           size="sm"
           variant="primary"
-          isDisabled={!ready || busy}
-          isLoading={busy}
+          isDisabled={!ready || locked}
+          isLoading={locked}
           onClick={() => void apply()}
         />
         <Button
           label="Cancel crop"
           size="sm"
           variant="ghost"
-          isDisabled={busy}
+          isDisabled={locked}
           onClick={onCancel}
         />
       </HStack>

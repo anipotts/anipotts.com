@@ -77,3 +77,9 @@ URLs shaped like:
 Each worktree stores only its own process metadata and logs under ignored
 `.local/portless-preview/`. Portless forwards WebSockets, so Astro HMR works
 through the named URLs.
+
+### Codex task startup
+
+`bash ./scripts/codex-action setup` validates the repository manifests and Node/pnpm availability without installing packages or enabling global Corepack shims. Missing dependencies are explicitly reported as deferred; this is a startup preflight, not a passing application check. It avoids duplicate automatic installs when creating worktrees on a space-constrained host.
+
+When dependencies are needed and disk space is available, run `bash ./scripts/codex-action bootstrap` to install the frozen lockfile. Develop and check actions require local dependencies and otherwise stop with that actionable command. Existing dependencies still pass through the normal build/type/test checks; their presence is not a claim of validity.

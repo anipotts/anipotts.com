@@ -89,16 +89,16 @@ export function editorialFields(
     ];
   if (record.id === "newsletter")
     return [
-      "headline",
-      "deck",
-      "cta_label",
-      "success_message",
-      "error_message",
-      "footer_text",
-      "archive_label",
-      "archive_copy",
-      "archive_link_label",
-    ].map((key) => ({ label: key.replaceAll("_", " "), path: [key] }));
+      ["headline", "Headline"],
+      ["deck", "Deck"],
+      ["cta_label", "CTA label"],
+      ["success_message", "Success message"],
+      ["error_message", "Error message"],
+      ["footer_text", "Footer text"],
+      ["archive_label", "Archive label"],
+      ["archive_copy", "Archive copy"],
+      ["archive_link_label", "Archive link label"],
+    ].map(([key, label]) => ({ label: label!, path: [key!] }));
   const fields: EditorialField[] = [
     { label: "Heading", path: ["hero_title"] },
     { label: "Introduction", path: ["hero_summary"], rich: true },

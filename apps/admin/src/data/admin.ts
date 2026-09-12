@@ -2,7 +2,8 @@ export type NavItem = {
   href: string;
   label: string;
   status: string;
-  group: "home" | "work" | "content" | "life" | "knowledge" | "system";
+  group:
+    "home" | "work" | "content" | "life" | "knowledge" | "system" | "website";
   description: string;
   icon:
     | "inbox"
@@ -47,8 +48,8 @@ export type DeployRow = {
 
 export const navItems: NavItem[] = [
   {
-    href: "/",
-    label: "inbox",
+    href: "/inbox",
+    label: "Inbox",
     status: "queue",
     group: "home",
     description: "what needs attention and what can move next",
@@ -57,7 +58,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/work?view=now",
-    label: "work",
+    label: "Work",
     status: "now",
     group: "work",
     description: "current execution, waiting, proof, and lineage",
@@ -66,7 +67,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/work?view=projects",
-    label: "projects",
+    label: "Projects",
     status: "view",
     group: "work",
     description: "work grouped by project",
@@ -75,7 +76,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/work?view=history",
-    label: "history",
+    label: "History",
     status: "view",
     group: "work",
     description: "recently completed and preserved work",
@@ -84,34 +85,23 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/content",
-    label: "content",
-    status: "D1",
-    group: "content",
-    description: "pieces, drafts, exports",
+    label: "Website",
+    status: "workspace",
+    group: "website",
+    description: "Website content and private writing drafts",
     icon: "content",
-    mobile: true,
-  },
-  {
-    href: "/content/new",
-    label: "new article",
-    status: "editor",
-    group: "content",
-    description: "create a private article",
-    icon: "edit",
-    parent: "content",
   },
   {
     href: "/content/review",
-    label: "review",
+    label: "Legacy content diagnostics",
     status: "content",
     group: "content",
-    description: "proposed copy and review state",
+    description: "Retained D1 content review; separate from the Website editor",
     icon: "review",
-    parent: "content",
   },
   {
     href: "/content/carousels",
-    label: "carousels",
+    label: "Carousels",
     status: "media",
     group: "content",
     description: "carousel sets and export review",
@@ -120,7 +110,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/content/preview",
-    label: "preview",
+    label: "Preview",
     status: "content",
     group: "content",
     description: "draft preview surfaces",
@@ -129,7 +119,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/content/drafts",
-    label: "drafts",
+    label: "Drafts",
     status: "content",
     group: "content",
     description: "saved draft operations and publish state",
@@ -138,7 +128,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/content/operations",
-    label: "history",
+    label: "History",
     status: "content",
     group: "content",
     description: "draft operation metadata",
@@ -146,17 +136,8 @@ export const navItems: NavItem[] = [
     parent: "content",
   },
   {
-    href: "/newsletter",
-    label: "newsletter",
-    status: "retained",
-    group: "content",
-    description: "issue preview without sends",
-    icon: "newsletter",
-    parent: "content",
-  },
-  {
     href: "/life",
-    label: "life",
+    label: "Personal",
     status: "status",
     group: "life",
     description: "quiet personal overview",
@@ -165,7 +146,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/life/health",
-    label: "health",
+    label: "Health",
     status: "status",
     group: "life",
     description: "status-only health visibility",
@@ -174,7 +155,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/life/aesthetics",
-    label: "aesthetics",
+    label: "Aesthetics",
     status: "shell",
     group: "life",
     description: "wardrobe, outfits, looks, and references",
@@ -183,15 +164,16 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/knowledge",
-    label: "knowledge",
+    label: "Knowledge",
     status: "index",
     group: "knowledge",
     description: "current context and source proof",
     icon: "knowledge",
+    mobile: true,
   },
   {
     href: "/knowledge?kind=people",
-    label: "people",
+    label: "People",
     status: "index",
     group: "knowledge",
     description: "people and current relationships",
@@ -200,7 +182,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/knowledge/locations",
-    label: "locations",
+    label: "Locations",
     status: "map",
     group: "knowledge",
     description: "fleet topology and known places",
@@ -209,15 +191,16 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/system",
-    label: "system",
+    label: "System",
     status: "status",
     group: "system",
     description: "machines, deploys, proof, and governance",
     icon: "system",
+    mobile: true,
   },
   {
     href: "/fleet",
-    label: "fleet",
+    label: "Fleet",
     status: "runtime",
     group: "system",
     description: "machines, repo state, current work",
@@ -226,7 +209,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/proof",
-    label: "proof",
+    label: "Proof",
     status: "passkeys",
     group: "system",
     description: "auth, proof, and blocked checks",
@@ -235,7 +218,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/deploys",
-    label: "deploys",
+    label: "Deployments",
     status: "scoped",
     group: "system",
     description: "target map and deploy proof",
@@ -244,7 +227,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/repos",
-    label: "repositories",
+    label: "Repositories",
     status: "details",
     group: "system",
     description: "dirty state and branch drift",
@@ -253,16 +236,16 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/handoffs",
-    label: "handoffs",
+    label: "Handoffs",
     status: "details",
-    group: "system",
+    group: "work",
     description: "handoff freshness and absorption",
     icon: "handoff",
-    parent: "system",
+    parent: "work",
   },
   {
     href: "/mutations",
-    label: "mutations",
+    label: "Mutations",
     status: "gated",
     group: "system",
     description: "proposed, approved, running, verified",
@@ -271,7 +254,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/ops/destructive",
-    label: "gates",
+    label: "Gates",
     status: "gated",
     group: "system",
     description: "delete, dns, auth, deploy, secrets",
@@ -383,7 +366,7 @@ export const mutationRows: QueueRow[] = [
 ];
 
 export function routeTitle(pathname: string): string {
-  if (pathname.startsWith("/content/edit/")) return "writing editor";
+  if (pathname.startsWith("/content/edit/")) return "Writing editor";
 
   const match =
     navItems.find((item) => item.href === pathname) ??
@@ -392,5 +375,5 @@ export function routeTitle(pathname: string): string {
       .find(
         (item) => item.href !== "/" && pathname.startsWith(`${item.href}/`),
       );
-  return match?.label ?? "admin";
+  return match?.label ?? "Admin";
 }

@@ -23,24 +23,24 @@ const publishEventCount =
 ---
 
 <AdminLayout
-  title="content drafts"
+  title="Content drafts"
   deck="Draft history for the owner editor. Drafts stay private until a selected published draft is promoted into page_content with a publish event."
 >
-  <section class="meta-strip" aria-label="content draft editor state">
+  <section class="meta-strip" aria-label="Content draft editor state">
     <span>{operations.length} draft operations</span>
     <span>{pageContentState.published_count} published page rows</span>
     <span>{operationState.mode}</span>
     <span>{publishEventCount} publish events</span>
-    <span>newsletter send absent</span>
+    <span>Newsletter send absent</span>
   </section>
 
   <section class="table-card operation-card">
     <div class="section-head">
       <div>
         <p>editor gate</p>
-        <h2>draft-save plus publish proof</h2>
+        <h2>Draft-save plus publish proof</h2>
       </div>
-      <span>selected draft only</span>
+      <span>Selected draft only</span>
     </div>
     <div class="record-list">
       <article class="record-row">
@@ -81,27 +81,27 @@ const publishEventCount =
           </div>
           <form class="draft-form" aria-label={`${operation.field_path} draft`}>
             <label>
-              <span>operation</span>
+              <span>Operation</span>
               <input value={operation.operation_id} disabled />
             </label>
             <label>
-              <span>route</span>
+              <span>Route</span>
               <input value={operation.route} disabled />
             </label>
             <label class="wide-field">
-              <span>source</span>
+              <span>Source</span>
               <textarea rows="2" disabled>
                 {operation.source_ref}
               </textarea>
             </label>
             <label class="wide-field">
-              <span>current</span>
+              <span>Current</span>
               <textarea rows="3" disabled>
                 {operation.current_value_ref}
               </textarea>
             </label>
             <label class="wide-field">
-              <span>draft preview</span>
+              <span>Draft preview</span>
               <textarea rows="5" disabled>
                 {operation.proposed_value}
               </textarea>
@@ -120,23 +120,23 @@ const publishEventCount =
           </form>
           <dl class="draft-proof-grid">
             <div>
-              <dt>authority</dt>
+              <dt>Authority</dt>
               <dd>{operation.authority_state}</dd>
             </div>
             <div>
-              <dt>allowed</dt>
+              <dt>Allowed</dt>
               <dd>{operation.allowed_actions.join(", ")}</dd>
             </div>
             <div>
-              <dt>blocked</dt>
+              <dt>Blocked</dt>
               <dd>{operation.forbidden_actions.join(", ")}</dd>
             </div>
             <div>
-              <dt>proof</dt>
+              <dt>Proof</dt>
               <dd>{operation.proof_ids.join(", ")}</dd>
             </div>
             <div>
-              <dt>rollback</dt>
+              <dt>Rollback</dt>
               <dd>{operation.rollback_ref}</dd>
             </div>
           </dl>
@@ -181,7 +181,7 @@ const publishEventCount =
               ))}
               {row.fields.length > 12 && (
                 <div class="field-chip muted-chip">
-                  <span>more</span>
+                  <span>More</span>
                   <strong>{row.fields.length - 12} fields hidden</strong>
                   <small>truncated</small>
                 </div>

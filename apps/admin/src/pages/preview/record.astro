@@ -1,4 +1,5 @@
 ---
+import { previewFailure } from "../../lib/preview-status";
 import { renderArticlePreview } from "../../lib/article-preview";
 import { getEntry } from "astro:content";
 import {
@@ -24,21 +25,23 @@ const parsedRecord = editorialRecordSchema.safeParse({
   kind: Astro.url.searchParams.get("kind"),
   id: Astro.url.searchParams.get("id"),
 });
-if (!parsedRecord.success)
-  return new Response("Unknown preview record", { status: 400 });
+if (!parsedRecord.success) return previewFailure(Astro.url, "unavailable", 400);
 const record = parsedRecord.data;
-const storage = import.meta.env.DEV
-  ? await (await import("../../lib/editorial-local")).localDraftStorage()
-  : productionEditor(Astro.locals.runtime?.env)?.storage;
-const draft = await storage?.get(record);
+let draft;
+try {
+  const storage = import.meta.env.DEV
+    ? await (await import("../../lib/editorial-local")).localDraftStorage()
+    : productionEditor(Astro.locals.runtime?.env)?.storage;
+  draft = await storage?.get(record);
+} catch {
+  return previewFailure(Astro.url, "unavailable", 503);
+}
 if (
   !draft ||
   draft.discardedAt ||
   String(draft.revision) !== Astro.url.searchParams.get("revision")
 )
-  return new Response("Save the draft and refresh its preview.", {
-    status: 409,
-  });
+  return previewFailure(Astro.url, "stale", 409);
 let data: unknown;
 let body = "";
 try {
@@ -47,10 +50,9 @@ try {
   data = parsed.data;
   body = parsed.body;
 } catch {
-  return new Response("Correct the draft source before previewing.", {
-    status: 409,
-  });
+  return previewFailure(Astro.url, "invalid-source", 409);
 }
+
 let writing: Writing | undefined;
 let project: Project | undefined;
 if (record.kind === "writing") {
@@ -65,12 +67,9 @@ if (record.kind === "writing") {
   };
 } else if (record.kind === "work") {
   const original = await getEntry("projects", record.id);
-  if (!original) return new Response("Project unavailable", { status: 404 });
+  if (!original) return previewFailure(Astro.url, "unavailable", 404);
   if (body.trim() !== (original.body ?? "").trim())
-    return new Response(
-      "This preview covers project fields. The article body also changed; review those edits in Source before publishing.",
-      { status: 409 },
-    );
+    return previewFailure(Astro.url, "source-only", 409);
   project = { ...original, data: projectSchema.parse(data) };
 }
 const page = record.kind === "page" ? listingPageSchema.safeParse(data) : null;
@@ -79,7 +78,7 @@ const systems =
     ? systemsPageSchema.parse(data)
     : null;
 if (!writing && !project && !page?.success)
-  return new Response("This page is reviewed in Source.", { status: 409 });
+  return previewFailure(Astro.url, "source-only", 409);
 ---
 
 {
@@ -117,3 +116,43 @@ if (!writing && !project && !page?.success)
     )
   )
 }
+
+<script is:inline>
+  const request =
+    new URL(location.href).searchParams.get("previewRequest") ?? "";
+  parent.postMessage(
+    { type: "editorial-preview-status", request, status: "ready" },
+    "*",
+  );
+  // Preview-only presentation; published article templates stay unchanged.
+  const card = document.querySelector(".editorial-card-preview");
+  if (card) {
+    const details = document.createElement("details");
+    const summary = document.createElement("summary");
+    summary.textContent = "Card preview";
+    details.append(summary);
+    for (const child of Array.from(card.children)) {
+      if (child.tagName !== "P") details.append(child);
+    }
+    card.replaceChildren(details);
+  }
+  let queued = false;
+  const reportSize = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      parent.postMessage(
+        {
+          type: "editorial-preview-size",
+          request,
+          height: Math.ceil(document.body.getBoundingClientRect().height),
+        },
+        "*",
+      );
+    });
+  };
+  new ResizeObserver(reportSize).observe(document.body);
+  window.addEventListener("load", reportSize);
+  reportSize();
+</script>
