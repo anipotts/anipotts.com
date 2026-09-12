@@ -68,3 +68,60 @@ it("locks duplicate encoding and ignores the encoded result after unmount", asyn
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
+
+it("keeps Apply disabled when the crop cannot be drawn", async () => {
+  vi.stubGlobal("matchMedia", () => ({
+    matches: false,
+    addEventListener() {},
+    removeEventListener() {},
+  }));
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
+  const close = vi.fn();
+  vi.stubGlobal(
+    "createImageBitmap",
+    vi.fn(async () => ({ width: 100, height: 100, close })),
+  );
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+  const encode = vi.spyOn(HTMLCanvasElement.prototype, "toBlob");
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  const apply = vi.fn();
+  const cancel = vi.fn();
+  await act(async () =>
+    root.render(
+      <ArticleImageCrop
+        file={new File(["photo"], "photo.png")}
+        busy={false}
+        onApply={apply}
+        onCancel={cancel}
+      />,
+    ),
+  );
+  expect(host.textContent).toContain("Couldn’t render this crop");
+  const buttons = [...host.querySelectorAll("button")];
+  const submit = buttons.find((button) =>
+    button.textContent?.includes("Apply crop"),
+  )!;
+  expect(submit.disabled).toBe(true);
+  act(() => submit.click());
+  expect(encode).not.toHaveBeenCalled();
+  expect(apply).not.toHaveBeenCalled();
+  act(() =>
+    buttons
+      .find((button) => button.textContent?.includes("Cancel crop"))!
+      .click(),
+  );
+  expect(cancel).toHaveBeenCalledOnce();
+  act(() => root.unmount());
+  expect(close).toHaveBeenCalledOnce();
+  host.remove();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});

@@ -1,3 +1,7 @@
+import {
+  adminNavigationEvent,
+  commitAdminNavigation,
+} from "../../lib/editorial-navigation";
 import { editorialRecordSummary } from "../../lib/editorial-record-summary";
 import { dispatchEditorialRecordSaved } from "../../lib/editorial-inventory-events";
 import { RecordPanel } from "./RecordPanel";
@@ -174,6 +178,84 @@ function HomeEditorImpl({
     setBodyDirty(false);
     return editor.current!.flush();
   };
+  const leaveDocument = async (href: string) => {
+    if (leavePending.current) return;
+    leavePending.current = true;
+    setLeaving(true);
+    const navigation = ++navigationGeneration.current;
+    const edits = editGeneration.current;
+    try {
+      await flush();
+      if (navigation !== navigationGeneration.current) return;
+      if (
+        editor.current?.state.status !== "saved" ||
+        bodyDirtyRef.current ||
+        edits !== editGeneration.current
+      ) {
+        setError(
+          "Your latest edits are still here. Save them before leaving this draft.",
+        );
+        return;
+      }
+      commitAdminNavigation(href);
+    } catch {
+      if (navigation === navigationGeneration.current)
+        setError("Couldn’t save before leaving. Your draft is retained.");
+    } finally {
+      leavePending.current = false;
+      setLeaving(false);
+    }
+  };
+  const leaveDocumentRef = useRef(leaveDocument);
+  leaveDocumentRef.current = leaveDocument;
+  useEffect(() => {
+    const requested = (event: Event) => {
+      if (!(event instanceof CustomEvent) || typeof event.detail !== "string")
+        return;
+      event.preventDefault();
+      void leaveDocumentRef.current(event.detail);
+    };
+    const linked = (event: MouseEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      )
+        return;
+      const anchor =
+        event.target instanceof Element
+          ? event.target.closest("a[href]")
+          : null;
+      if (
+        !(anchor instanceof HTMLAnchorElement) ||
+        anchor.hasAttribute("download") ||
+        (anchor.target && anchor.target !== "_self")
+      )
+        return;
+      const url = new URL(anchor.href);
+      if (
+        url.origin !== window.location.origin ||
+        url.pathname === "/cdn-cgi/access/logout"
+      )
+        return;
+      if (
+        url.pathname === window.location.pathname &&
+        url.search === window.location.search
+      )
+        return;
+      event.preventDefault();
+      void leaveDocumentRef.current(anchor.href);
+    };
+    window.addEventListener(adminNavigationEvent, requested);
+    document.addEventListener("click", linked);
+    return () => {
+      window.removeEventListener(adminNavigationEvent, requested);
+      document.removeEventListener("click", linked);
+    };
+  }, []);
   const ensureDraft = () => {
     titleFlush.current?.();
     subtitleFlush.current?.();
@@ -435,7 +517,7 @@ function HomeEditorImpl({
         parseEditorialSource(state.source).document.get("title") ?? "",
       );
       onTitleChange?.(title);
-      document.title = `${title || "Untitled article"} | admin`;
+      document.title = `${title || "Untitled article"} | Admin`;
     } catch {
       /* Keep the last valid title while source is being edited. */
     }
@@ -683,29 +765,7 @@ function HomeEditorImpl({
                     )
                       return;
                     event.preventDefault();
-                    if (leavePending.current) return;
-                    leavePending.current = true;
-                    setLeaving(true);
-                    const navigation = ++navigationGeneration.current;
-                    try {
-                      await flush();
-                      if (navigation !== navigationGeneration.current) return;
-                      if (editor.current?.state.status !== "saved") {
-                        setError(
-                          "Your latest edits are still here. Save them before leaving this draft.",
-                        );
-                        return;
-                      }
-                      window.location.assign(returnPath);
-                    } catch {
-                      if (navigation === navigationGeneration.current)
-                        setError(
-                          "Couldn’t save before leaving. Your draft is retained.",
-                        );
-                    } finally {
-                      leavePending.current = false;
-                      setLeaving(false);
-                    }
+                    void leaveDocument(returnPath);
                   }}
                   variant="ghost"
                   size="sm"
@@ -1100,7 +1160,7 @@ function HomeEditorImpl({
                       }}
                       onDraftTitle={(value) => {
                         onTitleChange?.(value);
-                        document.title = `${value || "Untitled article"} | admin`;
+                        document.title = `${value || "Untitled article"} | Admin`;
                       }}
                       onCommit={(value) =>
                         editor.current!.edit(

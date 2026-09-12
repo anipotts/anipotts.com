@@ -7,5 +7,5 @@
  */
 
 /// <reference path="./life.variants.d.ts" />
-import type { DefinedTheme } from "@astryxdesign/core/theme";
+import type { DefinedTheme } from '@astryxdesign/core/theme';
 export declare const lifeTheme: DefinedTheme;

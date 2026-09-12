@@ -17,7 +17,7 @@ import {
   savedTheme,
   saveTheme,
   type ThemePreference,
-} from "@anipotts/brand/theme";
+} from "../../lib/admin-theme";
 import type { NavItem } from "../../data/admin";
 import { EditorialWorkspaceShell } from "./EditorialWorkspaceShell";
 import { workspaceThemes } from "../../themes/workspaces";

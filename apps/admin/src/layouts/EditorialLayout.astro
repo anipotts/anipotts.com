@@ -1,5 +1,9 @@
 ---
 import "@astryxdesign/core/reset.css";
+import {
+  initialAdminTheme,
+  adminThemePrepaintScript,
+} from "../lib/admin-theme";
 import "@astryxdesign/core/astryx.css";
 import "../styles/admin-interactions.css";
 import "../themes/editorial.generated.css";
@@ -19,10 +23,10 @@ type Props = Omit<
 > & {
   inventoryProjection?: Awaited<ReturnType<typeof loadEditorialInventory>>;
 };
-const preference =
-  Astro.url.searchParams.get("theme") ?? Astro.cookies.get("ap-theme")?.value;
-const initialMode =
-  preference === "dark" || preference === "system" ? preference : "light";
+const initialMode = initialAdminTheme(
+  Astro.url.searchParams.get("theme"),
+  Astro.cookies.get("ap-theme")?.value,
+);
 const area = Astro.url.pathname.startsWith("/newsletter")
   ? "newsletter"
   : "content";
@@ -45,13 +49,19 @@ const appProps = {
 ---
 
 <!doctype html>
-<html lang="en" data-astryx-theme="editorial">
+<html
+  lang="en"
+  data-astryx-theme="editorial"
+  data-theme={initialMode === "system" ? undefined : initialMode}
+  style={{ colorScheme: initialMode === "system" ? "light dark" : initialMode }}
+>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow, noarchive" />
     <title>{Astro.props.title} | Admin</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script is:inline set:html={adminThemePrepaintScript} />
   </head>
   <body>
     {

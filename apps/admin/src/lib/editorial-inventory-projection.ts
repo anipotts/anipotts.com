@@ -326,25 +326,53 @@ export async function readInventoryDrafts(
 ) {
   const drafts: Draft[] = [];
   let unavailable = false;
-  try {
-    drafts.push(...(await storage.listWritingDrafts()));
-  } catch {
-    unavailable = true;
-  }
   const identities = entries
     .filter((entry) => entry.collection !== "writing")
     .map(inventoryIdentity)
     .filter((entry): entry is EditorialRecord => entry !== null);
-  for (let start = 0; start < identities.length; start += 4) {
-    const results = await Promise.allSettled(
-      identities
-        .slice(start, start + 4)
-        .map((identity) => storage.get(identity)),
-    );
-    for (const result of results) {
-      if (result.status === "rejected") unavailable = true;
-      else if (result.value) drafts.push(result.value);
+  const reads: Array<() => Promise<Draft[]>> = [
+    () => storage.listWritingDrafts(),
+    ...identities.map((identity) => async () => {
+      const draft = await storage.get(identity);
+      return draft ? [draft] : [];
+    }),
+  ];
+  const expired = Symbol("inventory deadline");
+  let timedOut = false;
+  let timer: ReturnType<typeof setTimeout>;
+  const deadline = new Promise<typeof expired>((resolve) => {
+    timer = setTimeout(() => {
+      timedOut = true;
+      resolve(expired);
+    }, 15_000);
+  });
+  let cursor = 0;
+  const worker = async () => {
+    while (!timedOut && cursor < reads.length) {
+      const read = reads[cursor++]!;
+      try {
+        // The storage interface cannot abort reads. Race only the read result;
+        // late resolutions/rejections remain handled and cannot mutate this view.
+        const result = await Promise.race([
+          Promise.resolve().then(read),
+          deadline,
+        ]);
+        if (result === expired) {
+          unavailable = true;
+          return;
+        }
+        drafts.push(...result);
+      } catch {
+        unavailable = true;
+      }
     }
+  };
+  try {
+    await Promise.all(
+      Array.from({ length: Math.min(4, reads.length) }, worker),
+    );
+    return { drafts, unavailable };
+  } finally {
+    clearTimeout(timer!);
   }
-  return { drafts, unavailable };
 }

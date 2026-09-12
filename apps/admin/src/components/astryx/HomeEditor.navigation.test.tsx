@@ -3,6 +3,7 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { newWritingSource } from "../../lib/writing-draft";
+import * as navigation from "../../lib/editorial-navigation";
 import { HomeEditor } from "./HomeEditor";
 
 vi.mock("@astryxdesign/core/Toast", () => ({ useToast: () => () => {} }));
@@ -237,4 +238,92 @@ it("restores the main panel scroll position when returning from preview", async 
     body,
   );
   expect(window.scrollTo).not.toHaveBeenCalled();
+});
+
+async function editBody(value: string) {
+  const body = host.querySelector(
+    'textarea[aria-label="Test article body"]',
+  ) as HTMLTextAreaElement;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value",
+    )!.set!.call(body, value);
+    body.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
+it("workspace links flush buffered edits once before navigating", async () => {
+  const commit = vi
+    .spyOn(navigation, "commitAdminNavigation")
+    .mockImplementation(() => {});
+  let finish!: (value: Response) => void;
+  const pending = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  let savedSource = "";
+  const fetcher = vi.fn(async (url: string, options?: RequestInit) => {
+    if (url.includes("/save?")) {
+      savedSource = JSON.parse(String(options?.body)).source;
+      return pending;
+    }
+    if (url.includes("/csrf")) return response({ csrf: "test-only" });
+    return response(snapshot);
+  });
+  vi.stubGlobal("fetch", fetcher);
+  await mount();
+  await editBody("Buffered private edit.");
+  const link = document.createElement("a");
+  link.href = "/life";
+  host.append(link);
+  await act(async () => {
+    link.click();
+    link.click();
+  });
+  expect(commit).not.toHaveBeenCalled();
+  expect(savedSource).toContain("Buffered private edit.");
+  expect(
+    fetcher.mock.calls.filter(([url]) => url.includes("/save?")),
+  ).toHaveLength(1);
+  await act(async () => {
+    finish(
+      response({
+        ok: true,
+        draft: { ...draft, source: savedSource, revision: 2 },
+      }),
+    );
+    await pending;
+  });
+  expect(commit).toHaveBeenCalledOnce();
+  expect(commit).toHaveBeenCalledWith(
+    new URL("/life", window.location.href).href,
+  );
+});
+
+it("palette navigation stays in the editor when its save fails", async () => {
+  const commit = vi
+    .spyOn(navigation, "commitAdminNavigation")
+    .mockImplementation(() => {});
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("/save?")) throw new Error("offline");
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      return response(snapshot);
+    }),
+  );
+  await mount();
+  await editBody("Retain this offline edit.");
+  await act(async () => {
+    navigation.navigateAdmin("/operations/observability");
+  });
+  expect(commit).not.toHaveBeenCalled();
+  expect(host.textContent).toContain("Save them before leaving this draft");
+  expect(
+    (
+      host.querySelector(
+        'textarea[aria-label="Test article body"]',
+      ) as HTMLTextAreaElement
+    ).value,
+  ).toBe("Retain this offline edit.");
 });

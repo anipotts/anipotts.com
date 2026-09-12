@@ -77,19 +77,25 @@ export function ArticleImageCrop({
     const output = cropOutputSize(crop.width, crop.height);
     target.width = output.width;
     target.height = output.height;
-    const context = target.getContext("2d");
-    if (context) context.imageSmoothingQuality = "high";
-    context?.drawImage(
-      image,
-      crop.x,
-      crop.y,
-      crop.width,
-      crop.height,
-      0,
-      0,
-      target.width,
-      target.height,
-    );
+    try {
+      const context = target.getContext("2d");
+      if (!context) throw new Error("Canvas unavailable");
+      context.imageSmoothingQuality = "high";
+      context.drawImage(
+        image,
+        crop.x,
+        crop.y,
+        crop.width,
+        crop.height,
+        0,
+        0,
+        target.width,
+        target.height,
+      );
+    } catch {
+      setReady(false);
+      setError("Couldn’t render this crop. Cancel and try again.");
+    }
   }, [ready, ratio, zoom, x, y]);
   async function apply() {
     if (!ready || busy || applying.current || !canvas.current) return;

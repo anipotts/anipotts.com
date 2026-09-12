@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Draft } from "../editorial/draft-store";
 import {
   inventoryChangedFields,
@@ -346,4 +346,61 @@ it("projects private page and project summaries into the same search inventory w
     records.map((record) => record.summary),
   );
   expect(records[2]!.status).toBe("draft");
+});
+
+it("bounds the entire inventory read while retaining completed snapshots and ignoring late results", async () => {
+  vi.useFakeTimers();
+  try {
+    let finishWriting!: (value: Draft[]) => void;
+    let rejectProject!: (error: Error) => void;
+    const home = draft({ key: "content/public/pages/home.md" });
+    const reading = readInventoryDrafts(entries, {
+      listWritingDrafts: () =>
+        new Promise<Draft[]>((resolve) => {
+          finishWriting = resolve;
+        }),
+      get: async (record) =>
+        record.id === "home"
+          ? home
+          : new Promise<Draft | null>((_, reject) => {
+              rejectProject = reject;
+            }),
+    });
+    let result: Awaited<typeof reading> | undefined;
+    void reading.then((value) => {
+      result = value;
+    });
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(result).toEqual({ drafts: [home], unavailable: true });
+    finishWriting([draft()]);
+    rejectProject(new Error("Late storage failure"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(result).toEqual({ drafts: [home], unavailable: true });
+    expect(vi.getTimerCount()).toBe(0);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+it("limits reads to four concurrently and never starts another batch after the deadline", async () => {
+  vi.useFakeTimers();
+  try {
+    const pages = Array.from({ length: 12 }, (_, i) => ({
+      collection: "projects",
+      id: `project-${i}`,
+      data: {},
+    }));
+    const get = vi.fn(() => new Promise<Draft | null>(() => {}));
+    const reading = readInventoryDrafts(pages, {
+      listWritingDrafts: async () => [],
+      get,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(get).toHaveBeenCalledTimes(4);
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(await reading).toEqual({ drafts: [], unavailable: true });
+    expect(get).toHaveBeenCalledTimes(4);
+    expect(vi.getTimerCount()).toBe(0);
+  } finally {
+    vi.useRealTimers();
+  }
 });

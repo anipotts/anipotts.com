@@ -537,12 +537,10 @@ export function ContentLibrary({
                 : "No matching records"
           }
           actions={
-            inventoryError ? (
-              <Button label="Retry" onClick={() => window.location.reload()} />
-            ) : group.records.length === 0 ? (
+            inventoryError ? undefined : group.records.length === 0 ? (
               area === "content" &&
               ["writing", "pages"].includes(group.name) ? (
-                <Button label="New post" href="/content/new" />
+                <Button label="New article" href="/content/new" />
               ) : undefined
             ) : (
               <Button

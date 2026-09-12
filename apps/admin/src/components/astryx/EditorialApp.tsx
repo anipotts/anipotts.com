@@ -15,7 +15,7 @@ import {
   saveTheme,
   themedUrl,
   type ThemePreference,
-} from "@anipotts/brand/theme";
+} from "../../lib/admin-theme";
 import { Theme } from "@astryxdesign/core/theme";
 import { editorialTheme } from "../../themes/editorial.js";
 import { EditorialWorkspaceShell } from "./EditorialWorkspaceShell";
@@ -249,7 +249,14 @@ export function EditorialApp({
             <Banner
               status="warning"
               title="Private drafts couldn’t be loaded"
-              description="Published records are still available. Reload to try your private drafts again."
+              description="Published records are still available."
+              endContent={
+                <Button
+                  label="Reload"
+                  size="sm"
+                  onClick={() => window.location.reload()}
+                />
+              }
             />
           )}
           {newWriting && <NewWriting recoveryScope={recoveryScope} />}
@@ -390,7 +397,7 @@ export function EditorialApp({
 
 function Fields({ value }: { value: unknown }): ReactNode {
   if (typeof value === "boolean")
-    return <Token size="sm" label={value ? "enabled" : "disabled"} />;
+    return <Token size="sm" label={value ? "Enabled" : "Disabled"} />;
   if (value instanceof Date)
     return <Timestamp value={value.toISOString()} format="date" />;
   if (
@@ -445,7 +452,9 @@ function Fields({ value }: { value: unknown }): ReactNode {
               <Collapsible
                 key={key}
                 value={key}
-                trigger={key.replaceAll("_", " ")}
+                trigger={key
+                  .replaceAll("_", " ")
+                  .replace(/^./, (letter) => letter.toUpperCase())}
               >
                 <VStack gap={3} padding={3}>
                   <Fields value={item} />
@@ -453,7 +462,11 @@ function Fields({ value }: { value: unknown }): ReactNode {
               </Collapsible>
             ) : (
               <MetadataList key={key}>
-                <MetadataListItem label={key.replaceAll("_", " ")}>
+                <MetadataListItem
+                  label={key
+                    .replaceAll("_", " ")
+                    .replace(/^./, (letter) => letter.toUpperCase())}
+                >
                   <Fields value={item} />
                 </MetadataListItem>
               </MetadataList>

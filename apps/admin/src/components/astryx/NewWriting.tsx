@@ -5,7 +5,6 @@ import { FormLayout } from "@astryxdesign/core/FormLayout";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { Button } from "@astryxdesign/core/Button";
 import { Banner } from "@astryxdesign/core/Banner";
-import { Text } from "@astryxdesign/core/Text";
 import { writingId, validWritingId } from "../../lib/writing-draft";
 import {
   newWritingRecoveryKey,
@@ -185,9 +184,6 @@ function NewWritingForm({ recoveryScope }: { recoveryScope?: string }) {
       }}
     >
       <VStack gap={6} className="new-writing-form">
-        <Text color="secondary">
-          Start privately. You can change the title as you write.
-        </Text>
         <FormLayout>
           <TextInput
             label="Title"

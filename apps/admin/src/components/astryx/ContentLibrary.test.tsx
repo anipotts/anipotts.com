@@ -69,7 +69,7 @@ describe("Content library", () => {
     expect(failed).toContain("Records unavailable");
     expect(failed).not.toContain("No records yet");
     expect(renderToStaticMarkup(<ContentLibrary groups={groups} />)).toContain(
-      "New post",
+      "New article",
     );
   });
   it("offers recent acknowledged work before the attention-ordered library", () => {

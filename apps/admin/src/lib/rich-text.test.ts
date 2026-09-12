@@ -7,6 +7,23 @@ import {
 import { inlineHtml, inlinePlainText } from "@anipotts/content/public/inline";
 
 describe("rich field round trips", () => {
+  it.each(["bold", "italic", "underline", "strike"])(
+    "preserves whitespace-only %s text without duplicating it",
+    (type) => {
+      const text = "   ";
+      expect(
+        inlineMarkdown({
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text, marks: [{ type }] }],
+            },
+          ],
+        }),
+      ).toBe(text);
+    },
+  );
   it("does not restore removed brand links or escape bold-only explicit fields", () => {
     const mentions = {
       brand: { label: "our bad habit", href: "https://ourbadhabit.com/" },

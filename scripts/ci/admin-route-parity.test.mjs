@@ -189,6 +189,12 @@ assert.deepEqual(devLoopbackPreviewPaths, [
   "/life",
   "/life/aesthetics",
   "/life/health",
+  "/life/people",
+  "/life/places",
+  "/life/preview",
+  "/life/projects",
+  "/life/sources",
+  "/life/timeline",
   "/mutations",
   "/newsletter",
   "/operations/observability",
@@ -497,9 +503,20 @@ assert.ok(
   "health must remain status only",
 );
 assert.ok(
-  aestheticsSource.includes("No wardrobe automation or image ingestion"),
-  "aesthetics must remain a clean data boundary",
+  aestheticsSource.includes('<LifeSupportingView section="aesthetics" />'),
+  "aesthetics must use the presentation-only supporting view without data props",
 );
+const lifeSupportingSource = readFileSync(
+  "apps/admin/src/components/life/LifeSupportingView.tsx",
+  "utf8",
+);
+for (const source of [aestheticsSource, lifeSupportingSource]) {
+  assert.doesNotMatch(
+    source,
+    /\bfetch\s*\(|from\s+["'][^"']*\/data\/|type=["']file["']|onDrop\s*=|onPaste\s*=/,
+    "aesthetics presentation must not add a data reader or image-ingestion control",
+  );
+}
 
 for (const removedNarration of [
   "source → entity → outcome → attention → history",

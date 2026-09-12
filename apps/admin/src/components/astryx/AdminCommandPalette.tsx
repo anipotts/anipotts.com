@@ -1,3 +1,4 @@
+import { navigateAdmin } from "../../lib/editorial-navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   CommandPalette,
@@ -80,6 +81,24 @@ export function AdminCommandPalette({
   const loading = useRef<Promise<void> | null>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const wasOpen = useRef(false);
+  const dialog = useRef<HTMLDialogElement>(null);
+  const dismissalFocus = useRef<HTMLElement | null>(null);
+  const closing = useRef(false);
+  useEffect(() => {
+    const preserveLaterFocus = (event: FocusEvent) => {
+      const target = event.target;
+      if (
+        closing.current &&
+        target instanceof HTMLElement &&
+        target !== document.body &&
+        target !== previousFocus.current &&
+        !dialog.current?.contains(target)
+      )
+        dismissalFocus.current = target;
+    };
+    document.addEventListener("focusin", preserveLaterFocus);
+    return () => document.removeEventListener("focusin", preserveLaterFocus);
+  }, []);
   const liveRows = useRef<AdminSearchResult[]>([]);
 
   const source = useMemo<SearchSource<SearchItem>>(() => {
@@ -160,7 +179,24 @@ export function AdminCommandPalette({
   }, []);
 
   useEffect(() => {
-    if (wasOpen.current && !isOpen) previousFocus.current?.focus();
+    if (wasOpen.current && !isOpen) {
+      // Astryx restores its trigger during the child close effect. Preserve a
+      // deliberate outside focus target captured before that restoration.
+      const active = document.activeElement;
+      const target = dismissalFocus.current ?? previousFocus.current;
+      if (
+        target?.isConnected &&
+        active !== target &&
+        (!active ||
+          active === document.body ||
+          active === previousFocus.current ||
+          dialog.current?.contains(active))
+      ) {
+        target.focus({ preventScroll: true });
+      }
+      dismissalFocus.current = null;
+      closing.current = false;
+    }
     wasOpen.current = isOpen;
   }, [isOpen]);
 
@@ -181,10 +217,27 @@ export function AdminCommandPalette({
         />
       ) : null}
       <CommandPalette
+        ref={dialog}
+        onKeyDownCapture={(event) => {
+          // Keep composition cancellation inside the input; the palette input's
+          // Escape handler runs before the dialog's own composition guard.
+          if (event.key === "Escape" && event.nativeEvent.isComposing)
+            event.stopPropagation();
+        }}
         key={attempt}
         className="admin-command-palette-centered"
         isOpen={isOpen}
         onOpenChange={(open) => {
+          closing.current = !open;
+          if (!open) {
+            const active = document.activeElement;
+            dismissalFocus.current =
+              active instanceof HTMLElement &&
+              active !== document.body &&
+              !dialog.current?.contains(active)
+                ? active
+                : null;
+          }
           setIsOpen(open);
           if (!open) {
             queryRef.current = "";
@@ -228,7 +281,7 @@ export function AdminCommandPalette({
         }
         onValueChange={(id) => {
           const href = hrefs.current.get(id);
-          if (href) window.location.assign(href);
+          if (href) navigateAdmin(href);
         }}
         renderItem={(item) => (
           <HStack gap={3} vAlign="center" wrap="wrap">
