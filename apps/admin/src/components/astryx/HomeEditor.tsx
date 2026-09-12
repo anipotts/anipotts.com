@@ -179,6 +179,11 @@ function HomeEditorImpl({
     return editor.current!.flush();
   };
   const leaveDocument = async (href: string) => {
+    // Loading and failed initial reads have no editable state to flush.
+    if (!editor.current) {
+      commitAdminNavigation(href);
+      return;
+    }
     if (leavePending.current) return;
     leavePending.current = true;
     setLeaving(true);
@@ -1131,8 +1136,10 @@ function HomeEditorImpl({
             </VStack>
           )}
           {(tab === "edit" || record.kind === "writing") && (
-            <div
+            <VStack
+              gap={0}
               hidden={tab !== "edit"}
+              style={tab !== "edit" ? { display: "none" } : undefined}
               onFocusCapture={(event) => {
                 const target = event.target as HTMLElement;
                 if (target.matches('textarea, input, [contenteditable="true"]'))
@@ -1270,7 +1277,7 @@ function HomeEditorImpl({
                   </>
                 )}
               </FormLayout>
-            </div>
+            </VStack>
           )}
           {tab === "publish" && (
             <VStack gap={4} className="editor-review">

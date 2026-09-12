@@ -374,3 +374,81 @@ it("typing during a navigation save keeps the newer buffer on screen", async () 
     ).value,
   ).toBe("Newer edit while saving.");
 });
+it.each(["loading", "failed"])(
+  "allows workspace navigation while the initial editor is %s",
+  async (mode) => {
+    const commit = vi
+      .spyOn(navigation, "commitAdminNavigation")
+      .mockImplementation(() => {});
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        mode === "loading"
+          ? new Promise<Response>(() => {})
+          : Promise.reject(new Error("unavailable")),
+      ),
+    );
+    await act(async () => {
+      root.render(
+        <HomeEditor
+          record={{ kind: "writing", id: "test" }}
+          localPreview={true}
+        />,
+      );
+    });
+    expect(
+      host.querySelector('textarea[aria-label="Test article body"]'),
+    ).toBeNull();
+    await act(async () => {
+      navigation.navigateAdmin("/content");
+    });
+    expect(commit).toHaveBeenCalledWith("/content");
+    expect(host.textContent).not.toContain("Couldn’t save before leaving");
+  },
+);
+it.each(["loading", "failed"])(
+  "allows ordinary same-origin links while the initial editor is %s",
+  async (mode) => {
+    const commit = vi
+      .spyOn(navigation, "commitAdminNavigation")
+      .mockImplementation(() => {});
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        mode === "loading"
+          ? new Promise<Response>(() => {})
+          : Promise.reject(new Error("unavailable")),
+      ),
+    );
+    await act(async () => {
+      root.render(
+        <HomeEditor
+          record={{ kind: "writing", id: "test" }}
+          localPreview={true}
+        />,
+      );
+    });
+    const anchor = document.createElement("a");
+    anchor.href = "/life";
+    anchor.textContent = "Life";
+    host.append(anchor);
+    await act(async () => anchor.click());
+    expect(commit).toHaveBeenCalledWith(
+      new URL("/life", window.location.origin).href,
+    );
+  },
+);
+it("keeps the document mounted and hidden inside its Astryx surface during preview", async () => {
+  await mount();
+  const body = host.querySelector('textarea[aria-label="Test article body"]')!;
+  const surface = body.closest(".astryx-stack");
+  expect(surface).not.toBeNull();
+  await click("Preview");
+  expect(body.closest("[hidden]")).not.toBeNull();
+  expect((body.closest("[hidden]") as HTMLElement).style.display).toBe("none");
+  await click("Edit");
+  expect(host.querySelector('textarea[aria-label="Test article body"]')).toBe(
+    body,
+  );
+  expect(body.closest("[hidden]")).toBeNull();
+});
