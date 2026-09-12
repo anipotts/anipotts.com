@@ -42,6 +42,18 @@ repository checks, exact-head protected PR checks, target classification,
 rollback capture, admin deployment and authenticated live interactions. No
 merge, deployment or real content publication is established by this document.
 
+## Sidebar implementation review
+
+The approved 52px rail and 125ms parent width animation need a narrow library
+override: installed Astryx AppShell exposes no sidebar-width prop, while SideNav
+hardcodes its own width. Popover supplies minimum anchor width rather than exact
+trigger width; ToggleButtonGroup lacks joined-segment spacing props; Button
+does not expose tooltip direction. Keep these scoped overrides until equivalent
+component APIs are available. Header alignment uses Astryx HStack props.
+Superseded geometry rules were removed and remaining icon/menu dimensions use
+equivalent theme spacing expressions. Nine shell tests pass; visual parity is
+still pending because the in-app Browser control runtime is unavailable.
+
 ## Connection boundaries
 
 Workers Paid checkout was inspected while the account was on Free: $5 due

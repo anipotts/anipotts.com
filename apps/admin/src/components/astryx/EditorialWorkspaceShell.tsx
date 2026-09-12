@@ -133,7 +133,7 @@ export function WorkspaceIdentity({
   const { isMobile } = useAppShellMobile();
   const compact = collapsed && !isMobile;
   const selectorRef = useRef<HTMLButtonElement>(null);
-  const [menuWidth, setMenuWidth] = useState<number>();
+  const [menuWidth, setMenuWidth] = useState<number | string>();
   const WorkspaceIcon = workspaceIcons[workspace];
   const [destinations, setDestinations] = useState<Record<Workspace, string>>({
     content: "/content",
@@ -180,7 +180,8 @@ export function WorkspaceIdentity({
     >
       <HStack
         className="editorial-identity-primary-row"
-        gap={2}
+        gap={0}
+        hAlign="between"
         vAlign="center"
       >
         {!isMobile && (
@@ -217,7 +218,7 @@ export function WorkspaceIdentity({
           if (open)
             setMenuWidth(
               compact
-                ? 224
+                ? "calc(var(--spacing-8) * 7)"
                 : selectorRef.current?.getBoundingClientRect().width,
             );
         }}

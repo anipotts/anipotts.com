@@ -8,12 +8,9 @@
 /* Shared geometry: one square target and icon column in either sidebar state. */
 .editorial-workspace-nav .approved-workspace-header {
   --workspace-control-size: var(--spacing-9);
-  gap: var(--spacing-2);
 }
 .approved-workspace-header .editorial-identity-primary-row {
   flex-direction: row;
-  justify-content: space-between;
-  gap: 0;
   min-height: var(--workspace-control-size);
 }
 .approved-workspace-header .admin-bracket-wordmark {
@@ -24,7 +21,7 @@
   gap: calc(var(--spacing-1) / 2);
   font-family: "AP Structural", sans-serif;
   font-weight: 900;
-  font-size: var(--font-size-xl, 24px);
+  font-size: var(--font-size-xl);
   line-height: 1;
   white-space: nowrap;
 }
@@ -179,11 +176,11 @@
   }
   .editorial-workspace-nav .astryx-side-nav-item {
     justify-content: flex-start;
-    padding-inline-start: var(--spacing-2);
+    padding-inline-start: calc(var(--spacing-9) / 4);
   }
   .editorial-workspace-nav .astryx-side-nav-item > svg {
     flex: none;
-    width: var(--spacing-5);
+    width: calc(var(--spacing-9) / 2);
     margin-inline: 0;
   }
   .editorial-workspace-utilities[data-collapsed="true"] {
@@ -205,15 +202,9 @@
     width: var(--spacing-9);
     min-width: var(--spacing-9);
   }
-  .editorial-workspace-nav .astryx-side-nav-item > svg {
-    width: 18px;
-  }
-  .editorial-workspace-nav .astryx-side-nav-item {
-    padding-inline-start: 9px;
-  }
   .approved-workspace-header .admin-workspace-selector,
   .approved-workspace-header .editorial-header-search {
-    padding-inline-start: 9px;
+    padding-inline-start: calc(var(--spacing-9) / 4);
   }
 }
 /* Symmetric rail targets, including the appearance group's inner padding. */
@@ -227,26 +218,13 @@
   }
   .editorial-workspace-utilities[data-collapsed="true"]
     .astryx-toggle-button-group {
-    padding: 0;
-    border: 0;
-    width: var(--spacing-9);
     background: transparent;
   }
   .editorial-workspace-utilities[data-collapsed="true"]
     .astryx-toggle-button-group
     button {
     box-sizing: border-box;
-    width: var(--spacing-9);
-    min-width: var(--spacing-9);
-    height: var(--spacing-9);
-    padding: 0;
     justify-content: center;
-  }
-  .editorial-workspace-utilities[data-collapsed="true"]
-    .astryx-toggle-button-group
-    svg {
-    width: 18px;
-    height: 18px;
   }
 }
 /* Astryx supplies the anchor inline. Keep its tooltips outside the rail;
@@ -293,35 +271,16 @@
     .editorial-workspace-utilities
     .astryx-toggle-button-group
     svg {
-    width: 18px;
-    height: 18px;
+    width: calc(var(--spacing-9) / 2);
+    height: calc(var(--spacing-9) / 2);
   }
 }
 @media (min-width: 768px) {
-  .editorial-workspace-shell[data-sidebar-collapsed="true"]
-    .editorial-workspace-nav {
-    width: calc(var(--spacing-9) + var(--spacing-2) * 2);
-    min-width: calc(var(--spacing-9) + var(--spacing-2) * 2);
-  }
   .editorial-workspace-shell[data-sidebar-collapsed="true"]
     .editorial-workspace-nav
     > :has(> .editorial-workspace-utilities) {
     align-items: flex-start;
     padding-inline: var(--spacing-2);
-  }
-}
-@media (min-width: 768px) {
-  .editorial-workspace-shell[data-sidebar-collapsed="true"]
-    .astryx-app-shell-sidenav {
-    width: calc(var(--spacing-9) + var(--spacing-2) * 2);
-    min-width: calc(var(--spacing-9) + var(--spacing-2) * 2);
-    flex-basis: calc(var(--spacing-9) + var(--spacing-2) * 2);
-  }
-}
-@media (min-width: 768px) {
-  .editorial-workspace-shell[data-sidebar-collapsed="true"]
-    nav.astryx-side-nav.editorial-workspace-nav {
-    width: calc(var(--spacing-9) + var(--spacing-2) * 2);
   }
 }
 /* Theme segments share an outline, with only the outer ends rounded. */
@@ -370,8 +329,9 @@
   margin-inline: 0 !important;
   margin-block-end: var(--spacing-2) !important;
 }
-/* One width animation owns the shell. Avoid a snapping parent constraining
-   a separately animated child on collapse. Keep the existing 125ms token. */
+/* AppShell has no sidenav-width prop and SideNav hardcodes its rail width.
+   This parent override preserves the approved 52px rail and stationary icons;
+   only the parent animates, using the existing 125ms theme token. */
 @media (min-width: 768px) {
   .editorial-workspace-shell .astryx-app-shell-sidenav {
     flex: 0 0 auto;
