@@ -67,7 +67,7 @@
     "esbuild": "^0.28.2",
     "gpt-tokenizer": "^3.4.0",
     "miniflare": "4.20260114.0",
-    "typescript": "^5",
+    "typescript": "^7",
     "vitest": "^4.1.11"
   }
 }
