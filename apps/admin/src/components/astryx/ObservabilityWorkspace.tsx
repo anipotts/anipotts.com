@@ -66,7 +66,7 @@ export function ObservabilityWorkspace({
     return () => clearInterval(timer);
   }, []);
   useEffect(() => {
-    // A disconnected configuration never becomes an accidental background consumer.
+    // An unconfigured source never becomes an accidental background consumer.
     if (initial.status === "unconfigured" && retry === 0) return;
     const abort = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
@@ -112,6 +112,7 @@ export function ObservabilityWorkspace({
       } catch {
         if (abort.signal.aborted) return;
         failures++;
+        // Legacy reader status describes read availability, not machine evidence.
         setResult((previous) => ({ ...previous, status: "disconnected" }));
       } finally {
         if (!abort.signal.aborted) {
@@ -150,9 +151,7 @@ export function ObservabilityWorkspace({
     matches(
       label(service.id),
       service.id,
-      status === "disconnected"
-        ? "disconnected"
-        : deriveServiceState(service, now),
+      deriveServiceState(service, now),
     ),
   );
   const events = snapshot.events
@@ -172,7 +171,7 @@ export function ObservabilityWorkspace({
   const stateLabel = (id: string) => {
     const service = snapshot.services.find((item) => item.id === id)!;
     return status === "disconnected"
-      ? "Disconnected"
+      ? `Last known: ${title(deriveServiceState(service, now))}`
       : title(deriveServiceState(service, now));
   };
   const coverageRows = services.map((service) => ({
@@ -274,7 +273,7 @@ export function ObservabilityWorkspace({
                   ? "Telemetry connected"
                   : status === "unconfigured"
                     ? "Live telemetry is not connected"
-                    : "Telemetry connection lost"
+                    : "Telemetry unavailable; showing last-known observations"
               }
             />
             <HStack gap={3} wrap="wrap" vAlign="center">
@@ -294,7 +293,7 @@ export function ObservabilityWorkspace({
                   ? "Last received"
                   : status === "unconfigured"
                     ? "No live observations received"
-                    : "Disconnected"}
+                    : "Latest read unavailable"}
               </Text>
               {snapshot.source === "live" && (
                 <Timestamp value={snapshot.observedAt} format="auto" isLive />
