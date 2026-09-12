@@ -89,3 +89,58 @@ describe("workspace return destinations", () => {
     );
   });
 });
+
+describe("Operations route filters", () => {
+  it.each([
+    "all",
+    "people",
+    "project",
+    "decision",
+    "concept",
+    "place",
+    "system",
+  ])(
+    "remembers the supported knowledge kind %s without private data",
+    (kind) => {
+      expect(
+        workspaceReturnPath(
+          "operations",
+          `/knowledge?kind=${kind}&q=private&item=secret&card=private#secret`,
+        ),
+      ).toBe(`/knowledge?kind=${kind}`);
+    },
+  );
+  it.each(["work", "content", "life", "system"])(
+    "remembers the supported inbox category %s alongside its view",
+    (category) => {
+      expect(
+        workspaceReturnPath(
+          "operations",
+          `/inbox?category=${category}&view=urgent&q=private&item=secret`,
+        ),
+      ).toBe(`/inbox?view=urgent&category=${category}`);
+    },
+  );
+  it.each([
+    "/knowledge?kind=person",
+    "/knowledge?kind=projects",
+    "/knowledge?kind=private-record",
+    "/inbox?category=fleet",
+    "/inbox?category=all",
+    "/inbox?category=private-record",
+    "/knowledge/locations?kind=place",
+    "/knowledge?category=work",
+    "/inbox?kind=project",
+    "/system?kind=system&category=system",
+  ])("discards unsupported or misplaced filters in %s", (path) => {
+    expect(workspaceReturnPath("operations", path)).toBe(path.split("?")[0]);
+  });
+  it("does not add Operations filters to other workspaces", () => {
+    expect(
+      workspaceReturnPath("content", "/content?kind=project&category=work"),
+    ).toBe("/content");
+    expect(workspaceReturnPath("life", "/life?kind=people&category=life")).toBe(
+      "/life",
+    );
+  });
+});

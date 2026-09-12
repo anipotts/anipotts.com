@@ -31,6 +31,12 @@ reads ship independently when their real-data acceptance passes.
 
 ## Remaining release gates
 
+PR #339 head `f263d722780036a9f369ef6c4be9c0fae6b2a83f` passed required
+build/lint/typecheck/tests, Security Review and CodeQL. Three initial review
+findings are fixed and resolved. Follow-up review covers route-specific
+Operations filters, duplicate Machines navigation and the sidebar styling
+contract. Subsequent commits require fresh exact-head checks.
+
 Complete responsive and keyboard acceptance for the release candidate,
 repository checks, exact-head protected PR checks, target classification,
 rollback capture, admin deployment and authenticated live interactions. No
@@ -38,9 +44,12 @@ merge, deployment or real content publication is established by this document.
 
 ## Connection boundaries
 
-Workers Paid checkout was inspected: Free is current, $5 due today and
-$5/month plus usage. Billing/legal activation awaits exact approval. R2 access
-is a separate unresolved permission issue. No existing database is repurposed.
+Workers Paid checkout was inspected while the account was on Free: $5 due
+today and $5/month plus usage. Ani authorized using Mercury instead of the
+saved personal card. Secure Mercury card entry and final provider confirmation
+remain unverified; no charge or plan activation is established. Recheck the
+checkout before submitting. R2 access is a separate unresolved permission
+issue. No existing database is repurposed.
 
 Operations has real read-only 1Password Connect health/container evidence;
 sync activity remains unknown and production observation transport is pending.

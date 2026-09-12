@@ -39,5 +39,29 @@ export function workspaceReturnPath(
   for (const key of ["group", "status", "sort", "view", "panel"])
     if (/^[a-z-]{1,40}$/.test(url.searchParams.get(key) ?? ""))
       params.set(key, url.searchParams.get(key)!);
+  // These are route filters, not record identities. Keep their allowlists
+  // aligned with knowledge.astro and AdminHome.astro respectively.
+  const routeFilter =
+    workspace === "operations" && path === "/knowledge"
+      ? {
+          key: "kind",
+          values: [
+            "all",
+            "people",
+            "project",
+            "decision",
+            "concept",
+            "place",
+            "system",
+          ],
+        }
+      : workspace === "operations" && path === "/inbox"
+        ? { key: "category", values: ["work", "content", "life", "system"] }
+        : undefined;
+  if (routeFilter) {
+    const value = url.searchParams.get(routeFilter.key);
+    if (value && routeFilter.values.includes(value))
+      params.set(routeFilter.key, value);
+  }
   return path + (params.size ? `?${params}` : "");
 }
