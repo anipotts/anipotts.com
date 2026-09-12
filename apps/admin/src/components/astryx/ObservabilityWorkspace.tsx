@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Banner } from "@astryxdesign/core/Banner";
 import { Button } from "@astryxdesign/core/Button";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
@@ -11,7 +11,17 @@ import {
   parseObservabilitySnapshot,
 } from "../../lib/observability-model";
 import type { ObservabilityReadResult } from "../../lib/observability-reader";
-import "./observability.css";
+import { Layout, LayoutContent } from "@astryxdesign/core/Layout";
+import { Table, proportional } from "@astryxdesign/core/Table";
+import { TabList, Tab } from "@astryxdesign/core/TabList";
+import { Timestamp } from "@astryxdesign/core/Timestamp";
+import {
+  MetadataList,
+  MetadataListItem,
+} from "@astryxdesign/core/MetadataList";
+import { Heading } from "@astryxdesign/core/Heading";
+import { Text } from "@astryxdesign/core/Text";
+import { StatusDot } from "@astryxdesign/core/StatusDot";
 
 const words = (value: string) => value.replaceAll("-", " ");
 const label = (id: string) =>
@@ -28,6 +38,7 @@ export function ObservabilityWorkspace({
   const [retry, setRetry] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [refreshing, setRefreshing] = useState(false);
+  const refreshingRef = useRef(false);
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
@@ -39,6 +50,7 @@ export function ObservabilityWorkspace({
     let timer: ReturnType<typeof setTimeout>;
     let failures = 0;
     async function refresh() {
+      refreshingRef.current = true;
       setRefreshing(true);
       try {
         const response = await fetch("/api/admin/observability", {
@@ -80,7 +92,10 @@ export function ObservabilityWorkspace({
         failures++;
         setResult((previous) => ({ ...previous, status: "disconnected" }));
       } finally {
-        if (!abort.signal.aborted) setRefreshing(false);
+        if (!abort.signal.aborted) {
+          refreshingRef.current = false;
+          setRefreshing(false);
+        }
       }
       if (!abort.signal.aborted)
         timer = setTimeout(refresh, Math.min(30000, 1000 * 2 ** failures));
@@ -95,7 +110,13 @@ export function ObservabilityWorkspace({
   const matches = (...values: string[]) =>
     values.join(" ").toLowerCase().includes(query.trim().toLowerCase());
   const services = snapshot.services.filter((service) =>
-    matches(label(service.id), service.id, deriveServiceState(service, now)),
+    matches(
+      label(service.id),
+      service.id,
+      status === "disconnected"
+        ? "disconnected"
+        : deriveServiceState(service, now),
+    ),
   );
   const events = snapshot.events.filter((event) =>
     matches(label(event.serviceId), event.kind, event.evidenceId),
@@ -109,213 +130,295 @@ export function ObservabilityWorkspace({
   const incidents = snapshot.incidents.filter((incident) =>
     matches(label(incident.serviceId), incident.state, incident.evidenceId),
   );
-  return (
-    <main className="observability-workspace">
-      <VStack gap={6}>
-        <header>
-          <h1>Observability</h1>
-          <p>Coverage and operational evidence across your personal system.</p>
-        </header>
-        <Banner
-          status={status === "connected" ? "info" : "warning"}
-          title={
-            status === "connected"
-              ? "Telemetry connected"
-              : status === "unconfigured"
-                ? "Live telemetry is not connected"
-                : "Telemetry connection lost"
-          }
-          description={
-            status === "unconfigured"
-              ? "The starting inventory is visible. Runtime enrollment and a reviewed read connection are pending."
-              : status === "disconnected"
-                ? "Last received evidence is retained. Current service health is unknown while reconnection is attempted."
-                : "Connection status describes this read feed. Each component has its own observation and freshness."
-          }
-        />
-        <HStack gap={3} wrap="wrap">
-          <Button
-            label={refreshing ? "Connecting…" : "Reconnect"}
-            clickAction={() => setRetry((value) => value + 1)}
-          />
-          <span role="status">
-            {status === "connected"
-              ? `Snapshot ${snapshot.observedAt}`
-              : status === "unconfigured"
-                ? "No live observations received"
-                : "Disconnected"}
-          </span>
-        </HStack>
-        <p>
-          Operations is optional. Project execution and incident detection run
-          independently of this page.
-        </p>
-        <nav aria-label="Observability views" className="observability-tabs">
-          {["coverage", "activity", "traces", "metrics", "incidents"].map(
-            (tab) => (
-              <button
-                key={tab}
-                type="button"
-                aria-pressed={view === tab}
-                onClick={() => setView(tab)}
-              >
-                {words(tab)}
-              </button>
-            ),
+  const stateLabel = (id: string) => {
+    const service = snapshot.services.find((item) => item.id === id)!;
+    return status === "disconnected"
+      ? "Disconnected"
+      : title(deriveServiceState(service, now));
+  };
+  const coverageRows = services.map((service) => ({
+    id: service.id,
+    service: label(service.id),
+    state: stateLabel(service.id),
+    details: (
+      <MetadataList label={{ position: "top" }} orientation="horizontal">
+        <MetadataListItem label="Instrumentation">
+          {service.instrumentation === "unknown"
+            ? "Not verified"
+            : title(service.instrumentation)}
+        </MetadataListItem>
+        <MetadataListItem label="Last observation">
+          {service.lastObservedAt ? (
+            <Timestamp value={service.lastObservedAt} format="auto" isLive />
+          ) : (
+            "Not observed"
           )}
-        </nav>
-        <div>
-          <TextInput
-            label="Search evidence"
-            value={query}
-            onChange={setQuery}
-            placeholder="Service, state, trace or evidence ID"
-          />
-        </div>
-        {view === "coverage" && (
-          <section aria-label="Service coverage">
-            <h2>Service coverage</h2>
-            <p>
-              This starting inventory is incomplete until System supplies the
-              enrolled service register. Source groups alone do not prove
-              capture coverage.
-            </p>
-            <div className="observability-grid">
-              {services.map((service) => (
-                <article key={service.id}>
-                  <h3>{label(service.id)}</h3>
-                  <dl>
-                    <dt>Observed state</dt>
-                    <dd>
-                      {status === "disconnected"
-                        ? "disconnected"
-                        : words(deriveServiceState(service, now))}
-                    </dd>
-                    <dt>Instrumentation</dt>
-                    <dd>
-                      {service.instrumentation === "unknown"
-                        ? "Not verified"
-                        : service.instrumentation}
-                    </dd>
-                    <dt>Last observation</dt>
-                    <dd>{service.lastObservedAt ?? "Not observed"}</dd>
-                    <dt>Last outcome</dt>
-                    <dd>{service.outcome}</dd>
-                  </dl>
-                </article>
-              ))}
-            </div>
-            {services.length === 0 && (
-              <EmptyState
-                title="No matching components"
-                description="Clear the search to see the starting inventory."
+        </MetadataListItem>
+        <MetadataListItem label="Last outcome">
+          {title(service.outcome)}
+        </MetadataListItem>
+      </MetadataList>
+    ),
+  }));
+  const evidenceRows =
+    view === "activity"
+      ? events.map((event) => ({
+          id: `${event.serviceId}:${event.evidenceId}:${event.kind}`,
+          service: label(event.serviceId),
+          state: title(event.kind),
+          details: <Evidence at={event.at} id={event.evidenceId} />,
+        }))
+      : view === "traces"
+        ? spans.map((span) => ({
+            id: `${span.traceId}:${span.spanId}`,
+            service: label(span.serviceId),
+            state: title(span.outcome),
+            details: (
+              <VStack gap={1}>
+                <Text>
+                  {title(span.operation)} · {span.durationMs} ms
+                </Text>
+                <Evidence at={span.startedAt} id={span.traceId} />
+                <Text type="code">{span.spanId}</Text>
+              </VStack>
+            ),
+          }))
+        : view === "metrics"
+          ? metrics.map((metric) => ({
+              id: `${metric.serviceId}:${metric.name}:${metric.at}`,
+              service: label(metric.serviceId),
+              state: title(metric.name),
+              details: (
+                <VStack gap={1}>
+                  <Text>{metric.value}</Text>
+                  <Timestamp value={metric.at} format="auto" isLive />
+                </VStack>
+              ),
+            }))
+          : incidents.map((incident) => ({
+              id: `${incident.evidenceId}:${incident.state}`,
+              service: label(incident.serviceId),
+              state: title(incident.state),
+              details: (
+                <VStack gap={1}>
+                  <Text>Next action: {title(incident.nextAction)}</Text>
+                  <Evidence at={incident.at} id={incident.evidenceId} />
+                </VStack>
+              ),
+            }));
+  const rows = view === "coverage" ? coverageRows : evidenceRows;
+  const total =
+    view === "coverage"
+      ? snapshot.services.length
+      : view === "activity"
+        ? snapshot.events.length
+        : view === "traces"
+          ? snapshot.spans.length
+          : view === "metrics"
+            ? snapshot.metrics.length
+            : snapshot.incidents.length;
+  const unavailable =
+    view !== "coverage" && total === 0 && status !== "connected";
+  return (
+    <Layout
+      height="auto"
+      padding={4}
+      content={
+        <LayoutContent label="Observability">
+          <VStack gap={5}>
+            <VStack gap={1}>
+              <Heading level={1}>Observability</Heading>
+              <Text color="secondary">
+                Service coverage and operational evidence
+              </Text>
+            </VStack>
+            <Banner
+              status={status === "connected" ? "info" : "warning"}
+              title={
+                status === "connected"
+                  ? "Telemetry connected"
+                  : status === "unconfigured"
+                    ? "Live telemetry is not connected"
+                    : "Telemetry connection lost"
+              }
+              description={
+                status === "unconfigured"
+                  ? "Service health is unknown until observations arrive."
+                  : status === "disconnected"
+                    ? "Showing last received evidence. Reconnecting…"
+                    : "Health and freshness are shown for each service."
+              }
+            />
+            <HStack gap={3} wrap="wrap" vAlign="center">
+              <Button
+                label="Reconnect"
+                isLoading={refreshing}
+                isDisabled={refreshing}
+                onClick={() => {
+                  if (refreshingRef.current) return;
+                  refreshingRef.current = true;
+                  setRefreshing(true);
+                  setRetry((value) => value + 1);
+                }}
               />
-            )}
-          </section>
-        )}
-        {view === "activity" && (
-          <section aria-label="Operational activity">
-            <h2>Committed activity</h2>
-            <p>
-              Replayed checkpoints identify committed changes. They do not
-              measure execution time.
-            </p>
-            {events.map((event) => (
-              <article
-                key={`${event.serviceId}:${event.evidenceId}:${event.kind}`}
-              >
-                <h3>
-                  {label(event.serviceId)} · {words(event.kind)}
-                </h3>
-                <p>{event.at}</p>
-                <code>{event.evidenceId}</code>
-              </article>
-            ))}
-            {!events.length && (
-              <EmptyState
-                title="No matching activity"
-                description="No committed activity is available in this snapshot for this search."
-              />
-            )}
-          </section>
-        )}
-        {view === "traces" && (
-          <section aria-label="Execution traces">
-            <h2>Measured execution</h2>
-            {spans.map((span) => (
-              <article key={`${span.traceId}:${span.spanId}`}>
-                <h3>
-                  {label(span.serviceId)} · {span.operation}
-                </h3>
-                <p>
-                  {span.durationMs} ms · {span.outcome} · {span.startedAt}
-                </p>
-                <code>Trace {span.traceId}</code>
-                <br />
-                <code>Span {span.spanId}</code>
-              </article>
-            ))}
-            {!spans.length && (
-              <EmptyState
-                title="No measured spans available"
-                description="Actual execution instrumentation is required before latency can be shown."
-              />
-            )}
-          </section>
-        )}
-        {view === "metrics" && (
-          <section aria-label="Operational metrics">
-            <h2>Capacity and retention</h2>
-            <p>
-              Required policy: 30 days of detail and 13 months of aggregates.
-              Aggregate production and measured disk enforcement remain
-              unverified until observed.
-            </p>
-            {metrics.map((metric) => (
-              <article key={`${metric.serviceId}:${metric.name}:${metric.at}`}>
-                <h3>
-                  {label(metric.serviceId)} · {words(metric.name)}
-                </h3>
-                <p>
-                  {metric.value} · Observed {metric.at}
-                </p>
-              </article>
-            ))}
-            {!metrics.length && (
-              <EmptyState
-                title="No measured metrics available"
-                description="Missing measurements are unknown, including disk use, queue depth and retention."
-              />
-            )}
-          </section>
-        )}
-        {view === "incidents" && (
-          <section aria-label="PersonalContext incident pilot">
-            <h2>PersonalContext incident pilot</h2>
-            <p>
-              Deterministic detection is independent of optional AI
-              investigation. Gmail and a distinct iMessage sender require
-              verified routes and native sending controls.
-            </p>
-            {incidents.map((incident) => (
-              <article key={`${incident.evidenceId}:${incident.state}`}>
-                <h3>
-                  {label(incident.serviceId)} · {words(incident.state)}
-                </h3>
-                <p>Next action: {words(incident.nextAction)}</p>
-                <p>{incident.at}</p>
-                <code>{incident.evidenceId}</code>
-              </article>
-            ))}
-            {!incidents.length && (
-              <EmptyState
-                title="No incident evidence available"
-                description="This does not establish that the system is incident-free. Incident evidence remains separate from personal history."
-              />
-            )}
-          </section>
-        )}
-      </VStack>
-    </main>
+              <Text role="status" color="secondary">
+                {status === "connected"
+                  ? "Last received"
+                  : status === "unconfigured"
+                    ? "No live observations received"
+                    : "Disconnected"}
+              </Text>
+              {snapshot.source === "live" && (
+                <Timestamp value={snapshot.observedAt} format="auto" isLive />
+              )}
+            </HStack>
+            <TabList
+              value={view}
+              onChange={setView}
+              hasDivider
+              aria-label="Observability views"
+              style={{ flexWrap: "wrap" }}
+            >
+              {["coverage", "activity", "traces", "metrics", "incidents"].map(
+                (tab) => (
+                  <Tab
+                    key={tab}
+                    value={tab}
+                    label={title(tab)}
+                    id={`observability-tab-${tab}`}
+                    aria-controls="observability-panel"
+                  />
+                ),
+              )}
+            </TabList>
+            <TextInput
+              label="Search evidence"
+              value={query}
+              onChange={setQuery}
+              placeholder="Service, state, trace or evidence ID"
+            />
+            <VStack
+              gap={3}
+              role="region"
+              id="observability-panel"
+              aria-labelledby={`observability-tab-${view}`}
+              tabIndex={0}
+            >
+              <Heading level={2}>
+                {view === "coverage"
+                  ? "Service coverage"
+                  : view === "activity"
+                    ? "Committed activity"
+                    : view === "traces"
+                      ? "Measured execution"
+                      : view === "metrics"
+                        ? "Capacity and retention"
+                        : "PersonalContext incidents"}
+              </Heading>
+              {view === "coverage" && (
+                <Text color="secondary">
+                  Starting inventory · project service coverage is incomplete
+                </Text>
+              )}
+              {view === "activity" && (
+                <Text color="secondary">
+                  Committed changes; execution timing appears in Traces.
+                </Text>
+              )}
+              {rows.length ? (
+                <Table
+                  data={rows}
+                  idKey="id"
+                  density="compact"
+                  textOverflow="wrap"
+                  columns={[
+                    {
+                      key: "service",
+                      header: "Service",
+                      width: proportional(1),
+                      renderCell: (row) => (
+                        <Text weight="semibold">{row.service}</Text>
+                      ),
+                    },
+                    {
+                      key: "state",
+                      header: view === "metrics" ? "Metric" : "State",
+                      width: proportional(1),
+                      renderCell: (row) => (
+                        <HStack gap={2} vAlign="center">
+                          <StatusDot
+                            label={row.state}
+                            variant={
+                              row.state === "Healthy" ||
+                              row.state === "Resolved" ||
+                              row.state === "Success"
+                                ? "success"
+                                : row.state === "Failed" ||
+                                    row.state === "Failure"
+                                  ? "error"
+                                  : row.state === "Stale" ||
+                                      row.state === "Disconnected"
+                                    ? "warning"
+                                    : "neutral"
+                            }
+                          />
+                          <Text>{row.state}</Text>
+                        </HStack>
+                      ),
+                    },
+                    {
+                      key: "details",
+                      header: "Evidence",
+                      width: proportional(2),
+                      renderCell: (row) => row.details,
+                    },
+                  ]}
+                />
+              ) : (
+                <VStack gap={2}>
+                  <EmptyState
+                    title={
+                      unavailable
+                        ? "Evidence unavailable"
+                        : query.trim() && total > 0
+                          ? "No matching results"
+                          : "No observations yet"
+                    }
+                    description={
+                      unavailable
+                        ? "Connect telemetry to view this evidence."
+                        : query.trim() && total > 0
+                          ? "Try another search or clear the filter."
+                          : "No evidence has been received for this view."
+                    }
+                  />
+                  {query.trim() && total > 0 && (
+                    <Button
+                      label="Clear search"
+                      variant="ghost"
+                      onClick={() => setQuery("")}
+                    />
+                  )}
+                </VStack>
+              )}
+            </VStack>
+          </VStack>
+        </LayoutContent>
+      }
+    />
+  );
+}
+function title(value: string) {
+  const text = words(value);
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+function Evidence({ at, id }: { at: string; id: string }) {
+  return (
+    <VStack gap={1}>
+      <Timestamp value={at} format="auto" isLive />
+      <Text type="code" style={{ overflowWrap: "anywhere" }}>
+        {id}
+      </Text>
+    </VStack>
   );
 }

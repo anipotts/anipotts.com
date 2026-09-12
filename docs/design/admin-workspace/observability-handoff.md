@@ -34,3 +34,9 @@ This is local feature code, not live telemetry or a release. Runtime ownership s
 - Canonical browser checks across responsive sizes/themes/keyboard, protected integration checks, merge and admin-only deployment proof.
 
 No shared service, launchd, account, external sending, source-data mutation or deployment was performed. Delegate collector and Quantercise remain independent.
+
+## Astryx review follow-up
+
+The feature UI now follows the installed Astryx v0.4.6 table template and component documentation: Layout/Stack frame, compact service/evidence Table rows, TabList navigation with its native aria-current and arrow-key focus behavior, Timestamp, MetadataList and StatusDot. Custom CSS is retired and no longer imported. Shared theme and shell remain integration-owned. Normal UI copy omits implementation and sending-control procedures.
+
+Reconnect is synchronously guarded and uses Astryx loading/disabled state throughout the request. Added tests prove rapid clicks issue one request, recovery re-enables the control, keyboard navigation changes the active view, and filtered-empty coverage supports clearing search separately from unavailable evidence. All 30 focused tests pass. Browser visual/responsive acceptance remains pending; no alternate browser was substituted.

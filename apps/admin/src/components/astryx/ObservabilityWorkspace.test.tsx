@@ -59,11 +59,11 @@ describe("optional observability workspace", () => {
         />,
       ),
     );
-    const traces = [...host.querySelectorAll("button")].find(
-      (button) => button.textContent === "traces",
+    const traces = host.querySelector<HTMLButtonElement>(
+      '[data-tab-value="traces"]',
     )!;
     act(() => traces.click());
-    expect(host.textContent).toContain("No measured spans available");
+    expect(host.textContent).toContain("Evidence unavailable");
     expect(fetch).not.toHaveBeenCalled();
   });
   it("keeps failed reconnect visible without crashing the view", async () => {
@@ -85,5 +85,99 @@ describe("optional observability workspace", () => {
     );
     expect(host.textContent).toContain("Telemetry connection lost");
     expect(host.textContent).not.toContain("private provider failure");
+  });
+  it("uses row coverage and linked selected tabs with arrow-key focus", async () => {
+    await act(async () =>
+      root.render(
+        <ObservabilityWorkspace
+          initial={{
+            status: "unconfigured",
+            snapshot: createUnconfiguredSnapshot(),
+          }}
+        />,
+      ),
+    );
+    expect(host.querySelectorAll("tbody tr")).toHaveLength(11);
+    const coverage = host.querySelector<HTMLButtonElement>(
+      '[data-tab-value][aria-current="page"]',
+    )!;
+    expect(coverage.getAttribute("data-tab-value")).toBe("coverage");
+    act(() => {
+      coverage.focus();
+      coverage.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
+      );
+    });
+    expect(document.activeElement?.getAttribute("data-tab-value")).toBe(
+      "activity",
+    );
+    act(() => (document.activeElement as HTMLButtonElement).click());
+    expect(
+      host
+        .querySelector('[data-tab-value][aria-current="page"]')
+        ?.getAttribute("data-tab-value"),
+    ).toBe("activity");
+    expect(
+      host.querySelector('[role="region"]')?.getAttribute("aria-labelledby"),
+    ).toBe("observability-tab-activity");
+  });
+  it("disables reconnect and deduplicates rapid clicks until the request settles", async () => {
+    let reject!: (reason: Error) => void;
+    vi.mocked(fetch).mockImplementation(
+      () =>
+        new Promise((_, fail) => {
+          reject = fail;
+        }),
+    );
+    await act(async () =>
+      root.render(
+        <ObservabilityWorkspace
+          initial={{
+            status: "unconfigured",
+            snapshot: createUnconfiguredSnapshot(),
+          }}
+        />,
+      ),
+    );
+    const reconnect = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent === "Reconnect",
+    )!;
+    act(() => {
+      reconnect.click();
+      reconnect.click();
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(reconnect.disabled).toBe(true);
+    act(() => reconnect.click());
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await act(async () => reject(new Error("unavailable")));
+    expect(reconnect.disabled).toBe(false);
+  });
+  it("distinguishes filtered coverage from unavailable evidence and clears search", async () => {
+    await act(async () =>
+      root.render(
+        <ObservabilityWorkspace
+          initial={{
+            status: "unconfigured",
+            snapshot: createUnconfiguredSnapshot(),
+          }}
+        />,
+      ),
+    );
+    const input = host.querySelector("input")!;
+    act(() => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )!.set!.call(input, "no-such-service");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(host.textContent).toContain("No matching results");
+    act(() =>
+      [...host.querySelectorAll("button")]
+        .find((button) => button.textContent === "Clear search")!
+        .click(),
+    );
+    expect(host.querySelectorAll("tbody tr")).toHaveLength(11);
   });
 });
