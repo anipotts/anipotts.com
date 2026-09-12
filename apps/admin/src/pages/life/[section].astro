@@ -1,29 +1,19 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
-import {
-  LifeWorkspace,
-  type LifeSection,
-} from "../../components/life/LifeWorkspace";
+import { LifeWorkspace } from "../../components/life/LifeWorkspace";
 import { readPersonalContext } from "../../data/personal-context";
-const result = await readPersonalContext({ method: "status" });
+import {
+  isLifeSection,
+  lifeSections,
+  lifeSectionRead,
+} from "../../lib/life-sections";
 const section = Astro.params.section ?? "";
-const titles: Record<string, string> = {
-  people: "People",
-  projects: "Projects",
-  places: "Places",
-  timeline: "Timeline",
-  sources: "Sources",
-  preview: "Context Preview",
-};
-if (!Object.hasOwn(titles, section))
+if (!isLifeSection(section) || section === "overview")
   return new Response("Not found", { status: 404 });
+const result = await readPersonalContext(lifeSectionRead(section));
 Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
 
-<AdminLayout title={titles[section]} hideHeader
-  ><LifeWorkspace
-    section={section as LifeSection}
-    result={result}
-    client:load
-  /></AdminLayout
->
+<AdminLayout title={lifeSections[section]} hideHeader>
+  <LifeWorkspace section={section} result={result} client:load />
+</AdminLayout>

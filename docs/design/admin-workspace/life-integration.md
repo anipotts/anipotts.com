@@ -34,8 +34,11 @@ Operations D1, public Git, request logs or telemetry.
 ## Remaining implementation and acceptance
 
 - Connect the shared Content shell through the integration owner.
-- Complete interactive search, record selection, revision-safe body continuation,
-  pagination and reconnectable activity against a synthetic read transport.
+- Verify interactive search, record selection, revision-safe body continuation
+  and source-cursor pagination in the managed browser. These controls now accept
+  an injected read capability, with no capability installed by default. Query
+  text stays in component memory rather than URLs or persistent browser storage.
+- Complete reconnectable activity against a synthetic read transport.
 - Prepare and approve the exact authenticated owner network capability, including
   principal, host, browser origin, session expiry, private transport and denial
   tests. Keep deployment disconnected until that separate approval is recorded.
@@ -45,8 +48,10 @@ Operations D1, public Git, request logs or telemetry.
   schedules, production readiness, coordinated cutover, legacy dispositions and
   24-hour operation are not completed by these routes.
 
-Initial validation: eight adapter tests passed using source-identical isolated
-copies with existing tooling under Node 24.19.0; both Astro routes compiled
-without diagnostics. Component bundling passed with the expected missing
-worktree Astro tsconfig warning. Full dependency-ready checks belong to the
-integration checkout; these focused checks are not build or browser proof.
+Follow-up validation: twenty adapter, request continuity, section dispatch and
+React response fixture tests passed with existing tooling under Node 24.19.0.
+The isolated tests use source-identical files and a bundled component fixture.
+Both Astro routes compiled without diagnostics at the initial increment.
+Full dependency-ready checks belong to the integration checkout; these focused
+checks are not build or browser proof. Route dispatch now validates the section
+before reading and selects its correct method instead of using status globally.
