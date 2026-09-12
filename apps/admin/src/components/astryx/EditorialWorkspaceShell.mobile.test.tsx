@@ -71,7 +71,7 @@ describe("mobile Website topbar", () => {
       topbar.querySelector('button[aria-label="Collapse sidebar"]'),
     ).toBeNull();
     expect(topbar.querySelector(".astryx-side-nav-heading")?.textContent).toBe(
-      "ani potts / admin",
+      "Adminani potts",
     );
     expect(
       host.querySelector('button[aria-label="Search content"]'),

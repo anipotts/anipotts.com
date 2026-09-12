@@ -770,6 +770,23 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   flex: 1;
   min-width: 0;
 }
+/* Native name/subtitle lockup needs room above the page at compact widths. */
+@media (max-width: 767px) {
+  .editorial-workspace-shell
+    [role="navigation"]:has(> .editorial-workspace-nav[data-mode="topbar"]) {
+    height: calc(var(--spacing-7) * 2);
+    padding-inline: var(--spacing-4);
+    gap: var(--spacing-3);
+  }
+  .editorial-workspace-nav[data-mode="topbar"] .editorial-workspace-identity {
+    flex-direction: row;
+  }
+  .editorial-workspace-nav[data-mode="topbar"] .editorial-workspace-brand {
+    flex: 0 1 auto;
+    min-height: var(--spacing-11);
+    padding-inline: 0;
+  }
+}
 .editorial-workspace-identity[data-collapsed="true"] {
   flex-direction: column;
 }

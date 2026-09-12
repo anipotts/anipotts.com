@@ -861,10 +861,11 @@
     {
       "path": "apps/admin/src/components/astryx/AdminShell.tsx",
       "area": "ui",
-      "sha256": "899aba0044cd675a64c00809a7aef64e6dd5dec4ba1dd79916d180058faaab72",
+      "sha256": "41deaa4aef5ee4541046f6e55b26ac1c1cd5cb174427b3aa5abbb96353d9cc21",
       "disposition": "pending",
       "evidence": [
-        "Shared Operations integration changed this source; full-file review remains pending."
+        "Shared Operations integration changed this source; full-file review remains pending.",
+        "docs/design/admin-workspace/identity-preview-audit.md: scoped source review and verification; shared shell files remain pending full audit."
       ]
     },
     {
@@ -1089,9 +1090,10 @@
       "path": "apps/admin/src/components/astryx/SavedArticlePreview.tsx",
       "area": "ui",
       "sha256": "9a5a689c212af9026fb3c48deaf32a09086ae41319d2f9845649581382918660",
-      "disposition": "pending",
+      "disposition": "reviewed-retained",
       "evidence": [
-        "2026-09-12 reconciliation: source changed since recorded SHA-256 ef81dd20ea53f4f0eebb15e3da8e1c11953edee5c67fa49d253742167dd1048f; earlier audit references are historical, current source review required."
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 ef81dd20ea53f4f0eebb15e3da8e1c11953edee5c67fa49d253742167dd1048f; earlier audit references are historical, current source review required.",
+        "docs/design/admin-workspace/identity-preview-audit.md: scoped source review and verification; shared shell files remain pending full audit."
       ]
     },
     {
@@ -1704,8 +1706,10 @@
       "path": "apps/admin/src/lib/article-preview.ts",
       "area": "data-and-contracts",
       "sha256": "fa3c2066e078a6f113ce4fe1548048165f314ecc4505c27a961bb0ad5f315d9a",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/identity-preview-audit.md: scoped source review and verification; shared shell files remain pending full audit."
+      ]
     },
     {
       "path": "apps/admin/src/lib/content-draft-operation.ts",
@@ -2523,10 +2527,11 @@
     {
       "path": "apps/admin/src/styles/editorial.css",
       "area": "theme-and-layout",
-      "sha256": "9c56f5d04e53543d4f95d2eeaed3d6c5e12818b9043a3a75a71215a21c8cd714",
+      "sha256": "ecf834c0f73a1205146ceb91c434ae7ba258c3366c6608b6c49f0abecdac1ceb",
       "disposition": "pending",
       "evidence": [
-        "2026-09-12 reconciliation: source changed since recorded SHA-256 850389d21058fa830dbabbf76561be48a956ea13f02f5205150f52b3c820d737; earlier audit references are historical, current source review required."
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 850389d21058fa830dbabbf76561be48a956ea13f02f5205150f52b3c820d737; earlier audit references are historical, current source review required.",
+        "docs/design/admin-workspace/identity-preview-audit.md: scoped source review and verification; shared shell files remain pending full audit."
       ]
     },
     {
@@ -2980,10 +2985,11 @@
     {
       "path": "apps/admin/src/components/astryx/EditorialWorkspaceShell.mobile.test.tsx",
       "area": "components",
-      "sha256": "33d5a64a9ba33b41f3e41a35ddf9fcad42ac5d7014f5009327a4693ae33a477b",
+      "sha256": "43762c5ff6097522da3a7a59f91926fc8f28aa46300873ee04eda69efe217951",
       "disposition": "pending",
       "evidence": [
-        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required.",
+        "docs/design/admin-workspace/identity-preview-audit.md: scoped source review and verification; shared shell files remain pending full audit."
       ]
     },
     {
@@ -2998,10 +3004,11 @@
     {
       "path": "apps/admin/src/components/astryx/EditorialWorkspaceShell.tsx",
       "area": "components",
-      "sha256": "80079135e5f3ff9aac2b26fc0783916583192a78bd37a75b11af27858f63945d",
+      "sha256": "2b836a6f6b545de02c1dab5be4b734e5b0ba87174c92d4f3d605eab57fa709d0",
       "disposition": "pending",
       "evidence": [
-        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required.",
+        "docs/design/admin-workspace/identity-preview-audit.md: scoped source review and verification; shared shell files remain pending full audit."
       ]
     },
     {
@@ -3026,9 +3033,10 @@
       "path": "apps/admin/src/components/astryx/SavedArticlePreview.test.tsx",
       "area": "components",
       "sha256": "9ae798a6fe877042ba7238e3e68992dc6afe4a14a80e59c32abfce721bf3cfab",
-      "disposition": "pending",
+      "disposition": "reviewed-retained",
       "evidence": [
-        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required.",
+        "docs/design/admin-workspace/identity-preview-audit.md: scoped source review and verification; shared shell files remain pending full audit."
       ]
     },
     {
@@ -3089,18 +3097,20 @@
       "path": "apps/admin/src/lib/preview-status.test.ts",
       "area": "data-and-helpers",
       "sha256": "2866775fb9ea615f3cc16e6a9deec076eb7e6287f4bf80ae6ced3db0394a75e7",
-      "disposition": "pending",
+      "disposition": "reviewed-retained",
       "evidence": [
-        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required.",
+        "docs/design/admin-workspace/identity-preview-audit.md: scoped source review and verification; shared shell files remain pending full audit."
       ]
     },
     {
       "path": "apps/admin/src/lib/preview-status.ts",
       "area": "data-and-helpers",
       "sha256": "75f9c79b2bdb66ea1bf59e47ea61da47a9d409df21397eee2625750ff7496286",
-      "disposition": "pending",
+      "disposition": "reviewed-retained",
       "evidence": [
-        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required.",
+        "docs/design/admin-workspace/identity-preview-audit.md: scoped source review and verification; shared shell files remain pending full audit."
       ]
     },
     {
@@ -3182,6 +3192,15 @@
       "disposition": "pending",
       "evidence": [
         "Integrated Operations increment; current source review tracked in observability-integration.md."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/article-preview.test.ts",
+      "area": "preview",
+      "sha256": "4e61ad11b0f230f03a796eedc84693451ad69aaf906f551dc4593941ff0bcd0e",
+      "disposition": "updated",
+      "evidence": [
+        "docs/design/admin-workspace/identity-preview-audit.md: scoped source review and verification; shared shell files remain pending full audit."
       ]
     }
   ]

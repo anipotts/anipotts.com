@@ -113,8 +113,8 @@ export function WorkspaceIdentity({
     >
       <SideNavHeading
         className="editorial-workspace-brand"
-        heading={isMobile ? "ani potts / admin" : "ani potts"}
-        subheading={isMobile ? undefined : "admin"}
+        heading="Admin"
+        subheading="ani potts"
         icon={collapsed && !isMobile ? <Text>ap</Text> : undefined}
         menu={
           <VStack padding={2} gap={1} className="editorial-workspace-switcher">

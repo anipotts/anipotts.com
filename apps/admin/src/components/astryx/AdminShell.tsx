@@ -267,10 +267,10 @@ function AdminBrand({ mobile = false }: { mobile?: boolean }) {
     <a
       href="/inbox"
       className={mobile ? "admin-mobile-brand" : "admin-brand-lockup"}
-      aria-label="ani potts operations"
+      aria-label="Admin, ani potts"
     >
-      <span>ani potts</span>
-      <span className="admin-brand-workspace">operations</span>
+      <span>Admin</span>
+      <span className="admin-brand-workspace">ani potts</span>
     </a>
   );
 }
