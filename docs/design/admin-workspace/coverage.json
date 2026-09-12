@@ -767,8 +767,10 @@
       "path": "apps/admin/src/components/AttentionRow.astro",
       "area": "ui",
       "sha256": "056f9c02f178db9ca8b723e8b8fe5bd466607f7bb4403988496cd8ef9e1fd79d",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/feedback-navigation-audit.md: exact-hash source review; seven focused tests; browser gates remain explicit."
+      ]
     },
     {
       "path": "apps/admin/src/components/CmsMarkdown.astro",
@@ -824,16 +826,20 @@
     {
       "path": "apps/admin/src/components/astryx/AdminCommandPalette.tsx",
       "area": "ui",
-      "sha256": "e731cead43665c2f8a3b96717bde194400fe65ee15a9171af8f97632c3f5c550",
-      "disposition": "pending",
-      "evidence": []
+      "sha256": "d66f7f86e38d7cfe400626952e792f7213ed9a2695eb0efbce53a30eb2609eb9",
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/feedback-navigation-audit.md: exact-hash source review; seven focused tests; browser gates remain explicit."
+      ]
     },
     {
       "path": "apps/admin/src/components/astryx/AdminFeedback.tsx",
       "area": "ui",
       "sha256": "491acd49130c8a382d0c27895eb52ed3abfc2a6a20a8c525fe2382f0c11fcb39",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/feedback-navigation-audit.md: exact-hash source review; seven focused tests; browser gates remain explicit."
+      ]
     },
     {
       "path": "apps/admin/src/components/astryx/AdminShell.test.tsx",
@@ -860,8 +866,10 @@
       "path": "apps/admin/src/components/astryx/ArticleDate.tsx",
       "area": "ui",
       "sha256": "00d78292268fc260cbc47e14c8a9c6ac6e6ec25fab17d59d4d29e14398adec0a",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/feedback-navigation-audit.md: exact-hash source review; seven focused tests; browser gates remain explicit."
+      ]
     },
     {
       "path": "apps/admin/src/components/astryx/ArticleImageCrop.tsx",
@@ -959,16 +967,20 @@
     {
       "path": "apps/admin/src/components/astryx/OperationalCommandPalette.test.ts",
       "area": "ui",
-      "sha256": "ae46a3533dbb3cd71b32535e80bfa7bbf111c14e76a118f6459c2be7abe0c86d",
-      "disposition": "pending",
-      "evidence": []
+      "sha256": "4765be9e34f768253b778cc7ce4832acf86b08f92dfb83349eda5136159ea917",
+      "disposition": "updated",
+      "evidence": [
+        "docs/design/admin-workspace/feedback-navigation-audit.md: exact-hash source review; seven focused tests; browser gates remain explicit."
+      ]
     },
     {
       "path": "apps/admin/src/components/astryx/OperationalCommandPalette.tsx",
       "area": "ui",
-      "sha256": "f81e792b4d76143d876429ee4839a1ddef54b7c4b3d0662dfd1afebff5c6cdf9",
-      "disposition": "pending",
-      "evidence": []
+      "sha256": "66efdeb442ff248c1256d855f57ecd2f56e75289fa4504d277cff6a648351126",
+      "disposition": "updated",
+      "evidence": [
+        "docs/design/admin-workspace/feedback-navigation-audit.md: exact-hash source review; seven focused tests; browser gates remain explicit."
+      ]
     },
     {
       "path": "apps/admin/src/components/astryx/OperatorWorkTable.tsx",
@@ -981,15 +993,19 @@
       "path": "apps/admin/src/components/astryx/PublicationProgress.test.tsx",
       "area": "ui",
       "sha256": "40d4843d688d09df1b828c2c6f9e2c46334e43711f07a47141ffe1d59075ebb5",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/feedback-navigation-audit.md: exact-hash source review; seven focused tests; browser gates remain explicit."
+      ]
     },
     {
       "path": "apps/admin/src/components/astryx/PublicationProgress.tsx",
       "area": "ui",
       "sha256": "7ae308122913d50c98d81300cbc6a50c49a894083b422bb9b3b41fd2a1e0140d",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/feedback-navigation-audit.md: exact-hash source review; seven focused tests; browser gates remain explicit."
+      ]
     },
     {
       "path": "apps/admin/src/components/astryx/RecordPanel.focus.test.tsx",

@@ -30,7 +30,7 @@ export async function loadLiveResults(): Promise<AdminSearchResult[]> {
         currentFact: item.next_action || item.summary || item.status,
         source: item.source,
         freshness: item.updated_at || "current",
-        href: `/?item=${encodeURIComponent(item.id)}`,
+        href: `/inbox?item=${encodeURIComponent(item.id)}`,
         keywords: [item.owner, item.status, item.timeframe, item.category],
       });
     }

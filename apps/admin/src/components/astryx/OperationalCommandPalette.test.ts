@@ -50,7 +50,7 @@ describe("operational search adapter", () => {
       "/api/admin/runtime-feed",
     ]);
     expect(results.map(({ href }) => href)).toEqual([
-      "/?item=a%2Fb",
+      "/inbox?item=a%2Fb",
       "/knowledge?card=note%2F1",
       "/work?view=now&entity=project%2Fsite",
     ]);
