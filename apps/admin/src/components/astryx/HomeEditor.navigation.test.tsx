@@ -220,3 +220,21 @@ it("leaving review during session preparation never starts publication", async (
     false,
   );
 });
+
+it("restores the main panel scroll position when returning from preview", async () => {
+  host.id = "astryx-app-shell-main";
+  await mount();
+  host.scrollTop = 480;
+  const body = host.querySelector('textarea[aria-label="Test article body"]');
+  await click("Preview");
+  expect(host.textContent).toContain("Article preview");
+  host.scrollTop = 24;
+  await click("Edit");
+  await act(async () => {
+    await vi.waitFor(() => expect(host.scrollTop).toBe(480));
+  });
+  expect(host.querySelector('textarea[aria-label="Test article body"]')).toBe(
+    body,
+  );
+  expect(window.scrollTo).not.toHaveBeenCalled();
+});

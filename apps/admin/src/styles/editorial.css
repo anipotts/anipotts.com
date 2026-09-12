@@ -865,3 +865,127 @@ html[data-theme="light"] .rich-writing .inline-image-white {
     display: none;
   }
 }
+
+/* Shared shell: compact identity, neutral page, workspace-tinted navigation. */
+.editorial-workspace-shell {
+  background: var(--color-workspace-sidebar, var(--color-background-body));
+}
+.editorial-workspace-shell .astryx-app-shell-sidenav {
+  background: var(--color-workspace-sidebar, var(--color-background-body));
+}
+.editorial-workspace-shell .admin-page-frame {
+  padding: var(--spacing-6);
+  max-width: 100%;
+  width: 100%;
+  margin: 0;
+}
+.editorial-workspace-shell .admin-page-content {
+  min-width: 0;
+}
+.editorial-workspace-shell .admin-workspace-selector {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-element);
+  background: var(--color-background-surface);
+  color: var(--color-text-accent);
+}
+@media (max-width: 767px) {
+  .editorial-workspace-nav[data-mode="topbar"] .editorial-workspace-brand {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--spacing-3);
+  }
+  .editorial-workspace-shell .admin-page-frame {
+    padding: var(--spacing-4);
+  }
+}
+
+/* Keep the inset stationary; the native fill shell owns internal scrolling. */
+html:has(.editorial-workspace-shell),
+body:has(.editorial-workspace-shell) {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+.editorial-workspace-shell #astryx-app-shell-main {
+  min-height: 0;
+  overscroll-behavior: contain;
+  transition:
+    margin-block-start var(--duration-fast) ease-out,
+    border-start-start-radius var(--duration-fast) ease-out;
+}
+.editorial-workspace-shell .editorial-workspace-nav {
+  transition: width var(--duration-fast) ease-out;
+}
+.editorial-identity-primary-row,
+.editorial-identity-workspace-row {
+  width: 100%;
+  min-width: 0;
+}
+.editorial-identity-primary-row > .astryx-side-nav-heading,
+.editorial-identity-workspace-row > .astryx-side-nav-heading {
+  flex: 1;
+  min-width: 0;
+}
+.editorial-site-appearance {
+  width: 100%;
+}
+.editorial-live-site-tab {
+  align-self: stretch;
+  justify-content: flex-start;
+  margin-inline: var(--spacing-2);
+  padding-inline: var(--spacing-3);
+  border-radius: var(--radius-container) var(--radius-container) 0 0;
+  background: var(--color-background-surface);
+  font-family: var(--font-family-heading);
+  font-weight: var(--font-weight-semibold);
+}
+.editorial-site-appearance > .astryx-toggle-button-group {
+  position: relative;
+  border: 1px solid var(--color-border);
+}
+.editorial-workspace-utilities[data-collapsed="true"] .editorial-live-site-tab {
+  margin-inline: 0;
+  padding-inline: 0;
+  align-self: center;
+  justify-content: center;
+}
+.editorial-workspace-identity[data-collapsed="true"]
+  .editorial-identity-primary-row,
+.editorial-workspace-identity[data-collapsed="true"]
+  .editorial-identity-workspace-row {
+  flex-direction: column;
+}
+@media (max-width: 767px) {
+  .editorial-workspace-nav[data-mode="topbar"] .editorial-workspace-identity {
+    flex-direction: row;
+    gap: var(--spacing-3);
+  }
+  .editorial-workspace-nav[data-mode="topbar"] .editorial-identity-primary-row,
+  .editorial-workspace-nav[data-mode="topbar"]
+    .editorial-identity-workspace-row {
+    width: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .editorial-workspace-shell #astryx-app-shell-main,
+  .editorial-workspace-shell .editorial-workspace-nav {
+    transition: none;
+  }
+}
+@media (min-width: 768px) {
+  .editorial-workspace-shell[data-sidebar-collapsed="false"]
+    #astryx-app-shell-main {
+    height: calc(100% - var(--spacing-3));
+  }
+}
+/* Document surfaces stay neutral in rail and mobile modes too. */
+.editorial-workspace-shell #astryx-app-shell-main {
+  background: var(--color-background-surface);
+}
+.admin-observability-layout {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.admin-observability-layout .astryx-layout-content {
+  min-width: 0;
+}

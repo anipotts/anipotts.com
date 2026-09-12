@@ -1,92 +1,111 @@
-import { readFileSync } from "node:fs";
+// @vitest-environment jsdom
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { navItems } from "../../data/admin";
 import { AdminShell } from "./AdminShell";
 
-describe("AdminShell mobile navigation", () => {
-  it("connects the native disclosure to its navigation sheet", () => {
-    const markup = renderToStaticMarkup(
-      <AdminShell
-        chrome="admin"
-        currentRoute="/work?view=now"
-        navItems={navItems}
-        title="work"
-      >
-        <div>work</div>
-      </AdminShell>,
-    );
+Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+const operational = vi.hoisted(() => ({ render: vi.fn() }));
+vi.mock("./OperationalCommandPalette", () => ({
+  OperationalCommandPalette: () => {
+    operational.render();
+    return null;
+  },
+}));
+const shell = (route: string) => (
+  <AdminShell
+    chrome="admin"
+    currentRoute={route}
+    navItems={navItems}
+    title="Record"
+    localPreview
+  >
+    <div>Content</div>
+  </AdminShell>
+);
 
-    expect(markup).toContain('aria-label="Toggle navigation"');
-    expect(markup).toContain('aria-controls="admin-mobile-menu-panel"');
-    expect(markup).toContain('id="admin-mobile-menu-panel"');
+describe("shared Operations and Life shell", () => {
+  it("renders the shared identity and only the three primary Operations destinations", () => {
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(shell("/operations/observability"));
+    expect(host.querySelector('[data-workspace="operations"]')).not.toBeNull();
+    expect(host.textContent).toContain("Admin");
+    expect(host.textContent).toContain("ani potts");
+    const navigation = host.querySelector(".astryx-side-nav-section")!;
+    const links = [...navigation.querySelectorAll("a")];
+    expect(links.map((link) => link.textContent)).toEqual([
+      "Overview",
+      "Machines",
+      "Loops",
+    ]);
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/operations/observability",
+      "/operations/observability?view=machines",
+      "/operations/observability?view=loops",
+    ]);
+    expect(new Set(links.map((link) => link.href)).size).toBe(3);
+    expect(navigation.querySelector("details")).toBeNull();
   });
-
-  it("keeps search desktop-only and marks retained Inbox active", () => {
-    const markup = renderToStaticMarkup(
-      <AdminShell
-        chrome="admin"
-        currentRoute="/inbox?category=work"
-        navItems={navItems}
-        title="Inbox"
-      >
-        <div />
-      </AdminShell>,
+  it.each(["machines", "loops"])("selects only the %s destination", (view) => {
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(
+      shell(`/operations/observability?view=${view}`),
     );
-    expect(markup).not.toContain('class="admin-mobile-search"');
-    expect(markup.match(/data-admin-search-trigger=/g)).toHaveLength(1);
-    expect(markup).toContain('href="/inbox" aria-current="page"');
-    expect(markup).toContain("ani potts");
-    expect(markup).toContain("operations");
-  });
-
-  it("opens Work for Handoffs and names legacy content separately", () => {
-    const markup = renderToStaticMarkup(
-      <AdminShell
-        chrome="admin"
-        currentRoute="/handoffs"
-        navItems={navItems}
-        title="Handoffs"
-      >
-        <div />
-      </AdminShell>,
+    const selected = host.querySelectorAll(
+      '.astryx-side-nav-section a[aria-current="page"]',
     );
-    expect(markup).toContain('data-admin-nav-group="work" open=""');
-    expect(markup).toContain("Legacy content diagnostics");
-    expect(markup).toContain("Personal");
-    expect(markup).not.toContain('href="/content/new"');
-    expect(markup).toContain('href="/content"');
-  });
-
-  it("keeps the tablet sheet opaque and scroll-contained", () => {
-    const css = readFileSync(
-      new URL("../../styles/admin.css", import.meta.url),
-      "utf8",
+    expect(selected).toHaveLength(1);
+    expect(selected[0]?.getAttribute("href")).toBe(
+      `/operations/observability?view=${view}`,
     );
-    const sheetRule = css.match(/\.admin-mobile-menu nav \{(?<rule>[^}]*)\}/s)
-      ?.groups?.rule;
-
-    expect(sheetRule).toContain("overscroll-behavior: contain");
-    expect(sheetRule).toContain("background: var(--color-background-body)");
-    expect(sheetRule).toContain("color: var(--color-text-primary)");
-    expect(sheetRule).not.toContain("var(--color-background)");
   });
-});
-
-it("opens System and marks Observability selected for the new read surface", () => {
-  const markup = renderToStaticMarkup(
-    <AdminShell
-      chrome="admin"
-      currentRoute="/operations/observability"
-      navItems={navItems}
-      title="Observability"
-    >
-      <div />
-    </AdminShell>,
+  it.each([
+    "/work?view=machines",
+    "/operations/observability?view=machines-old",
+    "/operations/observability?view=loops-extra",
+  ])(
+    "does not select a destination from a partial route match: %s",
+    (route) => {
+      const host = document.createElement("div");
+      host.innerHTML = renderToStaticMarkup(shell(route));
+      expect(
+        host.querySelectorAll(
+          '.astryx-side-nav-section a[aria-current="page"]',
+        ),
+      ).toHaveLength(0);
+    },
   );
-  expect(markup).toContain('data-admin-nav-group="system" open=""');
-  expect(markup).toContain(
-    'href="/operations/observability" aria-current="page"',
-  );
+  it("renders Life navigation without mounting the Operations search provider", () => {
+    operational.render.mockClear();
+    const markup = renderToStaticMarkup(shell("/life/people"));
+    expect(markup).toContain('data-workspace="life"');
+    expect(markup).toMatch(/href="\/life\/people"[^>]*aria-current="page"/);
+    for (const section of [
+      "projects",
+      "places",
+      "timeline",
+      "sources",
+      "preview",
+    ])
+      expect(markup).toContain(`href="/life/${section}"`);
+    expect(markup).not.toContain('href="/inbox"');
+    expect(operational.render).not.toHaveBeenCalled();
+  });
+  it("keeps auth outside the workspace and its search providers", () => {
+    operational.render.mockClear();
+    const markup = renderToStaticMarkup(
+      <AdminShell
+        chrome="auth"
+        currentRoute="/auth/passkey"
+        navItems={navItems}
+        title="Sign in"
+      >
+        <p>Sign in</p>
+      </AdminShell>,
+    );
+    expect(markup).toContain("admin-auth-frame");
+    expect(markup).not.toContain("editorial-workspace-shell");
+    expect(operational.render).not.toHaveBeenCalled();
+  });
 });

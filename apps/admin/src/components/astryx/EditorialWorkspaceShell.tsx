@@ -1,3 +1,8 @@
+import {
+  workspaces,
+  workspaceReturnPath,
+  type Workspace,
+} from "../../lib/workspace-navigation";
 import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   libraryReturnPath,
@@ -22,6 +27,7 @@ import {
   ToggleButtonGroup,
 } from "@astryxdesign/core/ToggleButton";
 import {
+  SidebarSimpleIcon,
   SquaresFourIcon,
   PencilSimpleIcon,
   BrowserIcon,
@@ -100,42 +106,123 @@ export function workspaceSelection(
 /** AppShell reuses this slot in its fixed-height mobile topbar and drawer. */
 export function WorkspaceIdentity({
   collapsed = false,
+  workspace = "content",
 }: {
   collapsed?: boolean;
+  workspace?: Workspace;
 }) {
   const { isMobile } = useAppShellMobile();
+  const [destinations, setDestinations] = useState<Record<Workspace, string>>({
+    content: "/content",
+    operations: "/operations/observability",
+    life: "/life",
+  });
+  useEffect(() => {
+    const sync = () => {
+      try {
+        sessionStorage.setItem(
+          `admin:navigation:${workspace}`,
+          workspaceReturnPath(workspace, location.pathname + location.search),
+        );
+        setDestinations(
+          Object.fromEntries(
+            Object.keys(workspaces).map((key) => [
+              key,
+              workspaceReturnPath(
+                key as Workspace,
+                sessionStorage.getItem(`admin:navigation:${key}`) ?? "",
+              ),
+            ]),
+          ) as Record<Workspace, string>,
+        );
+      } catch {
+        /* Navigation works without storage. */
+      }
+    };
+    sync();
+    window.addEventListener("popstate", sync);
+    window.addEventListener("admin:workspace-navigation", sync);
+    window.addEventListener("editorial:library-state", sync);
+    return () => {
+      window.removeEventListener("popstate", sync);
+      window.removeEventListener("admin:workspace-navigation", sync);
+      window.removeEventListener("editorial:library-state", sync);
+    };
+  }, [workspace]);
   return (
-    <HStack
+    <VStack
       className="editorial-workspace-identity"
       gap={1}
-      vAlign="center"
       data-collapsed={collapsed}
     >
-      <SideNavHeading
-        className="editorial-workspace-brand"
-        heading="Admin"
-        subheading="ani potts"
-        icon={collapsed && !isMobile ? <Text>ap</Text> : undefined}
-        menu={
-          <VStack padding={2} gap={1} className="editorial-workspace-switcher">
-            <SideNavItem label="ani potts admin" href="/content" isSelected />
-            <SideNavItem label="ani potts operations" href="/inbox" />
-          </VStack>
-        }
-      />
-      {!isMobile && <SideNavCollapseButton size="md" />}
-    </HStack>
-  );
-}
-
-function WebsiteSearch() {
-  const { isMobile } = useAppShellMobile();
-  return isMobile ? null : (
-    <SideNavItem
-      label="Search"
-      icon={<MagnifyingGlassIcon size={18} aria-hidden="true" />}
-      onClick={() => document.dispatchEvent(new CustomEvent("admin:search"))}
-    />
+      <HStack
+        className="editorial-identity-primary-row"
+        gap={1}
+        vAlign="center"
+      >
+        {!isMobile && collapsed && (
+          <SideNavCollapseButton size="md">
+            <SidebarSimpleIcon size={18} aria-hidden="true" />
+          </SideNavCollapseButton>
+        )}
+        <SideNavHeading
+          className="editorial-workspace-brand"
+          heading="Admin"
+          subheading="ani potts"
+          icon={collapsed && !isMobile ? <Text>ap</Text> : undefined}
+        />
+        {!isMobile && !collapsed && (
+          <SideNavCollapseButton size="md">
+            <SidebarSimpleIcon size={18} aria-hidden="true" />
+          </SideNavCollapseButton>
+        )}
+      </HStack>
+      <HStack
+        className="editorial-identity-workspace-row"
+        gap={1}
+        vAlign="center"
+      >
+        <SideNavHeading
+          className="admin-workspace-selector"
+          heading={workspaces[workspace].label}
+          icon={
+            collapsed && !isMobile ? (
+              <Text>{workspaces[workspace].label[0]}</Text>
+            ) : undefined
+          }
+          menu={
+            <VStack
+              padding={2}
+              gap={1}
+              className="editorial-workspace-switcher"
+            >
+              {(Object.keys(workspaces) as Workspace[]).map((key) => (
+                <SideNavItem
+                  key={key}
+                  label={workspaces[key].label}
+                  href={destinations[key]}
+                  isSelected={workspace === key}
+                />
+              ))}
+            </VStack>
+          }
+        />
+        {!isMobile && (
+          <Button
+            className="editorial-header-search"
+            label="Search"
+            tooltip="Search"
+            isIconOnly
+            variant="ghost"
+            size="md"
+            icon={<MagnifyingGlassIcon size={18} aria-hidden="true" />}
+            onClick={() =>
+              document.dispatchEvent(new CustomEvent("admin:search"))
+            }
+          />
+        )}
+      </HStack>
+    </VStack>
   );
 }
 
@@ -170,6 +257,9 @@ export function EditorialWorkspaceShell({
   siteHref,
   localPreview,
   searchEntries,
+  workspace = "content",
+  navigationContent,
+  palette,
 }: {
   children: ReactNode;
   area: "content" | "newsletter";
@@ -180,6 +270,9 @@ export function EditorialWorkspaceShell({
   siteHref: string;
   localPreview: boolean;
   searchEntries?: AdminSearchResult[];
+  workspace?: Workspace;
+  navigationContent?: ReactNode;
+  palette?: ReactNode;
 }) {
   const [rail, setRail] = useState(false);
   const [userCollapsed, setUserCollapsed] = useState<boolean | null>(null);
@@ -213,7 +306,9 @@ export function EditorialWorkspaceShell({
     );
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("editorial:sidebar-collapsed");
+      const saved =
+        localStorage.getItem("admin:sidebar-collapsed") ??
+        localStorage.getItem("editorial:sidebar-collapsed");
       if (saved === "true" || saved === "false")
         setUserCollapsed(saved === "true");
     } catch {}
@@ -238,7 +333,7 @@ export function EditorialWorkspaceShell({
     setUserCollapsed(collapsed);
     setRail(collapsed);
     try {
-      localStorage.setItem("editorial:sidebar-collapsed", String(collapsed));
+      localStorage.setItem("admin:sidebar-collapsed", String(collapsed));
     } catch {}
   };
   const selected = workspaceSelection(area, selectedGroup, recordKind);
@@ -246,40 +341,36 @@ export function EditorialWorkspaceShell({
     () => [...navigationResults, ...(searchEntries ?? [])],
     [searchEntries],
   );
-  const menuButton = (label: string, icon: ReactNode) => ({
-    label,
-    icon,
-    isIconOnly: rail,
-    tooltip: label,
-    variant: "ghost" as const,
-    size: rail ? ("md" as const) : ("sm" as const),
-  });
   return (
     <>
-      <AdminCommandPalette
-        entries={paletteEntries}
-        navItems={noOperationalNavigation}
-        scope="editorial"
-        showTrigger={false}
-      />
+      {palette ?? (
+        <AdminCommandPalette
+          entries={paletteEntries}
+          navItems={noOperationalNavigation}
+          scope="editorial"
+          showTrigger={false}
+        />
+      )}
       <AppShell
         className="editorial-workspace-shell"
         data-sidebar-collapsed={rail}
-        height="auto"
+        data-workspace={workspace}
+        height="fill"
         variant={rail ? "section" : "wash"}
         contentPadding={0}
         mobileNav={{ breakpoint: "md" }}
         sideNav={
           <SideNav
             className="editorial-workspace-nav"
-            aria-label="Website"
+            aria-label={workspaces[workspace].label}
             collapsible={{
               isCollapsed: rail,
               onCollapsedChange: changeCollapsed,
               hasButton: false,
             }}
-            header={<WorkspaceIdentity collapsed={rail} />}
-            topContent={<WebsiteSearch />}
+            header={
+              <WorkspaceIdentity collapsed={rail} workspace={workspace} />
+            }
             footer={
               <VStack
                 className="editorial-workspace-utilities"
@@ -288,45 +379,53 @@ export function EditorialWorkspaceShell({
                 gap={2}
                 paddingBlock={2}
               >
-                <Button
-                  {...menuButton("Live site", <APMark />)}
-                  href={siteHref}
-                  aria-label="Live site"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                />
-                <ToggleButtonGroup
-                  type="single"
-                  label="Appearance"
-                  value={mode}
-                  onChange={(value) => {
-                    if (value) changeTheme(value as ThemePreference);
-                  }}
-                  orientation={rail ? "vertical" : "horizontal"}
-                  size="md"
-                >
-                  <ToggleButton
-                    value="light"
-                    label="Light"
-                    tooltip="Light"
-                    icon={<SunIcon size={18} aria-hidden="true" />}
-                    isIconOnly
+                <VStack gap={0} className="editorial-site-appearance">
+                  <Button
+                    className="editorial-live-site-tab"
+                    label="anipotts.com"
+                    icon={rail ? <APMark /> : undefined}
+                    isIconOnly={rail}
+                    tooltip="Live site"
+                    variant="ghost"
+                    size="md"
+                    href={siteHref}
+                    aria-label="Live site"
+                    target="_blank"
+                    rel="noopener noreferrer"
                   />
-                  <ToggleButton
-                    value="dark"
-                    label="Dark"
-                    tooltip="Dark"
-                    icon={<MoonIcon size={18} aria-hidden="true" />}
-                    isIconOnly
-                  />
-                  <ToggleButton
-                    value="system"
-                    label="System"
-                    tooltip="System"
-                    icon={<DesktopIcon size={18} aria-hidden="true" />}
-                    isIconOnly
-                  />
-                </ToggleButtonGroup>
+                  <ToggleButtonGroup
+                    type="single"
+                    label="Appearance"
+                    value={mode}
+                    onChange={(value) => {
+                      if (value) changeTheme(value as ThemePreference);
+                    }}
+                    orientation={rail ? "vertical" : "horizontal"}
+                    size="md"
+                  >
+                    <ToggleButton
+                      value="light"
+                      label="Light"
+                      tooltip="Light"
+                      icon={<SunIcon size={18} aria-hidden="true" />}
+                      isIconOnly
+                    />
+                    <ToggleButton
+                      value="dark"
+                      label="Dark"
+                      tooltip="Dark"
+                      icon={<MoonIcon size={18} aria-hidden="true" />}
+                      isIconOnly
+                    />
+                    <ToggleButton
+                      value="system"
+                      label="System"
+                      tooltip="System"
+                      icon={<DesktopIcon size={18} aria-hidden="true" />}
+                      isIconOnly
+                    />
+                  </ToggleButtonGroup>
+                </VStack>
                 {!localPreview && (
                   <SideNavItem
                     label="Log out"
@@ -337,17 +436,19 @@ export function EditorialWorkspaceShell({
               </VStack>
             }
           >
-            <SideNavSection title="Content">
-              {websiteNavigation.map(({ id, label, icon: Icon }) => (
-                <SideNavItem
-                  key={id}
-                  label={label}
-                  href={destination(id)}
-                  isSelected={selected === id}
-                  icon={<Icon size={18} aria-hidden="true" />}
-                />
-              ))}
-            </SideNavSection>
+            {navigationContent ?? (
+              <SideNavSection title="Content">
+                {websiteNavigation.map(({ id, label, icon: Icon }) => (
+                  <SideNavItem
+                    key={id}
+                    label={label}
+                    href={destination(id)}
+                    isSelected={selected === id}
+                    icon={<Icon size={18} aria-hidden="true" />}
+                  />
+                ))}
+              </SideNavSection>
+            )}
           </SideNav>
         }
       >

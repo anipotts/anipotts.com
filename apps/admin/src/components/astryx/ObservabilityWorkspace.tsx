@@ -29,12 +29,33 @@ const label = (id: string) =>
 
 export function ObservabilityWorkspace({
   initial,
+  initialView = "machines",
 }: {
   initial: ObservabilityReadResult;
+  initialView?: string;
 }) {
   const [result, setResult] = useState(initial);
   const [query, setQuery] = useState("");
-  const [view, setView] = useState("machines");
+  const allowedViews = [
+    "machines",
+    "loops",
+    "activity",
+    "coverage",
+    "traces",
+    "metrics",
+    "incidents",
+  ];
+  const [view, setView] = useState(
+    allowedViews.includes(initialView) ? initialView : "machines",
+  );
+  const changeView = (next: string) => {
+    if (!allowedViews.includes(next)) return;
+    setView(next);
+    const url = new URL(location.href);
+    url.searchParams.set("view", next);
+    history.replaceState(history.state, "", url);
+    window.dispatchEvent(new Event("admin:workspace-navigation"));
+  };
   const [retry, setRetry] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [refreshing, setRefreshing] = useState(false);
@@ -236,6 +257,7 @@ export function ObservabilityWorkspace({
   const unavailable = !isInventory && total === 0 && status !== "connected";
   return (
     <Layout
+      className="admin-observability-layout"
       height="auto"
       padding={4}
       content={
@@ -279,7 +301,7 @@ export function ObservabilityWorkspace({
             </HStack>
             <TabList
               value={view}
-              onChange={setView}
+              onChange={changeView}
               hasDivider
               aria-label="Operations views"
               style={{ flexWrap: "wrap" }}

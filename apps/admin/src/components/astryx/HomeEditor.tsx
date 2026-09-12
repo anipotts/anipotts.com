@@ -128,7 +128,9 @@ function HomeEditorImpl({
       const frame = requestAnimationFrame(() => {
         if (lastEditingFocus.current?.isConnected)
           lastEditingFocus.current.focus({ preventScroll: true });
-        window.scrollTo({ top: editScroll.current, behavior: "instant" });
+        const surface = document.getElementById("astryx-app-shell-main");
+        if (surface) surface.scrollTop = editScroll.current;
+        else window.scrollTo({ top: editScroll.current, behavior: "instant" });
       });
       previousTab.current = tab;
       return () => cancelAnimationFrame(frame);
@@ -191,7 +193,9 @@ function HomeEditorImpl({
     navigationGeneration.current += 1;
     const previous = workspaceState.current;
     if (previous.view === "edit" && next.view !== "edit") {
-      editScroll.current = window.scrollY;
+      editScroll.current =
+        document.getElementById("astryx-app-shell-main")?.scrollTop ??
+        window.scrollY;
     }
     flushLocal();
     workspaceState.current = next;
@@ -752,7 +756,10 @@ function HomeEditorImpl({
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    if (tab === "edit") editScroll.current = window.scrollY;
+                    if (tab === "edit")
+                      editScroll.current =
+                        document.getElementById("astryx-app-shell-main")
+                          ?.scrollTop ?? window.scrollY;
                     setTab(tab === "preview" ? "edit" : "preview");
                   }}
                 />

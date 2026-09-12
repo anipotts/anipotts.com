@@ -226,3 +226,39 @@ test("observability preview allows only the local read surface, keeping its API 
       "passkey-required",
     );
 });
+
+test.each(["people", "projects", "places", "timeline", "sources", "preview"])(
+  "keeps Life %s preview local and read-only",
+  (section) => {
+    const path = `/life/${section}`;
+    expect(
+      isDevLoopbackPreviewRequest({
+        isDev: true,
+        method: "GET",
+        url: local(path),
+      }),
+    ).toBe(true);
+    expect(
+      isDevLoopbackPreviewRequest({
+        isDev: false,
+        method: "GET",
+        url: local(path),
+      }),
+    ).toBe(false);
+    expect(
+      isDevLoopbackPreviewRequest({
+        isDev: true,
+        method: "POST",
+        url: local(path),
+      }),
+    ).toBe(false);
+    expect(
+      isDevLoopbackPreviewRequest({
+        isDev: true,
+        method: "GET",
+        url: new URL(path, "https://admin.anipotts.com"),
+      }),
+    ).toBe(false);
+    expect(isPublicAdminPath(path)).toBe(false);
+  },
+);

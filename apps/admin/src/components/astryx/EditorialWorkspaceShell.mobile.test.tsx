@@ -4,11 +4,23 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EditorialWorkspaceShell } from "./EditorialWorkspaceShell";
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-describe("mobile Website topbar", () => {
+describe("responsive workspace navigation", () => {
   let host: HTMLDivElement;
   let root: Root;
   beforeEach(() => {
     localStorage.clear();
+    Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
+      configurable: true,
+      value() {
+        this.open = true;
+      },
+    });
+    Object.defineProperty(HTMLDialogElement.prototype, "close", {
+      configurable: true,
+      value() {
+        this.open = false;
+      },
+    });
     vi.stubGlobal(
       "ResizeObserver",
       class {
@@ -74,16 +86,32 @@ describe("mobile Website topbar", () => {
       "Adminani potts",
     );
     expect(
-      host.querySelector('button[aria-label="Search content"]'),
+      host.querySelector(
+        'button[aria-label="Search"], button[aria-label="Search content"]',
+      ),
     ).toBeNull();
     expect(
       [...host.querySelectorAll("button")].some(
         (button) => button.textContent === "Search",
       ),
     ).toBe(false);
-    expect(
-      topbar.parentElement!.lastElementChild?.getAttribute("aria-expanded"),
-    ).toBe("false");
+    const toggle = topbar.parentElement!.lastElementChild as HTMLButtonElement;
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    act(() => toggle.click());
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    const controlled = toggle.getAttribute("aria-controls");
+    expect(controlled).toBeTruthy();
+    const drawer = document.getElementById(controlled!);
+    expect(drawer).not.toBeNull();
+    expect(drawer?.textContent).toContain("Writing");
+    expect(drawer?.querySelector('a[href="/newsletter"]')).not.toBeNull();
+    // Browser Escape raises the native dialog cancel event.
+    act(() =>
+      drawer!.dispatchEvent(
+        new Event("cancel", { bubbles: true, cancelable: true }),
+      ),
+    );
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
   });
   it("persists explicit expansion and collapse independently of the tablet default", () => {
     Object.defineProperty(window, "innerWidth", {
@@ -100,9 +128,22 @@ describe("mobile Website topbar", () => {
       'button[aria-label="Expand sidebar"]',
     ) as HTMLButtonElement;
     expect(expand).not.toBeNull();
-    expect(expand.closest(".editorial-workspace-identity")).not.toBeNull();
+    const identity = expand.closest(".editorial-workspace-identity")!;
+    expect(identity).not.toBeNull();
+    expect(identity.querySelector("button")).toBe(expand);
+    for (const control of [
+      identity.querySelector(".editorial-workspace-brand"),
+      identity.querySelector(".admin-workspace-selector"),
+      identity.querySelector('button[aria-label="Search"]'),
+    ]) {
+      expect(control).not.toBeNull();
+      expect(
+        expand.compareDocumentPosition(control!) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).not.toBe(0);
+    }
     act(() => expand.click());
-    expect(localStorage.getItem("editorial:sidebar-collapsed")).toBe("false");
+    expect(localStorage.getItem("admin:sidebar-collapsed")).toBe("false");
     render(vi.fn(), "remounted");
     expect(
       host
@@ -110,7 +151,32 @@ describe("mobile Website topbar", () => {
         ?.getAttribute("data-sidebar-collapsed"),
     ).toBe("false");
   });
-  it("offers direct light dark and system choices and a monochrome AP live-site mark", () => {
+  it("keeps desktop search beside the workspace selector and identity above it", () => {
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1280,
+    });
+    render();
+    const identity = host.querySelector(".editorial-workspace-identity")!;
+    const selector = identity.querySelector(".admin-workspace-selector")!;
+    const search = identity.querySelector('button[aria-label="Search"]');
+    const collapse = identity.querySelector(
+      'button[aria-label="Collapse sidebar"]',
+    );
+    expect(search).not.toBeNull();
+    expect(collapse).not.toBeNull();
+    expect(selector.parentElement?.contains(search)).toBe(true);
+    expect(selector.parentElement?.contains(collapse)).toBe(false);
+    expect(
+      identity.querySelectorAll('button[aria-label="Search"]'),
+    ).toHaveLength(1);
+    const announce = vi.fn();
+    document.addEventListener("admin:search", announce);
+    act(() => (search as HTMLButtonElement).click());
+    document.removeEventListener("admin:search", announce);
+    expect(announce).toHaveBeenCalledTimes(1);
+  });
+  it("offers direct appearance choices and an attached live-site tab", () => {
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
       value: 1280,
@@ -142,6 +208,21 @@ describe("mobile Website topbar", () => {
     );
     const live = host.querySelector('a[aria-label="Live site"]')!;
     expect(live.querySelector("rect")).toBeNull();
-    expect(live.querySelectorAll('path[fill="currentColor"]')).toHaveLength(2);
+    expect(live.textContent).toBe("anipotts.com");
+    expect(live.closest(".editorial-site-appearance")).not.toBeNull();
+    act(() =>
+      (
+        host.querySelector(
+          'button[aria-label="Collapse sidebar"]',
+        ) as HTMLButtonElement
+      ).click(),
+    );
+    const collapsedLive = host.querySelector('a[href="https://anipotts.com"]')!;
+    expect(collapsedLive.getAttribute("aria-label")).toMatch(
+      /Live site|anipotts.com/,
+    );
+    expect(
+      collapsedLive.querySelectorAll('path[fill="currentColor"]'),
+    ).toHaveLength(2);
   });
 });

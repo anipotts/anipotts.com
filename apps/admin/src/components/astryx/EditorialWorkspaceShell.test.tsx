@@ -36,7 +36,7 @@ describe("Website workspace navigation", () => {
         />,
       );
     const local = render(true);
-    expect(local).toContain('aria-label="Website"');
+    expect(local).toContain('aria-label="Content"');
     expect(local).toContain("Pages");
     expect(local).not.toContain("/cdn-cgi/access/logout");
     expect(render(false)).toContain("/cdn-cgi/access/logout");

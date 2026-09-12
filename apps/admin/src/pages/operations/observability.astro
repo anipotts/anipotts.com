@@ -6,5 +6,9 @@ const initial = await readObservability();
 ---
 
 <AdminLayout title="Observability" hideHeader>
-  <ObservabilityWorkspace initial={initial} client:load />
+  <ObservabilityWorkspace
+    initial={initial}
+    initialView={Astro.url.searchParams.get("view") ?? "machines"}
+    client:load
+  />
 </AdminLayout>
