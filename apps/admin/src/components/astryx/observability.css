@@ -1,0 +1,71 @@
+.observability-workspace {
+  max-width: 1200px;
+  margin: auto;
+  padding: clamp(16px, 3vw, 40px);
+  min-width: 0;
+}
+.observability-workspace h1 {
+  font-size: clamp(28px, 4vw, 40px);
+}
+.observability-workspace h2 {
+  margin-bottom: 12px;
+}
+.observability-workspace p {
+  line-height: 1.6;
+  margin-block: 8px 16px;
+}
+.observability-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr));
+  gap: 16px;
+}
+.observability-workspace article {
+  border: 1px solid var(--border-color, #8886);
+  border-radius: 12px;
+  padding: 18px;
+  margin-block: 12px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.observability-workspace article h3 {
+  font-size: 16px;
+  margin-bottom: 14px;
+}
+.observability-workspace dl {
+  display: grid;
+  gap: 6px;
+}
+.observability-workspace dt {
+  font-size: 12px;
+  opacity: 0.7;
+}
+.observability-workspace dd {
+  margin: 0 0 8px;
+}
+.observability-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.observability-tabs button {
+  font: inherit;
+  text-transform: capitalize;
+  padding: 10px 16px;
+  min-height: 44px;
+  border: 1px solid var(--border-color, #8886);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.observability-tabs button[aria-pressed="true"] {
+  background: var(--background-secondary, #8882);
+  font-weight: 600;
+}
+.observability-workspace button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+.observability-workspace code {
+  overflow-wrap: anywhere;
+}
