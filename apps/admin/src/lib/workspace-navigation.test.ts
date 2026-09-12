@@ -41,6 +41,24 @@ describe("workspace return destinations", () => {
       "/newsletter/my-newsletter",
     );
   });
+  it.each([
+    ["projects", "chainedchat"],
+    ["home", "home"],
+    ["workPage", "work"],
+    ["writingPage", "writing"],
+    ["systemsPage", "systems"],
+    ["newsletterPage", "newsletter"],
+    ["writing", "my-post"],
+  ])(
+    "remembers the %s editor without retaining private queries",
+    (collection, id) => {
+      const path = `/content/${collection}/${id}`;
+      expect(
+        workspaceReturnPath("content", `${path}?view=review&q=private#draft`),
+      ).toBe(`${path}?view=review`);
+      expect(workspaceReturnPath("life", path)).toBe("/life");
+    },
+  );
   it("keeps an operational view without retaining item or private query identities", () => {
     expect(
       workspaceReturnPath(

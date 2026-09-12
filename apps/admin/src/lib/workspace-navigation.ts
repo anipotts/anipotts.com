@@ -24,7 +24,7 @@ export function workspaceReturnPath(
       : fallback;
   if (workspace === "content") {
     if (
-      !/^\/(content(?:\/(?:new|(?:home|page|work|writing)\/[a-zA-Z0-9_-]+))?|newsletter(?:\/[a-zA-Z0-9_-]+)?)$/.test(
+      !/^\/(content(?:\/(?:new|(?:home|page|work|writing|projects|workPage|writingPage|systemsPage|newsletterPage)\/[a-zA-Z0-9_-]+))?|newsletter(?:\/[a-zA-Z0-9_-]+)?)$/.test(
         path,
       )
     )
