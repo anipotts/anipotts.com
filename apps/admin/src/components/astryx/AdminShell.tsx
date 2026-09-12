@@ -115,22 +115,14 @@ export function AdminShell({
     ) : (
       <SideNavSection title="Operations">
         <SideNavItem
-          label="Overview"
-          icon={<HouseIcon size={18} aria-hidden="true" />}
-          href="/operations/observability"
-          isSelected={
-            currentRoute.split("?")[0] === "/operations/observability" &&
-            !new URLSearchParams(currentRoute.split("?")[1]).has("view")
-          }
-        />
-        <SideNavItem
           label="Machines"
           href="/operations/observability?view=machines"
           icon={<DesktopIcon size={18} aria-hidden="true" />}
-          isSelected={isActive(
-            currentRoute,
-            "/operations/observability?view=machines",
-          )}
+          isSelected={
+            isActive(currentRoute, "/operations/observability?view=machines") ||
+            (currentRoute.split("?")[0] === "/operations/observability" &&
+              !new URLSearchParams(currentRoute.split("?")[1]).has("view"))
+          }
         />
         <SideNavItem
           label="Loops"

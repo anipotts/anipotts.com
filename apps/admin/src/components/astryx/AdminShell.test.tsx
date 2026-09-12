@@ -26,7 +26,7 @@ const shell = (route: string) => (
 );
 
 describe("shared Operations and Life shell", () => {
-  it("renders the shared identity and only the three primary Operations destinations", () => {
+  it("renders the shared identity and only the two distinct Operations destinations", () => {
     const host = document.createElement("div");
     host.innerHTML = renderToStaticMarkup(shell("/operations/observability"));
     expect(host.querySelector('[data-workspace="operations"]')).not.toBeNull();
@@ -37,17 +37,30 @@ describe("shared Operations and Life shell", () => {
     const navigation = host.querySelector(".astryx-side-nav-section")!;
     const links = [...navigation.querySelectorAll("a")];
     expect(links.map((link) => link.textContent)).toEqual([
-      "Overview",
       "Machines",
       "Loops",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
-      "/operations/observability",
       "/operations/observability?view=machines",
       "/operations/observability?view=loops",
     ]);
-    expect(new Set(links.map((link) => link.href)).size).toBe(3);
+    expect(new Set(links.map((link) => link.href)).size).toBe(2);
     expect(navigation.querySelector("details")).toBeNull();
+  });
+  it.each([
+    "/operations/observability",
+    "/operations/observability?machine=mini",
+  ])("selects Machines for the default view: %s", (route) => {
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(shell(route));
+    const selected = host.querySelectorAll(
+      '.astryx-side-nav-section a[aria-current="page"]',
+    );
+    expect(selected).toHaveLength(1);
+    expect(selected[0]?.textContent).toBe("Machines");
+    expect(selected[0]?.getAttribute("href")).toBe(
+      "/operations/observability?view=machines",
+    );
   });
   it.each(["machines", "loops"])("selects only the %s destination", (view) => {
     const host = document.createElement("div");
