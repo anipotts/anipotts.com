@@ -19,3 +19,14 @@ Integration adds Observability under System navigation and active-group recognit
 - Requested in-app Browser setup remains unavailable. No alternate browser used and no local/live visual proof claimed.
 
 Keep all new sources in the whole-admin ledger. Test files and all shared-source changes still require explicit final audit; a passing suite alone is not full source coverage. No private content, credentials, runtime transports, or production configuration was changed.
+
+## Personal Operations follow-up
+
+Integrated successor 3f6422ce as 2afceca7. Machines is the default, followed by
+Loops and latest Activity. Diagnostic views remain under More. Active/inactive
+states are not invented for the fixed starting inventory. Generic helper copy
+removed; actual connection status remains explicit. No runtime or new data access.
+
+Root verification: 31 tests across component, reader and model passed. DOM tests
+include expected jsdom canvas notices; this is not visual proof. Local route
+returned HTTP 200. Browser and connected/live QA remain open.

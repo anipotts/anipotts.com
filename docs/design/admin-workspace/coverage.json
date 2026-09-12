@@ -3116,19 +3116,21 @@
     {
       "path": "apps/admin/src/components/astryx/ObservabilityWorkspace.test.tsx",
       "area": "observability",
-      "sha256": "f5c33fab3f90057db9649757f9347e3a290455f955430df5f2fd2e03fd9e1a89",
+      "sha256": "990a3790c104390726d183a0f8d67e5d2fd2d5af5cf3a409b616b4b048b349d1",
       "disposition": "pending",
       "evidence": [
-        "Integrated Operations increment; current source review tracked in observability-integration.md."
+        "Integrated Operations increment; current source review tracked in observability-integration.md.",
+        "docs/design/admin-workspace/observability-integration.md: Machines/Loops follow-up integrated; connected and Browser QA remain pending."
       ]
     },
     {
       "path": "apps/admin/src/components/astryx/ObservabilityWorkspace.tsx",
       "area": "observability",
-      "sha256": "adc9631c34ca693be8c186744fa2010bff5926ae37582ecdfe60f6e269310456",
+      "sha256": "1febff30e2586231ed9ae55c03fa3f1fce3a1e5d3c590946c4c21cce5da1724f",
       "disposition": "pending",
       "evidence": [
-        "Integrated Operations increment; current source review tracked in observability-integration.md."
+        "Integrated Operations increment; current source review tracked in observability-integration.md.",
+        "docs/design/admin-workspace/observability-integration.md: Machines/Loops follow-up integrated; connected and Browser QA remain pending."
       ]
     },
     {
