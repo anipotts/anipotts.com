@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Layout, LayoutContent, LayoutHeader } from "@astryxdesign/core/Layout";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Heading } from "@astryxdesign/core/Heading";
@@ -12,18 +12,21 @@ import {
   MetadataListItem,
 } from "@astryxdesign/core/MetadataList";
 import { Collapsible } from "@astryxdesign/core/Collapsible";
+import { TextInput } from "@astryxdesign/core/TextInput";
+import { Toolbar } from "@astryxdesign/core/Toolbar";
 import type { LifeResult } from "../../data/personal-context";
+import {
+  LifeReadSession,
+  appendLifeBody,
+  type LifeReader,
+} from "../../lib/life-read-session";
 
-export const lifeSections = {
-  overview: "Life",
-  people: "People",
-  projects: "Projects",
-  places: "Places",
-  timeline: "Timeline",
-  sources: "Sources",
-  preview: "Context Preview",
-} as const;
-export type LifeSection = keyof typeof lifeSections;
+import {
+  lifeSections,
+  lifeSectionRead,
+  type LifeSection,
+} from "../../lib/life-sections";
+export { lifeSections, type LifeSection };
 const href = (section: string) =>
   section === "overview" ? "/life" : `/life/${section}`;
 const scalar = (value: unknown, fallback = "Not reported") =>
@@ -102,9 +105,11 @@ export function LifeRecord({ record }: { record: Record<string, unknown> }) {
 export function LifeReadView({
   result,
   section,
+  onSelect,
 }: {
   result: LifeResult;
   section: LifeSection;
+  onSelect?: (id: string) => void;
 }) {
   if (result.state !== "ready")
     return (
@@ -179,6 +184,13 @@ export function LifeReadView({
               section === "sources" ? item.source_id : item.title,
               "Untitled record",
             )}
+            onClick={
+              section !== "sources" &&
+              typeof item.record_id === "string" &&
+              onSelect
+                ? () => onSelect(item.record_id as string)
+                : undefined
+            }
             description={
               <Text color="secondary">
                 {section === "sources"
@@ -199,13 +211,202 @@ export function LifeReadView({
     </VStack>
   );
 }
+/** Reader is injected by a separately approved capability, never derived from URL input. */
+export function LifeExplorer({
+  section,
+  initial,
+  reader,
+}: {
+  section: LifeSection;
+  initial: LifeResult;
+  reader?: LifeReader;
+}) {
+  const [query, setQuery] = useState("");
+  const [submitted, setSubmitted] = useState("");
+  const [result, setResult] = useState(initial);
+  const [offsets, setOffsets] = useState([0]);
+  const [busy, setBusy] = useState(false);
+  const [record, setRecord] = useState<Record<string, unknown> | null>(null);
+  const [detailBusy, setDetailBusy] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const listSession = useRef(new LifeReadSession());
+  const detailSession = useRef(new LifeReadSession());
+  useEffect(
+    () => () => {
+      listSession.current.invalidate();
+      detailSession.current.invalidate();
+    },
+    [],
+  );
+  const closeRecord = () => {
+    detailSession.current.invalidate();
+    setRecord(null);
+    setDetailBusy(false);
+    setDetailError(null);
+  };
+  async function load(q: string, history: number[]) {
+    if (!reader) return;
+    closeRecord();
+    setBusy(true);
+    const next = await listSession.current.run(
+      reader,
+      lifeSectionRead(section, { query: q, offset: history.at(-1) ?? 0 }),
+    );
+    if (next) {
+      setResult(next);
+      setSubmitted(q);
+      setOffsets(history);
+      setBusy(false);
+    }
+  }
+  async function select(id: string) {
+    if (!reader) return;
+    setRecord(null);
+    setDetailBusy(true);
+    setDetailError(null);
+    const next = await detailSession.current.run(reader, { method: "get", id });
+    if (next) {
+      setDetailBusy(false);
+      if (next.state === "ready") setRecord(next.data);
+      else
+        setDetailError(
+          "This record could not be read. Try selecting it again.",
+        );
+    }
+  }
+  async function moreBody() {
+    if (
+      !reader ||
+      !record ||
+      typeof record.record_id !== "string" ||
+      typeof record.next_body_offset !== "number" ||
+      detailBusy
+    )
+      return;
+    const current = record;
+    setDetailBusy(true);
+    setDetailError(null);
+    const next = await detailSession.current.run(reader, {
+      method: "get",
+      id: record.record_id,
+      body_offset: record.next_body_offset,
+    });
+    if (!next) return;
+    setDetailBusy(false);
+    if (next.state !== "ready") {
+      setDetailError("The next section could not be read. Try again.");
+      return;
+    }
+    try {
+      setRecord(appendLifeBody(current, next.data));
+    } catch (error) {
+      setDetailError(
+        error instanceof Error
+          ? error.message
+          : "Reload this record before continuing.",
+      );
+    }
+  }
+  const searchable = !["overview", "sources", "timeline"].includes(section);
+  const nextOffset =
+    result.state === "ready" && typeof result.data.next_offset === "number"
+      ? result.data.next_offset
+      : null;
+  return (
+    <VStack gap={4}>
+      {searchable && (
+        <VStack
+          as="form"
+          gap={2}
+          onSubmit={(event: React.FormEvent) => {
+            event.preventDefault();
+            void load(query, [0]);
+          }}
+        >
+          <TextInput
+            label={section === "preview" ? "Question" : "Search records"}
+            value={query}
+            onChange={(value) => setQuery(value.slice(0, 2048))}
+            isDisabled={!reader}
+            disabledMessage="Life is not connected yet"
+          />
+          <Button
+            type="submit"
+            label={section === "preview" ? "Preview context" : "Search"}
+            isDisabled={!reader}
+            isLoading={busy}
+          />
+        </VStack>
+      )}
+      {!searchable && reader && (
+        <Button
+          label="Refresh"
+          clickAction={() => load(submitted, offsets)}
+          isLoading={busy}
+        />
+      )}
+      {busy ? (
+        <Text role="status">Loading records…</Text>
+      ) : (
+        <LifeReadView
+          result={result}
+          section={section}
+          onSelect={reader ? (id) => void select(id) : undefined}
+        />
+      )}
+      {reader &&
+        !busy &&
+        result.state === "ready" &&
+        (offsets.length > 1 || nextOffset !== null) && (
+          <Toolbar
+            label="Record pages"
+            startContent={
+              <Button
+                label="Previous"
+                isDisabled={offsets.length < 2}
+                clickAction={() => load(submitted, offsets.slice(0, -1))}
+              />
+            }
+            endContent={
+              <Button
+                label="Next"
+                isDisabled={nextOffset === null}
+                clickAction={() =>
+                  nextOffset === null
+                    ? Promise.resolve()
+                    : load(submitted, [...offsets, nextOffset])
+                }
+              />
+            }
+          />
+        )}
+      {(detailBusy || record || detailError) && (
+        <VStack gap={3} as="section" aria-label="Record details">
+          <Button label="Close details" onClick={closeRecord} variant="ghost" />
+          {detailError && <Text role="alert">{detailError}</Text>}
+          {record && <LifeRecord record={record} />}
+          {detailBusy && <Text role="status">Reading record…</Text>}
+          {record?.next_body_offset != null && (
+            <Button
+              label="Read more"
+              clickAction={moreBody}
+              isLoading={detailBusy}
+            />
+          )}
+        </VStack>
+      )}
+    </VStack>
+  );
+}
 /** Capped single column. Shared workspace navigation remains owned by Website. */
 export function LifeWorkspace({
   section = "overview",
   result,
+  reader,
 }: {
   section?: LifeSection;
   result: LifeResult;
+  reader?: LifeReader;
 }) {
   const navigate = (value: string) => {
     if (Object.hasOwn(lifeSections, value)) window.location.assign(href(value));
@@ -255,7 +456,12 @@ export function LifeWorkspace({
                 Effective dates and observed dates are kept separately.
               </Text>
             )}
-            <LifeReadView section={section} result={result} />
+            <LifeExplorer
+              key={section}
+              section={section}
+              initial={result}
+              reader={reader}
+            />
             {section === "overview" && (
               <List
                 hasDividers
