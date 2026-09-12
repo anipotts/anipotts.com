@@ -11,8 +11,8 @@ it("returns a private fixed failure handshake without permitting a script breako
   expect(html).toContain('"status":"stale"');
   expect(html).not.toContain("<script>alert(1)");
   expect(html).toContain("\\u003c/script>");
-  expect(html.match(/<script>/g)).toHaveLength(1);
-  expect(html.match(/<\/script>/g)).toHaveLength(1);
+  expect(html.match(/<script>/gi)).toHaveLength(1);
+  expect(html.match(/<\/script>/gi)).toHaveLength(1);
   const serialized = /parent\.postMessage\((.*),"\*"\)/.exec(html)![1]!;
   expect(JSON.parse(serialized)).toEqual({
     type: "editorial-preview-status",
