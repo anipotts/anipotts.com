@@ -458,14 +458,40 @@ for (const marker of [
 }
 
 for (const marker of [
-  "Today",
-  "Recent changes",
-  "/knowledge?kind=people",
+  'readPersonalContext({ method: "status" })',
+  "private, no-store",
+  "LifeWorkspace",
+]) {
+  assert.ok(
+    lifeSource.includes(marker),
+    `admin life missing boundary ${marker}`,
+  );
+}
+const lifeWorkspaceSource = readFileSync(
+  "apps/admin/src/components/life/LifeWorkspace.tsx",
+  "utf8",
+);
+for (const path of [
   "/life/health",
   "/life/aesthetics",
+  "/knowledge",
+  "/knowledge/locations",
 ]) {
-  assert.ok(lifeSource.includes(marker), `admin life missing marker ${marker}`);
+  assert.ok(
+    lifeWorkspaceSource.includes(path),
+    `Life compatibility link missing ${path}`,
+  );
 }
+const lifeSectionSource = readFileSync(
+  "apps/admin/src/pages/life/[section].astro",
+  "utf8",
+);
+assert.ok(lifeSectionSource.includes("isLifeSection(section)"));
+assert.ok(
+  lifeSectionSource.indexOf("isLifeSection(section)") <
+    lifeSectionSource.indexOf("readPersonalContext(lifeSectionRead(section))"),
+);
+assert.ok(lifeSectionSource.includes("private, no-store"));
 assert.ok(
   healthSource.includes("does not infer tasks"),
   "health must remain status only",
