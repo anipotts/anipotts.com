@@ -30,7 +30,7 @@ export type LifeResult =
     };
 export type LifeTransport = {
   scope: "agent" | "owner";
-  /** Enforce the byte cap while reading, before decoding an untrusted body. */
+  /** Enforce the byte cap before decoding; HTTP implementations can use decodeLifeResponse. */
   read: (path: string, signal: AbortSignal) => Promise<unknown>;
 };
 async function readWithDeadline(transport: LifeTransport, path: string) {

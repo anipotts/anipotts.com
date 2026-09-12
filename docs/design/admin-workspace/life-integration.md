@@ -22,6 +22,13 @@ dependency, never request-controlled configuration or proof of approval.
 Preview requires explicit matching context scope, lookup mode, 3,000-token
 budget and seven-day window. The existing loopback HTTP preview is agent scope.
 Local owner stdio authorization does not authorize a website network route.
+`data/life-response.ts` supplies a network-free streaming decoder for a future
+reviewed HTTP transport. It caps actual bytes at 1 MiB even when Content-Length
+is missing or false, rejects invalid UTF-8 and non-JSON/error responses, cancels
+aborted reads and sanitizes parse failures. It does not fetch, install credentials,
+or grant access. A future fetch must also reject redirects before following them;
+rejecting a redirected response cannot undo a request already sent.
+
 Provider failures, invalid responses and disconnected access remain distinct
 from successful empty results. Raw provider exceptions are not returned.
 
@@ -51,10 +58,12 @@ Operations D1, public Git, request logs or telemetry.
   schedules, production readiness, coordinated cutover, legacy dispositions and
   24-hour operation are not completed by these routes.
 
-Follow-up validation includes twenty adapter, request continuity, section dispatch
-and React response fixture tests, three activity projection tests and three DOM
-interaction tests. The DOM tests cover source-cursor paging, record selection and
-body continuation, late detail completion, and activity reconnect/unmount.
+Follow-up validation includes 37 adapter, response decoder, request continuity,
+section dispatch, activity, React response fixture and DOM interaction tests.
+The DOM tests cover source-cursor paging, invalid cursors, retained refresh rows,
+record selection and body continuation, late detail completion, and activity
+reconnect/unmount. Decoder tests cover split UTF-8, actual and declared byte
+bounds, cancellation and sanitized errors.
 They use existing tooling under Node 24.19.0.
 The isolated tests use source-identical files and a bundled component fixture.
 Both Astro routes compiled without diagnostics at the initial increment.
