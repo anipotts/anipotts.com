@@ -38,7 +38,10 @@ Operations D1, public Git, request logs or telemetry.
   and source-cursor pagination in the managed browser. These controls now accept
   an injected read capability, with no capability installed by default. Query
   text stays in component memory rather than URLs or persistent browser storage.
-- Complete reconnectable activity against a synthetic read transport.
+- Verify the implemented activity poller in the managed browser. It resumes at
+  its last accepted change cursor, retains at most 100 checkpoints, distinguishes
+  catch-up from current/unavailable, retries transient failures and stops after
+  unmount. No service or real endpoint is enrolled by this component.
 - Prepare and approve the exact authenticated owner network capability, including
   principal, host, browser origin, session expiry, private transport and denial
   tests. Keep deployment disconnected until that separate approval is recorded.
@@ -48,8 +51,11 @@ Operations D1, public Git, request logs or telemetry.
   schedules, production readiness, coordinated cutover, legacy dispositions and
   24-hour operation are not completed by these routes.
 
-Follow-up validation: twenty adapter, request continuity, section dispatch and
-React response fixture tests passed with existing tooling under Node 24.19.0.
+Follow-up validation includes twenty adapter, request continuity, section dispatch
+and React response fixture tests, three activity projection tests and three DOM
+interaction tests. The DOM tests cover source-cursor paging, record selection and
+body continuation, late detail completion, and activity reconnect/unmount.
+They use existing tooling under Node 24.19.0.
 The isolated tests use source-identical files and a bundled component fixture.
 Both Astro routes compiled without diagnostics at the initial increment.
 Full dependency-ready checks belong to the integration checkout; these focused
