@@ -96,3 +96,14 @@ it("scopes creation recovery, preserves valid retry identity, and rejects unrela
   local.setItem(key, "{");
   expect(readNewWritingRecovery(local, key)).toBeNull();
 });
+
+it("treats denied browser storage as unavailable for both recovery readers", async () => {
+  const { readNewWritingRecovery } = await import("./draft-recovery");
+  const denied = {
+    getItem() {
+      throw new Error("Storage disabled");
+    },
+  } as unknown as Storage;
+  expect(readRecovery(denied, "key")).toBeNull();
+  expect(readNewWritingRecovery(denied, "key")).toBeNull();
+});

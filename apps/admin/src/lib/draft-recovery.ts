@@ -63,8 +63,8 @@ export function readNewWritingRecovery(
   storage: Storage,
   key: string,
 ): NewWritingRecovery | null {
-  const raw = storage.getItem(key);
   try {
+    const raw = storage.getItem(key);
     const value = JSON.parse(raw ?? "null");
     if (
       !value ||

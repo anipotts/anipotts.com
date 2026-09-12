@@ -1743,19 +1743,19 @@
     {
       "path": "apps/admin/src/lib/draft-recovery.test.ts",
       "area": "tests",
-      "sha256": "79de9d06d243b7aa0341421bba05c90f149a68d6057aeb7ac673311678ac1e78",
-      "disposition": "pending",
+      "sha256": "1dd5e3e759f5c51074dd195032c2d22738c1d3c73b49f4ac1e0a4f2d32a89c2e",
+      "disposition": "updated",
       "evidence": [
-        "2026-09-12 reconciliation: source changed since recorded SHA-256 e332aa73e637119d6fd513ec4d295c5f219fb79942b4a144a8591289afc29498; earlier audit references are historical, current source review required."
+        "docs/design/admin-workspace/recovery-save-audit.md: exact-hash helper review and eighteen focused tests; browser storage/logout/network gates remain open."
       ]
     },
     {
       "path": "apps/admin/src/lib/draft-recovery.ts",
       "area": "data-and-contracts",
-      "sha256": "2277ef21a8f7a51298c569ded034e7f0099efb68e6edc54b5ca155947a73fa32",
-      "disposition": "pending",
+      "sha256": "822167a52b7b0f222b12079d4de9cafe4a6734eed93ce67baa0730871d60ebfa",
+      "disposition": "updated",
       "evidence": [
-        "2026-09-12 reconciliation: source changed since recorded SHA-256 19cdacab791ad23e2dce5fcc2c6cff884ee3c433ab1b3aabd326f02148d5e5fb; earlier audit references are historical, current source review required."
+        "docs/design/admin-workspace/recovery-save-audit.md: exact-hash helper review and eighteen focused tests; browser storage/logout/network gates remain open."
       ]
     },
     {
@@ -1881,15 +1881,19 @@
       "path": "apps/admin/src/lib/home-autosave.test.ts",
       "area": "tests",
       "sha256": "403b5ffe19e559c328c576570744207dc692dc7c66ec0900cd2d95cffd19221c",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/recovery-save-audit.md: exact-hash helper review and eighteen focused tests; browser storage/logout/network gates remain open."
+      ]
     },
     {
       "path": "apps/admin/src/lib/home-autosave.ts",
       "area": "data-and-contracts",
       "sha256": "b446b006f39d06e2e9dae5a8e25b7b4288701dff5f97321c42b55647e0872a6d",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/recovery-save-audit.md: exact-hash helper review and eighteen focused tests; browser storage/logout/network gates remain open."
+      ]
     },
     {
       "path": "apps/admin/src/lib/image-crop.test.ts",
@@ -2028,15 +2032,19 @@
       "path": "apps/admin/src/lib/save-scheduler.test.ts",
       "area": "tests",
       "sha256": "ad910055d2a4da878ce97517c0a6a1b01bc6ff545ca6495a7ad5c9ec7ed95903",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/recovery-save-audit.md: exact-hash helper review and eighteen focused tests; browser storage/logout/network gates remain open."
+      ]
     },
     {
       "path": "apps/admin/src/lib/save-scheduler.ts",
       "area": "data-and-contracts",
       "sha256": "e41639ecac390282bc0d9073265d64a48ab336fcae5ea31b5d20d2620f181b49",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/recovery-save-audit.md: exact-hash helper review and eighteen focused tests; browser storage/logout/network gates remain open."
+      ]
     },
     {
       "path": "apps/admin/src/lib/security-notifications.ts",
