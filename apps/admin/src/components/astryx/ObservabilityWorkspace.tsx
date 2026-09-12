@@ -21,6 +21,7 @@ import {
 } from "@astryxdesign/core/MetadataList";
 import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
+import { Collapsible, CollapsibleGroup } from "@astryxdesign/core/Collapsible";
 import { StatusDot } from "@astryxdesign/core/StatusDot";
 
 const words = (value: string) => value.replaceAll("-", " ");
@@ -350,7 +351,65 @@ export function ObservabilityWorkspace({
                             ? "Capacity and retention"
                             : "PersonalContext incidents"}
               </Heading>
-              {rows.length ? (
+              {rows.length && isInventory ? (
+                <CollapsibleGroup type="multiple" hasDividers>
+                  {services.map((service) => (
+                    <Collapsible
+                      key={service.id}
+                      value={service.id}
+                      defaultIsOpen={false}
+                      trigger={
+                        <VStack gap={2} width="100%">
+                          <Text
+                            weight="semibold"
+                            style={{ overflowWrap: "anywhere" }}
+                          >
+                            {label(service.id)}
+                          </Text>
+                          <HStack gap={4} wrap="wrap" vAlign="center">
+                            <HStack gap={2} vAlign="center">
+                              <StatusDot
+                                label={stateLabel(service.id)}
+                                variant={
+                                  stateLabel(service.id) === "Healthy"
+                                    ? "success"
+                                    : stateLabel(service.id) === "Failed"
+                                      ? "error"
+                                      : "neutral"
+                                }
+                              />
+                              <Text>{stateLabel(service.id)}</Text>
+                            </HStack>
+                            <Text color="secondary">Last contact: Unknown</Text>
+                          </HStack>
+                        </VStack>
+                      }
+                    >
+                      <MetadataList label={{ position: "top" }}>
+                        <MetadataListItem label="Instrumentation">
+                          {service.instrumentation === "unknown"
+                            ? "Not verified"
+                            : title(service.instrumentation)}
+                        </MetadataListItem>
+                        <MetadataListItem label="Last observation">
+                          {service.lastObservedAt ? (
+                            <Timestamp
+                              value={service.lastObservedAt}
+                              format="auto"
+                              isLive
+                            />
+                          ) : (
+                            "Not observed"
+                          )}
+                        </MetadataListItem>
+                        <MetadataListItem label="Last outcome">
+                          {title(service.outcome)}
+                        </MetadataListItem>
+                      </MetadataList>
+                    </Collapsible>
+                  ))}
+                </CollapsibleGroup>
+              ) : rows.length ? (
                 <Table
                   data={rows}
                   idKey="id"
