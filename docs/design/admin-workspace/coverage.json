@@ -927,15 +927,19 @@
       "path": "apps/admin/src/components/astryx/DocumentTitle.test.tsx",
       "area": "ui",
       "sha256": "da9225475f36e350ddc9ac9c7fe6e15e1f01a3397848a54d0f37e06ac7361367",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/title-selection-audit.md: exact source review and eleven tests; native Browser interaction/geometry remains open."
+      ]
     },
     {
       "path": "apps/admin/src/components/astryx/DocumentTitle.tsx",
       "area": "ui",
       "sha256": "2138b0ec1c80ff6c57e8d40c1672aa83f941102c3bf6991fb2ef1bde3ae73ab1",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/title-selection-audit.md: exact source review and eleven tests; native Browser interaction/geometry remains open."
+      ]
     },
     {
       "path": "apps/admin/src/components/astryx/EditorialApp.test.tsx",
@@ -1094,9 +1098,9 @@
       "path": "apps/admin/src/components/astryx/SelectionOverlay.tsx",
       "area": "ui",
       "sha256": "cfdfc511eb663ae0d9c8e07ac154c95e40b233a67d6d1af150f7a4710d25c056",
-      "disposition": "pending",
+      "disposition": "reviewed-retained",
       "evidence": [
-        "2026-09-12 reconciliation: source changed since recorded SHA-256 761dcacbaf06d7972d4653e7d24f47162ab87146af284abfdad73e9fdcc4b87b; earlier audit references are historical, current source review required."
+        "docs/design/admin-workspace/title-selection-audit.md: exact source review and eleven tests; native Browser interaction/geometry remains open."
       ]
     },
     {
@@ -3030,10 +3034,10 @@
     {
       "path": "apps/admin/src/components/astryx/SelectionOverlay.test.tsx",
       "area": "components",
-      "sha256": "91518c290cf1c57c09f376bd2f1fab73e930b003704cfb26bec647a0c55f7214",
-      "disposition": "pending",
+      "sha256": "0a0a36d7eb5a26c07a6405f271defcba6876b4f238c08bef646cfb4969c6f86c",
+      "disposition": "updated",
       "evidence": [
-        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+        "docs/design/admin-workspace/title-selection-audit.md: exact source review and eleven tests; native Browser interaction/geometry remains open."
       ]
     },
     {
@@ -3067,18 +3071,18 @@
       "path": "apps/admin/src/lib/editor-selection-bookmark.test.ts",
       "area": "data-and-helpers",
       "sha256": "ae9d130f5e945ba9ff536eafd729931eae9a18416463ba340cf6be62de1d6156",
-      "disposition": "pending",
+      "disposition": "reviewed-retained",
       "evidence": [
-        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+        "docs/design/admin-workspace/title-selection-audit.md: exact source review and eleven tests; native Browser interaction/geometry remains open."
       ]
     },
     {
       "path": "apps/admin/src/lib/editor-selection-bookmark.ts",
       "area": "data-and-helpers",
       "sha256": "d17256ed7616a197459764be5c6378f219e5a9580876be56227c305b4a42db60",
-      "disposition": "pending",
+      "disposition": "reviewed-retained",
       "evidence": [
-        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+        "docs/design/admin-workspace/title-selection-audit.md: exact source review and eleven tests; native Browser interaction/geometry remains open."
       ]
     },
     {
