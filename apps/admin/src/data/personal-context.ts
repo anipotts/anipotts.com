@@ -55,6 +55,16 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 const isCursor = (value: unknown) =>
   typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+export function nextLifeOffset(value: unknown, current = 0): number | null {
+  if (value === null) return null;
+  if (
+    !isCursor(value) ||
+    Number(value) <= current ||
+    Number(value) > 10_000_000
+  )
+    throw new Error("Invalid continuation cursor");
+  return Number(value);
+}
 function validResponse(
   request: LifeRead,
   data: Record<string, unknown>,
@@ -88,14 +98,20 @@ function validResponse(
       return (
         Array.isArray(data.items) &&
         data.items.every(isObject) &&
-        isCursor(data.next_cursor)
+        isCursor(data.next_cursor) &&
+        Number(data.next_cursor) <= 10_000_000 &&
+        Number(data.next_cursor) >= (request.after ?? 0)
       );
     default:
       return (
         Array.isArray(data.items) &&
         data.items.every(isObject) &&
         isCursor(data.total) &&
-        (data.next_offset === null || isCursor(data.next_offset))
+        (data.next_offset === null ||
+          (isCursor(data.next_offset) &&
+            Number(data.next_offset) <= 10_000_000 &&
+            Number(data.next_offset) >
+              ("offset" in request ? (request.offset ?? 0) : 0)))
       );
   }
 }

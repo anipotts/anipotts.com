@@ -15,7 +15,12 @@ import { Collapsible } from "@astryxdesign/core/Collapsible";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { Toolbar } from "@astryxdesign/core/Toolbar";
 import { LifeActivityView } from "./LifeActivityView";
-import type { LifeResult } from "../../data/personal-context";
+import {
+  nextLifeOffset,
+  type LifeRead,
+  type LifeResult,
+} from "../../data/personal-context";
+import { AdminSkeleton, RecoveryBanner } from "../astryx/AdminFeedback";
 import {
   LifeReadSession,
   appendLifeBody,
@@ -97,9 +102,6 @@ export function LifeRecord({ record }: { record: Record<string, unknown> }) {
           {record.omitted_fields.map((value) => scalar(value)).join(", ")}
         </Text>
       )}
-      {record.next_body_offset != null && (
-        <Text>More text is available in this revision.</Text>
-      )}
     </VStack>
   );
 }
@@ -120,7 +122,6 @@ export function LifeReadView({
             ? "Life is not connected yet"
             : "Life is unavailable"}
         </Text>
-        <Text color="secondary">Your records remain at their source.</Text>
         <Button
           label="Check again"
           href={href(section)}
@@ -208,7 +209,6 @@ export function LifeReadView({
       {items.length === 0 && (
         <Text>No permitted records match this request.</Text>
       )}
-      {data.next_offset != null && <Text>More records are available.</Text>}
     </VStack>
   );
 }
@@ -227,6 +227,7 @@ export function LifeExplorer({
   const [result, setResult] = useState(initial);
   const [offsets, setOffsets] = useState([0]);
   const [busy, setBusy] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
   const [record, setRecord] = useState<Record<string, unknown> | null>(null);
   const [detailBusy, setDetailBusy] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -247,17 +248,29 @@ export function LifeExplorer({
   };
   async function load(q: string, history: number[]) {
     if (!reader) return;
+    let request: LifeRead;
+    try {
+      request = lifeSectionRead(section, {
+        query: q,
+        offset: history.at(-1) ?? 0,
+      });
+    } catch {
+      setListError("This page could not be continued. Try the search again.");
+      return;
+    }
     closeRecord();
     setBusy(true);
-    const next = await listSession.current.run(
-      reader,
-      lifeSectionRead(section, { query: q, offset: history.at(-1) ?? 0 }),
-    );
+    setListError(null);
+    const next = await listSession.current.run(reader, request);
     if (next) {
-      setResult(next);
-      setSubmitted(q);
-      setOffsets(history);
       setBusy(false);
+      if (next.state === "ready") {
+        setResult(next);
+        setSubmitted(q);
+        setOffsets(history);
+      } else if (next.state === "denied" || next.state === "disconnected")
+        setResult(next);
+      else setListError("Records could not be refreshed. Try again.");
     }
   }
   async function select(id: string) {
@@ -309,10 +322,15 @@ export function LifeExplorer({
     }
   }
   const searchable = !["overview", "sources", "timeline"].includes(section);
-  const nextOffset =
-    result.state === "ready" && typeof result.data.next_offset === "number"
-      ? result.data.next_offset
-      : null;
+  let nextOffset: number | null = null;
+  let pagingError: string | null = null;
+  if (result.state === "ready" && !["overview", "preview"].includes(section)) {
+    try {
+      nextOffset = nextLifeOffset(result.data.next_offset, offsets.at(-1) ?? 0);
+    } catch {
+      pagingError = "This page could not be continued. Try the search again.";
+    }
+  }
   return (
     <VStack gap={4}>
       {searchable && (
@@ -346,14 +364,22 @@ export function LifeExplorer({
           isLoading={busy}
         />
       )}
-      {busy ? (
-        <Text role="status">Loading records…</Text>
-      ) : (
-        <LifeReadView
-          result={result}
-          section={section}
-          onSelect={reader ? (id) => void select(id) : undefined}
+      {(listError || pagingError) && (
+        <RecoveryBanner
+          title={listError ?? pagingError ?? "Read unavailable"}
+          onRetry={() => load(query, [0])}
         />
+      )}
+      {busy && result.state !== "ready" ? (
+        <AdminSkeleton kind="history" />
+      ) : (
+        <VStack aria-busy={busy}>
+          <LifeReadView
+            result={result}
+            section={section}
+            onSelect={reader ? (id) => void select(id) : undefined}
+          />
+        </VStack>
       )}
       {reader &&
         !busy &&
@@ -386,7 +412,7 @@ export function LifeExplorer({
           <Button label="Close details" onClick={closeRecord} variant="ghost" />
           {detailError && <Text role="alert">{detailError}</Text>}
           {record && <LifeRecord record={record} />}
-          {detailBusy && <Text role="status">Reading record…</Text>}
+          {detailBusy && !record && <AdminSkeleton kind="history" />}
           {record?.next_body_offset != null && (
             <Button
               label="Read more"
@@ -445,17 +471,6 @@ export function LifeWorkspace({
                   ["Recent window", "Seven days"],
                 ]}
               />
-            )}
-            {section === "people" && (
-              <Text color="secondary">
-                Source profiles stay separate until their identities are
-                reconciled.
-              </Text>
-            )}
-            {section === "timeline" && (
-              <Text color="secondary">
-                Effective dates and observed dates are kept separately.
-              </Text>
             )}
             <LifeExplorer
               key={section}

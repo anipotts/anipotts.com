@@ -5,11 +5,17 @@ export type LifeReader = (request: LifeRead) => Promise<LifeResult>;
 /** One independent instance per list/detail view; late responses cannot replace newer reads. */
 export class LifeReadSession {
   private generation = 0;
+  private pending?: { reader: LifeReader; key: string; generation: number };
   invalidate() {
     this.generation += 1;
+    this.pending = undefined;
   }
   async run(reader: LifeReader, request: LifeRead): Promise<LifeResult | null> {
+    const key = JSON.stringify(request);
+    if (this.pending?.reader === reader && this.pending.key === key)
+      return null;
     const generation = ++this.generation;
+    this.pending = { reader, key, generation };
     let result: LifeResult;
     try {
       result = await reader(request);
@@ -19,6 +25,7 @@ export class LifeReadSession {
         message: "The read could not be completed.",
       };
     }
+    if (this.pending?.generation === generation) this.pending = undefined;
     return generation === this.generation ? result : null;
   }
 }
