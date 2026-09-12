@@ -2,6 +2,21 @@ import { describe, expect, it, vi } from "vitest";
 import { lifeReadPath, readPersonalContext } from "./personal-context";
 
 describe("Life read boundary", () => {
+  it("rejects provider continuation cursors outside the request bounds", async () => {
+    for (const next_offset of [-1, 1.5, 10_000_001, 0]) {
+      expect(
+        (
+          await readPersonalContext(
+            { method: "search", q: "fixture" },
+            {
+              scope: "agent",
+              read: async () => ({ items: [], total: 1, next_offset }),
+            },
+          )
+        ).state,
+      ).toBe("invalid");
+    }
+  });
   it("finishes a stalled transport and aborts the underlying read", async () => {
     vi.useFakeTimers();
     let signal: AbortSignal | undefined;

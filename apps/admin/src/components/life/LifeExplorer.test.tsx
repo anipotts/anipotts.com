@@ -87,6 +87,71 @@ async function click(label: string) {
   await act(async () => button!.click());
 }
 describe("Life reader interactions", () => {
+  it.each([-1, 1.5, 10_000_001])(
+    "recovers from invalid continuation %s without dispatching it",
+    async (next_offset) => {
+      const requests: LifeRead[] = [];
+      const reader = async (request: LifeRead) => {
+        requests.push(request);
+        return ready({ items: [record], total: 1, next_offset: null });
+      };
+      await act(async () =>
+        root.render(
+          <LifeExplorer
+            section="people"
+            initial={ready({ items: [record], total: 1, next_offset })}
+            reader={reader}
+          />,
+        ),
+      );
+      expect(container.textContent).toContain("could not be continued");
+      expect(container.textContent).toContain("Fixture record");
+      expect(requests).toHaveLength(0);
+      await click("Try again");
+      expect(requests).toEqual([
+        { method: "search", kind: "person", q: "", offset: 0 },
+      ]);
+    },
+  );
+  it("keeps rows while refreshing, deduplicates submission and recovers from failure", async () => {
+    let finish!: (value: LifeResult) => void;
+    const reader = vi.fn(
+      () =>
+        new Promise<LifeResult>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    await act(async () =>
+      root.render(
+        <LifeExplorer
+          section="people"
+          initial={ready({ items: [record], total: 1, next_offset: null })}
+          reader={reader}
+        />,
+      ),
+    );
+    await act(async () => {
+      const form = container.querySelector("form")!;
+      form.dispatchEvent(
+        new dom.window.Event("submit", { bubbles: true, cancelable: true }),
+      );
+      form.dispatchEvent(
+        new dom.window.Event("submit", { bubbles: true, cancelable: true }),
+      );
+    });
+    expect(reader).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain("Fixture record");
+    expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
+    await act(async () =>
+      finish({
+        state: "unavailable",
+        message: "private exception must not render",
+      }),
+    );
+    expect(container.textContent).toContain("Fixture record");
+    expect(container.textContent).toContain("could not be refreshed");
+    expect(container.textContent).not.toContain("private exception");
+  });
   it("uses source pagination cursors and reads a selected revision contiguously", async () => {
     const requests: LifeRead[] = [];
     const reader = async (request: LifeRead) => {
