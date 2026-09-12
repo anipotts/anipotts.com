@@ -203,3 +203,26 @@ describe("admin access policy", () => {
     ).toBe("session");
   });
 });
+
+test("observability preview allows only the local read surface, keeping its API and production protected", () => {
+  expect(
+    decideAdminAccess({
+      isDev: true,
+      method: "GET",
+      url: local("/operations/observability"),
+      hasSession: false,
+    }),
+  ).toBe("dev-loopback-preview");
+  for (const input of [
+    {
+      isDev: false,
+      method: "GET",
+      url: new URL("https://admin.anipotts.com/operations/observability"),
+    },
+    { isDev: true, method: "GET", url: local("/api/admin/observability") },
+    { isDev: true, method: "POST", url: local("/operations/observability") },
+  ])
+    expect(decideAdminAccess({ ...input, hasSession: false })).toBe(
+      "passkey-required",
+    );
+});

@@ -199,6 +199,15 @@ export const navItems: NavItem[] = [
     mobile: true,
   },
   {
+    href: "/operations/observability",
+    label: "Observability",
+    status: "coverage",
+    group: "system",
+    description: "service coverage and operational evidence",
+    icon: "system",
+    parent: "system",
+  },
+  {
     href: "/fleet",
     label: "Fleet",
     status: "runtime",

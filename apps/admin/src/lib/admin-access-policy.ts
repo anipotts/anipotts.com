@@ -45,6 +45,7 @@ const DEV_LOOPBACK_ORIGINS = new Set([
 const DEV_LOOPBACK_PREVIEW_PATHS = new Set([
   "/",
   "/inbox",
+  "/operations/observability",
   "/work",
   "/content",
   "/content/carousels",

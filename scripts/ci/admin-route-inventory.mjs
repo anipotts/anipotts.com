@@ -1,5 +1,16 @@
 export const ADMIN_ROUTES = [
   {
+    route: "/api/admin/observability",
+    file: "apps/admin/src/pages/api/admin/observability.ts",
+    nav: false,
+  },
+  {
+    route: "/operations/observability",
+    file: "apps/admin/src/pages/operations/observability.astro",
+    nav: true,
+    smoke: false,
+  },
+  {
     route: "/",
     file: "apps/admin/src/pages/index.astro",
     nav: false,

@@ -73,3 +73,20 @@ describe("AdminShell mobile navigation", () => {
     expect(sheetRule).not.toContain("var(--color-background)");
   });
 });
+
+it("opens System and marks Observability selected for the new read surface", () => {
+  const markup = renderToStaticMarkup(
+    <AdminShell
+      chrome="admin"
+      currentRoute="/operations/observability"
+      navItems={navItems}
+      title="Observability"
+    >
+      <div />
+    </AdminShell>,
+  );
+  expect(markup).toContain('data-admin-nav-group="system" open=""');
+  expect(markup).toContain(
+    'href="/operations/observability" aria-current="page"',
+  );
+});

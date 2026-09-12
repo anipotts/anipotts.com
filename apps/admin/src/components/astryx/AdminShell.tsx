@@ -307,6 +307,7 @@ function isGroupActive(currentRoute: string, item: NavItem) {
   if (item.group === "system") {
     return [
       "/system",
+      "/operations/observability",
       "/fleet",
       "/proof",
       "/deploys",

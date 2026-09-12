@@ -852,19 +852,19 @@
     {
       "path": "apps/admin/src/components/astryx/AdminShell.test.tsx",
       "area": "ui",
-      "sha256": "32bc917533d9dc240c8f4119aacab3129591ac8eb3c87208d642eb11735e97e2",
+      "sha256": "877dcf68a413467fa615a17b1277aa065ab92d48f7a68c5a800653590d72fd0c",
       "disposition": "pending",
       "evidence": [
-        "2026-09-12 reconciliation: source changed since recorded SHA-256 5223959aeb006c3e9f13ed7bd46a23e042da2ee264a239ea4cc017c23a3b2486; earlier audit references are historical, current source review required."
+        "Shared Operations integration changed this source; full-file review remains pending."
       ]
     },
     {
       "path": "apps/admin/src/components/astryx/AdminShell.tsx",
       "area": "ui",
-      "sha256": "b42f62dd27ebbd875c6e2f482eba84f31fbca89e5da1791848e81a96e9fdeb24",
+      "sha256": "899aba0044cd675a64c00809a7aef64e6dd5dec4ba1dd79916d180058faaab72",
       "disposition": "pending",
       "evidence": [
-        "2026-09-12 reconciliation: source changed since recorded SHA-256 c3bf2c4b606a67a881de697f89a30243c3433f0c67694275cb66ba0b1272efe0; earlier audit references are historical, current source review required."
+        "Shared Operations integration changed this source; full-file review remains pending."
       ]
     },
     {
@@ -1164,11 +1164,10 @@
     {
       "path": "apps/admin/src/data/admin.ts",
       "area": "data-and-contracts",
-      "sha256": "a640748a8629cc1720b9afcad4e4cc9ff44fa314c1a99ca98a40be8f2962de6f",
+      "sha256": "917a9761183bf19726644863da381f5eb6e3325733cc543119c20635fbbf5166",
       "disposition": "pending",
       "evidence": [
-        "2026-09-12 reconciliation: source changed since recorded SHA-256 a5e7e23cc569201f2b7ea199a5edad125e151f729d400c64df37eb077c082659; earlier audit references are historical, current source review required.",
-        "docs/design/admin-workspace/operations-audit.md: source audit and explicit remaining gaps; browser QA pending."
+        "Shared Operations integration changed this source; full-file review remains pending."
       ]
     },
     {
@@ -1567,19 +1566,19 @@
     {
       "path": "apps/admin/src/lib/admin-access-policy.test.ts",
       "area": "tests",
-      "sha256": "23d36c89b3e169863d0ffc3589378b799fc4d08db5ac278f0982267c9470bb61",
+      "sha256": "f42e26f58ed39ae2ca29cc4796e9c3492344c2afe2f31be3bbcaa2387a616de4",
       "disposition": "pending",
-      "evidence": []
+      "evidence": [
+        "Shared Operations integration changed this source; full-file review remains pending."
+      ]
     },
     {
       "path": "apps/admin/src/lib/admin-access-policy.ts",
       "area": "data-and-contracts",
-      "sha256": "cd5fa6b0b69bd917ee30aec3e323e1050829a4c65dc1515b9b45bead5d567e4a",
-      "disposition": "reviewed-retained",
+      "sha256": "82512e12e0d714ba9eea96a4faeebb3e65006791fcb77d81decd2b74a0c975d1",
+      "disposition": "pending",
       "evidence": [
-        "Full source review recorded in docs/design/admin-workspace/api-audit.md.",
-        "Explicit public-path and DEV read-only approved-origin allowlists. Historical auth API names in allowlist are not evidence of currently implemented handlers.",
-        "90 existing boundary tests passed; live route/provider QA pending."
+        "Shared Operations integration changed this source; full-file review remains pending."
       ]
     },
     {
@@ -3098,6 +3097,87 @@
       "disposition": "pending",
       "evidence": [
         "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+      ]
+    },
+    {
+      "path": "apps/admin/src/components/astryx/ObservabilityWorkspace.test.tsx",
+      "area": "observability",
+      "sha256": "f5c33fab3f90057db9649757f9347e3a290455f955430df5f2fd2e03fd9e1a89",
+      "disposition": "pending",
+      "evidence": [
+        "Integrated Operations increment; current source review tracked in observability-integration.md."
+      ]
+    },
+    {
+      "path": "apps/admin/src/components/astryx/ObservabilityWorkspace.tsx",
+      "area": "observability",
+      "sha256": "adc9631c34ca693be8c186744fa2010bff5926ae37582ecdfe60f6e269310456",
+      "disposition": "pending",
+      "evidence": [
+        "Integrated Operations increment; current source review tracked in observability-integration.md."
+      ]
+    },
+    {
+      "path": "apps/admin/src/components/astryx/observability.css",
+      "area": "observability",
+      "sha256": "ee2e49b3603f91c32b77bfa5cee3d4fb34fa05f41f1b355addc9f0cac67f76d6",
+      "disposition": "pending",
+      "evidence": [
+        "Integrated Operations increment; current source review tracked in observability-integration.md."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/observability-model.test.ts",
+      "area": "observability",
+      "sha256": "1e4271383227e23567d0e638c5e8a52f37daecd2ad2786b26ca6f97e09a3bb34",
+      "disposition": "pending",
+      "evidence": [
+        "Integrated Operations increment; current source review tracked in observability-integration.md."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/observability-model.ts",
+      "area": "observability",
+      "sha256": "92e59c7dd378918a4337d633e0e60178ee888e380bd2c78d2edc0497a4b0699a",
+      "disposition": "pending",
+      "evidence": [
+        "Integrated Operations increment; current source review tracked in observability-integration.md."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/observability-reader.test.ts",
+      "area": "observability",
+      "sha256": "4a41cf6a9e60365751e79f8581ac491c164a0746431e8e49fce99ca8b76241ad",
+      "disposition": "pending",
+      "evidence": [
+        "Integrated Operations increment; current source review tracked in observability-integration.md."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/observability-reader.ts",
+      "area": "observability",
+      "sha256": "47aa460816bda96112fa002a87540ac856e9a08ef056400773a26927fef95ace",
+      "disposition": "pending",
+      "evidence": [
+        "Integrated Operations increment; current source review tracked in observability-integration.md."
+      ]
+    },
+    {
+      "path": "apps/admin/src/pages/api/admin/observability.ts",
+      "area": "observability",
+      "sha256": "252496cc7fda9044b192cb732cfffb3027ea1ca2c0e34e57d846604328df8ad9",
+      "disposition": "pending",
+      "evidence": [
+        "Integrated Operations increment; current source review tracked in observability-integration.md."
+      ]
+    },
+    {
+      "path": "apps/admin/src/pages/operations/observability.astro",
+      "area": "observability",
+      "sha256": "cef23004f751c35dd613a53968cbe5e163c97e956380dfc8456da810a91c77b4",
+      "disposition": "pending",
+      "evidence": [
+        "Integrated Operations increment; current source review tracked in observability-integration.md."
       ]
     }
   ]

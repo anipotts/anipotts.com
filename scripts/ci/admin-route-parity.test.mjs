@@ -191,6 +191,7 @@ assert.deepEqual(devLoopbackPreviewPaths, [
   "/life/health",
   "/mutations",
   "/newsletter",
+  "/operations/observability",
   "/proof",
   "/repos",
   "/system",
