@@ -784,9 +784,11 @@
     {
       "path": "apps/admin/src/components/ControlPlaneReceipt.astro",
       "area": "ui",
-      "sha256": "4886d5632af63c453535875999c9f5fefb009ac0d4a049788a389814a955cc65",
+      "sha256": "f63c0b31fac5d92a153cfbb4e97eae53b08f34afe4077258a30bf75a6c797cb5",
       "disposition": "pending",
-      "evidence": []
+      "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 4886d5632af63c453535875999c9f5fefb009ac0d4a049788a389814a955cc65; earlier audit references are historical, current source review required."
+      ]
     },
     {
       "path": "apps/admin/src/components/SemanticInspector.astro",
@@ -806,22 +808,28 @@
       "path": "apps/admin/src/components/SourceMark.test.tsx",
       "area": "ui",
       "sha256": "efcc19a9a4a8e32084e3a3e443dad51a1410bd5759e2cb578bfec54fc58896ea",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/source-marks-audit.md: exact-hash identity/icon source review; render tests retained."
+      ]
     },
     {
       "path": "apps/admin/src/components/SourceMark.tsx",
       "area": "ui",
       "sha256": "a3791b3d5a70894330a676d0733eddc64982783828501083ebb48856689a366b",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/source-marks-audit.md: exact-hash identity/icon source review; render tests retained."
+      ]
     },
     {
       "path": "apps/admin/src/components/admin-icons.tsx",
       "area": "ui",
       "sha256": "0d75cbfb8246a16472fe22a416673bac23a2a348ed487fea4566cf712979edef",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/source-marks-audit.md: exact-hash identity/icon source review; render tests retained."
+      ]
     },
     {
       "path": "apps/admin/src/components/astryx/AdminCommandPalette.tsx",
@@ -844,23 +852,29 @@
     {
       "path": "apps/admin/src/components/astryx/AdminShell.test.tsx",
       "area": "ui",
-      "sha256": "5223959aeb006c3e9f13ed7bd46a23e042da2ee264a239ea4cc017c23a3b2486",
+      "sha256": "32bc917533d9dc240c8f4119aacab3129591ac8eb3c87208d642eb11735e97e2",
       "disposition": "pending",
-      "evidence": []
+      "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 5223959aeb006c3e9f13ed7bd46a23e042da2ee264a239ea4cc017c23a3b2486; earlier audit references are historical, current source review required."
+      ]
     },
     {
       "path": "apps/admin/src/components/astryx/AdminShell.tsx",
       "area": "ui",
-      "sha256": "c3bf2c4b606a67a881de697f89a30243c3433f0c67694275cb66ba0b1272efe0",
+      "sha256": "b42f62dd27ebbd875c6e2f482eba84f31fbca89e5da1791848e81a96e9fdeb24",
       "disposition": "pending",
-      "evidence": []
+      "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 c3bf2c4b606a67a881de697f89a30243c3433f0c67694275cb66ba0b1272efe0; earlier audit references are historical, current source review required."
+      ]
     },
     {
       "path": "apps/admin/src/components/astryx/ArticleBody.tsx",
       "area": "ui",
-      "sha256": "0daaa63527e5ac4fdceefd283a0c8fac024e14bd98e82b636e2b5c4d07eea04f",
+      "sha256": "780a451d9369e2869af2962b0aa43355f2e963b399770c10ea175c05ccc01477",
       "disposition": "pending",
-      "evidence": []
+      "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 0daaa63527e5ac4fdceefd283a0c8fac024e14bd98e82b636e2b5c4d07eea04f; earlier audit references are historical, current source review required."
+      ]
     },
     {
       "path": "apps/admin/src/components/astryx/ArticleDate.tsx",
@@ -874,9 +888,11 @@
     {
       "path": "apps/admin/src/components/astryx/ArticleImageCrop.tsx",
       "area": "ui",
-      "sha256": "19d8d9df9dd994912998a7291997e30971bf4a5fc6ff88c6a2f3fe6f6077f620",
+      "sha256": "e5519ec70ec22181020b4886cb474c97628747a4e1a06b82f6012e92602224ca",
       "disposition": "pending",
-      "evidence": []
+      "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 19d8d9df9dd994912998a7291997e30971bf4a5fc6ff88c6a2f3fe6f6077f620; earlier audit references are historical, current source review required."
+      ]
     },
     {
       "path": "apps/admin/src/components/astryx/ArticleImageUpload.test.tsx",
@@ -924,16 +940,20 @@
     {
       "path": "apps/admin/src/components/astryx/EditorialApp.test.tsx",
       "area": "ui",
-      "sha256": "8969eb32db3d2dace3d3eee01bfc9dc5990850a9a73618d7c961d523f965c150",
+      "sha256": "76298071f67d7b447fd8759554e4d4fcb95bd1e27850231ca7d543f6f6525455",
       "disposition": "pending",
-      "evidence": []
+      "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 8969eb32db3d2dace3d3eee01bfc9dc5990850a9a73618d7c961d523f965c150; earlier audit references are historical, current source review required."
+      ]
     },
     {
       "path": "apps/admin/src/components/astryx/EditorialApp.tsx",
       "area": "ui",
-      "sha256": "088ddfd5d883a0835d737c4eb33fca6918d9b176955c9a1e5a4ba0490ccd49c0",
+      "sha256": "8b3c6e9ae6017f978d07f30444babdb0ef78eb91156855baa63e6b1a072ea740",
       "disposition": "pending",
-      "evidence": []
+      "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 088ddfd5d883a0835d737c4eb33fca6918d9b176955c9a1e5a4ba0490ccd49c0; earlier audit references are historical, current source review required."
+      ]
     },
     {
       "path": "apps/admin/src/components/astryx/HomeEditor.navigation.test.tsx",
@@ -949,9 +969,10 @@
     {
       "path": "apps/admin/src/components/astryx/HomeEditor.tsx",
       "area": "ui",
-      "sha256": "1ac05a74c070159d013dc6d473d21aed5ee242549243391475b46a0c16aa3212",
-      "disposition": "updated",
+      "sha256": "56197f59ffcd82a5f890a413ef7b000985d25d9c5405f0e506ea66bda64ba861",
+      "disposition": "pending",
       "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 1ac05a74c070159d013dc6d473d21aed5ee242549243391475b46a0c16aa3212; earlier audit references are historical, current source review required.",
         "Source review: URL mode owner, exclusive panels, exact acknowledged review source/revision, post-CSRF navigation guard.",
         "HomeEditor navigation: four DOM interaction tests passed; helper and inspector focus tests passed.",
         "Actual Browser responsive, live and latency QA remain pending; full check receipt in coverage.md."
@@ -960,9 +981,11 @@
     {
       "path": "apps/admin/src/components/astryx/NewWriting.tsx",
       "area": "ui",
-      "sha256": "7b5d9d5fe186c2cf881cf48cb53b9ac098a16e5c2b057d0f57c5162cf1f96141",
+      "sha256": "373a7ff3eaa1fd3f912f36b1082003e0688bb8ab9483a6293c8d6d7f01cf956c",
       "disposition": "pending",
-      "evidence": []
+      "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 7b5d9d5fe186c2cf881cf48cb53b9ac098a16e5c2b057d0f57c5162cf1f96141; earlier audit references are historical, current source review required."
+      ]
     },
     {
       "path": "apps/admin/src/components/astryx/OperationalCommandPalette.test.ts",
@@ -1043,9 +1066,11 @@
     {
       "path": "apps/admin/src/components/astryx/ReviewChanges.tsx",
       "area": "ui",
-      "sha256": "cd625546d02c79db167ceb9699fc78351ef555998f2e85996324c7fe935b0828",
+      "sha256": "4ad3b6b27241a9c22bdaeca443adabd69c55c090369bb3be745ff7047389bbb7",
       "disposition": "pending",
-      "evidence": []
+      "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 cd625546d02c79db167ceb9699fc78351ef555998f2e85996324c7fe935b0828; earlier audit references are historical, current source review required."
+      ]
     },
     {
       "path": "apps/admin/src/components/astryx/RichTextField.tsx",
@@ -1059,16 +1084,20 @@
     {
       "path": "apps/admin/src/components/astryx/SavedArticlePreview.tsx",
       "area": "ui",
-      "sha256": "ef81dd20ea53f4f0eebb15e3da8e1c11953edee5c67fa49d253742167dd1048f",
+      "sha256": "9a5a689c212af9026fb3c48deaf32a09086ae41319d2f9845649581382918660",
       "disposition": "pending",
-      "evidence": []
+      "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 ef81dd20ea53f4f0eebb15e3da8e1c11953edee5c67fa49d253742167dd1048f; earlier audit references are historical, current source review required."
+      ]
     },
     {
       "path": "apps/admin/src/components/astryx/SelectionOverlay.tsx",
       "area": "ui",
-      "sha256": "761dcacbaf06d7972d4653e7d24f47162ab87146af284abfdad73e9fdcc4b87b",
+      "sha256": "cfdfc511eb663ae0d9c8e07ac154c95e40b233a67d6d1af150f7a4710d25c056",
       "disposition": "pending",
-      "evidence": []
+      "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 761dcacbaf06d7972d4653e7d24f47162ab87146af284abfdad73e9fdcc4b87b; earlier audit references are historical, current source review required."
+      ]
     },
     {
       "path": "apps/admin/src/components/astryx/WritingEditor.tsx",
@@ -1116,9 +1145,10 @@
     {
       "path": "apps/admin/src/data/admin-search.test.ts",
       "area": "tests",
-      "sha256": "f86b9c244f45ee7f3ad4f81317b2b12ed0c7ffffa90534f76dbb74b140f1d9e1",
-      "disposition": "updated",
+      "sha256": "1f7b34d59c4aee05d9941afc44fe424d87c3a0e77c7c68faf28eb87c1461772e",
+      "disposition": "pending",
       "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 f86b9c244f45ee7f3ad4f81317b2b12ed0c7ffffa90534f76dbb74b140f1d9e1; earlier audit references are historical, current source review required.",
         "docs/design/admin-workspace/operations-audit.md: source audit and explicit remaining gaps; browser QA pending."
       ]
     },
@@ -1134,9 +1164,10 @@
     {
       "path": "apps/admin/src/data/admin.ts",
       "area": "data-and-contracts",
-      "sha256": "a5e7e23cc569201f2b7ea199a5edad125e151f729d400c64df37eb077c082659",
-      "disposition": "updated",
+      "sha256": "a640748a8629cc1720b9afcad4e4cc9ff44fa314c1a99ca98a40be8f2962de6f",
+      "disposition": "pending",
       "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 a5e7e23cc569201f2b7ea199a5edad125e151f729d400c64df37eb077c082659; earlier audit references are historical, current source review required.",
         "docs/design/admin-workspace/operations-audit.md: source audit and explicit remaining gaps; browser QA pending."
       ]
     },
@@ -1226,9 +1257,11 @@
     {
       "path": "apps/admin/src/data/knowledge.ts",
       "area": "data-and-contracts",
-      "sha256": "310693b54d8c355efb03439d58f801218881a5c52f98deac6e8cdeac84bbdc30",
+      "sha256": "6a17be3e9eaeafbf92beb691da21df45ac05fabc8991aebf7bf8908546d419c0",
       "disposition": "pending",
-      "evidence": []
+      "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 310693b54d8c355efb03439d58f801218881a5c52f98deac6e8cdeac84bbdc30; earlier audit references are historical, current source review required."
+      ]
     },
     {
       "path": "apps/admin/src/data/newsletter.ts",
@@ -1507,9 +1540,11 @@
     {
       "path": "apps/admin/src/layouts/EditorialLayout.astro",
       "area": "theme-and-layout",
-      "sha256": "0769c1d3a36d9d5092e847c0a8cd4aebdc68e0e52d9504919f6fb884972a3756",
+      "sha256": "5aebb320f7a95580cf539c0d217e68ba3699a5d573f3f91bd017f1d231af5f11",
       "disposition": "pending",
-      "evidence": []
+      "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 0769c1d3a36d9d5092e847c0a8cd4aebdc68e0e52d9504919f6fb884972a3756; earlier audit references are historical, current source review required."
+      ]
     },
     {
       "path": "apps/admin/src/lib/access-identity.test.ts",
@@ -1708,16 +1743,20 @@
     {
       "path": "apps/admin/src/lib/draft-recovery.test.ts",
       "area": "tests",
-      "sha256": "e332aa73e637119d6fd513ec4d295c5f219fb79942b4a144a8591289afc29498",
+      "sha256": "79de9d06d243b7aa0341421bba05c90f149a68d6057aeb7ac673311678ac1e78",
       "disposition": "pending",
-      "evidence": []
+      "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 e332aa73e637119d6fd513ec4d295c5f219fb79942b4a144a8591289afc29498; earlier audit references are historical, current source review required."
+      ]
     },
     {
       "path": "apps/admin/src/lib/draft-recovery.ts",
       "area": "data-and-contracts",
-      "sha256": "19cdacab791ad23e2dce5fcc2c6cff884ee3c433ab1b3aabd326f02148d5e5fb",
+      "sha256": "2277ef21a8f7a51298c569ded034e7f0099efb68e6edc54b5ca155947a73fa32",
       "disposition": "pending",
-      "evidence": []
+      "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 19cdacab791ad23e2dce5fcc2c6cff884ee3c433ab1b3aabd326f02148d5e5fb; earlier audit references are historical, current source review required."
+      ]
     },
     {
       "path": "apps/admin/src/lib/editorial-content.ts",
@@ -1855,9 +1894,11 @@
     {
       "path": "apps/admin/src/lib/image-crop.test.ts",
       "area": "tests",
-      "sha256": "252cad6f5a0a5811f72ed1154d70f3140dacb66895d9b3ae2ae41aa8ac82ef61",
+      "sha256": "e55e74cc00e9986f619292d05626fa1dea54b0ea392b9ccc14abfd68aff41e63",
       "disposition": "pending",
-      "evidence": []
+      "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 252cad6f5a0a5811f72ed1154d70f3140dacb66895d9b3ae2ae41aa8ac82ef61; earlier audit references are historical, current source review required."
+      ]
     },
     {
       "path": "apps/admin/src/lib/image-crop.ts",
@@ -2110,9 +2151,11 @@
     {
       "path": "apps/admin/src/pages/api/admin/knowledge.ts",
       "area": "api",
-      "sha256": "eac2ca8093b5c7a0763a7dc0bdb3750395aa889652de359de4e6a8e9fa189911",
+      "sha256": "87012f2108bb8bf49c87bad2f00e3968895eabd2bc1475b60c44930ca0078ee5",
       "disposition": "pending",
-      "evidence": []
+      "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 eac2ca8093b5c7a0763a7dc0bdb3750395aa889652de359de4e6a8e9fa189911; earlier audit references are historical, current source review required."
+      ]
     },
     {
       "path": "apps/admin/src/pages/api/admin/projections.ts",
@@ -2226,9 +2269,11 @@
     {
       "path": "apps/admin/src/pages/content/index.astro",
       "area": "routes",
-      "sha256": "a3e33018a352be1431bb22c06b8d32c32829445d764dcd0d435142b352481259",
+      "sha256": "123d91f9c1aa6decae46819f29509801cc0726a8cc3eac0926055999ce8fc530",
       "disposition": "pending",
-      "evidence": []
+      "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 a3e33018a352be1431bb22c06b8d32c32829445d764dcd0d435142b352481259; earlier audit references are historical, current source review required."
+      ]
     },
     {
       "path": "apps/admin/src/pages/content/new.astro",
@@ -2398,9 +2443,10 @@
     {
       "path": "apps/admin/src/pages/preview/record.astro",
       "area": "routes",
-      "sha256": "b25da84a090d54dc851ad5488559dc15c78da5b5115cfd8de6fc32cc7dd19399",
-      "disposition": "updated",
+      "sha256": "f1539e25a036f1a05d385e34f4059888ec295c033211d7568d7d6e8b9568c3bc",
+      "disposition": "pending",
       "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 b25da84a090d54dc851ad5488559dc15c78da5b5115cfd8de6fc32cc7dd19399; earlier audit references are historical, current source review required.",
         "docs/design/admin-workspace/operations-audit.md: source audit and explicit remaining gaps; browser QA pending."
       ]
     },
@@ -2457,16 +2503,20 @@
     {
       "path": "apps/admin/src/styles/admin.css",
       "area": "theme-and-layout",
-      "sha256": "70674286f901b640454cc0657826c938007e01e1fc0f800ed58482622d6f41c7",
+      "sha256": "ee8adf82a6719da935cd94aa52b9bbd628f0d5270b7d2f4dadf304c525ce1b4b",
       "disposition": "pending",
-      "evidence": []
+      "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 70674286f901b640454cc0657826c938007e01e1fc0f800ed58482622d6f41c7; earlier audit references are historical, current source review required."
+      ]
     },
     {
       "path": "apps/admin/src/styles/editorial.css",
       "area": "theme-and-layout",
-      "sha256": "850389d21058fa830dbabbf76561be48a956ea13f02f5205150f52b3c820d737",
+      "sha256": "9c56f5d04e53543d4f95d2eeaed3d6c5e12818b9043a3a75a71215a21c8cd714",
       "disposition": "pending",
-      "evidence": []
+      "evidence": [
+        "2026-09-12 reconciliation: source changed since recorded SHA-256 850389d21058fa830dbabbf76561be48a956ea13f02f5205150f52b3c820d737; earlier audit references are historical, current source review required."
+      ]
     },
     {
       "path": "apps/admin/src/styles/scrollbars.css",
@@ -2869,6 +2919,177 @@
       "disposition": "updated",
       "evidence": [
         "docs/design/admin-workspace/editor-interaction-audit.md: buffered inline editor follow-up; real TipTap transaction and serialization regression tests; browser profiling pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/components/ControlPlaneReceipt.test.ts",
+      "area": "components",
+      "sha256": "c69b7ccf243398314ca2f70d60ce4be18451e4eea6c49c6a53b5287782444103",
+      "disposition": "pending",
+      "evidence": [
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+      ]
+    },
+    {
+      "path": "apps/admin/src/components/astryx/ArticleImageCrop.test.tsx",
+      "area": "components",
+      "sha256": "55960cc5968aae937f77bb79eac6d19ac3dfc834673935dbe9dc994f35848f5c",
+      "disposition": "pending",
+      "evidence": [
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+      ]
+    },
+    {
+      "path": "apps/admin/src/components/astryx/ContentLibrary.test.tsx",
+      "area": "components",
+      "sha256": "86a93359316cec76cfff146ab68623bd1e96c38869d40e88905653cd97797877",
+      "disposition": "pending",
+      "evidence": [
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+      ]
+    },
+    {
+      "path": "apps/admin/src/components/astryx/ContentLibrary.tsx",
+      "area": "components",
+      "sha256": "65f69b794b344f74e89a45dcbf82d30b02e2c01a76f8420928f1f59d3603d5cf",
+      "disposition": "pending",
+      "evidence": [
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+      ]
+    },
+    {
+      "path": "apps/admin/src/components/astryx/EditorialApp.inventory.test.tsx",
+      "area": "components",
+      "sha256": "4a58725c198b7e581bebbd727426549453074f10f11143ba88ba558f963f9fd3",
+      "disposition": "pending",
+      "evidence": [
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+      ]
+    },
+    {
+      "path": "apps/admin/src/components/astryx/EditorialWorkspaceShell.mobile.test.tsx",
+      "area": "components",
+      "sha256": "33d5a64a9ba33b41f3e41a35ddf9fcad42ac5d7014f5009327a4693ae33a477b",
+      "disposition": "pending",
+      "evidence": [
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+      ]
+    },
+    {
+      "path": "apps/admin/src/components/astryx/EditorialWorkspaceShell.test.tsx",
+      "area": "components",
+      "sha256": "3cfd1e0c815a17696dd55958e8105904816f579663343bda8ac99aecfc9546f4",
+      "disposition": "pending",
+      "evidence": [
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+      ]
+    },
+    {
+      "path": "apps/admin/src/components/astryx/EditorialWorkspaceShell.tsx",
+      "area": "components",
+      "sha256": "80079135e5f3ff9aac2b26fc0783916583192a78bd37a75b11af27858f63945d",
+      "disposition": "pending",
+      "evidence": [
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+      ]
+    },
+    {
+      "path": "apps/admin/src/components/astryx/NewWriting.test.tsx",
+      "area": "components",
+      "sha256": "47033365411f67cf3099fe0476dfbf0986216732a079b6ec53e8e61115e72b50",
+      "disposition": "pending",
+      "evidence": [
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+      ]
+    },
+    {
+      "path": "apps/admin/src/components/astryx/ReviewChanges.test.tsx",
+      "area": "components",
+      "sha256": "4fe745c30dfb232bc3ca0c34dc2e6d2911c39dbe3754359eb0ac651821e8e054",
+      "disposition": "pending",
+      "evidence": [
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+      ]
+    },
+    {
+      "path": "apps/admin/src/components/astryx/SavedArticlePreview.test.tsx",
+      "area": "components",
+      "sha256": "9ae798a6fe877042ba7238e3e68992dc6afe4a14a80e59c32abfce721bf3cfab",
+      "disposition": "pending",
+      "evidence": [
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+      ]
+    },
+    {
+      "path": "apps/admin/src/components/astryx/SelectionOverlay.test.tsx",
+      "area": "components",
+      "sha256": "91518c290cf1c57c09f376bd2f1fab73e930b003704cfb26bec647a0c55f7214",
+      "disposition": "pending",
+      "evidence": [
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+      ]
+    },
+    {
+      "path": "apps/admin/src/data/knowledge.test.ts",
+      "area": "data-and-helpers",
+      "sha256": "eaecf98e4b14aa4e95e9eb1204059b2513300f67701250e175f894396ef3d10d",
+      "disposition": "pending",
+      "evidence": [
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/content-decision.test.ts",
+      "area": "data-and-helpers",
+      "sha256": "97b07961668e3bdfbba147453eb2e9048c49b045f11a6c975d5643f162124efe",
+      "disposition": "pending",
+      "evidence": [
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/content-decision.ts",
+      "area": "data-and-helpers",
+      "sha256": "82bd6cb8db7927d221b207737e9dc2f5e38928d02cc7cf62b9f982c431c61638",
+      "disposition": "pending",
+      "evidence": [
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/editor-selection-bookmark.test.ts",
+      "area": "data-and-helpers",
+      "sha256": "ae9d130f5e945ba9ff536eafd729931eae9a18416463ba340cf6be62de1d6156",
+      "disposition": "pending",
+      "evidence": [
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/editor-selection-bookmark.ts",
+      "area": "data-and-helpers",
+      "sha256": "d17256ed7616a197459764be5c6378f219e5a9580876be56227c305b4a42db60",
+      "disposition": "pending",
+      "evidence": [
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/preview-status.test.ts",
+      "area": "data-and-helpers",
+      "sha256": "2866775fb9ea615f3cc16e6a9deec076eb7e6287f4bf80ae6ced3db0394a75e7",
+      "disposition": "pending",
+      "evidence": [
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/preview-status.ts",
+      "area": "data-and-helpers",
+      "sha256": "75f9c79b2bdb66ea1bf59e47ea61da47a9d409df21397eee2625750ff7496286",
+      "disposition": "pending",
+      "evidence": [
+        "Added during 2026-09-12 tracked-tree reconciliation; current source review required."
       ]
     }
   ]
