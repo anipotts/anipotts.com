@@ -1,7 +1,28 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { lifeReadPath, readPersonalContext } from "./personal-context";
 
 describe("Life read boundary", () => {
+  it("finishes a stalled transport and aborts the underlying read", async () => {
+    vi.useFakeTimers();
+    let signal: AbortSignal | undefined;
+    try {
+      const pending = readPersonalContext(
+        { method: "status" },
+        {
+          scope: "agent",
+          read: async (_path, input) => {
+            signal = input;
+            return new Promise(() => {});
+          },
+        },
+      );
+      await vi.advanceTimersByTimeAsync(5000);
+      expect((await pending).state).toBe("unavailable");
+      expect(signal?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it("rejects incomplete success responses and oversized payloads", async () => {
     for (const data of [{}, { body: "x".repeat(1024 * 1024) }]) {
       expect(
