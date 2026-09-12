@@ -97,7 +97,7 @@ describe("optional observability workspace", () => {
         />,
       ),
     );
-    expect(host.querySelectorAll("tbody tr")).toHaveLength(2);
+    expect(host.querySelectorAll(".astryx-collapsible")).toHaveLength(2);
     const coverage = host.querySelector<HTMLButtonElement>(
       '[data-tab-value][aria-current="page"]',
     )!;
@@ -178,7 +178,7 @@ describe("optional observability workspace", () => {
         .find((button) => button.textContent === "Clear search")!
         .click(),
     );
-    expect(host.querySelectorAll("tbody tr")).toHaveLength(2);
+    expect(host.querySelectorAll(".astryx-collapsible")).toHaveLength(2);
   });
   it("keeps loops unknown and diagnostics behind More", async () => {
     await act(async () =>
@@ -197,9 +197,41 @@ describe("optional observability workspace", () => {
         .querySelector<HTMLButtonElement>('[data-tab-value="loops"]')!
         .click(),
     );
-    expect(host.querySelectorAll("tbody tr")).toHaveLength(6);
+    expect(host.querySelectorAll(".astryx-collapsible")).toHaveLength(6);
     expect(host.textContent).toContain("Not observed");
     expect(host.textContent).not.toContain("Running");
     expect(host.textContent).toContain("More");
+  });
+  it("preserves linked views and keeps advanced evidence collapsed", async () => {
+    await act(async () =>
+      root.render(
+        <ObservabilityWorkspace
+          initialView="loops"
+          initial={{
+            status: "unconfigured",
+            snapshot: createUnconfiguredSnapshot(),
+          }}
+        />,
+      ),
+    );
+    expect(
+      host
+        .querySelector('[data-tab-value][aria-current="page"]')
+        ?.getAttribute("data-tab-value"),
+    ).toBe("loops");
+    const trigger = host.querySelector<HTMLButtonElement>(
+      ".astryx-collapsible button",
+    )!;
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(trigger.textContent).toContain("Last contact: Unknown");
+    expect(trigger.textContent).not.toContain("Instrumentation");
+    act(() => trigger.click());
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    act(() =>
+      host
+        .querySelector<HTMLButtonElement>('[data-tab-value="machines"]')!
+        .click(),
+    );
+    expect(new URL(location.href).searchParams.get("view")).toBe("machines");
   });
 });
