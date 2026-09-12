@@ -30,8 +30,27 @@ export type LifeResult =
     };
 export type LifeTransport = {
   scope: "agent" | "owner";
+  /** Enforce the byte cap while reading, before decoding an untrusted body. */
   read: (path: string, signal: AbortSignal) => Promise<unknown>;
 };
+async function readWithDeadline(transport: LifeTransport, path: string) {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      transport.read(path, controller.signal),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          controller.abort();
+          reject(new Error("Read timed out"));
+        }, 5000);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+    controller.abort();
+  }
+}
 const isObject = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 const isCursor = (value: unknown) =>
@@ -155,7 +174,7 @@ export async function readPersonalContext(
         "Private Life access is not connected. Existing records remain in PersonalContext.",
     };
   try {
-    const data = await transport.read(path, AbortSignal.timeout(5000));
+    const data = await readWithDeadline(transport, path);
     if (
       !data ||
       typeof data !== "object" ||
