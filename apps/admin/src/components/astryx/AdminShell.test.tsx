@@ -26,6 +26,25 @@ const shell = (route: string) => (
 );
 
 describe("shared Operations and Life shell", () => {
+  it.each([false, true])(
+    "preserves route context unless header is hidden: %s",
+    (hideHeader) => {
+      const html = renderToStaticMarkup(
+        <AdminShell
+          chrome="admin"
+          currentRoute="/proof"
+          navItems={navItems}
+          title="Proof"
+          deck="This page is read-only."
+          hideHeader={hideHeader}
+          localPreview
+        >
+          <p>Records</p>
+        </AdminShell>,
+      );
+      expect(html.includes("This page is read-only.")).toBe(!hideHeader);
+    },
+  );
   it("renders the shared identity and only the two distinct Operations destinations", () => {
     const host = document.createElement("div");
     host.innerHTML = renderToStaticMarkup(shell("/operations/observability"));

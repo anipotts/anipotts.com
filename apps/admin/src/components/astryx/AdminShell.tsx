@@ -12,6 +12,7 @@ import {
 import React, { useEffect, useState, type ReactNode } from "react";
 import { SideNavItem, SideNavSection } from "@astryxdesign/core/SideNav";
 import { VStack } from "@astryxdesign/core/VStack";
+import { Text } from "@astryxdesign/core/Text";
 import { Theme } from "@astryxdesign/core/theme";
 import {
   savedTheme,
@@ -40,6 +41,7 @@ export function AdminShell({
   children,
   chrome,
   currentRoute: initialRoute,
+  deck,
   hideHeader = false,
   navItems,
   title,
@@ -164,6 +166,11 @@ export function AdminShell({
           {!hideHeader && (
             <header className="page-header">
               <h1>{title}</h1>
+              {deck && (
+                <Text as="p" type="supporting">
+                  {deck}
+                </Text>
+              )}
             </header>
           )}
           <section className="admin-page-content">{children}</section>
