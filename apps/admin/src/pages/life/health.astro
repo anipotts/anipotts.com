@@ -18,6 +18,6 @@ const healthCards = knowledge.bundle.cards.filter(
 Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
 
-<AdminLayout title="Health">
+<AdminLayout title="Health" hideHeader>
   <LifeSupportingView section="health" summaries={healthCards} client:load />
 </AdminLayout>
