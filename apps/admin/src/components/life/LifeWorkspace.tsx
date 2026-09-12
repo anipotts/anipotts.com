@@ -42,7 +42,7 @@ const object = (value: unknown): Record<string, unknown> =>
     : {};
 function Metadata({ fields }: { fields: [string, unknown][] }) {
   return (
-    <MetadataList label={{ position: "top" }}>
+    <MetadataList columns="multi" label={{ position: "top" }}>
       {fields.map(([label, value]) => (
         <MetadataListItem key={label} label={label}>
           <Text wordBreak="break-word">{scalar(value)}</Text>
@@ -170,7 +170,12 @@ export function LifeReadView({
       <List
         hasDividers
         density="compact"
-        header={<Text>{scalar(data.total)} source records</Text>}
+        header={
+          <Text color="secondary">
+            {items.length} {section === "sources" ? "sources" : "records"} shown
+            {typeof data.total === "number" ? ` of ${data.total}` : ""}
+          </Text>
+        }
       >
         {items.map((item, index) => (
           <ListItem
@@ -187,11 +192,21 @@ export function LifeReadView({
                 : undefined
             }
             description={
-              <Text color="secondary">
-                {section === "sources"
-                  ? scalar(item.coverage)
-                  : `${scalar(item.source_id)} · ${scalar(item.occurred_at, "Date unknown")} · observed ${scalar(item.observed_at)}`}
-              </Text>
+              section === "sources" ? (
+                <Text color="secondary" wordBreak="break-word">
+                  Coverage: {scalar(item.coverage)}
+                </Text>
+              ) : (
+                <VStack gap={1}>
+                  <Text color="secondary" wordBreak="break-word">
+                    Source: {scalar(item.source_id)}
+                  </Text>
+                  <Text color="secondary" wordBreak="break-word">
+                    Effective: {scalar(item.occurred_at, "Date unknown")}
+                    {" · "}Observed: {scalar(item.observed_at, "Date unknown")}
+                  </Text>
+                </VStack>
+              )
             }
             endContent={
               <Token label={scalar(item.status, "Unknown")} size="sm" />
@@ -459,6 +474,7 @@ export function LifeWorkspace({
             {section === "overview" && (
               <List
                 hasDividers
+                density="compact"
                 header={<Heading level={2}>Your views</Heading>}
               >
                 <ListItem label="Health" href="/life/health" />
