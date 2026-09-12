@@ -1,0 +1,29 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import {
+  LifeWorkspace,
+  type LifeSection,
+} from "../../components/life/LifeWorkspace";
+import { readPersonalContext } from "../../data/personal-context";
+const result = await readPersonalContext({ method: "status" });
+const section = Astro.params.section ?? "";
+const titles: Record<string, string> = {
+  people: "People",
+  projects: "Projects",
+  places: "Places",
+  timeline: "Timeline",
+  sources: "Sources",
+  preview: "Context Preview",
+};
+if (!Object.hasOwn(titles, section))
+  return new Response("Not found", { status: 404 });
+Astro.response.headers.set("Cache-Control", "private, no-store");
+---
+
+<AdminLayout title={titles[section]} hideHeader
+  ><LifeWorkspace
+    section={section as LifeSection}
+    result={result}
+    client:load
+  /></AdminLayout
+>
