@@ -13,7 +13,7 @@ import {
 import type { ObservabilityReadResult } from "../../lib/observability-reader";
 import { Layout, LayoutContent } from "@astryxdesign/core/Layout";
 import { Table, proportional } from "@astryxdesign/core/Table";
-import { TabList, Tab } from "@astryxdesign/core/TabList";
+import { TabList, Tab, TabMenu } from "@astryxdesign/core/TabList";
 import { Timestamp } from "@astryxdesign/core/Timestamp";
 import {
   MetadataList,
@@ -34,7 +34,7 @@ export function ObservabilityWorkspace({
 }) {
   const [result, setResult] = useState(initial);
   const [query, setQuery] = useState("");
-  const [view, setView] = useState("coverage");
+  const [view, setView] = useState("machines");
   const [retry, setRetry] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [refreshing, setRefreshing] = useState(false);
@@ -109,7 +109,22 @@ export function ObservabilityWorkspace({
   const { snapshot, status } = result;
   const matches = (...values: string[]) =>
     values.join(" ").toLowerCase().includes(query.trim().toLowerCase());
-  const services = snapshot.services.filter((service) =>
+  const isInventory = ["machines", "loops", "coverage"].includes(view);
+  const inventory = snapshot.services.filter((service) =>
+    view === "machines"
+      ? service.id.startsWith("mac-")
+      : view === "loops"
+        ? [
+            "personalcontext-capture",
+            "personalcontext-ingestion",
+            "personalcontext-wiki",
+            "personalcontext-backups",
+            "personalcontext-collector",
+            "delegate-collector",
+          ].includes(service.id)
+        : true,
+  );
+  const services = inventory.filter((service) =>
     matches(
       label(service.id),
       service.id,
@@ -118,9 +133,11 @@ export function ObservabilityWorkspace({
         : deriveServiceState(service, now),
     ),
   );
-  const events = snapshot.events.filter((event) =>
-    matches(label(event.serviceId), event.kind, event.evidenceId),
-  );
+  const events = snapshot.events
+    .filter((event) =>
+      matches(label(event.serviceId), event.kind, event.evidenceId),
+    )
+    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
   const spans = snapshot.spans.filter((span) =>
     matches(label(span.serviceId), span.traceId, span.operation),
   );
@@ -206,31 +223,26 @@ export function ObservabilityWorkspace({
                 </VStack>
               ),
             }));
-  const rows = view === "coverage" ? coverageRows : evidenceRows;
-  const total =
-    view === "coverage"
-      ? snapshot.services.length
-      : view === "activity"
-        ? snapshot.events.length
-        : view === "traces"
-          ? snapshot.spans.length
-          : view === "metrics"
-            ? snapshot.metrics.length
-            : snapshot.incidents.length;
-  const unavailable =
-    view !== "coverage" && total === 0 && status !== "connected";
+  const rows = isInventory ? coverageRows : evidenceRows;
+  const total = isInventory
+    ? inventory.length
+    : view === "activity"
+      ? snapshot.events.length
+      : view === "traces"
+        ? snapshot.spans.length
+        : view === "metrics"
+          ? snapshot.metrics.length
+          : snapshot.incidents.length;
+  const unavailable = !isInventory && total === 0 && status !== "connected";
   return (
     <Layout
       height="auto"
       padding={4}
       content={
-        <LayoutContent label="Observability">
+        <LayoutContent label="Operations">
           <VStack gap={5}>
             <VStack gap={1}>
-              <Heading level={1}>Observability</Heading>
-              <Text color="secondary">
-                Service coverage and operational evidence
-              </Text>
+              <Heading level={1}>Operations</Heading>
             </VStack>
             <Banner
               status={status === "connected" ? "info" : "warning"}
@@ -240,13 +252,6 @@ export function ObservabilityWorkspace({
                   : status === "unconfigured"
                     ? "Live telemetry is not connected"
                     : "Telemetry connection lost"
-              }
-              description={
-                status === "unconfigured"
-                  ? "Service health is unknown until observations arrive."
-                  : status === "disconnected"
-                    ? "Showing last received evidence. Reconnecting…"
-                    : "Health and freshness are shown for each service."
               }
             />
             <HStack gap={3} wrap="wrap" vAlign="center">
@@ -276,20 +281,24 @@ export function ObservabilityWorkspace({
               value={view}
               onChange={setView}
               hasDivider
-              aria-label="Observability views"
+              aria-label="Operations views"
               style={{ flexWrap: "wrap" }}
             >
-              {["coverage", "activity", "traces", "metrics", "incidents"].map(
-                (tab) => (
-                  <Tab
-                    key={tab}
-                    value={tab}
-                    label={title(tab)}
-                    id={`observability-tab-${tab}`}
-                    aria-controls="observability-panel"
-                  />
-                ),
-              )}
+              {["machines", "loops", "activity"].map((tab) => (
+                <Tab
+                  key={tab}
+                  value={tab}
+                  label={title(tab)}
+                  id={`observability-tab-${tab}`}
+                  aria-controls="observability-panel"
+                />
+              ))}
+              <TabMenu
+                label="More"
+                options={["coverage", "traces", "metrics", "incidents"].map(
+                  (value) => ({ value, label: title(value) }),
+                )}
+              />
             </TabList>
             <TextInput
               label="Search evidence"
@@ -301,30 +310,24 @@ export function ObservabilityWorkspace({
               gap={3}
               role="region"
               id="observability-panel"
-              aria-labelledby={`observability-tab-${view}`}
+              aria-label={title(view)}
               tabIndex={0}
             >
               <Heading level={2}>
-                {view === "coverage"
-                  ? "Service coverage"
-                  : view === "activity"
-                    ? "Committed activity"
-                    : view === "traces"
-                      ? "Measured execution"
-                      : view === "metrics"
-                        ? "Capacity and retention"
-                        : "PersonalContext incidents"}
+                {view === "machines"
+                  ? "Machines"
+                  : view === "loops"
+                    ? "Loops"
+                    : view === "coverage"
+                      ? "Coverage"
+                      : view === "activity"
+                        ? "Latest activity"
+                        : view === "traces"
+                          ? "Measured execution"
+                          : view === "metrics"
+                            ? "Capacity and retention"
+                            : "PersonalContext incidents"}
               </Heading>
-              {view === "coverage" && (
-                <Text color="secondary">
-                  Starting inventory · project service coverage is incomplete
-                </Text>
-              )}
-              {view === "activity" && (
-                <Text color="secondary">
-                  Committed changes; execution timing appears in Traces.
-                </Text>
-              )}
               {rows.length ? (
                 <Table
                   data={rows}
@@ -383,13 +386,6 @@ export function ObservabilityWorkspace({
                         : query.trim() && total > 0
                           ? "No matching results"
                           : "No observations yet"
-                    }
-                    description={
-                      unavailable
-                        ? "Connect telemetry to view this evidence."
-                        : query.trim() && total > 0
-                          ? "Try another search or clear the filter."
-                          : "No evidence has been received for this view."
                     }
                   />
                   {query.trim() && total > 0 && (

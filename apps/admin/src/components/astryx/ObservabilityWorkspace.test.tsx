@@ -60,7 +60,7 @@ describe("optional observability workspace", () => {
       ),
     );
     const traces = host.querySelector<HTMLButtonElement>(
-      '[data-tab-value="traces"]',
+      '[data-tab-value="activity"]',
     )!;
     act(() => traces.click());
     expect(host.textContent).toContain("Evidence unavailable");
@@ -97,11 +97,11 @@ describe("optional observability workspace", () => {
         />,
       ),
     );
-    expect(host.querySelectorAll("tbody tr")).toHaveLength(11);
+    expect(host.querySelectorAll("tbody tr")).toHaveLength(2);
     const coverage = host.querySelector<HTMLButtonElement>(
       '[data-tab-value][aria-current="page"]',
     )!;
-    expect(coverage.getAttribute("data-tab-value")).toBe("coverage");
+    expect(coverage.getAttribute("data-tab-value")).toBe("machines");
     act(() => {
       coverage.focus();
       coverage.dispatchEvent(
@@ -109,17 +109,17 @@ describe("optional observability workspace", () => {
       );
     });
     expect(document.activeElement?.getAttribute("data-tab-value")).toBe(
-      "activity",
+      "loops",
     );
     act(() => (document.activeElement as HTMLButtonElement).click());
     expect(
       host
         .querySelector('[data-tab-value][aria-current="page"]')
         ?.getAttribute("data-tab-value"),
-    ).toBe("activity");
+    ).toBe("loops");
     expect(
-      host.querySelector('[role="region"]')?.getAttribute("aria-labelledby"),
-    ).toBe("observability-tab-activity");
+      host.querySelector('[role="region"]')?.getAttribute("aria-label"),
+    ).toBe("Loops");
   });
   it("disables reconnect and deduplicates rapid clicks until the request settles", async () => {
     let reject!: (reason: Error) => void;
@@ -178,6 +178,28 @@ describe("optional observability workspace", () => {
         .find((button) => button.textContent === "Clear search")!
         .click(),
     );
-    expect(host.querySelectorAll("tbody tr")).toHaveLength(11);
+    expect(host.querySelectorAll("tbody tr")).toHaveLength(2);
+  });
+  it("keeps loops unknown and diagnostics behind More", async () => {
+    await act(async () =>
+      root.render(
+        <ObservabilityWorkspace
+          initial={{
+            status: "unconfigured",
+            snapshot: createUnconfiguredSnapshot(),
+          }}
+        />,
+      ),
+    );
+    expect(host.querySelectorAll("[data-tab-value]")).toHaveLength(3);
+    act(() =>
+      host
+        .querySelector<HTMLButtonElement>('[data-tab-value="loops"]')!
+        .click(),
+    );
+    expect(host.querySelectorAll("tbody tr")).toHaveLength(6);
+    expect(host.textContent).toContain("Not observed");
+    expect(host.textContent).not.toContain("Running");
+    expect(host.textContent).toContain("More");
   });
 });

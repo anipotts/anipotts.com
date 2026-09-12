@@ -40,3 +40,20 @@ No shared service, launchd, account, external sending, source-data mutation or d
 The feature UI now follows the installed Astryx v0.4.6 table template and component documentation: Layout/Stack frame, compact service/evidence Table rows, TabList navigation with its native aria-current and arrow-key focus behavior, Timestamp, MetadataList and StatusDot. Custom CSS is retired and no longer imported. Shared theme and shell remain integration-owned. Normal UI copy omits implementation and sending-control procedures.
 
 Reconnect is synchronously guarded and uses Astryx loading/disabled state throughout the request. Added tests prove rapid clicks issue one request, recovery re-enables the control, keyboard navigation changes the active view, and filtered-empty coverage supports clearing search separately from unavailable evidence. All 30 focused tests pass. Browser visual/responsive acceptance remains pending; no alternate browser was substituted.
+
+## Minimal Operations and connection actions
+
+Operations opens with Machines, Loops and Latest activity. Machines shows the two inventory hosts with unknown observation state until measured. Loops shows known candidate capture/ingestion/wiki/backup/collector components without asserting they run. Activity sorts newest first. Coverage, traces, metrics and incidents remain available under More. Shared Admin identity and workspace switcher are Website-owned. Product/onboarding helper paragraphs were removed.
+
+Connection evidence: the feature adapter has no upstream capability and no write capability. Its API remains authenticated. The pre-existing runtime overlay reads a local development feed only and is explicitly disabled outside development (`src/data/runtime.ts`). A Codex host connection is not evidence of telemetry enrollment or a running loop. No disconnect, archive or delete API exists in this feature.
+
+Proposed action semantics for integration review:
+
+| Action     | Meaning                                                                                                                   | Required capability                                                                                                            |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Reconnect  | Retry an existing authorized connection without changing credentials or enrollment.                                       | Current button retries the read feed only; per-machine reconnect needs a reviewed runtime adapter.                             |
+| Disconnect | Stop future reads/collection for the selected connection while preserving evidence and records.                           | Explicit runtime-owned disconnect capability and applicable native controls; not browser-only hiding or service retirement.    |
+| Archive    | Move a connection's listing out of the default view with an undo/restore path; retain its records and connection state.   | Reviewed persisted presentation preference, separate from runtime enrollment.                                                  |
+| Delete     | Remove the specifically selected connection configuration after identifying retained/deleted data and downstream effects. | Exact scope, native approval and verified deletion capability; never imply deletion of personal source records or credentials. |
+
+Only read-feed Reconnect is currently executable. Other actions are design contracts, not enabled UI controls, grants or fabricated mutations. Runtime owner must supply connection identity, current state, per-action capability and proof before controls are introduced.
