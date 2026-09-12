@@ -2,6 +2,33 @@ import { describe, expect, it, vi } from "vitest";
 import { lifeReadPath, readPersonalContext } from "./personal-context";
 
 describe("Life read boundary", () => {
+  it("rejects mismatched or malformed body continuation metadata", async () => {
+    const data = {
+      record_id: "fixture",
+      revision_id: "one",
+      body: "text",
+      body_offset: 5,
+      next_body_offset: null,
+    };
+    const read = (response: Record<string, unknown>) =>
+      readPersonalContext(
+        { method: "get", id: "fixture", body_offset: 5 },
+        { scope: "agent", read: async () => response },
+      );
+    expect((await read(data)).state).toBe("ready");
+    for (const body_offset of [undefined, 0, NaN, Infinity, 5.5])
+      expect((await read({ ...data, body_offset })).state).toBe("invalid");
+    for (const next_body_offset of [
+      undefined,
+      NaN,
+      Infinity,
+      -1,
+      5,
+      5.5,
+      10_000_001,
+    ])
+      expect((await read({ ...data, next_body_offset })).state).toBe("invalid");
+  });
   it("rejects provider continuation cursors outside the request bounds", async () => {
     for (const next_offset of [-1, 1.5, 10_000_001, 0]) {
       expect(

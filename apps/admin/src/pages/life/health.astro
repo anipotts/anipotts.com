@@ -19,5 +19,10 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
 
 <AdminLayout title="Health" hideHeader>
-  <LifeSupportingView section="health" summaries={healthCards} client:load />
+  <LifeSupportingView
+    section="health"
+    summaries={healthCards}
+    available={knowledge.available}
+    client:load
+  />
 </AdminLayout>

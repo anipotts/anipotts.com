@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Draft } from "../editorial/draft-store";
 import {
   inventoryChangedFields,
+  inventoryIdentity,
   editorialInventoryGroups,
   editorialInventorySearch,
   projectEditorialInventory,
@@ -403,4 +404,19 @@ it("limits reads to four concurrently and never starts another batch after the d
   } finally {
     vi.useRealTimers();
   }
+});
+
+it("uses the same validated editor identities for every editable page family", () => {
+  for (const [collection, id] of [
+    ["home", "home"],
+    ["workPage", "work"],
+    ["writingPage", "writing"],
+    ["systemsPage", "systems"],
+    ["newsletterPage", "newsletter"],
+  ]) {
+    expect(inventoryIdentity({ collection, id })).toEqual({ kind: "page", id });
+  }
+  expect(
+    inventoryIdentity({ collection: "workPage", id: "not-a-page" }),
+  ).toBeNull();
 });

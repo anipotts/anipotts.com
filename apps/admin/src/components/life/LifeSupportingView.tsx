@@ -17,9 +17,11 @@ export type HealthSummary = {
 export function LifeSupportingView({
   section,
   summaries = [],
+  available = true,
 }: {
   section: "health" | "aesthetics";
   summaries?: HealthSummary[];
+  available?: boolean;
 }) {
   return (
     <Layout
@@ -36,7 +38,13 @@ export function LifeSupportingView({
       content={
         <LayoutContent>
           {section === "aesthetics" ? (
-            <Text color="secondary">No style references yet.</Text>
+            <Text color="secondary">
+              Style references are not connected yet.
+            </Text>
+          ) : !available ? (
+            <Text role="status" color="secondary">
+              Health summaries could not be loaded.
+            </Text>
           ) : summaries.length === 0 ? (
             <Text color="secondary">No health summaries available.</Text>
           ) : (

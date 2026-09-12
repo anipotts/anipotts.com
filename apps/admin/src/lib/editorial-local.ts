@@ -47,9 +47,15 @@ export async function localDraftStorage(): Promise<
       durableObjectsPersist: `${root}/.local/editorial-drafts`,
     });
   })();
-  const { EDITORIAL } = await (
-    await runtime
-  ).getBindings<{
+  const pending = runtime;
+  let instance: Miniflare;
+  try {
+    instance = await pending;
+  } catch (error) {
+    if (runtime === pending) runtime = undefined;
+    throw error;
+  }
+  const { EDITORIAL } = await instance.getBindings<{
     EDITORIAL: {
       idFromName(name: string): string;
       get(

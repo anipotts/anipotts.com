@@ -86,3 +86,55 @@ describe("knowledge source availability", () => {
     expect((await GET(context("?card_id=absent"))).status).toBe(404);
   });
 });
+
+describe("bounded knowledge list projection", () => {
+  const cards = Array.from({ length: 6 }, (_, index) => ({
+    ...known,
+    card_id: `bounded-${index}`,
+    entity_ref: `fixture:${index}`,
+    title: index < 4 ? `Needle ${index}` : `Other ${index}`,
+    summary: "",
+    domain: index % 2 ? ("life" as const) : ("work" as const),
+    related_card_ids: [],
+    context_budget_tokens: 40,
+  }));
+  it("does not let top-level cards bypass query, domain or result count", async () => {
+    loader.mockResolvedValue(snapshot([], "d1", cards));
+    const result = await readAdminKnowledge(null, "Needle", {
+      domain: "work",
+      limit: 1,
+      context_budget_tokens: 4000,
+    });
+    expect(result.cards).toBe(result.bundle.cards);
+    expect(result.cards).toHaveLength(1);
+    expect(result.cards[0]?.domain).toBe("work");
+    expect(result.cards[0]?.title).toContain("Needle");
+    const response = await GET(context("?q=Needle&domain=work&limit=1"));
+    const payload = await response.json();
+    expect(payload.cards).toEqual(payload.bundle.cards);
+    expect(payload.cards).toHaveLength(1);
+    expect(payload.cards[0].domain).toBe("work");
+  });
+  it("applies token budget and preserves provenance without a full snapshot escape", async () => {
+    loader.mockResolvedValue(snapshot([], "d1", cards));
+    const result = await readAdminKnowledge(null, "", {
+      limit: 20,
+      context_budget_tokens: 100,
+    });
+    expect(result.cards).toBe(result.bundle.cards);
+    expect(result.cards).toHaveLength(2);
+    expect(result.bundle.used_context_budget_tokens).toBeLessThanOrEqual(100);
+    expect(result.bundle.truncated).toBe(true);
+    expect(result.cards[0]).toMatchObject({
+      source_locator: known.source_locator,
+      reveal_policy: known.reveal_policy,
+      freshness_state: known.freshness_state,
+    });
+  });
+  it("returns no cards for an unmatched query", async () => {
+    loader.mockResolvedValue(snapshot([], "d1", cards));
+    const result = await readAdminKnowledge(null, "unmatchedzzzzzz");
+    expect(result.cards).toEqual([]);
+    expect(result.bundle.cards).toEqual([]);
+  });
+});

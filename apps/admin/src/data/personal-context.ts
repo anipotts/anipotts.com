@@ -81,7 +81,12 @@ function validResponse(
       return (
         data.record_id === request.id &&
         typeof data.revision_id === "string" &&
-        typeof data.body === "string"
+        typeof data.body === "string" &&
+        data.body_offset === (request.body_offset ?? 0) &&
+        (data.next_body_offset === null ||
+          (isCursor(data.next_body_offset) &&
+            Number(data.next_body_offset) <= 10_000_000 &&
+            Number(data.next_body_offset) > (request.body_offset ?? 0)))
       );
     case "preview":
       return (

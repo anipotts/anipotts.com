@@ -1,4 +1,6 @@
 ---
+import { inventoryIdentity } from "../../../lib/editorial-inventory-projection";
+import { readEditorialSnapshot } from "../../../lib/editorial-snapshot-read";
 import { render } from "astro:content";
 import EditorialLayout from "../../../layouts/EditorialLayout.astro";
 import {
@@ -21,6 +23,7 @@ const entry = [
   (item) =>
     item.collection === Astro.params.collection && item.id === Astro.params.id,
 );
+let privateUnavailable = false;
 let privateDraft: import("../../../editorial/draft-store").Draft | null = null;
 const privateIdentity = editorialRecordSchema.safeParse({
   kind: Astro.params.collection,
@@ -31,12 +34,18 @@ if (
   privateIdentity.success &&
   privateIdentity.data.kind === "writing"
 ) {
-  const storage = import.meta.env.DEV
-    ? await (await import("../../../lib/editorial-local")).localDraftStorage()
-    : productionEditor(Astro.locals.runtime?.env)?.storage;
-  privateDraft = (await storage?.get(privateIdentity.data)) ?? null;
+  const snapshot = await readEditorialSnapshot(async () => {
+    const storage = import.meta.env.DEV
+      ? await (await import("../../../lib/editorial-local")).localDraftStorage()
+      : productionEditor(Astro.locals.runtime?.env)?.storage;
+    if (!storage) throw new Error("storage_unavailable");
+    return storage.get(privateIdentity.data);
+  });
+  privateUnavailable = snapshot.status === "unavailable";
+  privateDraft = snapshot.status === "found" ? snapshot.draft : null;
 }
-if (!entry && !privateDraft) Astro.response.status = 404;
+if (!entry && !privateDraft)
+  Astro.response.status = privateUnavailable ? 503 : 404;
 let privateTitle = "Untitled article";
 if (privateDraft) {
   try {
@@ -51,7 +60,8 @@ const title =
     ? entry.data.title
     : privateDraft
       ? privateTitle
-      : (entry?.id ?? "Record not found");
+      : (entry?.id ??
+        (privateUnavailable ? "Record unavailable" : "Record not found"));
 const rendered = entry ? await render(entry) : null;
 const Content = rendered?.Content;
 const project = entry?.collection === "projects" ? entry.data : null;
@@ -121,16 +131,15 @@ const review: Review | undefined = entry
 ---
 
 <EditorialLayout
+  inventoryError={privateUnavailable}
   title={title}
   review={review}
   editHome={entry?.collection === "home"}
-  editorRecord={entry?.collection === "projects"
-    ? { kind: "work", id: entry.id }
-    : entry?.collection === "writing"
-      ? { kind: "writing", id: entry.id }
-      : privateDraft && privateIdentity.success
-        ? privateIdentity.data
-        : undefined}
+  editorRecord={entry
+    ? (inventoryIdentity(entry) ?? undefined)
+    : privateDraft && privateIdentity.success
+      ? privateIdentity.data
+      : undefined}
 >
   {Content && <Content />}
 </EditorialLayout>

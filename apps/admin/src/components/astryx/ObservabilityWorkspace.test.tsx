@@ -83,7 +83,9 @@ describe("optional observability workspace", () => {
         .find((button) => button.textContent === "Reconnect")!
         .click(),
     );
-    expect(host.textContent).toContain("Telemetry unavailable; showing last-known observations");
+    expect(host.textContent).toContain(
+      "Telemetry unavailable; showing last-known observations",
+    );
     expect(host.textContent).toContain("Last known: Not observed");
     expect(host.textContent).not.toContain("Disconnected");
     expect(host.textContent).not.toContain("private provider failure");

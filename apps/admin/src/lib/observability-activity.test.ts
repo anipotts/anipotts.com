@@ -29,15 +29,24 @@ describe("read-only PersonalContext telemetry backfill", () => {
         ?.connection,
     ).toBe("unknown");
   });
-  it.each(["pending", "blocked", "excluded", "skipped", "observed"])("retains %s metadata without implying completion", async (state) => {
-    const result = await projectPersonalContextActivity(
-      { items: [checkpoint(1, state)], next_cursor: 1 }, undefined, now,
-    );
-    expect(result.activity.cursor).toBe(1);
-    expect(result.activity.items).toHaveLength(1);
-    expect(result.snapshot.events).toEqual([]);
-    expect(result.snapshot.services.find((s) => s.id === "personalcontext-ingestion")?.outcome).toBe("unknown");
-  });
+  it.each(["pending", "blocked", "excluded", "skipped", "observed"])(
+    "retains %s metadata without implying completion",
+    async (state) => {
+      const result = await projectPersonalContextActivity(
+        { items: [checkpoint(1, state)], next_cursor: 1 },
+        undefined,
+        now,
+      );
+      expect(result.activity.cursor).toBe(1);
+      expect(result.activity.items).toHaveLength(1);
+      expect(result.snapshot.events).toEqual([]);
+      expect(
+        result.snapshot.services.find(
+          (s) => s.id === "personalcontext-ingestion",
+        )?.outcome,
+      ).toBe("unknown");
+    },
+  );
   it("deduplicates replay and retains cursor on an empty page", async () => {
     const page = { items: [checkpoint(1)], next_cursor: 1 };
     const first = await projectPersonalContextActivity(page, undefined, now);

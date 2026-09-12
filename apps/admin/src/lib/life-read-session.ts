@@ -36,16 +36,20 @@ export function appendLifeBody(
   next: Record<string, unknown>,
 ): Record<string, unknown> {
   const offset = current.next_body_offset;
+  const validOffset = (value: unknown): value is number =>
+    typeof value === "number" &&
+    Number.isSafeInteger(value) &&
+    value >= 0 &&
+    value <= 10_000_000;
   if (
-    typeof offset !== "number" ||
+    !validOffset(offset) ||
     next.record_id !== current.record_id ||
     next.revision_id !== current.revision_id ||
     next.body_offset !== offset ||
     typeof current.body !== "string" ||
     typeof next.body !== "string" ||
     (next.next_body_offset !== null &&
-      (typeof next.next_body_offset !== "number" ||
-        next.next_body_offset <= offset))
+      (!validOffset(next.next_body_offset) || next.next_body_offset <= offset))
   ) {
     throw new Error("This record changed. Reload it before reading further.");
   }

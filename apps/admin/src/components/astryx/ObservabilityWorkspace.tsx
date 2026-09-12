@@ -148,11 +148,7 @@ export function ObservabilityWorkspace({
         : true,
   );
   const services = inventory.filter((service) =>
-    matches(
-      label(service.id),
-      service.id,
-      deriveServiceState(service, now),
-    ),
+    matches(label(service.id), service.id, deriveServiceState(service, now)),
   );
   const events = snapshot.events
     .filter((event) =>

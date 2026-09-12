@@ -178,6 +178,9 @@ function VisualArticleBody({
         panelSelection.current.capture(_view.state.selection);
         setPanelGeneration((current) => current + 1);
         setImageMode("insert");
+        setUrl("");
+        setAlt("");
+        setError("");
         setIncomingImage(file);
         setPanel("image");
         return true;
@@ -202,6 +205,9 @@ function VisualArticleBody({
         panelSelection.current.capture(view.state.selection);
         setPanelGeneration((current) => current + 1);
         setImageMode("insert");
+        setUrl("");
+        setAlt("");
+        setError("");
         setIncomingImage(file);
         setPanel("image");
         return true;

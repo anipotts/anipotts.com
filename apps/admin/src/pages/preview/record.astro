@@ -1,4 +1,5 @@
 ---
+import { readEditorialSnapshot } from "../../lib/editorial-snapshot-read";
 import { previewFailure } from "../../lib/preview-status";
 import { renderArticlePreview } from "../../lib/article-preview";
 import { getEntry } from "astro:content";
@@ -27,15 +28,16 @@ const parsedRecord = editorialRecordSchema.safeParse({
 });
 if (!parsedRecord.success) return previewFailure(Astro.url, "unavailable", 400);
 const record = parsedRecord.data;
-let draft;
-try {
+const snapshot = await readEditorialSnapshot(async () => {
   const storage = import.meta.env.DEV
     ? await (await import("../../lib/editorial-local")).localDraftStorage()
     : productionEditor(Astro.locals.runtime?.env)?.storage;
-  draft = await storage?.get(record);
-} catch {
+  if (!storage) throw new Error("storage_unavailable");
+  return storage.get(record);
+});
+if (snapshot.status === "unavailable")
   return previewFailure(Astro.url, "unavailable", 503);
-}
+const draft = snapshot.status === "found" ? snapshot.draft : null;
 if (
   !draft ||
   draft.discardedAt ||

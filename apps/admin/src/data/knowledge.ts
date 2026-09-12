@@ -31,18 +31,20 @@ export async function readAdminKnowledge(
 ) {
   const snapshot = await loadKnowledgeSnapshot(db);
   assertValidKnowledgeCards(snapshot.projections.knowledge_cards);
+  const bundle = buildKnowledgeContextBundle(
+    snapshot.projections.knowledge_cards,
+    query,
+    options,
+  );
 
   return {
     generated_at: snapshot.generated_at,
     source_mode: snapshot.source_mode,
     ...knowledgeAvailability(snapshot),
     contract: knowledgeRetrievalContract,
-    bundle: buildKnowledgeContextBundle(
-      snapshot.projections.knowledge_cards,
-      query,
-      options,
-    ),
-    cards: snapshot.projections.knowledge_cards,
+    bundle,
+    // Compatibility alias must never bypass the query, domain or context budget.
+    cards: bundle.cards,
   };
 }
 

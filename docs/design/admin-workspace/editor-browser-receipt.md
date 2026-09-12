@@ -42,3 +42,23 @@ the new title. No publication action was invoked.
 
 Twenty focused navigation, mounted palette focus/IME and admin appearance tests
 passed after this change. Full release verification remains open.
+
+## Shared shell follow-up
+
+Life dark appearance matched an explicit dark URL over stale light local storage.
+At desktop1440×900, collapsing put the panel at y0 and the expand control at y8,
+with body height900 and window scroll0. At mobile390×844 after the responsive
+transition settled, main was x0/y56/390×788 and global Search was absent.
+
+The real mobile drawer initially clipped Admin. The shared CSS correction was
+then verified visually: identity y12/height44, workspace menu target44×44 at y65,
+no horizontal overflow, and the header separator below both rows. The compact
+topbar remained intact. This verifies settled geometry, not frame-perfect first
+paint or a complete reduced-motion/keyboard matrix. Browser returned to desktop
+1440×900, automatic color-scheme emulation and System appearance afterward.
+
+The work listing page route `/content/workPage/work` now uses the same validated
+editor identity as the inventory. Browser inspection confirmed its saved-state
+indicator, Heading/Introduction/Search fields, Edit/Preview tabs and Review
+changes action. No authored field was changed. Other page-family mappings have
+a focused identity regression; their complete Browser flows remain open.

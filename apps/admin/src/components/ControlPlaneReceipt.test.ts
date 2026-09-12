@@ -14,4 +14,16 @@ describe("control-plane proof viewer", () => {
     expect(source).not.toContain("data-control-plane-submit");
     expect(source).not.toContain("<script>");
   });
+
+  it("does not infer idle execution or pending proof from missing observations", () => {
+    const source = readFileSync(
+      new URL("./ControlPlaneReceipt.astro", import.meta.url),
+      "utf8",
+    );
+    expect(source).not.toContain('?? "idle"');
+    expect(source).not.toContain("<span>idle</span>");
+    expect(source).not.toContain('"proof pending"');
+    expect(source).toContain('state.available ? "unknown" : "unavailable"');
+    expect(source).toContain("No journal proof recorded");
+  });
 });

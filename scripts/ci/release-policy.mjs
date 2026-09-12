@@ -21,7 +21,11 @@ const MIGRATION_PREFLIGHT_PATHS = [
   /^scripts\/ci\/(?:d1-|migration-|site-migrations)/,
 ];
 
+const ADMIN_CORE_PATCH = "patches/@astryxdesign__core@0.4.6.patch";
+
 const CI_POLICY_PATHS = [
+  /^\.(?:gitignore|prettierignore)$/,
+  /^patches\/@astryxdesign__core@0\.4\.6\.patch$/,
   /^\.github\/editorial-publisher\.pem$/,
   /^\.coderabbit\.yaml$/,
   /^\.github\/workflows\//,
@@ -53,6 +57,8 @@ const APPROVAL_PATHS = [
 ];
 
 const KNOWN_SAFE_ROOTS = [
+  /^\.(?:gitignore|prettierignore)$/,
+  /^patches\/@astryxdesign__core@0\.4\.6\.patch$/,
   /^\.coderabbit\.yaml$/,
   /^apps\/(?:admin|www)\//,
   /^packages\//,
@@ -102,6 +108,7 @@ export function computeDeployTargets(paths) {
     }
 
     if (
+      path === ADMIN_CORE_PATCH ||
       path.startsWith("apps/admin/") ||
       path.startsWith("content/public/") ||
       path.startsWith("packages/content/") ||

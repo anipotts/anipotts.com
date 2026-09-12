@@ -10,7 +10,6 @@ import {
   type SemanticReference as SemanticReferenceModel,
 } from "../data/semantic-reference";
 
-const knowledge = await readAdminKnowledge(Astro.locals.runtime?.env.DB);
 const requestedKind = Astro.url.searchParams.get("kind") ?? "all";
 const filters = [
   ["all", "all"],
@@ -21,6 +20,15 @@ const filters = [
   ["place", "places"],
   ["system", "systems"],
 ] as const;
+const knowledge = await readAdminKnowledge(
+  Astro.locals.runtime?.env.DB,
+  filters.some(([kind]) => kind === requestedKind) && requestedKind !== "all"
+    ? requestedKind === "people"
+      ? "person people"
+      : requestedKind
+    : "",
+  { limit: 20, context_budget_tokens: 4000 },
+);
 const normalizedKind = (kind: string) =>
   kind === "person" || kind === "people" ? "people" : kind;
 const cards = knowledge.cards.filter(
@@ -67,7 +75,9 @@ const referenceByCard = new Map(
       <h1 class="brand-display">Knowledge</h1>
       <span data-knowledge-count
         >{
-          knowledge.available ? `${cards.length} results` : "Source unavailable"
+          knowledge.available
+            ? `${cards.length} results${knowledge.bundle.truncated ? " · Limited" : ""}`
+            : "Source unavailable"
         }</span
       >
     </header>

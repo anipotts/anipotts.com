@@ -5,7 +5,10 @@ import { loadRuntimeOverlayResponse } from "../../data/runtime";
 
 const [runtime, knowledge] = await Promise.all([
   loadRuntimeOverlayResponse(),
-  readAdminKnowledge(Astro.locals.runtime?.env.DB),
+  readAdminKnowledge(Astro.locals.runtime?.env.DB, "place", {
+    limit: 20,
+    context_budget_tokens: 4000,
+  }),
 ]);
 const viewer = runtime.machine ?? "this device";
 const machineNames = ["ap-pro", "ap-mini"] as const;
@@ -92,7 +95,9 @@ const displayTime = (value?: string | null) =>
     <section class="quiet-known-places" aria-labelledby="known-places-title">
       <header>
         <h2 id="known-places-title">Known places</h2>
-        <span>{places.length}</span>
+        <span
+          >{places.length}{knowledge.bundle.truncated ? " · Limited" : ""}</span
+        >
       </header>
       {
         places.length > 0 ? (

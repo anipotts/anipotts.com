@@ -19,7 +19,8 @@ const displayTime = (value: string) =>
   class="operator-handled"
   aria-labelledby="control-plane-title"
   data-control-plane-receipt
-  data-control-plane-state={latest?.state ?? "idle"}
+  data-control-plane-state={latest?.state ??
+    (state.available ? "unknown" : "unavailable")}
 >
   <div class="operator-section-heading">
     <div>
@@ -60,7 +61,7 @@ const displayTime = (value: string) =>
             {displayTime(latest.updated_at)}
           </time>
         ) : (
-          <span>idle</span>
+          <span>{state.available ? "No command recorded" : "Unavailable"}</span>
         )
       }
     </article>
@@ -72,7 +73,11 @@ const displayTime = (value: string) =>
       </span>
       <div>
         <strong>
-          {latest?.proof ? "journal proof acknowledged" : "proof pending"}
+          {
+            latest?.proof
+              ? "journal proof acknowledged"
+              : "No journal proof recorded"
+          }
         </strong>
         <span>
           {

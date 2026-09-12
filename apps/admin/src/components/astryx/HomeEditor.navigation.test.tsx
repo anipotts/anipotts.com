@@ -8,7 +8,7 @@ import { HomeEditor } from "./HomeEditor";
 
 vi.mock("@astryxdesign/core/Toast", () => ({ useToast: () => () => {} }));
 vi.mock("./ArticleBody", () => ({
-  ArticleBody: ({ value, onChange, flushRef }: any) => {
+  ArticleBody: ({ value, onChange, flushRef, onDirty }: any) => {
     const latest = React.useRef(value);
     flushRef.current = () => onChange(latest.current);
     return (
@@ -17,6 +17,7 @@ vi.mock("./ArticleBody", () => ({
         defaultValue={value}
         onChange={(e) => {
           latest.current = e.target.value;
+          onDirty?.();
         }}
       />
     );
@@ -326,4 +327,50 @@ it("palette navigation stays in the editor when its save fails", async () => {
       ) as HTMLTextAreaElement
     ).value,
   ).toBe("Retain this offline edit.");
+});
+
+it("typing during a navigation save keeps the newer buffer on screen", async () => {
+  const commit = vi
+    .spyOn(navigation, "commitAdminNavigation")
+    .mockImplementation(() => {});
+  let finish!: (value: Response) => void;
+  const pending = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  let savedSource = "";
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, options?: RequestInit) => {
+      if (url.includes("/save?")) {
+        savedSource = JSON.parse(String(options?.body)).source;
+        return pending;
+      }
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      return response(snapshot);
+    }),
+  );
+  await mount();
+  await editBody("First edit.");
+  await act(async () => {
+    navigation.navigateAdmin("/life");
+  });
+  await editBody("Newer edit while saving.");
+  await act(async () => {
+    finish(
+      response({
+        ok: true,
+        draft: { ...draft, source: savedSource, revision: 2 },
+      }),
+    );
+    await pending;
+  });
+  expect(commit).not.toHaveBeenCalled();
+  expect(host.textContent).toContain("Save them before leaving this draft");
+  expect(
+    (
+      host.querySelector(
+        'textarea[aria-label="Test article body"]',
+      ) as HTMLTextAreaElement
+    ).value,
+  ).toBe("Newer edit while saving.");
 });
