@@ -1,7 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { lifeSectionRead } from "./life-sections";
+import {
+  lifeSectionRead,
+  lifeSectionSupportsPagination,
+} from "./life-sections";
 import { lifeReadPath } from "../data/personal-context";
 describe("Life section reads", () => {
+  it("limits pagination to canonical offset-capable read methods", () => {
+    for (const section of ["sources", "overview", "preview"] as const) {
+      expect(lifeSectionSupportsPagination(section)).toBe(false);
+      expect(() => lifeSectionRead(section, { offset: 30 })).toThrow(
+        "does not support pagination",
+      );
+    }
+    for (const section of ["people", "projects", "places", "timeline"] as const)
+      expect(lifeSectionSupportsPagination(section)).toBe(true);
+    expect(lifeReadPath(lifeSectionRead("sources"))).toBe("/api/sources");
+  });
   it("dispatches every allowed surface to its own read method", () => {
     expect(lifeSectionRead("overview")).toEqual({ method: "status" });
     expect(lifeSectionRead("sources")).toEqual({ method: "sources" });

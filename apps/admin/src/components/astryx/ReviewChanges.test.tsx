@@ -46,3 +46,24 @@ describe("rich field review", () => {
     expect(html).not.toContain("<img");
   });
 });
+
+it.each([
+  ["**old**", "**new**"],
+  ["[old](https://same.example/)", "[new](https://same.example/)"],
+  ["**[old](https://same.example/)**", "**[new](https://same.example/)**"],
+])("keeps descendant copy edits readable: %s", (before, after) => {
+  const html = review(before, after);
+  expect(html).not.toContain("Formatting / links / images");
+  expect(html).toContain("<del>old</del><ins>new</ins>");
+});
+it.each([
+  ["**old**", "*new*"],
+  ["[old](https://before.example/)", "[new](https://after.example/)"],
+  [
+    "![old alt](/api/editorial/media/same)",
+    "![new alt](/api/editorial/media/same)",
+  ],
+  ["**[old](https://same.example/)**", "[**new**](https://same.example/)"],
+])("retains mark and attribute changes: %s", (before, after) => {
+  expect(review(before, after)).toContain("Formatting / links / images");
+});

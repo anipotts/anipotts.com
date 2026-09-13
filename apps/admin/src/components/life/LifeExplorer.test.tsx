@@ -71,6 +71,38 @@ async function click(label: string) {
   await act(async () => button!.click());
 }
 describe("Life reader interactions", () => {
+  it.each([30, -1, undefined])(
+    "keeps Sources unpaged when response includes cursor %s",
+    async (next_offset) => {
+      const data = {
+        items: [{ source_id: "Fixture source", coverage: "available" }],
+        total: 1,
+        next_offset,
+      };
+      const reader = vi.fn(async (_request: LifeRead) => ready(data));
+      await act(async () =>
+        root.render(
+          <LifeExplorer
+            section="sources"
+            initial={ready(data)}
+            reader={reader}
+          />,
+        ),
+      );
+      expect(container.textContent).toContain("Fixture source");
+      expect(container.textContent).not.toContain("could not be continued");
+      expect(
+        [...container.querySelectorAll("button")].some((button) =>
+          /^(Next|Previous)$/.test(button.textContent?.trim() ?? ""),
+        ),
+      ).toBe(false);
+      expect(reader).not.toHaveBeenCalled();
+      await click("Refresh");
+      expect(reader).toHaveBeenCalledTimes(1);
+      expect(reader.mock.calls[0]?.[0]).toEqual({ method: "sources" });
+      expect(container.textContent).toContain("Fixture source");
+    },
+  );
   it.each([-1, 1.5, 10_000_001])(
     "recovers from invalid continuation %s without dispatching it",
     async (next_offset) => {

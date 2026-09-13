@@ -93,6 +93,11 @@
   }
 }
 @media (max-width: 767px) {
+  /* AppShell defaults to desktop during SSR; its mobile topbar replaces this
+     inline panel after hydration. Keep narrow content full-width meanwhile. */
+  .editorial-workspace-shell .astryx-app-shell-sidenav {
+    display: none;
+  }
   .editorial-workspace-nav[data-mode="topbar"]
     .approved-workspace-header
     > .editorial-header-site {

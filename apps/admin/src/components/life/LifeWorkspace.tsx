@@ -29,6 +29,7 @@ import {
 import {
   lifeSections,
   lifeSectionRead,
+  lifeSectionSupportsPagination,
   type LifeSection,
 } from "../../lib/life-sections";
 export { lifeSections, type LifeSection };
@@ -330,9 +331,10 @@ export function LifeExplorer({
     }
   }
   const searchable = !["overview", "sources", "timeline"].includes(section);
+  const paginated = lifeSectionSupportsPagination(section);
   let nextOffset: number | null = null;
   let pagingError: string | null = null;
-  if (result.state === "ready" && !["overview", "preview"].includes(section)) {
+  if (result.state === "ready" && paginated) {
     try {
       nextOffset = nextLifeOffset(result.data.next_offset, offsets.at(-1) ?? 0);
     } catch {
@@ -387,6 +389,7 @@ export function LifeExplorer({
         </VStack>
       )}
       {reader &&
+        paginated &&
         !busy &&
         result.state === "ready" &&
         (offsets.length > 1 || nextOffset !== null) && (

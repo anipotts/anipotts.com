@@ -13,6 +13,10 @@ export type LifeSection = keyof typeof lifeSections;
 export function isLifeSection(section: string): section is LifeSection {
   return Object.hasOwn(lifeSections, section);
 }
+/** Only reads whose canonical contract accepts an offset can page. */
+export function lifeSectionSupportsPagination(section: LifeSection): boolean {
+  return ["people", "projects", "places", "timeline"].includes(section);
+}
 /** Also used by server routes: validate before invoking any read capability. */
 export function lifeSectionRead(
   section: string,
@@ -21,6 +25,8 @@ export function lifeSectionRead(
   if (!isLifeSection(section)) throw new Error("Unknown Life section");
   const q = options.query ?? "";
   const offset = options.offset ?? 0;
+  if (!lifeSectionSupportsPagination(section) && offset !== 0)
+    throw new Error("This Life section does not support pagination");
   let request: LifeRead;
   switch (section) {
     case "overview":
