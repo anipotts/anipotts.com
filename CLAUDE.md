@@ -42,18 +42,20 @@ the same PR checks and scoped deploy logic as other changes.
 
 ## current standing authority
 
-Ani approved these standing lanes on 2026-06-27.
-Ani approved a hybrid release train on 2026-08-05. Deployable files move through
-same-repository pull requests so required checks, release classification, and
-an exact-head native merge can protect production. Docs-only work may still use
-the admin bypass and commit directly to `main` after its narrow checks pass.
+Ani's September 13, 2026 Quiet Precision implementation approval supersedes the
+older automatic merge and docs bypass lanes. Every PR waits for Ani's explicit
+review before merging, including documentation and dependency changes. Keep
+incomplete work in draft PRs; ready checkpoints run the full relevant required
+checks. Changed heads require refreshed checks and affected acceptance evidence.
+Do not enable auto-merge. Same-repository PRs, exact-head provider protection and
+scoped release gates still apply after Ani's review.
 
 ### admin lane
 
 For admin UI, feed, content review, auth staging, and operator-dashboard work:
 
 - use a same-repository pull request for deployable files
-- merge the exact head through Codex only after every required check passes
+- merge the exact head only after Ani's review and every required check passes
 - deploy only the affected admin target after release gates are enabled
 - record deploy run, skipped targets, route proof, and exact release SHA
 
@@ -61,8 +63,10 @@ The legacy Solid admin is retired from this repository. Rollback uses the
 previous verified Astro admin deployment. Production legacy resources and
 data are not deleted as part of source cleanup.
 
-Approved includes reviewed D1 migrations needed by the checked change, passkey
-auth rollout, and Cloudflare Access removal after passkey proof.
+Reviewed additive D1 migrations remain subject to release controls. Production
+Content currently uses the signed Cloudflare Access owner flow. Retained
+passkey/password libraries do not authorize enabling a new authentication mode
+or removing Access. Authentication changes require their separate exact approval.
 
 ### public-site lane
 
@@ -70,18 +74,19 @@ For `apps/www` copy, layout, static content, accessibility, route, and
 presentation work:
 
 - use a same-repository pull request for deployable files
-- merge the exact head through Codex only after every required check passes
+- merge the exact head only after Ani's review and every required check passes
 - deploy `www=true` only after release gates are enabled
 - record deploy run, route proof, and exact release SHA
 
 ### docs lane
 
-Docs-only changes may commit directly to `main` after formatting/basic checks.
-They should not run app deploy targets.
+Docs-only changes use a PR and wait for Ani's review. They should not run app
+deploy targets.
 
-## passkey and Access sequence
+## Historical passkey and Access sequence
 
-For `admin.anipotts.com`, use this order:
+Retained for historical recovery context only. This is not the active rollout
+plan or authorization to change the current Access owner boundary:
 
 1. merge the reviewed passkey PR
 2. apply its reviewed D1 migration to `anipotts-db`
@@ -178,19 +183,24 @@ For deploys, record:
 
 ## product direction
 
-Public site code should become stable. More public text and project copy should
-move into structured content that admin can review, draft, preview, and later
-publish through an authorized write path.
+Follow the approved [Quiet Precision delivery contract](docs/design/admin-workspace/quiet-precision-delivery.md).
+Content is the only editorial workspace, and production admin is the normal
+authoring environment. Support articles and projects, existing page copy, shared
+navigation/footer text, SEO and media. Layouts and executable behavior stay in code.
 
 Public content defaults, normalizers, validators, settings, and homepage summary
 helpers live in `@anipotts/content/public`. Canonical frontmatter schemas are
-shared by Astro and generation. Public search reads the same published Astro
-collection; there is no D1-backed public CMS path. The used admin-control
-contracts remain in `@anipotts/lib/admin-control`.
+shared by Astro and generation. Git supplies initial/default records. The approved
+CMS architecture makes published complete editable records authoritative over
+Git, including explicit unpublication and URL changes. It adds no automatic
+CMS-to-Git mirroring or bidirectional draft synchronization. The current merged
+Git renderer and legacy publisher remain active until reader compatibility,
+durable atomic publication, recovery and owner acceptance are demonstrated.
 
-Admin is one Astro app for content, fleet state, proof, repo status,
-handoffs, blockers, and editing proposals. Published public content remains
-Git-backed and separate from admin proposals.
+Operations provides read-only machine, loop and service observations. Life
+provides authorized read-only knowledge from its canonical source, with
+provenance and session-bound presentation. Neither workspace publishes content
+or persists a new cloud replica of personal records.
 
 See `docs/platform-architecture.md` for the current inventory and cleanup map.
 

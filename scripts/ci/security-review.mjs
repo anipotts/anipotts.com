@@ -13,6 +13,10 @@ const SENSITIVE_PREFIXES = [
   ".github/workflows/",
   "apps/admin/src/pages/api/",
   "apps/admin/src/pages/auth/",
+  "apps/admin/src/editorial/",
+  "apps/admin/src/lib/",
+  "apps/admin/src/data/life-",
+  "patches/",
   "drizzle/migrations/",
   "packages/content/",
   "packages/lib/",
@@ -22,7 +26,8 @@ const SENSITIVE_PREFIXES = [
 
 const SENSITIVE_EXACT_FILES = new Set([
   "apps/admin/src/middleware.ts",
-  "apps/admin/src/lib/passkey-auth.ts",
+  "apps/admin/wrangler.toml",
+  "apps/www/wrangler.toml",
 ]);
 
 const SECRET_PATTERNS = [
@@ -134,7 +139,11 @@ function scanForSecrets(file, content) {
       ) {
         continue;
       }
-      if (pattern.test(line)) {
+      const candidate =
+        id === "inline-secret-assignment"
+          ? withoutKnownPublicReferences(file, line)
+          : line;
+      if (pattern.test(candidate)) {
         findings.push({
           file,
           line: lineIndex + 1,
@@ -145,6 +154,25 @@ function scanForSecrets(file, content) {
     }
   }
   return findings;
+}
+
+function withoutKnownPublicReferences(file, line) {
+  // A record key is a public source path, not an API key. Replace only that
+  // value; another credential on the same line must still be scanned.
+  const candidate = line.replace(
+    /\bkey:\s*(["'])content\/public\/(?:pages|projects|writing)\/[a-zA-Z0-9_./-]+\.md\1/g,
+    'key: "public-record"',
+  );
+  if (!file.endsWith("/wrangler.toml")) return candidate;
+  // Access audience identifiers and uppercase secret reference names are public
+  // configuration. Provider-token and private-key patterns still scan all bytes.
+  if (/^ACCESS_POLICY_AUD = "[a-f0-9]{64}"$/.test(candidate.trim())) return "";
+  if (
+    candidate.trim() ===
+    "# Secrets: EDITORIAL_GITHUB_PRIVATE_KEY and EDITORIAL_SIGNING_PRIVATE_KEY."
+  )
+    return "";
+  return candidate;
 }
 
 function isPublicMetadataAssignment(line) {

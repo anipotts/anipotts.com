@@ -13,6 +13,27 @@ function expectSensitive(file, expected) {
 
 expectSensitive(".github/workflows/deploy.yml", true);
 expectSensitive("apps/admin/src/middleware.ts", true);
+for (const file of [
+  "apps/admin/src/lib/access-identity.ts",
+  "apps/admin/src/lib/editorial-security.ts",
+  "apps/admin/src/lib/editorial-owner.ts",
+  "apps/admin/src/lib/editorial-handoff-client.ts",
+  "apps/admin/src/lib/draft-recovery.ts",
+  "apps/admin/src/data/life-owner-reader.ts",
+  "apps/admin/src/editorial/draft-store.ts",
+  "apps/admin/wrangler.toml",
+  "apps/www/wrangler.toml",
+  "patches/@astryxdesign__core@0.4.6.patch",
+]) {
+  expectSensitive(file, true);
+  assert.ok(
+    reviewFiles(
+      [file],
+      () => `const token = "${"ghp_" + "a".repeat(30)}";`,
+    ).some((finding) => finding.rule === "github-token"),
+    `literal credential must be detected in ${file}`,
+  );
+}
 expectSensitive(
   "apps/admin/src/pages/api/admin/content/draft-operation.ts",
   true,
@@ -38,6 +59,49 @@ assert.equal(
 );
 
 assert.equal(requiresSecurityReview(["docs/platform-architecture.md"]), false);
+
+const boundary = "apps/admin/src/lib/editorial-inventory-projection.test.ts";
+assert.ok(
+  reviewFiles(
+    ["apps/admin/wrangler.toml"],
+    () => `# Secrets: ${"A1".repeat(16)}.`,
+  ).length > 0,
+);
+assert.deepEqual(
+  reviewFiles([boundary], () => 'key: "content/public/writing/post.md",'),
+  [],
+);
+assert.ok(
+  reviewFiles(
+    [boundary],
+    () =>
+      'key: "content/public/writing/post.md", token: "abcdefghijklmnopqrstuvwxyz123456"',
+  ).length > 0,
+);
+assert.ok(
+  reviewFiles([boundary], () => 'key: "abcdefghijklmnopqrstuvwxyz123456"')
+    .length > 0,
+);
+assert.deepEqual(
+  reviewFiles(
+    ["apps/admin/wrangler.toml"],
+    () =>
+      `ACCESS_POLICY_AUD = "${"a".repeat(64)}"\n# Secrets: EDITORIAL_GITHUB_PRIVATE_KEY and EDITORIAL_SIGNING_PRIVATE_KEY.`,
+  ),
+  [],
+);
+assert.ok(
+  reviewFiles(
+    ["apps/admin/wrangler.toml"],
+    () => `ACCESS_TOKEN = "${"a".repeat(64)}"`,
+  ).length > 0,
+);
+assert.ok(
+  reviewFiles(
+    ["apps/admin/wrangler.toml"],
+    () => `# Secrets: ${"ghp_" + "a".repeat(30)}.`,
+  ).length > 0,
+);
 
 const publicSqlMetadataAssignment =
   "  authority_" + "state = 'passkey_draft_save_no_publish';\n";

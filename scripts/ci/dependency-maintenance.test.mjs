@@ -38,7 +38,11 @@ const pr = {
     ],
   },
 };
-assert.equal(classify(pr, required), "review_then_enable_auto_merge");
+assert.equal(classify(pr, required), "await_owner_review");
+assert.equal(
+  classify({ ...pr, autoMergeRequest: { enabledAt: "2026-09-13" } }, required),
+  "inspect_auto_merge",
+);
 assert.equal(
   classify({ ...pr, isDraft: true }, required),
   "inspect_draft_hold",

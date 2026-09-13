@@ -54,7 +54,7 @@ export function classify(pr, required) {
     if (matches[0].conclusion !== "SUCCESS") return "repair_checks";
   }
   if (pr.mergeStateStatus !== "CLEAN") return "inspect_merge_gate";
-  return pr.autoMergeRequest ? "wait_merge" : "review_then_enable_auto_merge";
+  return pr.autoMergeRequest ? "inspect_auto_merge" : "await_owner_review";
 }
 
 export function inspect(gh) {
