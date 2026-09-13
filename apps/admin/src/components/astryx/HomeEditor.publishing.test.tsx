@@ -36,9 +36,16 @@ vi.mock("./RecordPanel", () => ({
     </aside>
   ),
 }));
-vi.mock("./ReviewChanges", () => ({
-  ReviewChanges: ({ after }: any) => (
-    <pre aria-label="Reviewed source">{after}</pre>
+vi.mock("./ReviewChanges", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./ReviewChanges")>()),
+  ReviewChanges: ({ after, labelledBy }: any) => (
+    <pre
+      aria-label="Reviewed source"
+      aria-labelledby={labelledBy}
+      className="editor-revision-diff"
+    >
+      {after}
+    </pre>
   ),
 }));
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -146,6 +153,19 @@ it("keeps one publish action beside Back to editor in the document toolbar", asy
     '[role="toolbar"][aria-label="Document actions"]',
   );
   expect(toolbar).not.toBeNull();
+  expect(
+    [...host.querySelectorAll("h1")].map((node) => node.textContent),
+  ).toEqual(["Review changes"]);
+  const heading = host.querySelector("h1")!;
+  expect(
+    host
+      .querySelector(".editor-revision-diff")
+      ?.getAttribute("aria-labelledby"),
+  ).toBe(heading.id);
+  expect(host.querySelector(".editor-revision-diff h2")).toBeNull();
+  expect(
+    heading.parentElement?.querySelector('[aria-label="Diff legend"]'),
+  ).not.toBeNull();
   const buttons = [...host.querySelectorAll("button")];
   const publish = buttons.filter(
     (button) => button.textContent?.trim() === "Approve and publish",
@@ -301,23 +321,12 @@ it("submits the reviewed revision once and preserves the legacy publication cont
   expect(posts).toHaveLength(1);
 });
 
-it("preserves local publishing restrictions and the existing production-editor link", async () => {
+it("preserves local publishing restrictions until transfer is released", async () => {
   await mount("?view=review", true);
   const publish = [...host.querySelectorAll("button")].find(
     (button) => button.textContent?.trim() === "Approve and publish",
   )!;
   expect(publish.disabled).toBe(true);
-  const production = [...host.querySelectorAll("a")].find(
-    (link) => link.textContent?.trim() === "Open production editor",
-  )!;
-  expect(production.getAttribute("href")).toBe(
-    "https://admin.anipotts.com/content/writing/test",
-  );
-  expect(production.getAttribute("target")).toBe("_blank");
-  expect(production.getAttribute("rel")).toBe("noopener noreferrer");
-  expect(
-    production.closest('[role="toolbar"][aria-label="Document actions"]'),
-  ).not.toBeNull();
 });
 
 it("rejects publication when buffered edits no longer match the reviewed revision", async () => {
@@ -355,4 +364,31 @@ it("rejects publication when buffered edits no longer match the reviewed revisio
   expect(posts).toEqual([]);
   expect(host.textContent).toContain("Couldn’t start publishing");
   expect(title.value).toBe("Changed after review");
+});
+
+it("keeps the local production navigation fallback in the menu without claiming transfer", async () => {
+  const open = vi.spyOn(window, "open").mockReturnValue(null);
+  await mount("?view=review", true);
+  expect(
+    [...host.querySelectorAll("button, a")].some(
+      (el) => el.textContent?.trim() === "Open production editor",
+    ),
+  ).toBe(false);
+  await act(async () => {
+    (
+      host.querySelector(
+        'button[aria-label="Document actions"]',
+      ) as HTMLButtonElement
+    ).click();
+  });
+  const fallback = [...document.querySelectorAll('[role="menuitem"]')].find(
+    (item) => item.textContent?.includes("Open production editor"),
+  ) as HTMLElement;
+  expect(fallback.textContent).toContain("Download this local draft");
+  await act(async () => fallback.click());
+  expect(open).toHaveBeenCalledWith(
+    "https://admin.anipotts.com/content/writing/test",
+    "_blank",
+    "noopener,noreferrer",
+  );
 });

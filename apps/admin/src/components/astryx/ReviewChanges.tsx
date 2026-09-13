@@ -274,12 +274,48 @@ function FieldDiff({
   );
 }
 
+export function ReviewHeading({
+  id,
+  level = 2,
+}: {
+  id: string;
+  level?: 1 | 2;
+}) {
+  return (
+    <HStack
+      gap={3}
+      wrap="wrap"
+      vAlign="center"
+      className="editor-review-title-row"
+    >
+      <Heading level={level} id={id}>
+        Review changes
+      </Heading>
+      <HStack
+        gap={2}
+        role="group"
+        aria-label="Diff legend"
+        className="editor-diff-legend"
+      >
+        <Text type="supporting" className="editor-diff-added">
+          + Added
+        </Text>
+        <Text type="supporting" className="editor-diff-removed">
+          − Removed
+        </Text>
+      </HStack>
+    </HStack>
+  );
+}
+
 export function ReviewChanges({
   destination,
   changes,
   before,
   after,
+  labelledBy,
 }: {
+  labelledBy?: string;
   destination: string;
   changes: Change[];
   before: string;
@@ -287,7 +323,8 @@ export function ReviewChanges({
 }) {
   const [sourceView, setSourceView] = useState(false);
   const [layout, setLayout] = useState("split");
-  const headingId = useId();
+  const ownHeadingId = useId();
+  const headingId = labelledBy ?? ownHeadingId;
   const changed = changes.filter((change) => change.before !== change.after);
   return (
     <VStack
@@ -297,29 +334,7 @@ export function ReviewChanges({
       className="editor-revision-diff"
       data-layout={layout}
     >
-      <HStack
-        gap={3}
-        wrap="wrap"
-        vAlign="center"
-        className="editor-review-title-row"
-      >
-        <Heading level={2} id={headingId}>
-          Review changes
-        </Heading>
-        <HStack
-          gap={2}
-          role="group"
-          aria-label="Diff legend"
-          className="editor-diff-legend"
-        >
-          <Text type="supporting" className="editor-diff-added">
-            + Added
-          </Text>
-          <Text type="supporting" className="editor-diff-removed">
-            − Removed
-          </Text>
-        </HStack>
-      </HStack>
+      {!labelledBy && <ReviewHeading id={headingId} />}
       <HStack
         gap={3}
         wrap="wrap"

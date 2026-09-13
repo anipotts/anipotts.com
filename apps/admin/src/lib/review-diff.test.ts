@@ -93,6 +93,89 @@ describe("conventional review line diff", () => {
     expect(hunks[1]!.after).toHaveLength(1800);
   });
 
+  it.each([498, 798])(
+    "retains %i internal unchanged lines between two edits above the matrix budget",
+    (count) => {
+      const context = Array.from(
+        { length: count },
+        (_, index) => `context ${index}\n`,
+      ).join("");
+      const hunks = roundTrip(
+        `old first\n${context}old last\n`,
+        `new first\n${context}new last\n`,
+      );
+      expect(hunks.map((hunk) => hunk.kind)).toEqual([
+        "changed",
+        "equal",
+        "changed",
+      ]);
+      expect(hunks[1]!.before).toHaveLength(count);
+      expect(hunks[1]!.after).toHaveLength(count);
+      expect(
+        hunks
+          .filter((hunk) => hunk.kind === "changed")
+          .flatMap((hunk) => hunk.before),
+      ).toHaveLength(2);
+      expect(
+        hunks
+          .filter((hunk) => hunk.kind === "changed")
+          .flatMap((hunk) => hunk.after),
+      ).toHaveLength(2);
+    },
+  );
+
+  it("finds internal context after inserted lines shift large-document positions", () => {
+    const context = Array.from(
+      { length: 700 },
+      (_, index) => `context ${index}\n`,
+    ).join("");
+    const hunks = roundTrip(
+      `old first\n${context}old last\n`,
+      `new first\ninserted\n${context}new last\n`,
+    );
+    expect(hunks.map((hunk) => hunk.kind)).toEqual([
+      "changed",
+      "equal",
+      "changed",
+    ]);
+    expect(hunks[1]!.before).toHaveLength(700);
+    expect(hunks[1]!.before[0]!.number).toBe(2);
+    expect(hunks[1]!.after[0]!.number).toBe(3);
+  });
+
+  it("retains aligned repeated context even when no unique anchor exists", () => {
+    const context = "repeated\n".repeat(600);
+    const hunks = roundTrip(
+      `old first\n${context}old last\n`,
+      `new first\n${context}new last\n`,
+    );
+    expect(hunks.map((hunk) => hunk.kind)).toEqual([
+      "changed",
+      "equal",
+      "changed",
+    ]);
+    expect(hunks[1]!.before).toHaveLength(600);
+  });
+
+  it("keeps moved anchors monotonic and never marks unequal source lines as context", () => {
+    const first = Array.from(
+      { length: 350 },
+      (_, index) => `first ${index}\n`,
+    ).join("");
+    const second = Array.from(
+      { length: 350 },
+      (_, index) => `second ${index}\r\n`,
+    ).join("");
+    const hunks = roundTrip(first + second, second + first);
+    const equal = hunks.filter((hunk) => hunk.kind === "equal");
+    expect(equal.flatMap((hunk) => hunk.before).length).toBeGreaterThan(0);
+    for (const hunk of equal) {
+      expect(hunk.before.map((line) => line.text + line.ending)).toEqual(
+        hunk.after.map((line) => line.text + line.ending),
+      );
+    }
+  });
+
   it("round-trips deterministic mixed insertion, deletion and whitespace edits", () => {
     let seed = 912;
     const next = () => (seed = (seed * 1664525 + 1013904223) >>> 0);

@@ -317,7 +317,7 @@
   border-radius: var(--radius-element);
   background: var(--color-background-surface);
 }
-@media (max-width: 540px) {
+@media (pointer: coarse), (max-width: 540px) {
   .editor-primary-actions > [aria-haspopup="menu"] {
     width: var(--spacing-11);
     min-height: var(--spacing-11);
@@ -493,6 +493,9 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 }
 .rich-field .astryx-toolbar {
   min-width: 0;
+}
+.editor-actionbar .astryx-section {
+  padding: 0;
 }
 .editor-actionbar .astryx-toolbar {
   width: 100%;

@@ -28,18 +28,14 @@ import { SavedArticlePreview } from "./SavedArticlePreview";
 import { SaveScheduler } from "../../lib/save-scheduler";
 import { writingReviewChanges } from "../../lib/writing-review";
 import { ArticleSettings } from "./ArticleSettings";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { Heading } from "@astryxdesign/core/Heading";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { SaveStatus } from "./SaveStatus";
-import {
-  ArrowLeftIcon,
-  ArrowSquareOutIcon,
-  DotsThreeIcon,
-} from "@phosphor-icons/react";
+import { ArrowLeftIcon, DotsThreeIcon } from "@phosphor-icons/react";
 import { Toolbar } from "@astryxdesign/core/Toolbar";
 import { Banner } from "@astryxdesign/core/Banner";
 import { FormLayout } from "@astryxdesign/core/FormLayout";
@@ -51,7 +47,7 @@ import { AdminSkeleton, RecoveryBanner } from "./AdminFeedback";
 import { RichTextField } from "./RichTextField";
 import { editableHomeSummary } from "../../lib/rich-text";
 import { editorialFields } from "../../lib/editorial-fields";
-import { ReviewChanges } from "./ReviewChanges";
+import { ReviewChanges, ReviewHeading } from "./ReviewChanges";
 import { PublicationProgress } from "./PublicationProgress";
 import { TextArea } from "@astryxdesign/core/TextArea";
 import { Button } from "@astryxdesign/core/Button";
@@ -87,14 +83,17 @@ function HomeEditorImpl({
   record,
   localPreview = false,
   onTitleChange,
+  pageTitle,
 }: {
   record: EditorialRecord;
+  pageTitle?: string;
   localPreview?: boolean;
   onTitleChange?: (title: string) => void;
 }) {
   const previewSupported = !(
     record.kind === "page" && record.id === "newsletter"
   );
+  const reviewHeadingId = useId();
   const toast = useToast();
   const [returnPath, setReturnPath] = useState(
     record.kind === "writing" ? "/content?group=writing" : "/content",
@@ -808,16 +807,6 @@ function HomeEditorImpl({
           }
         }}
       />
-      {localPreview && (
-        <Button
-          label="Open production editor"
-          size="sm"
-          icon={<ArrowSquareOutIcon size={18} />}
-          href={`https://admin.anipotts.com/content/${record.kind === "page" ? (record.id === "home" ? "home" : `${record.id}Page`) : record.kind === "work" ? "projects" : "writing"}/${record.id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-        />
-      )}
     </>
   );
   return (
@@ -826,6 +815,11 @@ function HomeEditorImpl({
       className={`editor-workspace${record.kind === "writing" ? " writing-workspace" : ""}`}
       data-editor-view={tab}
     >
+      {tab === "publish" ? (
+        <ReviewHeading id={reviewHeadingId} level={1} />
+      ) : record.kind !== "writing" ? (
+        <Heading level={1}>{pageTitle ?? record.id}</Heading>
+      ) : null}
       <VStack className="editor-actionbar">
         <Toolbar
           label="Document actions"
@@ -963,6 +957,22 @@ function HomeEditorImpl({
                     },
                   },
                   { type: "divider" },
+                  ...(localPreview
+                    ? [
+                        {
+                          label: "Open production editor",
+                          description:
+                            "Opens the current production draft. Download this local draft to keep a copy.",
+                          onClick: () => {
+                            window.open(
+                              `https://admin.anipotts.com/content/${record.kind === "page" ? (record.id === "home" ? "home" : `${record.id}Page`) : record.kind === "work" ? "projects" : "writing"}/${record.id}`,
+                              "_blank",
+                              "noopener,noreferrer",
+                            );
+                          },
+                        },
+                      ]
+                    : []),
                   { label: "Download draft", onClick: () => download() },
                   {
                     label: "Import draft…",
@@ -1378,6 +1388,7 @@ function HomeEditorImpl({
                 />
               )}
               <ReviewChanges
+                labelledBy={reviewHeadingId}
                 destination={`anipotts.com${record.kind === "page" ? (record.id === "home" ? "/" : `/${record.id}`) : `/${record.kind}/${destinationId}`}`}
                 before={snapshot.base.source}
                 after={reviewedSource}

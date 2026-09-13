@@ -8,9 +8,12 @@ rows. Removed and added text appear on separate lines, with line numbers and
 subdued word highlights. Source mode preserves whitespace and exposes formatting,
 link, image, and line-ending changes. Large comparisons have a bounded work budget.
 
-The title and Added/Removed legend share one row. The destination, changed-field
-count, and comparison controls occupy the next. The redundant document-level
-collapsible and header band are removed.
+Review changes is the page-level title, with the Added/Removed legend beside it.
+The record name stays in the breadcrumb. Back to editor, save status, Publish and
+the document menu share the next row; the destination, changed-field count, and
+comparison controls lead directly into the diff. The redundant document heading,
+collapsible and nested toolbar inset are removed. Editor navigation restores the
+document title. The optional production-editor fallback is in the document menu.
 
 Publish is in the document toolbar. The back/save group and action group wrap
 intact when space is limited. A reusable save-status token distinguishes an
@@ -114,3 +117,10 @@ lint, type checks, 645 admin tests, and 89 real Workers tests. Keyboard switchin
 retained visible focus with reduced motion; search remained 520px tall with a
 68px input row both before and after typing. A fresh local load had no console
 errors after an earlier development-module hot-reload invalidation.
+
+The final header was browser checked at 1384, 792, 768, 640, 390, and 320px.
+Tablet controls share one row; phone controls wrap and remain on-screen. The
+production navigation fallback remains honest about not transferring local edits
+in this UI release. Canonical-only handoff receipt validation is separate work:
+activation evidence must match the record, revision, source hash and operation
+before local acknowledgement. It does not yet prove independent public rendering.

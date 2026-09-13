@@ -32,10 +32,62 @@ function lines(source: string): ReviewDiffLine[] {
   );
 }
 
+/** Patience anchors: exact unique lines in monotonically increasing order. */
+function matchingAnchors(
+  before: ReviewDiffLine[],
+  after: ReviewDiffLine[],
+  start: number,
+  endBefore: number,
+  endAfter: number,
+): [number, number][] {
+  const unique = (values: ReviewDiffLine[], end: number) => {
+    const positions = new Map<string, number>();
+    for (let index = start; index < end; index++) {
+      const line = values[index]!;
+      const key = line.text + line.ending;
+      positions.set(key, positions.has(key) ? -1 : index);
+    }
+    return positions;
+  };
+  const left = unique(before, endBefore);
+  const right = unique(after, endAfter);
+  const candidates: [number, number][] = [];
+  for (const [key, index] of left) {
+    const match = right.get(key);
+    if (index >= 0 && match !== undefined && match >= 0)
+      candidates.push([index, match]);
+  }
+
+  // Map insertion order is before-line order. LIS prevents moved/reordered
+  // anchors from crossing, without allocating an input-sized LCS matrix.
+  const tails: number[] = [];
+  const previous = new Int32Array(candidates.length).fill(-1);
+  for (let index = 0; index < candidates.length; index++) {
+    let low = 0;
+    let high = tails.length;
+    while (low < high) {
+      const middle = (low + high) >>> 1;
+      if (candidates[tails[middle]!]![1] < candidates[index]![1])
+        low = middle + 1;
+      else high = middle;
+    }
+    if (low) previous[index] = tails[low - 1]!;
+    tails[low] = index;
+  }
+  const anchors: [number, number][] = [];
+  let index = tails.at(-1) ?? -1;
+  while (index >= 0) {
+    anchors.push(candidates[index]!);
+    index = previous[index]!;
+  }
+  return anchors.reverse();
+}
+
 /**
  * Line-first review with a bounded LCS matrix and one shared inline-work budget.
- * Large replacements remain complete; only matching context may be collapsed by
- * the view. Joining each side's text + ending reconstructs the exact input.
+ * Large regions retain internal matches via O(n log n) patience anchors and
+ * linear gap scans. Only matching context may be collapsed by the view. Joining
+ * each side's text + ending reconstructs the exact input.
  */
 export function reviewDiff(before: string, after: string): ReviewDiffHunk[] {
   const a = lines(before);
@@ -70,8 +122,21 @@ export function reviewDiff(before: string, after: string): ReviewDiffHunk[] {
   const rows = endA - start;
   const cols = endB - start;
   if (!rows || !cols || (rows + 1) * (cols + 1) > MATRIX_BUDGET) {
-    for (let i = start; i < endA; i++) append("changed", a[i]);
-    for (let j = start; j < endB; j++) append("changed", undefined, b[j]);
+    let i = start;
+    let j = start;
+    const gap = (stopA: number, stopB: number) => {
+      while (i < stopA && j < stopB) {
+        // Also retain aligned repeated lines, which cannot be unique anchors.
+        append(equal(i, j) ? "equal" : "changed", a[i++], b[j++]);
+      }
+      while (i < stopA) append("changed", a[i++]);
+      while (j < stopB) append("changed", undefined, b[j++]);
+    };
+    for (const [anchorA, anchorB] of matchingAnchors(a, b, start, endA, endB)) {
+      gap(anchorA, anchorB);
+      append("equal", a[i++], b[j++]);
+    }
+    gap(endA, endB);
   } else {
     const stride = cols + 1;
     const table = new Uint32Array((rows + 1) * stride);
