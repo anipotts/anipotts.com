@@ -714,7 +714,7 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 .writing-workspace[data-editor-view="publish"] .record-workspace-main {
   max-width: none;
 }
-@media (min-width: 769px) and (max-width: 1279px) {
+@media (width > 768px) and (max-width: 1279px) {
   .editorial-workspace-shell .editorial-workspace-nav {
     width: calc(var(--spacing-8) * 2);
   }
@@ -822,7 +822,7 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 }
 
 /* The user controls desktop/rail width; the mobile drawer remains independent. */
-@media (min-width: 769px) {
+@media (width > 768px) {
   .editorial-workspace-shell[data-sidebar-collapsed="false"]
     .editorial-workspace-nav {
     width: calc(var(--spacing-10) * 5);
@@ -898,7 +898,7 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   width: auto;
   align-items: center;
 }
-@media (min-width: 769px) {
+@media (width > 768px) {
   .editorial-workspace-shell[data-sidebar-collapsed="false"]
     .astryx-app-shell-sidenav {
     border-inline-end: 0;
@@ -1061,7 +1061,7 @@ body:has(.editorial-workspace-shell) {
     transition: none;
   }
 }
-@media (min-width: 769px) {
+@media (width > 768px) {
   .editorial-workspace-shell[data-sidebar-collapsed="false"]
     #astryx-app-shell-main {
     height: calc(100% - var(--spacing-3));
