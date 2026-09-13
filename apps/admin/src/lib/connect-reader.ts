@@ -58,6 +58,10 @@ export async function readConnect(
     const observation = await Promise.race([
       (async () => {
         const response = await capability(abort.signal);
+        if (abort.signal.aborted) {
+          void response.body?.cancel().catch(() => undefined);
+          throw Error("timeout");
+        }
         if (
           !response.ok ||
           response.redirected ||
@@ -66,12 +70,17 @@ export async function readConnect(
         )
           throw Error("unavailable");
         const reader = response.body.getReader();
+        const cancel = () => {
+          void reader.cancel().catch(() => undefined);
+        };
+        abort.signal.addEventListener("abort", cancel, { once: true });
         let bytes = 0;
         let body = "";
         const decoder = new TextDecoder();
         try {
           for (;;) {
             const part = await reader.read();
+            if (abort.signal.aborted) throw Error("timeout");
             if (part.done) break;
             bytes += part.value.byteLength;
             if (bytes > 8192) throw Error("limit");
@@ -79,7 +88,9 @@ export async function readConnect(
           }
           body += decoder.decode();
         } finally {
-          void reader.cancel().catch(() => undefined);
+          abort.signal.removeEventListener("abort", cancel);
+          cancel();
+          reader.releaseLock();
         }
         return parseObservation(JSON.parse(body));
       })(),
