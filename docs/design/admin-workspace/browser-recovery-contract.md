@@ -52,7 +52,8 @@ and preserves those values. Save/download current edits before reopening.
 ## Editor behavior
 
 A recovered draft is shown without a server save or publication. Autosave pauses
-until the explicit **Save recovered edits** action. Other explicit save/preview/
+until the explicit **Save recovered edits** action. Restoring a review, preview or
+history deep link does not prepare or flush a recovered revision automatically. Other explicit save/preview/
 review/navigation actions retain their existing private-save behavior. The pending
 request is retried with its exact identity, even if the source already matches the
 server after a lost acknowledgment. Explicit choices retain the original base

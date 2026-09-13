@@ -319,6 +319,9 @@ function HomeEditorImpl({
       window.dispatchEvent(new Event("admin:workspace-navigation"));
     }
     const initialize = write === "replace";
+    // Restoring URL state is not approval to save recovered text. Preview,
+    // review and history prepare a stored revision only after a user action.
+    if (initialize && recoveryAwaitingSave.current) return;
     if (next.view === "preview" && (initialize || previous.view !== next.view))
       void workspaceActions.current?.preview();
     if (next.view === "review" && (initialize || previous.view !== next.view))

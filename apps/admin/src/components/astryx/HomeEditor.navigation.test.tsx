@@ -553,62 +553,70 @@ it("remembers pushed editor views and panels in the workspace switcher", async (
   );
 });
 
-it("reopens exact recovered source without autosaving and reuses an equal-source pending request on explicit save", async () => {
-  Object.defineProperty(navigator, "locks", {
-    configurable: true,
-    value: {
-      request: async (_key: string, _options: unknown, task: () => unknown) =>
-        task(),
-    },
-  });
-  const key = recoveryKey("recovery-owner", { kind: "writing", id: "test" });
-  const exact = source.replaceAll("\n", "\r\n") + "\r\n雨 e\u0301";
-  const pending = {
-    source: exact,
-    expectedRevision: 1,
-    requestId: "11111111-1111-4111-8111-111111111111",
-  };
-  const savedRecovery = {
-    source: exact,
-    saved: "prior baseline\r\n",
-    revision: 1,
-    pending,
-  };
-  localStorage.setItem(key, JSON.stringify(savedRecovery));
-  const writes: { url: string; body: unknown }[] = [];
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (url: string, options?: RequestInit) => {
-      if (url.includes("/csrf")) return response({ csrf: "synthetic" });
-      if (options?.method === "POST") {
-        writes.push({ url, body: JSON.parse(options.body as string) });
+it.each(
+  ["", "?view=review", "?view=preview", "?panel=history"].flatMap((search) => [
+    { search, sameSource: true },
+    { search, sameSource: false },
+  ]),
+)(
+  "reopens $search with recovered source (server matches: $sameSource) without autosaving and preserves its pending request",
+  async ({ search, sameSource }) => {
+    Object.defineProperty(navigator, "locks", {
+      configurable: true,
+      value: {
+        request: async (_key: string, _options: unknown, task: () => unknown) =>
+          task(),
+      },
+    });
+    const key = recoveryKey("recovery-owner", { kind: "writing", id: "test" });
+    const exact = source.replaceAll("\n", "\r\n") + "\r\n雨 e\u0301";
+    const pending = {
+      source: exact,
+      expectedRevision: 1,
+      requestId: "11111111-1111-4111-8111-111111111111",
+    };
+    const savedRecovery = {
+      source: exact,
+      saved: "prior baseline\r\n",
+      revision: 1,
+      pending,
+    };
+    localStorage.setItem(key, JSON.stringify(savedRecovery));
+    const writes: { url: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, options?: RequestInit) => {
+        if (url.includes("/csrf")) return response({ csrf: "synthetic" });
+        if (options?.method === "POST") {
+          writes.push({ url, body: JSON.parse(options.body as string) });
+          return response({
+            ok: true,
+            draft: { ...draft, source: exact, revision: 2 },
+          });
+        }
         return response({
-          ok: true,
-          draft: { ...draft, source: exact, revision: 2 },
+          ...snapshot,
+          recoveryScope: "recovery-owner",
+          draft: { ...draft, source: sameSource ? exact : source },
         });
-      }
-      return response({
-        ...snapshot,
-        recoveryScope: "recovery-owner",
-        draft: { ...draft, source: exact },
-      });
-    }),
-  );
-  await mount();
-  expect(host.textContent).toContain("Recovered edits are ready to review");
-  await act(async () => {
-    await new Promise((done) => setTimeout(done, 700));
-  });
-  expect(writes).toEqual([]);
-  expect(localStorage.getItem(key)).toBe(JSON.stringify(savedRecovery));
-  await click("Save recovered edits");
-  expect(writes).toHaveLength(1);
-  expect(writes[0].url).toContain("/save?");
-  expect(writes[0].body).toEqual(pending);
-  expect(
-    JSON.parse(localStorage.getItem(versionedRecoveryKey(key))!).payload,
-  ).toBeNull();
-});
+      }),
+    );
+    await mount(search);
+    expect(host.textContent).toContain("Recovered edits are ready to review");
+    await act(async () => {
+      await new Promise((done) => setTimeout(done, 700));
+    });
+    expect(writes).toEqual([]);
+    expect(localStorage.getItem(key)).toBe(JSON.stringify(savedRecovery));
+    await click("Save recovered edits");
+    expect(writes).toHaveLength(1);
+    expect(writes[0].url).toContain("/save?");
+    expect(writes[0].body).toEqual(pending);
+    expect(
+      JSON.parse(localStorage.getItem(versionedRecoveryKey(key))!).payload,
+    ).toBeNull();
+  },
+);
 it("preserves opaque recovery and renders a bounded explanation instead of replacing it with server text", async () => {
   const key = recoveryKey("recovery-owner", { kind: "writing", id: "test" });
   const raw = JSON.stringify({ version: 99, source: "private future copy" });
