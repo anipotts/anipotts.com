@@ -56,6 +56,33 @@ const runtimeOperatorWork = readFileSync(
 assert.match(runtimeOperatorWork, /mode:\s*"disconnected"/);
 assert.doesNotMatch(runtimeOperatorWork, /operatorWorkFixture/);
 
+const catalogRoute = readFileSync(
+  join(adminSource, "pages/content/dev-catalog.astro"),
+  "utf8",
+);
+assert.match(catalogRoute, /if \(!import\.meta\.env\.DEV\)\s*\{/);
+assert.match(catalogRoute, /return new Response\(null,\s*\{\s*status: 404/);
+assert.match(catalogRoute, /inventoryProjection=\{inventoryProjection\}/);
+assert.doesNotMatch(catalogRoute, /loadEditorialInventory\s*\(/);
+const catalogConsumers = collect(adminSource).filter((file) => {
+  if (file.endsWith(".test.tsx")) return false;
+  return /from\s+["'][^"']*dev-review-catalog["']/.test(
+    readFileSync(file, "utf8"),
+  );
+});
+assert.deepEqual(catalogConsumers, [
+  join(adminSource, "pages/content/dev-catalog.astro"),
+]);
+const catalogFixture = readFileSync(
+  join(adminSource, "components/astryx/dev-review-catalog.tsx"),
+  "utf8",
+);
+assert.doesNotMatch(
+  catalogFixture,
+  /\b(?:fetch|localStorage|sessionStorage|indexedDB|localDraftStorage)\b/,
+  "the review catalog must not call private APIs or persist synthetic drafts",
+);
+
 console.log(
   `admin fixture boundary passed for ${productionFiles.length} production modules`,
 );
