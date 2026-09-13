@@ -114,6 +114,7 @@ export function DevReviewCatalog() {
   return (
     <VStack gap={5}>
       <VStack gap={3} as="section" aria-label="Review catalog controls">
+        <Text type="supporting">Component catalog</Text>
         <Text id={noteId} color="secondary">
           Synthetic component examples. Save outcomes run in memory and do not
           save or publish content. The sidebar and diff controls use the actual
@@ -142,6 +143,7 @@ export function DevReviewCatalog() {
       <VStack gap={5} className="editor-workspace" data-editor-view="publish">
         <ReviewHeading
           id={headingId}
+          level={1}
           saveStatus={{
             state: saveStatusFromController(state, {
               localPreview: scenario === "local",

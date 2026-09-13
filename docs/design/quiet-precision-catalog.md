@@ -34,8 +34,9 @@ visible explanation identifies the save labels as synthetic examples.
 Use **Save scenario** to inspect unchanged, unsaved, saving, saved locally, saved
 privately, failed, and conflicting states. Use **Content example** for long
 unbroken text and Unicode. The source/field and split/unified diff controls are
-the actual production controls. The review example is a section under the catalog
-page's single H1; the real review route retains its H1.
+the actual production controls. “Review changes” is the catalog page's single H1.
+“Component catalog” is supporting context above the example, so the review heading
+uses the exact H1 typography of the real review route.
 
 This fixture is a component review surface, not evidence of real persistence,
 publication, owner authentication, or connected Life/Operations capabilities.

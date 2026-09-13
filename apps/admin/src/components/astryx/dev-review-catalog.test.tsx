@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, expect, it, vi } from "vitest";
 import { DevReviewCatalog, reviewCatalogScenario } from "./dev-review-catalog";
 import { saveStatusFromController } from "./SaveStatus";
+import { EditorialApp } from "./EditorialApp";
 
 let root: Root | undefined;
 let host: HTMLElement | undefined;
@@ -13,6 +15,28 @@ afterEach(() => {
   root = undefined;
   host = undefined;
   vi.unstubAllGlobals();
+});
+
+it("uses the actual review H1 sizing inside the shell with catalog context as an eyebrow", () => {
+  const html = renderToStaticMarkup(
+    <EditorialApp
+      title="Component catalog"
+      area="content"
+      localPreview
+      siteUrl="https://example.test"
+      hideHeader
+      searchEntries={[]}
+    >
+      <DevReviewCatalog />
+    </EditorialApp>,
+  );
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  expect(
+    [...doc.querySelectorAll("h1")].map((heading) => heading.textContent),
+  ).toEqual(["Review changes"]);
+  expect(
+    doc.querySelector('[aria-label="Review catalog controls"]')?.textContent,
+  ).toContain("Component catalog");
 });
 
 it.each([
