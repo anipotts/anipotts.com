@@ -51,19 +51,53 @@ trigger width; ToggleButtonGroup lacks joined-segment spacing props; Button
 does not expose tooltip direction. Keep these scoped overrides until equivalent
 component APIs are available. Header alignment uses Astryx HStack props.
 Superseded geometry rules were removed and remaining icon/menu dimensions use
-equivalent theme spacing expressions. Nine shell tests pass; visual parity is
-still pending because the in-app Browser control runtime is unavailable.
+equivalent theme spacing expressions. Nine shell tests pass. The restored in-app Browser now supports verified viewport
+overrides; final candidate acceptance remains in progress.
 
 ## Connection boundaries
 
-Workers Paid checkout was inspected while the account was on Free: $5 due
-today and $5/month plus usage. Ani authorized using Mercury instead of the
-saved personal card. Secure Mercury card entry and final provider confirmation
-remain unverified; no charge or plan activation is established. Recheck the
-checkout before submitting. R2 access is a separate unresolved permission
-issue. No existing database is repurposed.
+Workers Paid activation was confirmed in the provider checkout confirmation on
+2026-09-13 at $5/month plus usage. Do not retry the purchase. The dedicated
+`anipotts-content` database was created and independently read back with zero
+tables. No migration, binding or publication activation has occurred. R2 bucket
+listing still returns HTTP 403 / error 10000 with the existing credential; its
+access must be resolved separately. No existing database was repurposed.
 
 Operations has real read-only 1Password Connect health/container evidence;
 sync activity remains unknown and production observation transport is pending.
 Life has a nonactivating access proposal; hostname, canonical store and source
 allowlist must be resolved before approving any new private network boundary.
+
+## September 13 follow-up
+
+- Commit `636f1f5b` fixes longest-item workspace menu sizing, library filter
+  isolation, save-before-leave recovery, and unsupported newsletter preview.
+- 27 focused component tests and admin type checks passed.
+- Managed preview Browser checks: 390x844 mobile menu shows every workspace
+  without truncation; drawer and dark appearance reviewed. At 834x1112 the
+  palette remains 600x520 and its input remains 20px before/after Clear appears.
+  At 1440x900 the expanded inset begins at 12px beside the 200px sidebar.
+- These visual checks cover the integration preview, not an immutable deployment.
+  Native logout revocation, remaining acceptance, and exact-head CI remain open.
+
+## Final review fixes in progress
+
+The dedicated logout route reads presented native sessions without refreshing or
+migrating them, checks Origin and a cookie-bound CSRF capability, and atomically
+revokes only those sessions with audit entries. The inert confirmation page
+requires an explicit click. Recovery clears only after success; unavailable
+Access verification or native storage fails closed. Tests exercise real migrated
+SQLite, concurrent retries and transactional rollback. No real sessions were
+revoked during QA.
+
+The Astryx patch defers only focus-triggered tooltip opening to the next task,
+avoiding native popover reentry. Hover timing remains immediate. Browser Escape
+checks now restore focus in both sidebar states without new console errors;
+blur dismisses the tooltip. The managed preview needed its normal config watcher
+to refresh stale Vite dependencies.
+
+The recoverable QA draft passed edit, immediate navigation, reopen, preview and
+review. Its original body was restored, and no publication action ran. Full
+repository validation passed, including 593 admin component/library tests and
+89 editorial worker tests. A subsequent Access-verification failure-path fix
+requires its affected tests and fresh exact-head CI before promotion.

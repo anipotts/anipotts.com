@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, type ReactNode } from "react";
 import type { Editor } from "@tiptap/react";
+import { VStack } from "@astryxdesign/core/VStack";
 import { usePopover } from "@astryxdesign/core/Popover";
 
 /** Astryx owns dismissal and focus trapping; the editor selection supplies the anchor. */
@@ -54,13 +55,13 @@ function LinkOverlay({
   });
   const overlay = useRef(popover);
   overlay.current = popover;
-  const anchor = useRef<HTMLSpanElement | null>(null);
+  const anchor = useRef<HTMLElement | null>(null);
   useEffect(() => {
     const position = () => {
       if (!anchor.current || editor.isDestroyed) return;
       const point = editor.view.coordsAtPos(editor.state.selection.from);
-      anchor.current.style.left = `${Math.max(16, Math.min(point.left, window.innerWidth - 16))}px`;
-      anchor.current.style.top = `${Math.max(16, Math.min(point.bottom, window.innerHeight - 16))}px`;
+      anchor.current.style.left = `clamp(var(--spacing-4), ${point.left}px, calc(100vw - var(--spacing-4)))`;
+      anchor.current.style.top = `clamp(var(--spacing-4), ${point.bottom}px, calc(100dvh - var(--spacing-4)))`;
     };
     position();
     overlay.current.show();
@@ -73,12 +74,12 @@ function LinkOverlay({
   }, [editor]);
   return (
     <>
-      <span
+      <VStack
+        width={0}
+        height={0}
         aria-hidden="true"
         style={{
           position: "fixed",
-          width: 1,
-          height: 1,
           pointerEvents: "none",
         }}
         ref={(element) => {
@@ -113,11 +114,11 @@ function LinkOverlay({
         {
           placement: "below",
           alignment: "start",
-          offset: 8,
           className: "editor-link-overlay",
           style: {
-            width: "min(360px, calc(100vw - 32px))",
-            maxHeight: "calc(100dvh - 32px)",
+            width:
+              "min(calc(var(--spacing-10) * 9), calc(100vw - var(--spacing-8)))",
+            maxHeight: "calc(100dvh - var(--spacing-8))",
             overflowY: "auto",
           },
         },

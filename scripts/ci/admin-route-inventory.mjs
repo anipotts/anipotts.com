@@ -1,5 +1,15 @@
 export const ADMIN_ROUTES = [
   {
+    route: "/auth/logout",
+    file: "apps/admin/src/pages/auth/logout.astro",
+    nav: false,
+  },
+  {
+    route: "/api/admin/logout",
+    file: "apps/admin/src/pages/api/admin/logout.ts",
+    nav: false,
+  },
+  {
     route: "/life/people",
     file: "apps/admin/src/pages/life/[section].astro",
     nav: false,

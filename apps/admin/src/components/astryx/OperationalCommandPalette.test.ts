@@ -11,7 +11,6 @@ afterEach(() => vi.unstubAllGlobals());
 describe("operational search adapter", () => {
   it("starts with current workspace destinations and scopes advanced navigation", () => {
     expect(operationalDestinations.map((row) => row.label)).toEqual([
-      "Overview",
       "Machines",
       "Loops",
     ]);

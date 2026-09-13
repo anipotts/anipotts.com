@@ -3,7 +3,6 @@ import type { NavItem } from "../../data/admin";
 import type { AdminSearchResult } from "../../data/admin-search";
 
 export const operationalDestinations: AdminSearchResult[] = [
-  ["Overview", "/operations/observability"],
   ["Machines", "/operations/observability?view=machines"],
   ["Loops", "/operations/observability?view=loops"],
 ].map(([label, href]) => ({

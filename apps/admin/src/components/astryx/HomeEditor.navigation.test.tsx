@@ -5,6 +5,7 @@ import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { newWritingSource } from "../../lib/writing-draft";
 import * as navigation from "../../lib/editorial-navigation";
 import { HomeEditor } from "./HomeEditor";
+import { WorkspaceIdentity } from "./EditorialWorkspaceShell";
 import { EditorialApp } from "./EditorialApp";
 import { recoveryKey } from "../../lib/draft-recovery";
 
@@ -75,14 +76,17 @@ const snapshot = {
 function response(data: unknown) {
   return new Response(JSON.stringify(data));
 }
-async function mount(search = "", localPreview = true) {
+async function mount(search = "", localPreview = true, withIdentity = false) {
   window.history.replaceState(null, "", `/content/writing/test${search}`);
   await act(async () => {
     root.render(
-      <HomeEditor
-        record={{ kind: "writing", id: "test" }}
-        localPreview={localPreview}
-      />,
+      <>
+        {withIdentity && <WorkspaceIdentity workspace="content" />}
+        <HomeEditor
+          record={{ kind: "writing", id: "test" }}
+          localPreview={localPreview}
+        />
+      </>,
     );
   });
   await act(async () => {
@@ -468,7 +472,7 @@ it("keeps the document mounted and hidden inside its Astryx surface during previ
   expect(body.closest("[hidden]")).toBeNull();
 });
 
-it("does not clear recovery when Access logout navigation is canceled", async () => {
+it("does not clear recovery when sign-out navigation is canceled", async () => {
   const key = recoveryKey("test-owner", { kind: "writing", id: "test" });
   localStorage.setItem(key, "recoverable private edit");
   await act(async () => {
@@ -482,7 +486,7 @@ it("does not clear recovery when Access logout navigation is canceled", async ()
     );
   });
   const link = host.querySelector(
-    'a[href="/cdn-cgi/access/logout"]',
+    'a[href="/auth/logout"]',
   ) as HTMLAnchorElement;
   expect(link).not.toBeNull();
   const cancel = (event: Event) => event.preventDefault();
@@ -493,4 +497,26 @@ it("does not clear recovery when Access logout navigation is canceled", async ()
   } finally {
     document.removeEventListener("click", cancel);
   }
+});
+
+it("remembers pushed editor views and panels in the workspace switcher", async () => {
+  await mount("?theme=dark", true, true);
+  await click("Preview");
+  expect(sessionStorage.getItem("admin:navigation:content")).toBe(
+    "/content/writing/test?view=preview",
+  );
+  expect(sessionStorage.getItem("admin:navigation:content")).toContain(
+    "view=preview",
+  );
+  await click("Properties");
+  expect(sessionStorage.getItem("admin:navigation:content")).toContain(
+    "panel=properties",
+  );
+  await click("Close panel");
+  expect(sessionStorage.getItem("admin:navigation:content")).not.toContain(
+    "panel=",
+  );
+  expect(sessionStorage.getItem("admin:navigation:content")).toContain(
+    "view=preview",
+  );
 });

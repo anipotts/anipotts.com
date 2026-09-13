@@ -297,6 +297,7 @@ function HomeEditorImpl({
         window.history.replaceState(window.history.state, "", url);
       else if (url !== window.location.pathname + window.location.search)
         window.history.pushState(null, "", url);
+      window.dispatchEvent(new Event("admin:workspace-navigation"));
     }
     const initialize = write === "replace";
     if (next.view === "preview" && (initialize || previous.view !== next.view))

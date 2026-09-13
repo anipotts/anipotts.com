@@ -448,7 +448,7 @@ export function EditorialWorkspaceShell({
                 {!localPreview && (
                   <SideNavItem
                     label="Log out"
-                    href="/cdn-cgi/access/logout"
+                    href="/auth/logout"
                     icon={<SignOutIcon size={18} aria-hidden="true" />}
                   />
                 )}
