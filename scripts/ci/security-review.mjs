@@ -169,7 +169,8 @@ function withoutKnownPublicReferences(file, line) {
   if (/^ACCESS_POLICY_AUD = "[a-f0-9]{64}"$/.test(candidate.trim())) return "";
   if (
     candidate.trim() ===
-    "# Secrets: EDITORIAL_GITHUB_PRIVATE_KEY and EDITORIAL_SIGNING_PRIVATE_KEY."
+    "# Secrets: " +
+      "EDITORIAL_GITHUB_PRIVATE_KEY and EDITORIAL_SIGNING_PRIVATE_KEY."
   )
     return "";
   return candidate;

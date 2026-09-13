@@ -74,19 +74,16 @@ assert.deepEqual(
 assert.ok(
   reviewFiles(
     [boundary],
-    () =>
-      'key: "content/public/writing/post.md", token: "abcdefghijklmnopqrstuvwxyz123456"',
+    () => `key: "content/public/writing/post.md", token: "${"a".repeat(32)}"`,
   ).length > 0,
 );
-assert.ok(
-  reviewFiles([boundary], () => 'key: "abcdefghijklmnopqrstuvwxyz123456"')
-    .length > 0,
-);
+assert.ok(reviewFiles([boundary], () => `key: "${"a".repeat(32)}"`).length > 0);
 assert.deepEqual(
   reviewFiles(
     ["apps/admin/wrangler.toml"],
     () =>
-      `ACCESS_POLICY_AUD = "${"a".repeat(64)}"\n# Secrets: EDITORIAL_GITHUB_PRIVATE_KEY and EDITORIAL_SIGNING_PRIVATE_KEY.`,
+      `ACCESS_POLICY_AUD = "${"a".repeat(64)}"\n# Secrets: ` +
+      "EDITORIAL_GITHUB_PRIVATE_KEY and EDITORIAL_SIGNING_PRIVATE_KEY.",
   ),
   [],
 );
