@@ -22,7 +22,14 @@ export type HomeBase = {
 };
 export type DraftStorage = Pick<
   EditorialDraftStore,
-  "get" | "save" | "rebase" | "history" | "discard" | "restore" | "conflict"
+  | "get"
+  | "save"
+  | "rebase"
+  | "history"
+  | "historyPage"
+  | "discard"
+  | "restore"
+  | "conflict"
 >;
 export type PublicationStorage = Pick<
   EditorialDraftStore,
@@ -51,11 +58,27 @@ export async function homeEditorApi(
   const record = identity.data;
   if (request.method === "GET") {
     if (action === "csrf") return issueEditorialCsrf(request);
+    if (action === "history") {
+      const options: { beforeRevision?: number; limit?: number } = {};
+      for (const name of ["beforeRevision", "limit"] as const) {
+        const value = url.searchParams.get(name);
+        if (value === null) continue;
+        if (
+          !/^[1-9][0-9]*$/.test(value) ||
+          !Number.isSafeInteger(Number(value))
+        )
+          return json({ error: "invalid_history_page" }, 400);
+        options[name] = Number(value);
+      }
+      if (options.limit !== undefined && options.limit > 100)
+        return json({ error: "invalid_history_page" }, 400);
+      return json(await storage.historyPage(record, options));
+    }
     if (action === "home" || action === "record") {
-      const [base, draft, history] = await Promise.all([
+      const [base, draft, historyPage] = await Promise.all([
         readBase(record),
         storage.get(record),
-        storage.history(record),
+        storage.historyPage(record),
       ]);
       const publication = publisher
         ? await publisher.storage.latestPublication(record)
@@ -64,7 +87,8 @@ export async function homeEditorApi(
         recoveryScope: EDITORIAL_OWNER_EMAIL,
         base,
         draft,
-        history,
+        history: historyPage.history,
+        nextBeforeRevision: historyPage.nextBeforeRevision,
         publication,
         publishing: publisher?.enabled ? "ready" : "not_configured",
       });
@@ -214,7 +238,12 @@ export async function homeEditorApi(
     }
     return json(
       { ...result, valid },
-      result.ok ? 200 : result.code === "revision_conflict" ? 409 : 400,
+      result.ok
+        ? 200
+        : result.code === "revision_conflict" ||
+            result.code === "save_reconciliation_required"
+          ? 409
+          : 400,
     );
   }
   if (action === "discard" || action === "restore") {
