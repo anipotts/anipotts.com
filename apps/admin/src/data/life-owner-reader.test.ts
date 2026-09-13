@@ -104,16 +104,14 @@ describe("owner read proposal adapter", () => {
     expect(onLock).toHaveBeenCalledTimes(1);
   });
   it("rejects oversized streamed bodies without trusting content length", async () => {
-    const send = vi
-      .fn<typeof fetch>()
-      .mockResolvedValue(
-        new Response("x".repeat(1024 * 1024 + 1), {
-          headers: {
-            "content-type": "application/json",
-            "content-length": "1",
-          },
-        }),
-      );
+    const send = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response("x".repeat(1024 * 1024 + 1), {
+        headers: {
+          "content-type": "application/json",
+          "content-length": "1",
+        },
+      }),
+    );
     const client = createLifeOwnerReader({
       endpoint,
       ticket: "synthetic",
@@ -145,4 +143,65 @@ describe("owner read proposal adapter", () => {
       ).toThrow("Unsupported Life endpoint");
     }
   });
+  it("never returns data from a transport resolving after lock", async () => {
+    let resolve!: (value: Response) => void;
+    const send = vi.fn<typeof fetch>().mockImplementation(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    );
+    const client = createLifeOwnerReader({
+      endpoint,
+      ticket: "synthetic",
+      expiresAt: Date.now() + 60_000,
+      fetch: send,
+      onLock: vi.fn(),
+    });
+    const result = client.read({ method: "sources" });
+    client.lock();
+    resolve(response());
+    const settled = await result;
+    expect(settled.state).toBe("denied");
+    expect(settled).not.toHaveProperty("data");
+    expect((await client.read({ method: "sources" })).state).toBe("denied");
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+  it.each(["lock", "timeout"] as const)(
+    "cancels a stalled body on %s",
+    async (reason) => {
+      vi.useFakeTimers();
+      const cancel = vi.fn();
+      const body = new ReadableStream<Uint8Array>({ cancel });
+      const send = vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(
+          new Response(body, {
+            headers: { "content-type": "application/json" },
+          }),
+        );
+      const client = createLifeOwnerReader({
+        endpoint,
+        ticket: "synthetic",
+        expiresAt: Date.now() + 60_000,
+        fetch: send,
+        onLock: vi.fn(),
+      });
+      try {
+        const result = client.read({ method: "sources" });
+        await vi.advanceTimersByTimeAsync(0);
+        expect(body.locked).toBe(true);
+        if (reason === "lock") client.lock();
+        else await vi.advanceTimersByTimeAsync(5000);
+        const settled = await result;
+        expect(settled.state).toBe(
+          reason === "lock" ? "denied" : "unavailable",
+        );
+        expect(settled).not.toHaveProperty("data");
+        expect(cancel).toHaveBeenCalledTimes(1);
+      } finally {
+        client.lock();
+      }
+    },
+  );
 });
