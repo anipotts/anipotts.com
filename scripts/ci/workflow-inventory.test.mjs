@@ -34,6 +34,16 @@ const smokeWorkflow = readFileSync(join(WORKFLOW_DIR, "smoke.yml"), "utf8");
 const codeRabbit = readFileSync(".coderabbit.yaml", "utf8");
 assert.match(ciWorkflow, /types:.*ready_for_review/);
 assert.match(
+  securityWorkflow,
+  /ref: \$\{\{ github.event.pull_request.head.sha \}\}/,
+  "security review must inspect the same immutable PR head as build validation",
+);
+assert.ok(
+  ciWorkflow.indexOf("node scripts/ci/check-build-drift.mjs") >
+    ciWorkflow.indexOf("pnpm test:site-migrations"),
+  "tracked-source drift must be checked after builds and migration validation",
+);
+assert.match(
   ciWorkflow,
   /name: Setup Node\n\s+if: github.event.pull_request.draft == false/,
 );

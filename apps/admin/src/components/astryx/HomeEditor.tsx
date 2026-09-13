@@ -34,7 +34,7 @@ import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { Heading } from "@astryxdesign/core/Heading";
 import { TextInput } from "@astryxdesign/core/TextInput";
-import { SaveStatus } from "./SaveStatus";
+import { SaveStatus, saveStatusFromController } from "./SaveStatus";
 import { ArrowLeftIcon, DotsThreeIcon } from "@phosphor-icons/react";
 import { Toolbar } from "@astryxdesign/core/Toolbar";
 import { Banner } from "@astryxdesign/core/Banner";
@@ -741,6 +741,11 @@ function HomeEditorImpl({
   const reviewedSource = reviewedDraft?.source ?? state.source;
   const reviewCurrent = matchesReviewedDraft(reviewedDraft, state);
   const isDocumentView = tab === "edit" || tab === "preview";
+  const saveStatus = saveStatusFromController(state, {
+    discarded: Boolean(snapshot.draft?.discardedAt),
+    bodyDirty,
+    localPreview,
+  });
   const publishActions = (
     <>
       <Button
@@ -816,7 +821,11 @@ function HomeEditorImpl({
       data-editor-view={tab}
     >
       {tab === "publish" ? (
-        <ReviewHeading id={reviewHeadingId} level={1} />
+        <ReviewHeading
+          id={reviewHeadingId}
+          level={1}
+          saveStatus={{ state: saveStatus }}
+        />
       ) : record.kind !== "writing" ? (
         <Heading level={1}>{pageTitle ?? record.id}</Heading>
       ) : null}
@@ -864,27 +873,7 @@ function HomeEditorImpl({
                   size="sm"
                 />
               )}
-              <SaveStatus
-                state={
-                  snapshot.draft?.discardedAt
-                    ? "discarded"
-                    : state.status === "conflict"
-                      ? "conflict"
-                      : state.saveFailed
-                        ? "save-failed"
-                        : bodyDirty
-                          ? "changed"
-                          : state.status === "saving"
-                            ? "saving"
-                            : state.status === "saved"
-                              ? state.revision > 0
-                                ? localPreview
-                                  ? "saved-locally"
-                                  : "saved-privately"
-                                : "unchanged"
-                              : "changed"
-                }
-              />
+              {tab !== "publish" && <SaveStatus state={saveStatus} />}
             </HStack>
           }
           endContent={

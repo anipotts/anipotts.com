@@ -23,6 +23,8 @@ type Props = Omit<
   "area" | "localPreview" | "siteUrl" | "initialMode" | "recoveryScope"
 > & {
   inventoryProjection?: Awaited<ReturnType<typeof loadEditorialInventory>>;
+  /** Set only when the route supplies actual body content, not an empty conditional slot. */
+  hasContent?: boolean;
 };
 const initialMode = initialAdminTheme(
   Astro.url.searchParams.get("theme"),
@@ -31,8 +33,14 @@ const initialMode = initialAdminTheme(
 const area = Astro.url.pathname.startsWith("/newsletter")
   ? "newsletter"
   : "content";
-const hasContent = Boolean((await Astro.slots.render("default"))?.trim());
-const { inventoryProjection: suppliedInventory, ...pageProps } = Astro.props;
+const {
+  inventoryProjection: suppliedInventory,
+  hasContent = false,
+  ...pageProps
+} = Astro.props;
+// Astro counts an empty conditional as a slot. The route knows whether it has
+// content; rendering it here to inspect it would consume island hydration.
+const renderContent = hasContent && Astro.slots.has("default");
 const inventory =
   suppliedInventory ??
   (await loadEditorialInventory(Astro.locals.runtime?.env));
@@ -71,7 +79,7 @@ const appProps = {
   </head>
   <body>
     {
-      hasContent ? (
+      renderContent ? (
         <EditorialApp {...appProps} client:load>
           <slot />
         </EditorialApp>
