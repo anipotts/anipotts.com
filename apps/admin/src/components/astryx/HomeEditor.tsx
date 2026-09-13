@@ -34,7 +34,7 @@ import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { Heading } from "@astryxdesign/core/Heading";
 import { TextInput } from "@astryxdesign/core/TextInput";
-import { SaveStatus } from "./SaveStatus";
+import { SaveStatus, saveStatusFromController } from "./SaveStatus";
 import { ArrowLeftIcon, DotsThreeIcon } from "@phosphor-icons/react";
 import { Toolbar } from "@astryxdesign/core/Toolbar";
 import { Banner } from "@astryxdesign/core/Banner";
@@ -344,6 +344,12 @@ function HomeEditorImpl({
   const importInput = useRef<HTMLInputElement | null>(null);
   const [importing, setImporting] = useState(false);
   const [comparisonLoading, setComparisonLoading] = useState(false);
+  const [saveComparison, setSaveComparison] = useState<{
+    draft: Draft | null;
+  } | null>(null);
+  const [saveComparisonLoading, setSaveComparisonLoading] = useState(false);
+  const [saveComparisonError, setSaveComparisonError] = useState("");
+  const saveComparisonRequest = useRef(0);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [publication, setPublication] = useState<PublishJob | null>(null);
   const [publishing, setPublishing] = useState(false);
@@ -528,10 +534,14 @@ function HomeEditorImpl({
   }, [state?.source, record.kind, onTitleChange]);
   useEffect(() => {
     const logout = (event: StorageEvent) => {
-      if (event.key === recoveryLogoutKey) recoveryStorageKey.current = null;
+      if (event.key === recoveryLogoutKey) localLogout();
     };
     const localLogout = () => {
       recoveryStorageKey.current = null;
+      saveComparisonRequest.current += 1;
+      setSaveComparison(null);
+      setSaveComparisonLoading(false);
+      setSaveComparisonError("");
     };
     window.addEventListener(recoveryLogoutKey, localLogout);
     window.addEventListener("storage", logout);
@@ -623,6 +633,45 @@ function HomeEditorImpl({
     link.download = name;
     link.click();
     URL.revokeObjectURL(url);
+  };
+  const needsSaveComparison =
+    state.saveFailureCode === "save_reconciliation_required";
+  const comparedDraft = state.conflict
+    ? state.conflict.current
+    : needsSaveComparison
+      ? (saveComparison?.draft ?? null)
+      : null;
+  const compareSavedDraft = async () => {
+    // Capture buffered typing locally; do not resend an unreconcilable operation.
+    flushLocal();
+    const request = ++saveComparisonRequest.current;
+    const navigation = navigationGeneration.current;
+    const controller = editor.current;
+    const isCurrent = () =>
+      request === saveComparisonRequest.current &&
+      navigation === navigationGeneration.current &&
+      controller === editor.current &&
+      controller?.state.saveFailureCode === "save_reconciliation_required";
+    setSaveComparisonLoading(true);
+    setSaveComparisonError("");
+    setSaveComparison(null);
+    try {
+      const response = await fetch(endpoint("draft"), {
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!response.ok) throw new Error();
+      const data: { draft: Draft | null } = await response.json();
+      if (data.draft === undefined) throw new Error();
+      if (isCurrent()) setSaveComparison(data);
+    } catch {
+      if (isCurrent())
+        setSaveComparisonError(
+          "Couldn’t load the saved draft. Your edits are retained. Try comparing again.",
+        );
+    } finally {
+      if (request === saveComparisonRequest.current)
+        setSaveComparisonLoading(false);
+    }
   };
   const refreshReview = async () => {
     const request = ++reviewRequest.current;
@@ -741,6 +790,11 @@ function HomeEditorImpl({
   const reviewedSource = reviewedDraft?.source ?? state.source;
   const reviewCurrent = matchesReviewedDraft(reviewedDraft, state);
   const isDocumentView = tab === "edit" || tab === "preview";
+  const saveStatus = saveStatusFromController(state, {
+    discarded: Boolean(snapshot.draft?.discardedAt),
+    bodyDirty,
+    localPreview,
+  });
   const publishActions = (
     <>
       <Button
@@ -816,7 +870,11 @@ function HomeEditorImpl({
       data-editor-view={tab}
     >
       {tab === "publish" ? (
-        <ReviewHeading id={reviewHeadingId} level={1} />
+        <ReviewHeading
+          id={reviewHeadingId}
+          level={1}
+          saveStatus={{ state: saveStatus }}
+        />
       ) : record.kind !== "writing" ? (
         <Heading level={1}>{pageTitle ?? record.id}</Heading>
       ) : null}
@@ -864,27 +922,7 @@ function HomeEditorImpl({
                   size="sm"
                 />
               )}
-              <SaveStatus
-                state={
-                  snapshot.draft?.discardedAt
-                    ? "discarded"
-                    : state.status === "conflict"
-                      ? "conflict"
-                      : state.saveFailed
-                        ? "save-failed"
-                        : bodyDirty
-                          ? "changed"
-                          : state.status === "saving"
-                            ? "saving"
-                            : state.status === "saved"
-                              ? state.revision > 0
-                                ? localPreview
-                                  ? "saved-locally"
-                                  : "saved-privately"
-                                : "unchanged"
-                              : "changed"
-                }
-              />
+              {tab !== "publish" && <SaveStatus state={saveStatus} />}
             </HStack>
           }
           endContent={
@@ -980,7 +1018,7 @@ function HomeEditorImpl({
                       importing || Boolean(snapshot.draft?.discardedAt),
                     onClick: () => importInput.current?.click(),
                   },
-                  ...(state.status === "unsaved"
+                  ...(state.status === "unsaved" && !needsSaveComparison
                     ? [
                         { type: "divider" as const },
                         {
@@ -1033,7 +1071,34 @@ function HomeEditorImpl({
               onRetry={() => download()}
             />
           )}
-          {state.saveFailed && (
+          {needsSaveComparison && (
+            <VStack gap={2}>
+              <Banner
+                status="warning"
+                title="Compare before saving again"
+                description="The result of an older save could not be confirmed. Your edits are retained. Compare the saved draft before choosing which version to keep."
+                endContent={
+                  <HStack gap={2} wrap="wrap">
+                    <Button
+                      label="Compare saved draft"
+                      size="sm"
+                      isLoading={saveComparisonLoading}
+                      clickAction={compareSavedDraft}
+                    />
+                    <Button
+                      label="Download draft"
+                      size="sm"
+                      onClick={() => download()}
+                    />
+                  </HStack>
+                }
+              />
+              {saveComparisonError && (
+                <Text role="alert">{saveComparisonError}</Text>
+              )}
+            </VStack>
+          )}
+          {state.saveFailed && !needsSaveComparison && (
             <RecoveryBanner
               title="Draft could not be saved"
               description="Your edits are still here. Retry saving before leaving this page."
@@ -1115,40 +1180,102 @@ function HomeEditorImpl({
               />
             </VStack>
           )}
-          {state.conflict && (
+          {(state.conflict || (needsSaveComparison && saveComparison)) && (
             <VStack gap={2}>
-              <Banner
-                status="warning"
-                title="Another edit was saved"
-                description="Compare the saved source with your draft before choosing which version to keep."
-              />
+              {state.conflict && (
+                <Banner
+                  status="warning"
+                  title="Another edit was saved"
+                  description="Compare the saved source with your draft before choosing which version to keep."
+                />
+              )}
               <TextArea
                 label="Saved on another tab or device"
-                value={state.conflict.current?.source ?? ""}
+                value={comparedDraft?.source ?? ""}
                 isReadOnly
                 rows={5}
               />
+              {needsSaveComparison && (
+                <TextArea
+                  label="Your retained draft"
+                  value={state.source}
+                  isReadOnly
+                  rows={5}
+                />
+              )}
+              {!comparedDraft && (
+                <Text>
+                  No saved draft is available. Download your edits and try
+                  comparing again after the saved draft is recovered.
+                </Text>
+              )}
+              {needsSaveComparison &&
+                comparedDraft &&
+                comparedDraft.discardedAt !== null && (
+                  <VStack gap={2}>
+                    <Text>
+                      This saved draft was discarded. Restore it before choosing
+                      which version to keep.
+                    </Text>
+                    <Button
+                      label="Restore saved draft"
+                      clickAction={async () => {
+                        const controller = editor.current;
+                        const navigation = navigationGeneration.current;
+                        const request = saveComparisonRequest.current;
+                        const isCurrent = () =>
+                          controller === editor.current &&
+                          navigation === navigationGeneration.current &&
+                          request === saveComparisonRequest.current &&
+                          controller?.state.saveFailureCode ===
+                            "save_reconciliation_required";
+                        try {
+                          const result = await post("restore", {
+                            expectedRevision: comparedDraft.revision,
+                          });
+                          if (!result.draft) throw new Error();
+                          if (!isCurrent()) return;
+                          setSaveComparison({ draft: result.draft });
+                        } catch {
+                          if (isCurrent())
+                            setSaveComparisonError(
+                              "Couldn’t restore the saved draft. Your edits are retained. Compare again before retrying.",
+                            );
+                        }
+                      }}
+                    />
+                  </VStack>
+                )}
               <HStack gap={2}>
                 <Button
                   label="Keep my version"
                   isDisabled={
-                    !state.conflict.current ||
-                    state.conflict.current.discardedAt !== null
+                    !comparedDraft || comparedDraft.discardedAt !== null
                   }
                   clickAction={async () => {
-                    editor.current!.resolve(state.conflict!.current!, true);
+                    flushLocal();
+                    editor.current!.resolve(comparedDraft!, true);
+                    setSaveComparison(null);
+                    setSaveComparisonError("");
+                    setError("");
+                    setReviewedDraft(null);
+                    setPreviewRevision(null);
                     await flush();
                   }}
                 />
                 <Button
                   label="Use saved version"
                   isDisabled={
-                    !state.conflict.current ||
-                    state.conflict.current.discardedAt !== null
+                    !comparedDraft || comparedDraft.discardedAt !== null
                   }
                   onClick={() => {
                     resetBuffers();
-                    editor.current!.resolve(state.conflict!.current!, false);
+                    editor.current!.resolve(comparedDraft!, false);
+                    setSaveComparison(null);
+                    setSaveComparisonError("");
+                    setError("");
+                    setReviewedDraft(null);
+                    setPreviewRevision(null);
                   }}
                 />
               </HStack>
