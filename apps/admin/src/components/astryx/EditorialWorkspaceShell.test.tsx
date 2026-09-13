@@ -75,7 +75,7 @@ it("uses 44px touch targets with 4px rail insets only on coarse tablets", () => 
     "utf8",
   );
   const coarse = css.slice(
-    css.indexOf("@media (min-width: 768px) and (pointer: coarse)"),
+    css.indexOf("@media (width > 768px) and (pointer: coarse)"),
   );
   expect(coarse).toContain("padding-inline: var(--spacing-1)");
   expect(coarse).toContain("width: var(--spacing-11)");

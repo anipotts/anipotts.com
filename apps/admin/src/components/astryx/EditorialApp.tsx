@@ -206,8 +206,9 @@ export function EditorialApp({
               </BreadcrumbItem>
             </Breadcrumbs>
           )}
-          {editorRecord?.kind !== "writing" &&
-            (groups || review || children || newWriting || editorRecord) && (
+          {!editorRecord &&
+            !editHome &&
+            (groups || review || children || newWriting) && (
               <HStack gap={3} hAlign="between" vAlign="center" wrap="wrap">
                 <Heading level={1}>
                   {newWriting
@@ -267,6 +268,7 @@ export function EditorialApp({
               }
             >
               <HomeEditor
+                pageTitle={title}
                 onTitleChange={setDraftTitle}
                 localPreview={localPreview}
                 key={editorRecord?.id ?? "home"}

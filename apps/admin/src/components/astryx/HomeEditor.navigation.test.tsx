@@ -40,9 +40,16 @@ vi.mock("./RecordPanel", () => ({
     </aside>
   ),
 }));
-vi.mock("./ReviewChanges", () => ({
-  ReviewChanges: ({ after }: any) => (
-    <pre aria-label="Reviewed source">{after}</pre>
+vi.mock("./ReviewChanges", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./ReviewChanges")>()),
+  ReviewChanges: ({ after, labelledBy }: any) => (
+    <pre
+      aria-label="Reviewed source"
+      aria-labelledby={labelledBy}
+      className="editor-revision-diff"
+    >
+      {after}
+    </pre>
   ),
 }));
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });

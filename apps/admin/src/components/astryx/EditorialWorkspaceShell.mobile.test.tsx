@@ -75,44 +75,54 @@ describe("responsive workspace navigation", () => {
       ),
     );
   }
-  it("keeps a compact mobile identity with one navigation toggle and no search triggers", () => {
-    render();
-    const topbar = host.querySelector('.astryx-side-nav[data-mode="topbar"]')!;
-    expect(topbar).not.toBeNull();
-    expect(
-      topbar.querySelector('button[aria-label="Collapse sidebar"]'),
-    ).toBeNull();
-    expect(topbar.querySelector(".admin-bracket-wordmark")?.textContent).toBe(
-      "[admin]",
-    );
-    expect(
-      host.querySelector(
-        'button[aria-label="Search"], button[aria-label="Search content"]',
-      ),
-    ).toBeNull();
-    expect(
-      [...host.querySelectorAll("button")].some(
-        (button) => button.textContent === "Search",
-      ),
-    ).toBe(false);
-    const toggle = topbar.parentElement!.lastElementChild as HTMLButtonElement;
-    expect(toggle.getAttribute("aria-expanded")).toBe("false");
-    act(() => toggle.click());
-    expect(toggle.getAttribute("aria-expanded")).toBe("true");
-    const controlled = toggle.getAttribute("aria-controls");
-    expect(controlled).toBeTruthy();
-    const drawer = document.getElementById(controlled!);
-    expect(drawer).not.toBeNull();
-    expect(drawer?.textContent).toContain("Writing");
-    expect(drawer?.querySelector('a[href="/newsletter"]')).not.toBeNull();
-    // Browser Escape raises the native dialog cancel event.
-    act(() =>
-      drawer!.dispatchEvent(
-        new Event("cancel", { bubbles: true, cancelable: true }),
-      ),
-    );
-    expect(toggle.getAttribute("aria-expanded")).toBe("false");
-  });
+  it.each([690, 768])(
+    "keeps a compact mobile identity with one navigation toggle at %ipx",
+    (width) => {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: width,
+      });
+      render();
+      const topbar = host.querySelector(
+        '.astryx-side-nav[data-mode="topbar"]',
+      )!;
+      expect(topbar).not.toBeNull();
+      expect(
+        topbar.querySelector('button[aria-label="Collapse sidebar"]'),
+      ).toBeNull();
+      expect(topbar.querySelector(".admin-bracket-wordmark")?.textContent).toBe(
+        "[admin]",
+      );
+      expect(
+        host.querySelector(
+          'button[aria-label="Search"], button[aria-label="Search content"]',
+        ),
+      ).toBeNull();
+      expect(
+        [...host.querySelectorAll("button")].some(
+          (button) => button.textContent === "Search",
+        ),
+      ).toBe(false);
+      const toggle = topbar.parentElement!
+        .lastElementChild as HTMLButtonElement;
+      expect(toggle.getAttribute("aria-expanded")).toBe("false");
+      act(() => toggle.click());
+      expect(toggle.getAttribute("aria-expanded")).toBe("true");
+      const controlled = toggle.getAttribute("aria-controls");
+      expect(controlled).toBeTruthy();
+      const drawer = document.getElementById(controlled!);
+      expect(drawer).not.toBeNull();
+      expect(drawer?.textContent).toContain("Writing");
+      expect(drawer?.querySelector('a[href="/newsletter"]')).not.toBeNull();
+      // Browser Escape raises the native dialog cancel event.
+      act(() =>
+        drawer!.dispatchEvent(
+          new Event("cancel", { bubbles: true, cancelable: true }),
+        ),
+      );
+      expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    },
+  );
   it("persists explicit expansion and collapse independently of the tablet default", () => {
     Object.defineProperty(window, "innerWidth", {
       configurable: true,

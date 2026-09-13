@@ -28,18 +28,14 @@ import { SavedArticlePreview } from "./SavedArticlePreview";
 import { SaveScheduler } from "../../lib/save-scheduler";
 import { writingReviewChanges } from "../../lib/writing-review";
 import { ArticleSettings } from "./ArticleSettings";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { Heading } from "@astryxdesign/core/Heading";
 import { TextInput } from "@astryxdesign/core/TextInput";
-import { StatusDot } from "@astryxdesign/core/StatusDot";
-import {
-  ArrowLeftIcon,
-  ArrowSquareOutIcon,
-  DotsThreeIcon,
-} from "@phosphor-icons/react";
+import { SaveStatus } from "./SaveStatus";
+import { ArrowLeftIcon, DotsThreeIcon } from "@phosphor-icons/react";
 import { Toolbar } from "@astryxdesign/core/Toolbar";
 import { Banner } from "@astryxdesign/core/Banner";
 import { FormLayout } from "@astryxdesign/core/FormLayout";
@@ -51,7 +47,7 @@ import { AdminSkeleton, RecoveryBanner } from "./AdminFeedback";
 import { RichTextField } from "./RichTextField";
 import { editableHomeSummary } from "../../lib/rich-text";
 import { editorialFields } from "../../lib/editorial-fields";
-import { ReviewChanges } from "./ReviewChanges";
+import { ReviewChanges, ReviewHeading } from "./ReviewChanges";
 import { PublicationProgress } from "./PublicationProgress";
 import { TextArea } from "@astryxdesign/core/TextArea";
 import { Button } from "@astryxdesign/core/Button";
@@ -87,14 +83,17 @@ function HomeEditorImpl({
   record,
   localPreview = false,
   onTitleChange,
+  pageTitle,
 }: {
   record: EditorialRecord;
+  pageTitle?: string;
   localPreview?: boolean;
   onTitleChange?: (title: string) => void;
 }) {
   const previewSupported = !(
     record.kind === "page" && record.id === "newsletter"
   );
+  const reviewHeadingId = useId();
   const toast = useToast();
   const [returnPath, setReturnPath] = useState(
     record.kind === "writing" ? "/content?group=writing" : "/content",
@@ -742,17 +741,96 @@ function HomeEditorImpl({
   const reviewedSource = reviewedDraft?.source ?? state.source;
   const reviewCurrent = matchesReviewedDraft(reviewedDraft, state);
   const isDocumentView = tab === "edit" || tab === "preview";
+  const publishActions = (
+    <>
+      <Button
+        label="Approve and publish"
+        variant="primary"
+        size="sm"
+        isDisabled={
+          localPreview ||
+          snapshot.publishing !== "ready" ||
+          !reviewCurrent ||
+          reviewLoading ||
+          state.source === snapshot.base.source ||
+          !valid ||
+          Boolean(snapshot.draft?.discardedAt) ||
+          Boolean(
+            publication && !["live", "cancelled"].includes(publication.phase),
+          )
+        }
+        isLoading={publishing}
+        clickAction={async () => {
+          if (publishPending.current || !reviewCurrent || reviewLoading) return;
+          publishPending.current = true;
+          const navigation = navigationGeneration.current;
+          const reviewed = reviewedDraft;
+          setPublishing(true);
+          setError("");
+          try {
+            await ensureDraft();
+            const current = editor.current!.state;
+            if (
+              current.status !== "saved" ||
+              !matchesReviewedDraft(reviewed, current) ||
+              navigation !== navigationGeneration.current ||
+              !validateEditorialSource(record, current.source).success
+            )
+              throw new Error();
+            if (publishRequest.current?.revision !== current.revision)
+              publishRequest.current = {
+                revision: current.revision,
+                id: crypto.randomUUID(),
+              };
+            const result = await post(
+              "publish",
+              {
+                expectedRevision: current.revision,
+                operationId: publishRequest.current.id,
+                discloseSource: true,
+              },
+              () =>
+                navigation === navigationGeneration.current &&
+                matchesReviewedDraft(reviewed, editor.current?.state ?? null),
+            );
+            if (!result.publication) throw new Error();
+            setPublicationStale(false);
+            setPublication(result.publication);
+          } catch {
+            if (navigation === navigationGeneration.current)
+              setError(
+                "Couldn’t start publishing. Your draft is retained; review the saved revision and retry.",
+              );
+          } finally {
+            publishPending.current = false;
+            setPublishing(false);
+          }
+        }}
+      />
+    </>
+  );
   return (
     <VStack
       gap={5}
       className={`editor-workspace${record.kind === "writing" ? " writing-workspace" : ""}`}
+      data-editor-view={tab}
     >
+      {tab === "publish" ? (
+        <ReviewHeading id={reviewHeadingId} level={1} />
+      ) : record.kind !== "writing" ? (
+        <Heading level={1}>{pageTitle ?? record.id}</Heading>
+      ) : null}
       <VStack className="editor-actionbar">
         <Toolbar
           label="Document actions"
           size="sm"
           startContent={
-            <HStack gap={3} vAlign="center" className="editor-save-group">
+            <HStack
+              gap={3}
+              wrap="wrap"
+              vAlign="center"
+              className="editor-save-group"
+            >
               {record.kind === "writing" && isDocumentView && (
                 <Button
                   label={
@@ -786,31 +864,27 @@ function HomeEditorImpl({
                   size="sm"
                 />
               )}
-              <HStack gap={2} vAlign="center" role="status">
-                <StatusDot
-                  variant={
-                    state.status === "saved" && !bodyDirty
-                      ? "success"
-                      : "warning"
-                  }
-                  label={state.status}
-                />
-                <Text color="secondary">
-                  {snapshot.draft?.discardedAt
-                    ? "Discarded draft"
-                    : bodyDirty
-                      ? "Unsaved changes"
-                      : state.status === "saved"
-                        ? localPreview
-                          ? "Saved locally"
-                          : "Saved privately"
-                        : state.status === "saving"
-                          ? "Saving…"
-                          : state.status === "conflict"
-                            ? "Resolve conflicting edits"
-                            : "Unsaved changes"}
-                </Text>
-              </HStack>
+              <SaveStatus
+                state={
+                  snapshot.draft?.discardedAt
+                    ? "discarded"
+                    : state.status === "conflict"
+                      ? "conflict"
+                      : state.saveFailed
+                        ? "save-failed"
+                        : bodyDirty
+                          ? "changed"
+                          : state.status === "saving"
+                            ? "saving"
+                            : state.status === "saved"
+                              ? state.revision > 0
+                                ? localPreview
+                                  ? "saved-locally"
+                                  : "saved-privately"
+                                : "unchanged"
+                              : "changed"
+                }
+              />
             </HStack>
           }
           endContent={
@@ -861,6 +935,7 @@ function HomeEditorImpl({
                   }
                 />
               )}
+              {tab === "publish" && publishActions}
               <MoreMenu
                 label="Document actions"
                 icon={<DotsThreeIcon size={20} />}
@@ -882,6 +957,22 @@ function HomeEditorImpl({
                     },
                   },
                   { type: "divider" },
+                  ...(localPreview
+                    ? [
+                        {
+                          label: "Open production editor",
+                          description:
+                            "Opens the current production draft. Download this local draft to keep a copy.",
+                          onClick: () => {
+                            window.open(
+                              `https://admin.anipotts.com/content/${record.kind === "page" ? (record.id === "home" ? "home" : `${record.id}Page`) : record.kind === "work" ? "projects" : "writing"}/${record.id}`,
+                              "_blank",
+                              "noopener,noreferrer",
+                            );
+                          },
+                        },
+                      ]
+                    : []),
                   { label: "Download draft", onClick: () => download() },
                   {
                     label: "Import draft…",
@@ -1081,13 +1172,9 @@ function HomeEditorImpl({
                 {previewSupported && <Tab label="Preview" value="preview" />}
               </TabList>
             </HStack>
-          ) : !isDocumentView ? (
+          ) : !isDocumentView && tab !== "publish" ? (
             <Heading level={2}>
-              {tab === "publish"
-                ? "Review changes"
-                : tab === "source"
-                  ? "Source"
-                  : "Version history"}
+              {tab === "source" ? "Source" : "Version history"}
             </Heading>
           ) : null}
           {!previewSupported && tab === "edit" && (
@@ -1301,6 +1388,7 @@ function HomeEditorImpl({
                 />
               )}
               <ReviewChanges
+                labelledBy={reviewHeadingId}
                 destination={`anipotts.com${record.kind === "page" ? (record.id === "home" ? "/" : `/${record.id}`) : `/${record.kind}/${destinationId}`}`}
                 before={snapshot.base.source}
                 after={reviewedSource}
@@ -1346,98 +1434,6 @@ function HomeEditorImpl({
                   }
                 />
               )}
-              <HStack gap={2} wrap="wrap">
-                <Button
-                  label="Approve and publish"
-                  variant="primary"
-                  size="sm"
-                  isDisabled={
-                    localPreview ||
-                    snapshot.publishing !== "ready" ||
-                    !reviewCurrent ||
-                    reviewLoading ||
-                    state.source === snapshot.base.source ||
-                    !valid ||
-                    Boolean(snapshot.draft?.discardedAt) ||
-                    Boolean(
-                      publication &&
-                      !["live", "cancelled"].includes(publication.phase),
-                    )
-                  }
-                  isLoading={publishing}
-                  tooltip={
-                    localPreview
-                      ? "Publishing is available in the production editor"
-                      : snapshot.publishing === "ready"
-                        ? "Publishes this record’s source to GitHub and the website"
-                        : "Publishing is not connected yet"
-                  }
-                  clickAction={async () => {
-                    if (
-                      publishPending.current ||
-                      !reviewCurrent ||
-                      reviewLoading
-                    )
-                      return;
-                    publishPending.current = true;
-                    const navigation = navigationGeneration.current;
-                    const reviewed = reviewedDraft;
-                    setPublishing(true);
-                    setError("");
-                    try {
-                      await ensureDraft();
-                      const current = editor.current!.state;
-                      if (
-                        current.status !== "saved" ||
-                        !matchesReviewedDraft(reviewed, current) ||
-                        navigation !== navigationGeneration.current ||
-                        !validateEditorialSource(record, current.source).success
-                      )
-                        throw new Error();
-                      if (publishRequest.current?.revision !== current.revision)
-                        publishRequest.current = {
-                          revision: current.revision,
-                          id: crypto.randomUUID(),
-                        };
-                      const result = await post(
-                        "publish",
-                        {
-                          expectedRevision: current.revision,
-                          operationId: publishRequest.current.id,
-                          discloseSource: true,
-                        },
-                        () =>
-                          navigation === navigationGeneration.current &&
-                          matchesReviewedDraft(
-                            reviewed,
-                            editor.current?.state ?? null,
-                          ),
-                      );
-                      if (!result.publication) throw new Error();
-                      setPublicationStale(false);
-                      setPublication(result.publication);
-                    } catch {
-                      if (navigation === navigationGeneration.current)
-                        setError(
-                          "Couldn’t start publishing. Your draft is retained; review the saved revision and retry.",
-                        );
-                    } finally {
-                      publishPending.current = false;
-                      setPublishing(false);
-                    }
-                  }}
-                />
-                {localPreview && (
-                  <Button
-                    label="Open production editor"
-                    size="sm"
-                    icon={<ArrowSquareOutIcon size={18} />}
-                    href={`https://admin.anipotts.com/content/${record.kind === "page" ? (record.id === "home" ? "home" : `${record.id}Page`) : record.kind === "work" ? "projects" : "writing"}/${record.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  />
-                )}
-              </HStack>
             </VStack>
           )}
           {tab === "source" && (
