@@ -31,7 +31,9 @@ const initialMode = initialAdminTheme(
 const area = Astro.url.pathname.startsWith("/newsletter")
   ? "newsletter"
   : "content";
-const hasContent = Boolean((await Astro.slots.render("default"))?.trim());
+// Rendering a slot here consumes nested islands' hydration instructions before
+// the actual layout renders it. Presence checks must leave the slot untouched.
+const hasContent = Astro.slots.has("default");
 const { inventoryProjection: suppliedInventory, ...pageProps } = Astro.props;
 const inventory =
   suppliedInventory ??

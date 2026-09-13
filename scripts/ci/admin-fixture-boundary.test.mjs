@@ -56,6 +56,17 @@ const runtimeOperatorWork = readFileSync(
 assert.match(runtimeOperatorWork, /mode:\s*"disconnected"/);
 assert.doesNotMatch(runtimeOperatorWork, /operatorWorkFixture/);
 
+const editorialLayout = readFileSync(
+  join(adminSource, "layouts/EditorialLayout.astro"),
+  "utf8",
+);
+assert.match(editorialLayout, /Astro\.slots\.has\("default"\)/);
+assert.doesNotMatch(
+  editorialLayout,
+  /Astro\.slots\.render\s*\(/,
+  "checking slotted content must not consume nested island hydration before rendering",
+);
+
 const catalogRoute = readFileSync(
   join(adminSource, "pages/content/dev-catalog.astro"),
   "utf8",
