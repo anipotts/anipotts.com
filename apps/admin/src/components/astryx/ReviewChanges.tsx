@@ -4,23 +4,43 @@ import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { Button } from "@astryxdesign/core/Button";
 import { Collapsible, CollapsibleGroup } from "@astryxdesign/core/Collapsible";
-import { inlinePlainText } from "@anipotts/content/public/inline";
+import {
+  inlinePlainText,
+  parseInline,
+  type InlineNode,
+} from "@anipotts/content/public/inline";
 import { compactDiff, textDiff } from "../../lib/text-diff";
 
 type Change = { label: string; before: string; after: string; rich?: boolean };
+
+function formattingNodes(nodes: InlineNode[]): unknown[] {
+  return nodes
+    .filter((node) => node.type !== "text")
+    .map((node) =>
+      "children" in node
+        ? { ...node, children: formattingNodes(node.children) }
+        : node,
+    );
+}
 
 function FieldDiff({ label, before, after, rich }: Change) {
   const [expanded, setExpanded] = useState(false);
   const plainBefore = rich ? inlinePlainText(before) : before;
   const plainAfter = rich ? inlinePlainText(after) : after;
-  const formattingOnly = rich && plainBefore === plainAfter;
+  // A simultaneous wording edit must not hide changed link/media destinations.
+  const formatting = (source: string) =>
+    JSON.stringify(formattingNodes(parseInline(source)));
+  const formattingChanged = Boolean(
+    rich &&
+    (plainBefore === plainAfter || formatting(before) !== formatting(after)),
+  );
   const parts = useMemo(
     () =>
       textDiff(
-        formattingOnly ? before : plainBefore,
-        formattingOnly ? after : plainAfter,
+        formattingChanged ? before : plainBefore,
+        formattingChanged ? after : plainAfter,
       ),
-    [before, after, plainBefore, plainAfter, formattingOnly],
+    [before, after, plainBefore, plainAfter, formattingChanged],
   );
   const compact = compactDiff(parts);
   const hasHiddenContext = compact.some(
@@ -35,7 +55,7 @@ function FieldDiff({ label, before, after, rich }: Change) {
         className="editor-diff-heading"
       >
         <Text weight="semibold">{label}</Text>
-        {formattingOnly && (
+        {formattingChanged && (
           <Text type="supporting">Formatting / links / images</Text>
         )}
         {hasHiddenContext && (

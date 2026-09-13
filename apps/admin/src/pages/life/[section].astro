@@ -1,0 +1,19 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { LifeWorkspace } from "../../components/life/LifeWorkspace";
+import { readPersonalContext } from "../../data/personal-context";
+import {
+  isLifeSection,
+  lifeSections,
+  lifeSectionRead,
+} from "../../lib/life-sections";
+const section = Astro.params.section ?? "";
+if (!isLifeSection(section) || section === "overview")
+  return new Response("Not found", { status: 404 });
+const result = await readPersonalContext(lifeSectionRead(section));
+Astro.response.headers.set("Cache-Control", "private, no-store");
+---
+
+<AdminLayout title={lifeSections[section]} hideHeader>
+  <LifeWorkspace section={section} result={result} client:load />
+</AdminLayout>

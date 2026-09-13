@@ -39,7 +39,7 @@ const humanize = (value: string) => value.replaceAll("_", " ");
 <dialog
   class="semantic-inspector"
   data-semantic-inspector
-  aria-label="semantic reference inspector"
+  aria-label="Semantic reference inspector"
 >
   <div class="semantic-inspector-sheet">
     {
@@ -72,8 +72,8 @@ const humanize = (value: string) => value.replaceAll("_", " ");
                 type="button"
                 class="semantic-inspector-close is-icon-only"
                 data-semantic-close
-                aria-label="close reference inspector"
-                title="close reference inspector"
+                aria-label="Close reference inspector"
+                title="Close reference inspector"
               >
                 <XIcon size={22} weight="regular" aria-hidden="true" />
               </button>
@@ -102,30 +102,30 @@ const humanize = (value: string) => value.replaceAll("_", " ");
 
             <dl class="semantic-inspector-grid">
               <div>
-                <dt>authority</dt>
+                <dt>Authority</dt>
                 <dd>{reference.authority.label}</dd>
               </div>
               <div>
-                <dt>provenance</dt>
+                <dt>Provenance</dt>
                 <dd>{reference.provenance.source_ref}</dd>
               </div>
               <div>
-                <dt>confidence</dt>
+                <dt>Confidence</dt>
                 <dd>
                   {reference.confidence.level} ·{" "}
                   {reference.confidence.explanation}
                 </dd>
               </div>
               <div>
-                <dt>sensitivity</dt>
+                <dt>Sensitivity</dt>
                 <dd>{reference.sensitivity}</dd>
               </div>
               <div>
-                <dt>checked</dt>
+                <dt>Checked</dt>
                 <dd>{displayTime(reference.checked_at)}</dd>
               </div>
               <div>
-                <dt>validity</dt>
+                <dt>Validity</dt>
                 <dd>
                   {reference.validity.valid_until
                     ? `until ${displayTime(reference.validity.valid_until)}`
@@ -135,11 +135,11 @@ const humanize = (value: string) => value.replaceAll("_", " ");
                 </dd>
               </div>
               <div class="is-wide">
-                <dt>retrieval policy</dt>
+                <dt>Retrieval policy</dt>
                 <dd>{reference.retrieval_policy.explanation}</dd>
               </div>
               <div class="is-wide">
-                <dt>evidence</dt>
+                <dt>Evidence</dt>
                 <dd>
                   {reference.provenance.evidence_refs.length
                     ? reference.provenance.evidence_refs.join(", ")

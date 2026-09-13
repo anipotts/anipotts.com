@@ -63,14 +63,14 @@ const destinationReferences = destinations.map((item) =>
 );
 ---
 
-<AdminLayout title="system" hideHeader>
+<AdminLayout title="System" hideHeader>
   <main class="quiet-page quiet-system-page">
     <header class="quiet-page-header">
       <h1 class="brand-display">System</h1>
       <span>{runtime.available ? "current" : "source unavailable"}</span>
     </header>
 
-    <section class="quiet-system-index" aria-label="system areas">
+    <section class="quiet-system-index" aria-label="System areas">
       {
         destinations.map((item, index) => (
           <article>
@@ -81,7 +81,7 @@ const destinationReferences = destinations.map((item) =>
             <SemanticReference
               reference={destinationReferences[index]!}
               variant="action"
-              label="details"
+              label="Details"
             />
           </article>
         ))
@@ -103,7 +103,7 @@ const destinationReferences = destinations.map((item) =>
               client:load
             />
           ) : (
-            <span>not reconciled</span>
+            <span>Not reconciled</span>
           )
         }
       </header>

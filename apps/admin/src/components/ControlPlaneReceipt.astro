@@ -19,11 +19,12 @@ const displayTime = (value: string) =>
   class="operator-handled"
   aria-labelledby="control-plane-title"
   data-control-plane-receipt
-  data-control-plane-state={latest?.state ?? "idle"}
+  data-control-plane-state={latest?.state ??
+    (state.available ? "unknown" : "unavailable")}
 >
   <div class="operator-section-heading">
     <div>
-      <h2 id="control-plane-title">local execution proof</h2>
+      <h2 id="control-plane-title">Local execution proof</h2>
       <p>
         {
           state.snapshot.device_connected
@@ -32,12 +33,6 @@ const displayTime = (value: string) =>
         }
       </p>
     </div>
-    <button
-      type="button"
-      class="operator-primary-action"
-      data-control-plane-submit
-      disabled={!state.available}>prove round trip</button
-    >
   </div>
 
   <div class="operator-handled-strip">
@@ -55,7 +50,7 @@ const displayTime = (value: string) =>
             latest
               ? `${latest.state} · ${latest.kind}`
               : state.available
-                ? "ready for the first proof command"
+                ? "No proof command recorded"
                 : "local relay unavailable in this preview"
           }
         </span>
@@ -66,19 +61,23 @@ const displayTime = (value: string) =>
             {displayTime(latest.updated_at)}
           </time>
         ) : (
-          <span>idle</span>
+          <span>{state.available ? "No command recorded" : "Unavailable"}</span>
         )
       }
     </article>
 
     <article class="operator-handled-item">
-      <span class="operator-source-mark" aria-label="local journal proof">
+      <span class="operator-source-mark" aria-label="Local journal proof">
         <span class="operator-source-glyph" aria-hidden="true">J</span>
         <span class="operator-source-label">journal</span>
       </span>
       <div>
         <strong>
-          {latest?.proof ? "journal proof acknowledged" : "proof pending"}
+          {
+            latest?.proof
+              ? "journal proof acknowledged"
+              : "No journal proof recorded"
+          }
         </strong>
         <span>
           {
@@ -91,98 +90,4 @@ const displayTime = (value: string) =>
       <a href="/proof">inspect</a>
     </article>
   </div>
-  <p class="sr-only" aria-live="polite" data-control-plane-live></p>
 </section>
-
-<script>
-  import type { ControlCommandRecord } from "@anipotts/types";
-  import {
-    AdminClientAuthError,
-    adminMutationFetch,
-    adminStepUpPath,
-  } from "../lib/admin-client-auth";
-
-  const root = document.querySelector<HTMLElement>(
-    "[data-control-plane-receipt]",
-  );
-  const button = root?.querySelector<HTMLButtonElement>(
-    "[data-control-plane-submit]",
-  );
-  const live = root?.querySelector<HTMLElement>("[data-control-plane-live]");
-
-  if (button && root) {
-    button.addEventListener("click", async () => {
-      button.disabled = true;
-      if (live) live.textContent = "Sending one proof command to ap-mini.";
-      try {
-        const idempotencyStorageKey = "admin:control-plane:idempotency";
-        const idempotencyKey =
-          sessionStorage.getItem(idempotencyStorageKey) ?? crypto.randomUUID();
-        sessionStorage.setItem(idempotencyStorageKey, idempotencyKey);
-        const response = await adminMutationFetch("/api/admin/control-plane", {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({
-            idempotency_key: idempotencyKey,
-            reason: "verify the admin to ap-mini durable execution round trip",
-          }),
-        });
-        if (!response.ok) {
-          const error = await response.json().catch(() => null);
-          if (
-            response.status === 403 &&
-            error?.error === "fresh_passkey_required"
-          ) {
-            location.assign(adminStepUpPath());
-            return;
-          }
-          throw new Error(error?.error ?? "command was not accepted");
-        }
-        const acceptedCommand = await response.json();
-        const commandId = acceptedCommand?.command_id;
-        if (!commandId) throw new Error("relay omitted the command identity");
-        if (live)
-          live.textContent = "Command accepted. Waiting for local proof.";
-        const deadline = Date.now() + 30_000;
-        while (Date.now() < deadline) {
-          await new Promise((resolve) => window.setTimeout(resolve, 1_000));
-          const snapshot = await fetch("/api/admin/control-plane", {
-            headers: { accept: "application/json" },
-          });
-          if (!snapshot.ok) continue;
-          const payload = await snapshot.json();
-          const command = payload?.snapshot?.commands?.find(
-            (entry: ControlCommandRecord) => entry.command_id === commandId,
-          );
-          if (command?.state === "succeeded" && command?.proof) {
-            sessionStorage.removeItem(idempotencyStorageKey);
-            if (live) live.textContent = "ap-mini proof acknowledged.";
-            location.reload();
-            return;
-          }
-          if (["failed", "expired"].includes(command?.state)) {
-            sessionStorage.removeItem(idempotencyStorageKey);
-            throw new Error(`command ${command.state}`);
-          }
-        }
-        throw new Error("proof acknowledgement timed out");
-      } catch (error) {
-        if (error instanceof AdminClientAuthError && error.status === 401) {
-          location.assign(
-            `/auth?next=${encodeURIComponent(location.pathname + location.search)}`,
-          );
-          return;
-        }
-        if (live) {
-          live.textContent =
-            error instanceof Error
-              ? error.message
-              : "control-plane request failed";
-        }
-        button.disabled = false;
-      }
-    });
-  }
-</script>

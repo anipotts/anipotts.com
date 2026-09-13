@@ -43,25 +43,31 @@ function routeForEditor(pageKey: string, slug: string): string {
 }
 
 // route parity markers: readPageContentInventoryStore /api/admin/content/editor
-// publish selected draft content_draft_operations new content starts as a private draft
+// Retained content_draft_operations diagnostics; no write controls.
 ---
 
 <AdminLayout
-  title={isNew ? "new writing draft" : `edit ${editorState.page_key}`}
-  deck="Focused writing surface. Save starts private; preview and history stay one click away."
+  title={isNew
+    ? "Legacy content diagnostics"
+    : `Legacy record: ${editorState.page_key}`}
+  deck="Read-only retained D1 content and revision metadata."
 >
-  <section class="meta-strip" aria-label="content edit state">
+  <section class="meta-strip" aria-label="Legacy content source state">
     <span>{pageContentState.mode}</span>
-    <span>{pageRow ? `${pageRow.field_count} source fields` : "new draft"}</span
+    <span
+      >{
+        pageRow
+          ? `${pageRow.field_count} source fields`
+          : "No retained source fields"
+      }</span
     >
     <span>{editorState.current_version} public versions</span>
     <span>{editorState.revisions.length} revisions</span>
-    <span>passkey session required</span>
+    <span>Read-only diagnostics</span>
   </section>
 
-  <section class="editor-workspace" aria-labelledby="editor-fields-heading">
+  <section class="editor-workspace" aria-label="Legacy content record">
     <WritingEditor
-      client:load
       currentPublicRoute={currentPublicRoute}
       currentRollbackReference={currentRollbackReference}
       editorState={editorState}

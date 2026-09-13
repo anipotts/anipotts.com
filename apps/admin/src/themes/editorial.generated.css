@@ -523,6 +523,10 @@
     --astryx-section-padding: var(--spacing-3);
   }
 
+  .astryx-app-shell {
+    --color-workspace-sidebar: light-dark(#f1f4fa, #131820);
+  }
+
   .astryx-top-nav {
     background-color: var(--color-background-surface);
   }

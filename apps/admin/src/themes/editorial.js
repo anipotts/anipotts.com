@@ -425,6 +425,11 @@ export const editorialTheme = {
         "padding": "var(--spacing-3)"
       }
     },
+    "app-shell": {
+      "base": {
+        "--color-workspace-sidebar": "light-dark(#f1f4fa, #131820)"
+      }
+    },
     "top-nav": {
       "base": {
         "backgroundColor": "var(--color-background-surface)"

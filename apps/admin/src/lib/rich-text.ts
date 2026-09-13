@@ -110,7 +110,9 @@ export function inlineMarkdown(doc: JSONContent): string {
           mark.type === "link"
             ? `[${text}](<${mark.attrs?.href}>)`
             : wrap
-              ? leading + (inner ? wrap[0] + inner + wrap[1] : "") + trailing
+              ? inner
+                ? leading + wrap[0] + inner + wrap[1] + trailing
+                : text
               : text;
         i = j - 1;
       } else if (part.type === "text")

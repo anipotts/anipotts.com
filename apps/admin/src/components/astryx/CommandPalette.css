@@ -1,0 +1,97 @@
+/* Scoped native-dialog treatment: retain page context behind the launcher. */
+dialog.admin-command-palette-centered::backdrop {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background-color: color-mix(in srgb, var(--color-overlay) 30%, transparent);
+}
+dialog.admin-command-palette-centered {
+  height: min(520px, calc(100dvh - 2 * var(--spacing-4)));
+  padding: 0;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-container);
+  background: var(--color-background-surface);
+  color: var(--color-text-primary);
+}
+dialog.admin-command-palette-centered > .astryx-layout {
+  height: 100%;
+  min-height: 0;
+}
+dialog.admin-command-palette-centered .astryx-layout-content {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+dialog.admin-command-palette-centered .astryx-layout-header,
+dialog.admin-command-palette-centered .astryx-layout-footer {
+  flex-shrink: 0;
+}
+dialog.admin-command-palette-centered
+  .astryx-command-palette-input:focus-within {
+  box-shadow: inset 0 calc(-1 * var(--border-width)) var(--color-text-secondary);
+}
+dialog.admin-command-palette-centered
+  .astryx-command-palette-input
+  input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.admin-command-palette-centered .astryx-command-palette-input {
+  padding: var(--spacing-4);
+  box-sizing: border-box;
+  height: calc(var(--spacing-16) + var(--spacing-1));
+  min-height: calc(var(--spacing-16) + var(--spacing-1));
+}
+.admin-palette-clear[data-empty="true"] {
+  visibility: hidden;
+}
+.admin-palette-error {
+  padding: var(--spacing-2) var(--spacing-4);
+  justify-content: space-between;
+  color: var(--color-text-secondary);
+  background: var(--color-background-surface);
+}
+.admin-command-palette-centered .astryx-command-palette-list {
+  padding: var(--spacing-2);
+}
+.admin-command-palette-centered .astryx-command-palette-group-heading {
+  padding-inline: var(--spacing-3);
+  color: var(--color-text-secondary);
+}
+.admin-command-palette-centered .astryx-command-palette-item {
+  padding: var(--spacing-3);
+  border-radius: var(--radius-element);
+  min-height: var(--spacing-11);
+}
+.admin-command-palette-centered .astryx-command-palette-footer {
+  padding: var(--spacing-3) var(--spacing-4);
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+  color: var(--color-text-secondary);
+}
+.admin-palette-result {
+  width: 100%;
+  min-width: 0;
+}
+.admin-palette-result-copy {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.admin-palette-result-description {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+.admin-palette-result-kind {
+  flex-shrink: 0;
+  max-width: 30%;
+  overflow-wrap: anywhere;
+}
+.admin-palette-result-arrow {
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}

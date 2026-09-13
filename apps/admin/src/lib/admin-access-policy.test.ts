@@ -203,3 +203,73 @@ describe("admin access policy", () => {
     ).toBe("session");
   });
 });
+
+test("observability preview allows only the local read surface, keeping its API and production protected", () => {
+  expect(
+    decideAdminAccess({
+      isDev: true,
+      method: "GET",
+      url: local("/operations/observability"),
+      hasSession: false,
+    }),
+  ).toBe("dev-loopback-preview");
+  for (const input of [
+    {
+      isDev: false,
+      method: "GET",
+      url: new URL("https://admin.anipotts.com/operations/observability"),
+    },
+    { isDev: true, method: "GET", url: local("/api/admin/observability") },
+    { isDev: true, method: "POST", url: local("/operations/observability") },
+  ])
+    expect(decideAdminAccess({ ...input, hasSession: false })).toBe(
+      "passkey-required",
+    );
+});
+
+test.each(["people", "projects", "places", "timeline", "sources", "preview"])(
+  "keeps Life %s preview local and read-only",
+  (section) => {
+    const path = `/life/${section}`;
+    expect(
+      isDevLoopbackPreviewRequest({
+        isDev: true,
+        method: "GET",
+        url: local(path),
+      }),
+    ).toBe(true);
+    expect(
+      isDevLoopbackPreviewRequest({
+        isDev: false,
+        method: "GET",
+        url: local(path),
+      }),
+    ).toBe(false);
+    expect(
+      isDevLoopbackPreviewRequest({
+        isDev: true,
+        method: "POST",
+        url: local(path),
+      }),
+    ).toBe(false);
+    expect(
+      isDevLoopbackPreviewRequest({
+        isDev: true,
+        method: "GET",
+        url: new URL(path, "https://admin.anipotts.com"),
+      }),
+    ).toBe(false);
+    expect(isPublicAdminPath(path)).toBe(false);
+  },
+);
+
+test("exposes only the exact static Admin favicon path", () => {
+  expect(isPublicAdminPath("/admin-bracket.svg")).toBe(true);
+  for (const path of [
+    "/admin-bracket.svg/extra",
+    "/admin-bracket.svg.json",
+    "/admin-bracket-other.svg",
+  ]) {
+    expect(isPublicAdminPath(path)).toBe(false);
+  }
+});

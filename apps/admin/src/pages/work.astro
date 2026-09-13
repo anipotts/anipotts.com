@@ -58,7 +58,7 @@ const semanticReferences = projection.task_states.flatMap((task) =>
 ) as SemanticReference[];
 ---
 
-<AdminLayout title="work" hideHeader>
+<AdminLayout title="Work" hideHeader>
   <main class="operator-page operator-work-page" data-work-now>
     <header class="operator-page-header">
       <h1 class="brand-display">
@@ -81,7 +81,7 @@ const semanticReferences = projection.task_states.flatMap((task) =>
       >
     </header>
 
-    <nav class="quiet-view-tabs" aria-label="work views">
+    <nav class="quiet-view-tabs" aria-label="Work views">
       <a
         href="/work?view=now"
         aria-current={view === "now" ? "page" : undefined}
@@ -102,7 +102,7 @@ const semanticReferences = projection.task_states.flatMap((task) =>
       </a>
     </nav>
 
-    <section class="operator-ledger" aria-label="current work">
+    <section class="operator-ledger" aria-label="Current work">
       {
         unavailable ? (
           <>
@@ -128,7 +128,7 @@ const semanticReferences = projection.task_states.flatMap((task) =>
 
     <details class="operator-loose-sources">
       <summary>
-        <span>loose conversations</span>
+        <span>Loose conversations</span>
         <strong>{projection.source_states.length} preserved</strong>
       </summary>
       {

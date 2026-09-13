@@ -121,3 +121,52 @@ describe("home autosave", () => {
     expect(editor.state.status).toBe("saved");
   });
 });
+
+describe("draft recovery", () => {
+  it("replays an ambiguous operation after reload before saving newer edits", async () => {
+    const firstSend = vi.fn().mockRejectedValue(new Error("offline"));
+    const first = new HomeAutosave("base", 0, firstSend, () => {});
+    first.edit("first");
+    await first.flush();
+    first.edit("newer");
+    const recovery = first.recovery();
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, draft: draft("first", 1) })
+      .mockResolvedValueOnce({ ok: true, draft: draft("newer", 2) });
+    const reopened = new HomeAutosave("first", 1, send, () => {});
+    reopened.recover(recovery);
+    await reopened.flush();
+    expect(send.mock.calls[0]).toEqual(firstSend.mock.calls[0]);
+    expect(send.mock.calls[1][0]).toMatchObject({
+      source: "newer",
+      expectedRevision: 1,
+    });
+    expect(reopened.state).toMatchObject({
+      source: "newer",
+      revision: 2,
+      status: "saved",
+    });
+  });
+  it("retains the recovery revision so another tab cannot be silently overwritten", async () => {
+    const first = new HomeAutosave("base", 1, vi.fn(), () => {});
+    first.edit("mine");
+    const send = vi.fn().mockResolvedValue({
+      ok: false,
+      code: "revision_conflict",
+      current: draft("theirs", 2),
+      conflictId: "conflict",
+    });
+    const reopened = new HomeAutosave("theirs", 2, send, () => {});
+    reopened.recover(first.recovery());
+    await reopened.flush();
+    expect(send.mock.calls[0][0]).toMatchObject({
+      source: "mine",
+      expectedRevision: 1,
+    });
+    expect(reopened.state).toMatchObject({
+      source: "mine",
+      status: "conflict",
+    });
+  });
+});

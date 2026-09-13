@@ -12,10 +12,10 @@ const proofCounts = countProofEntries(proofEntries);
 ---
 
 <AdminLayout
-  title="proof log"
+  title="Proof log"
   deck="Proof records for deploys, route probes, auth gates, repo state, and draft-only content writes. This page is read-only."
 >
-  <section class="meta-strip" aria-label="proof log source">
+  <section class="meta-strip" aria-label="Proof log source">
     <span>{proofCounts.total} proof rows</span>
     <span>{proofCounts.verified} verified</span>
     <span>{proofCounts.blocked} blocked</span>
@@ -48,19 +48,19 @@ const proofCounts = countProofEntries(proofEntries);
                   </div>
                   <dl>
                     <div>
-                      <dt>summary</dt>
+                      <dt>Summary</dt>
                       <dd>{entry.summary}</dd>
                     </div>
                     <div>
-                      <dt>evidence</dt>
+                      <dt>Evidence</dt>
                       <dd>{entry.evidence_uri}</dd>
                     </div>
                     <div>
-                      <dt>proof id</dt>
+                      <dt>Proof id</dt>
                       <dd>{entry.id}</dd>
                     </div>
                     <div>
-                      <dt>next</dt>
+                      <dt>Next</dt>
                       <dd>{entry.next_safe_action}</dd>
                     </div>
                   </dl>

@@ -18,19 +18,44 @@ require_tool() {
   fi
 }
 
-pnpm_cmd() {
+validate_toolchain() {
   require_tool node
   require_tool pnpm
   node -e 'const [M,m,p]=process.versions.node.split(".").map(Number); if (!((M===24&&(m>19||(m===19&&p>=0)))||M===25)) { console.error(`anipotts.com requires Node >=24.19.0 <26; found ${process.version}. Run: nvm install && nvm use`); process.exit(1) }'
+}
+
+require_dependencies() {
+  if [ ! -d node_modules ] || [ ! -x node_modules/.bin/turbo ]; then
+    echo "Dependencies are not ready in this worktree. Run: bash ./scripts/codex-action bootstrap" >&2
+    echo "Bootstrap installs the frozen lockfile; ensure sufficient disk space first." >&2
+    exit 1
+  fi
+}
+
+pnpm_cmd() {
+  validate_toolchain
+  require_dependencies
   pnpm "$@"
 }
 
 case "${1:-}" in
   setup)
-    if command -v corepack >/dev/null 2>&1; then
-      corepack enable >/dev/null 2>&1 || true
+    validate_toolchain
+    git rev-parse --is-inside-work-tree >/dev/null
+    if [ ! -f package.json ] || [ ! -f pnpm-workspace.yaml ] || [ ! -f pnpm-lock.yaml ]; then
+      echo "Not an anipotts.com workspace: package and lockfile manifests are required." >&2
+      exit 1
     fi
-    pnpm_cmd install --frozen-lockfile
+    echo "Repository and Node/pnpm preflight passed. No dependencies installed; no application checks run."
+    if [ -x node_modules/.bin/turbo ]; then
+      echo "Existing dependencies detected. Develop/check actions will validate through their normal commands."
+    else
+      echo "Dependency bootstrap deferred. When ready, run: bash ./scripts/codex-action bootstrap"
+    fi
+    ;;
+  bootstrap)
+    validate_toolchain
+    pnpm install --frozen-lockfile
     ;;
   www-dev)
     pnpm_cmd dev:www
@@ -42,10 +67,12 @@ case "${1:-}" in
     pnpm_cmd dev:all
     ;;
   local-status)
-    pnpm_cmd dev:local:status
+    validate_toolchain
+    pnpm dev:local:status
     ;;
   local-stop)
-    pnpm_cmd dev:local:stop
+    validate_toolchain
+    pnpm dev:local:stop
     ;;
   check-www)
     pnpm_cmd turbo build --filter=@anipotts/www...
@@ -75,7 +102,7 @@ case "${1:-}" in
     done
     ;;
   *)
-    echo "usage: $0 {setup|www-dev|admin-dev|local-dev|local-status|local-stop|check-www|check-all|check-changed|pr-status|live-state}" >&2
+    echo "usage: $0 {setup|bootstrap|www-dev|admin-dev|local-dev|local-status|local-stop|check-www|check-all|check-changed|pr-status|live-state}" >&2
     exit 2
     ;;
 esac

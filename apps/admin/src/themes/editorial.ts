@@ -26,6 +26,11 @@ export const editorialTheme = defineTheme({
     "--color-neutral": ["#2026310d", "#eef0f410"],
   },
   components: {
+    // Shell-local CSS property; the closed Astryx token registry remains unchanged.
+    "app-shell": {
+      base: { "--color-workspace-sidebar": "light-dark(#f1f4fa, #131820)" },
+    },
+
     "top-nav": { base: { backgroundColor: "var(--color-background-surface)" } },
     button: {
       base: {

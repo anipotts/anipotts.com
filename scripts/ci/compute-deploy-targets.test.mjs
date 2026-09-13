@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { computeDeployTargets } from "./compute-deploy-targets.mjs";
 import "./changed-files.test.mjs";
@@ -138,4 +139,44 @@ assert.equal(
   deployWorkflow.includes("dorny/paths-filter"),
   false,
   "deploy.yml must not duplicate target rules through paths-filter",
+);
+
+expectTargets(
+  "reviewed Astryx patch deploys only its Admin consumer",
+  ["patches/@astryxdesign__core@0.4.6.patch"],
+  { admin: true },
+);
+expectTargets(
+  "tooling ignore files do not select deploy targets",
+  [".gitignore", ".prettierignore"],
+  {},
+);
+
+// The exact patch mapping must be revisited if another workspace adopts core.
+const coreConsumers = execFileSync(
+  "git",
+  [
+    "ls-files",
+    "apps/*/package.json",
+    "packages/*/package.json",
+    "workers/*/package.json",
+  ],
+  { encoding: "utf8" },
+)
+  .trim()
+  .split("\n")
+  .filter(Boolean)
+  .filter((path) => {
+    const manifest = JSON.parse(readFileSync(path, "utf8"));
+    return [
+      "dependencies",
+      "devDependencies",
+      "peerDependencies",
+      "optionalDependencies",
+    ].some((key) => manifest[key]?.["@astryxdesign/core"]);
+  });
+assert.deepEqual(
+  coreConsumers,
+  ["apps/admin/package.json"],
+  "Astryx patch deployment mapping requires an explicit update when consumers change",
 );

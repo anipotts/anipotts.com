@@ -96,14 +96,14 @@ describe("editorial catalog", () => {
         ]}
       />,
     );
-    expect(html).toContain('href="/content?group=systems"');
+    expect(html).toContain('href="/content?group=website"');
     expect(html).not.toContain('role="tree"');
-    expect(html).toContain("all pages");
-    expect(html).toContain("last updated");
+    expect(html).toContain("Overview");
+    expect(html).toContain("Last updated");
     expect(html).not.toContain("recently updated first");
-    expect(html).toContain('href="/content/writing/music"');
-    expect(html).toContain("Sep 8, 2026");
-    expect(html).toContain("local edit");
+    expect(html).toContain('href="/content/writing/music?returnTo=%2Fcontent"');
+    expect(html).toContain('data-format="relative_short"');
+    expect(html).toContain("Local edit");
     expect(html).toContain('dateTime="2026-09-08T10:00:00.000Z"');
     expect(html).not.toContain("·");
   });
@@ -145,17 +145,17 @@ describe("editorial catalog", () => {
         groups={[{ name: "writing", href: "/content?group=writing", records }]}
       />,
     );
-    expect(html).toContain('href="/content/writing/music"');
-    expect(html).toContain("draft");
-    expect(html).toContain('aria-label="writing records"');
-    expect(html).toContain('aria-label="light theme: switch to dark"');
-    expect(html.match(/aria-label="[^"]*theme[^"]*"/g)).toHaveLength(1);
-    expect(html).toContain("live site");
-    const siteLink = html.match(/<a\b[^>]*aria-label="live site"[^>]*>/)?.[0];
+    expect(html).toContain('href="/content/writing/music?returnTo=%2Fcontent"');
+    expect(html).toContain("Continue draft");
+    expect(html).toContain('aria-label="Writing records"');
+    expect(html).toContain("Appearance");
+    expect(html.match(/aria-label="Appearance"/g)).toHaveLength(1);
+    expect(html).toContain("Visit site");
+    const siteLink = html.match(/<a\b[^>]*aria-label="Visit site"[^>]*>/)?.[0];
     expect(siteLink).toContain('href="https://anipotts.com/"');
     expect(siteLink).toContain('target="_blank"');
     expect(siteLink).toContain('rel="noopener noreferrer"');
-    expect(html).not.toContain("log out");
+    expect(html).not.toContain("Log out");
     expect(html).not.toContain("·");
   });
   it("renders an empty collection with a usable empty state", () => {
@@ -168,8 +168,8 @@ describe("editorial catalog", () => {
         groups={[{ name: "drafts", href: "/newsletter", records: [] }]}
       />,
     );
-    expect(html).toContain("no matching records");
-    expect(html).toContain("clear filters");
+    expect(html).toContain("No records yet");
+    expect(html).not.toContain("Clear filters");
   });
   it("does not invent a public link for a private review", () => {
     const html = renderToStaticMarkup(
@@ -239,4 +239,71 @@ describe("editorial catalog", () => {
       'href="http://anipotts.localhost:1355/writing/agent-notes?theme=light"',
     );
   });
+});
+
+it.each([[records], [[]]])(
+  "provides one explicit recovery action while retaining any available inventory",
+  (availableRecords) => {
+    const html = renderToStaticMarkup(
+      <EditorialApp
+        title="Writing"
+        area="content"
+        localPreview
+        siteUrl="https://anipotts.com"
+        inventoryError
+        groups={[
+          {
+            name: "writing",
+            href: "/content?group=writing",
+            records: availableRecords,
+          },
+        ]}
+      />,
+    );
+    expect(html).toContain("Private drafts couldn’t be loaded");
+    expect(html.match(/>Reload</g)).toHaveLength(1);
+    expect(html).not.toContain(">Retry<");
+    if (availableRecords.length) {
+      expect(html).toContain("agent notes");
+      expect(html).toContain("Draft status unavailable");
+    } else expect(html).toContain("Records unavailable");
+  },
+);
+it("sentence-cases generated metadata labels without changing authored values", () => {
+  const html = renderToStaticMarkup(
+    <EditorialApp
+      title="Review"
+      area="newsletter"
+      localPreview
+      siteUrl="https://anipotts.com"
+      review={{
+        back: "/newsletter",
+        status: "draft",
+        fields: { review_ready: true, personal_note: "i like this lowercase" },
+      }}
+    />,
+  );
+  expect(html).toContain("Review ready");
+  expect(html).toContain("Enabled");
+  expect(html).toContain("Personal note");
+  expect(html).toContain("i like this lowercase");
+});
+
+it("uses Pages for the website-only group and Overview for the all-record group", () => {
+  for (const [selectedGroup, heading] of [
+    ["website", "Pages"],
+    ["pages", "Overview"],
+  ]) {
+    const html = renderToStaticMarkup(
+      <EditorialApp
+        title="Content"
+        area="content"
+        localPreview
+        siteUrl="https://anipotts.com"
+        selectedGroup={selectedGroup}
+        groups={[{ name: selectedGroup, href: "/content", records: [] }]}
+      />,
+    );
+    expect(html).toMatch(new RegExp(`<h1[^>]*>${heading}</h1>`));
+  }
 });

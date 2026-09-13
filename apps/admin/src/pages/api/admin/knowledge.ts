@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import {
+  KnowledgeUnavailableError,
   readAdminKnowledge,
   readAdminKnowledgeCard,
 } from "../../../data/knowledge";
@@ -16,19 +17,26 @@ const DOMAINS = new Set<KnowledgeDomain>([
 export const GET: APIRoute = async (context) => {
   const cardId = context.url.searchParams.get("card_id");
   if (cardId) {
-    const card = await readAdminKnowledgeCard(
-      context.locals.runtime?.env.DB,
-      cardId,
-    );
-    if (!card) {
+    try {
+      const card = await readAdminKnowledgeCard(
+        context.locals.runtime?.env.DB,
+        cardId,
+      );
+      if (!card)
+        return Response.json(
+          { error: "knowledge_card_not_found" },
+          { status: 404, headers: { "cache-control": "private, no-store" } },
+        );
+      return Response.json(card, {
+        headers: { "cache-control": "private, no-store" },
+      });
+    } catch (error) {
+      if (!(error instanceof KnowledgeUnavailableError)) throw error;
       return Response.json(
-        { error: `unknown knowledge card: ${cardId}` },
-        { status: 404 },
+        { error: "knowledge_unavailable", available: false },
+        { status: 503, headers: { "cache-control": "private, no-store" } },
       );
     }
-    return Response.json(card, {
-      headers: { "cache-control": "no-store" },
-    });
   }
 
   const query = context.url.searchParams.get("q") ?? "";
@@ -58,6 +66,7 @@ export const GET: APIRoute = async (context) => {
   );
 
   return Response.json(knowledge, {
+    status: knowledge.available ? 200 : 503,
     headers: { "cache-control": "no-store" },
   });
 };

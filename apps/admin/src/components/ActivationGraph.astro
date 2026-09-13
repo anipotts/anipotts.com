@@ -49,7 +49,7 @@ const humanize = (value: string) => value.replaceAll("_", " ");
         <SemanticReference
           reference={projection.foreground_reference}
           variant="action"
-          label="inspect focus"
+          label="Inspect focus"
         />
       )
     }
@@ -59,12 +59,12 @@ const humanize = (value: string) => value.replaceAll("_", " ");
     <header class="activation-section-heading">
       <div>
         <span>operational projections</span>
-        <h3 id="work-states-title">work states</h3>
+        <h3 id="work-states-title">Work states</h3>
       </div>
       <p>derived from dependencies, authority, and evidence</p>
     </header>
 
-    <nav class="activation-lanes" aria-label="operational state projections">
+    <nav class="activation-lanes" aria-label="Operational state projections">
       {
         projection.lanes.map((lane) => {
           const Icon = iconForOperationalProjection[lane.key];
@@ -138,7 +138,7 @@ const humanize = (value: string) => value.replaceAll("_", " ");
         <header class="activation-section-heading">
           <div>
             <span>connected context</span>
-            <h3 id="graph-title">four-layer graph</h3>
+            <h3 id="graph-title">Four-layer graph</h3>
           </div>
           <p>world, obligation, execution, and trajectory stay distinct</p>
         </header>
@@ -167,7 +167,7 @@ const humanize = (value: string) => value.replaceAll("_", " ");
                     <SemanticReference
                       reference={node.reference}
                       variant="action"
-                      label="inspect"
+                      label="Inspect"
                     />
                   </footer>
                 </article>

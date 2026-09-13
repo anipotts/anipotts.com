@@ -1,15 +1,21 @@
 ---
 import "@astryxdesign/core/reset.css";
+import {
+  initialAdminTheme,
+  adminThemePrepaintScript,
+} from "../lib/admin-theme";
 import "@astryxdesign/core/astryx.css";
 import "../styles/admin-interactions.css";
 import "@astryxdesign/theme-neutral/theme.css";
 import "../styles/admin.css";
 import "../styles/admin-canvas.css";
 import { AdminShell } from "../components/astryx/AdminShell";
-import { OperationalCommandPalette } from "../components/astryx/OperationalCommandPalette";
+import "../themes/editorial.generated.css";
+import "../themes/operations.generated.css";
+import "../themes/life.generated.css";
+import "../styles/editorial.css";
+import "../styles/focus.css";
 import { navItems, routeTitle } from "../data/admin";
-import brandFaviconDark from "@anipotts/brand/ap-structural/icons/favicon-dark.svg?url";
-import brandFaviconLight from "@anipotts/brand/ap-structural/icons/favicon-light.svg?url";
 
 type Props = {
   title?: string;
@@ -24,64 +30,37 @@ const {
   chrome = "admin",
   hideHeader = false,
 } = Astro.props;
+const initialMode = initialAdminTheme(
+  Astro.url.searchParams.get("theme"),
+  Astro.cookies.get("ap-theme")?.value,
+);
 const currentPath = Astro.url.pathname.replace(/\/$/, "") || "/";
 const currentRoute = `${currentPath}${Astro.url.search}`;
 ---
 
 <!doctype html>
-<html lang="en" data-astryx-theme="neutral">
+<html
+  lang="en"
+  data-astryx-theme="editorial"
+  data-theme={initialMode === "system" ? undefined : initialMode}
+  style={{ colorScheme: initialMode === "system" ? "light dark" : initialMode }}
+>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link
       rel="icon"
-      type="image/png"
-      sizes="32x32"
-      href="/favicon-light-32.png?v=20260717a"
-      media="(prefers-color-scheme: light)"
-    />
-    <link
-      rel="icon"
-      type="image/png"
-      sizes="32x32"
-      href="/favicon-dark-32.png?v=20260717a"
-      media="(prefers-color-scheme: dark)"
-    />
-    <link
-      rel="icon"
-      href="/favicon.svg?v=20260717a"
+      href="/admin-bracket.svg?v=4"
       type="image/svg+xml"
       sizes="any"
     />
-    <link
-      rel="icon"
-      href="/favicon-light.svg?v=20260717a"
-      type="image/svg+xml"
-      media="(prefers-color-scheme: light)"
-    />
-    <link
-      rel="icon"
-      href="/favicon-dark.svg?v=20260717a"
-      type="image/svg+xml"
-      media="(prefers-color-scheme: dark)"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
     <link
       rel="apple-touch-icon"
       sizes="180x180"
       href="/apple-touch-icon.png?v=20260717a"
     />
-    <link
-      rel="icon"
-      href={brandFaviconLight}
-      type="image/svg+xml"
-      media="(prefers-color-scheme: light)"
-    />
-    <link
-      rel="icon"
-      href={brandFaviconDark}
-      type="image/svg+xml"
-      media="(prefers-color-scheme: dark)"
-    />
+
     <meta
       name="theme-color"
       media="(prefers-color-scheme: light)"
@@ -92,32 +71,14 @@ const currentRoute = `${currentPath}${Astro.url.search}`;
       media="(prefers-color-scheme: dark)"
       content="#0b1220"
     />
-    <title>{title} | anipotts admin</title>
-    <script is:inline>
-      (() => {
-        const readPreference = (key) => {
-          try {
-            return localStorage.getItem(key);
-          } catch {
-            return null;
-          }
-        };
-        const stored =
-          readPreference("admin-theme:v1") ?? readPreference("theme");
-        const theme =
-          stored === "dark" || stored === "light"
-            ? stored
-            : matchMedia("(prefers-color-scheme: dark)").matches
-              ? "dark"
-              : "light";
-        document.documentElement.dataset.theme = theme;
-
-        document.documentElement.dataset.font = "instrument";
-      })();
-    </script>
+    <title>{title} | Anipotts Admin</title>
+    <script is:inline set:html={adminThemePrepaintScript} />
   </head>
   <body>
     <AdminShell
+      client:load
+      localPreview={import.meta.env.DEV}
+      initialMode={initialMode}
       chrome={chrome}
       currentRoute={currentRoute}
       deck={deck}
@@ -127,81 +88,5 @@ const currentRoute = `${currentPath}${Astro.url.search}`;
     >
       <slot />
     </AdminShell>
-    {
-      chrome === "admin" && (
-        <OperationalCommandPalette
-          client:load
-          navItems={navItems}
-          showTrigger={false}
-        />
-      )
-    }
-    <script is:inline>
-      (() => {
-        const root = document.documentElement;
-        const toggles = document.querySelectorAll("[data-theme-toggle]");
-
-        const syncToggleLabels = () => {
-          const isDark = root.dataset.theme === "dark";
-          for (const toggle of toggles) {
-            toggle.setAttribute("aria-pressed", String(isDark));
-            const label = toggle.querySelector("[data-theme-label]");
-            if (label) label.textContent = isDark ? "light mode" : "dark mode";
-          }
-        };
-
-        const setTheme = (theme) => {
-          root.dataset.theme = theme;
-          try {
-            localStorage.setItem("admin-theme:v1", theme);
-          } catch {
-            // The visible toggle still works for this page session.
-          }
-          syncToggleLabels();
-        };
-
-        for (const toggle of toggles) {
-          toggle.addEventListener("click", () => {
-            setTheme(root.dataset.theme === "dark" ? "light" : "dark");
-          });
-        }
-
-        syncToggleLabels();
-
-        for (const trigger of document.querySelectorAll(
-          "[data-admin-search-trigger]",
-        )) {
-          trigger.addEventListener("click", () => {
-            document.dispatchEvent(new CustomEvent("admin:search"));
-          });
-        }
-
-        for (const group of document.querySelectorAll(
-          "[data-admin-nav-group]",
-        )) {
-          if (!(group instanceof HTMLDetailsElement)) continue;
-          const key = `admin-nav:${group.dataset.adminNavGroup}`;
-          const routeContainsSelection = Boolean(
-            group.querySelector('[aria-current="page"]'),
-          );
-          if (routeContainsSelection) {
-            group.open = true;
-          } else {
-            try {
-              group.open = localStorage.getItem(key) === "expanded";
-            } catch {
-              group.open = false;
-            }
-          }
-          group.addEventListener("toggle", () => {
-            try {
-              localStorage.setItem(key, group.open ? "expanded" : "collapsed");
-            } catch {
-              // The group remains usable for this page session.
-            }
-          });
-        }
-      })();
-    </script>
   </body>
 </html>

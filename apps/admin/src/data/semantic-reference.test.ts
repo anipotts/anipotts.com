@@ -10,6 +10,7 @@ import {
   inspectorDestination,
   internalDestination,
   internalRecordReference,
+  isSafeInternalHref,
   providerDestination,
   renderSemanticReference,
 } from "./semantic-reference";
@@ -291,6 +292,35 @@ describe("typed semantic references", () => {
     expect(() =>
       internalDestination("//example.com/escape", "open route"),
     ).toThrow(/unsafe internal/);
+  });
+
+  it("rejects control characters before browser URL normalization", () => {
+    const origin = "https://admin.example.test";
+    for (const separator of ["\n", "\r", "\t"]) {
+      const href = `/${separator}/example.com/escape`;
+      expect(new URL(href, origin).origin).toBe("https://example.com");
+      expect(isSafeInternalHref(href)).toBe(false);
+      expect(() => internalDestination(href, "Open route")).toThrow(
+        /unsafe internal/,
+      );
+    }
+    for (const code of [0, 8, 12, 31, 127]) {
+      expect(isSafeInternalHref(`/work?q=${String.fromCharCode(code)}`)).toBe(
+        false,
+      );
+    }
+  });
+
+  it("preserves valid local paths, encoded queries, and anchors", () => {
+    for (const href of [
+      "/",
+      "/work?view=now#task-example",
+      "/knowledge?kind=person&entity=person%3Aani",
+      "/content?q=two%20words&returnTo=%2Fcontent%3Fgroup%3Dwriting",
+    ]) {
+      expect(isSafeInternalHref(href)).toBe(true);
+      expect(internalDestination(href, "Open route")).toMatchObject({ href });
+    }
   });
 
   it("keeps a verified proof pointer inspectable when no provider owns it", () => {

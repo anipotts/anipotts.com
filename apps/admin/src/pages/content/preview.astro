@@ -22,10 +22,10 @@ const selectedDraft = await readDraftPreview(
 ---
 
 <AdminLayout
-  title="content preview"
+  title="Content preview"
   deck="Preview-only content operations. These compare current and proposed values without saving, publishing, deploying, or sending."
 >
-  <section class="meta-strip" aria-label="preview queue source">
+  <section class="meta-strip" aria-label="Preview queue source">
     <span>
       {
         d1PreviewItems.length > 0
@@ -87,37 +87,37 @@ const selectedDraft = await readDraftPreview(
               <h2>{item.operation_id}</h2>
               <div class="diff-pair">
                 <div>
-                  <span>current</span>
+                  <span>Current</span>
                   <p>{item.current_value_ref}</p>
                 </div>
                 <div>
-                  <span>proposed</span>
+                  <span>Proposed</span>
                   <p>{item.proposed_value}</p>
                 </div>
               </div>
               <dl>
                 <div>
-                  <dt>route</dt>
+                  <dt>Route</dt>
                   <dd>{item.route}</dd>
                 </div>
                 <div>
-                  <dt>field</dt>
+                  <dt>Field</dt>
                   <dd>{item.field_path}</dd>
                 </div>
                 <div>
-                  <dt>authority</dt>
+                  <dt>Authority</dt>
                   <dd>{item.authority_state}</dd>
                 </div>
                 <div>
-                  <dt>blocked</dt>
+                  <dt>Blocked</dt>
                   <dd>{item.forbidden_actions.join(", ")}</dd>
                 </div>
                 <div>
-                  <dt>proof</dt>
+                  <dt>Proof</dt>
                   <dd>{item.proof_ids.join(", ")}</dd>
                 </div>
                 <div>
-                  <dt>rollback</dt>
+                  <dt>Rollback</dt>
                   <dd>{item.rollback_ref}</dd>
                 </div>
               </dl>
@@ -131,29 +131,29 @@ const selectedDraft = await readDraftPreview(
               <h2>{item.title}</h2>
               <div class="diff-pair">
                 <div>
-                  <span>current</span>
+                  <span>Current</span>
                   <p>{item.current_value}</p>
                 </div>
                 <div>
-                  <span>proposed</span>
+                  <span>Proposed</span>
                   <p>{item.proposed_value}</p>
                 </div>
               </div>
               <dl>
                 <div>
-                  <dt>route</dt>
+                  <dt>Route</dt>
                   <dd>{item.preview_route}</dd>
                 </div>
                 <div>
-                  <dt>authority</dt>
+                  <dt>Authority</dt>
                   <dd>{item.authority_state}</dd>
                 </div>
                 <div>
-                  <dt>proof</dt>
+                  <dt>Proof</dt>
                   <dd>{item.proof_ids.join(", ")}</dd>
                 </div>
                 <div>
-                  <dt>next</dt>
+                  <dt>Next</dt>
                   <dd>{item.next_safe_action}</dd>
                 </div>
               </dl>

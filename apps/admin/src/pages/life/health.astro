@@ -1,4 +1,5 @@
 ---
+import { LifeSupportingView } from "../../components/life/LifeSupportingView";
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import { readAdminKnowledge } from "../../data/knowledge";
 
@@ -13,52 +14,15 @@ const healthCards = knowledge.bundle.cards.filter(
     card.title.toLowerCase().includes("health") ||
     card.summary.toLowerCase().includes("vital"),
 );
+// This view does not infer tasks, diagnose, or expose raw readings.
+Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
 
-<AdminLayout
-  title="health"
-  deck="Status-only health visibility. This page does not infer tasks, diagnose, or expose raw readings."
->
-  <section class="meta-strip" aria-label="health boundary">
-    <span>status only</span>
-    <span>{healthCards.length} source pointers</span>
-    <span>no inferred tasks</span>
-    <span>no raw vitals</span>
-  </section>
-
-  <section class="table-card life-boundary">
-    <div class="section-head">
-      <div>
-        <p>privacy boundary</p>
-        <h2>health source state</h2>
-      </div>
-      <span>read only</span>
-    </div>
-    <div class="life-reference-list">
-      {
-        healthCards.length === 0 ? (
-          <article>
-            <div>
-              <p>unavailable</p>
-              <h3>no sanitized health pointer is visible</h3>
-            </div>
-            <span>Verify the private source locally before asking Ani.</span>
-          </article>
-        ) : (
-          healthCards.map((card) => (
-            <article>
-              <div>
-                <p>
-                  {card.freshness_state} / {card.reveal_policy}
-                </p>
-                <h3>{card.title}</h3>
-              </div>
-              <span>{card.summary}</span>
-              <code>{card.source_locator}</code>
-            </article>
-          ))
-        )
-      }
-    </div>
-  </section>
+<AdminLayout title="Health" hideHeader>
+  <LifeSupportingView
+    section="health"
+    summaries={healthCards}
+    available={knowledge.available}
+    client:load
+  />
 </AdminLayout>

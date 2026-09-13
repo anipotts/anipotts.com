@@ -10,13 +10,13 @@ const readState = await readContentOperationStore(Astro.locals.runtime?.env.DB);
 ---
 
 <AdminLayout
-  title="content operations"
+  title="Content operations"
   deck="Live D1 view for draft operations and publish proof. Draft saves and selected-draft publish are passkey-protected; newsletter send remains absent."
 >
-  <section class="meta-strip" aria-label="content operation read source">
+  <section class="meta-strip" aria-label="Content operation read source">
     <span>{readState.mode}</span>
     <span>{contentOperationSchemaSource.migration}</span>
-    <span>publish with proof</span>
+    <span>Publish with proof</span>
   </section>
 
   <div class="surface-grid">
@@ -40,7 +40,7 @@ const readState = await readContentOperationStore(Astro.locals.runtime?.env.DB);
               </div>
               <dl>
                 <div>
-                  <dt>state</dt>
+                  <dt>State</dt>
                   <dd>
                     {row.table_name === "content_draft_operations"
                       ? "draft save allowed after passkey"
@@ -50,7 +50,7 @@ const readState = await readContentOperationStore(Astro.locals.runtime?.env.DB);
                   </dd>
                 </div>
                 <div>
-                  <dt>next</dt>
+                  <dt>Next</dt>
                   <dd>
                     {row.table_name === "content_draft_operations"
                       ? "review saved draft proposals before publishing"
@@ -72,7 +72,7 @@ const readState = await readContentOperationStore(Astro.locals.runtime?.env.DB);
           <p>recent draft operations</p>
           <h2>{readState.operations.length} visible</h2>
         </div>
-        <span>passkey-gated api</span>
+        <span>Passkey-gated api</span>
       </div>
       <div class="record-list">
         {
@@ -84,14 +84,14 @@ const readState = await readContentOperationStore(Astro.locals.runtime?.env.DB);
               </div>
               <dl>
                 <div>
-                  <dt>meaning</dt>
+                  <dt>Meaning</dt>
                   <dd>
                     schema exists; the focused editor can save draft operation
                     rows after passkey login
                   </dd>
                 </div>
                 <div>
-                  <dt>next</dt>
+                  <dt>Next</dt>
                   <dd>
                     enroll passkey, save a draft proposal, then verify it in
                     this queue
@@ -110,19 +110,19 @@ const readState = await readContentOperationStore(Astro.locals.runtime?.env.DB);
                 </div>
                 <dl>
                   <div>
-                    <dt>route</dt>
+                    <dt>Route</dt>
                     <dd>{operation.route}</dd>
                   </div>
                   <div>
-                    <dt>risk</dt>
+                    <dt>Risk</dt>
                     <dd>{operation.risk_level}</dd>
                   </div>
                   <div>
-                    <dt>authority</dt>
+                    <dt>Authority</dt>
                     <dd>{operation.authority_state}</dd>
                   </div>
                   <div>
-                    <dt>updated</dt>
+                    <dt>Updated</dt>
                     <dd>{operation.updated_at}</dd>
                   </div>
                 </dl>
@@ -140,7 +140,7 @@ const readState = await readContentOperationStore(Astro.locals.runtime?.env.DB);
         <p>seeded operation templates</p>
         <h2>{contentOperationTemplates.length} proposals modeled</h2>
       </div>
-      <span>legacy preview seeds</span>
+      <span>Legacy preview seeds</span>
     </div>
     <div class="record-list">
       {
@@ -154,35 +154,35 @@ const readState = await readContentOperationStore(Astro.locals.runtime?.env.DB);
             </div>
             <dl>
               <div>
-                <dt>field</dt>
+                <dt>Field</dt>
                 <dd>{operation.field_path}</dd>
               </div>
               <div>
-                <dt>route</dt>
+                <dt>Route</dt>
                 <dd>{operation.route}</dd>
               </div>
               <div>
-                <dt>authority</dt>
+                <dt>Authority</dt>
                 <dd>{operation.authority_state}</dd>
               </div>
               <div>
-                <dt>risk</dt>
+                <dt>Risk</dt>
                 <dd>{operation.risk_level}</dd>
               </div>
               <div>
-                <dt>allowed</dt>
+                <dt>Allowed</dt>
                 <dd>{operation.allowed_actions.join(", ")}</dd>
               </div>
               <div>
-                <dt>blocked</dt>
+                <dt>Blocked</dt>
                 <dd>{operation.forbidden_actions.join(", ")}</dd>
               </div>
               <div>
-                <dt>proof</dt>
+                <dt>Proof</dt>
                 <dd>{operation.proof_ids.join(", ")}</dd>
               </div>
               <div>
-                <dt>rollback</dt>
+                <dt>Rollback</dt>
                 <dd>{operation.rollback_ref}</dd>
               </div>
             </dl>

@@ -86,7 +86,7 @@ function WorkActions({
               label: "Open linked inbox item",
               onClick: () =>
                 window.location.assign(
-                  `/?item=${encodeURIComponent(row.attention_ref!)}`,
+                  `/inbox?item=${encodeURIComponent(row.attention_ref!)}`,
                 ),
             },
           ]}

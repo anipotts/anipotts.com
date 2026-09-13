@@ -1,3 +1,4 @@
+import { EDITORIAL_OWNER_EMAIL } from "./editorial-owner";
 import {
   MAX_SOURCE_BYTES,
   editorialRecordSchema,
@@ -60,6 +61,7 @@ export async function homeEditorApi(
         ? await publisher.storage.latestPublication(record)
         : null;
       return json({
+        recoveryScope: EDITORIAL_OWNER_EMAIL,
         base,
         draft,
         history,

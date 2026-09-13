@@ -37,10 +37,10 @@ function operationMatchesSurface(
 ---
 
 <AdminLayout
-  title="content review"
+  title="Content review"
   deck="Read-only proposal queue. Save and publish controls stay absent until the write path is audited and approved."
 >
-  <section class="meta-strip" aria-label="content review source">
+  <section class="meta-strip" aria-label="Content review source">
     <span>{contentInventory.length} sources</span>
     <span>{contentPreviewItems.length} previews</span>
     <span>{d1Operations.length} d1 operations</span>
@@ -53,13 +53,13 @@ function operationMatchesSurface(
     <div class="section-head">
       <div>
         <p>operation schema</p>
-        <h2>draft model is ready for D1</h2>
+        <h2>Draft model is ready for D1</h2>
       </div>
       <span>{contentOperationSchemaSource.mode}</span>
     </div>
     <div class="lane-grid">
       <div>
-        <h3>tables</h3>
+        <h3>Tables</h3>
         <div class="record-list">
           {
             contentOperationTables.map((table) => (
@@ -128,7 +128,7 @@ function operationMatchesSurface(
 
             <div class="lane-grid">
               <div>
-                <h3>current source</h3>
+                <h3>Current source</h3>
                 <div class="record-list">
                   {sourceRows.map((row) => (
                     <article class="compact-row">
@@ -154,25 +154,25 @@ function operationMatchesSurface(
                           <h3>{operation.operation_id}</h3>
                           <div class="diff-pair">
                             <div>
-                              <span>current</span>
+                              <span>Current</span>
                               <p>{operation.current_value_ref}</p>
                             </div>
                             <div>
-                              <span>proposed</span>
+                              <span>Proposed</span>
                               <p>{operation.proposed_value}</p>
                             </div>
                           </div>
                           <dl>
                             <div>
-                              <dt>authority</dt>
+                              <dt>Authority</dt>
                               <dd>{operation.authority_state}</dd>
                             </div>
                             <div>
-                              <dt>blocked</dt>
+                              <dt>Blocked</dt>
                               <dd>{operation.forbidden_actions.join(", ")}</dd>
                             </div>
                             <div>
-                              <dt>rollback</dt>
+                              <dt>Rollback</dt>
                               <dd>{operation.rollback_ref}</dd>
                             </div>
                           </dl>
@@ -184,25 +184,25 @@ function operationMatchesSurface(
                           <h3>{row.title}</h3>
                           <div class="diff-pair">
                             <div>
-                              <span>current</span>
+                              <span>Current</span>
                               <p>{row.current_value}</p>
                             </div>
                             <div>
-                              <span>proposed</span>
+                              <span>Proposed</span>
                               <p>{row.proposed_value}</p>
                             </div>
                           </div>
                           <dl>
                             <div>
-                              <dt>authority</dt>
+                              <dt>Authority</dt>
                               <dd>{row.authority_state}</dd>
                             </div>
                             <div>
-                              <dt>blocked</dt>
+                              <dt>Blocked</dt>
                               <dd>{row.blocked_actions.join(", ")}</dd>
                             </div>
                             <div>
-                              <dt>next</dt>
+                              <dt>Next</dt>
                               <dd>{row.next_safe_action}</dd>
                             </div>
                           </dl>
