@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Banner } from "@astryxdesign/core/Banner";
 import { Button } from "@astryxdesign/core/Button";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { VStack } from "@astryxdesign/core/VStack";
@@ -13,7 +12,11 @@ import {
 import type { ObservabilityReadResult } from "../../lib/observability-reader";
 import { Layout, LayoutContent } from "@astryxdesign/core/Layout";
 import { Table, proportional } from "@astryxdesign/core/Table";
-import { TabList, Tab, TabMenu } from "@astryxdesign/core/TabList";
+import {
+  DropdownMenu,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "@astryxdesign/core/DropdownMenu";
 import { Timestamp } from "@astryxdesign/core/Timestamp";
 import {
   MetadataList,
@@ -21,8 +24,38 @@ import {
 } from "@astryxdesign/core/MetadataList";
 import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
-import { Collapsible, CollapsibleGroup } from "@astryxdesign/core/Collapsible";
 import { StatusDot } from "@astryxdesign/core/StatusDot";
+import {
+  ArrowClockwiseIcon,
+  ArrowsClockwiseIcon,
+  DesktopTowerIcon,
+  LaptopIcon,
+} from "@phosphor-icons/react";
+import type {
+  ServiceObservation,
+  ServiceState,
+} from "../../lib/observability-model";
+import "./operations-workspace.css";
+
+const allowedViews = [
+  "machines",
+  "loops",
+  "activity",
+  "coverage",
+  "traces",
+  "metrics",
+  "incidents",
+];
+const readView = (value: string | null) =>
+  value && allowedViews.includes(value) ? value : "machines";
+const loopIds = [
+  "personalcontext-capture",
+  "personalcontext-ingestion",
+  "personalcontext-wiki",
+  "personalcontext-backups",
+  "personalcontext-collector",
+  "delegate-collector",
+];
 
 const words = (value: string) => value.replaceAll("-", " ");
 const label = (id: string) =>
@@ -37,46 +70,79 @@ export function ObservabilityWorkspace({
 }) {
   const [result, setResult] = useState(initial);
   const [query, setQuery] = useState("");
-  const allowedViews = [
-    "machines",
-    "loops",
-    "activity",
-    "coverage",
-    "traces",
-    "metrics",
-    "incidents",
-  ];
-  const [view, setView] = useState(
-    allowedViews.includes(initialView) ? initialView : "machines",
-  );
+  const [view, setView] = useState(readView(initialView));
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const detailHeading = useRef<HTMLHeadingElement>(null);
+  const workspace = useRef<HTMLDivElement>(null);
+  const returnFocus = useRef<string | null>(null);
   const changeView = (next: string) => {
-    if (!allowedViews.includes(next)) return;
+    if (!allowedViews.includes(next) || next === view) return;
     setView(next);
+    setSelectedId(null);
     const url = new URL(location.href);
     url.searchParams.set("view", next);
-    history.replaceState(history.state, "", url);
+    history.pushState(history.state, "", url);
     window.dispatchEvent(new Event("admin:workspace-navigation"));
   };
-  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    const navigate = () => {
+      setView(readView(new URL(location.href).searchParams.get("view")));
+      setSelectedId(null);
+    };
+    window.addEventListener("popstate", navigate);
+    return () => window.removeEventListener("popstate", navigate);
+  }, []);
+  useEffect(() => {
+    if (selectedId) detailHeading.current?.focus({ preventScroll: true });
+    else if (returnFocus.current) {
+      const button = workspace.current?.querySelector<HTMLButtonElement>(
+        `[data-service-id="${returnFocus.current}"]`,
+      );
+      (
+        button ?? workspace.current?.querySelector<HTMLInputElement>("input")
+      )?.focus();
+      returnFocus.current = null;
+    }
+  }, [selectedId]);
+  const closeDetails = () => {
+    returnFocus.current = selectedId;
+    setSelectedId(null);
+  };
   const [now, setNow] = useState(Date.now());
   const [refreshing, setRefreshing] = useState(false);
-  const refreshingRef = useRef(false);
+  const manualRefresh = useRef<() => void>(() => undefined);
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
+    const timer = setInterval(() => {
+      if (!document.hidden) setNow(Date.now());
+    }, 10000);
     return () => clearInterval(timer);
   }, []);
   useEffect(() => {
-    // An unconfigured source never becomes an accidental background consumer.
-    if (initial.status === "unconfigured" && retry === 0) return;
-    const abort = new AbortController();
-    let timer: ReturnType<typeof setTimeout>;
+    let stopped = false;
+    let automatic = initial.status !== "unconfigured";
+    let active: AbortController | null = null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     let failures = 0;
+    let nextAt = Date.now();
+    const schedule = () => {
+      clearTimeout(timer);
+      if (!stopped && automatic && !document.hidden)
+        timer = setTimeout(
+          () => void refresh(),
+          Math.max(0, nextAt - Date.now()),
+        );
+    };
     async function refresh() {
-      refreshingRef.current = true;
+      if (stopped || active || document.hidden) return;
+      clearTimeout(timer);
+      const request = new AbortController();
+      active = request;
       setRefreshing(true);
+      const current = () =>
+        !stopped && active === request && !request.signal.aborted;
       try {
         const response = await fetch("/api/admin/observability", {
-          signal: AbortSignal.any([abort.signal, AbortSignal.timeout(5000)]),
+          signal: AbortSignal.any([request.signal, AbortSignal.timeout(5000)]),
           credentials: "same-origin",
           cache: "no-store",
           redirect: "error",
@@ -105,30 +171,50 @@ export function ObservabilityWorkspace({
         const snapshot = parseObservabilitySnapshot(body.snapshot);
         if ((body.status === "connected") !== (snapshot.source === "live"))
           throw new Error("unavailable");
-        if (abort.signal.aborted) return;
+        if (!current()) return;
         setResult({ status: body.status, snapshot });
+        setNow(Date.now());
         failures = 0;
-        if (body.status === "unconfigured") return;
+        automatic = body.status === "connected";
+        nextAt = Date.now() + 60000;
       } catch {
-        if (abort.signal.aborted) return;
+        if (!current()) return;
         failures++;
-        // Legacy reader status describes read availability, not machine evidence.
+        // Read availability is separate from machine/loop evidence.
         setResult((previous) => ({ ...previous, status: "disconnected" }));
+        nextAt =
+          Date.now() + Math.min(300000, 60000 * 2 ** Math.min(failures - 1, 3));
       } finally {
-        if (!abort.signal.aborted) {
-          refreshingRef.current = false;
+        if (current()) {
+          active = null;
           setRefreshing(false);
+          schedule();
         }
       }
-      if (!abort.signal.aborted)
-        timer = setTimeout(refresh, Math.min(30000, 1000 * 2 ** failures));
     }
-    void refresh();
-    return () => {
-      abort.abort();
+    const visibilityChanged = () => {
+      setNow(Date.now());
       clearTimeout(timer);
+      if (document.hidden) {
+        if (active) {
+          active.abort();
+          active = null;
+          nextAt = Date.now();
+          setRefreshing(false);
+        }
+      } else schedule();
     };
-  }, [initial.status, retry]);
+    manualRefresh.current = () => void refresh();
+    document.addEventListener("visibilitychange", visibilityChanged);
+    if (automatic && !document.hidden) void refresh();
+    return () => {
+      stopped = true;
+      active?.abort();
+      clearTimeout(timer);
+      manualRefresh.current = () => undefined;
+      document.removeEventListener("visibilitychange", visibilityChanged);
+    };
+  }, [initial.status]);
   const { snapshot, status } = result;
   const matches = (...values: string[]) =>
     values.join(" ").toLowerCase().includes(query.trim().toLowerCase());
@@ -137,14 +223,7 @@ export function ObservabilityWorkspace({
     view === "machines"
       ? service.id.startsWith("mac-")
       : view === "loops"
-        ? [
-            "personalcontext-capture",
-            "personalcontext-ingestion",
-            "personalcontext-wiki",
-            "personalcontext-backups",
-            "personalcontext-collector",
-            "delegate-collector",
-          ].includes(service.id)
+        ? loopIds.includes(service.id)
         : true,
   );
   const services = inventory.filter((service) =>
@@ -170,30 +249,9 @@ export function ObservabilityWorkspace({
       ? `Last known: ${title(deriveServiceState(service, now))}`
       : title(deriveServiceState(service, now));
   };
-  const coverageRows = services.map((service) => ({
-    id: service.id,
-    service: label(service.id),
-    state: stateLabel(service.id),
-    details: (
-      <MetadataList label={{ position: "top" }} orientation="horizontal">
-        <MetadataListItem label="Instrumentation">
-          {service.instrumentation === "unknown"
-            ? "Not verified"
-            : title(service.instrumentation)}
-        </MetadataListItem>
-        <MetadataListItem label="Last observation">
-          {service.lastObservedAt ? (
-            <Timestamp value={service.lastObservedAt} format="auto" isLive />
-          ) : (
-            "Not observed"
-          )}
-        </MetadataListItem>
-        <MetadataListItem label="Last outcome">
-          {title(service.outcome)}
-        </MetadataListItem>
-      </MetadataList>
-    ),
-  }));
+  const selected = isInventory
+    ? inventory.find((service) => service.id === selectedId)
+    : undefined;
   const evidenceRows =
     view === "activity"
       ? events.map((event) => ({
@@ -240,7 +298,7 @@ export function ObservabilityWorkspace({
                 </VStack>
               ),
             }));
-  const rows = isInventory ? coverageRows : evidenceRows;
+  const rows = evidenceRows;
   const total = isInventory
     ? inventory.length
     : view === "activity"
@@ -253,227 +311,354 @@ export function ObservabilityWorkspace({
   const unavailable = !isInventory && total === 0 && status !== "connected";
   return (
     <Layout
-      className="admin-observability-layout"
+      ref={workspace}
+      className="admin-observability-layout operations-workspace"
       height="auto"
-      padding={4}
+      padding={0}
       content={
         <LayoutContent label="Operations">
           <VStack gap={5}>
-            <VStack gap={1}>
-              <Heading level={1}>Operations</Heading>
-            </VStack>
-            <Banner
-              status={status === "connected" ? "info" : "warning"}
-              title={
-                status === "connected"
-                  ? "Telemetry connected"
-                  : status === "unconfigured"
-                    ? "Live telemetry is not connected"
-                    : "Telemetry unavailable; showing last-known observations"
-              }
-            />
-            <HStack gap={3} wrap="wrap" vAlign="center">
-              <Button
-                label="Reconnect"
-                isLoading={refreshing}
-                isDisabled={refreshing}
-                onClick={() => {
-                  if (refreshingRef.current) return;
-                  refreshingRef.current = true;
-                  setRefreshing(true);
-                  setRetry((value) => value + 1);
-                }}
+            <HStack
+              gap={4}
+              wrap="wrap"
+              hAlign="between"
+              vAlign="center"
+              className="operations-header"
+            >
+              <Heading level={1}>
+                {view === "machines" ? "Overview" : title(view)}
+              </Heading>
+              <HStack gap={2} vAlign="center" wrap="wrap">
+                <Button
+                  label={
+                    status === "connected" ? "Refresh" : "Retry connection"
+                  }
+                  icon={<ArrowClockwiseIcon aria-hidden="true" />}
+                  variant="ghost"
+                  isLoading={refreshing}
+                  isDisabled={refreshing}
+                  onClick={() => manualRefresh.current()}
+                />
+              </HStack>
+            </HStack>
+            <HStack
+              gap={2}
+              wrap="wrap"
+              vAlign="center"
+              className="operations-source-status"
+            >
+              <StatusDot
+                label={
+                  status === "connected"
+                    ? "Source connected"
+                    : "Source unavailable"
+                }
+                variant={status === "connected" ? "success" : "neutral"}
               />
               <Text role="status" color="secondary">
                 {status === "connected"
-                  ? "Last received"
+                  ? "Source connected"
                   : status === "unconfigured"
-                    ? "No live observations received"
-                    : "Latest read unavailable"}
+                    ? "Live telemetry is not connected"
+                    : "Latest read unavailable; showing last-known observations"}
               </Text>
               {snapshot.source === "live" && (
-                <Timestamp value={snapshot.observedAt} format="auto" isLive />
+                <Text color="secondary">
+                  Snapshot observed{" "}
+                  <Timestamp value={snapshot.observedAt} format="auto" />
+                </Text>
               )}
             </HStack>
-            <TabList
-              value={view}
-              onChange={changeView}
-              hasDivider
-              aria-label="Operations views"
-              style={{ flexWrap: "wrap" }}
-            >
-              {["machines", "loops", "activity"].map((tab) => (
-                <Tab
-                  key={tab}
-                  value={tab}
-                  label={title(tab)}
-                  id={`observability-tab-${tab}`}
-                  aria-controls="observability-panel"
-                />
-              ))}
-              <TabMenu
-                label="More"
-                options={["coverage", "traces", "metrics", "incidents"].map(
-                  (value) => ({ value, label: title(value) }),
-                )}
-              />
-            </TabList>
-            <TextInput
-              label="Search evidence"
-              value={query}
-              onChange={setQuery}
-              placeholder="Service, state, trace or evidence ID"
-            />
-            <VStack
+            <HStack
               gap={3}
-              role="region"
-              id="observability-panel"
-              aria-label={title(view)}
-              tabIndex={0}
+              wrap="wrap"
+              vAlign="center"
+              className="operations-toolbar"
             >
-              <Heading level={2}>
-                {view === "machines"
-                  ? "Machines"
-                  : view === "loops"
-                    ? "Loops"
-                    : view === "coverage"
-                      ? "Coverage"
-                      : view === "activity"
-                        ? "Latest activity"
-                        : view === "traces"
-                          ? "Measured execution"
-                          : view === "metrics"
-                            ? "Capacity and retention"
-                            : "PersonalContext incidents"}
-              </Heading>
-              {rows.length && isInventory ? (
-                <CollapsibleGroup type="multiple" hasDividers>
-                  {services.map((service) => (
-                    <Collapsible
-                      key={service.id}
-                      value={service.id}
-                      defaultIsOpen={false}
-                      trigger={
-                        <VStack gap={2} width="100%">
-                          <Text
-                            weight="semibold"
-                            style={{ overflowWrap: "anywhere" }}
-                          >
-                            {label(service.id)}
-                          </Text>
-                          <HStack gap={4} wrap="wrap" vAlign="center">
-                            <HStack gap={2} vAlign="center">
-                              <StatusDot
-                                label={stateLabel(service.id)}
-                                variant={
-                                  stateLabel(service.id) === "Healthy"
-                                    ? "success"
-                                    : stateLabel(service.id) === "Failed"
-                                      ? "error"
-                                      : "neutral"
-                                }
-                              />
-                              <Text>{stateLabel(service.id)}</Text>
-                            </HStack>
-                            <Text color="secondary">Last contact: Unknown</Text>
+              <TextInput
+                label={isInventory ? `Search ${view}` : "Search evidence"}
+                isLabelHidden
+                value={query}
+                onChange={setQuery}
+                placeholder={
+                  isInventory
+                    ? "Name or observed state"
+                    : "Service, state, trace or evidence ID"
+                }
+                className="operations-search"
+              />
+              <DropdownMenu
+                button={{
+                  label: title(view),
+                  tooltip: `View: ${title(view)}`,
+                  size: "sm",
+                  variant: "secondary",
+                }}
+              >
+                <DropdownMenuRadioGroup
+                  label="Operations view"
+                  value={view}
+                  onChange={changeView}
+                >
+                  {allowedViews.map((value) => (
+                    <DropdownMenuRadioItem
+                      key={value}
+                      value={value}
+                      label={title(value)}
+                    />
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenu>
+              {isInventory && (
+                <Text
+                  type="supporting"
+                  color="secondary"
+                  className="operations-count"
+                >
+                  {services.length}{" "}
+                  {services.length === 1 ? "record" : "records"}
+                </Text>
+              )}
+            </HStack>
+            <HStack
+              gap={6}
+              vAlign="start"
+              className="operations-master-detail"
+              data-has-detail={Boolean(selected)}
+            >
+              <VStack
+                gap={3}
+                className="operations-results"
+                role="region"
+                id="observability-panel"
+                aria-label={title(view)}
+              >
+                {isInventory && services.length ? (
+                  <Table
+                    data={services}
+                    idKey="id"
+                    className="editorial-record-table"
+                    aria-label={title(view)}
+                    density="compact"
+                    hasHover
+                    textOverflow="wrap"
+                    plugins={{
+                      details: {
+                        transformBodyRow: (props, service) => ({
+                          ...props,
+                          htmlProps: {
+                            ...props.htmlProps,
+                            onClick: () => setSelectedId(service.id),
+                          },
+                        }),
+                      },
+                    }}
+                    columns={[
+                      {
+                        key: "id",
+                        header:
+                          view === "machines"
+                            ? "Machine"
+                            : view === "loops"
+                              ? "Loop"
+                              : "Service",
+                        width: proportional(2),
+                        renderCell: (service) => (
+                          <Button
+                            label={label(service.id)}
+                            variant="ghost"
+                            className="operations-service-name"
+                            data-service-id={service.id}
+                            aria-expanded={selectedId === service.id}
+                            aria-controls={
+                              selectedId === service.id
+                                ? "operations-service-detail"
+                                : undefined
+                            }
+                            icon={<ServiceIcon id={service.id} />}
+                            onClick={() => setSelectedId(service.id)}
+                          />
+                        ),
+                      },
+                      {
+                        key: "outcome",
+                        header: "Observed state",
+                        width: proportional(1),
+                        renderCell: (service) => (
+                          <HStack gap={2} vAlign="center">
+                            <StatusDot
+                              label={stateLabel(service.id)}
+                              variant={stateVariant(
+                                deriveServiceState(service, now),
+                              )}
+                            />
+                            <Text>{stateLabel(service.id)}</Text>
                           </HStack>
-                        </VStack>
-                      }
-                    >
-                      <MetadataList label={{ position: "top" }}>
-                        <MetadataListItem label="Instrumentation">
-                          {service.instrumentation === "unknown"
-                            ? "Not verified"
-                            : title(service.instrumentation)}
-                        </MetadataListItem>
-                        <MetadataListItem label="Last observation">
-                          {service.lastObservedAt ? (
+                        ),
+                      },
+                      {
+                        key: "lastObservedAt",
+                        header: "Last observation",
+                        width: proportional(1),
+                        renderCell: (service) =>
+                          service.lastObservedAt ? (
                             <Timestamp
                               value={service.lastObservedAt}
                               format="auto"
-                              isLive
                             />
                           ) : (
-                            "Not observed"
-                          )}
-                        </MetadataListItem>
-                        <MetadataListItem label="Last outcome">
-                          {title(service.outcome)}
-                        </MetadataListItem>
-                      </MetadataList>
-                    </Collapsible>
-                  ))}
-                </CollapsibleGroup>
-              ) : rows.length ? (
-                <Table
-                  data={rows}
-                  idKey="id"
-                  density="compact"
-                  textOverflow="wrap"
-                  columns={[
-                    {
-                      key: "service",
-                      header: "Service",
-                      width: proportional(1),
-                      renderCell: (row) => (
-                        <Text weight="semibold">{row.service}</Text>
-                      ),
-                    },
-                    {
-                      key: "state",
-                      header: view === "metrics" ? "Metric" : "State",
-                      width: proportional(1),
-                      renderCell: (row) => (
-                        <HStack gap={2} vAlign="center">
-                          <StatusDot
-                            label={row.state}
-                            variant={
-                              row.state === "Healthy" ||
-                              row.state === "Resolved" ||
-                              row.state === "Success"
-                                ? "success"
-                                : row.state === "Failed" ||
-                                    row.state === "Failure"
-                                  ? "error"
-                                  : row.state === "Stale" ||
-                                      row.state === "Disconnected"
-                                    ? "warning"
-                                    : "neutral"
-                            }
-                          />
-                          <Text>{row.state}</Text>
-                        </HStack>
-                      ),
-                    },
-                    {
-                      key: "details",
-                      header: "Evidence",
-                      width: proportional(2),
-                      renderCell: (row) => row.details,
-                    },
-                  ]}
-                />
-              ) : (
-                <VStack gap={2}>
-                  <EmptyState
-                    title={
-                      unavailable
-                        ? "Evidence unavailable"
-                        : query.trim() && total > 0
-                          ? "No matching results"
-                          : "No observations yet"
-                    }
+                            <Text color="secondary">Not observed</Text>
+                          ),
+                      },
+                    ]}
                   />
-                  {query.trim() && total > 0 && (
-                    <Button
-                      label="Clear search"
-                      variant="ghost"
-                      onClick={() => setQuery("")}
+                ) : !isInventory && rows.length ? (
+                  <Table
+                    data={rows}
+                    idKey="id"
+                    className="editorial-record-table"
+                    density="compact"
+                    textOverflow="wrap"
+                    columns={[
+                      {
+                        key: "service",
+                        header: "Service",
+                        width: proportional(1),
+                        renderCell: (row) => (
+                          <Text weight="semibold">{row.service}</Text>
+                        ),
+                      },
+                      {
+                        key: "state",
+                        header: view === "metrics" ? "Metric" : "State",
+                        width: proportional(1),
+                        renderCell: (row) => (
+                          <HStack gap={2} vAlign="center">
+                            <StatusDot
+                              label={row.state}
+                              variant={
+                                row.state === "Healthy" ||
+                                row.state === "Resolved" ||
+                                row.state === "Success"
+                                  ? "success"
+                                  : row.state === "Failed" ||
+                                      row.state === "Failure"
+                                    ? "error"
+                                    : row.state === "Stale" ||
+                                        row.state === "Disconnected"
+                                      ? "warning"
+                                      : "neutral"
+                              }
+                            />
+                            <Text>{row.state}</Text>
+                          </HStack>
+                        ),
+                      },
+                      {
+                        key: "details",
+                        header: "Evidence",
+                        width: proportional(2),
+                        renderCell: (row) => row.details,
+                      },
+                    ]}
+                  />
+                ) : (
+                  <VStack gap={2}>
+                    <EmptyState
+                      title={
+                        unavailable
+                          ? "Evidence unavailable"
+                          : query.trim() && total > 0
+                            ? "No matching results"
+                            : "No observations yet"
+                      }
                     />
+                    {query.trim() && total > 0 && (
+                      <Button
+                        label="Clear search"
+                        variant="ghost"
+                        onClick={() => setQuery("")}
+                      />
+                    )}
+                  </VStack>
+                )}
+              </VStack>
+              {selected && (
+                <VStack
+                  gap={4}
+                  className="operations-service-detail"
+                  role="region"
+                  aria-labelledby="operations-detail-title"
+                  id="operations-service-detail"
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === "Escape" &&
+                      !event.defaultPrevented &&
+                      !event.nativeEvent.isComposing
+                    ) {
+                      event.preventDefault();
+                      closeDetails();
+                    }
+                  }}
+                >
+                  <HStack gap={3} hAlign="between" vAlign="center" wrap="wrap">
+                    <Heading
+                      ref={detailHeading}
+                      level={2}
+                      id="operations-detail-title"
+                      tabIndex={-1}
+                    >
+                      {label(selected.id)}
+                    </Heading>
+                    <Button
+                      label="Close details"
+                      variant="ghost"
+                      onClick={closeDetails}
+                    />
+                  </HStack>
+                  <HStack gap={2} vAlign="center">
+                    <ServiceIcon id={selected.id} />
+                    <StatusDot
+                      label={stateLabel(selected.id)}
+                      variant={stateVariant(deriveServiceState(selected, now))}
+                    />
+                    <Text>{stateLabel(selected.id)}</Text>
+                  </HStack>
+                  <MetadataList label={{ position: "top" }}>
+                    <MetadataListItem label="Instrumentation">
+                      {selected.instrumentation === "unknown"
+                        ? "Not verified"
+                        : title(selected.instrumentation)}
+                    </MetadataListItem>
+                    <MetadataListItem label="Observed connection">
+                      {title(selected.connection)}
+                    </MetadataListItem>
+                    <MetadataListItem label="Last observation">
+                      {selected.lastObservedAt ? (
+                        <Timestamp
+                          value={selected.lastObservedAt}
+                          format="date_time"
+                        />
+                      ) : (
+                        "Not observed"
+                      )}
+                    </MetadataListItem>
+                    <MetadataListItem label="Freshness window">
+                      {selected.freshnessSeconds} seconds
+                    </MetadataListItem>
+                    <MetadataListItem label="Last outcome">
+                      {title(selected.outcome)}
+                    </MetadataListItem>
+                  </MetadataList>
+                  {selected.lastObservedAt === null && (
+                    <Text color="secondary">
+                      No observation has been received for this{" "}
+                      {view === "machines" ? "machine" : "service"}.
+                    </Text>
                   )}
                 </VStack>
               )}
-            </VStack>
+            </HStack>
           </VStack>
         </LayoutContent>
       }
@@ -493,4 +678,23 @@ function Evidence({ at, id }: { at: string; id: string }) {
       </Text>
     </VStack>
   );
+}
+
+function ServiceIcon({ id }: { id: ServiceObservation["id"] }) {
+  const Icon =
+    id === "mac-local"
+      ? LaptopIcon
+      : id === "mac-mini"
+        ? DesktopTowerIcon
+        : ArrowsClockwiseIcon;
+  return <Icon aria-hidden="true" className="operations-entity-icon" />;
+}
+function stateVariant(state: ServiceState) {
+  return state === "healthy"
+    ? "success"
+    : state === "failed"
+      ? "error"
+      : state === "stale" || state === "disconnected"
+        ? "warning"
+        : "neutral";
 }
