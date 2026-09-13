@@ -57,7 +57,7 @@
     "test:security-review": "node scripts/ci/security-review.test.mjs",
     "test:public-copy": "pnpm turbo build --filter=@anipotts/content... && node scripts/ci/public-copy-lint.test.mjs && node scripts/ci/public-copy-lint.mjs",
     "test:public-copy:policy": "node scripts/ci/public-copy-lint.test.mjs && node scripts/ci/public-copy-lint.mjs",
-    "test:release-policy": "node scripts/ci/release-policy.test.mjs && node scripts/ci/migration-policy.mjs",
+    "test:release-policy": "node scripts/ci/release-policy.test.mjs && node scripts/ci/migration-policy.mjs && node --test scripts/ci/content-release-isolation.test.mjs",
     "test:d1-bootstrap": "node scripts/ci/d1-ledger-bootstrap.test.mjs",
     "test:migration-local": "node scripts/ci/migration-local-proof.mjs",
     "test:site-migrations": "node scripts/ci/site-migrations-local-proof.mjs",
