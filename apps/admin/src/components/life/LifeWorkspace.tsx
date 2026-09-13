@@ -694,6 +694,52 @@ export function LifeWorkspace({
                   header={<Heading level={2}>Other views</Heading>}
                 >
                   <ListItem
+                    label="Knowledge"
+                    href="/knowledge"
+                    description={
+                      <Text type="supporting" color="secondary">
+                        Existing knowledge cards and source-backed locations
+                      </Text>
+                    }
+                    startContent={
+                      <FileTextIcon
+                        weight="regular"
+                        size="var(--spacing-5)"
+                        aria-hidden="true"
+                      />
+                    }
+                    endContent={
+                      <ArrowRightIcon
+                        weight="regular"
+                        size="var(--spacing-4)"
+                        aria-hidden="true"
+                      />
+                    }
+                  />
+                  <ListItem
+                    label="Knowledge locations"
+                    href="/knowledge/locations"
+                    description={
+                      <Text type="supporting" color="secondary">
+                        Place records from the existing knowledge reader
+                      </Text>
+                    }
+                    startContent={
+                      <MapPinIcon
+                        weight="regular"
+                        size="var(--spacing-5)"
+                        aria-hidden="true"
+                      />
+                    }
+                    endContent={
+                      <ArrowRightIcon
+                        weight="regular"
+                        size="var(--spacing-4)"
+                        aria-hidden="true"
+                      />
+                    }
+                  />
+                  <ListItem
                     label="Health"
                     href="/life/health"
                     description={
