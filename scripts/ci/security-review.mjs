@@ -15,7 +15,7 @@ const SENSITIVE_PREFIXES = [
   "apps/admin/src/pages/auth/",
   "apps/admin/src/editorial/",
   "apps/admin/src/lib/",
-  "apps/admin/src/data/life-",
+  "apps/admin/src/data/",
   "patches/",
   "drizzle/migrations/",
   "packages/content/",

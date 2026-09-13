@@ -20,6 +20,10 @@ for (const file of [
   "apps/admin/src/lib/editorial-handoff-client.ts",
   "apps/admin/src/lib/draft-recovery.ts",
   "apps/admin/src/data/life-owner-reader.ts",
+  // The private Life reader the /life routes actually use. An earlier
+  // "apps/admin/src/data/life-" prefix matched no real file, so this
+  // transport was unscanned; keep a real path in this list.
+  "apps/admin/src/data/personal-context.ts",
   "apps/admin/src/editorial/draft-store.ts",
   "apps/admin/wrangler.toml",
   "apps/www/wrangler.toml",
