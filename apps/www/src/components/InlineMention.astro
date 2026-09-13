@@ -1,5 +1,6 @@
 ---
 import { Icon } from "astro-icon/components";
+import { isExternalDestination } from "../lib/link-destination";
 
 interface Props {
   label: string;
@@ -35,7 +36,7 @@ const {
   visualSuffix,
 } = Astro.props;
 const Tag = href ? "a" : "span";
-const external = Boolean(href && /^https:\/\//iu.test(href));
+const external = isExternalDestination(href);
 const hasVisual = Boolean(logoSrc || icon || mark);
 const [firstWord = label, ...remainingWords] = label.trim().split(/\s+/);
 const remainingLabel = remainingWords.join(" ");
