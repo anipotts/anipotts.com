@@ -5,7 +5,7 @@
 name = "anipotts-www-astro"
 compatibility_date = "2026-05-01"
 compatibility_flags = ["nodejs_compat"]
-main = "./dist/_worker.js/index.js"
+main = "@astrojs/cloudflare/entrypoints/server"
 workers_dev = true
 account_id = "0f856093bdcd34a7da1bde5ee4385163"
 

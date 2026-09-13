@@ -55,6 +55,13 @@ function applyHtmlSecurityHeaders(response: Response): Response {
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
+  // Preserve the application binding contract across the adapter migration.
+  if (!context.isPrerendered) {
+    const { env } = await import("cloudflare:workers");
+    context.locals.runtime = {
+      env: env as unknown as App.Locals["runtime"]["env"],
+    };
+  }
   const { pathname, search } = context.url;
   const host = context.url.hostname.toLowerCase();
   // Newsletter delivery endpoints remain available; its editorial pages are unpublished.

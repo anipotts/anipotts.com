@@ -27,25 +27,34 @@ type CommandRelayNamespace = {
   getByName(name: string): CommandRelayStub;
 };
 
-type Runtime = import("@astrojs/cloudflare").Runtime<{
-  DB: D1Database;
-  COMMAND_RELAY: CommandRelayNamespace;
-  PUBLIC_STATE_API: string;
-  ACCESS_TEAM_DOMAIN: string;
-  ACCESS_POLICY_AUD: string;
-  ADMIN_PASSWORD_HASH?: string;
-  ADMIN_GOOGLE_CLIENT_ID?: string;
-  ADMIN_GOOGLE_CLIENT_SECRET?: string;
-  ADMIN_SECURITY_ALERT_TO?: string;
-  ADMIN_SECURITY_ALERT_FROM?: string;
-  ADMIN_SECURITY_ALERTS_ENABLED?: string;
-  RESEND_API_KEY?: string;
-}>;
+type AppBindingRuntime = {
+  runtime: {
+    env: {
+      DB: D1Database;
+      COMMAND_RELAY: CommandRelayNamespace;
+      PUBLIC_STATE_API: string;
+      ACCESS_TEAM_DOMAIN: string;
+      ACCESS_POLICY_AUD: string;
+      ADMIN_PASSWORD_HASH?: string;
+      ADMIN_GOOGLE_CLIENT_ID?: string;
+      ADMIN_GOOGLE_CLIENT_SECRET?: string;
+      ADMIN_SECURITY_ALERT_TO?: string;
+      ADMIN_SECURITY_ALERT_FROM?: string;
+      ADMIN_SECURITY_ALERTS_ENABLED?: string;
+      RESEND_API_KEY?: string;
+    };
+  };
+};
 
 declare namespace App {
-  interface Locals extends Runtime {
+  interface Locals extends AppBindingRuntime {
     passkeySessionActive?: boolean;
     adminPrincipal?: import("./lib/admin-auth").AdminPrincipal;
     adminSetCookies?: string[];
   }
+}
+
+// Keep Worker binding access typed without replacing browser DOM globals.
+declare module "cloudflare:workers" {
+  export const env: AppBindingRuntime["runtime"]["env"];
 }

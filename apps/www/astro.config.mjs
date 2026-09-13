@@ -5,6 +5,8 @@ import icon from "astro-icon";
 import { siteConfig } from "@anipotts/content/public";
 
 export default defineConfig({
+  // Auth uses application cookies; do not provision unused Astro session KV.
+  session: false,
   // Public POST routes enforce their own boundary: subscription origin checks,
   // signed webhooks, and token-based one-click unsubscribe without browser Origin.
   security: { checkOrigin: false },
@@ -22,8 +24,8 @@ export default defineConfig({
     },
   },
   adapter: cloudflare({
-    platformProxy: { enabled: true },
     imageService: "passthrough",
+    prerenderEnvironment: "node",
   }),
   integrations: [
     icon({

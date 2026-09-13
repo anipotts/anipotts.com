@@ -19,6 +19,13 @@ import {
 } from "./lib/admin-auth";
 
 export const onRequest = defineMiddleware(async (context, next) => {
+  // Preserve the application binding contract across the adapter migration.
+  if (!context.isPrerendered) {
+    const { env } = await import("cloudflare:workers");
+    context.locals.runtime = {
+      env: env as unknown as App.Locals["runtime"]["env"],
+    };
+  }
   // This logout-only route validates its own cookies without refreshing or migrating them.
   if (
     context.url.pathname === "/api/admin/logout" ||

@@ -15,16 +15,16 @@
   "dependencies": {
     "@anipotts/content": "workspace:*",
     "@anipotts/brand": "workspace:*",
-    "@astrojs/cloudflare": "^12.6.0",
+    "@astrojs/cloudflare": "14.3.1",
     "@astrojs/rss": "^4.0.19",
     "@fontsource-variable/instrument-sans": "^5.2.8",
-    "astro": "^5.16.0",
+    "astro": "7.3.2",
     "astro-icon": "^1.1.5",
     "zod": "^3.24.2"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
-    "@cloudflare/workers-types": "^5.20260822.1",
+    "@cloudflare/workers-types": "5.20260911.1",
     "@fontsource-variable/jetbrains-mono": "^5.2.5",
     "@iconify-json/logos": "^1.2.13",
     "@iconify-json/ph": "^1.2.2",

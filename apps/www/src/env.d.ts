@@ -20,7 +20,7 @@ type CfEnv = {
   NEWSLETTER_MAILING_ADDRESS?: string;
 };
 
-type Runtime = import("@astrojs/cloudflare").Runtime<CfEnv>;
+type AppBindingRuntime = { runtime: { env: CfEnv } };
 
 interface Window {
   posthog?: {
@@ -29,5 +29,5 @@ interface Window {
 }
 
 declare namespace App {
-  interface Locals extends Runtime {}
+  interface Locals extends AppBindingRuntime {}
 }

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { parse } from "yaml";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const dist = join(root, "apps/www/dist");
+const dist = join(root, "apps/www/dist/client");
 function records(kind) {
   return readdirSync(join(root, "content/public", kind))
     .filter((file) => file.endsWith(".md"))

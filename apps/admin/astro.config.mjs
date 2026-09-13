@@ -8,6 +8,8 @@ import { editorialPublicAssets } from "../../scripts/dev/editorial-public-assets
 import { editorialUpdates } from "../../scripts/dev/editorial-updates.mjs";
 
 export default defineConfig({
+  // Auth uses application cookies; do not provision unused Astro session KV.
+  session: false,
   site: "https://admin.anipotts.com",
   output: "server",
   trailingSlash: "never",
@@ -51,11 +53,7 @@ export default defineConfig({
     },
   },
   adapter: cloudflare({
-    workerEntryPoint: {
-      path: "./src/worker.ts",
-      namedExports: ["EditorialDraftStore"],
-    },
-    platformProxy: { enabled: true },
     imageService: "passthrough",
+    prerenderEnvironment: "node",
   }),
 });
