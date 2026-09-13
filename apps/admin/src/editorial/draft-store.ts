@@ -67,8 +67,9 @@ type SaveIdentity = {
   payloadHash: string;
   outcome: "saved" | "conflict";
   revision: number | null;
-  // Older releases may have pruned the referenced revision already. Preserve
-  // their existing receipt verbatim rather than inventing a replacement result.
+  // Exact conflict receipts include the active draft's publication-adjusted
+  // base, which can differ from its immutable revision. This existing column
+  // also retains legacy successful receipts whose revisions were pruned.
   legacyResult: string | null;
 };
 
@@ -268,13 +269,21 @@ export class EditorialDraftStore extends DurableObject<unknown> {
       SELECT requests.id, requests.key, requests.payloadHash,
         CASE WHEN json_extract(requests.result, '$.ok') = 1 THEN 'saved' ELSE 'conflict' END,
         COALESCE(json_extract(requests.result, '$.draft.revision'), json_extract(requests.result, '$.current.revision')),
-        CASE WHEN COALESCE(json_extract(requests.result, '$.draft.revision'), json_extract(requests.result, '$.current.revision')) IS NOT NULL
+        CASE WHEN json_extract(requests.result, '$.ok') = 0 OR
+          (COALESCE(json_extract(requests.result, '$.draft.revision'), json_extract(requests.result, '$.current.revision')) IS NOT NULL
           AND NOT EXISTS (
             SELECT 1 FROM revisions WHERE revisions.key = requests.key
               AND revisions.revision = COALESCE(json_extract(requests.result, '$.draft.revision'), json_extract(requests.result, '$.current.revision'))
-          ) THEN requests.result ELSE NULL END
+          )) THEN requests.result ELSE NULL END
       FROM save_requests AS requests
       WHERE NOT EXISTS (SELECT 1 FROM save_request_identities AS existing WHERE existing.id = requests.id);
+      UPDATE save_request_identities AS identities
+      SET legacyResult = requests.result
+      FROM save_requests AS requests
+      WHERE identities.id = requests.id AND identities.key = requests.key
+        AND identities.payloadHash = requests.payloadHash
+        AND identities.outcome = 'conflict' AND identities.legacyResult IS NULL
+        AND json_extract(requests.result, '$.ok') = 0;
       CREATE TABLE IF NOT EXISTS publications (
         id TEXT PRIMARY KEY,
         key TEXT NOT NULL,
@@ -483,22 +492,18 @@ export class EditorialDraftStore extends DurableObject<unknown> {
           return { ok: false, code: "idempotency_key_reused" };
         if (identity.legacyResult)
           return JSON.parse(identity.legacyResult) as SaveResult;
+        // Earlier compact conflict identities did not retain the active draft's
+        // full metadata. If the exact receipt is gone, never invent its outcome
+        // from a historical revision or the now-current draft.
+        if (identity.outcome === "conflict")
+          return { ok: false, code: "save_reconciliation_required" };
         const snapshot =
           identity.revision === null
             ? null
             : this.readRevision(identity.key, identity.revision);
-        if (identity.revision !== null && !snapshot)
-          return { ok: false, code: "save_reconciliation_required" };
-        if (identity.outcome === "saved")
-          return snapshot
-            ? { ok: true, draft: snapshot }
-            : { ok: false, code: "save_reconciliation_required" };
-        return {
-          ok: false,
-          code: "revision_conflict",
-          current: snapshot,
-          conflictId: input.requestId,
-        };
+        return snapshot
+          ? { ok: true, draft: snapshot }
+          : { ok: false, code: "save_reconciliation_required" };
       }
       // An older release may have pruned this conflict's receipt before the
       // identity table existed. Its source survives, but its base/hash and exact
@@ -560,12 +565,13 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         result = { ok: true, draft };
       }
       this.ctx.storage.sql.exec(
-        "INSERT INTO save_request_identities (id, key, payloadHash, outcome, revision) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO save_request_identities (id, key, payloadHash, outcome, revision, legacyResult) VALUES (?, ?, ?, ?, ?, ?)",
         input.requestId,
         key,
         payloadHash,
         result.ok ? "saved" : "conflict",
         result.ok ? result.draft.revision : (result.current?.revision ?? null),
+        result.ok ? null : JSON.stringify(result),
       );
       this.ctx.storage.sql.exec(
         "INSERT INTO save_requests (id, key, payloadHash, result) VALUES (?, ?, ?, ?)",

@@ -194,10 +194,20 @@ describe("private SQLite drafts", () => {
     const instance = store();
     const original = request("first acknowledged source");
     const saved = await instance.save(original);
+    await runInDurableObject(instance, (_instance, state) => {
+      // The publication alarm advances only the active draft's Git base.
+      state.storage.sql.exec(
+        "UPDATE drafts SET baseCommit = ?, baseFileHash = ?",
+        "c".repeat(40),
+        "d".repeat(40),
+      );
+    });
     for (let revision = 1; revision <= 100; revision++) {
       await instance.save({
         ...request(`later ${revision}`),
         expectedRevision: revision,
+        baseCommit: "c".repeat(40),
+        baseFileHash: "d".repeat(40),
       });
     }
     await evictDurableObject(instance);
@@ -207,6 +217,97 @@ describe("private SQLite drafts", () => {
       code: "idempotency_key_reused",
     });
     expect((await instance.get(record))?.revision).toBe(101);
+  });
+  it.each(["new", "already retained"])(
+    "replays exact %s conflict metadata after publication advances the active base",
+    async (receiptKind) => {
+      const instance = store();
+      await instance.save(request("winning source"));
+      await runInDurableObject(instance, (_instance, state) => {
+        // Apply the exact metadata update used by the publication alarm, without
+        // invoking any provider I/O. The historical revision remains unchanged.
+        state.storage.sql.exec(
+          "UPDATE drafts SET baseCommit = ?, baseFileHash = ?",
+          "c".repeat(40),
+          "d".repeat(40),
+        );
+      });
+      const losing = request("original losing bytes\nunfinished: [");
+      const conflict = await instance.save(losing);
+      expect(conflict).toMatchObject({
+        current: {
+          revision: 1,
+          baseCommit: "c".repeat(40),
+          baseFileHash: "d".repeat(40),
+        },
+      });
+      if (receiptKind === "already retained") {
+        await runInDurableObject(instance, (_instance, state) => {
+          // Model a compact identity written by the earlier R2 implementation.
+          state.storage.sql.exec(
+            "UPDATE save_request_identities SET legacyResult = NULL WHERE id = ?",
+            losing.requestId,
+          );
+        });
+        await evictDurableObject(instance);
+      }
+      for (let revision = 1; revision <= 101; revision++) {
+        const result = await instance.save({
+          ...request(`later ${revision}`),
+          expectedRevision: revision,
+          baseCommit: "c".repeat(40),
+          baseFileHash: "d".repeat(40),
+        });
+        expect(result.ok).toBe(true);
+      }
+      await runInDurableObject(instance, (_instance, state) => {
+        expect(
+          state.storage.sql
+            .exec("SELECT id FROM save_requests WHERE id = ?", losing.requestId)
+            .toArray(),
+        ).toEqual([]);
+      });
+      await evictDurableObject(instance);
+      expect(await instance.save(losing)).toEqual(conflict);
+      expect(
+        await instance.save({ ...losing, baseCommit: "c".repeat(40) }),
+      ).toEqual({ ok: false, code: "idempotency_key_reused" });
+      expect(await instance.conflict(record, losing.requestId)).toEqual({
+        source: losing.source,
+        expectedRevision: losing.expectedRevision,
+      });
+      expect((await instance.get(record))?.revision).toBe(102);
+    },
+  );
+  it("requires comparison when an older compact conflict lost its exact receipt", async () => {
+    const instance = store();
+    await instance.save(request("winning source"));
+    const losing = request("retained losing bytes");
+    await instance.save(losing);
+    await runInDurableObject(instance, (_instance, state) => {
+      state.storage.sql.exec(
+        "UPDATE save_request_identities SET legacyResult = NULL WHERE id = ?",
+        losing.requestId,
+      );
+      state.storage.sql.exec(
+        "DELETE FROM save_requests WHERE id = ?",
+        losing.requestId,
+      );
+    });
+    await evictDurableObject(instance);
+    expect(await instance.save(losing)).toEqual({
+      ok: false,
+      code: "save_reconciliation_required",
+    });
+    expect(await instance.save({ ...losing, source: "different" })).toEqual({
+      ok: false,
+      code: "idempotency_key_reused",
+    });
+    expect(await instance.conflict(record, losing.requestId)).toEqual({
+      source: losing.source,
+      expectedRevision: losing.expectedRevision,
+    });
+    expect((await instance.get(record))?.revision).toBe(1);
   });
   it("retains a conflict against a missing record without substituting the later draft", async () => {
     const instance = store();
