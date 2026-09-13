@@ -4,11 +4,40 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ObservabilityWorkspace } from "./ObservabilityWorkspace";
 import { createUnconfiguredSnapshot } from "../../lib/observability-model";
+import type { ObservabilityReadResult } from "../../lib/observability-reader";
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+
+const unconfigured = (): ObservabilityReadResult => ({
+  status: "unconfigured",
+  snapshot: createUnconfiguredSnapshot(),
+});
+const connected = (): ObservabilityReadResult => {
+  const snapshot = createUnconfiguredSnapshot();
+  snapshot.source = "live";
+  Object.assign(snapshot.services[0]!, {
+    instrumentation: "checkpoint",
+    connection: "connected",
+    outcome: "success",
+    lastObservedAt: new Date().toISOString(),
+  });
+  return { status: "connected", snapshot };
+};
+const response = (result = connected()) => new Response(JSON.stringify(result));
+
 describe("optional observability workspace", () => {
   let host: HTMLDivElement;
   let root: Root;
+  let hidden: boolean;
+  let visibilityDescriptor: PropertyDescriptor | undefined;
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-13T12:00:00Z"));
+    hidden = false;
+    visibilityDescriptor = Object.getOwnPropertyDescriptor(document, "hidden");
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      get: () => hidden,
+    });
     vi.stubGlobal(
       "ResizeObserver",
       class {
@@ -23,6 +52,7 @@ describe("optional observability workspace", () => {
       removeEventListener() {},
     }));
     vi.stubGlobal("fetch", vi.fn());
+    history.replaceState(null, "", "/operations/observability");
     host = document.createElement("div");
     document.body.append(host);
     root = createRoot(host);
@@ -30,102 +60,219 @@ describe("optional observability workspace", () => {
   afterEach(() => {
     act(() => root.unmount());
     host.remove();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
+    if (visibilityDescriptor)
+      Object.defineProperty(document, "hidden", visibilityDescriptor);
+    else Reflect.deleteProperty(document, "hidden");
   });
-  it("shows unknown coverage and makes no background read before configuration", async () => {
+  const mount = async (initial = unconfigured(), initialView = "machines") => {
     await act(async () =>
       root.render(
-        <ObservabilityWorkspace
-          initial={{
-            status: "unconfigured",
-            snapshot: createUnconfiguredSnapshot(),
-          }}
-        />,
+        <ObservabilityWorkspace initial={initial} initialView={initialView} />,
       ),
     );
-    expect(host.textContent).toContain("Live telemetry is not connected");
-    expect(host.textContent).toContain("Mac mini");
-    expect(host.textContent).not.toContain("healthy");
-    expect(fetch).not.toHaveBeenCalled();
-  });
-  it("changes evidence views without fetching or imposing workflow", async () => {
-    await act(async () =>
-      root.render(
-        <ObservabilityWorkspace
-          initial={{
-            status: "unconfigured",
-            snapshot: createUnconfiguredSnapshot(),
-          }}
-        />,
-      ),
-    );
-    const traces = host.querySelector<HTMLButtonElement>(
-      '[data-tab-value="activity"]',
+  };
+  const button = (name: string) =>
+    [...document.querySelectorAll<HTMLButtonElement>("button")].find(
+      (item) =>
+        item.textContent === name || item.getAttribute("aria-label") === name,
     )!;
-    act(() => traces.click());
-    expect(host.textContent).toContain("Evidence unavailable");
-    expect(fetch).not.toHaveBeenCalled();
-  });
-  it("keeps failed reconnect visible without crashing the view", async () => {
-    vi.mocked(fetch).mockRejectedValue(new Error("private provider failure"));
+  const click = async (name: string) => {
+    await act(async () => button(name).click());
+  };
+  const advance = async (ms: number) => {
+    await act(async () => vi.advanceTimersByTimeAsync(ms));
+  };
+  const visibility = async (value: boolean) => {
+    hidden = value;
     await act(async () =>
-      root.render(
-        <ObservabilityWorkspace
-          initial={{
-            status: "unconfigured",
-            snapshot: createUnconfiguredSnapshot(),
-          }}
-        />,
-      ),
+      document.dispatchEvent(new Event("visibilitychange")),
     );
+  };
+  const search = (query: string) =>
+    act(() => {
+      const input = host.querySelector("input")!;
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )!.set!.call(input, query);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  const navigate = async (view: string) => {
     await act(async () =>
-      [...host.querySelectorAll("button")]
-        .find((button) => button.textContent === "Reconnect")!
+      [...host.querySelectorAll<HTMLButtonElement>("button")]
+        .find((button) =>
+          [
+            "Machines",
+            "Loops",
+            "Activity",
+            "Coverage",
+            "Traces",
+            "Metrics",
+            "Incidents",
+          ].includes(button.textContent?.trim() ?? ""),
+        )!
         .click(),
     );
-    expect(host.textContent).toContain(
-      "Telemetry unavailable; showing last-known observations",
-    );
-    expect(host.textContent).toContain("Last known: Not observed");
-    expect(host.textContent).not.toContain("Disconnected");
-    expect(host.textContent).not.toContain("private provider failure");
+    const item = [
+      ...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
+    ].find((node) => node.textContent === view)!;
+    await act(async () => item.click());
+  };
+
+  it("shows one Overview heading and two actual rows without invented telemetry or automatic reads", async () => {
+    await mount();
+    expect(
+      [...host.querySelectorAll("h1")].map((node) => node.textContent),
+    ).toEqual(["Overview"]);
+    expect(host.querySelector("h2")).toBeNull();
+    expect(host.querySelectorAll("tbody tr")).toHaveLength(2);
+    expect(
+      [...host.querySelectorAll("th")].map((node) => node.textContent),
+    ).toEqual(["Machine", "Observed state", "Last observation"]);
+    expect(host.textContent).toContain("Live telemetry is not connected");
+    expect(host.textContent).toContain("Mac mini");
+    expect(host.textContent).not.toMatch(/Last contact|Running|Healthy/);
+    expect(
+      host.querySelectorAll("[data-service-id] svg[aria-hidden=true]"),
+    ).toHaveLength(2);
+    await advance(600000);
+    await visibility(true);
+    await visibility(false);
+    expect(fetch).not.toHaveBeenCalled();
   });
-  it("uses row coverage and linked selected tabs with arrow-key focus", async () => {
-    await act(async () =>
-      root.render(
-        <ObservabilityWorkspace
-          initial={{
-            status: "unconfigured",
-            snapshot: createUnconfiguredSnapshot(),
-          }}
-        />,
+
+  it("selects a service from its real button or row, moves focus to details and returns it on close", async () => {
+    await mount();
+    const mini = button("Mac mini");
+    act(() => mini.focus());
+    await click("Mac mini");
+    expect(mini.getAttribute("aria-expanded")).toBe("true");
+    expect(document.activeElement?.id).toBe("operations-detail-title");
+    const detail = host.querySelector("#operations-service-detail")!;
+    expect(detail.textContent).toContain("InstrumentationNot verified");
+    expect(detail.textContent).toContain("Observed connectionUnknown");
+    expect(detail.textContent).toContain("Freshness window300 seconds");
+    expect(detail.textContent).not.toContain("Last contact");
+    expect(location.search).toBe("");
+    act(() =>
+      detail.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
       ),
     );
-    expect(host.querySelectorAll(".astryx-collapsible")).toHaveLength(2);
-    const coverage = host.querySelector<HTMLButtonElement>(
-      '[data-tab-value][aria-current="page"]',
-    )!;
-    expect(coverage.getAttribute("data-tab-value")).toBe("machines");
-    act(() => {
-      coverage.focus();
-      coverage.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
-      );
-    });
-    expect(document.activeElement?.getAttribute("data-tab-value")).toBe(
-      "loops",
-    );
-    act(() => (document.activeElement as HTMLButtonElement).click());
-    expect(
+    await advance(20);
+    expect(host.querySelector("#operations-service-detail")).toBeNull();
+    expect(document.activeElement).toBe(mini);
+    act(() =>
       host
-        .querySelector('[data-tab-value][aria-current="page"]')
-        ?.getAttribute("data-tab-value"),
-    ).toBe("loops");
-    expect(
-      host.querySelector('[role="region"]')?.getAttribute("aria-label"),
-    ).toBe("Loops");
+        .querySelector<HTMLTableCellElement>("tbody tr td:last-child")!
+        .click(),
+    );
+    expect(host.querySelector("#operations-detail-title")?.textContent).toBe(
+      "Local Mac",
+    );
+    expect(fetch).not.toHaveBeenCalled();
   });
-  it("disables reconnect and deduplicates rapid clicks until the request settles", async () => {
+
+  it("preserves the selected service while filtering and gives focus back to search if its row is hidden", async () => {
+    await mount();
+    await click("Mac mini");
+    search("no-such-service");
+    expect(host.textContent).toContain("No matching results");
+    expect(host.querySelector("#operations-detail-title")?.textContent).toBe(
+      "Mac mini",
+    );
+    await click("Close details");
+    await advance(20);
+    expect(document.activeElement).toBe(host.querySelector("input"));
+    await click("Clear search");
+    expect(host.querySelectorAll("tbody tr")).toHaveLength(2);
+    expect(location.search).toBe("");
+  });
+
+  it("provides all six unknown loops and diagnostic navigation without a duplicate tab bar", async () => {
+    await mount(unconfigured(), "loops");
+    expect(host.querySelector("h1")?.textContent).toBe("Loops");
+    expect(host.querySelectorAll("tbody tr")).toHaveLength(6);
+    expect(host.querySelectorAll("[data-tab-value]")).toHaveLength(0);
+    expect(host.textContent).not.toContain("Running");
+    await navigate("Activity");
+    expect(host.querySelector("h1")?.textContent).toBe("Activity");
+    expect(host.textContent).toContain("Evidence unavailable");
+    await navigate("Coverage");
+    expect(host.querySelectorAll("tbody tr")).toHaveLength(11);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each(["activity", "traces", "metrics", "incidents"])(
+    "retains the %s diagnostic deep link",
+    async (view) => {
+      await mount(unconfigured(), view);
+      expect(host.querySelector("h1")?.textContent?.toLowerCase()).toBe(view);
+      expect(
+        host.querySelector("input")?.getAttribute("placeholder"),
+      ).toContain("evidence ID");
+      expect(host.textContent).toContain("Evidence unavailable");
+    },
+  );
+
+  it("preserves unrelated URL parameters and synchronizes Back/Forward without persisting selection or searches", async () => {
+    history.replaceState(
+      null,
+      "",
+      "/operations/observability?view=loops&panel=traces",
+    );
+    await mount(unconfigured(), "loops");
+    const navigation = vi.fn();
+    window.addEventListener("admin:workspace-navigation", navigation);
+    await navigate("Machines");
+    expect(new URL(location.href).searchParams.get("view")).toBe("machines");
+    expect(new URL(location.href).searchParams.get("panel")).toBe("traces");
+    expect(navigation).toHaveBeenCalledOnce();
+    await click("Mac mini");
+    act(() => {
+      history.replaceState(
+        null,
+        "",
+        "/operations/observability?view=loops&panel=traces",
+      );
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(host.querySelector("h1")?.textContent).toBe("Loops");
+    expect(host.querySelector("#operations-service-detail")).toBeNull();
+    act(() => {
+      history.replaceState(null, "", "/operations/observability?view=invalid");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(host.querySelector("h1")?.textContent).toBe("Overview");
+    window.removeEventListener("admin:workspace-navigation", navigation);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("retains observed freshness and outcome when the source read fails", async () => {
+    const initial = connected();
+    initial.snapshot.services[0]!.lastObservedAt = new Date(
+      Date.now() - 301000,
+    ).toISOString();
+    vi.mocked(fetch).mockRejectedValue(new Error("private provider failure"));
+    await mount(initial);
+    expect(host.textContent).toContain(
+      "Latest read unavailable; showing last-known observations",
+    );
+    expect(host.textContent).toContain("Last known: Stale");
+    expect(host.textContent).not.toContain("private provider failure");
+    expect(host.textContent).not.toContain("Disconnected");
+    await click("Local Mac");
+    expect(
+      host.querySelector("#operations-service-detail")?.textContent,
+    ).toContain("Last outcomeSuccess");
+    expect(
+      host.querySelector("#operations-service-detail")?.textContent,
+    ).toContain("Observed connectionConnected");
+  });
+
+  it("coalesces manual refresh and keeps a failed unconfigured read from starting a background consumer", async () => {
     let reject!: (reason: Error) => void;
     vi.mocked(fetch).mockImplementation(
       () =>
@@ -133,109 +280,134 @@ describe("optional observability workspace", () => {
           reject = fail;
         }),
     );
-    await act(async () =>
-      root.render(
-        <ObservabilityWorkspace
-          initial={{
-            status: "unconfigured",
-            snapshot: createUnconfiguredSnapshot(),
-          }}
-        />,
-      ),
-    );
-    const reconnect = [...host.querySelectorAll("button")].find(
-      (button) => button.textContent === "Reconnect",
-    )!;
+    await mount();
+    const retry = button("Retry connection");
     act(() => {
-      reconnect.click();
-      reconnect.click();
+      retry.click();
+      retry.click();
     });
     expect(fetch).toHaveBeenCalledTimes(1);
-    expect(reconnect.disabled).toBe(true);
-    act(() => reconnect.click());
+    expect(retry.disabled).toBe(true);
+    act(() => retry.click());
     expect(fetch).toHaveBeenCalledTimes(1);
     await act(async () => reject(new Error("unavailable")));
-    expect(reconnect.disabled).toBe(false);
+    expect(retry.disabled).toBe(false);
+    expect(host.textContent).toContain("Last known: Not observed");
+    await advance(600000);
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
-  it("distinguishes filtered coverage from unavailable evidence and clears search", async () => {
-    await act(async () =>
-      root.render(
-        <ObservabilityWorkspace
-          initial={{
-            status: "unconfigured",
-            snapshot: createUnconfiguredSnapshot(),
-          }}
-        />,
-      ),
-    );
-    const input = host.querySelector("input")!;
-    act(() => {
-      Object.getOwnPropertyDescriptor(
-        HTMLInputElement.prototype,
-        "value",
-      )!.set!.call(input, "no-such-service");
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-    expect(host.textContent).toContain("No matching results");
-    act(() =>
-      [...host.querySelectorAll("button")]
-        .find((button) => button.textContent === "Clear search")!
-        .click(),
-    );
-    expect(host.querySelectorAll(".astryx-collapsible")).toHaveLength(2);
+
+  it("refreshes connected sources at sixty seconds, not every second, and manual refresh resets the deadline", async () => {
+    vi.mocked(fetch).mockImplementation(async () => response());
+    await mount(connected());
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await advance(59000);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await click("Refresh");
+    expect(fetch).toHaveBeenCalledTimes(2);
+    await advance(59000);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    await advance(1000);
+    expect(fetch).toHaveBeenCalledTimes(3);
   });
-  it("keeps loops unknown and diagnostics behind More", async () => {
-    await act(async () =>
-      root.render(
-        <ObservabilityWorkspace
-          initial={{
-            status: "unconfigured",
-            snapshot: createUnconfiguredSnapshot(),
-          }}
-        />,
-      ),
-    );
-    expect(host.querySelectorAll("[data-tab-value]")).toHaveLength(3);
-    act(() =>
-      host
-        .querySelector<HTMLButtonElement>('[data-tab-value="loops"]')!
-        .click(),
-    );
-    expect(host.querySelectorAll(".astryx-collapsible")).toHaveLength(6);
-    expect(host.textContent).toContain("Not observed");
-    expect(host.textContent).not.toContain("Running");
-    expect(host.textContent).toContain("More");
+
+  it("pauses hidden polling, respects an unexpired deadline, and performs one overdue refresh on return", async () => {
+    vi.mocked(fetch).mockImplementation(async () => response());
+    await mount(connected());
+    await advance(10000);
+    await visibility(true);
+    await advance(10000);
+    await visibility(false);
+    await advance(39000);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await advance(1000);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    await visibility(true);
+    await advance(600000);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    await visibility(false);
+    await advance(1);
+    expect(fetch).toHaveBeenCalledTimes(3);
   });
-  it("preserves linked views and keeps advanced evidence collapsed", async () => {
-    await act(async () =>
-      root.render(
-        <ObservabilityWorkspace
-          initialView="loops"
-          initial={{
-            status: "unconfigured",
-            snapshot: createUnconfiguredSnapshot(),
-          }}
-        />,
-      ),
+
+  it("does not start a source read while initially hidden", async () => {
+    hidden = true;
+    vi.mocked(fetch).mockImplementation(async () => response());
+    await mount(connected());
+    await advance(600000);
+    expect(fetch).not.toHaveBeenCalled();
+    await visibility(false);
+    await advance(1);
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it("aborts hidden requests and prevents a late response from replacing newer evidence", async () => {
+    let resolve!: (value: Response) => void;
+    vi.mocked(fetch).mockImplementationOnce(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
     );
-    expect(
-      host
-        .querySelector('[data-tab-value][aria-current="page"]')
-        ?.getAttribute("data-tab-value"),
-    ).toBe("loops");
-    const trigger = host.querySelector<HTMLButtonElement>(
-      ".astryx-collapsible button",
-    )!;
-    expect(trigger.getAttribute("aria-expanded")).toBe("false");
-    expect(trigger.textContent).toContain("Last contact: Unknown");
-    expect(trigger.textContent).not.toContain("Instrumentation");
-    act(() => trigger.click());
-    expect(trigger.getAttribute("aria-expanded")).toBe("true");
-    act(() =>
-      host
-        .querySelector<HTMLButtonElement>('[data-tab-value="machines"]')!
-        .click(),
+    await mount(connected());
+    const signal = vi.mocked(fetch).mock.calls[0]![1]!.signal!;
+    await visibility(true);
+    expect(signal.aborted).toBe(true);
+    vi.mocked(fetch).mockImplementation(async () => response());
+    await visibility(false);
+    await advance(1);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(host.textContent).toContain("Source connected");
+    await act(async () => resolve(response(unconfigured())));
+    expect(host.textContent).toContain("Source connected");
+    expect(host.textContent).not.toContain("Live telemetry is not connected");
+  });
+
+  it("backs off failed connected reads to five minutes and resets after recovery", async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error("unavailable"));
+    await mount(connected());
+    for (const [delay, count] of [
+      [60000, 2],
+      [120000, 3],
+      [240000, 4],
+      [300000, 5],
+      [300000, 6],
+    ]) {
+      await advance(delay! - 1);
+      expect(fetch).toHaveBeenCalledTimes(count! - 1);
+      await advance(1);
+      expect(fetch).toHaveBeenCalledTimes(count!);
+    }
+    vi.mocked(fetch).mockImplementation(async () => response());
+    await click("Retry connection");
+    expect(fetch).toHaveBeenCalledTimes(7);
+    await advance(60000);
+    expect(fetch).toHaveBeenCalledTimes(8);
+  });
+
+  it("stops polling when the source reports unconfigured and preserves selection across a successful refresh", async () => {
+    vi.mocked(fetch).mockImplementation(async () => response());
+    await mount(connected());
+    await click("Local Mac");
+    await advance(60000);
+    expect(host.querySelector("#operations-detail-title")?.textContent).toBe(
+      "Local Mac",
     );
-    expect(new URL(location.href).searchParams.get("view")).toBe("machines");
+    vi.mocked(fetch).mockImplementation(async () => response(unconfigured()));
+    await click("Refresh");
+    expect(host.textContent).toContain("Live telemetry is not connected");
+    const calls = vi.mocked(fetch).mock.calls.length;
+    await advance(600000);
+    expect(fetch).toHaveBeenCalledTimes(calls);
+  });
+
+  it("aborts on unmount and leaves no refresh scheduled", async () => {
+    vi.mocked(fetch).mockImplementation(() => new Promise(() => undefined));
+    await mount(connected());
+    const signal = vi.mocked(fetch).mock.calls[0]![1]!.signal!;
+    await act(async () => root.render(null));
+    expect(signal.aborted).toBe(true);
+    await advance(600000);
+    expect(fetch).toHaveBeenCalledOnce();
   });
 });
