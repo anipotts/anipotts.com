@@ -242,6 +242,14 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         snapshot TEXT NOT NULL,
         PRIMARY KEY (key, revision)
       );
+      -- Keep retention effective after an application rollback. IGNORE lets the
+      -- previous writer's pruning DELETE succeed without losing authored rows
+      -- or aborting its save. Only a controlled migration may remove this guard;
+      -- it does not protect against DROP TABLE or database replacement.
+      CREATE TRIGGER IF NOT EXISTS editorial_revisions_retained
+      BEFORE DELETE ON revisions BEGIN
+        SELECT RAISE(IGNORE);
+      END;
       CREATE TABLE IF NOT EXISTS conflicts (
         id TEXT PRIMARY KEY,
         key TEXT NOT NULL,

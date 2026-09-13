@@ -136,6 +136,92 @@ describe("private SQLite drafts", () => {
       last,
     );
   });
+  it("keeps authored history when the previous writer prunes during saves, including after restart", async () => {
+    const instance = store();
+    const first = await instance.save(request("original retained source"));
+    if (!first.ok) throw new Error("initial save failed");
+    const legacySaves = async (from: number, through: number) => {
+      await runInDurableObject(instance, (_instance, state) => {
+        for (let revision = from; revision <= through; revision++) {
+          const draft = {
+            ...first.draft,
+            source: `legacy save ${revision}`,
+            revision,
+            updatedAt: Date.now(),
+          };
+          state.storage.transactionSync(() => {
+            // Exact write/prune SQL from the writer at ae2d9570. The subsequent
+            // save receipt proves ignoring its DELETE does not abort the save.
+            state.storage.sql.exec(
+              "INSERT OR REPLACE INTO drafts (key, source, baseCommit, baseFileHash, revision, updatedAt, discardedAt) VALUES (?, ?, ?, ?, ?, ?, ?)",
+              draft.key,
+              draft.source,
+              draft.baseCommit,
+              draft.baseFileHash,
+              draft.revision,
+              draft.updatedAt,
+              draft.discardedAt,
+            );
+            state.storage.sql.exec(
+              "INSERT INTO revisions (key, revision, snapshot) VALUES (?, ?, ?)",
+              draft.key,
+              draft.revision,
+              JSON.stringify(draft),
+            );
+            state.storage.sql.exec(
+              "DELETE FROM revisions WHERE key = ? AND revision <= ?",
+              draft.key,
+              draft.revision - 100,
+            );
+            state.storage.sql.exec(
+              "INSERT INTO save_requests (id, key, payloadHash, result) VALUES (?, ?, ?, ?)",
+              `legacy-${revision}`,
+              draft.key,
+              `legacy-payload-${revision}`,
+              JSON.stringify({ ok: true, draft }),
+            );
+            state.storage.sql.exec(
+              "DELETE FROM save_requests WHERE key = ? AND rowid NOT IN (SELECT rowid FROM save_requests WHERE key = ? ORDER BY rowid DESC LIMIT ?)",
+              draft.key,
+              draft.key,
+              100,
+            );
+          });
+        }
+      });
+    };
+    await legacySaves(2, 105);
+    await evictDurableObject(instance);
+    await legacySaves(106, 107);
+    expect(await instance.get(record)).toMatchObject({
+      revision: 107,
+      source: "legacy save 107",
+    });
+    await runInDurableObject(instance, (_instance, state) => {
+      expect(
+        state.storage.sql
+          .exec<{ count: number }>("SELECT COUNT(*) AS count FROM revisions")
+          .one().count,
+      ).toBe(107);
+      expect(
+        state.storage.sql
+          .exec<{ result: string }>(
+            "SELECT result FROM save_requests WHERE id = 'legacy-107'",
+          )
+          .one().result,
+      ).toContain('"source":"legacy save 107"');
+      // Only technical response snapshots continue to be pruned.
+      expect(
+        state.storage.sql
+          .exec<{ count: number }>(
+            "SELECT COUNT(*) AS count FROM save_requests",
+          )
+          .one().count,
+      ).toBe(100);
+    });
+    const oldest = await instance.historyPage(record, { beforeRevision: 2 });
+    expect(oldest.history).toEqual([first.draft]);
+  });
   it("replays the original conflict after hot receipts are pruned and rejects changed payloads", async () => {
     const instance = store();
     await instance.save(request("winning source"));
@@ -361,6 +447,9 @@ describe("private SQLite drafts", () => {
     await runInDurableObject(instance, (_instance, state) => {
       // Synthetic pre-upgrade state: lifecycle writes pruned the revision while
       // the previous release still retained its save receipt.
+      state.storage.sql.exec(
+        "DROP TRIGGER IF EXISTS editorial_revisions_retained",
+      );
       state.storage.sql.exec("DELETE FROM save_request_identities");
       state.storage.sql.exec("DELETE FROM revisions WHERE revision = 1");
     });
