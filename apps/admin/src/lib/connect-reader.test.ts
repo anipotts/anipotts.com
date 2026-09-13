@@ -7,6 +7,37 @@ const observation = () =>
     new Date(Date.now() - 120000).toISOString(),
   );
 describe("bounded Connect transport", () => {
+  it.each([false, true])(
+    "cancels stalled bodies, including late responses (%s)",
+    async (late) => {
+      vi.useFakeTimers();
+      const cancel = vi.fn();
+      const stream = new ReadableStream({ cancel });
+      let deliver!: (response: Response) => void;
+      const response = new Response(stream, {
+        headers: { "content-type": "application/json" },
+      });
+      try {
+        const pending = readConnect(() =>
+          late
+            ? new Promise((resolve) => {
+                deliver = resolve;
+              })
+            : Promise.resolve(response),
+        );
+        await vi.advanceTimersByTimeAsync(1500);
+        expect((await pending).status).toBe("unavailable");
+        if (late) {
+          deliver(response);
+          await vi.advanceTimersByTimeAsync(0);
+        }
+        expect(cancel).toHaveBeenCalledTimes(1);
+        expect(stream.locked).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
   it("does not fetch without a capability", async () => {
     expect(await readConnect()).toEqual({
       status: "unconfigured",
