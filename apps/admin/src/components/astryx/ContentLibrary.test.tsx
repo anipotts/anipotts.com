@@ -5,6 +5,7 @@ import {
   ContentLibrary,
   matchingRecords,
   recentlyUpdated,
+  Updated,
 } from "./ContentLibrary";
 const rows = [
   {
@@ -113,5 +114,209 @@ describe("Content library", () => {
       resume.indexOf("Older local work"),
     );
     expect(resume).not.toContain("Git update");
+  });
+});
+
+describe("Quiet Precision library rows", () => {
+  it("keeps public state separate from unpublished edits and provides the exact review destination", () => {
+    const html = renderToStaticMarkup(
+      <ContentLibrary
+        initialSearch="?group=work&q=Chained&sort=updated"
+        selectedGroup="work"
+        groups={[
+          {
+            name: "work",
+            href: "/content?group=work",
+            records: [
+              {
+                title: "ChainedChat",
+                href: "/content/projects/chainedchat",
+                collection: "projects",
+                status: "listed",
+                changesPending: true,
+                summary: "Shared context across models",
+                changedFields: ["Subtitle", "Card copy"],
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+    expect(html).toContain("Listed");
+    expect(html).toContain("Unpublished edits");
+    expect(html).toContain('aria-label="Review changes: ChainedChat"');
+    expect(html).toContain("view=review");
+    expect(html).toContain(
+      "returnTo=%2Fcontent%3Fgroup%3Dwork%26q%3DChained%26sort%3Dupdated",
+    );
+    expect(html).toContain("editorial-record-icon");
+    expect(html).toContain("editorial-record-state");
+    expect(html).toContain("editorial-record-action");
+    expect(html).toContain("Shared context across models");
+    expect(html).not.toContain("Next step");
+  });
+  it("keeps draft continuation and ordinary record opening distinct", () => {
+    const html = renderToStaticMarkup(
+      <ContentLibrary
+        selectedGroup="writing"
+        groups={[
+          {
+            name: "writing",
+            href: "/content?group=writing",
+            records: [
+              {
+                title: "Private article",
+                href: "/content/writing/private",
+                status: "draft",
+              },
+              {
+                title: "Published article",
+                href: "/content/writing/public",
+                status: "published",
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+    expect(html).toContain('aria-label="Continue draft: Private article"');
+    expect(html).toContain('aria-label="Open record: Published article"');
+    expect(html).toContain("Unpublished draft");
+    expect(html).toContain("Up to date");
+    expect(html).not.toContain("view=review");
+  });
+  it("does not offer a review action when private draft state is unavailable", () => {
+    const html = renderToStaticMarkup(
+      <ContentLibrary
+        inventoryError
+        selectedGroup="writing"
+        groups={[
+          {
+            name: "writing",
+            href: "/content?group=writing",
+            records: [
+              {
+                title: "Public article",
+                href: "/content/writing/public",
+                status: "published",
+                changesPending: true,
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+    expect(html).toContain("Published");
+    expect(html).toContain("Draft status unavailable");
+    expect(html).toContain('aria-label="Open record: Public article"');
+    expect(html).not.toContain('aria-label="Review changes:');
+    expect(html).not.toContain("Up to date");
+  });
+  it("uses compact linked recent rows before a shared search and filter toolbar", () => {
+    const records = ["One", "Two", "Three"].map((title, index) => ({
+      title,
+      href: `/content/writing/${title.toLowerCase()}`,
+      status: "draft",
+      updated: {
+        at: `2026-09-1${index}T12:00:00Z`,
+        source: "private" as const,
+      },
+    }));
+    const html = renderToStaticMarkup(
+      <ContentLibrary
+        groups={[{ name: "pages", href: "/content", records }]}
+      />,
+    );
+    expect(html).toContain("editorial-resume-list");
+    expect(html.match(/editorial-resume-row/g)).toHaveLength(3);
+    expect(html).not.toContain("editorial-resume-grid");
+    expect(html).not.toContain("editorial-resume-item");
+    expect(html.indexOf("editorial-library-toolbar")).toBeLessThan(
+      html.indexOf("editorial-library-search"),
+    );
+    expect(html.indexOf("editorial-library-search")).toBeLessThan(
+      html.indexOf("editorial-library-filters"),
+    );
+    expect(html.indexOf("editorial-library-filters")).toBeLessThan(
+      html.indexOf("editorial-record-table"),
+    );
+  });
+  it("keeps unknown timestamps explicit and never renders an invalid date", () => {
+    expect(
+      renderToStaticMarkup(<Updated updated={undefined} column />),
+    ).toContain("Not recorded");
+    const html = renderToStaticMarkup(
+      <Updated column updated={{ at: "not-a-date", source: "private" }} />,
+    );
+    expect(html).toContain("Not recorded");
+    expect(html).not.toContain("Invalid Date");
+  });
+  it("preserves review-only destinations and escapes unusual record text", () => {
+    const html = renderToStaticMarkup(
+      <ContentLibrary
+        area="newsletter"
+        groups={[
+          {
+            name: "issues",
+            href: "/newsletter",
+            records: [
+              {
+                title: "雨 <script>unsafe</script>",
+                href: "/newsletter/example",
+                status: "review",
+                summary: "A long_".repeat(40),
+                capabilities: {
+                  editable: false,
+                  previewable: false,
+                  reviewOnly: true,
+                },
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+    expect(html).toContain('href="/newsletter/example');
+    expect(html).toContain("Open record: 雨");
+    expect(html).not.toContain("<script>");
+    expect(html).not.toContain("Continue draft");
+    expect(html).not.toContain("Review changes");
+  });
+});
+
+describe("Recently edited actions", () => {
+  it("opens changed public records in review and preserves the overview return path", () => {
+    const html = renderToStaticMarkup(
+      <ContentLibrary
+        groups={[
+          {
+            name: "pages",
+            href: "/content",
+            records: [
+              {
+                title: "A revised project",
+                href: "/content/projects/example",
+                status: "listed",
+                changesPending: true,
+                updated: { at: "2026-09-13T12:00:00Z", source: "private" },
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+    const recent = html.slice(
+      html.indexOf('aria-label="Recently edited"'),
+      html.indexOf('placeholder="Search records"'),
+    );
+    expect(recent).toContain(
+      'href="/content/projects/example?returnTo=%2Fcontent&amp;view=review"',
+    );
+    expect(recent).toContain("Review changes");
+    expect(recent).not.toContain("Continue draft");
+    // Timestamp remains outside the link, avoiding nested keyboard targets.
+    expect(recent.indexOf("<time")).toBeLessThan(
+      recent.indexOf('class="editorial-resume-link"'),
+    );
   });
 });
