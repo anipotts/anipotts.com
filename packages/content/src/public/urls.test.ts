@@ -95,6 +95,7 @@ describe("purpose-specific authored URLs", () => {
     for (const url of [
       "mailto:hello@anipotts.com",
       "mailto:hello+website@example.com?subject=Hello%20there&body=Thanks",
+      "mailto:hello%2Bwebsite%40example.com?subject=Hello",
     ]) {
       expect(safeContactLinkUrl(url)).toBe(true);
       expect(safeContentLinkUrl(url)).toBe(false);
@@ -105,6 +106,12 @@ describe("purpose-specific authored URLs", () => {
       "mailto://hello@example.com",
       "mailto:hello@example.com?bcc=someone@example.com",
       "mailto:hello@example.com?subject=test%0d%0abcc:someone@example.com",
+      "mailto:a%40example.com%2cb@example.org",
+      "mailto:a%40example.com%3Bb@example.org",
+      "mailto:a%40example.com@example.org",
+      "mailto:hello%20there@example.com",
+      "mailto:hello%zz@example.com",
+      "mailto:hello%0a@example.com",
     ]) {
       expect(safeContactLinkUrl(url)).toBe(false);
     }

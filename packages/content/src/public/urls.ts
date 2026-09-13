@@ -51,10 +51,14 @@ export function safeContactLinkUrl(value: string): boolean {
   if (hasUnsafeCharacters(value) || !value.startsWith("mailto:")) return false;
   try {
     const url = new URL(value);
+    // Mail handlers interpret the decoded recipient. Validate that mailbox,
+    // rather than allowing encoded commas or extra @ signs through the URL form.
+    const recipient = decodeURIComponent(url.pathname);
     return (
       url.protocol === "mailto:" &&
       !url.hash &&
-      /^[\w.!#$%&*+/=?^`{|}~-]+@[\w-]+(?:\.[\w-]+)+$/u.test(url.pathname) &&
+      !hasUnsafeCharacters(recipient) &&
+      /^[\w.!#$%&*+/=?^`{|}~-]+@[\w-]+(?:\.[\w-]+)+$/u.test(recipient) &&
       [...url.searchParams.keys()].every((key) =>
         ["subject", "body"].includes(key),
       )
