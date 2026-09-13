@@ -110,6 +110,8 @@ export type EditorialAppProps = {
   recoveryScope?: string;
   editHome?: boolean;
   editorRecord?: import("@anipotts/content/editorial/source").EditorialRecord;
+  /** The slotted page content supplies its own primary heading. */
+  hideHeader?: boolean;
   children?: ReactNode;
 };
 
@@ -129,6 +131,7 @@ export function EditorialApp({
   recoveryScope,
   inventoryError,
   editorRecord,
+  hideHeader = false,
   children,
 }: EditorialAppProps) {
   const [mode, setMode] = useState<ThemePreference>(initialMode);
@@ -206,7 +209,8 @@ export function EditorialApp({
               </BreadcrumbItem>
             </Breadcrumbs>
           )}
-          {!editorRecord &&
+          {!hideHeader &&
+            !editorRecord &&
             !editHome &&
             (groups || review || children || newWriting) && (
               <HStack gap={3} hAlign="between" vAlign="center" wrap="wrap">

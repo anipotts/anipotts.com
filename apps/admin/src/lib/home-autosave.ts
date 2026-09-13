@@ -12,6 +12,10 @@ export type SaveState = {
   revision: number;
   status: "saved" | "unsaved" | "saving" | "conflict";
   saveFailed?: boolean;
+  saveFailureCode?: Exclude<
+    Extract<SaveResult, { ok: false }>["code"],
+    "revision_conflict"
+  >;
   conflict: Extract<SaveResult, { code: "revision_conflict" }> | null;
 };
 
@@ -79,6 +83,7 @@ export class HomeAutosave {
   private async drain() {
     while (
       !this.state.conflict &&
+      this.state.saveFailureCode !== "save_reconciliation_required" &&
       (this.pending || this.state.source !== this.saved)
     ) {
       this.pending ??= {
@@ -86,7 +91,12 @@ export class HomeAutosave {
         expectedRevision: this.state.revision,
         requestId: crypto.randomUUID(),
       };
-      this.state = { ...this.state, status: "saving", saveFailed: false };
+      this.state = {
+        ...this.state,
+        status: "saving",
+        saveFailed: false,
+        saveFailureCode: undefined,
+      };
       this.notify(this.state);
       try {
         const result = await this.send(this.pending);
@@ -97,6 +107,8 @@ export class HomeAutosave {
               result.code === "revision_conflict" ? "conflict" : "unsaved",
             conflict: result.code === "revision_conflict" ? result : null,
             saveFailed: result.code !== "revision_conflict",
+            saveFailureCode:
+              result.code === "revision_conflict" ? undefined : result.code,
           };
           this.notify(this.state);
           return;

@@ -1,4 +1,5 @@
 import { Lexer, type Token } from "marked";
+import { safeAssetUrl, safeContentLinkUrl } from "./urls.ts";
 
 export type InlineNode =
   | { type: "text"; text: string }
@@ -14,20 +15,7 @@ export type InlineNode =
  * Raw HTML is text except paired <u> tags. Never execute author-supplied HTML.
  */
 export function safeInlineUrl(value: string, image = false): boolean {
-  if (!value || /[\u0000-\u0020\u007f\\<>"']/u.test(value)) return false;
-  if (value.startsWith("/")) return !value.startsWith("//");
-  if (!image && /^#[\w-]+$/u.test(value)) return true;
-  try {
-    const url = new URL(value);
-    return (
-      url.protocol === "https:" &&
-      Boolean(url.hostname) &&
-      !url.username &&
-      !url.password
-    );
-  } catch {
-    return false;
-  }
+  return image ? safeAssetUrl(value) : safeContentLinkUrl(value);
 }
 
 function nodes(tokens: Token[]): InlineNode[] {

@@ -20,6 +20,8 @@ import {
   type ReviewDiffLine,
 } from "../../lib/review-diff";
 
+import { SaveStatus, type SaveStatusProps } from "./SaveStatus";
+
 type Change = { label: string; before: string; after: string; rich?: boolean };
 
 function formattingNodes(nodes: InlineNode[]): unknown[] {
@@ -277,33 +279,43 @@ function FieldDiff({
 export function ReviewHeading({
   id,
   level = 2,
+  saveStatus,
 }: {
   id: string;
   level?: 1 | 2;
+  saveStatus?: SaveStatusProps;
 }) {
   return (
     <HStack
       gap={3}
       wrap="wrap"
       vAlign="center"
+      hAlign="between"
       className="editor-review-title-row"
     >
-      <Heading level={level} id={id}>
-        Review changes
-      </Heading>
-      <HStack
-        gap={2}
-        role="group"
-        aria-label="Diff legend"
-        className="editor-diff-legend"
-      >
-        <Text type="supporting" className="editor-diff-added">
-          + Added
-        </Text>
-        <Text type="supporting" className="editor-diff-removed">
-          − Removed
-        </Text>
+      <HStack gap={3} wrap="wrap" vAlign="center" maxWidth="100%">
+        <Heading level={level} id={id}>
+          Review changes
+        </Heading>
+        <HStack
+          gap={2}
+          role="group"
+          aria-label="Diff legend"
+          className="editor-diff-legend"
+        >
+          <Text type="supporting" className="editor-diff-added">
+            + Added
+          </Text>
+          <Text type="supporting" className="editor-diff-removed">
+            − Removed
+          </Text>
+        </HStack>
       </HStack>
+      {saveStatus && (
+        <HStack maxWidth="100%" style={{ marginInlineStart: "auto" }}>
+          <SaveStatus {...saveStatus} />
+        </HStack>
+      )}
     </HStack>
   );
 }

@@ -1,4 +1,5 @@
 import React from "react";
+import type { SaveState } from "../../lib/home-autosave";
 import { HStack } from "@astryxdesign/core/HStack";
 import { StatusDot } from "@astryxdesign/core/StatusDot";
 import { Token } from "@astryxdesign/core/Token";
@@ -38,6 +39,25 @@ export type SaveStatusProps = {
   describedBy?: string;
 };
 
+/** Shared presentation of the current autosave controller evidence. */
+export function saveStatusFromController(
+  state: SaveState,
+  {
+    discarded = false,
+    bodyDirty = false,
+    localPreview = false,
+  }: { discarded?: boolean; bodyDirty?: boolean; localPreview?: boolean } = {},
+): SaveStatusState {
+  if (discarded) return "discarded";
+  if (state.status === "conflict") return "conflict";
+  if (state.saveFailed) return "save-failed";
+  if (bodyDirty) return "changed";
+  if (state.status === "saving") return "saving";
+  if (state.status !== "saved") return "changed";
+  if (state.revision === 0) return "unchanged";
+  return localPreview ? "saved-locally" : "saved-privately";
+}
+
 /** Persistence status only. Publication and public verification are separate. */
 export function SaveStatus({ state, describedBy }: SaveStatusProps) {
   const { label, variant } = states[state];
@@ -53,7 +73,7 @@ export function SaveStatus({ state, describedBy }: SaveStatusProps) {
       className="editor-save-status"
       data-save-state={state}
       style={{
-        inlineSize: "calc(var(--spacing-10) * 4)",
+        inlineSize: "max-content",
         maxInlineSize: "100%",
         flexShrink: 0,
       }}
@@ -70,8 +90,10 @@ export function SaveStatus({ state, describedBy }: SaveStatusProps) {
           />
         }
         style={{
-          inlineSize: "100%",
-          blockSize: "var(--spacing-6)",
+          inlineSize: "max-content",
+          maxInlineSize: "100%",
+          height: "auto",
+          minBlockSize: "var(--spacing-6)",
           gap: "var(--spacing-2)",
           color: "var(--color-text-secondary)",
         }}
