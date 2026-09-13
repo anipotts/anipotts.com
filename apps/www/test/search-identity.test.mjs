@@ -4,7 +4,7 @@ import test from "node:test";
 
 // Run after the www build; verify emitted markup rather than source spelling.
 const html = readFileSync(
-  new URL("../dist/index.html", import.meta.url),
+  new URL("../dist/client/index.html", import.meta.url),
   "utf8",
 );
 const structured = [
@@ -89,7 +89,7 @@ test("selected profiles have accessible footer links and the current contact add
 test("homepage canonical and ordinary crawl destination remain HTTPS apex", () => {
   assert.match(html, /<link rel="canonical" href="https:\/\/anipotts\.com"/);
   const robots = readFileSync(
-    new URL("../dist/robots.txt", import.meta.url),
+    new URL("../dist/client/robots.txt", import.meta.url),
     "utf8",
   );
   assert.equal(

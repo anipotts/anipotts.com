@@ -1,4 +1,4 @@
-import { z } from "astro/zod";
+import { astroSchema } from "./lib/astro-schema";
 import { defineCollection } from "astro:content";
 import { glob } from "astro/loaders";
 import { projectSchema, writingSchema } from "@anipotts/content/public/schema";
@@ -11,29 +11,6 @@ import {
 } from "@anipotts/content/public/pages";
 
 import { newsletterDraftSchema } from "@anipotts/content/newsletter-draft";
-
-// Adapt shared Zod 3 validators without changing their defaults or refinements.
-function astroSchema<T>(schema: {
-  safeParse(value: unknown):
-    | { success: true; data: T }
-    | {
-        success: false;
-        error: { issues: { message: string; path: (string | number)[] }[] };
-      };
-}) {
-  return z.unknown().transform((value, ctx) => {
-    const result = schema.safeParse(value);
-    if (result.success) return result.data;
-    for (const issue of result.error.issues) {
-      ctx.addIssue({
-        code: "custom",
-        message: issue.message,
-        path: issue.path,
-      });
-    }
-    return z.NEVER;
-  });
-}
 
 export const collections = {
   newsletterDrafts: defineCollection({

@@ -1,4 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
+vi.mock("cloudflare:workers", () => ({ env: {} }));
 vi.mock("astro:middleware", () => ({
   defineMiddleware: (handler: unknown) => handler,
 }));
@@ -27,7 +28,10 @@ for (const pathname of ["/api/admin/logout", "/auth/logout"])
       async () => new Response("inert page or self-authenticating API"),
     );
     await onRequest(
-      { url: new URL(`https://admin.example.test${pathname}`) } as never,
+      {
+        url: new URL(`https://admin.example.test${pathname}`),
+        locals: {},
+      } as never,
       next,
     );
     expect(next).toHaveBeenCalledTimes(1);
