@@ -1,3 +1,5 @@
+import { safeContactLinkUrl } from "./urls.js";
+
 export type InlineSegment =
   | { kind: "text"; text: string }
   | { kind: "em"; text: string }
@@ -59,7 +61,7 @@ function parseInline(text: string): InlineSegment[] {
 
     if (match[1] && match[2]) {
       const href = match[2].trim();
-      if (isSafeHref(href)) {
+      if (safeContactLinkUrl(href)) {
         segments.push({ kind: "link", text: match[1], href });
       } else {
         segments.push({ kind: "text", text: `${match[1]} (${href})` });
@@ -76,9 +78,4 @@ function parseInline(text: string): InlineSegment[] {
   }
 
   return segments;
-}
-
-function isSafeHref(href: string): boolean {
-  if (href.startsWith("/")) return !href.startsWith("//");
-  return href.startsWith("https://") || href.startsWith("mailto:");
 }
