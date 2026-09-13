@@ -65,6 +65,9 @@ export type HistoryPageOptions = { beforeRevision?: number; limit?: number };
 type SaveIdentity = {
   key: string;
   payloadHash: string;
+  // Null on rows written before this column existed; those keep matching a
+  // retry on payloadHash alone.
+  clientHash: string | null;
   outcome: "saved" | "conflict";
   revision: number | null;
   // Exact conflict receipts include the active draft's publication-adjusted
@@ -267,6 +270,12 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         id TEXT PRIMARY KEY,
         key TEXT NOT NULL,
         payloadHash TEXT NOT NULL,
+        -- Hash of the client-controlled request only. payloadHash also covers
+        -- the server-derived Git base, which freezePublication rewrites in
+        -- place, so an unchanged retry after a publication no longer matches
+        -- it. Rows written before this column exists stay NULL and keep
+        -- matching on payloadHash alone.
+        clientHash TEXT,
         outcome TEXT NOT NULL CHECK (outcome IN ('saved', 'conflict')),
         revision INTEGER,
         legacyResult TEXT
@@ -306,6 +315,15 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         publicationId TEXT NOT NULL
       );
     `);
+    // Additive upgrade for objects created before clientHash existed. Their
+    // rows keep a NULL clientHash and their original payloadHash semantics.
+    const identityColumns = ctx.storage.sql
+      .exec<{ name: string }>("PRAGMA table_info(save_request_identities)")
+      .toArray();
+    if (!identityColumns.some((column) => column.name === "clientHash"))
+      ctx.storage.sql.exec(
+        "ALTER TABLE save_request_identities ADD COLUMN clientHash TEXT",
+      );
   }
 
   async get(record: EditorialRecord): Promise<Draft | null> {
@@ -461,22 +479,34 @@ export class EditorialDraftStore extends DurableObject<unknown> {
       return { ok: false, code: "invalid_draft_request" };
 
     // Hash before opening the transaction. No external await is allowed inside it.
-    const digest = await crypto.subtle.digest(
-      "SHA-256",
-      new TextEncoder().encode(
-        JSON.stringify({
-          key,
-          source: input.source,
-          expectedRevision: input.expectedRevision,
-          baseCommit: input.baseCommit,
-          baseFileHash: input.baseFileHash,
-          ...(rebase ? { rebase: true } : {}),
-        }),
-      ),
-    );
-    const payloadHash = Array.from(new Uint8Array(digest), (byte) =>
-      byte.toString(16).padStart(2, "0"),
-    ).join("");
+    const hex = (digest: ArrayBuffer) =>
+      Array.from(new Uint8Array(digest), (byte) =>
+        byte.toString(16).padStart(2, "0"),
+      ).join("");
+    const sha256 = async (value: unknown) =>
+      hex(
+        await crypto.subtle.digest(
+          "SHA-256",
+          new TextEncoder().encode(JSON.stringify(value)),
+        ),
+      );
+    const payloadHash = await sha256({
+      key,
+      source: input.source,
+      expectedRevision: input.expectedRevision,
+      baseCommit: input.baseCommit,
+      baseFileHash: input.baseFileHash,
+      ...(rebase ? { rebase: true } : {}),
+    });
+    // The caller supplies only these fields; baseCommit/baseFileHash are read
+    // from the draft this request is saving against, and freezePublication
+    // rewrites them in place. Retry identity must not move when that happens.
+    const clientHash = await sha256({
+      key,
+      source: input.source,
+      expectedRevision: input.expectedRevision,
+      ...(rebase ? { rebase: true } : {}),
+    });
     return this.ctx.storage.transactionSync(() => {
       const previous = this.ctx.storage.sql
         .exec<{ payloadHash: string; result: string }>(
@@ -491,13 +521,21 @@ export class EditorialDraftStore extends DurableObject<unknown> {
       }
       const identity = this.ctx.storage.sql
         .exec<SaveIdentity>(
-          "SELECT key, payloadHash, outcome, revision, legacyResult FROM save_request_identities WHERE id = ?",
+          "SELECT key, payloadHash, clientHash, outcome, revision, legacyResult FROM save_request_identities WHERE id = ?",
           input.requestId,
         )
         .toArray()[0];
       if (identity) {
-        if (identity.payloadHash !== payloadHash)
-          return { ok: false, code: "idempotency_key_reused" };
+        // Match the client-controlled hash when this row has one. A retry whose
+        // caller-supplied fields are unchanged must replay its original outcome
+        // even after freezePublication rewrote the draft's Git base, which
+        // payloadHash covers. Rows written before clientHash existed have NULL
+        // and keep their original payloadHash-only semantics.
+        const sameRequest =
+          identity.clientHash === null || identity.clientHash === undefined
+            ? identity.payloadHash === payloadHash
+            : identity.clientHash === clientHash;
+        if (!sameRequest) return { ok: false, code: "idempotency_key_reused" };
         if (identity.legacyResult)
           return JSON.parse(identity.legacyResult) as SaveResult;
         // Earlier compact conflict identities did not retain the active draft's
@@ -573,10 +611,11 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         result = { ok: true, draft };
       }
       this.ctx.storage.sql.exec(
-        "INSERT INTO save_request_identities (id, key, payloadHash, outcome, revision, legacyResult) VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO save_request_identities (id, key, payloadHash, clientHash, outcome, revision, legacyResult) VALUES (?, ?, ?, ?, ?, ?, ?)",
         input.requestId,
         key,
         payloadHash,
+        clientHash,
         result.ok ? "saved" : "conflict",
         result.ok ? result.draft.revision : (result.current?.revision ?? null),
         result.ok ? null : JSON.stringify(result),

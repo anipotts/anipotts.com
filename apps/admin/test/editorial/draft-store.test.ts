@@ -258,7 +258,6 @@ describe("private SQLite drafts", () => {
     for (const changed of [
       { source: "replacement losing source" },
       { expectedRevision: 106 },
-      { baseCommit: "c".repeat(40) },
       { record: { kind: "page", id: "work" } as const },
     ]) {
       expect(await instance.save({ ...losing, ...changed })).toEqual({
@@ -266,6 +265,13 @@ describe("private SQLite drafts", () => {
         code: "idempotency_key_reused",
       });
     }
+    // baseCommit/baseFileHash are read from the stored draft rather than sent
+    // by the caller, and freezePublication rewrites them in place. An otherwise
+    // unchanged retry that carries the advanced base is the same request and
+    // replays its original outcome.
+    expect(
+      await instance.save({ ...losing, baseCommit: "c".repeat(40) }),
+    ).toEqual(conflict);
     expect(await instance.rebase(losing)).toEqual({
       ok: false,
       code: "idempotency_key_reused",
@@ -303,6 +309,54 @@ describe("private SQLite drafts", () => {
       code: "idempotency_key_reused",
     });
     expect((await instance.get(record))?.revision).toBe(101);
+  });
+  it("replays a retry that resends the publication-advanced base", async () => {
+    // homeEditorApi derives baseCommit/baseFileHash from the stored draft, not
+    // from the caller, so a genuine retry after a publication carries the new
+    // base even though the caller's own request is unchanged.
+    const instance = store();
+    const original = request("acknowledged before publication");
+    const saved = await instance.save(original);
+    await runInDurableObject(instance, (_instance, state) => {
+      state.storage.sql.exec(
+        "UPDATE drafts SET baseCommit = ?, baseFileHash = ?",
+        "c".repeat(40),
+        "d".repeat(40),
+      );
+      // Drop the hot receipt so reconciliation runs through the identity table.
+      state.storage.sql.exec("DELETE FROM save_requests");
+    });
+    await evictDurableObject(instance);
+    const retry = {
+      ...original,
+      baseCommit: "c".repeat(40),
+      baseFileHash: "d".repeat(40),
+    };
+    expect(await instance.save(retry)).toEqual(saved);
+    // A genuinely different caller request under the same id is still refused.
+    expect(await instance.save({ ...retry, source: "different" })).toEqual({
+      ok: false,
+      code: "idempotency_key_reused",
+    });
+    expect((await instance.get(record))?.revision).toBe(1);
+  });
+  it("keeps payloadHash-only matching for identities written before clientHash", async () => {
+    const instance = store();
+    const original = request("legacy identity source");
+    const saved = await instance.save(original);
+    await runInDurableObject(instance, (_instance, state) => {
+      state.storage.sql.exec("DELETE FROM save_requests");
+      // Simulate a row written by the release before clientHash existed.
+      state.storage.sql.exec(
+        "UPDATE save_request_identities SET clientHash = NULL",
+      );
+    });
+    await evictDurableObject(instance);
+    expect(await instance.save(original)).toEqual(saved);
+    expect(await instance.save({ ...original, source: "different" })).toEqual({
+      ok: false,
+      code: "idempotency_key_reused",
+    });
   });
   it.each(["new", "already retained"])(
     "replays exact %s conflict metadata after publication advances the active base",
@@ -355,9 +409,10 @@ describe("private SQLite drafts", () => {
       });
       await evictDurableObject(instance);
       expect(await instance.save(losing)).toEqual(conflict);
+      // The advanced base is server-derived, so this is the same request.
       expect(
         await instance.save({ ...losing, baseCommit: "c".repeat(40) }),
-      ).toEqual({ ok: false, code: "idempotency_key_reused" });
+      ).toEqual(conflict);
       expect(await instance.conflict(record, losing.requestId)).toEqual({
         source: losing.source,
         expectedRevision: losing.expectedRevision,
