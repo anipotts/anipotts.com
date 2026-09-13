@@ -193,7 +193,7 @@
 }
 .editor-primary-actions {
   margin-inline-start: auto;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 .editor-primary-actions > [aria-haspopup="menu"] {
   flex: 0 0 auto;
@@ -289,7 +289,8 @@
   border-top: var(--border-width) solid var(--color-border);
 }
 .editorial-content .editor-review {
-  max-width: 52rem;
+  min-width: 0;
+  width: 100%;
 }
 .editor-change {
   padding-block: var(--spacing-3);
@@ -355,28 +356,101 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   text-align: start;
   overflow-wrap: anywhere;
 }
-.editor-diff-body {
-  padding-block: var(--spacing-3);
-}
-.editor-diff-tools > .astryx-button,
 .editor-diff-heading > .astryx-button {
   margin-inline-start: auto;
 }
-.editor-inline-diff {
+.editor-revision-diff {
+  min-width: 0;
+  container-type: inline-size;
+}
+.editor-diff-content {
+  min-width: 0;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-element);
+  overflow: hidden;
+}
+.editor-diff-columns > .astryx-text {
+  padding: var(--spacing-2) var(--spacing-3);
+  background: var(--color-background-surface);
+}
+.editor-diff-line {
+  min-width: 0;
+  grid-row: var(--editor-diff-row);
+}
+.editor-diff-line[data-side="before"] {
+  grid-column: 1;
+}
+.editor-diff-line[data-side="after"] {
+  grid-column: 2;
+  border-inline-start: var(--border-width) solid var(--color-border);
+}
+.editor-diff-line-content {
+  min-width: 0;
+  flex: 1;
+}
+.editor-diff-text {
+  margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  line-height: 1.8;
+  min-block-size: 1lh;
 }
-.editor-inline-diff ins {
+.editor-diff-gutter {
+  min-width: 3ch;
+  text-align: end;
+  user-select: none;
+}
+.editor-diff-sign {
+  width: 1ch;
+  user-select: none;
+}
+.editor-diff-line[data-kind="removed"] {
+  background: color-mix(in srgb, var(--color-error-muted) 35%, transparent);
+}
+.editor-diff-line[data-kind="added"] {
+  background: color-mix(in srgb, var(--color-success-muted) 35%, transparent);
+}
+.editor-diff-text ins {
   color: var(--color-text-primary);
   background: var(--color-success-muted);
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
+  text-decoration: none;
 }
-.editor-inline-diff del {
+.editor-diff-text del {
   color: var(--color-text-primary);
   background: var(--color-error-muted);
-  text-decoration: line-through;
+  text-decoration: none;
+}
+.editor-revision-diff[data-layout="unified"] .editor-diff-hunk {
+  grid-template-columns: minmax(0, 1fr);
+}
+.editor-revision-diff[data-layout="unified"] .editor-diff-line {
+  grid-column: 1;
+  grid-row: auto;
+  border-inline-start: 0;
+}
+.editor-revision-diff[data-layout="unified"] .editor-diff-columns,
+.editor-revision-diff[data-layout="unified"]
+  .editor-diff-line[data-side="after"][data-kind="equal"] {
+  display: none;
+}
+@container (max-width: 46rem) {
+  .editor-diff-hunk {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .editor-diff-line {
+    grid-column: 1;
+    grid-row: auto;
+    border-inline-start: 0;
+  }
+  .editor-diff-line[data-side="before"],
+  .editor-diff-line[data-side="after"] {
+    grid-column: 1;
+    border-inline-start: 0;
+  }
+  .editor-diff-columns,
+  .editor-diff-layout,
+  .editor-diff-line[data-side="after"][data-kind="equal"] {
+    display: none;
+  }
 }
 .editor-diff-added {
   color: var(--color-text-primary);
@@ -420,8 +494,15 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 .rich-field .astryx-toolbar {
   min-width: 0;
 }
-.editor-actionbar > .astryx-toolbar {
+.editor-actionbar .astryx-toolbar {
   width: 100%;
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+}
+.editor-actionbar .astryx-toolbar > * {
+  flex-shrink: 0;
+  min-width: 0;
+  max-width: 100%;
 }
 @media (max-width: 540px) {
   .editor-actionbar .astryx-toolbar {
@@ -624,7 +705,16 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 .editorial-workspace-shell .editorial-content.writing-content {
   max-width: calc(45rem + 2 * var(--spacing-6));
 }
-@media (min-width: 768px) and (max-width: 1279px) {
+/* Review uses the available panel width; prose editing keeps its reading measure. */
+.editorial-workspace-shell
+  .editorial-content:has(.editor-workspace[data-editor-view="publish"]) {
+  max-width: none;
+  padding-inline: clamp(var(--spacing-4), 3vw, var(--spacing-12));
+}
+.writing-workspace[data-editor-view="publish"] .record-workspace-main {
+  max-width: none;
+}
+@media (min-width: 769px) and (max-width: 1279px) {
   .editorial-workspace-shell .editorial-workspace-nav {
     width: calc(var(--spacing-8) * 2);
   }
@@ -632,7 +722,7 @@ html[data-theme="light"] .rich-writing .inline-image-white {
     align-items: center;
   }
 }
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   .editorial-workspace-shell .editorial-workspace-nav {
     width: auto;
   }
@@ -732,7 +822,7 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 }
 
 /* The user controls desktop/rail width; the mobile drawer remains independent. */
-@media (min-width: 768px) {
+@media (min-width: 769px) {
   .editorial-workspace-shell[data-sidebar-collapsed="false"]
     .editorial-workspace-nav {
     width: calc(var(--spacing-10) * 5);
@@ -751,7 +841,7 @@ html[data-theme="light"] .rich-writing .inline-image-white {
     background: var(--color-background-surface);
   }
 }
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   .editorial-desktop-search {
     display: none;
   }
@@ -771,7 +861,7 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   min-width: 0;
 }
 /* Native name/subtitle lockup needs room above the page at compact widths. */
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   .editorial-workspace-shell
     [role="navigation"]:has(> .editorial-workspace-nav[data-mode="topbar"]) {
     height: calc(var(--spacing-7) * 2);
@@ -808,7 +898,7 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   width: auto;
   align-items: center;
 }
-@media (min-width: 768px) {
+@media (min-width: 769px) {
   .editorial-workspace-shell[data-sidebar-collapsed="false"]
     .astryx-app-shell-sidenav {
     border-inline-end: 0;
@@ -857,7 +947,7 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   justify-content: flex-start;
   padding-inline: 0;
 }
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   .editorial-resume-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -888,7 +978,7 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   background: var(--color-background-surface);
   color: var(--color-text-accent);
 }
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   .editorial-workspace-nav[data-mode="topbar"] .editorial-workspace-brand {
     flex-direction: row;
     align-items: center;
@@ -954,7 +1044,7 @@ body:has(.editorial-workspace-shell) {
   .editorial-identity-workspace-row {
   flex-direction: column;
 }
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   .editorial-workspace-nav[data-mode="topbar"] .editorial-workspace-identity {
     flex-direction: row;
     gap: var(--spacing-3);
@@ -971,7 +1061,7 @@ body:has(.editorial-workspace-shell) {
     transition: none;
   }
 }
-@media (min-width: 768px) {
+@media (min-width: 769px) {
   .editorial-workspace-shell[data-sidebar-collapsed="false"]
     #astryx-app-shell-main {
     height: calc(100% - var(--spacing-3));
@@ -993,7 +1083,7 @@ body:has(.editorial-workspace-shell) {
 /* The drawer reuses a two-row identity; native MobileNav's 48px header is
    intended for one row. Let this header size to its content without changing
    the separate compact topbar or the drawer's scrollable navigation body. */
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   .astryx-mobile-nav.editorial-workspace-nav
     > div
     > div:has(> .editorial-workspace-identity) {
