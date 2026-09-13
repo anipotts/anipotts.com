@@ -7,16 +7,19 @@ import {
   clearEditorialRecovery,
   newWritingRecoveryKey,
   recoveryLogoutKey,
+  readNewWritingRecovery,
 } from "../../lib/draft-recovery";
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 let host: HTMLDivElement;
 let root: Root;
-function render(scope = "owner") {
-  act(() => root.render(<NewWriting recoveryScope={scope} />));
+async function render(scope = "owner") {
+  await act(async () => {
+    root.render(<NewWriting recoveryScope={scope} />);
+  });
 }
-function type(value: string) {
+async function type(value: string) {
   const input = host.querySelector("input")!;
-  act(() => {
+  await act(async () => {
     Object.getOwnPropertyDescriptor(
       HTMLInputElement.prototype,
       "value",
@@ -33,6 +36,13 @@ beforeEach(() => {
       removeEventListener() {},
     })),
   );
+  Object.defineProperty(navigator, "locks", {
+    configurable: true,
+    value: {
+      request: async (_key: string, _options: unknown, task: () => unknown) =>
+        task(),
+    },
+  });
   localStorage.clear();
   sessionStorage.clear();
   host = document.createElement("div");
@@ -44,7 +54,7 @@ afterEach(() => {
   host.remove();
   vi.unstubAllGlobals();
 });
-it("restores only the server-provided account and preserves legacy unscoped data without adopting it", () => {
+it("restores only the server-provided account and preserves legacy unscoped data without adopting it", async () => {
   sessionStorage.setItem(
     "editorial:new-writing",
     JSON.stringify({ title: "Legacy private text", slug: "legacy" }),
@@ -53,33 +63,33 @@ it("restores only the server-provided account and preserves legacy unscoped data
     newWritingRecoveryKey("other"),
     JSON.stringify({ title: "Other account", slug: "other" }),
   );
-  render();
+  await render();
   expect(host.querySelector("input")!.value).toBe("");
   expect(sessionStorage.getItem("editorial:new-writing")).toContain(
     "Legacy private text",
   );
-  type("New draft");
+  await type("New draft");
   expect(
-    JSON.parse(localStorage.getItem(newWritingRecoveryKey("owner"))!),
+    readNewWritingRecovery(localStorage, newWritingRecoveryKey("owner"))!,
   ).toMatchObject({ title: "New draft", slug: "new-draft" });
-  render("other");
+  await render("other");
   expect(host.querySelector("input")!.value).toBe("Other account");
   expect(
-    JSON.parse(localStorage.getItem(newWritingRecoveryKey("owner"))!).title,
+    readNewWritingRecovery(localStorage, newWritingRecoveryKey("owner"))!.title,
   ).toBe("New draft");
 });
-it("clears creation recovery on same-tab logout and does not repopulate it", () => {
-  render();
-  type("Private title");
+it("clears creation recovery on same-tab logout and does not repopulate it", async () => {
+  await render();
+  await type("Private title");
   act(() => clearEditorialRecovery(localStorage));
   expect(localStorage.getItem(newWritingRecoveryKey("owner"))).toBeNull();
   expect(host.querySelector("input")!.value).toBe("");
   expect(host.querySelector("input")!.disabled).toBe(true);
   expect(host.textContent).toContain("Session ended");
 });
-it("handles another tab's logout and ignores unrelated storage events", () => {
-  render();
-  type("Private title");
+it("handles another tab's logout and ignores unrelated storage events", async () => {
+  await render();
+  await type("Private title");
   act(() =>
     window.dispatchEvent(new StorageEvent("storage", { key: "theme" })),
   );
@@ -101,9 +111,9 @@ it("blocks duplicate submissions and stops creation when logout happens during C
       }),
   );
   vi.stubGlobal("fetch", fetcher);
-  render();
-  type("Private title");
-  act(() => {
+  await render();
+  await type("Private title");
+  await act(async () => {
     host
       .querySelector("form")!
       .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
@@ -130,9 +140,15 @@ it("retains creation operation identity after an ambiguous network failure", asy
       throw new TypeError("Network unavailable");
     }),
   );
-  render();
-  type("Retry me");
+  await render();
+  await type("Retry me");
   for (let count = 0; count < 2; count++) {
+    if (count === 1) {
+      await render("other");
+      await render("owner");
+      expect(host.querySelector("input")!.value).toBe("Retry me");
+      expect(ids).toHaveLength(1); // Recovery never submits a creation request.
+    }
     await act(async () => {
       host
         .querySelector("form")!
@@ -145,8 +161,8 @@ it("retains creation operation identity after an ambiguous network failure", asy
   expect(ids).toHaveLength(2);
   expect(ids[0]).toBe(ids[1]);
   expect(
-    JSON.parse(localStorage.getItem(newWritingRecoveryKey("owner"))!).request
-      .id,
+    readNewWritingRecovery(localStorage, newWritingRecoveryKey("owner"))!
+      .request!.id,
   ).toBe(ids[0]);
   expect(host.querySelector("input")!.value).toBe("Retry me");
 });

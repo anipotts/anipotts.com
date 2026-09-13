@@ -19,7 +19,7 @@ import {
 import { libraryReturnPath } from "../../lib/content-library-state";
 import { DocumentTitle } from "./DocumentTitle";
 import {
-  readRecovery,
+  draftRecovery,
   recoveryKey,
   recoveryLogoutKey,
 } from "../../lib/draft-recovery";
@@ -44,6 +44,16 @@ import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { Timestamp } from "@astryxdesign/core/Timestamp";
 import { useToast } from "@astryxdesign/core/Toast";
 import { AdminSkeleton, RecoveryBanner } from "./AdminFeedback";
+import {
+  BrowserRecoveryNotice,
+  downloadBrowserRecovery,
+} from "./BrowserRecoveryNotice";
+import type {
+  BrowserRecovery,
+  RecoveryProblem,
+  RecoveryRead,
+} from "../../lib/browser-recovery";
+import type { RecoverySnapshot } from "../../lib/home-autosave";
 import { RichTextField } from "./RichTextField";
 import { editableHomeSummary } from "../../lib/rich-text";
 import { editorialFields } from "../../lib/editorial-fields";
@@ -268,6 +278,16 @@ function HomeEditorImpl({
     return editor.current!.ensureDraft();
   };
   const recoveryStorageKey = useRef<string | null>(null);
+  const recoveryChannel = useRef<BrowserRecovery<RecoverySnapshot> | null>(
+    null,
+  );
+  const [recoveryProblem, setRecoveryProblem] =
+    useState<RecoveryProblem | null>(null);
+  const [recoveryRead, setRecoveryRead] = useState<
+    RecoveryRead<RecoverySnapshot>
+  >({ status: "missing" });
+  const recoveryAwaitingSave = useRef(false);
+  const [recoveredAwaitingSave, setRecoveredAwaitingSave] = useState(false);
   const navigationGeneration = useRef(0);
   function navigateWorkspace(
     next: RecordWorkspaceState,
@@ -385,6 +405,13 @@ function HomeEditorImpl({
   }
   useEffect(() => {
     let cancelled = false;
+    recoveryChannel.current?.close();
+    recoveryChannel.current = null;
+    recoveryStorageKey.current = null;
+    recoveryAwaitingSave.current = false;
+    setRecoveredAwaitingSave(false);
+    setRecoveryRead({ status: "missing" });
+    setRecoveryProblem(null);
     setError("");
     fetch(endpoint("record"), { signal: AbortSignal.timeout(15000) })
       .then(async (response) => {
@@ -430,14 +457,18 @@ function HomeEditorImpl({
             try {
               const key = recoveryStorageKey.current;
               if (!key || !editor.current) return;
-              if (next.status === "saved") localStorage.removeItem(key);
-              else
-                localStorage.setItem(
-                  key,
-                  JSON.stringify(editor.current.recovery()),
-                );
+              const channel = recoveryChannel.current;
+              if (channel)
+                void channel
+                  .write(
+                    next.status === "saved" ? null : editor.current.recovery(),
+                  )
+                  .then((problem) => {
+                    if (!cancelled && recoveryChannel.current === channel)
+                      setRecoveryProblem(problem);
+                  });
             } catch {
-              /* Editing remains available when browser storage is unavailable. */
+              setRecoveryProblem("unavailable");
             }
           },
         );
@@ -446,19 +477,36 @@ function HomeEditorImpl({
           : null;
         try {
           const key = recoveryStorageKey.current;
-          const recovered = key ? readRecovery(localStorage, key) : null;
-          if (recovered && !data.draft?.discardedAt) {
-            if (recovered.source === source) localStorage.removeItem(key!);
-            else {
+          recoveryChannel.current?.close();
+          const channel = key ? draftRecovery(localStorage, key) : null;
+          recoveryChannel.current = channel;
+          const result = channel?.read() ?? { status: "unavailable" as const };
+          setRecoveryRead(result);
+          setRecoveryProblem(
+            result.status === "ready" || result.status === "missing"
+              ? null
+              : result.status,
+          );
+          if (result.status === "ready" && !data.draft?.discardedAt) {
+            const recovered = result.value;
+            if (recovered.source !== source || recovered.pending) {
+              recoveryAwaitingSave.current = true;
+              setRecoveredAwaitingSave(true);
               editor.current.recover(recovered);
               toast({
-                body: "Recovered your unsaved edits",
+                body: "Recovered your unsaved edits. Review them before saving.",
                 uniqueID: "draft-recovery",
               });
+            } else if (channel) {
+              // Exact acknowledged content can retire this recovery candidate,
+              // while retaining legacy bytes behind a v2 acknowledgment marker.
+              const problem = await channel.write(null);
+              if (cancelled || recoveryChannel.current !== channel) return;
+              setRecoveryProblem(problem);
             }
           }
         } catch {
-          /* Browser storage can be disabled. */
+          setRecoveryProblem("unavailable");
         }
         setState(editor.current.state);
       })
@@ -467,6 +515,7 @@ function HomeEditorImpl({
       });
     return () => {
       cancelled = true;
+      recoveryChannel.current?.close();
       navigationGeneration.current += 1;
     };
   }, [loadAttempt]);
@@ -505,13 +554,20 @@ function HomeEditorImpl({
   }, [publication]);
   useEffect(() => {
     saveScheduler.current = new SaveScheduler(() => {
-      if (bodyDirtyRef.current || editor.current?.state.status === "unsaved")
+      if (
+        !recoveryAwaitingSave.current &&
+        (bodyDirtyRef.current || editor.current?.state.status === "unsaved")
+      )
         void flush();
     });
     return () => saveScheduler.current?.dispose();
   }, []);
   useEffect(() => {
-    if (state?.status === "unsaved" && !snapshot?.draft?.discardedAt)
+    if (
+      !recoveryAwaitingSave.current &&
+      state?.status === "unsaved" &&
+      !snapshot?.draft?.discardedAt
+    )
       saveScheduler.current?.changed();
   }, [state?.source, snapshot?.draft?.discardedAt]);
   useEffect(() => {
@@ -528,10 +584,22 @@ function HomeEditorImpl({
   }, [state?.source, record.kind, onTitleChange]);
   useEffect(() => {
     const logout = (event: StorageEvent) => {
-      if (event.key === recoveryLogoutKey) recoveryStorageKey.current = null;
+      if (event.key === recoveryLogoutKey) {
+        recoveryStorageKey.current = null;
+        recoveryChannel.current?.close();
+        recoveryChannel.current = null;
+        setRecoveryRead({ status: "missing" });
+        setRecoveryProblem(null);
+        setRecoveredAwaitingSave(false);
+      }
     };
     const localLogout = () => {
       recoveryStorageKey.current = null;
+      recoveryChannel.current?.close();
+      recoveryChannel.current = null;
+      setRecoveryRead({ status: "missing" });
+      setRecoveryProblem(null);
+      setRecoveredAwaitingSave(false);
     };
     window.addEventListener(recoveryLogoutKey, localLogout);
     window.addEventListener("storage", logout);
@@ -1024,6 +1092,65 @@ function HomeEditorImpl({
                   );
                 }
               }}
+            />
+          )}
+          {recoveryProblem && (
+            <BrowserRecoveryNotice
+              problem={recoveryProblem}
+              onDownload={
+                recoveryChannel.current
+                  ? () => {
+                      try {
+                        downloadBrowserRecovery(
+                          recoveryChannel.current!.export(),
+                        );
+                      } catch {
+                        setRecoveryProblem("unavailable");
+                      }
+                    }
+                  : undefined
+              }
+              candidates={
+                recoveryRead.status === "changed" &&
+                !snapshot.draft?.discardedAt
+                  ? recoveryRead.candidates?.map(({ label, value }) => ({
+                      label,
+                      source: value.source,
+                      onChoose: async () => {
+                        const channel = recoveryChannel.current;
+                        const controller = editor.current;
+                        if (!channel || !controller) return;
+                        const problem = await channel.choose(value);
+                        if (recoveryChannel.current !== channel) return;
+                        setRecoveryProblem(problem);
+                        if (!problem) {
+                          recoveryAwaitingSave.current = true;
+                          setRecoveredAwaitingSave(true);
+                          resetBuffers();
+                          controller.recover(value);
+                        }
+                      },
+                    }))
+                  : []
+              }
+            />
+          )}
+          {recoveredAwaitingSave && (
+            <Banner
+              status="info"
+              title="Recovered edits are ready to review"
+              description="Recovery has not saved or published these edits. Review them, then save the private draft."
+              endContent={
+                <Button
+                  label="Save recovered edits"
+                  size="sm"
+                  clickAction={async () => {
+                    recoveryAwaitingSave.current = false;
+                    setRecoveredAwaitingSave(false);
+                    await flush();
+                  }}
+                />
+              }
             />
           )}
           {error && (
@@ -1735,6 +1862,9 @@ function SourceEditor({
   const host = useRef<HTMLElement | null>(null);
   const view = useRef<EditorView | null>(null);
   const readOnlyMode = useRef(new Compartment());
+  const appliedSource = useRef(source);
+  const applyingSource = useRef(false);
+  const newline = useRef(source.includes("\r\n") ? "\r\n" : "\n");
   const change = useRef(onChange);
   change.current = onChange;
   useEffect(() => {
@@ -1750,7 +1880,13 @@ function SourceEditor({
           EditorView.lineWrapping,
           EditorView.contentAttributes.of({ "aria-label": "record source" }),
           EditorView.updateListener.of((update) => {
-            if (update.docChanged) change.current(update.state.doc.toString());
+            if (update.docChanged && !applyingSource.current) {
+              const next = update.state.doc
+                .toString()
+                .replaceAll("\n", newline.current);
+              appliedSource.current = next;
+              change.current(next);
+            }
           }),
         ],
       }),
@@ -1769,10 +1905,20 @@ function SourceEditor({
   }, [readOnly]);
   useEffect(() => {
     const current = view.current;
-    if (current && current.state.doc.toString() !== source)
-      current.dispatch({
-        changes: { from: 0, to: current.state.doc.length, insert: source },
-      });
+    if (current && appliedSource.current !== source) {
+      // CodeMirror normalizes line breaks internally. Merely displaying recovered
+      // source must never become an authored edit or alter its retry payload.
+      appliedSource.current = source;
+      newline.current = source.includes("\r\n") ? "\r\n" : "\n";
+      applyingSource.current = true;
+      try {
+        current.dispatch({
+          changes: { from: 0, to: current.state.doc.length, insert: source },
+        });
+      } finally {
+        applyingSource.current = false;
+      }
+    }
   }, [source]);
   return (
     <section
