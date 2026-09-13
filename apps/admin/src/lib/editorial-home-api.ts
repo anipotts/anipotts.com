@@ -58,6 +58,7 @@ export async function homeEditorApi(
   const record = identity.data;
   if (request.method === "GET") {
     if (action === "csrf") return issueEditorialCsrf(request);
+    if (action === "draft") return json({ draft: await storage.get(record) });
     if (action === "history") {
       const options: { beforeRevision?: number; limit?: number } = {};
       for (const name of ["beforeRevision", "limit"] as const) {

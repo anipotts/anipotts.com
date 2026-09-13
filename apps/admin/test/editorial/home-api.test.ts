@@ -51,6 +51,17 @@ describe("home API with real SQLite", () => {
           throw new Error("Git unavailable");
         },
       );
+    const current = await homeEditorApi(
+      new Request("https://admin.anipotts.com/api/editorial/draft"),
+      storage,
+      async () => {
+        throw new Error("Git unavailable");
+      },
+    );
+    expect(current.headers.get("Cache-Control")).toContain("no-store");
+    expect(await current.json()).toMatchObject({
+      draft: { source: "source 3", revision: 3 },
+    });
     const first = await read("limit=2");
     expect(first.status).toBe(200);
     expect(first.headers.get("Cache-Control")).toContain("no-store");
