@@ -18,6 +18,14 @@ const MAX_JSON = 128 * 1024;
 const MAX_FILE = 16 * 1024 * 1024;
 const MAX_BYTES = 128 * 1024 * 1024;
 const MAX_FILES = 1024;
+
+// The binding name the bundled Admin and public Workers actually read
+// (apps/*/wrangler.toml declare it, and the source reads env.DB). A bundle
+// whose database is bound under any other name validates as isolated but is
+// unreachable from the application it ships, so the preflight would attest to
+// a configuration that cannot run. Isolation comes from the run-owned
+// database_name/database_id and the PROTECTED set, not from this name.
+const APPLICATION_D1_BINDING = "DB";
 const HASH = /^[a-f0-9]{64}$/;
 const PROTECTED = new Set([
   "anipotts-admin",
@@ -365,7 +373,7 @@ export function validateContentReleaseIsolation({
       safeName(db.database_id);
       safeName(db.database_name);
       requireCheck(
-        db.binding === "CONTENT_DB" &&
+        db.binding === APPLICATION_D1_BINDING &&
           db.database_name === resources.databaseName &&
           db.database_id === resources.databaseId,
         "invalid_database_binding",

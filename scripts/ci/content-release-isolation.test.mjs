@@ -76,7 +76,7 @@ function fixture(t) {
       },
       d1_databases: [
         {
-          binding: "CONTENT_DB",
+          binding: "DB",
           database_name: resources.databaseName,
           database_id: resources.databaseId,
           migrations_dir: "../migrations",
@@ -573,4 +573,22 @@ test("existing release-policy gate runs the preflight tests without app deploy t
   assert.ok(
     Object.values(release.deploy_targets).every((enabled) => enabled === false),
   );
+});
+
+// The isolated bundle ships the real Workers, so its database must be bound
+// under the name they read. If an application ever renames its D1 binding,
+// this fails instead of silently attesting to an unreachable database.
+test("the isolated database binding matches the applications", () => {
+  const declared = ["apps/admin/wrangler.toml", "apps/www/wrangler.toml"]
+    .map((path) => readFileSync(path, "utf8"))
+    .map((text) => {
+      const section = text.split("[[d1_databases]]")[1] ?? "";
+      return (section.match(/binding\s*=\s*"([^"]+)"/) ?? [])[1];
+    });
+  assert.deepEqual(declared, ["DB", "DB"]);
+  const preflight = readFileSync(
+    "scripts/ci/content-release-isolation.mjs",
+    "utf8",
+  );
+  assert.match(preflight, /const APPLICATION_D1_BINDING = "DB";/);
 });

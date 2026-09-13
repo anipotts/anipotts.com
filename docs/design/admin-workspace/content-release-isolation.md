@@ -81,9 +81,14 @@ true`, and `find_additional_modules: true`. `main` must be inside `base_dir`.
 - An explicit boolean `workers_dev`, `preview_urls: false`, and `routes: []`.
 - Exactly three vars: `RELEASE_TEST_RUN_ID`, `RELEASE_TEST_DATA_CLASS:
 "synthetic"`, and `EDITORIAL_PUBLISH_ENABLED: "false"`.
-- One `CONTENT_DB` binding, with the manifest database name/UUID and an explicit
-  `migrations_dir` matching the complete reviewed migration directory.
-- One `CONTENT_MEDIA` binding, with the manifest bucket name.
+- One `DB` binding, with the manifest database name/UUID and an explicit
+  `migrations_dir` matching the complete reviewed migration directory. The
+  bundle ships the real Workers, which read `env.DB`, so the database must be
+  bound under that name to be reachable at all. Isolation comes from the
+  run-owned database name/UUID and the protected-resource set, not from the
+  binding name; a test asserts this constant still matches both applications.
+- One `CONTENT_MEDIA` binding, with the manifest bucket name. No application
+  consumes this binding yet; it is reserved for the publication media reader.
 
 Admin additionally requires the local `EDITORIAL` binding for
 `EditorialDraftStore`, with only its `editorial-v1` SQLite-class bootstrap. It
