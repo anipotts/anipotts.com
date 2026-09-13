@@ -26,6 +26,9 @@ export function classify(pr, required) {
     !pr.headRefName.startsWith("dependabot/")
   )
     return "excluded";
+  // Pending checks are transient: auto-merge can execute as soon as they pass.
+  // Surface the owner-review violation before any wait/repair classification.
+  if (pr.autoMergeRequest) return "inspect_auto_merge";
   const contexts = pr.commits.nodes[0]?.commit.statusCheckRollup?.contexts;
   if (
     pr.files.pageInfo.hasNextPage ||
@@ -54,7 +57,7 @@ export function classify(pr, required) {
     if (matches[0].conclusion !== "SUCCESS") return "repair_checks";
   }
   if (pr.mergeStateStatus !== "CLEAN") return "inspect_merge_gate";
-  return pr.autoMergeRequest ? "inspect_auto_merge" : "await_owner_review";
+  return "await_owner_review";
 }
 
 export function inspect(gh) {

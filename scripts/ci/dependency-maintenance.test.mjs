@@ -86,5 +86,28 @@ for (const conclusion of ["FAILURE", "SKIPPED", "NEUTRAL", "CANCELLED"]) {
     conclusion;
   assert.equal(classify(changed, required), "repair_checks");
 }
+for (const state of [
+  "pending",
+  "failed",
+  "behind",
+  "conflicting",
+  "draft",
+  "stale-head",
+  "review",
+]) {
+  const changed = structuredClone(pr);
+  changed.autoMergeRequest = { enabledAt: "2026-09-13" };
+  const check =
+    changed.commits.nodes[0].commit.statusCheckRollup.contexts.nodes[0];
+  if (state === "pending") check.status = "IN_PROGRESS";
+  if (state === "failed") check.conclusion = "FAILURE";
+  if (state === "behind") changed.mergeStateStatus = "BEHIND";
+  if (state === "conflicting") changed.mergeable = "CONFLICTING";
+  if (state === "draft") changed.isDraft = true;
+  if (state === "stale-head") changed.headRefOid = "new";
+  if (state === "review")
+    changed.reviewThreads.nodes.push({ isResolved: false });
+  assert.equal(classify(changed, required), "inspect_auto_merge", state);
+}
 assert.equal(classify(pr, required), classify(pr, required));
 console.log("dependency maintenance classification passed");
