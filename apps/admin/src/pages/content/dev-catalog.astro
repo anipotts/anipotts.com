@@ -1,0 +1,30 @@
+---
+import EditorialLayout from "../../layouts/EditorialLayout.astro";
+import { DevReviewCatalog } from "../../components/astryx/dev-review-catalog";
+
+// The normal Content owner/origin middleware still applies. This route cannot
+// expose a catalog in a deployed build, even to an authenticated owner.
+if (!import.meta.env.DEV) {
+  return new Response(null, {
+    status: 404,
+    headers: { "Cache-Control": "private, no-store" },
+  });
+}
+
+// Supply an empty synthetic inventory so this page never opens a draft store.
+const inventoryProjection = {
+  records: [],
+  groups: [],
+  searchEntries: [],
+  unavailable: false,
+};
+---
+
+<EditorialLayout
+  title="Component catalog"
+  hideHeader
+  hasContent
+  inventoryProjection={inventoryProjection}
+>
+  <DevReviewCatalog client:load />
+</EditorialLayout>
