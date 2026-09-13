@@ -3,7 +3,6 @@ import {
   createInventoryView,
   applyEditorialRecordSaved,
 } from "../../lib/editorial-inventory-events";
-import { clearEditorialRecovery } from "../../lib/draft-recovery";
 import { Banner } from "@astryxdesign/core/Banner";
 import { NewWriting } from "./NewWriting";
 import React, { useEffect, useState, type ReactNode } from "react";
@@ -150,20 +149,6 @@ export function EditorialApp({
     return () => window.removeEventListener(RECORD_SAVED_EVENT, saved);
   }, []);
 
-  useEffect(() => {
-    const logout = (event: MouseEvent) => {
-      const link = (event.target as Element | null)?.closest?.("a");
-      if (link && new URL(link.href).pathname === "/cdn-cgi/access/logout") {
-        try {
-          clearEditorialRecovery(localStorage);
-        } catch {
-          /* Storage may be disabled. */
-        }
-      }
-    };
-    document.addEventListener("click", logout, true);
-    return () => document.removeEventListener("click", logout, true);
-  }, []);
   const [draftTitle, setDraftTitle] = useState(title);
   const comparisonSiteUrl = localPreview ? "https://anipotts.com/" : siteUrl;
   const [siteHref, setSiteHref] = useState(comparisonSiteUrl);

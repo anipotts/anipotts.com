@@ -121,17 +121,16 @@
   > span:first-child {
   justify-content: center;
 }
-/* The surface owns the trigger width; use one padding layer inside it.
-   Scope beats the retained legacy fixed-width switcher rule. */
+/* Fit the longest workspace label, bounded by the viewport. */
 .astryx-popover.editorial-workspace-popover {
   box-sizing: border-box;
   min-width: 0;
-  max-width: 100%;
+  max-width: calc(100vw - var(--spacing-8));
   padding: 0;
 }
 .editorial-workspace-popover .editorial-workspace-switcher {
   box-sizing: border-box;
-  width: 100%;
+  width: max-content;
   min-width: 0;
   max-width: 100%;
 }

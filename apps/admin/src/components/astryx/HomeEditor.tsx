@@ -92,6 +92,9 @@ function HomeEditorImpl({
   localPreview?: boolean;
   onTitleChange?: (title: string) => void;
 }) {
+  const previewSupported = !(
+    record.kind === "page" && record.id === "newsletter"
+  );
   const toast = useToast();
   const [returnPath, setReturnPath] = useState(
     record.kind === "writing" ? "/content?group=writing" : "/content",
@@ -241,11 +244,7 @@ function HomeEditorImpl({
       )
         return;
       const url = new URL(anchor.href);
-      if (
-        url.origin !== window.location.origin ||
-        url.pathname === "/cdn-cgi/access/logout"
-      )
-        return;
+      if (url.origin !== window.location.origin) return;
       if (
         url.pathname === window.location.pathname &&
         url.search === window.location.search
@@ -652,7 +651,7 @@ function HomeEditorImpl({
     }
   };
   const refreshPreview = async () => {
-    if (snapshot.draft?.discardedAt) return;
+    if (!previewSupported || snapshot.draft?.discardedAt) return;
     const request = ++previewRequest.current;
     const navigation = navigationGeneration.current;
     const controller = editor.current;
@@ -1078,7 +1077,7 @@ function HomeEditorImpl({
                 }}
               >
                 <Tab label="Edit" value="edit" />
-                <Tab label="Preview" value="preview" />
+                {previewSupported && <Tab label="Preview" value="preview" />}
               </TabList>
             </HStack>
           ) : !isDocumentView ? (
@@ -1090,7 +1089,19 @@ function HomeEditorImpl({
                   : "Version history"}
             </Heading>
           ) : null}
-          {tab === "preview" && (
+          {!previewSupported && tab === "edit" && (
+            <Text color="secondary" type="supporting">
+              Website preview is unavailable for this draft-only newsletter
+              page.
+            </Text>
+          )}
+          {tab === "preview" && !previewSupported && (
+            <EmptyState
+              title="Preview unavailable"
+              description="This draft-only newsletter page has no website preview. You can still edit, review changes, and view source."
+            />
+          )}
+          {tab === "preview" && previewSupported && (
             <VStack gap={2}>
               {previewRevision && (
                 <HStack gap={3} wrap="wrap" vAlign="center">

@@ -5,6 +5,8 @@ import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { newWritingSource } from "../../lib/writing-draft";
 import * as navigation from "../../lib/editorial-navigation";
 import { HomeEditor } from "./HomeEditor";
+import { EditorialApp } from "./EditorialApp";
+import { recoveryKey } from "../../lib/draft-recovery";
 
 vi.mock("@astryxdesign/core/Toast", () => ({ useToast: () => () => {} }));
 vi.mock("./ArticleBody", () => ({
@@ -254,80 +256,93 @@ async function editBody(value: string) {
   });
 }
 
-it("workspace links flush buffered edits once before navigating", async () => {
-  const commit = vi
-    .spyOn(navigation, "commitAdminNavigation")
-    .mockImplementation(() => {});
-  let finish!: (value: Response) => void;
-  const pending = new Promise<Response>((resolve) => {
-    finish = resolve;
-  });
-  let savedSource = "";
-  const fetcher = vi.fn(async (url: string, options?: RequestInit) => {
-    if (url.includes("/save?")) {
-      savedSource = JSON.parse(String(options?.body)).source;
-      return pending;
-    }
-    if (url.includes("/csrf")) return response({ csrf: "test-only" });
-    return response(snapshot);
-  });
-  vi.stubGlobal("fetch", fetcher);
-  await mount();
-  await editBody("Buffered private edit.");
-  const link = document.createElement("a");
-  link.href = "/life";
-  host.append(link);
-  await act(async () => {
-    link.click();
-    link.click();
-  });
-  expect(commit).not.toHaveBeenCalled();
-  expect(savedSource).toContain("Buffered private edit.");
-  expect(
-    fetcher.mock.calls.filter(([url]) => url.includes("/save?")),
-  ).toHaveLength(1);
-  await act(async () => {
-    finish(
-      response({
-        ok: true,
-        draft: { ...draft, source: savedSource, revision: 2 },
-      }),
-    );
-    await pending;
-  });
-  expect(commit).toHaveBeenCalledOnce();
-  expect(commit).toHaveBeenCalledWith(
-    new URL("/life", window.location.href).href,
-  );
-});
-
-it("palette navigation stays in the editor when its save fails", async () => {
-  const commit = vi
-    .spyOn(navigation, "commitAdminNavigation")
-    .mockImplementation(() => {});
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (url: string) => {
-      if (url.includes("/save?")) throw new Error("offline");
+it.each(["/life", "/cdn-cgi/access/logout"])(
+  "links flush buffered edits once before navigating: %s",
+  async (href) => {
+    const commit = vi
+      .spyOn(navigation, "commitAdminNavigation")
+      .mockImplementation(() => {});
+    let finish!: (value: Response) => void;
+    const pending = new Promise<Response>((resolve) => {
+      finish = resolve;
+    });
+    let savedSource = "";
+    const fetcher = vi.fn(async (url: string, options?: RequestInit) => {
+      if (url.includes("/save?")) {
+        savedSource = JSON.parse(String(options?.body)).source;
+        return pending;
+      }
       if (url.includes("/csrf")) return response({ csrf: "test-only" });
       return response(snapshot);
-    }),
-  );
-  await mount();
-  await editBody("Retain this offline edit.");
-  await act(async () => {
-    navigation.navigateAdmin("/operations/observability");
-  });
-  expect(commit).not.toHaveBeenCalled();
-  expect(host.textContent).toContain("Save them before leaving this draft");
-  expect(
-    (
-      host.querySelector(
-        'textarea[aria-label="Test article body"]',
-      ) as HTMLTextAreaElement
-    ).value,
-  ).toBe("Retain this offline edit.");
-});
+    });
+    vi.stubGlobal("fetch", fetcher);
+    await mount();
+    await editBody("Buffered private edit.");
+    const link = document.createElement("a");
+    link.href = href;
+    host.append(link);
+    await act(async () => {
+      link.click();
+      link.click();
+    });
+    expect(commit).not.toHaveBeenCalled();
+    expect(savedSource).toContain("Buffered private edit.");
+    expect(
+      fetcher.mock.calls.filter(([url]) => url.includes("/save?")),
+    ).toHaveLength(1);
+    await act(async () => {
+      finish(
+        response({
+          ok: true,
+          draft: { ...draft, source: savedSource, revision: 2 },
+        }),
+      );
+      await pending;
+    });
+    expect(commit).toHaveBeenCalledOnce();
+    expect(commit).toHaveBeenCalledWith(
+      new URL(href, window.location.href).href,
+    );
+  },
+);
+
+it.each(["palette", "logout"])(
+  "%s navigation stays in the editor when its save fails",
+  async (action) => {
+    const commit = vi
+      .spyOn(navigation, "commitAdminNavigation")
+      .mockImplementation(() => {});
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("/save?")) throw new Error("offline");
+        if (url.includes("/csrf")) return response({ csrf: "test-only" });
+        return response(snapshot);
+      }),
+    );
+    await mount();
+    await editBody("Retain this offline edit.");
+    await act(async () => {
+      if (action === "palette")
+        navigation.navigateAdmin("/operations/observability");
+      else {
+        const link = document.createElement("a");
+        link.href = "/cdn-cgi/access/logout";
+        host.append(link);
+        link.click();
+      }
+    });
+    expect(commit).not.toHaveBeenCalled();
+    expect(host.textContent).toContain("Save them before leaving this draft");
+    expect(
+      (
+        host.querySelector(
+          'textarea[aria-label="Test article body"]',
+        ) as HTMLTextAreaElement
+      ).value,
+    ).toBe("Retain this offline edit.");
+  },
+);
 
 it("typing during a navigation save keeps the newer buffer on screen", async () => {
   const commit = vi
@@ -451,4 +466,31 @@ it("keeps the document mounted and hidden inside its Astryx surface during previ
     body,
   );
   expect(body.closest("[hidden]")).toBeNull();
+});
+
+it("does not clear recovery when Access logout navigation is canceled", async () => {
+  const key = recoveryKey("test-owner", { kind: "writing", id: "test" });
+  localStorage.setItem(key, "recoverable private edit");
+  await act(async () => {
+    root.render(
+      <EditorialApp
+        title="Content"
+        area="content"
+        localPreview={false}
+        siteUrl="https://anipotts.com/"
+      />,
+    );
+  });
+  const link = host.querySelector(
+    'a[href="/cdn-cgi/access/logout"]',
+  ) as HTMLAnchorElement;
+  expect(link).not.toBeNull();
+  const cancel = (event: Event) => event.preventDefault();
+  document.addEventListener("click", cancel);
+  try {
+    await act(async () => link.click());
+    expect(localStorage.getItem(key)).toBe("recoverable private edit");
+  } finally {
+    document.removeEventListener("click", cancel);
+  }
 });

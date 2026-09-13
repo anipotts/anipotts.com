@@ -3,13 +3,7 @@ import {
   workspaceReturnPath,
   type Workspace,
 } from "../../lib/workspace-navigation";
-import React, {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   libraryReturnPath,
   libraryStateUrl,
@@ -132,8 +126,6 @@ export function WorkspaceIdentity({
 }) {
   const { isMobile } = useAppShellMobile();
   const compact = collapsed && !isMobile;
-  const selectorRef = useRef<HTMLButtonElement>(null);
-  const [menuWidth, setMenuWidth] = useState<number | string>();
   const WorkspaceIcon = workspaceIcons[workspace];
   const [destinations, setDestinations] = useState<Record<Workspace, string>>({
     content: "/content",
@@ -213,15 +205,7 @@ export function WorkspaceIdentity({
       </HStack>
       <Popover
         className="editorial-workspace-popover"
-        width={menuWidth}
-        onOpenChange={(open) => {
-          if (open)
-            setMenuWidth(
-              compact
-                ? "calc(var(--spacing-8) * 7)"
-                : selectorRef.current?.getBoundingClientRect().width,
-            );
-        }}
+        width="max-content"
         label="Switch workspace"
         placement={compact ? "end" : "below"}
         content={
@@ -242,7 +226,6 @@ export function WorkspaceIdentity({
         }
       >
         <Button
-          ref={selectorRef}
           className="admin-workspace-selector"
           label={workspaces[workspace].label}
           aria-label={`Switch workspace: ${workspaces[workspace].label}`}
@@ -334,15 +317,21 @@ export function EditorialWorkspaceShell({
       window.removeEventListener("editorial:library-state", sync);
     };
   }, []);
-  const destination = (id: string) =>
-    libraryStateUrl(
+  const destination = (id: string) => {
+    const current = readLibraryState(librarySearch);
+    const currentGroup = area === "newsletter" ? "newsletter" : current.group;
+    // Sections and statuses describe one library's records. A different library
+    // starts with its complete set, while keeping the useful query and ordering.
+    return libraryStateUrl(
       id === "newsletter" ? "/newsletter" : "/content",
       librarySearch,
       {
-        ...readLibraryState(librarySearch),
+        ...current,
+        ...(id !== currentGroup ? { status: "all", sections: undefined } : {}),
         group: id === "newsletter" ? "pages" : id,
       },
     );
+  };
   useEffect(() => {
     try {
       const saved =
