@@ -109,6 +109,28 @@ it("publishes exact validated bytes and reads only active snapshots", async () =
   expect(await listPublicationHistory(db, initial.record)).toHaveLength(2);
   expect((await getPublishedInventory(db)).version).toBe(2);
 });
+it("orders history by activation sequence, not by timestamp text", async () => {
+  // operation-2 activates second and is chronologically later
+  // ("2026-09-12T11:00:00-05:00" is 16:00Z, four hours after 12:00Z), but its
+  // timestamp text starts "11" and so sorts BELOW "12" in a textual DESC.
+  // Activation order must win over the string comparison.
+  await publishDirect(db, initial);
+  const second = {
+    ...initial,
+    operationId: "operation-2",
+    revision: 2,
+    expectedPublicationId: "operation-1",
+    expectedInventoryVersion: 1,
+    source: initial.source.replace("Original body", "Second body"),
+    publishedAt: "2026-09-12T11:00:00-05:00",
+  };
+  expect((await publishDirect(db, second)).status).toBe("published");
+  expect(
+    (await listPublicationHistory(db, initial.record)).map(
+      (row) => row.publicationId,
+    ),
+  ).toEqual(["operation-2", "operation-1"]);
+});
 it("replays without changing an active pointer, version, timestamp or history", async () => {
   await publishDirect(db, initial);
   await publishDirect(db, {

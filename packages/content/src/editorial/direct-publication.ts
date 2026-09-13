@@ -229,7 +229,13 @@ export async function listPublicationHistory(
   const { kind, id } = editorialRecordSchema.parse(record);
   const result = await db
     .prepare(
-      `SELECT * FROM editorial_published_revisions WHERE record_kind = ? AND record_id = ? ORDER BY published_at DESC, publication_id DESC`,
+      // Order by activation sequence, not by the timestamp text. published_at
+      // accepts a UTC offset, so a textual sort can invert two publications
+      // that are minutes apart, and equal timestamps would otherwise fall back
+      // to an arbitrary operation id. Every committed publication consumes
+      // exactly one inventory version, so expected_inventory_version is the
+      // strictly increasing publication sequence for this database.
+      `SELECT * FROM editorial_published_revisions WHERE record_kind = ? AND record_id = ? ORDER BY expected_inventory_version DESC, publication_id DESC`,
     )
     .bind(kind, id)
     .all<Row>();
