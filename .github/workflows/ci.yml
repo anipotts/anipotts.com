@@ -146,3 +146,7 @@ jobs:
       - name: Validate migration inventory and replay
         if: github.event.pull_request.draft == false && needs.classify.outputs.migration_preflight_required == 'true'
         run: pnpm test:d1-bootstrap && pnpm test:migration-local && pnpm test:site-migrations
+
+      - name: Verify validation preserved the reviewed source
+        if: github.event.pull_request.draft == false
+        run: node scripts/ci/check-build-drift.mjs
