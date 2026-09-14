@@ -132,7 +132,9 @@ export function ArticleImageUpload({
       });
     return () => {
       controller.abort();
-      // An aborted load skips its finally, so release the busy state it still owns.
+      // An aborted load's finally still runs but skips setBusy because the
+      // signal is aborted, so release busy here while the load still owns it.
+      // Once the load settles, busy may belong to an upload in progress.
       if (loading) setBusy(false);
     };
   }, [existingSrc, initialFile, disabled, startCropping]);
