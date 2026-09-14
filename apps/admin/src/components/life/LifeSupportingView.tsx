@@ -1,5 +1,15 @@
 import React from "react";
 import { Layout, LayoutContent, LayoutHeader } from "@astryxdesign/core/Layout";
+import { HStack } from "@astryxdesign/core/HStack";
+import { Banner } from "@astryxdesign/core/Banner";
+import { EmptyState } from "@astryxdesign/core/EmptyState";
+import { Token } from "@astryxdesign/core/Token";
+import {
+  HeartIcon,
+  PaletteIcon,
+  WarningCircleIcon,
+} from "@phosphor-icons/react";
+import "./life-workspace.css";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
@@ -26,35 +36,64 @@ export function LifeSupportingView({
   return (
     <Layout
       height="auto"
-      contentWidth={960}
-      padding={4}
+      className="life-workspace"
+      padding={0}
       header={
-        <LayoutHeader>
-          <Heading level={1}>
-            {section === "health" ? "Health" : "Aesthetics"}
-          </Heading>
+        <LayoutHeader className="life-page-header">
+          <HStack
+            gap={3}
+            vAlign="center"
+            wrap="wrap"
+            className="life-page-title"
+          >
+            <Heading level={1}>
+              {section === "health" ? "Health" : "Aesthetics"}
+            </Heading>
+            <Token size="sm" label="Read only" />
+          </HStack>
         </LayoutHeader>
       }
       content={
-        <LayoutContent>
+        <LayoutContent className="life-page-content">
           {section === "aesthetics" ? (
-            <Text color="secondary">
-              Style references are not connected yet.
-            </Text>
+            <Banner
+              status="info"
+              container="section"
+              title="Style references are not connected yet."
+              description="An authorized source connection is needed before style references can be read here."
+              icon={<PaletteIcon weight="regular" />}
+            />
           ) : !available ? (
-            <Text role="status" color="secondary">
-              Health summaries could not be loaded.
-            </Text>
+            <Banner
+              status="warning"
+              container="section"
+              title="Health summaries could not be loaded."
+              description="The summary source is unavailable. This does not mean that no health summaries exist."
+              icon={<WarningCircleIcon weight="regular" />}
+            />
           ) : summaries.length === 0 ? (
-            <Text color="secondary">No health summaries available.</Text>
+            <EmptyState
+              headingLevel={2}
+              isCompact
+              title="No health summaries available."
+              description="The source returned no matching summaries for this view."
+              icon={<HeartIcon weight="regular" />}
+            />
           ) : (
             <VStack gap={4}>
               <Text color="secondary">Source summaries</Text>
-              <List hasDividers density="compact">
+              <List className="life-summary-list" density="compact">
                 {summaries.map((item, index) => (
                   <ListItem
                     key={`${item.source_locator}-${index}`}
                     label={item.title}
+                    startContent={
+                      <HeartIcon
+                        weight="regular"
+                        size="var(--spacing-5)"
+                        aria-hidden="true"
+                      />
+                    }
                     description={
                       <VStack gap={2}>
                         <Text>{item.summary}</Text>
