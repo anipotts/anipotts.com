@@ -14,6 +14,9 @@ export const DEPLOY_TARGETS = [
 ];
 
 const MIGRATION_PREFLIGHT_PATHS = [
+  /^apps\/admin\/migrations\/content-publication\//,
+  /^packages\/content\/src\/editorial\/(?:direct-publication|publication-contract)(?:\.test)?\.ts$/,
+  /^scripts\/ci\/content-publication-/,
   /^drizzle\/migrations\//,
   /^drizzle\/meta\//,
   /^drizzle\/README\.md$/,
