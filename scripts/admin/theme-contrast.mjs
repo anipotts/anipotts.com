@@ -13,11 +13,17 @@
 //   --modes system-dark,...   limit modes
 //   --widths 390,1280         viewport widths (default 1280)
 //   --concurrency 2           parallel page loads
+//   --browser webkit          chromium (default) or webkit
 //   --json <file>             write the full result
 //   --snapshot-out <file>     record color, background-color and
 //                             border-top-color of visible elements
-//   --snapshot-compare <file> fail when those computed colors changed
+//   --snapshot-compare <file> fail when those computed colors changed or
+//                             an element was added or removed
 //   --shots <dir>             save full-page screenshots
+//
+// A run fails on a contrast failure, a load problem (including a load that
+// checked no text), an allowlist entry that matched nothing, or a snapshot
+// difference.
 //
 // Page loads are GET only. The check never clicks, types or records text.
 
@@ -28,7 +34,7 @@ import { fileURLToPath } from "node:url";
 import { ADMIN_ROUTES } from "../ci/admin-route-inventory.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const { chromium } = createRequire(join(ROOT, "apps/admin/package.json"))(
+const playwright = createRequire(join(ROOT, "apps/admin/package.json"))(
   "@playwright/test",
 );
 
@@ -87,6 +93,11 @@ const modeNames = list("modes");
 const modes = modeNames
   ? MODES.filter((mode) => modeNames.includes(mode.name))
   : MODES;
+const BROWSER = flags.get("browser") ?? "chromium";
+if (!["chromium", "webkit"].includes(BROWSER)) {
+  console.error(`--browser must be chromium or webkit, received ${BROWSER}`);
+  process.exit(2);
+}
 
 // ---------------------------------------------------------------- routes
 
@@ -373,13 +384,15 @@ function measure({ allowSelectors, snapshot }) {
     const ratio = contrast(foreground, background);
     checked++;
     if (ratio < threshold) {
+      const allowedBy = allowSelectors.find((selector) => el.matches(selector));
       failures.push({
         selector: selectorOf(el),
         fg: format(foreground),
         bg: format(background),
         ratio: Math.round(ratio * 100) / 100,
         threshold,
-        allowlisted: allowSelectors.some((selector) => el.matches(selector)),
+        allowlisted: allowedBy !== undefined,
+        allowedBy,
       });
     }
   }
@@ -481,6 +494,8 @@ async function runTask(browser, task) {
       ),
     });
     Object.assign(result, measured);
+    // An empty, blank or unhydrated page must not pass with nothing checked.
+    if (!measured.checked) result.problems.push("checked no text nodes");
     // A dropped ?theme must not pass as an explicit mode.
     if (measured.dataTheme !== mode.theme) {
       result.problems.push(
@@ -544,11 +559,10 @@ for (const route of routes) {
   }
 }
 
+const browser = await playwright[BROWSER].launch({ headless: true });
 console.log(
-  `theme contrast: ${BASE}, ${tasks.length} loads, ${routes.length} AdminLayout routes, widths ${WIDTHS.join(",")}`,
+  `theme contrast: ${BASE}, ${BROWSER} ${browser.version()}, ${tasks.length} loads, ${routes.length} AdminLayout routes, widths ${WIDTHS.join(",")}`,
 );
-
-const browser = await chromium.launch({ headless: true });
 const results = [];
 const queue = [...tasks];
 await Promise.all(
@@ -608,14 +622,26 @@ for (const result of results) {
 for (const [line, count] of grouped) {
   console.log(`  ${line}${count > 1 ? ` (x${count})` : ""}`);
 }
+// A fixed or renamed element leaves a stale entry that would hide a new
+// failure on the same selector, so each entry must match at least once in
+// any run that loads its route.
 const allowlistUsed = new Set(
-  results
-    .filter((r) => r.failures?.some((f) => f.allowlisted))
-    .map((r) => r.route),
+  results.flatMap((r) =>
+    (r.failures ?? [])
+      .filter((f) => f.allowlisted)
+      .map((f) => `${r.route} ${f.allowedBy}`),
+  ),
 );
+const loadedRoutes = new Set(tasks.map((task) => task.route));
 for (const entry of ALLOWLIST) {
-  if (routes.includes(entry.route) && !allowlistUsed.has(entry.route)) {
-    console.log(`note: allowlist entry for ${entry.route} matched nothing`);
+  if (
+    loadedRoutes.has(entry.route) &&
+    !allowlistUsed.has(`${entry.route} ${entry.selector}`)
+  ) {
+    console.log(
+      `allowlist entry matched nothing: ${entry.route} ${entry.selector}`,
+    );
+    failed = true;
   }
 }
 if (denied.length) {
@@ -649,6 +675,7 @@ if (flags.get("snapshot-compare")) {
   const props = ["color", "background-color", "border-top-color"];
   let compared = 0;
   let changed = 0;
+  let membership = 0;
   for (const [key, colors] of Object.entries(snapshot)) {
     const before = baseline[key];
     if (!before) {
@@ -657,8 +684,18 @@ if (flags.get("snapshot-compare")) {
       continue;
     }
     const shared = Object.keys(colors).filter((path) => path in before);
-    const added = Object.keys(colors).length - shared.length;
-    const removed = Object.keys(before).length - shared.length;
+    // Paths, never text: tag names and sibling indexes only.
+    const onlyNow = Object.keys(colors).filter((path) => !(path in before));
+    const onlyBefore = Object.keys(before).filter((path) => !(path in colors));
+    const added = onlyNow.length;
+    const removed = onlyBefore.length;
+    membership += added + removed;
+    for (const path of onlyNow.slice(0, 5)) {
+      console.log(`  ${key} added ${path}`);
+    }
+    for (const path of onlyBefore.slice(0, 5)) {
+      console.log(`  ${key} removed ${path}`);
+    }
     let diffs = 0;
     for (const path of shared) {
       compared++;
@@ -678,10 +715,12 @@ if (flags.get("snapshot-compare")) {
         `${added || removed ? `, ${added} elements only now, ${removed} only in baseline` : ""}`,
     );
   }
+  // A route missing from this run is not compared, so an --only run can use a
+  // full baseline.
   console.log(
-    `snapshot total: ${compared} elements compared, ${changed} color changes`,
+    `snapshot total: ${compared} elements compared, ${changed} color changes, ${membership} elements added or removed`,
   );
-  if (changed) failed = true;
+  if (changed || membership) failed = true;
 }
 
 if (flags.get("json")) {
