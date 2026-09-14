@@ -1,9 +1,16 @@
 import type { APIRoute } from "astro";
-import { checkOrigin, checkRateLimit, json } from "../../../lib/api";
+import {
+  checkOrigin,
+  checkRateLimit,
+  json,
+  readBoundedText,
+} from "../../../lib/api";
 import {
   createDoubleOptIn,
   missingDbResponse,
   normalizeEmail,
+  parseJsonBody,
+  SUBSCRIBE_BODY_LIMIT_BYTES,
   subscribePayloadSchema,
 } from "../../../lib/newsletter";
 
@@ -20,15 +27,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const allowed = await checkRateLimit(request, env.DB);
     if (!allowed) return json({ error: "too many requests" }, 429);
 
-    const parsed = subscribePayloadSchema.safeParse(await request.json());
+    const body = await readBoundedText(request, SUBSCRIBE_BODY_LIMIT_BYTES);
+    if (body === null) return json({ error: "payload too large" }, 413);
+
+    const parsed = subscribePayloadSchema.safeParse(parseJsonBody(body));
     if (!parsed.success) return json({ error: "valid email required" }, 400);
 
-    const result = await createDoubleOptIn(
-      env,
-      request,
-      normalizeEmail(parsed.data.email),
-    );
-    return json({ success: true, queued: result.queued, mock: result.mock });
+    // One response for every address state; see createDoubleOptIn.
+    await createDoubleOptIn(env, request, normalizeEmail(parsed.data.email));
+    return json({ success: true });
   } catch (error) {
     console.error("newsletter subscribe error", error);
     return json({ error: "internal server error" }, 500);

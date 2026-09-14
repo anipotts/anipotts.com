@@ -12,10 +12,12 @@ function database(...options) {
   const keys = [];
   return {
     keys,
-    prepare() {
+    prepare(sql) {
       return {
         bind(key) {
-          keys.push(key);
+          // Record the bucket each per-client statement selects; the capped
+          // cleanup of other expired rows binds a key range instead.
+          if (/\bkey = \?/.test(sql)) keys.push(key);
           return {
             async first() {
               return count === null ? null : { cnt: count };
@@ -149,7 +151,6 @@ const subscribe = endpoint("apps/www/src/pages/api/newsletter/subscribe.ts", {
     ...newsletter,
     async createDoubleOptIn() {
       outboundCalls++;
-      return { queued: true, mock: true };
     },
   },
 });
@@ -174,6 +175,13 @@ for (const route of [subscribe, alias]) {
     [undefined, { email: "test@example.com" }, "https://anipotts.com", 500],
     [database(6), { email: "test@example.com" }, "https://anipotts.com", 429],
     [database(), {}, "https://anipotts.com", 400],
+    [database(), '{"email": "test@example.com"', "https://anipotts.com", 400],
+    [
+      database(),
+      { email: "test@example.com", padding: "x".repeat(8_000) },
+      "https://anipotts.com",
+      413,
+    ],
     [database(), { email: "test@example.com" }, "https://invalid.example", 403],
     [database(), { email: "test@example.com" }, "https://anipotts.com", 200],
   ]) {
@@ -186,16 +194,19 @@ for (const route of [subscribe, alias]) {
           "content-type": "application/json",
           "cf-connecting-ip": "192.0.2.1",
         },
-        body: JSON.stringify(payload),
+        body: typeof payload === "string" ? payload : JSON.stringify(payload),
       }),
       locals: { runtime: { env: { DB: db } } },
     });
     assert.equal(response.status, expected);
     assert.equal(outboundCalls - before, expected === 200 ? 1 : 0);
+    const text = await response.text();
+    assert.equal(text.includes("test@example.com"), false);
+    if (expected === 200) assert.equal(text, JSON.stringify({ success: true }));
   }
 }
 console.log(
-  "subscribe and legacy alias: success, validation, origin, unavailable guard, and exceeded-limit behavior passed without outbound effects",
+  "subscribe and legacy alias: uniform success, validation, malformed and oversized bodies, origin, unavailable guard, and exceeded-limit behavior passed without outbound effects",
 );
 
 const healthRoute = endpoint("apps/www/src/pages/api/health.ts", {});

@@ -1,5 +1,6 @@
-/** shared guards for the POST endpoints: origin allowlist + d1 sliding-window
- *  rate limit (5 requests / 10 min per ip, table rate_limits). */
+/** shared guards for the POST endpoints: origin allowlist, byte-capped bodies
+ *  and a d1 sliding-window rate limit (5 requests / 10 min per ip, table
+ *  rate_limits). */
 import { siteConfig } from "@anipotts/content/public";
 
 export function json(data: unknown, status = 200): Response {
@@ -34,12 +35,48 @@ function requestIp(request: Request): string {
   return request.headers.get("cf-connecting-ip")?.trim() || "unknown";
 }
 
+/** read a request body as text, or null once it exceeds maxBytes. the stream
+ *  is cancelled at the cap, so an oversized body is never fully buffered. */
+export async function readBoundedText(
+  request: Request,
+  maxBytes: number,
+): Promise<string | null> {
+  const declared = Number(request.headers.get("content-length") ?? 0);
+  if (!Number.isFinite(declared) || declared > maxBytes) return null;
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
+const RATE_LIMIT_PREFIX = "contact:";
+// ";" sorts directly after ":", so [prefix, end) is exactly the prefix range.
+const RATE_LIMIT_PREFIX_END = "contact;";
+const RATE_LIMIT_CLEANUP_ROWS = 100;
+
 export async function checkRateLimit(
   request: Request,
   db: D1Database | undefined,
 ): Promise<boolean> {
   if (!db) throw new Error("rate-limit database unavailable");
-  const key = `contact:${requestIp(request)}`;
+  const key = `${RATE_LIMIT_PREFIX}${requestIp(request)}`;
   const now = Date.now();
   const windowStart = now - 10 * 60 * 1000;
   const max = 5;
@@ -47,6 +84,18 @@ export async function checkRateLimit(
     db
       .prepare("DELETE FROM rate_limits WHERE key = ? AND ts < ?")
       .bind(key, windowStart),
+    // Rotating client addresses never revisit their own key, so each request
+    // also removes a capped batch of other expired rows in this key family.
+    db
+      .prepare(
+        "DELETE FROM rate_limits WHERE rowid IN (SELECT rowid FROM rate_limits WHERE key >= ? AND key < ? AND ts < ? LIMIT ?)",
+      )
+      .bind(
+        RATE_LIMIT_PREFIX,
+        RATE_LIMIT_PREFIX_END,
+        windowStart,
+        RATE_LIMIT_CLEANUP_ROWS,
+      ),
     db
       .prepare("INSERT INTO rate_limits (key, ts) VALUES (?, ?)")
       .bind(key, now),
