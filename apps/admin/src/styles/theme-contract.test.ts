@@ -389,7 +389,7 @@ it("switches every admin root color token with color-scheme", () => {
     createRequire(import.meta.url).resolve("@anipotts/brand/tokens.css"),
     "utf8",
   );
-  expect(css).toContain('@import "@anipotts/brand/public.css"');
+  expect(css).toContain('@import "@anipotts/brand/tokens.css"');
   expect(unswitchedRootColors(css, [brandTokens])).toEqual([]);
 });
 

@@ -8,6 +8,7 @@ import "@astryxdesign/core/astryx.css";
 import "../styles/admin-interactions.css";
 import "@astryxdesign/theme-neutral/theme.css";
 import "../styles/admin.css";
+import "../styles/fonts.css";
 import "../styles/admin-canvas.css";
 import { AdminShell } from "../components/astryx/AdminShell";
 import "../themes/editorial.generated.css";
@@ -16,6 +17,7 @@ import "../themes/life.generated.css";
 import "../styles/editorial.css";
 import "../styles/focus.css";
 import { navItems, routeTitle } from "../data/admin";
+import { preloadedFontUrls } from "../lib/admin-fonts";
 
 type Props = {
   title?: string;
@@ -57,6 +59,17 @@ const localOwner =
       sizes="any"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {
+      preloadedFontUrls.map((href) => (
+        <link
+          rel="preload"
+          as="font"
+          type="font/woff2"
+          href={href}
+          crossorigin=""
+        />
+      ))
+    }
 
     <link
       rel="apple-touch-icon"
