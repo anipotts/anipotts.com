@@ -65,9 +65,9 @@ export const RUNTIME_FEATURES = {
   { flags: readonly RuntimeName[]; needs: readonly RuntimeName[] }
 >;
 
-export type RuntimeFeature = keyof typeof RUNTIME_FEATURES;
-export type RuntimeFeatureState = "available" | "disabled" | "unavailable";
-export type RuntimeContractReport = {
+type RuntimeFeature = keyof typeof RUNTIME_FEATURES;
+type RuntimeFeatureState = "available" | "disabled" | "unavailable";
+type RuntimeContractReport = {
   ok: boolean;
   missing: RuntimeName[];
   features: Record<
@@ -75,7 +75,7 @@ export type RuntimeContractReport = {
     { state: RuntimeFeatureState; missing: RuntimeName[] }
   >;
 };
-export type RuntimeEntry = "fetch" | "durable_object";
+type RuntimeEntry = "fetch" | "durable_object";
 type RuntimeLogSink = Pick<Console, "info" | "warn">;
 
 const sha = /^[a-f0-9]{40}$/;
