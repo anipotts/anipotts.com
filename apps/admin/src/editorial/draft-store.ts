@@ -271,10 +271,10 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         key TEXT NOT NULL,
         payloadHash TEXT NOT NULL,
         -- Hash of the client-controlled request only. payloadHash also covers
-        -- the server-derived Git base, which freezePublication rewrites in
-        -- place, so an unchanged retry after a publication no longer matches
-        -- it. Rows written before this column exists stay NULL and keep
-        -- matching on payloadHash alone.
+        -- the server-derived Git base, which the publication alarm rewrites in
+        -- place once a publication is live, so an unchanged retry after that
+        -- no longer matches it. Rows written before this column exists stay
+        -- NULL and keep matching on payloadHash alone.
         clientHash TEXT,
         outcome TEXT NOT NULL CHECK (outcome IN ('saved', 'conflict')),
         revision INTEGER,
@@ -499,8 +499,9 @@ export class EditorialDraftStore extends DurableObject<unknown> {
       ...(rebase ? { rebase: true } : {}),
     });
     // The caller supplies only these fields; baseCommit/baseFileHash are read
-    // from the draft this request is saving against, and freezePublication
-    // rewrites them in place. Retry identity must not move when that happens.
+    // from the draft this request is saving against, and the publication
+    // alarm's live callback rewrites them in place (see alarm()). Retry
+    // identity must not move when that happens.
     const clientHash = await sha256({
       key,
       source: input.source,
@@ -508,6 +509,21 @@ export class EditorialDraftStore extends DurableObject<unknown> {
       ...(rebase ? { rebase: true } : {}),
     });
     return this.ctx.storage.transactionSync(() => {
+      const identity = this.ctx.storage.sql
+        .exec<SaveIdentity>(
+          "SELECT key, payloadHash, clientHash, outcome, revision, legacyResult FROM save_request_identities WHERE id = ?",
+          input.requestId,
+        )
+        .toArray()[0];
+      // Match the client-controlled hash when the identity has one. A retry
+      // whose caller-supplied fields are unchanged must replay its original
+      // outcome even after the publication alarm rewrote the draft's Git base,
+      // which payloadHash covers. Rows written before clientHash existed have
+      // NULL and keep their original payloadHash-only semantics.
+      const sameRequest = (storedPayloadHash: string) =>
+        identity?.clientHash === null || identity?.clientHash === undefined
+          ? storedPayloadHash === payloadHash
+          : identity.clientHash === clientHash;
       const previous = this.ctx.storage.sql
         .exec<{ payloadHash: string; result: string }>(
           "SELECT payloadHash, result FROM save_requests WHERE id = ?",
@@ -515,27 +531,16 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         )
         .toArray()[0];
       if (previous) {
-        if (previous.payloadHash !== payloadHash)
+        // A hot receipt uses the same retry identity as its identity row, which
+        // is written beside it or by the constructor's migration. A receipt
+        // without one falls back to payloadHash.
+        if (!sameRequest(previous.payloadHash))
           return { ok: false, code: "idempotency_key_reused" };
         return JSON.parse(previous.result) as SaveResult;
       }
-      const identity = this.ctx.storage.sql
-        .exec<SaveIdentity>(
-          "SELECT key, payloadHash, clientHash, outcome, revision, legacyResult FROM save_request_identities WHERE id = ?",
-          input.requestId,
-        )
-        .toArray()[0];
       if (identity) {
-        // Match the client-controlled hash when this row has one. A retry whose
-        // caller-supplied fields are unchanged must replay its original outcome
-        // even after freezePublication rewrote the draft's Git base, which
-        // payloadHash covers. Rows written before clientHash existed have NULL
-        // and keep their original payloadHash-only semantics.
-        const sameRequest =
-          identity.clientHash === null || identity.clientHash === undefined
-            ? identity.payloadHash === payloadHash
-            : identity.clientHash === clientHash;
-        if (!sameRequest) return { ok: false, code: "idempotency_key_reused" };
+        if (!sameRequest(identity.payloadHash))
+          return { ok: false, code: "idempotency_key_reused" };
         if (identity.legacyResult)
           return JSON.parse(identity.legacyResult) as SaveResult;
         // Earlier compact conflict identities did not retain the active draft's
