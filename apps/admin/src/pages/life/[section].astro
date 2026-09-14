@@ -7,10 +7,13 @@ import {
   lifeSections,
   lifeSectionRead,
 } from "../../lib/life-sections";
+import { measureServerTiming } from "../../lib/server-timing";
 const section = Astro.params.section ?? "";
 if (!isLifeSection(section) || section === "overview")
   return new Response("Not found", { status: 404 });
-const result = await readPersonalContext(lifeSectionRead(section));
+const result = await measureServerTiming(Astro.locals, "life", () =>
+  readPersonalContext(lifeSectionRead(section)),
+);
 Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
 

@@ -1,3 +1,4 @@
+import type { APIContext, MiddlewareNext } from "astro";
 import { defineMiddleware } from "astro:middleware";
 import {
   retainedAccessPrincipal,
@@ -22,8 +23,12 @@ import {
   resolveAdminSession,
   sanitizeAdminReturnPath,
 } from "./lib/admin-auth";
+import { applyServerTiming, createServerTiming } from "./lib/server-timing";
 
-export const onRequest = defineMiddleware(async (context, next) => {
+async function handleRequest(
+  context: APIContext,
+  next: MiddlewareNext,
+): Promise<Response> {
   // This logout-only route validates its own cookies without refreshing or migrating them.
   if (
     context.url.pathname === "/api/admin/logout" ||
@@ -178,4 +183,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
     context.redirect(`/auth?next=${nextPath}`, 302),
     resolved.setCookies,
   );
+}
+
+// Loaders record durations and counts on the request. The header is written
+// when the response object exists, before the body streams, so it covers work
+// done in page frontmatter and in head-propagating layouts.
+export const onRequest = defineMiddleware(async (context, next) => {
+  const started = performance.now();
+  const timing = createServerTiming();
+  context.locals.serverTiming = timing;
+  const response = await handleRequest(context, next);
+  return applyServerTiming(response, timing, performance.now() - started);
 });

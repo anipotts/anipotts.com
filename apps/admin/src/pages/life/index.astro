@@ -2,7 +2,10 @@
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import { LifeWorkspace } from "../../components/life/LifeWorkspace";
 import { readPersonalContext } from "../../data/personal-context";
-const result = await readPersonalContext({ method: "status" });
+import { measureServerTiming } from "../../lib/server-timing";
+const result = await measureServerTiming(Astro.locals, "life", () =>
+  readPersonalContext({ method: "status" }),
+);
 Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
 

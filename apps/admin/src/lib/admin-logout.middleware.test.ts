@@ -26,8 +26,12 @@ for (const pathname of ["/api/admin/logout", "/auth/logout"])
     const next = vi.fn(
       async () => new Response("inert page or self-authenticating API"),
     );
+    // Locals only receive the per-request Server-Timing collector.
     await onRequest(
-      { url: new URL(`https://admin.example.test${pathname}`) } as never,
+      {
+        url: new URL(`https://admin.example.test${pathname}`),
+        locals: {},
+      } as never,
       next,
     );
     expect(next).toHaveBeenCalledTimes(1);

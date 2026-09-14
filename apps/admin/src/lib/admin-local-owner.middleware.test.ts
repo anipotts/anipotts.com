@@ -130,6 +130,24 @@ describe("middleware without the build-time flag", () => {
     expect(response.headers.get("Content-Security-Policy")).toBeNull();
     expect(response.headers.get("X-Frame-Options")).toBeNull();
   });
+
+  it("adds duration-only Server-Timing to granted and denied responses", async () => {
+    vi.mocked(retainedAccessPrincipal).mockResolvedValueOnce({
+      userId: "owner",
+    } as never);
+    const granted = await dispatch(
+      "https://admin.anipotts.com/operations/observability",
+    );
+    const denied = await dispatch(
+      "http://localhost:4321/content/writing/example",
+    );
+    for (const { response, locals } of [granted, denied]) {
+      expect(locals).toHaveProperty("serverTiming");
+      expect(response.headers.get("Server-Timing")).toMatch(
+        /^app;dur=\d+(?:\.\d)?$/,
+      );
+    }
+  });
 });
 
 describe("local owner framing policy", () => {

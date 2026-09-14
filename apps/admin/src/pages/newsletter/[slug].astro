@@ -3,9 +3,12 @@ import { getCollection } from "astro:content";
 import EditorialLayout from "../../layouts/EditorialLayout.astro";
 import { recordUpdate } from "../../lib/editorial-content";
 import type { Review } from "../../components/astryx/EditorialApp";
-const entry = (await getCollection("newsletterDrafts")).find(
-  (item) => item.data.slug === Astro.params.slug,
-);
+import { measureServerTiming } from "../../lib/server-timing";
+const entry = (
+  await measureServerTiming(Astro.locals, "newsletter", () =>
+    getCollection("newsletterDrafts"),
+  )
+).find((item) => item.data.slug === Astro.params.slug);
 const draft = entry?.data;
 if (!draft) Astro.response.status = 404;
 const review: Review | undefined = draft
