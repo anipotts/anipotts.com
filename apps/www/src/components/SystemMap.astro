@@ -28,7 +28,6 @@ const { workflow } = Astro.props;
       hidden
       aria-pressed="false"
       aria-label="Pause source animation"
-      title="Pause source animation"
     >
       <svg
         class="pause-symbol"
@@ -68,6 +67,7 @@ const { workflow } = Astro.props;
                     "step-mark",
                     { "device-files": step.id === "outcome" },
                   ]}
+                  role={step.id === "outcome" ? "img" : undefined}
                   aria-label={
                     step.id === "outcome"
                       ? "Mac mini with GitHub and Linear records"
