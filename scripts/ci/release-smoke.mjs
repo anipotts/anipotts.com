@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { SECURITY_HEADERS } from "../../apps/www/src/lib/security-headers.ts";
 import { ADMIN_PROTECTED_SMOKE_ROUTES } from "./admin-route-inventory.mjs";
 import { PUBLIC_SMOKE_ROUTES } from "./public-route-inventory.mjs";
 
@@ -28,6 +29,60 @@ async function requestWithRetry(url, init, options) {
   const detail =
     last instanceof Response ? `HTTP ${last.status}` : String(last);
   throw new Error(`smoke failed for ${url}: ${detail}`);
+}
+
+/** Names of the www security headers a response does not carry exactly once
+ *  with the release's value. A duplicate reads back comma-joined. */
+export function securityHeaderMismatches(response) {
+  return Object.entries(SECURITY_HEADERS).flatMap(([name, value]) => {
+    const served = response.headers.get(name);
+    if (served === value) return [];
+    return [`${name} ${served === null ? "missing" : "unexpected value"}`];
+  });
+}
+
+async function securedProbe(url, init, expectedStatus, options) {
+  let detail = "no response";
+  for (let attempt = 1; attempt <= options.attempts; attempt += 1) {
+    try {
+      const response = await options.fetchImpl(url, init);
+      const mismatches = securityHeaderMismatches(response);
+      if (response.status === expectedStatus && mismatches.length === 0) {
+        return response;
+      }
+      detail = `HTTP ${response.status}${mismatches.length ? `, ${mismatches.join(", ")}` : ""}`;
+    } catch (error) {
+      detail = String(error);
+    }
+    if (attempt < options.attempts) await sleep(options.delayMs);
+  }
+  throw new Error(`security headers failed for ${url}: ${detail}`);
+}
+
+/** The www Worker adds the security headers to prerendered pages, hashed
+ *  assets and redirects, which the adapter answers before middleware. That
+ *  depends on run_worker_first and on the edge leaving the headers alone, so
+ *  the deployed release is checked, not only the local build. */
+async function verifyWwwSecurityHeaders(baseUrl, fetchImpl, retry) {
+  const options = { ...retry, fetchImpl };
+  const home = await securedProbe(`${baseUrl}/`, {}, 200, options);
+  const asset = (await home.text()).match(
+    /\/_astro\/[\w.@-]+\.(?:css|js)\b/,
+  )?.[0];
+  if (!asset)
+    throw new Error(`no hashed /_astro asset linked from ${baseUrl}/`);
+  await securedProbe(`${baseUrl}${asset}`, {}, 200, options);
+  await securedProbe(
+    `${baseUrl}/thoughts`,
+    { redirect: "manual" },
+    301,
+    options,
+  );
+  return [
+    { path: "/", status: 200, security_headers: true },
+    { path: asset, status: 200, security_headers: true },
+    { path: "/thoughts", status: 301, security_headers: true },
+  ];
 }
 
 function authenticatedHeaders(env) {
@@ -143,6 +198,16 @@ export async function smokeRelease(options) {
         },
       );
       checks.push({ path, status: response.status });
+    }
+    // An unversioned rollback restores a release that predates both the
+    // release identity and this header contract, so it is not held to it.
+    if (!allowUnversioned) {
+      checks.push(
+        ...(await verifyWwwSecurityHeaders(baseUrl, fetchImpl, {
+          attempts: 6,
+          delayMs: retryDelayMs,
+        })),
+      );
     }
   } else if (target === "admin" && mode === "unauthenticated") {
     for (const path of ADMIN_PROTECTED_SMOKE_ROUTES) {
