@@ -5,7 +5,6 @@ export const libraryGroups = [
   "work",
   "systems",
 ] as const;
-export const librarySorts = ["attention", "updated", "title"] as const;
 export type LibraryState = {
   group: string;
   q: string;

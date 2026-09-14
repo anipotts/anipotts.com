@@ -20,7 +20,7 @@ Audit date: 2026-09-12. The 15 selected files below were read completely. The ad
 - Observability reads are same-origin, credentialed, no-store and reject redirects, have a five-second timeout and a 262144-byte stream cap, parse the contracted snapshot, synchronously suppress duplicate refresh and abort on unmount. Unconfigured initial state does not begin background reads. Missing last-contact evidence stays Unknown; advanced traces/metrics/coverage/incidents remain disclosed views. No disconnect/delete/service-control mutation exists in this component.
 - Life readers are injected rather than derived from URL input. The explorer keeps ready lists during refresh, uses separate sequenced list/detail sessions, validates pagination, closes/invalidate detail requests on navigation and prevents late requests reopening closed details. Record body continuation delegates same-record/revision/offset checks to appendLifeBody. Source text is escaped by React; metadata retains provenance, uncertainty, dates, classifications and revision context. Evidence is disclosed as JSON within the already-authorized record surface, not exported elsewhere.
 - Life activity polls sequentially with retained cursor, bounded retry backoff and cleanup. It validates exact checkpoint fields, nonzero trace IDs, enum states, timezones, safe counts, ascending cursors, unchanged replay identity and a maximum 100-entry window. Private extra checkpoint fields are rejected. A failed read retains earlier observations while identifying the read as unavailable; it does not invent a healthy machine.
-- `observability.css` contains only a retired-styles comment and no active overrides.
+- `observability.css` contained only a retired-styles comment and no active overrides. It was removed as a confirmed orphan on 2026-09-14 (issue #358 knip audit): `git grep` found no import, CSS `@import` or `.astro` reference.
 
 ## Verification and limits
 
@@ -32,7 +32,7 @@ Outstanding Browser checks include actual responsive geometry, scroll, native di
 
 ## Full-read hashes
 
-Paths are relative to `apps/admin/src`.
+Paths are relative to `apps/admin/src`. `components/astryx/observability.css` was removed on 2026-09-14; its row records the audited bytes of the deleted file.
 
 | File                                                | SHA-256                                                            |
 | --------------------------------------------------- | ------------------------------------------------------------------ |
