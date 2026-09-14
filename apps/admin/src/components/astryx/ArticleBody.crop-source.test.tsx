@@ -32,15 +32,17 @@ function button(label: string) {
   expect(node, label).toBeTruthy();
   return node!;
 }
-/** Flush pending React work until the expectation holds. */
-function settle(expectation: () => void) {
-  return vi.waitFor(
-    async () => {
-      await act(async () => {});
+/** Let fetch, decode and FileReader work resolve inside act until the expectation holds. */
+async function settle(expectation: () => void) {
+  for (let attempt = 0; ; attempt++) {
+    await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
+    try {
       expectation();
-    },
-    { timeout: 5000 },
-  );
+      return;
+    } catch (error) {
+      if (attempt >= 500) throw error;
+    }
+  }
 }
 function imageSources() {
   const sources: Record<string, string> = {};
