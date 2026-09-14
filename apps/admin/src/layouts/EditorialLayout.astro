@@ -7,10 +7,11 @@ import {
 import "@astryxdesign/core/astryx.css";
 import "../styles/admin-interactions.css";
 import "../themes/editorial.generated.css";
-import "@fontsource-variable/instrument-sans";
+import "../styles/fonts.css";
 import "../styles/editorial.css";
 import "../styles/focus.css";
 import "../styles/scrollbars.css";
+import { preloadedFontUrls } from "../lib/admin-fonts";
 import { publicSiteUrl } from "../lib/editorial-content";
 import { EDITORIAL_OWNER_EMAIL } from "../lib/editorial-owner";
 import { loadEditorialInventory } from "../lib/editorial-inventory-server";
@@ -85,6 +86,17 @@ const appProps = {
     />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow, noarchive" />
+    {
+      preloadedFontUrls.map((href) => (
+        <link
+          rel="preload"
+          as="font"
+          type="font/woff2"
+          href={href}
+          crossorigin=""
+        />
+      ))
+    }
     <title>{Astro.props.title} | Admin</title>
     <script is:inline set:html={adminThemePrepaintScript} />
   </head>

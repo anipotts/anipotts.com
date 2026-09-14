@@ -1,6 +1,7 @@
-@import "@anipotts/brand/public.css";
-@import "@fontsource-variable/instrument-sans";
-@import "@fontsource-variable/jetbrains-mono";
+/* Brand tokens and motion only. Font faces and family tokens come from
+   fonts.css, which AdminLayout loads after this file. */
+@import "@anipotts/brand/tokens.css";
+@import "@anipotts/brand/motion.css";
 
 /* Legacy tokens switch on the computed color-scheme, as Astryx tokens do.
    AdminLayout sets that scheme inline, so system mode needs no data-theme. */

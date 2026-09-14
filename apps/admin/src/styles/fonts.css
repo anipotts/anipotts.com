@@ -1,0 +1,100 @@
+/* Admin web fonts and family tokens. This is the only place admin declares a
+ * font face.
+ *
+ * Every face uses `font-display: optional`: text renders with the web font
+ * when it is cached or arrives inside the browser's short block window, and
+ * otherwise keeps the fallback for that page view. A page never swaps fonts
+ * after its first paint. `swap`, which the package stylesheets ship, painted
+ * every page in the system font first and then re-rendered it, a visible
+ * flash on each navigation in WebKit and in production, where hashed assets
+ * are fetched again on every page.
+ *
+ * lib/admin-fonts.ts preloads the latin body face and the wordmark face so
+ * the block window is met. Keep the file paths here and there in step; the
+ * fonts test checks it.
+ */
+
+@font-face {
+  font-family: "Instrument Sans Variable";
+  font-style: normal;
+  font-display: optional;
+  font-weight: 400 700;
+  src: url("@fontsource-variable/instrument-sans/files/instrument-sans-latin-wght-normal.woff2")
+    format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Instrument Sans Variable";
+  font-style: normal;
+  font-display: optional;
+  font-weight: 400 700;
+  src: url("@fontsource-variable/instrument-sans/files/instrument-sans-latin-ext-wght-normal.woff2")
+    format("woff2-variations");
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB,
+    U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "JetBrains Mono Variable";
+  font-style: normal;
+  font-display: optional;
+  font-weight: 100 800;
+  src: url("@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2")
+    format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "JetBrains Mono Variable";
+  font-style: normal;
+  font-display: optional;
+  font-weight: 100 800;
+  src: url("@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-ext-wght-normal.woff2")
+    format("woff2-variations");
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB,
+    U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "AP Structural";
+  font-style: normal;
+  font-display: optional;
+  font-weight: 900;
+  src: url("@anipotts/brand/ap-structural/fonts/APStructuralDisplayBlack-v0.2.0-candidate.1.woff2")
+    format("woff2");
+}
+
+/* Family tokens the legacy admin stylesheets read. The values match
+ * @anipotts/brand typography.css, whose @font-face is not loaded here. */
+:root {
+  --font-interface:
+    "Instrument Sans Variable", "Instrument Sans", -apple-system,
+    BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --font-display: "AP Structural", "Urbanist", var(--font-interface);
+  --font-code:
+    "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SF Mono", Menlo,
+    monospace;
+
+  --sans: var(--font-interface);
+  --display: var(--font-display);
+  --code: var(--font-code);
+  --mono: var(--font-code);
+}
+
+.brand-display {
+  font-family: var(--font-display);
+  font-style: normal;
+  font-weight: 900;
+  font-synthesis: none;
+}
