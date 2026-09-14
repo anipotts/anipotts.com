@@ -1136,6 +1136,11 @@ body:has(.editorial-workspace-shell) {
   text-overflow: ellipsis;
 }
 .editorial-record-icon {
+  /* Holds the record kind as a tooltip and as sr-only text, so the kind
+     survives a row whose summary has replaced its section label. */
+  position: relative;
+  display: inline-flex;
+  align-items: center;
   flex: 0 0 var(--spacing-5);
   width: var(--spacing-5);
   height: var(--spacing-5);
@@ -1277,4 +1282,19 @@ body:has(.editorial-workspace-shell) {
   .editorial-resume-link {
     min-height: var(--spacing-11);
   }
+}
+
+/* The editorial layout does not load admin.css, so text intended only for
+   assistive technology needs its own definition here or it renders visibly. */
+.editorial-shell .sr-only,
+.editorial-content .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
   ContentLibrary,
+  changedFieldSummary,
   matchingRecords,
   recentlyUpdated,
   Updated,
@@ -318,5 +319,49 @@ describe("Recently edited actions", () => {
     expect(recent.indexOf("<time")).toBeLessThan(
       recent.indexOf('class="editorial-resume-link"'),
     );
+  });
+
+  it("names the record kind even when a summary replaces the section", () => {
+    const html = renderToStaticMarkup(
+      <ContentLibrary
+        groups={[
+          {
+            name: "everything",
+            href: "/content",
+            records: [
+              {
+                title: "A project",
+                href: "/content/projects/example",
+                status: "listed",
+                summary: "A summary that takes the section label's place.",
+              },
+              {
+                title: "An article",
+                href: "/content/writing/example",
+                status: "published",
+                summary: "Another summary.",
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+    // The glyph is the only remaining kind signal, so the kind must be text.
+    expect(html).toContain("Project");
+    expect(html).toContain("Article");
+    expect(html).toContain('title="Project"');
+    expect(html).toContain('title="Article"');
+    // The action column header is announced rather than empty.
+    expect(html).toContain("Action");
+  });
+  it("bounds the changed-field description on the row action", () => {
+    // The tooltip renders on the client, so assert the bounding directly.
+    expect(
+      changedFieldSummary(["title", "summary", "hero", "seo", "links"]),
+    ).toBe("title, summary +3");
+    expect(changedFieldSummary(["title", "summary"])).toBe("title, summary");
+    expect(changedFieldSummary(["title"])).toBe("title");
+    expect(changedFieldSummary([])).toBe("Source changes");
+    expect(changedFieldSummary(["a", "b", "c"])).not.toContain("\u00b7");
   });
 });

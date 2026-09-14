@@ -137,25 +137,35 @@ export function RecordStatus({
 }
 
 function RecordGlyph({ record }: { record: CatalogRecord }) {
-  const Icon =
+  const [Icon, kind] =
     record.collection === "projects" ||
     record.href.startsWith("/content/projects/")
-      ? BriefcaseIcon
+      ? ([BriefcaseIcon, "Project"] as const)
       : record.collection === "writing" ||
           record.href.startsWith("/content/writing/")
-        ? ArticleIcon
+        ? ([ArticleIcon, "Article"] as const)
         : record.href.startsWith("/newsletter/")
-          ? EnvelopeIcon
-          : FileTextIcon;
+          ? ([EnvelopeIcon, "Newsletter issue"] as const)
+          : ([FileTextIcon, "Page"] as const);
+  // A record with a summary shows the summary in place of its section label, so
+  // this glyph is the only remaining kind signal. It carries the kind as text
+  // rather than aria-hidden decoration, and as a tooltip, so the row is
+  // readable without a legend and announces its kind to assistive technology.
   return (
-    <HStack
-      className="editorial-record-icon"
-      vAlign="center"
-      aria-hidden="true"
-    >
-      <Icon weight="regular" size="var(--spacing-5)" />
-    </HStack>
+    <span className="editorial-record-icon" title={kind}>
+      <Icon weight="regular" size="var(--spacing-5)" aria-hidden="true" />
+      <Text className="sr-only">{kind}</Text>
+    </span>
   );
+}
+
+/** The row action's tooltip and aria-describedby both carry this string, and a
+ * screen reader reads it on every focus, so it stays bounded rather than
+ * listing every changed frontmatter field. */
+export function changedFieldSummary(fields: readonly string[]): string {
+  if (!fields.length) return "Source changes";
+  const shown = fields.slice(0, 2).join(", ");
+  return fields.length > 2 ? `${shown} +${fields.length - 2}` : shown;
 }
 
 function RecordState({
@@ -191,9 +201,7 @@ function RecordAction({
   const decision = contentDecision(record, !inventoryError);
   const changed =
     decision.action === "Review changes" && record.changedFields !== undefined
-      ? record.changedFields.length
-        ? record.changedFields.join(" · ")
-        : "Source changes"
+      ? changedFieldSummary(record.changedFields)
       : undefined;
   const label = `${decision.action ?? "Open record"}: ${record.title}`;
   const href = recordLibraryHref(record.href, returnTo);
@@ -204,7 +212,7 @@ function RecordAction({
       className="editorial-record-action"
       icon={<ArrowRightIcon weight="regular" />}
       label={label}
-      tooltip={changed ? `${label} · ${changed}` : label}
+      tooltip={changed ? `${label} (${changed})` : label}
       href={decision.view ? decisionHref(href, decision.view) : href}
     />
   );
@@ -612,7 +620,7 @@ export function ContentLibrary({
               },
               {
                 key: "action",
-                header: "",
+                header: <Text className="sr-only">Action</Text>,
                 width: pixel(52),
                 align: "end",
                 renderCell: (item) => (
