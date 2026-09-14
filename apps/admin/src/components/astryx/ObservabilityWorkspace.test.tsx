@@ -191,6 +191,69 @@ describe("optional observability workspace", () => {
     expect(location.search).toBe("");
   });
 
+  it("announces the filtered record count as a polite status", async () => {
+    await mount();
+    const count = () => host.querySelector(".operations-count")!;
+    expect(count().getAttribute("role")).toBe("status");
+    expect(count().getAttribute("aria-live")).toBe("polite");
+    expect(count().textContent).toBe("2 records");
+    search("mini");
+    expect(count().textContent).toBe("1 record");
+    // Clear search renders only for an empty result, so clear the field itself.
+    search("");
+    expect(count().textContent).toBe("2 records");
+  });
+
+  it("names each observed state once, through its visible text", async () => {
+    const initial = unconfigured();
+    initial.snapshot.events = [
+      {
+        serviceId: "mac-mini",
+        at: new Date().toISOString(),
+        kind: "failure",
+        evidenceId: "a".repeat(32),
+      },
+    ];
+    // A StatusDot is role=img with its own name; beside matching text it is
+    // read twice unless it is hidden from assistive technology.
+    const namedDots = () =>
+      [...host.querySelectorAll('[role="img"][aria-label]')]
+        .filter((node) => node.getAttribute("aria-hidden") !== "true")
+        .map((node) => node.getAttribute("aria-label"));
+    await mount(initial);
+    await click("Mac mini");
+    expect(host.querySelector(".operations-source-status")?.textContent).toBe(
+      "Live telemetry is not connected",
+    );
+    expect(host.querySelector("tbody")?.textContent).toContain("Not observed");
+    expect(
+      host.querySelector("#operations-service-detail")?.textContent,
+    ).toContain("Not observed");
+    expect(namedDots()).toEqual([]);
+    await navigate("Activity");
+    expect(host.querySelector("tbody")?.textContent).toContain("Failure");
+    expect(namedDots()).toEqual([]);
+  });
+
+  it("gives every inventory row exactly one keyboard-operable name button", async () => {
+    // The row click is a pointer shortcut for this button, so rows need no
+    // tab stop of their own. Relative timestamps may add focusable cells.
+    await mount();
+    for (const [view, length] of [
+      ["Machines", 2],
+      ["Coverage", 11],
+    ] as const) {
+      if (view !== "Machines") await navigate(view);
+      const rows = [...host.querySelectorAll("tbody tr")];
+      expect(rows).toHaveLength(length);
+      for (const row of rows) {
+        const toggles = row.querySelectorAll("button[aria-expanded]");
+        expect(toggles).toHaveLength(1);
+        expect(toggles[0]!.hasAttribute("data-service-id")).toBe(true);
+      }
+    }
+  });
+
   it("provides all six unknown loops and diagnostic navigation without a duplicate tab bar", async () => {
     await mount(unconfigured(), "loops");
     expect(host.querySelector("h1")?.textContent).toBe("Loops");
