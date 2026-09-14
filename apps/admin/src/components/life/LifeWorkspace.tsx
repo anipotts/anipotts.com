@@ -1,5 +1,24 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Layout, LayoutContent, LayoutHeader } from "@astryxdesign/core/Layout";
+import { HStack } from "@astryxdesign/core/HStack";
+import { Banner } from "@astryxdesign/core/Banner";
+import { EmptyState } from "@astryxdesign/core/EmptyState";
+import { Table, pixel, proportional } from "@astryxdesign/core/Table";
+import {
+  ArrowRightIcon,
+  UsersIcon,
+  FolderIcon,
+  MapPinIcon,
+  ClockIcon,
+  LinkIcon,
+  LinkBreakIcon,
+  ShieldWarningIcon,
+  WarningCircleIcon,
+  FileTextIcon,
+  HeartIcon,
+  PaletteIcon,
+} from "@phosphor-icons/react";
+import "./life-workspace.css";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
@@ -43,7 +62,11 @@ const object = (value: unknown): Record<string, unknown> =>
     : {};
 function Metadata({ fields }: { fields: [string, unknown][] }) {
   return (
-    <MetadataList columns="multi" label={{ position: "top" }}>
+    <MetadataList
+      className="life-metadata"
+      columns="multi"
+      label={{ position: "top" }}
+    >
       {fields.map(([label, value]) => (
         <MetadataListItem key={label} label={label}>
           <Text wordBreak="break-word">{scalar(value)}</Text>
@@ -68,10 +91,17 @@ function Evidence({ title, value }: { title: string; value: unknown }) {
 }
 export function LifeRecord({ record }: { record: Record<string, unknown> }) {
   return (
-    <VStack gap={4}>
-      <Heading level={2}>{scalar(record.title, "Untitled record")}</Heading>
-      <Token label={scalar(record.status, "Unconfirmed")} />
-      <Text as="p" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+    <VStack gap={5} className="life-record-detail">
+      <HStack
+        gap={3}
+        vAlign="center"
+        wrap="wrap"
+        className="life-record-detail-heading"
+      >
+        <Heading level={2}>{scalar(record.title, "Untitled record")}</Heading>
+        <Token size="sm" label={scalar(record.status, "Unconfirmed")} />
+      </HStack>
+      <Text as="p" className="life-record-body">
         {scalar(record.body, "Metadata only")}
       </Text>
       <Metadata
@@ -112,18 +142,50 @@ export function LifeReadView({
   section: LifeSection;
   onSelect?: (id: string) => void;
 }) {
-  if (result.state !== "ready")
+  if (result.state !== "ready") {
+    const presentation = {
+      // Severity is part of the signal, not just the wording. A configuration
+      // state reads as information; a refused or failed read is a warning, so
+      // it does not look like an ordinary empty result.
+      disconnected: {
+        title: "Life is not connected yet",
+        description:
+          "Records remain in PersonalContext. An authorized source connection is needed before they can be read here.",
+        Icon: LinkBreakIcon,
+        status: "info" as const,
+      },
+      denied: {
+        title: "Access to these records is unavailable",
+        description:
+          "This connection does not permit the requested read. Return when authorized access is available.",
+        Icon: ShieldWarningIcon,
+        status: "warning" as const,
+      },
+      unavailable: {
+        title: "Records could not be loaded",
+        description:
+          "The source is unavailable. This does not mean that your records are empty. Try again when the source is available.",
+        Icon: WarningCircleIcon,
+        status: "warning" as const,
+      },
+      invalid: {
+        title: "The source response could not be used",
+        description:
+          "The read returned incomplete or unsupported information. No records from this response are shown.",
+        Icon: WarningCircleIcon,
+        status: "warning" as const,
+      },
+    }[result.state];
     return (
-      <VStack gap={2} role="status">
-        <Text weight="semibold">
-          {result.state === "disconnected"
-            ? "Life is not connected yet"
-            : result.state === "denied"
-              ? "Access to these records is unavailable"
-              : "Records could not be loaded"}
-        </Text>
-      </VStack>
+      <Banner
+        status={presentation.status}
+        container="section"
+        title={presentation.title}
+        description={presentation.description}
+        icon={<presentation.Icon weight="regular" />}
+      />
     );
+  }
   const data = result.data;
   const items = Array.isArray(data.items) ? data.items.map(object) : [];
   if (section === "preview")
@@ -166,57 +228,133 @@ export function LifeReadView({
         ]}
       />
     );
+  const sources = section === "sources";
+  const Glyph = sources
+    ? LinkIcon
+    : section === "people"
+      ? UsersIcon
+      : section === "projects"
+        ? FolderIcon
+        : section === "places"
+          ? MapPinIcon
+          : section === "timeline"
+            ? ClockIcon
+            : FileTextIcon;
+  const evidence = (item: Record<string, unknown>) =>
+    sources ? (
+      <Text type="supporting" color="secondary" wordBreak="break-word">
+        Coverage: {scalar(item.coverage)}
+      </Text>
+    ) : (
+      <VStack gap={1}>
+        <Text type="supporting" color="secondary" wordBreak="break-word">
+          Effective: {scalar(item.occurred_at, "Date unknown")}
+        </Text>
+        <Text type="supporting" color="secondary" wordBreak="break-word">
+          Observed: {scalar(item.observed_at, "Date unknown")}
+        </Text>
+      </VStack>
+    );
   return (
-    <VStack gap={3}>
-      <List
-        hasDividers
-        density="compact"
-        header={
-          <Text color="secondary">
-            {items.length} {section === "sources" ? "sources" : "records"} shown
-            {typeof data.total === "number" ? ` of ${data.total}` : ""}
-          </Text>
-        }
-      >
-        {items.map((item, index) => (
-          <ListItem
-            key={scalar(item.record_id ?? item.source_id, String(index))}
-            label={scalar(
-              section === "sources" ? item.source_id : item.title,
-              "Untitled record",
-            )}
-            onClick={
-              section !== "sources" &&
-              typeof item.record_id === "string" &&
-              onSelect
-                ? () => onSelect(item.record_id as string)
-                : undefined
-            }
-            description={
-              section === "sources" ? (
-                <Text color="secondary" wordBreak="break-word">
-                  Coverage: {scalar(item.coverage)}
-                </Text>
-              ) : (
-                <VStack gap={1}>
-                  <Text color="secondary" wordBreak="break-word">
-                    Source: {scalar(item.source_id)}
-                  </Text>
-                  <Text color="secondary" wordBreak="break-word">
-                    Effective: {scalar(item.occurred_at, "Date unknown")}
-                    {" · "}Observed: {scalar(item.observed_at, "Date unknown")}
-                  </Text>
-                </VStack>
-              )
-            }
-            endContent={
-              <Token label={scalar(item.status, "Unknown")} size="sm" />
-            }
-          />
-        ))}
-      </List>
-      {items.length === 0 && (
-        <Text>No permitted records match this request.</Text>
+    <VStack gap={3} className="life-record-library">
+      <Text type="supporting" color="secondary" role="status">
+        {items.length} {sources ? "sources" : "records"} shown
+        {typeof data.total === "number" ? ` of ${data.total}` : ""}
+      </Text>
+      {items.length > 0 ? (
+        <Table
+          className="life-record-table"
+          data={items}
+          density="compact"
+          verticalAlign="middle"
+          hasHover={Boolean(onSelect) && !sources}
+          columns={[
+            {
+              key: "record",
+              header: sources ? "Source" : "Record",
+              width: proportional(1, { minWidth: 80 }),
+              renderCell: (item) => {
+                const title = scalar(
+                  sources ? item.source_id : item.title,
+                  "Untitled record",
+                );
+                const selectable =
+                  !sources && typeof item.record_id === "string" && onSelect;
+                return (
+                  <HStack
+                    gap={3}
+                    vAlign="center"
+                    className="life-record-heading"
+                  >
+                    <Glyph
+                      weight="regular"
+                      size="var(--spacing-5)"
+                      className="life-row-icon"
+                      aria-hidden="true"
+                    />
+                    <VStack gap={1} className="life-record-label">
+                      {selectable ? (
+                        <Button
+                          label={title}
+                          variant="ghost"
+                          size="sm"
+                          className="life-record-select"
+                          onClick={() => onSelect(item.record_id as string)}
+                        />
+                      ) : (
+                        <Text weight="medium" wordBreak="break-word">
+                          {title}
+                        </Text>
+                      )}
+                      {!sources && (
+                        <Text
+                          type="supporting"
+                          color="secondary"
+                          wordBreak="break-word"
+                        >
+                          Source: {scalar(item.source_id)}
+                        </Text>
+                      )}
+                      <VStack gap={2} className="life-record-mobile-evidence">
+                        {evidence(item)}
+                        <Token
+                          label={scalar(item.status, "Unknown")}
+                          size="sm"
+                        />
+                      </VStack>
+                    </VStack>
+                  </HStack>
+                );
+              },
+            },
+            {
+              key: "evidence",
+              header: sources ? "Coverage" : "Dates",
+              width: pixel(192),
+              renderCell: evidence,
+            },
+            {
+              key: "state",
+              header: "State",
+              width: pixel(120),
+              renderCell: (item) => (
+                <Token label={scalar(item.status, "Unknown")} size="sm" />
+              ),
+            },
+          ]}
+        />
+      ) : (
+        <EmptyState
+          headingLevel={2}
+          isCompact
+          title="No permitted records match this request."
+          description={
+            sources
+              ? "The source returned no permitted sources for this read."
+              : "Try a different search or return to another Life view."
+          }
+          icon={<Glyph weight="regular" />}
+        />
       )}
     </VStack>
   );
@@ -344,9 +482,12 @@ export function LifeExplorer({
   return (
     <VStack gap={4}>
       {searchable && reader && (
-        <VStack
+        <HStack
           as="form"
           gap={2}
+          wrap="wrap"
+          vAlign="end"
+          className="life-search-toolbar"
           onSubmit={(event: React.FormEvent) => {
             event.preventDefault();
             void load(query, [0]);
@@ -362,7 +503,7 @@ export function LifeExplorer({
             label={section === "preview" ? "Preview context" : "Search"}
             isLoading={busy}
           />
-        </VStack>
+        </HStack>
       )}
       {!searchable && reader && (
         <Button
@@ -416,7 +557,12 @@ export function LifeExplorer({
           />
         )}
       {(detailBusy || record || detailError) && (
-        <VStack gap={3} as="section" aria-label="Record details">
+        <VStack
+          gap={4}
+          as="section"
+          aria-label="Record details"
+          className="life-details-region"
+        >
           <Button label="Close details" onClick={closeRecord} variant="ghost" />
           {detailError && <Text role="alert">{detailError}</Text>}
           {record && <LifeRecord record={record} />}
@@ -433,7 +579,7 @@ export function LifeExplorer({
     </VStack>
   );
 }
-/** Capped single column. Shared workspace navigation remains owned by Website. */
+/** Broad record frame; prose stays capped within the detail. Shared navigation remains Website-owned. */
 export function LifeWorkspace({
   section = "overview",
   result,
@@ -446,15 +592,23 @@ export function LifeWorkspace({
   return (
     <Layout
       height="auto"
-      contentWidth={960}
-      padding={4}
+      className="life-workspace"
+      padding={0}
       header={
-        <LayoutHeader>
-          <Heading level={1}>{lifeSections[section]}</Heading>
+        <LayoutHeader className="life-page-header">
+          <HStack
+            gap={3}
+            vAlign="center"
+            wrap="wrap"
+            className="life-page-title"
+          >
+            <Heading level={1}>{lifeSections[section]}</Heading>
+            <Token size="sm" label="Read only" />
+          </HStack>
         </LayoutHeader>
       }
       content={
-        <LayoutContent>
+        <LayoutContent className="life-page-content">
           <VStack gap={6}>
             {section === "preview" && (
               <Metadata
@@ -475,19 +629,169 @@ export function LifeWorkspace({
               <LifeActivityView reader={reader} />
             )}
             {section === "overview" && (
-              <List
-                hasDividers
-                density="compact"
-                header={<Heading level={2}>Your views</Heading>}
-              >
-                <ListItem label="Health" href="/life/health" />
-                <ListItem label="Aesthetics" href="/life/aesthetics" />
-                <ListItem label="Knowledge" href="/knowledge" />
-                <ListItem
-                  label="Locations and fleet"
-                  href="/knowledge/locations"
-                />
-              </List>
+              <VStack gap={5}>
+                <List
+                  className="life-view-list"
+                  density="compact"
+                  header={<Heading level={2}>Your views</Heading>}
+                >
+                  {[
+                    {
+                      label: "People",
+                      href: "/life/people",
+                      description: "Relationships and dated references",
+                      Icon: UsersIcon,
+                    },
+                    {
+                      label: "Projects",
+                      href: "/life/projects",
+                      description: "Project records and supporting evidence",
+                      Icon: FolderIcon,
+                    },
+                    {
+                      label: "Places",
+                      href: "/life/places",
+                      description: "Locations with source context",
+                      Icon: MapPinIcon,
+                    },
+                    {
+                      label: "Timeline",
+                      href: "/life/timeline",
+                      description: "Events and their original dates",
+                      Icon: ClockIcon,
+                    },
+                    {
+                      label: "Sources",
+                      href: "/life/sources",
+                      description: "Source boundaries and recorded coverage",
+                      Icon: LinkIcon,
+                    },
+                  ].map(({ label, href, description, Icon }) => (
+                    <ListItem
+                      key={href}
+                      label={label}
+                      href={href}
+                      description={
+                        <Text type="supporting" color="secondary">
+                          {description}
+                        </Text>
+                      }
+                      startContent={
+                        <Icon
+                          weight="regular"
+                          size="var(--spacing-5)"
+                          aria-hidden="true"
+                        />
+                      }
+                      endContent={
+                        <ArrowRightIcon
+                          weight="regular"
+                          size="var(--spacing-4)"
+                          aria-hidden="true"
+                        />
+                      }
+                    />
+                  ))}
+                </List>
+                <List
+                  className="life-view-list"
+                  density="compact"
+                  header={<Heading level={2}>Other views</Heading>}
+                >
+                  <ListItem
+                    label="Knowledge"
+                    href="/knowledge"
+                    description={
+                      <Text type="supporting" color="secondary">
+                        Existing knowledge cards and source-backed locations
+                      </Text>
+                    }
+                    startContent={
+                      <FileTextIcon
+                        weight="regular"
+                        size="var(--spacing-5)"
+                        aria-hidden="true"
+                      />
+                    }
+                    endContent={
+                      <ArrowRightIcon
+                        weight="regular"
+                        size="var(--spacing-4)"
+                        aria-hidden="true"
+                      />
+                    }
+                  />
+                  <ListItem
+                    label="Knowledge locations"
+                    href="/knowledge/locations"
+                    description={
+                      <Text type="supporting" color="secondary">
+                        Place records from the existing knowledge reader
+                      </Text>
+                    }
+                    startContent={
+                      <MapPinIcon
+                        weight="regular"
+                        size="var(--spacing-5)"
+                        aria-hidden="true"
+                      />
+                    }
+                    endContent={
+                      <ArrowRightIcon
+                        weight="regular"
+                        size="var(--spacing-4)"
+                        aria-hidden="true"
+                      />
+                    }
+                  />
+                  <ListItem
+                    label="Health"
+                    href="/life/health"
+                    description={
+                      <Text type="supporting" color="secondary">
+                        Existing source summaries
+                      </Text>
+                    }
+                    startContent={
+                      <HeartIcon
+                        weight="regular"
+                        size="var(--spacing-5)"
+                        aria-hidden="true"
+                      />
+                    }
+                    endContent={
+                      <ArrowRightIcon
+                        weight="regular"
+                        size="var(--spacing-4)"
+                        aria-hidden="true"
+                      />
+                    }
+                  />
+                  <ListItem
+                    label="Aesthetics"
+                    href="/life/aesthetics"
+                    description={
+                      <Text type="supporting" color="secondary">
+                        Style references are not connected yet
+                      </Text>
+                    }
+                    startContent={
+                      <PaletteIcon
+                        weight="regular"
+                        size="var(--spacing-5)"
+                        aria-hidden="true"
+                      />
+                    }
+                    endContent={
+                      <ArrowRightIcon
+                        weight="regular"
+                        size="var(--spacing-4)"
+                        aria-hidden="true"
+                      />
+                    }
+                  />
+                </List>
+              </VStack>
             )}
           </VStack>
         </LayoutContent>
