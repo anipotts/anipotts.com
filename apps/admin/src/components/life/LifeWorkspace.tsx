@@ -143,7 +143,11 @@ export function LifeReadView({
   result: LifeResult;
   section: LifeSection;
   onSelect?: (id: string) => void;
-  /** The latest refresh failed, so the ready result on screen is retained. */
+  /**
+   * The latest refresh failed and this ready result is retained. Only the
+   * record and source library marks it, on its count and a "Not current"
+   * token; overview and preview render unchanged.
+   */
   isStale?: boolean;
 }) {
   if (result.state !== "ready") {
@@ -550,8 +554,10 @@ export function LifeExplorer({
       {(listError || pagingError) && (
         <RecoveryBanner
           title={listError ?? pagingError ?? "Read unavailable"}
+          // A paging error comes from the ready read on screen, so its retry
+          // restarts that submitted search, never unsubmitted field text.
           onRetry={() =>
-            listError ? load(...failed.current) : load(query, [0])
+            listError ? load(...failed.current) : load(submitted, [0])
           }
         />
       )}

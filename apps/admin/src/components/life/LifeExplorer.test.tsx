@@ -2,7 +2,7 @@
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LifeExplorer } from "./LifeWorkspace";
+import { LifeExplorer, LifeReadView } from "./LifeWorkspace";
 import { LifeActivityView } from "./LifeActivityView";
 import type { LifeRead, LifeResult } from "../../data/personal-context";
 const ready = (data: Record<string, unknown>): LifeResult => ({
@@ -70,6 +70,25 @@ async function click(label: string) {
   expect(button, `button ${label}`).toBeTruthy();
   await act(async () => button!.click());
 }
+function type(value: string) {
+  act(() => {
+    const input = container.querySelector("input")!;
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )!.set!.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+async function submit() {
+  await act(async () => {
+    container
+      .querySelector("form")!
+      .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  });
+}
+const count = () =>
+  container.querySelector('.life-record-library [role="status"]')?.textContent;
 describe("Life reader interactions", () => {
   it.each([30, -1, undefined])(
     "keeps Sources unpaged when response includes cursor %s",
@@ -129,6 +148,37 @@ describe("Life reader interactions", () => {
       ]);
     },
   );
+  it("retries an invalid continuation with the submitted query, not the typed text", async () => {
+    const requests: LifeRead[] = [];
+    const reader = async (request: LifeRead) => {
+      requests.push(request);
+      return ready({
+        items: [record],
+        total: 18,
+        next_offset: requests.length === 1 ? -1 : null,
+      });
+    };
+    await act(async () =>
+      root.render(
+        <LifeExplorer
+          section="people"
+          initial={ready({ items: [record], total: 1, next_offset: null })}
+          reader={reader}
+        />,
+      ),
+    );
+    type("alice");
+    await submit();
+    expect(container.textContent).toContain("could not be continued");
+    // Typing without submitting changes the field, not the read on screen.
+    type("bob");
+    await click("Try again");
+    expect(requests).toEqual([
+      { method: "search", kind: "person", q: "alice", offset: 0 },
+      { method: "search", kind: "person", q: "alice", offset: 0 },
+    ]);
+    expect(container.textContent).not.toContain("could not be continued");
+  });
   it("keeps rows while refreshing, deduplicates submission and recovers from failure", async () => {
     let finish!: (value: LifeResult) => void;
     const reader = vi.fn(
@@ -190,17 +240,6 @@ describe("Life reader interactions", () => {
         />,
       ),
     );
-    const count = () =>
-      container.querySelector('.life-record-library [role="status"]')
-        ?.textContent;
-    const submit = () =>
-      act(async () => {
-        container
-          .querySelector("form")!
-          .dispatchEvent(
-            new Event("submit", { bubbles: true, cancelable: true }),
-          );
-      });
     expect(count()).toBe("1 record shown of 1");
     expect(container.textContent).not.toContain("Not current");
     await submit();
@@ -222,6 +261,52 @@ describe("Life reader interactions", () => {
     expect(container.textContent).not.toContain("Not current");
     expect(count()).toBeUndefined();
   });
+  it.each(["unavailable", "invalid"] as const)(
+    "marks retained rows as not current when the first failed refresh is %s",
+    async (state) => {
+      const reader = vi.fn(async (_request: LifeRead): Promise<LifeResult> => ({
+        state,
+        message: "fixture",
+      }));
+      await act(async () =>
+        root.render(
+          <LifeExplorer
+            section="people"
+            initial={ready({ items: [record], total: 1, next_offset: null })}
+            reader={reader}
+          />,
+        ),
+      );
+      await submit();
+      expect(reader).toHaveBeenCalledTimes(1);
+      expect(container.textContent).toContain("Fixture record");
+      expect(container.textContent).toContain("could not be refreshed");
+      expect(count()).toBe("1 record shown of 1 from the last successful read");
+      expect(container.textContent).toContain("Not current");
+    },
+  );
+  it("names the stale state once, through the visible status text", async () => {
+    await act(async () =>
+      root.render(
+        <LifeReadView
+          section="people"
+          result={ready({ items: [record], total: 1, next_offset: null })}
+          isStale
+        />,
+      ),
+    );
+    const library = container.querySelector(".life-record-library")!;
+    expect(library.textContent).toContain("Not current");
+    // The warning StatusDot is role=img named "Not current"; beside the Token
+    // label it would be read twice unless hidden from assistive technology.
+    const dot = library.querySelector('[role="img"][aria-label="Not current"]');
+    expect(dot, "Not current StatusDot").not.toBeNull();
+    expect(
+      [...library.querySelectorAll('[role="img"][aria-label]')]
+        .filter((node) => node.getAttribute("aria-hidden") !== "true")
+        .map((node) => node.getAttribute("aria-label")),
+    ).toEqual([]);
+  });
   it("retries the read that failed, not the typed query or the first page", async () => {
     const requests: LifeRead[] = [];
     const reader = async (request: LifeRead): Promise<LifeResult> => {
@@ -239,23 +324,8 @@ describe("Life reader interactions", () => {
         />,
       ),
     );
-    const type = (value: string) =>
-      act(() => {
-        const input = container.querySelector("input")!;
-        Object.getOwnPropertyDescriptor(
-          HTMLInputElement.prototype,
-          "value",
-        )!.set!.call(input, value);
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-      });
     type("alice");
-    await act(async () => {
-      container
-        .querySelector("form")!
-        .dispatchEvent(
-          new Event("submit", { bubbles: true, cancelable: true }),
-        );
-    });
+    await submit();
     type("bob");
     await click("Try again");
     expect(requests).toEqual([
