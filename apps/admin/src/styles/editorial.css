@@ -60,6 +60,10 @@
 .editorial-content .astryx-table-cell {
   padding-inline: var(--spacing-3);
 }
+/* Astryx rules off every header row; admin tables separate with spacing. */
+.astryx-table-header-cell {
+  border-bottom: 0;
+}
 .editorial-record-table .record-link {
   padding-inline: 0;
 }
@@ -186,7 +190,6 @@
 /* One document region, capped for comfortable writing. Controls stay compact. */
 .editor-actionbar {
   padding-bottom: var(--spacing-4);
-  border-bottom: var(--border-width) solid var(--color-border);
 }
 .editor-save-group {
   flex: 1 1 auto;
@@ -203,7 +206,6 @@
 }
 .editor-history-row {
   padding-block: var(--spacing-3);
-  border-bottom: var(--border-width) solid var(--color-border);
   justify-content: space-between;
 }
 .editorial-content .editor-fields,
@@ -230,7 +232,6 @@
 }
 .rich-field .astryx-toolbar {
   background: var(--color-background-muted);
-  border-bottom: var(--border-width) solid var(--color-border);
 }
 .rich-writing .tiptap {
   padding: var(--spacing-4);
@@ -286,7 +287,6 @@
 }
 .rich-inspector {
   padding: var(--spacing-4);
-  border-top: var(--border-width) solid var(--color-border);
 }
 .editorial-content .editor-review {
   min-width: 0;
@@ -294,7 +294,6 @@
 }
 .editor-change {
   padding-block: var(--spacing-3);
-  border-block-start: var(--border-width) solid var(--color-border);
 }
 .editorial-source {
   background: var(--color-background-surface);
@@ -376,9 +375,11 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   border-radius: var(--radius-element);
   overflow: hidden;
 }
+.editor-diff-columns {
+  background: var(--color-background-surface);
+}
 .editor-diff-columns > .astryx-text {
   padding: var(--spacing-2) var(--spacing-3);
-  background: var(--color-background-surface);
 }
 .editor-diff-line {
   min-width: 0;
@@ -389,7 +390,6 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 }
 .editor-diff-line[data-side="after"] {
   grid-column: 2;
-  border-inline-start: var(--border-width) solid var(--color-border);
 }
 .editor-diff-line-content {
   min-width: 0;
@@ -432,7 +432,6 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 .editor-revision-diff[data-layout="unified"] .editor-diff-line {
   grid-column: 1;
   grid-row: auto;
-  border-inline-start: 0;
 }
 .editor-revision-diff[data-layout="unified"] .editor-diff-columns,
 .editor-revision-diff[data-layout="unified"]
@@ -446,12 +445,10 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   .editor-diff-line {
     grid-column: 1;
     grid-row: auto;
-    border-inline-start: 0;
   }
   .editor-diff-line[data-side="before"],
   .editor-diff-line[data-side="after"] {
     grid-column: 1;
-    border-inline-start: 0;
   }
   .editor-diff-columns,
   .editor-diff-layout,
@@ -470,10 +467,6 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   background: var(--color-error-muted);
   padding-inline: var(--spacing-1);
   border-radius: var(--radius-inner);
-}
-
-.publication-progress {
-  border-block: var(--border-width) solid var(--color-border);
 }
 .publication-step {
   flex: 1;
@@ -550,7 +543,6 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 }
 .article-composer .astryx-toolbar {
   padding: var(--spacing-2);
-  border-bottom: var(--border-width) solid var(--color-border);
 }
 .article-composer .tiptap {
   min-height: 24rem;

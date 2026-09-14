@@ -295,6 +295,7 @@ export function LifeReadView({
           className="life-record-table"
           data={items}
           density="compact"
+          dividers="none"
           verticalAlign="middle"
           hasHover={Boolean(onSelect) && !sources}
           columns={[
