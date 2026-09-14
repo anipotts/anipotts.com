@@ -21,7 +21,8 @@ import { createUnconfiguredSnapshot } from "../../lib/observability-model";
 // not point assistive technology at ids that are not in the document yet.
 const serverMarkup = (node: React.ReactElement) => renderToString(node);
 
-// Lists `attribute=id` pairs whose referenced id is missing from the markup.
+// Lists `attribute=id` pairs whose referenced id is missing from the markup,
+// and `attribute=(empty)` for relationship attributes with no ids at all.
 function danglingRelationships(html: string): string[] {
   const ids = new Set(
     [...html.matchAll(/\sid="([^"]*)"/g)].map((match) => match[1]),
@@ -30,12 +31,15 @@ function danglingRelationships(html: string): string[] {
     ...html.matchAll(
       /\s(aria-describedby|aria-controls|aria-labelledby|aria-owns)="([^"]*)"/g,
     ),
-  ].flatMap(([, attribute, value]) =>
-    value!
-      .split(/\s+/)
-      .filter((id) => id && !ids.has(id))
-      .map((id) => `${attribute}=${id}`),
-  );
+  ].flatMap(([, attribute, value]) => {
+    const references = value!.split(/\s+/).filter(Boolean);
+    if (references.length === 0) {
+      return [`${attribute}=(empty)`];
+    }
+    return references
+      .filter((id) => !ids.has(id))
+      .map((id) => `${attribute}=${id}`);
+  });
 }
 
 const records = [
@@ -63,6 +67,9 @@ describe("server-rendered Astryx relationship attributes", () => {
     expect(
       danglingRelationships('<i aria-labelledby="x" aria-owns="y"></i>'),
     ).toEqual(["aria-labelledby=x", "aria-owns=y"]);
+    expect(
+      danglingRelationships('<i aria-describedby="" aria-controls=" "></i>'),
+    ).toEqual(["aria-describedby=(empty)", "aria-controls=(empty)"]);
   });
 
   it("keeps tooltip triggers free of dangling descriptions", () => {

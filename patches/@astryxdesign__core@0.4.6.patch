@@ -1,8 +1,43 @@
 diff --git a/src/Tooltip/Tooltip.tsx b/src/Tooltip/Tooltip.tsx
-index 1243d87..ee17851 100644
+index 1243d875..033e5bd1 100644
 --- a/src/Tooltip/Tooltip.tsx
 +++ b/src/Tooltip/Tooltip.tsx
-@@ -191,7 +191,7 @@ export function Tooltip({
+@@ -164,11 +164,30 @@ function isTextOnly(children: ReactNode): boolean {
+ }
+ 
+ /**
+- * Utility to merge ARIA ID strings
++ * Adds or removes one id in an ARIA id list attribute, keeping the ids other
++ * code owns. React can rewrite the element's own ids after a layer effect ran,
++ * so edit the live attribute instead of restoring a saved copy.
+  */
+-function mergeIds(...ids: (string | undefined | null)[]): string | undefined {
+-  const filtered = ids.filter(Boolean);
+-  return filtered.length > 0 ? filtered.join(' ') : undefined;
++function toggleIdToken(
++  element: Element,
++  attribute: string,
++  id: string,
++  present: boolean,
++): void {
++  const tokens = (element.getAttribute(attribute) ?? '')
++    .split(/\s+/)
++    .filter(Boolean);
++  if (tokens.includes(id) === present) {
++    return;
++  }
++  const next = present
++    ? [...tokens, id]
++    : tokens.filter((token) => token !== id);
++  if (next.length > 0) {
++    element.setAttribute(attribute, next.join(' '));
++  } else {
++    element.removeAttribute(attribute);
++  }
+ }
+ 
+ /**
+@@ -191,7 +210,7 @@ export function Tooltip({
    content,
    placement = 'above',
    alignment = 'center',
@@ -11,42 +46,66 @@ index 1243d87..ee17851 100644
    hideDelay = 0,
    focusTrigger = 'auto',
    touchTrigger = 'auto',
-@@ -247,10 +247,12 @@ export function Tooltip({
+@@ -245,19 +264,18 @@ export function Tooltip({
+     // Use combined ref for position + interaction
+     tooltip.ref(el);
  
-     // Set aria-describedby, merging with existing
-     const existingDescribedBy = el.getAttribute('aria-describedby');
+-    // Set aria-describedby, merging with existing
+-    const existingDescribedBy = el.getAttribute('aria-describedby');
 -    el.setAttribute(
 -      'aria-describedby',
 -      mergeIds(existingDescribedBy, tooltip.describedBy) ?? '',
 -    );
-+    // The hook withholds its id until the layer is mounted; never leave an
-+    // empty or dangling reference in the meantime.
-+    const describedBy = mergeIds(existingDescribedBy, tooltip.describedBy);
++    // Merge this layer's id into the element's current descriptions. The hook
++    // withholds its id until the layer is mounted, so nothing dangles first.
++    const describedBy = tooltip.describedBy;
 +    if (describedBy) {
-+      el.setAttribute('aria-describedby', describedBy);
++      toggleIdToken(el, 'aria-describedby', describedBy, true);
 +    }
  
      return () => {
        tooltip.ref(null);
-@@ -286,10 +288,12 @@ export function Tooltip({
+-      if (existingDescribedBy) {
+-        el.setAttribute('aria-describedby', existingDescribedBy);
+-      } else {
+-        el.removeAttribute('aria-describedby');
++      // Remove only this layer's id; the element's own ids may have changed.
++      if (describedBy) {
++        toggleIdToken(el, 'aria-describedby', describedBy, false);
+       }
+     };
+   }, [anchorRef, tooltip.ref, tooltip.describedBy]);
+@@ -284,19 +302,18 @@ export function Tooltip({
+     // Use combined ref for position + interaction
+     tooltip.ref(firstChild);
  
-     // Set aria-describedby, merging with existing
-     const existingDescribedBy = firstChild.getAttribute('aria-describedby');
+-    // Set aria-describedby, merging with existing
+-    const existingDescribedBy = firstChild.getAttribute('aria-describedby');
 -    firstChild.setAttribute(
 -      'aria-describedby',
 -      mergeIds(existingDescribedBy, tooltip.describedBy) ?? '',
 -    );
-+    // The hook withholds its id until the layer is mounted; never leave an
-+    // empty or dangling reference in the meantime.
-+    const describedBy = mergeIds(existingDescribedBy, tooltip.describedBy);
++    // Merge this layer's id into the child's current descriptions. The hook
++    // withholds its id until the layer is mounted, so nothing dangles first.
++    const describedBy = tooltip.describedBy;
 +    if (describedBy) {
-+      firstChild.setAttribute('aria-describedby', describedBy);
++      toggleIdToken(firstChild, 'aria-describedby', describedBy, true);
 +    }
  
      return () => {
        tooltip.ref(null);
+-      if (existingDescribedBy) {
+-        firstChild.setAttribute('aria-describedby', existingDescribedBy);
+-      } else {
+-        firstChild.removeAttribute('aria-describedby');
++      // Remove only this layer's id; the child's own ids may have changed.
++      if (describedBy) {
++        toggleIdToken(firstChild, 'aria-describedby', describedBy, false);
+       }
+     };
+   }, [anchorRef, textOnly, tooltip.ref, tooltip.describedBy]);
 diff --git a/src/Tooltip/useTooltip.tsx b/src/Tooltip/useTooltip.tsx
-index 79e1772..dcad794 100644
+index 79e17725..dcad794e 100644
 --- a/src/Tooltip/useTooltip.tsx
 +++ b/src/Tooltip/useTooltip.tsx
 @@ -41,12 +41,6 @@ import {
@@ -190,7 +249,7 @@ index aa1560c9..f8d7928b 100644
      itemSelector,
      popoverId,
 diff --git a/src/HoverCard/useHoverCard.tsx b/src/HoverCard/useHoverCard.tsx
-index 822eb17..8e7ba4f 100644
+index 822eb17e..8e7ba4f9 100644
 --- a/src/HoverCard/useHoverCard.tsx
 +++ b/src/HoverCard/useHoverCard.tsx
 @@ -184,10 +184,11 @@ export interface HoverCardReturn {
@@ -237,10 +296,45 @@ index 822eb17..8e7ba4f 100644
      show: layer.show,
      hide: layer.hide,
 diff --git a/src/HoverCard/HoverCard.tsx b/src/HoverCard/HoverCard.tsx
-index ee534c4..dd7c697 100644
+index ee534c44..0624136b 100644
 --- a/src/HoverCard/HoverCard.tsx
 +++ b/src/HoverCard/HoverCard.tsx
-@@ -189,8 +189,8 @@ export function HoverCard({
+@@ -162,11 +162,30 @@ function isTextOnly(children: ReactNode): boolean {
+ }
+ 
+ /**
+- * Utility to merge ARIA ID strings
++ * Adds or removes one id in an ARIA id list attribute, keeping the ids other
++ * code owns. React can rewrite the element's own ids after a layer effect ran,
++ * so edit the live attribute instead of restoring a saved copy.
+  */
+-function mergeIds(...ids: (string | undefined | null)[]): string | undefined {
+-  const filtered = ids.filter(Boolean);
+-  return filtered.length > 0 ? filtered.join(' ') : undefined;
++function toggleIdToken(
++  element: Element,
++  attribute: string,
++  id: string,
++  present: boolean,
++): void {
++  const tokens = (element.getAttribute(attribute) ?? '')
++    .split(/\s+/)
++    .filter(Boolean);
++  if (tokens.includes(id) === present) {
++    return;
++  }
++  const next = present
++    ? [...tokens, id]
++    : tokens.filter((token) => token !== id);
++  if (next.length > 0) {
++    element.setAttribute(attribute, next.join(' '));
++  } else {
++    element.removeAttribute(attribute);
++  }
+ }
+ 
+ /**
+@@ -189,8 +208,8 @@ export function HoverCard({
    content,
    placement = 'above',
    alignment = 'center',
@@ -251,25 +345,37 @@ index ee534c4..dd7c697 100644
    focusTrigger = 'auto',
    touchTrigger = 'auto',
    isEnabled = true,
-@@ -255,10 +255,12 @@ export function HoverCard({
+@@ -253,19 +272,18 @@ export function HoverCard({
+     // Use combined ref for position + interaction
+     hoverCard.ref(firstChild);
  
-     // Set aria-describedby, merging with existing
-     const existingDescribedBy = firstChild.getAttribute('aria-describedby');
+-    // Set aria-describedby, merging with existing
+-    const existingDescribedBy = firstChild.getAttribute('aria-describedby');
 -    firstChild.setAttribute(
 -      'aria-describedby',
 -      mergeIds(existingDescribedBy, hoverCard.describedBy) ?? '',
 -    );
-+    // The hook withholds its id until the layer is mounted; never leave an
-+    // empty or dangling reference in the meantime.
-+    const describedBy = mergeIds(existingDescribedBy, hoverCard.describedBy);
++    // Merge this layer's id into the child's current descriptions. The hook
++    // withholds its id while the card is unmounted, so nothing dangles.
++    const describedBy = hoverCard.describedBy;
 +    if (describedBy) {
-+      firstChild.setAttribute('aria-describedby', describedBy);
++      toggleIdToken(firstChild, 'aria-describedby', describedBy, true);
 +    }
  
      return () => {
        hoverCard.ref(null);
+-      if (existingDescribedBy) {
+-        firstChild.setAttribute('aria-describedby', existingDescribedBy);
+-      } else {
+-        firstChild.removeAttribute('aria-describedby');
++      // Remove only this layer's id; the child's own ids may have changed.
++      if (describedBy) {
++        toggleIdToken(firstChild, 'aria-describedby', describedBy, false);
+       }
+     };
+   }, [textOnly, hoverCard.ref, hoverCard.describedBy]);
 diff --git a/src/DropdownMenu/DropdownMenu.tsx b/src/DropdownMenu/DropdownMenu.tsx
-index 78600c2..9d5be94 100644
+index 78600c22..9d5be948 100644
 --- a/src/DropdownMenu/DropdownMenu.tsx
 +++ b/src/DropdownMenu/DropdownMenu.tsx
 @@ -513,7 +513,8 @@ export function DropdownMenu({
@@ -283,7 +389,7 @@ index 78600c2..9d5be94 100644
        />
  
 diff --git a/src/Layer/useLayer.tsx b/src/Layer/useLayer.tsx
-index 20b50aa..e10c774 100644
+index 20b50aa8..e10c774f 100644
 --- a/src/Layer/useLayer.tsx
 +++ b/src/Layer/useLayer.tsx
 @@ -283,6 +283,12 @@ export interface ContextLayerReturn {
@@ -308,7 +414,7 @@ index 20b50aa..e10c774 100644
      };
    }
 diff --git a/src/Popover/Popover.tsx b/src/Popover/Popover.tsx
-index e676dd2..1dd250d 100644
+index e676dd23..1dd250db 100644
 --- a/src/Popover/Popover.tsx
 +++ b/src/Popover/Popover.tsx
 @@ -69,8 +69,8 @@ export interface PopoverTriggerRenderProps {
@@ -349,7 +455,7 @@ index e676dd2..1dd250d 100644
  
      return (
 diff --git a/src/Popover/usePopover.tsx b/src/Popover/usePopover.tsx
-index edfb95e..d4acb51 100644
+index edfb95e5..d4acb514 100644
 --- a/src/Popover/usePopover.tsx
 +++ b/src/Popover/usePopover.tsx
 @@ -258,6 +258,12 @@ export interface UsePopoverReturn {
@@ -393,7 +499,7 @@ index edfb95e..d4acb51 100644
      triggerProps,
    };
 diff --git a/src/Selector/Selector.tsx b/src/Selector/Selector.tsx
-index 91deaf4..cdeb99f 100644
+index 91deaf45..cdeb99fc 100644
 --- a/src/Selector/Selector.tsx
 +++ b/src/Selector/Selector.tsx
 @@ -1493,7 +1493,8 @@ export function Selector<T extends SelectorOptionType>(
@@ -407,7 +513,7 @@ index 91deaf4..cdeb99f 100644
              !hasSearch && popover.isOpen && highlightedIndex >= 0
                ? getItemId(highlightedIndex)
 diff --git a/src/TabList/TabMenu.tsx b/src/TabList/TabMenu.tsx
-index 2615097..72b76f5 100644
+index 26150978..72b76f54 100644
 --- a/src/TabList/TabMenu.tsx
 +++ b/src/TabList/TabMenu.tsx
 @@ -349,7 +349,8 @@ export function TabMenu({
@@ -421,7 +527,7 @@ index 2615097..72b76f5 100644
          tabIndex={hasSelectedOption ? 0 : -1}
          onClick={handleToggle}
 diff --git a/src/Typeahead/BaseTypeahead.tsx b/src/Typeahead/BaseTypeahead.tsx
-index d9c4f12..0f694aa 100644
+index d9c4f123..0f694aa0 100644
 --- a/src/Typeahead/BaseTypeahead.tsx
 +++ b/src/Typeahead/BaseTypeahead.tsx
 @@ -765,7 +765,8 @@ export const BaseTypeahead = function BaseTypeahead<T extends SearchableItem>({
@@ -435,10 +541,36 @@ index d9c4f12..0f694aa 100644
            popover.isOpen &&
            highlightedIndex >= 0 &&
 diff --git a/dist/Tooltip/Tooltip.js b/dist/Tooltip/Tooltip.js
-index bfb7c65..cd9345e 100644
+index bfb7c650..ba495646 100644
 --- a/dist/Tooltip/Tooltip.js
 +++ b/dist/Tooltip/Tooltip.js
-@@ -55,7 +55,7 @@ export function Tooltip({
+@@ -28,11 +28,21 @@ function isTextOnly(children) {
+ }
+ 
+ /**
+- * Utility to merge ARIA ID strings
++ * Adds or removes one id in an ARIA id list attribute, keeping the ids other
++ * code owns. React can rewrite the element's own ids after a layer effect ran,
++ * so edit the live attribute instead of restoring a saved copy.
+  */
+-function mergeIds(...ids) {
+-  const filtered = ids.filter(Boolean);
+-  return filtered.length > 0 ? filtered.join(' ') : undefined;
++function toggleIdToken(element, attribute, id, present) {
++  const tokens = (element.getAttribute(attribute) ?? '').split(/\s+/).filter(Boolean);
++  if (tokens.includes(id) === present) {
++    return;
++  }
++  const next = present ? [...tokens, id] : tokens.filter(token => token !== id);
++  if (next.length > 0) {
++    element.setAttribute(attribute, next.join(' '));
++  } else {
++    element.removeAttribute(attribute);
++  }
+ }
+ 
+ /**
+@@ -55,7 +65,7 @@ export function Tooltip({
    content,
    placement = 'above',
    alignment = 'center',
@@ -447,36 +579,58 @@ index bfb7c65..cd9345e 100644
    hideDelay = 0,
    focusTrigger = 'auto',
    touchTrigger = 'auto',
-@@ -107,7 +107,12 @@ export function Tooltip({
+@@ -105,15 +115,17 @@ export function Tooltip({
+     // Use combined ref for position + interaction
+     tooltip.ref(el);
  
-     // Set aria-describedby, merging with existing
-     const existingDescribedBy = el.getAttribute('aria-describedby');
+-    // Set aria-describedby, merging with existing
+-    const existingDescribedBy = el.getAttribute('aria-describedby');
 -    el.setAttribute('aria-describedby', mergeIds(existingDescribedBy, tooltip.describedBy) ?? '');
-+    // The hook withholds its id until the layer is mounted; never leave an
-+    // empty or dangling reference in the meantime.
-+    const describedBy = mergeIds(existingDescribedBy, tooltip.describedBy);
++    // Merge this layer's id into the element's current descriptions. The hook
++    // withholds its id until the layer is mounted, so nothing dangles first.
++    const describedBy = tooltip.describedBy;
 +    if (describedBy) {
-+      el.setAttribute('aria-describedby', describedBy);
++      toggleIdToken(el, 'aria-describedby', describedBy, true);
 +    }
      return () => {
        tooltip.ref(null);
-       if (existingDescribedBy) {
-@@ -141,7 +146,12 @@ export function Tooltip({
+-      if (existingDescribedBy) {
+-        el.setAttribute('aria-describedby', existingDescribedBy);
+-      } else {
+-        el.removeAttribute('aria-describedby');
++      // Remove only this layer's id; the element's own ids may have changed.
++      if (describedBy) {
++        toggleIdToken(el, 'aria-describedby', describedBy, false);
+       }
+     };
+   }, [anchorRef, tooltip.ref, tooltip.describedBy]);
+@@ -139,15 +151,17 @@ export function Tooltip({
+     // Use combined ref for position + interaction
+     tooltip.ref(firstChild);
  
-     // Set aria-describedby, merging with existing
-     const existingDescribedBy = firstChild.getAttribute('aria-describedby');
+-    // Set aria-describedby, merging with existing
+-    const existingDescribedBy = firstChild.getAttribute('aria-describedby');
 -    firstChild.setAttribute('aria-describedby', mergeIds(existingDescribedBy, tooltip.describedBy) ?? '');
-+    // The hook withholds its id until the layer is mounted; never leave an
-+    // empty or dangling reference in the meantime.
-+    const describedBy = mergeIds(existingDescribedBy, tooltip.describedBy);
++    // Merge this layer's id into the child's current descriptions. The hook
++    // withholds its id until the layer is mounted, so nothing dangles first.
++    const describedBy = tooltip.describedBy;
 +    if (describedBy) {
-+      firstChild.setAttribute('aria-describedby', describedBy);
++      toggleIdToken(firstChild, 'aria-describedby', describedBy, true);
 +    }
      return () => {
        tooltip.ref(null);
-       if (existingDescribedBy) {
+-      if (existingDescribedBy) {
+-        firstChild.setAttribute('aria-describedby', existingDescribedBy);
+-      } else {
+-        firstChild.removeAttribute('aria-describedby');
++      // Remove only this layer's id; the child's own ids may have changed.
++      if (describedBy) {
++        toggleIdToken(firstChild, 'aria-describedby', describedBy, false);
+       }
+     };
+   }, [anchorRef, textOnly, tooltip.ref, tooltip.describedBy]);
 diff --git a/dist/Tooltip/useTooltip.js b/dist/Tooltip/useTooltip.js
-index 7ea137f..8e53557 100644
+index 7ea137f1..8e535575 100644
 --- a/dist/Tooltip/useTooltip.js
 +++ b/dist/Tooltip/useTooltip.js
 @@ -21,13 +21,7 @@ import { isImeKeyEvent } from "../utils/ime.js";
@@ -608,10 +762,36 @@ index aece9c70..cd765932 100644
      itemSelector,
      popoverId,
 diff --git a/dist/HoverCard/HoverCard.js b/dist/HoverCard/HoverCard.js
-index 0106419..1c8eab3 100644
+index 01064192..29876df6 100644
 --- a/dist/HoverCard/HoverCard.js
 +++ b/dist/HoverCard/HoverCard.js
-@@ -56,8 +56,8 @@ export function HoverCard({
+@@ -29,11 +29,21 @@ function isTextOnly(children) {
+ }
+ 
+ /**
+- * Utility to merge ARIA ID strings
++ * Adds or removes one id in an ARIA id list attribute, keeping the ids other
++ * code owns. React can rewrite the element's own ids after a layer effect ran,
++ * so edit the live attribute instead of restoring a saved copy.
+  */
+-function mergeIds(...ids) {
+-  const filtered = ids.filter(Boolean);
+-  return filtered.length > 0 ? filtered.join(' ') : undefined;
++function toggleIdToken(element, attribute, id, present) {
++  const tokens = (element.getAttribute(attribute) ?? '').split(/\s+/).filter(Boolean);
++  if (tokens.includes(id) === present) {
++    return;
++  }
++  const next = present ? [...tokens, id] : tokens.filter(token => token !== id);
++  if (next.length > 0) {
++    element.setAttribute(attribute, next.join(' '));
++  } else {
++    element.removeAttribute(attribute);
++  }
+ }
+ 
+ /**
+@@ -56,8 +66,8 @@ export function HoverCard({
    content,
    placement = 'above',
    alignment = 'center',
@@ -622,22 +802,33 @@ index 0106419..1c8eab3 100644
    focusTrigger = 'auto',
    touchTrigger = 'auto',
    isEnabled = true,
-@@ -118,7 +118,12 @@ export function HoverCard({
+@@ -116,15 +126,17 @@ export function HoverCard({
+     // Use combined ref for position + interaction
+     hoverCard.ref(firstChild);
  
-     // Set aria-describedby, merging with existing
-     const existingDescribedBy = firstChild.getAttribute('aria-describedby');
+-    // Set aria-describedby, merging with existing
+-    const existingDescribedBy = firstChild.getAttribute('aria-describedby');
 -    firstChild.setAttribute('aria-describedby', mergeIds(existingDescribedBy, hoverCard.describedBy) ?? '');
-+    // The hook withholds its id until the layer is mounted; never leave an
-+    // empty or dangling reference in the meantime.
-+    const describedBy = mergeIds(existingDescribedBy, hoverCard.describedBy);
++    // Merge this layer's id into the child's current descriptions. The hook
++    // withholds its id while the card is unmounted, so nothing dangles.
++    const describedBy = hoverCard.describedBy;
 +    if (describedBy) {
-+      firstChild.setAttribute('aria-describedby', describedBy);
++      toggleIdToken(firstChild, 'aria-describedby', describedBy, true);
 +    }
      return () => {
        hoverCard.ref(null);
-       if (existingDescribedBy) {
+-      if (existingDescribedBy) {
+-        firstChild.setAttribute('aria-describedby', existingDescribedBy);
+-      } else {
+-        firstChild.removeAttribute('aria-describedby');
++      // Remove only this layer's id; the child's own ids may have changed.
++      if (describedBy) {
++        toggleIdToken(firstChild, 'aria-describedby', describedBy, false);
+       }
+     };
+   }, [textOnly, hoverCard.ref, hoverCard.describedBy]);
 diff --git a/dist/HoverCard/useHoverCard.js b/dist/HoverCard/useHoverCard.js
-index 2822d7f..3e5d8de 100644
+index 2822d7f7..3e5d8de3 100644
 --- a/dist/HoverCard/useHoverCard.js
 +++ b/dist/HoverCard/useHoverCard.js
 @@ -81,8 +81,8 @@ export function useHoverCard(options = {}) {
@@ -670,7 +861,7 @@ index 2822d7f..3e5d8de 100644
      show: layer.show,
      hide: layer.hide
 diff --git a/dist/DropdownMenu/DropdownMenu.js b/dist/DropdownMenu/DropdownMenu.js
-index c0d06f6..d328a0a 100644
+index c0d06f6d..d328a0a2 100644
 --- a/dist/DropdownMenu/DropdownMenu.js
 +++ b/dist/DropdownMenu/DropdownMenu.js
 @@ -375,7 +375,8 @@ export function DropdownMenu({
@@ -684,7 +875,7 @@ index c0d06f6..d328a0a 100644
      }), popover.render(/*#__PURE__*/_jsx("div", {
        ...rest,
 diff --git a/dist/HoverCard/useHoverCard.d.ts b/dist/HoverCard/useHoverCard.d.ts
-index 9398a93..5e5a613 100644
+index 9398a93f..5e5a6131 100644
 --- a/dist/HoverCard/useHoverCard.d.ts
 +++ b/dist/HoverCard/useHoverCard.d.ts
 @@ -119,10 +119,11 @@ export interface HoverCardReturn {
@@ -702,7 +893,7 @@ index 9398a93..5e5a613 100644
       * Render function for hover card content.
       * Returns anchor-positioned popover element.
 diff --git a/dist/Layer/useLayer.d.ts b/dist/Layer/useLayer.d.ts
-index 15cd551..0ab3770 100644
+index 15cd5515..0ab37702 100644
 --- a/dist/Layer/useLayer.d.ts
 +++ b/dist/Layer/useLayer.d.ts
 @@ -207,6 +207,11 @@ export interface ContextLayerReturn {
@@ -718,7 +909,7 @@ index 15cd551..0ab3770 100644
       * Render function for layer content.
       * Pass placement and alignment for anchor positioning.
 diff --git a/dist/Layer/useLayer.js b/dist/Layer/useLayer.js
-index 3262bd1..a68beb3 100644
+index 3262bd1c..a68beb3a 100644
 --- a/dist/Layer/useLayer.js
 +++ b/dist/Layer/useLayer.js
 @@ -520,6 +520,7 @@ export function useLayer(options) {
@@ -730,7 +921,7 @@ index 3262bd1..a68beb3 100644
      };
    }
 diff --git a/dist/Popover/Popover.d.ts b/dist/Popover/Popover.d.ts
-index 8117ee8..b728c18 100644
+index 8117ee8e..b728c18d 100644
 --- a/dist/Popover/Popover.d.ts
 +++ b/dist/Popover/Popover.d.ts
 @@ -27,8 +27,8 @@ export interface PopoverTriggerRenderProps {
@@ -745,7 +936,7 @@ index 8117ee8..b728c18 100644
  export interface PopoverProps extends Pick<BaseProps, 'xstyle' | 'className' | 'style'> {
      /**
 diff --git a/dist/Popover/Popover.js b/dist/Popover/Popover.js
-index c06d8c0..6347e47 100644
+index c06d8c03..6347e473 100644
 --- a/dist/Popover/Popover.js
 +++ b/dist/Popover/Popover.js
 @@ -196,7 +196,12 @@ export function Popover({
@@ -772,7 +963,7 @@ index c06d8c0..6347e47 100644
      return /*#__PURE__*/_jsxs(_Fragment, {
        children: [children(triggerProps), popover.render(/*#__PURE__*/_jsx("div", {
 diff --git a/dist/Popover/usePopover.d.ts b/dist/Popover/usePopover.d.ts
-index 24d507e..6ee596f 100644
+index 24d507ee..6ee596fa 100644
 --- a/dist/Popover/usePopover.d.ts
 +++ b/dist/Popover/usePopover.d.ts
 @@ -169,6 +169,11 @@ export interface UsePopoverReturn {
@@ -797,7 +988,7 @@ index 24d507e..6ee596f 100644
  }
  /**
 diff --git a/dist/Popover/usePopover.js b/dist/Popover/usePopover.js
-index f3f4ada..fa8945b 100644
+index f3f4ada7..fa8945b2 100644
 --- a/dist/Popover/usePopover.js
 +++ b/dist/Popover/usePopover.js
 @@ -184,7 +184,8 @@ export function usePopover(options = {}) {
@@ -819,7 +1010,7 @@ index f3f4ada..fa8945b 100644
      triggerProps
    };
 diff --git a/dist/Selector/Selector.js b/dist/Selector/Selector.js
-index 9ab4765..1573656 100644
+index 9ab4765a..15736561 100644
 --- a/dist/Selector/Selector.js
 +++ b/dist/Selector/Selector.js
 @@ -879,7 +879,8 @@ export function Selector(props) {
@@ -833,7 +1024,7 @@ index 9ab4765..1573656 100644
          "aria-describedby": ariaDescribedBy,
          "aria-labelledby": ariaLabelledBy,
 diff --git a/dist/TabList/TabMenu.js b/dist/TabList/TabMenu.js
-index c062810..116d624 100644
+index c0628103..116d6247 100644
 --- a/dist/TabList/TabMenu.js
 +++ b/dist/TabList/TabMenu.js
 @@ -234,7 +234,8 @@ export function TabMenu({
@@ -847,7 +1038,7 @@ index c062810..116d624 100644
        tabIndex: hasSelectedOption ? 0 : -1,
        onClick: handleToggle,
 diff --git a/dist/Tooltip/useTooltip.d.ts b/dist/Tooltip/useTooltip.d.ts
-index 1a6a4e8..4239fd4 100644
+index 1a6a4e88..4239fd47 100644
 --- a/dist/Tooltip/useTooltip.d.ts
 +++ b/dist/Tooltip/useTooltip.d.ts
 @@ -114,10 +114,11 @@ export interface TooltipReturn {
@@ -865,7 +1056,7 @@ index 1a6a4e8..4239fd4 100644
       * Render function for tooltip content.
       * Returns anchor-positioned popover element.
 diff --git a/dist/Typeahead/BaseTypeahead.js b/dist/Typeahead/BaseTypeahead.js
-index 576f5b0..5fb6503 100644
+index 576f5b06..5fb65035 100644
 --- a/dist/Typeahead/BaseTypeahead.js
 +++ b/dist/Typeahead/BaseTypeahead.js
 @@ -501,7 +501,8 @@ export const BaseTypeahead = function BaseTypeahead({

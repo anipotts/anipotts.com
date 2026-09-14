@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React, { act } from "react";
-import { hydrateRoot, type Root } from "react-dom/client";
+import { createRoot, hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import {
   afterEach,
@@ -22,6 +22,7 @@ import { HoverCard } from "@astryxdesign/core/HoverCard";
 import { IconButton } from "@astryxdesign/core/IconButton";
 import { Popover } from "@astryxdesign/core/Popover";
 import { Selector } from "@astryxdesign/core/Selector";
+import { Tooltip } from "@astryxdesign/core/Tooltip";
 import { ContentLibrary } from "./ContentLibrary";
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -35,15 +36,24 @@ function unresolvedInDocument() {
       ["aria-describedby", "aria-controls", "aria-labelledby", "aria-owns"]
         .map((name) => [name, element.getAttribute(name)] as const)
         .filter(([, value]) => value !== null)
-        .flatMap(([name, value]) =>
-          value === ""
+        .flatMap(([name, value]) => {
+          const references = value!.split(/\s+/).filter(Boolean);
+          return references.length === 0
             ? [`${name}=(empty)`]
-            : value!
-                .split(/\s+/)
+            : references
                 .filter((id) => !document.getElementById(id))
-                .map((id) => `${name}=${id}`),
-        ),
+                .map((id) => `${name}=${id}`);
+        }),
   );
+}
+
+// Resolves an element's descriptions to the text each referenced id carries.
+function descriptionsOf(element: Element) {
+  return (element.getAttribute("aria-describedby") ?? "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((id) => document.getElementById(id)?.textContent ?? `missing:${id}`)
+    .sort();
 }
 
 function AdminLayers() {
@@ -276,5 +286,65 @@ describe("hydrating Astryx relationship attributes", () => {
     for (const trigger of menus) {
       expect(trigger.getAttribute("aria-controls")).toBeTruthy();
     }
+  });
+
+  // A wrapper merges its id into the child's description after mount, at the
+  // same time the child's own tooltip id appears. Neither may erase the other.
+  it.each(["hydrateRoot", "createRoot"] as const)(
+    "keeps a trigger's own tooltip inside a Tooltip after %s",
+    async (mode) => {
+      const node = (
+        <Tooltip content="Outer detail">
+          <Button label="Go" tooltip="Inner detail" />
+        </Tooltip>
+      );
+      if (mode === "hydrateRoot") {
+        await hydrate(node);
+      } else {
+        await act(async () => {
+          root = createRoot(host);
+          root.render(node);
+        });
+      }
+
+      const trigger = host.querySelector<HTMLButtonElement>("button")!;
+      expect(descriptionsOf(trigger)).toEqual(["Inner detail", "Outer detail"]);
+      expect(unresolvedInDocument()).toEqual([]);
+      expect(recoverable).toEqual([]);
+      expect(consoleError).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps a trigger's own tooltip while a HoverCard opens and closes", async () => {
+    await hydrate(
+      <HoverCard content="Card detail">
+        <Button label="Go" tooltip="Inner detail" />
+      </HoverCard>,
+    );
+    const trigger = host.querySelector<HTMLButtonElement>("button")!;
+    expect(descriptionsOf(trigger)).toEqual(["Inner detail"]);
+    expect(unresolvedInDocument()).toEqual([]);
+
+    for (let round = 0; round < 2; round += 1) {
+      await act(async () => {
+        trigger.focus();
+        // Let the deferred focus show of the inner tooltip settle.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(descriptionsOf(trigger)).toEqual(["Card detail", "Inner detail"]);
+      expect(unresolvedInDocument()).toEqual([]);
+
+      await act(async () => {
+        trigger.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+        );
+        trigger.blur();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(descriptionsOf(trigger)).toEqual(["Inner detail"]);
+      expect(unresolvedInDocument()).toEqual([]);
+    }
+    expect(recoverable).toEqual([]);
+    expect(consoleError).not.toHaveBeenCalled();
   });
 });
