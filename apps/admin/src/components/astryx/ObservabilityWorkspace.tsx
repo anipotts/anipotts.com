@@ -354,6 +354,7 @@ export function ObservabilityWorkspace({
                     : "Source unavailable"
                 }
                 variant={status === "connected" ? "success" : "neutral"}
+                aria-hidden="true"
               />
               <Text role="status" color="secondary">
                 {status === "connected"
@@ -413,6 +414,8 @@ export function ObservabilityWorkspace({
                 <Text
                   type="supporting"
                   color="secondary"
+                  aria-live="polite"
+                  role="status"
                   className="operations-count"
                 >
                   {services.length}{" "}
@@ -492,6 +495,7 @@ export function ObservabilityWorkspace({
                               variant={stateVariant(
                                 deriveServiceState(service, now),
                               )}
+                              aria-hidden="true"
                             />
                             <Text>{stateLabel(service.id)}</Text>
                           </HStack>
@@ -551,6 +555,7 @@ export function ObservabilityWorkspace({
                                       ? "warning"
                                       : "neutral"
                               }
+                              aria-hidden="true"
                             />
                             <Text>{row.state}</Text>
                           </HStack>
@@ -623,6 +628,7 @@ export function ObservabilityWorkspace({
                     <StatusDot
                       label={stateLabel(selected.id)}
                       variant={stateVariant(deriveServiceState(selected, now))}
+                      aria-hidden="true"
                     />
                     <Text>{stateLabel(selected.id)}</Text>
                   </HStack>
