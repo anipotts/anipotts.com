@@ -146,3 +146,114 @@ test("the flag is a local build-time constant that release builds never see", ()
     false,
   );
 });
+
+// Owner mode trusts request headers and never sees the peer address, so the
+// dev server it runs in must never listen beyond loopback.
+const loopbackGuard = () => import("../dev/admin-local-owner-host.mjs");
+
+test("only a loopback dev server host counts as loopback", async () => {
+  const { isLoopbackDevHost } = await loopbackGuard();
+  // undefined and false are Vite's own localhost default.
+  for (const host of [
+    undefined,
+    false,
+    "localhost",
+    "LOCALHOST",
+    "127.0.0.1",
+    "127.0.0.2",
+    "127.255.255.254",
+    "::1",
+    "[::1]",
+    "::ffff:127.0.0.1",
+  ]) {
+    assert.equal(isLoopbackDevHost(host), true, JSON.stringify(host));
+  }
+  for (const host of [
+    true,
+    null,
+    0,
+    "",
+    " ",
+    "0.0.0.0",
+    "::",
+    "[::]",
+    "0:0:0:0:0:0:0:0",
+    "192.168.1.20",
+    "10.0.0.5",
+    "172.16.4.2",
+    "100.101.102.103",
+    "fe80::1",
+    "::ffff:192.168.1.20",
+    "127.0.0.256",
+    "127.1",
+    "0177.0.0.1",
+    "admin.anipotts.localhost",
+    "localhost.example.com",
+    "example.com",
+    ["127.0.0.1"],
+  ]) {
+    assert.equal(isLoopbackDevHost(host), false, JSON.stringify(host));
+  }
+});
+
+test("a local owner dev server refuses a non-loopback host before it listens", async () => {
+  const { localOwnerLoopbackGuard } = await loopbackGuard();
+  const guard = localOwnerLoopbackGuard({ enabled: true });
+  const configSetup = guard.hooks["astro:config:setup"];
+  const serverSetup = guard.hooks["astro:server:setup"];
+  const refusal = (error) =>
+    error instanceof Error &&
+    error.message.includes("ADMIN_LOCAL_OWNER=1") &&
+    error.message.includes("loopback");
+
+  // `astro dev --host` is true; `--host 0.0.0.0`, `::` and a LAN address
+  // arrive as strings. Astro merges CLI flags before config setup runs.
+  for (const host of [true, "0.0.0.0", "::", "192.168.1.20", ""]) {
+    for (const command of ["dev", "preview"]) {
+      assert.throws(
+        () => configSetup({ command, config: { server: { host } } }),
+        refusal,
+        `${command} ${JSON.stringify(host)}`,
+      );
+    }
+    // Vite's resolved host catches a vite.server.host or plugin override.
+    assert.throws(
+      () => serverSetup({ server: { config: { server: { host } } } }),
+      refusal,
+      `vite ${JSON.stringify(host)}`,
+    );
+  }
+
+  // Builds never listen. Portless and the owner scripts pass 127.0.0.1.
+  for (const command of ["build", "sync"]) {
+    configSetup({ command, config: { server: { host: "0.0.0.0" } } });
+  }
+  configSetup({ command: "dev", config: { server: { host: "127.0.0.1" } } });
+  serverSetup({ server: { config: { server: { host: "127.0.0.1" } } } });
+});
+
+test("without the flag the loopback guard never interferes", async () => {
+  const { localOwnerLoopbackGuard } = await loopbackGuard();
+  const guard = localOwnerLoopbackGuard({ enabled: false });
+  for (const host of [true, "0.0.0.0", "192.168.1.20"]) {
+    guard.hooks["astro:config:setup"]({
+      command: "dev",
+      config: { server: { host } },
+    });
+    guard.hooks["astro:server:setup"]({
+      server: { config: { server: { host } } },
+    });
+  }
+  assert.throws(() => localOwnerLoopbackGuard({ enabled: "1" }), /boolean/);
+});
+
+test("Admin installs the loopback guard after every other integration", () => {
+  const config = readFileSync("apps/admin/astro.config.mjs", "utf8");
+  const guard = config.indexOf(
+    "localOwnerLoopbackGuard({ enabled: adminLocalOwner })",
+  );
+  assert.ok(guard > 0, "astro.config.mjs must install the loopback guard");
+  assert.ok(guard > config.indexOf("icon({ include:"));
+  assert.ok(config.indexOf("],", guard) < config.indexOf("server: {", guard));
+  assert.ok(config.includes('host: "127.0.0.1"'));
+});

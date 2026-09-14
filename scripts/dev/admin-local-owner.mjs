@@ -67,6 +67,9 @@ function localWranglerConfig() {
   const config = structuredClone(rawConfig);
   delete config.routes;
   delete config.route;
+  // The Worker trusts request headers, so the config pins loopback as well
+  // as the --ip flag.
+  config.dev = { ...config.dev, ip: HOST };
   config.main = join(OUT_DIR, "_worker.js", "index.js");
   config.assets = { ...config.assets, directory: OUT_DIR };
   config.d1_databases = (config.d1_databases ?? []).map((database) =>

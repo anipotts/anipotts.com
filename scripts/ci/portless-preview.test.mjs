@@ -129,7 +129,6 @@ assert.equal(
 for (const expected of [
   'const LOCAL_OWNER = process.argv.includes("--local-owner");',
   "delete env.ADMIN_LOCAL_OWNER;",
-  'if (LOCAL_OWNER && options.localOwner) env.ADMIN_LOCAL_OWNER = "1";',
   "// Owner mode never starts or touches the shared 4311 review fallback.\n  if (LOCAL_OWNER) return;",
   "local owner mode starts only the admin surface",
   "Never reuse a route across owner modes, in either direction.",
@@ -139,7 +138,37 @@ for (const expected of [
     `missing local owner Portless invariant: ${expected}`,
   );
 }
+// Owner mode trusts request headers, so its dev server binds loopback by
+// name (Portless would inject the same host, but only when none is given)
+// and no Portless tunnel can carry other clients to the owner route.
+assert.ok(manager.includes('const APP_BIND_HOST = "127.0.0.1";'));
+assert.match(
+  manager,
+  /"exec",\s*"astro",\s*"dev",\s*"--host",\s*APP_BIND_HOST,\s*\]/,
+  "Portless dev servers must bind loopback explicitly",
+);
+for (const relay of [
+  "PORTLESS_FUNNEL",
+  "PORTLESS_TAILSCALE",
+  "PORTLESS_NGROK",
+]) {
+  assert.ok(manager.includes(`"${relay}"`), `owner mode must strip ${relay}`);
+}
+assert.match(
+  manager,
+  /if \(LOCAL_OWNER && options\.localOwner\) \{\s*env\.ADMIN_LOCAL_OWNER = "1";\s*for \(const relay of PORTLESS_RELAYS\) delete env\[relay\];\s*\}/,
+  "owner mode must strip every Portless tunnel switch",
+);
 const localOwner = readFileSync("scripts/dev/admin-local-owner.mjs", "utf8");
+assert.match(
+  localOwner,
+  /"--ip",\s*HOST,/,
+  "the local owner preview must pass its loopback host to wrangler dev",
+);
+assert.ok(
+  localOwner.includes("config.dev = { ...config.dev, ip: HOST };"),
+  "the served wrangler config must pin loopback as well",
+);
 for (const expected of [
   'const HOST = "127.0.0.1";',
   "const RESERVED_PORTS = new Set([1355, 4311]);",

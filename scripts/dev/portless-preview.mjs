@@ -21,8 +21,17 @@ const METADATA_PATH = join(LOCAL_DIR, "processes.json");
 const PROXY_PORT = 1355;
 const CANONICAL_BRANCH = "main";
 const REQUIRED_NODE = { major: 24, minor: 19, patch: 0 };
+// Portless proxies from loopback. Naming the host keeps it there even if
+// Portless stops injecting one, and the local owner guard requires it.
+const APP_BIND_HOST = "127.0.0.1";
 // Opt-in synthetic owner for this worktree's Admin dev server only.
 const LOCAL_OWNER = process.argv.includes("--local-owner");
+// Portless tunnels that would carry other clients to the owner route.
+const PORTLESS_RELAYS = [
+  "PORTLESS_FUNNEL",
+  "PORTLESS_TAILSCALE",
+  "PORTLESS_NGROK",
+];
 const APPS = [
   {
     key: "www",
@@ -98,7 +107,10 @@ function portlessEnv(options = {}) {
   // An inherited shell value never reaches dependency builds, the shared
   // fallback or the default Admin route; only owner mode sets it.
   delete env.ADMIN_LOCAL_OWNER;
-  if (LOCAL_OWNER && options.localOwner) env.ADMIN_LOCAL_OWNER = "1";
+  if (LOCAL_OWNER && options.localOwner) {
+    env.ADMIN_LOCAL_OWNER = "1";
+    for (const relay of PORTLESS_RELAYS) delete env[relay];
+  }
   return env;
 }
 
@@ -248,6 +260,8 @@ function startApp(app, url) {
       "exec",
       "astro",
       "dev",
+      "--host",
+      APP_BIND_HOST,
     ],
     {
       cwd: app.cwd,

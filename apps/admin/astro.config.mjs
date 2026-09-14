@@ -7,6 +7,7 @@ import astroAdvisoryGuard from "../../config/astro/advisory-guard.mjs";
 import { publicContentHotReload } from "../../scripts/dev/public-content-hot-reload.mjs";
 import { editorialPublicAssets } from "../../scripts/dev/editorial-public-assets.mjs";
 import { editorialUpdates } from "../../scripts/dev/editorial-updates.mjs";
+import { localOwnerLoopbackGuard } from "../../scripts/dev/admin-local-owner-host.mjs";
 
 // Local owner is a build-time development identity. The shell environment
 // decides it once here; Worker bindings, wrangler vars and requests cannot.
@@ -32,6 +33,8 @@ export default defineConfig({
     astroAdvisoryGuard(),
     react(),
     icon({ include: { ph: ["*"] } }),
+    // Last, so it checks the host every other integration left behind.
+    localOwnerLoopbackGuard({ enabled: adminLocalOwner }),
   ],
   server: {
     host: "127.0.0.1",
