@@ -19,7 +19,8 @@ It records targets separately from demonstrated behavior.
 - Operations shows real read-only machine, loop and service observations. Life
   reads authorized canonical knowledge with provenance; it has no persistent
   cloud replica. Unavailable sources are not empty sources.
-- Every PR waits for Ani's explicit review before merge. Drafts are incomplete
+- Every PR waits for review before merge. From September 14 Ani delegated review and
+  serial merge to the single integration owner; see `CLAUDE.md`. Drafts are incomplete
   work; ready checkpoints run relevant full checks. New heads refresh affected
   checks and acceptance. No auto-merge or docs bypass.
 - Preserve the canonical dirty checkout, private drafts, old worktree refs and
