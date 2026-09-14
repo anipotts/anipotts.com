@@ -135,6 +135,29 @@ How the session is bounded:
   `node scripts/ci/admin-local-owner-leak.mjs --expect absent apps/admin/dist`
   before it runs wrangler.
 
+## performance baseline
+
+Admin responses carry a `Server-Timing` header with durations and counts only,
+under fixed generic names: `app`, `inventory`, `record`, `newsletter`,
+`operations`, `life`, `d1` and `d1q`. Worker clocks advance across I/O, so a
+loader's pure CPU time can read as 0; compare `app` with the browser's
+`responseStart`.
+
+With `pnpm preview:admin:owner` running, measure initial loads and
+in-workspace switches at 390, 768 and 1280 widths in light and dark:
+
+```bash
+node scripts/admin/perf-measure.mjs .local/perf/baseline.json
+node scripts/admin/perf-measure.mjs .local/perf/smoke.json --runs 2 --cells load:content,switch:content-nav
+```
+
+The harness starts nothing, accepts only a loopback `--base`, and writes JSON
+plus a markdown summary of medians and p90s. It reports route shapes such as
+`/content/:collection/:id` and never collects page text or record identities.
+`--list` prints the cells. Local wrangler dev answers asset revalidation with
+full responses and has no editorial secrets, so every document switch refetches
+its scripts and record editors show `editor_not_configured`.
+
 ## worktrees and HMR
 
 Portless provides each linked worktree its own route and random application
