@@ -482,6 +482,32 @@ it("stops resending a draft the server refused, then saves a different edit", as
   expect(host.textContent).not.toContain("Server refused this save");
 });
 
+it("hides Save now while a save is refused", async () => {
+  answerSave = (input) =>
+    input.source.endsWith("Refused body.")
+      ? response({ ok: false, code: "invalid_draft_request", valid: true }, 400)
+      : undefined;
+  await mountClean();
+  await type("Refused body.");
+  await pause();
+  expect(host.textContent).toContain("Server refused this save");
+  await act(async () => {
+    (
+      host.querySelector(
+        'button[aria-label="Document actions"]',
+      ) as HTMLButtonElement
+    ).click();
+  });
+  const items = [
+    ...document.querySelectorAll(
+      '[role="menu"][aria-label="Document actions"] [role="menuitem"]',
+    ),
+  ].map((item) => item.textContent ?? "");
+  expect(items.some((label) => label.includes("Download draft"))).toBe(true);
+  expect(items.some((label) => label.includes("Save now"))).toBe(false);
+  expect(saves()).toHaveLength(1);
+});
+
 it("reloads a refused draft into the saved draft with the edits ready to review", async () => {
   answerSave = (input) =>
     input.source.endsWith("Refused body.")
