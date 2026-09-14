@@ -266,7 +266,7 @@ describe("private SQLite drafts", () => {
       });
     }
     // baseCommit/baseFileHash are read from the stored draft rather than sent
-    // by the caller, and freezePublication rewrites them in place. An otherwise
+    // by the caller, and the publication alarm rewrites them in place. An otherwise
     // unchanged retry that carries the advanced base is the same request and
     // replays its original outcome.
     expect(
@@ -340,6 +340,82 @@ describe("private SQLite drafts", () => {
     });
     expect((await instance.get(record))?.revision).toBe(1);
   });
+  it("replays the hot receipt for a retry that resends the publication-advanced base", async () => {
+    // A lost response retried soon after a publication goes live still has its
+    // hot receipt. Only the server-derived base moved, so it is the same request.
+    const instance = store();
+    const original = request("acknowledged before publication");
+    const saved = await instance.save(original);
+    await runInDurableObject(instance, (_instance, state) => {
+      // Exact metadata update used by the publication alarm's live callback.
+      state.storage.sql.exec(
+        "UPDATE drafts SET baseCommit = ?, baseFileHash = ?",
+        "c".repeat(40),
+        "d".repeat(40),
+      );
+      expect(
+        state.storage.sql
+          .exec("SELECT id FROM save_requests WHERE id = ?", original.requestId)
+          .toArray(),
+      ).toHaveLength(1);
+    });
+    await evictDurableObject(instance);
+    const retry = {
+      ...original,
+      baseCommit: "c".repeat(40),
+      baseFileHash: "d".repeat(40),
+    };
+    expect(await instance.save(retry)).toEqual(saved);
+    for (const changed of [
+      { source: "different" },
+      { expectedRevision: 1 },
+      { record: { kind: "page", id: "work" } as const },
+    ]) {
+      expect(await instance.save({ ...retry, ...changed })).toEqual({
+        ok: false,
+        code: "idempotency_key_reused",
+      });
+    }
+    expect(await instance.rebase(retry)).toEqual({
+      ok: false,
+      code: "idempotency_key_reused",
+    });
+    expect((await instance.get(record))?.revision).toBe(1);
+  });
+  it("replays a hot conflict receipt for a retry that resends the publication-advanced base", async () => {
+    const instance = store();
+    await instance.save(request("winning source"));
+    const losing = request("losing source before publication");
+    const conflict = await instance.save(losing);
+    expect(conflict).toMatchObject({ ok: false, code: "revision_conflict" });
+    await runInDurableObject(instance, (_instance, state) => {
+      state.storage.sql.exec(
+        "UPDATE drafts SET baseCommit = ?, baseFileHash = ?",
+        "c".repeat(40),
+        "d".repeat(40),
+      );
+    });
+    await evictDurableObject(instance);
+    const retry = {
+      ...losing,
+      baseCommit: "c".repeat(40),
+      baseFileHash: "d".repeat(40),
+    };
+    expect(await instance.save(retry)).toEqual(conflict);
+    expect(await instance.save({ ...retry, source: "different" })).toEqual({
+      ok: false,
+      code: "idempotency_key_reused",
+    });
+    expect(await instance.rebase(retry)).toEqual({
+      ok: false,
+      code: "idempotency_key_reused",
+    });
+    expect(await instance.conflict(record, losing.requestId)).toEqual({
+      source: losing.source,
+      expectedRevision: losing.expectedRevision,
+    });
+    expect((await instance.get(record))?.revision).toBe(1);
+  });
   it("keeps payloadHash-only matching for identities written before clientHash", async () => {
     const instance = store();
     const original = request("legacy identity source");
@@ -354,6 +430,24 @@ describe("private SQLite drafts", () => {
     await evictDurableObject(instance);
     expect(await instance.save(original)).toEqual(saved);
     expect(await instance.save({ ...original, source: "different" })).toEqual({
+      ok: false,
+      code: "idempotency_key_reused",
+    });
+  });
+  it("keeps payloadHash-only matching for hot receipts whose identity predates clientHash", async () => {
+    const instance = store();
+    const original = request("legacy hot receipt source");
+    const saved = await instance.save(original);
+    await runInDurableObject(instance, (_instance, state) => {
+      state.storage.sql.exec(
+        "UPDATE save_request_identities SET clientHash = NULL",
+      );
+    });
+    await evictDurableObject(instance);
+    expect(await instance.save(original)).toEqual(saved);
+    expect(
+      await instance.save({ ...original, baseCommit: "c".repeat(40) }),
+    ).toEqual({
       ok: false,
       code: "idempotency_key_reused",
     });
