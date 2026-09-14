@@ -601,6 +601,60 @@ it.each([
   },
 );
 
+it("names comparison and download when leaving before a comparison", async () => {
+  const commit = vi
+    .spyOn(navigation, "commitAdminNavigation")
+    .mockImplementation(() => {});
+  await mount();
+  await act(async () => {
+    navigation.navigateAdmin("/content");
+  });
+  expect(commit).not.toHaveBeenCalled();
+  expect(host.textContent).not.toContain("Save them before leaving");
+  expect(host.textContent).toContain(
+    "Your latest edits are not saved. Compare the saved draft and choose a version, or download a copy before leaving this draft.",
+  );
+  await click("Compare saved draft");
+  await act(async () => {
+    navigation.navigateAdmin("/content");
+  });
+  expect(commit).not.toHaveBeenCalled();
+  expect(host.textContent).not.toContain("Save them before leaving");
+  expect(host.textContent).toContain(
+    "Your latest edits are not saved. Choose which version to keep, or download a copy before leaving this draft.",
+  );
+  expect(saves()).toHaveLength(1);
+});
+
+it("names the version choice and download when leaving a conflict", async () => {
+  const commit = vi
+    .spyOn(navigation, "commitAdminNavigation")
+    .mockImplementation(() => {});
+  answerSave = (input) =>
+    input.requestId === pending.requestId
+      ? response(
+          {
+            ok: false,
+            code: "revision_conflict",
+            current: saved,
+            conflictId: pending.requestId,
+            valid: true,
+          },
+          409,
+        )
+      : undefined;
+  await mount("Another edit was saved");
+  await act(async () => {
+    navigation.navigateAdmin("/content");
+  });
+  expect(commit).not.toHaveBeenCalled();
+  expect(host.textContent).not.toContain("Save them before leaving");
+  expect(host.textContent).toContain(
+    "Your latest edits are not saved. Choose which version to keep, or download a copy before leaving this draft.",
+  );
+  expect(saves()).toHaveLength(1);
+});
+
 it("does not frame a later refusal as a held leave once saving resumed", async () => {
   const commit = vi
     .spyOn(navigation, "commitAdminNavigation")

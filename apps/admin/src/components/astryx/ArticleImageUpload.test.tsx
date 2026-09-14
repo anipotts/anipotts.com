@@ -155,6 +155,81 @@ it("an aborted original image load releases the crop controls", async () => {
   expect(control("Cancel crop").disabled).toBe(false);
 });
 
+it("disabling during a crop upload keeps the upload busy", async () => {
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
+  vi.stubGlobal(
+    "createImageBitmap",
+    vi.fn().mockResolvedValue({ width: 1600, height: 900, close() {} }),
+  );
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+    function (this: HTMLCanvasElement) {
+      return this.classList.contains("article-image-preview")
+        ? ({ drawImage() {} } as unknown as CanvasRenderingContext2D)
+        : null;
+    },
+  );
+  vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation(
+    (callback) => callback(new Blob(["crop"], { type: "image/png" })),
+  );
+  const fetcher = vi
+    .fn()
+    .mockResolvedValueOnce({
+      ok: true,
+      blob: async () => new Blob([new Uint8Array([1])], { type: "image/png" }),
+    })
+    .mockImplementationOnce(
+      (_input: string, init: RequestInit) =>
+        new Promise((_resolve, reject) =>
+          init.signal!.addEventListener("abort", () =>
+            reject(init.signal!.reason),
+          ),
+        ),
+    );
+  vi.stubGlobal("fetch", fetcher);
+  const pending = vi.fn();
+  const render = (disabled: boolean) =>
+    act(async () =>
+      root.render(
+        <ArticleImageUpload
+          existingSrc={`/images/editorial/${"a".repeat(64)}.png`}
+          startCropping
+          disabled={disabled}
+          onUploaded={() => {}}
+          onPendingChange={pending}
+        />,
+      ),
+    );
+  const control = (label: string) =>
+    [...host.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes(label),
+    )!;
+  const uploadBusy = () =>
+    [...host.querySelectorAll("button")].find((button) =>
+      button.getAttribute("aria-label")?.includes("Upload image"),
+    )!;
+  await render(false);
+  await act(async () => {});
+  expect(control("Apply crop").disabled).toBe(false);
+  await act(async () => control("Apply crop").click());
+  await act(async () => {
+    await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+  });
+  expect(fetcher.mock.calls[1]?.[0]).toBe("/api/editorial/csrf");
+  expect(uploadBusy().getAttribute("aria-busy")).toBe("true");
+  await render(true);
+  expect(fetcher).toHaveBeenCalledTimes(2);
+  expect(fetcher.mock.calls[1]?.[1].signal.aborted).toBe(false);
+  expect(uploadBusy().getAttribute("aria-busy")).toBe("true");
+  expect(control("Apply crop").disabled).toBe(true);
+  expect(pending).toHaveBeenLastCalledWith(true);
+});
+
 it("canceling while decoding prevents any network request", async () => {
   let finish!: (bitmap: ImageBitmap) => void;
   vi.stubGlobal(
