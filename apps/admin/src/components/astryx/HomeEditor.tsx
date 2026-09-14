@@ -73,8 +73,14 @@ import {
   validateEditorialSource,
   type EditorialRecord,
 } from "@anipotts/content/editorial/source";
-import { HomeAutosave, type SaveState } from "../../lib/home-autosave";
-import type { Draft, SaveResult } from "../../editorial/draft-store";
+import {
+  HomeAutosave,
+  readSaveResponse,
+  saveNeedsComparison,
+  saveRefused,
+  type SaveState,
+} from "../../lib/home-autosave";
+import type { Draft } from "../../editorial/draft-store";
 import type { HomeBase } from "../../lib/editorial-home-api";
 import type { PublishJob } from "../../editorial/publication-jobs";
 
@@ -86,6 +92,40 @@ type Snapshot = {
   publishing: "ready" | "not_configured";
   publication: PublishJob | null;
 };
+
+const savedDraftNotFound = {
+  title: "Saved draft not found",
+  description:
+    "The saved draft this edit was based on is no longer available. Your edits are retained.",
+};
+
+/**
+ * A refused save cannot be retried, so its copy never asks the author to save.
+ * The remaining invalid_draft_request causes are server-side, so editing does
+ * not help. Reloading reopens the saved draft and browser recovery brings the
+ * edits back for review, which is only true while recovery is working.
+ */
+function refusedSaveCopy(
+  code: SaveState["saveFailureCode"],
+  { leaving, recoverable }: { leaving: boolean; recoverable: boolean },
+) {
+  if (code === "source_too_large")
+    return {
+      title: "Draft is too large to save",
+      description: leaving
+        ? "Your latest edits are not saved because drafts are limited to 512 KB. Download a copy before leaving, or shorten the draft to resume saving."
+        : "Saving stopped because drafts are limited to 512 KB. Download a copy, then shorten the draft to resume saving.",
+    };
+  const kept = recoverable ? " Your edits are kept on this device." : "";
+  return {
+    title: "Server refused this save",
+    description: leaving
+      ? `Your latest edits are not saved.${kept} Download a copy before leaving this draft.`
+      : recoverable
+        ? `Saving stopped.${kept} Download a copy, then reload to reopen the saved draft with your edits ready to review.`
+        : "Saving stopped. Download a copy before you reload to reopen the saved draft.",
+  };
+}
 
 export const HomeEditor = React.memo(HomeEditorImpl);
 
@@ -155,6 +195,8 @@ function HomeEditorImpl({
   }, [tab]);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  /** A leave attempt was held by a refused save the author cannot retry. */
+  const [leaveRefused, setLeaveRefused] = useState(false);
   const leavePending = useRef(false);
   const [previewRevision, setPreviewRevision] = useState<number | null>(null);
   const editor = useRef<HomeAutosave | null>(null);
@@ -209,9 +251,15 @@ function HomeEditorImpl({
         bodyDirtyRef.current ||
         edits !== editGeneration.current
       ) {
-        setError(
-          "Your latest edits are still here. Save them before leaving this draft.",
-        );
+        const current = editor.current?.state;
+        if (current?.saveFailed && saveRefused(current.saveFailureCode)) {
+          // Saving cannot succeed. The refusal banner carries the one warning.
+          setError("");
+          setLeaveRefused(true);
+        } else
+          setError(
+            "Your latest edits are still here. Save them before leaving this draft.",
+          );
         return;
       }
       commitAdminNavigation(href);
@@ -386,7 +434,11 @@ function HomeEditorImpl({
   const publishPending = useRef(false);
   const [comparison, setComparison] = useState<HomeBase | null>(null);
   const publishRequest = useRef<{ revision: number; id: string } | null>(null);
-  async function post(action: string, body: unknown, guard?: () => boolean) {
+  async function postRequest(
+    action: string,
+    body: unknown,
+    guard?: () => boolean,
+  ) {
     if (!csrf.current) {
       const response = await fetch("/api/editorial/csrf", {
         signal: AbortSignal.timeout(15000),
@@ -408,6 +460,10 @@ function HomeEditorImpl({
       csrf.current = "";
       throw new Error("session expired");
     }
+    return response;
+  }
+  async function post(action: string, body: unknown, guard?: () => boolean) {
+    const response = await postRequest(action, body, guard);
     if (!response.ok && response.status !== 409)
       throw new Error("save unavailable");
     return response.json();
@@ -434,7 +490,11 @@ function HomeEditorImpl({
           source,
           data.draft?.revision ?? 0,
           async (input) => {
-            const result = (await post("save", input)) as SaveResult;
+            // A draft-store refusal is an answer, not a lost response. Other
+            // callers keep post(), which treats every such status as a failure.
+            const result = await readSaveResponse(
+              await postRequest("save", input),
+            );
             if (result.ok) {
               try {
                 const metadata = parseEditorialSource(result.draft.source)
@@ -593,6 +653,13 @@ function HomeEditorImpl({
     )
       saveScheduler.current?.changed();
   }, [state?.source, snapshot?.draft?.discardedAt]);
+  const refusalShown = Boolean(
+    state?.saveFailed && saveRefused(state.saveFailureCode),
+  );
+  useEffect(() => {
+    // A later refusal starts without a held leave attempt.
+    if (!refusalShown) setLeaveRefused(false);
+  }, [refusalShown]);
   useEffect(() => {
     if (record.kind !== "writing" || !state) return;
     try {
@@ -716,8 +783,14 @@ function HomeEditorImpl({
     link.click();
     URL.revokeObjectURL(url);
   };
-  const needsSaveComparison =
-    state.saveFailureCode === "save_reconciliation_required";
+  const needsSaveComparison = saveNeedsComparison(state.saveFailureCode);
+  const refusedSave = saveRefused(state.saveFailureCode);
+  const savedDraftMissing =
+    needsSaveComparison && saveComparison !== null && !saveComparison.draft;
+  const refusal = refusedSaveCopy(state.saveFailureCode, {
+    leaving: leaveRefused,
+    recoverable: recoveryProblem === null,
+  });
   const comparedDraft = state.conflict
     ? state.conflict.current
     : needsSaveComparison
@@ -733,7 +806,7 @@ function HomeEditorImpl({
       request === saveComparisonRequest.current &&
       navigation === navigationGeneration.current &&
       controller === editor.current &&
-      controller?.state.saveFailureCode === "save_reconciliation_required";
+      saveNeedsComparison(controller?.state.saveFailureCode);
     setSaveComparisonLoading(true);
     setSaveComparisonError("");
     setSaveComparison(null);
@@ -1112,7 +1185,9 @@ function HomeEditorImpl({
                           importing || Boolean(snapshot.draft?.discardedAt),
                         onClick: () => importInput.current?.click(),
                       },
-                      ...(state.status === "unsaved" && !needsSaveComparison
+                      ...(state.status === "unsaved" &&
+                      !needsSaveComparison &&
+                      !refusedSave
                         ? [
                             {
                               label: "Save now",
@@ -1229,8 +1304,18 @@ function HomeEditorImpl({
             <VStack gap={2}>
               <Banner
                 status="warning"
-                title="Compare before saving again"
-                description="The result of an older save could not be confirmed. Your edits are retained. Compare the saved draft before choosing which version to keep."
+                title={
+                  savedDraftMissing
+                    ? savedDraftNotFound.title
+                    : "Compare before saving again"
+                }
+                description={
+                  savedDraftMissing
+                    ? savedDraftNotFound.description
+                    : state.saveFailureCode === "idempotency_key_reused"
+                      ? "This save’s request ID was already used for different content, so its result could not be confirmed. Your edits are retained. Compare the saved draft before choosing which version to keep."
+                      : "The result of an older save could not be confirmed. Your edits are retained. Compare the saved draft before choosing which version to keep."
+                }
                 endContent={
                   <HStack gap={2} wrap="wrap">
                     <Button
@@ -1252,10 +1337,22 @@ function HomeEditorImpl({
               )}
             </VStack>
           )}
-          {state.saveFailed && !needsSaveComparison && (
+          {state.saveFailed && refusedSave && (
+            <RecoveryBanner
+              title={refusal.title}
+              description={refusal.description}
+              actionLabel="Download draft"
+              onRetry={() => download()}
+            />
+          )}
+          {state.saveFailed && !needsSaveComparison && !refusedSave && (
             <RecoveryBanner
               title="Draft could not be saved"
-              description="Your edits are still here. Retry saving before leaving this page."
+              description={
+                state.saveFailureCode === "draft_base_changed"
+                  ? "The website version changed while this draft was saving. Your edits are still here. Retry saving before leaving this page."
+                  : "Your edits are still here. Retry saving before leaving this page."
+              }
               actionLabel="Retry save"
               onRetry={() => flush()}
             />
@@ -1339,16 +1436,26 @@ function HomeEditorImpl({
               {state.conflict && (
                 <Banner
                   status="warning"
-                  title="Another edit was saved"
-                  description="Compare the saved source with your draft before choosing which version to keep."
+                  title={
+                    comparedDraft
+                      ? "Another edit was saved"
+                      : savedDraftNotFound.title
+                  }
+                  description={
+                    comparedDraft
+                      ? "Compare the saved source with your draft before choosing which version to keep."
+                      : savedDraftNotFound.description
+                  }
                 />
               )}
-              <TextArea
-                label="Saved on another tab or device"
-                value={comparedDraft?.source ?? ""}
-                isReadOnly
-                rows={5}
-              />
+              {comparedDraft && (
+                <TextArea
+                  label="Saved on another tab or device"
+                  value={comparedDraft.source}
+                  isReadOnly
+                  rows={5}
+                />
+              )}
               {needsSaveComparison && (
                 <TextArea
                   label="Your retained draft"
@@ -1359,8 +1466,8 @@ function HomeEditorImpl({
               )}
               {!comparedDraft && (
                 <Text>
-                  No saved draft is available. Download your edits and try
-                  comparing again after the saved draft is recovered.
+                  No saved draft is available to compare. Keep your version to
+                  save your retained edits as a new draft.
                 </Text>
               )}
               {needsSaveComparison &&
@@ -1381,8 +1488,9 @@ function HomeEditorImpl({
                           controller === editor.current &&
                           navigation === navigationGeneration.current &&
                           request === saveComparisonRequest.current &&
-                          controller?.state.saveFailureCode ===
-                            "save_reconciliation_required";
+                          saveNeedsComparison(
+                            controller?.state.saveFailureCode,
+                          );
                         try {
                           const result = await post("restore", {
                             expectedRevision: comparedDraft.revision,
@@ -1403,12 +1511,13 @@ function HomeEditorImpl({
               <HStack gap={2}>
                 <Button
                   label="Keep my version"
-                  isDisabled={
-                    !comparedDraft || comparedDraft.discardedAt !== null
-                  }
+                  isDisabled={Boolean(
+                    comparedDraft && comparedDraft.discardedAt !== null,
+                  )}
                   clickAction={async () => {
                     flushLocal();
-                    editor.current!.resolve(comparedDraft!, true);
+                    // Without a saved draft this starts a new one from the edits.
+                    editor.current!.resolve(comparedDraft, true);
                     setSaveComparison(null);
                     setSaveComparisonError("");
                     setError("");
@@ -1417,21 +1526,21 @@ function HomeEditorImpl({
                     await flush();
                   }}
                 />
-                <Button
-                  label="Use saved version"
-                  isDisabled={
-                    !comparedDraft || comparedDraft.discardedAt !== null
-                  }
-                  onClick={() => {
-                    resetBuffers();
-                    editor.current!.resolve(comparedDraft!, false);
-                    setSaveComparison(null);
-                    setSaveComparisonError("");
-                    setError("");
-                    setReviewedDraft(null);
-                    setPreviewRevision(null);
-                  }}
-                />
+                {comparedDraft && (
+                  <Button
+                    label="Use saved version"
+                    isDisabled={comparedDraft.discardedAt !== null}
+                    onClick={() => {
+                      resetBuffers();
+                      editor.current!.resolve(comparedDraft, false);
+                      setSaveComparison(null);
+                      setSaveComparisonError("");
+                      setError("");
+                      setReviewedDraft(null);
+                      setPreviewRevision(null);
+                    }}
+                  />
+                )}
               </HStack>
             </VStack>
           )}

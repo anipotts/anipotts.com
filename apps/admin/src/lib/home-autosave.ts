@@ -1,6 +1,13 @@
+import { MAX_SOURCE_BYTES } from "@anipotts/content/editorial/source";
 import type { Draft, SaveResult } from "../editorial/draft-store";
 
 type Pending = { source: string; expectedRevision: number; requestId: string };
+/** A save outcome, or a source this client refuses to send at all. */
+export type SaveAttempt = SaveResult | { ok: false; code: "source_too_large" };
+type SaveFailureCode = Exclude<
+  Extract<SaveAttempt, { ok: false }>["code"],
+  "revision_conflict"
+>;
 export type RecoverySnapshot = {
   source: string;
   saved: string;
@@ -12,23 +19,58 @@ export type SaveState = {
   revision: number;
   status: "saved" | "unsaved" | "saving" | "conflict";
   saveFailed?: boolean;
-  saveFailureCode?: Exclude<
-    Extract<SaveResult, { ok: false }>["code"],
-    "revision_conflict"
-  >;
+  saveFailureCode?: SaveFailureCode;
   conflict: Extract<SaveResult, { code: "revision_conflict" }> | null;
 };
+
+/** The server refuses these exact bytes every time and stores nothing for them. */
+export const saveRefused = (code: SaveFailureCode | undefined) =>
+  code === "invalid_draft_request" || code === "source_too_large";
+/** The earlier operation's outcome is unknown; only an explicit choice continues. */
+export const saveNeedsComparison = (code: SaveFailureCode | undefined) =>
+  code === "save_reconciliation_required" || code === "idempotency_key_reused";
+
+const refusals = new Set<string>([
+  "invalid_draft_request",
+  "idempotency_key_reused",
+  "draft_base_changed",
+]);
+/**
+ * Read a save response. Only the draft store's own refusals are answers; every
+ * other failure, including API validation 400s, stays ambiguous and throws.
+ */
+export async function readSaveResponse(
+  response: Response,
+): Promise<SaveResult> {
+  if (response.ok || response.status === 409) return response.json();
+  if (response.status === 400) {
+    const body: unknown = await response.json().catch(() => null);
+    if (
+      body &&
+      typeof body === "object" &&
+      "ok" in body &&
+      body.ok === false &&
+      "code" in body &&
+      typeof body.code === "string" &&
+      refusals.has(body.code)
+    )
+      return { ok: false, code: body.code } as SaveResult;
+  }
+  throw new Error("save unavailable");
+}
 
 /** Serialize saves; an ambiguous retry must reuse its original operation id. */
 export class HomeAutosave {
   state: SaveState;
   private saved: string;
   private pending: Pending | null = null;
+  /** Source of the last refused operation. Sending it again cannot succeed. */
+  private refused: string | null = null;
   private active: Promise<void> | null = null;
   constructor(
     source: string,
     revision: number,
-    private send: (input: Pending) => Promise<SaveResult>,
+    private send: (input: Pending) => Promise<SaveAttempt>,
     private notify: (state: SaveState) => void,
   ) {
     this.saved = source;
@@ -50,8 +92,17 @@ export class HomeAutosave {
     this.edit(snapshot.source);
   }
   edit(source: string) {
+    // Returning to the acknowledged source leaves no refused text to explain.
+    const refusalSettled =
+      !this.pending &&
+      source === this.saved &&
+      saveRefused(this.state.saveFailureCode);
+    if (refusalSettled) this.refused = null;
     this.state = {
       ...this.state,
+      ...(refusalSettled
+        ? { saveFailed: false, saveFailureCode: undefined }
+        : {}),
       source,
       status: this.state.conflict
         ? "conflict"
@@ -72,7 +123,11 @@ export class HomeAutosave {
   }
   /** Preview needs a stored revision even before the first text edit. */
   ensureDraft(): Promise<void> {
-    if (this.state.revision === 0 && !this.state.conflict)
+    if (
+      this.state.revision === 0 &&
+      !this.state.conflict &&
+      this.state.source !== this.refused
+    )
       this.pending ??= {
         source: this.state.source,
         expectedRevision: 0,
@@ -83,14 +138,23 @@ export class HomeAutosave {
   private async drain() {
     while (
       !this.state.conflict &&
-      this.state.saveFailureCode !== "save_reconciliation_required" &&
+      !saveNeedsComparison(this.state.saveFailureCode) &&
       (this.pending || this.state.source !== this.saved)
     ) {
+      if (!this.pending && this.state.source === this.refused) return;
       this.pending ??= {
         source: this.state.source,
         expectedRevision: this.state.revision,
         requestId: crypto.randomUUID(),
       };
+      if (
+        new TextEncoder().encode(this.pending.source).byteLength >
+        MAX_SOURCE_BYTES
+      ) {
+        // The draft store and the API body limit both refuse this source.
+        this.refuse("source_too_large");
+        continue;
+      }
       this.state = {
         ...this.state,
         status: "saving",
@@ -100,6 +164,14 @@ export class HomeAutosave {
       this.notify(this.state);
       try {
         const result = await this.send(this.pending);
+        if (
+          !result.ok &&
+          (result.code === "invalid_draft_request" ||
+            result.code === "source_too_large")
+        ) {
+          this.refuse(result.code);
+          continue;
+        }
         if (!result.ok) {
           this.state = {
             ...this.state,
@@ -115,6 +187,7 @@ export class HomeAutosave {
         }
         this.saved = this.pending.source;
         this.pending = null;
+        this.refused = null;
         this.state = {
           ...this.state,
           revision: result.draft.revision,
@@ -128,9 +201,46 @@ export class HomeAutosave {
       }
     }
   }
-  /** Explicit choice after showing both versions; never automatic conflict resolution. */
-  resolve(current: Draft, keepMine: boolean) {
-    if (current.discardedAt !== null) return;
+  /** A refused operation stored nothing, so it is retired rather than retried. */
+  private refuse(code: SaveFailureCode) {
+    // Edits may have returned to the acknowledged source while the refused
+    // operation was in flight. As in edit(), that leaves no refused text to
+    // explain, and no marker that would silently stall a later identical edit.
+    const settled = this.state.source === this.saved;
+    this.refused = settled ? null : this.pending!.source;
+    this.pending = null;
+    this.state = {
+      ...this.state,
+      status: settled ? "saved" : "unsaved",
+      saveFailed: !settled,
+      saveFailureCode: settled ? undefined : code,
+    };
+    this.notify(this.state);
+  }
+  /**
+   * Explicit choice after showing both versions; never automatic conflict
+   * resolution. With no saved draft there is nothing to overwrite, so keeping
+   * the edits starts a new draft under a new operation id. A draft created in
+   * the meantime still answers that save with a conflict.
+   */
+  resolve(current: Draft | null, keepMine: boolean) {
+    if (current ? current.discardedAt !== null : !keepMine) return;
+    this.refused = null;
+    if (!current) {
+      this.pending = {
+        source: this.state.source,
+        expectedRevision: 0,
+        requestId: crypto.randomUUID(),
+      };
+      this.state = {
+        source: this.state.source,
+        revision: 0,
+        conflict: null,
+        status: "unsaved",
+      };
+      this.notify(this.state);
+      return;
+    }
     this.saved = current.source;
     this.pending = null;
     this.state = {
