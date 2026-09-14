@@ -3,18 +3,29 @@ import { pathToFileURL } from "node:url";
 import { activeVersion } from "./worker-version.mjs";
 
 const config = "apps/admin/wrangler.toml";
-function wrangler(args) {
-  return JSON.parse(
-    execFileSync(
-      "pnpm",
-      ["exec", "wrangler", ...args, "--config", config, "--json"],
-      {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-        maxBuffer: 2 * 1024 * 1024,
-      },
-    ),
-  );
+const providerFailure = "editorial provider verification failed";
+const identityMismatch = "editorial release identity mismatch";
+/** Waits between provider identity attempts: four attempts, 35s of waiting. */
+const identityRetryDelays = [5_000, 10_000, 20_000];
+
+function wrangler(args, exec = execFileSync) {
+  try {
+    return JSON.parse(
+      exec(
+        "pnpm",
+        ["exec", "wrangler", ...args, "--config", config, "--json"],
+        {
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "pipe"],
+          maxBuffer: 2 * 1024 * 1024,
+        },
+      ),
+    );
+  } catch {
+    // Provider stderr and output may contain account information, so neither
+    // the exit error nor a parse error that quotes the output leaves here.
+    throw new Error(providerFailure);
+  }
 }
 
 export function verifyEditorialVersion(deployment, version, expectedSha) {
@@ -23,8 +34,36 @@ export function verifyEditorialVersion(deployment, version, expectedSha) {
     activeVersion(deployment) !== version.id ||
     version.annotations?.["workers/message"] !== `release:${expectedSha}`
   )
-    throw new Error("editorial release identity mismatch");
+    throw new Error(identityMismatch);
   return { version: version.id, release_sha: expectedSha };
+}
+
+/** Provider metadata can lag an upload by a few seconds, and the Cloudflare API
+ * occasionally fails transiently. Retry the read-only identity check a bounded
+ * number of times; a mismatch that never resolves still fails the release.
+ */
+export async function verifyEditorialIdentity(
+  expectedSha,
+  {
+    exec = execFileSync,
+    sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  } = {},
+) {
+  if (!/^[a-f0-9]{40}$/.test(expectedSha ?? ""))
+    throw new Error(identityMismatch);
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const deployment = wrangler(["deployments", "status"], exec);
+      const version = wrangler(
+        ["versions", "view", activeVersion(deployment)],
+        exec,
+      );
+      return verifyEditorialVersion(deployment, version, expectedSha);
+    } catch (error) {
+      if (attempt >= identityRetryDelays.length) throw error;
+      await sleep(identityRetryDelays[attempt]);
+    }
+  }
 }
 
 /** Access has one human owner, so a service-token smoke identity must not be
@@ -77,13 +116,7 @@ if (
     } else if (mode === "boundary") {
       console.log(JSON.stringify({ checks: await verifyEditorialBoundary() }));
     } else if (mode === "verify") {
-      const deployment = wrangler(["deployments", "status"]);
-      const version = wrangler(["versions", "view", activeVersion(deployment)]);
-      const identity = verifyEditorialVersion(
-        deployment,
-        version,
-        process.argv[3],
-      );
+      const identity = await verifyEditorialIdentity(process.argv[3]);
       console.log(
         JSON.stringify({
           ...identity,
@@ -94,9 +127,7 @@ if (
       throw new Error("expected capture, boundary, or verify <release-sha>");
   } catch (error) {
     // Provider stderr may contain account information; report a bounded failure.
-    console.error(
-      error?.status ? "editorial provider verification failed" : error.message,
-    );
+    console.error(error?.status ? providerFailure : error.message);
     process.exitCode = 1;
   }
 }
