@@ -46,7 +46,7 @@ Why it is not reachable:
 - Astro imports sharp in one place, `dist/assets/services/sharp.js:16`, and only
   loads that file when the image service entrypoint is
   `astro/assets/services/sharp`.
-- Both apps set `imageService: "passthrough"`: `apps/www/astro.config.mjs:27`
+- Both apps set `imageService: "passthrough"`: `apps/www/astro.config.mjs:30`
   and `apps/admin/astro.config.mjs:64`. The adapter maps that value to
   `passthroughImageService()` for every command (`dist/utils/image-config.js:4-5`,
   called from `dist/index.js:96`), which is `astro/assets/services/noop`
@@ -107,7 +107,9 @@ Why it is not reachable:
   (`dist/entrypoints/server.js:3-8`) is the only code in the adapter that
   creates an App and renders. The static assets binding matches on pathname
   only, so the Host cannot send the fetch anywhere else.
-- www uses the adapter's default entry (`apps/www/astro.config.mjs:25-28`).
+- www sets `workerEntryPoint: ./src/worker.ts` (`apps/www/astro.config.mjs:25-31`).
+  That file only wraps the adapter's `createExports` fetch to add security
+  headers (`apps/www/src/worker.ts`) and creates no App of its own.
   `src/pages/404.astro` is prerendered, so the 404 branch can run, but it reads
   through ASSETS (`apps/www/wrangler.toml:32-37`). `/500` matches only
   `src/pages/[...catchall].ts`, which is on demand (`prerender = false` at `:3`),
@@ -151,7 +153,7 @@ Why it is not reachable:
 - The sink sits after the early return for components without a hydration
   directive (`component.js:246`) and skips the key `default`.
 - www is `output: "static"` with astro-icon, the advisory guard and no framework
-  renderer (`apps/www/astro.config.mjs:13` and `:29-31`), so it has no hydrated
+  renderer (`apps/www/astro.config.mjs:13` and `:32-34`), so it has no hydrated
   islands.
 - admin meets the other preconditions, but no `.astro` file sets a `slot`
   attribute. The two hydrated components with children pass only an unnamed
