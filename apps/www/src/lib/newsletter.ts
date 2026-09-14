@@ -8,6 +8,28 @@ export const subscribePayloadSchema = z.object({
   website: z.string().max(0).optional().default(""),
 });
 
+export const SUBSCRIBE_BODY_LIMIT_BYTES = 4 * 1024;
+export const TOKEN_BODY_LIMIT_BYTES = 2 * 1024;
+export const WEBHOOK_BODY_LIMIT_BYTES = 64 * 1024;
+
+// Only the fields the webhook reads are checked; the rest is kept as payload.
+const resendWebhookSchema = z
+  .object({
+    type: z.string().regex(/^[A-Za-z0-9_.-]{1,100}$/),
+    created_at: z.string().max(64).optional(),
+    data: z
+      .object({
+        email_id: z.string().max(256).nullable().optional(),
+        to: z.array(z.string().max(320)).max(50).optional(),
+      })
+      .passthrough()
+      .nullable()
+      .optional(),
+  })
+  .passthrough();
+
+type ResendWebhook = z.infer<typeof resendWebhookSchema>;
+
 type NewsletterQueueMessage =
   | {
       type: "confirm";
@@ -37,6 +59,7 @@ type SubscriberRow = {
   id: string;
   email: string;
   status: string;
+  suppressed_at: string | null;
 };
 
 type TokenRow = {
@@ -45,9 +68,20 @@ type TokenRow = {
   email: string;
   expires_at: string;
   used_at: string | null;
+  created_at: string;
+};
+
+type ResendWebhookHeaders = {
+  id: string;
+  timestamp: string;
+  signature: string;
 };
 
 const CONFIRM_TTL_MS = 1000 * 60 * 60 * 24 * 7;
+const CONFIRM_SEND_WINDOW_MS = 1000 * 60 * 60 * 24;
+const CONFIRM_SENDS_PER_WINDOW = 3;
+const WEBHOOK_TOLERANCE_SECONDS = 300;
+const UNSUBSCRIBE_REASON = "user_unsubscribe";
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -64,8 +98,21 @@ function baseUrl(env: { NEWSLETTER_BASE_URL?: string }, request: Request) {
 export function html(body: string, status = 200): Response {
   return new Response(body, {
     status,
-    headers: { "content-type": "text/html; charset=utf-8" },
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+    },
   });
+}
+
+/** tokens are 32 random bytes in base64url; anything else is not worth a lookup. */
+export function isTokenShaped(token: string): boolean {
+  return /^[A-Za-z0-9_-]{1,128}$/.test(token);
+}
+
+/** an expiry that does not parse counts as expired. */
+function isUnexpired(expiresAt: string): boolean {
+  return Date.parse(expiresAt) > Date.now();
 }
 
 async function tokenHash(token: string): Promise<string> {
@@ -85,49 +132,64 @@ function randomToken(): string {
     .replace(/=+$/g, "");
 }
 
-async function createToken(
+/** issue a confirmation token unless the address already reached its send
+ *  budget for the window. the count and insert are one statement, so
+ *  concurrent requests cannot overshoot it. */
+async function createConfirmToken(
   db: D1Database,
-  input: {
-    subscriberId: string;
-    email: string;
-    purpose: "confirm" | "unsubscribe";
-    ttlMs: number;
-  },
-): Promise<string> {
+  input: { subscriberId: string; email: string },
+): Promise<string | null> {
   const token = randomToken();
-  const createdAt = nowIso();
-  const expiresAt = new Date(Date.now() + input.ttlMs).toISOString();
-  await db
+  const now = Date.now();
+  const result = await db
     .prepare(
-      "INSERT INTO newsletter_tokens (id, subscriber_id, email, purpose, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO newsletter_tokens (id, subscriber_id, email, purpose, token_hash, expires_at, created_at) SELECT ?, ?, ?, 'confirm', ?, ?, ? WHERE (SELECT COUNT(*) FROM newsletter_tokens WHERE subscriber_id = ? AND purpose = 'confirm' AND created_at >= ?) < ?",
     )
     .bind(
       crypto.randomUUID(),
       input.subscriberId,
       input.email,
-      input.purpose,
       await tokenHash(token),
-      expiresAt,
-      createdAt,
+      new Date(now + CONFIRM_TTL_MS).toISOString(),
+      new Date(now).toISOString(),
+      input.subscriberId,
+      new Date(now - CONFIRM_SEND_WINDOW_MS).toISOString(),
+      CONFIRM_SENDS_PER_WINDOW,
     )
     .run();
-  return token;
+  return result.meta.changes === 1 ? token : null;
 }
 
 async function upsertPendingSubscriber(
   db: D1Database,
   email: string,
-): Promise<SubscriberRow> {
+): Promise<{
+  id: string;
+  status: string;
+  blocked: boolean;
+  unsubscribed: boolean;
+}> {
   const current = await db
     .prepare(
-      "SELECT id, email, status FROM newsletter_subscribers WHERE email = ?",
+      "SELECT id, email, status, suppressed_at FROM newsletter_subscribers WHERE email = ?",
     )
     .bind(email)
     .first<SubscriberRow>();
+  const suppression = await db
+    .prepare("SELECT reason FROM newsletter_suppressions WHERE email = ?")
+    .bind(email)
+    .first<{ reason: string }>();
+  const unsubscribed = suppression?.reason === UNSUBSCRIBE_REASON;
+  // Bounces, complaints and provider blocks are permanent. suppressed_at also
+  // marks rows where an older unsubscribe overwrote one of them.
+  const blocked =
+    (Boolean(suppression) && !unsubscribed) ||
+    current?.status === "suppressed" ||
+    Boolean(current?.suppressed_at);
 
   const ts = nowIso();
   if (current) {
-    if (current.status !== "suppressed") {
+    if (!blocked) {
       await db
         .prepare(
           "UPDATE newsletter_subscribers SET status = CASE WHEN status = 'unsubscribed' THEN 'pending' ELSE status END, subscribed_at = COALESCE(subscribed_at, ?), updated_at = ? WHERE id = ?",
@@ -135,7 +197,7 @@ async function upsertPendingSubscriber(
         .bind(ts, ts, current.id)
         .run();
     }
-    return current;
+    return { id: current.id, status: current.status, blocked, unsubscribed };
   }
 
   const id = crypto.randomUUID();
@@ -145,10 +207,10 @@ async function upsertPendingSubscriber(
     )
     .bind(id, email, ts, ts, ts)
     .run();
-  return { id, email, status: "pending" };
+  return { id, status: "pending", blocked, unsubscribed };
 }
 
-export async function recordNewsletterEvent(
+async function recordNewsletterEvent(
   db: D1Database,
   event: {
     type: string;
@@ -182,11 +244,13 @@ export async function recordNewsletterEvent(
     .run();
 }
 
+/** callers respond the same way whatever happens here, so the response never
+ *  reveals whether an address is new, pending, confirmed or suppressed. */
 export async function createDoubleOptIn(
   env: NewsletterEnv,
   request: Request,
   email: string,
-): Promise<{ queued: boolean; mock: boolean }> {
+): Promise<void> {
   const subscriber = await upsertPendingSubscriber(env.DB, email);
   await recordNewsletterEvent(env.DB, {
     type: "subscribe_requested",
@@ -194,16 +258,17 @@ export async function createDoubleOptIn(
     email,
   });
 
-  if (subscriber.status === "suppressed") {
-    return { queued: false, mock: true };
-  }
+  if (subscriber.blocked) return;
+  // A confirmed row that still carries the reader's own unsubscribe is not
+  // receiving issues, so it goes through double opt-in again. Older code left
+  // rows in that state after a resubscribe or a stale confirmation link.
+  if (subscriber.status === "confirmed" && !subscriber.unsubscribed) return;
 
-  const token = await createToken(env.DB, {
+  const token = await createConfirmToken(env.DB, {
     subscriberId: subscriber.id,
     email,
-    purpose: "confirm",
-    ttlMs: CONFIRM_TTL_MS,
   });
+  if (!token) return;
 
   if (!env.NEWSLETTER_QUEUE) {
     await recordNewsletterEvent(env.DB, {
@@ -212,52 +277,86 @@ export async function createDoubleOptIn(
       email,
       payload: { reason: "NEWSLETTER_QUEUE missing" },
     });
-    return { queued: false, mock: true };
+    return;
   }
 
-  await env.NEWSLETTER_QUEUE.send({
-    type: "confirm",
-    subscriberId: subscriber.id,
-    email,
-    token,
-    baseUrl: baseUrl(env, request),
-  });
-  return { queued: true, mock: false };
+  try {
+    await env.NEWSLETTER_QUEUE.send({
+      type: "confirm",
+      subscriberId: subscriber.id,
+      email,
+      token,
+      baseUrl: baseUrl(env, request),
+    });
+  } catch (error) {
+    // A queue outage must not answer differently from the states that send
+    // nothing, so it is recorded here instead of surfacing to the caller.
+    console.error("newsletter confirm queue error", error);
+    await recordNewsletterEvent(env.DB, {
+      type: "confirm_email_failed",
+      subscriberId: subscriber.id,
+      email,
+      payload: { reason: "queue_send_failed" },
+    }).catch(() => undefined);
+  }
 }
 
 export async function confirmSubscriber(
   db: D1Database,
   rawToken: string,
-): Promise<"confirmed" | "invalid" | "expired" | "used"> {
+): Promise<"confirmed" | "suppressed" | "invalid" | "expired" | "used"> {
   const hash = await tokenHash(rawToken);
   const token = await db
     .prepare(
-      "SELECT id, subscriber_id, email, expires_at, used_at FROM newsletter_tokens WHERE purpose = 'confirm' AND token_hash = ?",
+      "SELECT id, subscriber_id, email, expires_at, used_at, created_at FROM newsletter_tokens WHERE purpose = 'confirm' AND token_hash = ?",
     )
     .bind(hash)
     .first<TokenRow>();
 
   if (!token) return "invalid";
   if (token.used_at) return "used";
-  if (Date.parse(token.expires_at) < Date.now()) return "expired";
+  if (!isUnexpired(token.expires_at)) return "expired";
 
   const ts = nowIso();
-  await db.batch([
+  const results = await db.batch([
     db
       .prepare("UPDATE newsletter_tokens SET used_at = ? WHERE id = ?")
       .bind(ts, token.id),
+    // Opting in again reverses the subscriber's own earlier unsubscribe, which
+    // the newsletter worker otherwise treats as a delivery block. Provider
+    // suppressions stay, including ones an older unsubscribe overwrote.
     db
       .prepare(
-        "UPDATE newsletter_subscribers SET status = 'confirmed', confirmed_at = COALESCE(confirmed_at, ?), updated_at = ? WHERE id = ? AND status != 'suppressed'",
+        "DELETE FROM newsletter_suppressions WHERE email = ? AND reason = ? AND created_at < ? AND EXISTS (SELECT 1 FROM newsletter_subscribers WHERE id = ? AND email = ? AND status != 'suppressed' AND suppressed_at IS NULL)",
+      )
+      .bind(
+        token.email,
+        UNSUBSCRIBE_REASON,
+        token.created_at,
+        token.subscriber_id,
+        token.email,
+      ),
+    db
+      .prepare(
+        "UPDATE newsletter_subscribers SET status = 'confirmed', confirmed_at = COALESCE(confirmed_at, ?), updated_at = ? WHERE id = ? AND status != 'suppressed' AND NOT EXISTS (SELECT 1 FROM newsletter_suppressions WHERE newsletter_suppressions.email = newsletter_subscribers.email)",
       )
       .bind(ts, ts, token.subscriber_id),
+    // Recorded only when the update above took effect.
     db
       .prepare(
-        "INSERT INTO newsletter_events (id, subscriber_id, email, type, payload, created_at) VALUES (?, ?, ?, 'subscribe_confirmed', '{}', ?)",
+        "INSERT INTO newsletter_events (id, subscriber_id, email, type, payload, created_at) SELECT ?, ?, ?, 'subscribe_confirmed', '{}', ? WHERE EXISTS (SELECT 1 FROM newsletter_subscribers WHERE id = ? AND status = 'confirmed' AND NOT EXISTS (SELECT 1 FROM newsletter_suppressions WHERE newsletter_suppressions.email = newsletter_subscribers.email))",
       )
-      .bind(crypto.randomUUID(), token.subscriber_id, token.email, ts),
+      .bind(
+        crypto.randomUUID(),
+        token.subscriber_id,
+        token.email,
+        ts,
+        token.subscriber_id,
+      ),
   ]);
-  return "confirmed";
+  // A remaining provider suppression blocks the status update; the reader is
+  // told so instead of being told they are on the list.
+  return results[2]?.meta.changes === 1 ? "confirmed" : "suppressed";
 }
 
 export async function unsubscribeByToken(
@@ -267,13 +366,13 @@ export async function unsubscribeByToken(
   const hash = await tokenHash(rawToken);
   const token = await db
     .prepare(
-      "SELECT id, subscriber_id, email, expires_at, used_at FROM newsletter_tokens WHERE purpose = 'unsubscribe' AND token_hash = ?",
+      "SELECT id, subscriber_id, email, expires_at, used_at, created_at FROM newsletter_tokens WHERE purpose = 'unsubscribe' AND token_hash = ?",
     )
     .bind(hash)
     .first<TokenRow>();
 
   if (!token) return "invalid";
-  if (Date.parse(token.expires_at) < Date.now()) return "expired";
+  if (!isUnexpired(token.expires_at)) return "expired";
 
   const ts = nowIso();
   await db.batch([
@@ -282,16 +381,23 @@ export async function unsubscribeByToken(
         "UPDATE newsletter_tokens SET used_at = COALESCE(used_at, ?) WHERE id = ?",
       )
       .bind(ts, token.id),
+    // Confirmation links sent before this point must not reverse it.
     db
       .prepare(
-        "UPDATE newsletter_subscribers SET status = 'unsubscribed', unsubscribed_at = COALESCE(unsubscribed_at, ?), updated_at = ? WHERE id = ?",
+        "UPDATE newsletter_tokens SET used_at = COALESCE(used_at, ?) WHERE subscriber_id = ? AND purpose = 'confirm'",
+      )
+      .bind(ts, token.subscriber_id),
+    db
+      .prepare(
+        "UPDATE newsletter_subscribers SET status = CASE WHEN status = 'suppressed' THEN status ELSE 'unsubscribed' END, unsubscribed_at = COALESCE(unsubscribed_at, ?), updated_at = ? WHERE id = ?",
       )
       .bind(ts, ts, token.subscriber_id),
+    // An existing bounce or complaint keeps its reason.
     db
       .prepare(
-        "INSERT OR REPLACE INTO newsletter_suppressions (email, subscriber_id, reason, provider, created_at, metadata) VALUES (?, ?, 'user_unsubscribe', 'first_party', ?, '{}')",
+        "INSERT OR IGNORE INTO newsletter_suppressions (email, subscriber_id, reason, provider, created_at, metadata) VALUES (?, ?, ?, 'first_party', ?, '{}')",
       )
-      .bind(token.email, token.subscriber_id, ts),
+      .bind(token.email, token.subscriber_id, UNSUBSCRIBE_REASON, ts),
     db
       .prepare(
         "INSERT INTO newsletter_events (id, subscriber_id, email, type, payload, created_at) VALUES (?, ?, ?, 'unsubscribe', '{}', ?)",
@@ -301,56 +407,90 @@ export async function unsubscribeByToken(
   return "unsubscribed";
 }
 
-export async function suppressEmail(
+/** record a verified provider event and any suppression it implies in one
+ *  batch. a redelivery with the same svix-id re-applies the suppression
+ *  harmlessly, so a retry after a failed write is never skipped. */
+export async function recordResendEvent(
   db: D1Database,
-  input: {
-    email: string;
-    reason: string;
-    provider: string;
-    providerEventId?: string | null;
-    payload?: unknown;
+  event: {
+    type: string;
+    email: string | null;
+    providerEventId: string;
+    providerEmailId: string | null;
+    suppressionReason: string | null;
+    payload: unknown;
   },
 ): Promise<void> {
-  const email = normalizeEmail(input.email);
-  const subscriber = await db
-    .prepare("SELECT id FROM newsletter_subscribers WHERE email = ?")
-    .bind(email)
-    .first<{ id: string }>();
   const ts = nowIso();
-  await db.batch([
+  const payload = JSON.stringify(event.payload ?? {});
+  const statements = [
     db
       .prepare(
-        "INSERT OR REPLACE INTO newsletter_suppressions (email, subscriber_id, reason, provider, provider_event_id, created_at, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT OR IGNORE INTO newsletter_events (id, subscriber_id, issue_id, delivery_id, email, type, provider, provider_event_id, provider_email_id, payload, created_at) VALUES (?, NULL, NULL, NULL, ?, ?, 'resend', ?, ?, ?, ?)",
       )
       .bind(
-        email,
-        subscriber?.id ?? null,
-        input.reason,
-        input.provider,
-        input.providerEventId ?? null,
+        crypto.randomUUID(),
+        event.email,
+        event.type,
+        event.providerEventId,
+        event.providerEmailId,
+        payload,
         ts,
-        JSON.stringify(input.payload ?? {}),
       ),
-    db
-      .prepare(
-        "UPDATE newsletter_subscribers SET status = 'suppressed', suppressed_at = COALESCE(suppressed_at, ?), suppression_reason = ?, updated_at = ? WHERE email = ?",
-      )
-      .bind(ts, input.reason, ts, email),
-  ]);
+  ];
+  if (event.email && event.suppressionReason) {
+    const email = normalizeEmail(event.email);
+    statements.push(
+      // The first provider suppression is kept; it only replaces an unsubscribe.
+      db
+        .prepare(
+          "INSERT INTO newsletter_suppressions (email, subscriber_id, reason, provider, provider_event_id, created_at, metadata) VALUES (?, (SELECT id FROM newsletter_subscribers WHERE email = ?), ?, 'resend', ?, ?, ?) ON CONFLICT (email) DO UPDATE SET subscriber_id = COALESCE(newsletter_suppressions.subscriber_id, excluded.subscriber_id), reason = excluded.reason, provider = excluded.provider, provider_event_id = excluded.provider_event_id, created_at = excluded.created_at, metadata = excluded.metadata WHERE newsletter_suppressions.reason = ?",
+        )
+        .bind(
+          email,
+          email,
+          event.suppressionReason,
+          event.providerEventId,
+          ts,
+          payload,
+          UNSUBSCRIBE_REASON,
+        ),
+      db
+        .prepare(
+          "UPDATE newsletter_subscribers SET status = 'suppressed', suppressed_at = COALESCE(suppressed_at, ?), suppression_reason = COALESCE(suppression_reason, ?), updated_at = ? WHERE email = ? AND status != 'suppressed'",
+        )
+        .bind(ts, event.suppressionReason, ts, email),
+    );
+  }
+  await db.batch(statements);
+}
+
+/** svix headers, shape-checked before the body is read. */
+export function readResendWebhookHeaders(
+  request: Request,
+): ResendWebhookHeaders | null {
+  const id = request.headers.get("svix-id") ?? "";
+  const timestamp = request.headers.get("svix-timestamp") ?? "";
+  const signature = request.headers.get("svix-signature") ?? "";
+  if (!/^[\x21-\x7e]{1,255}$/.test(id)) return null;
+  if (!/^\d{1,12}$/.test(timestamp)) return null;
+  if (!/^[\x20-\x7e]{1,2048}$/.test(signature)) return null;
+  return { id, timestamp, signature };
 }
 
 export async function verifyResendWebhook(
-  request: Request,
+  headers: ResendWebhookHeaders,
   secret: string,
   rawBody: string,
+  now = Date.now(),
 ): Promise<boolean> {
-  const id = request.headers.get("svix-id");
-  const timestamp = request.headers.get("svix-timestamp");
-  const signature = request.headers.get("svix-signature");
-  if (!id || !timestamp || !signature) return false;
+  // Svix's replay window: integer seconds within five minutes either way.
+  const skew = Math.abs(now / 1000 - Number(headers.timestamp));
+  if (!(skew <= WEBHOOK_TOLERANCE_SECONDS)) return false;
 
-  const signed = `${id}.${timestamp}.${rawBody}`;
+  const signed = `${headers.id}.${headers.timestamp}.${rawBody}`;
   const keyBytes = decodeWebhookSecret(secret);
+  if (!keyBytes.length) return false;
   const rawKey = new ArrayBuffer(keyBytes.byteLength);
   new Uint8Array(rawKey).set(keyBytes);
   const key = await crypto.subtle.importKey(
@@ -364,10 +504,10 @@ export async function verifyResendWebhook(
     await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(signed)),
   );
 
-  return signature
+  return headers.signature
     .split(" ")
-    .map((part) => part.replace(/^v1,/, ""))
-    .some((candidate) => timingSafeEqual(digest, base64Bytes(candidate)));
+    .filter((part) => part.startsWith("v1,"))
+    .some((part) => timingSafeEqual(digest, base64Bytes(part.slice(3))));
 }
 
 export function parseJsonBody(body: string): unknown {
@@ -376,6 +516,11 @@ export function parseJsonBody(body: string): unknown {
   } catch {
     return null;
   }
+}
+
+export function parseResendWebhook(body: string): ResendWebhook | null {
+  const parsed = resendWebhookSchema.safeParse(parseJsonBody(body));
+  return parsed.success ? parsed.data : null;
 }
 
 export function missingDbResponse(): Response {
