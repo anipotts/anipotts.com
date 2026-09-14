@@ -343,6 +343,40 @@ assert.deepEqual(astryxPatch.deploy_targets, {
   state: false,
   weekly_email: false,
 });
+// Shared Astro build integrations change both app bundles.
+for (const path of [
+  "config/astro/advisory-guard.mjs",
+  "config/astro/advisory-guard.test.mjs",
+]) {
+  const astroConfig = classifyRelease([`M\t${path}`], base);
+  assert.notEqual(astroConfig.risk, "unknown", path);
+  assert.equal(astroConfig.risk, "automatic", path);
+  assert.equal(astroConfig.docs_only, false, path);
+  assert.equal(astroConfig.ci_policy_changed, true, path);
+  assert.deepEqual(
+    astroConfig.deploy_targets,
+    {
+      www: true,
+      admin: true,
+      ingest: false,
+      newsletter: false,
+      state: false,
+      weekly_email: false,
+    },
+    path,
+  );
+}
+const typescriptConfig = classifyRelease(
+  ["M\tconfig/typescript/base.json"],
+  base,
+);
+assert.equal(typescriptConfig.deploy_targets.www, false);
+assert.equal(typescriptConfig.deploy_targets.admin, false);
+assert.equal(
+  classifyRelease(["A\tconfig/astronomy/other.mjs"], base).deploy_targets.www,
+  false,
+);
+
 for (const path of [
   "patches/@astryxdesign__core@0.4.7.patch",
   "patches/other.patch",

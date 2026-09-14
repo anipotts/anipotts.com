@@ -5,6 +5,7 @@
     ".prettierrc*",
     "tsconfig.json",
     "config/typescript/**",
+    "config/astro/**",
     "pnpm-workspace.yaml"
   ],
   "tasks": {
