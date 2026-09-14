@@ -3,6 +3,7 @@ import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import icon from "astro-icon";
 import { siteConfig } from "@anipotts/content/public";
+import astroAdvisoryGuard from "../../config/astro/advisory-guard.mjs";
 
 export default defineConfig({
   // Public POST routes enforce their own boundary: subscription origin checks,
@@ -26,6 +27,7 @@ export default defineConfig({
     imageService: "passthrough",
   }),
   integrations: [
+    astroAdvisoryGuard(),
     icon({
       include: {
         ph: [

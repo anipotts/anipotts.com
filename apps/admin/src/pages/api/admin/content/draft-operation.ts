@@ -5,6 +5,11 @@ import {
   type DraftOperationSaveInput,
 } from "../../../../lib/content-draft-operation";
 import { requireAdminMutation } from "../../../../lib/admin-auth";
+import {
+  COMPATIBILITY_JSON_LIMITS,
+  CompatibilityJsonError,
+  readCompatibilityJson,
+} from "../../../../lib/admin-compatibility-request";
 
 export const POST: APIRoute = async (context) => {
   try {
@@ -20,15 +25,18 @@ export const POST: APIRoute = async (context) => {
       throw statusError(415, "json_required");
     }
 
-    const body = (await context.request.json()) as DraftOperationSaveInput;
+    const body = (await readCompatibilityJson(
+      context.request,
+      COMPATIBILITY_JSON_LIMITS.draftOperation,
+    )) as DraftOperationSaveInput;
     return Response.json(await saveDraftOperation(db, body), {
       headers: { "cache-control": "no-store" },
     });
   } catch (error) {
     if (error instanceof Response) return error;
-    return statusError(
-      400,
-      error instanceof Error ? error.message : "draft_save_failed",
-    );
+    if (error instanceof CompatibilityJsonError) {
+      return statusError(error.status, error.code);
+    }
+    return statusError(400, "draft_save_failed");
   }
 };
