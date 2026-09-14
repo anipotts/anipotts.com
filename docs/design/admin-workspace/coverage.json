@@ -2152,36 +2152,40 @@
     {
       "path": "apps/admin/src/pages/api/admin/content/draft-operation.ts",
       "area": "api",
-      "sha256": "cc1bdcc335cd9463a180eab6683a5a15a9b3c7f9db37a83eefaff379ad0e899a",
-      "disposition": "reviewed-retained",
+      "sha256": "e45844723867565c73d5a08ff504f241f7cf09c1f0f3a5140c617939665702ca",
+      "disposition": "updated",
       "evidence": [
+        "2026-09-14 issue #356 admin compatibility fix: reads JSON through the shared byte-bounded reader (131,072 bytes, 413 request_too_large, 400 invalid_json) and answers unexpected exceptions with the fixed draft_save_failed code instead of exception text. Success bodies, statuses, headers and authorization checks are unchanged. Source changed since recorded SHA-256 cc1bdcc335cd9463a180eab6683a5a15a9b3c7f9db37a83eefaff379ad0e899a; earlier audit references are historical. Focused route tests and admin typecheck pass. See docs/design/admin-workspace/public-api-audit.md F6.",
         "docs/design/admin-workspace/legacy-content-audit.md: exact-byte source review; open findings and verification limits retained."
       ]
     },
     {
       "path": "apps/admin/src/pages/api/admin/content/editor.ts",
       "area": "api",
-      "sha256": "13bde5a87712051b53b6a44e24356fa8142be2b7a782602edc79c3bdc62b20a5",
-      "disposition": "reviewed-retained",
+      "sha256": "465c497f04bbb181852a34b894f33bbd77cc18d9e50e80d76c537927937e2750",
+      "disposition": "updated",
       "evidence": [
+        "2026-09-14 issue #356 admin compatibility fix: reads JSON through the shared byte-bounded reader (524,288 bytes, 413 request_too_large, 400 invalid_json), treats a non-object body as unknown_editor_action, and answers unexpected exceptions with the fixed content_editor_failed code instead of exception text. Success bodies, statuses, headers and authorization checks are unchanged. Source changed since recorded SHA-256 13bde5a87712051b53b6a44e24356fa8142be2b7a782602edc79c3bdc62b20a5; earlier audit references are historical. Focused route tests and admin typecheck pass. See docs/design/admin-workspace/public-api-audit.md F6.",
         "docs/design/admin-workspace/legacy-content-audit.md: exact-byte source review; open findings and verification limits retained."
       ]
     },
     {
       "path": "apps/admin/src/pages/api/admin/control-plane.ts",
       "area": "api",
-      "sha256": "79383af26cf95eccd49beee83e24a7a2459ae9b6656632597eb31b8e1e464147",
-      "disposition": "reviewed-retained",
+      "sha256": "1940e83ac8edc3e59ca69ca602ab9acff716be632a97e4894b98bc6d3236de82",
+      "disposition": "updated",
       "evidence": [
+        "2026-09-14 issue #356 admin compatibility fix: replaces the Content-Length-only check with the shared byte-bounded reader (2,048 bytes, 413 control_command_too_large, 400 invalid_json), keeps the relay_binding_missing and invalid_control_command_request codes, and answers other GET and POST exceptions with fixed codes instead of exception text. Success bodies, statuses, headers and authorization checks are unchanged. Source changed since recorded SHA-256 79383af26cf95eccd49beee83e24a7a2459ae9b6656632597eb31b8e1e464147; earlier audit references are historical. Focused route tests and admin typecheck pass. See docs/design/admin-workspace/public-api-audit.md F6.",
         "docs/design/admin-workspace/api-audit.md: exact-byte source review; open findings and verification limits retained."
       ]
     },
     {
       "path": "apps/admin/src/pages/api/admin/inbox.ts",
       "area": "api",
-      "sha256": "25d58203d22009de56e90c8096c2d04f17bcb5adf245f593135aa9fbafa7add2",
-      "disposition": "reviewed-retained",
+      "sha256": "8d40687c1a382096085abe314895049ed0b3d9bfedf3123e4f82c0c189332e17",
+      "disposition": "updated",
       "evidence": [
+        "2026-09-14 issue #356 admin compatibility fix: reads JSON through the shared byte-bounded reader (32,768 bytes, 413 request_too_large, 400 invalid_json), keeps inbox validation codes without caller-supplied suffixes, and answers unexpected exceptions with the fixed inbox_write_failed code instead of exception text. Success bodies, statuses, headers and authorization checks are unchanged. Source changed since recorded SHA-256 25d58203d22009de56e90c8096c2d04f17bcb5adf245f593135aa9fbafa7add2; earlier audit references are historical. Focused route tests and admin typecheck pass. See docs/design/admin-workspace/public-api-audit.md F6.",
         "docs/design/admin-workspace/api-audit.md: exact-byte source review; open findings and verification limits retained."
       ]
     },
