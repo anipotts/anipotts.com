@@ -211,10 +211,6 @@ export function inspectorDestination(label = "inspect details") {
   return { type: "inspector", label } as const;
 }
 
-export function noDestination(reason: string) {
-  return { type: "none", reason } as const;
-}
-
 export function internalRecordReference<
   K extends SemanticReferenceKind,
 >(input: {

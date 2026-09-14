@@ -834,9 +834,10 @@
     {
       "path": "apps/admin/src/components/admin-icons.tsx",
       "area": "ui",
-      "sha256": "0d75cbfb8246a16472fe22a416673bac23a2a348ed487fea4566cf712979edef",
-      "disposition": "reviewed-retained",
+      "sha256": "5ad15e21c93313f3aa7be18f166ac18c96d5eae38671a7fb55a5ea6353f3df41",
+      "disposition": "updated",
       "evidence": [
+        "2026-09-14 issue #358 knip audit: removes the unused iconForNav export and the nine icon imports only it used. knip@6.35.1 (default and --production) and git grep found no reference. Source changed since recorded SHA-256 0d75cbfb8246a16472fe22a416673bac23a2a348ed487fea4566cf712979edef; earlier audit references are historical. Admin typecheck and focused tests pass; no behavior change.",
         "docs/design/admin-workspace/source-marks-audit.md: exact-byte source review; findings and verification limits retained."
       ]
     },
@@ -1351,9 +1352,10 @@
     {
       "path": "apps/admin/src/data/semantic-reference.ts",
       "area": "data-and-contracts",
-      "sha256": "4938ea870a8d45910734eca2ff4c2469305efd571941a8f2908997e42a31c576",
-      "disposition": "reviewed-retained",
+      "sha256": "96328c2a21f68535c02087cd37613e7060195b872c46848391a184a7fa044bc0",
+      "disposition": "updated",
       "evidence": [
+        "2026-09-14 issue #358 knip audit: removes the unused noDestination export. knip@6.35.1 (default and --production) and git grep found no reference. Source changed since recorded SHA-256 4938ea870a8d45910734eca2ff4c2469305efd571941a8f2908997e42a31c576; earlier audit references are historical. Admin typecheck and focused tests pass; no behavior change.",
         "docs/design/admin-workspace/operations-data-audit.md: exact-byte source review; open findings and verification limits retained."
       ]
     },
@@ -2114,8 +2116,9 @@
       "path": "apps/admin/src/lib/writing-inventory.ts",
       "area": "data-and-contracts",
       "sha256": "c0c71ff05df3728de1ccc6924fdc10ef142fcf22acff19c8163373211284fb8a",
-      "disposition": "reviewed-retained",
+      "disposition": "removed",
       "evidence": [
+        "2026-09-14 issue #358 knip audit: removed as a confirmed orphan. knip@6.35.1 (default and --production) reported it as an unused file, and git grep found no importer or dynamic reference; a3f4e992 removed its last importers. The SHA-256 is the last recorded bytes of the deleted file; earlier audit references are historical.",
         "docs/design/admin-workspace/remaining-library-audit.md: exact-byte source review; findings and verification limits retained."
       ]
     },
@@ -2889,9 +2892,10 @@
     {
       "path": "apps/admin/src/lib/content-library-state.ts",
       "area": "audited-addition",
-      "sha256": "178525df1c327a338f3642f39db3455a27f5acfd1723f3d745ebfc98abd445ee",
-      "disposition": "reviewed-retained",
+      "sha256": "5c30c7157a997007f37c6853a23bf84f8b1f5877a9257ff9474018a1552a4275",
+      "disposition": "updated",
       "evidence": [
+        "2026-09-14 issue #358 knip audit: removes the unused librarySorts export. knip@6.35.1 (default and --production) and git grep found no reference. Source changed since recorded SHA-256 178525df1c327a338f3642f39db3455a27f5acfd1723f3d745ebfc98abd445ee; earlier audit references are historical. Admin typecheck and focused tests pass; no behavior change.",
         "docs/design/admin-workspace/inventory-audit.md: exact-byte source review; open findings and verification limits retained."
       ]
     },
@@ -3167,8 +3171,9 @@
       "path": "apps/admin/src/components/astryx/observability.css",
       "area": "observability",
       "sha256": "ee2e49b3603f91c32b77bfa5cee3d4fb34fa05f41f1b355addc9f0cac67f76d6",
-      "disposition": "reviewed-retained",
+      "disposition": "removed",
       "evidence": [
+        "2026-09-14 issue #358 knip audit: removed as a confirmed orphan. The file held only a retirement comment. knip does not read CSS, so git grep confirmed there is no import, CSS @import or .astro reference; 46e1c1c6 removed its last import. The SHA-256 is the last recorded bytes of the deleted file; earlier audit references are historical.",
         "docs/design/admin-workspace/remaining-supporting-ui-audit.md: exact-byte source review; findings and verification limits retained."
       ]
     },
