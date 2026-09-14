@@ -186,7 +186,6 @@
 /* One document region, capped for comfortable writing. Controls stay compact. */
 .editor-actionbar {
   padding-bottom: var(--spacing-4);
-  border-bottom: var(--border-width) solid var(--color-border);
 }
 .editor-save-group {
   flex: 1 1 auto;
@@ -203,7 +202,6 @@
 }
 .editor-history-row {
   padding-block: var(--spacing-3);
-  border-bottom: var(--border-width) solid var(--color-border);
   justify-content: space-between;
 }
 .editorial-content .editor-fields,
@@ -230,7 +228,6 @@
 }
 .rich-field .astryx-toolbar {
   background: var(--color-background-muted);
-  border-bottom: var(--border-width) solid var(--color-border);
 }
 .rich-writing .tiptap {
   padding: var(--spacing-4);
@@ -286,7 +283,6 @@
 }
 .rich-inspector {
   padding: var(--spacing-4);
-  border-top: var(--border-width) solid var(--color-border);
 }
 .editorial-content .editor-review {
   min-width: 0;
@@ -294,7 +290,6 @@
 }
 .editor-change {
   padding-block: var(--spacing-3);
-  border-block-start: var(--border-width) solid var(--color-border);
 }
 .editorial-source {
   background: var(--color-background-surface);
@@ -471,10 +466,6 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   padding-inline: var(--spacing-1);
   border-radius: var(--radius-inner);
 }
-
-.publication-progress {
-  border-block: var(--border-width) solid var(--color-border);
-}
 .publication-step {
   flex: 1;
   min-width: 0;
@@ -550,7 +541,6 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 }
 .article-composer .astryx-toolbar {
   padding: var(--spacing-2);
-  border-bottom: var(--border-width) solid var(--color-border);
 }
 .article-composer .tiptap {
   min-height: 24rem;

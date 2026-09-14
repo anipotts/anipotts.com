@@ -440,6 +440,7 @@ export function ObservabilityWorkspace({
                     className="editorial-record-table"
                     aria-label={title(view)}
                     density="compact"
+                    dividers="none"
                     hasHover
                     textOverflow="wrap"
                     plugins={{
@@ -518,6 +519,7 @@ export function ObservabilityWorkspace({
                     idKey="id"
                     className="editorial-record-table"
                     density="compact"
+                    dividers="none"
                     textOverflow="wrap"
                     columns={[
                       {

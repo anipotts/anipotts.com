@@ -1076,7 +1076,6 @@ function HomeEditorImpl({
                       void compareWebsite();
                     },
                   },
-                  { type: "divider" },
                   ...(localPreview
                     ? [
                         {
@@ -1102,7 +1101,6 @@ function HomeEditorImpl({
                   },
                   ...(state.status === "unsaved" && !needsSaveComparison
                     ? [
-                        { type: "divider" as const },
                         {
                           label: "Save now",
                           isDisabled: Boolean(snapshot.draft?.discardedAt),

@@ -342,7 +342,7 @@ export function EditorialApp({
                   {children}
                 </VStack>
               </Card>
-              <CollapsibleGroup type="multiple" hasDividers>
+              <CollapsibleGroup type="multiple" density="balanced">
                 {review.claims != null && (
                   <Collapsible value="claims" trigger="Claims to review">
                     <Fields value={review.claims} />
@@ -406,7 +406,7 @@ function Fields({ value }: { value: unknown }): ReactNode {
     );
   if (Array.isArray(value))
     return (
-      <CollapsibleGroup type="multiple" hasDividers>
+      <CollapsibleGroup type="multiple" density="balanced">
         {value.map((item, index) =>
           item &&
           typeof item === "object" &&
@@ -434,7 +434,7 @@ function Fields({ value }: { value: unknown }): ReactNode {
     );
   if (value && typeof value === "object")
     return (
-      <CollapsibleGroup type="multiple" hasDividers>
+      <CollapsibleGroup type="multiple" density="balanced">
         {Object.entries(value)
           .filter(
             ([, item]) =>

@@ -34,3 +34,8 @@ docs <topic> browser-support, cli-integrations, color, elevation, getting-starte
 swizzle <Name> eject component source for deep customization
 upgrade --apply run after any @astryxdesign/core bump
 <!-- ASTRYX:END -->
+
+## House rules
+
+- No divider lines: no `hasDividers`, `hasDivider`, `<hr>`, menu `{ type: "divider" }` items, or decorative block borders between rows and sections. Astryx `Table` draws row dividers by default, so pass `dividers="none"`. Separate with spacing tokens instead.
+- Borders stay only where they frame or mark something: input and card outlines, pane and sheet edges, sticky bars over scrolling content, state progress bars, and the column header rule Astryx draws on every `Table`. `src/styles/no-dividers.test.ts` enforces this and lists each kept edge.
