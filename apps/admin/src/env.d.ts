@@ -54,5 +54,7 @@ declare namespace App {
     passkeySessionActive?: boolean;
     adminPrincipal?: import("./lib/admin-auth").AdminPrincipal;
     adminSetCookies?: string[];
+    /** Durations and counts only; see lib/server-timing.ts. */
+    serverTiming?: import("./lib/server-timing").ServerTiming;
   }
 }

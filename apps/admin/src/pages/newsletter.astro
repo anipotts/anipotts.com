@@ -2,7 +2,10 @@
 import { getCollection } from "astro:content";
 import EditorialLayout from "../layouts/EditorialLayout.astro";
 import { recordUpdate } from "../lib/editorial-content";
-const drafts = await getCollection("newsletterDrafts");
+import { measureServerTiming } from "../lib/server-timing";
+const drafts = await measureServerTiming(Astro.locals, "newsletter", () =>
+  getCollection("newsletterDrafts"),
+);
 const groups = [
   {
     name: "drafts",

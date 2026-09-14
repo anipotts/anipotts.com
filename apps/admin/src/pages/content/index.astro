@@ -1,8 +1,11 @@
 ---
 import EditorialLayout from "../../layouts/EditorialLayout.astro";
 import { loadEditorialInventory } from "../../lib/editorial-inventory-server";
-const inventoryProjection = await loadEditorialInventory(
-  Astro.locals.runtime?.env,
+import { measureServerTiming } from "../../lib/server-timing";
+const inventoryProjection = await measureServerTiming(
+  Astro.locals,
+  "inventory",
+  () => loadEditorialInventory(Astro.locals.runtime?.env),
 );
 ---
 

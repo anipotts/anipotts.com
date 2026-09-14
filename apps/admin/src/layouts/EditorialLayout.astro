@@ -14,6 +14,7 @@ import "../styles/scrollbars.css";
 import { publicSiteUrl } from "../lib/editorial-content";
 import { EDITORIAL_OWNER_EMAIL } from "../lib/editorial-owner";
 import { loadEditorialInventory } from "../lib/editorial-inventory-server";
+import { measureServerTiming } from "../lib/server-timing";
 import {
   EditorialApp,
   type EditorialAppProps,
@@ -48,7 +49,9 @@ const {
 const renderContent = hasContent && Astro.slots.has("default");
 const inventory =
   suppliedInventory ??
-  (await loadEditorialInventory(Astro.locals.runtime?.env));
+  (await measureServerTiming(Astro.locals, "inventory", () =>
+    loadEditorialInventory(Astro.locals.runtime?.env),
+  ));
 const appProps = {
   searchEntries: inventory.searchEntries,
   ...pageProps,
