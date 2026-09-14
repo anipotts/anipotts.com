@@ -2,6 +2,14 @@ import { contentDecision, decisionHref } from "../../lib/content-decision";
 import React, { useEffect, useState } from "react";
 import type { CatalogRecord, CatalogGroup } from "./EditorialApp";
 import { Button } from "@astryxdesign/core/Button";
+import { IconButton } from "@astryxdesign/core/IconButton";
+import {
+  ArrowRightIcon,
+  ArticleIcon,
+  BriefcaseIcon,
+  EnvelopeIcon,
+  FileTextIcon,
+} from "@phosphor-icons/react";
 import { Token } from "@astryxdesign/core/Token";
 import { Timestamp } from "@astryxdesign/core/Timestamp";
 import { HStack } from "@astryxdesign/core/HStack";
@@ -64,7 +72,8 @@ export function Updated({
   if (!updated)
     return column ? <Text color="secondary">Not recorded</Text> : null;
   const date = new Date(updated.at);
-  if (!Number.isFinite(date.getTime())) return null;
+  if (!Number.isFinite(date.getTime()))
+    return column ? <Text color="secondary">Not recorded</Text> : null;
   return (
     <HStack gap={2} wrap="wrap">
       <Timestamp
@@ -127,7 +136,60 @@ export function RecordStatus({
   );
 }
 
-function DecisionCell({
+function RecordGlyph({ record }: { record: CatalogRecord }) {
+  const [Icon, kind] =
+    record.collection === "projects" ||
+    record.href.startsWith("/content/projects/")
+      ? ([BriefcaseIcon, "Project"] as const)
+      : record.collection === "writing" ||
+          record.href.startsWith("/content/writing/")
+        ? ([ArticleIcon, "Article"] as const)
+        : record.href.startsWith("/newsletter/")
+          ? ([EnvelopeIcon, "Newsletter issue"] as const)
+          : ([FileTextIcon, "Page"] as const);
+  // A record with a summary shows the summary in place of its section label, so
+  // this glyph is the only remaining kind signal. It carries the kind as text
+  // rather than aria-hidden decoration, and as a tooltip, so the row is
+  // readable without a legend and announces its kind to assistive technology.
+  return (
+    <span className="editorial-record-icon" title={kind}>
+      <Icon weight="regular" size="var(--spacing-5)" aria-hidden="true" />
+      <Text className="sr-only">{kind}</Text>
+    </span>
+  );
+}
+
+/** The row action's tooltip and aria-describedby both carry this string, and a
+ * screen reader reads it on every focus, so it stays bounded rather than
+ * listing every changed frontmatter field. */
+export function changedFieldSummary(fields: readonly string[]): string {
+  if (!fields.length) return "Source changes";
+  const shown = fields.slice(0, 2).join(", ");
+  return fields.length > 2 ? `${shown} +${fields.length - 2}` : shown;
+}
+
+function RecordState({
+  record,
+  inventoryError,
+}: {
+  record: CatalogRecord;
+  inventoryError: boolean;
+}) {
+  const decision = contentDecision(record, !inventoryError);
+  const unavailable = inventoryError && record.privateRevision === undefined;
+  return (
+    <VStack gap={1} className="editorial-record-state">
+      <RecordStatus status={record.status} />
+      <Text type="supporting" color="secondary">
+        {unavailable
+          ? "Draft status unavailable"
+          : (decision.detail ?? decision.label)}
+      </Text>
+    </VStack>
+  );
+}
+
+function RecordAction({
   record,
   returnTo,
   inventoryError = false,
@@ -139,38 +201,20 @@ function DecisionCell({
   const decision = contentDecision(record, !inventoryError);
   const changed =
     decision.action === "Review changes" && record.changedFields !== undefined
-      ? record.changedFields.length
-        ? record.changedFields.slice(0, 2).join(" · ") +
-          (record.changedFields.length > 2
-            ? ` +${record.changedFields.length - 2}`
-            : "")
-        : "Source changes"
+      ? changedFieldSummary(record.changedFields)
       : undefined;
-  const detail = decision.detail ?? changed;
+  const label = `${decision.action ?? "Open record"}: ${record.title}`;
+  const href = recordLibraryHref(record.href, returnTo);
   return (
-    <VStack gap={1} className="editorial-record-decision">
-      {decision.action && decision.view ? (
-        <Button
-          size="sm"
-          variant="ghost"
-          className="record-decision-link"
-          label={decision.action}
-          href={decisionHref(
-            recordLibraryHref(record.href, returnTo),
-            decision.view,
-          )}
-        />
-      ) : (
-        <Text type="supporting" color="secondary">
-          {decision.label}
-        </Text>
-      )}
-      {detail && (
-        <Text type="supporting" color="secondary">
-          {detail}
-        </Text>
-      )}
-    </VStack>
+    <IconButton
+      size="sm"
+      variant="ghost"
+      className="editorial-record-action"
+      icon={<ArrowRightIcon weight="regular" />}
+      label={label}
+      tooltip={changed ? `${label} (${changed})` : label}
+      href={decision.view ? decisionHref(href, decision.view) : href}
+    />
   );
 }
 
@@ -281,172 +325,222 @@ export function ContentLibrary({
     new Set(group.records.map((item) => item.section).filter(Boolean)).size > 1;
   const statuses = [...new Set(group.records.map((item) => item.status))];
   return (
-    <VStack gap={4}>
+    <VStack gap={5} className="editorial-library">
       {recent.length > 0 && (
-        <VStack gap={2}>
-          <Text type="label">Recently edited</Text>
-          <HStack gap={2} className="editorial-resume-grid">
-            {recent.map((record) => (
-              <VStack
-                key={record.href}
-                gap={1}
-                className="editorial-resume-item"
-              >
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="record-link"
-                  label={record.title}
-                  href={recordLibraryHref(record.href, currentUrl)}
-                />
-                <Updated updated={record.updated} />
-              </VStack>
-            ))}
+        <section className="editorial-resume" aria-label="Recently edited">
+          <HStack vAlign="center" className="editorial-resume-heading">
+            <Text type="label">Recently edited</Text>
+            <Text type="supporting" color="secondary">
+              Pick up where you left off
+            </Text>
           </HStack>
-        </VStack>
+          <ul className="editorial-resume-list">
+            {recent.map((record) => {
+              const decision = contentDecision(record, !inventoryError);
+              const href = recordLibraryHref(record.href, currentUrl);
+              const section =
+                record.section ??
+                (record.href.startsWith("/content/projects/")
+                  ? "Projects"
+                  : record.href.startsWith("/content/writing/")
+                    ? "Writing"
+                    : "Pages");
+              return (
+                <li key={record.href} className="editorial-resume-row">
+                  <div className="editorial-resume-meta">
+                    <HStack
+                      gap={2}
+                      vAlign="center"
+                      className="editorial-resume-kind"
+                    >
+                      <RecordGlyph record={record} />
+                      <Text type="supporting" color="secondary">
+                        {interfaceLabel(section)}
+                      </Text>
+                    </HStack>
+                    <div className="editorial-resume-time">
+                      <Updated updated={record.updated} />
+                    </div>
+                  </div>
+                  <a
+                    className="editorial-resume-link"
+                    href={
+                      decision.view ? decisionHref(href, decision.view) : href
+                    }
+                  >
+                    <span className="editorial-resume-title">
+                      {record.title}
+                    </span>
+                    <span className="editorial-resume-action">
+                      {decision.action ?? "Open record"}
+                      <ArrowRightIcon
+                        weight="regular"
+                        size={16}
+                        aria-hidden="true"
+                      />
+                    </span>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       )}
-      <TextInput
-        label="Search records"
-        isLabelHidden
-        placeholder="Search records"
-        startIcon="search"
-        value={query}
-        onChange={setQuery}
-        hasClear
-      />
       <HStack
-        gap={2}
-        hAlign="start"
+        gap={3}
+        wrap="wrap"
         vAlign="center"
-        className="editorial-filter-row"
+        className="editorial-library-toolbar"
       >
-        {sectionOptions.length > 1 && (
-          <DropdownMenu
-            button={{
-              label:
-                sections.length === sectionOptions.length
-                  ? "Sections"
-                  : sections.length === 0
-                    ? "No sections"
-                    : sections.length === 1
-                      ? interfaceLabel(sections[0]!)
-                      : `${sections.length} sections`,
-              size: "sm",
-              variant: "secondary",
-            }}
-          >
-            <DropdownMenuCheckboxItem
-              label="All sections"
-              value={sections.length === sectionOptions.length}
-              onChange={(checked) => setSections(checked ? sectionOptions : [])}
-            />
-            {sectionOptions.map((section) => (
+        <TextInput
+          className="editorial-library-search"
+          label="Search records"
+          isLabelHidden
+          placeholder="Search records"
+          startIcon="search"
+          value={query}
+          onChange={setQuery}
+          hasClear
+        />
+        <HStack
+          gap={2}
+          hAlign="start"
+          vAlign="center"
+          className="editorial-filter-row editorial-library-filters"
+        >
+          {sectionOptions.length > 1 && (
+            <DropdownMenu
+              button={{
+                label:
+                  sections.length === sectionOptions.length
+                    ? "Sections"
+                    : sections.length === 0
+                      ? "No sections"
+                      : sections.length === 1
+                        ? interfaceLabel(sections[0]!)
+                        : `${sections.length} sections`,
+                size: "sm",
+                variant: "secondary",
+              }}
+            >
               <DropdownMenuCheckboxItem
-                key={section}
-                label={interfaceLabel(section)}
-                value={sections.includes(section)}
+                label="All sections"
+                value={sections.length === sectionOptions.length}
                 onChange={(checked) =>
-                  setSections(
-                    checked
-                      ? [...sections, section]
-                      : sections.filter((item) => item !== section),
-                  )
+                  setSections(checked ? sectionOptions : [])
                 }
               />
-            ))}
-          </DropdownMenu>
-        )}
-        {(statuses.length > 1 ||
-          group.records.some((item) => item.changesPending)) && (
-          <DropdownMenu
-            button={{
-              label:
-                status === "all"
-                  ? "Status"
-                  : status === "changes"
-                    ? "Changes"
-                    : interfaceLabel(status),
-              tooltip: `Status: ${status === "all" ? "All" : status === "changes" ? "Changes pending" : interfaceLabel(status)}`,
-              size: "sm",
-              variant: "secondary",
-            }}
-            menuWidth="max-content"
-          >
-            <DropdownMenuRadioGroup
-              label="Publication status"
-              value={status}
-              onChange={setStatus}
-            >
-              {[
-                "all",
-                ...(group.records.some((item) => item.changesPending)
-                  ? ["changes"]
-                  : []),
-                ...statuses,
-              ].map((item) => (
-                <DropdownMenuRadioItem
-                  key={item}
-                  value={item}
-                  label={
-                    item === "changes"
-                      ? "Changes pending"
-                      : interfaceLabel(item)
+              {sectionOptions.map((section) => (
+                <DropdownMenuCheckboxItem
+                  key={section}
+                  label={interfaceLabel(section)}
+                  value={sections.includes(section)}
+                  onChange={(checked) =>
+                    setSections(
+                      checked
+                        ? [...sections, section]
+                        : sections.filter((item) => item !== section),
+                    )
                   }
                 />
               ))}
+            </DropdownMenu>
+          )}
+          {(statuses.length > 1 ||
+            group.records.some((item) => item.changesPending)) && (
+            <DropdownMenu
+              button={{
+                label:
+                  status === "all"
+                    ? "Status"
+                    : status === "changes"
+                      ? "Changes"
+                      : interfaceLabel(status),
+                tooltip: `Status: ${status === "all" ? "All" : status === "changes" ? "Changes pending" : interfaceLabel(status)}`,
+                size: "sm",
+                variant: "secondary",
+              }}
+              menuWidth="max-content"
+            >
+              <DropdownMenuRadioGroup
+                label="Publication status"
+                value={status}
+                onChange={setStatus}
+              >
+                {[
+                  "all",
+                  ...(group.records.some((item) => item.changesPending)
+                    ? ["changes"]
+                    : []),
+                  ...statuses,
+                ].map((item) => (
+                  <DropdownMenuRadioItem
+                    key={item}
+                    value={item}
+                    label={
+                      item === "changes"
+                        ? "Changes pending"
+                        : interfaceLabel(item)
+                    }
+                  />
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenu>
+          )}
+          <DropdownMenu
+            button={{
+              label:
+                state.sort === "attention"
+                  ? "Needs attention"
+                  : state.sort === "updated"
+                    ? "Recently edited"
+                    : "Title A–Z",
+              tooltip: `Sort: ${state.sort === "attention" ? "Needs attention" : state.sort === "updated" ? "Last updated" : "Title"}`,
+              size: "sm",
+              variant: "secondary",
+            }}
+          >
+            <DropdownMenuRadioGroup
+              label="Sort records"
+              value={state.sort}
+              onChange={(sort) =>
+                change({
+                  sort:
+                    sort === "title"
+                      ? "title"
+                      : sort === "updated"
+                        ? "updated"
+                        : "attention",
+                })
+              }
+            >
+              <DropdownMenuRadioItem
+                value="attention"
+                label="Needs attention"
+              />
+              <DropdownMenuRadioItem value="updated" label="Last updated" />
+              <DropdownMenuRadioItem value="title" label="Title" />
             </DropdownMenuRadioGroup>
           </DropdownMenu>
-        )}
-        <DropdownMenu
-          button={{
-            label:
-              state.sort === "attention"
-                ? "Needs attention"
-                : state.sort === "updated"
-                  ? "Recently edited"
-                  : "Title A–Z",
-            tooltip: `Sort: ${state.sort === "attention" ? "Needs attention" : state.sort === "updated" ? "Last updated" : "Title"}`,
-            size: "sm",
-            variant: "secondary",
-          }}
-        >
-          <DropdownMenuRadioGroup
-            label="Sort records"
-            value={state.sort}
-            onChange={(sort) =>
-              change({
-                sort:
-                  sort === "title"
-                    ? "title"
-                    : sort === "updated"
-                      ? "updated"
-                      : "attention",
-              })
-            }
-          >
-            <DropdownMenuRadioItem value="attention" label="Needs attention" />
-            <DropdownMenuRadioItem value="updated" label="Last updated" />
-            <DropdownMenuRadioItem value="title" label="Title" />
-          </DropdownMenuRadioGroup>
-        </DropdownMenu>
-        <Text
-          type="supporting"
-          color="secondary"
-          aria-live="polite"
-          role="status"
-          aria-label={`${records.length} ${records.length === 1 ? "record" : "records"}`}
-          className="editorial-record-count"
-        >
-          {records.length}
           <Text
             type="supporting"
             color="secondary"
-            className="editorial-record-count-label"
+            aria-live="polite"
+            role="status"
+            aria-label={`${records.length} ${records.length === 1 ? "record" : "records"}`}
+            className="editorial-record-count"
           >
-            {" "}
-            {records.length === 1 ? "record" : "records"}
+            {records.length}
+            <Text
+              type="supporting"
+              color="secondary"
+              className="editorial-record-count-label"
+            >
+              {" "}
+              {records.length === 1 ? "record" : "records"}
+            </Text>
           </Text>
-        </Text>
+        </HStack>
       </HStack>
       {records.length ? (
         <>
@@ -463,12 +557,13 @@ export function ContentLibrary({
                 header: "Title",
                 width: proportional(1, { minWidth: 80 }),
                 renderCell: (item) => (
-                  <VStack gap={1} className="editorial-record-content">
-                    <HStack
-                      gap={2}
-                      vAlign="center"
-                      className="editorial-record-heading"
-                    >
+                  <HStack
+                    gap={3}
+                    vAlign="center"
+                    className="editorial-record-heading"
+                  >
+                    <RecordGlyph record={item} />
+                    <VStack gap={1} className="editorial-record-content">
                       <Button
                         size="sm"
                         label={item.title}
@@ -476,53 +571,65 @@ export function ContentLibrary({
                         variant="ghost"
                         className="record-link"
                       />
-                      {showSections && item.section && (
-                        <Text type="supporting" color="secondary">
+                      {item.summary ? (
+                        <Text
+                          type="supporting"
+                          color="secondary"
+                          className="editorial-record-summary"
+                        >
+                          {item.summary}
+                        </Text>
+                      ) : showSections && item.section ? (
+                        <Text
+                          type="supporting"
+                          color="secondary"
+                          className="editorial-record-summary"
+                        >
                           {interfaceLabel(item.section)}
                         </Text>
-                      )}
-                    </HStack>
-                    {item.summary && (
-                      <Text
-                        type="supporting"
-                        color="secondary"
-                        className="editorial-record-summary"
+                      ) : null}
+                      <HStack
+                        className="editorial-mobile-status"
+                        gap={3}
+                        wrap="wrap"
+                        vAlign="center"
                       >
-                        {item.summary}
-                      </Text>
-                    )}
-                    <HStack
-                      className="editorial-mobile-status"
-                      gap={2}
-                      wrap="wrap"
-                    >
-                      <DecisionCell
-                        record={item}
-                        returnTo={currentUrl}
-                        inventoryError={inventoryError}
-                      />
-                      <Updated updated={item.updated} />
-                    </HStack>
-                  </VStack>
+                        <RecordState
+                          record={item}
+                          inventoryError={inventoryError}
+                        />
+                        <Updated updated={item.updated} column />
+                      </HStack>
+                    </VStack>
+                  </HStack>
                 ),
               },
               {
                 key: "status",
-                header: area === "content" ? "Next step" : "Status",
-                width: pixel(160),
+                header: "State",
+                width: pixel(144),
                 renderCell: (item) => (
-                  <DecisionCell
+                  <RecordState record={item} inventoryError={inventoryError} />
+                ),
+              },
+              {
+                key: "updated",
+                header: "Updated",
+                width: pixel(112),
+                renderCell: (item) => <Updated updated={item.updated} column />,
+              },
+              {
+                key: "action",
+                header: <Text className="sr-only">Action</Text>,
+                width: pixel(52),
+                align: "end",
+                renderCell: (item) => (
+                  <RecordAction
                     record={item}
                     returnTo={currentUrl}
                     inventoryError={inventoryError}
                   />
                 ),
-              },
-              {
-                key: "updated",
-                header: "Last updated",
-                width: pixel(112),
-                renderCell: (item) => <Updated updated={item.updated} column />,
               },
             ]}
           />
