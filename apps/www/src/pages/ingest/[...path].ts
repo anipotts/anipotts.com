@@ -23,9 +23,11 @@ const ALLOWED_METHODS = "GET, POST, OPTIONS";
 // Trailing slashes are optional because trailingSlash "never" redirects
 // "/ingest/e/" to "/ingest/e" before this handler runs.
 const ROUTES: ReadonlyArray<readonly [RegExp, string]> = [
-  // Snippet array.js plus lazy bundles, legacy and version-pinned.
+  // Snippet array.js plus lazy bundles, legacy and version-pinned. The
+  // toolbar.js loader imports its app and chunks from a toolbar/ directory
+  // next to its own script URL, with uppercase content hashes.
   [
-    /^static\/(?:[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.]+)?\/)?[a-z0-9-]+(?:\.[a-z0-9-]+)*\.js$/,
+    /^static\/(?:[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.]+)?\/)?(?:toolbar\/)?[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.js$/,
     ASSETS_HOST,
   ],
   // Events, the remote config endpoint override, logs and metrics.
@@ -41,16 +43,25 @@ const ROUTES: ReadonlyArray<readonly [RegExp, string]> = [
   [/^api\/(?:surveys|product_tours)\/?$/, EVENTS_HOST],
 ];
 
+// The conditional request and validator headers keep 304 revalidation for
+// static bundles once their max-age runs out.
 const FORWARDED_REQUEST_HEADERS = [
   "accept",
   "accept-language",
   "content-type",
+  "if-modified-since",
+  "if-none-match",
   "origin",
   "referer",
   "user-agent",
 ];
-const RETURNED_RESPONSE_HEADERS = ["cache-control", "content-type"];
-const NULL_BODY_STATUSES = new Set([101, 204, 205, 304]);
+const RETURNED_RESPONSE_HEADERS = [
+  "cache-control",
+  "content-type",
+  "etag",
+  "last-modified",
+];
+const NULL_BODY_STATUSES = new Set([204, 205, 304]);
 const CLIENT_IP = /^[0-9A-Fa-f:.]{2,45}$/;
 
 function failure(
@@ -85,7 +96,10 @@ function forwardedHeaders(request: Request): Headers {
   return headers;
 }
 
-/** Reads the request body up to MAX_BODY_BYTES; null means it is too large. */
+/** Reads the request body up to MAX_BODY_BYTES; null means it is too large.
+ *  Memory tracks bytes actually received. content-length is only used to
+ *  reject early, never to size a buffer, so a client that declares a large
+ *  body and sends a trickle cannot pin memory in the shared isolate. */
 async function boundedBody(request: Request): Promise<ArrayBuffer | null> {
   if (Number(request.headers.get("content-length")) > MAX_BODY_BYTES) {
     return null;

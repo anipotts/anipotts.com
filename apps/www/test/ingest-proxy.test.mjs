@@ -11,9 +11,16 @@ const TIMEOUT_MS = 10_000;
 const MAX_BODY_BYTES = 10 * 1024 * 1024;
 const TOKEN = "phc_TestProjectToken123";
 
-/** Mirrors astro/dist/runtime/server/endpoint.js method dispatch. */
+/** Mirrors astro/dist/runtime/server/endpoint.js method dispatch and the
+ *  decodeURI pathname normalization in core/render-context.js
+ *  createNormalizedUrl (astro 5.18.2). */
 function dispatch(request) {
   const url = new URL(request.url);
+  try {
+    url.pathname = decodeURI(url.pathname);
+  } catch {
+    // Astro keeps the raw pathname when it cannot be decoded.
+  }
   const method = request.method.toUpperCase();
   let handler = route[method] ?? route.ALL;
   if (!handler && method === "HEAD" && route.GET) handler = route.GET;
@@ -73,7 +80,7 @@ const ALLOWLISTED = [
     "/ingest/static/surveys.js?v=1.430.3",
     `${ASSETS}/static/surveys.js?v=1.430.3`,
   ],
-  // external-scripts-loader.js:109-113 toolbar cache buster.
+  // external-scripts-loader.js:106-112 toolbar cache buster.
   [
     "GET",
     "/ingest/static/toolbar.js?v=1.430.3&t=1757851200000",
@@ -84,6 +91,36 @@ const ALLOWLISTED = [
     "GET",
     "/ingest/static/1.430.3/posthog-recorder.js",
     `${ASSETS}/static/1.430.3/posthog-recorder.js`,
+  ],
+  // The toolbar.js loader imports its app relative to its own script URL:
+  // new URL(`toolbar/${name}`, document.currentScript.src). The hashed app
+  // falls back to toolbar-app.js?t=<5 minute bucket>, and the app imports
+  // ./chunk-*.js siblings. Names below are from the 1.430.3 CDN build.
+  [
+    "GET",
+    "/ingest/static/1.430.3/toolbar/toolbar-app-ENWASS6E.js",
+    `${ASSETS}/static/1.430.3/toolbar/toolbar-app-ENWASS6E.js`,
+  ],
+  [
+    "GET",
+    "/ingest/static/1.430.3/toolbar/toolbar-app.js?t=1757851200000",
+    `${ASSETS}/static/1.430.3/toolbar/toolbar-app.js?t=1757851200000`,
+  ],
+  [
+    "GET",
+    "/ingest/static/1.430.3/toolbar/chunk-chunk-ETAZNGYK.js",
+    `${ASSETS}/static/1.430.3/toolbar/chunk-chunk-ETAZNGYK.js`,
+  ],
+  [
+    "GET",
+    "/ingest/static/1.430.3/toolbar/chunk-ActionsToolbarMenu-HPFZ4FZN.js",
+    `${ASSETS}/static/1.430.3/toolbar/chunk-ActionsToolbarMenu-HPFZ4FZN.js`,
+  ],
+  // The legacy toolbar.js?v= fallback resolves the same names one level up.
+  [
+    "GET",
+    "/ingest/static/toolbar/toolbar-app-ENWASS6E.js",
+    `${ASSETS}/static/toolbar/toolbar-app-ENWASS6E.js`,
   ],
   // remote-config.js:34 and external-scripts-loader.js:120.
   [
@@ -172,6 +209,13 @@ test("paths outside the posthog-js allowlist return 404 without contacting upstr
     ["GET", "/ingest/static/%2e%2e/array.js"],
     ["GET", "/ingest/static/..%2fapi.js"],
     ["GET", "/ingest/static/a/b/c.js"],
+    ["GET", "/ingest/static/%252e%252e/toolbar.js"],
+    ["GET", "/ingest/static/1.430.3/other/toolbar-app.js"],
+    ["GET", "/ingest/static/toolbar/toolbar/toolbar-app.js"],
+    ["GET", "/ingest/static/toolbar/1.430.3/toolbar-app.js"],
+    ["GET", "/ingest/static/1.430.3/toolbar/toolbar-app.js.map"],
+    // toolbar-app.js links its stylesheet with an absolute us-assets URL.
+    ["GET", "/ingest/static/1.430.3/toolbar/toolbar-app.css"],
     ["GET", `/ingest/array/${TOKEN}/settings`],
     ["GET", "/ingest/array/phc%2Fx/config"],
     ["GET", "/ingest/api/projects/1/insights"],
@@ -297,6 +341,61 @@ test("upstream set-cookie and other response headers are not passed through", as
     "content-type": "application/javascript",
   });
   assert.equal(await response.text(), "!function(){}()");
+});
+
+test("static bundles keep conditional revalidation through the proxy", async (t) => {
+  const calls = stubUpstream(t, (call) =>
+    call.headers.get("if-none-match") === 'W/"array-1.430.3"'
+      ? new Response(null, {
+          status: 304,
+          headers: {
+            "cache-control": "public, max-age=14400",
+            etag: 'W/"array-1.430.3"',
+            "last-modified": "Sat, 12 Sep 2026 15:37:37 GMT",
+            "set-cookie": "ph_session=1; Path=/",
+          },
+        })
+      : new Response("!function(){}()", {
+          status: 200,
+          headers: {
+            "cache-control": "public, max-age=14400",
+            "content-type": "application/javascript",
+            etag: 'W/"array-1.430.3"',
+            "last-modified": "Sat, 12 Sep 2026 15:37:37 GMT",
+          },
+        }),
+  );
+  const fresh = await dispatch(
+    new Request("https://anipotts.com/ingest/static/array.js"),
+  );
+  assert.equal(fresh.status, 200);
+  assert.equal(fresh.headers.get("etag"), 'W/"array-1.430.3"');
+  assert.equal(
+    fresh.headers.get("last-modified"),
+    "Sat, 12 Sep 2026 15:37:37 GMT",
+  );
+
+  const revalidated = await dispatch(
+    new Request("https://anipotts.com/ingest/static/array.js", {
+      headers: {
+        "if-modified-since": "Sat, 12 Sep 2026 15:37:37 GMT",
+        "if-none-match": 'W/"array-1.430.3"',
+      },
+    }),
+  );
+  const call = calls.at(-1);
+  assert.equal(call.headers.get("if-none-match"), 'W/"array-1.430.3"');
+  assert.equal(
+    call.headers.get("if-modified-since"),
+    "Sat, 12 Sep 2026 15:37:37 GMT",
+  );
+  assert.equal(revalidated.status, 304);
+  assert.equal(revalidated.body, null);
+  assert.deepEqual(Object.fromEntries(revalidated.headers), {
+    "cache-control": "public, max-age=14400",
+    etag: 'W/"array-1.430.3"',
+    "last-modified": "Sat, 12 Sep 2026 15:37:37 GMT",
+  });
 });
 
 test("upstream status is preserved, including bodyless statuses", async (t) => {
@@ -482,4 +581,54 @@ test("a request body exactly at the cap is forwarded", async (t) => {
   assert.equal(response.status, 200);
   assert.equal(calls.length, 1);
   assert.equal(calls[0].body.byteLength, MAX_BODY_BYTES);
+});
+
+test("streamed request bodies are forwarded byte for byte", async (t) => {
+  const calls = stubUpstream(t);
+  const sizes = [1, 70_000, 3, 200_000, 65_536];
+  const total = sizes.reduce((sum, size) => sum + size, 0);
+  const expected = new Uint8Array(total);
+  for (let index = 0; index < total; index += 1) {
+    expected[index] = (index * 31 + 7) % 251;
+  }
+  const streamOf = () => {
+    let offset = 0;
+    let chunk = 0;
+    return new ReadableStream({
+      pull(controller) {
+        if (chunk === sizes.length) {
+          controller.close();
+          return;
+        }
+        const size = sizes[chunk];
+        controller.enqueue(expected.slice(offset, offset + size));
+        offset += size;
+        chunk += 1;
+      },
+    });
+  };
+  for (const headers of [
+    {},
+    { "content-length": String(total) },
+    { "content-length": "not-a-number" },
+  ]) {
+    const response = await dispatch(
+      new Request("https://anipotts.com/ingest/s?ver=1.430.3", {
+        method: "POST",
+        duplex: "half",
+        body: streamOf(),
+        headers,
+      }),
+    );
+    assert.equal(response.status, 200, JSON.stringify(headers));
+    assert.deepEqual(calls.at(-1).body, expected, JSON.stringify(headers));
+  }
+  const empty = await dispatch(
+    new Request("https://anipotts.com/ingest/e?ver=1.430.3", {
+      method: "POST",
+      body: "",
+    }),
+  );
+  assert.equal(empty.status, 200);
+  assert.equal(calls.at(-1).body.byteLength, 0);
 });
