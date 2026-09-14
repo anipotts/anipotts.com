@@ -59,9 +59,9 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
-    "@astryxdesign/cli": "^0.4.6",
-    "@cloudflare/vitest-plugin": "1.1.6",
-    "@cloudflare/workers-types": "5.20260908.1",
+    "@astryxdesign/cli": "^0.6.0",
+    "@cloudflare/vitest-plugin": "1.1.7",
+    "@cloudflare/workers-types": "5.20260911.1",
     "@playwright/test": "1.63.0",
     "@types/node": "22.19.19",
     "@types/qrcode": "^1.5.6",
@@ -70,7 +70,7 @@
     "esbuild": "^0.28.2",
     "gpt-tokenizer": "^3.4.0",
     "jsdom": "^30.0.1",
-    "miniflare": "4.20260114.0",
+    "miniflare": "4.20260730.0",
     "typescript": "^5",
     "vitest": "^4.1.11"
   }
