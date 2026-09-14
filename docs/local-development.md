@@ -59,10 +59,13 @@ It does not install a service, request `sudo`, trust a CA, edit `/etc/hosts`, or
 bind ports `80` and `443`. Clean no-port HTTPS URLs are a separate machine-level
 promotion that needs exact approval.
 
-Admin's named preview allowance accepts only `GET` and `HEAD` for `/`, `/inbox`,
-and `/work`. It requires Astro development mode and either the legacy loopback
-origin or the exact `admin.anipotts.localhost` hostname shape on the approved
-Portless port. Production middleware, protected APIs, write routes, password
+Admin's named preview allowance accepts only `GET` and `HEAD` for the private
+workspace paths listed in `apps/admin/src/lib/admin-access-policy.ts`
+(`DEV_LOOPBACK_PREVIEW_PATHS` plus the Content record and newsletter patterns),
+including Content, Life and Operations views. It requires Astro development mode
+and either the loopback `localhost:4311` origin or any worktree's
+`admin.anipotts.localhost` hostname on the approved Portless port, so a clean
+linked worktree can review private pages without the managed fallback. Production middleware, protected APIs, write routes, password
 auth, passkeys, and Cloudflare Access are unchanged.
 
 ## worktrees and HMR

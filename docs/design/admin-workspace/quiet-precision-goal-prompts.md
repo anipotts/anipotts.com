@@ -38,6 +38,38 @@ At each checkpoint report implementation, tests, Ani's review, merge, deployment
 live verification and remaining work separately. Update the checkpoint and this
 milestone ledger without marking future work done because a file exists.
 
+## Handoff checkpoint, September 14, 2026
+
+This checkpoint supersedes the PR state described in the sections below; those
+sections are kept as the September 13 record.
+
+Ani moved the integration owner role to Claude Code while Codex usage is paused
+(see `CLAUDE.md`, integration owner delegation). The `admin-integration-progress`,
+`admin-life-progress` and `admin-operations-progress` heartbeats are paused. When
+Codex resumes, read this checkpoint and the current PR list first, and do not act
+as a second integration owner unless Ani reassigns the lane.
+
+Merged and deployed since the September 13 baseline: #343 URL safety, #344 draft
+history and retry identity, #345 release guards, #346 review catalog, #347 browser
+recovery, #348 Content tables, #349 publication contract, #350 release isolation,
+#351 Life overview, #352 Operations overview. Main is `268e4637`.
+
+Open work in order:
+
+1. Issues #355 runtime contracts, #356 endpoint security, #357 accessibility,
+   #358 dead code and #359 React defects, plus #354 turbo cache inputs.
+2. Admin speed and skeleton overhaul, after #357 and #359 land: local owner
+   session, measurement harness, in-workspace switching, skeletons that match
+   loaded layouts, and a committed skeleton-parity test.
+3. Codex handoff: preserve the unshipped `codex/document-editor` working tree to a
+   pushed branch (private writing drafts excluded), land small ready slices, and
+   keep the Connect and Life readers as disabled draft PRs. R5, R7 and R8 stay
+   blocked on R4 key custody, the external copy destination and the R2 access
+   denial, plus real D1 rollback proof.
+4. The paired Astro 7 and Cloudflare adapter 14 migration. Open Dependabot alerts
+   on Astro 5 include advisories fixed only in Astro 6 or 7, so its priority is
+   under review.
+
 ## Current visual priority
 
 Ani asked to prioritize the actual Content and workspace overview tables after
