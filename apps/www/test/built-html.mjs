@@ -22,11 +22,36 @@ const decode = (value) =>
     name === "#39" ? "'" : entities[name],
   );
 
-/** Markup without comments, script bodies or style bodies. */
+const rawTextEnd = {
+  script: /<\/script\b[^>]*>/gi,
+  style: /<\/style\b[^>]*>/gi,
+};
+
+/** Markup without comments, script bodies or style bodies, skipped in one forward scan. */
 function markup(html) {
-  return html
-    .replace(/<!--[\s\S]*?-->/g, "")
-    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, "");
+  let out = "";
+  let at = 0;
+  while (at < html.length) {
+    const open = html.indexOf("<", at);
+    if (open === -1) return out + html.slice(at);
+    out += html.slice(at, open);
+    if (html.startsWith("<!--", open)) {
+      const close = html.indexOf("-->", open + 4);
+      at = close === -1 ? html.length : close + 3;
+      continue;
+    }
+    const raw = /^<(script|style)\b/i.exec(html.slice(open, open + 8))?.[1];
+    if (!raw) {
+      out += "<";
+      at = open + 1;
+      continue;
+    }
+    const end = rawTextEnd[raw.toLowerCase()];
+    end.lastIndex = open;
+    const match = end.exec(html);
+    at = match ? match.index + match[0].length : html.length;
+  }
+  return out;
 }
 
 export function startTags(html) {
@@ -65,7 +90,7 @@ function bundle(path, seen) {
 /** Client script text shipped with a page: inline bodies plus bundled sources. */
 export function clientScripts(html) {
   const seen = new Set();
-  return [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)]
+  return [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi)]
     .filter(([, attrs]) => !/type="application\/ld\+json"/.test(attrs))
     .flatMap(([, attrs, body]) => {
       const src = attrs.match(/\ssrc="(\/_astro\/[^"]+)"/)?.[1];

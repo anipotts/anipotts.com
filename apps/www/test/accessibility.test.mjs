@@ -107,7 +107,7 @@ const stateReceivers = (script) =>
 // A text, title or name write on that receiver renames the toggle along with its state.
 const renamesReceiver = (script, receiver) =>
   new RegExp(
-    `(?<![\\w$.])${receiver.replace(/[$.]/g, "\\$&")}\\??\\.` +
+    `(?<![\\w$.])${receiver.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&")}\\??\\.` +
       `(?:(?:textContent|innerText|innerHTML|title|ariaLabel)\\s*=(?!=)` +
       `|setAttribute\\(\\s*["'\`](?:aria-label|title)["'\`])`,
   ).test(script);
