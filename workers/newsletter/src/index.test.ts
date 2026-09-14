@@ -93,13 +93,23 @@ describe("newsletter entry wiring", () => {
       { queue: "newsletter-send", messages: [message] },
       { DB: db },
     );
-    await worker.fetch(new Request("https://newsletter.test/"), { DB: db });
 
     // Unchanged: a missing Resend key mocks the send and the message is acked.
     expect(message.ack).toHaveBeenCalledTimes(1);
     expect(message.retry).not.toHaveBeenCalled();
     expect(provider).not.toHaveBeenCalled();
     expect(db.statement.run).toHaveBeenCalledTimes(1);
+
+    // Unchanged: the fetch answer ignores missing secrets and a missing DB.
+    for (const env of [{ DB: db }, {}]) {
+      const response = await worker.fetch(
+        new Request("https://newsletter.test/"),
+        env,
+      );
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe("newsletter worker ok");
+    }
+
     const lines = logs.contractLines();
     expect(lines).toHaveLength(1);
     expect(lines[0]).toMatchObject({

@@ -112,12 +112,40 @@ describe("ingest entry wiring", () => {
     const event = { scheduledTime: Date.UTC(2026, 8, 14, 12, 1) };
     await worker.scheduled(event, env, ctx);
     await Promise.all(pending);
-    await worker.fetch(new Request("https://ingest.test/"), env);
 
     expect(probes).toHaveBeenCalledTimes(4);
     expect((env.DB as ReturnType<typeof fakeDb>).batch).toHaveBeenCalledTimes(
       1,
     );
+
+    // Unchanged: the fetch handler answers exactly as before without the key.
+    const health = await worker.fetch(new Request("https://ingest.test/"), env);
+    expect(health.status).toBe(200);
+    expect(await health.json()).toMatchObject({
+      app: "ingest",
+      ok: true,
+      d1: "connected",
+      tables_ok: true,
+    });
+    const unauthorized = await worker.fetch(
+      new Request("https://ingest.test/", { method: "POST" }),
+      env,
+    );
+    expect(unauthorized.status).toBe(401);
+    expect(await unauthorized.json()).toEqual({ error: "Unauthorized" });
+    const invalid = await worker.fetch(
+      new Request("https://ingest.test/", {
+        method: "POST",
+        headers: { "X-Ingest-Key": secrets.BRANDS_INGEST_KEY },
+        body: JSON.stringify({ category: "unknown" }),
+      }),
+      env,
+    );
+    expect(invalid.status).toBe(400);
+    expect(((await invalid.json()) as { error: string }).error).toStartWith(
+      "Invalid category.",
+    );
+
     const lines = logs.contractLines();
     expect(lines).toHaveLength(1);
     expect(lines[0]).toMatchObject({

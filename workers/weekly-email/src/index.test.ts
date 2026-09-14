@@ -27,14 +27,16 @@ function healthyDb() {
   return { prepare: mock(() => statement) };
 }
 
-// Every query rejects, so the report build fails before any email send.
-function offlineDb() {
+// Every query succeeds with no rows, so the report builds and reaches the send.
+function emptyDb() {
   const statement = {
     bind: () => statement,
-    first: async () => Promise.reject(new Error("d1 offline")),
-    all: async () => Promise.reject(new Error("d1 offline")),
+    first: async () => ({ cnt: 0 }),
+    all: async () => ({ results: [] }),
+    run: async () => ({}),
   };
-  return { prepare: mock(() => statement) };
+  const prepare = mock((_sql: string) => statement);
+  return { prepare, sql: () => prepare.mock.calls.map(([sql]) => sql) };
 }
 
 function captureConsole() {
@@ -96,21 +98,53 @@ describe("weekly email entry wiring", () => {
   it("logs from the first cron and still runs the report when names are missing", async () => {
     const worker = await freshWorker("scheduled-first");
     const logs = captureConsole();
-    const provider = mock(async () => new Response(null, { status: 500 }));
+    // A 4xx answer is not retried, so the send path runs without backoff sleeps.
+    const provider = mock(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        new Response("rejected", { status: 422 }),
+    );
     globalThis.fetch = provider as unknown as typeof fetch;
-    const db = offlineDb();
+    const db = emptyDb();
     const pending: Promise<unknown>[] = [];
     const ctx = {
       waitUntil: (promise: Promise<unknown>) => pending.push(promise),
     };
 
     await worker.scheduled({ scheduledTime: Date.now() }, { DB: db }, ctx);
+    expect(pending).toHaveLength(1);
     await Promise.all(pending);
-    await worker.fetch(new Request("https://weekly.test/"), { DB: db });
+    // Snapshot before the health fetch below adds its own query.
+    const cronQueries = db.sql();
 
-    // Unchanged: the cron still queries D1 and never reaches the provider.
-    expect(db.prepare.mock.calls.length).toBeGreaterThan(0);
-    expect(provider).not.toHaveBeenCalled();
+    // Unchanged: without the Resend key the cron still reads the retry queue
+    // and every report source, attempts the send, then queues the failure.
+    expect(cronQueries).toHaveLength(7);
+    expect(cronQueries[0]).toContain(
+      "FROM email_queue WHERE status = 'pending'",
+    );
+    expect(cronQueries.at(-1)).toContain("INSERT INTO email_queue");
+    expect(provider).toHaveBeenCalledTimes(1);
+    expect(String(provider.mock.calls[0]?.[0])).toBe(
+      "https://api.resend.com/emails",
+    );
+
+    const health = await worker.fetch(new Request("https://weekly.test/"), {
+      DB: db,
+    });
+    expect(health.status).toBe(200);
+    expect(await health.json()).toMatchObject({
+      app: "weekly-email",
+      ok: true,
+      d1: "connected",
+      tables_ok: true,
+    });
+    const rejected = await worker.fetch(
+      new Request("https://weekly.test/", { method: "PUT" }),
+      { DB: db },
+    );
+    expect(rejected.status).toBe(405);
+    expect(await rejected.json()).toEqual({ error: "Method not allowed" });
+
     const lines = logs.contractLines();
     expect(lines).toHaveLength(1);
     expect(lines[0]).toMatchObject({

@@ -220,7 +220,27 @@ type Source = "vars" | "d1" | "secret";
 type Declared = Record<Source, string[]> & {
   observability: boolean;
   invocationLogs: boolean;
+  unrecognized: string[];
 };
+
+// Tables and top-level keys this parser reads or that carry no runtime name.
+// Any other table or top-level key, such as a KV, R2, queue producer or
+// service binding, is reported so the contract has to classify it first.
+const RECOGNIZED_TABLES = new Set([
+  "vars",
+  "triggers",
+  "d1_databases",
+  "observability",
+  "observability.logs",
+]);
+const RECOGNIZED_KEYS = new Set([
+  "name",
+  "compatibility_date",
+  "compatibility_flags",
+  "account_id",
+  "main",
+  "workers_dev",
+]);
 
 function declaredRuntimeNames(text: string): Declared {
   const declared: Declared = {
@@ -229,6 +249,7 @@ function declaredRuntimeNames(text: string): Declared {
     secret: [],
     observability: false,
     invocationLogs: true,
+    unrecognized: [],
   };
   let section = "";
   for (const raw of text.split(/\r?\n/)) {
@@ -242,11 +263,13 @@ function declaredRuntimeNames(text: string): Declared {
     const header = /^\[{1,2}([^\]]+)\]{1,2}$/.exec(line);
     if (header?.[1]) {
       section = header[1];
+      if (!RECOGNIZED_TABLES.has(section)) declared.unrecognized.push(section);
       continue;
     }
     const pair = /^([A-Za-z0-9_]+)\s*=\s*(.+)$/.exec(line);
     if (!pair?.[1] || !pair[2]) continue;
     const [, key, value] = pair;
+    if (!section && !RECOGNIZED_KEYS.has(key)) declared.unrecognized.push(key);
     const quoted = /^"([^"]*)"$/.exec(value)?.[1];
     if (section === "vars") declared.vars.push(key);
     if (section === "d1_databases" && key === "binding" && quoted)
@@ -282,7 +305,16 @@ describe("ingest wrangler.toml runtime contract drift", () => {
   });
 
   it("classifies every deployed binding, var and secret in the contract", () => {
-    expect(unclassified(declaredRuntimeNames(wrangler))).toEqual([]);
+    const declared = declaredRuntimeNames(wrangler);
+    expect(unclassified(declared)).toEqual([]);
+    expect(declared.unrecognized).toEqual([]);
+  });
+
+  it("flags a binding table or top-level binding the parser cannot classify", () => {
+    const table = `${wrangler}\n[[kv_namespaces]]\nbinding = "CACHE"\nid = "x"\n`;
+    const inline = `browser = { binding = "BROWSER" }\n${wrangler}`;
+    expect(declaredRuntimeNames(table).unrecognized).toEqual(["kv_namespaces"]);
+    expect(declaredRuntimeNames(inline).unrecognized).toEqual(["browser"]);
   });
 
   it("retains the contract line without invocation logs", () => {

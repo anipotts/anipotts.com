@@ -11,8 +11,10 @@ binding = "DB"
 database_name = "anipotts-db"
 database_id = "a8aadf73-bbf4-447c-97db-cb3e50b4e26f"
 
-# Secrets: RESEND_API_KEY, MINI_API_KEY and MINI_API_URL.
+# Secrets: RESEND_API_KEY and MINI_API_KEY.
 # Secrets: MERCURY_API_TOKEN, MERCURY_ACCOUNT_ID_CHECKING and MERCURY_ACCOUNT_ID_SAVINGS.
+# MINI_API_URL falls back to https://api.mini.anipotts.com in code when unset.
+# Optional secrets: MINI_API_URL.
 
 # Sunday 9am EDT = 13:00 UTC (during DST, arrives 8am EST in winter)
 # DST covers ~8 months of the year, so optimizing for EDT
