@@ -50,6 +50,41 @@ checks. Changed heads require refreshed checks and affected acceptance evidence.
 Do not enable auto-merge. Same-repository PRs, exact-head provider protection and
 scoped release gates still apply after Ani's review.
 
+### integration owner delegation, September 14, 2026
+
+Ani designated Claude Code as the single integration owner for the admin,
+public-site and docs lanes while Codex usage is paused, until Ani reassigns the
+lane. The Codex Quiet Precision heartbeats are paused so there is one owner. For
+this period Ani delegated PR review and serial merge to the integration owner:
+review the exact head, run the full relevant gates, merge one PR at a time after
+required checks pass and review threads are resolved, and accept the automatic
+production deploy. Record the review, merge SHA, deploy run, targets that ran,
+skipped targets and route proof for each merge. Auto-merge stays disabled.
+
+Scoped approvals that sit inside the hard stops below, granted for this round:
+
+- a local owner session for admin that works only with an explicit local flag on
+  loopback or Portless hostnames, refused by the deploy workflow and absent from
+  deployable bundles; production Cloudflare Access is unchanged
+- hardening the public newsletter, webhook, subscribe and ingest endpoints and the
+  admin compatibility routes for confirmed security findings
+- runtime binding contracts for www, admin and the four retained workers,
+  including the worker redeploys they cause
+- deleting dead code confirmed by the knip audit; retained authentication
+  libraries stay
+- pruning missing worktree registrations and removing merged or preserved
+  worktrees after additive preservation refs are verified
+- preserving unshipped Codex working-tree changes to a pushed branch, excluding
+  private writing drafts
+
+Still requiring Ani's exact approval: changing the authentication mode, removing
+Cloudflare Access or the native session fallback, newsletter worker send changes,
+production content database bindings or remote migrations, backup key custody or
+provider setup, secrets and `.env*`, and force-push or history rewrite.
+
+The admin house style has no divider lines: no `hasDividers`, `<hr>`, or
+decorative block borders.
+
 ### admin lane
 
 For admin UI, feed, content review, auth staging, and operator-dashboard work:
