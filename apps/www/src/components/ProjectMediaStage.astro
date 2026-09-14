@@ -63,7 +63,11 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
       </div>
 
       {items.length > 1 && (
-        <div class="project-media__rail" aria-label={`${label} views`}>
+        <div
+          class="project-media__rail"
+          role="group"
+          aria-label={`${label} views`}
+        >
           {items.map((item, index) => (
             <button
               type="button"
@@ -108,6 +112,7 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
           <div
             class="image-viewer__canvas"
             tabindex="0"
+            role="group"
             aria-label="image, scroll to inspect at actual size"
           >
             <img data-viewer-image alt="" />

@@ -39,7 +39,7 @@ const current = Astro.url.pathname;
     class="theme-toggle"
     type="button"
     aria-pressed="false"
-    aria-label="toggle theme"
+    aria-label="dark theme"
   >
     <Icon name="ph:circle-half" />
   </button>
@@ -372,13 +372,10 @@ const current = Astro.url.pathname;
   const btn = document.getElementById("theme-toggle");
   const nav = document.getElementById("primary-nav");
   const navToggle = document.getElementById("nav-toggle");
+  // Toggle names stay static; aria-expanded and aria-pressed carry the state.
   const setNavOpen = (open: boolean) => {
     nav?.setAttribute("data-open", String(open));
     navToggle?.setAttribute("aria-expanded", String(open));
-    navToggle?.setAttribute(
-      "aria-label",
-      open ? "close navigation" : "open navigation",
-    );
   };
   const sync = () => {
     btn?.setAttribute(
