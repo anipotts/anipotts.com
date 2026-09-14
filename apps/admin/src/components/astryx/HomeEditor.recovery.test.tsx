@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { MAX_SOURCE_BYTES } from "@anipotts/content/editorial/source";
 import { HomeEditor } from "./HomeEditor";
+import * as navigation from "../../lib/editorial-navigation";
 import { adminNavigationEvent } from "../../lib/editorial-navigation";
 import { newWritingSource } from "../../lib/writing-draft";
 import { recoveryKey, recoveryLogoutKey } from "../../lib/draft-recovery";
@@ -399,6 +400,9 @@ it("keeps retained edits as a new draft when no saved draft exists", async () =>
   await click("Compare saved draft");
   expect(button("Keep my version").disabled).toBe(false);
   expect(buttons("Use saved version")).toHaveLength(0);
+  // One title for every no-saved-draft trigger, matching a null-current conflict.
+  expect(host.textContent).toContain("Saved draft not found");
+  expect(host.textContent).not.toContain("Compare before saving again");
   expect(host.textContent).toContain(
     "No saved draft is available to compare. Keep your version to save your retained edits as a new draft.",
   );
@@ -459,7 +463,11 @@ it("stops resending a draft the server refused, then saves a different edit", as
   await type("Refused body.");
   await pause();
   expect(saves()).toHaveLength(1);
-  expect(host.textContent).toContain("Saving stopped");
+  expect(host.textContent).toContain("Server refused this save");
+  expect(host.textContent).toContain("Your edits are kept on this device.");
+  expect(host.textContent).toContain("Download a copy, then reload");
+  // The remaining causes are server-side, so editing is not the way out.
+  expect(host.textContent).not.toContain("edit the draft");
   expect(host.textContent).not.toContain("Retry save");
   expect(button("Download draft").disabled).toBe(false);
   expect(writtenRecovery()).toMatchObject({ pending: null });
@@ -471,7 +479,124 @@ it("stops resending a draft the server refused, then saves a different edit", as
   expect(next.source).toContain("Accepted body.");
   expect(next.expectedRevision).toBe(1);
   expect(next.requestId).not.toBe(refused.requestId);
-  expect(host.textContent).not.toContain("Saving stopped");
+  expect(host.textContent).not.toContain("Server refused this save");
+});
+
+it("reloads a refused draft into the saved draft with the edits ready to review", async () => {
+  answerSave = (input) =>
+    input.source.endsWith("Refused body.")
+      ? response({ ok: false, code: "invalid_draft_request", valid: true }, 400)
+      : undefined;
+  await mountClean();
+  await type("Refused body.");
+  await pause();
+  expect(saves()).toHaveLength(1);
+  const [refused] = saveBodies();
+  const records = () =>
+    fetcher.mock.calls.filter(([url]) => String(url).includes("/record?"));
+  expect(records()).toHaveLength(1);
+  // Reload: a fresh editor over the same device storage.
+  act(() => root.unmount());
+  answerSave = () => undefined;
+  root = createRoot(host);
+  await act(async () => {
+    root.render(<HomeEditor record={record} />);
+  });
+  await act(async () => {
+    await vi.waitFor(
+      () =>
+        expect(host.textContent).toContain(
+          "Recovered edits are ready to review",
+        ),
+      { timeout: 2000 },
+    );
+  });
+  expect(records()).toHaveLength(2);
+  expect(body()!.value).toContain("Refused body.");
+  expect(host.textContent).not.toContain("Server refused this save");
+  await pause();
+  expect(saves()).toHaveLength(1);
+  await click("Save recovered edits");
+  expect(saves()).toHaveLength(2);
+  const next = saveBodies()[1];
+  expect(next).toMatchObject({ source: refused.source, expectedRevision: 1 });
+  expect(next.requestId).not.toBe(refused.requestId);
+});
+
+it("does not promise device retention for a refused save when browser recovery fails", async () => {
+  answerSave = (input) =>
+    input.source.endsWith("Refused body.")
+      ? response({ ok: false, code: "invalid_draft_request", valid: true }, 400)
+      : undefined;
+  await mountClean();
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new Error("synthetic storage failure");
+  });
+  await type("Refused body.");
+  await pause();
+  expect(saves()).toHaveLength(1);
+  expect(host.textContent).toContain("Browser recovery needs attention");
+  expect(host.textContent).toContain("Server refused this save");
+  expect(host.textContent).not.toContain("kept on this device");
+  expect(host.textContent).toContain("Download a copy before you reload");
+});
+
+it.each([
+  ["invalid_draft_request", "Server refused this save", "Refused body."],
+  [
+    "source_too_large",
+    "Draft is too large to save",
+    "x".repeat(MAX_SOURCE_BYTES + 1),
+  ],
+])(
+  "keeps one refusal message when leaving after %s",
+  async (code, title, text) => {
+    const commit = vi
+      .spyOn(navigation, "commitAdminNavigation")
+      .mockImplementation(() => {});
+    answerSave = (input) =>
+      input.source.endsWith("Refused body.")
+        ? response({ ok: false, code, valid: true }, 400)
+        : undefined;
+    await mountClean();
+    await type(text);
+    await pause();
+    expect(buttons("Download draft")).toHaveLength(1);
+    const alerts = host.querySelectorAll('[role="alert"]').length;
+    await act(async () => {
+      navigation.navigateAdmin("/content");
+    });
+    expect(commit).not.toHaveBeenCalled();
+    // Saving is not possible, so the leave warning must not ask for it.
+    expect(host.textContent).not.toContain("Save them before leaving");
+    expect(host.querySelectorAll('[role="alert"]')).toHaveLength(alerts);
+    expect(buttons("Download draft")).toHaveLength(1);
+    expect(host.textContent).toContain(title);
+    expect(host.textContent).toContain("Download a copy before leaving");
+  },
+);
+
+it("does not frame a later refusal as a held leave once saving resumed", async () => {
+  vi.spyOn(navigation, "commitAdminNavigation").mockImplementation(() => {});
+  answerSave = (input) =>
+    input.source.endsWith("Refused body.")
+      ? response({ ok: false, code: "invalid_draft_request", valid: true }, 400)
+      : undefined;
+  await mountClean();
+  await type("Refused body.");
+  await pause();
+  await act(async () => {
+    navigation.navigateAdmin("/content");
+  });
+  expect(host.textContent).toContain("Download a copy before leaving");
+  await type("Accepted body.");
+  await pause();
+  expect(host.textContent).not.toContain("Server refused this save");
+  await type("Refused body.");
+  await pause();
+  expect(host.textContent).toContain("Server refused this save");
+  expect(host.textContent).not.toContain("Download a copy before leaving");
+  expect(host.textContent).toContain("Download a copy, then reload");
 });
 
 it("holds an operation the server says was reused for an explicit comparison", async () => {

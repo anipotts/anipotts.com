@@ -203,13 +203,17 @@ export class HomeAutosave {
   }
   /** A refused operation stored nothing, so it is retired rather than retried. */
   private refuse(code: SaveFailureCode) {
-    this.refused = this.pending!.source;
+    // Edits may have returned to the acknowledged source while the refused
+    // operation was in flight. As in edit(), that leaves no refused text to
+    // explain, and no marker that would silently stall a later identical edit.
+    const settled = this.state.source === this.saved;
+    this.refused = settled ? null : this.pending!.source;
     this.pending = null;
     this.state = {
       ...this.state,
-      status: "unsaved",
-      saveFailed: true,
-      saveFailureCode: code,
+      status: settled ? "saved" : "unsaved",
+      saveFailed: !settled,
+      saveFailureCode: settled ? undefined : code,
     };
     this.notify(this.state);
   }

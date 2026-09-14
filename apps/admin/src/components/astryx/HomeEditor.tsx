@@ -93,6 +93,40 @@ type Snapshot = {
   publication: PublishJob | null;
 };
 
+const savedDraftNotFound = {
+  title: "Saved draft not found",
+  description:
+    "The saved draft this edit was based on is no longer available. Your edits are retained.",
+};
+
+/**
+ * A refused save cannot be retried, so its copy never asks the author to save.
+ * The remaining invalid_draft_request causes are server-side, so editing does
+ * not help. Reloading reopens the saved draft and browser recovery brings the
+ * edits back for review, which is only true while recovery is working.
+ */
+function refusedSaveCopy(
+  code: SaveState["saveFailureCode"],
+  { leaving, recoverable }: { leaving: boolean; recoverable: boolean },
+) {
+  if (code === "source_too_large")
+    return {
+      title: "Draft is too large to save",
+      description: leaving
+        ? "Your latest edits are not saved because drafts are limited to 512 KB. Download a copy before leaving, or shorten the draft to resume saving."
+        : "Saving stopped because drafts are limited to 512 KB. Download a copy, then shorten the draft to resume saving.",
+    };
+  const kept = recoverable ? " Your edits are kept on this device." : "";
+  return {
+    title: "Server refused this save",
+    description: leaving
+      ? `Your latest edits are not saved.${kept} Download a copy before leaving this draft.`
+      : recoverable
+        ? `Saving stopped.${kept} Download a copy, then reload to reopen the saved draft with your edits ready to review.`
+        : "Saving stopped. Download a copy before you reload to reopen the saved draft.",
+  };
+}
+
 export const HomeEditor = React.memo(HomeEditorImpl);
 
 function HomeEditorImpl({
@@ -161,6 +195,8 @@ function HomeEditorImpl({
   }, [tab]);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  /** A leave attempt was held by a refused save the author cannot retry. */
+  const [leaveRefused, setLeaveRefused] = useState(false);
   const leavePending = useRef(false);
   const [previewRevision, setPreviewRevision] = useState<number | null>(null);
   const editor = useRef<HomeAutosave | null>(null);
@@ -215,9 +251,15 @@ function HomeEditorImpl({
         bodyDirtyRef.current ||
         edits !== editGeneration.current
       ) {
-        setError(
-          "Your latest edits are still here. Save them before leaving this draft.",
-        );
+        const current = editor.current?.state;
+        if (current?.saveFailed && saveRefused(current.saveFailureCode)) {
+          // Saving cannot succeed. The refusal banner carries the one warning.
+          setError("");
+          setLeaveRefused(true);
+        } else
+          setError(
+            "Your latest edits are still here. Save them before leaving this draft.",
+          );
         return;
       }
       commitAdminNavigation(href);
@@ -611,6 +653,13 @@ function HomeEditorImpl({
     )
       saveScheduler.current?.changed();
   }, [state?.source, snapshot?.draft?.discardedAt]);
+  const refusalShown = Boolean(
+    state?.saveFailed && saveRefused(state.saveFailureCode),
+  );
+  useEffect(() => {
+    // A later refusal starts without a held leave attempt.
+    if (!refusalShown) setLeaveRefused(false);
+  }, [refusalShown]);
   useEffect(() => {
     if (record.kind !== "writing" || !state) return;
     try {
@@ -736,6 +785,12 @@ function HomeEditorImpl({
   };
   const needsSaveComparison = saveNeedsComparison(state.saveFailureCode);
   const refusedSave = saveRefused(state.saveFailureCode);
+  const savedDraftMissing =
+    needsSaveComparison && saveComparison !== null && !saveComparison.draft;
+  const refusal = refusedSaveCopy(state.saveFailureCode, {
+    leaving: leaveRefused,
+    recoverable: recoveryProblem === null,
+  });
   const comparedDraft = state.conflict
     ? state.conflict.current
     : needsSaveComparison
@@ -1236,11 +1291,17 @@ function HomeEditorImpl({
             <VStack gap={2}>
               <Banner
                 status="warning"
-                title="Compare before saving again"
+                title={
+                  savedDraftMissing
+                    ? savedDraftNotFound.title
+                    : "Compare before saving again"
+                }
                 description={
-                  state.saveFailureCode === "idempotency_key_reused"
-                    ? "This save’s request ID was already used for different content, so its result could not be confirmed. Your edits are retained. Compare the saved draft before choosing which version to keep."
-                    : "The result of an older save could not be confirmed. Your edits are retained. Compare the saved draft before choosing which version to keep."
+                  savedDraftMissing
+                    ? savedDraftNotFound.description
+                    : state.saveFailureCode === "idempotency_key_reused"
+                      ? "This save’s request ID was already used for different content, so its result could not be confirmed. Your edits are retained. Compare the saved draft before choosing which version to keep."
+                      : "The result of an older save could not be confirmed. Your edits are retained. Compare the saved draft before choosing which version to keep."
                 }
                 endContent={
                   <HStack gap={2} wrap="wrap">
@@ -1265,16 +1326,8 @@ function HomeEditorImpl({
           )}
           {state.saveFailed && refusedSave && (
             <RecoveryBanner
-              title={
-                state.saveFailureCode === "source_too_large"
-                  ? "Draft is too large to save"
-                  : "Draft could not be saved"
-              }
-              description={
-                state.saveFailureCode === "source_too_large"
-                  ? "Saving stopped because drafts are limited to 512 KB. Download a copy, then shorten the draft to resume saving."
-                  : "Saving stopped because the server rejected this draft as invalid. Your edits are retained. Download a copy, then edit the draft to try again."
-              }
+              title={refusal.title}
+              description={refusal.description}
               actionLabel="Download draft"
               onRetry={() => download()}
             />
@@ -1373,12 +1426,12 @@ function HomeEditorImpl({
                   title={
                     comparedDraft
                       ? "Another edit was saved"
-                      : "Saved draft not found"
+                      : savedDraftNotFound.title
                   }
                   description={
                     comparedDraft
                       ? "Compare the saved source with your draft before choosing which version to keep."
-                      : "The saved draft this edit was based on is no longer available. Your edits are retained."
+                      : savedDraftNotFound.description
                   }
                 />
               )}

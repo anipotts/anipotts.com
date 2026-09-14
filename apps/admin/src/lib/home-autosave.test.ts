@@ -242,6 +242,45 @@ describe("definitive save rejections", () => {
     expect(editor.state.saveFailureCode).toBeUndefined();
     expect(send).not.toHaveBeenCalled();
   });
+  it("settles a refusal that answers after edits returned to the saved source", async () => {
+    let answer!: (result: SaveResult) => void;
+    const send = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<SaveResult>((resolve) => {
+            answer = resolve;
+          }),
+      )
+      .mockResolvedValue({ ok: false, code: "invalid_draft_request" });
+    const notify = vi.fn();
+    const editor = new HomeAutosave("base", 1, send, notify);
+    editor.edit("refused");
+    const flushing = editor.flush();
+    editor.edit("base");
+    answer({ ok: false, code: "invalid_draft_request" });
+    await flushing;
+    // The editor holds the acknowledged source, so nothing is left unsaved.
+    for (const state of [editor.state, notify.mock.lastCall![0]]) {
+      expect(state).toMatchObject({
+        source: "base",
+        status: "saved",
+        saveFailed: false,
+      });
+      expect(state.saveFailureCode).toBeUndefined();
+    }
+    await editor.flush();
+    expect(send).toHaveBeenCalledTimes(1);
+    // Typing the refused text again is a new attempt, never a silent stall.
+    editor.edit("refused");
+    await editor.flush();
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(editor.state).toMatchObject({
+      status: "unsaved",
+      saveFailed: true,
+      saveFailureCode: "invalid_draft_request",
+    });
+  });
   it("holds a reused operation id for comparison instead of resending it", async () => {
     const send = vi
       .fn()
