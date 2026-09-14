@@ -115,7 +115,7 @@ Breakpoints are behavior defaults, not permission to squeeze content. Measure th
 actual available width after navigation and inspector. When space is insufficient,
 promote the inspector to a drawer instead of shrinking the document below its floor.
 
-Use the base surface and dividers instead of wrapping every region in a card.
+Use the base surface and spacing instead of wrapping every region in a card.
 Desktop actions are at least 36px; touch targets at least 44px. Long titles wrap,
 URLs break safely, menus respect viewport bounds. One primary scroll for the
 record; internal scrolling only for long navigation or inspector content.

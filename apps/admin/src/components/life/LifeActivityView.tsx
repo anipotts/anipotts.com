@@ -61,11 +61,7 @@ export function LifeActivityView({ reader }: { reader: LifeReader }) {
               ? "Activity is unavailable. Earlier observations are retained while reconnecting."
               : "Connected to recorded activity."}
       </Text>
-      <List
-        hasDividers
-        density="compact"
-        header={<Text>Recent checkpoints</Text>}
-      >
+      <List density="compact" header={<Text>Recent checkpoints</Text>}>
         {[...window.items].reverse().map((item) => (
           <ListItem
             key={item.change_id}
