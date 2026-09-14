@@ -12,7 +12,10 @@ import {
   isLocalOwnerRequest,
   isPublicAdminPath,
 } from "./lib/admin-access-policy";
-import { localOwnerPrincipal } from "./lib/admin-local-owner";
+import {
+  denyLocalOwnerFraming,
+  localOwnerPrincipal,
+} from "./lib/admin-local-owner";
 import {
   adminJson,
   applyAdminSetCookies,
@@ -94,12 +97,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
         "Content-Security-Policy",
         "sandbox allow-scripts; form-action 'none'; frame-ancestors 'self'; connect-src 'none'",
       );
+    if (localOwner) denyLocalOwnerFraming(response.headers);
     return response;
   }
   if (localOwner) {
     const response = await next();
     response.headers.set("Cache-Control", "private, no-store");
     response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+    denyLocalOwnerFraming(response.headers);
     return response;
   }
   if (

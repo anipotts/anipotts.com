@@ -85,7 +85,9 @@ pnpm build:admin:owner    # production build only
 `ADMIN_LOCAL_OWNER=1`. It never starts or changes the managed
 `localhost:4311` fallback, and it refuses to reuse a route started in the other
 mode; run `pnpm dev:stop` first. `pnpm dev:admin` strips an inherited
-`ADMIN_LOCAL_OWNER` value, so the default route stays unchanged.
+`ADMIN_LOCAL_OWNER` value, so the default route stays unchanged, and
+`pnpm admin:preview:ensure` strips it the same way, so the shared
+`localhost:4311` preview is never a local owner build.
 
 `preview:admin:owner` builds into the ignored
 `apps/admin/.local/local-owner-dist`, never `apps/admin/dist`, and serves it
@@ -109,6 +111,19 @@ How the session is bounded:
   `admin.anipotts.localhost` Portless host, `Host` matches that URL,
   forwarded host and client headers are all local, and a browser write is
   same-origin. Public auth paths keep their native flow.
+- Middleware never sees the peer address, so the server must listen on
+  loopback. With the flag on, `astro dev` exits before it listens when
+  `server.host` or Vite's resolved host is anything but `localhost`,
+  `127.0.0.0/8` or `::1`: `--host`, `--host 0.0.0.0`, `--host ::` and a LAN
+  address all fail. Portless dev servers pass `--host 127.0.0.1`, and
+  `dev:admin:owner` also drops the Portless tunnel switches `PORTLESS_FUNNEL`,
+  `PORTLESS_TAILSCALE` and `PORTLESS_NGROK`. `preview:admin:owner` pins wrangler
+  dev to `127.0.0.1` in both its flags and its config. A TCP relay you run on
+  this machine that forwards other clients to loopback cannot be detected, so
+  never point one at a local owner port.
+- Every local owner response sends `frame-ancestors 'none'`, merged into any
+  policy the route already set. The draft preview keeps its own
+  `frame-ancestors 'self'` so the editor can still embed it.
 - Every method is allowed, so local D1 and the local editorial Durable Object
   accept writes. Route handlers keep their own checks: editorial writes still
   need their CSRF token, and `/api/admin/*` mutations still need a native
