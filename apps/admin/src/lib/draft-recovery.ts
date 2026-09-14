@@ -75,12 +75,32 @@ export function draftRecovery(storage: Storage, key: string) {
     browserRecoveryLock(key),
   );
 }
+const recoveryKeys = (storage: Storage) =>
+  Object.keys(storage).filter(
+    (key) => key.startsWith(prefix) || key.startsWith(recoveryV2Prefix),
+  );
+/** Logout clears plaintext. The generation is raised BEFORE the sweep so that a
+ * write which has not yet passed its in-lock generation check can no longer
+ * land; a write already inside its lock can still store bytes after the sweep,
+ * so each key is swept again under its own lock. Such an envelope is already
+ * unrestorable, because it carries the superseded generation and read() reports
+ * it as signed-out, but the plaintext itself must not survive at rest. */
 export function clearEditorialRecovery(storage: Storage) {
-  for (const key of Object.keys(storage))
-    if (key.startsWith(prefix) || key.startsWith(recoveryV2Prefix))
-      storage.removeItem(key);
   storage.setItem(recoveryLogoutKey, crypto.randomUUID());
+  for (const key of recoveryKeys(storage)) storage.removeItem(key);
   window.dispatchEvent(new Event(recoveryLogoutKey));
+  void Promise.all(
+    recoveryKeys(storage).map(async (key) => {
+      const lock = browserRecoveryLock(key);
+      try {
+        if (lock) await lock(() => storage.removeItem(key));
+        else storage.removeItem(key);
+      } catch {
+        // A contended or unavailable lock must not leave the bytes behind.
+        storage.removeItem(key);
+      }
+    }),
+  );
 }
 
 export type NewWritingRecovery = {

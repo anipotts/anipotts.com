@@ -166,6 +166,14 @@ it("keeps one publish action beside Back to editor in the document toolbar", asy
   expect(
     heading.parentElement?.querySelector('[aria-label="Diff legend"]'),
   ).not.toBeNull();
+  const saveStatus = host.querySelector('[aria-label="Draft save status"]');
+  expect(
+    host.querySelectorAll('[aria-label="Draft save status"]'),
+  ).toHaveLength(1);
+  expect(
+    heading.closest(".editor-review-title-row")?.contains(saveStatus),
+  ).toBe(true);
+  expect(toolbar!.contains(saveStatus)).toBe(false);
   const buttons = [...host.querySelectorAll("button")];
   const publish = buttons.filter(
     (button) => button.textContent?.trim() === "Approve and publish",
@@ -213,6 +221,7 @@ it.each([
     const status = host.querySelector('[role="status"][data-save-state]');
     expect(status?.getAttribute("data-save-state")).toBe(state);
     expect(status?.textContent).toBe(label);
+    expect(status?.closest('[aria-label="Document actions"]')).not.toBeNull();
   },
 );
 

@@ -18,7 +18,8 @@
     "typecheck": "astro check && pnpm typecheck:editorial",
     "editorial:types": "pnpm --workspace-root exec wrangler types apps/admin/test/bindings.d.ts --config apps/admin/test/wrangler.jsonc --env-interface EditorialTestEnv",
     "typecheck:editorial": "pnpm editorial:types && tsc -p tsconfig.editorial.json",
-    "test": "vitest run && pnpm test:editorial",
+    "test": "vitest run && pnpm test:astro && pnpm test:editorial",
+    "test:astro": "vitest run --config vitest.astro.config.ts",
     "test:editorial": "vitest run --config vitest.editorial.config.ts"
   },
   "dependencies": {

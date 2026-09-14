@@ -356,6 +356,13 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   text-align: start;
   overflow-wrap: anywhere;
 }
+/* Save outcomes must remain readable when text is enlarged. Token's default
+   single-line truncation is useful for tags, but would hide recovery status. */
+.editor-save-status .astryx-token > span:last-child {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
 .editor-diff-heading > .astryx-button {
   margin-inline-start: auto;
 }

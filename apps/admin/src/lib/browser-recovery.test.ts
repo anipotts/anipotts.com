@@ -25,6 +25,9 @@ function storage() {
         return (name: string) => {
           delete target[name];
         };
+      if (key === "length") return Object.keys(target).length;
+      if (key === "key")
+        return (index: number) => Object.keys(target)[index] ?? null;
       return target[String(key)];
     },
   }) as unknown as Storage;
@@ -114,6 +117,42 @@ it("serializes supported tabs and refuses a stale writer after another tab advan
   expect(results).toEqual([null, "changed"]);
   expect(channel(local).read()).toEqual({ status: "ready", value: snapshot });
   expect(await b.write(null)).toBe("changed");
+  // The loser must not be wedged: it offers both copies so the author can
+  // resolve, rather than repeating a doomed compare with nothing to act on.
+  const contested = b.current();
+  if (contested.status !== "changed")
+    throw new Error(`expected a contested state, got ${contested.status}`);
+  const candidates = contested.candidates ?? [];
+  expect(candidates.map((candidate) => candidate.label)).toContain("Other tab");
+  expect(
+    candidates.find((candidate) => candidate.label === "Other tab")?.value,
+  ).toEqual(snapshot);
+  expect(await b.choose({ ...snapshot, source: "B resolved" })).toBeNull();
+  expect(channel(local).read()).toEqual({
+    status: "ready",
+    value: { ...snapshot, source: "B resolved" },
+  });
+});
+it("keeps the envelope ceiling under a real origin quota", () => {
+  // localStorage is about 5 MB per origin; a ceiling above it can never be
+  // reached, because setItem throws first and the oversized signal never fires.
+  expect(MAX_SOURCE_BYTES * 4 + 65536).toBeLessThan(5 * 1024 * 1024);
+});
+it("bounds the recovery archive across repeated explicit choices", async () => {
+  const local = storage();
+  const lock = mutex();
+  const a = channel(local, lock);
+  a.read();
+  await a.write(snapshot);
+  for (let index = 0; index < 6; index++) {
+    const other = channel(local, lock);
+    other.read();
+    await other.choose({ ...snapshot, source: `choice ${index}` });
+  }
+  const archives = Object.keys(
+    local as unknown as Record<string, string>,
+  ).filter((name) => name.includes(":archive:"));
+  expect(archives.length).toBeLessThanOrEqual(3);
 });
 it("preserves unsupported and corrupt data exactly, including exports, and forbids writes", async () => {
   for (const [raw, status] of [

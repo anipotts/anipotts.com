@@ -1,5 +1,11 @@
 export const ADMIN_ROUTES = [
   {
+    route: "/content/dev-catalog",
+    file: "apps/admin/src/pages/content/dev-catalog.astro",
+    nav: false,
+    smoke: false,
+  },
+  {
     route: "/auth/logout",
     file: "apps/admin/src/pages/auth/logout.astro",
     nav: false,

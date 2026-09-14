@@ -4,7 +4,16 @@ import { MAX_SOURCE_BYTES } from "@anipotts/content/editorial/source";
 export const recoveryLogoutGenerationKey = "editorial-recovery:logout";
 export const recoveryV2Prefix = "editorial-recovery:v2:";
 const format = "anipotts.browser-recovery";
-const maxEnvelopeBytes = MAX_SOURCE_BYTES * 14 + 65536;
+// Per-origin localStorage is about 5 MB in Chrome, Firefox and Safari, and this
+// origin also holds the v1 key and any recovery archives. A ceiling above the
+// quota is never reached: setItem throws first and the failure surfaces as a
+// generic "unavailable" instead of the oversized signal. The envelope carries
+// one payload plus the embedded v1 copy, so four source budgets plus JSON
+// overhead leaves room for both and for an archived copy.
+const maxEnvelopeBytes = MAX_SOURCE_BYTES * 4 + 65536;
+/** Archives are a recovery convenience, not durable history; keeping every one
+ * for a session is what exhausts the origin quota. */
+const maxArchives = 3;
 export type RecoveryProblem =
   | "corrupt"
   | "unsupported"
@@ -122,8 +131,30 @@ export class BrowserRecovery<T> {
       });
     }
   }
+  /** The channel's last known state without re-reading storage. After a write
+   * loses a compare-and-swap, this carries the contested candidates; read()
+   * would re-read and report the winner's envelope as an ordinary ready state,
+   * discarding the fact that this tab has an unsaved copy of its own. */
+  current(): RecoveryRead<T> {
+    return this.state;
+  }
   close() {
     this.closed = true;
+  }
+  /** Keep the newest archives only. Every explicit choice used to add a full
+   * envelope copy that survived the whole session, which is what exhausts the
+   * origin quota and silently disables recovery in every admin tab. */
+  private pruneArchives() {
+    const prefix = `${this.key}:archive:`;
+    const keys: string[] = [];
+    for (let index = 0; index < this.storage.length; index++) {
+      const key = this.storage.key(index);
+      if (key?.startsWith(prefix)) keys.push(key);
+    }
+    // Insertion order is not guaranteed, so drop the excess deterministically.
+    keys.sort();
+    for (const key of keys.slice(0, Math.max(0, keys.length - maxArchives)))
+      this.storage.removeItem(key);
   }
   /** Choosing a supported candidate is explicit. Preserve the displaced envelope
    * in the private recovery archive before making this tab writable again. */
@@ -153,8 +184,21 @@ export class BrowserRecovery<T> {
           if (
             this.storage.getItem(this.key) !== this.raw ||
             this.storage.getItem(this.legacyKey) !== this.legacyRaw
-          )
+          ) {
+            // Another tab wrote first. Re-read so this channel stops comparing
+            // against bytes that no longer exist, and surface both copies so
+            // the loser can resolve instead of retrying a doomed compare
+            // forever with nothing on screen to act on.
+            const theirs = this.read();
+            const candidates: { label: string; value: T }[] = [];
+            if (value) candidates.push({ label: "This tab", value });
+            if (theirs.status === "ready")
+              candidates.push({ label: "Other tab", value: theirs.value });
+            else if (theirs.status === "changed" && theirs.candidates)
+              candidates.push(...theirs.candidates);
+            this.state = { status: "changed", candidates };
             return "changed";
+          }
           const raw = JSON.stringify({
             format,
             version: 2,
@@ -164,11 +208,13 @@ export class BrowserRecovery<T> {
             logoutGeneration: this.logoutGeneration,
           });
           if (utf8Bytes(raw) > maxEnvelopeBytes) return "oversized";
-          if (explicitChoice && this.raw !== null)
+          if (explicitChoice && this.raw !== null) {
             this.storage.setItem(
               `${this.key}:archive:${crypto.randomUUID()}`,
               this.raw,
             );
+            this.pruneArchives();
+          }
           this.storage.setItem(this.key, raw);
           this.raw = raw;
           this.state = value
