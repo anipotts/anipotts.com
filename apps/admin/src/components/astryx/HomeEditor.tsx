@@ -127,6 +127,21 @@ function refusedSaveCopy(
   };
 }
 
+/**
+ * Save now is hidden while a conflict or unconfirmed save needs an explicit
+ * choice, so a held leave names the actions the author still has.
+ */
+function heldLeaveCopy(current: SaveState | undefined, compared: boolean) {
+  if (
+    current?.conflict ||
+    (saveNeedsComparison(current?.saveFailureCode) && compared)
+  )
+    return "Your latest edits are not saved. Choose which version to keep, or download a copy before leaving this draft.";
+  if (saveNeedsComparison(current?.saveFailureCode))
+    return "Your latest edits are not saved. Compare the saved draft and choose a version, or download a copy before leaving this draft.";
+  return "Your latest edits are still here. Save them before leaving this draft.";
+}
+
 export const HomeEditor = React.memo(HomeEditorImpl);
 
 function HomeEditorImpl({
@@ -256,10 +271,7 @@ function HomeEditorImpl({
           // Saving cannot succeed. The refusal banner carries the one warning.
           setError("");
           setLeaveRefused(true);
-        } else
-          setError(
-            "Your latest edits are still here. Save them before leaving this draft.",
-          );
+        } else setError(heldLeaveCopy(current, saveComparison !== null));
         return;
       }
       commitAdminNavigation(href);

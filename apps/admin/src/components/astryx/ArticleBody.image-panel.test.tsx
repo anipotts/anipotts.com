@@ -48,6 +48,46 @@ afterEach(() => {
   host.remove();
   vi.unstubAllGlobals();
 });
+it("keeps the update label for the image the panel opened on after the caret moves", async () => {
+  await act(async () =>
+    root.render(
+      <ArticleBody
+        value={"![Opened alt](https://example.com/a.png)\n\nText"}
+        onChange={() => {}}
+      />,
+    ),
+  );
+  await act(async () => {
+    editor!.state.doc.descendants((node, pos) => {
+      if (node.type.name === "image") editor!.commands.setNodeSelection(pos);
+    });
+  });
+  act(() => {
+    editor!.view.dom.dispatchEvent(
+      new FocusEvent("focusin", { bubbles: true }),
+    );
+  });
+  click("Alt text");
+  await act(async () =>
+    editor!.commands.setTextSelection(editor!.state.doc.content.size - 1),
+  );
+  const labels = () =>
+    Array.from(host.querySelectorAll("button")).map((node) =>
+      node.textContent?.trim(),
+    );
+  expect(labels()).toContain("Update image");
+  expect(labels()).not.toContain("Insert image");
+  const input = Array.from(
+    host.querySelectorAll<HTMLInputElement>("input"),
+  ).find((node) => node.value === "Opened alt");
+  expect(input).toBeTruthy();
+  click("Update image");
+  const images: string[] = [];
+  editor!.state.doc.descendants((node) => {
+    if (node.type.name === "image") images.push(String(node.attrs.src));
+  });
+  expect(images).toEqual(["https://example.com/a.png"]);
+});
 it.each(["paste", "drop"])(
   "failed %s cannot reuse an earlier image URL or alt text",
   async (kind) => {
