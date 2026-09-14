@@ -4,13 +4,14 @@
   "globalDependencies": [
     ".prettierrc*",
     "tsconfig.json",
+    "config/typescript/**",
     "pnpm-workspace.yaml"
   ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["src/**", "tsconfig.json", "tsup.config.*", "package.json"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**"],
+      "outputs": ["dist/**"],
       "env": ["NODE_ENV"]
     },
     "@anipotts/www#build": {
@@ -25,12 +26,7 @@
         "wrangler.toml"
       ],
       "outputs": ["dist/**"],
-      "env": [
-        "NODE_ENV",
-        "PUBLIC_POSTHOG_KEY",
-        "PUBLIC_TURNSTILE_SITE_KEY",
-        "PUBLIC_RELEASE_SHA"
-      ]
+      "env": ["NODE_ENV", "PUBLIC_POSTHOG_KEY", "PUBLIC_RELEASE_SHA"]
     },
     "@anipotts/admin#build": {
       "dependsOn": ["^build"],
