@@ -232,3 +232,9 @@ for (const file of workflowFiles) {
     );
   }
 }
+
+assert.match(
+  ciWorkflow,
+  /Validate migration inventory and replay[\s\S]*migration_preflight_required[\s\S]*pnpm test:content-publication-migration/,
+  "publication schema replay must run in pre-merge migration validation",
+);

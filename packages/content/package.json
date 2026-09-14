@@ -7,6 +7,8 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
+    "./editorial/direct-publication": "./src/editorial/direct-publication.ts",
+    "./editorial/publication-contract": "./src/editorial/publication-contract.ts",
     "./editorial/snapshot": "./src/editorial/snapshot.ts",
     "./editorial/source": "./src/editorial/source.ts",
     "./newsletter-draft": "./src/newsletter-draft.ts",

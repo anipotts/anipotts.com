@@ -343,3 +343,17 @@ for (const path of [
 ]) {
   assert.equal(classifyRelease([`A\t${path}`], base).risk, "unknown");
 }
+
+// Disabled public-store contracts require local replay, never a shared-DB apply.
+for (const path of [
+  "apps/admin/migrations/content-publication/0002_content_schema_version.sql",
+  "packages/content/src/editorial/direct-publication.ts",
+  "packages/content/src/editorial/publication-contract.ts",
+  "scripts/ci/content-publication-migration-proof.mjs",
+]) {
+  const publication = classifyRelease([`M\t${path}`], base);
+  assert.equal(publication.migration_preflight_required, true, path);
+  assert.equal(publication.d1_changed, false, path);
+  assert.equal(publication.remote_migration_allowed, false, path);
+  assert.deepEqual(publication.migration_consumers, [], path);
+}
