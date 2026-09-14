@@ -2,7 +2,15 @@
 import React, { act } from "react";
 import { hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type MockInstance,
+} from "vitest";
 import { ArrowUpRightIcon } from "@phosphor-icons/react";
 import { Button } from "@astryxdesign/core/Button";
 import {
@@ -105,7 +113,7 @@ function AdminLayers() {
 describe("hydrating Astryx relationship attributes", () => {
   let host: HTMLDivElement;
   let root: Root | undefined;
-  let consoleError: ReturnType<typeof vi.spyOn>;
+  let consoleError: MockInstance<typeof console.error>;
   let recoverable: unknown[];
 
   beforeEach(() => {
