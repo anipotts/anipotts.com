@@ -12,7 +12,14 @@ const feed = readFileSync("apps/www/src/pages/feed.xml.ts", "utf8");
 assert.ok(feed.includes("<lastBuildDate>"));
 assert.ok(feed.includes("entry.data.published_at?.getTime()"));
 assert.ok(feed.includes("new Date(latestPublication).toUTCString()"));
-assert.ok(feed.includes("await publishedWriting()"));
+assert.match(
+  feed,
+  /await publishedWriting\(publicContentContext\(context\.locals\)\)/u,
+);
+assert.ok(
+  feed.includes("prerender = false"),
+  "RSS reads active publications at request time",
+);
 assert.ok(
   !feed.includes("new Date()"),
   "feed freshness reflects publication, not every request",

@@ -5,6 +5,9 @@ import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { newWritingSource } from "../../lib/writing-draft";
 import * as navigation from "../../lib/editorial-navigation";
 import { HomeEditor } from "./HomeEditor";
+import { WorkspaceIdentity } from "./EditorialWorkspaceShell";
+import { EditorialApp } from "./EditorialApp";
+import { recoveryKey } from "../../lib/draft-recovery";
 
 vi.mock("@astryxdesign/core/Toast", () => ({ useToast: () => () => {} }));
 vi.mock("./ArticleBody", () => ({
@@ -37,9 +40,16 @@ vi.mock("./RecordPanel", () => ({
     </aside>
   ),
 }));
-vi.mock("./ReviewChanges", () => ({
-  ReviewChanges: ({ after }: any) => (
-    <pre aria-label="Reviewed source">{after}</pre>
+vi.mock("./ReviewChanges", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./ReviewChanges")>()),
+  ReviewChanges: ({ after, labelledBy }: any) => (
+    <pre
+      aria-label="Reviewed source"
+      aria-labelledby={labelledBy}
+      className="editor-revision-diff"
+    >
+      {after}
+    </pre>
   ),
 }));
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -73,14 +83,17 @@ const snapshot = {
 function response(data: unknown) {
   return new Response(JSON.stringify(data));
 }
-async function mount(search = "", localPreview = true) {
+async function mount(search = "", localPreview = true, withIdentity = false) {
   window.history.replaceState(null, "", `/content/writing/test${search}`);
   await act(async () => {
     root.render(
-      <HomeEditor
-        record={{ kind: "writing", id: "test" }}
-        localPreview={localPreview}
-      />,
+      <>
+        {withIdentity && <WorkspaceIdentity workspace="content" />}
+        <HomeEditor
+          record={{ kind: "writing", id: "test" }}
+          localPreview={localPreview}
+        />
+      </>,
     );
   });
   await act(async () => {
@@ -205,7 +218,7 @@ it("leaving review during session preparation never starts publication", async (
   );
   vi.stubGlobal("fetch", fetcher);
   await mount("?view=review", false);
-  await click("Approve and publish");
+  await click("Apply unpublished revision");
   await act(async () => {
     await vi.waitFor(() =>
       expect(fetcher.mock.calls.some(([url]) => url.includes("/csrf"))).toBe(
@@ -254,80 +267,93 @@ async function editBody(value: string) {
   });
 }
 
-it("workspace links flush buffered edits once before navigating", async () => {
-  const commit = vi
-    .spyOn(navigation, "commitAdminNavigation")
-    .mockImplementation(() => {});
-  let finish!: (value: Response) => void;
-  const pending = new Promise<Response>((resolve) => {
-    finish = resolve;
-  });
-  let savedSource = "";
-  const fetcher = vi.fn(async (url: string, options?: RequestInit) => {
-    if (url.includes("/save?")) {
-      savedSource = JSON.parse(String(options?.body)).source;
-      return pending;
-    }
-    if (url.includes("/csrf")) return response({ csrf: "test-only" });
-    return response(snapshot);
-  });
-  vi.stubGlobal("fetch", fetcher);
-  await mount();
-  await editBody("Buffered private edit.");
-  const link = document.createElement("a");
-  link.href = "/life";
-  host.append(link);
-  await act(async () => {
-    link.click();
-    link.click();
-  });
-  expect(commit).not.toHaveBeenCalled();
-  expect(savedSource).toContain("Buffered private edit.");
-  expect(
-    fetcher.mock.calls.filter(([url]) => url.includes("/save?")),
-  ).toHaveLength(1);
-  await act(async () => {
-    finish(
-      response({
-        ok: true,
-        draft: { ...draft, source: savedSource, revision: 2 },
-      }),
-    );
-    await pending;
-  });
-  expect(commit).toHaveBeenCalledOnce();
-  expect(commit).toHaveBeenCalledWith(
-    new URL("/life", window.location.href).href,
-  );
-});
-
-it("palette navigation stays in the editor when its save fails", async () => {
-  const commit = vi
-    .spyOn(navigation, "commitAdminNavigation")
-    .mockImplementation(() => {});
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (url: string) => {
-      if (url.includes("/save?")) throw new Error("offline");
+it.each(["/life", "/cdn-cgi/access/logout"])(
+  "links flush buffered edits once before navigating: %s",
+  async (href) => {
+    const commit = vi
+      .spyOn(navigation, "commitAdminNavigation")
+      .mockImplementation(() => {});
+    let finish!: (value: Response) => void;
+    const pending = new Promise<Response>((resolve) => {
+      finish = resolve;
+    });
+    let savedSource = "";
+    const fetcher = vi.fn(async (url: string, options?: RequestInit) => {
+      if (url.includes("/save?")) {
+        savedSource = JSON.parse(String(options?.body)).source;
+        return pending;
+      }
       if (url.includes("/csrf")) return response({ csrf: "test-only" });
       return response(snapshot);
-    }),
-  );
-  await mount();
-  await editBody("Retain this offline edit.");
-  await act(async () => {
-    navigation.navigateAdmin("/operations/observability");
-  });
-  expect(commit).not.toHaveBeenCalled();
-  expect(host.textContent).toContain("Save them before leaving this draft");
-  expect(
-    (
-      host.querySelector(
-        'textarea[aria-label="Test article body"]',
-      ) as HTMLTextAreaElement
-    ).value,
-  ).toBe("Retain this offline edit.");
-});
+    });
+    vi.stubGlobal("fetch", fetcher);
+    await mount();
+    await editBody("Buffered private edit.");
+    const link = document.createElement("a");
+    link.href = href;
+    host.append(link);
+    await act(async () => {
+      link.click();
+      link.click();
+    });
+    expect(commit).not.toHaveBeenCalled();
+    expect(savedSource).toContain("Buffered private edit.");
+    expect(
+      fetcher.mock.calls.filter(([url]) => url.includes("/save?")),
+    ).toHaveLength(1);
+    await act(async () => {
+      finish(
+        response({
+          ok: true,
+          draft: { ...draft, source: savedSource, revision: 2 },
+        }),
+      );
+      await pending;
+    });
+    expect(commit).toHaveBeenCalledOnce();
+    expect(commit).toHaveBeenCalledWith(
+      new URL(href, window.location.href).href,
+    );
+  },
+);
+
+it.each(["palette", "logout"])(
+  "%s navigation stays in the editor when its save fails",
+  async (action) => {
+    const commit = vi
+      .spyOn(navigation, "commitAdminNavigation")
+      .mockImplementation(() => {});
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("/save?")) throw new Error("offline");
+        if (url.includes("/csrf")) return response({ csrf: "test-only" });
+        return response(snapshot);
+      }),
+    );
+    await mount();
+    await editBody("Retain this offline edit.");
+    await act(async () => {
+      if (action === "palette")
+        navigation.navigateAdmin("/operations/observability");
+      else {
+        const link = document.createElement("a");
+        link.href = "/cdn-cgi/access/logout";
+        host.append(link);
+        link.click();
+      }
+    });
+    expect(commit).not.toHaveBeenCalled();
+    expect(host.textContent).toContain("Save them before leaving this draft");
+    expect(
+      (
+        host.querySelector(
+          'textarea[aria-label="Test article body"]',
+        ) as HTMLTextAreaElement
+      ).value,
+    ).toBe("Retain this offline edit.");
+  },
+);
 
 it("typing during a navigation save keeps the newer buffer on screen", async () => {
   const commit = vi
@@ -373,4 +399,131 @@ it("typing during a navigation save keeps the newer buffer on screen", async () 
       ) as HTMLTextAreaElement
     ).value,
   ).toBe("Newer edit while saving.");
+});
+it.each(["loading", "failed"])(
+  "allows workspace navigation while the initial editor is %s",
+  async (mode) => {
+    const commit = vi
+      .spyOn(navigation, "commitAdminNavigation")
+      .mockImplementation(() => {});
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        mode === "loading"
+          ? new Promise<Response>(() => {})
+          : Promise.reject(new Error("unavailable")),
+      ),
+    );
+    await act(async () => {
+      root.render(
+        <HomeEditor
+          record={{ kind: "writing", id: "test" }}
+          localPreview={true}
+        />,
+      );
+    });
+    expect(
+      host.querySelector('textarea[aria-label="Test article body"]'),
+    ).toBeNull();
+    await act(async () => {
+      navigation.navigateAdmin("/content");
+    });
+    expect(commit).toHaveBeenCalledWith("/content");
+    expect(host.textContent).not.toContain("Couldn’t save before leaving");
+  },
+);
+it.each(["loading", "failed"])(
+  "allows ordinary same-origin links while the initial editor is %s",
+  async (mode) => {
+    const commit = vi
+      .spyOn(navigation, "commitAdminNavigation")
+      .mockImplementation(() => {});
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        mode === "loading"
+          ? new Promise<Response>(() => {})
+          : Promise.reject(new Error("unavailable")),
+      ),
+    );
+    await act(async () => {
+      root.render(
+        <HomeEditor
+          record={{ kind: "writing", id: "test" }}
+          localPreview={true}
+        />,
+      );
+    });
+    const anchor = document.createElement("a");
+    anchor.href = "/life";
+    anchor.textContent = "Life";
+    host.append(anchor);
+    await act(async () => anchor.click());
+    expect(commit).toHaveBeenCalledWith(
+      new URL("/life", window.location.origin).href,
+    );
+  },
+);
+it("keeps the document mounted and hidden inside its Astryx surface during preview", async () => {
+  await mount();
+  const body = host.querySelector('textarea[aria-label="Test article body"]')!;
+  const surface = body.closest(".astryx-stack");
+  expect(surface).not.toBeNull();
+  await click("Preview");
+  expect(body.closest("[hidden]")).not.toBeNull();
+  expect((body.closest("[hidden]") as HTMLElement).style.display).toBe("none");
+  await click("Edit");
+  expect(host.querySelector('textarea[aria-label="Test article body"]')).toBe(
+    body,
+  );
+  expect(body.closest("[hidden]")).toBeNull();
+});
+
+it("does not clear recovery when sign-out navigation is canceled", async () => {
+  const key = recoveryKey("test-owner", { kind: "writing", id: "test" });
+  localStorage.setItem(key, "recoverable private edit");
+  await act(async () => {
+    root.render(
+      <EditorialApp
+        title="Content"
+        area="content"
+        localPreview={false}
+        siteUrl="https://anipotts.com/"
+      />,
+    );
+  });
+  const link = host.querySelector(
+    'a[href="/auth/logout"]',
+  ) as HTMLAnchorElement;
+  expect(link).not.toBeNull();
+  const cancel = (event: Event) => event.preventDefault();
+  document.addEventListener("click", cancel);
+  try {
+    await act(async () => link.click());
+    expect(localStorage.getItem(key)).toBe("recoverable private edit");
+  } finally {
+    document.removeEventListener("click", cancel);
+  }
+});
+
+it("remembers pushed editor views and panels in the workspace switcher", async () => {
+  await mount("?theme=dark", true, true);
+  await click("Preview");
+  expect(sessionStorage.getItem("admin:navigation:content")).toBe(
+    "/content/writing/test?view=preview",
+  );
+  expect(sessionStorage.getItem("admin:navigation:content")).toContain(
+    "view=preview",
+  );
+  await click("Properties");
+  expect(sessionStorage.getItem("admin:navigation:content")).toContain(
+    "panel=properties",
+  );
+  await click("Close panel");
+  expect(sessionStorage.getItem("admin:navigation:content")).not.toContain(
+    "panel=",
+  );
+  expect(sessionStorage.getItem("admin:navigation:content")).toContain(
+    "view=preview",
+  );
 });

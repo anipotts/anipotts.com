@@ -31,6 +31,15 @@ preservation, slow continuous saves, two-tab conflicts, session expiration/logou
 image paste/drop/crop/placement, full keyboard and live authenticated verification.
 This receipt is not production or release evidence.
 
+## Image chooser limitation
+
+The actual editor Image panel opens and Cancel returns to the unchanged synthetic
+draft. The Chrome DevTools file-upload tool rejected the generated PNG fixture
+both under `/private/tmp` and the repository's ignored preview directory because
+neither path is in that browser tool's configured workspace roots. No upload was
+completed. Mounted editor image tests remain separate evidence; real chooser,
+crop and upload verification is still open. No private source image was used.
+
 ## Navigation follow-up
 
 The active synthetic draft was renamed to `Admin QA: navigation recovery`. With

@@ -1,5 +1,11 @@
 export const ADMIN_ROUTES = [
   {
+    route: "/content/dev-catalog",
+    file: "apps/admin/src/pages/content/dev-catalog.astro",
+    nav: false,
+    smoke: false,
+  },
+  {
     route: "/life/people",
     file: "apps/admin/src/pages/life/[section].astro",
     nav: false,
@@ -236,6 +242,12 @@ export const ADMIN_ROUTES = [
   {
     route: "/content/new",
     file: "apps/admin/src/pages/content/new.astro",
+    nav: false,
+    smoke: false,
+  },
+  {
+    route: "/content/transfer",
+    file: "apps/admin/src/pages/content/transfer.astro",
     nav: false,
     smoke: false,
   },

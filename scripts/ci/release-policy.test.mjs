@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { parse as parseYaml } from "yaml";
 import { protectionPayload, REQUIRED_CHECKS } from "./branch-protection.mjs";
 import {
   parseD1SchemaResult,
@@ -343,3 +345,52 @@ for (const path of [
 ]) {
   assert.equal(classifyRelease([`A\t${path}`], base).risk, "unknown");
 }
+
+const contentBootstrap =
+  "apps/admin/migrations/content-publication/0001_published_snapshots.sql";
+const contentRelease = classifyRelease([`A\t${contentBootstrap}`], base);
+assert.equal(contentRelease.content_db_changed, true);
+assert.equal(contentRelease.content_db_migration_allowed, true);
+assert.equal(contentRelease.d1_changed, false);
+assert.equal(contentRelease.migration_preflight_required, true);
+assert.equal(contentRelease.deploy_targets.www, true);
+assert.equal(contentRelease.deploy_targets.admin, true);
+for (const change of [
+  `M\t${contentBootstrap}`,
+  `D\t${contentBootstrap}`,
+  "A\tapps/admin/migrations/content-publication/0002_unreviewed.sql",
+]) {
+  const held = classifyRelease([change], base);
+  assert.equal(held.content_db_changed, true);
+  assert.equal(held.content_db_migration_allowed, false);
+  assert.equal(held.risk, "approval");
+}
+assert.equal(
+  classifyRelease([`A\t${contentBootstrap}`], {
+    ...base,
+    readContentMigrationFile: () => "tampered",
+  }).content_db_migration_allowed,
+  false,
+);
+assert.equal(
+  classifyRelease(
+    ["M\tpackages/content/src/editorial/direct-publication.ts"],
+    base,
+  ).deploy_targets.www,
+  true,
+);
+
+const deployWorkflow = parseYaml(
+  readFileSync(
+    new URL("../../.github/workflows/deploy.yml", import.meta.url),
+    "utf8",
+  ),
+);
+const adminJob = deployWorkflow.jobs["deploy-admin"];
+assert.deepEqual(adminJob.needs, ["release", "deploy-www"]);
+assert.match(adminJob.if, /always\(\)/);
+assert.match(adminJob.if, /needs\.release\.result == 'success'/);
+assert.match(
+  adminJob.if,
+  /needs\.deploy-www\.result == 'success' \|\| needs\.deploy-www\.result == 'skipped'/,
+);

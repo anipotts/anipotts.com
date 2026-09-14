@@ -230,3 +230,26 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(1);
   }
 }
+
+/** Separate, reviewed bootstrap for the public-only CONTENT_DB. Never merges
+ * with the private anipotts-db manifest or its migration eligibility. */
+export function inspectContentPublicationMigrations(changes, options = {}) {
+  const root = "apps/admin/migrations/content-publication/";
+  const selected = changes.filter((change) => change.path.startsWith(root));
+  const approved = root + "0001_published_snapshots.sql";
+  const digest =
+    "564cf948009acd41e8256b6c3dc6194057a20d040d64de2ec161a09dc8d44817";
+  const readFile =
+    options.readContentMigrationFile || ((path) => readFileSync(path, "utf8"));
+  const allowed =
+    selected.length > 0 &&
+    selected.every((change) => {
+      if (change.path !== approved || change.status !== "A") return false;
+      try {
+        return sha256(readFile(change.path)) === digest;
+      } catch {
+        return false;
+      }
+    });
+  return { changed: selected.length > 0, allowed };
+}

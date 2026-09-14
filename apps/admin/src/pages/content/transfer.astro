@@ -1,0 +1,190 @@
+---
+import EditorialLayout from "../../layouts/EditorialLayout.astro";
+Astro.response.headers.set("Cache-Control", "private, no-store");
+Astro.response.headers.set("Referrer-Policy", "no-referrer");
+---
+
+<EditorialLayout title="Transfer draft" hasContent
+  ><section aria-live="polite">
+    <h1>Transfer draft</h1><p id="handoff-status">
+      Waiting for the local editor…
+    </p><a href="/content">Back to Content</a>
+  </section></EditorialLayout
+>
+<script>
+  import {
+    HANDOFF_LOCAL,
+    HANDOFF_PRODUCTION,
+    HANDOFF_TIMEOUT_MS,
+    handoffExecutionDeadline,
+    handoffSha256,
+    validateHandoffReceipt,
+  } from "../../lib/editorial-handoff-client";
+  import { editorialRecordSchema } from "@anipotts/content/editorial/source";
+  const status = document.getElementById("handoff-status")!;
+  const nonce = location.hash.slice(1);
+  const sender = window.opener;
+  const valid =
+    location.origin === HANDOFF_PRODUCTION &&
+    sender &&
+    /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(nonce);
+  if (!valid) status.textContent = "Open this page from the local editor.";
+  else {
+    let accepted = false;
+    const controller = new AbortController();
+    let executionDeadline = Date.now() + HANDOFF_TIMEOUT_MS;
+    let executionTimer: ReturnType<typeof setTimeout> | undefined;
+    const assertActive = () => {
+      if (sender.closed || Date.now() >= executionDeadline) controller.abort();
+      controller.signal.throwIfAborted();
+    };
+    const timer = setInterval(
+      () =>
+        sender.postMessage(
+          { type: "editorial-handoff-ready", nonce },
+          HANDOFF_LOCAL,
+        ),
+      300,
+    );
+    const expiry = setTimeout(() => {
+      clearInterval(timer);
+      window.removeEventListener("message", receive);
+      status.textContent = "Transfer expired. Try again from the local editor.";
+    }, HANDOFF_TIMEOUT_MS);
+    async function post(
+      action: string,
+      body: unknown,
+      record: { kind: string; id: string },
+    ) {
+      assertActive();
+      const signal = AbortSignal.any([
+        controller.signal,
+        AbortSignal.timeout(15000),
+      ]);
+      const csrf = await fetch("/api/editorial/csrf", {
+        cache: "no-store",
+        signal,
+      });
+      if (!csrf.ok)
+        throw new Error("Sign in, then try again from the local editor.");
+      const token = await csrf.json();
+      assertActive();
+      const response = await fetch(
+        `/api/editorial/${action}?kind=${record.kind}&id=${record.id}`,
+        {
+          method: "POST",
+          signal,
+          headers: {
+            "Content-Type": "application/json",
+            "X-Editorial-CSRF": token.csrf,
+          },
+          body: JSON.stringify(body),
+        },
+      );
+      const result = await response.json();
+      assertActive();
+      if (!response.ok)
+        throw new Error(
+          response.status === 409
+            ? "Production has different changes. Your local draft was kept."
+            : "Couldn’t finish the transfer. Your local draft was kept.",
+        );
+      return result;
+    }
+    async function receive(event: MessageEvent) {
+      if (
+        accepted ||
+        event.origin !== HANDOFF_LOCAL ||
+        event.source !== sender ||
+        event.data?.nonce !== nonce ||
+        event.data.type !== "editorial-handoff-data"
+      )
+        return;
+      accepted = true;
+      clearInterval(timer);
+      clearTimeout(expiry);
+      window.removeEventListener("message", receive);
+      try {
+        executionDeadline = handoffExecutionDeadline(event.data.deadline);
+        executionTimer = setTimeout(
+          () => controller.abort(),
+          Math.max(0, executionDeadline - Date.now()),
+        );
+        const payload = event.data.payload;
+        const record = editorialRecordSchema.parse(payload?.record);
+        if (typeof payload.source !== "string")
+          throw new Error("Invalid transfer.");
+        const intent = {
+          record,
+          operationId: payload.operationId,
+          sourceSha256: await handoffSha256(payload.source),
+        };
+        if (
+          payload.publish !== undefined &&
+          typeof payload.publish !== "boolean"
+        )
+          throw new Error("Invalid transfer.");
+        if (
+          !Number.isSafeInteger(payload.localRevision) ||
+          payload.localRevision < 1
+        )
+          throw new Error("Invalid local revision.");
+        assertActive();
+        status.textContent = "Saving private draft…";
+        let receipt = validateHandoffReceipt(
+          await post("handoff", payload, record),
+          intent,
+        );
+        if (payload.publish) {
+          status.textContent = "Publishing reviewed draft…";
+          const published = await post(
+            "publish",
+            {
+              expectedRevision: receipt.revision,
+              expectedPublicationId: receipt.expectedPublicationId,
+              reviewedSourceSha256: receipt.sourceSha256,
+              operationId: payload.operationId,
+              discloseSource: true,
+            },
+            record,
+          );
+          receipt = validateHandoffReceipt(
+            { ...receipt, directPublication: published.directPublication },
+            intent,
+            true,
+          );
+        }
+        sender.postMessage(
+          { type: "editorial-handoff-done", nonce, receipt },
+          HANDOFF_LOCAL,
+        );
+        const collection =
+          record.kind === "writing"
+            ? "writing"
+            : record.kind === "work"
+              ? "projects"
+              : record.id === "home"
+                ? "home"
+                : `${record.id}Page`;
+        location.replace(`/content/${collection}/${record.id}`);
+      } catch (error) {
+        const message =
+          controller.signal.aborted ||
+          (error instanceof DOMException && error.name === "TimeoutError")
+            ? "Transfer timed out. Your draft was kept. Retry to confirm whether publishing finished."
+            : error instanceof Error
+              ? error.message
+              : "Transfer failed.";
+        status.textContent = message;
+        sender.postMessage(
+          { type: "editorial-handoff-error", nonce, error: message },
+          HANDOFF_LOCAL,
+        );
+      } finally {
+        clearTimeout(executionTimer);
+        controller.abort();
+      }
+    }
+    window.addEventListener("message", receive);
+  }
+</script>

@@ -2,6 +2,8 @@
 
 type CfEnv = {
   DB: D1Database;
+  CONTENT_DB?: D1Database;
+  CONTENT_MEDIA?: R2Bucket;
   ASSETS: Fetcher;
   RESEND_API_KEY?: string;
   RESEND_WEBHOOK_SECRET?: string;

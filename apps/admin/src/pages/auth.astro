@@ -39,6 +39,23 @@ const localPreview = isDevLoopbackPreviewRequest({
   </body>
 </html>
 
+<script>
+  // The transfer nonce stays in the fragment across the sign-in return link.
+  // It is never sent to the server or used as an authentication credential.
+  const signIn = document.querySelector<HTMLAnchorElement>("a.sign-in");
+  if (signIn) {
+    const destination = new URL(signIn.href);
+    if (
+      destination.origin === location.origin &&
+      destination.pathname === "/content/transfer" &&
+      /^#[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(location.hash)
+    ) {
+      destination.hash = location.hash;
+      signIn.href = destination.href;
+    }
+  }
+</script>
+
 <style>
   :global(html) {
     color-scheme: light dark;

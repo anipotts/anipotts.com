@@ -78,6 +78,37 @@ describe("editorial inventory projection", () => {
       false,
     );
   });
+  it("uses the active published source after publication despite the legacy private base hash", () => {
+    const retained = draft();
+    const current: InventoryEntry = {
+      ...entries[0]!,
+      publishedSource: retained.source,
+    };
+    const projected = projectEditorialInventory([current], [retained]);
+    expect(projected[0]!.changesPending).toBe(false);
+    expect(JSON.stringify(projected)).not.toContain("publishedSource");
+    expect(JSON.stringify(editorialInventorySearch(projected))).not.toContain(
+      "---",
+    );
+    expect(JSON.stringify(projected)).not.toContain("Body");
+  });
+  it("retains newer private changes and recomputes against the current publication on reload", () => {
+    const retained = draft();
+    const newer = draft({
+      source: retained.source + " newer edit",
+      revision: 3,
+    });
+    const initial = { ...entries[0]!, publishedSource: retained.source };
+    expect(
+      projectEditorialInventory([initial], [newer])[0]!.changesPending,
+    ).toBe(true);
+    const reloaded = { ...initial, publishedSource: newer.source };
+    expect(
+      projectEditorialInventory([reloaded], [newer])[0]!.changesPending,
+    ).toBe(false);
+    expect(newer.baseFileHash).toBe("b".repeat(40));
+    expect(newer.source).toContain("newer edit");
+  });
   it("keeps malformed and empty-title drafts discoverable using published metadata", () => {
     expect(
       projectEditorialInventory(entries, [

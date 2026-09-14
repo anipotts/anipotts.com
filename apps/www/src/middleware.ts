@@ -1,3 +1,4 @@
+import { isRuntimeContentPath } from "./lib/published-runtime";
 import { defineMiddleware } from "astro:middleware";
 import { siteConfig } from "@anipotts/content/public";
 
@@ -105,6 +106,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     !import.meta.env.DEV &&
     !context.isPrerendered &&
     ["GET", "HEAD"].includes(context.request.method) &&
+    !isRuntimeContentPath(pathname) &&
     !pathname.startsWith("/api/") &&
     !pathname.startsWith("/ingest/")
   ) {
@@ -113,7 +115,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
     );
     if (asset.status !== 404) return applyHtmlSecurityHeaders(asset);
   }
-  const response = await next();
+  let response: Response;
+  try {
+    response = await next();
+  } catch (error) {
+    if (!isRuntimeContentPath(pathname)) throw error;
+    return new Response("Content unavailable", {
+      status: 503,
+      headers: { "Cache-Control": "no-store", "Retry-After": "30" },
+    });
+  }
+  if (isRuntimeContentPath(pathname))
+    response.headers.set("Cache-Control", "no-store");
 
   return applyHtmlSecurityHeaders(response);
 });

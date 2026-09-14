@@ -28,18 +28,14 @@ import { SavedArticlePreview } from "./SavedArticlePreview";
 import { SaveScheduler } from "../../lib/save-scheduler";
 import { writingReviewChanges } from "../../lib/writing-review";
 import { ArticleSettings } from "./ArticleSettings";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { Heading } from "@astryxdesign/core/Heading";
 import { TextInput } from "@astryxdesign/core/TextInput";
-import { StatusDot } from "@astryxdesign/core/StatusDot";
-import {
-  ArrowLeftIcon,
-  ArrowSquareOutIcon,
-  DotsThreeIcon,
-} from "@phosphor-icons/react";
+import { SaveStatus, saveStatusFromController } from "./SaveStatus";
+import { ArrowLeftIcon, DotsThreeIcon } from "@phosphor-icons/react";
 import { Toolbar } from "@astryxdesign/core/Toolbar";
 import { Banner } from "@astryxdesign/core/Banner";
 import { FormLayout } from "@astryxdesign/core/FormLayout";
@@ -51,7 +47,7 @@ import { AdminSkeleton, RecoveryBanner } from "./AdminFeedback";
 import { RichTextField } from "./RichTextField";
 import { editableHomeSummary } from "../../lib/rich-text";
 import { editorialFields } from "../../lib/editorial-fields";
-import { ReviewChanges } from "./ReviewChanges";
+import { ReviewChanges, ReviewHeading } from "./ReviewChanges";
 import { PublicationProgress } from "./PublicationProgress";
 import { TextArea } from "@astryxdesign/core/TextArea";
 import { Button } from "@astryxdesign/core/Button";
@@ -71,8 +67,20 @@ import { HomeAutosave, type SaveState } from "../../lib/home-autosave";
 import type { Draft, SaveResult } from "../../editorial/draft-store";
 import type { HomeBase } from "../../lib/editorial-home-api";
 import type { PublishJob } from "../../editorial/publication-jobs";
+import {
+  startEditorialHandoff,
+  handoffSha256,
+  stableHandoffOperationId,
+} from "../../lib/editorial-handoff-client";
 
 type Snapshot = {
+  publicationMode?: "direct";
+  directPublication?: {
+    publicationId: string;
+    sourceSha256: string;
+    publishedAt: string;
+    revision: number;
+  } | null;
   recoveryScope?: string;
   base: HomeBase;
   draft: Draft | null;
@@ -87,11 +95,17 @@ function HomeEditorImpl({
   record,
   localPreview = false,
   onTitleChange,
+  pageTitle,
 }: {
   record: EditorialRecord;
+  pageTitle?: string;
   localPreview?: boolean;
   onTitleChange?: (title: string) => void;
 }) {
+  const previewSupported = !(
+    record.kind === "page" && record.id === "newsletter"
+  );
+  const reviewHeadingId = useId();
   const toast = useToast();
   const [returnPath, setReturnPath] = useState(
     record.kind === "writing" ? "/content?group=writing" : "/content",
@@ -179,6 +193,11 @@ function HomeEditorImpl({
     return editor.current!.flush();
   };
   const leaveDocument = async (href: string) => {
+    // Loading and failed initial reads have no editable state to flush.
+    if (!editor.current) {
+      commitAdminNavigation(href);
+      return;
+    }
     if (leavePending.current) return;
     leavePending.current = true;
     setLeaving(true);
@@ -236,11 +255,7 @@ function HomeEditorImpl({
       )
         return;
       const url = new URL(anchor.href);
-      if (
-        url.origin !== window.location.origin ||
-        url.pathname === "/cdn-cgi/access/logout"
-      )
-        return;
+      if (url.origin !== window.location.origin) return;
       if (
         url.pathname === window.location.pathname &&
         url.search === window.location.search
@@ -293,6 +308,7 @@ function HomeEditorImpl({
         window.history.replaceState(window.history.state, "", url);
       else if (url !== window.location.pathname + window.location.search)
         window.history.pushState(null, "", url);
+      window.dispatchEvent(new Event("admin:workspace-navigation"));
     }
     const initialize = write === "replace";
     if (next.view === "preview" && (initialize || previous.view !== next.view))
@@ -340,9 +356,19 @@ function HomeEditorImpl({
   const importInput = useRef<HTMLInputElement | null>(null);
   const [importing, setImporting] = useState(false);
   const [comparisonLoading, setComparisonLoading] = useState(false);
+  const [saveComparison, setSaveComparison] = useState<{
+    draft: Draft | null;
+  } | null>(null);
+  const [saveComparisonLoading, setSaveComparisonLoading] = useState(false);
+  const [saveComparisonError, setSaveComparisonError] = useState("");
+  const saveComparisonRequest = useRef(0);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [publication, setPublication] = useState<PublishJob | null>(null);
   const [publishing, setPublishing] = useState(false);
+  const [transferring, setTransferring] = useState(false);
+  const transferPending = useRef<ReturnType<
+    typeof startEditorialHandoff
+  > | null>(null);
   const [publicationStale, setPublicationStale] = useState(false);
   const [reviewedDraft, setReviewedDraft] = useState<ReviewedDraft | null>(
     null,
@@ -524,10 +550,14 @@ function HomeEditorImpl({
   }, [state?.source, record.kind, onTitleChange]);
   useEffect(() => {
     const logout = (event: StorageEvent) => {
-      if (event.key === recoveryLogoutKey) recoveryStorageKey.current = null;
+      if (event.key === recoveryLogoutKey) localLogout();
     };
     const localLogout = () => {
       recoveryStorageKey.current = null;
+      saveComparisonRequest.current += 1;
+      setSaveComparison(null);
+      setSaveComparisonLoading(false);
+      setSaveComparisonError("");
     };
     window.addEventListener(recoveryLogoutKey, localLogout);
     window.addEventListener("storage", logout);
@@ -563,11 +593,19 @@ function HomeEditorImpl({
   let values: string[] = [];
   let parseable = false;
   let valid = false;
+  let publicVisibility = record.kind === "page" && record.id !== "newsletter";
   let destinationId = record.id;
   const fieldErrors = new Map<string, string>();
   try {
     const parsed = parseEditorialSource(state.source);
     parseable = true;
+    const metadata = parsed.data as Record<string, unknown>;
+    if (record.kind === "writing")
+      publicVisibility = metadata.status === "published";
+    if (record.kind === "work")
+      publicVisibility = ["featured", "listed"].includes(
+        String(metadata.public_state),
+      );
     const configuredSlug = (parsed.data as Record<string, unknown>).slug;
     if (
       record.kind !== "page" &&
@@ -620,6 +658,45 @@ function HomeEditorImpl({
     link.click();
     URL.revokeObjectURL(url);
   };
+  const needsSaveComparison =
+    state.saveFailureCode === "save_reconciliation_required";
+  const comparedDraft = state.conflict
+    ? state.conflict.current
+    : needsSaveComparison
+      ? (saveComparison?.draft ?? null)
+      : null;
+  const compareSavedDraft = async () => {
+    // Capture buffered typing locally; do not resend an unreconcilable operation.
+    flushLocal();
+    const request = ++saveComparisonRequest.current;
+    const navigation = navigationGeneration.current;
+    const controller = editor.current;
+    const isCurrent = () =>
+      request === saveComparisonRequest.current &&
+      navigation === navigationGeneration.current &&
+      controller === editor.current &&
+      controller?.state.saveFailureCode === "save_reconciliation_required";
+    setSaveComparisonLoading(true);
+    setSaveComparisonError("");
+    setSaveComparison(null);
+    try {
+      const response = await fetch(endpoint("draft"), {
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!response.ok) throw new Error();
+      const data: { draft: Draft | null } = await response.json();
+      if (data.draft === undefined) throw new Error();
+      if (isCurrent()) setSaveComparison(data);
+    } catch {
+      if (isCurrent())
+        setSaveComparisonError(
+          "Couldn’t load the saved draft. Your edits are retained. Try comparing again.",
+        );
+    } finally {
+      if (request === saveComparisonRequest.current)
+        setSaveComparisonLoading(false);
+    }
+  };
   const refreshReview = async () => {
     const request = ++reviewRequest.current;
     const navigation = navigationGeneration.current;
@@ -646,8 +723,70 @@ function HomeEditorImpl({
       if (request === reviewRequest.current) setReviewLoading(false);
     }
   };
+  const transferToProduction = (publish: boolean) => {
+    if (transferPending.current) return transferPending.current;
+    setTransferring(true);
+    const reviewed = reviewedDraft;
+    const navigation = navigationGeneration.current;
+    const payload = (async () => {
+      await ensureDraft();
+      const current = editor.current!.state;
+      if (
+        !snapshot ||
+        current.status !== "saved" ||
+        navigation !== navigationGeneration.current ||
+        (publish && !matchesReviewedDraft(reviewed, current))
+      )
+        throw new Error(
+          "Save and review the latest changes before publishing.",
+        );
+      const source = current.source;
+      const baseSha256 = await handoffSha256(snapshot.base.source);
+      if (
+        navigation !== navigationGeneration.current ||
+        editor.current?.state.source !== source
+      )
+        throw new Error(
+          "The draft changed. Try again with the latest changes.",
+        );
+      return {
+        record,
+        source,
+        localRevision: current.revision,
+        baseSha256,
+        operationId: stableHandoffOperationId(
+          record,
+          await handoffSha256(source),
+          baseSha256,
+          publish,
+        ),
+        publish,
+      };
+    })();
+    const pending = startEditorialHandoff(payload)
+      .then(async (result) => {
+        const sent = await payload;
+        if (publish && !result.receipt.directPublication)
+          throw new Error(
+            "Publishing could not be confirmed. Your local draft was kept; retry to check its status.",
+          );
+        if (publish && navigation === navigationGeneration.current)
+          setSnapshot((previous) =>
+            previous
+              ? { ...previous, base: { ...previous.base, source: sent.source } }
+              : previous,
+          );
+        return result;
+      })
+      .finally(() => {
+        transferPending.current = null;
+        setTransferring(false);
+      });
+    transferPending.current = pending;
+    return pending;
+  };
   const refreshPreview = async () => {
-    if (snapshot.draft?.discardedAt) return;
+    if (!previewSupported || snapshot.draft?.discardedAt) return;
     const request = ++previewRequest.current;
     const navigation = navigationGeneration.current;
     const controller = editor.current;
@@ -737,17 +876,148 @@ function HomeEditorImpl({
   const reviewedSource = reviewedDraft?.source ?? state.source;
   const reviewCurrent = matchesReviewedDraft(reviewedDraft, state);
   const isDocumentView = tab === "edit" || tab === "preview";
+  const saveStatus = saveStatusFromController(state, {
+    discarded: Boolean(snapshot.draft?.discardedAt),
+    bodyDirty,
+    localPreview,
+  });
+  const publishActions = (
+    <>
+      <Button
+        label={
+          publicVisibility
+            ? "Approve and publish"
+            : "Apply unpublished revision"
+        }
+        variant="primary"
+        size="sm"
+        isDisabled={
+          transferring ||
+          (!localPreview && snapshot.publishing !== "ready") ||
+          !reviewCurrent ||
+          reviewLoading ||
+          state.source === snapshot.base.source ||
+          !valid ||
+          Boolean(snapshot.draft?.discardedAt) ||
+          Boolean(
+            publication && !["live", "cancelled"].includes(publication.phase),
+          )
+        }
+        isLoading={publishing}
+        clickAction={async () => {
+          if (publishPending.current || !reviewCurrent || reviewLoading) return;
+          publishPending.current = true;
+          const navigation = navigationGeneration.current;
+          const reviewed = reviewedDraft;
+          setPublishing(true);
+          setError("");
+          try {
+            if (localPreview) {
+              await transferToProduction(true);
+              return;
+            }
+            await ensureDraft();
+            const current = editor.current!.state;
+            if (
+              current.status !== "saved" ||
+              !matchesReviewedDraft(reviewed, current) ||
+              navigation !== navigationGeneration.current ||
+              !validateEditorialSource(record, current.source).success
+            )
+              throw new Error();
+            if (publishRequest.current?.revision !== current.revision)
+              publishRequest.current = {
+                revision: current.revision,
+                id: crypto.randomUUID(),
+              };
+            const result = await post(
+              "publish",
+              {
+                expectedRevision: current.revision,
+                operationId: publishRequest.current.id,
+                discloseSource: true,
+                ...(snapshot.publicationMode === "direct"
+                  ? {
+                      expectedPublicationId:
+                        snapshot.directPublication?.publicationId ?? null,
+                      reviewedSourceSha256: Array.from(
+                        new Uint8Array(
+                          await crypto.subtle.digest(
+                            "SHA-256",
+                            new TextEncoder().encode(current.source),
+                          ),
+                        ),
+                        (byte) => byte.toString(16).padStart(2, "0"),
+                      ).join(""),
+                    }
+                  : {}),
+              },
+              () =>
+                navigation === navigationGeneration.current &&
+                matchesReviewedDraft(reviewed, editor.current?.state ?? null),
+            );
+            if (
+              result.directPublication &&
+              snapshot.publicationMode === "direct"
+            ) {
+              setSnapshot((previous) =>
+                previous
+                  ? {
+                      ...previous,
+                      directPublication: result.directPublication,
+                      base: {
+                        ...previous.base,
+                        source: current.source,
+                      },
+                    }
+                  : previous,
+              );
+              return;
+            }
+            if (!result.publication) throw new Error();
+            setPublicationStale(false);
+            setPublication(result.publication);
+          } catch (error) {
+            if (navigation === navigationGeneration.current)
+              setError(
+                localPreview && error instanceof Error && error.message
+                  ? error.message
+                  : "Couldn’t start publishing. Your draft is retained; review the saved revision and retry.",
+              );
+          } finally {
+            publishPending.current = false;
+            setPublishing(false);
+          }
+        }}
+      />
+    </>
+  );
   return (
     <VStack
       gap={5}
       className={`editor-workspace${record.kind === "writing" ? " writing-workspace" : ""}`}
+      data-editor-view={tab}
     >
+      {tab === "publish" ? (
+        <ReviewHeading
+          id={reviewHeadingId}
+          level={1}
+          saveStatus={{ state: saveStatus }}
+        />
+      ) : record.kind !== "writing" ? (
+        <Heading level={1}>{pageTitle ?? record.id}</Heading>
+      ) : null}
       <VStack className="editor-actionbar">
         <Toolbar
           label="Document actions"
           size="sm"
           startContent={
-            <HStack gap={3} vAlign="center" className="editor-save-group">
+            <HStack
+              gap={3}
+              wrap="wrap"
+              vAlign="center"
+              className="editor-save-group"
+            >
               {record.kind === "writing" && isDocumentView && (
                 <Button
                   label={
@@ -781,31 +1051,7 @@ function HomeEditorImpl({
                   size="sm"
                 />
               )}
-              <HStack gap={2} vAlign="center" role="status">
-                <StatusDot
-                  variant={
-                    state.status === "saved" && !bodyDirty
-                      ? "success"
-                      : "warning"
-                  }
-                  label={state.status}
-                />
-                <Text color="secondary">
-                  {snapshot.draft?.discardedAt
-                    ? "Discarded draft"
-                    : bodyDirty
-                      ? "Unsaved changes"
-                      : state.status === "saved"
-                        ? localPreview
-                          ? "Saved locally"
-                          : "Saved privately"
-                        : state.status === "saving"
-                          ? "Saving…"
-                          : state.status === "conflict"
-                            ? "Resolve conflicting edits"
-                            : "Unsaved changes"}
-                </Text>
-              </HStack>
+              {tab !== "publish" && <SaveStatus state={saveStatus} />}
             </HStack>
           }
           endContent={
@@ -856,6 +1102,7 @@ function HomeEditorImpl({
                   }
                 />
               )}
+              {tab === "publish" && publishActions}
               <MoreMenu
                 label="Document actions"
                 icon={<DotsThreeIcon size={20} />}
@@ -877,6 +1124,28 @@ function HomeEditorImpl({
                     },
                   },
                   { type: "divider" },
+                  ...(localPreview
+                    ? [
+                        {
+                          label: "Continue in production",
+                          description:
+                            "Transfer this private draft without publishing.",
+                          isDisabled: publishing || transferring,
+                          onClick: () => {
+                            setError("");
+                            void transferToProduction(false).catch(
+                              (error: unknown) => {
+                                setError(
+                                  error instanceof Error
+                                    ? error.message
+                                    : "Couldn’t transfer. Your local draft is retained.",
+                                );
+                              },
+                            );
+                          },
+                        },
+                      ]
+                    : []),
                   { label: "Download draft", onClick: () => download() },
                   {
                     label: "Import draft…",
@@ -884,7 +1153,7 @@ function HomeEditorImpl({
                       importing || Boolean(snapshot.draft?.discardedAt),
                     onClick: () => importInput.current?.click(),
                   },
-                  ...(state.status === "unsaved"
+                  ...(state.status === "unsaved" && !needsSaveComparison
                     ? [
                         { type: "divider" as const },
                         {
@@ -937,7 +1206,34 @@ function HomeEditorImpl({
               onRetry={() => download()}
             />
           )}
-          {state.saveFailed && (
+          {needsSaveComparison && (
+            <VStack gap={2}>
+              <Banner
+                status="warning"
+                title="Compare before saving again"
+                description="The result of an older save could not be confirmed. Your edits are retained. Compare the saved draft before choosing which version to keep."
+                endContent={
+                  <HStack gap={2} wrap="wrap">
+                    <Button
+                      label="Compare saved draft"
+                      size="sm"
+                      isLoading={saveComparisonLoading}
+                      clickAction={compareSavedDraft}
+                    />
+                    <Button
+                      label="Download draft"
+                      size="sm"
+                      onClick={() => download()}
+                    />
+                  </HStack>
+                }
+              />
+              {saveComparisonError && (
+                <Text role="alert">{saveComparisonError}</Text>
+              )}
+            </VStack>
+          )}
+          {state.saveFailed && !needsSaveComparison && (
             <RecoveryBanner
               title="Draft could not be saved"
               description="Your edits are still here. Retry saving before leaving this page."
@@ -1019,40 +1315,102 @@ function HomeEditorImpl({
               />
             </VStack>
           )}
-          {state.conflict && (
+          {(state.conflict || (needsSaveComparison && saveComparison)) && (
             <VStack gap={2}>
-              <Banner
-                status="warning"
-                title="Another edit was saved"
-                description="Compare the saved source with your draft before choosing which version to keep."
-              />
+              {state.conflict && (
+                <Banner
+                  status="warning"
+                  title="Another edit was saved"
+                  description="Compare the saved source with your draft before choosing which version to keep."
+                />
+              )}
               <TextArea
                 label="Saved on another tab or device"
-                value={state.conflict.current?.source ?? ""}
+                value={comparedDraft?.source ?? ""}
                 isReadOnly
                 rows={5}
               />
+              {needsSaveComparison && (
+                <TextArea
+                  label="Your retained draft"
+                  value={state.source}
+                  isReadOnly
+                  rows={5}
+                />
+              )}
+              {!comparedDraft && (
+                <Text>
+                  No saved draft is available. Download your edits and try
+                  comparing again after the saved draft is recovered.
+                </Text>
+              )}
+              {needsSaveComparison &&
+                comparedDraft &&
+                comparedDraft.discardedAt !== null && (
+                  <VStack gap={2}>
+                    <Text>
+                      This saved draft was discarded. Restore it before choosing
+                      which version to keep.
+                    </Text>
+                    <Button
+                      label="Restore saved draft"
+                      clickAction={async () => {
+                        const controller = editor.current;
+                        const navigation = navigationGeneration.current;
+                        const request = saveComparisonRequest.current;
+                        const isCurrent = () =>
+                          controller === editor.current &&
+                          navigation === navigationGeneration.current &&
+                          request === saveComparisonRequest.current &&
+                          controller?.state.saveFailureCode ===
+                            "save_reconciliation_required";
+                        try {
+                          const result = await post("restore", {
+                            expectedRevision: comparedDraft.revision,
+                          });
+                          if (!result.draft) throw new Error();
+                          if (!isCurrent()) return;
+                          setSaveComparison({ draft: result.draft });
+                        } catch {
+                          if (isCurrent())
+                            setSaveComparisonError(
+                              "Couldn’t restore the saved draft. Your edits are retained. Compare again before retrying.",
+                            );
+                        }
+                      }}
+                    />
+                  </VStack>
+                )}
               <HStack gap={2}>
                 <Button
                   label="Keep my version"
                   isDisabled={
-                    !state.conflict.current ||
-                    state.conflict.current.discardedAt !== null
+                    !comparedDraft || comparedDraft.discardedAt !== null
                   }
                   clickAction={async () => {
-                    editor.current!.resolve(state.conflict!.current!, true);
+                    flushLocal();
+                    editor.current!.resolve(comparedDraft!, true);
+                    setSaveComparison(null);
+                    setSaveComparisonError("");
+                    setError("");
+                    setReviewedDraft(null);
+                    setPreviewRevision(null);
                     await flush();
                   }}
                 />
                 <Button
                   label="Use saved version"
                   isDisabled={
-                    !state.conflict.current ||
-                    state.conflict.current.discardedAt !== null
+                    !comparedDraft || comparedDraft.discardedAt !== null
                   }
                   onClick={() => {
                     resetBuffers();
-                    editor.current!.resolve(state.conflict!.current!, false);
+                    editor.current!.resolve(comparedDraft!, false);
+                    setSaveComparison(null);
+                    setSaveComparisonError("");
+                    setError("");
+                    setReviewedDraft(null);
+                    setPreviewRevision(null);
                   }}
                 />
               </HStack>
@@ -1073,19 +1431,27 @@ function HomeEditorImpl({
                 }}
               >
                 <Tab label="Edit" value="edit" />
-                <Tab label="Preview" value="preview" />
+                {previewSupported && <Tab label="Preview" value="preview" />}
               </TabList>
             </HStack>
-          ) : !isDocumentView ? (
+          ) : !isDocumentView && tab !== "publish" ? (
             <Heading level={2}>
-              {tab === "publish"
-                ? "Review changes"
-                : tab === "source"
-                  ? "Source"
-                  : "Version history"}
+              {tab === "source" ? "Source" : "Version history"}
             </Heading>
           ) : null}
-          {tab === "preview" && (
+          {!previewSupported && tab === "edit" && (
+            <Text color="secondary" type="supporting">
+              Website preview is unavailable for this draft-only newsletter
+              page.
+            </Text>
+          )}
+          {tab === "preview" && !previewSupported && (
+            <EmptyState
+              title="Preview unavailable"
+              description="This draft-only newsletter page has no website preview. You can still edit, review changes, and view source."
+            />
+          )}
+          {tab === "preview" && previewSupported && (
             <VStack gap={2}>
               {previewRevision && (
                 <HStack gap={3} wrap="wrap" vAlign="center">
@@ -1131,8 +1497,10 @@ function HomeEditorImpl({
             </VStack>
           )}
           {(tab === "edit" || record.kind === "writing") && (
-            <div
+            <VStack
+              gap={0}
               hidden={tab !== "edit"}
+              style={tab !== "edit" ? { display: "none" } : undefined}
               onFocusCapture={(event) => {
                 const target = event.target as HTMLElement;
                 if (target.matches('textarea, input, [contenteditable="true"]'))
@@ -1270,7 +1638,7 @@ function HomeEditorImpl({
                   </>
                 )}
               </FormLayout>
-            </div>
+            </VStack>
           )}
           {tab === "publish" && (
             <VStack gap={4} className="editor-review">
@@ -1282,6 +1650,7 @@ function HomeEditorImpl({
                 />
               )}
               <ReviewChanges
+                labelledBy={reviewHeadingId}
                 destination={`anipotts.com${record.kind === "page" ? (record.id === "home" ? "/" : `/${record.id}`) : `/${record.kind}/${destinationId}`}`}
                 before={snapshot.base.source}
                 after={reviewedSource}
@@ -1327,98 +1696,14 @@ function HomeEditorImpl({
                   }
                 />
               )}
-              <HStack gap={2} wrap="wrap">
-                <Button
-                  label="Approve and publish"
-                  variant="primary"
-                  size="sm"
-                  isDisabled={
-                    localPreview ||
-                    snapshot.publishing !== "ready" ||
-                    !reviewCurrent ||
-                    reviewLoading ||
-                    state.source === snapshot.base.source ||
-                    !valid ||
-                    Boolean(snapshot.draft?.discardedAt) ||
-                    Boolean(
-                      publication &&
-                      !["live", "cancelled"].includes(publication.phase),
-                    )
-                  }
-                  isLoading={publishing}
-                  tooltip={
-                    localPreview
-                      ? "Publishing is available in the production editor"
-                      : snapshot.publishing === "ready"
-                        ? "Publishes this record’s source to GitHub and the website"
-                        : "Publishing is not connected yet"
-                  }
-                  clickAction={async () => {
-                    if (
-                      publishPending.current ||
-                      !reviewCurrent ||
-                      reviewLoading
-                    )
-                      return;
-                    publishPending.current = true;
-                    const navigation = navigationGeneration.current;
-                    const reviewed = reviewedDraft;
-                    setPublishing(true);
-                    setError("");
-                    try {
-                      await ensureDraft();
-                      const current = editor.current!.state;
-                      if (
-                        current.status !== "saved" ||
-                        !matchesReviewedDraft(reviewed, current) ||
-                        navigation !== navigationGeneration.current ||
-                        !validateEditorialSource(record, current.source).success
-                      )
-                        throw new Error();
-                      if (publishRequest.current?.revision !== current.revision)
-                        publishRequest.current = {
-                          revision: current.revision,
-                          id: crypto.randomUUID(),
-                        };
-                      const result = await post(
-                        "publish",
-                        {
-                          expectedRevision: current.revision,
-                          operationId: publishRequest.current.id,
-                          discloseSource: true,
-                        },
-                        () =>
-                          navigation === navigationGeneration.current &&
-                          matchesReviewedDraft(
-                            reviewed,
-                            editor.current?.state ?? null,
-                          ),
-                      );
-                      if (!result.publication) throw new Error();
-                      setPublicationStale(false);
-                      setPublication(result.publication);
-                    } catch {
-                      if (navigation === navigationGeneration.current)
-                        setError(
-                          "Couldn’t start publishing. Your draft is retained; review the saved revision and retry.",
-                        );
-                    } finally {
-                      publishPending.current = false;
-                      setPublishing(false);
-                    }
-                  }}
-                />
-                {localPreview && (
-                  <Button
-                    label="Open production editor"
-                    size="sm"
-                    icon={<ArrowSquareOutIcon size={18} />}
-                    href={`https://admin.anipotts.com/content/${record.kind === "page" ? (record.id === "home" ? "home" : `${record.id}Page`) : record.kind === "work" ? "projects" : "writing"}/${record.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  />
-                )}
-              </HStack>
+
+              {!publicVisibility && (
+                <Text type="supporting" color="secondary">
+                  {record.kind === "page"
+                    ? "Newsletter pages are not currently public."
+                    : "This revision keeps the page unpublished. Change its visibility in Properties to publish it."}
+                </Text>
+              )}
             </VStack>
           )}
           {tab === "source" && (

@@ -19,12 +19,13 @@ import { personId } from "../lib/identity";
 interface Props {
   preview?: boolean;
   item: Writing;
+  allWriting?: Writing[];
 }
 const { item } = Astro.props;
 const slug = writingSlug(item);
 const { Content } = await render(item);
 const d = item.data;
-const moreWriting = (await publishedWriting())
+const moreWriting = (Astro.props.allWriting ?? (await publishedWriting()))
   .filter((post) => writingSlug(post) !== slug)
   .slice(0, 2);
 

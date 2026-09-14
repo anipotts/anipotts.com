@@ -3,7 +3,6 @@ import {
   createInventoryView,
   applyEditorialRecordSaved,
 } from "../../lib/editorial-inventory-events";
-import { clearEditorialRecovery } from "../../lib/draft-recovery";
 import { Banner } from "@astryxdesign/core/Banner";
 import { NewWriting } from "./NewWriting";
 import React, { useEffect, useState, type ReactNode } from "react";
@@ -67,14 +66,17 @@ export type CatalogRecord = {
   changedFields?: string[];
   privateRevision?: number;
   privateUpdatedAt?: string;
-  publishedUpdated?: { at: string; source: "git" | "local" | "private" };
+  publishedUpdated?: {
+    at: string;
+    source: "git" | "local" | "private" | "published";
+  };
   intendedVisibility?: string;
   capabilities?: {
     editable: boolean;
     previewable: boolean;
     reviewOnly: boolean;
   };
-  updated?: { at: string; source: "git" | "local" | "private" };
+  updated?: { at: string; source: "git" | "local" | "private" | "published" };
 };
 export type CatalogGroup = {
   name: string;
@@ -111,6 +113,8 @@ export type EditorialAppProps = {
   recoveryScope?: string;
   editHome?: boolean;
   editorRecord?: import("@anipotts/content/editorial/source").EditorialRecord;
+  /** The slotted page content supplies its own primary heading. */
+  hideHeader?: boolean;
   children?: ReactNode;
 };
 
@@ -130,6 +134,7 @@ export function EditorialApp({
   recoveryScope,
   inventoryError,
   editorRecord,
+  hideHeader = false,
   children,
 }: EditorialAppProps) {
   const [mode, setMode] = useState<ThemePreference>(initialMode);
@@ -150,20 +155,6 @@ export function EditorialApp({
     return () => window.removeEventListener(RECORD_SAVED_EVENT, saved);
   }, []);
 
-  useEffect(() => {
-    const logout = (event: MouseEvent) => {
-      const link = (event.target as Element | null)?.closest?.("a");
-      if (link && new URL(link.href).pathname === "/cdn-cgi/access/logout") {
-        try {
-          clearEditorialRecovery(localStorage);
-        } catch {
-          /* Storage may be disabled. */
-        }
-      }
-    };
-    document.addEventListener("click", logout, true);
-    return () => document.removeEventListener("click", logout, true);
-  }, []);
   const [draftTitle, setDraftTitle] = useState(title);
   const comparisonSiteUrl = localPreview ? "https://anipotts.com/" : siteUrl;
   const [siteHref, setSiteHref] = useState(comparisonSiteUrl);
@@ -194,7 +185,7 @@ export function EditorialApp({
       >
         <VStack
           gap={editorRecord?.kind === "writing" ? 4 : 6}
-          className={`editorial-content${editorRecord?.kind === "writing" ? " writing-content" : ""}`}
+          className={`editorial-content${groups ? " editorial-library-page" : ""}${editorRecord?.kind === "writing" ? " writing-content" : ""}`}
         >
           {(review || editHome || editorRecord || newWriting) && (
             <Breadcrumbs variant="supporting">
@@ -221,19 +212,23 @@ export function EditorialApp({
               </BreadcrumbItem>
             </Breadcrumbs>
           )}
-          {editorRecord?.kind !== "writing" &&
-            (groups || review || children || newWriting || editorRecord) && (
+          {!hideHeader &&
+            !editorRecord &&
+            !editHome &&
+            (groups || review || children || newWriting) && (
               <HStack gap={3} hAlign="between" vAlign="center" wrap="wrap">
                 <Heading level={1}>
                   {newWriting
                     ? "New article"
                     : groups && selectedGroup === "writing"
                       ? "Writing"
-                      : groups &&
-                          area === "content" &&
-                          (!selectedGroup || selectedGroup === "pages")
-                        ? "Overview"
-                        : title}
+                      : groups && selectedGroup === "website"
+                        ? "Pages"
+                        : groups &&
+                            area === "content" &&
+                            (!selectedGroup || selectedGroup === "pages")
+                          ? "Overview"
+                          : title}
                 </Heading>
                 {groups && selectedGroup === "writing" && (
                   <Button
@@ -280,6 +275,7 @@ export function EditorialApp({
               }
             >
               <HomeEditor
+                pageTitle={title}
                 onTitleChange={setDraftTitle}
                 localPreview={localPreview}
                 key={editorRecord?.id ?? "home"}

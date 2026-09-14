@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { pathToFileURL, fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { parse } from "yaml";
 
@@ -42,38 +42,57 @@ const pages = [
   ...visible.map(({ slug }) => `/work/${slug}`),
   ...published.map(({ slug }) => `/writing/${slug}`),
 ];
-for (const path of pages) {
+const worker = join(dist, "_worker.js");
+const manifestName = readdirSync(worker).find((name) =>
+  /^manifest_.*\.mjs$/u.test(name),
+);
+assert.ok(manifestName, "Missing built worker manifest");
+const { manifest } = await import(
+  pathToFileURL(join(worker, manifestName)).href
+);
+for (const path of [
+  "/",
+  "/work",
+  "/writing",
+  "/systems",
+  "/work/[slug]",
+  "/writing/[slug]",
+  "/feed.xml",
+  "/sitemap.xml",
+  "/search-index.json",
+  "/api/search",
+  "/images/editorial/[id]",
+]) {
+  const route = manifest.routes.find(
+    ({ routeData }) => routeData.route === path,
+  );
+  assert.ok(route, `Missing built runtime route: ${path}`);
+  assert.equal(
+    route.routeData.prerender,
+    false,
+    `Public route must read current publications: ${path}`,
+  );
+}
+for (const path of [...pages, ...privateRoutes]) {
   const file = join(
     dist,
     path === "/" ? "index.html" : `${path.slice(1)}.html`,
   );
-  assert.ok(existsSync(file), `Missing prebuilt page: ${path}`);
-  assert.match(
-    readFileSync(file, "utf8"),
-    /<h1\b/,
-    `${path} must include readable static content`,
+  assert.equal(
+    existsSync(file),
+    false,
+    `Stale/private static content could bypass publication visibility: ${path}`,
   );
 }
-const feed = readFileSync(join(dist, "feed.xml"), "utf8");
-const sitemap = readFileSync(join(dist, "sitemap.xml"), "utf8");
-const index = JSON.parse(readFileSync(join(dist, "search-index.json"), "utf8"));
-assert.deepEqual(
-  index.map(({ slug }) => slug).sort(),
-  published.map(({ slug }) => slug).sort(),
-);
-for (const path of privateRoutes) {
+for (const path of ["feed.xml", "sitemap.xml", "search-index.json"]) {
   assert.equal(
-    existsSync(join(dist, `${path.slice(1)}.html`)),
+    existsSync(join(dist, path)),
     false,
-    `Private page emitted: ${path}`,
-  );
-  assert.ok(
-    !feed.includes(path) && !sitemap.includes(path),
-    `Private route in public discovery: ${path}`,
+    `Stale static discovery artifact: ${path}`,
   );
 }
 
-// Optional served-build proof catches worker-first routing errors that disk checks cannot.
+// Served proof uses an isolated build with no active overrides, so Git is the expected baseline.
 const origin = process.argv
   .find((arg) => arg.startsWith("--origin="))
   ?.slice(9);
@@ -84,10 +103,28 @@ if (origin) {
     "/sitemap.xml",
     "/search-index.json",
   ]) {
-    assert.equal(
-      (await fetch(new URL(path, origin), { redirect: "manual" })).status,
-      200,
-      path,
+    const response = await fetch(new URL(path, origin), { redirect: "manual" });
+    assert.equal(response.status, 200, path);
+    if (pages.includes(path))
+      assert.match(
+        await response.text(),
+        /<h1\b/u,
+        `${path} must serve readable content`,
+      );
+  }
+  const feed = await (await fetch(new URL("/feed.xml", origin))).text();
+  const sitemap = await (await fetch(new URL("/sitemap.xml", origin))).text();
+  const index = await (
+    await fetch(new URL("/search-index.json", origin))
+  ).json();
+  assert.deepEqual(
+    index.map(({ slug }) => slug).sort(),
+    published.map(({ slug }) => slug).sort(),
+  );
+  for (const path of privateRoutes) {
+    assert.ok(
+      !feed.includes(path) && !sitemap.includes(path),
+      `Private route in public discovery: ${path}`,
     );
   }
   for (const path of [
@@ -185,5 +222,5 @@ if (origin) {
   }
 }
 console.log(
-  `Static editorial output: ${pages.length} pages, ${published.length} search records, private exclusions${origin ? ", served routes and redirects" : ""} passed`,
+  `Runtime editorial output: worker routes and static exclusions passed; ${origin ? `${pages.length} served baseline pages, ${published.length} search records, private exclusions and redirects passed` : "served baseline checks NOT RUN (provide --origin)"}`,
 );

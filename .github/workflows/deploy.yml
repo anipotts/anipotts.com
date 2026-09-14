@@ -83,6 +83,8 @@ jobs:
       newsletter: ${{ steps.release.outputs.newsletter || 'false' }}
       state: ${{ steps.release.outputs.state || 'false' }}
       weekly_email: ${{ steps.release.outputs.weekly_email || 'false' }}
+      content_db_changed: ${{ steps.release.outputs.content_db_changed || 'false' }}
+      content_db_migration_allowed: ${{ steps.release.outputs.content_db_migration_allowed || 'false' }}
       d1_changed: ${{ steps.release.outputs.d1_changed || 'false' }}
       migration_risk: ${{ steps.release.outputs.migration_risk || 'none' }}
       remote_migration_allowed: ${{ steps.release.outputs.remote_migration_allowed || 'false' }}
@@ -137,13 +139,13 @@ jobs:
           node scripts/ci/deployment-plan.mjs "$files" "$health" "${{ github.sha }}" | tee "$GITHUB_OUTPUT"
 
       - name: Setup pnpm for D1
-        if: steps.release.outputs.d1_changed == 'true'
+        if: steps.release.outputs.d1_changed == 'true' || steps.release.outputs.content_db_changed == 'true'
         uses: pnpm/action-setup@v6
         with:
           version: "10.5.2"
 
       - name: Install migration dependencies
-        if: steps.release.outputs.d1_changed == 'true'
+        if: steps.release.outputs.d1_changed == 'true' || steps.release.outputs.content_db_changed == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Read rollout gates
@@ -163,6 +165,33 @@ jobs:
         run: |
           echo "::error::automatic migration promotion is held by release policy or migration eligibility"
           exit 1
+
+      - name: Prove dedicated public content migration locally
+        if: steps.release.outputs.content_db_changed == 'true'
+        run: |
+          node scripts/ci/content-publication-migration-proof.mjs
+          node scripts/ci/content-publication-schema-proof.test.mjs
+
+      - name: Hold unreviewed public content migrations
+        if: steps.release.outputs.content_db_changed == 'true' && (steps.release.outputs.content_db_migration_allowed != 'true' || steps.gates.outputs.automatic_migrations_enabled != 'true')
+        run: |
+          echo "::error::CONTENT_DB migration is held by review or rollout gates"
+          exit 1
+
+      - name: Verify and migrate dedicated public content database
+        if: steps.gates.outputs.production_enabled == 'true' && steps.release.outputs.content_db_changed == 'true'
+        run: |
+          set -euo pipefail
+          schema="SELECT type, name, tbl_name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name"
+          pnpm exec wrangler d1 execute CONTENT_DB --remote --config apps/admin/wrangler.toml --json --command "$schema" > "$RUNNER_TEMP/content-db-before.json"
+          node scripts/ci/content-publication-schema-proof.mjs "$RUNNER_TEMP/content-db-before.json" before
+          pnpm exec wrangler d1 time-travel info CONTENT_DB --config apps/admin/wrangler.toml --json > "$RUNNER_TEMP/content-db-bookmark.json"
+          pnpm exec wrangler d1 migrations apply CONTENT_DB --remote --config apps/admin/wrangler.toml
+          pnpm exec wrangler d1 execute CONTENT_DB --remote --config apps/admin/wrangler.toml --json --command "$schema" > "$RUNNER_TEMP/content-db-after.json"
+          node scripts/ci/content-publication-schema-proof.mjs "$RUNNER_TEMP/content-db-after.json" after
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Reject production schema drift
         if: steps.gates.outputs.production_enabled == 'true' && steps.release.outputs.d1_changed == 'true'
@@ -299,9 +328,11 @@ jobs:
 
   deploy-admin:
     name: Deploy admin
-    needs: [release]
+    needs: [release, deploy-www]
     if: >
       always() &&
+      needs.release.result == 'success' &&
+      (needs.deploy-www.result == 'success' || needs.deploy-www.result == 'skipped') &&
       needs.release.outputs.production_enabled == 'true' &&
       needs.release.outputs.admin_enabled == 'true' &&
       (
@@ -646,6 +677,7 @@ jobs:
             echo "- production enabled: \`${{ needs.release.outputs.production_enabled }}\`"
             echo "- previous www source: \`${{ needs.release.outputs.deployed_www_sha }}\`"
             echo "- www source state: \`${{ needs.release.outputs.www_disposition }}\`"
+            echo "- CONTENT_DB changed: \`${{ needs.release.outputs.content_db_changed }}\`"
             echo "- D1 changed: \`${{ needs.release.outputs.d1_changed }}\`"
             echo "- migration risk: \`${{ needs.release.outputs.migration_risk }}\`"
             echo "- schema version: \`${{ needs.release.outputs.database_schema_version }}\`"

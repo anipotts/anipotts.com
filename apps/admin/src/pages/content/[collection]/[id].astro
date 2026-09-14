@@ -6,30 +6,32 @@ import EditorialLayout from "../../../layouts/EditorialLayout.astro";
 import {
   editorialInventory,
   publicSiteUrl,
-  recordUpdate,
 } from "../../../lib/editorial-content";
 import type { Review } from "../../../components/astryx/EditorialApp";
 import {
   editorialRecordSchema,
   parseEditorialSource,
 } from "@anipotts/content/editorial/source";
-import { productionEditor } from "../../../lib/editorial-server";
-const inventory = await editorialInventory();
+import { editorialStorage } from "../../../lib/editorial-server";
+const inventory = await editorialInventory(Astro.locals.runtime?.env).catch(
+  () => null,
+);
 const entry = [
-  ...inventory.pages,
-  ...inventory.projects,
-  ...inventory.writing,
+  ...(inventory?.pages ?? []),
+  ...(inventory?.projects ?? []),
+  ...(inventory?.writing ?? []),
 ].find(
   (item) =>
     item.collection === Astro.params.collection && item.id === Astro.params.id,
 );
-let privateUnavailable = false;
+let privateUnavailable = inventory === null;
 let privateDraft: import("../../../editorial/draft-store").Draft | null = null;
 const privateIdentity = editorialRecordSchema.safeParse({
   kind: Astro.params.collection,
   id: Astro.params.id,
 });
 if (
+  !privateUnavailable &&
   !entry &&
   privateIdentity.success &&
   privateIdentity.data.kind === "writing"
@@ -37,7 +39,7 @@ if (
   const snapshot = await readEditorialSnapshot(async () => {
     const storage = import.meta.env.DEV
       ? await (await import("../../../lib/editorial-local")).localDraftStorage()
-      : productionEditor(Astro.locals.runtime?.env)?.storage;
+      : editorialStorage(Astro.locals.runtime?.env);
     if (!storage) throw new Error("storage_unavailable");
     return storage.get(privateIdentity.data);
   });
@@ -81,7 +83,7 @@ const publicPath =
         : null;
 const review: Review | undefined = entry
   ? {
-      updated: recordUpdate(entry.collection, entry.id),
+      updated: inventory?.updated(entry.collection, entry.id),
       back: `/content?group=${project ? "work" : writing ? "writing" : entry.collection === "systemsPage" ? "systems" : "pages"}`,
       status:
         project?.public_state ??
@@ -131,6 +133,7 @@ const review: Review | undefined = entry
 ---
 
 <EditorialLayout
+  hasContent={Boolean(Content)}
   inventoryError={privateUnavailable}
   title={title}
   review={review}
