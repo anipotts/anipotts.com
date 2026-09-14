@@ -6,6 +6,12 @@ import {
 import { readAdminInbox } from "../../../data/inbox";
 import { statusError } from "../../../lib/content-draft-operation";
 import { requireAdminMutation } from "../../../lib/admin-auth";
+import {
+  boundedErrorCode,
+  COMPATIBILITY_JSON_LIMITS,
+  CompatibilityJsonError,
+  readCompatibilityJson,
+} from "../../../lib/admin-compatibility-request";
 
 export const GET: APIRoute = async (context) => {
   const inbox = await readAdminInbox(context.locals.runtime?.env.DB);
@@ -25,7 +31,10 @@ export const POST: APIRoute = async (context) => {
     }
 
     const actor = await requireAdminMutation(context, "action:stage");
-    const body: unknown = await context.request.json();
+    const body = await readCompatibilityJson(
+      context.request,
+      COMPATIBILITY_JSON_LIMITS.inboxAttention,
+    );
     const result = await writeAdminInboxAttention(
       db,
       body,
@@ -36,12 +45,15 @@ export const POST: APIRoute = async (context) => {
     });
   } catch (error) {
     if (error instanceof Response) return error;
-    if (error instanceof AdminInboxWriteError) {
-      return statusError(error.status, error.message);
+    if (error instanceof CompatibilityJsonError) {
+      return statusError(error.status, error.code);
     }
-    return statusError(
-      400,
-      error instanceof Error ? error.message : "inbox_write_failed",
-    );
+    if (error instanceof AdminInboxWriteError) {
+      return statusError(
+        error.status,
+        boundedErrorCode(error.message, "inbox_write_failed"),
+      );
+    }
+    return statusError(400, "inbox_write_failed");
   }
 };

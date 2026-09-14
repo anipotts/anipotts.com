@@ -4,7 +4,18 @@ import {
   submitControlPlaneProof,
 } from "../../../data/control-plane";
 import { requireAdminMutation } from "../../../lib/admin-auth";
+import {
+  boundedErrorCode,
+  COMPATIBILITY_JSON_LIMITS,
+  CompatibilityJsonError,
+  readCompatibilityJson,
+} from "../../../lib/admin-compatibility-request";
 import { statusError } from "../../../lib/content-draft-operation";
+
+const CONTROL_COMMAND_CODES = new Set([
+  "relay_binding_missing",
+  "invalid_control_command_request",
+]);
 
 export const GET: APIRoute = async (context) => {
   try {
@@ -21,10 +32,7 @@ export const GET: APIRoute = async (context) => {
     });
   } catch (error) {
     if (error instanceof Response) return error;
-    return statusError(
-      503,
-      error instanceof Error ? error.message : "control_plane_read_failed",
-    );
+    return statusError(503, "control_plane_read_failed");
   }
 };
 
@@ -35,17 +43,15 @@ export const POST: APIRoute = async (context) => {
     if (!contentType.toLowerCase().includes("application/json")) {
       throw statusError(415, "json_required");
     }
-    const contentLength = Number(
-      context.request.headers.get("content-length") ?? "0",
-    );
-    if (Number.isFinite(contentLength) && contentLength > 2_048) {
-      throw statusError(413, "control_command_too_large");
-    }
-    const body = (await context.request.json()) as {
+    const body = (await readCompatibilityJson(
+      context.request,
+      COMPATIBILITY_JSON_LIMITS.controlCommand,
+    )) as {
       idempotency_key?: unknown;
       reason?: unknown;
-    };
+    } | null;
     if (
+      !body ||
       typeof body.idempotency_key !== "string" ||
       typeof body.reason !== "string"
     ) {
@@ -65,9 +71,21 @@ export const POST: APIRoute = async (context) => {
     });
   } catch (error) {
     if (error instanceof Response) return error;
+    if (error instanceof CompatibilityJsonError) {
+      return statusError(
+        error.status,
+        error.status === 413 ? "control_command_too_large" : error.code,
+      );
+    }
     return statusError(
       400,
-      error instanceof Error ? error.message : "control_command_failed",
+      error instanceof Error
+        ? boundedErrorCode(
+            error.message,
+            "control_command_failed",
+            CONTROL_COMMAND_CODES,
+          )
+        : "control_command_failed",
     );
   }
 };
