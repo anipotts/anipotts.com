@@ -55,6 +55,8 @@ Recommended focused fix: retain status/provenance through detail lookup; return 
 
 Recommended follow-up: use a narrowly scoped bounded JSON reader with per-operation limits, preserving existing native guards and error semantics. Include absent/inaccurate Content-Length tests. Do not expand compatibility endpoints or introduce operations into Website merely to exercise this. No code change was made.
 
+Status 2026-09-14: closed for `control-plane`, `inbox`, `content/editor` and `content/draft-operation` by the issue #356 admin compatibility fix. See `public-api-audit.md` F6. The MCP POST part remains open and is held with that receipt's F7.
+
 ### F3: Machine-token and account disable coupling remains unproven
 
 `admin-machine-tokens.ts` verifies token expiry/revocation/scope without joining the account's active status. `revokeAllUserAccess` in `admin-auth.ts` revokes sessions and passkeys, not machine tokens. The audit did not establish whether another existing account-management path revokes all machine tokens. Do not claim account disable invalidates every bearer token based solely on this code. Changing token authorization or recovery semantics is a separate reserved auth decision, outside this UI change.

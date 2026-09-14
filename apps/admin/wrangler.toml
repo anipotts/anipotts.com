@@ -50,3 +50,12 @@ migrations_dir = "../../drizzle/migrations"
 name = "COMMAND_RELAY"
 class_name = "CommandRelay"
 script_name = "anipotts-state"
+
+# Workers Logs keep the once-per-isolate runtime contract line (names and
+# states only). Invocation logs stay off: request URLs can carry recovery
+# codes and owner filters, which logs must never retain.
+[observability]
+enabled = true
+
+[observability.logs]
+invocation_logs = false
