@@ -7,10 +7,49 @@
         "scripts/backfill-brands-emails.ts",
         "scripts/mini/commit-publisher.ts",
       ],
+      // The root holds CI and dev tooling only, so --production skips it.
+      "project": ["**/*.{js,cjs,mjs,jsx,ts,cts,mts,tsx}"],
       "ignoreDependencies": ["eslint"],
+      // admin-preview.mjs runs `pnpm exec astro` with cwd apps/admin.
+      "ignoreBinaries": ["astro"],
+    },
+    "apps/admin": {
+      "entry": [
+        // astro.config.mjs names this as the Cloudflare workerEntryPoint.
+        "src/worker.ts!",
+        // Inputs to `astryx theme build` in package.json scripts.
+        "src/themes/editorial.ts!",
+        "src/themes/operations.ts!",
+        "src/themes/life.ts!",
+      ],
+      // cloudflare:* are workerd runtime modules. astro.config.mjs registers
+      // the astro-icon integration with include ph, which reads @iconify-json/ph
+      // at build; --production does not count config integrations. No admin
+      // file renders an astro-icon Icon today, so keeping the pair needs
+      // intent (#358). jetbrains-mono is a CSS @import, which knip does not read.
+      "ignoreDependencies": [
+        "cloudflare",
+        "astro-icon",
+        "@iconify-json/ph",
+        "@fontsource-variable/jetbrains-mono",
+      ],
     },
     "apps/www": {
-      "ignoreDependencies": ["@iconify-json/ph"],
+      // Shell.astro imports this in a <script> that follows a self-closing
+      // <script />, which knip's Astro script extraction misreads.
+      "entry": ["src/scripts/writing-transitions.ts!"],
+      // Icon sets load by name through astro-icon. Fonts load from global.css.
+      "ignoreDependencies": [
+        "@iconify-json/ph",
+        "@iconify-json/logos",
+        "@iconify-json/simple-icons",
+        "@fontsource-variable/instrument-sans",
+        "@fontsource-variable/jetbrains-mono",
+      ],
+    },
+    "packages/lib": {
+      // drizzle.config.ts reads the canonical schema by path.
+      "entry": ["src/db/schema.ts"],
     },
     "workers/state": {
       "entry": ["src/test-harness.ts"],

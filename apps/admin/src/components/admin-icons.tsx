@@ -4,7 +4,6 @@ import {
   ArrowRightIcon,
   ArrowSquareOutIcon,
   ArrowsClockwiseIcon,
-  BookOpenIcon,
   BriefcaseIcon,
   BuildingsIcon,
   CalendarBlankIcon,
@@ -14,64 +13,32 @@ import {
   CirclesFourIcon,
   ClipboardTextIcon,
   ClockIcon,
-  CloudArrowUpIcon,
   DatabaseIcon,
   DesktopTowerIcon,
   EyeIcon,
-  FileTextIcon,
   GitCommitIcon,
   GithubLogoIcon,
   GlobeHemisphereWestIcon,
   HeartIcon,
-  ImagesIcon,
   LinkSimpleIcon,
   MagnifyingGlassIcon,
   MapPinIcon,
-  MapTrifoldIcon,
   MoonIcon,
-  PaletteIcon,
-  PencilSimpleIcon,
   PlayCircleIcon,
   QuestionIcon,
   ShieldCheckIcon,
   StopIcon,
   SunIcon,
-  TrayIcon,
   TrendUpIcon,
   UserIcon,
-  UsersIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import type { NavItem } from "../data/admin";
 import type {
   ActivationGraphLayer,
   OperationalProjection,
 } from "../data/activation-graph";
 import type { AdminInboxCategory } from "../data/inbox";
 import type { SemanticReferenceKind } from "../data/semantic-reference";
-
-export const iconForNav: Record<NavItem["icon"], Icon> = {
-  inbox: TrayIcon,
-  work: BriefcaseIcon,
-  content: ArticleIcon,
-  life: HeartIcon,
-  knowledge: BookOpenIcon,
-  locations: MapTrifoldIcon,
-  search: UsersIcon,
-  system: CirclesFourIcon,
-  fleet: DesktopTowerIcon,
-  deploy: CloudArrowUpIcon,
-  repo: GithubLogoIcon,
-  proof: ShieldCheckIcon,
-  handoff: ArrowSquareOutIcon,
-  edit: PencilSimpleIcon,
-  review: CheckCircleIcon,
-  draft: FileTextIcon,
-  media: ImagesIcon,
-  newsletter: ArticleIcon,
-  health: HeartIcon,
-  aesthetics: PaletteIcon,
-};
 
 export const iconForOperationalProjection: Record<OperationalProjection, Icon> =
   {
