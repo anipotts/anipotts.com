@@ -549,6 +549,7 @@ export function ContentLibrary({
             data={records}
             idKey="href"
             density="compact"
+            dividers="none"
             hasHover
             aria-label={`${interfaceLabel(group.name)} records`}
             columns={[
