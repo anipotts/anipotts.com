@@ -120,6 +120,54 @@ describe("home autosave", () => {
     });
     expect(editor.state.status).toBe("saved");
   });
+  it("preserves an unprovable old save until an explicit comparison choice", async () => {
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        code: "save_reconciliation_required",
+      })
+      .mockResolvedValueOnce({ ok: true, draft: draft("newer typing", 4) });
+    const editor = new HomeAutosave("base", 1, send, () => {});
+    editor.edit("old pending source");
+    await editor.flush();
+    const pending = editor.recovery().pending;
+    editor.edit("newer typing");
+    await editor.flush();
+    await editor.ensureDraft();
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(editor.recovery()).toMatchObject({
+      source: "newer typing",
+      pending,
+    });
+    expect(editor.state.saveFailureCode).toBe("save_reconciliation_required");
+    editor.resolve(draft("saved on another device", 3), true);
+    await editor.flush();
+    expect(send.mock.calls[1][0]).toMatchObject({
+      source: "newer typing",
+      expectedRevision: 3,
+    });
+    expect(send.mock.calls[1][0].requestId).not.toBe(pending?.requestId);
+    expect(editor.state.saveFailureCode).toBeUndefined();
+    expect(editor.state.status).toBe("saved");
+  });
+  it("can choose the compared saved version without sending another save", async () => {
+    const send = vi
+      .fn()
+      .mockResolvedValue({ ok: false, code: "save_reconciliation_required" });
+    const editor = new HomeAutosave("base", 1, send, () => {});
+    editor.edit("mine");
+    await editor.flush();
+    editor.resolve(draft("saved version", 3), false);
+    await editor.flush();
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(editor.recovery().pending).toBeNull();
+    expect(editor.state).toMatchObject({
+      source: "saved version",
+      revision: 3,
+      status: "saved",
+    });
+  });
 });
 
 describe("draft recovery", () => {
