@@ -1,3 +1,5 @@
+import { createRuntimeContractReporter } from "./runtime-contract";
+
 interface Env {
   DB: D1Database;
   RESEND_API_KEY: string;
@@ -608,9 +610,14 @@ async function buildAndSendReport(env: Env): Promise<{
   }
 }
 
+// Log only: one runtime contract line per isolate. It never blocks, skips or
+// changes a send, a retry or a response.
+const reportRuntimeContract = createRuntimeContractReporter();
+
 export default {
   // Manual trigger via HTTP
   async fetch(request: Request, env: Env): Promise<Response> {
+    reportRuntimeContract(env, "fetch");
     if (request.method === "GET") {
       // Health check
       let d1Status: "connected" | "error" = "error";
@@ -652,6 +659,7 @@ export default {
     env: Env,
     ctx: ExecutionContext,
   ): Promise<void> {
+    reportRuntimeContract(env, "scheduled");
     ctx.waitUntil(
       buildAndSendReport(env).then((result) => {
         if (!result.sent && !result.queued) {

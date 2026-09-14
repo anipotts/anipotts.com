@@ -2,12 +2,22 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { Bindings } from "./types";
 import { verifyDeviceHandshake } from "./control-plane-auth";
+import { createRuntimeContractReporter } from "./runtime-contract";
 
 export { LinkVault } from "./do/link-vault";
 export { CodeStats } from "./do/code-stats";
 export { CommandRelay } from "./do/command-relay";
 
 const app = new Hono<{ Bindings: Bindings }>();
+
+// Log only: one runtime contract line per isolate. It never blocks a request
+// or changes a response, and the Durable Objects keep their own entries.
+const reportRuntimeContract = createRuntimeContractReporter();
+
+app.use("*", async (c, next) => {
+  reportRuntimeContract(c.env, "fetch");
+  await next();
+});
 
 app.use("*", async (c, next) => {
   const allowedOrigins = (c.env.ALLOWED_ORIGINS ?? "")

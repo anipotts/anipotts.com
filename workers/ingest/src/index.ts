@@ -1,3 +1,5 @@
+import { createRuntimeContractReporter } from "./runtime-contract";
+
 interface Env {
   DB: D1Database;
   MAC_MINI_INGEST_KEY: string;
@@ -568,8 +570,13 @@ async function runScheduledJobs(env: Env, minute: number): Promise<void> {
 // Worker exports
 // ---------------------------------------------------------------------------
 
+// Log only: one runtime contract line per isolate. It never blocks a request,
+// skips a cron job or changes a response.
+const reportRuntimeContract = createRuntimeContractReporter();
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    reportRuntimeContract(env, "fetch");
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204 });
     }
@@ -663,6 +670,7 @@ export default {
     env: Env,
     ctx: ExecutionContext,
   ): Promise<void> {
+    reportRuntimeContract(env, "scheduled");
     const minute = new Date(event.scheduledTime).getMinutes();
     ctx.waitUntil(runScheduledJobs(env, minute));
   },

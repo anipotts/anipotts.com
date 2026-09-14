@@ -132,3 +132,30 @@ it("preserves immediate onChange for callers without a buffered save controller"
   expect(changed).toHaveBeenCalledOnce();
   expect(changed.mock.calls[0][0]).toContain("a");
 });
+it("keeps its validation reference through later renders and never references nothing", async () => {
+  const box = () => host.querySelector('[contenteditable][role="textbox"]')!;
+  const field = (value: string, validationError?: string) =>
+    act(async () =>
+      root.render(
+        <RichTextField
+          label="Subtitle"
+          value={value}
+          validationError={validationError}
+          onChange={changed}
+        />,
+      ),
+    );
+  await field("Original");
+  expect(box().hasAttribute("aria-describedby")).toBe(false);
+  await field("Original", "This field is required.");
+  const error = box().getAttribute("aria-describedby");
+  expect(error).toMatch(/-error$/u);
+  expect(document.getElementById(error!)).not.toBeNull();
+  await field("Updated", "This field is required.");
+  expect(box().getAttribute("aria-describedby")).toBe(error);
+  expect(box().getAttribute("aria-invalid")).toBe("true");
+  await field("Updated");
+  await field("Updated again");
+  expect(box().hasAttribute("aria-describedby")).toBe(false);
+  expect(box().getAttribute("aria-invalid")).toBe("false");
+});

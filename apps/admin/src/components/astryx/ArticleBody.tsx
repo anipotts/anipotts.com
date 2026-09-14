@@ -8,7 +8,7 @@ import {
 import { createStaticSource } from "@astryxdesign/core/Typeahead";
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
-import { TextSelection, NodeSelection } from "@tiptap/pm/state";
+import { TextSelection, NodeSelection, type Selection } from "@tiptap/pm/state";
 import {
   articleExtensions,
   needsMarkdownEditor,
@@ -43,6 +43,9 @@ import {
 import { safeInlineUrl } from "@anipotts/content/public/inline";
 import { ArticleImageUpload } from "./ArticleImageUpload";
 import { editorialImagePreview } from "../../lib/editorial-media";
+
+const imageSelection = (selection: Selection): selection is NodeSelection =>
+  selection instanceof NodeSelection && selection.node.type.name === "image";
 
 const insertionSource = createStaticSource([
   { id: "paragraph", label: "Paragraph" },
@@ -135,6 +138,8 @@ function VisualArticleBody({
   const [formatting, setFormatting] = useState(false);
   const [panelGeneration, setPanelGeneration] = useState(0);
   const [incomingImage, setIncomingImage] = useState<File | null>(null);
+  /** Whether the panel's opening target is an image, not the live selection. */
+  const [updatingImage, setUpdatingImage] = useState(false);
   const urlInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (panel === "link") urlInput.current?.focus();
@@ -177,6 +182,7 @@ function VisualArticleBody({
         if (!file) return false;
         event.preventDefault();
         panelSelection.current.capture(_view.state.selection);
+        setUpdatingImage(imageSelection(_view.state.selection));
         setPanelGeneration((current) => current + 1);
         setImageMode("insert");
         setUrl("");
@@ -204,6 +210,7 @@ function VisualArticleBody({
             ),
           );
         panelSelection.current.capture(view.state.selection);
+        setUpdatingImage(imageSelection(view.state.selection));
         setPanelGeneration((current) => current + 1);
         setImageMode("insert");
         setUrl("");
@@ -238,9 +245,7 @@ function VisualArticleBody({
     selector: ({ editor }) =>
       editor
         ? {
-            image:
-              editor.state.selection instanceof NodeSelection &&
-              editor.state.selection.node.type.name === "image",
+            image: imageSelection(editor.state.selection),
             bold: editor.isActive("bold"),
             italic: editor.isActive("italic"),
             heading: editor.isActive("heading"),
@@ -329,6 +334,7 @@ function VisualArticleBody({
   ) {
     if (!editor) return;
     panelSelection.current.capture(editor.state.selection);
+    setUpdatingImage(imageSelection(editor.state.selection));
     setPanelGeneration((current) => current + 1);
     const attrs =
       next === "image" && !selectedImage ? {} : editor.getAttributes(next);
@@ -358,10 +364,7 @@ function VisualArticleBody({
     }
     editor.view.dispatch(editor.state.tr.setSelection(selection));
     if (panel === "image") {
-      if (
-        selection instanceof NodeSelection &&
-        selection.node.type.name === "image"
-      )
+      if (imageSelection(selection))
         editor
           .chain()
           .focus()
@@ -672,7 +675,7 @@ function VisualArticleBody({
                 <Button
                   label={
                     panel === "image"
-                      ? selectedImage
+                      ? updatingImage
                         ? "Update image"
                         : "Insert image"
                       : "Apply link"
