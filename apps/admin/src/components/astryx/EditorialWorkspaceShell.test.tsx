@@ -121,6 +121,7 @@ describe("local owner indicator", () => {
     const rule = css.slice(start, css.indexOf("}", start));
     expect(rule).toContain("position: fixed;");
     expect(rule).toContain("pointer-events: none;");
-    expect(rule).not.toMatch(/border|#[0-9a-f]{3,6}\b/i);
+    // Rounded corners only: no rule lines, no raw colours.
+    expect(rule).not.toMatch(/border(?!-radius)|#[0-9a-f]{3,6}\b/i);
   });
 });
