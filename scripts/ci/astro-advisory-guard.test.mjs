@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
@@ -128,21 +134,29 @@ function audit(overrides = {}, version) {
   }
 }
 
+function initGit(root) {
+  const init = spawnSync("git", ["init", "-q"], {
+    cwd: root,
+    encoding: "utf8",
+  });
+  assert.equal(init.status, 0, init.stderr);
+}
+
 function rulesFor(report, advisory) {
   return report.findings
     .filter((finding) => finding.advisory === advisory)
     .map((finding) => `${finding.file}:${finding.rule}`);
 }
 
-function assertOnly(report, advisory, expected) {
+function assertOnly(report, advisory, expected, label) {
   assert.deepEqual(
     report.findings
       .filter((finding) => finding.advisory !== advisory)
       .map((finding) => `${finding.advisory}:${finding.rule}`),
     [],
-    "a violation must only trip its own advisory rule",
+    label ?? "a violation must only trip its own advisory rule",
   );
-  assert.deepEqual(rulesFor(report, advisory), expected);
+  assert.deepEqual(rulesFor(report, advisory), expected, label);
 }
 
 const wwwConfig = (replace) =>
@@ -291,6 +305,170 @@ test(`${IMAGE}: astro:assets, getImage, <Image>, <Picture> and sharp fail`, () =
   }
 });
 
+test(`${IMAGE}: nested, quoted and shorthand config keys are read at the right depth`, () => {
+  for (const [label, config, rules] of [
+    [
+      "imageService nested under platformProxy",
+      wwwConfig("").replace(
+        "platformProxy: { enabled: true },",
+        'platformProxy: { enabled: true, imageService: "passthrough" },',
+      ),
+      ["image_service_not_passthrough"],
+    ],
+    [
+      "quoted image key",
+      WWW_CONFIG.replace(
+        'output: "static",',
+        'output: "static",\n  "image": { domains: ["example.invalid"] },',
+      ),
+      ["image_remote_sources"],
+    ],
+    [
+      "quoted remotePatterns key",
+      WWW_CONFIG.replace(
+        'output: "static",',
+        'output: "static",\n  image: { "remotePatterns": [] },',
+      ),
+      ["image_remote_sources"],
+    ],
+    [
+      "shorthand image key",
+      WWW_CONFIG.replace(
+        "export default defineConfig({",
+        'const image = { remotePatterns: [{ protocol: "https" }] };\n\nexport default defineConfig({\n  image,',
+      ),
+      ["image_config_unverifiable"],
+    ],
+  ]) {
+    assertOnly(
+      audit({ "apps/www/astro.config.mjs": config }),
+      IMAGE,
+      rules.map((rule) => `apps/www/astro.config.mjs:${rule}`),
+      label,
+    );
+  }
+
+  const nestedElsewhere = WWW_CONFIG.replace(
+    'output: "static",',
+    'output: "static",\n  vite: { build: { image: "inline-only" } },',
+  );
+  assert.deepEqual(
+    audit({ "apps/www/astro.config.mjs": nestedElsewhere }).findings,
+    [],
+    "only the top-level image key is Astro's image config",
+  );
+});
+
+test("a missing astro config fails the config rules for that app", () => {
+  const report = audit({ "apps/www/astro.config.mjs": null });
+  assert.deepEqual(
+    report.findings.map(
+      (finding) => `${finding.advisory}:${finding.app}:${finding.rule}`,
+    ),
+    [
+      `${IMAGE}:www:astro_config_missing`,
+      `${ERROR_PAGE}:www:astro_config_missing`,
+    ],
+  );
+});
+
+test("gitignored generated sources are skipped and new untracked sources are scanned", () => {
+  const root = writeFixture({
+    ...baseline(),
+    ".gitignore": "node_modules\n/packages/content/src/public/generated.ts\n",
+    "packages/content/src/public/generated.ts":
+      'import { Image } from "astro:assets";\nexport const hero = await getImage({ src: "/a.avif" });\n',
+    "apps/www/src/pages/fresh.astro":
+      '---\nimport { Picture } from "astro:assets";\n---\n<p>fresh</p>\n',
+  });
+  try {
+    initGit(root);
+    assertOnly(auditAstroAdvisories(root), IMAGE, [
+      "apps/www/src/pages/fresh.astro:astro_assets_import",
+    ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("image, render and slot code quoted inside string data is not a finding", () => {
+  // Shaped like the generated public content projection, where an article
+  // body can quote exactly the code the guard looks for.
+  const prose = [
+    "```astro",
+    'import { Image } from "astro:assets";',
+    "import sharp from 'sharp';",
+    'const hero = await getImage({ src, format: "avif" });',
+    'import { App } from "astro/app";',
+    "app.render(request, { prerenderedErrorPageFetch: fetch });",
+    "```",
+  ].join("\n");
+  const generated = [
+    `export const JSON_BODY = ${JSON.stringify(prose)};`,
+    `export const SINGLE_BODY = '${prose.replaceAll("'", "\\'").replaceAll("\n", "\\n")}';`,
+    `export const TEMPLATE_BODY = \`${prose.replaceAll("`", "\\`")}\`;`,
+    "",
+  ].join("\n");
+  const template = [
+    "---",
+    "const sample = 'import { Image } from \"astro:assets\"; Astro.slots.render(name);';",
+    "---",
+    '<CodeBlock code={"<div slot={Astro.url.hash}><Picture src={x} /></div>"} />',
+    "<CodeBlock code={`<slot name={Astro.params.region} />`} />",
+    "",
+  ].join("\n");
+  assert.deepEqual(
+    audit({
+      "packages/content/src/public/generated.ts": generated,
+      "apps/admin/src/pages/sample.astro": template,
+    }).findings,
+    [],
+  );
+
+  assertOnly(
+    audit({
+      "apps/admin/src/lib/thumb.ts":
+        "export const label = `thumb ${await getImage({ src })}`;\n",
+    }),
+    IMAGE,
+    ["apps/admin/src/lib/thumb.ts:get_image_call"],
+  );
+});
+
+test(`${IMAGE}: a URL in JSX text does not hide code on the same line`, () => {
+  const file = "apps/admin/src/components/Credit.tsx";
+  assertOnly(
+    audit({
+      [file]:
+        "export const Credit = ({ src }) => <p>see https://x.test {getImage({ src })}</p>;\n",
+    }),
+    IMAGE,
+    [`${file}:get_image_call`],
+  );
+});
+
+test("symlinked source files are scanned with and without git", () => {
+  for (const withGit of [false, true]) {
+    const root = writeFixture({
+      ...baseline(),
+      "shared/decode.ts":
+        'import sharp from "sharp";\nexport const decode = (bytes) => sharp(bytes);\n',
+    });
+    try {
+      symlinkSync(
+        join(root, "shared/decode.ts"),
+        join(root, "apps/admin/src/decode.ts"),
+      );
+      if (withGit) initGit(root);
+      assertOnly(auditAstroAdvisories(root), IMAGE, [
+        "apps/admin/src/decode.ts:sharp_import",
+      ]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
+});
+
 test(`${ERROR_PAGE}: leaving the Cloudflare adapter fails`, () => {
   const nodeAdapter = WWW_CONFIG.replace(
     'import cloudflare from "@astrojs/cloudflare";',
@@ -353,6 +531,37 @@ export const handler = (req) => app.render(req);
     audit({ "apps/admin/src/worker.ts": assetsFetch }).findings,
     [],
   );
+
+  for (const fetcher of [
+    "(url) => fetch(url)",
+    "globalThis.fetch.bind(globalThis)",
+    "async (url) => {\n            return await self.fetch(url);\n          }",
+  ]) {
+    assertOnly(
+      audit({
+        "apps/admin/src/worker.ts": customWorker.replace(
+          "{ routeData: app.match(request) }",
+          `{\n          routeData: app.match(request),\n          prerenderedErrorPageFetch: ${fetcher},\n        }`,
+        ),
+      }),
+      ERROR_PAGE,
+      ["apps/admin/src/worker.ts:global_error_page_fetch"],
+      fetcher,
+    );
+  }
+
+  const namedGlobal = customWorker
+    .replace(
+      "export function createExports",
+      "const prerenderedErrorPageFetch = (url) => fetch(url);\nexport function createExports",
+    )
+    .replace(
+      "{ routeData: app.match(request) }",
+      "{ routeData: app.match(request), prerenderedErrorPageFetch }",
+    );
+  assertOnly(audit({ "apps/admin/src/worker.ts": namedGlobal }), ERROR_PAGE, [
+    "apps/admin/src/worker.ts:global_error_page_fetch",
+  ]);
 });
 
 test(`${ERROR_PAGE}: an unverifiable worker entry fails`, () => {
@@ -371,6 +580,24 @@ test(`${ERROR_PAGE}: an unverifiable worker entry fails`, () => {
     }),
     ERROR_PAGE,
     ["apps/admin/worker/entry.ts:render_without_error_page_fetch"],
+  );
+
+  // A worker entry outside src brings its local imports into every scan.
+  const report = audit({
+    "apps/admin/astro.config.mjs": outsideSrc,
+    "apps/admin/worker/entry.ts":
+      'export { createExports } from "../server/entry";\n',
+    "apps/admin/server/entry.ts":
+      'import { App } from "astro/app";\nimport sharp from "sharp";\nexport function createExports(m) {\n  return { default: { fetch: (r) => new App(m).render(r) } };\n}\n',
+  });
+  assert.deepEqual(
+    report.findings.map(
+      (finding) => `${finding.advisory}:${finding.file}:${finding.rule}`,
+    ),
+    [
+      `${IMAGE}:apps/admin/server/entry.ts:sharp_import`,
+      `${ERROR_PAGE}:apps/admin/server/entry.ts:render_without_error_page_fetch`,
+    ],
   );
 });
 
@@ -393,6 +620,26 @@ test(`${SLOT}: dynamic slot names and lookups fail`, () => {
       "dynamic_slot_lookup",
     ],
     ["<slot name={Astro.params.region} />\n", "dynamic_slot_lookup"],
+    [
+      '<X client:load>{"<!--"}<div slot={Astro.url.hash}>x</div>{"-->"}</X>\n',
+      "dynamic_slot_name",
+    ],
+    [
+      "<X client:load>{/* a */ Astro.props.title}<div slot={Astro.url.hash}>x</div>{/* b */}</X>\n",
+      "dynamic_slot_name",
+    ],
+    [
+      '<X client:load><div class="a"slot={Astro.url.hash}>x</div></X>\n',
+      "dynamic_slot_name",
+    ],
+    [
+      "<head><script is:inline set:html={prepaint} /></head>\n<X client:load><div slot={Astro.url.hash}>x</div></X>\n",
+      "dynamic_slot_name",
+    ],
+    [
+      "<script>const a = 1;\n<X client:load><div slot={Astro.url.hash}>x</div></X>\n",
+      "dynamic_slot_name",
+    ],
   ]) {
     const file = "apps/admin/src/pages/panel.astro";
     assertOnly(audit({ [file]: content }), SLOT, [`${file}:${rule}`]);
@@ -402,8 +649,11 @@ test(`${SLOT}: dynamic slot names and lookups fail`, () => {
     audit({
       "apps/admin/src/pages/literal.astro":
         '---\nconst a = await Astro.slots.render("aside");\nconst b = Astro.slots.has(\'footer\');\n---\n<EditorialApp client:load><div slot="aside">{a}</div><p slot={"footer"}>{b}</p><slot name="aside" /></EditorialApp>\n',
+      "apps/admin/src/pages/tabs.astro":
+        '<div id="tabs"></div>\n<script>\n  const id = "one";\n  const slot = `panel-${id}`;\n</script>\n<style>\n  [slot="a"] { color: red; }\n</style>\n',
     }).findings,
     [],
+    "client scripts and styles do not set component slots",
   );
 });
 

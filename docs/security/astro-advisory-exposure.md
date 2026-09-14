@@ -69,15 +69,19 @@ Astro upgrade does not change that copy, so this guard does not cover it.
 
 Guard rule, per app while its installed astro is below 7.2.8:
 
-- the adapter is imported from `@astrojs/cloudflare` and every `imageService`
-  in its options is the literal `"passthrough"` (`image_service_not_passthrough`)
+- the adapter is imported from `@astrojs/cloudflare` and every top-level
+  `imageService` in its options is the literal `"passthrough"`
+  (`image_service_not_passthrough`). A nested key such as
+  `platformProxy.imageService` does not count.
 - the config does not reference `sharpImageService` or
   `astro/assets/services/sharp` (`sharp_image_service`)
-- any `image` config is an inline object (`image_config_unverifiable`) without
+- the exported config is an inline object, and its top-level `image` key, in
+  any key form, is an inline object (`image_config_unverifiable`) without
   `domains` or `remotePatterns` (`image_remote_sources`)
-- app and package sources do not import `astro:assets` (`astro_assets_import`)
-  or sharp (`sharp_import`), call `getImage` (`get_image_call`), or render
-  `<Image>` or `<Picture>` in `.astro` or `.mdx` (`astro_assets_component`)
+- app sources, package sources and local modules a worker entry imports do not
+  import `astro:assets` (`astro_assets_import`) or sharp (`sharp_import`), call
+  `getImage` (`get_image_call`), or render `<Image>` or `<Picture>` in `.astro`
+  or `.mdx` (`astro_assets_component`)
 
 Remove the rule after the Astro 7 upgrade, once both apps install astro 7.2.8 or
 later.
@@ -121,12 +125,15 @@ Guard rule, per app while its installed astro is below 6.4.6:
 - the adapter is imported from `@astrojs/cloudflare` (`adapter_not_cloudflare`)
 - a `workerEntryPoint` is a literal relative path to an existing file
   (`worker_entry_unverifiable`)
-- in any app source, package source or worker entry that imports `astro/app` or
-  `astro/app/node`, or references `NodeApp` or `createRequestFromNodeRequest`,
-  every `.render(` call passes `prerenderedErrorPageFetch`
+- in any app source, package source, worker entry or local module that entry
+  imports, a file that imports `astro/app` or `astro/app/node`, or references
+  `NodeApp` or `createRequestFromNodeRequest`, passes
+  `prerenderedErrorPageFetch` to every `.render(` call
   (`render_without_error_page_fetch`)
-- `prerenderedErrorPageFetch` is never plain global fetch
-  (`global_error_page_fetch`)
+- no `prerenderedErrorPageFetch` property or variable uses global fetch: bare
+  `fetch`, `globalThis.fetch`, `self.fetch` or `window.fetch`
+  (`global_error_page_fetch`). A fetcher passed through another name is not
+  traced.
 
 Remove the rule after the Astro 7 upgrade, once both apps install astro 6.4.6 or
 later.
@@ -166,8 +173,8 @@ Why it is not reachable:
 Guard rule, per app while its installed astro is below 6.3.3, over `.astro` and
 `.mdx` files in `apps/*/src` and `packages/*/src`:
 
-- `slot={...}` and backtick `slot` values are string literals
-  (`dynamic_slot_name`)
+- `slot={...}` and backtick `slot` values in markup are string literals
+  (`dynamic_slot_name`). Client `<script>` and `<style>` bodies are skipped.
 - `Astro.slots.render`, `Astro.slots.has` and `<slot name={...}>` use string
   literal names (`dynamic_slot_lookup`)
 
@@ -182,6 +189,17 @@ guard over the whole checkout. The guard reads each app's astro version from
 `apps/<app>/node_modules/astro/package.json` when installed and from the
 `pnpm-lock.yaml` importer otherwise. An unresolved version keeps every rule
 active.
+
+The guard reads script, `.astro` and `.mdx` files under each app's `src` and
+under `packages/*/src`. In a git checkout it lists them with
+`git ls-files --cached --others --exclude-standard`, so CI and Security Review
+scan the same files and gitignored outputs such as
+`packages/content/src/public/generated.ts` are never read. Without git it walks
+those directories. Rules match code only. Comments and text inside string
+literals are ignored. A rule reads a string only as a whole literal, such as an
+import specifier, a config value or a slot name, and any literal whose entire
+value is `astro:assets` still fails. An article body that quotes an
+`astro:assets` import or a `getImage(` call cannot fail the check.
 
 Each rule skips itself per app once that app's installed astro reaches the first
 fixed version. Findings print as
