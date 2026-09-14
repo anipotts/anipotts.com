@@ -87,12 +87,8 @@ function enhance(root: HTMLElement) {
       motion.matches,
     );
     root.dataset.motion = paused ? "paused" : "running";
+    // The server-rendered name stays fixed; aria-pressed alone reports the pause.
     button.setAttribute("aria-pressed", String(userPaused));
-    const name = userPaused
-      ? "Resume source animation"
-      : "Pause source animation";
-    button.setAttribute("aria-label", name);
-    button.title = name;
     if (paused || !cycle) {
       cancelAnimationFrame(frame);
       frame = 0;

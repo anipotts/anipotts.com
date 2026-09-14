@@ -13,16 +13,17 @@ const timeframe = year
 ---
 
 <span class="project-meta-group">
-  <span
-    class="project-meta-ui"
-    aria-label={`Status: ${label}. Timeframe: ${timeframe}`}
-  >
+  <span class="project-meta-ui">
     <span class="status"
       ><span
         class:list={["status-dot", `status-dot--${status}`]}
-        aria-hidden="true"></span>{label}</span
+        aria-hidden="true"></span><span class="sr-only">Status: </span>{
+        label
+      }<span class="sr-only">.</span></span
     >
-    <span class="timeframe">{timeframe}</span>
+    <span class="timeframe"
+      ><span class="sr-only">Timeframe: </span>{timeframe}</span
+    >
   </span>
   {role && <span class="role">{role}</span>}
 </span>
@@ -88,5 +89,17 @@ const timeframe = year
   .role {
     font-size: 0.82rem;
     color: var(--ink-muted);
+  }
+  /* Generic spans cannot carry a name, so field labels ride along as hidden text. */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 </style>
