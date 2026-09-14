@@ -101,7 +101,10 @@ export function computeDeployTargets(paths) {
 
   for (const path of paths) {
     if (!path || isReleaseIgnored(path)) continue;
+    // Shared Astro integrations run inside both app builds.
+    const astroBuildConfig = path.startsWith("config/astro/");
     if (
+      astroBuildConfig ||
       path.startsWith("apps/www/") ||
       path.startsWith("content/public/") ||
       path.startsWith("packages/content/src/public/") ||
@@ -113,6 +116,7 @@ export function computeDeployTargets(paths) {
     }
 
     if (
+      astroBuildConfig ||
       path === ADMIN_CORE_PATCH ||
       path.startsWith("apps/admin/") ||
       path.startsWith("content/public/") ||

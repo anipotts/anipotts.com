@@ -9,6 +9,7 @@ import { createHash } from "node:crypto";
 import { PublicationJobs, type PublishJob } from "./publication-jobs";
 import { publicationAlarm } from "./publication-alarm";
 import { editorialRuntime } from "./runtime";
+import { reportRuntimeContract } from "../lib/runtime-contract";
 import { publicationStage } from "./publication-stage";
 import {
   editorialRecordPath,
@@ -228,6 +229,8 @@ export class EditorialDraftStore extends DurableObject<unknown> {
   }
   constructor(ctx: DurableObjectState, env: unknown) {
     super(ctx, env);
+    // Alarms and RPC construct the object without the Worker fetch wrapper.
+    reportRuntimeContract(env, "durable_object");
     this.jobs = new PublicationJobs(ctx.storage);
     ctx.storage.sql.exec(`
       CREATE TABLE IF NOT EXISTS drafts (

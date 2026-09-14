@@ -1,5 +1,6 @@
 import { defineMiddleware } from "astro:middleware";
 import { siteConfig } from "@anipotts/content/public";
+import { reportRuntimeContract } from "./lib/runtime-contract";
 
 /** flat redirect map: pathname (exact or prefix) -> destination. */
 const REDIRECTS: Record<string, string> = {
@@ -55,6 +56,16 @@ function applyHtmlSecurityHeaders(response: Response): Response {
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
+  // Log the runtime configuration contract once per isolate. It never blocks.
+  // Static asset paths never get here: with no custom workerEntryPoint, the
+  // adapter serves them through env.ASSETS before middleware runs, so this
+  // covers dynamic routes only. Prerendering and dev have no deployed env.
+  if (!import.meta.env.DEV && !context.isPrerendered) {
+    reportRuntimeContract(
+      context.locals.runtime?.env,
+      import.meta.env.PUBLIC_RELEASE_SHA || "dev",
+    );
+  }
   const { pathname, search } = context.url;
   const host = context.url.hostname.toLowerCase();
   // Newsletter delivery endpoints remain available; its editorial pages are unpublished.

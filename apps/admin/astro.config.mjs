@@ -3,6 +3,7 @@ import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
 import icon from "astro-icon";
+import astroAdvisoryGuard from "../../config/astro/advisory-guard.mjs";
 import { publicContentHotReload } from "../../scripts/dev/public-content-hot-reload.mjs";
 import { editorialPublicAssets } from "../../scripts/dev/editorial-public-assets.mjs";
 import { editorialUpdates } from "../../scripts/dev/editorial-updates.mjs";
@@ -12,7 +13,11 @@ export default defineConfig({
   output: "server",
   trailingSlash: "never",
   // One coherent React island per editorial page; Astro retains server routing.
-  integrations: [react(), icon({ include: { ph: ["*"] } })],
+  integrations: [
+    astroAdvisoryGuard(),
+    react(),
+    icon({ include: { ph: ["*"] } }),
+  ],
   server: {
     host: "127.0.0.1",
     port: 3001,

@@ -1,26 +1,15 @@
 import type { APIRoute } from "astro";
-import { json } from "../../../../lib/api";
+import { json, readBoundedText } from "../../../../lib/api";
 import {
   missingDbResponse,
-  parseJsonBody,
-  recordNewsletterEvent,
-  suppressEmail,
+  parseResendWebhook,
+  readResendWebhookHeaders,
+  recordResendEvent,
   verifyResendWebhook,
+  WEBHOOK_BODY_LIMIT_BYTES,
 } from "../../../../lib/newsletter";
 
 export const prerender = false;
-
-type ResendWebhook = {
-  type?: string;
-  created_at?: string;
-  data?: {
-    email_id?: string;
-    to?: string[];
-    from?: string;
-    subject?: string;
-    tags?: { name: string; value: string }[];
-  };
-};
 
 const SUPPRESSION_EVENTS = new Set([
   "email.bounced",
@@ -35,38 +24,36 @@ export const POST: APIRoute = async ({ request, locals }) => {
     return json({ error: "resend webhook not configured" }, 501);
   }
 
-  const rawBody = await request.text();
+  const headers = readResendWebhookHeaders(request);
+  if (!headers) return json({ error: "invalid webhook headers" }, 400);
+
+  const rawBody = await readBoundedText(request, WEBHOOK_BODY_LIMIT_BYTES);
+  if (rawBody === null) return json({ error: "payload too large" }, 413);
+
   const verified = await verifyResendWebhook(
-    request,
+    headers,
     env.RESEND_WEBHOOK_SECRET,
     rawBody,
   );
   if (!verified) return json({ error: "invalid signature" }, 401);
 
-  const payload = parseJsonBody(rawBody) as ResendWebhook | null;
-  if (!payload?.type) return json({ error: "invalid payload" }, 400);
+  const payload = parseResendWebhook(rawBody);
+  if (!payload) return json({ error: "invalid payload" }, 400);
 
-  const providerEventId = request.headers.get("svix-id");
-  const email = payload.data?.to?.[0]?.trim().toLowerCase() ?? null;
-  const providerEmailId = payload.data?.email_id ?? null;
-
-  await recordNewsletterEvent(env.DB, {
-    type: payload.type,
-    email,
-    provider: "resend",
-    providerEventId,
-    providerEmailId,
-    payload,
-  });
-
-  if (email && SUPPRESSION_EVENTS.has(payload.type)) {
-    await suppressEmail(env.DB, {
-      email,
-      reason: payload.type.replace("email.", ""),
-      provider: "resend",
-      providerEventId,
+  try {
+    await recordResendEvent(env.DB, {
+      type: payload.type,
+      email: payload.data?.to?.[0]?.trim().toLowerCase() || null,
+      providerEventId: headers.id,
+      providerEmailId: payload.data?.email_id ?? null,
+      suppressionReason: SUPPRESSION_EVENTS.has(payload.type)
+        ? payload.type.replace("email.", "")
+        : null,
       payload,
     });
+  } catch (error) {
+    console.error("newsletter webhook error", error);
+    return json({ error: "internal server error" }, 500);
   }
 
   return json({ success: true });
