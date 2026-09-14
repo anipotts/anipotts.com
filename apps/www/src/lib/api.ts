@@ -22,7 +22,7 @@ export function checkOrigin(request: Request): Response | null {
   if (!origin) return null;
   if (CANONICAL_ORIGINS.has(origin)) return null;
   try {
-    if (new URL(origin).host === new URL(request.url).host) return null;
+    if (new URL(origin).origin === new URL(request.url).origin) return null;
   } catch {
     /* malformed origin header falls through to forbidden */
   }

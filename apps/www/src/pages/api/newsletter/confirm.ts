@@ -41,6 +41,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
       ),
     );
   }
+  if (result === "suppressed") {
+    return html(
+      render(
+        "blocked",
+        "that address is blocked from the newsletter after a delivery failure or complaint.",
+      ),
+      409,
+    );
+  }
   if (result === "expired") {
     return html(
       render("expired", "that confirmation link expired. subscribe again."),

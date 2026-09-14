@@ -15,9 +15,9 @@ function database(...options) {
     prepare(sql) {
       return {
         bind(key) {
-          // Record the bucket each per-client statement selects; the capped
-          // cleanup of other expired rows binds a key range instead.
-          if (/\bkey = \?/.test(sql)) keys.push(key);
+          // Record the bucket every statement selects or writes; only the
+          // capped cleanup of other expired rows binds a key range instead.
+          if (!/\bkey >= \?/.test(sql)) keys.push(key);
           return {
             async first() {
               return count === null ? null : { cnt: count };
@@ -94,6 +94,19 @@ assert.equal(
   ),
   null,
 );
+for (const [url, origin] of [
+  ["https://anipotts.com/api/subscribe", "http://anipotts.com"],
+  [
+    "https://preview.anipotts.workers.dev/api/subscribe",
+    "http://preview.anipotts.workers.dev",
+  ],
+]) {
+  assert.equal(
+    checkOrigin(new Request(url, { headers: { origin } }))?.status,
+    403,
+    "a same-host origin on another scheme is cross-origin",
+  );
+}
 assert.equal(
   checkOrigin(
     new Request("http://localhost:1355/api/subscribe", {

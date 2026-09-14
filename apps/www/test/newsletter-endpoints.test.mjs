@@ -375,6 +375,24 @@ test("a duplicate delivery after an earlier partial write still suppresses", asy
   assert.equal(count(db, "SELECT COUNT(*) AS cnt FROM newsletter_events"), 1);
 });
 
+test("webhook payloads may carry null data and email ids", async () => {
+  const db = database();
+  const { env } = environment(db, { RESEND_WEBHOOK_SECRET: WEBHOOK_SECRET });
+  seedSubscriber(db, "nulls@example.com", "confirmed");
+  const delivered = await deliver(
+    env,
+    signedDelivery(JSON.stringify({ type: "email.delivered", data: null })),
+  );
+  assert.equal(delivered.status, 200);
+  const bounced = await deliver(
+    env,
+    signedDelivery(bounce("nulls@example.com", { email_id: null })),
+  );
+  assert.equal(bounced.status, 200);
+  assert.equal(suppression(db, "nulls@example.com").reason, "bounced");
+  assert.equal(count(db, "SELECT COUNT(*) AS cnt FROM newsletter_events"), 2);
+});
+
 test("subscribe responds identically for every address state", async () => {
   const db = database();
   const { env, messages } = environment(db);
@@ -409,6 +427,59 @@ test("subscribe responds identically for every address state", async () => {
     "pending@example.com",
     "unsubscribed@example.com",
   ]);
+});
+
+test("a queue outage does not change the subscribe response", async (t) => {
+  t.mock.method(console, "error", () => undefined);
+  const db = database();
+  const { env } = environment(db, {
+    NEWSLETTER_QUEUE: {
+      async send() {
+        throw new Error("queue unavailable");
+      },
+    },
+  });
+  seedSubscriber(db, "confirmed@example.com", "confirmed");
+  const responses = [];
+  for (const email of ["new@example.com", "confirmed@example.com"]) {
+    const response = await subscribe.POST({
+      request: subscribeRequest({ email }),
+      locals: locals(env),
+    });
+    responses.push(`${response.status} ${await response.text()}`);
+  }
+  assert.deepEqual(responses, ['200 {"success":true}', '200 {"success":true}']);
+  assert.equal(
+    count(
+      db,
+      "SELECT COUNT(*) AS cnt FROM newsletter_events WHERE type = 'confirm_email_failed' AND email = ?",
+      "new@example.com",
+    ),
+    1,
+  );
+});
+
+test("confirmed rows left with an unsubscribe suppression can opt in again", async () => {
+  const db = database();
+  const { env, messages } = environment(db);
+  // Before this fix, unsubscribe then resubscribe then confirm, or a stale
+  // confirm link used after unsubscribing, left this state behind.
+  seedSubscriber(db, "stuck@example.com", "confirmed");
+  seedSuppression(db, "stuck@example.com", "user_unsubscribe", iso(-120_000));
+
+  const response = await subscribe.POST({
+    request: subscribeRequest({ email: "stuck@example.com" }),
+    locals: locals(env),
+  });
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), JSON.stringify({ success: true }));
+  assert.equal(messages.length, 1);
+  assert.equal(
+    await newsletter.confirmSubscriber(db, messages[0].token),
+    "confirmed",
+  );
+  assert.equal(suppression(db, "stuck@example.com"), undefined);
+  assert.equal(subscriber(db, "stuck@example.com").status, "confirmed");
 });
 
 test("confirmation sends are throttled per address", async () => {
@@ -615,6 +686,38 @@ test("rows left by the older unsubscribe override stay suppressed", async () => 
   await newsletter.confirmSubscriber(db, token);
   assert.ok(suppression(db, "legacy@example.com"));
   assert.notEqual(subscriber(db, "legacy@example.com").status, "confirmed");
+});
+
+test("confirming a provider-suppressed address does not report success", async () => {
+  const db = database();
+  const { env } = environment(db);
+  const id = seedSubscriber(db, "bounce-late@example.com", "pending");
+  // The bounce arrived after the confirmation mail went out.
+  const token = seedToken(db, id, "bounce-late@example.com", "confirm", {
+    createdAt: iso(-60_000),
+  });
+  seedSuppression(db, "bounce-late@example.com", "bounced");
+
+  const response = await confirm.POST({
+    request: formPost(
+      "https://news.anipotts.com/api/newsletter/confirm",
+      token,
+    ),
+    locals: locals(env),
+  });
+  const markup = await response.text();
+  assert.equal(response.status, 409);
+  assert.doesNotMatch(markup, /on the list/);
+  assert.doesNotMatch(markup, /[–—]/);
+  assert.equal(subscriber(db, "bounce-late@example.com").status, "pending");
+  assert.equal(suppression(db, "bounce-late@example.com").reason, "bounced");
+  assert.equal(
+    count(
+      db,
+      "SELECT COUNT(*) AS cnt FROM newsletter_events WHERE type = 'subscribe_confirmed'",
+    ),
+    0,
+  );
 });
 
 test("malformed token expiry fails closed", async () => {

@@ -19,10 +19,11 @@ const resendWebhookSchema = z
     created_at: z.string().max(64).optional(),
     data: z
       .object({
-        email_id: z.string().max(256).optional(),
+        email_id: z.string().max(256).nullable().optional(),
         to: z.array(z.string().max(320)).max(50).optional(),
       })
       .passthrough()
+      .nullable()
       .optional(),
   })
   .passthrough();
@@ -162,23 +163,27 @@ async function createConfirmToken(
 async function upsertPendingSubscriber(
   db: D1Database,
   email: string,
-): Promise<{ id: string; status: string; blocked: boolean }> {
+): Promise<{
+  id: string;
+  status: string;
+  blocked: boolean;
+  unsubscribed: boolean;
+}> {
   const current = await db
     .prepare(
       "SELECT id, email, status, suppressed_at FROM newsletter_subscribers WHERE email = ?",
     )
     .bind(email)
     .first<SubscriberRow>();
+  const suppression = await db
+    .prepare("SELECT reason FROM newsletter_suppressions WHERE email = ?")
+    .bind(email)
+    .first<{ reason: string }>();
+  const unsubscribed = suppression?.reason === UNSUBSCRIBE_REASON;
   // Bounces, complaints and provider blocks are permanent. suppressed_at also
   // marks rows where an older unsubscribe overwrote one of them.
-  const providerSuppression = await db
-    .prepare(
-      "SELECT reason FROM newsletter_suppressions WHERE email = ? AND reason != ?",
-    )
-    .bind(email, UNSUBSCRIBE_REASON)
-    .first<{ reason: string }>();
   const blocked =
-    Boolean(providerSuppression) ||
+    (Boolean(suppression) && !unsubscribed) ||
     current?.status === "suppressed" ||
     Boolean(current?.suppressed_at);
 
@@ -192,7 +197,7 @@ async function upsertPendingSubscriber(
         .bind(ts, ts, current.id)
         .run();
     }
-    return { id: current.id, status: current.status, blocked };
+    return { id: current.id, status: current.status, blocked, unsubscribed };
   }
 
   const id = crypto.randomUUID();
@@ -202,7 +207,7 @@ async function upsertPendingSubscriber(
     )
     .bind(id, email, ts, ts, ts)
     .run();
-  return { id, status: "pending", blocked };
+  return { id, status: "pending", blocked, unsubscribed };
 }
 
 async function recordNewsletterEvent(
@@ -253,7 +258,11 @@ export async function createDoubleOptIn(
     email,
   });
 
-  if (subscriber.blocked || subscriber.status === "confirmed") return;
+  if (subscriber.blocked) return;
+  // A confirmed row that still carries the reader's own unsubscribe is not
+  // receiving issues, so it goes through double opt-in again. Older code left
+  // rows in that state after a resubscribe or a stale confirmation link.
+  if (subscriber.status === "confirmed" && !subscriber.unsubscribed) return;
 
   const token = await createConfirmToken(env.DB, {
     subscriberId: subscriber.id,
@@ -271,19 +280,31 @@ export async function createDoubleOptIn(
     return;
   }
 
-  await env.NEWSLETTER_QUEUE.send({
-    type: "confirm",
-    subscriberId: subscriber.id,
-    email,
-    token,
-    baseUrl: baseUrl(env, request),
-  });
+  try {
+    await env.NEWSLETTER_QUEUE.send({
+      type: "confirm",
+      subscriberId: subscriber.id,
+      email,
+      token,
+      baseUrl: baseUrl(env, request),
+    });
+  } catch (error) {
+    // A queue outage must not answer differently from the states that send
+    // nothing, so it is recorded here instead of surfacing to the caller.
+    console.error("newsletter confirm queue error", error);
+    await recordNewsletterEvent(env.DB, {
+      type: "confirm_email_failed",
+      subscriberId: subscriber.id,
+      email,
+      payload: { reason: "queue_send_failed" },
+    }).catch(() => undefined);
+  }
 }
 
 export async function confirmSubscriber(
   db: D1Database,
   rawToken: string,
-): Promise<"confirmed" | "invalid" | "expired" | "used"> {
+): Promise<"confirmed" | "suppressed" | "invalid" | "expired" | "used"> {
   const hash = await tokenHash(rawToken);
   const token = await db
     .prepare(
@@ -297,7 +318,7 @@ export async function confirmSubscriber(
   if (!isUnexpired(token.expires_at)) return "expired";
 
   const ts = nowIso();
-  await db.batch([
+  const results = await db.batch([
     db
       .prepare("UPDATE newsletter_tokens SET used_at = ? WHERE id = ?")
       .bind(ts, token.id),
@@ -320,13 +341,22 @@ export async function confirmSubscriber(
         "UPDATE newsletter_subscribers SET status = 'confirmed', confirmed_at = COALESCE(confirmed_at, ?), updated_at = ? WHERE id = ? AND status != 'suppressed' AND NOT EXISTS (SELECT 1 FROM newsletter_suppressions WHERE newsletter_suppressions.email = newsletter_subscribers.email)",
       )
       .bind(ts, ts, token.subscriber_id),
+    // Recorded only when the update above took effect.
     db
       .prepare(
-        "INSERT INTO newsletter_events (id, subscriber_id, email, type, payload, created_at) VALUES (?, ?, ?, 'subscribe_confirmed', '{}', ?)",
+        "INSERT INTO newsletter_events (id, subscriber_id, email, type, payload, created_at) SELECT ?, ?, ?, 'subscribe_confirmed', '{}', ? WHERE EXISTS (SELECT 1 FROM newsletter_subscribers WHERE id = ? AND status = 'confirmed' AND NOT EXISTS (SELECT 1 FROM newsletter_suppressions WHERE newsletter_suppressions.email = newsletter_subscribers.email))",
       )
-      .bind(crypto.randomUUID(), token.subscriber_id, token.email, ts),
+      .bind(
+        crypto.randomUUID(),
+        token.subscriber_id,
+        token.email,
+        ts,
+        token.subscriber_id,
+      ),
   ]);
-  return "confirmed";
+  // A remaining provider suppression blocks the status update; the reader is
+  // told so instead of being told they are on the list.
+  return results[2]?.meta.changes === 1 ? "confirmed" : "suppressed";
 }
 
 export async function unsubscribeByToken(
