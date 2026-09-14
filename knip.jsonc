@@ -22,10 +22,11 @@
         "src/themes/operations.ts!",
         "src/themes/life.ts!",
       ],
-      // cloudflare:* are workerd runtime modules. astro-icon is an
-      // astro.config.mjs integration, which --production does not count, and
-      // it loads the ph set by name. jetbrains-mono is a CSS @import, which
-      // knip does not read.
+      // cloudflare:* are workerd runtime modules. astro.config.mjs registers
+      // the astro-icon integration with include ph, which reads @iconify-json/ph
+      // at build; --production does not count config integrations. No admin
+      // file renders an astro-icon Icon today, so keeping the pair needs
+      // intent (#358). jetbrains-mono is a CSS @import, which knip does not read.
       "ignoreDependencies": [
         "cloudflare",
         "astro-icon",

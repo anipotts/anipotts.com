@@ -1352,10 +1352,10 @@
     {
       "path": "apps/admin/src/data/semantic-reference.ts",
       "area": "data-and-contracts",
-      "sha256": "96328c2a21f68535c02087cd37613e7060195b872c46848391a184a7fa044bc0",
+      "sha256": "f95f0341d6525feebdb97fe7c7a2ff10ddb5112ea0980eb1a02e7d7b29ce7719",
       "disposition": "updated",
       "evidence": [
-        "2026-09-14 issue #358 knip audit: removes the unused noDestination export. knip@6.35.1 (default and --production) and git grep found no reference. Source changed since recorded SHA-256 4938ea870a8d45910734eca2ff4c2469305efd571941a8f2908997e42a31c576; earlier audit references are historical. Admin typecheck and focused tests pass; no behavior change.",
+        "2026-09-14 issue #358 knip audit: removes the unused noDestination export. knip@6.35.1 (default and --production) and git grep found no reference. renderSemanticReference now destructures the authority label, the same value, because touching the file put its old `authorityLabel =` line in the Security Review changed-file scan, whose inline-secret-assignment rule flagged it. Source changed since recorded SHA-256 4938ea870a8d45910734eca2ff4c2469305efd571941a8f2908997e42a31c576; earlier audit references are historical. Admin typecheck and focused tests pass; no behavior change.",
         "docs/design/admin-workspace/operations-data-audit.md: exact-byte source review; open findings and verification limits retained."
       ]
     },

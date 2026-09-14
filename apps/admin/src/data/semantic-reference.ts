@@ -289,7 +289,7 @@ export function renderSemanticReference(
 ): SemanticReferenceRenderDescriptor {
   const stateLabel = semanticStateLabel(reference.source_state);
   const valueLabel = reference.value ?? reference.label;
-  const authorityLabel = reference.authority.label;
+  const { label: authorityLabel } = reference.authority;
   const canOpenDestination = reference.source_state === "verified";
 
   if (
