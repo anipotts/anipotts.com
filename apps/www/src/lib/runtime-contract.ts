@@ -6,8 +6,8 @@
  * records a mocked confirmation, a missing webhook secret returns 501), and
  * /api/health keeps its existing fields and 200/503 semantics.
  *
- * Coverage is dynamic routes only. apps/www has no custom workerEntryPoint, so
- * the @astrojs/cloudflare handler serves every manifest asset path through
+ * Coverage is dynamic routes only. src/worker.ts only wraps the
+ * @astrojs/cloudflare handler, which serves every manifest asset path through
  * env.ASSETS before middleware runs. Those requests never reach this report.
  */
 

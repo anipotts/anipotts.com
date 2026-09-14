@@ -35,9 +35,13 @@
       ],
     },
     "apps/www": {
-      // Shell.astro imports this in a <script> that follows a self-closing
-      // <script />, which knip's Astro script extraction misreads.
-      "entry": ["src/scripts/writing-transitions.ts!"],
+      "entry": [
+        // Shell.astro imports this in a <script> that follows a self-closing
+        // <script />, which knip's Astro script extraction misreads.
+        "src/scripts/writing-transitions.ts!",
+        // astro.config.mjs names this as the Cloudflare workerEntryPoint.
+        "src/worker.ts!",
+      ],
       // Icon sets load by name through astro-icon. Fonts load from global.css.
       "ignoreDependencies": [
         "@iconify-json/ph",

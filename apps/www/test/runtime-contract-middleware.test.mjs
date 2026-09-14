@@ -43,6 +43,7 @@ function loadMiddleware({ dev = false } = {}) {
     log: (line) => lines.info.push(String(line)),
   };
   const contract = compile("../src/lib/runtime-contract.ts", [], {}, console);
+  const headers = compile("../src/lib/security-headers.ts", [], {}, console);
   const { onRequest } = compile(
     "../src/middleware.ts",
     [
@@ -58,6 +59,7 @@ function loadMiddleware({ dev = false } = {}) {
         },
       },
       "./lib/runtime-contract": contract,
+      "./lib/security-headers": headers,
     },
     console,
   );

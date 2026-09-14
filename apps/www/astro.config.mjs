@@ -23,6 +23,9 @@ export default defineConfig({
     },
   },
   adapter: cloudflare({
+    // Wraps the adapter handler so pages and assets it serves before
+    // middleware carry the security headers too.
+    workerEntryPoint: { path: "./src/worker.ts" },
     platformProxy: { enabled: true },
     imageService: "passthrough",
   }),

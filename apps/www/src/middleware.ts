@@ -1,6 +1,7 @@
 import { defineMiddleware } from "astro:middleware";
 import { siteConfig } from "@anipotts/content/public";
 import { reportRuntimeContract } from "./lib/runtime-contract";
+import { withSecurityHeaders } from "./lib/security-headers";
 
 /** flat redirect map: pathname (exact or prefix) -> destination. */
 const REDIRECTS: Record<string, string> = {
@@ -29,36 +30,10 @@ const RENAMES: Record<string, string> = {
   "/orchestrating": "/systems",
 };
 
-const SECURITY_HEADERS: Record<string, string> = {
-  "X-Content-Type-Options": "nosniff",
-  "X-Frame-Options": "DENY",
-  "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-  "Referrer-Policy": "strict-origin-when-cross-origin",
-  "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-  "Content-Security-Policy": [
-    "default-src 'self'",
-    "script-src 'self' 'unsafe-inline'",
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https:",
-    "font-src 'self'",
-    "connect-src 'self' https://us.i.posthog.com https://us-assets.i.posthog.com",
-  ].join("; "),
-};
-
-function applyHtmlSecurityHeaders(response: Response): Response {
-  const contentType = response.headers.get("content-type") ?? "";
-  if (!contentType.includes("text/html")) return response;
-  response = new Response(response.body, response);
-  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
-    response.headers.set(key, value);
-  }
-  return response;
-}
-
 export const onRequest = defineMiddleware(async (context, next) => {
   // Log the runtime configuration contract once per isolate. It never blocks.
-  // Static asset paths never get here: with no custom workerEntryPoint, the
-  // adapter serves them through env.ASSETS before middleware runs, so this
+  // Static asset paths never get here: the adapter handler that src/worker.ts
+  // wraps serves them through env.ASSETS before middleware runs, so this
   // covers dynamic routes only. Prerendering and dev have no deployed env.
   if (!import.meta.env.DEV && !context.isPrerendered) {
     reportRuntimeContract(
@@ -122,9 +97,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
     const asset = await context.locals.runtime.env.ASSETS.fetch(
       context.request,
     );
-    if (asset.status !== 404) return applyHtmlSecurityHeaders(asset);
+    if (asset.status !== 404) return withSecurityHeaders(asset);
   }
   const response = await next();
 
-  return applyHtmlSecurityHeaders(response);
+  return withSecurityHeaders(response);
 });
