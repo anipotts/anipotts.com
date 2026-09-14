@@ -99,7 +99,6 @@ export function RecordPanel({ title, onClose, children, containerRef }: Props) {
           padding={0}
           role="complementary"
           label={title}
-          hasDivider
           onKeyDown={(event) => {
             if (
               event.key === "Escape" &&

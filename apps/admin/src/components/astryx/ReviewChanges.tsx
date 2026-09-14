@@ -124,6 +124,7 @@ function DiffHunk({
     <Grid
       columns={2}
       gap={0}
+      columnGap={3}
       className="editor-diff-hunk"
       data-kind={hunk.kind}
     >
@@ -224,6 +225,7 @@ function FieldDiff({
         <Grid
           columns={2}
           gap={0}
+          columnGap={3}
           className="editor-diff-columns"
           aria-hidden="true"
         >
