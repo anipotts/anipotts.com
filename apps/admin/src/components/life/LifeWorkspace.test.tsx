@@ -30,6 +30,54 @@ const record = {
   provenance: { source_uri: "fixture://original" },
 };
 describe("Life response surfaces", () => {
+  // Each non-ready state is a distinct claim about the source, and the contract
+  // requires that an unavailable source never reads as an empty one.
+  it.each([
+    [
+      "denied",
+      { state: "denied" as const, message: "fixture" },
+      "Access to these records is unavailable",
+    ],
+    [
+      "unavailable",
+      { state: "unavailable" as const, message: "fixture" },
+      "Records could not be loaded",
+    ],
+    [
+      "invalid",
+      { state: "invalid" as const, message: "fixture" },
+      "The source response could not be used",
+    ],
+  ])("distinguishes a %s read from an empty one", (_name, state, title) => {
+    const html = renderToStaticMarkup(
+      <LifeReadView section="people" result={state} />,
+    );
+    expect(html).toContain(title);
+    // Never an empty-result claim, and never another state's wording.
+    expect(html).not.toContain("No permitted records");
+    expect(html).not.toContain("Life is not connected yet");
+    // A refused or failed read is a warning, not an informational notice.
+    expect(html).toContain("warning");
+  });
+  it("shows a successful empty read as empty, not as unavailable", () => {
+    const html = renderToStaticMarkup(
+      <LifeReadView section="people" result={result({ items: [] })} />,
+    );
+    expect(html).toContain("No permitted records");
+    expect(html).not.toContain("Records could not be loaded");
+    expect(html).not.toContain("Access to these records is unavailable");
+    expect(html).not.toContain("The source response could not be used");
+  });
+  it("keeps a connection state informational rather than a warning", () => {
+    const html = renderToStaticMarkup(
+      <LifeReadView
+        section="people"
+        result={{ state: "disconnected", message: "fixture" }}
+      />,
+    );
+    expect(html).toContain("Life is not connected yet");
+    expect(html).not.toContain("warning");
+  });
   it("renders every disconnected section without claiming an empty or healthy source", () => {
     for (const section of Object.keys(
       lifeSections,
