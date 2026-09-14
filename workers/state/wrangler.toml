@@ -36,6 +36,7 @@ new_sqlite_classes = ["CommandRelay"]
 # with `wrangler secret put` if a different origin needs access.
 [vars]
 ALLOWED_ORIGINS = "https://admin.anipotts.com,http://localhost:3000,http://localhost:3001"
+# Secrets: STATE_PUBLISH_KEY and CONTROL_PLANE_DEVICE_PUBLIC_JWK.
 
 # Custom domain bound 2026-05-14 via CF API. Lives at api.anipotts.com.
 [[routes]]

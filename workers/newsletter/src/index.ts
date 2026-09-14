@@ -1,3 +1,5 @@
+import { createRuntimeContractReporter } from "./runtime-contract";
+
 type NewsletterQueueMessage =
   | {
       type: "confirm";
@@ -67,8 +69,13 @@ interface EmailTransport {
 const DEFAULT_NEWSLETTER_FROM = "Ani Potts <news@anipotts.com>";
 const DEFAULT_NEWSLETTER_REPLY_TO = "contact@anipotts.com";
 
+// Log only: one runtime contract line per isolate. It never blocks, retries,
+// skips or changes a send, and never changes a response.
+const reportRuntimeContract = createRuntimeContractReporter();
+
 export default {
-  async fetch(): Promise<Response> {
+  async fetch(_request: Request, env: Env): Promise<Response> {
+    reportRuntimeContract(env, "fetch");
     return new Response("newsletter worker ok", {
       headers: { "content-type": "text/plain; charset=utf-8" },
     });
@@ -78,6 +85,7 @@ export default {
     batch: MessageBatch<NewsletterQueueMessage>,
     env: Env,
   ): Promise<void> {
+    reportRuntimeContract(env, "queue");
     await Promise.all(
       batch.messages.map((message) =>
         handleQueuedMessage(message.body, env)

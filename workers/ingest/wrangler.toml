@@ -8,6 +8,7 @@ workers_dev = true
 # Non-secret env vars (secrets set via `wrangler secret put`)
 [vars]
 CF_ACCOUNT_ID = "0f856093bdcd34a7da1bde5ee4385163"
+# Secrets: MAC_MINI_INGEST_KEY, BRANDS_INGEST_KEY, GITHUB_TOKEN and CF_API_TOKEN.
 
 # Cron: fires every minute, dispatcher picks jobs by minute offset
 [triggers]
@@ -18,3 +19,12 @@ crons = ["* * * * *"]
 binding = "DB"
 database_name = "anipotts-db"
 database_id = "a8aadf73-bbf4-447c-97db-cb3e50b4e26f"
+
+# Workers Logs keep the once-per-isolate runtime contract line (names and
+# states only). Invocation logs stay off: they record request headers and
+# client metadata, and credential header redaction is heuristic.
+[observability]
+enabled = true
+
+[observability.logs]
+invocation_logs = false
