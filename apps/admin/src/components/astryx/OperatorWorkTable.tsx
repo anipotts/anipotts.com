@@ -188,7 +188,7 @@ export function OperatorWorkTable({ rows }: Props) {
           columns={columns}
           idKey="task_id"
           density="compact"
-          dividers="rows"
+          dividers="none"
           hasHover
           verticalAlign="middle"
           textOverflow="truncate"

@@ -914,7 +914,6 @@
 }
 
 .admin-canvas .operator-handled-item + .operator-handled-item {
-  border-left: 1px solid var(--canvas-line);
   padding-left: 13px;
 }
 
@@ -1516,8 +1515,6 @@ body[data-semantic-inspector-open="true"] {
   }
 
   .admin-canvas .operator-handled-item + .operator-handled-item {
-    border-top: 1px solid var(--canvas-line);
-    border-left: 1px solid var(--canvas-line);
     padding-left: 13px;
   }
 

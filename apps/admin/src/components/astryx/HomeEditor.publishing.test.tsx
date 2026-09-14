@@ -2,6 +2,7 @@
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
+import { SaveScheduler } from "../../lib/save-scheduler";
 import { newWritingSource } from "../../lib/writing-draft";
 import { HomeEditor } from "./HomeEditor";
 
@@ -400,4 +401,64 @@ it("keeps the local production navigation fallback in the menu without claiming 
     "_blank",
     "noopener,noreferrer",
   );
+});
+
+it("groups document actions under labeled menu sections, not dividers", async () => {
+  // Hold autosave so the committed edit stays unsaved while the menu is read.
+  vi.spyOn(SaveScheduler.prototype, "changed").mockImplementation(() => {});
+  await mount("", true);
+  const title = host.querySelector(
+    ".document-title textarea",
+  ) as HTMLTextAreaElement;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value",
+    )!.set!.call(title, "Unsaved title");
+    title.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  const openMenu = async () => {
+    await act(async () => {
+      (
+        host.querySelector(
+          'button[aria-label="Document actions"]',
+        ) as HTMLButtonElement
+      ).click();
+    });
+    const menu = document.querySelector(
+      '[role="menu"][aria-label="Document actions"]',
+    )!;
+    expect(menu.querySelector('[role="separator"], hr')).toBeNull();
+    return menu;
+  };
+  const sections = (menu: Element) =>
+    [...menu.querySelectorAll('[role="group"]')].map((group) => [
+      group.getAttribute("aria-label"),
+      [...group.querySelectorAll('[role="menuitem"]')].map(
+        (item) => item.querySelector("span > span")?.textContent,
+      ),
+    ]);
+  const inspect = [
+    "Inspect",
+    ["View source", "Version history", "Compare with website"],
+  ];
+  const draftActions = [
+    "Open production editor",
+    "Download draft",
+    "Import draft…",
+  ];
+  let menu = await openMenu();
+  expect(sections(menu)).toEqual([inspect, ["Draft", draftActions]]);
+  expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(6);
+  // Leaving the editor tab commits the buffered title, so Save now appears.
+  const viewSource = [...menu.querySelectorAll('[role="menuitem"]')].find(
+    (item) => item.textContent === "View source",
+  ) as HTMLElement;
+  await act(async () => viewSource.click());
+  menu = await openMenu();
+  expect(sections(menu)).toEqual([
+    inspect,
+    ["Draft", [...draftActions, "Save now"]],
+  ]);
+  expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(7);
 });
