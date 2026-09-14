@@ -99,6 +99,8 @@ const GIT_LOCATION_VARIABLES = [
 ];
 const IMPORT_CONTEXT =
   /(?:(?<![\w$.])from\s*|(?<![\w$.])import\s*\(?\s*|(?<![\w$.])require\s*\(\s*)$/;
+// The default import name directly before a module specifier.
+const DEFAULT_IMPORT = /(?<![\w$.])import\s+([A-Za-z_$][\w$]*)\s+from\s*$/;
 const GLOBAL_FETCH =
   /(?<![\w$.])fetch\b|\b(?:globalThis|self|window)\s*\??\.\s*fetch\b/;
 
@@ -738,9 +740,6 @@ function adapterOf(config, properties) {
     config.code.slice(property.valueIndex),
   );
   if (!call) return null;
-  const importer = new RegExp(
-    `(?<![\\w$.])import\\s+${call[1].replace(/\$/g, "\\$")}\\s+from\\s*$`,
-  );
   const optionsIndex = nextNonSpace(
     config.text,
     property.valueIndex + call[0].length,
@@ -754,9 +753,9 @@ function adapterOf(config, properties) {
     cloudflare: config.strings.some(
       (literal) =>
         literal.value === "@astrojs/cloudflare" &&
-        importer.test(
+        DEFAULT_IMPORT.exec(
           config.code.slice(Math.max(0, literal.start - 200), literal.start),
-        ),
+        )?.[1] === call[1],
     ),
   };
 }

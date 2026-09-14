@@ -479,6 +479,33 @@ test(`${ERROR_PAGE}: leaving the Cloudflare adapter fails`, () => {
     ),
   );
 
+  const dollarName = WWW_CONFIG.replace(
+    'import cloudflare from "@astrojs/cloudflare";',
+    'import $cf from "@astrojs/cloudflare";\nimport cf$ from "@astrojs/node";',
+  );
+  assert.deepEqual(
+    audit({
+      "apps/www/astro.config.mjs": dollarName.replace(
+        "adapter: cloudflare(",
+        "adapter: $cf(",
+      ),
+    }).findings,
+    [],
+    "an adapter name with $ still matches its own import",
+  );
+  assert.ok(
+    rulesFor(
+      audit({
+        "apps/www/astro.config.mjs": dollarName.replace(
+          "adapter: cloudflare(",
+          "adapter: cf$(",
+        ),
+      }),
+      ERROR_PAGE,
+    ).includes("apps/www/astro.config.mjs:adapter_not_cloudflare"),
+    "an adapter name with $ must not match another import",
+  );
+
   const noAdapter = audit({
     "apps/admin/astro.config.mjs": 'export default { output: "server" };\n',
   });
