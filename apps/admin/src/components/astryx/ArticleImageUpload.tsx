@@ -107,6 +107,7 @@ export function ArticleImageUpload({
     )
       return;
     const controller = new AbortController();
+    let loading = true;
     setBusy(true);
     fetch(editorialImagePreview(existingSrc), { signal: controller.signal })
       .then(async (response) => {
@@ -126,9 +127,14 @@ export function ArticleImageUpload({
         if (!controller.signal.aborted) setError(error.message);
       })
       .finally(() => {
+        loading = false;
         if (!controller.signal.aborted) setBusy(false);
       });
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      // An aborted load skips its finally, so release the busy state it still owns.
+      if (loading) setBusy(false);
+    };
   }, [existingSrc, initialFile, disabled, startCropping]);
   useEffect(() => {
     if (initialFile && !disabled) {

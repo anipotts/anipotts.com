@@ -89,6 +89,72 @@ it.each([false, true])(
   },
 );
 
+it("an aborted original image load releases the crop controls", async () => {
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
+  vi.stubGlobal(
+    "createImageBitmap",
+    vi.fn().mockResolvedValue({ width: 1600, height: 900, close() {} }),
+  );
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+    function (this: HTMLCanvasElement) {
+      return this.classList.contains("article-image-preview")
+        ? ({ drawImage() {} } as unknown as CanvasRenderingContext2D)
+        : null;
+    },
+  );
+  const imageA = `/images/editorial/${"a".repeat(64)}.png`;
+  const imageB = `/images/editorial/${"b".repeat(64)}.png`;
+  const fetcher = vi
+    .fn()
+    .mockResolvedValueOnce({
+      ok: true,
+      blob: async () => new Blob([new Uint8Array([1])], { type: "image/png" }),
+    })
+    .mockImplementationOnce(
+      (_input: string, init: RequestInit) =>
+        new Promise((_resolve, reject) =>
+          init.signal!.addEventListener("abort", () =>
+            reject(init.signal!.reason),
+          ),
+        ),
+    );
+  vi.stubGlobal("fetch", fetcher);
+  const pending = vi.fn();
+  const render = (existingSrc?: string) =>
+    act(async () =>
+      root.render(
+        <ArticleImageUpload
+          existingSrc={existingSrc}
+          startCropping
+          onUploaded={() => {}}
+          onPendingChange={pending}
+        />,
+      ),
+    );
+  const control = (label: string) =>
+    [...host.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes(label),
+    )!;
+  await render(imageA);
+  await act(async () => {});
+  expect(control("Apply crop").disabled).toBe(false);
+  await render(imageB);
+  expect(fetcher).toHaveBeenCalledTimes(2);
+  expect(control("Apply crop").disabled).toBe(true);
+  expect(control("Cancel crop").disabled).toBe(true);
+  await render(undefined);
+  expect(fetcher.mock.calls[1]?.[1].signal.aborted).toBe(true);
+  await act(async () => {});
+  expect(control("Apply crop").disabled).toBe(false);
+  expect(control("Cancel crop").disabled).toBe(false);
+});
+
 it("canceling while decoding prevents any network request", async () => {
   let finish!: (bitmap: ImageBitmap) => void;
   vi.stubGlobal(
