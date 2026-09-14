@@ -37,5 +37,5 @@ upgrade --apply run after any @astryxdesign/core bump
 
 ## House rules
 
-- No divider lines: no `hasDividers`, `hasDivider`, `<hr>`, menu `{ type: "divider" }` items, or decorative block borders between rows and sections. Astryx `Table` draws row dividers by default, so pass `dividers="none"`. Separate with spacing tokens instead.
-- Borders stay only where they frame or mark something: input and card outlines, pane and sheet edges, sticky bars over scrolling content, state progress bars, and the column header rule Astryx draws on every `Table`. `src/styles/no-dividers.test.ts` enforces this and lists each kept edge.
+- No divider lines: no `hasDividers`, `hasDivider`, `<hr>`, menu `{ type: "divider" }` items, or decorative block borders between rows and sections. Astryx `Table` draws row dividers by default, so pass `dividers="none"`. It also rules off every header row with no prop to stop it; `src/styles/editorial.css` resets that for all admin tables. Separate with spacing tokens instead.
+- Borders stay only where they frame or mark something: input and card outlines, pane and sheet edges, sticky bars over scrolling content, and state progress bars. `src/styles/no-dividers.test.ts` guards divider props, `Table` dividers, the header reset, and top and bottom borders in admin stylesheets against an allowlist of kept edges.

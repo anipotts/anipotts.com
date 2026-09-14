@@ -31,7 +31,8 @@ const structuralEdges = new Set([
   ".publication-step border-block-end", // progress bar whose color is state
 ]);
 
-function blockBorders(css: string): string[] {
+// Drawn block borders by default, or the ones reset to 0 or none.
+function blockBorders(css: string, drawn = true): string[] {
   const found = new Set<string>();
   const selectors: string[] = [];
   let buffer = "";
@@ -40,7 +41,7 @@ function blockBorders(css: string): string[] {
     const name = property.trim();
     if (
       /^border-(?:top|bottom|block(?:-start|-end)?)$/.test(name) &&
-      !/^(?:0|none)\b/.test(value.join(":").trim())
+      /^(?:0|none)\b/.test(value.join(":").trim()) !== drawn
     )
       found.add(`${selectors.at(-1)} ${name}`);
     buffer = "";
@@ -82,6 +83,21 @@ it("turns off the row dividers Astryx tables draw by default", () => {
       .map(() => path);
   });
   expect(violations).toEqual([]);
+});
+
+// Astryx draws a rule under every table header cell with no prop to turn it
+// off. Its styles sit in a cascade layer, so one unlayered reset wins.
+it("hides the rule Astryx draws under every table header", () => {
+  const resets = sources([".css"]).filter(({ text }) =>
+    blockBorders(text, false).includes(
+      ".astryx-table-header-cell border-bottom",
+    ),
+  );
+  expect(resets.map(({ path }) => path)).toEqual(["styles/editorial.css"]);
+  for (const layout of ["AdminLayout", "EditorialLayout"])
+    expect(
+      readFileSync(join(root, `layouts/${layout}.astro`), "utf8"),
+    ).toContain('import "../styles/editorial.css";');
 });
 
 it("separates admin rows and sections without block border rules", () => {
