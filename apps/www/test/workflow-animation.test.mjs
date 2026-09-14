@@ -81,6 +81,8 @@ test("the motion toggle keeps its server-rendered name while paused", async () =
   assert.ok(rendered, "the systems page renders the motion toggle");
   const { "aria-label": name, title } = rendered.attributes;
   assert.ok(name, "the motion toggle has a static name");
+  // A fixed "Pause" tooltip would contradict the play glyph shown while paused.
+  assert.equal(title, undefined, "the motion toggle carries no title");
 
   const button = mountFakeWorkflow(rendered.attributes);
   const { mountWorkflows } =
@@ -91,7 +93,7 @@ test("the motion toggle keeps its server-rendered name while paused", async () =
   for (const pressed of ["false", "true", "false"]) {
     assert.equal(button.getAttribute("aria-pressed"), pressed);
     assert.equal(button.getAttribute("aria-label"), name);
-    assert.equal(button.title, title);
+    assert.equal(button.title, "");
     button.click();
   }
 });

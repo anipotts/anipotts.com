@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { join, relative } from "node:path";
+import { dirname, join, relative } from "node:path";
 
 // Shared by tests that run after the www build and read emitted markup.
 export const dist = fileURLToPath(new URL("../dist/", import.meta.url));
@@ -46,12 +46,29 @@ export function startTags(html) {
   }));
 }
 
+/** A bundled entry plus every relative chunk it imports, so shared chunks are scanned too. */
+function bundle(path, seen) {
+  if (seen.has(path)) return [];
+  seen.add(path);
+  const source = readFileSync(path, "utf8");
+  const imports = source.matchAll(
+    /\b(?:from|import)\s*\(?\s*["'](\.{1,2}\/[^"']+\.js)["']/g,
+  );
+  return [
+    source,
+    ...[...imports].flatMap(([, chunk]) =>
+      bundle(join(dirname(path), chunk), seen),
+    ),
+  ];
+}
+
 /** Client script text shipped with a page: inline bodies plus bundled sources. */
 export function clientScripts(html) {
+  const seen = new Set();
   return [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)]
     .filter(([, attrs]) => !/type="application\/ld\+json"/.test(attrs))
-    .map(([, attrs, body]) => {
+    .flatMap(([, attrs, body]) => {
       const src = attrs.match(/\ssrc="(\/_astro\/[^"]+)"/)?.[1];
-      return src ? readFileSync(join(dist, src), "utf8") : body;
+      return src ? bundle(join(dist, src), seen) : [body];
     });
 }

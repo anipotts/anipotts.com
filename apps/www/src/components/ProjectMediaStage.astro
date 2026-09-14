@@ -192,7 +192,6 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
               if (description) description.textContent = image.alt;
               dialog.dataset.zoomed = "false";
               zoom.setAttribute("aria-pressed", "false");
-              zoom.textContent = "actual size";
               dialog.showModal();
               canvas.scrollTo(0, 0);
             });
@@ -201,8 +200,8 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
         zoom.addEventListener("click", () => {
           const zoomed = dialog.dataset.zoomed !== "true";
           dialog.dataset.zoomed = String(zoomed);
+          // The "actual size" name stays fixed; aria-pressed alone reports the zoom.
           zoom.setAttribute("aria-pressed", String(zoomed));
-          zoom.textContent = zoomed ? "fit image" : "actual size";
           canvas.scrollTo(0, 0);
           canvas.focus();
         });
@@ -344,6 +343,16 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
     font: inherit;
     font-size: 0.85rem;
     cursor: pointer;
+  }
+
+  .image-viewer__toolbar [data-image-zoom][aria-pressed="true"] {
+    border-radius: 0.4rem;
+    background: color-mix(
+      in srgb,
+      var(--paper-accent) 10%,
+      var(--paper-surface)
+    );
+    box-shadow: inset 0 0 0 1px var(--paper-accent);
   }
 
   .image-viewer__toolbar [data-image-close] {

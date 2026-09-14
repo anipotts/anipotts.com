@@ -95,20 +95,43 @@ test("aria id references resolve within the page", () => {
   assert.deepEqual(dangling, []);
 });
 
+// Receivers a script sets toggle state on, such as minified `r.setAttribute("aria-pressed",...)`.
+const stateReceivers = (script) =>
+  new Set(
+    [
+      ...script.matchAll(
+        /([\w$]+(?:\.[\w$]+)*)\??\.setAttribute\(\s*["'`]aria-(?:pressed|expanded)["'`]/g,
+      ),
+    ].map(([, receiver]) => receiver),
+  );
+// A text, title or name write on that receiver renames the toggle along with its state.
+const renamesReceiver = (script, receiver) =>
+  new RegExp(
+    `(?<![\\w$.])${receiver.replace(/[$.]/g, "\\$&")}\\??\\.` +
+      `(?:(?:textContent|innerText|innerHTML|title|ariaLabel)\\s*=(?!=)` +
+      `|setAttribute\\(\\s*["'\`](?:aria-label|title)["'\`])`,
+  ).test(script);
+
 test("toggles keep a static name while aria state carries the change", () => {
-  for (const { path, html } of pages) {
-    const toggles = startTags(html).filter(
+  const renamed = pages.flatMap(({ path, html }) => {
+    const hasToggle = startTags(html).some(
       ({ attributes }) =>
         "aria-pressed" in attributes || "aria-expanded" in attributes,
     );
-    if (!toggles.length) continue;
-    for (const script of clientScripts(html))
-      assert.equal(
-        /setAttribute\(\s*["'`]aria-label["'`]|\.ariaLabel\s*=/.test(script),
-        false,
-        `${path}: a client script rewrites an accessible name`,
-      );
-  }
+    if (!hasToggle) return [];
+    return clientScripts(html).flatMap((script) => [
+      ...(/setAttribute\(\s*["'`]aria-label["'`]|\.ariaLabel\s*=/.test(script)
+        ? [`${path}: a client script rewrites an aria-label`]
+        : []),
+      ...[...stateReceivers(script)]
+        .filter((receiver) => renamesReceiver(script, receiver))
+        .map(
+          (receiver) =>
+            `${path}: ${receiver} changes its text, title or name along with its aria state`,
+        ),
+    ]);
+  });
+  assert.deepEqual([...new Set(renamed)], []);
 });
 
 test("the theme toggle name says what its pressed state means", () => {
