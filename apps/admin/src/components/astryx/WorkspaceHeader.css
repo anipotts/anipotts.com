@@ -397,3 +397,17 @@
     justify-content: center;
   }
 }
+
+/* Local owner builds only. Fixed so every width, theme and nav state shows it
+   without shifting the layout under measurement. The token fill is
+   translucent, so an opaque surface keeps it legible over scrolling content. */
+.admin-local-owner-indicator {
+  position: fixed;
+  inset-block-end: max(var(--spacing-3), env(safe-area-inset-bottom));
+  inset-inline-end: max(var(--spacing-3), env(safe-area-inset-right));
+  z-index: 80;
+  pointer-events: none;
+  border-radius: var(--radius-full);
+  background-color: var(--color-background-popover);
+  box-shadow: var(--shadow-low);
+}

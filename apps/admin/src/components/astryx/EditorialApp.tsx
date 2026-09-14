@@ -99,6 +99,7 @@ export type EditorialAppProps = {
   searchEntries?: AdminSearchResult[];
   area: "content" | "newsletter";
   localPreview: boolean;
+  localOwner?: boolean;
   siteUrl: string;
   initialMode?: ThemePreference;
   groups?: CatalogGroup[];
@@ -119,6 +120,7 @@ export function EditorialApp({
   title,
   area,
   localPreview,
+  localOwner = false,
   siteUrl,
   initialMode = "light",
   searchEntries,
@@ -178,6 +180,7 @@ export function EditorialApp({
         changeTheme={changeTheme}
         siteHref={siteHref}
         localPreview={localPreview}
+        localOwner={localOwner}
         searchEntries={inventoryView.searchEntries}
       >
         <VStack

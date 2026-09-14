@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { navItems } from "../../data/admin";
 import { AdminShell } from "./AdminShell";
 
@@ -142,4 +142,32 @@ describe("shared Operations and Life shell", () => {
     expect(markup).not.toContain("editorial-workspace-shell");
     expect(operational.render).not.toHaveBeenCalled();
   });
+});
+
+describe("local owner indicator in Operations and Life", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  it.each(["/operations/observability", "/life/people"])(
+    "shows the non-dismissable local owner token on %s",
+    (route) => {
+      vi.stubGlobal("__LOCAL_OWNER_BUILD__", true);
+      const host = document.createElement("div");
+      host.innerHTML = renderToStaticMarkup(
+        <AdminShell
+          chrome="admin"
+          currentRoute={route}
+          navItems={navItems}
+          title="Record"
+          localOwner
+        >
+          <div>Content</div>
+        </AdminShell>,
+      );
+      const token = host.querySelector("[data-admin-local-owner]");
+      expect(token?.textContent).toBe("Local owner");
+      expect(token?.getAttribute("role")).toBe("status");
+      expect(token?.querySelector("button")).toBeNull();
+      host.innerHTML = renderToStaticMarkup(shell(route));
+      expect(host.querySelector("[data-admin-local-owner]")).toBeNull();
+    },
+  );
 });

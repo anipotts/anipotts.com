@@ -112,4 +112,57 @@ for (const invariant of [
   );
 }
 
+// Local owner is opt-in: the default Admin route and the managed 4311
+// fallback never inherit it, and the served build stays on loopback.
+assert.equal(
+  packageJson.scripts["dev:admin:owner"],
+  "node scripts/dev/portless-preview.mjs ensure admin --local-owner",
+);
+assert.equal(
+  packageJson.scripts["build:admin:owner"],
+  "node scripts/dev/admin-local-owner.mjs build",
+);
+assert.equal(
+  packageJson.scripts["preview:admin:owner"],
+  "node scripts/dev/admin-local-owner.mjs serve",
+);
+for (const expected of [
+  'const LOCAL_OWNER = process.argv.includes("--local-owner");',
+  "delete env.ADMIN_LOCAL_OWNER;",
+  'if (LOCAL_OWNER && options.localOwner) env.ADMIN_LOCAL_OWNER = "1";',
+  "// Owner mode never starts or touches the shared 4311 review fallback.\n  if (LOCAL_OWNER) return;",
+  "local owner mode starts only the admin surface",
+  "Never reuse a route across owner modes, in either direction.",
+]) {
+  assert.ok(
+    manager.includes(expected),
+    `missing local owner Portless invariant: ${expected}`,
+  );
+}
+const localOwner = readFileSync("scripts/dev/admin-local-owner.mjs", "utf8");
+for (const expected of [
+  'const HOST = "127.0.0.1";',
+  "const RESERVED_PORTS = new Set([1355, 4311]);",
+  "delete config.routes;",
+  "delete runtimeEnv.ADMIN_LOCAL_OWNER;",
+  'ADMIN_LOCAL_OWNER: "1"',
+  '".local", "local-owner-dist"',
+]) {
+  assert.ok(
+    localOwner.includes(expected),
+    `missing local owner build invariant: ${expected}`,
+  );
+}
+for (const forbidden of [
+  '"--remote"',
+  '"deploy"',
+  "admin:preview",
+  '"--local-upstream"',
+]) {
+  assert.ok(
+    !localOwner.includes(forbidden),
+    `local owner build must not use ${forbidden}`,
+  );
+}
+
 console.log("portless preview invariants passed");

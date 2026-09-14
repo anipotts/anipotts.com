@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { EditorialApp } from "./EditorialApp";
 import {
   workspaceSelection,
@@ -84,4 +84,43 @@ it("uses 44px touch targets with 4px rail insets only on coarse tablets", () => 
     '.editorial-workspace-shell[data-sidebar-collapsed="true"]',
   );
   expect(coarse).not.toContain(".astryx-app-shell-sidenav");
+});
+
+describe("local owner indicator", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const render = (localOwner?: boolean) =>
+    renderToStaticMarkup(
+      <EditorialApp
+        title="Content"
+        area="content"
+        localPreview
+        localOwner={localOwner}
+        siteUrl="https://anipotts.com/"
+      />,
+    );
+
+  it("marks a local owner screen only in a build compiled with the flag", () => {
+    expect(render(true)).not.toContain("Local owner");
+    vi.stubGlobal("__LOCAL_OWNER_BUILD__", true);
+    const html = render(true);
+    expect(html).toContain(">Local owner<");
+    expect(html).toContain('data-admin-local-owner="true"');
+    expect(html).toContain('role="status"');
+    expect(html).not.toContain('aria-label="Remove');
+    expect(render(false)).not.toContain("Local owner");
+    expect(render()).not.toContain("data-admin-local-owner");
+  });
+
+  it("keeps the indicator fixed over every layout without a rule", () => {
+    const css = readFileSync(
+      new URL("./WorkspaceHeader.css", import.meta.url),
+      "utf8",
+    ).replace(/\s+/g, " ");
+    const start = css.indexOf(".admin-local-owner-indicator {");
+    expect(start).toBeGreaterThan(-1);
+    const rule = css.slice(start, css.indexOf("}", start));
+    expect(rule).toContain("position: fixed;");
+    expect(rule).toContain("pointer-events: none;");
+    expect(rule).not.toMatch(/border|#[0-9a-f]{3,6}\b/i);
+  });
 });

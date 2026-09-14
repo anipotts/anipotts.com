@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   decideAdminAccess,
   isDevLoopbackPreviewRequest,
+  isLocalOwnerRequest,
   isPublicAdminPath,
 } from "./admin-access-policy";
 
@@ -272,4 +273,212 @@ test("exposes only the exact static Admin favicon path", () => {
   ]) {
     expect(isPublicAdminPath(path)).toBe(false);
   }
+});
+
+describe("local owner session", () => {
+  const request = ({
+    origin = "http://localhost:4321",
+    path = "/api/admin/inbox",
+    method = "POST",
+    headers = {},
+    localOwner = true,
+    isDev = true,
+    hasSession = false,
+  }: {
+    origin?: string;
+    path?: string;
+    method?: string;
+    headers?: Record<string, string>;
+    localOwner?: boolean;
+    isDev?: boolean;
+    hasSession?: boolean;
+  } = {}) => {
+    const url = new URL(path, origin);
+    return {
+      isDev,
+      localOwner,
+      method,
+      url,
+      headers: new Headers({ host: url.host, ...headers }),
+      hasSession,
+    };
+  };
+
+  test.each([
+    "http://localhost:4321",
+    "http://127.0.0.1:8787",
+    "http://[::1]:3001",
+    "http://admin.anipotts.localhost:1355",
+    "http://local-owner-session.admin.anipotts.localhost:1355",
+  ])("grants every method on the loopback host %s", (origin) => {
+    for (const method of ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"])
+      expect(decideAdminAccess(request({ origin, method }))).toBe(
+        "local-owner",
+      );
+  });
+
+  test("accepts the headers the rootless Portless proxy forwards", () => {
+    expect(
+      decideAdminAccess(
+        request({
+          origin: "http://feature.admin.anipotts.localhost:1355",
+          headers: {
+            "x-forwarded-host": "feature.admin.anipotts.localhost:1355",
+            "x-forwarded-for": "::ffff:127.0.0.1",
+            "x-forwarded-proto": "http",
+            "x-forwarded-port": "1355",
+          },
+        }),
+      ),
+    ).toBe("local-owner");
+  });
+
+  test("grants a same-origin browser write and a production-build loopback read", () => {
+    expect(
+      decideAdminAccess(
+        request({
+          origin: "http://127.0.0.1:8787",
+          path: "/api/editorial/save",
+          headers: {
+            origin: "http://127.0.0.1:8787",
+            "sec-fetch-site": "same-origin",
+            "cf-connecting-ip": "127.0.0.1",
+          },
+        }),
+      ),
+    ).toBe("local-owner");
+    expect(
+      decideAdminAccess(
+        request({
+          origin: "http://127.0.0.1:8787",
+          path: "/content/writing/example",
+          method: "GET",
+          isDev: false,
+        }),
+      ),
+    ).toBe("local-owner");
+  });
+
+  test("keeps behaviour unchanged when the build-time flag is off", () => {
+    expect(
+      decideAdminAccess(request({ localOwner: false, method: "POST" })),
+    ).toBe("passkey-required");
+    expect(
+      decideAdminAccess(
+        request({
+          localOwner: false,
+          origin: "http://localhost:4311",
+          path: "/inbox",
+          method: "GET",
+        }),
+      ),
+    ).toBe("dev-loopback-preview");
+    expect(
+      decideAdminAccess(
+        request({
+          localOwner: false,
+          origin: "https://admin.anipotts.com",
+          path: "/inbox",
+          method: "GET",
+          isDev: false,
+          hasSession: true,
+        }),
+      ),
+    ).toBe("session");
+    expect(
+      isLocalOwnerRequest({
+        enabled: false,
+        method: "GET",
+        url: new URL("http://localhost:4321/content"),
+        headers: new Headers({ host: "localhost:4321" }),
+      }),
+    ).toBe(false);
+  });
+
+  test.each([
+    "https://admin.anipotts.com",
+    "http://example.com",
+    "http://192.168.1.20:4321",
+    "http://0.0.0.0:4321",
+    "http://10.0.0.2:4311",
+    "http://localhost.example.com:4321",
+    "http://admin.anipotts.localhost.example:1355",
+    "http://nested.branch.admin.anipotts.localhost:1355",
+    "http://anipotts.localhost:1355",
+  ])("never grants a non-loopback host %s", (origin) => {
+    expect(decideAdminAccess(request({ origin }))).toBe("passkey-required");
+  });
+
+  const spoofed: { name: string; headers: Record<string, string> }[] = [
+    { name: "Host naming production", headers: { host: "admin.anipotts.com" } },
+    {
+      name: "Host naming another local port host",
+      headers: { host: "127.0.0.1:4321" },
+    },
+    { name: "empty Host", headers: { host: "" } },
+    {
+      name: "X-Forwarded-Host naming production",
+      headers: { "x-forwarded-host": "admin.anipotts.com" },
+    },
+    {
+      name: "a later X-Forwarded-Host hop naming production",
+      headers: { "x-forwarded-host": "localhost:4321, admin.anipotts.com" },
+    },
+    {
+      name: "Forwarded host naming production",
+      headers: { forwarded: 'for=127.0.0.1;host="admin.anipotts.com"' },
+    },
+    {
+      name: "remote X-Forwarded-For client",
+      headers: { "x-forwarded-for": "127.0.0.1, 203.0.113.9" },
+    },
+    {
+      name: "remote Forwarded client",
+      headers: { forwarded: "for=203.0.113.9" },
+    },
+    {
+      name: "tunnelled Cloudflare client",
+      headers: { "cf-connecting-ip": "203.0.113.9" },
+    },
+    { name: "remote X-Real-IP", headers: { "x-real-ip": "198.51.100.4" } },
+    {
+      name: "cross-origin browser write",
+      headers: { origin: "https://attacker.example" },
+    },
+    {
+      name: "another local origin writing",
+      headers: { origin: "http://localhost:4311" },
+    },
+    {
+      name: "cross-site fetch metadata on a write",
+      headers: { "sec-fetch-site": "cross-site" },
+    },
+  ];
+  test.each(spoofed)(
+    "refuses a spoofed or proxied request: $name",
+    ({ headers }) => {
+      const input = request({ headers });
+      expect(decideAdminAccess(input)).toBe("passkey-required");
+      expect(isLocalOwnerRequest({ enabled: true, ...input })).toBe(false);
+    },
+  );
+
+  test("keeps public paths public and checks the owner before a session", () => {
+    for (const path of ["/auth", "/api/health", "/api/mcp", "/_astro/app.js"])
+      expect(decideAdminAccess(request({ path, method: "GET" }))).toBe(
+        "public",
+      );
+    expect(decideAdminAccess(request({ hasSession: true }))).toBe(
+      "local-owner",
+    );
+    expect(
+      decideAdminAccess(
+        request({
+          origin: "http://localhost:4311",
+          path: "/inbox",
+          method: "GET",
+        }),
+      ),
+    ).toBe("local-owner");
+  });
 });

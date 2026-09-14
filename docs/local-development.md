@@ -68,6 +68,58 @@ and either the loopback `localhost:4311` origin or any worktree's
 linked worktree can review private pages without the managed fallback. Production middleware, protected APIs, write routes, password
 auth, passkeys, and Cloudflare Access are unchanged.
 
+## local owner
+
+The read-only preview allowance cannot reach authenticated APIs, record
+editing, or writes to the local editorial Durable Object. Start a local owner
+session from a linked worktree when a task has to exercise every authenticated
+Admin route:
+
+```bash
+pnpm dev:admin:owner      # Portless Admin dev server for this worktree
+pnpm preview:admin:owner  # production build served by local wrangler dev
+pnpm build:admin:owner    # production build only
+```
+
+`dev:admin:owner` starts only this worktree's Admin route with
+`ADMIN_LOCAL_OWNER=1`. It never starts or changes the managed
+`localhost:4311` fallback, and it refuses to reuse a route started in the other
+mode; run `pnpm dev:stop` first. `pnpm dev:admin` strips an inherited
+`ADMIN_LOCAL_OWNER` value, so the default route stays unchanged.
+
+`preview:admin:owner` builds into the ignored
+`apps/admin/.local/local-owner-dist`, never `apps/admin/dist`, and serves it
+at `http://127.0.0.1:8871/` through local wrangler dev with the local D1 and
+Durable Object state `astro dev` uses. The served config copies
+`apps/admin/wrangler.toml` without its production route: with a route,
+wrangler dev rewrites `Host` to `admin.anipotts.com`, which fails the loopback
+check and would also hide a DNS rebinding hostname. Set
+`ADMIN_LOCAL_OWNER_PORT` to use another port; `1355` and `4311` are refused.
+The editorial API answers `editor_not_configured` there because the Worker
+secrets are not present locally.
+
+How the session is bounded:
+
+- `ADMIN_LOCAL_OWNER=1` is read once by `apps/admin/astro.config.mjs` and
+  compiled into the `__LOCAL_OWNER_BUILD__` constant. Worker bindings, wrangler
+  vars, cookies, headers and query strings cannot enable it. Any other value
+  fails the build, and so does setting it in GitHub Actions.
+- Middleware grants the synthetic `local-owner@localhost` identity only when
+  the request URL is `localhost`, `127.0.0.1`, `[::1]` or an
+  `admin.anipotts.localhost` Portless host, `Host` matches that URL,
+  forwarded host and client headers are all local, and a browser write is
+  same-origin. Public auth paths keep their native flow.
+- Every method is allowed, so local D1 and the local editorial Durable Object
+  accept writes. Route handlers keep their own checks: editorial writes still
+  need their CSRF token, and `/api/admin/*` mutations still need a native
+  session with fresh passkey step-up.
+- A fixed `Local owner` token marks every Content, Operations and Life screen
+  at every width and theme.
+- Release builds compile the path out. Deploy jobs fail when the flag is set,
+  and the Admin deploy scans its exact bundle with
+  `node scripts/ci/admin-local-owner-leak.mjs --expect absent apps/admin/dist`
+  before it runs wrangler.
+
 ## worktrees and HMR
 
 Portless provides each linked worktree its own route and random application

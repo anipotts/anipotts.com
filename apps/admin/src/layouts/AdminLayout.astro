@@ -36,6 +36,9 @@ const initialMode = initialAdminTheme(
 );
 const currentPath = Astro.url.pathname.replace(/\/$/, "") || "/";
 const currentRoute = `${currentPath}${Astro.url.search}`;
+const localOwner =
+  __LOCAL_OWNER_BUILD__ &&
+  Astro.locals.adminPrincipal?.authMethod === "local_owner";
 ---
 
 <!doctype html>
@@ -78,6 +81,7 @@ const currentRoute = `${currentPath}${Astro.url.search}`;
     <AdminShell
       client:load
       localPreview={import.meta.env.DEV}
+      localOwner={localOwner}
       initialMode={initialMode}
       chrome={chrome}
       currentRoute={currentRoute}

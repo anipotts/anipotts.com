@@ -15,7 +15,9 @@ export type AdminAuthMethod =
   | "device_approval"
   | "google_recovery"
   | "legacy_passkey"
-  | "cloudflare_access";
+  | "cloudflare_access"
+  // Synthetic identity from a build compiled with ADMIN_LOCAL_OWNER=1; never stored.
+  | "local_owner";
 export type AdminSessionRestriction = "recovery" | null;
 
 export type AdminPrincipal = {

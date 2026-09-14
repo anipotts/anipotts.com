@@ -9,8 +9,10 @@ import { editorialImagePreview } from "./lib/editorial-media";
 import {
   isApprovedDevPreviewOrigin,
   isDevLoopbackPreviewRequest,
+  isLocalOwnerRequest,
   isPublicAdminPath,
 } from "./lib/admin-access-policy";
+import { localOwnerPrincipal } from "./lib/admin-local-owner";
 import {
   adminJson,
   applyAdminSetCookies,
@@ -25,6 +27,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
     context.url.pathname === "/auth/logout"
   )
     return next();
+  // A build-time constant, never a runtime value. Deployable builds compile
+  // it to false, which removes this whole path from the bundle.
+  const localOwner =
+    __LOCAL_OWNER_BUILD__ &&
+    !isPublicAdminPath(context.url.pathname) &&
+    isLocalOwnerRequest({
+      enabled: true,
+      method: context.request.method,
+      url: context.url,
+      headers: context.request.headers,
+    });
+  if (localOwner) context.locals.adminPrincipal = localOwnerPrincipal();
   if (
     context.url.pathname === "/" ||
     context.url.pathname === "/content" ||
@@ -35,9 +49,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
     ["/preview/home", "/preview/record"].includes(context.url.pathname)
   ) {
     const local =
-      import.meta.env.DEV &&
-      import.meta.env.EDITORIAL_LOCAL_PREVIEW === true &&
-      isApprovedDevPreviewOrigin(context.url);
+      localOwner ||
+      (import.meta.env.DEV &&
+        import.meta.env.EDITORIAL_LOCAL_PREVIEW === true &&
+        isApprovedDevPreviewOrigin(context.url));
     // This namespace never accepts legacy passwords, sessions, or identity headers.
     if (
       !local &&
@@ -79,6 +94,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
         "Content-Security-Policy",
         "sandbox allow-scripts; form-action 'none'; frame-ancestors 'self'; connect-src 'none'",
       );
+    return response;
+  }
+  if (localOwner) {
+    const response = await next();
+    response.headers.set("Cache-Control", "private, no-store");
+    response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
     return response;
   }
   if (

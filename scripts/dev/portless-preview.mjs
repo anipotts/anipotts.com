@@ -21,6 +21,8 @@ const METADATA_PATH = join(LOCAL_DIR, "processes.json");
 const PROXY_PORT = 1355;
 const CANONICAL_BRANCH = "main";
 const REQUIRED_NODE = { major: 24, minor: 19, patch: 0 };
+// Opt-in synthetic owner for this worktree's Admin dev server only.
+const LOCAL_OWNER = process.argv.includes("--local-owner");
 const APPS = [
   {
     key: "www",
@@ -83,8 +85,8 @@ function assertCanonicalPreviewOwnership() {
   }
 }
 
-function portlessEnv() {
-  return {
+function portlessEnv(options = {}) {
+  const env = {
     ...process.env,
     PORTLESS_STATE_DIR: sharedStateDir(),
     PORTLESS_PORT: String(PROXY_PORT),
@@ -93,6 +95,11 @@ function portlessEnv() {
     PORTLESS_SYNC_HOSTS: "0",
     PORTLESS_TLD: "localhost",
   };
+  // An inherited shell value never reaches dependency builds, the shared
+  // fallback or the default Admin route; only owner mode sets it.
+  delete env.ADMIN_LOCAL_OWNER;
+  if (LOCAL_OWNER && options.localOwner) env.ADMIN_LOCAL_OWNER = "1";
+  return env;
 }
 
 function pnpm(args, options = {}) {
@@ -244,7 +251,7 @@ function startApp(app, url) {
     ],
     {
       cwd: app.cwd,
-      env: portlessEnv(),
+      env: portlessEnv({ localOwner: app.key === "admin" }),
       detached: true,
       stdio: ["ignore", logFd, logFd],
     },
@@ -257,6 +264,7 @@ function startApp(app, url) {
     url,
     pid: child.pid,
     ownership: "managed",
+    localOwner: LOCAL_OWNER && app.key === "admin",
     logPath,
   };
 }
@@ -291,6 +299,8 @@ async function waitForApp(app, record) {
 }
 
 async function ensureFallbackAdmin() {
+  // Owner mode never starts or touches the shared 4311 review fallback.
+  if (LOCAL_OWNER) return;
   pnpm(["admin:preview:ensure"], { stdio: "inherit" });
 }
 
@@ -302,6 +312,9 @@ function selectedApps(surface) {
 }
 
 async function ensure(surface) {
+  if (LOCAL_OWNER && surface !== "admin") {
+    throw new Error("local owner mode starts only the admin surface");
+  }
   assertRuntime();
   assertCanonicalPreviewOwnership();
   ensureProxy();
@@ -312,10 +325,21 @@ async function ensure(surface) {
   for (const app of selectedApps(surface)) {
     const url = appUrl(app);
     const prior = previous?.apps?.find((record) => record.key === app.key);
+    const wantsLocalOwner = LOCAL_OWNER && app.key === "admin";
+    const healthy = await isHealthy(url, app.healthPath);
+    // Never reuse a route across owner modes, in either direction.
+    const reusable =
+      prior?.ownership === "managed" &&
+      Boolean(prior.localOwner) === wantsLocalOwner;
+    if (healthy && (wantsLocalOwner || prior?.localOwner) && !reusable) {
+      throw new Error(
+        `${app.key} at ${url} is already running ${prior?.localOwner ? "with" : "without"} local owner; run pnpm dev:stop first`,
+      );
+    }
     if (
       prior?.ownership === "managed" &&
       isRecognizedProcess(app, prior.pid) &&
-      (await isHealthy(url, app.healthPath))
+      healthy
     ) {
       const index = records.findIndex((record) => record.key === app.key);
       records.splice(index < 0 ? records.length : index, index < 0 ? 0 : 1, {
@@ -325,7 +349,7 @@ async function ensure(surface) {
       continue;
     }
 
-    if (await isHealthy(url, app.healthPath)) {
+    if (healthy) {
       const existing = {
         key: app.key,
         name: app.name,
@@ -378,10 +402,10 @@ function printStatus(records) {
         : "stale"
       : record.ownership;
     console.log(
-      `${record.key}=${record.url} state=${state} ownership=${record.ownership}${record.pid ? ` pid=${record.pid}` : ""}`,
+      `${record.key}=${record.url} state=${state} ownership=${record.ownership}${record.pid ? ` pid=${record.pid}` : ""}${record.localOwner ? " local-owner=on" : ""}`,
     );
   }
-  if (records.some((record) => record.key === "admin")) {
+  if (records.some((record) => record.key === "admin" && !record.localOwner)) {
     console.log("admin-fallback=http://localhost:4311/");
   }
 }
