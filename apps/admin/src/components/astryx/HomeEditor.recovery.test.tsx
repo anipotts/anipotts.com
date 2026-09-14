@@ -514,7 +514,6 @@ it("reloads a refused draft into the saved draft with the edits ready to review"
   expect(records()).toHaveLength(2);
   expect(body()!.value).toContain("Refused body.");
   expect(host.textContent).not.toContain("Server refused this save");
-  await pause();
   expect(saves()).toHaveLength(1);
   await click("Save recovered edits");
   expect(saves()).toHaveLength(2);
@@ -577,20 +576,26 @@ it.each([
 );
 
 it("does not frame a later refusal as a held leave once saving resumed", async () => {
-  vi.spyOn(navigation, "commitAdminNavigation").mockImplementation(() => {});
+  const commit = vi
+    .spyOn(navigation, "commitAdminNavigation")
+    .mockImplementation(() => {});
   answerSave = (input) =>
     input.source.endsWith("Refused body.")
       ? response({ ok: false, code: "invalid_draft_request", valid: true }, 400)
       : undefined;
   await mountClean();
+  // Leaving flushes immediately, so no typing pause is needed to save.
   await type("Refused body.");
-  await pause();
   await act(async () => {
     navigation.navigateAdmin("/content");
   });
+  expect(commit).not.toHaveBeenCalled();
   expect(host.textContent).toContain("Download a copy before leaving");
   await type("Accepted body.");
-  await pause();
+  await act(async () => {
+    navigation.navigateAdmin("/content");
+  });
+  expect(commit).toHaveBeenCalledOnce();
   expect(host.textContent).not.toContain("Server refused this save");
   await type("Refused body.");
   await pause();
