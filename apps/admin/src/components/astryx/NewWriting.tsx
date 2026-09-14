@@ -8,9 +8,19 @@ import { Banner } from "@astryxdesign/core/Banner";
 import { writingId, validWritingId } from "../../lib/writing-draft";
 import {
   newWritingRecoveryKey,
-  readNewWritingRecovery,
+  writingRecovery,
+  type NewWritingRecovery,
   recoveryLogoutKey,
 } from "../../lib/draft-recovery";
+import type {
+  BrowserRecovery,
+  RecoveryProblem,
+  RecoveryRead,
+} from "../../lib/browser-recovery";
+import {
+  BrowserRecoveryNotice,
+  downloadBrowserRecovery,
+} from "./BrowserRecoveryNotice";
 
 export function NewWriting({ recoveryScope }: { recoveryScope?: string }) {
   return (
@@ -29,6 +39,14 @@ function NewWritingForm({ recoveryScope }: { recoveryScope?: string }) {
   const pending = useRef(false);
   const [restored, setRestored] = useState(false);
   const [recoveryFailed, setRecoveryFailed] = useState(false);
+  const [recoveryProblem, setRecoveryProblem] =
+    useState<RecoveryProblem | null>(null);
+  const [recoveryRead, setRecoveryRead] = useState<
+    RecoveryRead<NewWritingRecovery>
+  >({ status: "missing" });
+  const recoveryChannel = useRef<BrowserRecovery<NewWritingRecovery> | null>(
+    null,
+  );
   const recoveryKey = recoveryScope
     ? newWritingRecoveryKey(recoveryScope)
     : null;
@@ -42,6 +60,7 @@ function NewWritingForm({ recoveryScope }: { recoveryScope?: string }) {
       if (event instanceof StorageEvent && event.key !== recoveryLogoutKey)
         return;
       active.current = false;
+      recoveryChannel.current?.close();
       createAbort.current?.abort();
       request.current = null;
       setLoggedOut(true);
@@ -54,8 +73,17 @@ function NewWritingForm({ recoveryScope }: { recoveryScope?: string }) {
     try {
       if (!recoveryKey) setRecoveryFailed(true);
       else {
-        const saved = readNewWritingRecovery(localStorage, recoveryKey);
-        if (saved) {
+        const channel = writingRecovery(localStorage, recoveryKey);
+        recoveryChannel.current = channel;
+        const result = channel.read();
+        setRecoveryRead(result);
+        setRecoveryProblem(
+          result.status === "ready" || result.status === "missing"
+            ? null
+            : result.status,
+        );
+        if (result.status === "ready") {
+          const saved = result.value;
           setTitle(saved.title);
           setSlug(saved.slug);
           setCustomSlug(saved.customSlug);
@@ -68,6 +96,7 @@ function NewWritingForm({ recoveryScope }: { recoveryScope?: string }) {
     setRestored(true);
     return () => {
       active.current = false;
+      recoveryChannel.current?.close();
       createAbort.current?.abort();
       window.removeEventListener("storage", logout);
       window.removeEventListener(recoveryLogoutKey, logout);
@@ -75,15 +104,15 @@ function NewWritingForm({ recoveryScope }: { recoveryScope?: string }) {
   }, [recoveryKey]);
   useEffect(() => {
     if (!restored || !recoveryKey || !active.current) return;
-    try {
-      localStorage.setItem(
-        recoveryKey,
-        JSON.stringify({ title, slug, customSlug, request: request.current }),
-      );
-      setRecoveryFailed(false);
-    } catch {
-      setRecoveryFailed(true);
-    }
+    const channel = recoveryChannel.current;
+    if (!channel) return;
+    void channel
+      .write({ title, slug, customSlug, request: request.current })
+      .then((problem) => {
+        if (!active.current || recoveryChannel.current !== channel) return;
+        setRecoveryProblem(problem);
+        setRecoveryFailed(Boolean(problem));
+      });
   }, [title, slug, customSlug, restored, recoveryKey]);
   useEffect(() => {
     if (!recoveryFailed || (!title && !slug)) return;
@@ -111,19 +140,17 @@ function NewWritingForm({ recoveryScope }: { recoveryScope?: string }) {
     if (request.current?.key !== key)
       request.current = { key, id: crypto.randomUUID() };
     try {
-      try {
-        if (recoveryKey)
-          localStorage.setItem(
-            recoveryKey,
-            JSON.stringify({
-              title,
-              slug,
-              customSlug,
-              request: request.current,
-            }),
-          );
-      } catch {
-        setRecoveryFailed(true);
+      const channel = recoveryChannel.current;
+      if (channel) {
+        const problem = await channel.write({
+          title,
+          slug,
+          customSlug,
+          request: request.current,
+        });
+        if (!active.current || abort.signal.aborted) return;
+        setRecoveryProblem(problem);
+        setRecoveryFailed(Boolean(problem));
       }
       const csrfResponse = await fetch("/api/editorial/csrf", {
         signal: AbortSignal.any([abort.signal, AbortSignal.timeout(15000)]),
@@ -158,11 +185,8 @@ function NewWritingForm({ recoveryScope }: { recoveryScope?: string }) {
             ? "An article already uses this address. Choose another address or open it from Writing."
             : "Couldn’t create the draft. Your details are retained; try again.",
         );
-      try {
-        if (recoveryKey) localStorage.removeItem(recoveryKey);
-      } catch {
-        /* Server draft is saved. */
-      }
+      if (channel) await channel.write(null);
+      if (!active.current || abort.signal.aborted) return;
       window.location.assign(`/content/writing/${slug}`);
     } catch (error) {
       if (!active.current || abort.signal.aborted) return;
@@ -231,7 +255,50 @@ function NewWritingForm({ recoveryScope }: { recoveryScope?: string }) {
             description="Sign in again before creating an article."
           />
         )}
-        {recoveryFailed && !loggedOut && (
+        {recoveryProblem && !loggedOut && (
+          <BrowserRecoveryNotice
+            problem={recoveryProblem}
+            onDownload={
+              recoveryChannel.current
+                ? () => {
+                    try {
+                      downloadBrowserRecovery(
+                        recoveryChannel.current!.export(),
+                      );
+                    } catch {
+                      setRecoveryProblem("unavailable");
+                    }
+                  }
+                : undefined
+            }
+            candidates={
+              recoveryRead.status === "changed"
+                ? recoveryRead.candidates?.map(({ label, value }) => ({
+                    label,
+                    source: `${value.title}\n${value.slug}`,
+                    onChoose: async () => {
+                      const channel = recoveryChannel.current;
+                      if (!channel) return;
+                      const problem = await channel.choose(value);
+                      if (
+                        !active.current ||
+                        recoveryChannel.current !== channel
+                      )
+                        return;
+                      setRecoveryProblem(problem);
+                      if (!problem) {
+                        request.current = value.request;
+                        setTitle(value.title);
+                        setSlug(value.slug);
+                        setCustomSlug(value.customSlug);
+                      }
+                    },
+                  }))
+                : []
+            }
+          />
+        )}
+        {recoveryFailed && !recoveryProblem && !loggedOut && (
           <Banner
             status="warning"
             title="Browser recovery unavailable"

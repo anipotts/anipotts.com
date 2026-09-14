@@ -7,19 +7,44 @@ import * as navigation from "../../lib/editorial-navigation";
 import { HomeEditor } from "./HomeEditor";
 import { WorkspaceIdentity } from "./EditorialWorkspaceShell";
 import { EditorialApp } from "./EditorialApp";
-import { recoveryKey } from "../../lib/draft-recovery";
+import { recoveryKey, draftRecovery } from "../../lib/draft-recovery";
+import {
+  versionedRecoveryKey,
+  recoveryLogoutGenerationKey,
+} from "../../lib/browser-recovery";
 
 vi.mock("@astryxdesign/core/Toast", () => ({ useToast: () => () => {} }));
 vi.mock("./ArticleBody", () => ({
-  ArticleBody: ({ value, onChange, flushRef, onDirty }: any) => {
+  ArticleBody: ({
+    value,
+    resetGeneration,
+    onChange,
+    flushRef,
+    onDirty,
+  }: any) => {
     const latest = React.useRef(value);
-    flushRef.current = () => onChange(latest.current);
+    const dirty = React.useRef(false);
+    const [display, setDisplay] = React.useState(value);
+    React.useEffect(() => {
+      latest.current = value;
+      dirty.current = false;
+      setDisplay(value);
+    }, [value, resetGeneration]);
+    // Match the real ArticleBody boundary: unchanged mounted content never serializes.
+    flushRef.current = () => {
+      if (dirty.current) {
+        dirty.current = false;
+        onChange(latest.current);
+      }
+    };
     return (
       <textarea
         aria-label="Test article body"
-        defaultValue={value}
+        value={display}
         onChange={(e) => {
           latest.current = e.target.value;
+          dirty.current = true;
+          setDisplay(e.target.value);
           onDirty?.();
         }}
       />
@@ -526,4 +551,161 @@ it("remembers pushed editor views and panels in the workspace switcher", async (
   expect(sessionStorage.getItem("admin:navigation:content")).toContain(
     "view=preview",
   );
+});
+
+it.each(
+  ["", "?view=review", "?view=preview", "?panel=history"].flatMap((search) => [
+    { search, sameSource: true },
+    { search, sameSource: false },
+  ]),
+)(
+  "reopens $search with recovered source (server matches: $sameSource) without autosaving and preserves its pending request",
+  async ({ search, sameSource }) => {
+    Object.defineProperty(navigator, "locks", {
+      configurable: true,
+      value: {
+        request: async (_key: string, _options: unknown, task: () => unknown) =>
+          task(),
+      },
+    });
+    const key = recoveryKey("recovery-owner", { kind: "writing", id: "test" });
+    const exact = source.replaceAll("\n", "\r\n") + "\r\n雨 e\u0301";
+    const pending = {
+      source: exact,
+      expectedRevision: 1,
+      requestId: "11111111-1111-4111-8111-111111111111",
+    };
+    const savedRecovery = {
+      source: exact,
+      saved: "prior baseline\r\n",
+      revision: 1,
+      pending,
+    };
+    localStorage.setItem(key, JSON.stringify(savedRecovery));
+    const writes: { url: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, options?: RequestInit) => {
+        if (url.includes("/csrf")) return response({ csrf: "synthetic" });
+        if (options?.method === "POST") {
+          writes.push({ url, body: JSON.parse(options.body as string) });
+          return response({
+            ok: true,
+            draft: { ...draft, source: exact, revision: 2 },
+          });
+        }
+        return response({
+          ...snapshot,
+          recoveryScope: "recovery-owner",
+          draft: { ...draft, source: sameSource ? exact : source },
+        });
+      }),
+    );
+    await mount(search);
+    expect(host.textContent).toContain("Recovered edits are ready to review");
+    await act(async () => {
+      await new Promise((done) => setTimeout(done, 700));
+    });
+    expect(writes).toEqual([]);
+    expect(localStorage.getItem(key)).toBe(JSON.stringify(savedRecovery));
+    await click("Save recovered edits");
+    expect(writes).toHaveLength(1);
+    expect(writes[0].url).toContain("/save?");
+    expect(writes[0].body).toEqual(pending);
+    expect(
+      JSON.parse(localStorage.getItem(versionedRecoveryKey(key))!).payload,
+    ).toBeNull();
+  },
+);
+it("preserves opaque recovery and renders a bounded explanation instead of replacing it with server text", async () => {
+  const key = recoveryKey("recovery-owner", { kind: "writing", id: "test" });
+  const raw = JSON.stringify({ version: 99, source: "private future copy" });
+  localStorage.setItem(versionedRecoveryKey(key), raw);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      response({ ...snapshot, recoveryScope: "recovery-owner" }),
+    ),
+  );
+  await mount();
+  expect(host.textContent).toContain("This browser copy needs a newer editor");
+  expect(host.textContent).toContain("Download stored recovery");
+  expect(host.textContent).not.toContain("private future copy");
+  expect(localStorage.getItem(versionedRecoveryKey(key))).toBe(raw);
+});
+it("offers divergent old-tab recovery explicitly and does not save the selection", async () => {
+  Object.defineProperty(navigator, "locks", {
+    configurable: true,
+    value: {
+      request: async (_key: string, _options: unknown, task: () => unknown) =>
+        task(),
+    },
+  });
+  const key = recoveryKey("recovery-owner", { kind: "writing", id: "test" });
+  const initial = { source, saved: source, revision: 1, pending: null };
+  localStorage.setItem(key, JSON.stringify(initial));
+  const channel = draftRecovery(localStorage, key);
+  channel.read();
+  await channel.write(initial);
+  const olderTab = {
+    ...initial,
+    source: source + "\r\nRecovered from old tab 雨",
+  };
+  localStorage.setItem(key, JSON.stringify(olderTab));
+  const fetcher = vi.fn(async () =>
+    response({ ...snapshot, recoveryScope: "recovery-owner" }),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  await mount();
+  expect(host.textContent).toContain("Another tab changed browser recovery");
+  await click("Recover older tab copy");
+  expect(
+    host.querySelector<HTMLTextAreaElement>(
+      'textarea[aria-label="Test article body"]',
+    )!.value,
+  ).toContain("Recovered from old tab 雨");
+  expect(host.textContent).toContain("Recovered edits are ready to review");
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(localStorage.getItem(key)).toBe(JSON.stringify(olderTab));
+});
+
+it("does not replay recovery from before an old-tab logout when no event was received", async () => {
+  Object.defineProperty(navigator, "locks", {
+    configurable: true,
+    value: {
+      request: async (_key: string, _options: unknown, task: () => unknown) =>
+        task(),
+    },
+  });
+  const key = recoveryKey("recovery-owner", { kind: "writing", id: "test" });
+  const previous = draftRecovery(localStorage, key);
+  previous.read();
+  await previous.write({
+    source: source + "\nText from before logout",
+    saved: source,
+    revision: 1,
+    pending: null,
+  });
+  previous.close();
+  localStorage.setItem(
+    recoveryLogoutGenerationKey,
+    "logged-out-in-old-browser-tab",
+  );
+  const raw = localStorage.getItem(versionedRecoveryKey(key));
+  const fetcher = vi.fn(async () =>
+    response({ ...snapshot, recoveryScope: "recovery-owner" }),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  await mount();
+  expect(host.textContent).toContain(
+    "This stored copy belongs to a session that was signed out",
+  );
+  expect(host.textContent).not.toContain("Recovered edits are ready to review");
+  expect(
+    host.querySelector<HTMLTextAreaElement>(
+      'textarea[aria-label="Test article body"]',
+    )!.value,
+  ).not.toContain("Text from before logout");
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(localStorage.getItem(versionedRecoveryKey(key))).toBe(raw);
 });

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { HomeEditor } from "./HomeEditor";
 import { newWritingSource } from "../../lib/writing-draft";
 import { recoveryKey, recoveryLogoutKey } from "../../lib/draft-recovery";
+import { versionedRecoveryKey } from "../../lib/browser-recovery";
 import type { Draft } from "../../editorial/draft-store";
 
 vi.mock("@astryxdesign/core/Toast", () => ({ useToast: () => () => {} }));
@@ -103,6 +104,16 @@ function saves() {
 function recovery() {
   return JSON.parse(localStorage.getItem(key)!);
 }
+/** Retiring a recovery candidate writes a v2 tombstone rather than deleting the
+ * v1 bytes, which stay readable by an older tab. The tombstone is what stops
+ * them resurrecting, so assert on it instead of on the v1 key being gone. */
+function expectRecoveryRetired() {
+  const envelope = localStorage.getItem(versionedRecoveryKey(key));
+  expect(envelope).not.toBeNull();
+  const parsed = JSON.parse(envelope!);
+  expect(parsed.version).toBe(2);
+  expect(parsed.payload).toBeNull();
+}
 async function mount() {
   await act(async () => {
     root.render(<HomeEditor record={record} />);
@@ -117,6 +128,19 @@ async function mount() {
 }
 beforeEach(() => {
   vi.stubGlobal("React", React);
+  // jsdom has no Web Locks, and browser recovery refuses every uncoordinated
+  // write without one, so without this stub the whole recovery path is inert
+  // and these assertions would pass for the wrong reason.
+  if (!navigator.locks)
+    Object.defineProperty(navigator, "locks", {
+      configurable: true,
+      value: {
+        request: async (_name: string, ...rest: unknown[]) => {
+          const task = rest[rest.length - 1] as () => unknown;
+          return await task();
+        },
+      },
+    });
   vi.stubGlobal(
     "matchMedia",
     vi.fn((media: string) => ({
@@ -211,7 +235,7 @@ it("compares without retrying or changing the retained operation, then saves onl
   expect(next).toMatchObject({ source: mine, expectedRevision: 3 });
   expect(next.requestId).not.toBe(pending.requestId);
   expect(host.textContent).not.toContain("Compare before saving again");
-  expect(localStorage.getItem(key)).toBeNull();
+  expectRecoveryRetired();
 });
 
 it("can use the compared saved draft without an additional write", async () => {
@@ -227,7 +251,7 @@ it("can use the compared saved draft without an additional write", async () => {
       ) as HTMLTextAreaElement
     ).value,
   ).toContain("Saved on another device.");
-  expect(localStorage.getItem(key)).toBeNull();
+  expectRecoveryRetired();
 });
 
 it("keeps typing buffered during comparison when the owner chooses their version", async () => {
