@@ -15,6 +15,7 @@ import { Popover } from "@astryxdesign/core/Popover";
 import "./WorkspaceHeader.css";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Button } from "@astryxdesign/core/Button";
+import { Token } from "@astryxdesign/core/Token";
 import { AppShell, useAppShellMobile } from "@astryxdesign/core/AppShell";
 import {
   SideNav,
@@ -43,6 +44,7 @@ import {
   IdentificationCardIcon,
   CaretDownIcon,
   ArrowUpRightIcon,
+  LaptopIcon,
 } from "@phosphor-icons/react";
 import { AdminCommandPalette } from "./AdminCommandPalette";
 import type { AdminSearchResult } from "../../data/admin-search";
@@ -278,6 +280,7 @@ export function EditorialWorkspaceShell({
   changeTheme,
   siteHref,
   localPreview,
+  localOwner = false,
   searchEntries,
   workspace = "content",
   navigationContent,
@@ -291,6 +294,8 @@ export function EditorialWorkspaceShell({
   changeTheme: (mode: ThemePreference) => void;
   siteHref: string;
   localPreview: boolean;
+  /** Request resolved to the synthetic owner of a local owner build. */
+  localOwner?: boolean;
   searchEntries?: AdminSearchResult[];
   workspace?: Workspace;
   navigationContent?: ReactNode;
@@ -473,6 +478,20 @@ export function EditorialWorkspaceShell({
       >
         {children}
       </AppShell>
+      {__LOCAL_OWNER_BUILD__ && localOwner && (
+        <HStack
+          className="admin-local-owner-indicator"
+          data-admin-local-owner="true"
+          role="status"
+        >
+          <Token
+            label="Local owner"
+            size="sm"
+            color="orange"
+            icon={<LaptopIcon size={14} aria-hidden="true" />}
+          />
+        </HStack>
+      )}
     </>
   );
 }

@@ -42,6 +42,13 @@ type Runtime = import("@astrojs/cloudflare").Runtime<{
   RESEND_API_KEY?: string;
 }>;
 
+/**
+ * True only in a dev server or build started with ADMIN_LOCAL_OWNER=1. Vite
+ * replaces it with a literal; Astro's env handling never sees it, so it cannot
+ * become a runtime process.env or Worker binding read.
+ */
+declare const __LOCAL_OWNER_BUILD__: boolean;
+
 declare namespace App {
   interface Locals extends Runtime {
     passkeySessionActive?: boolean;

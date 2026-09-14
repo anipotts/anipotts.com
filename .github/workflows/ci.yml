@@ -141,7 +141,9 @@ jobs:
 
       - name: Validate Admin contracts
         if: github.event.pull_request.draft == false && needs.classify.outputs.admin == 'true'
-        run: pnpm test:admin-routes && pnpm test:admin-fixture-boundary
+        run: |
+          pnpm test:admin-routes && pnpm test:admin-fixture-boundary
+          node scripts/ci/admin-local-owner-leak.mjs --expect absent --allow-missing apps/admin/dist
 
       - name: Validate migration inventory and replay
         if: github.event.pull_request.draft == false && needs.classify.outputs.migration_preflight_required == 'true'

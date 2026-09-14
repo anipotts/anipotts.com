@@ -99,6 +99,13 @@ jobs:
       deployed_www_sha: ${{ steps.release.outputs.deployed_www_sha }}
       www_disposition: ${{ steps.release.outputs.www_disposition }}
     steps:
+      - name: Refuse the local owner build flag
+        run: |
+          if [ -n "${ADMIN_LOCAL_OWNER+x}" ]; then
+            echo "::error::ADMIN_LOCAL_OWNER is a local development flag and must not reach a release job"
+            exit 1
+          fi
+
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -229,6 +236,13 @@ jobs:
     environment: Production
     timeout-minutes: 15
     steps:
+      - name: Refuse the local owner build flag
+        run: |
+          if [ -n "${ADMIN_LOCAL_OWNER+x}" ]; then
+            echo "::error::ADMIN_LOCAL_OWNER is a local development flag and must not reach a release job"
+            exit 1
+          fi
+
       - uses: actions/checkout@v7
 
       - name: Setup pnpm
@@ -312,6 +326,13 @@ jobs:
     environment: Production
     timeout-minutes: 20
     steps:
+      - name: Refuse the local owner build flag
+        run: |
+          if [ -n "${ADMIN_LOCAL_OWNER+x}" ]; then
+            echo "::error::ADMIN_LOCAL_OWNER is a local development flag and must not reach a release job"
+            exit 1
+          fi
+
       - uses: actions/checkout@v7
         with:
           # Editorial update dates come from file history, not the release date.
@@ -336,6 +357,10 @@ jobs:
         env:
           PUBLIC_RELEASE_SHA: ${{ github.sha }}
           PUBLIC_RELEASE_SCHEMA_VERSION: ${{ needs.release.outputs.database_schema_version }}
+
+      # The deployed Worker and assets must not carry the local owner path.
+      - name: Verify the admin bundle excludes the local owner
+        run: node scripts/ci/admin-local-owner-leak.mjs --expect absent apps/admin/dist
 
       - name: Verify read-only production smoke identity
         if: needs.release.outputs.editorial_admin != 'true'
@@ -454,6 +479,13 @@ jobs:
     environment: Production
     timeout-minutes: 10
     steps:
+      - name: Refuse the local owner build flag
+        run: |
+          if [ -n "${ADMIN_LOCAL_OWNER+x}" ]; then
+            echo "::error::ADMIN_LOCAL_OWNER is a local development flag and must not reach a release job"
+            exit 1
+          fi
+
       - uses: actions/checkout@v7
 
       - name: Setup pnpm
@@ -493,6 +525,13 @@ jobs:
     environment: Production
     timeout-minutes: 10
     steps:
+      - name: Refuse the local owner build flag
+        run: |
+          if [ -n "${ADMIN_LOCAL_OWNER+x}" ]; then
+            echo "::error::ADMIN_LOCAL_OWNER is a local development flag and must not reach a release job"
+            exit 1
+          fi
+
       - uses: actions/checkout@v7
 
       - name: Setup pnpm
@@ -532,6 +571,13 @@ jobs:
     environment: Production
     timeout-minutes: 10
     steps:
+      - name: Refuse the local owner build flag
+        run: |
+          if [ -n "${ADMIN_LOCAL_OWNER+x}" ]; then
+            echo "::error::ADMIN_LOCAL_OWNER is a local development flag and must not reach a release job"
+            exit 1
+          fi
+
       - uses: actions/checkout@v7
 
       - name: Setup pnpm
@@ -571,6 +617,13 @@ jobs:
     environment: Production
     timeout-minutes: 10
     steps:
+      - name: Refuse the local owner build flag
+        run: |
+          if [ -n "${ADMIN_LOCAL_OWNER+x}" ]; then
+            echo "::error::ADMIN_LOCAL_OWNER is a local development flag and must not reach a release job"
+            exit 1
+          fi
+
       - uses: actions/checkout@v7
 
       - name: Setup pnpm

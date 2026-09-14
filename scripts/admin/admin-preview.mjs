@@ -14,6 +14,7 @@ import {
 import { createConnection } from "node:net";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { adminPreviewChildEnv } from "./admin-preview-env.mjs";
 
 const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const ADMIN_ROOT = join(REPO_ROOT, "apps/admin");
@@ -77,7 +78,7 @@ async function ensurePreview() {
     {
       cwd: ADMIN_ROOT,
       detached: true,
-      env: { ...process.env, FORCE_COLOR: "0" },
+      env: adminPreviewChildEnv(process.env),
       stdio: ["ignore", logFd, logFd],
     },
   );

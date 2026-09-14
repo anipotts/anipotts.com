@@ -35,6 +35,7 @@ type AdminShellProps = {
   navItems: NavItem[];
   title: string;
   localPreview?: boolean;
+  localOwner?: boolean;
   initialMode?: ThemePreference;
 };
 export function AdminShell({
@@ -46,6 +47,7 @@ export function AdminShell({
   navItems,
   title,
   localPreview = false,
+  localOwner = false,
   initialMode = "light",
 }: AdminShellProps) {
   const [currentRoute, setCurrentRoute] = useState(initialRoute);
@@ -146,6 +148,7 @@ export function AdminShell({
         changeTheme={changeTheme}
         siteHref="https://anipotts.com"
         localPreview={localPreview}
+        localOwner={localOwner}
         navigationContent={navigation}
         palette={
           workspace === "life" ? (

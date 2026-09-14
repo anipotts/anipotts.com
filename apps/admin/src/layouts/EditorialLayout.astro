@@ -20,7 +20,12 @@ import {
 } from "../components/astryx/EditorialApp";
 type Props = Omit<
   EditorialAppProps,
-  "area" | "localPreview" | "siteUrl" | "initialMode" | "recoveryScope"
+  | "area"
+  | "localPreview"
+  | "localOwner"
+  | "siteUrl"
+  | "initialMode"
+  | "recoveryScope"
 > & {
   inventoryProjection?: Awaited<ReturnType<typeof loadEditorialInventory>>;
   /** Set only when the route supplies actual body content, not an empty conditional slot. */
@@ -52,6 +57,9 @@ const appProps = {
   siteUrl: publicSiteUrl,
   initialMode,
   localPreview: import.meta.env.DEV,
+  localOwner:
+    __LOCAL_OWNER_BUILD__ &&
+    Astro.locals.adminPrincipal?.authMethod === "local_owner",
   recoveryScope: EDITORIAL_OWNER_EMAIL,
   librarySearch: Astro.url.search,
 } satisfies EditorialAppProps;
