@@ -144,34 +144,41 @@ export function LifeReadView({
 }) {
   if (result.state !== "ready") {
     const presentation = {
+      // Severity is part of the signal, not just the wording. A configuration
+      // state reads as information; a refused or failed read is a warning, so
+      // it does not look like an ordinary empty result.
       disconnected: {
         title: "Life is not connected yet",
         description:
           "Records remain in PersonalContext. An authorized source connection is needed before they can be read here.",
         Icon: LinkBreakIcon,
+        status: "info" as const,
       },
       denied: {
         title: "Access to these records is unavailable",
         description:
           "This connection does not permit the requested read. Return when authorized access is available.",
         Icon: ShieldWarningIcon,
+        status: "warning" as const,
       },
       unavailable: {
         title: "Records could not be loaded",
         description:
           "The source is unavailable. This does not mean that your records are empty. Try again when the source is available.",
         Icon: WarningCircleIcon,
+        status: "warning" as const,
       },
       invalid: {
         title: "The source response could not be used",
         description:
           "The read returned incomplete or unsupported information. No records from this response are shown.",
         Icon: WarningCircleIcon,
+        status: "warning" as const,
       },
     }[result.state];
     return (
       <Banner
-        status="info"
+        status={presentation.status}
         container="section"
         title={presentation.title}
         description={presentation.description}
@@ -625,7 +632,6 @@ export function LifeWorkspace({
               <VStack gap={5}>
                 <List
                   className="life-view-list"
-                  hasDividers
                   density="compact"
                   header={<Heading level={2}>Your views</Heading>}
                 >
@@ -689,7 +695,6 @@ export function LifeWorkspace({
                 </List>
                 <List
                   className="life-view-list"
-                  hasDividers
                   density="compact"
                   header={<Heading level={2}>Other views</Heading>}
                 >

@@ -65,7 +65,7 @@ export function LifeSupportingView({
             />
           ) : !available ? (
             <Banner
-              status="info"
+              status="warning"
               container="section"
               title="Health summaries could not be loaded."
               description="The summary source is unavailable. This does not mean that no health summaries exist."
@@ -82,7 +82,7 @@ export function LifeSupportingView({
           ) : (
             <VStack gap={4}>
               <Text color="secondary">Source summaries</Text>
-              <List className="life-summary-list" hasDividers density="compact">
+              <List className="life-summary-list" density="compact">
                 {summaries.map((item, index) => (
                   <ListItem
                     key={`${item.source_locator}-${index}`}

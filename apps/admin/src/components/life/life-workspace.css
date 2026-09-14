@@ -65,8 +65,8 @@
   display: none;
 }
 .life-details-region {
-  padding-block-start: var(--spacing-5);
-  border-block-start: var(--border-width) solid var(--color-border);
+  /* Separation comes from spacing, not a rule. */
+  padding-block-start: var(--spacing-6);
 }
 .life-record-detail-heading {
   justify-content: space-between;
