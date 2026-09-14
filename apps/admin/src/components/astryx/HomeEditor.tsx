@@ -1062,54 +1062,69 @@ function HomeEditorImpl({
                 size="sm"
                 alignment="end"
                 items={[
-                  { label: "View source", onClick: () => setTab("source") },
                   {
-                    label: "Version history",
-                    onClick: () => {
-                      void openHistory();
-                    },
-                  },
-                  {
-                    label: "Compare with website",
-                    isDisabled: comparisonLoading,
-                    onClick: () => {
-                      void compareWebsite();
-                    },
-                  },
-                  ...(localPreview
-                    ? [
-                        {
-                          label: "Open production editor",
-                          description:
-                            "Opens the current production draft. Download this local draft to keep a copy.",
-                          onClick: () => {
-                            window.open(
-                              `https://admin.anipotts.com/content/${record.kind === "page" ? (record.id === "home" ? "home" : `${record.id}Page`) : record.kind === "work" ? "projects" : "writing"}/${record.id}`,
-                              "_blank",
-                              "noopener,noreferrer",
-                            );
-                          },
+                    type: "section",
+                    title: "Inspect",
+                    items: [
+                      {
+                        label: "View source",
+                        onClick: () => setTab("source"),
+                      },
+                      {
+                        label: "Version history",
+                        onClick: () => {
+                          void openHistory();
                         },
-                      ]
-                    : []),
-                  { label: "Download draft", onClick: () => download() },
-                  {
-                    label: "Import draft…",
-                    isDisabled:
-                      importing || Boolean(snapshot.draft?.discardedAt),
-                    onClick: () => importInput.current?.click(),
-                  },
-                  ...(state.status === "unsaved" && !needsSaveComparison
-                    ? [
-                        {
-                          label: "Save now",
-                          isDisabled: Boolean(snapshot.draft?.discardedAt),
-                          onClick: () => {
-                            void flush();
-                          },
+                      },
+                      {
+                        label: "Compare with website",
+                        isDisabled: comparisonLoading,
+                        onClick: () => {
+                          void compareWebsite();
                         },
-                      ]
-                    : []),
+                      },
+                    ],
+                  },
+                  {
+                    type: "section",
+                    title: "Draft",
+                    items: [
+                      ...(localPreview
+                        ? [
+                            {
+                              label: "Open production editor",
+                              description:
+                                "Opens the current production draft. Download this local draft to keep a copy.",
+                              onClick: () => {
+                                window.open(
+                                  `https://admin.anipotts.com/content/${record.kind === "page" ? (record.id === "home" ? "home" : `${record.id}Page`) : record.kind === "work" ? "projects" : "writing"}/${record.id}`,
+                                  "_blank",
+                                  "noopener,noreferrer",
+                                );
+                              },
+                            },
+                          ]
+                        : []),
+                      { label: "Download draft", onClick: () => download() },
+                      {
+                        label: "Import draft…",
+                        isDisabled:
+                          importing || Boolean(snapshot.draft?.discardedAt),
+                        onClick: () => importInput.current?.click(),
+                      },
+                      ...(state.status === "unsaved" && !needsSaveComparison
+                        ? [
+                            {
+                              label: "Save now",
+                              isDisabled: Boolean(snapshot.draft?.discardedAt),
+                              onClick: () => {
+                                void flush();
+                              },
+                            },
+                          ]
+                        : []),
+                    ],
+                  },
                 ]}
               />
             </HStack>

@@ -1797,6 +1797,7 @@ td {
 .inbox-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: var(--spacing-4);
   border: 1px solid var(--border);
   background: var(--panel);
 }
@@ -1806,10 +1807,6 @@ td {
   gap: 4px;
   min-width: 0;
   padding: 14px 16px;
-}
-
-.inbox-metrics div + div {
-  border-left: 1px solid var(--border);
 }
 
 .inbox-metrics span {
@@ -2545,7 +2542,6 @@ th {
   min-width: 54px;
   align-self: stretch;
   border: 0;
-  border-left: 1px solid var(--border);
   border-radius: 0 9px 9px 0;
   background: transparent;
   color: var(--muted);
@@ -2802,6 +2798,7 @@ th {
 .passkey-state-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: var(--spacing-4);
   width: 100%;
   border: 1px solid var(--border);
   background: color-mix(in srgb, var(--panel) 72%, transparent);
@@ -2812,12 +2809,7 @@ th {
   gap: 4px;
   min-width: 0;
   padding: 12px;
-  border-right: 1px solid var(--border);
   text-align: left;
-}
-
-.passkey-state-grid span:last-child {
-  border-right: 0;
 }
 
 .passkey-state-grid small {
@@ -3428,15 +3420,11 @@ dd {
 .newsletter-detail {
   display: grid;
   grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.1fr);
-  gap: 0;
+  gap: var(--spacing-4);
 }
 
 .newsletter-detail > section {
   padding: 16px;
-}
-
-.newsletter-detail > section + section {
-  border-left: 1px solid var(--border);
 }
 
 .newsletter-detail h3 {
@@ -4155,14 +4143,6 @@ dd {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .inbox-metrics div + div {
-    border-left: 0;
-  }
-
-  .inbox-metrics div:nth-child(2n) {
-    border-left: 1px solid var(--border);
-  }
-
   .inbox-attention,
   .studio-panel,
   .fleet-panel,
@@ -4193,10 +4173,6 @@ dd {
 
   .passkey-state-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .passkey-state-grid span:nth-child(2n) {
-    border-right: 0;
   }
 
   .passkey-actions,
@@ -4237,10 +4213,6 @@ dd {
   .carousel-brief-body dl,
   .carousel-post-card dl {
     grid-template-columns: 1fr;
-  }
-
-  .newsletter-detail > section + section {
-    border-left: 0;
   }
 }
 
@@ -4889,17 +4861,13 @@ html[data-astryx-theme="neutral"] .button.ghost {
 
 .knowledge-contract-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: var(--spacing-4);
   margin: 0;
 }
 
 .knowledge-contract-grid > div {
   min-width: 0;
   padding: 14px 16px;
-  border-right: 1px solid var(--color-border);
-}
-
-.knowledge-contract-grid > div:last-child {
-  border-right: 0;
 }
 
 .knowledge-contract-grid dt,
@@ -5211,10 +5179,6 @@ html[data-astryx-theme="neutral"] .button.ghost {
   .knowledge-contract-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  .knowledge-contract-grid > div:nth-child(2) {
-    border-right: 0;
-  }
 }
 
 @media (max-width: 640px) {
@@ -5225,10 +5189,6 @@ html[data-astryx-theme="neutral"] .button.ghost {
   .life-reference-list article,
   .aesthetics-canvas {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .knowledge-contract-grid > div {
-    border-right: 0;
   }
 
   .knowledge-search-controls {

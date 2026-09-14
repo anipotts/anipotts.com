@@ -375,9 +375,11 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   border-radius: var(--radius-element);
   overflow: hidden;
 }
+.editor-diff-columns {
+  background: var(--color-background-surface);
+}
 .editor-diff-columns > .astryx-text {
   padding: var(--spacing-2) var(--spacing-3);
-  background: var(--color-background-surface);
 }
 .editor-diff-line {
   min-width: 0;
@@ -388,7 +390,6 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 }
 .editor-diff-line[data-side="after"] {
   grid-column: 2;
-  border-inline-start: var(--border-width) solid var(--color-border);
 }
 .editor-diff-line-content {
   min-width: 0;
@@ -431,7 +432,6 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 .editor-revision-diff[data-layout="unified"] .editor-diff-line {
   grid-column: 1;
   grid-row: auto;
-  border-inline-start: 0;
 }
 .editor-revision-diff[data-layout="unified"] .editor-diff-columns,
 .editor-revision-diff[data-layout="unified"]
@@ -445,12 +445,10 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   .editor-diff-line {
     grid-column: 1;
     grid-row: auto;
-    border-inline-start: 0;
   }
   .editor-diff-line[data-side="before"],
   .editor-diff-line[data-side="after"] {
     grid-column: 1;
-    border-inline-start: 0;
   }
   .editor-diff-columns,
   .editor-diff-layout,

@@ -14,9 +14,10 @@
     {
       "path": "apps/admin/AGENTS.md",
       "area": "configuration-and-assets",
-      "sha256": "38365ca5b37b879bd221d4fb5e270eaaaaf5b7c58c7195383b315296e5abcb15",
-      "disposition": "reviewed-retained",
+      "sha256": "3a62d57617b5f1879283913af1d1c39216e349004b19c84e840e4f3b54828685",
+      "disposition": "updated",
       "evidence": [
+        "2026-09-14 PR #364 no dividers: adds the no-divider house rule, menu sections and the guard scope. Source changed since recorded SHA-256 38365ca5b37b879bd221d4fb5e270eaaaaf5b7c58c7195383b315296e5abcb15; earlier audit references are historical. src/styles/no-dividers.test.ts and focused component tests pass; browser QA pending.",
         "docs/design/admin-workspace/configuration-assets-audit.md: exact-byte source review; open findings and verification limits retained."
       ]
     },
@@ -1026,9 +1027,10 @@
     {
       "path": "apps/admin/src/components/astryx/OperatorWorkTable.tsx",
       "area": "ui",
-      "sha256": "6947d8d16aca1bfabc0ff46c830e37615d60ab5042bf1452c868f0acb89b2939",
-      "disposition": "reviewed-retained",
+      "sha256": "f423c03c10bd2694436c5fb12e4b3f809f78d38388920ec1575eda0926c71a7d",
+      "disposition": "updated",
       "evidence": [
+        "2026-09-14 PR #364 no dividers: Table passes dividers=\"none\". Source changed since recorded SHA-256 6947d8d16aca1bfabc0ff46c830e37615d60ab5042bf1452c868f0acb89b2939; earlier audit references are historical. src/styles/no-dividers.test.ts and focused component tests pass; browser QA pending.",
         "docs/design/admin-workspace/remaining-supporting-ui-audit.md: exact-byte source review; findings and verification limits retained."
       ]
     },
@@ -1075,9 +1077,10 @@
     {
       "path": "apps/admin/src/components/astryx/RecordPanel.tsx",
       "area": "UI",
-      "sha256": "8e1b62093f30946baa223692bb28d69c4ad2520083048aba2382ab7f57c3efc1",
+      "sha256": "e243bc081c5f0e84960e898ae3dccf4d9768d36bda7e67e376ff6c3757523365",
       "disposition": "updated",
       "evidence": [
+        "2026-09-14 PR #364 no dividers: inspector LayoutPanel drops hasDivider. Source changed since recorded SHA-256 8e1b62093f30946baa223692bb28d69c4ad2520083048aba2382ab7f57c3efc1; earlier audit references are historical. src/styles/no-dividers.test.ts and focused component tests pass; browser QA pending.",
         "Source review: URL mode owner, exclusive panels, exact acknowledged review source/revision, post-CSRF navigation guard.",
         "HomeEditor navigation: four DOM interaction tests passed; helper and inspector focus tests passed.",
         "Actual Browser responsive, live and latency QA remain pending; full check receipt in coverage.md."
@@ -2515,9 +2518,10 @@
     {
       "path": "apps/admin/src/styles/admin-canvas.css",
       "area": "theme-and-layout",
-      "sha256": "2cff1a9a15d2236678c74b4e40a56ac746b175d22031385b7b240b09e80777da",
-      "disposition": "reviewed-retained",
+      "sha256": "b9ff69fde71cd01f95eacfb42c80a413c8074adcd1d59436f96c2f990dfc569e",
+      "disposition": "updated",
       "evidence": [
+        "2026-09-14 PR #364 no dividers: removes the handled item separator borders. Source changed since recorded SHA-256 2cff1a9a15d2236678c74b4e40a56ac746b175d22031385b7b240b09e80777da; earlier audit references are historical. src/styles/no-dividers.test.ts and focused component tests pass; browser QA pending.",
         "docs/design/admin-workspace/final-shell-source-audit.md: exact-byte source review; findings and verification limits retained."
       ]
     },
@@ -2533,9 +2537,10 @@
     {
       "path": "apps/admin/src/styles/admin.css",
       "area": "theme-and-layout",
-      "sha256": "ee8adf82a6719da935cd94aa52b9bbd628f0d5270b7d2f4dadf304c525ce1b4b",
-      "disposition": "reviewed-retained",
+      "sha256": "bc2112469e77afbf59f1d9779e522371ee93e052d590ab7df14abfe47f466f1f",
+      "disposition": "updated",
       "evidence": [
+        "2026-09-14 PR #364 no dividers: removes row, column and section separator borders; grids group with spacing tokens. Source changed since recorded SHA-256 ee8adf82a6719da935cd94aa52b9bbd628f0d5270b7d2f4dadf304c525ce1b4b; earlier audit references are historical. src/styles/no-dividers.test.ts and focused component tests pass; browser QA pending.",
         "docs/design/admin-workspace/shared-shell-audit.md: exact-byte source review; findings and verification limits retained."
       ]
     },
@@ -2546,6 +2551,15 @@
       "disposition": "pending",
       "evidence": [
         "docs/design/admin-workspace/shared-shell-audit.md: exact-hash source review; findings and verification limits remain explicit."
+      ]
+    },
+    {
+      "path": "apps/admin/src/styles/no-dividers.test.ts",
+      "area": "tests",
+      "sha256": "90ceafa6a52ca554bd0629546df910d75514f4b2b5593f35e715040868b9892e",
+      "disposition": "updated",
+      "evidence": [
+        "2026-09-14 PR #364 no dividers: new guard for divider components and props, Table dividers, the table header reset and one-sided stylesheet borders against an allowlist of kept edges. Fixture cases fail against the earlier patterns and pass now."
       ]
     },
     {
@@ -3224,9 +3238,10 @@
     {
       "path": "apps/admin/src/components/life/LifeActivityView.tsx",
       "area": "life",
-      "sha256": "60e6428c393cfb097e815b82e50ecb6e894b6d6be809b043f7ca1707bb03ec08",
-      "disposition": "reviewed-retained",
+      "sha256": "baf1a91e1fdb5da6ef9bc55814cb9cc27da4711be255ae7560025d6547eeb35a",
+      "disposition": "updated",
       "evidence": [
+        "2026-09-14 PR #364 no dividers: List drops hasDividers. Source changed since recorded SHA-256 60e6428c393cfb097e815b82e50ecb6e894b6d6be809b043f7ca1707bb03ec08; earlier audit references are historical. src/styles/no-dividers.test.ts and focused component tests pass; browser QA pending.",
         "docs/design/admin-workspace/remaining-supporting-ui-audit.md: exact-byte source review; findings and verification limits retained."
       ]
     },
