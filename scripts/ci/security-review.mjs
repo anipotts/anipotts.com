@@ -1,10 +1,6 @@
 #!/usr/bin/env node
 
 import { readFileSync } from "node:fs";
-import {
-  auditAstroAdvisories,
-  formatAdvisoryFinding,
-} from "./astro-advisory-guard.mjs";
 
 const DEPENDENCY_ROOTS = new Set([
   "package.json",
@@ -273,14 +269,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   }
 
   const findings = reviewFiles(files);
-  // Advisory reachability is a repository property: a lockfile, config or
-  // template edit outside the sensitive paths can reopen a sink, so the guard
-  // always inspects the whole checkout.
-  const advisories = auditAstroAdvisories(process.cwd()).findings;
-  if (findings.length > 0 || advisories.length > 0) {
+  if (findings.length > 0) {
     printFindings(findings);
-    for (const finding of advisories)
-      console.error(formatAdvisoryFinding(finding));
     process.exit(1);
   }
 

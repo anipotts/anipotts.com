@@ -7,8 +7,10 @@ installs @astrojs/react 4.4.2. Scanners flag three Astro advisories against that
 version. Each sink was traced through the installed packages and is unreachable
 in both workers. The Astro major upgrade is scheduled separately.
 
-`scripts/ci/astro-advisory-guard.mjs` fails the required Security Review check
-when a change would make any of them reachable before that upgrade.
+`config/astro/advisory-guard.mjs` is an Astro integration in both apps. It fails
+every build and dev server start, including CI and deploy builds, when the
+resolved config or the real module graph would make any of them reachable before
+that upgrade. Config line references below are to this branch.
 
 | Advisory            | Severity | Affected      | First fixed | www           | admin         |
 | ------------------- | -------- | ------------- | ----------- | ------------- | ------------- |
@@ -43,8 +45,8 @@ Why it is not reachable:
 - Astro imports sharp in one place, `dist/assets/services/sharp.js:16`, and only
   loads that file when the image service entrypoint is
   `astro/assets/services/sharp`.
-- Both apps set `imageService: "passthrough"`: `apps/www/astro.config.mjs:26`
-  and `apps/admin/astro.config.mjs:59`. The adapter maps that value to
+- Both apps set `imageService: "passthrough"`: `apps/www/astro.config.mjs:27`
+  and `apps/admin/astro.config.mjs:64`. The adapter maps that value to
   `passthroughImageService()` for every command (`dist/utils/image-config.js:4-5`,
   called from `dist/index.js:96`), which is `astro/assets/services/noop`
   (astro `dist/config/entrypoint.js:12-17`). The noop `transform` returns the
@@ -69,19 +71,16 @@ Astro upgrade does not change that copy, so this guard does not cover it.
 
 Guard rule, per app while its installed astro is below 7.2.8:
 
-- the adapter is imported from `@astrojs/cloudflare` and every top-level
-  `imageService` in its options is the literal `"passthrough"`
-  (`image_service_not_passthrough`). A nested key such as
-  `platformProxy.imageService` does not count.
-- the config does not reference `sharpImageService` or
-  `astro/assets/services/sharp` (`sharp_image_service`)
-- the exported config is an inline object, and its top-level `image` key, in
-  any key form, is an inline object (`image_config_unverifiable`) without
-  `domains` or `remotePatterns` (`image_remote_sources`)
-- app sources, package sources and local modules a worker entry imports do not
-  import `astro:assets` (`astro_assets_import`) or sharp (`sharp_import`), call
-  `getImage` (`get_image_call`), or render `<Image>` or `<Picture>` in `.astro`
-  or `.mdx` (`astro_assets_component`)
+- `astro:config:done`: the resolved `config.adapter.name` is
+  `@astrojs/cloudflare`, the resolved `config.image.service.entrypoint` is
+  `astro/assets/services/noop`, and `config.image.domains` and
+  `config.image.remotePatterns` are empty. `imageService: "compile"` resolves to
+  `astro/assets/services/sharp` and `"cloudflare"` to
+  `@astrojs/cloudflare/image-service`, so both fail.
+- Vite `resolveId`: an authored module (`.astro`, `.mdx`, `.js`, `.jsx`, `.ts`,
+  `.tsx` and their `m`/`c` variants) under `apps/*/src` or `packages/*/src`
+  does not import `astro:assets`, `astro/assets`, `astro/assets/services/sharp`
+  or `sharp`.
 
 Remove the rule after the Astro 7 upgrade, once both apps install astro 7.2.8 or
 later.
@@ -107,13 +106,13 @@ Why it is not reachable:
   (`dist/entrypoints/server.js:3-8`) is the only code in the adapter that
   creates an App and renders. The static assets binding matches on pathname
   only, so the Host cannot send the fetch anywhere else.
-- www uses the adapter's default entry (`apps/www/astro.config.mjs:24-27`).
+- www uses the adapter's default entry (`apps/www/astro.config.mjs:25-28`).
   `src/pages/404.astro` is prerendered, so the 404 branch can run, but it reads
   through ASSETS (`apps/www/wrangler.toml:32-37`). `/500` matches only
   `src/pages/[...catchall].ts`, which is on demand (`prerender = false` at `:3`),
   so errors render in process.
 - admin sets `workerEntryPoint: ./src/worker.ts`
-  (`apps/admin/astro.config.mjs:53-60`). That file only spreads the adapter's
+  (`apps/admin/astro.config.mjs:58-65`). That file only spreads the adapter's
   `createExports` and adds `EditorialDraftStore`
   (`apps/admin/src/worker.ts:2-6`). Admin has no 404 or 500 page, so Astro's
   injected default 404 is not prerendered and the fetch branch never runs.
@@ -122,18 +121,12 @@ Why it is not reachable:
 
 Guard rule, per app while its installed astro is below 6.4.6:
 
-- the adapter is imported from `@astrojs/cloudflare` (`adapter_not_cloudflare`)
-- a `workerEntryPoint` is a literal relative path to an existing file
-  (`worker_entry_unverifiable`)
-- in any app source, package source, worker entry or local module that entry
-  imports, a file that imports `astro/app` or `astro/app/node`, or references
-  `NodeApp` or `createRequestFromNodeRequest`, passes
-  `prerenderedErrorPageFetch` to every `.render(` call
-  (`render_without_error_page_fetch`)
-- no `prerenderedErrorPageFetch` property or variable uses global fetch: bare
-  `fetch`, `globalThis.fetch`, `self.fetch` or `window.fetch`
-  (`global_error_page_fetch`). A fetcher passed through another name is not
-  traced.
+- `astro:config:done`: the resolved `config.adapter.name` is
+  `@astrojs/cloudflare`, whose handler always passes the ASSETS-backed
+  `prerenderedErrorPageFetch`.
+- Vite `resolveId`: an authored module under `apps/*/src` or `packages/*/src`,
+  which includes admin's `src/worker.ts`, does not import `astro/app` or
+  `astro/app/node`.
 
 Remove the rule after the Astro 7 upgrade, once both apps install astro 6.4.6 or
 later.
@@ -156,8 +149,9 @@ Why it is not reachable:
 
 - The sink sits after the early return for components without a hydration
   directive (`component.js:246`) and skips the key `default`.
-- www is `output: "static"` with only astro-icon and no framework renderer
-  (`apps/www/astro.config.mjs:12` and `:28`), so it has no hydrated islands.
+- www is `output: "static"` with astro-icon, the advisory guard and no framework
+  renderer (`apps/www/astro.config.mjs:13` and `:29-31`), so it has no hydrated
+  islands.
 - admin meets the other preconditions, but no `.astro` file sets a `slot`
   attribute. The two hydrated components with children pass only an unnamed
   `<slot />` (`apps/admin/src/layouts/AdminLayout.astro:78-90` and
@@ -170,55 +164,72 @@ Why it is not reachable:
 - React's attribute escaping is not a mitigation. An escaped key fails the
   comparison at `component.js:283`, which routes it into the line 293 sink.
 
-Guard rule, per app while its installed astro is below 6.3.3, over `.astro` and
-`.mdx` files in `apps/*/src` and `packages/*/src`:
+Guard rule, per app while its installed astro is below 6.3.3, over each `.astro`
+file under `apps/*/src` or `packages/*/src` that the build or dev server loads:
 
-- `slot={...}` and backtick `slot` values in markup are string literals
-  (`dynamic_slot_name`). Client `<script>` and `<style>` bodies are skipped.
-- `Astro.slots.render`, `Astro.slots.has` and `<slot name={...}>` use string
-  literal names (`dynamic_slot_lookup`)
+- a `slot` attribute value is a plain string literal: `slot="x"`, `slot='x'`,
+  `slot={"x"}` or a backtick value without `${`. `slot={name}`, `slot = {name}`
+  and `slot={open ? "a" : "b"}` all fail, including a ternary between two
+  literals.
+- `Astro.slots.render(` and `Astro.slots.has(` take a string literal as their
+  first argument.
 
 Remove the rule after the Astro 7 upgrade, once both apps install astro 6.3.3 or
 later.
 
 ## Guard operation
 
-The Security Review workflow runs `node scripts/ci/security-review.mjs` on every
-pull request, including drafts, without installing dependencies. It calls the
-guard over the whole checkout. The guard reads each app's astro version from
-`apps/<app>/node_modules/astro/package.json` when installed and from the
-`pnpm-lock.yaml` importer otherwise. An unresolved version keeps every rule
-active.
+`config/astro/advisory-guard.mjs` exports one Astro integration. Both
+`apps/www/astro.config.mjs` and `apps/admin/astro.config.mjs` list it in
+`integrations`, so it runs in every `astro build`, `astro dev` and `astro check`
+for either app: local builds, `pnpm validate`, the CI build step and both deploy
+jobs. It reads only files Astro and Vite already load. The Security Review
+workflow does not run it.
 
-The guard reads script, `.astro` and `.mdx` files under each app's `src` and
-under `packages/*/src`. In a git checkout it lists them with
-`git ls-files --cached --others --exclude-standard`, so CI and Security Review
-scan the same files and gitignored outputs such as
-`packages/content/src/public/generated.ts` are never read. Without git it walks
-those directories. Rules match code only. Comments, regular expression literals
-and text inside string literals are ignored. A rule reads a string only as a
-whole literal, such as an import specifier, a config value or a slot name, and
-any literal whose entire value is `astro:assets` still fails. An article body
-that quotes an `astro:assets` import or a `getImage(` call cannot fail the check.
+- Version gating. At `astro:config:setup` the integration resolves
+  `astro/package.json` from the app root with `createRequire` and turns each rule
+  off once that version reaches the advisory's first fixed version. A prerelease
+  of the fixed version and an unreadable version keep the rule on. With every
+  rule off it adds no plugin, checks nothing and logs nothing.
+- Resolved config. `astro:config:done` runs after every integration's
+  `updateConfig`, including the adapter's image service mapping, so it checks the
+  final values rather than the options object. A failure throws
+  `AstroAdvisoryError` with the advisory id in the message and the fix in the
+  hint, for example
+  `GHSA-26w7-cxv4-gfx2: resolved image service is "astro/assets/services/sharp", not astro/assets/services/noop.`
+- Module graph. A Vite plugin with `enforce: "pre"` checks `resolveId` calls
+  before Astro's own resolvers. The importer must be a real file under
+  `apps/*/src` or `packages/*/src` after symlinks are resolved, so pnpm-linked
+  workspace packages count as `packages/*/src` and virtual `\0` ids,
+  `node_modules`, generated `.astro` directories and package `dist` output never
+  match. Only authored module types are checked: Astro compiles `.md` pages into
+  modules that import `astro:assets` for images and `.svg` imports into modules
+  that import `astro/assets/runtime`, and neither is written by an author. An
+  import the compiler drops as unused never resolves and never fails.
+- Slots. A `transform` hook on `.astro` ids under those source roots reads the
+  file from disk. Astro's own pre plugin compiles `.astro` before this hook
+  runs, so the code Vite passes in is already JavaScript. Frontmatter is blanked
+  before the attribute match, and a `const`, `let` or `var` declaration named
+  `slot` is not an attribute. Everything else is fail-closed: an HTML comment or
+  client script text shaped like `slot={x}` fails.
+- Failures print as
+  `GHSA-8hv8-536x-4wqp: apps/admin/src/layouts/AdminLayout.astro:90 slot attribute value is not a string literal. Fix: ...`
+  and stop the build. In dev the affected request returns 500 with the same
+  message in the terminal.
+- Release scope. `config/astro/**` is a turbo global dependency, so a guard
+  change invalidates every cached build. `scripts/ci/release-policy.mjs` maps it
+  to the `www` and `admin` deploy targets, so merging a guard change deploys both
+  apps.
+- Tests: `node --test config/astro/advisory-guard.test.mjs`, which
+  `pnpm test:workflows` and `pnpm test:ci-invariants` include.
 
-In `.astro` and `.mdx` markup, HTML comments are ignored, including inside
-`{...}` expressions. A `/` counts as a regular expression only when it closes on
-the same line and does not follow `}`, so `<Row item={item} />` and
-`{done}/{total}` stay markup. If text inside an expression, such as an
-apostrophe or a glob like `apps/*/src`, keeps the scanner from finding the
-closing brace, the rest of the file is read as markup again. Later comments,
-client scripts and styles are still handled.
+Not covered: files Vite never loads, sources outside `apps/*/src` and
+`packages/*/src`, and a slot name passed through a spread attribute.
 
-Each rule skips itself per app once that app's installed astro reaches the first
-fixed version. Findings print as
-`file:line advisory rule: summary (first fixed in astro X)`.
-
-- Local run: `node scripts/ci/astro-advisory-guard.mjs`
-- Tests: `pnpm test:security-review`, which `pnpm test:ci-invariants` includes
-
-After the Astro 7 upgrade lands, delete the guard and its test, the import and
-call in `scripts/ci/security-review.mjs`, the guard test in the
-`test:security-review` script, and this document.
+After the Astro 7 upgrade lands, delete `config/astro/advisory-guard.mjs` and its
+test, the import and `integrations` entry in both `astro.config.mjs` files, the
+`config/astro/**` entries in `turbo.json` and `scripts/ci/release-policy.mjs`
+with their test cases, the test in `test:workflows`, and this document.
 
 ## Recorded for Ani, not changed here
 
