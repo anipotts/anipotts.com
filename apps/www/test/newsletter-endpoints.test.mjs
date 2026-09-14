@@ -482,6 +482,27 @@ test("confirmed rows left with an unsubscribe suppression can opt in again", asy
   assert.equal(subscriber(db, "stuck@example.com").status, "confirmed");
 });
 
+test("a provider suppression row alone still blocks confirmation mail", async () => {
+  for (const status of ["pending", "confirmed", "unsubscribed", null]) {
+    const db = database();
+    const { env, messages } = environment(db);
+    const email = `bounced-${status ?? "new"}@example.com`;
+    // Only the suppression row records the bounce: the subscriber row, when
+    // present, carries no suppressed status or timestamp.
+    if (status) seedSubscriber(db, email, status);
+    seedSuppression(db, email, "bounce");
+
+    const response = await subscribe.POST({
+      request: subscribeRequest({ email }),
+      locals: locals(env),
+    });
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), JSON.stringify({ success: true }));
+    assert.equal(messages.length, 0, `${status ?? "new"} row was mailed`);
+    assert.equal(suppression(db, email)?.reason, "bounce");
+  }
+});
+
 test("confirmation sends are throttled per address", async () => {
   const db = database();
   const { env, messages } = environment(db);
