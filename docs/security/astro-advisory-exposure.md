@@ -195,11 +195,19 @@ under `packages/*/src`. In a git checkout it lists them with
 `git ls-files --cached --others --exclude-standard`, so CI and Security Review
 scan the same files and gitignored outputs such as
 `packages/content/src/public/generated.ts` are never read. Without git it walks
-those directories. Rules match code only. Comments and text inside string
-literals are ignored. A rule reads a string only as a whole literal, such as an
-import specifier, a config value or a slot name, and any literal whose entire
-value is `astro:assets` still fails. An article body that quotes an
-`astro:assets` import or a `getImage(` call cannot fail the check.
+those directories. Rules match code only. Comments, regular expression literals
+and text inside string literals are ignored. A rule reads a string only as a
+whole literal, such as an import specifier, a config value or a slot name, and
+any literal whose entire value is `astro:assets` still fails. An article body
+that quotes an `astro:assets` import or a `getImage(` call cannot fail the check.
+
+In `.astro` and `.mdx` markup, HTML comments are ignored, including inside
+`{...}` expressions. A `/` counts as a regular expression only when it closes on
+the same line and does not follow `}`, so `<Row item={item} />` and
+`{done}/{total}` stay markup. If text inside an expression, such as an
+apostrophe or a glob like `apps/*/src`, keeps the scanner from finding the
+closing brace, the rest of the file is read as markup again. Later comments,
+client scripts and styles are still handled.
 
 Each rule skips itself per app once that app's installed astro reaches the first
 fixed version. Findings print as

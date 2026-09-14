@@ -435,16 +435,14 @@ test("image, render and slot code quoted inside string data is not a finding", (
   );
 });
 
-test(`${IMAGE}: a URL in JSX text does not hide code on the same line`, () => {
+test(`${IMAGE}: a URL or slash in JSX text does not hide code on the same line`, () => {
   const file = "apps/admin/src/components/Credit.tsx";
-  assertOnly(
-    audit({
-      [file]:
-        "export const Credit = ({ src }) => <p>see https://x.test {getImage({ src })}</p>;\n",
-    }),
-    IMAGE,
-    [`${file}:get_image_call`],
-  );
+  for (const content of [
+    "export const Credit = ({ src }) => <p>see https://x.test {getImage({ src })}</p>;\n",
+    "export const Credit = ({ src }) => (\n  <p>\n    stored under: /{getImage({ src })}\n  </p>\n);\n",
+  ]) {
+    assertOnly(audit({ [file]: content }), IMAGE, [`${file}:get_image_call`]);
+  }
 });
 
 test("symlinked source files are scanned with and without git", () => {
@@ -655,6 +653,163 @@ test(`${SLOT}: dynamic slot names and lookups fail`, () => {
     [],
     "client scripts and styles do not set component slots",
   );
+});
+
+test("a self-closing tag inside an expression leaves later markup readable", () => {
+  for (const expression of [
+    '{robots && <meta name="robots" content={robots} />}',
+    "{items.map((item) => <WritingRow item={item} />)}",
+    "{open ? <Panel id={id} /> : null}",
+  ]) {
+    const layout = [
+      "---",
+      "const { robots, items, open, id } = Astro.props;",
+      "---",
+      "<html>",
+      "<head>",
+      expression,
+      "</head>",
+      "<body>",
+      "<!-- og images are static files; getImage() is off until astro 7 -->",
+      "<!-- <aside slot={section}>later</aside> -->",
+      "<slot />",
+      "<script>",
+      "  const slot = { start: performance.now(), end: 0 };",
+      "</script>",
+      "<style>",
+      '  [slot="a"] { color: red; }',
+      "</style>",
+      "</body>",
+      "</html>",
+      "",
+    ].join("\n");
+    assert.deepEqual(
+      audit({ "apps/www/src/layouts/Shell.astro": layout }).findings,
+      [],
+      `comments, scripts and styles after ${expression}`,
+    );
+
+    const file = "apps/admin/src/pages/sources.astro";
+    const page = [
+      expression,
+      "<p>Sources live in <code>apps/*/src</code>.</p>",
+      "<X client:load><div slot={tab}>x</div></X>",
+      "",
+    ].join("\n");
+    assertOnly(
+      audit({ [file]: page }),
+      SLOT,
+      [`${file}:dynamic_slot_name`],
+      `a slot after ${expression}`,
+    );
+  }
+
+  const file = "apps/admin/src/pages/progress.astro";
+  assertOnly(
+    audit({
+      [file]:
+        "<ul>{items.map((item) => <li>{item.done}/<X client:load><div slot={item.tab}>x</div></X></li>)}</ul>\n",
+    }),
+    SLOT,
+    [`${file}:dynamic_slot_name`],
+    "a slash after a brace in markup text is not a regular expression",
+  );
+});
+
+test("an expression the scanner cannot close is read as markup", () => {
+  const file = "apps/admin/src/pages/notes.astro";
+  assertOnly(
+    audit({
+      [file]: [
+        "{show && <code>apps/*/src</code>}",
+        "<X client:load><div slot={tab}>x</div></X>",
+        "",
+      ].join("\n"),
+    }),
+    SLOT,
+    [`${file}:dynamic_slot_name`],
+    "a glob in expression text must not hide the rest of the file",
+  );
+  assert.deepEqual(
+    audit({
+      [file]: [
+        "{show && <p>Ani's notes</p>}<p>it's here</p>",
+        "<!-- getImage() stays off until astro 7 -->",
+        "<script>",
+        "  const slot = { id: 1 };",
+        "</script>",
+        "",
+      ].join("\n"),
+    }).findings,
+    [],
+    "apostrophes in expression text must not hide later comments or scripts",
+  );
+});
+
+test("HTML comments inside markup expressions are ignored", () => {
+  const file = "apps/admin/src/pages/overlays.astro";
+  assert.deepEqual(
+    audit({
+      [file]: [
+        "{rows.length > 0 && (",
+        "  <X client:load>",
+        "    <td>{row.ahead} / {row.behind}</td>",
+        "    <!-- getImage() stays off until astro 7 -->",
+        "    <!-- <div slot={Astro.url.hash}>later</div> -->",
+        "  </X>",
+        ")}",
+        "",
+      ].join("\n"),
+    }).findings,
+    [],
+  );
+  assertOnly(
+    audit({
+      [file]:
+        "{open && (\n  <X client:load><!-- tab panel --><div slot={tab}>x</div></X>\n)}\n",
+    }),
+    SLOT,
+    [`${file}:dynamic_slot_name`],
+    "a comment in an expression must not hide the slot after it",
+  );
+});
+
+test(`${IMAGE}: regular expressions in inline config plugins keep the config readable`, () => {
+  const withPlugin = (body) =>
+    ADMIN_CONFIG.replace(
+      "    plugins: [\n",
+      `    plugins: [\n      {\n        name: "rewrite-local-imports",\n        apply: "build",\n        transform(code, id) {\n          if (!id.includes("/editorial/")) return;\n          ${body}\n        },\n      },\n`,
+    );
+  for (const body of [
+    "return code.replace(/from\\s+[\"']\\.\\/local[\"']/g, 'from \"./remote\"');",
+    "if (/\\{$/.test(code)) return;",
+    'return code.replace(/url\\(([^)]+)\\)/g, "$1");',
+    'return code.replace(/[\'"`]/g, "");',
+  ]) {
+    const config = withPlugin(body);
+    assert.notEqual(config, ADMIN_CONFIG, "the plugin fixture must apply");
+    assert.deepEqual(
+      audit({ "apps/admin/astro.config.mjs": config }).findings,
+      [],
+      body,
+    );
+    const compile = config.replace(
+      'imageService: "passthrough",',
+      'imageService: "compile",',
+    );
+    const report = audit({ "apps/admin/astro.config.mjs": compile });
+    assertOnly(
+      report,
+      IMAGE,
+      ["apps/admin/astro.config.mjs:image_service_not_passthrough"],
+      body,
+    );
+    assert.equal(
+      report.findings[0].line,
+      compile.split("\n").findIndex((line) => line.includes('"compile"')) + 1,
+      body,
+    );
+  }
 });
 
 test("each rule skips itself once the installed Astro reaches its fix", () => {

@@ -203,6 +203,14 @@ function blankRange(chars, start, stop) {
   }
 }
 
+function restoreRange(mask, start, stop) {
+  for (let index = start; index < stop; index += 1) {
+    mask.text[index] = mask.source[index];
+    mask.code[index] = mask.source[index];
+  }
+  mask.strings = mask.strings.filter((literal) => literal.end <= start);
+}
+
 function maskScript(source) {
   const mask = createMask(source);
   scanScript(mask, 0, source.length);
@@ -219,6 +227,17 @@ function scanScript(mask, start, end, closeBrace = false) {
   while (index < end) {
     const char = source[index];
     const next = source[index + 1];
+    // Markup inside an Astro expression can hold an HTML comment. An unclosed
+    // `<!--` stays text.
+    const htmlClose = source.startsWith("<!--", index)
+      ? source.indexOf("-->", index + 4)
+      : -1;
+    if (htmlClose !== -1 && htmlClose + 3 <= end) {
+      blankRange(mask.text, index, htmlClose + 3);
+      blankRange(mask.code, index, htmlClose + 3);
+      index = htmlClose + 3;
+      continue;
+    }
     // `https://` in JSX text is not a comment, and formatted code never puts
     // one directly after `word:`.
     const lineComment =
@@ -259,10 +278,19 @@ function scanScript(mask, start, end, closeBrace = false) {
       previous = char;
       continue;
     }
-    if (char === "/" && (previous === "" || /[(,=:[!&|?{};]/.test(previous))) {
-      index = Math.min(end, skipRegExp(source, index) + 1);
-      previous = "/";
-      continue;
+    // A regular expression is blanked like a string so its quotes and brackets
+    // cannot unbalance later scans. `}` does not start one: in JSX it precedes
+    // `/>` or text such as `{done}/{total}`, and formatted code never begins a
+    // statement with a regex after a block.
+    if (char === "/" && (previous === "" || /[(,=:[!&|?{;]/.test(previous))) {
+      const close = regExpEnd(source, index);
+      if (close !== -1 && close < end) {
+        blankRange(mask.text, index, close + 1);
+        blankRange(mask.code, index, close + 1);
+        previous = "/";
+        index = close + 1;
+        continue;
+      }
     }
     if (char === "{") {
       depth += 1;
@@ -325,18 +353,19 @@ function skipString(source, start) {
   return index;
 }
 
-function skipRegExp(source, start) {
+// The closing `/` of a regular expression that opens at start, or -1 when the
+// line ends first. An unclosed `/` is division or text, not a regex.
+function regExpEnd(source, start) {
   let inClass = false;
-  let index = start + 1;
-  while (index < source.length && source[index] !== "\n") {
+  for (let index = start + 1; index < source.length; index += 1) {
     const char = source[index];
-    if (char === "\\") index += 1;
+    if (char === "\n") return -1;
+    if (char === "\\" && source[index + 1] !== "\n") index += 1;
     else if (char === "[") inClass = true;
     else if (char === "]") inClass = false;
     else if (char === "/" && !inClass) return index;
-    index += 1;
   }
-  return index;
+  return -1;
 }
 
 // Split an .astro or .mdx file into its frontmatter script and its markup.
@@ -361,7 +390,15 @@ function scanMarkup(mask, start, end) {
   while (index < end) {
     const char = source[index];
     if (char === "{") {
-      index = scanScript(mask, index + 1, end, true) + 1;
+      const close = scanScript(mask, index + 1, end, true);
+      if (close < end) {
+        index = close + 1;
+        continue;
+      }
+      // No closing brace: text in the expression, such as an apostrophe or a
+      // glob, misled the script scan. Undo it and read the rest as markup.
+      restoreRange(mask, index + 1, end);
+      index += 1;
     } else if (inTag) {
       if (char === '"' || char === "'") {
         const close = source.indexOf(char, index + 1);
