@@ -1,6 +1,6 @@
 # Astro advisory exposure
 
-Recorded September 14, 2026 against `origin/main` at `9a5449a8`.
+Recorded September 14, 2026. Lockfile and config line references are to this branch after merging `origin/main` at `61b580c1`.
 
 Both apps install astro 5.18.2 with @astrojs/cloudflare 12.6.13. Admin also
 installs @astrojs/react 4.4.2. Scanners flag three Astro advisories against that
@@ -8,9 +8,10 @@ version. Each sink was traced through the installed packages and is unreachable
 in both workers. The Astro major upgrade is scheduled separately.
 
 `config/astro/advisory-guard.mjs` is an Astro integration in both apps. It fails
-every build and dev server start, including CI and deploy builds, when the
-resolved config or the real module graph would make any of them reachable before
-that upgrade. Config line references below are to this branch.
+every build, including CI and deploy builds, when the resolved config or the
+real module graph would make any of them reachable before that upgrade. In the
+dev server a config violation stops startup, and a module or slot violation
+returns a 500 for the affected request with the advisory in the terminal.
 
 | Advisory            | Severity | Affected      | First fixed | www           | admin         |
 | ------------------- | -------- | ------------- | ----------- | ------------- | ------------- |
@@ -33,7 +34,7 @@ sharp dependency to `^0.35.4`.
 Affected range: astro < 7.2.8.
 
 Installed versions: astro 5.18.2 resolves sharp 0.34.5 as an optional
-dependency (`pnpm-lock.yaml:8386` and `:8488`). sharp 0.34.5 bundles
+dependency (`pnpm-lock.yaml:8408` and `:8510`). sharp 0.34.5 bundles
 @img/sharp-libvips 1.2.4, whose `versions.json` records libheif 1.20.2. The
 linked libheif advisory GHSA-g89c-p67h-r497 covers libheif 1.22.0 through
 1.23.1, so Astro's own sharp copy is outside that range. This was read from the
@@ -64,7 +65,7 @@ Why it is not reachable:
   runtime (`dist/index.js:140`).
 
 Outside this advisory: miniflare 5 alpha resolves sharp 0.35.2
-(`pnpm-lock.yaml:10087` and `:10099`), which bundles libheif 1.23.0, inside the
+(`pnpm-lock.yaml:10109` and `:10121`), which bundles libheif 1.23.0, inside the
 libheif range. Miniflare loads it only to emulate an `[images]` binding or a
 `cf.image` fetch in local development, and neither is configured or used. The
 Astro upgrade does not change that copy, so this guard does not cover it.
@@ -205,7 +206,9 @@ workflow does not run it.
   match. Only authored module types are checked: Astro compiles `.md` pages into
   modules that import `astro:assets` for images and `.svg` imports into modules
   that import `astro/assets/runtime`, and neither is written by an author. An
-  import the compiler drops as unused never resolves and never fails.
+  unused import in `.astro` frontmatter is dropped by the compiler and never
+  resolves. In `.ts` and `.tsx`, `verbatimModuleSyntax` keeps unused and inline
+  `type` imports, so they still fail; use `import type { ... }` for types.
 - Slots. A `transform` hook on `.astro` ids under those source roots reads the
   file from disk. Astro's own pre plugin compiles `.astro` before this hook
   runs, so the code Vite passes in is already JavaScript. Frontmatter is blanked

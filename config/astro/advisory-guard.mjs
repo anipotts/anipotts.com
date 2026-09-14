@@ -1,6 +1,6 @@
 // Build-time guard for three Astro 5 advisories that are unreachable in these
 // workers today. It inspects the resolved Astro config and Vite's real module
-// graph during every build and dev server start, so it never parses source
+// graph during every build and dev server, so it never parses source
 // text beyond two raw `.astro` slot patterns. Each rule turns itself off once
 // the installed astro reaches that advisory's first fixed version.
 //
@@ -247,7 +247,7 @@ export function advisoryGuardVitePlugin({
       this.error(
         `${advisory}: ${importing.file} imports ${JSON.stringify(source)}, which is blocked until astro ${FIRST_FIXED[advisory]}. ` +
           (advisory === SHARP_DECODING
-            ? "Fix: serve the image from public/ with a plain <img>."
+            ? "Fix: serve the image from public/ with a plain <img>, or use import type for types only."
             : "Fix: render through the @astrojs/cloudflare handler instead of astro/app.") +
           ` See ${EXPOSURE_DOC}.`,
       );
