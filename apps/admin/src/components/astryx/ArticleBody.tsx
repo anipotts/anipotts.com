@@ -128,6 +128,7 @@ function VisualArticleBody({
     "insert" | "replace" | "crop" | "alt"
   >("insert");
   const [imagePending, setImagePending] = useState(false);
+  const [cropSrc, setCropSrc] = useState("");
   const [focused, setFocused] = useState(false);
   const [commandsOpen, setCommandsOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
@@ -333,6 +334,8 @@ function VisualArticleBody({
       next === "image" && !selectedImage ? {} : editor.getAttributes(next);
     setUrl(String(attrs[next === "link" ? "href" : "src"] ?? ""));
     setAlt(String(attrs.alt ?? ""));
+    // The crop source belongs to the opening target, like the bookmark above.
+    setCropSrc(mode === "crop" ? String(attrs.src ?? "") : "");
     setError("");
     setIncomingImage(null);
     setImageMode(mode);
@@ -614,11 +617,7 @@ function VisualArticleBody({
               {panel === "image" && imageMode !== "alt" && (
                 <ArticleImageUpload
                   key={panelGeneration}
-                  existingSrc={
-                    imageMode === "crop"
-                      ? String(editor?.getAttributes("image").src ?? "")
-                      : undefined
-                  }
+                  existingSrc={imageMode === "crop" ? cropSrc : undefined}
                   startCropping={imageMode === "crop"}
                   initialFile={incomingImage}
                   onPendingChange={setImagePending}
