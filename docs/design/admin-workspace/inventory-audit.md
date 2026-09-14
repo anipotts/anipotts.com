@@ -28,7 +28,7 @@ Ran six focused Vitest files at 02:38:57: inventory projection, inventory events
 
 ## Reviewed file snapshot
 
-`reviewed-retained` means source inspected and retained at this hash. `updated` means reviewed implementation introduced by this workstream, not released. `finding` identifies a planned narrow fix; it does not claim completion.
+`reviewed-retained` means source inspected and retained at this hash. `updated` means reviewed implementation introduced by this workstream, not released. `finding` identifies a planned narrow fix; it does not claim completion. `writing-inventory.ts` was removed as a confirmed orphan on 2026-09-14 (issue #358 knip audit); its row records the audited bytes of the deleted file.
 
 | File                                                        | SHA-256                                                            | Disposition       |
 | ----------------------------------------------------------- | ------------------------------------------------------------------ | ----------------- |

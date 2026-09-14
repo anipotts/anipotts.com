@@ -2,19 +2,29 @@
 @import "@fontsource-variable/instrument-sans";
 @import "@fontsource-variable/jetbrains-mono";
 
+/* Legacy tokens switch on the computed color-scheme, as Astryx tokens do.
+   AdminLayout sets that scheme inline, so system mode needs no data-theme. */
 :root {
-  color-scheme: light;
-  --color-background: #f7faff;
-  --color-surface: #ffffff;
-  --color-surface-elevated: #edf2f7;
-  --color-text: #0b1220;
-  --color-text-muted: #46566c;
-  --color-action: #25689f;
-  --color-action-ink: #ffffff;
-  --color-border: #d4dce7;
-  --color-border-strong: #8d9bad;
+  --color-background: light-dark(#f7faff, var(--brand-dark-background));
+  --color-surface: light-dark(#ffffff, var(--brand-elevated-surface));
+  --color-surface-elevated: light-dark(#edf2f7, var(--brand-elevated-surface));
+  --color-text: light-dark(#0b1220, var(--brand-primary-text));
+  --color-text-muted: light-dark(#46566c, var(--brand-muted-text));
+  --color-action: light-dark(#25689f, var(--brand-action));
+  --color-action-ink: light-dark(#ffffff, #07111a);
+  --color-border: light-dark(
+    #d4dce7,
+    color-mix(in srgb, var(--brand-muted-text) 22%, transparent)
+  );
+  --color-border-strong: light-dark(
+    #8d9bad,
+    color-mix(in srgb, var(--brand-muted-text) 42%, transparent)
+  );
   --color-focus: #25689f;
-  --color-accent-soft: #dcecf9;
+  --color-accent-soft: light-dark(
+    #dcecf9,
+    color-mix(in srgb, var(--brand-action) 18%, transparent)
+  );
   --mono: var(--sans);
   --p-h1: clamp(2rem, 4vw, 2.9rem);
   --p-h3: 1.25rem;
@@ -24,24 +34,22 @@
   --lh-body: 1.65;
   --lh-tight: 1.1;
   --panel: var(--surface);
-  --panel-strong: color-mix(
-    in srgb,
-    var(--brand-dark-blue) 8%,
-    var(--brand-white)
+  --panel-strong: light-dark(
+    color-mix(in srgb, var(--brand-dark-blue) 8%, var(--brand-white)),
+    var(--brand-elevated-surface)
   );
   --text: var(--ink);
   --muted: var(--ink-muted);
-  --risk: #b45309;
-  --danger-border: #c2410c;
-  --danger-text: #9a3412;
+  --risk: light-dark(#b45309, #f9e2af);
+  --danger-border: light-dark(#c2410c, #f38ba8);
+  --danger-text: light-dark(#9a3412, #f38ba8);
   --inverse-ink: var(--interactive-ink);
-  --field-surface: color-mix(
-    in srgb,
-    var(--brand-dark-blue) 2%,
-    var(--brand-white)
+  --field-surface: light-dark(
+    color-mix(in srgb, var(--brand-dark-blue) 2%, var(--brand-white)),
+    var(--brand-elevated-surface)
   );
-  --warn-border: #d6a950;
-  --warn-surface: #fbf4dd;
+  --warn-border: light-dark(#d6a950, #f9e2af);
+  --warn-surface: light-dark(#fbf4dd, var(--brand-elevated-surface));
 }
 
 /* quiet admin console */
@@ -1480,19 +1488,6 @@ html[data-theme="dark"] .admin-mobile-brand {
 
 html {
   background: var(--bg);
-  color-scheme: light;
-}
-
-html[data-theme="dark"] {
-  color-scheme: dark;
-  --panel-strong: var(--color-surface-elevated);
-  --risk: #f9e2af;
-  --danger-border: #f38ba8;
-  --danger-text: #f38ba8;
-  --inverse-ink: var(--interactive-ink);
-  --field-surface: var(--color-surface);
-  --warn-border: #f9e2af;
-  --warn-surface: var(--color-surface);
 }
 
 * {

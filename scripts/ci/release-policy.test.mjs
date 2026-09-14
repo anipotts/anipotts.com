@@ -321,6 +321,14 @@ for (const path of [".gitignore", ".prettierignore"]) {
   assert.equal(release.ci_policy_changed, true);
   assert.equal(Object.values(release.deploy_targets).some(Boolean), false);
 }
+// A knip config change is CI policy with no deploy; unknown would fail Classify and deploy.
+const knipConfig = classifyRelease(["M\tknip.jsonc"], base);
+assert.equal(knipConfig.risk, "automatic");
+assert.equal(knipConfig.ci_policy_changed, true);
+assert.equal(Object.values(knipConfig.deploy_targets).some(Boolean), false);
+for (const path of ["knip.json", "knip.jsonc.bak", "config-knip.jsonc"]) {
+  assert.equal(classifyRelease([`A\t${path}`], base).risk, "unknown", path);
+}
 const astryxPatch = classifyRelease(
   ["M\tpatches/@astryxdesign__core@0.4.6.patch"],
   base,
