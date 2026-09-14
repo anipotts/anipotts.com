@@ -2,9 +2,10 @@ import type { APIRoute } from "astro";
 
 export const prerender = false;
 
-/** on-demand catch-all. with `run_worker_first = false`, the asset
- *  binding serves all prerendered HTML directly; the worker only fires
- *  for paths with no static file. for those, middleware runs first
+/** on-demand catch-all. wrangler.toml sets `run_worker_first = true`, so
+ *  every request reaches src/worker.ts, which adds the security headers.
+ *  the adapter still answers prerendered HTML and static files from ASSETS
+ *  before middleware. for paths with no static file, middleware runs first
  *  (handling legacy redirects such as /thoughts and /making), and if it doesn't
  *  redirect, this catchall renders the prerendered 404 page. */
 export const GET: APIRoute = async ({ request, locals }) => {

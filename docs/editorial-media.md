@@ -170,17 +170,24 @@ framing; the ordinary link is the fallback.
 
 ## Deployment policy before the first embed
 
-The current `apps/www/src/middleware.ts` response policy uses `default-src
-'self'` without a `frame-src` directive and sends `X-Frame-Options: DENY` on HTML.
-The components do not change that policy. Before adding an actual embedded
-source, check the headers of both the article and the embedded document:
+The www response policy lives in `apps/www/src/lib/security-headers.ts`. The
+Worker entry applies it to every response on every www host, including
+prerendered pages, static files such as `/demos/*.html`, redirects and API
+responses. It uses `default-src 'self'` without a `frame-src` directive and
+sends `X-Frame-Options: DENY`. The baseline replaces any value a route sets, so
+a route cannot relax it on its own. The components do not change that policy.
+Before adding an actual embedded source, check the headers of both the article
+and the embedded document:
 
 - A YouTube player needs the parent page to allow
   `https://www.youtube-nocookie.com` in a narrowly scoped `frame-src` policy.
 - A selected remote demo needs its exact origin allowed by the parent policy
   and must itself allow framing.
-- A local `/demos/` document must have a route-specific framing policy that
-  permits the site's article pages. Do not loosen the site's general anti-framing
+- A local `/demos/` document is blocked today by its own `X-Frame-Options: DENY`,
+  even though the parent's `default-src 'self'` permits same-origin frames.
+  Before the first local demo ships, add a scoped exception for `/demos/` only
+  in `security-headers.ts`, with a test. One option is `SAMEORIGIN` framing
+  plus `frame-ancestors 'self'`. Do not loosen the site's general anti-framing
   policy just to support a demo. Check the opaque sandbox origin during this
   verification.
 - Keep local video and caption assets as the default. A remote video also needs
