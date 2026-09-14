@@ -182,7 +182,7 @@ export function EditorialApp({
       >
         <VStack
           gap={editorRecord?.kind === "writing" ? 4 : 6}
-          className={`editorial-content${editorRecord?.kind === "writing" ? " writing-content" : ""}`}
+          className={`editorial-content${groups ? " editorial-library-page" : ""}${editorRecord?.kind === "writing" ? " writing-content" : ""}`}
         >
           {(review || editHome || editorRecord || newWriting) && (
             <Breadcrumbs variant="supporting">
