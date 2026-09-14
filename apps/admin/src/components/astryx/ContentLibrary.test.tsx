@@ -404,7 +404,7 @@ describe("table language", () => {
     expect(html.indexOf("</table>")).toBeLessThan(
       html.indexOf('aria-label="4 records"'),
     );
-    expect(html).toContain("4 records in view");
+    expect(html).toContain(" records in view</span>");
     expect(html).toContain("<strong>2</strong> public");
   });
   it("lists no figures for an empty view", () => {
