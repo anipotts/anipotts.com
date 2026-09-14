@@ -75,8 +75,49 @@
   flex-shrink: 0;
 }
 .editorial-record-count {
-  margin-inline-start: auto;
   white-space: nowrap;
+}
+/* Surface ladder: the canvas, then a raised table, then tinted chips inside
+   it. Depth comes from tint, never from rules. The Astryx scroll wrapper is
+   the raised element, so rounded corners clip row hover tints. */
+/* The content canvas is the body colour so raised tables read as panels.
+   AppShell paints main with a StyleX rule of specificity (3,0,1), so this
+   selector carries the same :not(#\#) chain to win without !important. */
+#astryx-app-shell-main:not(#\#):not(#\#):not(#\#) {
+  background: var(--color-background-body);
+}
+.editorial-library .astryx-table-scroll-wrapper,
+.operations-results .astryx-table-scroll-wrapper,
+.life-record-library .astryx-table-scroll-wrapper {
+  background: var(--color-background-surface);
+  border-radius: var(--radius-container);
+  padding-block: var(--spacing-1);
+}
+.editorial-library .astryx-table-cell:first-child,
+.editorial-library .astryx-table-header-cell:first-child,
+.operations-results .astryx-table-cell:first-child,
+.operations-results .astryx-table-header-cell:first-child,
+.life-record-library .astryx-table-cell:first-child,
+.life-record-library .astryx-table-header-cell:first-child {
+  padding-inline-start: var(--spacing-4);
+}
+.editorial-library .astryx-table-cell:last-child,
+.editorial-library .astryx-table-header-cell:last-child,
+.operations-results .astryx-table-cell:last-child,
+.operations-results .astryx-table-header-cell:last-child,
+.life-record-library .astryx-table-cell:last-child,
+.life-record-library .astryx-table-header-cell:last-child {
+  padding-inline-end: var(--spacing-4);
+}
+/* Summary strip under a table: the count that screen readers hear, then the
+   figures that describe what is in view. */
+.admin-table-footer {
+  padding-inline: var(--spacing-4);
+  font-variant-numeric: tabular-nums;
+}
+.admin-table-footer .admin-table-figure strong {
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--color-text-primary);
 }
 .editorial-filter-row {
   flex-wrap: nowrap;

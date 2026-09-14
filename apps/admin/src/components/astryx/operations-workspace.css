@@ -28,8 +28,8 @@
   min-width: min(100%, calc(var(--spacing-12) * 4));
 }
 
+/* The count leads the summary strip under the table. */
 .operations-workspace .operations-count {
-  margin-inline-start: auto;
   white-space: nowrap;
 }
 

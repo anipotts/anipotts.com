@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   ContentLibrary,
   changedFieldSummary,
+  libraryFigures,
   matchingRecords,
   recentlyUpdated,
   Updated,
@@ -363,5 +364,50 @@ describe("Recently edited actions", () => {
     expect(changedFieldSummary(["title"])).toBe("title");
     expect(changedFieldSummary([])).toBe("Source changes");
     expect(changedFieldSummary(["a", "b", "c"])).not.toContain("\u00b7");
+  });
+});
+
+describe("table language", () => {
+  const mixed = [
+    { title: "Live", href: "/content/writing/live", status: "published" },
+    { title: "Draft", href: "/content/writing/draft", status: "draft" },
+    {
+      title: "Pending",
+      href: "/content/writing/pending",
+      status: "published",
+      changesPending: true,
+    },
+    { title: "Quiet", href: "/content/writing/quiet", status: "hidden" },
+  ];
+  it("tints only public states and sums the view under the table", () => {
+    const html = renderToStaticMarkup(
+      <ContentLibrary
+        groups={[
+          { name: "writing", href: "/content?group=writing", records: mixed },
+        ]}
+        selectedGroup="writing"
+      />,
+    );
+    // Public states carry the green tint; every other state stays neutral.
+    // Each row renders its state twice: the State column and the stack that
+    // replaces it on narrow screens.
+    expect(html.match(/astryx-token green/g)).toHaveLength(4);
+    expect(html.match(/astryx-token default/g)).toHaveLength(4);
+    expect(libraryFigures(mixed)).toEqual([
+      ["public", 2],
+      ["drafts", 1],
+      ["hidden", 1],
+      ["with changes pending", 1],
+    ]);
+    // The count that screen readers hear sits under the table, once.
+    expect(html.match(/editorial-record-count"/g)).toHaveLength(1);
+    expect(html.indexOf("</table>")).toBeLessThan(
+      html.indexOf('aria-label="4 records"'),
+    );
+    expect(html).toContain("4 records in view");
+    expect(html).toContain("<strong>2</strong> public");
+  });
+  it("lists no figures for an empty view", () => {
+    expect(libraryFigures([])).toEqual([]);
   });
 });

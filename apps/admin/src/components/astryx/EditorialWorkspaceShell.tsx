@@ -11,6 +11,7 @@ import {
 } from "../../lib/content-library-state";
 import type { ThemePreference } from "@anipotts/brand/theme";
 import { HStack } from "@astryxdesign/core/HStack";
+import { Text } from "@astryxdesign/core/Text";
 import { Popover } from "@astryxdesign/core/Popover";
 import "./WorkspaceHeader.css";
 import { VStack } from "@astryxdesign/core/VStack";
@@ -282,6 +283,7 @@ export function EditorialWorkspaceShell({
   localPreview,
   localOwner = false,
   searchEntries,
+  groupCounts,
   workspace = "content",
   navigationContent,
   palette,
@@ -289,6 +291,8 @@ export function EditorialWorkspaceShell({
   children: ReactNode;
   area: "content" | "newsletter";
   selectedGroup?: string;
+  /** Record count per navigation id, shown at the end of the nav item. */
+  groupCounts?: Readonly<Record<string, number>>;
   recordKind?: string;
   mode: ThemePreference;
   changeTheme: (mode: ThemePreference) => void;
@@ -469,6 +473,18 @@ export function EditorialWorkspaceShell({
                     href={destination(id)}
                     isSelected={selected === id}
                     icon={<Icon size={18} aria-hidden="true" />}
+                    endContent={
+                      groupCounts?.[id] === undefined ? undefined : (
+                        <Text
+                          type="supporting"
+                          color="secondary"
+                          className="editorial-nav-count"
+                          aria-label={`${groupCounts[id]} ${groupCounts[id] === 1 ? "record" : "records"}`}
+                        >
+                          {groupCounts[id]}
+                        </Text>
+                      )
+                    }
                   />
                 ))}
               </SideNavSection>

@@ -148,6 +148,12 @@ describe("editorial catalog", () => {
     expect(html).toContain('href="/content/writing/music?returnTo=%2Fcontent"');
     expect(html).toContain("Continue draft");
     expect(html).toContain('aria-label="Writing records"');
+    // Each navigation item carries its record count.
+    expect(html).toMatch(
+      new RegExp(
+        `>Writing</span><span[^>]*><span[^>]*aria-label="${records.length} records">${records.length}<`,
+      ),
+    );
     expect(html).toContain("Appearance");
     expect(html.match(/aria-label="Appearance"/g)).toHaveLength(1);
     expect(html).toContain("Visit site");

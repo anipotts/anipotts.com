@@ -107,6 +107,24 @@ function interfaceLabel(value: string) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+/** Statuses the public site shows. Their chip is tinted; every other state
+ * stays neutral, so colour in a table always means "live on the site". */
+const PUBLIC_STATUSES = ["published", "featured", "listed"];
+
+/** Figures for the strip under a library table. Only non-zero figures render,
+ * so a filtered view describes what is in it rather than listing every state. */
+export function libraryFigures(records: readonly CatalogRecord[]) {
+  const count = (test: (record: CatalogRecord) => boolean) =>
+    records.filter(test).length;
+  const figures: Array<[label: string, value: number]> = [
+    ["public", count((record) => PUBLIC_STATUSES.includes(record.status))],
+    ["drafts", count((record) => record.status === "draft")],
+    ["hidden", count((record) => record.status === "hidden")],
+    ["with changes pending", count((record) => Boolean(record.changesPending))],
+  ];
+  return figures.filter(([, value]) => value > 0);
+}
+
 export function RecordStatus({
   status,
   changesPending,
@@ -114,11 +132,12 @@ export function RecordStatus({
   status: string;
   changesPending?: boolean;
 }) {
-  const visible = ["published", "featured", "listed"].includes(status);
+  const visible = PUBLIC_STATUSES.includes(status);
   return (
     <VStack gap={1}>
       <Token
         size="sm"
+        color={visible ? "green" : "default"}
         label={interfaceLabel(status)}
         icon={
           <StatusDot
@@ -522,24 +541,6 @@ export function ContentLibrary({
               <DropdownMenuRadioItem value="title" label="Title" />
             </DropdownMenuRadioGroup>
           </DropdownMenu>
-          <Text
-            type="supporting"
-            color="secondary"
-            aria-live="polite"
-            role="status"
-            aria-label={`${records.length} ${records.length === 1 ? "record" : "records"}`}
-            className="editorial-record-count"
-          >
-            {records.length}
-            <Text
-              type="supporting"
-              color="secondary"
-              className="editorial-record-count-label"
-            >
-              {" "}
-              {records.length === 1 ? "record" : "records"}
-            </Text>
-          </Text>
         </HStack>
       </HStack>
       {records.length ? (
@@ -661,6 +662,41 @@ export function ContentLibrary({
           }
         />
       )}
+      <HStack
+        gap={5}
+        wrap="wrap"
+        vAlign="center"
+        className="admin-table-footer editorial-filter-row"
+      >
+        <Text
+          type="supporting"
+          color="secondary"
+          aria-live="polite"
+          role="status"
+          aria-label={`${records.length} ${records.length === 1 ? "record" : "records"}`}
+          className="editorial-record-count"
+        >
+          {records.length}
+          <Text
+            type="supporting"
+            color="secondary"
+            className="editorial-record-count-label"
+          >
+            {" "}
+            {records.length === 1 ? "record" : "records"} in view
+          </Text>
+        </Text>
+        {libraryFigures(records).map(([label, value]) => (
+          <Text
+            key={label}
+            type="supporting"
+            color="secondary"
+            className="admin-table-figure"
+          >
+            <strong>{value}</strong> {label}
+          </Text>
+        ))}
+      </HStack>
     </VStack>
   );
 }
