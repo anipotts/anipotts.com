@@ -75,6 +75,34 @@ const InlineImage = Image.extend({
   },
 }).configure({ inline: true, allowBase64: false });
 
+/**
+ * useEditor reapplies its initial options on every render, so the initial and
+ * updated attributes come from one place. An empty aria-describedby references
+ * nothing, so the attribute is omitted when nothing describes the field.
+ */
+function fieldAttributes(
+  id: string,
+  label: string,
+  description?: string,
+  validationError?: string,
+) {
+  const describedBy = [
+    description ? `${id}-help` : "",
+    validationError ? `${id}-error` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return {
+    id,
+    role: "textbox",
+    "aria-label": label,
+    "aria-multiline": "true",
+    spellcheck: "true",
+    "aria-invalid": validationError ? "true" : "false",
+    ...(describedBy ? { "aria-describedby": describedBy } : {}),
+  };
+}
+
 export function RichTextField({
   label,
   description,
@@ -152,14 +180,7 @@ export function RichTextField({
         }
         return false;
       },
-      attributes: {
-        id,
-        role: "textbox",
-        "aria-label": label,
-        "aria-multiline": "true",
-        "aria-describedby": description ? `${id}-help` : "",
-        spellcheck: "true",
-      },
+      attributes: fieldAttributes(id, label, description, validationError),
     },
     onTransaction: ({ transaction }) => panelSelection.current.map(transaction),
     onUpdate: ({ editor }) => {
@@ -218,20 +239,7 @@ export function RichTextField({
     editor?.setEditable(!disabled, false);
     editor?.setOptions({
       editorProps: {
-        attributes: {
-          id,
-          role: "textbox",
-          "aria-label": label,
-          "aria-multiline": "true",
-          spellcheck: "true",
-          "aria-invalid": validationError ? "true" : "false",
-          "aria-describedby": [
-            description ? `${id}-help` : "",
-            validationError ? `${id}-error` : "",
-          ]
-            .filter(Boolean)
-            .join(" "),
-        },
+        attributes: fieldAttributes(id, label, description, validationError),
       },
     });
   }, [disabled, editor, id, label, description, validationError]);
