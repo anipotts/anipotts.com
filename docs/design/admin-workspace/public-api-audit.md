@@ -115,7 +115,7 @@ Before this PR, on `origin/main`:
 - `content/editor.ts:46-51` (publish write) returned `error.message` and parsed an unbounded body at `:21`, before `requireAdminMutation` at `:23`.
 - `content/draft-operation.ts:27-32` returned `error.message`.
 
-Every POST reached `request.json()` without a byte ceiling, so a malformed body also echoed the parser's message. This closes `api-audit.md` F2.
+Every POST reached `request.json()` without a byte ceiling, so a malformed body also echoed the parser's message. This closes `api-audit.md` F2 for these four routes. Its `/api/mcp` POST part stays open with F7.
 
 This PR adds `apps/admin/src/lib/admin-compatibility-request.ts`. It reads JSON through the existing `readEditorialJson` byte counter and answers 413 or 400 with a fixed code. Unknown exceptions collapse to a route-owned code while HTTP statuses stay as they were. Code-owned codes still pass through: relay and request contract codes on control-plane, and inbox validation codes with any caller-supplied suffix removed. Guard and library `Response` objects pass through untouched. Success bodies, statuses and headers are unchanged.
 
@@ -129,7 +129,7 @@ This PR adds `apps/admin/src/lib/admin-compatibility-request.ts`. It reads JSON 
 
 Each ceiling covers the route validator's largest accepted input with worst-case JSON escaping. The editor route still parses its now bounded body before `requireAdminMutation`, because the required capability depends on `action`. Reordering authorization in a publish-write route is left out of this change. `/api/mcp` POST still parses without a byte ceiling; it is held with F7.
 
-The SHA-256 fingerprints for these four route files in `api-audit.md` and `coverage.json` predate this change and need refreshing.
+`coverage.json` records the new SHA-256 for these four route files. The fingerprints in `api-audit.md` and `legacy-content-audit.md` are historical.
 
 ### F7: session fallback outside Access (held)
 
