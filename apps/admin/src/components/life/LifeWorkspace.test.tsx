@@ -112,6 +112,19 @@ describe("Life response surfaces", () => {
       expect(html).toContain("provisional");
     }
   });
+  it("counts a single record or source in the singular", () => {
+    const one = (section: "people" | "sources", items: unknown[]) =>
+      renderToStaticMarkup(
+        <LifeReadView
+          section={section}
+          result={result({ items, total: 1, next_offset: null })}
+        />,
+      );
+    expect(one("people", [record])).toContain("1 record shown of 1");
+    expect(
+      one("sources", [{ source_id: "synthetic-source", coverage: "full" }]),
+    ).toContain("1 source shown of 1");
+  });
   it("shows source coverage without treating discovery as ingestion", () => {
     const html = renderToStaticMarkup(
       <LifeReadView

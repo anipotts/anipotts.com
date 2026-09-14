@@ -25,6 +25,7 @@ import { Text } from "@astryxdesign/core/Text";
 import { Button } from "@astryxdesign/core/Button";
 import { List, ListItem } from "@astryxdesign/core/List";
 import { Token } from "@astryxdesign/core/Token";
+import { StatusDot } from "@astryxdesign/core/StatusDot";
 import {
   MetadataList,
   MetadataListItem,
@@ -137,10 +138,13 @@ export function LifeReadView({
   result,
   section,
   onSelect,
+  isStale = false,
 }: {
   result: LifeResult;
   section: LifeSection;
   onSelect?: (id: string) => void;
+  /** The latest refresh failed, so the ready result on screen is retained. */
+  isStale?: boolean;
 }) {
   if (result.state !== "ready") {
     const presentation = {
@@ -255,12 +259,33 @@ export function LifeReadView({
         </Text>
       </VStack>
     );
+  const noun = sources ? "source" : "record";
+  const count = `${items.length} ${items.length === 1 ? noun : `${noun}s`} shown${
+    typeof data.total === "number" ? ` of ${data.total}` : ""
+  }`;
   return (
     <VStack gap={3} className="life-record-library">
-      <Text type="supporting" color="secondary" role="status">
-        {items.length} {sources ? "sources" : "records"} shown
-        {typeof data.total === "number" ? ` of ${data.total}` : ""}
-      </Text>
+      <HStack gap={2} vAlign="center" wrap="wrap">
+        {/* A failed refresh keeps these rows; the status says so once instead
+            of presenting the retained figure as current. */}
+        <Text type="supporting" color="secondary" role="status">
+          {isStale ? `${count} from the last successful read` : count}
+        </Text>
+        {isStale && (
+          <Token
+            size="sm"
+            label="Not current"
+            icon={
+              <StatusDot
+                variant="warning"
+                label="Not current"
+                aria-hidden="true"
+                isPulsing={false}
+              />
+            }
+          />
+        )}
+      </HStack>
       {items.length > 0 ? (
         <Table
           className="life-record-table"
@@ -375,6 +400,9 @@ export function LifeExplorer({
   const [offsets, setOffsets] = useState([0]);
   const [busy, setBusy] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
+  // setSubmitted runs only on ready, so the failed request is kept for retry.
+  const failed = useRef<[string, number[]]>(["", [0]]);
   const [record, setRecord] = useState<Record<string, unknown> | null>(null);
   const [detailBusy, setDetailBusy] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -402,6 +430,7 @@ export function LifeExplorer({
         offset: history.at(-1) ?? 0,
       });
     } catch {
+      failed.current = [q, [0]];
       setListError("This page could not be continued. Try the search again.");
       return;
     }
@@ -415,9 +444,15 @@ export function LifeExplorer({
         setResult(next);
         setSubmitted(q);
         setOffsets(history);
-      } else if (next.state === "denied" || next.state === "disconnected")
+        setStale(false);
+      } else if (next.state === "denied" || next.state === "disconnected") {
         setResult(next);
-      else setListError("Records could not be refreshed. Try again.");
+        setStale(false);
+      } else {
+        failed.current = [q, history];
+        setStale(true);
+        setListError("Records could not be refreshed. Try again.");
+      }
     }
   }
   async function select(id: string) {
@@ -515,7 +550,9 @@ export function LifeExplorer({
       {(listError || pagingError) && (
         <RecoveryBanner
           title={listError ?? pagingError ?? "Read unavailable"}
-          onRetry={() => load(query, [0])}
+          onRetry={() =>
+            listError ? load(...failed.current) : load(query, [0])
+          }
         />
       )}
       {busy && result.state !== "ready" ? (
@@ -526,6 +563,7 @@ export function LifeExplorer({
             result={result}
             section={section}
             onSelect={reader ? (id) => void select(id) : undefined}
+            isStale={stale}
           />
         </VStack>
       )}

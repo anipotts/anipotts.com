@@ -168,6 +168,111 @@ describe("Life reader interactions", () => {
     expect(container.textContent).toContain("could not be refreshed");
     expect(container.textContent).not.toContain("private exception");
   });
+  it("marks retained rows as not current after a failed read until a later result", async () => {
+    const outcomes: LifeResult[] = [
+      { state: "unavailable", message: "fixture" },
+      { state: "invalid", message: "fixture" },
+      ready({
+        items: [record, { ...record, record_id: "rec-two", title: "Second" }],
+        total: 2,
+        next_offset: null,
+      }),
+      { state: "unavailable", message: "fixture" },
+      { state: "disconnected", message: "fixture" },
+    ];
+    const reader = vi.fn(async (_request: LifeRead) => outcomes.shift()!);
+    await act(async () =>
+      root.render(
+        <LifeExplorer
+          section="people"
+          initial={ready({ items: [record], total: 1, next_offset: null })}
+          reader={reader}
+        />,
+      ),
+    );
+    const count = () =>
+      container.querySelector('.life-record-library [role="status"]')
+        ?.textContent;
+    const submit = () =>
+      act(async () => {
+        container
+          .querySelector("form")!
+          .dispatchEvent(
+            new Event("submit", { bubbles: true, cancelable: true }),
+          );
+      });
+    expect(count()).toBe("1 record shown of 1");
+    expect(container.textContent).not.toContain("Not current");
+    await submit();
+    expect(container.textContent).toContain("Fixture record");
+    expect(container.textContent).toContain("could not be refreshed");
+    // The polite count stops presenting the retained figure as current.
+    expect(count()).toBe("1 record shown of 1 from the last successful read");
+    expect(container.textContent).toContain("Not current");
+    await submit();
+    expect(count()).toBe("1 record shown of 1 from the last successful read");
+    await submit();
+    expect(count()).toBe("2 records shown of 2");
+    expect(container.textContent).not.toContain("Not current");
+    expect(container.textContent).not.toContain("could not be refreshed");
+    await submit();
+    expect(container.textContent).toContain("Not current");
+    await submit();
+    expect(container.textContent).toContain("Life is not connected yet");
+    expect(container.textContent).not.toContain("Not current");
+    expect(count()).toBeUndefined();
+  });
+  it("retries the read that failed, not the typed query or the first page", async () => {
+    const requests: LifeRead[] = [];
+    const reader = async (request: LifeRead): Promise<LifeResult> => {
+      requests.push(request);
+      return requests.length < 4
+        ? { state: "unavailable", message: "fixture" }
+        : ready({ items: [record], total: 18, next_offset: null });
+    };
+    await act(async () =>
+      root.render(
+        <LifeExplorer
+          section="people"
+          initial={ready({ items: [record], total: 18, next_offset: 17 })}
+          reader={reader}
+        />,
+      ),
+    );
+    const type = (value: string) =>
+      act(() => {
+        const input = container.querySelector("input")!;
+        Object.getOwnPropertyDescriptor(
+          HTMLInputElement.prototype,
+          "value",
+        )!.set!.call(input, value);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    type("alice");
+    await act(async () => {
+      container
+        .querySelector("form")!
+        .dispatchEvent(
+          new Event("submit", { bubbles: true, cancelable: true }),
+        );
+    });
+    type("bob");
+    await click("Try again");
+    expect(requests).toEqual([
+      { method: "search", kind: "person", q: "alice", offset: 0 },
+      { method: "search", kind: "person", q: "alice", offset: 0 },
+    ]);
+    // A failed search never becomes the submitted query, so paging continues
+    // from the last successful read, and its retry keeps the requested page.
+    await click("Next");
+    await click("Try again");
+    expect(requests.slice(2)).toEqual([
+      { method: "search", kind: "person", q: "", offset: 17 },
+      { method: "search", kind: "person", q: "", offset: 17 },
+    ]);
+    expect(container.textContent).not.toContain("could not be refreshed");
+    expect(container.textContent).toContain("Previous");
+  });
   it("uses source pagination cursors and reads a selected revision contiguously", async () => {
     const requests: LifeRead[] = [];
     const reader = async (request: LifeRead) => {
@@ -259,6 +364,7 @@ describe("Life reader interactions", () => {
       await vi.advanceTimersByTimeAsync(1000);
     });
     expect(container.textContent).toContain("unavailable");
+    expect(container.textContent).toContain("1 record · 2026-01-01T00:00:00Z");
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2000);
     });
