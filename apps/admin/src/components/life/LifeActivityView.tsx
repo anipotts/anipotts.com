@@ -7,27 +7,43 @@ import { Token } from "@astryxdesign/core/Token";
 import { applyActivityPage, emptyActivity } from "../../lib/life-activity";
 import type { LifeReader } from "../../lib/life-read-session";
 
-/** Ephemeral bounded polling; no endpoint, persistence, or background service is created. */
+/** Ephemeral bounded polling while the page is visible; no endpoint,
+ * persistence, or background service is created. A denied read stops polling. */
 export function LifeActivityView({ reader }: { reader: LifeReader }) {
   const [window, setWindow] = useState(emptyActivity);
   const [state, setState] = useState<
-    "loading" | "catching_up" | "current" | "unavailable"
+    "loading" | "catching_up" | "current" | "unavailable" | "denied"
   >("loading");
   useEffect(() => {
     let disposed = false;
+    let stopped = false;
+    let polling = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let current = emptyActivity();
     let failures = 0;
+    let delay = 0;
     setWindow(current);
     setState("loading");
+    const schedule = () => {
+      clearTimeout(timer);
+      timer = undefined;
+      if (!disposed && !stopped && !polling && !document.hidden)
+        timer = setTimeout(() => void poll(), delay);
+    };
     async function poll() {
-      let delay = 1000;
+      timer = undefined;
+      polling = true;
       try {
         const result = await reader({
           method: "activity",
           after: current.cursor,
         });
         if (disposed) return;
+        if (result.state === "denied") {
+          stopped = true;
+          setState("denied");
+          return;
+        }
         if (result.state !== "ready") throw new Error("Unavailable");
         const next = applyActivityPage(current, result.data);
         if (next.cursor !== current.cursor) setWindow(next);
@@ -40,13 +56,25 @@ export function LifeActivityView({ reader }: { reader: LifeReader }) {
         failures += 1;
         setState("unavailable");
         delay = Math.min(5000, 1000 * 2 ** Math.min(failures, 3));
+      } finally {
+        polling = false;
       }
-      if (!disposed) timer = setTimeout(() => void poll(), delay);
+      schedule();
     }
-    void poll();
+    // Hidden pages read nothing. Returning to the page resumes with the delay
+    // the last read chose, so a long absence does not burst requests.
+    const visibilityChanged = () => {
+      if (document.hidden) {
+        clearTimeout(timer);
+        timer = undefined;
+      } else if (timer === undefined) schedule();
+    };
+    document.addEventListener("visibilitychange", visibilityChanged);
+    schedule();
     return () => {
       disposed = true;
       clearTimeout(timer);
+      document.removeEventListener("visibilitychange", visibilityChanged);
     };
   }, [reader]);
   return (
@@ -59,7 +87,9 @@ export function LifeActivityView({ reader }: { reader: LifeReader }) {
             ? "Catching up with recorded activity…"
             : state === "unavailable"
               ? "Activity is unavailable. Earlier observations are retained while reconnecting."
-              : "Connected to recorded activity."}
+              : state === "denied"
+                ? "This connection does not permit reading activity."
+                : "Connected to recorded activity."}
       </Text>
       <List density="compact" header={<Text>Recent checkpoints</Text>}>
         {[...window.items].reverse().map((item) => (

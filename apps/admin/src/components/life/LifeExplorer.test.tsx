@@ -444,4 +444,60 @@ describe("Life reader interactions", () => {
     await vi.advanceTimersByTimeAsync(10000);
     expect(requests).toHaveLength(count);
   });
+  it("reads activity only while visible and stops once a read is denied", async () => {
+    vi.useFakeTimers();
+    let hidden = false;
+    const visibility = Object.getOwnPropertyDescriptor(document, "hidden");
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      get: () => hidden,
+    });
+    const setHidden = (value: boolean) =>
+      act(async () => {
+        hidden = value;
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+    try {
+      let denied = false;
+      const requests: LifeRead[] = [];
+      const reader = async (request: LifeRead): Promise<LifeResult> => {
+        requests.push(request);
+        return denied
+          ? { state: "denied", message: "fixture" }
+          : ready({ items: [], next_cursor: 0 });
+      };
+      await act(async () => root.render(<LifeActivityView reader={reader} />));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(requests).toHaveLength(1);
+      await setHidden(true);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60000);
+      });
+      expect(requests).toHaveLength(1);
+      await setHidden(false);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+      });
+      expect(requests).toHaveLength(2);
+      denied = true;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+      });
+      expect(requests).toHaveLength(3);
+      expect(container.textContent).toContain(
+        "This connection does not permit reading activity.",
+      );
+      await setHidden(true);
+      await setHidden(false);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60000);
+      });
+      expect(requests).toHaveLength(3);
+    } finally {
+      if (visibility) Object.defineProperty(document, "hidden", visibility);
+      else Reflect.deleteProperty(document, "hidden");
+    }
+  });
 });
