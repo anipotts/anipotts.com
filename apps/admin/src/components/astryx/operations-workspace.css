@@ -51,6 +51,15 @@
 
 .operations-workspace .editorial-record-table .astryx-table-cell {
   padding-block: var(--spacing-3);
+  /* Wrap between words; break inside one only when it cannot fit at all. */
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+/* On phones the state and last observation move under the name, the way the
+   Content library keeps status with its title. */
+.operations-workspace .operations-mobile-status {
+  display: none;
 }
 
 .operations-workspace .operations-master-detail {
@@ -115,6 +124,25 @@
 @media (pointer: coarse) {
   .operations-workspace .operations-service-name {
     min-height: var(--spacing-11);
+  }
+}
+
+@media (max-width: 480px) {
+  .operations-workspace .editorial-record-table {
+    min-width: 0 !important;
+  }
+  .operations-workspace .editorial-record-table th:first-child {
+    width: auto !important;
+    min-width: 0 !important;
+  }
+  .operations-workspace .operations-inventory-table th:nth-child(n + 2),
+  .operations-workspace .operations-inventory-table td:nth-child(n + 2),
+  .operations-workspace .operations-evidence-table th:nth-child(2),
+  .operations-workspace .operations-evidence-table td:nth-child(2) {
+    display: none;
+  }
+  .operations-workspace .operations-mobile-status {
+    display: flex;
   }
 }
 

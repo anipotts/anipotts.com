@@ -449,7 +449,7 @@ export function ObservabilityWorkspace({
                   <Table
                     data={services}
                     idKey="id"
-                    className="editorial-record-table"
+                    className="editorial-record-table operations-inventory-table"
                     aria-label={title(view)}
                     density="compact"
                     dividers="none"
@@ -477,20 +477,47 @@ export function ObservabilityWorkspace({
                               : "Service",
                         width: proportional(2),
                         renderCell: (service) => (
-                          <Button
-                            label={label(service.id)}
-                            variant="ghost"
-                            className="operations-service-name"
-                            data-service-id={service.id}
-                            aria-expanded={selectedId === service.id}
-                            aria-controls={
-                              selectedId === service.id
-                                ? "operations-service-detail"
-                                : undefined
-                            }
-                            icon={<ServiceIcon id={service.id} />}
-                            onClick={() => setSelectedId(service.id)}
-                          />
+                          <VStack gap={1} hAlign="start">
+                            <Button
+                              label={label(service.id)}
+                              variant="ghost"
+                              className="operations-service-name"
+                              data-service-id={service.id}
+                              aria-expanded={selectedId === service.id}
+                              aria-controls={
+                                selectedId === service.id
+                                  ? "operations-service-detail"
+                                  : undefined
+                              }
+                              icon={<ServiceIcon id={service.id} />}
+                              onClick={() => setSelectedId(service.id)}
+                            />
+                            <HStack
+                              gap={2}
+                              vAlign="center"
+                              wrap="wrap"
+                              className="operations-mobile-status"
+                            >
+                              <StatusDot
+                                label={stateLabel(service.id)}
+                                variant={stateVariant(
+                                  deriveServiceState(service, now),
+                                )}
+                                aria-hidden="true"
+                              />
+                              <Text type="supporting">
+                                {stateLabel(service.id)}
+                              </Text>
+                              {service.lastObservedAt && (
+                                <Text type="supporting" color="secondary">
+                                  <Timestamp
+                                    value={service.lastObservedAt}
+                                    format="auto"
+                                  />
+                                </Text>
+                              )}
+                            </HStack>
+                          </VStack>
                         ),
                       },
                       {
@@ -530,7 +557,7 @@ export function ObservabilityWorkspace({
                   <Table
                     data={rows}
                     idKey="id"
-                    className="editorial-record-table"
+                    className="editorial-record-table operations-evidence-table"
                     density="compact"
                     dividers="none"
                     textOverflow="wrap"
@@ -540,7 +567,21 @@ export function ObservabilityWorkspace({
                         header: "Service",
                         width: proportional(1),
                         renderCell: (row) => (
-                          <Text weight="semibold">{row.service}</Text>
+                          <VStack gap={1}>
+                            <Text weight="semibold">{row.service}</Text>
+                            <HStack
+                              gap={2}
+                              vAlign="center"
+                              className="operations-mobile-status"
+                            >
+                              <StatusDot
+                                label={row.state}
+                                variant={evidenceVariant(row.state)}
+                                aria-hidden="true"
+                              />
+                              <Text type="supporting">{row.state}</Text>
+                            </HStack>
+                          </VStack>
                         ),
                       },
                       {
@@ -551,19 +592,7 @@ export function ObservabilityWorkspace({
                           <HStack gap={2} vAlign="center">
                             <StatusDot
                               label={row.state}
-                              variant={
-                                row.state === "Healthy" ||
-                                row.state === "Resolved" ||
-                                row.state === "Success"
-                                  ? "success"
-                                  : row.state === "Failed" ||
-                                      row.state === "Failure"
-                                    ? "error"
-                                    : row.state === "Stale" ||
-                                        row.state === "Disconnected"
-                                      ? "warning"
-                                      : "neutral"
-                              }
+                              variant={evidenceVariant(row.state)}
                               aria-hidden="true"
                             />
                             <Text>{row.state}</Text>
@@ -731,6 +760,15 @@ function stateVariant(state: ServiceState) {
     : state === "failed"
       ? "error"
       : state === "stale" || state === "disconnected"
+        ? "warning"
+        : "neutral";
+}
+function evidenceVariant(state: string) {
+  return state === "Healthy" || state === "Resolved" || state === "Success"
+    ? "success"
+    : state === "Failed" || state === "Failure"
+      ? "error"
+      : state === "Stale" || state === "Disconnected"
         ? "warning"
         : "neutral";
 }
