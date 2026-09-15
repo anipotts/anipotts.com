@@ -92,7 +92,7 @@ describe("sidebar rail choice", () => {
       compiled.exports.adminSidebarPrepaintScript!,
     ])
       for (const width of [390, 768, 769, 1024, 1279, 1280, 1440])
-        for (const values of [
+        for (const values of <Record<string, string>[]>[
           {},
           { "admin:sidebar-collapsed": "true" },
           { "admin:sidebar-collapsed": "false" },
