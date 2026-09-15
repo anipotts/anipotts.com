@@ -128,16 +128,28 @@ export function ObservabilityWorkspace({
       clearTimeout(timer);
       if (!stopped && automatic && !document.hidden)
         timer = setTimeout(
-          () => void refresh(),
+          () => void refresh(false),
           Math.max(0, nextAt - Date.now()),
         );
     };
-    async function refresh() {
-      if (stopped || active || document.hidden) return;
+    // Only a refresh the owner asked for shows the button's loading state. An
+    // automatic refresh updates the snapshot quietly, and the status sentence
+    // speaks only when the connection state changes.
+    let activeManual = false;
+    async function refresh(manual: boolean) {
+      if (stopped || document.hidden) return;
+      if (active) {
+        if (manual && !activeManual) {
+          activeManual = true;
+          setRefreshing(true);
+        }
+        return;
+      }
       clearTimeout(timer);
       const request = new AbortController();
       active = request;
-      setRefreshing(true);
+      activeManual = manual;
+      if (manual) setRefreshing(true);
       const current = () =>
         !stopped && active === request && !request.signal.aborted;
       try {
@@ -147,7 +159,11 @@ export function ObservabilityWorkspace({
           cache: "no-store",
           redirect: "error",
         });
-        if (!response.ok) throw new Error("unavailable");
+        if (!response.ok) {
+          // An unread error body would hold the request open until abort.
+          void response.body?.cancel().catch(() => undefined);
+          throw new Error("unavailable");
+        }
         const reader = response.body?.getReader();
         if (!reader) throw new Error("unavailable");
         let text = "";
@@ -187,6 +203,7 @@ export function ObservabilityWorkspace({
       } finally {
         if (current()) {
           active = null;
+          activeManual = false;
           setRefreshing(false);
           schedule();
         }
@@ -199,14 +216,18 @@ export function ObservabilityWorkspace({
         if (active) {
           active.abort();
           active = null;
+          activeManual = false;
           nextAt = Date.now();
           setRefreshing(false);
         }
       } else schedule();
     };
-    manualRefresh.current = () => void refresh();
+    manualRefresh.current = () => void refresh(true);
     document.addEventListener("visibilitychange", visibilityChanged);
-    if (automatic && !document.hidden) void refresh();
+    // The server rendered this snapshot moments ago. The first automatic read
+    // waits a full interval instead of repeating it at mount.
+    nextAt = Date.now() + 60000;
+    schedule();
     return () => {
       stopped = true;
       active?.abort();

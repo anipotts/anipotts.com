@@ -82,6 +82,7 @@ import {
 } from "../../lib/home-autosave";
 import type { Draft } from "../../editorial/draft-store";
 import type { HomeBase } from "../../lib/editorial-home-api";
+import { discardBody } from "../../lib/response-body";
 import type { PublishJob } from "../../editorial/publication-jobs";
 
 type Snapshot = {
@@ -455,7 +456,10 @@ function HomeEditorImpl({
       const response = await fetch("/api/editorial/csrf", {
         signal: AbortSignal.timeout(15000),
       });
-      if (!response.ok) throw new Error("session expired");
+      if (!response.ok) {
+        discardBody(response);
+        throw new Error("session expired");
+      }
       csrf.current = (await response.json()).csrf;
     }
     if (guard && !guard()) throw new Error("operation no longer current");
@@ -469,6 +473,7 @@ function HomeEditorImpl({
       body: JSON.stringify(body),
     });
     if (response.status === 401 || response.status === 403) {
+      discardBody(response);
       csrf.current = "";
       throw new Error("session expired");
     }
@@ -476,8 +481,10 @@ function HomeEditorImpl({
   }
   async function post(action: string, body: unknown, guard?: () => boolean) {
     const response = await postRequest(action, body, guard);
-    if (!response.ok && response.status !== 409)
+    if (!response.ok && response.status !== 409) {
+      discardBody(response);
       throw new Error("save unavailable");
+    }
     return response.json();
   }
   useEffect(() => {
@@ -492,7 +499,10 @@ function HomeEditorImpl({
     setError("");
     fetch(endpoint("record"), { signal: AbortSignal.timeout(15000) })
       .then(async (response) => {
-        if (!response.ok) throw new Error("draft storage unavailable");
+        if (!response.ok) {
+          discardBody(response);
+          throw new Error("draft storage unavailable");
+        }
         const data: Snapshot = await response.json();
         if (cancelled) return;
         setSnapshot(data);
@@ -621,30 +631,66 @@ function HomeEditorImpl({
       ["live", "cancelled"].includes(publication.phase)
     )
       return;
+    const job = publication;
     let cancelled = false;
-    const timer = setTimeout(async () => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let active: AbortController | null = null;
+    // Poll only while the page is visible. Hiding the page stops the timer and
+    // the in-flight read; showing it again waits one interval before reading.
+    const schedule = () => {
+      clearTimeout(timer);
+      timer = undefined;
+      if (!cancelled && !active && !document.hidden)
+        timer = setTimeout(() => void poll(), 4000);
+    };
+    async function poll() {
+      timer = undefined;
+      const request = new AbortController();
+      active = request;
       try {
         const response = await fetch(
-          `${endpoint("publication")}&operationId=${publication.id}`,
-          { signal: AbortSignal.timeout(15000) },
+          `${endpoint("publication")}&operationId=${job.id}`,
+          {
+            signal: AbortSignal.any([
+              request.signal,
+              AbortSignal.timeout(15000),
+            ]),
+          },
         );
-        if (!response.ok) throw new Error();
+        if (!response.ok) {
+          discardBody(response);
+          throw new Error();
+        }
         const data = await response.json();
-        if (!cancelled) {
+        if (!cancelled && active === request) {
           if (!data.publication) throw new Error();
           setPublicationStale(false);
           setPublication(data.publication);
         }
       } catch {
-        if (!cancelled) {
+        if (!cancelled && active === request && !request.signal.aborted) {
           setPublicationStale(true);
-          setPublication({ ...publication });
+          setPublication({ ...job });
         }
+      } finally {
+        if (active === request) active = null;
       }
-    }, 4000);
+    }
+    const visibilityChanged = () => {
+      if (document.hidden) {
+        clearTimeout(timer);
+        timer = undefined;
+        active?.abort();
+        active = null;
+      } else if (timer === undefined) schedule();
+    };
+    document.addEventListener("visibilitychange", visibilityChanged);
+    schedule();
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      active?.abort();
+      document.removeEventListener("visibilitychange", visibilityChanged);
     };
   }, [publication]);
   useEffect(() => {
@@ -826,7 +872,10 @@ function HomeEditorImpl({
       const response = await fetch(endpoint("draft"), {
         signal: AbortSignal.timeout(15000),
       });
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        discardBody(response);
+        throw new Error();
+      }
       const data: { draft: Draft | null } = await response.json();
       if (data.draft === undefined) throw new Error();
       if (isCurrent()) setSaveComparison(data);
@@ -910,7 +959,10 @@ function HomeEditorImpl({
       const response = await fetch(endpoint("record"), {
         signal: AbortSignal.timeout(15000),
       });
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        discardBody(response);
+        throw new Error();
+      }
       const data: Snapshot = await response.json();
       if (
         request !== historyRequest.current ||
@@ -938,7 +990,10 @@ function HomeEditorImpl({
       const response = await fetch(endpoint("record"), {
         signal: AbortSignal.timeout(15000),
       });
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        discardBody(response);
+        throw new Error();
+      }
       const data: Snapshot = await response.json();
       setComparison(data.base);
       setError("");
