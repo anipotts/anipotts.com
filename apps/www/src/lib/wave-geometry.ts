@@ -332,7 +332,7 @@ export interface MorphPlan {
   group: [number, number];
   layers: MorphLayer[];
   /** The artwork the destination keeps once the morph lands. */
-  end: Art;
+  end(): Art;
 }
 
 /** Pairs artwork layers for the card and header morph.
@@ -373,7 +373,7 @@ export function planMorph(
   return {
     group: [from.group, open ? 1 : to.group],
     layers,
-    end: {
+    end: () => ({
       box: MORPH_BOX,
       group: open ? 1 : to.group,
       layers: layers.map((layer, i) => ({
@@ -381,7 +381,7 @@ export function planMorph(
         fill: layer.fill[1],
         opacity: layer.opacity[1],
       })),
-    },
+    }),
   };
 }
 

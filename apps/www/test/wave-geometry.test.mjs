@@ -301,7 +301,7 @@ test("open condenses the card current into the header at half opacity", () => {
     assert.ok(Math.abs(layer.opacity[1] - 0.19) < 1e-9);
     assert.equal(layer.fill[0], layer.fill[1]);
   }
-  assert.equal(open.end.layers[4].d, contourPath(header.contours[1]));
+  assert.equal(open.end().layers[4].d, contourPath(header.contours[1]));
   const close = planMorph(header, card, false);
   assert.equal(close.layers.length, 6);
   assert.deepEqual(close.group, [1, 0.38]);

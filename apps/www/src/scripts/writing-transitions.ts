@@ -1,5 +1,8 @@
 import { prefetch } from "astro:prefetch";
-import type { TransitionBeforeSwapEvent } from "astro:transitions/client";
+import type {
+  TransitionBeforePreparationEvent,
+  TransitionBeforeSwapEvent,
+} from "astro:transitions/client";
 import { refreshSharedCurrents } from "../lib/shared-currents";
 import * as wave from "../lib/wave-geometry";
 import * as timeline from "../lib/writing-timeline";
@@ -19,6 +22,8 @@ const savedArt = new Map<string, wave.Art>();
 const returnScroll = new Map<string, number>();
 let dispose: (focus: boolean) => void = () => {};
 let pending: (() => void) | undefined;
+type Outgoing = ReturnType<typeof captureOutgoing>;
+let outgoing: Outgoing | undefined;
 let pendingFocus: Focus = null;
 
 const rect = (el: Element) => el.getBoundingClientRect();
@@ -37,6 +42,7 @@ function remember<T>(map: Map<string, T>, key: string, value: T) {
   map.set(key, value);
   if (map.size > 8) map.delete(map.keys().next().value!);
 }
+const isArticlePath = (path: string) => /^\/writing\/[^/]/.test(path);
 const cardFor = (root: ParentNode, path: string) =>
   [...root.querySelectorAll<HTMLAnchorElement>("a.writing-card")].find(
     (el) => new URL(el.href, location.href).pathname === path,
@@ -70,79 +76,101 @@ function applyFocus(intent: Focus) {
   if (el?.tagName === "H1") el.tabIndex = -1;
   el?.focus({ preventScroll: true });
 }
-function motion(event: TransitionBeforeSwapEvent) {
-  const from = event.from.pathname;
-  const to = event.to.pathname;
-  const fromArticle = !!document.querySelector(article);
-  const toArticle = !!event.newDocument.querySelector(article);
-  const source = cardFor(document, to);
-  const sourceBox = source && rect(source);
-  const sourceWords = capture.captureText(source, cardText);
-  const sourceArt = capture.captureArt(
-    source?.querySelector(".ambient-flow"),
-    columns(),
-  );
-  // Computed styles are live objects; keep plain values past the swap.
-  const sourceStyle = source && getComputedStyle(source);
-  const paper = sourceStyle && [
-    sourceStyle.backgroundColor,
-    sourceStyle.borderTopLeftRadius,
-  ];
-  const headerWords = capture.captureText(
-    document.querySelector(header),
-    headerText,
-  );
+/** Everything read from the outgoing page. It runs as the router starts
+ * fetching the destination, so the swap frame does none of this work. */
+function captureOutgoing(event: TransitionBeforePreparationEvent) {
+  const source = cardFor(document, event.to.pathname);
+  const style = source && getComputedStyle(source);
   const oldWaves = document.querySelector(waves);
-  const oldArt = capture.captureArt(oldWaves, columns());
-  const oldWaveBox = oldWaves && rect(oldWaves);
-  const ground = getComputedStyle(document.documentElement).backgroundColor;
-  const isReturn =
-    fromArticle &&
-    !toArticle &&
-    (event.navigationType === "traverse" ||
-      !!event.sourceElement?.closest(".back,.more-heading"));
-  if (source && toArticle && sourceArt) remember(returnScroll, from, scrollY);
-  const ghost = capture.captureGhost({
-    main: document.querySelector("main")!,
-    newDocument: event.newDocument,
-  });
+  const art = (host: Element | null | undefined) =>
+    capture.captureArt(host, columns());
+  const sourceBox = source && rect(source);
+  const read = {
+    from: event.from.pathname,
+    to: event.to.pathname,
+    fromArticle: !!document.querySelector(article),
+    back:
+      event.navigationType === "traverse" ||
+      !!event.sourceElement?.closest(".back,.more-heading"),
+    source,
+    sourceBox,
+    sourceWords: capture.captureText(source, cardText),
+    sourceArt: art(source?.querySelector(".ambient-flow")),
+    // Computed styles are live objects; keep plain values past the swap.
+    paper: style && [style.backgroundColor, style.borderTopLeftRadius],
+    headerWords: capture.captureText(
+      document.querySelector(header),
+      headerText,
+    ),
+    oldArt: art(oldWaves),
+    oldWaveBox: oldWaves && rect(oldWaves),
+    ground: getComputedStyle(document.documentElement).backgroundColor,
+    scroll: scrollY,
+  };
+  // The copy mounts last, after every read. It stands in for the live
+  // source card, or for the header whose text and waves the motion carries.
+  const hidden =
+    sourceBox && onScreen(sourceBox)
+      ? [
+          `a.writing-card[href="${source!.getAttribute("href")}"] :is(${cardText})`,
+        ]
+      : oldWaves && !isArticlePath(event.to.pathname)
+        ? [`${header} :is(${headerText})`, waves]
+        : [];
+  return {
+    ...read,
+    ghost: capture.captureGhost(document.querySelector("main")!, hidden),
+  };
+}
+
+function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
+  const toArticle = !!event.newDocument.querySelector(article);
+  const isReturn = out.fromArticle && !toArticle && out.back;
+  if (out.source && toArticle && out.sourceArt)
+    remember(returnScroll, out.from, out.scroll);
   pending = () => {
     const headerHost = document.querySelector<HTMLElement>(waves);
     const headerBox = headerHost && rect(headerHost);
-    const template = sourceArt && capture.captureArt(headerHost, columns());
+    const template = out.sourceArt && capture.captureArt(headerHost, columns());
     const opening = !!(
       template &&
       headerBox &&
-      sourceBox &&
-      onScreen(sourceBox)
+      out.sourceBox &&
+      onScreen(out.sourceBox)
     );
     let plan: wave.MorphPlan | undefined;
     if (opening) {
-      plan = wave.planMorph(sourceArt!, template!, true, undefined, [
+      plan = wave.planMorph(out.sourceArt!, template!, true, undefined, [
         headerBox!,
         visibleBox(headerBox!),
       ]);
-      remember(savedArt, to, plan.end);
     }
-    if (isReturn && event.navigationType !== "traverse" && returnScroll.has(to))
-      scrollTo({ top: returnScroll.get(to)!, behavior: "instant" });
-    const destination = isReturn ? cardFor(document, from) : undefined;
+    if (
+      isReturn &&
+      event.navigationType !== "traverse" &&
+      returnScroll.has(out.to)
+    )
+      scrollTo({ top: returnScroll.get(out.to)!, behavior: "instant" });
+    const destination = isReturn ? cardFor(document, out.from) : undefined;
     const targetBox = destination && rect(destination);
     const destArt = capture.captureArt(
       destination?.querySelector(".ambient-flow"),
       columns(),
     );
-    const oldWrap = oldWaveBox && visibleBox(oldWaveBox);
+    const oldWrap = out.oldWaveBox && visibleBox(out.oldWaveBox);
     const closing = !!(
       targetBox &&
       onScreen(targetBox) &&
-      oldArt &&
+      out.oldArt &&
       destArt &&
       oldWrap!.height >= 1
     );
     if (closing)
-      plan = wave.planMorph(oldArt!, destArt!, false, [oldWaveBox!, oldWrap!]);
-    const exit = fromArticle && !toArticle && !isReturn;
+      plan = wave.planMorph(out.oldArt!, destArt!, false, [
+        out.oldWaveBox!,
+        oldWrap!,
+      ]);
+    const exit = out.fromArticle && !toArticle && !isReturn;
     const direction = opening
       ? "open"
       : closing
@@ -155,29 +183,28 @@ function motion(event: TransitionBeforeSwapEvent) {
       phone: phone.matches,
       theme: "dark",
     });
-    const card = (opening ? sourceBox : targetBox)!;
+    const card = (opening ? out.sourceBox : targetBox)!;
     const wrap = (opening ? visibleBox(headerBox!) : oldWrap)!;
-    const outWords = opening ? sourceWords : headerWords;
+    const outWords = opening ? out.sourceWords : out.headerWords;
     const inWords = opening
       ? capture.captureText(document.querySelector(header), headerText)
       : capture.captureText(destination, cardText);
     const destStyle = destination && getComputedStyle(destination);
     const [paperColor, radius] = opening
-      ? paper!
+      ? out.paper!
       : [destStyle?.backgroundColor, destStyle?.borderTopLeftRadius];
     const main = document.querySelector<HTMLElement>("main")!;
     const nav = document.querySelector<HTMLElement>("header.nav");
     // Reads are done; everything below writes.
-    applyArt();
     const root = document.documentElement;
     root.dataset.writingTransition = direction;
-    const overlays: Element[] = [ghost.host];
+    const overlays: Element[] = [out.ghost.host];
     const hidden: HTMLElement[] = [];
     const hide = (el: HTMLElement | null | undefined) => {
       if (el) hidden.push(el);
       el?.style.setProperty("visibility", "hidden");
     };
-    const targets = new Map<string, Element[]>([["ghost", [ghost.host]]]);
+    const targets = new Map<string, Element[]>([["ghost", [out.ghost.layer]]]);
     const geometry = new Map<string, [string, string]>();
     const add = (name: string, ...els: (Element | null)[]) =>
       targets.set(
@@ -205,10 +232,11 @@ function motion(event: TransitionBeforeSwapEvent) {
       geometry.set("surface", pair(clip, timeline.FULL_CLIP));
       geometry.set("waves", pair(toCard, timeline.IDENTITY));
       const layers = capture.surfaceLayers(
-        ground,
-        paperColor || ground,
+        out.ground,
+        paperColor || out.ground,
         wrap,
         plan!,
+        opening ? undefined : out.ghost,
       );
       draw = layers.draw;
       overlays.push(layers.surface);
@@ -226,10 +254,7 @@ function motion(event: TransitionBeforeSwapEvent) {
         geometry.set(`${name}-in`, text.inGeometry);
       });
       if (opening) {
-        ghost.hide([
-          `a.writing-card[href="${source!.getAttribute("href")}"] :is(${cardText})`,
-        ]);
-        ghost.mount(document.body, ground);
+        out.ghost.show(out.ground, 100);
         document
           .querySelectorAll<HTMLElement>(`${header} :is(${headerText})`)
           .forEach(hide);
@@ -244,28 +269,26 @@ function motion(event: TransitionBeforeSwapEvent) {
           ),
         );
       } else {
-        // Closing folds the old article copy inside the surface clip.
-        ghost.hide([`${header} :is(${headerText})`, waves]);
-        ghost.mount(layers.surface, null);
-        ghost.host.style.position = "absolute";
+        out.ghost.show(null, 200);
         hide(destination);
         add("hero", document.querySelector("main .page-hero"));
       }
     } else {
-      ghost.hide(fromArticle && !toArticle ? [header, waves] : []);
-      ghost.mount(document.body, null);
+      if (out.fromArticle && !toArticle) out.ghost.hide([header, waves]);
+      out.ghost.show(null, 100);
       add("main", main);
-      if (exit && oldArt && oldWaveBox) {
-        const style = capture.boxStyle(oldWaveBox);
+      if (exit && out.oldArt && out.oldWaveBox) {
+        const style = capture.boxStyle(out.oldWaveBox);
         const slide = capture.overlay(
           document.body,
           "writing-transition-slide",
           style,
         );
         overlays.push(slide);
-        slide.appendChild(capture.artSvg(oldArt).svg);
+        slide.appendChild(capture.artSvg(out.oldArt).svg);
         add("exit-waves", slide);
-        const distance = oldWaveBox.height + Math.max(0, oldWaveBox.top) + 40;
+        const distance =
+          out.oldWaveBox.height + Math.max(0, out.oldWaveBox.top) + 40;
         geometry.set("exit-waves", [
           "translateY(0px)",
           `translateY(${-Math.round(distance)}px)`,
@@ -299,6 +322,10 @@ function motion(event: TransitionBeforeSwapEvent) {
         if (end > primaryEnd) [primary, primaryEnd] = [animation, end];
       }
     }
+    // One shared start at the end of this task rather than a pending start
+    // resolved at the next frame, so the first painted frame already moves.
+    const start = performance.now();
+    for (const a of [...animations, ...lingering]) a.startTime = start;
     let done = false;
     let frame = 0;
     const finish = (focus: boolean) => {
@@ -313,6 +340,9 @@ function motion(event: TransitionBeforeSwapEvent) {
         el?.style.removeProperty("position");
         el?.style.removeProperty("z-index");
       }
+      // The article keeps the card current; build it once the motion is over.
+      if (opening) remember(savedArt, out.to, plan!.end());
+      applyArt();
       root.removeAttribute("data-writing-transition");
       document.dispatchEvent(new Event("writing:transition-end"));
       if (focus) applyFocus(pendingFocus);
@@ -351,9 +381,27 @@ function motion(event: TransitionBeforeSwapEvent) {
   };
 }
 
-document.addEventListener("astro:before-preparation", () => {
+function dropOutgoing() {
+  outgoing?.ghost.host.remove();
+  outgoing = undefined;
+}
+const motionAllowed = () =>
+  theme() === "dark" &&
+  !reduced.matches &&
+  !document.hidden &&
+  "animate" in Element.prototype;
+document.addEventListener("astro:before-preparation", (raw) => {
+  const event = raw as TransitionBeforePreparationEvent;
   dispose(false);
+  dropOutgoing();
   pending = undefined;
+  const involved =
+    !!document.querySelector(article) || isArticlePath(event.to.pathname);
+  if (!motionAllowed() || !involved) return;
+  // After every other listener, while the destination is fetched.
+  queueMicrotask(() => {
+    if (!event.signal.aborted) outgoing = captureOutgoing(event);
+  });
 });
 document.addEventListener("astro:before-swap", (raw) => {
   const event = raw as TransitionBeforeSwapEvent;
@@ -374,14 +422,15 @@ document.addEventListener("astro:before-swap", (raw) => {
       : fromArticle && listing(next)
         ? { card: event.from.pathname }
         : null;
+  const out = outgoing;
   if (
-    current === "dark" &&
-    !reduced.matches &&
-    !document.hidden &&
-    "animate" in Element.prototype &&
-    (fromArticle || toArticle)
-  )
-    motion(event);
+    out?.to === event.to.pathname &&
+    (fromArticle || toArticle) &&
+    motionAllowed()
+  ) {
+    outgoing = undefined;
+    motion(event, out);
+  } else dropOutgoing();
 });
 document.addEventListener("astro:after-swap", () => {
   refreshSharedCurrents();
@@ -403,7 +452,10 @@ document.addEventListener("astro:page-load", () => {
     if (active) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   });
-  warmUp();
+  // Idle work waits for the motion, so it never lands in a motion frame.
+  if (document.documentElement.dataset.writingTransition)
+    document.addEventListener("writing:transition-end", warmUp, { once: true });
+  else warmUp();
 });
 // The destination is requested the moment a finger or pointer lands.
 const warm = (event: Event) => {
@@ -439,7 +491,10 @@ window.addEventListener("resize", () => {
   observedWidth = innerWidth;
   dispose(true);
 });
-window.addEventListener("pagehide", () => dispose(false));
+window.addEventListener("pagehide", () => {
+  dispose(false);
+  dropOutgoing();
+});
 applyArt();
 syncTheme();
 warmUp();

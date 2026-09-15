@@ -21,9 +21,10 @@ const supported =
   typeof CSSStyleSheet !== "undefined" &&
   "replaceSync" in CSSStyleSheet.prototype;
 const rootSelector =
-  /(^|[\s,{}>+~)])(?:html|:root)((?:\[[^\]]*\]|:not\([^)]*\)|\.[\w-]+)*)(?=[\s,{>+~.:[]|$)/g;
+  /(^|[\s,{}>+~)])(?:html|body|:root)((?:\[[^\]]*\]|:not\([^)]*\)|\.[\w-]+)*)(?=[\s,{>+~.:[]|$)/g;
 
-/** Root-scoped selectors rewritten for a shadow host. */
+/** Root and body selectors rewritten for a shadow host, which stands in
+ * for both. */
 export function hostScoped(css: string) {
   return css.replace(rootSelector, (_, lead: string, rest: string) =>
     rest ? `${lead}:host(${rest})` : `${lead}:host`,
@@ -69,112 +70,162 @@ export function prepareGhostSheets() {
   if (supported) documentSheets(true);
 }
 
-export interface GhostOptions {
-  main: HTMLElement;
-  newDocument: Document;
+/** Resolves style once against the copied sheets, and runs the animation
+ * and morph code paths, so the first swap indexes no rules and compiles no
+ * functions. */
+function warmStyles() {
+  const probe = document.createElement("div");
+  probe.setAttribute("aria-hidden", "true");
+  probe.style.cssText =
+    "position:fixed;left:0;top:0;width:1px;height:1px;contain:strict;visibility:hidden;pointer-events:none;";
+  const scope = supported ? probe.attachShadow({ mode: "open" }) : probe;
+  const child = scope.appendChild(document.createElement("div"));
+  document.documentElement.appendChild(probe);
+  if (supported)
+    (scope as ShadowRoot).adoptedStyleSheets = documentSheets(false);
+  void getComputedStyle(child).color;
+  if ("animate" in child)
+    child
+      .animate(
+        [
+          {
+            opacity: 0,
+            transform: timeline.IDENTITY,
+            clipPath: timeline.FULL_CLIP,
+          },
+          {
+            opacity: 1,
+            transform: timeline.placement(1, 1, 1.5),
+            clipPath: timeline.insetClip(
+              { left: 1, top: 1, right: 2, bottom: 2 },
+              3,
+              3,
+              "1px",
+            ),
+          },
+        ],
+        { duration: 1, easing: timeline.OPEN_EASE, fill: "both" },
+      )
+      .cancel();
+  probe.remove();
 }
 
 export interface Ghost {
+  /** Outer frame: the element to remove, and the one a clip animates. */
   host: HTMLElement;
+  /** The copy itself, the element an opacity animation fades. A clip and
+   * an opacity animation on one element keep the clip off the compositor. */
+  layer: HTMLElement;
   /** Keeps parts of the copied page out of view. */
   hide(selectors: string[]): void;
-  /** Appends the copy; sheets are adopted only once the host is connected,
-   * since WebKit ignores sheets adopted by a disconnected root. */
-  mount(parent: Element, ground: string | null): void;
+  /** Reveals the copy over the incoming page at the given stacking level. */
+  show(ground: string | null, zIndex: number): void;
 }
 
 const trimmed = ".article-body > *, .article-end, .list > *";
 
-export function captureGhost(options: GhostOptions): Ghost {
-  const { main, newDocument } = options;
+/** Copies the outgoing page while it is still in the document. The copy is
+ * removed by removing `host`. */
+export function captureGhost(main: HTMLElement, hidden: string[]): Ghost {
   const root = document.documentElement;
-  const host = document.createElement("div");
+  const frame = document.createElement("div");
+  frame.className = "writing-transition-ghost";
+  frame.setAttribute("aria-hidden", "true");
+  frame.inert = true;
+  frame.style.cssText =
+    "position:fixed;inset:0;margin:0;z-index:100;pointer-events:none;overflow:hidden;contain:strict;will-change:clip-path;";
+  const host = frame.appendChild(document.createElement("div"));
   for (const { name, value } of root.attributes)
     if (name !== "style" && name !== "id") host.setAttribute(name, value);
-  host.className = `${root.className} writing-transition-ghost`.trim();
-  host.setAttribute("aria-hidden", "true");
-  host.inert = true;
-  const body = getComputedStyle(document.body);
-  host.style.cssText = `position:fixed;inset:0;margin:0;z-index:100;pointer-events:none;overflow:hidden;contain:strict;will-change:opacity;color:${body.color};font-family:${body.fontFamily};font-size:${body.fontSize};line-height:${body.lineHeight};`;
-  const place = (source: HTMLElement, copy: HTMLElement) => {
+  host.style.cssText =
+    "position:absolute;inset:0;margin:0;overflow:hidden;will-change:opacity;background:transparent;";
+  const copy = (source: HTMLElement, height: boolean) => {
     const box = source.getBoundingClientRect();
-    copy.style.cssText = `position:absolute;left:${box.left}px;top:${box.top}px;width:${box.width}px;margin:0;`;
-    return box;
+    const el = source.cloneNode(true) as HTMLElement;
+    el.style.cssText = `position:absolute;left:${box.left}px;top:${box.top}px;width:${box.width}px;margin:0;${height ? `height:${box.height}px;` : ""}`;
+    return el;
   };
   const parts: HTMLElement[] = [];
   const current = document.querySelector<HTMLElement>("body > .page-current");
-  if (current) {
-    const copy = current.cloneNode(true) as HTMLElement;
-    const box = place(current, copy);
-    copy.style.height = `${box.height}px`;
-    parts.push(copy);
-  }
+  if (current) parts.push(copy(current, true));
   // Blocks entirely below the fold are never seen; leave them out.
   const live = [...main.querySelectorAll<HTMLElement>(trimmed)];
-  const clone = main.cloneNode(true) as HTMLElement;
+  const below = live.map((el) => el.getBoundingClientRect().top > innerHeight);
+  const clone = copy(main, false);
   const copies = [...clone.querySelectorAll<HTMLElement>(trimmed)];
   if (copies.length === live.length)
-    live.forEach((el, i) => {
-      if (el.getBoundingClientRect().top > innerHeight) copies[i].remove();
-    });
-  place(main, clone);
+    copies.forEach((el, i) => below[i] && el.remove());
   clone.inert = true;
   clone.querySelectorAll("script").forEach((el) => el.remove());
-  clone.querySelectorAll("[id]").forEach((el) => el.removeAttribute("id"));
+  // Icons reference shared symbols by id; keep the ids the copy uses.
+  const used = new Set(
+    [...clone.querySelectorAll("use")].map((el) =>
+      (el.getAttribute("href") || "").slice(1),
+    ),
+  );
+  clone
+    .querySelectorAll("[id]")
+    .forEach((el) => used.has(el.id) || el.removeAttribute("id"));
+  const symbols = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  symbols.style.display = "none";
+  for (const id of used)
+    if (!clone.querySelector(`[id="${CSS.escape(id)}"]`)) {
+      const symbol = document.getElementById(id);
+      if (symbol) symbols.appendChild(symbol.cloneNode(true));
+    }
+  clone.appendChild(symbols);
   clone
     .querySelectorAll("[data-rise]")
     .forEach((el) => el.removeAttribute("data-rise"));
   parts.push(clone);
-  const hide = (selectors: string[]) => {
-    if (selectors.length)
-      clone
-        .querySelectorAll<HTMLElement>(selectors.join(","))
-        .forEach((el) => el.style.setProperty("visibility", "hidden"));
-  };
-  const paint = (ground: string | null) =>
-    host.style.setProperty("background", ground ?? "transparent");
-
   const sheets = supported ? documentSheets(true) : [];
-  if (sheets.length) {
-    const shadow = host.attachShadow({ mode: "open" });
-    shadow.append(...parts);
-    return {
-      host,
-      hide,
-      mount(parent, ground) {
-        paint(ground);
-        parent.appendChild(host);
-        shadow.adoptedStyleSheets = sheets;
-      },
-    };
-  }
-  // Light-DOM fallback: carry only the outgoing sheets the swap will drop.
-  const kept = new Set(
-    [...newDocument.head.querySelectorAll("style")].map(
-      (el) => el.textContent || "",
-    ),
-  );
-  document.head.querySelectorAll("style").forEach((el) => {
-    if (!kept.has(el.textContent || "")) host.appendChild(el.cloneNode(true));
-  });
-  document.head
-    .querySelectorAll<HTMLLinkElement>("link[rel=stylesheet][href]")
-    .forEach((el) => {
-      const href = el.getAttribute("href")!;
-      if (
-        !newDocument.head.querySelector(`link[rel=stylesheet][href="${href}"]`)
-      )
-        host.appendChild(el.cloneNode(true));
-    });
-  parts.forEach((part) => host.appendChild(part));
-  return {
-    host,
-    hide,
-    mount(parent, ground) {
-      paint(ground);
-      parent.appendChild(host);
+  const outgoingSheets = sheets.length
+    ? []
+    : [...document.head.querySelectorAll("style, link[rel=stylesheet][href]")];
+  const target = sheets.length ? host.attachShadow({ mode: "open" }) : host;
+  for (const el of outgoingSheets) target.appendChild(el.cloneNode(true));
+  // Rules scoped by a root class or attribute without naming the root
+  // (".editorial-detail .article-body") need an ancestor inside the copy.
+  const scope = target.appendChild(document.createElement("div"));
+  for (const { name, value } of root.attributes)
+    if (name !== "style" && name !== "id") scope.setAttribute(name, value);
+  scope.style.display = "contents";
+  for (const el of parts) scope.appendChild(el);
+  const ghost: Ghost = {
+    host: frame,
+    layer: host,
+    hide(selectors) {
+      if (selectors.length)
+        clone
+          .querySelectorAll<HTMLElement>(selectors.join(","))
+          .forEach((el) => el.style.setProperty("visibility", "hidden"));
+    },
+    show(ground, zIndex) {
+      host.querySelectorAll(":scope > style").forEach((el) => {
+        const same = [...document.head.querySelectorAll("style")].some(
+          (kept) => kept.textContent === el.textContent,
+        );
+        if (same) el.remove();
+      });
+      host.querySelectorAll(":scope > link").forEach((el) => {
+        const href = el.getAttribute("href");
+        if (document.head.querySelector(`link[rel=stylesheet][href="${href}"]`))
+          el.remove();
+      });
+      host.style.background = ground ?? "transparent";
+      frame.style.zIndex = String(zIndex);
+      frame.style.removeProperty("opacity");
     },
   };
+  ghost.hide(hidden);
+  // Mounted now, transparent, beside the body the router replaces: its
+  // style, layout and paint happen while the destination is fetched, not in
+  // the swap frame. Sheets are adopted after the host is connected, since
+  // WebKit ignores sheets adopted by a disconnected shadow root.
+  frame.style.opacity = "0";
+  root.appendChild(frame);
+  if (host.shadowRoot) host.shadowRoot.adoptedStyleSheets = sheets;
+  return ghost;
 }
 
 // Wave artwork and text captured from the live pages as plain data.
@@ -311,15 +362,21 @@ export function surfaceLayers(
   paper: string,
   wrap: wave.Box,
   plan: wave.MorphPlan,
+  ghost?: Ghost,
 ) {
-  const surface = overlay(document.body, "writing-transition-surface");
-  overlay(surface, "writing-transition-fill", `background:${ground}`);
-  const fill = overlay(
-    surface,
-    "writing-transition-fill",
-    `background:${paper}`,
-  );
-  const wrapper = overlay(surface, "writing-transition-waves", boxStyle(wrap));
+  // Closing folds the old page copy inside the surface, above its waves: the
+  // copy's own frame becomes the surface, so it keeps the style and layout
+  // it already has and software compositors mask one layer, not two.
+  const surface = ghost?.host ?? overlay(document.body, "");
+  surface.classList.add("writing-transition-surface");
+  const layer = (className: string, style: string) =>
+    surface.insertBefore(
+      overlay(surface, className, style),
+      ghost?.layer ?? null,
+    );
+  layer("writing-transition-fill", `background:${ground}`);
+  const fill = layer("writing-transition-fill", `background:${paper}`);
+  const wrapper = layer("writing-transition-waves", boxStyle(wrap));
   const morph = morphLayer(plan);
   wrapper.appendChild(morph.svg);
   return { surface, paper: fill, wrapper, draw: morph.draw };
@@ -375,6 +432,7 @@ export function applyHeaderArt(host: HTMLElement, saved: wave.Art | undefined) {
 export function warmCaptures(headerSvg: SVGSVGElement | null, columns: number) {
   const task = () => {
     prepareGhostSheets();
+    warmStyles();
     document
       .querySelectorAll<HTMLAnchorElement>("a.writing-card")
       .forEach((card) => {
@@ -386,6 +444,13 @@ export function warmCaptures(headerSvg: SVGSVGElement | null, columns: number) {
       const d = path.getAttribute("d") || "";
       contourOf(viewBox(headerSvg), d, path, columns);
     });
+    const [a, b] = wave
+      .detailCurves("writing")
+      .map((d) => wave.waveContour(wave.DETAIL_VIEWBOX, d, columns)!);
+    const frame = wave.MORPH_BOX;
+    for (let i = 0; i < 4; i++)
+      wave.morphPath(wave.reframeContour(a, frame, frame), b, i / 4);
+    wave.mixColor("rgb(0 0 0)", "rgb(255 255 255)", 0.5);
   };
   if ("requestIdleCallback" in window)
     requestIdleCallback(task, { timeout: 1500 });
