@@ -73,6 +73,142 @@ for (const path of privateRoutes) {
   );
 }
 
+// House style bans dividers. Spacing carries section breaks, so built pages
+// must not paint one-sided rules, hairline pseudo elements or <hr>.
+const dividerAllowlist = [
+  // SystemMap connectors are an approved diagram, not dividers.
+  /^\.(step|step-flow|return-route|intake-line)\b/,
+  // Quoted article prose keeps its quotation bar.
+  /^\.editorial-detail \.article-body blockquote$/,
+];
+function builtFiles(dir, found = []) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const file = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name !== "_worker.js") builtFiles(file, found);
+    } else if (/\.(css|html)$/.test(entry.name)) found.push(file);
+  }
+  return found;
+}
+function styleRules(css) {
+  const rules = [];
+  const stack = [];
+  let start = 0;
+  for (let i = 0; i < css.length; i += 1) {
+    if (css[i] === "{") {
+      if (stack.length) stack[stack.length - 1].nested = true;
+      stack.push({ prelude: css.slice(start, i).trim(), body: i + 1 });
+      start = i + 1;
+    } else if (css[i] === "}") {
+      const block = stack.pop();
+      if (block && !block.nested && !block.prelude.startsWith("@")) {
+        rules.push({ selector: block.prelude, body: css.slice(block.body, i) });
+      }
+      start = i + 1;
+    } else if (css[i] === ";" && stack.length === 0) {
+      start = i + 1;
+    }
+  }
+  return rules;
+}
+function dividerReasons(selector, body) {
+  const decls = body
+    .split(";")
+    .filter((part) => part.includes(":"))
+    .map((part) => {
+      const colon = part.indexOf(":");
+      return [
+        part.slice(0, colon).trim().toLowerCase(),
+        part.slice(colon + 1).trim(),
+      ];
+    });
+  const reasons = [];
+  for (const [property, value] of decls) {
+    const tokens = value.replace(/!important/, "").split(/\s+(?![^(]*\))/);
+    if (
+      /^border-(top|bottom|left|right|block|inline)(-(start|end))?(-width)?$/.test(
+        property,
+      )
+    ) {
+      const widths = tokens.filter((token) =>
+        /^([\d.]+[a-z%]*|thin|medium|thick)$/.test(token),
+      );
+      const painted = !tokens.some((token) =>
+        /^(none|hidden|transparent)$/.test(token),
+      );
+      const wide = widths.length
+        ? widths.some((token) => !/^0+(\.0+)?[a-z%]*$/.test(token))
+        : tokens.some((token) =>
+            /^(solid|dashed|dotted|double|groove|ridge|inset|outset)$/.test(
+              token,
+            ),
+          );
+      if (painted && wide) reasons.push(`${property}:${value}`);
+    }
+    if (
+      property === "border-width" &&
+      new Set(tokens.map((token) => /^0+[a-z%]*$/.test(token))).size > 1
+    ) {
+      reasons.push(`${property}:${value}`);
+    }
+    if (
+      property === "box-shadow" &&
+      /(^|,)\s*(inset\s+)?(0\s+-?1px|-?1px\s+0)\s+0(\s+0)?\s+[^\s,]/.test(value)
+    ) {
+      reasons.push(`${property}:${value}`);
+    }
+  }
+  const thin = decls.some(
+    ([property, value]) =>
+      /^(height|block-size|width|inline-size)$/.test(property) &&
+      /^(1px|\.0625rem)$/.test(value),
+  );
+  const filled = decls.some(
+    ([property, value]) =>
+      /^background(-color|-image)?$/.test(property) &&
+      !/^(none|transparent)$/.test(value),
+  );
+  if (/:(before|after)\b/.test(selector) && thin && filled)
+    reasons.push("hairline pseudo element");
+  return reasons;
+}
+const dividerViolations = new Set();
+for (const file of builtFiles(dist)) {
+  const text = readFileSync(file, "utf8");
+  const relative = file.slice(dist.length + 1);
+  const sheets = [text];
+  if (file.endsWith(".html")) {
+    sheets.length = 0;
+    for (const match of text.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi))
+      sheets.push(match[1]);
+    if (/<hr\b/i.test(text)) dividerViolations.add(`${relative}: <hr>`);
+    for (const match of text.matchAll(/\sstyle="([^"]*)"/gi)) {
+      for (const reason of dividerReasons("", match[1]))
+        dividerViolations.add(`${relative}: style="${reason}"`);
+    }
+  }
+  for (const css of sheets) {
+    for (const { selector, body } of styleRules(
+      css.replace(/\/\*[\s\S]*?\*\//g, ""),
+    )) {
+      const reasons = dividerReasons(selector, body);
+      const bare = selector.replace(/\[data-astro-cid-[\w-]+\]/g, "");
+      const allowed = bare
+        .split(",")
+        .every((part) =>
+          dividerAllowlist.some((pattern) => pattern.test(part.trim())),
+        );
+      if (reasons.length && !allowed)
+        dividerViolations.add(`${bare} { ${reasons.join("; ")} }`);
+    }
+  }
+}
+assert.deepEqual(
+  [...dividerViolations],
+  [],
+  "Built pages paint dividers; let spacing carry the break",
+);
+
 // Optional served-build proof catches worker-first routing errors that disk checks cannot.
 const origin = process.argv
   .find((arg) => arg.startsWith("--origin="))
