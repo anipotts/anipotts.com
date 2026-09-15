@@ -1,9 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  AdminInboxWriteError,
-  writeAdminInboxAttention,
-} from "@anipotts/lib/admin-control";
-import {
   readControlPlane,
   submitControlPlaneProof,
 } from "../data/control-plane";
@@ -18,7 +14,6 @@ import {
   GET as controlPlaneGet,
   POST as controlPlanePost,
 } from "../pages/api/admin/control-plane";
-import { POST as inboxPost } from "../pages/api/admin/inbox";
 import { POST as editorPost } from "../pages/api/admin/content/editor";
 import { POST as draftOperationPost } from "../pages/api/admin/content/draft-operation";
 
@@ -30,10 +25,6 @@ vi.mock("../data/control-plane", async (load) => ({
   ...(await load<typeof import("../data/control-plane")>()),
   readControlPlane: vi.fn(),
   submitControlPlaneProof: vi.fn(),
-}));
-vi.mock("@anipotts/lib/admin-control", async (load) => ({
-  ...(await load<typeof import("@anipotts/lib/admin-control")>()),
-  writeAdminInboxAttention: vi.fn(),
 }));
 vi.mock("./content-editor", async (load) => ({
   ...(await load<typeof import("./content-editor")>()),
@@ -48,7 +39,6 @@ vi.mock("./content-draft-operation", async (load) => ({
 const requireMutation = vi.mocked(requireAdminMutation);
 const readRelay = vi.mocked(readControlPlane);
 const submitRelay = vi.mocked(submitControlPlaneProof);
-const writeInbox = vi.mocked(writeAdminInboxAttention);
 const saveDraft = vi.mocked(saveEditorDraft);
 const publishDraft = vi.mocked(publishEditorDraft);
 const saveOperation = vi.mocked(saveDraftOperation);
@@ -135,7 +125,6 @@ beforeEach(() => {
   requireMutation.mockReset().mockResolvedValue(principal);
   readRelay.mockReset();
   submitRelay.mockReset();
-  writeInbox.mockReset();
   saveDraft.mockReset();
   publishDraft.mockReset();
   saveOperation.mockReset();
@@ -240,88 +229,6 @@ describe("POST /api/admin/control-plane (live control)", () => {
     const response = await controlPlanePost(post(path, command));
     expect(response.status).toBe(403);
     expect(await response.json()).toEqual({ error: "fresh_passkey_required" });
-  });
-});
-
-describe("POST /api/admin/inbox", () => {
-  const path = "/api/admin/inbox";
-  const attention = { domain: "work", attention_kind: "review" };
-
-  it("writes the same attention and returns the result unchanged", async () => {
-    const result = { ok: true, item_id: "inbox-1", status: "open" } as never;
-    writeInbox.mockResolvedValue(result);
-    const response = await inboxPost(post(path, JSON.stringify(attention)));
-    expect(response.status).toBe(200);
-    expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(await response.json()).toEqual(result);
-    expect(requireMutation).toHaveBeenCalledWith(
-      expect.anything(),
-      "action:stage",
-    );
-    expect(writeInbox).toHaveBeenCalledWith({}, attention, "passkey:user-1");
-  });
-
-  it("keeps code-owned validation codes and their status", async () => {
-    writeInbox.mockRejectedValue(
-      new AdminInboxWriteError(400, "invalid_domain"),
-    );
-    await expectBoundedError(
-      await inboxPost(post(path, JSON.stringify(attention))),
-      400,
-      "invalid_domain",
-    );
-    writeInbox.mockRejectedValue(
-      new AdminInboxWriteError(500, "inbox_write_batch_failed"),
-    );
-    await expectBoundedError(
-      await inboxPost(post(path, JSON.stringify(attention))),
-      500,
-      "inbox_write_batch_failed",
-    );
-  });
-
-  it("does not reflect caller-supplied field names", async () => {
-    writeInbox.mockRejectedValue(
-      new AdminInboxWriteError(400, "unknown_field:<img src=x>"),
-    );
-    const response = await inboxPost(post(path, JSON.stringify(attention)));
-    const text = await response.clone().text();
-    expect(text).not.toContain("<img");
-    await expectBoundedError(response, 400, "unknown_field");
-  });
-
-  it("never returns storage exception text", async () => {
-    writeInbox.mockRejectedValue(new Error(LEAK));
-    await expectBoundedError(
-      await inboxPost(post(path, JSON.stringify(attention))),
-      400,
-      "inbox_write_failed",
-    );
-  });
-
-  it("bounds a streamed body before parsing", async () => {
-    await expectBoundedError(
-      await inboxPost(post(path, streamOf(oversized(64_000)))),
-      413,
-      "request_too_large",
-    );
-    await expectBoundedError(
-      await inboxPost(
-        post(path, streamOf(oversized(64_000)), { "content-length": "32" }),
-      ),
-      413,
-      "request_too_large",
-    );
-    expect(writeInbox).not.toHaveBeenCalled();
-  });
-
-  it("rejects malformed JSON with a fixed code", async () => {
-    await expectBoundedError(
-      await inboxPost(post(path, "{not json")),
-      400,
-      "invalid_json",
-    );
-    expect(writeInbox).not.toHaveBeenCalled();
   });
 });
 

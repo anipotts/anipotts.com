@@ -42,8 +42,8 @@ describe("admin search and navigation", () => {
     );
   });
 
-  it("keeps Inbox pinned and Fleet nested under System", () => {
-    expect(navItems[0]).toMatchObject({ href: "/inbox", group: "home" });
+  it("has no Inbox destination and keeps Fleet nested under System", () => {
+    expect(navItems.some((item) => item.href.startsWith("/inbox"))).toBe(false);
     expect(navItems.find((item) => item.href === "/fleet")).toMatchObject({
       group: "system",
       parent: "system",

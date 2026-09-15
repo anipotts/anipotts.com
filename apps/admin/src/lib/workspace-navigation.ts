@@ -30,7 +30,7 @@ export function workspaceReturnPath(
     )
       return fallback;
   } else if (
-    !/^\/(operations\/observability|inbox|work|handoffs|system|fleet|proof|deploys|repos|mutations|knowledge(?:\/locations)?|ops\/destructive|content\/(?:review|drafts|preview|operations|carousels))$/.test(
+    !/^\/(operations\/observability|work|handoffs|system|fleet|proof|deploys|repos|mutations|knowledge(?:\/locations)?|ops\/destructive|content\/(?:review|drafts|preview|operations|carousels))$/.test(
       path,
     )
   )
@@ -39,8 +39,8 @@ export function workspaceReturnPath(
   for (const key of ["group", "status", "sort", "view", "panel"])
     if (/^[a-z-]{1,40}$/.test(url.searchParams.get(key) ?? ""))
       params.set(key, url.searchParams.get(key)!);
-  // These are route filters, not record identities. Keep their allowlists
-  // aligned with knowledge.astro and AdminHome.astro respectively.
+  // A route filter, not a record identity. Keep its allowlist aligned with
+  // knowledge.astro.
   const routeFilter =
     workspace === "operations" && path === "/knowledge"
       ? {
@@ -55,9 +55,7 @@ export function workspaceReturnPath(
             "system",
           ],
         }
-      : workspace === "operations" && path === "/inbox"
-        ? { key: "category", values: ["work", "content", "life", "system"] }
-        : undefined;
+      : undefined;
   if (routeFilter) {
     const value = url.searchParams.get(routeFilter.key);
     if (value && routeFilter.values.includes(value))

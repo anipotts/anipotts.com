@@ -6,7 +6,6 @@ export type NavItem = {
     "home" | "work" | "content" | "life" | "knowledge" | "system" | "website";
   description: string;
   icon:
-    | "inbox"
     | "work"
     | "content"
     | "life"
@@ -47,15 +46,6 @@ export type DeployRow = {
 };
 
 export const navItems: NavItem[] = [
-  {
-    href: "/inbox",
-    label: "Inbox",
-    status: "queue",
-    group: "home",
-    description: "what needs attention and what can move next",
-    icon: "inbox",
-    mobile: true,
-  },
   {
     href: "/work?view=now",
     label: "Work",

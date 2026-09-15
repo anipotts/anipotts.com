@@ -77,21 +77,6 @@ function WorkActions({
           data-semantic-open={row.semantic_reference_id}
         />
       )}
-      {row.attention_ref && (
-        <MoreMenu
-          label={`${row.canonical_title} actions`}
-          size="sm"
-          items={[
-            {
-              label: "Open linked inbox item",
-              onClick: () =>
-                window.location.assign(
-                  `/inbox?item=${encodeURIComponent(row.attention_ref!)}`,
-                ),
-            },
-          ]}
-        />
-      )}
     </HStack>
   );
 }
