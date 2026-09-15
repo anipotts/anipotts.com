@@ -28,8 +28,10 @@ const shot =
   preview?.kind === "video"
     ? undefined
     : responsiveScreenshot(preview?.src ?? "");
-// Column width upper bound: one column up to 52rem, then 26rem tracks.
-const shotSizes = "(max-width: 52rem) calc(100vw - 7rem), 26rem";
+// Column width upper bound: one column up to 52rem, then 26rem tracks. The
+// image is width: auto, so it never renders wider than this value; the
+// single-column bound stays the full viewport rather than a gutter estimate.
+const shotSizes = "(max-width: 52rem) 100vw, 26rem";
 ---
 
 <a
@@ -61,6 +63,7 @@ const shotSizes = "(max-width: 52rem) calc(100vw - 7rem), 26rem";
               sizes={shotSizes}
               width={shot.width}
               height={shot.height}
+              style={`aspect-ratio: ${shot.aspectRatio}`}
               alt={preview.alt}
               loading={priority ? "eager" : "lazy"}
               fetchpriority={priority ? "high" : undefined}

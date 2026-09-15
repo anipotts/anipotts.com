@@ -22,8 +22,9 @@ const shot =
   preview?.kind === "video"
     ? undefined
     : responsiveScreenshot(preview?.src ?? "");
-// Upper bound of the two-column window above the phone breakpoint.
-const shotSizes = "27rem";
+// The experience grid is one column up to 640px, then two tracks under 27rem.
+// The image is width: auto, so it never renders wider than this value.
+const shotSizes = "(max-width: 640px) 100vw, 27rem";
 ---
 
 <a
@@ -56,6 +57,7 @@ const shotSizes = "27rem";
                 sizes={shotSizes}
                 width={shot.width}
                 height={shot.height}
+                style={`aspect-ratio: ${shot.aspectRatio}`}
                 alt={preview.alt}
                 loading={eager ? "eager" : "lazy"}
                 decoding="async"

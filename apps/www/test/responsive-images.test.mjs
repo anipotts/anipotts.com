@@ -52,6 +52,22 @@ test("work previews ship responsive variants and only the first is a priority fe
       );
 });
 
+// Card images are sized width: auto inside a contain box, so a srcset image
+// renders no wider than its sizes value. Single-column layouts must declare the
+// full viewport, or landscape phones and small tablets get shrunken previews.
+test("card sizes never understate single-column preview boxes", () => {
+  const expectations = [
+    ["work.html", "(max-width: 52rem) 100vw, 26rem"],
+    ["index.html", "(max-width: 640px) 100vw, 27rem"],
+  ];
+  for (const [file, sizes] of expectations) {
+    const shots = screenshots(page(file));
+    assert.ok(shots.length > 0, file);
+    for (const img of shots)
+      assert.equal(img.attributes.sizes, sizes, `${file} ${img.attributes.src}`);
+  }
+});
+
 test("home loads the first feature image eagerly and the second lazily", () => {
   const shots = screenshots(page("index.html"));
   assert.ok(shots.length >= 2, "home shows two feature images");
