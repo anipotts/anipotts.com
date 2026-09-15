@@ -2174,11 +2174,12 @@ main.auth-main {
   letter-spacing: 0;
 }
 
+/* Decks are sentences; they read at sentence case like every workspace. */
 .page-header p,
 .page-header span {
   margin: 0 0 8px;
   font-size: 13px;
-  text-transform: uppercase;
+  max-width: 60ch;
 }
 
 .page-header span {
@@ -2313,7 +2314,8 @@ main.auth-main {
 .table-wrap {
   margin-top: 24px;
   overflow: auto;
-  border: 1px solid var(--border);
+  border-radius: var(--radius-container, 12px);
+  background: var(--panel);
 }
 
 table {
@@ -2331,11 +2333,14 @@ td {
   font-size: 14px;
 }
 
+/* Legacy tables follow the shared table language: quiet sentence-case
+   column labels on the table surface, no band. */
 th {
-  color: var(--text);
-  background: var(--panel-strong);
+  color: var(--color-text-muted);
   font-size: 12px;
-  text-transform: uppercase;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .notice {

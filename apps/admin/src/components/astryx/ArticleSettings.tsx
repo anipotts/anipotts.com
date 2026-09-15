@@ -65,10 +65,10 @@ export function ArticleSettings({
         isDisabled={disabled}
         description="Changes take effect only after you approve publication."
         options={[
-          { value: "draft", label: "Draft · hidden from the website" },
+          { value: "draft", label: "Draft, hidden from the website" },
           {
             value: "published",
-            label: "Published · visible on the website",
+            label: "Published, visible on the website",
           },
           { value: "scheduled", label: "Scheduled" },
         ]}

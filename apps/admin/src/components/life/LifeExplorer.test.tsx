@@ -434,7 +434,7 @@ describe("Life reader interactions", () => {
       await vi.advanceTimersByTimeAsync(1000);
     });
     expect(container.textContent).toContain("unavailable");
-    expect(container.textContent).toContain("1 record · 2026-01-01T00:00:00Z");
+    expect(container.textContent).toContain("1 record, 2026-01-01T00:00:00Z");
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2000);
     });

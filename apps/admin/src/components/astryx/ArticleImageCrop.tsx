@@ -145,10 +145,10 @@ export function ArticleImageCrop({
         isDisabled={locked}
         onChange={setRatio}
         options={[
-          { value: "panorama", label: "Panorama · 2.4:1" },
-          { value: "wide", label: "Wide · 16:9" },
-          { value: "landscape", label: "Landscape · 3:2" },
-          { value: "square", label: "Square · 1:1" },
+          { value: "panorama", label: "Panorama (2.4:1)" },
+          { value: "wide", label: "Wide (16:9)" },
+          { value: "landscape", label: "Landscape (3:2)" },
+          { value: "square", label: "Square (1:1)" },
         ]}
       />
       <Slider

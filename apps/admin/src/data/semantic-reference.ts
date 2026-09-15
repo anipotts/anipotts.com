@@ -667,7 +667,7 @@ export function semanticStateLabel(state: SemanticSourceState): string {
     case "unchecked":
       return "source not checked";
     case "absent":
-      return "checked · no value found";
+      return "checked, no value found";
     case "unknown":
       return "unknown";
   }

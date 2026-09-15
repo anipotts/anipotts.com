@@ -390,7 +390,7 @@ for (const marker of [
   "providerDestination",
   "isSafeProviderHref",
   "source not checked",
-  "checked · no value found",
+  "checked, no value found",
 ]) {
   assert.ok(
     semanticReferenceSource.includes(marker),

@@ -268,7 +268,7 @@ export function ObservabilityWorkspace({
             details: (
               <VStack gap={1}>
                 <Text>
-                  {title(span.operation)} · {span.durationMs} ms
+                  {title(span.operation)}, {span.durationMs} ms
                 </Text>
                 <Evidence at={span.startedAt} id={span.traceId} />
                 <Text type="code">{span.spanId}</Text>
