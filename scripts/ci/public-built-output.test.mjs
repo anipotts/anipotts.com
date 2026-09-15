@@ -76,8 +76,12 @@ for (const path of privateRoutes) {
 // House style bans dividers. Spacing carries section breaks, so built pages
 // must not paint one-sided rules, hairline pseudo elements or <hr>.
 const dividerAllowlist = [
-  // SystemMap connectors are an approved diagram, not dividers.
-  /^\.(step|step-flow|return-route|intake-line)\b/,
+  // SystemMap connectors are an approved diagram, not dividers. Match the
+  // exact built selectors so a new .step-* rule cannot borrow the exemption.
+  /^\.step(:first-child:before|\+\.step:before)?$/,
+  /^\.step-flow:after$/,
+  /^\.return-route(:before|:after)?$/,
+  /^\.intake-line$/,
   // Quoted article prose keeps its quotation bar.
   /^\.editorial-detail \.article-body blockquote$/,
 ];
@@ -146,18 +150,38 @@ function dividerReasons(selector, body) {
       if (painted && wide) reasons.push(`${property}:${value}`);
     }
     if (
-      property === "border-width" &&
-      new Set(tokens.map((token) => /^0+[a-z%]*$/.test(token))).size > 1
+      (property === "border-width" &&
+        new Set(tokens.map((token) => /^0+[a-z%]*$/.test(token))).size > 1) ||
+      (property === "border-style" &&
+        new Set(tokens.map((token) => /^(none|hidden)$/.test(token))).size > 1)
     ) {
       reasons.push(`${property}:${value}`);
     }
     if (
       property === "box-shadow" &&
-      /(^|,)\s*(inset\s+)?(0\s+-?1px|-?1px\s+0)\s+0(\s+0)?\s+[^\s,]/.test(value)
+      /(^|,)\s*(inset\s+)?(0\s+-?1px|-?1px\s+0)(\s+0){0,2}\s+[^\s,\d.-]/.test(
+        value,
+      )
     ) {
       reasons.push(`${property}:${value}`);
     }
   }
+  // A full border with some sides zeroed paints the remaining sides as rules.
+  const boxed = decls.some(
+    ([property, value]) =>
+      property === "border" &&
+      !/(^|\s)(0|none|hidden)(\s|$)/.test(value.replace(/!important/, "")),
+  );
+  const zeroed = decls.filter(
+    ([property, value]) =>
+      /^border-(top|bottom|left|right|block|inline)(-(start|end))?(-(width|style))?$/.test(
+        property,
+      ) && /^(0+[a-z%]*|none|hidden)(\s*!important)?$/.test(value),
+  );
+  if (boxed && zeroed.length)
+    reasons.push(
+      `border with ${zeroed.map(([property]) => property).join(",")} zeroed`,
+    );
   const thin = decls.some(
     ([property, value]) =>
       /^(height|block-size|width|inline-size)$/.test(property) &&
