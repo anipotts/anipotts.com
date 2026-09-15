@@ -143,6 +143,38 @@ function heldLeaveCopy(current: SaveState | undefined, compared: boolean) {
   return "Your latest edits are still here. Save them before leaving this draft.";
 }
 
+/** Tell the library, and through the inventory relay the other open tabs,
+ * what an acknowledged draft now says. A row refresh never interrupts the
+ * editor, so unreadable metadata is skipped. */
+function announceRecordFreshness(
+  record: EditorialRecord,
+  draft: { source: string; revision: number; updatedAt: number | string },
+  baseSource: string,
+  publishedAt?: string,
+) {
+  try {
+    const metadata = parseEditorialSource(draft.source).data as Record<
+      string,
+      unknown
+    >;
+    const intended =
+      record.kind === "work" ? metadata.public_state : metadata.status;
+    if (typeof metadata.title !== "string") return;
+    dispatchEditorialRecordSaved({
+      record,
+      title: metadata.title,
+      summary: editorialRecordSummary(record, metadata) ?? "",
+      revision: draft.revision,
+      updatedAt: new Date(draft.updatedAt).toISOString(),
+      changesPending: publishedAt ? false : draft.source !== baseSource,
+      ...(typeof intended === "string" ? { intendedVisibility: intended } : {}),
+      ...(publishedAt ? { publishedAt } : {}),
+    });
+  } catch {
+    /* Metadata refresh never interrupts an acknowledged save. */
+  }
+}
+
 export const HomeEditor = React.memo(HomeEditorImpl);
 
 function HomeEditorImpl({
@@ -447,6 +479,12 @@ function HomeEditorImpl({
   const publishPending = useRef(false);
   const [comparison, setComparison] = useState<HomeBase | null>(null);
   const publishRequest = useRef<{ revision: number; id: string } | null>(null);
+  /** The saved revision this tab submitted, so the row can follow it live. */
+  const publishedDraft = useRef<{
+    operationId: string;
+    revision: number;
+    source: string;
+  } | null>(null);
   async function postRequest(
     action: string,
     body: unknown,
@@ -517,30 +555,8 @@ function HomeEditorImpl({
             const result = await readSaveResponse(
               await postRequest("save", input),
             );
-            if (result.ok) {
-              try {
-                const metadata = parseEditorialSource(result.draft.source)
-                  .data as Record<string, unknown>;
-                const intended =
-                  record.kind === "work"
-                    ? metadata.public_state
-                    : metadata.status;
-                if (typeof metadata.title === "string")
-                  dispatchEditorialRecordSaved({
-                    record,
-                    title: metadata.title,
-                    summary: editorialRecordSummary(record, metadata) ?? "",
-                    revision: result.draft.revision,
-                    updatedAt: new Date(result.draft.updatedAt).toISOString(),
-                    changesPending: result.draft.source !== data.base.source,
-                    ...(typeof intended === "string"
-                      ? { intendedVisibility: intended }
-                      : {}),
-                  });
-              } catch {
-                /* Metadata refresh never interrupts an acknowledged save. */
-              }
-            }
+            if (result.ok)
+              announceRecordFreshness(record, result.draft, data.base.source);
             return result;
           },
           (next) => {
@@ -664,6 +680,20 @@ function HomeEditorImpl({
         const data = await response.json();
         if (!cancelled && active === request) {
           if (!data.publication) throw new Error();
+          const submitted = publishedDraft.current;
+          if (
+            data.publication.phase === "live" &&
+            submitted?.operationId === data.publication.id
+          ) {
+            const publishedAt = new Date().toISOString();
+            announceRecordFreshness(
+              record,
+              { ...submitted, updatedAt: publishedAt },
+              submitted.source,
+              publishedAt,
+            );
+            publishedDraft.current = null;
+          }
           setPublicationStale(false);
           setPublication(data.publication);
         }
@@ -1070,6 +1100,11 @@ function HomeEditorImpl({
                 matchesReviewedDraft(reviewed, editor.current?.state ?? null),
             );
             if (!result.publication) throw new Error();
+            publishedDraft.current = {
+              operationId: result.publication.id,
+              revision: current.revision,
+              source: current.source,
+            };
             setPublicationStale(false);
             setPublication(result.publication);
           } catch {
@@ -1289,6 +1324,11 @@ function HomeEditorImpl({
                     expectedRevision: state.revision,
                   });
                   if (!result.draft) throw new Error();
+                  announceRecordFreshness(
+                    record,
+                    result.draft,
+                    snapshot.base.source,
+                  );
                   setSnapshot({ ...snapshot, draft: result.draft });
                   resetBuffers();
                   editor.current!.resolve(result.draft, false);
@@ -1563,6 +1603,11 @@ function HomeEditorImpl({
                             expectedRevision: comparedDraft.revision,
                           });
                           if (!result.draft) throw new Error();
+                          announceRecordFreshness(
+                            record,
+                            result.draft,
+                            snapshot.base.source,
+                          );
                           if (!isCurrent()) return;
                           setSaveComparison({ draft: result.draft });
                         } catch {
