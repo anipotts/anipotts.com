@@ -12,6 +12,22 @@ const builds = { base: option("BASE_URL"), pr: option("PR_URL") };
 const rounds = Number(option("ROUNDS", "2"));
 const only = option("ONLY", "record,table,sheets,probe,checks").split(",");
 const here = fileURLToPath(new URL(".", import.meta.url));
+// Other work on the machine skews the numbers, so wait for it to be quiet
+// before each recorded run. LOAD_MAX=0 skips the wait.
+const loadMax = Number(option("LOAD_MAX", "6"));
+const loadWaitMs = Number(option("LOAD_WAIT_MS", "900000"));
+const quiet = async () => {
+  if (!loadMax) return loadavg()[0];
+  const deadline = Date.now() + loadWaitMs;
+  let load = loadavg()[0];
+  while (load >= loadMax && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 20000));
+    load = loadavg()[0];
+  }
+  if (load >= loadMax)
+    console.log(`### still loaded at ${load.toFixed(2)}, recording anyway`);
+  return load;
+};
 const node = (script, env) => {
   const result = spawnSync(process.execPath, [`${here}${script}`], {
     stdio: "inherit",
@@ -23,6 +39,7 @@ if (only.includes("record"))
   for (let round = 1; round <= rounds; round++)
     for (const profile of ["desktop-1280", "mobile-390-4x"])
       for (const [build, base] of Object.entries(builds)) {
+        await quiet();
         console.log(
           `### r${round} ${profile} ${build} load ${loadavg()
             .map((l) => l.toFixed(2))

@@ -25,7 +25,8 @@ BASE_URL=http://127.0.0.1:8861 PR_URL=http://127.0.0.1:8860 OUT=/tmp/bench \
   pnpm --filter @anipotts/www bench:motion
 ```
 
-`ROUNDS` (default 2) sets the interleaved rounds. `ONLY` picks stages from
+`ROUNDS` (default 2) sets the interleaved rounds. Each recorded run waits for
+the one minute load average to fall under `LOAD_MAX` (default 6) first. `ONLY` picks stages from
 `record,table,sheets,probe,checks`. Stop both servers afterwards.
 
 ## scripts
