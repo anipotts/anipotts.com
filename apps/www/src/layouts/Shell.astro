@@ -8,6 +8,9 @@ import CursorPet from "../components/CursorPet.astro";
 import PageCurrent from "../components/PageCurrent.astro";
 import { siteConfig } from "@anipotts/content/public";
 import { personId, websiteId } from "../lib/identity";
+// The same module path the brand @font-face src resolves, so Vite emits one
+// hashed file and the preload is the exact URL the display face requests.
+import apStructuralUrl from "@anipotts/brand/ap-structural/fonts/APStructuralDisplayBlack-v0.2.0-candidate.1.woff2?url";
 
 interface Props {
   title: string;
@@ -68,6 +71,13 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
     <title>{fullTitle}</title>
+    <link
+      rel="preload"
+      href={apStructuralUrl}
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
     <meta name="description" content={description} />
     {robots && <meta name="robots" content={robots} />}
     <link rel="canonical" href={canonical} />
