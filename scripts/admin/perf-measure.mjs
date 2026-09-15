@@ -293,6 +293,12 @@ async function press(page, session, locator, ctx) {
   return locator.click({ delay: ctx.pressGapMs, timeout: ctx.timeout });
 }
 
+/** The link label, optionally followed by a record count. */
+export const navName = (label) =>
+  new RegExp(
+    `^${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\s+\\d+(\\s+records?)?)?$`,
+  );
+
 const navLink = (workspace, label, expect) => ({
   label,
   async target(page, session, ctx) {
@@ -300,7 +306,8 @@ const navLink = (workspace, label, expect) => ({
       .locator(
         `nav[aria-label="${workspace}"], dialog[aria-label="Navigation"]`,
       )
-      .getByRole("link", { name: label, exact: true })
+      // Group links may append a count to the label ("Writing 6 records").
+      .getByRole("link", { name: navName(label) })
       .filter({ visible: true })
       .first();
     // Narrow layouts keep the workspace navigation in a drawer.

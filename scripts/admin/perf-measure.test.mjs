@@ -10,6 +10,7 @@ import {
   crossCheckProxy,
   intentSummary,
   markdown,
+  navName,
   parseArgs,
   trackRequests,
 } from "./perf-measure.mjs";
@@ -490,4 +491,13 @@ test("markdown reports browser mode, layout shift total and both announcement co
   assert.match(text, /announcements \(new\)/);
   assert.match(text, /proxy documents/);
   assert.match(text, /\| 1024 \|/);
+});
+
+test("navigation labels match with or without a trailing item count", () => {
+  assert.match("Writing", navName("Writing"));
+  assert.match("Writing 6", navName("Writing"));
+  assert.match("Writing 6 records", navName("Writing"));
+  assert.match("Writing 1 record", navName("Writing"));
+  assert.doesNotMatch("Writing drafts", navName("Writing"));
+  assert.doesNotMatch("Overview 23", navName("Writing"));
 });
