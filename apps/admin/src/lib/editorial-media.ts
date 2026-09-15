@@ -31,7 +31,7 @@ export function editorialImageSource(src: string): string {
     const trusted =
       url.hostname === "admin.anipotts.com" ||
       url.hostname === "localhost" ||
-      url.hostname === "admin.anipotts.localhost";
+      url.hostname === "127.0.0.1";
     const id = url.searchParams.get("id") ?? "";
     if (
       trusted &&

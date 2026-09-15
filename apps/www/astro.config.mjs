@@ -16,10 +16,7 @@ export default defineConfig({
   build: { format: "file" },
   vite: {
     server: {
-      allowedHosts: [
-        new URL(siteConfig.newsletterUrl).hostname,
-        ".anipotts.localhost",
-      ],
+      allowedHosts: [new URL(siteConfig.newsletterUrl).hostname],
     },
   },
   adapter: cloudflare({

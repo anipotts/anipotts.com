@@ -74,9 +74,6 @@ export default defineConfig({
         },
       },
     ],
-    server: {
-      allowedHosts: [".admin.anipotts.localhost"],
-    },
   },
   adapter: cloudflare({
     workerEntryPoint: {
