@@ -165,6 +165,18 @@ function dividerReasons(selector, body) {
     ) {
       reasons.push(`${property}:${value}`);
     }
+    // Transparent sides, column rules and 1px gradient strips paint rules too.
+    if (
+      (property === "border-color" &&
+        new Set(tokens.map((token) => token === "transparent")).size > 1) ||
+      (/^column-rule(-width|-style)?$/.test(property) &&
+        !tokens.some((token) => /^(none|hidden|0+[a-z%]*)$/.test(token))) ||
+      (/^background(-size)?$/.test(property) &&
+        (property === "background-size" || /gradient\(/.test(value)) &&
+        /(^|[\s/])(1px|\.0625rem)(?=[\s,]|$)/.test(value))
+    ) {
+      reasons.push(`${property}:${value}`);
+    }
   }
   // A full border with some sides zeroed paints the remaining sides as rules.
   const boxed = decls.some(
