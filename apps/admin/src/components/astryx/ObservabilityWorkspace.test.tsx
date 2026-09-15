@@ -523,4 +523,17 @@ describe("optional observability workspace", () => {
     await advance(600000);
     expect(fetch).toHaveBeenCalledOnce();
   });
+
+  it("carries each machine's state under its name for the phone layout", async () => {
+    await mount();
+    const rows = [...host.querySelectorAll("tbody tr")];
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      const nameCell = row.querySelector("td")!;
+      const status = nameCell.querySelector(".operations-mobile-status");
+      expect(status?.textContent).toBe("Not observed");
+      expect(status?.querySelector("[aria-hidden=true]")).not.toBeNull();
+    }
+    expect(host.querySelector(".operations-inventory-table")).not.toBeNull();
+  });
 });

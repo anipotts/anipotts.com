@@ -186,18 +186,20 @@
   .editorial-record-count-label {
     display: none;
   }
-  .editorial-record-table {
+  /* Content library only. Operations reuses the table class and chooses its
+     own phone columns. */
+  .editorial-library .editorial-record-table {
     min-width: 0 !important;
   }
-  .editorial-record-table th:first-child {
+  .editorial-library .editorial-record-table th:first-child {
     width: auto !important;
     min-width: 0 !important;
   }
-  .editorial-record-table th:nth-child(2),
-  .editorial-record-table td:nth-child(2) {
+  .editorial-library .editorial-record-table th:nth-child(2),
+  .editorial-library .editorial-record-table td:nth-child(2) {
     display: none;
   }
-  .editorial-mobile-status {
+  .editorial-library .editorial-mobile-status {
     display: flex;
   }
 }
@@ -926,8 +928,11 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 .editorial-workspace-shell .astryx-app-shell-sidenav {
   background: var(--color-workspace-sidebar, var(--color-background-body));
 }
+/* Every workspace page starts its content on the same inline gutter as the
+   Content library, at every width. */
 .editorial-workspace-shell .admin-page-frame {
-  padding: var(--spacing-6);
+  padding-block: var(--spacing-6);
+  padding-inline: clamp(var(--spacing-4), 3vw, var(--spacing-12));
   max-width: 100%;
   width: 100%;
   margin: 0;
@@ -947,7 +952,7 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 }
 @media (max-width: 768px) {
   .editorial-workspace-shell .admin-page-frame {
-    padding: var(--spacing-4);
+    padding-block: var(--spacing-4);
   }
 }
 
