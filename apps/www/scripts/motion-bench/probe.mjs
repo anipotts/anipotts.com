@@ -1,9 +1,17 @@
-// Per-frame collision probe for the writing card choreography. On every
-// animation frame of each step it records:
-// - pairs of text layers (transition overlays and the live headings, summaries
-//   and dates they stand in for) that intersect while both sit above 0.3
-//   opacity and are not hidden under the opaque surface;
-// - frames where the wave wrapper box leaves the surface clip box;
+// Per-frame collision probe for the writing card choreography.
+//
+// Sampling is paint timed: a ResizeObserver on a 1px sentinel whose width
+// flips every animation frame fires once per rendering update, after every
+// requestAnimationFrame callback (including the page's own wave writer) and
+// after style and layout, so each sample reads what that frame paints. For
+// every such frame of each step it records:
+// - pairs of text layers above 0.3 opacity whose line boxes intersect: the
+//   transition overlays, the live headings, summaries and dates they stand in
+//   for, and text inside the ghost's shadow root. Live or ghost text under the
+//   opaque surface is skipped where the intersection sits inside the clip;
+// - date and title pairs among those collisions;
+// - frames where the wave wrapper box leaves the surface clip box, and the
+//   widest horizontal gap between band and clip;
 // - frames where a visible morph layer carries a straight horizontal edge
 //   (10 or more neighbouring columns inside the canvas within half a unit);
 // and after the step settles: overlays left, inline-hidden elements, running
@@ -20,7 +28,7 @@ const ENGINE = option("ENGINE", "chromium");
 const result = { base: BASE, theme: THEME, engine: ENGINE };
 
 function install() {
-  const texts = [
+  const live = [
     "[data-writing-article] > header h1",
     "[data-writing-article] > header .summary",
     "[data-writing-article] > header time",
@@ -30,23 +38,39 @@ function install() {
     "main a.writing-card .sub",
     "main a.writing-card time",
   ];
+  const ghostText =
+    "h1, h2, .title, .summary, time, .page-hero__title, .page-hero__summary, .sub";
   const probe = {
     frames: 0,
     animated: 0,
     collisions: [],
+    dateTitle: [],
     outside: [],
     gutter: 0,
     gutters: [],
     flat: [],
+    clipOffscreen: 0,
     start: performance.now(),
   };
   window.__probe = probe;
-  let watched = null;
+  const sentinel = document.createElement("div");
+  sentinel.style.cssText =
+    "position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none";
+  document.documentElement.appendChild(sentinel);
+
+  // Effective opacity through ancestors and shadow hosts.
   const opacity = (el) => {
     if (getComputedStyle(el).visibility !== "visible") return 0;
     let o = 1;
-    for (let n = el; n && n.nodeType === 1; n = n.parentElement)
-      o *= Number(getComputedStyle(n).opacity);
+    for (let n = el; n;) {
+      if (n.nodeType === 1) {
+        const style = getComputedStyle(n);
+        if (style.display === "none") return 0;
+        o *= Number(style.opacity);
+        n = n.parentNode;
+      } else if (n instanceof ShadowRoot) n = n.host;
+      else break;
+    }
     return o;
   };
   const insetBox = (value) => {
@@ -56,71 +80,32 @@ function install() {
     const [t, r = t, b = t, l = r] = v;
     return { left: l, top: t, right: innerWidth - r, bottom: innerHeight - b };
   };
-  const overlap = (a, b) =>
-    Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 &&
-    Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1;
+  const intersection = (a, b) => {
+    const box = {
+      left: Math.max(a.left, b.left),
+      top: Math.max(a.top, b.top),
+      right: Math.min(a.right, b.right),
+      bottom: Math.min(a.bottom, b.bottom),
+    };
+    return box.right - box.left > 1 && box.bottom - box.top > 1 ? box : null;
+  };
   const inside = (a, clip) =>
     a.left >= clip.left - 0.5 &&
     a.top >= clip.top - 0.5 &&
     a.right <= clip.right + 0.5 &&
     a.bottom <= clip.bottom + 0.5;
-  // True from this probe's frame callback until the frame's tasks end: a
-  // wrapper write outside it (the setup write in the swap task) is never
-  // painted against a later clip.
-  let inFrame = false;
-  const endOfFrame = new MessageChannel();
-  endOfFrame.port1.onmessage = () => (inFrame = false);
-  const tick = () => {
-    inFrame = true;
-    endOfFrame.port2.postMessage(0);
-    const t = +(performance.now() - probe.start).toFixed(0);
-    probe.frames++;
-    const surface = document.querySelector(".writing-transition-surface");
-    const clip = surface && insetBox(getComputedStyle(surface).clipPath);
-    const main = document.querySelector("main");
-    const mainAbove = main && Number(getComputedStyle(main).zIndex) > 200;
-    if (document.documentElement.dataset.writingTransition) probe.animated++;
-    const wrapper = document.querySelector(".writing-transition-waves");
-    // The wrapper's transform is written on the surface clock inside the
-    // page's own frame callback, which can run after this one: compare it
-    // with the clip in the same frame, as soon as it is written.
-    if (wrapper && wrapper !== watched) {
-      watched = wrapper;
-      const check = () => {
-        const s = document.querySelector(".writing-transition-surface");
-        const c = s && insetBox(getComputedStyle(s).clipPath);
-        if (!c || !wrapper.isConnected) return;
-        const w = wrapper.getBoundingClientRect();
-        // The header band spans the clip's width: any horizontal gap between
-        // the band and the clip edge shows as a dark gutter.
-        const gap = +Math.max(w.left - c.left, c.right - w.right).toFixed(1);
-        if (inFrame) {
-          probe.gutter = Math.max(probe.gutter, gap);
-          if (gap > 2 && probe.gutters.length < 20)
-            probe.gutters.push({
-              t: +(performance.now() - probe.start).toFixed(0),
-              wrapper: [w.left, w.right].map((v) => +v.toFixed(1)),
-              clip: [c.left, c.right].map((v) => +v.toFixed(1)),
-              surfaceTime: s.getAnimations()[0]?.currentTime ?? null,
-              transform: wrapper.style.transform,
-            });
-        }
-        if (!inside(w, c))
-          probe.outside.push({
-            t: +(performance.now() - probe.start).toFixed(0),
-            wrapper: [w.left, w.top, w.right, w.bottom].map(
-              (v) => +v.toFixed(1),
-            ),
-            clip: [c.left, c.top, c.right, c.bottom].map((v) => +v.toFixed(1)),
-          });
-      };
-      new MutationObserver(check).observe(wrapper, {
-        attributes: true,
-        attributeFilter: ["style"],
-      });
-      check();
-    }
-    wrapper?.querySelectorAll("path").forEach((path, index) => {
+  // Line boxes rather than block boxes, so a wide heading block does not
+  // count as touching text beside its last line.
+  const textRect = (el) => {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const box = range.getBoundingClientRect();
+    return box.width ? box : el.getBoundingClientRect();
+  };
+  const round = (v) => +v.toFixed(1);
+
+  const flatEdges = (wrapper, t) =>
+    wrapper.querySelectorAll("path").forEach((path, index) => {
       const shown =
         Number(path.getAttribute("opacity") ?? 1) *
         Number(getComputedStyle(wrapper).opacity);
@@ -147,54 +132,122 @@ function install() {
         }
       }
     });
+
+  const sample = () => {
+    const surface = document.querySelector(".writing-transition-surface");
+    if (!document.documentElement.dataset.writingTransition && !surface) return;
+    const t = +(performance.now() - probe.start).toFixed(0);
+    probe.frames++;
+    probe.animated++;
+    const clip = surface && insetBox(getComputedStyle(surface).clipPath);
+    if (clip && (clip.top < -1 || clip.bottom > innerHeight + 1))
+      probe.clipOffscreen++;
+    const main = document.querySelector("main");
+    const mainAbove = main && Number(getComputedStyle(main).zIndex) > 200;
+
+    const wrapper = document.querySelector(".writing-transition-waves");
+    if (wrapper && clip && opacity(wrapper) > 0.02) {
+      const w = wrapper.getBoundingClientRect();
+      // The header band spans the clip's width: any horizontal gap between
+      // the band and the clip edge shows as a dark gutter.
+      const gap = round(Math.max(w.left - clip.left, clip.right - w.right));
+      probe.gutter = Math.max(probe.gutter, gap);
+      if (gap > 2 && probe.gutters.length < 20)
+        probe.gutters.push({
+          t,
+          wrapper: [w.left, w.right].map(round),
+          clip: [clip.left, clip.right].map(round),
+          surfaceTime: surface.getAnimations()[0]?.currentTime ?? null,
+          transform: wrapper.style.transform,
+        });
+      if (!inside(w, clip))
+        probe.outside.push({
+          t,
+          wrapper: [w.left, w.top, w.right, w.bottom].map(round),
+          clip: [clip.left, clip.top, clip.right, clip.bottom].map(round),
+        });
+    }
+    if (wrapper) flatEdges(wrapper, t);
+
     const layers = [];
     document.querySelectorAll(".writing-transition-word").forEach((el) =>
       layers.push({
-        name: el.dataset.layer,
+        name: `overlay:${el.dataset.layer}`,
         overlay: true,
-        r: el.getBoundingClientRect(),
+        r: textRect(el),
         o: opacity(el),
       }),
     );
-    texts.forEach((selector) =>
+    live.forEach((selector) =>
       document.querySelectorAll(selector).forEach((el, i) => {
-        const r = el.getBoundingClientRect();
+        const r = textRect(el);
         if (r.bottom < 0 || r.top > innerHeight || !r.width) return;
         layers.push({
-          name: `${selector}#${i}`,
-          overlay: false,
+          name: `live:${selector}#${i}`,
           r,
           o: opacity(el),
           under: !mainAbove,
         });
       }),
     );
+    document
+      .querySelectorAll(
+        ".writing-transition-ghost, .writing-transition-surface",
+      )
+      .forEach((host) => {
+        const root = host.shadowRoot || host;
+        root.querySelectorAll(ghostText).forEach((el, i) => {
+          if (el.closest(".writing-transition-word")) return;
+          const r = textRect(el);
+          if (r.bottom < 0 || r.top > innerHeight || !r.width) return;
+          layers.push({
+            name: `ghost:${el.className || el.tagName}#${i}`,
+            ghost: true,
+            r,
+            o: opacity(el),
+            under: host !== surface,
+          });
+        });
+      });
+
     const visible = layers.filter((l) => l.o > 0.3);
     for (let i = 0; i < visible.length; i++)
       for (let j = i + 1; j < visible.length; j++) {
         const a = visible[i];
         const b = visible[j];
-        if (!a.overlay && !b.overlay) continue;
-        if (!overlap(a.r, b.r)) continue;
-        const live = a.overlay ? b : a;
-        if (!live.overlay && live.under && surface && clip) {
-          const cross = {
-            left: Math.max(a.r.left, b.r.left),
-            top: Math.max(a.r.top, b.r.top),
-            right: Math.min(a.r.right, b.r.right),
-            bottom: Math.min(a.r.bottom, b.r.bottom),
-          };
-          if (inside(cross, clip)) continue;
-        }
-        probe.collisions.push({
+        // Live text against live text is the page's own layout; ghost text
+        // against ghost text is the old page's.
+        if (!a.overlay && !b.overlay && !a.ghost === !b.ghost) continue;
+        const cross = intersection(a.r, b.r);
+        if (!cross) continue;
+        const hidden = (l) =>
+          !l.overlay && l.under && clip && inside(cross, clip);
+        if (hidden(a) || hidden(b)) continue;
+        const record = {
           t,
           a: a.name,
           b: b.name,
           oa: +a.o.toFixed(2),
           ob: +b.o.toFixed(2),
-        });
+        };
+        probe.collisions.push(record);
+        const names = a.name + b.name;
+        if (/date|time/.test(names) && /title|h1/.test(names))
+          probe.dateTitle.push(record);
       }
-    if (performance.now() - probe.start < 1400) requestAnimationFrame(tick);
+  };
+
+  const observer = new ResizeObserver(sample);
+  observer.observe(sentinel);
+  let flip = false;
+  const tick = () => {
+    flip = !flip;
+    sentinel.style.width = flip ? "2px" : "1px";
+    if (performance.now() - probe.start < 1500) requestAnimationFrame(tick);
+    else {
+      observer.disconnect();
+      sentinel.remove();
+    }
   };
   requestAnimationFrame(tick);
 }
@@ -203,7 +256,8 @@ const browser = await (ENGINE === "webkit" ? webkit : chromium).launch({
   headless: true,
 });
 for (const p of profiles(THEME)) {
-  const context = await browser.newContext(p.context);
+  const { defaultBrowserType: _engine, ...contextOptions } = p.context;
+  const context = await browser.newContext(contextOptions);
   const page = await context.newPage();
   if (ENGINE === "chromium") {
     const cdp = await context.newCDPSession(page);
@@ -220,7 +274,7 @@ for (const p of profiles(THEME)) {
   async function capture(label, _selector, action) {
     await page.evaluate(install);
     await action();
-    await page.waitForTimeout(1600);
+    await page.waitForTimeout(1700);
     const settled = await page.evaluate(() => {
       const active = document.activeElement;
       return {
@@ -247,8 +301,10 @@ for (const p of profiles(THEME)) {
       frames: probe.frames,
       animatedFrames: probe.animated,
       collisionFrames: new Set(probe.collisions.map((c) => c.t)).size,
+      dateTitleFrames: new Set(probe.dateTitle.map((c) => c.t)).size,
       outsideFrames: probe.outside.length,
       maxGutterPx: probe.gutter,
+      clipOffscreenFrames: probe.clipOffscreen,
       gutters: probe.gutters,
       // Interior: a straight edge crossing the surface. Near the canvas edge
       // (within 3 percent): a wave settling onto the destination artwork's
@@ -266,15 +322,17 @@ for (const p of profiles(THEME)) {
     };
     result[p.name].push(row);
     console.log(
+      ENGINE,
       p.name,
       label,
-      `frames ${row.frames} animated ${row.animatedFrames} collisions ${row.collisionFrames} outside ${row.outsideFrames} gutter ${row.maxGutterPx} flat ${row.flatEdgeFrames} (canvas edge ${row.flatAtCanvasEdgeFrames}) overlays ${after.overlays} hidden ${after.hidden} running ${after.running} focus ${after.focus}`,
+      `frames ${row.frames} collisions ${row.collisionFrames} date-title ${row.dateTitleFrames} outside ${row.outsideFrames} gutter ${row.maxGutterPx} flat ${row.flatEdgeFrames} (canvas edge ${row.flatAtCanvasEdgeFrames}) overlays ${after.overlays} hidden ${after.hidden} running ${after.running} focus ${after.focus}`,
     );
   }
   await runSteps(page, p.tap, capture);
   result[p.name].push({ errors });
+  if (errors.length) console.log(ENGINE, p.name, "errors", errors);
   await context.close();
 }
 await browser.close();
 mkdirSync(OUT, { recursive: true });
-writeFileSync(`${OUT}/probe.json`, JSON.stringify(result, null, 1));
+writeFileSync(`${OUT}/probe-${ENGINE}.json`, JSON.stringify(result, null, 1));
