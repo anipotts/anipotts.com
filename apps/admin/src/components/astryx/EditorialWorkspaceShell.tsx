@@ -47,10 +47,16 @@ import {
   CaretDownIcon,
   CaretUpIcon,
   ArrowUpRightIcon,
+  ListIcon,
   LaptopIcon,
 } from "@phosphor-icons/react";
 import { AdminCommandPalette } from "./AdminCommandPalette";
 import type { AdminSearchResult } from "../../data/admin-search";
+import {
+  RAIL_QUERY,
+  savedSidebarCollapsed,
+  sidebarRail,
+} from "../../lib/admin-sidebar";
 
 export const websiteNavigation = [
   {
@@ -119,19 +125,9 @@ const workspaceIcons = {
   life: IdentificationCardIcon,
 };
 
-/** AppShell reuses this slot in its fixed-height mobile topbar and drawer. */
-export function WorkspaceIdentity({
-  collapsed = false,
-  workspace = "content",
-  siteHref = "https://anipotts.com",
-}: {
-  collapsed?: boolean;
-  workspace?: Workspace;
-  siteHref?: string;
-}) {
-  const { isMobile } = useAppShellMobile();
-  const compact = collapsed && !isMobile;
-  const WorkspaceIcon = workspaceIcons[workspace];
+/** Where each workspace menu item leads: the last page visited in that
+ * workspace this session, or its home. */
+function useWorkspaceDestinations(workspace: Workspace) {
   const [destinations, setDestinations] = useState<Record<Workspace, string>>({
     content: "/content",
     operations: "/operations/observability",
@@ -169,6 +165,90 @@ export function WorkspaceIdentity({
       window.removeEventListener("editorial:library-state", sync);
     };
   }, [workspace]);
+  return destinations;
+}
+
+function WorkspaceMenu({
+  workspace,
+  compact,
+}: {
+  workspace: Workspace;
+  compact: boolean;
+}) {
+  const destinations = useWorkspaceDestinations(workspace);
+  const WorkspaceIcon = workspaceIcons[workspace];
+  return (
+    <SidebarMenu
+      className="admin-workspace-selector"
+      name="Workspace"
+      label={workspaces[workspace].label}
+      accessibleLabel={`Switch workspace: ${workspaces[workspace].label}`}
+      icon={<WorkspaceIcon size={18} aria-hidden="true" />}
+      compact={compact}
+      opens="below"
+      value={workspace}
+      options={(Object.keys(workspaces) as Workspace[]).map((key) => ({
+        value: key,
+        label: workspaces[key].label,
+      }))}
+      onChange={(key) => {
+        if (key !== workspace) navigateAdmin(destinations[key as Workspace]);
+      }}
+    />
+  );
+}
+
+/** The phone and tablet header. It sits in AppShell's banner slot, which the
+ * server writes on every document, and CSS shows it at the drawer breakpoint
+ * (AppShell md, 768px and below). Nothing about it waits for hydration, so it
+ * is on screen from the first paint of every page and never flickers between
+ * workspaces or tabs. The menu button opens AppShell's own drawer. */
+export function WorkspaceTopBar({ workspace }: { workspace: Workspace }) {
+  const { isMobile, isMobileNavOpen, mobileNavId, openMobileNav } =
+    useAppShellMobile();
+  return (
+    <HStack
+      className="admin-mobile-header"
+      gap={3}
+      hAlign="between"
+      vAlign="center"
+    >
+      <HStack gap={3} vAlign="center" className="admin-mobile-header-identity">
+        <span className="admin-bracket-wordmark" aria-label="Admin">
+          <span aria-hidden="true">[</span>admin
+          <span aria-hidden="true">]</span>
+        </span>
+        <WorkspaceMenu workspace={workspace} compact={false} />
+      </HStack>
+      <Button
+        className="admin-mobile-header-menu"
+        label="Open navigation"
+        isIconOnly
+        variant="ghost"
+        size="md"
+        icon={<ListIcon size={20} aria-hidden="true" />}
+        aria-expanded={isMobileNavOpen}
+        // The drawer exists only once the shell has hydrated at this width.
+        aria-controls={isMobile ? mobileNavId : undefined}
+        onClick={openMobileNav}
+      />
+    </HStack>
+  );
+}
+
+/** The sidebar header, in the desktop sidebar, the collapsed rail and the
+ * phone and tablet drawer. */
+export function WorkspaceIdentity({
+  collapsed = false,
+  workspace = "content",
+  siteHref = "https://anipotts.com",
+}: {
+  collapsed?: boolean;
+  workspace?: Workspace;
+  siteHref?: string;
+}) {
+  const { isMobile } = useAppShellMobile();
+  const compact = collapsed && !isMobile;
   return (
     <VStack
       className="editorial-workspace-identity approved-workspace-header"
@@ -208,23 +288,7 @@ export function WorkspaceIdentity({
           />
         )}
       </HStack>
-      <SidebarMenu
-        className="admin-workspace-selector"
-        name="Workspace"
-        label={workspaces[workspace].label}
-        accessibleLabel={`Switch workspace: ${workspaces[workspace].label}`}
-        icon={<WorkspaceIcon size={18} aria-hidden="true" />}
-        compact={compact}
-        opens="below"
-        value={workspace}
-        options={(Object.keys(workspaces) as Workspace[]).map((key) => ({
-          value: key,
-          label: workspaces[key].label,
-        }))}
-        onChange={(key) => {
-          if (key !== workspace) navigateAdmin(destinations[key as Workspace]);
-        }}
-      />
+      <WorkspaceMenu workspace={workspace} compact={compact} />
       {!isMobile && (
         <Button
           className="editorial-header-search"
@@ -414,6 +478,9 @@ export function EditorialWorkspaceShell({
 }) {
   const [rail, setRail] = useState(false);
   const [userCollapsed, setUserCollapsed] = useState<boolean | null>(null);
+  // False until the client has chosen the rail. Until then the prepaint
+  // script's choice on the root element holds the sidebar geometry.
+  const [railReady, setRailReady] = useState(false);
   const [librarySearch, setLibrarySearch] = useState("");
   useEffect(() => {
     const sync = () => {
@@ -449,32 +516,34 @@ export function EditorialWorkspaceShell({
     );
   };
   useEffect(() => {
+    // The saved choice and the width decide the rail in one commit, the same
+    // way the prepaint script decided it, so hydration never resizes it.
+    let saved: boolean | null = null;
     try {
-      const saved =
-        localStorage.getItem("admin:sidebar-collapsed") ??
-        localStorage.getItem("editorial:sidebar-collapsed");
-      if (saved === "true" || saved === "false")
-        setUserCollapsed(saved === "true");
+      saved = savedSidebarCollapsed(localStorage);
     } catch {}
+    setUserCollapsed(saved);
+    setRail(
+      sidebarRail(
+        window.innerWidth,
+        saved,
+        window.matchMedia(RAIL_QUERY).matches,
+      ),
+    );
+    setRailReady(true);
   }, []);
   useEffect(() => {
-    // AppShell's md drawer covers widths up to and including 768px, so the
-    // rail can only exist above it.
-    const query = window.matchMedia(
-      "(min-width: 769px) and (max-width: 1279px)",
-    );
+    if (!railReady) return;
+    const query = window.matchMedia(RAIL_QUERY);
     const update = () =>
-      setRail(
-        window.innerWidth <= 768 ? false : (userCollapsed ?? query.matches),
-      );
-    update();
+      setRail(sidebarRail(window.innerWidth, userCollapsed, query.matches));
     query.addEventListener("change", update);
     window.addEventListener("resize", update);
     return () => {
       query.removeEventListener("change", update);
       window.removeEventListener("resize", update);
     };
-  }, [userCollapsed]);
+  }, [railReady, userCollapsed]);
   const changeCollapsed = (collapsed: boolean) => {
     setUserCollapsed(collapsed);
     setRail(collapsed);
@@ -500,11 +569,15 @@ export function EditorialWorkspaceShell({
       <AppShell
         className="editorial-workspace-shell"
         data-sidebar-collapsed={rail}
+        data-sidebar-ready={railReady}
         data-workspace={workspace}
         height="fill"
         variant={rail ? "section" : "wash"}
         contentPadding={0}
-        mobileNav={{ breakpoint: "md" }}
+        // Admin owns the phone and tablet header (see WorkspaceTopBar), so
+        // AppShell never swaps a bar in after hydration; its drawer stays.
+        mobileNav={{ breakpoint: "md", hasToggle: false }}
+        banner={<WorkspaceTopBar workspace={workspace} />}
         sideNav={
           <SideNav
             className="editorial-workspace-nav"

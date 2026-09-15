@@ -15,7 +15,8 @@ describe("operational search adapter", () => {
       "Loops",
     ]);
     const advanced = operationalSearchNavigation(navItems);
-    expect(advanced.some((row) => row.href.startsWith("/inbox"))).toBe(true);
+    expect(advanced.some((row) => row.href.startsWith("/inbox"))).toBe(false);
+    expect(advanced.some((row) => row.href === "/work?view=now")).toBe(true);
     expect(
       advanced.some((row) =>
         ["content", "life", "website"].includes(row.group),

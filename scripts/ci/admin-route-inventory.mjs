@@ -63,9 +63,10 @@ export const ADMIN_ROUTES = [
     nav: false,
   },
   {
+    // Retired; redirects to Operations so old links still land somewhere.
     route: "/inbox",
     file: "apps/admin/src/pages/inbox.astro",
-    nav: true,
+    nav: false,
   },
   {
     route: "/knowledge",
@@ -193,12 +194,6 @@ export const ADMIN_ROUTES = [
   {
     route: "/api/admin/runtime-feed",
     file: "apps/admin/src/pages/api/admin/runtime-feed.ts",
-    nav: false,
-    smoke: false,
-  },
-  {
-    route: "/api/admin/inbox",
-    file: "apps/admin/src/pages/api/admin/inbox.ts",
     nav: false,
     smoke: false,
   },

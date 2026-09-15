@@ -16,7 +16,7 @@ card_copy: a place for members of our quant fund to find research and share reso
 detail_path: /work/pgi-research-platform
 preview_media:
   kind: image
-  src: /images/work/paragon-portal-directory.png
+  src: /images/work/paragon-portal-directory.webp
   alt: Paragon Global Investments member directory showing its intercollegiate research community.
   caption: member directory
 story:
@@ -41,7 +41,7 @@ story:
         resources with as little friction as possible.
     media:
       kind: image
-      src: /images/work/paragon-portal-resources.png
+      src: /images/work/paragon-portal-resources.webp
       alt: Paragon member resource library with educational material organized for the club.
       caption: member resources
   - title: make the admin work easy too
@@ -55,7 +55,7 @@ story:
         control of its information.
     media:
       kind: image
-      src: /images/work/paragon-portal-content-admin.png
+      src: /images/work/paragon-portal-content-admin.webp
       alt: Paragon portal content manager used by club administrators.
       caption: content manager
   - title: learn from the real loop
@@ -69,7 +69,7 @@ story:
         controls, and the actions a member needed on the first screen.
     media:
       kind: image
-      src: /images/work/paragon-portal-analytics.png
+      src: /images/work/paragon-portal-analytics.webp
       alt: Paragon portal analytics showing how members used the site.
       caption: portal analytics
 identity:

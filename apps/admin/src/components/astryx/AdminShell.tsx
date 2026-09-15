@@ -199,7 +199,6 @@ function isActive(currentRoute: string, href: string): boolean {
     );
   }
 
-  if (href === "/inbox") return canonicalCurrentPath === "/inbox";
   if (href === "/knowledge") {
     return canonicalCurrentPath === "/knowledge" && !currentParams.has("kind");
   }

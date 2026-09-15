@@ -122,7 +122,7 @@ jobs:
 
       - name: Validate local development
         if: github.event.pull_request.draft == false && needs.classify.outputs.local_dev_changed == 'true'
-        run: pnpm test:admin-preview && pnpm test:portless-preview
+        run: pnpm test:admin-preview && pnpm test:dev-servers
 
       - name: Validate affected packages once
         if: github.event.pull_request.draft == false && needs.classify.outputs.docs_only != 'true'

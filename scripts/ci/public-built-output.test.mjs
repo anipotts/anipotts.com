@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { parse } from "yaml";
@@ -72,6 +72,222 @@ for (const path of privateRoutes) {
     `Private route in public discovery: ${path}`,
   );
 }
+
+// House style bans dividers. Spacing carries section breaks, so built pages
+// must not paint one-sided rules, hairline pseudo elements or <hr>.
+const dividerAllowlist = [
+  // SystemMap connectors are an approved diagram, not dividers. Match the
+  // exact built selectors so a new .step-* rule cannot borrow the exemption.
+  /^\.step(:first-child:before|\+\.step:before)?$/,
+  /^\.step-flow:after$/,
+  /^\.return-route(:before|:after)?$/,
+  /^\.intake-line$/,
+  // Quoted article prose keeps its quotation bar.
+  /^\.editorial-detail \.article-body blockquote$/,
+];
+function builtFiles(dir, found = []) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const file = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name !== "_worker.js") builtFiles(file, found);
+    } else if (/\.(css|html)$/.test(entry.name)) found.push(file);
+  }
+  return found;
+}
+function styleRules(css) {
+  const rules = [];
+  const stack = [];
+  let start = 0;
+  for (let i = 0; i < css.length; i += 1) {
+    if (css[i] === "{") {
+      if (stack.length) stack[stack.length - 1].nested = true;
+      stack.push({ prelude: css.slice(start, i).trim(), body: i + 1 });
+      start = i + 1;
+    } else if (css[i] === "}") {
+      const block = stack.pop();
+      if (block && !block.nested && !block.prelude.startsWith("@")) {
+        rules.push({ selector: block.prelude, body: css.slice(block.body, i) });
+      }
+      start = i + 1;
+    } else if (css[i] === ";" && stack.length === 0) {
+      start = i + 1;
+    }
+  }
+  return rules;
+}
+function dividerReasons(selector, body) {
+  const decls = body
+    .split(";")
+    .filter((part) => part.includes(":"))
+    .map((part) => {
+      const colon = part.indexOf(":");
+      return [
+        part.slice(0, colon).trim().toLowerCase(),
+        part.slice(colon + 1).trim(),
+      ];
+    });
+  const reasons = [];
+  for (const [property, value] of decls) {
+    const tokens = value.replace(/!important/, "").split(/\s+(?![^(]*\))/);
+    if (
+      /^border-(top|bottom|left|right|block|inline)(-(start|end))?(-width)?$/.test(
+        property,
+      )
+    ) {
+      const widths = tokens.filter((token) =>
+        /^([\d.]+[a-z%]*|thin|medium|thick)$/.test(token),
+      );
+      const painted = !tokens.some((token) =>
+        /^(none|hidden|transparent)$/.test(token),
+      );
+      const wide = widths.length
+        ? widths.some((token) => !/^0+(\.0+)?[a-z%]*$/.test(token))
+        : tokens.some((token) =>
+            /^(solid|dashed|dotted|double|groove|ridge|inset|outset)$/.test(
+              token,
+            ),
+          );
+      if (painted && wide) reasons.push(`${property}:${value}`);
+    }
+    if (
+      (property === "border-width" &&
+        new Set(tokens.map((token) => /^0+[a-z%]*$/.test(token))).size > 1) ||
+      (property === "border-style" &&
+        new Set(tokens.map((token) => /^(none|hidden)$/.test(token))).size > 1)
+    ) {
+      reasons.push(`${property}:${value}`);
+    }
+    if (
+      property === "box-shadow" &&
+      /(^|,)\s*(inset\s+)?(0\s+-?1px|-?1px\s+0)(\s+0){0,2}\s+[^\s,\d.-]/.test(
+        value,
+      )
+    ) {
+      reasons.push(`${property}:${value}`);
+    }
+    // Transparent sides, column rules and 1px gradient strips paint rules too.
+    if (
+      (property === "border-color" &&
+        new Set(tokens.map((token) => token === "transparent")).size > 1) ||
+      (/^column-rule(-width|-style)?$/.test(property) &&
+        !tokens.some((token) => /^(none|hidden|0+[a-z%]*)$/.test(token))) ||
+      (/^background(-size)?$/.test(property) &&
+        (property === "background-size" || /gradient\(/.test(value)) &&
+        /(^|[\s/])(1px|\.0625rem)(?=[\s,]|$)/.test(value))
+    ) {
+      reasons.push(`${property}:${value}`);
+    }
+  }
+  // A full border with some sides zeroed paints the remaining sides as rules.
+  const boxed = decls.some(
+    ([property, value]) =>
+      property === "border" &&
+      !/(^|\s)(0|none|hidden)(\s|$)/.test(value.replace(/!important/, "")),
+  );
+  const zeroed = decls.filter(
+    ([property, value]) =>
+      /^border-(top|bottom|left|right|block|inline)(-(start|end))?(-(width|style))?$/.test(
+        property,
+      ) && /^(0+[a-z%]*|none|hidden)(\s*!important)?$/.test(value),
+  );
+  if (boxed && zeroed.length)
+    reasons.push(
+      `border with ${zeroed.map(([property]) => property).join(",")} zeroed`,
+    );
+  const thin = decls.some(
+    ([property, value]) =>
+      /^(height|block-size|width|inline-size)$/.test(property) &&
+      /^(1px|\.0625rem)$/.test(value),
+  );
+  const filled = decls.some(
+    ([property, value]) =>
+      /^background(-color|-image)?$/.test(property) &&
+      !/^(none|transparent)$/.test(value),
+  );
+  if (/:(before|after)\b/.test(selector) && thin && filled)
+    reasons.push("hairline pseudo element");
+  return reasons;
+}
+const dividerViolations = new Set();
+for (const file of builtFiles(dist)) {
+  const text = readFileSync(file, "utf8");
+  const relative = file.slice(dist.length + 1);
+  const sheets = [text];
+  if (file.endsWith(".html")) {
+    sheets.length = 0;
+    for (const match of text.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi))
+      sheets.push(match[1]);
+    if (/<hr\b/i.test(text)) dividerViolations.add(`${relative}: <hr>`);
+    for (const match of text.matchAll(/\sstyle="([^"]*)"/gi)) {
+      for (const reason of dividerReasons("", match[1]))
+        dividerViolations.add(`${relative}: style="${reason}"`);
+    }
+  }
+  for (const css of sheets) {
+    for (const { selector, body } of styleRules(
+      css.replace(/\/\*[\s\S]*?\*\//g, ""),
+    )) {
+      const reasons = dividerReasons(selector, body);
+      const bare = selector.replace(/\[data-astro-cid-[\w-]+\]/g, "");
+      const allowed = bare
+        .split(",")
+        .every((part) =>
+          dividerAllowlist.some((pattern) => pattern.test(part.trim())),
+        );
+      if (reasons.length && !allowed)
+        dividerViolations.add(`${bare} { ${reasons.join("; ")} }`);
+    }
+  }
+}
+assert.deepEqual(
+  [...dividerViolations],
+  [],
+  "Built pages paint dividers; let spacing carry the break",
+);
+// Per-file byte ceilings keep marks and screenshots near their rendered size.
+// Marks render at 56px or less, so a 3x export stays well under 16kb. Card
+// screenshots ship 800 and 1600px variants; full-size files back the viewer.
+const kb = 1024;
+function files(dir) {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
+    entry.isDirectory()
+      ? files(join(dir, entry.name))
+      : [join(dir, entry.name)],
+  );
+}
+const imageFile = /\.(avif|gif|ico|jpe?g|png|svg|webp)$/i;
+// Unreferenced and not requested by any page; removal waits for owner approval (audit m13).
+const awaitingRemoval = new Set(["/images/ani-potts-headshot.png"]);
+// Admin Publish commits article images here under its own publication cap
+// (MAX_PUBLICATION_MEDIA_BYTES in apps/admin/src/lib/editorial-media.ts).
+const editorialMediaCeiling = 10 * kb * kb;
+function ceiling(path) {
+  if (awaitingRemoval.has(path)) return Infinity;
+  if (path.startsWith("/images/editorial/")) return editorialMediaCeiling;
+  if (path.startsWith("/images/work/")) {
+    if (path.endsWith("-800.webp")) return 48 * kb;
+    if (path.endsWith("-1600.webp")) return 128 * kb;
+    return 240 * kb;
+  }
+  if (path.startsWith("/images/brand/") || path.startsWith("/brand/"))
+    return 16 * kb;
+  return 240 * kb;
+}
+assert.equal(
+  ceiling(`/images/editorial/${"a".repeat(64)}.jpg`),
+  editorialMediaCeiling,
+  "Published article images are not held to the mark ceiling",
+);
+const oversized = ["images", "brand"]
+  .flatMap((dir) => files(join(dist, dir)))
+  .filter((file) => imageFile.test(file))
+  .map((file) => ({
+    path: `/${file.slice(dist.length + 1).replaceAll("\\", "/")}`,
+    bytes: statSync(file).size,
+  }))
+  .filter(({ path, bytes }) => bytes > ceiling(path))
+  .map(({ path, bytes }) => `${path} ${bytes} > ${ceiling(path)}`);
+assert.deepEqual(oversized, [], "Image files over their byte ceiling");
 
 // Optional served-build proof catches worker-first routing errors that disk checks cannot.
 const origin = process.argv

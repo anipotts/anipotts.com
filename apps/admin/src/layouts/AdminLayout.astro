@@ -4,6 +4,7 @@ import {
   initialAdminTheme,
   adminThemePrepaintScript,
 } from "../lib/admin-theme";
+import { adminSidebarPrepaintScript } from "../lib/admin-sidebar";
 import "@astryxdesign/core/astryx.css";
 import "../styles/admin-interactions.css";
 import "@astryxdesign/theme-neutral/theme.css";
@@ -89,6 +90,7 @@ const localOwner =
     />
     <title>{title} | Anipotts Admin</title>
     <script is:inline set:html={adminThemePrepaintScript} />
+    <script is:inline set:html={adminSidebarPrepaintScript} />
   </head>
   <body>
     <AdminShell

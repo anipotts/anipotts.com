@@ -39,5 +39,8 @@ The only native light/dark artwork pair is Codex, as documented above.
   Stripe Dashboard (978516833), retrieved 2026-09-07
 
 Native ICNS assets were converted to PNG without altering their artwork.
+On 2026-09-14 every raster mark here was downscaled to about three times its
+largest rendered size (80, 112, 128 or 144px) so pages stop shipping 512 to
+1024px sources. The SHA-256 above describes the unmodified Codex source.
 Small internal padding in native app assets is accounted for by display size.
 No private history, message content, or account information is included in these assets.

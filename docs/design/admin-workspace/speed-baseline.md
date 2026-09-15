@@ -8,6 +8,10 @@ user-facing behavior. The raw report is
 [`speed-baseline.json`](speed-baseline.json): counts, durations, byte sizes,
 generic labels and route shapes only.
 
+Later slices cite the S1 re-baseline in
+[`speed-rebaseline.md`](speed-rebaseline.md), measured with the extended
+harness under Playwright defaults and `--browser-defaults`.
+
 ## Environment
 
 This is a local production build on `wrangler dev` with local fixtures. It is

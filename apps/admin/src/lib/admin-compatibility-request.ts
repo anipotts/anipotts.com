@@ -8,8 +8,6 @@ import { readEditorialJson } from "./editorial-security";
 export const COMPATIBILITY_JSON_LIMITS = {
   // Existing ceiling: a 500 character reason plus an idempotency key.
   controlCommand: 2_048,
-  // Inbox attention fields total about 4,200 characters.
-  inboxAttention: 32_768,
   // Draft body 50,000 characters plus title, summary and tags.
   contentEditor: 524_288,
   // Proposed value 20,000 characters plus page key, field path and source.

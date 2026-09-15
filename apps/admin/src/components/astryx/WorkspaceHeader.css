@@ -38,14 +38,10 @@
 /* The identity column spans its panel, so the workspace menu is as wide as
    the sidebar on desktop and as the drawer on phones and tablets. The phone
    and tablet top bar is a row instead: wordmark, then a compact menu. */
-.editorial-workspace-nav:not([data-mode="topbar"])
-  .editorial-workspace-identity {
+.editorial-workspace-nav .editorial-workspace-identity {
   align-self: stretch;
   width: 100%;
   box-sizing: border-box;
-}
-.editorial-workspace-nav[data-mode="topbar"] .admin-workspace-selector {
-  width: auto;
 }
 .approved-workspace-header .admin-workspace-selector,
 .approved-workspace-header .editorial-header-search,
@@ -115,19 +111,61 @@
 }
 /* AppShell's md mobile query includes 768px; the rail starts above it. */
 @media (max-width: 768px) {
-  /* AppShell defaults to desktop during SSR; its mobile topbar replaces this
-     inline panel after hydration. Keep narrow content full-width meanwhile. */
+  /* AppShell renders the desktop layout on the server and removes this
+     inline panel after hydration. CSS hides it from the first paint, so the
+     narrow layout never depends on hydration. */
   .editorial-workspace-shell .astryx-app-shell-sidenav {
     display: none;
   }
-  .editorial-workspace-nav[data-mode="topbar"]
-    .approved-workspace-header
-    > .editorial-header-site {
+}
+/* Phone and tablet header (WorkspaceTopBar in AppShell's banner slot). The
+   server writes it on every document and the breakpoint alone decides whether
+   it shows, matching AppShell's md drawer query, so it is on screen from the
+   first paint of every page and never hidden while a page hydrates. */
+@media (width > 768px) {
+  .editorial-workspace-shell
+    .astryx-app-shell-header:has(.admin-mobile-header) {
     display: none;
   }
-  .editorial-workspace-nav[data-mode="topbar"] .approved-workspace-header {
-    align-items: center;
-  }
+}
+.admin-mobile-header {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: calc(var(--spacing-11) + var(--spacing-3));
+  padding-block: calc(var(--spacing-3) / 2);
+  padding-inline: var(--spacing-4);
+}
+.admin-mobile-header-identity {
+  min-width: 0;
+}
+.admin-mobile-header .admin-bracket-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--spacing-1) / 2);
+  font-family: "AP Structural", sans-serif;
+  font-weight: 900;
+  font-size: var(--font-size-xl);
+  line-height: 1;
+  white-space: nowrap;
+}
+.admin-mobile-header .admin-sidebar-menu {
+  width: auto;
+  min-height: var(--spacing-11);
+  padding-inline: var(--spacing-3);
+  gap: var(--spacing-2);
+}
+.admin-mobile-header .admin-sidebar-menu > span:first-child {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+.admin-mobile-header .admin-sidebar-menu .admin-sidebar-menu-end {
+  color: var(--color-text-secondary);
+}
+.admin-mobile-header-menu {
+  flex-shrink: 0;
+  min-width: var(--spacing-11);
+  min-height: var(--spacing-11);
 }
 /* Phone and tablet drawer. Astryx puts the sidebar header in one row with its
    close button and rules the row off. The close button moves to the corner
@@ -304,6 +342,32 @@
     nav.astryx-side-nav.editorial-workspace-nav {
     width: 100%;
     min-width: 0;
+    transition: none;
+  }
+}
+/* Before the shell hydrates, the server has rendered the expanded sidebar but
+   the prepaint script has already chosen the rail on the root element. Hold the
+   rail's geometry from first paint, without animating, and keep the expanded
+   controls out of sight until the shell renders the rail itself. */
+@media (width > 768px) {
+  :root[data-admin-sidebar="rail"]
+    .editorial-workspace-shell[data-sidebar-ready="false"]
+    .astryx-app-shell-sidenav {
+    width: calc(var(--spacing-9) + var(--spacing-2) * 2);
+    transition: none;
+  }
+  :root[data-admin-sidebar="rail"]
+    .editorial-workspace-shell[data-sidebar-ready="false"]
+    .editorial-workspace-nav
+    > * {
+    visibility: hidden;
+  }
+  :root[data-admin-sidebar="rail"]
+    .editorial-workspace-shell[data-sidebar-ready="false"]
+    #astryx-app-shell-main {
+    height: 100%;
+    margin-block-start: 0;
+    border-radius: 0;
     transition: none;
   }
 }
