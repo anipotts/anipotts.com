@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import { dist, startTags } from "./built-html.mjs";
@@ -33,8 +33,23 @@ test("work previews ship responsive variants and only the first is a priority fe
     (tag) => tag.name === "source" && tag.attributes.media,
   );
   assert.equal(phoneSources.length, shots.length);
-  for (const source of phoneSources)
+  for (const source of phoneSources) {
     assert.match(source.attributes.srcset, /-800\.webp$/);
+    // A tablet or landscape phone at 2x would upscale the 800px file 1.6 times.
+    const rem = Number(
+      source.attributes.media.match(/max-width:\s*([\d.]+)rem/)?.[1],
+    );
+    assert.ok(
+      rem > 0 && rem * 16 <= 480,
+      `phone override ${source.attributes.media} stays on portrait phones`,
+    );
+  }
+  for (const img of shots)
+    for (const candidate of img.attributes.srcset.split(", "))
+      assert.ok(
+        existsSync(join(dist, candidate.split(" ")[0])),
+        `${candidate} is in the build`,
+      );
 });
 
 test("home loads the first feature image eagerly and the second lazily", () => {

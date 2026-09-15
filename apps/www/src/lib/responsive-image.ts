@@ -15,8 +15,12 @@ const variantSources: Record<string, { width: number; height: number }> = {
   "/images/work/paragon-portal-analytics.webp": { width: 1800, height: 1044 },
 };
 
-/** Phones get the 800px file at any density: 800 device pixels already exceed a 2.4x card. */
-export const phoneMedia = "(max-width: 47.99rem)";
+/**
+ * Portrait phones get the 800px file at any density: their cards are 340px
+ * or narrower, so 800 device pixels still cover 2.4x. Wider viewports, such
+ * as tablets and landscape phones, choose from srcset.
+ */
+export const phoneMedia = "(max-width: 29.99rem)";
 
 export interface ResponsiveScreenshot {
   src: string;
