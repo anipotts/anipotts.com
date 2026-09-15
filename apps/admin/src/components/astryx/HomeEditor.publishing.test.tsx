@@ -462,3 +462,85 @@ it("groups document actions under labeled menu sections, not dividers", async ()
   ]);
   expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(7);
 });
+
+it("polls an unfinished publication only while the page is visible", async () => {
+  let hidden = false;
+  const visibility = Object.getOwnPropertyDescriptor(document, "hidden");
+  Object.defineProperty(document, "hidden", {
+    configurable: true,
+    get: () => hidden,
+  });
+  const publication = {
+    id: "test-publication",
+    phase: "validate",
+    version: 1,
+    attempts: 0,
+    dueAt: 0,
+    lease: null,
+    leaseUntil: 0,
+    blocked: null,
+    checkpoint: {},
+  };
+  const polls: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      if (url.includes("operationId=")) {
+        polls.push(url);
+        return response({ publication: { ...publication } });
+      }
+      return response({ ...snapshot, publication });
+    }),
+  );
+  vi.useFakeTimers();
+  try {
+    await mount();
+    const advance = (ms: number) =>
+      act(async () => {
+        await vi.advanceTimersByTimeAsync(ms);
+      });
+    const setHidden = (value: boolean) =>
+      act(async () => {
+        hidden = value;
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+    await advance(4000);
+    expect(polls).toHaveLength(1);
+    await setHidden(true);
+    await advance(60000);
+    expect(polls).toHaveLength(1);
+    await setHidden(false);
+    await advance(3999);
+    expect(polls).toHaveLength(1);
+    await advance(1);
+    expect(polls).toHaveLength(2);
+  } finally {
+    vi.useRealTimers();
+    if (visibility) Object.defineProperty(document, "hidden", visibility);
+    else Reflect.deleteProperty(document, "hidden");
+  }
+});
+
+it("releases an unread record error body and shows the load failure", async () => {
+  const cancel = vi.fn(async () => undefined);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      const failed = new Response("unavailable", { status: 503 });
+      Object.defineProperty(failed, "body", { value: { cancel } });
+      return failed;
+    }),
+  );
+  window.history.replaceState(null, "", "/content/writing/test");
+  await act(async () => {
+    root.render(<HomeEditor record={{ kind: "writing", id: "test" }} />);
+  });
+  await act(async () => {
+    await vi.waitFor(() =>
+      expect(host.textContent).toContain("Couldn’t load this draft."),
+    );
+  });
+  expect(cancel).toHaveBeenCalledOnce();
+});

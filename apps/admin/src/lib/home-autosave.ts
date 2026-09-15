@@ -1,5 +1,6 @@
 import { MAX_SOURCE_BYTES } from "@anipotts/content/editorial/source";
 import type { Draft, SaveResult } from "../editorial/draft-store";
+import { discardBody } from "./response-body";
 
 type Pending = { source: string; expectedRevision: number; requestId: string };
 /** A save outcome, or a source this client refuses to send at all. */
@@ -56,6 +57,7 @@ export async function readSaveResponse(
     )
       return { ok: false, code: body.code } as SaveResult;
   }
+  discardBody(response);
   throw new Error("save unavailable");
 }
 
