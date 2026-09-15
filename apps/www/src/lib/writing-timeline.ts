@@ -70,12 +70,30 @@ export const TEXT_STAGGER = 50;
 export const TEXT_TRAVEL = 0.76;
 export const BODY_RISE = 260;
 export const RISE_DISTANCE = 14;
-/** Outgoing text is gone by 30 percent of its travel; incoming text fades
- * in between 40 and 60 percent, so two copies never share a frame above
- * 0.3 opacity. */
-export const TEXT_OUT_END = 0.3;
-export const TEXT_IN_START = 0.4;
-export const TEXT_IN_END = 0.6;
+/** Title and summary crossfade.
+ *
+ * Both copies ramp linearly over the same length, the incoming one offset by
+ * `TEXT_CROSS` of that length. Equal slopes hold the sum of the two opacities
+ * at exactly `1 - TEXT_CROSS` for the whole overlap, and the two cross at
+ * exactly half of that, so a title is painted in every frame of the travel
+ * while the two copies never both sit above `TEXT_CROSS / 2`.
+ *
+ * Sequencing them instead (the earlier shape: outgoing gone by 30 percent of
+ * the travel, incoming arriving from 40 percent) left about a tenth of the
+ * travel with neither copy painted: two to four frames with no title at all,
+ * around +138 to +204 ms into a desktop open. */
+export const TEXT_FADE = 0.5;
+export const TEXT_CROSS = 0.4;
+/** Ramp length in ms for a travel of `travel` ms, and the incoming offset.
+ * Both keep a hundredth of a millisecond rather than rounding to whole
+ * frames: the crossover sum and the crossing point are exact that way, and
+ * `Element.animate` takes fractional times. */
+export function textFade(travel: number) {
+  const length = Math.round(travel * TEXT_FADE * 100) / 100;
+  // Derived from the rounded length, not rounded itself, so the ratio between
+  // them is exactly TEXT_CROSS.
+  return { length, offset: length * TEXT_CROSS };
+}
 
 /** Resting opacity of the article header waves per theme. */
 export const WAVES_RESTING: Record<Theme, number> = { dark: 0.75, light: 0.14 };
@@ -176,21 +194,34 @@ export function writingTimeline(options: TimelineOptions): Stage[] {
   // both travel together. The title travels farther down than the summary,
   // so any lag between them lets one layer run into the other, and a late
   // title is still oversized when the card date fades in beside it.
+  const fade = textFade(travel * tempo);
   (["title", "summary"] as const).forEach((text, index) => {
     const start = open ? index * TEXT_STAGGER : 0;
     const out = `${text}-out` as const;
     const incoming = `${text}-in` as const;
     add(out, "transform", start, travel, ease, 0, 1);
     add(incoming, "transform", start, travel, ease, 0, 1);
-    add(out, "opacity", start, travel * TEXT_OUT_END, LINEAR, 1, 0);
-    add(
-      incoming,
-      "opacity",
-      start + travel * TEXT_IN_START,
-      travel * (TEXT_IN_END - TEXT_IN_START),
-      LINEAR,
-      0,
-      1,
+    // Already in milliseconds: the crossover is exact, so it must not be
+    // scaled and rounded a second time.
+    stages.push(
+      {
+        target: out,
+        property: "opacity",
+        delay: ms(start),
+        duration: fade.length,
+        easing: LINEAR,
+        from: 1,
+        to: 0,
+      },
+      {
+        target: incoming,
+        property: "opacity",
+        delay: ms(start) + fade.offset,
+        duration: fade.length,
+        easing: LINEAR,
+        from: 0,
+        to: 1,
+      },
     );
   });
 

@@ -52,10 +52,10 @@ test("open stages follow the spec rows", () => {
   const expect = [
     ["paper", "opacity", 0, 420, 1, 0],
     ["ghost", "opacity", 0, 231, 1, 0],
-    ["title-out", "opacity", 0, 96, 1, 0],
-    ["title-in", "opacity", 128, 64, 0, 1],
-    ["summary-out", "opacity", 50, 96, 1, 0],
-    ["summary-in", "opacity", 178, 64, 0, 1],
+    ["title-out", "opacity", 0, 159.6, 1, 0],
+    ["title-in", "opacity", 63.84, 159.6, 0, 1],
+    ["summary-out", "opacity", 50, 159.6, 1, 0],
+    ["summary-in", "opacity", 113.84, 159.6, 0, 1],
     ["date-out", "opacity", 0, 0, 1, 0],
     ["date-in", "opacity", 100, 180, 0, 1],
     ["icon-out", "opacity", 0, 80, 1, 0],
@@ -102,7 +102,14 @@ test("close stages follow the spec rows", () => {
   assert.equal(timelineEnd(stages), 380);
 });
 
-test("outgoing text ends before incoming text starts", () => {
+test("a title is painted in every frame of the crossfade", () => {
+  // The two copies of one line ramp linearly over the same length, offset by
+  // 0.4 of it, so their sum holds at 0.6 for the whole overlap and they cross
+  // at 0.3 each. Sampled every tenth of a millisecond, finer than a frame.
+  const opacityAt = (stage, t) => {
+    const p = Math.max(0, Math.min(1, (t - stage.delay) / stage.duration));
+    return stage.from + (stage.to - stage.from) * p;
+  };
   for (const direction of ["open", "close"])
     for (const phone of [false, true]) {
       const stages = timeline(direction, phone);
@@ -110,40 +117,45 @@ test("outgoing text ends before incoming text starts", () => {
         const out = find(stages, `${text}-out`, "opacity");
         const incoming = find(stages, `${text}-in`, "opacity");
         const travel = find(stages, `${text}-out`, "transform");
-        assert.ok(end(out) < incoming.delay, `${direction} ${text}`);
-        assert.ok(
-          end(out) <= travel.delay + Math.round(travel.duration * 0.3),
-          `${direction} ${text} out by 30 percent`,
+        const where = `${direction} phone ${phone} ${text}`;
+        assert.equal(out.easing, "linear", where);
+        assert.equal(incoming.easing, "linear", where);
+        assert.equal(
+          out.delay,
+          travel.delay,
+          `${where} starts with the travel`,
         );
         assert.ok(
-          incoming.delay >= travel.delay + Math.floor(travel.duration * 0.4) &&
-            end(incoming) <= travel.delay + Math.ceil(travel.duration * 0.6),
-          `${direction} ${text} in between 40 and 60 percent`,
+          end(incoming) <= travel.delay + travel.duration,
+          `${where} lands before the travel ends`,
         );
-      }
-      // Neighbouring layers never sit above 0.3 opacity in the same
-      // millisecond. Opacity stages here are linear or ease-out; linear is
-      // the slower fade for ease-out outgoing layers, so it bounds both.
-      const opacityAt = (stage, t) => {
-        const p = Math.max(0, Math.min(1, (t - stage.delay) / stage.duration));
-        return stage.from + (stage.to - stage.from) * p;
-      };
-      const pairs = [
-        ["title-out", "title-in"],
-        ["summary-out", "summary-in"],
-        ["summary-out", "title-in"],
-        ["title-out", "summary-in"],
-        ["date-out", "date-in"],
-      ];
-      for (const [a, b] of pairs) {
-        const sa = find(stages, a, "opacity");
-        const sb = find(stages, b, "opacity");
-        for (let t = 0; t <= timelineEnd(stages); t++)
+        assert.ok(
+          Math.abs(out.duration - incoming.duration) < 1e-9,
+          `${where} equal ramps`,
+        );
+        assert.ok(
+          Math.abs(incoming.delay - out.delay - out.duration * 0.4) < 1e-9,
+          `${where} incoming offset by 0.4 of the ramp`,
+        );
+        for (let t = out.delay; t <= end(incoming) + 1; t += 0.1) {
+          const sum = opacityAt(out, t) + opacityAt(incoming, t);
+          assert.ok(sum >= 0.6 - 1e-9, `${where}: sum ${sum} at ${t} ms`);
           assert.ok(
-            opacityAt(sa, t) <= 0.3 || opacityAt(sb, t) <= 0.3,
-            `${direction} phone ${phone}: ${a} and ${b} both visible at ${t} ms`,
+            opacityAt(out, t) <= 0.3 + 1e-9 ||
+              opacityAt(incoming, t) <= 0.3 + 1e-9,
+            `${where}: both above 0.3 at ${t} ms`,
           );
+        }
       }
+      // The date has no second copy in flight: one fades out in place before
+      // the other fades in.
+      const dateOut = find(stages, "date-out", "opacity");
+      const dateIn = find(stages, "date-in", "opacity");
+      for (let t = 0; t <= timelineEnd(stages); t++)
+        assert.ok(
+          opacityAt(dateOut, t) <= 0.3 || opacityAt(dateIn, t) <= 0.3,
+          `${direction} phone ${phone}: both dates visible at ${t} ms`,
+        );
     }
 });
 
@@ -288,9 +300,22 @@ test("outgoing pages are gone before incoming text or pages pass 0.3", () => {
   };
   for (const phone of [false, true]) {
     const close = timeline("close", phone);
+    // The article copy is below 0.3 before the incoming card text passes it.
+    // The ghost fades on ease-out, which is under the linear line for its
+    // whole run, so the linear bound here is the conservative one.
     const ghost = find(close, "ghost", "opacity");
-    for (const text of ["title-in", "summary-in"])
-      assert.ok(end(ghost) <= find(close, text, "opacity").delay, text);
+    const linear = (stage, time) => {
+      const p = Math.max(0, Math.min(1, (time - stage.delay) / stage.duration));
+      return stage.from + (stage.to - stage.from) * p;
+    };
+    for (const text of ["title-in", "summary-in"]) {
+      const incoming = find(close, text, "opacity");
+      for (let t = 0; t <= timelineEnd(close); t += 0.5)
+        assert.ok(
+          at(ghost, t) <= 0.3 || linear(incoming, t) <= 0.3,
+          `phone ${phone}: ghost and ${text} both visible at ${t} ms`,
+        );
+    }
     const fade = timeline("fade", phone);
     const [out, main] = [
       find(fade, "ghost", "opacity"),
