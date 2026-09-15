@@ -36,7 +36,6 @@ import type {
   ServiceState,
 } from "../../lib/observability-model";
 import "./operations-workspace.css";
-import { discardBody } from "../../lib/response-body";
 
 const allowedViews = [
   "machines",
@@ -161,7 +160,8 @@ export function ObservabilityWorkspace({
           redirect: "error",
         });
         if (!response.ok) {
-          discardBody(response);
+          // An unread error body would hold the request open until abort.
+          void response.body?.cancel().catch(() => undefined);
           throw new Error("unavailable");
         }
         const reader = response.body?.getReader();
