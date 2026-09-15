@@ -224,7 +224,7 @@ test("a local owner dev server refuses a non-loopback host before it listens", a
     );
   }
 
-  // Builds never listen. Portless and the owner scripts pass 127.0.0.1.
+  // Builds never listen. The dev server manager and owner scripts pass 127.0.0.1.
   for (const command of ["build", "sync"]) {
     configSetup({ command, config: { server: { host: "0.0.0.0" } } });
   }

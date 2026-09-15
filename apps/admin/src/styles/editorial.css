@@ -782,21 +782,8 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   }
 }
 
-.editorial-workspace-mobile-search {
-  display: none;
-}
 .editorial-workspace-shell .astryx-app-shell-sidenav {
   background-color: var(--color-background-body);
-}
-.editorial-workspace-shell .editorial-workspace-nav[data-mode="topbar"] {
-  width: 100%;
-  flex: 1;
-  min-width: 0;
-}
-.editorial-workspace-nav[data-mode="topbar"]
-  .editorial-workspace-mobile-search {
-  display: inline-flex;
-  flex-shrink: 0;
 }
 
 /* Record detail panels share a measured workspace; the document owns its scroll. */
@@ -894,23 +881,6 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   flex: 1;
   min-width: 0;
 }
-/* Native name/subtitle lockup needs room above the page at compact widths. */
-@media (max-width: 768px) {
-  .editorial-workspace-shell
-    [role="navigation"]:has(> .editorial-workspace-nav[data-mode="topbar"]) {
-    height: calc(var(--spacing-7) * 2);
-    padding-inline: var(--spacing-4);
-    gap: var(--spacing-3);
-  }
-  .editorial-workspace-nav[data-mode="topbar"] .editorial-workspace-identity {
-    flex-direction: row;
-  }
-  .editorial-workspace-nav[data-mode="topbar"] .editorial-workspace-brand {
-    flex: 0 1 auto;
-    min-height: var(--spacing-11);
-    padding-inline: 0;
-  }
-}
 .editorial-workspace-identity[data-collapsed="true"] {
   flex-direction: column;
 }
@@ -976,11 +946,6 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   color: var(--color-text-accent);
 }
 @media (max-width: 768px) {
-  .editorial-workspace-nav[data-mode="topbar"] .editorial-workspace-brand {
-    flex-direction: row;
-    align-items: center;
-    gap: var(--spacing-3);
-  }
   .editorial-workspace-shell .admin-page-frame {
     padding: var(--spacing-4);
   }
@@ -1033,17 +998,6 @@ body:has(.editorial-workspace-shell) {
 .editorial-workspace-identity[data-collapsed="true"]
   .editorial-identity-workspace-row {
   flex-direction: column;
-}
-@media (max-width: 768px) {
-  .editorial-workspace-nav[data-mode="topbar"] .editorial-workspace-identity {
-    flex-direction: row;
-    gap: var(--spacing-3);
-  }
-  .editorial-workspace-nav[data-mode="topbar"] .editorial-identity-primary-row,
-  .editorial-workspace-nav[data-mode="topbar"]
-    .editorial-identity-workspace-row {
-    width: auto;
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   .editorial-workspace-shell #astryx-app-shell-main,
