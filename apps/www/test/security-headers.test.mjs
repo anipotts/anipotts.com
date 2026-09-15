@@ -118,6 +118,43 @@ const post = `/writing/${built("writing", ".html")[0].slice(0, -5)}`;
 const script = `/_astro/${built("_astro", ".js")[0]}`;
 const stylesheet = `/_astro/${built("_astro", ".css")[0]}`;
 
+// Cache policy by path class, written out like the header values above.
+// Hashed build output never changes under its name. Public images and brand
+// marks keep their names across edits, so they stay fresh for a day and then
+// revalidate in the background. Anything else keeps the ASSETS default.
+const IMMUTABLE = "public, max-age=31536000, immutable";
+const DAILY = "public, max-age=86400, stale-while-revalidate=604800";
+const EXPECTED_CACHE = (path) =>
+  path.startsWith("/_astro/")
+    ? IMMUTABLE
+    : path.startsWith("/images/") || path.startsWith("/brand/")
+      ? DAILY
+      : null;
+
+const firstFile = (dir) => {
+  const entry = readdirSync(join(dist, dir), {
+    recursive: true,
+    withFileTypes: true,
+  }).find((item) => item.isFile());
+  return `/${join(dir, entry.parentPath.slice(join(dist, dir).length), entry.name)}`;
+};
+
+// Static files that must answer a matching If-None-Match with a 304.
+const STATIC_PATHS = [
+  script,
+  stylesheet,
+  firstFile("images"),
+  firstFile("brand"),
+  "/og-image.png",
+  "/favicon.svg",
+  "/favicon.ico",
+  "/apple-touch-icon.png",
+  "/feed.xml",
+  "/search-index.json",
+  "/robots.txt",
+  "/sitemap.xml",
+];
+
 // Prerendered pages and manifest assets are answered before middleware runs.
 const ASSET_PATHS = [
   "/",
@@ -250,9 +287,14 @@ test("asset responses keep status, body and validators", async () => {
     const served = await serve(`https://anipotts.com${path}`);
     const raw = await ASSETS.fetch(`https://anipotts.com${path}`);
     assert.equal(served.status, raw.status, path);
-    for (const name of ["cache-control", "content-type", "etag"]) {
+    for (const name of ["content-type", "etag"]) {
       assert.equal(served.headers.get(name), raw.headers.get(name), path);
     }
+    assert.equal(
+      served.headers.get("cache-control"),
+      EXPECTED_CACHE(path) ?? raw.headers.get("cache-control"),
+      path,
+    );
     assert.deepEqual(
       Buffer.from(await served.arrayBuffer()),
       Buffer.from(await raw.arrayBuffer()),
@@ -272,6 +314,82 @@ test("a revalidated page stays a bodyless 304 with its validator", async () => {
   assert.equal(response.body, null);
   assert.equal(response.headers.get("etag"), etag);
   assertSecured(response, `${project} 304`);
+});
+
+test("static files revalidate to a bodyless secured 304 on every host", async () => {
+  const failed = [];
+  for (const host of [
+    "anipotts.com",
+    "staging.anipotts.com",
+    "news.anipotts.com",
+  ]) {
+    for (const path of STATIC_PATHS) {
+      const url = `https://${host}${path}`;
+      const etag = (await ASSETS.fetch(url)).headers.get("etag");
+      for (const method of ["GET", "HEAD"]) {
+        const response = await serve(url, {
+          method,
+          headers: { "if-none-match": etag },
+        });
+        const label = `${method} ${host}${path}`;
+        if (response.status !== 304) {
+          failed.push(`${label} answered ${response.status}`);
+          continue;
+        }
+        assert.equal(response.body, null, label);
+        assert.equal(response.headers.get("etag"), etag, label);
+        assert.equal(
+          response.headers.get("cache-control"),
+          EXPECTED_CACHE(path) ?? "public, max-age=0, must-revalidate",
+          label,
+        );
+        assertSecured(response, `${label} 304`);
+      }
+    }
+  }
+  assert.deepEqual(failed, []);
+});
+
+test("static files carry the cache policy for their class", async () => {
+  for (const path of STATIC_PATHS) {
+    const response = await serve(`https://anipotts.com${path}`);
+    assert.equal(response.status, 200, path);
+    assert.equal(
+      response.headers.get("cache-control"),
+      EXPECTED_CACHE(path) ?? "public, max-age=0, must-revalidate",
+      path,
+    );
+    assertSecured(response, path);
+  }
+  // A stale validator still gets the full file.
+  const stale = await serve(`https://anipotts.com${script}`, {
+    headers: { "if-none-match": '"stale"' },
+  });
+  assert.equal(stale.status, 200);
+  assert.ok((await stale.arrayBuffer()).byteLength > 0);
+  // Pages keep revalidating on every visit.
+  for (const path of ["/", "/work", project]) {
+    const page = await serve(`https://anipotts.com${path}`);
+    assert.equal(
+      page.headers.get("cache-control"),
+      "public, max-age=0, must-revalidate",
+      path,
+    );
+  }
+});
+
+test("a missing static file still gets the site 404 page", async () => {
+  for (const path of [
+    "/_astro/missing.js",
+    "/images/missing.png",
+    "/brand/missing.png",
+  ]) {
+    const response = await serve(`https://anipotts.com${path}`);
+    assert.equal(response.status, 404, path);
+    assert.match(response.headers.get("content-type"), /^text\/html/, path);
+    assert.notEqual(response.headers.get("cache-control"), IMMUTABLE, path);
+    assertSecured(response, path);
+  }
 });
 
 test("redirects, text 404s and API responses keep their contract", async () => {
