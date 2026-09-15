@@ -1,3 +1,4 @@
+import { dispatchEditorialRecordCreated } from "../../lib/editorial-inventory-events";
 import React, { useEffect, useRef, useState } from "react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
@@ -185,6 +186,16 @@ function NewWritingForm({ recoveryScope }: { recoveryScope?: string }) {
             ? "An article already uses this address. Choose another address or open it from Writing."
             : "Couldn’t create the draft. Your details are retained; try again.",
         );
+      // The library in this tab and in other open tabs lists the new draft
+      // without a reload.
+      if (result.draft)
+        dispatchEditorialRecordCreated({
+          record: { kind: "writing", id: slug },
+          title: title.trim(),
+          summary: "",
+          revision: result.draft.revision,
+          updatedAt: new Date(result.draft.updatedAt).toISOString(),
+        });
       if (channel) await channel.write(null);
       if (!active.current || abort.signal.aborted) return;
       window.location.assign(`/content/writing/${slug}`);

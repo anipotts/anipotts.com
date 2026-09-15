@@ -271,4 +271,45 @@ describe("responsive workspace navigation", () => {
     );
     expect(host.querySelector('a[aria-label="Visit site"]')).toBeNull();
   });
+
+  it.each([
+    [1024, null, "true"],
+    [1024, "false", "false"],
+    [1440, "true", "true"],
+    [1440, null, "false"],
+    [690, "true", "false"],
+  ])(
+    "chooses the rail at %ipx with saved %s in one commit after hydration",
+    async (width, saved, expected) => {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: width,
+      });
+      if (saved !== null)
+        localStorage.setItem("admin:sidebar-collapsed", saved);
+      const seen: string[] = [];
+      const observer = new MutationObserver(() => {
+        const shell = host.querySelector(".editorial-workspace-shell");
+        if (shell)
+          seen.push(
+            `${shell.getAttribute("data-sidebar-ready")}:${shell.getAttribute("data-sidebar-collapsed")}`,
+          );
+      });
+      observer.observe(host, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+        attributeFilter: ["data-sidebar-ready", "data-sidebar-collapsed"],
+      });
+      render();
+      await act(async () => {});
+      observer.disconnect();
+      const shell = host.querySelector(".editorial-workspace-shell")!;
+      expect(shell.getAttribute("data-sidebar-ready")).toBe("true");
+      expect(shell.getAttribute("data-sidebar-collapsed")).toBe(expected);
+      // Once ready, the rail value never changes again during hydration.
+      const ready = seen.filter((entry) => entry.startsWith("true:"));
+      expect(new Set(ready)).toEqual(new Set([`true:${expected}`]));
+    },
+  );
 });
