@@ -1,4 +1,9 @@
 import { refreshSharedCurrents } from "../lib/shared-currents";
+import {
+  contourColumns,
+  waveContour,
+  type Contour,
+} from "../lib/wave-geometry";
 import type { TransitionBeforeSwapEvent } from "astro:transitions/client";
 
 const DURATION = 550;
@@ -69,31 +74,18 @@ function captureText(host: Element | null | undefined, card: boolean) {
     },
   );
 }
-type Contour = { x: number; top: number; bottom: number }[];
 function contours(svg: SVGSVGElement): Contour[] {
   const v = svg.viewBox.baseVal;
+  const box = { x: v.x, y: v.y, width: v.width, height: v.height };
   return [...svg.querySelectorAll("path")].map((path) => {
+    const contour = waveContour(box, path.getAttribute("d") || "");
+    if (contour) return contour;
+    // Arcs and malformed data fall back to the browser for this path only.
     const length = path.getTotalLength();
-    const pts = Array.from({ length: 257 }, (_, i) =>
+    const points = Array.from({ length: 257 }, (_, i) =>
       path.getPointAtLength((length * i) / 256),
     );
-    return Array.from({ length: 33 }, (_, i) => {
-      const x = v.x + (v.width * i) / 32,
-        ys: number[] = [];
-      for (let j = 1; j < pts.length; j++) {
-        const a = pts[j - 1],
-          b = pts[j];
-        if ((a.x <= x && b.x > x) || (b.x <= x && a.x > x))
-          ys.push(mix(a.y, b.y, (x - a.x) / (b.x - a.x)));
-      }
-      const norm = (y: number) =>
-        Math.max(-100, Math.min(900, ((y - v.y) / v.height) * 800));
-      return {
-        x: (i * 1440) / 32,
-        top: ys.length ? norm(Math.min(...ys)) : 900,
-        bottom: ys.length ? norm(Math.max(...ys)) : 900,
-      };
-    });
+    return contourColumns(points, box);
   });
 }
 function contourPath(points: Contour) {
