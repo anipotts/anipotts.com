@@ -77,16 +77,14 @@ function install() {
         });
     }
     const layers = [];
-    document
-      .querySelectorAll(".writing-transition-word")
-      .forEach((el) =>
-        layers.push({
-          name: el.dataset.layer,
-          overlay: true,
-          r: el.getBoundingClientRect(),
-          o: opacity(el),
-        }),
-      );
+    document.querySelectorAll(".writing-transition-word").forEach((el) =>
+      layers.push({
+        name: el.dataset.layer,
+        overlay: true,
+        r: el.getBoundingClientRect(),
+        o: opacity(el),
+      }),
+    );
     texts.forEach((selector) =>
       document.querySelectorAll(selector).forEach((el, i) => {
         const r = el.getBoundingClientRect();

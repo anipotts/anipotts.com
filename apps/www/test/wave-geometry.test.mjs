@@ -244,7 +244,9 @@ test("morph paths land exactly on both contours and stay on the canvas", () => {
     { x: -40, y: -176, width: 1360, height: 608 },
     { x: 0, y: 0, width: 1280, height: 432 },
   );
-  const xs = [...morphPath(shifted, b, 0.5).matchAll(/[MLC ]?(-?[\d.]+) -?[\d.]+/g)];
+  const xs = [
+    ...morphPath(shifted, b, 0.5).matchAll(/[MLC ]?(-?[\d.]+) -?[\d.]+/g),
+  ];
   assert.ok(xs.length > 0);
   for (const [, x] of xs) assert.ok(+x >= 0 && +x <= 1440, `x ${x}`);
 });
@@ -285,7 +287,9 @@ test("open condenses the card current into the header at half opacity", () => {
       fill: `rgb(${i} 0 0)`,
       opacity: 1,
     })),
-    contours: Array.from({ length: 6 }, () => contourColumns([], DETAIL_VIEWBOX)),
+    contours: Array.from({ length: 6 }, () =>
+      contourColumns([], DETAIL_VIEWBOX),
+    ),
   };
   const headerD = detailCurves("writing/awareness-is-alpha");
   const header = {
@@ -307,5 +311,8 @@ test("open condenses the card current into the header at half opacity", () => {
   assert.deepEqual(close.group, [1, 0.38]);
   assert.deepEqual(close.layers[4].opacity, [0, 1]);
   assert.deepEqual(close.layers[1].fill, ["rgb(19, 38, 64)", "rgb(1 0 0)"]);
-  assert.equal(mixColor("rgb(0, 0, 0)", "rgb(100 200 50)", 0.5), "rgb(50 100 25)");
+  assert.equal(
+    mixColor("rgb(0, 0, 0)", "rgb(100 200 50)", 0.5),
+    "rgb(50 100 25)",
+  );
 });

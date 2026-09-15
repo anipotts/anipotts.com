@@ -18,7 +18,9 @@ test("the listing has one writing card per article, each with one current", () =
   assert.ok(listing, "writing listing is built");
   assert.ok(articles.length > 0, "writing articles are built");
   const html = listing.html;
-  const cards = [...html.matchAll(/<a\b[^>]*class="[^"]*\bwriting-card\b[^"]*"/g)];
+  const cards = [
+    ...html.matchAll(/<a\b[^>]*class="[^"]*\bwriting-card\b[^"]*"/g),
+  ];
   assert.equal(cards.length, articles.length);
   const hrefs = startTags(html)
     .filter((tag) => tag.name === "a" && has(tag, "writing-card"))
@@ -41,7 +43,9 @@ test("the listing has one writing card per article, each with one current", () =
 test("every article has the hooks the runner selects", () => {
   for (const page of articles) {
     const tags = startTags(page.html);
-    const hooks = tags.filter((tag) => "data-writing-article" in tag.attributes);
+    const hooks = tags.filter(
+      (tag) => "data-writing-article" in tag.attributes,
+    );
     assert.equal(hooks.length, 1, `${page.path} article hook`);
     assert.equal(
       tags.filter((tag) => has(tag, "detail-waves")).length,
@@ -51,7 +55,11 @@ test("every article has the hooks the runner selects", () => {
     const article = page.html.slice(page.html.indexOf("data-writing-article"));
     const header = article.slice(0, article.indexOf("</header>"));
     assert.equal(header.match(/<h1\b/g)?.length, 1, `${page.path} h1`);
-    assert.equal(header.match(/class="summary"/g)?.length, 1, `${page.path} summary`);
+    assert.equal(
+      header.match(/class="summary"/g)?.length,
+      1,
+      `${page.path} summary`,
+    );
     assert.equal(header.match(/<time\b/g)?.length, 1, `${page.path} time`);
     assert.ok(header.includes("back"), `${page.path} back link`);
     assert.ok(article.includes('class="article-body"'), `${page.path} body`);
@@ -83,6 +91,7 @@ test("the transition scripts use getPointAtLength only as the arc fallback", () 
   const body = fallback.slice(0, fallback.indexOf("\n}\n"));
   assert.ok(body.includes("getPointAtLength"));
   assert.ok(
-    body.indexOf("if (contour) return contour") < body.indexOf("getPointAtLength"),
+    body.indexOf("if (contour) return contour") <
+      body.indexOf("getPointAtLength"),
   );
 });
