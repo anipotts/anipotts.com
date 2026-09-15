@@ -72,5 +72,19 @@ test("the display stack falls back to metric-matched local faces first", () => {
         new RegExp(`${descriptor}:\\s*[\\d.]+%`),
         `${family} sets ${descriptor}`,
       );
+
+    // AP Structural is 1900 ascent and 500 descent on a 2000 unit em, so the
+    // vertical overrides must stay those metrics divided by size-adjust.
+    const percent = (descriptor) =>
+      Number(new RegExp(`${descriptor}:\\s*([\\d.]+)%`).exec(face.body)[1]);
+    const size = percent("size-adjust") / 100;
+    assert.ok(
+      Math.abs(percent("ascent-override") - 95 / size) < 0.1,
+      `${family} ascent-override matches AP Structural at its size-adjust`,
+    );
+    assert.ok(
+      Math.abs(percent("descent-override") - 25 / size) < 0.1,
+      `${family} descent-override matches AP Structural at its size-adjust`,
+    );
   }
 });
