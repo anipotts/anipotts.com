@@ -52,6 +52,11 @@ import {
 } from "@phosphor-icons/react";
 import { AdminCommandPalette } from "./AdminCommandPalette";
 import type { AdminSearchResult } from "../../data/admin-search";
+import {
+  RAIL_QUERY,
+  savedSidebarCollapsed,
+  sidebarRail,
+} from "../../lib/admin-sidebar";
 
 export const websiteNavigation = [
   {
@@ -473,6 +478,9 @@ export function EditorialWorkspaceShell({
 }) {
   const [rail, setRail] = useState(false);
   const [userCollapsed, setUserCollapsed] = useState<boolean | null>(null);
+  // False until the client has chosen the rail. Until then the prepaint
+  // script's choice on the root element holds the sidebar geometry.
+  const [railReady, setRailReady] = useState(false);
   const [librarySearch, setLibrarySearch] = useState("");
   useEffect(() => {
     const sync = () => {
@@ -508,32 +516,34 @@ export function EditorialWorkspaceShell({
     );
   };
   useEffect(() => {
+    // The saved choice and the width decide the rail in one commit, the same
+    // way the prepaint script decided it, so hydration never resizes it.
+    let saved: boolean | null = null;
     try {
-      const saved =
-        localStorage.getItem("admin:sidebar-collapsed") ??
-        localStorage.getItem("editorial:sidebar-collapsed");
-      if (saved === "true" || saved === "false")
-        setUserCollapsed(saved === "true");
+      saved = savedSidebarCollapsed(localStorage);
     } catch {}
+    setUserCollapsed(saved);
+    setRail(
+      sidebarRail(
+        window.innerWidth,
+        saved,
+        window.matchMedia(RAIL_QUERY).matches,
+      ),
+    );
+    setRailReady(true);
   }, []);
   useEffect(() => {
-    // AppShell's md drawer covers widths up to and including 768px, so the
-    // rail can only exist above it.
-    const query = window.matchMedia(
-      "(min-width: 769px) and (max-width: 1279px)",
-    );
+    if (!railReady) return;
+    const query = window.matchMedia(RAIL_QUERY);
     const update = () =>
-      setRail(
-        window.innerWidth <= 768 ? false : (userCollapsed ?? query.matches),
-      );
-    update();
+      setRail(sidebarRail(window.innerWidth, userCollapsed, query.matches));
     query.addEventListener("change", update);
     window.addEventListener("resize", update);
     return () => {
       query.removeEventListener("change", update);
       window.removeEventListener("resize", update);
     };
-  }, [userCollapsed]);
+  }, [railReady, userCollapsed]);
   const changeCollapsed = (collapsed: boolean) => {
     setUserCollapsed(collapsed);
     setRail(collapsed);
@@ -559,6 +569,7 @@ export function EditorialWorkspaceShell({
       <AppShell
         className="editorial-workspace-shell"
         data-sidebar-collapsed={rail}
+        data-sidebar-ready={railReady}
         data-workspace={workspace}
         height="fill"
         variant={rail ? "section" : "wash"}

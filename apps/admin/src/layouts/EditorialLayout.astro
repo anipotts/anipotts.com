@@ -4,6 +4,7 @@ import {
   initialAdminTheme,
   adminThemePrepaintScript,
 } from "../lib/admin-theme";
+import { adminSidebarPrepaintScript } from "../lib/admin-sidebar";
 import "@astryxdesign/core/astryx.css";
 import "../styles/admin-interactions.css";
 import "../themes/editorial.generated.css";
@@ -99,6 +100,7 @@ const appProps = {
     }
     <title>{Astro.props.title} | Admin</title>
     <script is:inline set:html={adminThemePrepaintScript} />
+    <script is:inline set:html={adminSidebarPrepaintScript} />
   </head>
   <body>
     {
