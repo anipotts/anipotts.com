@@ -28,6 +28,9 @@ const groups = [
     ),
   },
 ];
+const firstPreview = groups
+  .flatMap((group) => group.items)
+  .find((project) => project.data.preview_media);
 ---
 
 <Shell
@@ -49,7 +52,11 @@ const groups = [
             </h2>
             <div class="work-grid">
               {group.items.map((project, index) => (
-                <WorkCard project={project} flowVariant={index} />
+                <WorkCard
+                  project={project}
+                  flowVariant={index}
+                  priority={project === firstPreview}
+                />
               ))}
             </div>
           </section>
