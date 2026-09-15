@@ -316,6 +316,75 @@ test("a revalidated page stays a bodyless 304 with its validator", async () => {
   assertSecured(response, `${project} 304`);
 });
 
+test("top-level pages revalidate to a bodyless secured 304", async () => {
+  // The adapter answers these from ASSETS by URL string, which drops the
+  // validator. A prefetched page then downloads again on the click.
+  const failed = [];
+  for (const host of ["anipotts.com", "staging.anipotts.com"]) {
+    for (const path of ["/", "/work", "/writing", "/systems", "/links"]) {
+      const url = `https://${host}${path}`;
+      const etag = (await ASSETS.fetch(url)).headers.get("etag");
+      for (const validator of [etag, `W/${etag}`, `"other", ${etag}`]) {
+        for (const method of ["GET", "HEAD"]) {
+          const response = await serve(url, {
+            method,
+            headers: { "if-none-match": validator },
+          });
+          const label = `${method} ${url} (${validator})`;
+          if (response.status !== 304) {
+            failed.push(`${label} answered ${response.status}`);
+            continue;
+          }
+          assert.equal(response.body, null, label);
+          assert.equal(response.headers.get("etag"), etag, label);
+          assert.equal(
+            response.headers.get("cache-control"),
+            "public, max-age=0, must-revalidate",
+            label,
+          );
+          assertSecured(response, `${label} 304`);
+        }
+      }
+    }
+  }
+  assert.deepEqual(failed, []);
+  // A different validator still gets the full page.
+  const stale = await serve("https://anipotts.com/work", {
+    headers: { "if-none-match": '"stale"' },
+  });
+  assert.equal(stale.status, 200);
+  assert.match(await stale.text(), /<html/i);
+});
+
+test("revalidation leaves the news host, the 404 and the API as they were", async () => {
+  // The news host routing belongs to its own change. With no validator and
+  // with an unrelated one, every response matches what main sends.
+  for (const path of ["/", "/archive", "/definitely-missing", "/api/health"]) {
+    for (const host of ["news.anipotts.com", "anipotts.com"]) {
+      const url = `https://${host}${path}`;
+      const plain = await serve(url);
+      const other = await serve(url, {
+        headers: { "if-none-match": '"unrelated"' },
+      });
+      assert.equal(other.status, plain.status, url);
+      assert.equal(
+        other.headers.get("location"),
+        plain.headers.get("location"),
+      );
+      // The health body carries a timestamp, so only its status is compared.
+      if (!path.startsWith("/api/"))
+        assert.equal(await other.text(), await plain.text(), url);
+    }
+  }
+  // Only a 200 can become a 304, whatever validator is sent.
+  for (const path of ["/definitely-missing", "/api/health", "/newsletter"]) {
+    const response = await serve(`https://anipotts.com${path}`, {
+      headers: { "if-none-match": "*" },
+    });
+    assert.notEqual(response.status, 304, path);
+  }
+});
+
 test("static files revalidate to a bodyless secured 304 on every host", async () => {
   const failed = [];
   for (const host of [

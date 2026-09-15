@@ -1,7 +1,11 @@
 import type { SSRManifest } from "astro";
 import { createExports as createAstroExports } from "@astrojs/cloudflare/entrypoints/server.js";
 import { withSecurityHeaders } from "./lib/security-headers";
-import { isStaticAssetPath, withStaticCacheControl } from "./lib/static-assets";
+import {
+  isStaticAssetPath,
+  withConditionalStatus,
+  withStaticCacheControl,
+} from "./lib/static-assets";
 
 /** Cloudflare Worker entry, named by astro.config.mjs. The adapter answers
  * prerendered pages and manifest assets from env.ASSETS before middleware
@@ -18,6 +22,10 @@ import { isStaticAssetPath, withStaticCacheControl } from "./lib/static-assets";
  * matching validator gets a 304. Their Cache-Control follows the class policy
  * in lib/static-assets. A 404 falls through to the adapter, which keeps the
  * site 404 page for missing files.
+ *
+ * Everything else still goes through the adapter, and a 200 whose ETag
+ * matches If-None-Match is answered with a 304 here, so prerendered pages
+ * revalidate too. Routing, status and body are otherwise unchanged.
  */
 export function createExports(manifest: SSRManifest) {
   const astro = createAstroExports(manifest);
@@ -38,7 +46,11 @@ export function createExports(manifest: SSRManifest) {
         }
       }
       return withSecurityHeaders(
-        await astro.default.fetch(request, env, context),
+        withConditionalStatus(
+          request,
+          pathname,
+          await astro.default.fetch(request, env, context),
+        ),
       );
     } catch (error) {
       console.error(
