@@ -80,9 +80,14 @@ export const RISE_DISTANCE = 14;
  *
  * Sequencing them instead (the earlier shape: outgoing gone by 30 percent of
  * the travel, incoming arriving from 40 percent) left about a tenth of the
- * travel with neither copy painted: two to four frames with no title at all,
- * around +138 to +204 ms into a desktop open. */
-export const TEXT_FADE = 0.5;
+ * travel with neither copy painted: two to three frames with no title at all,
+ * 26 to 35 ms depending on step and tempo.
+ *
+ * The ramp is short because the two copies wrap differently: at 1280 the card
+ * title is one line and the article heading is two, so while both are painted
+ * the last word shows twice. `TEXT_FADE` at 0.35 of the travel keeps that to
+ * about four frames and leaves the second half of the travel single layer. */
+export const TEXT_FADE = 0.35;
 export const TEXT_CROSS = 0.4;
 /** Ramp length in ms for a travel of `travel` ms, and the incoming offset.
  * Both keep a hundredth of a millisecond rather than rounding to whole
