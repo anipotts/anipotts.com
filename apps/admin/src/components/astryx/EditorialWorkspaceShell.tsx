@@ -277,7 +277,7 @@ function SidebarMenu({
   compact: boolean;
   opens: "below" | "above";
   value: string;
-  options: SidebarMenuOption[];
+  options: readonly SidebarMenuOption[];
   onChange: (value: string) => void;
 }) {
   const Caret = opens === "above" ? CaretUpIcon : CaretDownIcon;
