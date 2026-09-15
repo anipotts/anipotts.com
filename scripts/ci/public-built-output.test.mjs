@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { parse } from "yaml";
@@ -244,6 +244,50 @@ assert.deepEqual(
   [],
   "Built pages paint dividers; let spacing carry the break",
 );
+// Per-file byte ceilings keep marks and screenshots near their rendered size.
+// Marks render at 56px or less, so a 3x export stays well under 16kb. Card
+// screenshots ship 800 and 1600px variants; full-size files back the viewer.
+const kb = 1024;
+function files(dir) {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
+    entry.isDirectory()
+      ? files(join(dir, entry.name))
+      : [join(dir, entry.name)],
+  );
+}
+const imageFile = /\.(avif|gif|ico|jpe?g|png|svg|webp)$/i;
+// Unreferenced and not requested by any page; removal waits for owner approval (audit m13).
+const awaitingRemoval = new Set(["/images/ani-potts-headshot.png"]);
+// Admin Publish commits article images here under its own publication cap
+// (MAX_PUBLICATION_MEDIA_BYTES in apps/admin/src/lib/editorial-media.ts).
+const editorialMediaCeiling = 10 * kb * kb;
+function ceiling(path) {
+  if (awaitingRemoval.has(path)) return Infinity;
+  if (path.startsWith("/images/editorial/")) return editorialMediaCeiling;
+  if (path.startsWith("/images/work/")) {
+    if (path.endsWith("-800.webp")) return 48 * kb;
+    if (path.endsWith("-1600.webp")) return 128 * kb;
+    return 240 * kb;
+  }
+  if (path.startsWith("/images/brand/") || path.startsWith("/brand/"))
+    return 16 * kb;
+  return 240 * kb;
+}
+assert.equal(
+  ceiling(`/images/editorial/${"a".repeat(64)}.jpg`),
+  editorialMediaCeiling,
+  "Published article images are not held to the mark ceiling",
+);
+const oversized = ["images", "brand"]
+  .flatMap((dir) => files(join(dist, dir)))
+  .filter((file) => imageFile.test(file))
+  .map((file) => ({
+    path: `/${file.slice(dist.length + 1).replaceAll("\\", "/")}`,
+    bytes: statSync(file).size,
+  }))
+  .filter(({ path, bytes }) => bytes > ceiling(path))
+  .map(({ path, bytes }) => `${path} ${bytes} > ${ceiling(path)}`);
+assert.deepEqual(oversized, [], "Image files over their byte ceiling");
 
 // Optional served-build proof catches worker-first routing errors that disk checks cannot.
 const origin = process.argv

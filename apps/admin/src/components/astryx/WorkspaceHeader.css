@@ -345,6 +345,32 @@
     transition: none;
   }
 }
+/* Before the shell hydrates, the server has rendered the expanded sidebar but
+   the prepaint script has already chosen the rail on the root element. Hold the
+   rail's geometry from first paint, without animating, and keep the expanded
+   controls out of sight until the shell renders the rail itself. */
+@media (width > 768px) {
+  :root[data-admin-sidebar="rail"]
+    .editorial-workspace-shell[data-sidebar-ready="false"]
+    .astryx-app-shell-sidenav {
+    width: calc(var(--spacing-9) + var(--spacing-2) * 2);
+    transition: none;
+  }
+  :root[data-admin-sidebar="rail"]
+    .editorial-workspace-shell[data-sidebar-ready="false"]
+    .editorial-workspace-nav
+    > * {
+    visibility: hidden;
+  }
+  :root[data-admin-sidebar="rail"]
+    .editorial-workspace-shell[data-sidebar-ready="false"]
+    #astryx-app-shell-main {
+    height: 100%;
+    margin-block-start: 0;
+    border-radius: 0;
+    transition: none;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .editorial-workspace-shell .astryx-app-shell-sidenav {
     transition: none;

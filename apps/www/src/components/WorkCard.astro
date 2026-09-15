@@ -4,18 +4,34 @@ import { Icon } from "astro-icon/components";
 import type { Project } from "../lib/content";
 import AmbientFlow from "./AmbientFlow.astro";
 import ProjectMeta from "./ProjectMeta.astro";
+import { phoneMedia, responsiveScreenshot } from "../lib/responsive-image";
 
 interface Props {
   project: Project;
   variant?: "experience" | "project";
   flowVariant?: number;
+  /** The first preview on a page is its likely lcp element. */
+  priority?: boolean;
 }
 
-const { project, variant = project.data.kind, flowVariant } = Astro.props;
+const {
+  project,
+  variant = project.data.kind,
+  flowVariant,
+  priority = false,
+} = Astro.props;
 const d = project.data;
 const slug = project.data.slug ?? project.id;
 const identity = d.identity;
 const preview = d.preview_media;
+const shot =
+  preview?.kind === "video"
+    ? undefined
+    : responsiveScreenshot(preview?.src ?? "");
+// Column width upper bound: one column up to 52rem, then 26rem tracks. The
+// image is width: auto, so it never renders wider than this value; the
+// single-column bound stays the full viewport rather than a gutter estimate.
+const shotSizes = "(max-width: 52rem) 100vw, 26rem";
 ---
 
 <a
@@ -38,11 +54,28 @@ const preview = d.preview_media;
             preload="metadata"
             aria-label={preview.alt}
           />
+        ) : shot ? (
+          <picture>
+            <source media={phoneMedia} srcset={shot.src} />
+            <img
+              src={shot.src}
+              srcset={shot.srcset}
+              sizes={shotSizes}
+              width={shot.width}
+              height={shot.height}
+              style={`aspect-ratio: ${shot.aspectRatio}`}
+              alt={preview.alt}
+              loading={priority ? "eager" : "lazy"}
+              fetchpriority={priority ? "high" : undefined}
+              decoding="async"
+            />
+          </picture>
         ) : (
           <img
             src={preview.src}
             alt={preview.alt}
-            loading="lazy"
+            loading={priority ? "eager" : "lazy"}
+            fetchpriority={priority ? "high" : undefined}
             decoding="async"
           />
         )}
@@ -66,6 +99,8 @@ const preview = d.preview_media;
               style={slug === "nyu-purity-test" ? "scale: 1.3" : undefined}
               src={identity.logo_src}
               alt={identity.logo_alt ?? ""}
+              width="30"
+              height="30"
               loading="lazy"
               decoding="async"
             />
@@ -139,6 +174,10 @@ const preview = d.preview_media;
     padding: var(--s-4);
     isolation: isolate;
     background: var(--paper-surface-hover);
+  }
+
+  .work-card__media picture {
+    display: contents;
   }
 
   .work-card__media :is(img, video) {

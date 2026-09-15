@@ -110,27 +110,17 @@ describe("Operations route filters", () => {
       ).toBe(`/knowledge?kind=${kind}`);
     },
   );
-  it.each(["work", "content", "life", "system"])(
-    "remembers the supported inbox category %s alongside its view",
-    (category) => {
-      expect(
-        workspaceReturnPath(
-          "operations",
-          `/inbox?category=${category}&view=urgent&q=private&item=secret`,
-        ),
-      ).toBe(`/inbox?view=urgent&category=${category}`);
-    },
-  );
+  it("returns a retired Inbox path to the Operations home", () => {
+    expect(
+      workspaceReturnPath("operations", "/inbox?category=work&view=urgent"),
+    ).toBe("/operations/observability");
+  });
   it.each([
     "/knowledge?kind=person",
     "/knowledge?kind=projects",
     "/knowledge?kind=private-record",
-    "/inbox?category=fleet",
-    "/inbox?category=all",
-    "/inbox?category=private-record",
     "/knowledge/locations?kind=place",
     "/knowledge?category=work",
-    "/inbox?kind=project",
     "/system?kind=system&category=system",
   ])("discards unsupported or misplaced filters in %s", (path) => {
     expect(workspaceReturnPath("operations", path)).toBe(path.split("?")[0]);

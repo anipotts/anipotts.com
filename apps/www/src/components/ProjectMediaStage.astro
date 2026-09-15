@@ -1,4 +1,6 @@
 ---
+import { phoneMedia, responsiveScreenshot } from "../lib/responsive-image";
+
 interface MediaItem {
   kind: "image" | "gif" | "video";
   src: string;
@@ -14,6 +16,9 @@ interface Props {
 }
 
 const { items, label, eager = false } = Astro.props;
+// The stage spans the detail column, 57rem at most.
+const stageSizes = "min(100vw, 57rem)";
+const shots = items.map((item) => responsiveScreenshot(item.src));
 const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 ---
 
@@ -47,12 +52,29 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
                 data-media-alt={item.alt}
                 aria-label={`enlarge image: ${item.alt}`}
               >
-                <img
-                  src={item.src}
-                  alt={item.alt}
-                  loading={eager && index === 0 ? "eager" : "lazy"}
-                  decoding="async"
-                />
+                {shots[index] ? (
+                  <picture>
+                    <source media={phoneMedia} srcset={shots[index].src} />
+                    <img
+                      src={shots[index].src}
+                      srcset={shots[index].srcset}
+                      sizes={stageSizes}
+                      width={shots[index].width}
+                      height={shots[index].height}
+                      style={`aspect-ratio: ${shots[index].aspectRatio}`}
+                      alt={item.alt}
+                      loading={eager && index === 0 ? "eager" : "lazy"}
+                      decoding="async"
+                    />
+                  </picture>
+                ) : (
+                  <img
+                    src={item.src}
+                    alt={item.alt}
+                    loading={eager && index === 0 ? "eager" : "lazy"}
+                    decoding="async"
+                  />
+                )}
                 <span class="project-media__hint" aria-hidden="true">
                   enlarge ↗
                 </span>
@@ -244,6 +266,9 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
     display: none;
   }
 
+  .project-media__panel picture {
+    display: contents;
+  }
   .project-media__panel img,
   .project-media__panel video {
     display: block;

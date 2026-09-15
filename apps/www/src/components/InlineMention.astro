@@ -17,6 +17,8 @@ interface Props {
   visualLabel?: string;
   visualPrefix?: string;
   visualSuffix?: string;
+  /** Mentions in the intro paragraph sit above the fold. */
+  eager?: boolean;
 }
 
 const {
@@ -34,6 +36,7 @@ const {
   visualLabel,
   visualPrefix,
   visualSuffix,
+  eager = false,
 } = Astro.props;
 const Tag = href ? "a" : "span";
 const external = isExternalDestination(href);
@@ -67,7 +70,7 @@ const remainingLabel = remainingWords.join(" ");
               src={logoSrc}
               alt=""
               class:list={{ logo: true, "logo-white": logoTone === "white" }}
-              loading="lazy"
+              loading={eager ? "eager" : "lazy"}
               decoding="async"
               width="24"
               height="24"
@@ -101,7 +104,7 @@ const remainingLabel = remainingWords.join(" ");
                   logo: true,
                   "logo-white": logoTone === "white",
                 }}
-                loading="lazy"
+                loading={eager ? "eager" : "lazy"}
                 decoding="async"
                 width="24"
                 height="24"
@@ -138,7 +141,7 @@ const remainingLabel = remainingWords.join(" ");
           src={badgeSrc}
           alt={badgeAlt ?? ""}
           class="logo"
-          loading="lazy"
+          loading={eager ? "eager" : "lazy"}
           decoding="async"
           width="24"
           height="24"

@@ -18,7 +18,6 @@ export const operationalDestinations: AdminSearchResult[] = [
 }));
 export function operationalSearchNavigation(items: NavItem[]): NavItem[] {
   const routes = new Set([
-    "/inbox",
     "/work",
     "/work?view=now",
     "/system",
