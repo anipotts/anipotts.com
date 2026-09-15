@@ -6,7 +6,7 @@
 //   node scripts/admin/theme-contrast.mjs [base-url] [options]
 //
 // base-url defaults to the Admin URL that `pnpm dev:admin` recorded for this
-// worktree, then to http://admin.anipotts.localhost:1355.
+// worktree, then to the managed preview at http://localhost:4311.
 //
 // Options:
 //   --only /inbox,/work       limit routes
@@ -73,17 +73,14 @@ const list = (name) => flags.get(name)?.split(",").filter(Boolean);
 function defaultBaseUrl() {
   try {
     const metadata = JSON.parse(
-      readFileSync(
-        join(ROOT, ".local/portless-preview/processes.json"),
-        "utf8",
-      ),
+      readFileSync(join(ROOT, ".local/dev-servers/processes.json"), "utf8"),
     );
     const admin = metadata.apps?.find((app) => app.key === "admin");
     if (admin?.url) return admin.url;
   } catch {
     // No managed preview for this worktree.
   }
-  return "http://admin.anipotts.localhost:1355";
+  return "http://localhost:4311";
 }
 
 const BASE = positional[0] ?? defaultBaseUrl();
