@@ -6,6 +6,7 @@ const read = (path: string) =>
 const editorial = read("../../styles/editorial.css");
 const operations = read("./operations-workspace.css");
 const life = read("../life/life-workspace.css");
+const header = read("./WorkspaceHeader.css");
 const block = (css: string, query: string) => {
   const start = css.indexOf(`@media ${query} {`);
   expect(start, query).toBeGreaterThan(-1);
@@ -49,5 +50,44 @@ describe("workspace page frames", () => {
       ".operations-workspace .operations-mobile-status { display: flex; }",
     );
     expect(operations).toContain("word-break: normal;");
+  });
+
+  it("keeps every sidebar icon on one centerline", () => {
+    // Astryx centres an 18px icon in a 16px slot, so the glyph starts a pixel
+    // outside it. The bordered menus absorb that with their border; the
+    // borderless search button adds the same width.
+    expect(header).toContain(
+      ".approved-workspace-header .editorial-header-search { padding-inline-start: calc(var(--spacing-9) / 4 + var(--border-width)); }",
+    );
+    expect(header).toContain(
+      ".admin-sidebar-menu > span:first-child > span:first-child > svg:not(#\\#):not(#\\#) { width: calc(var(--spacing-9) / 2); height: calc(var(--spacing-9) / 2); flex: none; }",
+    );
+  });
+
+  it("keeps the library table one line per record", () => {
+    const library = read("../../styles/editorial.css");
+    // Cells carry their own inset; only the cell holding the tallest control
+    // goes without, so rows stay one control tall.
+    expect(library).toContain(
+      ".editorial-library .editorial-record-table .astryx-table-cell { vertical-align: middle; padding-block: var(--spacing-1); }",
+    );
+    expect(library).toContain(
+      ".editorial-library .editorial-record-table .astryx-table-cell:last-child { padding-block: 0; }",
+    );
+    expect(library).toContain(
+      "min-height: var(--spacing-7); justify-content: flex-start; padding-block: var(--spacing-1); padding-inline: var(--spacing-2);",
+    );
+    for (const rule of [
+      ".editorial-library .editorial-record-summary,",
+      ".editorial-library .editorial-record-state > .astryx-token:not(#\\#):not(#\\#):not(#\\#) { flex: 0 0 auto; }",
+    ])
+      expect(library).toContain(rule);
+    // The phone row keeps its state under the title and gets the room for it.
+    expect(library).toContain(
+      ".editorial-library .editorial-record-table .astryx-table-cell { padding-block: var(--spacing-2); }",
+    );
+    expect(library).toContain(
+      ":is(th, td):nth-child(n + 2):nth-last-child(n + 2) { display: none; }",
+    );
   });
 });

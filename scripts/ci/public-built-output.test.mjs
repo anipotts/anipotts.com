@@ -256,13 +256,10 @@ function files(dir) {
   );
 }
 const imageFile = /\.(avif|gif|ico|jpe?g|png|svg|webp)$/i;
-// Unreferenced and not requested by any page; removal waits for owner approval (audit m13).
-const awaitingRemoval = new Set(["/images/ani-potts-headshot.png"]);
 // Admin Publish commits article images here under its own publication cap
 // (MAX_PUBLICATION_MEDIA_BYTES in apps/admin/src/lib/editorial-media.ts).
 const editorialMediaCeiling = 10 * kb * kb;
 function ceiling(path) {
-  if (awaitingRemoval.has(path)) return Infinity;
   if (path.startsWith("/images/editorial/")) return editorialMediaCeiling;
   if (path.startsWith("/images/work/")) {
     if (path.endsWith("-800.webp")) return 48 * kb;
@@ -338,23 +335,16 @@ if (origin) {
       "?source=qa&next=%2Fwork",
     );
   }
-  const search = await (
-    await fetch(new URL("/api/search?q=claude", origin))
-  ).json();
-  assert.ok(search.results.length > 0);
-  for (const item of search.results) {
-    assert.ok(published.some(({ slug }) => slug === item.slug));
-    assert.deepEqual(Object.keys(item).sort(), [
-      "date",
-      "slug",
-      "summary",
-      "title",
-    ]);
+  // /api/search and the /ingest PostHog proxy are removed. search-index.json
+  // stays: it is the published-only artifact the build guard above compares
+  // against, and it is served as a static asset.
+  for (const path of ["/api/search?q=claude", "/ingest/static/array.js"]) {
+    assert.equal(
+      (await fetch(new URL(path, origin), { redirect: "manual" })).status,
+      404,
+      `${path} must stay removed`,
+    );
   }
-  assert.deepEqual(
-    await (await fetch(new URL("/api/search?q=%20", origin))).json(),
-    { results: [] },
-  );
   if (process.argv.includes("--newsletter")) {
     for (const [path, options, status] of [
       ["/api/health", {}, 200],

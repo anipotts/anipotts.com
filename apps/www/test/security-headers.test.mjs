@@ -19,7 +19,7 @@ const EXPECTED_CSP = Object.freeze([
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self'",
-  "connect-src 'self' https://us.i.posthog.com https://us-assets.i.posthog.com",
+  "connect-src 'self'",
 ]);
 const EXPECTED = Object.freeze({
   "X-Content-Type-Options": "nosniff",

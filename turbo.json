@@ -27,7 +27,7 @@
         "wrangler.toml"
       ],
       "outputs": ["dist/**"],
-      "env": ["NODE_ENV", "PUBLIC_POSTHOG_KEY", "PUBLIC_RELEASE_SHA"]
+      "env": ["NODE_ENV", "PUBLIC_RELEASE_SHA"]
     },
     "@anipotts/admin#build": {
       "dependsOn": ["^build"],

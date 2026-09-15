@@ -16,7 +16,6 @@ const ALLOWED_API_ROUTES = [
   "newsletter/subscribe",
   "newsletter/unsubscribe",
   "newsletter/webhooks/resend",
-  "search",
   "subscribe",
 ];
 
@@ -85,6 +84,11 @@ const FORBIDDEN_SOURCE_PATTERNS = [
     pattern: /\/api\/admin\//,
     message: "apps/www must not call or expose admin API routes",
   },
+  {
+    pattern: /posthog/i,
+    message:
+      "apps/www ships no PostHog snippet, proxy or host; Cloudflare Web Analytics is the only analytics",
+  },
 ];
 
 const files = listFiles(WWW_SRC);
@@ -110,37 +114,15 @@ for (const file of pageFiles) {
   );
 }
 
-const ingestProxy = "apps/www/src/pages/ingest/[...path].ts";
-assert.ok(existsSync(ingestProxy), "posthog ingest proxy must be explicit");
-const ingestSource = readFileSync(ingestProxy, "utf8");
-assert.match(
-  ingestSource,
-  /posthog reverse proxy/i,
-  "ingest proxy must stay documented as analytics-only",
+// The PostHog stack is gone: no key was ever set, so the snippet never ran
+// while /ingest still forwarded any path to PostHog. www keeps Cloudflare Web
+// Analytics, which is edge-injected and needs no first-party route. Assert the
+// removal so nothing reintroduces a third-party proxy or beacon by accident.
+assert.equal(
+  existsSync("apps/www/src/pages/ingest"),
+  false,
+  "the /ingest reverse proxy is removed and must not come back",
 );
-assert.match(
-  ingestSource,
-  /us-assets\.i\.posthog\.com/,
-  "ingest static asset proxy must target PostHog assets",
-);
-assert.match(
-  ingestSource,
-  /us\.i\.posthog\.com/,
-  "ingest event proxy must target PostHog ingest",
-);
-for (const pattern of [
-  /\bD1Database\b/,
-  /\bDB\b/,
-  /\.prepare\(/,
-  /\bNEWSLETTER_QUEUE\b/,
-  /@anipotts\/lib\/admin\b/,
-]) {
-  assert.equal(
-    pattern.test(ingestSource),
-    false,
-    `ingest proxy must not grow local state or admin behavior: ${pattern}`,
-  );
-}
 
 const sourceFiles = files.filter((file) =>
   /\.(astro|[cm]?[jt]sx?)$/.test(file),
@@ -157,7 +139,6 @@ for (const component of [
   "AmbientFlow.astro",
   "CodingAgentTipsCard.astro",
   "ExperienceFeatureCard.astro",
-  "NewsletterSubscribe.astro",
 ]) {
   const source = readFileSync(join(WWW_SRC, "components", component), "utf8");
   assert.doesNotMatch(

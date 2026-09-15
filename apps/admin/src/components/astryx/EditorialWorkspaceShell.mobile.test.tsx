@@ -232,7 +232,7 @@ describe("responsive workspace navigation", () => {
     expect(
       host.querySelector(".admin-workspace-selector")?.classList,
     ).toContain("admin-sidebar-menu");
-    expect(appearance.getAttribute("aria-label")).toMatch(/^Appearance: /);
+    expect(appearance.getAttribute("aria-label")).toMatch(/^Theme: /);
     expect(appearance.getAttribute("aria-haspopup")).toBe("menu");
     act(() => appearance.click());
     const menu = document.getElementById(

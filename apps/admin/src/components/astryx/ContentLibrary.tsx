@@ -177,6 +177,20 @@ export function RecordStatus({
   );
 }
 
+/** The record's library section, derived from its URL when rows omit it. */
+export function recordSection(record: CatalogRecord): string {
+  return (
+    record.section ??
+    (record.href.startsWith("/content/projects/")
+      ? "Projects"
+      : record.href.startsWith("/content/writing/")
+        ? "Writing"
+        : record.href.startsWith("/newsletter/")
+          ? "Newsletter"
+          : "Pages")
+  );
+}
+
 function RecordGlyph({ record }: { record: CatalogRecord }) {
   const [Icon, kind] =
     record.collection === "projects" ||
@@ -219,14 +233,18 @@ function RecordState({
   const decision = contentDecision(record, !inventoryError);
   const unavailable = inventoryError && record.privateRevision === undefined;
   return (
-    <VStack gap={1} className="editorial-record-state">
+    <HStack gap={2} vAlign="center" className="editorial-record-state">
       <RecordStatus status={record.status} />
-      <Text type="supporting" color="secondary">
+      <Text
+        type="supporting"
+        color="secondary"
+        className="editorial-record-state-detail"
+      >
         {unavailable
           ? "Draft status unavailable"
           : (decision.detail ?? decision.label)}
       </Text>
-    </VStack>
+    </HStack>
   );
 }
 
@@ -362,11 +380,16 @@ export function ContentLibrary({
           ),
         ).slice(0, 3)
       : [];
+  // One library of one kind needs no kind column; the mixed overview does.
   const showSections =
-    new Set(group.records.map((item) => item.section).filter(Boolean)).size > 1;
+    new Set(group.records.map((item) => recordSection(item))).size > 1;
   const statuses = [...new Set(group.records.map((item) => item.status))];
   return (
-    <VStack gap={5} className="editorial-library">
+    <VStack
+      gap={5}
+      className="editorial-library"
+      data-kind-column={showSections}
+    >
       {recent.length > 0 && (
         <section className="editorial-resume" aria-label="Recently edited">
           <HStack vAlign="center" className="editorial-resume-heading">
@@ -379,13 +402,7 @@ export function ContentLibrary({
             {recent.map((record) => {
               const decision = contentDecision(record, !inventoryError);
               const href = recordLibraryHref(record.href, currentUrl);
-              const section =
-                record.section ??
-                (record.href.startsWith("/content/projects/")
-                  ? "Projects"
-                  : record.href.startsWith("/content/writing/")
-                    ? "Writing"
-                    : "Pages");
+              const section = recordSection(record);
               return (
                 <li key={record.href} className="editorial-resume-row">
                   <div className="editorial-resume-meta">
@@ -595,23 +612,6 @@ export function ContentLibrary({
                         variant="ghost"
                         className="record-link"
                       />
-                      {item.summary ? (
-                        <Text
-                          type="supporting"
-                          color="secondary"
-                          className="editorial-record-summary"
-                        >
-                          {item.summary}
-                        </Text>
-                      ) : showSections && item.section ? (
-                        <Text
-                          type="supporting"
-                          color="secondary"
-                          className="editorial-record-summary"
-                        >
-                          {interfaceLabel(item.section)}
-                        </Text>
-                      ) : null}
                       <HStack
                         className="editorial-mobile-status"
                         gap={3}
@@ -629,9 +629,41 @@ export function ContentLibrary({
                 ),
               },
               {
+                key: "summary",
+                header: "Summary",
+                width: proportional(1, { minWidth: 80 }),
+                renderCell: (item) =>
+                  item.summary ? (
+                    <Text
+                      type="supporting"
+                      color="secondary"
+                      className="editorial-record-summary"
+                    >
+                      {item.summary}
+                    </Text>
+                  ) : null,
+              },
+              ...(showSections
+                ? [
+                    {
+                      key: "section",
+                      header: "Kind",
+                      width: pixel(124),
+                      renderCell: (item: CatalogRecord) => (
+                        <Token
+                          size="sm"
+                          color="default"
+                          className="editorial-record-kind"
+                          label={interfaceLabel(recordSection(item))}
+                        />
+                      ),
+                    },
+                  ]
+                : []),
+              {
                 key: "status",
                 header: "State",
-                width: pixel(144),
+                width: pixel(228),
                 renderCell: (item) => (
                   <RecordState record={item} inventoryError={inventoryError} />
                 ),

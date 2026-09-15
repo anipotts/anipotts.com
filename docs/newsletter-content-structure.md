@@ -10,19 +10,18 @@ admin writes, or production d1 changes.
 
 ## existing source inventory
 
-| surface              | current source                                                                  | role                                                                      | lane status                         |
-| -------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------- |
-| newsletter landing   | `apps/www/src/pages/newsletter.astro`                                           | renders the `news.anipotts.com` landing page from normalized page content | read-only source reference          |
-| subscribe component  | `apps/www/src/components/NewsletterSubscribe.astro`                             | shows lede, email form, CTA, success text, and error text                 | copy source only, no send authority |
-| archive shell        | `apps/www/src/pages/newsletter/archive.astro`                                   | placeholder archive until the first-party send path is verified           | read-only public shell              |
-| issue table          | `drizzle/migrations/0005_newsletter_system.sql:newsletter_issues`               | future storage shape for issue rows                                       | schema reference only               |
-| system brief         | `docs/newsletter-system.md`                                                     | infrastructure, resend, compliance, and rollout gates                     | authoritative for live-path gates   |
-| content inventory    | `docs/content-admin-editor-brief.md`                                            | public-site editable-content inventory and newsletter backfill candidates | admin planning source               |
-| shared content       | `packages/content/src/admin/*`                                                  | static inventory, preview rows, and newsletter issue draft data           | preview model only                  |
-| read-only admin      | `apps/admin/src/data/content.ts`                                                | compatibility re-export for current admin routes                          | preview model only                  |
-| newsletter admin     | `apps/admin/src/data/newsletter.ts` and `apps/admin/src/pages/newsletter.astro` | static issue draft review inside canonical Astro admin                    | preview model only                  |
-| issue detail preview | `apps/admin/src/pages/newsletter/[slug].astro`                                  | Astro-native protected issue preview with proof, sources, and gates       | preview model only                  |
-| newsletter worker    | `workers/newsletter/*`                                                          | async send worker and queue consumer                                      | out of scope for this lane          |
+| surface              | current source                                                                  | role                                                                      | lane status                       |
+| -------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | --------------------------------- |
+| newsletter landing   | `apps/www/src/pages/newsletter.astro`                                           | renders the `news.anipotts.com` landing page from normalized page content | read-only source reference        |
+| archive shell        | `apps/www/src/pages/newsletter/archive.astro`                                   | placeholder archive until the first-party send path is verified           | read-only public shell            |
+| issue table          | `drizzle/migrations/0005_newsletter_system.sql:newsletter_issues`               | future storage shape for issue rows                                       | schema reference only             |
+| system brief         | `docs/newsletter-system.md`                                                     | infrastructure, resend, compliance, and rollout gates                     | authoritative for live-path gates |
+| content inventory    | `docs/content-admin-editor-brief.md`                                            | public-site editable-content inventory and newsletter backfill candidates | admin planning source             |
+| shared content       | `packages/content/src/admin/*`                                                  | static inventory, preview rows, and newsletter issue draft data           | preview model only                |
+| read-only admin      | `apps/admin/src/data/content.ts`                                                | compatibility re-export for current admin routes                          | preview model only                |
+| newsletter admin     | `apps/admin/src/data/newsletter.ts` and `apps/admin/src/pages/newsletter.astro` | static issue draft review inside canonical Astro admin                    | preview model only                |
+| issue detail preview | `apps/admin/src/pages/newsletter/[slug].astro`                                  | Astro-native protected issue preview with proof, sources, and gates       | preview model only                |
+| newsletter worker    | `workers/newsletter/*`                                                          | async send worker and queue consumer                                      | out of scope for this lane        |
 
 ## draft issue record
 
