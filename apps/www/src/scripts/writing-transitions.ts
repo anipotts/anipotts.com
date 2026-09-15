@@ -21,6 +21,7 @@ let pending: (() => void) | undefined;
 type Outgoing = capture.Outgoing;
 let outgoing: Outgoing | undefined;
 let pendingFocus: Focus = null;
+let swapAt = 0;
 
 const columns = () => (phone.matches ? 17 : wave.CONTOUR_COLUMNS);
 const theme = () => document.documentElement.dataset.theme || "light";
@@ -219,6 +220,7 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
     const lingering: Animation[] = [];
     let primary: Animation | undefined;
     let primaryEnd = -1;
+    let surfaceClock: Animation | undefined;
     for (const stage of stages) {
       const keyframes = timeline.stageKeyframes(
         stage,
@@ -234,15 +236,21 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
           fill: live ? "backwards" : "both",
         });
         (live ? lingering : animations).push(animation);
-        // The surface clocks the handoff; without one, the last stage does.
-        const end = stage.target === "surface" ? Infinity : delay + duration;
-        if (end > primaryEnd) [primary, primaryEnd] = [animation, end];
+        if (stage.target === "surface") surfaceClock ??= animation;
+        // The last stage to end keys the handoff.
+        const end = delay + duration;
+        if (!live && end >= primaryEnd)
+          [primary, primaryEnd] = [animation, end];
       }
     }
-    // One shared start at the end of this task rather than a pending start
-    // resolved at the next frame, so the first painted frame already moves.
+    // After a quick swap, one shared start at the end of this task, so the
+    // first painted frame already moves. After a slow one, the first frame
+    // is late and the main-thread clip would trail the composited text and
+    // waves by that much; a pending start lets the engine start them all
+    // together on the frame they first appear.
     const start = performance.now();
-    for (const a of [...animations, ...lingering]) a.startTime = start;
+    if (start - swapAt < 16)
+      for (const a of [...animations, ...lingering]) a.startTime = start;
     let done = false;
     let frame = 0;
     const finish = (focus: boolean) => {
@@ -282,7 +290,7 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
       );
     else finish(true);
     const clock = stages.find((stage) => stage.property === "path");
-    const [m, surface] = [draw, primary];
+    const [m, surface] = [draw, surfaceClock];
     if (!m || !clock || !surface) return;
     // Path data follows the surface animation's own clock, frame by frame.
     const ease = wave.cubicBezier(...timeline.curveOf(clock.easing));
@@ -322,6 +330,7 @@ document.addEventListener("astro:before-preparation", (raw) => {
 });
 document.addEventListener("astro:before-swap", (raw) => {
   const event = raw as TransitionBeforeSwapEvent;
+  swapAt = performance.now();
   const current = theme();
   const next = event.newDocument;
   next.documentElement.dataset.theme = current;
