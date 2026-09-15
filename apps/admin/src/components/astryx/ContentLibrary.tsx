@@ -1,5 +1,5 @@
 import { contentDecision, decisionHref } from "../../lib/content-decision";
-import React, { useEffect, useState } from "react";
+import React, { memo, useEffect, useState } from "react";
 import type { CatalogRecord, CatalogGroup } from "./EditorialApp";
 import { Button } from "@astryxdesign/core/Button";
 import { IconButton } from "@astryxdesign/core/IconButton";
@@ -11,7 +11,10 @@ import {
   FileTextIcon,
 } from "@phosphor-icons/react";
 import { Token } from "@astryxdesign/core/Token";
-import { Timestamp } from "@astryxdesign/core/Timestamp";
+import {
+  Timestamp,
+  type TimestampTooltipEntry,
+} from "@astryxdesign/core/Timestamp";
 import { HStack } from "@astryxdesign/core/HStack";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Text } from "@astryxdesign/core/Text";
@@ -62,7 +65,22 @@ export function recentlyUpdated(records: CatalogRecord[]): CatalogRecord[] {
   );
 }
 
-export function Updated({
+type UpdatedSource = NonNullable<CatalogRecord["updated"]>["source"];
+
+/** One shared tooltip entry list per source, so every render hands Timestamp
+ * the same array instead of a new one per cell. */
+const UPDATED_TOOLTIP_ENTRIES: Record<
+  UpdatedSource,
+  ReadonlyArray<TimestampTooltipEntry>
+> = {
+  private: [
+    { label: "Private draft saved", timezoneID: "local", format: "full" },
+  ],
+  local: [{ label: "Local edit", timezoneID: "local", format: "full" }],
+  git: [{ label: "Latest Git change", timezoneID: "local", format: "full" }],
+};
+
+function UpdatedCell({
   updated,
   column = false,
 }: {
@@ -80,18 +98,9 @@ export function Updated({
         value={updated.at}
         format="relative_short"
         isLive
-        tooltipEntries={[
-          {
-            label:
-              updated.source === "private"
-                ? "Private draft saved"
-                : updated.source === "local"
-                  ? "Local edit"
-                  : "Latest Git change",
-            timezoneID: "local",
-            format: "full",
-          },
-        ]}
+        tooltipEntries={
+          UPDATED_TOOLTIP_ENTRIES[updated.source] ?? UPDATED_TOOLTIP_ENTRIES.git
+        }
       />
       {updated.source === "local" && (
         <Text type="supporting" color="secondary">
@@ -101,6 +110,19 @@ export function Updated({
     </HStack>
   );
 }
+
+/** Library rows re-render whenever the island commits, and each Timestamp
+ * holds a dehydrated Suspense boundary for its lazy hover card. Skipping
+ * renders when the recorded time and source are unchanged keeps React from
+ * hydrating every boundary again at sync priority after the first commit.
+ * Timestamp keeps its own live clock, so the relative text still advances. */
+export const Updated = memo(
+  UpdatedCell,
+  (previous, next) =>
+    previous.column === next.column &&
+    previous.updated?.at === next.updated?.at &&
+    previous.updated?.source === next.updated?.source,
+);
 
 function interfaceLabel(value: string) {
   const text = value.replaceAll("_", " ");
