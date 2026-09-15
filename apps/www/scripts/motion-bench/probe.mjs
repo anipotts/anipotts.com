@@ -64,7 +64,15 @@ function install() {
     a.top >= clip.top - 0.5 &&
     a.right <= clip.right + 0.5 &&
     a.bottom <= clip.bottom + 0.5;
+  // True from this probe's frame callback until the frame's tasks end: a
+  // wrapper write outside it (the setup write in the swap task) is never
+  // painted against a later clip.
+  let inFrame = false;
+  const endOfFrame = new MessageChannel();
+  endOfFrame.port1.onmessage = () => (inFrame = false);
   const tick = () => {
+    inFrame = true;
+    endOfFrame.port2.postMessage(0);
     const t = +(performance.now() - probe.start).toFixed(0);
     probe.frames++;
     const surface = document.querySelector(".writing-transition-surface");
@@ -86,15 +94,17 @@ function install() {
         // The header band spans the clip's width: any horizontal gap between
         // the band and the clip edge shows as a dark gutter.
         const gap = +Math.max(w.left - c.left, c.right - w.right).toFixed(1);
-        probe.gutter = Math.max(probe.gutter, gap);
-        if (gap > 2 && probe.gutters.length < 20)
-          probe.gutters.push({
-            t: +(performance.now() - probe.start).toFixed(0),
-            wrapper: [w.left, w.right].map((v) => +v.toFixed(1)),
-            clip: [c.left, c.right].map((v) => +v.toFixed(1)),
-            surfaceTime: s.getAnimations()[0]?.currentTime ?? null,
-            transform: wrapper.style.transform,
-          });
+        if (inFrame) {
+          probe.gutter = Math.max(probe.gutter, gap);
+          if (gap > 2 && probe.gutters.length < 20)
+            probe.gutters.push({
+              t: +(performance.now() - probe.start).toFixed(0),
+              wrapper: [w.left, w.right].map((v) => +v.toFixed(1)),
+              clip: [c.left, c.right].map((v) => +v.toFixed(1)),
+              surfaceTime: s.getAnimations()[0]?.currentTime ?? null,
+              transform: wrapper.style.transform,
+            });
+        }
         if (!inside(w, c))
           probe.outside.push({
             t: +(performance.now() - probe.start).toFixed(0),
