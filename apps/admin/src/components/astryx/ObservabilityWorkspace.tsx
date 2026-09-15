@@ -128,16 +128,28 @@ export function ObservabilityWorkspace({
       clearTimeout(timer);
       if (!stopped && automatic && !document.hidden)
         timer = setTimeout(
-          () => void refresh(),
+          () => void refresh(false),
           Math.max(0, nextAt - Date.now()),
         );
     };
-    async function refresh() {
-      if (stopped || active || document.hidden) return;
+    // Only a refresh the owner asked for shows the button's loading state. An
+    // automatic refresh updates the snapshot quietly, and the status sentence
+    // speaks only when the connection state changes.
+    let activeManual = false;
+    async function refresh(manual: boolean) {
+      if (stopped || document.hidden) return;
+      if (active) {
+        if (manual && !activeManual) {
+          activeManual = true;
+          setRefreshing(true);
+        }
+        return;
+      }
       clearTimeout(timer);
       const request = new AbortController();
       active = request;
-      setRefreshing(true);
+      activeManual = manual;
+      if (manual) setRefreshing(true);
       const current = () =>
         !stopped && active === request && !request.signal.aborted;
       try {
@@ -147,7 +159,11 @@ export function ObservabilityWorkspace({
           cache: "no-store",
           redirect: "error",
         });
-        if (!response.ok) throw new Error("unavailable");
+        if (!response.ok) {
+          // An unread error body would hold the request open until abort.
+          void response.body?.cancel().catch(() => undefined);
+          throw new Error("unavailable");
+        }
         const reader = response.body?.getReader();
         if (!reader) throw new Error("unavailable");
         let text = "";
@@ -187,6 +203,7 @@ export function ObservabilityWorkspace({
       } finally {
         if (current()) {
           active = null;
+          activeManual = false;
           setRefreshing(false);
           schedule();
         }
@@ -199,14 +216,18 @@ export function ObservabilityWorkspace({
         if (active) {
           active.abort();
           active = null;
+          activeManual = false;
           nextAt = Date.now();
           setRefreshing(false);
         }
       } else schedule();
     };
-    manualRefresh.current = () => void refresh();
+    manualRefresh.current = () => void refresh(true);
     document.addEventListener("visibilitychange", visibilityChanged);
-    if (automatic && !document.hidden) void refresh();
+    // The server rendered this snapshot moments ago. The first automatic read
+    // waits a full interval instead of repeating it at mount.
+    nextAt = Date.now() + 60000;
+    schedule();
     return () => {
       stopped = true;
       active?.abort();
@@ -428,7 +449,7 @@ export function ObservabilityWorkspace({
                   <Table
                     data={services}
                     idKey="id"
-                    className="editorial-record-table"
+                    className="editorial-record-table operations-inventory-table"
                     aria-label={title(view)}
                     density="compact"
                     dividers="none"
@@ -456,20 +477,47 @@ export function ObservabilityWorkspace({
                               : "Service",
                         width: proportional(2),
                         renderCell: (service) => (
-                          <Button
-                            label={label(service.id)}
-                            variant="ghost"
-                            className="operations-service-name"
-                            data-service-id={service.id}
-                            aria-expanded={selectedId === service.id}
-                            aria-controls={
-                              selectedId === service.id
-                                ? "operations-service-detail"
-                                : undefined
-                            }
-                            icon={<ServiceIcon id={service.id} />}
-                            onClick={() => setSelectedId(service.id)}
-                          />
+                          <VStack gap={1} hAlign="start">
+                            <Button
+                              label={label(service.id)}
+                              variant="ghost"
+                              className="operations-service-name"
+                              data-service-id={service.id}
+                              aria-expanded={selectedId === service.id}
+                              aria-controls={
+                                selectedId === service.id
+                                  ? "operations-service-detail"
+                                  : undefined
+                              }
+                              icon={<ServiceIcon id={service.id} />}
+                              onClick={() => setSelectedId(service.id)}
+                            />
+                            <HStack
+                              gap={2}
+                              vAlign="center"
+                              wrap="wrap"
+                              className="operations-mobile-status"
+                            >
+                              <StatusDot
+                                label={stateLabel(service.id)}
+                                variant={stateVariant(
+                                  deriveServiceState(service, now),
+                                )}
+                                aria-hidden="true"
+                              />
+                              <Text type="supporting">
+                                {stateLabel(service.id)}
+                              </Text>
+                              {service.lastObservedAt && (
+                                <Text type="supporting" color="secondary">
+                                  <Timestamp
+                                    value={service.lastObservedAt}
+                                    format="auto"
+                                  />
+                                </Text>
+                              )}
+                            </HStack>
+                          </VStack>
                         ),
                       },
                       {
@@ -509,7 +557,7 @@ export function ObservabilityWorkspace({
                   <Table
                     data={rows}
                     idKey="id"
-                    className="editorial-record-table"
+                    className="editorial-record-table operations-evidence-table"
                     density="compact"
                     dividers="none"
                     textOverflow="wrap"
@@ -519,7 +567,21 @@ export function ObservabilityWorkspace({
                         header: "Service",
                         width: proportional(1),
                         renderCell: (row) => (
-                          <Text weight="semibold">{row.service}</Text>
+                          <VStack gap={1}>
+                            <Text weight="semibold">{row.service}</Text>
+                            <HStack
+                              gap={2}
+                              vAlign="center"
+                              className="operations-mobile-status"
+                            >
+                              <StatusDot
+                                label={row.state}
+                                variant={evidenceVariant(row.state)}
+                                aria-hidden="true"
+                              />
+                              <Text type="supporting">{row.state}</Text>
+                            </HStack>
+                          </VStack>
                         ),
                       },
                       {
@@ -530,19 +592,7 @@ export function ObservabilityWorkspace({
                           <HStack gap={2} vAlign="center">
                             <StatusDot
                               label={row.state}
-                              variant={
-                                row.state === "Healthy" ||
-                                row.state === "Resolved" ||
-                                row.state === "Success"
-                                  ? "success"
-                                  : row.state === "Failed" ||
-                                      row.state === "Failure"
-                                    ? "error"
-                                    : row.state === "Stale" ||
-                                        row.state === "Disconnected"
-                                      ? "warning"
-                                      : "neutral"
-                              }
+                              variant={evidenceVariant(row.state)}
                               aria-hidden="true"
                             />
                             <Text>{row.state}</Text>
@@ -710,6 +760,15 @@ function stateVariant(state: ServiceState) {
     : state === "failed"
       ? "error"
       : state === "stale" || state === "disconnected"
+        ? "warning"
+        : "neutral";
+}
+function evidenceVariant(state: string) {
+  return state === "Healthy" || state === "Resolved" || state === "Success"
+    ? "success"
+    : state === "Failed" || state === "Failure"
+      ? "error"
+      : state === "Stale" || state === "Disconnected"
         ? "warning"
         : "neutral";
 }

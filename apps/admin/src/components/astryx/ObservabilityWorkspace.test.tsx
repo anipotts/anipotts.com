@@ -320,6 +320,9 @@ describe("optional observability workspace", () => {
     ).toISOString();
     vi.mocked(fetch).mockRejectedValue(new Error("private provider failure"));
     await mount(initial);
+    expect(fetch).not.toHaveBeenCalled();
+    await advance(60000);
+    expect(fetch).toHaveBeenCalledOnce();
     expect(host.textContent).toContain(
       "Latest read unavailable; showing last-known observations",
     );
@@ -363,6 +366,11 @@ describe("optional observability workspace", () => {
   it("refreshes connected sources at sixty seconds, not every second, and manual refresh resets the deadline", async () => {
     vi.mocked(fetch).mockImplementation(async () => response());
     await mount(connected());
+    // The server rendered this snapshot, so mounting repeats no read.
+    expect(fetch).not.toHaveBeenCalled();
+    await advance(59999);
+    expect(fetch).not.toHaveBeenCalled();
+    await advance(1);
     expect(fetch).toHaveBeenCalledTimes(1);
     await advance(59000);
     expect(fetch).toHaveBeenCalledTimes(1);
@@ -381,16 +389,16 @@ describe("optional observability workspace", () => {
     await visibility(true);
     await advance(10000);
     await visibility(false);
-    await advance(39000);
+    await advance(39999);
+    expect(fetch).not.toHaveBeenCalled();
+    await advance(1);
     expect(fetch).toHaveBeenCalledTimes(1);
-    await advance(1000);
-    expect(fetch).toHaveBeenCalledTimes(2);
     await visibility(true);
     await advance(600000);
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledTimes(1);
     await visibility(false);
     await advance(1);
-    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   it("does not start a source read while initially hidden", async () => {
@@ -413,6 +421,7 @@ describe("optional observability workspace", () => {
         }),
     );
     await mount(connected());
+    await advance(60000);
     const signal = vi.mocked(fetch).mock.calls[0]![1]!.signal!;
     await visibility(true);
     expect(signal.aborted).toBe(true);
@@ -429,6 +438,8 @@ describe("optional observability workspace", () => {
   it("backs off failed connected reads to five minutes and resets after recovery", async () => {
     vi.mocked(fetch).mockRejectedValue(new Error("unavailable"));
     await mount(connected());
+    await advance(60000);
+    expect(fetch).toHaveBeenCalledTimes(1);
     for (const [delay, count] of [
       [60000, 2],
       [120000, 3],
@@ -446,6 +457,44 @@ describe("optional observability workspace", () => {
     expect(fetch).toHaveBeenCalledTimes(7);
     await advance(60000);
     expect(fetch).toHaveBeenCalledTimes(8);
+  });
+
+  it("keeps an automatic refresh quiet and shows loading only once the owner asks", async () => {
+    let resolve!: (value: Response) => void;
+    vi.mocked(fetch).mockImplementation(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    );
+    await mount(connected());
+    await advance(60000);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const refresh = button("Refresh");
+    expect(refresh.disabled).toBe(false);
+    expect(refresh.getAttribute("aria-busy")).not.toBe("true");
+    // Asking during an automatic read joins it instead of starting another.
+    await act(async () => refresh.click());
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(refresh.disabled).toBe(true);
+    await act(async () => resolve(response()));
+    expect(refresh.disabled).toBe(false);
+  });
+
+  it("releases an unread error body instead of holding the request open", async () => {
+    const cancel = vi.fn(async () => undefined);
+    vi.mocked(fetch).mockImplementation(async () => {
+      const failed = new Response("unavailable", { status: 503 });
+      Object.defineProperty(failed, "body", { value: { cancel } });
+      return failed;
+    });
+    await mount(connected());
+    await advance(60000);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(host.textContent).toContain(
+      "Latest read unavailable; showing last-known observations",
+    );
   });
 
   it("stops polling when the source reports unconfigured and preserves selection across a successful refresh", async () => {
@@ -467,10 +516,24 @@ describe("optional observability workspace", () => {
   it("aborts on unmount and leaves no refresh scheduled", async () => {
     vi.mocked(fetch).mockImplementation(() => new Promise(() => undefined));
     await mount(connected());
+    await advance(60000);
     const signal = vi.mocked(fetch).mock.calls[0]![1]!.signal!;
     await act(async () => root.render(null));
     expect(signal.aborted).toBe(true);
     await advance(600000);
     expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it("carries each machine's state under its name for the phone layout", async () => {
+    await mount();
+    const rows = [...host.querySelectorAll("tbody tr")];
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      const nameCell = row.querySelector("td")!;
+      const status = nameCell.querySelector(".operations-mobile-status");
+      expect(status?.textContent).toBe("Not observed");
+      expect(status?.querySelector("[aria-hidden=true]")).not.toBeNull();
+    }
+    expect(host.querySelector(".operations-inventory-table")).not.toBeNull();
   });
 });

@@ -82,6 +82,7 @@ import {
 } from "../../lib/home-autosave";
 import type { Draft } from "../../editorial/draft-store";
 import type { HomeBase } from "../../lib/editorial-home-api";
+import { discardBody } from "../../lib/response-body";
 import type { PublishJob } from "../../editorial/publication-jobs";
 
 type Snapshot = {
@@ -140,6 +141,38 @@ function heldLeaveCopy(current: SaveState | undefined, compared: boolean) {
   if (saveNeedsComparison(current?.saveFailureCode))
     return "Your latest edits are not saved. Compare the saved draft and choose a version, or download a copy before leaving this draft.";
   return "Your latest edits are still here. Save them before leaving this draft.";
+}
+
+/** Tell the library, and through the inventory relay the other open tabs,
+ * what an acknowledged draft now says. A row refresh never interrupts the
+ * editor, so unreadable metadata is skipped. */
+function announceRecordFreshness(
+  record: EditorialRecord,
+  draft: { source: string; revision: number; updatedAt: number | string },
+  baseSource: string,
+  publishedAt?: string,
+) {
+  try {
+    const metadata = parseEditorialSource(draft.source).data as Record<
+      string,
+      unknown
+    >;
+    const intended =
+      record.kind === "work" ? metadata.public_state : metadata.status;
+    if (typeof metadata.title !== "string") return;
+    dispatchEditorialRecordSaved({
+      record,
+      title: metadata.title,
+      summary: editorialRecordSummary(record, metadata) ?? "",
+      revision: draft.revision,
+      updatedAt: new Date(draft.updatedAt).toISOString(),
+      changesPending: publishedAt ? false : draft.source !== baseSource,
+      ...(typeof intended === "string" ? { intendedVisibility: intended } : {}),
+      ...(publishedAt ? { publishedAt } : {}),
+    });
+  } catch {
+    /* Metadata refresh never interrupts an acknowledged save. */
+  }
 }
 
 export const HomeEditor = React.memo(HomeEditorImpl);
@@ -446,6 +479,12 @@ function HomeEditorImpl({
   const publishPending = useRef(false);
   const [comparison, setComparison] = useState<HomeBase | null>(null);
   const publishRequest = useRef<{ revision: number; id: string } | null>(null);
+  /** The saved revision this tab submitted, so the row can follow it live. */
+  const publishedDraft = useRef<{
+    operationId: string;
+    revision: number;
+    source: string;
+  } | null>(null);
   async function postRequest(
     action: string,
     body: unknown,
@@ -455,7 +494,10 @@ function HomeEditorImpl({
       const response = await fetch("/api/editorial/csrf", {
         signal: AbortSignal.timeout(15000),
       });
-      if (!response.ok) throw new Error("session expired");
+      if (!response.ok) {
+        discardBody(response);
+        throw new Error("session expired");
+      }
       csrf.current = (await response.json()).csrf;
     }
     if (guard && !guard()) throw new Error("operation no longer current");
@@ -469,6 +511,7 @@ function HomeEditorImpl({
       body: JSON.stringify(body),
     });
     if (response.status === 401 || response.status === 403) {
+      discardBody(response);
       csrf.current = "";
       throw new Error("session expired");
     }
@@ -476,8 +519,10 @@ function HomeEditorImpl({
   }
   async function post(action: string, body: unknown, guard?: () => boolean) {
     const response = await postRequest(action, body, guard);
-    if (!response.ok && response.status !== 409)
+    if (!response.ok && response.status !== 409) {
+      discardBody(response);
       throw new Error("save unavailable");
+    }
     return response.json();
   }
   useEffect(() => {
@@ -492,7 +537,10 @@ function HomeEditorImpl({
     setError("");
     fetch(endpoint("record"), { signal: AbortSignal.timeout(15000) })
       .then(async (response) => {
-        if (!response.ok) throw new Error("draft storage unavailable");
+        if (!response.ok) {
+          discardBody(response);
+          throw new Error("draft storage unavailable");
+        }
         const data: Snapshot = await response.json();
         if (cancelled) return;
         setSnapshot(data);
@@ -507,30 +555,8 @@ function HomeEditorImpl({
             const result = await readSaveResponse(
               await postRequest("save", input),
             );
-            if (result.ok) {
-              try {
-                const metadata = parseEditorialSource(result.draft.source)
-                  .data as Record<string, unknown>;
-                const intended =
-                  record.kind === "work"
-                    ? metadata.public_state
-                    : metadata.status;
-                if (typeof metadata.title === "string")
-                  dispatchEditorialRecordSaved({
-                    record,
-                    title: metadata.title,
-                    summary: editorialRecordSummary(record, metadata) ?? "",
-                    revision: result.draft.revision,
-                    updatedAt: new Date(result.draft.updatedAt).toISOString(),
-                    changesPending: result.draft.source !== data.base.source,
-                    ...(typeof intended === "string"
-                      ? { intendedVisibility: intended }
-                      : {}),
-                  });
-              } catch {
-                /* Metadata refresh never interrupts an acknowledged save. */
-              }
-            }
+            if (result.ok)
+              announceRecordFreshness(record, result.draft, data.base.source);
             return result;
           },
           (next) => {
@@ -621,30 +647,81 @@ function HomeEditorImpl({
       ["live", "cancelled"].includes(publication.phase)
     )
       return;
+    const job = publication;
     let cancelled = false;
-    const timer = setTimeout(async () => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let active: AbortController | null = null;
+    // Poll only while the page is visible. Hiding the page stops the timer and
+    // the in-flight read; showing it again waits one interval before reading.
+    const schedule = () => {
+      clearTimeout(timer);
+      timer = undefined;
+      if (!cancelled && !active && !document.hidden)
+        timer = setTimeout(() => void poll(), 4000);
+    };
+    async function poll() {
+      timer = undefined;
+      const request = new AbortController();
+      active = request;
       try {
         const response = await fetch(
-          `${endpoint("publication")}&operationId=${publication.id}`,
-          { signal: AbortSignal.timeout(15000) },
+          `${endpoint("publication")}&operationId=${job.id}`,
+          {
+            signal: AbortSignal.any([
+              request.signal,
+              AbortSignal.timeout(15000),
+            ]),
+          },
         );
-        if (!response.ok) throw new Error();
+        if (!response.ok) {
+          discardBody(response);
+          throw new Error();
+        }
         const data = await response.json();
-        if (!cancelled) {
+        if (!cancelled && active === request) {
           if (!data.publication) throw new Error();
+          const submitted = publishedDraft.current;
+          if (
+            submitted &&
+            data.publication.phase === "live" &&
+            submitted.operationId === data.publication.id
+          ) {
+            const publishedAt = new Date().toISOString();
+            announceRecordFreshness(
+              record,
+              { ...submitted, updatedAt: publishedAt },
+              submitted.source,
+              publishedAt,
+            );
+            publishedDraft.current = null;
+          }
           setPublicationStale(false);
           setPublication(data.publication);
         }
       } catch {
-        if (!cancelled) {
+        if (!cancelled && active === request && !request.signal.aborted) {
           setPublicationStale(true);
-          setPublication({ ...publication });
+          setPublication({ ...job });
         }
+      } finally {
+        if (active === request) active = null;
       }
-    }, 4000);
+    }
+    const visibilityChanged = () => {
+      if (document.hidden) {
+        clearTimeout(timer);
+        timer = undefined;
+        active?.abort();
+        active = null;
+      } else if (timer === undefined) schedule();
+    };
+    document.addEventListener("visibilitychange", visibilityChanged);
+    schedule();
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      active?.abort();
+      document.removeEventListener("visibilitychange", visibilityChanged);
     };
   }, [publication]);
   useEffect(() => {
@@ -826,7 +903,10 @@ function HomeEditorImpl({
       const response = await fetch(endpoint("draft"), {
         signal: AbortSignal.timeout(15000),
       });
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        discardBody(response);
+        throw new Error();
+      }
       const data: { draft: Draft | null } = await response.json();
       if (data.draft === undefined) throw new Error();
       if (isCurrent()) setSaveComparison(data);
@@ -910,7 +990,10 @@ function HomeEditorImpl({
       const response = await fetch(endpoint("record"), {
         signal: AbortSignal.timeout(15000),
       });
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        discardBody(response);
+        throw new Error();
+      }
       const data: Snapshot = await response.json();
       if (
         request !== historyRequest.current ||
@@ -938,7 +1021,10 @@ function HomeEditorImpl({
       const response = await fetch(endpoint("record"), {
         signal: AbortSignal.timeout(15000),
       });
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        discardBody(response);
+        throw new Error();
+      }
       const data: Snapshot = await response.json();
       setComparison(data.base);
       setError("");
@@ -1015,6 +1101,11 @@ function HomeEditorImpl({
                 matchesReviewedDraft(reviewed, editor.current?.state ?? null),
             );
             if (!result.publication) throw new Error();
+            publishedDraft.current = {
+              operationId: result.publication.id,
+              revision: current.revision,
+              source: current.source,
+            };
             setPublicationStale(false);
             setPublication(result.publication);
           } catch {
@@ -1234,6 +1325,11 @@ function HomeEditorImpl({
                     expectedRevision: state.revision,
                   });
                   if (!result.draft) throw new Error();
+                  announceRecordFreshness(
+                    record,
+                    result.draft,
+                    snapshot.base.source,
+                  );
                   setSnapshot({ ...snapshot, draft: result.draft });
                   resetBuffers();
                   editor.current!.resolve(result.draft, false);
@@ -1508,6 +1604,11 @@ function HomeEditorImpl({
                             expectedRevision: comparedDraft.revision,
                           });
                           if (!result.draft) throw new Error();
+                          announceRecordFreshness(
+                            record,
+                            result.draft,
+                            snapshot.base.source,
+                          );
                           if (!isCurrent()) return;
                           setSaveComparison({ draft: result.draft });
                         } catch {

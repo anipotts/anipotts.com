@@ -5,6 +5,7 @@ import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { SaveScheduler } from "../../lib/save-scheduler";
 import { newWritingSource } from "../../lib/writing-draft";
 import { HomeEditor } from "./HomeEditor";
+import { RECORD_SAVED_EVENT } from "../../lib/editorial-inventory-events";
 
 vi.mock("@astryxdesign/core/Toast", () => ({ useToast: () => () => {} }));
 vi.mock("./ArticleBody", () => ({
@@ -461,4 +462,181 @@ it("groups document actions under labeled menu sections, not dividers", async ()
     ["Draft", [...draftActions, "Save now"]],
   ]);
   expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(7);
+});
+
+it("polls an unfinished publication only while the page is visible", async () => {
+  let hidden = false;
+  const visibility = Object.getOwnPropertyDescriptor(document, "hidden");
+  Object.defineProperty(document, "hidden", {
+    configurable: true,
+    get: () => hidden,
+  });
+  const publication = {
+    id: "test-publication",
+    phase: "validate",
+    version: 1,
+    attempts: 0,
+    dueAt: 0,
+    lease: null,
+    leaseUntil: 0,
+    blocked: null,
+    checkpoint: {},
+  };
+  const polls: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      if (url.includes("operationId=")) {
+        polls.push(url);
+        return response({ publication: { ...publication } });
+      }
+      return response({ ...snapshot, publication });
+    }),
+  );
+  vi.useFakeTimers();
+  try {
+    await mount();
+    const advance = (ms: number) =>
+      act(async () => {
+        await vi.advanceTimersByTimeAsync(ms);
+      });
+    const setHidden = (value: boolean) =>
+      act(async () => {
+        hidden = value;
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+    await advance(4000);
+    expect(polls).toHaveLength(1);
+    await setHidden(true);
+    await advance(60000);
+    expect(polls).toHaveLength(1);
+    await setHidden(false);
+    await advance(3999);
+    expect(polls).toHaveLength(1);
+    await advance(1);
+    expect(polls).toHaveLength(2);
+  } finally {
+    vi.useRealTimers();
+    if (visibility) Object.defineProperty(document, "hidden", visibility);
+    else Reflect.deleteProperty(document, "hidden");
+  }
+});
+
+it("releases an unread record error body and shows the load failure", async () => {
+  const cancel = vi.fn(async () => undefined);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      const failed = new Response("unavailable", { status: 503 });
+      Object.defineProperty(failed, "body", { value: { cancel } });
+      return failed;
+    }),
+  );
+  window.history.replaceState(null, "", "/content/writing/test");
+  await act(async () => {
+    root.render(<HomeEditor record={{ kind: "writing", id: "test" }} />);
+  });
+  await act(async () => {
+    await vi.waitFor(() =>
+      expect(host.textContent).toContain("Couldn’t load this draft."),
+    );
+  });
+  expect(cancel).toHaveBeenCalledOnce();
+});
+
+it("updates the library row once when this tab's publication reaches live", async () => {
+  const job = (phase: string) => ({
+    id: "test-publication",
+    phase,
+    version: 1,
+    attempts: 0,
+    dueAt: 0,
+    lease: null,
+    leaseUntil: 0,
+    blocked: null,
+    checkpoint: {},
+  });
+  let finish!: (value: Response) => void;
+  let phase = "deploy";
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      if (url.includes("operationId="))
+        return response({ publication: job(phase) });
+      if (url.includes("/publish"))
+        return new Promise<Response>((resolve) => (finish = resolve));
+      return response(snapshot);
+    }),
+  );
+  const events: CustomEvent[] = [];
+  const listen = (event: Event) => events.push(event as CustomEvent);
+  window.addEventListener(RECORD_SAVED_EVENT, listen);
+  try {
+    await mount("?view=review", false);
+    const publish = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "Approve and publish",
+    )!;
+    await act(async () => {
+      publish.click();
+      await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+    });
+    vi.useFakeTimers();
+    await act(async () => finish(response({ publication: job("validate") })));
+    const advance = (ms: number) =>
+      act(async () => {
+        await vi.advanceTimersByTimeAsync(ms);
+      });
+    await advance(4000);
+    expect(events).toHaveLength(0);
+    phase = "live";
+    await advance(4000);
+    expect(events).toHaveLength(1);
+    expect(events[0]!.detail).toMatchObject({
+      record: { kind: "writing", id: "test" },
+      title: "Original title",
+      revision: 1,
+      changesPending: false,
+      publishedAt: expect.any(String),
+    });
+    await advance(60000);
+    expect(events).toHaveLength(1);
+  } finally {
+    vi.useRealTimers();
+    window.removeEventListener(RECORD_SAVED_EVENT, listen);
+  }
+});
+
+it("updates the library row when a discarded draft is recovered", async () => {
+  const discarded = { ...draft, discardedAt: Date.now() };
+  const restored = { ...draft, revision: 2, updatedAt: Date.now() };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      if (url.includes("restore"))
+        return response({ ok: true, draft: restored });
+      return response({ ...snapshot, draft: discarded, history: [discarded] });
+    }),
+  );
+  const events: CustomEvent[] = [];
+  const listen = (event: Event) => events.push(event as CustomEvent);
+  window.addEventListener(RECORD_SAVED_EVENT, listen);
+  try {
+    await mount();
+    await click("Recover draft");
+    await act(async () => {
+      await vi.waitFor(() => expect(events).toHaveLength(1));
+    });
+    expect(events[0]!.detail).toMatchObject({
+      record: { kind: "writing", id: "test" },
+      title: "Original title",
+      revision: 2,
+      changesPending: true,
+    });
+  } finally {
+    window.removeEventListener(RECORD_SAVED_EVENT, listen);
+  }
 });

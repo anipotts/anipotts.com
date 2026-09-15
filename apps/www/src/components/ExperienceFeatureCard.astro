@@ -3,12 +3,14 @@ import InlineText from "./InlineText.astro";
 import { Icon } from "astro-icon/components";
 import AmbientFlow from "./AmbientFlow.astro";
 import type { Project } from "../lib/content";
+import { phoneMedia, responsiveScreenshot } from "../lib/responsive-image";
 
 interface Props {
   project: Project;
+  eager?: boolean;
 }
 
-const { project } = Astro.props;
+const { project, eager = false } = Astro.props;
 const d = project.data;
 const preview = d.preview_media;
 const identity = d.identity;
@@ -16,6 +18,13 @@ const slug = project.data.slug ?? project.id;
 const isPgi = slug === "pgi-research-platform";
 const treatment = slug === "structured-ai" ? "current" : "community";
 const displayTitle = isPgi ? "pgi research" : d.title;
+const shot =
+  preview?.kind === "video"
+    ? undefined
+    : responsiveScreenshot(preview?.src ?? "");
+// The experience grid is one column up to 640px, then two tracks under 27rem.
+// The image is width: auto, so it never renders wider than this value.
+const shotSizes = "(max-width: 640px) 100vw, 27rem";
 ---
 
 <a
@@ -39,11 +48,26 @@ const displayTitle = isPgi ? "pgi research" : d.title;
               preload="metadata"
               aria-label={preview.alt}
             />
+          ) : shot ? (
+            <picture>
+              <source media={phoneMedia} srcset={shot.src} />
+              <img
+                src={shot.src}
+                srcset={shot.srcset}
+                sizes={shotSizes}
+                width={shot.width}
+                height={shot.height}
+                style={`aspect-ratio: ${shot.aspectRatio}`}
+                alt={preview.alt}
+                loading={eager ? "eager" : "lazy"}
+                decoding="async"
+              />
+            </picture>
           ) : (
             <img
               src={preview.src}
               alt={preview.alt}
-              loading="eager"
+              loading={eager ? "eager" : "lazy"}
               decoding="async"
             />
           )}
@@ -69,6 +93,8 @@ const displayTitle = isPgi ? "pgi research" : d.title;
               ]}
               src={identity.logo_src}
               alt={identity.logo_alt ?? ""}
+              width="24"
+              height="24"
               loading="lazy"
               decoding="async"
             />
@@ -128,6 +154,10 @@ const displayTitle = isPgi ? "pgi research" : d.title;
     overflow: hidden;
     border-radius: var(--radius-desktop-ui-media);
     box-shadow: 0 1.1rem 2.7rem rgb(7 32 93 / 28%);
+  }
+
+  .experience-feature__window picture {
+    display: contents;
   }
 
   .experience-feature__window :is(img, video) {
