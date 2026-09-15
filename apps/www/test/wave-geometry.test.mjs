@@ -316,3 +316,88 @@ test("open condenses the card current into the header at half opacity", () => {
     "rgb(50 100 25)",
   );
 });
+
+test("a band the card shows in part or not at all never sweeps a straight edge through the surface", () => {
+  const columns = 33;
+  const header = detailCurves("writing/awareness-is-alpha");
+  const headerArt = {
+    box: DETAIL_VIEWBOX,
+    group: 1,
+    layers: header.map((d) => ({ d, fill: "rgb(19 38 64)", opacity: 1 })),
+    contours: header.map((d) => waveContour(DETAIL_VIEWBOX, d)),
+  };
+  const empty = () => ({ top: 900, bottom: 900 });
+  const x = (i) => (i * 1440) / (columns - 1);
+  const partial = Array.from({ length: columns }, (_, i) =>
+    i < 17
+      ? { x: x(i), ...empty() }
+      : { x: x(i), top: 760 - (i - 17) * 40, bottom: 900 },
+  );
+  const below = Array.from({ length: columns }, (_, i) => ({
+    x: x(i),
+    ...empty(),
+  }));
+  const above = Array.from({ length: columns }, (_, i) => ({
+    x: x(i),
+    top: -100,
+    bottom: -100,
+  }));
+  const card = {
+    box: { x: 0, y: 0, width: 472, height: 64 },
+    group: 0.38,
+    layers: [0, 1, 2].map(() => ({
+      d: "",
+      fill: "rgb(97 171 234)",
+      opacity: 1,
+    })),
+    contours: [partial, below, above],
+  };
+  // Longest run of neighbouring columns inside the canvas that spans less
+  // than half a unit: a straight horizontal edge across 10 columns or more
+  // (the header art alone has shallow troughs a few columns wide).
+  const flatRun = (edge) => {
+    let longest = 1;
+    for (let i = 0; i < edge.length; i++)
+      for (let j = i; j < edge.length; j++) {
+        const run = edge.slice(i, j + 1);
+        if (!run.every((y) => y > 0 && y < 800)) break;
+        if (Math.max(...run) - Math.min(...run) >= 0.5) break;
+        longest = Math.max(longest, run.length);
+      }
+    return longest;
+  };
+  const plans = [
+    ["open", planMorph(card, headerArt, true)],
+    ["close", planMorph(headerArt, card, false)],
+  ];
+  for (const [name, plan] of plans)
+    plan.layers.forEach(({ a, b }, layer) => {
+      // The first and last frames still match the artwork on each side.
+      for (const [side, art] of [
+        [a, name === "open" ? card.contours : headerArt.contours],
+        [b, name === "open" ? headerArt.contours : card.contours],
+      ]) {
+        const source = art[layer % art.length];
+        side.forEach((p, i) => {
+          const shown = source[i];
+          const visible = shown.top < 800 && shown.bottom > 0;
+          if (visible)
+            assert.deepEqual(p, shown, `${name} ${layer} column ${i}`);
+          else
+            assert.ok(
+              p.top >= 800 || p.bottom <= 0,
+              `${name} ${layer} column ${i} stays off the canvas`,
+            );
+        });
+      }
+      for (let step = 1; step < 20; step++) {
+        const t = step / 20;
+        const at = (key) => a.map((p, i) => p[key] + (b[i][key] - p[key]) * t);
+        for (const key of ["top", "bottom"])
+          assert.ok(
+            flatRun(at(key)) < 10,
+            `${name} layer ${layer} ${key} is straight at t ${t}`,
+          );
+      }
+    });
+});

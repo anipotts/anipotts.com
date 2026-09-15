@@ -335,6 +335,29 @@ export interface MorphPlan {
   end(): Art;
 }
 
+/** Card columns a band misses sit clamped at one height off the canvas, and
+ * a straight clamped edge morphing to the header's straight top edge would
+ * sweep through the surface as a flat slab. Those columns take the other
+ * artwork's lower edge instead, shifted just off the canvas on the side the
+ * band passes, so every edge that crosses the canvas carries a wave. Columns
+ * the card shows are unchanged, and nothing moves onto the canvas at t 0. */
+function offCanvas(card: Contour, other: Contour): Contour {
+  const lows = other.map((p) => p.bottom);
+  const down = Math.max(0, 801 - Math.min(...lows));
+  const up = Math.max(0, Math.max(...lows) + 1);
+  return card.map((p, i) => {
+    if (p.top >= 800) {
+      const y = other[i].bottom + down;
+      return { x: p.x, top: y, bottom: y };
+    }
+    if (p.bottom <= 0) {
+      const y = other[i].bottom - up;
+      return { x: p.x, top: y, bottom: y };
+    }
+    return p;
+  });
+}
+
 /** Pairs artwork layers for the card and header morph.
  *
  * Open keeps every card layer and condenses it into the header contours at
@@ -363,9 +386,12 @@ export function planMorph(
       : i < to.layers.length
         ? b
         : { ...b, opacity: 0 };
+    const fromContour = frame(at(from.contours, i), fromFrame);
+    const toContour = frame(at(to.contours, i), toFrame);
+    // The card is the source on open and the destination on close.
     return {
-      a: frame(at(from.contours, i), fromFrame),
-      b: frame(at(to.contours, i), toFrame),
+      a: open ? offCanvas(fromContour, toContour) : fromContour,
+      b: open ? toContour : offCanvas(toContour, fromContour),
       opacity: [source.opacity, target.opacity],
       fill: [source.fill, target.fill],
     };
