@@ -11,6 +11,7 @@
  */
 
 import * as wave from "../lib/wave-geometry";
+import type { TransitionBeforePreparationEvent } from "astro:transitions/client";
 import * as timeline from "../lib/writing-timeline";
 
 const built = new Map<string, CSSStyleSheet>();
@@ -382,33 +383,125 @@ export function surfaceLayers(
   return { surface, paper: fill, wrapper, draw: morph.draw };
 }
 
-/** Outgoing and incoming copies of one text at their own boxes, with the
- * transforms that carry each onto the other's box. */
-export function textPair(name: string, a: Word, b: Word) {
-  const [out, incoming] = [a, b].map((word, i) => {
-    const { x, y, width } = word.box;
-    const style = boxStyle({ x, y, width: width + 1 }) + word.style;
-    const el = overlay(document.body, "writing-transition-word", style);
-    el.dataset.layer = `${name}-${i ? "in" : "out"}`;
-    el.textContent = word.text;
-    return el;
-  });
-  const dx = b.box.x - a.box.x;
-  const dy = b.box.y - a.box.y;
+/** Outgoing and incoming copies of the title, summary and date at their
+ * own boxes, each with the transform pair that carries it between boxes:
+ * [layer name, element, [source transform, destination transform]]. */
+export function textLayers(
+  outgoing: (Word | null)[],
+  incoming: (Word | null)[],
+) {
   const { IDENTITY, placement } = timeline;
+  const layers: [string, HTMLElement, [string, string]][] = [];
+  ["title", "summary", "date"].forEach((name, i) => {
+    const [a, b] = [outgoing[i], incoming[i]];
+    if (!a || !b) return;
+    const make = (word: Word, layer: string) => {
+      const { x, y, width } = word.box;
+      const style = boxStyle({ x, y, width: width + 1 }) + word.style;
+      const el = overlay(document.body, "writing-transition-word", style);
+      el.dataset.layer = layer;
+      el.textContent = word.text;
+      return el;
+    };
+    const dx = b.box.x - a.box.x;
+    const dy = b.box.y - a.box.y;
+    layers.push(
+      [
+        `${name}-out`,
+        make(a, `${name}-out`),
+        [IDENTITY, placement(dx, dy, b.size / a.size)],
+      ],
+      [
+        `${name}-in`,
+        make(b, `${name}-in`),
+        [placement(-dx, -dy, a.size / b.size), IDENTITY],
+      ],
+    );
+  });
+  return layers;
+}
+
+/** The article header waves copied for the exit to a non-writing page, and
+ * the slide that carries them up past the top of the viewport. */
+export function exitSlide(art: wave.Art, box: DOMRect) {
+  const el = overlay(document.body, "writing-transition-slide", boxStyle(box));
+  el.appendChild(artSvg(art).svg);
+  const distance = box.height + Math.max(0, box.top) + 40;
+  const geometry: [string, string] = [
+    "translateY(0px)",
+    `translateY(${-Math.round(distance)}px)`,
+  ];
+  return { el, geometry };
+}
+
+// Selectors and page reads shared by the capture and the choreography.
+export const article = "[data-writing-article]";
+export const header = `${article} > header`;
+export const waves = `${article} .detail-waves`;
+export const headerText = ["h1", ".summary", "time"];
+export const cardText = [".title", ".sub", "time"];
+export const rect = (el: Element) => el.getBoundingClientRect();
+export const onScreen = (r: DOMRect) =>
+  r.width > 0 && r.bottom > 0 && r.top < innerHeight && r.left < innerWidth;
+export const visibleBox = (r: DOMRect): wave.Box => {
+  const x = Math.max(0, r.left);
+  const y = Math.max(0, r.top);
+  const width = Math.min(innerWidth, r.right) - x;
+  return { x, y, width, height: Math.min(innerHeight, r.bottom) - y };
+};
+export const isArticlePath = (path: string) => /^\/writing\/[^/]/.test(path);
+export const cardFor = (root: ParentNode, path: string) =>
+  [...root.querySelectorAll<HTMLAnchorElement>("a.writing-card")].find(
+    (el) => new URL(el.href, location.href).pathname === path,
+  );
+
+/** Everything read from the outgoing page. It runs as the router starts
+ * fetching the destination, so the swap frame does none of this work. */
+export function captureOutgoing(
+  event: TransitionBeforePreparationEvent,
+  columns: number,
+) {
+  const source = cardFor(document, event.to.pathname);
+  const style = source && getComputedStyle(source);
+  const oldWaves = document.querySelector(waves);
+  const art = (host: Element | null | undefined) => captureArt(host, columns);
+  const sourceBox = source && rect(source);
+  const read = {
+    from: event.from.pathname,
+    to: event.to.pathname,
+    fromArticle: !!document.querySelector(article),
+    back:
+      event.navigationType === "traverse" ||
+      !!event.sourceElement?.closest(".back,.more-heading"),
+    source,
+    sourceBox,
+    sourceWords: captureText(source, cardText),
+    sourceArt: art(source?.querySelector(".ambient-flow")),
+    // Computed styles are live objects; keep plain values past the swap.
+    paper: style && [style.backgroundColor, style.borderTopLeftRadius],
+    headerWords: captureText(document.querySelector(header), headerText),
+    oldArt: art(oldWaves),
+    oldWaveBox: oldWaves && rect(oldWaves),
+    ground: getComputedStyle(document.documentElement).backgroundColor,
+    scroll: scrollY,
+  };
+  // The copy mounts last, after every read. It stands in for the live
+  // source card, or for the header whose text and waves the motion carries.
+  const hidden =
+    sourceBox && onScreen(sourceBox)
+      ? [
+          `a.writing-card[href="${source!.getAttribute("href")}"] :is(${cardText})`,
+        ]
+      : oldWaves && !isArticlePath(event.to.pathname)
+        ? [`${header} :is(${headerText})`, waves]
+        : [];
   return {
-    out,
-    in: incoming,
-    outGeometry: [IDENTITY, placement(dx, dy, b.size / a.size)] as [
-      string,
-      string,
-    ],
-    inGeometry: [placement(-dx, -dy, a.size / b.size), IDENTITY] as [
-      string,
-      string,
-    ],
+    ...read,
+    ghost: captureGhost(document.querySelector("main")!, hidden),
   };
 }
+
+export type Outgoing = ReturnType<typeof captureOutgoing>;
 
 const nativeArt = new WeakMap<HTMLElement, Node>();
 const appliedArt = new WeakMap<HTMLElement, wave.Art>();

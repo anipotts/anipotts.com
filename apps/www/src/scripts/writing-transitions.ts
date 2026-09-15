@@ -8,33 +8,20 @@ import * as wave from "../lib/wave-geometry";
 import * as timeline from "../lib/writing-timeline";
 import * as capture from "./writing-ghost";
 
-type Box = wave.Box;
 type Focus = { h1: true } | { card: string } | null;
 const reduced = matchMedia("(prefers-reduced-motion: reduce)");
 const phone = matchMedia(timeline.PHONE_MEDIA);
-const article = "[data-writing-article]";
-const header = `${article} > header`;
-const waves = `${article} .detail-waves`;
-const headerText = ["h1", ".summary", "time"];
-const cardText = [".title", ".sub", "time"];
+const { article, header, waves, headerText, cardText } = capture;
+const { rect, onScreen, visibleBox, cardFor, isArticlePath } = capture;
 // Plain data only, a few entries each: artwork is rebuilt from path data.
 const savedArt = new Map<string, wave.Art>();
 const returnScroll = new Map<string, number>();
 let dispose: (focus: boolean) => void = () => {};
 let pending: (() => void) | undefined;
-type Outgoing = ReturnType<typeof captureOutgoing>;
+type Outgoing = capture.Outgoing;
 let outgoing: Outgoing | undefined;
 let pendingFocus: Focus = null;
 
-const rect = (el: Element) => el.getBoundingClientRect();
-const onScreen = (r: DOMRect) =>
-  r.width > 0 && r.bottom > 0 && r.top < innerHeight && r.left < innerWidth;
-const visibleBox = (r: DOMRect): Box => {
-  const x = Math.max(0, r.left);
-  const y = Math.max(0, r.top);
-  const width = Math.min(innerWidth, r.right) - x;
-  return { x, y, width, height: Math.min(innerHeight, r.bottom) - y };
-};
 const columns = () => (phone.matches ? 17 : wave.CONTOUR_COLUMNS);
 const theme = () => document.documentElement.dataset.theme || "light";
 function remember<T>(map: Map<string, T>, key: string, value: T) {
@@ -42,12 +29,6 @@ function remember<T>(map: Map<string, T>, key: string, value: T) {
   map.set(key, value);
   if (map.size > 8) map.delete(map.keys().next().value!);
 }
-const isArticlePath = (path: string) => /^\/writing\/[^/]/.test(path);
-const cardFor = (root: ParentNode, path: string) =>
-  [...root.querySelectorAll<HTMLAnchorElement>("a.writing-card")].find(
-    (el) => new URL(el.href, location.href).pathname === path,
-  );
-
 function applyArt() {
   const host = document.querySelector<HTMLElement>(waves);
   if (!host) return;
@@ -76,53 +57,6 @@ function applyFocus(intent: Focus) {
   if (el?.tagName === "H1") el.tabIndex = -1;
   el?.focus({ preventScroll: true });
 }
-/** Everything read from the outgoing page. It runs as the router starts
- * fetching the destination, so the swap frame does none of this work. */
-function captureOutgoing(event: TransitionBeforePreparationEvent) {
-  const source = cardFor(document, event.to.pathname);
-  const style = source && getComputedStyle(source);
-  const oldWaves = document.querySelector(waves);
-  const art = (host: Element | null | undefined) =>
-    capture.captureArt(host, columns());
-  const sourceBox = source && rect(source);
-  const read = {
-    from: event.from.pathname,
-    to: event.to.pathname,
-    fromArticle: !!document.querySelector(article),
-    back:
-      event.navigationType === "traverse" ||
-      !!event.sourceElement?.closest(".back,.more-heading"),
-    source,
-    sourceBox,
-    sourceWords: capture.captureText(source, cardText),
-    sourceArt: art(source?.querySelector(".ambient-flow")),
-    // Computed styles are live objects; keep plain values past the swap.
-    paper: style && [style.backgroundColor, style.borderTopLeftRadius],
-    headerWords: capture.captureText(
-      document.querySelector(header),
-      headerText,
-    ),
-    oldArt: art(oldWaves),
-    oldWaveBox: oldWaves && rect(oldWaves),
-    ground: getComputedStyle(document.documentElement).backgroundColor,
-    scroll: scrollY,
-  };
-  // The copy mounts last, after every read. It stands in for the live
-  // source card, or for the header whose text and waves the motion carries.
-  const hidden =
-    sourceBox && onScreen(sourceBox)
-      ? [
-          `a.writing-card[href="${source!.getAttribute("href")}"] :is(${cardText})`,
-        ]
-      : oldWaves && !isArticlePath(event.to.pathname)
-        ? [`${header} :is(${headerText})`, waves]
-        : [];
-  return {
-    ...read,
-    ghost: capture.captureGhost(document.querySelector("main")!, hidden),
-  };
-}
-
 function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
   const toArticle = !!event.newDocument.querySelector(article);
   const isReturn = out.fromArticle && !toArticle && out.back;
@@ -138,13 +72,12 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
       out.sourceBox &&
       onScreen(out.sourceBox)
     );
-    let plan: wave.MorphPlan | undefined;
-    if (opening) {
-      plan = wave.planMorph(out.sourceArt!, template!, true, undefined, [
-        headerBox!,
-        visibleBox(headerBox!),
-      ]);
-    }
+    let plan: wave.MorphPlan | undefined = opening
+      ? wave.planMorph(out.sourceArt!, template!, true, undefined, [
+          headerBox!,
+          visibleBox(headerBox!),
+        ])
+      : undefined;
     if (
       isReturn &&
       event.navigationType !== "traverse" &&
@@ -243,16 +176,11 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
       add("surface", layers.surface);
       add("paper", layers.paper);
       add("waves", layers.wrapper);
-      ["title", "summary", "date"].forEach((name, i) => {
-        const [a, b] = [outWords[i], inWords[i]];
-        if (!a || !b) return;
-        const text = capture.textPair(name, a, b);
-        overlays.push(text.out, text.in);
-        add(`${name}-out`, text.out);
-        add(`${name}-in`, text.in);
-        geometry.set(`${name}-out`, text.outGeometry);
-        geometry.set(`${name}-in`, text.inGeometry);
-      });
+      for (const [name, el, move] of capture.textLayers(outWords, inWords)) {
+        overlays.push(el);
+        add(name, el);
+        geometry.set(name, move);
+      }
       if (opening) {
         out.ghost.show(out.ground, 100);
         document
@@ -278,21 +206,10 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
       out.ghost.show(null, 100);
       add("main", main);
       if (exit && out.oldArt && out.oldWaveBox) {
-        const style = capture.boxStyle(out.oldWaveBox);
-        const slide = capture.overlay(
-          document.body,
-          "writing-transition-slide",
-          style,
-        );
-        overlays.push(slide);
-        slide.appendChild(capture.artSvg(out.oldArt).svg);
-        add("exit-waves", slide);
-        const distance =
-          out.oldWaveBox.height + Math.max(0, out.oldWaveBox.top) + 40;
-        geometry.set("exit-waves", [
-          "translateY(0px)",
-          `translateY(${-Math.round(distance)}px)`,
-        ]);
+        const slide = capture.exitSlide(out.oldArt, out.oldWaveBox);
+        overlays.push(slide.el);
+        add("exit-waves", slide.el);
+        geometry.set("exit-waves", slide.geometry);
       }
     }
     nav?.style.setProperty("position", "relative");
@@ -365,19 +282,18 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
       );
     else finish(true);
     const clock = stages.find((stage) => stage.property === "path");
-    const m = draw;
-    if (m && clock && primary) {
-      const ease = wave.cubicBezier(...timeline.curveOf(clock.easing));
-      const surface = primary;
-      const tick = () => {
-        const t =
-          (Number(surface.currentTime ?? 0) - clock.delay) / clock.duration;
-        m(ease(Math.max(0, Math.min(1, t))));
-        if (!done && t < 1) frame = requestAnimationFrame(tick);
-      };
-      m(0);
-      frame = requestAnimationFrame(tick);
-    }
+    const [m, surface] = [draw, primary];
+    if (!m || !clock || !surface) return;
+    // Path data follows the surface animation's own clock, frame by frame.
+    const ease = wave.cubicBezier(...timeline.curveOf(clock.easing));
+    const tick = () => {
+      const t =
+        (Number(surface.currentTime ?? 0) - clock.delay) / clock.duration;
+      m(ease(Math.max(0, Math.min(1, t))));
+      if (!done && t < 1) frame = requestAnimationFrame(tick);
+    };
+    m(0);
+    frame = requestAnimationFrame(tick);
   };
 }
 
@@ -400,7 +316,8 @@ document.addEventListener("astro:before-preparation", (raw) => {
   if (!motionAllowed() || !involved) return;
   // After every other listener, while the destination is fetched.
   queueMicrotask(() => {
-    if (!event.signal.aborted) outgoing = captureOutgoing(event);
+    if (!event.signal.aborted)
+      outgoing = capture.captureOutgoing(event, columns());
   });
 });
 document.addEventListener("astro:before-swap", (raw) => {
