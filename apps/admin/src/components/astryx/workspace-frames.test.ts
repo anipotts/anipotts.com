@@ -79,6 +79,19 @@ describe("workspace page frames", () => {
     );
   });
 
+  it("gives the rail's menus the same quiet treatment as its icons", () => {
+    const shell = read("./EditorialWorkspaceShell.tsx");
+    // A menu with a label carries a surface; one icon among icons does not.
+    expect(shell).toContain('variant: compact ? "ghost" : "secondary",');
+    const library = read("../../styles/editorial.css");
+    expect(library).toContain(
+      '.editorial-workspace-shell:not([data-sidebar-collapsed="true"]) .admin-sidebar-menu, .editorial-workspace-shell .astryx-app-shell-header .admin-sidebar-menu { border: 1px solid var(--color-border);',
+    );
+    expect(header).toContain(
+      ":is(.admin-sidebar-menu, .editorial-header-search):is( :hover, :focus-visible ) { background-color: var(--color-background-muted); }",
+    );
+  });
+
   it("keeps the library table one line per record", () => {
     const library = read("../../styles/editorial.css");
     // Cells carry their own inset; only the cell holding the tallest control
