@@ -49,12 +49,7 @@ const structuralEdges = new Set([
   ".semantic-inspector-actions border-top",
   // markers on a single element
   ".publication-step border-block-end", // progress bar whose color is state
-  ".activation-focus > a border-bottom", // text link underline
-  ".activation-edge i::after border-top", // arrowhead on a graph edge
-  ".activation-edge i::after border-right", // arrowhead on a graph edge
   ".article-composer .tiptap blockquote border-inline-start", // quote bar
-  ".activation-node border-left", // 2px layer accent
-  ".inbox-next-action border-left", // 2px callout accent
   ".knowledge-retrieval border-left", // 2px callout accent
   ".operator-candidate-status border-left", // 2px status accent
   ".operator-inspector-summary > div border-left", // 2px summary accent

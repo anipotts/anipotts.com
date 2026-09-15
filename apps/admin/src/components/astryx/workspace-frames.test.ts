@@ -6,7 +6,6 @@ const read = (path: string) =>
 const editorial = read("../../styles/editorial.css");
 const operations = read("./operations-workspace.css");
 const life = read("../life/life-workspace.css");
-const canvas = read("../../styles/admin-canvas.css");
 const block = (css: string, query: string) => {
   const start = css.indexOf(`@media ${query} {`);
   expect(start, query).toBeGreaterThan(-1);
@@ -50,13 +49,5 @@ describe("workspace page frames", () => {
       ".operations-workspace .operations-mobile-status { display: flex; }",
     );
     expect(operations).toContain("word-break: normal;");
-  });
-
-  it("lets a canvas header move its summary below the title when tight", () => {
-    const tablet = block(canvas, "(max-width: 1080px)");
-    expect(tablet).toContain("flex-wrap: wrap;");
-    expect(tablet).toContain(
-      ".admin-canvas .operator-eyebrow { white-space: nowrap; }",
-    );
   });
 });

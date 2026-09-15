@@ -15,19 +15,10 @@ const websiteNavSource = readFileSync(
   "apps/admin/src/components/astryx/EditorialWorkspaceShell.tsx",
   "utf8",
 );
-const inboxDataSource = readFileSync("apps/admin/src/data/inbox.ts", "utf8");
 const inboxSource = readFileSync("apps/admin/src/pages/inbox.astro", "utf8");
 const rootSource = readFileSync("apps/admin/src/pages/index.astro", "utf8");
-const homeSource = readFileSync(
-  "apps/admin/src/components/AdminHome.astro",
-  "utf8",
-);
 const layoutSource = readFileSync(
   "apps/admin/src/layouts/AdminLayout.astro",
-  "utf8",
-);
-const attentionRowSource = readFileSync(
-  "apps/admin/src/components/AttentionRow.astro",
   "utf8",
 );
 const semanticInspectorSource = readFileSync(
@@ -293,28 +284,36 @@ for (const route of ADMIN_ROUTES) {
   }
 }
 
+// Inbox is retired: no navigation entry, no page or API, and old links land
+// on Operations. Its inbox_items projection in @anipotts/lib stays for /api/mcp.
 assert.equal(
-  [...navSource.matchAll(/label: "Inbox"/g)].length,
-  1,
-  "admin nav must expose one primary inbox entry",
+  navSource.includes('"/inbox"'),
+  false,
+  "admin nav must not link the retired Inbox",
 );
+for (const file of [
+  "apps/admin/src/components/AdminHome.astro",
+  "apps/admin/src/components/AttentionRow.astro",
+  "apps/admin/src/components/ActivationGraph.astro",
+  "apps/admin/src/components/ControlPlaneReceipt.astro",
+  "apps/admin/src/data/inbox.ts",
+  "apps/admin/src/data/activation-graph.ts",
+  "apps/admin/src/pages/api/admin/inbox.ts",
+])
+  assert.equal(existsSync(file), false, `${file} must stay retired`);
 assert.ok(
   rootSource.includes("Astro.redirect(`/content${Astro.url.search}`"),
   "root opens editorial content and preserves its query",
 );
 assert.ok(
-  inboxSource.includes('import AdminHome from "../components/AdminHome.astro"'),
-  "legacy inbox keeps its projection",
+  inboxSource.includes('Astro.redirect("/operations/observability", 301)'),
+  "retired inbox redirects to Operations",
 );
 for (const file of RETIRED_ADMIN_AUTH_FILES)
   assert.equal(existsSync(file), false, `${file} must remain retired`);
 assert.ok(
   middlewareSource.includes("verifyEditorialOwner"),
   "editorial requests require signed owner identity",
-);
-assert.ok(
-  navSource.includes('href: "/inbox",\n    label: "Inbox"'),
-  "Operations Inbox navigation must use its dedicated URL",
 );
 for (const file of retiredActionQueueFiles) {
   assert.equal(existsSync(file), false, `${file} must stay retired`);
@@ -335,50 +334,6 @@ assert.equal(
   "retired action queue route must not stay in manual smoke",
 );
 
-for (const marker of [
-  "data-astro-rerun",
-  "data-attention-projection",
-  "ActivationGraph",
-  "buildActivationGraph",
-  "needs you",
-  "being handled",
-  "/work?view=now",
-  "inbox-category-filter",
-  "Everything else",
-]) {
-  assert.ok(homeSource.includes(marker), `admin home missing marker ${marker}`);
-}
-for (const marker of ["data-attention-id", "data-entity-id"]) {
-  assert.ok(
-    attentionRowSource.includes(marker),
-    `admin attention row missing marker ${marker}`,
-  );
-}
-assert.ok(
-  layoutSource.includes('import "../styles/admin-canvas.css"'),
-  "shared admin layout must load the canonical canvas styles",
-);
-for (const marker of [
-  "SemanticInspector",
-  "semanticReferences",
-  "inbox.source",
-]) {
-  assert.ok(
-    homeSource.includes(marker),
-    `canonical admin canvas missing semantic marker ${marker}`,
-  );
-}
-for (const marker of [
-  "item.references.owner",
-  "item.references.source_time",
-  "item.references.proof",
-  "item.references.action",
-]) {
-  assert.ok(
-    attentionRowSource.includes(marker),
-    `admin attention card missing typed reference ${marker}`,
-  );
-}
 for (const marker of [
   "calendar_event",
   "source_time",
@@ -514,18 +469,6 @@ for (const source of [aestheticsSource, lifeSupportingSource]) {
   );
 }
 
-for (const removedNarration of [
-  "source → entity → outcome → attention → history",
-  "adapter writes and native archive actions are disconnected",
-  "sanitized metadata, lineage, proofs, freshness, and receipts",
-]) {
-  assert.equal(
-    homeSource.includes(removedNarration),
-    false,
-    `admin home must demote ${removedNarration}`,
-  );
-}
-
 for (const marker of [
   "sourceIdentityKey",
   "upsertSourceImport",
@@ -540,28 +483,6 @@ for (const marker of [
     `lifecycle seam missing ${marker}`,
   );
 }
-
-for (const marker of [
-  "loadAdminControlSnapshot",
-  "control.projections.inbox_items",
-  "rankInboxItems",
-  "copy_text",
-]) {
-  assert.ok(
-    inboxDataSource.includes(marker),
-    `admin inbox adapter missing marker ${marker}`,
-  );
-}
-assert.equal(
-  inboxDataSource.includes('from "./needs"'),
-  false,
-  "admin inbox must not import the retired static action queue",
-);
-assert.equal(
-  homeSource.includes("/needs-ani"),
-  false,
-  "canonical inbox must not restore the retired needs-Ani route",
-);
 
 for (const marker of [
   "BrandMark",
