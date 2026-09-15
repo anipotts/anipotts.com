@@ -66,8 +66,16 @@ describe("workspace page frames", () => {
 
   it("keeps the library table one line per record", () => {
     const library = read("../../styles/editorial.css");
+    // Cells carry their own inset; only the cell holding the tallest control
+    // goes without, so rows stay one control tall.
     expect(library).toContain(
-      ".editorial-library .editorial-record-table .astryx-table-cell { vertical-align: middle; padding-block: 0; }",
+      ".editorial-library .editorial-record-table .astryx-table-cell { vertical-align: middle; padding-block: var(--spacing-1); }",
+    );
+    expect(library).toContain(
+      ".editorial-library .editorial-record-table .astryx-table-cell:last-child { padding-block: 0; }",
+    );
+    expect(library).toContain(
+      "min-height: var(--spacing-7); justify-content: flex-start; padding-block: var(--spacing-1); padding-inline: var(--spacing-2);",
     );
     for (const rule of [
       ".editorial-library .editorial-record-summary,",

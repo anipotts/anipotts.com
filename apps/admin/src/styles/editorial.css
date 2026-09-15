@@ -1091,9 +1091,16 @@ body:has(.editorial-workspace-shell) {
   flex-wrap: wrap;
   align-items: center;
 }
-/* The row is as tall as the 36px action target it must carry, and no taller. */
+/* The row is as tall as the 36px action target it must carry, and no taller.
+   Its cells still hold their own inset, so nothing sits flush against a row
+   edge. */
 .editorial-library .editorial-record-table .astryx-table-cell {
   vertical-align: middle;
+  padding-block: var(--spacing-1);
+}
+/* The action cell carries the row's tallest control, so its own inset would
+   only make every row taller. */
+.editorial-library .editorial-record-table .astryx-table-cell:last-child {
   padding-block: 0;
 }
 /* The header stays with the rows while a long library scrolls. */
@@ -1174,11 +1181,24 @@ body:has(.editorial-workspace-shell) {
 .editorial-library .editorial-record-heading {
   min-height: 0;
 }
-.editorial-library .editorial-record-content {
+/* The title column's content fills its cell, so the title ellipsizes against
+   the column's width rather than its own text. */
+.editorial-library .editorial-record-content:not(#\#):not(#\#) {
+  flex: 1 1 auto;
+  width: 100%;
   min-width: 0;
 }
-.editorial-library .record-link {
-  max-width: 100%;
+/* The title's hover and focus surface wraps the words with room on every
+   side, instead of hugging the text. Its leading inset is pulled back so the
+   title still starts on the column's edge. */
+.editorial-library .record-link:not(#\#):not(#\#):not(#\#) {
+  width: 100%;
+  min-height: var(--spacing-7);
+  justify-content: flex-start;
+  padding-block: var(--spacing-1);
+  padding-inline: var(--spacing-2);
+  margin-inline-start: calc(-1 * var(--spacing-2));
+  text-align: start;
 }
 .editorial-library .record-link span {
   display: block;
