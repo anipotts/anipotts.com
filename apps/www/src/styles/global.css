@@ -668,6 +668,63 @@ html[data-navigation-settled] [data-rise] {
 .writing-card:active {
   box-shadow: var(--paper-shadow);
 }
+.writing-transition-surface {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+  will-change: clip-path;
+}
+.writing-transition-fill {
+  position: absolute;
+  inset: 0;
+  will-change: opacity;
+}
+.writing-transition-waves {
+  position: absolute;
+  overflow: hidden;
+  transform-origin: 0 0;
+  will-change: transform, opacity;
+}
 .writing-transition-word {
+  position: fixed;
+  z-index: 300;
+  margin: 0;
+  pointer-events: none;
   font-synthesis: none;
+  transform-origin: 0 0;
+  will-change: transform, opacity;
+}
+.writing-transition-slide {
+  position: fixed;
+  z-index: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+.writing-transition-icon {
+  position: fixed;
+  z-index: 300;
+  pointer-events: none;
+  will-change: opacity;
+}
+/* A tapped card turns its arrow to its own current's blue while the article
+   loads; the card's hover ink matches its resting ink in light. */
+a.writing-card[data-writing-pending] .affordance {
+  color: var(--flow-3);
+}
+html[data-theme="dark"] a.writing-card[data-writing-pending] .affordance {
+  color: var(--flow-1);
+}
+/* Focus the navigation moves after a tap or click lands without a ring;
+   after keyboard navigation the ring stays. */
+[data-writing-article] > header h1[tabindex="-1"]:focus {
+  outline: none;
+}
+a.writing-card[data-pointer-focus]:focus-visible {
+  outline: none;
+}
+a.writing-card[data-pointer-focus]:focus-visible:not(:hover) .affordance {
+  color: var(--paper-muted);
 }

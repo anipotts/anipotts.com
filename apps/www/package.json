@@ -10,6 +10,7 @@
     "check": "astro check",
     "typecheck": "astro check",
     "test": "node --test test/*.test.mjs",
+    "bench:motion": "node scripts/motion-bench/run.mjs",
     "deploy:preview": "wrangler deploy"
   },
   "dependencies": {
