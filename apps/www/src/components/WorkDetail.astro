@@ -370,7 +370,8 @@ const d = project.data;
 
   .project-story {
     display: grid;
-    gap: clamp(5.75rem, 12.5vw, 10rem);
+    /* Gap plus the padding the old rule sat on, so stories keep their rhythm. */
+    gap: calc(clamp(4rem, 9vw, 7rem) + clamp(1.75rem, 4vw, 3rem));
   }
 
   .story-section {
