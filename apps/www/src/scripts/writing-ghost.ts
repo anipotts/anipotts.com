@@ -124,6 +124,24 @@ export interface Ghost {
 }
 
 const trimmed = ".article-body > *, .article-end, .list > *";
+const inheritedText = [
+  "color",
+  "font-family",
+  "font-size",
+  "font-style",
+  "font-weight",
+  "font-stretch",
+  "font-feature-settings",
+  "font-variation-settings",
+  "font-kerning",
+  "line-height",
+  "letter-spacing",
+  "word-spacing",
+  "text-rendering",
+  "-webkit-font-smoothing",
+  "-webkit-text-size-adjust",
+  "text-size-adjust",
+];
 
 /** Copies the outgoing page while it is still in the document. The copy is
  * removed by removing `host`. */
@@ -142,13 +160,27 @@ export function captureGhost(main: HTMLElement, hidden: string[]): Ghost {
     "position:absolute;inset:0;margin:0;overflow:hidden;will-change:opacity;background:transparent;";
   const copy = (source: HTMLElement, height: boolean) => {
     const box = source.getBoundingClientRect();
+    // Padding is pinned: root-scoped rules (html.editorial-detail .page)
+    // follow the incoming root in the light-DOM copy.
+    const { paddingTop, paddingRight, paddingBottom, paddingLeft } =
+      getComputedStyle(source);
     const el = source.cloneNode(true) as HTMLElement;
-    el.style.cssText = `position:absolute;left:${box.left}px;top:${box.top}px;width:${box.width}px;margin:0;${height ? `height:${box.height}px;` : ""}`;
+    el.style.cssText = `position:absolute;left:${box.left}px;top:${box.top}px;width:${box.width}px;margin:0;padding:${paddingTop} ${paddingRight} ${paddingBottom} ${paddingLeft};box-sizing:border-box;${height ? `height:${box.height}px;` : ""}`;
     return el;
   };
+
   const parts: HTMLElement[] = [];
   const current = document.querySelector<HTMLElement>("body > .page-current");
   if (current) parts.push(copy(current, true));
+  // The nav and footer are copied too when they are in view: the incoming
+  // page starts at its own top, so without them a scrolled page would lose
+  // its footer, and the incoming nav would stand on the old body copy.
+  for (const selector of ["body > header.nav", "body > footer"]) {
+    const el = document.querySelector<HTMLElement>(selector);
+    const box = el?.getBoundingClientRect();
+    if (el && box && box.bottom > 0 && box.top < innerHeight)
+      parts.push(copy(el, true));
+  }
   // Blocks entirely below the fold are never seen; leave them out.
   const live = [...main.querySelectorAll<HTMLElement>(trimmed)];
   const below = live.map((el) => el.getBoundingClientRect().top > innerHeight);
@@ -156,29 +188,31 @@ export function captureGhost(main: HTMLElement, hidden: string[]): Ghost {
   const copies = [...clone.querySelectorAll<HTMLElement>(trimmed)];
   if (copies.length === live.length)
     copies.forEach((el, i) => below[i] && el.remove());
-  clone.inert = true;
-  clone.querySelectorAll("script").forEach((el) => el.remove());
+  parts.push(clone);
   // Icons reference shared symbols by id; keep the ids the copy uses.
-  const used = new Set(
-    [...clone.querySelectorAll("use")].map((el) =>
-      (el.getAttribute("href") || "").slice(1),
-    ),
-  );
-  clone
-    .querySelectorAll("[id]")
-    .forEach((el) => used.has(el.id) || el.removeAttribute("id"));
+  const used = new Set<string>();
+  for (const part of parts) {
+    part.inert = true;
+    part.querySelectorAll("script").forEach((el) => el.remove());
+    part
+      .querySelectorAll("use")
+      .forEach((el) => used.add((el.getAttribute("href") || "").slice(1)));
+    part
+      .querySelectorAll("[data-rise]")
+      .forEach((el) => el.removeAttribute("data-rise"));
+  }
+  for (const part of parts)
+    part
+      .querySelectorAll("[id]")
+      .forEach((el) => used.has(el.id) || el.removeAttribute("id"));
   const symbols = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   symbols.style.display = "none";
   for (const id of used)
-    if (!clone.querySelector(`[id="${CSS.escape(id)}"]`)) {
+    if (!parts.some((part) => part.querySelector(`[id="${CSS.escape(id)}"]`))) {
       const symbol = document.getElementById(id);
       if (symbol) symbols.appendChild(symbol.cloneNode(true));
     }
   clone.appendChild(symbols);
-  clone
-    .querySelectorAll("[data-rise]")
-    .forEach((el) => el.removeAttribute("data-rise"));
-  parts.push(clone);
   const sheets = supported ? documentSheets(true) : [];
   const outgoingSheets = sheets.length
     ? []
@@ -191,6 +225,30 @@ export function captureGhost(main: HTMLElement, hidden: string[]): Ghost {
   for (const { name, value } of root.attributes)
     if (name !== "style" && name !== "id") scope.setAttribute(name, value);
   scope.style.display = "contents";
+  // The light-DOM copy sits outside <body>, so body rules never reach it:
+  // it takes the body's inherited text styles directly. The shadow copy
+  // gets them from body rules rewritten for its host.
+  if (!sheets.length) {
+    const body = getComputedStyle(document.body);
+    for (const name of inheritedText)
+      scope.style.setProperty(name, body.getPropertyValue(name));
+    // A unitless body line height scales with each element's font size.
+    const ratio = parseFloat(body.lineHeight) / parseFloat(body.fontSize);
+    if (ratio) scope.style.lineHeight = String(Math.round(ratio * 1e4) / 1e4);
+    // Root custom properties follow the incoming root; pin the outgoing ones.
+    const rootStyle = getComputedStyle(root);
+    const names = new Set<string>();
+    for (const sheet of document.styleSheets)
+      try {
+        for (const rule of sheet.cssRules)
+          for (const [, name] of rule.cssText.matchAll(/(--[\w-]+)\s*:/g))
+            names.add(name);
+      } catch {
+        // Cross-origin sheets cannot be read and define no site tokens.
+      }
+    for (const name of names)
+      scope.style.setProperty(name, rootStyle.getPropertyValue(name));
+  }
   for (const el of parts) scope.appendChild(el);
   const ghost: Ghost = {
     host: frame,
@@ -357,11 +415,14 @@ export function overlay(parent: Element, className: string, style = "") {
 }
 
 /** The opaque surface: page ground, card paper, and the wave wrapper clipped
- * by its own box as well as by the surface. */
+ * by its own box as well as by the surface. `draw(e)` sets the morph and the
+ * wrapper transform, from its own box on open to the card box, at eased
+ * progress e. Both run on the surface clock with no animation of their own,
+ * so the wrapper edges stay on the clip edge even when frames run late. */
 export function surfaceLayers(
   ground: string,
   paper: string,
-  wrap: wave.Box,
+  [wrap, card, opening]: [wave.Box, DOMRect, boolean],
   plan: wave.MorphPlan,
   ghost?: Ghost,
 ) {
@@ -380,7 +441,19 @@ export function surfaceLayers(
   const wrapper = layer("writing-transition-waves", boxStyle(wrap));
   const morph = morphLayer(plan);
   wrapper.appendChild(morph.svg);
-  return { surface, paper: fill, wrapper, draw: morph.draw };
+  const [dx, dy] = [card.left - wrap.x, card.top - wrap.y];
+  const [sx, sy] = [card.width / wrap.width, card.height / wrap.height];
+  const draw = (e: number) => {
+    const k = opening ? 1 - e : e;
+    morph.draw(e);
+    wrapper.style.transform = timeline.placement(
+      dx * k,
+      dy * k,
+      1 + (sx - 1) * k,
+      1 + (sy - 1) * k,
+    );
+  };
+  return { surface, paper: fill, wrapper, draw };
 }
 
 /** Outgoing and incoming copies of the title, summary and date at their
@@ -420,6 +493,68 @@ export function textLayers(
     );
   });
   return layers;
+}
+
+/** Where focus lands after a navigation between the listing and articles:
+ * the article h1 on open, the originating card on return. */
+export function landing(from: Document, to: Document, path: string) {
+  const listing = (doc: Document) =>
+    !doc.querySelector(article) && !!doc.querySelector("main a.writing-card");
+  const [fromArticle, toArticle] = [from, to].map(
+    (doc) => !!doc.querySelector(article),
+  );
+  if (toArticle && (fromArticle || listing(from))) return { h1: true as const };
+  return fromArticle && listing(to) ? { card: path } : null;
+}
+
+/** Moves focus to where a navigation lands. A tap or click lands it without
+ * a ring (WebKit draws one for programmatic focus); a card below the fold is
+ * brought into view. */
+export function land(el: HTMLElement | null | undefined, keyboard: boolean) {
+  if (!el) return;
+  if (el.tagName === "H1") el.tabIndex = -1;
+  else if (!keyboard) {
+    el.dataset.pointerFocus = "";
+    const clear = () => delete el.dataset.pointerFocus;
+    el.addEventListener("blur", clear, { once: true });
+  }
+  el.focus({ preventScroll: true, focusVisible: keyboard } as FocusOptions);
+  if (!onScreen(rect(el))) el.scrollIntoView({ block: "nearest" });
+}
+
+export type Icon = { box: DOMRect; svg: SVGSVGElement; color: string };
+
+/** A card's arrow icon as a standalone copy, its shared symbol inlined. */
+export function captureIcon(
+  card: Element | null | undefined,
+): Icon | undefined {
+  const icon = card?.querySelector<SVGSVGElement>("svg.affordance");
+  const box = icon?.getBoundingClientRect();
+  if (!icon || !box?.width) return;
+  const svg = icon.cloneNode(true) as SVGSVGElement;
+  svg.querySelectorAll("use").forEach((use) => {
+    const id = (use.getAttribute("href") || "").slice(1);
+    const symbol = id ? document.getElementById(id) : null;
+    const viewBox = symbol?.getAttribute("viewBox");
+    if (viewBox && !svg.hasAttribute("viewBox"))
+      svg.setAttribute("viewBox", viewBox);
+    use.replaceWith(
+      ...[...(symbol?.childNodes ?? [])].map((node) => node.cloneNode(true)),
+    );
+  });
+  svg.querySelectorAll("symbol").forEach((el) => el.remove());
+  svg.removeAttribute("class");
+  svg.style.cssText = "display:block;width:100%;height:100%;";
+  return { box, svg, color: getComputedStyle(icon).color };
+}
+
+/** The icon copy at its own box inside the surface, for an in-place fade. */
+export function iconLayer(icon: Icon, surface: HTMLElement) {
+  const { x, y, width, height } = icon.box;
+  const style = boxStyle({ x, y, width, height }) + `color:${icon.color};`;
+  const el = overlay(surface, "writing-transition-icon", style);
+  el.appendChild(icon.svg);
+  return el;
 }
 
 /** The article header waves copied for the exit to a non-writing page, and
@@ -477,6 +612,13 @@ export function captureOutgoing(
     source,
     sourceBox,
     sourceWords: captureText(source, cardText),
+    sourceIcon: captureIcon(source),
+    navOnScreen: (() => {
+      const nav = document.querySelector("body > header.nav");
+      const box = nav?.getBoundingClientRect();
+      return !!box && box.bottom > 0 && box.top < innerHeight;
+    })(),
+    width: innerWidth,
     sourceArt: art(source?.querySelector(".ambient-flow")),
     // Computed styles are live objects; keep plain values past the swap.
     paper: style && [style.backgroundColor, style.borderTopLeftRadius],

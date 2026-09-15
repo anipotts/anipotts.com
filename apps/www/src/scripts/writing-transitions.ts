@@ -21,6 +21,8 @@ let pending: (() => void) | undefined;
 type Outgoing = capture.Outgoing;
 let outgoing: Outgoing | undefined;
 let pendingFocus: Focus = null;
+let swapFocus: Element | null = null;
+let keyboard = false;
 let swapAt = 0;
 
 const columns = () => (phone.matches ? 17 : wave.CONTOUR_COLUMNS);
@@ -50,13 +52,16 @@ function syncTheme() {
 }
 function applyFocus(intent: Focus) {
   pendingFocus = null;
-  const el = !intent
-    ? null
-    : "h1" in intent
+  // Focus the visitor moved while the motion ran stays where they put it.
+  const active = document.activeElement;
+  if (!intent || (active && active !== document.body && active !== swapFocus))
+    return;
+  capture.land(
+    "h1" in intent
       ? document.querySelector<HTMLElement>(`${article} h1`)
-      : cardFor(document, intent.card);
-  if (el?.tagName === "H1") el.tabIndex = -1;
-  el?.focus({ preventScroll: true });
+      : cardFor(document, intent.card),
+    keyboard,
+  );
 }
 function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
   const toArticle = !!event.newDocument.querySelector(article);
@@ -64,6 +69,12 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
   if (out.source && toArticle && out.sourceArt)
     remember(returnScroll, out.from, out.scroll);
   pending = () => {
+    // The viewport changed width while the destination loaded: every box
+    // read from the outgoing page is stale, so the swap stays instant.
+    if (innerWidth !== out.width) {
+      out.ghost.host.remove();
+      return applyFocus(pendingFocus);
+    }
     const headerHost = document.querySelector<HTMLElement>(waves);
     const headerBox = headerHost && rect(headerHost);
     const template = out.sourceArt && capture.captureArt(headerHost, columns());
@@ -79,13 +90,15 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
           visibleBox(headerBox!),
         ])
       : undefined;
-    if (
-      isReturn &&
-      event.navigationType !== "traverse" &&
-      returnScroll.has(out.to)
-    )
-      scrollTo({ top: returnScroll.get(out.to)!, behavior: "instant" });
     const destination = isReturn ? cardFor(document, out.from) : undefined;
+    if (isReturn && event.navigationType !== "traverse") {
+      const saved = returnScroll.get(out.to);
+      if (saved !== undefined) scrollTo({ top: saved, behavior: "instant" });
+      // No remembered scroll (an article loaded directly): the card comes
+      // into view, so the article folds into it and focus lands in sight.
+      else if (destination && !onScreen(rect(destination)))
+        destination.scrollIntoView({ block: "nearest" });
+    }
     const targetBox = destination && rect(destination);
     const destArt = capture.captureArt(
       destination?.querySelector(".ambient-flow"),
@@ -123,12 +136,16 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
     const inWords = opening
       ? capture.captureText(document.querySelector(header), headerText)
       : capture.captureText(destination, cardText);
+    const icon = opening ? out.sourceIcon : capture.captureIcon(destination);
     const destStyle = destination && getComputedStyle(destination);
     const [paperColor, radius] = opening
       ? out.paper!
       : [destStyle?.backgroundColor, destStyle?.borderTopLeftRadius];
     const main = document.querySelector<HTMLElement>("main")!;
     const nav = document.querySelector<HTMLElement>("header.nav");
+    // The persisted nav was scrolled out of view on the outgoing page; it
+    // arrives with the incoming page instead of over the old copy.
+    const navIn = out.navOnScreen ? null : nav;
     // Reads are done; everything below writes.
     const root = document.documentElement;
     root.dataset.writingTransition = direction;
@@ -156,19 +173,11 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
         innerHeight,
         radius || "12px",
       );
-      const { x, y, width, height } = wrap;
-      const toCard = timeline.placement(
-        card.left - x,
-        card.top - y,
-        card.width / width,
-        card.height / height,
-      );
       geometry.set("surface", pair(clip, timeline.FULL_CLIP));
-      geometry.set("waves", pair(toCard, timeline.IDENTITY));
       const layers = capture.surfaceLayers(
         out.ground,
         paperColor || out.ground,
-        wrap,
+        [wrap, card, opening],
         plan!,
         opening ? undefined : out.ghost,
       );
@@ -186,6 +195,11 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
         add(name, el);
         geometry.set(name, move);
       }
+      if (icon)
+        add(
+          opening ? "icon-out" : "icon-in",
+          capture.iconLayer(icon, layers.surface),
+        );
       if (opening) {
         out.ghost.show(out.ground, 100);
         document
@@ -194,7 +208,7 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
         hide(headerHost);
         main.style.position = "relative";
         main.style.zIndex = "210";
-        add("back", document.querySelector(`${header} .back`));
+        add("back", document.querySelector(`${header} .back`), navIn);
         add(
           "body",
           ...document.querySelectorAll(
@@ -204,12 +218,12 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
       } else {
         out.ghost.show(null, 200);
         hide(destination);
-        add("hero", document.querySelector("main .page-hero"));
+        add("hero", document.querySelector("main .page-hero"), navIn);
       }
     } else {
       if (out.fromArticle && !toArticle) out.ghost.hide([header, waves]);
       out.ghost.show(null, 100);
-      add("main", main);
+      add("main", main, navIn);
       if (exit && out.oldArt && out.oldWaveBox) {
         const slide = capture.exitSlide(out.oldArt, out.oldWaveBox);
         overlays.push(slide.el);
@@ -347,18 +361,12 @@ document.addEventListener("astro:before-swap", (raw) => {
   event.viewTransition.skipTransition();
   const fromArticle = !!document.querySelector(article);
   const toArticle = !!next.querySelector(article);
-  const listing = (doc: Document) =>
-    !doc.querySelector(article) && !!doc.querySelector("main a.writing-card");
   // Focus lands in the same place whatever the theme or motion preference.
-  pendingFocus =
-    toArticle && (fromArticle || listing(document))
-      ? { h1: true }
-      : fromArticle && listing(next)
-        ? { card: event.from.pathname }
-        : null;
+  pendingFocus = capture.landing(document, next, event.from.pathname);
   const out = outgoing;
   if (
     out?.to === event.to.pathname &&
+    out.width === innerWidth &&
     (fromArticle || toArticle) &&
     motionAllowed()
   ) {
@@ -367,6 +375,7 @@ document.addEventListener("astro:before-swap", (raw) => {
   } else dropOutgoing();
 });
 document.addEventListener("astro:after-swap", () => {
+  swapFocus = document.activeElement;
   refreshSharedCurrents();
   syncTheme();
   const run = pending;
@@ -405,6 +414,10 @@ const warm = (event: Event) => {
 };
 for (const type of ["pointerdown", "touchstart"])
   document.addEventListener(type, warm, { capture: true, passive: true });
+// Focus rings after a navigation follow how the visitor last navigated.
+const modality = (event: Event) => (keyboard = event.type === "keydown");
+for (const type of ["pointerdown", "touchstart", "keydown"])
+  document.addEventListener(type, modality, { capture: true, passive: true });
 let observedTheme = document.documentElement.dataset.theme;
 new MutationObserver(() => {
   if (document.documentElement.dataset.theme === observedTheme) return;
@@ -416,7 +429,12 @@ new MutationObserver(() => {
   attributes: true,
   attributeFilter: ["data-theme"],
 });
-reduced.addEventListener("change", () => dispose(true));
+reduced.addEventListener("change", () => {
+  const intent = pendingFocus;
+  dispose(false);
+  // Style is not yet current inside a media query change: focus waits a task.
+  if (intent) setTimeout(() => applyFocus(intent));
+});
 // Only a width change invalidates captured geometry; a phone toolbar
 // collapsing changes the height alone and must not abort the motion.
 let observedWidth = innerWidth;
@@ -424,6 +442,7 @@ window.addEventListener("resize", () => {
   if (innerWidth === observedWidth) return;
   observedWidth = innerWidth;
   dispose(true);
+  dropOutgoing();
 });
 window.addEventListener("pagehide", () => {
   dispose(false);

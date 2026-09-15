@@ -703,3 +703,20 @@ html[data-navigation-settled] [data-rise] {
   pointer-events: none;
   will-change: transform;
 }
+.writing-transition-icon {
+  position: fixed;
+  z-index: 300;
+  pointer-events: none;
+  will-change: opacity;
+}
+/* Focus the navigation moves after a tap or click lands without a ring;
+   after keyboard navigation the ring stays. */
+[data-writing-article] > header h1[tabindex="-1"]:focus {
+  outline: none;
+}
+a.writing-card[data-pointer-focus]:focus-visible {
+  outline: none;
+}
+a.writing-card[data-pointer-focus]:focus-visible:not(:hover) .affordance {
+  color: var(--paper-muted);
+}

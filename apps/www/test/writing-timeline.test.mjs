@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   CLIP_BOUND,
+  SURFACE_CLOCK,
   CLOSE_EASE,
   OPEN_EASE,
   curveOf,
@@ -55,8 +56,9 @@ test("open stages follow the spec rows", () => {
     ["title-in", "opacity", 128, 64, 0, 1],
     ["summary-out", "opacity", 50, 96, 1, 0],
     ["summary-in", "opacity", 178, 64, 0, 1],
-    ["date-out", "opacity", 0, 80, 1, 0],
+    ["date-out", "opacity", 0, 0, 1, 0],
     ["date-in", "opacity", 100, 180, 0, 1],
+    ["icon-out", "opacity", 0, 80, 1, 0],
     ["back", "opacity", 126, 210, 0, 1],
     ["body", "rise", 420, 260, 14, 0],
   ];
@@ -81,10 +83,11 @@ test("open stages follow the spec rows", () => {
 test("close stages follow the spec rows", () => {
   const stages = timeline("close");
   const expect = [
-    ["ghost", "opacity", 0, 190, 1, 0],
+    ["ghost", "opacity", 0, 114, 1, 0],
     ["hero", "opacity", 228, 152, 0, 1],
     ["date-out", "opacity", 0, 80, 1, 0],
     ["date-in", "opacity", 250, 130, 0, 1],
+    ["icon-in", "opacity", 250, 130, 0, 1],
     ["paper", "opacity", 152, 228, 0, 1],
   ];
   for (const [target, property, delay, duration, from, to] of expect) {
@@ -212,8 +215,8 @@ test("fade and exit keep their documented shapes", () => {
   assert.deepEqual(
     fade.map((s) => [s.target, s.delay, s.duration]),
     [
-      ["ghost", 0, 190],
-      ["main", 68, 247],
+      ["ghost", 0, 152],
+      ["main", 133, 228],
     ],
   );
   const exit = timeline("exit", true);
@@ -227,13 +230,76 @@ test("fade and exit keep their documented shapes", () => {
   );
 });
 
-test("every layer that travels with the surface is clip bound", () => {
+test("every layer that travels with the surface is clip bound or on its clock", () => {
   for (const direction of ["open", "close"]) {
     const moving = timeline(direction)
       .filter((s) => s.property === "transform")
       .map((s) => s.target);
-    for (const target of moving) assert.ok(CLIP_BOUND.includes(target), target);
+    for (const target of moving)
+      assert.ok(
+        CLIP_BOUND.includes(target) !== SURFACE_CLOCK.includes(target),
+        target,
+      );
   }
+  // The wave wrapper is drawn from the surface animation's own clock, so its
+  // edges cannot run ahead of or behind the clip edge.
+  assert.ok(SURFACE_CLOCK.includes("waves"));
   for (const target of ["surface", "ghost", "paper", "body", "hero"])
     assert.ok(!CLIP_BOUND.includes(target), target);
+});
+
+test("the card date leaves on the first open frame and the icon fades in place", () => {
+  for (const phone of [false, true]) {
+    const open = timeline("open", phone);
+    assert.equal(find(open, "date-out", "opacity").duration, 0);
+    const close = timeline("close", phone);
+    const icons = [...open, ...close].filter((s) =>
+      s.target.startsWith("icon"),
+    );
+    assert.equal(icons.length, 2);
+    assert.ok(icons.every((s) => s.property === "opacity"));
+    assert.ok(
+      Math.abs(
+        end(find(close, "icon-in", "opacity")) -
+          find(close, "surface", "clip").duration,
+      ) <= 1,
+      "the icon is fully in when the card lands",
+    );
+  }
+});
+
+test("outgoing pages are gone before incoming text or pages pass 0.3", () => {
+  const ease = (x) => {
+    // ease-out, cubic-bezier(0, 0, 0.58, 1), by bisection on the curve.
+    let lo = 0;
+    let hi = 1;
+    let t = x;
+    for (let i = 0; i < 40; i++) {
+      t = (lo + hi) / 2;
+      const bx = 3 * (1 - t) * t * t * 0.58 + t * t * t;
+      if (bx < x) lo = t;
+      else hi = t;
+    }
+    return 3 * (1 - t) * t * t + t * t * t;
+  };
+  const at = (stage, time) => {
+    const p = Math.max(0, Math.min(1, (time - stage.delay) / stage.duration));
+    return stage.from + (stage.to - stage.from) * ease(p);
+  };
+  for (const phone of [false, true]) {
+    const close = timeline("close", phone);
+    const ghost = find(close, "ghost", "opacity");
+    for (const text of ["title-in", "summary-in"])
+      assert.ok(end(ghost) <= find(close, text, "opacity").delay, text);
+    const fade = timeline("fade", phone);
+    const [out, main] = [
+      find(fade, "ghost", "opacity"),
+      find(fade, "main", "opacity"),
+    ];
+    for (let t = 0; t <= timelineEnd(fade); t++)
+      assert.ok(
+        at(out, t) <= 0.3 || at(main, t) <= 0.3,
+        `phone ${phone}: both pages visible at ${t} ms`,
+      );
+  }
 });

@@ -25,6 +25,8 @@ export type Target =
   | "summary-in"
   | "date-out"
   | "date-in"
+  | "icon-out"
+  | "icon-in"
   | "back"
   | "hero"
   | "body"
@@ -148,8 +150,10 @@ export function writingTimeline(options: TimelineOptions): Stage[] {
   }
   if (direction === "fade") {
     const D = CLOSE_DURATION;
-    add("ghost", "opacity", 0, D * 0.5, EASE_OUT, 1, 0);
-    add("main", "opacity", D * 0.18, D * 0.65, EASE_OUT, 0, 1);
+    // Sequenced rather than crossed: the old page is nearly gone before the
+    // new one passes 0.3, so two pages of text never sit on top of each other.
+    add("ghost", "opacity", 0, D * 0.4, EASE_OUT, 1, 0);
+    add("main", "opacity", D * 0.35, D * 0.6, EASE_OUT, 0, 1);
     return stages;
   }
 
@@ -165,7 +169,8 @@ export function writingTimeline(options: TimelineOptions): Stage[] {
   add("morph", "path", 0, D, ease, 0, 1);
   if (open) add("paper", "opacity", 0, D, ease, 1, 0);
   else add("paper", "opacity", D * 0.4, D * 0.6, EASE_OUT, 0, 1);
-  add("ghost", "opacity", 0, D * (open ? 0.55 : 0.5), EASE_OUT, 1, 0);
+  // Closing clears the article copy before the card text starts to arrive.
+  add("ghost", "opacity", 0, D * (open ? 0.55 : 0.3), EASE_OUT, 1, 0);
 
   // Open: the title leads and the summary follows one beat later. Close:
   // both travel together. The title travels farther down than the summary,
@@ -189,10 +194,15 @@ export function writingTimeline(options: TimelineOptions): Stage[] {
     );
   });
 
-  // Dates fade in place and never travel across the title or summary.
-  add("date-out", "opacity", 0, 80, EASE_OUT, 1, 0);
+  // Dates fade in place and never travel across the title or summary. On
+  // open the card date sits on the title's line, and the growing title
+  // reaches it within the first frame, so the card date leaves at once.
+  add("date-out", "opacity", 0, open ? 0 : 80, EASE_OUT, 1, 0);
   if (open) add("date-in", "opacity", 100, 180, EASE_OUT, 0, 1);
   else add("date-in", "opacity", 250, 130, EASE_OUT, 0, 1);
+  // The card's arrow icon has no header counterpart: it fades in place.
+  if (open) add("icon-out", "opacity", 0, 80, EASE_OUT, 1, 0);
+  else add("icon-in", "opacity", 250, 130, EASE_OUT, 0, 1);
 
   if (open) {
     add("back", "opacity", D * 0.3, D * 0.5, EASE_OUT, 0, 1);
@@ -231,16 +241,22 @@ export function placement(dx: number, dy: number, sx: number, sy = sx) {
  * keyframe before starting and leave no style behind once finished. */
 export const LIVE_TARGETS: readonly Target[] = ["back", "body", "hero", "main"];
 
-/** Layers that travel against the surface clip edge. */
+/** Composited layers that travel against the surface clip edge. */
 export const CLIP_BOUND: readonly Target[] = [
-  "waves",
   "title-out",
   "title-in",
   "summary-out",
   "summary-in",
   "date-out",
   "date-in",
+  "icon-out",
+  "icon-in",
 ];
+
+/** Stages drawn frame by frame from the surface animation's currentTime
+ * instead of running as their own animations: the wave path morph, and the
+ * wave wrapper's transform, whose edges then always sit on the clip edge. */
+export const SURFACE_CLOCK: readonly Target[] = ["waves", "morph"];
 
 /** Web Animation keyframes for a stage. Geometry stages need the source and
  * destination values for their target; path stages have none. */
