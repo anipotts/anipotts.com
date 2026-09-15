@@ -57,7 +57,22 @@ describe("workspace page frames", () => {
     // outside it. The bordered menus absorb that with their border; the
     // borderless search button adds the same width.
     expect(header).toContain(
-      ".approved-workspace-header .editorial-header-search { padding-inline-start: calc(var(--spacing-9) / 4 + var(--border-width)); }",
+      ".approved-workspace-header .editorial-header-search { padding-inline-start: calc(var(--spacing-9) / 4); }",
+    );
+    expect(header).toContain(
+      ".approved-workspace-header .admin-workspace-selector, .editorial-workspace-utilities .admin-sidebar-menu { padding-inline-start: calc(var(--spacing-9) / 4 - var(--border-width)); }",
+    );
+    // The drawer uses the same inset, so the bordered menus ask for a pixel
+    // less there too.
+    expect(header).toContain(
+      ".editorial-workspace-nav :is(.admin-workspace-selector, .admin-sidebar-menu) { padding-inline-start: calc(var(--spacing-2) - var(--border-width)); }",
+    );
+    // In the rail there is no label to align to, so the icon takes the middle.
+    expect(header).toContain(
+      ":is(.admin-sidebar-menu, .editorial-header-search) { padding-inline: 0; justify-content: center; }",
+    );
+    expect(header).toContain(
+      ":is(.admin-sidebar-menu, .editorial-header-search) > span:first-child { justify-content: center; }",
     );
     expect(header).toContain(
       ".admin-sidebar-menu > span:first-child > span:first-child > svg:not(#\\#):not(#\\#) { width: calc(var(--spacing-9) / 2); height: calc(var(--spacing-9) / 2); flex: none; }",

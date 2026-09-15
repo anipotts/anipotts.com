@@ -239,6 +239,12 @@
     align-items: flex-start;
   }
 }
+/* The drawer gives every control the same inset; the bordered menus spend a
+   pixel of theirs on their border, so they ask for a pixel less. */
+.editorial-workspace-nav
+  :is(.admin-workspace-selector, .admin-sidebar-menu) {
+  padding-inline-start: calc(var(--spacing-2) - var(--border-width));
+}
 @media (width > 768px) {
   .editorial-workspace-nav > :has(> .astryx-side-nav-section) {
     align-items: stretch;
@@ -249,17 +255,16 @@
     width: var(--spacing-9);
     min-width: var(--spacing-9);
   }
-  .approved-workspace-header .admin-workspace-selector,
-  .approved-workspace-header .editorial-header-search,
-  .editorial-workspace-utilities .admin-sidebar-menu {
+  /* One inset for every control, measured from its own edge: the bordered
+     menus spend a pixel of it on their border, the navigation items and the
+     search button have none. Icons and labels then share two lines down the
+     sidebar. */
+  .approved-workspace-header .editorial-header-search {
     padding-inline-start: calc(var(--spacing-9) / 4);
   }
-  /* Astryx gives a button's icon a 16px slot and centres the glyph in it, so
-     an 18px sidebar icon sits half a pixel outside its slot. The bordered
-     menus absorb that with their own border; the borderless search button
-     adds the same width so every icon in the sidebar shares one centreline. */
-  .approved-workspace-header .editorial-header-search {
-    padding-inline-start: calc(var(--spacing-9) / 4 + var(--border-width));
+  .approved-workspace-header .admin-workspace-selector,
+  .editorial-workspace-utilities .admin-sidebar-menu {
+    padding-inline-start: calc(var(--spacing-9) / 4 - var(--border-width));
   }
 }
 /* The appearance menu squeezed its icon into that slot instead of overflowing
@@ -272,6 +277,15 @@
   height: calc(var(--spacing-9) / 2);
   flex: none;
 }
+/* The slot holds the icon's own width, so the label after it starts on the
+   same line as every navigation label. */
+.editorial-workspace-nav
+  :is(.admin-sidebar-menu, .editorial-header-search)
+  > span:first-child
+  > span:first-child:not(#\#):not(#\#) {
+  width: calc(var(--spacing-9) / 2);
+  flex: none;
+}
 /* Symmetric rail targets, including the appearance group's inner padding. */
 @media (width > 768px) {
   .editorial-workspace-shell[data-sidebar-collapsed="true"]
@@ -279,6 +293,23 @@
     .astryx-side-nav-item {
     height: var(--spacing-9);
     padding-inline: 0;
+    justify-content: center;
+  }
+  /* The leading inset above aligns icons with the labels beside them. In the
+     rail there are no labels: every control is a square with its icon in the
+     middle, and an inset would push the two menus' icons to the left edge. */
+  .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    .editorial-workspace-nav
+    :is(.admin-sidebar-menu, .editorial-header-search) {
+    padding-inline: 0;
+    justify-content: center;
+  }
+  /* Astryx lays a button's content out in a row that fills the button, so
+     centring the button alone leaves the icon at the start of that row. */
+  .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    .editorial-workspace-nav
+    :is(.admin-sidebar-menu, .editorial-header-search)
+    > span:first-child {
     justify-content: center;
   }
 }
