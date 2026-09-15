@@ -109,6 +109,10 @@
 .life-record-library .astryx-table-header-cell:last-child {
   padding-inline-end: var(--spacing-4);
 }
+/* Column labels stay on one line; the column, not the label, gives way. */
+.astryx-table-header-cell {
+  white-space: nowrap;
+}
 /* Summary strip under a table: the count that screen readers hear, then the
    figures that describe what is in view. */
 .admin-table-footer {
@@ -822,19 +826,6 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   min-width: 0;
 }
 
-/* Workspace switcher is a compact menu with room for complete destination names. */
-.editorial-workspace-switcher {
-  width: min(
-    calc(var(--spacing-10) * 5 - var(--spacing-2)),
-    calc(100vw - var(--spacing-8))
-  );
-  box-sizing: border-box;
-}
-.editorial-workspace-switcher .astryx-side-nav-item {
-  min-height: var(--spacing-11);
-  padding-inline: var(--spacing-3);
-}
-
 /* Content inventory emphasizes the next decision over repeated public-state badges. */
 .record-decision-link {
   padding-inline: 0;
@@ -923,24 +914,6 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 .editorial-workspace-identity[data-collapsed="true"] {
   flex-direction: column;
 }
-.editorial-workspace-utilities .astryx-toggle-button-group {
-  width: 100%;
-  padding: var(--spacing-1);
-  box-sizing: border-box;
-  border-radius: var(--radius-element);
-  background: var(--color-background-surface);
-}
-.editorial-workspace-utilities[data-collapsed="false"]
-  .astryx-toggle-button-group
-  > button {
-  flex: 1;
-  min-width: 0;
-}
-.editorial-workspace-utilities[data-collapsed="true"]
-  .astryx-toggle-button-group {
-  width: auto;
-  align-items: center;
-}
 @media (width > 768px) {
   .editorial-workspace-shell[data-sidebar-collapsed="false"]
     .astryx-app-shell-sidenav {
@@ -992,10 +965,14 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 .editorial-workspace-shell .admin-page-content {
   min-width: 0;
 }
-.editorial-workspace-shell .admin-workspace-selector {
+/* Both sidebar menus share one surface; only the workspace carries the
+   workspace accent. */
+.editorial-workspace-shell .admin-sidebar-menu {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-element);
   background: var(--color-background-surface);
+}
+.editorial-workspace-shell .admin-workspace-selector {
   color: var(--color-text-accent);
 }
 @media (max-width: 768px) {
@@ -1035,9 +1012,6 @@ body:has(.editorial-workspace-shell) {
   flex: 1;
   min-width: 0;
 }
-.editorial-site-appearance {
-  width: 100%;
-}
 .editorial-live-site-tab {
   align-self: stretch;
   justify-content: flex-start;
@@ -1047,10 +1021,6 @@ body:has(.editorial-workspace-shell) {
   background: var(--color-background-surface);
   font-family: var(--font-family-heading);
   font-weight: var(--font-weight-semibold);
-}
-.editorial-site-appearance > .astryx-toggle-button-group {
-  position: relative;
-  border: 1px solid var(--color-border);
 }
 .editorial-workspace-utilities[data-collapsed="true"] .editorial-live-site-tab {
   margin-inline: 0;
@@ -1111,9 +1081,11 @@ body:has(.editorial-workspace-shell) {
     min-height: calc(var(--spacing-11) * 2 + var(--spacing-8));
     align-items: flex-start;
     gap: var(--spacing-2);
-    padding-block-start: max(var(--spacing-3), env(safe-area-inset-top));
-    padding-block-end: var(--spacing-3);
-    padding-inline: var(--spacing-3);
+    /* Same 8px inset as the drawer body below, so the header controls and
+       the footer controls share one edge and one distance from the ends. */
+    padding-block-start: max(var(--spacing-2), env(safe-area-inset-top));
+    padding-block-end: var(--spacing-2);
+    padding-inline: var(--spacing-2);
   }
   .astryx-mobile-nav.editorial-workspace-nav .editorial-workspace-identity {
     flex: 1;

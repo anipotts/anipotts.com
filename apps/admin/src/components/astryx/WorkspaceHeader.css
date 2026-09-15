@@ -35,23 +35,50 @@
   padding: 0;
   flex: none;
 }
+/* The identity column spans its panel, so the workspace menu is as wide as
+   the sidebar on desktop and as the drawer on phones and tablets. The phone
+   and tablet top bar is a row instead: wordmark, then a compact menu. */
+.editorial-workspace-nav:not([data-mode="topbar"])
+  .editorial-workspace-identity {
+  align-self: stretch;
+  width: 100%;
+  box-sizing: border-box;
+}
+.editorial-workspace-nav[data-mode="topbar"] .admin-workspace-selector {
+  width: auto;
+}
 .approved-workspace-header .admin-workspace-selector,
 .approved-workspace-header .editorial-header-search,
-.approved-workspace-header .editorial-header-site {
+.approved-workspace-header .editorial-header-site,
+.editorial-workspace-utilities .admin-sidebar-menu {
   width: 100%;
   justify-content: flex-start;
   padding-inline: var(--spacing-2);
   gap: var(--spacing-2);
 }
+/* Sidebar menus (workspace, appearance): icon, label, then the current
+   choice and caret pushed to the end, like a navigation item's count. */
+.editorial-workspace-nav .admin-sidebar-menu > span:first-child {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  gap: var(--spacing-2);
+}
+/* Astryx wraps endContent in its own span; that wrapper takes the free space. */
+.editorial-workspace-nav
+  .admin-sidebar-menu
+  > span:first-child
+  > span:has(> .admin-sidebar-menu-end) {
+  margin-inline-start: auto;
+  flex-shrink: 0;
+}
+.editorial-workspace-nav .admin-sidebar-menu .admin-sidebar-menu-end {
+  color: var(--color-text-secondary);
+}
 .approved-workspace-header svg {
   flex-shrink: 0;
 }
-.approved-workspace-header .workspace-control-label {
-  flex: 1;
-  text-align: start;
-  white-space: nowrap;
-}
-.approved-workspace-header .workspace-caret,
 .approved-workspace-header .editorial-identity-primary-row button,
 .approved-workspace-header .editorial-header-search svg,
 .approved-workspace-header .editorial-header-site svg {
@@ -102,55 +129,43 @@
     align-items: center;
   }
 }
-.approved-workspace-header .admin-workspace-selector > span:first-child {
+/* Phone and tablet drawer. Astryx puts the sidebar header in one row with its
+   close button and rules the row off. The close button moves to the corner
+   of the wordmark row so the workspace menu spans the drawer, the rule goes,
+   and the content column becomes a flex column so the footer reaches the
+   bottom, inset as far from it as the wordmark is from the top. */
+.astryx-mobile-nav.editorial-workspace-nav
+  div:has(> .editorial-workspace-identity) {
+  position: relative;
+  border-block-end: 0;
+}
+.astryx-mobile-nav.editorial-workspace-nav
+  div:has(> .editorial-workspace-identity)
+  > .astryx-button:last-child {
+  position: absolute;
+  inset-block-start: var(--spacing-2);
+  inset-inline-end: var(--spacing-2);
+}
+.astryx-mobile-nav.editorial-workspace-nav
+  div:has(> div > .editorial-workspace-utilities) {
   display: flex;
-  align-items: center;
-  width: 100%;
+  flex-direction: column;
+  padding-block-end: max(var(--spacing-2), env(safe-area-inset-bottom));
 }
-.approved-workspace-header
-  .admin-workspace-selector
-  > span:first-child
-  > span:has(.workspace-control-label) {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  gap: var(--spacing-2);
+/* SideNav keeps an empty collapse-button row after the footer (the shell
+   draws its own collapse control), and its gap would double the bottom
+   inset. */
+.editorial-workspace-nav div:has(> .editorial-workspace-utilities) > div:empty {
+  display: none;
 }
-.approved-workspace-header[data-collapsed="true"]
-  .admin-workspace-selector
-  > span:first-child {
-  justify-content: center;
+.astryx-mobile-nav.editorial-workspace-nav .editorial-workspace-utilities {
+  --workspace-control-size: var(--spacing-11);
 }
-/* Fit the longest workspace label, bounded by the viewport. */
-.astryx-popover.editorial-workspace-popover {
-  box-sizing: border-box;
-  min-width: 0;
-  max-width: calc(100vw - var(--spacing-8));
-  padding: 0;
-}
-.editorial-workspace-popover .editorial-workspace-switcher {
-  box-sizing: border-box;
-  width: max-content;
-  min-width: 0;
-  max-width: 100%;
-}
-.editorial-workspace-popover
-  .editorial-workspace-switcher
-  .astryx-side-nav-item {
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  padding-inline: var(--spacing-2);
-}
-
-.approved-workspace-header .admin-workspace-selector > span:first-child {
-  gap: var(--spacing-2);
-}
-.approved-workspace-header[data-collapsed="true"]
-  .admin-workspace-selector
-  > span:first-child {
-  gap: 0;
+.astryx-mobile-nav.editorial-workspace-nav
+  .editorial-workspace-utilities
+  .admin-sidebar-menu {
+  min-height: var(--workspace-control-size);
+  height: var(--workspace-control-size);
 }
 .editorial-workspace-nav
   .approved-workspace-header
@@ -185,11 +200,6 @@
   .editorial-workspace-utilities[data-collapsed="true"] {
     align-items: flex-start;
   }
-  .editorial-workspace-utilities[data-collapsed="true"]
-    .astryx-toggle-button-group {
-    margin-inline: 0;
-    align-self: flex-start;
-  }
 }
 @media (width > 768px) {
   .editorial-workspace-nav > :has(> .astryx-side-nav-section) {
@@ -202,7 +212,8 @@
     min-width: var(--spacing-9);
   }
   .approved-workspace-header .admin-workspace-selector,
-  .approved-workspace-header .editorial-header-search {
+  .approved-workspace-header .editorial-header-search,
+  .editorial-workspace-utilities .admin-sidebar-menu {
     padding-inline-start: calc(var(--spacing-9) / 4);
   }
 }
@@ -215,34 +226,39 @@
     padding-inline: 0;
     justify-content: center;
   }
-  .editorial-workspace-utilities[data-collapsed="true"]
-    .astryx-toggle-button-group {
-    background: transparent;
-  }
-  .editorial-workspace-utilities[data-collapsed="true"]
-    .astryx-toggle-button-group
-    button {
-    box-sizing: border-box;
-    justify-content: center;
-  }
 }
-/* Astryx supplies the anchor inline. Keep its tooltips outside the rail;
-   only vertical fallback is allowed so they never cover sidebar controls. */
-.editorial-workspace-nav .astryx-tooltip {
-  position-area: right !important;
-  position-try-fallbacks: flip-block !important;
-  margin-inline-start: var(--spacing-2) !important;
-  margin-block: 0 !important;
+/* Tooltips size to their text and wrap only between words, never inside
+   one, however little room their anchor leaves. */
+.astryx-tooltip {
+  width: max-content;
+  max-width: min(18rem, calc(100vw - var(--spacing-8)));
+  word-break: normal;
+  overflow-wrap: normal;
+}
+/* In the desktop rail, tooltips sit beside the rail so they never cover
+   sidebar controls. Where the right side has no room they move below, then
+   above. The phone and tablet drawer keeps Astryx's own placement. */
+@position-try --admin-tooltip-below {
+  position-area: block-end span-inline-end;
+  margin: var(--spacing-2) 0 0 0;
+}
+@position-try --admin-tooltip-above {
+  position-area: block-start span-inline-end;
+  margin: 0 0 var(--spacing-2) 0;
+}
+@media (width > 768px) {
+  .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    .editorial-workspace-nav
+    .astryx-tooltip {
+    position-area: right !important;
+    position-try-fallbacks:
+      --admin-tooltip-below, --admin-tooltip-above !important;
+    margin-inline-start: var(--spacing-2) !important;
+    margin-block: 0 !important;
+  }
 }
 .editorial-workspace-nav > :has(> .editorial-workspace-utilities) {
   align-items: stretch;
-}
-.editorial-workspace-nav
-  .editorial-workspace-utilities
-  .astryx-toggle-button-group {
-  padding: 0;
-  gap: 0;
-  overflow: hidden;
 }
 @media (width > 768px) {
   .editorial-workspace-nav
@@ -252,26 +268,12 @@
   }
   .editorial-workspace-nav
     .editorial-workspace-utilities[data-collapsed="true"]
-    .astryx-toggle-button-group {
-    width: var(--spacing-9);
-    padding: 0;
-    border: 0;
-  }
-  .editorial-workspace-nav
-    .editorial-workspace-utilities[data-collapsed="true"]
-    .astryx-toggle-button-group
-    button {
+    .admin-sidebar-menu {
     width: var(--spacing-9);
     min-width: var(--spacing-9);
     height: var(--spacing-9);
     padding: 0;
-  }
-  .editorial-workspace-nav
-    .editorial-workspace-utilities
-    .astryx-toggle-button-group
-    svg {
-    width: calc(var(--spacing-9) / 2);
-    height: calc(var(--spacing-9) / 2);
+    justify-content: center;
   }
 }
 @media (width > 768px) {
@@ -281,52 +283,6 @@
     align-items: flex-start;
     padding-inline: var(--spacing-2);
   }
-}
-/* Theme segments share an outline, with only the outer ends rounded. */
-.editorial-workspace-nav
-  .editorial-workspace-utilities
-  .astryx-toggle-button-group
-  > button {
-  border-radius: 0;
-  margin: 0;
-}
-.editorial-workspace-nav
-  .editorial-workspace-utilities[data-collapsed="false"]
-  .astryx-toggle-button-group
-  > button:first-of-type {
-  border-start-start-radius: var(--radius-element);
-  border-end-start-radius: var(--radius-element);
-}
-.editorial-workspace-nav
-  .editorial-workspace-utilities[data-collapsed="false"]
-  .astryx-toggle-button-group
-  > button:last-of-type {
-  border-start-end-radius: var(--radius-element);
-  border-end-end-radius: var(--radius-element);
-}
-.editorial-workspace-nav
-  .editorial-workspace-utilities[data-collapsed="true"]
-  .astryx-toggle-button-group
-  > button:first-of-type {
-  border-start-start-radius: var(--radius-element);
-  border-start-end-radius: var(--radius-element);
-}
-.editorial-workspace-nav
-  .editorial-workspace-utilities[data-collapsed="true"]
-  .astryx-toggle-button-group
-  > button:last-of-type {
-  border-end-start-radius: var(--radius-element);
-  border-end-end-radius: var(--radius-element);
-}
-/* Appearance is the sole sidebar tooltip exception: above its segment. */
-.editorial-workspace-nav
-  .editorial-workspace-utilities[data-collapsed="false"]
-  .astryx-toggle-button-group
-  .astryx-tooltip {
-  position-area: top !important;
-  position-try-fallbacks: flip-inline !important;
-  margin-inline: 0 !important;
-  margin-block-end: var(--spacing-2) !important;
 }
 /* AppShell has no sidenav-width prop and SideNav hardcodes its rail width.
    This parent override preserves the approved 52px rail and stationary icons;
@@ -375,8 +331,7 @@
     :is(
       .astryx-side-nav-item,
       .editorial-workspace-utilities,
-      .astryx-toggle-button-group,
-      .astryx-toggle-button-group > button
+      .admin-sidebar-menu
     ) {
     box-sizing: border-box;
     width: var(--spacing-11);
@@ -384,7 +339,7 @@
   }
   .editorial-workspace-shell[data-sidebar-collapsed="true"]
     .editorial-workspace-nav
-    :is(.astryx-side-nav-item, .astryx-toggle-button-group > button) {
+    :is(.astryx-side-nav-item, .admin-sidebar-menu) {
     height: var(--spacing-11);
     min-height: var(--spacing-11);
     padding-inline: 0;

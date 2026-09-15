@@ -45,28 +45,44 @@ describe("Website workspace navigation", () => {
   });
 });
 
-it("contains popup rows within the trigger width without cumulative padding", () => {
+it("sizes sidebar menus to the sidebar and keeps tooltips whole", () => {
   const css = readFileSync(
     new URL("./WorkspaceHeader.css", import.meta.url),
     "utf8",
   ).replace(/\s+/g, " ");
-  const declarations = (selector: string) => {
+  const rule = (selector: string) => {
     const start = css.indexOf(`${selector} {`);
-    expect(start).toBeGreaterThan(-1);
+    expect(start, selector).toBeGreaterThan(-1);
     return css.slice(start, css.indexOf("}", start));
   };
-  expect(declarations(".astryx-popover.editorial-workspace-popover")).toContain(
-    "padding: 0;",
+  // The identity column spans the sidebar or drawer, so the workspace menu can.
+  expect(
+    rule(
+      '.editorial-workspace-nav:not([data-mode="topbar"]) .editorial-workspace-identity',
+    ),
+  ).toContain("align-self: stretch;");
+  // The phone top bar keeps a compact menu beside the wordmark.
+  expect(
+    rule(
+      '.editorial-workspace-nav[data-mode="topbar"] .admin-workspace-selector',
+    ),
+  ).toContain("width: auto;");
+  // The drawer's close button leaves the header row instead of narrowing it.
+  expect(
+    rule(
+      ".astryx-mobile-nav.editorial-workspace-nav div:has(> .editorial-workspace-identity) > .astryx-button:last-child",
+    ),
+  ).toContain("position: absolute;");
+  // Tooltips never break inside a word, and the rail's side placement has
+  // somewhere to go when the side has no room.
+  const tooltip = rule(".astryx-tooltip");
+  expect(tooltip).toContain("width: max-content;");
+  expect(tooltip).toContain("word-break: normal;");
+  expect(tooltip).toContain("overflow-wrap: normal;");
+  expect(css).toContain(
+    "position-try-fallbacks: --admin-tooltip-below, --admin-tooltip-above !important;",
   );
-  for (const selector of [
-    ".editorial-workspace-popover .editorial-workspace-switcher",
-    ".editorial-workspace-popover .editorial-workspace-switcher .astryx-side-nav-item",
-  ]) {
-    const rule = declarations(selector);
-    expect(rule).toContain("box-sizing: border-box;");
-    expect(rule).toContain("width: 100%;");
-    expect(rule).toContain("min-width: 0;");
-  }
+  expect(css).not.toContain("toggle-button-group");
 });
 
 it("uses 44px touch targets with 4px rail insets only on coarse tablets", () => {
