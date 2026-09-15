@@ -154,8 +154,8 @@ describe("editorial catalog", () => {
         `>Writing</span><span[^>]*><span[^>]*aria-label="${records.length} records">${records.length}<`,
       ),
     );
-    expect(html).toContain("Appearance");
-    expect(html.match(/aria-label="Appearance: [A-Za-z]+"/g)).toHaveLength(1);
+    expect(html).toContain("Theme");
+    expect(html.match(/aria-label="Theme: [A-Za-z]+"/g)).toHaveLength(1);
     expect(html).toContain("Visit site");
     const siteLink = html.match(/<a\b[^>]*aria-label="Visit site"[^>]*>/)?.[0];
     expect(siteLink).toContain('href="https://anipotts.com/"');

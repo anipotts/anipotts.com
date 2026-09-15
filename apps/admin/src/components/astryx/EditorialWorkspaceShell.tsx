@@ -421,9 +421,9 @@ function WorkspaceUtilities({
     >
       <SidebarMenu
         className="admin-appearance-menu"
-        name="Appearance"
-        label="Appearance"
-        accessibleLabel={`Appearance: ${current.label}`}
+        name="Theme"
+        label="Theme"
+        accessibleLabel={`Theme: ${current.label}`}
         icon={<current.Icon size={18} aria-hidden="true" />}
         detail={current.label}
         compact={compact}

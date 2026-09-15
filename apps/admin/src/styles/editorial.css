@@ -119,6 +119,15 @@
   padding-inline: var(--spacing-4);
   font-variant-numeric: tabular-nums;
 }
+/* The library's strip stays on screen while its rows scroll, so what is in
+   view is always readable against the list it describes. */
+.editorial-library .admin-table-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding-block: var(--spacing-2);
+  background: var(--color-background-surface);
+}
 .admin-table-footer .admin-table-figure strong {
   font-weight: var(--font-weight-medium, 500);
   color: var(--color-text-primary);
@@ -1082,12 +1091,18 @@ body:has(.editorial-workspace-shell) {
   flex-wrap: wrap;
   align-items: center;
 }
+/* The row is as tall as the 36px action target it must carry, and no taller. */
 .editorial-library .editorial-record-table .astryx-table-cell {
   vertical-align: middle;
-  padding-block: var(--spacing-2);
+  padding-block: 0;
 }
+/* The header stays with the rows while a long library scrolls. */
 .editorial-library .editorial-record-table .astryx-table-header-cell {
+  position: sticky;
+  z-index: 1;
+  top: 0;
   padding-block: var(--spacing-2);
+  background: var(--color-background-surface);
 }
 .editorial-library .record-link {
   min-height: var(--spacing-6);
@@ -1125,6 +1140,109 @@ body:has(.editorial-workspace-shell) {
   min-width: var(--spacing-9);
   min-height: var(--spacing-9);
 }
+/* One record is one line. Columns drop from the least load-bearing inward as
+   the table narrows: first the summary, then the kind, and on phones the row
+   carries its state and time under the title instead. */
+.editorial-library .editorial-record-table .astryx-table-cell,
+.editorial-library .editorial-record-table .astryx-table-header-cell {
+  white-space: nowrap;
+}
+.editorial-library .editorial-record-summary,
+.editorial-library .editorial-record-state-detail,
+.editorial-library .record-link {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.editorial-library .editorial-record-state {
+  min-width: 0;
+}
+/* The state chip keeps its full label; the sentence beside it truncates.
+   Astryx sizes both through StyleX, which these repeats outrank. */
+.editorial-library
+  .editorial-record-state
+  > .astryx-token:not(#\#):not(#\#):not(#\#) {
+  flex: 0 0 auto;
+}
+.editorial-library
+  .editorial-record-state-detail:not(#\#):not(#\#):not(#\#) {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+/* One row, one line: the title ellipsizes inside its own column. */
+.editorial-library .editorial-record-heading {
+  min-height: 0;
+}
+.editorial-library .editorial-record-content {
+  min-width: 0;
+}
+.editorial-library .record-link {
+  max-width: 100%;
+}
+.editorial-library .record-link span {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.editorial-library .editorial-record-kind {
+  width: max-content;
+  color: var(--color-text-secondary);
+}
+/* The row's own action reads as clutter repeated down the page. It appears on
+   hover, on keyboard focus, and wherever hover does not exist. */
+@media (hover: hover) and (pointer: fine) {
+  .editorial-library .editorial-record-table .editorial-record-action {
+    opacity: 0;
+  }
+  .editorial-library
+    .editorial-record-table
+    tr:hover
+    .editorial-record-action,
+  .editorial-library .editorial-record-table tr:focus-within .editorial-record-action {
+    opacity: 1;
+  }
+}
+@media (max-width: 1279px) {
+  .editorial-library .editorial-record-table th:nth-child(2),
+  .editorial-library .editorial-record-table td:nth-child(2) {
+    display: none;
+  }
+}
+@media (max-width: 1023px) {
+  .editorial-library[data-kind-column="true"]
+    .editorial-record-table
+    th:nth-child(3),
+  .editorial-library[data-kind-column="true"]
+    .editorial-record-table
+    td:nth-child(3) {
+    display: none;
+  }
+}
+@media (max-width: 768px) {
+  /* A phone row carries its state and time under the title, so it needs the
+     vertical room a one-line desktop row does not. */
+  .editorial-library .editorial-record-table .astryx-table-cell {
+    padding-block: var(--spacing-2);
+  }
+  /* Everything between the title and its action, whichever columns those are. */
+  .editorial-library
+    .editorial-record-table
+    :is(th, td):nth-child(n + 2):nth-last-child(n + 2) {
+    display: none;
+  }
+  .editorial-library .editorial-mobile-status {
+    display: flex;
+  }
+  .editorial-library .editorial-record-table {
+    min-width: 0 !important;
+  }
+  .editorial-library .editorial-record-table th:first-child {
+    width: auto !important;
+    min-width: 0 !important;
+  }
+}
 @media (max-width: 640px) {
   .editorial-library-toolbar > .astryx-field {
     flex-basis: 100%;
@@ -1133,19 +1251,6 @@ body:has(.editorial-workspace-shell) {
   .editorial-library-filters {
     width: 100%;
     gap: var(--spacing-2);
-  }
-  .editorial-library .editorial-record-table th:nth-child(2),
-  .editorial-library .editorial-record-table td:nth-child(2),
-  .editorial-library .editorial-record-table th:nth-child(3),
-  .editorial-library .editorial-record-table td:nth-child(3) {
-    display: none;
-  }
-  .editorial-library .editorial-mobile-status {
-    display: flex;
-  }
-  .editorial-library .editorial-record-table th:first-child {
-    width: auto !important;
-    min-width: 0 !important;
   }
   .editorial-record-action {
     min-width: var(--spacing-11);
