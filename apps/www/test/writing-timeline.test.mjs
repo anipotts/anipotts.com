@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  CLIP_BOUND,
   CLOSE_EASE,
   OPEN_EASE,
   curveOf,
@@ -68,7 +69,10 @@ test("open stages follow the spec rows", () => {
       `${target} ${property}`,
     );
   assert.deepEqual(
-    [find(stages, "waves", "opacity").from, find(stages, "waves", "opacity").to],
+    [
+      find(stages, "waves", "opacity").from,
+      find(stages, "waves", "opacity").to,
+    ],
     [1, 0.75],
   );
   assert.equal(timelineEnd(stages), 680);
@@ -221,4 +225,15 @@ test("fade and exit keep their documented shapes", () => {
       ["exit-waves", "slide", 0, 550],
     ],
   );
+});
+
+test("every layer that travels with the surface is clip bound", () => {
+  for (const direction of ["open", "close"]) {
+    const moving = timeline(direction)
+      .filter((s) => s.property === "transform")
+      .map((s) => s.target);
+    for (const target of moving) assert.ok(CLIP_BOUND.includes(target), target);
+  }
+  for (const target of ["surface", "ghost", "paper", "body", "hero"])
+    assert.ok(!CLIP_BOUND.includes(target), target);
 });

@@ -389,6 +389,7 @@ export function surfaceLayers(
 export function textLayers(
   outgoing: (Word | null)[],
   incoming: (Word | null)[],
+  surface: HTMLElement,
 ) {
   const { IDENTITY, placement } = timeline;
   const layers: [string, HTMLElement, [string, string]][] = [];
@@ -398,7 +399,7 @@ export function textLayers(
     const make = (word: Word, layer: string) => {
       const { x, y, width } = word.box;
       const style = boxStyle({ x, y, width: width + 1 }) + word.style;
-      const el = overlay(document.body, "writing-transition-word", style);
+      const el = overlay(surface, "writing-transition-word", style);
       el.dataset.layer = layer;
       el.textContent = word.text;
       return el;

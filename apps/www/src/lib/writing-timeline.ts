@@ -231,6 +231,17 @@ export function placement(dx: number, dy: number, sx: number, sy = sx) {
  * keyframe before starting and leave no style behind once finished. */
 export const LIVE_TARGETS: readonly Target[] = ["back", "body", "hero", "main"];
 
+/** Layers that travel against the surface clip edge. */
+export const CLIP_BOUND: readonly Target[] = [
+  "waves",
+  "title-out",
+  "title-in",
+  "summary-out",
+  "summary-in",
+  "date-out",
+  "date-in",
+];
+
 /** Web Animation keyframes for a stage. Geometry stages need the source and
  * destination values for their target; path stages have none. */
 export function stageKeyframes(

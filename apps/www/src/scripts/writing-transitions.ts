@@ -177,7 +177,11 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
       add("surface", layers.surface);
       add("paper", layers.paper);
       add("waves", layers.wrapper);
-      for (const [name, el, move] of capture.textLayers(outWords, inWords)) {
+      // Text travels inside the surface: when the clip, sampled on the main
+      // thread, trails the composited text, the text is clipped with the
+      // card rather than drawn over the old page.
+      const text = capture.textLayers(outWords, inWords, layers.surface);
+      for (const [name, el, move] of text) {
         overlays.push(el);
         add(name, el);
         geometry.set(name, move);
@@ -221,6 +225,7 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
     let primary: Animation | undefined;
     let primaryEnd = -1;
     let surfaceClock: Animation | undefined;
+    const bound: Animation[] = [];
     for (const stage of stages) {
       const keyframes = timeline.stageKeyframes(
         stage,
@@ -236,6 +241,7 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
           fill: live ? "backwards" : "both",
         });
         (live ? lingering : animations).push(animation);
+        if (timeline.CLIP_BOUND.includes(stage.target)) bound.push(animation);
         if (stage.target === "surface") surfaceClock ??= animation;
         // The last stage to end keys the handoff.
         const end = delay + duration;
@@ -243,14 +249,16 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
           [primary, primaryEnd] = [animation, end];
       }
     }
-    // After a quick swap, one shared start at the end of this task, so the
-    // first painted frame already moves. After a slow one, the first frame
-    // is late and the main-thread clip would trail the composited text and
-    // waves by that much; a pending start lets the engine start them all
-    // together on the frame they first appear.
+    // One shared start at the end of this task rather than a pending start
+    // resolved at the next frame, so the first painted frame already moves.
     const start = performance.now();
-    if (start - swapAt < 16)
-      for (const a of [...animations, ...lingering]) a.startTime = start;
+    for (const a of [...animations, ...lingering]) a.startTime = start;
+    // The clip samples on the main thread. After a slow swap the frames that
+    // follow run late and it trails the composited text and waves by about
+    // as long as the swap took; opening layers that travel outward start
+    // that much later, so they never overtake the clip edge.
+    const lag = Math.min(50, start - swapAt - 16);
+    if (opening && lag > 0) for (const a of bound) a.startTime = start + lag;
     let done = false;
     let frame = 0;
     const finish = (focus: boolean) => {
