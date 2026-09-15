@@ -19,8 +19,8 @@ test("constants match the approved spec table", () => {
   const cases = [
     ["open", false, 420, 319, 50, OPEN_EASE],
     ["open", true, 357, 271, 43, OPEN_EASE],
-    ["close", false, 380, 289, 50, CLOSE_EASE],
-    ["close", true, 323, 245, 43, CLOSE_EASE],
+    ["close", false, 380, 289, 0, CLOSE_EASE],
+    ["close", true, 323, 245, 0, CLOSE_EASE],
   ];
   for (const [direction, phone, D, travel, stagger, ease] of cases) {
     const stages = timeline(direction, phone);
@@ -31,6 +31,7 @@ test("constants match the approved spec table", () => {
     assert.equal(surfaceDuration(direction, phone), D);
     assert.equal(find(stages, "title-out", "transform").duration, travel);
     assert.equal(find(stages, "summary-in", "transform").delay, stagger);
+    assert.equal(find(stages, "title-in", "transform").delay, 0);
     for (const target of ["waves", "morph"])
       assert.equal(
         stages.find((s) => s.target === target).duration,
@@ -124,6 +125,7 @@ test("outgoing text ends before incoming text starts", () => {
         ["title-out", "title-in"],
         ["summary-out", "summary-in"],
         ["summary-out", "title-in"],
+        ["title-out", "summary-in"],
         ["date-out", "date-in"],
       ];
       for (const [a, b] of pairs) {

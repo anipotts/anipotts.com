@@ -167,8 +167,12 @@ export function writingTimeline(options: TimelineOptions): Stage[] {
   else add("paper", "opacity", D * 0.4, D * 0.6, EASE_OUT, 0, 1);
   add("ghost", "opacity", 0, D * (open ? 0.55 : 0.5), EASE_OUT, 1, 0);
 
+  // Open: the title leads and the summary follows one beat later. Close:
+  // both travel together. The title travels farther down than the summary,
+  // so any lag between them lets one layer run into the other, and a late
+  // title is still oversized when the card date fades in beside it.
   (["title", "summary"] as const).forEach((text, index) => {
-    const start = index * TEXT_STAGGER;
+    const start = open ? index * TEXT_STAGGER : 0;
     const out = `${text}-out` as const;
     const incoming = `${text}-in` as const;
     add(out, "transform", start, travel, ease, 0, 1);
@@ -199,4 +203,48 @@ export function writingTimeline(options: TimelineOptions): Stage[] {
     add("hero", "opacity", D * 0.6, D * 0.4, EASE_OUT, 0, 1);
   }
   return stages;
+}
+
+type Rect = { left: number; top: number; right: number; bottom: number };
+const px = (v: number) => `${Math.round(v * 100) / 100}px`;
+const ratio = (v: number) => String(Math.round(v * 100000) / 100000);
+
+export const FULL_CLIP = "inset(0px 0px 0px 0px round 0px)";
+export const IDENTITY = "translate(0px, 0px) scale(1, 1)";
+
+/** clip-path that shows only `rect` inside a viewport of the given size. */
+export function insetClip(
+  rect: Rect,
+  width: number,
+  height: number,
+  radius: string,
+) {
+  return `inset(${px(rect.top)} ${px(width - rect.right)} ${px(height - rect.bottom)} ${px(rect.left)} round ${radius})`;
+}
+
+/** Transform (origin 0 0) that moves by dx, dy and scales by sx, sy. */
+export function placement(dx: number, dy: number, sx: number, sy = sx) {
+  return `translate(${px(dx)}, ${px(dy)}) scale(${ratio(sx)}, ${ratio(sy)})`;
+}
+
+/** Stages whose target is live page content: they only hold their first
+ * keyframe before starting and leave no style behind once finished. */
+export const LIVE_TARGETS: readonly Target[] = ["back", "body", "hero", "main"];
+
+/** Web Animation keyframes for a stage. Geometry stages need the source and
+ * destination values for their target; path stages have none. */
+export function stageKeyframes(
+  stage: Stage,
+  geometry?: readonly [string, string],
+): Keyframe[] | null {
+  const { property, from, to } = stage;
+  if (property === "opacity") return [{ opacity: from }, { opacity: to }];
+  if (property === "rise")
+    return [
+      { opacity: 0, transform: `translateY(${from}px)` },
+      { opacity: 1, transform: `translateY(${to}px)` },
+    ];
+  if (property === "path" || !geometry) return null;
+  const key = property === "clip" ? "clipPath" : "transform";
+  return [{ [key]: geometry[from] }, { [key]: geometry[to] }];
 }

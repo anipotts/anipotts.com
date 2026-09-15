@@ -668,6 +668,38 @@ html[data-navigation-settled] [data-rise] {
 .writing-card:active {
   box-shadow: var(--paper-shadow);
 }
+.writing-transition-surface {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+  will-change: clip-path;
+}
+.writing-transition-fill {
+  position: absolute;
+  inset: 0;
+  will-change: opacity;
+}
+.writing-transition-waves {
+  position: absolute;
+  overflow: hidden;
+  transform-origin: 0 0;
+  will-change: transform, opacity;
+}
 .writing-transition-word {
+  position: fixed;
+  z-index: 300;
+  margin: 0;
+  pointer-events: none;
   font-synthesis: none;
+  transform-origin: 0 0;
+  will-change: transform, opacity;
+}
+.writing-transition-slide {
+  position: fixed;
+  z-index: 0;
+  pointer-events: none;
+  will-change: transform;
 }
