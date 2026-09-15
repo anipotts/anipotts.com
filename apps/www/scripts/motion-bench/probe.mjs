@@ -4,16 +4,20 @@
 //   and dates they stand in for) that intersect while both sit above 0.3
 //   opacity and are not hidden under the opaque surface;
 // - frames where the wave wrapper box leaves the surface clip box;
+// - frames where a visible morph layer carries a straight horizontal edge
+//   (10 or more neighbouring columns inside the canvas within half a unit);
 // and after the step settles: overlays left, inline-hidden elements, running
 // animations, the transition flag and where focus landed.
 // Usage: BASE=http://127.0.0.1:8860 OUT=/tmp/bench/probe node probe.mjs
 import { mkdirSync, writeFileSync } from "node:fs";
-import { chromium, option, profiles, runSteps } from "./common.mjs";
+import { chromium, option, profiles, runSteps, webkit } from "./common.mjs";
 
 const BASE = option("BASE");
 const OUT = option("OUT");
 const THEME = option("THEME", "dark");
-const result = { base: BASE, theme: THEME };
+// ENGINE=webkit runs the same probe in WebKit, without CPU throttling.
+const ENGINE = option("ENGINE", "chromium");
+const result = { base: BASE, theme: THEME, engine: ENGINE };
 
 function install() {
   const texts = [
@@ -31,9 +35,11 @@ function install() {
     animated: 0,
     collisions: [],
     outside: [],
+    flat: [],
     start: performance.now(),
   };
   window.__probe = probe;
+  let watched = null;
   const opacity = (el) => {
     if (getComputedStyle(el).visibility !== "visible") return 0;
     let o = 1;
@@ -65,17 +71,57 @@ function install() {
     const mainAbove = main && Number(getComputedStyle(main).zIndex) > 200;
     if (document.documentElement.dataset.writingTransition) probe.animated++;
     const wrapper = document.querySelector(".writing-transition-waves");
-    if (wrapper && clip) {
-      const w = wrapper.getBoundingClientRect();
-      if (!inside(w, clip))
-        probe.outside.push({
-          t,
-          wrapper: [w.left, w.top, w.right, w.bottom].map((v) => +v.toFixed(1)),
-          clip: [clip.left, clip.top, clip.right, clip.bottom].map(
-            (v) => +v.toFixed(1),
-          ),
-        });
+    // The wrapper's transform is written on the surface clock inside the
+    // page's own frame callback, which can run after this one: compare it
+    // with the clip in the same frame, as soon as it is written.
+    if (wrapper && wrapper !== watched) {
+      watched = wrapper;
+      const check = () => {
+        const s = document.querySelector(".writing-transition-surface");
+        const c = s && insetBox(getComputedStyle(s).clipPath);
+        if (!c || !wrapper.isConnected) return;
+        const w = wrapper.getBoundingClientRect();
+        if (!inside(w, c))
+          probe.outside.push({
+            t: +(performance.now() - probe.start).toFixed(0),
+            wrapper: [w.left, w.top, w.right, w.bottom].map(
+              (v) => +v.toFixed(1),
+            ),
+            clip: [c.left, c.top, c.right, c.bottom].map((v) => +v.toFixed(1)),
+          });
+      };
+      new MutationObserver(check).observe(wrapper, {
+        attributes: true,
+        attributeFilter: ["style"],
+      });
+      check();
     }
+    wrapper?.querySelectorAll("path").forEach((path, index) => {
+      const shown =
+        Number(path.getAttribute("opacity") ?? 1) *
+        Number(getComputedStyle(wrapper).opacity);
+      if (shown < 0.02) return;
+      const d = path.getAttribute("d") || "";
+      for (const run of d.slice(1, -1).split("L")) {
+        const numbers = run.match(/-?[\d.]+/g)?.map(Number) ?? [];
+        // Column points: the start, then every curve's end point.
+        const ys = [numbers[1]];
+        for (let i = 2; i + 5 < numbers.length + 1; i += 6)
+          ys.push(numbers[i + 5]);
+        let longest = 1;
+        for (let i = 0; i < ys.length; i++)
+          for (let j = i; j < ys.length; j++) {
+            const part = ys.slice(i, j + 1);
+            if (!part.every((y) => y > 0 && y < 800)) break;
+            if (Math.max(...part) - Math.min(...part) >= 0.5) break;
+            longest = Math.max(longest, part.length);
+          }
+        if (longest >= 10) {
+          probe.flat.push({ t, layer: index, columns: longest });
+          break;
+        }
+      }
+    });
     const layers = [];
     document.querySelectorAll(".writing-transition-word").forEach((el) =>
       layers.push({
@@ -128,12 +174,16 @@ function install() {
   requestAnimationFrame(tick);
 }
 
-const browser = await chromium.launch({ headless: true });
+const browser = await (ENGINE === "webkit" ? webkit : chromium).launch({
+  headless: true,
+});
 for (const p of profiles(THEME)) {
   const context = await browser.newContext(p.context);
   const page = await context.newPage();
-  const cdp = await context.newCDPSession(page);
-  await cdp.send("Emulation.setCPUThrottlingRate", { rate: p.cpu });
+  if (ENGINE === "chromium") {
+    const cdp = await context.newCDPSession(page);
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate: p.cpu });
+  }
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
@@ -173,6 +223,8 @@ for (const p of profiles(THEME)) {
       animatedFrames: probe.animated,
       collisionFrames: new Set(probe.collisions.map((c) => c.t)).size,
       outsideFrames: probe.outside.length,
+      flatEdgeFrames: new Set(probe.flat.map((f) => f.t)).size,
+      flat: probe.flat.slice(0, 20),
       collisions: probe.collisions.slice(0, 20),
       outside: probe.outside.slice(0, 20),
       after,
@@ -181,7 +233,7 @@ for (const p of profiles(THEME)) {
     console.log(
       p.name,
       label,
-      `frames ${row.frames} animated ${row.animatedFrames} collisions ${row.collisionFrames} outside ${row.outsideFrames} overlays ${after.overlays} hidden ${after.hidden} running ${after.running} focus ${after.focus}`,
+      `frames ${row.frames} animated ${row.animatedFrames} collisions ${row.collisionFrames} outside ${row.outsideFrames} flat ${row.flatEdgeFrames} overlays ${after.overlays} hidden ${after.hidden} running ${after.running} focus ${after.focus}`,
     );
   }
   await runSteps(page, p.tap, capture);

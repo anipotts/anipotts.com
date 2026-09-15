@@ -7,7 +7,7 @@ const require = createRequire(
   process.env.PLAYWRIGHT_FROM ||
     new URL("../../../admin/package.json", import.meta.url),
 );
-export const { chromium, devices } = require("@playwright/test");
+export const { chromium, devices, webkit } = require("@playwright/test");
 
 const desktopAgent =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36";

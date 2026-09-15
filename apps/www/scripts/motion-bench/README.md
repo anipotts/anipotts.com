@@ -30,14 +30,14 @@ BASE_URL=http://127.0.0.1:8861 PR_URL=http://127.0.0.1:8860 OUT=/tmp/bench \
 
 ## scripts
 
-| script        | output                                                                                                                                         |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `record.mjs`  | per step: click to first motion, click to settled, frame intervals, long tasks, screencast frames                                              |
-| `table.mjs`   | `table.txt` and `table.json`: every run, per-step ranges and the acceptance checks                                                             |
-| `sheet.mjs`   | contact sheets per profile and step, times relative to the click or tap                                                                        |
-| `probe.mjs`   | per frame: text layers above 0.3 opacity that intersect, wave wrapper outside the surface clip; after settle: overlays, hidden elements, focus |
-| `checks.mjs`  | height-only resize, width resize, stalled animations, reduced motion, light theme, exit to a non-writing page, back mid-flight, frozen tab     |
-| `profile.mjs` | CPU profile of the open and close taps, aggregated by function                                                                                 |
+| script        | output                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `record.mjs`  | per step: click to first motion, click to settled, frame intervals, long tasks, screencast frames                                                                                                                                                                                                                                                                       |
+| `table.mjs`   | `table.txt` and `table.json`: every run, per-step ranges and the acceptance checks                                                                                                                                                                                                                                                                                      |
+| `sheet.mjs`   | contact sheets per profile and step, times relative to the click or tap                                                                                                                                                                                                                                                                                                 |
+| `probe.mjs`   | per frame: text layers above 0.3 opacity that intersect, wave wrapper outside the surface clip, straight horizontal edges in the wave morph; after settle: overlays, hidden elements, focus. `ENGINE=webkit` runs it in WebKit                                                                                                                                          |
+| `checks.mjs`  | height-only and width resizes (mid-flight and before the swap), stalled animations, reduced motion (set and switched on mid-flight), light theme, exit to a non-writing page, back mid-flight, frozen tab, focus moved mid-flight, return to an off-screen card, scrolled article to article, ghost text styles with and without adoptedStyleSheets, WebKit focus rings |
+| `profile.mjs` | CPU profile of the open and close taps, aggregated by function                                                                                                                                                                                                                                                                                                          |
 
 ## steps and profiles
 

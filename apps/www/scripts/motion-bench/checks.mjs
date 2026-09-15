@@ -4,7 +4,7 @@
 // navigation mid-flight and a hidden tab. Usage:
 //   BASE=http://127.0.0.1:8860 OUT=/tmp/bench/checks node checks.mjs
 import { mkdirSync, writeFileSync } from "node:fs";
-import { chromium, devices, option } from "./common.mjs";
+import { chromium, devices, option, webkit } from "./common.mjs";
 
 const BASE = option("BASE");
 const OUT = option("OUT");
@@ -33,18 +33,33 @@ const state = (page) =>
         : null,
     };
   });
-async function session(name, options, run) {
-  const context = await browser.newContext({
+// Holds the next navigation's swap back while the outgoing copy is mounted.
+// Delaying the response at the network layer instead crashes wrangler dev.
+const delaySwap = (ms) =>
+  document.addEventListener(
+    "astro:before-preparation",
+    (event) => {
+      const load = event.loader;
+      event.loader = async () => {
+        await new Promise((resolve) => setTimeout(resolve, ms));
+        await load();
+      };
+    },
+    { once: true },
+  );
+async function session(name, options, run, engine = browser) {
+  const context = await engine.newContext({
     viewport: { width: 1280, height: 800 },
     colorScheme: "dark",
     ...options,
   });
+  if (options.init) await context.addInitScript(options.init);
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
   const theme = options.colorScheme || "dark";
-  await page.goto(`${BASE}/writing?theme=${theme}`, {
+  await page.goto(`${BASE}${options.start || "/writing"}?theme=${theme}`, {
     waitUntil: "networkidle",
   });
   await page.waitForTimeout(900);
@@ -143,6 +158,243 @@ await session("hidden-tab-mid-open", {}, async (page) => {
   await page.waitForTimeout(800);
   return { after: await state(page) };
 });
+// Focus the visitor moves during the motion stays where they put it.
+await session("tab-mid-open", {}, async (page) => {
+  await page.focus("main a.writing-card");
+  await page.keyboard.press("Enter");
+  await page.waitForFunction(() => location.pathname !== "/writing");
+  await page.waitForTimeout(90);
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const moved = await state(page);
+  await page.waitForTimeout(1200);
+  const after = await state(page);
+  return { moved: moved.focus, after, kept: moved.focus === after.focus };
+});
+await session("theme-toggle-mid-open", {}, async (page) => {
+  await page.click("main a.writing-card");
+  await page.waitForFunction(() => location.pathname !== "/writing");
+  await page.waitForTimeout(90);
+  await page.focus("#theme-toggle");
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(1200);
+  const after = await state(page);
+  return {
+    after,
+    kept:
+      after.focus === "button theme-toggle" || /theme-toggle/.test(after.focus),
+  };
+});
+// Reduced motion switched on mid-open still lands focus on the h1.
+await session("reduced-motion-change-mid-open", {}, async (page) => {
+  await page.click("main a.writing-card");
+  await page.waitForFunction(
+    () => document.documentElement.dataset.writingTransition,
+  );
+  await page.waitForTimeout(60);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.waitForTimeout(1000);
+  const after = await state(page);
+  return { after, h1: after.focus === "h1 title" };
+});
+// The viewport width changes while the destination loads: no motion runs
+// on geometry read from the old layout.
+await session("width-before-swap", {}, async (page) => {
+  await page.evaluate(delaySwap, 400);
+  await page.evaluate(() => {
+    window.__flags = [];
+    new MutationObserver(() =>
+      window.__flags.push(document.documentElement.dataset.writingTransition),
+    ).observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-writing-transition"],
+    });
+  });
+  await page.click("main a.writing-card");
+  await page.waitForTimeout(100);
+  await page.setViewportSize({ width: 1000, height: 800 });
+  await page.waitForTimeout(1500);
+  const after = await state(page);
+  const flags = await page.evaluate(() => window.__flags);
+  return { after, flags, motionRan: flags.some(Boolean) };
+});
+// Back link from an article loaded directly: the card is brought into view
+// and focused.
+await session(
+  "offscreen-return-focus",
+  {
+    ...devices["iPhone 13"],
+    start: "/writing/stop-ending-your-day-with-fix-the-bug",
+  },
+  async (page) => {
+    await page.tap(".back");
+    await page.waitForTimeout(1400);
+    const after = await state(page);
+    const card = await page.evaluate(() => {
+      const r = document.activeElement.getBoundingClientRect();
+      return {
+        top: r.top,
+        bottom: r.bottom,
+        innerHeight,
+        onScreen: r.bottom > 0 && r.top < innerHeight,
+      };
+    });
+    return { after, card };
+  },
+);
+// The open from the more-writing list while scrolled: the persisted nav
+// arrives with the page instead of standing over the old copy.
+await session("scrolled-article-to-article", {}, async (page) => {
+  await page.click("main a.writing-card");
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => {
+    const el = document.querySelector(".more-writing a.writing-card");
+    scrollBy(0, el.getBoundingClientRect().top - innerHeight / 3);
+  });
+  await page.waitForTimeout(600);
+  await page.evaluate(() => {
+    window.__nav = [];
+    const tick = () => {
+      if (document.documentElement.dataset.writingTransition) {
+        const nav = document.querySelector("header.nav");
+        let o = 1;
+        for (let n = nav; n && n.nodeType === 1; n = n.parentElement)
+          o *= Number(getComputedStyle(n).opacity);
+        const frame = document.querySelector(".writing-transition-ghost");
+        const scope =
+          frame?.firstElementChild?.shadowRoot || frame?.firstElementChild;
+        window.__nav.push({
+          top: nav.getBoundingClientRect().top,
+          opacity: +o.toFixed(2),
+          ghostFooter: !!scope?.querySelector("footer.foot"),
+        });
+      }
+      if (window.__nav.length < 40) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  await page.click(".more-writing a.writing-card");
+  await page.waitForTimeout(1200);
+  const frames = await page.evaluate(() => window.__nav);
+  const early = frames.slice(0, 5);
+  return {
+    after: await state(page),
+    early,
+    navCoversCopy: early.some((f) => f.opacity > 0.3),
+  };
+});
+// Engines without adoptedStyleSheets: the light-DOM copy resolves the same
+// text styles as the live page it stands in for.
+const PROPS = ["fontFamily", "fontSize", "lineHeight", "color"];
+const lightDom = () => {
+  delete ShadowRoot.prototype.adoptedStyleSheets;
+  delete Document.prototype.adoptedStyleSheets;
+};
+for (const [name, init] of [
+  ["ghost-styles-native", undefined],
+  ["ghost-styles-light-dom", lightDom],
+])
+  await session(name, { init }, async (page) => {
+    const read = (selectors, props, inGhost) => {
+      const frame = document.querySelector(".writing-transition-ghost");
+      const host = frame?.firstElementChild;
+      const root = inGhost ? host?.shadowRoot || host : document;
+      return Object.fromEntries(
+        selectors.map((s) => {
+          const el = root?.querySelector(s);
+          if (!el) return [s, null];
+          const cs = getComputedStyle(el);
+          return [s, props.map((p) => cs[p]).join(" | ")];
+        }),
+      );
+    };
+    const diff = (live, ghost) =>
+      Object.keys(live).filter((k) => live[k] !== ghost[k]);
+    const listing = [
+      "main .page-hero__summary",
+      "main a.writing-card .title",
+      "main a.writing-card .sub",
+    ];
+    const liveListing = await page.evaluate(
+      ([s, p, fn]) => eval(`(${fn})`)(s, p, false),
+      [listing, PROPS, read.toString()],
+    );
+    await page.evaluate(delaySwap, 500);
+    await page.click("main a.writing-card");
+    await page.waitForSelector(".writing-transition-ghost", {
+      state: "attached",
+    });
+    const openGhost = await page.evaluate(
+      ([s, p, fn]) => eval(`(${fn})`)(s, p, true),
+      [listing, PROPS, read.toString()],
+    );
+    await page.waitForTimeout(1500);
+    const article = [
+      "[data-writing-article] .article-body p",
+      "[data-writing-article] > header .back",
+    ];
+    const liveArticle = await page.evaluate(
+      ([s, p, fn]) => eval(`(${fn})`)(s, p, false),
+      [article, PROPS, read.toString()],
+    );
+    await page.evaluate(delaySwap, 500);
+    await page.click(".back");
+    await page.waitForSelector(".writing-transition-ghost", {
+      state: "attached",
+    });
+    const closeGhost = await page.evaluate(
+      ([s, p, fn]) => eval(`(${fn})`)(s, p, true),
+      [article, PROPS, read.toString()],
+    );
+    await page.waitForTimeout(1200);
+    return {
+      after: await state(page),
+      openDiff: diff(liveListing, openGhost),
+      closeDiff: diff(liveArticle, closeGhost),
+      liveListing,
+      openGhost,
+      liveArticle,
+      closeGhost,
+    };
+  });
 await browser.close();
+// WebKit: a tap or click navigation lands focus without a focus ring, in
+// both themes; keyboard navigation keeps it.
+let wk;
+try {
+  wk = await webkit.launch({ headless: true });
+} catch (error) {
+  report["webkit-focus-ring"] = { skipped: String(error).split("\n")[0] };
+}
+if (wk) {
+  for (const theme of ["light", "dark"])
+    await session(
+      `webkit-focus-ring-${theme}`,
+      { colorScheme: theme },
+      async (page) => {
+        const ring = () =>
+          page.evaluate(() => {
+            const a = document.activeElement;
+            const cs = getComputedStyle(a);
+            return {
+              active: `${a.tagName.toLowerCase()} ${a.getAttribute("href") || a.className}`,
+              outline:
+                cs.outlineStyle === "none"
+                  ? "none"
+                  : `${cs.outlineStyle} ${cs.outlineWidth}`,
+            };
+          });
+        await page.click("main a.writing-card");
+        await page.waitForTimeout(1400);
+        const open = await ring();
+        await page.click(".back");
+        await page.waitForTimeout(1200);
+        const close = await ring();
+        return { open, close };
+      },
+      wk,
+    );
+  await wk.close();
+}
 mkdirSync(OUT, { recursive: true });
 writeFileSync(`${OUT}/checks.json`, JSON.stringify(report, null, 1));
