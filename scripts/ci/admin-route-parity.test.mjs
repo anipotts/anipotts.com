@@ -107,9 +107,9 @@ const publicPasskeyApiPaths = extractStringList(
   "PUBLIC_PASSKEY_API_PATHS",
 );
 const publicPrefixes = extractStringList(accessPolicySource, "PUBLIC_PREFIXES");
-const devLoopbackOrigins = extractStringList(
+const loopbackHostnames = extractStringList(
   accessPolicySource,
-  "DEV_LOOPBACK_ORIGINS",
+  "LOOPBACK_HOSTNAMES",
 );
 const devLoopbackPreviewPaths = extractStringList(
   accessPolicySource,
@@ -169,10 +169,7 @@ assert.deepEqual(publicPasskeyApiPaths, [
   "/api/admin/recovery/google/start",
 ]);
 assert.deepEqual(publicPrefixes, ["/_astro/", "/assets/"]);
-assert.deepEqual(devLoopbackOrigins, [
-  "http://127.0.0.1:4311",
-  "http://localhost:4311",
-]);
+assert.deepEqual(loopbackHostnames, ["127.0.0.1", "[::1]", "localhost"]);
 assert.deepEqual(devLoopbackPreviewPaths, [
   "/",
   "/content",
@@ -206,16 +203,14 @@ assert.deepEqual(devLoopbackPreviewPaths, [
 ]);
 assert.deepEqual(devPreviewAssetPaths, ["/@react-refresh"]);
 assert.deepEqual(devPreviewAssetPrefixes, ["/@id/", "/@vite/", "/src/"]);
+assert.ok(
+  !/anipotts\\?\.localhost/.test(accessPolicySource),
+  "the dev preview must not trust named localhost hosts",
+);
 assert.match(
   accessPolicySource,
-  /DEV_PORTLESS_HOST_PATTERN[\s\S]*admin\\\.anipotts\\\.localhost/,
-  "Portless preview must match only the exact Admin localhost suffix",
-);
-assert.ok(
-  accessPolicySource.includes(
-    'url.protocol === "http:" && url.port === "1355"',
-  ),
-  "rootless Portless preview must stay pinned to HTTP port 1355",
+  /url\.protocol === "http:" &&\s*LOOPBACK_HOSTNAMES\.has\(url\.hostname\)/,
+  "the dev preview must accept only plain HTTP loopback origins",
 );
 assert.ok(
   middlewareSource.includes("isDev: import.meta.env.DEV"),

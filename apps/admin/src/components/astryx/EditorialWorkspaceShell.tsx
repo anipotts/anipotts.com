@@ -47,6 +47,7 @@ import {
   CaretDownIcon,
   CaretUpIcon,
   ArrowUpRightIcon,
+  ListIcon,
   LaptopIcon,
 } from "@phosphor-icons/react";
 import { AdminCommandPalette } from "./AdminCommandPalette";
@@ -119,19 +120,9 @@ const workspaceIcons = {
   life: IdentificationCardIcon,
 };
 
-/** AppShell reuses this slot in its fixed-height mobile topbar and drawer. */
-export function WorkspaceIdentity({
-  collapsed = false,
-  workspace = "content",
-  siteHref = "https://anipotts.com",
-}: {
-  collapsed?: boolean;
-  workspace?: Workspace;
-  siteHref?: string;
-}) {
-  const { isMobile } = useAppShellMobile();
-  const compact = collapsed && !isMobile;
-  const WorkspaceIcon = workspaceIcons[workspace];
+/** Where each workspace menu item leads: the last page visited in that
+ * workspace this session, or its home. */
+function useWorkspaceDestinations(workspace: Workspace) {
   const [destinations, setDestinations] = useState<Record<Workspace, string>>({
     content: "/content",
     operations: "/operations/observability",
@@ -169,6 +160,90 @@ export function WorkspaceIdentity({
       window.removeEventListener("editorial:library-state", sync);
     };
   }, [workspace]);
+  return destinations;
+}
+
+function WorkspaceMenu({
+  workspace,
+  compact,
+}: {
+  workspace: Workspace;
+  compact: boolean;
+}) {
+  const destinations = useWorkspaceDestinations(workspace);
+  const WorkspaceIcon = workspaceIcons[workspace];
+  return (
+    <SidebarMenu
+      className="admin-workspace-selector"
+      name="Workspace"
+      label={workspaces[workspace].label}
+      accessibleLabel={`Switch workspace: ${workspaces[workspace].label}`}
+      icon={<WorkspaceIcon size={18} aria-hidden="true" />}
+      compact={compact}
+      opens="below"
+      value={workspace}
+      options={(Object.keys(workspaces) as Workspace[]).map((key) => ({
+        value: key,
+        label: workspaces[key].label,
+      }))}
+      onChange={(key) => {
+        if (key !== workspace) navigateAdmin(destinations[key as Workspace]);
+      }}
+    />
+  );
+}
+
+/** The phone and tablet header. It sits in AppShell's banner slot, which the
+ * server writes on every document, and CSS shows it at the drawer breakpoint
+ * (AppShell md, 768px and below). Nothing about it waits for hydration, so it
+ * is on screen from the first paint of every page and never flickers between
+ * workspaces or tabs. The menu button opens AppShell's own drawer. */
+export function WorkspaceTopBar({ workspace }: { workspace: Workspace }) {
+  const { isMobile, isMobileNavOpen, mobileNavId, openMobileNav } =
+    useAppShellMobile();
+  return (
+    <HStack
+      className="admin-mobile-header"
+      gap={3}
+      hAlign="between"
+      vAlign="center"
+    >
+      <HStack gap={3} vAlign="center" className="admin-mobile-header-identity">
+        <span className="admin-bracket-wordmark" aria-label="Admin">
+          <span aria-hidden="true">[</span>admin
+          <span aria-hidden="true">]</span>
+        </span>
+        <WorkspaceMenu workspace={workspace} compact={false} />
+      </HStack>
+      <Button
+        className="admin-mobile-header-menu"
+        label="Open navigation"
+        isIconOnly
+        variant="ghost"
+        size="md"
+        icon={<ListIcon size={20} aria-hidden="true" />}
+        aria-expanded={isMobileNavOpen}
+        // The drawer exists only once the shell has hydrated at this width.
+        aria-controls={isMobile ? mobileNavId : undefined}
+        onClick={openMobileNav}
+      />
+    </HStack>
+  );
+}
+
+/** The sidebar header, in the desktop sidebar, the collapsed rail and the
+ * phone and tablet drawer. */
+export function WorkspaceIdentity({
+  collapsed = false,
+  workspace = "content",
+  siteHref = "https://anipotts.com",
+}: {
+  collapsed?: boolean;
+  workspace?: Workspace;
+  siteHref?: string;
+}) {
+  const { isMobile } = useAppShellMobile();
+  const compact = collapsed && !isMobile;
   return (
     <VStack
       className="editorial-workspace-identity approved-workspace-header"
@@ -208,23 +283,7 @@ export function WorkspaceIdentity({
           />
         )}
       </HStack>
-      <SidebarMenu
-        className="admin-workspace-selector"
-        name="Workspace"
-        label={workspaces[workspace].label}
-        accessibleLabel={`Switch workspace: ${workspaces[workspace].label}`}
-        icon={<WorkspaceIcon size={18} aria-hidden="true" />}
-        compact={compact}
-        opens="below"
-        value={workspace}
-        options={(Object.keys(workspaces) as Workspace[]).map((key) => ({
-          value: key,
-          label: workspaces[key].label,
-        }))}
-        onChange={(key) => {
-          if (key !== workspace) navigateAdmin(destinations[key as Workspace]);
-        }}
-      />
+      <WorkspaceMenu workspace={workspace} compact={compact} />
       {!isMobile && (
         <Button
           className="editorial-header-search"
@@ -504,7 +563,10 @@ export function EditorialWorkspaceShell({
         height="fill"
         variant={rail ? "section" : "wash"}
         contentPadding={0}
-        mobileNav={{ breakpoint: "md" }}
+        // Admin owns the phone and tablet header (see WorkspaceTopBar), so
+        // AppShell never swaps a bar in after hydration; its drawer stays.
+        mobileNav={{ breakpoint: "md", hasToggle: false }}
+        banner={<WorkspaceTopBar workspace={workspace} />}
         sideNav={
           <SideNav
             className="editorial-workspace-nav"
