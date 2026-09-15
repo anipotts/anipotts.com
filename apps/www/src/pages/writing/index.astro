@@ -13,12 +13,7 @@ if (!page) throw new Error("Missing canonical writing page");
 const copy = page.data;
 ---
 
-<Shell
-  title={copy.title}
-  description={copy.description}
-  path="/writing"
-  mood="drowsy"
->
+<Shell title={copy.title} description={copy.description} path="/writing">
   <PageHero title={copy.hero_title} summary={copy.hero_summary} />
 
   <section data-rise class="stack">
