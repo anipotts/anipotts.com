@@ -518,7 +518,17 @@ export function land(el: HTMLElement | null | undefined, keyboard: boolean) {
     const clear = () => delete el.dataset.pointerFocus;
     el.addEventListener("blur", clear, { once: true });
   }
-  el.focus({ preventScroll: true, focusVisible: keyboard } as FocusOptions);
+  const focus = () =>
+    el.focus({ preventScroll: true, focusVisible: keyboard } as FocusOptions);
+  focus();
+  // Focus does not take while style still reads the element hidden (inside
+  // a media query change, or a frame that has not restyled yet): try once
+  // more after the next style update.
+  if (document.activeElement !== el)
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (!active || active === document.body) focus();
+    });
   if (!onScreen(rect(el))) el.scrollIntoView({ block: "nearest" });
 }
 
