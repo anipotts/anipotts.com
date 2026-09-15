@@ -7,11 +7,42 @@
   font-display: swap;
 }
 
+/* Metric-matched local stand-ins for AP Structural while its woff2 loads, so
+ * the swap keeps the headline width and line breaks. size-adjust is the
+ * AP Structural to stand-in width ratio measured on every display heading of
+ * the built site at 390 and 1280 (fitted to the smallest worst-case width
+ * change with no line change on any page); the vertical overrides are
+ * AP Structural's own metrics (ascent 1900, descent 500, line gap 0 on a
+ * 2000 unit em) divided by that ratio. */
+@font-face {
+  font-family: "AP Structural Fallback";
+  src: local("Arial Black"), local("Arial-Black");
+  font-style: normal;
+  font-weight: 900;
+  size-adjust: 82.9%;
+  ascent-override: 114.6%;
+  descent-override: 30.16%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "AP Structural Fallback Neue";
+  src: local("Helvetica Neue Bold"), local("HelveticaNeue-Bold");
+  font-style: normal;
+  font-weight: 900;
+  size-adjust: 95.6%;
+  ascent-override: 99.37%;
+  descent-override: 26.15%;
+  line-gap-override: 0%;
+}
+
 :root {
   --font-interface:
     "Instrument Sans Variable", "Instrument Sans", -apple-system,
     BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-  --font-display: "AP Structural", "Urbanist", var(--font-interface);
+  --font-display:
+    "AP Structural", "AP Structural Fallback", "AP Structural Fallback Neue",
+    "Urbanist", var(--font-interface);
   --font-code:
     "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SF Mono", Menlo,
     monospace;
