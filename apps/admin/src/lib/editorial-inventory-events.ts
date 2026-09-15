@@ -8,6 +8,7 @@ import {
   type EditorialRecord,
 } from "@anipotts/content/editorial/source";
 export const RECORD_SAVED_EVENT = "editorial:record-saved";
+export const RECORD_CREATED_EVENT = "editorial:record-created";
 export type EditorialRecordSaved = {
   record: EditorialRecord;
   title: string;
@@ -16,7 +17,25 @@ export type EditorialRecordSaved = {
   updatedAt: string;
   changesPending: boolean;
   intendedVisibility?: string;
+  /** Set when this revision reached the website. The row stops showing
+   * pending changes and takes the published time. */
+  publishedAt?: string;
 };
+export type EditorialRecordCreated = {
+  record: Extract<EditorialRecord, { kind: "writing" }>;
+  title: string;
+  summary: string;
+  revision: number;
+  updatedAt: string;
+};
+function isoTime(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}T/.test(value) &&
+    value.length <= 64 &&
+    Number.isFinite(Date.parse(value))
+  );
+}
 export function parseEditorialRecordSaved(
   value: unknown,
 ): EditorialRecordSaved | null {
@@ -32,14 +51,13 @@ export function parseEditorialRecordSaved(
     item.summary.length > 16000 ||
     !Number.isSafeInteger(item.revision) ||
     (item.revision as number) < 1 ||
-    typeof item.updatedAt !== "string" ||
-    !/^\d{4}-\d{2}-\d{2}T/.test(item.updatedAt) ||
-    item.updatedAt.length > 64 ||
-    !Number.isFinite(Date.parse(item.updatedAt)) ||
+    !isoTime(item.updatedAt) ||
     typeof item.changesPending !== "boolean" ||
     (item.intendedVisibility !== undefined &&
       (typeof item.intendedVisibility !== "string" ||
-        item.intendedVisibility.length > 64))
+        item.intendedVisibility.length > 64)) ||
+    (item.publishedAt !== undefined &&
+      (!isoTime(item.publishedAt) || item.changesPending))
   )
     return null;
   return {
@@ -52,7 +70,34 @@ export function parseEditorialRecordSaved(
     ...(typeof item.intendedVisibility === "string"
       ? { intendedVisibility: item.intendedVisibility }
       : {}),
+    ...(typeof item.publishedAt === "string"
+      ? { publishedAt: new Date(item.publishedAt).toISOString() }
+      : {}),
   };
+}
+export function parseEditorialRecordCreated(
+  value: unknown,
+): EditorialRecordCreated | null {
+  if (!value || typeof value !== "object") return null;
+  const item = value as Record<string, unknown>;
+  const saved = parseEditorialRecordSaved({ ...item, changesPending: true });
+  if (!saved || saved.record.kind !== "writing" || "publishedAt" in item)
+    return null;
+  return {
+    record: saved.record,
+    title: saved.title,
+    summary: saved.summary,
+    revision: saved.revision,
+    updatedAt: saved.updatedAt,
+  };
+}
+export function dispatchEditorialRecordCreated(
+  value: EditorialRecordCreated,
+): boolean {
+  const detail = parseEditorialRecordCreated(value);
+  if (!detail) return false;
+  window.dispatchEvent(new CustomEvent(RECORD_CREATED_EVENT, { detail }));
+  return true;
 }
 export function dispatchEditorialRecordSaved(
   value: EditorialRecordSaved,
@@ -122,19 +167,35 @@ export function applyEditorialRecordSaved(
   for (const item of current.searchEntries ?? [])
     if (item.domain === "content" && matchesHref(item.href, saved.record))
       matched.add(item.href);
+  // A newer revision always wins. The same revision applies once more only
+  // when it reaches the website, which clears its pending state.
+  const published = saved.publishedAt !== undefined;
   if (
     !matched.size ||
-    [...matched].some(
-      (href) => (current.revisions[href] ?? 0) >= saved.revision,
-    )
+    [...matched].some((href) => {
+      const known = current.revisions[href] ?? 0;
+      return published ? known > saved.revision : known >= saved.revision;
+    })
   )
     return current;
+  const publishedUpdated = published
+    ? { at: saved.publishedAt!, source: "git" as const }
+    : undefined;
+  const visibilityIsStatus =
+    saved.record.kind === "writing" || saved.record.kind === "work";
   const revisions = { ...current.revisions };
   for (const href of matched) revisions[href] = saved.revision;
+  const status = (item: { status: string }) =>
+    published && visibilityIsStatus && saved.intendedVisibility
+      ? saved.intendedVisibility
+      : item.status;
   const update = (item: CatalogRecord): CatalogRecord =>
     matched.has(item.href)
       ? {
           ...item,
+          ...(publishedUpdated
+            ? { status: status(item), publishedUpdated }
+            : {}),
           title: saved.title,
           summary: saved.summary,
           changesPending: saved.changesPending,
@@ -145,7 +206,7 @@ export function applyEditorialRecordSaved(
           intendedVisibility: saved.intendedVisibility,
           updated: saved.changesPending
             ? { at: saved.updatedAt, source: "private" }
-            : (item.publishedUpdated ?? item.updated),
+            : (publishedUpdated ?? item.publishedUpdated ?? item.updated),
         }
       : item;
   return {
@@ -160,7 +221,7 @@ export function applyEditorialRecordSaved(
         ? {
             ...item,
             label: saved.title,
-            currentFact: `${item.currentFact.split(";")[0]}${saved.changesPending ? "; changes pending" : ""}`,
+            currentFact: `${published ? status({ status: item.currentFact.split(";")[0]! }) : item.currentFact.split(";")[0]}${saved.changesPending ? "; changes pending" : ""}`,
             freshness: saved.updatedAt,
             source: "private and published content inventory",
             keywords: [
@@ -172,5 +233,66 @@ export function applyEditorialRecordSaved(
           }
         : item,
     ),
+  };
+}
+
+/** Insert a newly created writing draft, the way the server projection lists a
+ * private-only draft, unless the row already exists. */
+export function applyEditorialRecordCreated(
+  current: InventoryView,
+  value: unknown,
+): InventoryView {
+  const created = parseEditorialRecordCreated(value);
+  if (!created) return current;
+  const href = `/content/writing/${encodeURIComponent(created.record.id)}`;
+  const exists =
+    current.groups?.some((group) =>
+      group.records.some((item) => item.href === href),
+    ) ||
+    current.searchEntries?.some(
+      (item) => item.domain === "content" && item.href === href,
+    );
+  if (exists)
+    return applyEditorialRecordSaved(current, {
+      ...created,
+      changesPending: true,
+    });
+  const row: CatalogRecord = {
+    collection: "writing",
+    id: created.record.id,
+    title: created.title,
+    summary: created.summary,
+    section: "writing",
+    status: "draft",
+    href,
+    updated: { at: created.updatedAt, source: "private" },
+    changesPending: true,
+    privateRevision: created.revision,
+    privateUpdatedAt: created.updatedAt,
+    intendedVisibility: "draft",
+    capabilities: { editable: true, previewable: true, reviewOnly: false },
+  };
+  return {
+    ...current,
+    revisions: { ...current.revisions, [href]: created.revision },
+    groups: current.groups?.map((group) =>
+      group.name === "pages" || group.name === "writing"
+        ? { ...group, records: [...group.records, row] }
+        : group,
+    ),
+    searchEntries: current.searchEntries && [
+      ...current.searchEntries,
+      {
+        id: `content:writing:${created.record.id}`,
+        label: created.title,
+        domain: "content",
+        kind: "writing",
+        currentFact: "draft; changes pending",
+        source: "private and published content inventory",
+        freshness: created.updatedAt,
+        href,
+        keywords: [created.record.id, "writing", created.summary, "draft"],
+      },
+    ],
   };
 }

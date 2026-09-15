@@ -3,6 +3,7 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { NewWriting } from "./NewWriting";
+import { RECORD_CREATED_EVENT } from "../../lib/editorial-inventory-events";
 import {
   clearEditorialRecovery,
   newWritingRecoveryKey,
@@ -165,4 +166,61 @@ it("retains creation operation identity after an ambiguous network failure", asy
       .request!.id,
   ).toBe(ids[0]);
   expect(host.querySelector("input")!.value).toBe("Retry me");
+});
+
+it("announces the created draft so open libraries list it without a reload", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("csrf"))
+        return new Response(JSON.stringify({ csrf: "test" }), { status: 200 });
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          draft: {
+            key: "content/public/writing/fresh-idea.md",
+            source: "---\ntitle: Fresh idea\n---\n",
+            revision: 1,
+            updatedAt: Date.parse("2026-09-12T03:00:00Z"),
+            discardedAt: null,
+            baseCommit: "a".repeat(40),
+            baseFileHash: null,
+          },
+        }),
+        { status: 201 },
+      );
+    }),
+  );
+  const assign = vi.fn();
+  vi.spyOn(window, "location", "get").mockReturnValue({
+    ...window.location,
+    assign,
+  });
+  const events: CustomEvent[] = [];
+  const listen = (event: Event) => events.push(event as CustomEvent);
+  window.addEventListener(RECORD_CREATED_EVENT, listen);
+  try {
+    await render();
+    await type("Fresh idea");
+    await act(async () => {
+      host
+        .querySelector("form")!
+        .dispatchEvent(
+          new Event("submit", { bubbles: true, cancelable: true }),
+        );
+      await vi.waitFor(() => expect(assign).toHaveBeenCalled());
+    });
+    expect(events).toHaveLength(1);
+    expect(events[0]!.detail).toEqual({
+      record: { kind: "writing", id: "fresh-idea" },
+      title: "Fresh idea",
+      summary: "",
+      revision: 1,
+      updatedAt: "2026-09-12T03:00:00.000Z",
+    });
+    expect(assign).toHaveBeenCalledWith("/content/writing/fresh-idea");
+  } finally {
+    window.removeEventListener(RECORD_CREATED_EVENT, listen);
+    vi.restoreAllMocks();
+  }
 });

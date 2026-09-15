@@ -1,8 +1,11 @@
 import {
+  RECORD_CREATED_EVENT,
   RECORD_SAVED_EVENT,
   createInventoryView,
+  applyEditorialRecordCreated,
   applyEditorialRecordSaved,
 } from "../../lib/editorial-inventory-events";
+import { startEditorialInventoryRelay } from "../../lib/editorial-inventory-relay";
 import { Banner } from "@astryxdesign/core/Banner";
 import { NewWriting } from "./NewWriting";
 import React, { useEffect, useState, type ReactNode } from "react";
@@ -150,8 +153,20 @@ export function EditorialApp({
           applyEditorialRecordSaved(current, event.detail),
         );
     };
+    const created = (event: Event) => {
+      if (event instanceof CustomEvent)
+        setInventoryView((current) =>
+          applyEditorialRecordCreated(current, event.detail),
+        );
+    };
     window.addEventListener(RECORD_SAVED_EVENT, saved);
-    return () => window.removeEventListener(RECORD_SAVED_EVENT, saved);
+    window.addEventListener(RECORD_CREATED_EVENT, created);
+    const stopRelay = startEditorialInventoryRelay();
+    return () => {
+      stopRelay();
+      window.removeEventListener(RECORD_SAVED_EVENT, saved);
+      window.removeEventListener(RECORD_CREATED_EVENT, created);
+    };
   }, []);
 
   const [draftTitle, setDraftTitle] = useState(title);
