@@ -631,6 +631,7 @@ function HomeEditorImpl({
       ["live", "cancelled"].includes(publication.phase)
     )
       return;
+    const job = publication;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let active: AbortController | null = null;
@@ -648,7 +649,7 @@ function HomeEditorImpl({
       active = request;
       try {
         const response = await fetch(
-          `${endpoint("publication")}&operationId=${publication.id}`,
+          `${endpoint("publication")}&operationId=${job.id}`,
           {
             signal: AbortSignal.any([
               request.signal,
@@ -669,7 +670,7 @@ function HomeEditorImpl({
       } catch {
         if (!cancelled && active === request && !request.signal.aborted) {
           setPublicationStale(true);
-          setPublication({ ...publication });
+          setPublication({ ...job });
         }
       } finally {
         if (active === request) active = null;
