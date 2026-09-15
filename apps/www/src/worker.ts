@@ -19,7 +19,9 @@ import {
  *
  * GET and HEAD for static files skip the adapter and pass the original
  * request to env.ASSETS, so If-None-Match reaches the assets service and a
- * matching validator gets a 304. Their Cache-Control follows the class policy
+ * matching validator gets a 304. The assets service only matches one exact
+ * tag, so a 200 left over for a list or `*` goes through the same check as
+ * pages below. Their Cache-Control follows the class policy
  * in lib/static-assets. A 404 falls through to the adapter, which keeps the
  * site 404 page for missing files.
  *
@@ -42,7 +44,12 @@ export function createExports(manifest: SSRManifest) {
           request as unknown as Parameters<typeof env.ASSETS.fetch>[0],
         );
         if (asset.ok || asset.status === 304) {
-          return withSecurityHeaders(withStaticCacheControl(pathname, asset));
+          return withSecurityHeaders(
+            withStaticCacheControl(
+              pathname,
+              withConditionalStatus(request, pathname, asset),
+            ),
+          );
         }
       }
       return withSecurityHeaders(

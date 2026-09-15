@@ -419,6 +419,43 @@ test("static files revalidate to a bodyless secured 304 on every host", async ()
   assert.deepEqual(failed, []);
 });
 
+test("static files honor weak, list and wildcard validators like pages", async () => {
+  // The assets service matches only one exact tag, strong or W/. A list or
+  // `*` must still revalidate, the same as it does for pages.
+  const failed = [];
+  for (const path of STATIC_PATHS) {
+    const url = `https://anipotts.com${path}`;
+    const etag = (await ASSETS.fetch(url)).headers.get("etag");
+    for (const validator of [`W/${etag}`, `"other", ${etag}`, "*"]) {
+      for (const method of ["GET", "HEAD"]) {
+        const response = await serve(url, {
+          method,
+          headers: { "if-none-match": validator },
+        });
+        const label = `${method} ${path} (${validator})`;
+        if (response.status !== 304) {
+          failed.push(`${label} answered ${response.status}`);
+          continue;
+        }
+        assert.equal(response.body, null, label);
+        assert.equal(response.headers.get("etag"), etag, label);
+        assert.equal(
+          response.headers.get("cache-control"),
+          EXPECTED_CACHE(path) ?? "public, max-age=0, must-revalidate",
+          label,
+        );
+        assertSecured(response, `${label} 304`);
+      }
+    }
+  }
+  assert.deepEqual(failed, []);
+  // A missing file stays the site 404 even for `*`.
+  const missing = await serve("https://anipotts.com/_astro/missing.js", {
+    headers: { "if-none-match": "*" },
+  });
+  assert.equal(missing.status, 404);
+});
+
 test("static files carry the cache policy for their class", async () => {
   for (const path of STATIC_PATHS) {
     const response = await serve(`https://anipotts.com${path}`);
