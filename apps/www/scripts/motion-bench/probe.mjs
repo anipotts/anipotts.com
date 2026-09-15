@@ -35,6 +35,8 @@ function install() {
     animated: 0,
     collisions: [],
     outside: [],
+    gutter: 0,
+    gutters: [],
     flat: [],
     start: performance.now(),
   };
@@ -81,6 +83,18 @@ function install() {
         const c = s && insetBox(getComputedStyle(s).clipPath);
         if (!c || !wrapper.isConnected) return;
         const w = wrapper.getBoundingClientRect();
+        // The header band spans the clip's width: any horizontal gap between
+        // the band and the clip edge shows as a dark gutter.
+        const gap = +Math.max(w.left - c.left, c.right - w.right).toFixed(1);
+        probe.gutter = Math.max(probe.gutter, gap);
+        if (gap > 2 && probe.gutters.length < 20)
+          probe.gutters.push({
+            t: +(performance.now() - probe.start).toFixed(0),
+            wrapper: [w.left, w.right].map((v) => +v.toFixed(1)),
+            clip: [c.left, c.right].map((v) => +v.toFixed(1)),
+            surfaceTime: s.getAnimations()[0]?.currentTime ?? null,
+            transform: wrapper.style.transform,
+          });
         if (!inside(w, c))
           probe.outside.push({
             t: +(performance.now() - probe.start).toFixed(0),
@@ -109,15 +123,16 @@ function install() {
         for (let i = 2; i + 5 < numbers.length + 1; i += 6)
           ys.push(numbers[i + 5]);
         let longest = 1;
+        let level = 0;
         for (let i = 0; i < ys.length; i++)
           for (let j = i; j < ys.length; j++) {
             const part = ys.slice(i, j + 1);
             if (!part.every((y) => y > 0 && y < 800)) break;
             if (Math.max(...part) - Math.min(...part) >= 0.5) break;
-            longest = Math.max(longest, part.length);
+            if (part.length > longest) [longest, level] = [part.length, ys[i]];
           }
         if (longest >= 10) {
-          probe.flat.push({ t, layer: index, columns: longest });
+          probe.flat.push({ t, layer: index, columns: longest, y: level });
           break;
         }
       }
@@ -223,7 +238,17 @@ for (const p of profiles(THEME)) {
       animatedFrames: probe.animated,
       collisionFrames: new Set(probe.collisions.map((c) => c.t)).size,
       outsideFrames: probe.outside.length,
-      flatEdgeFrames: new Set(probe.flat.map((f) => f.t)).size,
+      maxGutterPx: probe.gutter,
+      gutters: probe.gutters,
+      // Interior: a straight edge crossing the surface. Near the canvas edge
+      // (within 3 percent): a wave settling onto the destination artwork's
+      // own straight canvas boundary in the last frames, reported apart.
+      flatEdgeFrames: new Set(
+        probe.flat.filter((f) => f.y > 24 && f.y < 776).map((f) => f.t),
+      ).size,
+      flatAtCanvasEdgeFrames: new Set(
+        probe.flat.filter((f) => f.y <= 24 || f.y >= 776).map((f) => f.t),
+      ).size,
       flat: probe.flat.slice(0, 20),
       collisions: probe.collisions.slice(0, 20),
       outside: probe.outside.slice(0, 20),
@@ -233,7 +258,7 @@ for (const p of profiles(THEME)) {
     console.log(
       p.name,
       label,
-      `frames ${row.frames} animated ${row.animatedFrames} collisions ${row.collisionFrames} outside ${row.outsideFrames} flat ${row.flatEdgeFrames} overlays ${after.overlays} hidden ${after.hidden} running ${after.running} focus ${after.focus}`,
+      `frames ${row.frames} animated ${row.animatedFrames} collisions ${row.collisionFrames} outside ${row.outsideFrames} gutter ${row.maxGutterPx} flat ${row.flatEdgeFrames} (canvas edge ${row.flatAtCanvasEdgeFrames}) overlays ${after.overlays} hidden ${after.hidden} running ${after.running} focus ${after.focus}`,
     );
   }
   await runSteps(page, p.tap, capture);

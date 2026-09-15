@@ -8,6 +8,8 @@ import { chromium, devices, option, webkit } from "./common.mjs";
 
 const BASE = option("BASE");
 const OUT = option("OUT");
+// CHECKS=name,prefix runs only the sessions whose names start with one of them.
+const PICK = option("CHECKS", "").split(",").filter(Boolean);
 const browser = await chromium.launch({ headless: true });
 const report = {};
 const state = (page) =>
@@ -48,6 +50,7 @@ const delaySwap = (ms) =>
     { once: true },
   );
 async function session(name, options, run, engine = browser) {
+  if (PICK.length && !PICK.some((prefix) => name.startsWith(prefix))) return;
   const context = await engine.newContext({
     viewport: { width: 1280, height: 800 },
     colorScheme: "dark",
@@ -290,73 +293,361 @@ const lightDom = () => {
   delete ShadowRoot.prototype.adoptedStyleSheets;
   delete Document.prototype.adoptedStyleSheets;
 };
-for (const [name, init] of [
-  ["ghost-styles-native", undefined],
-  ["ghost-styles-light-dom", lightDom],
-])
-  await session(name, { init }, async (page) => {
-    const read = (selectors, props, inGhost) => {
-      const frame = document.querySelector(".writing-transition-ghost");
-      const host = frame?.firstElementChild;
-      const root = inGhost ? host?.shadowRoot || host : document;
-      return Object.fromEntries(
-        selectors.map((s) => {
-          const el = root?.querySelector(s);
-          if (!el) return [s, null];
-          const cs = getComputedStyle(el);
-          return [s, props.map((p) => cs[p]).join(" | ")];
-        }),
+const ghostStyles = async (engine, prefix = "") => {
+  for (const [name, init] of [
+    ["ghost-styles-native", undefined],
+    ["ghost-styles-light-dom", lightDom],
+  ])
+    await session(
+      `${prefix}${name}`,
+      { init },
+      async (page) => {
+        const read = (selectors, props, inGhost) => {
+          const frame = document.querySelector(".writing-transition-ghost");
+          const host = frame?.firstElementChild;
+          const root = inGhost ? host?.shadowRoot || host : document;
+          return Object.fromEntries(
+            selectors.map((s) => {
+              const el = root?.querySelector(s);
+              if (!el) return [s, null];
+              const cs = getComputedStyle(el);
+              // Text styles and the box, to the pixel.
+              const r = el.getBoundingClientRect();
+              const box = [r.left, r.top, r.width].map(Math.round).join(",");
+              return [s, [...props.map((p) => cs[p]), box].join(" | ")];
+            }),
+          );
+        };
+        const diff = (live, ghost) =>
+          Object.keys(live).filter((k) => live[k] !== ghost[k]);
+        const listing = [
+          "main .page-hero__summary",
+          "main a.writing-card .title",
+          "main a.writing-card .sub",
+        ];
+        const liveListing = await page.evaluate(
+          ([s, p, fn]) => eval(`(${fn})`)(s, p, false),
+          [listing, PROPS, read.toString()],
+        );
+        await page.evaluate(delaySwap, 500);
+        await page.click("main a.writing-card");
+        await page.waitForSelector(".writing-transition-ghost", {
+          state: "attached",
+        });
+        const openGhost = await page.evaluate(
+          ([s, p, fn]) => eval(`(${fn})`)(s, p, true),
+          [listing, PROPS, read.toString()],
+        );
+        await page.waitForTimeout(1500);
+        const article = [
+          "[data-writing-article] .article-body p",
+          "[data-writing-article] > header .back",
+        ];
+        const liveArticle = await page.evaluate(
+          ([s, p, fn]) => eval(`(${fn})`)(s, p, false),
+          [article, PROPS, read.toString()],
+        );
+        await page.evaluate(delaySwap, 500);
+        await page.click(".back");
+        await page.waitForSelector(".writing-transition-ghost", {
+          state: "attached",
+        });
+        const closeGhost = await page.evaluate(
+          ([s, p, fn]) => eval(`(${fn})`)(s, p, true),
+          [article, PROPS, read.toString()],
+        );
+        await page.waitForTimeout(1200);
+        return {
+          after: await state(page),
+          openDiff: diff(liveListing, openGhost),
+          closeDiff: diff(liveArticle, closeGhost),
+          liveListing,
+          openGhost,
+          liveArticle,
+          closeGhost,
+        };
+      },
+      engine,
+    );
+};
+await ghostStyles(browser);
+// g06: a second tap while the article opens must not land on the invisible
+// incoming page. Off-site requests are blocked and recorded.
+for (const delay of [150, 300])
+  await session(
+    `second-tap-mid-open-${delay}`,
+    { ...devices["iPhone 13"] },
+    async (page, context) => {
+      const offsite = [];
+      await context.route(
+        (url) => !url.href.startsWith(BASE),
+        (route) => {
+          offsite.push(route.request().url());
+          return route.abort();
+        },
       );
-    };
-    const diff = (live, ghost) =>
-      Object.keys(live).filter((k) => live[k] !== ghost[k]);
-    const listing = [
-      "main .page-hero__summary",
-      "main a.writing-card .title",
-      "main a.writing-card .sub",
-    ];
-    const liveListing = await page.evaluate(
-      ([s, p, fn]) => eval(`(${fn})`)(s, p, false),
-      [listing, PROPS, read.toString()],
-    );
-    await page.evaluate(delaySwap, 500);
-    await page.click("main a.writing-card");
-    await page.waitForSelector(".writing-transition-ghost", {
-      state: "attached",
-    });
-    const openGhost = await page.evaluate(
-      ([s, p, fn]) => eval(`(${fn})`)(s, p, true),
-      [listing, PROPS, read.toString()],
-    );
-    await page.waitForTimeout(1500);
-    const article = [
-      "[data-writing-article] .article-body p",
-      "[data-writing-article] > header .back",
-    ];
-    const liveArticle = await page.evaluate(
-      ([s, p, fn]) => eval(`(${fn})`)(s, p, false),
-      [article, PROPS, read.toString()],
-    );
-    await page.evaluate(delaySwap, 500);
-    await page.click(".back");
-    await page.waitForSelector(".writing-transition-ghost", {
-      state: "attached",
-    });
-    const closeGhost = await page.evaluate(
-      ([s, p, fn]) => eval(`(${fn})`)(s, p, true),
-      [article, PROPS, read.toString()],
-    );
-    await page.waitForTimeout(1200);
+      const point = await page.evaluate(() => {
+        const cards = document.querySelectorAll("main a.writing-card");
+        const r = (cards[1] || cards[0]).getBoundingClientRect();
+        const y = r.top + r.height / 2;
+        return {
+          x: r.left + r.width / 2,
+          y: y < innerHeight ? y : innerHeight * 0.7,
+        };
+      });
+      const first = await page.evaluate(
+        () => document.querySelector("main a.writing-card").pathname,
+      );
+      await page.tap("main a.writing-card");
+      await page.waitForTimeout(delay);
+      const hit = await page.evaluate(({ x, y }) => {
+        const el = document.elementFromPoint(x, y);
+        const main = document.querySelector("main");
+        return {
+          url: location.pathname,
+          target: el
+            ? `${el.tagName.toLowerCase()} ${el.className || ""}`.trim()
+            : null,
+          insideMain: !!main?.contains(el),
+          mainInert: !!main?.inert,
+          mainOpacity: main ? getComputedStyle(main).opacity : null,
+        };
+      }, point);
+      await page.touchscreen.tap(point.x, point.y);
+      await page.waitForTimeout(1500);
+      const after = await state(page);
+      return {
+        hit,
+        after,
+        offsite,
+        landedOnFirst: after.url === first,
+        // The second tap must not reach the incoming page while it is hidden.
+        pass:
+          after.url === first &&
+          !offsite.length &&
+          after.overlays === 0 &&
+          !(hit.insideMain && !hit.mainInert),
+      };
+    },
+  );
+// g07: returns with the article header off screen. Per frame while the
+// transition flag is set: the surface clip box, the old page copy and main
+// opacity, and the travelling words.
+const frameLog = () => {
+  window.__log = [];
+  const start = performance.now();
+  const shown = (el) => {
+    let o = 1;
+    for (let n = el; n && n.nodeType === 1; n = n.parentElement)
+      o *= Number(getComputedStyle(n).opacity);
+    return o;
+  };
+  const tick = () => {
+    const flag = document.documentElement.dataset.writingTransition;
+    if (flag) {
+      const surface = document.querySelector(".writing-transition-surface");
+      const frame = document.querySelector(".writing-transition-ghost");
+      const main = document.querySelector("main");
+      const m = /inset\(([^)]*?)(?:\s+round[^)]*)?\)/.exec(
+        surface ? getComputedStyle(surface).clipPath : "",
+      );
+      let clip = null;
+      if (m) {
+        const [t, r = t, b = t, l = r] = m[1]
+          .trim()
+          .split(/\s+/)
+          .map(parseFloat);
+        clip = [l, t, innerWidth - r, innerHeight - b].map(
+          (v) => +v.toFixed(0),
+        );
+      }
+      // Without a clip (an older build), the surface box itself.
+      const box = surface?.getBoundingClientRect();
+      window.__log.push({
+        t: +(performance.now() - start).toFixed(0),
+        flag,
+        clip,
+        surface:
+          clip ??
+          (box
+            ? [box.left, box.top, box.right, box.bottom].map(
+                (v) => +v.toFixed(0),
+              )
+            : null),
+        ghost: frame ? +shown(frame.firstElementChild).toFixed(2) : 0,
+        main: +shown(main).toFixed(2),
+        words: [...document.querySelectorAll(".writing-transition-word")].map(
+          (el) => {
+            const r = el.getBoundingClientRect();
+            return [
+              el.dataset.layer,
+              +r.top.toFixed(0),
+              +r.bottom.toFixed(0),
+              +shown(el).toFixed(2),
+            ];
+          },
+        ),
+      });
+    }
+    if (performance.now() - start < 3000) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+};
+const judgeReturn = (log, height) => {
+  const first = log[0];
+  const offscreen = (top, bottom) => bottom <= 0 || top >= height;
+  return {
+    path: first?.flag ?? null,
+    frames: log.length,
+    // The surface starts outside the viewport.
+    surfaceOffscreenFrames: log.filter(
+      (f) => f.surface && offscreen(f.surface[1], f.surface[3]),
+    ).length,
+    // Unclipped old page copy and the new listing both above 0.3.
+    overprintFrames: log.filter((f) => !f.clip && f.ghost > 0.3 && f.main > 0.3)
+      .length,
+    // Words shown in the first frame that start off screen.
+    offscreenOutWords: (first?.words ?? []).filter(
+      ([, top, bottom, o]) => o > 0.02 && offscreen(top, bottom),
+    ).length,
+  };
+};
+const openFirst = async (page) => {
+  await page.tap("main a.writing-card");
+  await page.waitForTimeout(1400);
+};
+for (const [name, prepare, act] of [
+  [
+    "scrolled-return-back-1500",
+    (page) => page.evaluate(() => scrollTo({ top: 1500, behavior: "instant" })),
+    (page) => page.goBack(),
+  ],
+  [
+    "scrolled-return-view-all",
+    (page) =>
+      page.evaluate(() =>
+        document
+          .querySelector(".more-heading a")
+          .scrollIntoView({ block: "center", behavior: "instant" }),
+      ),
+    (page) => page.tap(".more-heading a"),
+  ],
+  [
+    "partial-header-return-back",
+    // The title scrolled just out of view while the header waves still show.
+    (page) =>
+      page.evaluate(() => {
+        const h1 = document.querySelector("[data-writing-article] > header h1");
+        scrollTo({
+          top: h1.getBoundingClientRect().bottom + scrollY + 4,
+          behavior: "instant",
+        });
+      }),
+    (page) => page.goBack(),
+  ],
+])
+  await session(name, { ...devices["iPhone 13"] }, async (page) => {
+    await openFirst(page);
+    await prepare(page);
+    await page.waitForTimeout(500);
+    const scroll = await page.evaluate(() => scrollY);
+    await page.evaluate(frameLog);
+    await act(page);
+    await page.waitForTimeout(1600);
+    const log = await page.evaluate(() => window.__log);
+    const verdict = judgeReturn(log, 844);
     return {
+      scroll,
+      ...verdict,
       after: await state(page),
-      openDiff: diff(liveListing, openGhost),
-      closeDiff: diff(liveArticle, closeGhost),
-      liveListing,
-      openGhost,
-      liveArticle,
-      closeGhost,
+      pass:
+        verdict.surfaceOffscreenFrames === 0 &&
+        verdict.overprintFrames === 0 &&
+        verdict.offscreenOutWords === 0,
+      sample: log.slice(0, 3),
     };
   });
+// g09 and g10: a tapped card acknowledges the tap while the article loads,
+// in both themes, and clears when the navigation is abandoned; a repeat tap
+// on the same card does not restart the navigation. Every navigation here
+// is held 600 ms before it swaps.
+const holdSwaps = () =>
+  document.addEventListener("astro:before-preparation", (event) => {
+    window.__preps = (window.__preps || 0) + 1;
+    const load = event.loader;
+    event.loader = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      await load();
+    };
+  });
+const affordance = () => {
+  const card = document.querySelector("main a.writing-card");
+  return card
+    ? {
+        pending: card.hasAttribute("data-writing-pending"),
+        color: getComputedStyle(card.querySelector(".affordance")).color,
+      }
+    : null;
+};
+for (const theme of ["dark", "light"]) {
+  await session(
+    `pending-tap-${theme}`,
+    { ...devices["iPhone 13"], colorScheme: theme },
+    async (page) => {
+      await page.evaluate(holdSwaps);
+      const rest = await page.evaluate(affordance);
+      await page.tap("main a.writing-card");
+      await page.waitForTimeout(250);
+      const loading = await page.evaluate(affordance);
+      await page.waitForTimeout(1200);
+      return {
+        rest,
+        loading,
+        after: await state(page),
+        pass: !rest.pending && loading.pending && loading.color !== rest.color,
+      };
+    },
+  );
+  await session(
+    `pending-abort-${theme}`,
+    { colorScheme: theme },
+    async (page) => {
+      await page.evaluate(holdSwaps);
+      await page.click("main a.writing-card");
+      await page.waitForTimeout(150);
+      const loading = await page.evaluate(affordance);
+      // A second navigation abandons the first before it swaps.
+      await page.evaluate(() =>
+        document.querySelector('a.nav-link[href="/work"]').click(),
+      );
+      await page.waitForTimeout(100);
+      const abandoned = await page.evaluate(affordance);
+      await page.waitForTimeout(1200);
+      return {
+        loading,
+        abandoned,
+        after: await state(page),
+        pass: loading.pending && !abandoned?.pending,
+      };
+    },
+  );
+}
+await session(
+  "double-tap-same-card",
+  { ...devices["iPhone 13"] },
+  async (page) => {
+    await page.evaluate(holdSwaps);
+    const failed = [];
+    page.on("requestfailed", (r) => failed.push(new URL(r.url()).pathname));
+    await page.tap("main a.writing-card");
+    await page.waitForTimeout(120);
+    await page.tap("main a.writing-card");
+    await page.waitForTimeout(1500);
+    const preps = await page.evaluate(() => window.__preps);
+    const after = await state(page);
+    return { preps, failed, after, pass: preps === 1 && !failed.length };
+  },
+);
 await browser.close();
 // WebKit: a tap or click navigation lands focus without a focus ring, in
 // both themes; keyboard navigation keeps it.
@@ -367,6 +658,8 @@ try {
   report["webkit-focus-ring"] = { skipped: String(error).split("\n")[0] };
 }
 if (wk) {
+  // WebKit is the engine that lacked adoptedStyleSheets before 16.4.
+  await ghostStyles(wk, "webkit-");
   for (const theme of ["light", "dark"])
     await session(
       `webkit-focus-ring-${theme}`,
@@ -390,7 +683,22 @@ if (wk) {
         await page.click(".back");
         await page.waitForTimeout(1200);
         const close = await ring();
-        return { open, close };
+        // Keyboard navigation keeps a visible ring on the returned card.
+        await page.keyboard.press("Enter");
+        await page.waitForTimeout(1400);
+        await page.focus("[data-writing-article] .back");
+        await page.keyboard.press("Enter");
+        await page.waitForTimeout(1200);
+        const keyboardClose = await ring();
+        return {
+          open,
+          close,
+          keyboardClose,
+          pass:
+            open.outline === "none" &&
+            close.outline === "none" &&
+            keyboardClose.outline !== "none",
+        };
       },
       wk,
     );
