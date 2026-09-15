@@ -33,6 +33,7 @@ const codingAgentGuide = allWork.find(
 const experiences = allWork
   .filter((project) => project.data.homepage_placement === "experience")
   .sort((a, b) => b.data.homepage_order - a.data.homepage_order);
+const firstFeature = experiences.find((project) => project.data.preview_media);
 const projects = allWork
   .filter((project) => project.data.homepage_placement === "work")
   .sort((a, b) => b.data.homepage_order - a.data.homepage_order)
@@ -88,7 +89,10 @@ const profileLd = {
       {
         experiences.map((experience) =>
           experience.data.preview_media ? (
-            <ExperienceFeatureCard project={experience} />
+            <ExperienceFeatureCard
+              project={experience}
+              eager={experience === firstFeature}
+            />
           ) : (
             <WorkCard project={experience} />
           ),

@@ -29,6 +29,7 @@ const segments = segmentHomepageSummaryParagraph(text, mentionKeys, mentions);
           {...mentions[segment.key]}
           label={segment.text}
           suffix={segment.suffix}
+          eager
         />
       ),
     )
