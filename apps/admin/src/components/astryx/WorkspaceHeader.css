@@ -254,6 +254,23 @@
   .editorial-workspace-utilities .admin-sidebar-menu {
     padding-inline-start: calc(var(--spacing-9) / 4);
   }
+  /* Astryx gives a button's icon a 16px slot and centres the glyph in it, so
+     an 18px sidebar icon sits half a pixel outside its slot. The bordered
+     menus absorb that with their own border; the borderless search button
+     adds the same width so every icon in the sidebar shares one centreline. */
+  .approved-workspace-header .editorial-header-search {
+    padding-inline-start: calc(var(--spacing-9) / 4 + var(--border-width));
+  }
+}
+/* The appearance menu squeezed its icon into that slot instead of overflowing
+   it, which left the glyph a pixel narrow and a pixel right of the rest. */
+.admin-sidebar-menu
+  > span:first-child
+  > span:first-child
+  > svg:not(#\#):not(#\#) {
+  width: calc(var(--spacing-9) / 2);
+  height: calc(var(--spacing-9) / 2);
+  flex: none;
 }
 /* Symmetric rail targets, including the appearance group's inner padding. */
 @media (width > 768px) {
