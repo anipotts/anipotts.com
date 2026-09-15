@@ -3,12 +3,21 @@
   width: 100%;
   min-width: 0;
 }
+/* The shared page frame would add its own gutter on top of Life's. */
+.editorial-workspace-shell .admin-page-frame:has(.life-workspace) {
+  padding: 0;
+}
 .life-workspace .life-page-header,
 .life-workspace .life-page-content {
   padding-inline: clamp(var(--spacing-4), 3vw, var(--spacing-12));
 }
 .life-workspace .life-page-header {
   padding-block: var(--spacing-6);
+}
+@media (max-width: 640px) {
+  .life-workspace .life-page-header {
+    padding-block: var(--spacing-4);
+  }
 }
 .life-workspace .life-page-content {
   padding-block-start: 0;

@@ -1320,8 +1320,20 @@ body[data-semantic-inspector-open="true"] {
 }
 
 @media (max-width: 1080px) {
+  /* When the summary cannot sit beside the title, it moves below it whole
+     instead of squeezing the title and wrapping its own controls. */
   .admin-canvas-header.operator-page-header {
     align-items: start;
+    flex-wrap: wrap;
+    row-gap: 14px;
+  }
+
+  .admin-canvas-header > div:first-child {
+    flex: 0 0 auto;
+  }
+
+  .admin-canvas .operator-eyebrow {
+    white-space: nowrap;
   }
 
   .admin-canvas-summary {
