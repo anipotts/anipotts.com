@@ -22,7 +22,7 @@ export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self'",
-    "connect-src 'self' https://us.i.posthog.com https://us-assets.i.posthog.com",
+    "connect-src 'self'",
   ].join("; "),
 };
 

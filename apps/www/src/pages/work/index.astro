@@ -33,12 +33,7 @@ const firstPreview = groups
   .find((project) => project.data.preview_media);
 ---
 
-<Shell
-  title={copy.title}
-  description={copy.description}
-  path="/work"
-  mood="alert"
->
+<Shell title={copy.title} description={copy.description} path="/work">
   <PageHero title={copy.hero_title} summary={copy.hero_summary} />
   <div class="catalog">
     {
