@@ -64,7 +64,11 @@ test("card sizes never understate single-column preview boxes", () => {
     const shots = screenshots(page(file));
     assert.ok(shots.length > 0, file);
     for (const img of shots)
-      assert.equal(img.attributes.sizes, sizes, `${file} ${img.attributes.src}`);
+      assert.equal(
+        img.attributes.sizes,
+        sizes,
+        `${file} ${img.attributes.src}`,
+      );
   }
 });
 
