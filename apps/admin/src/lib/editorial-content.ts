@@ -14,8 +14,9 @@ export function recordUpdate(collection: string, id: string) {
   return updates[`content/${directory}/${id}.md`];
 }
 
+/** In development the dev server manager passes this worktree's www URL. */
 export const publicSiteUrl = import.meta.env.DEV
-  ? "http://anipotts.localhost:1355/"
+  ? (import.meta.env.PUBLIC_DEV_SITE_URL ?? "http://127.0.0.1:4321/")
   : siteConfig.url;
 
 export const pageCollections = [

@@ -64,7 +64,7 @@ skipped targets and route proof for each merge. Auto-merge stays disabled.
 Scoped approvals that sit inside the hard stops below, granted for this round:
 
 - a local owner session for admin that works only with an explicit local flag on
-  loopback or Portless hostnames, refused by the deploy workflow and absent from
+  loopback hostnames, refused by the deploy workflow and absent from
   deployable bundles; production Cloudflare Access is unchanged
 - hardening the public newsletter, webhook, subscribe and ingest endpoints and the
   admin compatibility routes for confirmed security findings
@@ -182,9 +182,9 @@ pnpm dev:status
 pnpm dev:stop
 ```
 
-The public URL is `http://anipotts.localhost:1355/`; Admin is
-`http://admin.anipotts.localhost:1355/`. Portless is pinned, rootless,
-loopback-only, and worktree-aware. `dev:www` does not start Admin or its fallback.
+Dev servers bind `127.0.0.1` on a stable per-worktree port pair from 4400 to
+4999; `pnpm dev:status` prints the URLs. `dev:www` does not start Admin or its
+fallback.
 See `docs/local-development.md`.
 
 The canonical local review URL is `http://localhost:4311/`.

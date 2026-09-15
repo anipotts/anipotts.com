@@ -1,11 +1,18 @@
 # local development
 
-The repo uses the pinned Portless `0.15.5` package for named local URLs. The
-default setup is deliberately rootless and loopback-only:
+Local development runs plain Astro dev servers bound to `127.0.0.1`. Each
+worktree gets its own stable pair of ports from `4400` to `4999`, www on the
+even port and Admin on the next one, so several worktrees run side by side and
+a restart keeps the same URLs. Nothing is installed globally and no proxy runs.
 
-- public site: `http://anipotts.localhost:1355/`
-- Admin: `http://admin.anipotts.localhost:1355/`
+- public site: `http://127.0.0.1:<www port>/`
+- Admin: `http://127.0.0.1:<admin port>/`
 - Admin fallback when Admin review is active: `http://localhost:4311/`
+
+`pnpm dev:status` prints this worktree's URLs. To pin them, set
+`ANIPOTTS_WWW_PORT` and `ANIPOTTS_ADMIN_PORT` before `pnpm dev:*`; ports
+`1355`, `4311`, `8787` and `8871` are refused because other local tools own
+them.
 
 All local actions, CI, and deploy jobs use Node `24.19.0`, pinned in `.nvmrc`.
 The launcher selects that runtime through NVM when available and exits early
@@ -19,14 +26,10 @@ pnpm dev:admin
 pnpm dev:all
 ```
 
-`dev:www` starts only the public Astro process. `dev:admin` starts the named
-Admin process and the managed `localhost:4311` fallback. `dev:all` starts both.
-
-The canonical names are reserved for the clean physical checkout on `main`
-when its commit equals `origin/main`. The manager refuses to claim them from a
-feature branch in that checkout. Start feature work from a linked worktree so
-Portless can expose its branch-prefixed URLs without replacing the main review
-surface.
+`dev:www` starts only the public Astro process. `dev:admin` starts the Admin
+process and the managed `localhost:4311` fallback. `dev:all` starts both.
+Admin links to this worktree's www dev server through `PUBLIC_DEV_SITE_URL`,
+which the manager sets.
 
 Inspect ownership and health without changing anything:
 
@@ -35,37 +38,32 @@ pnpm dev:status
 pnpm admin:preview:status
 ```
 
-Stop only the two Portless app processes owned by the current worktree:
+Stop only the dev servers this worktree started:
 
 ```bash
 pnpm dev:stop
 ```
 
-The stop command leaves the shared rootless proxy and the managed Admin
-fallback alone. Use `pnpm admin:preview:stop` only when Ani explicitly ends the
+The stop command leaves the managed Admin fallback alone and keeps the
+recorded ports. Use `pnpm admin:preview:stop` only when Ani explicitly ends the
 Admin feedback loop.
 
 ## safety model
 
-The repo manager always sets the following values itself:
+The manager only ever runs `astro dev --host 127.0.0.1 --port <port>` for a
+port it assigned, records the process under ignored `.local/dev-servers/`, and
+stops only a process whose command matches that record. It does not install a
+service, request `sudo`, trust a CA, edit `/etc/hosts`, or bind a LAN
+interface. When an assigned port is taken by another process, it stops and
+names the port instead of choosing a different one silently.
 
-- HTTP on port `1355`
-- TLS off
-- LAN mode off
-- host-file synchronization off
-- one shared ignored state directory resolved through Git's common directory
-
-It does not install a service, request `sudo`, trust a CA, edit `/etc/hosts`, or
-bind ports `80` and `443`. Clean no-port HTTPS URLs are a separate machine-level
-promotion that needs exact approval.
-
-Admin's named preview allowance accepts only `GET` and `HEAD` for the private
-workspace paths listed in `apps/admin/src/lib/admin-access-policy.ts`
+Admin's development preview allowance accepts only `GET` and `HEAD` for the
+private workspace paths listed in `apps/admin/src/lib/admin-access-policy.ts`
 (`DEV_LOOPBACK_PREVIEW_PATHS` plus the Content record and newsletter patterns),
-including Content, Life and Operations views. It requires Astro development mode
-and either the loopback `localhost:4311` origin or any worktree's
-`admin.anipotts.localhost` hostname on the approved Portless port, so a clean
-linked worktree can review private pages without the managed fallback. Production middleware, protected APIs, write routes, password
+including Content, Life and Operations views. It requires Astro development
+mode and a plain HTTP loopback origin (`localhost`, `127.0.0.1` or `[::1]` on
+any port), so a clean linked worktree can review private pages without the
+managed fallback. Production middleware, protected APIs, write routes, password
 auth, passkeys, and Cloudflare Access are unchanged.
 
 ## local owner
@@ -76,16 +74,16 @@ session from a linked worktree when a task has to exercise every authenticated
 Admin route:
 
 ```bash
-pnpm dev:admin:owner      # Portless Admin dev server for this worktree
+pnpm dev:admin:owner      # Admin dev server for this worktree
 pnpm preview:admin:owner  # production build served by local wrangler dev
 pnpm build:admin:owner    # production build only
 ```
 
-`dev:admin:owner` starts only this worktree's Admin route with
+`dev:admin:owner` starts only this worktree's Admin server with
 `ADMIN_LOCAL_OWNER=1`. It never starts or changes the managed
 `localhost:4311` fallback, and it refuses to reuse a route started in the other
 mode; run `pnpm dev:stop` first. `pnpm dev:admin` strips an inherited
-`ADMIN_LOCAL_OWNER` value, so the default route stays unchanged, and
+`ADMIN_LOCAL_OWNER` value, so the default server stays unchanged, and
 `pnpm admin:preview:ensure` strips it the same way, so the shared
 `localhost:4311` preview is never a local owner build.
 
@@ -96,7 +94,8 @@ Durable Object state `astro dev` uses. The served config copies
 `apps/admin/wrangler.toml` without its production route: with a route,
 wrangler dev rewrites `Host` to `admin.anipotts.com`, which fails the loopback
 check and would also hide a DNS rebinding hostname. Set
-`ADMIN_LOCAL_OWNER_PORT` to use another port; `1355` and `4311` are refused.
+`ADMIN_LOCAL_OWNER_PORT` to use another port; `4311` and the dev server range
+`4400` to `4999` are refused.
 The editorial API answers `editor_not_configured` there because the Worker
 secrets are not present locally.
 
@@ -107,17 +106,16 @@ How the session is bounded:
   vars, cookies, headers and query strings cannot enable it. Any other value
   fails the build, and so does setting it in GitHub Actions.
 - Middleware grants the synthetic `local-owner@localhost` identity only when
-  the request URL is `localhost`, `127.0.0.1`, `[::1]` or an
-  `admin.anipotts.localhost` Portless host, `Host` matches that URL,
+  the request URL is `localhost`, `127.0.0.1` or `[::1]`, `Host` matches
+  that URL,
   forwarded host and client headers are all local, and a browser write is
   same-origin. Public auth paths keep their native flow.
 - Middleware never sees the peer address, so the server must listen on
   loopback. With the flag on, `astro dev` exits before it listens when
   `server.host` or Vite's resolved host is anything but `localhost`,
   `127.0.0.0/8` or `::1`: `--host`, `--host 0.0.0.0`, `--host ::` and a LAN
-  address all fail. Portless dev servers pass `--host 127.0.0.1`, and
-  `dev:admin:owner` also drops the Portless tunnel switches `PORTLESS_FUNNEL`,
-  `PORTLESS_TAILSCALE` and `PORTLESS_NGROK`. `preview:admin:owner` pins wrangler
+  address all fail. The dev server manager passes `--host 127.0.0.1`.
+  `preview:admin:owner` pins wrangler
   dev to `127.0.0.1` in both its flags and its config. A TCP relay you run on
   this machine that forwards other clients to loopback cannot be detected, so
   never point one at a local owner port.
@@ -160,16 +158,9 @@ its scripts and record editors show `editor_not_configured`.
 
 ## worktrees and HMR
 
-Portless provides each linked worktree its own route and random application
-port while sharing one proxy. A branch such as `codex/feature-auth` receives
-URLs shaped like:
-
-- `http://feature-auth.anipotts.localhost:1355/`
-- `http://feature-auth.admin.anipotts.localhost:1355/`
-
-Each worktree stores only its own process metadata and logs under ignored
-`.local/portless-preview/`. Portless forwards WebSockets, so Astro HMR works
-through the named URLs.
+Each linked worktree records its own ports, process metadata and logs under
+ignored `.local/dev-servers/`. Astro HMR connects straight to the dev server,
+so it works without any extra configuration.
 
 ### Codex task startup
 
