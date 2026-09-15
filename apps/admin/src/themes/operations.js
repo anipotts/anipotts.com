@@ -461,6 +461,24 @@ export const operationsTheme = {
       "base": {
         "minHeight": "var(--spacing-11)"
       }
+    },
+    "table": {
+      "base": {
+        "fontVariantNumeric": "tabular-nums"
+      }
+    },
+    "table-header-cell": {
+      "base": {
+        "fontWeight": "500",
+        "fontSize": "var(--text-supporting-size)",
+        "letterSpacing": "0.02em",
+        "color": "var(--color-text-secondary)"
+      }
+    },
+    "token": {
+      "base": {
+        "fontWeight": "500"
+      }
     }
   },
   __onDark: {

@@ -48,7 +48,7 @@ const displayTime = (value: string) =>
         <span>
           {
             latest
-              ? `${latest.state} · ${latest.kind}`
+              ? `${latest.state}, ${latest.kind}`
               : state.available
                 ? "No proof command recorded"
                 : "local relay unavailable in this preview"
@@ -82,7 +82,7 @@ const displayTime = (value: string) =>
         <span>
           {
             latest?.proof
-              ? `${latest.proof.evidence_ref} · ${latest.proof.journal_head_hash.slice(0, 12)}`
+              ? `${latest.proof.evidence_ref} (${latest.proof.journal_head_hash.slice(0, 12)})`
               : "relay acknowledgement will appear here"
           }
         </span>

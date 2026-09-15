@@ -11,7 +11,12 @@ import {
 } from "../../lib/content-library-state";
 import type { ThemePreference } from "@anipotts/brand/theme";
 import { HStack } from "@astryxdesign/core/HStack";
-import { Popover } from "@astryxdesign/core/Popover";
+import { Text } from "@astryxdesign/core/Text";
+import {
+  DropdownMenu,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "@astryxdesign/core/DropdownMenu";
 import "./WorkspaceHeader.css";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Button } from "@astryxdesign/core/Button";
@@ -23,10 +28,7 @@ import {
   SideNavSection,
   SideNavCollapseButton,
 } from "@astryxdesign/core/SideNav";
-import {
-  ToggleButton,
-  ToggleButtonGroup,
-} from "@astryxdesign/core/ToggleButton";
+import { navigateAdmin } from "../../lib/editorial-navigation";
 import {
   SidebarSimpleIcon,
   SquaresFourIcon,
@@ -43,6 +45,7 @@ import {
   DesktopTowerIcon,
   IdentificationCardIcon,
   CaretDownIcon,
+  CaretUpIcon,
   ArrowUpRightIcon,
   LaptopIcon,
 } from "@phosphor-icons/react";
@@ -205,59 +208,29 @@ export function WorkspaceIdentity({
           />
         )}
       </HStack>
-      <Popover
-        className="editorial-workspace-popover"
-        width="max-content"
-        label="Switch workspace"
-        placement={compact ? "end" : "below"}
-        content={
-          <VStack padding={2} gap={1} className="editorial-workspace-switcher">
-            {(Object.keys(workspaces) as Workspace[]).map((key) => {
-              const Icon = workspaceIcons[key];
-              return (
-                <SideNavItem
-                  key={key}
-                  label={workspaces[key].label}
-                  href={destinations[key]}
-                  isSelected={workspace === key}
-                  icon={<Icon size={18} aria-hidden="true" />}
-                />
-              );
-            })}
-          </VStack>
-        }
-      >
-        <Button
-          className="admin-workspace-selector"
-          label={workspaces[workspace].label}
-          aria-label={`Switch workspace: ${workspaces[workspace].label}`}
-          tooltip={`Switch workspace: ${workspaces[workspace].label}`}
-          isIconOnly={compact}
-          variant="secondary"
-          size="md"
-          icon={<WorkspaceIcon size={18} aria-hidden="true" />}
-        >
-          {!compact && (
-            <>
-              <span className="workspace-control-label">
-                {workspaces[workspace].label}
-              </span>
-              <CaretDownIcon
-                className="workspace-caret"
-                size={16}
-                weight="fill"
-                aria-hidden="true"
-              />
-            </>
-          )}
-        </Button>
-      </Popover>
+      <SidebarMenu
+        className="admin-workspace-selector"
+        name="Workspace"
+        label={workspaces[workspace].label}
+        accessibleLabel={`Switch workspace: ${workspaces[workspace].label}`}
+        icon={<WorkspaceIcon size={18} aria-hidden="true" />}
+        compact={compact}
+        opens="below"
+        value={workspace}
+        options={(Object.keys(workspaces) as Workspace[]).map((key) => ({
+          value: key,
+          label: workspaces[key].label,
+        }))}
+        onChange={(key) => {
+          if (key !== workspace) navigateAdmin(destinations[key as Workspace]);
+        }}
+      />
       {!isMobile && (
         <Button
           className="editorial-header-search"
           label="Search"
           aria-label="Search"
-          tooltip="Search (⌘K / Ctrl+K)"
+          tooltip={compact ? "Search (⌘K / Ctrl+K)" : undefined}
           isIconOnly={compact}
           variant="ghost"
           size="md"
@@ -265,6 +238,141 @@ export function WorkspaceIdentity({
           onClick={() =>
             document.dispatchEvent(new CustomEvent("admin:search"))
           }
+        />
+      )}
+    </VStack>
+  );
+}
+
+type SidebarMenuOption = { value: string; label: string };
+
+/** The sidebar's one control shape, used at the top for the workspace and at
+ * the bottom for appearance: a full-width secondary trigger carrying the current
+ * choice's icon, a label and the current choice, opening a single-choice menu
+ * the width of the trigger. Menu rows are plain radio rows, like every other
+ * admin dropdown. In the collapsed rail it is an icon button whose tooltip names
+ * the choice. It reads the drawer state itself, so a rail collapsed on a wider
+ * screen never shrinks the controls inside the phone and tablet drawer. */
+function SidebarMenu({
+  className,
+  name,
+  label,
+  accessibleLabel,
+  icon,
+  detail,
+  compact,
+  opens,
+  value,
+  options,
+  onChange,
+}: {
+  className: string;
+  /** Group name read by assistive technology inside the menu. */
+  name: string;
+  label: string;
+  accessibleLabel: string;
+  icon: ReactNode;
+  /** Secondary text between the label and the caret, such as the current choice. */
+  detail?: string;
+  compact: boolean;
+  opens: "below" | "above";
+  value: string;
+  options: readonly SidebarMenuOption[];
+  onChange: (value: string) => void;
+}) {
+  const Caret = opens === "above" ? CaretUpIcon : CaretDownIcon;
+  return (
+    <DropdownMenu
+      button={{
+        className: `admin-sidebar-menu ${className}`,
+        label,
+        "aria-label": accessibleLabel,
+        tooltip: compact ? accessibleLabel : undefined,
+        isIconOnly: compact,
+        variant: "secondary",
+        size: "md",
+        icon,
+        endContent: compact ? undefined : (
+          <HStack gap={2} vAlign="center" className="admin-sidebar-menu-end">
+            {detail && (
+              <Text type="supporting" color="secondary">
+                {detail}
+              </Text>
+            )}
+            <Caret size={16} aria-hidden="true" />
+          </HStack>
+        ),
+      }}
+      hasChevron={false}
+      placement={compact ? "end" : opens}
+      alignment={compact && opens === "above" ? "end" : "start"}
+      menuWidth={compact ? undefined : "anchor-size(width)"}
+    >
+      <DropdownMenuRadioGroup label={name} value={value} onChange={onChange}>
+        {options.map((option) => (
+          <DropdownMenuRadioItem
+            key={option.value}
+            value={option.value}
+            label={option.label}
+          />
+        ))}
+      </DropdownMenuRadioGroup>
+    </DropdownMenu>
+  );
+}
+
+const appearanceOptions: ReadonlyArray<{
+  value: ThemePreference;
+  label: string;
+  Icon: typeof SunIcon;
+}> = [
+  { value: "light", label: "Light", Icon: SunIcon },
+  { value: "dark", label: "Dark", Icon: MoonIcon },
+  { value: "system", label: "System", Icon: DesktopIcon },
+];
+
+/** Sidebar footer: appearance, then log out outside local previews. */
+function WorkspaceUtilities({
+  rail,
+  mode,
+  changeTheme,
+  localPreview,
+}: {
+  rail: boolean;
+  mode: ThemePreference;
+  changeTheme: (mode: ThemePreference) => void;
+  localPreview: boolean;
+}) {
+  const { isMobile } = useAppShellMobile();
+  const compact = rail && !isMobile;
+  const current =
+    appearanceOptions.find((option) => option.value === mode) ??
+    appearanceOptions[2];
+  return (
+    <VStack
+      className="editorial-workspace-utilities"
+      data-collapsed={compact}
+      hAlign={compact ? "center" : "stretch"}
+      gap={1}
+    >
+      <SidebarMenu
+        className="admin-appearance-menu"
+        name="Appearance"
+        label="Appearance"
+        accessibleLabel={`Appearance: ${current.label}`}
+        icon={<current.Icon size={18} aria-hidden="true" />}
+        detail={current.label}
+        compact={compact}
+        opens="above"
+        value={mode}
+        options={appearanceOptions}
+        onChange={(value) => changeTheme(value as ThemePreference)}
+      />
+      {!localPreview && (
+        <SideNavItem
+          label="Log out"
+          href="/auth/logout"
+          icon={<SignOutIcon size={18} aria-hidden="true" />}
         />
       )}
     </VStack>
@@ -282,6 +390,7 @@ export function EditorialWorkspaceShell({
   localPreview,
   localOwner = false,
   searchEntries,
+  groupCounts,
   workspace = "content",
   navigationContent,
   palette,
@@ -289,6 +398,8 @@ export function EditorialWorkspaceShell({
   children: ReactNode;
   area: "content" | "newsletter";
   selectedGroup?: string;
+  /** Record count per navigation id, shown at the end of the nav item. */
+  groupCounts?: Readonly<Record<string, number>>;
   recordKind?: string;
   mode: ThemePreference;
   changeTheme: (mode: ThemePreference) => void;
@@ -347,12 +458,14 @@ export function EditorialWorkspaceShell({
     } catch {}
   }, []);
   useEffect(() => {
+    // AppShell's md drawer covers widths up to and including 768px, so the
+    // rail can only exist above it.
     const query = window.matchMedia(
-      "(min-width: 768px) and (max-width: 1279px)",
+      "(min-width: 769px) and (max-width: 1279px)",
     );
     const update = () =>
       setRail(
-        window.innerWidth < 768 ? false : (userCollapsed ?? query.matches),
+        window.innerWidth <= 768 ? false : (userCollapsed ?? query.matches),
       );
     update();
     query.addEventListener("change", update);
@@ -409,55 +522,12 @@ export function EditorialWorkspaceShell({
               />
             }
             footer={
-              <VStack
-                className="editorial-workspace-utilities"
-                data-collapsed={rail}
-                hAlign={rail ? "center" : "stretch"}
-                gap={2}
-                paddingBlock={2}
-              >
-                <VStack gap={0} className="editorial-site-appearance">
-                  <ToggleButtonGroup
-                    type="single"
-                    label="Appearance"
-                    value={mode}
-                    onChange={(value) => {
-                      if (value) changeTheme(value as ThemePreference);
-                    }}
-                    orientation={rail ? "vertical" : "horizontal"}
-                    size="md"
-                  >
-                    <ToggleButton
-                      value="light"
-                      label="Light"
-                      tooltip="Light"
-                      icon={<SunIcon size={18} aria-hidden="true" />}
-                      isIconOnly
-                    />
-                    <ToggleButton
-                      value="dark"
-                      label="Dark"
-                      tooltip="Dark"
-                      icon={<MoonIcon size={18} aria-hidden="true" />}
-                      isIconOnly
-                    />
-                    <ToggleButton
-                      value="system"
-                      label="System"
-                      tooltip="System"
-                      icon={<DesktopIcon size={18} aria-hidden="true" />}
-                      isIconOnly
-                    />
-                  </ToggleButtonGroup>
-                </VStack>
-                {!localPreview && (
-                  <SideNavItem
-                    label="Log out"
-                    href="/auth/logout"
-                    icon={<SignOutIcon size={18} aria-hidden="true" />}
-                  />
-                )}
-              </VStack>
+              <WorkspaceUtilities
+                rail={rail}
+                mode={mode}
+                changeTheme={changeTheme}
+                localPreview={localPreview}
+              />
             }
           >
             {navigationContent ?? (
@@ -469,6 +539,18 @@ export function EditorialWorkspaceShell({
                     href={destination(id)}
                     isSelected={selected === id}
                     icon={<Icon size={18} aria-hidden="true" />}
+                    endContent={
+                      groupCounts?.[id] === undefined ? undefined : (
+                        <Text
+                          type="supporting"
+                          color="secondary"
+                          className="editorial-nav-count"
+                          aria-label={`${groupCounts[id]} ${groupCounts[id] === 1 ? "record" : "records"}`}
+                        >
+                          {groupCounts[id]}
+                        </Text>
+                      )
+                    }
                   />
                 ))}
               </SideNavSection>

@@ -1382,6 +1382,12 @@ body[data-semantic-inspector-open="true"] {
     width: 100%;
   }
 
+  /* Anchored to the page header, not the viewport corner, where it covered
+     the drawer's menu button. */
+  .admin-canvas-header {
+    position: relative;
+  }
+
   .admin-canvas-refresh {
     position: absolute;
     top: 4px;

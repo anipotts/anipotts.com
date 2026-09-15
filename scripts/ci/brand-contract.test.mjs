@@ -89,7 +89,20 @@ assert.ok(
 const www = readFileSync("apps/www/src/styles/global.css", "utf8");
 const admin = readFileSync("apps/admin/src/styles/admin.css", "utf8");
 assert.ok(www.startsWith('@import "@anipotts/brand/public.css"'));
-assert.ok(admin.startsWith('@import "@anipotts/brand/public.css"'));
+// Admin takes brand tokens and motion from the package but declares its font
+// faces once, in fonts.css, with font-display: optional so pages never repaint
+// in a second font. Those faces must use the brand's own font files and names.
+assert.ok(admin.includes('@import "@anipotts/brand/tokens.css"'));
+assert.ok(admin.includes('@import "@anipotts/brand/motion.css"'));
+assert.ok(!admin.includes("@anipotts/brand/public.css"));
+const adminFonts = readFileSync("apps/admin/src/styles/fonts.css", "utf8");
+assert.ok(adminFonts.includes('font-family: "AP Structural"'));
+assert.ok(adminFonts.includes('font-family: "Instrument Sans Variable"'));
+assert.ok(
+  adminFonts.includes("APStructuralDisplayBlack-v0.2.0-candidate.1.woff2"),
+);
+for (const token of ["--font-interface:", "--font-display:", "--font-code:"])
+  assert.ok(adminFonts.includes(token), `admin fonts.css must define ${token}`);
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");

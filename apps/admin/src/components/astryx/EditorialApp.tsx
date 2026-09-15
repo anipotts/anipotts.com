@@ -182,6 +182,15 @@ export function EditorialApp({
         localPreview={localPreview}
         localOwner={localOwner}
         searchEntries={inventoryView.searchEntries}
+        groupCounts={
+          inventoryView.groups &&
+          Object.fromEntries(
+            inventoryView.groups.map((group) => [
+              group.name,
+              group.records.length,
+            ]),
+          )
+        }
       >
         <VStack
           gap={editorRecord?.kind === "writing" ? 4 : 6}

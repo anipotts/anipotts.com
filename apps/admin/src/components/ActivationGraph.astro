@@ -191,9 +191,9 @@ const humanize = (value: string) => value.replaceAll("_", " ");
   <footer class="activation-contract">
     <span>overlapping projections, not stored top-level states</span>
     <span>
-      work last verified {displayTime(projection.work_last_verified_at)} · {
+      work last verified {displayTime(projection.work_last_verified_at)}, {
         projection.mode
-      } attention source · {
+      } attention source, {
         semanticStateLabel(projection.sources[0]!.source_state)
       }
     </span>

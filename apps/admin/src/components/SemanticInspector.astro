@@ -64,7 +64,7 @@ const humanize = (value: string) => value.replaceAll("_", " ");
                     : reference.label}
                 </h2>
                 <p>
-                  {reference.authority.label} ·{" "}
+                  {reference.authority.label},{" "}
                   {humanize(reference.confidence.level)} confidence
                 </p>
               </div>
@@ -112,7 +112,7 @@ const humanize = (value: string) => value.replaceAll("_", " ");
               <div>
                 <dt>Confidence</dt>
                 <dd>
-                  {reference.confidence.level} ·{" "}
+                  {reference.confidence.level},{" "}
                   {reference.confidence.explanation}
                 </dd>
               </div>

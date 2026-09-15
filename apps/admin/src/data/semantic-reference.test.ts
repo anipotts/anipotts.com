@@ -191,7 +191,7 @@ describe("typed semantic references", () => {
       "source not checked",
     );
     expect(renderSemanticReference(absent).state_label).toBe(
-      "checked · no value found",
+      "checked, no value found",
     );
     expect(renderSemanticReference(unknown).state_label).toBe("unknown");
   });

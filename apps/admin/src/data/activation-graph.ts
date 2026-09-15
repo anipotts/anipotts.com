@@ -86,7 +86,7 @@ export function buildActivationGraph(
     foreground,
     foreground_reference: foreground?.references.entity ?? null,
     foreground_reason: foreground
-      ? `${foreground.risk} priority · ${foreground.timeframe} · ${foreground.next_action}`
+      ? `${foreground.risk} priority, ${foreground.timeframe}. ${foreground.next_action}`
       : "No current attention item is available from the connected sources.",
     lanes: buildActivationLanes(
       inbox.items,
@@ -289,7 +289,7 @@ function buildGraphNodes(
       layer: "obligation",
       label: item.timeframe,
       title: item.next_action,
-      detail: `${item.status} · ${item.risk} priority`,
+      detail: `${item.status}, ${item.risk} priority`,
       reference: item.references.deadline ?? item.references.action,
       source_reference: item.references.deadline ?? item.references.source_time,
     },

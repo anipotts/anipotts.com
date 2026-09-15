@@ -268,7 +268,7 @@ export function ObservabilityWorkspace({
             details: (
               <VStack gap={1}>
                 <Text>
-                  {title(span.operation)} · {span.durationMs} ms
+                  {title(span.operation)}, {span.durationMs} ms
                 </Text>
                 <Evidence at={span.startedAt} id={span.traceId} />
                 <Text type="code">{span.spanId}</Text>
@@ -410,18 +410,6 @@ export function ObservabilityWorkspace({
                   ))}
                 </DropdownMenuRadioGroup>
               </DropdownMenu>
-              {isInventory && (
-                <Text
-                  type="supporting"
-                  color="secondary"
-                  aria-live="polite"
-                  role="status"
-                  className="operations-count"
-                >
-                  {services.length}{" "}
-                  {services.length === 1 ? "record" : "records"}
-                </Text>
-              )}
             </HStack>
             <HStack
               gap={6}
@@ -588,6 +576,25 @@ export function ObservabilityWorkspace({
                       />
                     )}
                   </VStack>
+                )}
+                {isInventory && (
+                  <HStack
+                    gap={5}
+                    wrap="wrap"
+                    vAlign="center"
+                    className="admin-table-footer"
+                  >
+                    <Text
+                      type="supporting"
+                      color="secondary"
+                      aria-live="polite"
+                      role="status"
+                      className="operations-count"
+                    >
+                      {services.length}{" "}
+                      {services.length === 1 ? "record" : "records"}
+                    </Text>
+                  </HStack>
                 )}
               </VStack>
               {selected && (

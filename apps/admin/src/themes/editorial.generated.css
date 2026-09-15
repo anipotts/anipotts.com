@@ -553,6 +553,21 @@
     min-height: var(--spacing-11);
   }
 
+  .astryx-table {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .astryx-table-header-cell {
+    font-weight: 500;
+    font-size: var(--text-supporting-size);
+    letter-spacing: 0.02em;
+    color: var(--color-text-secondary);
+  }
+
+  .astryx-token {
+    font-weight: 500;
+  }
+
   .astryx-text.primary { color: var(--color-text-primary); }
 
   .astryx-heading.primary { color: var(--color-text-primary); }

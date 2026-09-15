@@ -196,3 +196,15 @@ it("separates admin rows, columns and sections without border rules", () => {
     ),
   ).toEqual([]);
 });
+
+it("keeps middots out of admin interface copy", () => {
+  // House style: separate phrases with commas, periods or parentheses. The dev
+  // review catalog's multilingual stress fixture is the one deliberate case.
+  const root = new URL("..", import.meta.url).pathname;
+  const offenders = readdirSync(root, { recursive: true, encoding: "utf8" })
+    .filter((path) => /\.(astro|tsx?)$/.test(path))
+    .filter((path) => !/\.test\.tsx?$/.test(path))
+    .filter((path) => !path.endsWith("dev-review-catalog.tsx"))
+    .filter((path) => readFileSync(`${root}${path}`, "utf8").includes("·"));
+  expect(offenders).toEqual([]);
+});

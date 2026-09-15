@@ -123,6 +123,23 @@ describe("responsive workspace navigation", () => {
       expect(toggle.getAttribute("aria-expanded")).toBe("false");
     },
   );
+  it.each([390, 768])(
+    "never renders the collapsed rail inside the %ipx drawer, even when a rail was saved",
+    (width) => {
+      localStorage.setItem("admin:sidebar-collapsed", "true");
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: width,
+      });
+      render();
+      expect(
+        host
+          .querySelector(".editorial-workspace-shell")
+          ?.getAttribute("data-sidebar-collapsed"),
+      ).toBe("false");
+      localStorage.removeItem("admin:sidebar-collapsed");
+    },
+  );
   it("persists explicit expansion and collapse independently of the tablet default", () => {
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
@@ -175,7 +192,10 @@ describe("responsive workspace navigation", () => {
     expect(search).not.toBeNull();
     expect(collapse).not.toBeNull();
     expect(identity.contains(search)).toBe(true);
-    expect(selector.parentElement?.contains(collapse)).toBe(false);
+    // The collapse control lives in the wordmark row; the workspace menu has a
+    // full-width row of its own.
+    expect(selector.closest(".editorial-identity-primary-row")).toBeNull();
+    expect(collapse?.closest(".editorial-identity-primary-row")).not.toBeNull();
     expect(
       identity.querySelectorAll('button[aria-label="Search"]'),
     ).toHaveLength(1);
@@ -185,30 +205,43 @@ describe("responsive workspace navigation", () => {
     document.removeEventListener("admin:search", announce);
     expect(announce).toHaveBeenCalledTimes(1);
   });
-  it("offers direct appearance choices and a header visit-site link", () => {
+  it("offers appearance as a sidebar menu and a header visit-site link", () => {
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
       value: 1280,
     });
     const change = vi.fn();
     render(change);
-    act(() =>
-      (
-        host.querySelector('button[aria-label="Dark"]') as HTMLButtonElement
-      ).click(),
-    );
+    // One control at the foot of the sidebar, shaped like the workspace menu:
+    // it names the current choice and opens a single-choice menu.
+    const appearance = host.querySelector(
+      ".editorial-workspace-utilities .admin-appearance-menu",
+    ) as HTMLButtonElement;
+    expect(appearance).not.toBeNull();
+    expect(appearance.classList).toContain("admin-sidebar-menu");
+    expect(
+      host.querySelector(".admin-workspace-selector")?.classList,
+    ).toContain("admin-sidebar-menu");
+    expect(appearance.getAttribute("aria-label")).toMatch(/^Appearance: /);
+    expect(appearance.getAttribute("aria-haspopup")).toBe("menu");
+    act(() => appearance.click());
+    const menu = document.getElementById(
+      appearance.getAttribute("aria-controls") ?? "",
+    )!;
+    expect(menu.getAttribute("role")).toBe("menu");
+    const choices = [
+      ...menu.querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
+    ];
+    expect(choices.map((choice) => choice.textContent)).toEqual([
+      "Light",
+      "Dark",
+      "System",
+    ]);
+    act(() => choices[1]!.click());
     expect(change).toHaveBeenCalledExactlyOnceWith("dark");
-    for (const label of ["Light", "Dark", "System"])
-      expect(
-        host.querySelector(`button[aria-label="${label}"]`),
-      ).not.toBeNull();
     const identity = host.querySelector(".editorial-workspace-identity")!;
     expect(identity.querySelector("svg")).not.toBeNull(); // Native collapse glyph, no AP paths.
     expect(identity.querySelector('path[fill="currentColor"]')).toBeNull();
-    const choices = host.querySelector(
-      '.editorial-workspace-utilities [aria-label="Appearance"]',
-    )!;
-    expect(choices.querySelectorAll("button")).toHaveLength(3);
     const links = [...host.querySelectorAll("a")];
     const writing = links.find((link) => link.textContent === "Writing")!;
     const newsletter = links.find((link) => link.textContent === "Newsletter")!;

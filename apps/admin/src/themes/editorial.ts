@@ -53,5 +53,19 @@ export const editorialTheme = defineTheme({
       },
     },
     "collapsible-trigger": { base: { minHeight: "var(--spacing-11)" } },
+
+    // Table language shared by every workspace. Column labels are quiet so
+    // the rows carry the weight, figures line up as tabular numerals, and
+    // chips read as chips.
+    table: { base: { fontVariantNumeric: "tabular-nums" } },
+    "table-header-cell": {
+      base: {
+        fontWeight: "500",
+        fontSize: "var(--text-supporting-size)",
+        letterSpacing: "0.02em",
+        color: "var(--color-text-secondary)",
+      },
+    },
+    token: { base: { fontWeight: "500" } },
   },
 });
