@@ -209,15 +209,9 @@ describe("middleware with the build-time flag", () => {
     expect(resolveAdminSession).not.toHaveBeenCalled();
   });
 
-  it("opens a record editor through the Portless host without Access", async () => {
+  it("opens a record editor on a loopback dev server without Access", async () => {
     const { response, next, locals } = await dispatch(
-      "http://feature.admin.anipotts.localhost:1355/content/writing/example",
-      {
-        headers: {
-          "x-forwarded-host": "feature.admin.anipotts.localhost:1355",
-          "x-forwarded-for": "127.0.0.1",
-        },
-      },
+      "http://127.0.0.1:4401/content/writing/example",
     );
     expect(response.status).toBe(200);
     expect(next).toHaveBeenCalledTimes(1);

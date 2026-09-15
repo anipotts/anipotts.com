@@ -16,7 +16,8 @@ const ADMIN = join(ROOT, "apps", "admin");
 const OUT_DIR = join(ADMIN, ".local", "local-owner-dist");
 const HOST = "127.0.0.1";
 const DEFAULT_PORT = 8871;
-const RESERVED_PORTS = new Set([1355, 4311]);
+// The managed Admin preview; dev servers use 4400 to 4999.
+const RESERVED_PORTS = new Set([4311]);
 
 function port() {
   const raw = process.env.ADMIN_LOCAL_OWNER_PORT ?? String(DEFAULT_PORT);
@@ -24,7 +25,7 @@ function port() {
   if (!Number.isInteger(value) || value < 1024 || value > 65535) {
     throw new Error("ADMIN_LOCAL_OWNER_PORT must be a port from 1024 to 65535");
   }
-  if (RESERVED_PORTS.has(value)) {
+  if (RESERVED_PORTS.has(value) || (value >= 4400 && value <= 4999)) {
     throw new Error(`port ${value} belongs to a shared local preview`);
   }
   return value;

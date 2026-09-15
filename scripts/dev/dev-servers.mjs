@@ -13,39 +13,35 @@ import {
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  DEV_HOST,
+  devUrl,
+  freePortPair,
+  isPortFree,
+  parsePortOverride,
+} from "./dev-server-ports.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const WORKTREE_ROOT = realpathSync(resolve(SCRIPT_DIR, "../.."));
-const LOCAL_DIR = join(WORKTREE_ROOT, ".local", "portless-preview");
+const LOCAL_DIR = join(WORKTREE_ROOT, ".local", "dev-servers");
 const METADATA_PATH = join(LOCAL_DIR, "processes.json");
-const PROXY_PORT = 1355;
-const CANONICAL_BRANCH = "main";
 const REQUIRED_NODE = { major: 24, minor: 19, patch: 0 };
-// Portless proxies from loopback. Naming the host keeps it there even if
-// Portless stops injecting one, and the local owner guard requires it.
-const APP_BIND_HOST = "127.0.0.1";
 // Opt-in synthetic owner for this worktree's Admin dev server only.
 const LOCAL_OWNER = process.argv.includes("--local-owner");
-// Portless tunnels that would carry other clients to the owner route.
-const PORTLESS_RELAYS = [
-  "PORTLESS_FUNNEL",
-  "PORTLESS_TAILSCALE",
-  "PORTLESS_NGROK",
-];
 const APPS = [
   {
     key: "www",
     packageName: "@anipotts/www",
-    name: "anipotts",
     cwd: join(WORKTREE_ROOT, "apps", "www"),
     healthPath: "/",
+    portEnv: "ANIPOTTS_WWW_PORT",
   },
   {
     key: "admin",
     packageName: "@anipotts/admin",
-    name: "admin.anipotts",
     cwd: join(WORKTREE_ROOT, "apps", "admin"),
     healthPath: "/api/health",
+    portEnv: "ANIPOTTS_ADMIN_PORT",
   },
 ];
 
@@ -57,67 +53,20 @@ function git(...args) {
   }).trim();
 }
 
-function sharedStateDir() {
-  const commonDir = git(
-    "rev-parse",
-    "--path-format=absolute",
-    "--git-common-dir",
-  );
-  const mainRoot = dirname(realpathSync(commonDir));
-  return join(mainRoot, ".local", "portless-state");
-}
-
-function primaryCheckoutRoot() {
-  const commonDir = git(
-    "rev-parse",
-    "--path-format=absolute",
-    "--git-common-dir",
-  );
-  return dirname(realpathSync(commonDir));
-}
-
-function isPrimaryCheckout() {
-  return WORKTREE_ROOT === primaryCheckoutRoot();
-}
-
-function assertCanonicalPreviewOwnership() {
-  if (!isPrimaryCheckout()) return;
-
-  const branch = git("branch", "--show-current");
-  const head = git("rev-parse", "HEAD");
-  const upstream = git("rev-parse", "origin/main");
-  const dirty = git("status", "--porcelain");
-  if (branch !== CANONICAL_BRANCH || head !== upstream || dirty) {
-    throw new Error(
-      "canonical Portless names require the clean physical main checkout at origin/main; use a linked worktree for branch previews",
-    );
-  }
-}
-
-function portlessEnv(options = {}) {
-  const env = {
-    ...process.env,
-    PORTLESS_STATE_DIR: sharedStateDir(),
-    PORTLESS_PORT: String(PROXY_PORT),
-    PORTLESS_HTTPS: "0",
-    PORTLESS_LAN: "0",
-    PORTLESS_SYNC_HOSTS: "0",
-    PORTLESS_TLD: "localhost",
-  };
+function childEnv(options = {}) {
+  const env = { ...process.env };
   // An inherited shell value never reaches dependency builds, the shared
-  // fallback or the default Admin route; only owner mode sets it.
+  // fallback or the default Admin server; only owner mode sets it.
   delete env.ADMIN_LOCAL_OWNER;
-  if (LOCAL_OWNER && options.localOwner) {
-    env.ADMIN_LOCAL_OWNER = "1";
-    for (const relay of PORTLESS_RELAYS) delete env[relay];
-  }
+  if (LOCAL_OWNER && options.localOwner) env.ADMIN_LOCAL_OWNER = "1";
+  if (options.siteUrl) env.PUBLIC_DEV_SITE_URL = `${options.siteUrl}/`;
   return env;
 }
 
 function pnpm(args, options = {}) {
   const output = execFileSync("pnpm", args, {
     cwd: options.cwd ?? WORKTREE_ROOT,
-    env: portlessEnv(),
+    env: childEnv(),
     encoding: "utf8",
     stdio: options.stdio ?? ["ignore", "pipe", "pipe"],
   });
@@ -136,28 +85,6 @@ function assertRuntime() {
       `anipotts.com local tools require Node >=24.19.0 <26; found ${process.version}. Run: nvm install && nvm use`,
     );
   }
-
-  const version = pnpm(["exec", "portless", "--version"]);
-  if (version !== "0.15.5") {
-    throw new Error(`expected Portless 0.15.5, received ${version}`);
-  }
-}
-
-function ensureProxy() {
-  mkdirSync(sharedStateDir(), { recursive: true, mode: 0o700 });
-  pnpm([
-    "exec",
-    "portless",
-    "proxy",
-    "start",
-    "--no-tls",
-    "--port",
-    String(PROXY_PORT),
-  ]);
-}
-
-function appUrl(app) {
-  return pnpm(["exec", "portless", "get", app.name], { cwd: app.cwd });
 }
 
 async function isHealthy(url, path) {
@@ -166,11 +93,7 @@ async function isHealthy(url, path) {
       redirect: "manual",
       signal: AbortSignal.timeout(2_500),
     });
-    return (
-      response.status >= 200 &&
-      response.status < 400 &&
-      response.headers.get("x-portless") === "1"
-    );
+    return response.status >= 200 && response.status < 400;
   } catch {
     return false;
   }
@@ -198,12 +121,13 @@ function processCommand(pid) {
   }
 }
 
-function isRecognizedProcess(app, pid) {
-  const command = processCommand(pid);
+/** Only a process this manager started for this app and port is ever stopped. */
+function isRecognizedProcess(record) {
+  const command = processCommand(record.pid);
   return (
-    command.includes("portless") &&
-    command.includes("run") &&
-    command.includes(app.name)
+    command.includes("astro") &&
+    command.includes(" dev") &&
+    command.includes(`--port ${record.port}`)
   );
 }
 
@@ -217,22 +141,18 @@ function readMetadata() {
   }
 }
 
-function writeMetadata(apps) {
+function writeMetadata(ports, apps) {
   mkdirSync(LOCAL_DIR, { recursive: true, mode: 0o700 });
   writeFileSync(
     METADATA_PATH,
     `${JSON.stringify(
       {
-        schemaVersion: 1,
+        schemaVersion: 2,
         worktreeRoot: WORKTREE_ROOT,
         branch: git("branch", "--show-current"),
         head: git("rev-parse", "HEAD"),
-        proxy: {
-          port: PROXY_PORT,
-          tls: false,
-          lan: false,
-          stateDir: sharedStateDir(),
-        },
+        host: DEV_HOST,
+        ports,
         fallbackAdminUrl: "http://localhost:4311/",
         apps,
         updatedAt: new Date().toISOString(),
@@ -244,28 +164,39 @@ function writeMetadata(apps) {
   );
 }
 
-function startApp(app, url) {
+/** Ports stay fixed per worktree once chosen; overrides always win. */
+async function resolvePorts(previous) {
+  const overrides = Object.fromEntries(
+    APPS.map((app) => [
+      app.key,
+      parsePortOverride(app.portEnv, process.env[app.portEnv]),
+    ]),
+  );
+  const saved = previous?.ports;
+  const base = saved ?? (await freePortPair(WORKTREE_ROOT));
+  const ports = {
+    www: overrides.www ?? base.www,
+    admin: overrides.admin ?? base.admin,
+  };
+  if (ports.www === ports.admin) {
+    throw new Error("the www and admin dev ports must differ");
+  }
+  return ports;
+}
+
+function startApp(app, port, siteUrl) {
   mkdirSync(LOCAL_DIR, { recursive: true, mode: 0o700 });
   const logPath = join(LOCAL_DIR, `${app.key}.log`);
   const logFd = openSync(logPath, "a", 0o600);
   const child = spawn(
     "pnpm",
-    [
-      "exec",
-      "portless",
-      "run",
-      "--name",
-      app.name,
-      "pnpm",
-      "exec",
-      "astro",
-      "dev",
-      "--host",
-      APP_BIND_HOST,
-    ],
+    ["exec", "astro", "dev", "--host", DEV_HOST, "--port", String(port)],
     {
       cwd: app.cwd,
-      env: portlessEnv({ localOwner: app.key === "admin" }),
+      env: childEnv({
+        localOwner: app.key === "admin",
+        siteUrl: app.key === "admin" ? siteUrl : undefined,
+      }),
       detached: true,
       stdio: ["ignore", logFd, logFd],
     },
@@ -274,8 +205,8 @@ function startApp(app, url) {
   closeSync(logFd);
   return {
     key: app.key,
-    name: app.name,
-    url,
+    url: devUrl(port),
+    port,
     pid: child.pid,
     ownership: "managed",
     localOwner: LOCAL_OWNER && app.key === "admin",
@@ -297,7 +228,7 @@ function prepareAppDependencies(app) {
 }
 
 async function waitForApp(app, record) {
-  const deadline = Date.now() + 30_000;
+  const deadline = Date.now() + 60_000;
   while (Date.now() < deadline) {
     if (await isHealthy(record.url, app.healthPath)) return;
     if (record.pid && !isAlive(record.pid)) {
@@ -325,96 +256,71 @@ function selectedApps(surface) {
   return [app];
 }
 
+function upsert(records, record) {
+  const index = records.findIndex((candidate) => candidate.key === record.key);
+  if (index < 0) records.push(record);
+  else records.splice(index, 1, record);
+}
+
 async function ensure(surface) {
   if (LOCAL_OWNER && surface !== "admin") {
     throw new Error("local owner mode starts only the admin surface");
   }
   assertRuntime();
-  assertCanonicalPreviewOwnership();
-  ensureProxy();
   if (surface === "admin" || surface === "all") await ensureFallbackAdmin();
 
   const previous = readMetadata();
+  const ports = await resolvePorts(previous);
   const records = previous?.apps ? [...previous.apps] : [];
   for (const app of selectedApps(surface)) {
-    const url = appUrl(app);
-    const prior = previous?.apps?.find((record) => record.key === app.key);
+    const port = ports[app.key];
+    const url = devUrl(port);
+    const prior = records.find((record) => record.key === app.key);
     const wantsLocalOwner = LOCAL_OWNER && app.key === "admin";
-    const healthy = await isHealthy(url, app.healthPath);
-    // Never reuse a route across owner modes, in either direction.
-    const reusable =
+    const running =
       prior?.ownership === "managed" &&
-      Boolean(prior.localOwner) === wantsLocalOwner;
-    if (healthy && (wantsLocalOwner || prior?.localOwner) && !reusable) {
+      prior.port === port &&
+      isRecognizedProcess(prior);
+    if (running) {
+      // Never reuse a server across owner modes, in either direction.
+      if (Boolean(prior.localOwner) !== wantsLocalOwner) {
+        throw new Error(
+          `${app.key} at ${url} is already running ${prior.localOwner ? "with" : "without"} local owner; run pnpm dev:stop first`,
+        );
+      }
+      if (await isHealthy(url, app.healthPath)) continue;
+    }
+    if (!running && !(await isPortFree(port))) {
       throw new Error(
-        `${app.key} at ${url} is already running ${prior?.localOwner ? "with" : "without"} local owner; run pnpm dev:stop first`,
+        `${app.key} port ${port} is in use by another process; stop it or set ${app.portEnv}`,
       );
-    }
-    if (
-      prior?.ownership === "managed" &&
-      isRecognizedProcess(app, prior.pid) &&
-      healthy
-    ) {
-      const index = records.findIndex((record) => record.key === app.key);
-      records.splice(index < 0 ? records.length : index, index < 0 ? 0 : 1, {
-        ...prior,
-        url,
-      });
-      continue;
-    }
-
-    if (healthy) {
-      const existing = {
-        key: app.key,
-        name: app.name,
-        url,
-        pid: null,
-        ownership: "existing",
-        logPath: null,
-      };
-      const index = records.findIndex((record) => record.key === app.key);
-      records.splice(
-        index < 0 ? records.length : index,
-        index < 0 ? 0 : 1,
-        existing,
-      );
-      continue;
     }
 
     prepareAppDependencies(app);
-    const record = startApp(app, url);
+    const record = startApp(app, port, devUrl(ports.www));
     try {
       await waitForApp(app, record);
     } catch (error) {
-      await stopRecord(app, record);
+      await stopRecord(record);
       throw error;
     }
-    const index = records.findIndex((candidate) => candidate.key === app.key);
-    records.splice(
-      index < 0 ? records.length : index,
-      index < 0 ? 0 : 1,
-      record,
-    );
+    upsert(records, record);
   }
 
-  writeMetadata(records);
-  printStatus(records);
+  writeMetadata(ports, records);
+  printStatus(records, ports);
 }
 
-function printStatus(records) {
+function printStatus(records, ports) {
   console.log(
-    `worktree=${WORKTREE_ROOT} branch=${git("branch", "--show-current")} head=${git("rev-parse", "HEAD")} canonical=${isPrimaryCheckout() ? "yes" : "no"}`,
+    `worktree=${WORKTREE_ROOT} branch=${git("branch", "--show-current")} head=${git("rev-parse", "HEAD")}`,
   );
-  console.log(`proxy=http://localhost:${PROXY_PORT} tls=off lan=off`);
+  for (const app of APPS) {
+    if (ports && !records.some((record) => record.key === app.key))
+      console.log(`${app.key}=${devUrl(ports[app.key])} state=stopped`);
+  }
   for (const record of records) {
-    const state = record.pid
-      ? isRecognizedProcess(
-          APPS.find((app) => app.key === record.key),
-          record.pid,
-        )
-        ? "running"
-        : "stale"
-      : record.ownership;
+    const state = isRecognizedProcess(record) ? "running" : "stopped";
     console.log(
       `${record.key}=${record.url} state=${state} ownership=${record.ownership}${record.pid ? ` pid=${record.pid}` : ""}${record.localOwner ? " local-owner=on" : ""}`,
     );
@@ -428,34 +334,31 @@ async function status(surface) {
   assertRuntime();
   const metadata = readMetadata();
   if (!metadata) {
-    console.log("portless preview is not managed for this worktree");
+    console.log("no dev servers are managed for this worktree");
     process.exitCode = 1;
     return;
   }
 
-  let healthy = true;
-  const expectedApps =
-    surface === "all"
-      ? metadata.apps
-          .map((record) => APPS.find((app) => app.key === record.key))
-          .filter(Boolean)
-      : selectedApps(surface);
-  for (const app of expectedApps) {
+  // Exit 1 when a selected server is missing, stopped or unhealthy. `all`
+  // checks the servers this worktree has started.
+  let healthy = metadata.apps.length > 0;
+  for (const app of selectedApps(surface)) {
     const record = metadata.apps.find((candidate) => candidate.key === app.key);
-    if (!record || !(await isHealthy(record.url, app.healthPath)))
+    if (surface === "all" && !record) continue;
+    if (
+      !record ||
+      !isRecognizedProcess(record) ||
+      !(await isHealthy(record.url, app.healthPath))
+    )
       healthy = false;
   }
-  printStatus(metadata.apps);
+  printStatus(metadata.apps, metadata.ports);
   if (!healthy) process.exitCode = 1;
 }
 
-async function stopRecord(app, record) {
+async function stopRecord(record) {
   if (record.ownership !== "managed" || !record.pid) return;
-  if (!isRecognizedProcess(app, record.pid)) {
-    throw new Error(
-      `refusing to stop unrecognized ${app.key} process ${record.pid}`,
-    );
-  }
+  if (!isRecognizedProcess(record)) return;
 
   process.kill(-record.pid, "SIGTERM");
   const deadline = Date.now() + 5_000;
@@ -468,22 +371,24 @@ async function stopRecord(app, record) {
 async function stop(surface) {
   const metadata = readMetadata();
   if (!metadata) {
-    console.log("portless preview is not managed for this worktree");
+    console.log("no dev servers are managed for this worktree");
     return;
   }
 
   const selected = selectedApps(surface);
   for (const app of selected) {
     const record = metadata.apps.find((candidate) => candidate.key === app.key);
-    if (record) await stopRecord(app, record);
+    if (record) await stopRecord(record);
   }
   const remaining = metadata.apps.filter(
     (record) => !selected.some((app) => app.key === record.key),
   );
-  if (remaining.length > 0) writeMetadata(remaining);
+  // Ports stay recorded so a restart keeps the same URLs.
+  if (remaining.length > 0 || metadata.ports)
+    writeMetadata(metadata.ports, remaining);
   else rmSync(METADATA_PATH, { force: true });
   console.log(
-    `stopped managed ${surface} route${surface === "all" ? "s" : ""}; shared proxy and Admin fallback remain running`,
+    `stopped ${surface} dev server${surface === "all" ? "s" : ""} for this worktree; the Admin fallback on 4311 stays running`,
   );
 }
 
@@ -495,7 +400,7 @@ try {
   else if (action === "stop") await stop(surface);
   else
     throw new Error(
-      "usage: portless-preview.mjs {ensure|status|stop} {www|admin|all}",
+      "usage: dev-servers.mjs {ensure|status|stop} {www|admin|all} [--local-owner]",
     );
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);

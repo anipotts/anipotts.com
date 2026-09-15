@@ -109,8 +109,8 @@ for (const [url, origin] of [
 }
 assert.equal(
   checkOrigin(
-    new Request("http://localhost:1355/api/subscribe", {
-      headers: { origin: "http://localhost:1355" },
+    new Request("http://127.0.0.1:4400/api/subscribe", {
+      headers: { origin: "http://127.0.0.1:4400" },
     }),
   ),
   null,
