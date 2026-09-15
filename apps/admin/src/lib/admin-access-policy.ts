@@ -39,10 +39,6 @@ const PUBLIC_PASSKEY_API_PATHS = new Set([
 ]);
 
 const PUBLIC_PREFIXES = ["/_astro/", "/assets/"];
-const DEV_LOOPBACK_ORIGINS = new Set([
-  "http://localhost:4311",
-  "http://127.0.0.1:4311",
-]);
 const DEV_LOOPBACK_PREVIEW_PATHS = new Set([
   "/",
   "/inbox",
@@ -76,14 +72,7 @@ const DEV_LOOPBACK_PREVIEW_PATHS = new Set([
 ]);
 const DEV_PREVIEW_ASSET_PATHS = new Set(["/@react-refresh"]);
 const DEV_PREVIEW_ASSET_PREFIXES = ["/@id/", "/@vite/", "/src/"];
-const DEV_PORTLESS_HOST_PATTERN =
-  /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)?admin\.anipotts\.localhost$/;
-
-const LOCAL_OWNER_LOOPBACK_HOSTNAMES = new Set([
-  "localhost",
-  "127.0.0.1",
-  "[::1]",
-]);
+const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
 const LOCAL_OWNER_CLIENT_ADDRESS_HEADERS = [
   "x-forwarded-for",
   "x-real-ip",
@@ -128,7 +117,7 @@ export function decideAdminAccess({
 }
 
 /**
- * A local owner request reaches a loopback or Portless Admin host directly.
+ * A local owner request reaches a loopback Admin host directly.
  * Any host or client header naming somewhere else means a proxy or tunnel,
  * and cross-origin browser writes never borrow the local identity.
  */
@@ -177,10 +166,7 @@ export function isLocalOwnerRequest({
 }
 
 function isLocalOwnerHostname(hostname: string): boolean {
-  return (
-    LOCAL_OWNER_LOOPBACK_HOSTNAMES.has(hostname) ||
-    DEV_PORTLESS_HOST_PATTERN.test(hostname)
-  );
+  return LOOPBACK_HOSTNAMES.has(hostname);
 }
 
 function authorityHostname(authority: string): string {
@@ -253,13 +239,10 @@ export function isDevLoopbackPreviewRequest({
   );
 }
 
+/** Local dev servers listen on loopback, on the managed 4311 preview or a
+ * per-worktree port, so any loopback origin over plain HTTP qualifies. */
 export function isApprovedDevPreviewOrigin(url: URL): boolean {
-  if (DEV_LOOPBACK_ORIGINS.has(url.origin)) return true;
-  if (!DEV_PORTLESS_HOST_PATTERN.test(url.hostname)) return false;
-  return (
-    (url.protocol === "http:" && url.port === "1355") ||
-    (url.protocol === "https:" && (url.port === "" || url.port === "443"))
-  );
+  return url.protocol === "http:" && LOOPBACK_HOSTNAMES.has(url.hostname);
 }
 
 export function isPublicAdminPath(pathname: string): boolean {
