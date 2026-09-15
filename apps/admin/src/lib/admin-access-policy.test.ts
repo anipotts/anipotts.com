@@ -71,10 +71,10 @@ describe("admin access policy", () => {
   });
 
   test.each([
-    "http://admin.anipotts.localhost:1355",
-    "http://portless-local-2026-08-21.admin.anipotts.localhost:1355",
-    "https://admin.anipotts.localhost",
-  ])("accepts an exact Portless development origin %s", (origin) => {
+    "http://localhost:4401",
+    "http://127.0.0.1:4455",
+    "http://[::1]:4401",
+  ])("accepts a loopback dev server origin %s", (origin) => {
     expect(
       isDevLoopbackPreviewRequest({
         isDev: true,
@@ -94,7 +94,7 @@ describe("admin access policy", () => {
       isDevLoopbackPreviewRequest({
         isDev: true,
         method: "GET",
-        url: local(path, "http://admin.anipotts.localhost:1355"),
+        url: local(path, "http://127.0.0.1:4401"),
       }),
     ).toBe(true);
   });
@@ -124,7 +124,7 @@ describe("admin access policy", () => {
       method: "POST",
       url: local(
         "/src/components/astryx/AdminCommandPalette.tsx",
-        "http://admin.anipotts.localhost:1355",
+        "http://127.0.0.1:4401",
       ),
     },
     {
@@ -134,37 +134,28 @@ describe("admin access policy", () => {
       url: local("/inbox", "https://admin.anipotts.com"),
     },
     {
-      name: "wrong port",
-      isDev: true,
-      method: "GET",
-      url: local("/inbox", "http://localhost:4321"),
-    },
-    {
       name: "unapproved auth operation",
       isDev: true,
       method: "GET",
       url: local("/auth/device/opaque-request"),
     },
     {
-      name: "wrong Portless port",
+      name: "retired named localhost host",
       isDev: true,
       method: "GET",
-      url: local("/inbox", "http://admin.anipotts.localhost:4311"),
+      url: local("/inbox", "http://admin.anipotts.localhost:1355"),
     },
     {
-      name: "lookalike Portless host",
+      name: "lookalike loopback host",
       isDev: true,
       method: "GET",
-      url: local("/inbox", "http://admin.anipotts.localhost.example:1355"),
+      url: local("/inbox", "http://localhost.example:4401"),
     },
     {
-      name: "nested Portless subdomain",
+      name: "loopback over https",
       isDev: true,
       method: "GET",
-      url: local(
-        "/inbox",
-        "http://nested.branch.admin.anipotts.localhost:1355",
-      ),
+      url: local("/inbox", "https://localhost:4401"),
     },
     {
       name: "unapproved page",
@@ -308,8 +299,7 @@ describe("local owner session", () => {
     "http://localhost:4321",
     "http://127.0.0.1:8787",
     "http://[::1]:3001",
-    "http://admin.anipotts.localhost:1355",
-    "http://local-owner-session.admin.anipotts.localhost:1355",
+    "http://127.0.0.1:4401",
   ])("grants every method on the loopback host %s", (origin) => {
     for (const method of ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"])
       expect(decideAdminAccess(request({ origin, method }))).toBe(
@@ -317,16 +307,16 @@ describe("local owner session", () => {
       );
   });
 
-  test("accepts the headers the rootless Portless proxy forwards", () => {
+  test("accepts loopback forwarding headers from a local tool", () => {
     expect(
       decideAdminAccess(
         request({
-          origin: "http://feature.admin.anipotts.localhost:1355",
+          origin: "http://127.0.0.1:4401",
           headers: {
-            "x-forwarded-host": "feature.admin.anipotts.localhost:1355",
+            "x-forwarded-host": "127.0.0.1:4401",
             "x-forwarded-for": "::ffff:127.0.0.1",
             "x-forwarded-proto": "http",
-            "x-forwarded-port": "1355",
+            "x-forwarded-port": "4401",
           },
         }),
       ),
@@ -403,7 +393,8 @@ describe("local owner session", () => {
     "http://10.0.0.2:4311",
     "http://localhost.example.com:4321",
     "http://admin.anipotts.localhost.example:1355",
-    "http://nested.branch.admin.anipotts.localhost:1355",
+    "http://admin.anipotts.localhost:1355",
+    "http://feature.admin.anipotts.localhost:1355",
     "http://anipotts.localhost:1355",
   ])("never grants a non-loopback host %s", (origin) => {
     expect(decideAdminAccess(request({ origin }))).toBe("passkey-required");

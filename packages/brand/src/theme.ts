@@ -46,12 +46,12 @@ export function saveTheme(theme: ThemePreference) {
     /* Storage is optional. */
   }
   const host = location.hostname;
+  // Local dev servers share one loopback host across ports, and cookies are
+  // not port-scoped, so the www and admin dev servers already share it.
   const domain =
     host === "anipotts.com" || host.endsWith(".anipotts.com")
       ? "; Domain=anipotts.com"
-      : host === "anipotts.localhost" || host.endsWith(".anipotts.localhost")
-        ? "; Domain=anipotts.localhost"
-        : "";
+      : "";
   try {
     document.cookie = `ap-theme=${theme}; Path=/; Max-Age=31536000; SameSite=Lax${domain}${location.protocol === "https:" ? "; Secure" : ""}`;
   } catch {
