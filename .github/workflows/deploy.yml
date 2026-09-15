@@ -263,10 +263,6 @@ jobs:
         run: pnpm turbo build --filter=@anipotts/www
         env:
           PUBLIC_RELEASE_SHA: ${{ github.sha }}
-          # Astro's static build bakes PUBLIC_* vars at build time. Add this
-          # GitHub Actions secret to enable analytics.
-          # Absent = those features no-op and the build still succeeds.
-          PUBLIC_POSTHOG_KEY: ${{ secrets.PUBLIC_POSTHOG_KEY }}
 
       # apps/www is Astro (@astrojs/cloudflare). `astro build` already emits the
       # worker bundle at dist/_worker.js; no opennextjs adapter step here.

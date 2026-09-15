@@ -91,8 +91,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     !import.meta.env.DEV &&
     !context.isPrerendered &&
     ["GET", "HEAD"].includes(context.request.method) &&
-    !pathname.startsWith("/api/") &&
-    !pathname.startsWith("/ingest/")
+    !pathname.startsWith("/api/")
   ) {
     const asset = await context.locals.runtime.env.ASSETS.fetch(
       context.request,

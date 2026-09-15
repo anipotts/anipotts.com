@@ -65,8 +65,8 @@ const opaque = (tag: string) => tag.replace(/^W\//, "");
  * If-None-Match, so a matching validator used to get the full page again,
  * including the click after a hover prefetch. A 200 whose ETag matches the
  * request, compared weakly as RFC 9110 requires for If-None-Match, becomes a
- * bodyless 304 with the same headers. Every other response, /api and /ingest
- * pass through unchanged. */
+ * bodyless 304 with the same headers. Every other response and /api pass
+ * through unchanged. */
 export function withConditionalStatus(
   // Only what is read, so the adapter's workers Request type fits as well.
   request: {
@@ -78,8 +78,7 @@ export function withConditionalStatus(
 ): Response {
   if (response.status !== 200) return response;
   if (request.method !== "GET" && request.method !== "HEAD") return response;
-  if (pathname.startsWith("/api/") || pathname.startsWith("/ingest/"))
-    return response;
+  if (pathname.startsWith("/api/")) return response;
   const etag = response.headers.get("etag");
   const condition = request.headers.get("if-none-match");
   if (!etag || !condition) return response;

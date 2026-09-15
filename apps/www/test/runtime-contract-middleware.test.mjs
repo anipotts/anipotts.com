@@ -118,7 +118,7 @@ test("dynamic routes report the contract once per isolate without blocking", asy
 
   const redirect = await onRequest(context("/thoughts/example", { env }), next);
   assert.equal(redirect.status, 301);
-  const second = await onRequest(context("/api/search", { env }), next);
+  const second = await onRequest(context("/api/icon", { env }), next);
   assert.equal(second.status, 200);
   assert.equal(lines.warn.length + lines.info.length, 1);
   assert.deepEqual(lines.error, []);
