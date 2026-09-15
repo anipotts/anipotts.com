@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EditorialApp } from "./EditorialApp";
 import {
+  EditorialWorkspaceShell,
   workspaceSelection,
   websiteNavigation,
 } from "./EditorialWorkspaceShell";
@@ -45,6 +46,50 @@ describe("Website workspace navigation", () => {
   });
 });
 
+it("writes the phone and tablet header into server HTML and lets CSS show it", () => {
+  // The server has no viewport, so AppShell renders its desktop layout. The
+  // header must still be in that markup: hydration cannot be what shows it.
+  const html = renderToStaticMarkup(
+    <EditorialWorkspaceShell
+      area="content"
+      mode="light"
+      changeTheme={() => {}}
+      siteHref="https://anipotts.com"
+      localPreview
+    >
+      <p>Record</p>
+    </EditorialWorkspaceShell>,
+  );
+  const header = html.slice(html.indexOf('role="banner"'));
+  expect(html).toContain('role="banner"');
+  expect(header).toContain("admin-mobile-header");
+  expect(header).toContain("[</span>admin");
+  expect(header).toContain('aria-label="Switch workspace: Content"');
+  expect(header).toContain('aria-label="Open navigation"');
+  // No drawer exists on the server, so the button references none.
+  const menuButton = /<button[^>]*aria-label="Open navigation"[^>]*>/.exec(
+    html,
+  )?.[0];
+  expect(menuButton).toBeDefined();
+  expect(menuButton).not.toContain("aria-controls");
+  // AppShell's own top bar, which only mounts after hydration, is off.
+  expect(html).not.toContain('data-mode="topbar"');
+
+  const css = readFileSync(
+    new URL("./WorkspaceHeader.css", import.meta.url),
+    "utf8",
+  ).replace(/\s+/g, " ");
+  expect(css).toContain(
+    "@media (width > 768px) { .editorial-workspace-shell .astryx-app-shell-header:has(.admin-mobile-header) { display: none; } }",
+  );
+  const shell = readFileSync(
+    new URL("./EditorialWorkspaceShell.tsx", import.meta.url),
+    "utf8",
+  );
+  expect(shell).toContain('mobileNav={{ breakpoint: "md", hasToggle: false }}');
+  expect(shell).toContain("banner={<WorkspaceTopBar workspace={workspace} />}");
+});
+
 it("sizes sidebar menus to the sidebar and keeps tooltips whole", () => {
   const css = readFileSync(
     new URL("./WorkspaceHeader.css", import.meta.url),
@@ -57,16 +102,12 @@ it("sizes sidebar menus to the sidebar and keeps tooltips whole", () => {
   };
   // The identity column spans the sidebar or drawer, so the workspace menu can.
   expect(
-    rule(
-      '.editorial-workspace-nav:not([data-mode="topbar"]) .editorial-workspace-identity',
-    ),
+    rule(".editorial-workspace-nav .editorial-workspace-identity"),
   ).toContain("align-self: stretch;");
-  // The phone top bar keeps a compact menu beside the wordmark.
-  expect(
-    rule(
-      '.editorial-workspace-nav[data-mode="topbar"] .admin-workspace-selector',
-    ),
-  ).toContain("width: auto;");
+  // The phone and tablet header keeps a compact menu beside the wordmark.
+  expect(rule(".admin-mobile-header .admin-sidebar-menu")).toContain(
+    "width: auto;",
+  );
   // The drawer's close button leaves the header row instead of narrowing it.
   expect(
     rule(

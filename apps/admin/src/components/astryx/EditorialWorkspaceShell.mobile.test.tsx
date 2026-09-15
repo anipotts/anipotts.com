@@ -83,16 +83,25 @@ describe("responsive workspace navigation", () => {
         value: width,
       });
       render();
-      const topbar = host.querySelector(
-        '.astryx-side-nav[data-mode="topbar"]',
-      )!;
+      // Admin's own header replaces AppShell's hydration-time top bar.
+      expect(
+        host.querySelector('.astryx-side-nav[data-mode="topbar"]'),
+      ).toBeNull();
+      const topbar = host.querySelector(".admin-mobile-header")!;
       expect(topbar).not.toBeNull();
+      expect(topbar.closest('[role="banner"]')).not.toBeNull();
       expect(
         topbar.querySelector('button[aria-label="Collapse sidebar"]'),
       ).toBeNull();
       expect(topbar.querySelector(".admin-bracket-wordmark")?.textContent).toBe(
         "[admin]",
       );
+      expect(
+        topbar.querySelector(".admin-workspace-selector")?.textContent,
+      ).toContain("Content");
+      expect(
+        host.querySelectorAll('button[aria-label="Open navigation"]'),
+      ).toHaveLength(1);
       expect(
         host.querySelector(
           'button[aria-label="Search"], button[aria-label="Search content"]',
@@ -103,8 +112,9 @@ describe("responsive workspace navigation", () => {
           (button) => button.textContent === "Search",
         ),
       ).toBe(false);
-      const toggle = topbar.parentElement!
-        .lastElementChild as HTMLButtonElement;
+      const toggle = topbar.querySelector(
+        'button[aria-label="Open navigation"]',
+      ) as HTMLButtonElement;
       expect(toggle.getAttribute("aria-expanded")).toBe("false");
       act(() => toggle.click());
       expect(toggle.getAttribute("aria-expanded")).toBe("true");
