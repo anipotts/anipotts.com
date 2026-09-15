@@ -29,6 +29,6 @@
     "@iconify-json/logos": "^1.2.13",
     "@iconify-json/ph": "^1.2.2",
     "@iconify-json/simple-icons": "^1.2.94",
-    "typescript": "^5.8.3"
+    "typescript": "^7.0.2"
   }
 }

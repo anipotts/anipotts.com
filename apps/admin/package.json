@@ -71,7 +71,7 @@
     "gpt-tokenizer": "^3.4.0",
     "jsdom": "^30.0.1",
     "miniflare": "4.20260114.0",
-    "typescript": "^5",
+    "typescript": "^7",
     "vitest": "^4.1.11"
   }
 }
