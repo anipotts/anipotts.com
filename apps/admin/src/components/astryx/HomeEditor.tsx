@@ -682,8 +682,9 @@ function HomeEditorImpl({
           if (!data.publication) throw new Error();
           const submitted = publishedDraft.current;
           if (
+            submitted &&
             data.publication.phase === "live" &&
-            submitted?.operationId === data.publication.id
+            submitted.operationId === data.publication.id
           ) {
             const publishedAt = new Date().toISOString();
             announceRecordFreshness(
