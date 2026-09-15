@@ -16,7 +16,7 @@ describe("operational search adapter", () => {
     ]);
     const advanced = operationalSearchNavigation(navItems);
     expect(advanced.some((row) => row.href.startsWith("/inbox"))).toBe(false);
-    expect(advanced.some((row) => row.href === "/work")).toBe(true);
+    expect(advanced.some((row) => row.href === "/work?view=now")).toBe(true);
     expect(
       advanced.some((row) =>
         ["content", "life", "website"].includes(row.group),
