@@ -709,6 +709,14 @@ html[data-navigation-settled] [data-rise] {
   pointer-events: none;
   will-change: opacity;
 }
+/* A tapped card turns its arrow to its own current's blue while the article
+   loads; the card's hover ink matches its resting ink in light. */
+a.writing-card[data-writing-pending] .affordance {
+  color: var(--flow-3);
+}
+html[data-theme="dark"] a.writing-card[data-writing-pending] .affordance {
+  color: var(--flow-1);
+}
 /* Focus the navigation moves after a tap or click lands without a ring;
    after keyboard navigation the ring stays. */
 [data-writing-article] > header h1[tabindex="-1"]:focus {

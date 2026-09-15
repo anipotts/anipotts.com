@@ -468,7 +468,7 @@ export function textLayers(
   const layers: [string, HTMLElement, [string, string]][] = [];
   ["title", "summary", "date"].forEach((name, i) => {
     const [a, b] = [outgoing[i], incoming[i]];
-    if (!a || !b) return;
+    if (!b) return;
     const make = (word: Word, layer: string) => {
       const { x, y, width } = word.box;
       const style = boxStyle({ x, y, width: width + 1 }) + word.style;
@@ -477,6 +477,13 @@ export function textLayers(
       el.textContent = word.text;
       return el;
     };
+    // No outgoing copy (it was off screen): the incoming one fades in place.
+    if (!a)
+      return layers.push([
+        `${name}-in`,
+        make(b, `${name}-in`),
+        [IDENTITY, IDENTITY],
+      ]);
     const dx = b.box.x - a.box.x;
     const dy = b.box.y - a.box.y;
     layers.push(

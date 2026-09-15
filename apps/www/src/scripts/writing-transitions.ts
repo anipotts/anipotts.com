@@ -1,4 +1,3 @@
-import { prefetch } from "astro:prefetch";
 import type {
   TransitionBeforePreparationEvent,
   TransitionBeforeSwapEvent,
@@ -7,6 +6,7 @@ import { refreshSharedCurrents } from "../lib/shared-currents";
 import * as wave from "../lib/wave-geometry";
 import * as timeline from "../lib/writing-timeline";
 import * as capture from "./writing-ghost";
+import { keyboardNavigation } from "./writing-input";
 
 type Focus = { h1: true } | { card: string } | null;
 const reduced = matchMedia("(prefers-reduced-motion: reduce)");
@@ -22,7 +22,6 @@ type Outgoing = capture.Outgoing;
 let outgoing: Outgoing | undefined;
 let pendingFocus: Focus = null;
 let swapFocus: Element | null = null;
-let keyboard = false;
 let swapAt = 0;
 
 const columns = () => (phone.matches ? 17 : wave.CONTOUR_COLUMNS);
@@ -60,7 +59,7 @@ function applyFocus(intent: Focus) {
     "h1" in intent
       ? document.querySelector<HTMLElement>(`${article} h1`)
       : cardFor(document, intent.card),
-    keyboard,
+    keyboardNavigation(),
   );
 }
 function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
@@ -71,8 +70,10 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
   pending = () => {
     // The viewport changed width while the destination loaded: every box
     // read from the outgoing page is stale, so the swap stays instant.
+    const main = document.querySelector<HTMLElement>("main")!;
     if (innerWidth !== out.width) {
       out.ghost.host.remove();
+      main.inert = false;
       return applyFocus(pendingFocus);
     }
     const headerHost = document.querySelector<HTMLElement>(waves);
@@ -132,7 +133,10 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
     });
     const card = (opening ? out.sourceBox : targetBox)!;
     const wrap = (opening ? visibleBox(headerBox!) : oldWrap)!;
-    const outWords = opening ? out.sourceWords : out.headerWords;
+    // Words scrolled out of view do not travel in from off screen.
+    const outWords = (opening ? out.sourceWords : out.headerWords).map(
+      (word) => (word && onScreen(word.box) ? word : null),
+    );
     const inWords = opening
       ? capture.captureText(document.querySelector(header), headerText)
       : capture.captureText(destination, cardText);
@@ -141,7 +145,6 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
     const [paperColor, radius] = opening
       ? out.paper!
       : [destStyle?.backgroundColor, destStyle?.borderTopLeftRadius];
-    const main = document.querySelector<HTMLElement>("main")!;
     const nav = document.querySelector<HTMLElement>("header.nav");
     // The persisted nav was scrolled out of view on the outgoing page; it
     // arrives with the incoming page instead of over the old copy.
@@ -149,6 +152,9 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
     // Reads are done; everything below writes.
     const root = document.documentElement;
     root.dataset.writingTransition = direction;
+    // Like main (made inert before the swap), a nav still arriving takes no
+    // taps until the motion has settled.
+    if (navIn) navIn.inert = true;
     const overlays: Element[] = [out.ghost.host];
     const hidden: HTMLElement[] = [];
     const hide = (el: HTMLElement | null | undefined) => {
@@ -275,9 +281,22 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
     if (opening && lag > 0) for (const a of bound) a.startTime = start + lag;
     let done = false;
     let frame = 0;
+    let focusWanted = false;
+    // The incoming page takes taps and focus once every stage has settled,
+    // including the body rise and hero fade that outlast the handoff.
+    const settled = Promise.allSettled(
+      [...animations, ...lingering].map((a) => a.finished),
+    );
+    const release = () => {
+      main.inert = false;
+      if (navIn) navIn.inert = false;
+      if (focusWanted) applyFocus(pendingFocus);
+    };
     const finish = (focus: boolean) => {
       if (done) return;
       done = true;
+      focusWanted = focus;
+      void settled.then(release);
       cancelAnimationFrame(frame);
       clearTimeout(safety);
       animations.forEach((a) => a.cancel());
@@ -292,12 +311,17 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
       applyArt();
       root.removeAttribute("data-writing-transition");
       document.dispatchEvent(new Event("writing:transition-end"));
-      if (focus) applyFocus(pendingFocus);
-      dispose = () => lingering.forEach((a) => a.cancel());
+      dispose = stop;
+    };
+    // A navigation away drops the focus handoff; a theme or width change
+    // keeps it.
+    const stop = (focus: boolean) => {
+      focusWanted &&= focus;
+      lingering.forEach((a) => a.cancel());
     };
     dispose = (focus) => {
       finish(focus);
-      lingering.forEach((a) => a.cancel());
+      stop(focus);
     };
     // Web Animations drive the choreography. The timeout guarantees the page
     // is shown even if they never finish (a hidden tab, an engine fault).
@@ -371,6 +395,9 @@ document.addEventListener("astro:before-swap", (raw) => {
     motionAllowed()
   ) {
     outgoing = undefined;
+    // Set before the page is styled: taps pass through the invisible
+    // incoming page until the motion releases it.
+    next.querySelector("main")?.setAttribute("inert", "");
     motion(event, out);
   } else dropOutgoing();
 });
@@ -400,24 +427,6 @@ document.addEventListener("astro:page-load", () => {
     document.addEventListener("writing:transition-end", warmUp, { once: true });
   else warmUp();
 });
-// The destination is requested the moment a finger or pointer lands.
-const warm = (event: Event) => {
-  const link = (event.target as Element | null)?.closest?.(
-    "a.writing-card, a.back, .more-heading a",
-  );
-  if (
-    link instanceof HTMLAnchorElement &&
-    link.origin === location.origin &&
-    link.pathname !== location.pathname
-  )
-    prefetch(link.href, { ignoreSlowConnection: true });
-};
-for (const type of ["pointerdown", "touchstart"])
-  document.addEventListener(type, warm, { capture: true, passive: true });
-// Focus rings after a navigation follow how the visitor last navigated.
-const modality = (event: Event) => (keyboard = event.type === "keydown");
-for (const type of ["pointerdown", "touchstart", "keydown"])
-  document.addEventListener(type, modality, { capture: true, passive: true });
 let observedTheme = document.documentElement.dataset.theme;
 new MutationObserver(() => {
   if (document.documentElement.dataset.theme === observedTheme) return;

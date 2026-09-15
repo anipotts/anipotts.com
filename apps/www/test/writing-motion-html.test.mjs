@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 import { builtPages, startTags } from "./built-html.mjs";
 import { DETAIL_VIEWBOX, detailCurves } from "../src/lib/wave-geometry.ts";
@@ -94,4 +94,40 @@ test("the transition scripts use getPointAtLength only as the arc fallback", () 
     body.indexOf("if (contour) return contour") <
       body.indexOf("getPointAtLength"),
   );
+});
+
+test("built styles acknowledge a pending card in both themes and drop the pointer focus ring", () => {
+  const dir = new URL("../dist/_astro/", import.meta.url);
+  const css = readdirSync(dir)
+    .filter((name) => name.endsWith(".css"))
+    .map((name) => readFileSync(new URL(name, dir), "utf8"))
+    .join("\n");
+  const rule = (selector) =>
+    css.match(new RegExp(`${selector}\\{([^}]*)\\}`))?.[1] ?? null;
+  const pending = "a\\.writing-card\\[data-writing-pending\\] \\.affordance";
+  assert.match(rule(pending) ?? "", /color:var\(--flow-3\)/);
+  assert.match(
+    rule(`html\\[data-theme=(?:"dark"|dark)\\] ${pending}`) ?? "",
+    /color:var\(--flow-1\)/,
+  );
+  assert.match(
+    rule(
+      '\\[data-writing-article\\]>header h1\\[tabindex=(?:"-1"|\\\\-1)\\]:focus',
+    ) ?? "",
+    /outline:none/,
+  );
+});
+
+test("the incoming page is inert from before the swap until the motion releases it", () => {
+  const script = readFileSync(
+    new URL("../src/scripts/writing-transitions.ts", import.meta.url),
+    "utf8",
+  );
+  const swap = script.slice(script.indexOf('"astro:before-swap"'));
+  assert.ok(
+    swap.indexOf('setAttribute("inert", "")') < swap.indexOf("motion(event"),
+  );
+  const release = script.slice(script.indexOf("const release = () =>"));
+  assert.ok(release.slice(0, 200).includes("main.inert = false"));
+  assert.ok(script.includes("void settled.then(release)"));
 });
