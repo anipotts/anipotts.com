@@ -187,5 +187,37 @@
       "c19e5b0d2a68021d91f8c5879fde3b9a8804fdbe9e46abffc56652b97fc5b125"
     ]
   ],
-  "migrations": []
+  "migrations": [
+    {
+      "file": "0044_copy_agents_project_page_content.sql",
+      "checksum": "sha256:bb9c4053ca8087081b90ee268db98b8450860371f455d8dc38367bf66b61fb79",
+      "risk": "automatic",
+      "consumers": ["admin"],
+      "preconditions": [
+        {
+          "sql": "SELECT (SELECT COUNT(*) > 0 FROM page_content WHERE page_key = 'project:claude-code-tips' AND published = 1) AS legacy_page_present, (SELECT COUNT(*) FROM content_draft_operations WHERE operation_id = 'content-draft-project-claude-code-tips-detail-2026-06-29') AS legacy_operation_present, (SELECT COUNT(*) FROM page_content WHERE id = 'page-project-agents-v1-2026-09-16' AND page_key <> 'project:agents') AS conflicting_page_ids, (SELECT COUNT(*) FROM content_draft_operations WHERE operation_id = 'content-draft-project-agents-detail-2026-06-29' AND route <> '/work/agents') AS conflicting_operation_ids",
+          "expected": {
+            "legacy_page_present": 1,
+            "legacy_operation_present": 1,
+            "conflicting_page_ids": 0,
+            "conflicting_operation_ids": 0
+          }
+        }
+      ],
+      "postconditions": [
+        {
+          "sql": "SELECT (SELECT COUNT(*) FROM page_content WHERE id = 'page-project-agents-v1-2026-09-16' AND page_key = 'project:agents' AND published = 1 AND json_extract(content, '$.slug') = 'agents' AND json_extract(content, '$.title') = 'agents' AND json_extract(content, '$.links[0].url') = 'https://github.com/anipotts/agents') AS agents_page, (SELECT COUNT(*) > 0 FROM page_content WHERE page_key = 'project:claude-code-tips') AS legacy_page_kept, (SELECT COUNT(*) FROM content_draft_operations WHERE operation_id = 'content-draft-project-agents-detail-2026-06-29' AND route = '/work/agents') AS agents_operation, (SELECT COUNT(*) FROM content_draft_operations WHERE operation_id = 'content-draft-project-claude-code-tips-detail-2026-06-29') AS legacy_operation_kept",
+          "expected": {
+            "agents_page": 1,
+            "legacy_page_kept": 1,
+            "agents_operation": 1,
+            "legacy_operation_kept": 1
+          }
+        }
+      ],
+      "rollback": "Additive rows only and no schema change. The public site reads neither table. To undo, remove page_content id page-project-agents-v1-2026-09-16 and content_draft_operations operation_id content-draft-project-agents-detail-2026-06-29 with Ani's approval, or restore the D1 Time Travel bookmark captured before apply. The project:claude-code-tips rows are untouched.",
+      "schema_fingerprint_before": "sha256:dccfe386fcab350e62bf3da2d5fb961dab0ec5f6b6e9227cab1cfc13f3625df3",
+      "schema_fingerprint_after": "sha256:dccfe386fcab350e62bf3da2d5fb961dab0ec5f6b6e9227cab1cfc13f3625df3"
+    }
+  ]
 }

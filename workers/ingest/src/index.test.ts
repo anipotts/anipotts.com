@@ -161,3 +161,59 @@ describe("ingest entry wiring", () => {
       expect(logs.text()).not.toContain(value);
   });
 });
+
+describe("github stats", () => {
+  it("reads the renamed agents repo and stores its rows under agents", async () => {
+    const worker = await freshWorker("github-stats");
+    captureConsole();
+    const urls: string[] = [];
+    globalThis.fetch = mock(async (input: unknown) => {
+      urls.push(String(input instanceof Request ? input.url : input));
+      return new Response(
+        JSON.stringify({
+          stargazers_count: 7,
+          open_issues_count: 2,
+          total_count: 1,
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }) as unknown as typeof fetch;
+    const bound: unknown[][] = [];
+    const statement = {
+      bind: (...values: unknown[]) => {
+        bound.push(values);
+        return statement;
+      },
+      first: async () => null,
+      run: async () => ({}),
+    };
+    const db = {
+      prepare: mock(() => statement),
+      batch: mock(async () => []),
+    };
+    const env = { ...completeEnv(), DB: db };
+    const pending: Promise<unknown>[] = [];
+    const ctx = {
+      waitUntil: (promise: Promise<unknown>) => pending.push(promise),
+    };
+
+    // Minute 5 runs the GitHub and deployment jobs alongside health probes.
+    await worker.scheduled(
+      { scheduledTime: Date.UTC(2026, 8, 16, 12, 5) },
+      env,
+      ctx,
+    );
+    await Promise.all(pending);
+
+    expect(urls).toContain("https://api.github.com/repos/anipotts/agents");
+    expect(urls.some((url) => url.includes("claude-code-tips"))).toBe(false);
+    const ids = bound.map((values) => String(values[0]));
+    for (const metric of ["stars", "issues", "prs"]) {
+      const pattern = new RegExp(
+        `^github-agents-${metric}-\\d{4}-\\d{2}-\\d{2}T\\d{2}$`,
+      );
+      expect(ids.some((id) => pattern.test(id))).toBe(true);
+    }
+    expect(ids.some((id) => id.includes("claude-code-tips"))).toBe(false);
+  });
+});

@@ -608,6 +608,9 @@ if (origin) {
     ["/shipping", "/work"],
     ["/running", "/work"],
     ["/projects/quantercise", "/work/quantercise"],
+    ["/work/claude-code-tips", "/work/agents"],
+    ["/projects/claude-code-tips", "/work/agents"],
+    ["/making/claude-code-tips", "/work/agents"],
   ]) {
     const response = await fetch(
       new URL(`${from}?source=qa&next=%2Fwork`, origin),
