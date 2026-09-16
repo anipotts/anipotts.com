@@ -2,7 +2,7 @@
 // attribute any long task at the swap. Usage:
 //   BASE=http://127.0.0.1:8860 OUT=/tmp/bench/profile node profile.mjs
 import { mkdirSync, writeFileSync } from "node:fs";
-import { chromium, option, profiles } from "./common.mjs";
+import { chromium, launchOptions, option, profiles } from "./common.mjs";
 
 const BASE = option("BASE");
 const OUT = option("OUT");
@@ -37,7 +37,9 @@ function aggregate(profile) {
       .map(([k, v]) => `${v.toFixed(1)}ms ${k}`);
   return { self: top(self), inclusive: top(inclusive) };
 }
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch(
+  launchOptions("chromium", { headless: true }),
+);
 const report = {};
 for (const p of profiles("dark")) {
   const context = await browser.newContext(p.context);

@@ -18,7 +18,14 @@
 // animations, the transition flag and where focus landed.
 // Usage: BASE=http://127.0.0.1:8860 OUT=/tmp/bench/probe node probe.mjs
 import { mkdirSync, writeFileSync } from "node:fs";
-import { chromium, option, profiles, runSteps, webkit } from "./common.mjs";
+import {
+  chromium,
+  launchOptions,
+  option,
+  profiles,
+  runSteps,
+  webkit,
+} from "./common.mjs";
 
 const BASE = option("BASE");
 const OUT = option("OUT");
@@ -252,9 +259,9 @@ function install() {
   requestAnimationFrame(tick);
 }
 
-const browser = await (ENGINE === "webkit" ? webkit : chromium).launch({
-  headless: true,
-});
+const browser = await (ENGINE === "webkit" ? webkit : chromium).launch(
+  launchOptions(ENGINE, { headless: true }),
+);
 for (const p of profiles(THEME)) {
   const { defaultBrowserType: _engine, ...contextOptions } = p.context;
   const context = await browser.newContext(contextOptions);

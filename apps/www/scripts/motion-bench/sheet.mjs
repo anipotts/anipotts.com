@@ -2,7 +2,7 @@
 // times relative to the click or tap, so the choreography can be read frame
 // by frame. Usage: RUN=/tmp/bench/r1/pr OUT=/tmp/bench/sheets LABEL=pr node sheet.mjs
 import { mkdirSync, readdirSync, readFileSync } from "node:fs";
-import { chromium, option, STEPS } from "./common.mjs";
+import { chromium, launchOptions, option, STEPS } from "./common.mjs";
 
 const RUN = option("RUN");
 const OUT = option("OUT");
@@ -11,7 +11,7 @@ const FROM = Number(option("FROM", "-40"));
 const TO = Number(option("TO", "900"));
 const LIMIT = Number(option("LIMIT", "40"));
 mkdirSync(OUT, { recursive: true });
-const browser = await chromium.launch();
+const browser = await chromium.launch(launchOptions("chromium"));
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
 for (const [profile, cols, cell] of [
   ["desktop-1280", 6, 300],

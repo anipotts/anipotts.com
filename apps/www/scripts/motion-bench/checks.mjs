@@ -4,13 +4,15 @@
 // navigation mid-flight and a hidden tab. Usage:
 //   BASE=http://127.0.0.1:8860 OUT=/tmp/bench/checks node checks.mjs
 import { mkdirSync, writeFileSync } from "node:fs";
-import { chromium, devices, option, webkit } from "./common.mjs";
+import { chromium, devices, launchOptions, option, webkit } from "./common.mjs";
 
 const BASE = option("BASE");
 const OUT = option("OUT");
 // CHECKS=name,prefix runs only the sessions whose names start with one of them.
 const PICK = option("CHECKS", "").split(",").filter(Boolean);
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch(
+  launchOptions("chromium", { headless: true }),
+);
 const report = {};
 const state = (page) =>
   page.evaluate(() => {
@@ -653,7 +655,7 @@ await browser.close();
 // both themes; keyboard navigation keeps it.
 let wk;
 try {
-  wk = await webkit.launch({ headless: true });
+  wk = await webkit.launch(launchOptions("webkit", { headless: true }));
 } catch (error) {
   report["webkit-focus-ring"] = { skipped: String(error).split("\n")[0] };
 }

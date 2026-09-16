@@ -4,7 +4,13 @@
 // clock. Usage:
 //   BASE=http://127.0.0.1:8860 OUT=/tmp/bench/pr PROFILE=desktop-1280 node record.mjs
 import { mkdirSync, writeFileSync } from "node:fs";
-import { chromium, option, profiles, runSteps } from "./common.mjs";
+import {
+  chromium,
+  launchOptions,
+  option,
+  profiles,
+  runSteps,
+} from "./common.mjs";
 
 const BASE = option("BASE");
 const OUT = option("OUT");
@@ -12,7 +18,9 @@ const THEME = option("THEME", "dark");
 const ONLY = option("PROFILE", "");
 const FRAMES = option("FRAMES", "1") === "1";
 const summary = { base: BASE, theme: THEME };
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch(
+  launchOptions("chromium", { headless: true }),
+);
 // A second page decodes and diffs frames so the measured page stays clean.
 const diffPage = await browser.newPage();
 async function diffs(frames) {

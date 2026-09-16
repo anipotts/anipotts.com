@@ -54,6 +54,16 @@ export async function runSteps(page, tap, capture) {
   await capture("collapse-back-button", null, () => page.goBack());
 }
 
+/** Launch options for an engine. A machine whose installed browser revision
+ * does not match the workspace Playwright (a WebKit build left by an older
+ * version, most often) points at it with `WEBKIT_EXECUTABLE` or
+ * `CHROMIUM_EXECUTABLE` rather than downloading another copy, so the WebKit
+ * evidence a pull request attaches stays reproducible later. */
+export function launchOptions(engine, extra = {}) {
+  const path = process.env[`${engine.toUpperCase()}_EXECUTABLE`];
+  return path ? { ...extra, executablePath: path } : extra;
+}
+
 export function option(name, fallback) {
   const value = process.env[name];
   if (value === undefined || value === "") {
