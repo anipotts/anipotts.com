@@ -41,7 +41,7 @@ const firstPreview = groups
         .filter((group) => group.items.length)
         .map((group) => (
           <section id={group.id} aria-labelledby={`heading-${group.id}`}>
-            <h2 id={`heading-${group.id}`}>
+            <h2 class="section-label" id={`heading-${group.id}`}>
               {copy.buckets?.find((bucket) => bucket.id === group.id)?.label ??
                 group.id}
             </h2>
@@ -70,7 +70,6 @@ const firstPreview = groups
     scroll-margin-top: 6rem;
   }
   h2 {
-    font-size: var(--d-section);
     margin: 0 0 var(--s-5);
   }
   .work-grid {

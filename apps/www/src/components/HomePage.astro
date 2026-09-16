@@ -149,7 +149,7 @@ const profileLd = {
 
 <style>
   .home-hero {
-    font-size: clamp(3rem, 12vw, 7rem);
+    font-size: var(--d-hero);
     letter-spacing: 0;
     line-height: 0.9;
     margin-bottom: var(--s-4);
@@ -160,7 +160,7 @@ const profileLd = {
     display: block;
     margin: 0;
     max-width: none;
-    font-size: clamp(1.08rem, 2.2vw, 1.42rem);
+    font-size: var(--d-lede);
     line-height: 1.52;
     text-wrap: pretty;
   }
@@ -219,10 +219,6 @@ const profileLd = {
   @media (max-width: 640px) {
     .home-hero {
       margin-bottom: var(--s-3);
-    }
-
-    .hero-line {
-      font-size: 1.05rem;
     }
 
     .experience-grid {
