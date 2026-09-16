@@ -20,9 +20,9 @@
   src: local("Arial Black"), local("Arial-Black");
   font-style: normal;
   font-weight: 900;
-  size-adjust: 82.9%;
-  ascent-override: 114.6%;
-  descent-override: 30.16%;
+  size-adjust: 83.8%;
+  ascent-override: 113.37%;
+  descent-override: 29.83%;
   line-gap-override: 0%;
 }
 
@@ -31,9 +31,9 @@
   src: local("Helvetica Neue Bold"), local("HelveticaNeue-Bold");
   font-style: normal;
   font-weight: 900;
-  size-adjust: 95.6%;
-  ascent-override: 99.37%;
-  descent-override: 26.15%;
+  size-adjust: 97.55%;
+  ascent-override: 97.39%;
+  descent-override: 25.63%;
   line-gap-override: 0%;
 }
 
