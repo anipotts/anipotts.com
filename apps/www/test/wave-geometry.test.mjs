@@ -3,7 +3,15 @@ import test from "node:test";
 import { builtPages } from "./built-html.mjs";
 import {
   contourColumns,
+  contourPath,
+  cubicBezier,
+  DETAIL_VIEWBOX,
+  detailCurves,
   flattenPath,
+  mixColor,
+  morphPath,
+  planMorph,
+  reframeContour,
   waveContour,
 } from "../src/lib/wave-geometry.ts";
 
@@ -208,4 +216,188 @@ test("contours are memoized by viewBox and path data", () => {
   const first = waveContour(box, d);
   assert.equal(waveContour({ ...box }, d), first);
   assert.notEqual(waveContour({ ...box, height: 400 }, d), first);
+});
+
+test("a morph result read back keeps its edge columns", () => {
+  for (const seed of ["writing/awareness-is-alpha", "writing/other"])
+    for (const d of detailCurves(seed)) {
+      const contour = waveContour(DETAIL_VIEWBOX, d);
+      const back = waveContour(
+        { x: 0, y: 0, width: 1440, height: 800 },
+        contourPath(contour),
+      );
+      assert.ok(
+        maxDifference(contour, back) <= 0.1,
+        `${seed}: ${maxDifference(contour, back)}`,
+      );
+    }
+});
+
+test("morph paths land exactly on both contours and stay on the canvas", () => {
+  const [a, b] = detailCurves("writing/awareness-is-alpha").map((d) =>
+    waveContour(DETAIL_VIEWBOX, d),
+  );
+  assert.equal(morphPath(a, b, 0), contourPath(a));
+  assert.equal(morphPath(a, b, 1), contourPath(b));
+  const shifted = reframeContour(
+    a,
+    { x: -40, y: -176, width: 1360, height: 608 },
+    { x: 0, y: 0, width: 1280, height: 432 },
+  );
+  const xs = [
+    ...morphPath(shifted, b, 0.5).matchAll(/[MLC ]?(-?[\d.]+) -?[\d.]+/g),
+  ];
+  assert.ok(xs.length > 0);
+  for (const [, x] of xs) assert.ok(+x >= 0 && +x <= 1440, `x ${x}`);
+});
+
+test("reframing maps the same screen point into another box", () => {
+  const from = { x: 10, y: -100, width: 1000, height: 500 };
+  const to = { x: 0, y: 0, width: 800, height: 300 };
+  const [p] = reframeContour([{ x: 720, top: 400, bottom: 800 }], from, to);
+  // x: 10 + 0.5 * 1000 = 510px, 510 / 800 of the new width.
+  assert.ok(Math.abs(p.x - (510 / 800) * 1440) < 1e-9);
+  // top: -100 + 0.5 * 500 = 150px; bottom: 400px.
+  assert.ok(Math.abs(p.top - (150 / 300) * 800) < 1e-9);
+  assert.ok(Math.abs(p.bottom - (400 / 300) * 800) < 1e-9);
+});
+
+test("cubic-bezier evaluation matches the CSS curve end points and shape", () => {
+  const open = cubicBezier(0.16, 1, 0.3, 1);
+  const close = cubicBezier(0.65, 0, 0.35, 1);
+  assert.equal(open(0), 0);
+  assert.equal(open(1), 1);
+  assert.ok(open(0.1) > 0.35, "open eases out fast");
+  assert.ok(Math.abs(close(0.5) - 0.5) < 1e-4, "close is symmetric");
+  let last = 0;
+  for (let i = 1; i <= 100; i++) {
+    const v = close(i / 100);
+    assert.ok(v >= last - 1e-9);
+    last = v;
+  }
+  assert.ok(Math.abs(cubicBezier(0, 0, 1, 1)(0.3) - 0.3) < 1e-4);
+});
+
+test("open condenses the card current into the header at half opacity", () => {
+  const card = {
+    box: { x: 0, y: 0, width: 600, height: 120 },
+    group: 0.38,
+    layers: Array.from({ length: 6 }, (_, i) => ({
+      d: "",
+      fill: `rgb(${i} 0 0)`,
+      opacity: 1,
+    })),
+    contours: Array.from({ length: 6 }, () =>
+      contourColumns([], DETAIL_VIEWBOX),
+    ),
+  };
+  const headerD = detailCurves("writing/awareness-is-alpha");
+  const header = {
+    box: DETAIL_VIEWBOX,
+    group: 1,
+    layers: headerD.map((d) => ({ d, fill: "rgb(19, 38, 64)", opacity: 1 })),
+    contours: headerD.map((d) => waveContour(DETAIL_VIEWBOX, d)),
+  };
+  const open = planMorph(card, header, true);
+  assert.equal(open.layers.length, 6);
+  assert.deepEqual(open.group, [0.38, 1]);
+  for (const layer of open.layers) {
+    assert.ok(Math.abs(layer.opacity[1] - 0.19) < 1e-9);
+    assert.equal(layer.fill[0], layer.fill[1]);
+  }
+  assert.equal(open.end().layers[4].d, contourPath(header.contours[1]));
+  const close = planMorph(header, card, false);
+  assert.equal(close.layers.length, 6);
+  assert.deepEqual(close.group, [1, 0.38]);
+  assert.deepEqual(close.layers[4].opacity, [0, 1]);
+  assert.deepEqual(close.layers[1].fill, ["rgb(19, 38, 64)", "rgb(1 0 0)"]);
+  assert.equal(
+    mixColor("rgb(0, 0, 0)", "rgb(100 200 50)", 0.5),
+    "rgb(50 100 25)",
+  );
+});
+
+test("a band the card shows in part or not at all never sweeps a straight edge through the surface", () => {
+  const columns = 33;
+  const header = detailCurves("writing/awareness-is-alpha");
+  const headerArt = {
+    box: DETAIL_VIEWBOX,
+    group: 1,
+    layers: header.map((d) => ({ d, fill: "rgb(19 38 64)", opacity: 1 })),
+    contours: header.map((d) => waveContour(DETAIL_VIEWBOX, d)),
+  };
+  const empty = () => ({ top: 900, bottom: 900 });
+  const x = (i) => (i * 1440) / (columns - 1);
+  const partial = Array.from({ length: columns }, (_, i) =>
+    i < 17
+      ? { x: x(i), ...empty() }
+      : { x: x(i), top: 760 - (i - 17) * 40, bottom: 900 },
+  );
+  const below = Array.from({ length: columns }, (_, i) => ({
+    x: x(i),
+    ...empty(),
+  }));
+  const above = Array.from({ length: columns }, (_, i) => ({
+    x: x(i),
+    top: -100,
+    bottom: -100,
+  }));
+  const card = {
+    box: { x: 0, y: 0, width: 472, height: 64 },
+    group: 0.38,
+    layers: [0, 1, 2].map(() => ({
+      d: "",
+      fill: "rgb(97 171 234)",
+      opacity: 1,
+    })),
+    contours: [partial, below, above],
+  };
+  // Longest run of neighbouring columns inside the canvas that spans less
+  // than half a unit: a straight horizontal edge across 10 columns or more
+  // (the header art alone has shallow troughs a few columns wide).
+  const flatRun = (edge) => {
+    let longest = 1;
+    for (let i = 0; i < edge.length; i++)
+      for (let j = i; j < edge.length; j++) {
+        const run = edge.slice(i, j + 1);
+        if (!run.every((y) => y > 0 && y < 800)) break;
+        if (Math.max(...run) - Math.min(...run) >= 0.5) break;
+        longest = Math.max(longest, run.length);
+      }
+    return longest;
+  };
+  const plans = [
+    ["open", planMorph(card, headerArt, true)],
+    ["close", planMorph(headerArt, card, false)],
+  ];
+  for (const [name, plan] of plans)
+    plan.layers.forEach(({ a, b }, layer) => {
+      // The first and last frames still match the artwork on each side.
+      for (const [side, art] of [
+        [a, name === "open" ? card.contours : headerArt.contours],
+        [b, name === "open" ? headerArt.contours : card.contours],
+      ]) {
+        const source = art[layer % art.length];
+        side.forEach((p, i) => {
+          const shown = source[i];
+          const visible = shown.top < 800 && shown.bottom > 0;
+          if (visible)
+            assert.deepEqual(p, shown, `${name} ${layer} column ${i}`);
+          else
+            assert.ok(
+              p.top >= 800 || p.bottom <= 0,
+              `${name} ${layer} column ${i} stays off the canvas`,
+            );
+        });
+      }
+      for (let step = 1; step < 20; step++) {
+        const t = step / 20;
+        const at = (key) => a.map((p, i) => p[key] + (b[i][key] - p[key]) * t);
+        for (const key of ["top", "bottom"])
+          assert.ok(
+            flatRun(at(key)) < 10,
+            `${name} layer ${layer} ${key} is straight at t ${t}`,
+          );
+      }
+    });
 });
