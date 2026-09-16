@@ -1,6 +1,6 @@
 import { siteConfig, siteLinks } from "@anipotts/content/public";
 
-// Shared with author references on Coding Agent Tips.
+// Shared with author references on agents.anipotts.com.
 export const personId = `${siteConfig.url}/#person`;
 export const websiteId = `${siteConfig.url}/#website`;
 
