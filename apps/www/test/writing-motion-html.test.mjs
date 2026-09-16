@@ -110,11 +110,19 @@ test("built styles acknowledge a pending card in both themes and drop the pointe
     rule(`html\\[data-theme=(?:"dark"|dark)\\] ${pending}`) ?? "",
     /color:var\(--flow-1\)/,
   );
+  // Keyed on the marker a tap or a click sets, never on the tabindex the
+  // heading always carries: keyed on the tabindex the rule also hid the ring
+  // after a keyboard open, leaving a keyboard visitor no sign focus moved.
   assert.match(
+    rule('\\[data-writing-article\\]>header h1\\[data-pointer-focus\\]:focus') ??
+      "",
+    /outline:none/,
+  );
+  assert.equal(
     rule(
       '\\[data-writing-article\\]>header h1\\[tabindex=(?:"-1"|\\\\-1)\\]:focus',
-    ) ?? "",
-    /outline:none/,
+    ),
+    null,
   );
 });
 
