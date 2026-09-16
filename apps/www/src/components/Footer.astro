@@ -85,10 +85,12 @@ const externalProfiles = [
     overflow-wrap: anywhere;
   }
 
-  .contact-email:hover {
-    color: var(--interactive);
-    text-decoration: underline;
-    text-underline-offset: 0.2em;
+  @media (hover: hover) and (pointer: fine) {
+    .contact-email:hover {
+      color: var(--interactive);
+      text-decoration: underline;
+      text-underline-offset: 0.2em;
+    }
   }
 
   .glyph {
@@ -104,10 +106,16 @@ const externalProfiles = [
     font-size: 1.1rem;
   }
 
-  .glyph:hover,
   .glyph:focus-visible {
     color: var(--interactive);
     background: color-mix(in srgb, var(--ink) 7%, transparent);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .glyph:hover {
+      color: var(--interactive);
+      background: color-mix(in srgb, var(--ink) 7%, transparent);
+    }
   }
 
   :is(.glyph, .contact-email):focus-visible {

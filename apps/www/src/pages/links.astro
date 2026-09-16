@@ -60,9 +60,14 @@ const links = [
     border-radius: 0.8rem;
     text-decoration: none;
   }
-  nav a:hover,
   nav a:focus-visible {
     border-color: var(--interactive);
     color: var(--interactive);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    nav a:hover {
+      border-color: var(--interactive);
+      color: var(--interactive);
+    }
   }
 </style>

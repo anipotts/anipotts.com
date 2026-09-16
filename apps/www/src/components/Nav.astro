@@ -191,9 +191,14 @@ const current = Astro.url.pathname;
     align-items: center;
   }
 
-  .nav-link:hover,
   .nav-link[aria-current="page"] {
     color: var(--interactive);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .nav-link:hover {
+      color: var(--interactive);
+    }
   }
 
   .theme-toggle {
@@ -213,9 +218,14 @@ const current = Astro.url.pathname;
     cursor: pointer;
   }
 
-  .theme-toggle:hover,
   .theme-toggle:focus-visible {
     color: var(--interactive);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .theme-toggle:hover {
+      color: var(--interactive);
+    }
   }
 
   .nav-toggle {
@@ -243,8 +253,10 @@ const current = Astro.url.pathname;
       color 180ms ease;
   }
 
-  .nav-toggle:hover {
-    color: var(--interactive);
+  @media (hover: hover) and (pointer: fine) {
+    .nav-toggle:hover {
+      color: var(--interactive);
+    }
   }
 
   :is(.wordmark, .theme-toggle, .nav-toggle, .nav-link):focus-visible {
