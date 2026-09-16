@@ -91,15 +91,6 @@ interface Props {
     :is(.work-card, .writing-card):has(> .ambient-flow):focus-visible {
     outline-color: var(--paper-ink);
   }
-  /* The press ring is painted inside the card, on the same light wave art, and
-     the flat surface gives a touch reader no other press feedback. It keeps the
-     ink for the same reason the light focus ring does. */
-  @media (width < 880px), (pointer: coarse) {
-    html:not([data-theme="dark"])
-      :is(.work-card, .writing-card):has(> .ambient-flow):active {
-      box-shadow: inset 0 0 0 2px var(--paper-ink);
-    }
-  }
   html[data-theme="dark"] :is(.work-card, .writing-card):has(> .ambient-flow) {
     --paper-muted: #b8c5d8;
     --paper-accent: #61abea;
