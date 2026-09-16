@@ -26,21 +26,25 @@ export function mountSharedCurrents() {
   };
   const media = matchMedia("(prefers-reduced-motion: reduce)");
   const visible = new Set<HTMLElement>();
+  const STEP = 1000 / 30;
   let w = 1,
     h = 1,
     time = previous?.time ?? 0,
-    frame = 0,
+    timer: ReturnType<typeof setTimeout> | undefined,
     last = 0;
   const svgs = hosts.map((host) => host.querySelector("svg")!);
   const paths = svgs.map((svg) => [...svg.querySelectorAll("path")]);
+  // One decimal is finer than a device pixel at these sizes and cuts the string
+  // each frame rewrites by about a fifth.
+  const n = (value: number) => value.toFixed(1);
   function curve(points: { x: number; y: number }[], move = true) {
-    let d = move ? `M${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}` : "";
+    let d = move ? `M${n(points[0].x)} ${n(points[0].y)}` : "";
     for (let i = 0; i < points.length - 1; i++) {
       const a = points[Math.max(0, i - 1)],
         b = points[i],
         c = points[i + 1],
         z = points[Math.min(points.length - 1, i + 2)];
-      d += `C${(b.x + (c.x - a.x) / 6).toFixed(2)} ${(b.y + (c.y - a.y) / 6).toFixed(2)} ${(c.x - (z.x - b.x) / 6).toFixed(2)} ${(c.y - (z.y - b.y) / 6).toFixed(2)} ${c.x.toFixed(2)} ${c.y.toFixed(2)}`;
+      d += `C${n(b.x + (c.x - a.x) / 6)} ${n(b.y + (c.y - a.y) / 6)} ${n(c.x - (z.x - b.x) / 6)} ${n(c.y - (z.y - b.y) / 6)} ${n(c.x)} ${n(c.y)}`;
     }
     return d;
   }
@@ -76,7 +80,7 @@ export function mountSharedCurrents() {
     const reverse = bottom.reverse();
     return (
       curve(top) +
-      `L${reverse[0].x.toFixed(2)} ${reverse[0].y.toFixed(2)}` +
+      `L${n(reverse[0].x)} ${n(reverse[0].y)}` +
       curve(reverse, false) +
       "Z"
     );
@@ -87,6 +91,7 @@ export function mountSharedCurrents() {
       geometry(i < 3 ? 0 : 1, i % 3),
     );
     hosts.forEach((host, index) => {
+      // Offscreen crops keep their last shape until they scroll back in.
       if (!all && !visible.has(host)) return;
       paths[index].forEach((path, i) => path.setAttribute("d", shapes[i]));
       host.dataset.motionTime = time.toFixed(4);
@@ -117,30 +122,37 @@ export function mountSharedCurrents() {
     );
     draw(true);
   }
-  function tick(now: number) {
-    frame = 0;
+  // Wake once per drawn frame instead of once per display frame. The drift is
+  // well under a pixel a second, so the browser can carry the write to its next
+  // frame without the scene needing a frame callback of its own.
+  function schedule() {
+    timer = setTimeout(tick, Math.max(0, last + STEP - performance.now()));
+  }
+  function stop() {
+    if (timer !== undefined) clearTimeout(timer);
+    timer = undefined;
+  }
+  function tick() {
+    timer = undefined;
     if (media.matches || document.hidden || !visible.size) return;
+    const now = performance.now();
     // Hold the destination artwork at the captured phase until its overlay
     // hands back to the real card. Do not accumulate the paused time.
     if (document.documentElement?.hasAttribute("data-writing-transition")) {
       last = now;
-      frame = requestAnimationFrame(tick);
+      schedule();
       return;
     }
-    const elapsed = now - last;
-    if (elapsed >= 1000 / 30) {
-      time += Math.min(elapsed, 100) * 0.001 * state.speed;
-      last = now;
-      draw();
-    }
-    frame = requestAnimationFrame(tick);
+    time += Math.min(now - last, 100) * 0.001 * state.speed;
+    last = now;
+    draw();
+    schedule();
   }
   function sync() {
-    cancelAnimationFrame(frame);
-    frame = 0;
+    stop();
     if (!media.matches && !document.hidden && visible.size) {
       last = performance.now();
-      frame = requestAnimationFrame(tick);
+      schedule();
     }
   }
   const intersection = new IntersectionObserver(
@@ -191,7 +203,7 @@ export function mountSharedCurrents() {
     });
     if (pageCurrents.size > 40)
       pageCurrents.delete(pageCurrents.keys().next().value!);
-    cancelAnimationFrame(frame);
+    stop();
     observer.disconnect();
     intersection.disconnect();
     media.removeEventListener("change", sync);

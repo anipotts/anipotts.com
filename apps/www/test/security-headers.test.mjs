@@ -119,15 +119,18 @@ const script = `/_astro/${built("_astro", ".js")[0]}`;
 const stylesheet = `/_astro/${built("_astro", ".css")[0]}`;
 
 // Cache policy by path class, written out like the header values above.
-// Hashed build output never changes under its name. Public images and brand
-// marks keep their names across edits, so they stay fresh for a day and then
-// revalidate in the background. Anything else keeps the ASSETS default.
+// Hashed build output never changes under its name. Public images, brand
+// marks and the built social cards keep their names across edits, so they stay
+// fresh for a day and then revalidate in the background. Anything else keeps
+// the ASSETS default.
 const IMMUTABLE = "public, max-age=31536000, immutable";
 const DAILY = "public, max-age=86400, stale-while-revalidate=604800";
 const EXPECTED_CACHE = (path) =>
   path.startsWith("/_astro/")
     ? IMMUTABLE
-    : path.startsWith("/images/") || path.startsWith("/brand/")
+    : path.startsWith("/images/") ||
+        path.startsWith("/brand/") ||
+        path.startsWith("/social/")
       ? DAILY
       : null;
 
@@ -145,6 +148,7 @@ const STATIC_PATHS = [
   stylesheet,
   firstFile("images"),
   firstFile("brand"),
+  firstFile("social"),
   "/og-image.png",
   "/favicon.svg",
   "/favicon.ico",
