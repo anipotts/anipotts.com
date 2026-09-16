@@ -30,6 +30,12 @@ const RENAMES: Record<string, string> = {
   "/orchestrating": "/systems",
 };
 
+/** renamed work pages, exact path. applied after segment renames so an old
+ *  /projects/<slug> link reaches the new page in one hop. */
+const WORK_SLUG_RENAMES: Record<string, string> = {
+  "/work/claude-code-tips": "/work/agents",
+};
+
 export const onRequest = defineMiddleware(async (context, next) => {
   // Log the runtime configuration contract once per isolate. It never blocks.
   // Static asset paths never get here: the adapter handler that src/worker.ts
@@ -56,16 +62,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
 
   // segment renames: preserve the tail. /thoughts/foo -> /writing/foo.
+  let target = pathname;
   for (const [from, to] of Object.entries(RENAMES)) {
-    if (pathname === from) {
-      return context.redirect(`${to}${search}`, 301);
+    if (pathname === from || pathname.startsWith(`${from}/`)) {
+      target = `${to}${pathname.slice(from.length)}`;
+      break;
     }
-    if (pathname.startsWith(`${from}/`)) {
-      return context.redirect(
-        `${to}${pathname.slice(from.length)}${search}`,
-        301,
-      );
-    }
+  }
+  target = WORK_SLUG_RENAMES[target.replace(/(.)\/$/, "$1")] ?? target;
+  if (target !== pathname) {
+    return context.redirect(`${target}${search}`, 301);
   }
 
   // flat redirects: tail is discarded. "/lab" and "/lab/..." both land

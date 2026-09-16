@@ -169,3 +169,25 @@ test("a complete environment logs one info line", async () => {
   assert.equal(JSON.parse(lines.info[0]).ok, true);
   assert.equal(lines.info[0].includes(CANARY), false);
 });
+
+test("renamed work pages redirect permanently in one hop", async () => {
+  const { onRequest } = loadMiddleware({ dev: true });
+  for (const [from, to] of [
+    ["/work/claude-code-tips", "/work/agents"],
+    ["/work/claude-code-tips/", "/work/agents"],
+    ["/work/claude-code-tips?ref=x", "/work/agents?ref=x"],
+    ["/projects/claude-code-tips", "/work/agents"],
+    ["/making/claude-code-tips?ref=x", "/work/agents?ref=x"],
+    ["/projects/quantercise", "/work/quantercise"],
+    ["/projects", "/work"],
+    ["/thoughts/example", "/writing/example"],
+  ]) {
+    const response = await onRequest(context(from, {}), next);
+    assert.equal(response.status, 301, from);
+    assert.equal(response.headers.get("location"), to, from);
+  }
+  for (const path of ["/work/agents", "/work", "/work/claude-code-tips-2"]) {
+    const response = await onRequest(context(path, {}), next);
+    assert.equal(response.status, 200, path);
+  }
+});

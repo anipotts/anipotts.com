@@ -28,7 +28,7 @@ const homeWritingOrder = new Map<string, number>(
   selectedWritingSlugs.map((slug, index) => [slug, index]),
 );
 const codingAgentGuide = allWork.find(
-  (project) => projectSlug(project) === "claude-code-tips",
+  (project) => projectSlug(project) === "agents",
 );
 const experiences = allWork
   .filter((project) => project.data.homepage_placement === "experience")
