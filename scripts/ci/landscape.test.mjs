@@ -253,6 +253,9 @@ function harness(hostCount = 3, reduced = false) {
     get framesRequested() {
       return frameId;
     },
+    get wakeupsRequested() {
+      return frameId + timerId;
+    },
     // Advance the clock, then drain due timers and the frames they request
     // until nothing more is owed at this instant.
     step(milliseconds) {
@@ -359,7 +362,7 @@ try {
     "nothing is scheduled inside the 30fps budget",
   );
   assert.equal(
-    scene.frames.size,
+    scene.framesRequested,
     0,
     "no animation frame is requested only to be skipped",
   );
@@ -376,13 +379,14 @@ try {
   );
   assert.deepEqual(shapes(first), shapes(second));
   // One wakeup per drawn frame: a second of drift costs 30, not 60.
-  const requested = scene.framesRequested;
+  const requested = scene.wakeupsRequested;
   for (let i = 0; i < 60; i++) scene.step(1000 / 60);
-  const perSecond = scene.framesRequested - requested;
+  const perSecond = scene.wakeupsRequested - requested;
   assert.ok(
     perSecond >= 29 && perSecond <= 31,
-    `one animation frame per 33ms, got ${perSecond}`,
+    `one main-thread wakeup per 33ms, got ${perSecond}`,
   );
+  assert.equal(scene.framesRequested, 0, "and never an animation frame");
   for (const path of shapes(first)) {
     assert.match(path, /^M[-\d. C]+L[-\d. C]+Z$/);
     assert.equal(

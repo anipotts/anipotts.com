@@ -30,7 +30,6 @@ export function mountSharedCurrents() {
   let w = 1,
     h = 1,
     time = previous?.time ?? 0,
-    frame = 0,
     timer: ReturnType<typeof setTimeout> | undefined,
     last = 0;
   const svgs = hosts.map((host) => host.querySelector("svg")!);
@@ -123,26 +122,20 @@ export function mountSharedCurrents() {
     );
     draw(true);
   }
-  // Wake once per drawn frame instead of once per display frame: the timer
-  // carries the wait, the frame callback only paints.
+  // Wake once per drawn frame instead of once per display frame. The drift is
+  // well under a pixel a second, so the browser can carry the write to its next
+  // frame without the scene needing a frame callback of its own.
   function schedule() {
-    timer = setTimeout(
-      () => {
-        timer = undefined;
-        frame = requestAnimationFrame(tick);
-      },
-      Math.max(0, last + STEP - performance.now()),
-    );
+    timer = setTimeout(tick, Math.max(0, last + STEP - performance.now()));
   }
   function stop() {
-    if (frame) cancelAnimationFrame(frame);
     if (timer !== undefined) clearTimeout(timer);
-    frame = 0;
     timer = undefined;
   }
-  function tick(now: number) {
-    frame = 0;
+  function tick() {
+    timer = undefined;
     if (media.matches || document.hidden || !visible.size) return;
+    const now = performance.now();
     // Hold the destination artwork at the captured phase until its overlay
     // hands back to the real card. Do not accumulate the paused time.
     if (document.documentElement?.hasAttribute("data-writing-transition")) {

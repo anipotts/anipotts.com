@@ -38,7 +38,6 @@ function enhance(root: HTMLElement) {
       sync();
       return;
     }
-    root.dataset.animated = "";
     button.hidden = false;
     const gap = parseFloat(getComputedStyle(track).columnGap);
     cycle = originals.reduce(
@@ -63,21 +62,32 @@ function enhance(root: HTMLElement) {
         }
     }
     keyframe();
+    // The keyframe only starts once its two lengths are in place.
+    root.dataset.animated = "";
     sync();
   }
 
   /**
    * The compositor owns the drift from here: one keyframe, no frame loop.
    * Re-measuring writes the same two lengths, so a resize or a late font does
-   * not restart the strip from its start position.
+   * not disturb a strip whose cycle has not changed.
    */
   function keyframe() {
     const lengths: [string, string][] = [
       ["--source-cycle", cycle ? `${cycle}px` : ""],
       ["--source-cycle-duration", cycle ? `${marqueeDuration(cycle)}s` : ""],
     ];
+    if (
+      lengths.every(
+        ([name, value]) => track.style.getPropertyValue(name) === value,
+      )
+    )
+      return;
+    // Safari reads a keyframe's var() once, when the animation starts, so a new
+    // cycle has to take the keyframe away and bring it back, not edit it live.
+    delete root.dataset.animated;
+    void track.offsetWidth;
     for (const [name, value] of lengths) {
-      if (track.style.getPropertyValue(name) === value) continue;
       if (value) track.style.setProperty(name, value);
       else track.style.removeProperty(name);
     }

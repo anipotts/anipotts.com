@@ -22,6 +22,13 @@ assert.equal(
   false,
   "the marquee runs on a CSS keyframe, not a per-frame transform write",
 );
+// Safari resolves a keyframe's var() when the animation starts and never
+// re-reads it, so a changed cycle must detach the keyframe rather than edit it.
+assert.match(
+  animation,
+  /delete root\.dataset\.animated;\s*void track\.offsetWidth;/,
+  "a changed cycle detaches and re-attaches the keyframe instead of editing it",
+);
 assert.ok(
   animation.includes("--source-cycle") &&
     animation.includes("--source-cycle-duration"),

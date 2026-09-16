@@ -13,16 +13,38 @@ registerHooks({
   },
 });
 
-function element(attributes = {}) {
+function element(attributes = {}, journal = []) {
   const listeners = {};
   const values = new Map(Object.entries(attributes));
   const properties = new Map();
   return {
-    dataset: {},
+    // Safari reads a keyframe's var() once, when the animation starts, so the
+    // order of these writes is part of the contract.
+    dataset: new Proxy(
+      {},
+      {
+        set(target, key, value) {
+          journal.push(`set ${String(key)}`);
+          target[key] = value;
+          return true;
+        },
+        deleteProperty(target, key) {
+          journal.push(`delete ${String(key)}`);
+          delete target[key];
+          return true;
+        },
+      },
+    ),
     style: {
       properties,
-      setProperty: (name, value) => properties.set(name, value),
-      removeProperty: (name) => properties.delete(name),
+      setProperty: (name, value) => {
+        journal.push(`set ${name}`);
+        properties.set(name, value);
+      },
+      removeProperty: (name) => {
+        journal.push(`remove ${name}`);
+        properties.delete(name);
+      },
       getPropertyValue: (name) => properties.get(name) ?? "",
     },
     hidden: true,
@@ -33,20 +55,22 @@ function element(attributes = {}) {
     click: () => listeners.click?.(),
     querySelectorAll: () => [],
     getBoundingClientRect: () => ({ width: 36 }),
+    offsetWidth: 480,
   };
 }
 
 /** A minimal browser surface for one server-rendered workflow figure. */
 function mountFakeWorkflow(buttonAttributes) {
+  const journal = [];
   const button = element(buttonAttributes);
   const source = element();
   source.cloneNode = () => element();
-  const track = element();
+  const track = element({}, journal);
   track.children = [source];
   track.appendChild = () => {};
   const viewport = element();
   viewport.clientWidth = 120;
-  const root = element();
+  const root = element({}, journal);
   root.isConnected = true;
   root.querySelector = (selector) =>
     ({
@@ -56,6 +80,7 @@ function mountFakeWorkflow(buttonAttributes) {
     })[selector];
   mountFakeWorkflow.root = root;
   mountFakeWorkflow.track = track;
+  mountFakeWorkflow.journal = journal;
   Object.assign(globalThis, {
     document: {
       hidden: false,
@@ -105,10 +130,16 @@ test("the motion toggle keeps its server-rendered name while paused", async () =
   mountWorkflows();
   assert.equal(button.hidden, false, "motion controls appear once enhanced");
 
-  const { root, track } = mountFakeWorkflow;
+  const { root, track, journal } = mountFakeWorkflow;
   // One source 36px wide plus a 12px gap: 48px travelled at 20px per second.
   assert.equal(track.style.properties.get("--source-cycle"), "48px");
   assert.equal(track.style.properties.get("--source-cycle-duration"), "2.4s");
+  // Safari resolves the keyframe's var() once, when the animation starts.
+  assert.ok(
+    journal.indexOf("set --source-cycle-duration") <
+      journal.indexOf("set animated"),
+    `lengths must be in place before the keyframe: ${journal.join(", ")}`,
+  );
 
   for (const [pressed, motion] of [
     ["false", "running"],
