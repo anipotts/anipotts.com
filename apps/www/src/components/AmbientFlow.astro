@@ -45,8 +45,6 @@ interface Props {
     --paper-surface: #f7faff;
     --paper-surface-hover: #f7faff;
     --paper-ink: #0e2034;
-    --paper-muted: #14263a;
-    --paper-accent: #14263a;
     --feature-muted: #14263a;
     --agent-tips-accent: #14263a;
     --flow-1: #83c7f4;
@@ -55,6 +53,12 @@ interface Props {
     --flow-opacity: 0.64;
     background: var(--paper-surface);
   }
+  /* The experience feature and agent tips cards keep the flattened ink they
+     ship today; their own card system is audit m25 and is still open. */
+  :is(.experience-feature, .coding-agent-card):has(> .ambient-flow) {
+    --paper-muted: #14263a;
+    --paper-accent: #14263a;
+  }
   html[data-theme="dark"]
     :is(.work-card, .writing-card, .experience-feature, .coding-agent-card):has(
       > .ambient-flow
@@ -62,14 +66,38 @@ interface Props {
     --paper-surface: #151b26;
     --paper-surface-hover: #151b26;
     --paper-ink: #eff4fc;
-    --paper-muted: #c2cfdf;
-    --paper-accent: #eff4fc;
     --feature-muted: #c2cfdf;
     --agent-tips-accent: #c2cfdf;
     --flow-1: #61abea;
     --flow-2: #3e82e8;
     --flow-3: #2459d8;
     --flow-opacity: 0.38;
+  }
+  html[data-theme="dark"]
+    :is(.experience-feature, .coding-agent-card):has(> .ambient-flow) {
+    --paper-muted: #c2cfdf;
+    --paper-accent: #eff4fc;
+  }
+  /* Work and writing cards keep the site accent and a real muted ink, so the
+     arrow affordance is the single hover and focus gesture. The surface stays
+     flat: no lift, no surface change, no motion. */
+  :is(.work-card, .writing-card):has(> .ambient-flow) {
+    --paper-muted: #34465b;
+    --paper-accent: #1247e6;
+  }
+  /* The light listing ground is wave art where #1247e6 falls under 3:1, so the
+     light focus ring keeps the ink while the arrow takes the accent. */
+  html:not([data-theme="dark"])
+    :is(.work-card, .writing-card):has(> .ambient-flow):focus-visible {
+    outline-color: var(--paper-ink);
+  }
+  html[data-theme="dark"] :is(.work-card, .writing-card):has(> .ambient-flow) {
+    --paper-muted: #b8c5d8;
+    --paper-accent: #61abea;
+  }
+  html.editorial-detail[data-theme="dark"]
+    :is(.work-card, .writing-card):has(> .ambient-flow) {
+    --paper-accent: #8cc8f5;
   }
   .ambient-flow {
     position: absolute;
