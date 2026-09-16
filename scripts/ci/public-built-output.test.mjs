@@ -346,6 +346,77 @@ assert.deepEqual(
   [],
   "Built pages render text arrows; use a phosphor glyph instead",
 );
+// One display scale. Hero, detail-hero and lede sizes come from the www
+// tokens in global.css, and the detail hero caps where the 944px column
+// stops growing so a title never re-wraps between 1024 and 1920.
+const displayTokens = [
+  "--d-hero",
+  "--d-hero-compact",
+  "--d-hero-detail",
+  "--d-lede",
+];
+const scaledSelectors =
+  /(^|[\s,>])(\.hero-title|\.page-hero__title|\.home-hero|\.title|\.links-page h1|\.summary|\.project-summary|\.hero-line|\.page-hero__summary)([\s,:.[]|$)/;
+const scaleViolations = new Set();
+const declaredTokens = new Set();
+let detailCap = null;
+for (const file of builtFiles(dist)) {
+  const text = readFileSync(file, "utf8");
+  const relative = file.slice(dist.length + 1);
+  const sheets = file.endsWith(".html")
+    ? [...text.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1])
+    : [text];
+  if (/--d-section\b/.test(text))
+    scaleViolations.add(`${relative}: --d-section is not defined anywhere`);
+  for (const css of sheets) {
+    for (const { selector, body } of styleRules(
+      css.replace(/\/\*[\s\S]*?\*\//g, ""),
+    )) {
+      for (const token of displayTokens) {
+        const declared = body.match(
+          new RegExp(`${token}\\s*:\\s*([^;]+)`, "i"),
+        );
+        if (!declared) continue;
+        declaredTokens.add(token);
+        if (token === "--d-hero-detail") detailCap = declared[1].trim();
+      }
+      const bare = selector.replace(/\[data-astro-cid-[\w-]+\]/g, "");
+      if (!scaledSelectors.test(bare)) continue;
+      const size = body.match(/(?:^|;)\s*font-size\s*:\s*([^;]+)/i);
+      if (size && !/var\(--/.test(size[1]))
+        scaleViolations.add(
+          `${bare} { font-size: ${size[1].trim()} } must use a display token`,
+        );
+    }
+  }
+}
+assert.deepEqual(
+  [...scaleViolations],
+  [],
+  "Hero and lede sizes drifted from the shared www display tokens",
+);
+assert.deepEqual(
+  displayTokens.filter((token) => !declaredTokens.has(token)),
+  [],
+  "Built css is missing a www display token",
+);
+assert.equal(
+  detailCap,
+  "clamp(2.6rem, 6.6vw, 4.2rem)",
+  "The detail hero must cap where the 944px column stops growing",
+);
+// /work groups its catalog with the same section label home uses.
+const workHeadings = [
+  ...readFileSync(join(dist, "work.html"), "utf8").matchAll(
+    /<h2\b[^>]*id="heading-[^"]*"[^>]*>/gi,
+  ),
+].map((match) => match[0]);
+assert.ok(workHeadings.length >= 2, "/work must render bucket headings");
+assert.deepEqual(
+  workHeadings.filter((tag) => !/class="[^"]*\bsection-label\b/.test(tag)),
+  [],
+  "/work bucket headings must use section-label",
+);
 // Per-file byte ceilings keep marks and screenshots near their rendered size.
 // Marks render at 56px or less, so a 3x export stays well under 16kb. Card
 // screenshots ship 800 and 1600px variants; full-size files back the viewer.
