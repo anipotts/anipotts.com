@@ -140,8 +140,18 @@ const shotSizes = "(max-width: 52rem) 100vw, 26rem";
     transition: background 160ms ease;
   }
 
-  .work-card:hover {
-    background: var(--paper-surface-hover);
+  @media (hover: hover) and (pointer: fine) {
+    .work-card:hover {
+      background: var(--paper-surface-hover);
+    }
+  }
+
+  /* Scoped so the press ring outranks the card's own resting box-shadow. */
+  @media (width < 880px), (pointer: coarse) {
+    .work-card:active {
+      background: var(--paper-surface-hover);
+      box-shadow: inset 0 0 0 2px var(--paper-accent);
+    }
   }
 
   .work-card--experience {
@@ -159,8 +169,10 @@ const shotSizes = "(max-width: 52rem) 100vw, 26rem";
     color: var(--paper-ink);
   }
 
-  .work-card--visual:hover {
-    background: var(--paper-surface-hover);
+  @media (hover: hover) and (pointer: fine) {
+    .work-card--visual:hover {
+      background: var(--paper-surface-hover);
+    }
   }
 
   .work-card__media {
@@ -269,9 +281,14 @@ const shotSizes = "(max-width: 52rem) 100vw, 26rem";
     color: var(--paper-muted);
   }
 
-  .work-card--visual:hover .work-card__affordance,
   .work-card--visual:focus-visible .work-card__affordance {
     color: var(--paper-accent);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .work-card--visual:hover .work-card__affordance {
+      color: var(--paper-accent);
+    }
   }
 
   .work-card__affordance {
@@ -282,19 +299,20 @@ const shotSizes = "(max-width: 52rem) 100vw, 26rem";
       transform 160ms ease;
   }
 
-  .work-card:hover .work-card__affordance,
   .work-card:focus-visible .work-card__affordance {
     color: var(--paper-accent);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .work-card:hover .work-card__affordance {
+      color: var(--paper-accent);
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
     .work-card,
     .work-card__affordance {
       transition: none;
-    }
-
-    .work-card:hover {
-      transform: none;
     }
   }
 </style>
