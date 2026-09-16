@@ -114,8 +114,9 @@ test("built styles acknowledge a pending card in both themes and drop the pointe
   // heading always carries: keyed on the tabindex the rule also hid the ring
   // after a keyboard open, leaving a keyboard visitor no sign focus moved.
   assert.match(
-    rule('\\[data-writing-article\\]>header h1\\[data-pointer-focus\\]:focus') ??
-      "",
+    rule(
+      "\\[data-writing-article\\]>header h1\\[data-pointer-focus\\]:focus",
+    ) ?? "",
     /outline:none/,
   );
   assert.equal(
