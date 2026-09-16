@@ -614,17 +614,17 @@ html.editorial-detail[data-theme="dark"] {
    reading surface back as a solid background layer over it, so nothing on the
    page changes colour.
    syncBrowserTheme then carries the same value into theme-color. Each value is
-   the top-most wave layer at its tone opacity over var(--bg), sampled from what
-   Safari actually paints on the device and written as a flat hex so theme-color
-   stays an rgb() every consumer parses; the comment on each rule carries the
-   layers it composites. */
+   the top-most wave layer composited at its tone opacity over var(--bg) and
+   checked against what Safari paints on the device, written as a flat hex so
+   theme-color stays an rgb() every consumer parses; the comment on each rule
+   carries the layers it composites. */
 html.editorial-detail {
   /* work tone: #b6c8f5 at 0.65 over #f7faff */
-  --detail-canvas: #ccd9f8;
+  --detail-canvas: #cddaf9;
 }
 html.editorial-detail.writing-detail {
   /* light writing tone: #2259bf at 0.14 over #61abea */
-  --detail-canvas: #589fe4;
+  --detail-canvas: #58a0e4;
 }
 html.editorial-detail[data-theme="dark"] {
   /* dark work tone: #234b7b at 0.65 over #080b10 */
