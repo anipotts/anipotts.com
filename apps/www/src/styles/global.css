@@ -16,6 +16,14 @@
 
 /* shiki css-variables theme: tint-on-tint, accent on one token role */
 :root {
+  /* www-local display scale. one place for the page-hero, detail-hero and
+     lede sizes that were previously re-declared per component. the detail
+     hero caps where the 944px column stops growing, so writing and work
+     titles keep one line from 1024 to 1920. */
+  --d-hero: clamp(3rem, 12vw, 7rem);
+  --d-hero-compact: clamp(3rem, 10vw, 6rem);
+  --d-hero-detail: clamp(2.6rem, 6.6vw, 4.2rem);
+  --d-lede: clamp(1.08rem, 2.2vw, 1.42rem);
   --radius-desktop-ui-media: 0.35rem;
   --paper-radius: 0.75rem;
   --paper-surface: #ffffff;
@@ -193,7 +201,7 @@ h1 {
 
 .page--listing .page-hero__summary,
 .page--listing .page-intro {
-  font-size: clamp(1.05rem, 2.2vw, 1.42rem);
+  font-size: var(--d-lede);
   line-height: 1.52;
   color: var(--ink-muted);
   max-width: none;
