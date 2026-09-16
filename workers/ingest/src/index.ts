@@ -305,7 +305,7 @@ const GITHUB_REPOS = [
   "anipotts/antileak",
   "anipotts/vector-seo",
   "anipotts/quantercise",
-  "anipotts/rudy",
+  // anipotts/rudy was dropped on 2026-09-16: Rudy is retired.
 ];
 
 interface GhRepoResponse {
