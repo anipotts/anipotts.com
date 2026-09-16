@@ -520,7 +520,11 @@ export function landing(from: Document, to: Document, path: string) {
 export function land(el: HTMLElement | null | undefined, keyboard: boolean) {
   if (!el) return;
   if (el.tagName === "H1") el.tabIndex = -1;
-  else if (!keyboard) {
+  // The ring is suppressed for a tap or a click, on the article heading as
+  // well as on the card: a heading focused by keyboard keeps its ring, which
+  // is the only indicator a keyboard visitor gets that focus moved with the
+  // navigation.
+  if (!keyboard) {
     el.dataset.pointerFocus = "";
     const clear = () => delete el.dataset.pointerFocus;
     el.addEventListener("blur", clear, { once: true });

@@ -719,7 +719,7 @@ html[data-theme="dark"] a.writing-card[data-writing-pending] .affordance {
 }
 /* Focus the navigation moves after a tap or click lands without a ring;
    after keyboard navigation the ring stays. */
-[data-writing-article] > header h1[tabindex="-1"]:focus {
+[data-writing-article] > header h1[data-pointer-focus]:focus {
   outline: none;
 }
 a.writing-card[data-pointer-focus]:focus-visible {

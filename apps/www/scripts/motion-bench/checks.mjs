@@ -685,9 +685,12 @@ if (wk) {
         await page.click(".back");
         await page.waitForTimeout(1200);
         const close = await ring();
-        // Keyboard navigation keeps a visible ring on the returned card.
+        // Keyboard navigation keeps a visible ring, on the article heading it
+        // opens as well as on the card it returns to: the ring is the only
+        // sign a keyboard visitor has that focus travelled with the page.
         await page.keyboard.press("Enter");
         await page.waitForTimeout(1400);
+        const keyboardOpen = await ring();
         await page.focus("[data-writing-article] .back");
         await page.keyboard.press("Enter");
         await page.waitForTimeout(1200);
@@ -695,10 +698,12 @@ if (wk) {
         return {
           open,
           close,
+          keyboardOpen,
           keyboardClose,
           pass:
             open.outline === "none" &&
             close.outline === "none" &&
+            keyboardOpen.outline !== "none" &&
             keyboardClose.outline !== "none",
         };
       },
