@@ -1,4 +1,4 @@
-import { marqueeOffset, motionPaused } from "./workflow-motion";
+import { marqueeDuration, motionPaused } from "./workflow-motion";
 const mounted = new Map<HTMLElement, () => void>();
 
 /** The source strip is decorative; the complete workflow is server-rendered. */
@@ -23,25 +23,21 @@ function enhance(root: HTMLElement) {
   let disposed = false,
     userPaused = false,
     visible = false;
-  let frame = 0,
-    last = 0,
-    offset = 0,
-    cycle = 0;
+  let cycle = 0;
 
   function measure() {
     if (disposed) return;
     track
       .querySelectorAll("[data-source-clone]")
       .forEach((node) => node.remove());
-    track.style.transform = "";
     if (motion.matches) {
       delete root.dataset.animated;
       button.hidden = true;
       cycle = 0;
+      keyframe();
       sync();
       return;
     }
-    root.dataset.animated = "";
     button.hidden = false;
     const gap = parseFloat(getComputedStyle(track).columnGap);
     cycle = originals.reduce(
@@ -64,36 +60,48 @@ function enhance(root: HTMLElement) {
             .forEach((node) => node.removeAttribute("id"));
           track.appendChild(clone);
         }
-      offset %= cycle;
-      track.style.transform = `translate3d(${-offset}px,0,0)`;
     }
+    keyframe();
+    // The keyframe only starts once its two lengths are in place.
+    root.dataset.animated = "";
     sync();
   }
 
-  function tick(time: number) {
-    frame = 0;
-    const elapsed = last ? Math.min((time - last) / 1000, 0.1) : 0;
-    last = time;
-    offset = marqueeOffset(offset, elapsed, cycle);
-    track.style.transform = `translate3d(${-offset}px,0,0)`;
-    frame = requestAnimationFrame(tick);
+  /**
+   * The compositor owns the drift from here: one keyframe, no frame loop.
+   * Re-measuring writes the same two lengths, so a resize or a late font does
+   * not disturb a strip whose cycle has not changed.
+   */
+  function keyframe() {
+    const lengths: [string, string][] = [
+      ["--source-cycle", cycle ? `${cycle}px` : ""],
+      ["--source-cycle-duration", cycle ? `${marqueeDuration(cycle)}s` : ""],
+    ];
+    if (
+      lengths.every(
+        ([name, value]) => track.style.getPropertyValue(name) === value,
+      )
+    )
+      return;
+    // Safari reads a keyframe's var() once, when the animation starts, so a new
+    // cycle has to take the keyframe away and bring it back, not edit it live.
+    delete root.dataset.animated;
+    void track.offsetWidth;
+    for (const [name, value] of lengths) {
+      if (value) track.style.setProperty(name, value);
+      else track.style.removeProperty(name);
+    }
   }
 
   function sync() {
-    const paused = motionPaused(
-      userPaused,
-      visible,
-      document.hidden,
-      motion.matches,
-    );
+    const paused =
+      !cycle ||
+      disposed ||
+      motionPaused(userPaused, visible, document.hidden, motion.matches);
+    // CSS reads this to set animation-play-state; nothing wakes the main thread.
     root.dataset.motion = paused ? "paused" : "running";
     // The server-rendered name stays fixed; aria-pressed alone reports the pause.
     button.setAttribute("aria-pressed", String(userPaused));
-    if (paused || !cycle) {
-      cancelAnimationFrame(frame);
-      frame = 0;
-      last = 0;
-    } else if (!frame && !disposed) frame = requestAnimationFrame(tick);
   }
   const options = { signal: listeners.signal };
   button.addEventListener(
@@ -123,7 +131,7 @@ function enhance(root: HTMLElement) {
   });
   return () => {
     disposed = true;
-    cancelAnimationFrame(frame);
+    sync();
     listeners.abort();
     resize.disconnect();
     intersection.disconnect();
