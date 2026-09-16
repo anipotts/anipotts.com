@@ -6,7 +6,7 @@
  * original request for these paths instead, so a matching validator gets a
  * 304. Pages stay with the adapter and middleware.
  */
-const STATIC_PREFIXES = ["/_astro/", "/images/", "/brand/"];
+const STATIC_PREFIXES = ["/_astro/", "/images/", "/brand/", "/social/"];
 const STATIC_FILES = new Set([
   "/favicon.svg",
   "/favicon.ico",
@@ -29,12 +29,17 @@ export function isStaticAssetPath(pathname: string): boolean {
  * (public, max-age=0, must-revalidate). Build output under /_astro is content
  * hashed, so it never changes under its name. Public images and brand marks
  * keep their names across edits, so they stay fresh for a day and then
- * revalidate in the background. The feed, sitemap, favicons and the rest keep
- * revalidating on every use. */
+ * revalidate in the background, and the built social cards ride the same
+ * policy because a card is rebuilt under its own name when its title changes.
+ * The feed, sitemap, favicons and the rest keep revalidating on every use. */
 export function staticCacheControl(pathname: string): string | null {
   if (pathname.startsWith("/_astro/"))
     return "public, max-age=31536000, immutable";
-  if (pathname.startsWith("/images/") || pathname.startsWith("/brand/"))
+  if (
+    pathname.startsWith("/images/") ||
+    pathname.startsWith("/brand/") ||
+    pathname.startsWith("/social/")
+  )
     return "public, max-age=86400, stale-while-revalidate=604800";
   return null;
 }
