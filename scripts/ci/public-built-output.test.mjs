@@ -305,7 +305,7 @@ assert.deepEqual(
 // if that rule is ever inlined into a page.
 const arrowCharacter = /[←-⇿➡➔➜⬅-⬍⮕]/u;
 const arrowEntity =
-  /&(?:[lrud]arr|[lrud]Arr|harr|hArr|[ns][ew]arr|#x0*2(?:19[0-9A-F]|1[0-9A-F]{2}|7A1|B0[5-D]|B95)|#0*8(?:59[2-9]|60[0-1])|#0*11(?:169|173));/i;
+  /&(?:[lrud]arr|[lrud]Arr|harr|hArr|[ns][ew]arr|#x0*2(?:1(?:9[0-9A-F]|[A-F][0-9A-F])|7A1|B0[5-9A-D]|B95)|#0*8(?:59[2-9]|60[0-1])|#0*11(?:169|173));/i;
 const systemMapStepRule =
   /^\.step(:not\(:last-child\)|\s*\+\s*\.step)?::?(before|after)$/;
 function arrowHits(text) {
