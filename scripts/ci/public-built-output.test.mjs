@@ -299,6 +299,86 @@ assert.deepEqual(
   [],
   "Built pages paint dividers; let spacing carry the break",
 );
+// Light writing details read on a paper surface under the blue wave header.
+// The inks are measured here, so a later colour edit cannot quietly take the
+// article back under 4.5:1, which is where it sat before the paper landed.
+const lightCanvas = "#61abea";
+function channel(value) {
+  const v = value / 255;
+  return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+}
+function rgb(hex) {
+  const value = hex.trim().replace(/^#/, "");
+  const full =
+    value.length === 3
+      ? value
+          .split("")
+          .map((part) => part + part)
+          .join("")
+      : value;
+  assert.match(full, /^[0-9a-f]{6}$/i, `Unreadable colour: ${hex}`);
+  return [0, 2, 4].map((index) => parseInt(full.slice(index, index + 2), 16));
+}
+function luminance(hex) {
+  const [r, g, b] = rgb(hex);
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+}
+function contrast(foreground, background) {
+  const [lighter, darker] = [luminance(foreground), luminance(background)].sort(
+    (a, b) => b - a,
+  );
+  return (lighter + 0.05) / (darker + 0.05);
+}
+const readingScope = "html.writing-detail:not([data-theme=dark])";
+const readingRules = builtFiles(dist)
+  .filter((file) => file.endsWith(".css"))
+  .flatMap((file) =>
+    styleRules(readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\//g, "")),
+  )
+  .filter((rule) => rule.selector.startsWith(readingScope));
+function declaration(rule, property) {
+  const matches = [
+    ...rule.body.matchAll(
+      new RegExp(`(?:^|;)\\s*${property}\\s*:\\s*([^;]+)`, "g"),
+    ),
+  ];
+  return matches.length ? matches[matches.length - 1][1].trim() : null;
+}
+const headerRule = readingRules.find(
+  (rule) =>
+    rule.selector === readingScope && declaration(rule, "--reading-paper"),
+);
+assert.ok(
+  headerRule,
+  "Light writing details must declare the reading surface tokens",
+);
+const paper = declaration(headerRule, "--reading-paper");
+const surfaceRule = readingRules.find(
+  (rule) =>
+    rule.selector.includes(".article-body") &&
+    declaration(rule, "background-color"),
+);
+assert.ok(
+  surfaceRule,
+  "Light writing details must paint the article on the reading surface",
+);
+for (const [rule, property, background, minimum] of [
+  [headerRule, "--ink", lightCanvas, 4.5],
+  [headerRule, "--ink-muted", lightCanvas, 4.5],
+  [headerRule, "--focus", lightCanvas, 3],
+  [surfaceRule, "--ink", paper, 4.5],
+  [surfaceRule, "--ink-muted", paper, 4.5],
+  [surfaceRule, "--interactive", paper, 4.5],
+  [surfaceRule, "--focus", paper, 3],
+]) {
+  const colour = declaration(rule, property);
+  assert.ok(colour, `Light writing details must declare ${property}`);
+  const measured = contrast(colour, background);
+  assert.ok(
+    measured >= minimum,
+    `${property} ${colour} on ${background} is ${measured.toFixed(2)}:1, under ${minimum}:1`,
+  );
+}
 // House style is phosphor only, so an affordance is never a text arrow. Built
 // markup carries no arrow character and no arrow entity. SystemMap's step
 // connectors are an approved diagram, so their pseudo content keeps its glyph
