@@ -120,9 +120,9 @@
     "lint-staged": "^16.3.3",
     "prettier": "^3.9.6",
     "prettier-plugin-astro": "^0.14.1",
-    "turbo": "^2.10.11",
+    "turbo": "^2.10.12",
     "typescript": "^5.7.0",
-    "wrangler": "^4.125.0",
+    "wrangler": "^4.131.1",
     "yaml": "2.8.2"
   }
 }
