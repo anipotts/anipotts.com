@@ -263,6 +263,23 @@ function dividerReasons(selector, body) {
     reasons.push("hairline pseudo element");
   return reasons;
 }
+// Audit m18: a card token block must keep a real accent apart from its muted
+// ink, otherwise the arrow affordance has no hover or focus gesture at all.
+const flatCardTokens = new Set();
+function declaredToken(body, name) {
+  let value = null;
+  for (const declaration of body.split(";")) {
+    const at = declaration.indexOf(":");
+    if (at < 0) continue;
+    if (declaration.slice(0, at).trim() !== name) continue;
+    value = declaration
+      .slice(at + 1)
+      .replace(/!important/, "")
+      .trim()
+      .toLowerCase();
+  }
+  return value;
+}
 const dividerViolations = new Set();
 for (const file of builtFiles(dist)) {
   const text = readFileSync(file, "utf8");
@@ -291,6 +308,17 @@ for (const file of builtFiles(dist)) {
         );
       if (reasons.length && !allowed)
         dividerViolations.add(`${bare} { ${reasons.join("; ")} }`);
+      const accent = declaredToken(body, "--paper-accent");
+      const muted = declaredToken(body, "--paper-muted");
+      if (
+        accent &&
+        muted &&
+        accent === muted &&
+        /\.(work|writing)-card\b/.test(bare)
+      )
+        flatCardTokens.add(
+          `${bare} { --paper-accent: ${accent} == --paper-muted }`,
+        );
     }
   }
 }
@@ -298,6 +326,11 @@ assert.deepEqual(
   [...dividerViolations],
   [],
   "Built pages paint dividers; let spacing carry the break",
+);
+assert.deepEqual(
+  [...flatCardTokens],
+  [],
+  "Card tokens collapse the accent into the muted ink, so the arrow has no hover or focus gesture",
 );
 // Light writing details read on a paper surface under the blue wave header.
 // The inks are measured here, so a later colour edit cannot quietly take the
