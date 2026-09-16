@@ -55,8 +55,8 @@ const EXPECTED_OPERATION_IDS = [
   "content-draft-newsletter-copy-2026-06-28",
   "content-draft-orchestrating-hero-copy-2026-06-29",
   "content-draft-project-card-fields-2026-06-28",
+  "content-draft-project-agents-detail-2026-06-29",
   "content-draft-project-chainedchat-detail-2026-06-29",
-  "content-draft-project-claude-code-tips-detail-2026-06-29",
   "content-draft-project-habittracker-obh-detail-2026-06-29",
   "content-draft-project-imessage-mcp-detail-2026-06-29",
   "content-draft-project-nyu-purity-test-detail-2026-06-29",
@@ -424,12 +424,9 @@ try {
   });
   writeFileSync(
     join(alternateSlugRoot, "content/public/projects/source-name.md"),
-    readFileSync("content/public/projects/claude-code-tips.md", "utf8")
+    readFileSync("content/public/projects/agents.md", "utf8")
       .replace(/^---\n/, "---\nslug: route-name\n")
-      .replace(
-        "detail_path: /work/claude-code-tips",
-        "detail_path: /work/route-name",
-      ),
+      .replace("detail_path: /work/agents", "detail_path: /work/route-name"),
   );
   execFileSync(
     process.execPath,
@@ -462,7 +459,7 @@ try {
       "detail_path: /work/route-name",
       "detail_path: /work/wrong-route",
     ),
-    validAlternate.replaceAll("route-name", "claude-code-tips"),
+    validAlternate.replaceAll("route-name", "agents"),
   ]) {
     writeFileSync(alternateFile, invalid);
     assert.throws(
