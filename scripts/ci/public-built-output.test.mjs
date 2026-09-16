@@ -355,8 +355,10 @@ const displayTokens = [
   "--d-hero-detail",
   "--d-lede",
 ];
+// The leading dot is its own boundary, so a compound selector such as
+// h1.hero-title is caught alongside a descendant one.
 const scaledSelectors =
-  /(^|[\s,>])(\.hero-title|\.page-hero__title|\.home-hero|\.title|\.links-page h1|\.summary|\.project-summary|\.hero-line|\.page-hero__summary)([\s,:.[]|$)/;
+  /(\.hero-title|\.page-hero__title|\.home-hero|\.title|\.links-page h1|\.summary|\.project-summary|\.hero-line|\.page-hero__summary)([\s,:.[]|$)/;
 const scaleViolations = new Set();
 const declaredTokens = new Set();
 let detailCap = null;
