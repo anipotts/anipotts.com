@@ -31,7 +31,7 @@ export function mountSharedCurrents() {
     h = 1,
     time = previous?.time ?? 0,
     frame = 0,
-    timer = 0,
+    timer: ReturnType<typeof setTimeout> | undefined,
     last = 0;
   const svgs = hosts.map((host) => host.querySelector("svg")!);
   const paths = svgs.map((svg) => [...svg.querySelectorAll("path")]);
@@ -128,7 +128,7 @@ export function mountSharedCurrents() {
   function schedule() {
     timer = setTimeout(
       () => {
-        timer = 0;
+        timer = undefined;
         frame = requestAnimationFrame(tick);
       },
       Math.max(0, last + STEP - performance.now()),
@@ -136,9 +136,9 @@ export function mountSharedCurrents() {
   }
   function stop() {
     if (frame) cancelAnimationFrame(frame);
-    if (timer) clearTimeout(timer);
+    if (timer !== undefined) clearTimeout(timer);
     frame = 0;
-    timer = 0;
+    timer = undefined;
   }
   function tick(now: number) {
     frame = 0;
