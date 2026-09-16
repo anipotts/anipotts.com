@@ -1,4 +1,5 @@
 ---
+import { Icon } from "astro-icon/components";
 import { phoneMedia, responsiveScreenshot } from "../lib/responsive-image";
 
 interface MediaItem {
@@ -76,7 +77,8 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
                   />
                 )}
                 <span class="project-media__hint" aria-hidden="true">
-                  enlarge ↗
+                  enlarge
+                  <Icon name="ph:arrow-bend-right-up" />
                 </span>
               </a>
             )}
@@ -125,7 +127,12 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
               rel="noopener noreferrer"
               data-image-original
             >
-              open original ↗
+              open original
+              <Icon
+                name="ph:arrow-bend-right-up"
+                class="image-viewer__affordance"
+                aria-hidden="true"
+              />
             </a>
             <button type="button" data-image-close autofocus>
               close
@@ -288,6 +295,9 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
     position: absolute;
     right: 0.65rem;
     bottom: 0.65rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
     padding: 0.35rem 0.65rem;
     border-radius: 0.35rem;
     background: var(--paper-surface);
@@ -295,6 +305,36 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
     box-shadow: 0 1px 8px rgb(0 0 0 / 15%);
     font-size: 0.75rem;
     line-height: 1.4;
+  }
+
+  .project-media__hint :global(svg) {
+    flex: 0 0 auto;
+    color: var(--paper-muted);
+    transition: color 160ms ease;
+  }
+
+  .project-media__enlarge:hover .project-media__hint :global(svg),
+  .project-media__enlarge:focus-visible .project-media__hint :global(svg) {
+    color: var(--paper-accent);
+  }
+
+  .image-viewer__affordance {
+    flex: 0 0 auto;
+    margin-left: 0.3rem;
+    color: var(--paper-muted);
+    transition: color 160ms ease;
+  }
+
+  [data-image-original]:hover .image-viewer__affordance,
+  [data-image-original]:focus-visible .image-viewer__affordance {
+    color: var(--paper-accent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .project-media__hint :global(svg),
+    .image-viewer__affordance {
+      transition: none;
+    }
   }
 
   .project-media__rail {

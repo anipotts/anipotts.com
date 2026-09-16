@@ -255,7 +255,8 @@ h2.section-label {
   transition: color 0.2s;
 }
 
-.quiet-link:hover {
+.quiet-link:hover,
+.quiet-link:focus-visible {
   color: var(--interactive);
 }
 
