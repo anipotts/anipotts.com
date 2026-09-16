@@ -299,6 +299,53 @@ assert.deepEqual(
   [],
   "Built pages paint dividers; let spacing carry the break",
 );
+// House style is phosphor only, so an affordance is never a text arrow. Built
+// markup carries no arrow character and no arrow entity. SystemMap's step
+// connectors are an approved diagram, so their pseudo content keeps its glyph
+// if that rule is ever inlined into a page.
+const arrowCharacter = /[←-⇿➡➔➜⬅-⬍⮕]/u;
+const arrowEntity =
+  /&(?:[lrud]arr|[lrud]Arr|harr|hArr|[ns][ew]arr|#x0*2(?:1(?:9[0-9A-F]|[A-F][0-9A-F])|7A1|B0[5-9A-D]|B95)|#0*8(?:59[2-9]|60[0-1])|#0*11(?:169|173));/i;
+const systemMapStepRule =
+  /^\.step(:not\(:last-child\)|\s*\+\s*\.step)?::?(before|after)$/;
+function arrowHits(text) {
+  const hits = [];
+  const parts = text.split(/(<style\b[^>]*>[\s\S]*?<\/style>)/i);
+  for (const [index, chunk] of parts.entries()) {
+    if (index % 2 === 0) {
+      // Markup, attributes and visible text: no arrow glyph of any kind.
+      const character = chunk.match(arrowCharacter);
+      if (character) hits.push(`character ${JSON.stringify(character[0])}`);
+      const entity = chunk.match(arrowEntity);
+      if (entity) hits.push(`entity ${entity[0]}`);
+      continue;
+    }
+    const css = chunk
+      .replace(/^<style\b[^>]*>/i, "")
+      .replace(/<\/style>$/i, "")
+      .replace(/\/\*[\s\S]*?\*\//g, "");
+    for (const { selector, body } of styleRules(css)) {
+      if (!arrowCharacter.test(body) && !arrowEntity.test(body)) continue;
+      const bare = selector.replace(/\[data-astro-cid-[\w-]+\]/g, "");
+      const allowed = bare
+        .split(",")
+        .every((part) => systemMapStepRule.test(part.trim()));
+      if (!allowed) hits.push(`${bare} { arrow glyph in css }`);
+    }
+  }
+  return hits;
+}
+const arrowViolations = [];
+for (const file of builtFiles(dist)) {
+  if (!file.endsWith(".html")) continue;
+  for (const hit of arrowHits(readFileSync(file, "utf8")))
+    arrowViolations.push(`${file.slice(dist.length + 1)}: ${hit}`);
+}
+assert.deepEqual(
+  arrowViolations,
+  [],
+  "Built pages render text arrows; use a phosphor glyph instead",
+);
 // Per-file byte ceilings keep marks and screenshots near their rendered size.
 // Marks render at 56px or less, so a 3x export stays well under 16kb. Card
 // screenshots ship 800 and 1600px variants; full-size files back the viewer.
