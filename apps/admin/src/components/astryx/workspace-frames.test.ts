@@ -57,10 +57,38 @@ describe("workspace page frames", () => {
     // outside it. The bordered menus absorb that with their border; the
     // borderless search button adds the same width.
     expect(header).toContain(
-      ".approved-workspace-header .editorial-header-search { padding-inline-start: calc(var(--spacing-9) / 4 + var(--border-width)); }",
+      ".approved-workspace-header .editorial-header-search { padding-inline-start: calc(var(--spacing-9) / 4); }",
+    );
+    expect(header).toContain(
+      ".approved-workspace-header .admin-workspace-selector, .editorial-workspace-utilities .admin-sidebar-menu { padding-inline-start: calc(var(--spacing-9) / 4 - var(--border-width)); }",
+    );
+    // The drawer uses the same inset, so the bordered menus ask for a pixel
+    // less there too.
+    expect(header).toContain(
+      ".editorial-workspace-nav :is(.admin-workspace-selector, .admin-sidebar-menu) { padding-inline-start: calc(var(--spacing-2) - var(--border-width)); }",
+    );
+    // In the rail there is no label to align to, so the icon takes the middle.
+    expect(header).toContain(
+      ":is(.admin-sidebar-menu, .editorial-header-search) { padding-inline: 0; justify-content: center; }",
+    );
+    expect(header).toContain(
+      ":is(.admin-sidebar-menu, .editorial-header-search) > span:first-child { justify-content: center; }",
     );
     expect(header).toContain(
       ".admin-sidebar-menu > span:first-child > span:first-child > svg:not(#\\#):not(#\\#) { width: calc(var(--spacing-9) / 2); height: calc(var(--spacing-9) / 2); flex: none; }",
+    );
+  });
+
+  it("gives the rail's menus the same quiet treatment as its icons", () => {
+    const shell = read("./EditorialWorkspaceShell.tsx");
+    // A menu with a label carries a surface; one icon among icons does not.
+    expect(shell).toContain('variant: compact ? "ghost" : "secondary",');
+    const library = read("../../styles/editorial.css");
+    expect(library).toContain(
+      '.editorial-workspace-shell:not([data-sidebar-collapsed="true"]) .admin-sidebar-menu, .editorial-workspace-shell .astryx-app-shell-header .admin-sidebar-menu { border: 1px solid var(--color-border);',
+    );
+    expect(header).toContain(
+      ":is(.admin-sidebar-menu, .editorial-header-search):is( :hover, :focus-visible ) { background-color: var(--color-background-muted); }",
     );
   });
 

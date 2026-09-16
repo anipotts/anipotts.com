@@ -353,7 +353,10 @@ function SidebarMenu({
         "aria-label": accessibleLabel,
         tooltip: compact ? accessibleLabel : undefined,
         isIconOnly: compact,
-        variant: "secondary",
+        // Expanded, this is a menu with a label and a current choice, and it
+        // carries a menu's surface. In the rail it is one icon among icons, so
+        // it takes the same quiet treatment as the rest of them.
+        variant: compact ? "ghost" : "secondary",
         size: "md",
         icon,
         endContent: compact ? undefined : (

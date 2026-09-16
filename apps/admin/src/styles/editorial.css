@@ -950,8 +950,17 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   min-width: 0;
 }
 /* Both sidebar menus share one surface; only the workspace carries the
-   workspace accent. */
-.editorial-workspace-shell .admin-sidebar-menu {
+   workspace accent. In the rail there is no label or current choice to hold,
+   so the menu drops the surface and reads as one icon among icons. Its border
+   stays, transparent, so the icon keeps its place. */
+/* The menu carries a surface wherever it carries a label and a current
+   choice. In the rail it is one icon among icons: there it stays a ghost
+   button, with the same resting and hover states as the rest of them. */
+.editorial-workspace-shell:not([data-sidebar-collapsed="true"])
+  .admin-sidebar-menu,
+.editorial-workspace-shell
+  .astryx-app-shell-header
+  .admin-sidebar-menu {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-element);
   background: var(--color-background-surface);
