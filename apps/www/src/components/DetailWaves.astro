@@ -89,6 +89,12 @@ const curves = [0, 1, 2].map((layer) => {
   .detail-waves--work {
     opacity: 0.65;
   }
+  /* writing-transitions sets this same value once its module runs; declaring it
+     here keeps the painted header stable from the first frame, so the iOS
+     status strip colour matches the first page row before and after boot. */
+  :global(html[data-theme="dark"]) .detail-waves--writing {
+    opacity: 0.75;
+  }
   @media (max-width: 44rem) {
     .detail-waves {
       top: -8rem;

@@ -243,10 +243,12 @@ h2.section-label {
   text-decoration: none;
 }
 
-.accent-link:hover {
-  text-decoration: underline;
-  text-underline-offset: 0.18em;
-  text-decoration-thickness: 0.06em;
+@media (hover: hover) and (pointer: fine) {
+  .accent-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+    text-decoration-thickness: 0.06em;
+  }
 }
 
 .quiet-link {
@@ -255,9 +257,14 @@ h2.section-label {
   transition: color 0.2s;
 }
 
-.quiet-link:hover,
 .quiet-link:focus-visible {
   color: var(--interactive);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .quiet-link:hover {
+    color: var(--interactive);
+  }
 }
 
 /* post-list row: fill on hover marks the row, never a line */
@@ -270,12 +277,14 @@ h2.section-label {
   transition: background 0.2s;
 }
 
-.row-link:hover {
-  background: var(--surface);
-}
+@media (hover: hover) and (pointer: fine) {
+  .row-link:hover {
+    background: var(--surface);
+  }
 
-.row-link:hover .row-title {
-  color: var(--ink);
+  .row-link:hover .row-title {
+    color: var(--ink);
+  }
 }
 
 .row-title {
@@ -307,16 +316,22 @@ h2.section-label {
   outline-offset: 4px;
 }
 
+/* The press ring for work, experience and agent cards lives in each component,
+   where it outranks that component's own resting box-shadow. The writing card
+   keeps its global press state plus the shadow reset below, which the article
+   morph depends on. */
 @media (width < 880px), (pointer: coarse) {
-  :is(
-    .work-card,
-    .writing-card,
-    .experience-feature,
-    .coding-agent-card
-  ):active {
+  .writing-card:active {
     background: var(--paper-surface-hover);
     box-shadow: inset 0 0 0 2px var(--paper-accent);
   }
+}
+
+/* Touch controls use their own press states, never the platform grey plate. */
+a,
+button,
+summary {
+  -webkit-tap-highlight-color: transparent;
 }
 
 .pill {
@@ -595,6 +610,46 @@ html.editorial-detail[data-theme="dark"] {
   --surface: #151b26;
   --interactive: #8cc8f5;
 }
+
+/* iOS reads the page background colour off body to tint the status strip and
+   the overscroll canvas, but the first row of a detail page is the DetailWaves
+   header, not var(--bg), so the two disagree and draw a band under the clock.
+   Declare the composited wave-top colour on the canvas instead, and give the
+   reading surface back as a solid background layer over it, so nothing on the
+   page changes colour.
+   syncBrowserTheme then carries the same value into theme-color. Each value is
+   the top-most wave layer composited at its tone opacity over var(--bg) and
+   checked against what Safari paints on the device, written as a flat hex so
+   theme-color stays an rgb() every consumer parses; the comment on each rule
+   carries the layers it composites. */
+html.editorial-detail {
+  /* work tone: #b6c8f5 at 0.65 over #f7faff */
+  --detail-canvas: #cddaf9;
+}
+html.editorial-detail.writing-detail {
+  /* light writing tone: #2259bf at 0.14 over #61abea */
+  --detail-canvas: #58a0e4;
+}
+html.editorial-detail[data-theme="dark"] {
+  /* dark work tone: #234b7b at 0.65 over #080b10 */
+  --detail-canvas: #1a3556;
+}
+html.editorial-detail.writing-detail[data-theme="dark"] {
+  /* dark writing tone: #234b7b at 0.75 over #080b10 */
+  --detail-canvas: #1c3b60;
+}
+
+html.editorial-detail,
+html.editorial-detail body {
+  background-color: var(--detail-canvas);
+}
+
+/* The colour above is what iOS reads; this solid layer is what the page paints,
+   so the reading surface stays var(--bg) and nothing on the page changes. */
+html.editorial-detail body {
+  background-image: linear-gradient(var(--bg), var(--bg));
+}
+
 .editorial-detail .article-body {
   width: 100%;
   max-width: 65ch;
