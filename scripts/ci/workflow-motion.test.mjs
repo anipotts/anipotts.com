@@ -50,8 +50,8 @@ assert.match(
 );
 assert.match(
   workflow,
-  /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.workflow \.source-track\s*\{\s*animation:\s*none/,
-  "reduced motion removes the keyframe outright",
+  /@media \(prefers-reduced-motion: reduce\)\s*\{(?:\s*\/\*[^]*?\*\/)?\s*\.workflow\[data-animated\] \.source-track\s*\{\s*animation:\s*none/,
+  "reduced motion removes the keyframe outright, at matching specificity",
 );
 const active = [false, true, false, false];
 assert.equal(motionPaused(...active), false);

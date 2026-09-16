@@ -466,7 +466,9 @@ const { workflow } = Astro.props;
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .workflow .source-track {
+    /* At least as specific as the rule it has to beat, so the strip is still
+       static if the script sets data-animated before reading the preference. */
+    .workflow[data-animated] .source-track {
       animation: none;
     }
   }
