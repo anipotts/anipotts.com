@@ -1,5 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import {
   CARD_HEIGHT,
   CARD_WIDTH,
@@ -36,6 +39,49 @@ test("an essay card is a 1200 by 630 PNG inside the unfurl budget", () => {
 
 test("every card keeps its type inside the square safe area", () => {
   for (const title of [null, LONGEST, "awareness is really alpha"]) {
+    const ink = cardInkBounds({ title, name: NAME });
+    assert.ok(ink.left >= SAFE_LEFT, `${title}: ink starts at ${ink.left}`);
+    assert.ok(ink.right <= SAFE_RIGHT, `${title}: ink ends at ${ink.right}`);
+    assert.ok(ink.top >= 0 && ink.bottom <= CARD_HEIGHT, `${title}: off card`);
+  }
+});
+
+// A title no line break can help, and one far longer than anything published,
+// still has to land on the card: the painter breaks the word and keeps
+// shrinking rather than letting ink run off the canvas.
+test("an unbreakable word and an overlong title stay on the card", () => {
+  const cases = [
+    "https://anipotts.com/writing/an-extremely-long-unbroken-slug-name",
+    `a title that is quite a lot longer than any essay currently published on
+     the site today and it keeps going for another clause and then one more`,
+  ];
+  for (const title of cases) {
+    const ink = cardInkBounds({ title, name: NAME });
+    assert.ok(ink.left >= SAFE_LEFT, `${title}: ink starts at ${ink.left}`);
+    assert.ok(ink.right <= SAFE_RIGHT, `${title}: ink ends at ${ink.right}`);
+    assert.ok(ink.top >= 0 && ink.bottom <= CARD_HEIGHT, `${title}: off card`);
+    const png = renderCard({ title, name: NAME, seed: "long" });
+    assert.deepEqual(header(png), { width: CARD_WIDTH, height: CARD_HEIGHT });
+    assert.ok(png.length < BUDGET, `${title}: ${png.length} bytes`);
+  }
+});
+
+// The titles Ani has actually written, drafts included, so a new one that
+// would break the card fails here before it can ship.
+test("every writing title in the repo paints inside the safe area", () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const writing = join(here, "..", "..", "..", "content", "public", "writing");
+  const titles = readdirSync(writing)
+    .filter((file) => file.endsWith(".md"))
+    .map((file) => {
+      const line = readFileSync(join(writing, file), "utf8").match(
+        /^title:\s*(.+)$/m,
+      );
+      assert.ok(line, `${file} has no title`);
+      return line[1].trim().replace(/^"(.*)"$/, "$1");
+    });
+  assert.ok(titles.length >= 5, `found ${titles.length} writing titles`);
+  for (const title of titles) {
     const ink = cardInkBounds({ title, name: NAME });
     assert.ok(ink.left >= SAFE_LEFT, `${title}: ink starts at ${ink.left}`);
     assert.ok(ink.right <= SAFE_RIGHT, `${title}: ink ends at ${ink.right}`);

@@ -241,15 +241,27 @@ function wavePolygons(seed) {
   });
 }
 
-/** Greedy word wrap at a given size, or null when a word cannot fit. */
+/** Greedy word wrap at a given size. A word too wide for the box at this size
+ * is split on character boundaries, so no line can ever leave the safe area. */
 function wrap(text, size, maxWidth) {
   const face = font();
   const scale = size / face.unitsPerEm;
   const widthOf = (value) => face.measure(value) * scale;
   const lines = [];
   let line = "";
+  const flush = () => {
+    if (line) lines.push(line);
+    line = "";
+  };
   for (const word of text.split(/\s+/).filter(Boolean)) {
-    if (widthOf(word) > maxWidth) return null;
+    if (widthOf(word) > maxWidth) {
+      flush();
+      for (const character of word) {
+        if (line && widthOf(line + character) > maxWidth) flush();
+        line += character;
+      }
+      continue;
+    }
     const candidate = line ? `${line} ${word}` : word;
     if (widthOf(candidate) <= maxWidth) line = candidate;
     else {
@@ -257,7 +269,7 @@ function wrap(text, size, maxWidth) {
       line = word;
     }
   }
-  if (line) lines.push(line);
+  flush();
   return lines;
 }
 
@@ -265,15 +277,23 @@ function wrap(text, size, maxWidth) {
 function fitText(text, { maxWidth, maxHeight, maxLines, leading, from, to }) {
   for (let size = from; size >= to; size -= 1) {
     const lines = wrap(text, size, maxWidth);
-    if (!lines || lines.length > maxLines) continue;
+    if (lines.length > maxLines) continue;
     const height = (lines.length - 1) * size * leading + size;
     if (height <= maxHeight) return { size, lines, height };
   }
-  const lines = wrap(text, to, maxWidth) ?? [text];
+  // A title longer than any the site has published would need more lines than
+  // the block allows. Keep shrinking past the usual floor so the whole title
+  // still lands on the card rather than running off it: the copy is never cut.
+  for (let size = to - 1; size >= 20; size -= 1) {
+    const lines = wrap(text, size, maxWidth);
+    const height = (lines.length - 1) * size * leading + size;
+    if (height <= maxHeight) return { size, lines, height };
+  }
+  const lines = wrap(text, 20, maxWidth);
   return {
-    size: to,
+    size: 20,
     lines,
-    height: (lines.length - 1) * to * leading + to,
+    height: (lines.length - 1) * 20 * leading + 20,
   };
 }
 
@@ -296,6 +316,23 @@ function centreVertically(polygons) {
     }
   const shift = (CARD_HEIGHT - (bottom - top)) / 2 - top;
   for (const contour of polygons) for (const point of contour) point.y += shift;
+}
+
+/** A glyph like j or y carries ink to the left of its pen, so a title that
+ * starts with one reaches past the left gutter. Nudge the whole block right
+ * by that overhang, never far enough to push the right edge out. */
+function nudgeIntoSafeArea(polygons) {
+  let left = Infinity;
+  let right = -Infinity;
+  for (const contour of polygons)
+    for (const point of contour) {
+      if (point.x < left) left = point.x;
+      if (point.x > right) right = point.x;
+    }
+  if (left >= SAFE_LEFT) return;
+  const shift = Math.min(SAFE_LEFT - left, SAFE_RIGHT - right);
+  if (shift <= 0) return;
+  for (const contour of polygons) for (const point of contour) point.x += shift;
 }
 
 /** The monogram and type of one card, already centred on the canvas. */
@@ -344,6 +381,7 @@ function composeInk({ title, name }) {
     );
   }
   centreVertically(ink);
+  nudgeIntoSafeArea(ink);
   return ink;
 }
 
