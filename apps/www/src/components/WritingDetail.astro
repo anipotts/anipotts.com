@@ -15,6 +15,7 @@ import {
 } from "../lib/content";
 import { siteConfig } from "@anipotts/content/public";
 import { personId } from "../lib/identity";
+import { writingCard } from "../lib/social-card/routes";
 
 interface Props {
   preview?: boolean;
@@ -52,6 +53,7 @@ const articleLd = {
   jsonLd={articleLd}
   detail
   robots={Astro.props.preview ? "noindex, nofollow, noarchive" : undefined}
+  socialCard={Astro.props.preview ? undefined : writingCard(slug)}
 >
   {
     Astro.props.preview && (

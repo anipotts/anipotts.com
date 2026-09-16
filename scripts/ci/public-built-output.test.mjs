@@ -73,6 +73,61 @@ for (const path of privateRoutes) {
   );
 }
 
+// Every route unfurls with a card that was actually built, at the size the
+// meta claims, and each essay carries its own card, not the shared site one.
+const cards = new Map();
+for (const path of pages) {
+  const html = readFileSync(
+    join(dist, path === "/" ? "index.html" : `${path.slice(1)}.html`),
+    "utf8",
+  );
+  const image = html.match(/property="og:image" content="([^"]+)"/)?.[1];
+  assert.ok(image, `${path} has no og:image`);
+  assert.match(
+    html,
+    /property="og:image:width" content="1200"/,
+    `${path} og:image:width`,
+  );
+  assert.match(
+    html,
+    /property="og:image:height" content="630"/,
+    `${path} og:image:height`,
+  );
+  assert.match(
+    html,
+    /property="og:image:alt" content="[^"]+"/,
+    `${path} og:image:alt`,
+  );
+  assert.equal(
+    html.match(/name="twitter:image" content="([^"]+)"/)?.[1],
+    image,
+    `${path} twitter:image must match og:image`,
+  );
+  const file = join(dist, new URL(image).pathname.slice(1));
+  assert.ok(existsSync(file), `${path} og:image is not in dist: ${image}`);
+  const png = readFileSync(file);
+  assert.equal(png.readUInt32BE(16), 1200, `${image} width`);
+  assert.equal(png.readUInt32BE(20), 630, `${image} height`);
+  assert.ok(
+    png.length < 150 * 1024,
+    `${image} is ${png.length} bytes, over the unfurl budget`,
+  );
+  cards.set(path, image);
+}
+for (const { slug } of published) {
+  const card = cards.get(`/writing/${slug}`);
+  assert.equal(
+    card,
+    `https://anipotts.com/social/writing-${slug}.png`,
+    `/writing/${slug} must carry its own card`,
+  );
+  assert.notEqual(
+    card,
+    cards.get("/"),
+    `/writing/${slug} reuses the site card`,
+  );
+}
+
 // House style bans dividers. Spacing carries section breaks, so built pages
 // must not paint one-sided rules, hairline pseudo elements or <hr>.
 const dividerAllowlist = [
