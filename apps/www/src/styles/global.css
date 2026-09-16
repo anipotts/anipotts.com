@@ -748,9 +748,7 @@ html[data-navigation-settled].writing-detail .article-body[data-rise] > * {
 html.writing-detail:not([data-theme="dark"]) .article {
   container-type: inline-size;
 }
-html.writing-detail:not([data-theme="dark"])
-  .article
-  > .article-body::before {
+html.writing-detail:not([data-theme="dark"]) .article > .article-body::before {
   content: "";
   position: absolute;
   left: calc(50cqi - 50vw);
@@ -765,9 +763,6 @@ html.writing-detail:not([data-theme="dark"])
 html.writing-detail:not([data-theme="dark"]) .article-end {
   position: relative;
 }
-html.writing-detail:not([data-theme="dark"])
-  .article-body
-  :not(pre)
-  > code {
+html.writing-detail:not([data-theme="dark"]) .article-body :not(pre) > code {
   color: #0e2034;
 }
