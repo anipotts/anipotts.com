@@ -53,8 +53,10 @@ const { title, summary, published_at } = item.data;
     transition: background 0.2s;
   }
 
-  .writing-card:hover {
-    background: var(--paper-surface-hover);
+  @media (hover: hover) and (pointer: fine) {
+    .writing-card:hover {
+      background: var(--paper-surface-hover);
+    }
   }
 
   .writing-card .head {
@@ -81,6 +83,7 @@ const { title, summary, published_at } = item.data;
     line-height: 1;
     letter-spacing: 0;
     font-synthesis: none;
+    text-wrap: pretty;
   }
 
   .writing-card .affordance {
@@ -91,9 +94,14 @@ const { title, summary, published_at } = item.data;
       transform 0.2s;
   }
 
-  .writing-card:hover .affordance,
   .writing-card:focus-visible .affordance {
     color: var(--paper-accent);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .writing-card:hover .affordance {
+      color: var(--paper-accent);
+    }
   }
 
   .writing-card .sub {

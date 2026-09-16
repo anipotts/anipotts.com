@@ -47,7 +47,7 @@ const d = project.data;
     <header data-rise class="project-head">
       <div class="project-topline">
         <a href="/work" class="quiet-link back">
-          <Icon name="ph:arrow-left" /> work
+          <Icon name="ph:arrow-bend-up-left" /> work
         </a>
 
         <div class="project-actions">
@@ -65,7 +65,7 @@ const d = project.data;
                     : undefined
                 }
               >
-                visit project <Icon name="ph:arrow-up-right" />
+                visit project <Icon name="ph:arrow-bend-right-up" />
               </a>
             )
           }
@@ -308,19 +308,19 @@ const d = project.data;
 
   .hero-title {
     color: var(--paper-ink);
-    font-size: clamp(2.6rem, 6.6vw, 5.6rem);
+    font-size: var(--d-hero-detail);
     line-height: 1.03;
     letter-spacing: -0.035em;
     white-space: normal;
     overflow-wrap: anywhere;
-    text-wrap: wrap;
+    text-wrap: pretty;
   }
 
   .project-summary {
     max-width: none;
     margin: 0;
     color: var(--paper-muted);
-    font-size: clamp(1.15rem, 2.15vw, 1.5rem);
+    font-size: var(--d-lede);
     line-height: 1.55;
     text-wrap: pretty;
   }
@@ -333,7 +333,7 @@ const d = project.data;
   .project-overview {
     display: grid;
     grid-template-columns: minmax(0, 65ch);
-    justify-content: center;
+    justify-content: start;
   }
 
   .project-prose,
@@ -380,7 +380,7 @@ const d = project.data;
 
   .story-copy {
     width: min(100%, 65ch);
-    margin-inline: auto;
+    margin-inline: 0;
     display: grid;
     gap: 1.15rem;
   }
@@ -466,10 +466,6 @@ const d = project.data;
 
     .project-topline {
       align-items: flex-start;
-    }
-
-    .hero-title {
-      font-size: clamp(2.3rem, 10vw, 3.5rem);
     }
   }
 </style>

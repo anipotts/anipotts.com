@@ -293,15 +293,19 @@ async function runHealthProbes(db: D1Database): Promise<void> {
 // Cron job: GitHub stats (every 5 min)
 // ---------------------------------------------------------------------------
 
+// Rows are keyed github-<repo name>-<metric>-<hour>. anipotts/agents wrote
+// under "claude-code-tips" (its old name, through GitHub's redirect) until
+// 2026-09-16; earlier hourly rows keep that label and nothing reads them
+// back, so the series continues under "agents" from the next run.
 const GITHUB_REPOS = [
   "anipotts/anipotts.com",
-  "anipotts/claude-code-tips",
+  "anipotts/agents",
   "anipotts/imessage-mcp",
   "anipotts/claudemon",
   "anipotts/antileak",
   "anipotts/vector-seo",
   "anipotts/quantercise",
-  "anipotts/rudy",
+  // anipotts/rudy was dropped on 2026-09-16: Rudy is retired.
 ];
 
 interface GhRepoResponse {

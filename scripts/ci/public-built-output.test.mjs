@@ -73,6 +73,61 @@ for (const path of privateRoutes) {
   );
 }
 
+// Every route unfurls with a card that was actually built, at the size the
+// meta claims, and each essay carries its own card, not the shared site one.
+const cards = new Map();
+for (const path of pages) {
+  const html = readFileSync(
+    join(dist, path === "/" ? "index.html" : `${path.slice(1)}.html`),
+    "utf8",
+  );
+  const image = html.match(/property="og:image" content="([^"]+)"/)?.[1];
+  assert.ok(image, `${path} has no og:image`);
+  assert.match(
+    html,
+    /property="og:image:width" content="1200"/,
+    `${path} og:image:width`,
+  );
+  assert.match(
+    html,
+    /property="og:image:height" content="630"/,
+    `${path} og:image:height`,
+  );
+  assert.match(
+    html,
+    /property="og:image:alt" content="[^"]+"/,
+    `${path} og:image:alt`,
+  );
+  assert.equal(
+    html.match(/name="twitter:image" content="([^"]+)"/)?.[1],
+    image,
+    `${path} twitter:image must match og:image`,
+  );
+  const file = join(dist, new URL(image).pathname.slice(1));
+  assert.ok(existsSync(file), `${path} og:image is not in dist: ${image}`);
+  const png = readFileSync(file);
+  assert.equal(png.readUInt32BE(16), 1200, `${image} width`);
+  assert.equal(png.readUInt32BE(20), 630, `${image} height`);
+  assert.ok(
+    png.length < 150 * 1024,
+    `${image} is ${png.length} bytes, over the unfurl budget`,
+  );
+  cards.set(path, image);
+}
+for (const { slug } of published) {
+  const card = cards.get(`/writing/${slug}`);
+  assert.equal(
+    card,
+    `https://anipotts.com/social/writing-${slug}.png`,
+    `/writing/${slug} must carry its own card`,
+  );
+  assert.notEqual(
+    card,
+    cards.get("/"),
+    `/writing/${slug} reuses the site card`,
+  );
+}
+
 // House style bans dividers. Spacing carries section breaks, so built pages
 // must not paint one-sided rules, hairline pseudo elements or <hr>.
 const dividerAllowlist = [
@@ -208,6 +263,23 @@ function dividerReasons(selector, body) {
     reasons.push("hairline pseudo element");
   return reasons;
 }
+// Audit m18: a card token block must keep a real accent apart from its muted
+// ink, otherwise the arrow affordance has no hover or focus gesture at all.
+const flatCardTokens = new Set();
+function declaredToken(body, name) {
+  let value = null;
+  for (const declaration of body.split(";")) {
+    const at = declaration.indexOf(":");
+    if (at < 0) continue;
+    if (declaration.slice(0, at).trim() !== name) continue;
+    value = declaration
+      .slice(at + 1)
+      .replace(/!important/, "")
+      .trim()
+      .toLowerCase();
+  }
+  return value;
+}
 const dividerViolations = new Set();
 for (const file of builtFiles(dist)) {
   const text = readFileSync(file, "utf8");
@@ -236,6 +308,17 @@ for (const file of builtFiles(dist)) {
         );
       if (reasons.length && !allowed)
         dividerViolations.add(`${bare} { ${reasons.join("; ")} }`);
+      const accent = declaredToken(body, "--paper-accent");
+      const muted = declaredToken(body, "--paper-muted");
+      if (
+        accent &&
+        muted &&
+        accent === muted &&
+        /\.(work|writing)-card\b/.test(bare)
+      )
+        flatCardTokens.add(
+          `${bare} { --paper-accent: ${accent} == --paper-muted }`,
+        );
     }
   }
 }
@@ -243,6 +326,211 @@ assert.deepEqual(
   [...dividerViolations],
   [],
   "Built pages paint dividers; let spacing carry the break",
+);
+assert.deepEqual(
+  [...flatCardTokens],
+  [],
+  "Card tokens collapse the accent into the muted ink, so the arrow has no hover or focus gesture",
+);
+// Light writing details read on a paper surface under the blue wave header.
+// The inks are measured here, so a later colour edit cannot quietly take the
+// article back under 4.5:1, which is where it sat before the paper landed.
+const lightCanvas = "#61abea";
+function channel(value) {
+  const v = value / 255;
+  return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+}
+function rgb(hex) {
+  const value = hex.trim().replace(/^#/, "");
+  const full =
+    value.length === 3
+      ? value
+          .split("")
+          .map((part) => part + part)
+          .join("")
+      : value;
+  assert.match(full, /^[0-9a-f]{6}$/i, `Unreadable colour: ${hex}`);
+  return [0, 2, 4].map((index) => parseInt(full.slice(index, index + 2), 16));
+}
+function luminance(hex) {
+  const [r, g, b] = rgb(hex);
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+}
+function contrast(foreground, background) {
+  const [lighter, darker] = [luminance(foreground), luminance(background)].sort(
+    (a, b) => b - a,
+  );
+  return (lighter + 0.05) / (darker + 0.05);
+}
+const readingScope = "html.writing-detail:not([data-theme=dark])";
+const readingRules = builtFiles(dist)
+  .filter((file) => file.endsWith(".css"))
+  .flatMap((file) =>
+    styleRules(readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\//g, "")),
+  )
+  .filter((rule) => rule.selector.startsWith(readingScope));
+function declaration(rule, property) {
+  const matches = [
+    ...rule.body.matchAll(
+      new RegExp(`(?:^|;)\\s*${property}\\s*:\\s*([^;]+)`, "g"),
+    ),
+  ];
+  return matches.length ? matches[matches.length - 1][1].trim() : null;
+}
+const headerRule = readingRules.find(
+  (rule) =>
+    rule.selector === readingScope && declaration(rule, "--reading-paper"),
+);
+assert.ok(
+  headerRule,
+  "Light writing details must declare the reading surface tokens",
+);
+const paper = declaration(headerRule, "--reading-paper");
+const surfaceRule = readingRules.find(
+  (rule) =>
+    rule.selector.includes(".article-body") &&
+    declaration(rule, "background-color"),
+);
+assert.ok(
+  surfaceRule,
+  "Light writing details must paint the article on the reading surface",
+);
+for (const [rule, property, background, minimum] of [
+  [headerRule, "--ink", lightCanvas, 4.5],
+  [headerRule, "--ink-muted", lightCanvas, 4.5],
+  [headerRule, "--focus", lightCanvas, 3],
+  [surfaceRule, "--ink", paper, 4.5],
+  [surfaceRule, "--ink-muted", paper, 4.5],
+  [surfaceRule, "--interactive", paper, 4.5],
+  [surfaceRule, "--focus", paper, 3],
+]) {
+  const colour = declaration(rule, property);
+  assert.ok(colour, `Light writing details must declare ${property}`);
+  const measured = contrast(colour, background);
+  assert.ok(
+    measured >= minimum,
+    `${property} ${colour} on ${background} is ${measured.toFixed(2)}:1, under ${minimum}:1`,
+  );
+}
+// House style is phosphor only, so an affordance is never a text arrow. Built
+// markup carries no arrow character and no arrow entity. SystemMap's step
+// connectors are an approved diagram, so their pseudo content keeps its glyph
+// if that rule is ever inlined into a page.
+const arrowCharacter = /[←-⇿➡➔➜⬅-⬍⮕]/u;
+const arrowEntity =
+  /&(?:[lrud]arr|[lrud]Arr|harr|hArr|[ns][ew]arr|#x0*2(?:1(?:9[0-9A-F]|[A-F][0-9A-F])|7A1|B0[5-9A-D]|B95)|#0*8(?:59[2-9]|60[0-1])|#0*11(?:169|173));/i;
+const systemMapStepRule =
+  /^\.step(:not\(:last-child\)|\s*\+\s*\.step)?::?(before|after)$/;
+function arrowHits(text) {
+  const hits = [];
+  const parts = text.split(/(<style\b[^>]*>[\s\S]*?<\/style>)/i);
+  for (const [index, chunk] of parts.entries()) {
+    if (index % 2 === 0) {
+      // Markup, attributes and visible text: no arrow glyph of any kind.
+      const character = chunk.match(arrowCharacter);
+      if (character) hits.push(`character ${JSON.stringify(character[0])}`);
+      const entity = chunk.match(arrowEntity);
+      if (entity) hits.push(`entity ${entity[0]}`);
+      continue;
+    }
+    const css = chunk
+      .replace(/^<style\b[^>]*>/i, "")
+      .replace(/<\/style>$/i, "")
+      .replace(/\/\*[\s\S]*?\*\//g, "");
+    for (const { selector, body } of styleRules(css)) {
+      if (!arrowCharacter.test(body) && !arrowEntity.test(body)) continue;
+      const bare = selector.replace(/\[data-astro-cid-[\w-]+\]/g, "");
+      const allowed = bare
+        .split(",")
+        .every((part) => systemMapStepRule.test(part.trim()));
+      if (!allowed) hits.push(`${bare} { arrow glyph in css }`);
+    }
+  }
+  return hits;
+}
+const arrowViolations = [];
+for (const file of builtFiles(dist)) {
+  if (!file.endsWith(".html")) continue;
+  for (const hit of arrowHits(readFileSync(file, "utf8")))
+    arrowViolations.push(`${file.slice(dist.length + 1)}: ${hit}`);
+}
+assert.deepEqual(
+  arrowViolations,
+  [],
+  "Built pages render text arrows; use a phosphor glyph instead",
+);
+// One display scale. Hero, detail-hero and lede sizes come from the www
+// tokens in global.css, and the detail hero caps where the 944px column
+// stops growing so a title never re-wraps between 1024 and 1920.
+const displayTokens = [
+  "--d-hero",
+  "--d-hero-compact",
+  "--d-hero-detail",
+  "--d-lede",
+];
+// The leading dot is its own boundary, so a compound selector such as
+// h1.hero-title is caught alongside a descendant one.
+const scaledSelectors =
+  /(\.hero-title|\.page-hero__title|\.home-hero|\.title|\.links-page h1|\.summary|\.project-summary|\.hero-line|\.page-hero__summary)([\s,:.[]|$)/;
+const scaleViolations = new Set();
+const declaredTokens = new Set();
+let detailCap = null;
+for (const file of builtFiles(dist)) {
+  const text = readFileSync(file, "utf8");
+  const relative = file.slice(dist.length + 1);
+  const sheets = file.endsWith(".html")
+    ? [...text.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1])
+    : [text];
+  if (/--d-section\b/.test(text))
+    scaleViolations.add(`${relative}: --d-section is not defined anywhere`);
+  for (const css of sheets) {
+    for (const { selector, body } of styleRules(
+      css.replace(/\/\*[\s\S]*?\*\//g, ""),
+    )) {
+      for (const token of displayTokens) {
+        const declared = body.match(
+          new RegExp(`${token}\\s*:\\s*([^;]+)`, "i"),
+        );
+        if (!declared) continue;
+        declaredTokens.add(token);
+        if (token === "--d-hero-detail") detailCap = declared[1].trim();
+      }
+      const bare = selector.replace(/\[data-astro-cid-[\w-]+\]/g, "");
+      if (!scaledSelectors.test(bare)) continue;
+      const size = body.match(/(?:^|;)\s*font-size\s*:\s*([^;]+)/i);
+      if (size && !/var\(--/.test(size[1]))
+        scaleViolations.add(
+          `${bare} { font-size: ${size[1].trim()} } must use a display token`,
+        );
+    }
+  }
+}
+assert.deepEqual(
+  [...scaleViolations],
+  [],
+  "Hero and lede sizes drifted from the shared www display tokens",
+);
+assert.deepEqual(
+  displayTokens.filter((token) => !declaredTokens.has(token)),
+  [],
+  "Built css is missing a www display token",
+);
+assert.equal(
+  detailCap,
+  "clamp(2.6rem, 6.6vw, 4.2rem)",
+  "The detail hero must cap where the 944px column stops growing",
+);
+// /work groups its catalog with the same section label home uses.
+const workHeadings = [
+  ...readFileSync(join(dist, "work.html"), "utf8").matchAll(
+    /<h2\b[^>]*id="heading-[^"]*"[^>]*>/gi,
+  ),
+].map((match) => match[0]);
+assert.ok(workHeadings.length >= 2, "/work must render bucket headings");
+assert.deepEqual(
+  workHeadings.filter((tag) => !/class="[^"]*\bsection-label\b/.test(tag)),
+  [],
+  "/work bucket headings must use section-label",
 );
 // Per-file byte ceilings keep marks and screenshots near their rendered size.
 // Marks render at 56px or less, so a 3x export stays well under 16kb. Card
@@ -320,6 +608,9 @@ if (origin) {
     ["/shipping", "/work"],
     ["/running", "/work"],
     ["/projects/quantercise", "/work/quantercise"],
+    ["/work/claude-code-tips", "/work/agents"],
+    ["/projects/claude-code-tips", "/work/agents"],
+    ["/making/claude-code-tips", "/work/agents"],
   ]) {
     const response = await fetch(
       new URL(`${from}?source=qa&next=%2Fwork`, origin),

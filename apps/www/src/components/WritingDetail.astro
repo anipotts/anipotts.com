@@ -15,6 +15,7 @@ import {
 } from "../lib/content";
 import { siteConfig } from "@anipotts/content/public";
 import { personId } from "../lib/identity";
+import { writingCard } from "../lib/social-card/routes";
 
 interface Props {
   preview?: boolean;
@@ -52,6 +53,7 @@ const articleLd = {
   jsonLd={articleLd}
   detail
   robots={Astro.props.preview ? "noindex, nofollow, noarchive" : undefined}
+  socialCard={Astro.props.preview ? undefined : writingCard(slug)}
 >
   {
     Astro.props.preview && (
@@ -73,7 +75,7 @@ const articleLd = {
           data-astro-prefetch="viewport"
           class="quiet-link mono back"
         >
-          <Icon name="ph:arrow-left" /> all writing
+          <Icon name="ph:arrow-bend-up-left" /> all writing
         </a>
         {
           d.published_at && (
@@ -154,22 +156,22 @@ const articleLd = {
     min-height: 44px;
   }
   .title {
-    font-size: clamp(2.7rem, 6.5vw, 5.5rem);
+    font-size: var(--d-hero-detail);
     line-height: 1.03;
     max-width: none;
-    text-wrap: wrap;
+    text-wrap: pretty;
     overflow-wrap: anywhere;
   }
   .summary {
     max-width: none;
     margin: 0;
     color: var(--ink-muted);
-    font-size: clamp(1.05rem, 2.2vw, 1.42rem);
+    font-size: var(--d-lede);
     line-height: 1.52;
     text-wrap: pretty;
   }
   .article-body {
-    align-self: center;
+    align-self: flex-start;
   }
   .article-end {
     padding-top: 2rem;

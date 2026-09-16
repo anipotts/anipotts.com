@@ -15,8 +15,8 @@ const REQUIRED_PAGE_KEYS = [
   "newsletter",
   "newsletter_archive",
   "orchestrating",
+  "project:agents",
   "project:chainedchat",
-  "project:claude-code-tips",
   "project:imessage-mcp",
   "project:nyu-purity-test",
   "project:options-pricing-sensitivity",
@@ -54,8 +54,8 @@ const REQUIRED_OPERATIONS = [
   "content-draft-newsletter-copy-2026-06-28",
   "content-draft-orchestrating-hero-copy-2026-06-29",
   "content-draft-project-card-fields-2026-06-28",
+  "content-draft-project-agents-detail-2026-06-29",
   "content-draft-project-chainedchat-detail-2026-06-29",
-  "content-draft-project-claude-code-tips-detail-2026-06-29",
   "content-draft-project-habittracker-obh-detail-2026-06-29",
   "content-draft-project-imessage-mcp-detail-2026-06-29",
   "content-draft-project-nyu-purity-test-detail-2026-06-29",
@@ -86,14 +86,14 @@ const ADMIN_ROUTES = [
 ];
 const PUBLIC_ROUTES = PUBLIC_SMOKE_ROUTES;
 const DETAIL_PAGE_PROOF = {
+  "project:agents": {
+    route: "/projects/agents",
+    slug: "agents",
+    published: true,
+  },
   "project:chainedchat": {
     route: "/projects/chainedchat",
     slug: "chainedchat",
-    published: true,
-  },
-  "project:claude-code-tips": {
-    route: "/projects/claude-code-tips",
-    slug: "claude-code-tips",
     published: true,
   },
   "project:habittracker-obh": {

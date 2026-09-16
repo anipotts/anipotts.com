@@ -16,7 +16,7 @@ const { title, summary } = Astro.props;
 <style>
   .page-hero__title {
     margin-bottom: var(--s-4);
-    font-size: clamp(3rem, 12vw, 7rem);
+    font-size: var(--d-hero);
     line-height: 0.9;
   }
 
@@ -24,7 +24,7 @@ const { title, summary } = Astro.props;
     max-width: none;
     margin: 0;
     color: var(--ink-muted);
-    font-size: clamp(1.08rem, 2.2vw, 1.42rem);
+    font-size: var(--d-lede);
     line-height: 1.52;
     text-wrap: pretty;
   }
@@ -32,10 +32,6 @@ const { title, summary } = Astro.props;
   @media (max-width: 640px) {
     .page-hero__title {
       margin-bottom: var(--s-3);
-    }
-
-    .page-hero__summary {
-      font-size: 1.05rem;
     }
   }
 </style>

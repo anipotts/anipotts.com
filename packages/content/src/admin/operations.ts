@@ -326,17 +326,17 @@ const REMAINING_DETAIL_OPERATION_CREATED_AT = "2026-06-29T07:45:00Z";
 const REMAINING_DETAIL_OPERATION_SEEDS: DetailOperationSeed[] = [
   {
     kind: "project",
+    slug: "agents",
+    title: "agents",
+    published: true,
+    sourceFile: "content/public/projects/agents.md",
+  },
+  {
+    kind: "project",
     slug: "chainedchat",
     title: "chainedchat",
     published: true,
     sourceFile: "content/public/projects/chainedchat.md",
-  },
-  {
-    kind: "project",
-    slug: "claude-code-tips",
-    title: "claude code tips",
-    published: true,
-    sourceFile: "content/public/projects/claude-code-tips.md",
   },
   {
     kind: "project",
