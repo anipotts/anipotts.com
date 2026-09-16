@@ -167,9 +167,11 @@ function harness(hostCount = 3, reduced = false) {
   const media = Object.assign(new Events(), { matches: reduced });
   const intersections = [],
     resizes = [],
-    frames = new Map();
+    frames = new Map(),
+    timers = new Map();
   let clock = 0,
     frameId = 0,
+    timerId = 0,
     randomCalls = 0;
   const originals = new Map();
   function install(name, value) {
@@ -195,6 +197,11 @@ function harness(hostCount = 3, reduced = false) {
     return frameId;
   });
   install("cancelAnimationFrame", (id) => frames.delete(id));
+  install("setTimeout", (callback, delay = 0) => {
+    timers.set(++timerId, { due: clock + delay, callback });
+    return timerId;
+  });
+  install("clearTimeout", (id) => timers.delete(id));
   class Observer {
     targets = new Set();
     disconnected = false;
@@ -233,17 +240,37 @@ function harness(hostCount = 3, reduced = false) {
     window,
     media,
     frames,
+    timers,
+    get wakeups() {
+      return frames.size + timers.size;
+    },
     intersections,
     resizes,
     main,
     get randomCalls() {
       return randomCalls;
     },
+    get framesRequested() {
+      return frameId;
+    },
+    get wakeupsRequested() {
+      return frameId + timerId;
+    },
+    // Advance the clock, then drain due timers and the frames they request
+    // until nothing more is owed at this instant.
     step(milliseconds) {
       clock += milliseconds;
-      const pending = [...frames.values()];
-      frames.clear();
-      for (const callback of pending) callback(clock);
+      for (let guard = 0; guard < 100; guard++) {
+        const due = [...timers].filter(([, entry]) => entry.due <= clock);
+        for (const [id] of due) timers.delete(id);
+        for (const [, entry] of due) entry.callback();
+        const pending = [...frames.values()];
+        frames.clear();
+        for (const callback of pending) callback(clock);
+        // A frame that only re-arms itself does not owe another turn.
+        if (!due.length) return;
+      }
+      throw new Error("the ambient loop never settled");
     },
     visibility(entries) {
       intersections.at(-1).callback(
@@ -311,7 +338,7 @@ try {
     "track layout changes in the enclosing content",
   );
   assert.equal(
-    scene.frames.size,
+    scene.wakeups,
     0,
     "reduced motion still paints a static composition",
   );
@@ -323,16 +350,21 @@ try {
   ]);
   scene.step(1000);
   assert.deepEqual(shapes(first), initial);
-  assert.equal(scene.frames.size, 0);
+  assert.equal(scene.wakeups, 0);
 
   scene.media.matches = false;
   scene.media.dispatch("change");
-  assert.equal(scene.frames.size, 1, "one animation loop serves all cards");
+  assert.equal(scene.wakeups, 1, "one animation loop serves all cards");
   scene.step(16);
   assert.deepEqual(
     shapes(first),
     initial,
-    "skip paints above the 30fps budget",
+    "nothing is scheduled inside the 30fps budget",
+  );
+  assert.equal(
+    scene.framesRequested,
+    0,
+    "no animation frame is requested only to be skipped",
   );
   scene.step(24);
   assert.notDeepEqual(
@@ -346,6 +378,23 @@ try {
     "40ms advances the approved half-speed clock by 20ms",
   );
   assert.deepEqual(shapes(first), shapes(second));
+  // One wakeup per drawn frame: a second of drift costs 30, not 60.
+  const requested = scene.wakeupsRequested;
+  for (let i = 0; i < 60; i++) scene.step(1000 / 60);
+  const perSecond = scene.wakeupsRequested - requested;
+  assert.ok(
+    perSecond >= 29 && perSecond <= 31,
+    `one main-thread wakeup per 33ms, got ${perSecond}`,
+  );
+  assert.equal(scene.framesRequested, 0, "and never an animation frame");
+  for (const path of shapes(first)) {
+    assert.match(path, /^M[-\d. C]+L[-\d. C]+Z$/);
+    assert.equal(
+      /\d\.\d\d/.test(path),
+      false,
+      "path data is serialized with one decimal",
+    );
+  }
 
   let transitioning = true;
   scene.document.documentElement = {
@@ -359,8 +408,8 @@ try {
   transitioning = false;
   scene.step(40);
   assert.equal(
-    Number(first.dataset.motionTime),
-    Number(handoffTime) + 0.02,
+    Number(first.dataset.motionTime).toFixed(4),
+    (Number(handoffTime) + 0.02).toFixed(4),
     "resume without advancing through the transition",
   );
 
@@ -378,7 +427,7 @@ try {
     [2, false],
   ]);
   assert.equal(
-    scene.frames.size,
+    scene.wakeups,
     0,
     "stop scheduling frames when every card is offscreen",
   );
@@ -395,22 +444,22 @@ try {
 
   scene.document.hidden = true;
   scene.document.dispatch("visibilitychange");
-  assert.equal(scene.frames.size, 0, "hidden tabs stop the frame loop");
+  assert.equal(scene.wakeups, 0, "hidden tabs stop the frame loop");
   const pausedTime = Number(first.dataset.motionTime);
   scene.step(60_000);
   scene.document.hidden = false;
   scene.document.dispatch("visibilitychange");
   scene.step(40);
   assert.equal(
-    Number(first.dataset.motionTime),
-    pausedTime + 0.02,
+    Number(first.dataset.motionTime).toFixed(4),
+    (pausedTime + 0.02).toFixed(4),
     "resume without jumping through background time",
   );
 
   scene.media.matches = true;
   scene.media.dispatch("change");
   assert.equal(
-    scene.frames.size,
+    scene.wakeups,
     0,
     "changing to reduced motion cancels active animation",
   );
@@ -445,9 +494,9 @@ try {
 
   scene.media.matches = false;
   scene.media.dispatch("change");
-  assert.equal(scene.frames.size, 1);
+  assert.equal(scene.wakeups, 1);
   cleanup();
-  assert.equal(scene.frames.size, 0);
+  assert.equal(scene.wakeups, 0);
   assert.ok(
     scene.intersections[0].disconnected && scene.resizes[0].disconnected,
   );

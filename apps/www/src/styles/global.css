@@ -16,6 +16,14 @@
 
 /* shiki css-variables theme: tint-on-tint, accent on one token role */
 :root {
+  /* www-local display scale. one place for the page-hero, detail-hero and
+     lede sizes that were previously re-declared per component. the detail
+     hero caps where the 944px column stops growing, so writing and work
+     titles keep one line from 1024 to 1920. */
+  --d-hero: clamp(3rem, 12vw, 7rem);
+  --d-hero-compact: clamp(3rem, 10vw, 6rem);
+  --d-hero-detail: clamp(2.6rem, 6.6vw, 4.2rem);
+  --d-lede: clamp(1.08rem, 2.2vw, 1.42rem);
   --radius-desktop-ui-media: 0.35rem;
   --paper-radius: 0.75rem;
   --paper-surface: #ffffff;
@@ -193,7 +201,7 @@ h1 {
 
 .page--listing .page-hero__summary,
 .page--listing .page-intro {
-  font-size: clamp(1.05rem, 2.2vw, 1.42rem);
+  font-size: var(--d-lede);
   line-height: 1.52;
   color: var(--ink-muted);
   max-width: none;
@@ -243,10 +251,12 @@ h2.section-label {
   text-decoration: none;
 }
 
-.accent-link:hover {
-  text-decoration: underline;
-  text-underline-offset: 0.18em;
-  text-decoration-thickness: 0.06em;
+@media (hover: hover) and (pointer: fine) {
+  .accent-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+    text-decoration-thickness: 0.06em;
+  }
 }
 
 .quiet-link {
@@ -255,8 +265,14 @@ h2.section-label {
   transition: color 0.2s;
 }
 
-.quiet-link:hover {
+.quiet-link:focus-visible {
   color: var(--interactive);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .quiet-link:hover {
+    color: var(--interactive);
+  }
 }
 
 /* post-list row: fill on hover marks the row, never a line */
@@ -269,12 +285,14 @@ h2.section-label {
   transition: background 0.2s;
 }
 
-.row-link:hover {
-  background: var(--surface);
-}
+@media (hover: hover) and (pointer: fine) {
+  .row-link:hover {
+    background: var(--surface);
+  }
 
-.row-link:hover .row-title {
-  color: var(--ink);
+  .row-link:hover .row-title {
+    color: var(--ink);
+  }
 }
 
 .row-title {
@@ -306,16 +324,22 @@ h2.section-label {
   outline-offset: 4px;
 }
 
+/* The press ring for work, experience and agent cards lives in each component,
+   where it outranks that component's own resting box-shadow. The writing card
+   keeps its global press state plus the shadow reset below, which the article
+   morph depends on. */
 @media (width < 880px), (pointer: coarse) {
-  :is(
-    .work-card,
-    .writing-card,
-    .experience-feature,
-    .coding-agent-card
-  ):active {
+  .writing-card:active {
     background: var(--paper-surface-hover);
     box-shadow: inset 0 0 0 2px var(--paper-accent);
   }
+}
+
+/* Touch controls use their own press states, never the platform grey plate. */
+a,
+button,
+summary {
+  -webkit-tap-highlight-color: transparent;
 }
 
 .pill {
@@ -594,6 +618,46 @@ html.editorial-detail[data-theme="dark"] {
   --surface: #151b26;
   --interactive: #8cc8f5;
 }
+
+/* iOS reads the page background colour off body to tint the status strip and
+   the overscroll canvas, but the first row of a detail page is the DetailWaves
+   header, not var(--bg), so the two disagree and draw a band under the clock.
+   Declare the composited wave-top colour on the canvas instead, and give the
+   reading surface back as a solid background layer over it, so nothing on the
+   page changes colour.
+   syncBrowserTheme then carries the same value into theme-color. Each value is
+   the top-most wave layer composited at its tone opacity over var(--bg) and
+   checked against what Safari paints on the device, written as a flat hex so
+   theme-color stays an rgb() every consumer parses; the comment on each rule
+   carries the layers it composites. */
+html.editorial-detail {
+  /* work tone: #b6c8f5 at 0.65 over #f7faff */
+  --detail-canvas: #cddaf9;
+}
+html.editorial-detail.writing-detail {
+  /* light writing tone: #2259bf at 0.14 over #61abea */
+  --detail-canvas: #58a0e4;
+}
+html.editorial-detail[data-theme="dark"] {
+  /* dark work tone: #234b7b at 0.65 over #080b10 */
+  --detail-canvas: #1a3556;
+}
+html.editorial-detail.writing-detail[data-theme="dark"] {
+  /* dark writing tone: #234b7b at 0.75 over #080b10 */
+  --detail-canvas: #1c3b60;
+}
+
+html.editorial-detail,
+html.editorial-detail body {
+  background-color: var(--detail-canvas);
+}
+
+/* The colour above is what iOS reads; this solid layer is what the page paints,
+   so the reading surface stays var(--bg) and nothing on the page changes. */
+html.editorial-detail body {
+  background-image: linear-gradient(var(--bg), var(--bg));
+}
+
 .editorial-detail .article-body {
   width: 100%;
   max-width: 65ch;
@@ -670,4 +734,99 @@ html[data-navigation-settled] [data-rise] {
 }
 .writing-transition-word {
   font-synthesis: none;
+}
+
+/* ---------- m17 light reading surface ----------
+   Light theme only: the blue wave header settles onto a paper reading
+   surface, and the header keeps navy inks so it stays readable on blue.
+   The dark theme is untouched. */
+
+html.writing-detail:not([data-theme="dark"]) {
+  --brand-primary-text: #0a1a2c;
+  --brand-display: #0a1a2c;
+  --ink: #0a1a2c;
+  --ink-muted: #142c46;
+  --interactive: #0a1a2c;
+  --interactive-ink: #61abea;
+  --focus: #0a1a2c;
+  --surface: #58a2e2;
+  --border: color-mix(in srgb, #0a1a2c 22%, transparent);
+  --border-strong: color-mix(in srgb, #0a1a2c 44%, transparent);
+  --accent-soft: color-mix(in srgb, #0a1a2c 8%, transparent);
+  --reading-paper: #f7faff;
+}
+html.writing-detail:not([data-theme="dark"])
+  :is(.article-body, .article-end, body > .foot) {
+  --ink: #0e2034;
+  --ink-muted: #3a4b61;
+  --interactive: #1247e6;
+  --interactive-ink: #ffffff;
+  --focus: #1247e6;
+  --surface: #e8eff8;
+  --border: color-mix(in srgb, #0e2034 16%, transparent);
+  --border-strong: color-mix(in srgb, #0e2034 32%, transparent);
+  --accent-soft: color-mix(in srgb, #1247e6 10%, transparent);
+  --brand-display: #0e2034;
+  color: var(--ink);
+  /* Same paper as the sheet, so contrast tools resolve the real background. */
+  background-color: var(--reading-paper);
+}
+html.writing-detail:not([data-theme="dark"]) .topics .pill {
+  border-color: #7c8898;
+}
+html.writing-detail:not([data-theme="dark"]) .article-body {
+  position: relative;
+  margin-top: clamp(1.5rem, 4vw, 3rem);
+  padding-top: clamp(1.5rem, 4vw, 3rem);
+  /* Paint only: outset paper never changes layout or scroll extent. The
+     image area starts 100vw left of the body, so the quiet lift sits under
+     the body's left edge, below the wave, and settles to paper everywhere
+     else. */
+  border-image: radial-gradient(
+      70vw 60vh at 100vw 70vh,
+      #fcfdff,
+      var(--reading-paper)
+    )
+    fill 0 / 0 / 0 100vw 400vh 100vw;
+}
+/* The sheet never moves: the reveal runs on the body's children instead. */
+html.writing-detail:not([data-theme="dark"]) .article-body[data-rise] {
+  animation: none;
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  html.writing-detail:not([data-theme="dark"]) .article-body[data-rise] > * {
+    opacity: 0;
+    transform: translateY(14px);
+    animation: rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) 0.16s forwards;
+  }
+}
+html[data-navigation-settled].writing-detail .article-body[data-rise] > * {
+  animation: none !important;
+  opacity: 1;
+  transform: none;
+}
+/* The article locates the viewport edges for the wave whichever way the
+   left-anchored body sits inside it. */
+html.writing-detail:not([data-theme="dark"]) .article {
+  container-type: inline-size;
+}
+html.writing-detail:not([data-theme="dark"]) .article > .article-body::before {
+  content: "";
+  position: absolute;
+  left: calc(50cqi - 50vw);
+  width: 100vw;
+  bottom: calc(100% - 1px);
+  height: clamp(2rem, 5vw, 4.25rem);
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 120' preserveAspectRatio='none'%3E%3Cpath fill='%23f7faff' d='M0 120V70C150 34 300 18 470 34S780 96 990 88 1300 26 1440 44V120Z'/%3E%3C/svg%3E")
+    bottom / 100% 100% no-repeat;
+}
+/* The sheet paints in the positioned layer, so later siblings join it there. */
+html.writing-detail:not([data-theme="dark"]) .article-end {
+  position: relative;
+}
+html.writing-detail:not([data-theme="dark"]) .article-body :not(pre) > code {
+  color: #0e2034;
 }

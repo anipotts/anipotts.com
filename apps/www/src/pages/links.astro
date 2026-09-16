@@ -1,14 +1,18 @@
 ---
+import { Icon } from "astro-icon/components";
 import Shell from "../layouts/Shell.astro";
 import { navItems, siteLinks, siteConfig } from "@anipotts/content/public";
+import { isExternalDestination } from "../lib/link-destination";
 
+// Only rows that leave the site open a new tab and carry the outbound glyph;
+// the nav paths and the mailto: row stay in the current tab, unmarked.
 const links = [
   ...navItems.map(({ name, path }) => ({ label: name, href: path })),
   siteLinks.email,
   siteLinks.github,
   siteLinks.linkedin,
   siteLinks.x,
-];
+].map((link) => ({ ...link, external: isExternalDestination(link.href) }));
 ---
 
 <Shell
@@ -23,9 +27,19 @@ const links = [
     <nav aria-label="profile links">
       {
         links.map((link) => (
-          <a href={link.href}>
+          <a
+            href={link.href}
+            target={link.external ? "_blank" : undefined}
+            rel={link.external ? "noopener noreferrer" : undefined}
+          >
             {link.label}
-            <span aria-hidden="true">↗</span>
+            {link.external && (
+              <Icon
+                name="ph:arrow-bend-right-up"
+                class="links-affordance"
+                aria-hidden="true"
+              />
+            )}
           </a>
         ))
       }
@@ -44,7 +58,7 @@ const links = [
     margin: 0;
   }
   .links-page h1 {
-    font-size: clamp(3rem, 10vw, 6rem);
+    font-size: var(--d-hero-compact);
   }
   nav {
     max-width: 38rem;
@@ -53,16 +67,40 @@ const links = [
   }
   nav a {
     display: flex;
+    align-items: center;
     justify-content: space-between;
+    gap: var(--s-2);
+    min-height: 44px;
     padding: var(--s-3);
     color: var(--ink);
     border: 1px solid var(--border);
     border-radius: 0.8rem;
     text-decoration: none;
   }
-  nav a:hover,
   nav a:focus-visible {
     border-color: var(--interactive);
     color: var(--interactive);
+  }
+  .links-affordance {
+    flex: 0 0 auto;
+    color: var(--ink-muted);
+    transition: color 160ms ease;
+  }
+  nav a:focus-visible .links-affordance {
+    color: var(--interactive);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    nav a:hover {
+      border-color: var(--interactive);
+      color: var(--interactive);
+    }
+    nav a:hover .links-affordance {
+      color: var(--interactive);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .links-affordance {
+      transition: none;
+    }
   }
 </style>

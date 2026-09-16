@@ -1,6 +1,9 @@
-/** Constant 20px/s movement, including the seamless wrap boundary. */
-export function marqueeOffset(offset: number, elapsed: number, cycle: number) {
-  return cycle > 0 ? (offset + Math.max(0, elapsed) * 20) % cycle : 0;
+/**
+ * Constant 20px/s movement. The strip travels exactly one cycle per iteration
+ * of the CSS keyframe, so the wrap boundary is seamless without a clock in JS.
+ */
+export function marqueeDuration(cycle: number) {
+  return cycle > 0 ? cycle / 20 : 0;
 }
 export function motionPaused(
   user: boolean,
