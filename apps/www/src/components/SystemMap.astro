@@ -451,6 +451,24 @@ const { workflow } = Astro.props;
     flex-wrap: nowrap;
     width: max-content;
     will-change: transform;
+    /* One compositor keyframe at 20px/s; the script only supplies the lengths. */
+    animation: source-drift var(--source-cycle-duration, 0s) linear infinite;
+  }
+  .workflow[data-animated][data-motion="paused"] .source-track {
+    animation-play-state: paused;
+  }
+  @keyframes source-drift {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(calc(-1 * var(--source-cycle, 0px)), 0, 0);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .workflow .source-track {
+      animation: none;
+    }
   }
   .intake-space {
     position: relative;

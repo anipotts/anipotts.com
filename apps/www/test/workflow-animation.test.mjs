@@ -16,9 +16,15 @@ registerHooks({
 function element(attributes = {}) {
   const listeners = {};
   const values = new Map(Object.entries(attributes));
+  const properties = new Map();
   return {
     dataset: {},
-    style: {},
+    style: {
+      properties,
+      setProperty: (name, value) => properties.set(name, value),
+      removeProperty: (name) => properties.delete(name),
+      getPropertyValue: (name) => properties.get(name) ?? "",
+    },
     hidden: true,
     title: values.get("title") ?? "",
     setAttribute: (name, value) => values.set(name, String(value)),
@@ -48,6 +54,8 @@ function mountFakeWorkflow(buttonAttributes) {
       ".source-window": viewport,
       "[data-motion-toggle]": button,
     })[selector];
+  mountFakeWorkflow.root = root;
+  mountFakeWorkflow.track = track;
   Object.assign(globalThis, {
     document: {
       hidden: false,
@@ -58,14 +66,21 @@ function mountFakeWorkflow(buttonAttributes) {
     },
     matchMedia: () => ({ matches: false, addEventListener() {} }),
     getComputedStyle: () => ({ columnGap: "12px" }),
-    requestAnimationFrame: () => 1,
+    requestAnimationFrame: () => {
+      throw new Error("the marquee must not schedule animation frames");
+    },
     cancelAnimationFrame() {},
     ResizeObserver: class {
       observe() {}
       disconnect() {}
     },
     IntersectionObserver: class {
-      observe() {}
+      constructor(callback) {
+        this.callback = callback;
+      }
+      observe() {
+        this.callback([{ isIntersecting: true }]);
+      }
       disconnect() {}
     },
   });
@@ -90,10 +105,24 @@ test("the motion toggle keeps its server-rendered name while paused", async () =
   mountWorkflows();
   assert.equal(button.hidden, false, "motion controls appear once enhanced");
 
-  for (const pressed of ["false", "true", "false"]) {
+  const { root, track } = mountFakeWorkflow;
+  // One source 36px wide plus a 12px gap: 48px travelled at 20px per second.
+  assert.equal(track.style.properties.get("--source-cycle"), "48px");
+  assert.equal(track.style.properties.get("--source-cycle-duration"), "2.4s");
+
+  for (const [pressed, motion] of [
+    ["false", "running"],
+    ["true", "paused"],
+    ["false", "running"],
+  ]) {
     assert.equal(button.getAttribute("aria-pressed"), pressed);
     assert.equal(button.getAttribute("aria-label"), name);
     assert.equal(button.title, "");
+    assert.equal(
+      root.dataset.motion,
+      motion,
+      "the pause state the keyframe reads follows the button",
+    );
     button.click();
   }
 });
