@@ -12,6 +12,7 @@ import {
   renderedDir,
   workerWithManifestAssets,
   executionContext,
+  worker,
 } from "./worker-runtime.mjs";
 
 // Actual emitted Astro/Worker rendering with a synthetic SQLite D1 adapter.
@@ -63,9 +64,15 @@ function database() {
       ),
     );
   let reads = 0;
+  let versionReads = 0;
   const db = {
+    /** Full inventory reads (the one atomic batch that loads publications). */
     get reads() {
       return reads;
+    },
+    /** Single-row inventory counter reads used for revalidation. */
+    get versionReads() {
+      return versionReads;
     },
     prepare(sql) {
       let values = [];
@@ -75,6 +82,7 @@ function database() {
           return statement;
         },
         async first() {
+          if (/FROM editorial_published_inventory/u.test(sql)) versionReads++;
           return sqlite.prepare(sql).get(...values) ?? null;
         },
         async all() {
@@ -161,9 +169,26 @@ const paths = [
   "/api/content-version",
 ];
 
-function version(response, expected) {
+// The verification API and editorial media never revalidate.
+const uncached = new Set(["/api/content-version"]);
+const cmsTag = (version) =>
+  new RegExp(`^"cms1-v${version}-[0-9a-f]{24}"$`, "u");
+/** A published 200 revalidates against a version validator; everything else
+ * (404, verification, media) stays no-store without one. Shared caches stay
+ * out either way. */
+function version(response, expected, { cacheable = false } = {}) {
   assert.equal(response.headers.get("x-content-version"), String(expected));
-  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.equal(response.headers.get("x-content-schema"), "1");
+  if (cacheable) {
+    assert.equal(
+      response.headers.get("cache-control"),
+      "public, max-age=0, must-revalidate",
+    );
+    assert.match(response.headers.get("etag") ?? "", cmsTag(expected));
+  } else {
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal(response.headers.get("etag"), null);
+  }
   assert.equal(response.headers.get("cdn-cache-control"), "no-store");
   assert.equal(
     response.headers.get("cloudflare-cdn-cache-control"),
@@ -222,7 +247,7 @@ test("one coherent read per request drives pages and discovery immediately", asy
       const before = db.reads;
       const response = await serve(path, cms(db, { ASSETS: staleAssets }));
       assert.equal(response.status, 200, path);
-      version(response, 1);
+      version(response, 1, { cacheable: !uncached.has(path) });
       assert.equal(db.reads - before, 1, `${path} reads one atomic inventory`);
       const result = await response.text();
       if (
@@ -366,9 +391,231 @@ test("page overrides and a new CMS article render without bundled content or cod
     const article = await serve("/writing/synthetic-new-article", cms(db));
     assert.equal(article.status, 200);
     assert.match(await article.text(), /A new article body/);
-    version(article, 2);
+    version(article, 2, { cacheable: true });
   } finally {
     db.close();
+  }
+});
+
+const cacheablePaths = paths.filter((path) => !uncached.has(path));
+
+test("published routes revalidate to a 304 from the version counter alone", async () => {
+  const db = database();
+  try {
+    db.publish();
+    for (const path of cacheablePaths) {
+      const env = cms(db, { ASSETS: staleAssets });
+      const first = await serve(path, env);
+      assert.equal(first.status, 200, path);
+      version(first, 1, { cacheable: true });
+      const etag = first.headers.get("etag");
+      const again = await serve(path, env);
+      assert.equal(again.headers.get("etag"), etag, `${path} stable`);
+      await again.body?.cancel();
+      await first.body?.cancel();
+
+      // HEAD carries the tag GET does, with no body.
+      const head = await serve(path, env, { method: "HEAD" });
+      assert.equal(head.status, 200, `HEAD ${path}`);
+      assert.equal(head.headers.get("etag"), etag, `HEAD ${path}`);
+      assert.equal(head.body, null, `HEAD ${path}`);
+
+      for (const [method, validator] of [
+        ["GET", etag],
+        ["HEAD", etag],
+        ["GET", `W/${etag}`],
+        ["GET", `"stale", ${etag}`],
+      ]) {
+        const [full, counter] = [db.reads, db.versionReads];
+        const response = await serve(path, env, {
+          method,
+          headers: { "if-none-match": validator },
+        });
+        const label = `${method} ${path} (${validator})`;
+        assert.equal(response.status, 304, label);
+        assert.equal(response.body, null, label);
+        assert.equal(response.headers.get("etag"), etag, label);
+        version(response, 1, { cacheable: true });
+        assert.equal(db.reads, full, `${label} loads no publications`);
+        assert.equal(
+          db.versionReads,
+          counter + 1,
+          `${label} reads the counter`,
+        );
+      }
+      // `*` is answered after rendering, and only for a 200.
+      const any = await serve(path, env, { headers: { "if-none-match": "*" } });
+      assert.equal(any.status, 304, `* ${path}`);
+    }
+    for (const path of ["/writing/not-a-publication", "/work/not-a-project"]) {
+      const missing = await serve(path, cms(db, { ASSETS: staleAssets }), {
+        headers: { "if-none-match": "*" },
+      });
+      assert.equal(missing.status, 404, path);
+      version(missing, 1);
+    }
+    // Verification stays uncached whatever the client sends.
+    const proof = await serve("/api/content-version", cms(db), {
+      headers: { "if-none-match": "*" },
+    });
+    assert.equal(proof.status, 200);
+    version(proof, 1);
+  } finally {
+    db.close();
+  }
+});
+
+test("a publish changes every validator and the next request renders it", async () => {
+  const db = database();
+  try {
+    db.publish();
+    const before = new Map();
+    for (const path of cacheablePaths) {
+      const response = await serve(path, cms(db));
+      before.set(path, response.headers.get("etag"));
+      await response.body?.cancel();
+    }
+    db.publish({
+      text: edit(original, { title: "Republished title" }),
+    });
+    for (const path of cacheablePaths) {
+      const response = await serve(path, cms(db), {
+        headers: { "if-none-match": before.get(path) },
+      });
+      assert.equal(response.status, 200, path);
+      version(response, 2, { cacheable: true });
+      assert.notEqual(response.headers.get("etag"), before.get(path), path);
+      const body = await response.text();
+      if (
+        [
+          "/writing",
+          "/writing/awareness-is-alpha",
+          "/feed.xml",
+          "/search-index.json",
+        ].includes(path)
+      )
+        assert.match(body, /Republished title/, path);
+    }
+    // Every route and version gets its own tag.
+    assert.equal(new Set(before.values()).size, cacheablePaths.length);
+  } finally {
+    db.close();
+  }
+});
+
+test("failures stay no-store even for a client holding a validator", async () => {
+  const db = database();
+  try {
+    db.publish();
+    const good = await serve("/writing/awareness-is-alpha", cms(db));
+    const etag = good.headers.get("etag");
+    await good.body?.cancel();
+    // The counter moves to an activation that cannot render.
+    db.publish({ text: "invalid source" });
+    for (const validator of [etag, "*"]) {
+      const response = await serve(
+        "/writing/awareness-is-alpha",
+        cms(db, { ASSETS: staleAssets }),
+        { headers: { "if-none-match": validator } },
+      );
+      assert.equal(response.status, 503, validator);
+      assert.equal(response.headers.get("cache-control"), "no-store");
+      assert.equal(response.headers.get("etag"), null);
+    }
+  } finally {
+    db.close();
+  }
+  for (const env of [
+    cms(undefined, { ASSETS: staleAssets }),
+    cms({
+      prepare() {
+        throw Error("private provider failure");
+      },
+    }),
+  ]) {
+    const response = await serve("/", env, {
+      headers: { "if-none-match": '"cms1-v1-000000000000000000000000"' },
+    });
+    assert.equal(response.status, 503);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal(response.headers.get("etag"), null);
+  }
+});
+
+test("the colo copy is keyed by version, so a publish is never answered from it", async () => {
+  const store = new Map();
+  const pending = [];
+  const previous = globalThis.caches.default;
+  globalThis.caches.default = {
+    async match(key) {
+      const entry = store.get(key);
+      return entry
+        ? new Response(entry.body, { headers: entry.headers })
+        : undefined;
+    },
+    async put(key, response) {
+      assert.equal(
+        response.headers.get("cache-control"),
+        "public, max-age=86400",
+      );
+      assert.equal(response.headers.get("cdn-cache-control"), null);
+      store.set(key, {
+        body: await response.arrayBuffer(),
+        headers: [...response.headers],
+      });
+    },
+  };
+  const ctx = {
+    waitUntil(promise) {
+      pending.push(promise);
+    },
+    passThroughOnException() {},
+  };
+  const fetchWith = (path, env, init) =>
+    worker.fetch(new Request(`https://anipotts.com${path}`, init), env, ctx);
+  const db = database();
+  try {
+    db.publish();
+    const path = "/writing/awareness-is-alpha";
+    const miss = await fetchWith(path, cms(db));
+    assert.equal(miss.headers.get("x-content-cache"), "miss");
+    const rendered = await miss.text();
+    await Promise.all(pending.splice(0));
+    assert.equal(store.size, 1);
+    assert.match(
+      [...store.keys()][0],
+      /^https:\/\/anipotts\.com\/writing\/awareness-is-alpha\?cms-etag=cms1-v1-/u,
+    );
+
+    const hit = await fetchWith(path, cms(db));
+    assert.equal(hit.status, 200);
+    assert.equal(hit.headers.get("x-content-cache"), "hit");
+    version(hit, 1, { cacheable: true });
+    assert.equal(hit.headers.get("etag"), miss.headers.get("etag"));
+    assert.equal(
+      hit.headers.get("x-content-sha256"),
+      miss.headers.get("x-content-sha256"),
+    );
+    assert.equal(await hit.text(), rendered);
+
+    db.publish({ text: edit(original, { title: "After the colo copy" }) });
+    const fresh = await fetchWith(path, cms(db));
+    assert.equal(fresh.headers.get("x-content-cache"), "miss");
+    version(fresh, 2, { cacheable: true });
+    assert.match(await fresh.text(), /After the colo copy/);
+    await Promise.all(pending.splice(0));
+    assert.equal(store.size, 2);
+
+    // Only 200s are stored.
+    const absent = await fetchWith("/writing/not-a-publication", cms(db));
+    assert.equal(absent.status, 404);
+    await absent.body?.cancel();
+    await Promise.all(pending.splice(0));
+    assert.equal(store.size, 2);
+  } finally {
+    db.close();
+    if (previous === undefined) delete globalThis.caches.default;
+    else globalThis.caches.default = previous;
   }
 });
 
@@ -545,6 +792,44 @@ test("legacy/default mode still renders Git; old HTML aliases cannot bypass CMS 
     }
   } finally {
     db.close();
+  }
+});
+
+test("legacy HEAD reports the ETag GET does on rendered pages and discovery files", async () => {
+  // A HEAD body is empty, so a digest over it named a body no GET returns.
+  const emptyBodyTag = `"${hash("").slice(0, 32)}"`;
+  for (const path of [
+    "/",
+    "/writing",
+    "/writing/awareness-is-alpha",
+    "/feed.xml",
+    "/search-index.json",
+    "/sitemap.xml",
+  ]) {
+    const env = { CONTENT_RUNTIME: "legacy" };
+    const get = await serve(path, env);
+    assert.equal(get.status, 200, path);
+    const etag = get.headers.get("etag");
+    assert.match(etag ?? "", /^"[0-9a-f]{32}"$/u, path);
+    assert.equal(
+      get.headers.get("cache-control"),
+      "public, max-age=0, must-revalidate",
+      path,
+    );
+    await get.body?.cancel();
+    const head = await serve(path, env, { method: "HEAD" });
+    assert.equal(head.status, 200, `HEAD ${path}`);
+    assert.equal(head.body, null, `HEAD ${path}`);
+    assert.equal(head.headers.get("etag"), etag, `HEAD ${path}`);
+    assert.notEqual(etag, emptyBodyTag, path);
+    for (const method of ["GET", "HEAD"]) {
+      const revalidated = await serve(path, env, {
+        method,
+        headers: { "if-none-match": etag },
+      });
+      assert.equal(revalidated.status, 304, `${method} ${path}`);
+      assert.equal(revalidated.body, null, `${method} ${path}`);
+    }
   }
 });
 

@@ -423,6 +423,26 @@ describe("direct publication with real local D1, R2 and SQLite Durable Objects",
       phase: "verify",
       verifiedAt: null,
     });
+    // A current version header over a body validated for an older inventory.
+    f.elapse(15_000);
+    await f.advance({
+      transport: async (url, init) => {
+        if (new URL(String(url)).pathname !== "/writing") {
+          return publicTransport(url, init);
+        }
+        const version = (await getPublishedInventory(env.CONTENT_DB)).version;
+        return new Response("old copy", {
+          headers: {
+            "X-Content-Version": String(version),
+            ETag: `"cms1-v${version - 1}-0123456789abcdef01234567"`,
+          },
+        });
+      },
+    });
+    expect(await f.store.latestDirectPublication(f.record)).toMatchObject({
+      phase: "verify",
+      verifiedAt: null,
+    });
     f.elapse(15_000);
     await f.advance();
     expect((await f.store.latestDirectPublication(f.record))?.phase).toBe(
