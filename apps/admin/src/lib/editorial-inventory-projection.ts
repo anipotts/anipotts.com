@@ -259,9 +259,11 @@ export function projectEditorialInventory(
   };
   entries.forEach((entry) => add(entry));
   for (const draft of privateByPath.values()) {
-    const match = /^content\/public\/writing\/([^/]+)\.md$/u.exec(draft.key);
-    if (match && !records.has(`writing:${match[1]}`))
-      add({ collection: "writing", id: match[1]!, data: {} }, true);
+    const match = /^content\/public\/(writing|projects)\/([^/]+)\.md$/u.exec(
+      draft.key,
+    );
+    if (match && !records.has(`${match[1]}:${match[2]}`))
+      add({ collection: match[1]!, id: match[2]!, data: {} }, true);
   }
   return [...records.values()];
 }
@@ -321,6 +323,7 @@ export async function readInventoryDrafts(
   entries: InventoryEntry[],
   storage: {
     listWritingDrafts(): Promise<Draft[]>;
+    listProjectDrafts?(): Promise<Draft[]>;
     get(record: EditorialRecord): Promise<Draft | null>;
   },
 ) {
@@ -332,6 +335,7 @@ export async function readInventoryDrafts(
     .filter((entry): entry is EditorialRecord => entry !== null);
   const reads: Array<() => Promise<Draft[]>> = [
     () => storage.listWritingDrafts(),
+    ...(storage.listProjectDrafts ? [() => storage.listProjectDrafts!()] : []),
     ...identities.map((identity) => async () => {
       const draft = await storage.get(identity);
       return draft ? [draft] : [];

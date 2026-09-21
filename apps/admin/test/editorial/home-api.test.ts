@@ -618,3 +618,81 @@ it("allows exact unstarted legacy cancellation in maintenance while publishing i
   });
   expect((await storage.get(record))?.source).toBe(source);
 });
+
+describe("private project creation", () => {
+  it("creates and replays one private record, rejects collisions and remains unpublished", async () => {
+    const storage = env.EDITORIAL.getByName(crypto.randomUUID());
+    const record = { kind: "work", id: "fresh-project" } as const;
+    const body = {
+      title: "Fresh project",
+      expectedRevision: 0,
+      requestId: crypto.randomUUID(),
+    };
+    const missingBase = async () => ({ ...(await base()), baseFileHash: null });
+    const create = (payload = body, readBase = missingBase) =>
+      homeEditorApi(
+        request("create?kind=work&id=fresh-project", payload),
+        storage,
+        readBase,
+      );
+    const response = await create();
+    expect(response.status).toBe(201);
+    const first = await response.json();
+    expect(first).toMatchObject({
+      ok: true,
+      draft: { revision: 1, baseFileHash: null },
+    });
+    expect(await (await create()).json()).toEqual(first);
+    expect(
+      (await create({ ...body, requestId: crypto.randomUUID() })).status,
+    ).toBe(409);
+    const stored = await storage.get(record);
+    expect(stored?.source).toContain("public_state: hidden");
+    expect(stored?.source).toContain("homepage_placement: none");
+    expect(await storage.listProjectDrafts()).toEqual([stored]);
+    expect(await storage.listWritingDrafts()).toEqual([]);
+    expect(await storage.history(record)).toHaveLength(1);
+    expect(
+      (
+        await homeEditorApi(
+          request("create?kind=work&id=existing-project", body),
+          storage,
+          base,
+        )
+      ).status,
+    ).toBe(409);
+    expect(
+      await storage.get({ kind: "work", id: "existing-project" }),
+    ).toBeNull();
+  });
+  it("rejects invalid project identity and creation details before writing", async () => {
+    const storage = env.EDITORIAL.getByName(crypto.randomUUID());
+    const missingBase = async () => ({ ...(await base()), baseFileHash: null });
+    const body = {
+      title: "Fresh project",
+      expectedRevision: 0,
+      requestId: crypto.randomUUID(),
+    };
+    for (const title of ["", " ", "x".repeat(301)]) {
+      expect(
+        (
+          await homeEditorApi(
+            request("create?kind=work&id=invalid", { ...body, title }),
+            storage,
+            missingBase,
+          )
+        ).status,
+      ).toBe(400);
+    }
+    expect(
+      (
+        await homeEditorApi(
+          request("create?kind=work&id=../escape", body),
+          storage,
+          missingBase,
+        )
+      ).status,
+    ).toBe(400);
+    expect(await storage.listProjectDrafts()).toEqual([]);
+  });
+});

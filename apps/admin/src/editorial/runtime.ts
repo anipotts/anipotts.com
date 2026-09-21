@@ -5,6 +5,7 @@ import { publisherInstallationToken } from "./github-app";
 import { signPublication } from "./publication-signature";
 import { releaseReadiness, verifyPublishedContent } from "./release";
 import { newWritingSource } from "../lib/writing-draft";
+import { newProjectSource } from "../lib/project-draft";
 
 /** Parse deployment-owned bindings. Browser input cannot select identities,
  * repositories, keys, release origins or an enabled publisher.
@@ -56,11 +57,15 @@ export function editorialRuntime(
     async readBase(record: EditorialRecord) {
       const base = await git.readBase(record);
       if (!base.file) {
-        if (record.kind !== "writing") throw new Error("record_not_found");
+        if (record.kind !== "writing" && record.kind !== "work")
+          throw new Error("record_not_found");
         return {
           baseCommit: base.head,
           baseFileHash: null,
-          source: newWritingSource(),
+          source:
+            record.kind === "work"
+              ? newProjectSource(record.id)
+              : newWritingSource(),
         };
       }
       return {

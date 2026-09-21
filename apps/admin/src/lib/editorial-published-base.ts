@@ -15,6 +15,7 @@ import {
 } from "@anipotts/content/editorial/publication-contract";
 import { validateEditorialSnapshot } from "@anipotts/content/editorial/snapshot";
 import { newWritingSource } from "./writing-draft";
+import { newProjectSource } from "./project-draft";
 
 export function bundledEditorialSources() {
   // Vite compiles this literal glob for production and provider-runtime tests.
@@ -55,9 +56,15 @@ export async function publishedBaseFromInventory(
     (entry) => editorialRecordPath(entry.record) === path,
   );
   const existing = published?.source ?? bundled?.source;
-  if (existing === undefined && record.kind !== "writing")
+  if (
+    existing === undefined &&
+    record.kind !== "writing" &&
+    record.kind !== "work"
+  )
     throw new Error("record_not_found");
-  const source = existing ?? newWritingSource();
+  const source =
+    existing ??
+    (record.kind === "work" ? newProjectSource(record.id) : newWritingSource());
   const bytes = Buffer.from(source);
   return {
     source,

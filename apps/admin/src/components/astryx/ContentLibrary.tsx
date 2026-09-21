@@ -708,8 +708,17 @@ export function ContentLibrary({
             actions={
               inventoryError ? undefined : group.records.length === 0 ? (
                 area === "content" &&
-                ["writing", "pages"].includes(group.name) ? (
-                  <Button label="New article" href="/content/new" />
+                ["writing", "work", "pages"].includes(group.name) ? (
+                  <Button
+                    label={
+                      group.name === "work" ? "New project" : "New article"
+                    }
+                    href={
+                      group.name === "work"
+                        ? "/content/new-project"
+                        : "/content/new"
+                    }
+                  />
                 ) : undefined
               ) : (
                 <Button

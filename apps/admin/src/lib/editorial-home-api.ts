@@ -7,6 +7,7 @@ import {
 } from "@anipotts/content/editorial/source";
 import type { EditorialDraftStore } from "../editorial/draft-store";
 import { newWritingSource } from "./writing-draft";
+import { newProjectSource } from "./project-draft";
 import {
   MAX_PUBLICATION_QUEUE_PAGE,
   type PublicationQueueOptions,
@@ -221,7 +222,7 @@ export async function homeEditorApi(
   }
   if (action === "create") {
     if (
-      record.kind !== "writing" ||
+      (record.kind !== "writing" && record.kind !== "work") ||
       expectedRevision !== 0 ||
       !("title" in body) ||
       typeof body.title !== "string" ||
@@ -236,7 +237,10 @@ export async function homeEditorApi(
       return json({ error: "record_exists" }, 409);
     const result = await storage.save({
       record,
-      source: newWritingSource(body.title),
+      source:
+        record.kind === "work"
+          ? newProjectSource(record.id, body.title)
+          : newWritingSource(body.title),
       expectedRevision: 0,
       requestId: body.requestId,
       baseCommit: base.baseCommit,

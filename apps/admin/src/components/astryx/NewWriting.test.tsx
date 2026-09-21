@@ -224,3 +224,41 @@ it("announces the created draft so open libraries list it without a reload", asy
     vi.restoreAllMocks();
   }
 });
+
+it("keeps project recovery separate and creates with project identity", async () => {
+  await render();
+  await type("Article retained");
+  await act(async () =>
+    root.render(<NewWriting recoveryScope="owner" recordKind="work" />),
+  );
+  expect(host.querySelector("input")!.value).toBe("");
+  expect(host.textContent).toContain("Project address");
+  await type("New project");
+  const calls: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      calls.push(url);
+      if (url.includes("csrf"))
+        return new Response(JSON.stringify({ csrf: "test" }));
+      return new Response(JSON.stringify({ ok: false }), { status: 409 });
+    }),
+  );
+  await act(async () => {
+    host
+      .querySelector("form")!
+      .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(calls).toEqual([
+    "/api/editorial/csrf",
+    "/api/editorial/create?kind=work&id=new-project",
+  ]);
+  expect(host.textContent).toContain("A project already uses this address");
+  await render();
+  expect(host.querySelector("input")!.value).toBe("Article retained");
+  await act(async () =>
+    root.render(<NewWriting recoveryScope="owner" recordKind="work" />),
+  );
+  expect(host.querySelector("input")!.value).toBe("New project");
+});

@@ -420,3 +420,34 @@ it("uses the same validated editor identities for every editable page family", (
     inventoryIdentity({ collection: "workPage", id: "not-a-page" }),
   ).toBeNull();
 });
+
+it("lists private-only projects and routes them back to the project editor", async () => {
+  const project = draft({
+    key: "content/public/projects/new-project.md",
+    baseFileHash: null,
+    source:
+      "---\ntitle: Private project\ndescription: Test only\npublic_state: hidden\n---\n",
+  });
+  const storage = {
+    listWritingDrafts: async () => [],
+    listProjectDrafts: async () => [project],
+    get: async () => null,
+  };
+  const inventory = await readInventoryDrafts([], storage);
+  expect(inventory.unavailable).toBe(false);
+  const records = projectEditorialInventory([], inventory.drafts);
+  expect(records).toHaveLength(1);
+  expect(records[0]).toMatchObject({
+    collection: "projects",
+    id: "new-project",
+    title: "Private project",
+    status: "draft",
+    href: "/content/projects/new-project",
+    intendedVisibility: "hidden",
+    changesPending: true,
+  });
+  expect(
+    editorialInventoryGroups(records).find((group) => group.name === "work")
+      ?.records,
+  ).toHaveLength(1);
+});

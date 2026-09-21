@@ -112,6 +112,9 @@ export type NewWritingRecovery = {
 export function newWritingRecoveryKey(account: string) {
   return recoveryKey(account, { kind: "new-writing", id: "new" });
 }
+export function newProjectRecoveryKey(account: string) {
+  return recoveryKey(account, { kind: "new-project", id: "new" });
+}
 /** Legacy sessionStorage has no owner provenance and is deliberately not read. */
 export function validateNewWritingRecovery(
   value: unknown,

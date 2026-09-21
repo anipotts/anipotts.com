@@ -7,7 +7,7 @@ import CatalogPage from "../../src/pages/content/dev-catalog.astro";
 
 // Only data boundaries are synthetic. Astro compiles the real routes/layout and
 // renders the real React shell, including slot handling and island instructions.
-const boundary = vi.hoisted(() => ({ unavailable: false }));
+const boundary = vi.hoisted(() => ({ unavailable: false, draft: null }));
 
 vi.mock("../../src/lib/editorial-content", () => ({
   publicSiteUrl: "https://example.com",
@@ -26,7 +26,7 @@ vi.mock("../../src/lib/editorial-local", () => ({
   localDraftStorage: async () => ({
     get: async () => {
       if (boundary.unavailable) throw new Error("storage_unavailable");
-      return null;
+      return boundary.draft;
     },
   }),
 }));
@@ -54,6 +54,7 @@ async function render(page, path, params = {}) {
 describe("EditorialLayout Astro rendering", () => {
   beforeEach(() => {
     boundary.unavailable = false;
+    boundary.draft = null;
   });
 
   it.each(["projects", "writing"])(
@@ -119,4 +120,33 @@ describe("EditorialLayout Astro rendering", () => {
     expect(scripts).toContain('customElements.define("astro-island"');
     expect(scripts).toContain('window.dispatchEvent(new Event("astro:load"))');
   });
+});
+
+it("reopens a private-only project in the real Astro editor route", async () => {
+  boundary.draft = {
+    key: "content/public/projects/new-project.md",
+    source: "---\ntitle: New project\npublic_state: hidden\n---\n",
+    revision: 1,
+    updatedAt: 1000,
+    discardedAt: null,
+    baseCommit: "a".repeat(40),
+    baseFileHash: null,
+  };
+  const { status, document } = await render(
+    RecordPage,
+    "/content/projects/new-project",
+    { collection: "projects", id: "new-project" },
+  );
+  expect(status).toBe(200);
+  expect(document.title).toBe("New project | Admin");
+  const shell = document.querySelector(
+    'astro-island[component-export="EditorialApp"]',
+  );
+  const props = shell.getAttribute("props");
+  expect(props).toContain('"editorRecord"');
+  expect(props).toContain('"work"');
+  expect(props).toContain('"new-project"');
+  expect(document.querySelector("[role=main]")?.textContent).not.toContain(
+    "Record not found",
+  );
 });

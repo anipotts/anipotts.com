@@ -678,6 +678,15 @@ export class EditorialDraftStore extends DurableObject<unknown> {
       .toArray();
   }
 
+  /** Owner-only inventory of private projects, including records absent from Git. */
+  async listProjectDrafts(): Promise<Draft[]> {
+    return this.ctx.storage.sql
+      .exec<Draft>(
+        "SELECT * FROM drafts WHERE key LIKE 'content/public/projects/%' AND discardedAt IS NULL ORDER BY updatedAt DESC",
+      )
+      .toArray();
+  }
+
   /** Only the authenticated publish route may call this, after disclosure consent.
    * Complete-snapshot reference and Git validation still precede any GitHub write.
    */

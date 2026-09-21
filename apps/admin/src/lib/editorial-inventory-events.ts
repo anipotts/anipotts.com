@@ -22,7 +22,7 @@ export type EditorialRecordSaved = {
   publishedAt?: string;
 };
 export type EditorialRecordCreated = {
-  record: Extract<EditorialRecord, { kind: "writing" }>;
+  record: Extract<EditorialRecord, { kind: "writing" | "work" }>;
   title: string;
   summary: string;
   revision: number;
@@ -81,7 +81,11 @@ export function parseEditorialRecordCreated(
   if (!value || typeof value !== "object") return null;
   const item = value as Record<string, unknown>;
   const saved = parseEditorialRecordSaved({ ...item, changesPending: true });
-  if (!saved || saved.record.kind !== "writing" || "publishedAt" in item)
+  if (
+    !saved ||
+    (saved.record.kind !== "writing" && saved.record.kind !== "work") ||
+    "publishedAt" in item
+  )
     return null;
   return {
     record: saved.record,
@@ -244,7 +248,9 @@ export function applyEditorialRecordCreated(
 ): InventoryView {
   const created = parseEditorialRecordCreated(value);
   if (!created) return current;
-  const href = `/content/writing/${encodeURIComponent(created.record.id)}`;
+  const project = created.record.kind === "work";
+  const collection = project ? "projects" : "writing";
+  const href = `/content/${collection}/${encodeURIComponent(created.record.id)}`;
   const exists =
     current.groups?.some((group) =>
       group.records.some((item) => item.href === href),
@@ -258,40 +264,40 @@ export function applyEditorialRecordCreated(
       changesPending: true,
     });
   const row: CatalogRecord = {
-    collection: "writing",
+    collection,
     id: created.record.id,
     title: created.title,
     summary: created.summary,
-    section: "writing",
+    section: project ? "work" : "writing",
     status: "draft",
     href,
     updated: { at: created.updatedAt, source: "private" },
     changesPending: true,
     privateRevision: created.revision,
     privateUpdatedAt: created.updatedAt,
-    intendedVisibility: "draft",
+    intendedVisibility: project ? "hidden" : "draft",
     capabilities: { editable: true, previewable: true, reviewOnly: false },
   };
   return {
     ...current,
     revisions: { ...current.revisions, [href]: created.revision },
     groups: current.groups?.map((group) =>
-      group.name === "pages" || group.name === "writing"
+      group.name === "pages" || group.name === (project ? "work" : "writing")
         ? { ...group, records: [...group.records, row] }
         : group,
     ),
     searchEntries: current.searchEntries && [
       ...current.searchEntries,
       {
-        id: `content:writing:${created.record.id}`,
+        id: `content:${collection}:${created.record.id}`,
         label: created.title,
         domain: "content",
-        kind: "writing",
+        kind: collection,
         currentFact: "draft; changes pending",
         source: "private and published content inventory",
         freshness: created.updatedAt,
         href,
-        keywords: [created.record.id, "writing", created.summary, "draft"],
+        keywords: [created.record.id, collection, created.summary, "draft"],
       },
     ],
   };
