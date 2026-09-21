@@ -6,7 +6,8 @@ export const LIFE_DEFAULTS = {
   limit: 30,
 } as const;
 export type LifeRead =
-  | { method: "status" | "sources" }
+  | { method: "status" }
+  | { method: "sources"; offset?: number }
   | {
       method: "search";
       q: string;
@@ -174,8 +175,11 @@ export function lifeReadPath(request: LifeRead): string {
       params.set("after", String(integer(request.after)));
       params.set("limit", "100");
       break;
-    case "status":
     case "sources":
+      params.set("limit", String(LIFE_DEFAULTS.limit));
+      params.set("offset", String(integer(request.offset)));
+      break;
+    case "status":
       break;
     default:
       throw new Error("Unsupported read");

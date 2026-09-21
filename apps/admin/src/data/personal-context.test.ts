@@ -268,3 +268,22 @@ describe("System versioned owner reader", () => {
     ).toBe("unavailable");
   });
 });
+
+it("rejects repeated source pages instead of cycling forever", async () => {
+  const read = (next_offset: number | null) =>
+    readPersonalContext(
+      { method: "sources", offset: 30 },
+      {
+        scope: "owner",
+        protocol: "personal_context_data_v1",
+        read: async () => ({
+          schema: "personal_context_data_v1",
+          response_observed_at: "2026-09-21T08:00:00Z",
+          data: { items: [], total: 60, next_offset },
+        }),
+      },
+    );
+  expect((await read(30)).state).toBe("invalid");
+  expect((await read(60)).state).toBe("ready");
+  expect((await read(null)).state).toBe("ready");
+});

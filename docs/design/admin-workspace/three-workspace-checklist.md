@@ -49,8 +49,10 @@ methods fail closed; missing canonical storage is unavailable, not healthy-empty
 Response observation time remains distinct from fetch time and source change time.
 The overview uses source counts rather than inventing ingestion/wiki capability.
 
+Source pagination now uses bounded limit/offset requests with forward-only
+continuation validation and the shared Previous/Next controls.
 No transport has been attached or endpoint/access grant activated. HTTP mapping,
-source pagination, session revocation, device acceptance and the separate
+session revocation, device acceptance and the separate
 `personal_context_observability_v1` projection remain integration work. System's
 handoff reports source changes merged but not installed in its active runtime.
 Website acknowledged receipt and requested exact route fixtures in that existing
