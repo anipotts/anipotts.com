@@ -16,7 +16,21 @@ prototype, what was measured, and how to make page switching fast.
 | rail        | desktop 769 to 1279px default                                           | groups become unlabeled icon runs separated by space, one click per page                                                                                                                                                                                                                                           |
 | drawer      | 768px and below                                                         | the same three groups in the AppShell drawer, 44px rows, no horizontal overflow at 320px                                                                                                                                                                                                                           |
 | switcher    | removed                                                                 | its per-tab memory stays: the Content links reached from Data or Observability keep the library's last filters and ordering (`useWorkspaceMemory`). Search now lists every sidebar page from every workspace's palette                                                                                             |
-| one surface | `themes/operations.ts`, `themes/life.ts`                                | the sidebar tint is the same in every workspace, so the sidebar does not change color when you switch. Accents per workspace stay                                                                                                                                                                                  |
+| one surface | `themes/operations.ts`, `themes/life.ts`                                | the sidebar background is the same in every workspace, so the sidebar does not change color when you switch                                                                                                                                                                                                        |
+
+## decisions after review (Ani, #426)
+
+| topic                | decision                                                                                                                                                                                                                                                                                                                                                                                   | where                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| workspace color      | one tint for all workspaces for now. Six tokens, `--ws-content-tint`, `--ws-data-tint`, `--ws-observability-tint` and matching `-accent` tokens, all the same value today. The tint colors each section title; the accent replaces the Astryx accent inside that workspace (wordmark, current page icon, primary buttons). Giving a workspace its own color is a one-line change per token | top of the unified sidebar block in `WorkspaceHeader.css` |
+| desktop state        | every group starts open, any group can be collapsed, remembered per device in `localStorage`                                                                                                                                                                                                                                                                                               | unchanged                                                 |
+| phone state          | the drawer scrolls; nothing auto-collapses; the same saved state applies on phones                                                                                                                                                                                                                                                                                                         | unchanged                                                 |
+| phone rows           | 44px rows with no gaps between pages, a small gap between groups                                                                                                                                                                                                                                                                                                                           | `WorkspaceHeader.css` drawer block                        |
+| reaching a workspace | a pinned jump row (Content, Data, Observability) at the top of the drawer. Chosen over sticky section headers: a sticky header keeps only the current group's title in view, while the row keeps all three one tap away from anywhere in the list. A jump opens the group if it was closed                                                                                                 | `UnifiedNavigation`, `.admin-unified-nav-jump`            |
+| opening the drawer   | the current page is scrolled to the middle of the drawer                                                                                                                                                                                                                                                                                                                                   | `UnifiedNavigation` effect on `isMobileNavOpen`           |
+| group contents       | held. Data and Observability items stay as they are while the IA is redesigned (Data to Records and Sources, Observability to Status, Activity and Alerts, one overview at `/`). All groups and items live in one list, `sidebarGroups` in `UnifiedSidebar.tsx`, so the change is an edit to that list plus the routes                                                                     | `UnifiedSidebar.tsx`                                      |
+
+Screenshots (desktop 1280 in Chromium, tablet 768 in Chromium, iPhone 15 profile at 390 in Playwright WebKit, light and dark, page and open drawer) are in [`docs/design/screenshots/unified-sidebar/`](../screenshots/unified-sidebar/).
 
 ## measured, before and after
 
@@ -107,16 +121,11 @@ emphasis that these measurements support:
    harness red rows; keep `switch:workspaces` as the acceptance cell for the
    cross-workspace case.
 
-## open questions for Ani
+## still open
 
-- the remaining operational pages (`/work`, `/fleet`, `/proof`, `/deploys`,
-  `/repos`, `/handoffs`, `/system`, `/mutations`, `/knowledge`) and Content
-  review pages were not in the old sidebars and are not in this one; they stay
-  reachable from search. Should Observability list them?
-- the sidebar tint is now the same in every workspace. The accent still changes
-  per workspace. Revert the tint if the color cue mattered.
-- all groups start open. With Content open on a phone the drawer scrolls; an
-  alternative is to open only the active group by default.
+- `/work`, `/fleet`, `/proof`, `/deploys`, `/repos`, `/handoffs`, `/system`,
+  `/mutations`, `/knowledge` and the Content review pages stay search-only
+  until the System IA redesign decides where they go.
 
 ## rerun
 
