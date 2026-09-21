@@ -90,38 +90,37 @@ async function submit() {
 const count = () =>
   container.querySelector('.life-record-library [role="status"]')?.textContent;
 describe("Life reader interactions", () => {
-  it.each([30, -1, undefined])(
-    "keeps Sources unpaged when response includes cursor %s",
-    async (next_offset) => {
-      const data = {
-        items: [{ source_id: "Fixture source", coverage: "available" }],
-        total: 1,
-        next_offset,
-      };
-      const reader = vi.fn(async (_request: LifeRead) => ready(data));
-      await act(async () =>
-        root.render(
-          <LifeExplorer
-            section="sources"
-            initial={ready(data)}
-            reader={reader}
-          />,
-        ),
-      );
-      expect(container.textContent).toContain("Fixture source");
-      expect(container.textContent).not.toContain("could not be continued");
-      expect(
-        [...container.querySelectorAll("button")].some((button) =>
-          /^(Next|Previous)$/.test(button.textContent?.trim() ?? ""),
-        ),
-      ).toBe(false);
-      expect(reader).not.toHaveBeenCalled();
-      await click("Refresh");
-      expect(reader).toHaveBeenCalledTimes(1);
-      expect(reader.mock.calls[0]?.[0]).toEqual({ method: "sources" });
-      expect(container.textContent).toContain("Fixture source");
-    },
-  );
+  it("pages Sources using the canonical next offset", async () => {
+    const reader = vi.fn(async (_request: LifeRead) =>
+      ready({
+        items: [{ source_id: "Second source" }],
+        total: 2,
+        next_offset: null,
+      }),
+    );
+    await act(async () =>
+      root.render(
+        <LifeExplorer
+          section="sources"
+          initial={ready({
+            items: [{ source_id: "First source" }],
+            total: 2,
+            next_offset: 30,
+          })}
+          reader={reader}
+        />,
+      ),
+    );
+    await click("Next");
+    expect(reader.mock.calls[0]?.[0]).toEqual({
+      method: "sources",
+      offset: 30,
+    });
+    expect(container.textContent).toContain("Second source");
+    expect(container.textContent).not.toContain("First source");
+    await click("Previous");
+    expect(reader.mock.calls[1]?.[0]).toEqual({ method: "sources", offset: 0 });
+  });
   it.each([-1, 1.5, 10_000_001])(
     "recovers from invalid continuation %s without dispatching it",
     async (next_offset) => {
@@ -500,4 +499,33 @@ describe("Life reader interactions", () => {
       else Reflect.deleteProperty(document, "hidden");
     }
   });
+});
+
+it("clears prior records and queries when the reader capability is removed", async () => {
+  const reader = async () =>
+    ready({ items: [record], total: 1, next_offset: null });
+  await act(async () =>
+    root.render(
+      <LifeExplorer
+        section="people"
+        initial={ready({ items: [record], total: 1, next_offset: null })}
+        reader={reader}
+      />,
+    ),
+  );
+  type("private query");
+  expect(container.textContent).toContain("Fixture record");
+  await act(async () =>
+    root.render(
+      <LifeExplorer
+        section="people"
+        initial={{ state: "denied", message: "revoked" }}
+      />,
+    ),
+  );
+  expect(container.textContent).not.toContain("Fixture record");
+  expect(container.querySelector("input")).toBeNull();
+  expect(container.textContent).toContain(
+    "Access to these records is unavailable",
+  );
 });

@@ -402,7 +402,28 @@ export function LifeReadView({
   );
 }
 /** Reader is injected by a separately approved capability, never derived from URL input. */
-export function LifeExplorer({
+type ExplorerProps = {
+  section: LifeSection;
+  initial: LifeResult;
+  reader?: LifeReader;
+};
+
+/** A replacement capability or initial result starts a new private session. */
+export function LifeExplorer(props: ExplorerProps) {
+  const identity = useRef({ ...props, generation: 0 });
+  if (
+    identity.current.reader !== props.reader ||
+    identity.current.section !== props.section ||
+    identity.current.initial !== props.initial
+  )
+    identity.current = {
+      ...props,
+      generation: identity.current.generation + 1,
+    };
+  return <LifeExplorerSession key={identity.current.generation} {...props} />;
+}
+
+function LifeExplorerSession({
   section,
   initial,
   reader,
