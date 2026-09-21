@@ -1389,6 +1389,24 @@ function HomeEditorImpl({
                 />
               )}
               {tab === "publish" && publishActions}
+              {record.kind === "writing" && (
+                <Button
+                  label="Properties"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    openPanel(panel === "properties" ? null : "properties")
+                  }
+                />
+              )}
+              <Button
+                label="History"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  void openHistory();
+                }}
+              />
               <MoreMenu
                 label="Document actions"
                 icon={<DotsThreeIcon size={20} />}
@@ -1399,17 +1417,6 @@ function HomeEditorImpl({
                     type: "section",
                     title: "Inspect",
                     items: [
-                      ...(record.kind === "writing"
-                        ? [
-                            {
-                              label: "Properties",
-                              onClick: () =>
-                                openPanel(
-                                  panel === "properties" ? null : "properties",
-                                ),
-                            },
-                          ]
-                        : []),
                       ...(publication
                         ? [
                             {
@@ -1426,12 +1433,6 @@ function HomeEditorImpl({
                       {
                         label: "View source",
                         onClick: () => setTab("source"),
-                      },
-                      {
-                        label: "Version history",
-                        onClick: () => {
-                          void openHistory();
-                        },
                       },
                       {
                         label: "Compare with website",

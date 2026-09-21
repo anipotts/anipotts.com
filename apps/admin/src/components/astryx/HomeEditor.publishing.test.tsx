@@ -439,10 +439,7 @@ it("groups document actions under labeled menu sections, not dividers", async ()
         (item) => item.querySelector("span > span")?.textContent,
       ),
     ]);
-  const inspect = [
-    "Inspect",
-    ["Properties", "View source", "Version history", "Compare with website"],
-  ];
+  const inspect = ["Inspect", ["View source", "Compare with website"]];
   const draftActions = [
     "Open production editor",
     "Download draft",
@@ -450,7 +447,7 @@ it("groups document actions under labeled menu sections, not dividers", async ()
   ];
   let menu = await openMenu();
   expect(sections(menu)).toEqual([inspect, ["Draft", draftActions]]);
-  expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(7);
+  expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(5);
   // Leaving the editor tab commits the buffered title, so Save now appears.
   const viewSource = [...menu.querySelectorAll('[role="menuitem"]')].find(
     (item) => item.textContent === "View source",
@@ -461,7 +458,7 @@ it("groups document actions under labeled menu sections, not dividers", async ()
     inspect,
     ["Draft", [...draftActions, "Save now"]],
   ]);
-  expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(8);
+  expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(6);
 });
 
 it("polls an unfinished publication only while the page is visible", async () => {

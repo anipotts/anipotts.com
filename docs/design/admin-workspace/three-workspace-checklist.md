@@ -1,3 +1,49 @@
+# Admin frontend refinement checklist
+
+## September 21 current review
+
+Current preference: compact controls, spacious writing. Expanded and collapsed
+sidebar controls share the same vertical rhythm. Frequent actions should be
+visible and immediate; overflow is for occasional tools. Menus must not add
+animation delay. This section supersedes historical coordination and status
+claims below. Website owns product integration; System owns source connectivity.
+
+This is a source-backed inventory, not a claim that every route was browser-tested
+or that local changes are deployed. Current implementation branch is
+`codex/cms-editor-publisher`, PR #418.
+
+| Surface          | Current evidence                                                                                         | Remaining acceptance or implementation                                                                            |
+| ---------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Shared shell     | Shared row heights and gaps; one-click themes; section headings visually hidden                          | Verify collapsed/expanded geometry across workspaces, touch widths, zoom and both themes                          |
+| Editor actions   | Properties/history direct; preview/publish explicit; overflow retains occasional tools                   | Review header density on phone and tablet; audit dropdowns by action frequency rather than replacing every select |
+| Writing          | Persistent formatting, autosizing opening note, title/subtitle/body and private saves                    | IME, rich paste, undo, mobile keyboard, suspension, multiple tabs, zoom and screen reader                         |
+| Properties       | Visibility controls offer states direct publisher rejects (`ArticleSettings.tsx`, `direct-publisher.ts`) | Explain unsupported states before approval; do not imply scheduling/unpublish works                               |
+| Review/history   | Exact diff and retained versions exist                                                                   | Field Edit/Expand, compare before restore, large history navigation                                               |
+| Projects/pages   | Main copy controls exist (`editorial-fields.ts`)                                                         | Project creation, structured metadata/media/section controls, shared navigation/footer and homepage selections    |
+| Media            | Upload/crop/retry exist                                                                                  | Reuse picker, reference/history visibility and recovery acceptance                                                |
+| Libraries        | Responsive tables and attached footer exist                                                              | Batch selection/review remains missing; verify long content and all empty/error states                            |
+| Preview/recovery | Revision-bound preview and recovery/conflict flows exist                                                 | Owner acceptance of source-heavy recovery, slow/aborted responses and stale tabs                                  |
+| Observability    | Shared inventory/detail UI exists; route supplies no live capability                                     | Attach verified observations; publishing/backups/integrations need explicit source coverage                       |
+| Data             | Life UI/read adapters exist; no connected transport                                                      | Approved Data naming, adjacent record detail, original-preserving corrections/new records and document workflow   |
+| Legacy routes    | Old content review/drafts/operations and static operational projections remain                           | Trace consumers and unique data, then redirect/retire redundant surfaces; remove stale release guidance           |
+
+Proposed goal, pending review of the actual controls: finish the admin as one
+coherent Content / Observability / Data app. Use compact shared controls and
+spacious writing areas; make frequent actions direct and immediate. Resolve the
+functional gaps above in dependency order, preserving drafts, source provenance
+and publication review. Validate every retained route and its loading, empty,
+error, unavailable and successful states across phone/tablet/desktop, themes,
+keyboard and zoom. Retire verified redundant routes rather than redesigning them.
+Report local implementation, tests, owner review, merge, deployment and live proof
+separately. Connected capability and recovery are acceptance requirements, not
+assumptions inferred from a polished screen. Do not activate this goal merely
+because this draft exists.
+
+## Historical September 12 plan
+
+The following is retained as design history. Its task ownership and completion
+claims require fresh verification; it is not the current operating inventory.
+
 # Approved Content / Operations / Life redesign
 
 Status: in progress. This is Ani's September 12 approved refinement of the
