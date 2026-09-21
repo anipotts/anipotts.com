@@ -96,20 +96,24 @@ describe("editorial catalog", () => {
         ]}
       />,
     );
-    expect(html).toContain('href="/content?group=website"');
+    // The sidebar names each library by its route.
+    expect(html).toContain('href="/content/pages"');
+    expect(html).not.toContain("?group=");
     expect(html).not.toContain('role="tree"');
-    expect(html).toContain("Overview");
+    expect(html).toMatch(/<h1[^>]*>content<\/h1>/);
     expect(html).toContain("Updated");
     expect(html).not.toContain("recently updated first");
-    expect(html).toContain('href="/content/writing/music?returnTo=%2Fcontent"');
+    expect(html).toContain(
+      'href="/content/writing/music?returnTo=%2Fcontent%2Fpages"',
+    );
     expect(html).toContain('data-format="relative_short"');
     expect(html).toContain("Local edit");
     expect(html).toContain('dateTime="2026-09-08T10:00:00.000Z"');
     expect(html).not.toContain("·");
   });
   it.each([
-    ["content", "record not found", "/content"],
-    ["newsletter", "draft not found", "/newsletter"],
+    ["content", "record not found", "/content/pages"],
+    ["newsletter", "draft not found", "/content/newsletter"],
   ] as const)(
     "renders one missing-record heading and the %s return link",
     (area, title, href) => {
@@ -142,10 +146,13 @@ describe("editorial catalog", () => {
         area="content"
         localPreview
         siteUrl="http://anipotts.localhost:1355/"
-        groups={[{ name: "writing", href: "/content?group=writing", records }]}
+        selectedGroup="writing"
+        groups={[{ name: "writing", href: "/content/writing", records }]}
       />,
     );
-    expect(html).toContain('href="/content/writing/music?returnTo=%2Fcontent"');
+    expect(html).toContain(
+      'href="/content/writing/music?returnTo=%2Fcontent%2Fwriting"',
+    );
     expect(html).toContain("Continue draft");
     expect(html).toContain('aria-label="Writing records"');
     // Each navigation item carries its record count.
@@ -295,21 +302,23 @@ it("sentence-cases generated metadata labels without changing authored values", 
   expect(html).toContain("i like this lowercase");
 });
 
-it("uses Pages for the website-only group and Overview for the all-record group", () => {
+it("titles each library page with its own name and no Overview heading", () => {
   for (const [selectedGroup, heading] of [
     ["website", "Pages"],
-    ["pages", "Overview"],
+    ["writing", "Writing"],
+    ["work", "Projects"],
   ]) {
     const html = renderToStaticMarkup(
       <EditorialApp
-        title="Content"
+        title={heading}
         area="content"
         localPreview
         siteUrl="https://anipotts.com"
         selectedGroup={selectedGroup}
-        groups={[{ name: selectedGroup, href: "/content", records: [] }]}
+        groups={[{ name: selectedGroup, href: "/content/pages", records: [] }]}
       />,
     );
     expect(html).toMatch(new RegExp(`<h1[^>]*>${heading}</h1>`));
+    expect(html).not.toMatch(/<h1[^>]*>Overview<\/h1>/);
   }
 });

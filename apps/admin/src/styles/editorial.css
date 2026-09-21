@@ -86,27 +86,17 @@
 #astryx-app-shell-main:not(#\#):not(#\#):not(#\#) {
   background: var(--color-background-body);
 }
-.editorial-library .astryx-table-scroll-wrapper,
-.operations-results .astryx-table-scroll-wrapper,
-.life-record-library .astryx-table-scroll-wrapper {
+.workspace-table .astryx-table-scroll-wrapper {
   background: var(--color-background-surface);
   border-radius: var(--radius-container);
   padding-block: var(--spacing-1);
 }
-.editorial-library .astryx-table-cell:first-child,
-.editorial-library .astryx-table-header-cell:first-child,
-.operations-results .astryx-table-cell:first-child,
-.operations-results .astryx-table-header-cell:first-child,
-.life-record-library .astryx-table-cell:first-child,
-.life-record-library .astryx-table-header-cell:first-child {
+.workspace-table .astryx-table-cell:first-child,
+.workspace-table .astryx-table-header-cell:first-child {
   padding-inline-start: var(--spacing-4);
 }
-.editorial-library .astryx-table-cell:last-child,
-.editorial-library .astryx-table-header-cell:last-child,
-.operations-results .astryx-table-cell:last-child,
-.operations-results .astryx-table-header-cell:last-child,
-.life-record-library .astryx-table-cell:last-child,
-.life-record-library .astryx-table-header-cell:last-child {
+.workspace-table .astryx-table-cell:last-child,
+.workspace-table .astryx-table-header-cell:last-child {
   padding-inline-end: var(--spacing-4);
 }
 /* Column labels stay on one line; the column, not the label, gives way. */
@@ -213,20 +203,14 @@
   .editorial-record-count-label {
     display: none;
   }
-  /* Content library only. Operations reuses the table class and chooses its
-     own phone columns. */
-  .editorial-library .editorial-record-table {
+  .workspace-table .editorial-record-table {
     min-width: 0 !important;
   }
-  .editorial-library .editorial-record-table th:first-child {
+  .workspace-table .editorial-record-table th:first-child {
     width: auto !important;
     min-width: 0 !important;
   }
-  .editorial-library .editorial-record-table th:nth-child(2),
-  .editorial-library .editorial-record-table td:nth-child(2) {
-    display: none;
-  }
-  .editorial-library .editorial-mobile-status {
+  .workspace-table .editorial-mobile-status {
     display: flex;
   }
 }
@@ -1162,29 +1146,29 @@ body:has(.editorial-workspace-shell) {
 /* The row is as tall as the 36px action target it must carry, and no taller.
    Its cells still hold their own inset, so nothing sits flush against a row
    edge. */
-.editorial-library .editorial-record-table .astryx-table-cell {
+.workspace-table .editorial-record-table .astryx-table-cell {
   vertical-align: middle;
   padding-block: var(--spacing-1);
 }
 /* The action cell carries the row's tallest control, so its own inset would
    only make every row taller. */
-.editorial-library .editorial-record-table .astryx-table-cell:last-child {
+.workspace-table .editorial-record-table .astryx-table-cell:last-child {
   padding-block: 0;
 }
 /* The header stays with the rows while a long library scrolls. */
-.editorial-library .editorial-record-table .astryx-table-header-cell {
+.workspace-table .editorial-record-table .astryx-table-header-cell {
   position: sticky;
   z-index: 1;
   top: 0;
   padding-block: var(--spacing-2);
   background: var(--color-background-surface);
 }
-.editorial-library .record-link {
+.workspace-table .record-link {
   min-height: var(--spacing-6);
   padding-block: 0;
   font-weight: var(--font-weight-medium, 500);
 }
-.editorial-library .editorial-record-summary {
+.workspace-table .editorial-record-summary {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -1200,7 +1184,7 @@ body:has(.editorial-workspace-shell) {
   height: var(--spacing-5);
   color: var(--color-text-secondary);
 }
-.editorial-library .editorial-record-table .astryx-timestamp {
+.workspace-table .editorial-record-table .astryx-timestamp {
   padding-block: 0;
 }
 .editorial-record-state {
@@ -1218,39 +1202,39 @@ body:has(.editorial-workspace-shell) {
 /* One record is one line. Columns drop from the least load-bearing inward as
    the table narrows: first the summary, then the kind, and on phones the row
    carries its state and time under the title instead. */
-.editorial-library .editorial-record-table .astryx-table-cell,
-.editorial-library .editorial-record-table .astryx-table-header-cell {
+.workspace-table .editorial-record-table .astryx-table-cell,
+.workspace-table .editorial-record-table .astryx-table-header-cell {
   white-space: nowrap;
 }
-.editorial-library .editorial-record-summary,
-.editorial-library .editorial-record-state-detail,
-.editorial-library .record-link {
+.workspace-table .editorial-record-summary,
+.workspace-table .editorial-record-state-detail,
+.workspace-table .record-link {
   display: block;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.editorial-library .editorial-record-state {
+.workspace-table .editorial-record-state {
   min-width: 0;
 }
 /* The state chip keeps its full label; the sentence beside it truncates.
    Astryx sizes both through StyleX, which these repeats outrank. */
-.editorial-library
+.workspace-table
   .editorial-record-state
   > .astryx-token:not(#\#):not(#\#):not(#\#) {
   flex: 0 0 auto;
 }
-.editorial-library .editorial-record-state-detail:not(#\#):not(#\#):not(#\#) {
+.workspace-table .editorial-record-state-detail:not(#\#):not(#\#):not(#\#) {
   flex: 0 1 auto;
   min-width: 0;
 }
 /* One row, one line: the title ellipsizes inside its own column. */
-.editorial-library .editorial-record-heading {
+.workspace-table .editorial-record-heading {
   min-height: 0;
 }
 /* The title column's content fills its cell, so the title ellipsizes against
    the column's width rather than its own text. */
-.editorial-library .editorial-record-content:not(#\#):not(#\#) {
+.workspace-table .editorial-record-content:not(#\#):not(#\#) {
   flex: 1 1 auto;
   width: 100%;
   min-width: 0;
@@ -1258,7 +1242,7 @@ body:has(.editorial-workspace-shell) {
 /* The title's hover and focus surface wraps the words with room on every
    side, instead of hugging the text. Its leading inset is pulled back so the
    title still starts on the column's edge. */
-.editorial-library .record-link:not(#\#):not(#\#):not(#\#) {
+.workspace-table .record-link:not(#\#):not(#\#):not(#\#) {
   width: 100%;
   min-height: var(--spacing-7);
   justify-content: flex-start;
@@ -1266,66 +1250,52 @@ body:has(.editorial-workspace-shell) {
   padding-inline: var(--spacing-2);
   margin-inline-start: calc(-1 * var(--spacing-2));
   text-align: start;
+  /* The same title ink in every workspace theme. */
+  color: var(--color-text-primary);
 }
-.editorial-library .record-link span {
+.workspace-table .record-link span {
   display: block;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.editorial-library .editorial-record-kind {
+.workspace-table .editorial-record-kind {
   width: max-content;
   color: var(--color-text-secondary);
 }
 /* The row's own action reads as clutter repeated down the page. It appears on
    hover, on keyboard focus, and wherever hover does not exist. */
 @media (hover: hover) and (pointer: fine) {
-  .editorial-library .editorial-record-table .editorial-record-action {
+  .workspace-table .editorial-record-table .editorial-record-action {
     opacity: 0;
   }
-  .editorial-library .editorial-record-table tr:hover .editorial-record-action,
-  .editorial-library
+  .workspace-table .editorial-record-table tr:hover .editorial-record-action,
+  .workspace-table
     .editorial-record-table
     tr:focus-within
     .editorial-record-action {
     opacity: 1;
   }
 }
-@media (max-width: 1279px) {
-  .editorial-library .editorial-record-table th:nth-child(2),
-  .editorial-library .editorial-record-table td:nth-child(2) {
-    display: none;
-  }
-}
-@media (max-width: 1023px) {
-  .editorial-library[data-kind-column="true"]
-    .editorial-record-table
-    th:nth-child(3),
-  .editorial-library[data-kind-column="true"]
-    .editorial-record-table
-    td:nth-child(3) {
-    display: none;
-  }
-}
 @media (max-width: 768px) {
   /* A phone row carries its state and time under the title, so it needs the
      vertical room a one-line desktop row does not. */
-  .editorial-library .editorial-record-table .astryx-table-cell {
+  .workspace-table .editorial-record-table .astryx-table-cell {
     padding-block: var(--spacing-2);
   }
   /* Everything between the title and its action, whichever columns those are. */
-  .editorial-library
+  .workspace-table
     .editorial-record-table
     :is(th, td):nth-child(n + 2):nth-last-child(n + 2) {
     display: none;
   }
-  .editorial-library .editorial-mobile-status {
+  .workspace-table .editorial-mobile-status {
     display: flex;
   }
-  .editorial-library .editorial-record-table {
+  .workspace-table .editorial-record-table {
     min-width: 0 !important;
   }
-  .editorial-library .editorial-record-table th:first-child {
+  .workspace-table .editorial-record-table th:first-child {
     width: auto !important;
     min-width: 0 !important;
   }

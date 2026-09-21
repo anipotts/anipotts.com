@@ -1,3 +1,4 @@
+import { libraryPath } from "./content-library-state";
 import { editorialRecordSummary } from "./editorial-record-summary";
 import { createHash } from "node:crypto";
 import {
@@ -273,27 +274,27 @@ export function projectEditorialInventory(
 
 export function editorialInventoryGroups(records: ProjectedRecord[]) {
   return [
-    { name: "pages", href: "/content?group=pages", records },
+    { name: "pages", href: libraryPath("pages"), records },
     {
       name: "website",
-      href: "/content?group=website",
+      href: libraryPath("website"),
       records: records.filter(
         (record) => !["writing", "projects"].includes(record.collection),
       ),
     },
     {
       name: "work",
-      href: "/content?group=work",
+      href: libraryPath("work"),
       records: records.filter((record) => record.collection === "projects"),
     },
     {
       name: "writing",
-      href: "/content?group=writing",
+      href: libraryPath("writing"),
       records: records.filter((record) => record.collection === "writing"),
     },
     {
       name: "systems",
-      href: "/content?group=systems",
+      href: libraryPath("systems"),
       records: records.filter((record) => record.collection === "systemsPage"),
     },
   ];

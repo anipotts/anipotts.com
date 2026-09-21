@@ -1,17 +1,16 @@
 ---
-import EditorialLayout from "../../layouts/EditorialLayout.astro";
-import { loadEditorialInventory } from "../../lib/editorial-inventory-server";
-import { measureServerTiming } from "../../lib/server-timing";
-const inventoryProjection = await measureServerTiming(
-  Astro.locals,
-  "inventory",
-  () => loadEditorialInventory(Astro.locals.runtime?.env),
+import {
+  libraryStateUrl,
+  readLibraryState,
+} from "../../lib/content-library-state";
+// Retired: the mixed Content overview. `/` is the one overview, and the old
+// `?group=` links land on their library route with their filters kept.
+return Astro.redirect(
+  libraryStateUrl(
+    "/content",
+    Astro.url.search,
+    readLibraryState(Astro.url.search),
+  ),
+  308,
 );
 ---
-
-<EditorialLayout
-  inventoryProjection={inventoryProjection}
-  title="Content"
-  groups={inventoryProjection.groups}
-  selectedGroup={Astro.url.searchParams.get("group") ?? "pages"}
-/>

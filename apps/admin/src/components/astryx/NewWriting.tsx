@@ -1,3 +1,4 @@
+import { libraryPath } from "../../lib/content-library-state";
 import { dispatchEditorialRecordCreated } from "../../lib/editorial-inventory-events";
 import React, { useEffect, useRef, useState } from "react";
 import { VStack } from "@astryxdesign/core/VStack";
@@ -357,7 +358,7 @@ function NewWritingForm({
           <Button
             label="Cancel"
             variant="ghost"
-            href={`/content?group=${recordKind}`}
+            href={libraryPath(recordKind)}
             isDisabled={busy || loggedOut}
           />
         </HStack>

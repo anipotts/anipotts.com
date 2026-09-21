@@ -130,11 +130,14 @@ describe("responsive workspace navigation", () => {
           (heading) => heading.textContent,
         ),
       ).toEqual(["Content", "Data", "Observability"]);
-      expect(drawer?.querySelector('a[href="/life/people"]')).not.toBeNull();
+      expect(drawer?.querySelector('a[href="/"]')).not.toBeNull();
+      expect(drawer?.querySelector('a[href="/data/records"]')).not.toBeNull();
       expect(
-        drawer?.querySelector('a[href="/operations/observability?view=loops"]'),
+        drawer?.querySelector('a[href="/observability/alerts"]'),
       ).not.toBeNull();
-      expect(drawer?.querySelector('a[href="/newsletter"]')).not.toBeNull();
+      expect(
+        drawer?.querySelector('a[href^="/content/newsletter"]'),
+      ).not.toBeNull();
       // Browser Escape raises the native dialog cancel event.
       act(() =>
         drawer!.dispatchEvent(

@@ -72,7 +72,7 @@ describe("EditorialLayout Astro rendering", () => {
       const main = document.querySelector("[role=main]");
       expect(main?.textContent).toContain("Record not found");
       expect(
-        [...main.querySelectorAll('a[href="/content"]')].map(
+        [...main.querySelectorAll('a[href="/content/pages"]')].map(
           (link) => link.textContent,
         ),
       ).toContain("Back to content");
@@ -93,7 +93,7 @@ describe("EditorialLayout Astro rendering", () => {
     const main = document.querySelector("[role=main]");
     expect(main?.textContent).toContain("Record unavailable");
     expect(
-      [...main.querySelectorAll('a[href="/content"]')].map(
+      [...main.querySelectorAll('a[href="/content/pages"]')].map(
         (link) => link.textContent,
       ),
     ).toContain("Back to content");

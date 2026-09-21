@@ -20,11 +20,16 @@ describe("Website workspace navigation", () => {
   });
   it("defines only supported Website destinations", () => {
     expect(websiteNavigation.map((item) => item.href)).toEqual([
-      "/content",
-      "/content?group=website",
-      "/content?group=writing",
-      "/content?group=work",
-      "/newsletter",
+      "/content/pages",
+      "/content/writing",
+      "/content/projects",
+      "/content/newsletter",
+    ]);
+    expect(websiteNavigation.map((item) => item.label)).toEqual([
+      "Pages",
+      "Writing",
+      "Projects",
+      "Newsletter",
     ]);
   });
   it("renders one workspace shell with navigation, preserves private logout boundary", () => {

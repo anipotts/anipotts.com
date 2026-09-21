@@ -5,6 +5,30 @@ export const libraryGroups = [
   "work",
   "systems",
 ] as const;
+/** One route per Content library. The mixed `pages` overview and `systems`
+ * subset have no route of their own; they land on Pages. */
+export const libraryPaths = {
+  website: "/content/pages",
+  writing: "/content/writing",
+  work: "/content/projects",
+  newsletter: "/content/newsletter",
+} as const;
+const NEWSLETTER_PATHS = [libraryPaths.newsletter, "/newsletter"];
+/** The library a route shows, or undefined for a route that is not a library. */
+export function libraryGroupForPath(pathname: string): string | undefined {
+  if (NEWSLETTER_PATHS.includes(pathname)) return "newsletter";
+  const match = Object.entries(libraryPaths).find(
+    ([, path]) => path === pathname,
+  );
+  if (match) return match[0];
+  return pathname === "/content" ? "website" : undefined;
+}
+/** The route for a library group. Legacy groups land on Pages. */
+export function libraryPath(group: string): string {
+  return group in libraryPaths
+    ? libraryPaths[group as keyof typeof libraryPaths]
+    : libraryPaths.website;
+}
 export type LibraryState = {
   group: string;
   q: string;
@@ -29,7 +53,7 @@ const statuses = new Set([
 const origin = "https://editorial.invalid";
 export function readLibraryState(
   search: string,
-  fallbackGroup = "pages",
+  fallbackGroup = "website",
 ): LibraryState {
   const params = new URLSearchParams(search);
   const group = params.get("group") ?? fallbackGroup;
@@ -37,7 +61,7 @@ export function readLibraryState(
   return {
     group: libraryGroups.includes(group as (typeof libraryGroups)[number])
       ? group
-      : "pages",
+      : "website",
     q: (params.get("q") ?? "").slice(0, 512),
     status: statuses.has(status) ? status : "all",
     sort:
@@ -67,37 +91,35 @@ export function libraryStateUrl(
     params.delete("theme");
   const set = (key: string, value: string, omit: boolean) =>
     omit ? params.delete(key) : params.set(key, value);
-  set(
-    "group",
-    state.group,
-    state.group === "pages" || pathname === "/newsletter",
-  );
+  // The route names the library, so the group never travels as a parameter.
+  params.delete("group");
   set("q", state.q, !state.q);
   set("status", state.status, state.status === "all");
   set("sort", state.sort, state.sort === "attention");
   if (state.sections === undefined) params.delete("sections");
   else params.set("sections", [...new Set(state.sections)].sort().join(","));
   const query = params.toString();
-  return `${pathname === "/newsletter" ? pathname : "/content"}${query ? `?${query}` : ""}`;
+  const path = NEWSLETTER_PATHS.includes(pathname)
+    ? libraryPaths.newsletter
+    : libraryPath(state.group);
+  return `${path}${query ? `?${query}` : ""}`;
 }
 /** Only a library destination, never an auth endpoint, record, or external redirect. */
 export function libraryReturnPath(value: string | null | undefined): string {
+  const fallback = libraryPaths.website;
   if (!value || !value.startsWith("/") || /[\\\u0000-\u0020]/.test(value))
-    return "/content";
+    return fallback;
   try {
     const url = new URL(value, origin);
-    if (
-      url.origin !== origin ||
-      !["/content", "/newsletter"].includes(url.pathname)
-    )
-      return "/content";
+    const group = libraryGroupForPath(url.pathname);
+    if (url.origin !== origin || !group) return fallback;
     return libraryStateUrl(
       url.pathname,
       url.search,
-      readLibraryState(url.search),
+      readLibraryState(url.search, group),
     );
   } catch {
-    return "/content";
+    return fallback;
   }
 }
 export function recordLibraryHref(href: string, returnTo: string): string {

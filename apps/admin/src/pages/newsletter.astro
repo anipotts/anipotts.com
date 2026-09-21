@@ -1,24 +1,16 @@
 ---
-import { getCollection } from "astro:content";
-import EditorialLayout from "../layouts/EditorialLayout.astro";
-import { recordUpdate } from "../lib/editorial-content";
-import { measureServerTiming } from "../lib/server-timing";
-const drafts = await measureServerTiming(Astro.locals, "newsletter", () =>
-  getCollection("newsletterDrafts"),
+import {
+  libraryStateUrl,
+  readLibraryState,
+} from "../lib/content-library-state";
+// Retired: the Newsletter library moved to /content/newsletter. Draft editor
+// URLs under /newsletter/ stay where they are.
+return Astro.redirect(
+  libraryStateUrl(
+    "/newsletter",
+    Astro.url.search,
+    readLibraryState(Astro.url.search),
+  ),
+  308,
 );
-const groups = [
-  {
-    name: "drafts",
-    href: "/newsletter",
-    records: drafts.map(({ data, id }) => ({
-      title: data.title,
-      summary: data.summary,
-      status: data.status,
-      href: `/newsletter/${data.slug}`,
-      updated: recordUpdate("newsletterDrafts", id),
-    })),
-  },
-];
 ---
-
-<EditorialLayout title="Newsletter" groups={groups} />

@@ -5,6 +5,7 @@ import {
 } from "../../lib/workspace-navigation";
 import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
+  libraryGroupForPath,
   libraryReturnPath,
   libraryStateUrl,
   readLibraryState,
@@ -64,15 +65,16 @@ export function workspaceSelection(
   if (kind === "writing") return "writing";
   if (kind === "work") return "work";
   if (kind) return "website";
-  return group === "systems" ? "website" : (group ?? "pages");
+  // The mixed overview and the systems subset have no route of their own.
+  return !group || group === "pages" || group === "systems" ? "website" : group;
 }
 
 /** Remembers the last page of each workspace for this tab, and returns the
- * Content library query last used, so the Content pages keep their filters and
+ * Content library last used, so the Content pages keep their filters and
  * ordering when reached from another workspace. Only navigation preferences
  * are kept (see workspaceReturnPath). */
 export function useWorkspaceMemory(workspace: Workspace) {
-  const [contentSearch, setContentSearch] = useState("");
+  const [contentLibrary, setContentLibrary] = useState("");
   useEffect(() => {
     const sync = () => {
       try {
@@ -92,7 +94,7 @@ export function useWorkspaceMemory(workspace: Workspace) {
           sessionStorage.getItem("admin:navigation:content") ?? "",
         );
         const url = new URL(content, location.origin);
-        setContentSearch(url.pathname === "/content" ? url.search : "");
+        setContentLibrary(libraryGroupForPath(url.pathname) ? content : "");
       } catch {
         /* Navigation works without storage. */
       }
@@ -107,7 +109,7 @@ export function useWorkspaceMemory(workspace: Workspace) {
       window.removeEventListener("editorial:library-state", sync);
     };
   }, [workspace]);
-  return contentSearch;
+  return contentLibrary;
 }
 
 /** The phone and tablet header. It sits in AppShell's banner slot, which the
@@ -318,16 +320,17 @@ export function EditorialWorkspaceShell({
   // False until the client has chosen the rail. Until then the prepaint
   // script's choice on the root element holds the sidebar geometry.
   const [railReady, setRailReady] = useState(false);
-  const rememberedContentSearch = useWorkspaceMemory(workspace);
-  const [pageSearch, setPageSearch] = useState("");
+  const rememberedContent = useWorkspaceMemory(workspace);
+  const [pageLibrary, setPageLibrary] = useState("");
   useEffect(() => {
     const sync = () => {
-      const params = new URLSearchParams(window.location.search);
-      const returnTo = params.get("returnTo");
-      setPageSearch(
+      const returnTo = new URLSearchParams(window.location.search).get(
+        "returnTo",
+      );
+      setPageLibrary(
         returnTo
-          ? new URL(libraryReturnPath(returnTo), window.location.origin).search
-          : window.location.search,
+          ? libraryReturnPath(returnTo)
+          : window.location.pathname + window.location.search,
       );
     };
     sync();
@@ -341,20 +344,22 @@ export function EditorialWorkspaceShell({
   // On a Content page the library state is the page's own. Elsewhere it is the
   // state Content was last left in, so returning keeps filters and ordering.
   const onContentPage = workspace === "content" && currentRoute === undefined;
-  const librarySearch = onContentPage ? pageSearch : rememberedContentSearch;
+  const libraryUrl = new URL(
+    (onContentPage ? pageLibrary : rememberedContent) || "/content/pages",
+    "https://admin.invalid",
+  );
   const destination = (id: string) => {
-    const current = readLibraryState(librarySearch);
-    const currentGroup =
-      onContentPage && area === "newsletter" ? "newsletter" : current.group;
+    const currentGroup = libraryGroupForPath(libraryUrl.pathname);
+    const current = readLibraryState(libraryUrl.search, currentGroup);
     // Sections and statuses describe one library's records. A different library
     // starts with its complete set, while keeping the useful query and ordering.
     return libraryStateUrl(
-      id === "newsletter" ? "/newsletter" : "/content",
-      librarySearch,
+      id === "newsletter" ? "/content/newsletter" : "/content",
+      libraryUrl.search,
       {
         ...current,
         ...(id !== currentGroup ? { status: "all", sections: undefined } : {}),
-        group: id === "newsletter" ? "pages" : id,
+        group: id,
       },
     );
   };

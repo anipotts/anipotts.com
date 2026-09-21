@@ -1,0 +1,186 @@
+/* The workspace kit. Tables reuse the Content library rules in
+   editorial.css (`.workspace-table`); this file holds the rest. Depth comes
+   from surface tint and spacing, never from rules. */
+.workspace-page {
+  width: 100%;
+  min-width: 0;
+}
+.workspace-page-header {
+  min-height: var(--spacing-9);
+}
+.workspace-page-title {
+  min-width: 0;
+}
+/* Times, counts and codes line up in columns. */
+.workspace-time,
+.workspace-table .astryx-timestamp,
+.workspace-figure,
+.admin-table-footer {
+  font-variant-numeric: tabular-nums;
+}
+.workspace-time {
+  white-space: nowrap;
+}
+.workspace-table-frame {
+  min-width: 0;
+}
+/* Workspace themes tint Astryx tables; every admin table sits on the same
+   raised surface instead. StyleX sets the fill, so this outranks it. */
+.workspace-table .astryx-base-table:not(#\#):not(#\#) {
+  background: transparent;
+}
+.workspace-table .workspace-row-title {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  min-height: var(--spacing-7);
+  line-height: var(--spacing-7);
+}
+.workspace-table .workspace-row-secondary {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.workspace-state {
+  width: max-content;
+  max-width: 100%;
+}
+
+/* A notice stands where the table would be, on the same raised surface. */
+.workspace-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  padding: var(--spacing-5) var(--spacing-4);
+  background: var(--color-background-surface);
+  border-radius: var(--radius-container);
+}
+.workspace-notice-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--color-text-secondary);
+}
+.workspace-notice[data-kind="error"] .workspace-notice-icon {
+  color: var(--color-text-warning, var(--color-text-secondary));
+}
+.workspace-notice-text {
+  min-width: 0;
+  max-width: 40rem;
+}
+.workspace-notice-title:not(#\#) {
+  font-size: var(--font-size-body, 15px);
+  line-height: var(--spacing-6);
+}
+.workspace-notice-action {
+  margin-block-start: var(--spacing-2);
+}
+
+/* Skeleton rows keep the table's row height and gutters, so nothing moves
+   when the rows arrive. */
+.workspace-skeleton {
+  padding-block: var(--spacing-1);
+}
+.workspace-skeleton-row {
+  min-height: var(--spacing-9);
+  padding-inline: var(--spacing-4);
+}
+.workspace-skeleton-lead {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.workspace-skeleton-lead-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+@media (max-width: 768px) {
+  .workspace-skeleton-cell {
+    display: none;
+  }
+}
+
+/* A record's own surface, beside its list on wide screens. */
+.workspace-detail {
+  min-width: 0;
+  padding: var(--spacing-5);
+  background: var(--color-background-surface);
+  border-radius: var(--radius-container);
+}
+.workspace-detail:focus-visible {
+  outline: 2px solid var(--color-focus-ring, var(--color-accent));
+  outline-offset: 2px;
+}
+.workspace-detail-body {
+  max-width: 68ch;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: var(--line-height-relaxed, 1.65);
+}
+
+/* Classification swatch. Colour carries the tier; the name is the tooltip
+   and accessible name. */
+.workspace-tier {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: var(--spacing-3);
+  height: var(--spacing-3);
+  border-radius: var(--radius-full, 999px);
+  background: var(--workspace-tier, var(--color-text-secondary));
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+  vertical-align: middle;
+}
+.workspace-tier[data-tier="open"] {
+  --workspace-tier: #4f9a74;
+}
+.workspace-tier[data-tier="restricted"] {
+  --workspace-tier: #c48a3a;
+}
+.workspace-tier[data-tier="private"],
+.workspace-tier[data-tier="closed"] {
+  --workspace-tier: #b35a5a;
+}
+.workspace-tier[data-tier="gold"] {
+  --workspace-tier: #c9a13b;
+}
+.workspace-tier[data-tier="silver"] {
+  --workspace-tier: #9aa3ad;
+}
+.workspace-tier[data-tier="bronze"] {
+  --workspace-tier: #a86f45;
+}
+
+/* Two panes on wide screens: the list and the open record. */
+.workspace-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--spacing-5);
+  align-items: start;
+}
+@media (min-width: 1440px) {
+  .workspace-split[data-detail-open="true"] {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 30rem);
+  }
+}
+@media (max-width: 1439px) {
+  .workspace-split[data-detail-open="true"] > .workspace-split-list {
+    display: none;
+  }
+}
+
+/* The overview's host strip: one tile per host on the page surface. */
+.workspace-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  gap: var(--spacing-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.workspace-tile {
+  min-width: 0;
+  padding: var(--spacing-4);
+  background: var(--color-background-surface);
+  border-radius: var(--radius-container);
+}

@@ -1,4 +1,8 @@
-import { libraryReturnPath } from "../../lib/content-library-state";
+import {
+  libraryPaths,
+  libraryReturnPath,
+} from "../../lib/content-library-state";
+import { WorkspacePage } from "../workspace/Workspace";
 import {
   RECORD_CREATED_EVENT,
   RECORD_SAVED_EVENT,
@@ -226,12 +230,12 @@ export function EditorialApp({
                   libraryBack ??
                   review?.back ??
                   (area === "newsletter"
-                    ? "/newsletter"
+                    ? libraryPaths.newsletter
                     : editorRecord?.kind === "writing" || newWriting
-                      ? "/content?group=writing"
+                      ? libraryPaths.writing
                       : editorRecord?.kind === "work" || newProject
-                        ? "/content?group=work"
-                        : "/content?group=website")
+                        ? libraryPaths.work
+                        : libraryPaths.website)
                 }
               >
                 {area === "newsletter"
@@ -253,23 +257,16 @@ export function EditorialApp({
             !editorRecord &&
             !editHome &&
             (groups || review || children || newWriting || newProject) && (
-              <HStack gap={3} hAlign="between" vAlign="center" wrap="wrap">
-                <Heading level={1}>
-                  {newProject
+              <WorkspacePage
+                title={
+                  newProject
                     ? "New project"
                     : newWriting
                       ? "New article"
-                      : groups && selectedGroup === "writing"
-                        ? "Writing"
-                        : groups && selectedGroup === "website"
-                          ? "Pages"
-                          : groups &&
-                              area === "content" &&
-                              (!selectedGroup || selectedGroup === "pages")
-                            ? "Overview"
-                            : title}
-                </Heading>
-                {groups &&
+                      : title
+                }
+                actions={
+                  groups &&
                   ["writing", "work"].includes(selectedGroup ?? "") && (
                     <Button
                       label={
@@ -283,8 +280,9 @@ export function EditorialApp({
                       variant="primary"
                       size="sm"
                     />
-                  )}
-              </HStack>
+                  )
+                }
+              />
             )}
           {inventoryError && (
             <Banner
@@ -433,7 +431,11 @@ export function EditorialApp({
                         ? "Back to drafts"
                         : "Back to content"
                     }
-                    href={area === "newsletter" ? "/newsletter" : "/content"}
+                    href={
+                      area === "newsletter"
+                        ? libraryPaths.newsletter
+                        : libraryPaths.website
+                    }
                   />
                 }
               />

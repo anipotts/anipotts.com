@@ -38,9 +38,11 @@ const initialMode = initialAdminTheme(
   Astro.url.searchParams.get("theme"),
   Astro.cookies.get("ap-theme")?.value,
 );
-const area = Astro.url.pathname.startsWith("/newsletter")
-  ? "newsletter"
-  : "content";
+const area =
+  Astro.url.pathname.startsWith("/newsletter") ||
+  Astro.url.pathname === "/content/newsletter"
+    ? "newsletter"
+    : "content";
 const {
   inventoryProjection: suppliedInventory,
   hasContent = false,

@@ -75,48 +75,6 @@ describe("Content library", () => {
       "New article",
     );
   });
-  it("offers recent acknowledged work before the attention-ordered library", () => {
-    const html = renderToStaticMarkup(
-      <ContentLibrary
-        groups={[
-          {
-            name: "pages",
-            href: "/content",
-            records: [
-              {
-                title: "Older local work",
-                href: "/content/writing/older",
-                status: "draft",
-                updated: { at: "2026-09-10T12:00:00Z", source: "local" },
-              },
-              {
-                title: "Fresh draft",
-                href: "/content/writing/fresh",
-                status: "draft",
-                updated: { at: "2026-09-11T12:00:00Z", source: "private" },
-              },
-              {
-                title: "Git update",
-                href: "/content/writing/git",
-                status: "published",
-                updated: { at: "2026-09-12T12:00:00Z", source: "git" },
-              },
-            ],
-          },
-        ]}
-      />,
-    );
-    expect(html).toContain("Recently edited");
-    expect(html).toContain("Needs attention");
-    const resume = html.slice(
-      html.indexOf("Recently edited"),
-      html.indexOf('placeholder="Search records"'),
-    );
-    expect(resume.indexOf("Fresh draft")).toBeLessThan(
-      resume.indexOf("Older local work"),
-    );
-    expect(resume).not.toContain("Git update");
-  });
 });
 
 describe("Quiet Precision library rows", () => {
@@ -149,7 +107,7 @@ describe("Quiet Precision library rows", () => {
     expect(html).toContain('aria-label="Review changes: ChainedChat"');
     expect(html).toContain("view=review");
     expect(html).toContain(
-      "returnTo=%2Fcontent%3Fgroup%3Dwork%26q%3DChained%26sort%3Dupdated",
+      "returnTo=%2Fcontent%2Fprojects%3Fq%3DChained%26sort%3Dupdated",
     );
     expect(html).toContain("editorial-record-icon");
     expect(html).toContain("editorial-record-state");
@@ -214,7 +172,7 @@ describe("Quiet Precision library rows", () => {
     expect(html).not.toContain('aria-label="Review changes:');
     expect(html).not.toContain("Up to date");
   });
-  it("uses compact linked recent rows before a shared search and filter toolbar", () => {
+  it("renders one shared search and filter toolbar before the table, with no resume strip", () => {
     const records = ["One", "Two", "Three"].map((title, index) => ({
       title,
       href: `/content/writing/${title.toLowerCase()}`,
@@ -229,10 +187,9 @@ describe("Quiet Precision library rows", () => {
         groups={[{ name: "pages", href: "/content", records }]}
       />,
     );
-    expect(html).toContain("editorial-resume-list");
-    expect(html.match(/editorial-resume-row/g)).toHaveLength(3);
-    expect(html).not.toContain("editorial-resume-grid");
-    expect(html).not.toContain("editorial-resume-item");
+    expect(html).not.toContain("editorial-resume");
+    expect(html).not.toContain("Recently edited</");
+    expect(html).toContain("workspace-table");
     expect(html.indexOf("editorial-library-toolbar")).toBeLessThan(
       html.indexOf("editorial-library-search"),
     );
@@ -286,14 +243,14 @@ describe("Quiet Precision library rows", () => {
   });
 });
 
-describe("Recently edited actions", () => {
-  it("opens changed public records in review and preserves the overview return path", () => {
+describe("Row actions", () => {
+  it("opens changed public records in review and returns to the library route", () => {
     const html = renderToStaticMarkup(
       <ContentLibrary
         groups={[
           {
             name: "pages",
-            href: "/content",
+            href: "/content/pages",
             records: [
               {
                 title: "A revised project",
@@ -307,19 +264,11 @@ describe("Recently edited actions", () => {
         ]}
       />,
     );
-    const recent = html.slice(
-      html.indexOf('aria-label="Recently edited"'),
-      html.indexOf('placeholder="Search records"'),
+    expect(html).toContain(
+      'href="/content/projects/example?returnTo=%2Fcontent%2Fpages&amp;view=review"',
     );
-    expect(recent).toContain(
-      'href="/content/projects/example?returnTo=%2Fcontent&amp;view=review"',
-    );
-    expect(recent).toContain("Review changes");
-    expect(recent).not.toContain("Continue draft");
-    // Timestamp remains outside the link, avoiding nested keyboard targets.
-    expect(recent.indexOf("<time")).toBeLessThan(
-      recent.indexOf('class="editorial-resume-link"'),
-    );
+    expect(html).toContain("Review changes: A revised project");
+    expect(html).not.toContain("Continue draft");
   });
 
   it("names the record kind even when a summary replaces the section", () => {

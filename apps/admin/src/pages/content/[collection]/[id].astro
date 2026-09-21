@@ -14,6 +14,7 @@ import {
   parseEditorialSource,
 } from "@anipotts/content/editorial/source";
 import { productionEditor } from "../../../lib/editorial-server";
+import { libraryPath } from "../../../lib/content-library-state";
 import { startServerTiming } from "../../../lib/server-timing";
 const stopRecordTiming = startServerTiming(Astro.locals, "record");
 const inventory = await editorialInventory();
@@ -89,7 +90,7 @@ const publicPath =
 const review: Review | undefined = entry
   ? {
       updated: recordUpdate(entry.collection, entry.id),
-      back: `/content?group=${project ? "work" : writing ? "writing" : "website"}`,
+      back: libraryPath(project ? "work" : writing ? "writing" : "website"),
       status:
         project?.public_state ??
         writing?.status ??
