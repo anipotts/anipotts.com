@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "@astryxdesign/core/Button";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
@@ -29,6 +30,7 @@ export function ProjectMedia({
   const identity = (data.identity ?? {}) as Record<string, unknown>;
   const preview = data.preview_media as
     Record<string, unknown> | null | undefined;
+  const [busy, setBusy] = useState(false);
   const pending = useRef({ logo: false, preview: false });
   const notify = useRef(onPendingChange);
   notify.current = onPendingChange;
@@ -44,10 +46,12 @@ export function ProjectMedia({
   }, []);
   const logoPending = useCallback((value: boolean) => {
     pending.current.logo = value;
+    setBusy(value || pending.current.preview);
     notify.current(value || pending.current.preview);
   }, []);
   const previewPending = useCallback((value: boolean) => {
     pending.current.preview = value;
+    setBusy(value || pending.current.logo);
     notify.current(value || pending.current.logo);
   }, []);
   const status = (field: string) =>
@@ -72,6 +76,7 @@ export function ProjectMedia({
           />
         )}
         <ArticleImageUpload
+          key={String(identity.logo_src ?? "no-logo")}
           disabled={disabled}
           existingSrc={
             logoSrc && typeof identity.logo_src === "string"
@@ -81,6 +86,15 @@ export function ProjectMedia({
           onUploaded={(src) => upload("logo", src)}
           onPendingChange={logoPending}
         />
+        {Boolean(identity.logo_src) && (
+          <Button
+            label="Remove logo"
+            variant="ghost"
+            size="sm"
+            isDisabled={disabled || busy}
+            onClick={() => onEdit({ type: "remove", slot: "logo" })}
+          />
+        )}
         <TextInput
           label="Logo alt text"
           value={String(identity.logo_alt ?? "")}
@@ -109,6 +123,7 @@ export function ProjectMedia({
           </Text>
         )}
         <ArticleImageUpload
+          key={String(preview?.src ?? "no-preview")}
           disabled={disabled}
           existingSrc={
             previewSrc &&
@@ -122,6 +137,13 @@ export function ProjectMedia({
         />
         {preview && (
           <>
+            <Button
+              label="Remove preview"
+              variant="ghost"
+              size="sm"
+              isDisabled={disabled || busy}
+              onClick={() => onEdit({ type: "remove", slot: "preview" })}
+            />
             <TextInput
               label="Preview alt text"
               value={String(preview.alt ?? "")}

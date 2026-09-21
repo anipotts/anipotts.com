@@ -111,3 +111,18 @@ it("uses private upload previews and validates local paths before resolving exis
   ])
     expect(projectMediaPreview(unsafe, "https://anipotts.com")).toBeUndefined();
 });
+
+it("removes optional media references without changing unrelated content", () => {
+  let source = newProjectSource(record.id, "Keep title");
+  source = setEditorialField(source, ["identity", "logo_tone"], "adaptive");
+  source = editProjectMedia(source, { type: "upload", slot: "logo", src });
+  source = editProjectMedia(source, { type: "logo-alt", value: "Logo" });
+  source = editProjectMedia(source, { type: "upload", slot: "preview", src });
+  source = editProjectMedia(source, { type: "remove", slot: "logo" });
+  expect(data(source).identity).toEqual({ logo_tone: "adaptive" });
+  expect(data(source).preview_media.src).toBe(src);
+  source = editProjectMedia(source, { type: "remove", slot: "preview" });
+  expect(data(source).preview_media).toBeNull();
+  expect(data(source).title).toBe("Keep title");
+  expect(validateEditorialSource(record, source).success).toBe(true);
+});

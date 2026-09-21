@@ -7,6 +7,7 @@ import {
 } from "./editorial-media";
 
 export type ProjectMediaEdit =
+  | { type: "remove"; slot: "logo" | "preview" }
   | { type: "upload"; slot: "logo" | "preview"; src: string }
   | { type: "logo-alt"; value: string }
   | { type: "preview-alt" | "preview-caption"; value: string }
@@ -34,7 +35,12 @@ export function editProjectMedia(
   const parsed = parseEditorialSource(source);
   const data = parsed.data as Record<string, unknown>;
   const preview = data.preview_media;
-  if (edit.type === "upload") {
+  if (edit.type === "remove") {
+    if (edit.slot === "logo") {
+      parsed.document.deleteIn(["identity", "logo_src"]);
+      parsed.document.deleteIn(["identity", "logo_alt"]);
+    } else parsed.document.set("preview_media", null);
+  } else if (edit.type === "upload") {
     if (
       !edit.src.startsWith(editorialMediaPrefix) ||
       !editorialMediaId.test(edit.src.slice(editorialMediaPrefix.length))

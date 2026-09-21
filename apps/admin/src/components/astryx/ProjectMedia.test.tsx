@@ -3,6 +3,7 @@ import React, { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import { ProjectMedia } from "./ProjectMedia";
+import { editProjectMedia } from "../../lib/project-media";
 import { newProjectSource } from "../../lib/project-draft";
 const uploads = vi.hoisted(() => ({ props: [] as any[] }));
 vi.mock("./ArticleImageUpload", () => ({
@@ -61,4 +62,41 @@ it("emits source-independent upload mutations and aggregates simultaneous pendin
   act(() => logo.onUploaded(src));
   expect(onEdit).toHaveBeenCalledTimes(1);
   expect(pending).toHaveBeenLastCalledWith(false);
+});
+
+it("makes reference removal explicit and unavailable during image processing", async () => {
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  const onEdit = vi.fn();
+  const src = `/images/editorial/${"b".repeat(64)}.png`;
+  let source = editProjectMedia(newProjectSource("example"), {
+    type: "upload",
+    slot: "logo",
+    src,
+  });
+  source = editProjectMedia(source, { type: "upload", slot: "preview", src });
+  await act(async () =>
+    root.render(
+      <ProjectMedia
+        source={source}
+        errors={new Map()}
+        siteUrl="https://anipotts.com"
+        onEdit={onEdit}
+        onPendingChange={() => {}}
+      />,
+    ),
+  );
+  const remove = () =>
+    [...host.querySelectorAll("button")].find(
+      (button) => button.textContent === "Remove preview",
+    )!;
+  expect(remove()).toBeTruthy();
+  act(() => uploads.props[0].onPendingChange(true));
+  expect(remove().disabled).toBe(true);
+  act(() => remove().click());
+  expect(onEdit).not.toHaveBeenCalled();
+  act(() => uploads.props[0].onPendingChange(false));
+  act(() => remove().click());
+  expect(onEdit).toHaveBeenCalledWith({ type: "remove", slot: "preview" });
+  act(() => root.unmount());
 });
