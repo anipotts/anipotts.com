@@ -106,7 +106,7 @@ describe("editorial catalog", () => {
     expect(html).toContain(
       'href="/content/writing/music?returnTo=%2Fcontent%2Fpages"',
     );
-    expect(html).toContain('data-format="relative_short"');
+    expect(html).toContain('class="workspace-time"');
     expect(html).toContain("Local edit");
     expect(html).toContain('dateTime="2026-09-08T10:00:00.000Z"');
     expect(html).not.toContain("·");

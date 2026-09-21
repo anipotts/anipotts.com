@@ -367,7 +367,7 @@ export function opsServices(snapshot: OpsSnapshot): OpsServiceView[] {
  * System's sampler rewrites the snapshot continuously. A `generated_at` older
  * than this means the sampler stopped, and every value is only last known.
  */
-export const OPS_SAMPLER_STALE_SECONDS = 3 * 60;
+export const OPS_SAMPLER_STALE_SECONDS = 60;
 
 /** Seconds since System generated the snapshot, never negative. */
 export function opsSnapshotAge(snapshot: OpsSnapshot, now: number): number {

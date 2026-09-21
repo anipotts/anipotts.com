@@ -26,10 +26,6 @@ import { StatusDot } from "@astryxdesign/core/StatusDot";
 import { Table, pixel, proportional } from "@astryxdesign/core/Table";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
-import {
-  Timestamp,
-  type TimestampTooltipEntry,
-} from "@astryxdesign/core/Timestamp";
 import { Token } from "@astryxdesign/core/Token";
 import { VStack } from "@astryxdesign/core/VStack";
 import {
@@ -39,6 +35,7 @@ import {
   WarningCircleIcon,
   type Icon,
 } from "@phosphor-icons/react";
+import { relativeAgo, useLiveText } from "../../lib/live-clock";
 import "./workspace.css";
 
 /** Page title, one supporting line and the page's own actions. */
@@ -350,6 +347,10 @@ export function RowTitle({
   controls,
   secondary,
   mobile,
+  external = false,
+  linkLabel,
+  tooltip,
+  anchorId,
 }: {
   icon: Icon;
   /** The row's kind, as a tooltip and for assistive technology. */
@@ -365,6 +366,14 @@ export function RowTitle({
   controls?: string;
   secondary?: ReactNode;
   mobile?: ReactNode;
+  /** The destination is outside admin: it opens in a new tab. */
+  external?: boolean;
+  /** The link's accessible name when it differs from the title. */
+  linkLabel?: string;
+  /** Extra detail on hover, kept out of the row so rows stay one line. */
+  tooltip?: string;
+  /** An id for the row, so other pages can link to it. */
+  anchorId?: string;
 }) {
   const select = onSelect
     ? (event: React.MouseEvent<HTMLElement>) => {
@@ -383,7 +392,12 @@ export function RowTitle({
     : undefined;
   const label = <span className="record-link-text">{title}</span>;
   return (
-    <HStack gap={3} vAlign="center" className="editorial-record-heading">
+    <HStack
+      gap={3}
+      vAlign="center"
+      className="editorial-record-heading"
+      id={anchorId}
+    >
       <span className="editorial-record-icon" title={kind}>
         <Glyph weight="regular" size={20} aria-hidden="true" />
         <Text className="sr-only">{kind}</Text>
@@ -394,6 +408,11 @@ export function RowTitle({
             href={href}
             className="record-link"
             data-row-link=""
+            target={external ? "_blank" : undefined}
+            rel={external ? "noopener noreferrer" : undefined}
+            referrerPolicy={external ? "no-referrer" : undefined}
+            aria-label={linkLabel}
+            title={tooltip}
             onClick={select}
             aria-current={onSelect && isPressed ? "true" : undefined}
             aria-controls={controls}
@@ -694,48 +713,67 @@ export function DetailPanel({
   );
 }
 
-const TIME_TOOLTIP: ReadonlyArray<TimestampTooltipEntry> = [
-  { label: "Local", timezoneID: "local", format: "full" },
-  { label: "UTC", timezoneID: "UTC", format: "full" },
-];
+const ABSOLUTE = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+const DATE_ONLY = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
 
-/** A time as people read it: relative, with the absolute local and UTC time
- * on hover and focus. Never a raw ISO string. */
+/** The absolute time, local and UTC, for a tooltip and accessible name. */
+export function absoluteTime(ms: number): string {
+  return `${ABSOLUTE.format(ms)} local, ${new Date(ms).toISOString().slice(0, 16).replace("T", " ")} UTC`;
+}
+
+function LiveAgo({ at }: { at: number }) {
+  const text = useLiveText((now) => relativeAgo(at, now), Date.now());
+  return <>{text}</>;
+}
+
+/** A time as people read it: relative and live from the one shared clock,
+ * with the absolute local and UTC time as its tooltip and accessible name.
+ * Never a raw ISO string. */
 function RelativeTimeCell({
   value,
   empty = "Not recorded",
-  format = "relative_short",
+  format = "relative",
+  label,
 }: {
-  value: string | null | undefined;
+  value: string | number | null | undefined;
   empty?: string;
-  format?: "relative_short" | "date_time" | "date";
+  format?: "relative" | "date";
+  /** What the time is, such as "Local edit", before the absolute time. */
+  label?: string;
 }) {
-  if (!value || !Number.isFinite(Date.parse(value)))
+  const ms = typeof value === "number" ? value : Date.parse(value ?? "");
+  if (value == null || value === "" || !Number.isFinite(ms))
     return (
       <Text color="secondary" className="workspace-time">
         {empty}
       </Text>
     );
+  const absolute = label ? `${label}: ${absoluteTime(ms)}` : absoluteTime(ms);
   return (
-    <span className="workspace-time">
-      <Timestamp
-        value={value}
-        format={format}
-        isLive={format === "relative_short"}
-        tooltipEntries={TIME_TOOLTIP}
-      />
-    </span>
+    <time
+      dateTime={new Date(ms).toISOString()}
+      title={absolute}
+      aria-label={format === "date" ? undefined : absolute}
+      className="workspace-time"
+      suppressHydrationWarning
+    >
+      {format === "date" ? DATE_ONLY.format(ms) : <LiveAgo at={ms} />}
+    </time>
   );
 }
 
-/** Skips renders while the value is unchanged; Timestamp keeps its own
- * live clock, so relative text still advances. */
+/** Skips renders while the value is unchanged; the shared clock still
+ * advances the relative text. */
 export const RelativeTime = memo(
   RelativeTimeCell,
   (previous, next) =>
     previous.value === next.value &&
     previous.empty === next.empty &&
-    previous.format === next.format,
+    previous.format === next.format &&
+    previous.label === next.label,
 );
 
 /** A record's classification as a small swatch. The name is the swatch's

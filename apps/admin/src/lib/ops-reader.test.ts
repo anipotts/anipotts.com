@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+const realSetTimeout = globalThis.setTimeout;
 import sample from "../fixtures/ops_v1.sample.json";
 import { createPrivateReaderSession } from "./private-reader-client";
 import {
@@ -9,6 +10,9 @@ import { PRIVATE_READER_OPS_PATH } from "./private-reader-credential";
 import { OPS_V1_BOUNDS, OpsSnapshotError } from "./ops-v1";
 import {
   OPS_CREDENTIAL_ENDPOINT,
+  OPS_EVENTS_POLL_MS,
+  OPS_EVENTS_SHORT_HOLD_MS,
+  OPS_EVENTS_WAIT_S,
   OPS_POLL_MS,
   OPS_SNAPSHOT_PATH,
   createOpsStatusController,
@@ -429,29 +433,39 @@ describe("ops events polling", () => {
     );
   function eventsHarness(
     pages: Record<number, () => Response | Promise<Response>>,
+    extra: { eventsWaitS?: number | null } = { eventsWaitS: null },
   ) {
     const afters: number[] = [];
-    const fetch = vi.fn(async (input: RequestInfo | URL) => {
-      const url = new URL(String(input), "https://admin.invalid");
-      if (String(input) === OPS_CREDENTIAL_ENDPOINT)
-        return Response.json({
-          credential: "cred",
-          scope: ["ops:read"],
-          expiresAt: Math.floor(Date.now() / 1000) + 60,
-        });
-      if (url.pathname === OPS_SNAPSHOT_PATH)
-        return new Response(body, {
-          headers: { "content-type": "application/json", etag: '"v1"' },
-        });
-      expect(url.origin).toBe(PRIVATE_READER_ORIGIN);
-      expect(url.pathname).toBe("/v1/ops/events");
-      expect([...url.searchParams.keys()]).toEqual(["after", "limit"]);
-      const after = Number(url.searchParams.get("after"));
-      afters.push(after);
-      const reply = pages[after];
-      if (!reply) throw new TypeError("network down");
-      return reply();
-    }) as unknown as typeof globalThis.fetch;
+    const waits: Array<string | null> = [];
+    const signals: AbortSignal[] = [];
+    const fetch = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(String(input), "https://admin.invalid");
+        if (init?.signal && url.pathname === "/v1/ops/events")
+          signals.push(init.signal);
+        if (String(input) === OPS_CREDENTIAL_ENDPOINT)
+          return Response.json({
+            credential: "cred",
+            scope: ["ops:read"],
+            expiresAt: Math.floor(Date.now() / 1000) + 60,
+          });
+        if (url.pathname === OPS_SNAPSHOT_PATH)
+          return new Response(body, {
+            headers: { "content-type": "application/json", etag: '"v1"' },
+          });
+        expect(url.origin).toBe(PRIVATE_READER_ORIGIN);
+        expect(url.pathname).toBe("/v1/ops/events");
+        expect(
+          [...url.searchParams.keys()].filter((key) => key !== "wait"),
+        ).toEqual(["after", "limit"]);
+        const after = Number(url.searchParams.get("after"));
+        afters.push(after);
+        waits.push(url.searchParams.get("wait"));
+        const reply = pages[after];
+        if (!reply) throw new TypeError("network down");
+        return reply();
+      },
+    ) as unknown as typeof globalThis.fetch;
     const session = createPrivateReaderSession({
       fetch,
       csrf: async () => "csrf-token",
@@ -462,10 +476,19 @@ describe("ops events polling", () => {
       fetch,
       isHidden: () => hidden,
       events: true,
+      ...extra,
     });
-    return { controller, afters };
+    return { controller, afters, waits, signals };
   }
-  const flush = () => vi.advanceTimersByTimeAsync(0);
+  // The snapshot read, then the events loop it starts.
+  // Response bodies resolve on real macrotasks, so each round lets one run
+  // before the fake clock moves again.
+  const flush = async () => {
+    for (let i = 0; i < 12; i++) {
+      await vi.advanceTimersByTimeAsync(0);
+      await new Promise((resolve) => realSetTimeout(resolve, 0));
+    }
+  };
   beforeEach(() => {
     hidden = false;
   });
@@ -484,9 +507,62 @@ describe("ops events polling", () => {
     expect(events.cursor).toBe(3);
     expect(events.recent.map((event) => event.seq)).toEqual([1, 2, 3]);
     expect(controller.getState().eventsStale).toBe(false);
-    // The next poll continues from the last seq held, never from zero.
-    await vi.advanceTimersByTimeAsync(OPS_POLL_MS);
+    // The next poll, 5 s later, continues from the last seq held.
+    await vi.advanceTimersByTimeAsync(OPS_EVENTS_POLL_MS - 1);
+    expect(afters).toEqual([0, 2]);
+    await vi.advanceTimersByTimeAsync(1);
     expect(afters).toEqual([0, 2, 3]);
+    controller.dispose();
+  });
+
+  it("polls events every 5 s while visible, pauses hidden, reads at once on show", async () => {
+    const { controller, afters } = eventsHarness({
+      0: () => page([item(1)], null),
+      1: () => page([], null),
+    });
+    controller.start();
+    await flush();
+    expect(afters).toEqual([0]);
+    await vi.advanceTimersByTimeAsync(OPS_EVENTS_POLL_MS * 2);
+    expect(afters).toEqual([0, 1, 1]);
+    hidden = true;
+    controller.visibilityChanged();
+    await vi.advanceTimersByTimeAsync(OPS_EVENTS_POLL_MS * 4);
+    expect(afters).toEqual([0, 1, 1]);
+    hidden = false;
+    controller.visibilityChanged();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(afters).toEqual([0, 1, 1, 1]);
+    controller.dispose();
+  });
+
+  it("applies a new transition on the next 5 s poll with no reload", async () => {
+    const transition = (seq: number, to: string) => ({
+      seq,
+      at: "2026-09-21T17:59:00Z",
+      kind: "transition",
+      subject: "pc.writer",
+      from_state: "ok",
+      to_state: to,
+      status: null,
+      ms: null,
+      detail: "last pass failed",
+    });
+    let later: unknown[] = [];
+    const { controller } = eventsHarness({
+      0: () => page([item(1)], null),
+      1: () => page(later, null),
+      2: () => page([], null),
+    });
+    controller.start();
+    await flush();
+    expect(controller.getState().events?.transitions).toHaveLength(0);
+    later = [transition(2, "failing")];
+    await vi.advanceTimersByTimeAsync(OPS_EVENTS_POLL_MS);
+    const transitions = controller.getState().events!.transitions;
+    expect(transitions.map((event) => [event.subject, event.to])).toEqual([
+      ["pc.writer", "failing"],
+    ]);
     controller.dispose();
   });
 
@@ -537,6 +613,97 @@ describe("ops events polling", () => {
       snapshot: null,
       events: { cursor: 0, transitions: [], recent: [] },
       eventsStale: false,
+    });
+  });
+
+  describe("long-poll", () => {
+    const held = (items: unknown[], ms: number) => () =>
+      new Promise<Response>((resolve) =>
+        setTimeout(() => resolve(page(items, null)), ms),
+      );
+
+    it("asks the reader to hold for 25 s and re-issues as soon as it answers", async () => {
+      let seq = 1;
+      const replies: Record<number, () => Response | Promise<Response>> = {
+        0: () => page([item(1)], null),
+      };
+      // Each held request answers after 3 s with one new event.
+      for (let n = 1; n < 6; n++)
+        replies[n] = () => {
+          seq += 1;
+          return held([item(seq)], 3_000)();
+        };
+      const { controller, afters, waits } = eventsHarness(replies, {
+        eventsWaitS: OPS_EVENTS_WAIT_S,
+      });
+      controller.start();
+      await flush();
+      expect(waits[0]).toBe(String(OPS_EVENTS_WAIT_S));
+      expect(OPS_EVENTS_WAIT_S).toBe(25);
+      await vi.advanceTimersByTimeAsync(3_000);
+      await flush();
+      await vi.advanceTimersByTimeAsync(3_000);
+      await flush();
+      // No 5 s gap: each answer is followed at once by the next hold.
+      expect(afters.slice(0, 3)).toEqual([0, 1, 2]);
+      expect(controller.getState().events?.cursor).toBeGreaterThanOrEqual(2);
+      controller.dispose();
+    });
+
+    it("backs off 1 s after an immediate empty answer, then 5 s after repeats", async () => {
+      const replies: Record<number, () => Response> = {
+        0: () => page([], null),
+      };
+      const { controller, afters } = eventsHarness(replies, {
+        eventsWaitS: OPS_EVENTS_WAIT_S,
+      });
+      controller.start();
+      await flush();
+      expect(afters).toHaveLength(1);
+      // Not spinning: nothing more until the 1 s back-off passes.
+      await vi.advanceTimersByTimeAsync(OPS_EVENTS_SHORT_HOLD_MS - 1);
+      expect(afters).toHaveLength(1);
+      await vi.advanceTimersByTimeAsync(1);
+      await flush();
+      expect(afters).toHaveLength(2);
+      await vi.advanceTimersByTimeAsync(OPS_EVENTS_SHORT_HOLD_MS);
+      await flush();
+      expect(afters).toHaveLength(3);
+      // Three short holds in a row fall back to the 5 s interval.
+      await vi.advanceTimersByTimeAsync(OPS_EVENTS_POLL_MS - 1);
+      expect(afters).toHaveLength(3);
+      await vi.advanceTimersByTimeAsync(1);
+      await flush();
+      expect(afters).toHaveLength(4);
+      controller.dispose();
+    });
+
+    it("aborts the held request when the tab hides and again on logout", async () => {
+      const { controller, signals } = eventsHarness(
+        {
+          0: () => page([item(1)], null),
+          1: held([], 25_000),
+        },
+        { eventsWaitS: OPS_EVENTS_WAIT_S },
+      );
+      controller.start();
+      await flush();
+      await vi.advanceTimersByTimeAsync(1);
+      await flush();
+      expect(signals).toHaveLength(2);
+      const holding = signals.at(-1)!;
+      expect(holding.aborted).toBe(false);
+      hidden = true;
+      controller.visibilityChanged();
+      expect(holding.aborted).toBe(true);
+      hidden = false;
+      controller.visibilityChanged();
+      await vi.advanceTimersByTimeAsync(1);
+      await flush();
+      const again = signals.at(-1)!;
+      expect(again).not.toBe(holding);
+      controller.end();
+      expect(again.aborted).toBe(true);
     });
   });
 

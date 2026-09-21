@@ -55,8 +55,17 @@ describe("the one overview", () => {
     const host = render({ fixture: snapshot, eventsFixture: events });
     const table = host.querySelector('table[aria-label="Firing alerts"]')!;
     const rows = [...table.querySelectorAll("tbody tr")].map(
-      (row) => row.textContent,
+      (row) =>
+        `${row.textContent} ${row.querySelector("a.record-link")?.getAttribute("title")}`,
     );
+    expect(
+      [...table.querySelectorAll("thead th")].map((th) => th.textContent),
+    ).toEqual(["Alert", "State", "Since", "Opens"]);
+    const link = table.querySelector("tbody a.record-link")!;
+    expect(link.getAttribute("aria-label")).toMatch(/^Open runbook for /);
+    expect(link.getAttribute("target")).toBe("_blank");
+    // No runbook column and no link buttons: the row is the link.
+    expect(table.querySelectorAll("a")).toHaveLength(3);
     expect(rows).toHaveLength(3);
     expect(rows.join(" ")).toContain("pc.inference");
     expect(rows.join(" ")).not.toContain("agents.sync");

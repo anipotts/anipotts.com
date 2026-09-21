@@ -204,3 +204,23 @@
   background: var(--color-background-surface);
   border-radius: var(--radius-container);
 }
+
+/* A row's trailing hint (an external-link mark) shows only while the row is
+   hovered or holds focus. */
+.workspace-row-reveal {
+  color: var(--color-text-secondary);
+  opacity: 0;
+  vertical-align: middle;
+}
+.workspace-table tr:hover .workspace-row-reveal,
+.workspace-table tr:focus-within .workspace-row-reveal {
+  opacity: 1;
+}
+@media (hover: none) {
+  .workspace-row-reveal {
+    opacity: 1;
+  }
+}
+.editorial-record-heading[id] {
+  scroll-margin-block: var(--spacing-12);
+}

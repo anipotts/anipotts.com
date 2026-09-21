@@ -63,6 +63,7 @@ export const OPS_DEVICES = [
   "ap-phone",
   "ap-plus",
   "ap-mini",
+  "loopback",
   "other",
 ] as const;
 export type OpsDevice = (typeof OPS_DEVICES)[number];
@@ -184,14 +185,21 @@ export function parseOpsEventsBytes(
   return parseOpsEvents(value, after);
 }
 
-/** The request path for one page. `after` and `limit` are the only params. */
+/** The reader holds an events request for at most this many seconds. */
+export const OPS_EVENTS_MAX_WAIT_S = 25;
+
+/** The request path for one page. `after` and `limit` are the contract's
+ * paging params; `wait` (0 to 25 seconds) asks the reader to hold the request
+ * until an event past `after` exists. */
 export function opsEventsPath(
   after: number,
   limit: number = OPS_EVENTS_BOUNDS.maxLimit,
+  wait: number | null = null,
 ) {
   integer(after, 0, OPS_EVENTS_BOUNDS.maxSeq);
   integer(limit, 1, OPS_EVENTS_BOUNDS.maxLimit);
-  return `${OPS_EVENTS_PATH}?after=${after}&limit=${limit}`;
+  if (wait !== null) integer(wait, 0, OPS_EVENTS_MAX_WAIT_S);
+  return `${OPS_EVENTS_PATH}?after=${after}&limit=${limit}${wait === null ? "" : `&wait=${wait}`}`;
 }
 
 /** What this page holds in memory: the cursor, every transition (for alerts)
@@ -339,11 +347,17 @@ export type OpsActivitySource = { id: string; label: string };
 
 /** Activity's source filter: transitions by catalog group, reader access,
  * then any other kind by name. */
+/** Access rows from admin's own ops polling: noise unless asked for. */
+export const OPS_ADMIN_POLLING_SOURCE = "access:admin";
+
 export function opsActivitySource(
   event: OpsEvent,
   catalog: ReadonlyMap<string, OpsCatalogEntry>,
 ): OpsActivitySource {
-  if (event.kind === "access") return { id: "access", label: "Reader access" };
+  if (event.kind === "access")
+    return event.subject === "ops.events" || event.subject === "ops.snapshot"
+      ? { id: OPS_ADMIN_POLLING_SOURCE, label: "Admin polling" }
+      : { id: "access", label: "Reader access" };
   if (event.kind === "other")
     return { id: `kind:${event.rawKind}`, label: humanize(event.rawKind) };
   const group = catalog.get(event.subject)?.group;

@@ -152,7 +152,7 @@ describe("Status view from System's fixture", () => {
     );
   });
 
-  it("shows schedule, exit, owner and a runbook link into System", () => {
+  it("shows schedule, exit and owner, and the row opens the runbook in System", () => {
     expect(headers(host)).toEqual([
       "Service",
       "State",
@@ -160,7 +160,7 @@ describe("Status view from System's fixture", () => {
       "Schedule",
       "Last exit",
       "Owner",
-      "Runbook",
+      "Opens",
     ]);
     expect(cell(host, "pc.writer", "Schedule").textContent).toBe("hourly");
     expect(cell(host, "health.ingest", "Schedule").textContent).toBe(
@@ -168,13 +168,15 @@ describe("Status view from System's fixture", () => {
     );
     expect(cell(host, "pc.writer", "Last exit").textContent).toBe("0");
     expect(cell(host, "pc.writer", "Owner").textContent).toBe("memory");
-    const link = cell(host, "pc.writer", "Runbook").querySelector("a")!;
+    const link = rowFor(host, "pc.writer")!.querySelector("a.record-link")!;
     expect(link.getAttribute("href")).toBe(
       "https://github.com/anipotts/system/blob/main/docs/runbooks/ops-mini.md",
     );
     expect(link.getAttribute("aria-label")).toBe(
-      "Runbook for personal context writer",
+      "Open runbook for personal context writer",
     );
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toContain("noreferrer");
     expect(cell(host, "health.api", "Last exit").textContent).toBe("None");
   });
 
@@ -248,8 +250,8 @@ describe("Status view edge cases", () => {
     );
     expect(cell(host, "web.site", "Schedule").textContent).toBe("Not set");
     expect(
-      cell(host, "web.site", "Runbook")
-        .querySelector("a")
+      rowFor(host, "web.site")!
+        .querySelector("a.record-link")
         ?.getAttribute("href"),
     ).toBe("https://example.com/runbook");
     expect(groupTitles(host).at(-1)).toBe("A brand new group");
@@ -292,7 +294,7 @@ describe("Status view edge cases", () => {
     ).toBe("error");
   });
 
-  it("shows every value as last known once the sampler stops for over 3 minutes", () => {
+  it("shows every value as last known once the sampler stops for over 60 seconds", () => {
     const at = (minutes: number) =>
       renderToStaticMarkup(
         <ObservabilityWorkspace
@@ -302,9 +304,9 @@ describe("Status view edge cases", () => {
         />,
       );
     const within = document.createElement("div");
-    within.innerHTML = at(3);
+    within.innerHTML = at(0.5);
     expect(within.querySelector('[role="status"]')?.textContent).toBe(
-      "Generated 3m ago",
+      "Generated 30s ago",
     );
     expect(
       within.querySelector('tbody [data-variant="success"]'),
@@ -348,7 +350,7 @@ describe("Status connection states", () => {
   let hidden = false;
   beforeEach(() => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-09-21T18:01:00Z"));
+    vi.setSystemTime(new Date("2026-09-21T18:00:30Z"));
     hidden = false;
     Object.defineProperty(document, "hidden", {
       configurable: true,
@@ -414,7 +416,7 @@ describe("Status connection states", () => {
     );
     await act(() => vi.advanceTimersByTimeAsync(0));
     expect(host.querySelector('[role="status"]')?.textContent).toBe(
-      "Live, generated 1m ago",
+      "Live, generated 30s ago",
     );
     expect(host.querySelector("table")).not.toBeNull();
 
@@ -464,7 +466,7 @@ describe("Status connection states", () => {
     );
     await act(() => vi.advanceTimersByTimeAsync(0));
     expect(host.querySelector('[role="status"]')?.textContent).toBe(
-      "Live, generated 1m ago",
+      "Live, generated 30s ago",
     );
     // The reader keeps answering 304 while generated_at stays 18:00.
     await act(() => vi.advanceTimersByTimeAsync(2 * 60_000 + 15_000));
@@ -537,14 +539,26 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
     );
     return host;
   };
+  // Row text plus the title link's tooltip, which carries the detail.
   const rows = (host: HTMLElement) =>
-    [...host.querySelectorAll("tbody tr")].map((row) => row.textContent ?? "");
+    [...host.querySelectorAll("tbody tr")].map(
+      (row) =>
+        `${row.textContent ?? ""} ${row.querySelector("a.record-link")?.getAttribute("title") ?? ""}`,
+    );
 
   it("lists every event newest first, with access rows as route, status and latency", () => {
     const host = view("activity");
     expect(host.querySelector("h1")?.textContent).toBe("Activity");
     const lines = rows(host);
-    expect(lines).toHaveLength(events.items.length);
+    // Admin's own ops polling (ops.snapshot, ops.events) is left out by
+    // default; the source filter still lists it.
+    const polling = events.items.filter(
+      (item) =>
+        item.subject === "ops.snapshot" || item.subject === "ops.events",
+    ).length;
+    expect(polling).toBeGreaterThan(0);
+    expect(lines).toHaveLength(events.items.length - polling);
+    expect(host.textContent).not.toContain("Ops events, 200");
     expect(lines[0]).toContain("Data sources, 200, 33 ms");
     expect(lines[1]).toContain("Data search, 200, 91 ms");
     expect(lines.at(-1)).toContain("first seen ok");
@@ -600,7 +614,7 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
     expect(host.textContent).not.toContain("health.ingest");
     const links = [
       ...host.querySelectorAll<HTMLAnchorElement>(
-        'a[aria-label^="Runbook for"]',
+        'a[aria-label^="Open runbook for"]',
       ),
     ];
     expect(links).toHaveLength(5);

@@ -45,6 +45,21 @@ export const OPS_CREDENTIAL_ENDPOINT = "/api/private-reader/ops-credential";
 export const OPS_SCOPE = "ops:read";
 export const OPS_POLL_MS = 30_000;
 export const OPS_READ_TIMEOUT_MS = 10_000;
+/** The events fallback interval: after an error, after repeated short
+ * holds, and with the long-poll off. An empty page is a few bytes. */
+export const OPS_EVENTS_POLL_MS = 5_000;
+/**
+ * Seconds the reader holds each events request (a long-poll): it answers as
+ * soon as an event past the cursor exists, and the next request goes out at
+ * once. Not yet verified end to end through Tailscale Serve; if Serve cuts
+ * holds early, set 10. Null turns the long-poll off (plain 5 s polling).
+ */
+export const OPS_EVENTS_WAIT_S: number | null = 25;
+/** An empty answer faster than this was not held (the reader's wait slots
+ * were full, or a proxy cut it): wait this long before asking again. */
+export const OPS_EVENTS_SHORT_HOLD_MS = 1_000;
+/** This many short holds in a row fall back to OPS_EVENTS_POLL_MS. */
+export const OPS_EVENTS_SHORT_HOLDS_FALLBACK = 3;
 
 /** A strong or weak entity tag, bounded, printable ASCII only. */
 const ETAG = /^(?:W\/)?"[\x21\x23-\x7e]{0,200}"$/;
@@ -192,9 +207,14 @@ export async function readOpsSnapshot(
 export async function readOpsEvents(
   session: BearerSource,
   after: number,
-  options: ReadOptions = {},
+  options: ReadOptions & { wait?: number | null } = {},
 ): Promise<OpsEventsPage> {
-  const response = await opsGet(session, opsEventsPath(after), {}, options);
+  const response = await opsGet(
+    session,
+    opsEventsPath(after, undefined, options.wait ?? null),
+    {},
+    options,
+  );
   if (response.status === 304) {
     discardBody(response);
     throw new PrivateReaderError(502, "unavailable");
@@ -249,8 +269,12 @@ export type OpsStatusOptions = {
   clearTimer?: (timer: Timer) => void;
   pollMs?: number;
   timeoutMs?: number;
-  /** Also read the events feed on every poll (Activity, Alerts, overview). */
+  /** Also read the events feed (Activity, Alerts, overview), on its own
+   * faster loop. */
   events?: boolean;
+  eventsPollMs?: number;
+  /** Long-poll seconds; see OPS_EVENTS_WAIT_S. */
+  eventsWaitS?: number | null;
 };
 
 export function createOpsStatusController(options: OpsStatusOptions) {
@@ -263,6 +287,9 @@ export function createOpsStatusController(options: OpsStatusOptions) {
   const timeoutMs = options.timeoutMs ?? OPS_READ_TIMEOUT_MS;
   const listeners = new Set<() => void>();
   const withEvents = options.events === true;
+  const eventsPollMs = options.eventsPollMs ?? OPS_EVENTS_POLL_MS;
+  const eventsWait =
+    options.eventsWaitS === undefined ? OPS_EVENTS_WAIT_S : options.eventsWaitS;
   let state: OpsStatusState = {
     connection: "idle",
     snapshot: null,
@@ -275,6 +302,10 @@ export function createOpsStatusController(options: OpsStatusOptions) {
   let inflight: AbortController | null = null;
   let running = false;
   let lastAttempt = -Infinity;
+  let eventsTimer: Timer | null = null;
+  let eventsInflight: AbortController | null = null;
+  let eventsRead = false;
+  let shortHolds = 0;
 
   function set(next: Partial<OpsStatusState>) {
     state = { ...state, ...next };
@@ -293,11 +324,78 @@ export function createOpsStatusController(options: OpsStatusOptions) {
     });
   }
 
+  function cancelEvents() {
+    if (eventsTimer !== null) clearTimer(eventsTimer);
+    eventsTimer = null;
+    eventsInflight?.abort();
+    eventsInflight = null;
+  }
+
   function cancel() {
     if (timer !== null) clearTimer(timer);
     timer = null;
     inflight?.abort();
     inflight = null;
+    cancelEvents();
+  }
+
+  function scheduleEvents(delay: number) {
+    if (eventsTimer !== null) clearTimer(eventsTimer);
+    eventsTimer = null;
+    if (!withEvents || !running || isHidden()) return;
+    eventsTimer = setTimer(() => void eventsTick(), Math.max(0, delay));
+  }
+
+  /** The events loop: one read of every page after the cursor, then the
+   * next read after OPS_EVENTS_POLL_MS (or at once when long-polling). The
+   * snapshot loop owns opening and renewing the session. */
+  async function eventsTick() {
+    eventsTimer = null;
+    if (!running || isHidden() || eventsInflight) return;
+    if (session.getState().status !== "ready") {
+      scheduleEvents(eventsPollMs);
+      return;
+    }
+    const controller = new AbortController();
+    eventsInflight = controller;
+    eventsRead = true;
+    const deadline = setTimer(
+      () => controller.abort(),
+      timeoutMs + (eventsWait ?? 0) * 1000,
+    );
+    const current = () => eventsInflight === controller && running;
+    const began = now();
+    let next = eventsWait === null ? eventsPollMs : 0;
+    try {
+      const got = await readEvents(controller.signal, current);
+      if (eventsWait !== null) {
+        const short = !got && now() - began < OPS_EVENTS_SHORT_HOLD_MS;
+        shortHolds = short ? shortHolds + 1 : 0;
+        next = !short
+          ? 0
+          : shortHolds >= OPS_EVENTS_SHORT_HOLDS_FALLBACK
+            ? eventsPollMs
+            : OPS_EVENTS_SHORT_HOLD_MS;
+      }
+    } catch (error) {
+      next = eventsPollMs;
+      if (!current()) return;
+      if (
+        error instanceof PrivateReaderError &&
+        (error.failure === "forbidden" ||
+          (error.failure === "unauthorized" &&
+            session.getState().status !== "ready"))
+      )
+        return stop("denied");
+      // Expiry renews through the snapshot loop; anything else is stale.
+      set({ eventsStale: true });
+    } finally {
+      clearTimer(deadline);
+      if (eventsInflight === controller) {
+        eventsInflight = null;
+        scheduleEvents(next);
+      }
+    }
   }
 
   function schedule(delay: number) {
@@ -340,7 +438,8 @@ export function createOpsStatusController(options: OpsStatusOptions) {
           checkedAt: now(),
         });
       } else set({ connection: "connected", checkedAt: now() });
-      if (withEvents) await readEvents(controller.signal, current);
+      // The first events read follows the first snapshot, on its own loop.
+      if (withEvents && !eventsRead && !eventsInflight) void eventsTick();
     } catch (error) {
       if (!current()) return;
       if (error instanceof OpsSnapshotError) drop("rejected");
@@ -374,7 +473,13 @@ export function createOpsStatusController(options: OpsStatusOptions) {
   /** Pages after the held cursor. Each page is kept as it arrives, so a
    * failure part way keeps what was read and the next poll continues. A
    * page that breaks the contract clears the events and starts over. */
-  async function readEvents(signal: AbortSignal, current: () => boolean) {
+  /** Returns whether any event arrived. Only the first page waits; later
+   * pages of a backlog answer at once. */
+  async function readEvents(
+    signal: AbortSignal,
+    current: () => boolean,
+  ): Promise<boolean> {
+    let got = false;
     for (let page = 0; page < OPS_EVENTS_PAGES_PER_READ; page++) {
       const log = state.events ?? EMPTY_EVENT_LOG;
       let read: OpsEventsPage;
@@ -382,12 +487,13 @@ export function createOpsStatusController(options: OpsStatusOptions) {
         read = await readOpsEvents(session, log.cursor, {
           fetch: options.fetch,
           signal,
+          wait: page === 0 ? eventsWait : null,
         });
       } catch (error) {
-        if (!current()) return;
+        if (!current()) return got;
         if (error instanceof OpsSnapshotError) {
           set({ events: EMPTY_EVENT_LOG, eventsStale: true });
-          return;
+          return got;
         }
         // Credential failures end or renew the session, as for the snapshot.
         if (
@@ -397,16 +503,19 @@ export function createOpsStatusController(options: OpsStatusOptions) {
           throw error;
         // Anything else leaves the snapshot alone: events are marked stale.
         set({ eventsStale: true });
-        return;
+        return got;
       }
-      if (!current()) return;
+      if (!current()) return got;
+      got ||= read.items.length > 0;
       set({ events: appendOpsEvents(log, read.items), eventsStale: false });
-      if (read.nextAfter === null) return;
+      if (read.nextAfter === null) return got;
     }
+    return got;
   }
 
   function stop(connection: OpsConnection) {
     running = false;
+    eventsRead = false;
     cancel();
     drop(connection);
   }
@@ -417,7 +526,13 @@ export function createOpsStatusController(options: OpsStatusOptions) {
     if (next.status !== "cleared") return;
     if (next.reason === "logout") stop("ended");
     else if (next.reason === "denied") stop("denied");
-    else if (next.reason === "expired") drop("connecting");
+    else if (next.reason === "expired") {
+      // Nothing may wait on a credential that is gone; the events loop
+      // starts again after the next snapshot.
+      cancelEvents();
+      eventsRead = false;
+      drop("connecting");
+    }
   });
 
   return {
@@ -438,10 +553,13 @@ export function createOpsStatusController(options: OpsStatusOptions) {
         timer = null;
         inflight?.abort();
         inflight = null;
+        cancelEvents();
         return;
       }
-      if (!running || inflight) return;
-      schedule(lastAttempt + pollMs - now());
+      if (!running) return;
+      // Events are the latency-sensitive read: fetch them at once.
+      if (eventsRead) scheduleEvents(0);
+      if (!inflight) schedule(lastAttempt + pollMs - now());
     },
     /** Ends the private session and forgets everything it read. */
     end() {

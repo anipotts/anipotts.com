@@ -6,11 +6,11 @@ import {
   DropdownMenuRadioItem,
 } from "@astryxdesign/core/DropdownMenu";
 import { HStack } from "@astryxdesign/core/HStack";
-import { Link } from "@astryxdesign/core/Link";
 import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
 import {
   ArrowClockwiseIcon,
+  ArrowSquareOutIcon,
   BellSimpleIcon,
   ClockCounterClockwiseIcon,
   KeyIcon,
@@ -46,6 +46,7 @@ import {
   EMPTY_EVENT_LOG,
   opsAccessSummary,
   opsActivitySource,
+  OPS_ADMIN_POLLING_SOURCE,
   parseOpsEvents,
   type OpsAlert,
   type OpsEvent,
@@ -70,6 +71,7 @@ import {
   type Column,
   type Tone,
 } from "../workspace/Workspace";
+import { useLiveNow } from "../../lib/live-clock";
 import "./operations-workspace.css";
 
 /**
@@ -158,21 +160,24 @@ function detailOf(service: OpsServiceView) {
     : service.status.detail;
 }
 
-function Runbook({ runbook, name }: { runbook: string; name: string }) {
+/** The trailing mark on a row that opens outside admin. */
+function OpensOutside() {
   return (
-    <Link
-      href={opsRunbookHref(runbook)}
-      isExternalLink
-      referrerPolicy="no-referrer"
-      className="ops-runbook"
-      aria-label={`Runbook for ${name}`}
-    >
-      Runbook
-    </Link>
+    <ArrowSquareOutIcon
+      weight="regular"
+      size={16}
+      aria-hidden="true"
+      className="workspace-row-reveal"
+    />
   );
 }
 
 type Row = OpsServiceView & Record<string, unknown>;
+
+/** The Status row's anchor, so an alert without a runbook lands on it. */
+export function opsEntryAnchor(id: string) {
+  return `entry-${id}`;
+}
 
 function statusColumns(services: Row[], now: number): Column<Row>[] {
   return [
@@ -184,6 +189,10 @@ function statusColumns(services: Row[], now: number): Column<Row>[] {
           icon={PulseIcon}
           kind={row.kind}
           title={row.name}
+          anchorId={opsEntryAnchor(row.id)}
+          href={opsRunbookHref(row.runbook)}
+          external
+          linkLabel={`Open runbook for ${row.name}`}
           secondary={<span className="ops-id">{row.id}</span>}
           mobile={
             <>
@@ -257,10 +266,11 @@ function statusColumns(services: Row[], now: number): Column<Row>[] {
       render: (row) => <Text>{row.owner}</Text>,
     },
     {
-      key: "runbook",
-      header: "Runbook",
-      width: 96,
-      render: (row) => <Runbook runbook={row.runbook} name={row.name} />,
+      key: "opens",
+      header: <Text className="sr-only">Opens</Text>,
+      width: 44,
+      align: "end",
+      render: () => <OpensOutside />,
     },
   ];
 }
@@ -350,6 +360,13 @@ function StatusBody({
   );
   const hosts = services.filter(opsIsHost);
   const rows = services.filter((service) => !opsIsHost(service)) as Row[];
+  // An alert without a runbook links here by entry; the rows draw only once
+  // the snapshot arrives, so the browser cannot scroll to it on load.
+  const hasRows = rows.length > 0;
+  useEffect(() => {
+    const id = decodeURIComponent(window.location.hash.slice(1));
+    if (id) document.getElementById(id)?.scrollIntoView({ block: "center" });
+  }, [hasRows]);
   const groups = [...new Set(rows.map((row) => row.group))];
   const columns = statusColumns(rows, now);
   return (
@@ -376,7 +393,6 @@ function StatusBody({
                 label={`${group} services`}
                 noun={["entry", "entries"]}
                 footer={false}
-                interactive={false}
               />
             </WorkspaceSection>
           );
@@ -486,21 +502,10 @@ export function ConnectionNotice({
  * matches, then ticks while the tab is visible. A fixed clock never ticks.
  */
 export function useNow(fixed?: number, renderedAt?: number) {
-  const [now, setNow] = useState(() => fixed ?? renderedAt ?? Date.now());
-  useEffect(() => {
-    if (fixed !== undefined) return;
-    const tick = () => {
-      if (!document.hidden) setNow(Date.now());
-    };
-    tick();
-    const timer = setInterval(tick, 15_000);
-    document.addEventListener("visibilitychange", tick);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener("visibilitychange", tick);
-    };
-  }, [fixed]);
-  return now;
+  // The one shared clock (lib/live-clock.ts): a single timer for the page,
+  // paused while the tab is hidden.
+  const live = useLiveNow(renderedAt ?? Date.now());
+  return fixed ?? live;
 }
 
 export type OpsViewProps = {
@@ -655,8 +660,11 @@ function ActivityBody({ data }: { data: OpsData }) {
     }
     return [...seen].sort((a, b) => a[1].localeCompare(b[1]));
   }, [rows, catalog]);
+  // "All sources" leaves out admin's own ops polling; the filter lists it.
   const shown =
-    source === "all" ? rows : rows.filter((row) => row.source === source);
+    source === "all"
+      ? rows.filter((row) => row.source !== OPS_ADMIN_POLLING_SOURCE)
+      : rows.filter((row) => row.source === source);
   const sourceLabel = new Map(sources);
   const columns: Column<ActivityRow>[] = [
     {
@@ -781,6 +789,27 @@ export function opsAlertRows(
   }));
 }
 
+/** Where an alert row goes: its runbook, or its Status entry without one. */
+export function alertDestination(row: AlertRow): {
+  href: string;
+  label: string;
+  external: boolean;
+} {
+  return row.runbook
+    ? {
+        href: opsRunbookHref(row.runbook),
+        label: `Open runbook for ${row.name}`,
+        external: true,
+      }
+    : {
+        href: `/observability/status#${opsEntryAnchor(row.subject)}`,
+        label: `Open ${row.name} in Status`,
+        external: false,
+      };
+}
+
+/** The same compact one-line row as every other admin table. The whole row
+ * opens the runbook; the detail rides in the tooltip. */
 export function AlertsTable({
   rows,
   compact = false,
@@ -790,34 +819,39 @@ export function AlertsTable({
 }) {
   const columns: Column<AlertRow>[] = [
     {
-      key: "entry",
-      header: "Entry",
-      render: (row) => (
-        <RowTitle
-          icon={BellSimpleIcon}
-          kind={row.status === "firing" ? "Firing alert" : "Resolved alert"}
-          title={row.name}
-          secondary={row.detail ? `${row.subject}, ${row.detail}` : row.subject}
-          mobile={
-            <>
-              <AlertState row={row} />
-              <RelativeTime value={row.since} />
-            </>
-          }
-        />
-      ),
+      key: "alert",
+      header: "Alert",
+      render: (row) => {
+        const to = alertDestination(row);
+        return (
+          <RowTitle
+            icon={BellSimpleIcon}
+            kind={row.status === "firing" ? "Firing alert" : "Resolved alert"}
+            title={row.name}
+            href={to.href}
+            external={to.external}
+            linkLabel={to.label}
+            tooltip={row.detail ? `${row.subject}, ${row.detail}` : row.subject}
+            mobile={
+              <>
+                <AlertState row={row} />
+                <RelativeTime value={row.since} />
+              </>
+            }
+          />
+        );
+      },
     },
     {
       key: "state",
       header: "State",
-      width: 160,
+      width: 144,
       render: (row) => <AlertState row={row} />,
     },
     {
       key: "since",
       header: "Since",
       width: 112,
-      hideBelow: 1024,
       render: (row) => <RelativeTime value={row.since} />,
     },
     ...(compact
@@ -837,15 +871,12 @@ export function AlertsTable({
           },
         ]),
     {
-      key: "runbook",
-      header: "Runbook",
-      width: 96,
+      key: "open",
+      header: <Text className="sr-only">Opens</Text>,
+      width: 44,
+      align: "end",
       render: (row) =>
-        row.runbook ? (
-          <Runbook runbook={row.runbook} name={row.name} />
-        ) : (
-          <Text color="secondary">None</Text>
-        ),
+        alertDestination(row).external ? <OpensOutside /> : null,
     },
   ];
   return (
@@ -855,7 +886,6 @@ export function AlertsTable({
       rowKey="subject"
       label={compact ? "Firing alerts" : "Alerts, firing first"}
       noun={["alert", "alerts"]}
-      interactive={false}
       footer={!compact}
       figures={
         compact

@@ -389,11 +389,12 @@ describe("sampler freshness", () => {
   const snapshot = parseOpsSnapshot(fresh());
   const generated = Date.parse(sample.generated_at);
 
-  it("treats a snapshot older than 3 minutes as a stopped sampler", () => {
-    expect(OPS_SAMPLER_STALE_SECONDS).toBe(180);
+  it("treats a snapshot older than 60 seconds as a stopped sampler", () => {
+    // System's sampler runs every 15 s.
+    expect(OPS_SAMPLER_STALE_SECONDS).toBe(60);
     expect(opsSamplerStopped(snapshot, generated)).toBe(false);
-    expect(opsSamplerStopped(snapshot, generated + 180_000)).toBe(false);
-    expect(opsSamplerStopped(snapshot, generated + 181_000)).toBe(true);
+    expect(opsSamplerStopped(snapshot, generated + 60_000)).toBe(false);
+    expect(opsSamplerStopped(snapshot, generated + 61_000)).toBe(true);
     expect(opsSnapshotAge(snapshot, generated + 7 * 60_000)).toBe(420);
   });
 
