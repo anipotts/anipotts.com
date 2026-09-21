@@ -466,6 +466,18 @@ function LifeExplorerSession({
     setDetailBusy(false);
     setDetailError(null);
   };
+  const revokeRead = (next: LifeResult) => {
+    listSession.current.invalidate();
+    closeRecord();
+    setQuery("");
+    setSubmitted("");
+    setOffsets([0]);
+    failed.current = ["", [0]];
+    setBusy(false);
+    setListError(null);
+    setStale(false);
+    setResult(next);
+  };
   async function load(q: string, history: number[]) {
     if (!reader) return;
     let request: LifeRead;
@@ -491,8 +503,7 @@ function LifeExplorerSession({
         setOffsets(history);
         setStale(false);
       } else if (next.state === "denied" || next.state === "disconnected") {
-        setResult(next);
-        setStale(false);
+        revokeRead(next);
       } else {
         failed.current = [q, history];
         setStale(true);
@@ -509,6 +520,8 @@ function LifeExplorerSession({
     if (next) {
       setDetailBusy(false);
       if (next.state === "ready") setRecord(next.data);
+      else if (next.state === "denied" || next.state === "disconnected")
+        revokeRead(next);
       else
         setDetailError(
           next.state === "not_found"
@@ -536,6 +549,10 @@ function LifeExplorerSession({
     });
     if (!next) return;
     setDetailBusy(false);
+    if (next.state === "denied" || next.state === "disconnected") {
+      revokeRead(next);
+      return;
+    }
     if (next.state !== "ready") {
       setDetailError("The next section could not be read. Try again.");
       return;

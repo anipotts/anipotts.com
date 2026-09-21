@@ -597,3 +597,30 @@ it("clears activity when its reader disconnects", async () => {
   expect(container.textContent).not.toContain("succeeded");
   expect(container.textContent).toContain("Activity is not connected.");
 });
+
+it.each(["denied", "disconnected"] as const)(
+  "clears private records and queries when body continuation is %s",
+  async (state) => {
+    const reader = async (request: LifeRead): Promise<LifeResult> =>
+      request.method === "get" && !request.body_offset
+        ? ready(record)
+        : { state, message: "fixture" };
+    await act(async () =>
+      root.render(
+        <LifeExplorer
+          section="people"
+          initial={ready({ items: [record], total: 1, next_offset: null })}
+          reader={reader}
+        />,
+      ),
+    );
+    type("private query");
+    await click("Fixture record");
+    expect(container.textContent).toContain("First");
+    await click("Read more");
+    expect(container.textContent).not.toContain("First");
+    expect(container.textContent).not.toContain("Fixture record");
+    expect(container.querySelector("input")?.value).toBe("");
+    expect(container.querySelector('[aria-label="Record details"]')).toBeNull();
+  },
+);
