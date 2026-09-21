@@ -9,6 +9,7 @@ import {
   getPublished,
   listPublished,
   getPublishedInventory,
+  getPublishedInventoryVersion,
   listPublicationHistory,
   getDirectReceipt,
   type PublicationDatabase,
@@ -108,6 +109,16 @@ it("publishes exact validated bytes and reads only active snapshots", async () =
   ]);
   expect(await listPublicationHistory(db, initial.record)).toHaveLength(2);
   expect((await getPublishedInventory(db)).version).toBe(2);
+  expect(await getPublishedInventoryVersion(db)).toBe(2);
+});
+it("reads the inventory version alone and rejects an unreadable counter", async () => {
+  expect(await getPublishedInventoryVersion(db)).toBe(0);
+  await publishDirect(db, initial);
+  expect(await getPublishedInventoryVersion(db)).toBe(1);
+  sqlite.exec("DELETE FROM editorial_published_inventory");
+  await expect(getPublishedInventoryVersion(db)).rejects.toThrow(
+    "publication_read_failed",
+  );
 });
 it("orders history by activation sequence, not by timestamp text", async () => {
   // operation-2 activates second and is chronologically later

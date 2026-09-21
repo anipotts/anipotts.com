@@ -283,6 +283,23 @@ export async function getPublishedInventory(
   };
 }
 
+/** The inventory counter alone: one single-row read, no sources. Every
+ * activation increments it, so a reader can answer a revalidation without
+ * loading or rendering the publications behind it. */
+export async function getPublishedInventoryVersion(
+  db: Pick<PublicationDatabase, "prepare">,
+): Promise<number> {
+  const row = await db
+    .prepare(
+      "SELECT version FROM editorial_published_inventory WHERE singleton = 1",
+    )
+    .first<{ version: number }>();
+  const version = row?.version;
+  if (!Number.isSafeInteger(version) || version! < 0)
+    throw new Error("publication_read_failed");
+  return version!;
+}
+
 export async function getDirectReceipt(
   db: Pick<PublicationDatabase, "prepare">,
   operationId: string,

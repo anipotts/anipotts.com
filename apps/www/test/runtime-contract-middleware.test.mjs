@@ -68,6 +68,12 @@ function loadMiddleware({ dev = false } = {}) {
       // CMS behavior is exercised against the actual built Worker in published-runtime.test.mjs.
       "./lib/published-runtime": {},
       "./lib/security-headers": headers,
+      "./lib/static-assets": compile(
+        "../src/lib/static-assets.ts",
+        [],
+        {},
+        console,
+      ),
     },
     console,
   );

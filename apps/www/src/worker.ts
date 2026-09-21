@@ -92,20 +92,37 @@ export function createExports(manifest: SSRManifest) {
           );
         }
       }
-      const response = await astro.default.fetch(request, env, context);
+      // HEAD renders as GET and drops the body here, so a rendered validator
+      // is computed over the real body and HEAD reports the ETag GET does.
+      const head = request.method === "HEAD" && !pathname.startsWith("/api/");
+      const rendered = head
+        ? (new Request(request as unknown as Request, {
+            method: "GET",
+          }) as unknown as typeof request)
+        : request;
+      const response = await astro.default.fetch(rendered, env, context);
       if (
         response.status === 500 &&
         !pathname.startsWith("/api/") &&
         response.headers.get("cache-control") !== "no-store"
       )
         throw new Error("upstream_unavailable");
-      return withSecurityHeaders(
-        withConditionalStatus(
-          request,
-          pathname,
-          await withRenderedValidator(request, pathname, response),
-        ),
+      const result = withConditionalStatus(
+        request,
+        pathname,
+        await withRenderedValidator(rendered, pathname, response),
       );
+      if (head && result.body) {
+        void result.body.cancel();
+        return withSecurityHeaders(
+          new Response(null, {
+            status: result.status,
+            statusText: result.statusText,
+            headers: result.headers,
+          }),
+        );
+      }
+      return withSecurityHeaders(result);
     } catch {
       console.error("www worker fetch failed");
       return withSecurityHeaders(

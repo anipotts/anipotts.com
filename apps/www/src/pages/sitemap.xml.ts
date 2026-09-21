@@ -52,10 +52,9 @@ ${entries
   .join("\n")}
 </urlset>`;
 
+  // No cache policy of its own: the worker gives it the same revalidating
+  // validator as the pages it lists, so a publish shows here immediately.
   return new Response(xml, {
-    headers: {
-      "Content-Type": "application/xml; charset=utf-8",
-      "Cache-Control": "public, max-age=3600",
-    },
+    headers: { "Content-Type": "application/xml; charset=utf-8" },
   });
 };

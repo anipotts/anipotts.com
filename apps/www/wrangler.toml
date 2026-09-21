@@ -10,7 +10,7 @@ workers_dev = true
 account_id = "0f856093bdcd34a7da1bde5ee4385163"
 
 [vars]
-CONTENT_RUNTIME = "legacy"
+CONTENT_RUNTIME = "cms"
 NEWSLETTER_BASE_URL = "https://news.anipotts.com"
 NEWSLETTER_FROM = "Ani Potts <news@anipotts.com>"
 NEWSLETTER_REPLY_TO = "contact@anipotts.com"
@@ -46,8 +46,9 @@ database_id = "a8aadf73-bbf4-447c-97db-cb3e50b4e26f"
 binding = "NEWSLETTER_QUEUE"
 queue = "newsletter-send"
 
-# Dedicated published-content store and media. The public reader stays in
-# legacy Git mode until CONTENT_RUNTIME is switched to "cms".
+# Dedicated published-content store and media. The public reader serves from
+# it because CONTENT_RUNTIME is "cms". Rollback: set CONTENT_RUNTIME back to
+# "legacy" and redeploy to serve the bundled Git content again.
 [[d1_databases]]
 binding = "CONTENT_DB"
 database_name = "anipotts-content"
