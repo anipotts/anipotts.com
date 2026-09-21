@@ -1,11 +1,39 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { parse } from "yaml";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const dist = join(root, "apps/www/dist");
+const dist = join(root, "apps/www/.local/public-rendered");
+const deployDist = join(root, "apps/www/dist");
+const proof = JSON.parse(
+  readFileSync(join(dist, ".runtime-proof.json"), "utf8"),
+);
+assert.equal(
+  proof.workerSha256,
+  createHash("sha256")
+    .update(readFileSync(join(deployDist, "_worker.js/index.js")))
+    .digest("hex"),
+  "Rendered fixtures must match the current built Worker",
+);
+// Runtime content must never be shipped as a stale static fallback.
+for (const path of [
+  "index.html",
+  "writing.html",
+  "work.html",
+  "systems.html",
+  "feed.xml",
+  "sitemap.xml",
+  "search-index.json",
+]) {
+  assert.equal(
+    existsSync(join(deployDist, path)),
+    false,
+    `Runtime content emitted as deploy asset: ${path}`,
+  );
+}
 function records(kind) {
   return readdirSync(join(root, "content/public", kind))
     .filter((file) => file.endsWith(".md"))
@@ -47,11 +75,11 @@ for (const path of pages) {
     dist,
     path === "/" ? "index.html" : `${path.slice(1)}.html`,
   );
-  assert.ok(existsSync(file), `Missing prebuilt page: ${path}`);
+  assert.ok(existsSync(file), `Missing Worker-rendered page: ${path}`);
   assert.match(
     readFileSync(file, "utf8"),
     /<h1\b/,
-    `${path} must include readable static content`,
+    `${path} must include readable server-rendered content`,
   );
 }
 const feed = readFileSync(join(dist, "feed.xml"), "utf8");
@@ -682,5 +710,5 @@ if (origin) {
   }
 }
 console.log(
-  `Static editorial output: ${pages.length} pages, ${published.length} search records, private exclusions${origin ? ", served routes and redirects" : ""} passed`,
+  `Worker-rendered editorial output: ${pages.length} pages, ${published.length} search records, private exclusions${origin ? ", served routes and redirects" : ""} passed`,
 );

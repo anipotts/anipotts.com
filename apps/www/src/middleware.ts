@@ -1,3 +1,12 @@
+import {
+  usesPublishedContent,
+  isRuntimeContentPath,
+} from "./lib/content-runtime-mode";
+import {
+  publicContentContext,
+  publicVersionHeaders,
+  contentUnavailable,
+} from "./lib/published-runtime";
 import { defineMiddleware } from "astro:middleware";
 import { siteConfig } from "@anipotts/content/public";
 import { reportRuntimeContract } from "./lib/runtime-contract";
@@ -91,12 +100,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return context.redirect(`${origin}${adminPath}${search}`, 308);
   }
 
+  const cmsSurface =
+    !context.isPrerendered &&
+    usesPublishedContent(context.locals.runtime?.env) &&
+    isRuntimeContentPath(pathname);
+
   // Worker-first routing handles aliases and the newsletter host before assets.
   // Known prebuilt pages bypass Astro's on-demand catch-all entirely.
   if (
     !import.meta.env.DEV &&
     !context.isPrerendered &&
     ["GET", "HEAD"].includes(context.request.method) &&
+    !cmsSurface &&
     !pathname.startsWith("/api/")
   ) {
     const asset = await context.locals.runtime.env.ASSETS.fetch(
@@ -104,7 +119,19 @@ export const onRequest = defineMiddleware(async (context, next) => {
     );
     if (asset.status !== 404) return withSecurityHeaders(asset);
   }
-  const response = await next();
-
-  return withSecurityHeaders(response);
+  if (cmsSurface) {
+    try {
+      const { version } = await publicContentContext(context.locals).inventory;
+      const response = await next();
+      if (response.status >= 500)
+        return withSecurityHeaders(contentUnavailable());
+      const result = new Response(response.body, response);
+      for (const [name, value] of Object.entries(publicVersionHeaders(version)))
+        result.headers.set(name, value);
+      return withSecurityHeaders(result);
+    } catch {
+      return withSecurityHeaders(contentUnavailable());
+    }
+  }
+  return withSecurityHeaders(await next());
 });

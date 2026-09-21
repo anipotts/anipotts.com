@@ -1,3 +1,7 @@
+import {
+  usesPublishedContent,
+  isRuntimeContentPath,
+} from "./lib/content-runtime-mode";
 import type { SSRManifest } from "astro";
 import { createExports as createAstroExports } from "@astrojs/cloudflare/entrypoints/server.js";
 import { withSecurityHeaders } from "./lib/security-headers";
@@ -30,12 +34,32 @@ import {
  * revalidate too. Routing, status and body are otherwise unchanged.
  */
 export function createExports(manifest: SSRManifest) {
-  const astro = createAstroExports(manifest);
+  // The adapter checks manifest assets before middleware. Keep CMS-controlled
+  // paths in the route dispatcher even if an old bundled image has this name.
+  // Legacy mode still serves assets through the existing Worker/middleware path.
+  const astro = createAstroExports({
+    ...manifest,
+    assets: new Set(
+      [...manifest.assets].filter((path) => !isRuntimeContentPath(path)),
+    ),
+  });
   const fetch: typeof astro.default.fetch = async (request, env, context) => {
     try {
-      const { pathname } = new URL(request.url);
+      const url = new URL(request.url);
+      const { pathname } = url;
+      // Previously prerendered aliases cannot bypass an activated CMS reader.
+      if (
+        usesPublishedContent(env) &&
+        /^(?:\/index|\/(?:work|writing|systems)(?:\/[^/]+)?)\.html$/u.test(
+          pathname,
+        )
+      ) {
+        url.pathname = pathname === "/index.html" ? "/" : pathname.slice(0, -5);
+        return withSecurityHeaders(Response.redirect(url, 308));
+      }
       if (
         (request.method === "GET" || request.method === "HEAD") &&
+        !(usesPublishedContent(env) && isRuntimeContentPath(pathname)) &&
         isStaticAssetPath(pathname)
       ) {
         // The same request object. The adapter's handler type and the ASSETS
@@ -52,18 +76,18 @@ export function createExports(manifest: SSRManifest) {
           );
         }
       }
+      const response = await astro.default.fetch(request, env, context);
+      if (
+        response.status === 500 &&
+        !pathname.startsWith("/api/") &&
+        response.headers.get("cache-control") !== "no-store"
+      )
+        throw new Error("upstream_unavailable");
       return withSecurityHeaders(
-        withConditionalStatus(
-          request,
-          pathname,
-          await astro.default.fetch(request, env, context),
-        ),
+        withConditionalStatus(request, pathname, response),
       );
-    } catch (error) {
-      console.error(
-        "www worker fetch failed:",
-        error instanceof Error ? error.message : String(error),
-      );
+    } catch {
+      console.error("www worker fetch failed");
       return withSecurityHeaders(
         new Response("internal error", {
           status: 500,

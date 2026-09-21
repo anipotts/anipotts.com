@@ -138,7 +138,7 @@ const firstFile = (dir) => {
   const entry = readdirSync(join(dist, dir), {
     recursive: true,
     withFileTypes: true,
-  }).find((item) => item.isFile());
+  }).find((item) => item.isFile() || item.isSymbolicLink());
   return `/${join(dir, entry.parentPath.slice(join(dist, dir).length), entry.name)}`;
 };
 
@@ -561,9 +561,9 @@ test("a failing ASSETS binding still returns the header set", async () => {
   }
   const failures = logged.filter((line) => line.startsWith("www worker"));
   assert.deepEqual(failures, [
-    "www worker fetch failed: assets unavailable",
-    "www worker fetch failed: assets unavailable",
-    "www worker fetch failed: assets unavailable",
+    "www worker fetch failed",
+    "www worker fetch failed",
+    "www worker fetch failed",
   ]);
 });
 

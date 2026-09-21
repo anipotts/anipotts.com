@@ -3,12 +3,12 @@ import InlineText from "../components/InlineText.astro";
 import Shell from "../layouts/Shell.astro";
 import SystemMap from "../components/SystemMap.astro";
 import PageHero from "../components/PageHero.astro";
-import { getEntry } from "astro:content";
+import { publicPage, publicContentContext } from "../lib/content";
 
-export const prerender = true;
-const page = await getEntry("systemsPage", "systems");
+export const prerender = false;
+const page = await publicPage("systems", publicContentContext(Astro.locals));
 if (!page) throw new Error("Missing canonical systems page");
-const content = page.data;
+const content = page;
 ---
 
 <Shell title={content.title} description={content.description} path="/systems">
