@@ -62,6 +62,20 @@ handoff reports source changes merged but not installed in its active runtime.
 Website acknowledged receipt and requested exact route fixtures in that existing
 handoff. This is contract compatibility evidence, not live connected acceptance.
 
+### Responsive project and sidebar acceptance, September 21
+
+On the synthetic local project, measured document width equals viewport width
+at 320, 390, 768 and 1280 pixels. No main button, input or combobox extends past
+the viewport. Inspected dark 320px and light 390px editor headers and formatting
+controls; light field boundaries remain visible. This is project-route evidence,
+not an all-route or physical mobile keyboard claim.
+
+At 1280px, Content expanded and collapsed sidebar icons have identical x/y
+positions. Search and all navigation rows are 36px tall with 2px intervening
+gaps. Search starts at y84 and Overview at y122 in both modes. Restored expanded
+sidebar, system theme and normal viewport after acceptance. Other workspace
+geometry, zoom and keyboard acceptance remain outstanding.
+
 ### Local roadmap acceptance, September 21
 
 Project roadmap text, planned/in-progress/done status, ordering and removal now
