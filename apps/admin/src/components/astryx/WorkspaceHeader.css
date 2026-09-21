@@ -241,8 +241,7 @@
 }
 /* The drawer gives every control the same inset; the bordered menus spend a
    pixel of theirs on their border, so they ask for a pixel less. */
-.editorial-workspace-nav
-  :is(.admin-workspace-selector, .admin-sidebar-menu) {
+.editorial-workspace-nav :is(.admin-workspace-selector, .admin-sidebar-menu) {
   padding-inline-start: calc(var(--spacing-2) - var(--border-width));
 }
 @media (width > 768px) {
@@ -481,4 +480,22 @@
   border-radius: var(--radius-full);
   background-color: var(--color-background-popover);
   box-shadow: var(--shadow-low);
+}
+
+/* One action per appearance choice, including the collapsed navigation rail. */
+.admin-theme-tabs {
+  width: 100%;
+}
+.admin-theme-tabs [role="radio"] {
+  min-width: 36px;
+  min-height: 36px;
+}
+.editorial-workspace-utilities[data-collapsed="true"] .admin-theme-tabs {
+  flex-direction: column;
+}
+@media (max-width: 767px) {
+  .admin-theme-tabs [role="radio"] {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }

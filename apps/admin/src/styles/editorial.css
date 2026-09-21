@@ -119,14 +119,32 @@
   padding-inline: var(--spacing-4);
   font-variant-numeric: tabular-nums;
 }
+/* The table and its summary share one surface and no stack gap. Keep the
+   container unclipped so the table header and summary can remain sticky. */
+.admin-table-surface {
+  min-width: 0;
+  max-width: 100%;
+  background: var(--color-background-surface);
+  border-radius: var(--radius-container);
+}
+.admin-table-surface .astryx-table-scroll-wrapper {
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+  padding-block-end: 0;
+}
 /* The library's strip stays on screen while its rows scroll, so what is in
    view is always readable against the list it describes. */
-.editorial-library .admin-table-footer {
+.admin-table-surface .admin-table-footer {
   position: sticky;
   bottom: 0;
   z-index: 1;
   padding-block: var(--spacing-2);
   background: var(--color-background-surface);
+  border-end-start-radius: var(--radius-container);
+  border-end-end-radius: var(--radius-container);
+  box-sizing: border-box;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 .admin-table-footer .admin-table-figure strong {
   font-weight: var(--font-weight-medium, 500);

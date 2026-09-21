@@ -20,6 +20,11 @@ import {
 import "./WorkspaceHeader.css";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Button } from "@astryxdesign/core/Button";
+import {
+  SegmentedControl,
+  SegmentedControlItem,
+} from "@astryxdesign/core/SegmentedControl";
+import { Tooltip } from "@astryxdesign/core/Tooltip";
 import { Token } from "@astryxdesign/core/Token";
 import { AppShell, useAppShellMobile } from "@astryxdesign/core/AppShell";
 import {
@@ -412,9 +417,6 @@ function WorkspaceUtilities({
 }) {
   const { isMobile } = useAppShellMobile();
   const compact = rail && !isMobile;
-  const current =
-    appearanceOptions.find((option) => option.value === mode) ??
-    appearanceOptions[2];
   return (
     <VStack
       className="editorial-workspace-utilities"
@@ -422,19 +424,24 @@ function WorkspaceUtilities({
       hAlign={compact ? "center" : "stretch"}
       gap={1}
     >
-      <SidebarMenu
-        className="admin-appearance-menu"
-        name="Theme"
+      <SegmentedControl
+        className="admin-theme-tabs"
         label="Theme"
-        accessibleLabel={`Theme: ${current.label}`}
-        icon={<current.Icon size={18} aria-hidden="true" />}
-        detail={current.label}
-        compact={compact}
-        opens="above"
         value={mode}
-        options={appearanceOptions}
+        layout="fill"
         onChange={(value) => changeTheme(value as ThemePreference)}
-      />
+      >
+        {appearanceOptions.map(({ value, label, Icon }) => (
+          <Tooltip key={value} content={`${label} theme`}>
+            <SegmentedControlItem
+              value={value}
+              label={label}
+              isLabelHidden
+              icon={<Icon size={18} aria-hidden="true" />}
+            />
+          </Tooltip>
+        ))}
+      </SegmentedControl>
       {!localPreview && (
         <SideNavItem
           label="Log out"
@@ -607,7 +614,7 @@ export function EditorialWorkspaceShell({
             }
           >
             {navigationContent ?? (
-              <SideNavSection title="Content">
+              <SideNavSection title="Content" isHeaderHidden>
                 {websiteNavigation.map(({ id, label, icon: Icon }) => (
                   <SideNavItem
                     key={id}
