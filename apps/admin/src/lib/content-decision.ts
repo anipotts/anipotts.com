@@ -43,7 +43,7 @@ export function contentDecision(
     if (before !== after)
       return {
         label: "Visibility change",
-        detail: `${before} → ${after}`,
+        detail: `${before} to ${after}`,
         ...(editable
           ? { action: "Review changes" as const, view: "review" as const }
           : {}),

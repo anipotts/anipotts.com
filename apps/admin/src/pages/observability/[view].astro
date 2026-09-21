@@ -16,12 +16,12 @@ const key = view as keyof typeof titles;
 // ops:read credential only when this is on.
 const enabled = privateReaderOpsEnabled(Astro.locals.runtime?.env ?? {});
 
-// Development only: `?fixture=ops_v1` (or `synthetic`) previews System's
-// snapshot sample with a synthetic events page. `import.meta.env.DEV` is
-// false in builds, so neither fixture ships.
-const requested = Astro.url.searchParams.get("fixture");
+// Development uses System's snapshot sample and a synthetic events page by
+// default (a local preview cannot reach the reader; see
+// docs/local-development.md). `?fixture=none` shows the real local states.
+// `import.meta.env.DEV` is false in builds, so no fixture ships.
 const fixtures =
-  import.meta.env.DEV && (requested === "ops_v1" || requested === "synthetic")
+  import.meta.env.DEV && Astro.url.searchParams.get("fixture") !== "none"
     ? {
         snapshot: (await import("../../fixtures/ops_v1.sample.json")).default,
         events: (await import("../../fixtures/ops_events_v1.synthetic.json"))

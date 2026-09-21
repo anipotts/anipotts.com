@@ -35,6 +35,7 @@ import {
   type SidebarGroupsCollapsed,
 } from "../../lib/admin-sidebar";
 import type { AdminSearchResult } from "../../data/admin-search";
+import { onClientLinkClick } from "../../lib/client-routes";
 
 type Destination = {
   readonly id: string;
@@ -244,7 +245,7 @@ export function UnifiedNavigation({
   const root = useRef<HTMLDivElement>(null);
   const renderMode = useSideNavRenderMode();
   const inDrawer = renderMode === "drawer" || renderMode === "drawer-content";
-  const { isMobileNavOpen } = useAppShellMobile();
+  const { isMobileNavOpen, closeMobileNav } = useAppShellMobile();
 
   // Opening the drawer shows the current page, not the top of the list.
   useEffect(() => {
@@ -280,6 +281,13 @@ export function UnifiedNavigation({
   }, []);
 
   const rememberKeyboardNavigation = (event: MouseEvent<HTMLDivElement>) => {
+    // Overview and Data pages move within the document when the page can
+    // draw them, so the private session is never opened twice.
+    onClientLinkClick(event);
+    if (event.defaultPrevented) {
+      if (isMobileNavOpen) closeMobileNav();
+      return;
+    }
     const link = (event.target as HTMLElement).closest<HTMLElement>(
       "a[data-sidebar-id]",
     );

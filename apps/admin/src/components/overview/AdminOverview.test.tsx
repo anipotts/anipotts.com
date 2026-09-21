@@ -35,21 +35,20 @@ const headings = (host: HTMLElement) =>
   [...host.querySelectorAll("h1, h2")].map((heading) => heading.textContent);
 
 describe("the one overview", () => {
-  it("orders alerts, health, recent content, then recent records", () => {
-    expect(headings(render({}))).toEqual([
+  it("is alerts when firing, then recent content, then recent records", () => {
+    expect(
+      headings(render({ fixture: snapshot, eventsFixture: events })),
+    ).toEqual(["Overview", "Alerts", "Recent content", "Recent records"]);
+  });
+
+  it("shows no alerts section and no health strip when nothing is firing", () => {
+    const host = render({});
+    expect(headings(host)).toEqual([
       "Overview",
-      "Alerts",
-      "Health",
       "Recent content",
       "Recent records",
     ]);
-  });
-
-  it("says not connected, honestly, while ops reads are off", () => {
-    const host = render({});
-    const alerts = host.querySelector("section")!;
-    expect(alerts.textContent).toContain("Not connected");
-    expect(alerts.querySelector("table")).toBeNull();
+    expect(host.querySelector('[aria-label="Hosts"]')).toBeNull();
   });
 
   it("lists only firing alerts, from the same rules as Alerts", () => {
@@ -59,31 +58,36 @@ describe("the one overview", () => {
       (row) => row.textContent,
     );
     expect(rows).toHaveLength(3);
-    expect(rows.join(" ")).toContain("keepalive.onepassword-connect");
     expect(rows.join(" ")).toContain("pc.inference");
-    expect(rows.join(" ")).toContain("pc.snapshot");
     expect(rows.join(" ")).not.toContain("agents.sync");
-    expect(host.querySelector('ul[aria-label="Hosts"]')?.textContent).toContain(
-      "ap-mini",
-    );
   });
 
-  it("links recent content to its editor", () => {
-    const link = render({}).querySelector(
-      'a[href="/content/writing/synthetic"]',
-    );
+  it("shows each recent Content row as title, type, state and updated", () => {
+    const host = render({});
+    const table = host.querySelector(
+      'table[aria-label="Recently updated content"]',
+    )!;
+    expect(
+      [...table.querySelectorAll("thead th")].map((th) => th.textContent),
+    ).toEqual(["Title", "Type", "State", "Updated"]);
+    const link = table.querySelector('a[href="/content/writing/synthetic"]');
     expect(link?.textContent).toBe("Synthetic article");
+    expect(table.querySelector("tbody tr")?.textContent).toContain("Writing");
   });
 
-  it("asks for a private session before any record shows", () => {
+  it("opens the private session without a click and narrates nothing", () => {
     const host = render({ dataEnabled: true });
-    expect(host.textContent).toContain("Private session closed");
-    expect(host.textContent).toContain("Open private session");
-    expect(host.textContent).not.toContain("Sample person");
+    expect(host.textContent).not.toContain("Open private session");
+    expect(host.textContent).not.toMatch(/memory only|credential/i);
+    expect(
+      host.querySelector(
+        '[aria-label="Loading recent records"], [aria-label="Loading records"]',
+      ),
+    ).not.toBeNull();
   });
 
-  it("labels the synthetic Data preview as a fixture", () => {
+  it("marks synthetic data once", () => {
     const host = render({ dataEnabled: true, dataFixture: data });
-    expect(host.textContent).toContain("Synthetic fixture");
+    expect(host.textContent?.match(/Sample data/g)).toHaveLength(1);
   });
 });

@@ -1,12 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@astryxdesign/core/Button";
-import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
 import {
-  ArrowBendUpRightIcon,
   ArticleIcon,
-  BellSimpleIcon,
   BriefcaseIcon,
   EnvelopeIcon,
   FileTextIcon,
@@ -16,24 +13,21 @@ import type { CatalogRecord } from "../astryx/EditorialApp";
 import { RecordStatus, Updated } from "../astryx/ContentLibrary";
 import {
   AlertsTable,
-  ConnectionNotice,
-  OpsStateBadge,
   opsAlertRows,
-  opsCountsSummary,
-  opsView,
   useOpsData,
   type OpsViewProps,
 } from "../astryx/ObservabilityWorkspace";
-import { opsIsHost } from "../../lib/ops-v1";
 import { LifeReadSession } from "../../lib/life-read-session";
 import type { LifeResult } from "../../data/personal-context";
 import { dataRecordHref } from "../../lib/data-routes";
 import type { DataFixture } from "../../lib/data-fixture-reader";
 import {
   DataTable,
+  KindBadge,
   LoadingSkeleton,
   RelativeTime,
   RowTitle,
+  SampleBadge,
   StateNotice,
   TierSwatch,
   WorkspacePage,
@@ -46,47 +40,26 @@ import {
   recordKindGlyph,
 } from "../data/DataWorkspace";
 
-function contentGlyph(record: CatalogRecord): [Icon, string] {
-  return record.collection === "projects"
+/** A Content record's type, as the sidebar names its library. */
+export function contentType(record: CatalogRecord): [Icon, string] {
+  return record.collection === "projects" ||
+    record.href.startsWith("/content/projects/")
     ? [BriefcaseIcon, "Project"]
-    : record.collection === "writing"
-      ? [ArticleIcon, "Article"]
+    : record.collection === "writing" ||
+        record.href.startsWith("/content/writing/")
+      ? [ArticleIcon, "Writing"]
       : record.href.startsWith("/newsletter/")
-        ? [EnvelopeIcon, "Newsletter issue"]
+        ? [EnvelopeIcon, "Newsletter"]
         : [FileTextIcon, "Page"];
 }
 
-/** The library a record lives in, as the sidebar names it. */
-function contentLibrary(record: CatalogRecord): string {
-  return record.collection === "projects"
-    ? "Projects"
-    : record.collection === "writing"
-      ? "Writing"
-      : record.href.startsWith("/newsletter/")
-        ? "Newsletter"
-        : "Pages";
+function ViewAll({ href }: { href: string }) {
+  return <Button label="View all" href={href} size="sm" variant="ghost" />;
 }
 
-const SEE_ALL_ICON = (
-  <ArrowBendUpRightIcon weight="regular" aria-hidden="true" />
-);
-
-function SeeAll({ href, label }: { href: string; label: string }) {
-  return (
-    <Button
-      label={label}
-      href={href}
-      size="sm"
-      variant="ghost"
-      icon={SEE_ALL_ICON}
-    />
-  );
-}
-
-/** Firing alerts, then the health strip, from one ops read. */
-function OpsSections(props: OpsViewProps) {
+/** Firing alerts only; nothing at all when everything is clear. */
+function FiringAlerts(props: OpsViewProps) {
   const data = useOpsData(props, true);
-  const connected = data.fixtureMode || data.state.connection === "connected";
   const firing = useMemo(
     () =>
       opsAlertRows(data.events, data.snapshot).filter(
@@ -94,92 +67,79 @@ function OpsSections(props: OpsViewProps) {
       ),
     [data.events, data.snapshot],
   );
-  const services = useMemo(
-    () => (data.snapshot ? opsView(data.snapshot, data.stopped) : []),
-    [data.snapshot, data.stopped],
-  );
-  const hosts = services.filter(opsIsHost);
-  const failed = ["unreachable", "unavailable", "rejected", "denied", "ended"];
-  const offline = data.fixtureMode ? null : data.state.connection === "off" ? (
-    <StateNotice
-      kind="not-connected"
-      title="Not connected"
-      description="Ops reads are switched off for this admin. Alerts and health appear here once they are enabled."
-    />
-  ) : failed.includes(data.state.connection) && !data.snapshot ? (
-    <ConnectionNotice state={data.state} onRetry={data.retry} />
-  ) : null;
+  if (!firing.length) return null;
   return (
-    <>
-      <WorkspaceSection
-        title="Alerts"
-        meta={connected && data.events ? `${firing.length} firing` : undefined}
-        actions={<SeeAll href="/observability/alerts" label="All alerts" />}
-      >
-        {offline ??
-          (!data.events || (!connected && !data.events.cursor) ? (
-            <LoadingSkeleton label="alerts" rows={2} columns={3} />
-          ) : firing.length ? (
-            <AlertsTable rows={firing} compact />
-          ) : (
-            <StateNotice
-              kind="empty"
-              icon={BellSimpleIcon}
-              title="No alerts firing"
-              description="Every entry's latest state is ok, asleep or unknown."
-            />
-          ))}
-      </WorkspaceSection>
-      <WorkspaceSection
-        title="Health"
-        meta={
-          data.snapshot
-            ? data.stopped
-              ? "Sampler stopped; last known values"
-              : opsCountsSummary(services)
-            : undefined
-        }
-        actions={<SeeAll href="/observability/status" label="Status" />}
-      >
-        {offline ? null : !data.snapshot ? (
-          <LoadingSkeleton label="health" rows={1} columns={3} />
-        ) : (
-          <ul className="workspace-tiles" aria-label="Hosts">
-            {hosts.map((host) => (
-              <li key={host.id} className="workspace-tile">
-                <HStack gap={2} hAlign="between" vAlign="center" wrap="wrap">
-                  <Text weight="semibold">{host.name}</Text>
-                  <OpsStateBadge state={host.status.state} />
-                </HStack>
-                <Text type="supporting" color="secondary">
-                  {host.missingStatus
-                    ? "No status row from System"
-                    : host.status.detail}
-                </Text>
-              </li>
-            ))}
-            {(["failing", "degraded", "stale", "unknown", "ok"] as const).map(
-              (state) => {
-                const count = services.filter(
-                  (service) =>
-                    !opsIsHost(service) && service.status.state === state,
-                ).length;
-                return count ? (
-                  <li key={state} className="workspace-tile">
-                    <HStack gap={2} hAlign="between" vAlign="center">
-                      <Text className="workspace-figure" weight="semibold">
-                        {count} {count === 1 ? "service" : "services"}
-                      </Text>
-                      <OpsStateBadge state={state} />
-                    </HStack>
-                  </li>
-                ) : null;
+    <WorkspaceSection
+      title="Alerts"
+      actions={<ViewAll href="/observability/alerts" />}
+    >
+      <AlertsTable rows={firing} compact />
+    </WorkspaceSection>
+  );
+}
+
+function RecentContent({ records }: { records: CatalogRecord[] }) {
+  return (
+    <WorkspaceSection
+      title="Recent content"
+      actions={<ViewAll href="/content/pages" />}
+    >
+      {records.length ? (
+        <DataTable
+          rows={records}
+          rowKey="href"
+          label="Recently updated content"
+          noun={["record", "records"]}
+          footer={false}
+          columns={[
+            {
+              key: "title",
+              header: "Title",
+              render: (item) => {
+                const [glyph, type] = contentType(item);
+                return (
+                  <RowTitle
+                    icon={glyph}
+                    kind={type}
+                    title={item.title}
+                    href={item.href}
+                    mobile={
+                      <>
+                        <KindBadge icon={glyph} label={type} />
+                        <RecordStatus status={item.status} />
+                      </>
+                    }
+                  />
+                );
               },
-            )}
-          </ul>
-        )}
-      </WorkspaceSection>
-    </>
+            },
+            {
+              key: "type",
+              header: "Type",
+              width: 136,
+              render: (item) => {
+                const [glyph, type] = contentType(item);
+                return <KindBadge icon={glyph} label={type} />;
+              },
+            },
+            {
+              key: "status",
+              header: "State",
+              width: 144,
+              render: (item) => <RecordStatus status={item.status} />,
+            },
+            {
+              key: "updated",
+              header: "Updated",
+              width: 112,
+              render: (item) => <Updated updated={item.updated} column />,
+            },
+          ]}
+        />
+      ) : (
+        <StateNotice kind="empty" title="No content yet." />
+      )}
+    </WorkspaceSection>
   );
 }
 
@@ -206,27 +166,23 @@ function RecentData({
     result?.state === "ready" && Array.isArray(result.data.items)
       ? (result.data.items as Record<string, unknown>[]).slice(0, 5)
       : [];
+  const text = (value: unknown) => (typeof value === "string" ? value : null);
   return (
     <WorkspaceSection
       title="Recent records"
-      meta={session.fixture ? "Synthetic fixture" : undefined}
       actions={
-        <HStack gap={2} vAlign="center">
+        <>
           <DataSessionControl session={session} />
-          <SeeAll href="/data/records" label="Records" />
-        </HStack>
+          <ViewAll href="/data/records" />
+        </>
       }
     >
       {session.status !== "ready" ? (
         <SessionNotice session={session} />
       ) : !result ? (
-        <LoadingSkeleton label="recent records" rows={3} columns={2} />
+        <LoadingSkeleton label="recent records" rows={3} columns={3} />
       ) : result.state !== "ready" ? (
-        <StateNotice
-          kind="error"
-          title="Records could not be loaded"
-          description="The source is unavailable. This does not mean your records are empty."
-        />
+        <StateNotice kind="error" title="Records could not be loaded." />
       ) : items.length ? (
         <DataTable
           rows={items}
@@ -240,120 +196,57 @@ function RecentData({
               header: "Record",
               render: (item) => {
                 const [glyph, kind] = recordKindGlyph(item.kind);
+                const id = text(item.record_id);
                 return (
                   <RowTitle
                     icon={glyph}
                     kind={kind}
-                    title={String(item.title ?? "Untitled record")}
-                    href={
-                      typeof item.record_id === "string"
-                        ? dataRecordHref(item.record_id)
-                        : undefined
-                    }
-                    secondary={
-                      typeof item.source_id === "string"
-                        ? item.source_id
-                        : undefined
+                    title={text(item.title) ?? "Untitled record"}
+                    href={id ? dataRecordHref(id) : undefined}
+                    mobile={
+                      <>
+                        <KindBadge icon={glyph} label={kind} />
+                        <TierSwatch tier={text(item.tier)} />
+                      </>
                     }
                   />
                 );
+              },
+            },
+            {
+              key: "kind",
+              header: "Type",
+              width: 136,
+              render: (item) => {
+                const [glyph, kind] = recordKindGlyph(item.kind);
+                return <KindBadge icon={glyph} label={kind} />;
               },
             },
             {
               key: "tier",
               header: <Text className="sr-only">Tier</Text>,
               width: 44,
-              render: (item) => (
-                <TierSwatch
-                  tier={typeof item.tier === "string" ? item.tier : null}
-                />
-              ),
+              render: (item) => <TierSwatch tier={text(item.tier)} />,
             },
             {
               key: "observed",
               header: "Observed",
               width: 112,
-              render: (item) => (
-                <RelativeTime
-                  value={
-                    typeof item.observed_at === "string"
-                      ? item.observed_at
-                      : null
-                  }
-                />
-              ),
+              render: (item) => <RelativeTime value={text(item.observed_at)} />,
             },
           ]}
         />
       ) : (
-        <StateNotice kind="empty" title="No records yet" />
-      )}
-    </WorkspaceSection>
-  );
-}
-
-function RecentContent({ records }: { records: CatalogRecord[] }) {
-  return (
-    <WorkspaceSection
-      title="Recent content"
-      actions={<SeeAll href="/content/pages" label="Content" />}
-    >
-      {records.length ? (
-        <DataTable
-          rows={records}
-          rowKey="href"
-          label="Recently updated content"
-          noun={["record", "records"]}
-          footer={false}
-          columns={[
-            {
-              key: "title",
-              header: "Title",
-              render: (item) => {
-                const [glyph, kind] = contentGlyph(item);
-                return (
-                  <RowTitle
-                    icon={glyph}
-                    kind={kind}
-                    title={item.title}
-                    href={item.href}
-                    secondary={contentLibrary(item)}
-                    mobile={<Updated updated={item.updated} column />}
-                  />
-                );
-              },
-            },
-            {
-              key: "status",
-              header: "State",
-              width: 160,
-              hideBelow: 1024,
-              render: (item) => (
-                <RecordStatus
-                  status={item.status}
-                  changesPending={item.changesPending}
-                />
-              ),
-            },
-            {
-              key: "updated",
-              header: "Updated",
-              width: 112,
-              render: (item) => <Updated updated={item.updated} column />,
-            },
-          ]}
-        />
-      ) : (
-        <StateNotice kind="empty" title="No content yet" />
+        <StateNotice kind="empty" title="No records yet." />
       )}
     </WorkspaceSection>
   );
 }
 
 /**
- * The one overview: firing alerts first, then health, then the most recent
- * Content and Data. Each part keeps its own gate: ops reads behind the ops
- * flag, Data behind its private session.
+ * The one overview: firing alerts (only when something fires), then the most
+ * recent Content and Data. Ops keep their own gate; Data opens its private
+ * session on its own.
  */
 export function AdminOverview({
   content,
@@ -365,11 +258,15 @@ export function AdminOverview({
   dataEnabled: boolean;
   dataFixture?: DataFixture;
 } & OpsViewProps) {
+  const sample = Boolean(dataFixture || ops.fixture);
   return (
     <div className="admin-overview operations-workspace">
-      <WorkspacePage title="Overview">
+      <WorkspacePage
+        title="Overview"
+        badge={sample ? <SampleBadge /> : undefined}
+      >
         <VStack gap={8}>
-          <OpsSections {...ops} />
+          <FiringAlerts {...ops} />
           <RecentContent records={content} />
           <RecentData enabled={dataEnabled} fixture={dataFixture} />
         </VStack>

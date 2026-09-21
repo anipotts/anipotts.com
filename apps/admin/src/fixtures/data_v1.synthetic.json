@@ -293,5 +293,66 @@
       "record_count": 3,
       "revision_count": 6
     }
-  ]
+  ],
+  "extras": {
+    "available": true,
+    "health": [
+      {
+        "id": "card-synthetic-1",
+        "kind": "reference",
+        "title": "Sample health summary: sleep",
+        "summary": "Synthetic weekly sleep summary",
+        "source": "synthetic-health",
+        "freshness": "fresh",
+        "observed_at": "2026-09-21T07:00:00Z"
+      },
+      {
+        "id": "card-synthetic-2",
+        "kind": "reference",
+        "title": "Sample health summary: steps",
+        "summary": "Synthetic daily activity summary",
+        "source": "synthetic-health",
+        "freshness": "stale",
+        "observed_at": "2026-09-19T21:00:00Z"
+      }
+    ],
+    "knowledge": [
+      {
+        "id": "card-synthetic-3",
+        "kind": "decision",
+        "title": "Sample decision: weekly review day",
+        "summary": "Synthetic decision card",
+        "source": "synthetic-notes",
+        "freshness": "fresh",
+        "observed_at": "2026-09-20T12:00:00Z"
+      },
+      {
+        "id": "card-synthetic-4",
+        "kind": "concept",
+        "title": "Sample concept: slow mornings",
+        "summary": "Synthetic concept card",
+        "source": "synthetic-notes",
+        "freshness": "fresh",
+        "observed_at": "2026-09-18T09:30:00Z"
+      },
+      {
+        "id": "card-synthetic-5",
+        "kind": "system",
+        "title": "Sample system: backup rotation",
+        "summary": "Synthetic system card",
+        "source": "synthetic-notes",
+        "freshness": "stale",
+        "observed_at": "2026-09-12T16:00:00Z"
+      },
+      {
+        "id": "card-synthetic-6",
+        "kind": "person",
+        "title": "Sample person: Robin Example",
+        "summary": "Synthetic person card",
+        "source": "synthetic-contacts",
+        "freshness": "unknown",
+        "observed_at": null
+      }
+    ]
+  }
 }

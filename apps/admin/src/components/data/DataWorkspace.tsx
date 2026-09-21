@@ -14,8 +14,10 @@ import {
   CalendarBlankIcon,
   FileTextIcon,
   FolderIcon,
+  HeartbeatIcon,
   LockKeyIcon,
   MapPinIcon,
+  SignOutIcon,
   TreeStructureIcon,
   UserIcon,
   type Icon,
@@ -40,11 +42,10 @@ import {
   DataTable,
   DetailPanel,
   FilterBar,
-  InlineNotice,
   LoadingSkeleton,
   RelativeTime,
   RowTitle,
-  SessionControl,
+  SampleBadge,
   StateBadge,
   StateNotice,
   TierSwatch,
@@ -52,7 +53,11 @@ import {
   type Column,
 } from "../workspace/Workspace";
 import {
-  SESSION_NOTE,
+  SegmentedControl,
+  SegmentedControlItem,
+} from "@astryxdesign/core/SegmentedControl";
+import type { DataCard, DataExtras } from "../../lib/data-extras";
+import {
   SESSION_NOTICES,
   useDataSession,
   type DataSession,
@@ -110,33 +115,17 @@ function RecordBadge({ status }: { status: unknown }) {
 /** A failed read, in the kit's notice. The copy never repeats reader text. */
 function ReadNotice({ result }: { result: LifeResult }) {
   if (result.state === "ready") return null;
-  const copy = {
-    disconnected: [
-      "Not connected",
-      "An authorized source connection is needed before records can be read here.",
-    ],
-    denied: [
-      "Access to these records is unavailable",
-      "This session does not permit the requested read.",
-    ],
-    unavailable: [
-      "Records could not be loaded",
-      "The source is unavailable. This does not mean your records are empty.",
-    ],
-    not_found: [
-      "Record not found",
-      "This record was not found in the authorized source.",
-    ],
-    invalid: [
-      "The source response could not be used",
-      "The read returned incomplete or unsupported information, so none of it is shown.",
-    ],
+  const title = {
+    disconnected: "Not connected.",
+    denied: "Access to these records is unavailable.",
+    unavailable: "Records could not be loaded.",
+    not_found: "Record not found.",
+    invalid: "The source response could not be used.",
   }[result.state];
   return (
     <StateNotice
       kind={result.state === "disconnected" ? "not-connected" : "error"}
-      title={copy[0]}
-      description={copy[1]}
+      title={title}
     />
   );
 }
@@ -500,15 +489,31 @@ function RecordsExplorer({
     if (selectedId) panel.current?.focus({ preventScroll: true });
   }, [selectedId]);
 
+  const here = () => window.location.pathname + window.location.search;
+  const shown = useRef(initialId);
+  shown.current = selectedId;
+  // The shell moves between records (sidebar, back, a link from elsewhere);
+  // follow it without pushing history again.
+  useEffect(() => {
+    if (initialId === shown.current) return;
+    setSelectedId(initialId);
+    if (initialId) void load(initialId);
+    else {
+      detail.current.invalidate();
+      setRecord(null);
+    }
+  }, [initialId]);
   const open = (id: string, button: HTMLElement) => {
     trigger.current = button;
-    window.history.pushState(null, "", dataRecordHref(id, kind));
+    if (here() !== dataRecordHref(id, kind))
+      window.history.pushState(null, "", dataRecordHref(id, kind));
     setSelectedId(id);
     void load(id);
   };
   const close = () => {
     detail.current.invalidate();
-    window.history.pushState(null, "", dataRecordsHref(kind));
+    if (here() !== dataRecordsHref(kind))
+      window.history.pushState(null, "", dataRecordsHref(kind));
     setSelectedId(null);
     setRecord(null);
     setDetailError(null);
@@ -549,10 +554,6 @@ function RecordsExplorer({
   }
 
   const items = itemsOf(result);
-  const total =
-    result?.state === "ready" && typeof result.data.total === "number"
-      ? result.data.total
-      : null;
   return (
     <div
       className="workspace-split"
@@ -592,10 +593,6 @@ function RecordsExplorer({
             </DropdownMenuRadioGroup>
           </DropdownMenu>
         </FilterBar>
-        <Text type="supporting" color="secondary">
-          {submitted ? "Best matches first" : "Most recent first"}
-          {total !== null && `, ${total} in all`}
-        </Text>
         {!result ? (
           <LoadingSkeleton label="records" columns={4} />
         ) : result.state !== "ready" ? (
@@ -618,8 +615,7 @@ function RecordsExplorer({
         ) : (
           <StateNotice
             kind="empty"
-            title="No matching records"
-            description="Try a different search or another kind."
+            title="No matching records."
             action={
               submitted || kind !== "all" ? (
                 <Button
@@ -689,8 +685,7 @@ function SourcesExplorer({ reader }: { reader: LifeReader }) {
       <StateNotice
         kind="empty"
         icon={TreeStructureIcon}
-        title="No sources yet"
-        description="The reader returned no permitted sources."
+        title="No sources yet."
       />
     );
   return (
@@ -721,7 +716,6 @@ function SourcesExplorer({ reader }: { reader: LifeReader }) {
                 kind="Source"
                 title={text(item.source_id, "Unnamed source")}
                 secondary={`${text(item.record_count, "0")} records, ${text(item.revision_count, "0")} revisions`}
-                mobile={<RelativeTime value={text(item.last_observed_at)} />}
               />
             ),
           },
@@ -756,49 +750,127 @@ function SourcesExplorer({ reader }: { reader: LifeReader }) {
   );
 }
 
-/** The closed, cleared and switched-off states, in the kit's notices. */
+/** Health summaries and knowledge cards, read on the server from D1. */
+function CardsTable({
+  cards,
+  label,
+  empty,
+}: {
+  cards: DataCard[];
+  label: string;
+  empty: string;
+}) {
+  if (!cards.length) return <StateNotice kind="empty" title={empty} />;
+  return (
+    <DataTable
+      rows={cards as Array<DataCard & Record<string, unknown>>}
+      rowKey="id"
+      label={label}
+      noun={["card", "cards"]}
+      interactive={false}
+      columns={[
+        {
+          key: "title",
+          header: "Title",
+          render: (card) => {
+            const [glyph, name] = recordKindGlyph(card.kind);
+            return (
+              <RowTitle
+                icon={card.kind === "reference" ? HeartbeatIcon : glyph}
+                kind={name}
+                title={card.title}
+                secondary={card.summary}
+              />
+            );
+          },
+        },
+        {
+          key: "source",
+          header: "Source",
+          width: 176,
+          hideBelow: 1024,
+          render: (card) => <Text color="secondary">{card.source}</Text>,
+        },
+        {
+          key: "freshness",
+          header: "Freshness",
+          width: 120,
+          hideBelow: 1024,
+          render: (card) => (
+            <StateBadge
+              tone={
+                card.freshness === "fresh"
+                  ? "positive"
+                  : card.freshness === "stale"
+                    ? "warning"
+                    : "neutral"
+              }
+              label={
+                card.freshness.charAt(0).toUpperCase() + card.freshness.slice(1)
+              }
+            />
+          ),
+        },
+        {
+          key: "observed",
+          header: "Observed",
+          width: 112,
+          render: (card) => <RelativeTime value={card.observed_at} />,
+        },
+      ]}
+    />
+  );
+}
+
+export type SourcesView = "reader" | "health" | "knowledge";
+const SOURCE_VIEWS: Array<[SourcesView, string]> = [
+  ["reader", "Sources"],
+  ["health", "Health"],
+  ["knowledge", "Knowledge"],
+];
+
+/** A closed session, in one plain line with a quiet way to open it. */
 export function SessionNotice({ session }: { session: DataSession }) {
   if (session.status === "off")
-    return (
-      <StateNotice
-        kind="not-connected"
-        title="Not connected"
-        description="The private reader is switched off for this admin. Records stay in PersonalContext on ap-mini."
-      />
-    );
+    return <StateNotice kind="not-connected" title="Not connected." />;
   if (session.status === "ready") return null;
-  const cleared = session.reason ? SESSION_NOTICES[session.reason] : null;
+  if (session.status === "opening")
+    return <LoadingSkeleton label="records" columns={4} />;
+  const closed = SESSION_NOTICES[session.reason ?? "logout"];
   return (
     <StateNotice
       kind="not-connected"
       icon={LockKeyIcon}
-      title={cleared?.title ?? "Private session closed"}
-      description={
-        cleared?.description ??
-        "Records are read from ap-mini with a credential that lasts at most a minute and renews while this page is open. Nothing is stored in this browser."
+      title={closed.title}
+      action={
+        <Button
+          label={closed.action}
+          size="sm"
+          variant="secondary"
+          clickAction={session.open}
+        />
       }
     />
   );
 }
 
+/** The quiet control for an open session. Closed sessions open on their own. */
 export function DataSessionControl({ session }: { session: DataSession }) {
-  if (session.status === "off") return null;
+  if (session.status !== "ready") return null;
   return (
-    <SessionControl
-      active={session.status === "ready"}
-      opening={session.opening}
-      onOpen={session.open}
-      onEnd={session.end}
-      note={session.status === "ready" ? undefined : SESSION_NOTE}
+    <Button
+      label="End session"
+      size="sm"
+      variant="ghost"
+      icon={<SignOutIcon weight="regular" aria-hidden="true" />}
+      onClick={session.end}
     />
   );
 }
 
 /**
- * The Data workspace on the private reader. Private state lives in this
- * component's memory only and is dropped on logout, page hide, denial or
- * credential expiry. Each new session remounts the views, so nothing from
- * an earlier session carries over.
+ * The Data workspace on the private reader. The session opens on its own,
+ * is shared by every Data view in this document, and is memory only.
  */
 export function DataWorkspace({
   view,
@@ -806,6 +878,8 @@ export function DataWorkspace({
   recordId = null,
   kind = "all",
   fixture,
+  extras,
+  sourcesView = "reader",
   session: injected,
   fetch: fetcher,
 }: {
@@ -814,6 +888,9 @@ export function DataWorkspace({
   recordId?: string | null;
   kind?: DataKind;
   fixture?: DataFixture;
+  /** Health summaries and knowledge cards, read on the server. */
+  extras?: DataExtras;
+  sourcesView?: SourcesView;
   session?: PrivateReaderSession;
   fetch?: typeof fetch;
 }) {
@@ -823,40 +900,66 @@ export function DataWorkspace({
     session: injected,
     fetch: fetcher,
   });
+  const [shown, setShown] = useState<SourcesView>(sourcesView);
+  const cards = extras ?? fixture?.extras;
   const ready = session.status === "ready" && session.reader;
+  const choose = (next: string) => {
+    const value = SOURCE_VIEWS.find(([id]) => id === next)?.[0] ?? "reader";
+    setShown(value);
+    window.history.replaceState(
+      null,
+      "",
+      value === "reader" ? "/data/sources" : `/data/sources?view=${value}`,
+    );
+  };
+  const readerBody = ready ? (
+    view === "records" ? (
+      <RecordsExplorer
+        key={session.generation}
+        reader={session.reader!}
+        initialId={recordId}
+        initialKind={kind}
+      />
+    ) : (
+      <SourcesExplorer key={session.generation} reader={session.reader!} />
+    )
+  ) : (
+    <SessionNotice session={session} />
+  );
   return (
     <WorkspacePage
       title={view === "records" ? "Records" : "Sources"}
-      meta={
-        session.fixture
-          ? "Synthetic fixture, not your records"
-          : ready
-            ? "Private session open, read only"
-            : undefined
-      }
+      badge={session.fixture ? <SampleBadge /> : undefined}
       actions={<DataSessionControl session={session} />}
     >
-      {session.status === "cleared" && session.reason === "expired" && (
-        <InlineNotice
-          tone="info"
-          icon={LockKeyIcon}
-          title={SESSION_NOTICES.expired.title}
-          description={SESSION_NOTICES.expired.description}
-        />
+      {view === "sources" && (
+        <SegmentedControl
+          label="Source view"
+          value={shown}
+          onChange={choose}
+          className="workspace-views"
+        >
+          {SOURCE_VIEWS.map(([id, label]) => (
+            <SegmentedControlItem key={id} value={id} label={label} />
+          ))}
+        </SegmentedControl>
       )}
-      {ready ? (
-        view === "records" ? (
-          <RecordsExplorer
-            key={session.generation}
-            reader={session.reader!}
-            initialId={recordId}
-            initialKind={kind}
-          />
-        ) : (
-          <SourcesExplorer key={session.generation} reader={session.reader!} />
-        )
+      {view === "records" || shown === "reader" ? (
+        readerBody
+      ) : !cards || !cards.available ? (
+        <StateNotice kind="error" title="Cards unavailable." />
+      ) : shown === "health" ? (
+        <CardsTable
+          cards={cards.health}
+          label="Health summaries"
+          empty="No health summaries."
+        />
       ) : (
-        <SessionNotice session={session} />
+        <CardsTable
+          cards={cards.knowledge}
+          label="Knowledge cards"
+          empty="No knowledge cards."
+        />
       )}
     </WorkspacePage>
   );

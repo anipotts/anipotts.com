@@ -11,6 +11,9 @@
 .workspace-page-title {
   min-width: 0;
 }
+.workspace-page-actions {
+  flex: 0 0 auto;
+}
 /* Times, counts and codes line up in columns. */
 .workspace-time,
 .workspace-table .astryx-timestamp,
@@ -49,9 +52,20 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.workspace-state {
+.workspace-state,
+.workspace-kind,
+.workspace-sample {
   width: max-content;
   max-width: 100%;
+  flex: 0 0 auto;
+}
+.workspace-kind {
+  color: var(--color-text-secondary);
+}
+/* A view switch sits where a filter bar would, at its own width. */
+.workspace-views {
+  align-self: flex-start;
+  width: auto;
 }
 
 /* A notice stands where the table would be, on the same raised surface. */

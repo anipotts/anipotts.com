@@ -1,15 +1,15 @@
 ---
 import AdminLayout from "../layouts/AdminLayout.astro";
-import { AdminOverview } from "../components/overview/AdminOverview";
+import { PrivateShell } from "../components/data/PrivateShell";
 import { recentlyUpdated } from "../components/astryx/ContentLibrary";
+import { loadDataExtras } from "../lib/data-extras";
 import { loadEditorialInventory } from "../lib/editorial-inventory-server";
 import { privateReaderOpsEnabled } from "../lib/private-reader-credential";
 import { measureServerTiming } from "../lib/server-timing";
 
 // The one overview. Content is read here from the editorial inventory; ops
-// and Data are read in the browser, each behind its own gate: ops with an
-// ops:read credential when PRIVATE_READER_OPS_ENABLED is on, Data with a
-// private session the owner opens on this page.
+// and Data are read in the browser, each behind its own gate. The shell also
+// draws Data, so a record opened from here keeps the private session.
 const inventory = await measureServerTiming(Astro.locals, "inventory", () =>
   loadEditorialInventory(Astro.locals.runtime?.env),
 );
@@ -35,15 +35,13 @@ const content = recentlyUpdated(inventory.records)
     }),
   );
 const env = Astro.locals.runtime?.env ?? {};
-const opsEnabled = privateReaderOpsEnabled(env);
-const dataEnabled = env.PRIVATE_READER_ENABLED === "true";
 
-// Development only: `?fixture=synthetic` previews System's snapshot sample,
-// a synthetic events page and a synthetic Data set. `import.meta.env.DEV`
-// is false in builds, so no fixture ships.
-const synthetic =
-  import.meta.env.DEV && Astro.url.searchParams.get("fixture") === "synthetic";
-const fixtures = synthetic
+// Development uses System's snapshot sample, a synthetic events page and a
+// synthetic Data set by default; `?fixture=none` shows the real local states.
+// `import.meta.env.DEV` is false in builds, so no fixture ships.
+const sample =
+  import.meta.env.DEV && Astro.url.searchParams.get("fixture") !== "none";
+const fixtures = sample
   ? {
       snapshot: (await import("../fixtures/ops_v1.sample.json")).default,
       events: (await import("../fixtures/ops_events_v1.synthetic.json"))
@@ -51,15 +49,18 @@ const fixtures = synthetic
       data: (await import("../fixtures/data_v1.synthetic.json")).default,
     }
   : undefined;
+const extras = sample ? undefined : await loadDataExtras(env.DB);
 Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
 
 <AdminLayout title="Overview" hideHeader>
-  <AdminOverview
+  <PrivateShell
+    initialPath="/"
     content={content}
-    dataEnabled={dataEnabled}
+    dataEnabled={env.PRIVATE_READER_ENABLED === "true"}
     dataFixture={fixtures?.data}
-    enabled={opsEnabled}
+    extras={extras}
+    enabled={privateReaderOpsEnabled(env)}
     fixture={fixtures?.snapshot}
     eventsFixture={fixtures?.events}
     renderedAt={Date.now()}

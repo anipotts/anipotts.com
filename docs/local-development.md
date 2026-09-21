@@ -133,6 +133,34 @@ How the session is bounded:
   `node scripts/ci/admin-local-owner-leak.mjs --expect absent apps/admin/dist`
   before it runs wrangler.
 
+## sample data in the local preview
+
+Data and Observability cannot read real records or ops state from a local
+preview, by design:
+
+- no credential can be issued locally: there is no reader signing key, and the
+  Cloudflare Access identity the issuance routes require is absent on loopback;
+- the reader on ap-mini accepts only the `https://admin.anipotts.com` origin.
+
+So in development the overview, `/data/*` and `/observability/*` render
+synthetic sample data by default: `src/fixtures/data_v1.synthetic.json`,
+System's `ops_v1.sample.json` and `ops_events_v1.synthetic.json`. Each such
+page carries one `Sample data` badge. Add `?fixture=none` to see the real local
+states instead (the reader is not connected, and ops reads are off). The
+fixtures load only when `import.meta.env.DEV` is true, so no build ships them.
+
+Content is not affected: it reads the local editorial inventory as before.
+
+## private Data session
+
+The private session opens on its own when a Data view mounts, using the live
+Access session for each credential issuance. It is held in module memory for
+the document, so moving between the overview and Data (and opening a record
+from the overview) never opens it twice. It closes on End session, logout,
+expiry, denial, page hide or a document reload, and after 15 minutes without
+interaction or 15 minutes with the tab hidden; the next interaction opens it
+again. Nothing is written to storage.
+
 ## performance baseline
 
 Admin responses carry a `Server-Timing` header with durations and counts only,

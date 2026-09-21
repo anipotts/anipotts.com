@@ -33,6 +33,7 @@ import {
 import { Token } from "@astryxdesign/core/Token";
 import { VStack } from "@astryxdesign/core/VStack";
 import {
+  FlaskIcon,
   LinkBreakIcon,
   MagnifyingGlassIcon,
   WarningCircleIcon,
@@ -44,11 +45,15 @@ import "./workspace.css";
 export function WorkspacePage({
   title,
   meta,
+  badge,
   actions,
   children,
 }: {
   title: string;
+  /** One short status line, only when the state needs it. */
   meta?: ReactNode;
+  /** A chip beside the title, such as Sample data. */
+  badge?: ReactNode;
   actions?: ReactNode;
   children?: ReactNode;
 }) {
@@ -58,11 +63,13 @@ export function WorkspacePage({
         gap={3}
         hAlign="between"
         vAlign="center"
-        wrap="wrap"
         className="workspace-page-header"
       >
         <VStack gap={1} className="workspace-page-title">
-          <Heading level={1}>{title}</Heading>
+          <HStack gap={3} vAlign="center" wrap="wrap">
+            <Heading level={1}>{title}</Heading>
+            {badge}
+          </HStack>
           {meta && (
             <Text type="supporting" color="secondary" role="status">
               {meta}
@@ -70,7 +77,7 @@ export function WorkspacePage({
           )}
         </VStack>
         {actions && (
-          <HStack gap={2} wrap="wrap" vAlign="center">
+          <HStack gap={2} vAlign="center" className="workspace-page-actions">
             {actions}
           </HStack>
         )}
@@ -109,7 +116,11 @@ export function WorkspaceSection({
             </Text>
           )}
         </HStack>
-        {actions}
+        {actions && (
+          <HStack gap={1} vAlign="center">
+            {actions}
+          </HStack>
+        )}
       </HStack>
       <SectionLevel.Provider value={3}>{children}</SectionLevel.Provider>
     </VStack>
@@ -227,6 +238,7 @@ export function DataTable<T extends Record<string, unknown>>({
   noun,
   figures,
   footer = true,
+  interactive = true,
 }: {
   rows: T[];
   columns: Column<T>[];
@@ -237,6 +249,9 @@ export function DataTable<T extends Record<string, unknown>>({
   /** Extra non-zero figures after the count. */
   figures?: Array<[label: string, value: number]>;
   footer?: boolean;
+  /** Rows open something: the whole row takes the hover and the click.
+   * Read-only tables (Status, Activity, Alerts) keep rows still. */
+  interactive?: boolean;
 }) {
   const id = useId();
   const hiding = columns
@@ -247,6 +262,7 @@ export function DataTable<T extends Record<string, unknown>>({
       gap={0}
       className="admin-table-surface workspace-table"
       data-footer={footer ? "true" : "false"}
+      data-interactive={interactive ? "true" : "false"}
     >
       {hiding.length > 0 && (
         <style>
@@ -265,7 +281,7 @@ export function DataTable<T extends Record<string, unknown>>({
           idKey={rowKey}
           density="compact"
           dividers="none"
-          hasHover
+          hasHover={interactive}
           aria-label={label}
           columns={columns.map((column) => ({
             key: column.key,
@@ -339,6 +355,8 @@ export function RowTitle({
   /** The row's kind, as a tooltip and for assistive technology. */
   kind: string;
   title: string;
+  /** The row's destination. The whole row opens it; the link itself wraps
+   * only the title text, so its focus ring fits the text. */
   href?: string;
   /** Opens the row in place. With an href, a plain click opens in place and
    * a modified click (new tab) follows the link. */
@@ -348,6 +366,22 @@ export function RowTitle({
   secondary?: ReactNode;
   mobile?: ReactNode;
 }) {
+  const select = onSelect
+    ? (event: React.MouseEvent<HTMLElement>) => {
+        if (
+          href &&
+          (event.metaKey ||
+            event.ctrlKey ||
+            event.shiftKey ||
+            event.altKey ||
+            event.button !== 0)
+        )
+          return;
+        event.preventDefault();
+        onSelect(event.currentTarget);
+      }
+    : undefined;
+  const label = <span className="record-link-text">{title}</span>;
   return (
     <HStack gap={3} vAlign="center" className="editorial-record-heading">
       <span className="editorial-record-icon" title={kind}>
@@ -355,33 +389,28 @@ export function RowTitle({
         <Text className="sr-only">{kind}</Text>
       </span>
       <VStack gap={0} className="editorial-record-content">
-        {href || onSelect ? (
-          <Button
-            size="sm"
-            label={title}
+        {href ? (
+          <a
             href={href}
-            onClick={
-              onSelect
-                ? (event: React.MouseEvent<HTMLElement>) => {
-                    if (
-                      href &&
-                      (event.metaKey ||
-                        event.ctrlKey ||
-                        event.shiftKey ||
-                        event.altKey ||
-                        event.button !== 0)
-                    )
-                      return;
-                    event.preventDefault();
-                    onSelect(event.currentTarget);
-                  }
-                : undefined
-            }
+            className="record-link"
+            data-row-link=""
+            onClick={select}
             aria-current={onSelect && isPressed ? "true" : undefined}
             aria-controls={controls}
-            variant="ghost"
+          >
+            {label}
+          </a>
+        ) : onSelect ? (
+          <button
+            type="button"
             className="record-link"
-          />
+            data-row-link=""
+            onClick={select}
+            aria-pressed={isPressed}
+            aria-controls={controls}
+          >
+            {label}
+          </button>
         ) : (
           <Text weight="medium" className="workspace-row-title">
             {title}
@@ -398,7 +427,7 @@ export function RowTitle({
         )}
         {mobile && (
           <HStack
-            gap={3}
+            gap={2}
             wrap="wrap"
             vAlign="center"
             className="editorial-mobile-status"
@@ -408,6 +437,25 @@ export function RowTitle({
         )}
       </VStack>
     </HStack>
+  );
+}
+
+/** A record's type: its glyph and name as one compact chip. */
+export function KindBadge({
+  icon: Glyph,
+  label,
+}: {
+  icon: Icon;
+  label: string;
+}) {
+  return (
+    <Token
+      size="sm"
+      color="default"
+      label={label}
+      className="workspace-kind"
+      icon={<Glyph weight="regular" size={14} aria-hidden="true" />}
+    />
   );
 }
 
@@ -464,14 +512,12 @@ const NOTICE_ICONS: Record<NoticeKind, Icon> = {
 export function StateNotice({
   kind,
   title,
-  description,
   action,
   icon: Glyph = NOTICE_ICONS[kind],
   headingLevel,
 }: {
   kind: NoticeKind;
   title: string;
-  description?: string;
   action?: ReactNode;
   icon?: Icon;
   headingLevel?: 2 | 3;
@@ -491,11 +537,6 @@ export function StateNotice({
         <Heading level={level} className="workspace-notice-title">
           {title}
         </Heading>
-        {description && (
-          <Text type="supporting" color="secondary" as="p">
-            {description}
-          </Text>
-        )}
         {action && (
           <HStack gap={2} wrap="wrap" className="workspace-notice-action">
             {action}
@@ -510,13 +551,11 @@ export function StateNotice({
 export function InlineNotice({
   tone,
   title,
-  description,
   action,
   icon: Glyph = WarningCircleIcon,
 }: {
   tone: "info" | "warning" | "error";
   title: string;
-  description?: string;
   action?: ReactNode;
   icon?: Icon;
 }) {
@@ -525,7 +564,6 @@ export function InlineNotice({
       status={tone}
       container="section"
       title={title}
-      description={description}
       icon={<Glyph weight="regular" />}
       endContent={action}
     />
@@ -716,36 +754,15 @@ export function TierSwatch({ tier }: { tier: string | null | undefined }) {
   );
 }
 
-/** The inline control for a workspace that needs a private session. */
-export function SessionControl({
-  active,
-  opening,
-  onOpen,
-  onEnd,
-  note,
-}: {
-  active: boolean;
-  opening?: boolean;
-  onOpen: () => void | Promise<void>;
-  onEnd: () => void;
-  note?: string;
-}) {
-  return active ? (
-    <Button label="End session" size="sm" variant="secondary" onClick={onEnd} />
-  ) : (
-    <HStack gap={2} vAlign="center" wrap="wrap">
-      {note && (
-        <Text type="supporting" color="secondary">
-          {note}
-        </Text>
-      )}
-      <Button
-        label="Open private session"
-        size="sm"
-        variant="primary"
-        clickAction={onOpen}
-        isLoading={opening}
-      />
-    </HStack>
+/** The one mark for synthetic development data. */
+export function SampleBadge() {
+  return (
+    <Token
+      size="sm"
+      color="orange"
+      label="Sample data"
+      className="workspace-sample"
+      icon={<FlaskIcon weight="regular" size={14} aria-hidden="true" />}
+    />
   );
 }

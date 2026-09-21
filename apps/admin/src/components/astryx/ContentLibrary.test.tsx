@@ -34,7 +34,8 @@ describe("Content library", () => {
       />,
     );
     expect(html).toContain("Review changes");
-    expect(html).toContain("Up to date");
+    // A record with nothing to act on carries no line beside its chip.
+    expect(html).not.toContain("Up to date");
     expect(html).toContain("view=review");
     expect(html.indexOf("/content/writing/b?")).toBeLessThan(
       html.indexOf("/content/writing/a?"),
@@ -142,7 +143,7 @@ describe("Quiet Precision library rows", () => {
     expect(html).toContain('aria-label="Continue draft: Private article"');
     expect(html).toContain('aria-label="Open record: Published article"');
     expect(html).toContain("Unpublished draft");
-    expect(html).toContain("Up to date");
+    expect(html).not.toContain("Up to date");
     expect(html).not.toContain("view=review");
   });
   it("does not offer a review action when private draft state is unavailable", () => {

@@ -66,6 +66,7 @@ import {
   WorkspacePage,
   WorkspaceSection,
   FilterBar,
+  SampleBadge,
   type Column,
   type Tone,
 } from "../workspace/Workspace";
@@ -375,12 +376,13 @@ function StatusBody({
                 label={`${group} services`}
                 noun={["entry", "entries"]}
                 footer={false}
+                interactive={false}
               />
             </WorkspaceSection>
           );
         })
       ) : (
-        <StateNotice kind="empty" title="No services in the catalog" />
+        <StateNotice kind="empty" title="No services in the catalog." />
       )}
     </VStack>
   );
@@ -418,8 +420,7 @@ export function ConnectionNotice({
         <StateNotice
           kind="not-connected"
           icon={PlugsIcon}
-          title="Not connected"
-          description="The ops reader is switched off. Status appears here once ops reads are enabled for this admin."
+          title="Not connected."
         />
       );
     case "idle":
@@ -434,15 +435,13 @@ export function ConnectionNotice({
         <InlineNotice
           tone="warning"
           icon={LinkBreakIcon}
-          title="Reader unreachable"
-          description="The last read failed. Everything below is the last snapshot the reader confirmed, not current state."
+          title="Reader unreachable. Showing the last snapshot."
           action={retry}
         />
       ) : (
         <StateNotice
           kind="not-connected"
-          title="Not connected"
-          description="The reader on ap-mini could not be reached."
+          title="Not connected."
           action={retry}
         />
       );
@@ -450,34 +449,22 @@ export function ConnectionNotice({
       return state.snapshot ? (
         <InlineNotice
           tone="warning"
-          title="No current snapshot"
-          description="The reader on ap-mini has no valid ops_v1 snapshot right now. Everything below is the last one it served."
+          title="No current snapshot. Showing the last one."
           action={retry}
         />
       ) : (
-        <StateNotice
-          kind="error"
-          title="No snapshot yet"
-          description="The reader on ap-mini answered, but it has no valid ops_v1 snapshot to serve."
-          action={retry}
-        />
+        <StateNotice kind="error" title="No snapshot yet." action={retry} />
       );
     case "rejected":
       return (
-        <StateNotice
-          kind="error"
-          title="Snapshot rejected"
-          description="The reader sent data outside the ops_v1 contract, so none of it is shown."
-          action={retry}
-        />
+        <StateNotice kind="error" title="Snapshot rejected." action={retry} />
       );
     case "denied":
       return (
         <StateNotice
           kind="error"
           icon={ShieldWarningIcon}
-          title="Access refused"
-          description="The owner gate refused issuance, or the reader refused the credential because it lacks ops:read. Nothing was read."
+          title="Access refused."
           action={retry}
         />
       );
@@ -485,8 +472,7 @@ export function ConnectionNotice({
       return (
         <StateNotice
           kind="not-connected"
-          title="Session ended"
-          description="The snapshot was cleared from this page."
+          title="Session ended."
           action={retry}
         />
       );
@@ -590,15 +576,9 @@ type OpsData = ReturnType<typeof useOpsData>;
 
 function generatedLine(data: OpsData) {
   if (data.generatedAge === null) return undefined;
-  if (data.stopped)
-    return `Sampler stopped ${ago(data.generatedAge)}; last known values`;
-  return `${
-    data.fixtureMode
-      ? "System sample fixture"
-      : data.current
-        ? "Live"
-        : "Not current"
-  }, generated ${ago(data.generatedAge)}`;
+  if (data.stopped) return "Last known values";
+  if (data.fixtureMode) return `Generated ${ago(data.generatedAge)}`;
+  return `${data.current ? "Live" : "Not current"}, generated ${ago(data.generatedAge)}`;
 }
 
 function SamplerStopped({ data }: { data: OpsData }) {
@@ -608,7 +588,6 @@ function SamplerStopped({ data }: { data: OpsData }) {
       tone="warning"
       icon={ClockCounterClockwiseIcon}
       title={`Sampler stopped ${ago(data.generatedAge)}`}
-      description="System has not written a snapshot in over 3 minutes. Every entry below is a last known value, shown as unknown, and none of it is current."
     />
   );
 }
@@ -622,11 +601,7 @@ function OpsNotices({ data }: { data: OpsData }) {
         <ConnectionNotice state={data.state} onRetry={data.retry} />
       )}
       {!data.fixtureMode && data.state.eventsStale && data.events && (
-        <InlineNotice
-          tone="warning"
-          title="Events not current"
-          description="The last events read failed. What is shown is the last read that succeeded."
-        />
+        <InlineNotice tone="warning" title="Events not current." />
       )}
     </>
   );
@@ -693,7 +668,6 @@ function ActivityBody({ data }: { data: OpsData }) {
           kind={event.kind === "access" ? "Reader access" : "Transition"}
           title={eventTitle(event, catalog)}
           secondary={eventSecondary(event)}
-          mobile={<RelativeTime value={event.at} />}
         />
       ),
     },
@@ -768,16 +742,12 @@ function ActivityBody({ data }: { data: OpsData }) {
           rowKey="key"
           label="Activity, newest first"
           noun={["event", "events"]}
+          interactive={false}
         />
       ) : (
         <StateNotice
           kind="empty"
-          title={rows.length ? "No events from this source" : "No events yet"}
-          description={
-            rows.length
-              ? undefined
-              : "State changes and reader access appear here as System records them."
-          }
+          title={rows.length ? "No events from this source." : "No events yet."}
           action={
             rows.length ? (
               <Button
@@ -885,6 +855,8 @@ export function AlertsTable({
       rowKey="subject"
       label={compact ? "Firing alerts" : "Alerts, firing first"}
       noun={["alert", "alerts"]}
+      interactive={false}
+      footer={!compact}
       figures={
         compact
           ? undefined
@@ -916,12 +888,7 @@ function AlertsBody({ data }: { data: OpsData }) {
   return rows.length ? (
     <AlertsTable rows={rows} />
   ) : (
-    <StateNotice
-      kind="empty"
-      icon={BellSimpleIcon}
-      title="No alerts"
-      description="An entry fires when its latest state is failing, stale or degraded, and resolves on a later ok."
-    />
+    <StateNotice kind="empty" icon={BellSimpleIcon} title="No alerts." />
   );
 }
 
@@ -950,7 +917,11 @@ export function ObservabilityWorkspace({
   const hasData = view === "status" ? Boolean(data.snapshot) : eventsRead;
   return (
     <div className="operations-workspace">
-      <WorkspacePage title={TITLES[view]} meta={generatedLine(data)}>
+      <WorkspacePage
+        title={TITLES[view]}
+        meta={generatedLine(data)}
+        badge={data.fixtureMode ? <SampleBadge /> : undefined}
+      >
         <OpsNotices data={data} />
         {hasData && view === "status" && data.snapshot && (
           <StatusBody
@@ -965,8 +936,7 @@ export function ObservabilityWorkspace({
           <StateNotice
             kind="error"
             icon={WarningCircleIcon}
-            title="Fixture rejected"
-            description="The development fixture breaks the ops contract, so none of it is shown."
+            title="Fixture rejected."
           />
         )}
       </WorkspacePage>

@@ -111,8 +111,12 @@ describe("workspace page frames", () => {
     expect(library).toContain(
       ".workspace-table .editorial-record-table .astryx-table-cell:last-child { padding-block: 0; }",
     );
+    // The whole row is the click target; the title link wraps only its text.
     expect(library).toContain(
-      "min-height: var(--spacing-7); justify-content: flex-start; padding-block: var(--spacing-1); padding-inline: var(--spacing-2);",
+      '.workspace-table .record-link::after { content: ""; position: absolute; inset: 0; }',
+    );
+    expect(library).toContain(
+      ".workspace-table .editorial-record-table tr { position: relative; }",
     );
     for (const rule of [
       ".workspace-table .editorial-record-summary,",

@@ -1,26 +1,35 @@
 ---
 import AdminLayout from "../../../layouts/AdminLayout.astro";
-import { DataWorkspace } from "../../../components/data/DataWorkspace";
-import { dataKind } from "../../../lib/data-routes";
+import { PrivateShell } from "../../../components/data/PrivateShell";
+import { loadDataExtras } from "../../../lib/data-extras";
+import { privateReaderOpsEnabled } from "../../../lib/private-reader-credential";
 
-// Off unless PRIVATE_READER_ENABLED is exactly "true". The server makes no
-// read: the browser reads with a short private session, in memory only.
-const enabled = Astro.locals.runtime?.env?.PRIVATE_READER_ENABLED === "true";
-// Development only: `?fixture=synthetic` previews a synthetic dataset.
-// `import.meta.env.DEV` is false in builds, so the fixture never ships.
-const fixture =
-  import.meta.env.DEV && Astro.url.searchParams.get("fixture") === "synthetic"
-    ? (await import("../../../fixtures/data_v1.synthetic.json")).default
-    : undefined;
+// Off unless PRIVATE_READER_ENABLED is exactly "true". Records are read in
+// the browser with a short private session, in memory only; the server reads
+// only the D1 health and knowledge cards.
+const env = Astro.locals.runtime?.env ?? {};
+const enabled = env.PRIVATE_READER_ENABLED === "true";
+// Development uses synthetic sample data by default (a local preview cannot
+// reach the private reader; see docs/local-development.md). `?fixture=none`
+// shows the real local states. `import.meta.env.DEV` is false in builds, so
+// no fixture ships.
+const sample =
+  import.meta.env.DEV && Astro.url.searchParams.get("fixture") !== "none";
+const fixture = sample
+  ? (await import("../../../fixtures/data_v1.synthetic.json")).default
+  : undefined;
+const extras = sample ? undefined : await loadDataExtras(env.DB);
 Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
 
 <AdminLayout title="Records" hideHeader>
-  <DataWorkspace
-    view="records"
-    enabled={enabled}
-    fixture={fixture}
-    kind={dataKind(Astro.url.searchParams.get("kind"))}
+  <PrivateShell
+    initialPath={`${Astro.url.pathname}${Astro.url.search}`}
+    dataEnabled={enabled}
+    dataFixture={fixture}
+    extras={extras}
+    enabled={privateReaderOpsEnabled(env)}
+    renderedAt={Date.now()}
     client:load
   />
 </AdminLayout>

@@ -25,7 +25,7 @@ it("distinguishes private drafts and visibility changes without implying readine
     }),
   ).toMatchObject({
     label: "Visibility change",
-    detail: "Public → Hidden",
+    detail: "Public to Hidden",
     view: "review",
   });
   expect(
@@ -35,7 +35,7 @@ it("distinguishes private drafts and visibility changes without implying readine
       changesPending: true,
       intendedVisibility: "published",
     }),
-  ).toMatchObject({ detail: "Hidden → Public", view: "review" });
+  ).toMatchObject({ detail: "Hidden to Public", view: "review" });
   expect(
     contentDecision({ ...record, intendedVisibility: "draft" }).action,
   ).toBeUndefined();

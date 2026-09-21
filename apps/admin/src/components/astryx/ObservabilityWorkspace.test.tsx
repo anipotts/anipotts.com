@@ -180,7 +180,7 @@ describe("Status view from System's fixture", () => {
 
   it("labels the source as the fixture, never as live", () => {
     expect(host.querySelector('[role="status"]')?.textContent).toBe(
-      "System sample fixture, generated just now",
+      "Generated just now",
     );
   });
 });
@@ -304,7 +304,7 @@ describe("Status view edge cases", () => {
     const within = document.createElement("div");
     within.innerHTML = at(3);
     expect(within.querySelector('[role="status"]')?.textContent).toBe(
-      "System sample fixture, generated 3m ago",
+      "Generated 3m ago",
     );
     expect(
       within.querySelector('tbody [data-variant="success"]'),
@@ -313,9 +313,9 @@ describe("Status view edge cases", () => {
     const host = document.createElement("div");
     host.innerHTML = at(7);
     expect(host.querySelector('[role="status"]')?.textContent).toBe(
-      "Sampler stopped 7m ago; last known values",
+      "Last known values",
     );
-    expect(host.textContent).toContain("none of it is current");
+    expect(host.textContent).toContain("Sampler stopped 7m ago");
     expect(host.querySelector(".ops-summary")?.textContent).toBe(
       "14 entries, none current until the sampler resumes",
     );
@@ -371,7 +371,7 @@ describe("Status connection states", () => {
       root.render(<ObservabilityWorkspace enabled={false} />),
     );
     expect(host.textContent).toContain("Not connected");
-    expect(host.textContent).toContain("switched off");
+    expect(host.textContent).toContain("Not connected.");
     expect(host.querySelector("table")).toBeNull();
     await act(() => vi.advanceTimersByTimeAsync(OPS_POLL_MS * 2));
     expect(fetch).not.toHaveBeenCalled();
@@ -438,7 +438,7 @@ describe("Status connection states", () => {
     );
     await act(() => vi.advanceTimersByTimeAsync(0));
     expect(host.textContent).toContain("Not connected");
-    expect(host.textContent).toContain("could not be reached");
+    expect(host.textContent).toContain("Not connected.");
     const retry = [...host.querySelectorAll("button")].find(
       (button) => button.textContent === "Try again",
     );
@@ -469,7 +469,7 @@ describe("Status connection states", () => {
     // The reader keeps answering 304 while generated_at stays 18:00.
     await act(() => vi.advanceTimersByTimeAsync(2 * 60_000 + 15_000));
     expect(host.querySelector('[role="status"]')?.textContent).toBe(
-      "Sampler stopped 3m ago; last known values",
+      "Last known values",
     );
     expect(host.querySelector('[data-variant="success"]')).toBeNull();
     expect(host.textContent).not.toMatch(/Live,/);
@@ -482,7 +482,7 @@ describe("Status connection states", () => {
     );
     await act(() => vi.advanceTimersByTimeAsync(0));
     expect(host.textContent).toContain("No snapshot yet");
-    expect(host.textContent).toContain("no valid ops_v1 snapshot");
+    expect(host.textContent).toContain("No snapshot yet.");
     expect(host.querySelector("table")).toBeNull();
     expect(
       [...host.querySelectorAll("button")].some(
@@ -499,7 +499,7 @@ describe("Status connection states", () => {
     );
     await act(() => vi.advanceTimersByTimeAsync(0));
     expect(host.textContent).toContain("Access refused");
-    expect(host.textContent).toContain("lacks ops:read");
+    expect(host.textContent).toContain("Access refused.");
     expect(host.querySelector("table")).toBeNull();
     await act(() => vi.advanceTimersByTimeAsync(OPS_POLL_MS * 3));
     expect(reply).toHaveBeenCalledTimes(1);

@@ -11,7 +11,6 @@ import {
   FileTextIcon,
   type Icon,
 } from "@phosphor-icons/react";
-import { Token } from "@astryxdesign/core/Token";
 import {
   Timestamp,
   type TimestampTooltipEntry,
@@ -28,6 +27,7 @@ import {
 import {
   DataTable,
   FilterBar,
+  KindBadge,
   RowTitle,
   StateBadge,
   StateNotice,
@@ -225,18 +225,23 @@ function RecordState({
 }) {
   const decision = contentDecision(record, !inventoryError);
   const unavailable = inventoryError && record.privateRevision === undefined;
+  const detail = unavailable
+    ? "Draft status unavailable"
+    : (decision.detail ?? decision.label);
+  // A record with nothing to act on needs no line beside its chip.
+  const quiet = !unavailable && decision.label === "Up to date";
   return (
     <HStack gap={2} vAlign="center" className="editorial-record-state">
       <RecordStatus status={record.status} />
-      <Text
-        type="supporting"
-        color="secondary"
-        className="editorial-record-state-detail"
-      >
-        {unavailable
-          ? "Draft status unavailable"
-          : (decision.detail ?? decision.label)}
-      </Text>
+      {!quiet && (
+        <Text
+          type="supporting"
+          color="secondary"
+          className="editorial-record-state-detail"
+        >
+          {detail}
+        </Text>
+      )}
     </HStack>
   );
 }
@@ -411,10 +416,8 @@ export function ContentLibrary({
             width: 124,
             hideBelow: 1024 as const,
             render: (item: CatalogRecord) => (
-              <Token
-                size="sm"
-                color="default"
-                className="editorial-record-kind"
+              <KindBadge
+                icon={recordGlyph(item)[0]}
                 label={interfaceLabel(recordSection(item))}
               />
             ),

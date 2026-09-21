@@ -290,7 +290,7 @@ for (const file of [
   "apps/admin/src/pages/api/admin/inbox.ts",
 ])
   assert.equal(existsSync(file), false, `${file} must stay retired`);
-assert.ok(rootSource.includes("<AdminOverview"), "root is the one overview");
+assert.ok(rootSource.includes("<PrivateShell"), "root is the one overview");
 assert.ok(
   inboxSource.includes('Astro.redirect("/observability/status", 308)'),
   "retired inbox redirects to Observability Status",

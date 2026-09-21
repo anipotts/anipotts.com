@@ -610,13 +610,13 @@ describe("private Data workspace", () => {
         />,
       ),
     );
-    // The start state is the ordinary page with an inline session control.
+    // The session opens on its own: no click, no explanation.
+    await settle();
+    await settle();
     expect(container.querySelector("h1")?.textContent).toBe(
       props.view === "sources" ? "Sources" : "Records",
     );
-    expect(container.textContent).toContain("Private session closed");
-    await click("Open private session");
-    await settle();
+    expect(container.textContent).not.toMatch(/memory only|credential/i);
   }
 
   it("says not connected, with no session control, while the reader is off", async () => {
@@ -631,8 +631,8 @@ describe("private Data workspace", () => {
         />,
       ),
     );
-    expect(container.textContent).toContain("Not connected");
-    expect(container.textContent).not.toContain("Open private session");
+    expect(container.textContent).toContain("Not connected.");
+    expect(container.textContent).not.toContain("session");
     expect(spy).not.toHaveBeenCalled();
   });
 
@@ -640,7 +640,6 @@ describe("private Data workspace", () => {
     const { fetcher, calls } = network();
     const session = makeSession(fetcher);
     await openWorkspace(session, fetcher);
-    expect(container.textContent).toContain("Most recent first");
     await search("Fixture");
     await settle();
     expect(container.textContent).toContain("Synthetic note");
@@ -722,7 +721,7 @@ describe("private Data workspace", () => {
     await settle();
     expect(container.textContent).toContain("Synthetic note");
     await click("End session");
-    expect(container.textContent).toContain("Private session ended");
+    expect(container.textContent).toContain("Private session ended.");
     expect(container.textContent).not.toContain("Synthetic note");
     expect(session.bearer()).toBeNull();
   });
@@ -769,14 +768,14 @@ describe("private Data workspace", () => {
       status: "cleared",
       reason: "expired",
     });
-    expect(container.textContent).toContain("Private session expired");
+    expect(container.textContent).toContain("Private session expired.");
     expect(container.textContent).not.toContain("Synthetic note");
   });
 
   it("shows denied and unavailable issuance distinctly", async () => {
     for (const [status, title] of [
-      [401, "Private access was refused"],
-      [503, "The private reader is unavailable"],
+      [401, "Private access was refused."],
+      [503, "Private reader unavailable."],
     ] as const) {
       const fetcher = vi.fn(async () =>
         json({ error: "fixture" }, status),
@@ -793,10 +792,10 @@ describe("private Data workspace", () => {
           />,
         ),
       );
-      await click("Open private session");
+      await settle();
       await settle();
       expect(container.textContent).toContain(title);
-      expect(container.textContent).toContain("Open private session");
+      expect(container.textContent).toContain("Try again");
     }
   });
 

@@ -11,6 +11,7 @@ export type DataFixture = {
   status: Record<string, unknown>;
   records: Array<Record<string, unknown>>;
   sources: Array<Record<string, unknown>>;
+  extras?: import("./data-extras").DataExtras;
 };
 
 const PAGE = 20;
