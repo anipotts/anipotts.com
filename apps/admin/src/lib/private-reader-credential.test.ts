@@ -11,8 +11,10 @@ import { EDITORIAL_OWNER_EMAIL } from "./editorial-owner";
 import {
   PRIVATE_READER_AUDIENCE,
   PRIVATE_READER_ISSUER,
+  PRIVATE_READER_OPS_PATH,
   privateReaderCredentialApi,
   type PrivateReaderConfig,
+  type PrivateReaderMode,
 } from "./private-reader-credential";
 
 // Synthetic, throwaway keys generated per run. No real key exists.
@@ -90,11 +92,16 @@ function expectPrivate(response: Response) {
   expect(response.headers.get("CDN-Cache-Control")).toBe("no-store");
 }
 
-async function issue(req: Request, overrides: PrivateReaderConfig = {}) {
+async function issue(
+  req: Request,
+  overrides: PrivateReaderConfig = {},
+  mode?: PrivateReaderMode,
+) {
   return privateReaderCredentialApi(
     req,
     { ...config, ...overrides },
     { resolveAccessKey },
+    mode,
   );
 }
 
@@ -254,5 +261,65 @@ describe("private reader credential issuance", () => {
       expectPrivate(response);
       expect(await response.json()).toEqual({ error: "reader_unavailable" });
     }
+  });
+});
+
+describe("ops credential issuance", () => {
+  const ops = (options: Parameters<typeof request>[0] = {}) =>
+    request({ path: PRIVATE_READER_OPS_PATH, ...options });
+
+  it("issues a delegation that carries only ops:read", async () => {
+    const response = await issue(await ops(), {}, "ops");
+    expect(response.status).toBe(200);
+    expectPrivate(response);
+    const body = (await response.json()) as {
+      credential: string;
+      scope: string[];
+    };
+    expect(body.scope).toEqual(["ops:read"]);
+    const { payload } = await jwtVerify(body.credential, readerPublic, {
+      issuer: PRIVATE_READER_ISSUER,
+      audience: PRIVATE_READER_AUDIENCE,
+      algorithms: ["ES256"],
+    });
+    expect(payload.scope).toBe("ops:read");
+    expect(payload.exp! - payload.iat!).toBeLessThanOrEqual(60);
+  });
+
+  it("keeps the modes apart: each path serves only its own mode", async () => {
+    expect((await issue(await ops(), {}, "data")).status).toBe(404);
+    expect((await issue(await request(), {}, "ops")).status).toBe(404);
+    const data = await issue(await request());
+    expect(((await data.json()) as { scope: string[] }).scope).toEqual([
+      "data:read",
+      "activity:read",
+    ]);
+  });
+
+  it("ignores client-requested scopes", async () => {
+    const response = await issue(
+      await ops({
+        body: JSON.stringify({ scope: "data:read activity:read" }),
+        headers: { "X-Reader-Scope": "data:read" },
+      }),
+      {},
+      "ops",
+    );
+    const body = (await response.json()) as { scope: string[] };
+    expect(body.scope).toEqual(["ops:read"]);
+  });
+
+  it("stays behind the same off flag and owner gate", async () => {
+    const off = await issue(
+      await ops(),
+      { PRIVATE_READER_ENABLED: undefined },
+      "ops",
+    );
+    expect(off.status).toBe(503);
+    expect(await off.json()).toEqual({ error: "reader_unavailable" });
+    const anonymous = await issue(await ops({ access: null }), {}, "ops");
+    expect(anonymous.status).toBe(401);
+    const get = await issue(await ops({ method: "GET" }), {}, "ops");
+    expect(get.status).toBe(405);
   });
 });

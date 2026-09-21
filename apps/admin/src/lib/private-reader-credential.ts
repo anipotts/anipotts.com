@@ -15,10 +15,24 @@ import {
  * by request headers, so this route reads no device, principal or scope header.
  */
 export const PRIVATE_READER_PATH = "/api/private-reader/credential";
+/** Separate issuance for the Observability Status view. */
+export const PRIVATE_READER_OPS_PATH = "/api/private-reader/ops-credential";
 export const PRIVATE_READER_ISSUER = "https://admin.anipotts.com";
 export const PRIVATE_READER_AUDIENCE = "https://ap-mini.tail060490.ts.net";
 /** Server selected. Client-requested scopes are ignored. */
 export const PRIVATE_READER_SCOPES = ["data:read", "activity:read"] as const;
+/** Ops credentials carry only this scope and never a Data scope. */
+export const PRIVATE_READER_OPS_SCOPES = ["ops:read"] as const;
+
+/**
+ * Each mode has its own path and fixed scope set, so an Observability
+ * credential can never read Data and a Data credential never carries ops.
+ */
+export const PRIVATE_READER_MODES = {
+  data: { path: PRIVATE_READER_PATH, scope: PRIVATE_READER_SCOPES },
+  ops: { path: PRIVATE_READER_OPS_PATH, scope: PRIVATE_READER_OPS_SCOPES },
+} as const;
+export type PrivateReaderMode = keyof typeof PRIVATE_READER_MODES;
 export const PRIVATE_READER_MAX_LIFETIME_SECONDS = 60;
 const MAX_BODY_BYTES = 1024;
 
@@ -75,9 +89,11 @@ export async function privateReaderCredentialApi(
   request: Request,
   config: PrivateReaderConfig,
   options: PrivateReaderOptions = {},
+  mode: PrivateReaderMode = "data",
 ): Promise<Response> {
+  const selected = PRIVATE_READER_MODES[mode];
   const url = new URL(request.url);
-  if (url.pathname !== PRIVATE_READER_PATH) return deny("not_found", 404);
+  if (url.pathname !== selected.path) return deny("not_found", 404);
   if (request.method !== "POST")
     return deny("method_not_allowed", 405, { Allow: "POST" });
   if (url.search) return deny("invalid_request", 400);
@@ -116,7 +132,7 @@ export async function privateReaderCredentialApi(
   // The delegation never outlives its parent Access session. No grace.
   if (expiresAt <= now) return deny("owner_required", 401);
 
-  const scope = [...PRIVATE_READER_SCOPES];
+  const scope: string[] = [...selected.scope];
   const credential = await new SignJWT({
     email: owner.email,
     scope: scope.join(" "),
