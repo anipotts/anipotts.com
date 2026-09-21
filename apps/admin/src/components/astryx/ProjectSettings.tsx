@@ -79,7 +79,7 @@ export function ProjectSettings({
           status={status(key)}
           description={
             key === "public_state" && publicationMode === "direct"
-              ? "Unpublishing is unavailable. Listed and featured projects can be published after review."
+              ? "To hide a project from the website, use Unpublish in the document actions. Listed and featured projects can be published after review."
               : key === "status"
                 ? "An archived project can remain visible on the website."
                 : undefined

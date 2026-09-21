@@ -57,7 +57,7 @@ export function ArticleSettings({
         isDisabled={disabled}
         description={
           publicationMode === "direct"
-            ? "Only visible publication is supported. Scheduling and unpublishing are unavailable. Your draft stays private until you approve publication."
+            ? "Publishing keeps a piece visible. To take it off the website, use Unpublish in the document actions; scheduling is not available yet. Your draft stays private until you approve publication."
             : "Changes take effect only after you approve publication."
         }
         options={[

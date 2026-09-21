@@ -47,7 +47,7 @@ describe("article properties", () => {
         }}
       />,
     );
-    expect(html).toContain("Scheduling and unpublishing are unavailable");
+    expect(html).toContain("use Unpublish in the document actions");
     expect(html).toContain("Draft, hidden from the website");
   });
   it("retains disclosure by default for existing callers", () => {

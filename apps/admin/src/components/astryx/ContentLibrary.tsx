@@ -129,7 +129,13 @@ export const Updated = memo(
     previous.updated?.source === next.updated?.source,
 );
 
+/** States whose plain name would undersell where the record stands. */
+const STATUS_LABELS: Record<string, string> = {
+  hidden: "Hidden from site",
+};
+
 function interfaceLabel(value: string) {
+  if (STATUS_LABELS[value]) return STATUS_LABELS[value];
   const text = value.replaceAll("_", " ");
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
