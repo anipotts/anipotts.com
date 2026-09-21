@@ -8,6 +8,7 @@ import HomepageRichSummary from "../components/HomepageRichSummary.astro";
 import { Icon } from "astro-icon/components";
 import type { CollectionEntry } from "astro:content";
 import { projectSlug, writingSlug } from "../lib/content";
+import { byRankThenSlug } from "../lib/listing-order";
 import { personIdentity, websiteId } from "../lib/identity";
 import { siteConfig } from "@anipotts/content/public";
 
@@ -32,11 +33,11 @@ const codingAgentGuide = allWork.find(
 );
 const experiences = allWork
   .filter((project) => project.data.homepage_placement === "experience")
-  .sort((a, b) => b.data.homepage_order - a.data.homepage_order);
+  .sort(byRankThenSlug((project) => project.data.homepage_order, projectSlug));
 const firstFeature = experiences.find((project) => project.data.preview_media);
 const projects = allWork
   .filter((project) => project.data.homepage_placement === "work")
-  .sort((a, b) => b.data.homepage_order - a.data.homepage_order)
+  .sort(byRankThenSlug((project) => project.data.homepage_order, projectSlug))
   .slice(0, work.limit ?? 4);
 const writingEntries = allWriting
   .filter((item) => homeWritingOrder.has(writingSlug(item)))
@@ -173,9 +174,11 @@ const profileLd = {
     text-underline-offset: 0.14em;
   }
 
-  .text-link:hover {
-    color: var(--interactive);
-    text-decoration-color: var(--interactive);
+  @media (hover: hover) and (pointer: fine) {
+    .text-link:hover {
+      color: var(--interactive);
+      text-decoration-color: var(--interactive);
+    }
   }
 
   .experience-grid {

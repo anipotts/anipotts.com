@@ -472,14 +472,75 @@ describe("maintenance legacy retirement", () => {
     );
     expect(await store.history(record)).toEqual(history);
   });
-  it("refuses claimed, leased, checkpointed, blocked or advanced jobs without changing them", async () => {
+  it("retires an attempted, blocked validate job at the queue head and frees the queue", async () => {
+    const { store, id } = await frozen();
+    const laterId = crypto.randomUUID();
+    const later = { kind: "writing", id: "later-essay" } as const;
+    await store.save({ ...draft(), record: later });
+    await store.freezePublication({
+      record: later,
+      operationId: laterId,
+      expectedRevision: 1,
+    });
+    await maintenance(store);
+    // The production chainedchat shape: two past claims, one owner retry,
+    // settled back to validate with a readiness blocker and no checkpoint.
+    await runInDurableObject(store, async (_instance, state) => {
+      state.storage.sql.exec(
+        "UPDATE publication_jobs SET attempts = 2, version = 5, blocked = 'unreleased_public_changes' WHERE id = ?",
+        id,
+      );
+    });
+    await store.save(draft(source + "Newer private paragraph.", 1));
+    const history = await store.history(record);
+    expect((await store.publicationQueue()).head?.blocked).toBe(
+      "unreleased_public_changes",
+    );
+    expect(
+      await store.cancelUnstartedLegacyPublication(record, id, 1, 4),
+    ).toEqual({ ok: false, code: "publication_conflict" });
+    expect(
+      await store.cancelUnstartedLegacyPublication(record, id, 2, 5),
+    ).toEqual({ ok: false, code: "publication_conflict" });
+    const results = await Promise.all([
+      store.cancelUnstartedLegacyPublication(record, id, 1, 5),
+      store.cancelUnstartedLegacyPublication(record, id, 1, 5),
+    ]);
+    expect(results.filter((result) => result.ok)).toHaveLength(1);
+    expect(await store.publicationStatus(record, id)).toMatchObject({
+      phase: "cancelled",
+      version: 6,
+      attempts: 2,
+      lease: null,
+      leaseUntil: 0,
+      blocked: null,
+      checkpoint: { cancelRequested: "true" },
+    });
+    expect((await store.publication(record, id))?.source).toBe(source);
+    expect((await store.get(record))?.source).toContain(
+      "Newer private paragraph.",
+    );
+    expect(await store.history(record)).toEqual(history);
+    const queue = await store.publicationQueue();
+    expect(queue.pending).toBe(1);
+    expect(queue.head?.id).toBe(laterId);
+    // The later job is itself unstarted and retires under the same rules.
+    expect(
+      await store.cancelUnstartedLegacyPublication(later, laterId, 1, 0),
+    ).toEqual({ ok: true });
+    expect((await store.publicationQueue()).pending).toBe(0);
+  });
+  it("refuses leased, checkpointed or advanced jobs without changing them", async () => {
     for (const change of [
-      "attempts = 1",
       "lease = 'active'",
+      "lease = 'active', leaseUntil = 9999999999999, attempts = 1",
       "leaseUntil = 1",
+      "leaseUntil = 1, attempts = 3, blocked = 'unreleased_public_changes'",
       'checkpoint = \'{"commit":"abc"}\'',
-      "blocked = 'unreleased_public_changes'",
+      "checkpoint = '{\"baseHead\":\"abc\"}', blocked = 'stale_renderer'",
       "phase = 'commit'",
+      "phase = 'commit', attempts = 1, blocked = 'unreleased_public_changes'",
+      "phase = 'branch'",
     ]) {
       const { store, id } = await frozen();
       await maintenance(store);
