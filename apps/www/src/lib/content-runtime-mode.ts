@@ -22,6 +22,17 @@ export function canonicalContentPath(pathname: string): string | null {
   }
 }
 
+/** CMS surfaces whose 200 is a rendered view of the inventory: pages, the
+ * feed, the sitemap and the search index. They get a version validator and
+ * the edge copy. The verification API and editorial media stay no-store. */
+export function isCacheableContentPath(pathname: string): boolean {
+  return (
+    isRuntimeContentPath(pathname) &&
+    pathname !== "/api/content-version" &&
+    !pathname.startsWith("/images/")
+  );
+}
+
 /** CMS surfaces must never take an ASSETS shortcut, even if stale files exist. */
 export function isRuntimeContentPath(pathname: string): boolean {
   const canonical = canonicalContentPath(pathname);

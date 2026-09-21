@@ -287,6 +287,29 @@ test("the contract matches apps/www/wrangler.toml", () => {
   }
 });
 
+test("apps/www/wrangler.toml serves the published store with its bindings", () => {
+  const wrangler = readFileSync(
+    new URL("../wrangler.toml", import.meta.url),
+    "utf8",
+  );
+  assert.match(wrangler, /^CONTENT_RUNTIME = "cms"$/m);
+  const declared = wranglerBindings(wrangler);
+  assert.ok(declared.get("d1_databases").includes("CONTENT_DB"));
+  assert.ok(declared.get("r2_buckets").includes("CONTENT_MEDIA"));
+  // The reader binds the dedicated store, never the shared application DB.
+  const contentDb = wrangler.match(
+    /^\[\[d1_databases\]\]\nbinding = "CONTENT_DB"\n((?:.+\n)*)/m,
+  );
+  assert.ok(contentDb, "CONTENT_DB block");
+  assert.match(contentDb[1], /^database_name = "anipotts-content"$/m);
+  // The deployed vars evaluate to an available reader and media path.
+  const result = evaluateRuntimeContract(
+    completeEnv({ CONTENT_RUNTIME: "cms" }),
+  );
+  assert.equal(result.features.published_content.state, "available");
+  assert.equal(result.features.published_media.state, "available");
+});
+
 test("CMS dependencies are disabled in legacy mode and bounded when activated", () => {
   for (const CONTENT_RUNTIME of [undefined, "legacy"]) {
     const result = evaluateRuntimeContract(
