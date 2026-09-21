@@ -1,5 +1,6 @@
 import {
   usesPublishedContent,
+  canonicalContentPath,
   isRuntimeContentPath,
 } from "./lib/content-runtime-mode";
 import {
@@ -57,6 +58,23 @@ export const onRequest = defineMiddleware(async (context, next) => {
     );
   }
   const { pathname, search } = context.url;
+  const usesCms =
+    !context.isPrerendered && usesPublishedContent(context.locals.runtime?.env);
+  if (usesCms) {
+    const canonical = canonicalContentPath(pathname);
+    if (canonical === null)
+      return withSecurityHeaders(
+        new Response("Invalid path", {
+          status: 400,
+          headers: { "Cache-Control": "no-store" },
+        }),
+      );
+    if (canonical !== pathname) {
+      const target = new URL(context.url);
+      target.pathname = canonical;
+      return context.redirect(target.href, 308);
+    }
+  }
   const host = context.url.hostname.toLowerCase();
   // Newsletter delivery endpoints remain available; its editorial pages are unpublished.
   if (
@@ -100,10 +118,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return context.redirect(`${origin}${adminPath}${search}`, 308);
   }
 
-  const cmsSurface =
-    !context.isPrerendered &&
-    usesPublishedContent(context.locals.runtime?.env) &&
-    isRuntimeContentPath(pathname);
+  const cmsSurface = usesCms && isRuntimeContentPath(pathname);
 
   // Worker-first routing handles aliases and the newsletter host before assets.
   // Known prebuilt pages bypass Astro's on-demand catch-all entirely.

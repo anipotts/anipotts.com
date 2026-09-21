@@ -1,5 +1,6 @@
 import {
   usesPublishedContent,
+  canonicalContentPath,
   isRuntimeContentPath,
 } from "./lib/content-runtime-mode";
 import type { SSRManifest } from "astro";
@@ -47,6 +48,20 @@ export function createExports(manifest: SSRManifest) {
     try {
       const url = new URL(request.url);
       const { pathname } = url;
+      if (usesPublishedContent(env)) {
+        const canonical = canonicalContentPath(pathname);
+        if (canonical === null)
+          return withSecurityHeaders(
+            new Response("Invalid path", {
+              status: 400,
+              headers: { "Cache-Control": "no-store" },
+            }),
+          );
+        if (canonical !== pathname) {
+          url.pathname = canonical;
+          return withSecurityHeaders(Response.redirect(url, 308));
+        }
+      }
       // Previously prerendered aliases cannot bypass an activated CMS reader.
       if (
         usesPublishedContent(env) &&

@@ -692,6 +692,37 @@ describe("direct publication with real local D1, R2 and SQLite Durable Objects",
       ).run();
     }
   });
+  it("keeps a durable wake when the publication database binding is temporarily absent", async () => {
+    const f = await fixture();
+    await f.store.startDirectPublication(f.input);
+    await runInDurableObject(f.store, async (instance, state) => {
+      const owner = instance as unknown as {
+        env: Record<string, unknown>;
+        alarm(): Promise<void>;
+      };
+      const original = owner.env;
+      owner.env = { ...original, CONTENT_DB: undefined };
+      try {
+        await state.storage.deleteAlarm();
+        await owner.alarm();
+        expect(await state.storage.getAlarm()).toBeGreaterThan(Date.now());
+        expect(
+          (await DirectPublisher.readStatus(state.storage, f.record))?.attempts,
+        ).toBe(0);
+      } finally {
+        owner.env = original;
+      }
+    });
+    await f.advance();
+    await f.advance();
+    await f.advance();
+    expect(await f.store.latestDirectPublication(f.record)).toMatchObject({
+      id: f.input.operationId,
+      phase: "live",
+    });
+    const receipt = await getDirectReceipt(env.CONTENT_DB, f.input.operationId);
+    expect(receipt?.publicationId).toBe(f.input.operationId);
+  });
   it("maintenance without R2 retains readable status and schedules a wake for accepted work", async () => {
     const store = env.MAINTENANCE_EDITORIAL.getByName(crypto.randomUUID());
     const record = freshRecord();

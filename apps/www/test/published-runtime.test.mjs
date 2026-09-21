@@ -536,3 +536,43 @@ test("legacy/default mode still renders Git; old HTML aliases cannot bypass CMS 
     db.close();
   }
 });
+
+test("encoded CMS paths cannot bypass publication guards through ASSETS", async () => {
+  let reads = 0;
+  const env = {
+    CONTENT_RUNTIME: "cms",
+    ASSETS: {
+      async fetch() {
+        reads++;
+        return new Response("obsolete bundled bytes");
+      },
+    },
+  };
+  const id = `${"a".repeat(64)}.png`;
+  for (const [path, canonical] of [
+    [`/images/%65ditorial/${id}`, `/images/editorial/${id}`],
+    ["/%77riting/awareness-is-alpha", "/writing/awareness-is-alpha"],
+    ["/%69ndex.html", "/index.html"],
+  ]) {
+    const response = await serve(path, env);
+    assert.equal(response.status, 308);
+    assert.equal(new URL(response.headers.get("location")).pathname, canonical);
+    // Follow the canonical route, including the existing HTML alias redirect.
+    let target = await serve(canonical, env);
+    if (target.status === 308)
+      target = await serve(
+        new URL(target.headers.get("location")).pathname,
+        env,
+      );
+    assert.equal(target.status, 503);
+  }
+  for (const path of [
+    `/images%2Feditorial%2F${id}`,
+    `/images/%2565ditorial/${id}`,
+    "/writing/%ZZ",
+    "/images/%5ceditorial/test.png",
+    "/writing/%00",
+  ])
+    assert.equal((await serve(path, env)).status, 400);
+  assert.equal(reads, 0);
+});

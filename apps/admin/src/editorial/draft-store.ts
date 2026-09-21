@@ -241,6 +241,25 @@ export class EditorialDraftStore extends DurableObject<unknown> {
       return;
     }
     if (mode === "direct") {
+      // A binding regression must not consume the only durable wake. Native
+      // alarm retries are finite; keep accepted work recoverable after repair.
+      if (!(this.env as Record<string, unknown>).CONTENT_DB) {
+        const pending = this.ctx.storage.sql
+          .exec<{ name: string }>(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='direct_publication_intents'",
+          )
+          .toArray()[0];
+        if (
+          pending &&
+          this.ctx.storage.sql
+            .exec<{ id: string }>(
+              "SELECT id FROM direct_publication_intents WHERE phase NOT IN ('live','cancelled') LIMIT 1",
+            )
+            .toArray()[0]
+        )
+          await this.ctx.storage.setAlarm(Date.now() + 60_000);
+        return;
+      }
       await this.directPublisher().alarm();
       return;
     }
