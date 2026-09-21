@@ -38,7 +38,8 @@ describe("Website workspace navigation", () => {
         />,
       );
     const local = render(true);
-    expect(local).toContain('aria-label="Content"');
+    expect(local).toContain('aria-label="Admin"');
+    expect(local).toContain('data-sidebar-group="content"');
     expect(local).toContain("Pages");
     expect(local).not.toContain("/auth/logout");
     expect(render(false)).toContain("/auth/logout");
@@ -64,7 +65,7 @@ it("writes the phone and tablet header into server HTML and lets CSS show it", (
   expect(html).toContain('role="banner"');
   expect(header).toContain("admin-mobile-header");
   expect(header).toContain("[</span>admin");
-  expect(header).toContain('aria-label="Switch workspace: Content"');
+  expect(header).not.toContain("Switch workspace");
   expect(header).toContain('aria-label="Open navigation"');
   // No drawer exists on the server, so the button references none.
   const menuButton = /<button[^>]*aria-label="Open navigation"[^>]*>/.exec(
@@ -87,7 +88,7 @@ it("writes the phone and tablet header into server HTML and lets CSS show it", (
     "utf8",
   );
   expect(shell).toContain('mobileNav={{ breakpoint: "md", hasToggle: false }}');
-  expect(shell).toContain("banner={<WorkspaceTopBar workspace={workspace} />}");
+  expect(shell).toContain("banner={<WorkspaceTopBar />}");
 });
 
 it("sizes sidebar menus to the sidebar and keeps tooltips whole", () => {

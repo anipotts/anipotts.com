@@ -1114,7 +1114,7 @@ body:has(.editorial-workspace-shell) {
     > div
     > div:has(> .editorial-workspace-identity) {
     height: auto;
-    min-height: calc(var(--spacing-11) * 2 + var(--spacing-8));
+    min-height: var(--spacing-11);
     align-items: flex-start;
     gap: var(--spacing-2);
     /* Same 8px inset as the drawer body below, so the header controls and

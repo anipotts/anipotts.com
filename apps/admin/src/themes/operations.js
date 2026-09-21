@@ -427,7 +427,7 @@ export const operationsTheme = {
     },
     "app-shell": {
       "base": {
-        "--color-workspace-sidebar": "light-dark(#f1f6f4, #0d1210)"
+        "--color-workspace-sidebar": "light-dark(#f1f4fa, #0d1015)"
       }
     },
     "top-nav": {

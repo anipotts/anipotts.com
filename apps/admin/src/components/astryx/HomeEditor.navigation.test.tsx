@@ -6,7 +6,12 @@ import { newProjectSource } from "../../lib/project-draft";
 import { newWritingSource } from "../../lib/writing-draft";
 import * as navigation from "../../lib/editorial-navigation";
 import { HomeEditor } from "./HomeEditor";
-import { WorkspaceIdentity } from "./EditorialWorkspaceShell";
+import { useWorkspaceMemory } from "./EditorialWorkspaceShell";
+
+function WorkspaceMemory() {
+  useWorkspaceMemory("content");
+  return null;
+}
 import { EditorialApp } from "./EditorialApp";
 import { recoveryKey, draftRecovery } from "../../lib/draft-recovery";
 import {
@@ -121,7 +126,7 @@ async function mount(search = "", localPreview = true, withIdentity = false) {
   await act(async () => {
     root.render(
       <>
-        {withIdentity && <WorkspaceIdentity workspace="content" />}
+        {withIdentity && <WorkspaceMemory />}
         <HomeEditor
           record={{ kind: "writing", id: "test" }}
           localPreview={localPreview}
@@ -539,7 +544,7 @@ it("does not clear recovery when sign-out navigation is canceled", async () => {
   }
 });
 
-it("remembers pushed editor views and panels in the workspace switcher", async () => {
+it("remembers pushed editor views and panels for the Content workspace", async () => {
   await mount("?theme=dark", true, true);
   await click("Preview");
   expect(sessionStorage.getItem("admin:navigation:content")).toBe(

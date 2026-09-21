@@ -13,7 +13,7 @@ export const operationsTheme = defineTheme({
   },
   components: {
     "app-shell": {
-      base: { "--color-workspace-sidebar": "light-dark(#f1f6f4, #0d1210)" },
+      base: { "--color-workspace-sidebar": "light-dark(#f1f4fa, #0d1015)" },
     },
   },
 });

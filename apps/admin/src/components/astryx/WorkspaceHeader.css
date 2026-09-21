@@ -525,3 +525,79 @@
     min-height: 44px;
   }
 }
+
+/* Unified sidebar (UnifiedSidebar.tsx): Content, Data and Observability as
+   collapsible groups in one navigation. Space separates the groups; nothing
+   is ruled off. Headings are quiet labels on the same row height as the
+   pages, and the pages sit on the heading's own inset instead of Astryx's
+   nested indent, so one icon column runs down the whole sidebar. */
+.admin-unified-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  width: 100%;
+  min-width: 0;
+}
+.admin-unified-nav[data-rail="true"] {
+  gap: var(--spacing-3);
+}
+.admin-unified-nav [data-sidebar-group] {
+  color: var(--color-text-secondary);
+  font-size: var(--text-supporting-size);
+  font-weight: var(--font-weight-semibold);
+}
+.admin-unified-nav [data-sidebar-group] + [role="group"] > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-0-5);
+  padding-inline-start: 0;
+}
+@media (width > 768px) {
+  .editorial-workspace-nav > :has(> .admin-unified-nav) {
+    padding-block-start: var(--spacing-0-5);
+    align-items: stretch;
+  }
+}
+/* Phones and tablets: every row in the drawer is a 44px target. */
+@media (max-width: 768px), (pointer: coarse) {
+  .astryx-mobile-nav.editorial-workspace-nav
+    .admin-unified-nav
+    .astryx-side-nav-item {
+    min-height: var(--spacing-11);
+  }
+}
+/* Before the sidebar hydrates, the server has rendered every group open, but
+   the prepaint script has recorded the groups this viewer closed. Hold them
+   closed from first paint so a saved choice never moves the page. The
+   sidebar removes the record once React owns the same state. */
+:root[data-admin-nav-closed~="content"]
+  .admin-unified-nav
+  [data-sidebar-group="content"]
+  + [role="group"],
+:root[data-admin-nav-closed~="life"]
+  .admin-unified-nav
+  [data-sidebar-group="life"]
+  + [role="group"],
+:root[data-admin-nav-closed~="operations"]
+  .admin-unified-nav
+  [data-sidebar-group="operations"]
+  + [role="group"] {
+  grid-template-rows: 0fr !important;
+  visibility: hidden;
+  transition: none !important;
+}
+:root[data-admin-nav-closed~="content"]
+  .admin-unified-nav
+  [data-sidebar-group="content"]
+  > :last-child,
+:root[data-admin-nav-closed~="life"]
+  .admin-unified-nav
+  [data-sidebar-group="life"]
+  > :last-child,
+:root[data-admin-nav-closed~="operations"]
+  .admin-unified-nav
+  [data-sidebar-group="operations"]
+  > :last-child {
+  transform: none !important;
+  transition: none !important;
+}

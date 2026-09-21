@@ -427,7 +427,7 @@ export const lifeTheme = {
     },
     "app-shell": {
       "base": {
-        "--color-workspace-sidebar": "light-dark(#f5f3f8, #100d14)"
+        "--color-workspace-sidebar": "light-dark(#f1f4fa, #0d1015)"
       }
     },
     "top-nav": {

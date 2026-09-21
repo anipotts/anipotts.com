@@ -1,16 +1,4 @@
-import {
-  HouseIcon,
-  UsersIcon,
-  FolderIcon,
-  MapPinIcon,
-  ClockIcon,
-  LinkIcon,
-  FileTextIcon,
-  DesktopIcon,
-  ArrowsClockwiseIcon,
-} from "@phosphor-icons/react";
 import React, { useEffect, useState, type ReactNode } from "react";
-import { SideNavItem, SideNavSection } from "@astryxdesign/core/SideNav";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Text } from "@astryxdesign/core/Text";
 import { Theme } from "@astryxdesign/core/theme";
@@ -24,7 +12,16 @@ import { EditorialWorkspaceShell } from "./EditorialWorkspaceShell";
 import { workspaceThemes } from "../../themes/workspaces";
 import { OperationalCommandPalette } from "./OperationalCommandPalette";
 import { AdminCommandPalette } from "./AdminCommandPalette";
-import { lifeSections } from "../../lib/life-sections";
+import { sidebarGroupForPath } from "../../lib/admin-sidebar";
+import { sidebarSearchEntries } from "./UnifiedSidebar";
+import { adminThemeIcons } from "./adminThemeIcons";
+
+// Built once, so the theme provider sees a stable object per workspace.
+const shellThemes = {
+  content: { ...workspaceThemes.content, icons: adminThemeIcons },
+  life: { ...workspaceThemes.life, icons: adminThemeIcons },
+  operations: { ...workspaceThemes.operations, icons: adminThemeIcons },
+};
 
 type AdminShellProps = {
   children: ReactNode;
@@ -68,9 +65,7 @@ export function AdminShell({
     setMode(next);
     saveTheme(next);
   };
-  const workspace = currentRoute.split("?")[0].startsWith("/life")
-    ? "life"
-    : "operations";
+  const workspace = sidebarGroupForPath(currentRoute.split("?")[0] ?? "");
   if (chrome === "auth")
     return (
       <main className="admin-auth-frame">
@@ -80,67 +75,8 @@ export function AdminShell({
   const operationalItems = navItems.filter(
     (item) => item.group !== "life" && item.group !== "website",
   );
-  const lifeIcons = [
-    HouseIcon,
-    UsersIcon,
-    FolderIcon,
-    MapPinIcon,
-    ClockIcon,
-    LinkIcon,
-    FileTextIcon,
-  ];
-  const lifeEntries = Object.entries(lifeSections).map(([id, label]) => ({
-    id: `life-nav:${id}`,
-    label,
-    href: id === "overview" ? "/life" : `/life/${id}`,
-    domain: "navigation" as const,
-    kind: "destination",
-    currentFact: "",
-    source: "admin",
-    freshness: "current",
-    keywords: [label],
-  }));
-  const navigation =
-    workspace === "life" ? (
-      <SideNavSection title="Data" isHeaderHidden>
-        {lifeEntries.map((item, index) => (
-          <SideNavItem
-            key={item.id}
-            label={item.id === "life-nav:overview" ? "Overview" : item.label}
-            href={item.href}
-            icon={React.createElement(lifeIcons[index]!, {
-              size: 18,
-              "aria-hidden": true,
-            })}
-            isSelected={isActive(currentRoute, item.href)}
-          />
-        ))}
-      </SideNavSection>
-    ) : (
-      <SideNavSection title="Observability" isHeaderHidden>
-        <SideNavItem
-          label="Machines"
-          href="/operations/observability?view=machines"
-          icon={<DesktopIcon size={18} aria-hidden="true" />}
-          isSelected={
-            isActive(currentRoute, "/operations/observability?view=machines") ||
-            (currentRoute.split("?")[0] === "/operations/observability" &&
-              !new URLSearchParams(currentRoute.split("?")[1]).has("view"))
-          }
-        />
-        <SideNavItem
-          label="Loops"
-          href="/operations/observability?view=loops"
-          icon={<ArrowsClockwiseIcon size={18} aria-hidden="true" />}
-          isSelected={isActive(
-            currentRoute,
-            "/operations/observability?view=loops",
-          )}
-        />
-      </SideNavSection>
-    );
   return (
-    <Theme theme={workspaceThemes[workspace]} mode={mode}>
+    <Theme theme={shellThemes[workspace]} mode={mode}>
       <EditorialWorkspaceShell
         area="content"
         workspace={workspace}
@@ -149,11 +85,11 @@ export function AdminShell({
         siteHref="https://anipotts.com"
         localPreview={localPreview}
         localOwner={localOwner}
-        navigationContent={navigation}
+        currentRoute={currentRoute}
         palette={
           workspace === "life" ? (
             <AdminCommandPalette
-              entries={lifeEntries}
+              entries={sidebarSearchEntries}
               navItems={[]}
               showTrigger={false}
             />
@@ -181,26 +117,4 @@ export function AdminShell({
       </EditorialWorkspaceShell>
     </Theme>
   );
-}
-
-function isActive(currentRoute: string, href: string): boolean {
-  const [currentPath, currentQuery = ""] = currentRoute.split("?");
-  const [targetPath, targetQuery = ""] = href.split("?");
-  const canonicalCurrentPath = currentPath;
-  const currentParams = new URLSearchParams(currentQuery);
-
-  if (targetQuery) {
-    const targetParams = new URLSearchParams(targetQuery);
-    return (
-      canonicalCurrentPath === targetPath &&
-      [...targetParams].every(
-        ([key, value]) => currentParams.get(key) === value,
-      )
-    );
-  }
-
-  if (href === "/knowledge") {
-    return canonicalCurrentPath === "/knowledge" && !currentParams.has("kind");
-  }
-  return canonicalCurrentPath === href;
 }

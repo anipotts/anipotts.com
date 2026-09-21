@@ -96,9 +96,10 @@ describe("responsive workspace navigation", () => {
       expect(topbar.querySelector(".admin-bracket-wordmark")?.textContent).toBe(
         "[admin]",
       );
-      expect(
-        topbar.querySelector(".admin-workspace-selector")?.textContent,
-      ).toContain("Content");
+      // One sidebar replaces the workspace switcher; nothing in the bar
+      // opens a menu of workspaces.
+      expect(topbar.querySelector(".admin-workspace-selector")).toBeNull();
+      expect(topbar.querySelector('[aria-haspopup="menu"]')).toBeNull();
       expect(
         host.querySelectorAll('button[aria-label="Open navigation"]'),
       ).toHaveLength(1);
@@ -123,6 +124,16 @@ describe("responsive workspace navigation", () => {
       const drawer = document.getElementById(controlled!);
       expect(drawer).not.toBeNull();
       expect(drawer?.textContent).toContain("Writing");
+      // The drawer holds the same three groups as the desktop sidebar.
+      expect(
+        [...drawer!.querySelectorAll("[data-sidebar-group]")].map(
+          (heading) => heading.textContent,
+        ),
+      ).toEqual(["Content", "Data", "Observability"]);
+      expect(drawer?.querySelector('a[href="/life/people"]')).not.toBeNull();
+      expect(
+        drawer?.querySelector('a[href="/operations/observability?view=loops"]'),
+      ).not.toBeNull();
       expect(drawer?.querySelector('a[href="/newsletter"]')).not.toBeNull();
       // Browser Escape raises the native dialog cancel event.
       act(() =>
@@ -169,7 +180,6 @@ describe("responsive workspace navigation", () => {
     expect(identity).not.toBeNull();
     expect(identity.querySelector("button")).toBe(expand);
     for (const control of [
-      identity.querySelector(".admin-workspace-selector"),
       identity.querySelector('button[aria-label="Search"]'),
     ]) {
       expect(control).not.toBeNull();
@@ -187,14 +197,13 @@ describe("responsive workspace navigation", () => {
         ?.getAttribute("data-sidebar-collapsed"),
     ).toBe("false");
   });
-  it("keeps desktop search below the workspace selector and identity above it", () => {
+  it("keeps desktop search below the identity row", () => {
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
       value: 1280,
     });
     render();
     const identity = host.querySelector(".editorial-workspace-identity")!;
-    const selector = identity.querySelector(".admin-workspace-selector")!;
     const search = identity.querySelector('button[aria-label="Search"]');
     const collapse = identity.querySelector(
       'button[aria-label="Collapse sidebar"]',
@@ -202,9 +211,10 @@ describe("responsive workspace navigation", () => {
     expect(search).not.toBeNull();
     expect(collapse).not.toBeNull();
     expect(identity.contains(search)).toBe(true);
-    // The collapse control lives in the wordmark row; the workspace menu has a
-    // full-width row of its own.
-    expect(selector.closest(".editorial-identity-primary-row")).toBeNull();
+    // The collapse control lives in the wordmark row; search has a full-width
+    // row of its own.
+    expect(search?.closest(".editorial-identity-primary-row")).toBeNull();
+    expect(identity.querySelector(".admin-workspace-selector")).toBeNull();
     expect(collapse?.closest(".editorial-identity-primary-row")).not.toBeNull();
     expect(
       identity.querySelectorAll('button[aria-label="Search"]'),
