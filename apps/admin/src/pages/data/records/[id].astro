@@ -1,0 +1,32 @@
+---
+import AdminLayout from "../../../layouts/AdminLayout.astro";
+import { DataWorkspace } from "../../../components/data/DataWorkspace";
+import { dataKind } from "../../../lib/data-routes";
+import { PRIVATE_READER_BOUNDS } from "../../../lib/private-reader-fetch";
+// A record opens in the records page; an id the reader would refuse is not
+// a page.
+const recordId = Astro.params.id ?? "";
+if (!PRIVATE_READER_BOUNDS.recordId.test(recordId))
+  return new Response("Not found", { status: 404 });
+// Off unless PRIVATE_READER_ENABLED is exactly "true". The server makes no
+// read: the browser reads with a short private session, in memory only.
+const enabled = Astro.locals.runtime?.env?.PRIVATE_READER_ENABLED === "true";
+// Development only: `?fixture=synthetic` previews a synthetic dataset.
+// `import.meta.env.DEV` is false in builds, so the fixture never ships.
+const fixture =
+  import.meta.env.DEV && Astro.url.searchParams.get("fixture") === "synthetic"
+    ? (await import("../../../fixtures/data_v1.synthetic.json")).default
+    : undefined;
+Astro.response.headers.set("Cache-Control", "private, no-store");
+---
+
+<AdminLayout title="Records" hideHeader>
+  <DataWorkspace
+    view="records"
+    enabled={enabled}
+    fixture={fixture}
+    kind={dataKind(Astro.url.searchParams.get("kind"))}
+    recordId={recordId}
+    client:load
+  />
+</AdminLayout>

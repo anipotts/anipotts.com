@@ -1,0 +1,24 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { DataWorkspace } from "../../components/data/DataWorkspace";
+
+// Off unless PRIVATE_READER_ENABLED is exactly "true". The server makes no
+// read: the browser reads with a short private session, in memory only.
+const enabled = Astro.locals.runtime?.env?.PRIVATE_READER_ENABLED === "true";
+// Development only: `?fixture=synthetic` previews a synthetic dataset.
+// `import.meta.env.DEV` is false in builds, so the fixture never ships.
+const fixture =
+  import.meta.env.DEV && Astro.url.searchParams.get("fixture") === "synthetic"
+    ? (await import("../../fixtures/data_v1.synthetic.json")).default
+    : undefined;
+Astro.response.headers.set("Cache-Control", "private, no-store");
+---
+
+<AdminLayout title="Sources" hideHeader>
+  <DataWorkspace
+    view="sources"
+    enabled={enabled}
+    fixture={fixture}
+    client:load
+  />
+</AdminLayout>

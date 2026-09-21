@@ -1,22 +1,6 @@
 ---
-import AdminLayout from "../../layouts/AdminLayout.astro";
-import { LifeWorkspace } from "../../components/life/LifeWorkspace";
-import { readPersonalContext } from "../../data/personal-context";
-import {
-  isLifeSection,
-  lifeSections,
-  lifeSectionRead,
-} from "../../lib/life-sections";
-import { measureServerTiming } from "../../lib/server-timing";
-const section = Astro.params.section ?? "";
-if (!isLifeSection(section) || section === "overview")
-  return new Response("Not found", { status: 404 });
-const result = await measureServerTiming(Astro.locals, "life", () =>
-  readPersonalContext(lifeSectionRead(section)),
-);
-Astro.response.headers.set("Cache-Control", "private, no-store");
+import { lifeRedirect } from "../../lib/data-routes";
+// Retired: every Life section lands on its Data view. People, Projects and
+// Places keep their kind filter; Timeline is the records list's recent order.
+return Astro.redirect(lifeRedirect(Astro.params.section), 308);
 ---
-
-<AdminLayout title={lifeSections[section]} hideHeader>
-  <LifeWorkspace section={section} result={result} client:load />
-</AdminLayout>

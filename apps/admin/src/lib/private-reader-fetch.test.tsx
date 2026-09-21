@@ -18,10 +18,7 @@ import {
   type PrivateReaderSession,
 } from "./private-reader-client";
 import { PRIVATE_READER_AUDIENCE } from "./private-reader-credential";
-import {
-  PrivateDataWorkspace,
-  PrivateRecordHistory,
-} from "../components/life/PrivateDataWorkspace";
+import { DataWorkspace, RecordDetail } from "../components/data/DataWorkspace";
 
 // Synthetic fixtures only, shaped like the System adapter examples in the
 // 2026-09-20 consolidation handoff. No reader network call is made: every
@@ -73,6 +70,19 @@ const fixtures: Record<string, unknown> = {
     next_offset: null,
   }),
   [`${PRIVATE_READER_ROUTES.record}${recordId}`]: envelope(fixtureRecord),
+  [PRIVATE_READER_ROUTES.sources]: envelope({
+    items: [
+      {
+        source_id: "Second source",
+        first_observed_at: "2026-09-20T08:00:00Z",
+        last_observed_at: observed,
+        record_count: 1,
+        revision_count: 2,
+      },
+    ],
+    total: 1,
+    next_offset: null,
+  }),
   [PRIVATE_READER_ROUTES.activity]: {
     schema: "personal_context_observability_v1",
     response_observed_at: observed,
@@ -163,8 +173,8 @@ afterEach(async () => {
 });
 
 async function click(label: string) {
-  const button = [...container.querySelectorAll("button")].find((button) =>
-    button.textContent?.trim().startsWith(label),
+  const button = [...container.querySelectorAll<HTMLElement>("button, a")].find(
+    (button) => button.textContent?.trim().startsWith(label),
   );
   expect(button, `button ${label}`).toBeTruthy();
   await act(async () => button!.click());
@@ -543,7 +553,15 @@ describe("revision history cap", () => {
     }));
   const render = async (record: Record<string, unknown>) => {
     await act(async () =>
-      root.render(<PrivateRecordHistory record={record} />),
+      root.render(
+        <RecordDetail
+          record={record}
+          busy={false}
+          error={null}
+          onMore={() => {}}
+          back={null}
+        />,
+      ),
     );
     return container.textContent ?? "";
   };
@@ -557,14 +575,21 @@ describe("revision history cap", () => {
     });
     expect(text).toContain("Showing the latest 100 revisions");
     expect(text).toContain("Showing the latest 100 origins");
-    expect(container.querySelectorAll("li")).toHaveLength(100);
+    const history = container.querySelector('[aria-label="Revision history"]')!;
+    expect(history.querySelectorAll("tbody tr")).toHaveLength(100);
     // No paging control exists for history.
-    expect(container.querySelector("button")).toBeNull();
+    expect(history.querySelector("button")).toBeNull();
   });
 
   it("shows no cap note below the limit", async () => {
     const text = await render({ ...fixtureRecord, history_limit: 100 });
     expect(text).not.toContain("latest 100");
+  });
+
+  it("shows times as people read them, never raw ISO text", async () => {
+    const text = await render({ ...fixtureRecord, history_limit: 100 });
+    expect(text).not.toContain(observed);
+    expect(text).not.toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/);
   });
 });
 
@@ -572,26 +597,59 @@ describe("private Data workspace", () => {
   async function openWorkspace(
     session: PrivateReaderSession,
     fetcher: typeof fetch,
+    props: Partial<React.ComponentProps<typeof DataWorkspace>> = {},
   ) {
     await act(async () =>
-      root.render(<PrivateDataWorkspace session={session} fetch={fetcher} />),
+      root.render(
+        <DataWorkspace
+          view="records"
+          enabled
+          session={session}
+          fetch={fetcher}
+          {...props}
+        />,
+      ),
     );
-    expect(container.textContent).toContain("Open the private reader");
-    await click("Open reader");
+    // The start state is the ordinary page with an inline session control.
+    expect(container.querySelector("h1")?.textContent).toBe(
+      props.view === "sources" ? "Sources" : "Records",
+    );
+    expect(container.textContent).toContain("Private session closed");
+    await click("Open private session");
     await settle();
   }
 
-  it("searches, opens a record and shows its history", async () => {
+  it("says not connected, with no session control, while the reader is off", async () => {
+    const { fetcher, spy } = network();
+    await act(async () =>
+      root.render(
+        <DataWorkspace
+          view="records"
+          enabled={false}
+          session={makeSession(fetcher)}
+          fetch={fetcher}
+        />,
+      ),
+    );
+    expect(container.textContent).toContain("Not connected");
+    expect(container.textContent).not.toContain("Open private session");
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("searches, opens a record in place and shows its history", async () => {
     const { fetcher, calls } = network();
     const session = makeSession(fetcher);
     await openWorkspace(session, fetcher);
-    expect(container.textContent).toContain(observed);
+    expect(container.textContent).toContain("Most recent first");
     await search("Fixture");
     await settle();
     expect(container.textContent).toContain("Synthetic note");
     await click("Synthetic note");
     await settle();
-    const detail = container.querySelector('[aria-label="Record details"]')!;
+    expect(window.location.pathname).toBe(`/data/records/${recordId}`);
+    const detail = container.querySelector(
+      '[aria-label="Synthetic note details"]',
+    )!;
     expect(detail.textContent).toContain("Fixture text only.");
     const history = container.querySelector('[aria-label="Revision history"]')!;
     expect(history.textContent).toContain(
@@ -600,12 +658,34 @@ describe("private Data workspace", () => {
     expect(history.textContent).toContain(
       "rev-11111111111111111111111111111111",
     );
-    expect(history.textContent).toContain("Current");
+    expect(history.textContent).toContain("current");
     expect(calls.map((call) => call.url.pathname + call.url.search)).toEqual([
-      PRIVATE_READER_ROUTES.status,
       `${PRIVATE_READER_ROUTES.search}?q=&limit=30&offset=0`,
       `${PRIVATE_READER_ROUTES.search}?q=Fixture&limit=30&offset=0`,
       `${PRIVATE_READER_ROUTES.record}${recordId}?body_offset=0&body_limit=32000`,
+    ]);
+    await click("Back to records");
+    expect(window.location.pathname).toBe("/data/records");
+    expect(
+      container.querySelector('[aria-label="Synthetic note details"]'),
+    ).toBeNull();
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("opens a record from its URL once the session is open", async () => {
+    const { fetcher, calls } = network();
+    await openWorkspace(makeSession(fetcher), fetcher, { recordId });
+    expect(container.textContent).toContain("Fixture text only.");
+    expect(calls.map((call) => call.url.pathname)).toContain(
+      `${PRIVATE_READER_ROUTES.record}${recordId}`,
+    );
+  });
+
+  it("filters by kind with one search", async () => {
+    const { fetcher, calls } = network();
+    await openWorkspace(makeSession(fetcher), fetcher, { kind: "people" });
+    expect(calls.map((call) => call.url.search)).toEqual([
+      "?q=&limit=30&offset=0&kind=person",
     ]);
   });
 
@@ -613,7 +693,6 @@ describe("private Data workspace", () => {
     const { fetcher, calls } = network();
     const session = makeSession(fetcher);
     await openWorkspace(session, fetcher);
-    expect(container.textContent).toContain("Recent records");
     expect(container.textContent).toContain("Synthetic note");
     await search("");
     await settle();
@@ -624,23 +703,27 @@ describe("private Data workspace", () => {
       "?q=&limit=30&offset=0",
       "?q=&limit=30&offset=0",
     ]);
-    const button = [...container.querySelectorAll("button")].find(
-      (b) => b.textContent?.trim() === "Search",
-    );
-    expect(button?.disabled).toBe(false);
   });
 
-  it("logout clears private data from the page", async () => {
+  it("lists sources on the same table", async () => {
+    const { fetcher } = network();
+    await openWorkspace(makeSession(fetcher), fetcher, { view: "sources" });
+    expect(
+      container.querySelector('table[aria-label="Sources"]'),
+    ).not.toBeNull();
+    expect(container.textContent).toContain("Second source");
+  });
+
+  it("ending the session clears private data from the page", async () => {
     const { fetcher } = network();
     const session = makeSession(fetcher);
     await openWorkspace(session, fetcher);
     await search("Fixture");
     await settle();
     expect(container.textContent).toContain("Synthetic note");
-    await click("End private session");
+    await click("End session");
     expect(container.textContent).toContain("Private session ended");
     expect(container.textContent).not.toContain("Synthetic note");
-    expect(container.textContent).not.toContain(observed);
     expect(session.bearer()).toBeNull();
   });
 
@@ -650,7 +733,7 @@ describe("private Data workspace", () => {
     await openWorkspace(session, fetcher);
     await act(async () => window.dispatchEvent(new Event("pagehide")));
     expect(session.getState()).toEqual({ status: "cleared", reason: "logout" });
-    expect(container.textContent).not.toContain(observed);
+    expect(container.textContent).not.toContain("Synthetic note");
   });
 
   it("expiry clears the UI when renewal never lands", async () => {
@@ -686,7 +769,7 @@ describe("private Data workspace", () => {
       status: "cleared",
       reason: "expired",
     });
-    expect(container.textContent).toContain("Private access expired");
+    expect(container.textContent).toContain("Private session expired");
     expect(container.textContent).not.toContain("Synthetic note");
   });
 
@@ -701,17 +784,19 @@ describe("private Data workspace", () => {
       const session = makeSession(fetcher);
       await act(async () =>
         root.render(
-          <PrivateDataWorkspace
+          <DataWorkspace
             key={status}
+            view="records"
+            enabled
             session={session}
             fetch={fetcher}
           />,
         ),
       );
-      await click("Open reader");
+      await click("Open private session");
       await settle();
       expect(container.textContent).toContain(title);
-      expect(container.textContent).toContain("Open again");
+      expect(container.textContent).toContain("Open private session");
     }
   });
 
@@ -722,7 +807,7 @@ describe("private Data workspace", () => {
     const session = makeSession(fetcher);
     await openWorkspace(session, fetcher);
     expect(container.textContent).toContain("Records could not be loaded");
-    expect(container.textContent).not.toContain("No permitted records");
+    expect(container.textContent).not.toContain("No matching records");
   });
 
   it("touches no persistence API across a full session", async () => {
@@ -746,19 +831,21 @@ describe("private Data workspace", () => {
     await settle();
     await click("Synthetic note");
     await settle();
-    await click("End private session");
+    await click("End session");
     for (const spy of [...storage, idb, cacheOpen, register])
       expect(spy).not.toHaveBeenCalled();
     expect(window.localStorage.length).toBe(0);
     expect(window.sessionStorage.length).toBe(0);
     delete (navigator as { serviceWorker?: unknown }).serviceWorker;
+    window.history.replaceState(null, "", "/");
   });
 
   it("private reader sources name no persistence API", () => {
     for (const file of [
       "./private-reader-fetch.ts",
       "./private-reader-client.ts",
-      "../components/life/PrivateDataWorkspace.tsx",
+      "../components/data/DataWorkspace.tsx",
+      "../components/data/useDataSession.ts",
     ]) {
       const source = readFileSync(
         fileURLToPath(new URL(file, import.meta.url)),
