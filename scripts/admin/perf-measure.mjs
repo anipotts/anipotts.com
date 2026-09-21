@@ -299,13 +299,64 @@ export const navName = (label) =>
     `^${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\s+\\d+(\\s+records?)?)?$`,
   );
 
+/** The workspace sidebar before the unified sidebar carried the workspace's
+ * own label; the unified sidebar is one navigation named "Admin". */
+const NAV_SCOPE = (workspace) =>
+  `nav[aria-label="${workspace}"], nav[aria-label="Admin"], dialog[aria-label="Navigation"]`;
+
+/**
+ * A cross-workspace switch. With the unified sidebar the destination is a
+ * visible sidebar link. Before it, the destination is a workspace menu item:
+ * the menu opens first (not timed), then the item is the press target.
+ */
+const workspaceSwitch = (label, menuLabel, href, expect) => ({
+  label,
+  async target(page, session, ctx) {
+    const nav = page.locator(NAV_SCOPE(menuLabel));
+    const drawerOpener = page.getByRole("button", { name: "Open navigation" });
+    const legacy =
+      (await page
+        .getByRole("button", { name: /^Switch workspace/ })
+        .filter({ visible: true })
+        .count()) > 0;
+    if (legacy) {
+      const trigger = page
+        .getByRole("button", { name: /^Switch workspace/ })
+        .filter({ visible: true })
+        .first();
+      await trigger.click({ timeout: ctx.timeout });
+      const item = page
+        .getByRole("menuitemradio", { name: menuLabel })
+        .filter({ visible: true })
+        .first();
+      await item.waitFor({ state: "visible" });
+      return item;
+    }
+    const link = nav
+      .locator(`a[href="${href}"]`)
+      .filter({ visible: true })
+      .first();
+    if ((await link.count()) === 0 && (await drawerOpener.isVisible())) {
+      if (ctx.input === "touch")
+        await drawerOpener.tap({ timeout: ctx.timeout });
+      else await drawerOpener.click({ timeout: ctx.timeout });
+    }
+    const target = page
+      .locator(NAV_SCOPE(menuLabel))
+      .locator(`a[href="${href}"]`)
+      .filter({ visible: true })
+      .first();
+    await target.waitFor({ state: "visible" });
+    return target;
+  },
+  expect,
+});
+
 const navLink = (workspace, label, expect) => ({
   label,
   async target(page, session, ctx) {
     const link = page
-      .locator(
-        `nav[aria-label="${workspace}"], dialog[aria-label="Navigation"]`,
-      )
+      .locator(NAV_SCOPE(workspace))
       // Group links may append a count to the label ("Writing 6 records").
       .getByRole("link", { name: navName(label) })
       .filter({ visible: true })
@@ -523,7 +574,7 @@ export const CELLS = [
     start: "/operations/observability?view=machines",
     steps: [
       navLink(
-        "Operations",
+        "Observability",
         "Loops",
         (url) => url.searchParams.get("view") === "loops",
       ),
@@ -535,8 +586,34 @@ export const CELLS = [
     label: "Life sections",
     start: "/life",
     steps: [
-      navLink("Life", "People", (url) => url.pathname === "/life/people"),
-      navLink("Life", "Timeline", (url) => url.pathname === "/life/timeline"),
+      navLink("Data", "People", (url) => url.pathname === "/life/people"),
+      navLink("Data", "Timeline", (url) => url.pathname === "/life/timeline"),
+    ],
+  },
+  {
+    id: "switch:workspaces",
+    kind: "switch",
+    label: "Cross-workspace round trip",
+    start: "/content",
+    steps: [
+      workspaceSwitch(
+        "Content to Data",
+        "Data",
+        "/life",
+        (url) => url.pathname === "/life",
+      ),
+      workspaceSwitch(
+        "Data to Observability",
+        "Observability",
+        "/operations/observability?view=machines",
+        (url) => url.pathname === "/operations/observability",
+      ),
+      workspaceSwitch(
+        "Observability to Content",
+        "Content",
+        "/content",
+        (url) => url.pathname === "/content",
+      ),
     ],
   },
   {
