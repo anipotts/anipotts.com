@@ -54,6 +54,7 @@ async function handleRequest(
     context.url.pathname === "/newsletter" ||
     context.url.pathname.startsWith("/newsletter/") ||
     context.url.pathname.startsWith("/api/editorial/") ||
+    context.url.pathname.startsWith("/api/private-reader/") ||
     ["/preview/home", "/preview/record"].includes(context.url.pathname)
   ) {
     const local =

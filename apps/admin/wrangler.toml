@@ -28,7 +28,10 @@ EDITORIAL_ENABLED = "true"
 EDITORIAL_PUBLISH_ENABLED = "true"
 EDITORIAL_GITHUB_APP_ID = "4879372"
 EDITORIAL_GITHUB_INSTALLATION_ID = "160192316"
+# Private reader credential issuance for the tailnet reader on ap-mini.
+PRIVATE_READER_ENABLED = "true"
 # Secrets: EDITORIAL_GITHUB_PRIVATE_KEY and EDITORIAL_SIGNING_PRIVATE_KEY.
+# The reader signing key is the PRIVATE_READER_SIGNING_KEY secret.
 
 [[durable_objects.bindings]]
 name = "EDITORIAL"

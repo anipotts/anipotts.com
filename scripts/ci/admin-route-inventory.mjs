@@ -268,6 +268,12 @@ export const ADMIN_ROUTES = [
     nav: false,
     smoke: false,
   },
+  {
+    route: "/api/private-reader/credential",
+    file: "apps/admin/src/pages/api/private-reader/credential.ts",
+    nav: false,
+    smoke: false,
+  },
 ];
 
 export const PUBLIC_UNSMOKED_ROUTE_FILES = [
