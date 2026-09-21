@@ -36,7 +36,6 @@ const structuralEdges = new Set([
   ".admin-side-nav border-right", // navigation pane edge
   ".sidebar border-right", // navigation pane edge
   ".sidebar border-bottom", // stacked navigation pane edge
-  ".operations-workspace .operations-service-detail border-inline-start", // master/detail pane edge
   ".semantic-inspector border-left", // side sheet edge
   ".semantic-inspector border-top", // bottom sheet edge
   ".operator-inspector-panel border-left", // side sheet edge

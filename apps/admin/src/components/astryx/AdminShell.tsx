@@ -6,8 +6,7 @@ import {
   ClockIcon,
   LinkIcon,
   FileTextIcon,
-  DesktopIcon,
-  ArrowsClockwiseIcon,
+  PulseIcon,
 } from "@phosphor-icons/react";
 import React, { useEffect, useState, type ReactNode } from "react";
 import { SideNavItem, SideNavSection } from "@astryxdesign/core/SideNav";
@@ -25,6 +24,10 @@ import { workspaceThemes } from "../../themes/workspaces";
 import { OperationalCommandPalette } from "./OperationalCommandPalette";
 import { AdminCommandPalette } from "./AdminCommandPalette";
 import { lifeSections } from "../../lib/life-sections";
+import {
+  isObservabilityDestination,
+  observabilityNavigation,
+} from "../../lib/observability-navigation";
 
 type AdminShellProps = {
   children: ReactNode;
@@ -118,25 +121,15 @@ export function AdminShell({
       </SideNavSection>
     ) : (
       <SideNavSection title="Observability" isHeaderHidden>
-        <SideNavItem
-          label="Machines"
-          href="/operations/observability?view=machines"
-          icon={<DesktopIcon size={18} aria-hidden="true" />}
-          isSelected={
-            isActive(currentRoute, "/operations/observability?view=machines") ||
-            (currentRoute.split("?")[0] === "/operations/observability" &&
-              !new URLSearchParams(currentRoute.split("?")[1]).has("view"))
-          }
-        />
-        <SideNavItem
-          label="Loops"
-          href="/operations/observability?view=loops"
-          icon={<ArrowsClockwiseIcon size={18} aria-hidden="true" />}
-          isSelected={isActive(
-            currentRoute,
-            "/operations/observability?view=loops",
-          )}
-        />
+        {observabilityNavigation.map((item) => (
+          <SideNavItem
+            key={item.id}
+            label={item.label}
+            href={item.href}
+            icon={<PulseIcon size={18} aria-hidden="true" />}
+            isSelected={isObservabilityDestination(currentRoute, item)}
+          />
+        ))}
       </SideNavSection>
     );
   return (

@@ -118,6 +118,14 @@ describe("Operations route filters", () => {
       ).toBe(`/knowledge?kind=${kind}`);
     },
   );
+  it.each(["/fleet", "/deploys", "/repos", "/handoffs", "/mutations"])(
+    "returns the retired %s page to Observability Status",
+    (path) => {
+      expect(workspaceReturnPath("operations", `${path}?view=all`)).toBe(
+        "/operations/observability",
+      );
+    },
+  );
   it("returns a retired Inbox path to the Operations home", () => {
     expect(
       workspaceReturnPath("operations", "/inbox?category=work&view=urgent"),

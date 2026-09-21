@@ -1,12 +1,4 @@
 ---
-import AdminTable from "../components/AdminTable.astro";
-import AdminLayout from "../layouts/AdminLayout.astro";
-import { mutationRows } from "../data/admin";
+// Retired. Mutations rendered the same gate records as Gates.
+return Astro.redirect("/ops/destructive", 308);
 ---
-
-<AdminLayout
-  title="Mutations"
-  deck="Proposed, approved, running, verified, and blocked mutations."
->
-  <AdminTable rows={mutationRows} />
-</AdminLayout>

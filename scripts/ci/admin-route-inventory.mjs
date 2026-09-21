@@ -47,11 +47,6 @@ export const ADMIN_ROUTES = [
   },
 
   {
-    route: "/api/admin/observability",
-    file: "apps/admin/src/pages/api/admin/observability.ts",
-    nav: false,
-  },
-  {
     route: "/operations/observability",
     file: "apps/admin/src/pages/operations/observability.astro",
     nav: true,
@@ -156,24 +151,32 @@ export const ADMIN_ROUTES = [
     nav: true,
   },
   {
+    // Retired; 308 redirects to the Proof log.
     route: "/deploys",
     file: "apps/admin/src/pages/deploys.astro",
-    nav: true,
+    nav: false,
+    smoke: false,
   },
   {
+    // Retired; 308 redirects to Observability Status.
     route: "/repos",
     file: "apps/admin/src/pages/repos.astro",
-    nav: true,
+    nav: false,
+    smoke: false,
   },
   {
+    // Retired; 308 redirects to Work history.
     route: "/handoffs",
     file: "apps/admin/src/pages/handoffs.astro",
-    nav: true,
+    nav: false,
+    smoke: false,
   },
   {
+    // Retired; 308 redirects to Observability Status.
     route: "/fleet",
     file: "apps/admin/src/pages/fleet.astro",
-    nav: true,
+    nav: false,
+    smoke: false,
   },
   {
     route: "/system",
@@ -182,9 +185,11 @@ export const ADMIN_ROUTES = [
     smoke: false,
   },
   {
+    // Retired; 308 redirects to Gates.
     route: "/mutations",
     file: "apps/admin/src/pages/mutations.astro",
-    nav: true,
+    nav: false,
+    smoke: false,
   },
   {
     route: "/ops/destructive",
@@ -271,6 +276,12 @@ export const ADMIN_ROUTES = [
   {
     route: "/api/private-reader/credential",
     file: "apps/admin/src/pages/api/private-reader/credential.ts",
+    nav: false,
+    smoke: false,
+  },
+  {
+    route: "/api/private-reader/ops-credential",
+    file: "apps/admin/src/pages/api/private-reader/ops-credential.ts",
     nav: false,
     smoke: false,
   },

@@ -45,7 +45,7 @@ describe("shared Operations and Life shell", () => {
       expect(html.includes("This page is read-only.")).toBe(!hideHeader);
     },
   );
-  it("renders the shared identity and only the two distinct Operations destinations", () => {
+  it("renders the shared identity and Status as the only Observability destination", () => {
     const host = document.createElement("div");
     host.innerHTML = renderToStaticMarkup(shell("/operations/observability"));
     expect(host.querySelector('[data-workspace="operations"]')).not.toBeNull();
@@ -55,51 +55,26 @@ describe("shared Operations and Life shell", () => {
     ).toBe("[admin]");
     const navigation = host.querySelector(".astryx-side-nav-section")!;
     const links = [...navigation.querySelectorAll("a")];
-    expect(links.map((link) => link.textContent)).toEqual([
-      "Machines",
-      "Loops",
-    ]);
+    expect(links.map((link) => link.textContent)).toEqual(["Status"]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
-      "/operations/observability?view=machines",
-      "/operations/observability?view=loops",
+      "/operations/observability",
     ]);
-    expect(new Set(links.map((link) => link.href)).size).toBe(2);
     expect(navigation.querySelector("details")).toBeNull();
   });
   it.each([
     "/operations/observability",
-    "/operations/observability?machine=mini",
-  ])("selects Machines for the default view: %s", (route) => {
+    "/operations/observability?fixture=ops_v1",
+  ])("selects Status on its route: %s", (route) => {
     const host = document.createElement("div");
     host.innerHTML = renderToStaticMarkup(shell(route));
     const selected = host.querySelectorAll(
       '.astryx-side-nav-section a[aria-current="page"]',
     );
     expect(selected).toHaveLength(1);
-    expect(selected[0]?.textContent).toBe("Machines");
-    expect(selected[0]?.getAttribute("href")).toBe(
-      "/operations/observability?view=machines",
-    );
+    expect(selected[0]?.textContent).toBe("Status");
   });
-  it.each(["machines", "loops"])("selects only the %s destination", (view) => {
-    const host = document.createElement("div");
-    host.innerHTML = renderToStaticMarkup(
-      shell(`/operations/observability?view=${view}`),
-    );
-    const selected = host.querySelectorAll(
-      '.astryx-side-nav-section a[aria-current="page"]',
-    );
-    expect(selected).toHaveLength(1);
-    expect(selected[0]?.getAttribute("href")).toBe(
-      `/operations/observability?view=${view}`,
-    );
-  });
-  it.each([
-    "/work?view=machines",
-    "/operations/observability?view=machines-old",
-    "/operations/observability?view=loops-extra",
-  ])(
-    "does not select a destination from a partial route match: %s",
+  it.each(["/work?view=machines", "/operations/observability-old", "/proof"])(
+    "does not select Status from a partial route match: %s",
     (route) => {
       const host = document.createElement("div");
       host.innerHTML = renderToStaticMarkup(shell(route));
