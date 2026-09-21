@@ -867,3 +867,34 @@ it("explains a known direct publisher refusal instead of claiming an ambiguous s
   expect(host.textContent).toContain("previous publisher has unfinished work");
   expect(host.textContent).not.toContain("Couldn’t confirm publication");
 });
+
+it("blocks unsupported direct publication before submission while retaining the draft", async () => {
+  const requests: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      requests.push(url);
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      return response({
+        ...snapshot,
+        draft: {
+          ...draft,
+          source: draft.source.replace(/status: [^\n]+/, "status: scheduled"),
+        },
+        publicationMode: "direct",
+      });
+    }),
+  );
+  await mount("?view=review", false);
+  expect(host.textContent).toContain(
+    "Scheduling and unpublishing are unavailable",
+  );
+  const approve = [...host.querySelectorAll("button")].find(
+    (button) => button.textContent?.trim() === "Approve and publish",
+  );
+  expect(approve).toBeTruthy();
+  expect(approve?.disabled).toBe(true);
+  expect(requests.some((url) => url.includes("approve-publication"))).toBe(
+    false,
+  );
+});

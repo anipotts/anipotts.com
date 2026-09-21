@@ -17,8 +17,10 @@ export function ArticleSettings({
   onChange,
   errors,
   disclosure = true,
+  publicationMode = "legacy",
 }: {
   disclosure?: boolean;
+  publicationMode?: "legacy" | "maintenance" | "direct";
   errors: Map<string, string>;
   source: string;
   id: string;
@@ -63,14 +65,26 @@ export function ArticleSettings({
         value={typeof data.status === "string" ? data.status : "draft"}
         status={fieldStatus("status")}
         isDisabled={disabled}
-        description="Changes take effect only after you approve publication."
+        description={
+          publicationMode === "direct"
+            ? "Only visible publication is supported. Scheduling and unpublishing are unavailable. Your draft stays private until you approve publication."
+            : "Changes take effect only after you approve publication."
+        }
         options={[
-          { value: "draft", label: "Draft, hidden from the website" },
+          {
+            value: "draft",
+            label: "Draft, hidden from the website",
+            disabled: publicationMode === "direct",
+          },
           {
             value: "published",
             label: "Published, visible on the website",
           },
-          { value: "scheduled", label: "Scheduled" },
+          {
+            value: "scheduled",
+            label: "Scheduled",
+            disabled: publicationMode === "direct",
+          },
         ]}
         onChange={(value) => {
           let next = setEditorialField(source, ["status"], value);

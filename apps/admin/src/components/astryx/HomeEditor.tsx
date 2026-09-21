@@ -823,10 +823,18 @@ function HomeEditorImpl({
   let parseable = false;
   let valid = false;
   let destinationId = record.id;
+  let unsupportedPublication = false;
   const fieldErrors = new Map<string, string>();
   try {
     const parsed = parseEditorialSource(state.source);
     parseable = true;
+    const metadata = parsed.data as Record<string, unknown>;
+    unsupportedPublication =
+      snapshot.publicationMode === "direct" &&
+      ((record.kind === "writing" && metadata.status !== "published") ||
+        (record.kind === "work" &&
+          !["featured", "listed"].includes(String(metadata.public_state))) ||
+        (record.kind === "page" && record.id === "newsletter"));
     const configuredSlug = (parsed.data as Record<string, unknown>).slug;
     if (
       record.kind !== "page" &&
@@ -1117,15 +1125,17 @@ function HomeEditorImpl({
         ? "A publication is already in progress. See its status below; you can keep editing privately."
         : needsNewPublicationReview
           ? "This publication was stopped. Review again to prepare a new private revision."
-          : !valid
-            ? "Correct the marked fields before publishing."
-            : snapshot.draft?.discardedAt
-              ? "Recover this draft before publishing."
-              : !reviewCurrent || reviewLoading
-                ? "Waiting for the latest saved revision to finish reviewing."
-                : state.source === snapshot.base.source
-                  ? "There are no changes to publish."
-                  : null;
+          : unsupportedPublication
+            ? "This publisher supports visible pages only. Scheduling and unpublishing are unavailable. Update visibility in Properties or source before reviewing again; your draft is retained."
+            : !valid
+              ? "Correct the marked fields before publishing."
+              : snapshot.draft?.discardedAt
+                ? "Recover this draft before publishing."
+                : !reviewCurrent || reviewLoading
+                  ? "Waiting for the latest saved revision to finish reviewing."
+                  : state.source === snapshot.base.source
+                    ? "There are no changes to publish."
+                    : null;
   const publicationControls = publication ? (
     <>
       {(publication.canCancel ??
@@ -2302,6 +2312,7 @@ function HomeEditorImpl({
               parseable && (
                 <ArticleSettings
                   disclosure={false}
+                  publicationMode={snapshot.publicationMode}
                   errors={fieldErrors}
                   source={state.source}
                   id={record.id}
