@@ -116,6 +116,7 @@ type Snapshot = {
   base: HomeBase;
   draft: Draft | null;
   history: Draft[];
+  nextBeforeRevision?: number | null;
   publishing: "ready" | "not_configured";
   publicationMode?: "legacy" | "maintenance" | "direct";
   publication: VisiblePublication | null;
@@ -526,6 +527,7 @@ function HomeEditorImpl({
   const reviewRequest = useRef(0);
   const previewRequest = useRef(0);
   const historyRequest = useRef(0);
+  const historyRetryCursor = useRef<number | undefined>(undefined);
   const publishPending = useRef(false);
   const [comparison, setComparison] = useState<HomeBase | null>(null);
   const publishRequest = useRef<{ revision: number; id: string } | null>(null);
@@ -1087,7 +1089,8 @@ function HomeEditorImpl({
       if (request === previewRequest.current) setPreviewLoading(false);
     }
   };
-  const loadHistory = async () => {
+  const loadHistory = async (beforeRevision?: number) => {
+    historyRetryCursor.current = beforeRevision;
     const request = ++historyRequest.current;
     const navigation = navigationGeneration.current;
     const controller = editor.current;
@@ -1095,14 +1098,18 @@ function HomeEditorImpl({
     setHistoryError(false);
     try {
       await flush();
-      const response = await fetch(endpoint("record"), {
-        signal: AbortSignal.timeout(15000),
-      });
+      const response = await fetch(
+        `${endpoint("history")}${beforeRevision === undefined ? "" : `&beforeRevision=${beforeRevision}`}`,
+        {
+          signal: AbortSignal.timeout(15000),
+        },
+      );
       if (!response.ok) {
         discardBody(response);
         throw new Error();
       }
-      const data: Snapshot = await response.json();
+      const data: Pick<Snapshot, "history" | "nextBeforeRevision"> =
+        await response.json();
       if (
         request !== historyRequest.current ||
         navigation !== navigationGeneration.current ||
@@ -1110,7 +1117,25 @@ function HomeEditorImpl({
       )
         return;
       setSnapshot((previous) =>
-        previous ? { ...previous, history: data.history } : previous,
+        previous
+          ? {
+              ...previous,
+              history:
+                beforeRevision === undefined
+                  ? data.history
+                  : [
+                      ...previous.history,
+                      ...data.history.filter(
+                        (revision) =>
+                          !previous.history.some(
+                            (existing) =>
+                              existing.revision === revision.revision,
+                          ),
+                      ),
+                    ],
+              nextBeforeRevision: data.nextBeforeRevision,
+            }
+          : previous,
       );
     } catch {
       if (
@@ -2469,7 +2494,7 @@ function HomeEditorImpl({
                 {historyError && (
                   <RecoveryBanner
                     title="Couldn’t load history"
-                    onRetry={loadHistory}
+                    onRetry={() => void loadHistory(historyRetryCursor.current)}
                   />
                 )}
                 {historyLoading &&
@@ -2572,6 +2597,21 @@ function HomeEditorImpl({
                     )}
                   </VStack>
                 ))}
+                {snapshot.nextBeforeRevision != null && (
+                  <Button
+                    label={
+                      historyLoading
+                        ? "Loading revisions…"
+                        : "Load older revisions"
+                    }
+                    variant="ghost"
+                    size="sm"
+                    isDisabled={historyLoading}
+                    onClick={() =>
+                      void loadHistory(snapshot.nextBeforeRevision ?? undefined)
+                    }
+                  />
+                )}
                 {!historyLoading &&
                   !historyError &&
                   snapshot.history.length === 0 && (

@@ -808,3 +808,58 @@ it("holds project navigation and unload while media is pending", async () => {
   await click("Properties");
   expect(host.querySelector('aside[aria-label="Properties"]')).not.toBeNull();
 });
+
+it("loads older revisions with the server cursor and retains history through a failed page retry", async () => {
+  let failOlder = true;
+  const requested: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      requested.push(url);
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      if (url.includes("/history")) {
+        if (url.includes("beforeRevision=3")) {
+          if (failOlder) return new Response(null, { status: 503 });
+          return response({
+            history: [{ ...draft, revision: 2 }, draft],
+            nextBeforeRevision: null,
+          });
+        }
+        return response({
+          history: [{ ...draft, revision: 3 }],
+          nextBeforeRevision: 3,
+        });
+      }
+      return response({
+        ...snapshot,
+        history: [{ ...draft, revision: 3 }],
+        nextBeforeRevision: 3,
+      });
+    }),
+  );
+  await mount("?panel=history");
+  const originalBody = (
+    host.querySelector(
+      'textarea[aria-label="Test article body"]',
+    ) as HTMLTextAreaElement
+  ).value;
+  await click("Load older revisions");
+  expect(host.textContent).toContain("Couldn’t load history");
+  expect(host.textContent).toContain("Revision 3");
+  failOlder = false;
+  await click("Try again");
+  expect(host.textContent).toContain("Revision 3");
+  expect(host.textContent).toContain("Revision 2");
+  expect(host.textContent).toContain("Revision 1");
+  expect(host.textContent).not.toContain("Load older revisions");
+  expect(
+    requested.filter((url) => url.includes("beforeRevision=3")),
+  ).toHaveLength(2);
+  expect(
+    (
+      host.querySelector(
+        'textarea[aria-label="Test article body"]',
+      ) as HTMLTextAreaElement
+    ).value,
+  ).toBe(originalBody);
+});
