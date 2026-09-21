@@ -1,6 +1,5 @@
 import { EditorSelectionBookmark } from "../../lib/editor-selection-bookmark";
 import { SelectionOverlay } from "./SelectionOverlay";
-import { BubbleMenu } from "@tiptap/react/menus";
 import {
   CommandPalette,
   CommandPaletteInput,
@@ -17,6 +16,7 @@ import { Markdown } from "@tiptap/markdown";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Toolbar } from "@astryxdesign/core/Toolbar";
+import { DropdownMenu } from "@astryxdesign/core/DropdownMenu";
 import { Button } from "@astryxdesign/core/Button";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { TextArea } from "@astryxdesign/core/TextArea";
@@ -135,7 +135,6 @@ function VisualArticleBody({
   const [focused, setFocused] = useState(false);
   const [commandsOpen, setCommandsOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
-  const [formatting, setFormatting] = useState(false);
   const [panelGeneration, setPanelGeneration] = useState(0);
   const [incomingImage, setIncomingImage] = useState<File | null>(null);
   /** Whether the panel's opening target is an image, not the live selection. */
@@ -171,7 +170,6 @@ function VisualArticleBody({
           setCommandsOpen(true);
           return true;
         }
-        if (event.key === "Escape") setFormatting(false);
         return false;
       },
       handlePaste: (_view, event) => {
@@ -387,7 +385,7 @@ function VisualArticleBody({
     setPanel(null);
   }
   return (
-    <Field label="Article body" inputID={id} isLabelHidden>
+    <Field label="Article body" inputID={id}>
       <VStack
         gap={0}
         className="article-composer"
@@ -397,100 +395,168 @@ function VisualArticleBody({
             setFocused(false);
         }}
       >
-        <HStack gap={2} wrap="wrap">
-          <Button
-            isDisabled={disabled}
-            label="Format and insert"
-            size="sm"
-            variant="ghost"
-            onClick={() => setFormatting(!formatting)}
-          />
-          {selectedImage && focused && (
-            <>
-              <Button
-                isDisabled={disabled}
-                label="Replace image"
-                size="sm"
-                variant="ghost"
-                onClick={() => open("image", "replace")}
+        <Toolbar
+          label="Article formatting"
+          size="sm"
+          className="document-editor-toolbar"
+          startContent={
+            <HStack gap={1} wrap="wrap" className="editor-toolbar-controls">
+              <DropdownMenu
+                button={{
+                  label: "Style",
+                  variant: "ghost",
+                  isDisabled: disabled || !editor,
+                }}
+                items={[
+                  {
+                    label: "Paragraph",
+                    onClick: () => editor?.chain().focus().setParagraph().run(),
+                  },
+                  {
+                    label: "Heading",
+                    icon: <TextHOneIcon />,
+                    onClick: () =>
+                      editor?.chain().focus().setHeading({ level: 2 }).run(),
+                  },
+                ]}
               />
-              <Button
-                label="Crop image"
-                size="sm"
-                variant="ghost"
-                isDisabled={disabled}
-                onClick={() => open("image", "crop")}
-              />
-              <Button
-                label="Alt text"
-                size="sm"
-                variant="ghost"
-                isDisabled={disabled}
-                onClick={() => open("image", "alt")}
-              />
-              <Button
-                label="View full size"
-                size="sm"
-                variant="ghost"
-                href={editorialImagePreview(
-                  String(editor?.getAttributes("image").src ?? ""),
-                )}
-                target="_blank"
-              />
-              <Button
-                isDisabled={disabled}
-                label="Remove image"
-                size="sm"
-                variant="ghost"
-                onClick={() => editor?.chain().focus().deleteSelection().run()}
-              />
-            </>
-          )}
-        </HStack>
-        {editor && !panel && (
-          <BubbleMenu
-            editor={editor}
-            options={{ placement: "top", offset: 8 }}
-            shouldShow={({ editor, state }) =>
-              (editor.isFocused ||
-                Boolean(
-                  document.activeElement?.closest(
-                    ".document-selection-toolbar",
-                  ),
-                )) &&
-              !disabled &&
-              !panel &&
-              !formatting &&
-              !state.selection.empty &&
-              !editor.isActive("image")
-            }
-          >
-            <HStack
-              gap={1}
-              className="document-selection-toolbar"
-              role="toolbar"
-              aria-label="Selected text formatting"
-            >
-              {format.slice(0, 2).map((item) => (
-                <Button
-                  key={item.name}
-                  label={item.label}
-                  tooltip={item.label}
-                  icon={item.icon}
-                  size="sm"
-                  variant="ghost"
-                  onClick={item.run}
-                />
-              ))}
+              <HStack gap={1} className="editor-toolbar-group">
+                <ToggleButtonGroup
+                  label="Text style"
+                  type="multiple"
+                  isDisabled={disabled || !editor}
+                  value={format
+                    .slice(0, 2)
+                    .filter((item) => editor?.isActive(item.name))
+                    .map((item) => item.name)}
+                  onChange={(values) => {
+                    const changed = format
+                      .slice(0, 2)
+                      .find(
+                        (item) =>
+                          values.includes(item.name) !==
+                          Boolean(editor?.isActive(item.name)),
+                      );
+                    changed?.run();
+                  }}
+                >
+                  {format.slice(0, 2).map((item) => (
+                    <ToggleButton
+                      key={item.name}
+                      value={item.name}
+                      label={item.label}
+                      tooltip={item.label}
+                      icon={item.icon}
+                      isIconOnly
+                      isDisabled={disabled || !editor}
+                      onMouseDown={(event) => event.preventDefault()}
+                    />
+                  ))}
+                </ToggleButtonGroup>
+              </HStack>
               <Button
                 label="Link"
+                tooltip="Link"
                 icon={<LinkIcon />}
-                size="sm"
+                isIconOnly
                 variant="ghost"
+                isDisabled={disabled || !editor}
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={() => open("link")}
               />
+              <DropdownMenu
+                button={{
+                  label: "Insert",
+                  variant: "ghost",
+                  isDisabled: disabled || !editor,
+                }}
+                items={[
+                  {
+                    label: "Image",
+                    icon: <ImageIcon />,
+                    onClick: () => open("image"),
+                  },
+                  ...format.slice(3).map((item) => ({
+                    label: item.label,
+                    icon: item.icon,
+                    endContent: editor?.isActive(item.name) ? (
+                      <Text type="supporting">On</Text>
+                    ) : undefined,
+                    onClick: item.run,
+                  })),
+                ]}
+              />
+              <HStack gap={1} className="editor-toolbar-group">
+                <Button
+                  label="Undo"
+                  tooltip="Undo"
+                  icon={<ArrowCounterClockwiseIcon />}
+                  isIconOnly
+                  variant="ghost"
+                  isDisabled={disabled || !toolbarState?.undo}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => editor?.chain().focus().undo().run()}
+                />
+                <Button
+                  label="Redo"
+                  tooltip="Redo"
+                  icon={<ArrowClockwiseIcon />}
+                  isIconOnly
+                  variant="ghost"
+                  isDisabled={disabled || !toolbarState?.redo}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => editor?.chain().focus().redo().run()}
+                />
+              </HStack>
             </HStack>
-          </BubbleMenu>
+          }
+        />
+        {selectedImage && focused && (
+          <HStack
+            gap={2}
+            wrap="wrap"
+            className="article-image-actions"
+            role="group"
+            aria-label="Selected image"
+          >
+            <Button
+              isDisabled={disabled}
+              label="Replace image"
+              size="sm"
+              variant="ghost"
+              onClick={() => open("image", "replace")}
+            />
+            <Button
+              label="Crop image"
+              size="sm"
+              variant="ghost"
+              isDisabled={disabled}
+              onClick={() => open("image", "crop")}
+            />
+            <Button
+              label="Alt text"
+              size="sm"
+              variant="ghost"
+              isDisabled={disabled}
+              onClick={() => open("image", "alt")}
+            />
+            <Button
+              label="View full size"
+              size="sm"
+              variant="ghost"
+              href={editorialImagePreview(
+                String(editor?.getAttributes("image").src ?? ""),
+              )}
+              target="_blank"
+            />
+            <Button
+              isDisabled={disabled}
+              label="Remove image"
+              size="sm"
+              variant="ghost"
+              onClick={() => editor?.chain().focus().deleteSelection().run()}
+            />
+          </HStack>
         )}
         <CommandPalette
           isOpen={commandsOpen}
@@ -521,75 +587,6 @@ function VisualArticleBody({
             else format.find((item) => item.name === id)?.run();
           }}
         />
-        {(formatting || panel === "image") && (
-          <Toolbar
-            label="Article formatting"
-            size="sm"
-            startContent={
-              <HStack gap={1} wrap="wrap">
-                <ToggleButtonGroup
-                  label="Block and text formatting"
-                  type="multiple"
-                  value={format
-                    .filter((item) => editor?.isActive(item.name))
-                    .map((item) => item.name)}
-                  onChange={(values) => {
-                    const changed = format.find(
-                      (item) =>
-                        values.includes(item.name) !==
-                        Boolean(editor?.isActive(item.name)),
-                    );
-                    changed?.run();
-                  }}
-                >
-                  {format.map((item) => (
-                    <ToggleButton
-                      key={item.name}
-                      value={item.name}
-                      label={item.label}
-                      tooltip={item.label}
-                      icon={item.icon}
-                      isIconOnly
-                      isDisabled={disabled || !editor}
-                    />
-                  ))}
-                </ToggleButtonGroup>
-                <Button
-                  label="Link"
-                  icon={<LinkIcon />}
-                  size="sm"
-                  variant="ghost"
-                  isDisabled={disabled || !editor}
-                  onClick={() => open("link")}
-                />
-                <Button
-                  label="Image"
-                  icon={<ImageIcon />}
-                  size="sm"
-                  variant="ghost"
-                  isDisabled={disabled || !editor}
-                  onClick={() => open("image")}
-                />
-                <Button
-                  label="Undo"
-                  icon={<ArrowCounterClockwiseIcon />}
-                  size="sm"
-                  variant="ghost"
-                  isDisabled={disabled || !editor?.can().undo()}
-                  onClick={() => editor?.chain().focus().undo().run()}
-                />
-                <Button
-                  label="Redo"
-                  icon={<ArrowClockwiseIcon />}
-                  size="sm"
-                  variant="ghost"
-                  isDisabled={disabled || !editor?.can().redo()}
-                  onClick={() => editor?.chain().focus().redo().run()}
-                />
-              </HStack>
-            }
-          />
-        )}
         {panel && (
           <SelectionOverlay
             editor={editor}

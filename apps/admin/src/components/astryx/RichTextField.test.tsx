@@ -7,6 +7,7 @@ import { RichTextField } from "./RichTextField";
 import { inlineMarkdown } from "../../lib/rich-text";
 
 let editor: Editor | null;
+const editors = new Set<Editor>();
 let renders = 0;
 vi.mock("@tiptap/react", async (original) => {
   const actual = await original<typeof import("@tiptap/react")>();
@@ -15,6 +16,7 @@ vi.mock("@tiptap/react", async (original) => {
     useEditor: (...args: Parameters<typeof actual.useEditor>) => {
       renders++;
       editor = actual.useEditor(...args);
+      if (editor) editors.add(editor);
       return editor;
     },
   };
@@ -46,7 +48,15 @@ async function render(value = "Original", resetGeneration = 0) {
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  editors.clear();
   vi.stubGlobal("React", React);
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -158,4 +168,138 @@ it("keeps its validation reference through later renders and never references no
   await field("Updated again");
   expect(box().hasAttribute("aria-describedby")).toBe(false);
   expect(box().getAttribute("aria-invalid")).toBe("false");
+});
+
+it("keeps the compact toolbar mounted before, during and after a text selection", async () => {
+  await render();
+  const toolbar = () =>
+    host.querySelector('[role="toolbar"][aria-label="Subtitle formatting"]');
+  const original = toolbar();
+  expect(original).not.toBeNull();
+  const buttons = original!.querySelectorAll("button").length;
+  act(() => editor!.commands.setTextSelection({ from: 1, to: 5 }));
+  expect(toolbar()).toBe(original);
+  expect(toolbar()!.querySelectorAll("button").length).toBe(buttons);
+  act(() => editor!.commands.setTextSelection(5));
+  expect(toolbar()).toBe(original);
+  expect(toolbar()!.querySelectorAll("button").length).toBe(buttons);
+  expect(changed).not.toHaveBeenCalled();
+});
+
+it("formats the saved selection when a keyboard user focuses the toolbar, then supports undo and redo", async () => {
+  await render();
+  act(() => editor!.commands.setTextSelection({ from: 1, to: 5 }));
+  const control = (label: string) =>
+    host.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
+  act(() => control("Bold").focus());
+  expect(document.activeElement).toBe(control("Bold"));
+  // Native Enter activation produces a click with no pointer event.
+  act(() => control("Bold").click());
+  expect(editor!.isActive("bold")).toBe(true);
+  expect(editor!.state.selection.from).toBe(1);
+  expect(editor!.state.selection.to).toBe(5);
+  act(() => flushRef.current?.());
+  expect(changed).toHaveBeenLastCalledWith("**Orig**inal");
+  act(() => control("Undo").click());
+  act(() => flushRef.current?.());
+  expect(changed).toHaveBeenLastCalledWith("Original");
+  act(() => control("Redo").click());
+  act(() => flushRef.current?.());
+  expect(changed).toHaveBeenLastCalledWith("**Orig**inal");
+});
+
+it("keeps formatting and buffered changes in the correct field when two fields are mounted", async () => {
+  const secondChange = vi.fn();
+  const secondFlush = createRef<(() => void) | null>();
+  await act(async () =>
+    root.render(
+      <>
+        <RichTextField
+          label="Subtitle"
+          value="First"
+          onChange={changed}
+          onDirty={dirty}
+          flushRef={flushRef}
+          compact
+        />
+        <RichTextField
+          label="Card copy"
+          value="Second"
+          onChange={secondChange}
+          onDirty={dirty}
+          flushRef={secondFlush}
+          compact
+        />
+      </>,
+    ),
+  );
+  const first = [...editors].find((item) => item.getText() === "First")!;
+  const second = [...editors].find((item) => item.getText() === "Second")!;
+  act(() => first.commands.selectAll());
+  const toolbar = host.querySelector(
+    '[role="toolbar"][aria-label="Subtitle formatting"]',
+  )!;
+  act(() =>
+    toolbar
+      .querySelector<HTMLButtonElement>('button[aria-label="Bold"]')!
+      .click(),
+  );
+  act(() => {
+    flushRef.current?.();
+    secondFlush.current?.();
+  });
+  expect(changed).toHaveBeenLastCalledWith("**First**");
+  expect(second.getText()).toBe("Second");
+  expect(secondChange).not.toHaveBeenCalled();
+});
+
+it("does not open a link panel from an IME composition key event", async () => {
+  await render();
+  const key = new KeyboardEvent("keydown", {
+    key: "k",
+    ctrlKey: true,
+    isComposing: true,
+    bubbles: true,
+    cancelable: true,
+  });
+  expect(editor!.options.editorProps.handleKeyDown?.(editor!.view, key)).toBe(
+    false,
+  );
+  expect(key.defaultPrevented).toBe(false);
+  expect(host.textContent).not.toContain("Apply link");
+});
+
+it("preserves the link shortcut after validation updates replace field attributes", async () => {
+  await render();
+  await act(async () =>
+    root.render(
+      <RichTextField
+        label="Subtitle"
+        value="Original"
+        onChange={changed}
+        validationError="Needs review"
+        compact
+      />,
+    ),
+  );
+  vi.spyOn(editor!.view, "coordsAtPos").mockReturnValue({
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+  });
+  const key = new KeyboardEvent("keydown", {
+    key: "k",
+    ctrlKey: true,
+    bubbles: true,
+    cancelable: true,
+  });
+  await act(async () => {
+    expect(editor!.options.editorProps.handleKeyDown?.(editor!.view, key)).toBe(
+      true,
+    );
+  });
+  expect(key.defaultPrevented).toBe(true);
+  expect(document.body.textContent).toContain("Apply link");
+  expect(changed).not.toHaveBeenCalled();
 });

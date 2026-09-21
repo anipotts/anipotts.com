@@ -23,13 +23,24 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 let host: HTMLDivElement;
 let root: Root;
 function click(label: string) {
-  const button = Array.from(host.querySelectorAll("button")).find(
-    (node) => node.textContent?.trim() === label,
+  const button = Array.from(
+    document.querySelectorAll<HTMLElement>("button, [role=menuitem]"),
+  ).find(
+    (node) =>
+      node.textContent?.trim() === label ||
+      node.getAttribute("aria-label") === label,
   );
   expect(button, label).toBeTruthy();
   act(() => button!.click());
 }
 beforeEach(() => {
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
   vi.stubGlobal("React", React);
   vi.stubGlobal(
     "matchMedia",
@@ -72,9 +83,9 @@ it("keeps the update label for the image the panel opened on after the caret mov
     editor!.commands.setTextSelection(editor!.state.doc.content.size - 1),
   );
   const labels = () =>
-    Array.from(host.querySelectorAll("button")).map((node) =>
-      node.textContent?.trim(),
-    );
+    Array.from(
+      document.querySelectorAll<HTMLElement>("button, [role=menuitem]"),
+    ).map((node) => node.textContent?.trim());
   expect(labels()).toContain("Update image");
   expect(labels()).not.toContain("Insert image");
   const input = Array.from(
@@ -104,7 +115,7 @@ it.each(["paste", "drop"])(
         if (node.type.name === "image") editor!.commands.setNodeSelection(pos);
       });
     });
-    click("Format and insert");
+    click("Insert");
     click("Image");
     expect(
       Array.from(host.querySelectorAll<HTMLInputElement>("input")).map(
