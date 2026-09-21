@@ -369,3 +369,11 @@ a project absent from bundled sources retains its exact source and structured
 story through approval, DO eviction, activation and verification. All25 direct
 publisher tests passed. The verification transport is synthetic; this proves the
 local durable engine path, not a cloud deployment or real public convergence.
+
+### Empty project section browser acceptance
+
+On synthetic local `qa-project-media-20260921`, removed the final roadmap item,
+added then removed an empty technical section, and opened preview. Saved revision20
+rendered the retained story without empty Next or Under the hood headings. Reload
+retained that exact revision and result. This modified only the synthetic private
+fixture; its prior revisions remain available and nothing was published.
