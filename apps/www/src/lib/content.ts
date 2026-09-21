@@ -44,7 +44,8 @@ export async function publishedWriting(
     overrides.push({
       id: item.record.id,
       collection: "writing",
-      body: parsed.body,
+      // Astro's glob loader trims entry bodies; match it for Git parity.
+      body: parsed.body.trim(),
       data: writingSchema.parse(parsed.data),
       publication: item,
     });
@@ -72,7 +73,8 @@ export async function visibleProjects(
     overrides.push({
       id: item.record.id,
       collection: "projects",
-      body: parsed.body,
+      // Astro's glob loader trims entry bodies; match it for Git parity.
+      body: parsed.body.trim(),
       data: projectSchema.parse(parsed.data),
       publication: item,
     });

@@ -126,22 +126,9 @@ function get(origin, host, path) {
 export const NORMALIZATIONS = [
   "headers are compared separately from bodies; cms-only X-Content-Version, X-Content-Schema, X-Content-SHA256, CDN-Cache-Control and Cloudflare-CDN-Cache-Control plus Cache-Control no-store are expected runtime differences",
   "the Date, cf-ray style transport headers, Content-Length and ETag are ignored",
-  "search-index.json: whitespace runs inside each item's text field collapse to one space and trim; the CMS body keeps the raw newline after frontmatter that Astro's loader drops",
 ];
-/** Apply only the listed normalizations. Returns the body unchanged otherwise. */
-function normalize(path, body) {
-  if (path !== "/search-index.json") return body;
-  try {
-    return JSON.stringify(
-      JSON.parse(body).map((item) => ({
-        ...item,
-        text: String(item.text).replace(/\s+/g, " ").trim(),
-      })),
-    );
-  } catch {
-    return body;
-  }
-}
+/** Bodies are compared byte for byte. */
+const normalize = (_path, body) => body;
 const ignoredHeaders = new Set([
   "date",
   "content-length",
