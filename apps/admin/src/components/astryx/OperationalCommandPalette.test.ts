@@ -10,12 +10,14 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("operational search adapter", () => {
   it("starts with current workspace destinations and scopes advanced navigation", () => {
-    expect(operationalDestinations.map((row) => row.label)).toEqual([
-      "Machines",
-      "Loops",
+    expect(operationalDestinations.map((row) => row.label)).toEqual(["Status"]);
+    expect(operationalDestinations.map((row) => row.href)).toEqual([
+      "/operations/observability",
     ]);
     const advanced = operationalSearchNavigation(navItems);
     expect(advanced.some((row) => row.href.startsWith("/inbox"))).toBe(false);
+    for (const href of ["/fleet", "/repos", "/deploys"])
+      expect(advanced.some((row) => row.href === href)).toBe(false);
     expect(advanced.some((row) => row.href === "/work?view=now")).toBe(true);
     expect(
       advanced.some((row) =>

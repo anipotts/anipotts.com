@@ -3,7 +3,7 @@ import { Timestamp } from "@astryxdesign/core/Timestamp";
 import AdminLayout from "../layouts/AdminLayout.astro";
 import SemanticInspector from "../components/SemanticInspector.astro";
 import SemanticReference from "../components/SemanticReference.astro";
-import { deployRows, handoffRows, mutationRows, repoRows } from "../data/admin";
+import { mutationRows } from "../data/admin";
 import { countProofEntries, readProofEntries } from "../data/proof";
 import { loadRuntimeOverlayResponse } from "../data/runtime";
 import {
@@ -18,19 +18,9 @@ const [proofEntries, runtime] = await Promise.all([
 const proofCounts = countProofEntries(proofEntries);
 const destinations = [
   {
-    href: "/fleet",
-    title: "Fleet",
-    fact: `${runtime.overlays.length} repository observations`,
-  },
-  {
-    href: "/deploys",
-    title: "Deploys",
-    fact: `${deployRows.length} scoped targets`,
-  },
-  {
-    href: "/repos",
-    title: "Repositories",
-    fact: `${repoRows.length} registered surfaces`,
+    href: "/operations/observability",
+    title: "Status",
+    fact: "System service status, read-only",
   },
   {
     href: "/proof",
@@ -38,12 +28,7 @@ const destinations = [
     fact: `${proofCounts.pending} pending, ${proofCounts.blocked} blocked`,
   },
   {
-    href: "/handoffs",
-    title: "Handoffs",
-    fact: `${handoffRows.length} current records`,
-  },
-  {
-    href: "/mutations",
+    href: "/ops/destructive",
     title: "Gates",
     fact: `${mutationRows.length} controlled actions`,
   },

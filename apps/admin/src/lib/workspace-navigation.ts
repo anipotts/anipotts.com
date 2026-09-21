@@ -30,7 +30,7 @@ export function workspaceReturnPath(
     )
       return fallback;
   } else if (
-    !/^\/(operations\/observability|work|handoffs|system|fleet|proof|deploys|repos|mutations|knowledge(?:\/locations)?|ops\/destructive|content\/(?:review|drafts|preview|operations|carousels))$/.test(
+    !/^\/(operations\/observability|work|system|proof|knowledge(?:\/locations)?|ops\/destructive|content\/(?:review|drafts|preview|operations|carousels))$/.test(
       path,
     )
   )

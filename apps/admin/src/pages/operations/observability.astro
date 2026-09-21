@@ -1,17 +1,32 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import { ObservabilityWorkspace } from "../../components/astryx/ObservabilityWorkspace";
-import { readObservability } from "../../lib/observability-reader";
-import { measureServerTiming } from "../../lib/server-timing";
-const initial = await measureServerTiming(Astro.locals, "operations", () =>
-  readObservability(),
-);
+import { privateReaderOpsEnabled } from "../../lib/private-reader-credential";
+
+// The retired views (machines, loops, coverage and the rest) all land on Status.
+if (Astro.url.searchParams.has("view"))
+  return Astro.redirect("/operations/observability", 308);
+
+// Off unless PRIVATE_READER_ENABLED and PRIVATE_READER_OPS_ENABLED are both
+// exactly "true". The Data flag alone never turns on ops reads. The server
+// makes no read; the browser reads System's snapshot with an ops:read
+// credential only when this is on.
+const enabled = privateReaderOpsEnabled(Astro.locals.runtime?.env ?? {});
+
+// Development only: `?fixture=ops_v1` previews System's synthetic sample.
+// `import.meta.env.DEV` is false in builds, so the fixture never ships.
+const fixture =
+  import.meta.env.DEV && Astro.url.searchParams.get("fixture") === "ops_v1"
+    ? (await import("../../fixtures/ops_v1.sample.json")).default
+    : undefined;
+Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
 
-<AdminLayout title="Observability" hideHeader>
+<AdminLayout title="Status" hideHeader>
   <ObservabilityWorkspace
-    initial={initial}
-    initialView={Astro.url.searchParams.get("view") ?? "machines"}
+    enabled={enabled}
+    fixture={fixture}
+    renderedAt={Date.now()}
     client:load
   />
 </AdminLayout>

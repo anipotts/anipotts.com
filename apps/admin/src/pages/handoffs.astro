@@ -1,9 +1,4 @@
 ---
-import AdminTable from "../components/AdminTable.astro";
-import AdminLayout from "../layouts/AdminLayout.astro";
-import { handoffRows } from "../data/admin";
+// Retired. Handoffs was a fixed fixture list. Preserved work lives in Work history.
+return Astro.redirect("/work?view=history", 308);
 ---
-
-<AdminLayout title="Handoffs" deck="Newest, stale, and unabsorbed handoffs.">
-  <AdminTable rows={handoffRows} />
-</AdminLayout>

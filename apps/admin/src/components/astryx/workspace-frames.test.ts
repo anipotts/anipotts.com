@@ -41,13 +41,16 @@ describe("workspace page frames", () => {
 
   it("moves Operations state under the name on phones instead of hiding it", () => {
     expect(operations).toContain(
-      ".operations-workspace .operations-mobile-status { display: none; }",
+      ".operations-workspace .ops-mobile-status { display: none; }",
     );
-    const phone = block(operations, "(max-width: 480px)");
-    expect(phone).toContain(".operations-inventory-table td:nth-child(n + 2)");
-    expect(phone).toContain(".operations-evidence-table td:nth-child(2)");
+    const phone = block(operations, "(max-width: 640px)");
+    expect(phone).toContain(".ops-status-table td:nth-child(n + 2)");
+    // Group header rows span 999 columns; the name column must claim the width.
     expect(phone).toContain(
-      ".operations-workspace .operations-mobile-status { display: flex; }",
+      ".ops-status-table th:first-child { width: 100% !important;",
+    );
+    expect(phone).toContain(
+      ".operations-workspace .ops-mobile-status { display: flex; }",
     );
     expect(operations).toContain("word-break: normal;");
   });

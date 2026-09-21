@@ -36,15 +36,6 @@ export type QueueRow = {
   evidence: string;
 };
 
-export type DeployRow = {
-  target: string;
-  input: string;
-  scope: string;
-  status: "automatic safe lane" | "manual rollback" | "retained worker";
-  proof: string;
-  next: string;
-};
-
 export const navItems: NavItem[] = [
   {
     href: "/work?view=now",
@@ -184,7 +175,7 @@ export const navItems: NavItem[] = [
     label: "System",
     status: "status",
     group: "system",
-    description: "machines, deploys, proof, and governance",
+    description: "service status, proof, and gates",
     icon: "system",
     mobile: true,
   },
@@ -193,17 +184,8 @@ export const navItems: NavItem[] = [
     label: "Observability",
     status: "coverage",
     group: "system",
-    description: "service coverage and operational evidence",
+    description: "System service status, read-only",
     icon: "system",
-    parent: "system",
-  },
-  {
-    href: "/fleet",
-    label: "Fleet",
-    status: "runtime",
-    group: "system",
-    description: "machines, repo state, current work",
-    icon: "fleet",
     parent: "system",
   },
   {
@@ -213,42 +195,6 @@ export const navItems: NavItem[] = [
     group: "system",
     description: "auth, proof, and blocked checks",
     icon: "proof",
-    parent: "system",
-  },
-  {
-    href: "/deploys",
-    label: "Deployments",
-    status: "scoped",
-    group: "system",
-    description: "target map and deploy proof",
-    icon: "deploy",
-    parent: "system",
-  },
-  {
-    href: "/repos",
-    label: "Repositories",
-    status: "details",
-    group: "system",
-    description: "dirty state and branch drift",
-    icon: "repo",
-    parent: "system",
-  },
-  {
-    href: "/handoffs",
-    label: "Handoffs",
-    status: "details",
-    group: "work",
-    description: "handoff freshness and absorption",
-    icon: "handoff",
-    parent: "work",
-  },
-  {
-    href: "/mutations",
-    label: "Mutations",
-    status: "gated",
-    group: "system",
-    description: "proposed, approved, running, verified",
-    icon: "review",
     parent: "system",
   },
   {
@@ -262,100 +208,7 @@ export const navItems: NavItem[] = [
   },
 ];
 
-export const handoffRows: QueueRow[] = [
-  {
-    title: "passkey registration proof",
-    owner: "site/admin",
-    status: "needed before Access removal",
-    evidence:
-      "Required: verify registration, login, logout, session persistence and blocked access",
-  },
-  {
-    title: "Astro admin route parity",
-    owner: "site/admin",
-    status: "route parity reference",
-    evidence: "scripts/ci/admin-route-inventory.mjs",
-  },
-  {
-    title: "legacy worker review",
-    owner: "site/platform",
-    status: "worker review reference",
-    evidence: "docs/worker-inventory.md",
-  },
-];
-
-export const repoRows: QueueRow[] = [
-  {
-    title: "anipotts-com",
-    owner: "main",
-    status: "protected release branch",
-    evidence: "Required: passing checks and an exact-head protected merge",
-  },
-  {
-    title: "apps/admin",
-    owner: "admin.anipotts.com",
-    status: "canonical Astro app",
-    evidence: "apps/admin and docs/platform-architecture.md",
-  },
-];
-
-export const deployRows: DeployRow[] = [
-  {
-    target: "public site",
-    input: "www=true",
-    scope: "apps/www and proven public consumers",
-    status: "automatic safe lane",
-    proof:
-      "Required: verify public routes and deployed release SHA after a scoped deploy",
-    next: "keep public content/layout changes isolated from admin code",
-  },
-  {
-    target: "Astro admin",
-    input: "admin=true",
-    scope: "apps/admin and proven admin consumers",
-    status: "automatic safe lane",
-    proof:
-      "Required: verify authenticated access, unauthenticated blocking and deployed release SHA",
-    next: "verify current authentication protections before any Access change",
-  },
-  {
-    target: "state worker",
-    input: "state=true",
-    scope: "workers/state only",
-    status: "retained worker",
-    proof:
-      "Required: verify state target selection and skipped-target evidence in the deployment run",
-    next: "keep write routes behind STATE_PUBLISH_KEY and route-level proof",
-  },
-  {
-    target: "ingest worker",
-    input: "ingest=true",
-    scope: "workers/ingest only",
-    status: "retained worker",
-    proof:
-      "Required: verify ingest target selection and skipped-target evidence in the deployment run",
-    next: "do not expand receivers without source-specific proof",
-  },
-  {
-    target: "newsletter worker",
-    input: "newsletter=true",
-    scope: "workers/newsletter only",
-    status: "retained worker",
-    proof:
-      "Required: verify newsletter target selection and skipped-target evidence in the deployment run",
-    next: "keep sends gated until newsletter publishing proof exists",
-  },
-  {
-    target: "weekly email worker",
-    input: "weekly_email=true",
-    scope: "workers/weekly-email only",
-    status: "retained worker",
-    proof:
-      "Required: verify weekly email target selection and skipped-target evidence in the deployment run",
-    next: "fold or retire after newsletter/content system owns the summary path",
-  },
-];
-
+/** Gate records rendered by /ops/destructive. */
 export const mutationRows: QueueRow[] = [
   {
     title: "remove Cloudflare Access",

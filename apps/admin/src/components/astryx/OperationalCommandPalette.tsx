@@ -2,21 +2,20 @@ import { AdminCommandPalette } from "./AdminCommandPalette";
 import type { NavItem } from "../../data/admin";
 import type { AdminSearchResult } from "../../data/admin-search";
 import { sidebarSearchEntries } from "./UnifiedSidebar";
+import { observabilityNavigation } from "../../lib/observability-navigation";
 
-export const operationalDestinations: AdminSearchResult[] = [
-  ["Machines", "/operations/observability?view=machines"],
-  ["Loops", "/operations/observability?view=loops"],
-].map(([label, href]) => ({
-  id: `nav:${href}`,
-  label: label!,
-  href: href!,
-  domain: "navigation",
-  kind: "destination",
-  currentFact: "",
-  source: "admin",
-  freshness: "current",
-  keywords: [],
-}));
+export const operationalDestinations: AdminSearchResult[] =
+  observabilityNavigation.map(({ label, href }) => ({
+    id: `nav:${href}`,
+    label,
+    href,
+    domain: "navigation",
+    kind: "destination",
+    currentFact: "",
+    source: "admin",
+    freshness: "current",
+    keywords: [],
+  }));
 /** Every sidebar page, then any operational destination it does not list. */
 const paletteDestinations: AdminSearchResult[] = [
   ...sidebarSearchEntries,
@@ -25,15 +24,7 @@ const paletteDestinations: AdminSearchResult[] = [
   ),
 ];
 export function operationalSearchNavigation(items: NavItem[]): NavItem[] {
-  const routes = new Set([
-    "/work",
-    "/work?view=now",
-    "/system",
-    "/fleet",
-    "/repos",
-    "/proof",
-    "/deploys",
-  ]);
+  const routes = new Set(["/work", "/work?view=now", "/system", "/proof"]);
   return items.filter(
     (item) =>
       routes.has(item.href) &&

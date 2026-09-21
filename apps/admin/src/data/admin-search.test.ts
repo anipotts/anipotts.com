@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  navItems,
-  mutationRows,
-  deployRows,
-  handoffRows,
-  repoRows,
-} from "./admin";
+import { navItems, mutationRows } from "./admin";
 import { searchAdminResults, type AdminSearchResult } from "./admin-search";
 
 const rows: AdminSearchResult[] = [
@@ -42,20 +36,21 @@ describe("admin search and navigation", () => {
     );
   });
 
-  it("has no Inbox destination and keeps Fleet nested under System", () => {
+  it("has no Inbox or retired fixture destinations and keeps Status under System", () => {
     expect(navItems.some((item) => item.href.startsWith("/inbox"))).toBe(false);
-    expect(navItems.find((item) => item.href === "/fleet")).toMatchObject({
-      group: "system",
-      parent: "system",
-    });
+    for (const href of [
+      "/fleet",
+      "/deploys",
+      "/repos",
+      "/handoffs",
+      "/mutations",
+    ])
+      expect(navItems.some((item) => item.href === href)).toBe(false);
+    expect(
+      navItems.find((item) => item.href === "/operations/observability"),
+    ).toMatchObject({ group: "system", parent: "system" });
     expect(navItems.find((item) => item.href === "/system")).toBeDefined();
-    expect(navItems.find((item) => item.href === "/handoffs")).toMatchObject({
-      group: "work",
-      parent: "work",
-    });
-    expect(navItems.find((item) => item.href === "/deploys")?.label).toBe(
-      "Deployments",
-    );
+    expect(navItems.find((item) => item.href === "/proof")).toBeDefined();
     expect(navItems.find((item) => item.href === "/content")).toMatchObject({
       group: "website",
       label: "Website",
@@ -76,12 +71,7 @@ describe("admin search and navigation", () => {
 // Reference tables must not masquerade as queried account/deployment status.
 describe("static diagnostics evidence boundaries", () => {
   it("describes publication and authentication requirements without legacy or account-state claims", () => {
-    const copy = JSON.stringify({
-      mutationRows,
-      handoffRows,
-      repoRows,
-      deployRows,
-    });
+    const copy = JSON.stringify({ mutationRows });
     expect(copy).not.toMatch(
       /no active passkey|content_publish_events|page_content|production-reflective|return Cloudflare Access 302/,
     );
@@ -92,11 +82,5 @@ describe("static diagnostics evidence boundaries", () => {
       mutationRows.find((row) => row.title === "publish content edits")
         ?.evidence,
     ).toContain("Git-backed publication");
-  });
-  it("labels every static deployment proof as a verification requirement", () => {
-    expect(deployRows.length).toBeGreaterThan(0);
-    expect(deployRows.every((row) => row.proof.startsWith("Required:"))).toBe(
-      true,
-    );
   });
 });

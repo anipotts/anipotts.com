@@ -15,11 +15,9 @@ import { Button } from "@astryxdesign/core/Button";
 import { useAppShellMobile } from "@astryxdesign/core/AppShell";
 import { Text } from "@astryxdesign/core/Text";
 import {
-  ArrowsClockwiseIcon,
   BriefcaseIcon,
   BrowserIcon,
   ClockIcon,
-  DesktopIcon,
   EnvelopeSimpleIcon,
   FileTextIcon,
   FolderIcon,
@@ -27,11 +25,16 @@ import {
   LinkIcon,
   MapPinIcon,
   PencilSimpleIcon,
+  PulseIcon,
   SquaresFourIcon,
   UsersIcon,
   type Icon,
 } from "@phosphor-icons/react";
 import { workspaces } from "../../lib/workspace-navigation";
+import {
+  isObservabilityDestination,
+  observabilityNavigation,
+} from "../../lib/observability-navigation";
 import {
   SIDEBAR_GROUPS_KEY,
   ALL_GROUPS_OPEN,
@@ -132,18 +135,7 @@ const sidebarGroups: ReadonlyArray<{
     id: "operations",
     label: workspaces.operations.label,
     items: [
-      {
-        id: "machines",
-        label: "Machines",
-        href: "/operations/observability?view=machines",
-        icon: DesktopIcon,
-      },
-      {
-        id: "loops",
-        label: "Loops",
-        href: "/operations/observability?view=loops",
-        icon: ArrowsClockwiseIcon,
-      },
+      ...observabilityNavigation.map((item) => ({ ...item, icon: PulseIcon })),
     ],
   },
 ];
@@ -170,12 +162,11 @@ export const sidebarSearchEntries: AdminSearchResult[] = sidebarGroups.flatMap(
 /** Which Data or Observability item a route selects. Content selection comes
  * from the editorial page's own record and library state. */
 export function selectedSidebarItem(route: string): string | undefined {
-  const [path = "", query = ""] = route.split("?");
-  if (path === "/operations/observability") {
-    const view = new URLSearchParams(query).get("view");
-    if (view === "loops") return "loops";
-    return !view || view === "machines" ? "machines" : undefined;
-  }
+  const [path = ""] = route.split("?");
+  const status = observabilityNavigation.find((item) =>
+    isObservabilityDestination(route, item),
+  );
+  if (status) return status.id;
   return sidebarGroups[1]!.items.find((item) => item.href === path)?.id;
 }
 

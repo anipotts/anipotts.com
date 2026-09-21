@@ -309,6 +309,33 @@ assert.ok(
   inboxSource.includes('Astro.redirect("/operations/observability", 301)'),
   "retired inbox redirects to Operations",
 );
+// Fixture pages and the retired Infra fleet view are gone; old links land on
+// the closest current view, and the fake server observability reader stays out.
+for (const [page, destination] of [
+  ["fleet", "/operations/observability"],
+  ["repos", "/operations/observability"],
+  ["deploys", "/proof"],
+  ["handoffs", "/work?view=history"],
+  ["mutations", "/ops/destructive"],
+]) {
+  const source = readFileSync(`apps/admin/src/pages/${page}.astro`, "utf8");
+  assert.ok(
+    source.includes(`Astro.redirect("${destination}", 308)`),
+    `retired /${page} redirects to ${destination}`,
+  );
+  assert.equal(
+    navSource.includes(`href: "/${page}"`),
+    false,
+    `admin nav must not link the retired /${page}`,
+  );
+}
+for (const file of [
+  "apps/admin/src/lib/observability-model.ts",
+  "apps/admin/src/lib/observability-reader.ts",
+  "apps/admin/src/lib/observability-activity.ts",
+  "apps/admin/src/pages/api/admin/observability.ts",
+])
+  assert.equal(existsSync(file), false, `${file} must stay retired`);
 for (const file of RETIRED_ADMIN_AUTH_FILES)
   assert.equal(existsSync(file), false, `${file} must remain retired`);
 assert.ok(
