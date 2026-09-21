@@ -72,3 +72,52 @@ Local validation on 2026-09-20 passed `pnpm check:changed --working-tree`, which
 Tests cover actual local workerd/SQLite DO/D1/R2 behavior separately from browser DOM/component tests and built-Worker render tests. Local provider-runtime proof is not isolated cloud acceptance. Browser checks cover 320, 390, 768, 792, 1280 and 1440 widths, selection with stable toolbar geometry, bold/undo and local review. Physical iOS keyboard, Safari/VoiceOver and production owner acceptance remain separate checks.
 
 Do not report this increment as deployed, recovery-complete, or a full multi-record CMS release. It replaces the content publishing mechanism; the remaining activation gates above are concrete prerequisites, not routine authoring steps.
+
+## Activation evidence refresh, 2026-09-21
+
+Audited implementation: `8c5acd58fafc13ab00ba1ba3b55af8c8fd3fa4e4`.
+Required GitHub checks passed on this exact head. Production admin is separately
+verified at editor-only release `7439c053033cc3903de88489ac16c2de8c966ec0`;
+this does not activate the direct publisher.
+
+| Gate                          | Fresh evidence                                                                                                                                                                                  | Disposition                                                                                                                         |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Migration compatibility       | `node scripts/ci/content-publication-migration-proof.mjs` passed empty and populated 0001-to-0002, retained revisions/pointers, old named-column writer defaults, immutability and foreign keys | Local compatibility proven; remote migration not applied                                                                            |
+| Retry/interruption            | `test/editorial/direct-publisher.test.ts`: 24/24 passed using local workerd, D1 and R2 with remote bindings disabled                                                                            | Durable intent, lost activation response, newer private revision, alarms and media-copy failures covered; public fetch is synthetic |
+| Disaster recovery             | No portable coordinated DO/D1/R2 export/import, independent restore or measured protected checkpoint age exists in the audited implementation                                                   | Missing implementation, not a test waiting to be checked off                                                                        |
+| Pending awareness operation   | Owner-authenticated production response: `04e4d58a-bf1f-4070-bc44-524f8feee54a`, validate, version 0, attempts 0, no lease, blocker or checkpoint                                               | Never started; preserve until maintenance retirement is deployed and freshly checked                                                |
+| Pending chainedchat operation | Owner-authenticated production response: `788547af-0aa4-4e8c-bb7f-6e83d62cf1c6`, validate, version 5, attempts 2, no lease/checkpoint, blocked `unreleased_public_changes`                      | Requires explicit reconciliation; existing unstarted-only retirement rejects                                                        |
+
+On deployed `7439c053`, validation only reads and checks readiness. The first
+publication write is `createCommit` in the subsequent commit phase. Job phases
+advance monotonically; attempts count claims, not writes. Current editorial
+branch enumeration and all-state PR queries found no matching artifacts for
+either operation. Commit search found no chainedchat publication trailer.
+The deployed FIFO claim/next-wake logic selects only the first unfinished job and stops on a blocked head. Later jobs therefore remain unstarted while the older UI reports checking content.
+These corroborate the validation-only state; absent search results alone do not
+prove complete historical absence. No production operation was cancelled,
+retried or replayed during this inspection.
+
+System's existing recovery capability report confirms reusable age/rclone tools
+and Google Drive capacity. CMS generation capture and restore remain website
+work. Unattended Drive authentication on always-on mini and protected-checkpoint
+monitoring remain setup gates; the laptop's existing access does not establish a
+one-hour unattended recovery guarantee. No new credential or schedule was set.
+
+Fresh read-only provider verification through mini's existing Wrangler session:
+
+| Resource             | Observed result                                                                                                                                          |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Admin                | Version `042839d5-a1ec-4fcf-8bce-6167711f36ad`, release `7439c053033cc3903de88489ac16c2de8c966ec0`, 100% traffic; no CONTENT_DB or CONTENT_MEDIA binding |
+| Public renderer      | Version `d026eaa7-74ac-4eb0-9889-27425962e61a`, 100% traffic; no CONTENT_DB or CONTENT_MEDIA binding                                                     |
+| Existing shared DB   | Both apps still bind DB to `a8aadf73-bbf4-447c-97db-cb3e50b4e26f`; preserve it                                                                           |
+| Dedicated content D1 | Migration ledger contains only `0001_published_snapshots.sql`; zero revisions and zero active rows; 53,248 bytes; queries report zero writes             |
+| Content media        | Provider metrics: zero objects/bytes; r2.dev disabled; no custom domains                                                                                 |
+| D1 recovery API      | Bookmark `00000007-00000000-000050ed-6b530ff039a95314c2cb3ba823f6142f`; availability proven, independent restore not performed                           |
+
+No migration, binding, account, media, publication or authentication mutation was
+performed for these checks. The next implementation prerequisite is a coherent,
+versioned recovery export and isolated restore. Then apply the reviewed dedicated
+migration and bindings, deploy the reader before enabling the writer, and reconcile
+legacy operations against refreshed exact versions. Provider PITR is retained as
+an additional recovery mechanism, not substituted for cross-store restore proof.
