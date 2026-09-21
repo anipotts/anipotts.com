@@ -11,8 +11,14 @@ const readState = await readContentOperationStore(Astro.locals.runtime?.env.DB);
 
 <AdminLayout
   title="Content operations"
-  deck="Live D1 view for draft operations and publish proof. Draft saves and selected-draft publish are passkey-protected; newsletter send remains absent."
+  deck="Historical Content records and diagnostics. Current editing and publication use the Content workspace."
 >
+  <section class="notice" aria-label="Historical Content view">
+    This retained view uses the previous content store. Its records and
+    templates do not describe current drafts, publication status or
+    authentication.
+    <a href="/content">Open the current Content workspace</a>.
+  </section>
   <section class="meta-strip" aria-label="Content operation read source">
     <span>{readState.mode}</span>
     <span>{contentOperationSchemaSource.migration}</span>
@@ -25,7 +31,11 @@ const readState = await readContentOperationStore(Astro.locals.runtime?.env.DB);
         <div>
           <p>d1 content store</p>
           <h2>
-            {readState.counts.reduce((sum, row) => sum + row.rows, 0)} rows
+            {
+              readState.mode === "ready"
+                ? `${readState.counts.reduce((sum, row) => sum + row.rows, 0)} rows`
+                : "Counts unavailable"
+            }
           </h2>
         </div>
         <span>{contentOperationSchemaSource.mode}</span>
@@ -36,14 +46,18 @@ const readState = await readContentOperationStore(Astro.locals.runtime?.env.DB);
             <article class="record-row">
               <div>
                 <p>{row.table_name}</p>
-                <h3>{row.rows} rows</h3>
+                <h3>
+                  {readState.mode === "ready"
+                    ? `${row.rows} rows`
+                    : "Count unavailable"}
+                </h3>
               </div>
               <dl>
                 <div>
                   <dt>State</dt>
                   <dd>
                     {row.table_name === "content_draft_operations"
-                      ? "draft save allowed after passkey"
+                      ? "historical draft record"
                       : row.table_name === "content_publish_events"
                         ? "publish proof event"
                         : "schema only"}
@@ -70,32 +84,43 @@ const readState = await readContentOperationStore(Astro.locals.runtime?.env.DB);
       <div class="section-head">
         <div>
           <p>recent draft operations</p>
-          <h2>{readState.operations.length} visible</h2>
+          <h2>
+            {
+              readState.mode === "ready"
+                ? `${readState.operations.length} visible`
+                : "Records unavailable"
+            }
+          </h2>
         </div>
-        <span>Passkey-gated api</span>
+        <span>Historical store</span>
       </div>
       <div class="record-list">
         {
           readState.operations.length === 0 ? (
             <article class="record-row">
               <div>
-                <p>empty queue</p>
-                <h3>No D1 draft operations have been created yet.</h3>
+                <p>
+                  {readState.mode === "ready"
+                    ? "empty historical store"
+                    : "historical store unavailable"}
+                </p>
+                <h3>
+                  {readState.mode === "ready"
+                    ? "No historical draft operations were found."
+                    : "Historical draft records could not be read."}
+                </h3>
               </div>
               <dl>
                 <div>
                   <dt>Meaning</dt>
                   <dd>
-                    schema exists; the focused editor can save draft operation
-                    rows after passkey login
+                    This retained store does not report current CMS drafts or
+                    publication progress.
                   </dd>
                 </div>
                 <div>
                   <dt>Next</dt>
-                  <dd>
-                    enroll passkey, save a draft proposal, then verify it in
-                    this queue
-                  </dd>
+                  <dd>Open Content to edit and review current drafts.</dd>
                 </div>
               </dl>
             </article>

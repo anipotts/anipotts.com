@@ -287,3 +287,19 @@ navigation/footer still lack a CMS-owned record and require a separate contract.
 Draft creation now describes an ambiguous network/parser result as unconfirmed,
 not definitely absent. Raw transport errors are hidden. Nine creation tests pass,
 including retained input and unchanged request identity across retries.
+
+### Retained legacy Content truthfulness, September 21
+
+The drafts/review/operations routes still read the historical shared-D1 content
+store, not the current editorial DO and publication database. They now say so
+and link to current Content. Drafts no longer substitutes seeded templates when
+no operations are returned. Missing/failed reads show unknown counts rather
+than zero; operations no longer recommends passkey enrollment or claims the
+current publisher uses that historical path. Existing records and routes remain.
+
+Browser inspection proved the local drafts read-failed state contains no sample
+draft controls, shows unavailable counts, and links to Content. Astro check passes.
+These legacy routes still use the older diagnostic shell; retirement remains
+pending consumer and unique-record reconciliation. Source consumers include the
+old admin route registry and operation view links in content-editor.ts, so a blind
+redirect would lose diagnostic context.

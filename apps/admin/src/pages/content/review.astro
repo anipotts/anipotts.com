@@ -38,12 +38,20 @@ function operationMatchesSurface(
 
 <AdminLayout
   title="Content review"
-  deck="Read-only proposal queue. Save and publish controls stay absent until the write path is audited and approved."
+  deck="Historical Content records and diagnostics. Current editing and publication use the Content workspace."
 >
+  <section class="notice" aria-label="Historical Content view">
+    This retained view uses the previous content store. Its records and
+    templates do not describe current drafts, publication status or
+    authentication.
+    <a href="/content">Open the current Content workspace</a>.
+  </section>
   <section class="meta-strip" aria-label="Content review source">
     <span>{contentInventory.length} sources</span>
     <span>{contentPreviewItems.length} previews</span>
-    <span>{d1Operations.length} d1 operations</span>
+    <span
+      >{readState.mode === "ready" ? d1Operations.length : "Unknown"} historical operations</span
+    >
     <span>{readState.mode}</span>
     <span>{contentOperationTables.length} d1 tables</span>
     <span>{contentInventorySource.architecture_doc}</span>
@@ -53,7 +61,7 @@ function operationMatchesSurface(
     <div class="section-head">
       <div>
         <p>operation schema</p>
-        <h2>Draft model is ready for D1</h2>
+        <h2>Historical draft schema</h2>
       </div>
       <span>{contentOperationSchemaSource.mode}</span>
     </div>
