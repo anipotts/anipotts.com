@@ -57,6 +57,10 @@ Activation gates, in order:
 6. Enable direct publishing only after reader, recovery and owner acceptance. An actual public-content acceptance change requires Ani's approval.
 7. Record deployment versions, scoped targets, representative owner workflow and public verification. Retire legacy executable publishing after replacement acceptance and rollback compatibility are proven.
 
+Maintenance exposes owner-authenticated `legacy-publication` inspection and `cancel-legacy-publication` retirement independently of direct-mode dispatch. Retirement requires the exact operation, frozen revision and job version, and only accepts a never-claimed validation job with no lease, checkpoint or blocked state. Attempted or ambiguous jobs require separate effect reconciliation; an empty checkpoint alone is insufficient. Cancellation preserves the source, receipt and private history.
+
+The isolated release-test preflight now uses `CONTENT_DB` and `CONTENT_MEDIA`, CMS reader mode and a maintenance-mode admin with activation disabled. It explicitly rejects an active direct profile because the current publisher verifies a fixed production origin. A run-owned verification target and real owner acceptance remain prerequisites for isolated cloud publishing proof.
+
 The observed blocked chainedchat job was still in validation with `unreleased_public_changes`; a focused GitHub read found no matching current branch or PR. That alone is not exhaustive historical-effect proof and no production job was changed.
 
 After the first direct activation, application rollback must retain a CMS-aware public reader and publisher mode gates. Content rollback creates a new reviewed publication. Database restore starts in maintenance, with pending work suspended for reconciliation. Restoring a draft never publishes it.

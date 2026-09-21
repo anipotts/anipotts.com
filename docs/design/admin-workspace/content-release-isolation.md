@@ -36,19 +36,20 @@ or omitted required fields fail. No JSONC, TOML inheritance, environment blocks,
 CLI overrides, automatic config discovery, or generated config redirection is
 part of this contract.
 
-| Manifest field           | Required value                                                             |
-| ------------------------ | -------------------------------------------------------------------------- |
-| `schemaVersion`          | `1`                                                                        |
-| `environment`            | `temporary-cloud-release-test`                                             |
-| `dataClass`              | `synthetic`                                                                |
-| `runId`                  | `qp-<pr>-<8 lowercase letters or digits>`                                  |
-| `owner`                  | Named `codex/` branch owner                                                |
-| `pr`                     | Positive integer, matching the run ID                                      |
-| `sourceSha`              | Asserted 40-character lowercase commit hash                                |
-| `createdAt`, `expiresAt` | Exact UTC ISO timestamps with milliseconds; active window at most 24 hours |
-| `accountId`              | Explicit 32-character account ID, identical in both configs                |
-| `resources`              | Exactly `databaseName`, `databaseId`, `mediaBucket`                        |
-| `files`                  | Exactly `adminConfig`, `wwwConfig`, `artifacts`, `migrations`, `fixture`   |
+| Manifest field           | Required value                                                                                                             |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| `schemaVersion`          | `1`                                                                                                                        |
+| `environment`            | `temporary-cloud-release-test`                                                                                             |
+| `dataClass`              | `synthetic`                                                                                                                |
+| `runId`                  | `qp-<pr>-<8 lowercase letters or digits>`                                                                                  |
+| `owner`                  | Named `codex/` branch owner                                                                                                |
+| `pr`                     | Positive integer, matching the run ID                                                                                      |
+| `sourceSha`              | Asserted 40-character lowercase commit hash                                                                                |
+| `publicationProfile`     | Optional; defaults to `disabled`. `direct` is recognized but explicitly rejected until isolated verification is supported. |
+| `createdAt`, `expiresAt` | Exact UTC ISO timestamps with milliseconds; active window at most 24 hours                                                 |
+| `accountId`              | Explicit 32-character account ID, identical in both configs                                                                |
+| `resources`              | Exactly `databaseName`, `databaseId`, `mediaBucket`                                                                        |
+| `files`                  | Exactly `adminConfig`, `wwwConfig`, `artifacts`, `migrations`, `fixture`                                                   |
 
 Database and bucket names must be `<runId>-content` and `<runId>-media`. The
 database UUID must be valid and non-placeholder. Worker names derive from the
@@ -79,16 +80,23 @@ true`, and `find_additional_modules: true`. `main` must be inside `base_dir`.
   presently reviewed application configs. Changing compatibility is an explicit
   contract update, not an inherited default.
 - An explicit boolean `workers_dev`, `preview_urls: false`, and `routes: []`.
-- Exactly three vars: `RELEASE_TEST_RUN_ID`, `RELEASE_TEST_DATA_CLASS:
-"synthetic"`, and `EDITORIAL_PUBLISH_ENABLED: "false"`.
-- One `DB` binding, with the manifest database name/UUID and an explicit
-  `migrations_dir` matching the complete reviewed migration directory. The
-  bundle ships the real Workers, which read `env.DB`, so the database must be
-  bound under that name to be reachable at all. Isolation comes from the
-  run-owned database name/UUID and the protected-resource set, not from the
-  binding name; a test asserts this constant still matches both applications.
-- One `CONTENT_MEDIA` binding, with the manifest bucket name. No application
-  consumes this binding yet; it is reserved for the publication media reader.
+- `RELEASE_TEST_RUN_ID` matching the manifest and
+  `RELEASE_TEST_DATA_CLASS: "synthetic"`.
+- One `CONTENT_DB` binding, with the manifest database name/UUID and an explicit
+  `migrations_dir` matching the complete reviewed publication migration directory.
+  CMS readers and the direct publisher use this dedicated binding. The legacy
+  shared application `DB` is a separate store and is prohibited in this profile.
+  Isolation comes from the run-owned resource identity and protected-resource
+  checks, not the binding name alone.
+- One `CONTENT_MEDIA` binding, with the manifest bucket name. The direct
+  publisher uses it to stage publication assets; the public reader uses it to
+  serve assets referenced by active visible publications.
+
+Admin vars additionally require exactly `EDITORIAL_ENABLED: "true"`,
+`EDITORIAL_PUBLISH_MODE: "maintenance"`, and `EDITORIAL_PUBLISH_ENABLED: "false"`.
+This permits the CMS storage path while preventing new publication activation.
+Public vars additionally require exactly `CONTENT_RUNTIME: "cms"`, so a missing
+publication dependency cannot silently fall back to bundled content.
 
 Admin additionally requires the local `EDITORIAL` binding for
 `EditorialDraftStore`, with only its `editorial-v1` SQLite-class bootstrap. It
@@ -100,8 +108,17 @@ Everything else fails the positive allowlist: additional DB/KV bindings,
 `COMMAND_RELAY`, Life or other services, external DOs, queues, email bindings,
 cron triggers, secret-store bindings, unknown vars, publisher keys, unsafe
 metadata, build commands, custom routes, and nested environments. This initial
-profile is for synthetic publication tests. It does not pretend to configure
-full owner authentication or every production application dependency.
+profile prepares synthetic CMS reader and disabled-writer tests. It does not
+configure full owner authentication or every production application dependency.
+
+An explicit `publicationProfile: "direct"` fails with
+`unsupported_public_verification_target`. The current direct publisher verifies
+readiness, routes, and media against `https://anipotts.com`. An isolated database
+and bucket do not make those verification requests target the isolated reader.
+Do not enable direct activation in this profile or describe its receipt as an
+end-to-end publication proof. A separately reviewed verification-target contract
+and narrow owner acceptance setup must exist first; service identities must not
+be granted owner privileges to bypass that prerequisite.
 
 The protected resource list includes the configured production Worker names,
 shared `anipotts-db` UUID `a8aadf73-bbf4-447c-97db-cb3e50b4e26f`, and the earlier
@@ -112,7 +129,7 @@ check. Unknown resource ownership still requires actual provider metadata.
 ## Receipt, limits, and remaining gates
 
 The receipt says `status: "configuration-only"` and binds manifest/bundle hashes,
-run owner, PR, expiry, and `assertedSourceSha`. It always reports all of the
+run owner, PR, expiry, `publicationProfile: "disabled"`, and `assertedSourceSha`. It always reports all of the
 following as false:
 
 - `artifactProvenanceVerified` and `moduleClosureVerified`
