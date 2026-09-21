@@ -755,6 +755,11 @@ function HomeEditorImpl({
           if (
             submitted &&
             data.publication.phase === "live" &&
+            (data.publication.mode !== "direct" ||
+              (!data.publication.superseded &&
+                data.publication.publicationId &&
+                data.publication.verifiedAt != null &&
+                !data.publication.blocked)) &&
             submitted.operationId === data.publication.id
           ) {
             const publishedAt = new Date().toISOString();
@@ -1277,7 +1282,11 @@ function HomeEditorImpl({
           publication.blocked,
         ) && (
           <Button
-            label="Retry publishing"
+            label={
+              publication.mode === "direct" && publication.publicationId
+                ? "Retry verification"
+                : "Retry publishing"
+            }
             size="sm"
             clickAction={() => changePublication("retry-publication")}
           />

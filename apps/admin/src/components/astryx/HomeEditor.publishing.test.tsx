@@ -543,68 +543,83 @@ it("releases an unread record error body and shows the load failure", async () =
   expect(cancel).toHaveBeenCalledOnce();
 });
 
-it("updates the library row once when this tab's publication reaches live", async () => {
-  const job = (phase: string) => ({
-    id: "test-publication",
-    phase,
-    version: 1,
-    attempts: 0,
-    dueAt: 0,
-    lease: null,
-    leaseUntil: 0,
-    blocked: null,
-    checkpoint: {},
-  });
-  let finish!: (value: Response) => void;
-  let phase = "deploy";
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (url: string) => {
-      if (url.includes("/csrf")) return response({ csrf: "test-only" });
-      if (url.includes("operationId="))
-        return response({ publication: job(phase) });
-      if (url.includes("/publish"))
-        return new Promise<Response>((resolve) => (finish = resolve));
-      return response(snapshot);
-    }),
-  );
-  const events: CustomEvent[] = [];
-  const listen = (event: Event) => events.push(event as CustomEvent);
-  window.addEventListener(RECORD_SAVED_EVENT, listen);
-  try {
-    await mount("?view=review", false);
-    const publish = [...host.querySelectorAll("button")].find(
-      (button) => button.textContent?.trim() === "Approve and publish",
-    )!;
-    await act(async () => {
-      publish.click();
-      await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+it.each(["legacy", "verified", "superseded", "unverified"])(
+  "announces only a confirmed current publication (%s)",
+  async (mode) => {
+    const job = (phase: string) => ({
+      id: "test-publication",
+      ...(mode === "legacy"
+        ? {}
+        : {
+            mode: "direct",
+            publicationId: "receipt",
+            superseded: mode === "superseded",
+            verifiedAt: mode === "unverified" ? null : 12345,
+          }),
+      phase,
+      version: 1,
+      attempts: 0,
+      dueAt: 0,
+      lease: null,
+      leaseUntil: 0,
+      blocked: null,
+      checkpoint: {},
     });
-    vi.useFakeTimers();
-    await act(async () => finish(response({ publication: job("validate") })));
-    const advance = (ms: number) =>
-      act(async () => {
-        await vi.advanceTimersByTimeAsync(ms);
+    let finish!: (value: Response) => void;
+    let phase = "deploy";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("/csrf")) return response({ csrf: "test-only" });
+        if (url.includes("operationId="))
+          return response({ publication: job(phase) });
+        if (url.includes("/publish"))
+          return new Promise<Response>((resolve) => (finish = resolve));
+        return response(snapshot);
+      }),
+    );
+    const events: CustomEvent[] = [];
+    const listen = (event: Event) => events.push(event as CustomEvent);
+    window.addEventListener(RECORD_SAVED_EVENT, listen);
+    try {
+      await mount("?view=review", false);
+      const publish = [...host.querySelectorAll("button")].find(
+        (button) => button.textContent?.trim() === "Approve and publish",
+      )!;
+      await act(async () => {
+        publish.click();
+        await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
       });
-    await advance(4000);
-    expect(events).toHaveLength(0);
-    phase = "live";
-    await advance(4000);
-    expect(events).toHaveLength(1);
-    expect(events[0]!.detail).toMatchObject({
-      record: { kind: "writing", id: "test" },
-      title: "Original title",
-      revision: 1,
-      changesPending: false,
-      publishedAt: expect.any(String),
-    });
-    await advance(60000);
-    expect(events).toHaveLength(1);
-  } finally {
-    vi.useRealTimers();
-    window.removeEventListener(RECORD_SAVED_EVENT, listen);
-  }
-});
+      vi.useFakeTimers();
+      await act(async () => finish(response({ publication: job("validate") })));
+      const advance = (ms: number) =>
+        act(async () => {
+          await vi.advanceTimersByTimeAsync(ms);
+        });
+      await advance(4000);
+      expect(events).toHaveLength(0);
+      phase = "live";
+      await advance(4000);
+      if (mode === "superseded" || mode === "unverified") {
+        expect(events).toHaveLength(0);
+        return;
+      }
+      expect(events).toHaveLength(1);
+      expect(events[0]!.detail).toMatchObject({
+        record: { kind: "writing", id: "test" },
+        title: "Original title",
+        revision: 1,
+        changesPending: false,
+        publishedAt: expect.any(String),
+      });
+      await advance(60000);
+      expect(events).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+      window.removeEventListener(RECORD_SAVED_EVENT, listen);
+    }
+  },
+);
 
 it("updates the library row when a discarded draft is recovered", async () => {
   const discarded = { ...draft, discardedAt: Date.now() };
@@ -897,4 +912,35 @@ it("blocks unsupported direct publication before submission while retaining the 
   expect(requests.some((url) => url.includes("approve-publication"))).toBe(
     false,
   );
+});
+
+it("labels an activated retry as verification", async () => {
+  const publication = {
+    mode: "direct",
+    id: "existing-operation",
+    phase: "verify",
+    version: 1,
+    attempts: 1,
+    dueAt: 0,
+    lease: null,
+    leaseUntil: 0,
+    blocked: "verification_incomplete",
+    checkpoint: {},
+    publicationId: "existing-receipt",
+    verifiedAt: null,
+    superseded: false,
+    revision: 1,
+    canCancel: false,
+    queue: { pending: 1, position: 1, head: null, alarmAt: null },
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      return response({ ...snapshot, publicationMode: "direct", publication });
+    }),
+  );
+  await mount("?panel=publication", false);
+  expect(host.textContent).toContain("Retry verification");
+  expect(host.textContent).not.toContain("Retry publishing");
 });
