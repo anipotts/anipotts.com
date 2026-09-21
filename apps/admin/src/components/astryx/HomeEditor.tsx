@@ -2279,6 +2279,7 @@ function HomeEditorImpl({
                 {record.kind === "work" && parseable && (
                   <ProjectSections
                     source={state.source}
+                    errors={fieldErrors}
                     disabled={
                       uploadPending || Boolean(snapshot.draft?.discardedAt)
                     }

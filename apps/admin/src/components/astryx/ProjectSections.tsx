@@ -10,14 +10,20 @@ import type { ProjectSectionEdit } from "../../lib/project-sections";
 
 export function ProjectSections({
   source,
+  errors = new Map(),
   disabled,
   onEdit,
 }: {
   source: string;
+  errors?: Map<string, string>;
   disabled?: boolean;
   onEdit: (edit: ProjectSectionEdit) => void;
 }) {
   const data = parseEditorialSource(source).data as Record<string, unknown>;
+  const status = (path: string) =>
+    errors.has(path)
+      ? { type: "error" as const, message: errors.get(path) }
+      : undefined;
   return (
     <VStack gap={2}>
       <Text>Sections</Text>
@@ -109,6 +115,7 @@ export function ProjectSections({
           <TextInput
             label={`Roadmap item ${index + 1}`}
             value={item.text ?? ""}
+            status={status(`roadmap.${index}.text`)}
             isDisabled={disabled}
             onChange={(value) =>
               onEdit({ type: "roadmap-field", index, field: "text", value })
@@ -118,6 +125,7 @@ export function ProjectSections({
             <Selector
               label={`Roadmap item ${index + 1} status`}
               value={item.status ?? "planned"}
+              status={status(`roadmap.${index}.status`)}
               options={[
                 { value: "planned", label: "Planned" },
                 { value: "in-progress", label: "In progress" },
