@@ -1,3 +1,4 @@
+import { applyActivityPage, emptyActivity } from "../lib/life-activity";
 /** Transport-neutral reads. Wiring a private transport requires separate access approval. */
 export const LIFE_DEFAULTS = {
   mode: "lookup",
@@ -31,7 +32,7 @@ export type LifeResult =
       message: string;
     };
 export type LifeTransport = {
-  protocol?: "personal_context_data_v1";
+  protocol?: "personal_context_data_v1" | "personal_context_observability_v1";
   scope: "agent" | "owner";
   /** Enforce the byte cap while reading, before decoding an untrusted body. */
   read: (path: string, signal: AbortSignal) => Promise<unknown>;
@@ -206,9 +207,11 @@ export async function readPersonalContext(
         "Private Data access is not connected. Existing records remain in PersonalContext.",
     };
   if (
-    transport.protocol === "personal_context_data_v1" &&
-    (transport.scope !== "owner" ||
-      !["status", "sources", "search", "get"].includes(request.method))
+    (transport.protocol === "personal_context_data_v1" &&
+      (transport.scope !== "owner" ||
+        !["status", "sources", "search", "get"].includes(request.method))) ||
+    (transport.protocol === "personal_context_observability_v1" &&
+      (transport.scope !== "agent" || request.method !== "activity"))
   )
     return {
       state: "denied",
@@ -228,7 +231,7 @@ export async function readPersonalContext(
         message: "The source returned an unsupported response.",
       };
     }
-    if (transport.protocol === "personal_context_data_v1") {
+    if (transport.protocol) {
       const envelope = data as Record<string, unknown>;
       if (
         envelope.schema !== transport.protocol ||
@@ -259,6 +262,28 @@ export async function readPersonalContext(
         state: "invalid",
         message: "The source returned an unsupported response.",
       };
+    if (transport.protocol === "personal_context_observability_v1") {
+      try {
+        if (
+          Object.keys(data).some(
+            (key) => !["items", "next_cursor"].includes(key),
+          )
+        )
+          throw new Error("Unexpected activity field");
+        applyActivityPage(
+          {
+            ...emptyActivity(),
+            cursor: request.method === "activity" ? (request.after ?? 0) : 0,
+          },
+          data,
+        );
+      } catch {
+        return {
+          state: "invalid",
+          message: "The source returned invalid activity metadata.",
+        };
+      }
+    }
     if ("error" in data)
       return {
         state: "unavailable",

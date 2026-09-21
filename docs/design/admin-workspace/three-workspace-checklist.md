@@ -52,8 +52,12 @@ The overview uses source counts rather than inventing ingestion/wiki capability.
 Source pagination now uses bounded limit/offset requests with forward-only
 continuation validation and the shared Previous/Next controls.
 No transport has been attached or endpoint/access grant activated. HTTP mapping,
-session revocation, device acceptance and the separate
-`personal_context_observability_v1` projection remain integration work. System's
+session revocation and device acceptance remain integration work. The separate
+`personal_context_observability_v1` envelope is now accepted only for agent-scoped
+activity reads with the existing strict metadata allowlist and cursor checks.
+Source readiness remains a gate: inspected Store.activity returns a successful
+empty page when storage is absent. Website sent System this concrete defect for
+an unavailable response and missing-store regression before activation. System's
 handoff reports source changes merged but not installed in its active runtime.
 Website acknowledged receipt and requested exact route fixtures in that existing
 handoff. This is contract compatibility evidence, not live connected acceptance.

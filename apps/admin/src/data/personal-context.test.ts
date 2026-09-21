@@ -287,3 +287,44 @@ it("rejects repeated source pages instead of cycling forever", async () => {
   expect((await read(60)).state).toBe("ready");
   expect((await read(null)).state).toBe("ready");
 });
+
+it("keeps the versioned observation capability metadata-only", async () => {
+  const item = {
+    change_id: 1,
+    trace_id: "1".repeat(32),
+    stage: "indexed",
+    state: "succeeded",
+    record_count: 1,
+    observed_at: "2026-09-21T08:00:00Z",
+  };
+  const transport = (data: unknown) => ({
+    protocol: "personal_context_observability_v1" as const,
+    scope: "agent" as const,
+    read: vi.fn(async () => ({
+      schema: "personal_context_observability_v1",
+      response_observed_at: "2026-09-21T08:00:00Z",
+      data,
+    })),
+  });
+  const valid = transport({ items: [item], next_cursor: 1 });
+  expect((await readPersonalContext({ method: "activity" }, valid)).state).toBe(
+    "ready",
+  );
+  for (const data of [
+    { items: [{ ...item, body: "PRIVATE" }], next_cursor: 1 },
+    { items: [item], next_cursor: 1, private_record: "PRIVATE" },
+    { items: [item], next_cursor: 2 },
+  ]) {
+    const result = await readPersonalContext(
+      { method: "activity" },
+      transport(data),
+    );
+    expect(result.state).toBe("invalid");
+    expect(JSON.stringify(result)).not.toContain("PRIVATE");
+  }
+  const denied = transport({});
+  expect(
+    (await readPersonalContext({ method: "get", id: "record" }, denied)).state,
+  ).toBe("denied");
+  expect(denied.read).not.toHaveBeenCalled();
+});
