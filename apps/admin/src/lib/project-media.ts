@@ -6,6 +6,18 @@ import {
   editorialImagePreview,
 } from "./editorial-media";
 
+/** Existing public renderer assets, not arbitrary icon names. */
+export const projectIconOptions = [
+  { value: "", label: "No fallback icon" },
+  { value: "briefcase", label: "Briefcase" },
+  { value: "chart-line-up", label: "Chart" },
+  { value: "desktop-tower", label: "Computer" },
+  { value: "hard-drives", label: "Storage" },
+  { value: "book-open-text", label: "Book" },
+  { value: "waveform", label: "Waveform" },
+  { value: "activity", label: "Activity" },
+] as const;
+
 export type ProjectMediaEdit =
   | {
       type: "story-media";
@@ -19,6 +31,7 @@ export type ProjectBaseMediaEdit =
   | { type: "remove"; slot: "logo" | "preview" }
   | { type: "upload"; slot: "logo" | "preview"; src: string }
   | { type: "logo-alt"; value: string }
+  | { type: "icon"; value: string }
   | { type: "logo-tone"; value: "default" | "light" | "adaptive" }
   | { type: "preview-alt" | "preview-caption"; value: string }
   | { type: "preview-fit"; value: "cover" | "contain" };
@@ -57,7 +70,8 @@ export function editProjectMedia(
     if (
       ("slot" in edit.edit && edit.edit.slot !== "preview") ||
       edit.edit.type === "logo-alt" ||
-      edit.edit.type === "logo-tone"
+      edit.edit.type === "logo-tone" ||
+      edit.edit.type === "icon"
     )
       throw new Error("invalid_story_media_edit");
     const section = story[edit.index] as Record<string, unknown>;
@@ -104,6 +118,11 @@ export function editProjectMedia(
         parsed.document.setIn(["preview_media", "src"], edit.src);
       }
     }
+  } else if (edit.type === "icon") {
+    if (!projectIconOptions.some((option) => option.value === edit.value))
+      throw new Error("invalid_project_icon");
+    if (edit.value) parsed.document.setIn(["identity", "icon"], edit.value);
+    else parsed.document.deleteIn(["identity", "icon"]);
   } else if (edit.type === "logo-tone") {
     if (
       !projectSchema.shape.identity.shape.logo_tone.safeParse(edit.value)

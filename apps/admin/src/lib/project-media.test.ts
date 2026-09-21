@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
 import {
   parseEditorialSource,
@@ -5,7 +6,11 @@ import {
   validateEditorialSource,
 } from "@anipotts/content/editorial/source";
 import { newProjectSource } from "./project-draft";
-import { editProjectMedia, projectMediaPreview } from "./project-media";
+import {
+  editProjectMedia,
+  projectMediaPreview,
+  projectIconOptions,
+} from "./project-media";
 const src = `/images/editorial/${"a".repeat(64)}.png`;
 const record = { kind: "work", id: "test-project" } as const;
 const data = (source: string) =>
@@ -250,5 +255,32 @@ it("clears optional logo alt text without invalidating the draft or removing the
     expect(data(source).identity.logo_src).toBe(src);
     expect(data(source).title).toBe("Keep title");
     expect(validateEditorialSource(record, source).success).toBe(true);
+  }
+});
+
+it("selects shipped fallback icons and clears them without changing the logo", () => {
+  let source = editProjectMedia(newProjectSource(record.id), {
+    type: "upload",
+    slot: "logo",
+    src,
+  });
+  for (const option of projectIconOptions) {
+    source = editProjectMedia(source, { type: "icon", value: option.value });
+    expect(data(source).identity.icon).toBe(option.value || undefined);
+    expect(data(source).identity.logo_src).toBe(src);
+    expect(validateEditorialSource(record, source).success).toBe(true);
+  }
+  expect(() =>
+    editProjectMedia(source, { type: "icon", value: "not-a-shipped-icon" }),
+  ).toThrow("invalid_project_icon");
+});
+
+it("offers only icons bundled by the public renderer", () => {
+  const config = readFileSync(
+    new URL("../../../www/astro.config.mjs", import.meta.url),
+    "utf8",
+  );
+  for (const { value } of projectIconOptions) {
+    if (value) expect(config).toContain(`"${value}"`);
   }
 });

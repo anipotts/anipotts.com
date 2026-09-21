@@ -8,6 +8,7 @@ import { parseEditorialSource } from "@anipotts/content/editorial/source";
 import { ArticleImageUpload } from "./ArticleImageUpload";
 import {
   projectMediaPreview,
+  projectIconOptions,
   type ProjectMediaEdit,
   type ProjectBaseMediaEdit,
 } from "../../lib/project-media";
@@ -90,6 +91,28 @@ export function ProjectMedia({
       {storyIndex === undefined && (
         <VStack gap={2}>
           <Text>Project logo</Text>
+          <Selector
+            label="Fallback icon"
+            value={String(identity.icon ?? "")}
+            options={[
+              ...projectIconOptions,
+              ...(identity.icon &&
+              !projectIconOptions.some(
+                (option) => option.value === identity.icon,
+              )
+                ? [
+                    {
+                      value: String(identity.icon),
+                      label: `Current: ${String(identity.icon)}`,
+                    },
+                  ]
+                : []),
+            ]}
+            isDisabled={disabled || busy}
+            status={status("identity.icon")}
+            onChange={(value) => emit({ type: "icon", value })}
+          />
+          <Text>Used when no logo is set.</Text>
           {logoSrc && (
             <img
               src={logoSrc}
