@@ -2515,16 +2515,21 @@ function HomeEditorImpl({
               }
               description={
                 parseable
-                  ? "Review the highlighted fields and article settings before previewing or publishing. Your edits are retained."
+                  ? "Review the highlighted fields before previewing or publishing. Your edits are retained."
                   : "Fix the source before previewing or publishing. Your edits are retained."
               }
               endContent={
-                !parseable && (
+                !parseable ? (
                   <Button
                     label="Edit source"
                     onClick={() => setTab("source")}
                   />
-                )
+                ) : record.kind === "writing" || record.kind === "work" ? (
+                  <Button
+                    label="Check properties"
+                    onClick={() => openPanel("properties")}
+                  />
+                ) : undefined
               }
             />
           )}

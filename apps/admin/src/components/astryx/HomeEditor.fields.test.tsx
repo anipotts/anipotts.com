@@ -222,3 +222,39 @@ it("retains malformed homepage selections instead of exposing destructive replac
   });
   expect(host.querySelector('[aria-label="Add article"]')).toBeNull();
 });
+
+it("opens project properties directly from an invalid draft warning", async () => {
+  HTMLDialogElement.prototype.showModal = function () {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close = function () {
+    this.removeAttribute("open");
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      async (url: string) =>
+        new Response(
+          JSON.stringify(
+            url.includes("/csrf")
+              ? { csrf: "test-only" }
+              : snapshot(workSource),
+          ),
+        ),
+    ),
+  );
+  window.history.replaceState(null, "", "/content/projects/test");
+  await act(async () => {
+    root.render(<HomeEditor record={{ kind: "work", id: "test" }} />);
+  });
+  expect(host.textContent).not.toContain("article settings");
+  const check = Array.from(host.querySelectorAll("button")).find((button) =>
+    button.textContent?.includes("Check properties"),
+  );
+  expect(check).toBeTruthy();
+  await act(async () => {
+    check!.click();
+  });
+  expect(document.body.textContent).toContain("Category");
+  expect(document.body.textContent).toContain("Role");
+});
