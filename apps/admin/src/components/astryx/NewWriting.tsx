@@ -24,6 +24,11 @@ import {
   downloadBrowserRecovery,
 } from "./BrowserRecoveryNotice";
 
+class DraftCreationError extends Error {}
+
+const unconfirmedCreation =
+  "Couldn’t confirm draft creation. Your details are retained; retry to check the same request safely.";
+
 type NewWritingProps = {
   recoveryScope?: string;
   recordKind?: "writing" | "work";
@@ -173,7 +178,7 @@ function NewWritingForm({
         signal: AbortSignal.any([abort.signal, AbortSignal.timeout(15000)]),
       });
       if (!csrfResponse.ok)
-        throw new Error(
+        throw new DraftCreationError(
           "Your session needs refreshing. Your title is still here.",
         );
       const { csrf } = await csrfResponse.json();
@@ -197,12 +202,12 @@ function NewWritingForm({
       const result = await response.json();
       if (!active.current || abort.signal.aborted) return;
       if (!response.ok || !result.ok)
-        throw new Error(
+        throw new DraftCreationError(
           response.status === 409
             ? project
               ? "A project already uses this address. Choose another address or open it from Projects."
               : "An article already uses this address. Choose another address or open it from Writing."
-            : "Couldn’t create the draft. Your details are retained; try again.",
+            : unconfirmedCreation,
         );
       // The library in this tab and in other open tabs lists the new draft
       // without a reload.
@@ -220,9 +225,9 @@ function NewWritingForm({
     } catch (error) {
       if (!active.current || abort.signal.aborted) return;
       setError(
-        error instanceof Error
+        error instanceof DraftCreationError
           ? error.message
-          : "Couldn’t create the draft. Try again.",
+          : unconfirmedCreation,
       );
     } finally {
       pending.current = false;
@@ -337,7 +342,7 @@ function NewWritingForm({
         {error && (
           <Banner
             status="error"
-            title="Draft not created"
+            title="Draft creation needs attention"
             description={error}
           />
         )}

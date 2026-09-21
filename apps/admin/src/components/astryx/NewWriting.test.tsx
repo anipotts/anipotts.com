@@ -262,3 +262,39 @@ it("keeps project recovery separate and creates with project identity", async ()
   );
   expect(host.querySelector("input")!.value).toBe("New project");
 });
+
+it.each(["network", "malformed"])(
+  "reports an unconfirmed %s creation without exposing transport errors or losing retry identity",
+  async (failure) => {
+    const ids: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, options?: RequestInit) => {
+        if (url.includes("csrf"))
+          return new Response(JSON.stringify({ csrf: "test" }));
+        ids.push(JSON.parse(options!.body as string).requestId);
+        if (failure === "network")
+          throw new Error("PRIVATE transport diagnostic");
+        return new Response("PRIVATE invalid response", { status: 200 });
+      }),
+    );
+    await render();
+    await type("Keep this draft");
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await act(async () => {
+        host
+          .querySelector("form")!
+          .dispatchEvent(
+            new Event("submit", { bubbles: true, cancelable: true }),
+          );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(host.textContent).toContain("Couldn’t confirm draft creation");
+      expect(host.textContent).not.toContain("PRIVATE");
+      expect(host.textContent).not.toContain("Draft not created");
+      expect(host.querySelector("input")!.value).toBe("Keep this draft");
+    }
+    expect(ids).toHaveLength(2);
+    expect(ids[0]).toBe(ids[1]);
+  },
+);
