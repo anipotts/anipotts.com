@@ -187,6 +187,34 @@ describe("Status view edge cases", () => {
     expect(host.textContent).toContain("a brand new group");
   });
 
+  it("shows the Schedule column only when an entry has a schedule", () => {
+    const headers = (host: HTMLElement) =>
+      [...host.querySelectorAll("thead th")].map((th) => th.textContent);
+    expect(headers(render(sample))).not.toContain("Schedule");
+    const value = fresh();
+    value.catalog.find((item: Json) => item.id === "pc.writer").schedule =
+      "hourly";
+    const host = render(value);
+    const columns = headers(host);
+    expect(columns).toContain("Schedule");
+    const index = columns.indexOf("Schedule");
+    expect(rowFor(host, "pc.writer")!.cells[index]!.textContent).toBe("hourly");
+    expect(rowFor(host, "pc.browser")!.cells[index]!.textContent).toBe(
+      "Not set",
+    );
+  });
+
+  it("puts entries in the hosts group in the strip, not the table", () => {
+    const value = fresh();
+    value.catalog.find((item: Json) => item.id === "health.api").group =
+      "hosts";
+    const host = render(value);
+    expect(host.querySelector('ul[aria-label="Hosts"]')?.textContent).toContain(
+      "health api",
+    );
+    expect(rowFor(host, "health.api")).toBeUndefined();
+  });
+
   it("renders asleep calmly, apart from failing and from unknown", () => {
     const value = fresh();
     value.status.find((row: Json) => row.id === "health.api").state = "asleep";

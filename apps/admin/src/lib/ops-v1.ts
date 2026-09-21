@@ -43,6 +43,7 @@ export const OPS_V1_BOUNDS = {
   ownerMax: 64,
   detailMax: 160,
   runbookMax: 512,
+  scheduleMax: 64,
   /** One year. A budget longer than that is not a freshness budget. */
   budgetMaxSeconds: 366 * 24 * 60 * 60,
   exitMin: -(2 ** 31),
@@ -58,6 +59,8 @@ export type OpsCatalogEntry = {
   owner: string;
   freshness_budget_s: number | null;
   runbook: string;
+  /** Optional short human string: "hourly", "daily 04:00", "continuous". */
+  schedule?: string;
 };
 
 export type OpsStatusRow = {
@@ -120,16 +123,19 @@ function record(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-/** Exactly these keys: a missing field and an unknown field both reject. */
+/**
+ * Exactly these keys, plus any of `optional`: a missing required field and an
+ * unknown field both reject.
+ */
 function exact(
   value: unknown,
   keys: readonly string[],
+  optional: readonly string[] = [],
 ): Record<string, unknown> {
   const object = record(value);
   const present = Object.keys(object);
   if (
-    present.length !== keys.length ||
-    present.some((key) => !keys.includes(key)) ||
+    present.some((key) => !keys.includes(key) && !optional.includes(key)) ||
     keys.some((key) => !Object.hasOwn(object, key))
   )
     fail();
@@ -228,9 +234,13 @@ function runbook(value: unknown): string {
 }
 
 function entry(value: unknown): OpsCatalogEntry {
-  const e = exact(value, ENTRY_KEYS);
+  const e = exact(value, ENTRY_KEYS, ["schedule"]);
   if (typeof e.id !== "string" || !OPS_V1_BOUNDS.id.test(e.id)) fail();
   return {
+    // Optional short human string, such as "hourly" or "daily 04:00".
+    ...(Object.hasOwn(e, "schedule")
+      ? { schedule: text(e.schedule, OPS_V1_BOUNDS.scheduleMax) }
+      : {}),
     id: e.id,
     name: text(e.name, OPS_V1_BOUNDS.nameMax),
     // Groups are free strings; System adds them without a website deploy.
@@ -264,31 +274,22 @@ function row(value: Record<string, unknown>, notAfter: number): OpsStatusRow {
 }
 
 /**
- * Status rows arrive as an array of rows carrying `id` (the contract example
- * and System's fixture) or as an object keyed by id. Both are accepted; a
- * duplicate id, or a row for an id outside the catalog, rejects the snapshot.
+ * Status is an array of rows, each carrying its catalog `id` (canonical per
+ * System). A duplicate id, or a row for an id outside the catalog, rejects
+ * the snapshot.
  */
 function statusRows(
   value: unknown,
   catalogIds: Set<string>,
   notAfter: number,
 ): Map<string, OpsStatusRow> {
+  if (!Array.isArray(value) || value.length > OPS_V1_BOUNDS.maxEntries) fail();
   const rows = new Map<string, OpsStatusRow>();
-  const add = (id: unknown, body: Record<string, unknown>) => {
+  for (const item of value) {
+    const body = exact(item, ["id", ...ROW_KEYS]);
+    const id = body.id;
     if (typeof id !== "string" || !catalogIds.has(id) || rows.has(id)) fail();
     rows.set(id, row(body, notAfter));
-  };
-  if (Array.isArray(value)) {
-    if (value.length > OPS_V1_BOUNDS.maxEntries) fail();
-    for (const item of value) {
-      const body = exact(item, ["id", ...ROW_KEYS]);
-      add(body.id, body);
-    }
-  } else {
-    const object = record(value);
-    const ids = Object.keys(object);
-    if (ids.length > OPS_V1_BOUNDS.maxEntries) fail();
-    for (const id of ids) add(id, exact(object[id], ROW_KEYS));
   }
   return rows;
 }
@@ -384,15 +385,22 @@ export function opsSamplerStopped(snapshot: OpsSnapshot, now: number) {
 /**
  * Owner priority for the Status table: Personal Context memory, its
  * snapshots and offsite copies first, then health ingest, then agent
- * sessions. Groups System adds later follow in catalog order.
+ * sessions, then services. Groups System adds later follow in catalog order.
+ * The "hosts" group renders as the strip above the table, never in it.
  */
 export const OPS_GROUP_PRIORITY = [
   "personal context",
   "backups",
-  "health",
+  "health ingest",
+  "agent sessions",
   "services",
-  "agents",
 ] as const;
+export const OPS_HOSTS_GROUP = "hosts";
+
+/** Hosts go in the strip: the hosts group and any host-kind entry. */
+export function opsIsHost(service: OpsCatalogEntry): boolean {
+  return service.kind === "host" || service.group === OPS_HOSTS_GROUP;
+}
 /** Kept, but never featured: these sort to the end of their group. */
 export const OPS_TRAILING_IDS = ["imessage.agent"] as const;
 

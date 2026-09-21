@@ -27,6 +27,7 @@ import {
   OPS_V1_STATES,
   formatDuration,
   opsFreshness,
+  opsIsHost,
   opsOrdered,
   opsRenderedCounts,
   opsRunbookHref,
@@ -195,7 +196,23 @@ function StatusTable({ services, now }: { services: Row[]; now: number }) {
           width: proportional(2),
           renderCell: (row) => <Freshness service={row} now={now} />,
         },
-        // ops_v1 has no schedule field; a Schedule column waits for one.
+        // Schedule is optional in ops_v1; the column shows only when at
+        // least one entry carries it.
+        ...(services.some((row) => row.schedule)
+          ? [
+              {
+                key: "schedule",
+                header: "Schedule",
+                width: proportional(1),
+                renderCell: (row: Row) =>
+                  row.schedule ? (
+                    <Text>{row.schedule}</Text>
+                  ) : (
+                    <Text color="secondary">Not set</Text>
+                  ),
+              },
+            ]
+          : []),
         {
           key: "last_exit",
           header: "Last exit",
@@ -320,8 +337,8 @@ function SnapshotView({
     const ordered = opsOrdered(opsServices(snapshot));
     return lastKnown ? ordered.map(asLastKnown) : ordered;
   }, [snapshot, lastKnown]);
-  const hosts = services.filter((service) => service.kind === "host");
-  const rows = services.filter((service) => service.kind !== "host") as Row[];
+  const hosts = services.filter(opsIsHost);
+  const rows = services.filter((service) => !opsIsHost(service)) as Row[];
   return (
     <VStack gap={5}>
       <Summary services={services} lastKnown={lastKnown} />

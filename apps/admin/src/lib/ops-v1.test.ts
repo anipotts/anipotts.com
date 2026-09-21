@@ -10,6 +10,7 @@ import {
   OPS_SAMPLER_STALE_SECONDS,
   formatDuration,
   opsFreshness,
+  opsIsHost,
   opsOrdered,
   opsRenderedCounts,
   opsRunbookHref,
@@ -96,8 +97,9 @@ describe("contract client rules", () => {
   });
 
   it.each([
-    ["catalog entry", (v: Json) => (v.catalog[0].schedule = "*/5 * * * *")],
+    ["catalog entry", (v: Json) => (v.catalog[0].cron = "*/5 * * * *")],
     ["catalog entry", (v: Json) => (v.catalog[0].private_note = "x")],
+    ["status row", (v: Json) => (v.status[0].schedule = "hourly")],
     ["status row", (v: Json) => (v.status[0].message = "private text")],
     ["counts", (v: Json) => (v.counts.sleeping = 0)],
     ["root", (v: Json) => (v.events = [])],
@@ -119,13 +121,36 @@ describe("contract client rules", () => {
     rejects(value);
   });
 
-  it("accepts status as an object keyed by id", () => {
+  it("accepts status only as the canonical array of rows", () => {
     const value = fresh();
     value.status = Object.fromEntries(
       value.status.map(({ id, ...row }: Json) => [id, row]),
     );
-    const snapshot = parseOpsSnapshot(value);
-    expect(snapshot.status.get("pc.inference")?.state).toBe("failing");
+    rejects(value);
+    const missingId = fresh();
+    delete missingId.status[0].id;
+    rejects(missingId);
+  });
+
+  it("accepts the optional schedule, bounded like other text", () => {
+    const value = fresh();
+    value.catalog[0].schedule = "daily 04:00";
+    value.catalog[1].schedule = "continuous";
+    const [first, second, third] = parseOpsSnapshot(value).catalog;
+    expect(first?.schedule).toBe("daily 04:00");
+    expect(second?.schedule).toBe("continuous");
+    expect(third && "schedule" in third).toBe(false);
+    for (const schedule of [
+      "",
+      null,
+      3600,
+      " hourly",
+      "x".repeat(OPS_V1_BOUNDS.scheduleMax + 1),
+    ]) {
+      const bad = fresh();
+      bad.catalog[0].schedule = schedule;
+      rejects(bad);
+    }
   });
 
   it("rejects duplicate ids and status rows outside the catalog", () => {
@@ -362,27 +387,67 @@ describe("sampler freshness", () => {
 });
 
 describe("owner priority order", () => {
-  it("puts Personal Context and backups first, agents after, iMessage last", () => {
-    const ordered = opsOrdered(opsServices(parseOpsSnapshot(fresh())));
+  // System's announced group names, applied to the current fixture's ids so
+  // the rule is pinned before the regenerated fixture lands.
+  const SYSTEM_GROUPS: Record<string, string> = {
+    "host.ap-mini": "hosts",
+    "health.api": "services",
+    "imessage.agent": "services",
+    "agents.sync": "agent sessions",
+    "keepalive.chatgpt": "agent sessions",
+    "keepalive.chrome-agent": "agent sessions",
+    "keepalive.onepassword-connect": "agent sessions",
+    "pc.snapshot": "backups",
+  };
+  const regrouped = () => {
+    const value = fresh();
+    for (const item of value.catalog)
+      item.group = SYSTEM_GROUPS[item.id] ?? "personal context";
+    value.catalog.push({
+      ...value.catalog[1],
+      id: "health.ingest",
+      name: "health ingest",
+      group: "health ingest",
+    });
+    return value;
+  };
+
+  it("orders personal context, backups, health ingest, agent sessions, services", () => {
+    const ordered = opsOrdered(opsServices(parseOpsSnapshot(regrouped())));
     const groups = [...new Set(ordered.map((item) => item.group))];
     expect(groups).toEqual([
       "personal context",
       "backups",
+      "health ingest",
+      "agent sessions",
       "services",
-      "agents",
       "hosts",
     ]);
-    const agents = ordered.filter((item) => item.group === "agents");
-    expect(agents.at(-1)?.id).toBe("imessage.agent");
-    expect(agents.map((item) => item.id).slice(0, 3)).toEqual([
-      "agents.sync",
-      "keepalive.chatgpt",
-      "keepalive.chrome-agent",
+    const services = ordered.filter((item) => item.group === "services");
+    expect(services.map((item) => item.id)).toEqual([
+      "health.api",
+      "imessage.agent",
     ]);
+    expect(ordered.filter((item) => !opsIsHost(item)).at(-1)?.id).toBe(
+      "imessage.agent",
+    );
+  });
+
+  it("sends the hosts group and host-kind entries to the strip", () => {
+    const services = opsServices(parseOpsSnapshot(regrouped()));
+    expect(services.filter(opsIsHost).map((item) => item.id)).toEqual([
+      "host.ap-mini",
+    ]);
+    const hostGroup = {
+      ...services[1]!,
+      kind: "service" as const,
+      group: "hosts",
+    };
+    expect(opsIsHost(hostGroup)).toBe(true);
   });
 
   it("places groups it does not know after the known ones, in catalog order", () => {
-    const value = fresh();
+    const value = regrouped();
     for (const [index, group] of ["zeta", "alpha"].entries())
       value.catalog.push({ ...value.catalog[1], id: `new.${index}`, group });
     const groups = [
