@@ -413,3 +413,90 @@ it("reapproves identical content at a new private revision while old canceled re
   });
   expect(await store.freezePublication(next)).toEqual(replacement);
 });
+
+describe("maintenance legacy retirement", () => {
+  async function frozen() {
+    const store = env.EDITORIAL.getByName(crypto.randomUUID());
+    await store.save(draft());
+    const id = crypto.randomUUID();
+    await store.freezePublication({
+      record,
+      operationId: id,
+      expectedRevision: 1,
+    });
+    return { store, id };
+  }
+  async function maintenance(
+    store: ReturnType<typeof env.EDITORIAL.getByName>,
+  ) {
+    await runInDurableObject(store, async (instance) => {
+      const owner = instance as unknown as { env: Record<string, unknown> };
+      owner.env = { ...owner.env, EDITORIAL_PUBLISH_MODE: "maintenance" };
+    });
+  }
+  it("cancels only the exact unstarted receipt without changing newer drafts or history", async () => {
+    const { store, id } = await frozen();
+    expect(
+      await store.cancelUnstartedLegacyPublication(record, id, 1, 0),
+    ).toMatchObject({ ok: false, code: "maintenance_required" });
+    await maintenance(store);
+    await store.save(draft(source + "New private paragraph.", 1));
+    const history = await store.history(record);
+    expect(
+      await store.cancelUnstartedLegacyPublication(
+        { ...record, id: "wrong-record" },
+        id,
+        1,
+        0,
+      ),
+    ).toMatchObject({ ok: false });
+    expect(
+      await store.cancelUnstartedLegacyPublication(record, id, 2, 0),
+    ).toMatchObject({ ok: false });
+    expect(
+      await store.cancelUnstartedLegacyPublication(record, id, 1, 9),
+    ).toMatchObject({ ok: false });
+    const results = await Promise.all([
+      store.cancelUnstartedLegacyPublication(record, id, 1, 0),
+      store.cancelUnstartedLegacyPublication(record, id, 1, 0),
+    ]);
+    expect(results.filter((result) => result.ok)).toHaveLength(1);
+    expect(await store.publicationStatus(record, id)).toMatchObject({
+      phase: "cancelled",
+      version: 1,
+      attempts: 0,
+    });
+    expect((await store.publication(record, id))?.source).toBe(source);
+    expect((await store.get(record))?.source).toContain(
+      "New private paragraph.",
+    );
+    expect(await store.history(record)).toEqual(history);
+  });
+  it("refuses claimed, leased, checkpointed, blocked or advanced jobs without changing them", async () => {
+    for (const change of [
+      "attempts = 1",
+      "lease = 'active'",
+      "leaseUntil = 1",
+      'checkpoint = \'{"commit":"abc"}\'',
+      "blocked = 'unreleased_public_changes'",
+      "phase = 'commit'",
+    ]) {
+      const { store, id } = await frozen();
+      await maintenance(store);
+      await runInDurableObject(store, async (_instance, state) => {
+        state.storage.sql.exec(
+          `UPDATE publication_jobs SET ${change} WHERE id = ?`,
+          id,
+        );
+      });
+      const before = await store.publicationStatus(record, id);
+      expect(
+        await store.cancelUnstartedLegacyPublication(record, id, 1, 0),
+      ).toEqual({
+        ok: false,
+        code: "legacy_publication_requires_reconciliation",
+      });
+      expect(await store.publicationStatus(record, id)).toEqual(before);
+    }
+  });
+});

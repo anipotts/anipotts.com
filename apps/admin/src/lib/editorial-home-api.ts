@@ -46,6 +46,7 @@ export type PublicationStorage = Pick<
   | "publicationQueue"
   | "retryPublication"
   | "cancelPublication"
+  | "cancelUnstartedLegacyPublication"
 >;
 
 /** Called only after owner verification. The browser never supplies a Git path or base. */
@@ -146,6 +147,14 @@ export async function homeEditorApi(
         return json({ error: "invalid_publication_page" }, 400);
       return json(await publisher.storage.publicationQueue(options));
     }
+    if (action === "legacy-publication" && publisher) {
+      const id = url.searchParams.get("operationId");
+      if (!id || !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(id))
+        return json({ error: "invalid_request" }, 400);
+      return json({
+        publication: await publisher.storage.publicationStatus(record, id),
+      });
+    }
     if (action === "publication" && publisher) {
       const id = url.searchParams.get("operationId");
       const publication = direct
@@ -178,6 +187,38 @@ export async function homeEditorApi(
   )
     return json({ error: "invalid_revision" }, 400);
   const expectedRevision = Number(body.expectedRevision);
+  if (action === "cancel-legacy-publication") {
+    // Publishing stays disabled in maintenance. This narrowly scoped operation
+    // uses the same verified owner, origin and CSRF boundary as draft writes.
+    if (!publisher || publisher.mode !== "maintenance")
+      return json({ error: "maintenance_required" }, 409);
+    if (
+      !("operationId" in body) ||
+      typeof body.operationId !== "string" ||
+      !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(body.operationId) ||
+      !("expectedVersion" in body) ||
+      !Number.isSafeInteger(body.expectedVersion) ||
+      Number(body.expectedVersion) < 0 ||
+      expectedRevision < 1
+    )
+      return json({ error: "invalid_request" }, 400);
+    const result = await publisher.storage.cancelUnstartedLegacyPublication(
+      record,
+      body.operationId,
+      expectedRevision,
+      Number(body.expectedVersion),
+    );
+    return json(
+      {
+        ...result,
+        publication: await publisher.storage.publicationStatus(
+          record,
+          body.operationId,
+        ),
+      },
+      result.ok ? 200 : 409,
+    );
+  }
   if (action === "create") {
     if (
       record.kind !== "writing" ||

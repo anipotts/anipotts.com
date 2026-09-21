@@ -1,5 +1,6 @@
 /// <reference types="@cloudflare/vitest-plugin/types" />
 import { env } from "cloudflare:workers";
+import { runInDurableObject } from "cloudflare:test";
 import { describe, it, expect } from "vitest";
 import { homeEditorApi, homeRecord } from "../../src/lib/editorial-home-api";
 const base = async () => ({
@@ -553,4 +554,67 @@ it("direct API returns the original publication when another intent already owns
     error: "publication_in_progress",
     publication: { id: input.operationId, revision: 1, mode: "direct" },
   });
+});
+
+it("allows exact unstarted legacy cancellation in maintenance while publishing is disabled", async () => {
+  const storage = env.EDITORIAL.getByName(crypto.randomUUID());
+  const record = { kind: "writing", id: "maintenance-essay" } as const;
+  const source =
+    "---\ntitle: Private essay\nsummary: Subtitle\nstatus: published\npublished_at: 2026-09-20\n---\nPrivate body.\n";
+  await storage.save({
+    ...(await base()),
+    record,
+    source,
+    expectedRevision: 0,
+    requestId: crypto.randomUUID(),
+  });
+  const operationId = crypto.randomUUID();
+  await storage.freezePublication({ record, operationId, expectedRevision: 1 });
+  await runInDurableObject(storage, async (instance) => {
+    const owner = instance as unknown as { env: Record<string, unknown> };
+    owner.env = { ...owner.env, EDITORIAL_PUBLISH_MODE: "maintenance" };
+  });
+  const publisher = {
+    storage,
+    direct: storage,
+    enabled: false,
+    mode: "maintenance" as const,
+  };
+  const call = (headers = {}) => {
+    const original = request(
+      "cancel-legacy-publication",
+      { expectedRevision: 1, operationId, expectedVersion: 0 },
+      headers,
+    );
+    return homeEditorApi(
+      new Request(
+        `${original.url}?kind=writing&id=maintenance-essay`,
+        original,
+      ),
+      storage,
+      base,
+      publisher,
+    );
+  };
+  expect((await call({ "X-Editorial-CSRF": "wrong" })).status).toBe(403);
+  expect((await call({ Origin: "https://example.com" })).status).toBe(403);
+  const result = await call();
+  expect(result.status).toBe(200);
+  expect(await result.json()).toMatchObject({
+    ok: true,
+    publication: { id: operationId, phase: "cancelled" },
+  });
+  expect((await call()).status).toBe(409);
+  const read = await homeEditorApi(
+    new Request(
+      `https://admin.anipotts.com/api/editorial/legacy-publication?kind=writing&id=maintenance-essay&operationId=${operationId}`,
+    ),
+    storage,
+    base,
+    publisher,
+  );
+  expect(await read.json()).toMatchObject({
+    publication: { id: operationId, phase: "cancelled" },
+  });
+  expect((await storage.get(record))?.source).toBe(source);
 });

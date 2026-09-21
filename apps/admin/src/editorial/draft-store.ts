@@ -497,6 +497,51 @@ export class EditorialDraftStore extends DurableObject<unknown> {
       ? { ok: true }
       : { ok: false, code: "publication_conflict" };
   }
+  /** Maintenance-only retirement of a provably unstarted legacy operation.
+   * Claimed jobs require separate effect reconciliation, even with no checkpoint. */
+  async cancelUnstartedLegacyPublication(
+    record: EditorialRecord,
+    id: string,
+    expectedRevision: number,
+    expectedVersion: number,
+  ) {
+    if (editorialPublishMode(this.env) !== "maintenance")
+      return { ok: false as const, code: "maintenance_required" as const };
+    return this.ctx.storage.transactionSync(() => {
+      const receipt = this.readPublication(id);
+      const job = this.jobs.get(id);
+      if (
+        !receipt ||
+        !job ||
+        !uuid.test(id) ||
+        !Number.isSafeInteger(expectedRevision) ||
+        expectedRevision < 1 ||
+        !Number.isSafeInteger(expectedVersion) ||
+        expectedVersion < 0 ||
+        receipt.path !== editorialRecordPath(record) ||
+        receipt.revision !== expectedRevision ||
+        job.version !== expectedVersion
+      )
+        return { ok: false as const, code: "publication_conflict" as const };
+      if (
+        job.phase !== "validate" ||
+        job.attempts !== 0 ||
+        job.lease !== null ||
+        job.leaseUntil !== 0 ||
+        job.blocked !== null ||
+        Object.keys(job.checkpoint).length !== 0
+      )
+        return {
+          ok: false as const,
+          code: "legacy_publication_requires_reconciliation" as const,
+        };
+      // No external work or alarm is needed. Preserve source, receipt and all
+      // authored revisions; the existing CAS transition records cancellation.
+      return this.jobs.requestCancel(id, expectedVersion, Date.now())
+        ? { ok: true as const }
+        : { ok: false as const, code: "publication_conflict" as const };
+    });
+  }
   async cancelPublication(
     record: EditorialRecord,
     id: string,
