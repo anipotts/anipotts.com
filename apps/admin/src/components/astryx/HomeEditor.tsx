@@ -218,6 +218,7 @@ function HomeEditorImpl({
   const toast = useToast();
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [historyError, setHistoryError] = useState(false);
+  const [comparedRevision, setComparedRevision] = useState<number | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const query = new URLSearchParams(record).toString();
   const endpoint = (action: string) => `/api/editorial/${action}?${query}`;
@@ -2430,56 +2431,96 @@ function HomeEditorImpl({
                     <AdminSkeleton kind="history" />
                   ))}
                 {snapshot.history.map((revision) => (
-                  <HStack
-                    key={revision.revision}
-                    gap={3}
-                    wrap="wrap"
-                    vAlign="center"
-                    className="editor-history-row"
-                  >
-                    <VStack gap={1}>
-                      <Text weight="semibold">
-                        Revision {revision.revision}
-                      </Text>
-                      <Timestamp
-                        value={new Date(revision.updatedAt).toISOString()}
-                        format="date_time"
-                        isTimezoneShown
-                      />
-                    </VStack>
-                    <HStack gap={2}>
-                      <Button
-                        label="Restore"
-                        aria-label={`Restore revision ${revision.revision}`}
-                        variant="ghost"
-                        size="sm"
-                        isDisabled={Boolean(snapshot.draft?.discardedAt)}
-                        onClick={() => {
-                          resetBuffers();
-                          editor.current!.edit(revision.source);
-                          setTab("edit");
-                          toast({
-                            body: `Revision ${revision.revision} restored as a draft.`,
-                            uniqueID: "draft-restore",
-                          });
-                        }}
-                      />
-                      <MoreMenu
-                        label={`Revision ${revision.revision} actions`}
-                        size="sm"
-                        items={[
-                          {
-                            label: "Download revision",
-                            onClick: () =>
-                              download(
-                                revision.source,
-                                `${record.id}-revision-${revision.revision}.md`,
-                              ),
-                          },
-                        ]}
-                      />
+                  <VStack key={revision.revision} gap={2}>
+                    <HStack
+                      gap={3}
+                      wrap="wrap"
+                      vAlign="center"
+                      className="editor-history-row"
+                    >
+                      <VStack gap={1}>
+                        <Text weight="semibold">
+                          Revision {revision.revision}
+                        </Text>
+                        <Timestamp
+                          value={new Date(revision.updatedAt).toISOString()}
+                          format="date_time"
+                          isTimezoneShown
+                        />
+                      </VStack>
+                      <HStack gap={2}>
+                        <Button
+                          label={
+                            comparedRevision === revision.revision
+                              ? "Close comparison"
+                              : "Compare"
+                          }
+                          aria-label={`Compare revision ${revision.revision}`}
+                          aria-expanded={comparedRevision === revision.revision}
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            setComparedRevision(
+                              comparedRevision === revision.revision
+                                ? null
+                                : revision.revision,
+                            )
+                          }
+                        />
+                        <Button
+                          label="Restore"
+                          aria-label={`Restore revision ${revision.revision}`}
+                          variant="ghost"
+                          size="sm"
+                          isDisabled={Boolean(snapshot.draft?.discardedAt)}
+                          onClick={() => {
+                            resetBuffers();
+                            editor.current!.edit(revision.source);
+                            setTab("edit");
+                            toast({
+                              body: `Revision ${revision.revision} restored as a draft.`,
+                              uniqueID: "draft-restore",
+                            });
+                          }}
+                        />
+                        <MoreMenu
+                          label={`Revision ${revision.revision} actions`}
+                          size="sm"
+                          items={[
+                            {
+                              label: "Download revision",
+                              onClick: () =>
+                                download(
+                                  revision.source,
+                                  `${record.id}-revision-${revision.revision}.md`,
+                                ),
+                            },
+                          ]}
+                        />
+                      </HStack>
                     </HStack>
-                  </HStack>
+                    {comparedRevision === revision.revision && (
+                      <VStack gap={2}>
+                        <Text color="secondary">
+                          Before is your current draft. After is the saved
+                          revision. Comparing does not change or publish your
+                          draft.
+                        </Text>
+                        <ReviewChanges
+                          destination={`Revision ${revision.revision}`}
+                          before={state.source}
+                          after={revision.source}
+                          changes={[
+                            {
+                              label: "Document source",
+                              before: state.source,
+                              after: revision.source,
+                            },
+                          ]}
+                        />
+                      </VStack>
+                    )}
+                  </VStack>
                 ))}
                 {!historyLoading &&
                   !historyError &&
