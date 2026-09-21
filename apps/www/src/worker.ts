@@ -12,6 +12,12 @@ import {
   withRenderedValidator,
   withStaticCacheControl,
 } from "./lib/static-assets";
+import { hiddenWritingCard, writingCardSlug } from "./lib/social-card/gate";
+import { contentUnavailable } from "./lib/published-runtime";
+
+/** Under the content store a per-article card follows its article: it
+ * revalidates on every use, so an unpublished article stops sharing it. */
+const GATED_CARD_CACHE = "public, max-age=0, must-revalidate";
 
 /** Cloudflare Worker entry, named by astro.config.mjs. The adapter answers
  * prerendered pages and manifest assets from env.ASSETS before middleware
@@ -73,6 +79,22 @@ export function createExports(manifest: SSRManifest) {
         url.pathname = pathname === "/index.html" ? "/" : pathname.slice(0, -5);
         return withSecurityHeaders(Response.redirect(url, 308));
       }
+      const card =
+        usesPublishedContent(env) &&
+        (request.method === "GET" || request.method === "HEAD")
+          ? writingCardSlug(pathname)
+          : null;
+      if (card !== null) {
+        const database = (env as { CONTENT_DB?: D1Database }).CONTENT_DB;
+        if (!database) return withSecurityHeaders(contentUnavailable());
+        let hidden: Response | null;
+        try {
+          hidden = await hiddenWritingCard(database, card);
+        } catch {
+          return withSecurityHeaders(contentUnavailable());
+        }
+        if (hidden) return withSecurityHeaders(hidden);
+      }
       if (
         (request.method === "GET" || request.method === "HEAD") &&
         !(usesPublishedContent(env) && isRuntimeContentPath(pathname)) &&
@@ -84,12 +106,17 @@ export function createExports(manifest: SSRManifest) {
           request as unknown as Parameters<typeof env.ASSETS.fetch>[0],
         );
         if (asset.ok || asset.status === 304) {
-          return withSecurityHeaders(
-            withStaticCacheControl(
-              pathname,
-              withConditionalStatus(request, pathname, asset),
-            ),
+          const served = withStaticCacheControl(
+            pathname,
+            withConditionalStatus(request, pathname, asset),
           );
+          if (card === null) return withSecurityHeaders(served);
+          const gated = new Response(
+            served.status === 304 ? null : served.body,
+            served,
+          );
+          gated.headers.set("Cache-Control", GATED_CARD_CACHE);
+          return withSecurityHeaders(gated);
         }
       }
       // HEAD renders as GET and drops the body here, so a rendered validator

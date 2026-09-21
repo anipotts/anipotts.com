@@ -512,6 +512,74 @@ describe("direct publisher API boundary", () => {
     });
     expect(calls).toBe(0);
   });
+  it("unpublishes only in direct mode, with the public source from the server's own read", async () => {
+    const storage = env.EDITORIAL.getByName(crypto.randomUUID());
+    const record = { kind: "writing", id: "api-unpublish" } as const;
+    const publicSource =
+      "---\ntitle: Test\nsummary: Example\nstatus: published\npublished_at: 2026-09-20\n---\nBody";
+    const received: unknown[] = [];
+    const direct = {
+      startDirectPublication: async (input: unknown) => {
+        received.push(input);
+        return { ok: false as const, code: "already_hidden" as const };
+      },
+      latestDirectPublication: async () => null,
+      directPublicationStatus: async () => null,
+      retryDirectPublication: async () => ({
+        ok: false as const,
+        code: "publication_conflict" as const,
+      }),
+      cancelDirectPublication: async () => ({
+        ok: false as const,
+        code: "publication_conflict" as const,
+      }),
+    };
+    const body = {
+      expectedRevision: 0,
+      operationId: crypto.randomUUID(),
+      reviewedSourceSha256: "b".repeat(64),
+      expectedBaselineSha256: "c".repeat(64),
+      expectedPublicationId: "published-receipt",
+      // A browser-supplied source is ignored; the route reads its own.
+      baselineSource: "---\ntitle: forged\n---\n",
+    };
+    const call = (mode: "direct" | "maintenance" | "legacy") => {
+      const req = request("unpublish", body);
+      return homeEditorApi(
+        new Request(req.url + "?kind=writing&id=api-unpublish", req),
+        storage,
+        async () => ({
+          ...(await base()),
+          source: publicSource,
+          publicationId: "published-receipt",
+        }),
+        { storage, enabled: true, mode, direct },
+      );
+    };
+    for (const mode of ["maintenance", "legacy"] as const) {
+      const refused = await call(mode);
+      expect(refused.status).toBe(409);
+      expect(await refused.json()).toEqual({
+        error: "unpublish_requires_direct_publishing",
+      });
+    }
+    expect(received).toEqual([]);
+    const result = await call("direct");
+    expect(result.status).toBe(409);
+    expect(await result.json()).toEqual({ error: "already_hidden" });
+    expect(received).toEqual([
+      {
+        record,
+        operationId: body.operationId,
+        expectedRevision: 1,
+        reviewedSourceSha256: body.reviewedSourceSha256,
+        expectedBaselineSha256: body.expectedBaselineSha256,
+        expectedPublicationId: "published-receipt",
+        action: "unpublish",
+        baselineSource: publicSource,
+      },
+    ]);
+  });
 });
 
 it("direct API returns the original publication when another intent already owns the record", async () => {

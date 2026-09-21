@@ -649,9 +649,10 @@ describe("admin wrangler.toml runtime contract drift", () => {
     expect(undeclared(declaredRuntimeNames(database))).toEqual(["CONTENT_DB"]);
   });
 
-  it("deploys the content bindings with publishing paused in maintenance mode", () => {
+  it("deploys direct publishing with its content bindings", () => {
     const declared = declaredRuntimeNames(wrangler);
-    expect(wrangler).toMatch(/^EDITORIAL_PUBLISH_MODE = "maintenance"$/m);
+    expect(wrangler).toMatch(/^EDITORIAL_PUBLISH_MODE = "direct"$/m);
+    expect(declared.varValues.EDITORIAL_PUBLISH_ENABLED).toBe("true");
     expect(declared.varValues.EDITORIAL_ENABLED).toBe("true");
     expect(declared.d1).toContain("CONTENT_DB");
     expect(declared.r2).toContain("CONTENT_MEDIA");
@@ -663,12 +664,27 @@ describe("admin wrangler.toml runtime contract drift", () => {
     for (const name of declared.durable_objects) env[name] = { getByName() {} };
     for (const name of declared.secret) env[name] = "declared";
     const { features } = evaluateRuntimeContract(env, release);
-    // Authoring stays available; only publication is switched off.
     expect(features.editorial).toEqual(available);
-    expect(features.editorial_publishing).toEqual({
-      state: "disabled",
-      missing: [],
+    expect(features.editorial_publishing).toEqual(available);
+    // Without the media binding direct publishing reports what is missing
+    // instead of silently activating.
+    const { features: withoutMedia } = evaluateRuntimeContract(
+      { ...env, CONTENT_MEDIA: undefined },
+      release,
+    );
+    expect(withoutMedia.editorial_publishing).toEqual({
+      state: "unavailable",
+      missing: ["CONTENT_MEDIA"],
     });
+  });
+
+  it("keeps the maintenance rollback target complete", () => {
+    const maintenance = wrangler.replace(
+      /^EDITORIAL_PUBLISH_MODE = .*$/m,
+      'EDITORIAL_PUBLISH_MODE = "maintenance"',
+    );
+    expect(maintenance).not.toBe(wrangler);
+    expect(undeclared(declaredRuntimeNames(maintenance))).toEqual([]);
   });
 
   it("keeps the retained legacy rollback target complete", () => {

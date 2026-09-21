@@ -19,7 +19,10 @@ run_worker_first = true
 
 # Non-secret env vars available at runtime
 [vars]
-EDITORIAL_PUBLISH_MODE = "maintenance"
+# Direct CMS publishing: one reviewed record per operation into CONTENT_DB,
+# including unpublish. Rollback: set this back to "maintenance" and redeploy;
+# accepted work stays durable and resumes or reconciles after the switch back.
+EDITORIAL_PUBLISH_MODE = "direct"
 PUBLIC_STATE_API = "https://api.anipotts.com"
 ACCESS_TEAM_DOMAIN = "https://anipotts.cloudflareaccess.com"
 ACCESS_POLICY_AUD = "ca3ea64cba714dee7d50eae63f62b18d6c2aeeecc0fc16ec0335ed0aa863a49f"
@@ -58,8 +61,8 @@ script_name = "anipotts-state"
 # Workers Logs keep the once-per-isolate runtime contract line (names and
 # states only). Invocation logs stay off: request URLs can carry recovery
 # codes and owner filters, which logs must never retain.
-# Dedicated published-content store and media. The public reader stays in
-# legacy Git mode until CONTENT_RUNTIME is switched to "cms".
+# Dedicated published-content store and media. The public reader serves from
+# it (CONTENT_RUNTIME = "cms"); the direct publisher writes to it.
 [[d1_databases]]
 binding = "CONTENT_DB"
 database_name = "anipotts-content"

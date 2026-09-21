@@ -29,11 +29,21 @@ import type {
   DirectPublicationStatus,
   StartDirectPublication,
 } from "../lib/editorial-publication-status";
+import {
+  canUnpublish,
+  sourceIsPublic,
+  unpublishedSource,
+} from "../lib/editorial-visibility";
 import type { Draft } from "./draft-store";
 import type { EditorialMedia } from "./media-store";
 
 type Receipt = NonNullable<Awaited<ReturnType<typeof getDirectReceipt>>>;
-type Intent = StartDirectPublication & { source: string; createdAt: number };
+type Intent = Omit<StartDirectPublication, "baselineSource"> & {
+  source: string;
+  createdAt: number;
+};
+const actionOf = (intent: Pick<StartDirectPublication, "action">) =>
+  intent.action === "unpublish" ? "unpublish" : "publish";
 type Row = {
   id: string;
   key: string;
@@ -77,6 +87,9 @@ export type DirectStartResult =
         | "idempotency_key_reused"
         | "legacy_publication_requires_reconciliation"
         | "unsupported_visibility_change"
+        | "unpublish_unsupported"
+        | "already_hidden"
+        | "baseline_changed"
         | "publication_in_progress";
       publication?: DirectPublicationStatus;
     };
@@ -92,6 +105,7 @@ const sameInput = (
   left: StartDirectPublication,
   right: StartDirectPublication,
 ) =>
+  actionOf(left) === actionOf(right) &&
   left.record.kind === right.record.kind &&
   left.record.id === right.record.id &&
   left.expectedRevision === right.expectedRevision &&
@@ -166,6 +180,7 @@ export class DirectPublisher {
       .one().count;
     return {
       mode: "direct",
+      action: actionOf(intent),
       id: row.id,
       revision: intent.expectedRevision,
       phase: row.phase,
@@ -254,36 +269,26 @@ export class DirectPublisher {
           ok: false as const,
           code: "legacy_publication_requires_reconciliation" as const,
         };
-      const draft = this.dependencies.readDraft(input.record);
-      if (
-        !draft ||
-        draft.discardedAt !== null ||
-        draft.revision !== input.expectedRevision ||
-        hash(draft.source) !== input.reviewedSourceSha256
-      )
-        return { ok: false as const, code: "revision_conflict" as const };
-      try {
-        if (!validateEditorialSource(input.record, draft.source).success)
-          return { ok: false as const, code: "invalid_source" as const };
-      } catch {
-        return { ok: false as const, code: "invalid_source" as const };
-      }
-      const data = parseEditorialSource(draft.source).data as Record<
-        string,
-        unknown
-      >;
-      if (
-        (input.record.kind === "writing" && data.status !== "published") ||
-        (input.record.kind === "work" &&
-          !["featured", "listed"].includes(String(data.public_state))) ||
-        (input.record.kind === "page" && input.record.id === "newsletter")
-      )
-        return {
-          ok: false as const,
-          code: "unsupported_visibility_change" as const,
-        };
+      const approved =
+        actionOf(input) === "unpublish"
+          ? this.hiddenRevision(input)
+          : this.draftRevision(input);
+      if (typeof approved !== "string")
+        return { ok: false as const, code: approved.code };
       const createdAt = this.now();
-      const intent: Intent = { ...input, source: draft.source, createdAt };
+      // The baseline source itself stays out of the intent: its hash is
+      // already bound, and the hidden revision is derived from it here.
+      const intent: Intent = {
+        record: input.record,
+        operationId: input.operationId,
+        expectedRevision: input.expectedRevision,
+        reviewedSourceSha256: input.reviewedSourceSha256,
+        expectedPublicationId: input.expectedPublicationId,
+        expectedBaselineSha256: input.expectedBaselineSha256,
+        action: actionOf(input),
+        source: approved,
+        createdAt,
+      };
       this.storage.sql.exec(
         `INSERT INTO direct_publication_intents (id,key,intent,phase,version,attempts,failures,dueAt,lease,leaseUntil,blocked)
          VALUES (?,?,?,'validate',0,0,0,?,NULL,0,NULL)`,
@@ -306,6 +311,64 @@ export class DirectPublisher {
         publication: (await this.read(input.record, result.existingId))!,
       };
     return result;
+  }
+  /** The exact reviewed private draft, which must stay publicly visible. */
+  private draftRevision(input: StartDirectPublication) {
+    const draft = this.dependencies.readDraft(input.record);
+    if (
+      !draft ||
+      draft.discardedAt !== null ||
+      draft.revision !== input.expectedRevision ||
+      hash(draft.source) !== input.reviewedSourceSha256
+    )
+      return { code: "revision_conflict" as const };
+    try {
+      if (!validateEditorialSource(input.record, draft.source).success)
+        return { code: "invalid_source" as const };
+    } catch {
+      return { code: "invalid_source" as const };
+    }
+    const data = parseEditorialSource(draft.source).data as Record<
+      string,
+      unknown
+    >;
+    // Taking a piece off the site is its own reviewed action (unpublish),
+    // built from the public source. Private draft text never becomes a
+    // hidden publication, and scheduling still has no reader support.
+    if (
+      (input.record.kind === "writing" && data.status !== "published") ||
+      (input.record.kind === "work" &&
+        !["featured", "listed"].includes(String(data.public_state))) ||
+      (input.record.kind === "page" && input.record.id === "newsletter")
+    )
+      return { code: "unsupported_visibility_change" as const };
+    return draft.source;
+  }
+  /** The current public source with visibility switched off. The owner
+   * reviewed its hash against the same baseline the server read, so the
+   * approval names one exact hidden revision of one exact public base. */
+  private hiddenRevision(input: StartDirectPublication) {
+    if (!canUnpublish(input.record))
+      return { code: "unpublish_unsupported" as const };
+    const base = input.baselineSource;
+    if (typeof base !== "string" || hash(base) !== input.expectedBaselineSha256)
+      return { code: "baseline_changed" as const };
+    if (!sourceIsPublic(input.record, base))
+      return { code: "already_hidden" as const };
+    let hidden: string;
+    try {
+      hidden = unpublishedSource(input.record, base);
+      if (!validateEditorialSource(input.record, hidden).success)
+        return { code: "invalid_source" as const };
+    } catch {
+      return { code: "invalid_source" as const };
+    }
+    if (
+      sourceIsPublic(input.record, hidden) ||
+      hash(hidden) !== input.reviewedSourceSha256
+    )
+      return { code: "revision_conflict" as const };
+    return hidden;
   }
   async retry(record: EditorialRecord, id: string, version: number) {
     await this.storage.setAlarm(this.now() + 1000);
@@ -565,90 +628,142 @@ export class DirectPublisher {
   }
   private async verify(intent: Intent, receipt: Receipt, version: number) {
     const value = await this.publicEvidence(intent.record);
+    const unpublish = actionOf(intent) === "unpublish";
     if (
       !value ||
       value.runtime !== 1 ||
       value.contentSchemaVersion !== CONTENT_SCHEMA_VERSION ||
-      value.publicationId !== receipt.publicationId ||
-      value.sourceSha256 !== receipt.sourceSha256 ||
       !Number.isSafeInteger(value.inventoryVersion) ||
       Number(value.inventoryVersion) < version
+    )
+      return false;
+    // The reader names the active publication only while it is visible. A
+    // hidden one reports visible: false; reconcile has already confirmed from
+    // D1 that this receipt is the active pointer at this inventory.
+    if (
+      unpublish
+        ? value.visible !== false
+        : value.publicationId !== receipt.publicationId ||
+          value.sourceSha256 !== receipt.sourceSha256
     )
       return false;
     const data = parseEditorialSource(intent.source).data as Record<
       string,
       unknown
     >;
-    const slug = encodeURIComponent(String(data.slug ?? intent.record.id));
-    const routes =
-      intent.record.kind === "writing"
-        ? [
-            `/writing/${slug}`,
-            "/writing",
-            "/feed.xml",
-            "/search-index.json",
-            "/sitemap.xml",
-            "/",
-          ]
-        : intent.record.kind === "work"
-          ? [`/work/${slug}`, "/work", "/", "/sitemap.xml"]
+    const rawSlug = String(data.slug ?? intent.record.id);
+    const slug = encodeURIComponent(rawSlug);
+    const section = intent.record.kind === "work" ? "work" : "writing";
+    // An unpublished piece is gone when its detail route and social card 404
+    // at this inventory and no discovery surface still names its route.
+    const escaped = rawSlug.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+    const named = new RegExp(
+      `/${section}/${escaped}(?![A-Za-z0-9_-])|"slug":"${escaped}"`,
+      "u",
+    );
+    const routes: Array<{ path: string; status: 200 | 404; absent?: RegExp }> =
+      unpublish
+        ? intent.record.kind === "writing"
+          ? [
+              { path: `/writing/${slug}`, status: 404 },
+              { path: `/social/writing-${slug}.png`, status: 404 },
+              ...[
+                "/writing",
+                "/feed.xml",
+                "/search-index.json",
+                "/sitemap.xml",
+                "/",
+              ].map((path) => ({ path, status: 200 as const, absent: named })),
+            ]
           : [
-              intent.record.id === "home" ? "/" : `/${intent.record.id}`,
-              "/sitemap.xml",
-            ];
+              { path: `/work/${slug}`, status: 404 },
+              ...["/work", "/", "/sitemap.xml"].map((path) => ({
+                path,
+                status: 200 as const,
+                absent: named,
+              })),
+            ]
+        : (intent.record.kind === "writing"
+            ? [
+                `/writing/${slug}`,
+                "/writing",
+                "/feed.xml",
+                "/search-index.json",
+                "/sitemap.xml",
+                "/",
+              ]
+            : intent.record.kind === "work"
+              ? [`/work/${slug}`, "/work", "/", "/sitemap.xml"]
+              : [
+                  intent.record.id === "home" ? "/" : `/${intent.record.id}`,
+                  "/sitemap.xml",
+                ]
+          ).map((path) => ({ path, status: 200 as const }));
     const transport = this.dependencies.transport ?? fetch;
-    // Two in flight at most. Read bounded bodies to catch streaming failures,
-    // discard them immediately and never retain or report page content.
+    // Two in flight at most. Read bounded bodies to catch streaming failures.
+    // A body is searched only for the unpublished route, then discarded; page
+    // content is never retained or reported.
     for (let offset = 0; offset < routes.length; offset += 2) {
       const results = await Promise.all(
-        routes.slice(offset, offset + 2).map(async (path) => {
-          const response = await transport(
-            new URL(path, "https://anipotts.com"),
-            {
-              redirect: "manual",
-              cache: "no-store",
-              signal: AbortSignal.timeout(5000),
-            },
-          );
-          // The reader's validator names the inventory its body came from, so
-          // a revalidating or colo-cached copy of an older version fails here
-          // even if a header were rewritten. Compression may weaken it (W/).
-          const etag = response.headers.get("ETag");
-          if (
-            !response.ok ||
-            response.headers.get("X-Content-Version") !==
-              String(value.inventoryVersion) ||
-            (etag !== null &&
-              !new RegExp(
-                `^(?:W/)?"cms\\d+-v${Number(value.inventoryVersion)}-[0-9a-f]+"$`,
-                "u",
-              ).test(etag)) ||
-            !response.body
-          ) {
-            await response.body?.cancel();
-            return false;
-          }
-          const reader = response.body.getReader();
-          let bytes = 0;
-          try {
-            while (true) {
-              const chunk = await reader.read();
-              if (chunk.done) return true;
-              bytes += chunk.value.byteLength;
-              if (bytes > 2 * 1024 * 1024) {
-                await reader.cancel();
-                return false;
-              }
+        routes
+          .slice(offset, offset + 2)
+          .map(async ({ path, status, absent }) => {
+            const response = await transport(
+              new URL(path, "https://anipotts.com"),
+              {
+                redirect: "manual",
+                cache: "no-store",
+                signal: AbortSignal.timeout(5000),
+              },
+            );
+            // The reader's validator names the inventory its body came from, so
+            // a revalidating or colo-cached copy of an older version fails here
+            // even if a header were rewritten. Compression may weaken it (W/).
+            // A 404 is no-store and carries the version header without one.
+            const etag = response.headers.get("ETag");
+            if (
+              response.status !== status ||
+              response.headers.get("X-Content-Version") !==
+                String(value.inventoryVersion) ||
+              (status === 200 &&
+                etag !== null &&
+                !new RegExp(
+                  `^(?:W/)?"cms\\d+-v${Number(value.inventoryVersion)}-[0-9a-f]+"$`,
+                  "u",
+                ).test(etag)) ||
+              (status === 200 && !response.body)
+            ) {
+              await response.body?.cancel();
+              return false;
             }
-          } catch {
-            return false;
-          } finally {
-            reader.releaseLock();
-          }
-        }),
+            if (!response.body) return true;
+            const reader = response.body.getReader();
+            const decoder = absent ? new TextDecoder() : null;
+            let bytes = 0;
+            let text = "";
+            try {
+              while (true) {
+                const chunk = await reader.read();
+                if (chunk.done)
+                  return !absent || !absent.test(text + decoder!.decode());
+                bytes += chunk.value.byteLength;
+                if (bytes > 2 * 1024 * 1024) {
+                  await reader.cancel();
+                  return false;
+                }
+                if (decoder)
+                  text += decoder.decode(chunk.value, { stream: true });
+              }
+            } catch {
+              return false;
+            } finally {
+              reader.releaseLock();
+            }
+          }),
       );
       if (results.some((ok) => !ok)) return false;
     }
+    if (unpublish) return true;
     let totalMediaBytes = 0;
     const mediaIds = referencedMediaIds(intent.source);
     const verifyMedia = async (id: string) => {
@@ -786,6 +901,16 @@ export class DirectPublisher {
       this.settle(claim, { blocked: "publication_base_changed" });
       return;
     }
+    const unpublish = actionOf(intent) === "unpublish";
+    if (
+      unpublish &&
+      (!canUnpublish(intent.record) ||
+        unpublishedSource(intent.record, candidate.baseline.source) !==
+          intent.source)
+    ) {
+      this.settle(claim, { blocked: "publication_base_changed" });
+      return;
+    }
     if (
       intent.record.kind !== "page" &&
       candidate.baseline.baseFileHash !== null
@@ -805,10 +930,17 @@ export class DirectPublisher {
       }
     }
     if (!candidate.valid) {
-      this.settle(claim, { blocked: "invalid_snapshot" });
+      // Hiding a piece another record still points at (the homepage writing
+      // selection) would leave the site inconsistent, so it waits for that
+      // record to be published without it first.
+      this.settle(claim, {
+        blocked: unpublish ? "unpublish_breaks_reference" : "invalid_snapshot",
+      });
       return;
     }
-    const ids = referencedMediaIds(intent.source);
+    // A hidden revision references only images its public revision already
+    // staged, and the reader stops serving them once nothing visible does.
+    const ids = unpublish ? [] : referencedMediaIds(intent.source);
     if (ids.length > MAX_PUBLICATION_IMAGES) {
       this.settle(claim, { blocked: "too_many_images" });
       return;

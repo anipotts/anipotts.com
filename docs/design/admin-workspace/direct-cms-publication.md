@@ -1,6 +1,6 @@
 # Direct CMS publication
 
-Status: implemented in `codex/cms-editor-publisher` for review, not activated in production.
+Status: the public reader serves from the content store (`CONTENT_RUNTIME = "cms"`). `claude/direct-publish-unpublish` switches the admin to `EDITORIAL_PUBLISH_MODE = "direct"` and adds per-record unpublish; it takes effect only when that change is reviewed, merged and deployed.
 This supersedes GitHub pull requests and site deployments as the normal content publication workflow. GitHub remains the software review and release system. The existing Quiet Precision contract remains applicable to appearance, private history and recovery.
 
 ## The authoring flow
@@ -33,11 +33,23 @@ A later Git deployment cannot overwrite an existing CMS record. The public reade
 
 The DO persists leases, backoff and terminal outcomes. Maintenance retains a bounded wake; disabled publishing blocks activation while committed effects can still reconcile. A missing media binding does not block private draft/status access. A browser timer only refreshes presentation.
 
-Initial scope is one reviewed record per operation. This does not implement atomic multi-record publication. Explicit unpublication, scheduling and URL changes wait for reviewed lifecycle/redirect ownership rather than silently taking partial effect. Existing hidden overrides remain suppressed by the reader. Drafts are preserved when an unsupported operation is refused. Limits remain 512 KiB source, ten editorial images and 10 MiB referenced image bytes per record.
+Scope is one reviewed record per operation. This does not implement atomic multi-record publication. Scheduling and URL changes wait for reviewed lifecycle/redirect ownership rather than silently taking partial effect. Drafts are preserved when an unsupported operation is refused. Limits remain 512 KiB source, ten editorial images and 10 MiB referenced image bytes per record.
+
+## Unpublish and publish again
+
+Unpublish is the same durable operation with `action: "unpublish"`. It never deletes a row. It activates a new immutable revision built from the current public source with only its visibility switched off: writing gets `status: draft` and keeps `published_at`; work gets `public_state: hidden` and `homepage_placement: none`, because a hidden project cannot hold a homepage placement. The reader already filters on exactly these fields, so the piece leaves listings, the detail route (404), sitemap, feed and search index at the new inventory version.
+
+- The hidden revision comes from the public source, never the private draft, so an unpublish carries no unreviewed private text into the publication database. The browser sends only hashes. The API route reads the public source itself, and the publisher checks it against the reviewed baseline hash and the reviewed hidden-revision hash before persisting intent.
+- CAS, receipt reconciliation, leases, retry windows and the kill switch are shared with publish. No media is staged.
+- Pages are refused (`unpublish_unsupported`): every required page renders a route. A record that is not public is refused (`already_hidden`). An article the homepage still features blocks in preparation (`unpublish_breaks_reference`) with no write, until the homepage is published without it.
+- Verification for an unpublish: `/api/content-version` reports `visible: false` at an inventory at or after the activation, the detail route and the article's social card return 404 with that `X-Content-Version`, and `/writing` (or `/work`), `/feed.xml`, `/search-index.json`, `/sitemap.xml` and `/` return 200 at that version without naming the route or slug. A stale validator, colo copy or older 404 fails verification.
+- The private draft and its full history are untouched, and every revision stays in `editorial_published_revisions`. Publish again is the normal publish flow: the draft still says published, so review shows the visibility change and approval activates the next revision.
+- Social cards are built at deploy time. Under the content store the www Worker serves `/social/writing-<slug>.png` only while that article is public at the current inventory, returns a no-store 404 with the version header otherwise, and makes a served card revalidate on every use.
+- Editor: a ghost Unpublish action (Phosphor EyeSlash) opens a compact inline confirmation; while hidden, the primary action reads Publish again. The Content library labels an unpublished record Hidden from site, apart from never-published drafts.
 
 ## Deployment and transition
 
-Production configuration is deliberately unchanged by this implementation. Missing mode means legacy only for compatibility; unknown explicit values fail closed.
+Missing mode means legacy only for compatibility; unknown explicit values fail closed. The activation record below supersedes the original transition plan for the mode switch.
 
 | Control                        | Values                                                                          |
 | ------------------------------ | ------------------------------------------------------------------------------- |
@@ -64,6 +76,58 @@ The isolated release-test preflight now uses `CONTENT_DB` and `CONTENT_MEDIA`, C
 The observed blocked chainedchat job was still in validation with `unreleased_public_changes`; a focused GitHub read found no matching current branch or PR. That alone is not exhaustive historical-effect proof and no production job was changed.
 
 After the first direct activation, application rollback must retain a CMS-aware public reader and publisher mode gates. Content rollback creates a new reviewed publication. Database restore starts in maintenance, with pending work suspended for reconciliation. Restoring a draft never publishes it.
+
+## Direct activation, 2026-09-21
+
+Ani approved turning on direct publishing. Every gate the code still enforces, and its state for this change:
+
+| Gate (where enforced)                                                                                      | State                                                                                                                                                                                                              |
+| ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `EDITORIAL_PUBLISH_MODE = "direct"` (`editorialPublishMode`, `productionEditor`)                           | Set in `apps/admin/wrangler.toml` by this change                                                                                                                                                                   |
+| `EDITORIAL_ENABLED` and `EDITORIAL_PUBLISH_ENABLED` are `"true"` (`startDirectPublication`, `canActivate`) | Already set                                                                                                                                                                                                        |
+| `CONTENT_DB` and `CONTENT_MEDIA` bound (`startDirectPublication`, `canActivate`, runtime contract)         | Bound since #422; the drift test requires both in direct mode                                                                                                                                                      |
+| 40-hex `PUBLIC_RELEASE_SHA` in the admin build (`productionEditor().publishing`)                           | `deploy.yml` builds with `github.sha`                                                                                                                                                                              |
+| Migration 0002 on `anipotts-content` (`publishDirect` names `content_schema_version`)                      | Applied remotely per the activation record. If it were missing, the batch fails and rolls back with no write, and the operation stops at `publication_retry_required`                                              |
+| No unfinished legacy job with attempts, lease or checkpoint (`start`)                                      | Both held jobs were retired to `cancelled` by the #423 maintenance retirement; the queue is empty                                                                                                                  |
+| Reader ready: runtime 1, content schema 1 and identical bundled-source digest (commit phase)               | Satisfied while www and admin run the same `content/public` tree. This change edits no content                                                                                                                     |
+| Public verification against the #425 validators (`verify`)                                                 | A 200 must carry `X-Content-Version` equal to the reader's inventory and an ETag matching `cms<schema>-v<version>-<hex>` (weak allowed); a 404 must carry the version header. Covered by `test:runtime`            |
+| Isolated release-test profile rejects direct mode (`content-release-isolation.mjs`)                        | Obsolete for production: it governs only the synthetic run-owned profile, whose verification cannot target anipotts.com                                                                                            |
+| Coordinated DO/D1/R2 export and isolated restore (gate 2 above)                                            | Superseded for this activation by a Time Travel bookmark captured before deploy plus the local publish, unpublish, publish again and restore proof. Private drafts stay in the Durable Object and are not exported |
+
+Nothing in code blocks activation. Two steps need Ani: merging after review, and the live acceptance below. The read-only bookmark capture right before the admin deploy needs his Wrangler session.
+
+## Recovery and rollback
+
+Capture a bookmark immediately before the admin deploy that turns on direct mode, and keep the id with the deploy record:
+
+```bash
+pnpm exec wrangler d1 time-travel info anipotts-content --config apps/admin/wrangler.toml --json
+```
+
+Export on demand before any risky change, and nightly from ap-mini once a read-only D1 token is issued for it (age-encrypted and copied by the existing rclone path; this change adds no schedule or credential):
+
+```bash
+pnpm exec wrangler d1 export anipotts-content --remote --config apps/admin/wrangler.toml \
+  --output "anipotts-content-$(date -u +%Y%m%dT%H%M%SZ).sql"
+```
+
+Time Travel restores to any minute in its retention window (30 days on the paid plan). An export is the portable copy beyond that window; restore it into a fresh database with `wrangler d1 execute <db> --remote --file <export.sql>`.
+
+Rollback, in order. Stop writes before restoring, and roll code back only if code regressed:
+
+```bash
+# 1. stop publishing: set EDITORIAL_PUBLISH_MODE = "maintenance" in apps/admin/wrangler.toml and deploy,
+#    or roll the admin Worker back to the previous (maintenance) version
+pnpm exec wrangler rollback --config apps/admin/wrangler.toml
+# 2. restore published content to the captured bookmark
+pnpm exec wrangler d1 time-travel restore anipotts-content --bookmark=<id> --config apps/admin/wrangler.toml
+# 3. only if the reader regressed: roll www back to its previous version
+pnpm exec wrangler rollback --config apps/www/wrangler.toml
+```
+
+`wrangler rollback` without a version id returns to the previous deployment; pass `<version-id>` from `wrangler deployments list --config <app>/wrangler.toml` to pick one. A restore moves the inventory back, so every public validator changes and no cached copy answers. Accepted operations whose receipt the restore removed stop at `publication_receipt_missing` for reconciliation rather than republishing. The private baseline marker ignores receipts below its recorded inventory, so Content library change hints can lag until the inventory passes its pre-restore version; publishing itself reads D1 and is unaffected. Content rollback of a single piece stays a new reviewed publication, not a restore.
+
+`apps/www/test/workerd-publication-smoke.mjs` (`pnpm --filter @anipotts/www test:runtime`) proves the sequence locally against the built Worker and workerd D1: publish, unpublish (detail and card 404, absent from discovery at the new version, stale validators refused), publish again, then replace the database from an export taken before the unpublish and confirm the reader serves the captured version.
 
 ## Verification boundaries
 

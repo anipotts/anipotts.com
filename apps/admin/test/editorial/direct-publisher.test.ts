@@ -13,6 +13,7 @@ import {
   getPublishedInventory,
   getPublished,
   getDirectReceipt,
+  listPublicationHistory,
   publishDirect,
   type PublicationDatabase,
   type PublicationStatement,
@@ -37,6 +38,11 @@ import {
 import { newProjectSource } from "../../src/lib/project-draft";
 import { PublicationJobs } from "../../src/editorial/publication-jobs";
 import type { StartDirectPublication } from "../../src/lib/editorial-publication-status";
+import {
+  sourceIsPublic,
+  unpublishedSource,
+  type UnpublishableRecord,
+} from "../../src/lib/editorial-visibility";
 
 const source =
   "---\ntitle: Test essay\nsummary: Test subtitle\nstatus: published\npublished_at: 2026-09-20\n---\n\nSynthetic body.\n";
@@ -972,4 +978,391 @@ it("publishes a CMS-only project with structured sections through the durable en
   expect((await getPublished(env.CONTENT_DB, record))?.source).toBe(text);
   await f.advance();
   expect((await f.store.latestDirectPublication(record))?.phase).toBe("live");
+});
+
+/** A reader shaped like www over the same local D1: detail routes and cards
+ * 404 unless visible, and discovery names only visible routes. */
+const readerTransport: typeof fetch = async (input) => {
+  const url = new URL(String(input));
+  expect(url.origin).toBe("https://anipotts.com");
+  const inventory = await getPublishedInventory(env.CONTENT_DB);
+  const headers = { "X-Content-Version": String(inventory.version) };
+  const slugOf = (entry: (typeof inventory.publications)[number]) =>
+    String(
+      (parseEditorialSource(entry.source).data as { slug?: string }).slug ??
+        entry.record.id,
+    );
+  const visible = inventory.publications.filter((entry) =>
+    sourceIsPublic(entry.record, entry.source),
+  );
+  if (url.pathname === "/api/content-version") {
+    const record = inventory.publications.find(
+      (entry) =>
+        entry.record.id === url.searchParams.get("id") &&
+        entry.record.kind === url.searchParams.get("kind"),
+    );
+    const shown = record && visible.includes(record);
+    return Response.json(
+      {
+        runtime: 1,
+        bundledSourceSha256: await bundledEditorialSourceHash(),
+        contentSchemaVersion: 1 as const,
+        inventoryVersion: inventory.version,
+        ...(url.searchParams.has("kind")
+          ? shown
+            ? {
+                visible: true,
+                publicationId: record.publicationId,
+                sourceSha256: record.sourceSha256,
+              }
+            : { visible: false }
+          : {}),
+      },
+      { headers },
+    );
+  }
+  const detail =
+    /^\/(writing|work)\/([^/]+)$/u.exec(url.pathname) ??
+    /^\/social\/(writing)-([^/]+)\.png$/u.exec(url.pathname);
+  if (detail) {
+    const kind = detail[1] === "work" ? "work" : "writing";
+    const shown = visible.some(
+      (entry) => entry.record.kind === kind && slugOf(entry) === detail[2],
+    );
+    return new Response(shown ? "detail" : "Not found", {
+      status: shown ? 200 : 404,
+      headers,
+    });
+  }
+  const names = visible
+    .map((entry) =>
+      entry.record.kind === "page"
+        ? ""
+        : `/${entry.record.kind}/${slugOf(entry)} "slug":"${slugOf(entry)}"`,
+    )
+    .join("\n");
+  return new Response(`listing\n${names}`, { headers });
+};
+
+/** Only the test drives these engines. The object's own alarm would run the
+ * production dependencies, including the network, between steps. */
+const quiet = (store: Parameters<typeof runInDurableObject>[0]) =>
+  runInDurableObject(store, async (_instance, state) => {
+    await state.storage.deleteAlarm();
+  });
+
+const unpublishInput = async (
+  record: UnpublishableRecord,
+  revision = 1,
+): Promise<StartDirectPublication> => {
+  const base = await readPublishedBase(env.CONTENT_DB, record);
+  return {
+    record,
+    operationId: crypto.randomUUID(),
+    expectedRevision: revision,
+    reviewedSourceSha256: hash(unpublishedSource(record, base.source)),
+    expectedPublicationId: base.publicationId,
+    expectedBaselineSha256: base.sourceSha256,
+    action: "unpublish",
+    baselineSource: base.source,
+  };
+};
+
+describe("unpublish and publish again through the reviewed direct operation", () => {
+  it("hides a live article, verifies absence at the new inventory, keeps every revision and publishes it again", async () => {
+    const f = await fixture();
+    const advance = async () => {
+      await f.advance({ transport: readerTransport });
+      await quiet(f.store);
+    };
+    expect((await f.store.startDirectPublication(f.input)).ok).toBe(true);
+    await quiet(f.store);
+    await advance();
+    await advance();
+    await advance();
+    expect(await f.store.latestDirectPublication(f.record)).toMatchObject({
+      phase: "live",
+      action: "publish",
+    });
+    const published = (await getPublishedInventory(env.CONTENT_DB)).version;
+
+    const hide = await unpublishInput(f.record as UnpublishableRecord);
+    const started = await f.store.startDirectPublication(hide);
+    await quiet(f.store);
+    expect(started).toMatchObject({
+      ok: true,
+      publication: { action: "unpublish", phase: "validate" },
+    });
+    // The intent is the public source with visibility off, never the draft.
+    expect(JSON.stringify(started)).not.toContain("Synthetic body");
+    await advance();
+    await advance();
+    expect((await f.store.latestDirectPublication(f.record))?.phase).toBe(
+      "verify",
+    );
+    await advance();
+    const hidden = await f.store.latestDirectPublication(f.record);
+    expect(hidden).toMatchObject({
+      phase: "live",
+      action: "unpublish",
+      publicationId: hide.operationId,
+      inventoryVersion: published + 1,
+      blocked: null,
+    });
+    expect(hidden?.verifiedAt).toBeGreaterThan(0);
+    const active = await getPublished(env.CONTENT_DB, f.record);
+    expect(active?.publicationId).toBe(hide.operationId);
+    expect(sourceIsPublic(f.record, active!.source)).toBe(false);
+    expect(parseEditorialSource(active!.source).body).toBe(
+      parseEditorialSource(source).body,
+    );
+    const slug = `/writing/${f.record.id}`;
+    expect(
+      (await readerTransport(new URL(slug, "https://anipotts.com"))).status,
+    ).toBe(404);
+    // The private draft is untouched, so publishing again is the normal flow.
+    expect((await f.store.get(f.record))?.source).toBe(source);
+
+    const again = await readPublishedBase(env.CONTENT_DB, f.record);
+    expect(again.publicationId).toBe(hide.operationId);
+    const republish: StartDirectPublication = {
+      record: f.record,
+      operationId: crypto.randomUUID(),
+      expectedRevision: 1,
+      reviewedSourceSha256: hash(source),
+      expectedPublicationId: again.publicationId,
+      expectedBaselineSha256: again.sourceSha256,
+    };
+    expect((await f.store.startDirectPublication(republish)).ok).toBe(true);
+    await quiet(f.store);
+    await advance();
+    await advance();
+    await advance();
+    expect(await f.store.latestDirectPublication(f.record)).toMatchObject({
+      phase: "live",
+      action: "publish",
+      publicationId: republish.operationId,
+      inventoryVersion: published + 2,
+    });
+    expect((await getPublished(env.CONTENT_DB, f.record))?.source).toBe(source);
+    expect(
+      (await readerTransport(new URL(slug, "https://anipotts.com"))).status,
+    ).toBe(200);
+    // Full history stays: publish, unpublish and publish again, newest first.
+    expect(
+      (await listPublicationHistory(env.CONTENT_DB, f.record)).map(
+        (entry) => entry.publicationId,
+      ),
+    ).toEqual([republish.operationId, hide.operationId, f.input.operationId]);
+  });
+
+  it("hides a bundled project and clears its homepage placement in the hidden revision only", async () => {
+    const record = { kind: "work" as const, id: "agents" };
+    const bundled = bundledEditorialSources().find(
+      (entry) => entry.record.kind === "work" && entry.record.id === "agents",
+    )!;
+    expect(sourceIsPublic(record, bundled.source)).toBe(true);
+    const store = env.DIRECT_EDITORIAL.getByName(crypto.randomUUID());
+    const hide = await unpublishInput(record);
+    // No private draft exists; unpublishing does not need one.
+    expect(await store.get(record)).toBeNull();
+    expect((await store.startDirectPublication(hide)).ok).toBe(true);
+    await quiet(store);
+    let now = Date.now();
+    for (let step = 0; step < 3; step++) {
+      now += 6000;
+      await runInDurableObject(store, async (_instance, state) => {
+        await new DirectPublisher(state.storage, {
+          db: env.CONTENT_DB,
+          media: env.CONTENT_MEDIA,
+          readDraft: () => null,
+          readMedia: async () => null,
+          acknowledge: () => {},
+          transport: readerTransport,
+          now: () => now,
+        }).alarm();
+      });
+      await quiet(store);
+    }
+    expect(await store.latestDirectPublication(record)).toMatchObject({
+      phase: "live",
+      action: "unpublish",
+      blocked: null,
+    });
+    const data = parseEditorialSource(
+      (await getPublished(env.CONTENT_DB, record))!.source,
+    ).data as Record<string, unknown>;
+    expect(data).toMatchObject({
+      public_state: "hidden",
+      homepage_placement: "none",
+    });
+    expect(
+      (await readerTransport(new URL("/work/agents", "https://anipotts.com")))
+        .status,
+    ).toBe(404);
+  });
+
+  it("refuses pages, hidden records, a changed public source and a review of different text", async () => {
+    const f = await fixture();
+    const page = { kind: "page" as const, id: "home" as const };
+    const home = await readPublishedBase(env.CONTENT_DB, page);
+    expect(
+      await f.store.startDirectPublication({
+        record: page,
+        operationId: crypto.randomUUID(),
+        expectedRevision: 1,
+        reviewedSourceSha256: home.sourceSha256,
+        expectedPublicationId: home.publicationId,
+        expectedBaselineSha256: home.sourceSha256,
+        action: "unpublish",
+        baselineSource: home.source,
+      }),
+    ).toEqual({ ok: false, code: "unpublish_unsupported" });
+    const record = {
+      kind: "writing" as const,
+      id: "search-will-be-dead-by-2030",
+    };
+    const input = await unpublishInput(record);
+    expect(
+      await f.store.startDirectPublication({
+        ...input,
+        baselineSource: `${input.baselineSource}\nchanged`,
+      }),
+    ).toEqual({ ok: false, code: "baseline_changed" });
+    expect(
+      await f.store.startDirectPublication({
+        ...input,
+        reviewedSourceSha256: input.expectedBaselineSha256,
+      }),
+    ).toEqual({ ok: false, code: "revision_conflict" });
+    const draftOnly = {
+      kind: "writing" as const,
+      id: "jpegmafia-is-our-kanye-west",
+    };
+    const draftBase = await readPublishedBase(env.CONTENT_DB, draftOnly);
+    expect(
+      await f.store.startDirectPublication({
+        record: draftOnly,
+        operationId: crypto.randomUUID(),
+        expectedRevision: 1,
+        reviewedSourceSha256: draftBase.sourceSha256,
+        expectedPublicationId: draftBase.publicationId,
+        expectedBaselineSha256: draftBase.sourceSha256,
+        action: "unpublish",
+        baselineSource: draftBase.source,
+      }),
+    ).toEqual({ ok: false, code: "already_hidden" });
+    expect(await getPublished(env.CONTENT_DB, record)).toBeNull();
+  });
+
+  it("waits while the homepage still features the article and writes nothing", async () => {
+    const record = {
+      kind: "writing" as const,
+      id: "saturdays-are-for-claude-code",
+    };
+    const store = env.DIRECT_EDITORIAL.getByName(crypto.randomUUID());
+    const before = (await getPublishedInventory(env.CONTENT_DB)).version;
+    expect(
+      (await store.startDirectPublication(await unpublishInput(record))).ok,
+    ).toBe(true);
+    await quiet(store);
+    await runInDurableObject(store, async (_instance, state) => {
+      await new DirectPublisher(state.storage, {
+        db: env.CONTENT_DB,
+        media: env.CONTENT_MEDIA,
+        readDraft: () => null,
+        readMedia: async () => null,
+        acknowledge: () => {},
+        transport: readerTransport,
+        now: () => Date.now() + 6000,
+      }).alarm();
+    });
+    expect((await store.latestDirectPublication(record))?.blocked).toBe(
+      "unpublish_breaks_reference",
+    );
+    expect(await getPublished(env.CONTENT_DB, record)).toBeNull();
+    expect((await getPublishedInventory(env.CONTENT_DB)).version).toBe(before);
+  });
+
+  it("does not claim an unpublish verified while the reader still serves or lists it", async () => {
+    const f = await fixture();
+    const drive = async (transport: typeof fetch = readerTransport) => {
+      await f.advance({ transport });
+      await quiet(f.store);
+    };
+    expect((await f.store.startDirectPublication(f.input)).ok).toBe(true);
+    await quiet(f.store);
+    for (let step = 0; step < 3; step++) await drive();
+    const hide = await unpublishInput(f.record as UnpublishableRecord);
+    expect((await f.store.startDirectPublication(hide)).ok).toBe(true);
+    await quiet(f.store);
+    await drive();
+    await drive();
+    const slug = f.record.id;
+    const stale: Array<[string, typeof fetch]> = [
+      // An old reader still reports the article visible.
+      ["metadata", publicTransport],
+      // The detail route still renders.
+      [
+        "detail",
+        async (input, init) =>
+          new URL(String(input)).pathname === `/writing/${slug}`
+            ? new Response("still here", {
+                headers: {
+                  "X-Content-Version": String(
+                    (await getPublishedInventory(env.CONTENT_DB)).version,
+                  ),
+                },
+              })
+            : readerTransport(input, init),
+      ],
+      // The feed still names it.
+      [
+        "feed",
+        async (input, init) => {
+          const response = await readerTransport(input, init);
+          return new URL(String(input)).pathname === "/feed.xml"
+            ? new Response(
+                `<link>https://anipotts.com/writing/${slug}</link>`,
+                {
+                  headers: response.headers,
+                },
+              )
+            : response;
+        },
+      ],
+      // A 404 from an older inventory is not proof for this one.
+      [
+        "version",
+        async (input, init) => {
+          const response = await readerTransport(input, init);
+          return new URL(String(input)).pathname === `/writing/${slug}`
+            ? new Response(null, {
+                status: 404,
+                headers: { "X-Content-Version": "1" },
+              })
+            : response;
+        },
+      ],
+    ];
+    for (const [, transport] of stale) {
+      // Past any retry backoff, so every stale reader is actually consulted.
+      f.elapse(300_000);
+      let consulted = false;
+      await drive((input, init) => {
+        consulted = true;
+        return transport(input, init);
+      });
+      expect(consulted).toBe(true);
+      expect(
+        (await f.store.latestDirectPublication(f.record))?.verifiedAt,
+      ).toBeNull();
+    }
+    f.elapse(300_000);
+    await drive();
+    expect(await f.store.latestDirectPublication(f.record)).toMatchObject({
+      phase: "live",
+      action: "unpublish",
+    });
+  });
 });

@@ -51,7 +51,11 @@ import { Text } from "@astryxdesign/core/Text";
 import { Heading } from "@astryxdesign/core/Heading";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { SaveStatus, saveStatusFromController } from "./SaveStatus";
-import { ArrowLeftIcon, DotsThreeIcon } from "@phosphor-icons/react";
+import {
+  ArrowLeftIcon,
+  DotsThreeIcon,
+  EyeSlashIcon,
+} from "@phosphor-icons/react";
 import { Toolbar } from "@astryxdesign/core/Toolbar";
 import { Banner } from "@astryxdesign/core/Banner";
 import { FormLayout } from "@astryxdesign/core/FormLayout";
@@ -102,6 +106,11 @@ import type {
 } from "../../lib/editorial-publication-status";
 import { prepareWritingPublication } from "../../lib/writing-publication-source";
 import { publicationSourceHash } from "@anipotts/content/editorial/publication-contract";
+import {
+  canUnpublish,
+  sourceIsPublic,
+  unpublishedSource,
+} from "../../lib/editorial-visibility";
 
 // Older releases can still return the original job during a rolling deploy.
 type VisiblePublication =
@@ -549,6 +558,10 @@ function HomeEditorImpl({
   const historyRequest = useRef(0);
   const historyRetryCursor = useRef<number | undefined>(undefined);
   const publishPending = useRef(false);
+  const [confirmingUnpublish, setConfirmingUnpublish] = useState(false);
+  const [unpublishing, setUnpublishing] = useState(false);
+  /** One identity per confirmed unpublish, so a lost response retries it. */
+  const unpublishRequest = useRef<string | null>(null);
   const [comparison, setComparison] = useState<HomeBase | null>(null);
   const publishRequest = useRef<{ revision: number; id: string } | null>(null);
   /** The saved revision this tab submitted, so the row can follow it live. */
@@ -880,6 +893,39 @@ function HomeEditorImpl({
       window.removeEventListener(recoveryLogoutKey, localLogout);
     };
   }, []);
+  // A visibility change moves the public base. Once it activates, read the
+  // base again so the editor offers the opposite action.
+  const activatedVisibility =
+    publication?.mode === "direct" &&
+    publication.publicationId &&
+    snapshot &&
+    canUnpublish(record) &&
+    (publication.action === "unpublish" ||
+      !sourceIsPublic(record, snapshot.base.source))
+      ? publication.publicationId
+      : null;
+  useEffect(() => {
+    if (!activatedVisibility) return;
+    let cancelled = false;
+    fetch(endpoint("baseline"), { signal: AbortSignal.timeout(15000) })
+      .then(async (response) => {
+        if (!response.ok) {
+          discardBody(response);
+          return;
+        }
+        const base: HomeBase | undefined = (await response.json()).base;
+        if (!cancelled && base && typeof base.source === "string")
+          setSnapshot((previous) =>
+            previous ? { ...previous, base } : previous,
+          );
+      })
+      .catch(() => {
+        /* The next record load shows the current base. */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activatedVisibility]);
   if (!state || !snapshot)
     return error ? (
       <RecoveryBanner
@@ -1252,7 +1298,7 @@ function HomeEditorImpl({
           : needsNewPublicationReview
             ? "This publication was stopped. Review again to prepare a new private revision."
             : unsupportedPublication
-              ? "This publisher supports visible pages only. Scheduling and unpublishing are unavailable. Update visibility in Properties or source before reviewing again; your draft is retained."
+              ? "Publishing keeps a piece visible. To take it off the website, use Unpublish; scheduling is not available yet. Update visibility in Properties or source before reviewing again; your draft is retained."
               : !valid
                 ? "Correct the marked fields before publishing."
                 : snapshot.draft?.discardedAt
@@ -1262,6 +1308,89 @@ function HomeEditorImpl({
                     : state.source === snapshot.base.source
                       ? "There are no changes to publish."
                       : null;
+  // Visibility on the website follows the public base, not the private draft.
+  // A record that was never public has nothing to take down.
+  const onWebsite =
+    typeof snapshot.base.baseFileHash === "string" ||
+    Boolean(snapshot.base.publicationId);
+  const basePublic = sourceIsPublic(record, snapshot.base.source);
+  const directRecord =
+    snapshot.publicationMode === "direct" && canUnpublish(record) && onWebsite;
+  const hiddenFromSite = directRecord && !basePublic;
+  const unpublishAvailable =
+    directRecord &&
+    basePublic &&
+    snapshot.publishing === "ready" &&
+    !localPreview &&
+    !publicationActive;
+  const unpublish = async () => {
+    if (unpublishing || !canUnpublish(record)) return;
+    const navigation = navigationGeneration.current;
+    unpublishRequest.current ??= crypto.randomUUID();
+    const operationId = unpublishRequest.current;
+    let refusal: string | null = null;
+    setUnpublishing(true);
+    setError("");
+    try {
+      // Review against the server's current public source, never a cached one.
+      const response = await fetch(endpoint("baseline"), {
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!response.ok) {
+        discardBody(response);
+        throw new Error();
+      }
+      const base: HomeBase | undefined = (await response.json()).base;
+      if (!base || typeof base.source !== "string") throw new Error();
+      if (navigation !== navigationGeneration.current) return;
+      setSnapshot((previous) => (previous ? { ...previous, base } : previous));
+      if (!sourceIsPublic(record, base.source)) {
+        refusal = "This is already hidden from the website.";
+        throw new Error();
+      }
+      const result = await post("unpublish", {
+        expectedRevision: editor.current?.state.revision ?? 0,
+        operationId,
+        reviewedSourceSha256: await publicationSourceHash(
+          unpublishedSource(record, base.source),
+        ),
+        expectedBaselineSha256: await publicationSourceHash(base.source),
+        expectedPublicationId: base.publicationId ?? null,
+      });
+      if (result.publication) setPublication(result.publication);
+      if (!result.publication || result.error) {
+        const reasons: Record<string, string> = {
+          publication_in_progress:
+            "A publication for this piece is still in progress. Its status is shown below; let it finish or stop it first.",
+          legacy_publication_requires_reconciliation:
+            "The previous publisher has unfinished work that needs reconciliation first. Nothing was changed.",
+          already_hidden: "This is already hidden from the website.",
+          baseline_changed:
+            "The website changed while you were confirming. Nothing was changed; try again.",
+          unpublish_unsupported:
+            "Pages stay on the website. Unpublishing applies to writing and work.",
+        };
+        refusal =
+          typeof result.error === "string"
+            ? (reasons[result.error] ??
+              "Unpublishing was refused. Nothing was changed.")
+            : null;
+        if (refusal) unpublishRequest.current = null;
+        throw new Error();
+      }
+      unpublishRequest.current = null;
+      setPublicationStale(false);
+      setConfirmingUnpublish(false);
+    } catch {
+      if (navigation === navigationGeneration.current)
+        setError(
+          refusal ??
+            "Couldn’t confirm unpublishing. Try again; it reuses the same request and won’t run twice.",
+        );
+    } finally {
+      setUnpublishing(false);
+    }
+  };
   const publicationControls = publication ? (
     <>
       {(publication.canCancel ??
@@ -1408,7 +1537,7 @@ function HomeEditorImpl({
                 publication_review_upgrade_required:
                   "This tab needs the current editor. Your draft is saved; reload, then review again.",
                 unsupported_visibility_change:
-                  "This publisher supports publishing visible pages. Scheduled publication and unpublishing are not available yet. Your draft is retained.",
+                  "Publishing keeps a piece visible. To take it off the website, use Unpublish; scheduling is not available yet. Your draft is retained.",
                 invalid_source:
                   "Correct the marked content fields, then review again. Your draft is retained.",
                 invalid_request:
@@ -1518,10 +1647,11 @@ function HomeEditorImpl({
               )}
               {tab !== "publish" && (
                 <Button
-                  label="Publish"
+                  label={hiddenFromSite ? "Publish again" : "Publish"}
                   variant="primary"
                   size="sm"
                   onClick={() => {
+                    setConfirmingUnpublish(false);
                     setTab("publish");
                   }}
                   isLoading={reviewLoading}
@@ -1530,6 +1660,16 @@ function HomeEditorImpl({
               )}
               {tab === "publish" && publishActions}
               <HStack gap={2} className="editor-secondary-actions">
+                {tab !== "publish" && unpublishAvailable && (
+                  <Button
+                    label="Unpublish"
+                    variant="ghost"
+                    size="sm"
+                    icon={<EyeSlashIcon size={18} />}
+                    aria-expanded={confirmingUnpublish}
+                    onClick={() => setConfirmingUnpublish(true)}
+                  />
+                )}
                 {record.kind !== "page" && (
                   <Button
                     label="Properties"
@@ -1637,6 +1777,37 @@ function HomeEditorImpl({
           }
         />
       </VStack>
+      {confirmingUnpublish && unpublishAvailable && (
+        <Banner
+          status="warning"
+          title={`Unpublish this ${record.kind === "work" ? "project" : "piece"}?`}
+          description="It leaves the website: its page returns not found, and it drops out of listings, the feed, search and the sitemap. Your draft and history stay here, and Publish again restores it."
+          endContent={
+            <HStack gap={2}>
+              <Button
+                label="Keep it published"
+                size="sm"
+                variant="ghost"
+                isDisabled={unpublishing}
+                onClick={() => setConfirmingUnpublish(false)}
+              />
+              <Button
+                label="Unpublish"
+                size="sm"
+                variant="primary"
+                isLoading={unpublishing}
+                clickAction={unpublish}
+              />
+            </HStack>
+          }
+        />
+      )}
+      {tab !== "publish" && hiddenFromSite && !publicationActive && (
+        <Text type="supporting" color="secondary">
+          Hidden from the website. Publish again reviews your draft and puts it
+          back.
+        </Text>
+      )}
       {tab === "publish" && publishUnavailable && (
         <Text
           type="supporting"

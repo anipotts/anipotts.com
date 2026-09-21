@@ -241,7 +241,9 @@ function directPauseReason(code: string, activated: boolean): string {
     case "unsupported_slug_change":
       return "URL changes are not available yet; restore the current URL in the draft and review again";
     case "unsupported_visibility_change":
-      return "visibility changes need a separate reviewed action; keep the current visibility and review these edits again";
+      return "visibility changes need a separate reviewed action; keep the current visibility and review these edits again, or use Unpublish";
+    case "unpublish_breaks_reference":
+      return "the homepage still features this piece; remove it from the homepage writing selection, publish the homepage, then unpublish again";
     case "publisher_not_configured":
       return "publishing is unavailable in this environment; restore the publication storage connections before retrying";
     case "publication_unavailable":
@@ -278,6 +280,8 @@ function directPublicationProgress(
   const unclaimed =
     job.phase === "validate" && job.attempts === 0 && !job.lease;
   const active = activated ? 2 : job.phase === "validate" ? 0 : 1;
+  // Unpublishing runs the same operation; only what it proves differs.
+  const hiding = job.action === "unpublish";
   const message = superseded
     ? "A newer publication has replaced these changes. Your private revision is preserved."
     : stopped
@@ -301,16 +305,24 @@ function directPublicationProgress(
                 ? "Published; website verification still needs confirmation."
                 : "Publication status needs reconciliation before confirming a public result."
               : verified
-                ? "Your changes were verified on the live website."
+                ? hiding
+                  ? "Hidden from the website. Its page returns not found, and listings, the feed, search and the sitemap no longer include it."
+                  : "Your changes were verified on the live website."
                 : activated
                   ? job.phase === "verify"
-                    ? "Published. Checking the website before confirming it is live."
+                    ? hiding
+                      ? "Unpublished. Checking the website before confirming it is gone."
+                      : "Published. Checking the website before confirming it is live."
                     : "Published. Website verification is next."
                   : unclaimed
                     ? "Publication queued; preparation has not started."
                     : job.phase === "validate"
-                      ? "Preparing your reviewed changes for publication."
-                      : "Publishing your approved changes.";
+                      ? hiding
+                        ? "Preparing to take this off the website."
+                        : "Preparing your reviewed changes for publication."
+                      : hiding
+                        ? "Taking this off the website."
+                        : "Publishing your approved changes.";
   const waiting =
     uncertain ||
     cancelling ||

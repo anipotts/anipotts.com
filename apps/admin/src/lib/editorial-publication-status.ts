@@ -47,10 +47,18 @@ export type StartDirectPublication = {
   reviewedSourceSha256: string;
   expectedPublicationId: string | null;
   expectedBaselineSha256: string;
+  /** Publish (the default) activates the reviewed private draft. Unpublish
+   * activates the current public source with its visibility switched off. */
+  action?: "publish" | "unpublish";
+  /** Unpublish only: the public source the server read for this record. The
+   * publisher derives the hidden revision from it and checks both hashes. */
+  baselineSource?: string;
 };
 
 export type DirectPublicationStatus = PublicationStatus & {
   mode: "direct";
+  /** Absent from releases before unpublishing existed; read as publish. */
+  action?: "publish" | "unpublish";
   publicationId: string | null;
   sourceSha256: string;
   baselineSha256: string;

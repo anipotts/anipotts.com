@@ -250,6 +250,7 @@ export async function homeEditorApi(
   }
   if (
     action === "publish" ||
+    action === "unpublish" ||
     action === "retry-publication" ||
     action === "cancel-publication"
   ) {
@@ -261,6 +262,57 @@ export async function homeEditorApi(
       !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(body.operationId)
     )
       return json({ error: "invalid_request" }, 400);
+    if (action === "unpublish") {
+      // Direct publishing only: the older repository publisher has no
+      // reviewed lifecycle for taking a piece off the site.
+      if (!direct || publisher.mode !== "direct")
+        return json({ error: "unpublish_requires_direct_publishing" }, 409);
+      if (
+        !("reviewedSourceSha256" in body) ||
+        typeof body.reviewedSourceSha256 !== "string" ||
+        !("expectedBaselineSha256" in body) ||
+        typeof body.expectedBaselineSha256 !== "string" ||
+        !("expectedPublicationId" in body) ||
+        !(
+          body.expectedPublicationId === null ||
+          typeof body.expectedPublicationId === "string"
+        )
+      )
+        return json({ error: "invalid_request" }, 400);
+      // The browser reviewed hashes only. The public source comes from the
+      // server's own read, and the publisher checks it against both.
+      const base = await readBase(record);
+      const result = await direct.startDirectPublication({
+        record,
+        operationId: body.operationId,
+        // A record with no private draft still has an immutable revision.
+        expectedRevision: Math.max(1, expectedRevision),
+        reviewedSourceSha256: body.reviewedSourceSha256,
+        expectedBaselineSha256: body.expectedBaselineSha256,
+        expectedPublicationId: body.expectedPublicationId,
+        action: "unpublish",
+        baselineSource: base.source,
+      });
+      if (!result.ok)
+        return json(
+          {
+            error: result.code,
+            ...("publication" in result
+              ? { publication: result.publication }
+              : {}),
+          },
+          409,
+        );
+      return json(
+        {
+          publication: await direct.directPublicationStatus(
+            record,
+            result.publication.id,
+          ),
+        },
+        202,
+      );
+    }
     if (action === "publish") {
       if (!("discloseSource" in body) || body.discloseSource !== true)
         return json({ error: "source_disclosure_required" }, 400);
