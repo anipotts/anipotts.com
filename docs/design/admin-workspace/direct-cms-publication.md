@@ -121,3 +121,9 @@ versioned recovery export and isolated restore. Then apply the reviewed dedicate
 migration and bindings, deploy the reader before enabling the writer, and reconcile
 legacy operations against refreshed exact versions. Provider PITR is retained as
 an additional recovery mechanism, not substituted for cross-store restore proof.
+
+## Git baseline seed
+
+`scripts/content/seed-content-d1.mjs` copies each public Git record into the dedicated content D1 as revision 1 with publication ID `git-seed.<kind>.<id>`, no expected publication and expected inventory version 0. All seeded records share one activation, so the inventory moves 0 to 1 once. Hidden projects, draft writing, the newsletter page and non-record files stay Git-only, because the publisher refuses to activate them and the database holds public snapshots only. The script is a dry run by default. It reads state before writing and refuses any row it did not produce. Every statement is guarded, so an interrupted file converges on rerun. Remote writes need `--confirm-remote anipotts-content`. Media upload is a separate `--upload-media` mode.
+
+`node apps/www/test/cms-seed-parity.mjs` serves the existing www build twice under local workerd, in legacy mode and against a seeded local D1, and compares every public route on all three hostnames. The reader changes output when a record has a publication: sitemap `lastmod` and article `dateModified` use the seed timestamp, and article social cards fall back to the site card. Resolve those reader choices before relying on the seed for zero-change activation.

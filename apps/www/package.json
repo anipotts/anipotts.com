@@ -12,7 +12,8 @@
     "test": "node --test test/*.test.mjs",
     "bench:motion": "node scripts/motion-bench/run.mjs",
     "deploy:preview": "wrangler deploy",
-    "test:runtime": "node test/workerd-publication-smoke.mjs"
+    "test:runtime": "node test/workerd-publication-smoke.mjs",
+    "test:cms-parity": "node test/cms-seed-parity.mjs"
   },
   "dependencies": {
     "@anipotts/content": "workspace:*",
