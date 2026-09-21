@@ -32,15 +32,23 @@ function remember<T>(map: Map<string, T>, key: string, value: T) {
   if (map.size > 8) map.delete(map.keys().next().value!);
 }
 function applyArt() {
+  const root = document.documentElement;
   const host = document.querySelector<HTMLElement>(waves);
-  if (!host) return;
+  if (!host) {
+    root.style.removeProperty("--detail-canvas");
+    return;
+  }
   const dark = theme() === "dark";
-  capture.applyHeaderArt(
-    host,
-    dark ? savedArt.get(location.pathname) : undefined,
-  );
+  const saved = dark ? savedArt.get(location.pathname) : undefined;
+  capture.applyHeaderArt(host, saved);
   if (dark) host.style.opacity = String(timeline.WAVES_RESTING.dark);
   else host.style.removeProperty("opacity");
+  // global.css declares --detail-canvas for the native header art. Carried
+  // card art composites to a different top colour, so the canvas (and with
+  // it theme-color and the iOS status strip) follows the art actually shown.
+  const canvas = saved && capture.headerTopColor(host);
+  if (canvas) root.style.setProperty("--detail-canvas", canvas);
+  else root.style.removeProperty("--detail-canvas");
 }
 function syncTheme() {
   const root = document.documentElement;
@@ -309,6 +317,7 @@ function motion(event: TransitionBeforeSwapEvent, out: Outgoing) {
       // The article keeps the card current; build it once the motion is over.
       if (opening) remember(savedArt, out.to, plan!.end());
       applyArt();
+      syncTheme();
       root.removeAttribute("data-writing-transition");
       document.dispatchEvent(new Event("writing:transition-end"));
       dispose = stop;
