@@ -156,7 +156,7 @@ export function LifeReadView({
       // state reads as information; a refused or failed read is a warning, so
       // it does not look like an ordinary empty result.
       disconnected: {
-        title: "Life is not connected yet",
+        title: "Data is not connected yet",
         description:
           "Records remain in PersonalContext. An authorized source connection is needed before they can be read here.",
         Icon: LinkBreakIcon,
@@ -400,7 +400,7 @@ export function LifeReadView({
           description={
             sources
               ? "The source returned no permitted sources for this read."
-              : "Try a different search or return to another Life view."
+              : "Try a different search or return to another Data view."
           }
           icon={<Glyph weight="regular" />}
         />

@@ -256,7 +256,7 @@ describe("Life reader interactions", () => {
     await submit();
     expect(container.textContent).toContain("Not current");
     await submit();
-    expect(container.textContent).toContain("Life is not connected yet");
+    expect(container.textContent).toContain("Data is not connected yet");
     expect(container.textContent).not.toContain("Not current");
     expect(count()).toBeUndefined();
   });

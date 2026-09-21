@@ -55,7 +55,7 @@ describe("Life response surfaces", () => {
     expect(html).toContain(title);
     // Never an empty-result claim, and never another state's wording.
     expect(html).not.toContain("No permitted records");
-    expect(html).not.toContain("Life is not connected yet");
+    expect(html).not.toContain("Data is not connected yet");
     // A refused or failed read is a warning, not an informational notice.
     expect(html).toContain("warning");
   });
@@ -75,7 +75,7 @@ describe("Life response surfaces", () => {
         result={{ state: "disconnected", message: "fixture" }}
       />,
     );
-    expect(html).toContain("Life is not connected yet");
+    expect(html).toContain("Data is not connected yet");
     expect(html).not.toContain("warning");
   });
   it("renders every disconnected section without claiming an empty or healthy source", () => {
@@ -88,7 +88,7 @@ describe("Life response surfaces", () => {
           result={{ state: "disconnected", message: "fixture" }}
         />,
       );
-      expect(html).toContain("Life is not connected yet");
+      expect(html).toContain("Data is not connected yet");
       expect(html).not.toContain("No permitted records");
       expect(html).not.toContain("Nothing in Life needs a decision");
     }

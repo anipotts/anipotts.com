@@ -64,6 +64,19 @@ handoff reports source changes merged but not installed in its active runtime.
 Website acknowledged receipt and requested exact route fixtures in that existing
 handoff. This is contract compatibility evidence, not live connected acceptance.
 
+### Integration checkpoint, September 21
+
+At 7e75beac5, the full admin command passed 1,110 unit/component tests, 17 Astro
+tests and 145 isolated editorial Worker tests. This does not prove live provider
+state. Subsequent source-editor extraction passed production build, generated
+theme checks and Astro typecheck. The initial HomeEditor chunk fell from 405.37
+KB gzip to 232.70 KB gzip; the 173.11 KB source-mode chunk loads on demand.
+Browser inspection verified source opens and stays mounted when returning to the
+editor, without changing the synthetic draft. A focused error-boundary test
+proves a failed optional tool does not unmount the surrounding draft editor.
+Current PR checks must be refreshed on the exact head before merging; owner
+review, deployment and live verification are still outstanding.
+
 ### Responsive project and sidebar acceptance, September 21
 
 On the synthetic local project, measured document width equals viewport width
