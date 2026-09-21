@@ -351,3 +351,22 @@ it("propagates caller cancellation and never starts an already cancelled read", 
   );
   expect(read).toHaveBeenCalledTimes(1);
 });
+
+it("distinguishes a missing versioned record from invalid source responses", async () => {
+  const transport = {
+    scope: "owner" as const,
+    protocol: "personal_context_data_v1" as const,
+    read: async () => ({
+      schema: "personal_context_data_v1",
+      response_observed_at: "2026-09-21T08:00:00Z",
+      data: null,
+    }),
+  };
+  expect(
+    (await readPersonalContext({ method: "get", id: "missing" }, transport))
+      .state,
+  ).toBe("not_found");
+  expect(
+    (await readPersonalContext({ method: "sources" }, transport)).state,
+  ).toBe("invalid");
+});

@@ -18,7 +18,7 @@ or that local changes are deployed. Current implementation branch is
 | Editor actions   | Properties/history direct; preview/publish explicit; overflow retains occasional tools                                        | Review header density on phone and tablet; audit dropdowns by action frequency rather than replacing every select                                   |
 | Writing          | Persistent formatting, autosizing opening note, title/subtitle/body and private saves                                         | IME, rich paste, undo, mobile keyboard, suspension, multiple tabs, zoom and screen reader                                                           |
 | Properties       | Direct-mode visibility controls now explain and disable unsupported scheduling/unpublishing; review blocks unsupported states | Browser acceptance of direct-mode states; backend capabilities remain unchanged                                                                     |
-| Review/history   | Exact diff and retained versions exist                                                                                        | Field Edit/Expand, compare before restore, large history navigation                                                                                 |
+| Review/history   | Exact diff and retained versions exist                                                                                        | Read-only history comparison implemented and browser-tested; Field Edit/Expand and large history navigation remain                                  |
 | Projects/pages   | Project metadata, tags, links/order, story/technical add/reorder/remove and private creation implemented locally              | Creation/reopening tested locally; roadmap controls now implemented; section media remains; shared navigation/footer and homepage selections remain |
 | Media            | Project logo/preview uploads, alt/caption/fit and current-source mutations integrated; pending media holds navigation         | Upload/crop browser persistence, reuse picker, reference/history visibility and recovery acceptance                                                 |
 | Libraries        | Responsive tables and attached footer exist                                                                                   | Batch selection/review remains missing; verify long content and all empty/error states                                                              |
@@ -55,9 +55,11 @@ No transport has been attached or endpoint/access grant activated. HTTP mapping,
 session revocation and device acceptance remain integration work. The separate
 `personal_context_observability_v1` envelope is now accepted only for agent-scoped
 activity reads with the existing strict metadata allowlist and cursor checks.
-Source readiness remains a gate: inspected Store.activity returns a successful
-empty page when storage is absent. Website sent System this concrete defect for
-an unavailable response and missing-store regression before activation. System's
+Source readiness remains a gate. System's refreshed handoff records an ActivityReader
+fix rejecting absent, corrupt or replaced storage, with a required future HTTP 503
+and no-store response. This is source-level evidence, not installed runtime proof.
+Website also handles the documented get data:null envelope as record-not-found,
+separate from unavailable or malformed responses. System's
 handoff reports source changes merged but not installed in its active runtime.
 Website acknowledged receipt and requested exact route fixtures in that existing
 handoff. This is contract compatibility evidence, not live connected acceptance.

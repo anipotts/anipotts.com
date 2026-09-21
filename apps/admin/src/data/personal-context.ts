@@ -28,7 +28,8 @@ export type LifeResult =
       data: Record<string, unknown>;
     }
   | {
-      state: "disconnected" | "unavailable" | "denied" | "invalid";
+      state:
+        "disconnected" | "unavailable" | "denied" | "invalid" | "not_found";
       message: string;
     };
 export type LifeTransport = {
@@ -245,13 +246,19 @@ export async function readPersonalContext(
         envelope.schema !== transport.protocol ||
         typeof envelope.response_observed_at !== "string" ||
         !Number.isFinite(Date.parse(envelope.response_observed_at)) ||
-        !isObject(envelope.data)
+        (!isObject(envelope.data) &&
+          !(request.method === "get" && envelope.data === null))
       )
         return {
           state: "invalid",
           message: "The source returned an unsupported response contract.",
         };
       responseObservedAt = envelope.response_observed_at;
+      if (request.method === "get" && envelope.data === null)
+        return {
+          state: "not_found",
+          message: "This record was not found in the authorized source.",
+        };
       data = envelope.data;
     }
     if (

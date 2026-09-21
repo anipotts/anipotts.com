@@ -176,6 +176,13 @@ export function LifeReadView({
         Icon: WarningCircleIcon,
         status: "warning" as const,
       },
+      not_found: {
+        title: "Record not found",
+        description:
+          "This record was not found in the authorized source. Refresh the list before choosing another record.",
+        Icon: WarningCircleIcon,
+        status: "info" as const,
+      },
       invalid: {
         title: "The source response could not be used",
         description:
@@ -504,7 +511,9 @@ function LifeExplorerSession({
       if (next.state === "ready") setRecord(next.data);
       else
         setDetailError(
-          "This record could not be read. Try selecting it again.",
+          next.state === "not_found"
+            ? "This record was not found in the authorized source. Refresh the list before selecting it again."
+            : "This record could not be read. Try selecting it again.",
         );
     }
   }
