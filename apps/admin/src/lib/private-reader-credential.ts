@@ -111,7 +111,7 @@ export async function privateReaderCredentialApi(
   const now = Math.floor((options.now?.() ?? Date.now()) / 1000);
   const expiresAt = Math.min(
     now + PRIVATE_READER_MAX_LIFETIME_SECONDS,
-    owner.expiresAt,
+    Math.floor(owner.expiresAt),
   );
   // The delegation never outlives its parent Access session. No grace.
   if (expiresAt <= now) return deny("owner_required", 401);
