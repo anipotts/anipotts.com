@@ -1,15 +1,17 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import { ObservabilityWorkspace } from "../../components/astryx/ObservabilityWorkspace";
+import { privateReaderOpsEnabled } from "../../lib/private-reader-credential";
 
 // The retired views (machines, loops, coverage and the rest) all land on Status.
 if (Astro.url.searchParams.has("view"))
   return Astro.redirect("/operations/observability", 308);
 
-// Off unless exactly "true", the same flag as the Data reader. The server
+// Off unless PRIVATE_READER_ENABLED and PRIVATE_READER_OPS_ENABLED are both
+// exactly "true". The Data flag alone never turns on ops reads. The server
 // makes no read; the browser reads System's snapshot with an ops:read
 // credential only when this is on.
-const enabled = Astro.locals.runtime?.env?.PRIVATE_READER_ENABLED === "true";
+const enabled = privateReaderOpsEnabled(Astro.locals.runtime?.env ?? {});
 
 // Development only: `?fixture=ops_v1` previews System's synthetic sample.
 // `import.meta.env.DEV` is false in builds, so the fixture never ships.

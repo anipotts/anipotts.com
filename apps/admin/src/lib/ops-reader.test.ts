@@ -333,9 +333,30 @@ describe("ops status polling", () => {
     expect(controller.getState().connection).toBe("unreachable");
     expect(controller.getState().snapshot).not.toBeNull();
 
-    h.replies.push(status(503));
+    h.replies.push(status(500));
     await vi.advanceTimersByTimeAsync(OPS_POLL_MS);
     expect(controller.getState().connection).toBe("unreachable");
+    controller.dispose();
+  });
+
+  it("reports 503 as no valid snapshot, keeping the last one and polling on", async () => {
+    const h = harness();
+    const controller = controllerFor(h);
+    h.replies.push(status(503));
+    controller.start();
+    await flush();
+    expect(controller.getState()).toMatchObject({
+      connection: "unavailable",
+      snapshot: null,
+    });
+    h.replies.push(ok(), status(503));
+    await vi.advanceTimersByTimeAsync(OPS_POLL_MS);
+    expect(controller.getState().connection).toBe("connected");
+    await vi.advanceTimersByTimeAsync(OPS_POLL_MS);
+    expect(controller.getState().connection).toBe("unavailable");
+    expect(controller.getState().snapshot).not.toBeNull();
+    // The session survives a 503: the next read reuses the credential.
+    expect(h.session.getState().status).toBe("ready");
     controller.dispose();
   });
 

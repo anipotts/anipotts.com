@@ -40,8 +40,18 @@ export type PrivateReaderConfig = {
   ACCESS_TEAM_DOMAIN?: string;
   ACCESS_POLICY_AUD?: string;
   PRIVATE_READER_ENABLED?: string;
+  /** Ops issuance also needs this, exactly "true". Unset in every deploy. */
+  PRIVATE_READER_OPS_ENABLED?: string;
   PRIVATE_READER_SIGNING_KEY?: string;
 };
+
+/** Ops mode is on only when both flags are exactly "true". */
+export function privateReaderOpsEnabled(config: PrivateReaderConfig): boolean {
+  return (
+    config.PRIVATE_READER_ENABLED === "true" &&
+    config.PRIVATE_READER_OPS_ENABLED === "true"
+  );
+}
 
 export type PrivateReaderOptions = {
   /** Test seam for the Access certificate set; production fetches the team certs. */
@@ -97,7 +107,10 @@ export async function privateReaderCredentialApi(
   if (request.method !== "POST")
     return deny("method_not_allowed", 405, { Allow: "POST" });
   if (url.search) return deny("invalid_request", 400);
-  if (config.PRIVATE_READER_ENABLED !== "true")
+  if (
+    config.PRIVATE_READER_ENABLED !== "true" ||
+    (mode === "ops" && !privateReaderOpsEnabled(config))
+  )
     return deny("reader_unavailable", 503);
   const key = await signingKey(config.PRIVATE_READER_SIGNING_KEY);
   if (!key) return deny("reader_unavailable", 503);

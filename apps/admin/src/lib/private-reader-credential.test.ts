@@ -11,8 +11,10 @@ import { EDITORIAL_OWNER_EMAIL } from "./editorial-owner";
 import {
   PRIVATE_READER_AUDIENCE,
   PRIVATE_READER_ISSUER,
+  PRIVATE_READER_MODES,
   PRIVATE_READER_OPS_PATH,
   privateReaderCredentialApi,
+  privateReaderOpsEnabled,
   type PrivateReaderConfig,
   type PrivateReaderMode,
 } from "./private-reader-credential";
@@ -267,9 +269,12 @@ describe("private reader credential issuance", () => {
 describe("ops credential issuance", () => {
   const ops = (options: Parameters<typeof request>[0] = {}) =>
     request({ path: PRIVATE_READER_OPS_PATH, ...options });
+  const on = { PRIVATE_READER_OPS_ENABLED: "true" };
+  const issueOps = (req: Request, overrides: PrivateReaderConfig = {}) =>
+    issue(req, { ...on, ...overrides }, "ops");
 
   it("issues a delegation that carries only ops:read", async () => {
-    const response = await issue(await ops(), {}, "ops");
+    const response = await issueOps(await ops());
     expect(response.status).toBe(200);
     expectPrivate(response);
     const body = (await response.json()) as {
@@ -287,39 +292,55 @@ describe("ops credential issuance", () => {
   });
 
   it("keeps the modes apart: each path serves only its own mode", async () => {
-    expect((await issue(await ops(), {}, "data")).status).toBe(404);
-    expect((await issue(await request(), {}, "ops")).status).toBe(404);
-    const data = await issue(await request());
-    expect(((await data.json()) as { scope: string[] }).scope).toEqual([
-      "data:read",
-      "activity:read",
-    ]);
+    expect((await issue(await ops(), on, "data")).status).toBe(404);
+    expect((await issueOps(await request())).status).toBe(404);
+    const data = await issue(await request(), on);
+    const body = (await data.json()) as { credential: string; scope: string[] };
+    expect(body.scope).toEqual(["data:read", "activity:read"]);
+    const { payload } = await jwtVerify(body.credential, readerPublic);
+    expect(payload.scope).toBe("data:read activity:read");
+    expect(PRIVATE_READER_MODES.data.scope).not.toContain("ops:read");
+    expect(PRIVATE_READER_MODES.ops.scope).toEqual(["ops:read"]);
   });
 
   it("ignores client-requested scopes", async () => {
-    const response = await issue(
+    const response = await issueOps(
       await ops({
         body: JSON.stringify({ scope: "data:read activity:read" }),
         headers: { "X-Reader-Scope": "data:read" },
       }),
-      {},
-      "ops",
     );
     const body = (await response.json()) as { scope: string[] };
     expect(body.scope).toEqual(["ops:read"]);
   });
 
-  it("stays behind the same off flag and owner gate", async () => {
-    const off = await issue(
-      await ops(),
+  it("needs its own flag on top of the Data flag", async () => {
+    for (const overrides of [
+      { PRIVATE_READER_OPS_ENABLED: undefined },
+      { PRIVATE_READER_OPS_ENABLED: "1" },
       { PRIVATE_READER_ENABLED: undefined },
-      "ops",
+    ]) {
+      const off = await issueOps(await ops(), overrides);
+      expect(off.status).toBe(503);
+      expect(await off.json()).toEqual({ error: "reader_unavailable" });
+    }
+    // The ops flag never affects Data issuance.
+    expect((await issue(await request())).status).toBe(200);
+    expect(privateReaderOpsEnabled({ PRIVATE_READER_ENABLED: "true" })).toBe(
+      false,
     );
-    expect(off.status).toBe(503);
-    expect(await off.json()).toEqual({ error: "reader_unavailable" });
-    const anonymous = await issue(await ops({ access: null }), {}, "ops");
+    expect(
+      privateReaderOpsEnabled({
+        PRIVATE_READER_ENABLED: "true",
+        PRIVATE_READER_OPS_ENABLED: "true",
+      }),
+    ).toBe(true);
+  });
+
+  it("keeps the owner gate and method rules", async () => {
+    const anonymous = await issueOps(await ops({ access: null }));
     expect(anonymous.status).toBe(401);
-    const get = await issue(await ops({ method: "GET" }), {}, "ops");
+    const get = await issueOps(await ops({ method: "GET" }));
     expect(get.status).toBe(405);
   });
 });

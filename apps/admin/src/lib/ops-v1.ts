@@ -363,6 +363,63 @@ export function opsServices(snapshot: OpsSnapshot): OpsServiceView[] {
   });
 }
 
+/**
+ * System's sampler rewrites the snapshot continuously. A `generated_at` older
+ * than this means the sampler stopped, and every value is only last known.
+ */
+export const OPS_SAMPLER_STALE_SECONDS = 3 * 60;
+
+/** Seconds since System generated the snapshot, never negative. */
+export function opsSnapshotAge(snapshot: OpsSnapshot, now: number): number {
+  return Math.max(
+    0,
+    Math.floor((now - Date.parse(snapshot.generated_at)) / 1000),
+  );
+}
+
+export function opsSamplerStopped(snapshot: OpsSnapshot, now: number) {
+  return opsSnapshotAge(snapshot, now) > OPS_SAMPLER_STALE_SECONDS;
+}
+
+/**
+ * Owner priority for the Status table: Personal Context memory, its
+ * snapshots and offsite copies first, then health ingest, then agent
+ * sessions. Groups System adds later follow in catalog order.
+ */
+export const OPS_GROUP_PRIORITY = [
+  "personal context",
+  "backups",
+  "health",
+  "services",
+  "agents",
+] as const;
+/** Kept, but never featured: these sort to the end of their group. */
+export const OPS_TRAILING_IDS = ["imessage.agent"] as const;
+
+/** Stable order: group priority, then catalog order, trailing ids last. */
+export function opsOrdered(services: OpsServiceView[]): OpsServiceView[] {
+  const rank = (group: string) => {
+    const index = (OPS_GROUP_PRIORITY as readonly string[]).indexOf(group);
+    return index === -1 ? OPS_GROUP_PRIORITY.length : index;
+  };
+  const firstSeen = new Map<string, number>();
+  services.forEach((service, index) => {
+    if (!firstSeen.has(service.group)) firstSeen.set(service.group, index);
+  });
+  const trailing = (id: string) =>
+    (OPS_TRAILING_IDS as readonly string[]).includes(id) ? 1 : 0;
+  return services
+    .map((service, index) => ({ service, index }))
+    .sort(
+      (a, b) =>
+        rank(a.service.group) - rank(b.service.group) ||
+        firstSeen.get(a.service.group)! - firstSeen.get(b.service.group)! ||
+        trailing(a.service.id) - trailing(b.service.id) ||
+        a.index - b.index,
+    )
+    .map(({ service }) => service);
+}
+
 /** Counts over what is rendered, with missing rows counted as unknown. */
 export function opsRenderedCounts(services: OpsServiceView[]): OpsCounts {
   const result = Object.fromEntries(

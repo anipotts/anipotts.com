@@ -47,9 +47,15 @@ describe("Status view from System's fixture", () => {
     const groups = [...host.querySelectorAll("tbody tr[aria-expanded]")].map(
       (row) => row.textContent,
     );
+    // Owner priority: Personal Context and its backups, then services
+    // (health), then agent sessions with the iMessage agent last.
     expect(groups.map((text) => text?.replace(/\d+ entr(y|ies)$/, ""))).toEqual(
-      ["services", "agents", "personal context", "backups"],
+      ["personal context", "backups", "services", "agents"],
     );
+    const bodyRows = [
+      ...host.querySelectorAll("tbody tr:not([aria-expanded])"),
+    ];
+    expect(bodyRows.at(-1)?.textContent).toContain("imessage.agent");
   });
 
   it("renders every fixture state with a text label, not colour alone", () => {
@@ -181,6 +187,67 @@ describe("Status view edge cases", () => {
     expect(host.textContent).toContain("a brand new group");
   });
 
+  it("renders asleep calmly, apart from failing and from unknown", () => {
+    const value = fresh();
+    value.status.find((row: Json) => row.id === "health.api").state = "asleep";
+    const host = render(value);
+    const asleep = stateCell(rowFor(host, "health.api")!);
+    const unknown = stateCell(rowFor(host, "agents.sync")!);
+    const failing = stateCell(rowFor(host, "pc.inference")!);
+    expect(asleep.textContent).toContain("Asleep");
+    expect(asleep.querySelector("[data-variant]")).toBeNull();
+    expect(asleep.querySelector("svg.ops-asleep-mark")).not.toBeNull();
+    expect(
+      unknown.querySelector("[data-variant]")?.getAttribute("data-variant"),
+    ).toBe("neutral");
+    expect(unknown.querySelector("svg.ops-asleep-mark")).toBeNull();
+    expect(
+      failing.querySelector("[data-variant]")?.getAttribute("data-variant"),
+    ).toBe("error");
+  });
+
+  it("shows every value as last known once the sampler stops for over 3 minutes", () => {
+    const at = (minutes: number) =>
+      renderToStaticMarkup(
+        <ObservabilityWorkspace
+          enabled={false}
+          fixture={sample}
+          now={NOW + minutes * 60_000}
+        />,
+      );
+    const within = document.createElement("div");
+    within.innerHTML = at(3);
+    expect(within.querySelector('[role="status"]')?.textContent).toBe(
+      "System sample fixture, generated 3m ago",
+    );
+    expect(
+      within.querySelector('tbody [data-variant="success"]'),
+    ).not.toBeNull();
+
+    const host = document.createElement("div");
+    host.innerHTML = at(7);
+    expect(host.querySelector('[role="status"]')?.textContent).toBe(
+      "Sampler stopped 7m ago; last known values",
+    );
+    expect(host.textContent).toContain("none of it is current");
+    expect(host.querySelector(".ops-summary")?.textContent).toBe(
+      "12 entries, none current until the sampler resumes",
+    );
+    // Nothing reads as ok: no success dot and no OK state label anywhere.
+    expect(host.querySelector('[data-variant="success"]')).toBeNull();
+    for (const label of host.querySelectorAll(".ops-state"))
+      expect(label.textContent).toBe("Unknown");
+    expect(stateCell(rowFor(host, "health.api")!).textContent).toBe(
+      "UnknownLast known ok: running",
+    );
+    expect(stateCell(rowFor(host, "pc.inference")!).textContent).toBe(
+      "UnknownLast known failing: inference not ok",
+    );
+    expect(host.querySelector('ul[aria-label="Hosts"]')?.textContent).toContain(
+      "Last known ok: disk 70% used",
+    );
+  });
+
   it("shows nothing from a fixture that breaks the contract", () => {
     const value = fresh();
     value.catalog[0].extra = true;
@@ -290,6 +357,66 @@ describe("Status connection states", () => {
       (button) => button.textContent === "Try again",
     );
     expect(retry).toBeDefined();
+  });
+
+  const snapshotReply = () =>
+    new Response(JSON.stringify(sample), {
+      headers: { "content-type": "application/json", etag: '"a"' },
+    });
+
+  it("turns a live view into last known values when the sampler stops", async () => {
+    let first = true;
+    const controller = live(() => {
+      if (first) {
+        first = false;
+        return snapshotReply();
+      }
+      return new Response(null, { status: 304 });
+    });
+    await act(async () =>
+      root.render(<ObservabilityWorkspace enabled controller={controller} />),
+    );
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(host.querySelector('[role="status"]')?.textContent).toBe(
+      "Live, generated 1m ago",
+    );
+    // The reader keeps answering 304 while generated_at stays 18:00.
+    await act(() => vi.advanceTimersByTimeAsync(2 * 60_000 + 15_000));
+    expect(host.querySelector('[role="status"]')?.textContent).toBe(
+      "Sampler stopped 3m ago; last known values",
+    );
+    expect(host.querySelector('[data-variant="success"]')).toBeNull();
+    expect(host.textContent).not.toMatch(/Live,/);
+  });
+
+  it("says the reader has no valid snapshot on 503", async () => {
+    const controller = live(() => new Response(null, { status: 503 }));
+    await act(async () =>
+      root.render(<ObservabilityWorkspace enabled controller={controller} />),
+    );
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(host.textContent).toContain("No snapshot yet");
+    expect(host.textContent).toContain("no valid ops_v1 snapshot");
+    expect(host.querySelector("table")).toBeNull();
+    expect(
+      [...host.querySelectorAll("button")].some(
+        (button) => button.textContent === "Try again",
+      ),
+    ).toBe(true);
+  });
+
+  it("says access was refused on 403 and reads nothing more", async () => {
+    const reply = vi.fn(() => new Response(null, { status: 403 }));
+    const controller = live(reply);
+    await act(async () =>
+      root.render(<ObservabilityWorkspace enabled controller={controller} />),
+    );
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(host.textContent).toContain("Access refused");
+    expect(host.textContent).toContain("lacks ops:read");
+    expect(host.querySelector("table")).toBeNull();
+    await act(() => vi.advanceTimersByTimeAsync(OPS_POLL_MS * 3));
+    expect(reply).toHaveBeenCalledTimes(1);
   });
 
   it("clears the snapshot when the page is hidden for good (pagehide)", async () => {

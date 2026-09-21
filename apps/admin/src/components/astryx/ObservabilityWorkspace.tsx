@@ -16,7 +16,9 @@ import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
 import {
   ArrowClockwiseIcon,
+  ClockCounterClockwiseIcon,
   LinkBreakIcon,
+  MoonIcon,
   PlugsIcon,
   ShieldWarningIcon,
   WarningCircleIcon,
@@ -25,9 +27,12 @@ import {
   OPS_V1_STATES,
   formatDuration,
   opsFreshness,
+  opsOrdered,
   opsRenderedCounts,
   opsRunbookHref,
+  opsSamplerStopped,
   opsServices,
+  opsSnapshotAge,
   parseOpsSnapshot,
   type OpsServiceView,
   type OpsSnapshot,
@@ -42,9 +47,10 @@ import "./operations-workspace.css";
 
 /**
  * The state is always spoken as text. The dot adds colour for sighted
- * scanning and is hidden from assistive technology. `unknown` and `asleep`
- * share the neutral dot and are told apart by their labels; neither is ever
- * shown with the ok treatment.
+ * scanning and is hidden from assistive technology. Neither `unknown` nor
+ * `asleep` ever takes the ok treatment. `asleep` (ap-pro at night) is calm:
+ * a moon in place of the dot and a quiet label, so it reads apart from both
+ * failing and unknown.
  */
 export const STATE_PRESENTATION: Record<
   OpsState,
@@ -60,6 +66,17 @@ export const STATE_PRESENTATION: Record<
 
 function StateLabel({ state }: { state: OpsState }) {
   const { label, variant } = STATE_PRESENTATION[state];
+  if (state === "asleep")
+    return (
+      <HStack gap={2} vAlign="center" className="ops-state" data-state={state}>
+        <MoonIcon
+          weight="regular"
+          aria-hidden="true"
+          className="ops-asleep-mark"
+        />
+        <Text color="secondary">{label}</Text>
+      </HStack>
+    );
   return (
     <HStack gap={2} vAlign="center" className="ops-state" data-state={state}>
       <StatusDot label={label} variant={variant} aria-hidden="true" />
@@ -248,33 +265,66 @@ function HostStrip({ hosts, now }: { hosts: OpsServiceView[]; now: number }) {
   );
 }
 
-function Summary({ services }: { services: OpsServiceView[] }) {
+function Summary({
+  services,
+  lastKnown,
+}: {
+  services: OpsServiceView[];
+  lastKnown: boolean;
+}) {
   const counts = opsRenderedCounts(services);
   const parts = OPS_V1_STATES.filter((state) => counts[state] > 0).map(
     (state) =>
       `${counts[state]} ${STATE_PRESENTATION[state].label.toLowerCase()}`,
   );
+  const entries = `${services.length} ${services.length === 1 ? "entry" : "entries"}`;
   return (
     <Text color="secondary" className="ops-summary">
-      {services.length} {services.length === 1 ? "entry" : "entries"}:{" "}
-      {parts.join(", ")}
+      {lastKnown
+        ? `${entries}, none current until the sampler resumes`
+        : `${entries}: ${parts.join(", ")}`}
     </Text>
   );
+}
+
+/**
+ * Once the sampler stops, no value is current and none may read as ok:
+ * every entry shows as unknown, with what System last reported kept as
+ * detail.
+ */
+function asLastKnown(service: OpsServiceView): OpsServiceView {
+  const was = STATE_PRESENTATION[service.status.state].label;
+  return {
+    ...service,
+    status: {
+      ...service.status,
+      state: "unknown",
+      detail: service.missingStatus
+        ? "No status row from System"
+        : `Last known ${was.toLowerCase()}: ${service.status.detail}`,
+    },
+    missingStatus: false,
+  };
 }
 
 function SnapshotView({
   snapshot,
   now,
+  lastKnown,
 }: {
   snapshot: OpsSnapshot;
   now: number;
+  lastKnown: boolean;
 }) {
-  const services = useMemo(() => opsServices(snapshot), [snapshot]);
+  const services = useMemo(() => {
+    const ordered = opsOrdered(opsServices(snapshot));
+    return lastKnown ? ordered.map(asLastKnown) : ordered;
+  }, [snapshot, lastKnown]);
   const hosts = services.filter((service) => service.kind === "host");
   const rows = services.filter((service) => service.kind !== "host") as Row[];
   return (
     <VStack gap={5}>
-      <Summary services={services} />
+      <Summary services={services} lastKnown={lastKnown} />
       <HostStrip hosts={hosts} now={now} />
       {rows.length ? (
         <div className="admin-table-surface ops-status-surface">
@@ -287,7 +337,13 @@ function SnapshotView({
   );
 }
 
-const retryable = new Set(["unreachable", "rejected", "denied", "ended"]);
+const retryable = new Set([
+  "unreachable",
+  "unavailable",
+  "rejected",
+  "denied",
+  "ended",
+]);
 
 function ConnectionNotice({
   state,
@@ -310,7 +366,7 @@ function ConnectionNotice({
         <EmptyState
           headingLevel={2}
           title="Not connected"
-          description="The ops reader is switched off. Status appears here once System serves the ops_v1 snapshot and the reader is enabled."
+          description="The ops reader is switched off. Status appears here once ops reads are enabled for this admin."
           icon={<PlugsIcon weight="regular" />}
         />
       );
@@ -340,6 +396,25 @@ function ConnectionNotice({
           actions={retry}
         />
       );
+    case "unavailable":
+      return state.snapshot ? (
+        <Banner
+          status="warning"
+          container="section"
+          title="No current snapshot"
+          description="The reader on ap-mini has no valid ops_v1 snapshot right now. Everything below is the last one it served."
+          icon={<WarningCircleIcon weight="regular" />}
+          endContent={retry}
+        />
+      ) : (
+        <EmptyState
+          headingLevel={2}
+          title="No snapshot yet"
+          description="The reader on ap-mini answered, but it has no valid ops_v1 snapshot to serve."
+          icon={<WarningCircleIcon weight="regular" />}
+          actions={retry}
+        />
+      );
     case "rejected":
       return (
         <Banner
@@ -357,7 +432,7 @@ function ConnectionNotice({
           status="error"
           container="section"
           title="Access refused"
-          description="The owner gate or the reader refused the ops credential."
+          description="The owner gate refused issuance, or the reader refused the credential because it lacks ops:read. Nothing was read."
           icon={<ShieldWarningIcon weight="regular" />}
           endContent={retry}
         />
@@ -403,7 +478,8 @@ function useNow(fixed?: number, renderedAt?: number) {
  * Observability Status: System's ops_v1 snapshot, read-only. Hosts sit in a
  * strip on top; every other catalog entry is one table grouped by its group.
  *
- * `enabled` mirrors the server's PRIVATE_READER_ENABLED flag. `fixture` is the
+ * `enabled` is true only when the server's PRIVATE_READER_ENABLED and
+ * PRIVATE_READER_OPS_ENABLED flags are both "true". `fixture` is the
  * development-only preview of System's synthetic sample and never ships.
  */
 export function ObservabilityWorkspace({
@@ -433,12 +509,16 @@ export function ObservabilityWorkspace({
     enabled: enabled && fixture === undefined,
     controller,
   });
-  const now = useNow(fixedNow, renderedAt);
+  const clock = useNow(fixedNow, renderedAt);
+  // The sample is a moment in time: read it at its own generated_at.
+  const now =
+    preview && fixedNow === undefined
+      ? Date.parse(preview.generated_at)
+      : clock;
   const snapshot = preview ?? state.snapshot;
-  const generatedAge = snapshot
-    ? Math.max(0, Math.floor((now - Date.parse(snapshot.generated_at)) / 1000))
-    : null;
-  const current = !preview && state.connection === "connected";
+  const generatedAge = snapshot ? opsSnapshotAge(snapshot, now) : null;
+  const stopped = snapshot ? opsSamplerStopped(snapshot, now) : false;
+  const current = !preview && state.connection === "connected" && !stopped;
   return (
     <Layout
       className="admin-observability-layout operations-workspace"
@@ -457,15 +537,27 @@ export function ObservabilityWorkspace({
               <Heading level={1}>Status</Heading>
               {generatedAge !== null && (
                 <Text role="status" color="secondary">
-                  {preview
-                    ? "System sample fixture, "
-                    : current
-                      ? "Live, "
-                      : "Not current, "}
-                  generated {ago(generatedAge)}
+                  {stopped
+                    ? `Sampler stopped ${ago(generatedAge)}; last known values`
+                    : `${
+                        preview
+                          ? "System sample fixture"
+                          : current
+                            ? "Live"
+                            : "Not current"
+                      }, generated ${ago(generatedAge)}`}
                 </Text>
               )}
             </HStack>
+            {stopped && generatedAge !== null && (
+              <Banner
+                status="warning"
+                container="section"
+                title={`Sampler stopped ${ago(generatedAge)}`}
+                description="System has not written a snapshot in over 3 minutes. Every entry below is a last known value, shown as unknown, and none of it is current."
+                icon={<ClockCounterClockwiseIcon weight="regular" />}
+              />
+            )}
             {!preview && (
               <ConnectionNotice
                 state={state}
@@ -476,7 +568,9 @@ export function ObservabilityWorkspace({
                 }
               />
             )}
-            {snapshot && <SnapshotView snapshot={snapshot} now={now} />}
+            {snapshot && (
+              <SnapshotView snapshot={snapshot} now={now} lastKnown={stopped} />
+            )}
           </VStack>
         </LayoutContent>
       }

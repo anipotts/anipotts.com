@@ -7,11 +7,15 @@ import {
   OPS_V1_BOUNDS,
   OPS_V1_STATES,
   OpsSnapshotError,
+  OPS_SAMPLER_STALE_SECONDS,
   formatDuration,
   opsFreshness,
+  opsOrdered,
   opsRenderedCounts,
   opsRunbookHref,
+  opsSamplerStopped,
   opsServices,
+  opsSnapshotAge,
   parseOpsSnapshot,
   parseOpsSnapshotBytes,
 } from "./ops-v1";
@@ -336,5 +340,58 @@ describe("rendering helpers", () => {
       "asleep",
       "unknown",
     ]);
+  });
+});
+
+describe("sampler freshness", () => {
+  const snapshot = parseOpsSnapshot(fresh());
+  const generated = Date.parse(sample.generated_at);
+
+  it("treats a snapshot older than 3 minutes as a stopped sampler", () => {
+    expect(OPS_SAMPLER_STALE_SECONDS).toBe(180);
+    expect(opsSamplerStopped(snapshot, generated)).toBe(false);
+    expect(opsSamplerStopped(snapshot, generated + 180_000)).toBe(false);
+    expect(opsSamplerStopped(snapshot, generated + 181_000)).toBe(true);
+    expect(opsSnapshotAge(snapshot, generated + 7 * 60_000)).toBe(420);
+  });
+
+  it("never reports a negative age for a clock behind the sampler", () => {
+    expect(opsSnapshotAge(snapshot, generated - 5_000)).toBe(0);
+    expect(opsSamplerStopped(snapshot, generated - 5_000)).toBe(false);
+  });
+});
+
+describe("owner priority order", () => {
+  it("puts Personal Context and backups first, agents after, iMessage last", () => {
+    const ordered = opsOrdered(opsServices(parseOpsSnapshot(fresh())));
+    const groups = [...new Set(ordered.map((item) => item.group))];
+    expect(groups).toEqual([
+      "personal context",
+      "backups",
+      "services",
+      "agents",
+      "hosts",
+    ]);
+    const agents = ordered.filter((item) => item.group === "agents");
+    expect(agents.at(-1)?.id).toBe("imessage.agent");
+    expect(agents.map((item) => item.id).slice(0, 3)).toEqual([
+      "agents.sync",
+      "keepalive.chatgpt",
+      "keepalive.chrome-agent",
+    ]);
+  });
+
+  it("places groups it does not know after the known ones, in catalog order", () => {
+    const value = fresh();
+    for (const [index, group] of ["zeta", "alpha"].entries())
+      value.catalog.push({ ...value.catalog[1], id: `new.${index}`, group });
+    const groups = [
+      ...new Set(
+        opsOrdered(opsServices(parseOpsSnapshot(value))).map(
+          (item) => item.group,
+        ),
+      ),
+    ];
+    expect(groups.slice(-3)).toEqual(["hosts", "zeta", "alpha"]);
   });
 });

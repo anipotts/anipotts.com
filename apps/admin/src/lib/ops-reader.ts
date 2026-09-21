@@ -25,8 +25,9 @@ import {
  * Storage) and are dropped on logout, denial or credential expiry. Polling
  * runs every 30 seconds and only while the tab is visible.
  *
- * `GET /v1/ops/snapshot` is planned, not live. Nothing here runs unless the
- * server's PRIVATE_READER_ENABLED flag is exactly "true".
+ * Nothing here runs unless PRIVATE_READER_ENABLED and
+ * PRIVATE_READER_OPS_ENABLED are both exactly "true" on the server. The ops
+ * flag is set in no deploy yet, and tests use fixtures only.
  */
 export const OPS_SNAPSHOT_PATH = "/v1/ops/snapshot";
 /** Mirrors PRIVATE_READER_OPS_PATH without pulling signing code into the client. */
@@ -157,10 +158,12 @@ export async function readOpsSnapshot(
 }
 
 /**
- * `off`: the server flag is not "true". `unreachable`: issuance or the reader
- * could not be reached or answered with an error. `rejected`: the reader sent
- * a snapshot that breaks the contract. `denied`: the owner gate or the reader
- * refused the credential. `ended`: the private session was closed.
+ * `off`: the server flags are not both "true". `unreachable`: issuance or the
+ * reader could not be reached or answered with an unexpected error.
+ * `unavailable`: the reader answered 503, it has no valid snapshot.
+ * `rejected`: the reader sent a snapshot that breaks the contract. `denied`:
+ * the owner gate refused issuance, or the reader answered 403 (no ops:read).
+ * `ended`: the private session was closed.
  */
 export type OpsConnection =
   | "off"
@@ -168,6 +171,7 @@ export type OpsConnection =
   | "connecting"
   | "connected"
   | "unreachable"
+  | "unavailable"
   | "rejected"
   | "denied"
   | "ended";
@@ -285,6 +289,10 @@ export function createOpsStatusController(options: OpsStatusOptions) {
         error.failure === "expired"
       )
         drop("connecting");
+      // The reader answered but holds no valid snapshot (missing, over
+      // 64 KB or not ops_v1). The last snapshot stays, aging honestly.
+      else if (error instanceof PrivateReaderError && error.status === 503)
+        set({ connection: "unavailable" });
       // Transport failure: keep the last snapshot, marked as not current.
       else set({ connection: "unreachable" });
     } finally {
