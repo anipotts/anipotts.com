@@ -243,7 +243,11 @@ export function DataTable<T extends Record<string, unknown>>({
     .map((column, index) => [column.hideBelow, index + 1] as const)
     .filter(([below]) => below !== undefined);
   return (
-    <VStack gap={0} className="admin-table-surface workspace-table">
+    <VStack
+      gap={0}
+      className="admin-table-surface workspace-table"
+      data-footer={footer ? "true" : "false"}
+    >
       {hiding.length > 0 && (
         <style>
           {hiding

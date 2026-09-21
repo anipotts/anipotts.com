@@ -16,7 +16,9 @@ describe("Website workspace navigation", () => {
     expect(workspaceSelection("content", undefined, "work")).toBe("work");
     expect(workspaceSelection("newsletter", "writing")).toBe("newsletter");
     expect(workspaceSelection("content", "systems")).toBe("website");
-    expect(workspaceSelection("content")).toBe("pages");
+    // The retired mixed overview has no route; it selects Pages.
+    expect(workspaceSelection("content")).toBe("website");
+    expect(workspaceSelection("content", "pages")).toBe("website");
   });
   it("defines only supported Website destinations", () => {
     expect(websiteNavigation.map((item) => item.href)).toEqual([

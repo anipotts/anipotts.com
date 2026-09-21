@@ -24,6 +24,12 @@
 .workspace-table-frame {
   min-width: 0;
 }
+/* A table without a count strip keeps the surface's rounded foot. */
+.workspace-table[data-footer="false"] .astryx-table-scroll-wrapper {
+  border-end-start-radius: var(--radius-container);
+  border-end-end-radius: var(--radius-container);
+  padding-block-end: var(--spacing-1);
+}
 /* Workspace themes tint Astryx tables; every admin table sits on the same
    raised surface instead. StyleX sets the fill, so this outranks it. */
 .workspace-table .astryx-base-table:not(#\#):not(#\#) {
