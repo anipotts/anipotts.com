@@ -1474,3 +1474,14 @@ body:has(.editorial-workspace-shell) {
   border-radius: inherit;
   background: transparent;
 }
+
+/* Keep secondary document tools together instead of orphaning the overflow button. */
+.editor-secondary-actions {
+  flex-shrink: 0;
+}
+@media (max-width: 540px) {
+  .editor-actionbar .editor-secondary-actions {
+    flex-basis: 100%;
+    justify-content: flex-end;
+  }
+}

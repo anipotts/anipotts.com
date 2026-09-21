@@ -1389,104 +1389,108 @@ function HomeEditorImpl({
                 />
               )}
               {tab === "publish" && publishActions}
-              {record.kind === "writing" && (
+              <HStack gap={2} className="editor-secondary-actions">
+                {record.kind === "writing" && (
+                  <Button
+                    label="Properties"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      openPanel(panel === "properties" ? null : "properties")
+                    }
+                  />
+                )}
                 <Button
-                  label="Properties"
+                  label="History"
                   variant="ghost"
                   size="sm"
-                  onClick={() =>
-                    openPanel(panel === "properties" ? null : "properties")
-                  }
+                  onClick={() => {
+                    void openHistory();
+                  }}
                 />
-              )}
-              <Button
-                label="History"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  void openHistory();
-                }}
-              />
-              <MoreMenu
-                label="Document actions"
-                icon={<DotsThreeIcon size={20} />}
-                size="sm"
-                alignment="end"
-                items={[
-                  {
-                    type: "section",
-                    title: "Inspect",
-                    items: [
-                      ...(publication
-                        ? [
-                            {
-                              label: "Publication details",
-                              onClick: () =>
-                                openPanel(
-                                  panel === "publication"
-                                    ? null
-                                    : "publication",
-                                ),
-                            },
-                          ]
-                        : []),
-                      {
-                        label: "View source",
-                        onClick: () => setTab("source"),
-                      },
-                      {
-                        label: "Compare with website",
-                        isDisabled: comparisonLoading,
-                        onClick: () => {
-                          void compareWebsite();
+                <MoreMenu
+                  label="Document actions"
+                  icon={<DotsThreeIcon size={20} />}
+                  size="sm"
+                  alignment="end"
+                  items={[
+                    {
+                      type: "section",
+                      title: "Inspect",
+                      items: [
+                        ...(publication
+                          ? [
+                              {
+                                label: "Publication details",
+                                onClick: () =>
+                                  openPanel(
+                                    panel === "publication"
+                                      ? null
+                                      : "publication",
+                                  ),
+                              },
+                            ]
+                          : []),
+                        {
+                          label: "View source",
+                          onClick: () => setTab("source"),
                         },
-                      },
-                    ],
-                  },
-                  {
-                    type: "section",
-                    title: "Draft",
-                    items: [
-                      ...(localPreview
-                        ? [
-                            {
-                              label: "Open production editor",
-                              description:
-                                "Opens the current production draft. Download this local draft to keep a copy.",
-                              onClick: () => {
-                                window.open(
-                                  `https://admin.anipotts.com/content/${record.kind === "page" ? (record.id === "home" ? "home" : `${record.id}Page`) : record.kind === "work" ? "projects" : "writing"}/${record.id}`,
-                                  "_blank",
-                                  "noopener,noreferrer",
-                                );
+                        {
+                          label: "Compare with website",
+                          isDisabled: comparisonLoading,
+                          onClick: () => {
+                            void compareWebsite();
+                          },
+                        },
+                      ],
+                    },
+                    {
+                      type: "section",
+                      title: "Draft",
+                      items: [
+                        ...(localPreview
+                          ? [
+                              {
+                                label: "Open production editor",
+                                description:
+                                  "Opens the current production draft. Download this local draft to keep a copy.",
+                                onClick: () => {
+                                  window.open(
+                                    `https://admin.anipotts.com/content/${record.kind === "page" ? (record.id === "home" ? "home" : `${record.id}Page`) : record.kind === "work" ? "projects" : "writing"}/${record.id}`,
+                                    "_blank",
+                                    "noopener,noreferrer",
+                                  );
+                                },
                               },
-                            },
-                          ]
-                        : []),
-                      { label: "Download draft", onClick: () => download() },
-                      {
-                        label: "Import draft…",
-                        isDisabled:
-                          importing || Boolean(snapshot.draft?.discardedAt),
-                        onClick: () => importInput.current?.click(),
-                      },
-                      ...(state.status === "unsaved" &&
-                      !needsSaveComparison &&
-                      !refusedSave
-                        ? [
-                            {
-                              label: "Save now",
-                              isDisabled: Boolean(snapshot.draft?.discardedAt),
-                              onClick: () => {
-                                void flush();
+                            ]
+                          : []),
+                        { label: "Download draft", onClick: () => download() },
+                        {
+                          label: "Import draft…",
+                          isDisabled:
+                            importing || Boolean(snapshot.draft?.discardedAt),
+                          onClick: () => importInput.current?.click(),
+                        },
+                        ...(state.status === "unsaved" &&
+                        !needsSaveComparison &&
+                        !refusedSave
+                          ? [
+                              {
+                                label: "Save now",
+                                isDisabled: Boolean(
+                                  snapshot.draft?.discardedAt,
+                                ),
+                                onClick: () => {
+                                  void flush();
+                                },
                               },
-                            },
-                          ]
-                        : []),
-                    ],
-                  },
-                ]}
-              />
+                            ]
+                          : []),
+                      ],
+                    },
+                  ]}
+                />
+              </HStack>
             </HStack>
           }
         />
