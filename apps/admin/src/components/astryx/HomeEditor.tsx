@@ -27,6 +27,7 @@ import {
 import { ArticleBody } from "./ArticleBody";
 import { SavedArticlePreview } from "./SavedArticlePreview";
 import { SaveScheduler } from "../../lib/save-scheduler";
+import { structuredReviewChanges } from "../../lib/structured-review";
 import { writingReviewChanges } from "../../lib/writing-review";
 import { ProjectSections } from "./ProjectSections";
 import { editProjectSections } from "../../lib/project-sections";
@@ -2351,7 +2352,13 @@ function HomeEditorImpl({
                   }),
                   ...(record.kind === "writing" && parseable
                     ? writingReviewChanges(snapshot.base.source, reviewedSource)
-                    : []),
+                    : parseable
+                      ? structuredReviewChanges(
+                          snapshot.base.source,
+                          reviewedSource,
+                          fields,
+                        )
+                      : []),
                 ]}
               />
               {reviewedDraft && !reviewCurrent && (
