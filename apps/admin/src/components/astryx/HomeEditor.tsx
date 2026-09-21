@@ -265,6 +265,7 @@ function HomeEditorImpl({
     previousTab.current = tab;
   }, [tab]);
   const mediaPending = useRef(false);
+  const pendingMediaSlots = useRef(new Set<string>());
   const mediaAuthorized = useRef(true);
   const [uploadPending, setUploadPending] = useState(false);
   const holdForMedia = () => {
@@ -867,11 +868,17 @@ function HomeEditorImpl({
   let valid = false;
   let destinationId = record.id;
   let unsupportedPublication = false;
+  let storyMediaIndexes: number[] = [];
   const fieldErrors = new Map<string, string>();
   try {
     const parsed = parseEditorialSource(state.source);
     parseable = true;
     const metadata = parsed.data as Record<string, unknown>;
+    if (Array.isArray(metadata.story)) {
+      storyMediaIndexes = metadata.story.flatMap((section, index) =>
+        section && typeof section === "object" ? [index] : [],
+      );
+    }
     unsupportedPublication =
       snapshot.publicationMode === "direct" &&
       ((record.kind === "writing" && metadata.status !== "published") ||
@@ -2159,45 +2166,70 @@ function HomeEditorImpl({
                 {record.kind === "work" && parseable && (
                   <ProjectSections
                     source={state.source}
-                    disabled={Boolean(snapshot.draft?.discardedAt)}
-                    onEdit={(edit) =>
+                    disabled={
+                      uploadPending || Boolean(snapshot.draft?.discardedAt)
+                    }
+                    onEdit={(edit) => {
+                      if (mediaPending.current || snapshot.draft?.discardedAt)
+                        return;
                       editor.current!.edit(
                         editProjectSections(editor.current!.state.source, edit),
-                      )
-                    }
-                  />
-                )}
-                {record.kind === "work" && parseable && (
-                  <ProjectMedia
-                    source={state.source}
-                    errors={fieldErrors}
-                    disabled={Boolean(snapshot.draft?.discardedAt)}
-                    siteUrl={siteConfig.url}
-                    onEdit={(edit) => {
-                      const current = editor.current;
-                      if (
-                        !current ||
-                        !mediaAuthorized.current ||
-                        snapshot.draft?.discardedAt
-                      )
-                        return;
-                      current.edit(
-                        editProjectMedia(current.state.source, edit),
                       );
                     }}
-                    onPendingChange={(pending) => {
-                      mediaPending.current = pending;
-                      setUploadPending(pending);
-                      if (!pending)
-                        setError((current) =>
-                          current ===
-                          "Finish uploading or close the image crop before leaving this editor."
-                            ? ""
-                            : current,
-                        );
-                    }}
                   />
                 )}
+                {record.kind === "work" &&
+                  parseable &&
+                  [undefined, ...storyMediaIndexes].map((storyIndex) => (
+                    <ProjectMedia
+                      key={
+                        storyIndex === undefined
+                          ? "project"
+                          : `story-${storyIndex}`
+                      }
+                      storyIndex={storyIndex}
+                      source={state.source}
+                      errors={fieldErrors}
+                      disabled={Boolean(snapshot.draft?.discardedAt)}
+                      siteUrl={siteConfig.url}
+                      onEdit={(edit) => {
+                        const current = editor.current;
+                        if (
+                          !current ||
+                          !mediaAuthorized.current ||
+                          snapshot.draft?.discardedAt
+                        )
+                          return;
+                        try {
+                          current.edit(
+                            editProjectMedia(current.state.source, edit),
+                          );
+                        } catch {
+                          setError(
+                            "The section changed during this media edit. Your draft is preserved. Retry the image on the current section.",
+                          );
+                        }
+                      }}
+                      onPendingChange={(pending) => {
+                        const slot =
+                          storyIndex === undefined
+                            ? "project"
+                            : `story-${storyIndex}`;
+                        if (pending) pendingMediaSlots.current.add(slot);
+                        else pendingMediaSlots.current.delete(slot);
+                        const anyPending = pendingMediaSlots.current.size > 0;
+                        mediaPending.current = anyPending;
+                        setUploadPending(anyPending);
+                        if (!anyPending)
+                          setError((current) =>
+                            current ===
+                            "Finish uploading or close the image crop before leaving this editor."
+                              ? ""
+                              : current,
+                          );
+                      }}
+                    />
+                  ))}
                 {record.kind === "writing" && parseable && (
                   <>
                     <ArticleBody

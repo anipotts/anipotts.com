@@ -126,3 +126,70 @@ it("removes optional media references without changing unrelated content", () =>
   expect(data(source).title).toBe("Keep title");
   expect(validateEditorialSource(record, source).success).toBe(true);
 });
+
+it("edits story media without changing its text or sibling sections and removes only the reference", () => {
+  let source = setEditorialField(
+    newProjectSource(record.id),
+    ["story"],
+    [
+      { title: "First", paragraphs: ["Keep text"] },
+      { title: "Second", paragraphs: ["Sibling"] },
+    ],
+  );
+  const edit = (change: import("./project-media").ProjectBaseMediaEdit) => {
+    source = editProjectMedia(source, {
+      type: "story-media",
+      index: 0,
+      expectedSection: JSON.stringify(data(source).story[0]),
+      edit: change,
+    });
+  };
+  edit({ type: "upload", slot: "preview", src });
+  edit({ type: "preview-alt", value: "Story screenshot" });
+  edit({ type: "preview-caption", value: "Caption" });
+  edit({ type: "preview-fit", value: "contain" });
+  expect(data(source).story[0]).toEqual({
+    title: "First",
+    paragraphs: ["Keep text"],
+    media: {
+      kind: "image",
+      src,
+      alt: "Story screenshot",
+      caption: "Caption",
+      fit: "contain",
+    },
+  });
+  expect(validateEditorialSource(record, source).success).toBe(true);
+  edit({ type: "remove", slot: "preview" });
+  expect(data(source).story).toEqual([
+    { title: "First", paragraphs: ["Keep text"] },
+    { title: "Second", paragraphs: ["Sibling"] },
+  ]);
+});
+it("rejects late story uploads after the target changes, moves or disappears", () => {
+  const sections = [
+    { title: "First", paragraphs: ["One"] },
+    { title: "Second", paragraphs: ["Two"] },
+  ];
+  const source = setEditorialField(
+    newProjectSource(record.id),
+    ["story"],
+    sections,
+  );
+  const edit = {
+    type: "story-media",
+    index: 0,
+    expectedSection: JSON.stringify(sections[0]),
+    edit: { type: "upload", slot: "preview", src },
+  } as const;
+  for (const changed of [
+    [],
+    [sections[1], sections[0]],
+    [{ ...sections[0], title: "Changed" }],
+  ]) {
+    const current = setEditorialField(source, ["story"], changed);
+    expect(() => editProjectMedia(current, edit)).toThrow(
+      "story_section_changed",
+    );
+  }
+});

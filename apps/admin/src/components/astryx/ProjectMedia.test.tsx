@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import { ProjectMedia } from "./ProjectMedia";
 import { editProjectMedia } from "../../lib/project-media";
+import { setEditorialField } from "@anipotts/content/editorial/source";
 import { newProjectSource } from "../../lib/project-draft";
 const uploads = vi.hoisted(() => ({ props: [] as any[] }));
 vi.mock("./ArticleImageUpload", () => ({
@@ -98,5 +99,62 @@ it("makes reference removal explicit and unavailable during image processing", a
   act(() => uploads.props[0].onPendingChange(false));
   act(() => remove().click());
   expect(onEdit).toHaveBeenCalledWith({ type: "remove", slot: "preview" });
+  act(() => root.unmount());
+});
+
+it("captures story identity for an upload and reuses preview controls without a logo", async () => {
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  const onEdit = vi.fn();
+  const section = { title: "Story", paragraphs: ["Text"] };
+  const source = setEditorialField(
+    newProjectSource("example"),
+    ["story"],
+    [section],
+  );
+  await act(async () =>
+    root.render(
+      <ProjectMedia
+        source={source}
+        storyIndex={0}
+        errors={new Map()}
+        siteUrl="https://anipotts.com"
+        onEdit={onEdit}
+        onPendingChange={() => {}}
+      />,
+    ),
+  );
+  expect(host.textContent).toContain("Story 1 media");
+  expect(host.textContent).not.toContain("Project logo");
+  expect(uploads.props).toHaveLength(1);
+  const upload = uploads.props[0];
+  const current = setEditorialField(
+    source,
+    ["story"],
+    [{ title: "Replacement", paragraphs: ["Other"] }],
+  );
+  await act(async () =>
+    root.render(
+      <ProjectMedia
+        source={current}
+        storyIndex={0}
+        errors={new Map()}
+        siteUrl="https://anipotts.com"
+        onEdit={onEdit}
+        onPendingChange={() => {}}
+      />,
+    ),
+  );
+  const src = `/images/editorial/${"c".repeat(64)}.png`;
+  act(() => upload.onUploaded(src));
+  expect(onEdit).toHaveBeenCalledWith({
+    type: "story-media",
+    index: 0,
+    expectedSection: JSON.stringify(section),
+    edit: { type: "upload", slot: "preview", src },
+  });
+  expect(() => editProjectMedia(current, onEdit.mock.calls[0][0])).toThrow(
+    "story_section_changed",
+  );
   act(() => root.unmount());
 });

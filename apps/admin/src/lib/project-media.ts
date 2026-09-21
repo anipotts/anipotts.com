@@ -7,6 +7,15 @@ import {
 } from "./editorial-media";
 
 export type ProjectMediaEdit =
+  | {
+      type: "story-media";
+      index: number;
+      expectedSection: string;
+      edit: ProjectBaseMediaEdit;
+    }
+  | ProjectBaseMediaEdit;
+
+export type ProjectBaseMediaEdit =
   | { type: "remove"; slot: "logo" | "preview" }
   | { type: "upload"; slot: "logo" | "preview"; src: string }
   | { type: "logo-alt"; value: string }
@@ -34,6 +43,35 @@ export function editProjectMedia(
 ): string {
   const parsed = parseEditorialSource(source);
   const data = parsed.data as Record<string, unknown>;
+  if (edit.type === "story-media") {
+    const story = data.story;
+    if (
+      !Array.isArray(story) ||
+      !Number.isSafeInteger(edit.index) ||
+      edit.index < 0 ||
+      !story[edit.index] ||
+      JSON.stringify(story[edit.index]) !== edit.expectedSection
+    )
+      throw new Error("story_section_changed");
+    if (
+      ("slot" in edit.edit && edit.edit.slot !== "preview") ||
+      edit.edit.type === "logo-alt"
+    )
+      throw new Error("invalid_story_media_edit");
+    const section = story[edit.index] as Record<string, unknown>;
+    // Reuse the same validated media mutation without serializing unrelated fields.
+    const temporary = `---\npreview_media: ${JSON.stringify(section.media ?? null)}\n---\n`;
+    const updated = parseEditorialSource(editProjectMedia(temporary, edit.edit))
+      .data as Record<string, unknown>;
+    if (updated.preview_media === null)
+      parsed.document.deleteIn(["story", edit.index, "media"]);
+    else
+      parsed.document.setIn(
+        ["story", edit.index, "media"],
+        parsed.document.createNode(updated.preview_media),
+      );
+    return `${parsed.opening}${parsed.document.toString({ lineWidth: 0 }).replace(/\r?\n/gu, parsed.newline)}${parsed.closing}${parsed.body}`;
+  }
   const preview = data.preview_media;
   if (edit.type === "remove") {
     if (edit.slot === "logo") {
