@@ -112,7 +112,8 @@ export function editProjectMedia(
       throw new Error("invalid_logo_tone");
     parsed.document.setIn(["identity", "logo_tone"], edit.value);
   } else if (edit.type === "logo-alt") {
-    parsed.document.setIn(["identity", "logo_alt"], edit.value);
+    if (!edit.value.trim()) parsed.document.deleteIn(["identity", "logo_alt"]);
+    else parsed.document.setIn(["identity", "logo_alt"], edit.value);
   } else {
     if (!preview || typeof preview !== "object") return source;
     const field =

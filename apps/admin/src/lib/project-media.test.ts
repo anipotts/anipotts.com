@@ -233,3 +233,22 @@ it("edits logo treatment without changing the original asset or other metadata",
     }),
   ).toThrow("invalid_story_media_edit");
 });
+
+it("clears optional logo alt text without invalidating the draft or removing the logo", () => {
+  let source = editProjectMedia(newProjectSource(record.id, "Keep title"), {
+    type: "upload",
+    slot: "logo",
+    src,
+  });
+  for (const value of ["", "   "]) {
+    source = editProjectMedia(source, {
+      type: "logo-alt",
+      value: "Previous description",
+    });
+    source = editProjectMedia(source, { type: "logo-alt", value });
+    expect(data(source).identity.logo_alt).toBeUndefined();
+    expect(data(source).identity.logo_src).toBe(src);
+    expect(data(source).title).toBe("Keep title");
+    expect(validateEditorialSource(record, source).success).toBe(true);
+  }
+});
