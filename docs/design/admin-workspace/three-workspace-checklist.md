@@ -12,20 +12,20 @@ This is a source-backed inventory, not a claim that every route was browser-test
 or that local changes are deployed. Current implementation branch is
 `codex/cms-editor-publisher`, PR #418.
 
-| Surface          | Current evidence                                                                                                              | Remaining acceptance or implementation                                                                                                       |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Shared shell     | Shared row heights and gaps; one-click themes; section headings visually hidden                                               | Verify collapsed/expanded geometry across workspaces, touch widths, zoom and both themes                                                     |
-| Editor actions   | Properties/history direct; preview/publish explicit; overflow retains occasional tools                                        | Review header density on phone and tablet; audit dropdowns by action frequency rather than replacing every select                            |
-| Writing          | Persistent formatting, autosizing opening note, title/subtitle/body and private saves                                         | IME, rich paste, undo, mobile keyboard, suspension, multiple tabs, zoom and screen reader                                                    |
-| Properties       | Direct-mode visibility controls now explain and disable unsupported scheduling/unpublishing; review blocks unsupported states | Browser acceptance of direct-mode states; backend capabilities remain unchanged                                                              |
-| Review/history   | Exact diff and retained versions exist                                                                                        | Read-only history comparison implemented and browser-tested; Field Edit/Expand and large history navigation remain                           |
-| Projects/pages   | Project metadata, tags, links/order, story/technical add/reorder/remove and private creation implemented locally              | Creation/reopening tested locally; roadmap and story media controls now implemented; shared navigation/footer and homepage selections remain |
-| Media            | Project logo/preview uploads, alt/caption/fit and current-source mutations integrated; pending media holds navigation         | Upload/crop browser persistence, reuse picker, reference/history visibility and recovery acceptance                                          |
-| Libraries        | Responsive tables and attached footer exist                                                                                   | Batch selection/review remains missing; verify long content and all empty/error states                                                       |
-| Preview/recovery | Revision-bound preview and recovery/conflict flows exist                                                                      | Owner acceptance of source-heavy recovery, slow/aborted responses and stale tabs                                                             |
-| Observability    | Shared inventory/detail UI exists; route supplies no live capability                                                          | Attach verified observations; publishing/backups/integrations need explicit source coverage                                                  |
-| Data             | Life UI/read adapters exist; no connected transport                                                                           | Data naming applied; adjacent record detail, original-preserving corrections/new records and document workflow                               |
-| Legacy routes    | Old content review/drafts/operations and static operational projections remain                                                | Trace consumers and unique data, then redirect/retire redundant surfaces; remove stale release guidance                                      |
+| Surface          | Current evidence                                                                                                              | Remaining acceptance or implementation                                                                                                                                                     |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Shared shell     | Shared row heights and gaps; one-click themes; section headings visually hidden                                               | Verify collapsed/expanded geometry across workspaces, touch widths, zoom and both themes                                                                                                   |
+| Editor actions   | Properties/history direct; preview/publish explicit; overflow retains occasional tools                                        | Review header density on phone and tablet; audit dropdowns by action frequency rather than replacing every select                                                                          |
+| Writing          | Persistent formatting, autosizing opening note, title/subtitle/body and private saves                                         | IME, rich paste, undo, mobile keyboard, suspension, multiple tabs, zoom and screen reader                                                                                                  |
+| Properties       | Direct-mode visibility controls now explain and disable unsupported scheduling/unpublishing; review blocks unsupported states | Browser acceptance of direct-mode states; backend capabilities remain unchanged                                                                                                            |
+| Review/history   | Exact diff and retained versions exist                                                                                        | Read-only history comparison implemented and browser-tested; Direct text-field Edit and context expansion implemented; older-history pagination tested; physical-device acceptance remains |
+| Projects/pages   | Project metadata, tags, links/order, story/technical add/reorder/remove and private creation implemented locally              | Creation/reopening tested locally; roadmap and story media controls now implemented; shared navigation/footer and homepage selections remain                                               |
+| Media            | Project logo/preview uploads, alt/caption/fit and current-source mutations integrated; pending media holds navigation         | Upload/crop browser persistence, reuse picker, reference/history visibility and recovery acceptance                                                                                        |
+| Libraries        | Responsive tables and attached footer exist                                                                                   | Batch selection/review remains missing; verify long content and all empty/error states                                                                                                     |
+| Preview/recovery | Revision-bound preview and recovery/conflict flows exist                                                                      | Owner acceptance of source-heavy recovery, slow/aborted responses and stale tabs                                                                                                           |
+| Observability    | Shared inventory/detail UI exists; route supplies no live capability                                                          | Attach verified observations; publishing/backups/integrations need explicit source coverage                                                                                                |
+| Data             | Life UI/read adapters exist; no connected transport                                                                           | Data naming applied; adjacent record detail, original-preserving corrections/new records and document workflow                                                                             |
+| Legacy routes    | Old content review/drafts/operations and static operational projections remain                                                | Trace consumers and unique data, then redirect/retire redundant surfaces; remove stale release guidance                                                                                    |
 
 Active user-requested goal: finish the admin as one
 coherent Content / Observability / Data app. Use compact shared controls and
@@ -63,6 +63,23 @@ separate from unavailable or malformed responses. System's
 handoff reports source changes merged but not installed in its active runtime.
 Website acknowledged receipt and requested exact route fixtures in that existing
 handoff. This is contract compatibility evidence, not live connected acceptance.
+
+### HTTP reader integration checkpoint, September 21
+
+System's refreshed handoff provides source HTTP mapping and live Tailscale node/filter
+observations, but the real verifier, full device-approval evidence and activation
+remain gated. Website provides a bounded JSON response decoder without opening a
+connection: owner get HTTP404 is not-found, other404 unavailable, 401/403 denied,
+400 invalid, and503 unavailable. Provider error bodies never reach the UI. Eight
+HTTP tests cover these mappings, body limits and login HTML rejection; together
+with adapter/UI tests, 39 focused checks pass. No endpoint or grant was enabled.
+
+At 5fadc3695 the complete admin test command passed 1,119 unit/component tests,
+17 Astro tests and145 isolated Worker tests. Exact-head CI and owner review remain
+required. History now exposes retained older revisions with failed-page retry;
+reviewed text fields support direct edit/focus navigation. Structured project/page
+review includes metadata, media, roadmap, section removal and unfamiliar fields.
+Browser proof used synthetic local drafts only.
 
 ### Integration checkpoint, September 21
 

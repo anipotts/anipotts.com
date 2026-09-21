@@ -1,3 +1,4 @@
+import { PersonalContextHttpError } from "./personal-context-http";
 import { applyActivityPage, emptyActivity } from "../lib/life-activity";
 /** Transport-neutral reads. Wiring a private transport requires separate access approval. */
 export const LIFE_DEFAULTS = {
@@ -333,7 +334,29 @@ export async function readPersonalContext(
       ...(responseObservedAt ? { responseObservedAt } : {}),
       data: data as Record<string, unknown>,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof PersonalContextHttpError) {
+      if (error.status === 401 || error.status === 403)
+        return {
+          state: "denied",
+          message:
+            "Private source access has expired or is not authorized. Reconnect to continue.",
+        };
+      if (
+        error.status === 404 &&
+        request.method === "get" &&
+        transport.protocol === "personal_context_data_v1"
+      )
+        return {
+          state: "not_found",
+          message: "This record was not found in the authorized source.",
+        };
+      if (error.status === 400)
+        return {
+          state: "invalid",
+          message: "The source rejected this read request.",
+        };
+    }
     // Provider errors can contain source paths or private payloads. Never forward them.
     return {
       state: "unavailable",
