@@ -671,3 +671,28 @@ test("the header map has one source", () => {
     );
   }
 });
+
+test("rendered content pages keep an ETag and revalidate to 304", async () => {
+  // Content routes render per request so the CMS reader can take over. In
+  // legacy Git mode they must keep the prerendered revalidation contract.
+  for (const path of ["/", "/writing", "/work", "/systems"]) {
+    const url = `https://anipotts.com${path}`;
+    const first = await serve(url);
+    assert.equal(first.status, 200, path);
+    const etag = first.headers.get("etag");
+    assert.match(etag ?? "", /^"[0-9a-f]{32}"$/u, path);
+    assert.equal(
+      first.headers.get("cache-control"),
+      "public, max-age=0, must-revalidate",
+      path,
+    );
+    const again = await serve(url);
+    assert.equal(again.headers.get("etag"), etag, `${path} stable`);
+    const revalidated = await serve(url, {
+      headers: { "if-none-match": etag },
+    });
+    assert.equal(revalidated.status, 304, path);
+    assert.equal(revalidated.body, null, path);
+    assertSecured(revalidated, `${path} 304`);
+  }
+});

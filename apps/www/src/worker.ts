@@ -9,6 +9,7 @@ import { withSecurityHeaders } from "./lib/security-headers";
 import {
   isStaticAssetPath,
   withConditionalStatus,
+  withRenderedValidator,
   withStaticCacheControl,
 } from "./lib/static-assets";
 
@@ -99,7 +100,11 @@ export function createExports(manifest: SSRManifest) {
       )
         throw new Error("upstream_unavailable");
       return withSecurityHeaders(
-        withConditionalStatus(request, pathname, response),
+        withConditionalStatus(
+          request,
+          pathname,
+          await withRenderedValidator(request, pathname, response),
+        ),
       );
     } catch {
       console.error("www worker fetch failed");
