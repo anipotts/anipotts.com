@@ -36,6 +36,11 @@ export type LifeResult =
 export type LifeTransport = {
   protocol?: "personal_context_data_v1" | "personal_context_observability_v1";
   scope: "agent" | "owner";
+  /**
+   * Maps a validated read to this transport's route. Defaults to the loopback
+   * owner browser's `/api/*` shape. Throwing means the read is unsupported.
+   */
+  path?: (request: LifeRead) => string;
   /** Enforce the byte cap while reading, before decoding an untrusted body. */
   read: (path: string, signal: AbortSignal) => Promise<unknown>;
 };
@@ -227,6 +232,16 @@ export async function readPersonalContext(
       state: "denied",
       message: "This connection does not support this read.",
     };
+  if (transport.path) {
+    try {
+      path = transport.path(request);
+    } catch {
+      return {
+        state: "invalid",
+        message: "This request is outside the supported read bounds.",
+      };
+    }
+  }
   try {
     let data = await readWithDeadline(transport, path, signal);
     let responseObservedAt: string | undefined;

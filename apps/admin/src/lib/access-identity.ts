@@ -38,6 +38,20 @@ export async function verifyEditorialOwner(
   config: AccessConfig,
   resolveKey?: JWTVerifyGetKey,
 ): Promise<{ email: string; subject: string } | null> {
+  const session = await verifyEditorialOwnerSession(
+    request,
+    config,
+    resolveKey,
+  );
+  return session ? { email: session.email, subject: session.subject } : null;
+}
+
+/** The same exact owner verification, also returning the parent Access expiry. */
+export async function verifyEditorialOwnerSession(
+  request: Request,
+  config: AccessConfig,
+  resolveKey?: JWTVerifyGetKey,
+): Promise<{ email: string; subject: string; expiresAt: number } | null> {
   const token = request.headers.get("cf-access-jwt-assertion");
   const issuer = config.ACCESS_TEAM_DOMAIN;
   const audience = config.ACCESS_POLICY_AUD;
@@ -76,11 +90,16 @@ export async function verifyEditorialOwner(
       !payload.sub.trim() ||
       payload.common_name !== undefined ||
       typeof payload.iat !== "number" ||
-      payload.iat > Math.floor(Date.now() / 1000)
+      payload.iat > Math.floor(Date.now() / 1000) ||
+      typeof payload.exp !== "number"
     ) {
       return null;
     }
-    return { email: EDITORIAL_OWNER_EMAIL, subject: payload.sub };
+    return {
+      email: EDITORIAL_OWNER_EMAIL,
+      subject: payload.sub,
+      expiresAt: payload.exp,
+    };
   } catch {
     // Invalid tokens and unavailable signing keys both fail closed. Do not log
     // assertions or token-parser details into responses or deployment logs.

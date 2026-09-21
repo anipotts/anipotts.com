@@ -40,6 +40,10 @@ type Runtime = import("@astrojs/cloudflare").Runtime<{
   ADMIN_SECURITY_ALERT_FROM?: string;
   ADMIN_SECURITY_ALERTS_ENABLED?: string;
   RESEND_API_KEY?: string;
+  /** Private reader issuance stays off unless exactly "true". */
+  PRIVATE_READER_ENABLED?: string;
+  /** Dedicated ES256 private JWK. Not installed; absent means 503. */
+  PRIVATE_READER_SIGNING_KEY?: string;
 }>;
 
 /**
