@@ -90,38 +90,37 @@ async function submit() {
 const count = () =>
   container.querySelector('.life-record-library [role="status"]')?.textContent;
 describe("Life reader interactions", () => {
-  it.each([30, -1, undefined])(
-    "keeps Sources unpaged when response includes cursor %s",
-    async (next_offset) => {
-      const data = {
-        items: [{ source_id: "Fixture source", coverage: "available" }],
-        total: 1,
-        next_offset,
-      };
-      const reader = vi.fn(async (_request: LifeRead) => ready(data));
-      await act(async () =>
-        root.render(
-          <LifeExplorer
-            section="sources"
-            initial={ready(data)}
-            reader={reader}
-          />,
-        ),
-      );
-      expect(container.textContent).toContain("Fixture source");
-      expect(container.textContent).not.toContain("could not be continued");
-      expect(
-        [...container.querySelectorAll("button")].some((button) =>
-          /^(Next|Previous)$/.test(button.textContent?.trim() ?? ""),
-        ),
-      ).toBe(false);
-      expect(reader).not.toHaveBeenCalled();
-      await click("Refresh");
-      expect(reader).toHaveBeenCalledTimes(1);
-      expect(reader.mock.calls[0]?.[0]).toEqual({ method: "sources" });
-      expect(container.textContent).toContain("Fixture source");
-    },
-  );
+  it("pages Sources using the canonical next offset", async () => {
+    const reader = vi.fn(async (_request: LifeRead) =>
+      ready({
+        items: [{ source_id: "Second source" }],
+        total: 2,
+        next_offset: null,
+      }),
+    );
+    await act(async () =>
+      root.render(
+        <LifeExplorer
+          section="sources"
+          initial={ready({
+            items: [{ source_id: "First source" }],
+            total: 2,
+            next_offset: 30,
+          })}
+          reader={reader}
+        />,
+      ),
+    );
+    await click("Next");
+    expect(reader.mock.calls[0]?.[0]).toEqual({
+      method: "sources",
+      offset: 30,
+    });
+    expect(container.textContent).toContain("Second source");
+    expect(container.textContent).not.toContain("First source");
+    await click("Previous");
+    expect(reader.mock.calls[1]?.[0]).toEqual({ method: "sources", offset: 0 });
+  });
   it.each([-1, 1.5, 10_000_001])(
     "recovers from invalid continuation %s without dispatching it",
     async (next_offset) => {
@@ -257,7 +256,7 @@ describe("Life reader interactions", () => {
     await submit();
     expect(container.textContent).toContain("Not current");
     await submit();
-    expect(container.textContent).toContain("Life is not connected yet");
+    expect(container.textContent).toContain("Data is not connected yet");
     expect(container.textContent).not.toContain("Not current");
     expect(count()).toBeUndefined();
   });
@@ -385,6 +384,79 @@ describe("Life reader interactions", () => {
     });
     expect(container.textContent).toContain("First second");
   });
+  it("retains the list and page while detail focus stays stable through a read", async () => {
+    let finish!: (result: LifeResult) => void;
+    const reader = vi.fn((request: LifeRead): Promise<LifeResult> =>
+      request.method === "get"
+        ? new Promise((resolve) => {
+            finish = resolve;
+          })
+        : Promise.resolve(
+            ready({ items: [record], total: 18, next_offset: null }),
+          ),
+    );
+    await act(async () =>
+      root.render(
+        <LifeExplorer
+          section="people"
+          initial={ready({ items: [record], total: 18, next_offset: 17 })}
+          reader={reader}
+        />,
+      ),
+    );
+    await click("Next");
+    type("retained query");
+    const trigger = container.querySelector<HTMLButtonElement>(
+      ".life-record-select",
+    )!;
+    await click("Fixture record");
+    const details = container.querySelector('[aria-label="Record details"]');
+    expect(document.activeElement).toBe(details);
+    expect(
+      container.querySelector(".life-master-region")?.contains(trigger),
+    ).toBe(true);
+    await act(async () => finish(ready(record)));
+    expect(document.activeElement).toBe(details);
+    await click("Back to records");
+    expect(document.activeElement).toBe(trigger);
+    expect(container.querySelector("input")?.value).toBe("retained query");
+    expect(container.textContent).toContain("Previous");
+    expect(reader).toHaveBeenCalledTimes(2);
+  });
+  it("clears selected detail and ignores a late read after capability revocation", async () => {
+    let finish!: (result: LifeResult) => void;
+    let signal: AbortSignal | undefined;
+    const reader = (_request: LifeRead, input?: AbortSignal) => {
+      signal = input;
+      return new Promise<LifeResult>((resolve) => {
+        finish = resolve;
+      });
+    };
+    await act(async () =>
+      root.render(
+        <LifeExplorer
+          section="people"
+          initial={ready({ items: [record], total: 1, next_offset: null })}
+          reader={reader}
+        />,
+      ),
+    );
+    await click("Fixture record");
+    expect(container.querySelector('[aria-pressed="true"]')).not.toBeNull();
+    await act(async () =>
+      root.render(
+        <LifeExplorer
+          section="people"
+          initial={{ state: "denied", message: "revoked" }}
+        />,
+      ),
+    );
+    expect(signal?.aborted).toBe(true);
+    await act(async () => finish(ready(record)));
+    expect(container.querySelector('[aria-label="Record details"]')).toBeNull();
+    expect(container.querySelector(".life-explorer-detail-open")).toBeNull();
+    expect(container.textContent).not.toContain("Fixture record");
+  });
   it("does not reopen a record when a closed request finishes", async () => {
     let finish!: (result: LifeResult) => void;
     const reader = () =>
@@ -401,7 +473,16 @@ describe("Life reader interactions", () => {
       ),
     );
     await click("Fixture record");
-    await click("Close details");
+    const trigger = container.querySelector<HTMLButtonElement>(
+      ".life-record-select",
+    )!;
+    const details = container.querySelector('[aria-label="Record details"]');
+    expect(document.activeElement).toBe(details);
+    expect(trigger.getAttribute("aria-pressed")).toBe("true");
+    expect(trigger.getAttribute("aria-controls")).toBe(details?.id);
+    await click("Back to records");
+    expect(document.activeElement).toBe(trigger);
+    expect(trigger.getAttribute("aria-pressed")).toBe("false");
     await act(async () => finish(ready(record)));
     expect(container.querySelector('[aria-label="Record details"]')).toBeNull();
   });
@@ -431,12 +512,12 @@ describe("Life reader interactions", () => {
     };
     await act(async () => root.render(<LifeActivityView reader={reader} />));
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(60000);
     });
     expect(container.textContent).toContain("unavailable");
     expect(container.textContent).toContain("1 record, 2026-01-01T00:00:00Z");
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(2000);
+      await vi.advanceTimersByTimeAsync(60000);
     });
     expect(requests.at(-1)).toEqual({ method: "activity", after: 8 });
     await act(async () => root.unmount());
@@ -464,11 +545,27 @@ describe("Life reader interactions", () => {
         requests.push(request);
         return denied
           ? { state: "denied", message: "fixture" }
-          : ready({ items: [], next_cursor: 0 });
+          : ready({
+              items: [
+                {
+                  change_id: 1,
+                  trace_id: "1".repeat(32),
+                  stage: "indexed",
+                  state: "succeeded",
+                  record_count: 1,
+                  observed_at: "2026-09-21T08:00:00Z",
+                },
+              ],
+              next_cursor: 1,
+            });
       };
       await act(async () => root.render(<LifeActivityView reader={reader} />));
       await act(async () => {
         await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(requests).toHaveLength(1);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(59000);
       });
       expect(requests).toHaveLength(1);
       await setHidden(true);
@@ -478,14 +575,15 @@ describe("Life reader interactions", () => {
       expect(requests).toHaveLength(1);
       await setHidden(false);
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(1000);
+        await vi.advanceTimersByTimeAsync(60000);
       });
       expect(requests).toHaveLength(2);
       denied = true;
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(1000);
+        await vi.advanceTimersByTimeAsync(60000);
       });
       expect(requests).toHaveLength(3);
+      expect(container.textContent).not.toContain("succeeded");
       expect(container.textContent).toContain(
         "This connection does not permit reading activity.",
       );
@@ -500,4 +598,161 @@ describe("Life reader interactions", () => {
       else Reflect.deleteProperty(document, "hidden");
     }
   });
+});
+
+it("clears prior records and queries when the reader capability is removed", async () => {
+  const reader = async () =>
+    ready({ items: [record], total: 1, next_offset: null });
+  await act(async () =>
+    root.render(
+      <LifeExplorer
+        section="people"
+        initial={ready({ items: [record], total: 1, next_offset: null })}
+        reader={reader}
+      />,
+    ),
+  );
+  type("private query");
+  expect(container.textContent).toContain("Fixture record");
+  await act(async () =>
+    root.render(
+      <LifeExplorer
+        section="people"
+        initial={{ state: "denied", message: "revoked" }}
+      />,
+    ),
+  );
+  expect(container.textContent).not.toContain("Fixture record");
+  expect(container.querySelector("input")).toBeNull();
+  expect(container.textContent).toContain(
+    "Access to these records is unavailable",
+  );
+});
+
+it("aborts activity transport when its view unmounts", async () => {
+  vi.useFakeTimers();
+  let signal: AbortSignal | undefined;
+  const reader = (
+    _request: LifeRead,
+    input?: AbortSignal,
+  ): Promise<LifeResult> => {
+    signal = input;
+    return new Promise((_resolve, reject) =>
+      input!.addEventListener("abort", () => reject(new Error("cancelled")), {
+        once: true,
+      }),
+    );
+  };
+  await act(async () => root.render(<LifeActivityView reader={reader} />));
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(0);
+  });
+  expect(signal?.aborted).toBe(false);
+  await act(async () => root.render(null));
+  expect(signal?.aborted).toBe(true);
+});
+
+it("clears activity when its reader disconnects", async () => {
+  vi.useFakeTimers();
+  let disconnected = false;
+  const reader = async (): Promise<LifeResult> =>
+    disconnected
+      ? { state: "disconnected", message: "fixture" }
+      : ready({
+          items: [
+            {
+              change_id: 1,
+              trace_id: "1".repeat(32),
+              stage: "indexed",
+              state: "succeeded",
+              record_count: 1,
+              observed_at: "2026-09-21T08:00:00Z",
+            },
+          ],
+          next_cursor: 1,
+        });
+  await act(async () => root.render(<LifeActivityView reader={reader} />));
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(0);
+  });
+  expect(container.textContent).toContain("succeeded");
+  disconnected = true;
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(60000);
+  });
+  expect(container.textContent).not.toContain("succeeded");
+  expect(container.textContent).toContain("Activity is not connected.");
+});
+
+it.each(["denied", "disconnected"] as const)(
+  "clears private records and queries when body continuation is %s",
+  async (state) => {
+    const reader = async (request: LifeRead): Promise<LifeResult> =>
+      request.method === "get" && !request.body_offset
+        ? ready(record)
+        : { state, message: "fixture" };
+    await act(async () =>
+      root.render(
+        <LifeExplorer
+          section="people"
+          initial={ready({ items: [record], total: 1, next_offset: null })}
+          reader={reader}
+        />,
+      ),
+    );
+    type("private query");
+    await click("Fixture record");
+    expect(container.textContent).toContain("First");
+    await click("Read more");
+    expect(container.textContent).not.toContain("First");
+    expect(container.textContent).not.toContain("Fixture record");
+    expect(container.querySelector("input")?.value).toBe("");
+    expect(container.querySelector('[aria-label="Record details"]')).toBeNull();
+    expect(container.querySelector(".life-explorer-detail-open")).toBeNull();
+    expect(container.querySelector('[aria-pressed="true"]')).toBeNull();
+  },
+);
+
+it("refreshes activity directly without resetting the cursor or overlapping reads", async () => {
+  vi.useFakeTimers();
+  let finish!: (result: LifeResult) => void;
+  const reader = vi.fn(async (): Promise<LifeResult> =>
+    reader.mock.calls.length === 1
+      ? ready({
+          items: [
+            {
+              change_id: 8,
+              trace_id: "1".repeat(32),
+              stage: "indexed",
+              state: "succeeded",
+              record_count: 1,
+              observed_at: "2026-09-21T08:00:00Z",
+            },
+          ],
+          next_cursor: 8,
+        })
+      : new Promise((resolve) => {
+          finish = resolve;
+        }),
+  );
+  await act(async () => root.render(<LifeActivityView reader={reader} />));
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(0);
+  });
+  await click("Refresh activity");
+  expect(reader).toHaveBeenLastCalledWith(
+    { method: "activity", after: 8 },
+    expect.any(AbortSignal),
+  );
+  const button = Array.from(container.querySelectorAll("button")).find(
+    (button) => button.textContent?.includes("Refreshing activity"),
+  );
+  expect(button?.disabled).toBe(true);
+  await act(async () => {
+    button?.click();
+    await vi.advanceTimersByTimeAsync(60000);
+  });
+  expect(reader).toHaveBeenCalledTimes(2);
+  await act(async () => finish({ state: "denied", message: "fixture" }));
+  expect(container.textContent).not.toContain("Refresh activity");
 });

@@ -1,5 +1,6 @@
 ---
 import EditorialLayout from "../../layouts/EditorialLayout.astro";
+import { DevDataCatalog } from "../../components/astryx/dev-data-catalog";
 import { DevReviewCatalog } from "../../components/astryx/dev-review-catalog";
 
 // The normal Content owner/origin middleware still applies. This route cannot
@@ -26,5 +27,11 @@ const inventoryProjection = {
   hasContent
   inventoryProjection={inventoryProjection}
 >
-  <DevReviewCatalog client:load />
+  {
+    Astro.url.searchParams.get("fixture") === "data" ? (
+      <DevDataCatalog client:load />
+    ) : (
+      <DevReviewCatalog client:load />
+    )
+  }
 </EditorialLayout>

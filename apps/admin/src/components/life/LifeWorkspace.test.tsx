@@ -55,7 +55,7 @@ describe("Life response surfaces", () => {
     expect(html).toContain(title);
     // Never an empty-result claim, and never another state's wording.
     expect(html).not.toContain("No permitted records");
-    expect(html).not.toContain("Life is not connected yet");
+    expect(html).not.toContain("Data is not connected yet");
     // A refused or failed read is a warning, not an informational notice.
     expect(html).toContain("warning");
   });
@@ -75,7 +75,7 @@ describe("Life response surfaces", () => {
         result={{ state: "disconnected", message: "fixture" }}
       />,
     );
-    expect(html).toContain("Life is not connected yet");
+    expect(html).toContain("Data is not connected yet");
     expect(html).not.toContain("warning");
   });
   it("renders every disconnected section without claiming an empty or healthy source", () => {
@@ -88,7 +88,7 @@ describe("Life response surfaces", () => {
           result={{ state: "disconnected", message: "fixture" }}
         />,
       );
-      expect(html).toContain("Life is not connected yet");
+      expect(html).toContain("Data is not connected yet");
       expect(html).not.toContain("No permitted records");
       expect(html).not.toContain("Nothing in Life needs a decision");
     }
@@ -191,4 +191,26 @@ describe("Life response surfaces", () => {
     ])
       expect(html).toContain(value);
   });
+});
+
+it("shows versioned source counts without claiming wiki or capture capability", () => {
+  const html = renderToStaticMarkup(
+    <LifeReadView
+      section="overview"
+      result={{
+        state: "ready",
+        scope: "owner",
+        observedAt: "2026-09-21T08:01:00Z",
+        responseObservedAt: "2026-09-21T08:00:00Z",
+        data: {
+          counts: { records: 2, revisions: 4, sources: 1 },
+          last_change_at: null,
+        },
+      }}
+    />,
+  );
+  expect(html).toContain("Records");
+  expect(html).toContain("Response observed");
+  expect(html).not.toContain("Wiki");
+  expect(html).not.toContain("Automatic capture");
 });

@@ -2,6 +2,7 @@
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
+import { newProjectSource } from "../../lib/project-draft";
 import { newWritingSource } from "../../lib/writing-draft";
 import * as navigation from "../../lib/editorial-navigation";
 import { HomeEditor } from "./HomeEditor";
@@ -14,6 +15,13 @@ import {
 } from "../../lib/browser-recovery";
 
 vi.mock("@astryxdesign/core/Toast", () => ({ useToast: () => () => {} }));
+const projectMedia = vi.hoisted(() => ({ props: null as any }));
+vi.mock("./ProjectMedia", () => ({
+  ProjectMedia: (props: any) => {
+    projectMedia.props = props;
+    return <div data-testid="project-media" />;
+  },
+}));
 vi.mock("./ArticleBody", () => ({
   ArticleBody: ({
     value,
@@ -708,4 +716,150 @@ it("does not replay recovery from before an old-tab logout when no event was rec
   ).not.toContain("Text from before logout");
   expect(fetcher).toHaveBeenCalledTimes(1);
   expect(localStorage.getItem(versionedRecoveryKey(key))).toBe(raw);
+});
+
+it("opening note is multiline and survives saving before breadcrumb navigation", async () => {
+  const commit = vi
+    .spyOn(navigation, "commitAdminNavigation")
+    .mockImplementation(() => {});
+  let savedSource = "";
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, options?: RequestInit) => {
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      if (url.includes("/save?")) {
+        savedSource = JSON.parse(String(options?.body)).source;
+        return response({
+          ok: true,
+          draft: { ...draft, source: savedSource, revision: 2 },
+        });
+      }
+      return response(snapshot);
+    }),
+  );
+  await mount();
+  const label = [...host.querySelectorAll("label")].find((el) =>
+    el.textContent?.includes("Opening note"),
+  );
+  const opening = document.getElementById(
+    label!.htmlFor,
+  ) as HTMLTextAreaElement;
+  expect(opening.tagName).toBe("TEXTAREA");
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value",
+    )!.set!.call(
+      opening,
+      "A real conversation prompted this.\nI wanted to keep a note.",
+    );
+    opening.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  const link = document.createElement("a");
+  link.href = "/content?group=writing&q=awareness";
+  host.append(link);
+  await act(async () => link.click());
+  expect(savedSource).toContain("A real conversation prompted this.");
+  expect(savedSource).toContain("I wanted to keep a note.");
+  expect(savedSource).toContain("Original body.");
+  expect(commit).toHaveBeenCalledOnce();
+});
+
+it("holds project navigation and unload while media is pending", async () => {
+  const projectSource = newProjectSource("example", "Example");
+  vi.mocked(fetch).mockImplementation(async () =>
+    response({
+      ...snapshot,
+      base: { ...snapshot.base, source: projectSource },
+      draft: {
+        ...draft,
+        key: "content/public/projects/example.md",
+        source: projectSource,
+      },
+      history: [],
+    }),
+  );
+  window.history.replaceState(null, "", "/content/projects/example");
+  await act(async () =>
+    root.render(
+      <HomeEditor record={{ kind: "work", id: "example" }} localPreview />,
+    ),
+  );
+  expect(host.querySelector('[data-testid="project-media"]')).not.toBeNull();
+  act(() => projectMedia.props.onPendingChange(true));
+  await click("Properties");
+  expect(host.querySelector('aside[aria-label="Properties"]')).toBeNull();
+  expect(host.textContent).toContain(
+    "Finish uploading or close the image crop",
+  );
+  const unload = new Event("beforeunload", { cancelable: true });
+  act(() => window.dispatchEvent(unload));
+  expect(unload.defaultPrevented).toBe(true);
+  act(() => {
+    window.history.replaceState(
+      null,
+      "",
+      "/content/projects/example?view=preview",
+    );
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
+  expect(window.location.search).not.toContain("view=preview");
+  act(() => projectMedia.props.onPendingChange(false));
+  await click("Properties");
+  expect(host.querySelector('aside[aria-label="Properties"]')).not.toBeNull();
+});
+
+it("loads older revisions with the server cursor and retains history through a failed page retry", async () => {
+  let failOlder = true;
+  const requested: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      requested.push(url);
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      if (url.includes("/history")) {
+        if (url.includes("beforeRevision=3")) {
+          if (failOlder) return new Response(null, { status: 503 });
+          return response({
+            history: [{ ...draft, revision: 2 }, draft],
+            nextBeforeRevision: null,
+          });
+        }
+        return response({
+          history: [{ ...draft, revision: 3 }],
+          nextBeforeRevision: 3,
+        });
+      }
+      return response({
+        ...snapshot,
+        history: [{ ...draft, revision: 3 }],
+        nextBeforeRevision: 3,
+      });
+    }),
+  );
+  await mount("?panel=history");
+  const originalBody = (
+    host.querySelector(
+      'textarea[aria-label="Test article body"]',
+    ) as HTMLTextAreaElement
+  ).value;
+  await click("Load older revisions");
+  expect(host.textContent).toContain("Couldn’t load history");
+  expect(host.textContent).toContain("Revision 3");
+  failOlder = false;
+  await click("Try again");
+  expect(host.textContent).toContain("Revision 3");
+  expect(host.textContent).toContain("Revision 2");
+  expect(host.textContent).toContain("Revision 1");
+  expect(host.textContent).not.toContain("Load older revisions");
+  expect(
+    requested.filter((url) => url.includes("beforeRevision=3")),
+  ).toHaveLength(2);
+  expect(
+    (
+      host.querySelector(
+        'textarea[aria-label="Test article body"]',
+      ) as HTMLTextAreaElement
+    ).value,
+  ).toBe(originalBody);
 });

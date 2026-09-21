@@ -493,3 +493,125 @@ describe("draft recovery", () => {
     });
   });
 });
+
+describe("explicit review checkpoint", () => {
+  it("stores unchanged acknowledged text once while concurrent requests share the operation", async () => {
+    let finish!: (result: SaveResult) => void;
+    const send = vi.fn().mockImplementation(
+      () =>
+        new Promise<SaveResult>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const editor = new HomeAutosave("same text", 3, send, () => {});
+    await editor.flush();
+    expect(send).not.toHaveBeenCalled();
+    const first = editor.checkpoint();
+    const second = editor.checkpoint();
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0][0]).toMatchObject({
+      source: "same text",
+      expectedRevision: 3,
+    });
+    expect(editor.recovery().pending).toEqual(send.mock.calls[0][0]);
+    finish({ ok: true, draft: draft("same text", 4) });
+    await Promise.all([first, second]);
+    expect(editor.state).toMatchObject({
+      source: "same text",
+      revision: 4,
+      status: "saved",
+    });
+    await editor.flush();
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("recovers an ambiguous unchanged checkpoint with the same identity after reload", async () => {
+    const failedSend = vi.fn().mockRejectedValue(new Error("response lost"));
+    const first = new HomeAutosave("same text", 3, failedSend, () => {});
+    await first.checkpoint();
+    const recovery = first.recovery();
+    expect(recovery).toMatchObject({
+      source: "same text",
+      saved: "same text",
+      revision: 3,
+      pending: { expectedRevision: 3 },
+    });
+    const send = vi
+      .fn()
+      .mockResolvedValue({ ok: true, draft: draft("same text", 4) });
+    const reopened = new HomeAutosave("same text", 4, send, () => {});
+    reopened.recover(recovery);
+    await reopened.checkpoint();
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0]).toEqual(failedSend.mock.calls[0]);
+    expect(reopened.state).toMatchObject({ revision: 4, status: "saved" });
+  });
+
+  it("preserves edits made during the checkpoint and saves them normally afterward", async () => {
+    let finish!: (result: SaveResult) => void;
+    const send = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<SaveResult>((resolve) => {
+            finish = resolve;
+          }),
+      )
+      .mockResolvedValueOnce({ ok: true, draft: draft("new typing", 5) });
+    const editor = new HomeAutosave("same text", 3, send, () => {});
+    const checkpoint = editor.checkpoint();
+    editor.edit("new typing");
+    finish({ ok: true, draft: draft("same text", 4) });
+    await checkpoint;
+    expect(send.mock.calls[1][0]).toMatchObject({
+      source: "new typing",
+      expectedRevision: 4,
+    });
+    expect(editor.state).toMatchObject({
+      source: "new typing",
+      revision: 5,
+      status: "saved",
+    });
+  });
+
+  it.each([
+    {
+      ok: false,
+      code: "revision_conflict",
+      current: draft("other tab", 4),
+      conflictId: "held",
+    },
+    { ok: false, code: "save_reconciliation_required" },
+    { ok: false, code: "idempotency_key_reused" },
+    { ok: false, code: "invalid_draft_request" },
+  ])(
+    "preserves an unresolved $code instead of allocating a new operation",
+    async (outcome) => {
+      const send = vi.fn().mockResolvedValue(outcome);
+      const editor = new HomeAutosave("saved", 3, send, () => {});
+      editor.edit("mine");
+      await editor.flush();
+      const held = editor.recovery();
+      const state = editor.state;
+      await editor.checkpoint();
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(editor.recovery()).toEqual(held);
+      expect(editor.state).toEqual(state);
+    },
+  );
+
+  it("flushes existing unsaved edits without making a redundant equal-text revision", async () => {
+    const send = vi
+      .fn()
+      .mockResolvedValue({ ok: true, draft: draft("edited", 4) });
+    const editor = new HomeAutosave("saved", 3, send, () => {});
+    editor.edit("edited");
+    await editor.checkpoint();
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0][0]).toMatchObject({
+      source: "edited",
+      expectedRevision: 3,
+    });
+    expect(editor.state.revision).toBe(4);
+  });
+});

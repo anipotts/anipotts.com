@@ -1,71 +1,61 @@
-/* Admin-only focus policy, inherited by native top-layer popovers and dialogs.
-   Astryx's focus tokens preserve its keyboard and composite-control behavior. */
+/* Admin focus is a surface change, never an extra border or ring.
+   Set tokens on nested themes too, including dialogs and native popovers. */
 html[data-astryx-theme],
 html[data-astryx-theme] [data-astryx-theme] {
-  --focus-outline-color: var(--color-text-secondary);
+  --focus-outline-width: 0;
+  --focus-outline-style: none;
+  --focus-outline-offset: 0;
 }
-
-/* Plain controls share the same visible keyboard affordance as Astryx. */
-html[data-astryx-theme]
-  :where(
-    a[href],
-    button,
-    input,
-    textarea,
-    select,
-    [tabindex],
-    [contenteditable="true"]
-  ):focus-visible {
-  outline: var(--focus-outline-width) var(--focus-outline-style)
-    var(--focus-outline-color);
-  outline-offset: var(--focus-outline-offset);
-}
-html[data-astryx-theme]
-  :where(a[href], button, [tabindex]):focus:not(:focus-visible) {
+html[data-astryx-theme] :is(:focus, :focus-visible, :focus-within),
+html[data-astryx-theme] :is(:focus, :focus-visible, :focus-within)::before,
+html[data-astryx-theme] :is(:focus, :focus-visible, :focus-within)::after {
   outline: none;
 }
-
-/* TextInput/TextArea already draw a field boundary. Neutralize only normal
-   focused fields; validation states retain Astryx's semantic border/shadow. */
+/* Preserve ordinary field boundaries and validation colors without focus halos. */
 html[data-astryx-theme]
-  :is(.astryx-text-input, .astryx-textarea):not([data-status]):focus-within {
-  border-color: var(--color-text-secondary);
+  :is(
+    .astryx-text-input,
+    .astryx-textarea,
+    .rich-field-surface,
+    .article-composer
+  ):not([data-status]):focus-within {
+  border-color: var(--color-border);
   box-shadow: none;
 }
 html[data-astryx-theme]
-  :is(.astryx-text-input, .astryx-textarea):has(:focus-visible) {
-  outline: var(--focus-outline-width) var(--focus-outline-style)
-    var(--focus-outline-color);
-  outline-offset: var(--focus-outline-offset);
+  :is(
+    button,
+    a[href],
+    select,
+    summary,
+    [role="tab"],
+    [role="menuitem"],
+    [role="option"]
+  ):focus-visible {
+  background-color: var(--color-accent-muted);
+  color: var(--color-text-primary);
+  box-shadow: none;
 }
-/* The enclosing field owns the ring, so its editable node never adds a second. */
 html[data-astryx-theme]
-  :is(.astryx-text-input, .astryx-textarea)
-  :is(input, textarea):focus {
-  outline: none;
+  :is(input, textarea, [contenteditable="true"]):focus-visible {
+  box-shadow: none;
 }
-html[data-astryx-theme] .document-title textarea:focus-visible {
-  outline-color: var(--focus-outline-color);
-}
-
 @media (forced-colors: active) {
-  html[data-astryx-theme],
-  html[data-astryx-theme] [data-astryx-theme] {
-    --focus-outline-color: CanvasText;
+  html[data-astryx-theme]
+    :is(
+      button,
+      a[href],
+      select,
+      summary,
+      [role="tab"],
+      [role="menuitem"],
+      [role="option"],
+      input,
+      textarea,
+      [contenteditable="true"]
+    ):focus-visible {
+    forced-color-adjust: none;
+    background-color: Highlight;
+    color: HighlightText;
   }
-}
-
-html[data-astryx-theme] .rich-field-surface:focus-within,
-html[data-astryx-theme] .article-composer:focus-within {
-  border-color: var(--color-text-secondary);
-}
-html[data-astryx-theme] .rich-field-surface:has(:focus-visible) {
-  outline: var(--focus-outline-width) var(--focus-outline-style)
-    var(--focus-outline-color);
-  outline-offset: var(--focus-outline-offset);
-}
-html[data-astryx-theme]
-  .rich-field-surface:focus-within:not(:has(:focus-visible)),
-html[data-astryx-theme] .rich-field-surface [contenteditable="true"]:focus {
-  outline: none;
 }

@@ -21,8 +21,8 @@ describe("Website workspace navigation", () => {
   it("defines only supported Website destinations", () => {
     expect(websiteNavigation.map((item) => item.href)).toEqual([
       "/content",
-      "/content?group=writing",
       "/content?group=website",
+      "/content?group=writing",
       "/content?group=work",
       "/newsletter",
     ]);
@@ -131,9 +131,12 @@ it("uses 44px touch targets with 4px rail insets only on coarse tablets", () => 
     new URL("./WorkspaceHeader.css", import.meta.url),
     "utf8",
   );
-  const coarse = css.slice(
-    css.indexOf("@media (width > 768px) and (pointer: coarse)"),
-  );
+  const start = css.lastIndexOf("@media (width > 768px) and (pointer: coarse)");
+  expect(start).toBeGreaterThanOrEqual(0);
+  // Inspect this complete media block, not unrelated rules later in the file.
+  const end = css.indexOf("\n}", start);
+  expect(end).toBeGreaterThan(start);
+  const coarse = css.slice(start, end + 2);
   expect(coarse).toContain("padding-inline: var(--spacing-1)");
   expect(coarse).toContain("width: var(--spacing-11)");
   expect(coarse).toContain("height: var(--spacing-11)");

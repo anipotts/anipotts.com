@@ -103,6 +103,8 @@ export class PublicationJobs {
     });
   }
   requestCancel(id: string, expectedVersion: number, now: number): boolean {
+    if (!Number.isSafeInteger(now) || now < 0)
+      throw new Error("invalid_cancel_time");
     return this.storage.transactionSync(() => {
       const job = this.get(id);
       if (
@@ -112,6 +114,24 @@ export class PublicationJobs {
         !["validate", "commit", "branch", "pr", "checks"].includes(job.phase)
       )
         return false;
+      // A never-claimed validate job cannot have made an external write. Stop it
+      // transactionally even behind a blocked head, without advancing that head.
+      // Once claimed, retain the existing FIFO reconciliation path: an expired
+      // lease or missing checkpoint is not proof that no provider effect exists.
+      if (
+        job.phase === "validate" &&
+        job.attempts === 0 &&
+        job.leaseUntil === 0 &&
+        job.blocked === null &&
+        Object.keys(job.checkpoint).length === 0
+      ) {
+        this.storage.sql.exec(
+          "UPDATE publication_jobs SET phase = 'cancelled', checkpoint = ?, version = version + 1 WHERE id = ?",
+          JSON.stringify({ cancelRequested: "true" }),
+          id,
+        );
+        return true;
+      }
       this.storage.sql.exec(
         "UPDATE publication_jobs SET checkpoint = ?, blocked = NULL, dueAt = ?, version = version + 1 WHERE id = ?",
         JSON.stringify({ ...job.checkpoint, cancelRequested: "true" }),

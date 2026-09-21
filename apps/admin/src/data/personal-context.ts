@@ -1,3 +1,5 @@
+import { PersonalContextHttpError } from "./personal-context-http";
+import { applyActivityPage, emptyActivity } from "../lib/life-activity";
 /** Transport-neutral reads. Wiring a private transport requires separate access approval. */
 export const LIFE_DEFAULTS = {
   mode: "lookup",
@@ -6,7 +8,8 @@ export const LIFE_DEFAULTS = {
   limit: 30,
 } as const;
 export type LifeRead =
-  | { method: "status" | "sources" }
+  | { method: "status" }
+  | { method: "sources"; offset?: number }
   | {
       method: "search";
       q: string;
@@ -22,35 +25,45 @@ export type LifeResult =
       state: "ready";
       scope: "agent" | "owner";
       observedAt: string;
+      responseObservedAt?: string;
       data: Record<string, unknown>;
     }
   | {
-      state: "disconnected" | "unavailable" | "denied" | "invalid";
+      state:
+        "disconnected" | "unavailable" | "denied" | "invalid" | "not_found";
       message: string;
     };
 export type LifeTransport = {
+  protocol?: "personal_context_data_v1" | "personal_context_observability_v1";
   scope: "agent" | "owner";
   /** Enforce the byte cap while reading, before decoding an untrusted body. */
   read: (path: string, signal: AbortSignal) => Promise<unknown>;
 };
-async function readWithDeadline(transport: LifeTransport, path: string) {
+async function readWithDeadline(
+  transport: LifeTransport,
+  path: string,
+  parent?: AbortSignal,
+) {
   const controller = new AbortController();
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  const signal = parent
+    ? AbortSignal.any([parent, controller.signal])
+    : controller.signal;
+  signal.throwIfAborted();
+  let rejectAbort: () => void = () => {};
+  const aborted = new Promise<never>((_, reject) => {
+    rejectAbort = () => reject(new Error("Read cancelled"));
+    signal.addEventListener("abort", rejectAbort, { once: true });
+  });
+  const timer = setTimeout(() => controller.abort(), 5000);
   try {
-    return await Promise.race([
-      transport.read(path, controller.signal),
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => {
-          controller.abort();
-          reject(new Error("Read timed out"));
-        }, 5000);
-      }),
-    ]);
+    return await Promise.race([transport.read(path, signal), aborted]);
   } finally {
     clearTimeout(timer);
+    signal.removeEventListener("abort", rejectAbort);
     controller.abort();
   }
 }
+
 const isObject = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 const isCursor = (value: unknown) =>
@@ -68,14 +81,19 @@ export function nextLifeOffset(value: unknown, current = 0): number | null {
 function validResponse(
   request: LifeRead,
   data: Record<string, unknown>,
+  versioned = false,
 ): boolean {
   switch (request.method) {
     case "status":
       return (
         isObject(data.database) &&
         typeof data.database.exists === "boolean" &&
-        isObject(data.ingestion) &&
-        isObject(data.wiki)
+        (versioned
+          ? isObject(data.counts) &&
+            ["records", "revisions", "sources", "changes"].every((key) =>
+              isCursor((data.counts as Record<string, unknown>)[key]),
+            )
+          : isObject(data.ingestion) && isObject(data.wiki))
       );
     case "get":
       return (
@@ -167,8 +185,11 @@ export function lifeReadPath(request: LifeRead): string {
       params.set("after", String(integer(request.after)));
       params.set("limit", "100");
       break;
-    case "status":
     case "sources":
+      params.set("limit", String(LIFE_DEFAULTS.limit));
+      params.set("offset", String(integer(request.offset)));
+      break;
+    case "status":
       break;
     default:
       throw new Error("Unsupported read");
@@ -178,6 +199,7 @@ export function lifeReadPath(request: LifeRead): string {
 export async function readPersonalContext(
   request: LifeRead,
   transport?: LifeTransport,
+  signal?: AbortSignal,
 ): Promise<LifeResult> {
   let path: string;
   try {
@@ -192,10 +214,22 @@ export async function readPersonalContext(
     return {
       state: "disconnected",
       message:
-        "Private Life access is not connected. Existing records remain in PersonalContext.",
+        "Private Data access is not connected. Existing records remain in PersonalContext.",
+    };
+  if (
+    (transport.protocol === "personal_context_data_v1" &&
+      (transport.scope !== "owner" ||
+        !["status", "sources", "search", "get"].includes(request.method))) ||
+    (transport.protocol === "personal_context_observability_v1" &&
+      (transport.scope !== "agent" || request.method !== "activity"))
+  )
+    return {
+      state: "denied",
+      message: "This connection does not support this read.",
     };
   try {
-    const data = await readWithDeadline(transport, path);
+    let data = await readWithDeadline(transport, path, signal);
+    let responseObservedAt: string | undefined;
     if (
       !data ||
       typeof data !== "object" ||
@@ -206,6 +240,65 @@ export async function readPersonalContext(
         state: "invalid",
         message: "The source returned an unsupported response.",
       };
+    }
+    if (transport.protocol) {
+      const envelope = data as Record<string, unknown>;
+      if (
+        envelope.schema !== transport.protocol ||
+        typeof envelope.response_observed_at !== "string" ||
+        !Number.isFinite(Date.parse(envelope.response_observed_at)) ||
+        (!isObject(envelope.data) &&
+          !(request.method === "get" && envelope.data === null))
+      )
+        return {
+          state: "invalid",
+          message: "The source returned an unsupported response contract.",
+        };
+      responseObservedAt = envelope.response_observed_at;
+      if (request.method === "get" && envelope.data === null)
+        return {
+          state: "not_found",
+          message: "This record was not found in the authorized source.",
+        };
+      data = envelope.data;
+    }
+    if (
+      request.method === "status" &&
+      isObject((data as Record<string, unknown>).database) &&
+      ((data as Record<string, unknown>).database as Record<string, unknown>)
+        .exists === false
+    )
+      return {
+        state: "unavailable",
+        message:
+          "The canonical source is unavailable. This is not an empty record collection.",
+      };
+    if (!isObject(data))
+      return {
+        state: "invalid",
+        message: "The source returned an unsupported response.",
+      };
+    if (transport.protocol === "personal_context_observability_v1") {
+      try {
+        if (
+          Object.keys(data).some(
+            (key) => !["items", "next_cursor"].includes(key),
+          )
+        )
+          throw new Error("Unexpected activity field");
+        applyActivityPage(
+          {
+            ...emptyActivity(),
+            cursor: request.method === "activity" ? (request.after ?? 0) : 0,
+          },
+          data,
+        );
+      } catch {
+        return {
+          state: "invalid",
+          message: "The source returned invalid activity metadata.",
+        };
+      }
     }
     if ("error" in data)
       return {
@@ -222,7 +315,13 @@ export async function readPersonalContext(
         message: "The returned context scope does not match this connection.",
       };
     }
-    if (!validResponse(request, data as Record<string, unknown>))
+    if (
+      !validResponse(
+        request,
+        data as Record<string, unknown>,
+        transport.protocol === "personal_context_data_v1",
+      )
+    )
       return {
         state: "invalid",
         message:
@@ -232,9 +331,32 @@ export async function readPersonalContext(
       state: "ready",
       scope: transport.scope,
       observedAt: new Date().toISOString(),
+      ...(responseObservedAt ? { responseObservedAt } : {}),
       data: data as Record<string, unknown>,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof PersonalContextHttpError) {
+      if (error.status === 401 || error.status === 403)
+        return {
+          state: "denied",
+          message:
+            "Private source access has expired or is not authorized. Reconnect to continue.",
+        };
+      if (
+        error.status === 404 &&
+        request.method === "get" &&
+        transport.protocol === "personal_context_data_v1"
+      )
+        return {
+          state: "not_found",
+          message: "This record was not found in the authorized source.",
+        };
+      if (error.status === 400)
+        return {
+          state: "invalid",
+          message: "The source rejected this read request.",
+        };
+    }
     // Provider errors can contain source paths or private payloads. Never forward them.
     return {
       state: "unavailable",

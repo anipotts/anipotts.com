@@ -15,3 +15,35 @@ it("distinguishes an unavailable health read from a successful empty read", () =
   expect(empty).toContain("No health summaries available.");
   expect(empty).not.toContain("could not be loaded");
 });
+
+it("identifies fixture and retained projection provenance without claiming connected records", () => {
+  const summaries = [
+    {
+      title: "Synthetic summary",
+      summary: "Example only",
+      freshness_state: "unknown",
+      reveal_policy: "summary",
+      source_locator: "synthetic",
+    },
+  ];
+  const fixture = renderToStaticMarkup(
+    <LifeSupportingView
+      section="health"
+      summaries={summaries}
+      sourceMode="fixture"
+    />,
+  );
+  expect(fixture).toContain(
+    "Development examples. These are not connected personal records.",
+  );
+  const retained = renderToStaticMarkup(
+    <LifeSupportingView
+      section="health"
+      summaries={summaries}
+      sourceMode="adapter"
+    />,
+  );
+  expect(retained).toContain(
+    "previous knowledge projection, not the canonical Data reader",
+  );
+});

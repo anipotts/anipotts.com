@@ -197,3 +197,176 @@ describe("Life read boundary", () => {
     expect(result.state === "ready" && result.data).toEqual(data);
   });
 });
+
+describe("System versioned owner reader", () => {
+  const envelope = {
+    schema: "personal_context_data_v1",
+    response_observed_at: "2026-09-21T08:00:00Z",
+    data: {
+      database: { exists: true },
+      counts: { records: 0, revisions: 0, sources: 0, changes: 0 },
+      last_change_at: null,
+    },
+  };
+  const transport = (value: unknown) => ({
+    protocol: "personal_context_data_v1" as const,
+    scope: "owner" as const,
+    read: async () => value,
+  });
+  it("accepts the actual status envelope without inventing ingestion or wiki health", async () => {
+    const result = await readPersonalContext(
+      { method: "status" },
+      transport(envelope),
+    );
+    expect(result).toMatchObject({
+      state: "ready",
+      responseObservedAt: envelope.response_observed_at,
+      data: envelope.data,
+    });
+    expect(result.state === "ready" && result.data.ingestion).toBeUndefined();
+  });
+  it("rejects unsupported versions, timestamps and capabilities", async () => {
+    for (const value of [
+      { ...envelope, schema: "future" },
+      { ...envelope, response_observed_at: "invalid" },
+      { ...envelope, data: null },
+    ])
+      expect(
+        (await readPersonalContext({ method: "status" }, transport(value)))
+          .state,
+      ).toBe("invalid");
+    const read = vi.fn();
+    expect(
+      (
+        await readPersonalContext(
+          { method: "timeline" },
+          { ...transport(envelope), read },
+        )
+      ).state,
+    ).toBe("denied");
+    expect(
+      (
+        await readPersonalContext(
+          { method: "status" },
+          { ...transport(envelope), scope: "agent", read },
+        )
+      ).state,
+    ).toBe("denied");
+    expect(read).not.toHaveBeenCalled();
+  });
+  it("distinguishes an absent source from a healthy empty source", async () => {
+    expect(
+      (
+        await readPersonalContext(
+          { method: "status" },
+          transport({
+            ...envelope,
+            data: { ...envelope.data, database: { exists: false } },
+          }),
+        )
+      ).state,
+    ).toBe("unavailable");
+  });
+});
+
+it("rejects repeated source pages instead of cycling forever", async () => {
+  const read = (next_offset: number | null) =>
+    readPersonalContext(
+      { method: "sources", offset: 30 },
+      {
+        scope: "owner",
+        protocol: "personal_context_data_v1",
+        read: async () => ({
+          schema: "personal_context_data_v1",
+          response_observed_at: "2026-09-21T08:00:00Z",
+          data: { items: [], total: 60, next_offset },
+        }),
+      },
+    );
+  expect((await read(30)).state).toBe("invalid");
+  expect((await read(60)).state).toBe("ready");
+  expect((await read(null)).state).toBe("ready");
+});
+
+it("keeps the versioned observation capability metadata-only", async () => {
+  const item = {
+    change_id: 1,
+    trace_id: "1".repeat(32),
+    stage: "indexed",
+    state: "succeeded",
+    record_count: 1,
+    observed_at: "2026-09-21T08:00:00Z",
+  };
+  const transport = (data: unknown) => ({
+    protocol: "personal_context_observability_v1" as const,
+    scope: "agent" as const,
+    read: vi.fn(async () => ({
+      schema: "personal_context_observability_v1",
+      response_observed_at: "2026-09-21T08:00:00Z",
+      data,
+    })),
+  });
+  const valid = transport({ items: [item], next_cursor: 1 });
+  expect((await readPersonalContext({ method: "activity" }, valid)).state).toBe(
+    "ready",
+  );
+  for (const data of [
+    { items: [{ ...item, body: "PRIVATE" }], next_cursor: 1 },
+    { items: [item], next_cursor: 1, private_record: "PRIVATE" },
+    { items: [item], next_cursor: 2 },
+  ]) {
+    const result = await readPersonalContext(
+      { method: "activity" },
+      transport(data),
+    );
+    expect(result.state).toBe("invalid");
+    expect(JSON.stringify(result)).not.toContain("PRIVATE");
+  }
+  const denied = transport({});
+  expect(
+    (await readPersonalContext({ method: "get", id: "record" }, denied)).state,
+  ).toBe("denied");
+  expect(denied.read).not.toHaveBeenCalled();
+});
+
+it("propagates caller cancellation and never starts an already cancelled read", async () => {
+  const controller = new AbortController();
+  let observed: AbortSignal | undefined;
+  const read = vi.fn(async (_path: string, signal: AbortSignal) => {
+    observed = signal;
+    return new Promise(() => {});
+  });
+  const pending = readPersonalContext(
+    { method: "status" },
+    { scope: "owner", read },
+    controller.signal,
+  );
+  controller.abort();
+  expect((await pending).state).toBe("unavailable");
+  expect(observed?.aborted).toBe(true);
+  await readPersonalContext(
+    { method: "status" },
+    { scope: "owner", read },
+    controller.signal,
+  );
+  expect(read).toHaveBeenCalledTimes(1);
+});
+
+it("distinguishes a missing versioned record from invalid source responses", async () => {
+  const transport = {
+    scope: "owner" as const,
+    protocol: "personal_context_data_v1" as const,
+    read: async () => ({
+      schema: "personal_context_data_v1",
+      response_observed_at: "2026-09-21T08:00:00Z",
+      data: null,
+    }),
+  };
+  expect(
+    (await readPersonalContext({ method: "get", id: "missing" }, transport))
+      .state,
+  ).toBe("not_found");
+  expect(
+    (await readPersonalContext({ method: "sources" }, transport)).state,
+  ).toBe("invalid");
+});

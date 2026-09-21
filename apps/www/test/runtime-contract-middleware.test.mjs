@@ -59,6 +59,14 @@ function loadMiddleware({ dev = false } = {}) {
         },
       },
       "./lib/runtime-contract": contract,
+      "./lib/content-runtime-mode": compile(
+        "../src/lib/content-runtime-mode.ts",
+        [],
+        {},
+        console,
+      ),
+      // CMS behavior is exercised against the actual built Worker in published-runtime.test.mjs.
+      "./lib/published-runtime": {},
       "./lib/security-headers": headers,
     },
     console,
@@ -145,7 +153,11 @@ test("prerendered pages and dev skip the contract report", async () => {
   const dev = loadMiddleware({ dev: true });
   const local = context("/api/health", {});
   assert.equal((await dev.onRequest(local, next)).status, 200);
-  assert.equal(local.runtimeReads, 0, "dev never reads runtime env");
+  assert.equal(
+    local.runtimeReads,
+    1,
+    "dev checks explicit CMS mode without reporting bindings",
+  );
   assert.equal(dev.lines.warn.length + dev.lines.info.length, 0);
 });
 

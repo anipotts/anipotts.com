@@ -9,6 +9,6 @@ const result = await measureServerTiming(Astro.locals, "life", () =>
 Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
 
-<AdminLayout title="Life" hideHeader
+<AdminLayout title="Data" hideHeader
   ><LifeWorkspace section="overview" result={result} client:load /></AdminLayout
 >

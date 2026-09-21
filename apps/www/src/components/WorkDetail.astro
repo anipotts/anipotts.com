@@ -187,11 +187,11 @@ const d = project.data;
     }
 
     {
-      d.technical && (
+      Boolean(d.technical?.length) && (
         <section data-rise class="project-detail-block">
           <h2 class="section-label">under the hood</h2>
           <div class="project-detail-grid">
-            {d.technical.map((item) => (
+            {d.technical?.map((item) => (
               <article class="project-detail-card">
                 <h3>{item.title}</h3>
                 <p>
@@ -205,11 +205,11 @@ const d = project.data;
     }
 
     {
-      d.roadmap && (
+      Boolean(d.roadmap?.length) && (
         <section data-rise class="project-detail-block">
           <h2 class="section-label">next</h2>
           <ul class="project-roadmap">
-            {d.roadmap.map((item) => (
+            {d.roadmap?.map((item) => (
               <li class={item.status}>
                 <Icon
                   name={

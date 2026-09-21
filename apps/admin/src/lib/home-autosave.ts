@@ -137,6 +137,25 @@ export class HomeAutosave {
       };
     return this.flush();
   }
+  /** Explicit new review after cancellation needs a fresh private revision even
+   * when its text is unchanged. Use the ordinary durable save/recovery identity;
+   * never replace pending work or bypass a failure/conflict to manufacture one. */
+  checkpoint(): Promise<void> {
+    if (
+      !this.active &&
+      !this.pending &&
+      this.state.status === "saved" &&
+      !this.state.saveFailed &&
+      !this.state.conflict &&
+      this.state.source !== this.refused
+    )
+      this.pending = {
+        source: this.state.source,
+        expectedRevision: this.state.revision,
+        requestId: crypto.randomUUID(),
+      };
+    return this.flush();
+  }
   private async drain() {
     while (
       !this.state.conflict &&

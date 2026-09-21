@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { ArticleDate } from "./ArticleDate";
-import { TextInput } from "@astryxdesign/core/TextInput";
+import { TagInput } from "./TagInput";
 import { Selector } from "@astryxdesign/core/Selector";
 import { FormLayout } from "@astryxdesign/core/FormLayout";
 import { Text } from "@astryxdesign/core/Text";
@@ -17,8 +17,10 @@ export function ArticleSettings({
   onChange,
   errors,
   disclosure = true,
+  publicationMode = "legacy",
 }: {
   disclosure?: boolean;
+  publicationMode?: "legacy" | "maintenance" | "direct";
   errors: Map<string, string>;
   source: string;
   id: string;
@@ -30,16 +32,6 @@ export function ArticleSettings({
     errors.has(name)
       ? { type: "error" as const, message: errors.get(name) }
       : undefined;
-  const canonicalTags = Array.isArray(data.tags)
-    ? data.tags.filter((tag) => typeof tag === "string").join(", ")
-    : typeof data.tags === "string"
-      ? data.tags
-      : "";
-  const [tags, setTags] = useState(canonicalTags);
-  const [focused, setFocused] = useState(false);
-  useEffect(() => {
-    if (!focused) setTags(canonicalTags);
-  }, [canonicalTags, focused]);
   const update = (name: string, value: unknown) =>
     onChange(setEditorialField(source, [name], value));
   const fields = (
@@ -63,14 +55,26 @@ export function ArticleSettings({
         value={typeof data.status === "string" ? data.status : "draft"}
         status={fieldStatus("status")}
         isDisabled={disabled}
-        description="Changes take effect only after you approve publication."
+        description={
+          publicationMode === "direct"
+            ? "Only visible publication is supported. Scheduling and unpublishing are unavailable. Your draft stays private until you approve publication."
+            : "Changes take effect only after you approve publication."
+        }
         options={[
-          { value: "draft", label: "Draft, hidden from the website" },
+          {
+            value: "draft",
+            label: "Draft, hidden from the website",
+            disabled: publicationMode === "direct",
+          },
           {
             value: "published",
             label: "Published, visible on the website",
           },
-          { value: "scheduled", label: "Scheduled" },
+          {
+            value: "scheduled",
+            label: "Scheduled",
+            disabled: publicationMode === "direct",
+          },
         ]}
         onChange={(value) => {
           let next = setEditorialField(source, ["status"], value);
@@ -103,24 +107,11 @@ export function ArticleSettings({
           }
         />
       )}
-      <TextInput
-        label="Tags"
-        status={fieldStatus("tags")}
-        value={tags}
-        isDisabled={disabled}
-        description="Separate tags with commas."
-        onFocus={() => setFocused(true)}
-        onChange={(value) => {
-          setTags(value);
-          update(
-            "tags",
-            value
-              .split(",")
-              .map((tag) => tag.trim())
-              .filter(Boolean),
-          );
-        }}
-        onBlur={() => setFocused(false)}
+      <TagInput
+        value={data.tags}
+        disabled={disabled}
+        error={errors.get("tags")}
+        onChange={(tags) => update("tags", tags)}
       />
       <Text color="secondary">
         Address: /writing/

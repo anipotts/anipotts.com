@@ -1,7 +1,7 @@
 import { lifeReadPath, type LifeRead } from "../data/personal-context";
 
 export const lifeSections = {
-  overview: "Life",
+  overview: "Data",
   people: "People",
   projects: "Projects",
   places: "Places",
@@ -15,7 +15,9 @@ export function isLifeSection(section: string): section is LifeSection {
 }
 /** Only reads whose canonical contract accepts an offset can page. */
 export function lifeSectionSupportsPagination(section: LifeSection): boolean {
-  return ["people", "projects", "places", "timeline"].includes(section);
+  return ["people", "projects", "places", "timeline", "sources"].includes(
+    section,
+  );
 }
 /** Also used by server routes: validate before invoking any read capability. */
 export function lifeSectionRead(
@@ -33,7 +35,7 @@ export function lifeSectionRead(
       request = { method: "status" };
       break;
     case "sources":
-      request = { method: "sources" };
+      request = { method: "sources", offset };
       break;
     case "preview":
       request = { method: "preview", q };

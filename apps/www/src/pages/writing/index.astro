@@ -3,14 +3,15 @@ import Shell from "../../layouts/Shell.astro";
 import WritingRow from "../../components/WritingRow.astro";
 import PageHero from "../../components/PageHero.astro";
 import { publishedWriting } from "../../lib/content";
-import { getEntry } from "astro:content";
+import { publicPage, publicContentContext } from "../../lib/content";
 
-export const prerender = true;
+export const prerender = false;
+const context = publicContentContext(Astro.locals);
 
-const writingEntries = await publishedWriting();
-const page = await getEntry("writingPage", "writing");
+const writingEntries = await publishedWriting(context);
+const page = await publicPage("writing", context);
 if (!page) throw new Error("Missing canonical writing page");
-const copy = page.data;
+const copy = page;
 ---
 
 <Shell title={copy.title} description={copy.description} path="/writing">

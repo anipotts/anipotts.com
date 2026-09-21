@@ -186,7 +186,7 @@ describe("acknowledged inventory events", () => {
     expect(again.searchEntries).toHaveLength(2);
   });
 
-  it("rejects created events for anything but a valid writing draft", () => {
+  it("rejects created events for anything but a valid private article or project", () => {
     const created = {
       record: { kind: "writing", id: "fresh-draft" },
       title: "Fresh draft",
@@ -196,7 +196,7 @@ describe("acknowledged inventory events", () => {
     };
     expect(parseEditorialRecordCreated(created)).not.toBeNull();
     for (const bad of [
-      { ...created, record: { kind: "work", id: "fresh-draft" } },
+      { ...created, record: { kind: "page", id: "home" } },
       { ...created, record: { kind: "writing", id: "../escape" } },
       { ...created, title: " " },
       { ...created, revision: 0 },
@@ -209,4 +209,39 @@ describe("acknowledged inventory events", () => {
     ])
       expect(parseEditorialRecordCreated(bad)).toBeNull();
   });
+});
+
+it("inserts newly created projects into Projects and overview with a private editor link", () => {
+  const initial = createInventoryView(
+    [
+      { name: "pages", href: "/content", records: [] },
+      { name: "work", href: "/content?group=work", records: [] },
+      { name: "writing", href: "/content?group=writing", records: [] },
+    ],
+    [],
+  );
+  const created = {
+    record: { kind: "work", id: "new-project" },
+    title: "New project",
+    summary: "",
+    revision: 1,
+    updatedAt: "2026-09-12T03:00:00Z",
+  };
+  const result = applyEditorialRecordCreated(initial, created);
+  expect(result.groups?.map((group) => group.records.length)).toEqual([
+    1, 1, 0,
+  ]);
+  expect(result.groups?.[1]?.records[0]).toMatchObject({
+    collection: "projects",
+    href: "/content/projects/new-project",
+    intendedVisibility: "hidden",
+    status: "draft",
+  });
+  expect(result.searchEntries?.[0]).toMatchObject({
+    kind: "projects",
+    href: "/content/projects/new-project",
+  });
+  expect(
+    applyEditorialRecordCreated(result, created).groups?.[1]?.records,
+  ).toHaveLength(1);
 });

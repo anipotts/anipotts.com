@@ -10,6 +10,7 @@ const WWW_SRC = join(WWW_ROOT, "src");
 const WWW_PAGES = join(WWW_SRC, "pages");
 
 const ALLOWED_API_ROUTES = [
+  "content-version",
   "health",
   "icon",
   "newsletter/confirm",
@@ -33,12 +34,19 @@ const FORBIDDEN_PAGE_SEGMENTS = new Set([
 
 const FORBIDDEN_SOURCE_PATTERNS = [
   {
+    pattern:
+      /\b(?:publishDirect|listPublicationHistory|getPublicationByOperation|getDirectReceipt)\b/,
+    message:
+      "apps/www may read active publication inventory, never write publications or expose private operation/history readers",
+  },
+  {
     pattern: /@anipotts\/lib\/(?:cms|db)\b/,
-    message: "apps/www must render canonical content without D1 CMS adapters",
+    message:
+      "apps/www must use the reviewed public publication reader, never legacy D1 CMS adapters",
   },
   {
     pattern: /\b(?:fetchPageContent|fetchPublishedPageContentByPrefix|setDB)\b/,
-    message: "apps/www must not load public render content from D1",
+    message: "apps/www must not restore legacy mutable D1 content loaders",
   },
   {
     pattern: /@anipotts\/content\/admin\b/,

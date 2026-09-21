@@ -28,10 +28,12 @@ export function LifeSupportingView({
   section,
   summaries = [],
   available = true,
+  sourceMode,
 }: {
   section: "health" | "aesthetics";
   summaries?: HealthSummary[];
   available?: boolean;
+  sourceMode?: string;
 }) {
   return (
     <Layout
@@ -81,7 +83,11 @@ export function LifeSupportingView({
             />
           ) : (
             <VStack gap={4}>
-              <Text color="secondary">Source summaries</Text>
+              <Text color="secondary">
+                {sourceMode === "fixture"
+                  ? "Development examples. These are not connected personal records."
+                  : "Retained knowledge summaries. This view uses the previous knowledge projection, not the canonical Data reader."}
+              </Text>
               <List className="life-summary-list" density="compact">
                 {summaries.map((item, index) => (
                   <ListItem

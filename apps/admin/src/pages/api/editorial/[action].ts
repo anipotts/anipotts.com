@@ -17,6 +17,8 @@ export const ALL: APIRoute = async ({ request, locals }) => {
         homeEditorApi(request, runtime.storage, runtime.readBase, {
           storage: runtime.storage,
           enabled: runtime.publishing,
+          mode: runtime.publicationMode,
+          direct: runtime.storage,
         }),
       );
     }

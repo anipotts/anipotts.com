@@ -20,12 +20,13 @@ import { writingCard } from "../lib/social-card/routes";
 interface Props {
   preview?: boolean;
   item: Writing;
+  allWriting?: Writing[];
 }
 const { item } = Astro.props;
 const slug = writingSlug(item);
 const { Content } = await render(item);
 const d = item.data;
-const moreWriting = (await publishedWriting())
+const moreWriting = (Astro.props.allWriting ?? (await publishedWriting()))
   .filter((post) => writingSlug(post) !== slug)
   .slice(0, 2);
 
@@ -35,6 +36,7 @@ const articleLd = {
   headline: d.title,
   description: inlinePlainText(d.summary),
   datePublished: d.published_at?.toISOString(),
+  dateModified: item.publication?.publishedAt,
   author: {
     "@type": "Person",
     "@id": personId,
@@ -53,7 +55,9 @@ const articleLd = {
   jsonLd={articleLd}
   detail
   robots={Astro.props.preview ? "noindex, nofollow, noarchive" : undefined}
-  socialCard={Astro.props.preview ? undefined : writingCard(slug)}
+  socialCard={Astro.props.preview || item.publication
+    ? undefined
+    : writingCard(slug)}
 >
   {
     Astro.props.preview && (
@@ -93,6 +97,7 @@ const articleLd = {
     </header>
 
     <div data-rise class="article-body">
+      {d.opening?.trim() && <p data-article-opening>{d.opening}</p>}
       <Content />
     </div>
     <footer class="article-end">

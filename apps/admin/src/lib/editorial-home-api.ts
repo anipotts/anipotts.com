@@ -7,6 +7,11 @@ import {
 } from "@anipotts/content/editorial/source";
 import type { EditorialDraftStore } from "../editorial/draft-store";
 import { newWritingSource } from "./writing-draft";
+import { newProjectSource } from "./project-draft";
+import {
+  MAX_PUBLICATION_QUEUE_PAGE,
+  type PublicationQueueOptions,
+} from "./editorial-publication-status";
 import {
   checkEditorialMutation,
   issueEditorialCsrf,
@@ -19,6 +24,9 @@ export type HomeBase = {
   source: string;
   baseCommit: string;
   baseFileHash: string | null;
+  publicationId?: string | null;
+  sourceSha256?: string;
+  inventoryVersion?: number;
 };
 export type DraftStorage = Pick<
   EditorialDraftStore,
@@ -36,8 +44,10 @@ export type PublicationStorage = Pick<
   | "startPublication"
   | "latestPublication"
   | "publicationStatus"
+  | "publicationQueue"
   | "retryPublication"
   | "cancelPublication"
+  | "cancelUnstartedLegacyPublication"
 >;
 
 /** Called only after owner verification. The browser never supplies a Git path or base. */
@@ -45,7 +55,19 @@ export async function homeEditorApi(
   request: Request,
   storage: DraftStorage,
   readBase: (record: EditorialRecord) => Promise<HomeBase>,
-  publisher?: { storage: PublicationStorage; enabled: boolean },
+  publisher?: {
+    storage: PublicationStorage;
+    enabled: boolean;
+    mode?: "legacy" | "maintenance" | "direct";
+    direct?: Pick<
+      EditorialDraftStore,
+      | "startDirectPublication"
+      | "latestDirectPublication"
+      | "directPublicationStatus"
+      | "retryDirectPublication"
+      | "cancelDirectPublication"
+    >;
+  },
 ): Promise<Response> {
   const url = new URL(request.url);
   const action = url.pathname.split("/").at(-1);
@@ -56,9 +78,19 @@ export async function homeEditorApi(
   );
   if (!identity.success) return json({ error: "invalid_record" }, 400);
   const record = identity.data;
+  const direct =
+    publisher?.mode === "direct" || publisher?.mode === "maintenance"
+      ? publisher.direct
+      : undefined;
+  if (
+    (publisher?.mode === "direct" || publisher?.mode === "maintenance") &&
+    !direct
+  )
+    return json({ error: "publisher_unavailable" }, 503);
   if (request.method === "GET") {
     if (action === "csrf") return issueEditorialCsrf(request);
     if (action === "draft") return json({ draft: await storage.get(record) });
+    if (action === "baseline") return json({ base: await readBase(record) });
     if (action === "history") {
       const options: { beforeRevision?: number; limit?: number } = {};
       for (const name of ["beforeRevision", "limit"] as const) {
@@ -81,9 +113,11 @@ export async function homeEditorApi(
         storage.get(record),
         storage.historyPage(record),
       ]);
-      const publication = publisher
-        ? await publisher.storage.latestPublication(record)
-        : null;
+      const publication = direct
+        ? await direct.latestDirectPublication(record)
+        : publisher
+          ? await publisher.storage.latestPublication(record)
+          : null;
       return json({
         recoveryScope: EDITORIAL_OWNER_EMAIL,
         base,
@@ -92,13 +126,45 @@ export async function homeEditorApi(
         nextBeforeRevision: historyPage.nextBeforeRevision,
         publication,
         publishing: publisher?.enabled ? "ready" : "not_configured",
+        publicationMode: publisher?.mode ?? "legacy",
+      });
+    }
+    if (action === "publication-queue" && publisher) {
+      const options: PublicationQueueOptions = {};
+      for (const name of ["afterSequence", "limit"] as const) {
+        const value = url.searchParams.get(name);
+        if (value === null) continue;
+        if (
+          !/^[1-9][0-9]*$/.test(value) ||
+          !Number.isSafeInteger(Number(value))
+        )
+          return json({ error: "invalid_publication_page" }, 400);
+        options[name] = Number(value);
+      }
+      if (
+        options.limit !== undefined &&
+        options.limit > MAX_PUBLICATION_QUEUE_PAGE
+      )
+        return json({ error: "invalid_publication_page" }, 400);
+      return json(await publisher.storage.publicationQueue(options));
+    }
+    if (action === "legacy-publication" && publisher) {
+      const id = url.searchParams.get("operationId");
+      if (!id || !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(id))
+        return json({ error: "invalid_request" }, 400);
+      return json({
+        publication: await publisher.storage.publicationStatus(record, id),
       });
     }
     if (action === "publication" && publisher) {
       const id = url.searchParams.get("operationId");
-      const publication = id
-        ? await publisher.storage.publicationStatus(record, id)
-        : await publisher.storage.latestPublication(record);
+      const publication = direct
+        ? id
+          ? await direct.directPublicationStatus(record, id)
+          : await direct.latestDirectPublication(record)
+        : id
+          ? await publisher.storage.publicationStatus(record, id)
+          : await publisher.storage.latestPublication(record);
       return json({ publication });
     }
     return json({ error: "not_found" }, 404);
@@ -122,9 +188,41 @@ export async function homeEditorApi(
   )
     return json({ error: "invalid_revision" }, 400);
   const expectedRevision = Number(body.expectedRevision);
+  if (action === "cancel-legacy-publication") {
+    // Publishing stays disabled in maintenance. This narrowly scoped operation
+    // uses the same verified owner, origin and CSRF boundary as draft writes.
+    if (!publisher || publisher.mode !== "maintenance")
+      return json({ error: "maintenance_required" }, 409);
+    if (
+      !("operationId" in body) ||
+      typeof body.operationId !== "string" ||
+      !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(body.operationId) ||
+      !("expectedVersion" in body) ||
+      !Number.isSafeInteger(body.expectedVersion) ||
+      Number(body.expectedVersion) < 0 ||
+      expectedRevision < 1
+    )
+      return json({ error: "invalid_request" }, 400);
+    const result = await publisher.storage.cancelUnstartedLegacyPublication(
+      record,
+      body.operationId,
+      expectedRevision,
+      Number(body.expectedVersion),
+    );
+    return json(
+      {
+        ...result,
+        publication: await publisher.storage.publicationStatus(
+          record,
+          body.operationId,
+        ),
+      },
+      result.ok ? 200 : 409,
+    );
+  }
   if (action === "create") {
     if (
-      record.kind !== "writing" ||
+      (record.kind !== "writing" && record.kind !== "work") ||
       expectedRevision !== 0 ||
       !("title" in body) ||
       typeof body.title !== "string" ||
@@ -139,7 +237,10 @@ export async function homeEditorApi(
       return json({ error: "record_exists" }, 409);
     const result = await storage.save({
       record,
-      source: newWritingSource(body.title),
+      source:
+        record.kind === "work"
+          ? newProjectSource(record.id, body.title)
+          : newWritingSource(body.title),
       expectedRevision: 0,
       requestId: body.requestId,
       baseCommit: base.baseCommit,
@@ -163,6 +264,47 @@ export async function homeEditorApi(
     if (action === "publish") {
       if (!("discloseSource" in body) || body.discloseSource !== true)
         return json({ error: "source_disclosure_required" }, 400);
+      if (direct) {
+        if (
+          !("reviewedSourceSha256" in body) ||
+          typeof body.reviewedSourceSha256 !== "string" ||
+          !("expectedBaselineSha256" in body) ||
+          typeof body.expectedBaselineSha256 !== "string" ||
+          !("expectedPublicationId" in body) ||
+          !(
+            body.expectedPublicationId === null ||
+            typeof body.expectedPublicationId === "string"
+          )
+        )
+          return json({ error: "publication_review_upgrade_required" }, 409);
+        const result = await direct.startDirectPublication({
+          record,
+          operationId: body.operationId,
+          expectedRevision,
+          reviewedSourceSha256: body.reviewedSourceSha256,
+          expectedBaselineSha256: body.expectedBaselineSha256,
+          expectedPublicationId: body.expectedPublicationId,
+        });
+        if (!result.ok)
+          return json(
+            {
+              error: result.code,
+              ...("publication" in result
+                ? { publication: result.publication }
+                : {}),
+            },
+            409,
+          );
+        return json(
+          {
+            publication: await direct.directPublicationStatus(
+              record,
+              result.publication.id,
+            ),
+          },
+          202,
+        );
+      }
       const result = await publisher.storage.startPublication({
         record,
         operationId: body.operationId,
@@ -188,6 +330,30 @@ export async function homeEditorApi(
       !Number.isSafeInteger(body.expectedVersion)
     )
       return json({ error: "invalid_request" }, 400);
+    if (direct) {
+      const result =
+        action === "cancel-publication"
+          ? await direct.cancelDirectPublication(
+              record,
+              body.operationId,
+              Number(body.expectedVersion),
+            )
+          : await direct.retryDirectPublication(
+              record,
+              body.operationId,
+              Number(body.expectedVersion),
+            );
+      return json(
+        {
+          ...result,
+          publication: await direct.directPublicationStatus(
+            record,
+            body.operationId,
+          ),
+        },
+        result.ok ? 202 : 409,
+      );
+    }
     const result =
       action === "cancel-publication"
         ? await publisher.storage.cancelPublication(
@@ -200,7 +366,16 @@ export async function homeEditorApi(
             body.operationId,
             Number(body.expectedVersion),
           );
-    return json(result, result.ok ? 202 : 409);
+    return json(
+      {
+        ...result,
+        publication: await publisher.storage.publicationStatus(
+          record,
+          body.operationId,
+        ),
+      },
+      result.ok ? 202 : 409,
+    );
   }
   if (action === "save" || action === "rebase") {
     if (

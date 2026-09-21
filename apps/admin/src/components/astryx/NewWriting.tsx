@@ -9,6 +9,7 @@ import { Banner } from "@astryxdesign/core/Banner";
 import { writingId, validWritingId } from "../../lib/writing-draft";
 import {
   newWritingRecoveryKey,
+  newProjectRecoveryKey,
   writingRecovery,
   type NewWritingRecovery,
   recoveryLogoutKey,
@@ -23,15 +24,33 @@ import {
   downloadBrowserRecovery,
 } from "./BrowserRecoveryNotice";
 
-export function NewWriting({ recoveryScope }: { recoveryScope?: string }) {
+class DraftCreationError extends Error {}
+
+const unconfirmedCreation =
+  "Couldn’t confirm draft creation. Your details are retained; retry to check the same request safely.";
+
+type NewWritingProps = {
+  recoveryScope?: string;
+  recordKind?: "writing" | "work";
+};
+export function NewWriting({
+  recoveryScope,
+  recordKind = "writing",
+}: NewWritingProps) {
   return (
     <NewWritingForm
-      key={recoveryScope ?? "unavailable"}
+      key={`${recordKind}:${recoveryScope ?? "unavailable"}`}
       recoveryScope={recoveryScope}
+      recordKind={recordKind}
     />
   );
 }
-function NewWritingForm({ recoveryScope }: { recoveryScope?: string }) {
+function NewWritingForm({
+  recoveryScope,
+  recordKind = "writing",
+}: NewWritingProps) {
+  const project = recordKind === "work";
+  const collection = project ? "projects" : "writing";
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [customSlug, setCustomSlug] = useState(false);
@@ -49,7 +68,9 @@ function NewWritingForm({ recoveryScope }: { recoveryScope?: string }) {
     null,
   );
   const recoveryKey = recoveryScope
-    ? newWritingRecoveryKey(recoveryScope)
+    ? project
+      ? newProjectRecoveryKey(recoveryScope)
+      : newWritingRecoveryKey(recoveryScope)
     : null;
   const request = useRef<{ key: string; id: string } | null>(null);
   const active = useRef(true);
@@ -157,13 +178,13 @@ function NewWritingForm({ recoveryScope }: { recoveryScope?: string }) {
         signal: AbortSignal.any([abort.signal, AbortSignal.timeout(15000)]),
       });
       if (!csrfResponse.ok)
-        throw new Error(
+        throw new DraftCreationError(
           "Your session needs refreshing. Your title is still here.",
         );
       const { csrf } = await csrfResponse.json();
       if (!active.current || abort.signal.aborted) return;
       const response = await fetch(
-        `/api/editorial/create?kind=writing&id=${encodeURIComponent(slug)}`,
+        `/api/editorial/create?kind=${recordKind}&id=${encodeURIComponent(slug)}`,
         {
           method: "POST",
           signal: AbortSignal.any([abort.signal, AbortSignal.timeout(15000)]),
@@ -181,16 +202,18 @@ function NewWritingForm({ recoveryScope }: { recoveryScope?: string }) {
       const result = await response.json();
       if (!active.current || abort.signal.aborted) return;
       if (!response.ok || !result.ok)
-        throw new Error(
+        throw new DraftCreationError(
           response.status === 409
-            ? "An article already uses this address. Choose another address or open it from Writing."
-            : "Couldn’t create the draft. Your details are retained; try again.",
+            ? project
+              ? "A project already uses this address. Choose another address or open it from Projects."
+              : "An article already uses this address. Choose another address or open it from Writing."
+            : unconfirmedCreation,
         );
       // The library in this tab and in other open tabs lists the new draft
       // without a reload.
       if (result.draft)
         dispatchEditorialRecordCreated({
-          record: { kind: "writing", id: slug },
+          record: { kind: recordKind, id: slug },
           title: title.trim(),
           summary: "",
           revision: result.draft.revision,
@@ -198,13 +221,13 @@ function NewWritingForm({ recoveryScope }: { recoveryScope?: string }) {
         });
       if (channel) await channel.write(null);
       if (!active.current || abort.signal.aborted) return;
-      window.location.assign(`/content/writing/${slug}`);
+      window.location.assign(`/content/${collection}/${slug}`);
     } catch (error) {
       if (!active.current || abort.signal.aborted) return;
       setError(
-        error instanceof Error
+        error instanceof DraftCreationError
           ? error.message
-          : "Couldn’t create the draft. Try again.",
+          : unconfirmedCreation,
       );
     } finally {
       pending.current = false;
@@ -239,11 +262,11 @@ function NewWritingForm({ recoveryScope }: { recoveryScope?: string }) {
             }}
           />
           <TextInput
-            label="Article address"
+            label={project ? "Project address" : "Article address"}
             value={slug}
             isRequired
             isDisabled={busy || loggedOut}
-            description={`anipotts.com/writing/${slug || "your-article"}`}
+            description={`anipotts.com/${project ? "work" : "writing"}/${slug || (project ? "your-project" : "your-article")}`}
             status={
               slug && !validWritingId(slug)
                 ? {
@@ -263,7 +286,7 @@ function NewWritingForm({ recoveryScope }: { recoveryScope?: string }) {
           <Banner
             status="warning"
             title="Session ended"
-            description="Sign in again before creating an article."
+            description={`Sign in again before creating ${project ? "a project" : "an article"}.`}
           />
         )}
         {recoveryProblem && !loggedOut && (
@@ -319,7 +342,7 @@ function NewWritingForm({ recoveryScope }: { recoveryScope?: string }) {
         {error && (
           <Banner
             status="error"
-            title="Draft not created"
+            title="Draft creation needs attention"
             description={error}
           />
         )}
@@ -334,7 +357,7 @@ function NewWritingForm({ recoveryScope }: { recoveryScope?: string }) {
           <Button
             label="Cancel"
             variant="ghost"
-            href="/content?group=writing"
+            href={`/content?group=${recordKind}`}
             isDisabled={busy || loggedOut}
           />
         </HStack>

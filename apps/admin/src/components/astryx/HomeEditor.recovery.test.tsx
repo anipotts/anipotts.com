@@ -166,7 +166,7 @@ async function mount(ready = "Compare before saving again") {
   await act(async () => {
     root.render(<HomeEditor record={record} />);
   });
-  await click("Review changes");
+  await click("Publish");
   await act(async () => {
     await vi.waitFor(() => expect(host.textContent).toContain(ready), {
       timeout: 2000,
@@ -644,6 +644,8 @@ it("names the version choice and download when leaving a conflict", async () => 
         )
       : undefined;
   await mount("Another edit was saved");
+  expect(sourceValue("Your retained draft")).toBe(mine);
+  expect(sourceValue("Saved on another tab or device")).toBe(saved.source);
   await act(async () => {
     navigation.navigateAdmin("/content");
   });

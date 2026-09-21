@@ -28,13 +28,14 @@ const entry = [
 let privateUnavailable = false;
 let privateDraft: import("../../../editorial/draft-store").Draft | null = null;
 const privateIdentity = editorialRecordSchema.safeParse({
-  kind: Astro.params.collection,
+  kind:
+    Astro.params.collection === "projects" ? "work" : Astro.params.collection,
   id: Astro.params.id,
 });
 if (
   !entry &&
   privateIdentity.success &&
-  privateIdentity.data.kind === "writing"
+  ["writing", "work"].includes(privateIdentity.data.kind)
 ) {
   const snapshot = await readEditorialSnapshot(async () => {
     const storage = import.meta.env.DEV
@@ -48,7 +49,10 @@ if (
 }
 if (!entry && !privateDraft)
   Astro.response.status = privateUnavailable ? 503 : 404;
-let privateTitle = "Untitled article";
+let privateTitle =
+  Astro.params.collection === "projects"
+    ? "Untitled project"
+    : "Untitled article";
 if (privateDraft) {
   try {
     privateTitle = String(
@@ -85,7 +89,7 @@ const publicPath =
 const review: Review | undefined = entry
   ? {
       updated: recordUpdate(entry.collection, entry.id),
-      back: `/content?group=${project ? "work" : writing ? "writing" : entry.collection === "systemsPage" ? "systems" : "pages"}`,
+      back: `/content?group=${project ? "work" : writing ? "writing" : "website"}`,
       status:
         project?.public_state ??
         writing?.status ??

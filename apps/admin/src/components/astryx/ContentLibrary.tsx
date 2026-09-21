@@ -582,175 +582,191 @@ export function ContentLibrary({
           </DropdownMenu>
         </HStack>
       </HStack>
-      {records.length ? (
-        <>
-          <Table
-            className="editorial-record-table"
-            data={records}
-            idKey="href"
-            density="compact"
-            dividers="none"
-            hasHover
-            aria-label={`${interfaceLabel(group.name)} records`}
-            columns={[
-              {
-                key: "title",
-                header: "Title",
-                width: proportional(1, { minWidth: 80 }),
-                renderCell: (item) => (
-                  <HStack
-                    gap={3}
-                    vAlign="center"
-                    className="editorial-record-heading"
-                  >
-                    <RecordGlyph record={item} />
-                    <VStack gap={1} className="editorial-record-content">
-                      <Button
-                        size="sm"
-                        label={item.title}
-                        href={recordLibraryHref(item.href, currentUrl)}
-                        variant="ghost"
-                        className="record-link"
-                      />
-                      <HStack
-                        className="editorial-mobile-status"
-                        gap={3}
-                        wrap="wrap"
-                        vAlign="center"
-                      >
-                        <RecordState
-                          record={item}
-                          inventoryError={inventoryError}
-                        />
-                        <Updated updated={item.updated} column />
-                      </HStack>
-                    </VStack>
-                  </HStack>
-                ),
-              },
-              {
-                key: "summary",
-                header: "Summary",
-                width: proportional(1, { minWidth: 80 }),
-                renderCell: (item) =>
-                  item.summary ? (
-                    <Text
-                      type="supporting"
-                      color="secondary"
-                      className="editorial-record-summary"
+      <VStack gap={0} className="admin-table-surface">
+        {records.length ? (
+          <>
+            <Table
+              className="editorial-record-table"
+              data={records}
+              idKey="href"
+              density="compact"
+              dividers="none"
+              hasHover
+              aria-label={`${interfaceLabel(group.name)} records`}
+              columns={[
+                {
+                  key: "title",
+                  header: "Title",
+                  width: proportional(1, { minWidth: 80 }),
+                  renderCell: (item) => (
+                    <HStack
+                      gap={3}
+                      vAlign="center"
+                      className="editorial-record-heading"
                     >
-                      {item.summary}
-                    </Text>
-                  ) : null,
-              },
-              ...(showSections
-                ? [
-                    {
-                      key: "section",
-                      header: "Kind",
-                      width: pixel(124),
-                      renderCell: (item: CatalogRecord) => (
-                        <Token
+                      <RecordGlyph record={item} />
+                      <VStack gap={1} className="editorial-record-content">
+                        <Button
                           size="sm"
-                          color="default"
-                          className="editorial-record-kind"
-                          label={interfaceLabel(recordSection(item))}
+                          label={item.title}
+                          href={recordLibraryHref(item.href, currentUrl)}
+                          variant="ghost"
+                          className="record-link"
                         />
-                      ),
-                    },
-                  ]
-                : []),
-              {
-                key: "status",
-                header: "State",
-                width: pixel(228),
-                renderCell: (item) => (
-                  <RecordState record={item} inventoryError={inventoryError} />
-                ),
-              },
-              {
-                key: "updated",
-                header: "Updated",
-                width: pixel(112),
-                renderCell: (item) => <Updated updated={item.updated} column />,
-              },
-              {
-                key: "action",
-                header: <Text className="sr-only">Action</Text>,
-                width: pixel(52),
-                align: "end",
-                renderCell: (item) => (
-                  <RecordAction
-                    record={item}
-                    returnTo={currentUrl}
-                    inventoryError={inventoryError}
+                        <HStack
+                          className="editorial-mobile-status"
+                          gap={3}
+                          wrap="wrap"
+                          vAlign="center"
+                        >
+                          <RecordState
+                            record={item}
+                            inventoryError={inventoryError}
+                          />
+                          <Updated updated={item.updated} column />
+                        </HStack>
+                      </VStack>
+                    </HStack>
+                  ),
+                },
+                {
+                  key: "summary",
+                  header: "Summary",
+                  width: proportional(1, { minWidth: 80 }),
+                  renderCell: (item) =>
+                    item.summary ? (
+                      <Text
+                        type="supporting"
+                        color="secondary"
+                        className="editorial-record-summary"
+                      >
+                        {item.summary}
+                      </Text>
+                    ) : null,
+                },
+                ...(showSections
+                  ? [
+                      {
+                        key: "section",
+                        header: "Kind",
+                        width: pixel(124),
+                        renderCell: (item: CatalogRecord) => (
+                          <Token
+                            size="sm"
+                            color="default"
+                            className="editorial-record-kind"
+                            label={interfaceLabel(recordSection(item))}
+                          />
+                        ),
+                      },
+                    ]
+                  : []),
+                {
+                  key: "status",
+                  header: "State",
+                  width: pixel(228),
+                  renderCell: (item) => (
+                    <RecordState
+                      record={item}
+                      inventoryError={inventoryError}
+                    />
+                  ),
+                },
+                {
+                  key: "updated",
+                  header: "Updated",
+                  width: pixel(112),
+                  renderCell: (item) => (
+                    <Updated updated={item.updated} column />
+                  ),
+                },
+                {
+                  key: "action",
+                  header: <Text className="sr-only">Action</Text>,
+                  width: pixel(52),
+                  align: "end",
+                  renderCell: (item) => (
+                    <RecordAction
+                      record={item}
+                      returnTo={currentUrl}
+                      inventoryError={inventoryError}
+                    />
+                  ),
+                },
+              ]}
+            />
+          </>
+        ) : (
+          <EmptyState
+            title={
+              inventoryError
+                ? "Records unavailable"
+                : group.records.length === 0
+                  ? "No records yet"
+                  : "No matching records"
+            }
+            actions={
+              inventoryError ? undefined : group.records.length === 0 ? (
+                area === "content" &&
+                ["writing", "work", "pages"].includes(group.name) ? (
+                  <Button
+                    label={
+                      group.name === "work" ? "New project" : "New article"
+                    }
+                    href={
+                      group.name === "work"
+                        ? "/content/new-project"
+                        : "/content/new"
+                    }
                   />
-                ),
-              },
-            ]}
+                ) : undefined
+              ) : (
+                <Button
+                  label="Clear filters"
+                  onClick={() => {
+                    change({ q: "", status: "all", sections: undefined });
+                  }}
+                />
+              )
+            }
           />
-        </>
-      ) : (
-        <EmptyState
-          title={
-            inventoryError
-              ? "Records unavailable"
-              : group.records.length === 0
-                ? "No records yet"
-                : "No matching records"
-          }
-          actions={
-            inventoryError ? undefined : group.records.length === 0 ? (
-              area === "content" &&
-              ["writing", "pages"].includes(group.name) ? (
-                <Button label="New article" href="/content/new" />
-              ) : undefined
-            ) : (
-              <Button
-                label="Clear filters"
-                onClick={() => {
-                  change({ q: "", status: "all", sections: undefined });
-                }}
-              />
-            )
-          }
-        />
-      )}
-      <HStack
-        gap={5}
-        wrap="wrap"
-        vAlign="center"
-        className="admin-table-footer editorial-filter-row"
-      >
-        <Text
-          type="supporting"
-          color="secondary"
-          aria-live="polite"
-          role="status"
-          aria-label={`${records.length} ${records.length === 1 ? "record" : "records"}`}
-          className="editorial-record-count"
+        )}
+        <HStack
+          gap={5}
+          wrap="wrap"
+          vAlign="center"
+          className="admin-table-footer"
         >
-          {records.length}
           <Text
             type="supporting"
             color="secondary"
-            className="editorial-record-count-label"
+            aria-live="polite"
+            role="status"
+            aria-label={`${records.length} ${records.length === 1 ? "record" : "records"}`}
+            className="editorial-record-count"
           >
-            {" "}
-            {records.length === 1 ? "record" : "records"} in view
+            {records.length}
+            <Text
+              type="supporting"
+              color="secondary"
+              className="editorial-record-count-label"
+            >
+              {" "}
+              {records.length === 1 ? "record" : "records"} in view
+            </Text>
           </Text>
-        </Text>
-        {libraryFigures(records).map(([label, value]) => (
-          <Text
-            key={label}
-            type="supporting"
-            color="secondary"
-            className="admin-table-figure"
-          >
-            <strong>{value}</strong> {label}
-          </Text>
-        ))}
-      </HStack>
+          {libraryFigures(records).map(([label, value]) => (
+            <Text
+              key={label}
+              type="supporting"
+              color="secondary"
+              className="admin-table-figure"
+            >
+              <strong>{value}</strong> {label}
+            </Text>
+          ))}
+        </HStack>
+      </VStack>
     </VStack>
   );
 }

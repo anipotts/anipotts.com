@@ -5,9 +5,36 @@
   "compatibility_date": "2026-09-08",
   "compatibility_flags": ["nodejs_compat"],
   "durable_objects": {
-    "bindings": [{ "name": "EDITORIAL", "class_name": "EditorialDraftStore" }],
+    "bindings": [
+      { "name": "EDITORIAL", "class_name": "EditorialDraftStore" },
+      { "name": "DIRECT_EDITORIAL", "class_name": "DirectEditorialDraftStore" },
+      {
+        "name": "MAINTENANCE_EDITORIAL",
+        "class_name": "MaintenanceEditorialDraftStore",
+      },
+    ],
   },
+  "d1_databases": [
+    {
+      "binding": "CONTENT_DB",
+      "database_name": "isolated-publication-test",
+      "database_id": "00000000-0000-0000-0000-000000000001",
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "CONTENT_MEDIA",
+      "bucket_name": "isolated-publication-media-test",
+    },
+  ],
   "migrations": [
-    { "tag": "editorial-v1", "new_sqlite_classes": ["EditorialDraftStore"] },
+    {
+      "tag": "editorial-v1",
+      "new_sqlite_classes": [
+        "EditorialDraftStore",
+        "DirectEditorialDraftStore",
+        "MaintenanceEditorialDraftStore",
+      ],
+    },
   ],
 }

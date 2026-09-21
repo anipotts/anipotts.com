@@ -131,3 +131,130 @@ it.each([
         expect(document.getElementById(id), id).not.toBeNull();
   },
 );
+
+const homeSource = `---
+sections:
+  intro: { visible: true, label: Intro, heading: Hello, subheading: Synthetic summary }
+  past_work: { visible: true, label: Work, heading: Work }
+  latest_thoughts:
+    visible: true
+    label: Writing
+    heading: Writing
+    writing_slugs: [first, second]
+section_order: [intro, past_work, latest_thoughts]
+mentions: {}
+custom: retained
+---
+Synthetic body.
+`;
+
+it("saves homepage selection changes through the existing editor without replacing other fields", async () => {
+  let saved = "";
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, options?: RequestInit) => {
+      if (url.includes("/csrf"))
+        return new Response(JSON.stringify({ csrf: "test" }));
+      if (url.includes("/save?")) {
+        saved = JSON.parse(String(options?.body)).source;
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            draft: { ...snapshot(saved).draft, revision: 2 },
+          }),
+        );
+      }
+      return new Response(JSON.stringify(snapshot(homeSource)));
+    }),
+  );
+  window.history.replaceState(null, "", "/content/home/home");
+  await act(async () =>
+    root.render(
+      <HomeEditor
+        record={{ kind: "page", id: "home" }}
+        homepageWritingOptions={[
+          { slug: "first", title: "First", status: "published" },
+          { slug: "second", title: "Second", status: "published" },
+        ]}
+      />,
+    ),
+  );
+  await act(async () => {
+    await vi.waitFor(() =>
+      expect(
+        host.querySelector('[aria-label="Remove selection 1"]'),
+      ).not.toBeNull(),
+    );
+    (
+      host.querySelector(
+        '[aria-label="Remove selection 1"]',
+      ) as HTMLButtonElement
+    ).click();
+  });
+  await act(async () => {
+    await vi.waitFor(() => expect(saved).toContain("second"), {
+      timeout: 3000,
+    });
+  });
+  expect(saved).not.toContain("first");
+  expect(saved).toContain("custom: retained");
+  expect(saved).toContain("Synthetic body.");
+});
+
+it("retains malformed homepage selections instead of exposing destructive replacement controls", async () => {
+  const source = homeSource.replace(
+    "writing_slugs: [first, second]",
+    "writing_slugs: null",
+  );
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(JSON.stringify(snapshot(source)))),
+  );
+  await act(async () =>
+    root.render(<HomeEditor record={{ kind: "page", id: "home" }} />),
+  );
+  await act(async () => {
+    await vi.waitFor(() =>
+      expect(host.textContent).toContain(
+        "Homepage article selection needs repair",
+      ),
+    );
+  });
+  expect(host.querySelector('[aria-label="Add article"]')).toBeNull();
+});
+
+it("opens project properties directly from an invalid draft warning", async () => {
+  HTMLDialogElement.prototype.showModal = function () {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close = function () {
+    this.removeAttribute("open");
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      async (url: string) =>
+        new Response(
+          JSON.stringify(
+            url.includes("/csrf")
+              ? { csrf: "test-only" }
+              : snapshot(workSource),
+          ),
+        ),
+    ),
+  );
+  window.history.replaceState(null, "", "/content/projects/test");
+  await act(async () => {
+    root.render(<HomeEditor record={{ kind: "work", id: "test" }} />);
+  });
+  expect(host.textContent).not.toContain("article settings");
+  const check = Array.from(host.querySelectorAll("button")).find((button) =>
+    button.textContent?.includes("Check properties"),
+  );
+  expect(check).toBeTruthy();
+  await act(async () => {
+    check!.click();
+  });
+  expect(document.body.textContent).toContain("Category");
+  expect(document.body.textContent).toContain("Role");
+});

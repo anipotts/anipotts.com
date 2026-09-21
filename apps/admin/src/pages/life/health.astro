@@ -26,6 +26,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
     section="health"
     summaries={healthCards}
     available={knowledge.available}
+    sourceMode={knowledge.source_mode}
     client:load
   />
 </AdminLayout>

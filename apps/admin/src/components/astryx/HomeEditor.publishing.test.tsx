@@ -257,7 +257,7 @@ it("does not mark newer buffered edits saved when an earlier save is acknowledge
   const status = () => host.querySelector('[role="status"][data-save-state]');
   await typeTitle("First buffered title");
   expect(status()?.getAttribute("data-save-state")).toBe("changed");
-  await click("Review changes");
+  await click("Publish");
   await act(async () => {
     await vi.waitFor(() =>
       expect(sourceSent).toContain("First buffered title"),
@@ -373,7 +373,7 @@ it("rejects publication when buffered edits no longer match the reviewed revisio
   });
   await click("Approve and publish");
   expect(posts).toEqual([]);
-  expect(host.textContent).toContain("Couldn’t start publishing");
+  expect(host.textContent).toContain("The draft changed before publishing");
   expect(title.value).toBe("Changed after review");
 });
 
@@ -439,10 +439,7 @@ it("groups document actions under labeled menu sections, not dividers", async ()
         (item) => item.querySelector("span > span")?.textContent,
       ),
     ]);
-  const inspect = [
-    "Inspect",
-    ["View source", "Version history", "Compare with website"],
-  ];
+  const inspect = ["Inspect", ["View source", "Compare with website"]];
   const draftActions = [
     "Open production editor",
     "Download draft",
@@ -450,7 +447,7 @@ it("groups document actions under labeled menu sections, not dividers", async ()
   ];
   let menu = await openMenu();
   expect(sections(menu)).toEqual([inspect, ["Draft", draftActions]]);
-  expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(6);
+  expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(5);
   // Leaving the editor tab commits the buffered title, so Save now appears.
   const viewSource = [...menu.querySelectorAll('[role="menuitem"]')].find(
     (item) => item.textContent === "View source",
@@ -461,7 +458,7 @@ it("groups document actions under labeled menu sections, not dividers", async ()
     inspect,
     ["Draft", [...draftActions, "Save now"]],
   ]);
-  expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(7);
+  expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(6);
 });
 
 it("polls an unfinished publication only while the page is visible", async () => {
@@ -546,68 +543,83 @@ it("releases an unread record error body and shows the load failure", async () =
   expect(cancel).toHaveBeenCalledOnce();
 });
 
-it("updates the library row once when this tab's publication reaches live", async () => {
-  const job = (phase: string) => ({
-    id: "test-publication",
-    phase,
-    version: 1,
-    attempts: 0,
-    dueAt: 0,
-    lease: null,
-    leaseUntil: 0,
-    blocked: null,
-    checkpoint: {},
-  });
-  let finish!: (value: Response) => void;
-  let phase = "deploy";
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (url: string) => {
-      if (url.includes("/csrf")) return response({ csrf: "test-only" });
-      if (url.includes("operationId="))
-        return response({ publication: job(phase) });
-      if (url.includes("/publish"))
-        return new Promise<Response>((resolve) => (finish = resolve));
-      return response(snapshot);
-    }),
-  );
-  const events: CustomEvent[] = [];
-  const listen = (event: Event) => events.push(event as CustomEvent);
-  window.addEventListener(RECORD_SAVED_EVENT, listen);
-  try {
-    await mount("?view=review", false);
-    const publish = [...host.querySelectorAll("button")].find(
-      (button) => button.textContent?.trim() === "Approve and publish",
-    )!;
-    await act(async () => {
-      publish.click();
-      await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+it.each(["legacy", "verified", "superseded", "unverified"])(
+  "announces only a confirmed current publication (%s)",
+  async (mode) => {
+    const job = (phase: string) => ({
+      id: "test-publication",
+      ...(mode === "legacy"
+        ? {}
+        : {
+            mode: "direct",
+            publicationId: "receipt",
+            superseded: mode === "superseded",
+            verifiedAt: mode === "unverified" ? null : 12345,
+          }),
+      phase,
+      version: 1,
+      attempts: 0,
+      dueAt: 0,
+      lease: null,
+      leaseUntil: 0,
+      blocked: null,
+      checkpoint: {},
     });
-    vi.useFakeTimers();
-    await act(async () => finish(response({ publication: job("validate") })));
-    const advance = (ms: number) =>
-      act(async () => {
-        await vi.advanceTimersByTimeAsync(ms);
+    let finish!: (value: Response) => void;
+    let phase = "deploy";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("/csrf")) return response({ csrf: "test-only" });
+        if (url.includes("operationId="))
+          return response({ publication: job(phase) });
+        if (url.includes("/publish"))
+          return new Promise<Response>((resolve) => (finish = resolve));
+        return response(snapshot);
+      }),
+    );
+    const events: CustomEvent[] = [];
+    const listen = (event: Event) => events.push(event as CustomEvent);
+    window.addEventListener(RECORD_SAVED_EVENT, listen);
+    try {
+      await mount("?view=review", false);
+      const publish = [...host.querySelectorAll("button")].find(
+        (button) => button.textContent?.trim() === "Approve and publish",
+      )!;
+      await act(async () => {
+        publish.click();
+        await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
       });
-    await advance(4000);
-    expect(events).toHaveLength(0);
-    phase = "live";
-    await advance(4000);
-    expect(events).toHaveLength(1);
-    expect(events[0]!.detail).toMatchObject({
-      record: { kind: "writing", id: "test" },
-      title: "Original title",
-      revision: 1,
-      changesPending: false,
-      publishedAt: expect.any(String),
-    });
-    await advance(60000);
-    expect(events).toHaveLength(1);
-  } finally {
-    vi.useRealTimers();
-    window.removeEventListener(RECORD_SAVED_EVENT, listen);
-  }
-});
+      vi.useFakeTimers();
+      await act(async () => finish(response({ publication: job("validate") })));
+      const advance = (ms: number) =>
+        act(async () => {
+          await vi.advanceTimersByTimeAsync(ms);
+        });
+      await advance(4000);
+      expect(events).toHaveLength(0);
+      phase = "live";
+      await advance(4000);
+      if (mode === "superseded" || mode === "unverified") {
+        expect(events).toHaveLength(0);
+        return;
+      }
+      expect(events).toHaveLength(1);
+      expect(events[0]!.detail).toMatchObject({
+        record: { kind: "writing", id: "test" },
+        title: "Original title",
+        revision: 1,
+        changesPending: false,
+        publishedAt: expect.any(String),
+      });
+      await advance(60000);
+      expect(events).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+      window.removeEventListener(RECORD_SAVED_EVENT, listen);
+    }
+  },
+);
 
 it("updates the library row when a discarded draft is recovered", async () => {
   const discarded = { ...draft, discardedAt: Date.now() };
@@ -639,4 +651,296 @@ it("updates the library row when a discarded draft is recovered", async () => {
   } finally {
     window.removeEventListener(RECORD_SAVED_EVENT, listen);
   }
+});
+
+it("reconciles a lost submit response without creating another publication", async () => {
+  const requests: Record<string, unknown>[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      if (url.includes("/publish?")) {
+        requests.push(JSON.parse(init!.body as string));
+        throw new TypeError("network interrupted after acceptance");
+      }
+      if (url.includes("/publication?"))
+        return response({
+          publication: {
+            id: requests[0].operationId,
+            phase: "validate",
+            version: 0,
+            attempts: 0,
+            dueAt: 0,
+            lease: null,
+            leaseUntil: 0,
+            blocked: null,
+            checkpoint: {},
+            queue: {
+              position: 2,
+              pending: 2,
+              alarmAt: null,
+              head: {
+                id: "older",
+                sequence: 1,
+                record: { kind: "work", id: "sample-project" },
+                revision: 1,
+                createdAt: 0,
+                phase: "validate",
+                version: 3,
+                attempts: 2,
+                dueAt: 0,
+                leaseUntil: 0,
+                blocked: "unreleased_public_changes",
+                cancelRequested: false,
+              },
+            },
+          },
+        });
+      return response(snapshot);
+    }),
+  );
+  await mount("?view=review", false);
+  await click("Approve and publish");
+  expect(requests).toHaveLength(1);
+  expect(host.textContent).toContain("sample-project");
+  expect(host.textContent).not.toContain("Couldn’t confirm publication");
+  expect(
+    host.querySelector('[aria-label="Publication progress"]'),
+  ).not.toBeNull();
+  expect(
+    [...host.querySelectorAll("button")].find(
+      (b) => b.textContent?.trim() === "Approve and publish",
+    )?.disabled,
+  ).toBe(true);
+});
+
+it("prepares a new private revision when reviewing an identical cancelled publication", async () => {
+  const requests: Record<string, unknown>[] = [];
+  let saved = draft;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      if (url.includes("/save?")) {
+        const input = JSON.parse(init!.body as string);
+        saved = { ...draft, source: input.source, revision: 2 };
+        expect(input.expectedRevision).toBe(1);
+        return response({ ok: true, draft: saved, valid: true });
+      }
+      if (url.includes("/publish?")) {
+        requests.push(JSON.parse(init!.body as string));
+        return response({
+          publication: {
+            id: "new-operation",
+            revision: 2,
+            phase: "validate",
+            version: 0,
+            attempts: 0,
+            dueAt: 0,
+            lease: null,
+            leaseUntil: 0,
+            blocked: null,
+            checkpoint: {},
+          },
+        });
+      }
+      return response({
+        ...snapshot,
+        publication: {
+          id: "old-operation",
+          revision: 1,
+          phase: "cancelled",
+          version: 1,
+          attempts: 0,
+          dueAt: 0,
+          lease: null,
+          leaseUntil: 0,
+          blocked: null,
+          checkpoint: {},
+        },
+      });
+    }),
+  );
+  await mount("?view=review", false);
+  await click("Approve and publish");
+  expect(saved.source).toBe(draft.source);
+  expect(requests).toHaveLength(1);
+  expect(requests[0].expectedRevision).toBe(2);
+  expect(requests[0].operationId).not.toBe("old-operation");
+});
+
+it("direct publishing reviews the current public baseline and sends exact source identities without Git", async () => {
+  const { publicationSourceHash } =
+    await import("@anipotts/content/editorial/publication-contract");
+  const publishedSource = source.replace(
+    "status: draft",
+    "status: published\npublished_at: 2026-09-20",
+  );
+  const currentSource = publishedSource.replace("Original body.", "New body.");
+  const cmsBase = {
+    source: publishedSource,
+    baseCommit: "a".repeat(40),
+    baseFileHash: "b".repeat(40),
+    publicationId: "8d9c853e-21e7-4aeb-adf2-2bfc9d3fe0de",
+  };
+  let payload: any;
+  const publication = {
+    mode: "direct",
+    id: "41a75aab-8666-4e76-ad26-0e227199cbde",
+    phase: "validate",
+    version: 0,
+    attempts: 0,
+    dueAt: Date.now(),
+    lease: null,
+    leaseUntil: 0,
+    blocked: null,
+    checkpoint: {},
+    publicationId: null,
+    revision: 1,
+    queue: { pending: 1, position: null, head: null, alarmAt: Date.now() },
+    canCancel: true,
+  };
+  const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.includes("/csrf")) return response({ csrf: "test-only" });
+    if (url.includes("/baseline")) return response({ base: cmsBase });
+    if (url.includes("/publish?")) {
+      payload = JSON.parse(String(init?.body));
+      return response({ publication });
+    }
+    return response({
+      ...snapshot,
+      publicationMode: "direct",
+      base: cmsBase,
+      draft: { ...draft, source: currentSource },
+    });
+  });
+  vi.stubGlobal("fetch", fetcher);
+  await mount("", false);
+  await click("Publish");
+  await click("Approve and publish");
+  await act(async () => {
+    await vi.waitFor(() => expect(payload).toBeDefined());
+  });
+  expect(payload).toMatchObject({
+    expectedRevision: 1,
+    expectedPublicationId: cmsBase.publicationId,
+    expectedBaselineSha256: await publicationSourceHash(publishedSource),
+    reviewedSourceSha256: await publicationSourceHash(currentSource),
+  });
+  expect(fetcher.mock.calls.some(([url]) => url.includes("/baseline"))).toBe(
+    true,
+  );
+  expect(host.textContent).not.toContain("GitHub");
+});
+
+it("explains a known direct publisher refusal instead of claiming an ambiguous send", async () => {
+  const publishedSource = source.replace(
+    "status: draft",
+    "status: published\npublished_at: 2026-09-20",
+  );
+  const cmsBase = {
+    ...snapshot.base,
+    source: publishedSource,
+    publicationId: null,
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      if (url.includes("/baseline")) return response({ base: cmsBase });
+      if (url.includes("/publish?"))
+        return new Response(
+          JSON.stringify({
+            error: "legacy_publication_requires_reconciliation",
+          }),
+          { status: 409 },
+        );
+      if (url.includes("/publication?")) return response({ publication: null });
+      return response({
+        ...snapshot,
+        publicationMode: "direct",
+        base: cmsBase,
+        draft: {
+          ...draft,
+          source: publishedSource.replace("Original body.", "Changed body."),
+        },
+      });
+    }),
+  );
+  await mount("", false);
+  await click("Publish");
+  await click("Approve and publish");
+  await act(async () => {
+    await vi.waitFor(() =>
+      expect(
+        vi
+          .mocked(fetch)
+          .mock.calls.some(([url]) => String(url).includes("/publication?")),
+      ).toBe(true),
+    );
+  });
+  expect(host.textContent).toContain("previous publisher has unfinished work");
+  expect(host.textContent).not.toContain("Couldn’t confirm publication");
+});
+
+it("blocks unsupported direct publication before submission while retaining the draft", async () => {
+  const requests: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      requests.push(url);
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      return response({
+        ...snapshot,
+        draft: {
+          ...draft,
+          source: draft.source.replace(/status: [^\n]+/, "status: scheduled"),
+        },
+        publicationMode: "direct",
+      });
+    }),
+  );
+  await mount("?view=review", false);
+  expect(host.textContent).toContain(
+    "Scheduling and unpublishing are unavailable",
+  );
+  const approve = [...host.querySelectorAll("button")].find(
+    (button) => button.textContent?.trim() === "Approve and publish",
+  );
+  expect(approve).toBeTruthy();
+  expect(approve?.disabled).toBe(true);
+  expect(requests.some((url) => url.includes("approve-publication"))).toBe(
+    false,
+  );
+});
+
+it("labels an activated retry as verification", async () => {
+  const publication = {
+    mode: "direct",
+    id: "existing-operation",
+    phase: "verify",
+    version: 1,
+    attempts: 1,
+    dueAt: 0,
+    lease: null,
+    leaseUntil: 0,
+    blocked: "verification_incomplete",
+    checkpoint: {},
+    publicationId: "existing-receipt",
+    verifiedAt: null,
+    superseded: false,
+    revision: 1,
+    canCancel: false,
+    queue: { pending: 1, position: 1, head: null, alarmAt: null },
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      return response({ ...snapshot, publicationMode: "direct", publication });
+    }),
+  );
+  await mount("?panel=publication", false);
+  expect(host.textContent).toContain("Retry verification");
+  expect(host.textContent).not.toContain("Retry publishing");
 });

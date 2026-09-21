@@ -1,14 +1,18 @@
 ---
-import { getEntry } from "astro:content";
 import HomePage from "../components/HomePage.astro";
-import { publishedWriting, visibleProjects } from "../lib/content";
-export const prerender = true;
-const home = await getEntry("home", "home");
-if (!home) throw new Error("Missing canonical homepage content");
+import {
+  publishedWriting,
+  visibleProjects,
+  publicPage,
+  publicContentContext,
+} from "../lib/content";
+export const prerender = false;
+const context = publicContentContext(Astro.locals);
+const home = await publicPage("home", context);
 ---
 
 <HomePage
-  cmsHome={home.data}
-  allWork={await visibleProjects()}
-  allWriting={await publishedWriting()}
+  cmsHome={home}
+  allWork={await visibleProjects(context)}
+  allWriting={await publishedWriting(context)}
 />

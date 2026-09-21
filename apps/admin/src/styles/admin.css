@@ -6,9 +6,9 @@
 /* Legacy tokens switch on the computed color-scheme, as Astryx tokens do.
    AdminLayout sets that scheme inline, so system mode needs no data-theme. */
 :root {
-  --color-background: light-dark(#f7faff, var(--brand-dark-background));
-  --color-surface: light-dark(#ffffff, var(--brand-elevated-surface));
-  --color-surface-elevated: light-dark(#edf2f7, var(--brand-elevated-surface));
+  --color-background: light-dark(#f7faff, var(--color-background-body));
+  --color-surface: light-dark(#ffffff, var(--color-background-surface));
+  --color-surface-elevated: light-dark(#edf2f7, var(--color-background-surface));
   --color-text: light-dark(#0b1220, var(--brand-primary-text));
   --color-text-muted: light-dark(#46566c, var(--brand-muted-text));
   --color-action: light-dark(#25689f, var(--brand-action));
@@ -37,7 +37,7 @@
   --panel: var(--surface);
   --panel-strong: light-dark(
     color-mix(in srgb, var(--brand-dark-blue) 8%, var(--brand-white)),
-    var(--brand-elevated-surface)
+    var(--color-background-surface)
   );
   --text: var(--ink);
   --muted: var(--ink-muted);
@@ -47,10 +47,10 @@
   --inverse-ink: var(--interactive-ink);
   --field-surface: light-dark(
     color-mix(in srgb, var(--brand-dark-blue) 2%, var(--brand-white)),
-    var(--brand-elevated-surface)
+    var(--color-background-surface)
   );
   --warn-border: light-dark(#d6a950, #f9e2af);
-  --warn-surface: light-dark(#fbf4dd, var(--brand-elevated-surface));
+  --warn-surface: light-dark(#fbf4dd, var(--color-background-surface));
 }
 
 /* quiet admin console */
@@ -2331,11 +2331,6 @@ th {
   transition:
     border-color 140ms ease,
     box-shadow 140ms ease;
-}
-
-.native-password-field:focus-within {
-  border-color: color-mix(in srgb, var(--accent) 58%, var(--border));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .native-password-field input {

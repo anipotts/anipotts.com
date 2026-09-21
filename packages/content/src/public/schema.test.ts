@@ -30,6 +30,22 @@ describe("canonical public boundaries", () => {
     expect(isPublishedWriting({ status: "published" })).toBe(true);
   });
 
+  it("keeps an opening optional and distinct from the listing subtitle", () => {
+    const draft = { title: "test", summary: "a test", status: "draft" };
+    expect(writingSchema.parse(draft)).not.toHaveProperty("opening");
+    const opening = "Fixing a small bug made me rethink how I approach this.";
+    expect(writingSchema.parse({ ...draft, opening })).toMatchObject({
+      summary: "a test",
+      opening,
+    });
+    expect(
+      writingSchema.safeParse({ ...draft, opening: "x".repeat(2001) }).success,
+    ).toBe(false);
+    expect(writingSchema.safeParse({ ...draft, opening: 42 }).success).toBe(
+      false,
+    );
+  });
+
   it("requires an actual publication date", () => {
     const draft = { title: "test", summary: "a test", status: "draft" };
     expect(writingSchema.safeParse(draft).success).toBe(true);

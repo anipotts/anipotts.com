@@ -1,13 +1,16 @@
+import { publicContentContext } from "../lib/content";
 import { inlinePlainText } from "@anipotts/content/public/inline";
 import rss from "@astrojs/rss";
 import type { APIRoute } from "astro";
 import { siteConfig } from "@anipotts/content/public";
 import { publishedWriting, writingSlug } from "../lib/content";
 
-export const prerender = true;
+export const prerender = false;
 
 export const GET: APIRoute = async (context) => {
-  const writingEntries = (await publishedWriting()).slice(0, 50);
+  const writingEntries = (
+    await publishedWriting(publicContentContext(context.locals))
+  ).slice(0, 50);
   const latestPublication = Math.max(
     0,
     ...writingEntries.map((entry) => entry.data.published_at?.getTime() ?? 0),
