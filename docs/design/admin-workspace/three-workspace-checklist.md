@@ -38,6 +38,19 @@ Report local implementation, tests, owner review, merge, deployment and live pro
 separately. Connected capability and recovery are acceptance requirements, not
 assumptions inferred from a polished screen.
 
+### Local project media acceptance, September 21
+
+Synthetic private fixture: `qa-project-media-20260921`, title
+`QA project media acceptance`, on the existing port 4755 local preview.
+Browser acceptance demonstrated project creation, PNG upload, alt/caption edits,
+16:9 crop (240 × 135), acknowledged save, reload with metadata and image retained,
+then explicit preview-reference removal and reload with the reference absent.
+The fixture remains private and local; no publication or production mutation ran.
+Original image objects and revision history were not deleted. Removal controls
+are disabled during image processing. Component/helper tests cover retained
+sibling content and pending-state removal protection. Provider recovery and
+production media access still require their own acceptance.
+
 ## Historical September 12 plan
 
 The following is retained as design history. Its task ownership and completion
