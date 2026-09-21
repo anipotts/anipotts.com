@@ -64,13 +64,13 @@ export function LifeActivityView({ reader }: { reader: LifeReader }) {
         current = next;
         failures = 0;
         setState(next.catchingUp ? "catching_up" : "current");
-        delay = next.catchingUp ? 100 : 1000;
+        delay = next.catchingUp ? 1000 : 60_000;
       } catch {
         if (disposed) return;
         if (!controller.signal.aborted) {
           failures += 1;
           setState("unavailable");
-          delay = Math.min(5000, 1000 * 2 ** Math.min(failures, 3));
+          delay = Math.min(300_000, 60_000 * 2 ** Math.min(failures - 1, 3));
         }
       } finally {
         if (inFlight === controller) inFlight = undefined;

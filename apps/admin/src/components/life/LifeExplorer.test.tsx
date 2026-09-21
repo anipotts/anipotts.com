@@ -512,12 +512,12 @@ describe("Life reader interactions", () => {
     };
     await act(async () => root.render(<LifeActivityView reader={reader} />));
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(60000);
     });
     expect(container.textContent).toContain("unavailable");
     expect(container.textContent).toContain("1 record, 2026-01-01T00:00:00Z");
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(2000);
+      await vi.advanceTimersByTimeAsync(60000);
     });
     expect(requests.at(-1)).toEqual({ method: "activity", after: 8 });
     await act(async () => root.unmount());
@@ -564,6 +564,10 @@ describe("Life reader interactions", () => {
         await vi.advanceTimersByTimeAsync(0);
       });
       expect(requests).toHaveLength(1);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(59000);
+      });
+      expect(requests).toHaveLength(1);
       await setHidden(true);
       await act(async () => {
         await vi.advanceTimersByTimeAsync(60000);
@@ -571,12 +575,12 @@ describe("Life reader interactions", () => {
       expect(requests).toHaveLength(1);
       await setHidden(false);
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(1000);
+        await vi.advanceTimersByTimeAsync(60000);
       });
       expect(requests).toHaveLength(2);
       denied = true;
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(1000);
+        await vi.advanceTimersByTimeAsync(60000);
       });
       expect(requests).toHaveLength(3);
       expect(container.textContent).not.toContain("succeeded");
@@ -674,7 +678,7 @@ it("clears activity when its reader disconnects", async () => {
   expect(container.textContent).toContain("succeeded");
   disconnected = true;
   await act(async () => {
-    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(60000);
   });
   expect(container.textContent).not.toContain("succeeded");
   expect(container.textContent).toContain("Activity is not connected.");
