@@ -37,6 +37,8 @@ export function ProjectMedia({
       : ((Array.isArray(data.story) ? data.story[storyIndex] : undefined) as
           Record<string, unknown> | undefined);
   const expectedSection = JSON.stringify(section);
+  const mediaLabel =
+    storyIndex === undefined ? "Preview" : `Story ${storyIndex + 1} image`;
   const emit = (edit: ProjectBaseMediaEdit) => {
     if (storyIndex === undefined) onEdit(edit);
     else if (section)
@@ -174,7 +176,7 @@ export function ProjectMedia({
               onClick={() => emit({ type: "remove", slot: "preview" })}
             />
             <TextInput
-              label="Preview alt text"
+              label={`${mediaLabel} alt text`}
               value={String(preview.alt ?? "")}
               isRequired
               isDisabled={disabled}
@@ -182,14 +184,14 @@ export function ProjectMedia({
               onChange={(value) => emit({ type: "preview-alt", value })}
             />
             <TextInput
-              label="Preview caption"
+              label={`${mediaLabel} caption`}
               value={String(preview.caption ?? "")}
               isDisabled={disabled}
               status={status("preview_media.caption")}
               onChange={(value) => emit({ type: "preview-caption", value })}
             />
             <Selector
-              label="Preview fit"
+              label={`${mediaLabel} fit`}
               value={preview.fit === "contain" ? "contain" : "cover"}
               options={[
                 { value: "cover", label: "Cover" },
