@@ -712,3 +712,47 @@ it.each(["denied", "disconnected"] as const)(
     expect(container.querySelector('[aria-pressed="true"]')).toBeNull();
   },
 );
+
+it("refreshes activity directly without resetting the cursor or overlapping reads", async () => {
+  vi.useFakeTimers();
+  let finish!: (result: LifeResult) => void;
+  const reader = vi.fn(async (): Promise<LifeResult> =>
+    reader.mock.calls.length === 1
+      ? ready({
+          items: [
+            {
+              change_id: 8,
+              trace_id: "1".repeat(32),
+              stage: "indexed",
+              state: "succeeded",
+              record_count: 1,
+              observed_at: "2026-09-21T08:00:00Z",
+            },
+          ],
+          next_cursor: 8,
+        })
+      : new Promise((resolve) => {
+          finish = resolve;
+        }),
+  );
+  await act(async () => root.render(<LifeActivityView reader={reader} />));
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(0);
+  });
+  await click("Refresh activity");
+  expect(reader).toHaveBeenLastCalledWith(
+    { method: "activity", after: 8 },
+    expect.any(AbortSignal),
+  );
+  const button = Array.from(container.querySelectorAll("button")).find(
+    (button) => button.textContent?.includes("Refreshing activity"),
+  );
+  expect(button?.disabled).toBe(true);
+  await act(async () => {
+    button?.click();
+    await vi.advanceTimersByTimeAsync(60000);
+  });
+  expect(reader).toHaveBeenCalledTimes(2);
+  await act(async () => finish({ state: "denied", message: "fixture" }));
+  expect(container.textContent).not.toContain("Refresh activity");
+});

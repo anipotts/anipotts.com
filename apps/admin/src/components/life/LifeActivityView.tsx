@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { Button } from "@astryxdesign/core/Button";
+import { HStack } from "@astryxdesign/core/HStack";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Text } from "@astryxdesign/core/Text";
 import { Heading } from "@astryxdesign/core/Heading";
@@ -10,6 +12,8 @@ import type { LifeReader } from "../../lib/life-read-session";
 /** Ephemeral bounded polling while the page is visible; no endpoint,
  * persistence, or background service is created. A denied read stops polling. */
 export function LifeActivityView({ reader }: { reader: LifeReader }) {
+  const refresh = useRef<() => void>(() => {});
+  const [busy, setBusy] = useState(false);
   const [window, setWindow] = useState(emptyActivity);
   const [state, setState] = useState<
     | "loading"
@@ -39,6 +43,7 @@ export function LifeActivityView({ reader }: { reader: LifeReader }) {
     async function poll() {
       timer = undefined;
       polling = true;
+      setBusy(true);
       const controller = new AbortController();
       inFlight = controller;
       try {
@@ -75,6 +80,7 @@ export function LifeActivityView({ reader }: { reader: LifeReader }) {
       } finally {
         if (inFlight === controller) inFlight = undefined;
         polling = false;
+        if (!disposed) setBusy(false);
       }
       schedule();
     }
@@ -87,10 +93,16 @@ export function LifeActivityView({ reader }: { reader: LifeReader }) {
         timer = undefined;
       } else if (timer === undefined) schedule();
     };
+    refresh.current = () => {
+      if (disposed || stopped || polling || document.hidden) return;
+      clearTimeout(timer);
+      void poll();
+    };
     document.addEventListener("visibilitychange", visibilityChanged);
     schedule();
     return () => {
       disposed = true;
+      refresh.current = () => {};
       inFlight?.abort();
       clearTimeout(timer);
       document.removeEventListener("visibilitychange", visibilityChanged);
@@ -98,7 +110,18 @@ export function LifeActivityView({ reader }: { reader: LifeReader }) {
   }, [reader]);
   return (
     <VStack gap={3} as="section" aria-label="Ingestion activity">
-      <Heading level={2}>Activity</Heading>
+      <HStack gap={2} wrap="wrap" vAlign="center">
+        <Heading level={2}>Activity</Heading>
+        {state !== "denied" && state !== "disconnected" && (
+          <Button
+            label={busy ? "Refreshing activity…" : "Refresh activity"}
+            size="sm"
+            variant="ghost"
+            isDisabled={busy}
+            onClick={() => refresh.current()}
+          />
+        )}
+      </HStack>
       <Text role="status">
         {state === "loading"
           ? "Reading activity…"
