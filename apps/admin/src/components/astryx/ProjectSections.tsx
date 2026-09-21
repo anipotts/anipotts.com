@@ -1,0 +1,79 @@
+import React from "react";
+import { VStack } from "@astryxdesign/core/VStack";
+import { HStack } from "@astryxdesign/core/HStack";
+import { Button } from "@astryxdesign/core/Button";
+import { Text } from "@astryxdesign/core/Text";
+import { parseEditorialSource } from "@anipotts/content/editorial/source";
+import type { ProjectSectionEdit } from "../../lib/project-sections";
+
+export function ProjectSections({
+  source,
+  disabled,
+  onEdit,
+}: {
+  source: string;
+  disabled?: boolean;
+  onEdit: (edit: ProjectSectionEdit) => void;
+}) {
+  const data = parseEditorialSource(source).data as Record<string, unknown>;
+  return (
+    <VStack gap={2}>
+      <Text>Sections</Text>
+      {(["story", "technical"] as const).map((kind) => {
+        const entries = Array.isArray(data[kind])
+          ? (data[kind] as Array<{ title?: string }>)
+          : [];
+        return (
+          <VStack key={kind} gap={1}>
+            {entries.map((entry, index) => (
+              <HStack key={index} gap={1} wrap="wrap" vAlign="center">
+                <Text>
+                  {entry.title ||
+                    `${kind === "story" ? "Story" : "Technical"} ${index + 1}`}
+                </Text>
+                <Button
+                  label={`Move ${kind} ${index + 1} up`}
+                  children="Up"
+                  size="sm"
+                  variant="ghost"
+                  isDisabled={disabled || index === 0}
+                  onClick={() =>
+                    onEdit({ type: "move", kind, index, direction: -1 })
+                  }
+                />
+                <Button
+                  label={`Move ${kind} ${index + 1} down`}
+                  children="Down"
+                  size="sm"
+                  variant="ghost"
+                  isDisabled={disabled || index === entries.length - 1}
+                  onClick={() =>
+                    onEdit({ type: "move", kind, index, direction: 1 })
+                  }
+                />
+                {kind === "story" && (
+                  <Button
+                    label="Add paragraph"
+                    size="sm"
+                    variant="ghost"
+                    isDisabled={disabled}
+                    onClick={() => onEdit({ type: "paragraph", index })}
+                  />
+                )}
+              </HStack>
+            ))}
+            <Button
+              label={
+                kind === "story" ? "Add story section" : "Add technical section"
+              }
+              size="sm"
+              variant="ghost"
+              isDisabled={disabled}
+              onClick={() => onEdit({ type: "add", kind })}
+            />
+          </VStack>
+        );
+      })}
+    </VStack>
+  );
+}

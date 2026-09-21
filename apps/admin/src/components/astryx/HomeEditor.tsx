@@ -27,6 +27,8 @@ import { ArticleBody } from "./ArticleBody";
 import { SavedArticlePreview } from "./SavedArticlePreview";
 import { SaveScheduler } from "../../lib/save-scheduler";
 import { writingReviewChanges } from "../../lib/writing-review";
+import { ProjectSections } from "./ProjectSections";
+import { editProjectSections } from "../../lib/project-sections";
 import { ProjectSettings } from "./ProjectSettings";
 import { ArticleSettings } from "./ArticleSettings";
 import React, { useEffect, useId, useRef, useState } from "react";
@@ -2109,6 +2111,17 @@ function HomeEditorImpl({
                       }
                     />
                   ),
+                )}
+                {record.kind === "work" && parseable && (
+                  <ProjectSections
+                    source={state.source}
+                    disabled={Boolean(snapshot.draft?.discardedAt)}
+                    onEdit={(edit) =>
+                      editor.current!.edit(
+                        editProjectSections(editor.current!.state.source, edit),
+                      )
+                    }
+                  />
                 )}
                 {record.kind === "writing" && parseable && (
                   <>
