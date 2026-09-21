@@ -94,6 +94,17 @@ proves a failed optional tool does not unmount the surrounding draft editor.
 Current PR checks must be refreshed on the exact head before merging; owner
 review, deployment and live verification are still outstanding.
 
+### Observability and Data mobile acceptance, September 21
+
+The local disconnected Observability view fits document width exactly at 320,
+390 and768 pixels. At320px, opening Local Mac moves focus to its detail heading;
+closing detail returns focus to the Local Mac control. The mobile table presents
+status within the machine row and its footer remains attached. The Data overview
+and Sources unavailable view also fit at320px, with canonical-source unavailability
+visible rather than an empty collection. These checks use disconnected local
+routes, not live telemetry or private records. Physical mobile, connected fixture,
+zoom and remaining workspace geometry checks are still outstanding.
+
 ### Responsive project and sidebar acceptance, September 21
 
 On the synthetic local project, measured document width equals viewport width
