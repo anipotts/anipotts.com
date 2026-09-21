@@ -414,6 +414,31 @@ export function planMorph(
 const channels = (color: string) =>
   (color.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
 
+/** The flat colour a stack of wave layers paints over an opaque ground: each
+ * layer (bottom first) at its own opacity inside a group faded by `alpha`,
+ * the way an SVG group with opacity composites. Returns null when a colour
+ * cannot be parsed, so callers keep their declared fallback. */
+export function compositeLayers(
+  ground: string,
+  layers: { fill: string; opacity: number }[],
+  alpha: number,
+) {
+  const base = channels(ground);
+  if (base.length !== 3) return null;
+  let color = [0, 0, 0];
+  let coverage = 0;
+  for (const { fill, opacity } of layers) {
+    const c = channels(fill);
+    if (c.length !== 3) return null;
+    color = color.map((v, k) => c[k] * opacity + v * (1 - opacity));
+    coverage = opacity + coverage * (1 - opacity);
+  }
+  const out = base.map((v, k) =>
+    Math.round(color[k] * alpha + v * (1 - coverage * alpha)),
+  );
+  return `rgb(${out.join(", ")})`;
+}
+
 /** rgb() colors mixed at t; unparsable colors switch at the midpoint. */
 export function mixColor(a: string, b: string, t: number) {
   if (a === b) return a;

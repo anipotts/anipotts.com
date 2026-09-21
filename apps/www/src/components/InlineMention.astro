@@ -206,14 +206,22 @@ const remainingLabel = remainingWords.join(" ");
     text-underline-offset: 0.2em;
   }
 
-  a.inline-mention:hover,
   a.inline-mention:focus-visible {
     color: var(--interactive);
   }
 
-  a.inline-mention:hover .text,
   a.inline-mention:focus-visible .text {
     text-decoration-color: currentColor;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    a.inline-mention:hover {
+      color: var(--interactive);
+    }
+
+    a.inline-mention:hover .text {
+      text-decoration-color: currentColor;
+    }
   }
 
   .brand-mark {

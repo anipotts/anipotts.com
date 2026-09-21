@@ -313,7 +313,6 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
     transition: color 160ms ease;
   }
 
-  .project-media__enlarge:hover .project-media__hint :global(svg),
   .project-media__enlarge:focus-visible .project-media__hint :global(svg) {
     color: var(--paper-accent);
   }
@@ -325,9 +324,15 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
     transition: color 160ms ease;
   }
 
-  [data-image-original]:hover .image-viewer__affordance,
   [data-image-original]:focus-visible .image-viewer__affordance {
     color: var(--paper-accent);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .project-media__enlarge:hover .project-media__hint :global(svg),
+    [data-image-original]:hover .image-viewer__affordance {
+      color: var(--paper-accent);
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {

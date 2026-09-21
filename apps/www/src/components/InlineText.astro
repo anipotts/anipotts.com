@@ -18,9 +18,13 @@ const { text, links = true } = Astro.props;
     text-underline-offset: 0.2em;
     text-decoration-thickness: 0.06em;
   }
-  .inline-copy a:hover,
   .inline-copy a:focus-visible {
     color: var(--interactive);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .inline-copy a:hover {
+      color: var(--interactive);
+    }
   }
   .inline-copy .inline-image-run {
     white-space: nowrap;

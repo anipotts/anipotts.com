@@ -388,9 +388,13 @@ const { workflow } = Astro.props;
     cursor: pointer;
     transition: color 160ms ease;
   }
-  [data-motion-toggle]:hover,
   [data-motion-toggle]:focus-visible {
     color: var(--interactive);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    [data-motion-toggle]:hover {
+      color: var(--interactive);
+    }
   }
   .pause-symbol,
   .play-symbol {
