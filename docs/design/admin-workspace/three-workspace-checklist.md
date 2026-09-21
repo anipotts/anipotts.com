@@ -337,3 +337,20 @@ separator; both were corrected before the passing run. The Data detail keeps its
 spacing without an extra border. Project logo theme treatment and direct
 validation-to-properties navigation are included. This is local regression proof,
 not owner acceptance, production deployment or connected-reader evidence.
+
+### Observability and Data sidebar geometry proof
+
+At `4b6f9406b`, browser measurements on the existing local preview confirmed
+expanded/collapsed upper-sidebar parity for Observability and Data. Controls keep
+x8, height36, workspace y46 and Search y84; navigation starts y122 with38px
+row pitch in both states. Data retains that pitch through Context preview y350.
+Theme controls intentionally stack in the collapsed rail. Expanded sidebar and
+System theme were restored; the temporary acceptance tab was closed. This covers
+normal desktop geometry, not zoom or physical touch acceptance. Exact-head CI
+run35585708590 was in progress at inspection; owner review remains outstanding.
+
+The shared shell now names its hidden navigation groups Data and Observability,
+matching the workspace switcher. Observability main content has the same corrected
+accessible label. Browser accessibility trees confirmed both names. Data keyboard
+Tab then Enter on Skip to content moved focus to `astryx-app-shell-main`; 38 shared
+shell/Observability tests passed. This does not substitute for screen-reader testing.

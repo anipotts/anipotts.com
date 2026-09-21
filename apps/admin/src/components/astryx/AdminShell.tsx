@@ -102,7 +102,7 @@ export function AdminShell({
   }));
   const navigation =
     workspace === "life" ? (
-      <SideNavSection title="Life" isHeaderHidden>
+      <SideNavSection title="Data" isHeaderHidden>
         {lifeEntries.map((item, index) => (
           <SideNavItem
             key={item.id}
@@ -117,7 +117,7 @@ export function AdminShell({
         ))}
       </SideNavSection>
     ) : (
-      <SideNavSection title="Operations" isHeaderHidden>
+      <SideNavSection title="Observability" isHeaderHidden>
         <SideNavItem
           label="Machines"
           href="/operations/observability?view=machines"

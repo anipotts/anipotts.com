@@ -337,7 +337,7 @@ export function ObservabilityWorkspace({
       height="auto"
       padding={0}
       content={
-        <LayoutContent label="Operations">
+        <LayoutContent label="Observability">
           <VStack gap={5}>
             <HStack
               gap={4}
