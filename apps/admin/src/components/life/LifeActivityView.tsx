@@ -12,12 +12,18 @@ import type { LifeReader } from "../../lib/life-read-session";
 export function LifeActivityView({ reader }: { reader: LifeReader }) {
   const [window, setWindow] = useState(emptyActivity);
   const [state, setState] = useState<
-    "loading" | "catching_up" | "current" | "unavailable" | "denied"
+    | "loading"
+    | "catching_up"
+    | "current"
+    | "unavailable"
+    | "denied"
+    | "disconnected"
   >("loading");
   useEffect(() => {
     let disposed = false;
     let stopped = false;
     let polling = false;
+    let inFlight: AbortController | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let current = emptyActivity();
     let failures = 0;
@@ -33,15 +39,23 @@ export function LifeActivityView({ reader }: { reader: LifeReader }) {
     async function poll() {
       timer = undefined;
       polling = true;
+      const controller = new AbortController();
+      inFlight = controller;
       try {
-        const result = await reader({
-          method: "activity",
-          after: current.cursor,
-        });
+        const result = await reader(
+          {
+            method: "activity",
+            after: current.cursor,
+          },
+          controller.signal,
+        );
         if (disposed) return;
-        if (result.state === "denied") {
+        if (controller.signal.aborted) throw new Error("Cancelled");
+        if (result.state === "denied" || result.state === "disconnected") {
+          current = emptyActivity();
+          setWindow(current);
           stopped = true;
-          setState("denied");
+          setState(result.state);
           return;
         }
         if (result.state !== "ready") throw new Error("Unavailable");
@@ -53,10 +67,13 @@ export function LifeActivityView({ reader }: { reader: LifeReader }) {
         delay = next.catchingUp ? 100 : 1000;
       } catch {
         if (disposed) return;
-        failures += 1;
-        setState("unavailable");
-        delay = Math.min(5000, 1000 * 2 ** Math.min(failures, 3));
+        if (!controller.signal.aborted) {
+          failures += 1;
+          setState("unavailable");
+          delay = Math.min(5000, 1000 * 2 ** Math.min(failures, 3));
+        }
       } finally {
+        if (inFlight === controller) inFlight = undefined;
         polling = false;
       }
       schedule();
@@ -65,6 +82,7 @@ export function LifeActivityView({ reader }: { reader: LifeReader }) {
     // the last read chose, so a long absence does not burst requests.
     const visibilityChanged = () => {
       if (document.hidden) {
+        inFlight?.abort();
         clearTimeout(timer);
         timer = undefined;
       } else if (timer === undefined) schedule();
@@ -73,6 +91,7 @@ export function LifeActivityView({ reader }: { reader: LifeReader }) {
     schedule();
     return () => {
       disposed = true;
+      inFlight?.abort();
       clearTimeout(timer);
       document.removeEventListener("visibilitychange", visibilityChanged);
     };
@@ -87,9 +106,11 @@ export function LifeActivityView({ reader }: { reader: LifeReader }) {
             ? "Catching up with recorded activity…"
             : state === "unavailable"
               ? "Activity is unavailable. Earlier observations are retained while reconnecting."
-              : state === "denied"
-                ? "This connection does not permit reading activity."
-                : "Connected to recorded activity."}
+              : state === "disconnected"
+                ? "Activity is not connected."
+                : state === "denied"
+                  ? "This connection does not permit reading activity."
+                  : "Connected to recorded activity."}
       </Text>
       <List density="compact" header={<Text>Recent checkpoints</Text>}>
         {[...window.items].reverse().map((item) => (

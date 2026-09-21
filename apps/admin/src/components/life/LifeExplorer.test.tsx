@@ -463,7 +463,19 @@ describe("Life reader interactions", () => {
         requests.push(request);
         return denied
           ? { state: "denied", message: "fixture" }
-          : ready({ items: [], next_cursor: 0 });
+          : ready({
+              items: [
+                {
+                  change_id: 1,
+                  trace_id: "1".repeat(32),
+                  stage: "indexed",
+                  state: "succeeded",
+                  record_count: 1,
+                  observed_at: "2026-09-21T08:00:00Z",
+                },
+              ],
+              next_cursor: 1,
+            });
       };
       await act(async () => root.render(<LifeActivityView reader={reader} />));
       await act(async () => {
@@ -485,6 +497,7 @@ describe("Life reader interactions", () => {
         await vi.advanceTimersByTimeAsync(1000);
       });
       expect(requests).toHaveLength(3);
+      expect(container.textContent).not.toContain("succeeded");
       expect(container.textContent).toContain(
         "This connection does not permit reading activity.",
       );
@@ -528,4 +541,59 @@ it("clears prior records and queries when the reader capability is removed", asy
   expect(container.textContent).toContain(
     "Access to these records is unavailable",
   );
+});
+
+it("aborts activity transport when its view unmounts", async () => {
+  vi.useFakeTimers();
+  let signal: AbortSignal | undefined;
+  const reader = (
+    _request: LifeRead,
+    input?: AbortSignal,
+  ): Promise<LifeResult> => {
+    signal = input;
+    return new Promise((_resolve, reject) =>
+      input!.addEventListener("abort", () => reject(new Error("cancelled")), {
+        once: true,
+      }),
+    );
+  };
+  await act(async () => root.render(<LifeActivityView reader={reader} />));
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(0);
+  });
+  expect(signal?.aborted).toBe(false);
+  await act(async () => root.render(null));
+  expect(signal?.aborted).toBe(true);
+});
+
+it("clears activity when its reader disconnects", async () => {
+  vi.useFakeTimers();
+  let disconnected = false;
+  const reader = async (): Promise<LifeResult> =>
+    disconnected
+      ? { state: "disconnected", message: "fixture" }
+      : ready({
+          items: [
+            {
+              change_id: 1,
+              trace_id: "1".repeat(32),
+              stage: "indexed",
+              state: "succeeded",
+              record_count: 1,
+              observed_at: "2026-09-21T08:00:00Z",
+            },
+          ],
+          next_cursor: 1,
+        });
+  await act(async () => root.render(<LifeActivityView reader={reader} />));
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(0);
+  });
+  expect(container.textContent).toContain("succeeded");
+  disconnected = true;
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(1000);
+  });
+  expect(container.textContent).not.toContain("succeeded");
+  expect(container.textContent).toContain("Activity is not connected.");
 });
