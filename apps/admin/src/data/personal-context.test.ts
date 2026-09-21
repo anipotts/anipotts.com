@@ -197,3 +197,74 @@ describe("Life read boundary", () => {
     expect(result.state === "ready" && result.data).toEqual(data);
   });
 });
+
+describe("System versioned owner reader", () => {
+  const envelope = {
+    schema: "personal_context_data_v1",
+    response_observed_at: "2026-09-21T08:00:00Z",
+    data: {
+      database: { exists: true },
+      counts: { records: 0, revisions: 0, sources: 0, changes: 0 },
+      last_change_at: null,
+    },
+  };
+  const transport = (value: unknown) => ({
+    protocol: "personal_context_data_v1" as const,
+    scope: "owner" as const,
+    read: async () => value,
+  });
+  it("accepts the actual status envelope without inventing ingestion or wiki health", async () => {
+    const result = await readPersonalContext(
+      { method: "status" },
+      transport(envelope),
+    );
+    expect(result).toMatchObject({
+      state: "ready",
+      responseObservedAt: envelope.response_observed_at,
+      data: envelope.data,
+    });
+    expect(result.state === "ready" && result.data.ingestion).toBeUndefined();
+  });
+  it("rejects unsupported versions, timestamps and capabilities", async () => {
+    for (const value of [
+      { ...envelope, schema: "future" },
+      { ...envelope, response_observed_at: "invalid" },
+      { ...envelope, data: null },
+    ])
+      expect(
+        (await readPersonalContext({ method: "status" }, transport(value)))
+          .state,
+      ).toBe("invalid");
+    const read = vi.fn();
+    expect(
+      (
+        await readPersonalContext(
+          { method: "timeline" },
+          { ...transport(envelope), read },
+        )
+      ).state,
+    ).toBe("denied");
+    expect(
+      (
+        await readPersonalContext(
+          { method: "status" },
+          { ...transport(envelope), scope: "agent", read },
+        )
+      ).state,
+    ).toBe("denied");
+    expect(read).not.toHaveBeenCalled();
+  });
+  it("distinguishes an absent source from a healthy empty source", async () => {
+    expect(
+      (
+        await readPersonalContext(
+          { method: "status" },
+          transport({
+            ...envelope,
+            data: { ...envelope.data, database: { exists: false } },
+          }),
+        )
+      ).state,
+    ).toBe("unavailable");
+  });
+});

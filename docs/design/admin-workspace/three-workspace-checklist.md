@@ -38,6 +38,24 @@ Report local implementation, tests, owner review, merge, deployment and live pro
 separately. Connected capability and recovery are acceptance requirements, not
 assumptions inferred from a polished screen.
 
+### System reader contract integration, September 21
+
+Inspected System's `memory/personal_context/admin_reader.py` and synthetic tests
+through its existing mini SSH connection. `OwnerDataReader` returns
+`personal_context_data_v1` envelopes with `response_observed_at` and `data` for
+status/sources/search/get. Website now supports that envelope only through an
+explicit owner transport protocol setting. Unknown versions and unsupported
+methods fail closed; missing canonical storage is unavailable, not healthy-empty.
+Response observation time remains distinct from fetch time and source change time.
+The overview uses source counts rather than inventing ingestion/wiki capability.
+
+No transport has been attached or endpoint/access grant activated. HTTP mapping,
+source pagination, session revocation, device acceptance and the separate
+`personal_context_observability_v1` projection remain integration work. System's
+handoff reports source changes merged but not installed in its active runtime.
+Website acknowledged receipt and requested exact route fixtures in that existing
+handoff. This is contract compatibility evidence, not live connected acceptance.
+
 ### Local project media acceptance, September 21
 
 Synthetic private fixture: `qa-project-media-20260921`, title

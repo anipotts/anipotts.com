@@ -218,6 +218,18 @@ export function LifeReadView({
         <Evidence title="Omissions" value={data.omitted} />
       </VStack>
     );
+  if (section === "overview" && result.responseObservedAt)
+    return (
+      <Metadata
+        fields={[
+          ["Records", object(data.counts).records],
+          ["Revisions", object(data.counts).revisions],
+          ["Sources", object(data.counts).sources],
+          ["Last source change", data.last_change_at],
+          ["Response observed", result.responseObservedAt],
+        ]}
+      />
+    );
   if (section === "overview")
     return (
       <Metadata

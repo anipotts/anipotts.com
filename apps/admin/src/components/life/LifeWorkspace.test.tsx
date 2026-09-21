@@ -192,3 +192,25 @@ describe("Life response surfaces", () => {
       expect(html).toContain(value);
   });
 });
+
+it("shows versioned source counts without claiming wiki or capture capability", () => {
+  const html = renderToStaticMarkup(
+    <LifeReadView
+      section="overview"
+      result={{
+        state: "ready",
+        scope: "owner",
+        observedAt: "2026-09-21T08:01:00Z",
+        responseObservedAt: "2026-09-21T08:00:00Z",
+        data: {
+          counts: { records: 2, revisions: 4, sources: 1 },
+          last_change_at: null,
+        },
+      }}
+    />,
+  );
+  expect(html).toContain("Records");
+  expect(html).toContain("Response observed");
+  expect(html).not.toContain("Wiki");
+  expect(html).not.toContain("Automatic capture");
+});

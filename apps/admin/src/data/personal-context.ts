@@ -22,6 +22,7 @@ export type LifeResult =
       state: "ready";
       scope: "agent" | "owner";
       observedAt: string;
+      responseObservedAt?: string;
       data: Record<string, unknown>;
     }
   | {
@@ -29,6 +30,7 @@ export type LifeResult =
       message: string;
     };
 export type LifeTransport = {
+  protocol?: "personal_context_data_v1";
   scope: "agent" | "owner";
   /** Enforce the byte cap while reading, before decoding an untrusted body. */
   read: (path: string, signal: AbortSignal) => Promise<unknown>;
@@ -68,14 +70,19 @@ export function nextLifeOffset(value: unknown, current = 0): number | null {
 function validResponse(
   request: LifeRead,
   data: Record<string, unknown>,
+  versioned = false,
 ): boolean {
   switch (request.method) {
     case "status":
       return (
         isObject(data.database) &&
         typeof data.database.exists === "boolean" &&
-        isObject(data.ingestion) &&
-        isObject(data.wiki)
+        (versioned
+          ? isObject(data.counts) &&
+            ["records", "revisions", "sources", "changes"].every((key) =>
+              isCursor((data.counts as Record<string, unknown>)[key]),
+            )
+          : isObject(data.ingestion) && isObject(data.wiki))
       );
     case "get":
       return (
@@ -192,10 +199,20 @@ export async function readPersonalContext(
     return {
       state: "disconnected",
       message:
-        "Private Life access is not connected. Existing records remain in PersonalContext.",
+        "Private Data access is not connected. Existing records remain in PersonalContext.",
+    };
+  if (
+    transport.protocol === "personal_context_data_v1" &&
+    (transport.scope !== "owner" ||
+      !["status", "sources", "search", "get"].includes(request.method))
+  )
+    return {
+      state: "denied",
+      message: "This connection does not support this read.",
     };
   try {
-    const data = await readWithDeadline(transport, path);
+    let data = await readWithDeadline(transport, path);
+    let responseObservedAt: string | undefined;
     if (
       !data ||
       typeof data !== "object" ||
@@ -207,6 +224,37 @@ export async function readPersonalContext(
         message: "The source returned an unsupported response.",
       };
     }
+    if (transport.protocol === "personal_context_data_v1") {
+      const envelope = data as Record<string, unknown>;
+      if (
+        envelope.schema !== transport.protocol ||
+        typeof envelope.response_observed_at !== "string" ||
+        !Number.isFinite(Date.parse(envelope.response_observed_at)) ||
+        !isObject(envelope.data)
+      )
+        return {
+          state: "invalid",
+          message: "The source returned an unsupported response contract.",
+        };
+      responseObservedAt = envelope.response_observed_at;
+      data = envelope.data;
+    }
+    if (
+      request.method === "status" &&
+      isObject((data as Record<string, unknown>).database) &&
+      ((data as Record<string, unknown>).database as Record<string, unknown>)
+        .exists === false
+    )
+      return {
+        state: "unavailable",
+        message:
+          "The canonical source is unavailable. This is not an empty record collection.",
+      };
+    if (!isObject(data))
+      return {
+        state: "invalid",
+        message: "The source returned an unsupported response.",
+      };
     if ("error" in data)
       return {
         state: "unavailable",
@@ -222,7 +270,13 @@ export async function readPersonalContext(
         message: "The returned context scope does not match this connection.",
       };
     }
-    if (!validResponse(request, data as Record<string, unknown>))
+    if (
+      !validResponse(
+        request,
+        data as Record<string, unknown>,
+        transport.protocol === "personal_context_data_v1",
+      )
+    )
       return {
         state: "invalid",
         message:
@@ -232,6 +286,7 @@ export async function readPersonalContext(
       state: "ready",
       scope: transport.scope,
       observedAt: new Date().toISOString(),
+      ...(responseObservedAt ? { responseObservedAt } : {}),
       data: data as Record<string, unknown>,
     };
   } catch {
