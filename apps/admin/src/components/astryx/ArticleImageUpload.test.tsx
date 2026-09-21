@@ -298,3 +298,23 @@ it("canceling while reading aborts FileReader before media upload", async () => 
   expect(abort).toHaveBeenCalledOnce();
   expect(fetcher).toHaveBeenCalledOnce();
 });
+
+it("does not expose transport errors while reopening an uploaded image", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => {
+      throw new Error("PRIVATE provider response");
+    }),
+  );
+  await act(async () =>
+    root.render(
+      <ArticleImageUpload
+        existingSrc={`/images/editorial/${"a".repeat(64)}.png`}
+        onUploaded={() => {}}
+        onPendingChange={() => {}}
+      />,
+    ),
+  );
+  expect(host.textContent).toContain("Couldn’t load this image");
+  expect(host.textContent).not.toContain("PRIVATE");
+});

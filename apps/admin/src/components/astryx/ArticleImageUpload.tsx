@@ -10,6 +10,8 @@ import {
 
 import { ArticleImageCrop } from "./ArticleImageCrop";
 
+class ImageInputError extends Error {}
+
 function fileBase64(file: Blob, signal: AbortSignal): Promise<string> {
   signal.throwIfAborted();
   return new Promise((resolve, reject) => {
@@ -26,7 +28,7 @@ function fileBase64(file: Blob, signal: AbortSignal): Promise<string> {
     };
     reader.onerror = () => {
       cleanup();
-      reject(new Error("Couldn’t read this image."));
+      reject(new ImageInputError("Couldn’t read this image."));
     };
     signal.addEventListener("abort", abort, { once: true });
     reader.readAsDataURL(file);
@@ -39,14 +41,14 @@ export async function uploadEditorialImage(
 ): Promise<string> {
   signal.throwIfAborted();
   if (file.size > 10 * 1024 * 1024)
-    throw new Error(
+    throw new ImageInputError(
       "This image exceeds 10 MB. Choose a smaller crop or image.",
     );
   const csrfResponse = await fetch("/api/editorial/csrf", {
     signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]),
   });
   if (!csrfResponse.ok)
-    throw new Error(
+    throw new ImageInputError(
       "Your session needs refreshing. Your selected image is retained.",
     );
   const { csrf } = await csrfResponse.json();
@@ -59,11 +61,12 @@ export async function uploadEditorialImage(
     headers: { "Content-Type": "application/json", "X-Editorial-CSRF": csrf },
     body: JSON.stringify({ base64 }),
   });
-  if (!response.ok) throw new Error("Couldn’t save the image. Try again.");
+  if (!response.ok)
+    throw new ImageInputError("Couldn’t save the image. Try again.");
   const result = await response.json();
   signal.throwIfAborted();
   if (!result.ok || !editorialMediaId.test(result.media?.id))
-    throw new Error("Couldn’t save the image. Try again.");
+    throw new ImageInputError("Couldn’t save the image. Try again.");
   return editorialMediaPrefix + result.media.id;
 }
 
@@ -109,22 +112,29 @@ export function ArticleImageUpload({
     const controller = new AbortController();
     let loading = true;
     setBusy(true);
-    fetch(editorialImagePreview(existingSrc), { signal: controller.signal })
+    fetch(editorialImagePreview(existingSrc), {
+      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
+    })
       .then(async (response) => {
         if (!response.ok)
-          throw new Error(
+          throw new ImageInputError(
             "Couldn’t load this image. Choose its original file to crop it.",
           );
         const blob = await response.blob();
         if (blob.size > 10 * 1024 * 1024)
-          throw new Error("Choose an image smaller than 10 MB.");
+          throw new ImageInputError("Choose an image smaller than 10 MB.");
         if (controller.signal.aborted) return;
         setFile(new File([blob], "original-image", { type: blob.type }));
         setOriginal(existingSrc);
         setCropping(startCropping);
       })
       .catch((error) => {
-        if (!controller.signal.aborted) setError(error.message);
+        if (!controller.signal.aborted)
+          setError(
+            error instanceof ImageInputError
+              ? error.message
+              : "Couldn’t load this image. Choose its original file to crop it.",
+          );
       })
       .finally(() => {
         loading = false;
@@ -166,7 +176,7 @@ export function ArticleImageUpload({
     } catch (error) {
       if (!mounted.current || controller.signal.aborted) return;
       setError(
-        error instanceof Error
+        error instanceof ImageInputError
           ? error.message
           : "Couldn’t save the image. Try again.",
       );
