@@ -88,7 +88,6 @@
 }
 .life-details-region {
   padding-inline-start: var(--spacing-6);
-  border-inline-start: var(--border-width) solid var(--color-border);
 }
 .life-record-back {
   align-self: flex-start;
@@ -138,7 +137,6 @@
   }
   .life-details-region {
     padding-inline-start: 0;
-    border-inline-start: 0;
   }
   .life-record-table {
     min-width: 0 !important;

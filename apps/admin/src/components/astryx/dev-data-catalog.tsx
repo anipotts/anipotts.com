@@ -23,7 +23,7 @@ const records = [
   {
     record_id: "catalog-two",
     revision_id: "catalog-revision-two",
-    title: "研究ノート · café · a longer synthetic record title",
+    title: "研究ノート / café / a longer synthetic record title",
     source_id: "catalog",
     status: "observed",
     observed_at: observedAt,

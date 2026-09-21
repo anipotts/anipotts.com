@@ -16,7 +16,7 @@ or that local changes are deployed. Current implementation branch is
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Shared shell     | Shared row heights and gaps; one-click themes; section headings visually hidden                                               | Verify collapsed/expanded geometry across workspaces, touch widths, zoom and both themes                                                                                                   |
 | Editor actions   | Properties/history direct; preview/publish explicit; overflow retains occasional tools                                        | Review header density on phone and tablet; audit dropdowns by action frequency rather than replacing every select                                                                          |
-| Writing          | Persistent formatting, autosizing opening note, title/subtitle/body and private saves                                         | IME, rich paste, undo, mobile keyboard, suspension, multiple tabs, zoom and screen reader                                                                                                  |
+| Writing          | Persistent formatting, autosizing opening note, title/subtitle/body and private saves                                         | Rich paste, undo and two-tab conflict recovery tested locally; physical IME/mobile keyboard, suspension, zoom and screen reader remain                                                     |
 | Properties       | Direct-mode visibility controls now explain and disable unsupported scheduling/unpublishing; review blocks unsupported states | Browser acceptance of direct-mode states; backend capabilities remain unchanged                                                                                                            |
 | Review/history   | Exact diff and retained versions exist                                                                                        | Read-only history comparison implemented and browser-tested; Direct text-field Edit and context expansion implemented; older-history pagination tested; physical-device acceptance remains |
 | Projects/pages   | Project metadata, tags, links/order, story/technical add/reorder/remove and private creation implemented locally              | Creation/reopening tested locally; roadmap and story media controls now implemented; homepage writing selections now have structured controls; shared navigation/footer remain             |
@@ -24,7 +24,7 @@ or that local changes are deployed. Current implementation branch is
 | Libraries        | Responsive tables and attached footer exist                                                                                   | Batch selection/review remains missing; verify long content and all empty/error states                                                                                                     |
 | Preview/recovery | Revision-bound preview and recovery/conflict flows exist                                                                      | Owner acceptance of source-heavy recovery, slow/aborted responses and stale tabs                                                                                                           |
 | Observability    | Shared inventory/detail UI exists; route supplies no live capability                                                          | Attach verified observations; publishing/backups/integrations need explicit source coverage                                                                                                |
-| Data             | Life UI/read adapters exist; no connected transport                                                                           | Data naming applied; adjacent record detail, original-preserving corrections/new records and document workflow                                                                             |
+| Data             | Life UI/read adapters exist; no connected transport                                                                           | Adjacent detail and mobile return navigation tested with synthetic records; connected reads, original-preserving corrections/new records and documents remain                              |
 | Legacy routes    | Old content review/drafts/operations and static operational projections remain                                                | Trace consumers and unique data, then redirect/retire redundant surfaces; remove stale release guidance                                                                                    |
 
 Active user-requested goal: finish the admin as one
@@ -327,3 +327,13 @@ The focused recovery suite covers both sources after a review-triggered conflict
 the browser check covers the preview-triggered conflict. Physical
 IME composition, actual mobile keyboard/suspension, screen-reader and zoom
 acceptance are still outstanding; Unicode paste is not IME proof.
+
+### Full admin checkpoint after structured-control refinement
+
+The September 21 checkpoint following `50d6fc01f` passed 1,138 unit/component,
+17 Astro and 145 isolated editorial Worker tests. The first run detected a Data
+detail divider inconsistent with the shared visual contract and a fixture-copy
+separator; both were corrected before the passing run. The Data detail keeps its
+spacing without an extra border. Project logo theme treatment and direct
+validation-to-properties navigation are included. This is local regression proof,
+not owner acceptance, production deployment or connected-reader evidence.
