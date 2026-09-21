@@ -19,7 +19,7 @@ or that local changes are deployed. Current implementation branch is
 | Writing          | Persistent formatting, autosizing opening note, title/subtitle/body and private saves                                         | IME, rich paste, undo, mobile keyboard, suspension, multiple tabs, zoom and screen reader                                                                                                  |
 | Properties       | Direct-mode visibility controls now explain and disable unsupported scheduling/unpublishing; review blocks unsupported states | Browser acceptance of direct-mode states; backend capabilities remain unchanged                                                                                                            |
 | Review/history   | Exact diff and retained versions exist                                                                                        | Read-only history comparison implemented and browser-tested; Direct text-field Edit and context expansion implemented; older-history pagination tested; physical-device acceptance remains |
-| Projects/pages   | Project metadata, tags, links/order, story/technical add/reorder/remove and private creation implemented locally              | Creation/reopening tested locally; roadmap and story media controls now implemented; shared navigation/footer and homepage selections remain                                               |
+| Projects/pages   | Project metadata, tags, links/order, story/technical add/reorder/remove and private creation implemented locally              | Creation/reopening tested locally; roadmap and story media controls now implemented; homepage writing selections now have structured controls; shared navigation/footer remain             |
 | Media            | Project logo/preview uploads, alt/caption/fit and current-source mutations integrated; pending media holds navigation         | Upload/crop browser persistence, reuse picker, reference/history visibility and recovery acceptance                                                                                        |
 | Libraries        | Responsive tables and attached footer exist                                                                                   | Batch selection/review remains missing; verify long content and all empty/error states                                                                                                     |
 | Preview/recovery | Revision-bound preview and recovery/conflict flows exist                                                                      | Owner acceptance of source-heavy recovery, slow/aborted responses and stale tabs                                                                                                           |
@@ -268,3 +268,22 @@ short in-memory read delegation, pinned source verifier and measured expiry/
 revocation. No signing key, issuance route, network grant or reader service was
 activated by this UI checkpoint. System owns the pending questions and concrete
 provider/device approval packet in its existing consolidation handoff.
+
+### Homepage writing selection and creation recovery, September 21
+
+The home editor now provides published-article selection, positional remove and
+reorder controls. Picker addresses come from the public baseline, never a private
+slug edit. Existing unresolved selections remain visible; malformed arrays are
+preserved and require repair rather than being silently replaced. The existing
+public display limit is shown explicitly. Normal private autosave and reviewed
+publication remain unchanged.
+
+Verified: 24 focused tests cover component selection, public slug projection,
+actual editor autosave preserving unrelated content, and malformed source. Admin
+typechecks pass. Read-only browser inspection at320px proved no horizontal overflow
+and grouped row actions; no homepage draft was edited or published. Shared
+navigation/footer still lack a CMS-owned record and require a separate contract.
+
+Draft creation now describes an ambiguous network/parser result as unconfirmed,
+not definitely absent. Raw transport errors are hidden. Nine creation tests pass,
+including retained input and unchanged request identity across retries.

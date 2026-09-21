@@ -66,6 +66,7 @@ export type CatalogRecord = {
   section?: string;
   collection?: string;
   id?: string;
+  publishedSlug?: string;
   changesPending?: boolean;
   changedFields?: string[];
   privateRevision?: number;
@@ -106,6 +107,7 @@ export type EditorialAppProps = {
   localOwner?: boolean;
   siteUrl: string;
   initialMode?: ThemePreference;
+  homepageWritingOptions?: { slug: string; title: string; status: string }[];
   groups?: CatalogGroup[];
   selectedGroup?: string;
   librarySearch?: string;
@@ -138,6 +140,7 @@ export function EditorialApp({
   newProject,
   recoveryScope,
   inventoryError,
+  homepageWritingOptions,
   editorRecord,
   hideHeader = false,
   children,
@@ -335,6 +338,7 @@ export function EditorialApp({
             >
               <HomeEditor
                 pageTitle={title}
+                homepageWritingOptions={homepageWritingOptions}
                 onTitleChange={setDraftTitle}
                 localPreview={localPreview}
                 key={editorRecord?.id ?? "home"}

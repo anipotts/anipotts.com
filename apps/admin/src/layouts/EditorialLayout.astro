@@ -58,6 +58,20 @@ const appProps = {
   searchEntries: inventory.searchEntries,
   ...pageProps,
   inventoryError: Boolean(Astro.props.inventoryError || inventory.unavailable),
+  homepageWritingOptions:
+    pageProps.editHome ||
+    (pageProps.editorRecord?.kind === "page" &&
+      pageProps.editorRecord.id === "home")
+      ? inventory.records
+          .filter(
+            (record) => record.collection === "writing" && record.publishedSlug,
+          )
+          .map((record) => ({
+            slug: record.publishedSlug!,
+            title: record.title,
+            status: record.status,
+          }))
+      : undefined,
   area,
   siteUrl: publicSiteUrl,
   initialMode,

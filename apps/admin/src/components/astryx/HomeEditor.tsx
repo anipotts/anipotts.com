@@ -29,6 +29,7 @@ import { SavedArticlePreview } from "./SavedArticlePreview";
 import { SaveScheduler } from "../../lib/save-scheduler";
 import { structuredReviewChanges } from "../../lib/structured-review";
 import { writingReviewChanges } from "../../lib/writing-review";
+import { HomepageWritingSelection } from "./HomepageWritingSelection";
 import { ProjectSections } from "./ProjectSections";
 import { editProjectSections } from "../../lib/project-sections";
 import { siteConfig } from "@anipotts/content/public/site";
@@ -213,9 +214,11 @@ function HomeEditorImpl({
   localPreview = false,
   onTitleChange,
   pageTitle,
+  homepageWritingOptions = [],
 }: {
   record: EditorialRecord;
   pageTitle?: string;
+  homepageWritingOptions?: { slug: string; title: string; status: string }[];
   localPreview?: boolean;
   onTitleChange?: (title: string) => void;
 }) {
@@ -888,6 +891,8 @@ function HomeEditorImpl({
   let destinationId = record.id;
   let unsupportedPublication = false;
   let storyMediaIndexes: number[] = [];
+  let homepageWritingSlugs: string[] | null = [];
+  let homepageWritingLimit = 3;
   const fieldErrors = new Map<string, string>();
   try {
     const parsed = parseEditorialSource(state.source);
@@ -916,6 +921,28 @@ function HomeEditorImpl({
       String(parsed.document.getIn(field.path) ?? ""),
     );
     if (record.kind === "page" && record.id === "home") {
+      const sections = metadata.sections;
+      const writingSection =
+        sections && typeof sections === "object"
+          ? (sections as Record<string, unknown>).latest_thoughts
+          : null;
+      const rawSelection =
+        writingSection && typeof writingSection === "object"
+          ? (writingSection as Record<string, unknown>).writing_slugs
+          : null;
+      const selected = rawSelection === undefined ? [] : rawSelection;
+      homepageWritingSlugs =
+        Array.isArray(selected) &&
+        selected.every((slug) => typeof slug === "string")
+          ? selected
+          : null;
+      const limit = parsed.document.getIn([
+        "sections",
+        "latest_thoughts",
+        "limit",
+      ]);
+      if (typeof limit === "number" && Number.isInteger(limit) && limit > 0)
+        homepageWritingLimit = limit;
       const index = fields.findIndex((field) => field.rich);
       values[index] = editableHomeSummary(
         values[index] ?? "",
@@ -2214,6 +2241,34 @@ function HomeEditorImpl({
                     )}
                   </div>
                 ))}
+                {record.kind === "page" &&
+                  record.id === "home" &&
+                  parseable &&
+                  (homepageWritingSlugs === null ? (
+                    <Banner
+                      status="warning"
+                      title="Homepage article selection needs repair"
+                      description="The saved selection must be a list of article addresses. Your source is retained; repair it in source mode before changing this selection."
+                    />
+                  ) : (
+                    <HomepageWritingSelection
+                      value={homepageWritingSlugs}
+                      options={homepageWritingOptions}
+                      limit={homepageWritingLimit}
+                      disabled={Boolean(snapshot.draft?.discardedAt)}
+                      onChange={(slugs) => {
+                        if (snapshot.draft?.discardedAt || !editor.current)
+                          return;
+                        editor.current.edit(
+                          setEditorialField(
+                            editor.current.state.source,
+                            ["sections", "latest_thoughts", "writing_slugs"],
+                            slugs,
+                          ),
+                        );
+                      }}
+                    />
+                  ))}
                 {record.kind === "work" && parseable && (
                   <ProjectSections
                     source={state.source}

@@ -235,6 +235,9 @@ export function projectEditorialInventory(
     records.set(`${entry.collection}:${entry.id}`, {
       collection: entry.collection,
       id: entry.id,
+      ...(entry.collection === "writing" && !isPrivateOnly
+        ? { publishedSlug: text(entry.data.slug) ?? entry.id }
+        : {}),
       title: text(data.title) ?? text(entry.data.title) ?? entry.id,
       summary:
         editorialRecordSummary(identity, data) ??

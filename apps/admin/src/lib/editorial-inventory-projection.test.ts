@@ -451,3 +451,30 @@ it("lists private-only projects and routes them back to the project editor", asy
       ?.records,
   ).toHaveLength(1);
 });
+
+it("keeps homepage picker slugs tied to the public baseline rather than a private rename", () => {
+  const records = projectEditorialInventory(
+    [
+      {
+        collection: "writing",
+        id: "post",
+        data: { title: "Post", status: "published", slug: "public-address" },
+      },
+      {
+        collection: "writing",
+        id: "default-address",
+        data: { title: "Default", status: "published" },
+      },
+    ],
+    [
+      draft({
+        source:
+          "---\ntitle: Private\nslug: private-address\nstatus: draft\n---\nBody",
+      }),
+    ],
+  );
+  expect(records[0]!.publishedSlug).toBe("public-address");
+  expect(records[1]!.publishedSlug).toBe("default-address");
+  const privateOnly = projectEditorialInventory([], [draft()]);
+  expect(privateOnly[0]!.publishedSlug).toBeUndefined();
+});
