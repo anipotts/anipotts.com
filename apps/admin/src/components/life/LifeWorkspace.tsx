@@ -17,6 +17,7 @@ import {
   FileTextIcon,
   HeartIcon,
   PaletteIcon,
+  type Icon,
 } from "@phosphor-icons/react";
 import "./life-workspace.css";
 import { VStack } from "@astryxdesign/core/VStack";
@@ -141,9 +142,12 @@ export function LifeReadView({
   isStale = false,
   selectedId,
   detailId,
+  glyph,
 }: {
   result: LifeResult;
   section: LifeSection;
+  /** Row icon override for a caller that is not one of the Life sections. */
+  glyph?: Icon;
   onSelect?: (id: string, trigger: HTMLButtonElement) => void;
   selectedId?: string | null;
   detailId?: string;
@@ -260,17 +264,19 @@ export function LifeReadView({
       />
     );
   const sources = section === "sources";
-  const Glyph = sources
-    ? LinkIcon
-    : section === "people"
-      ? UsersIcon
-      : section === "projects"
-        ? FolderIcon
-        : section === "places"
-          ? MapPinIcon
-          : section === "timeline"
-            ? ClockIcon
-            : FileTextIcon;
+  const Glyph = glyph
+    ? glyph
+    : sources
+      ? LinkIcon
+      : section === "people"
+        ? UsersIcon
+        : section === "projects"
+          ? FolderIcon
+          : section === "places"
+            ? MapPinIcon
+            : section === "timeline"
+              ? ClockIcon
+              : FileTextIcon;
   const evidence = (item: Record<string, unknown>) =>
     sources ? (
       <Text type="supporting" color="secondary" wordBreak="break-word">

@@ -16,7 +16,14 @@ export type PrivateReaderCredential = {
 export type PrivateReaderState =
   | { status: "idle" }
   | { status: "ready"; credential: PrivateReaderCredential }
-  | { status: "cleared"; reason: "logout" | "expired" | "denied" };
+  | { status: "cleared"; reason: PrivateReaderClearReason };
+
+/**
+ * `denied`: the admin refused issuance or the reader refused the credential.
+ * `unavailable`: issuance is switched off (503) or could not be reached.
+ */
+export type PrivateReaderClearReason =
+  "logout" | "expired" | "denied" | "unavailable";
 
 type Timer = ReturnType<typeof setTimeout>;
 
@@ -65,6 +72,7 @@ export function createPrivateReaderSession(
   let expiryTimer: Timer | null = null;
   let generation = 0;
   let inflight: AbortController | null = null;
+  let pending: Promise<PrivateReaderState> | null = null;
 
   function set(next: PrivateReaderState) {
     state = next;
@@ -78,10 +86,11 @@ export function createPrivateReaderSession(
     expiryTimer = null;
   }
 
-  function clear(reason: "logout" | "expired" | "denied") {
+  function clear(reason: PrivateReaderClearReason) {
     generation++;
     inflight?.abort();
     inflight = null;
+    pending = null;
     cancelTimers();
     set({ status: "cleared", reason });
   }
@@ -93,7 +102,17 @@ export function createPrivateReaderSession(
     renewTimer = setTimer(() => void renew(), Math.max(0, remaining - lead));
   }
 
-  async function renew(): Promise<PrivateReaderState> {
+  /** Concurrent callers share one renewal, so parallel 401s cannot race it. */
+  function renew(): Promise<PrivateReaderState> {
+    if (pending) return pending;
+    const current = attemptRenewal().finally(() => {
+      if (pending === current) pending = null;
+    });
+    pending = current;
+    return current;
+  }
+
+  async function attemptRenewal(): Promise<PrivateReaderState> {
     const attempt = ++generation;
     inflight?.abort();
     const controller = new AbortController();
@@ -113,6 +132,10 @@ export function createPrivateReaderSession(
         body: "{}",
       });
       if (attempt !== generation) return state;
+      if (response.status === 503) {
+        clear("unavailable");
+        return state;
+      }
       const credential = response.ok
         ? parseCredential(await response.json())
         : null;
@@ -126,7 +149,7 @@ export function createPrivateReaderSession(
       schedule(credential);
       return state;
     } catch {
-      if (attempt === generation) clear("denied");
+      if (attempt === generation) clear("unavailable");
       return state;
     }
   }
@@ -135,6 +158,8 @@ export function createPrivateReaderSession(
     start: renew,
     renew,
     logout: () => clear("logout"),
+    /** The reader refused a renewed credential; stop and clear. */
+    deny: () => clear("denied"),
     /** Returns the bearer only while it is unexpired. */
     bearer(): string | null {
       if (state.status !== "ready") return null;

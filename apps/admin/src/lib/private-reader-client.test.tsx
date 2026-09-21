@@ -127,7 +127,10 @@ describe("private reader client session", () => {
     );
     const reader = session(fetcher as unknown as typeof fetch);
     await reader.start();
-    expect(reader.getState()).toEqual({ status: "cleared", reason: "denied" });
+    expect(reader.getState()).toEqual({
+      status: "cleared",
+      reason: "unavailable",
+    });
     await vi.advanceTimersByTimeAsync(120_000);
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
