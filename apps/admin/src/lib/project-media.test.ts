@@ -193,3 +193,43 @@ it("rejects late story uploads after the target changes, moves or disappears", (
     );
   }
 });
+
+it("edits logo treatment without changing the original asset or other metadata", () => {
+  let source = editProjectMedia(newProjectSource(record.id), {
+    type: "upload",
+    slot: "logo",
+    src,
+  });
+  source = editProjectMedia(source, {
+    type: "logo-alt",
+    value: "Original mark",
+  });
+  for (const value of ["adaptive", "light", "default"] as const) {
+    source = editProjectMedia(source, { type: "logo-tone", value });
+    expect(data(source).identity).toMatchObject({
+      logo_src: src,
+      logo_alt: "Original mark",
+      logo_tone: value,
+    });
+    expect(validateEditorialSource(record, source).success).toBe(true);
+  }
+  expect(() =>
+    editProjectMedia(source, {
+      type: "logo-tone",
+      value: "unsupported" as "default",
+    }),
+  ).toThrow("invalid_logo_tone");
+  source = setEditorialField(
+    source,
+    ["story"],
+    [{ title: "Story", paragraphs: ["Retain this"] }],
+  );
+  expect(() =>
+    editProjectMedia(source, {
+      type: "story-media",
+      index: 0,
+      expectedSection: JSON.stringify(data(source).story[0]),
+      edit: { type: "logo-tone", value: "adaptive" },
+    }),
+  ).toThrow("invalid_story_media_edit");
+});

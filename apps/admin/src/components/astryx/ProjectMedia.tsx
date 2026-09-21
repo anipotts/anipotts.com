@@ -117,6 +117,25 @@ export function ProjectMedia({
               onClick={() => emit({ type: "remove", slot: "logo" })}
             />
           )}
+          {Boolean(identity.logo_src) && (
+            <Selector
+              label="Logo theme treatment"
+              value={String(identity.logo_tone ?? "default")}
+              options={[
+                { value: "default", label: "Original colors" },
+                { value: "light", label: "Light mark" },
+                { value: "adaptive", label: "Adapt to theme" },
+              ]}
+              isDisabled={disabled}
+              status={status("identity.logo_tone")}
+              onChange={(value) =>
+                emit({
+                  type: "logo-tone",
+                  value: value as "default" | "light" | "adaptive",
+                })
+              }
+            />
+          )}
           <TextInput
             label="Logo alt text"
             value={String(identity.logo_alt ?? "")}

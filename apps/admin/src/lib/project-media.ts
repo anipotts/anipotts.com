@@ -19,6 +19,7 @@ export type ProjectBaseMediaEdit =
   | { type: "remove"; slot: "logo" | "preview" }
   | { type: "upload"; slot: "logo" | "preview"; src: string }
   | { type: "logo-alt"; value: string }
+  | { type: "logo-tone"; value: "default" | "light" | "adaptive" }
   | { type: "preview-alt" | "preview-caption"; value: string }
   | { type: "preview-fit"; value: "cover" | "contain" };
 
@@ -55,7 +56,8 @@ export function editProjectMedia(
       throw new Error("story_section_changed");
     if (
       ("slot" in edit.edit && edit.edit.slot !== "preview") ||
-      edit.edit.type === "logo-alt"
+      edit.edit.type === "logo-alt" ||
+      edit.edit.type === "logo-tone"
     )
       throw new Error("invalid_story_media_edit");
     const section = story[edit.index] as Record<string, unknown>;
@@ -102,6 +104,13 @@ export function editProjectMedia(
         parsed.document.setIn(["preview_media", "src"], edit.src);
       }
     }
+  } else if (edit.type === "logo-tone") {
+    if (
+      !projectSchema.shape.identity.shape.logo_tone.safeParse(edit.value)
+        .success
+    )
+      throw new Error("invalid_logo_tone");
+    parsed.document.setIn(["identity", "logo_tone"], edit.value);
   } else if (edit.type === "logo-alt") {
     parsed.document.setIn(["identity", "logo_alt"], edit.value);
   } else {
