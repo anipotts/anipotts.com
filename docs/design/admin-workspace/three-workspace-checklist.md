@@ -354,3 +354,12 @@ matching the workspace switcher. Observability main content has the same correct
 accessible label. Browser accessibility trees confirmed both names. Data keyboard
 Tab then Enter on Skip to content moved focus to `astryx-app-shell-main`; 38 shared
 shell/Observability tests passed. This does not substitute for screen-reader testing.
+
+### Newly created project preview acceptance
+
+The record preview previously required a bundled project and returned unavailable
+for a CMS-created project. It now builds the empty-body project entry from the
+validated saved revision, preserving the existing source-body compatibility guard.
+Browser acceptance opened synthetic `qa-project-media-20260921` revision18 and
+rendered its title, story section and roadmap through WorkDetail. No draft edits
+or publication occurred. The temporary tab was closed.

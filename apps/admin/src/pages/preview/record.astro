@@ -76,10 +76,17 @@ if (record.kind === "writing") {
   };
 } else if (record.kind === "work") {
   const original = await getEntry("projects", record.id);
-  if (!original) return previewFailure(Astro.url, "unavailable", 404);
-  if (body.trim() !== (original.body ?? "").trim())
+  if (body.trim() !== (original?.body ?? "").trim())
     return previewFailure(Astro.url, "source-only", 409);
-  project = { ...original, data: projectSchema.parse(data) };
+  project = original
+    ? { ...original, data: projectSchema.parse(data) }
+    : {
+        id: record.id,
+        collection: "projects",
+        body: "",
+        rendered: { html: "" },
+        data: projectSchema.parse(data),
+      };
 }
 const allWriting = writing
   ? await publishedWriting(publicContentContext(Astro.locals))
