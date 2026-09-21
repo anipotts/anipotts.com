@@ -49,6 +49,7 @@ export function overlayPublishedInventory(
       id: record.id,
       data: validated.data as Record<string, unknown>,
       body: parseEditorialSource(source).body,
+      published: true,
     });
   }
   return [...result.values()];

@@ -15,6 +15,9 @@ export type InventoryEntry = {
   id: string;
   data: Record<string, unknown>;
   body?: string;
+  /** Set when the content store holds this record, so a hidden state there
+   * means it was published and then taken off the site. */
+  published?: boolean;
 };
 export type ProjectedRecord = CatalogRecord & {
   collection: string;
@@ -217,10 +220,15 @@ export function projectEditorialInventory(
       ? "draft"
       : entry.collection === "projects"
         ? (text(entry.data.public_state) ?? "hidden")
-        : entry.collection === "writing" ||
-            entry.collection === "newsletterPage"
-          ? (text(entry.data.status) ?? "draft")
-          : "published";
+        : entry.collection === "writing" && entry.published
+          ? // Unpublished writing keeps status draft in its hidden revision.
+            text(entry.data.status) === "published"
+            ? "published"
+            : "hidden"
+          : entry.collection === "writing" ||
+              entry.collection === "newsletterPage"
+            ? (text(entry.data.status) ?? "draft")
+            : "published";
     const rawVisibility =
       entry.collection === "projects" ? data.public_state : data.status;
     const visibilityValues =

@@ -901,9 +901,7 @@ it("blocks unsupported direct publication before submission while retaining the 
     }),
   );
   await mount("?view=review", false);
-  expect(host.textContent).toContain(
-    "Scheduling and unpublishing are unavailable",
-  );
+  expect(host.textContent).toContain("scheduling is not available yet");
   const approve = [...host.querySelectorAll("button")].find(
     (button) => button.textContent?.trim() === "Approve and publish",
   );
@@ -943,4 +941,152 @@ it("labels an activated retry as verification", async () => {
   await mount("?panel=publication", false);
   expect(host.textContent).toContain("Retry verification");
   expect(host.textContent).not.toContain("Retry publishing");
+});
+
+it("unpublishes a public piece only after a compact confirmation, bound to the server's public source", async () => {
+  const { publicationSourceHash } =
+    await import("@anipotts/content/editorial/publication-contract");
+  const { unpublishedSource } = await import("../../lib/editorial-visibility");
+  const publishedSource = source.replace(
+    "status: draft",
+    "status: published\npublished_at: 2026-09-20",
+  );
+  const cmsBase = {
+    source: publishedSource,
+    baseCommit: "a".repeat(40),
+    baseFileHash: "b".repeat(40),
+    publicationId: "published-receipt",
+    sourceSha256: await publicationSourceHash(publishedSource),
+    inventoryVersion: 3,
+  };
+  let payload: Record<string, unknown> | undefined;
+  const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.includes("/csrf")) return response({ csrf: "test-only" });
+    if (url.includes("/baseline")) return response({ base: cmsBase });
+    if (url.includes("/unpublish?")) {
+      payload = JSON.parse(String(init?.body));
+      return new Response(
+        JSON.stringify({
+          publication: {
+            mode: "direct",
+            action: "unpublish",
+            id: payload!.operationId,
+            phase: "validate",
+            version: 0,
+            attempts: 1,
+            dueAt: 0,
+            lease: null,
+            leaseUntil: 0,
+            blocked: null,
+            checkpoint: {},
+            publicationId: null,
+            sourceSha256: payload!.reviewedSourceSha256,
+            baselineSha256: payload!.expectedBaselineSha256,
+            inventoryVersion: null,
+            verifiedAt: null,
+            superseded: false,
+            revision: 1,
+            canCancel: true,
+            queue: { pending: 1, position: null, head: null, alarmAt: null },
+          },
+        }),
+        { status: 202 },
+      );
+    }
+    if (url.includes("/publication?")) return response({ publication: null });
+    return response({
+      ...snapshot,
+      publicationMode: "direct",
+      base: cmsBase,
+      draft: { ...draft, source: publishedSource },
+    });
+  });
+  vi.stubGlobal("fetch", fetcher);
+  await mount("", false);
+  expect(host.textContent).not.toContain("Unpublish this piece?");
+  await click("Unpublish");
+  // Opening the confirmation sends nothing.
+  expect(fetcher.mock.calls.some(([url]) => url.includes("/unpublish?"))).toBe(
+    false,
+  );
+  expect(host.textContent).toContain("Unpublish this piece?");
+  expect(host.textContent).toContain("its page returns not found");
+  expect(host.textContent).toContain("Publish again restores it");
+  await click("Keep it published");
+  expect(host.textContent).not.toContain("Unpublish this piece?");
+  await click("Unpublish");
+  const confirm = [...host.querySelectorAll("button")].filter(
+    (button) => button.textContent?.trim() === "Unpublish",
+  );
+  // The toolbar action and the confirmation's own action.
+  expect(confirm).toHaveLength(2);
+  await act(async () => {
+    confirm.at(-1)!.click();
+  });
+  await act(async () => {
+    await vi.waitFor(() => expect(payload).toBeDefined());
+  });
+  expect(payload).toMatchObject({
+    expectedPublicationId: "published-receipt",
+    expectedBaselineSha256: await publicationSourceHash(publishedSource),
+    reviewedSourceSha256: await publicationSourceHash(
+      unpublishedSource({ kind: "writing", id: "test" }, publishedSource),
+    ),
+  });
+  // No draft or public text travels with an unpublish, only hashes.
+  expect(payload).not.toHaveProperty("source");
+  expect(payload).not.toHaveProperty("baselineSource");
+  await act(async () => {
+    await vi.waitFor(() =>
+      expect(host.textContent).toContain(
+        "Preparing to take this off the website.",
+      ),
+    );
+  });
+  expect(host.textContent).not.toContain("Unpublish this piece?");
+});
+
+it("offers Publish again, not Unpublish, while a piece is hidden from the website", async () => {
+  const { publicationSourceHash } =
+    await import("@anipotts/content/editorial/publication-contract");
+  const publishedSource = source.replace(
+    "status: draft",
+    "status: published\npublished_at: 2026-09-20",
+  );
+  const hiddenSource = publishedSource.replace(
+    "status: published",
+    "status: draft",
+  );
+  const hiddenBase = {
+    source: hiddenSource,
+    baseCommit: "a".repeat(40),
+    baseFileHash: "c".repeat(40),
+    publicationId: "unpublish-receipt",
+    sourceSha256: await publicationSourceHash(hiddenSource),
+    inventoryVersion: 4,
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      if (url.includes("/baseline")) return response({ base: hiddenBase });
+      if (url.includes("/publication?")) return response({ publication: null });
+      return response({
+        ...snapshot,
+        publicationMode: "direct",
+        base: hiddenBase,
+        draft: { ...draft, source: publishedSource },
+      });
+    }),
+  );
+  await mount("", false);
+  expect(host.textContent).toContain("Hidden from the website.");
+  const labels = [...host.querySelectorAll("button")].map((button) =>
+    button.textContent?.trim(),
+  );
+  expect(labels).toContain("Publish again");
+  expect(labels).not.toContain("Unpublish");
+  expect(labels).not.toContain("Publish");
+  await click("Publish again");
+  expect(host.textContent).toContain("Approve and publish");
 });
