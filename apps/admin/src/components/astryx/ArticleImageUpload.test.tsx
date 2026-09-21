@@ -298,3 +298,63 @@ it("canceling while reading aborts FileReader before media upload", async () => 
   expect(abort).toHaveBeenCalledOnce();
   expect(fetcher).toHaveBeenCalledOnce();
 });
+
+it("does not expose transport errors while reopening an uploaded image", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => {
+      throw new Error("PRIVATE provider response");
+    }),
+  );
+  await act(async () =>
+    root.render(
+      <ArticleImageUpload
+        existingSrc={`/images/editorial/${"a".repeat(64)}.png`}
+        onUploaded={() => {}}
+        onPendingChange={() => {}}
+      />,
+    ),
+  );
+  expect(host.textContent).toContain("Couldn’t load this image");
+  expect(host.textContent).not.toContain("PRIVATE");
+});
+
+it("releases pending state when reopening an image reaches its deadline", async () => {
+  const deadline = new AbortController();
+  const timeout = vi
+    .spyOn(AbortSignal, "timeout")
+    .mockReturnValue(deadline.signal);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      (_url, options) =>
+        new Promise((_resolve, reject) => {
+          options.signal.addEventListener(
+            "abort",
+            () => reject(options.signal.reason),
+            { once: true },
+          );
+        }),
+    ),
+  );
+  const pending = vi.fn();
+  await act(async () =>
+    root.render(
+      <ArticleImageUpload
+        existingSrc={`/images/editorial/${"a".repeat(64)}.png`}
+        onUploaded={() => {}}
+        onPendingChange={pending}
+      />,
+    ),
+  );
+  expect(timeout).toHaveBeenCalledWith(15000);
+  expect(pending).toHaveBeenLastCalledWith(true);
+  await act(async () =>
+    deadline.abort(new DOMException("Timed out", "TimeoutError")),
+  );
+  expect(pending).toHaveBeenLastCalledWith(false);
+  expect(host.textContent).toContain("Choose its original file to crop it");
+  expect(
+    host.querySelector<HTMLInputElement>('input[type="file"]')?.disabled,
+  ).toBe(false);
+});

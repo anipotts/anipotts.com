@@ -1,0 +1,114 @@
+import { parseEditorialSource } from "@anipotts/content/editorial/source";
+export type ProjectSectionKind = "story" | "technical" | "roadmap";
+export type ProjectSectionEdit =
+  | { type: "add"; kind: ProjectSectionKind }
+  | { type: "remove"; kind: ProjectSectionKind; index: number }
+  | { type: "move"; kind: ProjectSectionKind; index: number; direction: -1 | 1 }
+  | {
+      type: "roadmap-field";
+      index: number;
+      field: "text" | "status";
+      value: string;
+    }
+  | { type: "paragraph"; index: number }
+  | { type: "remove-paragraph"; index: number; paragraph: number };
+
+/** Move existing YAML nodes so section comments and media stay attached. */
+export function editProjectSections(
+  source: string,
+  edit: ProjectSectionEdit,
+): string {
+  const parsed = parseEditorialSource(source);
+  const data = parsed.data as Record<string, unknown>;
+  if (edit.type === "roadmap-field") {
+    if (
+      !Array.isArray(data.roadmap) ||
+      !Number.isInteger(edit.index) ||
+      edit.index < 0 ||
+      edit.index >= data.roadmap.length
+    )
+      return source;
+    if (
+      edit.field === "status" &&
+      !["planned", "in-progress", "done"].includes(edit.value)
+    )
+      return source;
+    parsed.document.setIn(["roadmap", edit.index, edit.field], edit.value);
+  } else if (edit.type === "remove-paragraph") {
+    const stories = data.story;
+    if (
+      !Array.isArray(stories) ||
+      !Number.isInteger(edit.index) ||
+      edit.index < 0 ||
+      edit.index >= stories.length
+    )
+      return source;
+    const paragraphs = stories[edit.index]?.paragraphs;
+    if (
+      !Array.isArray(paragraphs) ||
+      paragraphs.length <= 1 ||
+      !Number.isInteger(edit.paragraph) ||
+      edit.paragraph < 0 ||
+      edit.paragraph >= paragraphs.length
+    )
+      return source;
+    parsed.document.deleteIn([
+      "story",
+      edit.index,
+      "paragraphs",
+      edit.paragraph,
+    ]);
+  } else if (edit.type === "paragraph") {
+    const story = data.story;
+    if (
+      !Array.isArray(story) ||
+      !Number.isInteger(edit.index) ||
+      edit.index < 0 ||
+      edit.index >= story.length
+    )
+      return source;
+    parsed.document.addIn(["story", edit.index, "paragraphs"], "");
+  } else if (edit.type === "add") {
+    if (data[edit.kind] !== undefined && !Array.isArray(data[edit.kind]))
+      return source;
+    if (!data[edit.kind])
+      parsed.document.set(edit.kind, parsed.document.createNode([]));
+    parsed.document.addIn(
+      [edit.kind],
+      parsed.document.createNode(
+        edit.kind === "story"
+          ? { title: "", paragraphs: [""] }
+          : edit.kind === "technical"
+            ? { title: "", content: "" }
+            : { text: "", status: "planned" },
+      ),
+    );
+  } else if (edit.type === "remove") {
+    const entries = data[edit.kind];
+    if (
+      !Array.isArray(entries) ||
+      !Number.isInteger(edit.index) ||
+      edit.index < 0 ||
+      edit.index >= entries.length
+    )
+      return source;
+    parsed.document.deleteIn([edit.kind, edit.index]);
+  } else {
+    const entries = data[edit.kind];
+    const target = edit.index + edit.direction;
+    if (
+      !Array.isArray(entries) ||
+      !Number.isInteger(edit.index) ||
+      edit.index < 0 ||
+      edit.index >= entries.length ||
+      target < 0 ||
+      target >= entries.length
+    )
+      return source;
+    const current = parsed.document.getIn([edit.kind, edit.index], true);
+    const other = parsed.document.getIn([edit.kind, target], true);
+    parsed.document.setIn([edit.kind, edit.index], other);
+    parsed.document.setIn([edit.kind, target], current);
+  }
+  return `${parsed.opening}${parsed.document.toString({ lineWidth: 0 }).replace(/\r?\n/gu, parsed.newline)}${parsed.closing}${parsed.body}`;
+}

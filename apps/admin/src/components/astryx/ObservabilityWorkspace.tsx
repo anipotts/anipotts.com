@@ -337,7 +337,7 @@ export function ObservabilityWorkspace({
       height="auto"
       padding={0}
       content={
-        <LayoutContent label="Operations">
+        <LayoutContent label="Observability">
           <VStack gap={5}>
             <HStack
               gap={4}
@@ -439,8 +439,8 @@ export function ObservabilityWorkspace({
               data-has-detail={Boolean(selected)}
             >
               <VStack
-                gap={3}
-                className="operations-results"
+                gap={isInventory ? 0 : 3}
+                className={`operations-results${isInventory ? " admin-table-surface" : ""}`}
                 role="region"
                 id="observability-panel"
                 aria-label={title(view)}

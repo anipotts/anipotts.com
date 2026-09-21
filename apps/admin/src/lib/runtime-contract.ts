@@ -9,19 +9,36 @@
  * and lock the owner out. Each surface keeps its own fail-closed checks.
  */
 
-type Source = "assets" | "vars" | "d1" | "durable_objects" | "secret" | "build";
-type Check = "fetch" | "prepare" | "getByName" | "text" | "flag" | "id" | "sha";
+type Source =
+  "assets" | "vars" | "d1" | "r2" | "durable_objects" | "secret" | "build";
+type Check =
+  | "fetch"
+  | "prepare"
+  | "getByName"
+  | "getPut"
+  | "text"
+  | "flag"
+  | "id"
+  | "sha"
+  | "mode";
+type PublisherMode = "legacy" | "direct" | "maintenance";
 
-/** Every name must match apps/admin/wrangler.toml; the drift test enforces it. */
+/** Names match deployment configuration when their mode is enabled. Direct
+ * bindings remain optional while production uses the legacy publisher.
+ * This checks binding shape and build identity, not schema or reader readiness.
+ */
 export const RUNTIME_CONTRACT = {
   ASSETS: { source: "assets", check: "fetch" },
   ACCESS_TEAM_DOMAIN: { source: "vars", check: "text" },
   ACCESS_POLICY_AUD: { source: "vars", check: "text" },
   DB: { source: "d1", check: "prepare" },
+  CONTENT_DB: { source: "d1", check: "prepare" },
+  CONTENT_MEDIA: { source: "r2", check: "getPut" },
   EDITORIAL: { source: "durable_objects", check: "getByName" },
   COMMAND_RELAY: { source: "durable_objects", check: "getByName" },
   EDITORIAL_ENABLED: { source: "vars", check: "flag" },
   EDITORIAL_PUBLISH_ENABLED: { source: "vars", check: "flag" },
+  EDITORIAL_PUBLISH_MODE: { source: "vars", check: "mode" },
   EDITORIAL_GITHUB_APP_ID: { source: "vars", check: "text" },
   EDITORIAL_GITHUB_INSTALLATION_ID: { source: "vars", check: "id" },
   EDITORIAL_GITHUB_PRIVATE_KEY: { source: "secret", check: "text" },
@@ -37,7 +54,7 @@ export const RUNTIME_REQUIRED = [
   "ACCESS_POLICY_AUD",
 ] as const satisfies readonly RuntimeName[];
 
-const editorialNeeds = [
+const legacyEditorialNeeds = [
   "EDITORIAL",
   "EDITORIAL_GITHUB_APP_ID",
   "EDITORIAL_GITHUB_INSTALLATION_ID",
@@ -48,21 +65,41 @@ const editorialNeeds = [
  * control-plane relay lookup. Flags switch a feature off; needs make an
  * enabled feature unavailable when absent.
  */
+const directEditorialNeeds = [
+  "EDITORIAL",
+  "CONTENT_DB",
+] as const satisfies readonly RuntimeName[];
+
 export const RUNTIME_FEATURES = {
-  editorial: { flags: ["EDITORIAL_ENABLED"], needs: editorialNeeds },
+  editorial: {
+    flags: ["EDITORIAL_ENABLED"],
+    needs: {
+      legacy: legacyEditorialNeeds,
+      direct: directEditorialNeeds,
+      maintenance: directEditorialNeeds,
+    },
+  },
   editorial_publishing: {
     flags: ["EDITORIAL_ENABLED", "EDITORIAL_PUBLISH_ENABLED"],
-    needs: [
-      ...editorialNeeds,
-      "EDITORIAL_SIGNING_PRIVATE_KEY",
-      "PUBLIC_RELEASE_SHA",
-    ],
+    needs: {
+      legacy: [
+        ...legacyEditorialNeeds,
+        "EDITORIAL_SIGNING_PRIVATE_KEY",
+        "PUBLIC_RELEASE_SHA",
+      ],
+      direct: [...directEditorialNeeds, "CONTENT_MEDIA", "PUBLIC_RELEASE_SHA"],
+      maintenance: [],
+    },
   },
   admin_database: { flags: [], needs: ["DB"] },
   control_plane: { flags: [], needs: ["COMMAND_RELAY"] },
 } as const satisfies Record<
   string,
-  { flags: readonly RuntimeName[]; needs: readonly RuntimeName[] }
+  {
+    flags: readonly RuntimeName[];
+    needs:
+      readonly RuntimeName[] | Record<PublisherMode, readonly RuntimeName[]>;
+  }
 >;
 
 type RuntimeFeature = keyof typeof RUNTIME_FEATURES;
@@ -79,20 +116,38 @@ type RuntimeEntry = "fetch" | "durable_object";
 type RuntimeLogSink = Pick<Console, "info" | "warn">;
 
 const sha = /^[a-f0-9]{40}$/;
+const unreadable = Symbol("unreadable");
 
-function read(values: unknown, name: string): unknown {
+function read(
+  values: unknown,
+  name: string,
+  onError: unknown = undefined,
+): unknown {
   if (!values || typeof values !== "object") return undefined;
   try {
     return (values as Record<string, unknown>)[name];
   } catch {
-    return undefined;
+    return onError;
   }
+}
+
+function publisherMode(value: unknown): PublisherMode | null {
+  if (value === undefined) return "legacy";
+  return value === "legacy" || value === "direct" || value === "maintenance"
+    ? value
+    : null;
 }
 
 function satisfied(env: unknown, name: RuntimeName, release: string) {
   const { check } = RUNTIME_CONTRACT[name];
   if (check === "sha") return sha.test(release);
-  const value = read(env, name);
+  const value = read(env, name, unreadable);
+  if (check === "mode") return publisherMode(value) !== null;
+  if (check === "getPut")
+    return (
+      typeof read(value, "get") === "function" &&
+      typeof read(value, "put") === "function"
+    );
   if (check === "text") return typeof value === "string" && !!value.trim();
   if (check === "flag") return value === "true";
   if (check === "id") {
@@ -116,13 +171,25 @@ export function evaluateRuntimeContract(
     }
     return result;
   };
+  // Omission alone preserves the rolling-upgrade legacy default. Invalid or
+  // unreadable configuration never silently enables either publisher.
+  const mode = publisherMode(read(env, "EDITORIAL_PUBLISH_MODE", unreadable));
+  results.set("EDITORIAL_PUBLISH_MODE", mode !== null);
   const missing = RUNTIME_REQUIRED.filter((name) => !has(name));
   const features = {} as RuntimeContractReport["features"];
   for (const [feature, { flags, needs }] of Object.entries(RUNTIME_FEATURES)) {
-    const enabled = (flags as readonly RuntimeName[]).every(has);
-    const absent = enabled
-      ? (needs as readonly RuntimeName[]).filter((name) => !has(name))
-      : [];
+    const modeSpecific = "legacy" in needs;
+    const enabled =
+      (flags as readonly RuntimeName[]).every(has) &&
+      !(feature === "editorial_publishing" && mode === "maintenance");
+    const selectedNeeds = modeSpecific ? (mode ? needs[mode] : []) : needs;
+    const absent: RuntimeName[] = !enabled
+      ? []
+      : modeSpecific && mode === null
+        ? ["EDITORIAL_PUBLISH_MODE"]
+        : (selectedNeeds as readonly RuntimeName[]).filter(
+            (name) => !has(name),
+          );
     features[feature as RuntimeFeature] = {
       state: !enabled
         ? "disabled"

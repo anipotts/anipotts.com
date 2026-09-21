@@ -1,24 +1,33 @@
 import type { LifeRead, LifeResult } from "../data/personal-context";
 
-export type LifeReader = (request: LifeRead) => Promise<LifeResult>;
+export type LifeReader = (
+  request: LifeRead,
+  signal?: AbortSignal,
+) => Promise<LifeResult>;
 
 /** One independent instance per list/detail view; late responses cannot replace newer reads. */
 export class LifeReadSession {
   private generation = 0;
+  private controller?: AbortController;
   private pending?: { reader: LifeReader; key: string; generation: number };
   invalidate() {
     this.generation += 1;
+    this.controller?.abort();
+    this.controller = undefined;
     this.pending = undefined;
   }
   async run(reader: LifeReader, request: LifeRead): Promise<LifeResult | null> {
     const key = JSON.stringify(request);
     if (this.pending?.reader === reader && this.pending.key === key)
       return null;
+    this.controller?.abort();
+    const controller = new AbortController();
+    this.controller = controller;
     const generation = ++this.generation;
     this.pending = { reader, key, generation };
     let result: LifeResult;
     try {
-      result = await reader(request);
+      result = await reader(request, controller.signal);
     } catch {
       result = {
         state: "unavailable",
@@ -26,6 +35,7 @@ export class LifeReadSession {
       };
     }
     if (this.pending?.generation === generation) this.pending = undefined;
+    if (this.controller === controller) this.controller = undefined;
     return generation === this.generation ? result : null;
   }
 }

@@ -30,3 +30,8 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Commands should appear immediately, without a decorative fade. */
+.astryx-dropdown-menu[role="menu"] {
+  transition: none;
+}

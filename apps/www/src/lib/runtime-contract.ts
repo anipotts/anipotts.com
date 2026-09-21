@@ -11,8 +11,8 @@
  * env.ASSETS before middleware runs. Those requests never reach this report.
  */
 
-type Source = "assets" | "d1" | "queue_producer" | "secret";
-type Check = "fetch" | "prepare" | "send" | "text";
+type Source = "assets" | "d1" | "r2" | "queue_producer" | "secret";
+type Check = "fetch" | "prepare" | "get" | "send" | "text";
 
 /** Bindings must match apps/www/wrangler.toml and secrets must stay out of it;
  * test/runtime-contract.test.mjs enforces both.
@@ -20,9 +20,14 @@ type Check = "fetch" | "prepare" | "send" | "text";
 export const RUNTIME_CONTRACT = {
   ASSETS: { source: "assets", check: "fetch" },
   DB: { source: "d1", check: "prepare" },
+  CONTENT_DB: { source: "d1", check: "prepare", optional: true },
+  CONTENT_MEDIA: { source: "r2", check: "get", optional: true },
   NEWSLETTER_QUEUE: { source: "queue_producer", check: "send" },
   RESEND_WEBHOOK_SECRET: { source: "secret", check: "text" },
-} as const satisfies Record<string, { source: Source; check: Check }>;
+} as const satisfies Record<
+  string,
+  { source: Source; check: Check; optional?: boolean }
+>;
 
 export type RuntimeName = keyof typeof RUNTIME_CONTRACT;
 
@@ -36,12 +41,17 @@ export const RUNTIME_REQUIRED = [
  */
 export const RUNTIME_FEATURES = {
   database: { needs: ["DB"] },
+  published_content: { needs: ["CONTENT_DB"], cms: true },
+  published_media: { needs: ["CONTENT_DB", "CONTENT_MEDIA"], cms: true },
   confirmation_email: { needs: ["DB", "NEWSLETTER_QUEUE"] },
   resend_webhook: { needs: ["DB", "RESEND_WEBHOOK_SECRET"] },
-} as const satisfies Record<string, { needs: readonly RuntimeName[] }>;
+} as const satisfies Record<
+  string,
+  { needs: readonly RuntimeName[]; cms?: boolean }
+>;
 
 type RuntimeFeature = keyof typeof RUNTIME_FEATURES;
-type RuntimeFeatureState = "available" | "unavailable";
+type RuntimeFeatureState = "available" | "unavailable" | "disabled";
 type RuntimeContractReport = {
   ok: boolean;
   missing: RuntimeName[];
@@ -84,12 +94,26 @@ export function evaluateRuntimeContract(env: unknown): RuntimeContractReport {
   };
   const missing: RuntimeName[] = RUNTIME_REQUIRED.filter((name) => !has(name));
   const features = {} as RuntimeContractReport["features"];
-  for (const [feature, { needs }] of Object.entries(RUNTIME_FEATURES)) {
-    const absent = (needs as readonly RuntimeName[]).filter(
+  for (const [feature, definition] of Object.entries(RUNTIME_FEATURES)) {
+    if ("cms" in definition) {
+      const mode = read(env, "CONTENT_RUNTIME");
+      if (mode === undefined || mode === "legacy") {
+        features[feature as RuntimeFeature] = {
+          state: "disabled",
+          missing: [],
+        };
+        continue;
+      }
+    }
+    const absent = (definition.needs as readonly RuntimeName[]).filter(
       (name) => !has(name),
     );
     features[feature as RuntimeFeature] = {
-      state: absent.length ? "unavailable" : "available",
+      state:
+        absent.length ||
+        ("cms" in definition && read(env, "CONTENT_RUNTIME") !== "cms")
+          ? "unavailable"
+          : "available",
       missing: absent,
     };
   }

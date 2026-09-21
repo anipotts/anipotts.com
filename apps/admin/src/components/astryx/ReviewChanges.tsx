@@ -22,7 +22,13 @@ import {
 
 import { SaveStatus, type SaveStatusProps } from "./SaveStatus";
 
-type Change = { label: string; before: string; after: string; rich?: boolean };
+type Change = {
+  label: string;
+  before: string;
+  after: string;
+  rich?: boolean;
+  onEdit?: () => void;
+};
 
 function formattingNodes(nodes: InlineNode[]): unknown[] {
   return nodes.map((node) =>
@@ -157,6 +163,7 @@ function FieldDiff({
   after,
   rich,
   source = false,
+  onEdit,
 }: Change & { source?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const headingId = useId();
@@ -208,6 +215,15 @@ function FieldDiff({
         <Text id={headingId} weight="semibold">
           {label}
         </Text>
+        {onEdit && (
+          <Button
+            label="Edit"
+            aria-label={`Edit ${label}`}
+            variant="ghost"
+            size="sm"
+            onClick={onEdit}
+          />
+        )}
         {comparison.detail && (
           <Text type="supporting">{comparison.detail}</Text>
         )}

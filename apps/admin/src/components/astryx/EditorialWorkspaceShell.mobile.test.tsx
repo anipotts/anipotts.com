@@ -215,38 +215,26 @@ describe("responsive workspace navigation", () => {
     document.removeEventListener("admin:search", announce);
     expect(announce).toHaveBeenCalledTimes(1);
   });
-  it("offers appearance as a sidebar menu and a header visit-site link", () => {
+  it("offers one-click appearance choices and a header visit-site link", () => {
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
       value: 1280,
     });
     const change = vi.fn();
     render(change);
-    // One control at the foot of the sidebar, shaped like the workspace menu:
-    // it names the current choice and opens a single-choice menu.
     const appearance = host.querySelector(
-      ".editorial-workspace-utilities .admin-appearance-menu",
-    ) as HTMLButtonElement;
-    expect(appearance).not.toBeNull();
-    expect(appearance.classList).toContain("admin-sidebar-menu");
-    expect(
-      host.querySelector(".admin-workspace-selector")?.classList,
-    ).toContain("admin-sidebar-menu");
-    expect(appearance.getAttribute("aria-label")).toMatch(/^Theme: /);
-    expect(appearance.getAttribute("aria-haspopup")).toBe("menu");
-    act(() => appearance.click());
-    const menu = document.getElementById(
-      appearance.getAttribute("aria-controls") ?? "",
+      '.admin-theme-tabs[role="radiogroup"]',
     )!;
-    expect(menu.getAttribute("role")).toBe("menu");
+    expect(appearance.getAttribute("aria-label")).toBe("Theme");
     const choices = [
-      ...menu.querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
+      ...appearance.querySelectorAll<HTMLButtonElement>('[role="radio"]'),
     ];
-    expect(choices.map((choice) => choice.textContent)).toEqual([
+    expect(choices.map((choice) => choice.getAttribute("aria-label"))).toEqual([
       "Light",
       "Dark",
       "System",
     ]);
+    expect(appearance.querySelector('[aria-haspopup="menu"]')).toBeNull();
     act(() => choices[1]!.click());
     expect(change).toHaveBeenCalledExactlyOnceWith("dark");
     const identity = host.querySelector(".editorial-workspace-identity")!;

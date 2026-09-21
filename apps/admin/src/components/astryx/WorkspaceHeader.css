@@ -1,4 +1,30 @@
 /* "AP Structural" is declared once, in styles/fonts.css. */
+/* The desktop rail changes width, never its row rhythm or icon centerline. */
+@media (width > 768px) {
+  .editorial-workspace-nav .approved-workspace-header {
+    gap: var(--spacing-0-5);
+  }
+  .editorial-workspace-nav > :has(> .approved-workspace-header) {
+    padding-block-end: 0;
+  }
+  .editorial-workspace-nav > :has(> .astryx-side-nav-section) {
+    padding-block-start: var(--spacing-0-5);
+  }
+  .editorial-workspace-nav .astryx-side-nav-section {
+    padding-block: 0;
+  }
+  .editorial-workspace-nav .astryx-side-nav-item {
+    height: var(--spacing-9);
+    min-height: var(--spacing-9);
+    box-sizing: border-box;
+  }
+}
+@media (width > 768px) and (pointer: coarse) {
+  .editorial-workspace-nav .astryx-side-nav-item {
+    height: var(--spacing-11);
+    min-height: var(--spacing-11);
+  }
+}
 /* Shared geometry: one square target and icon column in either sidebar state. */
 .editorial-workspace-nav .approved-workspace-header {
   --workspace-control-size: var(--spacing-9);
@@ -241,8 +267,7 @@
 }
 /* The drawer gives every control the same inset; the bordered menus spend a
    pixel of theirs on their border, so they ask for a pixel less. */
-.editorial-workspace-nav
-  :is(.admin-workspace-selector, .admin-sidebar-menu) {
+.editorial-workspace-nav :is(.admin-workspace-selector, .admin-sidebar-menu) {
   padding-inline-start: calc(var(--spacing-2) - var(--border-width));
 }
 @media (width > 768px) {
@@ -481,4 +506,22 @@
   border-radius: var(--radius-full);
   background-color: var(--color-background-popover);
   box-shadow: var(--shadow-low);
+}
+
+/* One action per appearance choice, including the collapsed navigation rail. */
+.admin-theme-tabs {
+  width: 100%;
+}
+.admin-theme-tabs [role="radio"] {
+  min-width: 36px;
+  min-height: 36px;
+}
+.editorial-workspace-utilities[data-collapsed="true"] .admin-theme-tabs {
+  flex-direction: column;
+}
+@media (max-width: 767px) {
+  .admin-theme-tabs [role="radio"] {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }

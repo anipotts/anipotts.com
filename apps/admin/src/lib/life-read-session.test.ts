@@ -101,3 +101,23 @@ describe("Life request continuity", () => {
     ).toThrow("changed");
   });
 });
+
+it("aborts obsolete transport reads on replacement and closure", async () => {
+  const session = new LifeReadSession();
+  const signals: AbortSignal[] = [];
+  const reader = (_request: unknown, signal?: AbortSignal) =>
+    new Promise<LifeResult>((_resolve, reject) => {
+      signals.push(signal!);
+      signal!.addEventListener("abort", () => reject(new Error("aborted")), {
+        once: true,
+      });
+    });
+  const first = session.run(reader, { method: "search", q: "first" });
+  const second = session.run(reader, { method: "search", q: "second" });
+  expect(signals[0]!.aborted).toBe(true);
+  expect(signals[1]!.aborted).toBe(false);
+  expect(await first).toBeNull();
+  session.invalidate();
+  expect(signals[1]!.aborted).toBe(true);
+  expect(await second).toBeNull();
+});

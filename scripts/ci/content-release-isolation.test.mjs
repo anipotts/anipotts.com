@@ -72,11 +72,17 @@ function fixture(t) {
       vars: {
         RELEASE_TEST_RUN_ID: runId,
         RELEASE_TEST_DATA_CLASS: "synthetic",
-        EDITORIAL_PUBLISH_ENABLED: "false",
+        ...(role === "admin"
+          ? {
+              EDITORIAL_ENABLED: "true",
+              EDITORIAL_PUBLISH_ENABLED: "false",
+              EDITORIAL_PUBLISH_MODE: "maintenance",
+            }
+          : { CONTENT_RUNTIME: "cms" }),
       },
       d1_databases: [
         {
-          binding: "DB",
+          binding: "CONTENT_DB",
           database_name: resources.databaseName,
           database_id: resources.databaseId,
           migrations_dir: "../migrations",
@@ -575,20 +581,44 @@ test("existing release-policy gate runs the preflight tests without app deploy t
   );
 });
 
-// The isolated bundle ships the real Workers, so its database must be bound
-// under the name they read. If an application ever renames its D1 binding,
-// this fails instead of silently attesting to an unreachable database.
-test("the isolated database binding matches the applications", () => {
-  const declared = ["apps/admin/wrangler.toml", "apps/www/wrangler.toml"]
-    .map((path) => readFileSync(path, "utf8"))
-    .map((text) => {
-      const section = text.split("[[d1_databases]]")[1] ?? "";
-      return (section.match(/binding\s*=\s*"([^"]+)"/) ?? [])[1];
-    });
-  assert.deepEqual(declared, ["DB", "DB"]);
-  const preflight = readFileSync(
-    "scripts/ci/content-release-isolation.mjs",
-    "utf8",
-  );
-  assert.match(preflight, /const APPLICATION_D1_BINDING = "DB";/);
+test("CMS isolation binds publication storage separately from the shared application DB", (t) => {
+  const f = fixture(t);
+  assert.equal(f.run().publicationProfile, "disabled");
+  for (const role of ["admin", "www"]) {
+    assert.equal(f.configs[role].d1_databases[0].binding, "CONTENT_DB");
+    f.configs[role].d1_databases[0].binding = "DB";
+    assert.throws(() => f.run(), /invalid_database_binding/);
+    f.configs[role].d1_databases[0].binding = "CONTENT_DB";
+  }
+});
+
+test("reader must use CMS while writer remains in maintenance with activation disabled", (t) => {
+  const f = fixture(t);
+  f.configs.www.vars.CONTENT_RUNTIME = "legacy";
+  assert.throws(() => f.run(), /unsafe_runtime_vars/);
+  f.configs.www.vars.CONTENT_RUNTIME = "cms";
+  for (const mode of ["legacy", "direct", undefined]) {
+    f.configs.admin.vars.EDITORIAL_PUBLISH_MODE = mode;
+    assert.throws(() => f.run());
+  }
+});
+
+test("an active direct cloud profile is blocked until verification targets the isolated reader", (t) => {
+  const f = fixture(t);
+  f.manifest.publicationProfile = "direct";
+  // The runtime currently contacts anipotts.com; fake resource names alone
+  // must not certify that this is an end-to-end isolated publication test.
+  assert.throws(() => f.run(), /unsupported_public_verification_target/);
+});
+
+test("unknown profiles and attempts to add a shared DB are rejected", (t) => {
+  const f = fixture(t);
+  f.manifest.publicationProfile = "legacy";
+  assert.throws(() => f.run(), /invalid_publication_profile/);
+  f.manifest.publicationProfile = "disabled";
+  f.configs.admin.d1_databases.push({
+    ...f.configs.admin.d1_databases[0],
+    binding: "DB",
+  });
+  assert.throws(() => f.run(), /invalid_database_binding/);
 });

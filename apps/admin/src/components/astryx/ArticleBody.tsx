@@ -724,7 +724,7 @@ function VisualArticleBody({
         )}
         <EditorContent editor={editor} />
       </VStack>
-      <Text color="secondary" type="supporting">
+      <Text className="article-word-count" color="secondary" type="supporting">
         {value.trim() ? value.trim().split(/\s+/u).length : 0} words
       </Text>
     </Field>

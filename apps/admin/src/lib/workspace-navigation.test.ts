@@ -41,6 +41,14 @@ describe("workspace return destinations", () => {
       "/newsletter/my-newsletter",
     );
   });
+  it("keeps creation routes without retaining private form values", () => {
+    for (const path of ["/content/new", "/content/new-project"]) {
+      expect(
+        workspaceReturnPath("content", `${path}?title=private#draft`),
+      ).toBe(path);
+      expect(workspaceReturnPath("life", path)).toBe("/life");
+    }
+  });
   it.each([
     ["projects", "chainedchat"],
     ["home", "home"],

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   editorialRecordSchema,
+  editorialRecordPath,
   MAX_SOURCE_BYTES,
   validateEditorialSource,
   type EditorialRecord,
@@ -99,4 +100,16 @@ export async function decodePublishedSnapshot(
   if ((await publicationSourceHash(value.source)) !== value.sourceSha256)
     throw new PublicationContractError("publication_hash_mismatch");
   return value;
+}
+
+/** Identify exact bundled defaults independent of application release or glob order. */
+export async function bundledPublicationSourceHash(
+  entries: ReadonlyArray<{ record: EditorialRecord; source: string }>,
+): Promise<string> {
+  const rows = entries
+    .map(({ record, source }) => [editorialRecordPath(record), source] as const)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  if (rows.some(([path], index) => index > 0 && rows[index - 1]![0] === path))
+    throw new PublicationContractError("invalid_publication_source");
+  return publicationSourceHash(JSON.stringify(rows));
 }

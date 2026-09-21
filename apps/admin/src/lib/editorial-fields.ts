@@ -18,6 +18,10 @@ export function editorialFields(
         rich: true,
         description: "Shown on writing cards and beneath the article title.",
       },
+      {
+        label: "Opening note (optional)",
+        path: ["opening"],
+      },
     ];
   if (record.kind === "work") {
     const fields: EditorialField[] = [

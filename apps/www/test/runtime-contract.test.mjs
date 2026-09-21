@@ -20,6 +20,9 @@ function completeEnv(overrides = {}) {
   return {
     ASSETS: binding("fetch"),
     DB: binding("prepare"),
+    CONTENT_RUNTIME: "cms",
+    CONTENT_DB: binding("prepare"),
+    CONTENT_MEDIA: binding("get"),
     NEWSLETTER_QUEUE: binding("send"),
     RESEND_WEBHOOK_SECRET: `whsec_${CANARY}`,
     ...overrides,
@@ -97,6 +100,8 @@ test("feature bindings degrade their feature and never fail the contract", () =>
   assert.equal(withoutDatabase.ok, true);
   assert.deepEqual(withoutDatabase.features, {
     database: { state: "unavailable", missing: ["DB"] },
+    published_content: { state: "available", missing: [] },
+    published_media: { state: "available", missing: [] },
     confirmation_email: { state: "unavailable", missing: ["DB"] },
     resend_webhook: { state: "unavailable", missing: ["DB"] },
   });
@@ -138,6 +143,7 @@ test("reports contain only contract names and bounded states, never values", () 
     ...names,
     ...Object.keys(RUNTIME_FEATURES),
     "available",
+    "disabled",
     "unavailable",
     "ok",
     "missing",
@@ -176,6 +182,8 @@ test("the reporter logs one line per isolate and never throws", async () => {
     missing: [],
     features: {
       database: { state: "available", missing: [] },
+      published_content: { state: "available", missing: [] },
+      published_media: { state: "available", missing: [] },
       confirmation_email: { state: "available", missing: [] },
       resend_webhook: { state: "available", missing: [] },
     },
@@ -234,6 +242,7 @@ function wranglerBindings(text) {
 const SOURCE_SECTIONS = {
   assets: "assets",
   d1: "d1_databases",
+  r2: "r2_buckets",
   queue_producer: "queues.producers",
 };
 
@@ -248,7 +257,7 @@ test("the contract matches apps/www/wrangler.toml", () => {
   );
   const declared = wranglerBindings(wrangler);
 
-  for (const [name, { source }] of Object.entries(RUNTIME_CONTRACT)) {
+  for (const [name, { source, optional }] of Object.entries(RUNTIME_CONTRACT)) {
     assert.match(envTypes, new RegExp(`\\b${name}\\??:`), `${name} typed`);
     if (source === "secret") {
       assert.equal(
@@ -261,7 +270,7 @@ test("the contract matches apps/www/wrangler.toml", () => {
     const section = SOURCE_SECTIONS[source];
     assert.ok(section, `${name} has a known source`);
     assert.ok(
-      (declared.get(section) ?? []).includes(name),
+      optional || (declared.get(section) ?? []).includes(name),
       `${name} is declared under [${section}] in wrangler.toml`,
     );
   }
@@ -275,5 +284,40 @@ test("the contract matches apps/www/wrangler.toml", () => {
   for (const name of RUNTIME_REQUIRED) assert.ok(name in RUNTIME_CONTRACT);
   for (const { needs } of Object.values(RUNTIME_FEATURES)) {
     for (const name of needs) assert.ok(name in RUNTIME_CONTRACT);
+  }
+});
+
+test("CMS dependencies are disabled in legacy mode and bounded when activated", () => {
+  for (const CONTENT_RUNTIME of [undefined, "legacy"]) {
+    const result = evaluateRuntimeContract(
+      completeEnv({
+        CONTENT_RUNTIME,
+        CONTENT_DB: undefined,
+        CONTENT_MEDIA: undefined,
+      }),
+    );
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.features.published_content, {
+      state: "disabled",
+      missing: [],
+    });
+    assert.deepEqual(result.features.published_media, {
+      state: "disabled",
+      missing: [],
+    });
+  }
+  const result = evaluateRuntimeContract(
+    completeEnv({ CONTENT_DB: undefined }),
+  );
+  assert.deepEqual(result.features.published_content, {
+    state: "unavailable",
+    missing: ["CONTENT_DB"],
+  });
+  for (const CONTENT_RUNTIME of [null, "unknown"]) {
+    assert.equal(
+      evaluateRuntimeContract(completeEnv({ CONTENT_RUNTIME })).features
+        .published_content.state,
+      "unavailable",
+    );
   }
 });

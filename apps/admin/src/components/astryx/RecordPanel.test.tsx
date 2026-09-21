@@ -35,6 +35,21 @@ describe("article properties", () => {
     expect(html).not.toContain("astryx-collapsible");
     expect(html).not.toContain("Body stays here.");
   });
+  it("explains direct publisher limits while preserving an existing private draft", () => {
+    const html = renderToStaticMarkup(
+      <ArticleSettings
+        source={source}
+        id="original-id"
+        errors={new Map()}
+        publicationMode="direct"
+        onChange={() => {
+          throw new Error("must not rewrite source");
+        }}
+      />,
+    );
+    expect(html).toContain("Scheduling and unpublishing are unavailable");
+    expect(html).toContain("Draft, hidden from the website");
+  });
   it("retains disclosure by default for existing callers", () => {
     const html = renderToStaticMarkup(
       <ArticleSettings

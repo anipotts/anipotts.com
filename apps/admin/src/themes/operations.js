@@ -97,17 +97,17 @@ export const operationsTheme = {
     "--color-syntax-property": "light-dark(#005348, #83dac9)",
     "--color-syntax-punctuation": "light-dark(#a3a3a3, #525252)",
     "--color-syntax-background": "light-dark(#fafafa, #0a0a0a)",
-    "--color-background-surface": "light-dark(#ffffff, #1a1d23)",
-    "--color-background-body": "light-dark(#f4f5f7, #111317)",
-    "--color-background-card": "light-dark(#ffffff, #1a1d23)",
-    "--color-background-popover": "light-dark(#ffffff, #23272f)",
-    "--color-background-muted": "light-dark(#eceef2, #242932)",
+    "--color-background-surface": "light-dark(#ffffff, #111419)",
+    "--color-background-body": "light-dark(#f4f5f7, #090b0e)",
+    "--color-background-card": "light-dark(#ffffff, #111419)",
+    "--color-background-popover": "light-dark(#ffffff, #15191f)",
+    "--color-background-muted": "light-dark(#eceef2, #171b22)",
     "--color-accent": "light-dark(#286c65, #8ac8bd)",
-    "--color-accent-muted": "light-dark(#e8f1ee, #223b36)",
-    "--color-neutral": "light-dark(#2026310d, #eef0f410)",
+    "--color-accent-muted": "light-dark(#e8f1ee, #142822)",
+    "--color-neutral": "light-dark(#2026310d, #eef0f40a)",
     "--color-overlay": "light-dark(#00000080, #000000CC)",
-    "--color-overlay-hover": "light-dark(#0000000D, #FFFFFF0D)",
-    "--color-overlay-pressed": "light-dark(#0000001A, #FFFFFF1A)",
+    "--color-overlay-hover": "light-dark(#0000000d, #ffffff08)",
+    "--color-overlay-pressed": "light-dark(#0000001a, #ffffff10)",
     "--color-text-primary": "light-dark(#202631, #eef0f4)",
     "--color-text-secondary": "light-dark(#586271, #aab3c1)",
     "--color-text-disabled": "light-dark(#a3a3a3, #525252)",
@@ -128,8 +128,8 @@ export const operationsTheme = {
     "--color-success-muted": "light-dark(#c5e5c0, #84c9803D)",
     "--color-error-muted": "light-dark(#facecb, #ff9e973D)",
     "--color-warning-muted": "light-dark(#f8da9d, #deb4333D)",
-    "--color-border": "light-dark(#d9dee6, #343b47)",
-    "--color-border-emphasized": "light-dark(#8795a8, #707f94)",
+    "--color-border": "light-dark(#d9dee6, #252b35)",
+    "--color-border-emphasized": "light-dark(#8795a8, #485365)",
     "--color-skeleton": "light-dark(#ebebeb, #525252)",
     "--color-shadow": "light-dark(#0000001A, #0000004D)",
     "--color-tint-hover": "light-dark(black, white)",
@@ -427,7 +427,7 @@ export const operationsTheme = {
     },
     "app-shell": {
       "base": {
-        "--color-workspace-sidebar": "light-dark(#f1f6f4, #131b19)"
+        "--color-workspace-sidebar": "light-dark(#f1f6f4, #0d1210)"
       }
     },
     "top-nav": {

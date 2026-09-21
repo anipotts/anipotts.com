@@ -9,16 +9,15 @@ it("shares a neutral keyboard focus policy across both admin layouts", () => {
     );
     expect(layout).toContain('import "../styles/focus.css"');
   }
-  expect(css).toContain("--focus-outline-color: var(--color-text-secondary)");
+  expect(css).toContain("--focus-outline-width: 0");
+  expect(css).toContain("--focus-outline-style: none");
   expect(css).toContain(":focus-visible");
-  expect(css).toContain(
-    "var(--focus-outline-width) var(--focus-outline-style)",
-  );
-  expect(css).toContain("--focus-outline-color: CanvasText");
+  expect(css).toContain("background-color: var(--color-accent-muted)");
+  expect(css).toContain("background-color: Highlight");
 });
-it("preserves validation borders and gives wrapped fields a replacement ring", () => {
+it("preserves validation boundaries while removing ordinary focus halos", () => {
   expect(css).toContain(":not([data-status]):focus-within");
-  expect(css).toContain(".astryx-textarea):has(:focus-visible)");
-  expect(css).not.toContain("outline: none !important");
+  expect(css).toContain("border-color: var(--color-border)");
+  expect(css).toContain("box-shadow: none");
   expect(css).not.toContain("--color-accent:");
 });

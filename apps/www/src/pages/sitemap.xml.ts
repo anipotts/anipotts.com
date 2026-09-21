@@ -1,3 +1,4 @@
+import { publicContentContext } from "../lib/content";
 import type { APIRoute } from "astro";
 import { siteConfig } from "@anipotts/content/public";
 import {
@@ -7,7 +8,7 @@ import {
   visibleProjects,
 } from "../lib/content";
 
-export const prerender = true;
+export const prerender = false;
 
 const BASE = siteConfig.url;
 
@@ -17,9 +18,10 @@ interface Entry {
   lastmod?: string;
 }
 
-export const GET: APIRoute = async () => {
-  const writingEntries = await publishedWriting();
-  const projects = await visibleProjects();
+export const GET: APIRoute = async ({ locals }) => {
+  const context = publicContentContext(locals);
+  const writingEntries = await publishedWriting(context);
+  const projects = await visibleProjects(context);
 
   const entries: Entry[] = [
     { path: "/", priority: 1 },
@@ -29,6 +31,7 @@ export const GET: APIRoute = async () => {
     ...writingEntries.map((t) => ({
       path: `/writing/${writingSlug(t)}`,
       priority: 0.65,
+      // Frontmatter dates only; a publication timestamp is not a content edit.
       lastmod: t.data.published_at?.toISOString(),
     })),
     ...projects.map((p) => ({

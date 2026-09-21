@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { localGitHead } from "./local-git-head";
 import { newWritingSource } from "./writing-draft";
+import { newProjectSource } from "./project-draft";
 import type { DraftStorage, HomeBase } from "./editorial-home-api";
 import type { MediaStorage } from "./editorial-media-api";
 import {
@@ -20,7 +21,7 @@ export async function localDraftStorage(): Promise<
     MediaStorage &
     Pick<
       import("../editorial/draft-store").EditorialDraftStore,
-      "listWritingDrafts"
+      "listWritingDrafts" | "listProjectDrafts"
     >
 > {
   runtime ??= (async () => {
@@ -64,7 +65,7 @@ export async function localDraftStorage(): Promise<
         MediaStorage &
         Pick<
           import("../editorial/draft-store").EditorialDraftStore,
-          "listWritingDrafts"
+          "listWritingDrafts" | "listProjectDrafts"
         >;
     };
   }>();
@@ -80,10 +81,17 @@ export async function localHomeBase(
     source = await readFile(path, "utf8");
   } catch (error) {
     if (
-      record.kind === "writing" &&
+      (record.kind === "writing" || record.kind === "work") &&
       (error as NodeJS.ErrnoException).code === "ENOENT"
     )
-      return { source: newWritingSource(), baseCommit, baseFileHash: null };
+      return {
+        source:
+          record.kind === "work"
+            ? newProjectSource(record.id)
+            : newWritingSource(),
+        baseCommit,
+        baseFileHash: null,
+      };
     throw error;
   }
   const bytes = Buffer.from(source);

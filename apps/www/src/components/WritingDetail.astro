@@ -20,14 +20,20 @@ import { writingCard } from "../lib/social-card/routes";
 interface Props {
   preview?: boolean;
   item: Writing;
+  allWriting?: Writing[];
 }
 const { item } = Astro.props;
 const slug = writingSlug(item);
 const { Content } = await render(item);
 const d = item.data;
-const moreWriting = (await publishedWriting())
+const moreWriting = (Astro.props.allWriting ?? (await publishedWriting()))
   .filter((post) => writingSlug(post) !== slug)
   .slice(0, 2);
+// Cards are prerendered from Git writing. A CMS record keeps its bundled card
+// by slug; only a slug with no bundled card falls back to the site card.
+const bundledCard = (await publishedWriting()).some(
+  (post) => writingSlug(post) === slug,
+);
 
 const articleLd = {
   "@context": "https://schema.org",
@@ -53,7 +59,9 @@ const articleLd = {
   jsonLd={articleLd}
   detail
   robots={Astro.props.preview ? "noindex, nofollow, noarchive" : undefined}
-  socialCard={Astro.props.preview ? undefined : writingCard(slug)}
+  socialCard={Astro.props.preview || !bundledCard
+    ? undefined
+    : writingCard(slug)}
 >
   {
     Astro.props.preview && (
@@ -93,6 +101,7 @@ const articleLd = {
     </header>
 
     <div data-rise class="article-body">
+      {d.opening?.trim() && <p data-article-opening>{d.opening}</p>}
       <Content />
     </div>
     <footer class="article-end">

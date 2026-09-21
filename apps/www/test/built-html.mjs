@@ -1,9 +1,26 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, relative } from "node:path";
 
-// Shared by tests that run after the www build and read emitted markup.
-export const dist = fileURLToPath(new URL("../dist/", import.meta.url));
+// Shared by tests reading actual built-Worker responses captured outside deploy assets.
+export const dist = fileURLToPath(
+  new URL("../.local/public-rendered/", import.meta.url),
+);
+
+const proof = JSON.parse(
+  readFileSync(join(dist, ".runtime-proof.json"), "utf8"),
+);
+assert.equal(
+  proof.workerSha256,
+  createHash("sha256")
+    .update(
+      readFileSync(new URL("../dist/_worker.js/index.js", import.meta.url)),
+    )
+    .digest("hex"),
+  "Rendered fixtures must match the current built Worker",
+);
 
 export function builtPages(dir = dist) {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

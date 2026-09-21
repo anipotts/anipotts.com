@@ -98,3 +98,34 @@ export function withConditionalStatus(
   headers.delete("content-length");
   return new Response(null, { status: 304, headers });
 }
+
+/** Rendered pages that set no cache policy of their own (legacy Git mode,
+ * which prerendered before routes moved to SSR) get the same revalidation
+ * contract as prerendered HTML: a strong ETag over the body and
+ * `public, max-age=0, must-revalidate`, so withConditionalStatus can answer
+ * 304. Responses that already choose a policy, such as the published reader's
+ * no-store, are left alone. */
+export async function withRenderedValidator(
+  request: { method: string },
+  pathname: string,
+  response: Response,
+): Promise<Response> {
+  if (response.status !== 200) return response;
+  if (request.method !== "GET" && request.method !== "HEAD") return response;
+  if (pathname.startsWith("/api/")) return response;
+  if (response.headers.has("cache-control") || response.headers.has("etag"))
+    return response;
+  const body = await response.arrayBuffer();
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", body));
+  const tag = [...digest.slice(0, 16)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+  const headers = new Headers(response.headers);
+  headers.set("etag", `"${tag}"`);
+  headers.set("cache-control", "public, max-age=0, must-revalidate");
+  return new Response(request.method === "HEAD" ? null : body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}

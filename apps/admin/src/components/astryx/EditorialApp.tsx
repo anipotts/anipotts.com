@@ -1,3 +1,4 @@
+import { libraryReturnPath } from "../../lib/content-library-state";
 import {
   RECORD_CREATED_EVENT,
   RECORD_SAVED_EVENT,
@@ -65,6 +66,7 @@ export type CatalogRecord = {
   section?: string;
   collection?: string;
   id?: string;
+  publishedSlug?: string;
   changesPending?: boolean;
   changedFields?: string[];
   privateRevision?: number;
@@ -105,12 +107,14 @@ export type EditorialAppProps = {
   localOwner?: boolean;
   siteUrl: string;
   initialMode?: ThemePreference;
+  homepageWritingOptions?: { slug: string; title: string; status: string }[];
   groups?: CatalogGroup[];
   selectedGroup?: string;
   librarySearch?: string;
   review?: Review;
   inventoryError?: boolean;
   newWriting?: boolean;
+  newProject?: boolean;
   recoveryScope?: string;
   editHome?: boolean;
   editorRecord?: import("@anipotts/content/editorial/source").EditorialRecord;
@@ -133,12 +137,21 @@ export function EditorialApp({
   review,
   editHome,
   newWriting,
+  newProject,
   recoveryScope,
   inventoryError,
+  homepageWritingOptions,
   editorRecord,
   hideHeader = false,
   children,
 }: EditorialAppProps) {
+  const [libraryBack, setLibraryBack] = useState<string | null>(null);
+  useEffect(() => {
+    const returnTo = new URLSearchParams(window.location.search).get(
+      "returnTo",
+    );
+    setLibraryBack(returnTo ? libraryReturnPath(returnTo) : null);
+  }, []);
   const [mode, setMode] = useState<ThemePreference>(initialMode);
   const [inventoryView, setInventoryView] = useState(() =>
     createInventoryView(groups, searchEntries),
@@ -189,7 +202,13 @@ export function EditorialApp({
         selectedGroup={selectedGroup}
         recordKind={
           editorRecord?.kind ??
-          (newWriting ? "writing" : editHome ? "home" : undefined)
+          (newProject
+            ? "work"
+            : newWriting
+              ? "writing"
+              : editHome
+                ? "home"
+                : undefined)
         }
         mode={mode}
         changeTheme={changeTheme}
@@ -208,26 +227,31 @@ export function EditorialApp({
         }
       >
         <VStack
-          gap={editorRecord?.kind === "writing" ? 4 : 6}
+          gap={editorRecord ? 4 : 6}
           className={`editorial-content${groups ? " editorial-library-page" : ""}${editorRecord?.kind === "writing" ? " writing-content" : ""}`}
         >
-          {(review || editHome || editorRecord || newWriting) && (
+          {(review || editHome || editorRecord || newWriting || newProject) && (
             <Breadcrumbs variant="supporting">
               <BreadcrumbItem
                 href={
+                  libraryBack ??
                   review?.back ??
                   (area === "newsletter"
                     ? "/newsletter"
                     : editorRecord?.kind === "writing" || newWriting
                       ? "/content?group=writing"
-                      : "/content")
+                      : editorRecord?.kind === "work" || newProject
+                        ? "/content?group=work"
+                        : "/content?group=website")
                 }
               >
                 {area === "newsletter"
                   ? "Newsletter"
                   : editorRecord?.kind === "writing" || newWriting
                     ? "Writing"
-                    : "Content"}
+                    : editorRecord?.kind === "work" || newProject
+                      ? "Projects"
+                      : "Pages"}
               </BreadcrumbItem>
               <BreadcrumbItem isCurrent>
                 {editorRecord?.kind === "writing"
@@ -239,29 +263,38 @@ export function EditorialApp({
           {!hideHeader &&
             !editorRecord &&
             !editHome &&
-            (groups || review || children || newWriting) && (
+            (groups || review || children || newWriting || newProject) && (
               <HStack gap={3} hAlign="between" vAlign="center" wrap="wrap">
                 <Heading level={1}>
-                  {newWriting
-                    ? "New article"
-                    : groups && selectedGroup === "writing"
-                      ? "Writing"
-                      : groups && selectedGroup === "website"
-                        ? "Pages"
-                        : groups &&
-                            area === "content" &&
-                            (!selectedGroup || selectedGroup === "pages")
-                          ? "Overview"
-                          : title}
+                  {newProject
+                    ? "New project"
+                    : newWriting
+                      ? "New article"
+                      : groups && selectedGroup === "writing"
+                        ? "Writing"
+                        : groups && selectedGroup === "website"
+                          ? "Pages"
+                          : groups &&
+                              area === "content" &&
+                              (!selectedGroup || selectedGroup === "pages")
+                            ? "Overview"
+                            : title}
                 </Heading>
-                {groups && selectedGroup === "writing" && (
-                  <Button
-                    label="New article"
-                    href="/content/new"
-                    variant="primary"
-                    size="sm"
-                  />
-                )}
+                {groups &&
+                  ["writing", "work"].includes(selectedGroup ?? "") && (
+                    <Button
+                      label={
+                        selectedGroup === "work" ? "New project" : "New article"
+                      }
+                      href={
+                        selectedGroup === "work"
+                          ? "/content/new-project"
+                          : "/content/new"
+                      }
+                      variant="primary"
+                      size="sm"
+                    />
+                  )}
               </HStack>
             )}
           {inventoryError && (
@@ -278,7 +311,12 @@ export function EditorialApp({
               }
             />
           )}
-          {newWriting && <NewWriting recoveryScope={recoveryScope} />}
+          {(newWriting || newProject) && (
+            <NewWriting
+              recoveryScope={recoveryScope}
+              recordKind={newProject ? "work" : "writing"}
+            />
+          )}
           {groups && (
             <ContentLibrary
               groups={inventoryView.groups ?? groups}
@@ -300,6 +338,7 @@ export function EditorialApp({
             >
               <HomeEditor
                 pageTitle={title}
+                homepageWritingOptions={homepageWritingOptions}
                 onTitleChange={setDraftTitle}
                 localPreview={localPreview}
                 key={editorRecord?.id ?? "home"}
@@ -391,6 +430,7 @@ export function EditorialApp({
           {!groups &&
             !review &&
             !newWriting &&
+            !newProject &&
             !editorRecord &&
             !editHome &&
             (children || (

@@ -41,6 +41,13 @@ describe("document title editing", () => {
   }
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    );
     host = document.createElement("div");
     document.body.append(host);
     root = createRoot(host);
@@ -48,6 +55,7 @@ describe("document title editing", () => {
   afterEach(() => {
     act(() => root.unmount());
     host.remove();
+    vi.unstubAllGlobals();
   });
   it("shows typing and deletion immediately, then commits only the latest value", () => {
     render();

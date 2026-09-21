@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import { Layout, LayoutContent, LayoutHeader } from "@astryxdesign/core/Layout";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Banner } from "@astryxdesign/core/Banner";
@@ -139,10 +139,14 @@ export function LifeReadView({
   section,
   onSelect,
   isStale = false,
+  selectedId,
+  detailId,
 }: {
   result: LifeResult;
   section: LifeSection;
-  onSelect?: (id: string) => void;
+  onSelect?: (id: string, trigger: HTMLButtonElement) => void;
+  selectedId?: string | null;
+  detailId?: string;
   /**
    * The latest refresh failed and this ready result is retained. Only the
    * record and source library marks it, on its count and a "Not current"
@@ -156,7 +160,7 @@ export function LifeReadView({
       // state reads as information; a refused or failed read is a warning, so
       // it does not look like an ordinary empty result.
       disconnected: {
-        title: "Life is not connected yet",
+        title: "Data is not connected yet",
         description:
           "Records remain in PersonalContext. An authorized source connection is needed before they can be read here.",
         Icon: LinkBreakIcon,
@@ -175,6 +179,13 @@ export function LifeReadView({
           "The source is unavailable. This does not mean that your records are empty. Try again when the source is available.",
         Icon: WarningCircleIcon,
         status: "warning" as const,
+      },
+      not_found: {
+        title: "Record not found",
+        description:
+          "This record was not found in the authorized source. Refresh the list before choosing another record.",
+        Icon: WarningCircleIcon,
+        status: "info" as const,
       },
       invalid: {
         title: "The source response could not be used",
@@ -217,6 +228,18 @@ export function LifeReadView({
         <Evidence title="Selected sources" value={data.selected} />
         <Evidence title="Omissions" value={data.omitted} />
       </VStack>
+    );
+  if (section === "overview" && result.responseObservedAt)
+    return (
+      <Metadata
+        fields={[
+          ["Records", object(data.counts).records],
+          ["Revisions", object(data.counts).revisions],
+          ["Sources", object(data.counts).sources],
+          ["Last source change", data.last_change_at],
+          ["Response observed", result.responseObservedAt],
+        ]}
+      />
     );
   if (section === "overview")
     return (
@@ -329,7 +352,14 @@ export function LifeReadView({
                           variant="ghost"
                           size="sm"
                           className="life-record-select"
-                          onClick={() => onSelect(item.record_id as string)}
+                          aria-controls={detailId}
+                          aria-pressed={selectedId === item.record_id}
+                          onClick={(event) =>
+                            onSelect(
+                              item.record_id as string,
+                              event.currentTarget,
+                            )
+                          }
                         />
                       ) : (
                         <Text weight="medium" wordBreak="break-word">
@@ -381,7 +411,7 @@ export function LifeReadView({
           description={
             sources
               ? "The source returned no permitted sources for this read."
-              : "Try a different search or return to another Life view."
+              : "Try a different search or return to another Data view."
           }
           icon={<Glyph weight="regular" />}
         />
@@ -390,7 +420,28 @@ export function LifeReadView({
   );
 }
 /** Reader is injected by a separately approved capability, never derived from URL input. */
-export function LifeExplorer({
+type ExplorerProps = {
+  section: LifeSection;
+  initial: LifeResult;
+  reader?: LifeReader;
+};
+
+/** A replacement capability or initial result starts a new private session. */
+export function LifeExplorer(props: ExplorerProps) {
+  const identity = useRef({ ...props, generation: 0 });
+  if (
+    identity.current.reader !== props.reader ||
+    identity.current.section !== props.section ||
+    identity.current.initial !== props.initial
+  )
+    identity.current = {
+      ...props,
+      generation: identity.current.generation + 1,
+    };
+  return <LifeExplorerSession key={identity.current.generation} {...props} />;
+}
+
+function LifeExplorerSession({
   section,
   initial,
   reader,
@@ -399,6 +450,18 @@ export function LifeExplorer({
   initial: LifeResult;
   reader?: LifeReader;
 }) {
+  const detailId = useId();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const detailRegion = useRef<HTMLElement>(null);
+  const recordTrigger = useRef<HTMLButtonElement | null>(null);
+  const restoreFocus = useRef(false);
+  useEffect(() => {
+    if (selectedId) detailRegion.current?.focus();
+    else if (restoreFocus.current) {
+      recordTrigger.current?.focus();
+      restoreFocus.current = false;
+    }
+  }, [selectedId]);
   const [query, setQuery] = useState("");
   const [submitted, setSubmitted] = useState("");
   const [result, setResult] = useState(initial);
@@ -420,11 +483,25 @@ export function LifeExplorer({
     },
     [],
   );
-  const closeRecord = () => {
+  const closeRecord = (restore = false) => {
+    restoreFocus.current = restore;
+    setSelectedId(null);
     detailSession.current.invalidate();
     setRecord(null);
     setDetailBusy(false);
     setDetailError(null);
+  };
+  const revokeRead = (next: LifeResult) => {
+    listSession.current.invalidate();
+    closeRecord();
+    setQuery("");
+    setSubmitted("");
+    setOffsets([0]);
+    failed.current = ["", [0]];
+    setBusy(false);
+    setListError(null);
+    setStale(false);
+    setResult(next);
   };
   async function load(q: string, history: number[]) {
     if (!reader) return;
@@ -451,8 +528,7 @@ export function LifeExplorer({
         setOffsets(history);
         setStale(false);
       } else if (next.state === "denied" || next.state === "disconnected") {
-        setResult(next);
-        setStale(false);
+        revokeRead(next);
       } else {
         failed.current = [q, history];
         setStale(true);
@@ -460,8 +536,11 @@ export function LifeExplorer({
       }
     }
   }
-  async function select(id: string) {
+  async function select(id: string, trigger: HTMLButtonElement) {
     if (!reader) return;
+    recordTrigger.current = trigger;
+    detailRegion.current?.focus();
+    setSelectedId(id);
     setRecord(null);
     setDetailBusy(true);
     setDetailError(null);
@@ -469,9 +548,13 @@ export function LifeExplorer({
     if (next) {
       setDetailBusy(false);
       if (next.state === "ready") setRecord(next.data);
+      else if (next.state === "denied" || next.state === "disconnected")
+        revokeRead(next);
       else
         setDetailError(
-          "This record could not be read. Try selecting it again.",
+          next.state === "not_found"
+            ? "This record was not found in the authorized source. Refresh the list before selecting it again."
+            : "This record could not be read. Try selecting it again.",
         );
     }
   }
@@ -494,6 +577,10 @@ export function LifeExplorer({
     });
     if (!next) return;
     setDetailBusy(false);
+    if (next.state === "denied" || next.state === "disconnected") {
+      revokeRead(next);
+      return;
+    }
     if (next.state !== "ready") {
       setDetailError("The next section could not be read. Try again.");
       return;
@@ -520,108 +607,125 @@ export function LifeExplorer({
     }
   }
   return (
-    <VStack gap={4}>
-      {searchable && reader && (
-        <HStack
-          as="form"
-          gap={2}
-          wrap="wrap"
-          vAlign="end"
-          className="life-search-toolbar"
-          onSubmit={(event: React.FormEvent) => {
-            event.preventDefault();
-            void load(query, [0]);
-          }}
-        >
-          <TextInput
-            label={section === "preview" ? "Question" : "Search records"}
-            value={query}
-            onChange={(value) => setQuery(value.slice(0, 2048))}
-          />
+    <div
+      className={`life-explorer${selectedId ? " life-explorer-detail-open" : ""}`}
+    >
+      <VStack gap={4} className="life-master-region">
+        {searchable && reader && (
+          <HStack
+            as="form"
+            gap={2}
+            wrap="wrap"
+            vAlign="end"
+            className="life-search-toolbar"
+            onSubmit={(event: React.FormEvent) => {
+              event.preventDefault();
+              void load(query, [0]);
+            }}
+          >
+            <TextInput
+              label={section === "preview" ? "Question" : "Search records"}
+              value={query}
+              onChange={(value) => setQuery(value.slice(0, 2048))}
+            />
+            <Button
+              type="submit"
+              label={section === "preview" ? "Preview context" : "Search"}
+              isLoading={busy}
+            />
+          </HStack>
+        )}
+        {!searchable && reader && (
           <Button
-            type="submit"
-            label={section === "preview" ? "Preview context" : "Search"}
+            label="Refresh"
+            clickAction={() => load(submitted, offsets)}
             isLoading={busy}
           />
-        </HStack>
-      )}
-      {!searchable && reader && (
-        <Button
-          label="Refresh"
-          clickAction={() => load(submitted, offsets)}
-          isLoading={busy}
-        />
-      )}
-      {(listError || pagingError) && (
-        <RecoveryBanner
-          title={listError ?? pagingError ?? "Read unavailable"}
-          // A paging error comes from the ready read on screen, so its retry
-          // restarts that submitted search, never unsubmitted field text.
-          onRetry={() =>
-            listError ? load(...failed.current) : load(submitted, [0])
-          }
-        />
-      )}
-      {busy && result.state !== "ready" ? (
-        <AdminSkeleton kind="history" />
-      ) : (
-        <VStack aria-busy={busy}>
-          <LifeReadView
-            result={result}
-            section={section}
-            onSelect={reader ? (id) => void select(id) : undefined}
-            isStale={stale}
-          />
-        </VStack>
-      )}
-      {reader &&
-        paginated &&
-        !busy &&
-        result.state === "ready" &&
-        (offsets.length > 1 || nextOffset !== null) && (
-          <Toolbar
-            label="Record pages"
-            startContent={
-              <Button
-                label="Previous"
-                isDisabled={offsets.length < 2}
-                clickAction={() => load(submitted, offsets.slice(0, -1))}
-              />
-            }
-            endContent={
-              <Button
-                label="Next"
-                isDisabled={nextOffset === null}
-                clickAction={() =>
-                  nextOffset === null
-                    ? Promise.resolve()
-                    : load(submitted, [...offsets, nextOffset])
-                }
-              />
+        )}
+        {(listError || pagingError) && (
+          <RecoveryBanner
+            title={listError ?? pagingError ?? "Read unavailable"}
+            // A paging error comes from the ready read on screen, so its retry
+            // restarts that submitted search, never unsubmitted field text.
+            onRetry={() =>
+              listError ? load(...failed.current) : load(submitted, [0])
             }
           />
         )}
-      {(detailBusy || record || detailError) && (
-        <VStack
-          gap={4}
-          as="section"
+        {busy && result.state !== "ready" ? (
+          <AdminSkeleton kind="records" />
+        ) : (
+          <VStack aria-busy={busy}>
+            <LifeReadView
+              result={result}
+              section={section}
+              onSelect={
+                reader ? (id, trigger) => void select(id, trigger) : undefined
+              }
+              selectedId={selectedId}
+              detailId={detailId}
+              isStale={stale}
+            />
+          </VStack>
+        )}
+        {reader &&
+          paginated &&
+          !busy &&
+          result.state === "ready" &&
+          (offsets.length > 1 || nextOffset !== null) && (
+            <Toolbar
+              label="Record pages"
+              startContent={
+                <Button
+                  label="Previous"
+                  isDisabled={offsets.length < 2}
+                  clickAction={() => load(submitted, offsets.slice(0, -1))}
+                />
+              }
+              endContent={
+                <Button
+                  label="Next"
+                  isDisabled={nextOffset === null}
+                  clickAction={() =>
+                    nextOffset === null
+                      ? Promise.resolve()
+                      : load(submitted, [...offsets, nextOffset])
+                  }
+                />
+              }
+            />
+          )}
+      </VStack>
+      {selectedId && (
+        <section
+          id={detailId}
+          ref={detailRegion}
+          tabIndex={-1}
           aria-label="Record details"
           className="life-details-region"
         >
-          <Button label="Close details" onClick={closeRecord} variant="ghost" />
-          {detailError && <Text role="alert">{detailError}</Text>}
-          {record && <LifeRecord record={record} />}
-          {detailBusy && !record && <AdminSkeleton kind="history" />}
-          {record?.next_body_offset != null && (
+          <VStack gap={4}>
             <Button
-              label="Read more"
-              clickAction={moreBody}
-              isLoading={detailBusy}
+              className="life-record-back"
+              label="Back to records"
+              onClick={() => closeRecord(true)}
+              variant="ghost"
+              size="sm"
             />
-          )}
-        </VStack>
+            {detailError && <Text role="alert">{detailError}</Text>}
+            {record && <LifeRecord record={record} />}
+            {detailBusy && !record && <AdminSkeleton kind="record" />}
+            {record?.next_body_offset != null && (
+              <Button
+                label="Read more"
+                clickAction={moreBody}
+                isLoading={detailBusy}
+              />
+            )}
+          </VStack>
+        </section>
       )}
-    </VStack>
+    </div>
   );
 }
 /** Broad record frame; prose stays capped within the detail. Shared navigation remains Website-owned. */

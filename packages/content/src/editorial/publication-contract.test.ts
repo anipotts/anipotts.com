@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 import { MAX_SOURCE_BYTES } from "./source.js";
 import {
+  bundledPublicationSourceHash,
   decodePublishedSnapshot,
   publicationSourceHash,
   type PublishedSnapshot,
@@ -90,7 +91,7 @@ it("keeps forward-compatible authored fields as exact source rather than rewriti
   const original = await fixture();
   const extended = source.replace(
     "summary:",
-    "authored_annotation: retained exactly\r\nsummary:",
+    "opening: An authentic reason for writing this.\r\nauthored_annotation: retained exactly\r\nsummary:",
   );
   const decoded = await decodePublishedSnapshot({
     ...original,
@@ -98,4 +99,38 @@ it("keeps forward-compatible authored fields as exact source rather than rewriti
     sourceSha256: await publicationSourceHash(extended),
   });
   expect(decoded.source).toBe(extended);
+});
+
+it("identifies exact bundled defaults independently of discovery order and application build", async () => {
+  const a = { record: { kind: "writing" as const, id: "alpha" }, source };
+  const b = {
+    record: { kind: "page" as const, id: "home" as const },
+    source: "exact\r\nbytes",
+  };
+  const digest = await bundledPublicationSourceHash([a, b]);
+  expect(digest).toBe(await bundledPublicationSourceHash([b, a]));
+  expect(digest).toBe(
+    await publicationSourceHash(
+      JSON.stringify([
+        ["content/public/pages/home.md", b.source],
+        ["content/public/writing/alpha.md", a.source],
+      ]),
+    ),
+  );
+  expect(digest).not.toBe(
+    await bundledPublicationSourceHash([a, { ...b, source: "exact\nbytes" }]),
+  );
+  expect(digest).not.toBe(await bundledPublicationSourceHash([a]));
+  expect(digest).not.toBe(
+    await bundledPublicationSourceHash([
+      { ...a, record: { kind: "writing", id: "renamed" } },
+      b,
+    ]),
+  );
+});
+it("rejects duplicate record identities in a bundled source fingerprint", async () => {
+  const entry = { record: { kind: "writing" as const, id: "alpha" }, source };
+  await expect(bundledPublicationSourceHash([entry, entry])).rejects.toThrow(
+    "invalid_publication_source",
+  );
 });

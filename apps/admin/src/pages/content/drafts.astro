@@ -1,7 +1,6 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import {
-  contentOperationTemplates,
   readContentOperationStore,
   readPageContentInventoryStore,
 } from "../../data/content";
@@ -12,10 +11,7 @@ const operationState = await readContentOperationStore(
 const pageContentState = await readPageContentInventoryStore(
   Astro.locals.runtime?.env.DB,
 );
-const operations =
-  operationState.operations.length > 0
-    ? operationState.operations
-    : contentOperationTemplates;
+const operations = operationState.operations;
 const publishEventCount =
   operationState.counts.find(
     (row) => row.table_name === "content_publish_events",
@@ -24,13 +20,31 @@ const publishEventCount =
 
 <AdminLayout
   title="Content drafts"
-  deck="Draft history for the owner editor. Drafts stay private until a selected published draft is promoted into page_content with a publish event."
+  deck="Historical Content records and diagnostics. Current editing and publication use the Content workspace."
 >
+  <section class="notice" aria-label="Historical Content view">
+    This retained view uses the previous content store. Its records and
+    templates do not describe current drafts, publication status or
+    authentication.
+    <a href="/content">Open the current Content workspace</a>.
+  </section>
   <section class="meta-strip" aria-label="Content draft editor state">
-    <span>{operations.length} draft operations</span>
-    <span>{pageContentState.published_count} published page rows</span>
+    <span
+      >{operationState.mode === "ready" ? operations.length : "Unknown"} historical
+      draft operations</span
+    >
+    <span
+      >{
+        pageContentState.mode === "ready"
+          ? pageContentState.published_count
+          : "Unknown"
+      } historical page rows</span
+    >
     <span>{operationState.mode}</span>
-    <span>{publishEventCount} publish events</span>
+    <span
+      >{operationState.mode === "ready" ? publishEventCount : "Unknown"} historical
+      publish events</span
+    >
     <span>Newsletter send absent</span>
   </section>
 
@@ -38,7 +52,7 @@ const publishEventCount =
     <div class="section-head">
       <div>
         <p>editor gate</p>
-        <h2>Draft-save plus publish proof</h2>
+        <h2>Historical storage records</h2>
       </div>
       <span>Selected draft only</span>
     </div>
@@ -57,7 +71,11 @@ const publishEventCount =
             operationState.counts.map((row) => (
               <div>
                 <dt>{row.table_name}</dt>
-                <dd>{row.rows} rows</dd>
+                <dd>
+                  {operationState.mode === "ready"
+                    ? `${row.rows} rows`
+                    : "Count unavailable"}
+                </dd>
               </div>
             ))
           }
@@ -66,6 +84,15 @@ const publishEventCount =
     </div>
   </section>
 
+  {
+    operations.length === 0 && (
+      <section class="notice">
+        {operationState.mode === "ready"
+          ? "No historical draft operations were found. Current private drafts are available in Content."
+          : "The historical draft store is unavailable. This does not establish whether it contains records."}
+      </section>
+    )
+  }
   <div class="draft-editor-grid">
     {
       operations.map((operation) => (
@@ -149,7 +176,13 @@ const publishEventCount =
     <div class="section-head">
       <div>
         <p>page_content fields</p>
-        <h2>{pageContentState.row_count} records</h2>
+        <h2>
+          {
+            pageContentState.mode === "ready"
+              ? `${pageContentState.row_count} records`
+              : "Records unavailable"
+          }
+        </h2>
       </div>
       <span>{pageContentState.mode}</span>
     </div>

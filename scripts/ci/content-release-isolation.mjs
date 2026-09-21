@@ -19,13 +19,9 @@ const MAX_FILE = 16 * 1024 * 1024;
 const MAX_BYTES = 128 * 1024 * 1024;
 const MAX_FILES = 1024;
 
-// The binding name the bundled Admin and public Workers actually read
-// (apps/*/wrangler.toml declare it, and the source reads env.DB). A bundle
-// whose database is bound under any other name validates as isolated but is
-// unreachable from the application it ships, so the preflight would attest to
-// a configuration that cannot run. Isolation comes from the run-owned
-// database_name/database_id and the PROTECTED set, not from this name.
-const APPLICATION_D1_BINDING = "DB";
+// CMS publication storage is separate from the applications' legacy shared DB.
+// Binding a synthetic publication schema as DB would never exercise CMS reads.
+const APPLICATION_D1_BINDING = "CONTENT_DB";
 const HASH = /^[a-f0-9]{64}$/;
 const PROTECTED = new Set([
   "anipotts-admin",
@@ -157,20 +153,35 @@ export function validateContentReleaseIsolation({
       "manifest_digest_mismatch",
     );
     const manifest = json(manifestBytes);
-    keys(manifest, [
-      "schemaVersion",
-      "environment",
-      "dataClass",
-      "runId",
-      "owner",
-      "pr",
-      "sourceSha",
-      "createdAt",
-      "expiresAt",
-      "accountId",
-      "resources",
-      "files",
-    ]);
+    keys(
+      manifest,
+      [
+        "schemaVersion",
+        "environment",
+        "dataClass",
+        "runId",
+        "owner",
+        "pr",
+        "sourceSha",
+        "createdAt",
+        "expiresAt",
+        "accountId",
+        "resources",
+        "files",
+      ],
+      ["publicationProfile"],
+    );
+    const publicationProfile = manifest.publicationProfile ?? "disabled";
+    requireCheck(
+      ["disabled", "direct"].includes(publicationProfile),
+      "invalid_publication_profile",
+    );
+    // The current publisher verifies the production public origin. Until a
+    // run-owned reader target is supported, an active profile cannot be isolated.
+    requireCheck(
+      publicationProfile !== "direct",
+      "unsupported_public_verification_target",
+    );
     requireCheck(
       manifest.schemaVersion === 1 &&
         manifest.environment === "temporary-cloud-release-test" &&
@@ -356,12 +367,22 @@ export function validateContentReleaseIsolation({
       keys(config.vars, [
         "RELEASE_TEST_RUN_ID",
         "RELEASE_TEST_DATA_CLASS",
-        "EDITORIAL_PUBLISH_ENABLED",
+        ...(role === "admin"
+          ? [
+              "EDITORIAL_ENABLED",
+              "EDITORIAL_PUBLISH_ENABLED",
+              "EDITORIAL_PUBLISH_MODE",
+            ]
+          : ["CONTENT_RUNTIME"]),
       ]);
       requireCheck(
         config.vars.RELEASE_TEST_RUN_ID === manifest.runId &&
           config.vars.RELEASE_TEST_DATA_CLASS === "synthetic" &&
-          config.vars.EDITORIAL_PUBLISH_ENABLED === "false",
+          (role === "admin"
+            ? config.vars.EDITORIAL_ENABLED === "true" &&
+              config.vars.EDITORIAL_PUBLISH_ENABLED === "false" &&
+              config.vars.EDITORIAL_PUBLISH_MODE === "maintenance"
+            : config.vars.CONTENT_RUNTIME === "cms"),
         "unsafe_runtime_vars",
       );
       requireCheck(
@@ -482,6 +503,7 @@ export function validateContentReleaseIsolation({
       manifestSha256: expectedManifestSha256,
       bundleSha256,
       assertedSourceSha: manifest.sourceSha,
+      publicationProfile,
       artifactProvenanceVerified: false,
       moduleClosureVerified: false,
       syntheticContentVerified: false,

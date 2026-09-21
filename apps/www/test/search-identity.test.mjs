@@ -4,7 +4,7 @@ import test from "node:test";
 
 // Run after the www build; verify emitted markup rather than source spelling.
 const html = readFileSync(
-  new URL("../dist/index.html", import.meta.url),
+  new URL("../.local/public-rendered/index.html", import.meta.url),
   "utf8",
 );
 const structured = [
