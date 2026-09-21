@@ -1,7 +1,7 @@
 import { lifeReadPath, type LifeRead } from "../data/personal-context";
 
 export const lifeSections = {
-  overview: "Life",
+  overview: "Data",
   people: "People",
   projects: "Projects",
   places: "Places",

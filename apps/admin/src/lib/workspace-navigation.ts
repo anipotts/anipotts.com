@@ -1,7 +1,7 @@
 export const workspaces = {
   content: { label: "Content", href: "/content" },
-  operations: { label: "Operations", href: "/operations/observability" },
-  life: { label: "Life", href: "/life" },
+  operations: { label: "Observability", href: "/operations/observability" },
+  life: { label: "Data", href: "/life" },
 } as const;
 export type Workspace = keyof typeof workspaces;
 
@@ -24,7 +24,7 @@ export function workspaceReturnPath(
       : fallback;
   if (workspace === "content") {
     if (
-      !/^\/(content(?:\/(?:new|(?:home|page|work|writing|projects|workPage|writingPage|systemsPage|newsletterPage)\/[a-zA-Z0-9_-]+))?|newsletter(?:\/[a-zA-Z0-9_-]+)?)$/.test(
+      !/^\/(content(?:\/(?:new|new-project|(?:home|page|work|writing|projects|workPage|writingPage|systemsPage|newsletterPage)\/[a-zA-Z0-9_-]+))?|newsletter(?:\/[a-zA-Z0-9_-]+)?)$/.test(
         path,
       )
     )
