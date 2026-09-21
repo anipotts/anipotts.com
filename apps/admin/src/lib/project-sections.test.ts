@@ -34,3 +34,43 @@ it("adds private editable sections and paragraphs without replacing existing ent
   expect(data.story).toEqual([{ title: "", paragraphs: ["", ""] }]);
   expect(data.technical).toEqual([{ title: "", content: "" }]);
 });
+
+it("removes added sections and preserves the remaining section content", () => {
+  const source =
+    "---\ntitle: Keep\nstory:\n  - title: Original # preserved\n    paragraphs: [keep]\ntechnical: []\n---\nBody";
+  const added = editProjectSections(source, { type: "add", kind: "story" });
+  const removed = editProjectSections(added, {
+    type: "remove",
+    kind: "story",
+    index: 1,
+  });
+  expect(parseEditorialSource(removed).data).toEqual(
+    parseEditorialSource(source).data,
+  );
+  expect(removed).toContain("# preserved");
+  expect(parseEditorialSource(removed).body).toBe("Body");
+  const empty = editProjectSections(removed, {
+    type: "remove",
+    kind: "story",
+    index: 0,
+  });
+  expect((parseEditorialSource(empty).data as any).story).toEqual([]);
+  expect(
+    editProjectSections(empty, { type: "remove", kind: "story", index: 0 }),
+  ).toBe(empty);
+  const technical = editProjectSections(empty, {
+    type: "add",
+    kind: "technical",
+  });
+  expect(
+    (
+      parseEditorialSource(
+        editProjectSections(technical, {
+          type: "remove",
+          kind: "technical",
+          index: 0,
+        }),
+      ).data as any
+    ).technical,
+  ).toEqual([]);
+});

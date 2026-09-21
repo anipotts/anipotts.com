@@ -2,6 +2,7 @@ import { parseEditorialSource } from "@anipotts/content/editorial/source";
 export type ProjectSectionKind = "story" | "technical";
 export type ProjectSectionEdit =
   | { type: "add"; kind: ProjectSectionKind }
+  | { type: "remove"; kind: ProjectSectionKind; index: number }
   | { type: "move"; kind: ProjectSectionKind; index: number; direction: -1 | 1 }
   | { type: "paragraph"; index: number };
 
@@ -35,6 +36,16 @@ export function editProjectSections(
           : { title: "", content: "" },
       ),
     );
+  } else if (edit.type === "remove") {
+    const entries = data[edit.kind];
+    if (
+      !Array.isArray(entries) ||
+      !Number.isInteger(edit.index) ||
+      edit.index < 0 ||
+      edit.index >= entries.length
+    )
+      return source;
+    parsed.document.deleteIn([edit.kind, edit.index]);
   } else {
     const entries = data[edit.kind];
     const target = edit.index + edit.direction;

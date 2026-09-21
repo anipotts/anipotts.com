@@ -51,6 +51,14 @@ export function ProjectSections({
                     onEdit({ type: "move", kind, index, direction: 1 })
                   }
                 />
+                <Button
+                  label={`Remove ${kind} section ${index + 1}`}
+                  children="Remove section"
+                  size="sm"
+                  variant="ghost"
+                  isDisabled={disabled}
+                  onClick={() => onEdit({ type: "remove", kind, index })}
+                />
                 {kind === "story" && (
                   <Button
                     label="Add paragraph"
