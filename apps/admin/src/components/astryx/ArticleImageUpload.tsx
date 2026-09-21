@@ -234,6 +234,10 @@ export function ArticleImageUpload({
               if (!mounted.current || controller.signal.aborted) return;
               onUploaded(src);
               setCropping(false);
+            } catch (error) {
+              throw error instanceof ImageInputError
+                ? error
+                : new ImageInputError("Couldn’t save this crop. Try again.");
             } finally {
               if (uploadController.current === controller) {
                 uploadController.current = null;
