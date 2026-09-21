@@ -141,6 +141,33 @@ export class PublicationJobs {
       return true;
     });
   }
+  /** Maintenance retirement of a job that never left validate. Validate only
+   * reads GitHub and release state; the first provider write is createCommit
+   * in the commit phase, and phases only move forward. So attempts and a
+   * validate blocker are not evidence of an external effect. A held or
+   * unexpired lease, or any checkpoint, still is. */
+  retireUnwrittenValidate(id: string, expectedVersion: number): boolean {
+    return this.storage.transactionSync(() => {
+      const job = this.get(id);
+      if (
+        !job ||
+        job.version !== expectedVersion ||
+        job.phase !== "validate" ||
+        job.lease !== null ||
+        job.leaseUntil !== 0 ||
+        Object.keys(job.checkpoint).length !== 0
+      )
+        return false;
+      // Attempts stay as the record of past claims. Like every other
+      // cancellation, the terminal job carries no blocker.
+      this.storage.sql.exec(
+        "UPDATE publication_jobs SET phase = 'cancelled', checkpoint = ?, blocked = NULL, version = version + 1 WHERE id = ?",
+        JSON.stringify({ cancelRequested: "true" }),
+        id,
+      );
+      return true;
+    });
+  }
   claim(now: number): PublishJob | null {
     return this.storage.transactionSync(() => {
       // Keep the first unfinished publication in charge, even while blocked or

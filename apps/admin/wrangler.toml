@@ -19,7 +19,7 @@ run_worker_first = true
 
 # Non-secret env vars available at runtime
 [vars]
-EDITORIAL_PUBLISH_MODE = "legacy"
+EDITORIAL_PUBLISH_MODE = "maintenance"
 PUBLIC_STATE_API = "https://api.anipotts.com"
 ACCESS_TEAM_DOMAIN = "https://anipotts.cloudflareaccess.com"
 ACCESS_POLICY_AUD = "ca3ea64cba714dee7d50eae63f62b18d6c2aeeecc0fc16ec0335ed0aa863a49f"

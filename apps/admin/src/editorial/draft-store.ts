@@ -497,8 +497,12 @@ export class EditorialDraftStore extends DurableObject<unknown> {
       ? { ok: true }
       : { ok: false, code: "publication_conflict" };
   }
-  /** Maintenance-only retirement of a provably unstarted legacy operation.
-   * Claimed jobs require separate effect reconciliation, even with no checkpoint. */
+  /** Maintenance-only retirement of a legacy operation that never wrote.
+   * A job still in validate with no lease and an empty checkpoint has made no
+   * provider write: validate only reads GitHub and release state, the first
+   * write is createCommit in the commit phase, and phases only advance. Prior
+   * claims (attempts) and a validate blocker do not change that. Any other
+   * phase, a lease or a checkpoint requires separate effect reconciliation. */
   async cancelUnstartedLegacyPublication(
     record: EditorialRecord,
     id: string,
@@ -525,10 +529,8 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         return { ok: false as const, code: "publication_conflict" as const };
       if (
         job.phase !== "validate" ||
-        job.attempts !== 0 ||
         job.lease !== null ||
         job.leaseUntil !== 0 ||
-        job.blocked !== null ||
         Object.keys(job.checkpoint).length !== 0
       )
         return {
@@ -536,8 +538,8 @@ export class EditorialDraftStore extends DurableObject<unknown> {
           code: "legacy_publication_requires_reconciliation" as const,
         };
       // No external work or alarm is needed. Preserve source, receipt and all
-      // authored revisions; the existing CAS transition records cancellation.
-      return this.jobs.requestCancel(id, expectedVersion, Date.now())
+      // authored revisions; the version CAS transition records cancellation.
+      return this.jobs.retireUnwrittenValidate(id, expectedVersion)
         ? { ok: true as const }
         : { ok: false as const, code: "publication_conflict" as const };
     });
