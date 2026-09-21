@@ -377,3 +377,19 @@ added then removed an empty technical section, and opened preview. Saved revisio
 rendered the retained story without empty Next or Under the hood headings. Reload
 retained that exact revision and result. This modified only the synthetic private
 fixture; its prior revisions remain available and nothing was published.
+
+### Project fallback icon acceptance, September 21
+
+At bb67e6513, the project editor exposes a bounded fallback-icon selector using
+assets already included in the public renderer. Existing unfamiliar values remain
+visible without rewriting them; selecting or clearing a supported value changes
+only identity.icon. Twelve focused media tests and admin Astro checking passed
+(330 files, zero errors, seven hints).
+
+On the synthetic local `qa-project-media-20260921` draft, selecting Waveform,
+waiting for Saved locally, and reloading retained the choice. At 320px the document
+width remained 320px and the selector stayed inside the viewport. Selecting No
+fallback icon, saving and reloading retained the cleared value. The fixture remains
+private; no publication or production mutation occurred. Normal viewport was
+restored and the temporary test tab closed. Public rendering of the selected mark
+and physical-device interaction remain separate acceptance checks.
