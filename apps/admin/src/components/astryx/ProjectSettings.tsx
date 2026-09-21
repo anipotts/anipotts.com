@@ -1,5 +1,7 @@
 import React from "react";
 import { FormLayout } from "@astryxdesign/core/FormLayout";
+import { NumberInput } from "@astryxdesign/core/NumberInput";
+import { setProjectLink } from "../../lib/project-properties";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { Selector } from "@astryxdesign/core/Selector";
 import { Text } from "@astryxdesign/core/Text";
@@ -90,6 +92,36 @@ export function ProjectSettings({
               value === "hidden" &&
               publicationMode === "direct",
           }))}
+          onChange={(value) => update(key, value)}
+        />
+      ))}
+      {(
+        [
+          ["link_live", "Website link"],
+          ["link_repo", "Repository link"],
+        ] as const
+      ).map(([key, label]) => (
+        <TextInput
+          key={key}
+          label={label}
+          value={String(data[key] ?? "")}
+          status={status(key)}
+          isDisabled={disabled}
+          onChange={(value) => onChange(setProjectLink(source, key, value))}
+        />
+      ))}
+      {(
+        [
+          ["homepage_order", "Homepage order"],
+          ["sort_order", "Catalog order"],
+        ] as const
+      ).map(([key, label]) => (
+        <NumberInput
+          key={key}
+          label={label}
+          value={typeof data[key] === "number" ? data[key] : 0}
+          isDisabled={disabled}
+          status={status(key)}
           onChange={(value) => update(key, value)}
         />
       ))}
