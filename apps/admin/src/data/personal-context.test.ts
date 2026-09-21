@@ -328,3 +328,26 @@ it("keeps the versioned observation capability metadata-only", async () => {
   ).toBe("denied");
   expect(denied.read).not.toHaveBeenCalled();
 });
+
+it("propagates caller cancellation and never starts an already cancelled read", async () => {
+  const controller = new AbortController();
+  let observed: AbortSignal | undefined;
+  const read = vi.fn(async (_path: string, signal: AbortSignal) => {
+    observed = signal;
+    return new Promise(() => {});
+  });
+  const pending = readPersonalContext(
+    { method: "status" },
+    { scope: "owner", read },
+    controller.signal,
+  );
+  controller.abort();
+  expect((await pending).state).toBe("unavailable");
+  expect(observed?.aborted).toBe(true);
+  await readPersonalContext(
+    { method: "status" },
+    { scope: "owner", read },
+    controller.signal,
+  );
+  expect(read).toHaveBeenCalledTimes(1);
+});

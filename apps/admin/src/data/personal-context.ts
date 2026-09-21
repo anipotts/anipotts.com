@@ -37,24 +37,31 @@ export type LifeTransport = {
   /** Enforce the byte cap while reading, before decoding an untrusted body. */
   read: (path: string, signal: AbortSignal) => Promise<unknown>;
 };
-async function readWithDeadline(transport: LifeTransport, path: string) {
+async function readWithDeadline(
+  transport: LifeTransport,
+  path: string,
+  parent?: AbortSignal,
+) {
   const controller = new AbortController();
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  const signal = parent
+    ? AbortSignal.any([parent, controller.signal])
+    : controller.signal;
+  signal.throwIfAborted();
+  let rejectAbort: () => void = () => {};
+  const aborted = new Promise<never>((_, reject) => {
+    rejectAbort = () => reject(new Error("Read cancelled"));
+    signal.addEventListener("abort", rejectAbort, { once: true });
+  });
+  const timer = setTimeout(() => controller.abort(), 5000);
   try {
-    return await Promise.race([
-      transport.read(path, controller.signal),
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => {
-          controller.abort();
-          reject(new Error("Read timed out"));
-        }, 5000);
-      }),
-    ]);
+    return await Promise.race([transport.read(path, signal), aborted]);
   } finally {
     clearTimeout(timer);
+    signal.removeEventListener("abort", rejectAbort);
     controller.abort();
   }
 }
+
 const isObject = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 const isCursor = (value: unknown) =>
@@ -190,6 +197,7 @@ export function lifeReadPath(request: LifeRead): string {
 export async function readPersonalContext(
   request: LifeRead,
   transport?: LifeTransport,
+  signal?: AbortSignal,
 ): Promise<LifeResult> {
   let path: string;
   try {
@@ -218,7 +226,7 @@ export async function readPersonalContext(
       message: "This connection does not support this read.",
     };
   try {
-    let data = await readWithDeadline(transport, path);
+    let data = await readWithDeadline(transport, path, signal);
     let responseObservedAt: string | undefined;
     if (
       !data ||
