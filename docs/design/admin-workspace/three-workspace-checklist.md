@@ -363,3 +363,9 @@ validated saved revision, preserving the existing source-body compatibility guar
 Browser acceptance opened synthetic `qa-project-media-20260921` revision18 and
 rendered its title, story section and roadmap through WorkDetail. No draft edits
 or publication occurred. The temporary tab was closed.
+
+New-project publication now has a dedicated isolated Worker/D1/R2/DO regression:
+a project absent from bundled sources retains its exact source and structured
+story through approval, DO eviction, activation and verification. All25 direct
+publisher tests passed. The verification transport is synthetic; this proves the
+local durable engine path, not a cloud deployment or real public convergence.

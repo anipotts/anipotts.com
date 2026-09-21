@@ -30,9 +30,11 @@ import {
   validatePublishedCandidate,
 } from "../../src/lib/editorial-published-base";
 import {
+  type EditorialRecord,
   parseEditorialSource,
   setEditorialField,
 } from "@anipotts/content/editorial/source";
+import { newProjectSource } from "../../src/lib/project-draft";
 import { PublicationJobs } from "../../src/editorial/publication-jobs";
 import type { StartDirectPublication } from "../../src/lib/editorial-publication-status";
 
@@ -43,11 +45,7 @@ const freshRecord = () => ({
   kind: "writing" as const,
   id: `test-${crypto.randomUUID()}`,
 });
-const save = (
-  record: ReturnType<typeof freshRecord>,
-  text = source,
-  revision = 0,
-) => ({
+const save = (record: EditorialRecord, text = source, revision = 0) => ({
   record,
   source: text,
   expectedRevision: revision,
@@ -56,7 +54,7 @@ const save = (
   baseFileHash: null,
 });
 const directInput = async (
-  record: ReturnType<typeof freshRecord>,
+  record: EditorialRecord,
   text = source,
 ): Promise<StartDirectPublication> => ({
   record,
@@ -110,9 +108,8 @@ beforeAll(async () => {
   );
 });
 
-async function fixture(text = source) {
+async function fixture(text = source, record: EditorialRecord = freshRecord()) {
   const store = env.DIRECT_EDITORIAL.getByName(crypto.randomUUID());
-  const record = freshRecord();
   expect((await store.save(save(record, text))).ok).toBe(true);
   const input = await directInput(record, text);
   let now = Date.now();
@@ -921,4 +918,38 @@ describe("direct publication with real local D1, R2 and SQLite Durable Objects",
       "live",
     );
   });
+});
+
+it("publishes a CMS-only project with structured sections through the durable engine", async () => {
+  const record: EditorialRecord = {
+    kind: "work",
+    id: `project-${crypto.randomUUID()}`,
+  };
+  let text = setEditorialField(
+    newProjectSource(record.id, "Synthetic CMS project"),
+    ["public_state"],
+    "listed",
+  );
+  text = setEditorialField(
+    text,
+    ["story"],
+    [{ title: "Origin", paragraphs: ["Synthetic project story."] }],
+  );
+  expect(
+    bundledEditorialSources().some(
+      (entry) =>
+        entry.record.kind === record.kind && entry.record.id === record.id,
+    ),
+  ).toBe(false);
+  const f = await fixture(text, record);
+  expect((await f.store.startDirectPublication(f.input)).ok).toBe(true);
+  await evictDurableObject(f.store);
+  await f.advance();
+  await f.advance();
+  const activated = await f.store.latestDirectPublication(record);
+  expect(activated?.phase).toBe("verify");
+  expect(activated?.verifiedAt).toBeNull();
+  expect((await getPublished(env.CONTENT_DB, record))?.source).toBe(text);
+  await f.advance();
+  expect((await f.store.latestDirectPublication(record))?.phase).toBe("live");
 });
