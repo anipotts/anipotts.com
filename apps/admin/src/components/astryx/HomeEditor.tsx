@@ -1,3 +1,4 @@
+import { AutoSizeTextArea } from "./AutoSizeTextArea";
 import {
   adminNavigationEvent,
   commitAdminNavigation,
@@ -16,7 +17,6 @@ import {
   matchesReviewedDraft,
   type ReviewedDraft,
 } from "../../lib/reviewed-draft";
-import { libraryReturnPath } from "../../lib/content-library-state";
 import { DocumentTitle } from "./DocumentTitle";
 import {
   draftRecovery,
@@ -210,15 +210,6 @@ function HomeEditorImpl({
   );
   const reviewHeadingId = useId();
   const toast = useToast();
-  const [returnPath, setReturnPath] = useState(
-    record.kind === "writing" ? "/content?group=writing" : "/content",
-  );
-  useEffect(() => {
-    const returnTo = new URLSearchParams(window.location.search).get(
-      "returnTo",
-    );
-    if (returnTo) setReturnPath(libraryReturnPath(returnTo));
-  }, []);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [historyError, setHistoryError] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -259,7 +250,6 @@ function HomeEditorImpl({
     previousTab.current = tab;
   }, [tab]);
   const [reviewLoading, setReviewLoading] = useState(false);
-  const [leaving, setLeaving] = useState(false);
   /** A leave attempt was held by a refused save the author cannot retry. */
   const [leaveRefused, setLeaveRefused] = useState(false);
   const leavePending = useRef(false);
@@ -305,7 +295,6 @@ function HomeEditorImpl({
     }
     if (leavePending.current) return;
     leavePending.current = true;
-    setLeaving(true);
     const navigation = ++navigationGeneration.current;
     const edits = editGeneration.current;
     try {
@@ -330,7 +319,6 @@ function HomeEditorImpl({
         setError("Couldn’t save before leaving. Your draft is retained.");
     } finally {
       leavePending.current = false;
-      setLeaving(false);
     }
   };
   const leaveDocumentRef = useRef(leaveDocument);
@@ -1336,7 +1324,7 @@ function HomeEditorImpl({
   );
   return (
     <VStack
-      gap={5}
+      gap={3}
       className={`editor-workspace${record.kind === "writing" ? " writing-workspace" : ""}`}
       data-editor-view={tab}
     >
@@ -1360,30 +1348,6 @@ function HomeEditorImpl({
               vAlign="center"
               className="editor-save-group"
             >
-              {record.kind === "writing" && isDocumentView && (
-                <Button
-                  label={
-                    returnPath.includes("group=writing") ? "Writing" : "Content"
-                  }
-                  href={returnPath}
-                  isLoading={leaving}
-                  onClick={async (event) => {
-                    if (
-                      event.button !== 0 ||
-                      event.metaKey ||
-                      event.ctrlKey ||
-                      event.shiftKey ||
-                      event.altKey
-                    )
-                      return;
-                    event.preventDefault();
-                    void leaveDocument(returnPath);
-                  }}
-                  variant="ghost"
-                  size="sm"
-                  icon={<ArrowLeftIcon size={18} />}
-                />
-              )}
               {!isDocumentView && (
                 <Button
                   label="Back to editor"
@@ -2020,6 +1984,34 @@ function HomeEditorImpl({
                         document.title = `${value || "Untitled article"} | Admin`;
                       }}
                       onCommit={(value) =>
+                        editor.current!.edit(
+                          setEditorialField(
+                            editor.current!.state.source,
+                            field.path,
+                            value,
+                          ),
+                        )
+                      }
+                    />
+                  ) : field.path.join(".") === "opening" ? (
+                    <AutoSizeTextArea
+                      key="opening"
+                      label={field.label}
+                      description={field.description}
+                      size="sm"
+                      value={values[index] ?? ""}
+                      isDisabled={
+                        !parseable || Boolean(snapshot.draft?.discardedAt)
+                      }
+                      status={
+                        fieldErrors.has("opening")
+                          ? {
+                              type: "error",
+                              message: fieldErrors.get("opening"),
+                            }
+                          : undefined
+                      }
+                      onChange={(value) =>
                         editor.current!.edit(
                           setEditorialField(
                             editor.current!.state.source,

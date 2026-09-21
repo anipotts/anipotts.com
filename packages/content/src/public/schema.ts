@@ -27,6 +27,8 @@ export const writingSchema = z
     title: z.string(),
     slug: publicSlugSchema.optional(),
     summary: z.string().min(1),
+    // Optional personal context, kept separate from the listing subtitle and body.
+    opening: z.string().max(2000).optional(),
     status: status.default("draft"),
     published_at: z.coerce.date().optional(),
     scheduled_at: z.coerce.date().optional(),

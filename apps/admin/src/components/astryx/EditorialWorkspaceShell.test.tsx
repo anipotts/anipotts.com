@@ -21,8 +21,8 @@ describe("Website workspace navigation", () => {
   it("defines only supported Website destinations", () => {
     expect(websiteNavigation.map((item) => item.href)).toEqual([
       "/content",
-      "/content?group=writing",
       "/content?group=website",
+      "/content?group=writing",
       "/content?group=work",
       "/newsletter",
     ]);

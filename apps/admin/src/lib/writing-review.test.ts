@@ -18,6 +18,14 @@ describe("writing publication review", () => {
       { label: "custom", before: "original", after: "revised" },
     ]);
   });
+  it("does not duplicate the opening field in the metadata review", () => {
+    const prefix = "---\ntitle: Article\nsummary: Summary\nstatus: draft\n";
+    const changes = writingReviewChanges(
+      prefix + "---\n\nBody",
+      prefix + "opening: A reason to write.\n---\n\nBody",
+    );
+    expect(changes.some((change) => change.label === "opening")).toBe(false);
+  });
   it("keeps formatting and image address edits visible", () => {
     const prefix =
       "---\ntitle: Article\nsummary: Summary\nstatus: draft\n---\n\n";

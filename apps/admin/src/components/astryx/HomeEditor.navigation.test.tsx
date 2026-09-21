@@ -724,3 +724,50 @@ it("does not replay recovery from before an old-tab logout when no event was rec
   expect(fetcher).toHaveBeenCalledTimes(1);
   expect(localStorage.getItem(versionedRecoveryKey(key))).toBe(raw);
 });
+
+it("opening note is multiline and survives saving before breadcrumb navigation", async () => {
+  const commit = vi
+    .spyOn(navigation, "commitAdminNavigation")
+    .mockImplementation(() => {});
+  let savedSource = "";
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, options?: RequestInit) => {
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      if (url.includes("/save?")) {
+        savedSource = JSON.parse(String(options?.body)).source;
+        return response({
+          ok: true,
+          draft: { ...draft, source: savedSource, revision: 2 },
+        });
+      }
+      return response(snapshot);
+    }),
+  );
+  await mount();
+  const label = [...host.querySelectorAll("label")].find((el) =>
+    el.textContent?.includes("Opening note"),
+  );
+  const opening = document.getElementById(
+    label!.htmlFor,
+  ) as HTMLTextAreaElement;
+  expect(opening.tagName).toBe("TEXTAREA");
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value",
+    )!.set!.call(
+      opening,
+      "A real conversation prompted this.\nI wanted to keep a note.",
+    );
+    opening.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  const link = document.createElement("a");
+  link.href = "/content?group=writing&q=awareness";
+  host.append(link);
+  await act(async () => link.click());
+  expect(savedSource).toContain("A real conversation prompted this.");
+  expect(savedSource).toContain("I wanted to keep a note.");
+  expect(savedSource).toContain("Original body.");
+  expect(commit).toHaveBeenCalledOnce();
+});

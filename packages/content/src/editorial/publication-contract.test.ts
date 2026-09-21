@@ -91,7 +91,7 @@ it("keeps forward-compatible authored fields as exact source rather than rewriti
   const original = await fixture();
   const extended = source.replace(
     "summary:",
-    "authored_annotation: retained exactly\r\nsummary:",
+    "opening: An authentic reason for writing this.\r\nauthored_annotation: retained exactly\r\nsummary:",
   );
   const decoded = await decodePublishedSnapshot({
     ...original,

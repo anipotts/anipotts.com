@@ -85,7 +85,7 @@ const publicPath =
 const review: Review | undefined = entry
   ? {
       updated: recordUpdate(entry.collection, entry.id),
-      back: `/content?group=${project ? "work" : writing ? "writing" : entry.collection === "systemsPage" ? "systems" : "pages"}`,
+      back: `/content?group=${project ? "work" : writing ? "writing" : "website"}`,
       status:
         project?.public_state ??
         writing?.status ??

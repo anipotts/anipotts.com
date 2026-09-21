@@ -1,3 +1,4 @@
+import { libraryReturnPath } from "../../lib/content-library-state";
 import {
   RECORD_CREATED_EVENT,
   RECORD_SAVED_EVENT,
@@ -139,6 +140,13 @@ export function EditorialApp({
   hideHeader = false,
   children,
 }: EditorialAppProps) {
+  const [libraryBack, setLibraryBack] = useState<string | null>(null);
+  useEffect(() => {
+    const returnTo = new URLSearchParams(window.location.search).get(
+      "returnTo",
+    );
+    setLibraryBack(returnTo ? libraryReturnPath(returnTo) : null);
+  }, []);
   const [mode, setMode] = useState<ThemePreference>(initialMode);
   const [inventoryView, setInventoryView] = useState(() =>
     createInventoryView(groups, searchEntries),
@@ -208,26 +216,31 @@ export function EditorialApp({
         }
       >
         <VStack
-          gap={editorRecord?.kind === "writing" ? 4 : 6}
+          gap={editorRecord ? 4 : 6}
           className={`editorial-content${groups ? " editorial-library-page" : ""}${editorRecord?.kind === "writing" ? " writing-content" : ""}`}
         >
           {(review || editHome || editorRecord || newWriting) && (
             <Breadcrumbs variant="supporting">
               <BreadcrumbItem
                 href={
+                  libraryBack ??
                   review?.back ??
                   (area === "newsletter"
                     ? "/newsletter"
                     : editorRecord?.kind === "writing" || newWriting
                       ? "/content?group=writing"
-                      : "/content")
+                      : editorRecord?.kind === "work"
+                        ? "/content?group=work"
+                        : "/content?group=website")
                 }
               >
                 {area === "newsletter"
                   ? "Newsletter"
                   : editorRecord?.kind === "writing" || newWriting
                     ? "Writing"
-                    : "Content"}
+                    : editorRecord?.kind === "work"
+                      ? "Projects"
+                      : "Pages"}
               </BreadcrumbItem>
               <BreadcrumbItem isCurrent>
                 {editorRecord?.kind === "writing"

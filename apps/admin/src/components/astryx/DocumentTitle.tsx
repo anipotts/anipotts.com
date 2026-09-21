@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, type RefObject } from "react";
-import { TextArea } from "@astryxdesign/core/TextArea";
+import { AutoSizeTextArea } from "./AutoSizeTextArea";
 
 /** Native typing stays local. Serialization happens only at a save boundary. */
 export function DocumentTitle({
@@ -48,7 +48,7 @@ export function DocumentTitle({
     };
   }, [flushRef]);
   return (
-    <TextArea
+    <AutoSizeTextArea
       label="Title"
       className="document-title"
       rows={1}

@@ -97,6 +97,7 @@ const articleLd = {
     </header>
 
     <div data-rise class="article-body">
+      {d.opening?.trim() && <p data-article-opening>{d.opening}</p>}
       <Content />
     </div>
     <footer class="article-end">

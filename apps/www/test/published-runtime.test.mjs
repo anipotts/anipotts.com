@@ -212,6 +212,8 @@ test("one coherent read per request drives pages and discovery immediately", asy
       {
         title: "CMS runtime title",
         summary: "CMS subtitle updated without deployment",
+        opening:
+          "An opening from real experience. <script>not executable</script>",
       },
       "CMS body marker.\n\n<script>alert('unsafe')</script>\n\n**still bold**",
     );
@@ -235,6 +237,13 @@ test("one coherent read per request drives pages and discovery immediately", asy
         assert.match(result, /CMS subtitle updated without deployment/, path);
       }
       if (path === "/writing/awareness-is-alpha") {
+        assert.match(result, /data-article-opening/);
+        assert.match(result, /An opening from real experience/);
+        assert.doesNotMatch(result, /<script>not executable/);
+        assert.ok(
+          result.indexOf("data-article-opening") <
+            result.indexOf("CMS body marker"),
+        );
         assert.match(result, /CMS body marker/);
         assert.match(result, /<strong>still bold<\/strong>/);
         assert.doesNotMatch(result, /<script>alert/);

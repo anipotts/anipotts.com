@@ -9,7 +9,7 @@ const labels: Record<string, string> = {
   slug: "Article address",
 };
 
-/** Title and summary have their own controls; include every other saved value. */
+/** Authored text fields have their own controls; include every other saved value. */
 export function writingReviewChanges(before: string, after: string) {
   const previous = parseEditorialSource(before);
   const next = parseEditorialSource(after);
@@ -24,7 +24,9 @@ export function writingReviewChanges(before: string, after: string) {
   return [
     { label: "Article body", before: previous.body, after: next.body },
     ...Array.from(new Set([...Object.keys(oldData), ...Object.keys(newData)]))
-      .filter((key) => key !== "title" && key !== "summary")
+      .filter(
+        (key) => key !== "title" && key !== "summary" && key !== "opening",
+      )
       .map((key) => ({
         label: labels[key] ?? key,
         before: display(oldData[key]),

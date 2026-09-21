@@ -66,16 +66,16 @@ export const websiteNavigation = [
     icon: SquaresFourIcon,
   },
   {
-    id: "writing",
-    label: "Writing",
-    href: "/content?group=writing",
-    icon: PencilSimpleIcon,
-  },
-  {
     id: "website",
     label: "Pages",
     href: "/content?group=website",
     icon: BrowserIcon,
+  },
+  {
+    id: "writing",
+    label: "Writing",
+    href: "/content?group=writing",
+    icon: PencilSimpleIcon,
   },
   {
     id: "work",
