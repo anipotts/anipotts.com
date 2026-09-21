@@ -1,4 +1,5 @@
 import React from "react";
+import { TagInput } from "./TagInput";
 import { FormLayout } from "@astryxdesign/core/FormLayout";
 import { NumberInput } from "@astryxdesign/core/NumberInput";
 import { setProjectLink } from "../../lib/project-properties";
@@ -125,6 +126,12 @@ export function ProjectSettings({
           onChange={(value) => update(key, value)}
         />
       ))}
+      <TagInput
+        value={data.tags}
+        disabled={disabled}
+        error={errors.get("tags")}
+        onChange={(tags) => update("tags", tags)}
+      />
       <Text color="secondary">
         Changes stay private until you review and publish them.
       </Text>

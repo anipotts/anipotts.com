@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { ArticleDate } from "./ArticleDate";
-import { TextInput } from "@astryxdesign/core/TextInput";
+import { TagInput } from "./TagInput";
 import { Selector } from "@astryxdesign/core/Selector";
 import { FormLayout } from "@astryxdesign/core/FormLayout";
 import { Text } from "@astryxdesign/core/Text";
@@ -32,16 +32,6 @@ export function ArticleSettings({
     errors.has(name)
       ? { type: "error" as const, message: errors.get(name) }
       : undefined;
-  const canonicalTags = Array.isArray(data.tags)
-    ? data.tags.filter((tag) => typeof tag === "string").join(", ")
-    : typeof data.tags === "string"
-      ? data.tags
-      : "";
-  const [tags, setTags] = useState(canonicalTags);
-  const [focused, setFocused] = useState(false);
-  useEffect(() => {
-    if (!focused) setTags(canonicalTags);
-  }, [canonicalTags, focused]);
   const update = (name: string, value: unknown) =>
     onChange(setEditorialField(source, [name], value));
   const fields = (
@@ -117,24 +107,11 @@ export function ArticleSettings({
           }
         />
       )}
-      <TextInput
-        label="Tags"
-        status={fieldStatus("tags")}
-        value={tags}
-        isDisabled={disabled}
-        description="Separate tags with commas."
-        onFocus={() => setFocused(true)}
-        onChange={(value) => {
-          setTags(value);
-          update(
-            "tags",
-            value
-              .split(",")
-              .map((tag) => tag.trim())
-              .filter(Boolean),
-          );
-        }}
-        onBlur={() => setFocused(false)}
+      <TagInput
+        value={data.tags}
+        disabled={disabled}
+        error={errors.get("tags")}
+        onChange={(tags) => update("tags", tags)}
       />
       <Text color="secondary">
         Address: /writing/
