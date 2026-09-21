@@ -351,7 +351,7 @@ export class DirectPublisher {
     });
   }
   private eligibleSql = `phase NOT IN ('live','cancelled') AND (blocked IS NULL OR blocked = 'publishing_disabled') AND NOT EXISTS (
-    SELECT 1 FROM direct_publication_intents AS earlier WHERE earlier.key = direct_publication_intents.key
+    SELECT 1 FROM direct_publication_intents AS earlier WHERE direct_publication_intents.key = earlier.key
     AND earlier.rowid < direct_publication_intents.rowid AND earlier.phase IN ('validate','commit'))`;
   private nextWake() {
     const row = this.storage.sql
