@@ -65,8 +65,12 @@ export function PrivateRecordHistory({
   const revisions = Array.isArray(record.revisions)
     ? record.revisions.map(object).filter((item) => item.revision_id)
     : [];
+  const origins = Array.isArray(record.origins) ? record.origins : [];
+  // The reader caps revisions and origins at history_limit (100) with no paging.
   const limit =
-    typeof record.history_limit === "number" ? record.history_limit : null;
+    typeof record.history_limit === "number" && record.history_limit > 0
+      ? record.history_limit
+      : null;
   return (
     <VStack gap={3} as="section" aria-label="Revision history">
       <Heading level={3}>History</Heading>
@@ -113,7 +117,13 @@ export function PrivateRecordHistory({
       )}
       {limit !== null && revisions.length >= limit && (
         <Text type="supporting" color="secondary">
-          Showing the latest {limit} revisions.
+          Showing the latest {limit} revisions. Older revisions are preserved
+          but not returned.
+        </Text>
+      )}
+      {limit !== null && origins.length >= limit && (
+        <Text type="supporting" color="secondary">
+          Showing the latest {limit} origins.
         </Text>
       )}
     </VStack>
@@ -182,6 +192,8 @@ export function PrivateDataExplorer({ reader }: { reader: LifeReader }) {
     void statusSession.current
       .run(reader, { method: "status" })
       .then((next) => next && setStatus(next));
+    // An empty query returns the most recent records in timeline order.
+    void search("", [0]);
     const sessions = [statusSession, listSession, detailSession];
     return () => sessions.forEach((session) => session.current.invalidate());
   }, [reader]);
@@ -290,7 +302,7 @@ export function PrivateDataExplorer({ reader }: { reader: LifeReader }) {
           className="life-search-toolbar"
           onSubmit={(event: React.FormEvent) => {
             event.preventDefault();
-            if (query.trim()) void search(query, [0]);
+            void search(query, [0]);
           }}
         >
           <TextInput
@@ -298,18 +310,18 @@ export function PrivateDataExplorer({ reader }: { reader: LifeReader }) {
             value={query}
             onChange={(value) => setQuery(value.slice(0, 2048))}
           />
-          <Button
-            type="submit"
-            label="Search"
-            isLoading={busy}
-            isDisabled={!query.trim()}
-          />
+          <Button type="submit" label="Search" isLoading={busy} />
         </HStack>
         {busy && !result ? (
           <AdminSkeleton kind="records" />
         ) : (
           result && (
-            <VStack aria-busy={busy}>
+            <VStack gap={2} aria-busy={busy}>
+              {result.state === "ready" && (
+                <Heading level={2}>
+                  {submitted ? "Search results" : "Recent records"}
+                </Heading>
+              )}
               <LifeReadView
                 section="people"
                 glyph={FileTextIcon}

@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import {
   LIFE_DEFAULTS,
-  lifeReadPath,
   readPersonalContext,
   type LifeRead,
   type LifeTransport,
@@ -74,10 +73,50 @@ export class PrivateReaderError extends PersonalContextHttpError {
   }
 }
 
-/** Maps a validated read to the v1 route. Timeline and preview are not served. */
+/** Contract bounds confirmed by System for the v1 reader. */
+export const PRIVATE_READER_BOUNDS = {
+  queryMax: 2048,
+  kind: /^[A-Za-z0-9_.-]{1,80}$/,
+  recordId: /^rec-[0-9a-f]{32}$/,
+  dataLimit: { min: 1, max: 200 },
+  activityLimit: { min: 1, max: 500 },
+  offsetMax: 10_000_000,
+  bodyOffsetMax: 16 * 1024 * 1024,
+  bodyLimit: { min: 1, max: 64_000 },
+} as const;
+const DATA_LIMIT = LIFE_DEFAULTS.limit;
+const ACTIVITY_LIMIT = 100;
+const BODY_LIMIT = 32_000;
+
+/** Unknown query params are a 400 upstream, so each route sends only these. */
+const ALLOWED_PARAMS: Record<string, readonly string[]> = {
+  [PRIVATE_READER_ROUTES.status]: [],
+  [PRIVATE_READER_ROUTES.sources]: ["limit", "offset"],
+  [PRIVATE_READER_ROUTES.search]: ["q", "limit", "offset", "kind"],
+  [PRIVATE_READER_ROUTES.record]: ["body_offset", "body_limit"],
+  [PRIVATE_READER_ROUTES.activity]: ["after", "limit"],
+};
+const REQUIRED_PARAMS: Record<string, readonly string[]> = {
+  [PRIVATE_READER_ROUTES.sources]: ["limit", "offset"],
+  [PRIVATE_READER_ROUTES.search]: ["q", "limit", "offset"],
+  [PRIVATE_READER_ROUTES.record]: ["body_offset", "body_limit"],
+  [PRIVATE_READER_ROUTES.activity]: ["after", "limit"],
+};
+
+function bounded(value: number | undefined, max: number, min = 0): string {
+  const result = value ?? min;
+  if (!Number.isSafeInteger(result) || result < min || result > max)
+    throw new Error("Out of bounds");
+  return String(result);
+}
+
+/**
+ * Maps a read to its v1 route, validating every argument before anything is
+ * sent. Search always carries `q`, which may be empty (recent records).
+ * Timeline and preview are not served by this reader.
+ */
 export function privateReaderPath(request: LifeRead): string {
-  // Reuse the existing bounds checks (query length, cursor range, record ID).
-  lifeReadPath(request);
+  const b = PRIVATE_READER_BOUNDS;
   const params = new URLSearchParams();
   let path: string;
   switch (request.method) {
@@ -86,25 +125,43 @@ export function privateReaderPath(request: LifeRead): string {
       break;
     case "sources":
       path = PRIVATE_READER_ROUTES.sources;
-      params.set("limit", String(LIFE_DEFAULTS.limit));
-      params.set("offset", String(request.offset ?? 0));
+      params.set(
+        "limit",
+        bounded(DATA_LIMIT, b.dataLimit.max, b.dataLimit.min),
+      );
+      params.set("offset", bounded(request.offset, b.offsetMax));
       break;
     case "search":
+      if (typeof request.q !== "string" || request.q.length > b.queryMax)
+        throw new Error("Invalid query");
+      if (request.kind !== undefined && !b.kind.test(request.kind))
+        throw new Error("Invalid kind");
       path = PRIVATE_READER_ROUTES.search;
       params.set("q", request.q);
-      if (request.kind) params.set("kind", request.kind);
-      params.set("limit", String(LIFE_DEFAULTS.limit));
-      params.set("offset", String(request.offset ?? 0));
+      params.set(
+        "limit",
+        bounded(DATA_LIMIT, b.dataLimit.max, b.dataLimit.min),
+      );
+      params.set("offset", bounded(request.offset, b.offsetMax));
+      if (request.kind !== undefined) params.set("kind", request.kind);
       break;
     case "get":
-      path = `${PRIVATE_READER_ROUTES.record}${encodeURIComponent(request.id)}`;
-      params.set("body_offset", String(request.body_offset ?? 0));
-      params.set("body_limit", "32000");
+      if (typeof request.id !== "string" || !b.recordId.test(request.id))
+        throw new Error("Invalid record ID");
+      path = `${PRIVATE_READER_ROUTES.record}${request.id}`;
+      params.set("body_offset", bounded(request.body_offset, b.bodyOffsetMax));
+      params.set(
+        "body_limit",
+        bounded(BODY_LIMIT, b.bodyLimit.max, b.bodyLimit.min),
+      );
       break;
     case "activity":
       path = PRIVATE_READER_ROUTES.activity;
-      params.set("after", String(request.after ?? 0));
-      params.set("limit", "100");
+      params.set("after", bounded(request.after, b.offsetMax));
+      params.set(
+        "limit",
+        bounded(ACTIVITY_LIMIT, b.activityLimit.max, b.activityLimit.min),
+      );
       break;
     default:
       throw new Error("The private reader does not serve this read");
@@ -112,19 +169,32 @@ export function privateReaderPath(request: LifeRead): string {
   return params.size ? `${path}?${params}` : path;
 }
 
+/** Second gate at the fetch boundary: route, record ID and exact param set. */
 function readerUrl(path: string): string {
-  const pathname = typeof path === "string" ? path.split("?")[0]! : "";
-  const { record, ...fixed } = PRIVATE_READER_ROUTES;
-  const recordId = pathname.startsWith(record)
-    ? pathname.slice(record.length)
-    : "";
   if (
-    !(Object.values(fixed) as string[]).includes(pathname) &&
-    !(recordId && !recordId.includes("/"))
+    typeof path !== "string" ||
+    !path.startsWith("/") ||
+    path.startsWith("//")
   )
     throw new PrivateReaderError(400, "malformed");
   const url = new URL(path, PRIVATE_READER_ORIGIN);
-  if (url.origin !== PRIVATE_READER_ORIGIN)
+  if (url.origin !== PRIVATE_READER_ORIGIN || url.hash)
+    throw new PrivateReaderError(400, "malformed");
+  const { record } = PRIVATE_READER_ROUTES;
+  let route = url.pathname;
+  if (route.startsWith(record)) {
+    if (!PRIVATE_READER_BOUNDS.recordId.test(route.slice(record.length)))
+      throw new PrivateReaderError(400, "malformed");
+    route = record;
+  }
+  const allowed = ALLOWED_PARAMS[route];
+  if (!allowed) throw new PrivateReaderError(400, "malformed");
+  const keys = [...url.searchParams.keys()];
+  if (
+    keys.some((key) => !allowed.includes(key)) ||
+    new Set(keys).size !== keys.length ||
+    (REQUIRED_PARAMS[route] ?? []).some((key) => !url.searchParams.has(key))
+  )
     throw new PrivateReaderError(400, "malformed");
   return url.href;
 }

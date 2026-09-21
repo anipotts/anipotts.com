@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  PRIVATE_READER_BOUNDS,
   PRIVATE_READER_ORIGIN,
   PRIVATE_READER_ROUTES,
   PrivateReaderError,
@@ -17,7 +18,10 @@ import {
   type PrivateReaderSession,
 } from "./private-reader-client";
 import { PRIVATE_READER_AUDIENCE } from "./private-reader-credential";
-import { PrivateDataWorkspace } from "../components/life/PrivateDataWorkspace";
+import {
+  PrivateDataWorkspace,
+  PrivateRecordHistory,
+} from "../components/life/PrivateDataWorkspace";
 
 // Synthetic fixtures only, shaped like the System adapter examples in the
 // 2026-09-20 consolidation handoff. No reader network call is made: every
@@ -382,6 +386,188 @@ describe("private reader contract", () => {
   });
 });
 
+describe("System reader bounds", () => {
+  const search = (q: string, extra: Record<string, unknown> = {}) =>
+    ({ method: "search", q, ...extra }) as Parameters<
+      typeof privateReaderPath
+    >[0];
+
+  it("always sends q, including an empty one, and caps it at 2048", () => {
+    expect(privateReaderPath(search(""))).toBe(
+      "/v1/data/search?q=&limit=30&offset=0",
+    );
+    expect(privateReaderPath(search("x".repeat(2048)))).toContain(
+      `q=${"x".repeat(2048)}`,
+    );
+    expect(() => privateReaderPath(search("x".repeat(2049)))).toThrow();
+    expect(() =>
+      privateReaderPath({ method: "search" } as unknown as Parameters<
+        typeof privateReaderPath
+      >[0]),
+    ).toThrow();
+  });
+
+  it("validates kind against [A-Za-z0-9_.-]{1,80}", () => {
+    for (const kind of ["person", "a.b_c-1", "x".repeat(80)])
+      expect(privateReaderPath(search("", { kind }))).toContain(
+        `&kind=${kind}`,
+      );
+    for (const kind of ["", "bad kind", "a/b", "x".repeat(81), "caf\u00e9"])
+      expect(
+        () => privateReaderPath(search("", { kind })),
+        JSON.stringify(kind),
+      ).toThrow();
+  });
+
+  it("refuses record ids outside rec-[0-9a-f]{32} before any request", async () => {
+    for (const id of [
+      "rec-" + "A".repeat(32),
+      "rec-" + "0".repeat(31),
+      "rec-" + "0".repeat(33),
+      "record-" + "0".repeat(32),
+      "rec_fixture",
+      "../" + recordId,
+    ])
+      expect(() => privateReaderPath({ method: "get", id }), id).toThrow();
+    const { fetcher, calls } = network();
+    const session = makeSession(fetcher);
+    await session.start();
+    const reader = createPrivateLifeReader(session, { fetch: fetcher });
+    const result = await reader({ method: "get", id: "rec-fixture" });
+    expect(result.state).toBe("invalid");
+    await expect(
+      readerFetch(
+        session,
+        "/v1/data/records/rec-xyz?body_offset=0&body_limit=32000",
+        {
+          fetch: fetcher,
+        },
+      ),
+    ).rejects.toMatchObject({ failure: "malformed" });
+    expect(calls).toHaveLength(0);
+    session.logout();
+  });
+
+  it("keeps body_limit at 32000 and bounds body_offset", () => {
+    expect(privateReaderPath({ method: "get", id: recordId })).toContain(
+      "body_limit=32000",
+    );
+    expect(
+      privateReaderPath({ method: "get", id: recordId, body_offset: 16777216 }),
+    ).toContain("body_offset=16777216");
+    for (const body_offset of [-1, 16777217, 1.5])
+      expect(() =>
+        privateReaderPath({ method: "get", id: recordId, body_offset }),
+      ).toThrow();
+  });
+
+  it("uses limits inside data 1-200 and activity 1-500", () => {
+    expect(PRIVATE_READER_BOUNDS.dataLimit).toEqual({ min: 1, max: 200 });
+    expect(PRIVATE_READER_BOUNDS.activityLimit).toEqual({ min: 1, max: 500 });
+    for (const request of [
+      { method: "sources" },
+      { method: "search", q: "" },
+    ] as const) {
+      const limit = Number(
+        new URLSearchParams(privateReaderPath(request).split("?")[1]).get(
+          "limit",
+        ),
+      );
+      expect(limit).toBeGreaterThanOrEqual(1);
+      expect(limit).toBeLessThanOrEqual(200);
+    }
+    const activity = Number(
+      new URLSearchParams(
+        privateReaderPath({ method: "activity" }).split("?")[1],
+      ).get("limit"),
+    );
+    expect(activity).toBeGreaterThanOrEqual(1);
+    expect(activity).toBeLessThanOrEqual(500);
+    expect(() =>
+      privateReaderPath({ method: "sources", offset: 10_000_001 }),
+    ).toThrow();
+  });
+
+  it("sends only the documented params for each route", () => {
+    const expected: [Parameters<typeof privateReaderPath>[0], string[]][] = [
+      [{ method: "status" }, []],
+      [{ method: "sources" }, ["limit", "offset"]],
+      [{ method: "search", q: "" }, ["q", "limit", "offset"]],
+      [
+        { method: "search", q: "", kind: "person" },
+        ["q", "limit", "offset", "kind"],
+      ],
+      [{ method: "get", id: recordId }, ["body_offset", "body_limit"]],
+      [{ method: "activity" }, ["after", "limit"]],
+    ];
+    for (const [request, keys] of expected) {
+      const query = privateReaderPath(request).split("?")[1] ?? "";
+      expect([...new URLSearchParams(query).keys()]).toEqual(keys);
+    }
+  });
+
+  it("refuses unknown, duplicate or missing params at the fetch boundary", async () => {
+    const { fetcher, calls } = network();
+    const session = makeSession(fetcher);
+    await session.start();
+    for (const path of [
+      "/v1/data/status?x=1",
+      "/v1/data/sources?limit=30&offset=0&principal=owner",
+      "/v1/data/sources?limit=30&limit=31&offset=0",
+      "/v1/data/search?limit=30&offset=0",
+      "/v1/data/search?q=&limit=30&offset=0&scope=data:read",
+      `/v1/data/records/${recordId}?body_offset=0`,
+      "/v1/observability/activity?after=0&limit=100&device=pro",
+      "/v1/data/status#x",
+    ])
+      await expect(
+        readerFetch(session, path, { fetch: fetcher }),
+        path,
+      ).rejects.toMatchObject({ failure: "malformed" });
+    expect(calls).toHaveLength(0);
+    await readerFetch(session, "/v1/data/search?q=&limit=30&offset=0", {
+      fetch: fetcher,
+    });
+    expect(calls).toHaveLength(1);
+    session.logout();
+  });
+});
+
+describe("revision history cap", () => {
+  const revisions = (count: number) =>
+    Array.from({ length: count }, (_, index) => ({
+      revision_id: `rev-${String(index).padStart(32, "0")}`,
+      source_version: `v${index}`,
+      observed_at: observed,
+      source_modified_at: null,
+    }));
+  const render = async (record: Record<string, unknown>) => {
+    await act(async () =>
+      root.render(<PrivateRecordHistory record={record} />),
+    );
+    return container.textContent ?? "";
+  };
+
+  it("says latest 100 when the reader cap is hit", async () => {
+    const text = await render({
+      ...fixtureRecord,
+      history_limit: 100,
+      revisions: revisions(100),
+      origins: Array.from({ length: 100 }, () => ({ observed_at: observed })),
+    });
+    expect(text).toContain("Showing the latest 100 revisions");
+    expect(text).toContain("Showing the latest 100 origins");
+    expect(container.querySelectorAll("li")).toHaveLength(100);
+    // No paging control exists for history.
+    expect(container.querySelector("button")).toBeNull();
+  });
+
+  it("shows no cap note below the limit", async () => {
+    const text = await render({ ...fixtureRecord, history_limit: 100 });
+    expect(text).not.toContain("latest 100");
+  });
+});
+
 describe("private Data workspace", () => {
   async function openWorkspace(
     session: PrivateReaderSession,
@@ -415,11 +601,33 @@ describe("private Data workspace", () => {
       "rev-11111111111111111111111111111111",
     );
     expect(history.textContent).toContain("Current");
-    expect(calls.map((call) => call.url.pathname)).toEqual([
+    expect(calls.map((call) => call.url.pathname + call.url.search)).toEqual([
       PRIVATE_READER_ROUTES.status,
-      PRIVATE_READER_ROUTES.search,
-      `${PRIVATE_READER_ROUTES.record}${recordId}`,
+      `${PRIVATE_READER_ROUTES.search}?q=&limit=30&offset=0`,
+      `${PRIVATE_READER_ROUTES.search}?q=Fixture&limit=30&offset=0`,
+      `${PRIVATE_READER_ROUTES.record}${recordId}?body_offset=0&body_limit=32000`,
     ]);
+  });
+
+  it("opens on recent records and allows an empty search", async () => {
+    const { fetcher, calls } = network();
+    const session = makeSession(fetcher);
+    await openWorkspace(session, fetcher);
+    expect(container.textContent).toContain("Recent records");
+    expect(container.textContent).toContain("Synthetic note");
+    await search("");
+    await settle();
+    const searches = calls.filter(
+      (call) => call.url.pathname === PRIVATE_READER_ROUTES.search,
+    );
+    expect(searches.map((call) => call.url.search)).toEqual([
+      "?q=&limit=30&offset=0",
+      "?q=&limit=30&offset=0",
+    ]);
+    const button = [...container.querySelectorAll("button")].find(
+      (b) => b.textContent?.trim() === "Search",
+    );
+    expect(button?.disabled).toBe(false);
   });
 
   it("logout clears private data from the page", async () => {
