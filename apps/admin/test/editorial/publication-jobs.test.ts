@@ -135,3 +135,57 @@ it("serializes cancellation and keeps merged work on the verification path", asy
     expect(jobs.claim(1008)?.phase).toBe("deploy");
   });
 });
+
+it("cancels only never-claimed work immediately behind a blocked head", async () => {
+  const stub = env.EDITORIAL.getByName(crypto.randomUUID());
+  await runInDurableObject(stub, (_instance, state) => {
+    const jobs = new PublicationJobs(state.storage);
+    jobs.enqueue("head", 1000);
+    jobs.enqueue("waiting", 1000);
+    const headClaim = jobs.claim(1000)!;
+    jobs.settle(headClaim, { blocked: "unreleased_public_changes" }, 1001);
+    const head = jobs.get("head");
+    expect(jobs.requestCancel("waiting", 1, 1002)).toBe(false);
+    expect(jobs.get("waiting")?.phase).toBe("validate");
+    expect(jobs.requestCancel("waiting", 0, 1002)).toBe(true);
+    expect(jobs.get("waiting")).toMatchObject({
+      phase: "cancelled",
+      version: 1,
+      attempts: 0,
+      lease: null,
+      checkpoint: { cancelRequested: "true" },
+    });
+    // Lost response followed by a stale command cannot repeat or reverse it.
+    expect(jobs.requestCancel("waiting", 0, 1003)).toBe(false);
+    expect(jobs.get("head")).toEqual(head);
+    expect(jobs.nextWake(1003)).toBeNull();
+    expect(jobs.claim(1003)).toBeNull();
+  });
+});
+
+it("keeps previously claimed or checkpointed validation on the reconciliation path", async () => {
+  const stub = env.EDITORIAL.getByName(crypto.randomUUID());
+  await runInDurableObject(stub, (_instance, state) => {
+    const jobs = new PublicationJobs(state.storage);
+    jobs.enqueue("claimed", 1000);
+    const claim = jobs.claim(1000)!;
+    expect(jobs.requestCancel("claimed", claim.version, 1001)).toBe(false);
+    jobs.settle(claim, { blocked: "publication_hold" }, 1001);
+    const held = jobs.get("claimed")!;
+    expect(jobs.requestCancel("claimed", held.version, 1002)).toBe(true);
+    expect(jobs.get("claimed")?.phase).toBe("validate");
+    expect(jobs.get("claimed")?.checkpoint.cancelRequested).toBe("true");
+    const resumed = jobs.claim(1002)!;
+    jobs.settle(resumed, { next: "cancelled" }, 1003);
+
+    jobs.enqueue("checkpointed", 1004);
+    state.storage.sql.exec(
+      "UPDATE publication_jobs SET checkpoint = ? WHERE id = ?",
+      JSON.stringify({ baseHead: "a".repeat(40) }),
+      "checkpointed",
+    );
+    expect(jobs.requestCancel("checkpointed", 0, 1004)).toBe(true);
+    expect(jobs.get("checkpointed")?.phase).toBe("validate");
+    expect(jobs.get("checkpointed")?.checkpoint.baseHead).toBe("a".repeat(40));
+  });
+});

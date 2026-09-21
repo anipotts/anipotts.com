@@ -1,4 +1,9 @@
 import { editorialInventory, recordUpdate } from "./editorial-content";
+import {
+  getPublishedInventory,
+  type PublicationDatabase,
+} from "@anipotts/content/editorial/direct-publication";
+import { overlayPublishedInventory } from "./editorial-published-inventory";
 import { productionEditor } from "./editorial-server";
 import {
   editorialInventoryGroups,
@@ -10,11 +15,26 @@ import {
 /** Called only from the existing authorized editorial server layout/routes. */
 export async function loadEditorialInventory(env: unknown) {
   const inventory = await editorialInventory();
-  const entries = [
+  let entries: import("./editorial-inventory-projection").InventoryEntry[] = [
     ...inventory.pages,
     ...inventory.projects,
     ...inventory.writing,
   ];
+  const values =
+    env && typeof env === "object" ? (env as Record<string, unknown>) : {};
+  if (
+    values.EDITORIAL_PUBLISH_MODE === "direct" ||
+    values.EDITORIAL_PUBLISH_MODE === "maintenance"
+  ) {
+    if (!values.CONTENT_DB) throw new Error("content_database_unavailable");
+    // Keep unavailable CMS state separate from a successfully empty inventory.
+    // A Git fallback here would falsely advertise obsolete published content.
+    entries = overlayPublishedInventory(
+      entries,
+      (await getPublishedInventory(values.CONTENT_DB as PublicationDatabase))
+        .publications,
+    );
+  }
   let privateResult: Awaited<ReturnType<typeof readInventoryDrafts>> = {
     drafts: [],
     unavailable: true,

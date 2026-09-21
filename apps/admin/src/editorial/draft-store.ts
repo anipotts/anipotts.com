@@ -6,13 +6,20 @@ import {
   MAX_PUBLICATION_MEDIA_BYTES,
 } from "../lib/editorial-media";
 import { createHash } from "node:crypto";
-import { PublicationJobs, type PublishJob } from "./publication-jobs";
+import { DirectPublisher, editorialPublishMode } from "./direct-publisher";
+import type { PublicationDatabase } from "@anipotts/content/editorial/direct-publication";
+import type {
+  DirectPublicationStatus,
+  StartDirectPublication,
+} from "../lib/editorial-publication-status";
+import { PublicationJobs } from "./publication-jobs";
 import { publicationAlarm } from "./publication-alarm";
 import { editorialRuntime } from "./runtime";
 import { reportRuntimeContract } from "../lib/runtime-contract";
 import { publicationStage } from "./publication-stage";
 import {
   editorialRecordPath,
+  editorialRecordSchema,
   MAX_SOURCE_BYTES,
   validateEditorialSource,
   type EditorialRecord,
@@ -22,6 +29,14 @@ import type {
   FreezePublication,
   FreezeResult,
 } from "./publication";
+
+import {
+  MAX_PUBLICATION_QUEUE_PAGE,
+  type PublicationQueueEntry,
+  type PublicationQueueOptions,
+  type PublicationQueuePage,
+  type PublicationStatus,
+} from "../lib/editorial-publication-status";
 
 export type Draft = {
   key: string;
@@ -92,13 +107,143 @@ export class EditorialDraftStore extends DurableObject<unknown> {
     return new EditorialMediaStore(this.ctx.storage).read(id);
   }
   private jobs: PublicationJobs;
+  private directPublisher() {
+    const bindings = this.env as {
+      CONTENT_DB?: PublicationDatabase;
+      CONTENT_MEDIA?: R2Bucket;
+      EDITORIAL_ENABLED?: string;
+      EDITORIAL_PUBLISH_ENABLED?: string;
+    };
+    if (!bindings.CONTENT_DB) throw new Error("publisher_not_configured");
+    return new DirectPublisher(this.ctx.storage, {
+      db: bindings.CONTENT_DB,
+      media: bindings.CONTENT_MEDIA ?? null,
+      canActivate: () =>
+        bindings.EDITORIAL_ENABLED === "true" &&
+        bindings.EDITORIAL_PUBLISH_ENABLED === "true" &&
+        Boolean(bindings.CONTENT_MEDIA),
+      readDraft: (record) => this.read(editorialRecordPath(record)),
+      readMedia: (id) => this.readMedia(id),
+      acknowledge: (receipt) => {
+        this.ctx.storage.transactionSync(() => {
+          const key = editorialRecordPath(receipt.record);
+          const version = receipt.expectedInventoryVersion + 1;
+          const prior = this.ctx.storage.sql
+            .exec<{ inventoryVersion: number }>(
+              "SELECT inventoryVersion FROM direct_published_bases WHERE key = ?",
+              key,
+            )
+            .toArray()[0];
+          if (prior && prior.inventoryVersion >= version) return;
+          this.ctx.storage.sql.exec(
+            "INSERT INTO direct_published_bases (key,publicationId,inventoryVersion) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET publicationId=excluded.publicationId,inventoryVersion=excluded.inventoryVersion",
+            key,
+            receipt.publicationId,
+            version,
+          );
+          // The authored draft and its immutable history never change here.
+          // Existing save identities preserve replay despite a newer public base.
+          const bytes = Buffer.from(receipt.source);
+          const baseFileHash = createHash("sha1")
+            .update(`blob ${bytes.length}\0`)
+            .update(bytes)
+            .digest("hex");
+          this.ctx.storage.sql.exec(
+            "UPDATE drafts SET baseFileHash = ? WHERE key = ?",
+            baseFileHash,
+            key,
+          );
+        });
+      },
+    });
+  }
+  async startDirectPublication(input: StartDirectPublication) {
+    const values = this.env as Record<string, unknown>;
+    if (
+      editorialPublishMode(this.env) !== "direct" ||
+      values.EDITORIAL_ENABLED !== "true" ||
+      values.EDITORIAL_PUBLISH_ENABLED !== "true" ||
+      !values.CONTENT_DB ||
+      !values.CONTENT_MEDIA
+    )
+      return { ok: false as const, code: "publisher_not_configured" as const };
+    return this.directPublisher().start(input);
+  }
+  async latestDirectPublication(
+    record: EditorialRecord,
+  ): Promise<DirectPublicationStatus | null> {
+    return DirectPublisher.readStatus(this.ctx.storage, record);
+  }
+  async directPublicationStatus(
+    record: EditorialRecord,
+    id: string,
+  ): Promise<DirectPublicationStatus | null> {
+    return DirectPublisher.readStatus(this.ctx.storage, record, id);
+  }
+  async retryDirectPublication(
+    record: EditorialRecord,
+    id: string,
+    expectedVersion: number,
+  ) {
+    const values = this.env as Record<string, unknown>;
+    if (
+      editorialPublishMode(this.env) !== "direct" ||
+      values.EDITORIAL_ENABLED !== "true" ||
+      values.EDITORIAL_PUBLISH_ENABLED !== "true" ||
+      !values.CONTENT_DB ||
+      !values.CONTENT_MEDIA
+    )
+      return { ok: false as const, code: "publisher_not_configured" as const };
+    return (await this.directPublisher().retry(record, id, expectedVersion))
+      ? { ok: true as const }
+      : { ok: false as const, code: "publication_conflict" as const };
+  }
+  async cancelDirectPublication(
+    record: EditorialRecord,
+    id: string,
+    expectedVersion: number,
+  ) {
+    return (await new DirectPublisher(this.ctx.storage, null).cancel(
+      record,
+      id,
+      expectedVersion,
+    ))
+      ? { ok: true as const }
+      : { ok: false as const, code: "publication_conflict" as const };
+  }
   async startPublication(input: FreezePublication): Promise<FreezeResult> {
+    if (editorialPublishMode(this.env) !== "legacy")
+      return { ok: false, code: "invalid_request" };
     // Arm first: interruption before freezing leaves only a harmless empty wake.
     // Interruption after freezing leaves a durable wake for the queued snapshot.
     await this.ctx.storage.setAlarm(Date.now() + 1000);
     return this.freezePublication(input);
   }
   async alarm(): Promise<void> {
+    const mode = editorialPublishMode(this.env);
+    if (mode === "maintenance") {
+      // A mode-only deployment must not strand approved work after this alarm
+      // is consumed. Keep a quiet durable wake, with no external I/O.
+      const directTable = this.ctx.storage.sql
+        .exec<{ name: string }>(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='direct_publication_intents'",
+        )
+        .toArray()[0];
+      const directPending =
+        directTable &&
+        this.ctx.storage.sql
+          .exec<{ id: string }>(
+            "SELECT id FROM direct_publication_intents WHERE phase NOT IN ('live','cancelled') LIMIT 1",
+          )
+          .toArray()[0];
+      if (directPending || this.pendingPublicationCount() > 0)
+        await this.ctx.storage.setAlarm(Date.now() + 60_000);
+      return;
+    }
+    if (mode === "direct") {
+      await this.directPublisher().alarm();
+      return;
+    }
     const runtime = editorialRuntime(this.env);
     await publicationAlarm(
       this.ctx.storage,
@@ -167,32 +312,156 @@ export class EditorialDraftStore extends DurableObject<unknown> {
     );
   }
 
-  async latestPublication(record: EditorialRecord): Promise<PublishJob | null> {
+  async latestPublication(
+    record: EditorialRecord,
+  ): Promise<PublicationStatus | null> {
     const row = this.ctx.storage.sql
       .exec<{ id: string }>(
         "SELECT id FROM publications WHERE key = ? ORDER BY rowid DESC LIMIT 1",
         editorialRecordPath(record),
       )
       .toArray()[0];
-    return row ? this.jobs.get(row.id) : null;
+    return row ? this.readPublicationStatus(row.id) : null;
   }
+
+  /** Bounded owner-only queue inspection, including jobs without a receipt.
+   * Read only selected JSON metadata in SQL, never hydrate source snapshots. */
+  async publicationQueue(
+    options: PublicationQueueOptions = {},
+  ): Promise<PublicationQueuePage> {
+    const limit = options.limit ?? 25;
+    const after = options.afterSequence ?? 0;
+    if (
+      !Number.isSafeInteger(limit) ||
+      limit < 1 ||
+      limit > MAX_PUBLICATION_QUEUE_PAGE ||
+      !Number.isSafeInteger(after) ||
+      after < 0
+    )
+      throw new Error("invalid_publication_page");
+    const alarmAt = await this.ctx.storage.getAlarm();
+    const rows = this.readQueueEntries(after, limit + 1);
+    const items = rows.slice(0, limit);
+    return {
+      items,
+      nextAfterSequence: rows.length > limit ? items.at(-1)!.sequence : null,
+      pending: this.pendingPublicationCount(),
+      head:
+        after === 0
+          ? (items[0] ?? null)
+          : (this.readQueueEntries(0, 1)[0] ?? null),
+      alarmAt,
+    };
+  }
+
+  private pendingPublicationCount(): number {
+    return this.ctx.storage.sql
+      .exec<{ count: number }>(
+        "SELECT COUNT(*) AS count FROM publication_jobs WHERE phase NOT IN ('live', 'cancelled')",
+      )
+      .one().count;
+  }
+
+  private readQueueEntries(
+    after: number,
+    limit: number,
+  ): PublicationQueueEntry[] {
+    type QueueRow = Omit<
+      PublicationQueueEntry,
+      "record" | "cancelRequested"
+    > & {
+      kind: string | null;
+      recordId: string | null;
+      cancelRequested: string | null;
+    };
+    return this.ctx.storage.sql
+      .exec<QueueRow>(
+        `SELECT jobs.rowid AS sequence, jobs.id, jobs.phase, jobs.version,
+        jobs.attempts, jobs.dueAt, jobs.leaseUntil, jobs.blocked,
+        json_extract(jobs.checkpoint, '$.cancelRequested') AS cancelRequested,
+        json_extract(receipt.snapshot, '$.record.kind') AS kind,
+        json_extract(receipt.snapshot, '$.record.id') AS recordId,
+        receipt.revision, json_extract(receipt.snapshot, '$.createdAt') AS createdAt
+      FROM publication_jobs AS jobs
+      LEFT JOIN publications AS receipt ON receipt.id = jobs.id
+      WHERE jobs.phase NOT IN ('live', 'cancelled') AND jobs.rowid > ?
+      ORDER BY jobs.rowid LIMIT ?`,
+        after,
+        limit,
+      )
+      .toArray()
+      .map(({ kind, recordId, cancelRequested, ...entry }) => {
+        const record = editorialRecordSchema.safeParse({ kind, id: recordId });
+        return {
+          ...entry,
+          record: record.success ? record.data : null,
+          cancelRequested: cancelRequested === "true",
+        };
+      });
+  }
+
+  private async readPublicationStatus(
+    id: string,
+  ): Promise<PublicationStatus | null> {
+    const alarmAt = await this.ctx.storage.getAlarm();
+    const job = this.jobs.get(id);
+    if (!job) return null;
+    const receipt = this.ctx.storage.sql
+      .exec<{ revision: number }>(
+        "SELECT revision FROM publications WHERE id = ?",
+        id,
+      )
+      .toArray()[0];
+    if (!receipt) return null;
+    const terminal = job.phase === "live" || job.phase === "cancelled";
+    const position = terminal
+      ? null
+      : this.ctx.storage.sql
+          .exec<{ position: number }>(
+            `SELECT COUNT(*) AS position FROM publication_jobs
+      WHERE phase NOT IN ('live', 'cancelled')
+        AND rowid <= (SELECT rowid FROM publication_jobs WHERE id = ?)`,
+            id,
+          )
+          .one().position;
+    return {
+      ...job,
+      revision: receipt.revision,
+      canCancel:
+        job.lease === null &&
+        job.checkpoint.cancelRequested !== "true" &&
+        ["validate", "commit", "branch", "pr", "checks"].includes(job.phase),
+      queue: {
+        position,
+        pending: this.pendingPublicationCount(),
+        head: this.readQueueEntries(0, 1)[0] ?? null,
+        alarmAt,
+      },
+    };
+  }
+
   async publicationStatus(
     record: EditorialRecord,
     id: string,
-  ): Promise<PublishJob | null> {
+  ): Promise<PublicationStatus | null> {
     let path: string;
     try {
       path = editorialRecordPath(record);
     } catch {
       return null;
     }
-    return this.readPublication(id)?.path === path ? this.jobs.get(id) : null;
+    const receipt = this.ctx.storage.sql
+      .exec<{ key: string }>("SELECT key FROM publications WHERE id = ?", id)
+      .toArray()[0];
+    return receipt?.key === path ? this.readPublicationStatus(id) : null;
   }
   async retryPublication(
     record: EditorialRecord,
     id: string,
     expectedVersion: number,
   ): Promise<{ ok: true } | { ok: false; code: "publication_conflict" }> {
+    if (editorialPublishMode(this.env) !== "legacy")
+      return { ok: false, code: "publication_conflict" };
     const job = await this.publicationStatus(record, id);
     if (
       !job ||
@@ -233,6 +502,9 @@ export class EditorialDraftStore extends DurableObject<unknown> {
     reportRuntimeContract(env, "durable_object");
     this.jobs = new PublicationJobs(ctx.storage);
     ctx.storage.sql.exec(`
+      CREATE TABLE IF NOT EXISTS direct_published_bases (
+        key TEXT PRIMARY KEY, publicationId TEXT NOT NULL, inventoryVersion INTEGER NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS drafts (
         key TEXT PRIMARY KEY,
         source TEXT NOT NULL,
@@ -346,6 +618,8 @@ export class EditorialDraftStore extends DurableObject<unknown> {
    * Complete-snapshot reference and Git validation still precede any GitHub write.
    */
   async freezePublication(input: FreezePublication): Promise<FreezeResult> {
+    if (editorialPublishMode(this.env) !== "legacy")
+      return { ok: false, code: "invalid_request" };
     let path: string;
     try {
       path = editorialRecordPath(input.record);
