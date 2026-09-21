@@ -199,7 +199,6 @@ export function RichTextField({
     selector: ({ editor }) =>
       editor
         ? {
-            hasSelection: !editor.state.selection.empty,
             bold: editor.isActive("bold"),
             italic: editor.isActive("italic"),
             underline: editor.isActive("underline"),
@@ -208,7 +207,6 @@ export function RichTextField({
           }
         : null,
   });
-  const hasSelection = toolbarState?.hasSelection ?? false;
   useEffect(() => {
     if (!flushRef || !editor) return;
     const flush = () => {
@@ -239,6 +237,7 @@ export function RichTextField({
     editor?.setEditable(!disabled, false);
     editor?.setOptions({
       editorProps: {
+        ...editor.options.editorProps,
         attributes: fieldAttributes(id, label, description, validationError),
       },
     });
@@ -271,18 +270,6 @@ export function RichTextField({
       icon: TextUnderlineIcon,
       active: "underline",
       run: () => editor?.chain().focus().toggleUnderline().run(),
-    },
-    {
-      label: "Edit link",
-      icon: LinkIcon,
-      active: "link",
-      run: () => openPanel("link"),
-    },
-    {
-      label: "Edit image",
-      icon: ImageIcon,
-      active: "image",
-      run: () => openPanel("image"),
     },
   ];
   function applyPanel() {
@@ -325,7 +312,6 @@ export function RichTextField({
     >
       <Field
         label={label}
-        isLabelHidden={compact}
         inputID={id}
         description={description}
         descriptionID={`${id}-help`}
@@ -346,19 +332,23 @@ export function RichTextField({
           className="rich-field-surface"
           data-disabled={disabled || undefined}
         >
-          {(!compact || hasSelection || panel) && (
-            <Toolbar
-              label={`${label} formatting`}
-              size="sm"
-              startContent={
-                <HStack gap={1} wrap="wrap" className="rich-toolbar">
+          <Toolbar
+            label={`${label} formatting`}
+            size="sm"
+            className="document-editor-toolbar"
+            startContent={
+              <HStack
+                gap={1}
+                wrap="wrap"
+                className="rich-toolbar editor-toolbar-controls"
+              >
+                <HStack gap={1} className="editor-toolbar-group">
                   <ToggleButtonGroup
                     label="Text style"
                     type="multiple"
                     size="sm"
                     isDisabled={disabled || !editor}
                     value={actions
-                      .slice(0, 3)
                       .filter(
                         (action) =>
                           toolbarState?.[
@@ -367,61 +357,72 @@ export function RichTextField({
                       )
                       .map((action) => action.active)}
                     onChange={(next) => {
-                      const changed = actions
-                        .slice(0, 3)
-                        .find(
-                          (action) =>
-                            next.includes(action.active) !==
-                            Boolean(editor?.isActive(action.active)),
-                        );
+                      const changed = actions.find(
+                        (action) =>
+                          next.includes(action.active) !==
+                          Boolean(editor?.isActive(action.active)),
+                      );
                       changed?.run();
                     }}
                   >
-                    {actions.slice(0, 3).map((action) => (
+                    {actions.map((action) => (
                       <ToggleButton
                         isIconOnly
                         key={action.active}
                         value={action.active}
                         label={action.label}
                         tooltip={action.label}
-                        icon={<action.icon size={18} />}
+                        icon={<action.icon />}
+                        onMouseDown={(event) => event.preventDefault()}
                       />
                     ))}
                   </ToggleButtonGroup>
-                  {actions.slice(3).map((action) => (
-                    <Button
-                      key={action.active}
-                      label={action.label}
-                      tooltip={action.label}
-                      icon={<action.icon size={18} />}
-                      isIconOnly
-                      variant="ghost"
-                      isDisabled={disabled || !editor}
-                      onClick={action.run}
-                    />
-                  ))}
+                </HStack>
+                <Button
+                  label="Edit link"
+                  tooltip="Edit link"
+                  icon={<LinkIcon />}
+                  isIconOnly
+                  variant="ghost"
+                  isDisabled={disabled || !editor}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => openPanel("link")}
+                />
+                <Button
+                  label="Edit image"
+                  tooltip="Edit image"
+                  icon={<ImageIcon />}
+                  isIconOnly
+                  variant="ghost"
+                  isDisabled={disabled || !editor}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => openPanel("image")}
+                />
+                <HStack gap={1} className="editor-toolbar-group">
                   <Button
                     label="Undo"
                     tooltip="Undo"
-                    icon={<ArrowCounterClockwiseIcon size={18} />}
+                    icon={<ArrowCounterClockwiseIcon />}
                     isIconOnly
                     variant="ghost"
                     isDisabled={disabled || !toolbarState?.undo}
+                    onMouseDown={(event) => event.preventDefault()}
                     onClick={() => editor?.chain().focus().undo().run()}
                   />
                   <Button
                     label="Redo"
                     tooltip="Redo"
-                    icon={<ArrowClockwiseIcon size={18} />}
+                    icon={<ArrowClockwiseIcon />}
                     isIconOnly
                     variant="ghost"
                     isDisabled={disabled || !toolbarState?.redo}
+                    onMouseDown={(event) => event.preventDefault()}
                     onClick={() => editor?.chain().focus().redo().run()}
                   />
                 </HStack>
-              }
-            />
-          )}
+              </HStack>
+            }
+          />
           <EditorContent editor={editor} className="rich-writing" />
           {panel && (
             <SelectionOverlay

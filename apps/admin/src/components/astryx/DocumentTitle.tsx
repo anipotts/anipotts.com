@@ -50,7 +50,6 @@ export function DocumentTitle({
   return (
     <TextArea
       label="Title"
-      isLabelHidden
       className="document-title"
       rows={1}
       value={text}

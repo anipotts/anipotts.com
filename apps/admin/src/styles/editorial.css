@@ -677,10 +677,8 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   padding-block: var(--spacing-2);
 }
 .writing-workspace .document-title {
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  padding: 0;
+  min-width: 0;
+  width: 100%;
 }
 .document-title textarea {
   font-family: var(--font-family-heading);
@@ -690,29 +688,30 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   min-height: 0;
   field-sizing: content;
   resize: none;
-  padding: var(--spacing-2) 0;
-  background: transparent;
+  padding: var(--spacing-3);
+  background: var(--color-background-surface);
+  border-radius: var(--radius-element);
+  overflow-wrap: anywhere;
 }
 .document-subtitle .rich-field-surface,
 .writing-workspace .article-composer {
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  overflow: visible;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-element);
+  background: var(--color-background-surface);
 }
 .document-subtitle .rich-writing {
   min-height: 0;
-  padding: var(--spacing-2) 0;
-  color: var(--color-text-secondary);
+  padding: 0;
+  color: var(--color-text-primary);
 }
 .document-subtitle .rich-writing .tiptap {
-  padding: 0;
-  min-height: 0;
+  padding: var(--spacing-3);
+  min-height: calc(var(--spacing-8) * 2);
 }
 .writing-workspace .article-composer .tiptap {
   min-height: 12rem;
-  padding: var(--spacing-3) 0;
-  font-size: 1rem;
+  padding: var(--spacing-4);
+  font-size: var(--font-size-lg);
   line-height: 1.7;
 }
 .writing-workspace .article-composer .tiptap img {
@@ -724,8 +723,8 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   margin-block: var(--spacing-4);
 }
 .document-title textarea:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
+  outline: var(--spacing-0-5) solid var(--color-accent);
+  outline-offset: var(--spacing-0-5);
 }
 .document-preview {
   width: 100%;
@@ -733,13 +732,73 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   display: block;
 }
 
-.document-selection-toolbar {
-  padding: var(--spacing-1);
-  background: var(--color-background-popover);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-element);
-  box-shadow: var(--shadow-med);
-  max-width: calc(100vw - 24px);
+/* Formatting is always present. Selection never changes the writing measure.
+   Related controls wrap as groups on narrow screens and at enlarged text sizes. */
+.document-editor-toolbar,
+.document-editor-toolbar [role="toolbar"],
+.document-editor-toolbar [role="toolbar"] > *,
+.editor-toolbar-controls {
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+}
+.document-editor-toolbar > .astryx-section {
+  padding: 0;
+}
+.document-editor-toolbar [role="toolbar"] {
+  flex-wrap: wrap;
+  padding: 0;
+}
+.editor-toolbar-controls {
+  flex-wrap: wrap;
+  gap: var(--spacing-1);
+}
+.editor-toolbar-group {
+  flex: 0 0 auto;
+  gap: var(--spacing-1);
+}
+.document-editor-toolbar .astryx-button,
+.document-editor-toolbar .astryx-toggle-button,
+.document-editor-toolbar [aria-haspopup="menu"] {
+  min-height: var(--spacing-9);
+  min-width: var(--spacing-9);
+}
+.document-editor-toolbar {
+  padding: var(--spacing-2);
+  background: var(--color-background-muted);
+}
+.article-composer:focus-within {
+  outline: var(--spacing-0-5) solid var(--color-accent-muted);
+  outline-offset: var(--spacing-0-5);
+}
+.publication-progress {
+  min-width: 0;
+  width: 100%;
+  overflow-wrap: anywhere;
+}
+.publication-steps {
+  flex-wrap: wrap;
+}
+@media (pointer: coarse), (max-width: 540px) {
+  .document-editor-toolbar .astryx-button,
+  .document-editor-toolbar .astryx-toggle-button,
+  .document-editor-toolbar [aria-haspopup="menu"] {
+    min-height: var(--spacing-11);
+    min-width: var(--spacing-11);
+  }
+  .document-title textarea {
+    font-size: var(--text-heading-2-size);
+  }
+  .writing-workspace .article-composer .tiptap {
+    padding: var(--spacing-3);
+  }
+  .writing-workspace .editor-actionbar {
+    /* A wrapped sticky header leaves too little room above the phone keyboard. */
+    position: static;
+  }
+  .record-panel-dialog .astryx-layout-content {
+    padding-bottom: max(var(--spacing-4), env(safe-area-inset-bottom));
+  }
 }
 
 @media (max-width: 540px) {
@@ -958,9 +1017,7 @@ html[data-theme="light"] .rich-writing .inline-image-white {
    button, with the same resting and hover states as the rest of them. */
 .editorial-workspace-shell:not([data-sidebar-collapsed="true"])
   .admin-sidebar-menu,
-.editorial-workspace-shell
-  .astryx-app-shell-header
-  .admin-sidebar-menu {
+.editorial-workspace-shell .astryx-app-shell-header .admin-sidebar-menu {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-element);
   background: var(--color-background-surface);
@@ -1181,8 +1238,7 @@ body:has(.editorial-workspace-shell) {
   > .astryx-token:not(#\#):not(#\#):not(#\#) {
   flex: 0 0 auto;
 }
-.editorial-library
-  .editorial-record-state-detail:not(#\#):not(#\#):not(#\#) {
+.editorial-library .editorial-record-state-detail:not(#\#):not(#\#):not(#\#) {
   flex: 0 1 auto;
   min-width: 0;
 }
@@ -1225,11 +1281,11 @@ body:has(.editorial-workspace-shell) {
   .editorial-library .editorial-record-table .editorial-record-action {
     opacity: 0;
   }
+  .editorial-library .editorial-record-table tr:hover .editorial-record-action,
   .editorial-library
     .editorial-record-table
-    tr:hover
-    .editorial-record-action,
-  .editorial-library .editorial-record-table tr:focus-within .editorial-record-action {
+    tr:focus-within
+    .editorial-record-action {
     opacity: 1;
   }
 }
