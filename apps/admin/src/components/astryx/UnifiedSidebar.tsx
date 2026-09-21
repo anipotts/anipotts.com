@@ -6,7 +6,13 @@ import React, {
   type KeyboardEvent,
   type MouseEvent,
 } from "react";
-import { SideNavItem, SideNavSection } from "@astryxdesign/core/SideNav";
+import {
+  SideNavItem,
+  SideNavSection,
+  useSideNavRenderMode,
+} from "@astryxdesign/core/SideNav";
+import { Button } from "@astryxdesign/core/Button";
+import { useAppShellMobile } from "@astryxdesign/core/AppShell";
 import { Text } from "@astryxdesign/core/Text";
 import {
   ArrowsClockwiseIcon,
@@ -42,88 +48,107 @@ type Destination = {
   readonly icon: Icon;
 };
 
-export const websiteNavigation = [
-  { id: "pages", label: "Overview", href: "/content", icon: SquaresFourIcon },
-  {
-    id: "website",
-    label: "Pages",
-    href: "/content?group=website",
-    icon: BrowserIcon,
-  },
-  {
-    id: "writing",
-    label: "Writing",
-    href: "/content?group=writing",
-    icon: PencilSimpleIcon,
-  },
-  {
-    id: "work",
-    label: "Projects",
-    href: "/content?group=work",
-    icon: BriefcaseIcon,
-  },
-  {
-    id: "newsletter",
-    label: "Newsletter",
-    href: "/newsletter",
-    icon: EnvelopeSimpleIcon,
-  },
-] as const satisfies readonly Destination[];
-
-const dataNavigation = [
-  { id: "overview", label: "Overview", href: "/life", icon: HouseIcon },
-  { id: "people", label: "People", href: "/life/people", icon: UsersIcon },
-  {
-    id: "projects",
-    label: "Projects",
-    href: "/life/projects",
-    icon: FolderIcon,
-  },
-  { id: "places", label: "Places", href: "/life/places", icon: MapPinIcon },
-  {
-    id: "timeline",
-    label: "Timeline",
-    href: "/life/timeline",
-    icon: ClockIcon,
-  },
-  { id: "sources", label: "Sources", href: "/life/sources", icon: LinkIcon },
-  {
-    id: "preview",
-    label: "Context preview",
-    href: "/life/preview",
-    icon: FileTextIcon,
-  },
-] as const satisfies readonly Destination[];
-
-const observabilityNavigation = [
-  {
-    id: "machines",
-    label: "Machines",
-    href: "/operations/observability?view=machines",
-    icon: DesktopIcon,
-  },
-  {
-    id: "loops",
-    label: "Loops",
-    href: "/operations/observability?view=loops",
-    icon: ArrowsClockwiseIcon,
-  },
-] as const satisfies readonly Destination[];
-
-/** Content, then Data, then Observability. */
+/**
+ * Every sidebar group and page, in the order shown: Content, then Data, then
+ * Observability. This list is the one place to change the sidebar. The Data
+ * and Observability items are held as they are while that information
+ * architecture is redesigned; edit the items here when it lands.
+ */
 const sidebarGroups: ReadonlyArray<{
   id: SidebarGroupId;
   label: string;
   items: readonly Destination[];
 }> = [
-  { id: "content", label: workspaces.content.label, items: websiteNavigation },
-  { id: "life", label: workspaces.life.label, items: dataNavigation },
+  {
+    id: "content",
+    label: workspaces.content.label,
+    items: [
+      {
+        id: "pages",
+        label: "Overview",
+        href: "/content",
+        icon: SquaresFourIcon,
+      },
+      {
+        id: "website",
+        label: "Pages",
+        href: "/content?group=website",
+        icon: BrowserIcon,
+      },
+      {
+        id: "writing",
+        label: "Writing",
+        href: "/content?group=writing",
+        icon: PencilSimpleIcon,
+      },
+      {
+        id: "work",
+        label: "Projects",
+        href: "/content?group=work",
+        icon: BriefcaseIcon,
+      },
+      {
+        id: "newsletter",
+        label: "Newsletter",
+        href: "/newsletter",
+        icon: EnvelopeSimpleIcon,
+      },
+    ],
+  },
+  {
+    id: "life",
+    label: workspaces.life.label,
+    items: [
+      { id: "overview", label: "Overview", href: "/life", icon: HouseIcon },
+      { id: "people", label: "People", href: "/life/people", icon: UsersIcon },
+      {
+        id: "projects",
+        label: "Projects",
+        href: "/life/projects",
+        icon: FolderIcon,
+      },
+      { id: "places", label: "Places", href: "/life/places", icon: MapPinIcon },
+      {
+        id: "timeline",
+        label: "Timeline",
+        href: "/life/timeline",
+        icon: ClockIcon,
+      },
+      {
+        id: "sources",
+        label: "Sources",
+        href: "/life/sources",
+        icon: LinkIcon,
+      },
+      {
+        id: "preview",
+        label: "Context preview",
+        href: "/life/preview",
+        icon: FileTextIcon,
+      },
+    ],
+  },
   {
     id: "operations",
     label: workspaces.operations.label,
-    items: observabilityNavigation,
+    items: [
+      {
+        id: "machines",
+        label: "Machines",
+        href: "/operations/observability?view=machines",
+        icon: DesktopIcon,
+      },
+      {
+        id: "loops",
+        label: "Loops",
+        href: "/operations/observability?view=loops",
+        icon: ArrowsClockwiseIcon,
+      },
+    ],
   },
 ];
+
+export const websiteNavigation = sidebarGroups[0]!.items;
 
 /** Every sidebar destination, for every workspace's command palette, so
  * search reaches the whole app from any page. */
@@ -151,7 +176,7 @@ export function selectedSidebarItem(route: string): string | undefined {
     if (view === "loops") return "loops";
     return !view || view === "machines" ? "machines" : undefined;
   }
-  return dataNavigation.find((item) => item.href === path)?.id;
+  return sidebarGroups[1]!.items.find((item) => item.href === path)?.id;
 }
 
 const FOCUS_KEY = "admin:sidebar-focus";
@@ -226,6 +251,27 @@ export function UnifiedNavigation({
 }) {
   const { collapsed, toggle } = useSidebarGroups(activeGroup);
   const root = useRef<HTMLDivElement>(null);
+  const renderMode = useSideNavRenderMode();
+  const inDrawer = renderMode === "drawer" || renderMode === "drawer-content";
+  const { isMobileNavOpen } = useAppShellMobile();
+
+  // Opening the drawer shows the current page, not the top of the list.
+  useEffect(() => {
+    if (!inDrawer || !isMobileNavOpen) return;
+    const frame = requestAnimationFrame(() =>
+      root.current
+        ?.querySelector('[aria-current="page"]')
+        ?.scrollIntoView({ block: "center" }),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [inDrawer, isMobileNavOpen]);
+
+  const jumpTo = (id: SidebarGroupId) => {
+    if (collapsed[id]) toggle(id, false);
+    root.current
+      ?.querySelector(`[data-sidebar-group="${id}"]`)
+      ?.scrollIntoView({ block: "start" });
+  };
 
   useEffect(() => {
     let id: string | null = null;
@@ -310,6 +356,27 @@ export function UnifiedNavigation({
       onKeyDown={onKeyDown}
       onClickCapture={rememberKeyboardNavigation}
     >
+      {/* Phones and tablets: one tap reaches any workspace from anywhere in
+          the drawer. The row stays pinned while the list scrolls. */}
+      {inDrawer && (
+        <div
+          className="admin-unified-nav-jump"
+          role="group"
+          aria-label="Workspaces"
+        >
+          {sidebarGroups.map((group) => (
+            <Button
+              key={group.id}
+              label={group.label}
+              aria-label={`Go to ${group.label}`}
+              variant="ghost"
+              size="sm"
+              data-sidebar-jump={group.id}
+              onClick={() => jumpTo(group.id)}
+            />
+          ))}
+        </div>
+      )}
       {sidebarGroups.map((group) => {
         const items = group.items.map(({ id, label, href, icon: ItemIcon }) => {
           const count = group.id === "content" ? groupCounts?.[id] : undefined;

@@ -531,6 +531,49 @@
    is ruled off. Headings are quiet labels on the same row height as the
    pages, and the pages sit on the heading's own inset instead of Astryx's
    nested indent, so one icon column runs down the whole sidebar. */
+/* Workspace colors. One tint and one accent per workspace; today all three
+   point at the same value. To give a workspace its own color, change its two
+   lines here. The tint colors the workspace's section title in the sidebar;
+   the accent replaces the Astryx accent inside that workspace's pages. */
+:root {
+  --ws-content-tint: light-dark(#245dbe, #90baff);
+  --ws-content-accent: light-dark(#245dbe, #90baff);
+  --ws-data-tint: light-dark(#245dbe, #90baff);
+  --ws-data-accent: light-dark(#245dbe, #90baff);
+  --ws-observability-tint: light-dark(#245dbe, #90baff);
+  --ws-observability-accent: light-dark(#245dbe, #90baff);
+}
+.editorial-workspace-shell[data-workspace="content"] {
+  --ws-accent: var(--ws-content-accent);
+}
+.editorial-workspace-shell[data-workspace="life"] {
+  --ws-accent: var(--ws-data-accent);
+}
+.editorial-workspace-shell[data-workspace="operations"] {
+  --ws-accent: var(--ws-observability-accent);
+}
+.editorial-workspace-shell {
+  --color-accent: var(--ws-accent);
+  --color-text-accent: var(--ws-accent);
+  --color-icon-accent: var(--ws-accent);
+}
+.admin-unified-nav [data-sidebar-group="content"],
+.admin-unified-nav-jump [data-sidebar-jump="content"] {
+  color: var(--ws-content-tint);
+}
+.admin-unified-nav [data-sidebar-group="life"],
+.admin-unified-nav-jump [data-sidebar-jump="life"] {
+  color: var(--ws-data-tint);
+}
+.admin-unified-nav [data-sidebar-group="operations"],
+.admin-unified-nav-jump [data-sidebar-jump="operations"] {
+  color: var(--ws-observability-tint);
+}
+/* The current page's icon takes its workspace accent. */
+.admin-unified-nav [aria-current="page"] svg {
+  color: var(--ws-accent);
+}
+
 .admin-unified-nav {
   display: flex;
   flex-direction: column;
@@ -542,7 +585,6 @@
   gap: var(--spacing-3);
 }
 .admin-unified-nav [data-sidebar-group] {
-  color: var(--color-text-secondary);
   font-size: var(--text-supporting-size);
   font-weight: var(--font-weight-semibold);
 }
@@ -558,13 +600,44 @@
     align-items: stretch;
   }
 }
-/* Phones and tablets: every row in the drawer is a 44px target. */
-@media (max-width: 768px), (pointer: coarse) {
-  .astryx-mobile-nav.editorial-workspace-nav
-    .admin-unified-nav
-    .astryx-side-nav-item {
-    min-height: var(--spacing-11);
-  }
+/* Phones and tablets: compact 44px rows with no gaps, so the drawer scrolls as
+   little as possible, and a pinned jump row reaches any workspace in one tap.
+   A jump row was chosen over sticky group headings: sticky headings only keep
+   the current group's title in view, while the jump row keeps all three. */
+.astryx-mobile-nav.editorial-workspace-nav .admin-unified-nav {
+  gap: var(--spacing-1);
+}
+.astryx-mobile-nav.editorial-workspace-nav
+  .admin-unified-nav
+  .astryx-side-nav-item {
+  height: var(--spacing-11);
+  min-height: var(--spacing-11);
+  box-sizing: border-box;
+  scroll-margin-block: calc(var(--spacing-11) + var(--spacing-2));
+}
+.astryx-mobile-nav.editorial-workspace-nav
+  .admin-unified-nav
+  [data-sidebar-group]
+  + [role="group"]
+  > div {
+  gap: 0;
+}
+.admin-unified-nav-jump {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  display: flex;
+  gap: var(--spacing-1);
+  padding-block: var(--spacing-1);
+  background: var(--color-background-surface);
+}
+.admin-unified-nav-jump .astryx-button {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: var(--spacing-11);
+  padding-inline: var(--spacing-1);
+  font-size: var(--text-supporting-size);
+  font-weight: var(--font-weight-semibold);
 }
 /* Before the sidebar hydrates, the server has rendered every group open, but
    the prepaint script has recorded the groups this viewer closed. Hold them

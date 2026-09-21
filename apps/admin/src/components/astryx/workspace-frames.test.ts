@@ -79,6 +79,14 @@ describe("workspace page frames", () => {
     );
   });
 
+  it("keeps one tint and one accent token per workspace", () => {
+    for (const workspace of ["content", "data", "observability"])
+      for (const role of ["tint", "accent"])
+        expect(header).toMatch(
+          new RegExp(`--ws-${workspace}-${role}: light-dark\\(`),
+        );
+  });
+
   it("separates the sidebar groups with space and pins pages to one inset", () => {
     expect(header).toContain(
       ".admin-unified-nav { display: flex; flex-direction: column; gap: var(--spacing-2);",
