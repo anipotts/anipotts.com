@@ -29,6 +29,9 @@ import { SaveScheduler } from "../../lib/save-scheduler";
 import { writingReviewChanges } from "../../lib/writing-review";
 import { ProjectSections } from "./ProjectSections";
 import { editProjectSections } from "../../lib/project-sections";
+import { siteConfig } from "@anipotts/content/public/site";
+import { ProjectMedia } from "./ProjectMedia";
+import { editProjectMedia } from "../../lib/project-media";
 import { ProjectSettings } from "./ProjectSettings";
 import { ArticleSettings } from "./ArticleSettings";
 import React, { useEffect, useId, useRef, useState } from "react";
@@ -252,6 +255,16 @@ function HomeEditorImpl({
     }
     previousTab.current = tab;
   }, [tab]);
+  const mediaPending = useRef(false);
+  const mediaAuthorized = useRef(true);
+  const [uploadPending, setUploadPending] = useState(false);
+  const holdForMedia = () => {
+    if (!mediaPending.current) return false;
+    setError(
+      "Finish uploading or close the image crop before leaving this editor.",
+    );
+    return true;
+  };
   const [reviewLoading, setReviewLoading] = useState(false);
   /** A leave attempt was held by a refused save the author cannot retry. */
   const [leaveRefused, setLeaveRefused] = useState(false);
@@ -291,6 +304,7 @@ function HomeEditorImpl({
     return editor.current!.flush();
   };
   const leaveDocument = async (href: string) => {
+    if (holdForMedia()) return;
     // Loading and failed initial reads have no editable state to flush.
     if (!editor.current) {
       commitAdminNavigation(href);
@@ -394,6 +408,21 @@ function HomeEditorImpl({
     next: RecordWorkspaceState,
     write: "push" | "replace" | null = "push",
   ) {
+    if (holdForMedia()) {
+      // Back/Forward has already changed the URL. Keep it aligned with the
+      // retained editor while the selected image is still being processed.
+      if (write === null)
+        window.history.replaceState(
+          window.history.state,
+          "",
+          recordWorkspaceUrl(
+            window.location.pathname,
+            window.location.search,
+            workspaceState.current,
+          ),
+        );
+      return;
+    }
     if (next.panel === "properties" && record.kind === "page")
       next = { ...next, panel: null };
     navigationGeneration.current += 1;
@@ -778,6 +807,7 @@ function HomeEditorImpl({
       if (event.key === recoveryLogoutKey) localLogout();
     };
     const localLogout = () => {
+      mediaAuthorized.current = false;
       recoveryStorageKey.current = null;
       recoveryChannel.current?.close();
       recoveryChannel.current = null;
@@ -798,6 +828,7 @@ function HomeEditorImpl({
       subtitleFlush.current?.();
       bodyFlush.current?.();
       if (
+        mediaPending.current ||
         bodyDirtyRef.current ||
         (editor.current && editor.current.state.status !== "saved")
       ) {
@@ -1120,25 +1151,27 @@ function HomeEditorImpl({
     publication?.phase === "cancelled" &&
     (publication.revision === undefined ||
       publication.revision === state.revision);
-  const publishUnavailable = localPreview
-    ? "Publishing is available in the production editor. This draft stays local."
-    : snapshot.publishing !== "ready"
-      ? "Publishing is not configured. Your private draft is retained."
-      : publicationActive
-        ? "A publication is already in progress. See its status below; you can keep editing privately."
-        : needsNewPublicationReview
-          ? "This publication was stopped. Review again to prepare a new private revision."
-          : unsupportedPublication
-            ? "This publisher supports visible pages only. Scheduling and unpublishing are unavailable. Update visibility in Properties or source before reviewing again; your draft is retained."
-            : !valid
-              ? "Correct the marked fields before publishing."
-              : snapshot.draft?.discardedAt
-                ? "Recover this draft before publishing."
-                : !reviewCurrent || reviewLoading
-                  ? "Waiting for the latest saved revision to finish reviewing."
-                  : state.source === snapshot.base.source
-                    ? "There are no changes to publish."
-                    : null;
+  const publishUnavailable = uploadPending
+    ? "Finish uploading or close the image crop before publishing."
+    : localPreview
+      ? "Publishing is available in the production editor. This draft stays local."
+      : snapshot.publishing !== "ready"
+        ? "Publishing is not configured. Your private draft is retained."
+        : publicationActive
+          ? "A publication is already in progress. See its status below; you can keep editing privately."
+          : needsNewPublicationReview
+            ? "This publication was stopped. Review again to prepare a new private revision."
+            : unsupportedPublication
+              ? "This publisher supports visible pages only. Scheduling and unpublishing are unavailable. Update visibility in Properties or source before reviewing again; your draft is retained."
+              : !valid
+                ? "Correct the marked fields before publishing."
+                : snapshot.draft?.discardedAt
+                  ? "Recover this draft before publishing."
+                  : !reviewCurrent || reviewLoading
+                    ? "Waiting for the latest saved revision to finish reviewing."
+                    : state.source === snapshot.base.source
+                      ? "There are no changes to publish."
+                      : null;
   const publicationControls = publication ? (
     <>
       {(publication.canCancel ??
@@ -1481,7 +1514,9 @@ function HomeEditorImpl({
                         {
                           label: "Import draft…",
                           isDisabled:
-                            importing || Boolean(snapshot.draft?.discardedAt),
+                            uploadPending ||
+                            importing ||
+                            Boolean(snapshot.draft?.discardedAt),
                           onClick: () => importInput.current?.click(),
                         },
                         ...(state.status === "unsaved" &&
@@ -2121,6 +2156,37 @@ function HomeEditorImpl({
                         editProjectSections(editor.current!.state.source, edit),
                       )
                     }
+                  />
+                )}
+                {record.kind === "work" && parseable && (
+                  <ProjectMedia
+                    source={state.source}
+                    errors={fieldErrors}
+                    disabled={Boolean(snapshot.draft?.discardedAt)}
+                    siteUrl={siteConfig.url}
+                    onEdit={(edit) => {
+                      const current = editor.current;
+                      if (
+                        !current ||
+                        !mediaAuthorized.current ||
+                        snapshot.draft?.discardedAt
+                      )
+                        return;
+                      current.edit(
+                        editProjectMedia(current.state.source, edit),
+                      );
+                    }}
+                    onPendingChange={(pending) => {
+                      mediaPending.current = pending;
+                      setUploadPending(pending);
+                      if (!pending)
+                        setError((current) =>
+                          current ===
+                          "Finish uploading or close the image crop before leaving this editor."
+                            ? ""
+                            : current,
+                        );
+                    }}
                   />
                 )}
                 {record.kind === "writing" && parseable && (

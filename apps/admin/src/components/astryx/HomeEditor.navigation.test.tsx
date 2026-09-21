@@ -2,6 +2,7 @@
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
+import { newProjectSource } from "../../lib/project-draft";
 import { newWritingSource } from "../../lib/writing-draft";
 import * as navigation from "../../lib/editorial-navigation";
 import { HomeEditor } from "./HomeEditor";
@@ -14,6 +15,13 @@ import {
 } from "../../lib/browser-recovery";
 
 vi.mock("@astryxdesign/core/Toast", () => ({ useToast: () => () => {} }));
+const projectMedia = vi.hoisted(() => ({ props: null as any }));
+vi.mock("./ProjectMedia", () => ({
+  ProjectMedia: (props: any) => {
+    projectMedia.props = props;
+    return <div data-testid="project-media" />;
+  },
+}));
 vi.mock("./ArticleBody", () => ({
   ArticleBody: ({
     value,
@@ -755,4 +763,48 @@ it("opening note is multiline and survives saving before breadcrumb navigation",
   expect(savedSource).toContain("I wanted to keep a note.");
   expect(savedSource).toContain("Original body.");
   expect(commit).toHaveBeenCalledOnce();
+});
+
+it("holds project navigation and unload while media is pending", async () => {
+  const projectSource = newProjectSource("example", "Example");
+  vi.mocked(fetch).mockImplementation(async () =>
+    response({
+      ...snapshot,
+      base: { ...snapshot.base, source: projectSource },
+      draft: {
+        ...draft,
+        key: "content/public/projects/example.md",
+        source: projectSource,
+      },
+      history: [],
+    }),
+  );
+  window.history.replaceState(null, "", "/content/projects/example");
+  await act(async () =>
+    root.render(
+      <HomeEditor record={{ kind: "work", id: "example" }} localPreview />,
+    ),
+  );
+  expect(host.querySelector('[data-testid="project-media"]')).not.toBeNull();
+  act(() => projectMedia.props.onPendingChange(true));
+  await click("Properties");
+  expect(host.querySelector('aside[aria-label="Properties"]')).toBeNull();
+  expect(host.textContent).toContain(
+    "Finish uploading or close the image crop",
+  );
+  const unload = new Event("beforeunload", { cancelable: true });
+  act(() => window.dispatchEvent(unload));
+  expect(unload.defaultPrevented).toBe(true);
+  act(() => {
+    window.history.replaceState(
+      null,
+      "",
+      "/content/projects/example?view=preview",
+    );
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
+  expect(window.location.search).not.toContain("view=preview");
+  act(() => projectMedia.props.onPendingChange(false));
+  await click("Properties");
+  expect(host.querySelector('aside[aria-label="Properties"]')).not.toBeNull();
 });
