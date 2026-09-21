@@ -167,7 +167,7 @@ describe("publication progress", () => {
     expect(live.variant).toBe("warning");
     expect(live.steps[3].state).toBe("waiting");
     const active = publicationProgress(
-      { ...job("commit"), lease: "lease" },
+      { ...job("commit"), lease: "lease", leaseUntil: Date.now() + 60_000 },
       true,
     );
     expect(active.message).toContain("before retrying");
@@ -228,12 +228,18 @@ describe("publication progress", () => {
   it("only animates a confirmed current lease, not a phase sitting in backoff", () => {
     expect(publicationProgress(job("commit")).isRunning).toBe(false);
     expect(
-      publicationProgress({ ...job("commit"), lease: "active-lease" })
-        .isRunning,
+      publicationProgress({
+        ...job("commit"),
+        lease: "active-lease",
+        leaseUntil: Date.now() + 60_000,
+      }).isRunning,
     ).toBe(true);
     expect(
-      publicationProgress({ ...job("checks"), lease: "active-lease" })
-        .isRunning,
+      publicationProgress({
+        ...job("checks"),
+        lease: "active-lease",
+        leaseUntil: Date.now() + 60_000,
+      }).isRunning,
     ).toBe(false);
   });
 });
@@ -294,7 +300,9 @@ describe("direct CMS publication progress", () => {
   });
 
   it("distinguishes preparing activation from an acknowledged public effect", () => {
-    const progress = publicationProgress(direct("commit", { lease: "lease" }));
+    const progress = publicationProgress(
+      direct("commit", { lease: "lease", leaseUntil: Date.now() + 60_000 }),
+    );
     expect(progress.message).toBe("Publishing your approved changes.");
     expect(progress.steps.map((step) => step.state)).toEqual([
       "complete",
@@ -310,6 +318,7 @@ describe("direct CMS publication progress", () => {
         publicationId: "receipt",
         inventoryVersion: 3,
         lease: "lease",
+        leaseUntil: Date.now() + 60_000,
       }),
     );
     expect(progress.message).toBe("Published. Website verification is next.");
@@ -322,7 +331,9 @@ describe("direct CMS publication progress", () => {
   });
 
   it("keeps publication and live verification as separate facts", () => {
-    const progress = publicationProgress(direct("verify", { lease: "lease" }));
+    const progress = publicationProgress(
+      direct("verify", { lease: "lease", leaseUntil: Date.now() + 60_000 }),
+    );
     expect(progress.message).toBe(
       "Published. Checking the website before confirming it is live.",
     );
@@ -448,7 +459,9 @@ describe("direct CMS publication progress", () => {
   });
 
   it("never falls back to the legacy flow for an unexpected direct phase", () => {
-    const progress = publicationProgress(direct("checks", { lease: "lease" }));
+    const progress = publicationProgress(
+      direct("checks", { lease: "lease", leaseUntil: Date.now() + 60_000 }),
+    );
     expect(progress.message).toContain("needs reconciliation");
     expect(progress.message).not.toMatch(/GitHub|pull request|deploy/i);
     expect(progress.isRunning).toBe(false);
@@ -491,4 +504,26 @@ describe("direct CMS publication progress", () => {
     ]);
     expect(activated.isRunning).toBe(false);
   });
+});
+
+it("does not animate expired or malformed leases as active publication work", () => {
+  for (const mode of ["legacy", "direct"] as const) {
+    const publication = mode === "direct" ? direct("commit") : job("commit");
+    for (const leaseUntil of [0, 999, 1000, Number.NaN, Infinity]) {
+      expect(
+        publicationProgress(
+          { ...publication, lease: "retained", leaseUntil },
+          false,
+          1000,
+        ).isRunning,
+      ).toBe(false);
+    }
+    expect(
+      publicationProgress(
+        { ...publication, lease: "current", leaseUntil: 1001 },
+        false,
+        1000,
+      ).isRunning,
+    ).toBe(true);
+  }
 });

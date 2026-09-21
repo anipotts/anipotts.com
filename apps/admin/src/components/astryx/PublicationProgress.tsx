@@ -118,8 +118,12 @@ function blockingRecord(job: LegacyProgressJob) {
   };
 }
 
-export function publicationProgress(job: ProgressJob, stale = false) {
-  if (job.mode === "direct") return directPublicationProgress(job, stale);
+export function publicationProgress(
+  job: ProgressJob,
+  stale = false,
+  now = Date.now(),
+) {
+  if (job.mode === "direct") return directPublicationProgress(job, stale, now);
   const stopped = job.phase === "cancelled";
   const complete = job.phase === "live" && !job.blocked;
   const cancelling =
@@ -166,7 +170,13 @@ export function publicationProgress(job: ProgressJob, stale = false) {
       "neutral" | "warning" | "success" | "error" | "accent",
     // A phase alone does not prove active work: jobs can be queued or in backoff.
     isRunning:
-      !stopped && !complete && !waiting && !job.blocked && Boolean(job.lease),
+      !stopped &&
+      !complete &&
+      !waiting &&
+      !job.blocked &&
+      Boolean(job.lease) &&
+      Number.isFinite(job.leaseUntil) &&
+      job.leaseUntil > now,
     steps: stages.map((label, index): { label: string; state: StepState } => {
       if (stopped) return { label, state: "stopped" };
       if ((complete && !stale) || index < active)
@@ -245,6 +255,7 @@ function directPauseReason(code: string, activated: boolean): string {
 function directPublicationProgress(
   job: DirectPublicationStatus,
   stale: boolean,
+  now: number,
 ) {
   const activated = Boolean(job.publicationId);
   const superseded = job.superseded;
@@ -328,7 +339,9 @@ function directPublicationProgress(
       !verified &&
       !waiting &&
       !job.blocked &&
-      Boolean(job.lease),
+      Boolean(job.lease) &&
+      Number.isFinite(job.leaseUntil) &&
+      job.leaseUntil > now,
     steps: ["Prepare", "Publish", "Verify"].map(
       (label, index): { label: string; state: StepState } => {
         if (superseded || stopped)
