@@ -636,16 +636,23 @@ describe("admin wrangler.toml runtime contract drift", () => {
     ]);
   });
 
-  it("leaves disabled direct resources optional in the current legacy deployment", () => {
+  it("deploys the content bindings with publishing explicitly in legacy mode", () => {
     const declared = declaredRuntimeNames(wrangler);
-    expect(declared.vars).not.toContain("EDITORIAL_PUBLISH_MODE");
-    expect(declared.d1).not.toContain("CONTENT_DB");
-    expect(declared.r2).not.toContain("CONTENT_MEDIA");
+    expect(wrangler).toMatch(/^EDITORIAL_PUBLISH_MODE = "legacy"$/m);
+    expect(declared.d1).toContain("CONTENT_DB");
+    expect(declared.r2).toContain("CONTENT_MEDIA");
     expect(undeclared(declared)).toEqual([]);
   });
 
+  // The direct-mode checks below start from a config without the content
+  // resources, so each missing binding is reported on its own.
+  const bare = wrangler
+    .replace(/^EDITORIAL_PUBLISH_MODE = .*\n/m, "")
+    .replace(/^\[\[d1_databases\]\]\nbinding = "CONTENT_DB"\n(?:.+\n)*/m, "")
+    .replace(/^\[\[r2_buckets\]\]\nbinding = "CONTENT_MEDIA"\n(?:.+\n)*/m, "");
+
   it("requires direct bindings only when their mode and feature are enabled", () => {
-    const direct = wrangler
+    const direct = bare
       .replace(
         'EDITORIAL_ENABLED = "true"',
         'EDITORIAL_ENABLED = "true"\nEDITORIAL_PUBLISH_MODE = "direct"',
