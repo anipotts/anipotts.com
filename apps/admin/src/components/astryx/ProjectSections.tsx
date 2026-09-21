@@ -36,7 +36,7 @@ export function ProjectSections({
             {entries.map((entry, index) => (
               <HStack key={index} gap={1} wrap="wrap" vAlign="center">
                 <Text>
-                  {entry.title ||
+                  {(typeof entry?.title === "string" && entry.title) ||
                     `${kind === "story" ? "Story" : "Technical"} ${index + 1}`}
                 </Text>
                 <Button
@@ -68,7 +68,7 @@ export function ProjectSections({
                   onClick={() => onEdit({ type: "remove", kind, index })}
                 />
                 {kind === "story" &&
-                  Array.isArray(entry.paragraphs) &&
+                  Array.isArray(entry?.paragraphs) &&
                   entry.paragraphs.length > 1 &&
                   entry.paragraphs.map((_, paragraph) => (
                     <Button
@@ -83,7 +83,7 @@ export function ProjectSections({
                       }
                     />
                   ))}
-                {kind === "story" && (
+                {kind === "story" && entry && typeof entry === "object" && (
                   <Button
                     label="Add paragraph"
                     size="sm"
@@ -112,11 +112,16 @@ export function ProjectSections({
         : []
       ).map((item, index, items) => (
         <VStack key={index} gap={1}>
+          {(!item || typeof item !== "object") && (
+            <Text>
+              This item is malformed. Remove it or repair it in source mode.
+            </Text>
+          )}
           <TextInput
             label={`Roadmap item ${index + 1}`}
-            value={item.text ?? ""}
+            value={typeof item?.text === "string" ? item.text : ""}
             status={status(`roadmap.${index}.text`)}
-            isDisabled={disabled}
+            isDisabled={disabled || !item || typeof item !== "object"}
             onChange={(value) =>
               onEdit({ type: "roadmap-field", index, field: "text", value })
             }
@@ -124,14 +129,14 @@ export function ProjectSections({
           <HStack gap={1} wrap="wrap" vAlign="center">
             <Selector
               label={`Roadmap item ${index + 1} status`}
-              value={item.status ?? "planned"}
+              value={typeof item?.status === "string" ? item.status : ""}
               status={status(`roadmap.${index}.status`)}
               options={[
                 { value: "planned", label: "Planned" },
                 { value: "in-progress", label: "In progress" },
                 { value: "done", label: "Done" },
               ]}
-              isDisabled={disabled}
+              isDisabled={disabled || !item || typeof item !== "object"}
               onChange={(value) =>
                 onEdit({ type: "roadmap-field", index, field: "status", value })
               }

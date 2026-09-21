@@ -40,3 +40,35 @@ it("shows roadmap validation beside its controls while keeping removal available
     act(() => root.unmount());
   }
 });
+
+it("keeps malformed section entries removable instead of crashing", async () => {
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  const onEdit = vi.fn();
+  let source = newProjectSource("example");
+  for (const kind of ["story", "technical", "roadmap"])
+    source = setEditorialField(source, [kind], [null]);
+  try {
+    await act(async () =>
+      root.render(<ProjectSections source={source} onEdit={onEdit} />),
+    );
+    for (const [label, kind] of [
+      ["Remove story section 1", "story"],
+      ["Remove technical section 1", "technical"],
+      ["Remove roadmap item 1", "roadmap"],
+    ]) {
+      const button = host.querySelector<HTMLButtonElement>(
+        `button[aria-label="${label}"]`,
+      )!;
+      expect(button.disabled).toBe(false);
+      await act(async () => button.click());
+      expect(onEdit).toHaveBeenLastCalledWith({
+        type: "remove",
+        kind,
+        index: 0,
+      });
+    }
+  } finally {
+    act(() => root.unmount());
+  }
+});
