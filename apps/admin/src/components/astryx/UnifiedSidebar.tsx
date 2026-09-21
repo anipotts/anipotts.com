@@ -15,26 +15,18 @@ import { Button } from "@astryxdesign/core/Button";
 import { useAppShellMobile } from "@astryxdesign/core/AppShell";
 import { Text } from "@astryxdesign/core/Text";
 import {
+  BellSimpleIcon,
   BriefcaseIcon,
   BrowserIcon,
-  ClockIcon,
+  ClockCounterClockwiseIcon,
   EnvelopeSimpleIcon,
-  FileTextIcon,
-  FolderIcon,
-  HouseIcon,
-  LinkIcon,
-  MapPinIcon,
   PencilSimpleIcon,
   PulseIcon,
+  RowsIcon,
   SquaresFourIcon,
-  UsersIcon,
+  TreeStructureIcon,
   type Icon,
 } from "@phosphor-icons/react";
-import { workspaces } from "../../lib/workspace-navigation";
-import {
-  isObservabilityDestination,
-  observabilityNavigation,
-} from "../../lib/observability-navigation";
 import {
   SIDEBAR_GROUPS_KEY,
   ALL_GROUPS_OPEN,
@@ -51,91 +43,95 @@ type Destination = {
   readonly icon: Icon;
 };
 
+/** The one overview, above the groups. */
+export const overviewDestination: Destination = {
+  id: "overview",
+  label: "Overview",
+  href: "/",
+  icon: SquaresFourIcon,
+};
+
 /**
  * Every sidebar group and page, in the order shown: Content, then Data, then
- * Observability. This list is the one place to change the sidebar. The Data
- * and Observability items are held as they are while that information
- * architecture is redesigned; edit the items here when it lands.
+ * Observability. This list is the one place to change the sidebar, the
+ * command palette's page list and the selection rules below. Content ids are
+ * library group names, so the library can keep its filters per destination.
  */
-const sidebarGroups: ReadonlyArray<{
+export const sidebarGroups: ReadonlyArray<{
   id: SidebarGroupId;
   label: string;
   items: readonly Destination[];
 }> = [
   {
     id: "content",
-    label: workspaces.content.label,
+    label: "Content",
     items: [
-      {
-        id: "pages",
-        label: "Overview",
-        href: "/content",
-        icon: SquaresFourIcon,
-      },
       {
         id: "website",
         label: "Pages",
-        href: "/content?group=website",
+        href: "/content/pages",
         icon: BrowserIcon,
       },
       {
         id: "writing",
         label: "Writing",
-        href: "/content?group=writing",
+        href: "/content/writing",
         icon: PencilSimpleIcon,
       },
       {
         id: "work",
         label: "Projects",
-        href: "/content?group=work",
+        href: "/content/projects",
         icon: BriefcaseIcon,
       },
       {
         id: "newsletter",
         label: "Newsletter",
-        href: "/newsletter",
+        href: "/content/newsletter",
         icon: EnvelopeSimpleIcon,
       },
     ],
   },
   {
     id: "life",
-    label: workspaces.life.label,
+    label: "Data",
     items: [
-      { id: "overview", label: "Overview", href: "/life", icon: HouseIcon },
-      { id: "people", label: "People", href: "/life/people", icon: UsersIcon },
       {
-        id: "projects",
-        label: "Projects",
-        href: "/life/projects",
-        icon: FolderIcon,
-      },
-      { id: "places", label: "Places", href: "/life/places", icon: MapPinIcon },
-      {
-        id: "timeline",
-        label: "Timeline",
-        href: "/life/timeline",
-        icon: ClockIcon,
+        id: "records",
+        label: "Records",
+        href: "/data/records",
+        icon: RowsIcon,
       },
       {
         id: "sources",
         label: "Sources",
-        href: "/life/sources",
-        icon: LinkIcon,
-      },
-      {
-        id: "preview",
-        label: "Context preview",
-        href: "/life/preview",
-        icon: FileTextIcon,
+        href: "/data/sources",
+        icon: TreeStructureIcon,
       },
     ],
   },
   {
     id: "operations",
-    label: workspaces.operations.label,
+    label: "Observability",
     items: [
-      ...observabilityNavigation.map((item) => ({ ...item, icon: PulseIcon })),
+      {
+        id: "status",
+        label: "Status",
+        href: "/observability/status",
+        icon: PulseIcon,
+      },
+      {
+        id: "activity",
+        label: "Activity",
+        href: "/observability/activity",
+        icon: ClockCounterClockwiseIcon,
+      },
+      {
+        id: "alerts",
+        label: "Alerts",
+        href: "/observability/alerts",
+        icon: BellSimpleIcon,
+      },
     ],
   },
 ];
@@ -144,30 +140,34 @@ export const websiteNavigation = sidebarGroups[0]!.items;
 
 /** Every sidebar destination, for every workspace's command palette, so
  * search reaches the whole app from any page. */
-export const sidebarSearchEntries: AdminSearchResult[] = sidebarGroups.flatMap(
-  (group) =>
-    group.items.map(({ label, href }) => ({
-      id: `nav:${href}`,
-      label: label === "Overview" ? `${group.label} overview` : label,
-      href,
-      domain: "navigation" as const,
-      kind: "destination",
-      currentFact: group.label,
-      source: "admin",
-      freshness: "current",
-      keywords: [label, group.label],
-    })),
-);
+export const sidebarSearchEntries: AdminSearchResult[] = [
+  { ...overviewDestination, group: "Admin" },
+  ...sidebarGroups.flatMap((group) =>
+    group.items.map((item) => ({ ...item, group: group.label })),
+  ),
+].map(({ label, href, group }) => ({
+  id: `nav:${href}`,
+  label,
+  href,
+  domain: "navigation" as const,
+  kind: "destination",
+  currentFact: group,
+  source: "admin",
+  freshness: "current",
+  keywords: [label, group],
+}));
 
-/** Which Data or Observability item a route selects. Content selection comes
- * from the editorial page's own record and library state. */
+/** Which overview, Data or Observability item a route selects. A Data record
+ * detail selects Records. Content selection comes from the editorial page's
+ * own record and library state. */
 export function selectedSidebarItem(route: string): string | undefined {
-  const [path = ""] = route.split("?");
-  const status = observabilityNavigation.find((item) =>
-    isObservabilityDestination(route, item),
-  );
-  if (status) return status.id;
-  return sidebarGroups[1]!.items.find((item) => item.href === path)?.id;
+  const path = route.split("?")[0] ?? "";
+  if (path === "/") return overviewDestination.id;
+  for (const group of sidebarGroups.slice(1))
+    for (const item of group.items)
+      if (path === item.href || path.startsWith(`${item.href}/`))
+        return item.id;
+  return undefined;
 }
 
 const FOCUS_KEY = "admin:sidebar-focus";
@@ -368,6 +368,15 @@ export function UnifiedNavigation({
           ))}
         </div>
       )}
+      <SideNavItem
+        label={overviewDestination.label}
+        href={overviewDestination.href}
+        isSelected={selected === overviewDestination.id}
+        icon={<SquaresFourIcon size={18} aria-hidden="true" />}
+        className="admin-unified-nav-root"
+        data-sidebar-focus="item"
+        data-sidebar-id={overviewDestination.id}
+      />
       {sidebarGroups.map((group) => {
         const items = group.items.map(({ id, label, href, icon: ItemIcon }) => {
           const count = group.id === "content" ? groupCounts?.[id] : undefined;

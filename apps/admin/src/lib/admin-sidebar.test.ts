@@ -129,12 +129,17 @@ describe("sidebar rail choice", () => {
       return root.dataset.adminNavClosed;
     };
     const closed = '{"content":true,"life":true,"operations":false}';
-    expect(run("/content")).toBeUndefined();
-    expect(run("/content", closed)).toBe("life");
-    expect(run("/life/people", closed)).toBe("content");
-    expect(run("/operations/observability", closed)).toBe("content life");
-    expect(run("/newsletter", "not json")).toBeUndefined();
-    for (const path of ["/content", "/life/people", "/proof"]) {
+    expect(run("/content/pages")).toBeUndefined();
+    expect(run("/content/writing", closed)).toBe("life");
+    expect(run("/data/records", closed)).toBe("content");
+    expect(
+      run("/data/records/rec-00000000000000000000000000000001", closed),
+    ).toBe("content");
+    expect(run("/observability/status", closed)).toBe("content life");
+    // Retired Life URLs are not Data pages; they redirect before rendering.
+    expect(run("/life/people", closed)).toBe("content life");
+    expect(run("/content/newsletter", "not json")).toBeUndefined();
+    for (const path of ["/content/pages", "/data/sources", "/", "/proof"]) {
       const expected = Object.entries(
         sidebarGroupsState(closed, sidebarGroupForPath(path)),
       )

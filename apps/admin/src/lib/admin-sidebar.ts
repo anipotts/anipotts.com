@@ -48,7 +48,7 @@ export const ALL_GROUPS_OPEN: SidebarGroupsCollapsed = {
  * pages even though they render in the operational layout. */
 export function sidebarGroupForPath(pathname: string): SidebarGroupId {
   if (/^\/(?:content|newsletter)(?:\/|$)/.test(pathname)) return "content";
-  if (/^\/life(?:\/|$)/.test(pathname)) return "life";
+  if (/^\/data(?:\/|$)/.test(pathname)) return "life";
   return "operations";
 }
 
@@ -113,7 +113,7 @@ export function prepaintAdminSidebar() {
     const path = (window.location && window.location.pathname) || "/";
     const active = /^\/(?:content|newsletter)(?:\/|$)/.test(path)
       ? "content"
-      : /^\/life(?:\/|$)/.test(path)
+      : /^\/data(?:\/|$)/.test(path)
         ? "life"
         : "operations";
     if (saved && typeof saved === "object")

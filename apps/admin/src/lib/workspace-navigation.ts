@@ -1,11 +1,14 @@
+import { dataKind, dataRecordsHref } from "./data-routes";
+
 export const workspaces = {
-  content: { label: "Content", href: "/content" },
-  operations: { label: "Observability", href: "/operations/observability" },
-  life: { label: "Data", href: "/life" },
+  content: { label: "Content", href: "/content/pages" },
+  operations: { label: "Observability", href: "/observability/status" },
+  life: { label: "Data", href: "/data/records" },
 } as const;
 export type Workspace = keyof typeof workspaces;
 
-/** Only navigation preferences survive a workspace switch, never private queries. */
+/** Only navigation preferences survive a workspace switch, never private
+ * queries, record ids or cursors. */
 export function workspaceReturnPath(
   workspace: Workspace,
   value: string,
@@ -16,50 +19,29 @@ export function workspaceReturnPath(
   const url = new URL(value, "https://admin.invalid");
   if (url.origin !== "https://admin.invalid") return fallback;
   const path = url.pathname;
-  if (workspace === "life")
-    return /^\/life(?:\/(people|projects|places|timeline|sources|preview|health|aesthetics))?$/.test(
-      path,
-    )
-      ? path
-      : fallback;
+  if (workspace === "life") {
+    if (!/^\/data\/(?:records|sources)$/.test(path)) return fallback;
+    // The kind filter is a view, not a record identity.
+    return path === "/data/records"
+      ? dataRecordsHref(dataKind(url.searchParams.get("kind")))
+      : path;
+  }
   if (workspace === "content") {
     if (
-      !/^\/(content(?:\/(?:new|new-project|(?:home|page|work|writing|projects|workPage|writingPage|systemsPage|newsletterPage)\/[a-zA-Z0-9_-]+))?|newsletter(?:\/[a-zA-Z0-9_-]+)?)$/.test(
+      !/^\/(content\/(?:pages|writing|projects|newsletter|new|new-project|(?:home|page|work|writing|projects|workPage|writingPage|systemsPage|newsletterPage)\/[a-zA-Z0-9_-]+)|newsletter\/[a-zA-Z0-9_-]+)$/.test(
         path,
       )
     )
       return fallback;
   } else if (
-    !/^\/(operations\/observability|work|system|proof|knowledge(?:\/locations)?|ops\/destructive|content\/(?:review|drafts|preview|operations|carousels))$/.test(
+    !/^\/(observability\/(?:status|activity|alerts)|work|system|proof|ops\/destructive|content\/(?:review|drafts|preview|operations|carousels))$/.test(
       path,
     )
   )
     return fallback;
   const params = new URLSearchParams();
-  for (const key of ["group", "status", "sort", "view", "panel"])
+  for (const key of ["status", "sort", "view", "panel"])
     if (/^[a-z-]{1,40}$/.test(url.searchParams.get(key) ?? ""))
       params.set(key, url.searchParams.get(key)!);
-  // A route filter, not a record identity. Keep its allowlist aligned with
-  // knowledge.astro.
-  const routeFilter =
-    workspace === "operations" && path === "/knowledge"
-      ? {
-          key: "kind",
-          values: [
-            "all",
-            "people",
-            "project",
-            "decision",
-            "concept",
-            "place",
-            "system",
-          ],
-        }
-      : undefined;
-  if (routeFilter) {
-    const value = url.searchParams.get(routeFilter.key);
-    if (value && routeFilter.values.includes(value))
-      params.set(routeFilter.key, value);
-  }
   return path + (params.size ? `?${params}` : "");
 }

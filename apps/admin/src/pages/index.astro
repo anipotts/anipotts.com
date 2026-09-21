@@ -1,3 +1,68 @@
 ---
-return Astro.redirect(`/content${Astro.url.search}`, 302);
+import AdminLayout from "../layouts/AdminLayout.astro";
+import { AdminOverview } from "../components/overview/AdminOverview";
+import { recentlyUpdated } from "../components/astryx/ContentLibrary";
+import { loadEditorialInventory } from "../lib/editorial-inventory-server";
+import { privateReaderOpsEnabled } from "../lib/private-reader-credential";
+import { measureServerTiming } from "../lib/server-timing";
+
+// The one overview. Content is read here from the editorial inventory; ops
+// and Data are read in the browser, each behind its own gate: ops with an
+// ops:read credential when PRIVATE_READER_OPS_ENABLED is on, Data with a
+// private session the owner opens on this page.
+const inventory = await measureServerTiming(Astro.locals, "inventory", () =>
+  loadEditorialInventory(Astro.locals.runtime?.env),
+);
+const content = recentlyUpdated(inventory.records)
+  .slice(0, 5)
+  .map(
+    ({
+      title,
+      href,
+      status,
+      collection,
+      section,
+      changesPending,
+      updated,
+    }) => ({
+      title,
+      href,
+      status,
+      collection,
+      section,
+      changesPending,
+      updated,
+    }),
+  );
+const env = Astro.locals.runtime?.env ?? {};
+const opsEnabled = privateReaderOpsEnabled(env);
+const dataEnabled = env.PRIVATE_READER_ENABLED === "true";
+
+// Development only: `?fixture=synthetic` previews System's snapshot sample,
+// a synthetic events page and a synthetic Data set. `import.meta.env.DEV`
+// is false in builds, so no fixture ships.
+const synthetic =
+  import.meta.env.DEV && Astro.url.searchParams.get("fixture") === "synthetic";
+const fixtures = synthetic
+  ? {
+      snapshot: (await import("../fixtures/ops_v1.sample.json")).default,
+      events: (await import("../fixtures/ops_events_v1.synthetic.json"))
+        .default,
+      data: (await import("../fixtures/data_v1.synthetic.json")).default,
+    }
+  : undefined;
+Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
+
+<AdminLayout title="Overview" hideHeader>
+  <AdminOverview
+    content={content}
+    dataEnabled={dataEnabled}
+    dataFixture={fixtures?.data}
+    enabled={opsEnabled}
+    fixture={fixtures?.snapshot}
+    eventsFixture={fixtures?.events}
+    renderedAt={Date.now()}
+    client:load
+  />
+</AdminLayout>

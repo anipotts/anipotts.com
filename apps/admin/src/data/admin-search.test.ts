@@ -36,7 +36,7 @@ describe("admin search and navigation", () => {
     );
   });
 
-  it("has no Inbox or retired fixture destinations and keeps Status under System", () => {
+  it("has no Inbox, retired fixture or sidebar destinations", () => {
     expect(navItems.some((item) => item.href.startsWith("/inbox"))).toBe(false);
     for (const href of [
       "/fleet",
@@ -46,25 +46,23 @@ describe("admin search and navigation", () => {
       "/mutations",
     ])
       expect(navItems.some((item) => item.href === href)).toBe(false);
-    expect(
-      navItems.find((item) => item.href === "/operations/observability"),
-    ).toMatchObject({ group: "system", parent: "system" });
+    // The sidebar list owns Content, Data and Observability; the operational
+    // list keeps only the pages the sidebar does not show.
+    for (const prefix of [
+      "/operations/observability",
+      "/observability",
+      "/life",
+      "/knowledge",
+      "/data",
+    ])
+      expect(navItems.some((item) => item.href.startsWith(prefix))).toBe(false);
     expect(navItems.find((item) => item.href === "/system")).toBeDefined();
     expect(navItems.find((item) => item.href === "/proof")).toBeDefined();
-    expect(navItems.find((item) => item.href === "/content")).toMatchObject({
-      group: "website",
-      label: "Website",
-    });
+    expect(navItems.some((item) => item.href === "/content")).toBe(false);
     expect(
       navItems.find((item) => item.href === "/content/review")?.label,
     ).toBe("Legacy content diagnostics");
     expect(navItems.some((item) => item.href === "/content/new")).toBe(false);
-    expect(
-      navItems.find((item) => item.href === "/knowledge?kind=people"),
-    ).toMatchObject({ group: "knowledge", parent: "knowledge" });
-    expect(
-      navItems.find((item) => item.href === "/knowledge/locations"),
-    ).toMatchObject({ group: "knowledge", parent: "knowledge" });
   });
 });
 

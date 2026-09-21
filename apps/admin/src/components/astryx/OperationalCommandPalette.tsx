@@ -2,27 +2,12 @@ import { AdminCommandPalette } from "./AdminCommandPalette";
 import type { NavItem } from "../../data/admin";
 import type { AdminSearchResult } from "../../data/admin-search";
 import { sidebarSearchEntries } from "./UnifiedSidebar";
-import { observabilityNavigation } from "../../lib/observability-navigation";
 
+/** Observability's pages, from the one sidebar list. */
 export const operationalDestinations: AdminSearchResult[] =
-  observabilityNavigation.map(({ label, href }) => ({
-    id: `nav:${href}`,
-    label,
-    href,
-    domain: "navigation",
-    kind: "destination",
-    currentFact: "",
-    source: "admin",
-    freshness: "current",
-    keywords: [],
-  }));
-/** Every sidebar page, then any operational destination it does not list. */
-const paletteDestinations: AdminSearchResult[] = [
-  ...sidebarSearchEntries,
-  ...operationalDestinations.filter(
-    (entry) => !sidebarSearchEntries.some((row) => row.id === entry.id),
-  ),
-];
+  sidebarSearchEntries.filter((entry) => entry.currentFact === "Observability");
+/** Every sidebar page; the search then adds the operational pages below. */
+const paletteDestinations: AdminSearchResult[] = sidebarSearchEntries;
 export function operationalSearchNavigation(items: NavItem[]): NavItem[] {
   const routes = new Set(["/work", "/work?view=now", "/system", "/proof"]);
   return items.filter(

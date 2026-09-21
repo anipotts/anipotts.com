@@ -499,20 +499,20 @@ export const CELLS = [
   {
     id: "load:content",
     kind: "load",
-    label: "Content overview",
-    path: "/content",
+    label: "Pages library",
+    path: "/content/pages",
   },
   {
     id: "load:writing",
     kind: "load",
     label: "Writing library",
-    path: "/content?group=writing",
+    path: "/content/writing",
   },
   {
     id: "load:newsletter",
     kind: "load",
     label: "Newsletter library",
-    path: "/newsletter",
+    path: "/content/newsletter",
   },
   {
     id: "load:record",
@@ -523,33 +523,45 @@ export const CELLS = [
   {
     id: "load:operations",
     kind: "load",
-    label: "Operations machines",
-    path: "/operations/observability?view=machines",
+    label: "Observability status",
+    path: "/observability/status",
   },
-  { id: "load:life", kind: "load", label: "Life overview", path: "/life" },
   {
-    id: "load:life-health",
+    id: "load:life",
     kind: "load",
-    label: "Life health (D1)",
-    path: "/life/health",
+    label: "Data records",
+    path: "/data/records",
   },
+  { id: "load:overview", kind: "load", label: "Overview", path: "/" },
   {
     id: "switch:content-nav",
     kind: "switch",
     label: "Content navigation",
-    start: "/content",
+    start: "/content/pages",
     steps: [
-      navLink("Content", "Writing", (url) => group(url, "/content", "writing")),
-      navLink("Content", "Pages", (url) => group(url, "/content", "website")),
-      navLink("Content", "Projects", (url) => group(url, "/content", "work")),
-      navLink("Content", "Newsletter", (url) => url.pathname === "/newsletter"),
+      navLink(
+        "Content",
+        "Writing",
+        (url) => url.pathname === "/content/writing",
+      ),
+      navLink("Content", "Pages", (url) => url.pathname === "/content/pages"),
+      navLink(
+        "Content",
+        "Projects",
+        (url) => url.pathname === "/content/projects",
+      ),
+      navLink(
+        "Content",
+        "Newsletter",
+        (url) => url.pathname === "/content/newsletter",
+      ),
     ],
   },
   {
     id: "switch:record",
     kind: "switch",
     label: "Library record round trip",
-    start: "/content",
+    start: "/content/pages",
     steps: [
       {
         label: "Library to record",
@@ -563,56 +575,61 @@ export const CELLS = [
             .locator('nav[aria-label="Breadcrumb"] a')
             .filter({ visible: true })
             .first(),
-        expect: (url) => url.pathname === "/content",
+        expect: (url) => url.pathname === "/content/pages",
       },
     ],
   },
   {
     id: "switch:operations",
     kind: "switch",
-    label: "Operations views",
-    start: "/operations/observability?view=machines",
+    label: "Observability views",
+    start: "/observability/status",
     steps: [
       navLink(
         "Observability",
-        "Loops",
-        (url) => url.searchParams.get("view") === "loops",
+        "Activity",
+        (url) => url.pathname === "/observability/activity",
+      ),
+      navLink(
+        "Observability",
+        "Alerts",
+        (url) => url.pathname === "/observability/alerts",
       ),
     ],
   },
   {
     id: "switch:life",
     kind: "switch",
-    label: "Life sections",
-    start: "/life",
+    label: "Data views",
+    start: "/data/records",
     steps: [
-      navLink("Data", "People", (url) => url.pathname === "/life/people"),
-      navLink("Data", "Timeline", (url) => url.pathname === "/life/timeline"),
+      navLink("Data", "Sources", (url) => url.pathname === "/data/sources"),
+      navLink("Data", "Records", (url) => url.pathname === "/data/records"),
     ],
   },
   {
     id: "switch:workspaces",
     kind: "switch",
     label: "Cross-workspace round trip",
-    start: "/content",
+    start: "/content/pages",
     steps: [
       workspaceSwitch(
         "Content to Data",
         "Data",
-        "/life",
-        (url) => url.pathname === "/life",
+        "/data/records",
+        (url) => url.pathname === "/data/records",
       ),
       workspaceSwitch(
         "Data to Observability",
         "Observability",
-        "/operations/observability?view=machines",
-        (url) => url.pathname === "/operations/observability",
+        "/observability/status",
+        (url) => url.pathname === "/observability/status",
       ),
       workspaceSwitch(
         "Observability to Content",
         "Content",
-        "/content",
-        (url) => url.pathname === "/content",
+        "/content/pages",
+        (url) => url.pathname === "/content/pages",
       ),
     ],
   },
@@ -620,7 +637,7 @@ export const CELLS = [
     id: "idle:content",
     kind: "idle",
     label: "Content idle, visible, no input",
-    path: "/content",
+    path: "/content/pages",
     durationMs: 120000,
     widths: [1280],
     optIn: true,
@@ -628,8 +645,8 @@ export const CELLS = [
   {
     id: "idle:operations",
     kind: "idle",
-    label: "Operations idle, visible, no input",
-    path: "/operations/observability?view=machines",
+    label: "Observability idle, visible, no input",
+    path: "/observability/status",
     durationMs: 125000,
     widths: [1280],
     optIn: true,
@@ -638,7 +655,7 @@ export const CELLS = [
     id: "intent:hover",
     kind: "intent",
     label: "Hover nav items and rows for 10 s",
-    path: "/content",
+    path: "/content/pages",
     gesture: INTENTS.hover,
     widths: [1280],
     optIn: true,
@@ -647,7 +664,7 @@ export const CELLS = [
     id: "intent:press-cancel",
     kind: "intent",
     label: "Press a row, move off, release",
-    path: "/content",
+    path: "/content/pages",
     gesture: INTENTS.pressCancel,
     widths: [1280],
     optIn: true,
@@ -656,7 +673,7 @@ export const CELLS = [
     id: "intent:touch-scroll",
     kind: "intent",
     label: "100 touch scrolls starting on rows",
-    path: "/content",
+    path: "/content/pages",
     gesture: INTENTS.touchScroll,
     widths: [390],
     input: "touch",
@@ -666,7 +683,7 @@ export const CELLS = [
     id: "intent:drag-select",
     kind: "intent",
     label: "50 drag-selects starting on row titles",
-    path: "/content",
+    path: "/content/pages",
     gesture: INTENTS.dragSelect,
     widths: [1280],
     optIn: true,
@@ -675,7 +692,7 @@ export const CELLS = [
     id: "intent:right-click",
     kind: "intent",
     label: "50 secondary presses on rows",
-    path: "/content",
+    path: "/content/pages",
     gesture: INTENTS.rightClick,
     widths: [1280],
     optIn: true,
@@ -684,9 +701,11 @@ export const CELLS = [
     id: "warm:content",
     kind: "warm",
     label: "Second Content document in one context",
-    start: "/content",
-    step: navLink("Content", "Writing", (url) =>
-      group(url, "/content", "writing"),
+    start: "/content/pages",
+    step: navLink(
+      "Content",
+      "Writing",
+      (url) => url.pathname === "/content/writing",
     ),
     widths: [1280],
     optIn: true,
@@ -694,19 +713,17 @@ export const CELLS = [
   {
     id: "back:content",
     kind: "back",
-    label: "Back from Writing to the Content overview",
-    start: "/content",
-    step: navLink("Content", "Writing", (url) =>
-      group(url, "/content", "writing"),
+    label: "Back from Writing to Pages",
+    start: "/content/pages",
+    step: navLink(
+      "Content",
+      "Writing",
+      (url) => url.pathname === "/content/writing",
     ),
     widths: [1280],
     optIn: true,
   },
 ];
-
-function group(url, pathname, value) {
-  return url.pathname === pathname && url.searchParams.get("group") === value;
-}
 
 /**
  * Counts announcements (design 4.5). `mutated` is called for each live region

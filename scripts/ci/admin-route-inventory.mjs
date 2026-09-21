@@ -1,5 +1,131 @@
 export const ADMIN_ROUTES = [
   {
+    // The one overview.
+    route: "/",
+    file: "apps/admin/src/pages/index.astro",
+    nav: false,
+  },
+  {
+    route: "/content/pages",
+    file: "apps/admin/src/pages/content/[library].astro",
+    nav: true,
+  },
+  {
+    route: "/content/writing",
+    file: "apps/admin/src/pages/content/[library].astro",
+    nav: true,
+  },
+  {
+    route: "/content/projects",
+    file: "apps/admin/src/pages/content/[library].astro",
+    nav: true,
+  },
+  {
+    route: "/content/newsletter",
+    file: "apps/admin/src/pages/content/newsletter.astro",
+    nav: true,
+  },
+  {
+    route: "/data/records",
+    file: "apps/admin/src/pages/data/records/index.astro",
+    nav: true,
+    smoke: false,
+  },
+  {
+    // Record detail; the id shape is checked, the record is read in the browser.
+    route: "/data/records/rec-00000000000000000000000000000000",
+    file: "apps/admin/src/pages/data/records/[id].astro",
+    nav: false,
+    smoke: false,
+  },
+  {
+    route: "/data/sources",
+    file: "apps/admin/src/pages/data/sources.astro",
+    nav: true,
+    smoke: false,
+  },
+  {
+    route: "/observability/status",
+    file: "apps/admin/src/pages/observability/[view].astro",
+    nav: true,
+    smoke: false,
+  },
+  {
+    route: "/observability/activity",
+    file: "apps/admin/src/pages/observability/[view].astro",
+    nav: true,
+    smoke: false,
+  },
+  {
+    route: "/observability/alerts",
+    file: "apps/admin/src/pages/observability/[view].astro",
+    nav: true,
+    smoke: false,
+  },
+  {
+    // Retired; 308 redirects to its library route.
+    route: "/content",
+    file: "apps/admin/src/pages/content/index.astro",
+    nav: false,
+    smoke: false,
+  },
+  {
+    // Retired; 308 redirects to /content/newsletter.
+    route: "/newsletter",
+    file: "apps/admin/src/pages/newsletter.astro",
+    nav: false,
+    smoke: false,
+  },
+  {
+    // 308 redirects to /data/records.
+    route: "/data",
+    file: "apps/admin/src/pages/data/index.astro",
+    nav: false,
+    smoke: false,
+  },
+  {
+    // Retired; 308 redirects to /data/records.
+    route: "/life",
+    file: "apps/admin/src/pages/life/index.astro",
+    nav: false,
+    smoke: false,
+  },
+  {
+    // Retired; 308 redirects to its Data view.
+    route: "/life/people",
+    file: "apps/admin/src/pages/life/[section].astro",
+    nav: false,
+    smoke: false,
+  },
+  {
+    // Retired; 308 redirects to /data/records.
+    route: "/knowledge",
+    file: "apps/admin/src/pages/knowledge.astro",
+    nav: false,
+    smoke: false,
+  },
+  {
+    // Retired; 308 redirects to /data/records?kind=places.
+    route: "/knowledge/locations",
+    file: "apps/admin/src/pages/knowledge/locations.astro",
+    nav: false,
+    smoke: false,
+  },
+  {
+    // Retired; 308 redirects to /observability/status.
+    route: "/operations/observability",
+    file: "apps/admin/src/pages/operations/observability.astro",
+    nav: false,
+    smoke: false,
+  },
+  {
+    // Retired; 308 redirects to /observability/status.
+    route: "/inbox",
+    file: "apps/admin/src/pages/inbox.astro",
+    nav: false,
+    smoke: false,
+  },
+  {
     route: "/content/dev-catalog",
     file: "apps/admin/src/pages/content/dev-catalog.astro",
     nav: false,
@@ -15,94 +141,12 @@ export const ADMIN_ROUTES = [
     file: "apps/admin/src/pages/api/admin/logout.ts",
     nav: false,
   },
-  {
-    route: "/life/people",
-    file: "apps/admin/src/pages/life/[section].astro",
-    nav: false,
-  },
-  {
-    route: "/life/projects",
-    file: "apps/admin/src/pages/life/[section].astro",
-    nav: false,
-  },
-  {
-    route: "/life/places",
-    file: "apps/admin/src/pages/life/[section].astro",
-    nav: false,
-  },
-  {
-    route: "/life/timeline",
-    file: "apps/admin/src/pages/life/[section].astro",
-    nav: false,
-  },
-  {
-    route: "/life/sources",
-    file: "apps/admin/src/pages/life/[section].astro",
-    nav: false,
-  },
-  {
-    route: "/life/preview",
-    file: "apps/admin/src/pages/life/[section].astro",
-    nav: false,
-  },
 
-  {
-    route: "/operations/observability",
-    file: "apps/admin/src/pages/operations/observability.astro",
-    nav: true,
-    smoke: false,
-  },
-  {
-    route: "/",
-    file: "apps/admin/src/pages/index.astro",
-    nav: false,
-  },
-  {
-    // Retired; redirects to Operations so old links still land somewhere.
-    route: "/inbox",
-    file: "apps/admin/src/pages/inbox.astro",
-    nav: false,
-  },
-  {
-    route: "/knowledge",
-    file: "apps/admin/src/pages/knowledge.astro",
-    nav: true,
-    smoke: false,
-  },
-  {
-    route: "/knowledge/locations",
-    file: "apps/admin/src/pages/knowledge/locations.astro",
-    nav: true,
-    smoke: false,
-  },
   {
     route: "/work",
     file: "apps/admin/src/pages/work.astro",
     nav: true,
     smoke: false,
-  },
-  {
-    route: "/life",
-    file: "apps/admin/src/pages/life/index.astro",
-    nav: true,
-    smoke: false,
-  },
-  {
-    route: "/life/health",
-    file: "apps/admin/src/pages/life/health.astro",
-    nav: true,
-    smoke: false,
-  },
-  {
-    route: "/life/aesthetics",
-    file: "apps/admin/src/pages/life/aesthetics.astro",
-    nav: true,
-    smoke: false,
-  },
-  {
-    route: "/content",
-    file: "apps/admin/src/pages/content/index.astro",
-    nav: true,
   },
   {
     route: "/content/review",
@@ -133,11 +177,6 @@ export const ADMIN_ROUTES = [
   {
     route: "/content/operations",
     file: "apps/admin/src/pages/content/operations.astro",
-    nav: true,
-  },
-  {
-    route: "/newsletter",
-    file: "apps/admin/src/pages/newsletter.astro",
     nav: true,
   },
   {

@@ -10,9 +10,15 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("operational search adapter", () => {
   it("starts with current workspace destinations and scopes advanced navigation", () => {
-    expect(operationalDestinations.map((row) => row.label)).toEqual(["Status"]);
+    expect(operationalDestinations.map((row) => row.label)).toEqual([
+      "Status",
+      "Activity",
+      "Alerts",
+    ]);
     expect(operationalDestinations.map((row) => row.href)).toEqual([
-      "/operations/observability",
+      "/observability/status",
+      "/observability/activity",
+      "/observability/alerts",
     ]);
     const advanced = operationalSearchNavigation(navItems);
     expect(advanced.some((row) => row.href.startsWith("/inbox"))).toBe(false);

@@ -69,14 +69,17 @@ describe("unified sidebar", () => {
     ).toEqual(["Content", "Data", "Observability"]);
     for (const element of host.querySelectorAll("[data-sidebar-group]"))
       expect(element.getAttribute("aria-expanded")).toBe("true");
-    expect(host.querySelectorAll("a[data-sidebar-id]")).toHaveLength(14);
+    expect(host.querySelectorAll("a[data-sidebar-id]")).toHaveLength(10);
+    expect(
+      host.querySelector('a[data-sidebar-id="overview"]')?.getAttribute("href"),
+    ).toBe("/");
   });
 
   it("marks only the active page with aria-current", () => {
-    render("life", "people");
+    render("life", "sources");
     const current = host.querySelectorAll('[aria-current="page"]');
     expect(current).toHaveLength(1);
-    expect(current[0]?.getAttribute("href")).toBe("/life/people");
+    expect(current[0]?.getAttribute("href")).toBe("/data/sources");
   });
 
   it("saves each group's open state and always opens the active page's group", () => {
@@ -94,7 +97,7 @@ describe("unified sidebar", () => {
     expect(heading("life").getAttribute("aria-expanded")).toBe("false");
     act(() => root.unmount());
     root = createRoot(host);
-    render("life", "people");
+    render("life", "records");
     expect(heading("life").getAttribute("aria-expanded")).toBe("true");
   });
 
@@ -120,21 +123,23 @@ describe("unified sidebar", () => {
     key(document.activeElement!, "ArrowRight");
     expect(heading("life").getAttribute("aria-expanded")).toBe("true");
     key(document.activeElement!, "ArrowRight");
-    expect(document.activeElement).toBe(page("life:overview"));
+    expect(document.activeElement).toBe(page("life:records"));
     // Left returns to the heading, then closes the group.
     key(document.activeElement!, "ArrowLeft");
     expect(document.activeElement).toBe(heading("life"));
     key(document.activeElement!, "ArrowLeft");
     expect(heading("life").getAttribute("aria-expanded")).toBe("false");
     key(document.activeElement!, "Home");
+    expect(document.activeElement).toBe(page("overview"));
+    key(document.activeElement!, "ArrowDown");
     expect(document.activeElement).toBe(heading("content"));
     key(document.activeElement!, "End");
-    expect(document.activeElement).toBe(page("operations:loops"));
+    expect(document.activeElement).toBe(page("operations:alerts"));
   });
 
   it("returns focus to the page opened from the keyboard", () => {
     render();
-    const link = page("life:people");
+    const link = page("life:sources");
     link.addEventListener("click", (event) => event.preventDefault());
     // Keyboard activation reaches a link as a click with detail 0.
     act(() => {
@@ -142,17 +147,17 @@ describe("unified sidebar", () => {
         new MouseEvent("click", { bubbles: true, cancelable: true, detail: 0 }),
       );
     });
-    expect(sessionStorage.getItem("admin:sidebar-focus")).toBe("life:people");
+    expect(sessionStorage.getItem("admin:sidebar-focus")).toBe("life:sources");
     act(() => root.unmount());
     root = createRoot(host);
-    render("life", "people");
-    expect(document.activeElement).toBe(page("life:people"));
+    render("life", "sources");
+    expect(document.activeElement).toBe(page("life:sources"));
     expect(sessionStorage.getItem("admin:sidebar-focus")).toBeNull();
   });
 
   it("leaves pointer navigation to the browser", () => {
     render();
-    const link = page("life:people");
+    const link = page("life:sources");
     link.addEventListener("click", (event) => event.preventDefault());
     act(() => {
       link.dispatchEvent(
@@ -164,7 +169,7 @@ describe("unified sidebar", () => {
 
   it("shows the rail as unlabeled runs of icons", () => {
     host.innerHTML = renderToStaticMarkup(
-      <UnifiedNavigation rail activeGroup="operations" selected="loops" />,
+      <UnifiedNavigation rail activeGroup="operations" selected="alerts" />,
     );
     expect(host.querySelectorAll("[data-sidebar-group]")).toHaveLength(0);
     expect(host.querySelectorAll("[data-sidebar-section]")).toHaveLength(3);
@@ -173,12 +178,15 @@ describe("unified sidebar", () => {
 
 describe("sidebar selection and search", () => {
   it.each([
-    ["/operations/observability", "machines"],
-    ["/operations/observability?view=loops", "loops"],
-    ["/operations/observability?view=loops-extra", undefined],
-    ["/life", "overview"],
-    ["/life/timeline", "timeline"],
-    ["/life/health", undefined],
+    ["/", "overview"],
+    ["/observability/status", "status"],
+    ["/observability/activity?x=1", "activity"],
+    ["/observability/alerts", "alerts"],
+    ["/observability/status-old", undefined],
+    ["/data/records", "records"],
+    ["/data/records/rec-00000000000000000000000000000001", "records"],
+    ["/data/sources", "sources"],
+    ["/life/people", undefined],
     ["/work?view=machines", undefined],
   ])("%s selects %s", (route, expected) => {
     expect(selectedSidebarItem(route)).toBe(expected);
@@ -187,8 +195,17 @@ describe("sidebar selection and search", () => {
   it("lists every sidebar page once for every palette", () => {
     const hrefs = sidebarSearchEntries.map((entry) => entry.href);
     expect(new Set(hrefs).size).toBe(hrefs.length);
-    expect(sidebarSearchEntries.map((entry) => entry.label)).toContain(
-      "Data overview",
-    );
+    expect(hrefs).toEqual([
+      "/",
+      "/content/pages",
+      "/content/writing",
+      "/content/projects",
+      "/content/newsletter",
+      "/data/records",
+      "/data/sources",
+      "/observability/status",
+      "/observability/activity",
+      "/observability/alerts",
+    ]);
   });
 });

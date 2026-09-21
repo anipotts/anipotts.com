@@ -45,11 +45,18 @@ const DEV_LOOPBACK_PREVIEW_PATHS = new Set([
   "/operations/observability",
   "/work",
   "/content",
+  "/content/pages",
+  "/content/writing",
+  "/content/projects",
+  "/content/newsletter",
   "/content/carousels",
   "/content/drafts",
   "/content/operations",
   "/content/preview",
   "/content/review",
+  "/data",
+  "/data/records",
+  "/data/sources",
   "/deploys",
   "/fleet",
   "/handoffs",
@@ -66,6 +73,9 @@ const DEV_LOOPBACK_PREVIEW_PATHS = new Set([
   "/life/health",
   "/mutations",
   "/newsletter",
+  "/observability/activity",
+  "/observability/alerts",
+  "/observability/status",
   "/proof",
   "/repos",
   "/system",
@@ -232,6 +242,8 @@ export function isDevLoopbackPreviewRequest({
         url.pathname,
       ) ||
       /^\/newsletter\/[a-z0-9-]+$/.test(url.pathname) ||
+      /^\/data\/records\/rec-[0-9a-f]{32}$/.test(url.pathname) ||
+      /^\/data\/records\/rec-[0-9a-f]{32}$/.test(url.pathname) ||
       DEV_PREVIEW_ASSET_PATHS.has(url.pathname) ||
       DEV_PREVIEW_ASSET_PREFIXES.some((prefix) =>
         url.pathname.startsWith(prefix),

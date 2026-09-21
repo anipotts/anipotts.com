@@ -11,7 +11,7 @@ import {
 } from "./admin-route-inventory.mjs";
 
 const navSource = readFileSync("apps/admin/src/data/admin.ts", "utf8");
-const websiteNavSource = readFileSync(
+const sidebarSource = readFileSync(
   "apps/admin/src/components/astryx/UnifiedSidebar.tsx",
   "utf8",
 );
@@ -29,14 +29,6 @@ const semanticReferenceSource = readFileSync(
   "apps/admin/src/data/semantic-reference.ts",
   "utf8",
 );
-const knowledgeSource = readFileSync(
-  "apps/admin/src/pages/knowledge.astro",
-  "utf8",
-);
-const locationsSource = readFileSync(
-  "apps/admin/src/pages/knowledge/locations.astro",
-  "utf8",
-);
 const workSource = readFileSync("apps/admin/src/pages/work.astro", "utf8");
 const operatorWorkTableSource = readFileSync(
   "apps/admin/src/components/astryx/OperatorWorkTable.tsx",
@@ -48,18 +40,6 @@ const operatorWorkSource = readFileSync(
 );
 const devOperatorWorkSource = readFileSync(
   "apps/admin/src/data/dev-operator-work.ts",
-  "utf8",
-);
-const lifeSource = readFileSync(
-  "apps/admin/src/pages/life/index.astro",
-  "utf8",
-);
-const healthSource = readFileSync(
-  "apps/admin/src/pages/life/health.astro",
-  "utf8",
-);
-const aestheticsSource = readFileSync(
-  "apps/admin/src/pages/life/aesthetics.astro",
   "utf8",
 );
 const lifecycleSource = readFileSync(
@@ -166,9 +146,16 @@ assert.deepEqual(devLoopbackPreviewPaths, [
   "/content",
   "/content/carousels",
   "/content/drafts",
+  "/content/newsletter",
   "/content/operations",
+  "/content/pages",
   "/content/preview",
+  "/content/projects",
   "/content/review",
+  "/content/writing",
+  "/data",
+  "/data/records",
+  "/data/sources",
   "/deploys",
   "/fleet",
   "/handoffs",
@@ -186,6 +173,9 @@ assert.deepEqual(devLoopbackPreviewPaths, [
   "/life/timeline",
   "/mutations",
   "/newsletter",
+  "/observability/activity",
+  "/observability/alerts",
+  "/observability/status",
   "/operations/observability",
   "/proof",
   "/repos",
@@ -261,10 +251,9 @@ for (const route of ADMIN_ROUTES) {
   if (route.nav) {
     const navHref = route.route === "/work" ? "/work?view=now" : route.route;
     assert.ok(
-      (route.route === "/newsletter" ? websiteNavSource : navSource).includes(
-        `href: "${navHref}"`,
-      ),
-      `${route.route} missing from admin nav`,
+      sidebarSource.includes(`href: "${navHref}"`) ||
+        navSource.includes(`href: "${navHref}"`),
+      `${route.route} missing from the sidebar and admin nav`,
     );
   }
 
@@ -301,19 +290,59 @@ for (const file of [
   "apps/admin/src/pages/api/admin/inbox.ts",
 ])
   assert.equal(existsSync(file), false, `${file} must stay retired`);
+assert.ok(rootSource.includes("<AdminOverview"), "root is the one overview");
 assert.ok(
-  rootSource.includes("Astro.redirect(`/content${Astro.url.search}`"),
-  "root opens editorial content and preserves its query",
+  inboxSource.includes('Astro.redirect("/observability/status", 308)'),
+  "retired inbox redirects to Observability Status",
 );
-assert.ok(
-  inboxSource.includes('Astro.redirect("/operations/observability", 301)'),
-  "retired inbox redirects to Operations",
-);
+// The sidebar lists Content (4), Data (2) and Observability (3) under one
+// overview link, all from one list.
+for (const href of [
+  "/",
+  "/content/pages",
+  "/content/writing",
+  "/content/projects",
+  "/content/newsletter",
+  "/data/records",
+  "/data/sources",
+  "/observability/status",
+  "/observability/activity",
+  "/observability/alerts",
+])
+  assert.ok(sidebarSource.includes(`href: "${href}"`), `sidebar lists ${href}`);
+for (const retired of ["/life", "/knowledge", "/operations/observability"])
+  assert.equal(
+    sidebarSource.includes(`href: "${retired}`),
+    false,
+    `sidebar must not link ${retired}`,
+  );
+// Every retired URL answers 308 with its new home.
+for (const [page, marker] of [
+  ["content/index", "libraryStateUrl("],
+  ["newsletter", "libraryStateUrl("],
+  ["life/index", 'Astro.redirect("/data/records", 308)'],
+  ["life/[section]", "Astro.redirect(lifeRedirect(Astro.params.section), 308)"],
+  ["knowledge", "knowledgeRedirect("],
+  ["knowledge/locations", 'Astro.redirect(dataRecordsHref("places"), 308)'],
+  ["operations/observability", 'Astro.redirect("/observability/status", 308)'],
+  ["data/index", 'Astro.redirect("/data/records", 308)'],
+]) {
+  const source = readFileSync(`apps/admin/src/pages/${page}.astro`, "utf8");
+  assert.ok(source.includes(marker), `/${page} redirects with ${marker}`);
+  assert.ok(source.includes("308"), `/${page} redirects permanently`);
+}
+for (const file of [
+  "apps/admin/src/pages/life/health.astro",
+  "apps/admin/src/pages/life/aesthetics.astro",
+  "apps/admin/src/components/life/LifeWorkspace.tsx",
+  "apps/admin/src/components/life/PrivateDataWorkspace.tsx",
+])
+  assert.equal(existsSync(file), false, `${file} must stay retired`);
 // Fixture pages and the retired Infra fleet view are gone; old links land on
 // the closest current view, and the fake server observability reader stays out.
 for (const [page, destination] of [
-  ["fleet", "/operations/observability"],
-  ["repos", "/operations/observability"],
+  ["fleet", "/observability/status"],
+  ["repos", "/observability/status"],
   ["deploys", "/proof"],
   ["handoffs", "/work?view=history"],
   ["mutations", "/ops/destructive"],
@@ -386,33 +415,6 @@ for (const marker of [
   );
 }
 
-for (const marker of ["data-knowledge-card", "/knowledge?kind="]) {
-  assert.ok(
-    knowledgeSource.includes(marker),
-    `admin knowledge missing marker ${marker}`,
-  );
-}
-assert.equal(
-  knowledgeSource.includes("data-knowledge-search"),
-  false,
-  "Knowledge must use the one global search instead of a local search category",
-);
-assert.ok(
-  navSource.includes('href: "/knowledge/locations"'),
-  "Knowledge must expose the source-backed Locations view",
-);
-for (const marker of [
-  "Fleet map",
-  "viewing from",
-  "runtime.machine",
-  "Known places",
-]) {
-  assert.ok(
-    locationsSource.includes(marker),
-    `admin locations missing marker ${marker}`,
-  );
-}
-
 for (const marker of [
   "data-work-now",
   "Currently working",
@@ -438,61 +440,6 @@ for (const marker of [
   assert.ok(
     devOperatorWorkSource.includes(marker),
     `operator work fixture missing marker ${marker}`,
-  );
-}
-
-for (const marker of [
-  'readPersonalContext({ method: "status" })',
-  "private, no-store",
-  "LifeWorkspace",
-]) {
-  assert.ok(
-    lifeSource.includes(marker),
-    `admin life missing boundary ${marker}`,
-  );
-}
-const lifeWorkspaceSource = readFileSync(
-  "apps/admin/src/components/life/LifeWorkspace.tsx",
-  "utf8",
-);
-for (const path of [
-  "/life/health",
-  "/life/aesthetics",
-  "/knowledge",
-  "/knowledge/locations",
-]) {
-  assert.ok(
-    lifeWorkspaceSource.includes(path),
-    `Life compatibility link missing ${path}`,
-  );
-}
-const lifeSectionSource = readFileSync(
-  "apps/admin/src/pages/life/[section].astro",
-  "utf8",
-);
-assert.ok(lifeSectionSource.includes("isLifeSection(section)"));
-assert.ok(
-  lifeSectionSource.indexOf("isLifeSection(section)") <
-    lifeSectionSource.indexOf("readPersonalContext(lifeSectionRead(section))"),
-);
-assert.ok(lifeSectionSource.includes("private, no-store"));
-assert.ok(
-  healthSource.includes("does not infer tasks"),
-  "health must remain status only",
-);
-assert.ok(
-  aestheticsSource.includes('<LifeSupportingView section="aesthetics" />'),
-  "aesthetics must use the presentation-only supporting view without data props",
-);
-const lifeSupportingSource = readFileSync(
-  "apps/admin/src/components/life/LifeSupportingView.tsx",
-  "utf8",
-);
-for (const source of [aestheticsSource, lifeSupportingSource]) {
-  assert.doesNotMatch(
-    source,
-    /\bfetch\s*\(|from\s+["'][^"']*\/data\/|type=["']file["']|onDrop\s*=|onPaste\s*=/,
-    "aesthetics presentation must not add a data reader or image-ingestion control",
   );
 }
 

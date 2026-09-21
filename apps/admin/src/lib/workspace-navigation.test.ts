@@ -6,6 +6,11 @@ import {
 } from "./workspace-navigation";
 
 describe("workspace return destinations", () => {
+  it("lands each workspace on its first page", () => {
+    expect(workspaces.content.href).toBe("/content/pages");
+    expect(workspaces.life.href).toBe("/data/records");
+    expect(workspaces.operations.href).toBe("/observability/status");
+  });
   it.each(Object.keys(workspaces) as Workspace[])(
     "rejects foreign or malformed destinations for %s",
     (workspace) => {
@@ -28,9 +33,13 @@ describe("workspace return destinations", () => {
     expect(
       workspaceReturnPath(
         "content",
-        "/content?group=writing&status=draft&sort=updated&query=private&q=private&body=secret#draft",
+        "/content/writing?group=writing&status=draft&sort=updated&query=private&q=private&body=secret#draft",
       ),
-    ).toBe("/content?group=writing&status=draft&sort=updated");
+    ).toBe("/content/writing?status=draft&sort=updated");
+    for (const library of ["pages", "projects", "newsletter"])
+      expect(
+        workspaceReturnPath("content", `/content/${library}?sort=title`),
+      ).toBe(`/content/${library}?sort=title`);
     expect(
       workspaceReturnPath(
         "content",
@@ -41,12 +50,16 @@ describe("workspace return destinations", () => {
       "/newsletter/my-newsletter",
     );
   });
+  it("returns the retired Content overview and Newsletter library to Pages", () => {
+    for (const path of ["/content?group=writing", "/content", "/newsletter"])
+      expect(workspaceReturnPath("content", path)).toBe("/content/pages");
+  });
   it("keeps creation routes without retaining private form values", () => {
     for (const path of ["/content/new", "/content/new-project"]) {
       expect(
         workspaceReturnPath("content", `${path}?title=private#draft`),
       ).toBe(path);
-      expect(workspaceReturnPath("life", path)).toBe("/life");
+      expect(workspaceReturnPath("life", path)).toBe("/data/records");
     }
   });
   it.each([
@@ -64,89 +77,82 @@ describe("workspace return destinations", () => {
       expect(
         workspaceReturnPath("content", `${path}?view=review&q=private#draft`),
       ).toBe(`${path}?view=review`);
-      expect(workspaceReturnPath("life", path)).toBe("/life");
+      expect(workspaceReturnPath("life", path)).toBe("/data/records");
     },
   );
-  it("keeps an operational view without retaining item or private query identities", () => {
-    expect(
-      workspaceReturnPath(
-        "operations",
-        "/operations/observability?view=machines&panel=traces&q=secret&item=private",
-      ),
-    ).toBe("/operations/observability?view=machines&panel=traces");
+  it("keeps an Observability view without retaining item or private query identities", () => {
+    for (const view of ["status", "activity", "alerts"])
+      expect(
+        workspaceReturnPath(
+          "operations",
+          `/observability/${view}?panel=traces&q=secret&item=private`,
+        ),
+      ).toBe(`/observability/${view}?panel=traces`);
     expect(workspaceReturnPath("operations", "/work?view=now")).toBe(
       "/work?view=now",
     );
   });
-  it("keeps Life section navigation only, never private queries, record ids or cursors", () => {
+  it("keeps Data navigation only, never private queries, record ids or cursors", () => {
     expect(
       workspaceReturnPath(
         "life",
-        "/life/people?q=private&record=person-123&cursor=42&view=details#private",
+        "/data/records?kind=people&q=private&record=person-123&cursor=42#private",
       ),
-    ).toBe("/life/people");
-    expect(workspaceReturnPath("life", "/life/person-123")).toBe("/life");
+    ).toBe("/data/records?kind=people");
+    expect(workspaceReturnPath("life", "/data/records?kind=private")).toBe(
+      "/data/records",
+    );
+    expect(workspaceReturnPath("life", "/data/sources?offset=20")).toBe(
+      "/data/sources",
+    );
+    expect(
+      workspaceReturnPath(
+        "life",
+        "/data/records/rec-00000000000000000000000000000001",
+      ),
+    ).toBe("/data/records");
   });
   it("cannot cross workspace boundaries through remembered state", () => {
-    expect(workspaceReturnPath("content", "/life/people")).toBe("/content");
-    expect(workspaceReturnPath("life", "/content/writing/my-post")).toBe(
-      "/life",
+    expect(workspaceReturnPath("content", "/data/records")).toBe(
+      "/content/pages",
     );
-    expect(workspaceReturnPath("operations", "/life")).toBe(
-      "/operations/observability",
+    expect(workspaceReturnPath("life", "/content/writing/my-post")).toBe(
+      "/data/records",
+    );
+    expect(workspaceReturnPath("operations", "/data/records")).toBe(
+      "/observability/status",
     );
   });
 });
 
-describe("Operations route filters", () => {
+describe("retired routes", () => {
   it.each([
-    "all",
-    "people",
-    "project",
-    "decision",
-    "concept",
-    "place",
-    "system",
-  ])(
-    "remembers the supported knowledge kind %s without private data",
-    (kind) => {
-      expect(
-        workspaceReturnPath(
-          "operations",
-          `/knowledge?kind=${kind}&q=private&item=secret&card=private#secret`,
-        ),
-      ).toBe(`/knowledge?kind=${kind}`);
-    },
-  );
-  it.each(["/fleet", "/deploys", "/repos", "/handoffs", "/mutations"])(
-    "returns the retired %s page to Observability Status",
-    (path) => {
-      expect(workspaceReturnPath("operations", `${path}?view=all`)).toBe(
-        "/operations/observability",
-      );
-    },
-  );
-  it("returns a retired Inbox path to the Operations home", () => {
-    expect(
-      workspaceReturnPath("operations", "/inbox?category=work&view=urgent"),
-    ).toBe("/operations/observability");
-  });
-  it.each([
-    "/knowledge?kind=person",
-    "/knowledge?kind=projects",
-    "/knowledge?kind=private-record",
-    "/knowledge/locations?kind=place",
-    "/knowledge?category=work",
-    "/system?kind=system&category=system",
-  ])("discards unsupported or misplaced filters in %s", (path) => {
-    expect(workspaceReturnPath("operations", path)).toBe(path.split("?")[0]);
-  });
-  it("does not add Operations filters to other workspaces", () => {
-    expect(
-      workspaceReturnPath("content", "/content?kind=project&category=work"),
-    ).toBe("/content");
-    expect(workspaceReturnPath("life", "/life?kind=people&category=life")).toBe(
-      "/life",
+    "/life",
+    "/life/people",
+    "/knowledge?kind=people",
+    "/knowledge/locations",
+  ])("returns the retired %s to the workspace's first page", (path) => {
+    expect(workspaceReturnPath("life", path)).toBe("/data/records");
+    expect(workspaceReturnPath("operations", path)).toBe(
+      "/observability/status",
     );
+  });
+  it.each([
+    "/fleet",
+    "/deploys",
+    "/repos",
+    "/handoffs",
+    "/mutations",
+    "/inbox?category=work&view=urgent",
+    "/operations/observability?view=machines",
+  ])("returns the retired %s to Observability Status", (path) => {
+    expect(workspaceReturnPath("operations", path)).toBe(
+      "/observability/status",
+    );
+  });
+  it("discards misplaced filters on operational pages", () => {
+    expect(
+      workspaceReturnPath("operations", "/system?kind=system&category=system"),
+    ).toBe("/system");
   });
 });

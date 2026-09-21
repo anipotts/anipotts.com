@@ -3,7 +3,7 @@ import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import reactRenderer from "@astrojs/react/server.js";
 import { JSDOM } from "jsdom";
 import CatalogPage from "../../src/pages/content/dev-catalog.astro";
-import AestheticsPage from "../../src/pages/life/aesthetics.astro";
+import AlertsPage from "../../src/pages/observability/[view].astro";
 
 // Both layouts preload the fonts every page renders with. Without the
 // preload, `font-display: optional` in styles/fonts.css would often miss the
@@ -22,7 +22,7 @@ vi.mock("../../src/lib/editorial-inventory-server", () => ({
   }),
 }));
 
-async function head(page, path) {
+async function head(page, path, params) {
   const container = await AstroContainer.create();
   container.addServerRenderer({
     name: "@astrojs/react",
@@ -35,6 +35,7 @@ async function head(page, path) {
   const response = await container.renderToResponse(page, {
     request: new Request(`http://localhost${path}`),
     partial: false,
+    params,
   });
   return new JSDOM(await response.text()).window.document.head;
 }
@@ -72,7 +73,7 @@ describe("font preloads", () => {
 
   it("AdminLayout preloads the same fonts", async () => {
     const preloads = fontPreloads(
-      await head(AestheticsPage, "/life/aesthetics"),
+      await head(AlertsPage, "/observability/alerts", { view: "alerts" }),
     );
     expect(preloads).toEqual(expected);
   });
