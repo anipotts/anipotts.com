@@ -1,0 +1,232 @@
+{
+ "version": "ops_v1",
+ "generated_at": "2026-09-21T18:00:00Z",
+ "catalog": [
+  {
+   "id": "host.ap-mini",
+   "name": "ap-mini",
+   "group": "hosts",
+   "kind": "host",
+   "host": "ap-mini",
+   "owner": "system",
+   "freshness_budget_s": 300,
+   "runbook": "docs/runbooks/ops-host.md"
+  },
+  {
+   "id": "health.api",
+   "name": "health api",
+   "group": "services",
+   "kind": "service",
+   "host": "ap-mini",
+   "owner": "health",
+   "freshness_budget_s": null,
+   "runbook": "docs/runbooks/ops-mini.md"
+  },
+  {
+   "id": "imessage.agent",
+   "name": "imessage agent",
+   "group": "agents",
+   "kind": "service",
+   "host": "ap-mini",
+   "owner": "imessage-agent",
+   "freshness_budget_s": null,
+   "runbook": "docs/runbooks/ops-mini.md"
+  },
+  {
+   "id": "agents.sync",
+   "name": "agent config sync",
+   "group": "agents",
+   "kind": "job",
+   "host": "ap-mini",
+   "owner": "agents",
+   "freshness_budget_s": null,
+   "runbook": "docs/runbooks/ops-mini.md"
+  },
+  {
+   "id": "keepalive.chatgpt",
+   "name": "chatgpt session",
+   "group": "agents",
+   "kind": "job",
+   "host": "ap-mini",
+   "owner": "system/chief",
+   "freshness_budget_s": 300,
+   "runbook": "docs/runbooks/ops-mini.md"
+  },
+  {
+   "id": "keepalive.chrome-agent",
+   "name": "chrome agent profile",
+   "group": "agents",
+   "kind": "job",
+   "host": "ap-mini",
+   "owner": "system/chief",
+   "freshness_budget_s": 300,
+   "runbook": "docs/runbooks/ops-mini.md"
+  },
+  {
+   "id": "keepalive.onepassword-connect",
+   "name": "1password connect",
+   "group": "services",
+   "kind": "service",
+   "host": "ap-mini",
+   "owner": "system/chief",
+   "freshness_budget_s": 900,
+   "runbook": "docs/runbooks/ops-mini.md"
+  },
+  {
+   "id": "pc.browser",
+   "name": "personal context browser",
+   "group": "personal context",
+   "kind": "service",
+   "host": "ap-mini",
+   "owner": "memory",
+   "freshness_budget_s": null,
+   "runbook": "docs/runbooks/ops-mini.md"
+  },
+  {
+   "id": "pc.writer",
+   "name": "personal context writer",
+   "group": "personal context",
+   "kind": "job",
+   "host": "ap-mini",
+   "owner": "memory",
+   "freshness_budget_s": 4500,
+   "runbook": "docs/runbooks/ops-mini.md"
+  },
+  {
+   "id": "pc.inference",
+   "name": "nightly inference",
+   "group": "personal context",
+   "kind": "job",
+   "host": "ap-mini",
+   "owner": "memory",
+   "freshness_budget_s": 93600,
+   "runbook": "docs/runbooks/ops-mini.md"
+  },
+  {
+   "id": "pc.snapshot",
+   "name": "daily snapshot",
+   "group": "backups",
+   "kind": "backup",
+   "host": "ap-mini",
+   "owner": "memory",
+   "freshness_budget_s": 93600,
+   "runbook": "docs/runbooks/ops-mini.md"
+  },
+  {
+   "id": "pc.reader",
+   "name": "admin reader",
+   "group": "personal context",
+   "kind": "service",
+   "host": "ap-mini",
+   "owner": "memory",
+   "freshness_budget_s": null,
+   "runbook": "docs/runbooks/ops-mini.md"
+  }
+ ],
+ "status": [
+  {
+   "id": "host.ap-mini",
+   "state": "ok",
+   "detail": "disk 70% used",
+   "last_success_at": "2026-09-21T17:55:00Z",
+   "last_run_at": null,
+   "last_exit": null
+  },
+  {
+   "id": "health.api",
+   "state": "ok",
+   "detail": "running",
+   "last_success_at": "2026-09-21T17:55:00Z",
+   "last_run_at": null,
+   "last_exit": null
+  },
+  {
+   "id": "imessage.agent",
+   "state": "ok",
+   "detail": "running",
+   "last_success_at": "2026-09-21T17:55:00Z",
+   "last_run_at": null,
+   "last_exit": null
+  },
+  {
+   "id": "agents.sync",
+   "state": "unknown",
+   "detail": "no observation",
+   "last_success_at": null,
+   "last_run_at": null,
+   "last_exit": 0
+  },
+  {
+   "id": "keepalive.chatgpt",
+   "state": "ok",
+   "detail": "healthy",
+   "last_success_at": "2026-09-21T17:55:00Z",
+   "last_run_at": "2026-09-21T17:55:00Z",
+   "last_exit": 0
+  },
+  {
+   "id": "keepalive.chrome-agent",
+   "state": "ok",
+   "detail": "healthy",
+   "last_success_at": "2026-09-21T17:55:00Z",
+   "last_run_at": "2026-09-21T17:55:00Z",
+   "last_exit": 0
+  },
+  {
+   "id": "keepalive.onepassword-connect",
+   "state": "degraded",
+   "detail": "job last exit non-zero",
+   "last_success_at": "2026-09-21T17:55:00Z",
+   "last_run_at": "2026-09-21T17:55:00Z",
+   "last_exit": 0
+  },
+  {
+   "id": "pc.browser",
+   "state": "ok",
+   "detail": "running",
+   "last_success_at": "2026-09-21T17:55:00Z",
+   "last_run_at": null,
+   "last_exit": null
+  },
+  {
+   "id": "pc.writer",
+   "state": "ok",
+   "detail": "last pass completed",
+   "last_success_at": "2026-09-21T17:55:00Z",
+   "last_run_at": "2026-09-21T17:55:00Z",
+   "last_exit": 0
+  },
+  {
+   "id": "pc.inference",
+   "state": "failing",
+   "detail": "inference not ok",
+   "last_success_at": "2026-09-21T17:55:00Z",
+   "last_run_at": "2026-09-21T17:55:00Z",
+   "last_exit": 0
+  },
+  {
+   "id": "pc.snapshot",
+   "state": "stale",
+   "detail": "older than freshness budget",
+   "last_success_at": "2026-09-21T17:55:00Z",
+   "last_run_at": "2026-09-21T17:55:00Z",
+   "last_exit": 0
+  },
+  {
+   "id": "pc.reader",
+   "state": "ok",
+   "detail": "probe 401",
+   "last_success_at": "2026-09-21T17:55:00Z",
+   "last_run_at": null,
+   "last_exit": null
+  }
+ ],
+ "counts": {
+  "ok": 8,
+  "degraded": 1,
+  "failing": 1,
+  "stale": 1,
+  "asleep": 0,
+  "unknown": 1
+ }
+}

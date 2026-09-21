@@ -41,3 +41,6 @@ apps/admin/src/themes/life.generated.css
 apps/admin/src/themes/life.d.ts
 apps/admin/src/themes/life.variants.d.ts
 apps/admin/src/themes/life.js
+
+# byte-exact copy of System's ops_v1 fixture; provenance in ops_v1.provenance.ts.
+apps/admin/src/fixtures/ops_v1.sample.json
