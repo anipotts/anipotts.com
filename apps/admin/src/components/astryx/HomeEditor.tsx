@@ -84,6 +84,22 @@ import type { Draft } from "../../editorial/draft-store";
 import type { HomeBase } from "../../lib/editorial-home-api";
 import { discardBody } from "../../lib/response-body";
 import type { PublishJob } from "../../editorial/publication-jobs";
+import type {
+  DirectPublicationStatus,
+  PublicationStatus,
+} from "../../lib/editorial-publication-status";
+import { prepareWritingPublication } from "../../lib/writing-publication-source";
+import { publicationSourceHash } from "@anipotts/content/editorial/publication-contract";
+
+// Older releases can still return the original job during a rolling deploy.
+type VisiblePublication =
+  | (PublishJob &
+      Partial<Pick<PublicationStatus, "queue" | "canCancel" | "revision">> & {
+        mode?: "legacy";
+        publicationId?: never;
+        superseded?: never;
+      })
+  | DirectPublicationStatus;
 
 type Snapshot = {
   recoveryScope?: string;
@@ -91,7 +107,8 @@ type Snapshot = {
   draft: Draft | null;
   history: Draft[];
   publishing: "ready" | "not_configured";
-  publication: PublishJob | null;
+  publicationMode?: "legacy" | "maintenance" | "direct";
+  publication: VisiblePublication | null;
 };
 
 const savedDraftNotFound = {
@@ -467,12 +484,15 @@ function HomeEditorImpl({
   const [saveComparisonError, setSaveComparisonError] = useState("");
   const saveComparisonRequest = useRef(0);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [publication, setPublication] = useState<PublishJob | null>(null);
+  const [publication, setPublication] = useState<VisiblePublication | null>(
+    null,
+  );
   const [publishing, setPublishing] = useState(false);
   const [publicationStale, setPublicationStale] = useState(false);
   const [reviewedDraft, setReviewedDraft] = useState<ReviewedDraft | null>(
     null,
   );
+  const [reviewedBase, setReviewedBase] = useState<HomeBase | null>(null);
   const reviewRequest = useRef(0);
   const previewRequest = useRef(0);
   const historyRequest = useRef(0);
@@ -641,11 +661,7 @@ function HomeEditorImpl({
     };
   }, [loadAttempt]);
   useEffect(() => {
-    if (
-      !publication ||
-      publication.blocked ||
-      ["live", "cancelled"].includes(publication.phase)
-    )
+    if (!publication || ["live", "cancelled"].includes(publication.phase))
       return;
     const job = publication;
     let cancelled = false;
@@ -657,7 +673,10 @@ function HomeEditorImpl({
       clearTimeout(timer);
       timer = undefined;
       if (!cancelled && !active && !document.hidden)
-        timer = setTimeout(() => void poll(), 4000);
+        timer = setTimeout(
+          () => void poll(),
+          job.blocked || job.queue?.head?.blocked ? 30000 : 4000,
+        );
     };
     async function poll() {
       timer = undefined;
@@ -925,15 +944,58 @@ function HomeEditorImpl({
     const navigation = navigationGeneration.current;
     const controller = editor.current;
     setReviewLoading(true);
+    setReviewedBase(null);
+    const isCurrent = () =>
+      request === reviewRequest.current &&
+      navigation === navigationGeneration.current &&
+      controller === editor.current;
     try {
       await ensureDraft();
+      if (!isCurrent()) return;
+      if (
+        snapshot.publicationMode === "direct" &&
+        record.kind === "writing" &&
+        controller
+      ) {
+        const candidate = prepareWritingPublication(controller.state.source);
+        if (candidate !== controller.state.source) {
+          controller.edit(candidate);
+          await ensureDraft();
+          if (!isCurrent()) return;
+        }
+      }
+      // Stopped approvals are immutable. A new review may explicitly create a
+      // fresh private revision with identical text, never reactivate the old job.
+      if (
+        publication?.phase === "cancelled" &&
+        (publication.revision === undefined ||
+          publication.revision === controller?.state.revision)
+      )
+        await controller?.checkpoint();
       if (
         request !== reviewRequest.current ||
         navigation !== navigationGeneration.current ||
         controller !== editor.current
       )
         return;
+      let baseline = snapshot.base;
+      if (snapshot.publicationMode === "direct") {
+        const response = await fetch(endpoint("baseline"), {
+          signal: AbortSignal.timeout(15000),
+        });
+        if (!response.ok) {
+          discardBody(response);
+          throw new Error();
+        }
+        baseline = (await response.json()).base;
+        if (!baseline || typeof baseline.source !== "string") throw new Error();
+        if (!isCurrent()) return;
+        setSnapshot((previous) =>
+          previous ? { ...previous, base: baseline } : previous,
+        );
+      }
       const reviewed = captureReviewedDraft(controller?.state ?? null);
+      setReviewedBase(baseline);
       setReviewedDraft(reviewed);
       if (!reviewed) setError("Save your draft before reviewing changes.");
     } catch {
@@ -1041,30 +1103,122 @@ function HomeEditorImpl({
     history: loadHistory,
   };
   const reviewedSource = reviewedDraft?.source ?? state.source;
-  const reviewCurrent = matchesReviewedDraft(reviewedDraft, state);
+  const reviewCurrent =
+    matchesReviewedDraft(reviewedDraft, state) &&
+    (snapshot.publicationMode !== "direct" || reviewedBase !== null);
   const isDocumentView = tab === "edit" || tab === "preview";
   const saveStatus = saveStatusFromController(state, {
     discarded: Boolean(snapshot.draft?.discardedAt),
     bodyDirty,
     localPreview,
   });
+  const publicationActive = Boolean(
+    publication &&
+    !["live", "cancelled"].includes(publication.phase) &&
+    !(publication.mode === "direct" && publication.publicationId),
+  );
+  const needsNewPublicationReview =
+    publication?.phase === "cancelled" &&
+    (publication.revision === undefined ||
+      publication.revision === state.revision);
+  const publishUnavailable = localPreview
+    ? "Publishing is available in the production editor. This draft stays local."
+    : snapshot.publishing !== "ready"
+      ? "Publishing is not configured. Your private draft is retained."
+      : publicationActive
+        ? "A publication is already in progress. See its status below; you can keep editing privately."
+        : needsNewPublicationReview
+          ? "This publication was stopped. Review again to prepare a new private revision."
+          : !valid
+            ? "Correct the marked fields before publishing."
+            : snapshot.draft?.discardedAt
+              ? "Recover this draft before publishing."
+              : !reviewCurrent || reviewLoading
+                ? "Waiting for the latest saved revision to finish reviewing."
+                : state.source === snapshot.base.source
+                  ? "There are no changes to publish."
+                  : null;
+  const publicationControls = publication ? (
+    <>
+      {(publication.canCancel ??
+        Boolean(
+          publication.blocked &&
+          ["validate", "commit", "branch", "pr", "checks"].includes(
+            publication.phase,
+          ),
+        )) && (
+        <Button
+          label="Stop publishing"
+          size="sm"
+          clickAction={() => changePublication("cancel-publication")}
+        />
+      )}
+      {publication.blocked &&
+        !["publication_base_changed", "record_changed"].includes(
+          publication.blocked,
+        ) && (
+          <Button
+            label="Retry publishing"
+            size="sm"
+            clickAction={() => changePublication("retry-publication")}
+          />
+        )}
+    </>
+  ) : null;
+  async function readPublication(
+    operationId: string,
+  ): Promise<VisiblePublication | null> {
+    const response = await fetch(
+      `${endpoint("publication")}&operationId=${encodeURIComponent(operationId)}`,
+      {
+        signal: AbortSignal.timeout(15000),
+      },
+    );
+    if (!response.ok) {
+      discardBody(response);
+      throw new Error();
+    }
+    return (await response.json()).publication ?? null;
+  }
+  async function changePublication(
+    action: "cancel-publication" | "retry-publication",
+  ) {
+    if (!publication) return;
+    const operationId = publication.id;
+    let confirmed: VisiblePublication | null = null;
+    try {
+      const result = await post(action, {
+        expectedRevision: state!.revision,
+        operationId,
+        expectedVersion: publication.version,
+      });
+      // Never turn a paused job into apparent progress by clearing its error locally.
+      confirmed = result.publication ?? (await readPublication(operationId));
+      if (confirmed) {
+        setPublication(confirmed);
+        setPublicationStale(false);
+        if (confirmed.phase === "cancelled") publishRequest.current = null;
+      }
+      if (!result.ok || !confirmed) throw new Error();
+      setError("");
+    } catch {
+      setError(
+        confirmed
+          ? "Publication changed before that action completed. Its current status is shown; review it before retrying."
+          : "Couldn’t confirm that action. Check publication status before retrying. Your draft is retained.",
+      );
+      setPublicationStale(!confirmed);
+    }
+  }
   const publishActions = (
     <>
       <Button
         label="Approve and publish"
         variant="primary"
         size="sm"
-        isDisabled={
-          localPreview ||
-          snapshot.publishing !== "ready" ||
-          !reviewCurrent ||
-          reviewLoading ||
-          state.source === snapshot.base.source ||
-          !valid ||
-          Boolean(snapshot.draft?.discardedAt) ||
-          Boolean(
-            publication && !["live", "cancelled"].includes(publication.phase),
-          )
+        isDisabled={Boolean(publishUnavailable)}
+        aria-describedby={
+          publishUnavailable ? `${reviewHeadingId}-availability` : undefined
         }
         isLoading={publishing}
         clickAction={async () => {
@@ -1072,6 +1226,8 @@ function HomeEditorImpl({
           publishPending.current = true;
           const navigation = navigationGeneration.current;
           const reviewed = reviewedDraft;
+          let submittedRequestId: string | null = null;
+          let refusalMessage: string | null = null;
           setPublishing(true);
           setError("");
           try {
@@ -1089,18 +1245,53 @@ function HomeEditorImpl({
                 revision: current.revision,
                 id: crypto.randomUUID(),
               };
+            submittedRequestId = publishRequest.current.id;
             const result = await post(
               "publish",
               {
                 expectedRevision: current.revision,
                 operationId: publishRequest.current.id,
                 discloseSource: true,
+                ...(snapshot.publicationMode === "direct" && reviewedBase
+                  ? {
+                      reviewedSourceSha256: await publicationSourceHash(
+                        current.source,
+                      ),
+                      expectedBaselineSha256: await publicationSourceHash(
+                        reviewedBase.source,
+                      ),
+                      expectedPublicationId: reviewedBase.publicationId ?? null,
+                    }
+                  : {}),
               },
               () =>
                 navigation === navigationGeneration.current &&
                 matchesReviewedDraft(reviewed, editor.current?.state ?? null),
             );
-            if (!result.publication) throw new Error();
+            if (!result.publication || result.error) {
+              if (result.publication) setPublication(result.publication);
+              const reasons: Record<string, string> = {
+                publication_in_progress:
+                  "This record already has a publication in progress. Its current status is shown below; retry or stop that operation before publishing another revision.",
+                legacy_publication_requires_reconciliation:
+                  "The previous publisher has unfinished work that needs reconciliation before the new publisher can start. Your draft is saved privately.",
+                revision_conflict:
+                  "The saved draft changed. Review the latest revision before publishing.",
+                publication_review_upgrade_required:
+                  "This tab needs the current editor. Your draft is saved; reload, then review again.",
+                unsupported_visibility_change:
+                  "This publisher supports publishing visible pages. Scheduled publication and unpublishing are not available yet. Your draft is retained.",
+                invalid_source:
+                  "Correct the marked content fields, then review again. Your draft is retained.",
+                invalid_request:
+                  "This review could not be accepted. Reload the editor and review the saved draft again.",
+              };
+              refusalMessage =
+                typeof result.error === "string"
+                  ? (reasons[result.error] ?? null)
+                  : null;
+              throw new Error();
+            }
             publishedDraft.current = {
               operationId: result.publication.id,
               revision: current.revision,
@@ -1109,10 +1300,32 @@ function HomeEditorImpl({
             setPublicationStale(false);
             setPublication(result.publication);
           } catch {
-            if (navigation === navigationGeneration.current)
+            // A lost HTTP response is ambiguous: the durable job may already exist.
+            // Reconcile the same operation before offering another submission.
+            let confirmed: VisiblePublication | null = null;
+            try {
+              if (submittedRequestId)
+                confirmed = await readPublication(submittedRequestId);
+            } catch {
+              /* Keep the retry identity when status is unavailable too. */
+            }
+            if (confirmed) {
+              setPublication(confirmed);
+              setPublicationStale(false);
+              if (reviewed)
+                publishedDraft.current = {
+                  operationId: confirmed.id,
+                  revision: reviewed.revision,
+                  source: reviewed.source,
+                };
+            } else if (navigation === navigationGeneration.current) {
               setError(
-                "Couldn’t start publishing. Your draft is retained; review the saved revision and retry.",
+                refusalMessage ??
+                  (submittedRequestId
+                    ? "Couldn’t confirm publication. Your draft is retained. Retry uses the same request and won’t publish twice."
+                    : "The draft changed before publishing. Review the latest saved changes before approving."),
               );
+            }
           } finally {
             publishPending.current = false;
             setPublishing(false);
@@ -1201,7 +1414,7 @@ function HomeEditorImpl({
               )}
               {tab !== "publish" && (
                 <Button
-                  label="Review changes"
+                  label="Publish"
                   variant="primary"
                   size="sm"
                   onClick={() => {
@@ -1209,26 +1422,6 @@ function HomeEditorImpl({
                   }}
                   isLoading={reviewLoading}
                   isDisabled={!valid || Boolean(snapshot.draft?.discardedAt)}
-                />
-              )}
-              {record.kind === "writing" && (
-                <Button
-                  label="Properties"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() =>
-                    openPanel(panel === "properties" ? null : "properties")
-                  }
-                />
-              )}
-              {publication && (
-                <Button
-                  label="Publication"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() =>
-                    openPanel(panel === "publication" ? null : "publication")
-                  }
                 />
               )}
               {tab === "publish" && publishActions}
@@ -1242,6 +1435,30 @@ function HomeEditorImpl({
                     type: "section",
                     title: "Inspect",
                     items: [
+                      ...(record.kind === "writing"
+                        ? [
+                            {
+                              label: "Properties",
+                              onClick: () =>
+                                openPanel(
+                                  panel === "properties" ? null : "properties",
+                                ),
+                            },
+                          ]
+                        : []),
+                      ...(publication
+                        ? [
+                            {
+                              label: "Publication details",
+                              onClick: () =>
+                                openPanel(
+                                  panel === "publication"
+                                    ? null
+                                    : "publication",
+                                ),
+                            },
+                          ]
+                        : []),
                       {
                         label: "View source",
                         onClick: () => setTab("source"),
@@ -1309,6 +1526,37 @@ function HomeEditorImpl({
           }
         />
       </VStack>
+      {tab === "publish" && publishUnavailable && (
+        <Text
+          type="supporting"
+          color="secondary"
+          id={`${reviewHeadingId}-availability`}
+        >
+          {publishUnavailable}
+          {needsNewPublicationReview && (
+            <Button
+              label="Review again"
+              size="sm"
+              variant="ghost"
+              onClick={() => void refreshReview()}
+            />
+          )}
+        </Text>
+      )}
+      {publication && panel !== "publication" && (
+        <PublicationProgress
+          publication={publication}
+          stale={publicationStale}
+          compact
+        >
+          <Button
+            label="Publication details"
+            size="sm"
+            variant="ghost"
+            onClick={() => openPanel("publication")}
+          />
+        </PublicationProgress>
+      )}
       <HStack
         className="record-workspace-layout"
         data-record-workspace
@@ -2157,58 +2405,7 @@ function HomeEditorImpl({
                 publication={publication}
                 stale={publicationStale}
               >
-                {publication.blocked &&
-                  ["validate", "commit", "branch", "pr", "checks"].includes(
-                    publication.phase,
-                  ) && (
-                    <Button
-                      label="Stop publishing"
-                      size="sm"
-                      clickAction={async () => {
-                        try {
-                          const result = await post("cancel-publication", {
-                            expectedRevision: state.revision,
-                            operationId: publication.id,
-                            expectedVersion: publication.version,
-                          });
-                          if (!result.ok) throw new Error();
-                          setError("");
-                          setPublicationStale(false);
-                          setPublication({ ...publication, blocked: null });
-                        } catch {
-                          setError(
-                            "couldn’t stop. reload to check the latest publication.",
-                          );
-                        }
-                      }}
-                    />
-                  )}
-                {publication.blocked &&
-                  !["publication_base_changed", "record_changed"].includes(
-                    publication.blocked,
-                  ) && (
-                    <Button
-                      label="Retry publishing"
-                      size="sm"
-                      clickAction={async () => {
-                        try {
-                          const result = await post("retry-publication", {
-                            expectedRevision: state.revision,
-                            operationId: publication.id,
-                            expectedVersion: publication.version,
-                          });
-                          if (!result.ok) throw new Error();
-                          setError("");
-                          setPublicationStale(false);
-                          setPublication({ ...publication, blocked: null });
-                        } catch {
-                          setError(
-                            "couldn’t retry. reload to check the latest publication.",
-                          );
-                        }
-                      }}
-                    />
-                  )}
+                {publicationControls}
               </PublicationProgress>
             )}
             {panel === "publication" && !publication && (

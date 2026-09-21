@@ -61,14 +61,19 @@ export default defineConfig({
       editorialPublicAssets(),
       editorialUpdates(),
       {
-        name: "exclude-local-editor-runtime",
+        name: "editorial-build-boundaries",
         apply: "build",
         enforce: "pre",
         resolveId(id) {
+          // Public components are reused inside private preview frames. Their
+          // navigation affordances must not prefetch owner-only admin routes.
+          if (id === "astro:prefetch") return "\0editorial-preview-prefetch";
           if (id.endsWith("/editorial-local"))
             return "\0editorial-local-disabled";
         },
         load(id) {
+          if (id === "\0editorial-preview-prefetch")
+            return "export function prefetch() {}";
           if (id === "\0editorial-local-disabled")
             return "export function localDraftStorage(){throw new Error('local_only')} export function localHomeBase(){throw new Error('local_only')}";
         },

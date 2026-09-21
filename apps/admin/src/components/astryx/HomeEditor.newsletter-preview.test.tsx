@@ -98,7 +98,7 @@ it.each(["", "?view=preview"])(
             (call[1] as RequestInit).method === "GET",
         ),
       ).toBe(true);
-      expect(host.textContent).toContain("Review changes");
+      expect(host.textContent).toContain("Publish");
     } finally {
       await act(async () => root.unmount());
       host.remove();

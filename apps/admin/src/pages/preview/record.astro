@@ -1,4 +1,6 @@
 ---
+import { applyEditorialPreviewContext } from "../../lib/editorial-preview-context";
+applyEditorialPreviewContext(Astro.locals);
 import { readEditorialSnapshot } from "../../lib/editorial-snapshot-read";
 import { previewFailure } from "../../lib/preview-status";
 import { renderArticlePreview } from "../../lib/article-preview";
@@ -20,7 +22,12 @@ import Shell from "../../../../www/src/layouts/Shell.astro";
 import PageHero from "../../../../www/src/components/PageHero.astro";
 import SystemMap from "../../../../www/src/components/SystemMap.astro";
 import InlineText from "../../../../www/src/components/InlineText.astro";
-import type { Writing, Project } from "../../../../www/src/lib/content";
+import {
+  publishedWriting,
+  publicContentContext,
+  type Writing,
+  type Project,
+} from "../../../../www/src/lib/content";
 
 const parsedRecord = editorialRecordSchema.safeParse({
   kind: Astro.url.searchParams.get("kind"),
@@ -74,6 +81,9 @@ if (record.kind === "writing") {
     return previewFailure(Astro.url, "source-only", 409);
   project = { ...original, data: projectSchema.parse(data) };
 }
+const allWriting = writing
+  ? await publishedWriting(publicContentContext(Astro.locals))
+  : undefined;
 const page = record.kind === "page" ? listingPageSchema.safeParse(data) : null;
 const systems =
   record.kind === "page" && record.id === "systems"
@@ -85,7 +95,7 @@ if (!writing && !project && !page?.success)
 
 {
   writing ? (
-    <WritingDetail item={writing} preview />
+    <WritingDetail item={writing} allWriting={allWriting} preview />
   ) : project ? (
     <WorkDetail project={project} preview />
   ) : (

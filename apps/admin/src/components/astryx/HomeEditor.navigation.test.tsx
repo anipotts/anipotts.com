@@ -130,6 +130,21 @@ async function mount(search = "", localPreview = true, withIdentity = false) {
   });
 }
 async function click(label: string) {
+  if (label === "Properties") {
+    await act(async () =>
+      (
+        host.querySelector(
+          'button[aria-label="Document actions"]',
+        ) as HTMLButtonElement
+      ).click(),
+    );
+    const item = [...document.querySelectorAll('[role="menuitem"]')].find(
+      (el) => el.textContent?.trim() === label,
+    ) as HTMLElement;
+    expect(item).toBeTruthy();
+    await act(async () => item.click());
+    return;
+  }
   const button = [...host.querySelectorAll("button")].find(
     (el) => el.textContent?.trim() === label,
   );
