@@ -27,6 +27,7 @@ import { ArticleBody } from "./ArticleBody";
 import { SavedArticlePreview } from "./SavedArticlePreview";
 import { SaveScheduler } from "../../lib/save-scheduler";
 import { writingReviewChanges } from "../../lib/writing-review";
+import { ProjectSettings } from "./ProjectSettings";
 import { ArticleSettings } from "./ArticleSettings";
 import React, { useEffect, useId, useRef, useState } from "react";
 import { VStack } from "@astryxdesign/core/VStack";
@@ -391,7 +392,7 @@ function HomeEditorImpl({
     next: RecordWorkspaceState,
     write: "push" | "replace" | null = "push",
   ) {
-    if (next.panel === "properties" && record.kind !== "writing")
+    if (next.panel === "properties" && record.kind === "page")
       next = { ...next, panel: null };
     navigationGeneration.current += 1;
     const previous = workspaceState.current;
@@ -1400,7 +1401,7 @@ function HomeEditorImpl({
               )}
               {tab === "publish" && publishActions}
               <HStack gap={2} className="editor-secondary-actions">
-                {record.kind === "writing" && (
+                {record.kind !== "page" && (
                   <Button
                     label="Properties"
                     variant="ghost"
@@ -2320,6 +2321,15 @@ function HomeEditorImpl({
                   onChange={(source) => editor.current!.edit(source)}
                 />
               )}
+            {panel === "properties" && record.kind === "work" && parseable && (
+              <ProjectSettings
+                source={state.source}
+                errors={fieldErrors}
+                disabled={Boolean(snapshot.draft?.discardedAt)}
+                publicationMode={snapshot.publicationMode}
+                onChange={(source) => editor.current!.edit(source)}
+              />
+            )}
             {panel === "history" && (
               <VStack gap={2}>
                 <Text color="secondary">
