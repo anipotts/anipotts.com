@@ -43,6 +43,8 @@ export const RUNTIME_CONTRACT = {
   EDITORIAL_GITHUB_INSTALLATION_ID: { source: "vars", check: "id" },
   EDITORIAL_GITHUB_PRIVATE_KEY: { source: "secret", check: "text" },
   EDITORIAL_SIGNING_PRIVATE_KEY: { source: "secret", check: "text" },
+  PRIVATE_READER_ENABLED: { source: "vars", check: "flag" },
+  PRIVATE_READER_SIGNING_KEY: { source: "secret", check: "text" },
   PUBLIC_RELEASE_SHA: { source: "build", check: "sha" },
 } as const satisfies Record<string, { source: Source; check: Check }>;
 
