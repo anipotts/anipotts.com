@@ -243,3 +243,28 @@ Content search uses server-supplied editorial inventory only. Operations uses it
 existing authorized sources. Life search requires its separate private capability.
 Workspace navigation persistence may retain allowlisted route/view preferences;
 never persist Life search text, source bodies, credentials or unrestricted URLs.
+
+### Data record navigation acceptance, September 21
+
+The real LifeWorkspace now keeps list and detail adjacent on desktop. At widths
+up to 768px, an open record replaces the visible list without unmounting its
+query/page state. Back to records restores the originating control; opening a
+record focuses its detail region. A selected row remains identifiable.
+
+The development-only catalog `?fixture=data` supplies synthetic in-memory records
+and ready/unavailable/denied outcomes to the real components. It opens no private
+connection and persists nothing. Browser acceptance proved 320px without horizontal
+overflow, focus restoration, 1280px adjacent columns, and removal of records after
+an access-expired result. Earlier 390px acceptance is retained. These checks do not
+prove a connected reader or physical-device access.
+
+Verification: 35 focused Data explorer/workspace tests; admin Astro and editorial
+typechecks passed. Tests cover pending cancellation, retained query/page, stable
+focus, capability replacement and denied/disconnected selection cleanup.
+
+System's latest verifier proposal requires a separate design choice and exact
+activation approval: existing owner Access login plus a named Tailscale device,
+short in-memory read delegation, pinned source verifier and measured expiry/
+revocation. No signing key, issuance route, network grant or reader service was
+activated by this UI checkpoint. System owns the pending questions and concrete
+provider/device approval packet in its existing consolidation handoff.

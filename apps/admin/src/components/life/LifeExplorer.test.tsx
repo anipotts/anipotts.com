@@ -384,6 +384,79 @@ describe("Life reader interactions", () => {
     });
     expect(container.textContent).toContain("First second");
   });
+  it("retains the list and page while detail focus stays stable through a read", async () => {
+    let finish!: (result: LifeResult) => void;
+    const reader = vi.fn((request: LifeRead): Promise<LifeResult> =>
+      request.method === "get"
+        ? new Promise((resolve) => {
+            finish = resolve;
+          })
+        : Promise.resolve(
+            ready({ items: [record], total: 18, next_offset: null }),
+          ),
+    );
+    await act(async () =>
+      root.render(
+        <LifeExplorer
+          section="people"
+          initial={ready({ items: [record], total: 18, next_offset: 17 })}
+          reader={reader}
+        />,
+      ),
+    );
+    await click("Next");
+    type("retained query");
+    const trigger = container.querySelector<HTMLButtonElement>(
+      ".life-record-select",
+    )!;
+    await click("Fixture record");
+    const details = container.querySelector('[aria-label="Record details"]');
+    expect(document.activeElement).toBe(details);
+    expect(
+      container.querySelector(".life-master-region")?.contains(trigger),
+    ).toBe(true);
+    await act(async () => finish(ready(record)));
+    expect(document.activeElement).toBe(details);
+    await click("Back to records");
+    expect(document.activeElement).toBe(trigger);
+    expect(container.querySelector("input")?.value).toBe("retained query");
+    expect(container.textContent).toContain("Previous");
+    expect(reader).toHaveBeenCalledTimes(2);
+  });
+  it("clears selected detail and ignores a late read after capability revocation", async () => {
+    let finish!: (result: LifeResult) => void;
+    let signal: AbortSignal | undefined;
+    const reader = (_request: LifeRead, input?: AbortSignal) => {
+      signal = input;
+      return new Promise<LifeResult>((resolve) => {
+        finish = resolve;
+      });
+    };
+    await act(async () =>
+      root.render(
+        <LifeExplorer
+          section="people"
+          initial={ready({ items: [record], total: 1, next_offset: null })}
+          reader={reader}
+        />,
+      ),
+    );
+    await click("Fixture record");
+    expect(container.querySelector('[aria-pressed="true"]')).not.toBeNull();
+    await act(async () =>
+      root.render(
+        <LifeExplorer
+          section="people"
+          initial={{ state: "denied", message: "revoked" }}
+        />,
+      ),
+    );
+    expect(signal?.aborted).toBe(true);
+    await act(async () => finish(ready(record)));
+    expect(container.querySelector('[aria-label="Record details"]')).toBeNull();
+    expect(container.querySelector(".life-explorer-detail-open")).toBeNull();
+    expect(container.textContent).not.toContain("Fixture record");
+  });
   it("does not reopen a record when a closed request finishes", async () => {
     let finish!: (result: LifeResult) => void;
     const reader = () =>
@@ -400,7 +473,16 @@ describe("Life reader interactions", () => {
       ),
     );
     await click("Fixture record");
-    await click("Close details");
+    const trigger = container.querySelector<HTMLButtonElement>(
+      ".life-record-select",
+    )!;
+    const details = container.querySelector('[aria-label="Record details"]');
+    expect(document.activeElement).toBe(details);
+    expect(trigger.getAttribute("aria-pressed")).toBe("true");
+    expect(trigger.getAttribute("aria-controls")).toBe(details?.id);
+    await click("Back to records");
+    expect(document.activeElement).toBe(trigger);
+    expect(trigger.getAttribute("aria-pressed")).toBe("false");
     await act(async () => finish(ready(record)));
     expect(container.querySelector('[aria-label="Record details"]')).toBeNull();
   });
@@ -622,5 +704,7 @@ it.each(["denied", "disconnected"] as const)(
     expect(container.textContent).not.toContain("Fixture record");
     expect(container.querySelector("input")?.value).toBe("");
     expect(container.querySelector('[aria-label="Record details"]')).toBeNull();
+    expect(container.querySelector(".life-explorer-detail-open")).toBeNull();
+    expect(container.querySelector('[aria-pressed="true"]')).toBeNull();
   },
 );

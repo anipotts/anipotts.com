@@ -73,9 +73,49 @@
 .life-record-mobile-evidence {
   display: none;
 }
+.life-explorer {
+  display: grid;
+  min-width: 0;
+  gap: var(--spacing-8);
+  align-items: start;
+}
+.life-explorer-detail-open {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+}
+.life-master-region,
 .life-details-region {
-  /* Separation comes from spacing, not a rule. */
-  padding-block-start: var(--spacing-6);
+  min-width: 0;
+}
+.life-details-region {
+  padding-inline-start: var(--spacing-6);
+  border-inline-start: var(--border-width) solid var(--color-border);
+}
+.life-record-back {
+  align-self: flex-start;
+}
+.life-details-region:focus {
+  outline: none;
+}
+.life-details-region:focus-visible .life-record-back {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.life-record-table tr:has(.life-record-select[aria-pressed="true"]) {
+  background: var(--color-background-muted);
+}
+.life-record-select[aria-pressed="true"] {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.life-explorer-detail-open .life-record-table {
+  min-width: 0 !important;
+}
+.life-explorer-detail-open .life-record-table th:nth-child(n + 2),
+.life-explorer-detail-open .life-record-table td:nth-child(n + 2) {
+  display: none;
+}
+.life-explorer-detail-open .life-record-mobile-evidence {
+  display: flex;
 }
 .life-record-detail-heading {
   justify-content: space-between;
@@ -90,6 +130,16 @@
 }
 /* At tablet and phone widths, metadata follows its record instead of squeezing columns. */
 @media (max-width: 768px) {
+  .life-explorer-detail-open {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .life-explorer-detail-open .life-master-region {
+    display: none;
+  }
+  .life-details-region {
+    padding-inline-start: 0;
+    border-inline-start: 0;
+  }
   .life-record-table {
     min-width: 0 !important;
   }
