@@ -563,7 +563,7 @@ export function LifeExplorer({
         />
       )}
       {busy && result.state !== "ready" ? (
-        <AdminSkeleton kind="history" />
+        <AdminSkeleton kind="records" />
       ) : (
         <VStack aria-busy={busy}>
           <LifeReadView
@@ -611,7 +611,7 @@ export function LifeExplorer({
           <Button label="Close details" onClick={closeRecord} variant="ghost" />
           {detailError && <Text role="alert">{detailError}</Text>}
           {record && <LifeRecord record={record} />}
-          {detailBusy && !record && <AdminSkeleton kind="history" />}
+          {detailBusy && !record && <AdminSkeleton kind="record" />}
           {record?.next_body_offset != null && (
             <Button
               label="Read more"

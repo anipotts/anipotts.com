@@ -1,9 +1,8 @@
 import React, { useEffect, useId, useRef, useState } from "react";
-import { Skeleton } from "@astryxdesign/core/Skeleton";
+import { AdminSkeleton } from "./AdminFeedback";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Banner } from "@astryxdesign/core/Banner";
 import { Button } from "@astryxdesign/core/Button";
-import { Text } from "@astryxdesign/core/Text";
 import {
   previewStatusType,
   type PreviewStatus,
@@ -83,19 +82,7 @@ export function SavedArticlePreview({
   }, [request]);
   return (
     <VStack gap={3}>
-      {status === "loading" && (
-        <VStack gap={3}>
-          <Text role="status" aria-live="polite">
-            Loading preview…
-          </Text>
-          <VStack gap={3} aria-hidden="true">
-            <Skeleton width="70%" height="var(--spacing-10)" />
-            <Skeleton height="var(--spacing-6)" />
-            <Skeleton height="calc(var(--spacing-10) * 6)" />
-            <Skeleton height="var(--spacing-6)" />
-          </VStack>
-        </VStack>
-      )}
+      {status === "loading" && <AdminSkeleton kind="preview" />}
       {status !== "loading" && status !== "ready" && (
         <VStack gap={2}>
           <Banner
