@@ -204,3 +204,32 @@ it("groups the review title with its legend and destination with view controls",
   expect(region.querySelector('[data-kind="removed"]')).not.toBeNull();
   expect(region.querySelector('[data-kind="added"]')).not.toBeNull();
 });
+
+it("offers direct editing only for fields with a supported edit action", async () => {
+  const edit = vi.fn();
+  host = document.createElement("div");
+  document.body.append(host);
+  root = createRoot(host);
+  await act(async () =>
+    root!.render(
+      <ReviewChanges
+        destination="anipotts.com/writing/test"
+        before="before"
+        after="after"
+        changes={[
+          { label: "Subtitle", before: "before", after: "after", onEdit: edit },
+          { label: "Historical source", before: "old", after: "new" },
+        ]}
+      />,
+    ),
+  );
+  const button = host.querySelector<HTMLButtonElement>(
+    'button[aria-label="Edit Subtitle"]',
+  );
+  expect(button).not.toBeNull();
+  await act(async () => button!.click());
+  expect(edit).toHaveBeenCalledOnce();
+  expect(
+    host.querySelector('button[aria-label="Edit Historical source"]'),
+  ).toBeNull();
+});

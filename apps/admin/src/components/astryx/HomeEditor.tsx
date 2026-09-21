@@ -251,9 +251,25 @@ function HomeEditorImpl({
   const editScroll = useRef(0);
   const lastEditingFocus = useRef<HTMLElement | null>(null);
   const previousTab = useRef("edit");
+  const fieldElements = useRef(new Map<string, HTMLDivElement>());
+  const requestedEditingField = useRef<string | null>(null);
   useEffect(() => {
     if (tab === "edit" && previousTab.current !== "edit") {
       const frame = requestAnimationFrame(() => {
+        const requested = requestedEditingField.current;
+        requestedEditingField.current = null;
+        const target = requested
+          ? fieldElements.current
+              .get(requested)
+              ?.querySelector<HTMLElement>(
+                'input, textarea, [contenteditable="true"]',
+              )
+          : null;
+        if (target) {
+          target.focus({ preventScroll: true });
+          target.scrollIntoView({ block: "center", behavior: "instant" });
+          return;
+        }
         if (lastEditingFocus.current?.isConnected)
           lastEditingFocus.current.focus({ preventScroll: true });
         const surface = document.getElementById("astryx-app-shell-main");
@@ -2055,139 +2071,148 @@ function HomeEditorImpl({
               }}
             >
               <FormLayout>
-                {fields.map((field, index) =>
-                  record.kind === "writing" &&
-                  field.path.join(".") === "title" ? (
-                    <DocumentTitle
-                      resetGeneration={resetGeneration}
-                      key="title"
-                      value={values[index] ?? ""}
-                      disabled={
-                        !parseable || Boolean(snapshot.draft?.discardedAt)
-                      }
-                      error={fieldErrors.get("title")}
-                      flushRef={titleFlush}
-                      onDirty={() => {
-                        editGeneration.current += 1;
-                        bodyDirtyRef.current = true;
-                        setBodyDirty(true);
-                        saveScheduler.current?.changed();
-                      }}
-                      onDraftTitle={(value) => {
-                        onTitleChange?.(value);
-                        document.title = `${value || "Untitled article"} | Admin`;
-                      }}
-                      onCommit={(value) =>
-                        editor.current!.edit(
-                          setEditorialField(
+                {fields.map((field, index) => (
+                  <div
+                    key={field.path.join(".")}
+                    ref={(element) => {
+                      const key = field.path.join(".");
+                      if (element) fieldElements.current.set(key, element);
+                      else fieldElements.current.delete(key);
+                    }}
+                  >
+                    {record.kind === "writing" &&
+                    field.path.join(".") === "title" ? (
+                      <DocumentTitle
+                        resetGeneration={resetGeneration}
+                        key="title"
+                        value={values[index] ?? ""}
+                        disabled={
+                          !parseable || Boolean(snapshot.draft?.discardedAt)
+                        }
+                        error={fieldErrors.get("title")}
+                        flushRef={titleFlush}
+                        onDirty={() => {
+                          editGeneration.current += 1;
+                          bodyDirtyRef.current = true;
+                          setBodyDirty(true);
+                          saveScheduler.current?.changed();
+                        }}
+                        onDraftTitle={(value) => {
+                          onTitleChange?.(value);
+                          document.title = `${value || "Untitled article"} | Admin`;
+                        }}
+                        onCommit={(value) =>
+                          editor.current!.edit(
+                            setEditorialField(
+                              editor.current!.state.source,
+                              field.path,
+                              value,
+                            ),
+                          )
+                        }
+                      />
+                    ) : field.path.join(".") === "opening" ? (
+                      <AutoSizeTextArea
+                        key="opening"
+                        label={field.label}
+                        description={field.description}
+                        size="sm"
+                        value={values[index] ?? ""}
+                        isDisabled={
+                          !parseable || Boolean(snapshot.draft?.discardedAt)
+                        }
+                        status={
+                          fieldErrors.has("opening")
+                            ? {
+                                type: "error",
+                                message: fieldErrors.get("opening"),
+                              }
+                            : undefined
+                        }
+                        onChange={(value) =>
+                          editor.current!.edit(
+                            setEditorialField(
+                              editor.current!.state.source,
+                              field.path,
+                              value,
+                            ),
+                          )
+                        }
+                      />
+                    ) : field.rich ? (
+                      <RichTextField
+                        resetGeneration={resetGeneration}
+                        compact={record.kind === "writing"}
+                        flushRef={
+                          record.kind === "writing" ? subtitleFlush : undefined
+                        }
+                        onDirty={
+                          record.kind === "writing"
+                            ? () => {
+                                editGeneration.current += 1;
+                                bodyDirtyRef.current = true;
+                                setBodyDirty(true);
+                                saveScheduler.current?.changed();
+                              }
+                            : undefined
+                        }
+                        key={field.path.join(".")}
+                        label={field.label}
+                        description={
+                          record.kind === "writing"
+                            ? undefined
+                            : field.description
+                        }
+                        validationError={fieldErrors.get(field.path.join("."))}
+                        value={values[index] ?? ""}
+                        disabled={
+                          !parseable || Boolean(snapshot.draft?.discardedAt)
+                        }
+                        onChange={(value) => {
+                          let next = setEditorialField(
                             editor.current!.state.source,
                             field.path,
                             value,
-                          ),
-                        )
-                      }
-                    />
-                  ) : field.path.join(".") === "opening" ? (
-                    <AutoSizeTextArea
-                      key="opening"
-                      label={field.label}
-                      description={field.description}
-                      size="sm"
-                      value={values[index] ?? ""}
-                      isDisabled={
-                        !parseable || Boolean(snapshot.draft?.discardedAt)
-                      }
-                      status={
-                        fieldErrors.has("opening")
-                          ? {
-                              type: "error",
-                              message: fieldErrors.get("opening"),
-                            }
-                          : undefined
-                      }
-                      onChange={(value) =>
-                        editor.current!.edit(
-                          setEditorialField(
-                            editor.current!.state.source,
-                            field.path,
-                            value,
-                          ),
-                        )
-                      }
-                    />
-                  ) : field.rich ? (
-                    <RichTextField
-                      resetGeneration={resetGeneration}
-                      compact={record.kind === "writing"}
-                      flushRef={
-                        record.kind === "writing" ? subtitleFlush : undefined
-                      }
-                      onDirty={
-                        record.kind === "writing"
-                          ? () => {
-                              editGeneration.current += 1;
-                              bodyDirtyRef.current = true;
-                              setBodyDirty(true);
-                              saveScheduler.current?.changed();
-                            }
-                          : undefined
-                      }
-                      key={field.path.join(".")}
-                      label={field.label}
-                      description={
-                        record.kind === "writing"
-                          ? undefined
-                          : field.description
-                      }
-                      validationError={fieldErrors.get(field.path.join("."))}
-                      value={values[index] ?? ""}
-                      disabled={
-                        !parseable || Boolean(snapshot.draft?.discardedAt)
-                      }
-                      onChange={(value) => {
-                        let next = setEditorialField(
-                          editor.current!.state.source,
-                          field.path,
-                          value,
-                        );
-                        if (record.kind === "page" && record.id === "home")
-                          next = setEditorialField(
-                            next,
-                            ["sections", "intro", "subheading_format"],
-                            "markdown",
                           );
-                        editor.current!.edit(next);
-                      }}
-                    />
-                  ) : (
-                    <TextInput
-                      key={field.path.join(".")}
-                      label={field.label}
-                      description={field.description}
-                      status={
-                        fieldErrors.has(field.path.join("."))
-                          ? {
-                              type: "error",
-                              message: fieldErrors.get(field.path.join(".")),
-                            }
-                          : undefined
-                      }
-                      value={values[index] ?? ""}
-                      isDisabled={
-                        !parseable || Boolean(snapshot.draft?.discardedAt)
-                      }
-                      onChange={(value) =>
-                        editor.current!.edit(
-                          setEditorialField(
-                            editor.current!.state.source,
-                            field.path,
-                            value,
-                          ),
-                        )
-                      }
-                    />
-                  ),
-                )}
+                          if (record.kind === "page" && record.id === "home")
+                            next = setEditorialField(
+                              next,
+                              ["sections", "intro", "subheading_format"],
+                              "markdown",
+                            );
+                          editor.current!.edit(next);
+                        }}
+                      />
+                    ) : (
+                      <TextInput
+                        key={field.path.join(".")}
+                        label={field.label}
+                        description={field.description}
+                        status={
+                          fieldErrors.has(field.path.join("."))
+                            ? {
+                                type: "error",
+                                message: fieldErrors.get(field.path.join(".")),
+                              }
+                            : undefined
+                        }
+                        value={values[index] ?? ""}
+                        isDisabled={
+                          !parseable || Boolean(snapshot.draft?.discardedAt)
+                        }
+                        onChange={(value) =>
+                          editor.current!.edit(
+                            setEditorialField(
+                              editor.current!.state.source,
+                              field.path,
+                              value,
+                            ),
+                          )
+                        }
+                      />
+                    )}
+                  </div>
+                ))}
                 {record.kind === "work" && parseable && (
                   <ProjectSections
                     source={state.source}
@@ -2303,6 +2328,11 @@ function HomeEditorImpl({
                         {
                           label: field.label,
                           rich: field.rich,
+                          onEdit: () => {
+                            requestedEditingField.current =
+                              field.path.join(".");
+                            setTab("edit");
+                          },
                           before: String(
                             parseEditorialSource(
                               snapshot.base.source,
