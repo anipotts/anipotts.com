@@ -524,7 +524,7 @@
   }
 
   .astryx-app-shell {
-    --color-workspace-sidebar: light-dark(#f1f6f4, #0d1210);
+    --color-workspace-sidebar: light-dark(#f1f4fa, #0d1015);
   }
 
   .astryx-top-nav {

@@ -159,7 +159,7 @@ describe("server-rendered Astryx relationship attributes", () => {
         siteUrl="https://anipotts.com/"
       />,
     );
-    expect(html).toContain("admin-workspace-selector");
+    expect(html).toContain("admin-unified-nav");
     expect(danglingRelationships(html)).toEqual([]);
   });
 });

@@ -1,6 +1,7 @@
 import { AdminCommandPalette } from "./AdminCommandPalette";
 import type { NavItem } from "../../data/admin";
 import type { AdminSearchResult } from "../../data/admin-search";
+import { sidebarSearchEntries } from "./UnifiedSidebar";
 
 export const operationalDestinations: AdminSearchResult[] = [
   ["Machines", "/operations/observability?view=machines"],
@@ -16,6 +17,13 @@ export const operationalDestinations: AdminSearchResult[] = [
   freshness: "current",
   keywords: [],
 }));
+/** Every sidebar page, then any operational destination it does not list. */
+const paletteDestinations: AdminSearchResult[] = [
+  ...sidebarSearchEntries,
+  ...operationalDestinations.filter(
+    (entry) => !sidebarSearchEntries.some((row) => row.id === entry.id),
+  ),
+];
 export function operationalSearchNavigation(items: NavItem[]): NavItem[] {
   const routes = new Set([
     "/work",
@@ -86,7 +94,7 @@ export function OperationalCommandPalette({
     <AdminCommandPalette
       navItems={[]}
       searchableNavItems={operationalSearchNavigation(navItems)}
-      entries={operationalDestinations}
+      entries={paletteDestinations}
       showTrigger={showTrigger}
       loadEntries={loadLiveResults}
     />

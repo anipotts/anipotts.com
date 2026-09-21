@@ -79,16 +79,20 @@ describe("workspace page frames", () => {
     );
   });
 
-  it("gives the rail's menus the same quiet treatment as its icons", () => {
-    const shell = read("./EditorialWorkspaceShell.tsx");
-    // A menu with a label carries a surface; one icon among icons does not.
-    expect(shell).toContain('variant: compact ? "ghost" : "secondary",');
-    const library = read("../../styles/editorial.css");
-    expect(library).toContain(
-      '.editorial-workspace-shell:not([data-sidebar-collapsed="true"]) .admin-sidebar-menu, .editorial-workspace-shell .astryx-app-shell-header .admin-sidebar-menu { border: 1px solid var(--color-border);',
+  it("keeps one tint and one accent token per workspace", () => {
+    for (const workspace of ["content", "data", "observability"])
+      for (const role of ["tint", "accent"])
+        expect(header).toMatch(
+          new RegExp(`--ws-${workspace}-${role}: light-dark\\(`),
+        );
+  });
+
+  it("separates the sidebar groups with space and pins pages to one inset", () => {
+    expect(header).toContain(
+      ".admin-unified-nav { display: flex; flex-direction: column; gap: var(--spacing-2);",
     );
     expect(header).toContain(
-      ":is(.admin-sidebar-menu, .editorial-header-search):is( :hover, :focus-visible ) { background-color: var(--color-background-muted); }",
+      '.admin-unified-nav [data-sidebar-group] + [role="group"] > div { display: flex; flex-direction: column; gap: var(--spacing-0-5); padding-inline-start: 0; }',
     );
   });
 

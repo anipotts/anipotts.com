@@ -42,21 +42,10 @@ import { Text } from "@astryxdesign/core/Text";
 import { ContentLibrary, Updated, RecordStatus } from "./ContentLibrary";
 export { matchingRecords, recentlyUpdated } from "./ContentLibrary";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
-import {
-  CaretDownIcon,
-  XIcon,
-  MagnifyingGlassIcon,
-} from "@phosphor-icons/react";
+import { adminThemeIcons } from "./adminThemeIcons";
 
 // The library owns the theme. Only the icons used by this interface differ.
-const theme = {
-  ...editorialTheme,
-  icons: {
-    chevronDown: <CaretDownIcon size="1em" aria-hidden="true" />,
-    close: <XIcon size="1em" aria-hidden="true" />,
-    search: <MagnifyingGlassIcon size="1em" aria-hidden="true" />,
-  },
-};
+const theme = { ...editorialTheme, icons: adminThemeIcons };
 
 export type CatalogRecord = {
   title: string;

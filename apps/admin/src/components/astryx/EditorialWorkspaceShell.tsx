@@ -11,12 +11,6 @@ import {
 } from "../../lib/content-library-state";
 import type { ThemePreference } from "@anipotts/brand/theme";
 import { HStack } from "@astryxdesign/core/HStack";
-import { Text } from "@astryxdesign/core/Text";
-import {
-  DropdownMenu,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-} from "@astryxdesign/core/DropdownMenu";
 import "./WorkspaceHeader.css";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Button } from "@astryxdesign/core/Button";
@@ -30,27 +24,15 @@ import { AppShell, useAppShellMobile } from "@astryxdesign/core/AppShell";
 import {
   SideNav,
   SideNavItem,
-  SideNavSection,
   SideNavCollapseButton,
 } from "@astryxdesign/core/SideNav";
-import { navigateAdmin } from "../../lib/editorial-navigation";
 import {
   SidebarSimpleIcon,
-  SquaresFourIcon,
-  PencilSimpleIcon,
-  BrowserIcon,
-  BriefcaseIcon,
-  EnvelopeSimpleIcon,
   MagnifyingGlassIcon,
   MoonIcon,
   DesktopIcon,
   SunIcon,
   SignOutIcon,
-  FileTextIcon,
-  DesktopTowerIcon,
-  IdentificationCardIcon,
-  CaretDownIcon,
-  CaretUpIcon,
   ArrowUpRightIcon,
   ListIcon,
   LaptopIcon,
@@ -62,53 +44,14 @@ import {
   savedSidebarCollapsed,
   sidebarRail,
 } from "../../lib/admin-sidebar";
+import {
+  UnifiedNavigation,
+  selectedSidebarItem,
+  sidebarSearchEntries,
+  websiteNavigation,
+} from "./UnifiedSidebar";
 
-export const websiteNavigation = [
-  {
-    id: "pages",
-    label: "Overview",
-    href: "/content",
-    icon: SquaresFourIcon,
-  },
-  {
-    id: "website",
-    label: "Pages",
-    href: "/content?group=website",
-    icon: BrowserIcon,
-  },
-  {
-    id: "writing",
-    label: "Writing",
-    href: "/content?group=writing",
-    icon: PencilSimpleIcon,
-  },
-  {
-    id: "work",
-    label: "Projects",
-    href: "/content?group=work",
-    icon: BriefcaseIcon,
-  },
-  {
-    id: "newsletter",
-    label: "Newsletter",
-    href: "/newsletter",
-    icon: EnvelopeSimpleIcon,
-  },
-] as const;
-
-const navigationResults: AdminSearchResult[] = websiteNavigation.map(
-  ({ id, label, href }) => ({
-    id: `website-nav:${id}`,
-    label,
-    href,
-    domain: "navigation",
-    kind: "destination",
-    currentFact: "Website workspace",
-    source: "admin",
-    freshness: "current",
-    keywords: [label],
-  }),
-);
+export { websiteNavigation };
 
 const noOperationalNavigation: never[] = [];
 
@@ -124,38 +67,32 @@ export function workspaceSelection(
   return group === "systems" ? "website" : (group ?? "pages");
 }
 
-const workspaceIcons = {
-  content: FileTextIcon,
-  operations: DesktopTowerIcon,
-  life: IdentificationCardIcon,
-};
-
-/** Where each workspace menu item leads: the last page visited in that
- * workspace this session, or its home. */
-function useWorkspaceDestinations(workspace: Workspace) {
-  const [destinations, setDestinations] = useState<Record<Workspace, string>>({
-    content: "/content",
-    operations: "/operations/observability",
-    life: "/life",
-  });
+/** Remembers the last page of each workspace for this tab, and returns the
+ * Content library query last used, so the Content pages keep their filters and
+ * ordering when reached from another workspace. Only navigation preferences
+ * are kept (see workspaceReturnPath). */
+export function useWorkspaceMemory(workspace: Workspace) {
+  const [contentSearch, setContentSearch] = useState("");
   useEffect(() => {
     const sync = () => {
       try {
-        sessionStorage.setItem(
-          `admin:navigation:${workspace}`,
-          workspaceReturnPath(workspace, location.pathname + location.search),
+        const here = workspaceReturnPath(
+          workspace,
+          location.pathname + location.search,
         );
-        setDestinations(
-          Object.fromEntries(
-            Object.keys(workspaces).map((key) => [
-              key,
-              workspaceReturnPath(
-                key as Workspace,
-                sessionStorage.getItem(`admin:navigation:${key}`) ?? "",
-              ),
-            ]),
-          ) as Record<Workspace, string>,
+        // A page outside the workspace's own routes (Content review renders
+        // in the operational layout) leaves the remembered page alone.
+        if (
+          here !== workspaces[workspace].href ||
+          location.pathname === workspaces[workspace].href
+        )
+          sessionStorage.setItem(`admin:navigation:${workspace}`, here);
+        const content = workspaceReturnPath(
+          "content",
+          sessionStorage.getItem("admin:navigation:content") ?? "",
         );
+        const url = new URL(content, location.origin);
+        setContentSearch(url.pathname === "/content" ? url.search : "");
       } catch {
         /* Navigation works without storage. */
       }
@@ -170,45 +107,16 @@ function useWorkspaceDestinations(workspace: Workspace) {
       window.removeEventListener("editorial:library-state", sync);
     };
   }, [workspace]);
-  return destinations;
-}
-
-function WorkspaceMenu({
-  workspace,
-  compact,
-}: {
-  workspace: Workspace;
-  compact: boolean;
-}) {
-  const destinations = useWorkspaceDestinations(workspace);
-  const WorkspaceIcon = workspaceIcons[workspace];
-  return (
-    <SidebarMenu
-      className="admin-workspace-selector"
-      name="Workspace"
-      label={workspaces[workspace].label}
-      accessibleLabel={`Switch workspace: ${workspaces[workspace].label}`}
-      icon={<WorkspaceIcon size={18} aria-hidden="true" />}
-      compact={compact}
-      opens="below"
-      value={workspace}
-      options={(Object.keys(workspaces) as Workspace[]).map((key) => ({
-        value: key,
-        label: workspaces[key].label,
-      }))}
-      onChange={(key) => {
-        if (key !== workspace) navigateAdmin(destinations[key as Workspace]);
-      }}
-    />
-  );
+  return contentSearch;
 }
 
 /** The phone and tablet header. It sits in AppShell's banner slot, which the
  * server writes on every document, and CSS shows it at the drawer breakpoint
  * (AppShell md, 768px and below). Nothing about it waits for hydration, so it
  * is on screen from the first paint of every page and never flickers between
- * workspaces or tabs. The menu button opens AppShell's own drawer. */
-export function WorkspaceTopBar({ workspace }: { workspace: Workspace }) {
+ * workspaces or tabs. The menu button opens AppShell's own drawer, which holds
+ * the same three groups as the desktop sidebar. */
+export function WorkspaceTopBar() {
   const { isMobile, isMobileNavOpen, mobileNavId, openMobileNav } =
     useAppShellMobile();
   return (
@@ -223,7 +131,6 @@ export function WorkspaceTopBar({ workspace }: { workspace: Workspace }) {
           <span aria-hidden="true">[</span>admin
           <span aria-hidden="true">]</span>
         </span>
-        <WorkspaceMenu workspace={workspace} compact={false} />
       </HStack>
       <Button
         className="admin-mobile-header-menu"
@@ -245,11 +152,9 @@ export function WorkspaceTopBar({ workspace }: { workspace: Workspace }) {
  * phone and tablet drawer. */
 export function WorkspaceIdentity({
   collapsed = false,
-  workspace = "content",
   siteHref = "https://anipotts.com",
 }: {
   collapsed?: boolean;
-  workspace?: Workspace;
   siteHref?: string;
 }) {
   const { isMobile } = useAppShellMobile();
@@ -293,7 +198,6 @@ export function WorkspaceIdentity({
           />
         )}
       </HStack>
-      <WorkspaceMenu workspace={workspace} compact={compact} />
       {!isMobile && (
         <Button
           className="editorial-header-search"
@@ -310,86 +214,6 @@ export function WorkspaceIdentity({
         />
       )}
     </VStack>
-  );
-}
-
-type SidebarMenuOption = { value: string; label: string };
-
-/** The sidebar's one control shape, used at the top for the workspace and at
- * the bottom for appearance: a full-width secondary trigger carrying the current
- * choice's icon, a label and the current choice, opening a single-choice menu
- * the width of the trigger. Menu rows are plain radio rows, like every other
- * admin dropdown. In the collapsed rail it is an icon button whose tooltip names
- * the choice. It reads the drawer state itself, so a rail collapsed on a wider
- * screen never shrinks the controls inside the phone and tablet drawer. */
-function SidebarMenu({
-  className,
-  name,
-  label,
-  accessibleLabel,
-  icon,
-  detail,
-  compact,
-  opens,
-  value,
-  options,
-  onChange,
-}: {
-  className: string;
-  /** Group name read by assistive technology inside the menu. */
-  name: string;
-  label: string;
-  accessibleLabel: string;
-  icon: ReactNode;
-  /** Secondary text between the label and the caret, such as the current choice. */
-  detail?: string;
-  compact: boolean;
-  opens: "below" | "above";
-  value: string;
-  options: readonly SidebarMenuOption[];
-  onChange: (value: string) => void;
-}) {
-  const Caret = opens === "above" ? CaretUpIcon : CaretDownIcon;
-  return (
-    <DropdownMenu
-      button={{
-        className: `admin-sidebar-menu ${className}`,
-        label,
-        "aria-label": accessibleLabel,
-        tooltip: compact ? accessibleLabel : undefined,
-        isIconOnly: compact,
-        // Expanded, this is a menu with a label and a current choice, and it
-        // carries a menu's surface. In the rail it is one icon among icons, so
-        // it takes the same quiet treatment as the rest of them.
-        variant: compact ? "ghost" : "secondary",
-        size: "md",
-        icon,
-        endContent: compact ? undefined : (
-          <HStack gap={2} vAlign="center" className="admin-sidebar-menu-end">
-            {detail && (
-              <Text type="supporting" color="secondary">
-                {detail}
-              </Text>
-            )}
-            <Caret size={16} aria-hidden="true" />
-          </HStack>
-        ),
-      }}
-      hasChevron={false}
-      placement={compact ? "end" : opens}
-      alignment={compact && opens === "above" ? "end" : "start"}
-      menuWidth={compact ? undefined : "anchor-size(width)"}
-    >
-      <DropdownMenuRadioGroup label={name} value={value} onChange={onChange}>
-        {options.map((option) => (
-          <DropdownMenuRadioItem
-            key={option.value}
-            value={option.value}
-            label={option.label}
-          />
-        ))}
-      </DropdownMenuRadioGroup>
-    </DropdownMenu>
   );
 }
 
@@ -466,7 +290,7 @@ export function EditorialWorkspaceShell({
   searchEntries,
   groupCounts,
   workspace = "content",
-  navigationContent,
+  currentRoute,
   palette,
 }: {
   children: ReactNode;
@@ -482,8 +306,11 @@ export function EditorialWorkspaceShell({
   /** Request resolved to the synthetic owner of a local owner build. */
   localOwner?: boolean;
   searchEntries?: AdminSearchResult[];
+  /** The group the current page belongs to. */
   workspace?: Workspace;
-  navigationContent?: ReactNode;
+  /** Path and query of an operational or Data page, which selects its item.
+   * Content pages select from their own record and library state instead. */
+  currentRoute?: string;
   palette?: ReactNode;
 }) {
   const [rail, setRail] = useState(false);
@@ -491,12 +318,13 @@ export function EditorialWorkspaceShell({
   // False until the client has chosen the rail. Until then the prepaint
   // script's choice on the root element holds the sidebar geometry.
   const [railReady, setRailReady] = useState(false);
-  const [librarySearch, setLibrarySearch] = useState("");
+  const rememberedContentSearch = useWorkspaceMemory(workspace);
+  const [pageSearch, setPageSearch] = useState("");
   useEffect(() => {
     const sync = () => {
       const params = new URLSearchParams(window.location.search);
       const returnTo = params.get("returnTo");
-      setLibrarySearch(
+      setPageSearch(
         returnTo
           ? new URL(libraryReturnPath(returnTo), window.location.origin).search
           : window.location.search,
@@ -510,9 +338,14 @@ export function EditorialWorkspaceShell({
       window.removeEventListener("editorial:library-state", sync);
     };
   }, []);
+  // On a Content page the library state is the page's own. Elsewhere it is the
+  // state Content was last left in, so returning keeps filters and ordering.
+  const onContentPage = workspace === "content" && currentRoute === undefined;
+  const librarySearch = onContentPage ? pageSearch : rememberedContentSearch;
   const destination = (id: string) => {
     const current = readLibraryState(librarySearch);
-    const currentGroup = area === "newsletter" ? "newsletter" : current.group;
+    const currentGroup =
+      onContentPage && area === "newsletter" ? "newsletter" : current.group;
     // Sections and statuses describe one library's records. A different library
     // starts with its complete set, while keeping the useful query and ordering.
     return libraryStateUrl(
@@ -561,9 +394,12 @@ export function EditorialWorkspaceShell({
       localStorage.setItem("admin:sidebar-collapsed", String(collapsed));
     } catch {}
   };
-  const selected = workspaceSelection(area, selectedGroup, recordKind);
+  const selected =
+    currentRoute === undefined
+      ? workspaceSelection(area, selectedGroup, recordKind)
+      : undefined;
   const paletteEntries = useMemo(
-    () => [...navigationResults, ...(searchEntries ?? [])],
+    () => [...sidebarSearchEntries, ...(searchEntries ?? [])],
     [searchEntries],
   );
   return (
@@ -587,23 +423,17 @@ export function EditorialWorkspaceShell({
         // Admin owns the phone and tablet header (see WorkspaceTopBar), so
         // AppShell never swaps a bar in after hydration; its drawer stays.
         mobileNav={{ breakpoint: "md", hasToggle: false }}
-        banner={<WorkspaceTopBar workspace={workspace} />}
+        banner={<WorkspaceTopBar />}
         sideNav={
           <SideNav
             className="editorial-workspace-nav"
-            aria-label={workspaces[workspace].label}
+            aria-label="Admin"
             collapsible={{
               isCollapsed: rail,
               onCollapsedChange: changeCollapsed,
               hasButton: false,
             }}
-            header={
-              <WorkspaceIdentity
-                collapsed={rail}
-                workspace={workspace}
-                siteHref={siteHref}
-              />
-            }
+            header={<WorkspaceIdentity collapsed={rail} siteHref={siteHref} />}
             footer={
               <WorkspaceUtilities
                 rail={rail}
@@ -613,31 +443,16 @@ export function EditorialWorkspaceShell({
               />
             }
           >
-            {navigationContent ?? (
-              <SideNavSection title="Content" isHeaderHidden>
-                {websiteNavigation.map(({ id, label, icon: Icon }) => (
-                  <SideNavItem
-                    key={id}
-                    label={label}
-                    href={destination(id)}
-                    isSelected={selected === id}
-                    icon={<Icon size={18} aria-hidden="true" />}
-                    endContent={
-                      groupCounts?.[id] === undefined ? undefined : (
-                        <Text
-                          type="supporting"
-                          color="secondary"
-                          className="editorial-nav-count"
-                          aria-label={`${groupCounts[id]} ${groupCounts[id] === 1 ? "record" : "records"}`}
-                        >
-                          {groupCounts[id]}
-                        </Text>
-                      )
-                    }
-                  />
-                ))}
-              </SideNavSection>
-            )}
+            <UnifiedNavigation
+              rail={rail}
+              activeGroup={workspace}
+              selected={
+                selected ??
+                (currentRoute ? selectedSidebarItem(currentRoute) : undefined)
+              }
+              contentHref={destination}
+              groupCounts={groupCounts}
+            />
           </SideNav>
         }
       >

@@ -12,7 +12,7 @@ import {
 
 const navSource = readFileSync("apps/admin/src/data/admin.ts", "utf8");
 const websiteNavSource = readFileSync(
-  "apps/admin/src/components/astryx/EditorialWorkspaceShell.tsx",
+  "apps/admin/src/components/astryx/UnifiedSidebar.tsx",
   "utf8",
 );
 const inboxSource = readFileSync("apps/admin/src/pages/inbox.astro", "utf8");

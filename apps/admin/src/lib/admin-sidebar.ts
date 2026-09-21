@@ -31,6 +31,45 @@ export function sidebarRail(
   return width <= DRAWER_MAX_WIDTH ? false : (collapsed ?? inRailRange);
 }
 
+/** The unified sidebar's groups, in the order they are shown. The ids are the
+ * workspace ids; the labels live in `workspaces`. */
+const SIDEBAR_GROUP_IDS = ["content", "life", "operations"] as const;
+export type SidebarGroupId = (typeof SIDEBAR_GROUP_IDS)[number];
+export type SidebarGroupsCollapsed = Record<SidebarGroupId, boolean>;
+/** Per-viewer preference: which groups the viewer closed. */
+export const SIDEBAR_GROUPS_KEY = "admin:sidebar-groups";
+export const ALL_GROUPS_OPEN: SidebarGroupsCollapsed = {
+  content: false,
+  life: false,
+  operations: false,
+};
+
+/** The group that owns a path. Content review and preview routes are Content
+ * pages even though they render in the operational layout. */
+export function sidebarGroupForPath(pathname: string): SidebarGroupId {
+  if (/^\/(?:content|newsletter)(?:\/|$)/.test(pathname)) return "content";
+  if (/^\/life(?:\/|$)/.test(pathname)) return "life";
+  return "operations";
+}
+
+/** The saved choice, with the active page's group always open. */
+export function sidebarGroupsState(
+  raw: string | null,
+  active: SidebarGroupId,
+): SidebarGroupsCollapsed {
+  const state = { ...ALL_GROUPS_OPEN };
+  try {
+    const saved: unknown = raw ? JSON.parse(raw) : null;
+    if (saved && typeof saved === "object")
+      for (const id of SIDEBAR_GROUP_IDS)
+        state[id] = (saved as Record<string, unknown>)[id] === true;
+  } catch {
+    /* A malformed preference opens every group. */
+  }
+  state[active] = false;
+  return state;
+}
+
 /**
  * Runs before first paint and records the sidebar shape on the root element,
  * so the page lays out with the rail it will keep instead of the server's
@@ -64,6 +103,28 @@ export function prepaintAdminSidebar() {
         window.matchMedia("(min-width: 769px) and (max-width: 1279px)")
           .matches);
   document.documentElement.dataset.adminSidebar = rail ? "rail" : "full";
+  // Groups the viewer closed, except the active page's group, which always
+  // opens. CSS holds these closed until the sidebar hydrates, so a saved
+  // choice never shifts the page. Keep in step with sidebarGroupsState.
+  let closed = "";
+  try {
+    const raw = localStorage.getItem("admin:sidebar-groups");
+    const saved = raw ? JSON.parse(raw) : null;
+    const path = (window.location && window.location.pathname) || "/";
+    const active = /^\/(?:content|newsletter)(?:\/|$)/.test(path)
+      ? "content"
+      : /^\/life(?:\/|$)/.test(path)
+        ? "life"
+        : "operations";
+    if (saved && typeof saved === "object")
+      for (const id of ["content", "life", "operations"])
+        if (id !== active && saved[id] === true)
+          closed = closed ? `${closed} ${id}` : id;
+  } catch {
+    closed = "";
+  }
+  if (closed) document.documentElement.dataset.adminNavClosed = closed;
+  else delete document.documentElement.dataset.adminNavClosed;
 }
 
 export const adminSidebarPrepaintScript = `(${prepaintAdminSidebar.toString()})();`;

@@ -45,7 +45,7 @@ describe("shared Operations and Life shell", () => {
       expect(html.includes("This page is read-only.")).toBe(!hideHeader);
     },
   );
-  it("renders the shared identity and only the two distinct Operations destinations", () => {
+  it("renders the shared identity and one sidebar with Content, Data and Observability", () => {
     const host = document.createElement("div");
     host.innerHTML = renderToStaticMarkup(shell("/operations/observability"));
     expect(host.querySelector('[data-workspace="operations"]')).not.toBeNull();
@@ -53,8 +53,17 @@ describe("shared Operations and Life shell", () => {
       host.querySelector('.admin-bracket-wordmark[aria-label="Admin"]')
         ?.textContent,
     ).toBe("[admin]");
-    const navigation = host.querySelector(".astryx-side-nav-section")!;
-    const links = [...navigation.querySelectorAll("a")];
+    const navigation = host.querySelector(".admin-unified-nav")!;
+    expect(
+      [...navigation.querySelectorAll("[data-sidebar-group]")].map(
+        (heading) => heading.textContent,
+      ),
+    ).toEqual(["Content", "Data", "Observability"]);
+    const links = [
+      ...navigation.querySelectorAll<HTMLAnchorElement>(
+        'a[data-sidebar-member="operations"]',
+      ),
+    ];
     expect(links.map((link) => link.textContent)).toEqual([
       "Machines",
       "Loops",
@@ -73,7 +82,7 @@ describe("shared Operations and Life shell", () => {
     const host = document.createElement("div");
     host.innerHTML = renderToStaticMarkup(shell(route));
     const selected = host.querySelectorAll(
-      '.astryx-side-nav-section a[aria-current="page"]',
+      '.admin-unified-nav a[aria-current="page"]',
     );
     expect(selected).toHaveLength(1);
     expect(selected[0]?.textContent).toBe("Machines");
@@ -87,7 +96,7 @@ describe("shared Operations and Life shell", () => {
       shell(`/operations/observability?view=${view}`),
     );
     const selected = host.querySelectorAll(
-      '.astryx-side-nav-section a[aria-current="page"]',
+      '.admin-unified-nav a[aria-current="page"]',
     );
     expect(selected).toHaveLength(1);
     expect(selected[0]?.getAttribute("href")).toBe(
@@ -104,9 +113,7 @@ describe("shared Operations and Life shell", () => {
       const host = document.createElement("div");
       host.innerHTML = renderToStaticMarkup(shell(route));
       expect(
-        host.querySelectorAll(
-          '.astryx-side-nav-section a[aria-current="page"]',
-        ),
+        host.querySelectorAll('.admin-unified-nav a[aria-current="page"]'),
       ).toHaveLength(0);
     },
   );

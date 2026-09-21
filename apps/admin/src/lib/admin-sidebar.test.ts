@@ -7,6 +7,8 @@ import {
   RAIL_QUERY,
   adminSidebarPrepaintScript,
   savedSidebarCollapsed,
+  sidebarGroupForPath,
+  sidebarGroupsState,
   sidebarRail,
 } from "./admin-sidebar";
 
@@ -110,6 +112,37 @@ describe("sidebar rail choice", () => {
             `${width} ${JSON.stringify(values)}`,
           ).toBe(expected);
         }
+  });
+
+  it("prepaints the closed groups the sidebar will show, never the active one", () => {
+    const run = (path: string, raw?: string) => {
+      const root = { dataset: {} as Record<string, string> };
+      runInNewContext(adminSidebarPrepaintScript, {
+        window: {
+          innerWidth: 1280,
+          location: { pathname: path },
+          matchMedia: () => ({ matches: false }),
+        },
+        localStorage: storage(raw ? { "admin:sidebar-groups": raw } : {}),
+        document: { documentElement: root },
+      });
+      return root.dataset.adminNavClosed;
+    };
+    const closed = '{"content":true,"life":true,"operations":false}';
+    expect(run("/content")).toBeUndefined();
+    expect(run("/content", closed)).toBe("life");
+    expect(run("/life/people", closed)).toBe("content");
+    expect(run("/operations/observability", closed)).toBe("content life");
+    expect(run("/newsletter", "not json")).toBeUndefined();
+    for (const path of ["/content", "/life/people", "/proof"]) {
+      const expected = Object.entries(
+        sidebarGroupsState(closed, sidebarGroupForPath(path)),
+      )
+        .filter(([, value]) => value)
+        .map(([id]) => id)
+        .join(" ");
+      expect(run(path, closed) ?? "").toBe(expected);
+    }
   });
 
   it("runs the prepaint in both layouts and holds rail geometry only before hydration", () => {
