@@ -21,7 +21,7 @@ export function ProjectSections({
       <Text>Sections</Text>
       {(["story", "technical"] as const).map((kind) => {
         const entries = Array.isArray(data[kind])
-          ? (data[kind] as Array<{ title?: string }>)
+          ? (data[kind] as Array<{ title?: string; paragraphs?: string[] }>)
           : [];
         return (
           <VStack key={kind} gap={1}>
@@ -59,6 +59,22 @@ export function ProjectSections({
                   isDisabled={disabled}
                   onClick={() => onEdit({ type: "remove", kind, index })}
                 />
+                {kind === "story" &&
+                  Array.isArray(entry.paragraphs) &&
+                  entry.paragraphs.length > 1 &&
+                  entry.paragraphs.map((_, paragraph) => (
+                    <Button
+                      key={paragraph}
+                      label={`Remove story ${index + 1} paragraph ${paragraph + 1}`}
+                      children={`Remove paragraph ${paragraph + 1}`}
+                      size="sm"
+                      variant="ghost"
+                      isDisabled={disabled}
+                      onClick={() =>
+                        onEdit({ type: "remove-paragraph", index, paragraph })
+                      }
+                    />
+                  ))}
                 {kind === "story" && (
                   <Button
                     label="Add paragraph"

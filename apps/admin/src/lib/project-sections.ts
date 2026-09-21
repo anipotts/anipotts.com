@@ -4,7 +4,8 @@ export type ProjectSectionEdit =
   | { type: "add"; kind: ProjectSectionKind }
   | { type: "remove"; kind: ProjectSectionKind; index: number }
   | { type: "move"; kind: ProjectSectionKind; index: number; direction: -1 | 1 }
-  | { type: "paragraph"; index: number };
+  | { type: "paragraph"; index: number }
+  | { type: "remove-paragraph"; index: number; paragraph: number };
 
 /** Move existing YAML nodes so section comments and media stay attached. */
 export function editProjectSections(
@@ -13,7 +14,31 @@ export function editProjectSections(
 ): string {
   const parsed = parseEditorialSource(source);
   const data = parsed.data as Record<string, unknown>;
-  if (edit.type === "paragraph") {
+  if (edit.type === "remove-paragraph") {
+    const stories = data.story;
+    if (
+      !Array.isArray(stories) ||
+      !Number.isInteger(edit.index) ||
+      edit.index < 0 ||
+      edit.index >= stories.length
+    )
+      return source;
+    const paragraphs = stories[edit.index]?.paragraphs;
+    if (
+      !Array.isArray(paragraphs) ||
+      paragraphs.length <= 1 ||
+      !Number.isInteger(edit.paragraph) ||
+      edit.paragraph < 0 ||
+      edit.paragraph >= paragraphs.length
+    )
+      return source;
+    parsed.document.deleteIn([
+      "story",
+      edit.index,
+      "paragraphs",
+      edit.paragraph,
+    ]);
+  } else if (edit.type === "paragraph") {
     const story = data.story;
     if (
       !Array.isArray(story) ||

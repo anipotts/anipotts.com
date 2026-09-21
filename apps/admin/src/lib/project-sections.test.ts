@@ -74,3 +74,40 @@ it("removes added sections and preserves the remaining section content", () => {
     ).technical,
   ).toEqual([]);
 });
+
+it("removes an added paragraph without losing its siblings or allowing an empty story", () => {
+  const source =
+    "---\ntitle: Keep\nstory:\n  - title: Story\n    paragraphs:\n      - First\n      - Second\n---\nBody";
+  const added = editProjectSections(source, { type: "paragraph", index: 0 });
+  const removed = editProjectSections(added, {
+    type: "remove-paragraph",
+    index: 0,
+    paragraph: 2,
+  });
+  expect(parseEditorialSource(removed).data).toEqual(
+    parseEditorialSource(source).data,
+  );
+  const single = editProjectSections(removed, {
+    type: "remove-paragraph",
+    index: 0,
+    paragraph: 0,
+  });
+  expect(
+    (parseEditorialSource(single).data as any).story[0].paragraphs,
+  ).toEqual(["Second"]);
+  expect(
+    editProjectSections(single, {
+      type: "remove-paragraph",
+      index: 0,
+      paragraph: 0,
+    }),
+  ).toBe(single);
+  expect(
+    editProjectSections(single, {
+      type: "remove-paragraph",
+      index: -1,
+      paragraph: 0,
+    }),
+  ).toBe(single);
+  expect(parseEditorialSource(single).body).toBe("Body");
+});
