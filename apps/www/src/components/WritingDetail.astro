@@ -29,6 +29,11 @@ const d = item.data;
 const moreWriting = (Astro.props.allWriting ?? (await publishedWriting()))
   .filter((post) => writingSlug(post) !== slug)
   .slice(0, 2);
+// Cards are prerendered from Git writing. A CMS record keeps its bundled card
+// by slug; only a slug with no bundled card falls back to the site card.
+const bundledCard = (await publishedWriting()).some(
+  (post) => writingSlug(post) === slug,
+);
 
 const articleLd = {
   "@context": "https://schema.org",
@@ -36,7 +41,6 @@ const articleLd = {
   headline: d.title,
   description: inlinePlainText(d.summary),
   datePublished: d.published_at?.toISOString(),
-  dateModified: item.publication?.publishedAt,
   author: {
     "@type": "Person",
     "@id": personId,
@@ -55,7 +59,7 @@ const articleLd = {
   jsonLd={articleLd}
   detail
   robots={Astro.props.preview ? "noindex, nofollow, noarchive" : undefined}
-  socialCard={Astro.props.preview || item.publication
+  socialCard={Astro.props.preview || !bundledCard
     ? undefined
     : writingCard(slug)}
 >

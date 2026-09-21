@@ -137,14 +137,13 @@ assert.equal(
   "revisions do not rewrite original publication dates",
 );
 const sitemap = await (await exercise("sitemap.xml.ts")).text();
+// lastmod follows frontmatter, so activating CMS storage changes nothing.
 assert.match(
   sitemap,
-  /\/writing\/older<\/loc><lastmod>2026-09-20T12:00:00Z<\/lastmod>/,
+  /\/writing\/older<\/loc><lastmod>2026-01-01T00:00:00.000Z<\/lastmod>/,
 );
-assert.match(
-  sitemap,
-  /\/work\/project<\/loc><lastmod>2026-09-19T12:00:00Z<\/lastmod>/,
-);
+assert.doesNotMatch(sitemap, /2026-09-2?\d?T12/);
+assert.doesNotMatch(sitemap, /\/work\/project<\/loc><lastmod>/);
 const search = await (await exercise("search-index.json.ts")).json();
 assert.deepEqual(
   search.map((entry) => entry.slug),

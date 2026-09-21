@@ -67,12 +67,14 @@
     "test:release-smoke": "node scripts/ci/release-smoke.test.mjs && node --test scripts/ci/editorial-release-smoke.test.mjs",
     "check:changed": "node scripts/ci/check-changed-scope.mjs",
     "release:protection:plan": "node scripts/ci/branch-protection.mjs",
-    "test:ci-invariants": "pnpm test:workspace && pnpm test:deploy-targets && pnpm test:deployment-plan && pnpm test:admin-preview && pnpm test:dev-servers && pnpm test:brand && pnpm test:admin-solid-retirement && pnpm test:admin-routes && pnpm test:admin-fixture-boundary && pnpm test:public-boundary && pnpm test:public-routes && pnpm test:path-hygiene && pnpm test:content-platform && pnpm test:public-copy:policy && pnpm test:workflows && pnpm test:security-review && pnpm test:release-policy && pnpm test:d1-bootstrap && pnpm test:migration-local && pnpm test:site-migrations && pnpm test:release-smoke && pnpm test:content-publication-migration",
+    "test:ci-invariants": "pnpm test:workspace && pnpm test:deploy-targets && pnpm test:deployment-plan && pnpm test:admin-preview && pnpm test:dev-servers && pnpm test:brand && pnpm test:admin-solid-retirement && pnpm test:admin-routes && pnpm test:admin-fixture-boundary && pnpm test:public-boundary && pnpm test:public-routes && pnpm test:path-hygiene && pnpm test:content-platform && pnpm test:public-copy:policy && pnpm test:workflows && pnpm test:security-review && pnpm test:release-policy && pnpm test:d1-bootstrap && pnpm test:migration-local && pnpm test:site-migrations && pnpm test:release-smoke && pnpm test:content-publication-migration && pnpm test:content-d1-seed",
     "test:unit": "turbo test",
     "test": "pnpm test:unit",
     "validate": "pnpm test:ci-invariants && pnpm format:check && pnpm build && pnpm lint && pnpm typecheck && pnpm test",
     "prepare": "husky",
-    "test:content-publication-migration": "node scripts/ci/content-publication-migration-proof.mjs"
+    "test:content-publication-migration": "node scripts/ci/content-publication-migration-proof.mjs",
+    "test:content-d1-seed": "pnpm turbo build --filter=@anipotts/content... && node --test scripts/ci/content-d1-seed.test.mjs",
+    "content:seed-d1": "node scripts/content/seed-content-d1.mjs"
   },
   "lint-staged": {
     "apps/www/**/*.{astro,ts,tsx}": [

@@ -31,12 +31,12 @@ export const GET: APIRoute = async ({ locals }) => {
     ...writingEntries.map((t) => ({
       path: `/writing/${writingSlug(t)}`,
       priority: 0.65,
-      lastmod: t.publication?.publishedAt ?? t.data.published_at?.toISOString(),
+      // Frontmatter dates only; a publication timestamp is not a content edit.
+      lastmod: t.data.published_at?.toISOString(),
     })),
     ...projects.map((p) => ({
       path: `/work/${projectSlug(p)}`,
       priority: 0.7,
-      lastmod: p.publication?.publishedAt,
     })),
   ];
 

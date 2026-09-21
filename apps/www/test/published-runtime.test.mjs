@@ -247,7 +247,9 @@ test("one coherent read per request drives pages and discovery immediately", asy
         assert.match(result, /CMS body marker/);
         assert.match(result, /<strong>still bold<\/strong>/);
         assert.doesNotMatch(result, /<script>alert/);
-        assert.match(result, /\/social\/site\.png/);
+        // A CMS record keeps its bundled card by slug.
+        assert.match(result, /\/social\/writing-awareness-is-alpha\.png/);
+        assert.doesNotMatch(result, /"dateModified"/);
         assert.equal(response.headers.get("x-content-sha256"), receipt.digest);
       }
     }
