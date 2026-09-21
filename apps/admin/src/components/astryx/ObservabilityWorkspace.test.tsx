@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import sample from "../../fixtures/ops_v1.sample.json";
+import events from "../../fixtures/ops_events_v1.synthetic.json";
 import {
   ObservabilityWorkspace,
   STATE_PRESENTATION,
@@ -32,8 +33,16 @@ const rowFor = (host: HTMLElement, id: string) =>
   [...host.querySelectorAll("tbody tr")].find((row) =>
     row.textContent?.includes(id),
   ) as HTMLTableRowElement | undefined;
+/** Column headers of the first table; every group table shares them. */
 const headers = (host: HTMLElement) =>
-  [...host.querySelectorAll("thead th")].map((th) => th.textContent);
+  [...(host.querySelector("table")?.querySelectorAll("thead th") ?? [])].map(
+    (th) => th.textContent,
+  );
+/** Group sections, in order, as their headings read. */
+const groupTitles = (host: HTMLElement) =>
+  [...host.querySelectorAll("section h2")].map(
+    (heading) => heading.textContent,
+  );
 /** A cell by its column header, so optional columns never shift a test. */
 const cell = (host: HTMLElement, id: string, header: string) => {
   const index = headers(host).indexOf(header);
@@ -45,26 +54,29 @@ const stateCell = (row: HTMLTableRowElement) => row.cells[1]!;
 describe("Status view from System's fixture", () => {
   const host = render(sample);
 
-  it("puts hosts in a strip and every other entry in one grouped table", () => {
+  it("puts hosts in a strip and every other entry in one table per group", () => {
     const strip = host.querySelector('ul[aria-label="Hosts"]')!;
     expect(strip.querySelectorAll("li")).toHaveLength(1);
     expect(strip.textContent).toContain("ap-mini");
     expect(strip.textContent).toContain("disk 70% used");
-    expect(host.querySelectorAll("table")).toHaveLength(1);
     expect(rowFor(host, "host.ap-mini")).toBeUndefined();
-    const groups = [...host.querySelectorAll("tbody tr[aria-expanded]")].map(
-      (row) => row.textContent?.replace(/\d+ entr(y|ies)$/, ""),
-    );
-    expect(groups).toEqual([
-      "personal context",
-      "backups",
-      "health ingest",
-      "agent sessions",
-      "services",
+    expect(groupTitles(host)).toEqual([
+      "Personal context",
+      "Backups",
+      "Health ingest",
+      "Agent sessions",
+      "Services",
     ]);
-    const bodyRows = [
-      ...host.querySelectorAll("tbody tr:not([aria-expanded])"),
-    ];
+    const tables = [...host.querySelectorAll("table")];
+    expect(tables).toHaveLength(5);
+    expect(tables.map((table) => table.getAttribute("aria-label"))).toEqual([
+      "personal context services",
+      "backups services",
+      "health ingest services",
+      "agent sessions services",
+      "services services",
+    ]);
+    const bodyRows = [...host.querySelectorAll("tbody tr")];
     expect(bodyRows).toHaveLength(sample.catalog.length - 1);
     expect(bodyRows.at(-1)?.textContent).toContain("imessage.agent");
   });
@@ -240,10 +252,7 @@ describe("Status view edge cases", () => {
         .querySelector("a")
         ?.getAttribute("href"),
     ).toBe("https://example.com/runbook");
-    const groups = [...host.querySelectorAll("tbody tr[aria-expanded]")].map(
-      (row) => row.textContent?.replace(/\d+ entr(y|ies)$/, ""),
-    );
-    expect(groups.at(-1)).toBe("a brand new group");
+    expect(groupTitles(host).at(-1)).toBe("A brand new group");
   });
 
   it("shows the Schedule column only when an entry has a schedule", () => {
@@ -511,5 +520,112 @@ describe("Status connection states", () => {
     await act(async () => window.dispatchEvent(new Event("pagehide")));
     expect(host.querySelector("table")).toBeNull();
     expect(host.textContent).toContain("Session ended");
+  });
+});
+
+describe("Activity and Alerts from the synthetic events fixture", () => {
+  const view = (name: "activity" | "alerts") => {
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(
+      <ObservabilityWorkspace
+        view={name}
+        enabled={false}
+        fixture={sample}
+        eventsFixture={events}
+        now={NOW}
+      />,
+    );
+    return host;
+  };
+  const rows = (host: HTMLElement) =>
+    [...host.querySelectorAll("tbody tr")].map((row) => row.textContent ?? "");
+
+  it("lists every event newest first, with access rows as route, status and latency", () => {
+    const host = view("activity");
+    expect(host.querySelector("h1")?.textContent).toBe("Activity");
+    const lines = rows(host);
+    expect(lines).toHaveLength(events.items.length);
+    expect(lines[0]).toContain("Data sources, 200, 33 ms");
+    expect(lines[1]).toContain("Data search, 200, 91 ms");
+    expect(lines.at(-1)).toContain("first seen ok");
+    const older = lines.findIndex((line) =>
+      line.includes("Data search, 200, 84 ms"),
+    );
+    expect(older).toBeGreaterThan(1);
+    expect(
+      lines.find((line) => line.includes("nightly inference: ok to failing")),
+    ).toBeDefined();
+    // Access rows never carry query text or record ids.
+    expect(host.textContent).not.toMatch(/rec-[0-9a-f]{32}|\?q=/);
+  });
+
+  it("names each event's source: catalog groups and reader access", () => {
+    const host = view("activity");
+    const index = headers(host).indexOf("Source");
+    expect(index).toBeGreaterThan(-1);
+    const sources = new Set(
+      [...host.querySelectorAll<HTMLTableRowElement>("tbody tr")].map(
+        (row) => row.cells[index]?.textContent,
+      ),
+    );
+    for (const label of [
+      "Reader access",
+      "Personal context",
+      "Backups",
+      "Agent sessions",
+      "Services",
+      "Health ingest",
+      "Hosts",
+    ])
+      expect(sources.has(label), label).toBe(true);
+  });
+
+  it("lists firing alerts first, then resolved, each with a runbook", () => {
+    const host = view("alerts");
+    expect(host.querySelector("h1")?.textContent).toBe("Alerts");
+    const lines = rows(host);
+    expect(lines).toHaveLength(5);
+    const firing = lines.slice(0, 3);
+    expect(firing[0]).toContain("keepalive.onepassword-connect");
+    expect(firing[0]).toContain("Degraded");
+    expect(firing[1]).toContain("pc.inference");
+    expect(firing[1]).toContain("Failing");
+    expect(firing[2]).toContain("pc.snapshot");
+    expect(firing[2]).toContain("Stale");
+    for (const line of firing) expect(line).not.toContain("Resolved");
+    expect(lines[3]).toContain("agents.sync");
+    expect(lines[4]).toContain("pc.writer");
+    for (const line of lines.slice(3)) expect(line).toContain("Resolved");
+    // Unknown neither fires nor resolves.
+    expect(host.textContent).not.toContain("health.ingest");
+    const links = [
+      ...host.querySelectorAll<HTMLAnchorElement>(
+        'a[aria-label^="Runbook for"]',
+      ),
+    ];
+    expect(links).toHaveLength(5);
+    for (const link of links)
+      expect(link.getAttribute("href")).toMatch(
+        /^https:\/\/github\.com\/anipotts\/system\/blob\/main\//,
+      );
+    // Read only: nothing to acknowledge.
+    expect(host.querySelectorAll("button")).toHaveLength(0);
+    // Every chip keeps its text label; the dot variant only adds colour.
+    const variants = [...host.querySelectorAll("tbody [data-variant]")].map(
+      (element) => element.getAttribute("data-variant"),
+    );
+    expect(variants).toContain("error");
+    expect(variants).toContain("success");
+  });
+
+  it("shows only a notice while ops reads are off", () => {
+    for (const name of ["activity", "alerts"] as const) {
+      const host = document.createElement("div");
+      host.innerHTML = renderToStaticMarkup(
+        <ObservabilityWorkspace view={name} enabled={false} now={NOW} />,
+      );
+      expect(host.textContent).toContain("Not connected");
+      expect(host.querySelector("table")).toBeNull();
+    }
   });
 });

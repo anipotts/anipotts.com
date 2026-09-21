@@ -1,0 +1,352 @@
+import { describe, expect, it } from "vitest";
+import fixture from "../fixtures/ops_events_v1.synthetic.json";
+import { OpsSnapshotError, type OpsCatalogEntry } from "./ops-v1";
+import {
+  EMPTY_EVENT_LOG,
+  OPS_EVENTS_KEEP,
+  appendOpsEvents,
+  deriveOpsAlerts,
+  opsAccessSummary,
+  opsActivitySource,
+  opsEventsPath,
+  opsRouteLabel,
+  parseOpsEvents,
+  parseOpsEventsBytes,
+  type OpsAccessEvent,
+  type OpsTransitionEvent,
+} from "./ops-events";
+
+// Synthetic items only, shaped like System's ops_events_v1 rows.
+type Json = Record<string, unknown>;
+const access = (seq: number, extra: Json = {}): Json => ({
+  seq,
+  at: "2026-09-21T17:00:00Z",
+  kind: "access",
+  subject: "data.search",
+  from_state: null,
+  to_state: null,
+  status: 200,
+  ms: 84,
+  detail: null,
+  ...extra,
+});
+const transition = (
+  seq: number,
+  subject: string,
+  from: string | null,
+  to: string,
+  at = `2026-09-21T${String(10 + (seq % 10)).padStart(2, "0")}:00:00Z`,
+): Json => ({
+  seq,
+  at,
+  kind: "transition",
+  subject,
+  from_state: from,
+  to_state: to,
+  status: null,
+  ms: null,
+  detail: "fixed detail",
+});
+const envelope = (items: Json[], next_after: number | null = null): Json => ({
+  version: "ops_events_v1",
+  items,
+  next_after,
+});
+const rejects = (value: unknown, after = 0) =>
+  expect(() => parseOpsEvents(value, after)).toThrow(OpsSnapshotError);
+
+describe("ops_events_v1 parser", () => {
+  it("accepts System's synthetic fixture", () => {
+    const page = parseOpsEvents(fixture, 0);
+    expect(page.items).toHaveLength(fixture.items.length);
+    expect(page.nextAfter).toBeNull();
+    expect(page.items[0]).toMatchObject({
+      kind: "transition",
+      from: null,
+      to: "ok",
+    });
+  });
+
+  it("requires exactly the nine keys, with device optional", () => {
+    const [plain] = parseOpsEvents(envelope([access(1)]), 0).items;
+    expect(plain).toMatchObject({ kind: "access", status: 200, ms: 84 });
+    expect((plain as OpsAccessEvent).device).toBeNull();
+    const [withDevice] = parseOpsEvents(
+      envelope([access(1, { device: "ap-phone" })]),
+      0,
+    ).items;
+    expect((withDevice as OpsAccessEvent).device).toBe("ap-phone");
+    const [unknownDevice] = parseOpsEvents(
+      envelope([access(1, { device: "ap-watch" })]),
+      0,
+    ).items;
+    expect((unknownDevice as OpsAccessEvent).device).toBe("other");
+    const [nullDevice] = parseOpsEvents(
+      envelope([access(1, { device: null })]),
+      0,
+    ).items;
+    expect((nullDevice as OpsAccessEvent).device).toBeNull();
+    rejects(envelope([access(1, { extra: 1 })]));
+    const missing = access(1);
+    delete missing.detail;
+    rejects(envelope([missing]));
+  });
+
+  it("keeps an unknown kind as other instead of rejecting the page", () => {
+    const [event] = parseOpsEvents(
+      envelope([
+        {
+          ...access(1),
+          kind: "deploy",
+          subject: "admin",
+          status: null,
+          ms: null,
+        },
+      ]),
+      0,
+    ).items;
+    expect(event).toMatchObject({ kind: "other", rawKind: "deploy" });
+    rejects(envelope([{ ...access(1), kind: "Not A Kind" }]));
+  });
+
+  it("requires a catalog id and a to_state on transitions", () => {
+    rejects(envelope([transition(1, "Not An Id", null, "ok")]));
+    rejects(
+      envelope([{ ...transition(1, "pc.writer", null, "ok"), to_state: null }]),
+    );
+    rejects(envelope([transition(1, "pc.writer", null, "sideways")]));
+    rejects(envelope([transition(1, "pc.writer", "sideways", "ok")]));
+  });
+
+  it("requires status and ms on access rows", () => {
+    rejects(envelope([access(1, { status: null })]));
+    rejects(envelope([access(1, { ms: null })]));
+    rejects(envelope([access(1, { status: 99 })]));
+    rejects(envelope([access(1, { ms: -1 })]));
+    rejects(envelope([access(1, { subject: "data search?q=secret" })]));
+  });
+
+  it("requires seq to ascend above after", () => {
+    rejects(envelope([access(5)]), 5);
+    rejects(envelope([access(2), access(2)]));
+    rejects(envelope([access(3), access(2)]));
+    expect(
+      parseOpsEvents(envelope([access(6), access(9)]), 5).items,
+    ).toHaveLength(2);
+  });
+
+  it("accepts next_after only as the last seq, or null", () => {
+    expect(
+      parseOpsEvents(envelope([access(1), access(2)], 2), 0).nextAfter,
+    ).toBe(2);
+    rejects(envelope([access(1), access(2)], 1));
+    rejects(envelope([], 3));
+    expect(parseOpsEvents(envelope([]), 7).items).toEqual([]);
+  });
+
+  it("requires the ops_events_v1 version, the root keys and the 500 cap", () => {
+    rejects({ ...envelope([]), version: "ops_events_v2" });
+    rejects({ ...envelope([]), extra: true });
+    rejects({ version: "ops_events_v1", items: [] });
+    const many = Array.from({ length: 501 }, (_, index) => access(index + 1));
+    rejects(envelope(many));
+    expect(parseOpsEvents(envelope(many.slice(0, 500)), 0).items).toHaveLength(
+      500,
+    );
+  });
+
+  it("rejects bytes that are not UTF-8 JSON", () => {
+    expect(() => parseOpsEventsBytes(new TextEncoder().encode("{"), 0)).toThrow(
+      OpsSnapshotError,
+    );
+    expect(
+      parseOpsEventsBytes(
+        new TextEncoder().encode(JSON.stringify(envelope([access(1)]))),
+        0,
+      ).items,
+    ).toHaveLength(1);
+  });
+});
+
+describe("events request path", () => {
+  // The source infers `limit` as the literal 500; widen it to test bounds.
+  const path = opsEventsPath as (after: number, limit?: number) => string;
+  it("carries only after and limit, within bounds", () => {
+    expect(path(0)).toBe("/v1/ops/events?after=0&limit=500");
+    expect(path(42, 100)).toBe("/v1/ops/events?after=42&limit=100");
+    for (const [after, limit] of [
+      [-1, 100],
+      [1.5, 100],
+      [0, 0],
+      [0, 501],
+      [10_000_000_001, 100],
+    ])
+      expect(() => path(after!, limit)).toThrow(OpsSnapshotError);
+  });
+});
+
+describe("event log in memory", () => {
+  it("moves the cursor to the last seq and keeps transitions apart", () => {
+    const { items } = parseOpsEvents(
+      envelope([transition(1, "pc.writer", null, "ok"), access(2)]),
+      0,
+    );
+    const log = appendOpsEvents(EMPTY_EVENT_LOG, items);
+    expect(log.cursor).toBe(2);
+    expect(log.transitions.map((event) => event.seq)).toEqual([1]);
+    expect(log.recent.map((event) => event.seq)).toEqual([1, 2]);
+    expect(appendOpsEvents(log, [])).toBe(log);
+  });
+
+  it("caps recent events and transitions, keeping the newest", () => {
+    const many = Array.from(
+      { length: OPS_EVENTS_KEEP.recent + 10 },
+      (_, index) => access(index + 1),
+    );
+    const log = appendOpsEvents(
+      EMPTY_EVENT_LOG,
+      parseOpsEvents(envelope(many.slice(0, 500)), 0).items,
+    );
+    const next = appendOpsEvents(
+      appendOpsEvents(
+        log,
+        parseOpsEvents(envelope(many.slice(500, 1000)), 500).items,
+      ),
+      parseOpsEvents(envelope(many.slice(1000)), 1000).items,
+    );
+    expect(next.recent).toHaveLength(OPS_EVENTS_KEEP.recent);
+    expect(next.recent[0]?.seq).toBe(11);
+    expect(next.cursor).toBe(OPS_EVENTS_KEEP.recent + 10);
+  });
+});
+
+describe("alerts from transitions", () => {
+  const parse = (items: Json[]) =>
+    parseOpsEvents(envelope(items), 0).items as OpsTransitionEvent[];
+
+  it("fires on failing, stale or degraded and resolves on a later ok", () => {
+    const alerts = deriveOpsAlerts(
+      parse([
+        transition(1, "a.job", null, "ok", "2026-09-21T08:00:00Z"),
+        transition(2, "a.job", "ok", "failing", "2026-09-21T09:00:00Z"),
+        transition(3, "b.job", null, "degraded", "2026-09-21T09:30:00Z"),
+        transition(4, "c.job", null, "stale", "2026-09-21T10:00:00Z"),
+        transition(5, "d.job", null, "failing", "2026-09-21T07:00:00Z"),
+        transition(6, "d.job", "failing", "ok", "2026-09-21T07:30:00Z"),
+      ]),
+    );
+    expect(alerts.map((alert) => [alert.subject, alert.status])).toEqual([
+      ["c.job", "firing"],
+      ["b.job", "firing"],
+      ["a.job", "firing"],
+      ["d.job", "resolved"],
+    ]);
+    expect(alerts[2]).toMatchObject({
+      state: "failing",
+      since: "2026-09-21T09:00:00Z",
+    });
+    expect(alerts[3]).toMatchObject({
+      state: "failing",
+      since: "2026-09-21T07:00:00Z",
+      resolvedAt: "2026-09-21T07:30:00Z",
+    });
+  });
+
+  it("dates an episode from its first problem, even as the problem changes", () => {
+    const [alert] = deriveOpsAlerts(
+      parse([
+        transition(1, "a.job", null, "ok", "2026-09-21T08:00:00Z"),
+        transition(2, "a.job", "ok", "degraded", "2026-09-21T09:00:00Z"),
+        transition(3, "a.job", "degraded", "failing", "2026-09-21T10:00:00Z"),
+      ]),
+    );
+    expect(alert).toMatchObject({
+      status: "firing",
+      state: "failing",
+      since: "2026-09-21T09:00:00Z",
+    });
+  });
+
+  it("never fires or resolves on unknown or asleep", () => {
+    expect(
+      deriveOpsAlerts(
+        parse([
+          transition(1, "a.job", null, "unknown"),
+          transition(2, "b.host", null, "asleep"),
+        ]),
+      ),
+    ).toEqual([]);
+    // A problem that goes unknown is no longer firing and not resolved.
+    expect(
+      deriveOpsAlerts(
+        parse([
+          transition(1, "a.job", null, "failing"),
+          transition(2, "a.job", "failing", "unknown"),
+        ]),
+      ),
+    ).toEqual([]);
+  });
+
+  it("derives the fixture's alerts", () => {
+    const log = appendOpsEvents(
+      EMPTY_EVENT_LOG,
+      parseOpsEvents(fixture, 0).items,
+    );
+    expect(
+      deriveOpsAlerts(log.transitions).map((alert) => [
+        alert.subject,
+        alert.status,
+      ]),
+    ).toEqual([
+      ["keepalive.onepassword-connect", "firing"],
+      ["pc.inference", "firing"],
+      ["pc.snapshot", "firing"],
+      ["agents.sync", "resolved"],
+      ["pc.writer", "resolved"],
+    ]);
+  });
+});
+
+describe("activity wording", () => {
+  const [event] = parseOpsEvents(envelope([access(1)]), 0)
+    .items as OpsAccessEvent[];
+
+  it("reads access rows as route, status and latency", () => {
+    expect(opsAccessSummary(event!)).toBe("Data search, 200, 84 ms");
+    expect(opsAccessSummary({ ...event!, device: "ap-pro" })).toBe(
+      "Data search, 200, 84 ms, ap-pro",
+    );
+    expect(opsRouteLabel("data.get")).toBe("Data record");
+    expect(opsRouteLabel("ops.events")).toBe("Ops events");
+    expect(opsRouteLabel("brand.new")).toBe("brand.new");
+  });
+
+  it("names sources by catalog group, reader access and kind", () => {
+    const catalog = new Map([
+      ["pc.writer", { group: "personal context" } as OpsCatalogEntry],
+    ]);
+    expect(opsActivitySource(event!, catalog)).toEqual({
+      id: "access",
+      label: "Reader access",
+    });
+    const [writer, stranger, deploy] = parseOpsEvents(
+      envelope([
+        transition(1, "pc.writer", null, "ok"),
+        transition(2, "x.job", null, "ok"),
+        { ...access(3), kind: "deploy", status: null, ms: null },
+      ]),
+      0,
+    ).items;
+    expect(opsActivitySource(writer!, catalog)).toEqual({
+      id: "group:personal context",
+      label: "Personal context",
+    });
+    expect(opsActivitySource(stranger!, catalog).label).toBe(
+      "Not in the catalog",
+    );
+    expect(opsActivitySource(deploy!, catalog)).toEqual({
+      id: "kind:deploy",
+      label: "Deploy",
+    });
+  });
+});

@@ -125,7 +125,7 @@ function record(value: unknown): Record<string, unknown> {
 }
 
 /** Exactly these keys: a missing field and an unknown field both reject. */
-function exact(
+export function exact(
   value: unknown,
   keys: readonly string[],
 ): Record<string, unknown> {
@@ -140,7 +140,7 @@ function exact(
 }
 
 /** C0, DEL, C1 and the Unicode line and paragraph separators. */
-function hasControlCharacter(value: string): boolean {
+export function hasControlCharacter(value: string): boolean {
   for (let index = 0; index < value.length; index++) {
     const code = value.charCodeAt(index);
     if (
@@ -155,7 +155,7 @@ function hasControlCharacter(value: string): boolean {
 }
 
 /** Non-empty, bounded, single-line text with no control characters. */
-function text(value: unknown, max: number): string {
+export function text(value: unknown, max: number): string {
   if (
     typeof value !== "string" ||
     value.length === 0 ||
@@ -167,7 +167,10 @@ function text(value: unknown, max: number): string {
   return value;
 }
 
-function member<T extends string>(value: unknown, allowed: readonly T[]): T {
+export function member<T extends string>(
+  value: unknown,
+  allowed: readonly T[],
+): T {
   if (typeof value !== "string" || !allowed.includes(value as T)) fail();
   return value as T;
 }
@@ -175,7 +178,7 @@ function member<T extends string>(value: unknown, allowed: readonly T[]): T {
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 
 /** UTC `YYYY-MM-DDTHH:MM:SSZ` that names a real instant. */
-function timestamp(value: unknown): string {
+export function timestamp(value: unknown): string {
   if (typeof value !== "string" || !TIMESTAMP.test(value)) fail();
   const ms = Date.parse(value);
   if (
@@ -194,7 +197,7 @@ function optionalTimestamp(value: unknown, notAfter: number): string | null {
   return result;
 }
 
-function integer(value: unknown, min: number, max: number): number {
+export function integer(value: unknown, min: number, max: number): number {
   if (
     typeof value !== "number" ||
     !Number.isSafeInteger(value) ||

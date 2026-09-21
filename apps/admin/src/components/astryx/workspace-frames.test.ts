@@ -5,7 +5,7 @@ const read = (path: string) =>
   readFileSync(new URL(path, import.meta.url), "utf8").replace(/\s+/g, " ");
 const editorial = read("../../styles/editorial.css");
 const operations = read("./operations-workspace.css");
-const life = read("../life/life-workspace.css");
+const kit = read("../workspace/workspace.css");
 const header = read("./WorkspaceHeader.css");
 const block = (css: string, query: string) => {
   const start = css.indexOf(`@media ${query} {`);
@@ -23,36 +23,38 @@ describe("workspace page frames", () => {
     expect(editorial).toContain(
       ".editorial-workspace-shell .admin-page-frame { padding-block: var(--spacing-6); padding-inline: clamp(var(--spacing-4), 3vw, var(--spacing-12));",
     );
-    expect(life).toContain(
-      ".editorial-workspace-shell .admin-page-frame:has(.life-workspace) { padding: 0; }",
-    );
+    // Data and Observability pages sit in that frame as they are; neither
+    // resets it to set a gutter of its own.
+    for (const css of [kit, operations])
+      expect(css).not.toContain("admin-page-frame");
   });
 
-  it("keeps the Content library's phone columns out of Operations", () => {
+  it("hides phone columns only through the shared table", () => {
     const phone = block(editorial, "(max-width: 480px)");
     for (const rule of phone.matchAll(/([^{}]+)\{[^}]*display: none/g)) {
       const selectors = rule[1]!.split(",").map((part) => part.trim());
       for (const selector of selectors.filter((part) =>
         part.includes("editorial-record-table"),
       ))
-        expect(selector).toMatch(/^\.editorial-library /);
+        expect(selector).toMatch(/^\.workspace-table /);
     }
   });
 
-  it("moves Operations state under the name on phones instead of hiding it", () => {
-    expect(operations).toContain(
-      ".operations-workspace .ops-mobile-status { display: none; }",
+  it("moves every table's middle columns under its title on phones", () => {
+    expect(editorial).toContain(
+      ".workspace-table .editorial-record-table :is(th, td):nth-child(n + 2):nth-last-child(n + 2) { display: none; }",
     );
-    const phone = block(operations, "(max-width: 640px)");
-    expect(phone).toContain(".ops-status-table td:nth-child(n + 2)");
-    // Group header rows span 999 columns; the name column must claim the width.
-    expect(phone).toContain(
-      ".ops-status-table th:first-child { width: 100% !important;",
+    expect(editorial).toContain(
+      ".workspace-table .editorial-mobile-status { display: flex; }",
     );
-    expect(phone).toContain(
-      ".operations-workspace .ops-mobile-status { display: flex; }",
+    // Observability keeps no column rules of its own.
+    expect(operations).not.toMatch(
+      /nth-child|ops-status-table|ops-mobile-status/,
     );
-    expect(operations).toContain("word-break: normal;");
+    // Workspace themes cannot tint a table apart from the others.
+    expect(kit).toContain(
+      ".workspace-table .astryx-base-table:not(#\\#):not(#\\#) { background: transparent; }",
+    );
   });
 
   it("keeps every sidebar icon on one centerline", () => {
@@ -104,22 +106,22 @@ describe("workspace page frames", () => {
     // Cells carry their own inset; only the cell holding the tallest control
     // goes without, so rows stay one control tall.
     expect(library).toContain(
-      ".editorial-library .editorial-record-table .astryx-table-cell { vertical-align: middle; padding-block: var(--spacing-1); }",
+      ".workspace-table .editorial-record-table .astryx-table-cell { vertical-align: middle; padding-block: var(--spacing-1); }",
     );
     expect(library).toContain(
-      ".editorial-library .editorial-record-table .astryx-table-cell:last-child { padding-block: 0; }",
+      ".workspace-table .editorial-record-table .astryx-table-cell:last-child { padding-block: 0; }",
     );
     expect(library).toContain(
       "min-height: var(--spacing-7); justify-content: flex-start; padding-block: var(--spacing-1); padding-inline: var(--spacing-2);",
     );
     for (const rule of [
-      ".editorial-library .editorial-record-summary,",
-      ".editorial-library .editorial-record-state > .astryx-token:not(#\\#):not(#\\#):not(#\\#) { flex: 0 0 auto; }",
+      ".workspace-table .editorial-record-summary,",
+      ".workspace-table .editorial-record-state > .astryx-token:not(#\\#):not(#\\#):not(#\\#) { flex: 0 0 auto; }",
     ])
       expect(library).toContain(rule);
     // The phone row keeps its state under the title and gets the room for it.
     expect(library).toContain(
-      ".editorial-library .editorial-record-table .astryx-table-cell { padding-block: var(--spacing-2); }",
+      ".workspace-table .editorial-record-table .astryx-table-cell { padding-block: var(--spacing-2); }",
     );
     expect(library).toContain(
       ":is(th, td):nth-child(n + 2):nth-last-child(n + 2) { display: none; }",

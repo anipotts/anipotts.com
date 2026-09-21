@@ -136,11 +136,11 @@ describe("server-rendered Astryx relationship attributes", () => {
     expect(danglingRelationships(html)).toEqual([]);
   });
 
-  it("renders the Operations workspace without dangling references", () => {
+  it("renders the Observability workspace without dangling references", () => {
     const html = serverMarkup(
       <ObservabilityWorkspace enabled={false} fixture={opsSample} />,
     );
-    expect(html).toContain('aria-label="Services by group"');
+    expect(html).toContain('aria-label="personal context services"');
     expect(danglingRelationships(html)).toEqual([]);
   });
 

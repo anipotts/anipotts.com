@@ -305,6 +305,8 @@ describe("ops status polling", () => {
       connection: "ended",
       snapshot: null,
       checkedAt: null,
+      events: null,
+      eventsStale: false,
     });
     await vi.advanceTimersByTimeAsync(OPS_POLL_MS * 2);
     expect(h.snapshotRequests).toHaveLength(1);
@@ -399,6 +401,157 @@ describe("ops status polling", () => {
     await flush();
     expect(controller.getState().connection).toBe("unreachable");
     expect(h.snapshotRequests).toHaveLength(0);
+    controller.dispose();
+  });
+});
+
+describe("ops events polling", () => {
+  let hidden = false;
+  const item = (seq: number) => ({
+    seq,
+    at: "2026-09-21T17:00:00Z",
+    kind: "access",
+    subject: "data.search",
+    from_state: null,
+    to_state: null,
+    status: 200,
+    ms: 10 + seq,
+    detail: null,
+  });
+  const page = (items: unknown[], nextAfter: number | null) =>
+    new Response(
+      JSON.stringify({
+        version: "ops_events_v1",
+        items,
+        next_after: nextAfter,
+      }),
+      { headers: { "content-type": "application/json" } },
+    );
+  function eventsHarness(
+    pages: Record<number, () => Response | Promise<Response>>,
+  ) {
+    const afters: number[] = [];
+    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input), "https://admin.invalid");
+      if (String(input) === OPS_CREDENTIAL_ENDPOINT)
+        return Response.json({
+          credential: "cred",
+          scope: ["ops:read"],
+          expiresAt: Math.floor(Date.now() / 1000) + 60,
+        });
+      if (url.pathname === OPS_SNAPSHOT_PATH)
+        return new Response(body, {
+          headers: { "content-type": "application/json", etag: '"v1"' },
+        });
+      expect(url.origin).toBe(PRIVATE_READER_ORIGIN);
+      expect(url.pathname).toBe("/v1/ops/events");
+      expect([...url.searchParams.keys()]).toEqual(["after", "limit"]);
+      const after = Number(url.searchParams.get("after"));
+      afters.push(after);
+      const reply = pages[after];
+      if (!reply) throw new TypeError("network down");
+      return reply();
+    }) as unknown as typeof globalThis.fetch;
+    const session = createPrivateReaderSession({
+      fetch,
+      csrf: async () => "csrf-token",
+      endpoint: OPS_CREDENTIAL_ENDPOINT,
+    });
+    const controller = createOpsStatusController({
+      session,
+      fetch,
+      isHidden: () => hidden,
+      events: true,
+    });
+    return { controller, afters };
+  }
+  const flush = () => vi.advanceTimersByTimeAsync(0);
+  beforeEach(() => {
+    hidden = false;
+  });
+
+  it("pages the feed with the after cursor until next_after is null", async () => {
+    const { controller, afters } = eventsHarness({
+      0: () => page([item(1), item(2)], 2),
+      2: () => page([item(3)], null),
+      3: () => page([], null),
+    });
+    expect(controller.getState().events?.cursor).toBe(0);
+    controller.start();
+    await flush();
+    expect(afters).toEqual([0, 2]);
+    const events = controller.getState().events!;
+    expect(events.cursor).toBe(3);
+    expect(events.recent.map((event) => event.seq)).toEqual([1, 2, 3]);
+    expect(controller.getState().eventsStale).toBe(false);
+    // The next poll continues from the last seq held, never from zero.
+    await vi.advanceTimersByTimeAsync(OPS_POLL_MS);
+    expect(afters).toEqual([0, 2, 3]);
+    controller.dispose();
+  });
+
+  it("keeps what was read when a later page fails and marks events stale", async () => {
+    const { controller, afters } = eventsHarness({
+      0: () => page([item(1), item(2)], 2),
+      2: () => new Response(null, { status: 503 }),
+    });
+    controller.start();
+    await flush();
+    expect(afters).toEqual([0, 2]);
+    const state = controller.getState();
+    expect(state.events?.cursor).toBe(2);
+    expect(state.events?.recent).toHaveLength(2);
+    expect(state.eventsStale).toBe(true);
+    // The snapshot is unaffected by an events failure.
+    expect(state.connection).toBe("connected");
+    expect(state.snapshot).not.toBeNull();
+    controller.dispose();
+  });
+
+  it("drops a page that breaks the contract and starts over", async () => {
+    const { controller } = eventsHarness({
+      0: () => page([{ ...item(1), extra: true }], null),
+    });
+    controller.start();
+    await flush();
+    expect(controller.getState().events).toEqual({
+      cursor: 0,
+      transitions: [],
+      recent: [],
+    });
+    expect(controller.getState().eventsStale).toBe(true);
+    controller.dispose();
+  });
+
+  it("clears the events on logout", async () => {
+    const { controller } = eventsHarness({
+      0: () => page([item(1)], null),
+      1: () => page([], null),
+    });
+    controller.start();
+    await flush();
+    expect(controller.getState().events?.recent).toHaveLength(1);
+    controller.end();
+    expect(controller.getState()).toMatchObject({
+      connection: "ended",
+      snapshot: null,
+      events: { cursor: 0, transitions: [], recent: [] },
+      eventsStale: false,
+    });
+  });
+
+  it("reads no events for a view that did not ask for them", async () => {
+    const h = harness();
+    const controller = createOpsStatusController({
+      session: h.session,
+      fetch: h.fetch,
+      isHidden: () => hidden,
+    });
+    h.replies.push(ok());
+    controller.start();
+    await flush();
+    expect(controller.getState().events).toBeNull();
+    expect(h.snapshotRequests).toHaveLength(1);
     controller.dispose();
   });
 });

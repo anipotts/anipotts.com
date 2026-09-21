@@ -1,0 +1,43 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { ObservabilityWorkspace } from "../../components/astryx/ObservabilityWorkspace";
+import { privateReaderOpsEnabled } from "../../lib/private-reader-credential";
+
+// Status, Activity and Alerts. Every other segment is not a view.
+const titles = { status: "Status", activity: "Activity", alerts: "Alerts" };
+const view = Astro.params.view ?? "";
+if (!Object.hasOwn(titles, view))
+  return new Response("Not found", { status: 404 });
+const key = view as keyof typeof titles;
+
+// Off unless PRIVATE_READER_ENABLED and PRIVATE_READER_OPS_ENABLED are both
+// exactly "true". The Data flag alone never turns on ops reads. The server
+// makes no read; the browser reads System's snapshot and events with an
+// ops:read credential only when this is on.
+const enabled = privateReaderOpsEnabled(Astro.locals.runtime?.env ?? {});
+
+// Development only: `?fixture=ops_v1` (or `synthetic`) previews System's
+// snapshot sample with a synthetic events page. `import.meta.env.DEV` is
+// false in builds, so neither fixture ships.
+const requested = Astro.url.searchParams.get("fixture");
+const fixtures =
+  import.meta.env.DEV && (requested === "ops_v1" || requested === "synthetic")
+    ? {
+        snapshot: (await import("../../fixtures/ops_v1.sample.json")).default,
+        events: (await import("../../fixtures/ops_events_v1.synthetic.json"))
+          .default,
+      }
+    : undefined;
+Astro.response.headers.set("Cache-Control", "private, no-store");
+---
+
+<AdminLayout title={titles[key]} hideHeader>
+  <ObservabilityWorkspace
+    view={key}
+    enabled={enabled}
+    fixture={fixtures?.snapshot}
+    eventsFixture={fixtures?.events}
+    renderedAt={Date.now()}
+    client:load
+  />
+</AdminLayout>

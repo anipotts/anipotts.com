@@ -1,137 +1,30 @@
+/* Observability draws with the workspace kit; only ops marks live here. */
 .operations-workspace {
-  container-type: inline-size;
-}
-
-.admin-page-frame:has(.operations-workspace) {
-  padding: 0;
-}
-
-/* Status shares the Content library's page frame and table rhythm. */
-.operations-workspace .astryx-layout-content {
-  padding: var(--spacing-6) clamp(var(--spacing-4), 3vw, var(--spacing-12));
-}
-
-.operations-workspace .operations-header {
-  min-height: var(--size-element-sm);
-}
-
-.operations-workspace .ops-summary {
-  font-variant-numeric: tabular-nums;
-}
-
-/* Hosts: tonal tiles, no rules or outlines. */
-.operations-workspace .ops-host-strip {
-  display: grid;
-  grid-template-columns: repeat(
-    auto-fill,
-    minmax(min(100%, calc(var(--spacing-12) * 5)), 1fr)
-  );
-  gap: var(--spacing-3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.operations-workspace .ops-host {
   min-width: 0;
-  padding: var(--spacing-4);
-  border-radius: var(--radius-container);
-  background: var(--color-background-muted);
-  overflow-wrap: anywhere;
 }
-
 .operations-workspace .ops-state {
-  min-height: var(--spacing-6);
+  display: inline-flex;
 }
-
 .operations-workspace .ops-asleep-mark {
-  width: var(--spacing-4);
-  height: var(--spacing-4);
+  width: var(--spacing-3);
+  height: var(--spacing-3);
   flex-shrink: 0;
   color: var(--color-text-secondary);
 }
-
 .operations-workspace .ops-id {
-  overflow-wrap: anywhere;
+  font-family: var(--font-family-code, ui-monospace, monospace);
+  font-size: 0.92em;
 }
-
-.operations-workspace .editorial-record-table {
-  background: transparent;
-}
-
-.operations-workspace .editorial-record-table .astryx-table-header-cell,
-.operations-workspace .editorial-record-table .astryx-table-cell {
-  padding-inline: var(--spacing-3);
-  background: transparent;
-}
-
-.operations-workspace .editorial-record-table .astryx-table-header-cell {
-  padding-block: var(--spacing-2);
-  color: var(--color-text-secondary);
-  text-transform: none;
-}
-
-.operations-workspace .editorial-record-table .astryx-table-cell {
-  padding-block: var(--spacing-3);
-  vertical-align: top;
-  word-break: normal;
-  overflow-wrap: break-word;
-}
-
-/* Astryx rules off each group header row; the tonal row is enough. */
-.operations-workspace .ops-status-table tr[aria-expanded] {
-  border-bottom: 0;
-}
-
-/* Group headers and runbook links meet the 36px desktop target. */
-.operations-workspace .ops-status-table tr[aria-expanded] button {
-  min-width: var(--spacing-9);
-  min-height: var(--spacing-9);
-}
-
-/* The text sits on the row's first line; the target extends below it. */
-.operations-workspace .ops-runbook {
+/* The runbook link keeps the 36px desktop and 44px touch target. */
+.operations-workspace .ops-runbook,
+.admin-overview .ops-runbook {
   display: inline-flex;
-  align-items: flex-start;
+  align-items: center;
   min-height: var(--spacing-9);
 }
-
-.operations-workspace .ops-mobile-status {
-  display: none;
-}
-
 @media (pointer: coarse) {
-  .operations-workspace .ops-status-table tr[aria-expanded] button {
-    min-width: var(--spacing-11);
+  .operations-workspace .ops-runbook,
+  .admin-overview .ops-runbook {
     min-height: var(--spacing-11);
-  }
-  .operations-workspace .ops-runbook {
-    min-height: var(--spacing-11);
-  }
-}
-
-/* On phones state, last success and the runbook move under the name, like
-   the Content library keeps status with its title, and the other columns
-   drop out. Exit code and owner stay on wider screens. */
-@media (max-width: 640px) {
-  .operations-workspace .astryx-layout-content {
-    padding-block: var(--spacing-4);
-    padding-inline: var(--spacing-4);
-  }
-  .operations-workspace .editorial-record-table {
-    min-width: 0 !important;
-  }
-  /* Group header rows span 999 columns, so an auto width would be shared
-     with columns that do not exist. The name column takes all of it. */
-  .operations-workspace .ops-status-table th:first-child {
-    width: 100% !important;
-    min-width: 0 !important;
-  }
-  .operations-workspace .ops-status-table th:nth-child(n + 2),
-  .operations-workspace .ops-status-table td:nth-child(n + 2) {
-    display: none;
-  }
-  .operations-workspace .ops-mobile-status {
-    display: flex;
   }
 }

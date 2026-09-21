@@ -15,6 +15,16 @@ import {
   parseOpsSnapshotBytes,
   type OpsSnapshot,
 } from "./ops-v1";
+import {
+  EMPTY_EVENT_LOG,
+  OPS_EVENTS_BOUNDS,
+  OPS_EVENTS_PAGES_PER_READ,
+  appendOpsEvents,
+  opsEventsPath,
+  parseOpsEventsBytes,
+  type OpsEventLog,
+  type OpsEventsPage,
+} from "./ops-events";
 
 /**
  * Browser read path for System's ops_v1 snapshot, modelled on the Data reader.
@@ -60,13 +70,16 @@ function opsScoped(session: BearerSource): boolean {
   );
 }
 
-async function readBounded(response: Response): Promise<Uint8Array> {
+async function readBounded(
+  response: Response,
+  maxBytes: number,
+): Promise<Uint8Array> {
   const type = response.headers.get("content-type")?.toLowerCase() ?? "";
   const declared = Number(response.headers.get("content-length") ?? "0");
   if (
     !type.includes("application/json") ||
     !response.body ||
-    declared > OPS_V1_BOUNDS.maxBytes
+    declared > maxBytes
   ) {
     discardBody(response);
     throw new OpsSnapshotError();
@@ -79,7 +92,7 @@ async function readBounded(response: Response): Promise<Uint8Array> {
       const next = await reader.read();
       if (next.done) break;
       length += next.value.byteLength;
-      if (length > OPS_V1_BOUNDS.maxBytes) throw new OpsSnapshotError();
+      if (length > maxBytes) throw new OpsSnapshotError();
       chunks.push(next.value);
     }
   } finally {
@@ -95,19 +108,21 @@ async function readBounded(response: Response): Promise<Uint8Array> {
   return bytes;
 }
 
+type ReadOptions = { fetch?: typeof fetch; signal?: AbortSignal };
+
 /**
- * One conditional snapshot GET. A 401 renews the credential once and retries;
- * a second 401 clears the session. A 304 is only accepted for a request that
- * sent an ETag.
+ * One ops:read GET. A 401 renews the credential once and retries; a second
+ * 401 clears the session. Returns the successful or 304 response; any other
+ * status throws.
  */
-export async function readOpsSnapshot(
+async function opsGet(
   session: BearerSource,
-  etag: string | null,
-  options: { fetch?: typeof fetch; signal?: AbortSignal } = {},
-): Promise<OpsSnapshotRead> {
-  const url = new URL(OPS_SNAPSHOT_PATH, PRIVATE_READER_ORIGIN).href;
+  path: string,
+  headers: Record<string, string>,
+  options: ReadOptions,
+): Promise<Response> {
+  const url = new URL(path, PRIVATE_READER_ORIGIN).href;
   const fetcher = options.fetch ?? ((...args) => globalThis.fetch(...args));
-  const conditional = validEtag(etag);
   let renewed = false;
   for (;;) {
     if (session.getState().status === "ready" && !opsScoped(session)) {
@@ -117,10 +132,7 @@ export async function readOpsSnapshot(
     const bearer = session.bearer();
     if (!bearer) throw new PrivateReaderError(401, "expired");
     const init = privateReaderInit(bearer, options.signal);
-    init.headers = {
-      ...(init.headers as Record<string, string>),
-      ...(conditional ? { "If-None-Match": conditional } : {}),
-    };
+    init.headers = { ...(init.headers as Record<string, string>), ...headers };
     const response = await fetcher(url, init);
     if (session.getState().status !== "ready") {
       discardBody(response);
@@ -137,24 +149,63 @@ export async function readOpsSnapshot(
       if (next.status !== "ready") throw new PrivateReaderError(401);
       continue;
     }
-    if (response.status === 304) {
-      discardBody(response);
-      if (!conditional) throw new PrivateReaderError(502, "unavailable");
-      return { kind: "not-modified" };
-    }
-    if (!response.ok) {
-      discardBody(response);
-      throw new PrivateReaderError(response.status);
-    }
-    const snapshot = parseOpsSnapshotBytes(await readBounded(response));
-    if (session.getState().status !== "ready")
-      throw new PrivateReaderError(401, "expired");
-    return {
-      kind: "snapshot",
-      snapshot,
-      etag: validEtag(response.headers.get("etag")),
-    };
+    if (response.status === 304 || response.ok) return response;
+    discardBody(response);
+    throw new PrivateReaderError(response.status);
   }
+}
+
+/**
+ * One conditional snapshot GET. A 304 is only accepted for a request that
+ * sent an ETag.
+ */
+export async function readOpsSnapshot(
+  session: BearerSource,
+  etag: string | null,
+  options: ReadOptions = {},
+): Promise<OpsSnapshotRead> {
+  const conditional = validEtag(etag);
+  const response = await opsGet(
+    session,
+    OPS_SNAPSHOT_PATH,
+    conditional ? { "If-None-Match": conditional } : {},
+    options,
+  );
+  if (response.status === 304) {
+    discardBody(response);
+    if (!conditional) throw new PrivateReaderError(502, "unavailable");
+    return { kind: "not-modified" };
+  }
+  const snapshot = parseOpsSnapshotBytes(
+    await readBounded(response, OPS_V1_BOUNDS.maxBytes),
+  );
+  if (session.getState().status !== "ready")
+    throw new PrivateReaderError(401, "expired");
+  return {
+    kind: "snapshot",
+    snapshot,
+    etag: validEtag(response.headers.get("etag")),
+  };
+}
+
+/** One events page after `after`, oldest first. */
+export async function readOpsEvents(
+  session: BearerSource,
+  after: number,
+  options: ReadOptions = {},
+): Promise<OpsEventsPage> {
+  const response = await opsGet(session, opsEventsPath(after), {}, options);
+  if (response.status === 304) {
+    discardBody(response);
+    throw new PrivateReaderError(502, "unavailable");
+  }
+  const page = parseOpsEventsBytes(
+    await readBounded(response, OPS_EVENTS_BOUNDS.maxBytes),
+    after,
+  );
+  if (session.getState().status !== "ready")
+    throw new PrivateReaderError(401, "expired");
+  return page;
 }
 
 /**
@@ -181,6 +232,10 @@ export type OpsStatusState = {
   snapshot: OpsSnapshot | null;
   /** When the reader last confirmed the snapshot, by 200 or 304. */
   checkedAt: number | null;
+  /** Events read so far, for a view that asked for them; null otherwise. */
+  events: OpsEventLog | null;
+  /** The last events read failed; what is held is the last good read. */
+  eventsStale: boolean;
 };
 
 type Timer = ReturnType<typeof setTimeout>;
@@ -194,6 +249,8 @@ export type OpsStatusOptions = {
   clearTimer?: (timer: Timer) => void;
   pollMs?: number;
   timeoutMs?: number;
+  /** Also read the events feed on every poll (Activity, Alerts, overview). */
+  events?: boolean;
 };
 
 export function createOpsStatusController(options: OpsStatusOptions) {
@@ -205,10 +262,13 @@ export function createOpsStatusController(options: OpsStatusOptions) {
   const pollMs = options.pollMs ?? OPS_POLL_MS;
   const timeoutMs = options.timeoutMs ?? OPS_READ_TIMEOUT_MS;
   const listeners = new Set<() => void>();
+  const withEvents = options.events === true;
   let state: OpsStatusState = {
     connection: "idle",
     snapshot: null,
     checkedAt: null,
+    events: withEvents ? EMPTY_EVENT_LOG : null,
+    eventsStale: false,
   };
   let etag: string | null = null;
   let timer: Timer | null = null;
@@ -224,7 +284,13 @@ export function createOpsStatusController(options: OpsStatusOptions) {
   /** Private data never outlives the credential that read it. */
   function drop(connection: OpsConnection) {
     etag = null;
-    set({ connection, snapshot: null, checkedAt: null });
+    set({
+      connection,
+      snapshot: null,
+      checkedAt: null,
+      events: withEvents ? EMPTY_EVENT_LOG : null,
+      eventsStale: false,
+    });
   }
 
   function cancel() {
@@ -274,6 +340,7 @@ export function createOpsStatusController(options: OpsStatusOptions) {
           checkedAt: now(),
         });
       } else set({ connection: "connected", checkedAt: now() });
+      if (withEvents) await readEvents(controller.signal, current);
     } catch (error) {
       if (!current()) return;
       if (error instanceof OpsSnapshotError) drop("rejected");
@@ -301,6 +368,40 @@ export function createOpsStatusController(options: OpsStatusOptions) {
         inflight = null;
         schedule(pollMs);
       }
+    }
+  }
+
+  /** Pages after the held cursor. Each page is kept as it arrives, so a
+   * failure part way keeps what was read and the next poll continues. A
+   * page that breaks the contract clears the events and starts over. */
+  async function readEvents(signal: AbortSignal, current: () => boolean) {
+    for (let page = 0; page < OPS_EVENTS_PAGES_PER_READ; page++) {
+      const log = state.events ?? EMPTY_EVENT_LOG;
+      let read: OpsEventsPage;
+      try {
+        read = await readOpsEvents(session, log.cursor, {
+          fetch: options.fetch,
+          signal,
+        });
+      } catch (error) {
+        if (!current()) return;
+        if (error instanceof OpsSnapshotError) {
+          set({ events: EMPTY_EVENT_LOG, eventsStale: true });
+          return;
+        }
+        // Credential failures end or renew the session, as for the snapshot.
+        if (
+          error instanceof PrivateReaderError &&
+          ["forbidden", "unauthorized", "expired"].includes(error.failure)
+        )
+          throw error;
+        // Anything else leaves the snapshot alone: events are marked stale.
+        set({ eventsStale: true });
+        return;
+      }
+      if (!current()) return;
+      set({ events: appendOpsEvents(log, read.items), eventsStale: false });
+      if (read.nextAfter === null) return;
     }
   }
 
@@ -373,6 +474,8 @@ const OFF: OpsStatusState = Object.freeze({
   connection: "off",
   snapshot: null,
   checkedAt: null,
+  events: null,
+  eventsStale: false,
 }) as OpsStatusState;
 const offStore = {
   getState: () => OFF,
@@ -387,9 +490,12 @@ const offStore = {
 export function useOpsStatus({
   enabled,
   controller: injected,
+  events = false,
 }: {
   enabled: boolean;
   controller?: OpsStatusController;
+  /** Also read the events feed. */
+  events?: boolean;
 }): { state: OpsStatusState; controller: OpsStatusController | null } {
   const [controller] = useState<OpsStatusController | null>(() =>
     !enabled
@@ -401,6 +507,7 @@ export function useOpsStatus({
             csrf: readEditorialCsrf,
             endpoint: OPS_CREDENTIAL_ENDPOINT,
           }),
+          events,
         })),
   );
   useEffect(() => {
