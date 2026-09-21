@@ -1,9 +1,15 @@
 import { parseEditorialSource } from "@anipotts/content/editorial/source";
-export type ProjectSectionKind = "story" | "technical";
+export type ProjectSectionKind = "story" | "technical" | "roadmap";
 export type ProjectSectionEdit =
   | { type: "add"; kind: ProjectSectionKind }
   | { type: "remove"; kind: ProjectSectionKind; index: number }
   | { type: "move"; kind: ProjectSectionKind; index: number; direction: -1 | 1 }
+  | {
+      type: "roadmap-field";
+      index: number;
+      field: "text" | "status";
+      value: string;
+    }
   | { type: "paragraph"; index: number }
   | { type: "remove-paragraph"; index: number; paragraph: number };
 
@@ -14,7 +20,21 @@ export function editProjectSections(
 ): string {
   const parsed = parseEditorialSource(source);
   const data = parsed.data as Record<string, unknown>;
-  if (edit.type === "remove-paragraph") {
+  if (edit.type === "roadmap-field") {
+    if (
+      !Array.isArray(data.roadmap) ||
+      !Number.isInteger(edit.index) ||
+      edit.index < 0 ||
+      edit.index >= data.roadmap.length
+    )
+      return source;
+    if (
+      edit.field === "status" &&
+      !["planned", "in-progress", "done"].includes(edit.value)
+    )
+      return source;
+    parsed.document.setIn(["roadmap", edit.index, edit.field], edit.value);
+  } else if (edit.type === "remove-paragraph") {
     const stories = data.story;
     if (
       !Array.isArray(stories) ||
@@ -58,7 +78,9 @@ export function editProjectSections(
       parsed.document.createNode(
         edit.kind === "story"
           ? { title: "", paragraphs: [""] }
-          : { title: "", content: "" },
+          : edit.kind === "technical"
+            ? { title: "", content: "" }
+            : { text: "", status: "planned" },
       ),
     );
   } else if (edit.type === "remove") {

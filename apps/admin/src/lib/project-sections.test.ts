@@ -111,3 +111,49 @@ it("removes an added paragraph without losing its siblings or allowing an empty 
   ).toBe(single);
   expect(parseEditorialSource(single).body).toBe("Body");
 });
+
+it("edits roadmap status and ordering without changing other project data", () => {
+  const original =
+    "---\ntitle: Keep\nroadmap:\n  - text: First # retain\n    status: done\n---\nBody";
+  let source = editProjectSections(original, { type: "add", kind: "roadmap" });
+  source = editProjectSections(source, {
+    type: "roadmap-field",
+    index: 1,
+    field: "text",
+    value: "Next",
+  });
+  source = editProjectSections(source, {
+    type: "roadmap-field",
+    index: 1,
+    field: "status",
+    value: "in-progress",
+  });
+  expect(
+    editProjectSections(source, {
+      type: "roadmap-field",
+      index: 1,
+      field: "status",
+      value: "invalid",
+    }),
+  ).toBe(source);
+  source = editProjectSections(source, {
+    type: "move",
+    kind: "roadmap",
+    index: 1,
+    direction: -1,
+  });
+  expect((parseEditorialSource(source).data as any).roadmap).toEqual([
+    { text: "Next", status: "in-progress" },
+    { text: "First", status: "done" },
+  ]);
+  source = editProjectSections(source, {
+    type: "remove",
+    kind: "roadmap",
+    index: 0,
+  });
+  expect(parseEditorialSource(source).data).toEqual(
+    parseEditorialSource(original).data,
+  );
+  expect(source).toContain("# retain");
+  expect(parseEditorialSource(source).body).toBe("Body");
+});

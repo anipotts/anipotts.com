@@ -2,6 +2,8 @@ import React from "react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Button } from "@astryxdesign/core/Button";
+import { TextInput } from "@astryxdesign/core/TextInput";
+import { Selector } from "@astryxdesign/core/Selector";
 import { Text } from "@astryxdesign/core/Text";
 import { parseEditorialSource } from "@anipotts/content/editorial/source";
 import type { ProjectSectionEdit } from "../../lib/project-sections";
@@ -98,6 +100,72 @@ export function ProjectSections({
           </VStack>
         );
       })}
+      <Text>Roadmap</Text>
+      {(Array.isArray(data.roadmap)
+        ? (data.roadmap as Array<{ text?: string; status?: string }>)
+        : []
+      ).map((item, index, items) => (
+        <VStack key={index} gap={1}>
+          <TextInput
+            label={`Roadmap item ${index + 1}`}
+            value={item.text ?? ""}
+            isDisabled={disabled}
+            onChange={(value) =>
+              onEdit({ type: "roadmap-field", index, field: "text", value })
+            }
+          />
+          <HStack gap={1} wrap="wrap" vAlign="center">
+            <Selector
+              label={`Roadmap item ${index + 1} status`}
+              value={item.status ?? "planned"}
+              options={[
+                { value: "planned", label: "Planned" },
+                { value: "in-progress", label: "In progress" },
+                { value: "done", label: "Done" },
+              ]}
+              isDisabled={disabled}
+              onChange={(value) =>
+                onEdit({ type: "roadmap-field", index, field: "status", value })
+              }
+            />
+            <Button
+              label={`Move roadmap item ${index + 1} up`}
+              children="Up"
+              size="sm"
+              variant="ghost"
+              isDisabled={disabled || index === 0}
+              onClick={() =>
+                onEdit({ type: "move", kind: "roadmap", index, direction: -1 })
+              }
+            />
+            <Button
+              label={`Move roadmap item ${index + 1} down`}
+              children="Down"
+              size="sm"
+              variant="ghost"
+              isDisabled={disabled || index === items.length - 1}
+              onClick={() =>
+                onEdit({ type: "move", kind: "roadmap", index, direction: 1 })
+              }
+            />
+            <Button
+              label={`Remove roadmap item ${index + 1}`}
+              children="Remove item"
+              size="sm"
+              variant="ghost"
+              isDisabled={disabled}
+              onClick={() => onEdit({ type: "remove", kind: "roadmap", index })}
+            />
+          </HStack>
+        </VStack>
+      ))}
+      <Button
+        label="Add roadmap item"
+        size="sm"
+        variant="ghost"
+        isDisabled={disabled}
+        onClick={() => onEdit({ type: "add", kind: "roadmap" })}
+      />
     </VStack>
   );
 }
