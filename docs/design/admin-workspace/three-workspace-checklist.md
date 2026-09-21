@@ -303,3 +303,27 @@ These legacy routes still use the older diagnostic shell; retirement remains
 pending consumer and unique-record reconciliation. Source consumers include the
 old admin route registry and operation view links in content-editor.ts, so a blind
 redirect would lose diagnostic context.
+
+### Writing interaction and concurrent-tab acceptance, September 21
+
+Created only the synthetic local article `qa-writing-interactions-20260921`.
+Browser proof: HTML paste preserved bold, a safe HTTPS link, list structure and
+Unicode; Undo removed the paste and Redo restored it. Saved preview revision4
+showed the subtitle, opening note and body. Reload retained the same text.
+At320px, document width remained320 in dark/system and light themes; formatting
+controls wrapped and editor boundaries remained visible. Escape dismissed
+Document actions and returned focus to its trigger. Original System theme and
+normal viewport were restored.
+
+Two open tabs then saved competing opening notes. The stale tab correctly
+retained its draft and reported a conflict. This exposed a UI gap: normal
+revision conflicts showed only the server source while preview was open. The
+comparison now always shows Your retained draft alongside the saved source.
+Browser proof after the fix showed both exact versions; Keep my version saved
+revision6 and Retry preview displayed that revision. No public publication was
+attempted. Synthetic history is retained, not deleted.
+
+The focused recovery suite covers both sources after a review-triggered conflict;
+the browser check covers the preview-triggered conflict. Physical
+IME composition, actual mobile keyboard/suspension, screen-reader and zoom
+acceptance are still outstanding; Unicode paste is not IME proof.

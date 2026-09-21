@@ -644,6 +644,8 @@ it("names the version choice and download when leaving a conflict", async () => 
         )
       : undefined;
   await mount("Another edit was saved");
+  expect(sourceValue("Your retained draft")).toBe(mine);
+  expect(sourceValue("Saved on another tab or device")).toBe(saved.source);
   await act(async () => {
     navigation.navigateAdmin("/content");
   });

@@ -1914,14 +1914,12 @@ function HomeEditorImpl({
                   rows={5}
                 />
               )}
-              {needsSaveComparison && (
-                <TextArea
-                  label="Your retained draft"
-                  value={state.source}
-                  isReadOnly
-                  rows={5}
-                />
-              )}
+              <TextArea
+                label="Your retained draft"
+                value={state.source}
+                isReadOnly
+                rows={5}
+              />
               {!comparedDraft && (
                 <Text>
                   No saved draft is available to compare. Keep your version to
