@@ -60,7 +60,9 @@ describe("shared Operations and Life shell", () => {
       ),
     ).toEqual(["Content", "Data", "Observability"]);
     const links = [
-      ...navigation.querySelectorAll('a[data-sidebar-member="operations"]'),
+      ...navigation.querySelectorAll<HTMLAnchorElement>(
+        'a[data-sidebar-member="operations"]',
+      ),
     ];
     expect(links.map((link) => link.textContent)).toEqual([
       "Machines",
