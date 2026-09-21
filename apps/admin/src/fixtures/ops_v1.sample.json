@@ -10,67 +10,85 @@
    "host": "ap-mini",
    "owner": "system",
    "freshness_budget_s": 300,
-   "runbook": "docs/runbooks/ops-host.md"
+   "runbook": "docs/runbooks/ops-host.md",
+   "schedule": null
   },
   {
    "id": "health.api",
    "name": "health api",
-   "group": "services",
+   "group": "health ingest",
    "kind": "service",
    "host": "ap-mini",
    "owner": "health",
    "freshness_budget_s": null,
-   "runbook": "docs/runbooks/ops-mini.md"
+   "runbook": "docs/runbooks/ops-mini.md",
+   "schedule": "continuous"
+  },
+  {
+   "id": "health.ingest",
+   "name": "health data received",
+   "group": "health ingest",
+   "kind": "job",
+   "host": "ap-mini",
+   "owner": "health",
+   "freshness_budget_s": null,
+   "runbook": "docs/runbooks/ops-mini.md",
+   "schedule": "when the phone pushes"
   },
   {
    "id": "imessage.agent",
    "name": "imessage agent",
-   "group": "agents",
+   "group": "services",
    "kind": "service",
    "host": "ap-mini",
    "owner": "imessage-agent",
    "freshness_budget_s": null,
-   "runbook": "docs/runbooks/ops-mini.md"
+   "runbook": "docs/runbooks/ops-mini.md",
+   "schedule": "continuous"
   },
   {
    "id": "agents.sync",
    "name": "agent config sync",
-   "group": "agents",
+   "group": "services",
    "kind": "job",
    "host": "ap-mini",
    "owner": "agents",
    "freshness_budget_s": null,
-   "runbook": "docs/runbooks/ops-mini.md"
+   "runbook": "docs/runbooks/ops-mini.md",
+   "schedule": "every 10 min"
   },
   {
    "id": "keepalive.chatgpt",
    "name": "chatgpt session",
-   "group": "agents",
+   "group": "agent sessions",
    "kind": "job",
    "host": "ap-mini",
    "owner": "system/chief",
    "freshness_budget_s": 300,
-   "runbook": "docs/runbooks/ops-mini.md"
+   "runbook": "docs/runbooks/ops-mini.md",
+   "schedule": "every minute"
   },
   {
    "id": "keepalive.chrome-agent",
    "name": "chrome agent profile",
-   "group": "agents",
+   "group": "agent sessions",
    "kind": "job",
    "host": "ap-mini",
    "owner": "system/chief",
    "freshness_budget_s": 300,
-   "runbook": "docs/runbooks/ops-mini.md"
+   "runbook": "docs/runbooks/ops-mini.md",
+   "schedule": "every minute"
   },
   {
    "id": "keepalive.onepassword-connect",
    "name": "1password connect",
-   "group": "services",
+   "group": "agent sessions",
    "kind": "service",
    "host": "ap-mini",
    "owner": "system/chief",
    "freshness_budget_s": 900,
-   "runbook": "docs/runbooks/ops-mini.md"
+   "runbook": "docs/runbooks/ops-mini.md",
+   "schedule": "every 5 min"
   },
   {
    "id": "pc.browser",
@@ -80,7 +98,8 @@
    "host": "ap-mini",
    "owner": "memory",
    "freshness_budget_s": null,
-   "runbook": "docs/runbooks/ops-mini.md"
+   "runbook": "docs/runbooks/ops-mini.md",
+   "schedule": "continuous"
   },
   {
    "id": "pc.writer",
@@ -90,7 +109,8 @@
    "host": "ap-mini",
    "owner": "memory",
    "freshness_budget_s": 4500,
-   "runbook": "docs/runbooks/ops-mini.md"
+   "runbook": "docs/runbooks/ops-mini.md",
+   "schedule": "hourly"
   },
   {
    "id": "pc.inference",
@@ -100,7 +120,8 @@
    "host": "ap-mini",
    "owner": "memory",
    "freshness_budget_s": 93600,
-   "runbook": "docs/runbooks/ops-mini.md"
+   "runbook": "docs/runbooks/ops-mini.md",
+   "schedule": "nightly after 03:00"
   },
   {
    "id": "pc.snapshot",
@@ -110,7 +131,8 @@
    "host": "ap-mini",
    "owner": "memory",
    "freshness_budget_s": 93600,
-   "runbook": "docs/runbooks/ops-mini.md"
+   "runbook": "docs/runbooks/ops-mini.md",
+   "schedule": "daily 04:00"
   },
   {
    "id": "pc.reader",
@@ -120,7 +142,19 @@
    "host": "ap-mini",
    "owner": "memory",
    "freshness_budget_s": null,
-   "runbook": "docs/runbooks/ops-mini.md"
+   "runbook": "docs/runbooks/ops-mini.md",
+   "schedule": "continuous"
+  },
+  {
+   "id": "ops.sampler",
+   "name": "ops sampler",
+   "group": "services",
+   "kind": "job",
+   "host": "ap-mini",
+   "owner": "system",
+   "freshness_budget_s": 300,
+   "runbook": "docs/runbooks/ops-mini.md",
+   "schedule": "every minute"
   }
  ],
  "status": [
@@ -128,7 +162,7 @@
    "id": "host.ap-mini",
    "state": "ok",
    "detail": "disk 70% used",
-   "last_success_at": "2026-09-21T17:55:00Z",
+   "last_success_at": "2026-09-21T18:00:00Z",
    "last_run_at": null,
    "last_exit": null
   },
@@ -136,7 +170,15 @@
    "id": "health.api",
    "state": "ok",
    "detail": "running",
-   "last_success_at": "2026-09-21T17:55:00Z",
+   "last_success_at": "2026-09-21T18:00:00Z",
+   "last_run_at": null,
+   "last_exit": null
+  },
+  {
+   "id": "health.ingest",
+   "state": "unknown",
+   "detail": "file missing",
+   "last_success_at": null,
    "last_run_at": null,
    "last_exit": null
   },
@@ -144,14 +186,14 @@
    "id": "imessage.agent",
    "state": "ok",
    "detail": "running",
-   "last_success_at": "2026-09-21T17:55:00Z",
+   "last_success_at": "2026-09-21T18:00:00Z",
    "last_run_at": null,
    "last_exit": null
   },
   {
    "id": "agents.sync",
-   "state": "unknown",
-   "detail": "no observation",
+   "state": "ok",
+   "detail": "last run exited 0",
    "last_success_at": null,
    "last_run_at": null,
    "last_exit": 0
@@ -160,31 +202,31 @@
    "id": "keepalive.chatgpt",
    "state": "ok",
    "detail": "healthy",
-   "last_success_at": "2026-09-21T17:55:00Z",
-   "last_run_at": "2026-09-21T17:55:00Z",
+   "last_success_at": "2026-09-21T17:59:20Z",
+   "last_run_at": "2026-09-21T17:59:20Z",
    "last_exit": 0
   },
   {
    "id": "keepalive.chrome-agent",
    "state": "ok",
    "detail": "healthy",
-   "last_success_at": "2026-09-21T17:55:00Z",
-   "last_run_at": "2026-09-21T17:55:00Z",
+   "last_success_at": "2026-09-21T17:59:20Z",
+   "last_run_at": "2026-09-21T17:59:20Z",
    "last_exit": 0
   },
   {
    "id": "keepalive.onepassword-connect",
    "state": "degraded",
    "detail": "job last exit non-zero",
-   "last_success_at": "2026-09-21T17:55:00Z",
-   "last_run_at": "2026-09-21T17:55:00Z",
-   "last_exit": 0
+   "last_success_at": "2026-09-21T17:58:00Z",
+   "last_run_at": "2026-09-21T17:58:00Z",
+   "last_exit": 1
   },
   {
    "id": "pc.browser",
    "state": "ok",
    "detail": "running",
-   "last_success_at": "2026-09-21T17:55:00Z",
+   "last_success_at": "2026-09-21T18:00:00Z",
    "last_run_at": null,
    "last_exit": null
   },
@@ -192,37 +234,45 @@
    "id": "pc.writer",
    "state": "ok",
    "detail": "last pass completed",
-   "last_success_at": "2026-09-21T17:55:00Z",
-   "last_run_at": "2026-09-21T17:55:00Z",
+   "last_success_at": "2026-09-21T17:45:00Z",
+   "last_run_at": "2026-09-21T17:45:00Z",
    "last_exit": 0
   },
   {
    "id": "pc.inference",
    "state": "failing",
    "detail": "inference not ok",
-   "last_success_at": "2026-09-21T17:55:00Z",
-   "last_run_at": "2026-09-21T17:55:00Z",
+   "last_success_at": "2026-09-19T10:26:40Z",
+   "last_run_at": "2026-09-21T17:00:00Z",
    "last_exit": 0
   },
   {
    "id": "pc.snapshot",
    "state": "stale",
    "detail": "older than freshness budget",
-   "last_success_at": "2026-09-21T17:55:00Z",
-   "last_run_at": "2026-09-21T17:55:00Z",
+   "last_success_at": "2026-09-19T10:26:40Z",
+   "last_run_at": "2026-09-19T10:26:40Z",
    "last_exit": 0
   },
   {
    "id": "pc.reader",
    "state": "ok",
    "detail": "probe 401",
-   "last_success_at": "2026-09-21T17:55:00Z",
+   "last_success_at": "2026-09-21T18:00:00Z",
    "last_run_at": null,
    "last_exit": null
+  },
+  {
+   "id": "ops.sampler",
+   "state": "ok",
+   "detail": "file present",
+   "last_success_at": "2026-09-21T17:59:30Z",
+   "last_run_at": "2026-09-21T17:59:30Z",
+   "last_exit": 0
   }
  ],
  "counts": {
-  "ok": 8,
+  "ok": 10,
   "degraded": 1,
   "failing": 1,
   "stale": 1,

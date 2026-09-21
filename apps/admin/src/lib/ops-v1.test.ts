@@ -84,7 +84,7 @@ describe("contract client rules", () => {
     expect(health.missingStatus).toBe(true);
     expect(health.status.state).toBe("unknown");
     expect(health.status.last_success_at).toBeNull();
-    expect(opsRenderedCounts(services)).toMatchObject({ ok: 7, unknown: 2 });
+    expect(opsRenderedCounts(services)).toMatchObject({ ok: 9, unknown: 2 });
   });
 
   it("treats an empty status list as all unknown", () => {
@@ -132,17 +132,19 @@ describe("contract client rules", () => {
     rejects(missingId);
   });
 
-  it("accepts the optional schedule, bounded like other text", () => {
-    const value = fresh();
-    value.catalog[0].schedule = "daily 04:00";
-    value.catalog[1].schedule = "continuous";
-    const [first, second, third] = parseOpsSnapshot(value).catalog;
-    expect(first?.schedule).toBe("daily 04:00");
-    expect(second?.schedule).toBe("continuous");
-    expect(third && "schedule" in third).toBe(false);
+  it("requires schedule on every entry, as bounded text or null", () => {
+    const catalog = parseOpsSnapshot(fresh()).catalog;
+    expect(catalog.find((item) => item.id === "host.ap-mini")?.schedule).toBe(
+      null,
+    );
+    expect(catalog.find((item) => item.id === "pc.snapshot")?.schedule).toBe(
+      "daily 04:00",
+    );
+    const missing = fresh();
+    delete missing.catalog[1].schedule;
+    rejects(missing);
     for (const schedule of [
       "",
-      null,
       3600,
       " hourly",
       "x".repeat(OPS_V1_BOUNDS.scheduleMax + 1),
@@ -324,21 +326,36 @@ describe("rendering helpers", () => {
     const writer = services.find((item) => item.id === "pc.writer")!;
     expect(opsFreshness(writer, now)).toEqual({
       kind: "budget",
-      ageSeconds: 300,
+      ageSeconds: 900,
       budgetSeconds: 4500,
       overBudget: false,
     });
     const chatgpt = services.find((item) => item.id === "keepalive.chatgpt")!;
-    expect(opsFreshness(chatgpt, now + 1000)).toMatchObject({
+    expect(opsFreshness(chatgpt, now)).toMatchObject({ overBudget: false });
+    expect(opsFreshness(chatgpt, now + 300_000)).toMatchObject({
       overBudget: true,
     });
     const health = services.find((item) => item.id === "health.api")!;
     expect(opsFreshness(health, now)).toEqual({
       kind: "liveness",
-      ageSeconds: 300,
+      ageSeconds: 0,
     });
     const sync = services.find((item) => item.id === "agents.sync")!;
     expect(opsFreshness(sync, now)).toEqual({ kind: "never" });
+  });
+
+  it("never judges a null budget stale, however old the last success", () => {
+    const value = fresh();
+    value.status.find(
+      (row: Json) => row.id === "health.ingest",
+    ).last_success_at = "2026-09-01T00:00:00Z";
+    const ingest = opsServices(parseOpsSnapshot(value)).find(
+      (item) => item.id === "health.ingest",
+    )!;
+    expect(ingest.freshness_budget_s).toBeNull();
+    const freshness = opsFreshness(ingest, now);
+    expect(freshness.kind).toBe("liveness");
+    expect(freshness).not.toHaveProperty("overBudget");
   });
 
   it("formats durations compactly", () => {
@@ -387,54 +404,24 @@ describe("sampler freshness", () => {
 });
 
 describe("owner priority order", () => {
-  // System's announced group names, applied to the current fixture's ids so
-  // the rule is pinned before the regenerated fixture lands.
-  const SYSTEM_GROUPS: Record<string, string> = {
-    "host.ap-mini": "hosts",
-    "health.api": "services",
-    "imessage.agent": "services",
-    "agents.sync": "agent sessions",
-    "keepalive.chatgpt": "agent sessions",
-    "keepalive.chrome-agent": "agent sessions",
-    "keepalive.onepassword-connect": "agent sessions",
-    "pc.snapshot": "backups",
-  };
-  const regrouped = () => {
-    const value = fresh();
-    for (const item of value.catalog)
-      item.group = SYSTEM_GROUPS[item.id] ?? "personal context";
-    value.catalog.push({
-      ...value.catalog[1],
-      id: "health.ingest",
-      name: "health ingest",
-      group: "health ingest",
-    });
-    return value;
-  };
-
   it("orders personal context, backups, health ingest, agent sessions, services", () => {
-    const ordered = opsOrdered(opsServices(parseOpsSnapshot(regrouped())));
-    const groups = [...new Set(ordered.map((item) => item.group))];
-    expect(groups).toEqual([
+    const ordered = opsOrdered(opsServices(parseOpsSnapshot(fresh())));
+    const table = ordered.filter((item) => !opsIsHost(item));
+    expect([...new Set(table.map((item) => item.group))]).toEqual([
       "personal context",
       "backups",
       "health ingest",
       "agent sessions",
       "services",
-      "hosts",
     ]);
-    const services = ordered.filter((item) => item.group === "services");
-    expect(services.map((item) => item.id)).toEqual([
-      "health.api",
-      "imessage.agent",
-    ]);
-    expect(ordered.filter((item) => !opsIsHost(item)).at(-1)?.id).toBe(
-      "imessage.agent",
-    );
+    expect(
+      table.filter((item) => item.group === "services").map((item) => item.id),
+    ).toEqual(["agents.sync", "ops.sampler", "imessage.agent"]);
+    expect(table.at(-1)?.id).toBe("imessage.agent");
   });
 
   it("sends the hosts group and host-kind entries to the strip", () => {
-    const services = opsServices(parseOpsSnapshot(regrouped()));
+    const services = opsServices(parseOpsSnapshot(fresh()));
     expect(services.filter(opsIsHost).map((item) => item.id)).toEqual([
       "host.ap-mini",
     ]);
@@ -447,16 +434,16 @@ describe("owner priority order", () => {
   });
 
   it("places groups it does not know after the known ones, in catalog order", () => {
-    const value = regrouped();
+    const value = fresh();
     for (const [index, group] of ["zeta", "alpha"].entries())
       value.catalog.push({ ...value.catalog[1], id: `new.${index}`, group });
     const groups = [
       ...new Set(
-        opsOrdered(opsServices(parseOpsSnapshot(value))).map(
-          (item) => item.group,
-        ),
+        opsOrdered(opsServices(parseOpsSnapshot(value)))
+          .filter((item) => !opsIsHost(item))
+          .map((item) => item.group),
       ),
     ];
-    expect(groups.slice(-3)).toEqual(["hosts", "zeta", "alpha"]);
+    expect(groups.slice(-3)).toEqual(["services", "zeta", "alpha"]);
   });
 });

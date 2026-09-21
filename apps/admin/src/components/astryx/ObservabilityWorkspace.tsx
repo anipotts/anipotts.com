@@ -98,8 +98,10 @@ function Freshness({ service, now }: { service: OpsServiceView; now: number }) {
     <VStack gap={1}>
       <Text>{ago(freshness.ageSeconds)}</Text>
       {freshness.kind === "liveness" ? (
+        // A null budget is never judged stale: services by liveness, and
+        // irregular jobs (health ingest follows phone use) by age alone.
         <Text type="supporting" color="secondary">
-          Liveness only
+          {service.kind === "service" ? "Liveness only" : "No freshness budget"}
         </Text>
       ) : freshness.overBudget ? (
         <Text type="supporting" weight="semibold">

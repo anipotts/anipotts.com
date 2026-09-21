@@ -32,6 +32,14 @@ const rowFor = (host: HTMLElement, id: string) =>
   [...host.querySelectorAll("tbody tr")].find((row) =>
     row.textContent?.includes(id),
   ) as HTMLTableRowElement | undefined;
+const headers = (host: HTMLElement) =>
+  [...host.querySelectorAll("thead th")].map((th) => th.textContent);
+/** A cell by its column header, so optional columns never shift a test. */
+const cell = (host: HTMLElement, id: string, header: string) => {
+  const index = headers(host).indexOf(header);
+  expect(index, header).toBeGreaterThan(-1);
+  return rowFor(host, id)!.cells[index]!;
+};
 const stateCell = (row: HTMLTableRowElement) => row.cells[1]!;
 
 describe("Status view from System's fixture", () => {
@@ -45,16 +53,19 @@ describe("Status view from System's fixture", () => {
     expect(host.querySelectorAll("table")).toHaveLength(1);
     expect(rowFor(host, "host.ap-mini")).toBeUndefined();
     const groups = [...host.querySelectorAll("tbody tr[aria-expanded]")].map(
-      (row) => row.textContent,
+      (row) => row.textContent?.replace(/\d+ entr(y|ies)$/, ""),
     );
-    // Owner priority: Personal Context and its backups, then services
-    // (health), then agent sessions with the iMessage agent last.
-    expect(groups.map((text) => text?.replace(/\d+ entr(y|ies)$/, ""))).toEqual(
-      ["personal context", "backups", "services", "agents"],
-    );
+    expect(groups).toEqual([
+      "personal context",
+      "backups",
+      "health ingest",
+      "agent sessions",
+      "services",
+    ]);
     const bodyRows = [
       ...host.querySelectorAll("tbody tr:not([aria-expanded])"),
     ];
+    expect(bodyRows).toHaveLength(sample.catalog.length - 1);
     expect(bodyRows.at(-1)?.textContent).toContain("imessage.agent");
   });
 
@@ -64,21 +75,33 @@ describe("Status view from System's fixture", () => {
       "keepalive.onepassword-connect": "Degraded",
       "pc.inference": "Failing",
       "pc.snapshot": "Stale",
-      "agents.sync": "Unknown",
+      "health.ingest": "Unknown",
     };
     for (const [id, label] of Object.entries(expected)) {
-      const cell = stateCell(rowFor(host, id)!);
-      expect(cell.textContent).toContain(label);
-      const dot = cell.querySelector('[role="img"]')!;
+      const state = stateCell(rowFor(host, id)!);
+      expect(state.textContent).toContain(label);
+      const dot = state.querySelector('[role="img"]')!;
       expect(dot.getAttribute("aria-hidden")).toBe("true");
     }
     expect(host.querySelector(".ops-summary")?.textContent).toBe(
-      "12 entries: 8 ok, 1 degraded, 1 failing, 1 stale, 1 unknown",
+      "14 entries: 10 ok, 1 degraded, 1 failing, 1 stale, 1 unknown",
     );
   });
 
+  it("shows failing with exit 0 as System reports it, never inferring from the exit", () => {
+    expect(cell(host, "pc.inference", "State").textContent).toBe(
+      "Failinginference not ok",
+    );
+    expect(cell(host, "pc.inference", "Last exit").textContent).toBe("0");
+    expect(
+      cell(host, "pc.inference", "State")
+        .querySelector("[data-variant]")
+        ?.getAttribute("data-variant"),
+    ).toBe("error");
+  });
+
   it("never gives unknown the ok treatment", () => {
-    const unknown = stateCell(rowFor(host, "agents.sync")!);
+    const unknown = stateCell(rowFor(host, "health.ingest")!);
     const ok = stateCell(rowFor(host, "health.api")!);
     expect(
       unknown.querySelector("[data-variant]")?.getAttribute("data-variant"),
@@ -92,28 +115,55 @@ describe("Status view from System's fixture", () => {
   });
 
   it("measures last success against each entry's own budget", () => {
-    const writer = rowFor(host, "pc.writer")!;
-    expect(writer.cells[2]!.textContent).toBe("5m agoWithin its 1h 15m budget");
-    expect(rowFor(host, "health.api")!.cells[2]!.textContent).toBe(
-      "5m agoLiveness only",
+    expect(cell(host, "pc.writer", "Last success").textContent).toBe(
+      "15m agoWithin its 1h 15m budget",
     );
-    expect(rowFor(host, "agents.sync")!.cells[2]!.textContent).toBe(
+    expect(cell(host, "health.api", "Last success").textContent).toBe(
+      "just nowLiveness only",
+    );
+    expect(cell(host, "health.ingest", "Last success").textContent).toBe(
       "No success recorded",
     );
   });
 
-  it("shows exit, owner and a runbook link into System", () => {
-    const row = rowFor(host, "pc.writer")!;
-    expect(row.cells[3]!.textContent).toBe("0");
-    expect(row.cells[4]!.textContent).toBe("memory");
-    const link = row.cells[5]!.querySelector("a")!;
+  it("shows a null-budget job's age with no stale judgement", () => {
+    const value = fresh();
+    value.status.find(
+      (row: Json) => row.id === "health.ingest",
+    ).last_success_at = "2026-09-18T18:00:00Z";
+    const aged = render(value);
+    expect(cell(aged, "health.ingest", "Last success").textContent).toBe(
+      "3d agoNo freshness budget",
+    );
+    expect(cell(aged, "health.ingest", "Last success").textContent).not.toMatch(
+      /Over|budget [0-9]/,
+    );
+  });
+
+  it("shows schedule, exit, owner and a runbook link into System", () => {
+    expect(headers(host)).toEqual([
+      "Service",
+      "State",
+      "Last success",
+      "Schedule",
+      "Last exit",
+      "Owner",
+      "Runbook",
+    ]);
+    expect(cell(host, "pc.writer", "Schedule").textContent).toBe("hourly");
+    expect(cell(host, "health.ingest", "Schedule").textContent).toBe(
+      "when the phone pushes",
+    );
+    expect(cell(host, "pc.writer", "Last exit").textContent).toBe("0");
+    expect(cell(host, "pc.writer", "Owner").textContent).toBe("memory");
+    const link = cell(host, "pc.writer", "Runbook").querySelector("a")!;
     expect(link.getAttribute("href")).toBe(
       "https://github.com/anipotts/system/blob/main/docs/runbooks/ops-mini.md",
     );
     expect(link.getAttribute("aria-label")).toBe(
       "Runbook for personal context writer",
     );
-    expect(rowFor(host, "health.api")!.cells[3]!.textContent).toBe("None");
+    expect(cell(host, "health.api", "Last exit").textContent).toBe("None");
   });
 
   it("labels the source as the fixture, never as live", () => {
@@ -127,10 +177,10 @@ describe("Status view edge cases", () => {
   it("renders a missing status row as unknown", () => {
     const value = fresh();
     value.status = value.status.filter((row: Json) => row.id !== "pc.writer");
-    const cell = stateCell(rowFor(render(value), "pc.writer")!);
-    expect(cell.textContent).toBe("UnknownNo status row from System");
+    const state = stateCell(rowFor(render(value), "pc.writer")!);
+    expect(state.textContent).toBe("UnknownNo status row from System");
     expect(
-      cell.querySelector("[data-variant]")?.getAttribute("data-variant"),
+      state.querySelector("[data-variant]")?.getAttribute("data-variant"),
     ).toBe("neutral");
   });
 
@@ -146,6 +196,7 @@ describe("Status view edge cases", () => {
         owner: "system",
         freshness_budget_s: 300,
         runbook: "docs/runbooks/ops-host.md",
+        schedule: null,
       },
       {
         id: "web.site",
@@ -156,6 +207,7 @@ describe("Status view edge cases", () => {
         owner: "site",
         freshness_budget_s: 60,
         runbook: "https://example.com/runbook",
+        schedule: null,
       },
     );
     value.status.push(
@@ -179,29 +231,26 @@ describe("Status view edge cases", () => {
     const host = render(value);
     const strip = host.querySelector('ul[aria-label="Hosts"]')!;
     expect(strip.textContent).toContain("Asleep");
-    const web = rowFor(host, "web.site")!;
-    expect(web.cells[2]!.textContent).toBe("5m agoOver its 1m budget");
-    expect(web.cells[5]!.querySelector("a")?.getAttribute("href")).toBe(
-      "https://example.com/runbook",
+    expect(cell(host, "web.site", "Last success").textContent).toBe(
+      "5m agoOver its 1m budget",
     );
-    expect(host.textContent).toContain("a brand new group");
+    expect(cell(host, "web.site", "Schedule").textContent).toBe("Not set");
+    expect(
+      cell(host, "web.site", "Runbook")
+        .querySelector("a")
+        ?.getAttribute("href"),
+    ).toBe("https://example.com/runbook");
+    const groups = [...host.querySelectorAll("tbody tr[aria-expanded]")].map(
+      (row) => row.textContent?.replace(/\d+ entr(y|ies)$/, ""),
+    );
+    expect(groups.at(-1)).toBe("a brand new group");
   });
 
   it("shows the Schedule column only when an entry has a schedule", () => {
-    const headers = (host: HTMLElement) =>
-      [...host.querySelectorAll("thead th")].map((th) => th.textContent);
-    expect(headers(render(sample))).not.toContain("Schedule");
+    expect(headers(render(sample))).toContain("Schedule");
     const value = fresh();
-    value.catalog.find((item: Json) => item.id === "pc.writer").schedule =
-      "hourly";
-    const host = render(value);
-    const columns = headers(host);
-    expect(columns).toContain("Schedule");
-    const index = columns.indexOf("Schedule");
-    expect(rowFor(host, "pc.writer")!.cells[index]!.textContent).toBe("hourly");
-    expect(rowFor(host, "pc.browser")!.cells[index]!.textContent).toBe(
-      "Not set",
-    );
+    for (const item of value.catalog) item.schedule = null;
+    expect(headers(render(value))).not.toContain("Schedule");
   });
 
   it("puts entries in the hosts group in the strip, not the table", () => {
@@ -220,7 +269,7 @@ describe("Status view edge cases", () => {
     value.status.find((row: Json) => row.id === "health.api").state = "asleep";
     const host = render(value);
     const asleep = stateCell(rowFor(host, "health.api")!);
-    const unknown = stateCell(rowFor(host, "agents.sync")!);
+    const unknown = stateCell(rowFor(host, "health.ingest")!);
     const failing = stateCell(rowFor(host, "pc.inference")!);
     expect(asleep.textContent).toContain("Asleep");
     expect(asleep.querySelector("[data-variant]")).toBeNull();
@@ -259,7 +308,7 @@ describe("Status view edge cases", () => {
     );
     expect(host.textContent).toContain("none of it is current");
     expect(host.querySelector(".ops-summary")?.textContent).toBe(
-      "12 entries, none current until the sampler resumes",
+      "14 entries, none current until the sampler resumes",
     );
     // Nothing reads as ok: no success dot and no OK state label anywhere.
     expect(host.querySelector('[data-variant="success"]')).toBeNull();

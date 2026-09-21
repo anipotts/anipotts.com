@@ -59,8 +59,8 @@ export type OpsCatalogEntry = {
   owner: string;
   freshness_budget_s: number | null;
   runbook: string;
-  /** Optional short human string: "hourly", "daily 04:00", "continuous". */
-  schedule?: string;
+  /** Short human string ("hourly", "daily 04:00", "continuous") or null. */
+  schedule: string | null;
 };
 
 export type OpsStatusRow = {
@@ -102,6 +102,7 @@ const ENTRY_KEYS = [
   "owner",
   "freshness_budget_s",
   "runbook",
+  "schedule",
 ] as const;
 const ROW_KEYS = [
   "state",
@@ -123,19 +124,15 @@ function record(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-/**
- * Exactly these keys, plus any of `optional`: a missing required field and an
- * unknown field both reject.
- */
+/** Exactly these keys: a missing field and an unknown field both reject. */
 function exact(
   value: unknown,
   keys: readonly string[],
-  optional: readonly string[] = [],
 ): Record<string, unknown> {
   const object = record(value);
   const present = Object.keys(object);
   if (
-    present.some((key) => !keys.includes(key) && !optional.includes(key)) ||
+    present.some((key) => !keys.includes(key)) ||
     keys.some((key) => !Object.hasOwn(object, key))
   )
     fail();
@@ -234,13 +231,12 @@ function runbook(value: unknown): string {
 }
 
 function entry(value: unknown): OpsCatalogEntry {
-  const e = exact(value, ENTRY_KEYS, ["schedule"]);
+  const e = exact(value, ENTRY_KEYS);
   if (typeof e.id !== "string" || !OPS_V1_BOUNDS.id.test(e.id)) fail();
   return {
-    // Optional short human string, such as "hourly" or "daily 04:00".
-    ...(Object.hasOwn(e, "schedule")
-      ? { schedule: text(e.schedule, OPS_V1_BOUNDS.scheduleMax) }
-      : {}),
+    // Short human string, such as "hourly" or "daily 04:00", or null.
+    schedule:
+      e.schedule === null ? null : text(e.schedule, OPS_V1_BOUNDS.scheduleMax),
     id: e.id,
     name: text(e.name, OPS_V1_BOUNDS.nameMax),
     // Groups are free strings; System adds them without a website deploy.
