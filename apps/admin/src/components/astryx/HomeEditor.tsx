@@ -1,3 +1,4 @@
+import { EditorToolBoundary } from "./EditorToolBoundary";
 import { AutoSizeTextArea } from "./AutoSizeTextArea";
 import {
   adminNavigationEvent,
@@ -2342,16 +2343,20 @@ function HomeEditorImpl({
             }}
           />
           {sourceRequested.current && (
-            <Suspense
-              fallback={<Text role="status">Loading source editor…</Text>}
-            >
-              <SourceEditor
-                source={state.source}
-                onChange={(source) => editor.current!.edit(source)}
-                hidden={tab !== "source"}
-                readOnly={Boolean(snapshot.draft?.discardedAt)}
-              />
-            </Suspense>
+            <div hidden={tab !== "source"}>
+              <EditorToolBoundary>
+                <Suspense
+                  fallback={<Text role="status">Loading source editor…</Text>}
+                >
+                  <SourceEditor
+                    source={state.source}
+                    onChange={(source) => editor.current!.edit(source)}
+                    hidden={tab !== "source"}
+                    readOnly={Boolean(snapshot.draft?.discardedAt)}
+                  />
+                </Suspense>
+              </EditorToolBoundary>
+            </div>
           )}
           {!valid && (
             <Banner
