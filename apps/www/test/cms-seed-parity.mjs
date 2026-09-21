@@ -124,9 +124,29 @@ function get(origin, host, path) {
 
 /** Every normalization is listed here and in the report. None rewrite content. */
 export const NORMALIZATIONS = [
-  "headers are compared separately from bodies; cms-only X-Content-Version, X-Content-Schema, X-Content-SHA256, CDN-Cache-Control and Cloudflare-CDN-Cache-Control plus Cache-Control no-store are expected runtime differences",
-  "the Date, cf-ray style transport headers, Content-Length and ETag are ignored",
+  "headers are compared separately from bodies; cms-only X-Content-Version, X-Content-Schema, X-Content-SHA256, X-Content-Cache, CDN-Cache-Control and Cloudflare-CDN-Cache-Control are expected runtime differences",
+  "Cache-Control is checked on its own: a cms 200 on a content route must revalidate (public, max-age=0, must-revalidate) with a cms version ETag, and every other cms response must be no-store",
+  "the Date, cf-ray style transport headers, Content-Length and ETag are ignored in the legacy comparison",
 ];
+/** The cms cache contract for a response the published reader answered
+ * (it carries X-Content-Version). Returns a problem or null. */
+function cmsCacheProblem(path, response) {
+  if (!response.headers["x-content-version"]) return null;
+  const cacheControl = response.headers["cache-control"];
+  const etag = response.headers.etag;
+  const cacheable =
+    response.status === 200 &&
+    path !== "/api/content-version" &&
+    !path.startsWith("/images/");
+  if (cacheable)
+    return cacheControl === "public, max-age=0, must-revalidate" &&
+      /^"cms1-v\d+-[0-9a-f]{24}"$/u.test(etag ?? "")
+      ? null
+      : `cacheable 200 had ${cacheControl} ${etag}`;
+  return cacheControl === "no-store" && !etag
+    ? null
+    : `non-cacheable ${response.status} had ${cacheControl} ${etag}`;
+}
 /** Bodies are compared byte for byte. */
 const normalize = (_path, body) => body;
 const ignoredHeaders = new Set([
@@ -139,6 +159,7 @@ const ignoredHeaders = new Set([
   "x-content-version",
   "x-content-schema",
   "x-content-sha256",
+  "x-content-cache",
   "cdn-cache-control",
   "cloudflare-cdn-cache-control",
   "cache-control",
@@ -257,13 +278,16 @@ try {
       const left = normalize(path, a.body);
       const right = normalize(path, b.body);
       const same = a.status === b.status && left === right;
+      const cacheProblem = cmsCacheProblem(path, b);
       report.routes.push({
         host,
         path,
         legacyStatus: a.status,
         cmsStatus: b.status,
         cmsVersion: b.headers["x-content-version"] ?? null,
-        identical: same && headerDiff.length === 0,
+        cmsCacheControl: b.headers["cache-control"] ?? null,
+        cacheProblem,
+        identical: same && headerDiff.length === 0 && !cacheProblem,
         rawBodyIdentical: a.body === b.body,
         normalized: a.body !== b.body && left === right,
         headerDiff,

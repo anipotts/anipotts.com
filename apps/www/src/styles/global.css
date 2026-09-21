@@ -326,12 +326,11 @@ h2.section-label {
 
 /* The press ring for work, experience and agent cards lives in each component,
    where it outranks that component's own resting box-shadow. The writing card
-   keeps its global press state plus the shadow reset below, which the article
-   morph depends on. */
+   presses with a fill only: the later :active reset holds its resting shadow,
+   which the article morph depends on, so it never takes the ring. */
 @media (width < 880px), (pointer: coarse) {
   .writing-card:active {
     background: var(--paper-surface-hover);
-    box-shadow: inset 0 0 0 2px var(--paper-accent);
   }
 }
 

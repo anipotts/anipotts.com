@@ -13,6 +13,7 @@ import {
   publicationHtml,
   type PublicContentContext,
 } from "./published-runtime";
+import { byNewestThenSlug, byRankThenSlug } from "./listing-order";
 import type { PublishedSnapshot } from "@anipotts/content/editorial/direct-publication";
 export { publicContentContext } from "./published-runtime";
 
@@ -57,10 +58,10 @@ export async function publishedWriting(
     ).filter((entry) => isPublishedWriting(entry.data)),
     writingSlug,
   ).sort(
-    (a, b) =>
-      (b.data.published_at?.getTime() ?? 0) -
-        (a.data.published_at?.getTime() ?? 0) ||
-      writingSlug(a).localeCompare(writingSlug(b)),
+    byNewestThenSlug(
+      (entry) => entry.data.published_at?.getTime(),
+      writingSlug,
+    ),
   );
 }
 export async function visibleProjects(
@@ -85,11 +86,7 @@ export async function visibleProjects(
       overrides,
     ).filter((entry) => isPublicProject(entry.data)),
     projectSlug,
-  ).sort(
-    (a, b) =>
-      b.data.sort_order - a.data.sort_order ||
-      projectSlug(a).localeCompare(projectSlug(b)),
-  );
+  ).sort(byRankThenSlug((entry) => entry.data.sort_order, projectSlug));
 }
 /** Only detail routes compile Markdown; lists and discovery use metadata/body. */
 export async function renderPublishedEntry<T extends Writing | Project>(

@@ -19,6 +19,7 @@ run_worker_first = true
 
 # Non-secret env vars available at runtime
 [vars]
+EDITORIAL_PUBLISH_MODE = "maintenance"
 PUBLIC_STATE_API = "https://api.anipotts.com"
 ACCESS_TEAM_DOMAIN = "https://anipotts.cloudflareaccess.com"
 ACCESS_POLICY_AUD = "ca3ea64cba714dee7d50eae63f62b18d6c2aeeecc0fc16ec0335ed0aa863a49f"
@@ -54,6 +55,17 @@ script_name = "anipotts-state"
 # Workers Logs keep the once-per-isolate runtime contract line (names and
 # states only). Invocation logs stay off: request URLs can carry recovery
 # codes and owner filters, which logs must never retain.
+# Dedicated published-content store and media. The public reader stays in
+# legacy Git mode until CONTENT_RUNTIME is switched to "cms".
+[[d1_databases]]
+binding = "CONTENT_DB"
+database_name = "anipotts-content"
+database_id = "2679fc97-e251-46b7-ad01-db8b9fe04e8d"
+
+[[r2_buckets]]
+binding = "CONTENT_MEDIA"
+bucket_name = "anipotts-content-media"
+
 [observability]
 enabled = true
 

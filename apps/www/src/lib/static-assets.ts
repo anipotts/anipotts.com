@@ -65,6 +65,17 @@ export function withStaticCacheControl(
 const ENTITY_TAG = /(?:W\/)?"[^"]*"/g;
 const opaque = (tag: string) => tag.replace(/^W\//, "");
 
+/** If-None-Match against one entity tag, compared weakly as RFC 9110
+ * requires, with `*` matching any current representation. */
+export function ifNoneMatchMatches(condition: string, etag: string): boolean {
+  return (
+    condition.trim() === "*" ||
+    (condition.match(ENTITY_TAG) ?? []).some(
+      (tag) => opaque(tag) === opaque(etag),
+    )
+  );
+}
+
 /** Answers a conditional GET or HEAD that the adapter could not. It serves
  * prerendered top-level pages from ASSETS by URL string, which drops
  * If-None-Match, so a matching validator used to get the full page again,
@@ -87,12 +98,7 @@ export function withConditionalStatus(
   const etag = response.headers.get("etag");
   const condition = request.headers.get("if-none-match");
   if (!etag || !condition) return response;
-  const matches =
-    condition.trim() === "*" ||
-    (condition.match(ENTITY_TAG) ?? []).some(
-      (tag) => opaque(tag) === opaque(etag),
-    );
-  if (!matches) return response;
+  if (!ifNoneMatchMatches(condition, etag)) return response;
   void response.body?.cancel();
   const headers = new Headers(response.headers);
   headers.delete("content-length");
@@ -104,14 +110,19 @@ export function withConditionalStatus(
  * contract as prerendered HTML: a strong ETag over the body and
  * `public, max-age=0, must-revalidate`, so withConditionalStatus can answer
  * 304. Responses that already choose a policy, such as the published reader's
- * no-store, are left alone. */
+ * version validator, are left alone.
+ *
+ * The tag is a digest of the body, so it is only computed for GET. A HEAD
+ * body is empty and would hash to the empty-body digest, a tag no GET ever
+ * carries; src/worker.ts renders HEAD as GET for that reason, and any HEAD
+ * that still arrives here gets no tag rather than a wrong one. */
 export async function withRenderedValidator(
   request: { method: string },
   pathname: string,
   response: Response,
 ): Promise<Response> {
   if (response.status !== 200) return response;
-  if (request.method !== "GET" && request.method !== "HEAD") return response;
+  if (request.method !== "GET") return response;
   if (pathname.startsWith("/api/")) return response;
   if (response.headers.has("cache-control") || response.headers.has("etag"))
     return response;
@@ -123,7 +134,7 @@ export async function withRenderedValidator(
   const headers = new Headers(response.headers);
   headers.set("etag", `"${tag}"`);
   headers.set("cache-control", "public, max-age=0, must-revalidate");
-  return new Response(request.method === "HEAD" ? null : body, {
+  return new Response(body, {
     status: response.status,
     statusText: response.statusText,
     headers,

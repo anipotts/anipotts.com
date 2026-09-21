@@ -683,6 +683,37 @@ export function applyHeaderArt(host: HTMLElement, saved: wave.Art | undefined) {
   }
 }
 
+/** The colour the header art paints at the page's top edge, over var(--bg):
+ * the value iOS needs as the canvas colour so its status strip meets the
+ * first row without a seam. Null when the art cannot be read. */
+export function headerTopColor(host: HTMLElement): string | null {
+  const svg = host.querySelector("svg");
+  const ctm = svg?.getScreenCTM();
+  if (!svg || !ctm) return null;
+  const at = new DOMPoint(innerWidth / 2, -scrollY + 1).matrixTransform(
+    ctm.inverse(),
+  );
+  // Every path shares one parent; its ancestors up to the host fade them all.
+  let alpha = 1;
+  for (
+    let el = svg.querySelector("path")?.parentElement ?? null;
+    el;
+    el = el === host ? null : el.parentElement
+  )
+    alpha *= Number(getComputedStyle(el).opacity);
+  const layers = [...svg.querySelectorAll("path")]
+    .filter((path) => path.isPointInFill(at))
+    .map((path) => {
+      const { fill, opacity } = getComputedStyle(path);
+      return { fill, opacity: Number(opacity) };
+    });
+  const probe = host.appendChild(document.createElement("span"));
+  probe.style.color = "var(--bg)";
+  const ground = getComputedStyle(probe).color;
+  probe.remove();
+  return wave.compositeLayers(ground, layers, alpha);
+}
+
 /** Idle preparation: ghost stylesheet copies, the header contours of every
  * card on the page (from its seed, no markup needed) and of the current
  * article header, so the swap frame parses and flattens nothing. */

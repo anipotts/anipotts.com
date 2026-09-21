@@ -1,17 +1,97 @@
 import {
   usesPublishedContent,
   canonicalContentPath,
+  isCacheableContentPath,
   isRuntimeContentPath,
 } from "./lib/content-runtime-mode";
 import {
   publicContentContext,
   publicVersionHeaders,
+  publicCacheHeaders,
+  publicEntityTag,
+  publicEdgeCache,
+  edgeCacheKey,
+  edgeCacheCopy,
+  fromEdgeCache,
   contentUnavailable,
 } from "./lib/published-runtime";
+import type { APIContext, MiddlewareNext } from "astro";
 import { defineMiddleware } from "astro:middleware";
 import { siteConfig } from "@anipotts/content/public";
 import { reportRuntimeContract } from "./lib/runtime-contract";
 import { withSecurityHeaders } from "./lib/security-headers";
+import { ifNoneMatchMatches } from "./lib/static-assets";
+
+/** A CMS surface. A cacheable route answers a matching validator with a 304,
+ * and a stored colo copy with a 200, from the inventory counter alone, before
+ * the publications are loaded or anything renders. Everything else renders
+ * from one coherent inventory read and takes its validator from that read's
+ * version, so a tag always names the inventory its body came from. Failures
+ * leave as the no-store 503 through the caller. */
+async function publishedResponse(
+  context: APIContext,
+  next: MiddlewareNext,
+): Promise<Response> {
+  const { pathname } = context.url;
+  const { method } = context.request;
+  const content = publicContentContext(context.locals);
+  const cacheable =
+    (method === "GET" || method === "HEAD") && isCacheableContentPath(pathname);
+  const condition = cacheable
+    ? context.request.headers.get("if-none-match")
+    : null;
+  // `*` matches any current representation, and only rendering can tell
+  // whether this route has one. src/worker.ts answers it after rendering.
+  const validator =
+    condition?.trim() && condition.trim() !== "*" ? condition : null;
+  const edge = cacheable ? publicEdgeCache() : null;
+  const waitUntil = context.locals.runtime?.ctx?.waitUntil?.bind(
+    context.locals.runtime.ctx,
+  );
+  if (validator || edge) {
+    // Sequential on purpose: loading the publications alongside would save a
+    // miss one single-row round trip but costs every hit the full read and
+    // its snapshot checks (measured locally: about 2 ms against 6 ms a hit).
+    const version = await content.version;
+    const etag = await publicEntityTag(version, pathname);
+    if (validator && ifNoneMatchMatches(validator, etag))
+      return new Response(null, {
+        status: 304,
+        headers: publicCacheHeaders(version, etag),
+      });
+    if (edge) {
+      const cached = await edge
+        .match(edgeCacheKey(context.url, etag))
+        .catch(() => undefined);
+      if (cached?.status === 200)
+        return fromEdgeCache(cached, version, etag, method === "HEAD");
+      void cached?.body?.cancel();
+    }
+  }
+  const { version } = await content.inventory;
+  const response = await next();
+  if (response.status >= 500) {
+    void response.body?.cancel();
+    return contentUnavailable();
+  }
+  const result = new Response(response.body, response);
+  if (!cacheable || response.status !== 200) {
+    for (const [name, value] of Object.entries(publicVersionHeaders(version)))
+      result.headers.set(name, value);
+    return result;
+  }
+  const etag = await publicEntityTag(version, pathname);
+  for (const [name, value] of Object.entries(publicCacheHeaders(version, etag)))
+    result.headers.set(name, value);
+  if (edge && waitUntil && method === "GET" && result.body) {
+    result.headers.set("X-Content-Cache", "miss");
+    const stored = edgeCacheCopy(result.clone());
+    waitUntil(
+      edge.put(edgeCacheKey(context.url, etag), stored).catch(() => undefined),
+    );
+  }
+  return result;
+}
 
 /** flat redirect map: pathname (exact or prefix) -> destination. */
 const REDIRECTS: Record<string, string> = {
@@ -136,14 +216,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
   if (cmsSurface) {
     try {
-      const { version } = await publicContentContext(context.locals).inventory;
-      const response = await next();
-      if (response.status >= 500)
-        return withSecurityHeaders(contentUnavailable());
-      const result = new Response(response.body, response);
-      for (const [name, value] of Object.entries(publicVersionHeaders(version)))
-        result.headers.set(name, value);
-      return withSecurityHeaders(result);
+      return withSecurityHeaders(await publishedResponse(context, next));
     } catch {
       return withSecurityHeaders(contentUnavailable());
     }

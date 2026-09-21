@@ -8,6 +8,7 @@ import {
   DETAIL_VIEWBOX,
   detailCurves,
   flattenPath,
+  compositeLayers,
   mixColor,
   morphPath,
   planMorph,
@@ -315,6 +316,41 @@ test("open condenses the card current into the header at half opacity", () => {
     mixColor("rgb(0, 0, 0)", "rgb(100 200 50)", 0.5),
     "rgb(50 100 25)",
   );
+});
+
+test("header art composites to the canvas colours global.css declares", () => {
+  // Native dark writing header: #234b7b at 0.75 over #080b10.
+  assert.equal(
+    compositeLayers(
+      "rgb(8, 11, 16)",
+      [{ fill: "rgb(35, 75, 123)", opacity: 1 }],
+      0.75,
+    ),
+    "rgb(28, 59, 96)",
+  );
+  // Native work header: #b6c8f5 at 0.65 over #f7faff.
+  assert.equal(
+    compositeLayers(
+      "rgb(247, 250, 255)",
+      [{ fill: "rgb(182, 200, 245)", opacity: 1 }],
+      0.65,
+    ),
+    "rgb(205, 218, 249)",
+  );
+  // Translucent layers stack before the group fade applies.
+  assert.equal(
+    compositeLayers(
+      "rgb(0, 0, 0)",
+      [
+        { fill: "rgb(200, 0, 0)", opacity: 0.5 },
+        { fill: "rgb(0, 200, 0)", opacity: 0.5 },
+      ],
+      0.5,
+    ),
+    "rgb(25, 50, 0)",
+  );
+  assert.equal(compositeLayers("rgb(8, 11, 16)", [], 0.75), "rgb(8, 11, 16)");
+  assert.equal(compositeLayers("transparent", [], 1), null);
 });
 
 test("a band the card shows in part or not at all never sweeps a straight edge through the surface", () => {

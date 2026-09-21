@@ -621,11 +621,23 @@ describe("admin wrangler.toml runtime contract drift", () => {
       'ACCESS_DOMAIN = "x"',
     );
     const assets = wrangler.replace('binding = "ASSETS"', 'binding = "FILES"');
-    const secret = wrangler.replace(" and EDITORIAL_SIGNING_PRIVATE_KEY", "");
+    // Maintenance reads no Git credential, so check secrets against the
+    // legacy rollback target they are retained for.
+    const legacy = wrangler.replace(
+      /^EDITORIAL_PUBLISH_MODE = .*$/m,
+      'EDITORIAL_PUBLISH_MODE = "legacy"',
+    );
+    const secret = legacy.replace(" and EDITORIAL_SIGNING_PRIVATE_KEY", "");
+    const database = wrangler.replace(
+      'binding = "CONTENT_DB"',
+      'binding = "CONTENT"',
+    );
+    expect(legacy).not.toBe(wrangler);
+    expect(database).not.toBe(wrangler);
     expect(relay).not.toBe(wrangler);
     expect(vars).not.toBe(wrangler);
     expect(assets).not.toBe(wrangler);
-    expect(secret).not.toBe(wrangler);
+    expect(secret).not.toBe(legacy);
     expect(undeclared(declaredRuntimeNames(relay))).toEqual(["COMMAND_RELAY"]);
     expect(undeclared(declaredRuntimeNames(vars))).toEqual([
       "ACCESS_TEAM_DOMAIN",
@@ -634,18 +646,48 @@ describe("admin wrangler.toml runtime contract drift", () => {
     expect(undeclared(declaredRuntimeNames(secret))).toEqual([
       "EDITORIAL_SIGNING_PRIVATE_KEY",
     ]);
+    expect(undeclared(declaredRuntimeNames(database))).toEqual(["CONTENT_DB"]);
   });
 
-  it("leaves disabled direct resources optional in the current legacy deployment", () => {
+  it("deploys the content bindings with publishing paused in maintenance mode", () => {
     const declared = declaredRuntimeNames(wrangler);
-    expect(declared.vars).not.toContain("EDITORIAL_PUBLISH_MODE");
-    expect(declared.d1).not.toContain("CONTENT_DB");
-    expect(declared.r2).not.toContain("CONTENT_MEDIA");
+    expect(wrangler).toMatch(/^EDITORIAL_PUBLISH_MODE = "maintenance"$/m);
+    expect(declared.varValues.EDITORIAL_ENABLED).toBe("true");
+    expect(declared.d1).toContain("CONTENT_DB");
+    expect(declared.r2).toContain("CONTENT_MEDIA");
     expect(undeclared(declared)).toEqual([]);
+    const env: Record<string, unknown> = { ...declared.varValues };
+    for (const name of declared.assets) env[name] = { fetch() {} };
+    for (const name of declared.d1) env[name] = { prepare() {} };
+    for (const name of declared.r2) env[name] = { get() {}, put() {} };
+    for (const name of declared.durable_objects) env[name] = { getByName() {} };
+    for (const name of declared.secret) env[name] = "declared";
+    const { features } = evaluateRuntimeContract(env, release);
+    // Authoring stays available; only publication is switched off.
+    expect(features.editorial).toEqual(available);
+    expect(features.editorial_publishing).toEqual({
+      state: "disabled",
+      missing: [],
+    });
   });
+
+  it("keeps the retained legacy rollback target complete", () => {
+    const legacy = wrangler.replace(
+      /^EDITORIAL_PUBLISH_MODE = .*$/m,
+      'EDITORIAL_PUBLISH_MODE = "legacy"',
+    );
+    expect(undeclared(declaredRuntimeNames(legacy))).toEqual([]);
+  });
+
+  // The direct-mode checks below start from a config without the content
+  // resources, so each missing binding is reported on its own.
+  const bare = wrangler
+    .replace(/^EDITORIAL_PUBLISH_MODE = .*\n/m, "")
+    .replace(/^\[\[d1_databases\]\]\nbinding = "CONTENT_DB"\n(?:.+\n)*/m, "")
+    .replace(/^\[\[r2_buckets\]\]\nbinding = "CONTENT_MEDIA"\n(?:.+\n)*/m, "");
 
   it("requires direct bindings only when their mode and feature are enabled", () => {
-    const direct = wrangler
+    const direct = bare
       .replace(
         'EDITORIAL_ENABLED = "true"',
         'EDITORIAL_ENABLED = "true"\nEDITORIAL_PUBLISH_MODE = "direct"',

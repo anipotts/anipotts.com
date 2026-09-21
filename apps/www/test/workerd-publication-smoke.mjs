@@ -141,7 +141,12 @@ try {
       `${path}: ${await response.clone().text()}`,
     );
     assert.equal(response.headers.get("x-content-version"), "1", path);
-    assert.equal(response.headers.get("cache-control"), "no-store", path);
+    assert.equal(
+      response.headers.get("cache-control"),
+      "public, max-age=0, must-revalidate",
+      path,
+    );
+    assert.match(response.headers.get("etag") ?? "", /^"cms1-v1-/u, path);
     if (path === "/writing/awareness-is-alpha") {
       const html = await response.text();
       assert.match(html, /A local workerd CMS publication/);
@@ -153,8 +158,65 @@ try {
     `${origin}/images/editorial/${"a".repeat(64)}.png`,
   );
   assert.equal(unknown.status, 404);
+  assert.equal(unknown.headers.get("cache-control"), "no-store");
+
+  // Revalidation and the colo copy under the real runtime and Cache API.
+  const article = `${origin}/writing/awareness-is-alpha`;
+  const first = await fetch(article);
+  const etag = first.headers.get("etag");
+  const rendered = await first.text();
+  const cached = await fetch(article);
+  assert.equal(cached.headers.get("etag"), etag);
+  assert.equal(cached.headers.get("x-content-cache"), "hit");
+  assert.equal(await cached.text(), rendered);
+  const head = await fetch(article, { method: "HEAD" });
+  assert.equal(head.headers.get("etag"), etag);
+  for (const method of ["GET", "HEAD"]) {
+    const revalidated = await fetch(article, {
+      method,
+      headers: { "if-none-match": etag },
+    });
+    assert.equal(revalidated.status, 304, method);
+    assert.equal(revalidated.headers.get("etag"), etag, method);
+  }
+
+  // A publish while the Worker runs is visible on the very next request,
+  // whatever validator or colo copy the old version left behind.
+  const republished = `${front}\nA second local workerd publication.`;
+  const republishedHash = createHash("sha256")
+    .update(republished)
+    .digest("hex");
+  const publish = join(temporary, "publish.sql");
+  writeFileSync(
+    publish,
+    `INSERT INTO editorial_published_revisions (publication_id,record_kind,record_id,source,revision,source_sha256,published_at,expected_publication_id,expected_inventory_version,content_schema_version) VALUES ('workerd-synthetic-2','writing','awareness-is-alpha',${sqlString(republished)},2,'${republishedHash}','2026-09-21T12:00:00.000Z','workerd-synthetic',1,1);\nUPDATE editorial_published_active SET publication_id='workerd-synthetic-2' WHERE record_kind='writing' AND record_id='awareness-is-alpha';\nUPDATE editorial_published_inventory SET version=2 WHERE singleton=1;`,
+  );
+  const second = spawnSync(
+    process.execPath,
+    [
+      cli,
+      "d1",
+      "execute",
+      "CONTENT_DB",
+      "--local",
+      "--config",
+      config,
+      "--persist-to",
+      state,
+      "--file",
+      publish,
+    ],
+    { cwd: temporary, env, encoding: "utf8", timeout: 60_000 },
+  );
+  assert.equal(second.status, 0, `local publish: ${second.stderr}`);
+  const after = await fetch(article, { headers: { "if-none-match": etag } });
+  assert.equal(after.status, 200);
+  assert.equal(after.headers.get("x-content-version"), "2");
+  assert.notEqual(after.headers.get("etag"), etag);
+  assert.equal(after.headers.get("x-content-cache"), "miss");
+  assert.match(await after.text(), /A second local workerd publication/);
   console.log(
-    "Real local workerd + D1: runtime CMS Markdown, sanitization, coherent version headers, discovery, proof and private-media denial passed.",
+    "Real local workerd + D1: runtime CMS Markdown, sanitization, coherent version headers, discovery, proof, private-media denial, 304 revalidation, colo copy and publish freshness passed.",
   );
 } finally {
   if (child && child.exitCode === null) {

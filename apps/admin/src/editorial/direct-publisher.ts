@@ -610,10 +610,19 @@ export class DirectPublisher {
               signal: AbortSignal.timeout(5000),
             },
           );
+          // The reader's validator names the inventory its body came from, so
+          // a revalidating or colo-cached copy of an older version fails here
+          // even if a header were rewritten. Compression may weaken it (W/).
+          const etag = response.headers.get("ETag");
           if (
             !response.ok ||
             response.headers.get("X-Content-Version") !==
               String(value.inventoryVersion) ||
+            (etag !== null &&
+              !new RegExp(
+                `^(?:W/)?"cms\\d+-v${Number(value.inventoryVersion)}-[0-9a-f]+"$`,
+                "u",
+              ).test(etag)) ||
             !response.body
           ) {
             await response.body?.cancel();

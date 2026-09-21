@@ -1,4 +1,5 @@
 // @ts-check
+import { randomUUID } from "node:crypto";
 import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import icon from "astro-icon";
@@ -15,6 +16,9 @@ export default defineConfig({
   trailingSlash: "never",
   build: { format: "file" },
   vite: {
+    // Fixed per build. The published reader folds it into every content
+    // validator so a deploy never revalidates against another build's body.
+    define: { __WWW_BUILD_ID__: JSON.stringify(randomUUID()) },
     server: {
       allowedHosts: [new URL(siteConfig.newsletterUrl).hostname],
     },
