@@ -205,6 +205,8 @@ it("opens on every destination and the actions, each led by its glyph tile", asy
     "Newsletter",
     "Records",
     "Sources",
+    "Health",
+    "Knowledge",
     "Status",
     "Activity",
     "Alerts",
