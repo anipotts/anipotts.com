@@ -5451,29 +5451,6 @@ html[data-astryx-theme="neutral"] .button.ghost {
   font-weight: 650;
 }
 
-.operator-source-glyph {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border: 1px solid var(--color-border-emphasized);
-  border-radius: 50%;
-  font-family: var(--font-family-code);
-  font-size: 7px;
-  font-weight: 750;
-  letter-spacing: -0.05em;
-}
-
-.operator-source-logo {
-  display: block;
-  width: 22px;
-  height: 22px;
-  flex: 0 0 22px;
-  border-radius: 5px;
-  object-fit: contain;
-}
-
 .operator-source-label {
   line-height: 1;
 }

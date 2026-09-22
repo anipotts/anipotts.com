@@ -2,6 +2,7 @@ import type { Icon } from "@phosphor-icons/react";
 import {
   ArrowRightIcon,
   ArrowsClockwiseIcon,
+  BookBookmarkIcon,
   BuildingsIcon,
   CalendarBlankIcon,
   CalendarDotsIcon,
@@ -10,7 +11,6 @@ import {
   ClockIcon,
   DatabaseIcon,
   GitCommitIcon,
-  GithubLogoIcon,
   GlobeHemisphereWestIcon,
   LinkSimpleIcon,
   MagnifyingGlassIcon,
@@ -34,7 +34,8 @@ export const iconForSemanticReference: Record<SemanticReferenceKind, Icon> = {
   source: DatabaseIcon,
   evidence: ClipboardTextIcon,
   proof: ShieldCheckIcon,
-  repository: GithubLogoIcon,
+  // A generic repository: brand marks live in BrandTile, never Phosphor.
+  repository: BookBookmarkIcon,
   commit: GitCommitIcon,
   task: ClipboardTextIcon,
   run: PlayCircleIcon,

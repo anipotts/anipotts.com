@@ -1,8 +1,9 @@
 # Workflow source marks
 
-The Codex mark (`codex.png`) is reused from the repository's localized official
-Codex macOS app resource in `apps/admin/src/assets/provider-marks/codex.png`.
-It retains the native app artwork and background.
+The Codex mark (`codex.png`) is a resized copy of the official Codex macOS app
+resource `icon-codex-dark-color.png`, recorded with the other brand marks in
+`packages/brand/marks/MARKS.md`. It retains the native app artwork and
+background.
 
 The light variant (`codex-light.png`) is the unmodified official
 `icon-codex-light.png` bundled in the installed app's Resources directory.
