@@ -419,8 +419,9 @@ export type Column<T> = {
 /** The fixed widths of the standard cells, cell inset included, so the same
  * kind of column lines up in every table and section. */
 export const CELL_WIDTHS = {
-  /** StateCell: the widest ops and source chips. */
-  state: 128,
+  /** StateCell: the widest chip ("Superseded") with a record's tier glyph
+   * beside it, so record, content and alert state columns line up. */
+  state: 144,
   /** RelativeTime and DueTime, "Not recorded" included. */
   time: 112,
   /** Figure and Duration. */
@@ -936,6 +937,8 @@ const BADGES = {
     observed: { label: "Observed", tone: "neutral", isDefault: true },
     confirmed: { label: "Confirmed", tone: "positive" },
     superseded: { label: "Superseded", tone: "calm" },
+    provisional: { label: "Provisional", tone: "neutral" },
+    conflict: { label: "Conflict", tone: "warning" },
   },
   freshness: {
     fresh: { label: "Fresh", tone: "positive", isDefault: true },
@@ -1507,6 +1510,7 @@ const TIER_GLYPHS: Record<string, Icon> = {
   restricted: ShieldIcon,
   internal: ShieldIcon,
   private: LockSimpleIcon,
+  intimate: LockSimpleIcon,
   closed: LockSimpleIcon,
 };
 
@@ -1640,14 +1644,14 @@ export function TechnicalSection({
 }: {
   items: ReadonlyArray<{
     label: string;
-    value: string | null | undefined;
+    value?: string | null;
     display?: string;
+    /** Drawn in place of a copy value: a short vocabulary word, chips. */
+    node?: ReactNode;
   }>;
   title?: string;
 }) {
-  const shown = items.filter((item): item is typeof item & { value: string } =>
-    Boolean(item.value),
-  );
+  const shown = items.filter((item) => Boolean(item.node ?? item.value));
   if (!shown.length) return null;
   return (
     <Collapsible
@@ -1658,12 +1662,14 @@ export function TechnicalSection({
       <DefinitionList
         items={shown.map((item) => [
           item.label,
-          <CopyValue
-            key={item.label}
-            value={item.value}
-            label={item.label}
-            display={item.display}
-          />,
+          item.node ?? (
+            <CopyValue
+              key={item.label}
+              value={item.value!}
+              label={item.label}
+              display={item.display}
+            />
+          ),
         ])}
       />
     </Collapsible>
@@ -1696,11 +1702,14 @@ export function ValueChips({
   field,
   noun,
   label,
+  raw = false,
 }: {
   value: unknown;
   field?: string;
   noun?: readonly [one: string, many: string] | null;
   label?: string;
+  /** Keys are names as written (domains, repositories), not field names. */
+  raw?: boolean;
 }) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const entries = Object.entries(value as Record<string, unknown>);
@@ -1721,7 +1730,11 @@ export function ValueChips({
       {ordered.map(([key, entry]) => {
         const app = appMark(key);
         const text = chipText(entry, unit);
-        const name = app ? (brandMark(app)?.label ?? key) : keyLabel(key);
+        const name = app
+          ? (brandMark(app)?.label ?? key)
+          : raw
+            ? key
+            : keyLabel(key);
         return (
           <li
             key={key}

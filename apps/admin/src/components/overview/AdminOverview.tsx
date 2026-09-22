@@ -24,6 +24,7 @@ import { dataRecordHref } from "../../lib/data-routes";
 import type { DataFixture } from "../../lib/data-fixture-reader";
 import type { PrivateReaderSession } from "../../lib/private-reader-client";
 import {
+  CELL_WIDTHS,
   DataTable,
   LoadingSkeleton,
   RelativeTime,
@@ -38,6 +39,7 @@ import { useDataSession } from "../data/useDataSession";
 import { ReadNotice, SessionNotice } from "../data/DataNotices";
 import { recordColumns } from "../data/RecordsView";
 import { parseItems, parseRecord } from "../data/data-model";
+import "./overview.css";
 
 /** A Content record's type, with the glyph its sidebar library uses. */
 function contentType(record: CatalogRecord): [Icon, string] {
@@ -113,15 +115,16 @@ function FiringAlerts(props: OpsViewProps) {
   );
 }
 
-/** A content row's non-default state, and unpublished changes. */
+/** A content row's non-default state, and unpublished changes. In the
+ * state column the pair keeps to the column, the second chip giving way. */
 function ContentState({ record }: { record: CatalogRecord }) {
   return (
-    <>
+    <span className="overview-state">
       <StateBadge domain="content" state={record.status} />
       {record.changesPending && (
         <StateBadge tone="neutral" label="Changes pending" />
       )}
-    </>
+    </span>
   );
 }
 
@@ -156,13 +159,13 @@ function RecentContent({ records }: { records: CatalogRecord[] }) {
             {
               key: "status",
               header: "State",
-              width: 160,
+              width: CELL_WIDTHS.state,
               render: (item) => <ContentState record={item} />,
             },
             {
               key: "updated",
               header: "Updated",
-              width: 96,
+              width: CELL_WIDTHS.time,
               render: (item) => <RelativeTime value={item.updated?.at} />,
             },
           ]}

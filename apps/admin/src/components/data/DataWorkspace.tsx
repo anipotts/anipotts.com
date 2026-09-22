@@ -100,7 +100,7 @@ export function DataWorkspace({
     body = (
       <>
         {route.view === "records" && session.status === "opening" && (
-          <div className="workspace-split-list">
+          <div className="data-records-list">
             <RecordsToolbar disabled route={route} navigate={navigate} />
           </div>
         )}

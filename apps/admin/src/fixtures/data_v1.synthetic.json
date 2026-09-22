@@ -6,12 +6,12 @@
       "principal": "owner"
     },
     "counts": {
-      "records": 8,
-      "revisions": 16,
-      "sources": 3,
+      "records": 18,
+      "revisions": 31,
+      "sources": 10,
       "changes": 3
     },
-    "last_change_at": "2026-09-21T17:41:00.000000Z"
+    "last_change_at": "2026-09-22T04:10:00.000000Z"
   },
   "records": [
     {
@@ -266,6 +266,548 @@
           "revision_id": "rev-a20b5f141f0107dda2373f921bc30ad1",
           "source_version": "v1",
           "observed_at": "2026-09-01T09:00:00.000000Z",
+          "source_modified_at": null
+        }
+      ]
+    },
+    {
+      "record_id": "rec-cc938e34a8e33110725a3f25e8072ce3",
+      "revision_id": "rev-909a2b37d59bb31ef8aefd8384dc1d3a",
+      "kind": "browsing_day",
+      "title": "Browsing 2026-09-21",
+      "body": "Browsing on 2026-09-21 (America/New_York): 47 visits across 5 domains.\nTop domains:\n- github.com: 21\n- example.org: 12\n- docs.example.com: 8\n- wikipedia.org: 4\n- youtube.com: 2\nPage titles on allowlisted domains:\n- github.com: Sample pull request (3)\n- wikipedia.org: Sample article (2)",
+      "source_id": "synthetic-browsing",
+      "source_record_id": "browsing-day:2026-09-21",
+      "source_version": "8a3da6579cfed2b825a55097513383bea1c9378a64bdfc20551d9e8518145748",
+      "status": "observed",
+      "tier": "intimate",
+      "observed_at": "2026-09-22T04:10:00.000000Z",
+      "occurred_at": "2026-09-21",
+      "date_precision": "day",
+      "source_modified_at": null,
+      "provenance": {
+        "source_uri": "personal-context://browsing-day/2026-09-21",
+        "extractor": "browser-day-rollup-v1"
+      },
+      "metadata": {
+        "local_date": "2026-09-21",
+        "timezone": "America/New_York",
+        "day_state": "complete",
+        "total_visits": 47,
+        "domain_count": 5,
+        "top_domains": [
+          {
+            "domain": "github.com",
+            "visits": 21
+          },
+          {
+            "domain": "example.org",
+            "visits": 12
+          },
+          {
+            "domain": "docs.example.com",
+            "visits": 8
+          },
+          {
+            "domain": "wikipedia.org",
+            "visits": 4
+          },
+          {
+            "domain": "youtube.com",
+            "visits": 2
+          }
+        ],
+        "other_domain_visits": 0,
+        "browser_visits": {
+          "atlas": 1,
+          "chrome": 44,
+          "safari": 2
+        },
+        "profile_count": 1,
+        "titles": {
+          "github.com": [
+            {
+              "title": "Sample pull request",
+              "visits": 3
+            }
+          ],
+          "wikipedia.org": [
+            {
+              "title": "Sample article",
+              "visits": 2
+            }
+          ]
+        },
+        "dropped_visits": {
+          "auth_flow": 2,
+          "title_screened": 3
+        },
+        "aggregation": "browser-day-rollup-v1",
+        "host": "ap-pro"
+      },
+      "history_limit": 100,
+      "revisions": [
+        {
+          "revision_id": "rev-909a2b37d59bb31ef8aefd8384dc1d3a",
+          "source_version": "8a3da6579cfed2b825a55097513383bea1c9378a64bdfc20551d9e8518145748",
+          "observed_at": "2026-09-22T04:10:00.000000Z",
+          "source_modified_at": null
+        },
+        {
+          "revision_id": "rev-b08b28a5dfe05ad76d1e61f820299d72",
+          "source_version": "6229afddda296042acc3f17ee6868753e1107bacd3bb21b1fefda7ec552be893",
+          "observed_at": "2026-09-10T09:00:00.000000Z",
+          "source_modified_at": null
+        },
+        {
+          "revision_id": "rev-86a4713b90ebef7b623f623b3091a734",
+          "source_version": "ce9eb090fd535de1ac1de0f86056342c7fada39747c32dfc099344a9d99128df",
+          "observed_at": "2026-09-10T09:00:00.000000Z",
+          "source_modified_at": null
+        }
+      ]
+    },
+    {
+      "record_id": "rec-765677214db87b2a5e459edeefc703f0",
+      "revision_id": "rev-87103cba239a081a60cfcd85e5a9a9df",
+      "kind": "message",
+      "title": "Received message",
+      "body": "Synthetic message text for the preview. It is not a real message.",
+      "source_id": "synthetic-messages",
+      "source_record_id": "sample-account:iMessage:SAMPLE-0001",
+      "source_version": "f83d73f445bb4ec12799e00dc74aba376f514a3a0b3333931baa00e8653dc443",
+      "status": "observed",
+      "tier": "intimate",
+      "observed_at": "2026-09-21T21:05:00.000000Z",
+      "occurred_at": "2026-09-21T20:58:00Z",
+      "date_precision": "second",
+      "source_modified_at": null,
+      "provenance": {
+        "source_uri": "fixture://synthetic-messages/0#message-guid=SAMPLE-0001",
+        "extractor": "apple-messages-v1"
+      },
+      "metadata": {
+        "native_message_guid": "SAMPLE-0001",
+        "account_id": "sample-account",
+        "service": "iMessage",
+        "direction": "received",
+        "chat_guid": "iMessage;-;sample-chat",
+        "sender_handle": "+1 555 0100",
+        "is_retracted": false,
+        "edited_at": null,
+        "retracted_at": null,
+        "decoder_status": "decoded",
+        "attachments": [
+          {
+            "guid": "SAMPLE-ATTACHMENT-1",
+            "mime_type": "image/jpeg",
+            "total_bytes": 204800
+          }
+        ],
+        "associated_message_guid": null,
+        "associated_message_type": 0,
+        "source_authority": "message_record"
+      },
+      "history_limit": 100,
+      "revisions": [
+        {
+          "revision_id": "rev-87103cba239a081a60cfcd85e5a9a9df",
+          "source_version": "f83d73f445bb4ec12799e00dc74aba376f514a3a0b3333931baa00e8653dc443",
+          "observed_at": "2026-09-21T21:05:00.000000Z",
+          "source_modified_at": null
+        }
+      ]
+    },
+    {
+      "record_id": "rec-0fd00fd92074c9aadd6c9331f944c040",
+      "revision_id": "rev-ea4c07713d2cfb7d004d9e19c6dbb764",
+      "kind": "voice_memo",
+      "title": "Sample voice memo: grocery list",
+      "body": "Voice memo recorded 2026-09-20, 1.8 min. Label: Sample voice memo: grocery list.",
+      "source_id": "synthetic-voice-memos",
+      "source_record_id": "voice-memo:SAMPLE-MEMO-0001",
+      "source_version": "0a8773f4ff9e2f57290523a5881d1e658e2e3bc129db1739d017025d19773675",
+      "status": "observed",
+      "tier": "restricted",
+      "observed_at": "2026-09-20T15:30:00.000000Z",
+      "occurred_at": "2026-09-20T14:05:00Z",
+      "date_precision": "second",
+      "source_modified_at": null,
+      "provenance": {
+        "source_uri": "personal-context://voice-memos/synthetic-voice-memos/20260920-140500-sample.m4a",
+        "extractor": "voice-memos-v1"
+      },
+      "metadata": {
+        "recording_file": "20260920 140500-sample.m4a",
+        "container": "m4a",
+        "identity_basis": "native_unique_id",
+        "native_unique_id": "SAMPLE-MEMO-0001",
+        "content_sha256": "45a345d6b24df0b87c513e37843147c543d3e71301288dc1f6441c12b6378fdb",
+        "size_bytes": 1843200,
+        "duration_seconds": 108.4,
+        "duration_source": "voice_memos_database",
+        "recorded_date_source": "voice_memos_database",
+        "label": "Sample voice memo: grocery list",
+        "availability": "mirrored",
+        "locator": "personal-context://voice-memos/synthetic-voice-memos/20260920-140500-sample.m4a",
+        "audio_included": false,
+        "transcription": "not_performed"
+      },
+      "history_limit": 100,
+      "revisions": [
+        {
+          "revision_id": "rev-ea4c07713d2cfb7d004d9e19c6dbb764",
+          "source_version": "0a8773f4ff9e2f57290523a5881d1e658e2e3bc129db1739d017025d19773675",
+          "observed_at": "2026-09-20T15:30:00.000000Z",
+          "source_modified_at": null
+        }
+      ]
+    },
+    {
+      "record_id": "rec-e7c79c8533d208aa35f38d396f11c460",
+      "revision_id": "rev-d722e9b0d4bae38abfd731e5d022f663",
+      "kind": "contact",
+      "title": "Sample contact: Casey Example",
+      "body": "Contact: Sample contact: Casey Example\nOrganization: Example Studio\nJob title: Designer\nEmail (work): casey@example.com\nPhone (mobile): +1 555 0101",
+      "source_id": "synthetic-contacts",
+      "source_record_id": "contact:SAMPLE-CONTACT-0001",
+      "source_version": "f02702cc9d484d46384e54fdf4f1b03548f55d1862b3caf23ecb8d71897556fd",
+      "status": "observed",
+      "tier": "restricted",
+      "observed_at": "2026-09-20T12:40:00.000000Z",
+      "occurred_at": null,
+      "date_precision": null,
+      "source_modified_at": "2026-09-19T18:20:00Z",
+      "provenance": {
+        "source_uri": "fixture://synthetic-contacts/4#unique-id=SAMPLE-CONTACT-0001",
+        "extractor": "apple-contacts-v1"
+      },
+      "metadata": {
+        "native_unique_id": "SAMPLE-CONTACT-0001",
+        "display_name": "Sample contact: Casey Example",
+        "full_name": "Casey Example",
+        "nickname": null,
+        "organization": "Example Studio",
+        "department": null,
+        "job_title": "Designer",
+        "organization_only": false,
+        "is_me_card": false,
+        "handles": [
+          {
+            "type": "email",
+            "label": "work",
+            "value": "casey@example.com"
+          },
+          {
+            "type": "phone",
+            "label": "mobile",
+            "value": "+1 555 0101"
+          }
+        ],
+        "unnormalized_handle_count": 0,
+        "linked_ids": ["contact:SAMPLE-CONTACT-0002"],
+        "identity_merge": "none",
+        "store_hash": "23c82b88ac034a8fa243d04e630e583ebfce137a7ac251aafe1009b796e9f64c"
+      },
+      "entity_id": "contact:SAMPLE-CONTACT-0001",
+      "history_limit": 100,
+      "revisions": [
+        {
+          "revision_id": "rev-d722e9b0d4bae38abfd731e5d022f663",
+          "source_version": "f02702cc9d484d46384e54fdf4f1b03548f55d1862b3caf23ecb8d71897556fd",
+          "observed_at": "2026-09-20T12:40:00.000000Z",
+          "source_modified_at": null
+        },
+        {
+          "revision_id": "rev-73fe5482528facbc2a421c9920d92a8c",
+          "source_version": "fb72d4dfb9be61431516ee5fd0ab7ecbcfde0e37fe31c561d5487e9eb4250758",
+          "observed_at": "2026-09-10T09:00:00.000000Z",
+          "source_modified_at": null
+        }
+      ]
+    },
+    {
+      "record_id": "rec-b370e548be9e884ec4ed3a40c93f133b",
+      "revision_id": "rev-6e647ebd5866b352f3f6aa25cea8bf4a",
+      "kind": "work_day",
+      "title": "GitHub work 2026-09-19 (public)",
+      "body": "GitHub work on 2026-09-19 (public).\nMerged pull requests:\n- sample/garden-planner#12: Add a watering schedule\nCommits:\n- sample/garden-planner: 7\n- sample/bike-log: 2",
+      "source_id": "synthetic-github",
+      "source_record_id": "day:2026-09-19:public",
+      "source_version": "85301af6a4114c5f90aef098b2d7a1d9c594427c864b5496946830d6e3ccb66f",
+      "status": "observed",
+      "tier": "open",
+      "observed_at": "2026-09-19T23:50:00.000000Z",
+      "occurred_at": "2026-09-19",
+      "date_precision": "day",
+      "source_modified_at": null,
+      "provenance": {
+        "source_uri": "https://github.com/sample?tab=repositories#ledger=2026-09-19:public",
+        "extractor": "github-ledger-v1"
+      },
+      "metadata": {
+        "date": "2026-09-19",
+        "visibility": "public",
+        "owner": "sample",
+        "timezone": "UTC",
+        "merged_prs": [
+          {
+            "repo": "sample/garden-planner",
+            "number": 12,
+            "title": "Add a watering schedule",
+            "merged_at": "2026-09-19T16:02:00Z",
+            "author_class": "owner"
+          }
+        ],
+        "releases": [],
+        "repos_created": [],
+        "commits": {
+          "total": 9,
+          "by_author": {
+            "agent": 1,
+            "owner": 8
+          },
+          "by_repo": {
+            "sample/bike-log": 2,
+            "sample/garden-planner": 7
+          }
+        }
+      },
+      "history_limit": 100,
+      "revisions": [
+        {
+          "revision_id": "rev-6e647ebd5866b352f3f6aa25cea8bf4a",
+          "source_version": "85301af6a4114c5f90aef098b2d7a1d9c594427c864b5496946830d6e3ccb66f",
+          "observed_at": "2026-09-19T23:50:00.000000Z",
+          "source_modified_at": null
+        },
+        {
+          "revision_id": "rev-9b6c0cdd5b8ea72efcd8bff62c7a4b7d",
+          "source_version": "a61fc24d87e57212a06e16370e86acc8741629b3906123388e5f37e1ee408d8c",
+          "observed_at": "2026-09-10T09:00:00.000000Z",
+          "source_modified_at": null
+        }
+      ]
+    },
+    {
+      "record_id": "rec-f73167e1cd5df3e4daca066439c70085",
+      "revision_id": "rev-d58679e3c3757b8c00d74b57e0d64761",
+      "kind": "note",
+      "title": "Sample note: trip checklist",
+      "body": "Trip checklist\n- Pack the tent\n- Check the bike tyres\n- Buy trail snacks",
+      "source_id": "synthetic-notes",
+      "source_record_id": "x-coredata://SAMPLE/ICNote/p1",
+      "source_version": "198e1faf6a98725adff711ba45697b7449b0bd5bdd82a491639ef32153f9559a",
+      "status": "observed",
+      "tier": "restricted",
+      "observed_at": "2026-09-19T10:15:00.000000Z",
+      "occurred_at": "2026-08-30T08:00:00Z",
+      "date_precision": "second",
+      "source_modified_at": null,
+      "provenance": {
+        "source_uri": "fixture://synthetic-notes/6.html",
+        "extractor": "notes-html-v1"
+      },
+      "metadata": {
+        "source_content_hash": "48f40bf927474ab935f4beb6dc28f944c0aa613b14f1e35a64a7245def1aa51e",
+        "source_metadata_hash": "da3981ad236d9924304241f95a107fe3029e41deba84246415b84de102c548d6",
+        "source_relative_path": "Notes/sample-trip-checklist.html",
+        "extraction_schema_version": 2,
+        "export_representation": "html",
+        "reported_plaintext_length": 64,
+        "visible_text_available": true,
+        "coverage": {
+          "export_metadata": "captured",
+          "export_visible_text": "captured",
+          "attachments": "none_detected_in_export",
+          "native_note": "not_verified"
+        },
+        "native_note_id": "x-coredata://SAMPLE/ICNote/p1",
+        "date_format_gaps": [],
+        "created_precision": "second",
+        "modified_precision": "second",
+        "occurred_at_semantics": "note_creation_date",
+        "historical_source": true,
+        "attachment_count": 0,
+        "remote_reference_count": 0,
+        "attachment_bytes_captured": false,
+        "html_preserved_at_source": true
+      },
+      "history_limit": 100,
+      "revisions": [
+        {
+          "revision_id": "rev-d58679e3c3757b8c00d74b57e0d64761",
+          "source_version": "198e1faf6a98725adff711ba45697b7449b0bd5bdd82a491639ef32153f9559a",
+          "observed_at": "2026-09-19T10:15:00.000000Z",
+          "source_modified_at": null
+        },
+        {
+          "revision_id": "rev-18f0159bdea4a2d264ce33f9e1712a02",
+          "source_version": "5b657cca76b41b4faf3c887efe7d9c31d017e55e3c4cd22bbc02f2e9ffc46081",
+          "observed_at": "2026-09-10T09:00:00.000000Z",
+          "source_modified_at": null
+        }
+      ]
+    },
+    {
+      "record_id": "rec-038e3709a895e186c46b2621ec091a42",
+      "revision_id": "rev-ee3fb8c81e04b8dfdefae59bb95ed8f2",
+      "kind": "health_day",
+      "title": "Health 2026-09-18",
+      "body": "Health summary for 2026-09-18.\nSleep: 7.2 h.\nResting heart rate: 56 bpm.\nSteps: 8412.",
+      "source_id": "synthetic-health",
+      "source_record_id": "day:2026-09-18",
+      "source_version": "e736ac20a0ba52dee88a9dcdb9b79617f6a529b831aef73b4befec8066e3d2b1",
+      "status": "observed",
+      "tier": "restricted",
+      "observed_at": "2026-09-18T11:00:00.000000Z",
+      "occurred_at": "2026-09-18",
+      "date_precision": "day",
+      "source_modified_at": null,
+      "provenance": {
+        "source_uri": "fixture://synthetic-health/day:2026-09-18",
+        "extractor": "health-daily-v1"
+      },
+      "metadata": {
+        "date": "2026-09-18",
+        "timezone": "America/New_York",
+        "vitals": {
+          "steps": 8412,
+          "sleep_h": 7.2,
+          "resting_hr_bpm": 56,
+          "hrv_avg_ms": 48
+        }
+      },
+      "history_limit": 100,
+      "revisions": [
+        {
+          "revision_id": "rev-ee3fb8c81e04b8dfdefae59bb95ed8f2",
+          "source_version": "e736ac20a0ba52dee88a9dcdb9b79617f6a529b831aef73b4befec8066e3d2b1",
+          "observed_at": "2026-09-18T11:00:00.000000Z",
+          "source_modified_at": null
+        }
+      ]
+    },
+    {
+      "record_id": "rec-e4daa69b8b68ff193ce08bc08d200d3f",
+      "revision_id": "rev-061725d99ae5b8cb5077417ec9316d5e",
+      "kind": "conversation_message",
+      "title": "Claude user message",
+      "body": "Synthetic prompt text for the transcript preview. It is not a real session.",
+      "source_id": "synthetic-transcripts",
+      "source_record_id": "sample-session:sample-message-1",
+      "source_version": "2ee65229a208ec3336c45dd4132c75860cbbf80e4ac8853efc5119bda812157d",
+      "status": "observed",
+      "tier": "restricted",
+      "observed_at": "2026-09-18T09:30:00.000000Z",
+      "occurred_at": "2026-09-18T09:12:00Z",
+      "date_precision": "second",
+      "source_modified_at": null,
+      "provenance": {
+        "source_uri": "fixture://synthetic-transcripts/session.jsonl#line=12",
+        "extractor": "native-claude-v1"
+      },
+      "metadata": {
+        "platform": "claude",
+        "native_session_id": "sample-session",
+        "native_message_id": "sample-message-1",
+        "speaker_role": "user",
+        "parent_message_id": null,
+        "source_line": 12,
+        "source_record_hash": "1236c84944e943b224be84fee4998aa833a5f3f2c009f3708267704e4109c402",
+        "source_authority": "user_statement",
+        "requires_fact_extraction": true,
+        "nontext_content_preserved_at_source": false
+      },
+      "history_limit": 100,
+      "revisions": [
+        {
+          "revision_id": "rev-061725d99ae5b8cb5077417ec9316d5e",
+          "source_version": "2ee65229a208ec3336c45dd4132c75860cbbf80e4ac8853efc5119bda812157d",
+          "observed_at": "2026-09-18T09:30:00.000000Z",
+          "source_modified_at": null
+        }
+      ]
+    },
+    {
+      "record_id": "rec-c07202007b631d962c233db055c0ece0",
+      "revision_id": "rev-ae06c67f0182138eefe2bf9dff2a6546",
+      "kind": "assertion",
+      "title": "Meeting preference",
+      "body": "{\"preference\":\"mornings\",\"since\":\"2026-05\"}",
+      "source_id": "synthetic-manual",
+      "source_record_id": "assertion-e4b3487b1756177de5cf011e8d497014",
+      "source_version": "6c34b7789820400fd65c443be9d90e7758c49098ba554602b3711db078e35dd2",
+      "status": "confirmed",
+      "tier": "restricted",
+      "observed_at": "2026-09-17T16:00:00.000000Z",
+      "occurred_at": "2026-05",
+      "date_precision": "month",
+      "source_modified_at": null,
+      "provenance": {
+        "source_uri": "manual://explicit-record",
+        "extractor": "personal-context-record-v1"
+      },
+      "metadata": {},
+      "assertion": {
+        "subject_id": "person:sample",
+        "predicate": "meeting_preference",
+        "value": {
+          "preference": "mornings",
+          "since": "2026-05"
+        },
+        "status": "confirmed",
+        "authority": "ani_direct",
+        "effective_from": "2026-05",
+        "precision": "month"
+      },
+      "entity_id": "person:sample",
+      "history_limit": 100,
+      "revisions": [
+        {
+          "revision_id": "rev-ae06c67f0182138eefe2bf9dff2a6546",
+          "source_version": "6c34b7789820400fd65c443be9d90e7758c49098ba554602b3711db078e35dd2",
+          "observed_at": "2026-09-17T16:00:00.000000Z",
+          "source_modified_at": null
+        }
+      ]
+    },
+    {
+      "record_id": "rec-ccd1e659f4685b47a49907bf945e60c7",
+      "revision_id": "rev-8f2a1320f0d55bc9b3ef91fcfb34efaf",
+      "kind": "assertion",
+      "title": "Meeting preference",
+      "body": "\"afternoons\"",
+      "source_id": "synthetic-manual",
+      "source_record_id": "assertion-ae8982c8068ca8a921c1c75f52a723d9",
+      "source_version": "18d39d9b0729fbc0728ff2397e4f1b97899c2bc874564ff27f38c89fc76dfb22",
+      "status": "superseded",
+      "tier": "restricted",
+      "observed_at": "2026-09-16T16:00:00.000000Z",
+      "occurred_at": "2025",
+      "date_precision": "year",
+      "source_modified_at": null,
+      "provenance": {
+        "source_uri": "manual://explicit-record",
+        "extractor": "personal-context-record-v1"
+      },
+      "metadata": {},
+      "assertion": {
+        "subject_id": "person:sample",
+        "predicate": "meeting_preference",
+        "value": "afternoons",
+        "status": "confirmed",
+        "authority": "agent_inference",
+        "effective_from": "2025",
+        "precision": "year"
+      },
+      "entity_id": "person:sample",
+      "history_limit": 100,
+      "revisions": [
+        {
+          "revision_id": "rev-8f2a1320f0d55bc9b3ef91fcfb34efaf",
+          "source_version": "18d39d9b0729fbc0728ff2397e4f1b97899c2bc874564ff27f38c89fc76dfb22",
+          "observed_at": "2026-09-16T16:00:00.000000Z",
           "source_modified_at": null
         }
       ]

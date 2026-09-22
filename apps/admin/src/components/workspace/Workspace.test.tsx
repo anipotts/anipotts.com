@@ -606,7 +606,7 @@ describe("the table convention", () => {
     const widths = [...host.querySelectorAll("thead th")].map(
       (th) => (th as HTMLElement).style.width,
     );
-    expect(widths).toEqual(["auto", "128px", "auto", "112px", "112px", "80px"]);
+    expect(widths).toEqual(["auto", "144px", "auto", "112px", "112px", "80px"]);
   });
 });
 

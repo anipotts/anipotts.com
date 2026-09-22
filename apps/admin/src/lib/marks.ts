@@ -147,11 +147,17 @@ export const SOURCE_MARKS = {
   github: "github",
   handoff: "handoff",
   "health.daily": "applehealth",
+  "synthetic-browsing": "browser",
   // Google or Apple is not settled, so calendars keep the neutral glyph.
   "synthetic-calendar": "agenda",
   "synthetic-contacts": "contacts",
+  "synthetic-github": "github",
   "synthetic-health": "applehealth",
+  "synthetic-manual": "writer",
+  "synthetic-messages": "messages",
   "synthetic-notes": "notes",
+  "synthetic-transcripts": "claude",
+  "synthetic-voice-memos": "voicememos",
 } as const satisfies Record<string, Ref>;
 
 /** Words inside other source ids ("apple.messages", "legacy.brain",

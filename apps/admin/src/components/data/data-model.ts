@@ -4,21 +4,34 @@
  * reads these; nothing downstream re-coerces reader JSON.
  */
 import {
+  ArchiveIcon,
+  BarbellIcon,
   BookOpenTextIcon,
+  BrowserIcon,
   CalendarBlankIcon,
+  ChatCircleSlashIcon,
+  ChatCircleTextIcon,
+  ChatsCircleIcon,
   CpuIcon,
   FileTextIcon,
   FolderSimpleIcon,
+  GitCommitIcon,
   HeartbeatIcon,
   LightbulbIcon,
   MapPinIcon,
+  MicrophoneIcon,
   NotePencilIcon,
+  SealCheckIcon,
   SignpostIcon,
   UserIcon,
   type Icon,
 } from "@phosphor-icons/react";
 import { markLabel, sourceMark, type TileRef } from "../../lib/marks";
+import { recordHost } from "../../lib/data-record";
+import { recordNaming, type Naming } from "../../lib/naming";
 import { sentenceCase } from "../../lib/sentence-case";
+
+export { effectiveDate } from "../../lib/data-record";
 
 type Item = Record<string, unknown>;
 
@@ -38,7 +51,8 @@ const object = (value: unknown): Item | null =>
     : null;
 
 /** Record and card kinds, as a glyph and a name. One map for Records,
- * Knowledge and the overview. */
+ * Knowledge and the overview; the reader's own kinds (System's adapters)
+ * are listed so none reads as a raw token. */
 const KINDS: Record<string, [Icon, string]> = {
   person: [UserIcon, "Person"],
   contact: [UserIcon, "Person"],
@@ -52,6 +66,18 @@ const KINDS: Record<string, [Icon, string]> = {
   system: [CpuIcon, "System"],
   reference: [BookOpenTextIcon, "Reference"],
   health: [HeartbeatIcon, "Health"],
+  assertion: [SealCheckIcon, "Assertion"],
+  browsing_day: [BrowserIcon, "Browsing day"],
+  conversation_message: [ChatsCircleIcon, "Conversation message"],
+  health_day: [HeartbeatIcon, "Health day"],
+  health_day_private: [HeartbeatIcon, "Private health day"],
+  legacy_assertion: [ArchiveIcon, "Legacy assertion"],
+  legacy_event: [ArchiveIcon, "Legacy event"],
+  message: [ChatCircleTextIcon, "Message"],
+  message_retracted: [ChatCircleSlashIcon, "Retracted message"],
+  voice_memo: [MicrophoneIcon, "Voice memo"],
+  work_day: [GitCommitIcon, "Work day"],
+  workout: [BarbellIcon, "Workout"],
 };
 
 export function kindGlyph(kind: unknown): [Icon, string] {
@@ -88,6 +114,9 @@ export type DataRecord = {
   revisionId: string | null;
   kind: string | null;
   title: string | null;
+  /** The device it came from: System's optional `host`, when it names one
+   * of the owner's devices. */
+  host: string | null;
   /** The reader's match excerpt, on search results only. */
   excerpt: string | null;
   body: string | null;
@@ -133,6 +162,7 @@ export function parseRecord(value: unknown): DataRecord | null {
     revisionId: text(item.revision_id),
     kind: text(item.kind),
     title: text(item.title),
+    host: recordHost(item),
     excerpt: text(item.search_excerpt),
     body: text(item.body),
     source: text(item.source_id),
@@ -151,6 +181,33 @@ export function parseRecord(value: unknown): DataRecord | null {
     assertion: object(item.assertion),
     metadata: object(item.metadata),
     raw: item,
+  };
+}
+
+/**
+ * A record as its row names it: the short title, the app tile (the browser
+ * most of a browsing day came from, else its source's app) or, when the
+ * source has no mark of its own, the glyph for its kind, and its device.
+ */
+export type RecordMark = Omit<Naming, "tile"> & {
+  /** The kind's glyph, drawn when `tile` is null. */
+  glyph: Icon;
+  kindName: string;
+  /** Null when neither the record nor its source has a mark. */
+  tile: TileRef | null;
+};
+
+export function recordMark(record: DataRecord, now?: number): RecordMark {
+  const naming = recordNaming(record, now);
+  const [glyph, kindName] = kindGlyph(record.kind);
+  const generic = naming.tile.id === null && naming.tile.kind === "source";
+  return {
+    ...naming,
+    // "Untitled" reads as the record's own title when it has none.
+    name: record.title ? naming.name : "Untitled",
+    tile: generic ? null : naming.tile,
+    glyph,
+    kindName,
   };
 }
 
@@ -186,39 +243,4 @@ export function parseItems<T>(
         return parsed ? [parsed] : [];
       })
     : [];
-}
-
-/** An effective date at its own precision: a day, a month or a year, read in
- * UTC so a date never shifts across a timezone. */
-export function effectiveDate(
-  value: string | null,
-  precision: string | null,
-): string | null {
-  if (!value) return null;
-  const ms = Date.parse(value.length === 4 ? `${value}-01-01` : value);
-  if (!Number.isFinite(ms)) return value;
-  const options: Intl.DateTimeFormatOptions =
-    precision === "year" || value.length === 4
-      ? { year: "numeric" }
-      : precision === "month" || value.length === 7
-        ? { year: "numeric", month: "long" }
-        : { year: "numeric", month: "short", day: "numeric" };
-  return new Intl.DateTimeFormat("en-US", {
-    ...options,
-    timeZone: "UTC",
-  }).format(ms);
-}
-
-/** Evidence as label and value pairs, one level deep. */
-export function evidenceFields(value: Item): Array<[string, string]> {
-  return Object.entries(value).map(([key, entry]) => [
-    sentenceCase(key),
-    typeof entry === "string"
-      ? entry
-      : entry === null || entry === undefined
-        ? "None"
-        : typeof entry === "object"
-          ? JSON.stringify(entry)
-          : String(entry),
-  ]);
 }
