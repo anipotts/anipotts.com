@@ -66,13 +66,19 @@ describe("the daily health contract", () => {
     });
   });
 
-  it("refuses a push time on the page: System's route serves none", () => {
+  it("accepts an optional push time, checks it, and never reads it", () => {
     // The last phone sync comes from the ops snapshot's health.ingest row.
+    const parsed = parseHealthDaily(
+      reply([], 7, { last_push_at: "2026-09-22T18:40:00Z" }),
+      7,
+    );
+    expect(parsed).not.toHaveProperty("lastPushAt");
+    expect(JSON.stringify(parsed)).not.toContain("18:40");
+    expect(parseHealthDaily(reply([], 7, { last_push_at: null }), 7).days).toBe(
+      7,
+    );
     expect(() =>
-      parseHealthDaily(
-        reply([], 7, { last_push_at: "2026-09-22T18:40:00Z" }),
-        7,
-      ),
+      parseHealthDaily(reply([], 7, { last_push_at: "yesterday" }), 7),
     ).toThrow(HealthDailyError);
   });
 

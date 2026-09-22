@@ -272,15 +272,40 @@ describe("Health and Knowledge", () => {
     await settle();
   };
 
-  it("keeps Health to one notice and no request while its flag is off", async () => {
+  it("says No vitals collected and makes no request while its flag is off", async () => {
     const fetcher = network();
     vi.stubGlobal("fetch", fetcher);
     await render("/data/health");
     expect(host.querySelector("h1")?.textContent).toBe("Health");
-    expect(host.textContent).toContain("Health not connected");
+    expect(host.textContent).toContain("No vitals collected");
+    expect(host.textContent).not.toContain("not connected");
+    // No ops session: no phone sync line, and never a number.
+    expect(host.textContent).not.toContain("Last phone sync");
+    const view = host.querySelector(".health-view")!.cloneNode(true) as Element;
+    view.querySelector(".workspace-clock")?.remove();
+    expect(view.textContent).not.toMatch(/\d/);
     expect(host.querySelector("table")).toBeNull();
     expect(host.querySelector('[aria-label="Lock session"]')).toBeNull();
     expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("names the last phone sync from ops while its flag is off, with no badge", async () => {
+    const snapshot = {
+      ...opsSample,
+      status: opsSample.status.map((row) =>
+        row.id === "health.ingest"
+          ? { ...row, state: "ok", last_success_at: "2026-09-21T17:40:00Z" }
+          : row,
+      ),
+    };
+    await render("/data/health", { fixture: snapshot });
+    expect(host.textContent).toContain("No vitals collected");
+    expect(host.textContent).toContain("Last phone sync");
+    expect(host.textContent).toContain("20m ago");
+    const meta = host.querySelector(".health-meta")!;
+    expect(meta.textContent).not.toMatch(/\b(?:OK|Live|Connected)\b/);
+    expect(meta.querySelector(".workspace-state")).toBeNull();
+    expect(host.querySelector("table")).toBeNull();
   });
 
   it("reads Health through its own health:read credential only", async () => {
@@ -310,18 +335,21 @@ describe("Health and Knowledge", () => {
       "Bearer synthetic.health.jws",
     );
     const table = host.querySelector('table[aria-label="Health by day"]')!;
-    // A day with no reading is not a row; no vital column is drawn.
-    expect(table.querySelectorAll("tbody tr")).toHaveLength(2);
+    // Every day of the range is a row; a day with nothing says so, and no
+    // vital column is drawn.
+    expect(table.querySelectorAll("tbody tr")).toHaveLength(30);
     expect(table.textContent).toContain("8,412");
+    expect(table.textContent).toContain("Nothing arrived");
     expect(table.textContent).not.toContain("Resting HR");
     expect(host.textContent).toContain("No vitals collected");
-    expect(host.textContent).toContain("2 days");
+    expect(host.textContent).toContain("2 of 30 days");
     expect(host.querySelector('[aria-label="Lock session"]')).not.toBeNull();
     expect(window.localStorage.length).toBe(0);
     expect(window.sessionStorage.length).toBe(0);
   });
 
-  it("draws a vital only where System carries one", async () => {
+  it("never draws a vital, whatever the feed carries", async () => {
+    // Heart rate, sleep and HRV have no collector: a number here was seeded.
     const fetcher = healthNetwork(
       healthReply([
         healthDay("2026-09-21", null, 54.3),
@@ -337,10 +365,11 @@ describe("Health and Knowledge", () => {
     });
     await render("/data/health", { healthEnabled: true, healthSession });
     const table = host.querySelector('table[aria-label="Health by day"]')!;
-    expect(table.textContent).toContain("Resting HR");
-    expect(table.textContent).toContain("54.3 bpm");
-    expect(table.textContent).not.toContain("Steps");
-    expect(host.textContent).not.toContain("No vitals collected");
+    expect(table.textContent).not.toContain("Resting HR");
+    expect(host.textContent).not.toMatch(/54\.3|bpm|\b55\b/);
+    expect(host.textContent).toContain("No vitals collected");
+    expect(host.textContent).toContain("0 of 30 days");
+    expect(table.querySelectorAll("tbody tr")).toHaveLength(30);
   });
 
   it("refuses a health credential that carries any other scope", async () => {

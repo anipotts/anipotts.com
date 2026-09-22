@@ -654,7 +654,7 @@
       "revision_id": "rev-ee3fb8c81e04b8dfdefae59bb95ed8f2",
       "kind": "health_day",
       "title": "Health 2026-09-18",
-      "body": "Health summary for 2026-09-18.\nSleep: 7.2 h.\nResting heart rate: 56 bpm.\nSteps: 8412.",
+      "body": "Health summary for 2026-09-18.\nSteps: 8412.",
       "source_id": "synthetic-health",
       "source_record_id": "day:2026-09-18",
       "source_version": "e736ac20a0ba52dee88a9dcdb9b79617f6a529b831aef73b4befec8066e3d2b1",
@@ -672,10 +672,7 @@
         "date": "2026-09-18",
         "timezone": "America/New_York",
         "vitals": {
-          "steps": 8412,
-          "sleep_h": 7.2,
-          "resting_hr_bpm": 56,
-          "hrv_avg_ms": 48
+          "steps": 8412
         }
       },
       "history_limit": 100,

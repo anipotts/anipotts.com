@@ -69,9 +69,13 @@ export class HealthDailyError extends Error {
 }
 
 const ENVELOPE_KEYS = ["data", "response_observed_at", "schema"];
-/** store.health_daily's page is exactly these; the last phone push comes
- * from the ops snapshot (lib/health-metrics.ts), never from here. */
+/** store.health_daily's page is exactly these, plus an optional
+ * `last_push_at`, which is checked and never read: the last phone sync
+ * comes from the ops snapshot (lib/health-metrics.ts). The parser stays
+ * this shape until System ships health_daily_v1 together with an admin
+ * parser change. */
 const PAGE_KEYS = ["days", "items"];
+const PAGE_OPTIONAL = ["last_push_at"];
 const DAY_KEYS = [
   "date",
   "hrv_avg_ms",
@@ -146,7 +150,9 @@ export function parseHealthDaily(value: unknown, days: number): HealthDaily {
     throw new HealthDailyError();
   const observedAt = timestamp(envelope.response_observed_at);
   const page = plain(envelope.data);
-  exactKeys(page, PAGE_KEYS);
+  exactKeys(page, PAGE_KEYS, PAGE_OPTIONAL);
+  if (page.last_push_at !== undefined && page.last_push_at !== null)
+    timestamp(page.last_push_at);
   if (page.days !== days || !Array.isArray(page.items))
     throw new HealthDailyError();
   if (page.items.length > days) throw new HealthDailyError();

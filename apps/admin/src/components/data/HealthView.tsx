@@ -7,8 +7,6 @@ import {
   ArrowClockwiseIcon,
   CalendarDotsIcon,
   HeartbeatIcon,
-  MoonIcon,
-  PlugsIcon,
   SneakerMoveIcon,
   type Icon,
 } from "@phosphor-icons/react";
@@ -46,23 +44,29 @@ import {
   WorkspacePage,
   type Column,
 } from "../workspace/Workspace";
-import { dayKey, dayLabel, durationText } from "../workspace/format";
+import { dayKey, dayLabel } from "../workspace/format";
 import { DataSessionControl, SessionNotice } from "./DataNotices";
 import { useDataSession } from "./useDataSession";
 import "./data-workspace.css";
 import "./health.css";
 
 /**
- * Data Health: System's daily summary, stored values only. The header says
- * when the phone last synced and which expected metrics have not arrived
- * (both from the ops snapshot, lib/health-metrics.ts) and how many days hold
- * a reading; then one row per day. A reading System does not have is never
- * drawn as a number: a metric with no reading in the range has no column,
- * and when no vital has one the header says "No vitals collected".
+ * Data Health: only what really arrived. The header says when the phone last
+ * synced and which expected metrics have not arrived (both from the ops
+ * snapshot, lib/health-metrics.ts) and how many days of the range hold a
+ * reading; then one row per day of the range, "Nothing arrived" where none
+ * did.
+ *
+ * A metric shows only once a collector feeds it. Steps come from the phone's
+ * export today; weight joins once System's Withings collector writes real
+ * values. Sleep, heart rate and HRV have no collector, so they always read
+ * "No vitals collected", whatever the feed carries: the numbers once there
+ * were seeded, never measured.
  *
  * Off (PRIVATE_READER_HEALTH_ENABLED unset, as in production), the view is
- * one "not connected" notice and makes no request. On, it reads through its
- * own health:read session (lib/private-reader-health.ts), memory only.
+ * "No vitals collected" and the last phone sync from ops, and makes no
+ * health request. On, it reads through its own health:read session
+ * (lib/private-reader-health.ts), memory only.
  */
 
 type Metric = {
@@ -70,69 +74,53 @@ type Metric = {
   header: string;
   /** The phone's glyph, with the header's name for assistive technology. */
   icon: Icon;
-  /** Shown only from `large` up. */
-  wide?: true;
-  /** A vital, as opposed to activity. */
-  vital: boolean;
   format: (value: number) => string;
 };
 
-const ONE_DECIMAL = new Intl.NumberFormat("en-US", {
-  maximumFractionDigits: 1,
-});
 const WHOLE = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 
-const METRICS: readonly Metric[] = [
+/** The metrics a collector feeds. Nothing else in the feed is drawn. Add
+ * weight here once System's Withings collector writes real values. */
+const COLLECTED: readonly Metric[] = [
   {
     key: "steps",
     header: "Steps",
     icon: SneakerMoveIcon,
-    vital: false,
     format: (value) => WHOLE.format(value),
-  },
-  {
-    key: "sleepHours",
-    header: "Sleep",
-    icon: MoonIcon,
-    vital: true,
-    format: (value) => durationText(Math.round(value * 60) * 60_000) ?? "",
-  },
-  {
-    key: "restingHeartRate",
-    header: "Resting HR",
-    icon: HeartbeatIcon,
-    vital: true,
-    format: (value) => `${ONE_DECIMAL.format(value)} bpm`,
-  },
-  {
-    key: "hrv",
-    header: "HRV",
-    icon: HeartbeatIcon,
-    wide: true,
-    vital: true,
-    format: (value) => `${ONE_DECIMAL.format(value)} ms`,
-  },
-  {
-    key: "weightLbs",
-    header: "Weight",
-    icon: HeartbeatIcon,
-    wide: true,
-    vital: true,
-    format: (value) => `${ONE_DECIMAL.format(value)} lb`,
   },
 ];
 
-/** The metrics with at least one reading in these days. */
-export function presentMetrics(items: readonly HealthDay[]): Metric[] {
-  return METRICS.filter((metric) =>
-    items.some((item) => item[metric.key] !== null),
-  );
+/** Whether a day holds a reading from a collected metric. */
+const arrived = (item: HealthDay) =>
+  COLLECTED.some((metric) => item[metric.key] !== null);
+
+/** The days of the range, newest first, ending at the reply's own day in
+ * Eastern Time, each with what System has for it (or nothing). */
+export function rangeDays(
+  data: Pick<HealthDaily, "days" | "items" | "observedAt">,
+): Array<{ date: string; item: HealthDay | null }> {
+  const byDate = new Map(data.items.map((item) => [item.date, item]));
+  const end = EASTERN_DATE.format(Date.parse(data.observedAt));
+  const [y, m, d] = end.split("-").map(Number) as [number, number, number];
+  return Array.from({ length: data.days }, (_, index) => {
+    const date = new Date(Date.UTC(y, m - 1, d - index))
+      .toISOString()
+      .slice(0, 10);
+    return { date, item: byDate.get(date) ?? null };
+  });
 }
 
-/** Days holding at least one reading. */
-export function coveredDays(items: readonly HealthDay[]): HealthDay[] {
-  return items.filter((item) => METRICS.some((m) => item[m.key] !== null));
+/** The days of the range that hold a collected reading. */
+export function arrivedDays(items: readonly HealthDay[]): HealthDay[] {
+  return items.filter(arrived);
 }
+
+const EASTERN_DATE = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/New_York",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
 
 type Read =
   | { status: "loading" }
@@ -174,12 +162,21 @@ const METRIC_GLYPHS: Partial<Record<HealthMetricName, Icon>> = {
  * the last 24 hours (health.metrics). Read only when the ops reader is on,
  * or in development from the snapshot fixture; nothing when neither has it.
  */
-function CollectionFacts({ ops }: { ops: OpsViewProps }) {
+function CollectionFacts({
+  ops,
+  phoneOnly = false,
+}: {
+  ops: OpsViewProps;
+  /** Only the last phone sync, as the off view says. */
+  phoneOnly?: boolean;
+}) {
   const { snapshot, fixedNow } = useOpsData(ops, false);
   const facts = snapshot ? healthCollection(snapshot) : null;
   if (!facts) return null;
   const missing =
-    facts.metrics?.kind === "missing" ? facts.metrics.metrics : [];
+    !phoneOnly && facts.metrics?.kind === "missing"
+      ? facts.metrics.metrics
+      : [];
   return (
     <>
       {facts.lastPhoneSync && (
@@ -204,95 +201,104 @@ function CollectionFacts({ ops }: { ops: OpsViewProps }) {
   );
 }
 
+const opsReadable = (ops?: OpsViewProps): ops is OpsViewProps =>
+  Boolean(ops && (ops.enabled || ops.fixture !== undefined));
+
 /** The header's line: the last phone sync and what has not arrived (from
- * ops), the days covered, and no vitals. */
+ * ops), how many days of the range hold a reading, and no vitals. */
 function HealthMeta({ data, ops }: { data: HealthDaily; ops?: OpsViewProps }) {
-  const covered = coveredDays(data.items);
-  const vitals = presentMetrics(data.items).some((metric) => metric.vital);
-  const newest = covered[0]?.date;
-  const oldest = covered.at(-1)?.date;
+  const covered = arrivedDays(data.items).length;
+  const days = rangeDays(data);
+  const newest = days[0]?.date;
+  const oldest = days.at(-1)?.date;
   return (
     <span className="health-meta">
-      {ops && (ops.enabled || ops.fixture !== undefined) && (
-        <CollectionFacts ops={ops} />
-      )}
-      {covered.length > 0 && newest && oldest && (
+      {opsReadable(ops) && <CollectionFacts ops={ops} />}
+      {newest && oldest && (
         <span
           className="health-meta-item"
           title={`${dateText(oldest)} to ${dateText(newest)}`}
         >
           <CalendarDotsIcon weight="regular" aria-hidden="true" />
           <span>
-            {covered.length} {covered.length === 1 ? "day" : "days"}
+            {covered} of {data.days} days
           </span>
         </span>
       )}
-      {!vitals && (
-        <span className="health-meta-item">
-          <HeartbeatIcon weight="regular" aria-hidden="true" />
-          <span>No vitals collected</span>
-        </span>
-      )}
+      <NoVitals />
     </span>
   );
 }
 
-type Row = HealthDay & { label: string } & Record<string, unknown>;
+function NoVitals() {
+  return (
+    <span className="health-meta-item">
+      <HeartbeatIcon weight="regular" aria-hidden="true" />
+      <span>No vitals collected</span>
+    </span>
+  );
+}
 
-/** A reading in its column: the stored value, or plainly none. */
+type Row = { date: string; label: string; item: HealthDay | null } & Record<
+  string,
+  unknown
+>;
+
+/** A reading in its column: the stored value, or plainly nothing. */
 function Reading({ metric, row }: { metric: Metric; row: Row }) {
-  const value = row[metric.key];
-  if (value === null) return <span className="health-none">Not collected</span>;
+  const value = row.item?.[metric.key] ?? null;
+  if (value === null)
+    return <span className="health-none">Nothing arrived</span>;
   return <span className="workspace-figure">{metric.format(value)}</span>;
 }
 
 /** A phone row's figures: fixed slots so the days line up in columns. */
-function PhoneReadings({ metrics, row }: { metrics: Metric[]; row: Row }) {
+function PhoneReadings({ row }: { row: Row }) {
+  if (!row.item || !arrived(row.item))
+    return <span className="health-none">Nothing arrived</span>;
   return (
     <span className="health-phone">
-      {metrics
-        .filter((metric) => !metric.wide)
-        .map((metric) => {
-          const value = row[metric.key];
-          const Glyph = metric.icon;
-          return (
-            <span
-              key={metric.key}
-              className="health-phone-slot"
-              title={metric.header}
-            >
-              {value === null ? (
-                <span className="sr-only">{metric.header} not collected</span>
-              ) : (
-                <>
-                  <Glyph weight="regular" aria-hidden="true" />
-                  <span className="sr-only">{metric.header} </span>
-                  {metric.format(value)}
-                </>
-              )}
-            </span>
-          );
-        })}
+      {COLLECTED.map((metric) => {
+        const value = row.item![metric.key];
+        const Glyph = metric.icon;
+        return (
+          <span
+            key={metric.key}
+            className="health-phone-slot"
+            title={metric.header}
+          >
+            {value === null ? (
+              <span className="sr-only">{metric.header}: nothing arrived</span>
+            ) : (
+              <>
+                <Glyph weight="regular" aria-hidden="true" />
+                <span className="sr-only">{metric.header} </span>
+                {metric.format(value)}
+              </>
+            )}
+          </span>
+        );
+      })}
     </span>
   );
 }
 
+/** Every day of the range, newest first; a day System has nothing for
+ * reads "Nothing arrived", never a zero or a dash. */
 function HealthTable({ data }: { data: HealthDaily }) {
   const today = useLiveText((now) => dayKey(now), Date.now());
-  const metrics = presentMetrics(data.items);
   const rows = useMemo(
     () =>
-      coveredDays(data.items).map(
-        (item) =>
+      rangeDays(data).map(
+        ({ date, item }) =>
           ({
-            ...item,
-            label: dayLabel(item.date, Date.parse(`${today}T12:00:00`)),
+            date,
+            item,
+            label: dayLabel(date, Date.parse(`${today}T12:00:00`)),
           }) as Row,
       ),
-    [data.items, today],
+    [data, today],
   );
-  if (!rows.length)
-    return <StateNotice kind="empty" title="No vitals collected" />;
   const columns: Column<Row>[] = [
     {
       key: "day",
@@ -302,16 +308,15 @@ function HealthTable({ data }: { data: HealthDaily }) {
           kind="Day"
           title={row.label}
           tooltip={row.date}
-          end={<PhoneReadings metrics={metrics} row={row} />}
+          end={<PhoneReadings row={row} />}
         />
       ),
     },
-    ...metrics.map((metric): Column<Row> => ({
+    ...COLLECTED.map((metric): Column<Row> => ({
       key: metric.key,
       header: metric.header,
       width: CELL_WIDTHS.time,
       numeric: true,
-      hideBelow: metric.wide ? "large" : undefined,
       render: (row) => <Reading metric={metric} row={row} />,
     })),
   ];
@@ -539,13 +544,23 @@ export function HealthView({
 }) {
   if (fixture !== undefined)
     return <FixtureHealth fixture={fixture} ops={ops} />;
+  // Off: nothing is read. What is true is that no vitals are collected,
+  // and when the phone last pushed, if ops can say; never a number.
   if (!enabled)
     return (
-      <Page>
+      <Page
+        meta={
+          opsReadable(ops) ? (
+            <span className="health-meta">
+              <CollectionFacts ops={ops} phoneOnly />
+            </span>
+          ) : null
+        }
+      >
         <StateNotice
-          kind="not-connected"
-          icon={PlugsIcon}
-          title="Health not connected"
+          kind="empty"
+          icon={HeartbeatIcon}
+          title="No vitals collected"
         />
       </Page>
     );
