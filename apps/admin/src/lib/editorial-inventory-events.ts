@@ -170,11 +170,20 @@ export function applyEditorialRecordSaved(
     })
   )
     return current;
-  const publishedUpdated = published
-    ? { at: saved.publishedAt!, source: "cms" as const }
-    : undefined;
   const visibilityIsStatus =
     saved.record.kind === "writing" || saved.record.kind === "work";
+  // A publish that took the record off the site reads as that, never as
+  // Published (lib/editorial-inventory-projection.ts latestPublishedUpdate).
+  const hidden =
+    visibilityIsStatus &&
+    saved.intendedVisibility !== undefined &&
+    !["published", "featured", "listed"].includes(saved.intendedVisibility);
+  const publishedUpdated = published
+    ? {
+        at: saved.publishedAt!,
+        source: hidden ? ("hidden" as const) : ("cms" as const),
+      }
+    : undefined;
   const revisions = { ...current.revisions };
   for (const href of matched) revisions[href] = saved.revision;
   const status = (item: { status: string }) =>

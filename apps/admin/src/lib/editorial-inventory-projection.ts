@@ -21,6 +21,9 @@ export type InventoryEntry = {
   published?: boolean;
   /** When the content store last published this record. */
   publishedAt?: string;
+  /** The content store's id for that publication. The Git seed's are
+   * `git-seed.<kind>.<id>` (scripts/content/content-d1-seed.mjs). */
+  publicationId?: string;
 };
 export type ProjectedRecord = CatalogRecord & {
   collection: string;
@@ -65,19 +68,45 @@ function timestamp(value: number): string | undefined {
     ? new Date(value).toISOString()
     : undefined;
 }
-/** The newer of the content store's publish time and the last Git change.
- * A record published from the CMS after its last commit reads the publish
- * time; an older publish never hides a newer commit. */
+/** The Git seed's publication ids (scripts/content/content-d1-seed.mjs
+ * SEED_ID_PREFIX): the store's first copy of each Git file, stamped with the
+ * moment the seed ran, not a publish. */
+export const SEED_PUBLICATION_PREFIX = "git-seed.";
+
+/** Whether a publication is a real one: an edit or publish through the
+ * editor, never the Git seed's copy. */
+export function editorPublication(publicationId: string | undefined): boolean {
+  return (
+    typeof publicationId === "string" &&
+    publicationId !== "" &&
+    !publicationId.startsWith(SEED_PUBLICATION_PREFIX)
+  );
+}
+
+/** A record's public state that keeps it on the site. */
+const LIVE_STATES = new Set(["published", "featured", "listed"]);
+
+/**
+ * The time a Content row reads: the newer of the content store's publish and
+ * the last Git change. Only a real publication counts; a seeded revision
+ * keeps its Git time, since the seed's stamp is when the seed ran. A real
+ * publication that took the record off the site reads "Hidden from site",
+ * never Published. An older publish never hides a newer commit.
+ */
 export function latestPublishedUpdate(
-  publishedAt: string | undefined,
+  publication: { publishedAt?: string; publicationId?: string } | undefined,
   git: CatalogRecord["updated"],
+  status?: string,
 ): CatalogRecord["updated"] {
-  const cms = Date.parse(publishedAt ?? "");
+  if (!publication || !editorPublication(publication.publicationId)) return git;
+  const cms = Date.parse(publication.publishedAt ?? "");
   if (!Number.isFinite(cms)) return git;
   const gitAt = Date.parse(git?.at ?? "");
-  return Number.isFinite(gitAt) && gitAt >= cms
-    ? git
-    : { at: new Date(cms).toISOString(), source: "cms" };
+  if (Number.isFinite(gitAt) && gitAt >= cms) return git;
+  return {
+    at: new Date(cms).toISOString(),
+    source: status !== undefined && !LIVE_STATES.has(status) ? "hidden" : "cms",
+  };
 }
 function metadata(source: string): Record<string, unknown> {
   try {
@@ -219,12 +248,6 @@ export function projectEditorialInventory(
     if (!identity) return;
     const draft = privateByPath.get(editorialRecordPath(identity));
     const data = draft ? metadata(draft.source) : {};
-    const publishedUpdated = isPrivateOnly
-      ? undefined
-      : latestPublishedUpdate(
-          entry.publishedAt,
-          updated(entry.collection, entry.id),
-        );
     const privateUpdatedAt = draft ? timestamp(draft.updatedAt) : undefined;
     const changesPending = Boolean(
       draft && gitBlobSha1(draft.source) !== draft.baseFileHash,
@@ -242,6 +265,13 @@ export function projectEditorialInventory(
               entry.collection === "newsletterPage"
             ? (text(entry.data.status) ?? "draft")
             : "published";
+    const publishedUpdated = isPrivateOnly
+      ? undefined
+      : latestPublishedUpdate(
+          entry.published ? entry : undefined,
+          updated(entry.collection, entry.id),
+          status,
+        );
     const rawVisibility =
       entry.collection === "projects" ? data.public_state : data.status;
     const visibilityValues =

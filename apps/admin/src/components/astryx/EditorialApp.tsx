@@ -76,7 +76,7 @@ export type CatalogRecord = {
   privateUpdatedAt?: string;
   publishedUpdated?: {
     at: string;
-    source: "git" | "local" | "private" | "cms";
+    source: "git" | "local" | "private" | "cms" | "hidden";
   };
   intendedVisibility?: string;
   capabilities?: {
@@ -84,7 +84,10 @@ export type CatalogRecord = {
     previewable: boolean;
     reviewOnly: boolean;
   };
-  updated?: { at: string; source: "git" | "local" | "private" | "cms" };
+  updated?: {
+    at: string;
+    source: "git" | "local" | "private" | "cms" | "hidden";
+  };
 };
 export type CatalogGroup = {
   name: string;

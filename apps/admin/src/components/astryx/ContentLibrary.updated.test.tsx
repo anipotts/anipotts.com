@@ -48,7 +48,7 @@ afterEach(() => {
 // Hydrating a full library in jsdom is slow on a loaded machine.
 const SLOW = 20_000;
 
-const sources = ["git", "local", "private", "cms"] as const;
+const sources = ["git", "local", "private", "cms", "hidden"] as const;
 function records(count: number): CatalogRecord[] {
   return Array.from({ length: count }, (_, index) => ({
     title: `Record ${index}`,
@@ -179,6 +179,7 @@ describe("Updated", () => {
         local: "Local edit",
         private: "Private draft saved",
         cms: "Published",
+        hidden: "Hidden from site",
       };
       for (const source of sources) {
         const host = container();

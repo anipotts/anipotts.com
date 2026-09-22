@@ -11,7 +11,8 @@ import {
 import { recordCollection } from "./editorial-collections";
 
 /** Complete published records replace bundled values, including hidden
- * records, and carry the time the content store published them. */
+ * records, and carry the time and publication id the content store
+ * published them under. */
 export function overlayPublishedInventory(
   entries: InventoryEntry[],
   publications: PublishedSnapshot[],
@@ -40,6 +41,7 @@ export function overlayPublishedInventory(
       body: parseEditorialSource(source).body,
       published: true,
       publishedAt: publication.publishedAt,
+      publicationId: publication.publicationId,
     });
   }
   return [...result.values()];
