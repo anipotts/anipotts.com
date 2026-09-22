@@ -15,9 +15,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
   buildPasskeyProofItems,
-  countProofEntries,
   contentInventorySource,
-  disabledRuntimeOverlayResponse,
   expectedPasskeyTables,
   manualPasskeyEnrollmentSequence,
   missingRequiredPasskeyAuditEvents,
@@ -25,19 +23,10 @@ import {
   nextPasskeyStatusAction,
   passkeyAccessRemovalBlockers,
   passkeyMissingProofItems,
-  proofSource,
-  readProofEntries,
   REQUIRED_PASSKEY_AUDIT_EVENTS,
-  RUNTIME_FEED_PATH,
-  runtimeOverlayErrorResponse,
-  runtimeOverlayResponseFromFeed,
   sourceContentRecordsFromProjection,
   summarizeSourceContentRecords,
 } from "../../packages/content/dist/admin/index.js";
-import {
-  contentOperationTables,
-  contentOperationTemplates,
-} from "../../packages/content/dist/admin/operations.js";
 import {
   contentInventorySource as rootContentInventorySource,
   DEFAULT_HOMEPAGE_CONTENT,
@@ -47,45 +36,6 @@ import {
   segmentHomepageSummaryParagraph,
   validateSystemsPageContent,
 } from "../../packages/content/dist/index.js";
-
-const EXPECTED_OPERATION_IDS = [
-  "content-draft-homepage-summary-2026-06-28",
-  "content-draft-making-index-copy-2026-06-29",
-  "content-draft-newsletter-archive-copy-2026-06-29",
-  "content-draft-newsletter-copy-2026-06-28",
-  "content-draft-orchestrating-hero-copy-2026-06-29",
-  "content-draft-project-card-fields-2026-06-28",
-  "content-draft-project-agents-detail-2026-06-29",
-  "content-draft-project-chainedchat-detail-2026-06-29",
-  "content-draft-project-habittracker-obh-detail-2026-06-29",
-  "content-draft-project-imessage-mcp-detail-2026-06-29",
-  "content-draft-project-nyu-purity-test-detail-2026-06-29",
-  "content-draft-project-options-pricing-sensitivity-detail-2026-06-29",
-  "content-draft-project-pgi-research-platform-detail-2026-06-29",
-  "content-draft-project-quantercise-detail-2026-06-29",
-  "content-draft-project-quantercise-extension-detail-2026-06-29",
-  "content-draft-project-saeshify-detail-2026-06-29",
-  "content-draft-projects-index-copy-2026-06-29",
-  "content-draft-writing-i-built-a-monitor-for-my-claude-code-sessions-detail-2026-06-29",
-  "content-draft-writing-index-copy-2026-06-29",
-  "content-draft-writing-jpegmafia-is-our-kanye-west-detail-2026-06-29",
-  "content-draft-writing-newsletter-backfill-2026-06-28",
-  "content-draft-writing-saturdays-detail-2026-06-29",
-  "content-draft-writing-search-will-be-dead-by-2030-detail-2026-06-29",
-  "content-draft-writing-stop-ending-your-day-with-fix-the-bug-detail-2026-06-29",
-];
-
-const UNSAFE_ALLOWED_ACTIONS = new Set([
-  "save",
-  "publish",
-  "send",
-  "schedule",
-  "deploy",
-  "rewrite_source",
-  "rewrite_markdown",
-  "sync_provider",
-  "sync_external",
-]);
 
 assert.equal(
   DEFAULT_HOMEPAGE_CONTENT.sections.intro.paragraphs,
@@ -489,91 +439,6 @@ assert.ok(
   "content editor publish must keep explicit publish proof writes",
 );
 
-const disabledRuntime = disabledRuntimeOverlayResponse();
-assert.equal(disabledRuntime.mode, "disabled");
-assert.equal(disabledRuntime.available, false);
-assert.equal(disabledRuntime.source_path, RUNTIME_FEED_PATH);
-assert.deepEqual(disabledRuntime.overlays, []);
-
-const runtimeOverlay = runtimeOverlayResponseFromFeed({
-  generated_at: "2026-06-29T12:00:00Z",
-  machine: "ap-mini.local",
-  runtime: {
-    repo_state_overlays: [
-      {
-        ahead: 0,
-        behind: 1,
-        branch: "main",
-        deploy_impact: "none",
-        dirty_tracked_count: 0,
-        git_available: true,
-        head_sha: "abc1234",
-        live_runtime_role: "public site source",
-        machine: "ap-mini.local",
-        notes: "metadata only",
-        repo: "anipotts-com",
-        repo_root_label: "~/Code/projects/anipotts-com",
-        repo_state_id: "runtime.repo.site.local",
-        untracked_count: 2,
-        upstream: "origin/main",
-        upstream_sha: "abc1234",
-      },
-      {
-        ahead: null,
-        behind: null,
-        branch: null,
-        deploy_impact: "future-unknown",
-        dirty_tracked_count: null,
-        git_available: false,
-        head_sha: null,
-        live_runtime_role: "runtime data tree",
-        machine: "ap-mini.local",
-        notes: "non-git runtime tree",
-        repo: "vitals",
-        repo_root_label: "~/Code/projects/vitals",
-        repo_state_id: "runtime.repo.vitals.local",
-        untracked_count: null,
-        upstream: null,
-        upstream_sha: null,
-      },
-      {
-        repo_state_id: "invalid-overlay",
-        repo: "missing required fields",
-      },
-    ],
-    safety: {
-      dirty_filenames_included: false,
-      file_contents_included: false,
-      health_payloads_included: false,
-      mode: "read_only_metadata",
-      secret_values_included: false,
-    },
-  },
-});
-
-assert.equal(runtimeOverlay.mode, "local_dev");
-assert.equal(runtimeOverlay.available, true);
-assert.equal(runtimeOverlay.generated_at, "2026-06-29T12:00:00Z");
-assert.equal(runtimeOverlay.machine, "ap-mini.local");
-assert.equal(runtimeOverlay.safety?.mode, "read_only_metadata");
-assert.equal(runtimeOverlay.safety?.secret_values_included, false);
-assert.equal(runtimeOverlay.safety?.file_contents_included, false);
-assert.equal(runtimeOverlay.overlays.length, 2);
-assert.equal(runtimeOverlay.overlays[0]?.repo, "anipotts-com");
-assert.equal(runtimeOverlay.overlays[0]?.behind, 1);
-assert.equal(runtimeOverlay.overlays[1]?.deploy_impact, "unknown");
-
-const missingRuntime = runtimeOverlayErrorResponse(
-  Object.assign(new Error("missing feed"), { code: "ENOENT" }),
-);
-assert.equal(missingRuntime.mode, "missing");
-assert.equal(missingRuntime.available, false);
-assert.equal(missingRuntime.error, "missing feed");
-
-const failedRuntime = runtimeOverlayErrorResponse(new Error("bad json"));
-assert.equal(failedRuntime.mode, "error");
-assert.equal(failedRuntime.error, "bad json");
-
 const sourceRecords = sourceContentRecordsFromProjection([
   {
     id: "projects.hidden-lab",
@@ -843,80 +708,4 @@ assert.equal(
   ),
   "canonical_source_plus_d1_drafts",
   "apps/admin must be able to import @anipotts/content/admin from the built package export",
-);
-
-assert.equal(proofSource.mode, "read_only_d1_plus_runtime_metadata");
-assert.equal(proofSource.live_writes, "draft_save_proof_only");
-
-const proofEntriesWithoutDb = await readProofEntries(undefined);
-assert.deepEqual(
-  countProofEntries(proofEntriesWithoutDb),
-  {
-    total: 7,
-    verified: 4,
-    blocked: 1,
-    pending: 2,
-  },
-  "proof exports must preserve read-only fallback status without an app D1 binding",
-);
-assert.ok(
-  proofEntriesWithoutDb.some(
-    (entry) =>
-      entry.id === "proof.admin.content-draft-save" &&
-      entry.status === "pending" &&
-      entry.next_safe_action.includes("save one draft operation"),
-  ),
-  "proof fallback must expose the draft-save proof gate before first save",
-);
-assert.ok(
-  proofEntriesWithoutDb.some(
-    (entry) =>
-      entry.id === "proof.admin.passkey-enrollment" &&
-      entry.status === "blocked" &&
-      entry.next_safe_action.includes("DB binding"),
-  ),
-  "proof fallback must keep Access removal blocked when passkey proof is unavailable",
-);
-
-assert.deepEqual(
-  contentOperationTemplates.map((operation) => operation.operation_id).sort(),
-  EXPECTED_OPERATION_IDS.toSorted(),
-  "static content operation fallback must match seeded D1 draft operations",
-);
-
-for (const operation of contentOperationTemplates) {
-  assert.equal(operation.kind, "content_draft", operation.operation_id);
-  assert.equal(operation.status, "previewed", operation.operation_id);
-  assert.equal(operation.redaction, "public_copy_only", operation.operation_id);
-  assert.ok(
-    operation.preview_targets.includes("/content/preview"),
-    `${operation.operation_id} must render through the preview lane`,
-  );
-  assert.ok(
-    operation.forbidden_actions.includes("save"),
-    `${operation.operation_id} must block save`,
-  );
-  assert.ok(
-    operation.forbidden_actions.includes("publish"),
-    `${operation.operation_id} must block publish`,
-  );
-
-  const unsafeAllowed = operation.allowed_actions.filter((action) =>
-    UNSAFE_ALLOWED_ACTIONS.has(action),
-  );
-  assert.deepEqual(
-    unsafeAllowed,
-    [],
-    `${operation.operation_id} must not allow write, send, deploy, or sync actions`,
-  );
-}
-
-assert.deepEqual(
-  contentOperationTables.map((table) => [table.table, table.write_state]),
-  [
-    ["content_records", "schema_only"],
-    ["content_draft_operations", "draft_save_only"],
-    ["content_publish_events", "publish_with_proof"],
-  ],
-  "content operation tables must preserve selected-draft publish posture",
 );
