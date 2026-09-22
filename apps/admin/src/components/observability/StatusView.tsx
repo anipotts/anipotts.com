@@ -10,7 +10,6 @@ import {
 } from "@phosphor-icons/react";
 import { brandMark } from "@anipotts/brand/marks";
 import {
-  formatDuration,
   opsIsHost,
   opsOrdered,
   opsRenderedCounts,
@@ -26,6 +25,11 @@ import {
   opsSyncRows,
   type OpsSyncRow,
 } from "../../lib/ops-view";
+import {
+  HEALTH_METRICS_ID,
+  healthMetricsText,
+  parseHealthMetrics,
+} from "../../lib/health-metrics";
 import { useLiveText } from "../../lib/live-clock";
 import { sentenceCase } from "../../lib/sentence-case";
 import { BrandTile } from "../BrandTile";
@@ -46,6 +50,7 @@ import {
   badgeFor,
   type Column,
 } from "../workspace/Workspace";
+import { secondsText } from "../workspace/format";
 import {
   DeviceTile,
   EntryState,
@@ -99,9 +104,15 @@ export function opsView(snapshot: OpsSnapshot, lastKnown: boolean) {
 }
 
 function detailOf(service: OpsServiceView) {
-  return service.missingStatus
-    ? "No status row from System"
-    : service.status.detail;
+  if (service.missingStatus) return "No status row from System";
+  // health.metrics' `missing:<list>` reads as words; any other shape stays
+  // System's own text.
+  if (service.id === HEALTH_METRICS_ID)
+    return (
+      healthMetricsText(parseHealthMetrics(service.status.detail)) ??
+      service.status.detail
+    );
+  return service.status.detail;
 }
 
 type Row = OpsServiceView & Record<string, unknown>;
@@ -422,7 +433,7 @@ function HostStrip({
                 {facts.uptimeS !== null && (
                   <Fact icon={TimerIcon} label="Uptime">
                     <span className="workspace-figure">
-                      {formatDuration(facts.uptimeS)}
+                      {secondsText(facts.uptimeS)}
                     </span>
                   </Fact>
                 )}
@@ -505,7 +516,7 @@ function SyncGrid({
               select={select}
               tile={<BrandTile id={row.app} size={28} />}
               title={app}
-              tooltip={`${app} via ${naming.name}\n${budget === null ? "No freshness budget" : `Budget ${formatDuration(budget)}`}\n${row.service.id}`}
+              tooltip={`${app} via ${naming.name}\n${budget === null ? "No freshness budget" : `Budget ${secondsText(budget)}`}\n${row.service.id}`}
               state={
                 <LastSuccess
                   service={row.service}

@@ -40,8 +40,8 @@ const envelope = (data: unknown, extra: Record<string, unknown> = {}) => ({
   data,
   ...extra,
 });
-const page = (items: unknown[], extra: Record<string, unknown> = {}) =>
-  envelope({ items, total: items.length, next_offset: null, ...extra });
+/** The agreed list reply: the summaries as `data` itself. */
+const page = (items: unknown[]) => envelope(items);
 
 describe("the life wiki contract", () => {
   it("reads a page of entities and an entity", () => {
@@ -75,15 +75,21 @@ describe("the life wiki contract", () => {
     ["a fractional count", page([summary({ record_count: 1.5 })])],
     ["an unreadable time", page([summary({ last_seen_at: "soon" })])],
     ["a repeated id", page([summary(), summary()])],
-    ["a cursor that goes back", page([summary()], { next_offset: 0 })],
-    ["an unknown page field", page([summary()], { debug: 1 })],
+    // A paged envelope is not what was agreed: an object never reads as
+    // a list.
     [
-      "another schema",
-      envelope(
-        { items: [], total: 0, next_offset: null },
-        { schema: "wiki_v2" },
+      "a paged envelope in place of the array",
+      envelope({ items: [summary()], total: 1, next_offset: null }),
+    ],
+    [
+      "more items than a page asks for",
+      page(
+        Array.from({ length: 51 }, (_, index) =>
+          summary({ id: `ent-${index}` }),
+        ),
       ),
     ],
+    ["another schema", envelope([], { schema: "wiki_v2" })],
   ])("rejects a page with %s", (_name, value) => {
     expect(() => parseEntityPage(value)).toThrow(KnowledgeContractError);
   });
@@ -114,6 +120,20 @@ describe("the life wiki contract", () => {
     expect(() => parseEntity(envelope(value), "ent-sample")).toThrow(
       KnowledgeContractError,
     );
+  });
+
+  it("reads a full page as possibly more, and a short one as the end", () => {
+    const full = page(
+      Array.from({ length: 50 }, (_, index) => summary({ id: `ent-${index}` })),
+    );
+    expect(parseEntityPage(full, 50)).toMatchObject({
+      total: null,
+      nextOffset: 100,
+    });
+    expect(parseEntityPage(page([summary()]), 100)).toMatchObject({
+      total: 101,
+      nextOffset: null,
+    });
   });
 
   it("asks with exactly the contract's params", () => {

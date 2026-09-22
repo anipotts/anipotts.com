@@ -10,12 +10,7 @@ import {
   RepeatIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import {
-  formatDuration,
-  opsFreshness,
-  opsIsHost,
-  type OpsServiceView,
-} from "../../lib/ops-v1";
+import { opsFreshness, opsIsHost, type OpsServiceView } from "../../lib/ops-v1";
 import type { OpsAlert, OpsTransitionEvent } from "../../lib/ops-events";
 import { opsIncidentsBySubject } from "../../lib/ops-events";
 import {
@@ -39,6 +34,7 @@ import {
   StateTransition,
   TechnicalSection,
 } from "../workspace/Workspace";
+import { secondsText } from "../workspace/format";
 import {
   ClockTime,
   DeviceTile,
@@ -315,7 +311,7 @@ function EntryFacts({
               ["Awake", host.awake === null ? null : host.awake ? "Yes" : "No"],
               [
                 "Uptime",
-                host.uptimeS === null ? null : formatDuration(host.uptimeS),
+                host.uptimeS === null ? null : secondsText(host.uptimeS),
               ],
               [
                 "Sampled",
@@ -331,7 +327,7 @@ function EntryFacts({
                     freshness.kind === "budget" &&
                     freshness.overBudget && (
                       <span className="ops-warning">
-                        over its {formatDuration(budget)} budget
+                        over its {secondsText(budget)} budget
                       </span>
                     )}
                 </span>,
@@ -376,7 +372,7 @@ function EntryFacts({
         ],
         [
           "Freshness budget",
-          budget === null ? "None, liveness only" : formatDuration(budget),
+          budget === null ? "None, liveness only" : secondsText(budget),
         ],
         [
           "Host",

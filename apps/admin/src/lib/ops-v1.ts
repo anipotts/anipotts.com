@@ -611,18 +611,6 @@ export function opsFreshness(
   };
 }
 
-/** Compact duration: `45s`, `12m`, `3h 5m`, `2d 4h`. */
-export function formatDuration(seconds: number): string {
-  const s = Math.max(0, Math.floor(seconds));
-  if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m`;
-  const h = Math.floor(m / 60);
-  if (h < 48) return m % 60 ? `${h}h ${m % 60}m` : `${h}h`;
-  const d = Math.floor(h / 24);
-  return h % 24 ? `${d}d ${h % 24}h` : `${d}d`;
-}
-
 const SYSTEM_BLOB = "https://github.com/anipotts/system/blob/main/";
 
 /** Runbook href: https URLs as given, repo paths into anipotts/system. */

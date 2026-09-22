@@ -157,7 +157,7 @@ function EntityList({
         offset === 0 ? page.items : [...(previous ?? []), ...page.items],
       );
       setNext(page.nextOffset);
-      onCount(page.total);
+      onCount(page.total ?? undefined);
     } catch (error) {
       if (token !== reads.current) return;
       setFailure(failureOf(error));

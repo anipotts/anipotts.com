@@ -217,7 +217,7 @@ describe("Status view from System's fixture", () => {
     const over = cell(host, "pc.inference", "Last success");
     expect(over.textContent).toBe("2d ago");
     expect(over.querySelector(".ops-over")?.getAttribute("aria-label")).toBe(
-      "Over its 26h budget",
+      "Over its 1d 2h budget",
     );
     expect(
       cell(host, "pc.writer", "Last success").querySelector(".ops-over"),

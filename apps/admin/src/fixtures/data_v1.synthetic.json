@@ -694,7 +694,7 @@
       "kind": "conversation_message",
       "title": "Claude user message",
       "body": "Synthetic prompt text for the transcript preview. It is not a real session.",
-      "source_id": "synthetic-transcripts",
+      "source_id": "synthetic-claude-transcripts",
       "source_record_id": "sample-session:sample-message-1",
       "source_version": "2ee65229a208ec3336c45dd4132c75860cbbf80e4ac8853efc5119bda812157d",
       "status": "observed",
@@ -893,7 +893,7 @@
       "display_name": "Voice memos"
     },
     {
-      "source_id": "synthetic-transcripts",
+      "source_id": "synthetic-claude-transcripts",
       "first_observed_at": "2026-07-02T17:45:00.000000Z",
       "last_observed_at": "2026-09-18T09:30:00.000000Z",
       "record_count": 930,
@@ -1547,8 +1547,7 @@
           "weight_lbs": null
         }
       ],
-      "days": 90,
-      "last_push_at": "2026-09-21T16:58:00Z"
+      "days": 90
     }
   },
   "knowledge": {

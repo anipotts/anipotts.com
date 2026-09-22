@@ -43,7 +43,7 @@ Public pages serve published records from the `anipotts-content` D1 store. `CONT
 | `packages/brand`                | Marks, fonts, shared tokens and typography                            |
 | `packages/control-plane-runner` | Local relay client, journal and proof outbox                          |
 
-The old database-first public readers, fallback datasets, Solid-only services and unused package exports are removed. Astro admin consumes the admin-control entrypoint; root Drizzle tooling still consumes the database schema. Worker and runner implementations remain in their own active packages.
+The old database-first public readers, fallback datasets, Solid-only services and unused package exports are removed. The admin-control entrypoint is gone from `packages/lib`; Astro admin reads its own contracts, and root Drizzle tooling still consumes the database schema. Worker and runner implementations remain in their own active packages.
 
 ## Authentication and production boundaries
 

@@ -227,15 +227,6 @@ describe("admin mark maps", () => {
       "handoff",
       "health.daily",
       "manual",
-      "synthetic-browsing",
-      "synthetic-calendar",
-      "synthetic-contacts",
-      "synthetic-github-ledger",
-      "synthetic-health",
-      "synthetic-messages-1to1",
-      "synthetic-notes",
-      "synthetic-transcripts",
-      "synthetic-voice-memos",
     ]);
     expect(Object.keys(SOURCE_WORDS).sort()).toEqual([
       "atlas",
@@ -339,11 +330,31 @@ describe("admin mark maps", () => {
     });
   });
 
-  it("resolves every fixture record's source exactly", () => {
+  it("resolves every fixture source by the word rules production uses", () => {
+    // Fixture ids never ship in the exact tables; they read like real ids.
+    for (const key of Object.keys(SOURCE_MARKS))
+      expect(key.startsWith("synthetic"), key).toBe(false);
     const sources = new Set<string>();
+    for (const source of dataFixture.sources) sources.add(source.source_id);
     for (const record of dataFixture.records) sources.add(record.source_id);
-    for (const source of sources)
-      expect(Object.hasOwn(SOURCE_MARKS, source), source).toBe(true);
+    // Sources with no brand or kind word keep the neutral source glyph.
+    const unbranded = new Set([
+      "synthetic-body-scale",
+      "synthetic-food-orders",
+      // Photos has no vendored mark yet.
+      "synthetic-photos-pro",
+      "synthetic-self-profile",
+    ]);
+    for (const source of sources) {
+      const tile = sourceMark(source);
+      expect(
+        tile.id !== null || tile.kind !== "source",
+        `${source} resolves to a mark or a named glyph`,
+      ).toBe(!unbranded.has(source));
+    }
+    // Every record's source has a brand or a named glyph.
+    for (const record of dataFixture.records)
+      expect(unbranded.has(record.source_id), record.source_id).toBe(false);
   });
 
   it("falls back by kind and never resolves inherited keys", () => {

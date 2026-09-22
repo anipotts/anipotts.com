@@ -24,7 +24,6 @@ import {
   type Icon,
 } from "@phosphor-icons/react";
 import {
-  formatDuration,
   opsFreshness,
   opsRunbookHref,
   type OpsCatalogEntry,
@@ -50,7 +49,7 @@ import {
   StateCell,
   badgeFor,
 } from "../workspace/Workspace";
-import { clockText, durationText } from "../workspace/format";
+import { clockText, durationText, secondsText } from "../workspace/format";
 
 /**
  * Observability's cells: tiles and names from lib/naming.ts, the trigger
@@ -210,7 +209,7 @@ export function LastSuccess({
     (live) => {
       const freshness = opsFreshness(service, live);
       return freshness.kind === "budget" && freshness.overBudget
-        ? formatDuration(freshness.budgetSeconds)
+        ? secondsText(freshness.budgetSeconds)
         : "";
     },
     Date.now(),

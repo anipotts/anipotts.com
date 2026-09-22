@@ -6,10 +6,20 @@ import {
   dayLabel,
   dueText,
   durationText,
+  secondsText,
   shortValue,
 } from "./format";
 
 describe("durations", () => {
+  it("reads a span in seconds in the same units, budgets and incidents alike", () => {
+    // One formatter for every surface: a 30h budget and a 30h incident
+    // read the same.
+    expect(
+      [45, 300, 4500, 93_600, 3 * 86_400, 30 * 3600].map(secondsText),
+    ).toEqual(["45s", "5m", "1h 15m", "1d 2h", "3d", "1d 6h"]);
+    expect(secondsText(30 * 3600)).toBe(durationText(30 * 3600 * 1000));
+  });
+
   it("reads compact, in the largest two units", () => {
     expect(durationText(84)).toBe("84ms");
     expect(durationText(2000)).toBe("2s");

@@ -8,7 +8,6 @@ import {
   OPS_V1_STATES,
   OpsSnapshotError,
   OPS_SAMPLER_STALE_SECONDS,
-  formatDuration,
   opsFreshness,
   opsIsHost,
   opsOrdered,
@@ -511,12 +510,6 @@ describe("rendering helpers", () => {
     const freshness = opsFreshness(ingest, now);
     expect(freshness.kind).toBe("liveness");
     expect(freshness).not.toHaveProperty("overBudget");
-  });
-
-  it("formats durations compactly", () => {
-    expect(
-      [45, 300, 4500, 93600, 3 * 86400].map((value) => formatDuration(value)),
-    ).toEqual(["45s", "5m", "1h 15m", "26h", "3d"]);
   });
 
   it("links repo runbooks into anipotts/system", () => {

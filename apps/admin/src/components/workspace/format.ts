@@ -34,6 +34,12 @@ export function durationText(ms: number | null | undefined): string | null {
   );
 }
 
+/** A span given in seconds (a freshness budget, an uptime), in the same
+ * units as every other duration: "45s", "1h 15m", "1d 2h". */
+export function secondsText(seconds: number): string {
+  return durationText(Math.max(0, Math.floor(seconds)) * 1000) ?? "0s";
+}
+
 /** A span in one unit, as relative times use: "45s", "12m", "3h", "2d". */
 function span(seconds: number): string {
   if (seconds < 60) return `${seconds}s`;

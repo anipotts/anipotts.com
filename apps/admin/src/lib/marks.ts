@@ -148,20 +148,12 @@ export const SOURCE_MARKS = {
   handoff: "handoff",
   manual: "writer",
   "health.daily": "applehealth",
-  "synthetic-browsing": "browser",
-  // Google or Apple is not settled, so calendars keep the neutral glyph.
-  "synthetic-calendar": "agenda",
-  "synthetic-contacts": "contacts",
-  "synthetic-github-ledger": "github",
-  "synthetic-health": "applehealth",
-  "synthetic-messages-1to1": "messages",
-  "synthetic-notes": "notes",
-  "synthetic-transcripts": "claude",
-  "synthetic-voice-memos": "voicememos",
 } as const satisfies Record<string, Ref>;
 
 /** Words inside other source ids ("apple.messages", "legacy.brain",
- * "ani-voice-memos"). */
+ * "ani-voice-memos"). The synthetic fixture's ids resolve through these
+ * too, so no fixture id ships in the tables above. Google or Apple is not
+ * settled for calendars, so they keep the neutral glyph. */
 export const SOURCE_WORDS = {
   atlas: "chatgpt-atlas",
   browsing: "browser",

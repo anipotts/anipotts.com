@@ -6,6 +6,7 @@ import {
   PrivateReaderError,
   readerFetch,
 } from "./private-reader-fetch";
+import { strictReaders } from "./strict-json";
 
 /**
  * The life wiki: one page per person, project, place or topic, derived from
@@ -14,8 +15,9 @@ import {
  * (`data:read`, like every `/v1/data/*` route) and in the same
  * personal_context_data_v1 envelope:
  *
- * - `GET /v1/data/entities?kind=&q=&limit=&offset=` pages
- *   `{id, kind, name, summary, record_count, last_seen_at}`;
+ * - `GET /v1/data/entities?kind=&q=&limit=&offset=` is an array of
+ *   `{id, kind, name, summary, record_count, last_seen_at}`, as agreed (no
+ *   total and no cursor: a full page means more may follow);
  * - `GET /v1/data/entities/<id>` is `{id, kind, name, summary,
  *   facts: [{label, value, record_id}], timeline: [{at, title, record_id}],
  *   backlinks: [record_id]}`.
@@ -75,7 +77,9 @@ export type Entity = {
 
 export type EntityPage = {
   items: EntitySummary[];
-  total: number;
+  /** Known only once the list is read to its end: the agreed route sends
+   * an array, with no total. */
+  total: number | null;
   nextOffset: number | null;
 };
 
@@ -97,25 +101,12 @@ const fail = (): never => {
   throw new KnowledgeContractError();
 };
 
-function plain(value: unknown): Record<string, unknown> {
-  if (
-    !value ||
-    typeof value !== "object" ||
-    Array.isArray(value) ||
-    Object.getPrototypeOf(value) !== Object.prototype
-  )
-    return fail();
-  return value as Record<string, unknown>;
-}
-
-function exactKeys(item: Record<string, unknown>, keys: readonly string[]) {
-  const own = Object.keys(item);
-  if (
-    own.length !== keys.length ||
-    keys.some((key) => !Object.hasOwn(item, key))
-  )
-    fail();
-}
+const {
+  plain,
+  exactKeys,
+  matching: pattern,
+  time: strictTime,
+} = strictReaders(fail);
 
 function text(value: unknown, max: number, allowEmpty = false): string {
   if (
@@ -127,14 +118,7 @@ function text(value: unknown, max: number, allowEmpty = false): string {
   return value;
 }
 
-function pattern(value: unknown, test: RegExp): string {
-  return typeof value === "string" && test.test(value) ? value : fail();
-}
-
-function time(value: unknown): string {
-  const at = pattern(value, TIMESTAMP);
-  return Number.isFinite(Date.parse(at)) ? at : fail();
-}
+const time = (value: unknown) => strictTime(value, TIMESTAMP);
 
 function count(value: unknown): number {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0
@@ -149,13 +133,13 @@ function list(value: unknown, max: number): unknown[] {
 const recordRef = (value: unknown) =>
   value === null ? null : pattern(value, RECORD_ID);
 
-/** The Data envelope around a page or an entity. */
-function envelopeData(value: unknown): Record<string, unknown> {
+/** The Data envelope's `data`: an entity's object or a list's array. */
+function envelopeData(value: unknown): unknown {
   const envelope = plain(value);
   exactKeys(envelope, ["data", "response_observed_at", "schema"]);
   if (envelope.schema !== "personal_context_data_v1") fail();
   time(envelope.response_observed_at);
-  return plain(envelope.data);
+  return envelope.data;
 }
 
 function parseSummary(value: unknown): EntitySummary {
@@ -178,27 +162,29 @@ function parseSummary(value: unknown): EntitySummary {
   };
 }
 
-/** A page of entities, strictly. */
+/**
+ * A page of entities, strictly, in the agreed shape: `data` is the array of
+ * summaries and nothing else. The route has no total and no cursor, so a
+ * full page (KNOWLEDGE_PAGE_LIMIT items) means there may be more, and the
+ * total is known once a page comes back short.
+ */
 export function parseEntityPage(value: unknown, offset = 0): EntityPage {
   const data = envelopeData(value);
-  exactKeys(data, ["items", "next_offset", "total"]);
-  const items = list(data.items, PRIVATE_READER_BOUNDS.dataLimit.max).map(
-    parseSummary,
-  );
-  const total = count(data.total);
-  const next = data.next_offset === null ? null : count(data.next_offset);
-  if (
-    next !== null &&
-    (next <= offset || next > PRIVATE_READER_BOUNDS.offsetMax)
-  )
-    fail();
+  const items = list(data, KNOWLEDGE_PAGE_LIMIT).map(parseSummary);
   if (new Set(items.map((item) => item.id)).size !== items.length) fail();
-  return { items, total, nextOffset: next };
+  const full = items.length === KNOWLEDGE_PAGE_LIMIT;
+  const next = full ? offset + KNOWLEDGE_PAGE_LIMIT : null;
+  if (next !== null && next > PRIVATE_READER_BOUNDS.offsetMax) fail();
+  return {
+    items,
+    total: full ? null : offset + items.length,
+    nextOffset: next,
+  };
 }
 
 /** One entity's page, strictly. */
 export function parseEntity(value: unknown, id?: string): Entity {
-  const item = envelopeData(value);
+  const item = plain(envelopeData(value));
   exactKeys(item, [
     "backlinks",
     "facts",
@@ -345,14 +331,8 @@ export function createFixtureKnowledgeReader(
             `${item.name} ${item.summary}`.toLowerCase().includes(needle))
         );
       });
-      const items = matches.slice(offset, offset + KNOWLEDGE_PAGE_LIMIT);
-      const next = offset + KNOWLEDGE_PAGE_LIMIT;
       return parseEntityPage(
-        envelope({
-          items,
-          total: matches.length,
-          next_offset: next < matches.length ? next : null,
-        }),
+        envelope(matches.slice(offset, offset + KNOWLEDGE_PAGE_LIMIT)),
         offset,
       );
     },
