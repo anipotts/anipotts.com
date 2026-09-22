@@ -311,8 +311,10 @@ jobs:
   deploy-admin:
     name: Deploy admin
     needs: [release]
+    # A failed or cancelled release job (a held migration, schema drift, a
+    # failed postcondition) must stop admin like every other target.
     if: >
-      always() &&
+      needs.release.result == 'success' &&
       needs.release.outputs.production_enabled == 'true' &&
       needs.release.outputs.admin_enabled == 'true' &&
       (

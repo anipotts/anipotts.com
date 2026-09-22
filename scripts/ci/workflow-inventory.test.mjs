@@ -255,6 +255,23 @@ for (const job of ["deploy-www", "deploy-admin"]) {
   }
 }
 
+// A deploy job runs only after the release job succeeded. always() would let
+// admin deploy after a held migration, schema drift or a failed postcondition.
+for (const [name, job] of Object.entries(deployJobs)) {
+  if (!name.startsWith("deploy-")) continue;
+  assert.deepEqual(job.needs, ["release"], `${name} depends only on release`);
+  assert.equal(
+    /\b(?:always|failure|cancelled)\(\)/.test(job.if),
+    false,
+    `${name} must not run after a failed or cancelled release`,
+  );
+}
+assert.match(
+  deployJobs["deploy-admin"].if,
+  /^needs\.release\.result == 'success' &&/,
+  "deploy-admin must require a successful release job",
+);
+
 for (const file of workflowFiles) {
   const body = readFileSync(join(WORKFLOW_DIR, file), "utf8");
   assert.equal(
