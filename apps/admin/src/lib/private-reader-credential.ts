@@ -75,7 +75,8 @@ function deny(error: string, status: number, headers?: HeadersInit): Response {
   return privateJson({ error }, status, headers);
 }
 
-async function signingKey(value: string | undefined) {
+/** The dedicated ES256 private JWK, or null when absent or malformed. */
+export async function privateReaderSigningKey(value: string | undefined) {
   if (!value || value.length > 4096) return null;
   try {
     const jwk = JSON.parse(value) as JWK;
@@ -110,7 +111,7 @@ export async function privateReaderCredentialApi(
     (mode === "ops" && !privateReaderOpsEnabled(config))
   )
     return deny("reader_unavailable", 503);
-  const key = await signingKey(config.PRIVATE_READER_SIGNING_KEY);
+  const key = await privateReaderSigningKey(config.PRIVATE_READER_SIGNING_KEY);
   if (!key) return deny("reader_unavailable", 503);
 
   const owner =
