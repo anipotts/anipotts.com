@@ -22,9 +22,10 @@
  * | TierMark        | a tier as a globe, shield or lock glyph                |
  *
  * Tile tokens for a `mark`: `--row-mark-size` (24px, 28px at compact),
- * `--row-mark-glyph` (16px, 18px) and `--row-mark-radius` (the badge radius
- * plus 1px, plus 2px at compact). The page gutter is `--admin-gutter` from
- * styles/shell.css (12px at compact); compact lists bleed past it.
+ * `--row-mark-glyph` (16px, 18px) and `--row-mark-radius` (0.3 of the size,
+ * BrandTile's corner: 7.2px, 8.4px at compact). The page gutter is
+ * `--admin-gutter` from styles/shell.css (12px at compact); compact lists
+ * bleed past it.
  *
  * Layout ranges come from lib/breakpoints.ts: compact <= 640, medium 641 to
  * 1023, large 1024 to 1439, wide >= 1440. At compact a table is a full-bleed

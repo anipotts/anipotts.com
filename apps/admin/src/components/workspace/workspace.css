@@ -163,12 +163,14 @@
 }
 
 /* The lead cell. The mark tile leads line 1; line 2 sits under the title.
-   The tile tokens are the contract a BrandTile in the `mark` slot reads. */
+   The tile tokens are the contract a BrandTile in the `mark` slot reads. The
+   corner is 0.3 of the side, BrandTile's badge-scaled radius, so the slot and
+   a tile inside it share one corner at every size. */
 .workspace-row,
 .workspace-skeleton-row {
   --row-mark-size: var(--spacing-6);
   --row-mark-glyph: var(--spacing-4);
-  --row-mark-radius: calc(var(--radius-inner, 6px) + 1px);
+  --row-mark-radius: calc(var(--row-mark-size) * 0.3);
 }
 .workspace-row {
   display: flex;
@@ -513,7 +515,6 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   .workspace-skeleton-row {
     --row-mark-size: var(--spacing-7);
     --row-mark-glyph: calc(var(--spacing-4) + 2px);
-    --row-mark-radius: calc(var(--radius-inner, 6px) + 2px);
   }
   .workspace-row {
     min-height: var(--spacing-9);
