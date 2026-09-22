@@ -25,7 +25,11 @@ async function freshWorker(isolate: string): Promise<Worker> {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-function fakeDb(lastAt: string | null = "2026-06-24T02:49:13.052Z") {
+function fakeDb(
+  lastAt: string | null = "2026-06-24T02:49:13.052Z",
+  // D1's meta.changes per batched statement: 1 stored, 0 ignored.
+  changes?: (index: number) => unknown,
+) {
   const bound: unknown[][] = [];
   const statement = {
     bind: (...values: unknown[]) => {
@@ -36,7 +40,11 @@ function fakeDb(lastAt: string | null = "2026-06-24T02:49:13.052Z") {
     run: async () => ({}),
   };
   const prepare = mock((_sql: string) => statement);
-  const batch = mock(async (_statements: unknown[]) => []);
+  const batch = mock(async (statements: unknown[]) =>
+    statements.map((_, index) => ({
+      meta: { changes: changes ? changes(index) : 1 },
+    })),
+  );
   return {
     prepare,
     batch,
@@ -91,34 +99,46 @@ afterEach(() => {
 });
 
 describe("ingest health", () => {
-  it("reports the stale brands_email capture as not ok", async () => {
-    const worker = await freshWorker("health-stale");
+  function getHealth(worker: Worker, env: unknown) {
+    return worker.fetch(new Request("https://ingest.test/"), env);
+  }
+
+  it("A-24: reports a week without brand mail as quiet, not as a failure", async () => {
+    const worker = await freshWorker("health-quiet");
     captureConsole();
     const network = forbidNetwork();
     const env = completeEnv();
 
-    const response = await worker.fetch(
-      new Request("https://ingest.test/"),
-      env,
-    );
+    const response = await getHealth(worker, env);
     expect(response.status).toBe(200);
     const body = (await response.json()) as Record<string, unknown>;
+    // The live shape on 2026-09-22: the newest row is from 2026-06-24.
     expect(body).toMatchObject({
       app: "ingest",
-      ok: false,
+      ok: true,
       d1: "connected",
+      brands_key: "configured",
       brands_email: {
-        state: "stale",
+        state: "quiet",
         last_ingested_at: "2026-06-24T02:49:13.052Z",
-        freshness_budget_s: 604800,
+        quiet_after_s: 604800,
+        note: "No brand mail in 7 days. A quiet inbox and a stopped capture look the same here.",
       },
     });
+    // It says plainly what it can't see, and it has no budget to fail.
+    expect(body.unobserved).toBe(
+      "The Apps Script capture itself. This worker sees only the rows that reach it and keeps no record of rejected posts.",
+    );
+    expect(JSON.stringify(body)).not.toContain("stale");
+    expect(JSON.stringify(body)).not.toContain("budget");
     expect(Object.keys(body).sort()).toEqual([
       "app",
       "brands_email",
+      "brands_key",
       "d1",
       "ok",
       "ts",
+      "unobserved",
     ]);
 
     // One timestamp read. It never counts the retired thoughts table and
@@ -129,54 +149,78 @@ describe("ingest health", () => {
     expect(network).not.toHaveBeenCalled();
   });
 
-  it("reports a capture inside its 7 day budget as ok", async () => {
-    const worker = await freshWorker("health-fresh");
+  it("A-24: reports brand mail inside 7 days as recent", async () => {
+    const worker = await freshWorker("health-recent");
     captureConsole();
     const recent = new Date(Date.now() - 6 * DAY_MS).toISOString();
     const body = (await (
-      await worker.fetch(
-        new Request("https://ingest.test/"),
-        completeEnv(fakeDb(recent)),
-      )
+      await getHealth(worker, completeEnv(fakeDb(recent)))
     ).json()) as Record<string, unknown>;
     expect(body).toMatchObject({
       ok: true,
-      brands_email: { state: "fresh", last_ingested_at: recent },
+      brands_email: {
+        state: "recent",
+        last_ingested_at: recent,
+        note: "Brand mail arrived in the last 7 days.",
+      },
     });
   });
 
-  it("reports an empty table as never received, not as zero", async () => {
-    const worker = await freshWorker("health-never");
+  it("A-24: reports an empty table as no mail recorded, not as zero", async () => {
+    const worker = await freshWorker("health-empty");
     captureConsole();
     const body = (await (
-      await worker.fetch(
-        new Request("https://ingest.test/"),
-        completeEnv(fakeDb(null)),
-      )
+      await getHealth(worker, completeEnv(fakeDb(null)))
     ).json()) as Record<string, unknown>;
     expect(body).toMatchObject({
-      ok: false,
+      ok: true,
       d1: "connected",
-      brands_email: { state: "never", last_ingested_at: null },
+      brands_email: {
+        state: "empty",
+        last_ingested_at: null,
+        note: "No brand mail recorded.",
+      },
     });
   });
 
-  it("reports an unparseable timestamp as unknown", async () => {
+  it("A-24: is not ok when the capture's key is unset, so every post is refused", async () => {
+    const worker = await freshWorker("health-no-key");
+    captureConsole();
+    const recent = new Date(Date.now() - DAY_MS).toISOString();
+    for (const key of [undefined, "", "  "]) {
+      const env = { ...completeEnv(fakeDb(recent)), BRANDS_INGEST_KEY: key };
+      const text = await (await getHealth(worker, env)).text();
+      expect(JSON.parse(text)).toMatchObject({
+        ok: false,
+        brands_key: "missing",
+        brands_email: { state: "recent" },
+      });
+      expect(text).not.toContain(secrets.MAC_MINI_INGEST_KEY);
+    }
+    // The configured key is named, never echoed.
+    const text = await (
+      await getHealth(worker, completeEnv(fakeDb(recent)))
+    ).text();
+    expect(text).not.toContain(secrets.BRANDS_INGEST_KEY);
+  });
+
+  it("A-24: is not ok when the newest time isn't a timestamp", async () => {
     const worker = await freshWorker("health-unparseable");
     captureConsole();
     const body = (await (
-      await worker.fetch(
-        new Request("https://ingest.test/"),
-        completeEnv(fakeDb("not a time")),
-      )
+      await getHealth(worker, completeEnv(fakeDb("not a time")))
     ).json()) as Record<string, unknown>;
     expect(body).toMatchObject({
       ok: false,
-      brands_email: { state: "unknown", last_ingested_at: "not a time" },
+      brands_email: {
+        state: "unknown",
+        last_ingested_at: "not a time",
+        note: "Couldn't read the newest arrival time.",
+      },
     });
   });
 
-  it("reports an unreadable D1 as an error with an unknown capture", async () => {
+  it("A-24: is not ok when D1 is unreadable, and never echoes the D1 error", async () => {
     const worker = await freshWorker("health-error");
     captureConsole();
     const db = {
@@ -186,17 +230,16 @@ describe("ingest health", () => {
         },
       }),
     };
-    const text = await (
-      await worker.fetch(new Request("https://ingest.test/"), { DB: db })
-    ).text();
+    const text = await (await getHealth(worker, { DB: db, ...secrets })).text();
     expect(text).not.toContain("provider detail");
     expect(JSON.parse(text)).toMatchObject({
       ok: false,
       d1: "error",
+      brands_key: "configured",
       brands_email: {
         state: "unknown",
         last_ingested_at: null,
-        freshness_budget_s: 604800,
+        quiet_after_s: 604800,
       },
     });
   });
@@ -269,13 +312,57 @@ describe("ingest writes", () => {
       env,
     );
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ success: true, rows_written: 1 });
+    expect(await response.json()).toEqual({
+      success: true,
+      rows_written: 1,
+      rows_ignored: 0,
+    });
     expect(env.DB.sql()).toEqual([
       "INSERT OR IGNORE INTO brands_emails (message_id, thread_id, subject, ingested_at) VALUES (?, ?, ?, ?)",
     ]);
     const [values] = env.DB.bound;
     expect(values?.slice(0, 3)).toEqual(["m-1", "t-1", "synthetic subject"]);
     expect(env.DB.batch).toHaveBeenCalledTimes(1);
+  });
+
+  it("A-24: counts the rows D1 stored, not the rows posted", async () => {
+    const worker = await freshWorker("brands-receipt");
+    captureConsole();
+    // Row 0 is stored. Row 1 repeats a stored message_id, or lacks a NOT NULL
+    // column, and INSERT OR IGNORE skips it.
+    const env = completeEnv(fakeDb(null, (index) => (index === 0 ? 1 : 0)));
+    const rows = [
+      { message_id: "m-4", thread_id: "t-4", subject: "synthetic" },
+      { message_id: "m-1", subject: "synthetic" },
+    ];
+    const response = await worker.fetch(
+      post({ category: "brands_email", data: rows }, secrets.BRANDS_INGEST_KEY),
+      env,
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      success: true,
+      rows_written: 1,
+      rows_ignored: 1,
+    });
+  });
+
+  it("A-24: reports an unreadable D1 receipt as null, never as rows written", async () => {
+    const worker = await freshWorker("brands-receipt-unknown");
+    captureConsole();
+    const env = completeEnv(fakeDb(null, () => undefined));
+    const response = await worker.fetch(
+      post(
+        { category: "brands_email", data: { message_id: "m-5" } },
+        secrets.BRANDS_INGEST_KEY,
+      ),
+      env,
+    );
+    expect(await response.json()).toEqual({
+      success: true,
+      rows_written: null,
+      rows_ignored: null,
+    });
   });
 
   it("keeps the mini key as a superset key for brands_email", async () => {

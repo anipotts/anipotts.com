@@ -48,10 +48,15 @@ const TS_COLUMN: Record<Category, string> = {
 };
 
 /**
- * The Apps Script capture posts brands_email rows as mail arrives. A week
- * with no new row means the capture stopped, so GET reports ok:false.
+ * The Apps Script capture posts a brands_email row only when brand mail
+ * arrives. This worker sees the rows that reach it and nothing else: a quiet
+ * inbox and a stopped capture look the same here. So a week with no row is
+ * "quiet", never a failure.
  */
-const BRANDS_EMAIL_BUDGET_S = 7 * 24 * 60 * 60;
+const BRANDS_EMAIL_QUIET_AFTER_S = 7 * 24 * 60 * 60;
+
+const UNOBSERVED =
+  "The Apps Script capture itself. This worker sees only the rows that reach it and keeps no record of rejected posts.";
 
 interface IngestPayload {
   category: Category;
@@ -71,22 +76,32 @@ function isoOrNull(ms: unknown): string | null {
     : null;
 }
 
+type WriteReceipt =
+  | { rows_written: number; rows_ignored: number }
+  | {
+      rows_written: null;
+      rows_ignored: null;
+    };
+
 /**
  * INSERT OR IGNORE drops a row whose message_id already exists. INSERT OR
  * REPLACE would delete the existing row and re-insert it with DEFAULTs for the
  * admin-set columns (status, notes, deal_slug) the worker never writes.
+ * IGNORE also drops a row missing a NOT NULL column (thread_id, received_at,
+ * from_addr, subject, label), so the receipt counts D1's changes, not the rows
+ * posted.
  */
 async function writeToTable(
   db: D1Database,
   category: Category,
   data: Record<string, unknown> | Record<string, unknown>[],
-): Promise<number> {
+): Promise<WriteReceipt> {
   const table = CATEGORY_TABLE[category];
   const allowedColumns = TABLE_COLUMNS[category];
   const tsColumn = TS_COLUMN[category];
   const rows = Array.isArray(data) ? data : [data];
 
-  if (rows.length === 0) return 0;
+  if (rows.length === 0) return { rows_written: 0, rows_ignored: 0 };
 
   const ts = new Date().toISOString();
   const statements = [];
@@ -117,39 +132,61 @@ async function writeToTable(
     );
   }
 
-  await db.batch(statements);
-  return rows.length;
+  const results = await db.batch(statements);
+  const changes = results.map((result) => result?.meta?.changes);
+  if (
+    changes.length !== rows.length ||
+    !changes.every((n) => typeof n === "number" && Number.isSafeInteger(n))
+  ) {
+    return { rows_written: null, rows_ignored: null };
+  }
+  const written = (changes as number[]).reduce((sum, n) => sum + n, 0);
+  return { rows_written: written, rows_ignored: rows.length - written };
 }
 
-type BrandsEmailFreshness = {
-  state: "fresh" | "stale" | "never" | "unknown";
+type BrandsEmailArrival = {
+  state: "recent" | "quiet" | "empty" | "unknown";
   last_ingested_at: string | null;
-  freshness_budget_s: number;
+  quiet_after_s: number;
+  note: string;
 };
 
+const ARRIVAL_NOTE: Record<BrandsEmailArrival["state"], string> = {
+  recent: "Brand mail arrived in the last 7 days.",
+  quiet:
+    "No brand mail in 7 days. A quiet inbox and a stopped capture look the same here.",
+  empty: "No brand mail recorded.",
+  unknown: "Couldn't read the newest arrival time.",
+};
+
+function arrival(
+  state: BrandsEmailArrival["state"],
+  last: string | null,
+): BrandsEmailArrival {
+  return {
+    state,
+    last_ingested_at: last,
+    quiet_after_s: BRANDS_EMAIL_QUIET_AFTER_S,
+    note: ARRIVAL_NOTE[state],
+  };
+}
+
 /** One timestamp, never a subject, address or message id. */
-async function brandsEmailFreshness(
+async function brandsEmailArrival(
   db: D1Database,
   nowMs: number,
-): Promise<BrandsEmailFreshness> {
+): Promise<BrandsEmailArrival> {
   const row = await db
     .prepare("SELECT MAX(ingested_at) AS last_at FROM brands_emails")
     .first<{ last_at: string | null }>();
   const last = typeof row?.last_at === "string" ? row.last_at : null;
-  const lastMs = last === null ? Number.NaN : Date.parse(last);
-  const state =
-    last === null
-      ? "never"
-      : !Number.isFinite(lastMs)
-        ? "unknown"
-        : nowMs - lastMs <= BRANDS_EMAIL_BUDGET_S * 1000
-          ? "fresh"
-          : "stale";
-  return {
-    state,
-    last_ingested_at: last,
-    freshness_budget_s: BRANDS_EMAIL_BUDGET_S,
-  };
+  if (last === null) return arrival("empty", null);
+  const lastMs = Date.parse(last);
+  if (!Number.isFinite(lastMs)) return arrival("unknown", last);
+  return arrival(
+    nowMs - lastMs <= BRANDS_EMAIL_QUIET_AFTER_S * 1000 ? "recent" : "quiet",
+    last,
+  );
 }
 
 // Log only: one runtime contract line per isolate. It never blocks a request
@@ -163,23 +200,32 @@ export default {
       return new Response(null, { status: 204 });
     }
 
-    // Health: the brands_email capture judged against its stated budget.
+    // Health: ok is false only for a fault this worker can see. D1 unreadable
+    // means every capture post would fail. An unset BRANDS_INGEST_KEY means
+    // every capture post is refused. A newest time that isn't a timestamp
+    // can't be judged. A quiet week is reported, not failed.
     if (request.method === "GET") {
-      let freshness: BrandsEmailFreshness | null = null;
+      let brands: BrandsEmailArrival | null = null;
       try {
-        freshness = await brandsEmailFreshness(env.DB, Date.now());
+        brands = await brandsEmailArrival(env.DB, Date.now());
       } catch {
-        freshness = null;
+        brands = null;
       }
+      const brandsKey =
+        typeof env.BRANDS_INGEST_KEY === "string" &&
+        env.BRANDS_INGEST_KEY.trim() !== ""
+          ? "configured"
+          : "missing";
       return jsonResponse({
         app: "ingest",
-        ok: freshness?.state === "fresh",
-        d1: freshness ? "connected" : "error",
-        brands_email: freshness ?? {
-          state: "unknown",
-          last_ingested_at: null,
-          freshness_budget_s: BRANDS_EMAIL_BUDGET_S,
-        },
+        ok:
+          brands !== null &&
+          brands.state !== "unknown" &&
+          brandsKey === "configured",
+        d1: brands ? "connected" : "error",
+        brands_key: brandsKey,
+        brands_email: brands ?? arrival("unknown", null),
+        unobserved: UNOBSERVED,
         ts: new Date().toISOString(),
       });
     }
@@ -232,8 +278,8 @@ export default {
     }
 
     try {
-      const rowsWritten = await writeToTable(env.DB, payload.category, rows);
-      return jsonResponse({ success: true, rows_written: rowsWritten });
+      const receipt = await writeToTable(env.DB, payload.category, rows);
+      return jsonResponse({ success: true, ...receipt });
     } catch (e) {
       const isValidation =
         e instanceof Error && e.message === "No valid columns in row";

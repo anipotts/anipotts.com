@@ -18,7 +18,7 @@ export const RUNTIME_CONTRACT = {
 
 export type RuntimeName = keyof typeof RUNTIME_CONTRACT;
 
-/** Every write and the GET freshness read use DB. */
+/** Every write and the GET arrival read use DB. */
 export const RUNTIME_REQUIRED = [
   "DB",
 ] as const satisfies readonly RuntimeName[];
