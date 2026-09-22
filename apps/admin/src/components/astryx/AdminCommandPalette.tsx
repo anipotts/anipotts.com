@@ -4,6 +4,7 @@ import {
   CommandPalette,
   CommandPaletteInput,
   CommandPaletteFooter,
+  useCommandPaletteContext,
 } from "@astryxdesign/core/CommandPalette";
 import type {
   SearchableItem,
@@ -100,6 +101,22 @@ function actionRows(actions: readonly PaletteAction[]): Row[] {
 
 const toItems = (rows: Row[]): SearchItem[] =>
   rows.map((row) => ({ id: row.id, label: row.label, auxiliaryData: row }));
+
+/**
+ * Typing highlights the first result, so Return (or a phone keyboard's Go,
+ * which has no arrow keys) runs the best match. The empty palette keeps no
+ * highlight, so its first destination is never preselected.
+ */
+function HighlightFirstResult() {
+  const palette = useCommandPaletteContext();
+  const search = palette?.search.trim() ?? "";
+  const first = palette?.selectableItems[0]?.value;
+  const highlight = palette?.setHighlightedIndex;
+  useEffect(() => {
+    if (search && first !== undefined) highlight?.(0);
+  }, [search, first, highlight]);
+  return null;
+}
 
 /**
  * The one command palette, mounted once by the shell and opened with Cmd+K,
@@ -326,6 +343,7 @@ export function AdminCommandPalette({
       footer={
         // Keycaps drawn with glyphs, not the text arrows Astryx's hints use.
         <CommandPaletteFooter className="admin-palette-keys">
+          <HighlightFirstResult />
           <span className="admin-palette-key">
             <kbd aria-label="Up arrow">
               <ArrowUpIcon size={12} aria-hidden="true" />

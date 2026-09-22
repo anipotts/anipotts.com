@@ -260,3 +260,28 @@ it("moves within the document when the island draws the page", async () => {
   await act(async () => records.click());
   expect(navigate).toHaveBeenCalledWith("/data/records");
 });
+
+it("runs the first match on Return, so a phone keyboard's Go opens it", async () => {
+  const run = vi.fn();
+  await act(async () =>
+    root.render(
+      <AdminCommandPalette
+        actions={[{ id: "theme:dark", label: "Dark theme", icon: XIcon, run }]}
+      />,
+    ),
+  );
+  const dialog = await open();
+  const input = dialog.querySelector("input")!;
+  // The empty palette preselects nothing.
+  expect(input.getAttribute("aria-activedescendant")).toBeNull();
+  await type(dialog, "dark theme");
+  const [first] = dialog.querySelectorAll('[role="option"]');
+  expect(input.getAttribute("aria-activedescendant")).toBe(first!.id);
+  await act(async () =>
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    ),
+  );
+  expect(run).toHaveBeenCalledOnce();
+  expect(dialog.open).toBe(false);
+});
