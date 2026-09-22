@@ -1,56 +1,61 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { adminControlFixtureData } from "@anipotts/lib/admin-control/dev-fixtures";
-import { loadAdminControlSnapshot } from "@anipotts/lib/admin-control";
+import { fixtureKnowledgeCards } from "@anipotts/lib/admin-control/dev-fixtures";
+import type { AdminControlDatabase } from "@anipotts/lib/admin-control";
 import { readAdminKnowledge } from "./knowledge";
-vi.mock("@anipotts/lib/admin-control", async (load) => ({
-  ...(await load<typeof import("@anipotts/lib/admin-control")>()),
-  loadAdminControlSnapshot: vi.fn(),
-}));
-const loader = vi.mocked(loadAdminControlSnapshot);
-const known = adminControlFixtureData.projections.knowledge_cards[0]!;
-function snapshot(
-  errors: string[] = [],
-  source_mode = "d1",
-  cards = adminControlFixtureData.projections.knowledge_cards,
-) {
-  return {
-    generated_at: "2026-09-12T00:00:00Z",
-    source_mode,
-    errors,
-    projections: { knowledge_cards: cards },
-  } as unknown as Awaited<ReturnType<typeof loadAdminControlSnapshot>>;
+
+const known = fixtureKnowledgeCards[0]!;
+
+/** A D1 stand-in that records each query and answers with `rows`. */
+function database(rows: unknown[] | Error) {
+  const queries: string[] = [];
+  const db: AdminControlDatabase = {
+    prepare: (query) => {
+      queries.push(query);
+      return {
+        all: (async () => {
+          if (rows instanceof Error) throw rows;
+          return { results: rows };
+        }) as never,
+      };
+    },
+  };
+  return { db, queries };
 }
-beforeEach(() => {
-  vi.stubEnv("DEV", false);
-  loader.mockReset();
-});
+
+beforeEach(() => vi.stubEnv("DEV", false));
 afterEach(() => vi.unstubAllEnvs());
+
 describe("knowledge source availability", () => {
   it("reports a failed knowledge table read as unavailable, not empty", async () => {
-    loader.mockResolvedValue(
-      snapshot(["admin_knowledge_cards read failed: unavailable"], "d1", []),
-    );
-    const result = await readAdminKnowledge(null);
+    const { db } = database(new Error("unavailable"));
+    const result = await readAdminKnowledge(db);
     expect(result.available).toBe(false);
+    expect(result.bundle.cards).toEqual([]);
     expect(result.errors).toEqual([
-      "admin_knowledge_cards read failed: unavailable",
+      "admin_knowledge_cards read failed: Error: unavailable",
     ]);
   });
-  it("marks disconnected storage unavailable even when upstream errors lack a table prefix", async () => {
-    loader.mockResolvedValue(
-      snapshot(
-        ["d1 unavailable; no development fixture was requested"],
-        "disconnected",
-        [],
-      ),
-    );
-    expect((await readAdminKnowledge(null)).available).toBe(false);
-  });
-  it("does not hide valid knowledge when a different operational projection fails", async () => {
-    loader.mockResolvedValue(
-      snapshot(["admin_events read failed: unavailable"]),
-    );
+
+  it("marks missing storage unavailable", async () => {
     const result = await readAdminKnowledge(null);
+    expect(result.available).toBe(false);
+    expect(result.errors).toEqual(["knowledge_storage_unavailable"]);
+  });
+
+  it("reads the knowledge table and nothing else", async () => {
+    const { db, queries } = database(fixtureKnowledgeCards);
+    const result = await readAdminKnowledge(db);
+    expect(result.available).toBe(true);
+    expect(result.bundle.cards.length).toBeGreaterThan(0);
+    expect(queries).toHaveLength(1);
+    expect(queries[0]).toMatch(/FROM admin_knowledge_cards/);
+  });
+
+  it("serves the development fixture without letting a local binding shadow it", async () => {
+    vi.stubEnv("DEV", true);
+    const { db, queries } = database([]);
+    const result = await readAdminKnowledge(db, "", { limit: 20 });
+    expect(queries).toEqual([]);
     expect(result.available).toBe(true);
     expect(result.bundle.cards.length).toBeGreaterThan(0);
   });
@@ -68,8 +73,7 @@ describe("bounded knowledge list projection", () => {
     context_budget_tokens: 40,
   }));
   it("applies the query, domain and result count", async () => {
-    loader.mockResolvedValue(snapshot([], "d1", cards));
-    const result = await readAdminKnowledge(null, "Needle", {
+    const result = await readAdminKnowledge(database(cards).db, "Needle", {
       domain: "work",
       limit: 1,
       context_budget_tokens: 4000,
@@ -79,8 +83,7 @@ describe("bounded knowledge list projection", () => {
     expect(result.bundle.cards[0]?.title).toContain("Needle");
   });
   it("applies token budget and preserves provenance without a full snapshot escape", async () => {
-    loader.mockResolvedValue(snapshot([], "d1", cards));
-    const result = await readAdminKnowledge(null, "", {
+    const result = await readAdminKnowledge(database(cards).db, "", {
       limit: 20,
       context_budget_tokens: 100,
     });
@@ -99,8 +102,10 @@ describe("bounded knowledge list projection", () => {
     ]);
   });
   it("returns no cards for an unmatched query", async () => {
-    loader.mockResolvedValue(snapshot([], "d1", cards));
-    const result = await readAdminKnowledge(null, "unmatchedzzzzzz");
+    const result = await readAdminKnowledge(
+      database(cards).db,
+      "unmatchedzzzzzz",
+    );
     expect(result.bundle.cards).toEqual([]);
   });
 });

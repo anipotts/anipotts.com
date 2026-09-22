@@ -40,10 +40,10 @@ for (const file of fixtureConsumers) {
     /await import\(/,
     `${relative(root, file)} must load development fixtures dynamically`,
   );
-  if (source.includes("loadAdminControlSnapshot")) {
+  if (source.includes("loadKnowledgeCards")) {
     assert.match(
       source,
-      /loadAdminControlSnapshot\(null,\s*adminControlFixtureData\)/,
+      /loadKnowledgeCards\(null,\s*fixtureKnowledgeCards\)/,
       `${relative(root, file)} must not let a local D1 binding shadow explicit development fixtures`,
     );
   }
