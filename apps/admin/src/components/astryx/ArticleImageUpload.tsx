@@ -7,7 +7,7 @@ import {
   editorialMediaPrefix,
   editorialImagePreview,
 } from "../../lib/editorial-media";
-
+import { readEditorialCsrf } from "../../lib/editorial-client";
 import { ArticleImageCrop } from "./ArticleImageCrop";
 
 class ImageInputError extends Error {}
@@ -44,14 +44,13 @@ export async function uploadEditorialImage(
     throw new ImageInputError(
       "This image exceeds 10 MB. Choose a smaller crop or image.",
     );
-  const csrfResponse = await fetch("/api/editorial/csrf", {
-    signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]),
-  });
-  if (!csrfResponse.ok)
+  const csrf = await readEditorialCsrf(
+    AbortSignal.any([signal, AbortSignal.timeout(15000)]),
+  ).catch(() => {
     throw new ImageInputError(
       "Your session needs refreshing. Your selected image is retained.",
     );
-  const { csrf } = await csrfResponse.json();
+  });
   signal.throwIfAborted();
   const base64 = await fileBase64(file, signal);
   signal.throwIfAborted();

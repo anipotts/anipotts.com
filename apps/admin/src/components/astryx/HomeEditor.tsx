@@ -98,6 +98,7 @@ import {
 import type { Draft } from "../../editorial/draft-store";
 import type { HomeBase } from "../../lib/editorial-home-api";
 import { discardBody } from "../../lib/response-body";
+import { readEditorialCsrf } from "../../lib/editorial-client";
 import type { PublishJob } from "../../editorial/publication-jobs";
 import type {
   DirectPublicationStatus,
@@ -614,16 +615,7 @@ function HomeEditorImpl({
     body: unknown,
     guard?: () => boolean,
   ) {
-    if (!csrf.current) {
-      const response = await fetch("/api/editorial/csrf", {
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!response.ok) {
-        discardBody(response);
-        throw new Error("session expired");
-      }
-      csrf.current = (await response.json()).csrf;
-    }
+    csrf.current ||= await readEditorialCsrf(AbortSignal.timeout(15000));
     if (guard && !guard()) throw new Error("operation no longer current");
     const response = await fetch(endpoint(action), {
       method: "POST",
