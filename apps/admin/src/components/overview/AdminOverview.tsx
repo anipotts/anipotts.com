@@ -13,8 +13,8 @@ import {
 } from "@phosphor-icons/react";
 import type { CatalogRecord } from "../astryx/EditorialApp";
 import {
+  opsAlertHref,
   opsAlertRows,
-  opsEntryAnchor,
   useOpsData,
   type OpsViewProps,
 } from "../astryx/ObservabilityWorkspace";
@@ -84,7 +84,7 @@ type AlertItem = {
 
 /**
  * Firing alerts only, and nothing at all when everything is clear. Each
- * opens its entry in Status, where the runbook is. When ops cannot be read
+ * opens its alert in admin, where the runbook is. When ops cannot be read
  * the section says so instead of reading as all clear.
  */
 function FiringAlerts(props: OpsViewProps) {
@@ -147,8 +147,7 @@ function FiringAlerts(props: OpsViewProps) {
                     mark={<BrandTile id={tile.id} kind={tile.kind} />}
                     kind="Firing alert"
                     title={name}
-                    href={`/observability/status#${opsEntryAnchor(row.subject)}`}
-                    linkLabel={`${name} status`}
+                    href={opsAlertHref(row.subject)}
                     tooltip={
                       row.detail ? `${row.subject}, ${row.detail}` : row.subject
                     }

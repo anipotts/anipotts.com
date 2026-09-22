@@ -20,6 +20,13 @@ describe("relative time text", () => {
     expect(relativeAgo(T - age, T)).toBe(text);
   });
 
+  it("reads the whole first minute as just now in minute units", () => {
+    expect(relativeAgo(T - 30_000, T, "minute")).toBe("just now");
+    expect(relativeAgo(T - 59_000, T, "minute")).toBe("just now");
+    expect(relativeAgo(T - 60_000, T, "minute")).toBe("1m ago");
+    expect(relativeAgo(T - 2 * 3_600_000, T, "minute")).toBe("2h ago");
+  });
+
   it("changes every second under a minute, every minute under an hour, then hourly", () => {
     const changes = (from: number, to: number, step: number) => {
       let count = 0;

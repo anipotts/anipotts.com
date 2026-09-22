@@ -88,7 +88,8 @@ export function WorkspacePage({
   title: string;
   /** How many records the page lists, beside the title. */
   count?: number;
-  /** One short status line, only when the state needs it. */
+  /** One short status line, only when the state needs it. It is not a live
+   * region, so a ticking age is never announced. */
   meta?: ReactNode;
   /** A chip beside the title, such as Sample data. */
   badge?: ReactNode;
@@ -114,7 +115,7 @@ export function WorkspacePage({
             {badge}
           </HStack>
           {meta && (
-            <Text type="supporting" color="secondary" role="status">
+            <Text type="supporting" color="secondary">
               {meta}
             </Text>
           )}
@@ -368,6 +369,11 @@ export type Column<T> = {
 /** The least a flexible column is given before the table scrolls. */
 const FLEX_MIN_WIDTH = 80;
 
+/** Marks the heading row DataTable puts before each group. */
+const GROUP = Symbol("workspace-group");
+type GroupRow = { [GROUP]: string };
+const isGroupRow = (row: object): row is GroupRow => GROUP in row;
+
 /** The table's minimum width in each range, from its visible columns only. */
 export function tableMinWidths<T>(
   columns: readonly Column<T>[],
@@ -422,6 +428,8 @@ export function DataTable<T extends Record<string, unknown>>({
   figures,
   footer = true,
   interactive = true,
+  groupBy,
+  groupLabel = (key) => key,
 }: {
   rows: T[];
   columns: Column<T>[];
@@ -433,10 +441,18 @@ export function DataTable<T extends Record<string, unknown>>({
   figures?: Array<[label: string, value: number]>;
   footer?: boolean;
   /** Rows open something: the whole row takes the hover and the tap.
-   * Read-only tables (Status, Activity, Alerts) keep rows still. */
+   * Read-only tables (Activity) keep rows still. */
   interactive?: boolean;
+  /** Rows arrive in group order; a heading row starts each run of rows that
+   * share a key, so one table (one header, one tab stop) holds every group. */
+  groupBy?: (row: T) => string;
+  groupLabel?: (key: string) => ReactNode;
 }) {
   const [overflowing, wrapperRef] = useOverflow();
+  // The heading renderer is read at render time, so an inline one never
+  // rebuilds the plugin.
+  const labelFor = useRef(groupLabel);
+  labelFor.current = groupLabel;
   const shape = columns
     .map((column) => `${column.key}:${column.width}:${column.hideBelow}`)
     .join(",");
@@ -447,6 +463,23 @@ export function DataTable<T extends Record<string, unknown>>({
       return below ? { "data-hide-below": below } : {};
     };
     return {
+      transformBodyRow: (props, item) =>
+        isGroupRow(item)
+          ? {
+              ...props,
+              htmlProps: {
+                ...props.htmlProps,
+                "data-group-row": "",
+              } as typeof props.htmlProps,
+              // One cell in the lead column. A span would count the columns
+              // a range hides and hand them the spare width.
+              children: (
+                <th scope="rowgroup" className="workspace-group-row">
+                  {labelFor.current(item[GROUP])}
+                </th>
+              ),
+            }
+          : props,
       transformHeaderCell: (props, column) => {
         const width = byKey.get(column.key)?.width;
         return {
@@ -484,6 +517,7 @@ export function DataTable<T extends Record<string, unknown>>({
     // `shape` stands for the columns: consumers rebuild them every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shape, overflowing, label, wrapperRef]);
+  const data = groupBy ? withGroupRows(rows, rowKey, groupBy) : rows;
   const minimum = tableMinWidths(columns);
   const frameStyle = Object.fromEntries(
     BREAKPOINTS.map((range) => [
@@ -502,7 +536,7 @@ export function DataTable<T extends Record<string, unknown>>({
       <div className="workspace-table-frame" style={frameStyle}>
         <Table
           className="workspace-table-grid"
-          data={rows}
+          data={data}
           idKey={rowKey}
           density="compact"
           dividers="none"
@@ -512,7 +546,8 @@ export function DataTable<T extends Record<string, unknown>>({
             key: column.key,
             header: column.header,
             align: column.align,
-            renderCell: column.render,
+            renderCell: (row: T) =>
+              isGroupRow(row) ? null : column.render(row),
           }))}
         />
       </div>
@@ -549,6 +584,24 @@ export function DataTable<T extends Record<string, unknown>>({
       )}
     </VStack>
   );
+}
+
+/** The rows with a heading row before each run that shares a group key. */
+function withGroupRows<T extends Record<string, unknown>>(
+  rows: T[],
+  rowKey: keyof T & string,
+  groupBy: (row: T) => string,
+): T[] {
+  const out: T[] = [];
+  let previous: string | undefined;
+  for (const row of rows) {
+    const key = groupBy(row);
+    if (key !== previous)
+      out.push({ [rowKey]: `group:${key}`, [GROUP]: key } as unknown as T);
+    previous = key;
+    out.push(row);
+  }
+  return out;
 }
 
 /**
@@ -968,31 +1021,37 @@ const ABSOLUTE = new Intl.DateTimeFormat("en-US", {
   timeStyle: "short",
 });
 const DATE_ONLY = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
+const TIME_ONLY = new Intl.DateTimeFormat("en-US", { timeStyle: "short" });
 
 /** The absolute time, local and UTC, for a tooltip and accessible name. */
 export function absoluteTime(ms: number): string {
   return `${ABSOLUTE.format(ms)} local, ${new Date(ms).toISOString().slice(0, 16).replace("T", " ")} UTC`;
 }
 
-function LiveAgo({ at }: { at: number }) {
-  const text = useLiveText((now) => relativeAgo(at, now), Date.now());
+function LiveAgo({ at, now }: { at: number; now?: number }) {
+  const text = useLiveText((live) => relativeAgo(at, live), Date.now(), now);
   return <>{text}</>;
 }
 
 /** A time as people read it: relative and live from the one shared clock,
  * with the absolute local and UTC time as its tooltip and accessible name.
- * Never a raw ISO string. Tabular and on one line. */
+ * Never a raw ISO string. Tabular and on one line. `date` and `time` show
+ * the calendar day or the clock time instead, for lists grouped by day. */
 function RelativeTimeCell({
   value,
   empty = "Not recorded",
   format = "relative",
   label,
+  now,
 }: {
   value: string | number | null | undefined;
   empty?: string;
-  format?: "relative" | "date";
+  format?: "relative" | "date" | "time";
   /** What the time is, such as "Local edit", before the absolute time. */
   label?: string;
+  /** A fixed clock (a fixture read at its own moment, a test): the text
+   * never ticks. */
+  now?: number;
 }) {
   const ms = typeof value === "number" ? value : Date.parse(value ?? "");
   if (value == null || value === "" || !Number.isFinite(ms))
@@ -1006,11 +1065,17 @@ function RelativeTimeCell({
     <time
       dateTime={new Date(ms).toISOString()}
       title={absolute}
-      aria-label={format === "date" ? undefined : absolute}
+      aria-label={format === "relative" ? absolute : undefined}
       className="workspace-time"
       suppressHydrationWarning
     >
-      {format === "date" ? DATE_ONLY.format(ms) : <LiveAgo at={ms} />}
+      {format === "date" ? (
+        DATE_ONLY.format(ms)
+      ) : format === "time" ? (
+        TIME_ONLY.format(ms)
+      ) : (
+        <LiveAgo at={ms} now={now} />
+      )}
     </time>
   );
 }
@@ -1023,7 +1088,8 @@ export const RelativeTime = memo(
     previous.value === next.value &&
     previous.empty === next.empty &&
     previous.format === next.format &&
-    previous.label === next.label,
+    previous.label === next.label &&
+    previous.now === next.now,
 );
 
 const TIER_GLYPHS: Record<string, Icon> = {

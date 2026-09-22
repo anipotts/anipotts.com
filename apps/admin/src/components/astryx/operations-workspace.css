@@ -9,16 +9,108 @@
   font-family: var(--font-family-code, ui-monospace, monospace);
   font-size: 0.92em;
 }
-/* The runbook link keeps the 36px desktop and 44px touch target. */
-.operations-workspace .ops-runbook,
-.admin-overview .ops-runbook {
-  display: inline-flex;
+
+/* Rows hold 36px on wide screens, like the controls around them. */
+.operations-workspace .workspace-table .astryx-table-cell {
+  height: var(--spacing-9);
+}
+
+/* A state cell and a phone row's line 2: the chip, the reason, and a
+   non-zero exit or an overrun budget as a critical figure. */
+.operations-workspace .ops-state-cell {
+  min-width: 0;
+}
+.operations-workspace .ops-reason {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.operations-workspace .ops-exit,
+.operations-workspace .ops-over {
+  flex: none;
+  color: var(--color-text-red, var(--color-error));
+  white-space: nowrap;
+}
+
+/* Hosts and the exception counts share one line above the table. */
+.ops-overview {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  gap: var(--spacing-3);
+}
+.ops-hosts,
+.ops-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ops-counts {
+  align-items: center;
+  margin-inline-start: auto;
+}
+.ops-host {
+  --row-mark-size: var(--spacing-6);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
   min-height: var(--spacing-9);
+  padding-inline: var(--spacing-2) var(--spacing-3);
+  background: var(--color-background-surface);
+  border-radius: var(--radius-container);
+  scroll-margin-block: var(--spacing-12);
+}
+.ops-host-name,
+.ops-host-detail {
+  white-space: nowrap;
+}
+
+/* The detail's way back sits on the content's start edge. */
+.operations-workspace .ops-detail-back {
+  align-self: flex-start;
+  margin-inline-start: calc(-1 * var(--spacing-2));
+}
+
+/* A link into Status tints the row it lands on for a moment. */
+.operations-workspace [data-landed] {
+  background-color: var(--color-accent-muted);
+  transition: background-color 600ms ease-out;
+}
+
+/* The source menu's counts, and its items at the touch size. The menu is
+   portalled, so it is found by what it holds. */
+.ops-menu-count {
+  color: var(--color-text-secondary);
 }
 @media (pointer: coarse) {
-  .operations-workspace .ops-runbook,
-  .admin-overview .ops-runbook {
+  .astryx-dropdown-menu:has(.ops-menu-count) [role="menuitemradio"] {
     min-height: var(--spacing-11);
+  }
+}
+
+@media (max-width: 640px) {
+  .operations-workspace .workspace-table .astryx-table-cell {
+    height: auto;
+  }
+  .ops-overview {
+    gap: var(--spacing-2);
+  }
+  .ops-counts {
+    margin-inline-start: 0;
+  }
+  .ops-host {
+    --row-mark-size: var(--spacing-7);
+    flex: 1 1 100%;
+    padding-inline: 0;
+    background: transparent;
+  }
+  .ops-host-detail {
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }

@@ -51,20 +51,20 @@ describe("the one overview", () => {
     expect(host.querySelector('[aria-label="Hosts"]')).toBeNull();
   });
 
-  it("lists only firing alerts, each opening its Status entry in admin", () => {
+  it("lists only firing alerts, each opening its alert in admin", () => {
     const host = render({ fixture: snapshot, eventsFixture: events });
     const table = host.querySelector('table[aria-label="Firing alerts"]')!;
     expect(
       [...table.querySelectorAll("thead th")].map((th) => th.textContent),
     ).toEqual(["Alert", "State", "Since"]);
+    // An alert opens in admin first; its runbook is an action there.
     const links = [...table.querySelectorAll("tbody a.workspace-row-link")];
     expect(links).toHaveLength(3);
     for (const link of links) {
       expect(link.getAttribute("href")).toMatch(
-        /^\/observability\/status#entry-/,
+        /^\/observability\/alerts\?alert=/,
       );
       expect(link.getAttribute("target")).toBeNull();
-      expect(link.getAttribute("aria-label")).toMatch(/ status$/);
     }
     // No runbook column, no link buttons and no outside link: the row is the
     // link, and the mono id rides in the tooltip.

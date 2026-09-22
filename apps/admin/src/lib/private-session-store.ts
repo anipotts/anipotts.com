@@ -11,12 +11,15 @@ import {
  *
  * Idle rule: after 15 minutes without interaction, or 15 minutes hidden, the
  * session closes; the next interaction opens it again. Credential issuance is
- * unchanged: every open and renewal passes the live Access gate.
+ * unchanged: every open and renewal passes the live Access gate. The ops
+ * session (components/hooks/useOpsStatus.ts) is its own session under the
+ * same rule, through `trackPrivateSession`.
  */
 export const PRIVATE_SESSION_IDLE_MS = 15 * 60 * 1000;
 
-/** Reads the existing same-origin editorial CSRF token for issuance. */
-async function readEditorialCsrf(): Promise<string> {
+/** Reads the existing same-origin editorial CSRF token for issuance. The
+ * Data and ops sessions both issue with it. */
+export async function readEditorialCsrf(): Promise<string> {
   const response = await fetch("/api/editorial/csrf", {
     credentials: "same-origin",
     cache: "no-store",

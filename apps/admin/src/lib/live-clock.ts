@@ -82,12 +82,18 @@ export function sharedLiveClock(): LiveClock {
 }
 
 /**
- * "12s ago" under a minute, "5m ago" under an hour, "3h ago" under a day,
- * then "2d ago". A time in the future (clock skew) reads "just now".
+ * The admin's one age formatter: "12s ago" under a minute, "5m ago" under an
+ * hour, "3h ago" under a day, then "2d ago". A time in the future (clock
+ * skew) reads "just now". `unit: "minute"` reads "just now" for the whole
+ * first minute, for a line that should change at most once a minute.
  */
-export function relativeAgo(at: number, now: number): string {
+export function relativeAgo(
+  at: number,
+  now: number,
+  unit: "second" | "minute" = "second",
+): string {
   const seconds = Math.max(0, Math.floor((now - at) / 1000));
-  if (seconds < 5) return "just now";
+  if (seconds < (unit === "minute" ? 60 : 5)) return "just now";
   if (seconds < 60) return `${seconds}s ago`;
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m ago`;
@@ -96,24 +102,23 @@ export function relativeAgo(at: number, now: number): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+const still = () => () => undefined;
+
 /**
  * Text derived from the shared clock. The component re-renders only when the
  * derived text changes. `serverNow` keeps the server render and hydration in
- * step.
+ * step. A `fixed` time (a fixture read at its own moment, a test) never
+ * subscribes, so nothing ticks.
  */
 export function useLiveText(
   format: (now: number) => string,
   serverNow: number,
+  fixed?: number,
   clock: LiveClock = sharedLiveClock(),
 ): string {
   return useSyncExternalStore(
-    clock.subscribe,
-    () => format(clock.now()),
-    () => format(serverNow),
+    fixed === undefined ? clock.subscribe : still,
+    () => format(fixed ?? clock.now()),
+    () => format(fixed ?? serverNow),
   );
-}
-
-/** The current time from the shared clock, for views that compute ages. */
-export function useLiveNow(serverNow: number, clock = sharedLiveClock()) {
-  return useSyncExternalStore(clock.subscribe, clock.now, () => serverNow);
 }
