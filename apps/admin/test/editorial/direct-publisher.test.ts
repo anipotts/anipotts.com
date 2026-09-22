@@ -460,11 +460,14 @@ describe("direct publication with real local D1, R2 and SQLite Durable Objects",
     });
     // Reset only the synthetic clock's scheduled wake so the real adapter can
     // reconcile immediately; public verification is the following alarm.
+    // The wake is far in the future so only runDurableObjectAlarm runs it. A
+    // near one lets workerd fire it on its own first: the manual run then
+    // finds no alarm, and the reads below race the real alarm mid-flight.
     await runInDurableObject(f.store, async (_instance, state) => {
       state.storage.sql.exec("UPDATE direct_publication_intents SET dueAt=0");
-      await state.storage.setAlarm(Date.now() + 1);
+      await state.storage.setAlarm(Date.now() + 60 * 60_000);
     });
-    await runDurableObjectAlarm(f.store);
+    expect(await runDurableObjectAlarm(f.store)).toBe(true);
     const draft = (await f.store.get(f.record))!;
     expect(draft.source).toBe(next);
     expect(draft.revision).toBe(2);
