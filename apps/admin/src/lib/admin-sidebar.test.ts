@@ -177,6 +177,45 @@ describe("sidebar rail choice", () => {
     }
   });
 
+  it("keeps a choice saved under the Life and Operations ids", () => {
+    const run = (path: string, raw: string) => {
+      const root = { dataset: {} as Record<string, string> };
+      runInNewContext(adminSidebarPrepaintScript, {
+        window: {
+          innerWidth: 1280,
+          location: { pathname: path },
+          matchMedia: () => ({ matches: false }),
+        },
+        localStorage: storage({ "admin:sidebar-groups": raw }),
+        document: { documentElement: root },
+      });
+      return root.dataset.adminNavClosed ?? "";
+    };
+    const earlier = '{"content":false,"life":true,"operations":true}';
+    expect(sidebarGroupsState(earlier, null)).toEqual({
+      content: false,
+      data: true,
+      observability: true,
+    });
+    expect(run("/", earlier)).toBe("data observability");
+    // The active group still opens, and a current id wins over an earlier one.
+    expect(run("/data/records", earlier)).toBe("observability");
+    const both = '{"data":false,"life":true,"operations":true}';
+    expect(sidebarGroupsState(both, null).data).toBe(false);
+    expect(run("/", both)).toBe("observability");
+    for (const [path, raw] of [
+      ["/", earlier],
+      ["/content/pages", earlier],
+      ["/observability/alerts", both],
+    ])
+      expect(run(path!, raw!)).toBe(
+        Object.entries(sidebarGroupsState(raw!, workspaceForPath(path!)))
+          .filter(([, value]) => value)
+          .map(([id]) => id)
+          .join(" "),
+      );
+  });
+
   it("runs the prepaint in the one document and holds rail geometry only before hydration", () => {
     const document = readFileSync(
       new URL("../layouts/AdminDocument.astro", import.meta.url),
