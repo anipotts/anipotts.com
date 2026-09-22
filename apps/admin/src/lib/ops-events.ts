@@ -4,6 +4,8 @@ import {
   OpsSnapshotError,
   exact,
   integer,
+  known,
+  type FieldDrift,
   member,
   text,
   timestamp,
@@ -15,8 +17,9 @@ import {
  * System's `ops_events_v1` feed (`GET /v1/ops/events?after=&limit=`, scope
  * `ops:read`), parsed strictly. Contract: anipotts/system `docs/ops-v1.md`.
  *
- * Every item carries exactly nine keys, plus an optional `device` on access
- * rows. `transition` rows name a catalog id
+ * Every item carries the nine keys, plus an optional `device`. A key this
+ * client does not know is never read; its name goes to `unknownFields` for a
+ * drift notice, and the page keeps working. `transition` rows name a catalog id
  * and the state it moved to; `run` rows name a catalog id with the run's exit
  * code in `status` and its duration in `ms` (either may be null); `access`
  * rows name a reader route family with an HTTP status and latency and never
@@ -98,7 +101,12 @@ export type OpsOtherEvent = Base & {
 };
 export type OpsEvent =
   OpsTransitionEvent | OpsRunEvent | OpsAccessEvent | OpsOtherEvent;
-export type OpsEventsPage = { items: OpsEvent[]; nextAfter: number | null };
+export type OpsEventsPage = {
+  items: OpsEvent[];
+  nextAfter: number | null;
+  /** Item field names this client does not know yet, sorted. */
+  unknownFields: string[];
+};
 
 function fail(): never {
   throw new OpsSnapshotError();
@@ -119,13 +127,11 @@ function device(value: unknown): OpsDevice {
     : "other";
 }
 
-function item(value: unknown): OpsEvent {
-  // `device` is optional on every item; any other key outside the nine rejects.
-  const raw = value as Record<string, unknown> | null;
-  const hasDevice =
-    raw !== null && typeof raw === "object" && Object.hasOwn(raw, "device");
-  const e = exact(value, hasDevice ? [...ITEM_KEYS, "device"] : ITEM_KEYS);
-  const accessDevice = hasDevice ? nullable(e.device, device) : null;
+function item(value: unknown, drift: FieldDrift): OpsEvent {
+  // `device` is optional on every item; unknown keys are only named.
+  const e = known(value, ITEM_KEYS, ["device"], drift);
+  const accessDevice =
+    e.device === undefined ? null : nullable(e.device, device);
   const seq = integer(e.seq, 1, OPS_EVENTS_BOUNDS.maxSeq);
   const at = timestamp(e.at);
   const kind = text(e.kind, 32);
@@ -177,7 +183,8 @@ export function parseOpsEvents(value: unknown, after: number): OpsEventsPage {
     root.items.length > OPS_EVENTS_BOUNDS.maxLimit
   )
     fail();
-  const items = root.items.map(item);
+  const drift: FieldDrift = new Set();
+  const items = root.items.map((value) => item(value, drift));
   let previous = after;
   for (const event of items) {
     if (event.seq <= previous) fail();
@@ -188,7 +195,7 @@ export function parseOpsEvents(value: unknown, after: number): OpsEventsPage {
   );
   if (nextAfter !== null && (items.length === 0 || nextAfter !== previous))
     fail();
-  return { items, nextAfter };
+  return { items, nextAfter, unknownFields: [...drift].sort() };
 }
 
 export function parseOpsEventsBytes(

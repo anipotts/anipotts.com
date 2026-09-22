@@ -189,7 +189,7 @@ describe("ops snapshot read", () => {
       readOpsSnapshot(h.session, null, { fetch: h.fetch }),
     ).rejects.toBeInstanceOf(OpsSnapshotError);
     const extra = structuredClone(sample) as Record<string, any>;
-    extra.catalog[0].note = "unexpected";
+    extra.catalog[0].freshness_budget_s = "unexpected";
     h.replies.push(ok(null, JSON.stringify(extra)));
     await expect(
       readOpsSnapshot(h.session, null, { fetch: h.fetch }),
@@ -586,7 +586,7 @@ describe("ops events polling", () => {
 
   it("drops a page that breaks the contract and starts over", async () => {
     const { controller } = eventsHarness({
-      0: () => page([{ ...item(1), extra: true }], null),
+      0: () => page([{ ...item(1), seq: "1" }], null),
     });
     controller.start();
     await flush();
