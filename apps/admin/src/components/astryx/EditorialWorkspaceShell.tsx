@@ -21,6 +21,7 @@ import { HStack } from "@astryxdesign/core/HStack";
 import "./WorkspaceHeader.css";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Button } from "@astryxdesign/core/Button";
+import { Tooltip } from "@astryxdesign/core/Tooltip";
 import { AppShell } from "@astryxdesign/core/AppShell";
 import {
   SideNav,
@@ -305,12 +306,11 @@ function WorkspaceIdentity({
         hAlign="between"
         vAlign="center"
       >
-        <SideNavCollapseButton
-          size="md"
-          tooltip={rail ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          <SidebarSimpleIcon size={18} aria-hidden="true" />
-        </SideNavCollapseButton>
+        <Tooltip content={rail ? "Expand sidebar" : "Collapse sidebar"}>
+          <SideNavCollapseButton size="md">
+            <SidebarSimpleIcon size={18} aria-hidden="true" />
+          </SideNavCollapseButton>
+        </Tooltip>
         {!rail && <AdminWordmark href="/" label="Overview" />}
         {/* The end slot balances the collapse button, so the wordmark keeps
             the middle of the row. */}

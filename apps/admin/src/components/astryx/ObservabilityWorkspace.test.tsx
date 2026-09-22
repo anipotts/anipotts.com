@@ -19,6 +19,7 @@ import {
 } from "../../lib/ops-reader";
 import { sharedLiveClock } from "../../lib/live-clock";
 import { OPS_V1_STATES } from "../../lib/ops-v1";
+import { providedSearchEntries } from "../../lib/admin-search-index";
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 type Json = Record<string, any>;
@@ -962,5 +963,39 @@ describe("the open alert in the browser", () => {
     expect(
       host.querySelector(".workspace-split")?.getAttribute("data-detail-open"),
     ).toBe("false");
+  });
+
+  it("gives the palette one row per entry while the page is open", async () => {
+    await act(async () =>
+      root.render(
+        <ObservabilityWorkspace
+          view="status"
+          enabled={false}
+          fixture={sample}
+          eventsFixture={events}
+        />,
+      ),
+    );
+    const rows = providedSearchEntries().filter(
+      (row) => row.domain === "system",
+    );
+    expect(rows.length).toBe(sample.catalog.length);
+    expect(new Set(rows.map((row) => row.id)).size).toBe(rows.length);
+    // A firing entry opens its alert; the rest open their Status row.
+    const connect = rows.find(
+      (row) => row.id === "ops:keepalive.onepassword-connect",
+    )!;
+    expect(connect.label).toBe("Connect");
+    expect(connect.href).toBe(
+      "/observability/alerts?alert=keepalive.onepassword-connect",
+    );
+    expect(
+      rows.some((row) => row.href.startsWith("/observability/status#entry-")),
+    ).toBe(true);
+    act(() => root.unmount());
+    root = createRoot(host);
+    expect(
+      providedSearchEntries().filter((row) => row.domain === "system"),
+    ).toEqual([]);
   });
 });

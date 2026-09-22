@@ -10,6 +10,7 @@ import {
   trackPrivateSession,
 } from "../../lib/private-session-store";
 import { createPrivateReaderSession } from "../../lib/private-reader-client";
+import { providedSearchEntries } from "../../lib/admin-search-index";
 
 // Synthetic records only; every request goes through the mocked fetch.
 const recordId = "rec-0123456789abcdef0123456789abcdef";
@@ -317,6 +318,14 @@ describe("Records paging and the split", () => {
     const rows = () => host.querySelectorAll("tbody tr");
     expect(rows()).toHaveLength(20);
     expect(host.querySelector(".workspace-count")?.textContent).toBe("25");
+    // The listed records are what the palette finds under Data.
+    const found = () =>
+      providedSearchEntries().filter((row) => row.domain === "life");
+    expect(found()).toHaveLength(20);
+    expect(found()[0]).toMatchObject({
+      label: "Synthetic record 0",
+      href: `/data/records/${many[0]!.record_id}`,
+    });
     const more = [...host.querySelectorAll("button")].find(
       (button) => button.textContent === "Load more",
     )!;
@@ -326,6 +335,7 @@ describe("Records paging and the split", () => {
     });
     await settle();
     expect(rows()).toHaveLength(25);
+    expect(found()).toHaveLength(25);
     expect(document.activeElement?.textContent).toBe("Synthetic record 20");
     expect(
       [...host.querySelectorAll("button")].some(

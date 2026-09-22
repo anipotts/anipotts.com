@@ -76,6 +76,7 @@ function toRow(entry: AdminSearchResult): Row {
     ...entry,
     group: GROUPS[entry.domain] ?? "Results",
     icon:
+      entry.icon ??
       DESTINATION_GLYPHS.get(entry.href) ??
       KIND_GLYPHS[entry.kind] ??
       FileTextIcon,

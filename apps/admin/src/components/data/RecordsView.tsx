@@ -57,6 +57,7 @@ import {
   type DataRecord,
 } from "./data-model";
 import { ReadNotice, type DataNavigate } from "./DataNotices";
+import { provideSearchEntries } from "../../lib/admin-search-index";
 
 type Failure = Exclude<LifeResult, { state: "ready" }>;
 
@@ -556,6 +557,33 @@ export function RecordsExplorer({
   const detailId = useId();
   const [search, setSearch] = useState({ q: "", n: 0 });
   const [list, setList] = useState<List | null>(null);
+  // The records this session has listed are what the palette finds under
+  // Data. They go with the list: a locked or ended session remounts it.
+  const items = list?.items;
+  useEffect(
+    () =>
+      items?.length
+        ? provideSearchEntries(
+            "data",
+            items.map((item) => {
+              const [icon, kindName] = kindGlyph(item.kind);
+              return {
+                id: `data:record:${item.id}`,
+                label: item.title ?? "Untitled",
+                domain: "life" as const,
+                kind: "record",
+                currentFact: kindName,
+                source: item.source ?? "",
+                freshness: "current",
+                href: dataRecordHref(item.id),
+                keywords: [kindName],
+                icon,
+              };
+            }),
+          )
+        : undefined,
+    [items],
+  );
   const [busy, setBusy] = useState(false);
   const [record, setRecord] = useState<DataRecord | null>(null);
   const [detailBusy, setDetailBusy] = useState(false);

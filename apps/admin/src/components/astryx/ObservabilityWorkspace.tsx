@@ -83,6 +83,8 @@ import {
 import { brandMark } from "@anipotts/brand/marks";
 import { sentenceCase } from "../../lib/sentence-case";
 import { relativeAgo, useLiveText } from "../../lib/live-clock";
+import { provideSearchEntries } from "../../lib/admin-search-index";
+import type { AdminSearchResult } from "../../data/admin-search";
 import "./operations-workspace.css";
 
 /**
@@ -1433,12 +1435,54 @@ function StatusView({ data }: { data: OpsData }) {
  * PRIVATE_READER_ENABLED and PRIVATE_READER_OPS_ENABLED flags are both
  * "true". Fixtures are the development-only previews and never ship.
  */
+/** The services this page has read, for the one command palette, withdrawn
+ * when the page goes. One row per entry: a firing entry opens its alert's
+ * detail, any other its Status row. */
+function useOpsSearchEntries(data: OpsData) {
+  const entries = useMemo<AdminSearchResult[]>(() => {
+    const firing = new Map(
+      opsAlertRows(data.events, data.snapshot)
+        .filter((alert) => alert.status === "firing")
+        .map((alert) => [alert.subject, alert]),
+    );
+    const services = data.snapshot ? opsServices(data.snapshot) : [];
+    const row = (
+      id: string,
+      label: string,
+      keywords: string[],
+    ): AdminSearchResult => ({
+      id: `ops:${id}`,
+      label,
+      domain: "system",
+      kind: firing.has(id) ? "alert" : "service",
+      currentFact: "",
+      source: "ops",
+      freshness: "current",
+      href: firing.has(id)
+        ? opsAlertHref(id)
+        : `/observability/status#${opsEntryAnchor(id)}`,
+      keywords: [id, ...keywords, ...(firing.has(id) ? ["alert"] : [])],
+      icon: firing.has(id) ? BellSimpleIcon : PulseIcon,
+    });
+    const rows = services.map((service) =>
+      row(service.id, opsName(service), [service.name, service.group]),
+    );
+    const listed = new Set(services.map((service) => service.id));
+    for (const alert of firing.values())
+      if (!listed.has(alert.subject))
+        rows.push(row(alert.subject, alert.name, []));
+    return rows;
+  }, [data.snapshot, data.events]);
+  useEffect(() => provideSearchEntries("observability", entries), [entries]);
+}
+
 export function ObservabilityWorkspace({
   view = "status",
   alert = null,
   ...props
 }: OpsViewProps & { view?: OpsView; alert?: string | null }) {
   const data = useOpsData(props, view !== "status");
+  useOpsSearchEntries(data);
   // Activity and Alerts read the catalog for names and runbooks; with no
   // snapshot and no events there is nothing to show but the notice.
   const eventsRead =
