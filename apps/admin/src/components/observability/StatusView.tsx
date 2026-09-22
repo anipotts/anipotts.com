@@ -32,6 +32,7 @@ import { BrandTile } from "../BrandTile";
 import { SplitView, useSplitView } from "../astryx/SplitView";
 import {
   CELL_WIDTHS,
+  CompactOnly,
   DataTable,
   DetailText,
   Duration,
@@ -150,11 +151,14 @@ function statusColumns(
           mobile={
             exception ? (
               <>
-                <EntryState service={row} />
+                <CompactOnly>
+                  <EntryState service={row} />
+                </CompactOnly>
                 <Reason service={row} />
               </>
             ) : undefined
           }
+          mobileBelow="large"
           end={
             <>
               <LastSuccess service={row} now={now} />
@@ -186,11 +190,11 @@ function statusColumns(
   if (narrow) return [lead, state, lastSuccess];
   return [
     lead,
+    // Kept at medium too: two services can share a name on two Macs.
     {
       key: "device",
       header: <span className="sr-only">Device</span>,
       width: CELL_WIDTHS.tile,
-      hideBelow: "large",
       render: (row) =>
         entryNaming(row).device ? <DeviceTile device={row.host} /> : null,
     },

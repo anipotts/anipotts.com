@@ -83,10 +83,15 @@
 }
 /* Each range's minimum width counts only the columns it shows. DataTable
    writes the four figures; the range picks one. */
+/* The frame is a size container, so a column with a `share` can take its
+   part of what the range's fixed columns leave (100cqw minus
+   --workspace-table-fixed). */
 .workspace-table-frame {
   position: relative;
   min-width: 0;
+  container-type: inline-size;
   --workspace-table-min: var(--workspace-table-min-wide);
+  --workspace-table-fixed: var(--workspace-table-fixed-wide, 0px);
 }
 .workspace-table-grid {
   min-width: var(--workspace-table-min);
@@ -94,6 +99,7 @@
 @media (max-width: 1439px) {
   .workspace-table-frame {
     --workspace-table-min: var(--workspace-table-min-large);
+    --workspace-table-fixed: var(--workspace-table-fixed-large, 0px);
   }
   .workspace-table [data-hide-below="wide"] {
     display: none;
@@ -102,6 +108,7 @@
 @media (max-width: 1023px) {
   .workspace-table-frame {
     --workspace-table-min: var(--workspace-table-min-medium);
+    --workspace-table-fixed: var(--workspace-table-fixed-medium, 0px);
   }
   .workspace-table [data-hide-below="large"] {
     display: none;
@@ -261,6 +268,10 @@
   color: var(--color-text-secondary);
   overflow: hidden;
 }
+/* A device render is its own icon, with no fill behind it. */
+.workspace-row-mark:has(> .brand-tile[data-kind="device"]) {
+  background: transparent;
+}
 /* Phosphor glyphs take 2px more than brand glyphs to match their weight. */
 .workspace-row-mark > svg {
   width: calc(var(--row-mark-glyph) + 2px);
@@ -338,10 +349,32 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
 .workspace-row-detail {
   display: none;
 }
+/* Line 2's detail gives way before its chips: the prose truncates, while a
+   state chip or an exit code (flex: none) always stays whole. */
 .workspace-row-detail {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
   align-items: center;
   gap: var(--spacing-2);
+  overflow: hidden;
+}
+.workspace-row-detail .workspace-detail-text {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+/* Parts of line 2 that a wider range already shows in a column. */
+.workspace-compact-only {
+  display: none;
+}
+/* A row whose detail column drops below large carries its detail as line 2
+   there too (medium), as phones do. */
+@media (max-width: 1023px) {
+  .workspace-row-meta[data-below="large"][data-compact-only="true"] {
+    display: flex;
+  }
+  .workspace-row-meta[data-below="large"] > .workspace-row-detail {
+    display: inline-flex;
+  }
 }
 .workspace-row-secondary {
   display: block;
@@ -624,6 +657,9 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   }
   .workspace-row-detail {
     display: inline-flex;
+  }
+  .workspace-compact-only {
+    display: contents;
   }
   .workspace-row-meta {
     overflow: hidden;

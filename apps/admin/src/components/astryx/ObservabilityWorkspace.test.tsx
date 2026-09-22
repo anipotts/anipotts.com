@@ -1149,25 +1149,25 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
     )!;
     const heads = (table: Element) =>
       [...table.querySelectorAll("thead th")].map((th) => th.textContent);
-    expect(heads(firingTable)).toEqual([
+    // One set of columns for both, so the two tables line up.
+    const incidentColumns = [
       "Alert",
+      "Device",
       "State",
-      "Since",
-      "For",
-      "Detail",
-      "Runbook",
-    ]);
-    expect(heads(resolvedTable)).toEqual([
-      "Alert",
-      "State",
-      "Was",
       "Started",
       "Resolved",
       "Lasted",
       "Incidents",
       "Detail",
       "Runbook",
-    ]);
+    ];
+    expect(heads(firingTable)).toEqual(incidentColumns);
+    expect(heads(resolvedTable)).toEqual(incidentColumns);
+    const widths = (table: Element) =>
+      [...table.querySelectorAll<HTMLElement>("thead th")].map(
+        (th) => th.style.width,
+      );
+    expect(widths(firingTable)).toEqual(widths(resolvedTable));
     const firing = rows(host, firingTable);
     expect(firing).toHaveLength(3);
     expect(firing[0]).toContain("keepalive.onepassword-connect");
@@ -1183,17 +1183,23 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
     expect(resolved).toHaveLength(2);
     expect(resolved[0]).toContain("agents.sync");
     expect(resolved[1]).toContain("pc.writer");
-    // A resolved incident reads Resolved and the state it was in, muted,
-    // never as a current chip; then when it started, resolved and lasted.
+    // A resolved incident reads the state it was in, muted, never as a
+    // current chip; then when it started, resolved and lasted. A firing one
+    // has no resolved time yet.
     const [sync] = [
       ...resolvedTable.querySelectorAll("tbody tr:not([data-group-row])"),
     ] as HTMLTableRowElement[];
     const heading = heads(resolvedTable);
     const at = (name: string) => sync!.cells[heading.indexOf(name)]!;
-    expect(at("State").textContent).toBe("Resolved");
-    expect(at("Was").textContent).toBe("Failing");
-    expect(at("Was").querySelector(".workspace-state")).toBeNull();
+    expect(at("State").textContent).toBe("was failing");
+    expect(at("State").querySelector(".workspace-state")).toBeNull();
     expect(at("Lasted").textContent).toBe("25m");
+    const [connect] = [
+      ...firingTable.querySelectorAll("tbody tr:not([data-group-row])"),
+    ] as HTMLTableRowElement[];
+    expect(connect!.cells[heading.indexOf("Resolved")]!.textContent).toBe(
+      "Still firing",
+    );
     expect(resolvedTable.querySelector('[data-variant="error"]')).toBeNull();
     // Unknown neither fires nor resolves.
     expect(host.textContent).not.toContain("health.ingest");

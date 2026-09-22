@@ -408,6 +408,10 @@ export type Column<T> = {
   /** Pixels (a CELL_WIDTHS width for a standard cell), or omitted to share
    * the remaining width. */
   width?: number;
+  /** A flexible column's part (0 to 1) of the width the fixed columns
+   * leave, so the lead keeps the rest: a detail column at 0.4 gives way
+   * before the names beside it. Without it flexible columns split evenly. */
+  share?: number;
   align?: "start" | "end";
   /** Figures: right-aligned, header included, in tabular numerals. */
   numeric?: boolean;
@@ -443,6 +447,13 @@ type GroupRow = {
 };
 const isGroupRow = (row: object): row is GroupRow => GROUP in row;
 
+/** The columns a range shows. */
+const shownIn = <T,>(columns: readonly Column<T>[], range: Breakpoint) =>
+  columns.filter(
+    (column) =>
+      column.hideBelow === undefined || !isBelow(range, column.hideBelow),
+  );
+
 /** The table's minimum width in each range, from its visible columns only. */
 export function tableMinWidths<T>(
   columns: readonly Column<T>[],
@@ -450,15 +461,35 @@ export function tableMinWidths<T>(
   const at = (range: Breakpoint) =>
     range === "compact"
       ? 0
-      : columns
-          .filter(
-            (column) =>
-              column.hideBelow === undefined ||
-              !isBelow(range, column.hideBelow),
-          )
-          .reduce((sum, column) => sum + (column.width ?? FLEX_MIN_WIDTH), 0);
+      : shownIn(columns, range).reduce(
+          (sum, column) => sum + (column.width ?? FLEX_MIN_WIDTH),
+          0,
+        );
   return Object.fromEntries(
     BREAKPOINTS.map((range) => [range, at(range)]),
+  ) as Record<Breakpoint, number>;
+}
+
+/** A shared column's width. The frame is a size container, so 100cqw is the
+ * width the table has: a length, which a fixed layout honours. Header cells
+ * carry max-width 0 (for their ellipsis), so the width is the minimum too. */
+function shareWidth(share: number): React.CSSProperties {
+  const width = `max(${FLEX_MIN_WIDTH}px, (100cqw - var(--workspace-table-fixed, 0px)) * ${share})`;
+  return { width, minWidth: width };
+}
+
+/** What each range's fixed columns take, for a flexible column's `share`. */
+function tableFixedWidths<T>(
+  columns: readonly Column<T>[],
+): Record<Breakpoint, number> {
+  return Object.fromEntries(
+    BREAKPOINTS.map((range) => [
+      range,
+      shownIn(columns, range).reduce(
+        (sum, column) => sum + (column.width ?? 0),
+        0,
+      ),
+    ]),
   ) as Record<Breakpoint, number>;
 }
 
@@ -532,7 +563,7 @@ export function DataTable<T extends Record<string, unknown>>({
   const shape = columns
     .map(
       (column) =>
-        `${column.key}:${column.width}:${column.hideBelow}:${column.numeric}`,
+        `${column.key}:${column.width}:${column.share}:${column.hideBelow}:${column.numeric}`,
     )
     .join(",");
   const plugin = useMemo((): TablePlugin<T> => {
@@ -584,7 +615,7 @@ export function DataTable<T extends Record<string, unknown>>({
             }
           : props,
       transformHeaderCell: (props, column) => {
-        const width = byKey.get(column.key)?.width;
+        const { width, share } = byKey.get(column.key) ?? {};
         return {
           ...props,
           htmlProps: {
@@ -592,9 +623,11 @@ export function DataTable<T extends Record<string, unknown>>({
             ...hiding(column.key),
             style: {
               ...props.htmlProps.style,
-              ...(width === undefined
-                ? { width: "auto", minWidth: FLEX_MIN_WIDTH }
-                : { width, minWidth: width }),
+              ...(width !== undefined
+                ? { width, minWidth: width }
+                : share !== undefined
+                  ? shareWidth(share)
+                  : { width: "auto", minWidth: FLEX_MIN_WIDTH }),
             },
           } as typeof props.htmlProps,
         };
@@ -631,10 +664,15 @@ export function DataTable<T extends Record<string, unknown>>({
       )
     : rows;
   const minimum = tableMinWidths(columns);
+  const fixed = columns.some((column) => column.share !== undefined)
+    ? tableFixedWidths(columns)
+    : null;
   const frameStyle = Object.fromEntries(
-    BREAKPOINTS.map((range) => [
-      `--workspace-table-min-${range}`,
-      `${minimum[range]}px`,
+    BREAKPOINTS.flatMap((range) => [
+      [`--workspace-table-min-${range}`, `${minimum[range]}px`],
+      ...(fixed
+        ? [[`--workspace-table-fixed-${range}`, `${fixed[range]}px`]]
+        : []),
     ]),
   ) as React.CSSProperties;
   const count = `${rows.length} ${rows.length === 1 ? noun[0] : noun[1]}`;
@@ -754,6 +792,7 @@ export function RowTitle({
   controls,
   secondary,
   mobile,
+  mobileBelow = "compact",
   end,
   time,
   external = false,
@@ -778,6 +817,10 @@ export function RowTitle({
   secondary?: ReactNode;
   /** Line 2 at compact, before `secondary`: a non-default state, a reason. */
   mobile?: ReactNode;
+  /** The range below which `mobile` shows. "large" also shows it at medium,
+   * for a row whose detail column drops there; wrap what medium's columns
+   * still show (a state chip) in CompactOnly. */
+  mobileBelow?: "compact" | "large";
   /** Line 1's trailing slot at compact, before the time. */
   end?: ReactNode;
   /** Line 1's right-aligned time at compact. */
@@ -862,6 +905,7 @@ export function RowTitle({
           <div
             className="workspace-row-meta"
             data-compact-only={secondary ? undefined : "true"}
+            data-below={mobileBelow === "large" ? "large" : undefined}
           >
             {mobile && <span className="workspace-row-detail">{mobile}</span>}
             {secondary && (
@@ -878,6 +922,13 @@ export function RowTitle({
       </div>
     </div>
   );
+}
+
+/** Part of a row's `mobile` line that only compact shows, because the
+ * medium range still has its column (a state chip beside its State
+ * column). */
+export function CompactOnly({ children }: { children: ReactNode }) {
+  return <span className="workspace-compact-only">{children}</span>;
 }
 
 /** `rest` is a host that sleeps on purpose: blue, so it reads apart from
