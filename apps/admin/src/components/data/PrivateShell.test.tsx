@@ -283,3 +283,82 @@ describe("Health and Knowledge", () => {
     expect(host.textContent).not.toContain("No health summaries");
   });
 });
+
+describe("Records paging and the split", () => {
+  const many = Array.from({ length: 25 }, (_, index) => ({
+    record_id: `rec-${String(index).padStart(32, "0")}`,
+    revision_id: `rev-${String(index).padStart(32, "0")}`,
+    kind: index % 2 ? "note" : "event",
+    title: `Synthetic record ${index}`,
+    body: "Fixture text only.",
+    source_id: "synthetic-notes",
+    status: "observed",
+    tier: "open",
+    observed_at: new Date(Date.UTC(2026, 8, 21, 0, 60 - index)).toISOString(),
+  }));
+  const fixture = {
+    status: { database: { exists: true } },
+    records: many,
+    sources: [],
+  };
+
+  it("loads more rows in place and moves focus to the first new one", async () => {
+    await act(async () =>
+      root.render(
+        <PrivateShell
+          initialPath="/data/records"
+          dataEnabled
+          dataFixture={fixture}
+          enabled={false}
+        />,
+      ),
+    );
+    await settle();
+    const rows = () => host.querySelectorAll("tbody tr");
+    expect(rows()).toHaveLength(20);
+    expect(host.querySelector(".workspace-count")?.textContent).toBe("25");
+    const more = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent === "Load more",
+    )!;
+    await act(async () => {
+      more.focus();
+      more.click();
+    });
+    await settle();
+    expect(rows()).toHaveLength(25);
+    expect(document.activeElement?.textContent).toBe("Synthetic record 20");
+    expect(
+      [...host.querySelectorAll("button")].some(
+        (button) => button.textContent === "Load more",
+      ),
+    ).toBe(false);
+  });
+
+  it("opens a record beside its list once the content area holds both", async () => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      width: 1100,
+    } as DOMRect);
+    const id = many[3]!.record_id;
+    await act(async () =>
+      root.render(
+        <PrivateShell
+          initialPath={`/data/records/${id}`}
+          dataEnabled
+          dataFixture={fixture}
+          enabled={false}
+        />,
+      ),
+    );
+    await settle();
+    // The list is read too, and the page keeps its H1; the record is an H2
+    // with a close icon.
+    expect(host.querySelector("h1")?.textContent).toBe("Records");
+    const detail = host.querySelector(
+      '[aria-label="Synthetic record 3 details"]',
+    )!;
+    expect(detail.querySelector("h2")?.textContent).toBe("Synthetic record 3");
+    expect(detail.querySelector('[aria-label="Close record"]')).not.toBeNull();
+    expect(host.querySelectorAll("tbody tr").length).toBeGreaterThan(0);
+    vi.restoreAllMocks();
+  });
+});
