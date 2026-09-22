@@ -18,29 +18,9 @@ const block = (css: string, query: string) => {
   return css.slice(start);
 };
 
+// styles/theme-contract.test.ts holds the gutter, and lib/breakpoints.test.ts
+// with Workspace.test.tsx the named column ranges.
 describe("workspace page frames", () => {
-  it("leaves the one gutter to the shell", () => {
-    // styles/theme-contract.test.ts holds the gutter itself: declared once per
-    // range, applied once on main. Data and Observability pages sit in the
-    // frame as they are; neither resets it to set a gutter of its own.
-    expect(shell).toContain("padding-inline: var(--admin-gutter);");
-    for (const css of [kit, observability])
-      expect(css).not.toContain("admin-page-frame");
-  });
-
-  it("hides columns only through the shared table, by named range", () => {
-    for (const [query, range] of [
-      ["(max-width: 1439px)", "wide"],
-      ["(max-width: 1023px)", "large"],
-    ])
-      expect(block(kit, query)).toContain(
-        `.workspace-table [data-hide-below="${range}"] { display: none; }`,
-      );
-    // No stylesheet counts columns by position any more.
-    for (const css of [shell, kit, observability])
-      expect(css).not.toMatch(/nth-child|nth-last-child/);
-  });
-
   it("turns every table into a full-bleed list of lead cells at compact", () => {
     const compact = block(kit, "(max-width: 640px)");
     expect(compact).toContain(
