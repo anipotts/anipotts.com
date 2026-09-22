@@ -33,6 +33,8 @@ EDITORIAL_GITHUB_APP_ID = "4879372"
 EDITORIAL_GITHUB_INSTALLATION_ID = "160192316"
 # Private reader credential issuance for the tailnet reader on ap-mini.
 PRIVATE_READER_ENABLED = "true"
+# Observability reads (ops:read) from the same tailnet reader.
+PRIVATE_READER_OPS_ENABLED = "true"
 # Secrets: EDITORIAL_GITHUB_PRIVATE_KEY and EDITORIAL_SIGNING_PRIVATE_KEY.
 # The reader signing key is the PRIVATE_READER_SIGNING_KEY secret.
 
