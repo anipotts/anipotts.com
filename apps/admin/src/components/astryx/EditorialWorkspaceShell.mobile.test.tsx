@@ -125,22 +125,32 @@ describe("responsive workspace navigation", () => {
     },
   );
   it.each([
-    [390, 1],
-    [1280, 0],
+    [390, 1, 0],
+    [1280, 0, 1],
   ])(
-    "starts a page drawn in place at the top of the document at %ipx",
-    (width, calls) => {
+    "starts a page drawn in place at the top of its scroller at %ipx",
+    (width, documentCalls, mainCalls) => {
       Object.defineProperty(window, "innerWidth", {
         configurable: true,
         value: width,
       });
       const scroll = vi.fn();
       vi.stubGlobal("scrollTo", scroll);
+      const panel = vi.fn();
       render();
+      const main = host.querySelector("#astryx-app-shell-main");
+      if (main)
+        Object.defineProperty(main, "scrollTop", {
+          configurable: true,
+          get: () => 0,
+          set: panel,
+        });
       act(() => {
         window.dispatchEvent(new Event("admin:workspace-navigation"));
       });
-      expect(scroll).toHaveBeenCalledTimes(calls);
+      // The document on phones, main's own panel beside the sidebar.
+      expect(scroll).toHaveBeenCalledTimes(documentCalls);
+      expect(panel).toHaveBeenCalledTimes(mainCalls);
     },
   );
   it.each([390, 640])(

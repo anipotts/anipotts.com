@@ -475,11 +475,15 @@ export function EditorialWorkspaceShell({
     [searchEntries],
   );
   useEffect(() => {
-    // On phones the document scrolls, so a page drawn in place (overview to
-    // Data) starts at the top the way a loaded page does. Back and forward
-    // keep the browser's own restoration.
+    // A page drawn in place (overview to Data) starts at the top the way a
+    // loaded page does: the document on phones, main's own panel beside the
+    // sidebar. Back and forward keep the browser's own restoration.
     const top = () => {
       if (window.matchMedia(COMPACT_QUERY).matches) window.scrollTo(0, 0);
+      else {
+        const main = document.getElementById("astryx-app-shell-main");
+        if (main) main.scrollTop = 0;
+      }
     };
     window.addEventListener("admin:workspace-navigation", top);
     return () => window.removeEventListener("admin:workspace-navigation", top);

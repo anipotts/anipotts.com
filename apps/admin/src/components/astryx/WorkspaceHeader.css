@@ -445,7 +445,8 @@
 }
 
 /* Local owner builds only: the laptop tile beside the wordmark. In the
-   rail it takes a control's width, so it centres on the icon column. */
+   rail it takes a control's square, so it centres on the icon column and
+   keeps the rail's row rhythm. */
 .admin-local-owner {
   display: inline-grid;
   place-items: center;
@@ -453,4 +454,5 @@
 }
 .approved-workspace-header[data-collapsed="true"] > .admin-local-owner {
   width: var(--workspace-control-size);
+  height: var(--workspace-control-size);
 }

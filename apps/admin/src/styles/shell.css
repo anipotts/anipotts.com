@@ -349,6 +349,7 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   background: var(--color-neutral);
   color: var(--color-text-primary);
 }
+.admin-phone-bar .admin-bracket-wordmark:active,
 .admin-phone-workspace:active,
 .admin-phone-page:active {
   background: var(--color-overlay-pressed);
