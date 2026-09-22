@@ -18,6 +18,8 @@ import { createPrivateReaderSession } from "../../lib/private-reader-client";
 import { providedSearchEntries } from "../../lib/admin-search-index";
 import { HEALTH_CREDENTIAL_ENDPOINT } from "../../lib/private-reader-health";
 import dataFixture from "../../fixtures/data_v1.synthetic.json";
+import opsSample from "../../fixtures/ops_v1.sample.json";
+import type { DataFixture } from "../../lib/data-fixture-reader";
 
 // Synthetic records only; every request goes through the mocked fetch.
 const recordId = "rec-0123456789abcdef0123456789abcdef";
@@ -376,6 +378,34 @@ describe("Health and Knowledge", () => {
     expect(host.textContent).toContain("Unreadable response");
     expect(host.querySelector("table")).toBeNull();
     expect(host.textContent).not.toContain("97");
+  });
+
+  it("says when the phone last synced and what has not arrived, from ops", async () => {
+    const ingest = opsSample.catalog.find((row) => row.id === "health.ingest")!;
+    const status = opsSample.status.find((row) => row.id === "health.ingest")!;
+    const snapshot = {
+      ...opsSample,
+      catalog: [
+        ...opsSample.catalog,
+        { ...ingest, id: "health.metrics", name: "health metrics" },
+      ],
+      status: [
+        ...opsSample.status.map((row) =>
+          row.id === "health.ingest"
+            ? { ...row, last_success_at: "2026-09-21T17:40:00Z" }
+            : row,
+        ),
+        { ...status, id: "health.metrics", detail: "missing:steps" },
+      ],
+    };
+    await render("/data/health", {
+      dataFixture: dataFixture as unknown as DataFixture,
+      fixture: snapshot,
+    });
+    expect(host.textContent).toContain("Last phone sync");
+    expect(host.textContent).toContain("20m ago");
+    expect(host.textContent).toContain("Steps not arrived in the last 24h");
+    expect(host.textContent).toContain("No vitals collected");
   });
 
   it("hands the overview and Data pages the same reader switches", () => {

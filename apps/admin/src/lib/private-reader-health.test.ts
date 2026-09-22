@@ -45,7 +45,6 @@ describe("the daily health contract", () => {
     expect(parsed).toEqual({
       observedAt: "2026-09-22T19:00:00Z",
       days: 30,
-      lastPushAt: null,
       items: [
         {
           date: "2026-09-21",
@@ -67,18 +66,13 @@ describe("the daily health contract", () => {
     });
   });
 
-  it("accepts System's proposed last phone push, and only as a time", () => {
-    expect(
+  it("refuses a push time on the page: System's route serves none", () => {
+    // The last phone sync comes from the ops snapshot's health.ingest row.
+    expect(() =>
       parseHealthDaily(
         reply([], 7, { last_push_at: "2026-09-22T18:40:00Z" }),
         7,
-      ).lastPushAt,
-    ).toBe("2026-09-22T18:40:00Z");
-    expect(
-      parseHealthDaily(reply([], 7, { last_push_at: null }), 7).lastPushAt,
-    ).toBeNull();
-    expect(() =>
-      parseHealthDaily(reply([], 7, { last_push_at: "yesterday" }), 7),
+      ),
     ).toThrow(HealthDailyError);
   });
 
@@ -176,6 +170,42 @@ describe("the health read", () => {
       referrerPolicy: "no-referrer",
       headers: { Authorization: "Bearer synthetic.jws" },
     });
+  });
+
+  it("checks the scope again before the renewed send after a 401", async () => {
+    // The first credential is health:read; the renewal hands back a Data
+    // one. Nothing may go out with it.
+    let issued = 0;
+    const fetcher = vi.fn(
+      async (input: RequestInfo | URL, _init?: RequestInit) => {
+        const url = new URL(String(input), "https://admin.anipotts.com");
+        if (url.pathname === HEALTH_CREDENTIAL_ENDPOINT) {
+          issued += 1;
+          const now = Math.floor(Date.now() / 1000);
+          return json({
+            credential: issued === 1 ? "health-token" : "data-token",
+            scope:
+              issued === 1 ? ["health:read"] : ["data:read", "activity:read"],
+            expiresAt: now + 60,
+          });
+        }
+        return json({ error: "expired" }, 401);
+      },
+    );
+    const health = session([], fetcher as unknown as typeof fetch);
+    await health.start();
+    await expect(
+      readHealthDaily(health, 7, { fetch: fetcher as unknown as typeof fetch }),
+    ).rejects.toMatchObject({ failure: "forbidden" });
+    const sent = fetcher.mock.calls
+      .filter(([input]) => String(input).includes("/v1/health/daily"))
+      .map(
+        ([, init]) =>
+          ((init as RequestInit | undefined)?.headers as Record<string, string>)
+            ?.Authorization,
+      );
+    expect(sent).toEqual(["Bearer health-token"]);
+    expect(health.getState()).toEqual({ status: "cleared", reason: "denied" });
   });
 
   it("refuses and clears a credential with any other scope before sending", async () => {

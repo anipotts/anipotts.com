@@ -241,6 +241,9 @@ export function privateReaderInit(
 export type ReaderFetchOptions = {
   fetch?: typeof fetch;
   signal?: AbortSignal;
+  /** Runs before every send, the renewed one included, and throws to stop
+   * it: a mode's exact-scope check (lib/private-reader-health.ts). */
+  beforeSend?: () => void;
 };
 
 type BearerSource = Pick<
@@ -262,6 +265,7 @@ export async function readerFetch(
   const fetcher = options.fetch ?? ((...args) => globalThis.fetch(...args));
   let renewed = false;
   for (;;) {
+    options.beforeSend?.();
     const bearer = session.bearer();
     if (!bearer) throw new PrivateReaderError(401, "expired");
     const response = await fetcher(

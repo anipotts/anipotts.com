@@ -10,6 +10,7 @@ import {
 } from "./private-reader-fetch";
 import { readEditorialCsrf } from "./editorial-client";
 import { trackPrivateSession } from "./private-session-store";
+import { strictReaders } from "./strict-json";
 
 /**
  * Browser reads of System's daily health summary, `GET /v1/health/daily`
@@ -57,8 +58,6 @@ export type HealthDaily = {
   days: number;
   /** Newest first, as System orders them; one row per date. */
   items: HealthDay[];
-  /** System's proposed last phone push, when it serves one. */
-  lastPushAt: string | null;
 };
 
 /** A reply that breaks the contract. It never carries the reply's text. */
@@ -70,9 +69,9 @@ export class HealthDailyError extends Error {
 }
 
 const ENVELOPE_KEYS = ["data", "response_observed_at", "schema"];
+/** store.health_daily's page is exactly these; the last phone push comes
+ * from the ops snapshot (lib/health-metrics.ts), never from here. */
 const PAGE_KEYS = ["days", "items"];
-/** Optional page fields System has proposed; nothing else is accepted. */
-const PAGE_OPTIONAL = ["last_push_at"];
 const DAY_KEYS = [
   "date",
   "hrv_avg_ms",
@@ -93,42 +92,14 @@ const READINGS = {
 } as const;
 
 const DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
-const TIMESTAMP =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/;
 
-function plain(value: unknown): Record<string, unknown> {
-  if (
-    !value ||
-    typeof value !== "object" ||
-    Array.isArray(value) ||
-    Object.getPrototypeOf(value) !== Object.prototype
-  )
-    throw new HealthDailyError();
-  return value as Record<string, unknown>;
-}
-
-function exactKeys(
-  item: Record<string, unknown>,
-  required: readonly string[],
-  optional: readonly string[] = [],
-) {
-  const keys = Object.keys(item);
-  if (
-    required.some((key) => !Object.hasOwn(item, key)) ||
-    keys.some((key) => !required.includes(key) && !optional.includes(key))
-  )
-    throw new HealthDailyError();
-}
-
-function timestamp(value: unknown): string {
-  if (
-    typeof value !== "string" ||
-    !TIMESTAMP.test(value) ||
-    !Number.isFinite(Date.parse(value))
-  )
-    throw new HealthDailyError();
-  return value;
-}
+const {
+  plain,
+  exactKeys,
+  time: timestamp,
+} = strictReaders(() => {
+  throw new HealthDailyError();
+});
 
 function calendarDate(value: unknown): string {
   const match = typeof value === "string" ? DATE.exec(value) : null;
@@ -175,14 +146,10 @@ export function parseHealthDaily(value: unknown, days: number): HealthDaily {
     throw new HealthDailyError();
   const observedAt = timestamp(envelope.response_observed_at);
   const page = plain(envelope.data);
-  exactKeys(page, PAGE_KEYS, PAGE_OPTIONAL);
+  exactKeys(page, PAGE_KEYS);
   if (page.days !== days || !Array.isArray(page.items))
     throw new HealthDailyError();
   if (page.items.length > days) throw new HealthDailyError();
-  const lastPushAt =
-    page.last_push_at === undefined || page.last_push_at === null
-      ? null
-      : timestamp(page.last_push_at);
   const seen = new Set<string>();
   const items: HealthDay[] = [];
   for (const entry of page.items) {
@@ -206,7 +173,7 @@ export function parseHealthDaily(value: unknown, days: number): HealthDaily {
     seen.add(date);
     items.push(parsed);
   }
-  return { observedAt, days, items, lastPushAt };
+  return { observedAt, days, items };
 }
 
 type BearerSource = Pick<
@@ -226,9 +193,9 @@ function healthScoped(session: BearerSource): boolean {
 
 /**
  * One `GET /v1/health/daily?days=` through the shared reader fetch (one
- * bearer, CORS, no-store, no referrer, a 401 renews once). A credential
- * that is not exactly `health:read` is refused and cleared before anything
- * is sent.
+ * bearer, CORS, no-store, no referrer, a 401 renews once). Before every
+ * send, the renewed one included, a credential that is not exactly
+ * `health:read` is refused and cleared, so no other scope ever leaves.
  */
 export async function readHealthDaily(
   session: BearerSource,
@@ -236,11 +203,15 @@ export async function readHealthDaily(
   options: { fetch?: typeof fetch; signal?: AbortSignal } = {},
 ): Promise<HealthDaily> {
   const path = healthDailyPath(days);
-  if (session.getState().status === "ready" && !healthScoped(session)) {
-    session.deny();
-    throw new PrivateReaderError(403, "forbidden");
-  }
-  const body = await readerFetch(session, path, options);
+  const body = await readerFetch(session, path, {
+    ...options,
+    beforeSend: () => {
+      if (session.getState().status === "ready" && !healthScoped(session)) {
+        session.deny();
+        throw new PrivateReaderError(403, "forbidden");
+      }
+    },
+  });
   return parseHealthDaily(body, days);
 }
 

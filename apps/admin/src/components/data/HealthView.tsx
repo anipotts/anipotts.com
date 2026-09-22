@@ -26,7 +26,13 @@ import {
   type HealthDay,
   type HealthRange,
 } from "../../lib/private-reader-health";
+import {
+  HEALTH_METRIC_LABELS,
+  healthCollection,
+  type HealthMetricName,
+} from "../../lib/health-metrics";
 import { useLiveText } from "../../lib/live-clock";
+import { useOpsData, type OpsViewProps } from "../observability/frame";
 import { BrandTile } from "../BrandTile";
 import {
   CELL_WIDTHS,
@@ -48,7 +54,8 @@ import "./health.css";
 
 /**
  * Data Health: System's daily summary, stored values only. The header says
- * when the phone last synced (once System serves it) and how many days hold
+ * when the phone last synced and which expected metrics have not arrived
+ * (both from the ops snapshot, lib/health-metrics.ts) and how many days hold
  * a reading; then one row per day. A reading System does not have is never
  * drawn as a number: a metric with no reading in the range has no column,
  * and when no vital has one the header says "No vitals collected".
@@ -155,20 +162,59 @@ const DATE_RANGE = new Intl.DateTimeFormat("en-US", {
 });
 const dateText = (date: string) => DATE_RANGE.format(Date.parse(date));
 
-/** The header's line: last phone sync, days covered, and no vitals. */
-function HealthMeta({ data }: { data: HealthDaily }) {
+/** The glyph for a metric health.metrics names, where the table has one. */
+const METRIC_GLYPHS: Partial<Record<HealthMetricName, Icon>> = {
+  steps: SneakerMoveIcon,
+  weight: HeartbeatIcon,
+};
+
+/**
+ * What the ops snapshot says about collection: the phone's last push (System's
+ * health.ingest success) and each expected metric that has not arrived in
+ * the last 24 hours (health.metrics). Read only when the ops reader is on,
+ * or in development from the snapshot fixture; nothing when neither has it.
+ */
+function CollectionFacts({ ops }: { ops: OpsViewProps }) {
+  const { snapshot, fixedNow } = useOpsData(ops, false);
+  const facts = snapshot ? healthCollection(snapshot) : null;
+  if (!facts) return null;
+  const missing =
+    facts.metrics?.kind === "missing" ? facts.metrics.metrics : [];
+  return (
+    <>
+      {facts.lastPhoneSync && (
+        <span className="health-meta-item" title="health.ingest">
+          <BrandTile id="ap-phone" kind="device" size={20} label="ap-phone" />
+          <span>Last phone sync</span>
+          <RelativeTime value={facts.lastPhoneSync} now={fixedNow} />
+        </span>
+      )}
+      {missing.map((name) => {
+        const Glyph = METRIC_GLYPHS[name] ?? CalendarDotsIcon;
+        return (
+          <span key={name} className="health-meta-item" title="health.metrics">
+            <Glyph weight="regular" aria-hidden="true" />
+            <span>
+              {HEALTH_METRIC_LABELS[name]} not arrived in the last 24h
+            </span>
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
+/** The header's line: the last phone sync and what has not arrived (from
+ * ops), the days covered, and no vitals. */
+function HealthMeta({ data, ops }: { data: HealthDaily; ops?: OpsViewProps }) {
   const covered = coveredDays(data.items);
   const vitals = presentMetrics(data.items).some((metric) => metric.vital);
   const newest = covered[0]?.date;
   const oldest = covered.at(-1)?.date;
   return (
     <span className="health-meta">
-      {data.lastPushAt && (
-        <span className="health-meta-item">
-          <BrandTile id="ap-phone" kind="device" size={20} label="ap-phone" />
-          <span>Last phone sync</span>
-          <RelativeTime value={data.lastPushAt} />
-        </span>
+      {ops && (ops.enabled || ops.fixture !== undefined) && (
+        <CollectionFacts ops={ops} />
       )}
       {covered.length > 0 && newest && oldest && (
         <span
@@ -359,7 +405,13 @@ function Page({
 }
 
 /** Development: the synthetic summary, no session. */
-function FixtureHealth({ fixture }: { fixture: unknown }) {
+function FixtureHealth({
+  fixture,
+  ops,
+}: {
+  fixture: unknown;
+  ops?: OpsViewProps;
+}) {
   const [range, setRange] = useState<HealthRange>(HEALTH_DEFAULT_RANGE);
   const read = useMemo((): Read => {
     try {
@@ -371,7 +423,11 @@ function FixtureHealth({ fixture }: { fixture: unknown }) {
   return (
     <Page
       badge={<SampleBadge />}
-      meta={read.status === "ready" ? <HealthMeta data={read.data} /> : null}
+      meta={
+        read.status === "ready" ? (
+          <HealthMeta data={read.data} ops={ops} />
+        ) : null
+      }
       actions={<RangeMenu range={range} onChange={setRange} />}
     >
       {read.status === "ready" ? (
@@ -387,9 +443,11 @@ function FixtureHealth({ fixture }: { fixture: unknown }) {
 function LiveHealth({
   session: injected,
   fetch: fetcher,
+  ops,
 }: {
   session?: PrivateReaderSession;
   fetch?: typeof fetch;
+  ops?: OpsViewProps;
 }) {
   const [health] = useState<PrivateReaderSession | null>(
     () =>
@@ -448,7 +506,7 @@ function LiveHealth({
   else body = <HealthTable data={read.data} />;
   return (
     <Page
-      meta={shown ? <HealthMeta data={shown} /> : null}
+      meta={shown ? <HealthMeta data={shown} ops={ops} /> : null}
       actions={
         <>
           {ready && <RangeMenu range={range} onChange={setRange} />}
@@ -466,6 +524,7 @@ export function HealthView({
   fixture,
   session,
   fetch: fetcher,
+  ops,
 }: {
   /** PRIVATE_READER_ENABLED and PRIVATE_READER_HEALTH_ENABLED are both
    * exactly "true" on the server. */
@@ -474,8 +533,12 @@ export function HealthView({
   fixture?: unknown;
   session?: PrivateReaderSession;
   fetch?: typeof fetch;
+  /** The ops reader's gate and fixtures, for health.ingest and
+   * health.metrics. */
+  ops?: OpsViewProps;
 }) {
-  if (fixture !== undefined) return <FixtureHealth fixture={fixture} />;
+  if (fixture !== undefined)
+    return <FixtureHealth fixture={fixture} ops={ops} />;
   if (!enabled)
     return (
       <Page>
@@ -486,5 +549,5 @@ export function HealthView({
         />
       </Page>
     );
-  return <LiveHealth session={session} fetch={fetcher} />;
+  return <LiveHealth session={session} fetch={fetcher} ops={ops} />;
 }

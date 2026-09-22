@@ -137,6 +137,7 @@ export function PrivateShell({
           fixture={dataFixture?.health}
           session={healthSession}
           fetch={fetcher}
+          ops={ops}
         />
       ) : route.view === "knowledge" ? (
         <KnowledgeView
