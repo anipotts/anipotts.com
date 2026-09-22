@@ -1,10 +1,3 @@
-/** Configured modes enter the guarded reader. Only absent/legacy may use Git. */
-export function usesPublishedContent(env: unknown): boolean {
-  if (!env || typeof env !== "object" || !("CONTENT_RUNTIME" in env))
-    return false;
-  return env.CONTENT_RUNTIME !== undefined && env.CONTENT_RUNTIME !== "legacy";
-}
-
 /** Normalize unreserved ASCII escapes before routing. Reject ambiguous separators,
  * double encoding and malformed escapes instead of letting ASSETS decode them
  * differently from the publication guard. UTF-8 path segments remain encoded. */
