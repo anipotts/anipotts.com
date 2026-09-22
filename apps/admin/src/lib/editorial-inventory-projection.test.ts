@@ -67,6 +67,55 @@ describe("editorial inventory projection", () => {
     expect(JSON.stringify(records)).not.toContain("baseCommit");
     expect(JSON.stringify(records)).not.toContain("---");
   });
+  it("reads the content store's publish time when it is newer than the last Git change", () => {
+    const git = { at: "2026-09-08T12:00:00Z", source: "git" as const };
+    const [record] = projectEditorialInventory(
+      [
+        {
+          ...entries[0]!,
+          published: true,
+          publishedAt: "2026-09-21T15:00:00Z",
+        },
+      ],
+      [],
+      () => git,
+    );
+    expect(record).toMatchObject({
+      updated: { at: "2026-09-21T15:00:00.000Z", source: "cms" },
+      publishedUpdated: { at: "2026-09-21T15:00:00.000Z", source: "cms" },
+    });
+  });
+  it("keeps a newer Git change over an older publish", () => {
+    const git = { at: "2026-09-21T16:00:00Z", source: "git" as const };
+    const [record] = projectEditorialInventory(
+      [
+        {
+          ...entries[0]!,
+          published: true,
+          publishedAt: "2026-09-08T12:00:00Z",
+        },
+      ],
+      [],
+      () => git,
+    );
+    expect(record!.updated).toEqual(git);
+  });
+  it("keeps the private draft time while changes are pending over a newer publish", () => {
+    const [record] = projectEditorialInventory(
+      [
+        {
+          ...entries[0]!,
+          published: true,
+          publishedAt: "2026-09-21T15:00:00Z",
+        },
+      ],
+      [draft({ updatedAt: Date.parse("2026-09-22T09:00:00Z") })],
+    );
+    expect(record).toMatchObject({
+      updated: { at: "2026-09-22T09:00:00.000Z", source: "private" },
+      publishedUpdated: { at: "2026-09-21T15:00:00.000Z", source: "cms" },
+    });
+  });
   it("does not call a retained draft pending when source equals its published Git blob", () => {
     const d = draft();
     const bytes = Buffer.from(d.source);

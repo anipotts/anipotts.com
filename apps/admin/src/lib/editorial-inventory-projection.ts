@@ -19,6 +19,8 @@ export type InventoryEntry = {
   /** Set when the content store holds this record, so a hidden state there
    * means it was published and then taken off the site. */
   published?: boolean;
+  /** When the content store last published this record. */
+  publishedAt?: string;
 };
 export type ProjectedRecord = CatalogRecord & {
   collection: string;
@@ -62,6 +64,20 @@ function timestamp(value: number): string | undefined {
   return Number.isFinite(value) && !Number.isNaN(new Date(value).getTime())
     ? new Date(value).toISOString()
     : undefined;
+}
+/** The newer of the content store's publish time and the last Git change.
+ * A record published from the CMS after its last commit reads the publish
+ * time; an older publish never hides a newer commit. */
+export function latestPublishedUpdate(
+  publishedAt: string | undefined,
+  git: CatalogRecord["updated"],
+): CatalogRecord["updated"] {
+  const cms = Date.parse(publishedAt ?? "");
+  if (!Number.isFinite(cms)) return git;
+  const gitAt = Date.parse(git?.at ?? "");
+  return Number.isFinite(gitAt) && gitAt >= cms
+    ? git
+    : { at: new Date(cms).toISOString(), source: "cms" };
 }
 function metadata(source: string): Record<string, unknown> {
   try {
@@ -205,7 +221,10 @@ export function projectEditorialInventory(
     const data = draft ? metadata(draft.source) : {};
     const publishedUpdated = isPrivateOnly
       ? undefined
-      : updated(entry.collection, entry.id);
+      : latestPublishedUpdate(
+          entry.publishedAt,
+          updated(entry.collection, entry.id),
+        );
     const privateUpdatedAt = draft ? timestamp(draft.updatedAt) : undefined;
     const changesPending = Boolean(
       draft && gitBlobSha1(draft.source) !== draft.baseFileHash,

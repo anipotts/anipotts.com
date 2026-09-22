@@ -80,6 +80,7 @@ export function recentlyUpdated(records: CatalogRecord[]): CatalogRecord[] {
 }
 
 const UPDATE_LABELS: Record<string, string> = {
+  cms: "Published",
   private: "Private draft saved",
   local: "Local edit",
   git: "Latest Git change",

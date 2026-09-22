@@ -74,14 +74,17 @@ export type CatalogRecord = {
   changedFields?: string[];
   privateRevision?: number;
   privateUpdatedAt?: string;
-  publishedUpdated?: { at: string; source: "git" | "local" | "private" };
+  publishedUpdated?: {
+    at: string;
+    source: "git" | "local" | "private" | "cms";
+  };
   intendedVisibility?: string;
   capabilities?: {
     editable: boolean;
     previewable: boolean;
     reviewOnly: boolean;
   };
-  updated?: { at: string; source: "git" | "local" | "private" };
+  updated?: { at: string; source: "git" | "local" | "private" | "cms" };
 };
 export type CatalogGroup = {
   name: string;

@@ -123,8 +123,8 @@ describe("acknowledged inventory events", () => {
     expect(liveRow).toMatchObject({
       changesPending: false,
       status: "scheduled",
-      publishedUpdated: { at: "2026-09-12T02:00:00.000Z", source: "git" },
-      updated: { at: "2026-09-12T02:00:00.000Z", source: "git" },
+      publishedUpdated: { at: "2026-09-12T02:00:00.000Z", source: "cms" },
+      updated: { at: "2026-09-12T02:00:00.000Z", source: "cms" },
     });
     expect(live.searchEntries?.[0]?.currentFact).toBe("scheduled");
     // An older revision going live never replaces a newer saved row.

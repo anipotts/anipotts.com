@@ -171,7 +171,7 @@ export function applyEditorialRecordSaved(
   )
     return current;
   const publishedUpdated = published
-    ? { at: saved.publishedAt!, source: "git" as const }
+    ? { at: saved.publishedAt!, source: "cms" as const }
     : undefined;
   const visibilityIsStatus =
     saved.record.kind === "writing" || saved.record.kind === "work";
