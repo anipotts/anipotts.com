@@ -8,7 +8,7 @@
     "counts": {
       "records": 18,
       "revisions": 31,
-      "sources": 10,
+      "sources": 21,
       "changes": 3
     },
     "last_change_at": "2026-09-22T04:10:00.000000Z"
@@ -815,86 +815,947 @@
   ],
   "sources": [
     {
+      "source_id": "synthetic-browsing",
+      "first_observed_at": "2026-05-14T17:45:00.000000Z",
+      "last_observed_at": "2026-09-21T17:25:00.000000Z",
+      "record_count": 58,
+      "revision_count": 61,
+      "connector": "browsing",
+      "host": "ap-pro",
+      "collection": "live",
+      "status": "current",
+      "interval_s": 3600,
+      "last_success_at": "2026-09-21T17:25:00.000000Z"
+    },
+    {
+      "source_id": "synthetic-messages-1to1",
+      "first_observed_at": "2026-05-04T17:45:00.000000Z",
+      "last_observed_at": "2026-09-19T17:45:00.000000Z",
+      "record_count": 4211,
+      "revision_count": 4388,
+      "connector": "messages",
+      "host": "ap-pro",
+      "collection": "live",
+      "status": "partial",
+      "interval_s": 900,
+      "last_success_at": "2026-09-19T17:45:00.000000Z"
+    },
+    {
       "source_id": "synthetic-contacts",
       "first_observed_at": "2026-05-02T09:00:00.000000Z",
       "last_observed_at": "2026-09-21T17:41:00.000000Z",
       "record_count": 2,
-      "revision_count": 4
-    },
-    {
-      "source_id": "synthetic-notes",
-      "first_observed_at": "2026-04-11T09:00:00.000000Z",
-      "last_observed_at": "2026-09-21T15:06:00.000000Z",
-      "record_count": 3,
-      "revision_count": 6
+      "revision_count": 4,
+      "connector": "contacts",
+      "host": "ap-pro",
+      "collection": "live",
+      "status": "current",
+      "interval_s": 86400,
+      "last_success_at": "2026-09-21T12:45:00.000000Z"
     },
     {
       "source_id": "synthetic-calendar",
       "first_observed_at": "2026-06-20T09:00:00.000000Z",
       "last_observed_at": "2026-09-21T11:20:00.000000Z",
       "record_count": 3,
-      "revision_count": 6
+      "revision_count": 6,
+      "connector": "calendar",
+      "collection": "live",
+      "status": "paused",
+      "interval_s": 3600,
+      "last_success_at": "2026-09-20T17:45:00.000000Z"
+    },
+    {
+      "source_id": "synthetic-github-ledger",
+      "first_observed_at": "2026-06-13T17:45:00.000000Z",
+      "last_observed_at": "2026-09-21T14:45:00.000000Z",
+      "record_count": 305,
+      "revision_count": 322,
+      "connector": "code",
+      "host": "ap-mini",
+      "collection": "live",
+      "status": "current",
+      "interval_s": 21600,
+      "last_success_at": "2026-09-21T14:45:00.000000Z"
+    },
+    {
+      "source_id": "synthetic-voice-memos",
+      "first_observed_at": "2026-06-23T17:45:00.000000Z",
+      "last_observed_at": "2026-09-18T17:45:00.000000Z",
+      "record_count": 140,
+      "revision_count": 141,
+      "connector": "media",
+      "host": "ap-pro",
+      "collection": "live",
+      "status": "failed",
+      "interval_s": 86400,
+      "failed_count": 1
+    },
+    {
+      "source_id": "synthetic-browsing-archive",
+      "first_observed_at": "2026-09-15T17:45:00.000000Z",
+      "last_observed_at": "2026-09-15T17:45:00.000000Z",
+      "record_count": 202,
+      "revision_count": 202,
+      "connector": "browsing",
+      "collection": "one_shot",
+      "status": "partial"
+    },
+    {
+      "source_id": "synthetic-notes",
+      "first_observed_at": "2026-04-11T09:00:00.000000Z",
+      "last_observed_at": "2026-09-21T15:06:00.000000Z",
+      "record_count": 3,
+      "revision_count": 6,
+      "connector": "notes",
+      "collection": "one_shot",
+      "status": "current",
+      "last_success_at": "2026-09-11T17:45:00.000000Z"
+    },
+    {
+      "source_id": "synthetic-food-orders",
+      "first_observed_at": "2026-09-15T17:45:00.000000Z",
+      "last_observed_at": "2026-09-15T17:45:00.000000Z",
+      "record_count": 65,
+      "revision_count": 65,
+      "connector": "other",
+      "collection": "one_shot",
+      "status": "partial",
+      "display_name": "Food orders"
+    },
+    {
+      "source_id": "synthetic-self-profile",
+      "first_observed_at": "2026-09-15T17:45:00.000000Z",
+      "last_observed_at": "2026-09-15T17:45:00.000000Z",
+      "record_count": 86,
+      "revision_count": 86
+    },
+    {
+      "source_id": "manual",
+      "first_observed_at": "2026-09-10T17:45:00.000000Z",
+      "last_observed_at": "2026-09-19T15:45:00.000000Z",
+      "record_count": 12,
+      "revision_count": 14
+    },
+    {
+      "source_id": "synthetic-gmail-personal",
+      "first_observed_at": null,
+      "last_observed_at": null,
+      "record_count": 0,
+      "revision_count": 0,
+      "connector": "mail",
+      "collection": "discovered",
+      "status": "discovered"
+    },
+    {
+      "source_id": "synthetic-gmail-work",
+      "first_observed_at": null,
+      "last_observed_at": null,
+      "record_count": 0,
+      "revision_count": 0,
+      "connector": "mail",
+      "collection": "discovered",
+      "status": "unavailable"
+    },
+    {
+      "source_id": "synthetic-gmail-school",
+      "first_observed_at": null,
+      "last_observed_at": null,
+      "record_count": 0,
+      "revision_count": 0,
+      "connector": "mail",
+      "collection": "discovered",
+      "status": "discovered"
+    },
+    {
+      "source_id": "synthetic-contacts-work",
+      "first_observed_at": null,
+      "last_observed_at": null,
+      "record_count": 0,
+      "revision_count": 0
+    },
+    {
+      "source_id": "synthetic-contacts-school",
+      "first_observed_at": null,
+      "last_observed_at": null,
+      "record_count": 0,
+      "revision_count": 0
+    },
+    {
+      "source_id": "synthetic-messages-mini",
+      "first_observed_at": null,
+      "last_observed_at": null,
+      "record_count": 0,
+      "revision_count": 0,
+      "discovered_count": 69
+    },
+    {
+      "source_id": "synthetic-messages-pro",
+      "first_observed_at": null,
+      "last_observed_at": null,
+      "record_count": 0,
+      "revision_count": 0,
+      "discovered_count": 1800
+    },
+    {
+      "source_id": "synthetic-photos-pro",
+      "first_observed_at": null,
+      "last_observed_at": null,
+      "record_count": 0,
+      "revision_count": 0,
+      "discovered_count": 3200
+    },
+    {
+      "source_id": "synthetic-codex-mini",
+      "first_observed_at": null,
+      "last_observed_at": null,
+      "record_count": 0,
+      "revision_count": 0,
+      "discovered_count": 160
+    },
+    {
+      "source_id": "synthetic-codex-pro",
+      "first_observed_at": null,
+      "last_observed_at": null,
+      "record_count": 0,
+      "revision_count": 0,
+      "discovered_count": 1190
     }
   ],
-  "extras": {
-    "available": true,
-    "health": [
+  "sources_as_of": "2026-09-21T17:45:00Z",
+  "health": {
+    "schema": "personal_context_data_v1",
+    "response_observed_at": "2026-09-21T17:45:00Z",
+    "data": {
+      "items": [
+        {
+          "date": "2026-09-21",
+          "sleep_h": null,
+          "steps": 3200,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-09-20",
+          "sleep_h": null,
+          "steps": 4573,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-09-19",
+          "sleep_h": null,
+          "steps": 5946,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-09-18",
+          "sleep_h": null,
+          "steps": 7319,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-09-17",
+          "sleep_h": null,
+          "steps": null,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-09-16",
+          "sleep_h": null,
+          "steps": 10065,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-09-15",
+          "sleep_h": null,
+          "steps": 11438,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-09-14",
+          "sleep_h": null,
+          "steps": 3711,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-09-13",
+          "sleep_h": null,
+          "steps": 5084,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-09-12",
+          "sleep_h": null,
+          "steps": 6457,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-09-11",
+          "sleep_h": null,
+          "steps": 7830,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-09-10",
+          "sleep_h": null,
+          "steps": 9203,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-09-09",
+          "sleep_h": null,
+          "steps": 10576,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-09-08",
+          "sleep_h": null,
+          "steps": null,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-09-07",
+          "sleep_h": null,
+          "steps": 4222,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-09-06",
+          "sleep_h": null,
+          "steps": 5595,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-09-05",
+          "sleep_h": null,
+          "steps": 6968,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-09-04",
+          "sleep_h": null,
+          "steps": 8341,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-09-03",
+          "sleep_h": null,
+          "steps": 9714,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-09-02",
+          "sleep_h": null,
+          "steps": 11087,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-09-01",
+          "sleep_h": null,
+          "steps": 3360,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-31",
+          "sleep_h": null,
+          "steps": 4733,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-30",
+          "sleep_h": null,
+          "steps": null,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-29",
+          "sleep_h": null,
+          "steps": 7479,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-28",
+          "sleep_h": null,
+          "steps": 8852,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-27",
+          "sleep_h": null,
+          "steps": 10225,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-26",
+          "sleep_h": null,
+          "steps": 11598,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-25",
+          "sleep_h": null,
+          "steps": 3871,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-24",
+          "sleep_h": null,
+          "steps": 5244,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-23",
+          "sleep_h": null,
+          "steps": 6617,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-22",
+          "sleep_h": null,
+          "steps": 7990,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-21",
+          "sleep_h": null,
+          "steps": null,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-20",
+          "sleep_h": null,
+          "steps": 10736,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-19",
+          "sleep_h": null,
+          "steps": 12109,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-18",
+          "sleep_h": null,
+          "steps": 4382,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-17",
+          "sleep_h": null,
+          "steps": 5755,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-16",
+          "sleep_h": null,
+          "steps": 7128,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-15",
+          "sleep_h": null,
+          "steps": 8501,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-14",
+          "sleep_h": null,
+          "steps": 9874,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-13",
+          "sleep_h": null,
+          "steps": 11247,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-12",
+          "sleep_h": null,
+          "steps": null,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-11",
+          "sleep_h": null,
+          "steps": 4893,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-10",
+          "sleep_h": null,
+          "steps": 6266,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-09",
+          "sleep_h": null,
+          "steps": 7639,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-08",
+          "sleep_h": null,
+          "steps": 9012,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-07",
+          "sleep_h": null,
+          "steps": 10385,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-06",
+          "sleep_h": null,
+          "steps": 11758,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-05",
+          "sleep_h": null,
+          "steps": 4031,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-04",
+          "sleep_h": null,
+          "steps": 5404,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-03",
+          "sleep_h": null,
+          "steps": null,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-02",
+          "sleep_h": null,
+          "steps": 8150,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-08-01",
+          "sleep_h": null,
+          "steps": 9523,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-07-31",
+          "sleep_h": null,
+          "steps": 10896,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-07-30",
+          "sleep_h": null,
+          "steps": 12269,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-07-29",
+          "sleep_h": null,
+          "steps": 4542,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-07-28",
+          "sleep_h": null,
+          "steps": 5915,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-07-27",
+          "sleep_h": null,
+          "steps": 7288,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-07-26",
+          "sleep_h": null,
+          "steps": 8661,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-07-25",
+          "sleep_h": null,
+          "steps": null,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        },
+        {
+          "date": "2026-07-24",
+          "sleep_h": null,
+          "steps": 11407,
+          "resting_hr_bpm": null,
+          "hrv_avg_ms": null,
+          "weight_lbs": null
+        }
+      ],
+      "days": 90,
+      "last_push_at": "2026-09-21T16:58:00Z"
+    }
+  },
+  "knowledge": {
+    "entities": [
       {
-        "id": "card-synthetic-1",
-        "kind": "reference",
-        "title": "Sample health summary: sleep",
-        "summary": "Synthetic weekly sleep summary",
-        "source": "synthetic-health",
-        "freshness": "fresh",
-        "observed_at": "2026-09-21T07:00:00Z"
+        "id": "ent-robin-example",
+        "kind": "person",
+        "name": "Robin Example",
+        "summary": "Sample person from two synthetic contact records.",
+        "record_count": 2,
+        "last_seen_at": "2026-09-21T17:41:00Z"
       },
       {
-        "id": "card-synthetic-2",
-        "kind": "reference",
-        "title": "Sample health summary: steps",
-        "summary": "Synthetic daily activity summary",
-        "source": "synthetic-health",
-        "freshness": "stale",
-        "observed_at": "2026-09-19T21:00:00Z"
+        "id": "ent-jordan-placeholder",
+        "kind": "person",
+        "name": "Jordan Placeholder",
+        "summary": "Sample person who appears in one synthetic contact.",
+        "record_count": 1,
+        "last_seen_at": "2026-09-20T22:12:00Z"
+      },
+      {
+        "id": "ent-garden-planner",
+        "kind": "project",
+        "name": "Garden planner",
+        "summary": "Sample project tracked in synthetic notes.",
+        "record_count": 2,
+        "last_seen_at": "2026-09-21T15:06:00Z"
+      },
+      {
+        "id": "ent-bike-repair-log",
+        "kind": "project",
+        "name": "Bike repair log",
+        "summary": "Sample project with one synthetic note.",
+        "record_count": 1,
+        "last_seen_at": "2026-09-19T08:30:00Z"
+      },
+      {
+        "id": "ent-corner-cafe",
+        "kind": "place",
+        "name": "Corner cafe",
+        "summary": "Sample place from a synthetic calendar entry.",
+        "record_count": 2,
+        "last_seen_at": "2026-09-21T11:20:00Z"
+      },
+      {
+        "id": "ent-river-trail",
+        "kind": "place",
+        "name": "River trail",
+        "summary": "Sample place visited in one synthetic event.",
+        "record_count": 1,
+        "last_seen_at": "2026-09-18T13:02:00Z"
+      },
+      {
+        "id": "topic-reading",
+        "kind": "topic",
+        "name": "Reading",
+        "summary": "Sample topic gathered from a synthetic reading list.",
+        "record_count": 1,
+        "last_seen_at": "2026-09-20T19:45:00Z"
+      },
+      {
+        "id": "topic-team-dinners",
+        "kind": "topic",
+        "name": "Team dinners",
+        "summary": "",
+        "record_count": 1,
+        "last_seen_at": null
       }
     ],
-    "knowledge": [
-      {
-        "id": "card-synthetic-3",
-        "kind": "decision",
-        "title": "Sample decision: weekly review day",
-        "summary": "Synthetic decision card",
-        "source": "synthetic-notes",
-        "freshness": "fresh",
-        "observed_at": "2026-09-20T12:00:00Z"
-      },
-      {
-        "id": "card-synthetic-4",
-        "kind": "concept",
-        "title": "Sample concept: slow mornings",
-        "summary": "Synthetic concept card",
-        "source": "synthetic-notes",
-        "freshness": "fresh",
-        "observed_at": "2026-09-18T09:30:00Z"
-      },
-      {
-        "id": "card-synthetic-5",
-        "kind": "system",
-        "title": "Sample system: backup rotation",
-        "summary": "Synthetic system card",
-        "source": "synthetic-notes",
-        "freshness": "stale",
-        "observed_at": "2026-09-12T16:00:00Z"
-      },
-      {
-        "id": "card-synthetic-6",
+    "pages": {
+      "ent-robin-example": {
+        "id": "ent-robin-example",
         "kind": "person",
-        "title": "Sample person: Robin Example",
-        "summary": "Synthetic person card",
-        "source": "synthetic-contacts",
-        "freshness": "unknown",
-        "observed_at": null
+        "name": "Robin Example",
+        "summary": "Sample person from two synthetic contact records.",
+        "facts": [
+          {
+            "label": "Met",
+            "value": "Sample fact from a synthetic contact",
+            "record_id": "rec-7addae2b6a74ba1d627368cb77371780"
+          },
+          {
+            "label": "Works on",
+            "value": "Garden planner",
+            "record_id": "rec-028c284009a43940832082f91e93be2b"
+          },
+          {
+            "label": "Seen at",
+            "value": "Corner cafe",
+            "record_id": null
+          }
+        ],
+        "timeline": [
+          {
+            "at": "2026-09-21T11:20:00Z",
+            "title": "Coffee at the corner cafe",
+            "record_id": "rec-497ac87e3b9f6b38bfa46d6129b59e4f"
+          },
+          {
+            "at": "2026-09-17",
+            "title": "Team dinner",
+            "record_id": "rec-f41c7cab76d25826a54f539e9ed8f78e"
+          },
+          {
+            "at": "2026-03-02",
+            "title": "First contact record",
+            "record_id": "rec-7addae2b6a74ba1d627368cb77371780"
+          }
+        ],
+        "backlinks": [
+          "rec-7addae2b6a74ba1d627368cb77371780",
+          "rec-028c284009a43940832082f91e93be2b",
+          "rec-497ac87e3b9f6b38bfa46d6129b59e4f",
+          "rec-f41c7cab76d25826a54f539e9ed8f78e"
+        ]
+      },
+      "ent-jordan-placeholder": {
+        "id": "ent-jordan-placeholder",
+        "kind": "person",
+        "name": "Jordan Placeholder",
+        "summary": "Sample person who appears in one synthetic contact.",
+        "facts": [
+          {
+            "label": "Contact",
+            "value": "Sample contact card",
+            "record_id": "rec-baa3a40212137c353372b006f768f466"
+          }
+        ],
+        "timeline": [
+          {
+            "at": "2026-09-20T22:12:00Z",
+            "title": "Contact updated",
+            "record_id": "rec-baa3a40212137c353372b006f768f466"
+          }
+        ],
+        "backlinks": ["rec-baa3a40212137c353372b006f768f466"]
+      },
+      "ent-garden-planner": {
+        "id": "ent-garden-planner",
+        "kind": "project",
+        "name": "Garden planner",
+        "summary": "Sample project tracked in synthetic notes.",
+        "facts": [
+          {
+            "label": "Status",
+            "value": "Sample status: planning",
+            "record_id": "rec-028c284009a43940832082f91e93be2b"
+          }
+        ],
+        "timeline": [
+          {
+            "at": "2026-09-21T15:06:00Z",
+            "title": "Planner note revised",
+            "record_id": "rec-028c284009a43940832082f91e93be2b"
+          }
+        ],
+        "backlinks": [
+          "rec-028c284009a43940832082f91e93be2b",
+          "rec-7addae2b6a74ba1d627368cb77371780"
+        ]
+      },
+      "ent-bike-repair-log": {
+        "id": "ent-bike-repair-log",
+        "kind": "project",
+        "name": "Bike repair log",
+        "summary": "Sample project with one synthetic note.",
+        "facts": [],
+        "timeline": [
+          {
+            "at": "2026-09-19",
+            "title": "Repair log started",
+            "record_id": "rec-fb591ceb3b0878ab59669de61adb0a7c"
+          }
+        ],
+        "backlinks": ["rec-fb591ceb3b0878ab59669de61adb0a7c"]
+      },
+      "ent-corner-cafe": {
+        "id": "ent-corner-cafe",
+        "kind": "place",
+        "name": "Corner cafe",
+        "summary": "Sample place from a synthetic calendar entry.",
+        "facts": [
+          {
+            "label": "Kind",
+            "value": "Cafe",
+            "record_id": "rec-497ac87e3b9f6b38bfa46d6129b59e4f"
+          }
+        ],
+        "timeline": [
+          {
+            "at": "2026-09-21T11:20:00Z",
+            "title": "Calendar entry",
+            "record_id": "rec-497ac87e3b9f6b38bfa46d6129b59e4f"
+          }
+        ],
+        "backlinks": [
+          "rec-497ac87e3b9f6b38bfa46d6129b59e4f",
+          "rec-7addae2b6a74ba1d627368cb77371780"
+        ]
+      },
+      "ent-river-trail": {
+        "id": "ent-river-trail",
+        "kind": "place",
+        "name": "River trail",
+        "summary": "Sample place visited in one synthetic event.",
+        "facts": [],
+        "timeline": [
+          {
+            "at": "2026-09-18T13:02:00Z",
+            "title": "Walk on the trail",
+            "record_id": "rec-ba6333fd5fcb3f208ce09de17c99c489"
+          }
+        ],
+        "backlinks": ["rec-ba6333fd5fcb3f208ce09de17c99c489"]
+      },
+      "topic-reading": {
+        "id": "topic-reading",
+        "kind": "topic",
+        "name": "Reading",
+        "summary": "Sample topic gathered from a synthetic reading list.",
+        "facts": [
+          {
+            "label": "List",
+            "value": "Sample reading list",
+            "record_id": "rec-2545a44fbb87cc9251f8725008b6df9e"
+          }
+        ],
+        "timeline": [],
+        "backlinks": ["rec-2545a44fbb87cc9251f8725008b6df9e"]
+      },
+      "topic-team-dinners": {
+        "id": "topic-team-dinners",
+        "kind": "topic",
+        "name": "Team dinners",
+        "summary": "",
+        "facts": [],
+        "timeline": [
+          {
+            "at": "2026-09-17T20:15:00Z",
+            "title": "Team dinner",
+            "record_id": "rec-f41c7cab76d25826a54f539e9ed8f78e"
+          }
+        ],
+        "backlinks": ["rec-f41c7cab76d25826a54f539e9ed8f78e"]
       }
-    ]
+    }
   }
 }

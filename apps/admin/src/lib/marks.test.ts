@@ -334,15 +334,9 @@ describe("admin mark maps", () => {
     });
   });
 
-  it("resolves every fixture data source exactly", () => {
+  it("resolves every fixture record's source exactly", () => {
     const sources = new Set<string>();
-    for (const source of dataFixture.sources) sources.add(source.source_id);
     for (const record of dataFixture.records) sources.add(record.source_id);
-    for (const card of [
-      ...dataFixture.extras.health,
-      ...dataFixture.extras.knowledge,
-    ])
-      sources.add(card.source);
     for (const source of sources)
       expect(Object.hasOwn(SOURCE_MARKS, source), source).toBe(true);
   });

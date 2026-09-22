@@ -11,6 +11,8 @@ import {
 } from "../../lib/private-session-store";
 import { createPrivateReaderSession } from "../../lib/private-reader-client";
 import { providedSearchEntries } from "../../lib/admin-search-index";
+import { HEALTH_CREDENTIAL_ENDPOINT } from "../../lib/private-reader-health";
+import dataFixture from "../../fixtures/data_v1.synthetic.json";
 
 // Synthetic records only; every request goes through the mocked fetch.
 const recordId = "rec-0123456789abcdef0123456789abcdef";
@@ -101,8 +103,8 @@ afterEach(async () => {
 describe("the overview and Data shell", () => {
   it("draws only the routes it can without a document load", () => {
     const url = (path: string) => new URL(path, "https://admin.invalid");
-    const route = (path: string, overview = true, extras = {}) =>
-      shellRoute(url(path), { overview, extras });
+    const route = (path: string, overview = true) =>
+      shellRoute(url(path), { overview });
     expect(route("/")).toEqual({ view: "overview" });
     expect(route("/", false)).toBeNull();
     expect(route(`/data/records/${recordId}?kind=people`, false)).toEqual({
@@ -113,15 +115,18 @@ describe("the overview and Data shell", () => {
     });
     expect(route("/data/records/not-an-id")).toBeNull();
     expect(route("/data/sources?view=health")).toEqual({ view: "sources" });
-    // Health and Knowledge are read on the server: in place only when this
-    // document holds their cards.
-    expect(route("/data/health")).toBeNull();
-    expect(
-      route("/data/health", true, {
-        health: { available: true, cards: [] },
-      }),
-    ).toEqual({ view: "health" });
-    expect(route("/data/knowledge")).toBeNull();
+    // Every Data view reads in the browser, so each is drawn in place.
+    expect(route("/data/health")).toEqual({ view: "health" });
+    expect(route("/data/knowledge?kind=place")).toEqual({
+      view: "knowledge",
+      id: null,
+      kind: "place",
+    });
+    expect(route("/data/knowledge/ent-robin")).toEqual({
+      view: "knowledge",
+      id: "ent-robin",
+      kind: null,
+    });
     expect(route("/content/pages")).toBeNull();
   });
 
@@ -210,78 +215,217 @@ describe("private session idle rule", () => {
 });
 
 describe("Health and Knowledge", () => {
-  const cards = [
-    {
-      id: "card-1",
-      kind: "decision",
-      title: "Synthetic decision",
-      summary: "Synthetic decision summary",
-      source: "synthetic-notes",
-      freshness: "fresh",
-      observed_at: "2026-09-20T12:00:00Z",
-    },
-    {
-      id: "card-2",
-      kind: "concept",
-      title: "Synthetic concept",
-      summary: "Synthetic concept summary",
-      source: "synthetic-notes",
-      freshness: "stale",
-      observed_at: null,
-    },
-  ];
+  const healthDay = (date: string, steps: number | null, rest?: number) => ({
+    date,
+    sleep_h: null,
+    steps,
+    resting_hr_bpm: rest ?? null,
+    hrv_avg_ms: null,
+    weight_lbs: null,
+  });
+  const healthReply = (items: unknown[], days = 30) =>
+    envelope({ items, days });
+
+  /** The shell's network with a health reader behind its own issuance. */
+  function healthNetwork(reply: unknown, scope: string[] = ["health:read"]) {
+    const base = network();
+    return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), "https://admin.anipotts.com");
+      if (url.pathname === HEALTH_CREDENTIAL_ENDPOINT) {
+        const now = Math.floor(Date.now() / 1000);
+        return json({
+          credential: "synthetic.health.jws",
+          tokenType: "Bearer",
+          audience: PRIVATE_READER_AUDIENCE,
+          scope,
+          issuedAt: now,
+          expiresAt: now + 60,
+        });
+      }
+      if (url.pathname === PRIVATE_READER_ROUTES.health) return json(reply);
+      void init;
+      return base(input);
+    });
+  }
+
   const render = async (
     path: string,
-    extras: React.ComponentProps<typeof PrivateShell>["extras"],
+    props: Partial<React.ComponentProps<typeof PrivateShell>> = {},
   ) => {
-    const fetcher = network();
-    vi.stubGlobal("fetch", fetcher);
     await act(async () =>
       root.render(
         <PrivateShell
           initialPath={path}
           dataEnabled
-          extras={extras}
           enabled={false}
+          {...props}
         />,
       ),
     );
     await settle();
-    return fetcher;
   };
 
-  it("lists the page's cards with no private session", async () => {
-    const fetcher = await render("/data/knowledge", {
-      knowledge: { available: true, cards },
-    });
-    expect(host.querySelector("h1")?.textContent).toBe("Knowledge");
-    expect(host.querySelector(".workspace-count")?.textContent).toBe("2");
-    const table = host.querySelector('table[aria-label="Knowledge cards"]')!;
-    const tiles = [...table.querySelectorAll("tbody .workspace-row-mark")];
-    expect(tiles.map((tile) => tile.getAttribute("title"))).toEqual([
-      "Decision",
-      "Concept",
-    ]);
-    // Only an exception is a chip: stale shows, fresh does not.
-    expect(table.textContent).toContain("Stale");
-    expect(table.querySelectorAll("tbody .workspace-state")).toHaveLength(2);
-    // The source is a tile on line 2, its id the tooltip.
-    expect(
-      table.querySelector('.data-source[title="synthetic-notes"]'),
-    ).not.toBeNull();
+  it("keeps Health to one notice and no request while its flag is off", async () => {
+    const fetcher = network();
+    vi.stubGlobal("fetch", fetcher);
+    await render("/data/health");
+    expect(host.querySelector("h1")?.textContent).toBe("Health");
+    expect(host.textContent).toContain("Health not connected");
+    expect(host.querySelector("table")).toBeNull();
     expect(host.querySelector('[aria-label="Lock session"]')).toBeNull();
-    // No credential is issued for a D1 view.
-    expect(
-      fetcher.mock.calls.some(([input]) =>
-        String(input).includes("/api/private-reader/credential"),
-      ),
-    ).toBe(false);
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
-  it("says a view is unavailable rather than empty", async () => {
-    await render("/data/health", { health: { available: false, cards: [] } });
-    expect(host.textContent).toContain("Health unavailable");
-    expect(host.textContent).not.toContain("No health summaries");
+  it("reads Health through its own health:read credential only", async () => {
+    const fetcher = healthNetwork(
+      healthReply([
+        healthDay("2026-09-21", 8412),
+        healthDay("2026-09-20", null),
+        healthDay("2026-09-19", 5120),
+      ]),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    const healthSession = createPrivateReaderSession({
+      fetch: fetcher as unknown as typeof fetch,
+      csrf: async () => "c".repeat(64),
+      endpoint: HEALTH_CREDENTIAL_ENDPOINT,
+    });
+    await render("/data/health", { healthEnabled: true, healthSession });
+    const urls = fetcher.mock.calls.map(([input]) => String(input));
+    expect(
+      urls.some((url) => url.includes("/api/private-reader/credential")),
+    ).toBe(false);
+    const read = fetcher.mock.calls.find(([input]) =>
+      String(input).includes(PRIVATE_READER_ROUTES.health),
+    )!;
+    expect(new URL(String(read[0])).search).toBe("?days=30");
+    expect((read[1]?.headers as Record<string, string>).Authorization).toBe(
+      "Bearer synthetic.health.jws",
+    );
+    const table = host.querySelector('table[aria-label="Health by day"]')!;
+    // A day with no reading is not a row; no vital column is drawn.
+    expect(table.querySelectorAll("tbody tr")).toHaveLength(2);
+    expect(table.textContent).toContain("8,412");
+    expect(table.textContent).not.toContain("Resting HR");
+    expect(host.textContent).toContain("No vitals collected");
+    expect(host.textContent).toContain("2 days");
+    expect(host.querySelector('[aria-label="Lock session"]')).not.toBeNull();
+    expect(window.localStorage.length).toBe(0);
+    expect(window.sessionStorage.length).toBe(0);
+  });
+
+  it("draws a vital only where System carries one", async () => {
+    const fetcher = healthNetwork(
+      healthReply([
+        healthDay("2026-09-21", null, 54.3),
+        healthDay("2026-09-20", null),
+        healthDay("2026-09-19", null, 55),
+      ]),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    const healthSession = createPrivateReaderSession({
+      fetch: fetcher as unknown as typeof fetch,
+      csrf: async () => "c".repeat(64),
+      endpoint: HEALTH_CREDENTIAL_ENDPOINT,
+    });
+    await render("/data/health", { healthEnabled: true, healthSession });
+    const table = host.querySelector('table[aria-label="Health by day"]')!;
+    expect(table.textContent).toContain("Resting HR");
+    expect(table.textContent).toContain("54.3 bpm");
+    expect(table.textContent).not.toContain("Steps");
+    expect(host.textContent).not.toContain("No vitals collected");
+  });
+
+  it("refuses a health credential that carries any other scope", async () => {
+    const fetcher = healthNetwork(healthReply([]), ["data:read"]);
+    vi.stubGlobal("fetch", fetcher);
+    const healthSession = createPrivateReaderSession({
+      fetch: fetcher as unknown as typeof fetch,
+      csrf: async () => "c".repeat(64),
+      endpoint: HEALTH_CREDENTIAL_ENDPOINT,
+    });
+    await render("/data/health", { healthEnabled: true, healthSession });
+    expect(
+      fetcher.mock.calls.some(([input]) =>
+        String(input).includes(PRIVATE_READER_ROUTES.health),
+      ),
+    ).toBe(false);
+    expect(healthSession.getState()).toEqual({
+      status: "cleared",
+      reason: "denied",
+    });
+    expect(host.textContent).toContain("Access refused");
+  });
+
+  it("rejects a Health reply with any other field", async () => {
+    const fetcher = healthNetwork(
+      healthReply([{ ...healthDay("2026-09-21", 10), spo2_avg_pct: 97 }]),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    const healthSession = createPrivateReaderSession({
+      fetch: fetcher as unknown as typeof fetch,
+      csrf: async () => "c".repeat(64),
+      endpoint: HEALTH_CREDENTIAL_ENDPOINT,
+    });
+    await render("/data/health", { healthEnabled: true, healthSession });
+    expect(host.textContent).toContain("Unreadable response");
+    expect(host.querySelector("table")).toBeNull();
+    expect(host.textContent).not.toContain("97");
+  });
+
+  it("keeps Knowledge to one notice and no request while its flag is off", async () => {
+    const fetcher = network();
+    vi.stubGlobal("fetch", fetcher);
+    await render("/data/knowledge");
+    expect(host.querySelector("h1")?.textContent).toBe("Knowledge");
+    expect(host.textContent).toContain("Not built yet");
+    expect(host.querySelector("table")).toBeNull();
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("lists the wiki by kind and opens an entity whose facts open records", async () => {
+    const fetcher = network();
+    vi.stubGlobal("fetch", fetcher);
+    await render("/data/knowledge", {
+      dataFixture: {
+        status: {},
+        records: [],
+        sources: [],
+        knowledge: dataFixture.knowledge,
+      },
+    });
+    expect(host.querySelector(".workspace-count")?.textContent).toBe("8");
+    const table = () => host.querySelector('table[aria-label="Entities"]')!;
+    expect(table().textContent).toContain("Robin Example");
+    const places = [...host.querySelectorAll("button")].find(
+      (button) =>
+        button.textContent?.trim() === "Places" ||
+        button.getAttribute("aria-label") === "Places",
+    )!;
+    await act(async () => places.click());
+    await settle();
+    expect(window.location.search).toBe("?kind=place");
+    expect(table().querySelectorAll("tbody tr")).toHaveLength(2);
+    window.history.replaceState(null, "", "/data/knowledge");
+    await act(async () => window.dispatchEvent(new PopStateEvent("popstate")));
+    await settle();
+    const robin = host.querySelector<HTMLAnchorElement>(
+      'a[href="/data/knowledge/ent-robin-example"]',
+    )!;
+    await act(async () => robin.click());
+    await settle();
+    expect(window.location.pathname).toBe("/data/knowledge/ent-robin-example");
+    const panel = host.querySelector('[aria-label="Robin Example details"]')!;
+    expect(panel.querySelector("h1")?.textContent).toBe("Robin Example");
+    const fact = panel.querySelector<HTMLAnchorElement>(
+      ".workspace-definitions a",
+    )!;
+    expect(fact.getAttribute("href")).toMatch(
+      /^\/data\/records\/rec-[0-9a-f]{32}$/,
+    );
+    expect(panel.textContent).toContain("Timeline");
+    expect(panel.textContent).toContain("Coffee at the corner cafe");
+    expect(fetcher).not.toHaveBeenCalled();
   });
 });
 

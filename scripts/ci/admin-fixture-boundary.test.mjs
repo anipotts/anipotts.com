@@ -40,13 +40,6 @@ for (const file of fixtureConsumers) {
     /await import\(/,
     `${relative(root, file)} must load development fixtures dynamically`,
   );
-  if (source.includes("loadKnowledgeCards")) {
-    assert.match(
-      source,
-      /loadKnowledgeCards\(null,\s*fixtureKnowledgeCards\)/,
-      `${relative(root, file)} must not let a local D1 binding shadow explicit development fixtures`,
-    );
-  }
 }
 
 const editorialLayout = readFileSync(

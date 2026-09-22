@@ -6,6 +6,8 @@ import {
   dataRecordsHref,
   dataRoute,
   dataSource,
+  knowledgeEntityHref,
+  knowledgeHref,
   knowledgeRedirect,
   lifeRedirect,
 } from "./data-routes";
@@ -59,6 +61,15 @@ describe("Data routes", () => {
     );
   });
 
+  it("links the life wiki by kind and entity", () => {
+    expect(knowledgeHref()).toBe("/data/knowledge");
+    expect(knowledgeHref("topic")).toBe("/data/knowledge?kind=topic");
+    expect(knowledgeEntityHref("ent-robin")).toBe("/data/knowledge/ent-robin");
+    expect(knowledgeEntityHref("ent-robin", "person")).toBe(
+      "/data/knowledge/ent-robin?kind=person",
+    );
+  });
+
   it("reads the four sibling views and nothing else", () => {
     expect(dataRoute(url("/data/records?kind=events&source=claude"))).toEqual({
       view: "records",
@@ -76,13 +87,36 @@ describe("Data routes", () => {
       view: "sources",
     });
     expect(dataRoute(url("/data/health"))).toEqual({ view: "health" });
-    expect(dataRoute(url("/data/knowledge"))).toEqual({ view: "knowledge" });
+    expect(dataRoute(url("/data/knowledge"))).toEqual({
+      view: "knowledge",
+      id: null,
+      kind: null,
+    });
+    expect(dataRoute(url("/data/knowledge?kind=place&q=x"))).toEqual({
+      view: "knowledge",
+      id: null,
+      kind: "place",
+    });
+    expect(dataRoute(url("/data/knowledge?kind=decision"))).toEqual({
+      view: "knowledge",
+      id: null,
+      kind: null,
+    });
+    expect(dataRoute(url("/data/knowledge/ent-robin?kind=person"))).toEqual({
+      view: "knowledge",
+      id: "ent-robin",
+      kind: "person",
+    });
     for (const path of [
       "/data",
       "/data/records/not-an-id",
       "/data/records/%E0%A4%A",
       `/data/records/${id}/history`,
       "/data/unknown",
+      "/data/knowledge/a%2Fb",
+      "/data/knowledge/-lead",
+      `/data/knowledge/${"x".repeat(129)}`,
+      "/data/knowledge/ent-robin/history",
     ])
       expect(dataRoute(url(path)), path).toBeNull();
   });
@@ -106,12 +140,15 @@ describe("Data routes", () => {
   it.each([
     [null, "/data/knowledge"],
     ["all", "/data/knowledge"],
-    ["people", "/data/records?kind=people"],
-    ["person", "/data/records?kind=people"],
-    ["project", "/data/records?kind=projects"],
-    ["place", "/data/records?kind=places"],
+    ["people", "/data/knowledge?kind=person"],
+    ["person", "/data/knowledge?kind=person"],
+    ["project", "/data/knowledge?kind=project"],
+    ["place", "/data/knowledge?kind=place"],
+    ["locations", "/data/knowledge?kind=place"],
+    ["topic", "/data/knowledge?kind=topic"],
     ["decision", "/data/knowledge"],
     ["system", "/data/knowledge"],
+    ["__proto__", "/data/knowledge"],
   ])("lands /knowledge?kind=%s on %s", (kind, destination) => {
     expect(knowledgeRedirect(kind)).toBe(destination);
   });

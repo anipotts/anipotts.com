@@ -1,0 +1,103 @@
+/* Data Knowledge, the life wiki. The list, chips and split come from the
+   workspace kit and components/astryx/SplitView.tsx; this sets the entity
+   page's reading measure and its record links. No rules: parts are set
+   apart by space alone. */
+
+.knowledge-panel-header {
+  min-width: 0;
+}
+.knowledge-panel-header > .knowledge-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.knowledge-mark {
+  --row-mark-size: var(--spacing-7);
+  --row-mark-glyph: calc(var(--spacing-4) + 2px);
+  --row-mark-radius: calc(var(--row-mark-size) * 0.3);
+}
+
+.knowledge-summary {
+  max-width: 68ch;
+  white-space: pre-line;
+}
+.knowledge-part {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  min-width: 0;
+}
+
+/* Every fact, entry and backlink opens its record: the link reads as text
+   with the accent, and a keyboard focus tints it, never rings it. */
+.knowledge-record-link {
+  color: var(--color-text-accent, var(--color-accent));
+  text-decoration: none;
+  border-radius: var(--radius-inner);
+  overflow-wrap: anywhere;
+}
+@media (hover: hover) {
+  .knowledge-record-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+}
+.knowledge-record-link:focus-visible {
+  outline: none;
+  background-color: var(--color-accent-muted);
+}
+
+.knowledge-timeline,
+.knowledge-backlinks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+.knowledge-timeline > li {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  column-gap: var(--spacing-4);
+  align-items: baseline;
+}
+.knowledge-timeline .workspace-time {
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.knowledge-backlinks > li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+.knowledge-record-id {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm, 0.8125rem);
+  white-space: nowrap;
+}
+
+/* An entity on its own is the page: no surface of its own, and on phones
+   it sits on the gutter like every list. */
+@container admin-split (max-width: 959px) {
+  .knowledge-view .knowledge-panel {
+    background: transparent;
+    border-radius: 0;
+  }
+  .knowledge-view .knowledge-panel > .admin-split-panel-header,
+  .knowledge-view .knowledge-panel > .admin-split-panel-body {
+    padding-inline: 0;
+    background: transparent;
+  }
+  .knowledge-view .knowledge-panel > .admin-split-panel-header {
+    padding-block-start: 0;
+  }
+}
+@media (max-width: 640px) {
+  .knowledge-timeline > li {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0;
+  }
+}

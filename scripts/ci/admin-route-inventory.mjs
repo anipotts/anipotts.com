@@ -98,14 +98,14 @@ export const ADMIN_ROUTES = [
     smoke: false,
   },
   {
-    // Retired; 308 redirects to /data/records.
+    // Retired; 308 redirects to /data/knowledge, keeping a kind filter.
     route: "/knowledge",
     file: "apps/admin/src/pages/knowledge.astro",
     nav: false,
     smoke: false,
   },
   {
-    // Retired; 308 redirects to /data/records?kind=places.
+    // Retired; 308 redirects to /data/knowledge?kind=place.
     route: "/knowledge/locations",
     file: "apps/admin/src/pages/knowledge/locations.astro",
     nav: false,
@@ -190,6 +190,12 @@ export const ADMIN_ROUTES = [
   },
   {
     route: "/api/private-reader/ops-credential",
+    file: "apps/admin/src/pages/api/private-reader/[mode].ts",
+    nav: false,
+    smoke: false,
+  },
+  {
+    route: "/api/private-reader/health-credential",
     file: "apps/admin/src/pages/api/private-reader/[mode].ts",
     nav: false,
     smoke: false,

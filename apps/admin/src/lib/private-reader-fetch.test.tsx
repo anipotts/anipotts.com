@@ -220,8 +220,9 @@ describe("private reader contract", () => {
 
   it("maps reads onto the proposed v1 routes with bounded params", () => {
     expect(privateReaderPath({ method: "status" })).toBe("/v1/data/status");
+    // Sources reads the whole catalog, so it asks for the largest page.
     expect(privateReaderPath({ method: "sources" })).toBe(
-      "/v1/data/sources?limit=30&offset=0",
+      "/v1/data/sources?limit=200&offset=0",
     );
     expect(
       privateReaderPath({ method: "search", q: "Fixture", offset: 30 }),

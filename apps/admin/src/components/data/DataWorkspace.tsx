@@ -5,9 +5,8 @@ import React, {
   useState,
   type RefObject,
 } from "react";
-import { DATA_VIEW_TITLES, type DataRoute } from "../../lib/data-routes";
+import { DATA_VIEW_TITLES, type RecordsRoute } from "../../lib/data-routes";
 import type { DataFixture } from "../../lib/data-fixture-reader";
-import { fixtureExtras, type DataExtras } from "../../lib/data-extras";
 import type { PrivateReaderSession } from "../../lib/private-reader-client";
 import { SampleBadge, WorkspacePage } from "../workspace/Workspace";
 import { useDataSession } from "./useDataSession";
@@ -17,7 +16,7 @@ import {
   type DataNavigate,
 } from "./DataNotices";
 import { RecordsExplorer, RecordsToolbar } from "./RecordsView";
-import { CardsExplorer, SourcesExplorer } from "./SourcesView";
+import { SourcesExplorer } from "./SourcesView";
 import "./data-workspace.css";
 
 export type { DataNavigate } from "./DataNotices";
@@ -49,34 +48,29 @@ function useSplit(ref: RefObject<HTMLElement | null>): boolean {
 }
 
 /**
- * The Data workspace. Records, Sources, Health and Knowledge are siblings.
- * Records and Sources read the private reader through one session that
- * opens on its own, is shared by every Data view in this document, and is
- * memory only. Health and Knowledge are read on the server from D1 and need
- * no session.
+ * Records and Sources, which read the private reader through one session
+ * that opens on its own, is shared by every Data view in this document, and
+ * is memory only. Health and Knowledge are their own views (HealthView,
+ * KnowledgeView), siblings in the same shell.
  */
 export function DataWorkspace({
   route,
   navigate,
   enabled,
   fixture,
-  extras,
   session: injected,
   fetch: fetcher,
 }: {
-  route: DataRoute;
+  route: RecordsRoute | { view: "sources" };
   navigate: DataNavigate;
   enabled: boolean;
   fixture?: DataFixture;
-  /** Health or Knowledge cards, read on the server for this page. */
-  extras?: DataExtras;
   session?: PrivateReaderSession;
   fetch?: typeof fetch;
 }) {
-  const readerView = route.view === "records" || route.view === "sources";
   const session = useDataSession({
-    enabled: enabled && readerView,
-    fixture: readerView ? fixture : undefined,
+    enabled,
+    fixture,
     session: injected,
     fetch: fetcher,
   });
@@ -87,16 +81,7 @@ export function DataWorkspace({
   const recordOpen = route.view === "records" && route.id !== null;
   const label = DATA_VIEW_TITLES[route.view].toLowerCase();
   let body: React.ReactNode;
-  if (!readerView) {
-    const view = route.view as "health" | "knowledge";
-    body = (
-      <CardsExplorer
-        view={view}
-        set={(extras ?? fixtureExtras(fixture?.extras))[view]}
-        onCount={setCount}
-      />
-    );
-  } else if (!ready) {
+  if (!ready) {
     body = (
       <>
         {route.view === "records" && session.status === "opening" && (
@@ -136,14 +121,10 @@ export function DataWorkspace({
     >
       <WorkspacePage
         title={DATA_VIEW_TITLES[route.view]}
-        count={ready || !readerView ? count : undefined}
-        badge={
-          session.fixture || (!readerView && fixture) ? (
-            <SampleBadge />
-          ) : undefined
-        }
+        count={ready ? count : undefined}
+        badge={session.fixture ? <SampleBadge /> : undefined}
         actions={
-          readerView && session.status !== "off" ? (
+          session.status !== "off" ? (
             <DataSessionControl session={session} />
           ) : undefined
         }

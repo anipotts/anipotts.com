@@ -8,8 +8,9 @@ import {
 
 const modes = Object.keys(PRIVATE_READER_MODES) as PrivateReaderMode[];
 
-/** Data (`credential`) and Observability (`ops-credential`) issuance. Each
- * path carries its own fixed scope; middleware already verified the owner. */
+/** Data (`credential`), Observability (`ops-credential`) and Health
+ * (`health-credential`) issuance. Each path carries its own fixed scope and
+ * switch; middleware already verified the owner. */
 export const ALL: APIRoute = async ({ request, locals, url }) => {
   const mode = modes.find(
     (name) => PRIVATE_READER_MODES[name].path === url.pathname,

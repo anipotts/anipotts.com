@@ -39,7 +39,7 @@ Public pages serve published records from the `anipotts-content` D1 store. `CONT
 | ------------------------------- | --------------------------------------------------------------------- |
 | `packages/content`              | Public contracts/settings, editorial source and publication contracts |
 | `packages/types`                | Shared app and operational contracts                                  |
-| `packages/lib`                  | Admin knowledge card reader and the Drizzle migration schema          |
+| `packages/lib`                  | The Drizzle migration schema                                          |
 | `packages/brand`                | Marks, fonts, shared tokens and typography                            |
 | `packages/control-plane-runner` | Local relay client, journal and proof outbox                          |
 
