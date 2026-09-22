@@ -18,7 +18,7 @@ import {
   readableDates,
   withoutOwner,
 } from "./naming";
-import { sentenceCase } from "./sentence-case";
+import { clockText } from "../components/workspace/format";
 import type { MarkId } from "@anipotts/brand/marks";
 
 type Item = Record<string, unknown>;
@@ -40,7 +40,8 @@ export function effectiveDate(
   if (!value) return null;
   if (/T\d{2}:\d{2}/.test(value) && precision !== "day") {
     const ms = Date.parse(value);
-    if (Number.isFinite(ms)) return DATE_TIME.format(ms);
+    // Composed by hand, so every engine writes the same text.
+    if (Number.isFinite(ms)) return clockText(ms);
   }
   const ms = Date.parse(value.length === 4 ? `${value}-01-01` : value);
   if (!Number.isFinite(ms)) return value;
@@ -55,11 +56,6 @@ export function effectiveDate(
     timeZone: "UTC",
   }).format(ms);
 }
-
-const DATE_TIME = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
 
 // The body.
 
@@ -472,8 +468,9 @@ const ISO_TIME =
 const ISO_DATE = /^\d{4}-\d{2}(?:-\d{2})?$/;
 const SNAKE = /^[a-z][a-z0-9]*(?:[_-][a-z0-9]+)+$/;
 
-/** A fixed-vocabulary value in sentence case. */
-const enumText = (value: string) => sentenceCase(value.replace(/-/g, " "));
+/** A fixed-vocabulary value in sentence case, known words cased ("html"
+ * reads "HTML"). */
+const enumText = (value: string) => keyLabel(value);
 
 /** Assertion authorities, named for what they are. */
 const AUTHORITIES: Readonly<Record<string, string>> = {
