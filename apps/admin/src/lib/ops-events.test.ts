@@ -86,7 +86,11 @@ describe("ops_events_v1 parser", () => {
       0,
     ).items;
     expect((nullDevice as OpsAccessEvent).device).toBeNull();
-    rejects(envelope([access(1, { extra: 1 })]));
+    const extra = parseOpsEvents(envelope([access(1, { extra: 1 })]), 0);
+    expect(extra.items).toHaveLength(1);
+    expect(extra.unknownFields).toEqual(["extra"]);
+    expect(parseOpsEvents(envelope([access(1)]), 0).unknownFields).toEqual([]);
+    rejects(envelope([access(1, { status: "200" })]));
     const missing = access(1);
     delete missing.detail;
     rejects(envelope([missing]));
