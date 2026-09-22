@@ -1,18 +1,11 @@
 import {
   assertValidKnowledgeCards,
   buildKnowledgeContextBundle,
-  getKnowledgeCard,
-  knowledgeRetrievalContract,
   loadAdminControlSnapshot,
   type AdminControlDatabase,
   type KnowledgeSearchOptions,
 } from "@anipotts/lib/admin-control";
 
-export class KnowledgeUnavailableError extends Error {
-  constructor() {
-    super("knowledge_unavailable");
-  }
-}
 function knowledgeAvailability(
   snapshot: Awaited<ReturnType<typeof loadAdminControlSnapshot>>,
 ) {
@@ -24,6 +17,7 @@ function knowledgeAvailability(
   return { available: errors.length === 0, errors };
 }
 
+/** The bounded knowledge bundle behind the Data Health and Knowledge views. */
 export async function readAdminKnowledge(
   db: AdminControlDatabase,
   query = "",
@@ -31,31 +25,14 @@ export async function readAdminKnowledge(
 ) {
   const snapshot = await loadKnowledgeSnapshot(db);
   assertValidKnowledgeCards(snapshot.projections.knowledge_cards);
-  const bundle = buildKnowledgeContextBundle(
-    snapshot.projections.knowledge_cards,
-    query,
-    options,
-  );
-
   return {
-    generated_at: snapshot.generated_at,
-    source_mode: snapshot.source_mode,
     ...knowledgeAvailability(snapshot),
-    contract: knowledgeRetrievalContract,
-    bundle,
-    // Compatibility alias must never bypass the query, domain or context budget.
-    cards: bundle.cards,
+    bundle: buildKnowledgeContextBundle(
+      snapshot.projections.knowledge_cards,
+      query,
+      options,
+    ),
   };
-}
-
-export async function readAdminKnowledgeCard(
-  db: AdminControlDatabase,
-  cardId: string,
-) {
-  const snapshot = await loadKnowledgeSnapshot(db);
-  if (!knowledgeAvailability(snapshot).available)
-    throw new KnowledgeUnavailableError();
-  return getKnowledgeCard(snapshot.projections.knowledge_cards, cardId);
 }
 
 async function loadKnowledgeSnapshot(db: AdminControlDatabase) {

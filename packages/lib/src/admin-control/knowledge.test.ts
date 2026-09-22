@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   assertValidKnowledgeCards,
   buildKnowledgeContextBundle,
-  getKnowledgeCard,
   knowledgeRetrievalContract,
   searchKnowledgeCards,
   type AdminKnowledgeCard,
@@ -45,17 +44,6 @@ describe("admin knowledge cards", () => {
     expect(bundle.used_context_budget_tokens).toBeLessThanOrEqual(240);
     expect(bundle.max_context_budget_tokens).toBe(240);
     expect(bundle.truncated).toBe(true);
-  });
-
-  it("returns one stable card without expanding private source content", () => {
-    const card = getKnowledgeCard(
-      fixtureKnowledgeCards,
-      "knowledge-health-status",
-    );
-
-    expect(card?.reveal_policy).toBe("human_present");
-    expect(card?.source_locator).toBe("vitals://health");
-    expect(JSON.stringify(card)).not.toContain("health_data");
   });
 
   it("rejects closed values and unknown lineage targets", () => {

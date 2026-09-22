@@ -236,7 +236,11 @@ test("observability preview allows only the local read surface, keeping its API 
       method: "GET",
       url: new URL("https://admin.anipotts.com/observability/status"),
     },
-    { isDev: true, method: "GET", url: local("/api/admin/projections") },
+    {
+      isDev: true,
+      method: "GET",
+      url: local("/api/private-reader/ops-credential"),
+    },
     { isDev: true, method: "POST", url: local("/observability/status") },
   ])
     expect(decideAdminAccess({ ...input, hasAccess: false })).toBe(

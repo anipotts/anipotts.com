@@ -204,14 +204,6 @@ export function buildKnowledgeContextBundle(
   };
 }
 
-export function getKnowledgeCard(
-  cards: AdminKnowledgeCard[],
-  cardId: string,
-): AdminKnowledgeCard | null {
-  assertValidKnowledgeCards(cards);
-  return cards.find((card) => card.card_id === cardId) ?? null;
-}
-
 function scoreCard(card: AdminKnowledgeCard, terms: string[]): number {
   if (terms.length === 0) return 0;
   const fields: Array<[string, number]> = [

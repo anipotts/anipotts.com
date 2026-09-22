@@ -49,7 +49,7 @@ The old database-first public readers, fallback datasets, Solid-only services an
 
 Cloudflare Access is the only Admin sign-in. Middleware verifies the signed Access assertion for the exact owner; editorial reads and writes require it, other pages accept it for reads only, and sign out ends the Access session. The passkey, password, invite, recovery, device and native D1 session code was removed on 2026-09-22 and is recoverable from the `archive/admin-retired-auth-2026-09-22` tag. Its D1 tables and migrations stay in place.
 
-The protected route inventory in `scripts/ci/admin-route-inventory.mjs` drives the route parity and smoke checks. Newsletter controls and the command relay retain their existing authorization checks. Public code must not import admin-only contracts or operational write tables; `pnpm test:public-boundary` enforces this separation.
+The protected route inventory in `scripts/ci/admin-route-inventory.mjs` drives the route parity and smoke checks. Newsletter controls retain their existing authorization checks. Admin no longer binds the command relay or serves the MCP, projection, knowledge, control-plane or compatibility write APIs; the relay itself stays in `workers/state`. Public code must not import admin-only contracts or operational write tables; `pnpm test:public-boundary` enforces this separation.
 
 ## Verification and releases
 

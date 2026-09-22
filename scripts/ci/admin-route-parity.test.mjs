@@ -9,6 +9,7 @@ import {
   ADMIN_ROUTES,
   RETIRED_ADMIN_AUTH_FILES,
   PUBLIC_UNSMOKED_ROUTE_FILES,
+  RETIRED_ADMIN_API_FILES,
 } from "./admin-route-inventory.mjs";
 import {
   DEV_LOOPBACK_PREVIEW_PATHS,
@@ -31,10 +32,6 @@ const layoutSource = readFileSync(
   "utf8",
 );
 const astroConfigSource = readFileSync("apps/admin/astro.config.mjs", "utf8");
-const lifecycleSource = readFileSync(
-  "packages/lib/src/admin-control/work-lifecycle.ts",
-  "utf8",
-);
 const middlewareSource = readFileSync("apps/admin/src/middleware.ts", "utf8");
 const authSource = readFileSync("apps/admin/src/pages/auth.astro", "utf8");
 const contentEditorSource = readFileSync(
@@ -304,6 +301,32 @@ for (const file of [
   "apps/admin/src/pages/api/admin/observability.ts",
 ])
   assert.equal(existsSync(file), false, `${file} must stay retired`);
+// The removed JSON and compatibility APIs stay gone: no file, no inventory
+// entry and no public exemption, so middleware refuses them like any
+// unknown API.
+const inventoriedFiles = new Set(ADMIN_ROUTES.map((route) => route.file));
+for (const file of RETIRED_ADMIN_API_FILES) {
+  assert.equal(existsSync(file), false, `${file} must stay retired`);
+  assert.equal(inventoriedFiles.has(file), false, `${file} is not inventoried`);
+  assert.equal(PUBLIC_UNSMOKED_ROUTE_FILES.includes(file), false);
+}
+for (const path of [
+  "/api/mcp",
+  "/api/admin/projections",
+  "/api/admin/knowledge",
+  "/api/admin/runtime-feed",
+  "/api/admin/control-plane",
+  "/api/admin/content/editor",
+  "/api/admin/content/draft-operation",
+]) {
+  assert.equal(liveRoutes.has(path), false, `${path} is not a live route`);
+  assert.equal(publicPaths.includes(path), false, `${path} is not public`);
+  assert.equal(
+    publicPasskeyApiPaths.includes(path),
+    false,
+    `${path} is not a public auth API`,
+  );
+}
 for (const file of RETIRED_ADMIN_AUTH_FILES)
   assert.equal(existsSync(file), false, `${file} must remain retired`);
 assert.ok(
@@ -330,21 +353,6 @@ assert.equal(
 );
 
 for (const marker of [
-  "sourceIdentityKey",
-  "upsertSourceImport",
-  "evaluateArchiveCandidate",
-  "createArchiveProposalBatches",
-  "confirmArchiveProposal",
-  "restoreArchiveReceipt",
-  "MAX_ARCHIVE_BATCH_SIZE = 20",
-]) {
-  assert.ok(
-    lifecycleSource.includes(marker),
-    `lifecycle seam missing ${marker}`,
-  );
-}
-
-for (const marker of [
   "AdminWordmark",
   "editorialReturnPath",
   "href={destination}",
@@ -367,6 +375,11 @@ for (const marker of [
     `/content/edit/:pageKey missing draft editor marker ${marker}`,
   );
 }
+assert.equal(
+  contentEditorSource.includes("/api/admin/content/"),
+  false,
+  "/content/edit/:pageKey stays read-only diagnostics with no write route",
+);
 
 function listAdminPageFiles(dir = "apps/admin/src/pages") {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

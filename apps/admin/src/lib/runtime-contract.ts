@@ -26,7 +26,6 @@ export const RUNTIME_CONTRACT = {
   CONTENT_DB: { source: "d1", check: "prepare" },
   CONTENT_MEDIA: { source: "r2", check: "getPut" },
   EDITORIAL: { source: "durable_objects", check: "getByName" },
-  COMMAND_RELAY: { source: "durable_objects", check: "getByName" },
   EDITORIAL_ENABLED: { source: "vars", check: "flag" },
   EDITORIAL_PUBLISH_ENABLED: { source: "vars", check: "flag" },
   PRIVATE_READER_ENABLED: { source: "vars", check: "flag" },
@@ -43,7 +42,7 @@ export const RUNTIME_REQUIRED = [
   "ACCESS_POLICY_AUD",
 ] as const satisfies readonly RuntimeName[];
 
-/** Mirrors productionEditor, adminDb and the control-plane relay lookup.
+/** Mirrors productionEditor and adminDb.
  * Flags switch a feature off; needs make an enabled feature unavailable when
  * absent. EDITORIAL_PUBLISH_ENABLED is the publishing kill switch.
  */
@@ -57,7 +56,6 @@ export const RUNTIME_FEATURES = {
     needs: ["EDITORIAL", "CONTENT_DB", "CONTENT_MEDIA", "PUBLIC_RELEASE_SHA"],
   },
   admin_database: { flags: [], needs: ["DB"] },
-  control_plane: { flags: [], needs: ["COMMAND_RELAY"] },
 } as const satisfies Record<
   string,
   { flags: readonly RuntimeName[]; needs: readonly RuntimeName[] }

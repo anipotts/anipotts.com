@@ -15,19 +15,22 @@ vi.mock("./editorial-media", () => ({
 }));
 import { onRequest } from "../middleware";
 import { retainedAccessPrincipal } from "./access-identity";
-import { RETIRED_ADMIN_AUTH_FILES } from "../../../../scripts/ci/admin-route-inventory.mjs";
+import {
+  RETIRED_ADMIN_API_FILES,
+  RETIRED_ADMIN_AUTH_FILES,
+} from "../../../../scripts/ci/admin-route-inventory.mjs";
+import { isPublicAdminPath } from "./admin-access-policy";
 
 const repo = new URL("../../../../", import.meta.url);
 const pages = new URL("apps/admin/src/pages/", repo);
 
-/** Routes removed with native sessions: the bearer MCP endpoint and the
- * compatibility writes that only a native session could reach. */
-const REMOVED_ROUTE_FILES = [
-  "apps/admin/src/pages/api/mcp.ts",
-  "apps/admin/src/pages/api/admin/control-plane.ts",
-  "apps/admin/src/pages/api/admin/content/draft-operation.ts",
-  "apps/admin/src/pages/api/admin/content/editor.ts",
-];
+/** Retired sign-in routes, plus the removed JSON and compatibility APIs
+ * (MCP, projections, knowledge, runtime feed, control plane and the
+ * compatibility writes). The API list also names their libraries. */
+const REMOVED_FILES = [...RETIRED_ADMIN_AUTH_FILES, ...RETIRED_ADMIN_API_FILES];
+const REMOVED_ROUTE_FILES = REMOVED_FILES.filter((file) =>
+  file.startsWith("apps/admin/src/pages/"),
+);
 
 const routeFor = (file: string) =>
   file
@@ -35,13 +38,18 @@ const routeFor = (file: string) =>
     .replace(/\.(?:astro|ts)$/, "")
     .replace(/\[[^\]]+\]/g, "opaque-request");
 
-const removed = [...RETIRED_ADMIN_AUTH_FILES, ...REMOVED_ROUTE_FILES].map(
-  (file) => ({ file, route: routeFor(file) }),
-);
+const removed = REMOVED_ROUTE_FILES.map((file) => ({
+  file,
+  route: routeFor(file),
+}));
 const removedPages = removed.filter(({ route }) => !route.startsWith("/api/"));
 const removedApis = removed.filter(({ route }) => route.startsWith("/api/"));
 
-async function dispatch(route: string, method = "GET") {
+async function dispatch(
+  route: string,
+  method = "GET",
+  headers: Record<string, string> = {},
+) {
   const url = new URL(`https://admin.anipotts.com${route}`);
   const next = vi.fn(async () => new Response("not found", { status: 404 }));
   const response = (await onRequest(
@@ -49,7 +57,11 @@ async function dispatch(route: string, method = "GET") {
       url,
       request: new Request(url, {
         method,
-        headers: { origin: url.origin, "content-type": "application/json" },
+        headers: {
+          origin: url.origin,
+          "content-type": "application/json",
+          ...headers,
+        },
       }),
       locals: {},
       cookies: { get: () => ({ value: "retired-native-session" }) },
@@ -63,7 +75,7 @@ async function dispatch(route: string, method = "GET") {
 
 beforeEach(() => vi.resetAllMocks());
 
-describe("retired sign-in and native-session routes", () => {
+describe("retired sign-in, native-session and API routes", () => {
   it("covers every retired login page and API", () => {
     const routes = removed.map(({ route }) => route);
     for (const route of [
@@ -77,12 +89,18 @@ describe("retired sign-in and native-session routes", () => {
       "/api/admin/device/start",
       "/api/admin/auth/session",
       "/api/mcp",
+      "/api/admin/projections",
+      "/api/admin/knowledge",
+      "/api/admin/runtime-feed",
+      "/api/admin/control-plane",
+      "/api/admin/content/editor",
+      "/api/admin/content/draft-operation",
     ])
       expect(routes).toContain(route);
   });
 
-  it("has no page file or dynamic route left to answer them", () => {
-    for (const { file } of removed)
+  it("has no page file, library or dynamic route left to answer them", () => {
+    for (const file of REMOVED_FILES)
       expect(existsSync(new URL(file, repo)), file).toBe(false);
     for (const dir of ["auth", "api/admin", "api/admin/content"]) {
       const path = new URL(`${dir}/`, pages);
@@ -123,6 +141,17 @@ describe("retired sign-in and native-session routes", () => {
       }
     },
   );
+
+  it("no longer honors an MCP bearer token", async () => {
+    expect(isPublicAdminPath("/api/mcp")).toBe(false);
+    for (const method of ["GET", "POST"]) {
+      const { response, next } = await dispatch("/api/mcp", method, {
+        authorization: "Bearer retired-machine-token",
+      });
+      expect(response.status).toBe(401);
+      expect(next).not.toHaveBeenCalled();
+    }
+  });
 
   it.each(removed)(
     "lets the Access owner reach the router, which 404s $route",

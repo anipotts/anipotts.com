@@ -4,8 +4,6 @@ export default defineConfig({
   entry: {
     "admin-control/index": "src/admin-control/index.ts",
     "admin-control/dev-fixtures": "src/admin-control/dev-fixtures.ts",
-    "admin-control/dev-work-lifecycle-fixtures":
-      "src/admin-control/dev-work-lifecycle-fixtures.ts",
   },
   format: ["esm"],
   clean: true,

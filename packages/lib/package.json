@@ -12,10 +12,6 @@
     "./admin-control/dev-fixtures": {
       "types": "./dist/admin-control/dev-fixtures.d.ts",
       "import": "./dist/admin-control/dev-fixtures.js"
-    },
-    "./admin-control/dev-work-lifecycle-fixtures": {
-      "types": "./dist/admin-control/dev-work-lifecycle-fixtures.d.ts",
-      "import": "./dist/admin-control/dev-work-lifecycle-fixtures.js"
     }
   },
   "scripts": {

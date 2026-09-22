@@ -78,8 +78,6 @@ const ADMIN_ROUTES = [
   "/content/review",
   "/content/drafts",
   "/content/edit/home",
-  "/api/admin/content/draft-operation",
-  "/api/admin/content/editor",
   "/content/preview",
   "/content/operations",
   "/proof",
