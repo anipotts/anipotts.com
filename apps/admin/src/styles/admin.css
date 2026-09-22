@@ -1,5 +1,5 @@
 /* Brand motion only. Font faces and family tokens come from fonts.css, and
-   every color, space and type value is an Astryx token. */
+   every color is an Astryx theme token. */
 @import "@anipotts/brand/motion.css";
 
 /* The shell sets the frame's gutters and width. */
