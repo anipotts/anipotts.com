@@ -512,7 +512,12 @@ export function createOpsStatusController(options: OpsStatusOptions) {
       got ||= read.items.length > 0;
       moved ||= log.cursor > 0 && opsEventsMoveSnapshot(read.items);
       set({
-        events: appendOpsEvents(log, read.items, read.unknownFields),
+        events: appendOpsEvents(
+          log,
+          read.items,
+          read.unknownFields,
+          read.lastSeq,
+        ),
         eventsStale: false,
       });
       if (read.nextAfter === null) return result();

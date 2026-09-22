@@ -289,6 +289,17 @@ describe("names", () => {
     expect(deviceName(null)).toBe("Unknown device");
     expect(hostDevice("cloudflare")).toBeNull();
   });
+
+  it("gives a job on an unknown host (OpsHost other) no device tile", () => {
+    const naming = opsNaming({
+      id: "lab.job",
+      name: "lab job",
+      kind: "job",
+      host: "other",
+    });
+    expect(naming.device).toBeNull();
+    expect(naming.tooltip).toBe("lab.job");
+  });
 });
 
 describe("apps", () => {

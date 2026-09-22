@@ -46,7 +46,8 @@ export const OPS_V1_TRIGGERS = [
 
 export type OpsState = (typeof OPS_V1_STATES)[number];
 export type OpsKind = (typeof OPS_V1_KINDS)[number];
-export type OpsHost = (typeof OPS_V1_HOSTS)[number];
+/** A known host, or `other` for a machine System adds before admin knows it. */
+export type OpsHost = (typeof OPS_V1_HOSTS)[number] | "other";
 export type OpsTrigger = (typeof OPS_V1_TRIGGERS)[number];
 
 /** Client bounds. The contract caps the transport at 64 KB. */
@@ -66,6 +67,7 @@ export const OPS_V1_BOUNDS = {
   exitMax: 2 ** 31 - 1,
   runsMax: 2 ** 31 - 1,
   trigger: /^[a-z][a-z0-9_-]{0,31}$/,
+  host: /^[a-z0-9][a-z0-9-]{0,31}$/,
   /** Ten years of uptime. */
   uptimeMaxSeconds: 10 * 366 * 24 * 60 * 60,
   /** A field name worth naming in a drift notice. */
@@ -310,6 +312,15 @@ function runbook(value: unknown): string {
   return result;
 }
 
+/** A known host, or `other` for a well-formed name this client does not know,
+ * so adding a machine to the fleet never rejects the snapshot. */
+function host(value: unknown): OpsHost {
+  if (typeof value !== "string" || !OPS_V1_BOUNDS.host.test(value)) fail();
+  return (OPS_V1_HOSTS as readonly string[]).includes(value)
+    ? (value as OpsHost)
+    : "other";
+}
+
 /** A known trigger, or null for none or one this client does not know yet
  * (System adds triggers without a website deploy). */
 function trigger(value: unknown): OpsTrigger | null {
@@ -344,7 +355,7 @@ function entry(value: unknown, drift: FieldDrift): OpsCatalogEntry {
     // Groups are free strings; System adds them without a website deploy.
     group: text(e.group, OPS_V1_BOUNDS.groupMax),
     kind: member(e.kind, OPS_V1_KINDS),
-    host: member(e.host, OPS_V1_HOSTS),
+    host: host(e.host),
     owner: text(e.owner, OPS_V1_BOUNDS.ownerMax),
     freshness_budget_s:
       e.freshness_budget_s === null

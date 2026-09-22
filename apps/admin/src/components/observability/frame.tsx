@@ -89,7 +89,12 @@ export function useOpsData(props: OpsViewProps, withEvents: boolean) {
     if (props.eventsFixture === undefined) return null;
     try {
       const page = parseOpsEvents(props.eventsFixture, 0);
-      return appendOpsEvents(EMPTY_EVENT_LOG, page.items, page.unknownFields);
+      return appendOpsEvents(
+        EMPTY_EVENT_LOG,
+        page.items,
+        page.unknownFields,
+        page.lastSeq,
+      );
     } catch {
       return null;
     }
