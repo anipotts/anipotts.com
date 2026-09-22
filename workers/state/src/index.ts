@@ -47,10 +47,6 @@ app.get("/", (c) =>
         publish: "POST /api/commits (bearer auth)",
         subscribe: "GET /api/commits/ws",
       },
-      control: {
-        connect: "GET /api/control/devices/ap-mini/connect (signed websocket)",
-        commands: "internal Durable Object RPC only",
-      },
     },
   }),
 );

@@ -9,7 +9,7 @@ export type Link = {
   title?: string;
   tag?: string;
   note?: string;
-  source?: "rudy" | "shortcut" | "admin" | "manual";
+  source?: "shortcut" | "admin" | "manual";
   savedAt: string;
 };
 

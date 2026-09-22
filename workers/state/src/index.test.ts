@@ -94,6 +94,50 @@ describe("state entry wiring", () => {
       expect(logs.text()).not.toContain(value);
   });
 
+  it("advertises only the links and commits endpoints", async () => {
+    const app = await freshApp("info");
+    captureConsole();
+
+    const info = await app.fetch(
+      new Request("https://api.test/"),
+      completeEnv(),
+    );
+    const body = (await info.json()) as {
+      durableObjects: string[];
+      endpoints: Record<string, unknown>;
+    };
+    expect(Object.keys(body.endpoints)).toEqual(["links", "commits"]);
+    expect(JSON.stringify(body)).not.toContain("/api/control");
+    expect(body.durableObjects).toEqual([
+      "LinkVault",
+      "CodeStats",
+      "CommandRelay",
+    ]);
+  });
+
+  it("refuses every control connect when no device key is configured", async () => {
+    const app = await freshApp("no-device-key");
+    captureConsole();
+    const env = completeEnv();
+    delete env.CONTROL_PLANE_DEVICE_PUBLIC_JWK;
+    const relay = env.COMMAND_RELAY as ReturnType<typeof namespace>;
+
+    const connect = await app.fetch(
+      new Request("https://api.test/api/control/devices/ap-mini/connect", {
+        headers: {
+          Upgrade: "websocket",
+          "x-control-timestamp": new Date().toISOString(),
+          "x-control-nonce": "n".repeat(32),
+          "x-control-signature": "s".repeat(64),
+        },
+      }),
+      env,
+    );
+    expect(connect.status).toBe(401);
+    expect(await connect.json()).toEqual({ error: "unauthorized_device" });
+    expect(relay.getByName).not.toHaveBeenCalled();
+  });
+
   it("logs a degraded contract without changing any route outcome", async () => {
     const app = await freshApp("degraded");
     const logs = captureConsole();
