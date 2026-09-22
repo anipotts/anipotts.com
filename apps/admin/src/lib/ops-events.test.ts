@@ -126,6 +126,48 @@ describe("ops_events_v1 parser", () => {
     rejects(envelope([access(1, { subject: "data search?q=secret" })]));
   });
 
+  it("parses run rows with an exit code and a duration, either may be null", () => {
+    const run = (seq: number, extra: Json = {}): Json => ({
+      ...access(seq),
+      kind: "run",
+      subject: "pc.writer",
+      status: 0,
+      ms: 12_400,
+      detail: "1 run(s)",
+      ...extra,
+    });
+    const page = parseOpsEvents(
+      envelope([
+        run(1),
+        run(2, { status: 1, ms: null }),
+        run(3, { status: null }),
+      ]),
+      0,
+    );
+    expect(page.items).toEqual([
+      expect.objectContaining({
+        kind: "run",
+        subject: "pc.writer",
+        exit: 0,
+        ms: 12_400,
+      }),
+      expect.objectContaining({ kind: "run", exit: 1, ms: null }),
+      expect.objectContaining({ kind: "run", exit: null }),
+    ]);
+    expect(opsActivitySource(page.items[0]!, new Map())).toEqual({
+      id: "kind:run",
+      label: "Runs",
+    });
+    rejects(envelope([run(1, { subject: "not an id" })]));
+    rejects(envelope([run(1, { status: 1.5 })]));
+    rejects(envelope([run(1, { status: 2 ** 31 })]));
+  });
+
+  it("keeps HTTP status bounds on access rows only", () => {
+    rejects(envelope([access(1, { status: 0 })]));
+    rejects(envelope([access(1, { status: 600 })]));
+  });
+
   it("requires seq to ascend above after", () => {
     rejects(envelope([access(5)]), 5);
     rejects(envelope([access(2), access(2)]));

@@ -168,6 +168,93 @@ describe("contract client rules", () => {
   });
 });
 
+describe("run fields (2026-09-22)", () => {
+  const withoutRunFields = () => {
+    const value = fresh();
+    for (const entry of value.catalog) delete entry.trigger;
+    for (const row of value.status) {
+      delete row.runs;
+      delete row.interval_s;
+      delete row.last_duration_s;
+      delete row.next_run_at;
+    }
+    return value;
+  };
+  const withRow = (patch: Json) => {
+    const value = fresh();
+    Object.assign(value.status[0], patch);
+    return value;
+  };
+
+  it("parses a snapshot with or without them", () => {
+    const current = parseOpsSnapshot(fresh());
+    const earlier = parseOpsSnapshot(withoutRunFields());
+    expect(current.catalog.map((item) => item.id)).toEqual(
+      earlier.catalog.map((item) => item.id),
+    );
+    const row = [...earlier.status.values()][0]!;
+    expect(row).toMatchObject({
+      runs: null,
+      interval_s: null,
+      last_duration_s: null,
+      next_run_at: null,
+    });
+    expect(earlier.catalog.every((item) => item.trigger === null)).toBe(true);
+  });
+
+  it("keeps the fixture's triggers", () => {
+    const triggers = parseOpsSnapshot(fresh()).catalog.map(
+      (item) => item.trigger,
+    );
+    expect(triggers).toContain("sampled");
+    expect(triggers).toContain("keepalive");
+  });
+
+  it("reads an unknown trigger as null instead of rejecting", () => {
+    const value = fresh();
+    value.catalog[0].trigger = "cron";
+    expect(parseOpsSnapshot(value).catalog[0]!.trigger).toBeNull();
+    value.catalog[0].trigger = "Not A Token";
+    rejects(value);
+    value.catalog[0].trigger = 5;
+    rejects(value);
+  });
+
+  it("parses run counts, intervals, fractional durations and a future next run", () => {
+    const value = withRow({
+      runs: 412,
+      interval_s: 3600,
+      last_duration_s: 12.4,
+      next_run_at: "2026-09-21T19:00:00Z",
+    });
+    const row = parseOpsSnapshot(value).status.get(value.status[0].id)!;
+    expect(row).toMatchObject({
+      runs: 412,
+      interval_s: 3600,
+      last_duration_s: 12.4,
+      next_run_at: "2026-09-21T19:00:00Z",
+    });
+  });
+
+  it("bounds each run field", () => {
+    rejects(withRow({ runs: -1 }));
+    rejects(withRow({ runs: 1.5 }));
+    rejects(withRow({ interval_s: 0 }));
+    rejects(withRow({ last_duration_s: -0.1 }));
+    rejects(withRow({ last_duration_s: "12" }));
+    rejects(withRow({ last_duration_s: Number.POSITIVE_INFINITY }));
+    rejects(withRow({ next_run_at: "2026-09-21 19:00" }));
+    rejects(withRow({ next_run_at: "2028-09-21T19:00:00Z" }));
+  });
+
+  it("still rejects a row or entry field outside the contract", () => {
+    rejects(withRow({ runs_total: 1 }));
+    const value = fresh();
+    value.catalog[0].label = "x";
+    rejects(value);
+  });
+});
+
 describe("bounds", () => {
   const entryCase = (field: string, value: unknown) => {
     const v = fresh();
