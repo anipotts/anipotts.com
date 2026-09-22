@@ -36,7 +36,6 @@ export const RUNTIME_CONTRACT = {
   CONTENT_DB: { source: "d1", check: "prepare" },
   CONTENT_MEDIA: { source: "r2", check: "getPut" },
   EDITORIAL: { source: "durable_objects", check: "getByName" },
-  COMMAND_RELAY: { source: "durable_objects", check: "getByName" },
   EDITORIAL_ENABLED: { source: "vars", check: "flag" },
   EDITORIAL_PUBLISH_ENABLED: { source: "vars", check: "flag" },
   EDITORIAL_PUBLISH_MODE: { source: "vars", check: "mode" },
@@ -65,9 +64,9 @@ const legacyEditorialNeeds = [
   "EDITORIAL_GITHUB_PRIVATE_KEY",
 ] as const satisfies readonly RuntimeName[];
 
-/** Mirrors productionEditor, editorialRuntime().publishing, adminDb and the
- * control-plane relay lookup. Flags switch a feature off; needs make an
- * enabled feature unavailable when absent.
+/** Mirrors productionEditor, editorialRuntime().publishing and adminDb.
+ * Flags switch a feature off; needs make an enabled feature unavailable when
+ * absent.
  */
 const directEditorialNeeds = [
   "EDITORIAL",
@@ -96,7 +95,6 @@ export const RUNTIME_FEATURES = {
     },
   },
   admin_database: { flags: [], needs: ["DB"] },
-  control_plane: { flags: [], needs: ["COMMAND_RELAY"] },
 } as const satisfies Record<
   string,
   {

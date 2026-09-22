@@ -51,7 +51,7 @@ Cloudflare Access remains in front of Admin. Local source retirement is not proo
 
 App-native authentication is tested through the protected route inventory in `scripts/ci/admin-route-inventory.mjs`. Removing Access still requires registration, login, logout, persistence, revoked-credential denial, unauthenticated blocking and rollback proof. No authentication or secret changes are part of source cleanup.
 
-The focused admin draft operations, newsletter controls and command relay retain their existing authorization checks. Public code must not import admin-only contracts or operational write tables; `pnpm test:public-boundary` enforces this separation.
+Newsletter controls retain their existing authorization checks. Admin no longer binds the command relay or serves the MCP, projection, knowledge, control-plane or compatibility write APIs; the relay itself stays in `workers/state`. Public code must not import admin-only contracts or operational write tables; `pnpm test:public-boundary` enforces this separation.
 
 ## Verification and releases
 

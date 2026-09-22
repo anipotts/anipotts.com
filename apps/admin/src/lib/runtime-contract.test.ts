@@ -23,7 +23,6 @@ function completeEnv(): Record<string, unknown> {
     ...secrets,
     DB: { prepare: () => null },
     EDITORIAL: { getByName: () => null },
-    COMMAND_RELAY: { getByName: () => null },
     EDITORIAL_ENABLED: "true",
     EDITORIAL_PUBLISH_ENABLED: "true",
     EDITORIAL_GITHUB_APP_ID: "4242",
@@ -62,7 +61,6 @@ describe("admin runtime contract evaluation", () => {
         editorial: available,
         editorial_publishing: available,
         admin_database: available,
-        control_plane: available,
       },
     });
   });
@@ -72,7 +70,7 @@ describe("admin runtime contract evaluation", () => {
     expect(report.ok).toBe(false);
     expect(report.missing).toEqual([name]);
     // Required configuration never changes feature reporting.
-    expect(Object.values(report.features)).toEqual(Array(4).fill(available));
+    expect(Object.values(report.features)).toEqual(Array(3).fill(available));
   });
 
   it("treats empty text and shapeless bindings as missing", () => {
@@ -83,7 +81,7 @@ describe("admin runtime contract evaluation", () => {
         ACCESS_TEAM_DOMAIN: " ",
         ACCESS_POLICY_AUD: 42,
         DB: { prepare: "not a function" },
-        COMMAND_RELAY: null,
+        EDITORIAL: null,
       },
       release,
     );
@@ -92,9 +90,9 @@ describe("admin runtime contract evaluation", () => {
       state: "unavailable",
       missing: ["DB"],
     });
-    expect(report.features.control_plane).toEqual({
+    expect(report.features.editorial).toEqual({
       state: "unavailable",
-      missing: ["COMMAND_RELAY"],
+      missing: ["EDITORIAL"],
     });
   });
 
@@ -108,7 +106,6 @@ describe("admin runtime contract evaluation", () => {
           editorial: { state: "disabled", missing: [] },
           editorial_publishing: { state: "disabled", missing: [] },
           admin_database: { state: "unavailable", missing: ["DB"] },
-          control_plane: { state: "unavailable", missing: ["COMMAND_RELAY"] },
         },
       });
     },
@@ -432,7 +429,6 @@ describe("admin runtime contract logging", () => {
         editorial: available,
         editorial_publishing: available,
         admin_database: { state: "unavailable", missing: ["DB"] },
-        control_plane: available,
       },
     });
     for (const value of Object.values(completeEnv()))
@@ -455,7 +451,7 @@ describe("admin runtime contract logging", () => {
   it("warns when only a feature is unavailable", async () => {
     const { reportRuntimeContract } = await freshModule();
     const log = sink();
-    reportRuntimeContract(without("COMMAND_RELAY"), "fetch", release, log);
+    reportRuntimeContract(without("DB"), "fetch", release, log);
     expect(log.info).not.toHaveBeenCalled();
     expect(JSON.parse(log.warn.mock.calls[0][0]).ok).toBe(true);
   });
@@ -615,7 +611,7 @@ describe("admin wrangler.toml runtime contract drift", () => {
   });
 
   it("flags a removed or renamed binding", () => {
-    const relay = wrangler.replace('name = "COMMAND_RELAY"', 'name = "RELAY"');
+    const drafts = wrangler.replace('name = "EDITORIAL"', 'name = "DRAFTS"');
     const vars = wrangler.replace(
       /^ACCESS_TEAM_DOMAIN = .*$/m,
       'ACCESS_DOMAIN = "x"',
@@ -634,11 +630,11 @@ describe("admin wrangler.toml runtime contract drift", () => {
     );
     expect(legacy).not.toBe(wrangler);
     expect(database).not.toBe(wrangler);
-    expect(relay).not.toBe(wrangler);
+    expect(drafts).not.toBe(wrangler);
     expect(vars).not.toBe(wrangler);
     expect(assets).not.toBe(wrangler);
     expect(secret).not.toBe(legacy);
-    expect(undeclared(declaredRuntimeNames(relay))).toEqual(["COMMAND_RELAY"]);
+    expect(undeclared(declaredRuntimeNames(drafts))).toEqual(["EDITORIAL"]);
     expect(undeclared(declaredRuntimeNames(vars))).toEqual([
       "ACCESS_TEAM_DOMAIN",
     ]);

@@ -53,13 +53,6 @@ database_name = "anipotts-db"
 database_id = "a8aadf73-bbf4-447c-97db-cb3e50b4e26f"
 migrations_dir = "../../drizzle/migrations"
 
-# Internal capability binding. The relay class is exported by anipotts-state;
-# command submission never traverses a public HTTP route.
-[[durable_objects.bindings]]
-name = "COMMAND_RELAY"
-class_name = "CommandRelay"
-script_name = "anipotts-state"
-
 # Workers Logs keep the once-per-isolate runtime contract line (names and
 # states only). Invocation logs stay off: request URLs can carry recovery
 # codes and owner filters, which logs must never retain.
