@@ -17,7 +17,7 @@ export function previewFailure(
     status,
   }).replace(/</g, "\\u003c");
   return new Response(
-    `<!doctype html><html lang="en"><meta name="robots" content="noindex,nofollow"><title>Preview unavailable</title><body><p>This preview is unavailable. Return to the editor to review its status.</p><script>parent.postMessage(${message},"*")</script></body></html>`,
+    `<!doctype html><html lang="en"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="robots" content="noindex,nofollow"><title>Preview unavailable</title><style>body{margin:0;padding:16px;font:16px/1.5 system-ui,sans-serif;background:Canvas;color:CanvasText}</style><body><p>Preview unavailable</p><script>parent.postMessage(${message},"*")</script></body></html>`,
     {
       status: code,
       headers: {

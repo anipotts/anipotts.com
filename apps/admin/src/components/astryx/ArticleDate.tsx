@@ -6,8 +6,9 @@ import {
   plainDateToISO,
 } from "@astryxdesign/core/utils";
 import { HStack } from "@astryxdesign/core/HStack";
+import { Text } from "@astryxdesign/core/Text";
 
-/** Display a single stored instant with an explicit, stable timezone. */
+/** One stored instant as one row: the date, the time, and UTC once. */
 export function ArticleDate({
   label,
   value,
@@ -27,12 +28,10 @@ export function ArticleDate({
   const iso = date?.toISOString();
   const day = iso ? parseDateInput(iso.slice(0, 10)) : null;
   return (
-    <HStack gap={3} wrap="wrap" vAlign="start">
+    <HStack gap={2} vAlign="end" className="editor-date-row">
       <DateInput
         label={label}
-        description="UTC"
         value={day ? plainDateToISO(day) : undefined}
-        isRequired
         isDisabled={disabled}
         status={
           error || !date
@@ -53,7 +52,6 @@ export function ArticleDate({
       />
       <TimeInput
         label="Time"
-        description="UTC"
         value={
           iso
             ? (createISOTimeString(iso.slice(11, 19)) ?? undefined)
@@ -69,6 +67,9 @@ export function ArticleDate({
             onChange(next.toISOString());
         }}
       />
+      <Text type="supporting" color="secondary" className="editor-date-zone">
+        UTC
+      </Text>
     </HStack>
   );
 }

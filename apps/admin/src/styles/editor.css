@@ -100,11 +100,14 @@
   min-width: 0;
   width: 100%;
 }
-.document-title textarea,
-.document-title .astryx-text-area {
-  border: 0;
+/* Astryx paints the field's frame on its wrapper with atomic classes, so
+   the reset carries an id-weight chain to outrank them in every state. */
+.document-title .astryx-textarea:not(#\#):not(#\#) {
+  border-color: transparent;
   box-shadow: none;
+  outline: none;
   background: transparent;
+  padding-inline: 0;
 }
 .document-title textarea {
   font-family: var(--font-family-heading);
@@ -630,4 +633,32 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 }
 .record-panel-sheet .astryx-heading {
   font-size: var(--text-body-size);
+}
+
+/* A date and its time share one row, with UTC named once after them. */
+.editor-date-row {
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+.editor-date-row > .astryx-field {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.editor-date-zone {
+  flex: 0 0 auto;
+  padding-block-end: var(--spacing-2);
+}
+
+/* Project sections: small headings, left-aligned adds, glyph controls. */
+.editor-sections-title {
+  font-size: var(--text-body-size);
+  font-weight: var(--font-weight-semibold);
+  margin-block-start: var(--spacing-3);
+}
+.editor-section-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.editor-homepage-row {
+  min-height: var(--spacing-11);
 }

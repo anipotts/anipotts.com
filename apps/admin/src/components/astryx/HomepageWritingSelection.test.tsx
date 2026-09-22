@@ -40,8 +40,10 @@ it("retains unresolved and unpublished selections while moving or removing only 
       />,
     ),
   );
-  expect(host.textContent).toContain("unresolved selection");
-  expect(host.textContent).toContain("not published");
+  // Only exceptions carry a chip: an address that resolves to nothing, and
+  // an article that is not published.
+  expect(host.textContent).toContain("Unresolved");
+  expect(host.textContent).toContain("Not published");
   expect(onChange).not.toHaveBeenCalled();
   act(() =>
     host
@@ -58,7 +60,7 @@ it("retains unresolved and unpublished selections while moving or removing only 
   expect(value).toEqual(["missing", "private", "missing"]);
   await act(async () => root.unmount());
 });
-it("adds only an explicitly chosen published article and disables all edits", async () => {
+it("adds a published article as soon as it is chosen and disables all edits", async () => {
   const host = document.createElement("div");
   const root = createRoot(host);
   const onChange = vi.fn();
@@ -74,21 +76,13 @@ it("adds only an explicitly chosen published article and disables all edits", as
   expect(
     [...host.querySelectorAll("option")].map((option) => option.value),
   ).toEqual(["", "live"]);
-  expect(
-    [...host.querySelectorAll("button")].find(
-      (button) => button.textContent === "Add article",
-    )!.disabled,
-  ).toBe(true);
+  expect(onChange).not.toHaveBeenCalled();
+  // Choosing an article adds it at once.
   act(() => {
     const select = host.querySelector("select")!;
     select.value = "live";
     select.dispatchEvent(new Event("change", { bubbles: true }));
   });
-  act(() =>
-    [...host.querySelectorAll("button")]
-      .find((button) => button.textContent === "Add article")!
-      .click(),
-  );
   expect(onChange).toHaveBeenLastCalledWith(["missing", "live"]);
   await act(async () =>
     root.render(
@@ -101,7 +95,10 @@ it("adds only an explicitly chosen published article and disables all edits", as
     ),
   );
   expect(
-    [...host.querySelectorAll("button")].every((button) => button.disabled),
+    [...host.querySelectorAll("button")].every(
+      (button) =>
+        button.disabled || button.getAttribute("aria-disabled") === "true",
+    ),
   ).toBe(true);
   expect(host.querySelector("select")!.disabled).toBe(true);
   expect(

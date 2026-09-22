@@ -83,7 +83,7 @@ export function RecordPanel({
   useEffect(() => {
     const container =
       containerRef?.current ??
-      marker.current?.closest<HTMLElement>("main") ??
+      marker.current?.closest<HTMLElement>("#astryx-app-shell-main, main") ??
       marker.current?.closest<HTMLElement>("[data-record-workspace]") ??
       marker.current?.parentElement;
     const measure = () => {
