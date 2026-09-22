@@ -16,6 +16,6 @@
   },
   "devDependencies": {
     "@types/bun": "^1.2.23",
-    "typescript": "^5"
+    "typescript": "^7"
   }
 }
