@@ -1,16 +1,10 @@
-/* Observability draws with the workspace kit; only ops marks live here.
-   The workspace is the kit's `workspace` container, so an alert opens beside
-   its list on a wide content area (workspace.css). */
+/* Observability draws with the workspace kit (components/workspace) and the
+   split view (styles/shell.css); only ops cells, cards, the entry panel and
+   its lists live here. Depth is tint and spacing, never a rule; focus is a
+   tint, never a ring. */
 .observability-workspace {
   container: workspace / inline-size;
   min-width: 0;
-}
-.observability-workspace .ops-state {
-  display: inline-flex;
-}
-.observability-workspace .ops-id {
-  font-family: var(--font-family-code, ui-monospace, monospace);
-  font-size: 0.92em;
 }
 
 /* Rows hold 36px on wide screens, like the controls around them. */
@@ -18,22 +12,118 @@
   height: var(--spacing-9);
 }
 
-/* A state cell and a phone row's line 2: the chip, the reason, and a
-   non-zero exit or an overrun budget as a critical figure. */
-.observability-workspace .ops-state-cell {
-  min-width: 0;
-}
-.observability-workspace .ops-reason {
-  min-width: 0;
-  overflow: hidden;
+/* Cells. */
+.ops-muted {
+  color: var(--color-text-secondary);
   white-space: nowrap;
-  text-overflow: ellipsis;
 }
-.observability-workspace .ops-exit,
-.observability-workspace .ops-over {
+.ops-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.ops-inline-glyph {
+  flex: none;
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+  color: var(--color-text-secondary);
+}
+.ops-warning {
+  color: var(--color-text-orange, var(--color-text-warning, currentColor));
+}
+.ops-reason {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+  max-width: 100%;
+}
+.ops-exit {
   flex: none;
   color: var(--color-text-red, var(--color-error));
   white-space: nowrap;
+}
+/* A last success over its own budget: the warning ink and a glyph whose
+   tooltip names the budget. */
+.ops-last {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  white-space: nowrap;
+}
+.ops-last[data-over="true"] .workspace-time {
+  color: var(--color-text-orange, var(--color-text-warning, currentColor));
+}
+.ops-over {
+  display: inline-flex;
+  flex: none;
+  color: var(--color-text-orange, var(--color-text-warning, currentColor));
+}
+.ops-over > svg {
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+}
+.ops-due {
+  display: inline-flex;
+  align-items: baseline;
+  white-space: nowrap;
+}
+.ops-approx {
+  color: var(--color-text-secondary);
+}
+/* The trigger glyph, muted, on the tile column. */
+.ops-trigger {
+  display: inline-flex;
+  color: var(--color-text-secondary);
+  vertical-align: middle;
+}
+.ops-trigger > svg {
+  width: var(--spacing-5);
+  height: var(--spacing-5);
+}
+/* A past state: its name only, muted, so it never reads as current. */
+.ops-past {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+.ops-change {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+  max-width: 100%;
+}
+.ops-change > * {
+  flex: none;
+}
+.ops-change > .workspace-detail-text {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+/* No budget from System: a dashed mark and its reason, muted, never a
+   chip that could read as a judgement. */
+.ops-unjudged {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+.ops-unjudged > svg {
+  flex: none;
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+}
+.ops-run-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+.ops-run-ok > .workspace-state-quiet {
+  padding-inline-start: 0;
 }
 
 /* Hosts and the exception counts share one line above the table. */
@@ -43,46 +133,232 @@
   align-items: center;
   gap: var(--spacing-3);
 }
-.ops-hosts,
 .ops-counts {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--spacing-2);
-  margin: 0;
+  margin: 0 0 0 auto;
   padding: 0;
   list-style: none;
 }
-.ops-counts {
-  align-items: center;
-  margin-inline-start: auto;
+
+/* Cards: a host or a sync on the table's surface, two lines beside a 28px
+   tile. The whole card opens the entry's panel. */
+.ops-cards {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
 }
-.ops-host {
-  --row-mark-size: var(--spacing-6);
+.ops-hosts {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+.ops-hosts > .ops-card {
+  flex: 0 0 18rem;
+  max-width: 100%;
+  min-width: 0;
+}
+.ops-syncs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: var(--spacing-2);
+}
+.ops-card {
+  min-width: 0;
+  scroll-margin-block: var(--spacing-12);
+}
+.ops-card-link {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: var(--spacing-12);
+  height: 100%;
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--radius-container);
+  background-color: var(--color-background-surface);
+  color: inherit;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+@media (hover: hover) {
+  .ops-card-link:hover {
+    background-image: linear-gradient(
+      var(--color-overlay-hover),
+      var(--color-overlay-hover)
+    );
+  }
+}
+.ops-card-link:active {
+  background-image: linear-gradient(
+    var(--color-overlay-pressed, var(--color-overlay-hover)),
+    var(--color-overlay-pressed, var(--color-overlay-hover))
+  );
+}
+.ops-card[data-open="true"] > .ops-card-link {
+  background-image: linear-gradient(var(--color-neutral), var(--color-neutral));
+}
+html[data-astryx-theme] .ops-card-link:focus-visible {
+  background-color: var(--color-accent-muted);
+  background-image: none;
+}
+.ops-card-tile {
+  display: inline-flex;
+  flex: none;
+}
+.ops-card-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ops-card-line {
   display: flex;
   align-items: center;
   gap: var(--spacing-2);
   min-width: 0;
-  min-height: var(--spacing-9);
-  padding-inline: var(--spacing-2) var(--spacing-3);
-  background: var(--color-background-surface);
-  border-radius: var(--radius-container);
-  scroll-margin-block: var(--spacing-12);
+  min-height: var(--spacing-6);
 }
-.ops-host-name,
-.ops-host-detail {
+.ops-card-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: var(--font-weight-medium, 500);
+}
+.ops-card-state {
+  display: inline-flex;
+  flex: none;
+  margin-inline-start: auto;
+}
+.ops-card-meta {
+  font-size: var(--text-supporting-size);
+  color: var(--color-text-secondary);
+}
+.ops-card-facts {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+.ops-card-end {
+  display: inline-flex;
+  flex: none;
+  margin-inline-start: auto;
   white-space: nowrap;
 }
-
-/* The detail's way back sits on the content's start edge. */
-.observability-workspace .ops-detail-back {
-  align-self: flex-start;
-  margin-inline-start: calc(-1 * var(--spacing-2));
+.ops-card-detail {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ops-card-meta .workspace-time {
+  color: inherit;
+}
+/* A fact on a card: a muted glyph and its value. */
+.ops-fact {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  min-width: 0;
+  white-space: nowrap;
+}
+.ops-fact > svg {
+  flex: none;
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+}
+.ops-fact > .brand-tile {
+  flex: none;
+}
+/* Disk use: a short meter in the host's own tone. */
+.ops-meter {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: var(--spacing-8);
+  height: var(--spacing-1);
+  margin-inline-start: var(--spacing-1);
+  border-radius: 999px;
+  background: var(--color-neutral);
+  overflow: hidden;
+}
+.ops-meter > span {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  border-radius: inherit;
+  background: var(--color-text-secondary);
+}
+.ops-meter[data-tone="positive"] > span {
+  background: var(--color-success, var(--color-text-green, currentColor));
+}
+.ops-meter[data-tone="warning"] > span {
+  background: var(--color-warning, var(--color-text-orange, currentColor));
+}
+.ops-meter[data-tone="critical"] > span {
+  background: var(--color-error, var(--color-text-red, currentColor));
 }
 
-/* A link into Status tints the row it lands on for a moment. */
-.observability-workspace [data-landed] {
+/* Activity: the chip that shows plumbing, and linked rows (runs and
+   changes open their entry) taking the row's hover and tap. */
+.ops-chip-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: var(--spacing-8);
+  padding: 0 var(--spacing-3);
+  border: 0;
+  border-radius: var(--radius-inner);
+  background: var(--color-neutral);
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--text-supporting-size);
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ops-chip-toggle[aria-pressed="true"] {
   background-color: var(--color-accent-muted);
-  transition: background-color 600ms ease-out;
+  color: var(--color-text-accent, var(--color-accent));
+}
+@media (hover: hover) {
+  .ops-chip-toggle:hover {
+    color: var(--color-text-primary);
+  }
+}
+.ops-chip-count {
+  color: inherit;
+}
+.observability-workspace
+  .workspace-table[data-interactive="false"]
+  tbody
+  tr:has(.workspace-row-link) {
+  position: relative;
+}
+@media (hover: hover) {
+  .observability-workspace
+    .workspace-table[data-interactive="false"]
+    tbody
+    tr:has(.workspace-row-link):hover {
+    background-color: var(--color-overlay-hover);
+    cursor: pointer;
+  }
+}
+.observability-workspace
+  .workspace-table[data-interactive="false"]
+  tbody
+  tr:has(.workspace-row-link):active {
+  background-color: var(--color-overlay-pressed, var(--color-overlay-hover));
 }
 
 /* The source menu's counts. Its items take the shared touch size
@@ -91,6 +367,115 @@
   color: var(--color-text-secondary);
 }
 
+/* The open row keeps a quiet tint, apart from the focus tint. */
+.ops-split
+  .admin-split-list
+  tbody
+  tr:has(
+    .workspace-row-link[aria-current="true"],
+    .workspace-row-link[aria-pressed="true"]
+  ):not(:hover) {
+  background-color: var(--color-neutral);
+}
+
+/* The entry panel: a pinned header (the way back or out, the tile, the
+   name and its state), then facts, actions and short lists. */
+.ops-split {
+  --admin-split-panel-size: 30rem;
+}
+.ops-panel {
+  outline: none;
+  scroll-margin-block-start: var(--spacing-12);
+}
+.ops-panel-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  min-width: 0;
+}
+.ops-panel-header > .astryx-button {
+  flex: none;
+  margin-inline-start: calc(-1 * var(--spacing-2));
+}
+.ops-panel-title:not(#\#) {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-size-heading-3, 18px);
+  line-height: var(--spacing-7);
+}
+.ops-panel-badge {
+  display: inline-flex;
+  flex: none;
+}
+.ops-panel-actions {
+  min-width: 0;
+}
+.ops-panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+.ops-panel-heading:not(#\#) {
+  margin: 0;
+  font-size: var(--text-body-size);
+  line-height: var(--spacing-6);
+}
+.ops-panel-empty {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin: 0;
+  min-height: var(--spacing-9);
+}
+/* Runs, changes and incidents: one line each, the time, the result, then a
+   figure or a detail that gives way first. */
+.ops-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+.ops-list-item {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, auto) minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--spacing-3);
+  min-width: 0;
+  min-height: var(--spacing-9);
+}
+.ops-list-item > .workspace-time {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+.ops-list-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+.ops-list-figure {
+  justify-self: end;
+  white-space: nowrap;
+}
+.ops-list-detail {
+  min-width: 0;
+}
+
+/* A link into Status tints the row or card it lands on for a moment. */
+.observability-workspace [data-landed] {
+  background-color: var(--color-accent-muted);
+  transition: background-color 600ms ease-out;
+}
+
+/* Compact: cards are rows flush on the body colour, full bleed with their
+   content on the gutter, like every other list. */
 @media (max-width: 640px) {
   .observability-workspace .workspace-table .astryx-table-cell {
     height: auto;
@@ -101,14 +486,48 @@
   .ops-counts {
     margin-inline-start: 0;
   }
-  .ops-host {
-    --row-mark-size: var(--spacing-7);
+  .ops-cards:not(#\#) {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    width: calc(100% + 2 * var(--admin-gutter, 0px));
+    margin-inline: calc(-1 * var(--admin-gutter, 0px));
+  }
+  .ops-hosts > .ops-card {
+    flex: none;
+  }
+  .ops-overview > .ops-hosts {
     flex: 1 1 100%;
+  }
+  .ops-card-link {
+    min-height: calc(var(--spacing-12) + var(--spacing-2));
+    padding-inline: var(--admin-gutter, var(--spacing-3));
+    border-radius: 0;
+    background-color: transparent;
+  }
+  .ops-card[data-open="true"] > .ops-card-link {
+    background-image: none;
+  }
+  .ops-list-item {
+    grid-template-columns: 6.5rem minmax(0, auto) minmax(0, 1fr);
+    min-height: var(--spacing-11);
+  }
+  /* The open entry is the page: flush on the body colour, its content on
+     the gutter, its short facts still in two columns. */
+  .ops-panel:not(#\#) {
+    background: transparent;
+    border-radius: 0;
+  }
+  .ops-panel .admin-split-panel-header,
+  .ops-panel .admin-split-panel-body {
     padding-inline: 0;
     background: transparent;
   }
-  .ops-host-detail {
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .ops-panel .admin-split-panel-header {
+    padding-block-start: 0;
+  }
+  .ops-panel .workspace-definition:not(#\#) {
+    grid-template-columns: 8.5rem minmax(0, 1fr);
+    row-gap: 0;
   }
 }
