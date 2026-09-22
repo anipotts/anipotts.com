@@ -103,8 +103,9 @@ describe("SplitView", () => {
     expect(panel).toContain("position: sticky");
     expect(panel).toContain("overflow-y: auto");
     expect(panel).toContain("overscroll-behavior: contain");
+    // The room below the panel's own top (measured), else main's height.
     expect(panel).toMatch(
-      /max-block-size: calc\( ?var\(--admin-main-block-size/,
+      /max-block-size: var\(\s*--admin-split-panel-room,\s*calc\( ?var\(--admin-main-block-size/,
     );
     const header = rule(
       '.admin-split-grid[data-panel-open="true"] .admin-split-panel-header',

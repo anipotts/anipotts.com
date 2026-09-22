@@ -89,19 +89,36 @@
   color: var(--color-text-secondary);
   white-space: nowrap;
 }
+/* What changed, on one line. Its detail needs 4.5rem to say anything; with
+   less it wraps onto a second line that the cell's one-line height hides,
+   so a narrow cell never shows a one-glyph sliver. */
 .ops-change {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--spacing-2);
+  column-gap: var(--spacing-2);
   min-width: 0;
   max-width: 100%;
+  max-block-size: var(--spacing-6);
+  overflow: hidden;
 }
 .ops-change > * {
   flex: none;
 }
 .ops-change > .workspace-detail-text {
   flex: 0 1 auto;
-  min-width: 0;
+  min-width: min(4.5rem, 100%);
+  line-height: var(--spacing-6);
+}
+/* A run's or read's duration beside its result where Took has dropped. */
+.ops-change-took {
+  display: none;
+  color: var(--color-text-secondary);
+}
+@media (min-width: 641px) and (max-width: 1023px) {
+  .ops-change-took {
+    display: inline-flex;
+  }
 }
 .ops-burst {
   color: var(--color-text-secondary);
@@ -331,6 +348,17 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
+/* The chip reads 32px; on touch its target is 44px. */
+@media (pointer: coarse), (max-width: 640px) {
+  .ops-chip-toggle {
+    position: relative;
+  }
+  .ops-chip-toggle::before {
+    content: "";
+    position: absolute;
+    inset: calc((var(--spacing-8) - var(--spacing-11)) / 2) 0;
+  }
+}
 .ops-chip-toggle[aria-pressed="true"] {
   background-color: var(--color-accent-muted);
   color: var(--color-text-accent, var(--color-accent));
@@ -489,11 +517,6 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
   }
   .ops-counts {
     margin-inline-start: 0;
-  }
-  /* The page's controls sit on the title's line, not the middle of a
-     title block that wraps. */
-  .observability-workspace .workspace-page-header {
-    align-items: flex-start;
   }
   .ops-cards:not(#\#) {
     display: flex;

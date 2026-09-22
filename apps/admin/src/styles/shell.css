@@ -199,8 +199,11 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   .admin-split-grid[data-panel-open="true"] > .admin-split-panel {
     position: sticky;
     inset-block-start: var(--spacing-5);
-    max-block-size: calc(
-      var(--admin-main-block-size, 100dvh) - 2 * var(--spacing-5)
+    /* SplitView measures the room below the panel's own top as main
+       scrolls; before it does, main's height less the insets. */
+    max-block-size: var(
+      --admin-split-panel-room,
+      calc(var(--admin-main-block-size, 100dvh) - 2 * var(--spacing-5))
     );
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -340,10 +343,17 @@ body [data-astryx-theme]:not([data-astryx-media]) {
    the sidebar's own selected fill, so keyboard focus (a tint) stays
    distinct from it. Chip boxes start on the gutter. */
 .admin-phone-page {
+  position: relative;
   min-height: var(--spacing-9);
   margin-block: calc((var(--spacing-11) - var(--spacing-9)) / 2);
   padding-inline: var(--spacing-3);
   font-size: var(--text-body-size, var(--font-size-base));
+}
+/* The chip reads 36px; its target is the row's full 44px. */
+.admin-phone-page::before {
+  content: "";
+  position: absolute;
+  inset: calc((var(--spacing-9) - var(--spacing-11)) / 2) 0;
 }
 .admin-phone-page[aria-current="page"] {
   background: var(--color-neutral);

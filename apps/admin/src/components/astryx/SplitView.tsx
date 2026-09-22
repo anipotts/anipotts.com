@@ -18,7 +18,9 @@ import React, {
  * - From SPLIT_VIEW_MIN_WIDTH of its own width, an open panel sits beside
  *   the list, sticks to the top of the main panel as the list scrolls, and
  *   scrolls its own content, so the sidebar, the list and the panel each
- *   scroll on their own. Its header stays pinned while its body scrolls.
+ *   scroll on their own. Its header stays pinned while its body scrolls, and
+ *   its height is the room below its own top (useFitPanel), so its end is
+ *   always in view.
  * - Narrower (tablets with the full sidebar, phones), an open panel is the
  *   page: the list steps aside and the panel scrolls with the page, under
  *   the phone's sticky top bar.
@@ -65,6 +67,7 @@ export function SplitView({
     return () => observer.disconnect();
   }, []);
   const open = panel !== null && panel !== undefined && panel !== false;
+  useFitPanel(frame, split && open);
   return (
     <SplitContext value={split}>
       <div
@@ -86,6 +89,61 @@ export function SplitView({
       </div>
     </SplitContext>
   );
+}
+
+/**
+ * Beside the list the panel sticks under the top of main, but it starts
+ * lower, under the page's title and filters. Sized to main's height it would
+ * hang past the viewport until main scrolled, hiding its last lines. This
+ * sizes it to the room left below its own top instead, following main's
+ * scroll, so its bottom always rests on the viewport's edge.
+ */
+function useFitPanel(
+  frame: React.RefObject<HTMLDivElement | null>,
+  active: boolean,
+) {
+  useIsomorphicLayoutEffect(() => {
+    const node = frame.current;
+    const panel = node?.querySelector<HTMLElement>(
+      ":scope > .admin-split-grid > .admin-split-panel",
+    );
+    if (!node || !panel || !active) return;
+    const scroller = node.closest<HTMLElement>("#astryx-app-shell-main");
+    let frameId = 0;
+    const fit = () => {
+      frameId = 0;
+      const gap = parseFloat(getComputedStyle(panel).insetBlockStart) || 0;
+      const view = scroller?.getBoundingClientRect() ?? {
+        top: 0,
+        bottom: window.innerHeight,
+      };
+      const bottom = Math.min(view.bottom, window.innerHeight);
+      const top = Math.max(panel.getBoundingClientRect().top, view.top + gap);
+      panel.style.setProperty(
+        "--admin-split-panel-room",
+        `${Math.max(Math.floor(bottom - top - gap), 160)}px`,
+      );
+    };
+    const schedule = () => {
+      if (!frameId) frameId = requestAnimationFrame(fit);
+    };
+    fit();
+    const target: HTMLElement | Window = scroller ?? window;
+    target.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(schedule);
+    observer?.observe(node);
+    return () => {
+      if (frameId) cancelAnimationFrame(frameId);
+      target.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      observer?.disconnect();
+      panel.style.removeProperty("--admin-split-panel-room");
+    };
+  }, [active]);
 }
 
 /** The open item: a surface whose header stays pinned while its body

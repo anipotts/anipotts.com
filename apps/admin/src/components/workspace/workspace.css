@@ -14,14 +14,56 @@
   width: 100%;
   min-width: 0;
 }
+/* The title line is as tall as its largest action (36px, 44px on touch and
+   phones), whether the page has one or not, and the actions and the clock
+   sit on it, so the title never moves between sibling pages and the meta
+   line hangs below. Every part of the line keeps that height, so a badge
+   that wraps, or actions that drop under a long title on a narrow phone,
+   never move the title itself. */
 .workspace-page-header {
-  min-height: var(--spacing-9);
-}
-.workspace-page-title {
+  --workspace-page-line: var(--spacing-9);
   min-width: 0;
+}
+@media (pointer: coarse), (max-width: 640px) {
+  .workspace-page-header {
+    --workspace-page-line: var(--spacing-11);
+  }
+}
+.workspace-page-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  column-gap: var(--spacing-3);
+  min-width: 0;
+}
+.workspace-page-title:not(#\#) {
+  flex: 1 1 auto;
+  min-width: 0;
+  row-gap: 0;
+}
+.workspace-page-title > h1,
+.workspace-page-end {
+  display: flex;
+  align-items: center;
+  min-height: var(--workspace-page-line);
+}
+.workspace-page-title > h1 {
+  margin-block: 0;
+}
+.workspace-page-end {
+  flex: 0 0 auto;
+  gap: var(--spacing-3);
+  margin-inline-start: auto;
 }
 .workspace-page-actions {
   flex: 0 0 auto;
+}
+/* The live Eastern clock: quiet, tabular, one line. */
+.workspace-clock {
+  color: var(--color-text-secondary);
+  font-size: var(--text-supporting-size);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 /* Times, counts and codes line up in columns and stay on one line. */
 .workspace-time,
@@ -603,6 +645,16 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   .workspace-table-frame {
     --workspace-table-min: var(--workspace-table-min-compact);
   }
+  /* Sample data is its flask alone beside a phone's title; the words stay
+     for assistive technology. */
+  .workspace-sample > span:not(#\#) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
   /* The id-free :not(#\#) outranks the page frame's max-width on stacks. */
   .workspace-table:not(#\#),
   .workspace-skeleton:not(#\#) {
@@ -744,6 +796,15 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
 }
 .workspace-copy-value > .astryx-button {
   flex: none;
+}
+/* In a definition list the value fills its column and the button ends it,
+   so the copy buttons line up down the list, as History's do. */
+.workspace-definition > dd > .workspace-copy-value {
+  display: flex;
+  width: 100%;
+}
+.workspace-definition > dd > .workspace-copy-value > .workspace-copy-text {
+  flex: 1 1 auto;
 }
 /* The collapsed technical fields sit under the readable ones. Each value is
    one line beside its copy button, so the label centres on the button. */

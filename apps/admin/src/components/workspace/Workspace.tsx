@@ -123,18 +123,25 @@ import "./workspace.css";
 /** Notice and chip copy never ends on a period. */
 const unpunctuated = (text: string) => text.replace(/\.\s*$/, "");
 
-/** Page title, its count, one supporting line and the page's own actions. */
+/** Page title, its count, one supporting line and the page's own actions.
+ * The title line has one fixed height, the largest action's (36px, 44px on
+ * phones), and carries the actions and the live Eastern clock, so the title
+ * sits at the same place on every page and the meta line hangs below it. */
 export function WorkspacePage({
   title,
   count,
   meta,
   badge,
   actions,
+  clock,
   children,
 }: {
   title: string;
   /** How many records the page lists, beside the title. */
   count?: number;
+  /** A fixed clock for the page (a fixture read at its own moment, a test):
+   * the Eastern clock shows it and never ticks, like the page's ages. */
+  clock?: number;
   /** One short status line, only when the state needs it. It is not a live
    * region, so a ticking age is never announced. */
   meta?: ReactNode;
@@ -145,14 +152,14 @@ export function WorkspacePage({
 }) {
   return (
     <VStack gap={5} className="workspace-page">
-      <HStack
-        gap={3}
-        hAlign="between"
-        vAlign="center"
-        className="workspace-page-header"
-      >
-        <VStack gap={1} className="workspace-page-title">
-          <HStack gap={3} vAlign="center" wrap="wrap">
+      <VStack gap={1} className="workspace-page-header">
+        <div className="workspace-page-line">
+          <HStack
+            gap={3}
+            vAlign="center"
+            wrap="wrap"
+            className="workspace-page-title"
+          >
             <Heading level={1}>{title}</Heading>
             {count !== undefined && (
               <Text color="secondary" className="workspace-count">
@@ -161,20 +168,103 @@ export function WorkspacePage({
             )}
             {badge}
           </HStack>
-          {meta && (
-            <Text type="supporting" color="secondary">
-              {meta}
-            </Text>
-          )}
-        </VStack>
-        {actions && (
-          <HStack gap={2} vAlign="center" className="workspace-page-actions">
-            {actions}
-          </HStack>
+          <div className="workspace-page-end">
+            <EasternClock now={clock} />
+            {actions && (
+              <HStack
+                gap={2}
+                vAlign="center"
+                className="workspace-page-actions"
+              >
+                {actions}
+              </HStack>
+            )}
+          </div>
+        </div>
+        {meta && (
+          <Text
+            type="supporting"
+            color="secondary"
+            className="workspace-page-meta"
+          >
+            {meta}
+          </Text>
         )}
-      </HStack>
+      </VStack>
       {children}
     </VStack>
+  );
+}
+
+const EASTERN_TIME = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York",
+  hour: "numeric",
+  minute: "2-digit",
+  second: "2-digit",
+});
+const EASTERN_DATE = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York",
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+});
+
+const EASTERN_PARTS = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York",
+  hourCycle: "h23",
+  year: "numeric",
+  month: "numeric",
+  day: "numeric",
+  hour: "numeric",
+  minute: "numeric",
+  second: "numeric",
+});
+
+/** Minutes east of UTC for a moment in New York: -240 in summer. */
+function easternOffset(ms: number): number {
+  const parts = Object.fromEntries(
+    EASTERN_PARTS.formatToParts(ms).map((part) => [part.type, part.value]),
+  );
+  const local = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    Number(parts.hour),
+    Number(parts.minute),
+    Number(parts.second),
+  );
+  return Math.round((local - Math.floor(ms / 1000) * 1000) / 60_000);
+}
+
+/** "3:55:12 PM ET": the clock time in America/New_York, to the second. */
+export function easternClockText(ms: number): string {
+  return `${EASTERN_TIME.format(ms)} ET`;
+}
+
+/** "Tuesday, September 22, 2026, UTC-04:00": the day and the offset. */
+export function easternClockTitle(ms: number): string {
+  const offset = easternOffset(ms);
+  const sign = offset < 0 ? "-" : "+";
+  const hours = String(Math.floor(Math.abs(offset) / 60)).padStart(2, "0");
+  const minutes = String(Math.abs(offset) % 60).padStart(2, "0");
+  return `${EASTERN_DATE.format(ms)}, UTC${sign}${hours}:${minutes}`;
+}
+
+/**
+ * The live Eastern Time clock on every workspace page's title line. It reads
+ * the one shared clock every relative time reads (lib/live-clock.ts), so
+ * "12s ago" and the clock tick together and never disagree. Quiet: no label,
+ * tabular figures, the full date and UTC offset as its tooltip. The server
+ * writes its own second; the browser's replaces it on hydration.
+ */
+export function EasternClock({ now }: { now?: number }) {
+  const text = useLiveText(easternClockText, Date.now(), now);
+  const title = useLiveText((live) => easternClockTitle(live), Date.now(), now);
+  return (
+    <time className="workspace-clock" title={title} suppressHydrationWarning>
+      {text}
+    </time>
   );
 }
 

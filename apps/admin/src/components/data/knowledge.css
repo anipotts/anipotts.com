@@ -3,6 +3,13 @@
    page's reading measure and its record links. No rules: parts are set
    apart by space alone. */
 
+/* The list is the toolbar's container, as Records' is, so from 760px the
+   search and the kind chips share one row (data-workspace.css). */
+.knowledge-list {
+  container: workspace-list / inline-size;
+  min-width: 0;
+}
+
 .knowledge-panel-header {
   min-width: 0;
 }

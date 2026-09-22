@@ -207,6 +207,13 @@ export function EntryPanel({
           items={[
             { label: "Catalog ID", value: subject },
             { label: "Runbook path", value: runbook },
+            // System's retired owner taxonomy: kept out of the facts.
+            {
+              label: "Owner",
+              node: service?.owner ? (
+                <span className="ops-muted">{service.owner}</span>
+              ) : undefined,
+            },
           ]}
         />
       </VStack>
@@ -378,7 +385,6 @@ function EntryFacts({
             {deviceName(service.host)}
           </span>,
         ],
-        ["Owner", service.owner],
         ["Group", sentenceCase(service.group)],
       ]}
     />

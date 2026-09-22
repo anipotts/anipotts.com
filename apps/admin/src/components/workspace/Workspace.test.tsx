@@ -30,7 +30,10 @@ import {
   TechnicalSection,
   TierMark,
   ValueChips,
+  WorkspacePage,
   badgeFor,
+  easternClockText,
+  easternClockTitle,
   tableMinWidths,
   type Column,
 } from "./Workspace";
@@ -72,6 +75,49 @@ const html = (node: React.ReactElement) => {
   host.innerHTML = renderToStaticMarkup(node);
   return host;
 };
+
+describe("the page title line", () => {
+  it("tells Eastern time to the second, with its date and UTC offset", () => {
+    const summer = Date.parse("2026-09-22T19:55:12Z");
+    expect(easternClockText(summer)).toBe("3:55:12 PM ET");
+    expect(easternClockTitle(summer)).toBe(
+      "Tuesday, September 22, 2026, UTC-04:00",
+    );
+    const winter = Date.parse("2026-01-05T04:03:09Z");
+    expect(easternClockText(winter)).toBe("11:03:09 PM ET");
+    expect(easternClockTitle(winter)).toBe(
+      "Sunday, January 4, 2026, UTC-05:00",
+    );
+  });
+
+  it("puts the clock and the actions on the title line, the meta below", () => {
+    const at = Date.parse("2026-09-22T19:55:12Z");
+    const markup = renderToStaticMarkup(
+      <WorkspacePage
+        title="Records"
+        count={3}
+        meta="Live"
+        clock={at}
+        actions={<button type="button">Lock</button>}
+      />,
+    );
+    const host = document.createElement("div");
+    host.innerHTML = markup;
+    const line = host.querySelector(".workspace-page-line")!;
+    expect(line.querySelector("h1")?.textContent).toBe("Records");
+    expect(line.querySelector(".workspace-clock")?.textContent).toBe(
+      "3:55:12 PM ET",
+    );
+    expect(line.querySelector(".workspace-clock")?.getAttribute("title")).toBe(
+      "Tuesday, September 22, 2026, UTC-04:00",
+    );
+    expect(line.querySelector("button")?.textContent).toBe("Lock");
+    expect(line.querySelector(".workspace-page-meta")).toBeNull();
+    expect(host.querySelector(".workspace-page-meta")?.textContent).toBe(
+      "Live",
+    );
+  });
+});
 
 describe("DataTable", () => {
   it("counts only the columns each range shows toward the minimum width", () => {

@@ -64,7 +64,7 @@ const cell = (
 };
 /** The page's one status line under the title. */
 const meta = (host: HTMLElement) =>
-  host.querySelector(".workspace-page-title")?.lastElementChild?.textContent;
+  host.querySelector(".workspace-page-meta")?.textContent;
 
 describe("Status view from System's fixture", () => {
   const host = render(sample);
@@ -562,8 +562,17 @@ describe("an entry's panel", () => {
       Runs: "115 runs",
       "Freshness budget": "1h 15m",
       Host: "ap-mini",
-      Owner: "memory",
     });
+    // The retired owner taxonomy sits under Technical only.
+    const main = [...panel.querySelectorAll(".workspace-definition")].filter(
+      (row) => !row.closest(".workspace-technical"),
+    );
+    expect(
+      main.map((row) => row.querySelector("dt")?.textContent),
+    ).not.toContain("Owner");
+    expect(panel.querySelector(".workspace-technical")?.textContent).toContain(
+      "memory",
+    );
     const runbook = [...panel.querySelectorAll("a")].find(
       (link) => link.textContent === "Runbook on GitHub",
     )!;
@@ -856,6 +865,13 @@ describe("a fixture reads a fixed clock", () => {
   });
 });
 
+/** A cell's text without the duration only medium widths show. */
+const shown = (element: Element) => {
+  const copy = element.cloneNode(true) as Element;
+  copy.querySelectorAll(".ops-change-took").forEach((node) => node.remove());
+  return copy.textContent;
+};
+
 describe("Activity and Alerts from the synthetic events fixture", () => {
   const view = (
     name: "activity" | "alerts",
@@ -959,7 +975,9 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
     const change = (index: number) =>
       cell(host, "", "Change", bodyRows(host)[index]);
     const sources = change(0);
-    expect(sources.textContent).toBe("200");
+    expect(shown(sources)).toBe("200");
+    // Where Took drops (medium), the Change cell carries the latency.
+    expect(sources.querySelector(".ops-change-took")?.textContent).toBe("33ms");
     expect(
       sources.querySelector("[data-tone]")?.getAttribute("data-tone"),
     ).toBe("positive");
@@ -1061,7 +1079,7 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
     expect(change.querySelector(".ops-burst")?.getAttribute("title")).toBe(
       "3 reads",
     );
-    expect(change.textContent).toBe("200×33 reads");
+    expect(shown(change)).toBe("200×33 reads");
     // The burst's latency is its median, the spread its tooltip.
     const took = cell(host, "", "Took", burst);
     expect(took.textContent).toBe("50ms");
@@ -1133,6 +1151,20 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
     expect(bodyRows(host).length).toBe(before + plumbing);
     expect(host.textContent).toContain("Preflight");
     await act(async () => root.unmount());
+  });
+
+  it("never reads as complete while an event is unreadable", () => {
+    const items = (events as { items: Array<{ seq: number }> }).items;
+    const last = items.at(-1)!;
+    const broken = {
+      ...events,
+      items: [...items, { ...last, seq: last.seq + 1, at: "yesterday" }],
+    };
+    for (const name of ["activity", "alerts"] as const)
+      expect(view(name, null, broken).textContent).toContain(
+        "1 event unreadable",
+      );
+    expect(view("alerts").textContent).not.toContain("unreadable");
   });
 
   it("splits alerts into Firing and Resolved incidents, each row opening in admin", () => {

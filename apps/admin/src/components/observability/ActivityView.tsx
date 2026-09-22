@@ -95,9 +95,20 @@ function Burst({ count, noun }: { count: number; noun: [string, string] }) {
   );
 }
 
+/** How long it took, inside the Change cell, where the Took column has
+ * dropped (medium); CSS shows it only there. */
+function TookInline({ row }: { row: Row }) {
+  return (
+    <span className="ops-change-took" aria-hidden="true">
+      <Took row={row} />
+    </span>
+  );
+}
+
 /** What changed: the two states of a transition (the first state a burst
  * left and the last it entered), a run's result, a read's status code, each
- * with the burst's count. */
+ * with the burst's count. A detail that has no room left is dropped rather
+ * than shown as a sliver (observability-workspace.css). */
 function Change({ row, catalog }: { row: Row; catalog: OpsCatalog }) {
   const { latest, earliest } = row;
   if (latest.kind === "transition" && earliest.kind === "transition")
@@ -118,6 +129,7 @@ function Change({ row, catalog }: { row: Row; catalog: OpsCatalog }) {
           trigger={entryOf(latest, catalog)?.trigger}
         />
         {row.runs > 1 && <Burst count={row.runs} noun={["run", "runs"]} />}
+        <TookInline row={row} />
       </span>
     );
   if (latest.kind === "access")
@@ -125,6 +137,7 @@ function Change({ row, catalog }: { row: Row; catalog: OpsCatalog }) {
       <span className="ops-change">
         <HttpStatus status={worstStatus(row)} />
         {row.count > 1 && <Burst count={row.count} noun={["read", "reads"]} />}
+        <TookInline row={row} />
       </span>
     );
   return latest.detail ? <DetailText>{latest.detail}</DetailText> : null;
@@ -263,6 +276,9 @@ function activityColumns(catalog: OpsCatalog, now?: number): Column<Row>[] {
       header: "Took",
       width: CELL_WIDTHS.figure,
       numeric: true,
+      // Below large it rides in the Change cell, so Event and Change keep
+      // the width.
+      hideBelow: "large",
       render: (row) => <Took row={row} />,
     },
     {
