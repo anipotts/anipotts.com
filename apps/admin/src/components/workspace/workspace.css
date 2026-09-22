@@ -434,22 +434,30 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   height: var(--spacing-4);
 }
 
-/* Two panes on wide screens: the list and the open record. */
-.workspace-split {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--spacing-5);
-  align-items: start;
+/* A section heading that opens the section's page: the heading's own ink,
+   with a muted caret that takes the accent on hover and focus. */
+.workspace-section-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  min-height: var(--spacing-9);
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--radius-inner);
+  -webkit-tap-highlight-color: transparent;
 }
-@media (min-width: 1440px) {
-  .workspace-split[data-detail-open="true"] {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 30rem);
+.workspace-section-link-mark {
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+  color: var(--color-text-secondary);
+}
+@media (hover: hover) {
+  .workspace-section-link:hover .workspace-section-link-mark {
+    color: var(--color-text-accent, var(--color-accent));
   }
 }
-@media (max-width: 1439px) {
-  .workspace-split[data-detail-open="true"] > .workspace-split-list {
-    display: none;
-  }
+.workspace-section-link:focus-visible .workspace-section-link-mark {
+  color: var(--color-text-accent, var(--color-accent));
 }
 
 /* The overview's host strip: one tile per host on the page surface. */

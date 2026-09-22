@@ -1,89 +1,197 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@astryxdesign/core/Button";
-import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
 import {
-  ArticleIcon,
+  ArrowClockwiseIcon,
+  BrowserIcon,
   BriefcaseIcon,
-  EnvelopeIcon,
-  FileTextIcon,
+  EnvelopeSimpleIcon,
+  LinkBreakIcon,
+  PencilSimpleIcon,
+  ShieldWarningIcon,
   type Icon,
 } from "@phosphor-icons/react";
 import type { CatalogRecord } from "../astryx/EditorialApp";
-import { RecordStatus, Updated } from "../astryx/ContentLibrary";
 import {
-  AlertsTable,
   opsAlertRows,
+  opsEntryAnchor,
   useOpsData,
   type OpsViewProps,
 } from "../astryx/ObservabilityWorkspace";
+import type { OpsState } from "../../lib/ops-v1";
 import { LifeReadSession } from "../../lib/life-read-session";
 import type { LifeResult } from "../../data/personal-context";
 import { dataRecordHref } from "../../lib/data-routes";
 import type { DataFixture } from "../../lib/data-fixture-reader";
+import type { PrivateReaderSession } from "../../lib/private-reader-client";
+import { opsMark, shortName } from "../../lib/marks";
+import { sentenceCase } from "../../lib/sentence-case";
+import { BrandTile } from "../BrandTile";
 import {
   DataTable,
-  KindBadge,
   LoadingSkeleton,
   RelativeTime,
   RowTitle,
   SampleBadge,
+  StateBadge,
   StateNotice,
-  TierMark,
   WorkspacePage,
   WorkspaceSection,
 } from "../workspace/Workspace";
 import { useDataSession } from "../data/useDataSession";
-import {
-  DataSessionControl,
-  SessionNotice,
-  recordKindGlyph,
-} from "../data/DataWorkspace";
+import { ReadNotice, SessionNotice } from "../data/DataNotices";
+import { recordColumns } from "../data/RecordsView";
+import { parseItems, parseRecord } from "../data/data-model";
 
-/** A Content record's type, as the sidebar names its library. */
+/** A Content record's type, with the glyph its sidebar library uses. */
 export function contentType(record: CatalogRecord): [Icon, string] {
   return record.collection === "projects" ||
     record.href.startsWith("/content/projects/")
     ? [BriefcaseIcon, "Project"]
     : record.collection === "writing" ||
         record.href.startsWith("/content/writing/")
-      ? [ArticleIcon, "Writing"]
-      : record.href.startsWith("/newsletter/")
-        ? [EnvelopeIcon, "Newsletter"]
-        : [FileTextIcon, "Page"];
+      ? [PencilSimpleIcon, "Writing"]
+      : record.href.startsWith("/newsletter/") ||
+          record.href.startsWith("/content/newsletter/")
+        ? [EnvelopeSimpleIcon, "Newsletter"]
+        : [BrowserIcon, "Page"];
 }
 
-function ViewAll({ href }: { href: string }) {
-  return <Button label="View all" href={href} size="sm" variant="ghost" />;
-}
+type Down = { title: string; icon?: Icon; kind: "not-connected" | "error" };
 
-/** Firing alerts only; nothing at all when everything is clear. */
+/** Ops reads that failed, as one notice in place of the alerts. A reader
+ * that is switched off, connecting or fine says nothing here. */
+const OPS_DOWN: Partial<Record<string, Down>> = {
+  unreachable: {
+    title: "ap-mini unreachable",
+    icon: LinkBreakIcon,
+    kind: "not-connected",
+  },
+  unavailable: { title: "No current snapshot", kind: "error" },
+  rejected: { title: "Snapshot rejected", kind: "error" },
+  denied: { title: "Access refused", icon: ShieldWarningIcon, kind: "error" },
+  ended: { title: "Session ended", kind: "not-connected" },
+};
+
+type AlertItem = {
+  subject: string;
+  name: string;
+  state: OpsState;
+  since: string;
+  detail: string | null;
+  kind: string | null;
+} & Record<string, unknown>;
+
+/**
+ * Firing alerts only, and nothing at all when everything is clear. Each
+ * opens its entry in Status, where the runbook is. When ops cannot be read
+ * the section says so instead of reading as all clear.
+ */
 function FiringAlerts(props: OpsViewProps) {
   const data = useOpsData(props, true);
-  const firing = useMemo(
-    () =>
-      opsAlertRows(data.events, data.snapshot).filter(
-        (row) => row.status === "firing",
-      ),
-    [data.events, data.snapshot],
-  );
-  if (!firing.length) return null;
+  const firing = useMemo((): AlertItem[] => {
+    const catalog = new Map(
+      (data.snapshot?.catalog ?? []).map((entry) => [entry.id, entry]),
+    );
+    return opsAlertRows(data.events, data.snapshot)
+      .filter((row) => row.status === "firing")
+      .map((row) => ({
+        subject: row.subject,
+        name: row.name,
+        state: row.state,
+        since: row.since,
+        detail: row.detail,
+        kind: catalog.get(row.subject)?.kind ?? null,
+      }));
+  }, [data.events, data.snapshot]);
+  const down = data.fixtureMode ? undefined : OPS_DOWN[data.state.connection];
+  if (!firing.length && !down) return null;
   return (
-    <WorkspaceSection
-      title="Alerts"
-      actions={<ViewAll href="/observability/alerts" />}
-    >
-      <AlertsTable rows={firing} compact />
+    <WorkspaceSection title="Alerts" href="/observability/alerts">
+      {down && (
+        <StateNotice
+          kind={down.kind}
+          icon={down.icon}
+          title={down.title}
+          action={
+            data.retry ? (
+              <Button
+                label="Try again"
+                size="sm"
+                variant="secondary"
+                icon={
+                  <ArrowClockwiseIcon weight="regular" aria-hidden="true" />
+                }
+                onClick={data.retry}
+              />
+            ) : undefined
+          }
+        />
+      )}
+      {firing.length > 0 && (
+        <DataTable
+          rows={firing}
+          rowKey="subject"
+          label="Firing alerts"
+          noun={["alert", "alerts"]}
+          footer={false}
+          columns={[
+            {
+              key: "alert",
+              header: "Alert",
+              render: (row) => {
+                const tile = opsMark({ id: row.subject, kind: row.kind });
+                const name = sentenceCase(shortName(row.name, tile.id));
+                return (
+                  <RowTitle
+                    mark={<BrandTile id={tile.id} kind={tile.kind} />}
+                    kind="Firing alert"
+                    title={name}
+                    href={`/observability/status#${opsEntryAnchor(row.subject)}`}
+                    linkLabel={`${name} status`}
+                    tooltip={
+                      row.detail ? `${row.subject}, ${row.detail}` : row.subject
+                    }
+                    mobile={<StateBadge domain="ops" state={row.state} />}
+                    time={row.since}
+                  />
+                );
+              },
+            },
+            {
+              key: "state",
+              header: "State",
+              width: 120,
+              render: (row) => <StateBadge domain="ops" state={row.state} />,
+            },
+            {
+              key: "since",
+              header: "Since",
+              width: 96,
+              render: (row) => <RelativeTime value={row.since} />,
+            },
+          ]}
+        />
+      )}
     </WorkspaceSection>
+  );
+}
+
+/** A content row's non-default state, and unpublished changes. */
+function ContentState({ record }: { record: CatalogRecord }) {
+  return (
+    <>
+      <StateBadge domain="content" state={record.status} />
+      {record.changesPending && (
+        <StateBadge tone="neutral" label="Changes pending" />
+      )}
+    </>
   );
 }
 
 function RecentContent({ records }: { records: CatalogRecord[] }) {
   return (
-    <WorkspaceSection
-      title="Recent content"
-      actions={<ViewAll href="/content/pages" />}
-    >
+    <WorkspaceSection title="Recent content">
       {records.length ? (
         <DataTable
           rows={records}
@@ -103,55 +211,52 @@ function RecentContent({ records }: { records: CatalogRecord[] }) {
                     kind={type}
                     title={item.title}
                     href={item.href}
-                    mobile={
-                      <>
-                        <KindBadge icon={glyph} label={type} />
-                        <RecordStatus status={item.status} />
-                      </>
-                    }
+                    mobile={<ContentState record={item} />}
                     time={item.updated?.at}
                   />
                 );
               },
             },
             {
-              key: "type",
-              header: "Type",
-              width: 136,
-              render: (item) => {
-                const [glyph, type] = contentType(item);
-                return <KindBadge icon={glyph} label={type} />;
-              },
-            },
-            {
               key: "status",
               header: "State",
-              width: 144,
-              render: (item) => <RecordStatus status={item.status} />,
+              width: 160,
+              render: (item) => <ContentState record={item} />,
             },
             {
               key: "updated",
               header: "Updated",
-              width: 112,
-              render: (item) => <Updated updated={item.updated} column />,
+              width: 96,
+              render: (item) => <RelativeTime value={item.updated?.at} />,
             },
           ]}
         />
       ) : (
-        <StateNotice kind="empty" title="No content yet." />
+        <StateNotice kind="empty" title="No content yet" />
       )}
     </WorkspaceSection>
   );
 }
 
-function RecentData({
+const RECENT = 5;
+
+function RecentRecords({
   enabled,
   fixture,
+  session: injected,
+  fetch: fetcher,
 }: {
   enabled: boolean;
   fixture?: DataFixture;
+  session?: PrivateReaderSession;
+  fetch?: typeof fetch;
 }) {
-  const session = useDataSession({ enabled, fixture });
+  const session = useDataSession({
+    enabled,
+    fixture,
+    session: injected,
+    fetch: fetcher,
+  });
   const [result, setResult] = useState<LifeResult | null>(null);
   const read = useRef(new LifeReadSession());
   useEffect(() => {
@@ -164,105 +269,55 @@ function RecentData({
     return () => current.invalidate();
   }, [session.reader]);
   const items =
-    result?.state === "ready" && Array.isArray(result.data.items)
-      ? (result.data.items as Record<string, unknown>[]).slice(0, 5)
+    result?.state === "ready"
+      ? parseItems(result.data, parseRecord).slice(0, RECENT)
       : [];
-  const text = (value: unknown) => (typeof value === "string" ? value : null);
   return (
-    <WorkspaceSection
-      title="Recent records"
-      actions={
-        <>
-          <DataSessionControl session={session} />
-          <ViewAll href="/data/records" />
-        </>
-      }
-    >
+    <WorkspaceSection title="Recent records" href="/data/records">
       {session.status !== "ready" ? (
-        <SessionNotice session={session} />
+        <SessionNotice session={session} label="recent records" />
       ) : !result ? (
         <LoadingSkeleton label="recent records" rows={3} columns={3} />
       ) : result.state !== "ready" ? (
-        <StateNotice kind="error" title="Records could not be loaded." />
+        <ReadNotice result={result} />
       ) : items.length ? (
         <DataTable
           rows={items}
-          rowKey="record_id"
+          rowKey="id"
           label="Recent records"
           noun={["record", "records"]}
           footer={false}
-          columns={[
-            {
-              key: "record",
-              header: "Record",
-              render: (item) => {
-                const [glyph, kind] = recordKindGlyph(item.kind);
-                const id = text(item.record_id);
-                return (
-                  <RowTitle
-                    icon={glyph}
-                    kind={kind}
-                    title={text(item.title) ?? "Untitled record"}
-                    href={id ? dataRecordHref(id) : undefined}
-                    mobile={
-                      <>
-                        <KindBadge icon={glyph} label={kind} />
-                        <TierMark tier={text(item.tier)} />
-                      </>
-                    }
-                    time={text(item.observed_at)}
-                  />
-                );
-              },
-            },
-            {
-              key: "kind",
-              header: "Type",
-              width: 136,
-              render: (item) => {
-                const [glyph, kind] = recordKindGlyph(item.kind);
-                return <KindBadge icon={glyph} label={kind} />;
-              },
-            },
-            {
-              key: "tier",
-              header: <Text className="sr-only">Tier</Text>,
-              width: 44,
-              render: (item) => <TierMark tier={text(item.tier)} />,
-            },
-            {
-              key: "observed",
-              header: "Observed",
-              width: 112,
-              render: (item) => <RelativeTime value={text(item.observed_at)} />,
-            },
-          ]}
+          columns={recordColumns({ href: (item) => dataRecordHref(item.id) })}
         />
       ) : (
-        <StateNotice kind="empty" title="No records yet." />
+        <StateNotice kind="empty" title="No records yet" />
       )}
     </WorkspaceSection>
   );
 }
 
 /**
- * The one overview: firing alerts (only when something fires), then the most
- * recent Content and Data. Ops keep their own gate; Data opens its private
- * session on its own.
+ * The one overview: firing alerts (only when something fires, or when ops
+ * cannot be read), then the most recent Content and Data. Ops keep their own
+ * gate; Data opens its private session on its own.
  */
 export function AdminOverview({
   content,
   dataEnabled,
   dataFixture,
+  session,
+  fetch: fetcher,
   ...ops
 }: {
   content: CatalogRecord[];
   dataEnabled: boolean;
   dataFixture?: DataFixture;
+  session?: PrivateReaderSession;
+  fetch?: typeof fetch;
 } & OpsViewProps) {
   const sample = Boolean(dataFixture || ops.fixture);
   return (
-    <div className="admin-overview operations-workspace">
+    <div className="admin-overview">
       <WorkspacePage
         title="Overview"
         badge={sample ? <SampleBadge /> : undefined}
@@ -270,7 +325,12 @@ export function AdminOverview({
         <VStack gap={8}>
           <FiringAlerts {...ops} />
           <RecentContent records={content} />
-          <RecentData enabled={dataEnabled} fixture={dataFixture} />
+          <RecentRecords
+            enabled={dataEnabled}
+            fixture={dataFixture}
+            session={session}
+            fetch={fetcher}
+          />
         </VStack>
       </WorkspacePage>
     </div>

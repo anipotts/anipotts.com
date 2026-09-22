@@ -154,6 +154,8 @@ assert.deepEqual(devLoopbackPreviewPaths, [
   "/content/review",
   "/content/writing",
   "/data",
+  "/data/health",
+  "/data/knowledge",
   "/data/records",
   "/data/sources",
   "/deploys",
@@ -295,7 +297,7 @@ assert.ok(
   inboxSource.includes('Astro.redirect("/observability/status", 308)'),
   "retired inbox redirects to Observability Status",
 );
-// The sidebar lists Content (4), Data (2) and Observability (3) under one
+// The sidebar lists Content (4), Data (4) and Observability (3) under one
 // overview link, all from one list.
 for (const href of [
   "/",
@@ -305,6 +307,8 @@ for (const href of [
   "/content/newsletter",
   "/data/records",
   "/data/sources",
+  "/data/health",
+  "/data/knowledge",
   "/observability/status",
   "/observability/activity",
   "/observability/alerts",

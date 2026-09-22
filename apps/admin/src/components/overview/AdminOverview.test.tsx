@@ -51,37 +51,61 @@ describe("the one overview", () => {
     expect(host.querySelector('[aria-label="Hosts"]')).toBeNull();
   });
 
-  it("lists only firing alerts, from the same rules as Alerts", () => {
+  it("lists only firing alerts, each opening its Status entry in admin", () => {
     const host = render({ fixture: snapshot, eventsFixture: events });
     const table = host.querySelector('table[aria-label="Firing alerts"]')!;
-    const rows = [...table.querySelectorAll("tbody tr")].map(
-      (row) =>
-        `${row.textContent} ${row.querySelector("a.workspace-row-link")?.getAttribute("title")}`,
-    );
     expect(
       [...table.querySelectorAll("thead th")].map((th) => th.textContent),
     ).toEqual(["Alert", "State", "Since"]);
-    const link = table.querySelector("tbody a.workspace-row-link")!;
-    expect(link.getAttribute("aria-label")).toMatch(/^Open runbook for /);
-    expect(link.getAttribute("target")).toBe("_blank");
-    // No runbook column and no link buttons: the row is the link.
+    const links = [...table.querySelectorAll("tbody a.workspace-row-link")];
+    expect(links).toHaveLength(3);
+    for (const link of links) {
+      expect(link.getAttribute("href")).toMatch(
+        /^\/observability\/status#entry-/,
+      );
+      expect(link.getAttribute("target")).toBeNull();
+      expect(link.getAttribute("aria-label")).toMatch(/ status$/);
+    }
+    // No runbook column, no link buttons and no outside link: the row is the
+    // link, and the mono id rides in the tooltip.
     expect(table.querySelectorAll("a")).toHaveLength(3);
-    expect(rows).toHaveLength(3);
-    expect(rows.join(" ")).toContain("pc.inference");
-    expect(rows.join(" ")).not.toContain("agents.sync");
+    const tooltips = links.map((link) => link.getAttribute("title")).join(" ");
+    expect(tooltips).toContain("pc.inference");
+    expect(tooltips).not.toContain("agents.sync");
+    // The brand word is the tile's: "1password connect" reads "Connect".
+    expect(links.map((link) => link.textContent)).toContain("Connect");
+    expect(table.querySelector('[data-mark="1password"]')).not.toBeNull();
   });
 
-  it("shows each recent Content row as title, type, state and updated", () => {
+  it("links the Alerts and Recent records headings, and nothing says View all", () => {
+    const host = render({ fixture: snapshot, eventsFixture: events });
+    const heading = (name: string) =>
+      [...host.querySelectorAll("h2")].find((h) => h.textContent === name)!;
+    expect(heading("Alerts").querySelector("a")?.getAttribute("href")).toBe(
+      "/observability/alerts",
+    );
+    expect(
+      heading("Recent records").querySelector("a")?.getAttribute("href"),
+    ).toBe("/data/records");
+    expect(heading("Recent content").querySelector("a")).toBeNull();
+    expect(host.textContent).not.toContain("View all");
+    expect(host.textContent).not.toContain("session");
+  });
+
+  it("shows each recent Content row as its type tile, title, state and time", () => {
     const host = render({});
     const table = host.querySelector(
       'table[aria-label="Recently updated content"]',
     )!;
     expect(
       [...table.querySelectorAll("thead th")].map((th) => th.textContent),
-    ).toEqual(["Title", "Type", "State", "Updated"]);
+    ).toEqual(["Title", "State", "Updated"]);
     const link = table.querySelector('a[href="/content/writing/synthetic"]');
     expect(link?.textContent).toBe("Synthetic article");
-    expect(table.querySelector("tbody tr")?.textContent).toContain("Writing");
+    // The kind is the tile alone, named for assistive technology.
+    const tile = table.querySelector("tbody .workspace-row-mark")!;
+    expect(tile.getAttribute("title")).toBe("Writing");
+    expect(table.querySelectorAll(".workspace-kind")).toHaveLength(0);
   });
 
   it("opens the private session without a click and narrates nothing", () => {

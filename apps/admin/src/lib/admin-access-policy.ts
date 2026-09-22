@@ -57,6 +57,8 @@ const DEV_LOOPBACK_PREVIEW_PATHS = new Set([
   "/data",
   "/data/records",
   "/data/sources",
+  "/data/health",
+  "/data/knowledge",
   "/deploys",
   "/fleet",
   "/handoffs",

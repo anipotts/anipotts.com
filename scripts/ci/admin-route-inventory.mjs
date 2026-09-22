@@ -27,20 +27,32 @@ export const ADMIN_ROUTES = [
   },
   {
     route: "/data/records",
-    file: "apps/admin/src/pages/data/records/index.astro",
+    file: "apps/admin/src/pages/data/[...path].astro",
     nav: true,
     smoke: false,
   },
   {
     // Record detail; the id shape is checked, the record is read in the browser.
     route: "/data/records/rec-00000000000000000000000000000000",
-    file: "apps/admin/src/pages/data/records/[id].astro",
+    file: "apps/admin/src/pages/data/[...path].astro",
     nav: false,
     smoke: false,
   },
   {
     route: "/data/sources",
-    file: "apps/admin/src/pages/data/sources.astro",
+    file: "apps/admin/src/pages/data/[...path].astro",
+    nav: true,
+    smoke: false,
+  },
+  {
+    route: "/data/health",
+    file: "apps/admin/src/pages/data/[...path].astro",
+    nav: true,
+    smoke: false,
+  },
+  {
+    route: "/data/knowledge",
+    file: "apps/admin/src/pages/data/[...path].astro",
     nav: true,
     smoke: false,
   },

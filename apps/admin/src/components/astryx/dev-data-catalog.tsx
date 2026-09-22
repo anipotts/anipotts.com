@@ -1,7 +1,7 @@
 import React from "react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Text } from "@astryxdesign/core/Text";
-import { DataWorkspace } from "../data/DataWorkspace";
+import { PrivateShell } from "../data/PrivateShell";
 
 const observedAt = "2026-09-21T09:00:00.000Z";
 const records = [
@@ -66,7 +66,12 @@ export function DevDataCatalog() {
         Synthetic Data workspace. No private reader, storage or network
         connection.
       </Text>
-      <DataWorkspace view="records" enabled fixture={fixture} />
+      <PrivateShell
+        initialPath="/data/records"
+        dataEnabled
+        dataFixture={fixture}
+        enabled={false}
+      />
     </VStack>
   );
 }

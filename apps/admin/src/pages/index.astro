@@ -2,10 +2,10 @@
 import AdminLayout from "../layouts/AdminLayout.astro";
 import { PrivateShell } from "../components/data/PrivateShell";
 import { recentlyUpdated } from "../components/astryx/ContentLibrary";
-import { loadDataExtras } from "../lib/data-extras";
 import { loadEditorialInventory } from "../lib/editorial-inventory-server";
 import { privateReaderOpsEnabled } from "../lib/private-reader-credential";
 import { measureServerTiming } from "../lib/server-timing";
+import { loadShellFixtures } from "../lib/shell-fixtures";
 
 // The one overview. Content is read here from the editorial inventory; ops
 // and Data are read in the browser, each behind its own gate. The shell also
@@ -35,21 +35,9 @@ const content = recentlyUpdated(inventory.records)
     }),
   );
 const env = Astro.locals.runtime?.env ?? {};
-
-// Development uses System's snapshot sample, a synthetic events page and a
-// synthetic Data set by default; `?fixture=none` shows the real local states.
-// `import.meta.env.DEV` is false in builds, so no fixture ships.
-const sample =
-  import.meta.env.DEV && Astro.url.searchParams.get("fixture") !== "none";
-const fixtures = sample
-  ? {
-      snapshot: (await import("../fixtures/ops_v1.sample.json")).default,
-      events: (await import("../fixtures/ops_events_v1.synthetic.json"))
-        .default,
-      data: (await import("../fixtures/data_v1.synthetic.json")).default,
-    }
-  : undefined;
-const extras = sample ? undefined : await loadDataExtras(env.DB);
+// Development shows System's snapshot sample, a synthetic events page and a
+// synthetic Data set (lib/shell-fixtures.ts); none ships.
+const fixtures = await loadShellFixtures(Astro.url);
 Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
 
@@ -59,7 +47,6 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
     content={content}
     dataEnabled={env.PRIVATE_READER_ENABLED === "true"}
     dataFixture={fixtures?.data}
-    extras={extras}
     enabled={privateReaderOpsEnabled(env)}
     fixture={fixtures?.snapshot}
     eventsFixture={fixtures?.events}

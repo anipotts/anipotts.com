@@ -16,10 +16,12 @@ import { useAppShellMobile } from "@astryxdesign/core/AppShell";
 import { Text } from "@astryxdesign/core/Text";
 import {
   BellSimpleIcon,
+  BrainIcon,
   BriefcaseIcon,
   BrowserIcon,
   ClockCounterClockwiseIcon,
   EnvelopeSimpleIcon,
+  HeartbeatIcon,
   PencilSimpleIcon,
   PulseIcon,
   RowsIcon,
@@ -108,6 +110,18 @@ export const sidebarGroups: ReadonlyArray<{
         label: "Sources",
         href: "/data/sources",
         icon: TreeStructureIcon,
+      },
+      {
+        id: "health",
+        label: "Health",
+        href: "/data/health",
+        icon: HeartbeatIcon,
+      },
+      {
+        id: "knowledge",
+        label: "Knowledge",
+        href: "/data/knowledge",
+        icon: BrainIcon,
       },
     ],
   },

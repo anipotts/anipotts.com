@@ -1,0 +1,35 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { PrivateShell } from "../../components/data/PrivateShell";
+import { loadDataExtras } from "../../lib/data-extras";
+import { DATA_VIEW_TITLES, dataRoute } from "../../lib/data-routes";
+import { privateReaderOpsEnabled } from "../../lib/private-reader-credential";
+import { loadShellFixtures } from "../../lib/shell-fixtures";
+
+// Records, Sources, Health and Knowledge. Records and Sources are read in
+// the browser with a short private session, in memory only, and are off
+// unless PRIVATE_READER_ENABLED is exactly "true". Health and Knowledge are
+// read here from D1, each on its own page only. A route that is not a Data
+// view, or a record id the reader would refuse, is the 404 page.
+const route = dataRoute(Astro.url);
+if (!route) return Astro.rewrite("/404");
+const env = Astro.locals.runtime?.env ?? {};
+const fixtures = await loadShellFixtures(Astro.url);
+const extras =
+  !fixtures && (route.view === "health" || route.view === "knowledge")
+    ? await loadDataExtras(env.DB, route.view)
+    : undefined;
+Astro.response.headers.set("Cache-Control", "private, no-store");
+---
+
+<AdminLayout title={DATA_VIEW_TITLES[route.view]} hideHeader>
+  <PrivateShell
+    initialPath={`${Astro.url.pathname}${Astro.url.search}`}
+    dataEnabled={env.PRIVATE_READER_ENABLED === "true"}
+    dataFixture={fixtures?.data}
+    extras={extras}
+    enabled={privateReaderOpsEnabled(env)}
+    renderedAt={Date.now()}
+    client:load
+  />
+</AdminLayout>

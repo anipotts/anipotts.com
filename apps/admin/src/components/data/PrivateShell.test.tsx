@@ -100,21 +100,28 @@ afterEach(async () => {
 describe("the overview and Data shell", () => {
   it("draws only the routes it can without a document load", () => {
     const url = (path: string) => new URL(path, "https://admin.invalid");
-    expect(shellRoute(url("/"), true)).toEqual({ page: "overview" });
-    expect(shellRoute(url("/"), false)).toBeNull();
-    expect(
-      shellRoute(url(`/data/records/${recordId}?kind=people`), false),
-    ).toEqual({
-      page: "records",
+    const route = (path: string, overview = true, extras = {}) =>
+      shellRoute(url(path), { overview, extras });
+    expect(route("/")).toEqual({ view: "overview" });
+    expect(route("/", false)).toBeNull();
+    expect(route(`/data/records/${recordId}?kind=people`, false)).toEqual({
+      view: "records",
       id: recordId,
       kind: "people",
+      source: null,
     });
-    expect(shellRoute(url("/data/records/not-an-id"), true)).toBeNull();
-    expect(shellRoute(url("/data/sources?view=health"), true)).toEqual({
-      page: "sources",
-      view: "health",
-    });
-    expect(shellRoute(url("/content/pages"), true)).toBeNull();
+    expect(route("/data/records/not-an-id")).toBeNull();
+    expect(route("/data/sources?view=health")).toEqual({ view: "sources" });
+    // Health and Knowledge are read on the server: in place only when this
+    // document holds their cards.
+    expect(route("/data/health")).toBeNull();
+    expect(
+      route("/data/health", true, {
+        health: { available: true, cards: [] },
+      }),
+    ).toEqual({ view: "health" });
+    expect(route("/data/knowledge")).toBeNull();
+    expect(route("/content/pages")).toBeNull();
   });
 
   it("opens a record from the overview without opening the session again", async () => {
@@ -135,11 +142,21 @@ describe("the overview and Data shell", () => {
       `a[href="/data/records/${recordId}"]`,
     )!;
     expect(link.textContent).toBe("Synthetic note");
+    // The row leads with the kind tile alone and names its source on line 2.
+    const row = link.closest("tr")!;
+    expect(row.querySelectorAll(".workspace-kind")).toHaveLength(0);
+    expect(row.querySelector('.data-source[title="synthetic"]')).not.toBeNull();
+    // Nothing on the overview ends the session; Records and Sources do.
+    expect(host.querySelector('[aria-label="Lock session"]')).toBeNull();
     await act(async () => link.click());
     await settle();
     expect(window.location.pathname).toBe(`/data/records/${recordId}`);
-    expect(host.querySelector("h1")?.textContent).toBe("Records");
+    expect(
+      host.querySelector('[aria-label="Synthetic note details"] h1')
+        ?.textContent,
+    ).toBe("Synthetic note");
     expect(host.textContent).toContain("Fixture text only.");
+    expect(document.title).toBe("Records | Admin");
     expect(issued).toBe(1);
     expect(window.localStorage.length).toBe(0);
     expect(window.sessionStorage.length).toBe(0);
@@ -188,5 +205,81 @@ describe("private session idle rule", () => {
     window.dispatchEvent(new Event("keydown"));
     await settle();
     expect(session.getState().status).toBe("cleared");
+  });
+});
+
+describe("Health and Knowledge", () => {
+  const cards = [
+    {
+      id: "card-1",
+      kind: "decision",
+      title: "Synthetic decision",
+      summary: "Synthetic decision summary",
+      source: "synthetic-notes",
+      freshness: "fresh",
+      observed_at: "2026-09-20T12:00:00Z",
+    },
+    {
+      id: "card-2",
+      kind: "concept",
+      title: "Synthetic concept",
+      summary: "Synthetic concept summary",
+      source: "synthetic-notes",
+      freshness: "stale",
+      observed_at: null,
+    },
+  ];
+  const render = async (
+    path: string,
+    extras: React.ComponentProps<typeof PrivateShell>["extras"],
+  ) => {
+    const fetcher = network();
+    vi.stubGlobal("fetch", fetcher);
+    await act(async () =>
+      root.render(
+        <PrivateShell
+          initialPath={path}
+          dataEnabled
+          extras={extras}
+          enabled={false}
+        />,
+      ),
+    );
+    await settle();
+    return fetcher;
+  };
+
+  it("lists the page's cards with no private session", async () => {
+    const fetcher = await render("/data/knowledge", {
+      knowledge: { available: true, cards },
+    });
+    expect(host.querySelector("h1")?.textContent).toBe("Knowledge");
+    expect(host.querySelector(".workspace-count")?.textContent).toBe("2");
+    const table = host.querySelector('table[aria-label="Knowledge cards"]')!;
+    const tiles = [...table.querySelectorAll("tbody .workspace-row-mark")];
+    expect(tiles.map((tile) => tile.getAttribute("title"))).toEqual([
+      "Decision",
+      "Concept",
+    ]);
+    // Only an exception is a chip: stale shows, fresh does not.
+    expect(table.textContent).toContain("Stale");
+    expect(table.querySelectorAll("tbody .workspace-state")).toHaveLength(2);
+    // The source is a tile on line 2, its id the tooltip.
+    expect(
+      table.querySelector('.data-source[title="synthetic-notes"]'),
+    ).not.toBeNull();
+    expect(host.querySelector('[aria-label="Lock session"]')).toBeNull();
+    // No credential is issued for a D1 view.
+    expect(
+      fetcher.mock.calls.some(([input]) =>
+        String(input).includes("/api/private-reader/credential"),
+      ),
+    ).toBe(false);
+  });
+
+  it("says a view is unavailable rather than empty", async () => {
+    await render("/data/health", { health: { available: false, cards: [] } });
+    expect(host.textContent).toContain("Health unavailable");
+    expect(host.textContent).not.toContain("No health summaries");
   });
 });

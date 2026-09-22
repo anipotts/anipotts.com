@@ -16,10 +16,13 @@ import {
 } from "../../lib/private-session-store";
 
 export type DataSession = {
-  /** off: the reader is switched off. opening: a session is being issued. */
-  status: "off" | "opening" | "ready" | "closed" | "cleared";
+  /** off: the reader is switched off. opening: the first session is being
+   * issued. cleared: a session closed, or issuance failed, for `reason`. */
+  status: "off" | "opening" | "ready" | "cleared";
   /** Why a session closed: idle, owner, or the reader's own reason. */
   reason?: PrivateReaderClearReason | "idle";
+  /** A reopen from a notice is under way; the notice stays in place. */
+  busy: boolean;
   reader: LifeReader | null;
   /** Bumps with every new session, so views keyed on it start clean. */
   generation: number;
@@ -37,12 +40,19 @@ export type DataSessionOptions = {
   fetch?: typeof fetch;
 };
 
+/** A reopen shows its progress for at least this long, so a fast failure
+ * still reads as a retry. */
+export const REOPEN_MIN_MS = 400;
+
 /** A session for the server render, which never opens. */
 const serverSession = () =>
   createPrivateReaderSession({
     fetch: () => Promise.reject(new Error("server")),
     csrf: () => Promise.reject(new Error("server")),
   });
+
+const rest = (ms: number) =>
+  ms > 0 ? new Promise((resolve) => setTimeout(resolve, ms)) : undefined;
 
 /**
  * The page's private Data session. It opens on its own when a Data view
@@ -63,7 +73,7 @@ export function useDataSession({
         : sharedPrivateSession()),
   );
   const { state, reader } = usePrivateReader(session, { fetch: fetcher });
-  const [opening, setOpening] = useState(false);
+  const [busy, setBusy] = useState(false);
   const generation = useRef<{ reader: LifeReader | null; key: number }>({
     reader: null,
     key: 0,
@@ -74,11 +84,13 @@ export function useDataSession({
     const policy = sessionPolicy(session);
     policy.endedByOwner = false;
     policy.idle = false;
-    setOpening(true);
+    const started = Date.now();
+    setBusy(true);
     try {
       await session.start();
     } finally {
-      setOpening(false);
+      await rest(REOPEN_MIN_MS - (Date.now() - started));
+      setBusy(false);
     }
   };
   const live = enabled && !fixture;
@@ -87,7 +99,7 @@ export function useDataSession({
   useEffect(() => {
     if (!live || session.getState().status !== "idle") return;
     if (sessionPolicy(session).endedByOwner) return;
-    void open();
+    void session.start();
   }, [live, session]);
   const fixtureReader = useMemo(
     () => (fixture ? createFixtureReader(fixture) : null),
@@ -98,6 +110,7 @@ export function useDataSession({
     return {
       status: fixtureOpen ? "ready" : "cleared",
       reason: fixtureOpen ? undefined : "logout",
+      busy: false,
       reader: fixtureOpen ? fixtureReader : null,
       generation: fixtureOpen ? 1 : 0,
       fixture: true,
@@ -112,12 +125,11 @@ export function useDataSession({
       ? "off"
       : state.status === "ready" && reader
         ? "ready"
-        : opening || state.status === "idle"
-          ? "opening"
-          : cleared
-            ? "cleared"
-            : "closed",
+        : cleared
+          ? "cleared"
+          : "opening",
     reason: cleared ? (idle ? "idle" : state.reason) : undefined,
+    busy,
     reader: enabled ? reader : null,
     generation: generation.current.key,
     fixture: false,
@@ -128,15 +140,3 @@ export function useDataSession({
     },
   };
 }
-
-/** One plain line per closed state. */
-export const SESSION_NOTICES: Record<
-  PrivateReaderClearReason | "idle",
-  { title: string; action: string }
-> = {
-  idle: { title: "Private session closed.", action: "Open session" },
-  expired: { title: "Private session expired.", action: "Open session" },
-  denied: { title: "Private access was refused.", action: "Try again" },
-  unavailable: { title: "Private reader unavailable.", action: "Try again" },
-  logout: { title: "Private session ended.", action: "Open session" },
-};
