@@ -126,6 +126,9 @@ export function displayName(
   let name = brand ? shortName(base, brand) : base;
   const label = brand ? brandMark(brand)?.label : undefined;
   if (label && name === label) return label;
+  // What is left once the brand goes must still say something: "messages
+  // 1to1" beside Messages keeps its brand word ("Messages 1:1"), not "1:1".
+  if (name !== base && !/[a-z]{3,}/i.test(caseWords(name))) name = base;
   const device = tiles.device?.id ?? null;
   const word =
     device && Object.hasOwn(DEVICE_WORDS, device) && DEVICE_WORDS[device];
@@ -190,8 +193,16 @@ export function sourceNaming(source: {
   id: string;
   host?: string | null;
   displayName?: string | null;
+  /** System's `connector` and `transport`: Apple Health is credited only to
+   * a health source System says the phone pushes. */
+  connector?: string | null;
+  transport?: string | null;
 }): Naming {
-  const tile = sourceMark(withoutOwner(source.id));
+  const phoneExport =
+    source.connector === "health" && source.transport === "push";
+  const tile: TileRef = phoneExport
+    ? { id: "applehealth", kind: "health" }
+    : sourceMark(withoutOwner(source.id));
   const device = source.host
     ? hostDevice(source.host)
     : hostDevice(idDevice(source.id));
@@ -349,14 +360,20 @@ export function countNoun(key: string): [one: string, many: string] | null {
  */
 export const SYNCED_APPS = {
   "health.ingest": ["applehealth"],
-  // Message text, contacts and the voice memo index, plus browsing rollups
-  // whose browser each record names.
-  "pro.pc-send": ["messages", "contacts", "voicememos"],
   "pro.transcripts": ["claude"],
   "pro.voicememos": ["voicememos"],
   "pro.whatsapp": ["whatsapp"],
   "transcripts.upload": ["claude"],
 } as const satisfies Record<string, readonly MarkId[]>;
+
+/**
+ * Syncs that move many apps' data in one pass, shown as their own job. Their
+ * receipt proves a pass finished, not that any one app's data arrived
+ * (pro.pc-send's pass completes while Messages holds nothing past May 2024),
+ * so no app mark borrows their freshness. Apps come back once System's
+ * sources carry their own job and `held_to`.
+ */
+export const SYNC_JOBS: readonly string[] = ["pro.pc-send"];
 
 /** The apps a sync carries, or null when the id is not a sync. */
 export function syncedApps(id: string): readonly MarkId[] | null {

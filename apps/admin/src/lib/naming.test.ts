@@ -9,6 +9,7 @@ import { OPS_MARKS, deviceMark, isGlyphKind } from "./marks";
 import { OPS_DEVICES } from "./ops-events";
 import {
   SYNCED_APPS,
+  SYNC_JOBS,
   appCounts,
   appMark,
   countNoun,
@@ -210,10 +211,11 @@ describe("names", () => {
       "Browsing",
       "ani-browsing",
     ]);
+    // Stripping the brand would leave only "1:1", so the id's name stays.
     expect(read("ani-messages-1to1")).toEqual([
       "messages",
       null,
-      "1:1",
+      "Messages 1:1",
       "ani-messages-1to1",
     ]);
     expect(read("ani-voice-memos")).toEqual([
@@ -247,6 +249,29 @@ describe("names", () => {
       "Connection graph",
       "connection-graph",
     ]);
+  });
+
+  it("credits Apple Health only to a health source System says the phone pushes", () => {
+    // ani-health held seeded vitals: its id never names Apple.
+    const seeded = sourceNaming({ id: "ani-health" });
+    expect(seeded.tile).toEqual({ id: null, kind: "health" });
+    expect(seeded.name).toBe("Health");
+    expect(
+      sourceNaming({ id: "health-provider", connector: "health" }).tile.id,
+    ).toBeNull();
+    expect(
+      sourceNaming({
+        id: "ani-health",
+        connector: "health",
+        transport: "launchd",
+      }).tile.id,
+    ).toBeNull();
+    const phone = sourceNaming({
+      id: "phone-health-export",
+      connector: "health",
+      transport: "push",
+    });
+    expect(phone.tile.id).toBe("applehealth");
   });
 
   it("names a browsing day by its browser, its day and its device", () => {
@@ -338,7 +363,9 @@ describe("apps", () => {
       }
     }
     expect(syncedApps("pro.whatsapp")).toEqual(["whatsapp"]);
-    expect(syncedApps("pro.pc-send")?.[0]).toBe("messages");
+    // Its receipt proves a pass, not that any one app's data arrived.
+    expect(syncedApps("pro.pc-send")).toBeNull();
+    expect(SYNC_JOBS).toEqual(["pro.pc-send"]);
     expect(syncedApps("health.ingest")).toEqual(["applehealth"]);
     expect(syncedApps("pc.writer")).toBeNull();
     expect(syncedApps("constructor")).toBeNull();

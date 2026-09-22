@@ -312,6 +312,39 @@ describe("Status view from System's fixture", () => {
     );
   });
 
+  it("shows a multi-app pass as its own job, with no app mark borrowing its freshness", () => {
+    const value = fresh();
+    value.catalog.push({
+      ...value.catalog[1],
+      id: "pro.pc-send",
+      name: "pro intake and offsite upload",
+      group: "personal context",
+      kind: "job",
+      host: "ap-pro",
+      freshness_budget_s: 1800,
+      schedule: "every 15 min while awake",
+    });
+    value.status.push({
+      id: "pro.pc-send",
+      state: "ok",
+      detail: "last pass completed",
+      last_success_at: "2026-09-21T17:53:00Z",
+      last_run_at: "2026-09-21T17:53:00Z",
+      last_exit: 0,
+    });
+    const syncs = render(value).querySelector('ul[aria-label="Syncs"]')!;
+    const cards = [...syncs.querySelectorAll("li")];
+    expect(cards).toHaveLength(2);
+    const job = cards.at(-1)!;
+    expect(job.textContent).toContain("Intake and offsite upload");
+    expect(job.textContent).toContain("Last pass7m ago");
+    const marks = [...syncs.querySelectorAll(".brand-tile")].map((tile) =>
+      tile.getAttribute("data-mark"),
+    );
+    for (const app of ["messages", "contacts", "voicememos"])
+      expect(marks).not.toContain(app);
+  });
+
   it("labels the source as the fixture, never as live, and announces no age", () => {
     expect(meta(host)).toBe("Generated just now");
     expect(host.textContent).toContain("Sample data");

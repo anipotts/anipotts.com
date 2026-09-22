@@ -22,7 +22,7 @@ import {
   type OpsEvent,
   type OpsRunEvent,
 } from "./ops-events";
-import { syncedApps } from "./naming";
+import { SYNC_JOBS, syncedApps } from "./naming";
 import { dayKey } from "../components/workspace/format";
 
 // Hosts
@@ -455,27 +455,35 @@ export function opsPlumbingCount(events: readonly OpsEvent[]): number {
 
 export type OpsSyncRow = {
   key: string;
-  app: MarkId;
+  /** The synced app, or null for a sync shown as its own job. */
+  app: MarkId | null;
   service: OpsServiceView;
 } & Record<string, unknown>;
 
 /** Every synced app the catalog carries, one row per app and sync, by the
  * app's name so an app two syncs carry sits together, then in the
- * catalog's display order. */
+ * catalog's display order. A multi-app pass (SYNC_JOBS) is one row of its
+ * own, after the apps. */
 export function opsSyncRows(services: readonly OpsServiceView[]): OpsSyncRow[] {
-  const label = (app: MarkId) => brandMark(app)?.label ?? app;
+  const label = (app: MarkId | null) =>
+    app === null ? "" : (brandMark(app)?.label ?? app);
   return services
     .filter((service) => !opsIsHost(service))
     .flatMap((service, index) =>
-      (syncedApps(service.id) ?? []).map((app) => ({
-        key: `${service.id}:${app}`,
-        app,
-        service,
-        index,
-      })),
+      SYNC_JOBS.includes(service.id)
+        ? [{ key: `${service.id}:job`, app: null, service, index }]
+        : (syncedApps(service.id) ?? []).map((app) => ({
+            key: `${service.id}:${app}`,
+            app,
+            service,
+            index,
+          })),
     )
     .sort(
-      (a, b) => label(a.app).localeCompare(label(b.app)) || a.index - b.index,
+      (a, b) =>
+        Number(a.app === null) - Number(b.app === null) ||
+        label(a.app).localeCompare(label(b.app)) ||
+        a.index - b.index,
     )
     .map(({ index: _index, ...row }) => row);
 }

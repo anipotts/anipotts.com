@@ -115,7 +115,7 @@ export function namedSource(
 ): Naming {
   const naming = sourceNaming({ id, host });
   const known = names.get(id);
-  return known ? { ...naming, name: known.name } : naming;
+  return known ? { ...naming, name: known.name, tile: known.tile } : naming;
 }
 
 /** namedSource with the names this view provides. */

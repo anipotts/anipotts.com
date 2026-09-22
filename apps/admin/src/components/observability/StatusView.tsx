@@ -31,6 +31,7 @@ import {
   parseHealthMetrics,
 } from "../../lib/health-metrics";
 import { useLiveText } from "../../lib/live-clock";
+import { deviceName } from "../../lib/naming";
 import { sentenceCase } from "../../lib/sentence-case";
 import { BrandTile } from "../BrandTile";
 import { SplitView, useSplitView } from "../astryx/SplitView";
@@ -523,8 +524,46 @@ function SyncGrid({
       <ul className="ops-cards ops-syncs" aria-label="Syncs">
         {rows.map((row) => {
           const naming = entryNaming(row.service);
-          const app = brandMark(row.app)?.label ?? sentenceCase(row.app);
           const budget = row.service.freshness_budget_s;
+          const budgetText =
+            budget === null
+              ? "No freshness budget"
+              : `Budget ${secondsText(budget)}`;
+          if (row.app === null)
+            // A multi-app pass: its own job, in job words, with no app mark
+            // borrowing its freshness.
+            return (
+              <Card
+                key={row.key}
+                id={row.service.id}
+                select={select}
+                tile={<EntryTile naming={naming} size={28} />}
+                title={naming.name}
+                tooltip={`${naming.name}\n${budgetText}\n${row.service.id}`}
+                state={
+                  <span className="ops-inline">
+                    Last pass
+                    <LastSuccess
+                      service={row.service}
+                      now={now}
+                      empty="Not recorded"
+                    />
+                  </span>
+                }
+                meta={
+                  naming.device ? (
+                    <span className="ops-fact">
+                      <DeviceTile device={row.service.host} />
+                      <span className="ops-card-detail">
+                        {deviceName(row.service.host)}
+                      </span>
+                    </span>
+                  ) : undefined
+                }
+                end={<SyncFreshness service={row.service} now={now} />}
+              />
+            );
+          const app = brandMark(row.app)?.label ?? sentenceCase(row.app);
           return (
             <Card
               key={row.key}
@@ -532,7 +571,7 @@ function SyncGrid({
               select={select}
               tile={<BrandTile id={row.app} size={28} />}
               title={app}
-              tooltip={`${app} via ${naming.name}\n${budget === null ? "No freshness budget" : `Budget ${secondsText(budget)}`}\n${row.service.id}`}
+              tooltip={`${app} via ${naming.name}\n${budgetText}\n${row.service.id}`}
               state={
                 <LastSuccess
                   service={row.service}

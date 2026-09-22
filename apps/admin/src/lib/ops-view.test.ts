@@ -437,12 +437,13 @@ describe("syncs", () => {
   it("lists every synced app in the catalog, by app, each with its sync", () => {
     expect(opsSyncRows(services).map((row) => row.key)).toEqual([
       "health.ingest:applehealth",
-      "pro.pc-send:contacts",
-      "pro.pc-send:messages",
-      "pro.pc-send:voicememos",
       "pro.voicememos:voicememos",
       "pro.whatsapp:whatsapp",
+      // A multi-app pass is its own job, after the apps: its receipt never
+      // lends Messages, Contacts or Voice Memos a fresh mark.
+      "pro.pc-send:job",
     ]);
+    expect(opsSyncRows(services).at(-1)!.app).toBeNull();
   });
 
   it("judges freshness against each sync's own budget, never a null one", () => {

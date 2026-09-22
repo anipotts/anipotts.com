@@ -147,7 +147,9 @@ export const SOURCE_MARKS = {
   github: "github",
   handoff: "handoff",
   manual: "writer",
-  "health.daily": "applehealth",
+  // A health source is not Apple's unless System says it is the phone's
+  // export (see sourceNaming); its id alone never credits Apple Health.
+  "health.daily": "health",
 } as const satisfies Record<string, Ref>;
 
 /** Words inside other source ids ("apple.messages", "legacy.brain",
@@ -167,7 +169,7 @@ export const SOURCE_WORDS = {
   github: "github",
   gmail: "gmail",
   granola: "granola",
-  health: "applehealth",
+  health: "health",
   imessage: "messages",
   legacy: "backup",
   manual: "writer",
