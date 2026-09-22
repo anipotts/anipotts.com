@@ -14,6 +14,17 @@ body {
   background-color: var(--color-background-body);
 }
 
+/* One colour scheme, on the root. The prepaint script sets it before the
+   first paint and saveTheme moves it. Astryx's Theme wrapper also sets a
+   scheme, from React state, and its first render only has the server's
+   guess: a preference kept in storage never reaches the server, so under a
+   dark system setting the wrapper painted the light page dark until
+   hydration. Wrappers inherit the root's scheme instead. Media overlays
+   keep their own. Unlayered, so it outranks the Astryx layers. */
+body [data-astryx-theme]:not([data-astryx-media]) {
+  color-scheme: inherit;
+}
+
 /* The one inline gutter, applied once, on main. The frames inside it add no
    inline padding of their own; compact lists bleed back to the screen edge
    with it (workspace.css). The shell insets by the landscape safe areas, so
