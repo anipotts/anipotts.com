@@ -2,6 +2,7 @@ import {
   createPrivateReaderSession,
   type PrivateReaderSession,
 } from "./private-reader-client";
+import { readEditorialCsrf } from "./editorial-client";
 
 /**
  * The page's one private Data session, kept in module memory so every view in
@@ -14,18 +15,6 @@ import {
  * unchanged: every open and renewal passes the live Access gate.
  */
 export const PRIVATE_SESSION_IDLE_MS = 15 * 60 * 1000;
-
-/** Reads the existing same-origin editorial CSRF token for issuance. */
-async function readEditorialCsrf(): Promise<string> {
-  const response = await fetch("/api/editorial/csrf", {
-    credentials: "same-origin",
-    cache: "no-store",
-  });
-  if (!response.ok) throw new Error("CSRF unavailable");
-  const body = (await response.json()) as { csrf?: unknown };
-  if (typeof body.csrf !== "string") throw new Error("CSRF unavailable");
-  return body.csrf;
-}
 
 export type SessionPolicy = {
   /** The owner ended the session; it stays closed until they open it. */

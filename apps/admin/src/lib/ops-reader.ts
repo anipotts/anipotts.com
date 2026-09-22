@@ -9,6 +9,7 @@ import {
   privateReaderInit,
 } from "./private-reader-fetch";
 import { readBoundedBytes } from "./bounded-body";
+import { readEditorialCsrf } from "./editorial-client";
 import { discardBody } from "./response-body";
 import {
   OPS_V1_BOUNDS,
@@ -557,18 +558,6 @@ export function createOpsStatusController(options: OpsStatusOptions) {
 }
 
 export type OpsStatusController = ReturnType<typeof createOpsStatusController>;
-
-/** Reads the existing same-origin editorial CSRF token for issuance. */
-async function readEditorialCsrf(): Promise<string> {
-  const response = await fetch("/api/editorial/csrf", {
-    credentials: "same-origin",
-    cache: "no-store",
-  });
-  if (!response.ok) throw new Error("CSRF unavailable");
-  const body = (await response.json()) as { csrf?: unknown };
-  if (typeof body.csrf !== "string") throw new Error("CSRF unavailable");
-  return body.csrf;
-}
 
 const OFF: OpsStatusState = Object.freeze({
   connection: "off",
