@@ -22,6 +22,8 @@ export const RUNTIME_CONTRACT = {
   ASSETS: { source: "assets", check: "fetch" },
   ACCESS_TEAM_DOMAIN: { source: "vars", check: "text" },
   ACCESS_POLICY_AUD: { source: "vars", check: "text" },
+  /** anipotts-db, bound so deploy applies its migrations. No admin page
+   * reads it, so no feature needs it. */
   DB: { source: "d1", check: "prepare" },
   CONTENT_DB: { source: "d1", check: "prepare" },
   CONTENT_MEDIA: { source: "r2", check: "getPut" },
@@ -51,12 +53,12 @@ export const RUNTIME_REQUIRED = [
   "ACCESS_POLICY_AUD",
 ] as const satisfies readonly RuntimeName[];
 
-/** Mirrors productionEditor. DB stays bound for its migrations; no admin
- * page reads it since Health and Knowledge moved to the private reader.
- * Flags switch a feature off; needs make an enabled feature unavailable when
- * absent. EDITORIAL_PUBLISH_ENABLED is the publishing kill switch. The
- * private reader flags gate issuance routes, not bindings, so they need no
- * feature here.
+/** Mirrors productionEditor. Flags switch a feature off; needs make an
+ * enabled feature unavailable when absent. EDITORIAL_PUBLISH_ENABLED is the
+ * publishing kill switch. The private reader flags gate issuance routes, not
+ * bindings, so they need no feature here. DB is bound for migrations only
+ * and backs no feature: reporting it available would claim a read that no
+ * page makes.
  */
 export const RUNTIME_FEATURES = {
   editorial: {
@@ -67,7 +69,6 @@ export const RUNTIME_FEATURES = {
     flags: ["EDITORIAL_ENABLED", "EDITORIAL_PUBLISH_ENABLED"],
     needs: ["EDITORIAL", "CONTENT_DB", "CONTENT_MEDIA", "PUBLIC_RELEASE_SHA"],
   },
-  admin_database: { flags: [], needs: ["DB"] },
 } as const satisfies Record<
   string,
   { flags: readonly RuntimeName[]; needs: readonly RuntimeName[] }

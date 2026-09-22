@@ -40,7 +40,6 @@ describe("admin runtime contract evaluation", () => {
       features: {
         editorial: available,
         editorial_publishing: available,
-        admin_database: available,
       },
     });
   });
@@ -50,7 +49,7 @@ describe("admin runtime contract evaluation", () => {
     expect(report.ok).toBe(false);
     expect(report.missing).toEqual([name]);
     // Required configuration never changes feature reporting.
-    expect(Object.values(report.features)).toEqual(Array(3).fill(available));
+    expect(Object.values(report.features)).toEqual(Array(2).fill(available));
   });
 
   it("treats empty text and shapeless bindings as missing", () => {
@@ -66,10 +65,6 @@ describe("admin runtime contract evaluation", () => {
       release,
     );
     expect(report.missing).toEqual(RUNTIME_REQUIRED);
-    expect(report.features.admin_database).toEqual({
-      state: "unavailable",
-      missing: ["DB"],
-    });
     expect(report.features.editorial).toEqual({
       state: "unavailable",
       missing: ["EDITORIAL"],
@@ -85,7 +80,6 @@ describe("admin runtime contract evaluation", () => {
         features: {
           editorial: { state: "disabled", missing: [] },
           editorial_publishing: { state: "disabled", missing: [] },
-          admin_database: { state: "unavailable", missing: ["DB"] },
         },
       });
     },
@@ -151,16 +145,16 @@ describe("admin runtime contract evaluation", () => {
 
   it("reports a throwing binding as missing instead of throwing", () => {
     const env = completeEnv();
-    Object.defineProperty(env, "DB", {
+    Object.defineProperty(env, "CONTENT_DB", {
       enumerable: true,
       get() {
         throw new Error("binding exploded with provider detail");
       },
     });
     const report = evaluateRuntimeContract(env, release);
-    expect(report.features.admin_database).toEqual({
+    expect(report.features.editorial).toEqual({
       state: "unavailable",
-      missing: ["DB"],
+      missing: ["CONTENT_DB"],
     });
     expect(JSON.stringify(report)).not.toContain("provider detail");
   });
@@ -234,7 +228,6 @@ describe("admin runtime contract evaluation", () => {
       { ...completeEnv(), CONTENT_DB: { prepare: false } },
       release,
     );
-    expect(report.features.admin_database).toEqual(available);
     expect(report.features.editorial).toEqual({
       state: "unavailable",
       missing: ["CONTENT_DB"],
@@ -350,7 +343,6 @@ describe("admin runtime contract logging", () => {
       features: {
         editorial: available,
         editorial_publishing: available,
-        admin_database: { state: "unavailable", missing: ["DB"] },
       },
     });
     for (const value of Object.values(completeEnv()))
@@ -373,9 +365,22 @@ describe("admin runtime contract logging", () => {
   it("warns when only a feature is unavailable", async () => {
     const { reportRuntimeContract } = await freshModule();
     const log = sink();
-    reportRuntimeContract(without("DB"), "fetch", release, log);
+    reportRuntimeContract(without("CONTENT_DB"), "fetch", release, log);
     expect(log.info).not.toHaveBeenCalled();
     expect(JSON.parse(log.warn.mock.calls[0][0]).ok).toBe(true);
+  });
+
+  it("claims no feature for the migrations-only DB binding", async () => {
+    const { reportRuntimeContract } = await freshModule();
+    const log = sink();
+    reportRuntimeContract(without("DB"), "fetch", release, log);
+    expect(log.warn).not.toHaveBeenCalled();
+    const line = JSON.parse(log.info.mock.calls[0][0]);
+    expect(Object.keys(line.features)).toEqual([
+      "editorial",
+      "editorial_publishing",
+    ]);
+    expect(JSON.stringify(line)).not.toContain('"DB"');
   });
 
   it("bounds the release label to a commit identity or dev", async () => {
@@ -500,9 +505,6 @@ function undeclared(declared: Declared) {
   );
 }
 
-// Declared for retained or build tooling; no admin runtime surface reads it.
-const UNCONTRACTED_VARS = ["PUBLIC_STATE_API"];
-
 describe("admin wrangler.toml runtime contract drift", () => {
   const wrangler = readFileSync(
     new URL("../../wrangler.toml", import.meta.url),
@@ -522,7 +524,7 @@ describe("admin wrangler.toml runtime contract drift", () => {
       ...declared.r2,
       ...declared.durable_objects,
       ...declared.secret,
-    ].filter((name) => !UNCONTRACTED_VARS.includes(name));
+    ];
     expect(deployed.filter((name) => !(name in RUNTIME_CONTRACT))).toEqual([]);
   });
 
