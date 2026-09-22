@@ -59,8 +59,14 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const record = { kind: "writing", id: "test" } as const;
 const owner = "owner@example.invalid";
 const key = recoveryKey(owner, record);
+// Already public, so the review's visibility preparation leaves it unchanged.
 const article = (title: string, body: string) =>
-  `${newWritingSource(title).replace('summary: ""', 'summary: "Synthetic summary"')}${body}`;
+  `${newWritingSource(title)
+    .replace('summary: ""', 'summary: "Synthetic summary"')
+    .replace(
+      "status: draft",
+      "status: published\npublished_at: 2026-09-20",
+    )}${body}`;
 const source = article("Original title", "Original body.");
 const mine = article("Retained title", "Retained private body.");
 const pending = {

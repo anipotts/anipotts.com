@@ -6,48 +6,10 @@ import {
   PublicationProgress,
   publicationProgress,
 } from "./PublicationProgress";
-import type { PublishJob } from "../../editorial/publication-jobs";
-import type {
-  DirectPublicationStatus,
-  PublicationStatus,
-} from "../../lib/editorial-publication-status";
+import type { DirectPublicationStatus } from "../../lib/editorial-publication-status";
 
-const job = (
-  phase: PublishJob["phase"],
-  blocked: string | null = null,
-): PublishJob => ({
-  id: "current",
-  phase,
-  blocked,
-  version: 1,
-  attempts: 1,
-  dueAt: 0,
-  lease: null,
-  leaseUntil: 0,
-  checkpoint: {},
-});
-const queued = (blocked: string | null = null): PublicationStatus => ({
-  ...job("validate"),
-  attempts: 0,
-  canCancel: true,
-  revision: 2,
-  queue: {
-    position: 2,
-    pending: 2,
-    alarmAt: blocked ? null : 1000,
-    head: {
-      ...job("validate", blocked),
-      id: "earlier",
-      sequence: 1,
-      record: { kind: "work", id: "chainedchat" },
-      revision: 2,
-      createdAt: 0,
-      cancelRequested: false,
-    },
-  },
-});
 function render(
-  publication: PublishJob | PublicationStatus | DirectPublicationStatus,
+  publication: DirectPublicationStatus,
   options: { compact?: boolean; stale?: boolean } = {},
 ) {
   return new DOMParser().parseFromString(
@@ -58,199 +20,21 @@ function render(
   );
 }
 
-describe("publication progress", () => {
-  it("accepts old jobs without coordinator fields and distinguishes GitHub review from publication", () => {
-    const progress = publicationProgress(job("checks"));
-    expect(progress.message).toBe(
-      "Content approved; waiting for GitHub checks and your PR review.",
-    );
-    expect(progress.steps.map((s) => s.state)).toEqual([
-      "complete",
-      "waiting",
-      "upcoming",
-      "upcoming",
-    ]);
-    expect(progress.isRunning).toBe(false);
-    expect(
-      render(job("checks")).querySelectorAll('[role="status"]'),
-    ).toHaveLength(1);
-  });
-
-  it("only confirms live publication after verification", () => {
-    expect(publicationProgress(job("verify")).message).toContain(
-      "before confirming publication",
-    );
-    expect(
-      publicationProgress(job("verify")).steps.map((s) => s.state),
-    ).toEqual(["complete", "complete", "complete", "active"]);
-    expect(
-      publicationProgress(job("live")).steps.every(
-        (s) => s.state === "complete",
-      ),
-    ).toBe(true);
-    expect(publicationProgress(job("live")).message).toBe(
-      "Your changes were verified on the live website.",
-    );
-    expect(publicationProgress(job("live")).isRunning).toBe(false);
-  });
-
-  it("explains an earlier paused job rather than claiming this record is being checked", () => {
-    const publication = queued("unreleased_public_changes");
-    const progress = publicationProgress(publication);
-    expect(progress.message).toContain("Queued behind chainedchat");
-    expect(progress.message).toContain(
-      "deploy the reviewed website release, then retry",
-    );
-    expect(progress.steps[0].state).toBe("waiting");
-    expect(progress.isRunning).toBe(false);
-    const doc = render(publication, { compact: true });
-    expect(doc.querySelector('[role="status"]')?.textContent).toBe(
-      progress.message,
-    );
-    expect(doc.querySelector("a")?.getAttribute("href")).toBe(
-      "/content/projects/chainedchat?panel=publication",
-    );
-    expect(doc.querySelector('[role="list"]')).toBeNull();
-    expect(doc.querySelector('[data-pulsing="true"]')).toBeNull();
-  });
-
-  it("shows a queued job waiting its turn even if its own phase is validate", () => {
-    const progress = publicationProgress(queued());
-    expect(progress.message).toBe(
-      "Queued behind chainedchat; your publication will start after it finishes.",
-    );
-    expect(progress.isRunning).toBe(false);
-    expect(progress.steps[0].state).toBe("waiting");
-  });
-
-  it("shows an unclaimed first job as queued with no active animation", () => {
-    const publication = { ...job("validate"), attempts: 0 };
-    expect(publicationProgress(publication).message).toContain(
-      "content checks have not started",
-    );
-    expect(publicationProgress(publication).steps[0].state).toBe("waiting");
-    expect(publicationProgress(publication).isRunning).toBe(false);
-  });
-
-  it("keeps a paused first job blocked even when no attempt was claimed", () => {
-    const publication = { ...job("validate", "stale_renderer"), attempts: 0 };
-    expect(publicationProgress(publication).steps[0].state).toBe("blocked");
-    expect(publicationProgress(publication).message).toContain(
-      "admin release is out of date",
-    );
-  });
-
-  it("does not treat a cancellation request as confirmed cancellation", () => {
-    const publication = {
-      ...queued(),
-      checkpoint: { cancelRequested: "true" },
-    };
-    const progress = publicationProgress(publication);
-    expect(progress.message).toContain("Stop requested");
-    expect(progress.message).not.toContain("Publication stopped");
-    expect(progress.blocker).toBeNull();
-    expect(progress.isRunning).toBe(false);
-  });
-
-  it("keeps confirmed cancellation still and accurate when status becomes stale", () => {
-    const progress = publicationProgress(job("cancelled"), true);
-    expect(progress.message).toBe(
-      "Publication stopped; your private draft is preserved.",
-    );
-    expect(progress.steps.every((s) => s.state === "stopped")).toBe(true);
-    expect(progress.isRunning).toBe(false);
-  });
-
-  it("does not claim a stale live result is current or animate an unconfirmed status", () => {
-    const live = publicationProgress(job("live"), true);
-    expect(live.message).toContain("last confirmed result");
-    expect(live.variant).toBe("warning");
-    expect(live.steps[3].state).toBe("waiting");
-    const active = publicationProgress(
-      { ...job("commit"), lease: "lease", leaseUntil: Date.now() + 60_000 },
-      true,
-    );
-    expect(active.message).toContain("before retrying");
-    expect(active.isRunning).toBe(false);
-    expect(active.steps[0].state).toBe("waiting");
-  });
-
-  it.each([
-    ["stale_renderer", "deploy the compatible admin release"],
-    ["base_changed", "review your draft against the latest website"],
-    [
-      "publication_base_changed",
-      "review your draft against the latest website",
-    ],
-    ["record_changed", "compare your saved draft"],
-    ["required_checks_failed", "open the checks, resolve the failure"],
-    ["checks_failed", "open the checks, resolve the failure"],
-    ["deployment_failed", "restore deployment"],
-    ["release_content_mismatch", "retrying verification"],
-  ])(
-    "gives specific remediation for %s without surfacing machine codes",
-    (code, expected) => {
-      const progress = publicationProgress(job("checks", code));
-      expect(progress.message).toContain(expected);
-      expect(progress.message).not.toContain(code);
-      expect(progress.steps[1].state).toBe("blocked");
-      expect(progress.isRunning).toBe(false);
-    },
-  );
-
-  it("does not display unknown provider error content or unsafe checkpoint destinations", () => {
-    const publication = {
-      ...job("checks", "private_provider_body?token=secret"),
-      checkpoint: { prNumber: "123/../../unexpected?secret=value" },
-    };
-    const doc = render(publication);
-    expect(doc.body.textContent).toContain("publisher needs investigation");
-    expect(doc.body.textContent).not.toContain("secret");
-    expect(doc.querySelector("a")).toBeNull();
-  });
-
-  it("links only valid blocking record identities and supported collections", () => {
-    const publication = queued("stale_renderer");
-    publication.queue.head!.record = {
-      kind: "writing",
-      id: "../../settings?token=secret",
-    };
-    const progress = publicationProgress(publication);
-    expect(progress.blocker).toBeNull();
-    expect(progress.message).not.toContain("secret");
-    expect(render(publication).querySelector("a")).toBeNull();
-    publication.queue.head!.record = { kind: "page", id: "writing" };
-    expect(publicationProgress(publication).blocker?.href).toBe(
-      "/content/writingPage/writing?panel=publication",
-    );
-  });
-
-  it("only animates a confirmed current lease, not a phase sitting in backoff", () => {
-    expect(publicationProgress(job("commit")).isRunning).toBe(false);
-    expect(
-      publicationProgress({
-        ...job("commit"),
-        lease: "active-lease",
-        leaseUntil: Date.now() + 60_000,
-      }).isRunning,
-    ).toBe(true);
-    expect(
-      publicationProgress({
-        ...job("checks"),
-        lease: "active-lease",
-        leaseUntil: Date.now() + 60_000,
-      }).isRunning,
-    ).toBe(false);
-  });
-});
-
 const direct = (
-  phase: PublishJob["phase"],
+  phase: DirectPublicationStatus["phase"],
   overrides: Partial<DirectPublicationStatus> = {},
 ): DirectPublicationStatus => {
   const activated = phase === "verify" || phase === "live";
   return {
-    ...job(phase),
+    id: "current",
+    phase,
+    blocked: null,
+    version: 1,
+    attempts: 1,
+    dueAt: 0,
+    lease: null,
+    leaseUntil: 0,
+    checkpoint: {},
     mode: "direct",
     revision: 2,
     sourceSha256: "a".repeat(64),
@@ -261,7 +45,7 @@ const direct = (
     superseded: false,
     canCancel: !activated,
     queue: {
-      position: activated ? null : 1,
+      position: null,
       pending: activated ? 0 : 1,
       head: null,
       alarmAt: null,
@@ -426,11 +210,6 @@ describe("direct CMS publication progress", () => {
     ["publication_image_copy_failed", "retry when storage recovers"],
     ["publication_images_too_large", "reduce the affected content"],
     ["too_many_images", "publication limit"],
-    ["legacy_effects_pending", "resolve its recorded effects"],
-    [
-      "legacy_publication_requires_reconciliation",
-      "resolve its recorded effects",
-    ],
     ["publication_receipt_missing", "confirm its recorded effects"],
     [
       "publication_retry_required",
@@ -458,9 +237,12 @@ describe("direct CMS publication progress", () => {
     expect(doc.querySelector("a")).toBeNull();
   });
 
-  it("never falls back to the legacy flow for an unexpected direct phase", () => {
+  it("treats an unexpected phase as needing reconciliation", () => {
     const progress = publicationProgress(
-      direct("checks", { lease: "lease", leaseUntil: Date.now() + 60_000 }),
+      direct("checks" as DirectPublicationStatus["phase"], {
+        lease: "lease",
+        leaseUntil: Date.now() + 60_000,
+      }),
     );
     expect(progress.message).toContain("needs reconciliation");
     expect(progress.message).not.toMatch(/GitHub|pull request|deploy/i);
@@ -507,23 +289,21 @@ describe("direct CMS publication progress", () => {
 });
 
 it("does not animate expired or malformed leases as active publication work", () => {
-  for (const mode of ["legacy", "direct"] as const) {
-    const publication = mode === "direct" ? direct("commit") : job("commit");
-    for (const leaseUntil of [0, 999, 1000, Number.NaN, Infinity]) {
-      expect(
-        publicationProgress(
-          { ...publication, lease: "retained", leaseUntil },
-          false,
-          1000,
-        ).isRunning,
-      ).toBe(false);
-    }
+  const publication = direct("commit");
+  for (const leaseUntil of [0, 999, 1000, Number.NaN, Infinity]) {
     expect(
       publicationProgress(
-        { ...publication, lease: "current", leaseUntil: 1001 },
+        { ...publication, lease: "retained", leaseUntil },
         false,
         1000,
       ).isRunning,
-    ).toBe(true);
+    ).toBe(false);
   }
+  expect(
+    publicationProgress(
+      { ...publication, lease: "current", leaseUntil: 1001 },
+      false,
+      1000,
+    ).isRunning,
+  ).toBe(true);
 });

@@ -11,7 +11,7 @@ it("reports the runtime contract once from Durable Object entries without blocki
   const info = vi.spyOn(console, "info");
   const warn = vi.spyOn(console, "warn");
   const first = env.EDITORIAL.getByName(crypto.randomUUID());
-  expect(await first.latestPublication(record)).toBeNull();
+  expect(await first.latestDirectPublication(record)).toBeNull();
   const second = env.EDITORIAL.getByName(crypto.randomUUID());
   await runInDurableObject(second, (_instance, state) =>
     state.storage.setAlarm(Date.now() + 60_000),

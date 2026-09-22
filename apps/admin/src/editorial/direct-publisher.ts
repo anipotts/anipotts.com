@@ -36,7 +36,6 @@ import {
 } from "../lib/editorial-visibility";
 import { drainBounded, readBoundedBytes } from "../lib/bounded-body";
 import { HEX64 } from "../lib/patterns";
-import { publisherMode, type PublisherMode } from "../lib/runtime-contract";
 import type { Draft } from "./draft-store";
 import type { EditorialMedia } from "./media-store";
 
@@ -88,7 +87,6 @@ export type DirectStartResult =
         | "invalid_source"
         | "revision_conflict"
         | "idempotency_key_reused"
-        | "legacy_publication_requires_reconciliation"
         | "unsupported_visibility_change"
         | "unpublish_unsupported"
         | "already_hidden"
@@ -114,11 +112,6 @@ const sameInput = (
   left.reviewedSourceSha256 === right.reviewedSourceSha256 &&
   left.expectedPublicationId === right.expectedPublicationId &&
   left.expectedBaselineSha256 === right.expectedBaselineSha256;
-
-/** Invalid configuration stops publishing; it never selects a publisher. */
-export function editorialPublishMode(env: unknown): PublisherMode {
-  return publisherMode(env) ?? "maintenance";
-}
 
 /** Durable per-record publishing. Private intents stay in the editorial object;
  * only approved, validated snapshots cross into the dedicated publication DB. */
@@ -247,19 +240,6 @@ export class DirectPublisher {
           ok: false as const,
           code: "publication_in_progress" as const,
           existingId: existing.id,
-        };
-      // Never assume an old Git operation had no external effect just because
-      // it currently has no lease. Inspected reconciliation is a transition gate.
-      const legacy = this.storage.sql
-        .exec<{ id: string }>(
-          `SELECT id FROM publication_jobs WHERE phase NOT IN ('live','cancelled')
-        AND (attempts > 0 OR phase != 'validate' OR lease IS NOT NULL OR leaseUntil != 0 OR checkpoint != '{}') LIMIT 1`,
-        )
-        .toArray()[0];
-      if (legacy)
-        return {
-          ok: false as const,
-          code: "legacy_publication_requires_reconciliation" as const,
         };
       const approved =
         actionOf(input) === "unpublish"

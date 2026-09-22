@@ -1,43 +1,19 @@
 import { DurableObject } from "cloudflare:workers";
 import { EditorialMediaStore } from "./media-store";
-import {
-  referencedMediaIds,
-  MAX_PUBLICATION_IMAGES,
-  MAX_PUBLICATION_MEDIA_BYTES,
-} from "../lib/editorial-media";
 import { gitBlobSha1, sha256Hex } from "../lib/crypto";
 import { GIT_SHA } from "../lib/patterns";
-import { DirectPublisher, editorialPublishMode } from "./direct-publisher";
+import { DirectPublisher } from "./direct-publisher";
 import type { PublicationDatabase } from "@anipotts/content/editorial/direct-publication";
 import type {
   DirectPublicationStatus,
   StartDirectPublication,
 } from "../lib/editorial-publication-status";
-import { PublicationJobs } from "./publication-jobs";
-import { publicationAlarm } from "./publication-alarm";
-import { editorialRuntime } from "./runtime";
 import { reportRuntimeContract } from "../lib/runtime-contract";
-import { publicationStage } from "./publication-stage";
 import {
   editorialRecordPath,
-  editorialRecordSchema,
   MAX_SOURCE_BYTES,
-  validateEditorialSource,
   type EditorialRecord,
 } from "@anipotts/content/editorial/source";
-import type {
-  Publication,
-  FreezePublication,
-  FreezeResult,
-} from "./publication";
-
-import {
-  MAX_PUBLICATION_QUEUE_PAGE,
-  type PublicationQueueEntry,
-  type PublicationQueueOptions,
-  type PublicationQueuePage,
-  type PublicationStatus,
-} from "../lib/editorial-publication-status";
 
 export type Draft = {
   key: string;
@@ -106,7 +82,6 @@ export class EditorialDraftStore extends DurableObject<unknown> {
   async readMedia(id: string) {
     return new EditorialMediaStore(this.ctx.storage).read(id);
   }
-  private jobs: PublicationJobs;
   private directPublisher() {
     const bindings = this.env as {
       CONTENT_DB?: PublicationDatabase;
@@ -157,7 +132,6 @@ export class EditorialDraftStore extends DurableObject<unknown> {
   private directEnabled() {
     const values = this.env as Record<string, unknown>;
     return (
-      editorialPublishMode(this.env) === "direct" &&
       values.EDITORIAL_ENABLED === "true" &&
       values.EDITORIAL_PUBLISH_ENABLED === "true" &&
       Boolean(values.CONTENT_DB) &&
@@ -204,358 +178,32 @@ export class EditorialDraftStore extends DurableObject<unknown> {
       ? { ok: true as const }
       : { ok: false as const, code: "publication_conflict" as const };
   }
-  async startPublication(input: FreezePublication): Promise<FreezeResult> {
-    if (editorialPublishMode(this.env) !== "legacy")
-      return { ok: false, code: "invalid_request" };
-    // Arm first: interruption before freezing leaves only a harmless empty wake.
-    // Interruption after freezing leaves a durable wake for the queued snapshot.
-    await this.ctx.storage.setAlarm(Date.now() + 1000);
-    return this.freezePublication(input);
-  }
   async alarm(): Promise<void> {
-    const mode = editorialPublishMode(this.env);
-    if (mode === "maintenance") {
-      // A mode-only deployment must not strand approved work after this alarm
-      // is consumed. Keep a quiet durable wake, with no external I/O.
-      const directTable = this.ctx.storage.sql
+    // A binding regression must not consume the only durable wake. Native
+    // alarm retries are finite; keep accepted work recoverable after repair.
+    if (!(this.env as Record<string, unknown>).CONTENT_DB) {
+      const pending = this.ctx.storage.sql
         .exec<{ name: string }>(
           "SELECT name FROM sqlite_master WHERE type='table' AND name='direct_publication_intents'",
         )
         .toArray()[0];
-      const directPending =
-        directTable &&
+      if (
+        pending &&
         this.ctx.storage.sql
           .exec<{ id: string }>(
             "SELECT id FROM direct_publication_intents WHERE phase NOT IN ('live','cancelled') LIMIT 1",
           )
-          .toArray()[0];
-      if (directPending || this.pendingPublicationCount() > 0)
+          .toArray()[0]
+      )
         await this.ctx.storage.setAlarm(Date.now() + 60_000);
       return;
     }
-    if (mode === "direct") {
-      // A binding regression must not consume the only durable wake. Native
-      // alarm retries are finite; keep accepted work recoverable after repair.
-      if (!(this.env as Record<string, unknown>).CONTENT_DB) {
-        const pending = this.ctx.storage.sql
-          .exec<{ name: string }>(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='direct_publication_intents'",
-          )
-          .toArray()[0];
-        if (
-          pending &&
-          this.ctx.storage.sql
-            .exec<{ id: string }>(
-              "SELECT id FROM direct_publication_intents WHERE phase NOT IN ('live','cancelled') LIMIT 1",
-            )
-            .toArray()[0]
-        )
-          await this.ctx.storage.setAlarm(Date.now() + 60_000);
-        return;
-      }
-      await this.directPublisher().alarm();
-      return;
-    }
-    const runtime = editorialRuntime(this.env);
-    await publicationAlarm(
-      this.ctx.storage,
-      this.jobs,
-      async (job) => {
-        if (
-          job.checkpoint.cancelRequested === "true" &&
-          ["validate", "commit"].includes(job.phase)
-        )
-          return { next: "cancelled" };
-        if (!runtime?.publishing)
-          return { blocked: "publisher_not_configured" };
-        const publication = this.readPublication(job.id);
-        if (!publication) return { blocked: "publication_missing" };
-        if (job.phase === "validate" || job.phase === "commit") {
-          const ids = referencedMediaIds(publication.source);
-          if (ids.length > MAX_PUBLICATION_IMAGES)
-            return { blocked: "too_many_images" };
-          let total = 0;
-          publication.attachments = [];
-          for (const id of ids) {
-            const media = await this.readMedia(id);
-            if (!media) return { blocked: "publication_image_missing" };
-            total += media.bytes.length;
-            if (total > MAX_PUBLICATION_MEDIA_BYTES)
-              return { blocked: "publication_images_too_large" };
-            publication.attachments.push({
-              id,
-              base64: Buffer.from(media.bytes).toString("base64"),
-            });
-          }
-        }
-        return publicationStage(
-          job,
-          publication,
-          runtime.git,
-          runtime.ready,
-          runtime.verify,
-        );
-      },
-      Date.now,
-      (job) => {
-        const publication = this.readPublication(job.id);
-        if (!publication || !job.checkpoint.mergeCommit)
-          throw new Error("publication_missing");
-        const draft = this.read(publication.path);
-        // Later typing stays intact, but its base now includes the published revision.
-        if (
-          draft &&
-          draft.baseCommit === publication.baseCommit &&
-          draft.baseFileHash === publication.baseFileHash
-        ) {
-          const hash = gitBlobSha1(publication.source);
-          this.ctx.storage.sql.exec(
-            "UPDATE drafts SET baseCommit = ?, baseFileHash = ? WHERE key = ?",
-            job.checkpoint.mergeCommit,
-            hash,
-            publication.path,
-          );
-        }
-      },
-    );
-  }
-
-  async latestPublication(
-    record: EditorialRecord,
-  ): Promise<PublicationStatus | null> {
-    const row = this.ctx.storage.sql
-      .exec<{ id: string }>(
-        "SELECT id FROM publications WHERE key = ? ORDER BY rowid DESC LIMIT 1",
-        editorialRecordPath(record),
-      )
-      .toArray()[0];
-    return row ? this.readPublicationStatus(row.id) : null;
-  }
-
-  /** Bounded owner-only queue inspection, including jobs without a receipt.
-   * Read only selected JSON metadata in SQL, never hydrate source snapshots. */
-  async publicationQueue(
-    options: PublicationQueueOptions = {},
-  ): Promise<PublicationQueuePage> {
-    const limit = options.limit ?? 25;
-    const after = options.afterSequence ?? 0;
-    if (
-      !Number.isSafeInteger(limit) ||
-      limit < 1 ||
-      limit > MAX_PUBLICATION_QUEUE_PAGE ||
-      !Number.isSafeInteger(after) ||
-      after < 0
-    )
-      throw new Error("invalid_publication_page");
-    const alarmAt = await this.ctx.storage.getAlarm();
-    const rows = this.readQueueEntries(after, limit + 1);
-    const items = rows.slice(0, limit);
-    return {
-      items,
-      nextAfterSequence: rows.length > limit ? items.at(-1)!.sequence : null,
-      pending: this.pendingPublicationCount(),
-      head:
-        after === 0
-          ? (items[0] ?? null)
-          : (this.readQueueEntries(0, 1)[0] ?? null),
-      alarmAt,
-    };
-  }
-
-  private pendingPublicationCount(): number {
-    return this.ctx.storage.sql
-      .exec<{ count: number }>(
-        "SELECT COUNT(*) AS count FROM publication_jobs WHERE phase NOT IN ('live', 'cancelled')",
-      )
-      .one().count;
-  }
-
-  private readQueueEntries(
-    after: number,
-    limit: number,
-  ): PublicationQueueEntry[] {
-    type QueueRow = Omit<
-      PublicationQueueEntry,
-      "record" | "cancelRequested"
-    > & {
-      kind: string | null;
-      recordId: string | null;
-      cancelRequested: string | null;
-    };
-    return this.ctx.storage.sql
-      .exec<QueueRow>(
-        `SELECT jobs.rowid AS sequence, jobs.id, jobs.phase, jobs.version,
-        jobs.attempts, jobs.dueAt, jobs.leaseUntil, jobs.blocked,
-        json_extract(jobs.checkpoint, '$.cancelRequested') AS cancelRequested,
-        json_extract(receipt.snapshot, '$.record.kind') AS kind,
-        json_extract(receipt.snapshot, '$.record.id') AS recordId,
-        receipt.revision, json_extract(receipt.snapshot, '$.createdAt') AS createdAt
-      FROM publication_jobs AS jobs
-      LEFT JOIN publications AS receipt ON receipt.id = jobs.id
-      WHERE jobs.phase NOT IN ('live', 'cancelled') AND jobs.rowid > ?
-      ORDER BY jobs.rowid LIMIT ?`,
-        after,
-        limit,
-      )
-      .toArray()
-      .map(({ kind, recordId, cancelRequested, ...entry }) => {
-        const record = editorialRecordSchema.safeParse({ kind, id: recordId });
-        return {
-          ...entry,
-          record: record.success ? record.data : null,
-          cancelRequested: cancelRequested === "true",
-        };
-      });
-  }
-
-  private async readPublicationStatus(
-    id: string,
-  ): Promise<PublicationStatus | null> {
-    const alarmAt = await this.ctx.storage.getAlarm();
-    const job = this.jobs.get(id);
-    if (!job) return null;
-    const receipt = this.ctx.storage.sql
-      .exec<{ revision: number }>(
-        "SELECT revision FROM publications WHERE id = ?",
-        id,
-      )
-      .toArray()[0];
-    if (!receipt) return null;
-    const terminal = job.phase === "live" || job.phase === "cancelled";
-    const position = terminal
-      ? null
-      : this.ctx.storage.sql
-          .exec<{ position: number }>(
-            `SELECT COUNT(*) AS position FROM publication_jobs
-      WHERE phase NOT IN ('live', 'cancelled')
-        AND rowid <= (SELECT rowid FROM publication_jobs WHERE id = ?)`,
-            id,
-          )
-          .one().position;
-    return {
-      ...job,
-      revision: receipt.revision,
-      canCancel:
-        job.lease === null &&
-        job.checkpoint.cancelRequested !== "true" &&
-        ["validate", "commit", "branch", "pr", "checks"].includes(job.phase),
-      queue: {
-        position,
-        pending: this.pendingPublicationCount(),
-        head: this.readQueueEntries(0, 1)[0] ?? null,
-        alarmAt,
-      },
-    };
-  }
-
-  async publicationStatus(
-    record: EditorialRecord,
-    id: string,
-  ): Promise<PublicationStatus | null> {
-    let path: string;
-    try {
-      path = editorialRecordPath(record);
-    } catch {
-      return null;
-    }
-    const receipt = this.ctx.storage.sql
-      .exec<{ key: string }>("SELECT key FROM publications WHERE id = ?", id)
-      .toArray()[0];
-    return receipt?.key === path ? this.readPublicationStatus(id) : null;
-  }
-  async retryPublication(
-    record: EditorialRecord,
-    id: string,
-    expectedVersion: number,
-  ): Promise<{ ok: true } | { ok: false; code: "publication_conflict" }> {
-    if (editorialPublishMode(this.env) !== "legacy")
-      return { ok: false, code: "publication_conflict" };
-    const job = await this.publicationStatus(record, id);
-    if (
-      !job ||
-      job.version !== expectedVersion ||
-      !job.blocked ||
-      job.lease !== null ||
-      job.phase === "live"
-    )
-      return { ok: false, code: "publication_conflict" };
-    // Schedule before releasing the hold, so interruption cannot strand a
-    // runnable job. The transaction rechecks the version after this await.
-    await this.ctx.storage.setAlarm(Date.now() + 1000);
-    return this.jobs.retry(id, expectedVersion, Date.now())
-      ? { ok: true }
-      : { ok: false, code: "publication_conflict" };
-  }
-  /** Maintenance-only retirement of a legacy operation that never wrote.
-   * A job still in validate with no lease and an empty checkpoint has made no
-   * provider write: validate only reads GitHub and release state, the first
-   * write is createCommit in the commit phase, and phases only advance. Prior
-   * claims (attempts) and a validate blocker do not change that. Any other
-   * phase, a lease or a checkpoint requires separate effect reconciliation. */
-  async cancelUnstartedLegacyPublication(
-    record: EditorialRecord,
-    id: string,
-    expectedRevision: number,
-    expectedVersion: number,
-  ) {
-    if (editorialPublishMode(this.env) !== "maintenance")
-      return { ok: false as const, code: "maintenance_required" as const };
-    return this.ctx.storage.transactionSync(() => {
-      const receipt = this.readPublication(id);
-      const job = this.jobs.get(id);
-      if (
-        !receipt ||
-        !job ||
-        !uuid.test(id) ||
-        !Number.isSafeInteger(expectedRevision) ||
-        expectedRevision < 1 ||
-        !Number.isSafeInteger(expectedVersion) ||
-        expectedVersion < 0 ||
-        receipt.path !== editorialRecordPath(record) ||
-        receipt.revision !== expectedRevision ||
-        job.version !== expectedVersion
-      )
-        return { ok: false as const, code: "publication_conflict" as const };
-      if (
-        job.phase !== "validate" ||
-        job.lease !== null ||
-        job.leaseUntil !== 0 ||
-        Object.keys(job.checkpoint).length !== 0
-      )
-        return {
-          ok: false as const,
-          code: "legacy_publication_requires_reconciliation" as const,
-        };
-      // No external work or alarm is needed. Preserve source, receipt and all
-      // authored revisions; the version CAS transition records cancellation.
-      return this.jobs.retireUnwrittenValidate(id, expectedVersion)
-        ? { ok: true as const }
-        : { ok: false as const, code: "publication_conflict" as const };
-    });
-  }
-  async cancelPublication(
-    record: EditorialRecord,
-    id: string,
-    expectedVersion: number,
-  ): Promise<{ ok: true } | { ok: false; code: "publication_conflict" }> {
-    const job = await this.publicationStatus(record, id);
-    if (
-      !job ||
-      job.version !== expectedVersion ||
-      job.lease !== null ||
-      !["validate", "commit", "branch", "pr", "checks"].includes(job.phase)
-    )
-      return { ok: false, code: "publication_conflict" };
-    await this.ctx.storage.setAlarm(Date.now() + 1000);
-    return this.jobs.requestCancel(id, expectedVersion, Date.now())
-      ? { ok: true }
-      : { ok: false, code: "publication_conflict" };
+    await this.directPublisher().alarm();
   }
   constructor(ctx: DurableObjectState, env: unknown) {
     super(ctx, env);
     // Alarms and RPC construct the object without the Worker fetch wrapper.
     reportRuntimeContract(env, "durable_object");
-    this.jobs = new PublicationJobs(ctx.storage);
     ctx.storage.sql.exec(`
       CREATE TABLE IF NOT EXISTS direct_published_bases (
         key TEXT PRIMARY KEY, publicationId TEXT NOT NULL, inventoryVersion INTEGER NOT NULL
@@ -601,8 +249,8 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         key TEXT NOT NULL,
         payloadHash TEXT NOT NULL,
         -- Hash of the client-controlled request only. payloadHash also covers
-        -- the server-derived Git base, which the publication alarm rewrites in
-        -- place once a publication is live, so an unchanged retry after that
+        -- the server-derived Git base, which a publication acknowledgment
+        -- rewrites in place once it is live, so an unchanged retry after that
         -- no longer matches it. Rows written before this column exists stay
         -- NULL and keep matching on payloadHash alone.
         clientHash TEXT,
@@ -631,19 +279,6 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         AND identities.payloadHash = requests.payloadHash
         AND identities.outcome = 'conflict' AND identities.legacyResult IS NULL
         AND json_extract(requests.result, '$.ok') = 0;
-      CREATE TABLE IF NOT EXISTS publications (
-        id TEXT PRIMARY KEY,
-        key TEXT NOT NULL,
-        revision INTEGER NOT NULL,
-        snapshot TEXT NOT NULL,
-        UNIQUE (key, revision)
-      );
-      CREATE TABLE IF NOT EXISTS publication_requests (
-        id TEXT PRIMARY KEY,
-        key TEXT NOT NULL,
-        revision INTEGER NOT NULL,
-        publicationId TEXT NOT NULL
-      );
     `);
     // Additive upgrade for objects created before clientHash existed. Their
     // rows keep a NULL clientHash and their original payloadHash semantics.
@@ -676,113 +311,6 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         "SELECT * FROM drafts WHERE key LIKE 'content/public/projects/%' AND discardedAt IS NULL ORDER BY updatedAt DESC",
       )
       .toArray();
-  }
-
-  /** Only the authenticated publish route may call this, after disclosure consent.
-   * Complete-snapshot reference and Git validation still precede any GitHub write.
-   */
-  async freezePublication(input: FreezePublication): Promise<FreezeResult> {
-    if (editorialPublishMode(this.env) !== "legacy")
-      return { ok: false, code: "invalid_request" };
-    let path: string;
-    try {
-      path = editorialRecordPath(input.record);
-    } catch {
-      return { ok: false, code: "invalid_request" };
-    }
-    if (
-      !uuid.test(input.operationId) ||
-      !Number.isSafeInteger(input.expectedRevision) ||
-      input.expectedRevision < 1
-    )
-      return { ok: false, code: "invalid_request" };
-    return this.ctx.storage.transactionSync(() => {
-      const receipt = this.ctx.storage.sql
-        .exec<{ key: string; revision: number; publicationId: string }>(
-          "SELECT key, revision, publicationId FROM publication_requests WHERE id = ?",
-          input.operationId,
-        )
-        .toArray()[0];
-      if (receipt) {
-        if (receipt.key !== path || receipt.revision !== input.expectedRevision)
-          return { ok: false, code: "idempotency_key_reused" };
-        return {
-          ok: true,
-          publication: this.readPublication(receipt.publicationId)!,
-        };
-      }
-      // A second click with a fresh request ID still refers to the same snapshot.
-      const existing = this.ctx.storage.sql
-        .exec<{ id: string }>(
-          "SELECT id FROM publications WHERE key = ? AND revision = ?",
-          path,
-          input.expectedRevision,
-        )
-        .toArray()[0];
-      let publication = existing ? this.readPublication(existing.id) : null;
-      if (!publication) {
-        const draft = this.read(path);
-        if (
-          !draft ||
-          draft.discardedAt !== null ||
-          draft.revision !== input.expectedRevision
-        )
-          return { ok: false, code: "revision_conflict" };
-        try {
-          if (!validateEditorialSource(input.record, draft.source).success)
-            return { ok: false, code: "invalid_source" };
-        } catch {
-          return { ok: false, code: "invalid_source" };
-        }
-        const sourceHash = gitBlobSha1(draft.source);
-        if (sourceHash === draft.baseFileHash)
-          return { ok: false, code: "no_changes" };
-        publication = {
-          id: input.operationId,
-          record: input.record,
-          revision: draft.revision,
-          path,
-          source: draft.source,
-          baseCommit: draft.baseCommit,
-          baseFileHash: draft.baseFileHash,
-          createdAt: Date.now(),
-        };
-        this.ctx.storage.sql.exec(
-          "INSERT INTO publications (id, key, revision, snapshot) VALUES (?, ?, ?, ?)",
-          publication.id,
-          path,
-          draft.revision,
-          JSON.stringify(publication),
-        );
-        this.jobs.enqueue(publication.id, publication.createdAt);
-      }
-      this.ctx.storage.sql.exec(
-        "INSERT INTO publication_requests (id, key, revision, publicationId) VALUES (?, ?, ?, ?)",
-        input.operationId,
-        path,
-        input.expectedRevision,
-        publication.id,
-      );
-      return { ok: true, publication };
-    });
-  }
-
-  async publication(
-    record: EditorialRecord,
-    id: string,
-  ): Promise<Publication | null> {
-    const result = this.readPublication(id);
-    return result?.path === editorialRecordPath(record) ? result : null;
-  }
-
-  private readPublication(id: string): Publication | null {
-    const row = this.ctx.storage.sql
-      .exec<{ snapshot: string }>(
-        "SELECT snapshot FROM publications WHERE id = ?",
-        id,
-      )
-      .toArray()[0];
-    return row ? (JSON.parse(row.snapshot) as Publication) : null;
   }
 
   async save(input: SaveDraft): Promise<SaveResult> {
@@ -826,9 +354,9 @@ export class EditorialDraftStore extends DurableObject<unknown> {
       ...(rebase ? { rebase: true } : {}),
     });
     // The caller supplies only these fields; baseCommit/baseFileHash are read
-    // from the draft this request is saving against, and the publication
-    // alarm's live callback rewrites them in place (see alarm()). Retry
-    // identity must not move when that happens.
+    // from the draft this request is saving against, and a publication
+    // acknowledgment rewrites the file hash in place (see directPublisher()).
+    // Retry identity must not move when that happens.
     const clientHash = await sha256({
       key,
       source: input.source,
@@ -844,7 +372,7 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         .toArray()[0];
       // Match the client-controlled hash when the identity has one. A retry
       // whose caller-supplied fields are unchanged must replay its original
-      // outcome even after the publication alarm rewrote the draft's Git base,
+      // outcome even after a publication acknowledgment rewrote its Git base,
       // which payloadHash covers. Rows written before clientHash existed have
       // NULL and keep their original payloadHash-only semantics.
       const sameRequest = (storedPayloadHash: string) =>

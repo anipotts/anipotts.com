@@ -13,19 +13,9 @@ import { GIT_SHA } from "./patterns";
 type Source =
   "assets" | "vars" | "d1" | "r2" | "durable_objects" | "secret" | "build";
 type Check =
-  | "fetch"
-  | "prepare"
-  | "getByName"
-  | "getPut"
-  | "text"
-  | "flag"
-  | "id"
-  | "sha"
-  | "mode";
-export type PublisherMode = "legacy" | "direct" | "maintenance";
+  "fetch" | "prepare" | "getByName" | "getPut" | "text" | "flag" | "sha";
 
-/** Names match deployment configuration when their mode is enabled. Each
- * publisher's bindings are needed only in its own mode; production runs direct.
+/** Names match deployment configuration when their feature is enabled.
  * This checks binding shape and build identity, not schema or reader readiness.
  */
 export const RUNTIME_CONTRACT = {
@@ -39,11 +29,6 @@ export const RUNTIME_CONTRACT = {
   COMMAND_RELAY: { source: "durable_objects", check: "getByName" },
   EDITORIAL_ENABLED: { source: "vars", check: "flag" },
   EDITORIAL_PUBLISH_ENABLED: { source: "vars", check: "flag" },
-  EDITORIAL_PUBLISH_MODE: { source: "vars", check: "mode" },
-  EDITORIAL_GITHUB_APP_ID: { source: "vars", check: "text" },
-  EDITORIAL_GITHUB_INSTALLATION_ID: { source: "vars", check: "id" },
-  EDITORIAL_GITHUB_PRIVATE_KEY: { source: "secret", check: "text" },
-  EDITORIAL_SIGNING_PRIVATE_KEY: { source: "secret", check: "text" },
   PRIVATE_READER_ENABLED: { source: "vars", check: "flag" },
   PRIVATE_READER_OPS_ENABLED: { source: "vars", check: "flag" },
   PRIVATE_READER_SIGNING_KEY: { source: "secret", check: "text" },
@@ -58,52 +43,24 @@ export const RUNTIME_REQUIRED = [
   "ACCESS_POLICY_AUD",
 ] as const satisfies readonly RuntimeName[];
 
-const legacyEditorialNeeds = [
-  "EDITORIAL",
-  "EDITORIAL_GITHUB_APP_ID",
-  "EDITORIAL_GITHUB_INSTALLATION_ID",
-  "EDITORIAL_GITHUB_PRIVATE_KEY",
-] as const satisfies readonly RuntimeName[];
-
-/** Mirrors productionEditor, editorialRuntime().publishing, adminDb and the
- * control-plane relay lookup. Flags switch a feature off; needs make an
- * enabled feature unavailable when absent.
+/** Mirrors productionEditor, adminDb and the control-plane relay lookup.
+ * Flags switch a feature off; needs make an enabled feature unavailable when
+ * absent. EDITORIAL_PUBLISH_ENABLED is the publishing kill switch.
  */
-const directEditorialNeeds = [
-  "EDITORIAL",
-  "CONTENT_DB",
-] as const satisfies readonly RuntimeName[];
-
 export const RUNTIME_FEATURES = {
   editorial: {
     flags: ["EDITORIAL_ENABLED"],
-    needs: {
-      legacy: legacyEditorialNeeds,
-      direct: directEditorialNeeds,
-      maintenance: directEditorialNeeds,
-    },
+    needs: ["EDITORIAL", "CONTENT_DB"],
   },
   editorial_publishing: {
     flags: ["EDITORIAL_ENABLED", "EDITORIAL_PUBLISH_ENABLED"],
-    needs: {
-      legacy: [
-        ...legacyEditorialNeeds,
-        "EDITORIAL_SIGNING_PRIVATE_KEY",
-        "PUBLIC_RELEASE_SHA",
-      ],
-      direct: [...directEditorialNeeds, "CONTENT_MEDIA", "PUBLIC_RELEASE_SHA"],
-      maintenance: [],
-    },
+    needs: ["EDITORIAL", "CONTENT_DB", "CONTENT_MEDIA", "PUBLIC_RELEASE_SHA"],
   },
   admin_database: { flags: [], needs: ["DB"] },
   control_plane: { flags: [], needs: ["COMMAND_RELAY"] },
 } as const satisfies Record<
   string,
-  {
-    flags: readonly RuntimeName[];
-    needs:
-      readonly RuntimeName[] | Record<PublisherMode, readonly RuntimeName[]>;
-  }
+  { flags: readonly RuntimeName[]; needs: readonly RuntimeName[] }
 >;
 
 type RuntimeFeature = keyof typeof RUNTIME_FEATURES;
@@ -134,21 +91,9 @@ function read(
   }
 }
 
-/** The one EDITORIAL_PUBLISH_MODE parser. Omission alone keeps the
- * rolling-upgrade legacy default; any other value, or an unreadable
- * configuration, is null and each caller fails closed. */
-export function publisherMode(env: unknown): PublisherMode | null {
-  const value = read(env, "EDITORIAL_PUBLISH_MODE", unreadable);
-  if (value === undefined) return "legacy";
-  return value === "legacy" || value === "direct" || value === "maintenance"
-    ? value
-    : null;
-}
-
 function satisfied(env: unknown, name: RuntimeName, release: string) {
   const { check } = RUNTIME_CONTRACT[name];
   if (check === "sha") return GIT_SHA.test(release);
-  if (check === "mode") return publisherMode(env) !== null;
   const value = read(env, name, unreadable);
   if (check === "getPut")
     return (
@@ -157,10 +102,6 @@ function satisfied(env: unknown, name: RuntimeName, release: string) {
     );
   if (check === "text") return typeof value === "string" && !!value.trim();
   if (check === "flag") return value === "true";
-  if (check === "id") {
-    const id = typeof value === "string" && value.trim() ? Number(value) : NaN;
-    return Number.isSafeInteger(id) && id > 0;
-  }
   return typeof read(value, check) === "function";
 }
 
@@ -178,24 +119,13 @@ export function evaluateRuntimeContract(
     }
     return result;
   };
-  // Invalid or unreadable configuration never silently enables either publisher.
-  const mode = publisherMode(env);
-  results.set("EDITORIAL_PUBLISH_MODE", mode !== null);
   const missing = RUNTIME_REQUIRED.filter((name) => !has(name));
   const features = {} as RuntimeContractReport["features"];
   for (const [feature, { flags, needs }] of Object.entries(RUNTIME_FEATURES)) {
-    const modeSpecific = "legacy" in needs;
-    const enabled =
-      (flags as readonly RuntimeName[]).every(has) &&
-      !(feature === "editorial_publishing" && mode === "maintenance");
-    const selectedNeeds = modeSpecific ? (mode ? needs[mode] : []) : needs;
-    const absent: RuntimeName[] = !enabled
-      ? []
-      : modeSpecific && mode === null
-        ? ["EDITORIAL_PUBLISH_MODE"]
-        : (selectedNeeds as readonly RuntimeName[]).filter(
-            (name) => !has(name),
-          );
+    const enabled = (flags as readonly RuntimeName[]).every(has);
+    const absent: RuntimeName[] = enabled
+      ? (needs as readonly RuntimeName[]).filter((name) => !has(name))
+      : [];
     features[feature as RuntimeFeature] = {
       state: !enabled
         ? "disabled"
