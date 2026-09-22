@@ -22,7 +22,6 @@ import {
   isDevLoopbackPreviewRequest,
 } from "../../apps/admin/src/lib/admin-access-policy.ts";
 
-const navSource = readFileSync("apps/admin/src/data/admin.ts", "utf8");
 const sidebarSource = readFileSync(
   "apps/admin/src/components/astryx/UnifiedSidebar.tsx",
   "utf8",
@@ -242,7 +241,7 @@ for (const route of ADMIN_ROUTES) {
 // Inbox is retired: no navigation entry, no page or API, and old links land
 // on Observability. Its inbox_items projection in @anipotts/lib stays for /api/mcp.
 assert.equal(
-  navSource.includes('"/inbox"'),
+  sidebarSource.includes('"/inbox"'),
   false,
   "admin nav must not link the retired Inbox",
 );
@@ -327,8 +326,7 @@ for (const [from, destination] of Object.entries(ADMIN_REDIRECTS)) {
   ])
     assert.equal(existsSync(file), false, `${file} must stay retired`);
   assert.equal(
-    sidebarSource.includes(`href: "${from}"`) ||
-      navSource.includes(`href: "${from}"`),
+    sidebarSource.includes(`href: "${from}"`),
     false,
     `navigation must not link the retired ${from}`,
   );
@@ -340,6 +338,7 @@ for (const file of [
   "apps/admin/src/components/SemanticReference.astro",
   "apps/admin/src/components/astryx/OperatorWorkTable.tsx",
   "apps/admin/src/components/auth/AuthFrame.astro",
+  "apps/admin/src/data/admin.ts",
   "apps/admin/src/data/carousels.ts",
   "apps/admin/src/data/operator-work.ts",
   "apps/admin/src/data/proof.ts",

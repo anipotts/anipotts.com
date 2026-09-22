@@ -414,8 +414,6 @@ export function EditorialWorkspaceShell({
   recordKind?: string;
   mode: ThemePreference;
   changeTheme: (mode: ThemePreference) => void;
-  /** Unused since the sidebar lost its Visit site link. */
-  siteHref?: string;
   localPreview: boolean;
   /** Request resolved to the synthetic owner of a local owner build. */
   localOwner?: boolean;

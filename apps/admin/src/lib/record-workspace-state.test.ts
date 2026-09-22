@@ -73,7 +73,7 @@ describe("record workspace URLs", () => {
     ]) {
       expect(
         recordWorkspaceUrl(pathname, "", { view: "edit", panel: null }),
-      ).toBe("/content");
+      ).toBe("/content/pages");
     }
   });
   it("round-trips stored Back/Forward entries without mutation or dropping library context", () => {

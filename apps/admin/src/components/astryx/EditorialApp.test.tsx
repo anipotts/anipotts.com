@@ -305,3 +305,30 @@ it("titles each library page with its own name and no Overview heading", () => {
     expect(html).not.toMatch(/<h1[^>]*>Overview<\/h1>/);
   }
 });
+
+it("gives a record page's editor bar the phone top in place of the shell's bar and tabs", () => {
+  const page = (props: Partial<React.ComponentProps<typeof EditorialApp>>) =>
+    renderToStaticMarkup(
+      <EditorialApp
+        title="Writing"
+        area="content"
+        localPreview
+        siteUrl="https://anipotts.com"
+        {...props}
+      />,
+    );
+  const library = page({
+    selectedGroup: "writing",
+    groups: [{ name: "writing", href: "/content/writing", records }],
+  });
+  expect(library).toContain("admin-phone-bar");
+  expect(library).toContain("admin-phone-tabs");
+  for (const record of [
+    page({ newWriting: true }),
+    page({ review: { back: "/content/writing", status: "draft" } }),
+  ]) {
+    expect(record).toContain("editor-bar");
+    expect(record).not.toContain("admin-phone-bar");
+    expect(record).not.toContain("admin-phone-tabs");
+  }
+});

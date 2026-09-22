@@ -1023,8 +1023,6 @@ export function AlertsTable({
   onSelect,
 }: {
   rows: AlertRow[];
-  /** Accepted from the overview, whose firing rows are these same rows. */
-  compact?: boolean;
   resolved?: boolean;
   now?: number;
   selected?: string | null;

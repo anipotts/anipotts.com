@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { navItems } from "./admin";
 import { searchAdminResults, type AdminSearchResult } from "./admin-search";
 
 const rows: AdminSearchResult[] = [
@@ -27,18 +26,12 @@ const rows: AdminSearchResult[] = [
   },
 ];
 
-describe("admin search and navigation", () => {
+describe("admin search", () => {
   it("matches every query term across sanitized result fields", () => {
     expect(searchAdminResults(rows, "quiet codex")).toEqual([rows[1]]);
     expect(searchAdminResults(rows, "Ani owner")).toEqual([rows[0]]);
     expect(searchAdminResults(rows, "transcript recipient attachment")).toEqual(
       [],
     );
-  });
-
-  it("offers no retired console destinations", () => {
-    // The sidebar list owns every live page; the retired console routes only
-    // answer with a 308.
-    expect(navItems).toEqual([]);
   });
 });

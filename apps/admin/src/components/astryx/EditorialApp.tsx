@@ -245,16 +245,10 @@ export function EditorialApp({
     label: `Back to ${LIBRARY_NAMES[library]}`,
   };
   const comparisonSiteUrl = localPreview ? "https://anipotts.com/" : siteUrl;
-  const [siteHref, setSiteHref] = useState(comparisonSiteUrl);
-  useEffect(() => {
-    const saved = savedTheme();
-    setMode(saved);
-    setSiteHref(themedUrl(comparisonSiteUrl, saved));
-  }, []);
+  useEffect(() => setMode(savedTheme()), []);
   function changeTheme(next: ThemePreference) {
     setMode(next);
     saveTheme(next);
-    setSiteHref(themedUrl(comparisonSiteUrl, next));
   }
   return (
     <Theme theme={theme} mode={mode}>
@@ -264,7 +258,6 @@ export function EditorialApp({
         recordKind={recordKind}
         mode={mode}
         changeTheme={changeTheme}
-        siteHref={siteHref}
         localPreview={localPreview}
         localOwner={localOwner}
         searchEntries={inventoryView.searchEntries}
@@ -272,6 +265,7 @@ export function EditorialApp({
           inventoryView.groups,
           inventoryView.searchEntries,
         )}
+        recordPage={recordPage || (Boolean(review) && !hideHeader)}
       >
         <VStack
           gap={editorRecord ? 4 : 6}

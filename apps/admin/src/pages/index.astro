@@ -41,7 +41,11 @@ const fixtures = await loadShellFixtures(Astro.url);
 Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
 
-<AdminLayout title="Overview" hideHeader>
+<AdminLayout
+  title="Overview"
+  hideHeader
+  searchEntries={inventory.searchEntries}
+>
   <PrivateShell
     initialPath="/"
     content={content}

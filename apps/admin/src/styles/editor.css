@@ -50,16 +50,13 @@
   height: var(--spacing-4);
 }
 /* On a phone the bar is the top of the page: it takes the status bar's
-   inset and the shell's top bar steps aside for it. */
+   inset, and the shell leaves out its top bar and tab row for a record page
+   (EditorialWorkspaceShell recordPage). */
 @media (max-width: 640px) {
   .editor-bar {
     top: 0;
     padding-block-start: env(safe-area-inset-top, 0px);
     margin-block-start: calc(-1 * var(--spacing-3));
-  }
-  .editorial-workspace-shell:has(.editor-bar)
-    .astryx-app-shell-header:has(.admin-mobile-header) {
-    display: none;
   }
 }
 .editor-action-sheet-title {
