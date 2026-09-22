@@ -637,12 +637,15 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 
 /* A date and its time share one row, with UTC named once after them. */
 .editor-date-row {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   min-width: 0;
 }
-.editor-date-row > .astryx-field {
-  flex: 1 1 0;
+.editor-date-row > * {
+  flex: 1 1 9rem;
   min-width: 0;
+}
+.editor-date-row > .editor-date-zone {
+  flex: 0 0 auto;
 }
 .editor-date-zone {
   flex: 0 0 auto;
@@ -661,4 +664,21 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 }
 .editor-homepage-row {
   min-height: var(--spacing-11);
+}
+
+/* Media: a 56px thumb with its controls beside it. */
+.editor-media-row {
+  min-height: var(--spacing-11);
+  min-width: 0;
+}
+.editor-media-thumb {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border-radius: var(--radius-element);
+  background: var(--color-background-muted);
+}
+.editor-media-thumb[data-fit="contain"] {
+  object-fit: contain;
 }

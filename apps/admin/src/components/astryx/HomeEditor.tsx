@@ -1226,7 +1226,9 @@ function HomeEditorImpl({
       ) {
         setError("");
         setPreviewRevision(current.revision);
-      } else setError("Correct the marked fields before previewing.");
+      } else if (!validateEditorialSource(record, current.source).success)
+        setError("Correct the marked fields before previewing.");
+      // Otherwise the save banner already says why nothing was saved.
     } catch {
       if (
         request === previewRequest.current &&
@@ -1824,7 +1826,9 @@ function HomeEditorImpl({
     <VStack
       gap={3}
       className="editor-workspace writing-workspace"
-      data-editor-view={tab}
+      // Review is a sheet over the editor, so the page keeps the edit layout.
+      data-editor-view={tab === "publish" ? "edit" : tab}
+      data-review-open={tab === "publish" || undefined}
     >
       {bar}
       {confirmingUnpublish && unpublishAvailable && (

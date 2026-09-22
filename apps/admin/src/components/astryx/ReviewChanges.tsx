@@ -445,10 +445,9 @@ export function ReviewChanges({
           </HStack>
         )}
       </HStack>
+      {/* With no diff the destination line's "No changes" says it all. */}
       {sourceView || !changed.length ? (
-        before === after ? (
-          <Text color="secondary">This draft matches the website.</Text>
-        ) : (
+        before === after ? null : (
           <FieldDiff label="Source" before={before} after={after} source />
         )
       ) : (
