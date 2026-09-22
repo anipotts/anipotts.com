@@ -8,7 +8,10 @@ import {
   deriveOpsAlerts,
   opsAccessSummary,
   opsActivitySource,
+  opsEventsMoveSnapshot,
   opsEventsPath,
+  opsIncidentsBySubject,
+  opsIsPlumbing,
   opsRouteLabel,
   parseOpsEvents,
   parseOpsEventsBytes,
@@ -394,5 +397,103 @@ describe("activity wording", () => {
       id: "kind:deploy",
       label: "Deploy",
     });
+  });
+});
+
+describe("round-2 events", () => {
+  const parse = (items: Json[]) => parseOpsEvents(envelope(items), 0).items;
+  const run = (seq: number, subject: string): Json => ({
+    ...access(seq),
+    kind: "run",
+    subject,
+    status: 0,
+    ms: 5200,
+    detail: "1 run(s)",
+  });
+
+  it("keeps runs apart for run history, and names drift fields", () => {
+    const log = appendOpsEvents(
+      EMPTY_EVENT_LOG,
+      parse([run(1, "pc.writer"), access(2), run(3, "pc.snapshot")]),
+      ["tier"],
+    );
+    expect(log.runs.map((event) => event.subject)).toEqual([
+      "pc.writer",
+      "pc.snapshot",
+    ]);
+    expect(log.recent).toHaveLength(3);
+    const next = appendOpsEvents(log, [], ["region", "tier"]);
+    expect(next.unknownFields).toEqual(["region", "tier"]);
+    expect(next.cursor).toBe(3);
+    expect(appendOpsEvents(next, [], ["tier"])).toBe(next);
+  });
+
+  it("moves the snapshot only for a transition or a run", () => {
+    expect(opsEventsMoveSnapshot(parse([access(1)]))).toBe(false);
+    expect(opsEventsMoveSnapshot(parse([access(1), run(2, "pc.writer")]))).toBe(
+      true,
+    );
+    expect(
+      opsEventsMoveSnapshot(parse([transition(1, "pc.writer", null, "ok")])),
+    ).toBe(true);
+  });
+
+  it("names every live reader route, health included", () => {
+    expect(opsRouteLabel("health.health")).toBe("Health daily");
+    expect(opsRouteLabel("activity.activity")).toBe("Activity feed");
+  });
+
+  it("calls preflights, the probe and admin's successful polls plumbing", () => {
+    const [preflight, probe, poll, failed, read] = parse([
+      access(1, { subject: "preflight", status: 200, ms: 0 }),
+      access(2, { subject: "probe", status: 200 }),
+      access(3, { subject: "ops.snapshot", status: 304 }),
+      access(4, { subject: "ops.events", status: 401 }),
+      access(5),
+    ]);
+    expect(opsIsPlumbing(preflight!)).toBe(true);
+    expect(opsIsPlumbing(probe!)).toBe(true);
+    expect(opsIsPlumbing(poll!)).toBe(true);
+    // A failure is an exception, never plumbing.
+    expect(opsIsPlumbing(failed!)).toBe(false);
+    expect(opsIsPlumbing(read!)).toBe(false);
+  });
+
+  it("reads each incident: its peak, its span and how many there were", () => {
+    const at = (hour: number) =>
+      `2026-09-22T${String(hour).padStart(2, "0")}:00:00Z`;
+    const transitions = parse([
+      transition(1, "host.ap-pro", null, "failing", at(5)),
+      transition(2, "host.ap-pro", "failing", "degraded", at(8)),
+      transition(3, "host.ap-pro", "degraded", "ok", at(16)),
+      transition(4, "host.ap-pro", "ok", "degraded", at(17)),
+      transition(5, "host.ap-pro", "degraded", "ok", at(18)),
+      transition(6, "content.d1-export", null, "failing", at(1)),
+      transition(7, "content.d1-export", "failing", "ok", at(2)),
+      transition(8, "content.d1-export", "ok", "failing", at(4)),
+    ]) as OpsTransitionEvent[];
+    const incidents = opsIncidentsBySubject(transitions);
+    expect(
+      incidents
+        .get("host.ap-pro")!
+        .map((incident) => [
+          incident.status,
+          incident.peak,
+          incident.state,
+          incident.since,
+          incident.resolvedAt,
+        ]),
+    ).toEqual([
+      ["resolved", "degraded", "degraded", at(17), at(18)],
+      // Failing, then degraded: it was failing at its worst.
+      ["resolved", "failing", "degraded", at(5), at(16)],
+    ]);
+    const alerts = deriveOpsAlerts(transitions);
+    expect(
+      alerts.map((alert) => [alert.subject, alert.status, alert.incidents]),
+    ).toEqual([
+      ["content.d1-export", "firing", 2],
+      ["host.ap-pro", "resolved", 2],
+    ]);
   });
 });

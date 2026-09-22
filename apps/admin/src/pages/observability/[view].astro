@@ -4,12 +4,15 @@ import {
   OPS_VIEW_TITLES,
   ObservabilityWorkspace,
   opsAlertParam,
+  opsEntryParam,
   type OpsView,
 } from "../../components/astryx/ObservabilityWorkspace";
 import { privateReaderOpsEnabled } from "../../lib/private-reader-credential";
 import { loadShellFixtures } from "../../lib/shell-fixtures";
 
-// Status, Activity and Alerts. Every other segment is the shared 404.
+// Status, Activity and Alerts. Every other segment is the shared 404. A
+// Status URL can open an entry's panel (`?entry=`), an Alerts URL an alert
+// (`?alert=`); only a well-formed catalog id opens anything.
 const view = Astro.params.view ?? "";
 if (!Object.hasOwn(OPS_VIEW_TITLES, view)) return Astro.rewrite("/404");
 const key = view as OpsView;
@@ -30,6 +33,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
   <ObservabilityWorkspace
     view={key}
     alert={key === "alerts" ? opsAlertParam(Astro.url.search) : null}
+    entry={key === "status" ? opsEntryParam(Astro.url.search) : null}
     enabled={enabled}
     fixture={fixtures?.snapshot}
     eventsFixture={fixtures?.events}

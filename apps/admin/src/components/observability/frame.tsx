@@ -1,0 +1,368 @@
+import React, { useMemo, useState } from "react";
+import { Button } from "@astryxdesign/core/Button";
+import { Skeleton } from "@astryxdesign/core/Skeleton";
+import { VStack } from "@astryxdesign/core/VStack";
+import {
+  ArrowClockwiseIcon,
+  ClockCounterClockwiseIcon,
+  LinkBreakIcon,
+  PlugsIcon,
+  ShieldWarningIcon,
+  BracketsCurlyIcon,
+  type Icon,
+} from "@phosphor-icons/react";
+import {
+  opsSamplerStopped,
+  parseOpsSnapshot,
+  type OpsSnapshot,
+} from "../../lib/ops-v1";
+import {
+  appendOpsEvents,
+  EMPTY_EVENT_LOG,
+  parseOpsEvents,
+  type OpsEventLog,
+} from "../../lib/ops-events";
+import type { OpsConnection, OpsStatusController } from "../../lib/ops-reader";
+import { useOpsStatus } from "../hooks/useOpsStatus";
+import { relativeAgo, useLiveText } from "../../lib/live-clock";
+import { sentenceCase } from "../../lib/sentence-case";
+import {
+  InlineNotice,
+  LoadingSkeleton,
+  SampleBadge,
+  StateBadge,
+  StateNotice,
+  WorkspacePage,
+} from "../workspace/Workspace";
+
+/**
+ * The frame every Observability view shares: what it reads (the snapshot,
+ * the events, whether either is current, the clock), the page header with
+ * its one live line, and the one notice for a connection that is not
+ * connected, a stopped sampler or events that are not current.
+ */
+export const OPS_VIEW_TITLES = {
+  status: "Status",
+  activity: "Activity",
+  alerts: "Alerts",
+} as const;
+export type OpsView = keyof typeof OPS_VIEW_TITLES;
+
+const retryable = new Set([
+  "unreachable",
+  "unavailable",
+  "rejected",
+  "denied",
+  "ended",
+]);
+
+export type OpsViewProps = {
+  enabled: boolean;
+  /** Development only: System's snapshot sample. Never ships. */
+  fixture?: unknown;
+  /** Development only: a synthetic events page. Never ships. */
+  eventsFixture?: unknown;
+  controller?: OpsStatusController;
+  /** Test seam for a fixed clock. */
+  now?: number;
+  /** Server render time, so the first client render matches the markup. */
+  renderedAt?: number;
+};
+
+/**
+ * Everything an Observability view reads: the snapshot, the events (when
+ * asked for), whether any of it is current, and the clock. A fixture stands
+ * in for the reader and is read at its own generated_at, so its clock is
+ * fixed and nothing ticks; a live view re-renders only when the sampler
+ * flips between running and stopped.
+ */
+export function useOpsData(props: OpsViewProps, withEvents: boolean) {
+  const preview = useMemo(() => {
+    if (props.fixture === undefined) return null;
+    try {
+      return parseOpsSnapshot(props.fixture);
+    } catch {
+      return null;
+    }
+  }, [props.fixture]);
+  const previewEvents = useMemo((): OpsEventLog | null => {
+    if (props.eventsFixture === undefined) return null;
+    try {
+      const page = parseOpsEvents(props.eventsFixture, 0);
+      return appendOpsEvents(EMPTY_EVENT_LOG, page.items, page.unknownFields);
+    } catch {
+      return null;
+    }
+  }, [props.eventsFixture]);
+  const fixtureMode = props.fixture !== undefined;
+  const { state, controller: live } = useOpsStatus({
+    enabled: props.enabled && !fixtureMode,
+    controller: props.controller,
+    events: withEvents,
+  });
+  const [mounted] = useState(() => props.renderedAt ?? Date.now());
+  const fixedNow =
+    props.now ??
+    (fixtureMode
+      ? preview
+        ? Date.parse(preview.generated_at)
+        : mounted
+      : undefined);
+  const snapshot = fixtureMode ? preview : state.snapshot;
+  const events = fixtureMode ? previewEvents : state.events;
+  const stopped =
+    useLiveText(
+      (now) => (snapshot && opsSamplerStopped(snapshot, now) ? "stopped" : ""),
+      mounted,
+      fixedNow,
+    ) === "stopped";
+  const current = !fixtureMode && state.connection === "connected" && !stopped;
+  const retry =
+    live && retryable.has(state.connection) ? () => live.start() : undefined;
+  return {
+    fixtureMode,
+    state,
+    snapshot,
+    events,
+    /** The fixed clock for a fixture or a test; undefined when live. */
+    fixedNow,
+    serverNow: mounted,
+    stopped,
+    current,
+    retry,
+  };
+}
+
+export type OpsData = ReturnType<typeof useOpsData>;
+
+/** An age that changes at most once a minute, so the meta line is quiet. */
+function MinuteAgo({ at, data }: { at: number; data: OpsData }) {
+  const text = useLiveText(
+    (now) => relativeAgo(at, now, "minute"),
+    data.serverNow,
+    data.fixedNow,
+  );
+  return <span suppressHydrationWarning>{text}</span>;
+}
+
+/** The page's one status line: whether it is live, and the age of what it
+ * shows (the snapshot on Status, the newest event elsewhere). */
+function opsMeta(data: OpsData, view: OpsView): React.ReactNode {
+  if (view === "status" && data.stopped) return "Last known values";
+  const at =
+    view === "status"
+      ? data.snapshot?.generated_at
+      : latestEventAt(data.events);
+  if (!at) return undefined;
+  const what = view === "status" ? "generated" : "latest event";
+  const lead = data.fixtureMode
+    ? sentenceCase(what)
+    : `${data.current ? "Live" : "Not current"}, ${what}`;
+  return (
+    <>
+      {lead} <MinuteAgo at={Date.parse(at)} data={data} />
+    </>
+  );
+}
+
+/** The newest event by when it happened: a run's finish can arrive after
+ * later events. */
+function latestEventAt(events: OpsEventLog | null): string | undefined {
+  let latest: string | undefined;
+  for (const event of events?.recent ?? [])
+    if (!latest || event.at > latest) latest = event.at;
+  return latest;
+}
+
+function SamplerStopped({ at, data }: { at: string; data: OpsData }) {
+  const age = useLiveText(
+    (now) => relativeAgo(Date.parse(at), now, "minute"),
+    data.serverNow,
+    data.fixedNow,
+  );
+  return (
+    <InlineNotice
+      tone="warning"
+      icon={ClockCounterClockwiseIcon}
+      title={`Sampler stopped ${age}`}
+    />
+  );
+}
+
+/** Each unconnected state's notice: its title standing alone, and the
+ * title above retained content where the state keeps any. */
+const CONNECTION_NOTICES: Partial<
+  Record<
+    OpsConnection,
+    {
+      title: string;
+      kept?: string;
+      kind: React.ComponentProps<typeof StateNotice>["kind"];
+      icon?: Icon;
+    }
+  >
+> = {
+  off: { title: "Reader off", kind: "not-connected", icon: PlugsIcon },
+  unreachable: {
+    title: "ap-mini unreachable",
+    kept: "ap-mini unreachable",
+    kind: "not-connected",
+    icon: LinkBreakIcon,
+  },
+  unavailable: {
+    title: "No snapshot yet",
+    kept: "No current snapshot",
+    kind: "error",
+  },
+  rejected: { title: "Snapshot rejected", kind: "error" },
+  denied: { title: "Access refused", kind: "error", icon: ShieldWarningIcon },
+  ended: { title: "Session ended", kind: "not-connected" },
+};
+
+/**
+ * The page's one notice: the connection when it is not connected, else a
+ * stopped sampler, else events that are not current. With content retained
+ * it sits above it; with nothing to show it stands in its place.
+ */
+function OpsNotice({
+  data,
+  view,
+  retained,
+}: {
+  data: OpsData;
+  view: OpsView;
+  retained: boolean;
+}) {
+  const { state } = data;
+  const notice = data.fixtureMode
+    ? undefined
+    : CONNECTION_NOTICES[state.connection];
+  if (notice) {
+    const retry = data.retry && (
+      <Button
+        label={state.connection === "ended" ? "Open again" : "Try again"}
+        size="sm"
+        variant="secondary"
+        icon={<ArrowClockwiseIcon weight="regular" aria-hidden="true" />}
+        onClick={data.retry}
+      />
+    );
+    return retained && notice.kept ? (
+      <InlineNotice
+        tone="warning"
+        icon={notice.icon}
+        title={notice.kept}
+        action={retry}
+      />
+    ) : (
+      <StateNotice
+        kind={notice.kind}
+        icon={notice.icon}
+        title={notice.title}
+        action={retry}
+      />
+    );
+  }
+  if (data.stopped && data.snapshot)
+    return <SamplerStopped at={data.snapshot.generated_at} data={data} />;
+  if (!data.fixtureMode && view !== "status" && state.eventsStale)
+    return retained ? (
+      <InlineNotice tone="warning" title="Events not current" />
+    ) : (
+      <StateNotice kind="error" title="Events not current" />
+    );
+  return null;
+}
+
+/** Loading, shaped like what replaces it: the host line and the rows. */
+export function OpsSkeleton({ view }: { view: OpsView }) {
+  return (
+    <VStack gap={5}>
+      {view === "status" && (
+        <div className="ops-hosts" aria-hidden="true">
+          <Skeleton width="16rem" height="var(--spacing-12)" radius={2} />
+        </div>
+      )}
+      <LoadingSkeleton label={OPS_VIEW_TITLES[view].toLowerCase()} rows={8} />
+    </VStack>
+  );
+}
+
+/** Field names System sent that this client does not read yet, from the
+ * snapshot and the events. */
+export function opsUnknownFields(data: OpsData): string[] {
+  return [
+    ...new Set([
+      ...(data.snapshot?.unknown_fields ?? []),
+      ...(data.events?.unknownFields ?? []),
+    ]),
+  ].sort();
+}
+
+/** One quiet chip when System sends fields this client does not read yet,
+ * so an admin release can catch up; the names are its tooltip. Nothing
+ * when there are none. */
+function DriftChip({ fields }: { fields: string[] }) {
+  if (!fields.length) return null;
+  const label = `${fields.length} new System ${fields.length === 1 ? "field" : "fields"}`;
+  return (
+    <span className="ops-drift" title={fields.join("\n")}>
+      <StateBadge
+        tone="neutral"
+        label={label}
+        icon={
+          <BracketsCurlyIcon
+            weight="regular"
+            aria-hidden="true"
+            className="workspace-state-mark"
+          />
+        }
+      />
+      <span className="sr-only">: {fields.join(", ")}</span>
+    </span>
+  );
+}
+
+/** Title, count, the live line, the one notice, then the view. */
+export function OpsPage({
+  data,
+  view,
+  count,
+  retained,
+  actions,
+  children,
+}: {
+  data: OpsData;
+  view: OpsView;
+  count?: number;
+  retained: boolean;
+  actions?: React.ReactNode;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="observability-workspace">
+      <WorkspacePage
+        title={OPS_VIEW_TITLES[view]}
+        count={count}
+        meta={retained ? opsMeta(data, view) : undefined}
+        badge={
+          <>
+            {data.fixtureMode && <SampleBadge />}
+            <DriftChip fields={opsUnknownFields(data)} />
+          </>
+        }
+        actions={actions}
+      >
+        <OpsNotice data={data} view={view} retained={retained} />
+        {children}
+      </WorkspacePage>
+    </div>
+  );
+}
+
+/** The catalog by id, for names and runbooks on event rows. */
+export type OpsCatalog = ReadonlyMap<string, OpsSnapshot["catalog"][number]>;
+
+export function catalogOf(snapshot: OpsSnapshot | null): OpsCatalog {
+  return new Map((snapshot?.catalog ?? []).map((entry) => [entry.id, entry]));
+}
