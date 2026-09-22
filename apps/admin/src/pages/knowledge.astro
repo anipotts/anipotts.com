@@ -1,6 +1,7 @@
 ---
 import { knowledgeRedirect } from "../lib/data-routes";
-// Retired: Knowledge moved under Data. A supported kind filter carries over.
+// Retired: the knowledge cards gave way to the life wiki under Data. A
+// people, projects, places or topics filter carries over as its kind.
 return Astro.redirect(
   knowledgeRedirect(Astro.url.searchParams.get("kind")),
   308,

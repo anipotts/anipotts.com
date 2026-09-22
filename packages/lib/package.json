@@ -4,29 +4,14 @@
   "private": true,
   "type": "module",
   "sideEffects": false,
-  "exports": {
-    "./admin-control": {
-      "types": "./dist/admin-control/index.d.ts",
-      "import": "./dist/admin-control/index.js"
-    },
-    "./admin-control/dev-fixtures": {
-      "types": "./dist/admin-control/dev-fixtures.d.ts",
-      "import": "./dist/admin-control/dev-fixtures.js"
-    }
-  },
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {
     "@types/node": "^20",
-    "tsup": "^8.0.0",
-    "typescript": "^5",
-    "vitest": "^4.1.11"
+    "typescript": "^5"
   }
 }

@@ -233,7 +233,7 @@ for (const [page, marker] of [
   ["newsletter", "libraryStateUrl("],
   ["life/[section]", "Astro.redirect(lifeRedirect(Astro.params.section), 308)"],
   ["knowledge", "knowledgeRedirect("],
-  ["knowledge/locations", 'Astro.redirect(dataRecordsHref("places"), 308)'],
+  ["knowledge/locations", 'Astro.redirect(knowledgeHref("place"), 308)'],
   [
     "content/edit/[pageKey]",
     "Astro.redirect(legacyEditRedirect(Astro.params.pageKey), 308)",

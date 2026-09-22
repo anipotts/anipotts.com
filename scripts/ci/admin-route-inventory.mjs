@@ -98,14 +98,14 @@ export const ADMIN_ROUTES = [
     smoke: false,
   },
   {
-    // Retired; 308 redirects to /data/records.
+    // Retired; 308 redirects to /data/knowledge, keeping a kind filter.
     route: "/knowledge",
     file: "apps/admin/src/pages/knowledge.astro",
     nav: false,
     smoke: false,
   },
   {
-    // Retired; 308 redirects to /data/records?kind=places.
+    // Retired; 308 redirects to /data/knowledge?kind=place.
     route: "/knowledge/locations",
     file: "apps/admin/src/pages/knowledge/locations.astro",
     nav: false,

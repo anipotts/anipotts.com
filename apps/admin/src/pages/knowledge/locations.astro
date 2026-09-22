@@ -1,6 +1,6 @@
 ---
-import { dataRecordsHref } from "../../lib/data-routes";
-// Retired: known places are Data records of the place kind. Hosts are in
+import { knowledgeHref } from "../../lib/data-routes";
+// Retired: known places are the life wiki's places. Hosts are in
 // Observability Status.
-return Astro.redirect(dataRecordsHref("places"), 308);
+return Astro.redirect(knowledgeHref("place"), 308);
 ---
