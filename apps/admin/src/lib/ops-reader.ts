@@ -488,7 +488,10 @@ export function createOpsStatusController(options: OpsStatusOptions) {
       }
       if (!current()) return got;
       got ||= read.items.length > 0;
-      set({ events: appendOpsEvents(log, read.items), eventsStale: false });
+      set({
+        events: appendOpsEvents(log, read.items, read.lastSeq),
+        eventsStale: false,
+      });
       if (read.nextAfter === null) return got;
     }
     return got;
