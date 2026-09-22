@@ -101,7 +101,7 @@ function RecordState({ record }: { record: DataRecord }) {
 
 /** Source names are short ("Browsing", "Voice Memos"); the column holds
  * them with a device tile. */
-const SOURCE_WIDTH = 176;
+const SOURCE_WIDTH = 204;
 
 /**
  * Record rows, for Records and the overview: one row of aligned columns.

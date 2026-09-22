@@ -315,7 +315,8 @@ function HealthTable({ data }: { data: HealthDaily }) {
     ...COLLECTED.map((metric): Column<Row> => ({
       key: metric.key,
       header: metric.header,
-      width: CELL_WIDTHS.time,
+      // Wide enough for "Nothing arrived" as well as the figure.
+      width: CELL_WIDTHS.state,
       numeric: true,
       render: (row) => <Reading metric={metric} row={row} />,
     })),

@@ -13,7 +13,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { withOrigin } from "./screenshot-origin.mjs";
 
@@ -28,7 +28,7 @@ for (let index = 2; index < process.argv.length; index += 1) {
   if (value !== "true") index += 1;
 }
 const BASE = flags.get("base") ?? "http://127.0.0.1:4583";
-const OUT = join(
+const OUT = resolve(
   ROOT,
   flags.get("out") ?? "docs/design/screenshots/admin-round2",
 );
