@@ -40,6 +40,7 @@ import { AdminCommandPalette, type PaletteAction } from "./AdminCommandPalette";
 import type { AdminSearchResult } from "../../data/admin-search";
 import { provideSearchEntries } from "../../lib/admin-search-index";
 import {
+  COMPACT_QUERY,
   RAIL_QUERY,
   savedSidebarCollapsed,
   sidebarRail,
@@ -530,6 +531,16 @@ export function EditorialWorkspaceShell({
         : undefined,
     [searchEntries],
   );
+  useEffect(() => {
+    // On phones the document scrolls, so a page drawn in place (overview to
+    // Data) starts at the top the way a loaded page does. Back and forward
+    // keep the browser's own restoration.
+    const top = () => {
+      if (window.matchMedia(COMPACT_QUERY).matches) window.scrollTo(0, 0);
+    };
+    window.addEventListener("admin:workspace-navigation", top);
+    return () => window.removeEventListener("admin:workspace-navigation", top);
+  }, []);
   const theme = useRef(changeTheme);
   theme.current = changeTheme;
   const actions = useMemo<PaletteAction[]>(

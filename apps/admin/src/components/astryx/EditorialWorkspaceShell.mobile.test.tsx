@@ -121,6 +121,25 @@ describe("responsive workspace navigation", () => {
       ).toEqual(["Pages", "Writing", "Projects", "Newsletter"]);
     },
   );
+  it.each([
+    [390, 1],
+    [1280, 0],
+  ])(
+    "starts a page drawn in place at the top of the document at %ipx",
+    (width, calls) => {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: width,
+      });
+      const scroll = vi.fn();
+      vi.stubGlobal("scrollTo", scroll);
+      render();
+      act(() => {
+        window.dispatchEvent(new Event("admin:workspace-navigation"));
+      });
+      expect(scroll).toHaveBeenCalledTimes(calls);
+    },
+  );
   it.each([390, 640])(
     "never renders the collapsed rail at %ipx, even when a rail was saved",
     (width) => {

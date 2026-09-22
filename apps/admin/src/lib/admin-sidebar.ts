@@ -14,6 +14,7 @@ export const SIDEBAR_STORAGE_KEYS = [
 export const COMPACT_MAX_WIDTH = BREAKPOINT_MIN.medium - 1;
 export const FULL_SIDEBAR_MIN_WIDTH = 1280;
 export const RAIL_QUERY = `(min-width: ${BREAKPOINT_MIN.medium}px) and (max-width: ${FULL_SIDEBAR_MIN_WIDTH - 1}px)`;
+export const COMPACT_QUERY = `(max-width: ${COMPACT_MAX_WIDTH}px)`;
 
 export function savedSidebarCollapsed(storage: Pick<Storage, "getItem">) {
   for (const key of SIDEBAR_STORAGE_KEYS) {

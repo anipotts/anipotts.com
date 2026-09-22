@@ -95,6 +95,24 @@ dialog.admin-command-palette-centered
   flex-wrap: wrap;
   color: var(--color-text-secondary);
 }
+.admin-palette-key {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  font-size: var(--text-supporting-size);
+}
+.admin-palette-key kbd {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  min-width: var(--spacing-5);
+  height: var(--spacing-5);
+  padding-inline: var(--spacing-1);
+  border-radius: var(--radius-inner);
+  background: var(--color-neutral);
+  font: inherit;
+  line-height: 1;
+}
 /* Key hints mean nothing without a keyboard. */
 @media (hover: none) {
   dialog.admin-command-palette-centered .astryx-layout-footer {

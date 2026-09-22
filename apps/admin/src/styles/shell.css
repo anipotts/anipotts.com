@@ -245,15 +245,17 @@ body {
 .admin-phone-workspace[aria-current="true"] {
   color: var(--color-text-primary);
 }
+/* Page chips read like the sidebar: only the current page carries a fill,
+   the sidebar's own selected fill, so keyboard focus (a tint) stays
+   distinct from it. Chip boxes start on the gutter. */
 .admin-phone-page {
   min-height: var(--spacing-9);
   margin-block: calc((var(--spacing-11) - var(--spacing-9)) / 2);
   padding-inline: var(--spacing-3);
-  background: var(--color-neutral);
   font-size: var(--text-body-size, var(--font-size-base));
 }
 .admin-phone-page[aria-current="page"] {
-  background: var(--color-accent-muted);
+  background: var(--color-neutral);
   color: var(--color-text-primary);
 }
 .admin-phone-workspace:active,

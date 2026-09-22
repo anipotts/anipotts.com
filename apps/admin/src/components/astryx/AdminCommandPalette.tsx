@@ -13,10 +13,13 @@ import { Button } from "@astryxdesign/core/Button";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import {
+  ArrowDownIcon,
+  ArrowUpIcon,
   BriefcaseIcon,
   BrowserIcon,
   EnvelopeSimpleIcon,
   FileTextIcon,
+  KeyReturnIcon,
   PencilSimpleIcon,
   XIcon,
   type Icon,
@@ -320,7 +323,30 @@ export function AdminCommandPalette({
       label="Search admin"
       width="min(600px, calc(100vw - 2 * var(--spacing-3)))"
       maxHeight="var(--admin-palette-max-height)"
-      footer={<CommandPaletteFooter className="admin-palette-keys" />}
+      footer={
+        // Keycaps drawn with glyphs, not the text arrows Astryx's hints use.
+        <CommandPaletteFooter className="admin-palette-keys">
+          <span className="admin-palette-key">
+            <kbd aria-label="Up arrow">
+              <ArrowUpIcon size={12} aria-hidden="true" />
+            </kbd>
+            <kbd aria-label="Down arrow">
+              <ArrowDownIcon size={12} aria-hidden="true" />
+            </kbd>
+            Move
+          </span>
+          <span className="admin-palette-key">
+            <kbd aria-label="Return">
+              <KeyReturnIcon size={12} aria-hidden="true" />
+            </kbd>
+            Open
+          </span>
+          <span className="admin-palette-key">
+            <kbd>esc</kbd>
+            Close
+          </span>
+        </CommandPaletteFooter>
+      }
       onValueChange={(id) => {
         const row = rows.current.get(id);
         if (row?.run) row.run();
