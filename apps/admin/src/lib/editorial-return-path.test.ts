@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { editorialReturnPath } from "./editorial-return-path";
+import { editorialReturnPath, safeReturnPath } from "./editorial-return-path";
 
 describe("editorial sign-in destination", () => {
   it.each([
@@ -25,8 +25,25 @@ describe("editorial sign-in destination", () => {
     "/content/%2e%2e/auth",
     "/content\n",
     "/contentious",
+    "/.//evil.com/content",
+    "/..//evil.com/content",
+    "/%2e//evil.com/content",
   ])("rejects external, unsafe, or non-editorial destination %s", (path) => {
     expect(editorialReturnPath(path)).toBe("/content/pages");
+  });
+
+  it.each([
+    "/.//evil.com",
+    "/..//evil.com",
+    "/%2e//evil.com",
+    "/%2E%2E//evil.com/x",
+    "/content/..//evil.com",
+  ])("never returns a path that normalizes to scheme-relative: %s", (path) => {
+    expect(safeReturnPath(path)).toBeNull();
+  });
+
+  it("keeps a same-site path with an inner double slash", () => {
+    expect(safeReturnPath("/content//pages")?.pathname).toBe("/content//pages");
   });
 
   it.each([
