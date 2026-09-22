@@ -15,10 +15,10 @@ reviews:
     - "!**/*.{png,jpg,jpeg,gif,webp,avif,woff,woff2,ttf}"
     - "!drizzle/seeds/public-content.json"
   path_instructions:
-    - path: "apps/admin/src/{middleware.ts,lib/passkey-auth.ts,pages/auth/**}"
+    - path: "apps/admin/src/{middleware.ts,lib/access-identity.ts,pages/auth/**}"
       instructions: |
-        Review authentication boundaries, challenge binding, cookie scope,
-        replay resistance, rate limits, and production fail-closed behavior.
+        Review authentication boundaries, Access assertion verification, the
+        exact-owner check, cookie scope, and production fail-closed behavior.
     - path: "drizzle/{migrations/**,meta/**}"
       instructions: |
         Review immutable migration ordering, destructive SQL, preconditions,

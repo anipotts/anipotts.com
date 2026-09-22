@@ -16,16 +16,11 @@ import {
   denyLocalOwnerFraming,
   localOwnerPrincipal,
 } from "./lib/admin-local-owner";
-import {
-  adminJson,
-  applyAdminSetCookies,
-  resolveAdminSession,
-  sanitizeAdminReturnPath,
-} from "./lib/admin-auth";
+import { adminJson } from "./lib/admin-auth";
 import { applyServerTiming, createServerTiming } from "./lib/server-timing";
 
 /** Content, the overview, the editorial APIs, the private reader and the
- * draft previews accept only the signed owner, never a native session. */
+ * draft previews accept only the signed owner. */
 function isEditorialPath(pathname: string): boolean {
   return (
     pathname === "/" ||
@@ -52,7 +47,7 @@ async function handleRequest(
   next: MiddlewareNext,
 ): Promise<Response> {
   const { pathname } = context.url;
-  // This logout-only route validates its own cookies without refreshing or migrating them.
+  // Sign out verifies the Access assertion itself.
   if (pathname === "/api/admin/logout" || pathname === "/auth/logout")
     return next();
   const env = context.locals.runtime?.env ?? {};
@@ -100,52 +95,21 @@ async function handleRequest(
     return next();
   }
 
-  if (!isPublicAdminPath(pathname)) {
-    const principal = await retainedAccessPrincipal(context.request, env);
-    if (principal) {
-      context.locals.adminPrincipal = principal;
-      return withPrivateHeaders(await next(), false);
-    }
+  if (isPublicAdminPath(pathname)) return next();
+
+  // Cloudflare Access is the only sign-in. The verified owner reads these
+  // pages; writes live in the editorial namespace above.
+  const principal = await retainedAccessPrincipal(context.request, env);
+  if (principal) {
+    context.locals.adminPrincipal = principal;
+    return withPrivateHeaders(await next(), false);
   }
 
-  const resolved = await resolveAdminSession(context);
-  context.locals.adminPrincipal = resolved.principal ?? undefined;
-  context.locals.adminSetCookies = resolved.setCookies;
-
-  if (isPublicAdminPath(pathname)) {
-    if (
-      pathname === "/auth" &&
-      resolved.principal &&
-      !resolved.principal.restriction &&
-      context.url.searchParams.get("stepup") !== "1"
-    ) {
-      const destination = sanitizeAdminReturnPath(
-        context.url.searchParams.get("next"),
-      );
-      return applyAdminSetCookies(
-        context.redirect(destination, 302),
-        resolved.setCookies,
-      );
-    }
-    return applyAdminSetCookies(await next(), resolved.setCookies);
-  }
-
-  // A restricted (recovery) session reaches no route: the recovery pages retired.
-  if (resolved.principal?.restriction === null)
-    return applyAdminSetCookies(await next(), resolved.setCookies);
-
-  if (pathname.startsWith("/api/")) {
-    return applyAdminSetCookies(
-      adminJson({ error: "admin_session_required" }, { status: 401 }),
-      resolved.setCookies,
-    );
-  }
+  if (pathname.startsWith("/api/"))
+    return adminJson({ error: "admin_session_required" }, { status: 401 });
 
   const nextPath = encodeURIComponent(`${pathname}${context.url.search}`);
-  return applyAdminSetCookies(
-    context.redirect(`/auth?next=${nextPath}`, 302),
-    resolved.setCookies,
-  );
+  return context.redirect(`/auth?next=${nextPath}`, 302);
 }
 
 // Loaders record durations and counts on the request. The header is written

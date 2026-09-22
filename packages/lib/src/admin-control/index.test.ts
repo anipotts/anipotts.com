@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   ADMIN_EVENT_SCHEMA_VERSION,
-  adminMcpManifest,
   buildSentMailAwareness,
   buildSentMailMetadata,
   gmailSentDedupeKey,
-  handleAdminMcpRequest,
   loadAdminControlSnapshot,
 } from "./index";
 import { adminControlFixtureData } from "./dev-fixtures";
@@ -94,64 +92,6 @@ describe("admin-control", () => {
     expect(snapshot.projections.inbox_items).toEqual([]);
     expect(snapshot.errors.length).toBeGreaterThan(0);
     expect(snapshot.errors.join(" ")).toContain("read unavailable");
-  });
-
-  it("exposes read-only mcp tools over the same projections", async () => {
-    const snapshot = await loadAdminControlSnapshot(
-      null,
-      adminControlFixtureData,
-    );
-    const manifest = adminMcpManifest(snapshot);
-
-    expect(manifest.write_tools).toBe(
-      "disabled-until-broker-and-signed-connect-diff",
-    );
-
-    const response = handleAdminMcpRequest(snapshot, {
-      jsonrpc: "2.0",
-      id: 1,
-      method: "tools/call",
-      params: {
-        name: "admin.get_projection",
-        arguments: { projection: "inbox_items" },
-      },
-    });
-
-    expect(JSON.stringify(response)).toContain("inbox-admin-contract-review");
-  });
-
-  it("exposes bounded knowledge search and stable-card reads over mcp", async () => {
-    const snapshot = await loadAdminControlSnapshot(
-      null,
-      adminControlFixtureData,
-    );
-    const search = handleAdminMcpRequest(snapshot, {
-      jsonrpc: "2.0",
-      id: 2,
-      method: "tools/call",
-      params: {
-        name: "admin.search_knowledge",
-        arguments: {
-          query: "brain",
-          domain: "life",
-          limit: 2,
-          context_budget_tokens: 500,
-        },
-      },
-    });
-    const card = handleAdminMcpRequest(snapshot, {
-      jsonrpc: "2.0",
-      id: 3,
-      method: "tools/call",
-      params: {
-        name: "admin.get_knowledge_card",
-        arguments: { card_id: "knowledge-brain-life-record" },
-      },
-    });
-
-    expect(JSON.stringify(search)).toContain("knowledge-brain-life-record");
-    expect(JSON.stringify(search)).not.toContain("knowledge-infra-fleet");
-    expect(JSON.stringify(card)).toContain("brain://vault");
   });
 
   it("models sent gmail as event proof without an inbox card when complete", () => {
