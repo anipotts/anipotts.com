@@ -7,7 +7,7 @@ Updated: 2026-09-08. Release completion evidence lives in [the site release revi
 | Surface            | Source                 | Role                                                                     |
 | ------------------ | ---------------------- | ------------------------------------------------------------------------ |
 | anipotts.com       | `apps/www`             | Public Astro pages, Git-backed work and writing, newsletter endpoints    |
-| admin.anipotts.com | `apps/admin`           | Astro admin, proposals, previews, operational state, app-native passkeys |
+| admin.anipotts.com | `apps/admin`           | Astro admin behind Cloudflare Access, editor, previews, operations state |
 | api.anipotts.com   | `workers/state`        | Durable state and authenticated command relay                            |
 | Ingest             | `workers/ingest`       | Scheduled ingest and authenticated event receivers                       |
 | Newsletter         | `workers/newsletter`   | Subscription and issue queue consumer                                    |
@@ -47,11 +47,9 @@ The old database-first public readers, fallback datasets, Solid-only services an
 
 ## Authentication and production boundaries
 
-Cloudflare Access remains in front of Admin. Local source retirement is not proof of passkey enrollment or authenticated production access.
+Cloudflare Access is the only Admin sign-in. Middleware verifies the signed Access assertion for the exact owner; editorial reads and writes require it, other pages accept it for reads only, and sign out ends the Access session. The passkey, password, invite, recovery, device and native D1 session code was removed on 2026-09-22 and is recoverable from the `archive/admin-retired-auth-2026-09-22` tag. Its D1 tables and migrations stay in place.
 
-App-native authentication is tested through the protected route inventory in `scripts/ci/admin-route-inventory.mjs`. Removing Access still requires registration, login, logout, persistence, revoked-credential denial, unauthenticated blocking and rollback proof. No authentication or secret changes are part of source cleanup.
-
-The focused admin draft operations, newsletter controls and command relay retain their existing authorization checks. Public code must not import admin-only contracts or operational write tables; `pnpm test:public-boundary` enforces this separation.
+The protected route inventory in `scripts/ci/admin-route-inventory.mjs` drives the route parity and smoke checks. Newsletter controls and the command relay retain their existing authorization checks. Public code must not import admin-only contracts or operational write tables; `pnpm test:public-boundary` enforces this separation.
 
 ## Verification and releases
 
