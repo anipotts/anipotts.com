@@ -97,28 +97,45 @@ export function dayLabel(key: string, now: number = Date.now()): string {
     : DAY_YEAR.format(day);
 }
 
-const CLOCK = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-});
-const CLOCK_YEAR = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-});
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+] as const;
 
-/** A moment on a timeline: "Sep 22, 11:30", with the year when it is not
- * this year's. */
-export function clockText(ms: number, now: number = Date.now()): string {
-  return new Date(ms).getFullYear() === new Date(now).getFullYear()
-    ? CLOCK.format(ms)
-    : CLOCK_YEAR.format(ms);
+/**
+ * A moment on a timeline: "Sep 22, 11:30" on a 24-hour clock, with the year
+ * when it is not this year's ("Jan 2, 2025, 09:05"). Composed by hand, not by
+ * Intl, so every engine writes the same text (ICU builds disagree on the
+ * joiner). `utc` reads the UTC clock: a server render's text, which the
+ * browser then replaces with its own local one.
+ */
+export function clockText(
+  ms: number,
+  now: number = Date.now(),
+  utc = false,
+): string {
+  const at = new Date(ms);
+  const year = utc ? at.getUTCFullYear() : at.getFullYear();
+  const thisYear = utc
+    ? new Date(now).getUTCFullYear()
+    : new Date(now).getFullYear();
+  const month = MONTHS[utc ? at.getUTCMonth() : at.getMonth()];
+  const day = utc ? at.getUTCDate() : at.getDate();
+  const hours = pad(utc ? at.getUTCHours() : at.getHours());
+  const minutes = pad(utc ? at.getUTCMinutes() : at.getMinutes());
+  const date =
+    year === thisYear ? `${month} ${day}` : `${month} ${day}, ${year}`;
+  return `${date}, ${hours}:${minutes}`;
 }
 
 /** A hash or long id as a row shows it: a digest loses its algorithm prefix

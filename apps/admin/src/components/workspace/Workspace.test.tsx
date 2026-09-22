@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ArticleIcon } from "@phosphor-icons/react";
 import { BrandTile } from "../BrandTile";
 import { opsNaming } from "../../lib/naming";
-import { dayKey } from "./format";
+import { clockText, dayKey } from "./format";
 import {
   CELL_WIDTHS,
   CompactTimeline,
@@ -197,6 +197,30 @@ describe("DataTable groups", () => {
     expect(host.querySelector(".workspace-table-count")?.textContent).toBe(
       "3 rows in view",
     );
+  });
+  it("gathers a group's rows under one heading when they arrive apart", () => {
+    const apart = [
+      { id: "a", title: "First", at: "", group: "Personal context" },
+      { id: "b", title: "Second", at: "", group: "Services" },
+      { id: "c", title: "Third", at: "", group: "Personal context" },
+    ];
+    const host = html(
+      <DataTable
+        rows={apart}
+        columns={columns as unknown as Column<(typeof apart)[number]>[]}
+        rowKey="id"
+        label="Apart"
+        noun={["row", "rows"]}
+        groupBy={(row) => row.group}
+      />,
+    );
+    expect(
+      [...host.querySelectorAll("tbody tr")].map((row) =>
+        row.hasAttribute("data-group-row")
+          ? `# ${row.textContent}`
+          : row.querySelector(".workspace-row-title")!.textContent,
+      ),
+    ).toEqual(["# Personal context", "First", "Third", "# Services", "Second"]);
   });
 });
 
@@ -793,9 +817,9 @@ describe("detail lists", () => {
     expect(html(<TechnicalSection items={[]} />).innerHTML).toBe("");
   });
 
-  it("reads history as one short line per revision", () => {
+  it("reads history as one short line per revision, in the viewer's zone", () => {
     const at = new Date(2026, 8, 22, 11, 30).getTime();
-    const host = html(
+    const timeline = (
       <CompactTimeline
         label="Revision history"
         hashLabel="Source version"
@@ -810,17 +834,32 @@ describe("detail lists", () => {
           },
           { id: "r1", title: "Revision 1", at: null, hash: null },
         ]}
-      />,
+      />
     );
+    // The server writes the UTC clock; the browser writes its own.
+    const served = html(timeline);
+    expect(served.querySelector(".workspace-timeline-text")!.textContent).toBe(
+      `Revision 2, ${clockText(at, at, true)}`,
+    );
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    act(() => root.render(timeline));
     const items = [...host.querySelectorAll("li")];
     expect(
       items[0]!.querySelector(".workspace-timeline-text")!.textContent,
     ).toBe("Revision 2, Sep 22, 11:30");
     expect(items[0]!.querySelector("code")!.textContent).toBe("c".repeat(12));
-    expect(items[0]!.textContent).toContain("Current");
+    expect(
+      items[0]!
+        .querySelector(".workspace-timeline-current")!
+        .getAttribute("aria-label"),
+    ).toBe("Current");
+    expect(items[1]!.querySelector(".workspace-timeline-current")).toBeNull();
     expect(items[1]!.textContent).toBe("Revision 1");
     expect(host.querySelector("ol")!.getAttribute("aria-label")).toBe(
       "Revision history",
     );
+    act(() => root.unmount());
   });
 });

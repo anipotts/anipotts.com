@@ -697,8 +697,9 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   display: grid;
   grid-template-columns: var(--workspace-definition-label, 9rem) minmax(0, 1fr);
   column-gap: var(--spacing-4);
-  align-items: baseline;
+  align-items: start;
   min-width: 0;
+  line-height: var(--spacing-6);
 }
 .workspace-definition > dt {
   color: var(--color-text-secondary);
@@ -709,6 +710,11 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   min-width: 0;
   overflow-wrap: anywhere;
   color: var(--color-text-primary);
+}
+/* Chips and copy values sit centred on the label's 24px line. */
+.workspace-definition > dd > :is(.workspace-chips, .workspace-copy-value) {
+  min-height: var(--spacing-6);
+  align-items: center;
 }
 @container workspace-definitions (max-width: 22rem) {
   .workspace-definition {
@@ -740,9 +746,14 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
 .workspace-copy-value > .astryx-button {
   flex: none;
 }
-/* The collapsed technical fields sit under the readable ones. */
+/* The collapsed technical fields sit under the readable ones. Each value is
+   one line beside its copy button, so the label centres on the button. */
 .workspace-technical .workspace-definitions {
   padding-block-start: var(--spacing-3);
+  gap: 0;
+}
+.workspace-technical .workspace-definition {
+  align-items: center;
 }
 
 /* Key and value chips: 20px, the badge's corner, an app key as its tile flush
@@ -816,8 +827,13 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
 .workspace-timeline-text .workspace-time {
   color: var(--color-text-secondary);
 }
+/* A 12-character hash stays whole; the line's text gives way first. */
 .workspace-timeline-item > .workspace-copy-value {
-  flex: 0 1 auto;
+  flex: none;
+}
+.workspace-timeline-current {
+  display: inline-flex;
+  flex: none;
 }
 
 /* A day heading above a list that is not a table, on the group row's

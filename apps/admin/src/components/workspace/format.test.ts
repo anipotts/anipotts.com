@@ -64,6 +64,9 @@ describe("days", () => {
     expect(clockText(new Date(2025, 0, 2, 9, 5).getTime(), now)).toBe(
       "Jan 2, 2025, 09:05",
     );
+    expect(clockText(Date.UTC(2026, 8, 22, 15, 30), now, true)).toBe(
+      "Sep 22, 15:30",
+    );
   });
 });
 

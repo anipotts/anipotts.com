@@ -41,7 +41,9 @@
  * nothing overflows. Every other column is fixed at a CELL_WIDTHS width so the
  * same kind of column lines up across sections: the state (StateCell), times
  * (RelativeTime, DueTime), figures and durations (`numeric`, right-aligned in
- * tabular figures). A cell's text never wraps and ends in an ellipsis.
+ * tabular figures) and a lone tile such as a device, whose header is for
+ * assistive technology only. A cell's text never wraps and ends in an
+ * ellipsis.
  * Grouped rows take `groupBy` and a `groupLabel` (DayLabel for activity);
  * `foldGroup` names the group that sits last and starts folded, such as
  * sources that were never connected.
@@ -510,8 +512,8 @@ export function DataTable<T extends Record<string, unknown>>({
   /** Rows open something: the whole row takes the hover and the tap.
    * Read-only tables (Activity) keep rows still. */
   interactive?: boolean;
-  /** Rows arrive in group order; a heading row starts each run of rows that
-   * share a key, so one table (one header, one tab stop) holds every group. */
+  /** One heading row per group key, in the order each group's first row
+   * arrives, so one table (one header, one tab stop) holds every group. */
   groupBy?: (row: T) => string;
   groupLabel?: (key: string) => ReactNode;
   /** The group that sits after the others and starts folded; its heading
@@ -695,8 +697,10 @@ export function DataTable<T extends Record<string, unknown>>({
   );
 }
 
-/** The rows with a heading row before each run that shares a group key. A
- * folded group moves after the others; while it is closed only its heading
+/** The rows under one heading row per group. Groups keep the order their
+ * first row arrives in and gather every row that shares their key, rows
+ * keeping their own order within it, so a group never heads the table twice.
+ * A folded group moves after the others; while it is closed only its heading
  * shows. */
 function withGroupRows<T extends Record<string, unknown>>(
   rows: T[],
@@ -704,26 +708,26 @@ function withGroupRows<T extends Record<string, unknown>>(
   groupBy: (row: T) => string,
   fold?: { key: string; open: boolean },
 ): T[] {
-  const folded = fold ? rows.filter((row) => groupBy(row) === fold.key) : [];
-  const ordered = fold
-    ? rows.filter((row) => groupBy(row) !== fold.key).concat(folded)
-    : rows;
-  const out: T[] = [];
-  let previous: string | undefined;
-  for (const row of ordered) {
+  const groups = new Map<string, T[]>();
+  for (const row of rows) {
     const key = groupBy(row);
+    const group = groups.get(key);
+    if (group) group.push(row);
+    else groups.set(key, [row]);
+  }
+  const order = [...groups.keys()];
+  if (fold && groups.has(fold.key))
+    order.push(...order.splice(order.indexOf(fold.key), 1));
+  const out: T[] = [];
+  for (const key of order) {
+    const members = groups.get(key)!;
     const isFold = fold !== undefined && key === fold.key;
-    if (key !== previous)
-      out.push({
-        [rowKey]: `group:${key}`,
-        [GROUP]: key,
-        ...(isFold
-          ? { [FOLD]: { count: folded.length, open: fold.open } }
-          : {}),
-      } as unknown as T);
-    previous = key;
-    if (isFold && !fold.open) continue;
-    out.push(row);
+    out.push({
+      [rowKey]: `group:${key}`,
+      [GROUP]: key,
+      ...(isFold ? { [FOLD]: { count: members.length, open: fold.open } } : {}),
+    } as unknown as T);
+    if (!isFold || fold.open) out.push(...members);
   }
   return out;
 }
@@ -1142,6 +1146,8 @@ export function Duration({
   return <span className="workspace-figure workspace-duration">{text}</span>;
 }
 
+/** The due text is the time element's own child, so a render on either
+ * side of a minute boundary is not a hydration error. */
 function LiveDue({
   at,
   now,
@@ -1156,13 +1162,18 @@ function LiveDue({
     Date.now(),
     now,
   );
+  const absolute = `Due ${absoluteTime(at)}`;
   return (
-    <span
-      className="workspace-due"
+    <time
+      dateTime={new Date(at).toISOString()}
+      title={absolute}
+      aria-label={absolute}
+      className="workspace-time workspace-due"
       data-overdue={text.endsWith("overdue") ? "true" : undefined}
+      suppressHydrationWarning
     >
       {text}
-    </span>
+    </time>
   );
 }
 
@@ -1183,18 +1194,7 @@ function DueTimeCell({
   const ms = typeof value === "number" ? value : Date.parse(value ?? "");
   if (value == null || value === "" || !Number.isFinite(ms))
     return <NoValue text={empty} />;
-  const absolute = `Due ${absoluteTime(ms)}`;
-  return (
-    <time
-      dateTime={new Date(ms).toISOString()}
-      title={absolute}
-      aria-label={absolute}
-      className="workspace-time"
-      suppressHydrationWarning
-    >
-      <LiveDue at={ms} now={now} graceS={graceS} />
-    </time>
-  );
+  return <LiveDue at={ms} now={now} graceS={graceS} />;
 }
 
 export const DueTime = memo(
@@ -1742,10 +1742,23 @@ export function ValueChips({
   );
 }
 
+const unchanging = () => () => undefined;
+
+/** A clock time in the viewer's zone. The server writes the UTC one and the
+ * browser swaps in its own after hydration, so the two never disagree. */
+function LocalClock({ ms, now }: { ms: number; now?: number }) {
+  const text = React.useSyncExternalStore(
+    unchanging,
+    () => clockText(ms, now),
+    () => clockText(ms, now, true),
+  );
+  return <>{text}</>;
+}
+
 /**
  * A record's history as one short line per entry: "Revision 1, Sep 22,
- * 11:30", then its short hash with a copy button. The newest comes first
- * when the entries do.
+ * 11:30", then its short hash with a copy button. The current entry leads
+ * with a quiet accent dot. The newest comes first when the entries do.
  */
 export function CompactTimeline({
   items,
@@ -1778,6 +1791,20 @@ export function CompactTimeline({
             className="workspace-timeline-item"
             data-current={item.current ? "true" : undefined}
           >
+            {item.current && (
+              <span
+                className="workspace-timeline-current"
+                role="img"
+                aria-label="Current"
+                title="Current"
+              >
+                <StatusDot
+                  variant="accent"
+                  label="Current"
+                  aria-hidden="true"
+                />
+              </span>
+            )}
             <span className="workspace-timeline-text">
               <span className="workspace-timeline-title">{item.title}</span>
               {Number.isFinite(ms) && (
@@ -1787,13 +1814,13 @@ export function CompactTimeline({
                     dateTime={new Date(ms).toISOString()}
                     title={absoluteTime(ms)}
                     className="workspace-time"
+                    suppressHydrationWarning
                   >
-                    {clockText(ms, now)}
+                    <LocalClock ms={ms} now={now} />
                   </time>
                 </>
               )}
             </span>
-            {item.current && <StateBadge tone="neutral" label="Current" />}
             {item.hash && <CopyValue value={item.hash} label={hashLabel} />}
           </li>
         );
