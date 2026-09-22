@@ -172,8 +172,11 @@ describe("Status view from System's fixture", () => {
   it("never gives unknown the ok treatment", () => {
     const unknown = stateCell(rowFor(host, "health.ingest")!);
     const ok = stateCell(rowFor(host, "health.api")!);
+    // Unknown is its own dashed glyph on the neutral chip, never a dot.
+    expect(unknown.querySelector("svg.workspace-state-mark")).not.toBeNull();
+    expect(unknown.querySelector("[data-variant]")).toBeNull();
     expect(
-      unknown.querySelector("[data-variant]")?.getAttribute("data-variant"),
+      unknown.querySelector("[data-tone]")?.getAttribute("data-tone"),
     ).toBe("neutral");
     // OK draws no chip at all, so nothing else can borrow its look.
     expect(ok.querySelector("[data-variant]")).toBeNull();
@@ -250,9 +253,10 @@ describe("Status view edge cases", () => {
     value.status = value.status.filter((row: Json) => row.id !== "pc.writer");
     const state = stateCell(rowFor(render(value), "pc.writer")!);
     expect(state.textContent).toBe("UnknownNo status row from System");
-    expect(
-      state.querySelector("[data-variant]")?.getAttribute("data-variant"),
-    ).toBe("neutral");
+    expect(state.querySelector("[data-tone]")?.getAttribute("data-tone")).toBe(
+      "neutral",
+    );
+    expect(state.querySelector("svg.workspace-state-mark")).not.toBeNull();
   });
 
   it("renders asleep hosts, unknown groups and over-budget entries", () => {
@@ -348,10 +352,17 @@ describe("Status view edge cases", () => {
     expect(asleep.textContent).toContain("Asleep");
     expect(asleep.querySelector("[data-variant]")).toBeNull();
     expect(asleep.querySelector("svg.workspace-state-mark")).not.toBeNull();
+    // Asleep rests on blue, unknown on neutral, each with its own glyph.
+    expect(asleep.querySelector("[data-tone]")?.getAttribute("data-tone")).toBe(
+      "rest",
+    );
     expect(
-      unknown.querySelector("[data-variant]")?.getAttribute("data-variant"),
+      unknown.querySelector("[data-tone]")?.getAttribute("data-tone"),
     ).toBe("neutral");
-    expect(unknown.querySelector("svg.workspace-state-mark")).toBeNull();
+    expect(unknown.querySelector("svg.workspace-state-mark")).not.toBeNull();
+    expect(
+      asleep.querySelector("svg.workspace-state-mark")?.innerHTML,
+    ).not.toBe(unknown.querySelector("svg.workspace-state-mark")?.innerHTML);
     expect(
       failing.querySelector("[data-variant]")?.getAttribute("data-variant"),
     ).toBe("error");

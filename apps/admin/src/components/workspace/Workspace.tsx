@@ -1,9 +1,10 @@
 /**
- * The admin workspace kit: the page header, filter bar, table, row, state
- * badge, notices, loading skeleton, detail panel, times and tier mark that
- * Content, Data and Observability all render with. Styling lives in
- * workspace.css under `workspace-*` names, so a list looks and behaves the
- * same wherever it appears.
+ * The admin workspace kit: the page header, filter bar, table, row, cells,
+ * state badges, detail lists, notices, loading skeleton, detail panel, times
+ * and tier mark that Content, Data and Observability all render with.
+ * Styling lives in workspace.css under `workspace-*` names, so a list looks
+ * and behaves the same wherever it appears. Display names, app tiles and
+ * device tiles come from lib/naming.ts; text formats from ./format.ts.
  *
  * The API, in the order a page uses it:
  *
@@ -12,14 +13,38 @@
  * | WorkspacePage   | title, count beside the H1, meta, badge, actions       |
  * | FilterBar       | `search` (live, debounced) and FilterMenu children     |
  * | FilterMenu      | an icon-only menu: label, current value, isActive      |
- * | DataTable       | rows and Columns; a column's `hideBelow` names a range |
+ * | DataTable       | rows and Columns, `groupBy`, `foldGroup`               |
  * | RowTitle        | the lead cell: `mark` tile, title, line 2, phone `end` |
  * |                 | and `time`                                             |
+ * | StateCell       | a state column's cell: never empty                     |
  * | StateBadge      | `domain` and `state`; default states render no chip    |
+ * | StateTransition | `from` and `to` badges, for a change of state          |
  * | badgeFor        | the one state table: label, tone, isDefault, glyph     |
- * | StateNotice     | stands in for an empty, unconnected or failed table    |
+ * | DetailText      | a short detail that truncates, full text on hover      |
+ * | Figure          | a count, with its noun when it has one                 |
+ * | Duration        | a run's length: "84ms", "1m 24s"                       |
+ * | DueTime         | the next run: "in 12m", "due now", "3m overdue"        |
  * | RelativeTime    | a live relative time with the absolute one as tooltip  |
+ * | DayLabel        | a day group's heading: Today, Yesterday, Mon, Sep 21   |
+ * | DayHeader       | the same as a heading, for lists that are not tables   |
+ * | DefinitionList  | label and value pairs in two columns, stacked on phones|
+ * | ValueChips      | an object as key and value chips, app keys as tiles    |
+ * | CopyValue       | a short id or hash with a copy button                  |
+ * | TechnicalSection| ids and hashes, collapsed, each with a copy button     |
+ * | CompactTimeline | "Revision 1, Sep 22, 11:30" rows with a short hash     |
+ * | StateNotice     | stands in for an empty, unconnected or failed table    |
  * | TierMark        | a tier as a globe, shield or lock glyph                |
+ *
+ * The table convention. The lead column (RowTitle) is the one flexible
+ * column; a table may add one more flexible column, a DetailText, and the
+ * two share the width the fixed columns leave, so there is no dead middle and
+ * nothing overflows. Every other column is fixed at a CELL_WIDTHS width so the
+ * same kind of column lines up across sections: the state (StateCell), times
+ * (RelativeTime, DueTime), figures and durations (`numeric`, right-aligned in
+ * tabular figures). A cell's text never wraps and ends in an ellipsis.
+ * Grouped rows take `groupBy` and a `groupLabel` (DayLabel for activity);
+ * `foldGroup` names the group that sits last and starts folded, such as
+ * sources that were never connected.
  *
  * Tile tokens for a `mark`: `--row-mark-size` (24px, 28px at compact),
  * `--row-mark-glyph` (16px, 18px) and `--row-mark-radius` (0.3 of the size,
@@ -45,6 +70,8 @@ import React, {
   type ReactNode,
 } from "react";
 import { Banner } from "@astryxdesign/core/Banner";
+import { Button } from "@astryxdesign/core/Button";
+import { Collapsible } from "@astryxdesign/core/Collapsible";
 import { DropdownMenu } from "@astryxdesign/core/DropdownMenu";
 import { Heading } from "@astryxdesign/core/Heading";
 import { HStack } from "@astryxdesign/core/HStack";
@@ -60,9 +87,12 @@ import { TextInput } from "@astryxdesign/core/TextInput";
 import { Token } from "@astryxdesign/core/Token";
 import { VStack } from "@astryxdesign/core/VStack";
 import {
+  ArrowRightIcon,
   CaretRightIcon,
+  CheckIcon,
   CircleDashedIcon,
   ClockCounterClockwiseIcon,
+  CopySimpleIcon,
   FlaskIcon,
   GlobeSimpleIcon,
   LinkBreakIcon,
@@ -72,9 +102,20 @@ import {
   WarningCircleIcon,
   type Icon,
 } from "@phosphor-icons/react";
+import { brandMark } from "@anipotts/brand/marks";
 import { BREAKPOINTS, isBelow, type Breakpoint } from "../../lib/breakpoints";
 import { relativeAgo, useLiveText } from "../../lib/live-clock";
+import { appMark, countNoun, keyLabel } from "../../lib/naming";
 import { sentenceCase } from "../../lib/sentence-case";
+import { BrandTile } from "../BrandTile";
+import {
+  clockText,
+  countText,
+  dayLabel,
+  dueText,
+  durationText,
+  shortValue,
+} from "./format";
 import "./workspace.css";
 
 /** Notice and chip copy never ends on a period. */
@@ -362,20 +403,41 @@ export function FilterMenu({
 export type Column<T> = {
   key: string;
   header: ReactNode;
-  /** Pixels, or omitted to share the remaining width. */
+  /** Pixels (a CELL_WIDTHS width for a standard cell), or omitted to share
+   * the remaining width. */
   width?: number;
   align?: "start" | "end";
+  /** Figures: right-aligned, header included, in tabular numerals. */
+  numeric?: boolean;
   /** Hidden in every range narrower than this one. */
   hideBelow?: "large" | "wide";
   render: (row: T) => ReactNode;
 };
 
+/** The fixed widths of the standard cells, cell inset included, so the same
+ * kind of column lines up in every table and section. */
+export const CELL_WIDTHS = {
+  /** StateCell: the widest ops and source chips. */
+  state: 128,
+  /** RelativeTime and DueTime, "Not recorded" included. */
+  time: 112,
+  /** Figure and Duration. */
+  figure: 80,
+  /** A lone 24px tile, such as a device. */
+  tile: 56,
+} as const;
+
 /** The least a flexible column is given before the table scrolls. */
 const FLEX_MIN_WIDTH = 80;
 
-/** Marks the heading row DataTable puts before each group. */
+/** Marks the heading row DataTable puts before each group, and the folded
+ * group's row count and state. */
 const GROUP = Symbol("workspace-group");
-type GroupRow = { [GROUP]: string };
+const FOLD = Symbol("workspace-fold");
+type GroupRow = {
+  [GROUP]: string;
+  [FOLD]?: { count: number; open: boolean };
+};
 const isGroupRow = (row: object): row is GroupRow => GROUP in row;
 
 /** The table's minimum width in each range, from its visible columns only. */
@@ -434,6 +496,7 @@ export function DataTable<T extends Record<string, unknown>>({
   interactive = true,
   groupBy,
   groupLabel = (key) => key,
+  foldGroup,
 }: {
   rows: T[];
   columns: Column<T>[];
@@ -451,20 +514,32 @@ export function DataTable<T extends Record<string, unknown>>({
    * share a key, so one table (one header, one tab stop) holds every group. */
   groupBy?: (row: T) => string;
   groupLabel?: (key: string) => ReactNode;
+  /** The group that sits after the others and starts folded; its heading
+   * shows its row count and opens it. Needs `groupBy`. */
+  foldGroup?: string;
 }) {
   const [overflowing, wrapperRef] = useOverflow();
+  const [foldOpen, setFoldOpen] = useState(false);
+  // Read at click time, so the plugin never rebuilds for the handler.
+  const toggleFold = useRef(() => setFoldOpen((open) => !open));
   // The heading renderer is read at render time, so an inline one never
   // rebuilds the plugin.
   const labelFor = useRef(groupLabel);
   labelFor.current = groupLabel;
   const shape = columns
-    .map((column) => `${column.key}:${column.width}:${column.hideBelow}`)
+    .map(
+      (column) =>
+        `${column.key}:${column.width}:${column.hideBelow}:${column.numeric}`,
+    )
     .join(",");
   const plugin = useMemo((): TablePlugin<T> => {
     const byKey = new Map(columns.map((column) => [column.key, column]));
     const hiding = (key: string) => {
-      const below = byKey.get(key)?.hideBelow;
-      return below ? { "data-hide-below": below } : {};
+      const column = byKey.get(key);
+      return {
+        ...(column?.hideBelow ? { "data-hide-below": column.hideBelow } : {}),
+        ...(column?.numeric ? { "data-numeric": "" } : {}),
+      };
     };
     return {
       transformBodyRow: (props, item) =>
@@ -479,7 +554,28 @@ export function DataTable<T extends Record<string, unknown>>({
               // a range hides and hand them the spare width.
               children: (
                 <th scope="rowgroup" className="workspace-group-row">
-                  {labelFor.current(item[GROUP])}
+                  {item[FOLD] ? (
+                    <button
+                      type="button"
+                      className="workspace-group-toggle"
+                      aria-expanded={item[FOLD].open}
+                      onClick={() => toggleFold.current()}
+                    >
+                      <CaretRightIcon
+                        weight="bold"
+                        aria-hidden="true"
+                        className="workspace-group-caret"
+                      />
+                      <span className="workspace-group-label">
+                        {labelFor.current(item[GROUP])}
+                      </span>
+                      <span className="workspace-count">
+                        {item[FOLD].count}
+                      </span>
+                    </button>
+                  ) : (
+                    labelFor.current(item[GROUP])
+                  )}
                 </th>
               ),
             }
@@ -521,7 +617,16 @@ export function DataTable<T extends Record<string, unknown>>({
     // `shape` stands for the columns: consumers rebuild them every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shape, overflowing, label, wrapperRef]);
-  const data = groupBy ? withGroupRows(rows, rowKey, groupBy) : rows;
+  const data = groupBy
+    ? withGroupRows(
+        rows,
+        rowKey,
+        groupBy,
+        foldGroup === undefined
+          ? undefined
+          : { key: foldGroup, open: foldOpen },
+      )
+    : rows;
   const minimum = tableMinWidths(columns);
   const frameStyle = Object.fromEntries(
     BREAKPOINTS.map((range) => [
@@ -549,7 +654,7 @@ export function DataTable<T extends Record<string, unknown>>({
           columns={columns.map((column) => ({
             key: column.key,
             header: column.header,
-            align: column.align,
+            align: column.numeric ? "end" : column.align,
             renderCell: (row: T) =>
               isGroupRow(row) ? null : column.render(row),
           }))}
@@ -590,19 +695,34 @@ export function DataTable<T extends Record<string, unknown>>({
   );
 }
 
-/** The rows with a heading row before each run that shares a group key. */
+/** The rows with a heading row before each run that shares a group key. A
+ * folded group moves after the others; while it is closed only its heading
+ * shows. */
 function withGroupRows<T extends Record<string, unknown>>(
   rows: T[],
   rowKey: keyof T & string,
   groupBy: (row: T) => string,
+  fold?: { key: string; open: boolean },
 ): T[] {
+  const folded = fold ? rows.filter((row) => groupBy(row) === fold.key) : [];
+  const ordered = fold
+    ? rows.filter((row) => groupBy(row) !== fold.key).concat(folded)
+    : rows;
   const out: T[] = [];
   let previous: string | undefined;
-  for (const row of rows) {
+  for (const row of ordered) {
     const key = groupBy(row);
+    const isFold = fold !== undefined && key === fold.key;
     if (key !== previous)
-      out.push({ [rowKey]: `group:${key}`, [GROUP]: key } as unknown as T);
+      out.push({
+        [rowKey]: `group:${key}`,
+        [GROUP]: key,
+        ...(isFold
+          ? { [FOLD]: { count: folded.length, open: fold.open } }
+          : {}),
+      } as unknown as T);
     previous = key;
+    if (isFold && !fold.open) continue;
     out.push(row);
   }
   return out;
@@ -755,13 +875,16 @@ export function RowTitle({
   );
 }
 
-export type Tone = "positive" | "neutral" | "warning" | "critical" | "calm";
+/** `rest` is a host that sleeps on purpose: blue, so it reads apart from
+ * healthy green and from an unknown's neutral. */
+export type Tone =
+  "positive" | "neutral" | "warning" | "critical" | "calm" | "rest";
 
 const TONES: Record<
   Tone,
   {
-    color: "green" | "orange" | "red" | "default";
-    dot: "success" | "warning" | "error" | "neutral";
+    color: "green" | "orange" | "red" | "blue" | "default";
+    dot: "success" | "warning" | "error" | "accent" | "neutral";
   }
 > = {
   positive: { color: "green", dot: "success" },
@@ -769,6 +892,7 @@ const TONES: Record<
   warning: { color: "orange", dot: "warning" },
   critical: { color: "red", dot: "error" },
   calm: { color: "default", dot: "neutral" },
+  rest: { color: "blue", dot: "accent" },
 };
 
 type Badge = {
@@ -799,8 +923,10 @@ const BADGES = {
       tone: "warning",
       icon: ClockCounterClockwiseIcon,
     },
-    asleep: { label: "Asleep", tone: "calm", icon: MoonIcon },
-    unknown: { label: "Unknown", tone: "neutral" },
+    // Asleep and unknown each have their own glyph and colour, so neither
+    // reads as OK or as the other.
+    asleep: { label: "Asleep", tone: "rest", icon: MoonIcon },
+    unknown: { label: "Unknown", tone: "neutral", icon: CircleDashedIcon },
   },
   record: {
     observed: { label: "Observed", tone: "neutral", isDefault: true },
@@ -814,6 +940,8 @@ const BADGES = {
       tone: "warning",
       icon: ClockCounterClockwiseIcon,
     },
+    // No freshness budget: liveness only, so freshness cannot be judged.
+    unknown: { label: "Unknown", tone: "neutral", icon: CircleDashedIcon },
   },
   alert: {
     firing: { label: "Firing", tone: "critical" },
@@ -833,6 +961,40 @@ export function badgeFor(domain: BadgeDomain, state: string): Badge {
   );
 }
 
+/** A state's chip: its label always as text, its glyph or dot for colour.
+ * The mark carries the tone (`data-tone`), since the chip takes no data
+ * attributes of its own. */
+function Chip({ badge, icon }: { badge: Badge; icon?: ReactNode }) {
+  const { color, dot } = TONES[badge.tone];
+  const Glyph = badge.icon;
+  return (
+    <Token
+      size="sm"
+      color={color}
+      label={badge.label}
+      className="workspace-state"
+      icon={
+        icon ??
+        (Glyph ? (
+          <Glyph
+            weight="regular"
+            aria-hidden="true"
+            className="workspace-state-mark"
+            data-tone={badge.tone}
+          />
+        ) : (
+          <StatusDot
+            variant={dot}
+            label={badge.label}
+            aria-hidden="true"
+            data-tone={badge.tone}
+          />
+        ))
+      }
+    />
+  );
+}
+
 /**
  * The one status chip. With a `domain` and `state` it reads the badge table
  * and renders nothing visible for a default state (Published, OK, Observed),
@@ -845,33 +1007,239 @@ export function StateBadge(
     | { domain: BadgeDomain; state: string; tone?: never; label?: never }
     | { tone: Tone; label: string; icon?: ReactNode; domain?: never },
 ) {
-  const badge: Badge =
-    props.domain !== undefined
-      ? badgeFor(props.domain, props.state)
-      : { tone: props.tone, label: props.label };
+  if (props.domain === undefined)
+    return (
+      <Chip
+        badge={{ tone: props.tone, label: props.label }}
+        icon={props.icon}
+      />
+    );
+  const badge = badgeFor(props.domain, props.state);
   if (badge.isDefault) return <span className="sr-only">{badge.label}</span>;
-  const { color, dot } = TONES[badge.tone];
-  const Glyph = badge.icon;
-  const custom = props.domain === undefined ? props.icon : undefined;
+  return <Chip badge={badge} />;
+}
+
+/**
+ * A state column's cell, never empty: a default state (OK, Fresh, Observed)
+ * is a quiet dot where a chip's dot would sit, named by its tooltip and for
+ * assistive technology; every other state is its chip. Unknown and Asleep
+ * carry their own glyphs, so neither reads as OK.
+ */
+export function StateCell({
+  domain,
+  state,
+}: {
+  domain: BadgeDomain;
+  state: string;
+}) {
+  const badge = badgeFor(domain, state);
+  if (!badge.isDefault) return <Chip badge={badge} />;
   return (
-    <Token
-      size="sm"
-      color={color}
-      label={badge.label}
-      className="workspace-state"
-      icon={
-        custom ??
-        (Glyph ? (
-          <Glyph
+    <span
+      className="workspace-state-quiet"
+      data-tone={badge.tone}
+      role="img"
+      aria-label={badge.label}
+      title={badge.label}
+    >
+      <StatusDot
+        variant={TONES[badge.tone].dot}
+        label={badge.label}
+        aria-hidden="true"
+      />
+    </span>
+  );
+}
+
+/** A change of state: the state it left, then the one it entered, both as
+ * chips (OK included). A first sighting has no state to leave. */
+export function StateTransition({
+  domain,
+  from,
+  to,
+}: {
+  domain: BadgeDomain;
+  from: string | null | undefined;
+  to: string;
+}) {
+  return (
+    <span className="workspace-transition">
+      {from ? (
+        <>
+          <Chip badge={badgeFor(domain, from)} />
+          <ArrowRightIcon
             weight="regular"
             aria-hidden="true"
-            className="workspace-state-mark"
+            className="workspace-transition-mark"
           />
-        ) : (
-          <StatusDot variant={dot} label={badge.label} aria-hidden="true" />
-        ))
-      }
-    />
+          <span className="sr-only">to</span>
+        </>
+      ) : (
+        <span className="sr-only">First seen</span>
+      )}
+      <Chip badge={badgeFor(domain, to)} />
+    </span>
+  );
+}
+
+/** A short detail beside a row's title: one line that ends in an ellipsis,
+ * its full text on hover. Muted: the title leads the row. */
+export function DetailText({
+  children,
+  tooltip,
+}: {
+  children: ReactNode;
+  /** The full text when the child is not a string, or says more. */
+  tooltip?: string | null;
+}) {
+  const title = tooltip ?? (typeof children === "string" ? children : null);
+  return (
+    <span className="workspace-detail-text" title={title || undefined}>
+      {children}
+    </span>
+  );
+}
+
+/** What a figure cell shows without a value: the given text, muted, or
+ * nothing visible and "Not recorded" for assistive technology. */
+function NoValue({ text }: { text?: string }) {
+  return text ? (
+    <Text color="secondary" className="workspace-figure">
+      {text}
+    </Text>
+  ) : (
+    <span className="sr-only">Not recorded</span>
+  );
+}
+
+/** A count in tabular figures, with its noun when it has one ("44 visits"). */
+export function Figure({
+  value,
+  noun,
+  empty,
+}: {
+  value: number | null | undefined;
+  noun?: readonly [one: string, many: string] | null;
+  empty?: string;
+}) {
+  if (value == null || !Number.isFinite(value)) return <NoValue text={empty} />;
+  return <span className="workspace-figure">{countText(value, noun)}</span>;
+}
+
+/** How long something took: "84ms", "8.4s", "1m 24s". Give `ms` (an event's
+ * duration) or `seconds` (a status row's `last_duration_s`). */
+export function Duration({
+  ms,
+  seconds,
+  empty,
+}: {
+  ms?: number | null;
+  seconds?: number | null;
+  empty?: string;
+}) {
+  const text = durationText(ms ?? (seconds == null ? null : seconds * 1000));
+  if (text === null) return <NoValue text={empty} />;
+  return <span className="workspace-figure workspace-duration">{text}</span>;
+}
+
+function LiveDue({
+  at,
+  now,
+  graceS,
+}: {
+  at: number;
+  now?: number;
+  graceS: number;
+}) {
+  const text = useLiveText(
+    (live) => dueText(at, live, graceS).text,
+    Date.now(),
+    now,
+  );
+  return (
+    <span
+      className="workspace-due"
+      data-overdue={text.endsWith("overdue") ? "true" : undefined}
+    >
+      {text}
+    </span>
+  );
+}
+
+/** When something is next due, live from the shared clock: "in 12m", then
+ * "due now" for `graceS` seconds (a minute by default, since System samples
+ * every 15 seconds), then "3m overdue" in the warning ink. */
+function DueTimeCell({
+  value,
+  now,
+  graceS = 60,
+  empty,
+}: {
+  value: string | number | null | undefined;
+  now?: number;
+  graceS?: number;
+  empty?: string;
+}) {
+  const ms = typeof value === "number" ? value : Date.parse(value ?? "");
+  if (value == null || value === "" || !Number.isFinite(ms))
+    return <NoValue text={empty} />;
+  const absolute = `Due ${absoluteTime(ms)}`;
+  return (
+    <time
+      dateTime={new Date(ms).toISOString()}
+      title={absolute}
+      aria-label={absolute}
+      className="workspace-time"
+      suppressHydrationWarning
+    >
+      <LiveDue at={ms} now={now} graceS={graceS} />
+    </time>
+  );
+}
+
+export const DueTime = memo(
+  DueTimeCell,
+  (previous, next) =>
+    previous.value === next.value &&
+    previous.now === next.now &&
+    previous.graceS === next.graceS &&
+    previous.empty === next.empty,
+);
+
+function LiveDay({ day, now }: { day: string; now?: number }) {
+  const text = useLiveText((live) => dayLabel(day, live), Date.now(), now);
+  return <>{text}</>;
+}
+
+/** A day group's heading text from a `dayKey`: "Today", "Yesterday", "Mon,
+ * Sep 21". Live, so Today turns into Yesterday at midnight. */
+export function DayLabel({ day, now }: { day: string; now?: number }) {
+  return (
+    <time
+      dateTime={day || undefined}
+      className="workspace-day"
+      suppressHydrationWarning
+    >
+      <LiveDay day={day} now={now} />
+    </time>
+  );
+}
+
+/** A day heading for an activity list that is not a table. In a DataTable,
+ * pass `groupBy={(row) => dayKey(row.at)}` and `groupLabel` a DayLabel. */
+export function DayHeader({
+  day,
+  now,
+  level = 3,
+}: {
+  day: string;
+  now?: number;
+  level?: 2 | 3 | 4;
+}) {
+  return (
+    <Heading level={level} className="workspace-day-header">
+      <DayLabel day={day} now={now} />
+    </Heading>
   );
 }
 
@@ -1172,5 +1540,264 @@ export function SampleBadge() {
       className="workspace-sample"
       icon={<FlaskIcon weight="regular" size={14} aria-hidden="true" />}
     />
+  );
+}
+
+/**
+ * Label and value pairs in two aligned columns: a muted label column, then
+ * the value, which wraps rather than overflows. The pairs stack, label over
+ * value, on phones and in a narrow panel. Empty values are left out.
+ */
+export function DefinitionList({
+  items,
+  label,
+}: {
+  items: ReadonlyArray<readonly [label: string, value: ReactNode]>;
+  /** The list's accessible name, when a heading does not give it one. */
+  label?: string;
+}) {
+  const shown = items.filter(
+    ([, value]) => value !== null && value !== undefined && value !== "",
+  );
+  if (!shown.length) return null;
+  return (
+    <dl className="workspace-definitions" aria-label={label}>
+      {shown.map(([name, value]) => (
+        <div key={name} className="workspace-definition">
+          <dt>{name}</dt>
+          <dd>{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** "Record ID" as a verb's object: "Copy record ID". */
+const lowerFirst = (text: string) =>
+  text.charAt(0).toLowerCase() + text.slice(1);
+
+/**
+ * A hash or id as a row shows it: shortened (a digest to its first 12
+ * characters, anything else to the cell's ellipsis), the full value as the
+ * tooltip, and a copy button that copies all of it. It never overflows.
+ */
+export function CopyValue({
+  value,
+  label,
+  display,
+}: {
+  value: string;
+  /** What the value is, for the button's name: "Record ID". */
+  label: string;
+  /** Shown in place of the shortened value. */
+  display?: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(timer);
+  }, [copied]);
+  const name = `Copy ${lowerFirst(label)}`;
+  return (
+    <span className="workspace-copy-value">
+      <code className="workspace-copy-text" title={value}>
+        {display ?? shortValue(value)}
+      </code>
+      <Button
+        label={name}
+        tooltip={copied ? "Copied" : name}
+        isIconOnly
+        size="sm"
+        variant="ghost"
+        icon={
+          copied ? (
+            <CheckIcon weight="regular" aria-hidden="true" />
+          ) : (
+            <CopySimpleIcon weight="regular" aria-hidden="true" />
+          )
+        }
+        onClick={() => {
+          void navigator.clipboard?.writeText(value).then(
+            () => setCopied(true),
+            () => undefined,
+          );
+        }}
+      />
+      <span className="sr-only" role="status">
+        {copied ? "Copied" : ""}
+      </span>
+    </span>
+  );
+}
+
+/** A record's technical fields, collapsed by default: ids, hashes, source
+ * references and versions, each short with a copy button. Empty ones are
+ * left out, and with none there is no section. */
+export function TechnicalSection({
+  items,
+  title = "Technical",
+}: {
+  items: ReadonlyArray<{
+    label: string;
+    value: string | null | undefined;
+    display?: string;
+  }>;
+  title?: string;
+}) {
+  const shown = items.filter((item): item is typeof item & { value: string } =>
+    Boolean(item.value),
+  );
+  if (!shown.length) return null;
+  return (
+    <Collapsible
+      trigger={<Text>{title}</Text>}
+      defaultIsOpen={false}
+      className="workspace-technical"
+    >
+      <DefinitionList
+        items={shown.map((item) => [
+          item.label,
+          <CopyValue
+            key={item.label}
+            value={item.value}
+            label={item.label}
+            display={item.display}
+          />,
+        ])}
+      />
+    </Collapsible>
+  );
+}
+
+/** A value inside a chip: counts with the field's noun, booleans as Yes and
+ * No, anything nested as compact JSON. */
+function chipText(
+  value: unknown,
+  noun: readonly [string, string] | null,
+): string {
+  if (typeof value === "number")
+    return Number.isFinite(value) ? countText(value, noun) : String(value);
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (value === null || value === undefined) return "None";
+  if (typeof value === "string") return value;
+  return JSON.stringify(value);
+}
+
+/**
+ * An object as small inline chips, one per key. A key that names an app is
+ * its tile: `{"chrome": 44}` in `browser_visits` reads [Chrome] "44 visits".
+ * Other keys read as their label ("Title screened 3"). Counts sort largest
+ * first. `field` is the object's own key, which names the list and gives
+ * counts their noun; `noun` overrides it.
+ */
+export function ValueChips({
+  value,
+  field,
+  noun,
+  label,
+}: {
+  value: unknown;
+  field?: string;
+  noun?: readonly [one: string, many: string] | null;
+  label?: string;
+}) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (!entries.length) return null;
+  const unit = noun !== undefined ? noun : field ? countNoun(field) : null;
+  const counts = entries.every(([, entry]) => typeof entry === "number");
+  const ordered = counts
+    ? [...entries].sort(
+        ([a, left], [b, right]) =>
+          (right as number) - (left as number) || a.localeCompare(b),
+      )
+    : entries;
+  return (
+    <ul
+      className="workspace-chips"
+      aria-label={label ?? (field ? keyLabel(field) : undefined)}
+    >
+      {ordered.map(([key, entry]) => {
+        const app = appMark(key);
+        const text = chipText(entry, unit);
+        const name = app ? (brandMark(app)?.label ?? key) : keyLabel(key);
+        return (
+          <li
+            key={key}
+            className="workspace-chip"
+            data-app={app ? "true" : undefined}
+            title={`${name}: ${text}`}
+          >
+            {app ? (
+              <BrandTile id={app} size={20} label={name} />
+            ) : (
+              <span className="workspace-chip-key">{name}</span>
+            )}
+            <span className="workspace-chip-value">{text}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/**
+ * A record's history as one short line per entry: "Revision 1, Sep 22,
+ * 11:30", then its short hash with a copy button. The newest comes first
+ * when the entries do.
+ */
+export function CompactTimeline({
+  items,
+  label,
+  hashLabel = "Hash",
+  now,
+}: {
+  items: ReadonlyArray<{
+    id: string;
+    title: string;
+    at?: string | number | null;
+    hash?: string | null;
+    current?: boolean;
+  }>;
+  /** The list's accessible name: "Revision history". */
+  label: string;
+  /** What the hashes are, for their copy buttons: "Source version". */
+  hashLabel?: string;
+  now?: number;
+}) {
+  if (!items.length) return null;
+  return (
+    <ol className="workspace-timeline" aria-label={label}>
+      {items.map((item) => {
+        const ms =
+          typeof item.at === "number" ? item.at : Date.parse(item.at ?? "");
+        return (
+          <li
+            key={item.id}
+            className="workspace-timeline-item"
+            data-current={item.current ? "true" : undefined}
+          >
+            <span className="workspace-timeline-text">
+              <span className="workspace-timeline-title">{item.title}</span>
+              {Number.isFinite(ms) && (
+                <>
+                  {", "}
+                  <time
+                    dateTime={new Date(ms).toISOString()}
+                    title={absoluteTime(ms)}
+                    className="workspace-time"
+                  >
+                    {clockText(ms, now)}
+                  </time>
+                </>
+              )}
+            </span>
+            {item.current && <StateBadge tone="neutral" label="Current" />}
+            {item.hash && <CopyValue value={item.hash} label={hashLabel} />}
+          </li>
+        );
+      })}
+    </ol>
   );
 }

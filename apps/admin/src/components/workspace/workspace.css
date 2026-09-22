@@ -31,6 +31,7 @@
   font-variant-numeric: tabular-nums;
 }
 .workspace-time,
+.workspace-figure,
 .workspace-count {
   white-space: nowrap;
 }
@@ -108,11 +109,18 @@
 }
 
 /* Cells: one line each, their own inset, no rules. Column labels stay on
-   one line; the column, not the label, gives way. */
+   one line; the column, not the label, gives way, and text that does not
+   fit ends in an ellipsis instead of running under the next column. */
 .workspace-table .astryx-table-header-cell,
 .workspace-table .astryx-table-cell {
   padding-inline: var(--spacing-3);
   white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* Figures: right-aligned with their header, in tabular numerals. */
+.workspace-table [data-numeric] {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
 }
 .workspace-table .astryx-table-cell:first-child,
 .workspace-table .astryx-table-header-cell:first-child {
@@ -180,6 +188,45 @@
   tr[data-group-row]:is(:hover, :active) {
   background-color: transparent;
   cursor: default;
+}
+/* The folded group's heading opens it: the caret turns, the count stays
+   beside the name, and the tint is the button's own, never a ring. */
+.workspace-group-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: var(--spacing-9);
+  margin-inline: calc(-1 * var(--spacing-2));
+  padding: 0 var(--spacing-2);
+  border: 0;
+  border-radius: var(--radius-inner);
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.workspace-group-toggle .workspace-count {
+  font-weight: var(--font-weight-normal, 400);
+  color: var(--color-text-secondary);
+}
+.workspace-group-caret {
+  flex: none;
+  width: var(--spacing-3);
+  height: var(--spacing-3);
+  color: var(--color-text-secondary);
+  transition: transform var(--duration-fast, 120ms) ease;
+}
+.workspace-group-toggle[aria-expanded="true"] .workspace-group-caret {
+  transform: rotate(90deg);
+}
+@media (hover: hover) {
+  .workspace-group-toggle:hover {
+    background-color: var(--color-overlay-hover);
+  }
+}
+.workspace-group-toggle:active {
+  background-color: var(--color-overlay-pressed, var(--color-overlay-hover));
 }
 
 /* The lead cell. The mark tile leads line 1; line 2 sits under the title.
@@ -341,6 +388,44 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
 }
 .workspace-state-mark {
   flex: none;
+}
+/* A default state in a state column: its dot alone, where a chip's dot sits
+   (the chip's 8px inset), so the column reads down one line of marks. */
+.workspace-state-quiet {
+  display: inline-flex;
+  align-items: center;
+  height: var(--spacing-5);
+  padding-inline: var(--spacing-2);
+  vertical-align: middle;
+}
+/* A change of state: the two chips with a muted glyph between them. */
+.workspace-transition {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  min-width: 0;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.workspace-transition-mark {
+  flex: none;
+  width: var(--spacing-3);
+  height: var(--spacing-3);
+  color: var(--color-text-secondary);
+}
+
+/* A short detail column: muted, one line, an ellipsis, the rest on hover. */
+.workspace-detail-text {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--color-text-secondary);
+}
+/* A next run that is past due takes the warning ink. */
+.workspace-due[data-overdue="true"] {
+  color: var(--color-text-orange, var(--color-text-warning, currentColor));
 }
 
 /* Content library cells: a record's state beside its chip, and the summary
@@ -595,5 +680,163 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   }
   .workspace-detail {
     padding-block: 0;
+  }
+}
+
+/* Label and value pairs: a fixed label column so every row's values start
+   on one line, stacking label over value in a narrow panel or on a phone. */
+.workspace-definitions {
+  container: workspace-definitions / inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin: 0;
+  min-width: 0;
+}
+.workspace-definition {
+  display: grid;
+  grid-template-columns: var(--workspace-definition-label, 9rem) minmax(0, 1fr);
+  column-gap: var(--spacing-4);
+  align-items: baseline;
+  min-width: 0;
+}
+.workspace-definition > dt {
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+.workspace-definition > dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-text-primary);
+}
+@container workspace-definitions (max-width: 22rem) {
+  .workspace-definition {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 2px;
+  }
+}
+
+/* A shortened id or hash and its copy button. The value truncates; the
+   button never moves. */
+.workspace-copy-value {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  min-width: 0;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.workspace-copy-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-family-code, ui-monospace, monospace);
+  font-size: 0.92em;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+.workspace-copy-value > .astryx-button {
+  flex: none;
+}
+/* The collapsed technical fields sit under the readable ones. */
+.workspace-technical .workspace-definitions {
+  padding-block-start: var(--spacing-3);
+}
+
+/* Key and value chips: 20px, the badge's corner, an app key as its tile flush
+   at the chip's start. They wrap as a group and each truncates alone. */
+.workspace-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+.workspace-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  height: var(--spacing-5);
+  max-width: 100%;
+  min-width: 0;
+  padding-inline: var(--spacing-2);
+  border-radius: var(--radius-inner);
+  background: var(--color-neutral);
+  font-size: var(--text-supporting-size);
+  line-height: var(--spacing-5);
+  white-space: nowrap;
+}
+.workspace-chip[data-app="true"] {
+  padding-inline-start: 0;
+  gap: var(--spacing-2);
+}
+.workspace-chip-key {
+  flex: none;
+  color: var(--color-text-secondary);
+}
+.workspace-chip-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+
+/* A compact history: one line per entry, the hash at the end. */
+.workspace-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+.workspace-timeline-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+  min-height: var(--spacing-9);
+}
+.workspace-timeline-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.workspace-timeline-title {
+  font-weight: var(--font-weight-medium, 500);
+}
+.workspace-timeline-text .workspace-time {
+  color: var(--color-text-secondary);
+}
+.workspace-timeline-item > .workspace-copy-value {
+  flex: 0 1 auto;
+}
+
+/* A day heading above a list that is not a table, on the group row's
+   inset and weight. */
+.workspace-day-header:not(#\#) {
+  font-size: var(--text-body-size);
+  line-height: var(--spacing-6);
+  padding-block: var(--spacing-4) var(--spacing-1);
+}
+
+@media (max-width: 640px) {
+  .workspace-definition {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 2px;
+  }
+  .workspace-group-toggle {
+    min-height: var(--spacing-11);
+  }
+  .workspace-timeline-item {
+    min-height: var(--spacing-11);
   }
 }

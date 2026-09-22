@@ -72,7 +72,7 @@ describe("live catalog guard", () => {
     ...opsFixture.catalog,
     ...(replay<Catalog>("ops_v1.json")?.catalog ?? []),
   ];
-  const events = [
+  const events: Events["items"] = [
     ...eventsFixture.items,
     ...(replay<Events>("ops_events_v1.json")?.items ?? []),
   ];

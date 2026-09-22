@@ -4,15 +4,32 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ArticleIcon } from "@phosphor-icons/react";
+import { BrandTile } from "../BrandTile";
+import { opsNaming } from "../../lib/naming";
+import { dayKey } from "./format";
 import {
+  CELL_WIDTHS,
+  CompactTimeline,
+  CopyValue,
   DataTable,
+  DayHeader,
+  DayLabel,
+  DefinitionList,
+  DetailText,
+  DueTime,
+  Duration,
+  Figure,
   FilterBar,
   RelativeTime,
   RowTitle,
   SEARCH_DEBOUNCE_MS,
   StateBadge,
+  StateCell,
   StateNotice,
+  StateTransition,
+  TechnicalSection,
   TierMark,
+  ValueChips,
   badgeFor,
   tableMinWidths,
   type Column,
@@ -383,5 +400,427 @@ describe("FilterBar", () => {
     expect(onClear).toHaveBeenCalledTimes(1);
     expect(onChange).not.toHaveBeenCalled();
     act(() => root.unmount());
+  });
+});
+
+/** A Status table built the one way: the lead cell with app and device
+ * tiles, a never-empty state, a short detail, the last success, the next
+ * run and the last duration, each at its standard width. */
+describe("the table convention", () => {
+  const NOW = Date.parse("2026-09-22T18:01:39Z");
+  type Status = {
+    id: string;
+    name: string;
+    kind: string;
+    host: string;
+    state: string;
+    detail: string;
+    success: string | null;
+    next: string | null;
+    duration: number | null;
+    group: string;
+  };
+  const status: Status[] = [
+    {
+      id: "pc.writer",
+      name: "personal context writer",
+      kind: "job",
+      host: "ap-mini",
+      state: "ok",
+      detail: "last pass completed",
+      success: "2026-09-22T17:46:17Z",
+      next: "2026-09-22T18:46:17Z",
+      duration: 83.9,
+      group: "Personal context",
+    },
+    {
+      id: "content.d1-export",
+      name: "content database export",
+      kind: "backup",
+      host: "ap-mini",
+      state: "failing",
+      detail: "keepalive export_failed",
+      success: null,
+      next: "2026-09-22T17:30:00Z",
+      duration: null,
+      group: "Backups",
+    },
+    {
+      id: "pro.whatsapp",
+      name: "whatsapp sync",
+      kind: "job",
+      host: "ap-pro",
+      state: "asleep",
+      detail: "host asleep",
+      success: "2026-09-22T17:37:26Z",
+      next: null,
+      duration: null,
+      group: "Personal context",
+    },
+    {
+      id: "health.ingest",
+      name: "health data received",
+      kind: "job",
+      host: "ap-mini",
+      state: "unknown",
+      detail: "no observation",
+      success: null,
+      next: null,
+      duration: null,
+      group: "Health ingest",
+    },
+  ];
+  const statusColumns: Column<Status>[] = [
+    {
+      key: "name",
+      header: "Name",
+      render: (row) => {
+        const naming = opsNaming(row);
+        return (
+          <RowTitle
+            mark={<BrandTile id={naming.tile.id} kind={naming.tile.kind} />}
+            kind={naming.tooltip}
+            title={naming.name}
+            tooltip={naming.tooltip}
+            end={
+              naming.device && (
+                <BrandTile id={naming.device.id} kind="device" size={20} />
+              )
+            }
+          />
+        );
+      },
+    },
+    {
+      key: "state",
+      header: "State",
+      width: CELL_WIDTHS.state,
+      render: (row) => <StateCell domain="ops" state={row.state} />,
+    },
+    {
+      key: "detail",
+      header: "Detail",
+      hideBelow: "large",
+      render: (row) => <DetailText>{row.detail}</DetailText>,
+    },
+    {
+      key: "success",
+      header: "Last success",
+      width: CELL_WIDTHS.time,
+      render: (row) => <RelativeTime value={row.success} now={NOW} />,
+    },
+    {
+      key: "next",
+      header: "Next due",
+      width: CELL_WIDTHS.time,
+      render: (row) => <DueTime value={row.next} now={NOW} />,
+    },
+    {
+      key: "duration",
+      header: "Duration",
+      width: CELL_WIDTHS.figure,
+      numeric: true,
+      render: (row) => <Duration seconds={row.duration} />,
+    },
+  ];
+
+  it("fills every state cell, lines figures up at the end and truncates details", () => {
+    const host = html(
+      <DataTable
+        rows={status}
+        columns={statusColumns}
+        rowKey="id"
+        label="Status"
+        noun={["entry", "entries"]}
+        groupBy={(row) => row.group}
+      />,
+    );
+    const body = [...host.querySelectorAll("tbody tr:not([data-group-row])")];
+    const byId = (id: string) =>
+      body.find((row) => row.querySelector(`[title="${id}"]`))!;
+    const cells = (id: string) => [...byId(id).children];
+    // The lead reads the short name with its app and device tiles.
+    expect(cells("pc.writer")[0]!.textContent).toContain(
+      "Personal context writer",
+    );
+    expect(
+      cells("pro.whatsapp")[0]!.querySelector('[data-mark="ap-pro"]'),
+    ).not.toBeNull();
+    expect(
+      cells("pro.whatsapp")[0]!.querySelector('[data-mark="whatsapp"]'),
+    ).not.toBeNull();
+    // OK is a quiet dot, never an empty cell; the others are chips.
+    const ok = cells("pc.writer")[1]!;
+    expect(ok.querySelector(".workspace-state")).toBeNull();
+    expect(
+      ok.querySelector(".workspace-state-quiet")!.getAttribute("aria-label"),
+    ).toBe("OK");
+    expect(ok.querySelector('[data-variant="success"]')).not.toBeNull();
+    const tones = ["content.d1-export", "pro.whatsapp", "health.ingest"].map(
+      (id) =>
+        cells(id)[1]!.querySelector("[data-tone]")!.getAttribute("data-tone"),
+    );
+    expect(tones).toEqual(["critical", "rest", "neutral"]);
+    expect(cells("health.ingest")[1]!.textContent).toBe("Unknown");
+    // Details truncate with their full text on hover.
+    const detail = cells("content.d1-export")[2]!.querySelector(
+      ".workspace-detail-text",
+    )!;
+    expect(detail.getAttribute("title")).toBe("keepalive export_failed");
+    // Next due counts down, and overdue reads as overdue.
+    expect(cells("pc.writer")[4]!.textContent).toBe("in 44m");
+    expect(
+      cells("content.d1-export")[4]!.querySelector('[data-overdue="true"]')
+        ?.textContent,
+    ).toBe("31m overdue");
+    // Durations are figures: right-aligned, header included.
+    expect(cells("pc.writer")[5]!.textContent).toBe("1m 24s");
+    expect(cells("pc.writer")[5]!.hasAttribute("data-numeric")).toBe(true);
+    const header = [...host.querySelectorAll("thead th")].at(-1)!;
+    expect(header.hasAttribute("data-numeric")).toBe(true);
+    // Two flexible columns share the width the fixed ones leave.
+    const widths = [...host.querySelectorAll("thead th")].map(
+      (th) => (th as HTMLElement).style.width,
+    );
+    expect(widths).toEqual(["auto", "128px", "auto", "112px", "112px", "80px"]);
+  });
+});
+
+describe("folded group", () => {
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+  type Source = { id: string; group: string };
+  const sources: Source[] = [
+    { id: "zero-a", group: "Discovered, not connected" },
+    { id: "live-a", group: "Live" },
+    { id: "zero-b", group: "Discovered, not connected" },
+    { id: "live-b", group: "Live" },
+  ];
+  const sourceColumns: Column<Source>[] = [
+    {
+      key: "id",
+      header: "Source",
+      render: (row) => <RowTitle kind="Source" title={row.id} />,
+    },
+  ];
+
+  it("sits last, folded, with its count, and opens from its heading", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    act(() =>
+      root.render(
+        <DataTable
+          rows={sources}
+          columns={sourceColumns}
+          rowKey="id"
+          label="Sources"
+          noun={["source", "source"]}
+          groupBy={(row) => row.group}
+          foldGroup="Discovered, not connected"
+        />,
+      ),
+    );
+    const titles = () =>
+      [...host.querySelectorAll("tbody tr")].map((row) => row.textContent);
+    expect(titles()).toEqual([
+      "Live",
+      "live-a",
+      "live-b",
+      "Discovered, not connected2",
+    ]);
+    const toggle = host.querySelector<HTMLButtonElement>(
+      ".workspace-group-toggle",
+    )!;
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    act(() => toggle.click());
+    expect(titles()).toEqual([
+      "Live",
+      "live-a",
+      "live-b",
+      "Discovered, not connected2",
+      "zero-a",
+      "zero-b",
+    ]);
+    expect(
+      host
+        .querySelector(".workspace-group-toggle")!
+        .getAttribute("aria-expanded"),
+    ).toBe("true");
+    act(() => root.unmount());
+  });
+});
+
+describe("cells", () => {
+  const NOW = Date.parse("2026-09-22T18:00:00Z");
+  it("shows transitions as two chips, and a first sighting as one", () => {
+    const change = html(
+      <StateTransition domain="ops" from="ok" to="failing" />,
+    );
+    expect(
+      [...change.querySelectorAll(".workspace-state")].map(
+        (chip) => chip.textContent,
+      ),
+    ).toEqual(["OK", "Failing"]);
+    expect(change.querySelector(".workspace-transition-mark")).not.toBeNull();
+    expect(change.textContent).toBe("OKtoFailing");
+    const first = html(<StateTransition domain="ops" from={null} to="ok" />);
+    expect(first.querySelectorAll(".workspace-state")).toHaveLength(1);
+    expect(first.textContent).toBe("First seenOK");
+  });
+
+  it("formats figures and leaves missing ones quiet", () => {
+    expect(
+      html(<Figure value={1204} noun={["visit", "visits"]} />).textContent,
+    ).toBe("1,204 visits");
+    expect(html(<Figure value={null} />).textContent).toBe("Not recorded");
+    expect(
+      html(<Figure value={null} />).querySelector(".sr-only"),
+    ).not.toBeNull();
+    expect(html(<Duration ms={84} />).textContent).toBe("84ms");
+    expect(html(<Duration seconds={null} empty="None" />).textContent).toBe(
+      "None",
+    );
+    expect(
+      html(<DueTime value="2026-09-22T17:59:30Z" now={NOW} />).textContent,
+    ).toBe("due now");
+  });
+
+  it("heads day groups live, and as a heading outside tables", () => {
+    const today = dayKey(NOW);
+    expect(html(<DayLabel day={today} now={NOW} />).textContent).toBe("Today");
+    const header = html(<DayHeader day="2026-09-19" now={NOW} />);
+    expect(header.querySelector("h3")!.textContent).toBe("Sat, Sep 19");
+    expect(header.querySelector("time")!.getAttribute("datetime")).toBe(
+      "2026-09-19",
+    );
+  });
+});
+
+describe("detail lists", () => {
+  afterEach(() => {
+    document.body.innerHTML = "";
+    vi.unstubAllGlobals();
+  });
+
+  it("pairs labels and values and leaves out empty ones", () => {
+    const host = html(
+      <DefinitionList
+        label="Details"
+        items={[
+          ["Local date", "Sep 22"],
+          ["Domains", <Figure key="d" value={31} />],
+          ["Profile", null],
+          ["Empty", ""],
+        ]}
+      />,
+    );
+    expect(
+      [...host.querySelectorAll("dt")].map((term) => term.textContent),
+    ).toEqual(["Local date", "Domains"]);
+    expect(host.querySelector("dl")!.getAttribute("aria-label")).toBe(
+      "Details",
+    );
+    expect(html(<DefinitionList items={[["A", null]]} />).innerHTML).toBe("");
+  });
+
+  it("turns an app-keyed object into tiles with counts, largest first", () => {
+    const host = html(
+      <ValueChips
+        field="browser_visits"
+        value={{ safari: 3, chrome: 44, title_screened: 1 }}
+      />,
+    );
+    const chips = [...host.querySelectorAll(".workspace-chip")];
+    expect(chips.map((chip) => chip.textContent)).toEqual([
+      "44 visits",
+      "3 visits",
+      "Title screened1 visit",
+    ]);
+    expect(chips[0]!.querySelector('[data-mark="chrome"]')).not.toBeNull();
+    expect(
+      chips[0]!.querySelector('[role="img"]')!.getAttribute("aria-label"),
+    ).toBe("Chrome");
+    expect(chips[0]!.getAttribute("title")).toBe("Chrome: 44 visits");
+    expect(host.querySelector("ul")!.getAttribute("aria-label")).toBe(
+      "Browser visits",
+    );
+    expect(html(<ValueChips value={[1, 2]} />).innerHTML).toBe("");
+    expect(
+      html(<ValueChips value={{ complete: true, note: null }} />).textContent,
+    ).toBe("CompleteYesNoteNone");
+  });
+
+  it("shortens ids and hashes and copies them whole", async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    const digest = "a".repeat(64);
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    act(() => root.render(<CopyValue value={digest} label="Source version" />));
+    const code = host.querySelector("code")!;
+    expect(code.textContent).toBe("a".repeat(12));
+    expect(code.getAttribute("title")).toBe(digest);
+    const button = host.querySelector<HTMLButtonElement>("button")!;
+    expect(button.getAttribute("aria-label")).toBe("Copy source version");
+    await act(async () => {
+      button.click();
+      await Promise.resolve();
+    });
+    expect(writeText).toHaveBeenCalledWith(digest);
+    expect(
+      host.querySelector('.workspace-copy-value > [role="status"]')!
+        .textContent,
+    ).toBe("Copied");
+    act(() => root.unmount());
+  });
+
+  it("keeps the technical fields collapsed until asked", () => {
+    const host = html(
+      <TechnicalSection
+        items={[
+          { label: "Record ID", value: "rec_browsing_0922" },
+          { label: "Source version", value: "b".repeat(64) },
+          { label: "Coverage", value: null },
+        ]}
+      />,
+    );
+    const trigger = host.querySelector("[aria-expanded]")!;
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(trigger.textContent).toContain("Technical");
+    expect(html(<TechnicalSection items={[]} />).innerHTML).toBe("");
+  });
+
+  it("reads history as one short line per revision", () => {
+    const at = new Date(2026, 8, 22, 11, 30).getTime();
+    const host = html(
+      <CompactTimeline
+        label="Revision history"
+        hashLabel="Source version"
+        now={at}
+        items={[
+          {
+            id: "r2",
+            title: "Revision 2",
+            at,
+            hash: "c".repeat(64),
+            current: true,
+          },
+          { id: "r1", title: "Revision 1", at: null, hash: null },
+        ]}
+      />,
+    );
+    const items = [...host.querySelectorAll("li")];
+    expect(
+      items[0]!.querySelector(".workspace-timeline-text")!.textContent,
+    ).toBe("Revision 2, Sep 22, 11:30");
+    expect(items[0]!.querySelector("code")!.textContent).toBe("c".repeat(12));
+    expect(items[0]!.textContent).toContain("Current");
+    expect(items[1]!.textContent).toBe("Revision 1");
+    expect(host.querySelector("ol")!.getAttribute("aria-label")).toBe(
+      "Revision history",
+    );
   });
 });
