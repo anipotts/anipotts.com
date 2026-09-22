@@ -17,6 +17,7 @@ import {
   localOwnerPrincipal,
 } from "./lib/admin-local-owner";
 import { adminJson } from "./lib/admin-auth";
+import { PRIVATE_READER_CANARY_PATH } from "./lib/private-reader-canary";
 import { applyServerTiming, createServerTiming } from "./lib/server-timing";
 
 /** Content, the overview, the editorial APIs, the private reader and the
@@ -50,6 +51,10 @@ async function handleRequest(
   // Sign out verifies the Access assertion itself.
   if (pathname === "/api/admin/logout" || pathname === "/auth/logout")
     return next();
+  // The reader canary admits exactly one Access service token, which its
+  // route verifies against its own Access application. No owner is involved.
+  if (pathname === PRIVATE_READER_CANARY_PATH)
+    return withPrivateHeaders(await next(), false);
   const env = context.locals.runtime?.env ?? {};
   // A build-time constant, never a runtime value. Deployable builds compile
   // it to false, which removes this whole path from the bundle.
