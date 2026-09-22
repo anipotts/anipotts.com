@@ -517,6 +517,7 @@ export function createOpsStatusController(options: OpsStatusOptions) {
           read.items,
           read.unknownFields,
           read.lastSeq,
+          read.skipped,
         ),
         eventsStale: false,
       });

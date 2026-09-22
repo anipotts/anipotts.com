@@ -211,6 +211,38 @@ describe("ops_events_v1 parser", () => {
     expect(appendOpsEvents(log, [], [], null)).toBe(log);
   });
 
+  it("counts a skipped item into the log, so it is never dropped unseen", () => {
+    const page = parseOpsEvents(
+      envelope([access(1), access(2, { ms: -1 })]),
+      0,
+    );
+    const log = appendOpsEvents(
+      EMPTY_EVENT_LOG,
+      page.items,
+      [],
+      page.lastSeq,
+      page.skipped,
+    );
+    expect(log.skipped).toBe(1);
+    const next = parseOpsEvents(envelope([access(3, { status: null })]), 2);
+    expect(
+      appendOpsEvents(log, next.items, [], next.lastSeq, next.skipped).skipped,
+    ).toBe(2);
+    expect(EMPTY_EVENT_LOG.skipped).toBe(0);
+  });
+
+  it("refuses a page with more than one unreadable item as drift", () => {
+    // A format change in one field breaks every item: never a quiet page.
+    rejects(
+      envelope([
+        access(1, { at: "2026-09-22 10:00:00" }),
+        access(2, { at: "2026-09-22 10:00:00" }),
+        access(3, { at: "2026-09-22 10:00:00" }),
+      ]),
+    );
+    rejects(envelope([access(1, { ms: -1 }), access(2, { status: null })]));
+  });
+
   it("still rejects an item whose own seq is unreadable", () => {
     rejects(envelope([access(1), { ...access(2), seq: "2" }]));
     rejects(envelope([{ nonsense: true }]));

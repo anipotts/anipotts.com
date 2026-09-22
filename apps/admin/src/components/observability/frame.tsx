@@ -94,6 +94,7 @@ export function useOpsData(props: OpsViewProps, withEvents: boolean) {
         page.items,
         page.unknownFields,
         page.lastSeq,
+        page.skipped,
       );
     } catch {
       return null;
@@ -276,7 +277,17 @@ function OpsNotice({
     ) : (
       <StateNotice kind="error" title="Events not current" />
     );
+  // A skipped event may have been a change of state: Activity and Alerts
+  // never read as complete while one is unread.
+  const unread = data.events?.skipped ?? 0;
+  if (view !== "status" && unread > 0)
+    return <InlineNotice tone="warning" title={opsUnreadTitle(unread)} />;
   return null;
+}
+
+/** "1 event unreadable", "3 events unreadable". */
+export function opsUnreadTitle(count: number): string {
+  return `${count} ${count === 1 ? "event" : "events"} unreadable`;
 }
 
 /** Loading, shaped like what replaces it: the host line and the rows. */
@@ -349,6 +360,7 @@ export function OpsPage({
       <WorkspacePage
         title={OPS_VIEW_TITLES[view]}
         count={count}
+        clock={data.fixedNow}
         meta={retained ? opsMeta(data, view) : undefined}
         badge={
           <>

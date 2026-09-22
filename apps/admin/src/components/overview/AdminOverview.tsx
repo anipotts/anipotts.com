@@ -18,6 +18,7 @@ import {
   useOpsData,
   type OpsViewProps,
 } from "../astryx/ObservabilityWorkspace";
+import { opsUnreadTitle } from "../observability/frame";
 import { DataReadSession } from "../../lib/data-read-session";
 import type { DataResult } from "../../data/personal-context";
 import { dataRecordHref } from "../../lib/data-routes";
@@ -87,7 +88,12 @@ function FiringAlerts(props: OpsViewProps) {
       ),
     [data.events, data.snapshot],
   );
-  const down = data.fixtureMode ? undefined : OPS_DOWN[data.state.connection];
+  const down: Down | undefined =
+    (data.fixtureMode ? undefined : OPS_DOWN[data.state.connection]) ??
+    // An unread event may have been a failure, so no silence reads as clear.
+    ((data.events?.skipped ?? 0) > 0
+      ? { title: opsUnreadTitle(data.events!.skipped), kind: "error" }
+      : undefined);
   if (!firing.length && !down) return null;
   return (
     <WorkspaceSection title="Alerts" href="/observability/alerts">

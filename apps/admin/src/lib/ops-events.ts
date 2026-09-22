@@ -120,6 +120,9 @@ export type OpsEventsPage = {
   unknownFields: string[];
 };
 
+/** Unreadable items a page may carry before it is refused as drift. */
+export const OPS_EVENTS_MAX_SKIPPED = 1;
+
 function fail(): never {
   throw new OpsSnapshotError();
 }
@@ -188,9 +191,13 @@ function item(value: unknown, drift: FieldDrift): OpsEvent {
  * and above the one before it. `next_after` is null when the page is the
  * last, otherwise the last item's seq.
  *
- * An item whose own seq is readable but whose other known fields are not is
- * skipped and counted, never rendered: rejecting the page would clear the log
- * and read the same item again forever. A bad seq or envelope still rejects.
+ * One item per page whose own seq is readable but whose other known fields
+ * are not is skipped and counted, never rendered: rejecting the page would
+ * clear the log and read the same item again forever. The count reaches the
+ * log, which shows it (a skipped item could be a failing transition, so it
+ * is never dropped without a mark). More than one on a page is drift, not a
+ * stray item, and rejects the page as before, marking the events not
+ * current. A bad seq or envelope still rejects.
  */
 export function parseOpsEvents(value: unknown, after: number): OpsEventsPage {
   const root = exact(value, ["version", "items", "next_after"]);
@@ -229,6 +236,7 @@ export function parseOpsEvents(value: unknown, after: number): OpsEventsPage {
   );
   if (nextAfter !== null && (root.items.length === 0 || nextAfter !== previous))
     fail();
+  if (skipped > OPS_EVENTS_MAX_SKIPPED) fail();
   return {
     items,
     nextAfter,
@@ -280,6 +288,8 @@ export type OpsEventLog = {
   /** Item field names this client does not know yet, from every page read,
    * sorted: named in a drift notice, never read. */
   unknownFields: string[];
+  /** Items skipped as unreadable since the log began: shown, never read. */
+  skipped: number;
 };
 
 export const EMPTY_EVENT_LOG: OpsEventLog = Object.freeze({
@@ -288,16 +298,19 @@ export const EMPTY_EVENT_LOG: OpsEventLog = Object.freeze({
   runs: [],
   recent: [],
   unknownFields: [],
+  skipped: 0,
 }) as OpsEventLog;
 
 /** `unknownFields` are the page's drift names; `through` is the page's last
- * seq when it ends on a skipped item. */
+ * seq when it ends on a skipped item; `skipped` is how many it skipped. */
 export function appendOpsEvents(
   log: OpsEventLog,
   items: readonly OpsEvent[],
   unknownFields: readonly string[] = [],
   through: number | null = null,
+  skipped = 0,
 ): OpsEventLog {
+  if (skipped > 0) log = { ...log, skipped: log.skipped + skipped };
   const drift = unknownFields.filter(
     (name) => !log.unknownFields.includes(name),
   );
@@ -326,6 +339,7 @@ export function appendOpsEvents(
     runs,
     recent: [...log.recent, ...items].slice(-OPS_EVENTS_KEEP.recent),
     unknownFields: log.unknownFields,
+    skipped: log.skipped,
   };
 }
 

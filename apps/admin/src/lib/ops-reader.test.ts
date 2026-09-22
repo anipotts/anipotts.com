@@ -651,8 +651,35 @@ describe("ops events polling", () => {
       runs: [],
       recent: [],
       unknownFields: [],
+      skipped: 0,
     });
     expect(controller.getState().eventsStale).toBe(true);
+    controller.dispose();
+  });
+
+  it("marks events not current when a page holds more than one unreadable item", async () => {
+    const bad = (seq: number) => ({ ...item(seq), at: "2026-09-22 10:00:00" });
+    const { controller } = eventsHarness({
+      0: () => page([bad(1), bad(2), bad(3)], null),
+    });
+    controller.start();
+    await flush();
+    expect(controller.getState().events?.cursor).toBe(0);
+    expect(controller.getState().eventsStale).toBe(true);
+    controller.dispose();
+  });
+
+  it("keeps a lone unreadable item's count in the log", async () => {
+    const { controller } = eventsHarness({
+      0: () => page([item(1), { ...item(2), at: "yesterday" }], null),
+    });
+    controller.start();
+    await flush();
+    expect(controller.getState().events).toMatchObject({
+      cursor: 2,
+      skipped: 1,
+    });
+    expect(controller.getState().eventsStale).toBe(false);
     controller.dispose();
   });
 
