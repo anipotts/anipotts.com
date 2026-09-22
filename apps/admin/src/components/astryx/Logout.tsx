@@ -10,8 +10,9 @@ import {
 } from "../../lib/draft-recovery";
 import { AdminWordmark } from "./AdminWordmark";
 
+/** Sign out always ends the Cloudflare Access session. */
 function allowedDestination(value: unknown): value is string {
-  return value === "/auth" || value === "/cdn-cgi/access/logout";
+  return value === "/cdn-cgi/access/logout";
 }
 
 /** Cancel returns to the admin page that opened sign out, or the overview. */

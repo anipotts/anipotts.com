@@ -15,7 +15,6 @@ import {
   DEV_PREVIEW_ASSET_PATHS,
   DEV_PREVIEW_ASSET_PREFIXES,
   LOOPBACK_HOSTNAMES,
-  PUBLIC_PASSKEY_API_PATHS,
   PUBLIC_PATHS,
   PUBLIC_PREFIXES,
   isApprovedDevPreviewOrigin,
@@ -37,10 +36,6 @@ const lifecycleSource = readFileSync(
   "utf8",
 );
 const middlewareSource = readFileSync("apps/admin/src/middleware.ts", "utf8");
-const passkeyProofSource = readFileSync(
-  "scripts/admin/passkey-proof.mjs",
-  "utf8",
-);
 const authSource = readFileSync("apps/admin/src/pages/auth.astro", "utf8");
 const contentEditorSource = readFileSync(
   "apps/admin/src/pages/content/edit/[pageKey].astro",
@@ -60,7 +55,6 @@ const deploySmokeRoutes = new Set(ADMIN_PROTECTED_SMOKE_ROUTES);
 const manualSmokeRoutes = new Set(ADMIN_PROTECTED_SMOKE_ROUTES);
 const sorted = (values) => [...values].sort();
 const publicPaths = sorted(PUBLIC_PATHS);
-const publicPasskeyApiPaths = sorted(PUBLIC_PASSKEY_API_PATHS);
 const publicPrefixes = sorted(PUBLIC_PREFIXES);
 const retiredActionQueueFiles = [
   "apps/admin/src/pages/needs-ani.astro",
@@ -72,12 +66,8 @@ const retiredActionQueueFiles = [
 assert.deepEqual(publicPaths, [
   "/admin-bracket.svg",
   "/api/health",
-  "/api/mcp",
   "/apple-touch-icon.png",
   "/auth",
-  "/auth/invite",
-  "/auth/passkey",
-  "/auth/recover",
   "/favicon-16x16.png",
   "/favicon-32x32.png",
   "/favicon-dark-32.png",
@@ -85,27 +75,6 @@ assert.deepEqual(publicPaths, [
   "/favicon-light-32.png",
   "/favicon-light.svg",
   "/favicon.svg",
-]);
-assert.deepEqual(publicPasskeyApiPaths, [
-  "/api/admin/auth/session",
-  "/api/admin/device/claim",
-  "/api/admin/device/start",
-  "/api/admin/device/status",
-  "/api/admin/invites/register-options",
-  "/api/admin/invites/register-verify",
-  "/api/admin/invites/status",
-  "/api/admin/passkey/login-options",
-  "/api/admin/passkey/login-verify",
-  "/api/admin/passkey/logout",
-  "/api/admin/passkey/register-options",
-  "/api/admin/passkey/register-verify",
-  "/api/admin/passkey/revoke-current",
-  "/api/admin/passkey/status",
-  "/api/admin/password/login",
-  "/api/admin/password/logout",
-  "/api/admin/password/status",
-  "/api/admin/recovery/google/callback",
-  "/api/admin/recovery/google/start",
 ]);
 assert.deepEqual(publicPrefixes, ["/_astro/", "/assets/"]);
 assert.deepEqual(sorted(LOOPBACK_HOSTNAMES), [
@@ -164,10 +133,6 @@ assert.ok(
   middlewareSource.includes("isDev: import.meta.env.DEV"),
   "loopback preview must remain gated by Astro development mode",
 );
-assert.ok(
-  middlewareSource.includes('searchParams.get("stepup") !== "1"'),
-  "fresh passkey step-up must remain reachable from an active session",
-);
 
 const classifiedFiles = new Set([
   ...ADMIN_ROUTES.map((route) => route.file),
@@ -185,35 +150,19 @@ for (const file of PUBLIC_UNSMOKED_ROUTE_FILES) {
   assert.ok(existsSync(file), `public admin exception missing ${file}`);
 }
 
-assert.ok(
-  passkeyProofSource.includes("ADMIN_PROTECTED_SMOKE_ROUTES"),
-  "passkey proof must import shared protected smoke routes",
-);
-assert.ok(
-  passkeyProofSource.includes("const ROUTES = ADMIN_PROTECTED_SMOKE_ROUTES;"),
-  "passkey proof must use the shared protected smoke route list",
-);
-
 for (const route of ADMIN_ROUTES) {
   assert.ok(existsSync(route.file), `${route.route} missing ${route.file}`);
 
-  if (route.route !== "/auth/passkey") {
-    assert.equal(
-      publicPaths.includes(route.route),
-      false,
-      `${route.route} must stay behind passkey middleware`,
-    );
-    assert.equal(
-      publicPasskeyApiPaths.includes(route.route),
-      false,
-      `${route.route} must not be exposed as a public passkey API`,
-    );
-    assert.equal(
-      publicPrefixes.some((prefix) => route.route.startsWith(prefix)),
-      false,
-      `${route.route} must not match a public static prefix`,
-    );
-  }
+  assert.equal(
+    publicPaths.includes(route.route),
+    false,
+    `${route.route} must stay behind Access middleware`,
+  );
+  assert.equal(
+    publicPrefixes.some((prefix) => route.route.startsWith(prefix)),
+    false,
+    `${route.route} must not match a public static prefix`,
+  );
 
   if (route.nav) {
     assert.ok(
@@ -233,13 +182,13 @@ for (const route of ADMIN_ROUTES) {
     );
     assert.ok(
       ADMIN_PROTECTED_SMOKE_ROUTES.includes(route.route),
-      `${route.route} missing from shared passkey proof route set`,
+      `${route.route} missing from the shared protected smoke route set`,
     );
   }
 }
 
 // Inbox is retired: no navigation entry, no page or API, and old links land
-// on Observability. Its inbox_items projection in @anipotts/lib stays for /api/mcp.
+// on Observability.
 assert.equal(
   sidebarSource.includes('"/inbox"'),
   false,
@@ -411,7 +360,6 @@ for (const retired of ["continue with passkey", "recover access", "use phone"])
 
 for (const marker of [
   "readPageContentInventoryStore",
-  "/api/admin/content/editor",
   "Legacy content diagnostics",
 ]) {
   assert.ok(

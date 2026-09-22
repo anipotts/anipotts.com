@@ -53,7 +53,7 @@ const APPROVAL_PATHS = [
   /^drizzle\/migrations\/manifest\.json$/,
   /^scripts\/ci\/(?:branch-protection|d1-migration-conditions|d1-schema-fingerprint|migration-local-proof|migration-policy|release-policy|release-smoke|worker-version)\.mjs$/,
   /^apps\/admin\/src\/middleware\.ts$/,
-  /^apps\/admin\/src\/lib\/passkey-auth\.ts$/,
+  /^apps\/admin\/src\/lib\/access-identity\.ts$/,
   /^apps\/admin\/src\/pages\/auth\//,
   /(?:^|\/)(?:wrangler\.(?:toml|jsonc)|_routes\.json)$/,
   /(?:^|\/)(?:credentials?|secrets?)(?:\.|\/)/i,

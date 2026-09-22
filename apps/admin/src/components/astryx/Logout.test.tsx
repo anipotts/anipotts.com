@@ -48,7 +48,9 @@ it("requires confirmation and clears recovery only after successful revocation",
   });
   const fetcher = vi
     .fn()
-    .mockResolvedValueOnce(json({ csrf: "test", destination: "/auth" }))
+    .mockResolvedValueOnce(
+      json({ csrf: "test", destination: "/cdn-cgi/access/logout" }),
+    )
     .mockReturnValueOnce(pending);
   vi.stubGlobal("fetch", fetcher);
   render();
@@ -66,9 +68,11 @@ it("requires confirmation and clears recovery only after successful revocation",
   });
   expect(localStorage.getItem(key)).toBe("recoverable");
   expect(navigate).not.toHaveBeenCalled();
-  await act(async () => finish(json({ ok: true, destination: "/auth" })));
+  await act(async () =>
+    finish(json({ ok: true, destination: "/cdn-cgi/access/logout" })),
+  );
   expect(localStorage.getItem(key)).toBeNull();
-  expect(navigate).toHaveBeenCalledWith("/auth");
+  expect(navigate).toHaveBeenCalledWith("/cdn-cgi/access/logout");
 });
 it.each(["GET", "POST"])(
   "keeps recovery after %s failure and allows retry",
@@ -76,7 +80,7 @@ it.each(["GET", "POST"])(
     const fetcher = vi.fn();
     if (failure === "POST")
       fetcher.mockResolvedValueOnce(
-        json({ csrf: "test", destination: "/auth" }),
+        json({ csrf: "test", destination: "/cdn-cgi/access/logout" }),
       );
     fetcher.mockResolvedValueOnce(json({ error: "unavailable" }, 503));
     vi.stubGlobal("fetch", fetcher);
@@ -86,20 +90,26 @@ it.each(["GET", "POST"])(
     expect(navigate).not.toHaveBeenCalled();
     expect(host.textContent).toContain("Try again");
     fetcher
-      .mockResolvedValueOnce(json({ csrf: "retry", destination: "/auth" }))
-      .mockResolvedValueOnce(json({ ok: true, destination: "/auth" }));
+      .mockResolvedValueOnce(
+        json({ csrf: "retry", destination: "/cdn-cgi/access/logout" }),
+      )
+      .mockResolvedValueOnce(
+        json({ ok: true, destination: "/cdn-cgi/access/logout" }),
+      );
     await click();
-    expect(navigate).toHaveBeenCalledWith("/auth");
+    expect(navigate).toHaveBeenCalledWith("/cdn-cgi/access/logout");
   },
 );
-it.each(["https://evil.example", "/auth?next=https://evil.example"])(
+it.each(["https://evil.example", "/auth", "/auth?next=https://evil.example"])(
   "rejects an untrusted destination %s",
   async (destination) => {
     vi.stubGlobal(
       "fetch",
       vi
         .fn()
-        .mockResolvedValueOnce(json({ csrf: "test", destination: "/auth" }))
+        .mockResolvedValueOnce(
+          json({ csrf: "test", destination: "/cdn-cgi/access/logout" }),
+        )
         .mockResolvedValueOnce(json({ ok: true, destination })),
     );
     render();
@@ -135,14 +145,18 @@ it("aborts on unmount and ignores a late revocation response", async () => {
   });
   const fetcher = vi
     .fn()
-    .mockResolvedValueOnce(json({ csrf: "test", destination: "/auth" }))
+    .mockResolvedValueOnce(
+      json({ csrf: "test", destination: "/cdn-cgi/access/logout" }),
+    )
     .mockReturnValueOnce(response);
   vi.stubGlobal("fetch", fetcher);
   render();
   await click();
   act(() => root.render(null));
   expect(fetcher.mock.calls[1][1].signal.aborted).toBe(true);
-  await act(async () => finish(json({ ok: true, destination: "/auth" })));
+  await act(async () =>
+    finish(json({ ok: true, destination: "/cdn-cgi/access/logout" })),
+  );
   expect(localStorage.getItem(key)).toBe("recoverable");
   expect(navigate).not.toHaveBeenCalled();
 });

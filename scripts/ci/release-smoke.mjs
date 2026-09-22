@@ -4,12 +4,10 @@ import { SECURITY_HEADERS } from "../../apps/www/src/lib/security-headers.ts";
 import { ADMIN_PROTECTED_SMOKE_ROUTES } from "./admin-route-inventory.mjs";
 import { PUBLIC_SMOKE_ROUTES } from "./public-route-inventory.mjs";
 
-const ADMIN_WRITE_PROBES = [
-  "/api/admin/content/draft-operation",
-  "/api/admin/passkey/register-options",
-];
+// Live owner-only writes a read-only smoke identity must never reach.
+const ADMIN_WRITE_PROBES = ["/api/editorial/save", "/api/editorial/publish"];
 
-const ADMIN_PUBLIC_AUTH_ROUTES = ["/auth/passkey"];
+const ADMIN_PUBLIC_AUTH_ROUTES = ["/auth"];
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -220,10 +218,7 @@ export async function smokeRelease(options) {
           attempts: 6,
           delayMs: 10_000,
           fetchImpl,
-          accept: (candidate) =>
-            path === "/auth/passkey"
-              ? [200, 302, 401, 403].includes(candidate.status)
-              : [302, 401, 403].includes(candidate.status),
+          accept: (candidate) => [302, 401, 403].includes(candidate.status),
         },
       );
       checks.push({ path, status: response.status });

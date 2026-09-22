@@ -63,8 +63,8 @@ private workspace paths listed in `apps/admin/src/lib/admin-access-policy.ts`
 including Content, Life and Operations views. It requires Astro development
 mode and a plain HTTP loopback origin (`localhost`, `127.0.0.1` or `[::1]` on
 any port), so a clean linked worktree can review private pages without the
-managed fallback. Production middleware, protected APIs, write routes, password
-auth, passkeys, and Cloudflare Access are unchanged.
+managed fallback. Production middleware, protected APIs, write routes and
+Cloudflare Access are unchanged.
 
 ## local owner
 
@@ -124,8 +124,7 @@ How the session is bounded:
   `frame-ancestors 'self'` so the editor can still embed it.
 - Every method is allowed, so local D1 and the local editorial Durable Object
   accept writes. Route handlers keep their own checks: editorial writes still
-  need their CSRF token, and `/api/admin/*` mutations still need a native
-  session with fresh passkey step-up.
+  need their CSRF token.
 - A fixed `Local owner` token marks every Content, Operations and Life screen
   at every width and theme.
 - Release builds compile the path out. Deploy jobs fail when the flag is set,

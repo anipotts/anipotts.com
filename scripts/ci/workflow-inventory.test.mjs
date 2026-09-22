@@ -68,7 +68,7 @@ assert.ok(
   "CodeRabbit must stay advisory for low-risk solo-repository changes",
 );
 for (const protectedPath of [
-  "apps/admin/src/{middleware.ts,lib/passkey-auth.ts,pages/auth/**}",
+  "apps/admin/src/{middleware.ts,lib/access-identity.ts,pages/auth/**}",
   "drizzle/{migrations/**,meta/**}",
   ".github/workflows/**",
   "workers/**",
