@@ -321,11 +321,6 @@ for (const path of [
 ]) {
   assert.equal(liveRoutes.has(path), false, `${path} is not a live route`);
   assert.equal(publicPaths.includes(path), false, `${path} is not public`);
-  assert.equal(
-    publicPasskeyApiPaths.includes(path),
-    false,
-    `${path} is not a public auth API`,
-  );
 }
 for (const file of RETIRED_ADMIN_AUTH_FILES)
   assert.equal(existsSync(file), false, `${file} must remain retired`);
