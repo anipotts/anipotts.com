@@ -8,7 +8,7 @@
     "counts": {
       "records": 18,
       "revisions": 31,
-      "sources": 21,
+      "sources": 23,
       "changes": 3
     },
     "last_change_at": "2026-09-22T04:10:00.000000Z"
@@ -373,7 +373,7 @@
       "kind": "message",
       "title": "Received message",
       "body": "Synthetic message text for the preview. It is not a real message.",
-      "source_id": "synthetic-messages",
+      "source_id": "synthetic-messages-1to1",
       "source_record_id": "sample-account:iMessage:SAMPLE-0001",
       "source_version": "f83d73f445bb4ec12799e00dc74aba376f514a3a0b3333931baa00e8653dc443",
       "status": "observed",
@@ -383,7 +383,7 @@
       "date_precision": "second",
       "source_modified_at": null,
       "provenance": {
-        "source_uri": "fixture://synthetic-messages/0#message-guid=SAMPLE-0001",
+        "source_uri": "fixture://synthetic-messages-1to1/0#message-guid=SAMPLE-0001",
         "extractor": "apple-messages-v1"
       },
       "metadata": {
@@ -532,7 +532,7 @@
       "kind": "work_day",
       "title": "GitHub work 2026-09-19 (public)",
       "body": "GitHub work on 2026-09-19 (public).\nMerged pull requests:\n- sample/garden-planner#12: Add a watering schedule\nCommits:\n- sample/garden-planner: 7\n- sample/bike-log: 2",
-      "source_id": "synthetic-github",
+      "source_id": "synthetic-github-ledger",
       "source_record_id": "day:2026-09-19:public",
       "source_version": "85301af6a4114c5f90aef098b2d7a1d9c594427c864b5496946830d6e3ccb66f",
       "status": "observed",
@@ -735,7 +735,7 @@
       "kind": "assertion",
       "title": "Meeting preference",
       "body": "{\"preference\":\"mornings\",\"since\":\"2026-05\"}",
-      "source_id": "synthetic-manual",
+      "source_id": "manual",
       "source_record_id": "assertion-e4b3487b1756177de5cf011e8d497014",
       "source_version": "6c34b7789820400fd65c443be9d90e7758c49098ba554602b3711db078e35dd2",
       "status": "confirmed",
@@ -778,7 +778,7 @@
       "kind": "assertion",
       "title": "Meeting preference",
       "body": "\"afternoons\"",
-      "source_id": "synthetic-manual",
+      "source_id": "manual",
       "source_record_id": "assertion-ae8982c8068ca8a921c1c75f52a723d9",
       "source_version": "18d39d9b0729fbc0728ff2397e4f1b97899c2bc874564ff27f38c89fc76dfb22",
       "status": "superseded",
@@ -890,6 +890,30 @@
       "status": "failed",
       "interval_s": 86400,
       "failed_count": 1
+    },
+    {
+      "source_id": "synthetic-transcripts",
+      "first_observed_at": "2026-07-02T17:45:00.000000Z",
+      "last_observed_at": "2026-09-18T09:30:00.000000Z",
+      "record_count": 930,
+      "revision_count": 930,
+      "connector": "agent_transcripts",
+      "host": "ap-mini",
+      "collection": "live",
+      "status": "current",
+      "interval_s": 3600,
+      "last_success_at": "2026-09-18T09:30:00.000000Z"
+    },
+    {
+      "source_id": "synthetic-health",
+      "first_observed_at": "2026-06-28T11:00:00.000000Z",
+      "last_observed_at": "2026-09-18T11:00:00.000000Z",
+      "record_count": 85,
+      "revision_count": 85,
+      "connector": "health",
+      "host": "ap-mini",
+      "collection": "live",
+      "status": "paused"
     },
     {
       "source_id": "synthetic-browsing-archive",
