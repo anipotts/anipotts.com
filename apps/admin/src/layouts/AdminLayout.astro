@@ -1,14 +1,11 @@
 ---
-// The overview, Data, Observability and the retired console pages. Their
-// legacy stylesheets load first, so the shared document's styles still come
-// after them in the cascade.
+// The overview, Data and Observability. Their own stylesheets load first, so
+// the shared document's styles still come after them in the cascade.
 import "@astryxdesign/core/reset.css";
 import "@astryxdesign/core/astryx.css";
 import "../styles/admin-interactions.css";
-import "@astryxdesign/theme-neutral/theme.css";
 import "../styles/admin.css";
 import "../styles/fonts.css";
-import "../styles/admin-canvas.css";
 import AdminDocument from "./AdminDocument.astro";
 import { AdminShell } from "../components/astryx/AdminShell";
 import { initialAdminTheme } from "../lib/admin-theme";

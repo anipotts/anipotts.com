@@ -3,7 +3,7 @@ import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import reactRenderer from "@astrojs/react/server.js";
 import { JSDOM } from "jsdom";
 import RecordPage from "../../src/pages/content/[collection]/[id].astro";
-import CatalogPage from "../../src/pages/content/dev-catalog.astro";
+import CatalogPage from "../../src/dev/dev-catalog.astro";
 
 // Only data boundaries are synthetic. Astro compiles the real routes/layout and
 // renders the real React shell, including slot handling and island instructions.

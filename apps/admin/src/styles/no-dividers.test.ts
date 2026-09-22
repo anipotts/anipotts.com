@@ -32,26 +32,9 @@ const markupViolations = (text: string) =>
 // One-sided borders that frame or mark something rather than separate
 // siblings. Rows, columns and sections separate with spacing tokens.
 const structuralEdges = new Set([
-  // pane and sheet edges
-  ".admin-side-nav border-right", // navigation pane edge
-  ".sidebar border-right", // navigation pane edge
-  ".sidebar border-bottom", // stacked navigation pane edge
-  ".semantic-inspector border-left", // side sheet edge
-  ".semantic-inspector border-top", // bottom sheet edge
-  ".operator-inspector-panel border-left", // side sheet edge
-  ".operator-inspector-panel border-top", // bottom sheet edge
-  // sticky or fixed bars over scrolling content
-  ".admin-mobile-topbar border-bottom",
-  ".admin-mobile-nav border-top",
-  ".admin-mobile-strip border-bottom",
-  ".astryx-editor-actions border-top",
-  ".semantic-inspector-actions border-top",
   // markers on a single element
   ".publication-step border-block-end", // progress bar whose color is state
   ".article-composer .tiptap blockquote border-inline-start", // quote bar
-  ".knowledge-retrieval border-left", // 2px callout accent
-  ".operator-candidate-status border-left", // 2px status accent
-  ".operator-inspector-summary > div border-left", // 2px summary accent
 ]);
 
 // Drawn one-sided borders by default, or the ones reset to 0 or none.

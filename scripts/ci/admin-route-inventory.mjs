@@ -1,3 +1,5 @@
+import { RETIRED_ROUTE_REDIRECTS } from "../../apps/admin/src/lib/retired-routes.mjs";
+
 export const ADMIN_ROUTES = [
   {
     // The one overview.
@@ -89,20 +91,6 @@ export const ADMIN_ROUTES = [
     smoke: false,
   },
   {
-    // 308 redirects to /data/records.
-    route: "/data",
-    file: "apps/admin/src/pages/data/index.astro",
-    nav: false,
-    smoke: false,
-  },
-  {
-    // Retired; 308 redirects to /data/records.
-    route: "/life",
-    file: "apps/admin/src/pages/life/index.astro",
-    nav: false,
-    smoke: false,
-  },
-  {
     // Retired; 308 redirects to its Data view.
     route: "/life/people",
     file: "apps/admin/src/pages/life/[section].astro",
@@ -124,22 +112,9 @@ export const ADMIN_ROUTES = [
     smoke: false,
   },
   {
-    // Retired; 308 redirects to /observability/status.
-    route: "/operations/observability",
-    file: "apps/admin/src/pages/operations/observability.astro",
-    nav: false,
-    smoke: false,
-  },
-  {
-    // Retired; 308 redirects to /observability/status.
-    route: "/inbox",
-    file: "apps/admin/src/pages/inbox.astro",
-    nav: false,
-    smoke: false,
-  },
-  {
+    // Development only: astro.config.mjs injects it under astro dev.
     route: "/content/dev-catalog",
-    file: "apps/admin/src/pages/content/dev-catalog.astro",
+    file: "apps/admin/src/dev/dev-catalog.astro",
     nav: false,
     smoke: false,
   },
@@ -153,99 +128,15 @@ export const ADMIN_ROUTES = [
     file: "apps/admin/src/pages/api/admin/logout.ts",
     nav: false,
   },
-
-  {
-    route: "/work",
-    file: "apps/admin/src/pages/work.astro",
-    nav: true,
-    smoke: false,
-  },
-  {
-    route: "/content/review",
-    file: "apps/admin/src/pages/content/review.astro",
-    nav: true,
-  },
-  {
-    route: "/content/carousels",
-    file: "apps/admin/src/pages/content/carousels.astro",
-    nav: true,
-    smoke: false,
-  },
-  {
-    route: "/content/drafts",
-    file: "apps/admin/src/pages/content/drafts.astro",
-    nav: true,
-  },
   {
     route: "/content/edit/home",
     file: "apps/admin/src/pages/content/edit/[pageKey].astro",
     nav: false,
   },
   {
-    route: "/content/preview",
-    file: "apps/admin/src/pages/content/preview.astro",
-    nav: true,
-  },
-  {
-    route: "/content/operations",
-    file: "apps/admin/src/pages/content/operations.astro",
-    nav: true,
-  },
-  {
     route: "/newsletter/first-thing-agents-need-control-plane",
     file: "apps/admin/src/pages/newsletter/[slug].astro",
     nav: false,
-  },
-  {
-    route: "/proof",
-    file: "apps/admin/src/pages/proof.astro",
-    nav: true,
-  },
-  {
-    // Retired; 308 redirects to the Proof log.
-    route: "/deploys",
-    file: "apps/admin/src/pages/deploys.astro",
-    nav: false,
-    smoke: false,
-  },
-  {
-    // Retired; 308 redirects to Observability Status.
-    route: "/repos",
-    file: "apps/admin/src/pages/repos.astro",
-    nav: false,
-    smoke: false,
-  },
-  {
-    // Retired; 308 redirects to Work history.
-    route: "/handoffs",
-    file: "apps/admin/src/pages/handoffs.astro",
-    nav: false,
-    smoke: false,
-  },
-  {
-    // Retired; 308 redirects to Observability Status.
-    route: "/fleet",
-    file: "apps/admin/src/pages/fleet.astro",
-    nav: false,
-    smoke: false,
-  },
-  {
-    route: "/system",
-    file: "apps/admin/src/pages/system.astro",
-    nav: true,
-    smoke: false,
-  },
-  {
-    // Retired; 308 redirects to Gates.
-    route: "/mutations",
-    file: "apps/admin/src/pages/mutations.astro",
-    nav: false,
-    smoke: false,
-  },
-  {
-    route: "/ops/destructive",
-    file: "apps/admin/src/pages/ops/destructive.astro",
-    nav: true,
   },
   {
     route: "/api/admin/runtime-feed",
@@ -344,6 +235,11 @@ export const ADMIN_ROUTES = [
     smoke: false,
   },
 ];
+
+// Retired URLs with no page file. The retiredRoutes() integration in
+// apps/admin/astro.config.mjs answers each with a 308 to its live
+// destination, behind the same middleware.
+export const ADMIN_REDIRECTS = RETIRED_ROUTE_REDIRECTS;
 
 export const PUBLIC_UNSMOKED_ROUTE_FILES = [
   "apps/admin/src/pages/auth.astro",

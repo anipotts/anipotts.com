@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import reactRenderer from "@astrojs/react/server.js";
 import { JSDOM } from "jsdom";
-import CatalogPage from "../../src/pages/content/dev-catalog.astro";
+import CatalogPage from "../../src/dev/dev-catalog.astro";
 import AlertsPage from "../../src/pages/observability/[view].astro";
 
 // Both layouts preload the fonts every page renders with. Without the
