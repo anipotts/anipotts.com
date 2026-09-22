@@ -1,44 +1,4 @@
 import type { EditorialRecord } from "@anipotts/content/editorial/source";
-import type { PublishJob } from "../editorial/publication-jobs";
-
-/** Owner-only coordinator metadata. Never includes source or provider payloads. */
-export type PublicationQueueEntry = Pick<
-  PublishJob,
-  "id" | "phase" | "version" | "attempts" | "dueAt" | "leaseUntil" | "blocked"
-> & {
-  sequence: number;
-  record: EditorialRecord | null;
-  revision: number | null;
-  createdAt: number | null;
-  cancelRequested: boolean;
-};
-
-export type PublicationQueueContext = {
-  /** One-based among unfinished work; null once this operation is terminal. */
-  position: number | null;
-  pending: number;
-  head: PublicationQueueEntry | null;
-  /** Actual persisted DO alarm, not an estimated browser refresh deadline. */
-  alarmAt: number | null;
-};
-
-export type PublicationStatus = PublishJob & {
-  /** Immutable private revision approved for this operation. */
-  revision: number;
-  queue: PublicationQueueContext;
-  canCancel: boolean;
-};
-
-export type PublicationQueuePage = Omit<PublicationQueueContext, "position"> & {
-  items: PublicationQueueEntry[];
-  nextAfterSequence: number | null;
-};
-
-export type PublicationQueueOptions = {
-  afterSequence?: number;
-  limit?: number;
-};
-export const MAX_PUBLICATION_QUEUE_PAGE = 50;
 
 export type StartDirectPublication = {
   record: EditorialRecord;
@@ -55,10 +15,30 @@ export type StartDirectPublication = {
   baselineSource?: string;
 };
 
-export type DirectPublicationStatus = PublicationStatus & {
+/** Owner-only publication metadata. Never includes source or provider payloads. */
+export type DirectPublicationStatus = {
   mode: "direct";
   /** Absent from releases before unpublishing existed; read as publish. */
   action?: "publish" | "unpublish";
+  id: string;
+  /** Immutable private revision approved for this operation. */
+  revision: number;
+  phase: "validate" | "commit" | "verify" | "live" | "cancelled";
+  version: number;
+  attempts: number;
+  dueAt: number;
+  lease: string | null;
+  leaseUntil: number;
+  blocked: string | null;
+  checkpoint: Record<string, string>;
+  canCancel: boolean;
+  /** Per-record pending count and the actual persisted DO alarm. */
+  queue: {
+    position: null;
+    pending: number;
+    head: null;
+    alarmAt: number | null;
+  };
   publicationId: string | null;
   sourceSha256: string;
   baselineSha256: string;

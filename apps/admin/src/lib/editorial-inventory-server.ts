@@ -6,7 +6,6 @@ import {
 } from "@anipotts/content/editorial/direct-publication";
 import { overlayPublishedInventory } from "./editorial-published-inventory";
 import { productionEditor } from "./editorial-server";
-import { publisherMode } from "./runtime-contract";
 import {
   editorialInventoryGroups,
   editorialInventorySearch,
@@ -38,17 +37,14 @@ export async function loadEditorialInventory(
   ];
   const values =
     env && typeof env === "object" ? (env as Record<string, unknown>) : {};
-  const mode = publisherMode(values);
-  if (mode === "direct" || mode === "maintenance") {
-    if (!values.CONTENT_DB) throw new Error("content_database_unavailable");
-    // Keep unavailable CMS state separate from a successfully empty inventory.
-    // A Git fallback here would falsely advertise obsolete published content.
-    entries = overlayPublishedInventory(
-      entries,
-      (await getPublishedInventory(values.CONTENT_DB as PublicationDatabase))
-        .publications,
-    );
-  }
+  if (!values.CONTENT_DB) throw new Error("content_database_unavailable");
+  // Keep unavailable CMS state separate from a successfully empty inventory.
+  // A Git fallback here would falsely advertise obsolete published content.
+  entries = overlayPublishedInventory(
+    entries,
+    (await getPublishedInventory(values.CONTENT_DB as PublicationDatabase))
+      .publications,
+  );
   let privateResult: Awaited<ReturnType<typeof readInventoryDrafts>> = {
     drafts: [],
     unavailable: true,

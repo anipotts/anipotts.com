@@ -9,8 +9,8 @@
       { "name": "EDITORIAL", "class_name": "EditorialDraftStore" },
       { "name": "DIRECT_EDITORIAL", "class_name": "DirectEditorialDraftStore" },
       {
-        "name": "MAINTENANCE_EDITORIAL",
-        "class_name": "MaintenanceEditorialDraftStore",
+        "name": "DISABLED_EDITORIAL",
+        "class_name": "DisabledEditorialDraftStore",
       },
     ],
   },
@@ -33,7 +33,7 @@
       "new_sqlite_classes": [
         "EditorialDraftStore",
         "DirectEditorialDraftStore",
-        "MaintenanceEditorialDraftStore",
+        "DisabledEditorialDraftStore",
       ],
     },
   ],

@@ -4,18 +4,19 @@ export class DirectEditorialDraftStore extends EditorialDraftStore {
   constructor(ctx: DurableObjectState, env: object) {
     super(ctx, {
       ...env,
-      EDITORIAL_PUBLISH_MODE: "direct",
       EDITORIAL_ENABLED: "true",
       EDITORIAL_PUBLISH_ENABLED: "true",
     });
   }
 }
-export class MaintenanceEditorialDraftStore extends EditorialDraftStore {
+/** The kill switch: publishing off, with no media binding either. */
+export class DisabledEditorialDraftStore extends EditorialDraftStore {
   constructor(ctx: DurableObjectState, env: object) {
     super(ctx, {
       ...env,
       CONTENT_MEDIA: undefined,
-      EDITORIAL_PUBLISH_MODE: "maintenance",
+      EDITORIAL_ENABLED: "true",
+      EDITORIAL_PUBLISH_ENABLED: "false",
     });
   }
 }

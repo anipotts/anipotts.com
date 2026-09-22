@@ -368,11 +368,7 @@ export function validateContentReleaseIsolation({
         "RELEASE_TEST_RUN_ID",
         "RELEASE_TEST_DATA_CLASS",
         ...(role === "admin"
-          ? [
-              "EDITORIAL_ENABLED",
-              "EDITORIAL_PUBLISH_ENABLED",
-              "EDITORIAL_PUBLISH_MODE",
-            ]
+          ? ["EDITORIAL_ENABLED", "EDITORIAL_PUBLISH_ENABLED"]
           : ["CONTENT_RUNTIME"]),
       ]);
       requireCheck(
@@ -380,8 +376,7 @@ export function validateContentReleaseIsolation({
           config.vars.RELEASE_TEST_DATA_CLASS === "synthetic" &&
           (role === "admin"
             ? config.vars.EDITORIAL_ENABLED === "true" &&
-              config.vars.EDITORIAL_PUBLISH_ENABLED === "false" &&
-              config.vars.EDITORIAL_PUBLISH_MODE === "maintenance"
+              config.vars.EDITORIAL_PUBLISH_ENABLED === "false"
             : config.vars.CONTENT_RUNTIME === "cms"),
         "unsafe_runtime_vars",
       );

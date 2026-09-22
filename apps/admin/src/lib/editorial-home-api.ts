@@ -8,10 +8,7 @@ import {
 } from "@anipotts/content/editorial/source";
 import type { EditorialDraftStore } from "../editorial/draft-store";
 import { newRecordSource } from "./editorial-collections";
-import {
-  MAX_PUBLICATION_QUEUE_PAGE,
-  type StartDirectPublication,
-} from "./editorial-publication-status";
+import type { StartDirectPublication } from "./editorial-publication-status";
 import {
   checkEditorialMutation,
   issueEditorialCsrf,
@@ -42,16 +39,6 @@ export type DraftStorage = Pick<
 >;
 export type PublicationStorage = Pick<
   EditorialDraftStore,
-  | "startPublication"
-  | "latestPublication"
-  | "publicationStatus"
-  | "publicationQueue"
-  | "retryPublication"
-  | "cancelPublication"
-  | "cancelUnstartedLegacyPublication"
->;
-type DirectStorage = Pick<
-  EditorialDraftStore,
   | "startDirectPublication"
   | "latestDirectPublication"
   | "directPublicationStatus"
@@ -65,9 +52,6 @@ const safeInteger = z.number().int().safe();
 const revisionBody = z.object({ expectedRevision: safeInteger.min(0) });
 const operationBody = z.object({
   operationId: z.string().regex(OPERATION_ID),
-});
-const legacyCancelBody = operationBody.extend({
-  expectedVersion: safeInteger.min(0),
 });
 const versionBody = z.object({ expectedVersion: safeInteger });
 const disclosureBody = z.object({ discloseSource: z.literal(true) });
@@ -109,7 +93,7 @@ function pageParams<K extends string>(
 
 /** Starts a direct intent and answers with its stored status. */
 async function startDirect(
-  direct: DirectStorage,
+  direct: PublicationStorage,
   input: StartDirectPublication,
 ): Promise<Response> {
   const result = await direct.startDirectPublication(input);
@@ -137,12 +121,7 @@ export async function homeEditorApi(
   request: Request,
   storage: DraftStorage,
   readBase: (record: EditorialRecord) => Promise<HomeBase>,
-  publisher?: {
-    storage: PublicationStorage;
-    enabled: boolean;
-    mode?: "legacy" | "maintenance" | "direct";
-    direct?: DirectStorage;
-  },
+  publisher?: { storage: PublicationStorage; enabled: boolean },
 ): Promise<Response> {
   const url = new URL(request.url);
   const action = url.pathname.split("/").at(-1);
@@ -153,11 +132,7 @@ export async function homeEditorApi(
   );
   if (!identity.success) return json({ error: "invalid_record" }, 400);
   const record = identity.data;
-  const directMode =
-    publisher?.mode === "direct" || publisher?.mode === "maintenance";
-  const direct = directMode ? publisher?.direct : undefined;
-  if (directMode && !direct)
-    return json({ error: "publisher_unavailable" }, 503);
+  const direct = publisher?.storage;
   if (request.method === "GET") {
     if (action === "csrf") return issueEditorialCsrf(request);
     if (action === "draft") return json({ draft: await storage.get(record) });
@@ -175,9 +150,7 @@ export async function homeEditorApi(
       ]);
       const publication = direct
         ? await direct.latestDirectPublication(record)
-        : publisher
-          ? await publisher.storage.latestPublication(record)
-          : null;
+        : null;
       return json({
         recoveryScope: EDITORIAL_OWNER_EMAIL,
         base,
@@ -186,38 +159,17 @@ export async function homeEditorApi(
         nextBeforeRevision: historyPage.nextBeforeRevision,
         publication,
         publishing: publisher?.enabled ? "ready" : "not_configured",
-        // Production publishes directly, so an editor without a publisher
-        // (local development) shows the same review and field rules.
-        publicationMode: publisher?.mode ?? "direct",
+        // The only publisher. Editor tabs opened before this release read it.
+        publicationMode: "direct",
       });
     }
-    if (action === "publication-queue" && publisher) {
-      const options = pageParams(
-        url,
-        "afterSequence",
-        MAX_PUBLICATION_QUEUE_PAGE,
-      );
-      if (!options) return json({ error: "invalid_publication_page" }, 400);
-      return json(await publisher.storage.publicationQueue(options));
-    }
-    if (action === "legacy-publication" && publisher) {
+    if (action === "publication" && direct) {
       const id = url.searchParams.get("operationId");
-      if (!id || !OPERATION_ID.test(id))
-        return json({ error: "invalid_request" }, 400);
       return json({
-        publication: await publisher.storage.publicationStatus(record, id),
-      });
-    }
-    if (action === "publication" && publisher) {
-      const id = url.searchParams.get("operationId");
-      const publication = direct
-        ? id
+        publication: id
           ? await direct.directPublicationStatus(record, id)
-          : await direct.latestDirectPublication(record)
-        : id
-          ? await publisher.storage.publicationStatus(record, id)
-          : await publisher.storage.latestPublication(record);
-      return json({ publication });
+          : await direct.latestDirectPublication(record),
+      });
     }
     return json({ error: "not_found" }, 404);
   }
@@ -234,31 +186,6 @@ export async function homeEditorApi(
   const revision = parse(revisionBody, body);
   if (!revision) return json({ error: "invalid_revision" }, 400);
   const { expectedRevision } = revision;
-  if (action === "cancel-legacy-publication") {
-    // Publishing stays disabled in maintenance. This narrowly scoped operation
-    // uses the same verified owner, origin and CSRF boundary as draft writes.
-    if (!publisher || publisher.mode !== "maintenance")
-      return json({ error: "maintenance_required" }, 409);
-    const input = parse(legacyCancelBody, body);
-    if (!input || expectedRevision < 1)
-      return json({ error: "invalid_request" }, 400);
-    const result = await publisher.storage.cancelUnstartedLegacyPublication(
-      record,
-      input.operationId,
-      expectedRevision,
-      input.expectedVersion,
-    );
-    return json(
-      {
-        ...result,
-        publication: await publisher.storage.publicationStatus(
-          record,
-          input.operationId,
-        ),
-      },
-      result.ok ? 200 : 409,
-    );
-  }
   if (action === "create") {
     const input = parse(createBody, body);
     if (
@@ -286,16 +213,12 @@ export async function homeEditorApi(
     action === "retry-publication" ||
     action === "cancel-publication"
   ) {
-    if (!publisher?.enabled)
+    if (!direct || !publisher?.enabled)
       return json({ error: "publisher_not_configured" }, 503);
     const operation = parse(operationBody, body);
     if (!operation) return json({ error: "invalid_request" }, 400);
     const { operationId } = operation;
     if (action === "unpublish") {
-      // Direct publishing only: the older repository publisher has no
-      // reviewed lifecycle for taking a piece off the site.
-      if (!direct || publisher.mode !== "direct")
-        return json({ error: "unpublish_requires_direct_publishing" }, 409);
       const review = parse(reviewBody, body);
       if (!review) return json({ error: "invalid_request" }, 400);
       // The browser reviewed hashes only. The public source comes from the
@@ -314,43 +237,21 @@ export async function homeEditorApi(
     if (action === "publish") {
       if (!parse(disclosureBody, body))
         return json({ error: "source_disclosure_required" }, 400);
-      if (direct) {
-        const review = parse(reviewBody, body);
-        if (!review)
-          return json({ error: "publication_review_upgrade_required" }, 409);
-        return startDirect(direct, {
-          record,
-          operationId,
-          expectedRevision,
-          ...review,
-        });
-      }
-      const result = await publisher.storage.startPublication({
+      const review = parse(reviewBody, body);
+      if (!review)
+        return json({ error: "publication_review_upgrade_required" }, 409);
+      return startDirect(direct, {
         record,
         operationId,
         expectedRevision,
+        ...review,
       });
-      if (!result.ok)
-        return json(
-          { error: result.code },
-          result.code === "revision_conflict" ? 409 : 400,
-        );
-      return json(
-        {
-          publication: await publisher.storage.publicationStatus(
-            record,
-            result.publication.id,
-          ),
-        },
-        202,
-      );
     }
     const version = parse(versionBody, body);
     if (!version) return json({ error: "invalid_request" }, 400);
     const { expectedVersion } = version;
-    const cancel = action === "cancel-publication";
-    const result = direct
-      ? cancel
+    const result =
+      action === "cancel-publication"
         ? await direct.cancelDirectPublication(
             record,
             operationId,
@@ -360,24 +261,11 @@ export async function homeEditorApi(
             record,
             operationId,
             expectedVersion,
-          )
-      : cancel
-        ? await publisher.storage.cancelPublication(
-            record,
-            operationId,
-            expectedVersion,
-          )
-        : await publisher.storage.retryPublication(
-            record,
-            operationId,
-            expectedVersion,
           );
     return json(
       {
         ...result,
-        publication: direct
-          ? await direct.directPublicationStatus(record, operationId)
-          : await publisher.storage.publicationStatus(record, operationId),
+        publication: await direct.directPublicationStatus(record, operationId),
       },
       result.ok ? 202 : 409,
     );

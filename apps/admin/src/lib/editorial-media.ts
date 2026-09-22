@@ -1,6 +1,5 @@
 export const editorialMediaId = /^[a-f0-9]{64}\.(?:jpg|png|webp)$/u;
 export const editorialMediaPrefix = "/images/editorial/";
-export const editorialMediaGitPrefix = "apps/www/public/images/editorial/";
 export const MAX_PUBLICATION_MEDIA_BYTES = 10 * 1024 * 1024;
 export const MAX_PUBLICATION_IMAGES = 10;
 

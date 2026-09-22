@@ -19,23 +19,19 @@ run_worker_first = true
 
 # Non-secret env vars available at runtime
 [vars]
-# Direct CMS publishing: one reviewed record per operation into CONTENT_DB,
-# including unpublish. Rollback: set this back to "maintenance" and redeploy;
-# accepted work stays durable and resumes or reconciles after the switch back.
-EDITORIAL_PUBLISH_MODE = "direct"
 PUBLIC_STATE_API = "https://api.anipotts.com"
 ACCESS_TEAM_DOMAIN = "https://anipotts.cloudflareaccess.com"
 ACCESS_POLICY_AUD = "ca3ea64cba714dee7d50eae63f62b18d6c2aeeecc0fc16ec0335ed0aa863a49f"
-# Owner editing is enabled with the repository-only App and private Worker keys.
+# Owner editing, and direct CMS publishing of one reviewed record per
+# operation into CONTENT_DB, including unpublish. Kill switch: set
+# EDITORIAL_PUBLISH_ENABLED = "false" and redeploy; accepted work stays
+# durable, activations wait, and receipts still reconcile.
 EDITORIAL_ENABLED = "true"
 EDITORIAL_PUBLISH_ENABLED = "true"
-EDITORIAL_GITHUB_APP_ID = "4879372"
-EDITORIAL_GITHUB_INSTALLATION_ID = "160192316"
 # Private reader credential issuance for the tailnet reader on ap-mini.
 PRIVATE_READER_ENABLED = "true"
 # Observability reads (ops:read) from the same tailnet reader.
 PRIVATE_READER_OPS_ENABLED = "true"
-# Secrets: EDITORIAL_GITHUB_PRIVATE_KEY and EDITORIAL_SIGNING_PRIVATE_KEY.
 # The reader signing key is the PRIVATE_READER_SIGNING_KEY secret.
 
 [[durable_objects.bindings]]

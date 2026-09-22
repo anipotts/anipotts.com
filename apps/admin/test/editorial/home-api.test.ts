@@ -1,6 +1,5 @@
 /// <reference types="@cloudflare/vitest-plugin/types" />
 import { env } from "cloudflare:workers";
-import { runInDurableObject } from "cloudflare:test";
 import { describe, it, expect } from "vitest";
 import { homeEditorApi, homeRecord } from "../../src/lib/editorial-home-api";
 const base = async () => ({
@@ -168,8 +167,8 @@ describe("home API with real SQLite", () => {
       },
     });
   });
-  it("requires disclosure and CSRF, freezes a revision once, and isolates status", async () => {
-    const storage = env.EDITORIAL.getByName(crypto.randomUUID());
+  it("requires disclosure and CSRF, accepts a reviewed revision once, and isolates status", async () => {
+    const storage = env.DIRECT_EDITORIAL.getByName(crypto.randomUUID());
     const record = { kind: "writing", id: "essay" } as const;
     const source =
       "---\ntitle: my essay\nsummary: summary\nstatus: published\npublished_at: 2026-09-08\n---\nprivate until published\n";
@@ -180,10 +179,15 @@ describe("home API with real SQLite", () => {
       expectedRevision: 0,
       requestId: crypto.randomUUID(),
     });
+    const { publicationSourceHash } =
+      await import("@anipotts/content/editorial/publication-contract");
     const body = {
       expectedRevision: 1,
       operationId: crypto.randomUUID(),
       discloseSource: true,
+      reviewedSourceSha256: await publicationSourceHash(source),
+      expectedBaselineSha256: "a".repeat(64),
+      expectedPublicationId: null,
     };
     const scoped = (action: string, payload: unknown, headers = {}) => {
       const original = request(action, payload, headers);
@@ -218,7 +222,7 @@ describe("home API with real SQLite", () => {
         })
       ).status,
     ).toBe(503);
-    expect(await storage.latestPublication(record)).toBeNull();
+    expect(await storage.latestDirectPublication(record)).toBeNull();
     for (let i = 0; i < 2; i++) {
       const response = await homeEditorApi(
         scoped("publish", body),
@@ -229,14 +233,15 @@ describe("home API with real SQLite", () => {
       expect(response.status).toBe(202);
       const value = await response.json();
       expect(value).toMatchObject({
-        publication: { id: body.operationId, phase: "validate" },
+        publication: {
+          id: body.operationId,
+          phase: "validate",
+          mode: "direct",
+        },
       });
       expect(JSON.stringify(value)).not.toContain(source);
       expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     }
-    expect((await storage.publication(record, body.operationId))?.source).toBe(
-      source,
-    );
     const wrong = await homeEditorApi(
       new Request(
         `https://admin.anipotts.com/api/editorial/publication?kind=work&id=essay&operationId=${body.operationId}`,
@@ -385,101 +390,40 @@ describe("home API with real SQLite", () => {
   });
 });
 
-it("returns bounded queue metadata and refreshed publication state after cancellation", async () => {
-  const storage = env.EDITORIAL.getByName(crypto.randomUUID());
-  const record = { kind: "writing", id: "queue-essay" } as const;
-  const source =
-    "---\ntitle: private title\nsummary: summary\nstatus: published\npublished_at: 2026-09-08\n---\nprivate body\n";
-  await storage.save({
-    ...(await base()),
-    record,
-    source,
-    expectedRevision: 0,
-    requestId: crypto.randomUUID(),
-  });
-  const operationId = crypto.randomUUID();
-  await storage.freezePublication({ record, operationId, expectedRevision: 1 });
+it("answers not found for the retired repository publisher actions", async () => {
+  const storage = env.DIRECT_EDITORIAL.getByName(crypto.randomUUID());
   const publisher = { storage, enabled: true };
-  const read = (query = "") =>
-    homeEditorApi(
+  for (const action of ["publication-queue", "legacy-publication"]) {
+    const response = await homeEditorApi(
       new Request(
-        `https://admin.anipotts.com/api/editorial/publication-queue?${query}`,
+        `https://admin.anipotts.com/api/editorial/${action}?kind=writing&id=essay&operationId=${crypto.randomUUID()}`,
       ),
-      storage,
-      async () => {
-        throw new Error("Git unavailable");
-      },
-      publisher,
-    );
-  const response = await read("limit=1");
-  expect(response.headers.get("Cache-Control")).toBe("private, no-store");
-  const value = await response.json();
-  expect(value).toMatchObject({
-    items: [{ id: operationId, record }],
-    pending: 1,
-    nextAfterSequence: null,
-  });
-  expect(JSON.stringify(value)).not.toContain("private title");
-  expect(JSON.stringify(value)).not.toContain("private body");
-  for (const query of [
-    "limit=51",
-    "limit=0",
-    "limit=1.5",
-    "afterSequence=0",
-    "afterSequence=-1",
-    "afterSequence=9007199254740992",
-  ])
-    expect((await read(query)).status).toBe(400);
-  const cancel = () => {
-    const original = request("cancel-publication", {
-      expectedRevision: 1,
-      operationId,
-      expectedVersion: 0,
-    });
-    return homeEditorApi(
-      new Request(`${original.url}?kind=writing&id=queue-essay`, original),
       storage,
       base,
       publisher,
     );
-  };
-  const canceled = await cancel();
-  expect(canceled.status).toBe(202);
-  expect(await canceled.json()).toMatchObject({
-    ok: true,
-    publication: {
-      id: operationId,
-      phase: "cancelled",
-      canCancel: false,
-      queue: { pending: 0, position: null, head: null },
-    },
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "not_found" });
+  }
+  const cancel = request("cancel-legacy-publication", {
+    expectedRevision: 1,
+    operationId: crypto.randomUUID(),
+    expectedVersion: 0,
   });
-  const stale = await cancel();
-  expect(stale.status).toBe(409);
-  expect(await stale.json()).toMatchObject({
-    ok: false,
-    code: "publication_conflict",
-    publication: { id: operationId, phase: "cancelled" },
-  });
+  const response = await homeEditorApi(
+    new Request(`${cancel.url}?kind=writing&id=essay`, cancel),
+    storage,
+    base,
+    publisher,
+  );
+  expect(response.status).toBe(404);
+  expect(await response.json()).toEqual({ error: "not_found" });
+  expect(
+    await storage.latestDirectPublication({ kind: "writing", id: "essay" }),
+  ).toBeNull();
 });
 
 describe("direct publisher API boundary", () => {
-  it("fails closed rather than falling through to Git when direct storage is missing", async () => {
-    const storage = env.EDITORIAL.getByName(crypto.randomUUID());
-    const result = await homeEditorApi(
-      request("publish", {
-        expectedRevision: 1,
-        operationId: crypto.randomUUID(),
-        discloseSource: true,
-      }),
-      storage,
-      base,
-      { storage, enabled: true, mode: "direct" },
-    );
-    expect(result.status).toBe(503);
-    expect(await result.json()).toEqual({ error: "publisher_unavailable" });
-    expect(await storage.latestPublication(homeRecord)).toBeNull();
-  });
   it("requires versioned review identities before dispatching any direct intent", async () => {
     const storage = env.EDITORIAL.getByName(crypto.randomUUID());
     let calls = 0;
@@ -507,7 +451,7 @@ describe("direct publisher API boundary", () => {
       }),
       storage,
       base,
-      { storage, enabled: true, mode: "direct", direct },
+      { storage: direct, enabled: true },
     );
     expect(result.status).toBe(409);
     expect(await result.json()).toEqual({
@@ -515,7 +459,7 @@ describe("direct publisher API boundary", () => {
     });
     expect(calls).toBe(0);
   });
-  it("unpublishes only in direct mode, with the public source from the server's own read", async () => {
+  it("unpublishes with the public source from the server's own read", async () => {
     const storage = env.EDITORIAL.getByName(crypto.randomUUID());
     const record = { kind: "writing", id: "api-unpublish" } as const;
     const publicSource =
@@ -546,28 +490,17 @@ describe("direct publisher API boundary", () => {
       // A browser-supplied source is ignored; the route reads its own.
       baselineSource: "---\ntitle: forged\n---\n",
     };
-    const call = (mode: "direct" | "maintenance" | "legacy") => {
-      const req = request("unpublish", body);
-      return homeEditorApi(
-        new Request(req.url + "?kind=writing&id=api-unpublish", req),
-        storage,
-        async () => ({
-          ...(await base()),
-          source: publicSource,
-          publicationId: "published-receipt",
-        }),
-        { storage, enabled: true, mode, direct },
-      );
-    };
-    for (const mode of ["maintenance", "legacy"] as const) {
-      const refused = await call(mode);
-      expect(refused.status).toBe(409);
-      expect(await refused.json()).toEqual({
-        error: "unpublish_requires_direct_publishing",
-      });
-    }
-    expect(received).toEqual([]);
-    const result = await call("direct");
+    const req = request("unpublish", body);
+    const result = await homeEditorApi(
+      new Request(req.url + "?kind=writing&id=api-unpublish", req),
+      storage,
+      async () => ({
+        ...(await base()),
+        source: publicSource,
+        publicationId: "published-receipt",
+      }),
+      { storage: direct, enabled: true },
+    );
     expect(result.status).toBe(409);
     expect(await result.json()).toEqual({ error: "already_hidden" });
     expect(received).toEqual([
@@ -618,76 +551,13 @@ it("direct API returns the original publication when another intent already owns
     new Request(req.url + "?kind=writing&id=held-api", req),
     storage,
     base,
-    { storage, enabled: true, mode: "direct", direct: storage },
+    { storage, enabled: true },
   );
   expect(result.status).toBe(409);
   expect(await result.json()).toMatchObject({
     error: "publication_in_progress",
     publication: { id: input.operationId, revision: 1, mode: "direct" },
   });
-});
-
-it("allows exact unstarted legacy cancellation in maintenance while publishing is disabled", async () => {
-  const storage = env.EDITORIAL.getByName(crypto.randomUUID());
-  const record = { kind: "writing", id: "maintenance-essay" } as const;
-  const source =
-    "---\ntitle: Private essay\nsummary: Subtitle\nstatus: published\npublished_at: 2026-09-20\n---\nPrivate body.\n";
-  await storage.save({
-    ...(await base()),
-    record,
-    source,
-    expectedRevision: 0,
-    requestId: crypto.randomUUID(),
-  });
-  const operationId = crypto.randomUUID();
-  await storage.freezePublication({ record, operationId, expectedRevision: 1 });
-  await runInDurableObject(storage, async (instance) => {
-    const owner = instance as unknown as { env: Record<string, unknown> };
-    owner.env = { ...owner.env, EDITORIAL_PUBLISH_MODE: "maintenance" };
-  });
-  const publisher = {
-    storage,
-    direct: storage,
-    enabled: false,
-    mode: "maintenance" as const,
-  };
-  const call = (headers = {}) => {
-    const original = request(
-      "cancel-legacy-publication",
-      { expectedRevision: 1, operationId, expectedVersion: 0 },
-      headers,
-    );
-    return homeEditorApi(
-      new Request(
-        `${original.url}?kind=writing&id=maintenance-essay`,
-        original,
-      ),
-      storage,
-      base,
-      publisher,
-    );
-  };
-  expect((await call({ "X-Editorial-CSRF": "wrong" })).status).toBe(403);
-  expect((await call({ Origin: "https://example.com" })).status).toBe(403);
-  const result = await call();
-  expect(result.status).toBe(200);
-  expect(await result.json()).toMatchObject({
-    ok: true,
-    publication: { id: operationId, phase: "cancelled" },
-  });
-  expect((await call()).status).toBe(409);
-  const read = await homeEditorApi(
-    new Request(
-      `https://admin.anipotts.com/api/editorial/legacy-publication?kind=writing&id=maintenance-essay&operationId=${operationId}`,
-    ),
-    storage,
-    base,
-    publisher,
-  );
-  expect(await read.json()).toMatchObject({
-    publication: { id: operationId, phase: "cancelled" },
-  });
-  expect((await storage.get(record))?.source).toBe(source);
 });
 
 describe("private project creation", () => {

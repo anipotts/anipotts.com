@@ -93,11 +93,12 @@ vi.mock("./ReviewChanges", async (importOriginal) => ({
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 let root: Root;
 let host: HTMLDivElement;
+// Already public, so the review's visibility preparation leaves it unchanged.
 const source =
-  newWritingSource("Original title").replace(
-    'summary: ""',
-    'summary: "A short summary"',
-  ) + "Original body.";
+  newWritingSource("Original title")
+    .replace('summary: ""', 'summary: "A short summary"')
+    .replace("status: draft", "status: published\npublished_at: 2026-09-20") +
+  "Original body.";
 const draft = {
   key: "content/public/writing/test.md",
   source,
