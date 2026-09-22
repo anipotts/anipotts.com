@@ -94,11 +94,19 @@ const publicPath =
           ? "/"
           : `/${entry.id}`
         : null;
+// The library the URL names, so a missing record still selects it in the
+// sidebar and its way back leads there.
+const library =
+  Astro.params.collection === "projects"
+    ? "work"
+    : Astro.params.collection === "writing"
+      ? "writing"
+      : "website";
 const review: Review | undefined =
   entry && !editorRecord
     ? {
         updated: recordUpdate(entry.collection, entry.id),
-        back: libraryPath(project ? "work" : writing ? "writing" : "website"),
+        back: libraryPath(library),
         status:
           project?.public_state ??
           writing?.status ??
@@ -147,6 +155,7 @@ const review: Review | undefined =
 ---
 
 <EditorialLayout
+  selectedGroup={library}
   hasContent={Boolean(Content)}
   inventoryError={privateUnavailable}
   title={title}

@@ -235,10 +235,10 @@ export function EditorialApp({
   const library =
     area === "newsletter"
       ? "newsletter"
-      : recordKind === "writing"
-        ? "writing"
-        : recordKind === "work"
-          ? "work"
+      : recordKind === "writing" || recordKind === "work"
+        ? recordKind
+        : selectedGroup === "writing" || selectedGroup === "work"
+          ? selectedGroup
           : "website";
   const back = {
     href: libraryBack ?? review?.back ?? libraryPaths[library],
@@ -450,15 +450,9 @@ export function EditorialApp({
                 actions={
                   <Button
                     label={
-                      area === "newsletter"
-                        ? "Back to drafts"
-                        : "Back to content"
+                      area === "newsletter" ? "Back to drafts" : back.label
                     }
-                    href={
-                      area === "newsletter"
-                        ? libraryPaths.newsletter
-                        : libraryPaths.website
-                    }
+                    href={libraryPaths[library]}
                   />
                 }
               />

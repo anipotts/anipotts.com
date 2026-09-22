@@ -57,9 +57,12 @@ describe("EditorialLayout Astro rendering", () => {
     boundary.draft = null;
   });
 
-  it.each(["projects", "writing"])(
-    "preserves the missing %s fallback for an empty conditional slot",
-    async (collection) => {
+  it.each([
+    ["projects", "/content/projects", "Back to Projects"],
+    ["writing", "/content/writing", "Back to Writing"],
+  ])(
+    "preserves the missing %s fallback, back to its own library",
+    async (collection, library, label) => {
       const { status, document } = await render(
         RecordPage,
         `/content/${collection}/missing`,
@@ -72,10 +75,10 @@ describe("EditorialLayout Astro rendering", () => {
       const main = document.querySelector("[role=main]");
       expect(main?.textContent).toContain("Record not found");
       expect(
-        [...main.querySelectorAll('a[href="/content/pages"]')].map(
+        [...main.querySelectorAll(`a[href="${library}"]`)].map(
           (link) => link.textContent,
         ),
-      ).toContain("Back to content");
+      ).toContain(label);
     },
   );
 
@@ -93,10 +96,10 @@ describe("EditorialLayout Astro rendering", () => {
     const main = document.querySelector("[role=main]");
     expect(main?.textContent).toContain("Record unavailable");
     expect(
-      [...main.querySelectorAll('a[href="/content/pages"]')].map(
+      [...main.querySelectorAll('a[href="/content/writing"]')].map(
         (link) => link.textContent,
       ),
-    ).toContain("Back to content");
+    ).toContain("Back to Writing");
   });
 
   it("retains client hydration instructions for the actual catalog and shell", async () => {
