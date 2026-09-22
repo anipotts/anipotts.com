@@ -257,7 +257,11 @@ describe("Status view from System's fixture", () => {
     // An interval job's next run is the last run plus the interval, so it
     // is marked approximate.
     const next = cell(host, "pc.writer", "Next run");
-    expect(next.textContent).toBe("~in 55m");
+    // The tilde is for the eye; assistive technology hears "about".
+    expect(next.textContent).toBe("~about in 55m");
+    expect(next.querySelector(".ops-approx")?.getAttribute("aria-hidden")).toBe(
+      "true",
+    );
     expect(next.querySelector(".ops-due")?.getAttribute("title")).toMatch(
       /^Approximate/,
     );
@@ -552,7 +556,7 @@ describe("an entry's panel", () => {
       Detail: "last pass completed",
       "Last success": "15m ago",
       Took: "5.2s",
-      "Next run": "~in 55m",
+      "Next run": "~about in 55m",
       Schedule: "hourly",
       Trigger: "Interval, every hour",
       Runs: "115 runs",
@@ -638,6 +642,8 @@ describe("an entry's panel", () => {
       Disk: "70% used",
       Sampled: "just now",
     });
+    // The detail only repeats the disk figure, so it is left out.
+    expect(facts(panel).Detail).toBeUndefined();
     expect(panel.textContent).not.toContain("Runs every");
     expect(panel.querySelector('ol[aria-label$="runs"]')).toBeNull();
   });

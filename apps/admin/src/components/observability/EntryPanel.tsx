@@ -20,6 +20,7 @@ import type { OpsAlert, OpsTransitionEvent } from "../../lib/ops-events";
 import { opsIncidentsBySubject } from "../../lib/ops-events";
 import {
   opsCadenceText,
+  opsDetailDisk,
   opsHostFacts,
   opsRecordsRuns,
   opsRunHistory,
@@ -289,7 +290,13 @@ function EntryFacts({
     <DefinitionList
       label="Facts"
       items={[
-        ["Detail", status.detail],
+        // A host's detail is its disk figure, which the Disk row says.
+        [
+          "Detail",
+          host?.disk != null && host.disk === opsDetailDisk(status.detail)
+            ? null
+            : status.detail,
+        ],
         ...(host
           ? ([
               [

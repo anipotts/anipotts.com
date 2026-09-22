@@ -35,6 +35,13 @@ export type OpsHostFacts = {
 
 const DISK = /\bdisk (\d{1,3})% used\b/;
 
+/** The disk figure in a host's detail ("disk 63% used"), or null. */
+export function opsDetailDisk(detail: string): number | null {
+  const read = DISK.exec(detail);
+  const figure = read ? Number(read[1]) : null;
+  return figure !== null && figure <= 100 ? figure : null;
+}
+
 export function opsHostFacts(service: {
   status: Pick<
     OpsStatusRow,
@@ -47,11 +54,8 @@ export function opsHostFacts(service: {
   >;
 }): OpsHostFacts {
   const { status } = service;
-  const read = DISK.exec(status.detail);
-  const parsed = read ? Number(read[1]) : null;
   return {
-    disk:
-      status.disk_percent ?? (parsed !== null && parsed <= 100 ? parsed : null),
+    disk: status.disk_percent ?? opsDetailDisk(status.detail),
     uptimeS: status.uptime_s,
     awake: status.awake ?? (status.state === "asleep" ? false : null),
     sampledAt: status.last_success_at,

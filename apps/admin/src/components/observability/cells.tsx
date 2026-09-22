@@ -261,9 +261,12 @@ export function NextDue({
       }
     >
       {approximate && (
-        <span className="ops-approx" aria-label="About">
-          ~
-        </span>
+        <>
+          <span className="ops-approx" aria-hidden="true">
+            ~
+          </span>
+          <span className="sr-only">about </span>
+        </>
       )}
       <DueTime value={at} now={now} />
     </span>
