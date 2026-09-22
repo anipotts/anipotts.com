@@ -195,6 +195,13 @@ export const ADMIN_ROUTES = [
     smoke: false,
   },
   {
+    // The ap-mini reader canary: one Access service token, never the owner.
+    route: "/api/canary/credential",
+    file: "apps/admin/src/pages/api/canary/credential.ts",
+    nav: false,
+    smoke: false,
+  },
+  {
     // Unknown paths and rejected route params render here, inside the shell.
     route: "/404",
     file: "apps/admin/src/pages/404.astro",

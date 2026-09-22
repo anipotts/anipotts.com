@@ -25,6 +25,12 @@ type Runtime = import("@astrojs/cloudflare").Runtime<{
   PRIVATE_READER_OPS_ENABLED?: string;
   /** Dedicated ES256 private JWK. Not installed; absent means 503. */
   PRIVATE_READER_SIGNING_KEY?: string;
+  /** The ap-mini reader canary; off unless exactly "true". */
+  PRIVATE_READER_CANARY_ENABLED?: string;
+  /** AUD of the Access application scoped to the canary path. */
+  PRIVATE_READER_CANARY_ACCESS_AUD?: string;
+  /** Client id of the one Access service token the canary admits. */
+  PRIVATE_READER_CANARY_CLIENT_ID?: string;
 }>;
 
 /**
