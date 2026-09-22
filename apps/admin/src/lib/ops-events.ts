@@ -4,6 +4,8 @@ import {
   OpsSnapshotError,
   exact,
   integer,
+  known,
+  type FieldDrift,
   member,
   text,
   timestamp,
@@ -15,10 +17,13 @@ import {
  * System's `ops_events_v1` feed (`GET /v1/ops/events?after=&limit=`, scope
  * `ops:read`), parsed strictly. Contract: anipotts/system `docs/ops-v1.md`.
  *
- * Every item carries exactly nine keys, plus an optional `device` on access
- * rows. `transition` rows name a catalog id
- * and the state it moved to; `access` rows name a reader route family with a
- * status and latency and never carry query text, ids or identity. A kind this
+ * Every item carries the nine keys, plus an optional `device`. A key this
+ * client does not know is never read; its name goes to `unknownFields` for a
+ * drift notice, and the page keeps working. `transition` rows name a catalog id
+ * and the state it moved to; `run` rows name a catalog id with the run's exit
+ * code in `status` and its duration in `ms` (either may be null); `access`
+ * rows name a reader route family with an HTTP status and latency and never
+ * carry query text, ids or identity. A kind this
  * client does not know is kept as `other` and rendered generically, since
  * System adds sources (deploys, proof) without a website deploy. A malformed
  * item rejects the whole page, the same as a malformed snapshot.
@@ -81,13 +86,27 @@ export type OpsAccessEvent = Base & {
   /** Optional: the device that made the read. */
   device: OpsDevice | null;
 };
+export type OpsRunEvent = Base & {
+  kind: "run";
+  /** launchd's exit code, when known. */
+  exit: number | null;
+  /** Duration in ms, when known. */
+  ms: number | null;
+  detail: string | null;
+};
 export type OpsOtherEvent = Base & {
   kind: "other";
   rawKind: string;
   detail: string | null;
 };
-export type OpsEvent = OpsTransitionEvent | OpsAccessEvent | OpsOtherEvent;
-export type OpsEventsPage = { items: OpsEvent[]; nextAfter: number | null };
+export type OpsEvent =
+  OpsTransitionEvent | OpsRunEvent | OpsAccessEvent | OpsOtherEvent;
+export type OpsEventsPage = {
+  items: OpsEvent[];
+  nextAfter: number | null;
+  /** Item field names this client does not know yet, sorted. */
+  unknownFields: string[];
+};
 
 function fail(): never {
   throw new OpsSnapshotError();
@@ -108,13 +127,11 @@ function device(value: unknown): OpsDevice {
     : "other";
 }
 
-function item(value: unknown): OpsEvent {
-  // `device` is optional on every item; any other key outside the nine rejects.
-  const raw = value as Record<string, unknown> | null;
-  const hasDevice =
-    raw !== null && typeof raw === "object" && Object.hasOwn(raw, "device");
-  const e = exact(value, hasDevice ? [...ITEM_KEYS, "device"] : ITEM_KEYS);
-  const accessDevice = hasDevice ? nullable(e.device, device) : null;
+function item(value: unknown, drift: FieldDrift): OpsEvent {
+  // `device` is optional on every item; unknown keys are only named.
+  const e = known(value, ITEM_KEYS, ["device"], drift);
+  const accessDevice =
+    e.device === undefined ? null : nullable(e.device, device);
   const seq = integer(e.seq, 1, OPS_EVENTS_BOUNDS.maxSeq);
   const at = timestamp(e.at);
   const kind = text(e.kind, 32);
@@ -125,17 +142,26 @@ function item(value: unknown): OpsEvent {
   // Every field keeps its type whether or not this kind uses it.
   const from = nullable(e.from_state, state);
   const to = nullable(e.to_state, state);
-  const status = nullable(e.status, (v) => integer(v, 100, 599));
+  // An HTTP status on access rows, an exit code on run rows.
+  const status = nullable(e.status, (v) =>
+    integer(v, OPS_V1_BOUNDS.exitMin, OPS_V1_BOUNDS.exitMax),
+  );
   const ms = nullable(e.ms, (v) => integer(v, 0, OPS_EVENTS_BOUNDS.maxMs));
   const subject = text(e.subject, OPS_EVENTS_BOUNDS.subjectMax);
   if (kind === "transition") {
     if (!OPS_V1_BOUNDS.id.test(subject) || to === null) fail();
     return { kind, seq, at, subject, from, to, detail };
   }
+  if (kind === "run") {
+    if (!OPS_V1_BOUNDS.id.test(subject)) fail();
+    return { kind, seq, at, subject, exit: status, ms, detail };
+  }
   if (kind === "access") {
     if (
       !OPS_EVENTS_BOUNDS.route.test(subject) ||
       status === null ||
+      status < 100 ||
+      status > 599 ||
       ms === null
     )
       fail();
@@ -157,7 +183,8 @@ export function parseOpsEvents(value: unknown, after: number): OpsEventsPage {
     root.items.length > OPS_EVENTS_BOUNDS.maxLimit
   )
     fail();
-  const items = root.items.map(item);
+  const drift: FieldDrift = new Set();
+  const items = root.items.map((value) => item(value, drift));
   let previous = after;
   for (const event of items) {
     if (event.seq <= previous) fail();
@@ -168,7 +195,7 @@ export function parseOpsEvents(value: unknown, after: number): OpsEventsPage {
   );
   if (nextAfter !== null && (items.length === 0 || nextAfter !== previous))
     fail();
-  return { items, nextAfter };
+  return { items, nextAfter, unknownFields: [...drift].sort() };
 }
 
 export function parseOpsEventsBytes(
@@ -360,6 +387,7 @@ export function opsActivitySource(
       : { id: "access", label: "Reader access" };
   if (event.kind === "other")
     return { id: `kind:${event.rawKind}`, label: humanize(event.rawKind) };
+  if (event.kind === "run") return { id: "kind:run", label: "Runs" };
   const group = catalog.get(event.subject)?.group;
   return group
     ? { id: `group:${group}`, label: humanize(group) }

@@ -763,6 +763,7 @@ function eventKind(event: OpsEvent, tile: TileRef, catalog: Catalog) {
       ? `Reader access from ${event.device}`
       : "Reader access";
   if (event.kind === "other") return humanize(event.rawKind);
+  if (event.kind === "run") return "Run";
   const entry = catalog.get(event.subject);
   return entry ? tileKind(entry, tile) : "Transition";
 }
@@ -772,6 +773,15 @@ function eventSecondary(event: OpsEvent) {
   if (event.kind === "access") return `${event.ms} ms`;
   if (event.kind === "other")
     return [humanize(event.rawKind), event.detail].filter(Boolean).join(", ");
+  if (event.kind === "run")
+    return (
+      [
+        event.exit === null ? null : `Exit ${event.exit}`,
+        event.ms === null ? null : formatRunDuration(event.ms),
+      ]
+        .filter(Boolean)
+        .join(", ") || undefined
+    );
   return event.detail ?? undefined;
 }
 
@@ -783,17 +793,29 @@ function eventTooltip(event: OpsEvent) {
     : `${event.subject}\n${stateLabel(event.from)} to ${to.toLowerCase()}`;
 }
 
-/** Whether an event has a chip: a non-ok new state, or an access failure. */
+/** "850 ms", "12 s", "3 min". */
+function formatRunDuration(ms: number) {
+  if (ms < 1000) return `${ms} ms`;
+  if (ms < 60_000) return `${Math.round(ms / 1000)} s`;
+  return `${Math.round(ms / 60_000)} min`;
+}
+
+/** Whether an event has a chip: a non-ok new state, a failed run, or an
+ * access failure. */
 function eventHasState(event: OpsEvent) {
-  return event.kind === "transition"
-    ? !badgeFor("ops", event.to).isDefault
-    : event.kind === "access" && event.status >= 400;
+  if (event.kind === "transition") return !badgeFor("ops", event.to).isDefault;
+  if (event.kind === "run") return event.exit !== null && event.exit !== 0;
+  return event.kind === "access" && event.status >= 400;
 }
 
 /** A transition's new state, or an access failure's code. A 2xx or 3xx
  * access needs no chip. */
 function EventState({ event }: { event: OpsEvent }) {
   if (event.kind === "transition") return <OpsStateBadge state={event.to} />;
+  if (event.kind === "run")
+    return event.exit !== null && event.exit !== 0 ? (
+      <StateBadge tone="critical" label={`Exit ${event.exit}`} />
+    ) : null;
   if (event.kind !== "access" || event.status < 400) return null;
   return (
     <StateBadge

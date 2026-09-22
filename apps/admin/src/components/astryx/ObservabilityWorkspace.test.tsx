@@ -390,7 +390,7 @@ describe("Status view edge cases", () => {
 
   it("shows nothing from a fixture that breaks the contract", () => {
     const value = fresh();
-    value.catalog[0].extra = true;
+    value.catalog[0].kind = "robot";
     const host = render(value);
     expect(host.querySelector("table")).toBeNull();
     expect(host.textContent).toContain("Fixture rejected");

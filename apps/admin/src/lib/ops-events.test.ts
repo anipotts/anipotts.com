@@ -86,7 +86,11 @@ describe("ops_events_v1 parser", () => {
       0,
     ).items;
     expect((nullDevice as OpsAccessEvent).device).toBeNull();
-    rejects(envelope([access(1, { extra: 1 })]));
+    const extra = parseOpsEvents(envelope([access(1, { extra: 1 })]), 0);
+    expect(extra.items).toHaveLength(1);
+    expect(extra.unknownFields).toEqual(["extra"]);
+    expect(parseOpsEvents(envelope([access(1)]), 0).unknownFields).toEqual([]);
+    rejects(envelope([access(1, { status: "200" })]));
     const missing = access(1);
     delete missing.detail;
     rejects(envelope([missing]));
@@ -124,6 +128,48 @@ describe("ops_events_v1 parser", () => {
     rejects(envelope([access(1, { status: 99 })]));
     rejects(envelope([access(1, { ms: -1 })]));
     rejects(envelope([access(1, { subject: "data search?q=secret" })]));
+  });
+
+  it("parses run rows with an exit code and a duration, either may be null", () => {
+    const run = (seq: number, extra: Json = {}): Json => ({
+      ...access(seq),
+      kind: "run",
+      subject: "pc.writer",
+      status: 0,
+      ms: 12_400,
+      detail: "1 run(s)",
+      ...extra,
+    });
+    const page = parseOpsEvents(
+      envelope([
+        run(1),
+        run(2, { status: 1, ms: null }),
+        run(3, { status: null }),
+      ]),
+      0,
+    );
+    expect(page.items).toEqual([
+      expect.objectContaining({
+        kind: "run",
+        subject: "pc.writer",
+        exit: 0,
+        ms: 12_400,
+      }),
+      expect.objectContaining({ kind: "run", exit: 1, ms: null }),
+      expect.objectContaining({ kind: "run", exit: null }),
+    ]);
+    expect(opsActivitySource(page.items[0]!, new Map())).toEqual({
+      id: "kind:run",
+      label: "Runs",
+    });
+    rejects(envelope([run(1, { subject: "not an id" })]));
+    rejects(envelope([run(1, { status: 1.5 })]));
+    rejects(envelope([run(1, { status: 2 ** 31 })]));
+  });
+
+  it("keeps HTTP status bounds on access rows only", () => {
+    rejects(envelope([access(1, { status: 0 })]));
+    rejects(envelope([access(1, { status: 600 })]));
   });
 
   it("requires seq to ascend above after", () => {
