@@ -1,5 +1,4 @@
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
 
 // Admin colors switch on the computed color-scheme, the same switch Astryx
@@ -379,18 +378,12 @@ describe("theme contract guard fixtures", () => {
   });
 });
 
-it("switches every admin root color token with color-scheme", () => {
-  expect(
-    blocks(css).some((block) => ownSelectors(block).includes(":root")),
-  ).toBe(true);
-  // admin.css imports the brand tokens, whose aliases name the switched
-  // --color-* tokens (--surface, --bg, --interactive).
-  const brandTokens = readFileSync(
-    createRequire(import.meta.url).resolve("@anipotts/brand/tokens.css"),
-    "utf8",
-  );
-  expect(css).toContain('@import "@anipotts/brand/tokens.css"');
-  expect(unswitchedRootColors(css, [brandTokens])).toEqual([]);
+it("takes every admin color from the switched Astryx theme tokens", () => {
+  // The legacy root palette and its brand token aliases are gone; admin.css
+  // declares no root tokens that could miss the color-scheme switch.
+  expect(rootDeclarations(css)).toEqual([]);
+  expect(unswitchedRootColors(css)).toEqual([]);
+  expect(css).not.toContain("@anipotts/brand/tokens.css");
 });
 
 it("declares no custom properties under [data-theme] or prefers-color-scheme", () => {

@@ -1,141 +1,6 @@
-/* Brand tokens and motion only. Font faces and family tokens come from
-   fonts.css, which AdminLayout loads after this file. */
-@import "@anipotts/brand/tokens.css";
+/* Brand motion only. Font faces and family tokens come from fonts.css, and
+   every color, space and type value is an Astryx token. */
 @import "@anipotts/brand/motion.css";
-
-/* Legacy tokens switch on the computed color-scheme, as Astryx tokens do.
-   AdminLayout sets that scheme inline, so system mode needs no data-theme. */
-:root {
-  --color-background: light-dark(#f7faff, var(--color-background-body));
-  --color-surface: light-dark(#ffffff, var(--color-background-surface));
-  --color-surface-elevated: light-dark(#edf2f7, var(--color-background-surface));
-  --color-text: light-dark(#0b1220, var(--brand-primary-text));
-  --color-text-muted: light-dark(#46566c, var(--brand-muted-text));
-  --color-action: light-dark(#25689f, var(--brand-action));
-  --color-action-ink: light-dark(#ffffff, #07111a);
-  --color-border: light-dark(
-    #d4dce7,
-    color-mix(in srgb, var(--brand-muted-text) 22%, transparent)
-  );
-  --color-border-strong: light-dark(
-    #8d9bad,
-    color-mix(in srgb, var(--brand-muted-text) 42%, transparent)
-  );
-  --color-focus: #25689f;
-  --color-accent-soft: light-dark(
-    #dcecf9,
-    color-mix(in srgb, var(--brand-action) 18%, transparent)
-  );
-  --mono: var(--sans);
-  --p-h1: clamp(2rem, 4vw, 2.9rem);
-  --p-h3: 1.25rem;
-  --p-hero: clamp(2.4rem, 6vw, 4rem);
-  --p-body: clamp(1rem, 0.5vw + 0.9rem, 1.0625rem);
-  --measure: 65ch;
-  --lh-body: 1.65;
-  --lh-tight: 1.1;
-  --panel: var(--surface);
-  --panel-strong: light-dark(
-    color-mix(in srgb, var(--brand-dark-blue) 8%, var(--brand-white)),
-    var(--color-background-surface)
-  );
-  --text: var(--ink);
-  --muted: var(--ink-muted);
-  --risk: light-dark(#b45309, #f9e2af);
-  --danger-border: light-dark(#c2410c, #f38ba8);
-  --danger-text: light-dark(#9a3412, #f38ba8);
-  --inverse-ink: var(--interactive-ink);
-  --field-surface: light-dark(
-    color-mix(in srgb, var(--brand-dark-blue) 2%, var(--brand-white)),
-    var(--color-background-surface)
-  );
-  --warn-border: light-dark(#d6a950, #f9e2af);
-  --warn-surface: light-dark(#fbf4dd, var(--color-background-surface));
-}
-
-html {
-  background: var(--bg);
-}
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--sans);
-  font-size: var(--p-body);
-  line-height: var(--lh-body);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-:where(a, button, input, select, textarea, summary):focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
-}
-
-code,
-pre,
-kbd,
-samp {
-  font-family: var(--code);
-}
-
-main {
-  min-width: 0;
-  padding: clamp(20px, 4vw, 44px);
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--panel);
-  min-width: 780px;
-}
-
-th,
-td {
-  padding: 14px 16px;
-  text-align: left;
-  vertical-align: top;
-  font-size: 14px;
-}
-
-td {
-  color: var(--muted);
-}
-
-th {
-  color: var(--color-text-muted);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-}
-
-dt {
-  margin: 0 0 3px;
-  color: var(--muted);
-  font-size: 12px;
-  text-transform: uppercase;
-}
-
-dd {
-  margin: 0;
-  color: var(--muted);
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-  font-size: 13px;
-}
 
 /* The shell sets the frame's gutters and width. */
 .admin-page-frame {
@@ -160,9 +25,9 @@ dd {
 
 .page-header h1 {
   margin: 0;
-  font-size: var(--p-h1);
+  font-size: clamp(2rem, 4vw, 2.9rem);
   font-weight: 500;
-  line-height: var(--lh-tight);
+  line-height: 1.1;
   letter-spacing: 0;
 }
 
@@ -170,7 +35,7 @@ dd {
 .page-header p,
 .page-header span {
   margin: 0 0 8px;
-  color: var(--muted);
+  color: var(--color-text-secondary);
   font-size: 13px;
   max-width: 60ch;
 }
@@ -190,9 +55,9 @@ dd {
 }
 
 .meta-strip span {
-  border: 1px solid var(--border);
-  background: var(--panel);
-  color: var(--muted);
+  border: 1px solid var(--color-border);
+  background: var(--color-background-surface);
+  color: var(--color-text-secondary);
   padding: 8px 10px;
   font-size: 12px;
 }
@@ -206,10 +71,6 @@ dd {
 }
 
 @media (max-width: 860px) {
-  main {
-    padding: 18px;
-  }
-
   .page-header {
     display: block;
   }
