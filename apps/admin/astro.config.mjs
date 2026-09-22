@@ -2,7 +2,6 @@
 import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
-import icon from "astro-icon";
 import astroAdvisoryGuard from "../../config/astro/advisory-guard.mjs";
 import { publicContentHotReload } from "../../scripts/dev/public-content-hot-reload.mjs";
 import { editorialPublicAssets } from "../../scripts/dev/editorial-public-assets.mjs";
@@ -33,7 +32,6 @@ export default defineConfig({
   integrations: [
     astroAdvisoryGuard(),
     react(),
-    icon({ include: { ph: ["*"] } }),
     // Retired URLs answer 308 through the middleware, like any other route.
     retiredRoutes(),
     // The component catalog exists only under astro dev. A build never

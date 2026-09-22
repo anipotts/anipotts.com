@@ -755,25 +755,6 @@ export function RowTitle({
   );
 }
 
-/** A record's type: its glyph and name as one compact chip. */
-export function KindBadge({
-  icon: Glyph,
-  label,
-}: {
-  icon: Icon;
-  label: string;
-}) {
-  return (
-    <Token
-      size="sm"
-      color="default"
-      label={label}
-      className="workspace-kind"
-      icon={<Glyph weight="regular" size={14} aria-hidden="true" />}
-    />
-  );
-}
-
 export type Tone = "positive" | "neutral" | "warning" | "critical" | "calm";
 
 const TONES: Record<

@@ -1,12 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import {
-  BREAKPOINTS,
-  BREAKPOINT_MIN,
-  atLeast,
-  below,
-  isBelow,
-} from "./breakpoints";
+import { BREAKPOINTS, BREAKPOINT_MIN, below, isBelow } from "./breakpoints";
 
 const read = (path: string) =>
   readFileSync(new URL(path, import.meta.url), "utf8").replace(
@@ -18,7 +12,7 @@ const read = (path: string) =>
 const EDGES = new Set(
   BREAKPOINTS.filter((range) => range !== "compact").flatMap((range) => [
     below(range),
-    atLeast(range),
+    `(min-width: ${BREAKPOINT_MIN[range]}px)`,
   ]),
 );
 
@@ -43,9 +37,13 @@ describe("layout ranges", () => {
   });
 
   it("are the only widths the workspace kit's media queries use", () => {
+    // Container queries measure the content area, not the window (the
+    // list and detail split), so only @media preludes are checked.
     const css = read("../components/workspace/workspace.css");
-    const widths = [...css.matchAll(/\((?:min|max)-width:\s*\d+px\)/g)].map(
-      ([condition]) => condition,
+    const widths = [...css.matchAll(/@media[^{]*/g)].flatMap(([prelude]) =>
+      [...prelude.matchAll(/\((?:min|max)-width:\s*\d+px\)/g)].map(
+        ([condition]) => condition,
+      ),
     );
     expect(widths.length).toBeGreaterThan(0);
     expect(widths.filter((condition) => !EDGES.has(condition))).toEqual([]);

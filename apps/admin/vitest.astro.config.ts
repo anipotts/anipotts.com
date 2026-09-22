@@ -1,6 +1,5 @@
 import { getViteConfig } from "astro/config";
 import react from "@astrojs/react";
-import icon from "astro-icon";
 
 // Real Astro compilation and rendering, without a dev server or provider proxy.
 export default getViteConfig(
@@ -10,7 +9,7 @@ export default getViteConfig(
   },
   {
     configFile: false,
-    integrations: [react(), icon({ include: { ph: ["*"] } })],
+    integrations: [react()],
     output: "server",
   },
 );

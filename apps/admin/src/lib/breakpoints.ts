@@ -27,11 +27,6 @@ export function below(range: Exclude<Breakpoint, "compact">): string {
   return `(max-width: ${BREAKPOINT_MIN[range] - 1}px)`;
 }
 
-/** The media query for `range` and everything wider. */
-export function atLeast(range: Exclude<Breakpoint, "compact">): string {
-  return `(min-width: ${BREAKPOINT_MIN[range]}px)`;
-}
-
 /** Whether `range` is narrower than `than`. */
 export function isBelow(range: Breakpoint, than: Breakpoint): boolean {
   return BREAKPOINTS.indexOf(range) < BREAKPOINTS.indexOf(than);

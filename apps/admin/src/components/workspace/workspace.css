@@ -6,6 +6,7 @@
    Media queries use lib/breakpoints.ts and nothing else:
    compact (max-width: 640px), medium from 641px, large from 1024px
    (max-width: 1023px below it), wide from 1440px (max-width: 1439px below).
+   The list and detail split is a container query on the content area.
    Hover tints apply only under (hover: hover). */
 
 /* Page. */
@@ -327,7 +328,6 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
 
 /* Chips hold their full label. */
 .workspace-state,
-.workspace-kind,
 .workspace-sample {
   width: max-content;
   max-width: 100%;
@@ -341,9 +341,6 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
 }
 .workspace-state-mark {
   flex: none;
-}
-.workspace-kind {
-  color: var(--color-text-secondary);
 }
 /* A view switch sits where a filter bar would, at its own width. */
 .workspace-views {
