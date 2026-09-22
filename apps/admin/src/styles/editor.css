@@ -650,21 +650,33 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   font-size: var(--text-body-size);
 }
 
-/* A date and its time share one row, with UTC named once after them. */
+/* A date and its time share one row, with UTC named once after them. The
+   date never shrinks under its own text; on a narrow sheet the time and its
+   zone wrap together to the next line. */
 .editor-date-row {
   flex-wrap: wrap;
   min-width: 0;
 }
-.editor-date-row > * {
-  flex: 1 1 9rem;
+.editor-date-row > .astryx-field {
+  flex: 1 1 auto;
+  min-width: max-content;
+}
+.editor-date-time {
+  flex: 1 1 11rem;
   min-width: 0;
 }
-.editor-date-row > .editor-date-zone {
-  flex: 0 0 auto;
+.editor-date-time > .astryx-field {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .editor-date-zone {
   flex: 0 0 auto;
   padding-block-end: var(--spacing-2);
+}
+@media (pointer: coarse), (max-width: 640px) {
+  .editor-date-zone {
+    padding-block-end: var(--spacing-3);
+  }
 }
 
 /* Project sections: small headings, left-aligned adds, glyph controls. */

@@ -82,15 +82,10 @@
   transition: background-color 600ms ease-out;
 }
 
-/* The source menu's counts, and its items at the touch size. The menu is
-   portalled, so it is found by what it holds. */
+/* The source menu's counts. Its items take the shared touch size
+   (styles/admin-interactions.css). */
 .ops-menu-count {
   color: var(--color-text-secondary);
-}
-@media (pointer: coarse) {
-  .astryx-dropdown-menu:has(.ops-menu-count) [role="menuitemradio"] {
-    min-height: var(--spacing-11);
-  }
 }
 
 @media (max-width: 640px) {
