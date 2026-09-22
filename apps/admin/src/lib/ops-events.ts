@@ -45,8 +45,13 @@ export const OPS_EVENTS_BOUNDS = {
 
 /** Pages read per poll, so a first read after a long gap still finishes. */
 export const OPS_EVENTS_PAGES_PER_READ = 10;
-/** Memory bounds. Transitions are rare state changes; access rows are many. */
-export const OPS_EVENTS_KEEP = { transitions: 5000, recent: 1000 } as const;
+/** Memory bounds. Transitions are rare state changes and runs are a few a
+ * day per job; access rows are many. */
+export const OPS_EVENTS_KEEP = {
+  transitions: 5000,
+  runs: 2000,
+  recent: 1000,
+} as const;
 
 const ITEM_KEYS = [
   "seq",
@@ -229,24 +234,42 @@ export function opsEventsPath(
   return `${OPS_EVENTS_PATH}?after=${after}&limit=${limit}${wait === null ? "" : `&wait=${wait}`}`;
 }
 
-/** What this page holds in memory: the cursor, every transition (for alerts)
- * and the newest events of every kind (for Activity). */
+/** What this page holds in memory: the cursor, every transition (for alerts
+ * and each entry's changes), every run (for run history) and the newest
+ * events of every kind (for Activity). */
 export type OpsEventLog = {
   cursor: number;
   transitions: OpsTransitionEvent[];
+  runs: OpsRunEvent[];
   recent: OpsEvent[];
+  /** Item field names this client does not know yet, from every page read,
+   * sorted: named in a drift notice, never read. */
+  unknownFields: string[];
 };
 
 export const EMPTY_EVENT_LOG: OpsEventLog = Object.freeze({
   cursor: 0,
   transitions: [],
+  runs: [],
   recent: [],
+  unknownFields: [],
 }) as OpsEventLog;
 
 export function appendOpsEvents(
   log: OpsEventLog,
   items: readonly OpsEvent[],
+  unknownFields: readonly string[] = [],
 ): OpsEventLog {
+  const drift = unknownFields.filter(
+    (name) => !log.unknownFields.includes(name),
+  );
+  if (drift.length)
+    log = {
+      ...log,
+      unknownFields: [...log.unknownFields, ...drift]
+        .sort()
+        .slice(0, OPS_V1_BOUNDS.maxUnknownFields),
+    };
   if (!items.length) return log;
   const transitions = [
     ...log.transitions,
@@ -254,11 +277,25 @@ export function appendOpsEvents(
       (event): event is OpsTransitionEvent => event.kind === "transition",
     ),
   ].slice(-OPS_EVENTS_KEEP.transitions);
+  const runs = [
+    ...log.runs,
+    ...items.filter((event): event is OpsRunEvent => event.kind === "run"),
+  ].slice(-OPS_EVENTS_KEEP.runs);
   return {
     cursor: items.at(-1)!.seq,
     transitions,
+    runs,
     recent: [...log.recent, ...items].slice(-OPS_EVENTS_KEEP.recent),
+    unknownFields: log.unknownFields,
   };
+}
+
+/** Whether a page of events changes what the snapshot says: a state change
+ * or a finished run. Access rows never do. */
+export function opsEventsMoveSnapshot(items: readonly OpsEvent[]): boolean {
+  return items.some(
+    (event) => event.kind === "transition" || event.kind === "run",
+  );
 }
 
 /** The states that fire an alert. */
@@ -274,12 +311,25 @@ export type OpsAlert = {
   status: "firing" | "resolved";
   /** The state of the episode's latest problem transition. */
   state: OpsState;
+  /** The most severe state the episode reached: what a resolved incident
+   * was. */
+  peak: OpsState;
   /** When the episode began: its first problem transition. */
   since: string;
   /** When the later ok arrived, for a resolved alert. */
   resolvedAt: string | null;
   detail: string | null;
+  /** Every episode this entry had in the events held, this one included. */
+  incidents: number;
 };
+
+/** Problem states, most severe first. */
+const SEVERITY: readonly OpsState[] = ["failing", "degraded", "stale"];
+const worse = (a: OpsState, b: OpsState) =>
+  SEVERITY.indexOf(b) !== -1 &&
+  (SEVERITY.indexOf(a) === -1 || SEVERITY.indexOf(b) < SEVERITY.indexOf(a))
+    ? b
+    : a;
 
 /**
  * Alerts, derived only from transitions. Per catalog id, an episode starts
@@ -291,57 +341,76 @@ export type OpsAlert = {
 export function deriveOpsAlerts(
   transitions: readonly OpsTransitionEvent[],
 ): OpsAlert[] {
-  const bySubject = new Map<
-    string,
-    {
-      start: string | null;
-      latest: OpsTransitionEvent;
-      problem: OpsTransitionEvent | null;
-      resolved: OpsAlert | null;
-    }
-  >();
-  for (const event of [...transitions].sort((a, b) => a.seq - b.seq)) {
-    const entry = bySubject.get(event.subject) ?? {
-      start: null,
-      latest: event,
-      problem: null,
-      resolved: null,
-    };
-    entry.latest = event;
-    if (OPS_PROBLEM_STATES.includes(event.to)) {
-      entry.start ??= event.at;
-      entry.problem = event;
-    } else if (event.to === "ok" && entry.start !== null && entry.problem) {
-      entry.resolved = {
-        subject: event.subject,
-        status: "resolved",
-        state: entry.problem.to,
-        since: entry.start,
-        resolvedAt: event.at,
-        detail: entry.problem.detail,
-      };
-      entry.start = null;
-      entry.problem = null;
-    }
-    bySubject.set(event.subject, entry);
-  }
   const firing: OpsAlert[] = [];
   const resolved: OpsAlert[] = [];
-  for (const [subject, entry] of bySubject) {
-    if (OPS_PROBLEM_STATES.includes(entry.latest.to) && entry.start)
-      firing.push({
-        subject,
-        status: "firing",
-        state: entry.latest.to,
-        since: entry.start,
-        resolvedAt: null,
-        detail: entry.latest.detail,
-      });
-    else if (entry.resolved) resolved.push(entry.resolved);
+  for (const episodes of opsIncidentsBySubject(transitions).values()) {
+    const latest = episodes[0]!;
+    if (latest.status === "firing") firing.push(latest);
+    else resolved.push(latest);
   }
   firing.sort((a, b) => b.since.localeCompare(a.since));
   resolved.sort((a, b) => b.resolvedAt!.localeCompare(a.resolvedAt!));
   return [...firing, ...resolved];
+}
+
+/**
+ * Every episode per catalog id, newest first: its current one when firing,
+ * then each resolved one. An episode starts at the first problem state after
+ * an ok (or after first sight) and ends at the next ok; unknown and asleep
+ * neither start nor end one.
+ */
+export function opsIncidentsBySubject(
+  transitions: readonly OpsTransitionEvent[],
+): Map<string, OpsAlert[]> {
+  type Open = { start: string; latest: OpsTransitionEvent; peak: OpsState };
+  const open = new Map<string, Open>();
+  const episodes = new Map<string, OpsAlert[]>();
+  const push = (subject: string, alert: OpsAlert) => {
+    const list = episodes.get(subject);
+    if (list) list.unshift(alert);
+    else episodes.set(subject, [alert]);
+  };
+  const latest = new Map<string, OpsState>();
+  for (const event of [...transitions].sort((a, b) => a.seq - b.seq)) {
+    latest.set(event.subject, event.to);
+    const current = open.get(event.subject);
+    if (OPS_PROBLEM_STATES.includes(event.to)) {
+      open.set(event.subject, {
+        start: current?.start ?? event.at,
+        latest: event,
+        peak: current ? worse(current.peak, event.to) : event.to,
+      });
+    } else if (event.to === "ok" && current) {
+      push(event.subject, {
+        subject: event.subject,
+        status: "resolved",
+        state: current.latest.to,
+        peak: current.peak,
+        since: current.start,
+        resolvedAt: event.at,
+        detail: current.latest.detail,
+        incidents: 0,
+      });
+      open.delete(event.subject);
+    }
+  }
+  // A problem that went unknown or asleep is not firing; a later ok still
+  // resolves it.
+  for (const [subject, current] of open)
+    if (OPS_PROBLEM_STATES.includes(latest.get(subject)!))
+      push(subject, {
+        subject,
+        status: "firing",
+        state: current.latest.to,
+        peak: current.peak,
+        since: current.start,
+        resolvedAt: null,
+        detail: current.latest.detail,
+        incidents: 0,
+      });
+  for (const list of episodes.values())
+    for (const alert of list) alert.incidents = list.length;
+  return episodes;
 }
 
 /** Reader route families, as Activity names them. */
@@ -351,6 +420,7 @@ const ROUTE_LABELS: Record<string, string> = {
   "data.get": "Data record",
   "data.record": "Data record",
   "data.sources": "Data sources",
+  "health.health": "Health daily",
   "activity.activity": "Activity feed",
   "ops.snapshot": "Ops snapshot",
   "ops.events": "Ops events",
@@ -372,11 +442,30 @@ export function opsAccessSummary(event: OpsAccessEvent): string {
 
 export type OpsActivitySource = { id: string; label: string };
 
-/** Activity's source filter: transitions by catalog group, reader access,
- * then any other kind by name. */
 /** Access rows from admin's own ops polling: noise unless asked for. */
 export const OPS_ADMIN_POLLING_SOURCE = "access:admin";
 
+/** Routes that are plumbing rather than reads: CORS preflights, the
+ * sampler's liveness probe and admin's own ops polling. */
+const PLUMBING_ROUTES: ReadonlySet<string> = new Set([
+  "preflight",
+  "probe",
+  "ops.snapshot",
+  "ops.events",
+]);
+
+/** Whether Activity folds an event away by default: a plumbing access that
+ * succeeded. A failure is never plumbing, since it is an exception. */
+export function opsIsPlumbing(event: OpsEvent): boolean {
+  return (
+    event.kind === "access" &&
+    PLUMBING_ROUTES.has(event.subject) &&
+    event.status < 400
+  );
+}
+
+/** Activity's source filter: transitions by catalog group, reader access,
+ * then any other kind by name. */
 export function opsActivitySource(
   event: OpsEvent,
   catalog: ReadonlyMap<string, OpsCatalogEntry>,

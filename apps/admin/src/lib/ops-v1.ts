@@ -517,13 +517,15 @@ export function opsSamplerStopped(snapshot: OpsSnapshot, now: number) {
 
 /**
  * Owner priority for the Status table: Personal Context memory, its
- * snapshots and offsite copies first, then health ingest, then agent
- * sessions, then services. Groups System adds later follow in catalog order.
- * The "hosts" group renders as the strip above the table, never in it.
+ * snapshots and offsite copies first, then restore drills (recovery), then
+ * health ingest, then agent sessions, then services. Groups System adds
+ * later follow in catalog order. The "hosts" group renders as the strip
+ * above the table, never in it.
  */
 export const OPS_GROUP_PRIORITY = [
   "personal context",
   "backups",
+  "recovery",
   "health ingest",
   "agent sessions",
   "services",

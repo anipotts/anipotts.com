@@ -17,6 +17,7 @@ import {
   OPS_EVENTS_BOUNDS,
   OPS_EVENTS_PAGES_PER_READ,
   appendOpsEvents,
+  opsEventsMoveSnapshot,
   opsEventsPath,
   parseOpsEventsBytes,
   type OpsEventLog,
@@ -30,7 +31,9 @@ import {
  * `ops:read`; a credential with any other scope is refused before it is sent.
  * The snapshot and its ETag live in memory only (`cache: "no-store"`, no Web
  * Storage) and are dropped on logout, denial or credential expiry. Polling
- * runs every 30 seconds and only while the tab is visible. The session
+ * runs every 30 seconds and only while the tab is visible, and a state change
+ * or a finished run in the events feed reads the snapshot at once (a 304
+ * when nothing moved) rather than waiting for the next poll. The session
  * follows the shared idle rule (lib/private-session-store.ts); a session the
  * rule opens again resumes polling. The React binding is
  * components/hooks/useOpsStatus.ts.
@@ -287,6 +290,8 @@ export function createOpsStatusController(options: OpsStatusOptions) {
   let eventsInflight: AbortController | null = null;
   let eventsRead = false;
   let shortHolds = 0;
+  /** A snapshot read is owed as soon as the one in flight settles. */
+  let owed = false;
 
   function set(next: Partial<OpsStatusState>) {
     state = { ...state, ...next };
@@ -317,6 +322,7 @@ export function createOpsStatusController(options: OpsStatusOptions) {
     timer = null;
     inflight?.abort();
     inflight = null;
+    owed = false;
     cancelEvents();
   }
 
@@ -348,7 +354,8 @@ export function createOpsStatusController(options: OpsStatusOptions) {
     const began = now();
     let next = eventsWait === null ? eventsPollMs : 0;
     try {
-      const got = await readEvents(controller.signal, current);
+      const { got, moved } = await readEvents(controller.signal, current);
+      if (moved) readSnapshotNow();
       if (eventsWait !== null) {
         const short = !got && now() - began < OPS_EVENTS_SHORT_HOLD_MS;
         shortHolds = short ? shortHolds + 1 : 0;
@@ -384,6 +391,16 @@ export function createOpsStatusController(options: OpsStatusOptions) {
     timer = null;
     if (!running || isHidden()) return;
     timer = setTimer(() => void tick(), Math.max(0, delay));
+  }
+
+  /** A state changed or a run finished: read the snapshot now, with its
+   * ETag, instead of at the next poll. System writes the snapshot before it
+   * records the events, so the read sees the change. A read already in
+   * flight may predate it, so one more follows as soon as it settles. */
+  function readSnapshotNow() {
+    if (!running || isHidden()) return;
+    if (inflight) owed = true;
+    else schedule(0);
   }
 
   async function tick() {
@@ -446,7 +463,8 @@ export function createOpsStatusController(options: OpsStatusOptions) {
       clearTimer(deadline);
       if (inflight === controller) {
         inflight = null;
-        schedule(pollMs);
+        schedule(owed ? 0 : pollMs);
+        owed = false;
       }
     }
   }
@@ -454,13 +472,17 @@ export function createOpsStatusController(options: OpsStatusOptions) {
   /** Pages after the held cursor. Each page is kept as it arrives, so a
    * failure part way keeps what was read and the next poll continues. A
    * page that breaks the contract clears the events and starts over. */
-  /** Returns whether any event arrived. Only the first page waits; later
-   * pages of a backlog answer at once. */
+  /** Returns whether any event arrived, and whether one moved the snapshot
+   * after the first read (the first read's backlog is history the snapshot
+   * already shows). Only the first page waits; later pages of a backlog
+   * answer at once. */
   async function readEvents(
     signal: AbortSignal,
     current: () => boolean,
-  ): Promise<boolean> {
+  ): Promise<{ got: boolean; moved: boolean }> {
     let got = false;
+    let moved = false;
+    const result = () => ({ got, moved });
     for (let page = 0; page < OPS_EVENTS_PAGES_PER_READ; page++) {
       const log = state.events ?? EMPTY_EVENT_LOG;
       let read: OpsEventsPage;
@@ -471,10 +493,10 @@ export function createOpsStatusController(options: OpsStatusOptions) {
           wait: page === 0 ? eventsWait : null,
         });
       } catch (error) {
-        if (!current()) return got;
+        if (!current()) return result();
         if (error instanceof OpsSnapshotError) {
           set({ events: EMPTY_EVENT_LOG, eventsStale: true });
-          return got;
+          return result();
         }
         // Credential failures end or renew the session, as for the snapshot.
         if (
@@ -484,14 +506,18 @@ export function createOpsStatusController(options: OpsStatusOptions) {
           throw error;
         // Anything else leaves the snapshot alone: events are marked stale.
         set({ eventsStale: true });
-        return got;
+        return result();
       }
-      if (!current()) return got;
+      if (!current()) return result();
       got ||= read.items.length > 0;
-      set({ events: appendOpsEvents(log, read.items), eventsStale: false });
-      if (read.nextAfter === null) return got;
+      moved ||= log.cursor > 0 && opsEventsMoveSnapshot(read.items);
+      set({
+        events: appendOpsEvents(log, read.items, read.unknownFields),
+        eventsStale: false,
+      });
+      if (read.nextAfter === null) return result();
     }
-    return got;
+    return result();
   }
 
   function stop(connection: OpsConnection) {

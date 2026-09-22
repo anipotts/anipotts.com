@@ -438,6 +438,7 @@ describe("ops events polling", () => {
     const afters: number[] = [];
     const waits: Array<string | null> = [];
     const signals: AbortSignal[] = [];
+    const snapshots: Array<string | undefined> = [];
     const fetch = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = new URL(String(input), "https://admin.invalid");
@@ -449,10 +450,15 @@ describe("ops events polling", () => {
             scope: ["ops:read"],
             expiresAt: Math.floor(Date.now() / 1000) + 60,
           });
-        if (url.pathname === OPS_SNAPSHOT_PATH)
-          return new Response(body, {
-            headers: { "content-type": "application/json", etag: '"v1"' },
-          });
+        if (url.pathname === OPS_SNAPSHOT_PATH) {
+          const tag = init ? header(init, "If-None-Match") : undefined;
+          snapshots.push(tag);
+          return tag === '"v1"'
+            ? new Response(null, { status: 304 })
+            : new Response(body, {
+                headers: { "content-type": "application/json", etag: '"v1"' },
+              });
+        }
         expect(url.origin).toBe(PRIVATE_READER_ORIGIN);
         expect(url.pathname).toBe("/v1/ops/events");
         expect(
@@ -478,7 +484,7 @@ describe("ops events polling", () => {
       events: true,
       ...extra,
     });
-    return { controller, afters, waits, signals };
+    return { controller, afters, waits, signals, snapshots };
   }
   // The snapshot read, then the events loop it starts.
   // Response bodies resolve on real macrotasks, so each round lets one run
@@ -566,6 +572,55 @@ describe("ops events polling", () => {
     controller.dispose();
   });
 
+  it("reads the snapshot at once when a transition or a run arrives", async () => {
+    const change = (seq: number, kind: "transition" | "run") => ({
+      seq,
+      at: "2026-09-21T17:59:00Z",
+      kind,
+      subject: "pc.writer",
+      from_state: kind === "transition" ? "ok" : null,
+      to_state: kind === "transition" ? "failing" : null,
+      status: kind === "run" ? 0 : null,
+      ms: kind === "run" ? 5200 : null,
+      detail: null,
+    });
+    // A zero delay set inside a fake-timer tick lands 1 ms later.
+    const settle = async () => {
+      await vi.advanceTimersByTimeAsync(1);
+      await flush();
+    };
+    for (const kind of ["transition", "run"] as const) {
+      const { controller, snapshots } = eventsHarness({
+        // The first read's backlog is history the snapshot already shows.
+        0: () => page([item(1), change(2, kind)], null),
+        // Access rows leave the snapshot to its 30 s poll.
+        2: () => page([item(3)], null),
+        3: () => page([change(4, kind)], null),
+        4: () => page([], null),
+      });
+      controller.start();
+      await flush();
+      await settle();
+      expect(snapshots).toEqual([undefined]);
+      await vi.advanceTimersByTimeAsync(OPS_EVENTS_POLL_MS);
+      await settle();
+      expect(snapshots).toEqual([undefined]);
+      // The change reads it now, conditionally, well inside the 30 s.
+      await vi.advanceTimersByTimeAsync(OPS_EVENTS_POLL_MS);
+      await settle();
+      expect(snapshots, kind).toEqual([undefined, '"v1"']);
+      expect(controller.getState().connection).toBe("connected");
+      // The next poll is 30 s after that read, not after the first one.
+      await vi.advanceTimersByTimeAsync(OPS_POLL_MS - 1_000);
+      await flush();
+      expect(snapshots).toHaveLength(2);
+      await vi.advanceTimersByTimeAsync(1_000);
+      await flush();
+      expect(snapshots).toHaveLength(3);
+      controller.dispose();
+    }
+  });
+
   it("keeps what was read when a later page fails and marks events stale", async () => {
     const { controller, afters } = eventsHarness({
       0: () => page([item(1), item(2)], 2),
@@ -593,9 +648,27 @@ describe("ops events polling", () => {
     expect(controller.getState().events).toEqual({
       cursor: 0,
       transitions: [],
+      runs: [],
       recent: [],
+      unknownFields: [],
     });
     expect(controller.getState().eventsStale).toBe(true);
+    controller.dispose();
+  });
+
+  it("names the item fields System sent that it does not read yet", async () => {
+    const { controller } = eventsHarness({
+      0: () => page([{ ...item(1), region: "x" }], null),
+      1: () => page([{ ...item(2), region: "y", tier: 2 }], null),
+      2: () => page([], null),
+    });
+    controller.start();
+    await flush();
+    await vi.advanceTimersByTimeAsync(OPS_EVENTS_POLL_MS);
+    await flush();
+    const events = controller.getState().events!;
+    expect(events.recent).toHaveLength(2);
+    expect(events.unknownFields).toEqual(["region", "tier"]);
     controller.dispose();
   });
 
@@ -611,7 +684,13 @@ describe("ops events polling", () => {
     expect(controller.getState()).toMatchObject({
       connection: "ended",
       snapshot: null,
-      events: { cursor: 0, transitions: [], recent: [] },
+      events: {
+        cursor: 0,
+        transitions: [],
+        runs: [],
+        recent: [],
+        unknownFields: [],
+      },
       eventsStale: false,
     });
   });
