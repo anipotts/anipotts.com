@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { privateReaderCredentialApi } from "../../../lib/private-reader-credential";
-import { privateEditorialResponse } from "../../../lib/editorial-security";
+import { privateJson } from "../../../lib/editorial-security";
 
 /** Issues an `ops:read`-only reader credential for Observability Status. */
 export const ALL: APIRoute = async ({ request, locals }) => {
@@ -12,6 +12,6 @@ export const ALL: APIRoute = async ({ request, locals }) => {
       "ops",
     );
   } catch {
-    return privateEditorialResponse({ error: "reader_unavailable" }, 503);
+    return privateJson({ error: "reader_unavailable" }, 503);
   }
 };

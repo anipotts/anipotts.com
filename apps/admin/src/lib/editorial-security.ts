@@ -1,11 +1,17 @@
-const csrfCookie = "__Host-editorial-csrf";
-const tokenPattern = /^[a-f0-9]{64}$/;
+import { readBoundedBytes } from "./bounded-body";
+import { constantTimeEqual, randomHex } from "./crypto";
+import { HEX64 } from "./patterns";
 
-export function privateEditorialResponse(
+const csrfCookie = "__Host-editorial-csrf";
+
+/** The one private JSON response: never cached, indexed, framed or sniffed.
+ * Failures carry `{ error: code }`. */
+export function privateJson(
   body: unknown,
   status = 200,
+  headers?: HeadersInit,
 ): Response {
-  return Response.json(body, {
+  const response = Response.json(body, {
     status,
     headers: {
       "Cache-Control": "private, no-store",
@@ -17,6 +23,10 @@ export function privateEditorialResponse(
       "Referrer-Policy": "no-referrer",
     },
   });
+  new Headers(headers).forEach((value, name) =>
+    response.headers.set(name, value),
+  );
+  return response;
 }
 
 /** Call only after verifying the Access assertion. The token grants no identity. */
@@ -27,12 +37,8 @@ export function issueEditorialCsrf(request?: Request): Response {
     .filter((value) => value.startsWith(`${csrfCookie}=`));
   const previous =
     existing.length === 1 ? existing[0]!.slice(csrfCookie.length + 1) : "";
-  const token = tokenPattern.test(previous)
-    ? previous
-    : Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) =>
-        byte.toString(16).padStart(2, "0"),
-      ).join("");
-  const response = privateEditorialResponse({ csrf: token });
+  const token = HEX64.test(previous) ? previous : randomHex(32);
+  const response = privateJson({ csrf: token });
   response.headers.set(
     "Set-Cookie",
     `${csrfCookie}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict`,
@@ -60,12 +66,13 @@ export function checkEditorialMutation(
   if (cookies.length !== 1) return "csrf_required";
   const cookie = cookies[0]!.slice(csrfCookie.length + 1);
   const supplied = request.headers.get("X-Editorial-CSRF");
-  if (!tokenPattern.test(cookie) || !supplied || !tokenPattern.test(supplied))
+  if (
+    !HEX64.test(cookie) ||
+    !supplied ||
+    !HEX64.test(supplied) ||
+    !constantTimeEqual(cookie, supplied)
+  )
     return "csrf_required";
-  let difference = 0;
-  for (let index = 0; index < cookie.length; index++)
-    difference |= cookie.charCodeAt(index) ^ supplied.charCodeAt(index);
-  if (difference !== 0) return "csrf_required";
   if (
     request.headers.get("Content-Type")?.split(";")[0]?.trim().toLowerCase() !==
     "application/json"
@@ -83,29 +90,8 @@ export async function readEditorialJson(
   if (length !== null && (!/^\d+$/u.test(length) || Number(length) > limit))
     throw new Error("request_too_large");
   if (!request.body) throw new Error("invalid_json");
-  const reader = request.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      if (size > limit) {
-        await reader.cancel();
-        throw new Error("request_too_large");
-      }
-      chunks.push(value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-  const bytes = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.length;
-  }
+  const bytes = await readBoundedBytes(request.body, limit);
+  if (!bytes) throw new Error("request_too_large");
   try {
     return JSON.parse(
       new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes),

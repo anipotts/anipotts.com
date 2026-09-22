@@ -8,14 +8,7 @@ import {
   inventoryIdentity,
   type InventoryEntry,
 } from "./editorial-inventory-projection";
-
-const pageCollections: Record<string, string> = {
-  home: "home",
-  work: "workPage",
-  writing: "writingPage",
-  systems: "systemsPage",
-  newsletter: "newsletterPage",
-};
+import { recordCollection } from "./editorial-collections";
 
 /** Complete published records replace bundled values, including hidden records. */
 export function overlayPublishedInventory(
@@ -37,12 +30,7 @@ export function overlayPublishedInventory(
     const { record, source } = publication;
     const validated = validateEditorialSource(record, source);
     if (!validated.success) throw new Error("invalid_published_content");
-    const collection =
-      record.kind === "writing"
-        ? "writing"
-        : record.kind === "work"
-          ? "projects"
-          : pageCollections[record.id];
+    const collection = recordCollection(record);
     if (!collection) throw new Error("unsupported_published_record");
     result.set(editorialRecordPath(record), {
       collection,

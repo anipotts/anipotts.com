@@ -15,7 +15,7 @@ import {
 import {
   checkEditorialMutation,
   issueEditorialCsrf,
-  privateEditorialResponse as json,
+  privateJson as json,
   readEditorialJson,
 } from "./editorial-security";
 

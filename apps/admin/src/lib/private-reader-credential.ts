@@ -2,7 +2,7 @@ import { SignJWT, importJWK, type JWK, type JWTVerifyGetKey } from "jose";
 import { verifyEditorialOwnerSession } from "./access-identity";
 import {
   checkEditorialMutation,
-  privateEditorialResponse,
+  privateJson,
   readEditorialJson,
 } from "./editorial-security";
 
@@ -70,11 +70,7 @@ export type PrivateReaderCredentialBody = {
 };
 
 function deny(error: string, status: number, headers?: HeadersInit): Response {
-  const response = privateEditorialResponse({ error }, status);
-  for (const [name, value] of new Headers(headers)) {
-    response.headers.set(name, value);
-  }
-  return response;
+  return privateJson({ error }, status, headers);
 }
 
 async function signingKey(value: string | undefined) {
@@ -167,5 +163,5 @@ export async function privateReaderCredentialApi(
     issuedAt: now,
     expiresAt,
   };
-  return privateEditorialResponse(payload);
+  return privateJson(payload);
 }

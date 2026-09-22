@@ -13,7 +13,7 @@ vi.mock("./editorial-media", () => ({
   editorialImagePreview: (value: string) => value,
 }));
 vi.mock("./editorial-security", () => ({
-  privateEditorialResponse: (body: unknown, status: number) =>
+  privateJson: (body: unknown, status: number) =>
     Response.json(body, { status }),
 }));
 vi.mock("./admin-auth", () => ({

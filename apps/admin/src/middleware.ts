@@ -4,7 +4,7 @@ import {
   retainedAccessPrincipal,
   verifyEditorialOwner,
 } from "./lib/access-identity";
-import { privateEditorialResponse } from "./lib/editorial-security";
+import { privateJson } from "./lib/editorial-security";
 import { publicSiteUrl } from "./lib/editorial-content";
 import { editorialImagePreview } from "./lib/editorial-media";
 import {
@@ -70,7 +70,7 @@ async function handleRequest(
         context.locals.runtime?.env ?? {},
       ))
     ) {
-      return privateEditorialResponse({ error: "owner_required" }, 401);
+      return privateJson({ error: "owner_required" }, 401);
     }
     let response = await next();
     if (

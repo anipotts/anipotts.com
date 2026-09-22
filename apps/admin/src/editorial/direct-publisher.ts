@@ -34,6 +34,9 @@ import {
   sourceIsPublic,
   unpublishedSource,
 } from "../lib/editorial-visibility";
+import { drainBounded, readBoundedBytes } from "../lib/bounded-body";
+import { HEX64 } from "../lib/patterns";
+import { publisherMode, type PublisherMode } from "../lib/runtime-contract";
 import type { Draft } from "./draft-store";
 import type { EditorialMedia } from "./media-store";
 
@@ -96,7 +99,6 @@ export type DirectStartResult =
 const leaseMs = 60_000;
 const prepareWindow = 30 * 60_000;
 const verifyWindow = 24 * 60 * 60_000;
-const sha = /^[a-f0-9]{64}$/;
 const hash = (value: string | Uint8Array) =>
   createHash("sha256").update(value).digest("hex");
 const terminal = (row: Row) =>
@@ -113,19 +115,9 @@ const sameInput = (
   left.expectedPublicationId === right.expectedPublicationId &&
   left.expectedBaselineSha256 === right.expectedBaselineSha256;
 
-export function editorialPublishMode(
-  env: unknown,
-): "legacy" | "maintenance" | "direct" {
-  const mode =
-    env && typeof env === "object"
-      ? (env as Record<string, unknown>).EDITORIAL_PUBLISH_MODE
-      : undefined;
-  // Rolling upgrade retains legacy behavior only when no mode was configured.
-  return mode === undefined || mode === "legacy"
-    ? "legacy"
-    : mode === "direct"
-      ? "direct"
-      : "maintenance";
+/** Invalid configuration stops publishing; it never selects a publisher. */
+export function editorialPublishMode(env: unknown): PublisherMode {
+  return publisherMode(env) ?? "maintenance";
 }
 
 /** Durable per-record publishing. Private intents stay in the editorial object;
@@ -231,8 +223,8 @@ export class DirectPublisher {
         .safeParse(input.expectedPublicationId).success ||
       !Number.isSafeInteger(input.expectedRevision) ||
       input.expectedRevision < 1 ||
-      !sha.test(input.reviewedSourceSha256) ||
-      !sha.test(input.expectedBaselineSha256)
+      !HEX64.test(input.reviewedSourceSha256) ||
+      !HEX64.test(input.expectedBaselineSha256)
     )
       return { ok: false, code: "invalid_request" };
     // Persist the wake before accepting intent. A crash leaves either an empty
@@ -601,29 +593,15 @@ export class DirectPublisher {
       await response.body?.cancel();
       return null;
     }
-    const reader = response.body.getReader();
-    let bytes = 0;
-    let text = "";
-    const decoder = new TextDecoder();
     try {
-      while (true) {
-        const chunk = await reader.read();
-        if (chunk.done) break;
-        bytes += chunk.value.byteLength;
-        if (bytes > 4096) {
-          await reader.cancel();
-          return null;
-        }
-        text += decoder.decode(chunk.value, { stream: true });
-      }
-      const value: unknown = JSON.parse(text + decoder.decode());
+      const bytes = await readBoundedBytes(response.body, 4096);
+      if (!bytes) return null;
+      const value: unknown = JSON.parse(new TextDecoder().decode(bytes));
       return value && typeof value === "object" && !Array.isArray(value)
         ? (value as Record<string, unknown>)
         : null;
     } catch {
       return null;
-    } finally {
-      reader.releaseLock();
     }
   }
   private async verify(intent: Intent, receipt: Receipt, version: number) {
@@ -737,28 +715,18 @@ export class DirectPublisher {
               return false;
             }
             if (!response.body) return true;
-            const reader = response.body.getReader();
-            const decoder = absent ? new TextDecoder() : null;
-            let bytes = 0;
+            const decoder = new TextDecoder();
             let text = "";
-            try {
-              while (true) {
-                const chunk = await reader.read();
-                if (chunk.done)
-                  return !absent || !absent.test(text + decoder!.decode());
-                bytes += chunk.value.byteLength;
-                if (bytes > 2 * 1024 * 1024) {
-                  await reader.cancel();
-                  return false;
-                }
-                if (decoder)
-                  text += decoder.decode(chunk.value, { stream: true });
-              }
-            } catch {
-              return false;
-            } finally {
-              reader.releaseLock();
-            }
+            const complete = await drainBounded(
+              response.body,
+              2 * 1024 * 1024,
+              (chunk) => {
+                if (absent) text += decoder.decode(chunk, { stream: true });
+              },
+            ).catch(() => false);
+            return (
+              complete && (!absent || !absent.test(text + decoder.decode()))
+            );
           }),
       );
       if (results.some((ok) => !ok)) return false;

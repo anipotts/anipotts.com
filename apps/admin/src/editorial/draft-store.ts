@@ -5,7 +5,8 @@ import {
   MAX_PUBLICATION_IMAGES,
   MAX_PUBLICATION_MEDIA_BYTES,
 } from "../lib/editorial-media";
-import { createHash } from "node:crypto";
+import { gitBlobSha1, sha256Hex } from "../lib/crypto";
+import { GIT_SHA } from "../lib/patterns";
 import { DirectPublisher, editorialPublishMode } from "./direct-publisher";
 import type { PublicationDatabase } from "@anipotts/content/editorial/direct-publication";
 import type {
@@ -93,7 +94,6 @@ type SaveIdentity = {
 };
 
 const uuid = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
-const gitHash = /^[a-f0-9]{40}$/;
 const cachedSaveReceipts = 100;
 const maxHistoryPageSize = 100;
 const maxHistoryPageBytes = 4 * 1024 * 1024;
@@ -143,11 +143,7 @@ export class EditorialDraftStore extends DurableObject<unknown> {
           );
           // The authored draft and its immutable history never change here.
           // Existing save identities preserve replay despite a newer public base.
-          const bytes = Buffer.from(receipt.source);
-          const baseFileHash = createHash("sha1")
-            .update(`blob ${bytes.length}\0`)
-            .update(bytes)
-            .digest("hex");
+          const baseFileHash = gitBlobSha1(receipt.source);
           this.ctx.storage.sql.exec(
             "UPDATE drafts SET baseFileHash = ? WHERE key = ?",
             baseFileHash,
@@ -157,15 +153,19 @@ export class EditorialDraftStore extends DurableObject<unknown> {
       },
     });
   }
-  async startDirectPublication(input: StartDirectPublication) {
+  /** Direct publishing is on only with every flag and binding it needs. */
+  private directEnabled() {
     const values = this.env as Record<string, unknown>;
-    if (
-      editorialPublishMode(this.env) !== "direct" ||
-      values.EDITORIAL_ENABLED !== "true" ||
-      values.EDITORIAL_PUBLISH_ENABLED !== "true" ||
-      !values.CONTENT_DB ||
-      !values.CONTENT_MEDIA
-    )
+    return (
+      editorialPublishMode(this.env) === "direct" &&
+      values.EDITORIAL_ENABLED === "true" &&
+      values.EDITORIAL_PUBLISH_ENABLED === "true" &&
+      Boolean(values.CONTENT_DB) &&
+      Boolean(values.CONTENT_MEDIA)
+    );
+  }
+  async startDirectPublication(input: StartDirectPublication) {
+    if (!this.directEnabled())
       return { ok: false as const, code: "publisher_not_configured" as const };
     return this.directPublisher().start(input);
   }
@@ -185,14 +185,7 @@ export class EditorialDraftStore extends DurableObject<unknown> {
     id: string,
     expectedVersion: number,
   ) {
-    const values = this.env as Record<string, unknown>;
-    if (
-      editorialPublishMode(this.env) !== "direct" ||
-      values.EDITORIAL_ENABLED !== "true" ||
-      values.EDITORIAL_PUBLISH_ENABLED !== "true" ||
-      !values.CONTENT_DB ||
-      !values.CONTENT_MEDIA
-    )
+    if (!this.directEnabled())
       return { ok: false as const, code: "publisher_not_configured" as const };
     return (await this.directPublisher().retry(record, id, expectedVersion))
       ? { ok: true as const }
@@ -315,11 +308,7 @@ export class EditorialDraftStore extends DurableObject<unknown> {
           draft.baseCommit === publication.baseCommit &&
           draft.baseFileHash === publication.baseFileHash
         ) {
-          const bytes = Buffer.from(publication.source);
-          const hash = createHash("sha1")
-            .update(`blob ${bytes.length}\0`)
-            .update(bytes)
-            .digest("hex");
+          const hash = gitBlobSha1(publication.source);
           this.ctx.storage.sql.exec(
             "UPDATE drafts SET baseCommit = ?, baseFileHash = ? WHERE key = ?",
             job.checkpoint.mergeCommit,
@@ -745,11 +734,7 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         } catch {
           return { ok: false, code: "invalid_source" };
         }
-        const bytes = Buffer.from(draft.source);
-        const sourceHash = createHash("sha1")
-          .update(`blob ${bytes.length}\0`)
-          .update(bytes)
-          .digest("hex");
+        const sourceHash = gitBlobSha1(draft.source);
         if (sourceHash === draft.baseFileHash)
           return { ok: false, code: "no_changes" };
         publication = {
@@ -824,24 +809,14 @@ export class EditorialDraftStore extends DurableObject<unknown> {
       new TextEncoder().encode(input.source).byteLength > MAX_SOURCE_BYTES ||
       !Number.isSafeInteger(input.expectedRevision) ||
       input.expectedRevision < 0 ||
-      !gitHash.test(input.baseCommit) ||
-      (input.baseFileHash !== null && !gitHash.test(input.baseFileHash)) ||
+      !GIT_SHA.test(input.baseCommit) ||
+      (input.baseFileHash !== null && !GIT_SHA.test(input.baseFileHash)) ||
       !uuid.test(input.requestId)
     )
       return { ok: false, code: "invalid_draft_request" };
 
     // Hash before opening the transaction. No external await is allowed inside it.
-    const hex = (digest: ArrayBuffer) =>
-      Array.from(new Uint8Array(digest), (byte) =>
-        byte.toString(16).padStart(2, "0"),
-      ).join("");
-    const sha256 = async (value: unknown) =>
-      hex(
-        await crypto.subtle.digest(
-          "SHA-256",
-          new TextEncoder().encode(JSON.stringify(value)),
-        ),
-      );
+    const sha256 = (value: unknown) => sha256Hex(JSON.stringify(value));
     const payloadHash = await sha256({
       key,
       source: input.source,
