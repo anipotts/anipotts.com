@@ -139,6 +139,12 @@
 .data-source > .brand-tile {
   flex: 0 0 auto;
 }
+/* The Source column's device place: one 20px tile, kept when empty. */
+.data-source-device {
+  display: inline-flex;
+  flex: 0 0 20px;
+  inline-size: 20px;
+}
 .data-source-name {
   min-width: 0;
   overflow: hidden;

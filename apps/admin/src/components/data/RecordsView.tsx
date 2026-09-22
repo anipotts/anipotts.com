@@ -25,6 +25,7 @@ import { deviceName } from "../../lib/naming";
 import { BrandTile } from "../BrandTile";
 import { SplitView, useSplitView } from "../astryx/SplitView";
 import {
+  badgeFor,
   CELL_WIDTHS,
   DataTable,
   DetailText,
@@ -60,19 +61,28 @@ type Failure = Exclude<DataResult, { state: "ready" }>;
 /** A record's source as its column shows it: the device tile when System
  * names one, then the source's name as Sources reads it. The row's lead
  * tile is already the source's app, so the column does not repeat it. */
-function RecordSource({ record }: { record: DataRecord }) {
+function RecordSource({
+  record,
+  slot = false,
+}: {
+  record: DataRecord;
+  /** In the Source column every cell keeps the device's place, empty or
+   * not, so the names line up down the column. */
+  slot?: boolean;
+}) {
   const source = useNamedSource(record.source, record.host);
   if (!source) return null;
+  const device = source.device && record.host && (
+    <BrandTile
+      id={source.device.id}
+      kind="device"
+      size={20}
+      label={deviceName(record.host)}
+    />
+  );
   return (
     <span className="data-source" title={source.tooltip}>
-      {source.device && record.host && (
-        <BrandTile
-          id={source.device.id}
-          kind="device"
-          size={20}
-          label={deviceName(record.host)}
-        />
-      )}
+      {slot ? <span className="data-source-device">{device}</span> : device}
       <span className="data-source-name">{source.name}</span>
     </span>
   );
@@ -109,6 +119,7 @@ export function recordColumns({
   controls,
   hideSource = false,
   beside = false,
+  tiersOnly = false,
 }: {
   href: (record: DataRecord) => string;
   onSelect?: (record: DataRecord, trigger: HTMLElement) => void;
@@ -118,6 +129,9 @@ export function recordColumns({
   hideSource?: boolean;
   /** An open record sits beside the list. */
   beside?: boolean;
+  /** No row shows a state chip, so the state column holds only the tier
+   * glyph and gives the rest of its width to the titles. */
+  tiersOnly?: boolean;
 }): Column<DataRecord>[] {
   const columns: Column<DataRecord>[] = [
     {
@@ -169,15 +183,22 @@ export function recordColumns({
       header: "Source",
       width: SOURCE_WIDTH,
       hideBelow: "large",
-      render: (record) => <RecordSource record={record} />,
+      render: (record) => <RecordSource record={record} slot />,
     });
   columns.push(
-    {
-      key: "state",
-      header: "State",
-      width: CELL_WIDTHS.state,
-      render: (record) => <RecordState record={record} />,
-    },
+    tiersOnly
+      ? {
+          key: "state",
+          header: <span className="sr-only">Tier</span>,
+          width: CELL_WIDTHS.tile,
+          render: (record) => <RecordState record={record} />,
+        }
+      : {
+          key: "state",
+          header: "State",
+          width: CELL_WIDTHS.state,
+          render: (record) => <RecordState record={record} />,
+        },
     {
       key: "observed",
       header: "Observed",
@@ -592,6 +613,13 @@ export function RecordsExplorer({
     controls: id ? detailId : undefined,
     hideSource: Boolean(source),
     beside,
+    // Beside an open record the titles take the state column's width when
+    // no row has a state to show.
+    tiersOnly:
+      beside &&
+      (list?.items ?? []).every(
+        (item) => badgeFor("record", item.status).isDefault,
+      ),
   });
 
   return (
