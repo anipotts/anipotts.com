@@ -103,6 +103,10 @@
   flex: 0 1 auto;
   min-width: 0;
 }
+.ops-burst {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
 /* No budget from System: a dashed mark and its reason, muted, never a
    chip that could read as a judgement. */
 .ops-unjudged {
@@ -485,6 +489,11 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
   }
   .ops-counts {
     margin-inline-start: 0;
+  }
+  /* The page's controls sit on the title's line, not the middle of a
+     title block that wraps. */
+  .observability-workspace .workspace-page-header {
+    align-items: flex-start;
   }
   .ops-cards:not(#\#) {
     display: flex;

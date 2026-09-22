@@ -1057,7 +1057,11 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
     const lines = bodyRows(host);
     expect(lines).toHaveLength(2);
     const burst = lines[1]!;
-    expect(cell(host, "", "Change", burst).textContent).toBe("2003 reads");
+    const change = cell(host, "", "Change", burst);
+    expect(change.querySelector(".ops-burst")?.getAttribute("title")).toBe(
+      "3 reads",
+    );
+    expect(change.textContent).toBe("200×33 reads");
     // The burst's latency is its median, the spread its tooltip.
     const took = cell(host, "", "Took", burst);
     expect(took.textContent).toBe("50ms");

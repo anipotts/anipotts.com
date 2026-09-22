@@ -83,6 +83,18 @@ function worstExit(row: Row) {
 const plural = (count: number, one: string, many: string) =>
   `${count} ${count === 1 ? one : many}`;
 
+/** A burst's size as "×3", said in full for assistive technology and the
+ * tooltip, so it never crowds the chips beside it. */
+function Burst({ count, noun }: { count: number; noun: [string, string] }) {
+  const said = plural(count, noun[0], noun[1]);
+  return (
+    <span className="ops-burst workspace-figure" title={said}>
+      <span aria-hidden="true">×{count}</span>
+      <span className="sr-only">{said}</span>
+    </span>
+  );
+}
+
 /** What changed: the two states of a transition (the first state a burst
  * left and the last it entered), a run's result, a read's status code, each
  * with the burst's count. */
@@ -93,9 +105,7 @@ function Change({ row, catalog }: { row: Row; catalog: OpsCatalog }) {
       <span className="ops-change">
         <StateTransition domain="ops" from={earliest.from} to={latest.to} />
         {row.count > 1 && (
-          <span className="ops-muted workspace-figure">
-            {plural(row.count, "change", "changes")}
-          </span>
+          <Burst count={row.count} noun={["change", "changes"]} />
         )}
         {latest.detail && <DetailText>{latest.detail}</DetailText>}
       </span>
@@ -107,22 +117,14 @@ function Change({ row, catalog }: { row: Row; catalog: OpsCatalog }) {
           exit={worstExit(row)}
           trigger={entryOf(latest, catalog)?.trigger}
         />
-        {row.runs > 1 && (
-          <span className="ops-muted workspace-figure">
-            {plural(row.runs, "run", "runs")}
-          </span>
-        )}
+        {row.runs > 1 && <Burst count={row.runs} noun={["run", "runs"]} />}
       </span>
     );
   if (latest.kind === "access")
     return (
       <span className="ops-change">
         <HttpStatus status={worstStatus(row)} />
-        {row.count > 1 && (
-          <span className="ops-muted workspace-figure">
-            {plural(row.count, "read", "reads")}
-          </span>
-        )}
+        {row.count > 1 && <Burst count={row.count} noun={["read", "reads"]} />}
       </span>
     );
   return latest.detail ? <DetailText>{latest.detail}</DetailText> : null;
