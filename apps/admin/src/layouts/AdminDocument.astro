@@ -2,7 +2,8 @@
 /**
  * The one admin document: every page's html, head and body. It sets the
  * viewport to cover the whole screen (safe areas come from env()), writes one
- * theme-color meta that the prepaint and saveTheme keep on the canvas colour,
+ * theme-color meta and one status-bar style that the prepaint and saveTheme
+ * keep on the canvas colour and text that reads on it,
  * names the workspace on the root for its accent, and keeps every page out of
  * search indexes. Layouts put their page inside it; standalone pages (sign
  * in, sign out, not found) use it directly.
@@ -19,6 +20,7 @@ import "../styles/focus.css";
 import "../styles/scrollbars.css";
 import {
   ADMIN_CANVAS,
+  STATUS_BAR_STYLES,
   adminThemePrepaintScript,
   initialAdminTheme,
 } from "../lib/admin-theme";
@@ -66,7 +68,7 @@ const workspace = shell ? workspaceForPath(Astro.url.pathname) : null;
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta
       name="apple-mobile-web-app-status-bar-style"
-      content="black-translucent"
+      content={STATUS_BAR_STYLES[mode === "dark" ? 1 : 0]}
     />
     <meta name="apple-mobile-web-app-title" content="Admin" />
     <link

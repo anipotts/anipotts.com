@@ -5,17 +5,20 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ADMIN_CANVAS,
   adminThemePrepaintScript,
+  dimmedCanvas,
   initialAdminTheme,
   nextTheme,
   prepaintAdminTheme,
   savedTheme,
   saveTheme,
+  syncThemeColor,
 } from "./admin-theme";
 import { editorialTheme } from "../themes/editorial.js";
 
-/** The one theme-color meta, as the document writes it. */
-function themeColorMeta() {
-  const meta = { content: "#ffffff" };
+/** The theme-color and status-bar metas, as the document writes them, and
+ * an optional open modal. */
+function themeColorMeta(open: { modal: object | null } = { modal: null }) {
+  const meta = { content: "#ffffff", statusBar: "" };
   return {
     meta,
     querySelector: (selector: string) =>
@@ -25,7 +28,15 @@ function themeColorMeta() {
               if (name === "content") meta.content = value;
             },
           }
-        : null,
+        : selector === 'meta[name="apple-mobile-web-app-status-bar-style"]'
+          ? {
+              setAttribute: (name: string, value: string) => {
+                if (name === "content") meta.statusBar = value;
+              },
+            }
+          : selector === "dialog:modal"
+            ? open.modal
+            : null,
   };
 }
 function setup(query = "", cookie = "", stored: Record<string, string> = {}) {
@@ -162,13 +173,45 @@ describe("status bar colour", () => {
       vi.stubGlobal("matchMedia", () => ({ matches: systemDark }));
       new Function(adminThemePrepaintScript)();
       expect(meta.content).toBe(expected);
+      // Light text only over the dark canvas; dark text on the light one.
+      const statusBar =
+        expected === ADMIN_CANVAS[1] ? "black-translucent" : "default";
+      expect(meta.statusBar).toBe(statusBar);
       meta.content = "#ffffff";
+      meta.statusBar = "";
       const preference = cookie.slice("ap-theme=".length) as
         "light" | "dark" | "system";
       saveTheme(preference);
       expect(meta.content).toBe(expected);
+      expect(meta.statusBar).toBe(statusBar);
     },
   );
+
+  it("dims the status bar with the page while a modal is open", () => {
+    expect(dimmedCanvas("#f4f5f7", "rgba(0, 0, 0, 0.5)")).toBe("#7a7b7c");
+    expect(dimmedCanvas("#090b0e", "rgba(0, 0, 0, 0.5)")).toBe("#050607");
+    expect(dimmedCanvas("#f4f5f7", "rgb(0 0 0 / 0.25)")).toBe("#b7b8b9");
+    expect(dimmedCanvas("#f4f5f7", "transparent")).toBe("#f4f5f7");
+    setup("", "ap-theme=light");
+    const modal = {};
+    const open: { modal: object | null } = { modal };
+    const { meta, querySelector } = themeColorMeta(open);
+    Object.assign(document, { querySelector });
+    vi.stubGlobal("getComputedStyle", (element: object, pseudo: string) => ({
+      backgroundColor:
+        element === modal && pseudo === "::backdrop"
+          ? "rgba(0, 0, 0, 0.5)"
+          : "",
+    }));
+    syncThemeColor("light");
+    expect(meta.content).toBe(
+      dimmedCanvas(ADMIN_CANVAS[0], "rgba(0, 0, 0, 0.5)"),
+    );
+    expect(meta.statusBar).toBe("default");
+    open.modal = null;
+    syncThemeColor("light");
+    expect(meta.content).toBe(ADMIN_CANVAS[0]);
+  });
 
   it("cycles light, dark and system", () => {
     expect(nextTheme("light")).toBe("dark");
