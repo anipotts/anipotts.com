@@ -69,11 +69,15 @@ export function markLabel(ref: TileRef): string | null {
   return brandMark(ref.id)?.label ?? null;
 }
 
-/** ops_v1 catalog ids. Hosts resolve through `deviceMark`. */
+/** ops_v1 catalog ids. Hosts resolve through `deviceMark`. A backup shows
+ * where it lands; a sync or agent shows the app it serves. */
 export const OPS_MARKS = {
   "agents.sync": "claude",
+  // The D1 content export lands on the Lexar drive on ap-mini.
+  "content.d1-export": "lexar",
   "health.api": "health",
-  "health.ingest": "health",
+  // Apple Health data the phone pushes.
+  "health.ingest": "applehealth",
   "imessage.agent": "messages",
   "keepalive.chatgpt": "chatgpt",
   "keepalive.chrome-agent": "chrome",
@@ -85,6 +89,13 @@ export const OPS_MARKS = {
   // Encrypted snapshot to the offsite remote; its provider is not settled.
   "pc.snapshot": "snapshot",
   "pc.writer": "writer",
+  // ap-pro's rclone sync to the memory-offsite remote on Cloudflare R2.
+  "pro.lake-backup": "cloudflare",
+  // ap-pro's intake to ap-mini: several apps, so the handoff glyph.
+  "pro.pc-send": "handoff",
+  "pro.transcripts": "cloudflare",
+  "pro.voicememos": "voicememos",
+  "pro.whatsapp": "whatsapp",
   // Session transcripts go to Cloudflare R2.
   "transcripts.upload": "cloudflare",
 } as const satisfies Record<string, Ref>;
@@ -135,31 +146,40 @@ export const SOURCE_MARKS = {
   "codex.native": "codex",
   github: "github",
   handoff: "handoff",
-  "health.daily": "health",
+  "health.daily": "applehealth",
   // Google or Apple is not settled, so calendars keep the neutral glyph.
   "synthetic-calendar": "agenda",
   "synthetic-contacts": "contacts",
-  "synthetic-health": "health",
+  "synthetic-health": "applehealth",
   "synthetic-notes": "notes",
 } as const satisfies Record<string, Ref>;
 
-/** Words inside other source ids ("apple.messages", "legacy.brain"). */
+/** Words inside other source ids ("apple.messages", "legacy.brain",
+ * "ani-voice-memos"). */
 export const SOURCE_WORDS = {
+  atlas: "chatgpt-atlas",
+  browsing: "browser",
   calendar: "agenda",
+  chatgpt: "chatgpt",
   chrome: "chrome",
+  claude: "claude",
+  codex: "codex",
   contacts: "contacts",
   drive: "googledrive",
   github: "github",
   gmail: "gmail",
   granola: "granola",
-  health: "health",
+  health: "applehealth",
   imessage: "messages",
   legacy: "backup",
+  manual: "writer",
+  memos: "voicememos",
   messages: "messages",
   notes: "notes",
   obsidian: "obsidian",
   safari: "safari",
   spotify: "spotify",
+  voice: "voicememos",
   whatsapp: "whatsapp",
 } as const satisfies Record<string, Ref>;
 

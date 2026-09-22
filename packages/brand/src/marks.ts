@@ -42,6 +42,12 @@ const ENTRIES = {
   "ap-phone": { label: "ap-phone", kind: "device", fit: "fill" },
   "ap-plus": { label: "ap-plus", kind: "device", fit: "fill" },
   "ap-pro": { label: "ap-pro", kind: "device", fit: "fill" },
+  applehealth: {
+    label: "Apple Health",
+    kind: "app",
+    fit: "fill",
+    aliases: ["health"],
+  },
   buttondown: {
     label: "Buttondown",
     kind: "brand",
@@ -54,6 +60,12 @@ const ENTRIES = {
     kind: "app",
     fit: "fill",
     aliases: ["openai"],
+  },
+  "chatgpt-atlas": {
+    label: "ChatGPT Atlas",
+    kind: "app",
+    fit: "fill",
+    aliases: ["atlas"],
   },
   chrome: {
     label: "Chrome",

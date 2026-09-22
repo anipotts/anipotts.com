@@ -33,6 +33,11 @@ or account information is included in any of them.
   altered.
 - App Store artwork is the publisher-supplied `artworkUrl512` returned by
   `https://itunes.apple.com/lookup?id=<id>`, fetched as PNG.
+- Apple Health is Apple's own App Store listing artwork, so the Apple Design
+  Resources disk image and its licence are not involved. Its plate is drawn
+  on white, so the tile's corner clips the white margin.
+- ChatGPT Atlas's `.icns` tops out at 256 px (`icon_128x128@2x`), which
+  still covers the 112 px rendition.
 - Chrome's macOS icon has no plate, so it is trimmed to its circle and drawn
   at glyph size inside the neutral tile.
 - Rasters were resized with ImageMagick (Lanczos), written as WebP with
@@ -49,10 +54,6 @@ or account information is included in any of them.
 
 ## Not vendored yet
 
-- Apple Health. Apple publishes the icon only in Apple Design Resources
-  (`https://devimages-cdn.apple.com/design/resources/download/Icon-Apple-Health.dmg`),
-  whose disk image asks for its licence to be accepted. Health rows use the
-  Phosphor `Heartbeat` fallback until Ani accepts it and the PNG is added here.
 - Calendar sources stay on the Phosphor calendar glyph until it is settled
   whether the calendar source is Google or Apple.
 
@@ -65,9 +66,11 @@ or account information is included in any of them.
 | ap-phone       | ChatGPT-generated device render, iPhone 16 in blue (Ani, 2026-09-21)                                                                                           | 2026-09-21 | `6bfdc5ae41451304085f5129f7002e2b9976639440358c29d4fe1c1b2d78be88` |
 | ap-plus        | ChatGPT-generated device render, iPhone 15 Plus in matte black (Ani, 2026-09-21)                                                                               | 2026-09-21 | `eaf979cac984a9e1f3c21120ea16af0548cbc2f3f97051b7a68493d3432e6438` |
 | ap-pro         | ChatGPT-generated device render, MacBook (Ani, 2026-09-21)                                                                                                     | 2026-09-21 | `d7a90470e04017e477c148d0d33571953a372a434ae4ef74c309d42561716f86` |
+| applehealth    | App Store lookup 1242545199 (Apple Health, Apple Inc.), `artworkUrl512`                                                                                        | 2026-09-22 | `8b2cf50fdd2cfa1acfc4145524338d17775bad5dd4a247faa7461ddfa7933778` |
 | buttondown     | Buttondown press kit, `https://buttondown.com/next-assets/Buttondown_PressKit.zip`, `Buttondown-Logo.svg`                                                      | 2026-09-21 | `81e75a670065a2cbd3928ad056d172d3b1015f0aa59471c149207b2d542a83ea` |
 | calendar       | `/System/Applications/Calendar.app/Contents/Resources/AppIcon.icns` (com.apple.iCal 16.0)                                                                      | 2026-09-21 | `279f89daa017127bde7751e920576b1269621664827cccb00b19d829d1f6b0e4` |
 | chatgpt        | `/Applications/ChatGPT.app/Contents/Resources/AppIcon.icns` (com.openai.chat 1.2026.153)                                                                       | 2026-09-21 | `6899c38554e58b034e84c43695d3d1f5f2e8109803a67d784022ec4274b0ff1b` |
+| chatgpt-atlas  | `/Applications/ChatGPT Atlas.app/Contents/Resources/AppIcon.icns` (com.openai.atlas 1.2025.344.9)                                                              | 2026-09-22 | `c72e9b2be76257b8342d3723df818d1ad47514da029d5cc8c0dbdf6258a4e695` |
 | chrome         | `/Applications/Google Chrome.app/Contents/Resources/app.icns` (com.google.Chrome 153.0.8010.53)                                                                | 2026-09-21 | `770c76bce29805a54ffd4fa28929f7f03a86d42d8cf281cadcff694e17483b95` |
 | claude         | Anthropic press kit `ClaudeIcon-Rounded.svg`, `https://www.anthropic.com/press-kit`, unmodified (previously `apps/admin/src/assets/provider-marks/claude.svg`) | 2026-09-21 | `059e22f525d67c6258c4f64514f0b0e717c914df8a706936d0299d5e6b8082d9` |
 | cloudflare     | `simple-icons@16.32.0` `icons/cloudflare.svg`, colour `#F38020`, guidelines `https://www.cloudflare.com/trademark/`                                            | 2026-09-21 | `408096d99907fd99e0863cb5d73f77a72537c6a85fd8d5e2704178a83a891f08` |
@@ -135,12 +138,18 @@ press-kit SVG or the simple-icons SVG) before processing.
 | `img/ap-pro-112.png`          | 3892  | `1c8df34a789c91518a1e928c5883f1dca6fcd24dc72a5736362493dc90625cd2` |
 | `img/ap-pro-112.webp`         | 2058  | `895372fbd1eabfe83626d2b70437d79f9b50111658be81efb81a44862089b0e5` |
 | `img/ap-pro-56.webp`          | 856   | `3e7b97c41fc0553c1cfa730dce7ff5dbd683dbe526a3b8cdf87e66301f846fee` |
+| `img/applehealth-112.png`     | 3095  | `9c8296094631d66df5962577363d6a09b3a90c6f5debdd55c2fcc8410bde7f57` |
+| `img/applehealth-112.webp`    | 1090  | `78c9950b63ebbee78380ac8785b544cf060e4fd616b9f9515eaa63a8fe2d7b56` |
+| `img/applehealth-56.webp`     | 528   | `6e851f5dc2b1e5b5b9aed86c1211327b3813bfd519fcc42ac670de5fd85e1f0a` |
 | `img/calendar-112.png`        | 3638  | `f4247602c43dd3777430cec58ef162b47dfdd0646b25cb6fc1c3461ed454dea4` |
 | `img/calendar-112.webp`       | 3266  | `cc2df506923c389da2f2e8e1e5e26676d66b69d8a15ba86e0ffd06f737200425` |
 | `img/calendar-56.webp`        | 1542  | `131f10cb8b0365bbdf3b24e58a317851a2ff4083adc6d03d6bb91e80fb43e319` |
 | `img/chatgpt-112.png`         | 6218  | `a23a532da42682e230419ee155ca33bfb07f46787af9119bfeb2ac3dc1f30fae` |
 | `img/chatgpt-112.webp`        | 4030  | `d887e095827a75e60acf7255ce6376b140b75068ec93db5bc8355664549673e8` |
 | `img/chatgpt-56.webp`         | 1812  | `2c799e2aff1b5786765a58f856bfb93618afc29ab234ea0130e389c83705304a` |
+| `img/chatgpt-atlas-112.png`   | 5767  | `dfb5ba9dee2582500bd5e6f34433a238207167fc1ed1419c704eb8aaa3429a0f` |
+| `img/chatgpt-atlas-112.webp`  | 3366  | `9e9f5bc4972cb1a245fd56e5fde74c4743fc0750fc6e8a183f0f6f662cda01b4` |
+| `img/chatgpt-atlas-56.webp`   | 1648  | `5f610c71aad500dfd582359e0a2128c67980006399f4db002a6f277d2dbf9ff8` |
 | `img/chrome-112.png`          | 6037  | `4f4c7626770e9f3b6d731549f88b5c951483037c8c60852e04da7e3c5ec91a32` |
 | `img/chrome-112.webp`         | 4708  | `d7e44f32ec19ab7663bb0f9f1a3aad9810dec1807e93c99a46d24eae2af00b0e` |
 | `img/chrome-56.webp`          | 2236  | `56521d9b4109ef5e86e5426f477fb4fed4b89faee0d38b1808bb41c95714e7be` |

@@ -47,9 +47,11 @@ describe("brand mark registry", () => {
       "ap-phone",
       "ap-plus",
       "ap-pro",
+      "applehealth",
       "buttondown",
       "calendar",
       "chatgpt",
+      "chatgpt-atlas",
       "chrome",
       "claude",
       "cloudflare",
@@ -171,6 +173,7 @@ describe("admin mark maps", () => {
   it("maps exactly the ops ids", () => {
     expect(Object.keys(OPS_MARKS).sort()).toEqual([
       "agents.sync",
+      "content.d1-export",
       "health.api",
       "health.ingest",
       "imessage.agent",
@@ -183,6 +186,11 @@ describe("admin mark maps", () => {
       "pc.reader",
       "pc.snapshot",
       "pc.writer",
+      "pro.lake-backup",
+      "pro.pc-send",
+      "pro.transcripts",
+      "pro.voicememos",
+      "pro.whatsapp",
       "transcripts.upload",
     ]);
   });
@@ -219,8 +227,13 @@ describe("admin mark maps", () => {
       "synthetic-notes",
     ]);
     expect(Object.keys(SOURCE_WORDS).sort()).toEqual([
+      "atlas",
+      "browsing",
       "calendar",
+      "chatgpt",
       "chrome",
+      "claude",
+      "codex",
       "contacts",
       "drive",
       "github",
@@ -229,11 +242,14 @@ describe("admin mark maps", () => {
       "health",
       "imessage",
       "legacy",
+      "manual",
+      "memos",
       "messages",
       "notes",
       "obsidian",
       "safari",
       "spotify",
+      "voice",
       "whatsapp",
     ]);
   });
