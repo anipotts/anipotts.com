@@ -1244,7 +1244,9 @@ function AlertDetail({
 }
 
 /** Which alert is open, kept in the URL (`?alert=`) with real history:
- * opening pushes, Back or Escape closes, and focus returns to the row. */
+ * opening from the list pushes, another alert picked beside an open one
+ * replaces it, so Back or Escape always closes to the list, and focus
+ * returns to the row. */
 function useAlertSelection(initial: string | null) {
   const [selected, setSelected] = useState(initial);
   const trigger = useRef<HTMLElement | null>(null);
@@ -1275,8 +1277,20 @@ function useAlertSelection(initial: string | null) {
   const open = (subject: string, from: HTMLElement) => {
     trigger.current = from;
     if (subject === selected) return;
-    window.history.pushState({ opsAlert: subject }, "", opsAlertHref(subject));
-    pushed.current = true;
+    if (selected)
+      window.history.replaceState(
+        { opsAlert: subject },
+        "",
+        opsAlertHref(subject),
+      );
+    else {
+      window.history.pushState(
+        { opsAlert: subject },
+        "",
+        opsAlertHref(subject),
+      );
+      pushed.current = true;
+    }
     setSelected(subject);
   };
   function close() {

@@ -754,8 +754,8 @@ export function RecordsExplorer({
   const filtered = Boolean(search.q || kind !== "all" || source);
 
   return (
-    <div className="data-split" data-detail-open={id ? "true" : "false"}>
-      <VStack gap={4} className="data-split-list" ref={listRef}>
+    <div className="workspace-split" data-detail-open={id ? "true" : "false"}>
+      <VStack gap={4} className="workspace-split-list" ref={listRef}>
         <RecordsToolbar
           route={route}
           navigate={navigate}

@@ -916,4 +916,51 @@ describe("the open alert in the browser", () => {
     expect(host.querySelector("#ops-alert-detail")).toBeNull();
     expect(document.activeElement).toBe(link);
   });
+
+  it("replaces an open alert with the next one, so one close returns to the list", async () => {
+    await act(async () =>
+      root.render(
+        <ObservabilityWorkspace
+          view="alerts"
+          enabled={false}
+          fixture={sample}
+          eventsFixture={events}
+        />,
+      ),
+    );
+    const click = async (href: string) => {
+      const link = host.querySelector<HTMLAnchorElement>(`a[href="${href}"]`)!;
+      await act(async () =>
+        link.dispatchEvent(
+          new MouseEvent("click", {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+          }),
+        ),
+      );
+    };
+    const hrefs = [
+      ...host.querySelectorAll<HTMLAnchorElement>(
+        'a[href^="/observability/alerts?alert="]',
+      ),
+    ].map((link) => link.getAttribute("href")!);
+    const [first, second] = [...new Set(hrefs)];
+    expect(second).toBeDefined();
+    await click(first!);
+    await click(second!);
+    expect(window.location.search).toBe(second!.slice(second!.indexOf("?")));
+    // Opening pushed one entry and the second alert replaced it, so one
+    // close lands on the list.
+    await act(async () =>
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })),
+    );
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+    expect(window.location.pathname).toBe("/observability/alerts");
+    expect(window.location.search).toBe("");
+    expect(host.querySelector("#ops-alert-detail")).toBeNull();
+    expect(
+      host.querySelector(".workspace-split")?.getAttribute("data-detail-open"),
+    ).toBe("false");
+  });
 });

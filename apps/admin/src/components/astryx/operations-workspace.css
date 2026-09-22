@@ -1,5 +1,8 @@
-/* Observability draws with the workspace kit; only ops marks live here. */
+/* Observability draws with the workspace kit; only ops marks live here.
+   The workspace is the kit's `workspace` container, so an alert opens beside
+   its list on a wide content area (workspace.css). */
 .operations-workspace {
+  container: workspace / inline-size;
   min-width: 0;
 }
 .operations-workspace .ops-state {
