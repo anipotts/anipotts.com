@@ -2,6 +2,7 @@
 import EditorialLayout from "../../layouts/EditorialLayout.astro";
 import { DevDataCatalog } from "../../components/astryx/dev-data-catalog";
 import { DevReviewCatalog } from "../../components/astryx/dev-review-catalog";
+import { DevMarksCatalog } from "../../components/dev-marks-catalog";
 
 // The normal Content owner/origin middleware still applies. This route cannot
 // expose a catalog in a deployed build, even to an authenticated owner.
@@ -19,6 +20,7 @@ const inventoryProjection = {
   searchEntries: [],
   unavailable: false,
 };
+const fixture = Astro.url.searchParams.get("fixture");
 ---
 
 <EditorialLayout
@@ -28,8 +30,10 @@ const inventoryProjection = {
   inventoryProjection={inventoryProjection}
 >
   {
-    Astro.url.searchParams.get("fixture") === "data" ? (
+    fixture === "data" ? (
       <DevDataCatalog client:load />
+    ) : fixture === "marks" ? (
+      <DevMarksCatalog />
     ) : (
       <DevReviewCatalog client:load />
     )
