@@ -25,7 +25,26 @@ export type ShellFixtures = {
   data: DataFixture;
   /** True when a local replay file stood in for a committed sample. */
   replay: boolean;
+  /** When a replay was captured: its snapshot's generated_at, else its
+   * sources reply's response_observed_at. Null for the samples. */
+  capturedAt: string | null;
 };
+
+/** A replay's capture time, from the payloads' own stamps. */
+function capturedAt(snapshot: unknown, sources: unknown): string | null {
+  const stamp = (value: unknown, key: string) => {
+    const at =
+      value && typeof value === "object"
+        ? (value as Record<string, unknown>)[key]
+        : undefined;
+    return typeof at === "string" && Number.isFinite(Date.parse(at))
+      ? at
+      : null;
+  };
+  return (
+    stamp(snapshot, "generated_at") ?? stamp(sources, "response_observed_at")
+  );
+}
 
 export const loadShellFixtures: (
   url: URL,
@@ -75,6 +94,7 @@ export const loadShellFixtures: (
           liveSnapshot !== undefined ||
           liveEvents !== undefined ||
           liveSources !== undefined,
+        capturedAt: capturedAt(liveSnapshot, liveSources),
       };
     }
   : async () => undefined;

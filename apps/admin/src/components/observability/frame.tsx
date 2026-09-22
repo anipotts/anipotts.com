@@ -31,6 +31,7 @@ import {
   InlineNotice,
   LoadingSkeleton,
   SampleBadge,
+  type FixtureOrigin,
   StateBadge,
   StateNotice,
   WorkspacePage,
@@ -68,13 +69,16 @@ export type OpsViewProps = {
   now?: number;
   /** Server render time, so the first client render matches the markup. */
   renderedAt?: number;
+  /** Development only: whether the fixtures are the committed samples or a
+   * local replay, for the page's Sample data or Replay mark. */
+  fixtureOrigin?: FixtureOrigin;
 };
 
 /**
  * Everything an Observability view reads: the snapshot, the events (when
  * asked for), whether any of it is current, and the clock. A fixture stands
- * in for the reader and is read at its own generated_at, so its clock is
- * fixed and nothing ticks; a live view re-renders only when the sampler
+ * in for the reader and is read from its own generated_at, its clock
+ * running forward from there; a live view re-renders only when the sampler
  * flips between running and stopped.
  */
 export function useOpsData(props: OpsViewProps, withEvents: boolean) {
@@ -108,20 +112,32 @@ export function useOpsData(props: OpsViewProps, withEvents: boolean) {
     events: withEvents,
   });
   const [mounted] = useState(() => props.renderedAt ?? Date.now());
+  // A fixture's clock starts at its own generated_at and runs forward from
+  // there on the shared clock, so its ages and the page clock tick like the
+  // live page's instead of standing still. A test's `now` stays fixed.
+  const anchor = fixtureMode
+    ? preview
+      ? Date.parse(preview.generated_at)
+      : mounted
+    : undefined;
+  const elapsed = Number(
+    useLiveText(
+      (live) => String(Math.max(0, Math.floor((live - mounted) / 1000)) * 1000),
+      mounted,
+      anchor !== undefined && props.now === undefined ? undefined : mounted,
+    ),
+  );
   const fixedNow =
-    props.now ??
-    (fixtureMode
-      ? preview
-        ? Date.parse(preview.generated_at)
-        : mounted
-      : undefined);
+    props.now ?? (anchor === undefined ? undefined : anchor + elapsed);
   const snapshot = fixtureMode ? preview : state.snapshot;
   const events = fixtureMode ? previewEvents : state.events;
+  // A fixture's sampler is judged at the fixture's own moment: its clock
+  // running on is the page's, not a sampler that stopped.
   const stopped =
     useLiveText(
       (now) => (snapshot && opsSamplerStopped(snapshot, now) ? "stopped" : ""),
       mounted,
-      fixedNow,
+      props.now ?? anchor,
     ) === "stopped";
   const current = !fixtureMode && state.connection === "connected" && !stopped;
   const retry =

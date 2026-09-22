@@ -7,7 +7,11 @@ import {
 import { opsServices } from "../../lib/ops-v1";
 import { provideSearchEntries } from "../../lib/admin-search-index";
 import type { AdminSearchResult } from "../../data/admin-search";
-import { StateNotice } from "../workspace/Workspace";
+import {
+  FixtureOriginContext,
+  SAMPLE_ORIGIN,
+  StateNotice,
+} from "../workspace/Workspace";
 import {
   OpsPage,
   OpsSkeleton,
@@ -105,7 +109,22 @@ function useOpsSearchEntries(data: OpsData) {
  * PRIVATE_READER_ENABLED and PRIVATE_READER_OPS_ENABLED flags are both
  * "true". Fixtures are the development-only previews and never ship.
  */
-export function ObservabilityWorkspace({
+export function ObservabilityWorkspace(
+  props: OpsViewProps & {
+    view?: OpsView;
+    alert?: string | null;
+    /** The entry a Status URL opens (`?entry=`). */
+    entry?: string | null;
+  },
+) {
+  return (
+    <FixtureOriginContext.Provider value={props.fixtureOrigin ?? SAMPLE_ORIGIN}>
+      <ObservabilityPage {...props} />
+    </FixtureOriginContext.Provider>
+  );
+}
+
+function ObservabilityPage({
   view = "status",
   alert = null,
   entry = null,
@@ -113,7 +132,6 @@ export function ObservabilityWorkspace({
 }: OpsViewProps & {
   view?: OpsView;
   alert?: string | null;
-  /** The entry a Status URL opens (`?entry=`). */
   entry?: string | null;
 }) {
   const data = useOpsData(props, true);

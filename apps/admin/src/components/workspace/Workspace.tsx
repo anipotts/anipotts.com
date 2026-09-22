@@ -1703,16 +1703,64 @@ export function TierMark({ tier }: { tier: string | null | undefined }) {
   );
 }
 
-/** The one mark for synthetic development data. */
+/** Where a development page's data came from: the committed synthetic
+ * samples, or a local replay of payloads captured from System (ignored by
+ * git, never committed; lib/shell-fixtures.ts). */
+export type FixtureOrigin = { replay: boolean; capturedAt: string | null };
+export const SAMPLE_ORIGIN: FixtureOrigin = Object.freeze({
+  replay: false,
+  capturedAt: null,
+});
+export const FixtureOriginContext = createContext<FixtureOrigin>(SAMPLE_ORIGIN);
+
+/** The one mark for development data: "Sample data" for the synthetic
+ * samples, and a distinct "Replay" with the capture's age for a local
+ * replay, so a replayed capture never passes for either the sample or the
+ * live system. The screenshot guard refuses a page that carries Replay. */
 export function SampleBadge() {
+  const origin = useContext(FixtureOriginContext);
+  if (origin.replay) return <ReplayBadge capturedAt={origin.capturedAt} />;
   return (
-    <Token
-      size="sm"
-      color="default"
-      label="Sample data"
-      className="workspace-sample"
-      icon={<FlaskIcon weight="regular" size={14} aria-hidden="true" />}
-    />
+    <span className="workspace-fixture" data-fixture="sample">
+      <Token
+        size="sm"
+        color="default"
+        label="Sample data"
+        className="workspace-sample"
+        icon={<FlaskIcon weight="regular" size={14} aria-hidden="true" />}
+      />
+    </span>
+  );
+}
+
+function ReplayBadge({ capturedAt }: { capturedAt: string | null }) {
+  const at = Date.parse(capturedAt ?? "");
+  // The capture's age on the real clock, never on a fixture's own clock.
+  const age = useLiveText(
+    (now) => (Number.isFinite(at) ? relativeAgo(at, now, "minute") : ""),
+    Date.now(),
+  );
+  return (
+    <span
+      className="workspace-fixture"
+      data-fixture="replay"
+      title={capturedAt ? `Captured ${capturedAt}` : undefined}
+      suppressHydrationWarning
+    >
+      <Token
+        size="sm"
+        color="default"
+        label={age ? `Replay, captured ${age}` : "Replay"}
+        className="workspace-sample"
+        icon={
+          <ClockCounterClockwiseIcon
+            weight="regular"
+            size={14}
+            aria-hidden="true"
+          />
+        }
+      />
+    </span>
   );
 }
 

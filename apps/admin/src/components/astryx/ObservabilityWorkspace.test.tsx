@@ -11,7 +11,7 @@ import {
   opsAlertParam,
   opsEntryParam,
 } from "./ObservabilityWorkspace";
-import { badgeFor } from "../workspace/Workspace";
+import { badgeFor, easternClockText } from "../workspace/Workspace";
 import { createPrivateReaderSession } from "../../lib/private-reader-client";
 import {
   OPS_CREDENTIAL_ENDPOINT,
@@ -923,25 +923,65 @@ describe("Status connection states", () => {
   });
 });
 
-describe("a fixture reads a fixed clock", () => {
-  it("runs no timer, so nothing re-renders every second", async () => {
-    const host = document.createElement("div");
-    const root = createRoot(host);
-    for (const view of ["status", "activity", "alerts"] as const) {
-      await act(async () =>
-        root.render(
-          <ObservabilityWorkspace
-            view={view}
-            enabled={false}
-            fixture={sample}
-            eventsFixture={events}
-          />,
-        ),
-      );
-      expect(host.querySelector("table")).not.toBeNull();
-      expect(sharedLiveClock().running()).toBe(false);
+describe("a fixture's clock", () => {
+  it("runs forward from the fixture's own generated_at, never standing still", async () => {
+    vi.useFakeTimers({
+      now: Date.parse("2026-09-22T12:00:00Z"),
+      toFake: ["Date", "setInterval", "clearInterval"],
+    });
+    try {
+      const host = document.createElement("div");
+      const root = createRoot(host);
+      const generated = Date.parse(sample.generated_at);
+      for (const view of ["status", "activity", "alerts"] as const) {
+        await act(async () =>
+          root.render(
+            <ObservabilityWorkspace
+              view={view}
+              enabled={false}
+              fixture={sample}
+              eventsFixture={events}
+            />,
+          ),
+        );
+        expect(host.querySelector("table")).not.toBeNull();
+      }
+      const clock = () => host.querySelector(".workspace-clock")?.textContent;
+      expect(clock()).toBe(easternClockText(generated));
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+      });
+      expect(clock()).toBe(easternClockText(generated + 3000));
+      expect(sharedLiveClock().running()).toBe(true);
+      // Well past the sampler's 60 seconds, the fixture's sampler is still
+      // judged at its own moment: never "stopped".
+      await act(async () => {
+        vi.advanceTimersByTime(90_000);
+      });
+      expect(clock()).toBe(easternClockText(generated + 93_000));
+      expect(host.textContent).not.toContain("Sampler stopped");
+      await act(async () => root.unmount());
+    } finally {
+      vi.useRealTimers();
     }
-    await act(async () => root.unmount());
+  });
+
+  it("marks a local replay apart from the sample, with its capture age", () => {
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(
+      <ObservabilityWorkspace
+        view="status"
+        enabled={false}
+        fixture={sample}
+        eventsFixture={events}
+        fixtureOrigin={{ replay: true, capturedAt: "2026-09-21T15:00:00Z" }}
+        now={NOW}
+      />,
+    );
+    const mark = host.querySelector('[data-fixture="replay"]')!;
+    expect(mark.textContent).toMatch(/^Replay, captured \d+[mhd] ago$/);
+    expect(host.textContent).not.toContain("Sample data");
+    expect(host.querySelector('[data-fixture="sample"]')).toBeNull();
   });
 });
 

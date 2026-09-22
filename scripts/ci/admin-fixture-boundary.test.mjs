@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { extname, join, relative } from "node:path";
+import { readOrigin } from "../admin/screenshot-origin.mjs";
 
 const root = process.cwd();
 const adminSource = join(root, "apps/admin/src");
@@ -84,6 +85,8 @@ if (existsSync(dist)) {
     /data_v1\.synthetic/,
     /\.local\/replay/,
     /["']node:fs(?:\/promises)?["']/,
+    // Synthetic fixture source ids never ship in a mark or name table.
+    /["']synthetic-[a-z]/,
   ];
   for (const file of collectBuilt(dist)) {
     distFiles += 1;
@@ -96,6 +99,24 @@ if (existsSync(dist)) {
       );
   }
 }
+
+// A committed admin screenshot says where its data came from, and it is
+// the committed synthetic samples: never a replay of System's live payloads
+// (scripts/admin/round2-screenshots.mjs stamps and refuses them).
+const shots = join(root, "docs/design/screenshots/admin-round2");
+let shotCount = 0;
+if (existsSync(shots))
+  for (const name of readdirSync(shots).filter((file) =>
+    file.endsWith(".png"),
+  )) {
+    shotCount += 1;
+    const origin = readOrigin(readFileSync(join(shots, name)));
+    assert.equal(
+      origin,
+      "synthetic",
+      `docs/design/screenshots/admin-round2/${name} is ${origin === null ? "unstamped" : `stamped ${origin}`}; shoot it with scripts/admin/round2-screenshots.mjs`,
+    );
+  }
 
 const editorialLayout = readFileSync(
   join(adminSource, "layouts/EditorialLayout.astro"),
@@ -148,7 +169,8 @@ assert.doesNotMatch(
 
 console.log(
   `admin fixture boundary passed for ${productionFiles.length} production modules` +
-    (existsSync(dist) ? ` and ${distFiles} built files` : " (no dist built)"),
+    (existsSync(dist) ? ` and ${distFiles} built files` : " (no dist built)") +
+    `, ${shotCount} screenshots stamped synthetic`,
 );
 
 function collectBuilt(directory) {

@@ -37,6 +37,10 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
     enabled={enabled}
     fixture={fixtures?.snapshot}
     eventsFixture={fixtures?.events}
+    fixtureOrigin={fixtures && {
+      replay: fixtures.replay,
+      capturedAt: fixtures.capturedAt,
+    }}
     renderedAt={Date.now()}
     client:load
   />

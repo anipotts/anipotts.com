@@ -5,6 +5,7 @@ import { HealthView } from "./HealthView";
 import { KnowledgeView } from "./KnowledgeView";
 import type { CatalogRecord } from "../astryx/EditorialApp";
 import type { OpsViewProps } from "../astryx/ObservabilityWorkspace";
+import { FixtureOriginContext, SAMPLE_ORIGIN } from "../workspace/Workspace";
 import type { DataFixture } from "../../lib/data-fixture-reader";
 import {
   DATA_VIEW_TITLES,
@@ -121,47 +122,49 @@ export function PrivateShell({
     [resolve],
   );
   return (
-    <div onClick={onClientLinkClick}>
-      {route.view === "overview" ? (
-        <AdminOverview
-          content={content ?? []}
-          dataEnabled={dataEnabled}
-          dataFixture={dataFixture}
-          session={session}
-          fetch={fetcher}
-          {...ops}
-        />
-      ) : route.view === "health" ? (
-        <HealthView
-          enabled={dataEnabled && healthEnabled}
-          fixture={dataFixture?.health}
-          session={healthSession}
-          fetch={fetcher}
-          ops={ops}
-        />
-      ) : route.view === "knowledge" ? (
-        <KnowledgeView
-          route={route}
-          navigate={navigate}
-          enabled={dataEnabled && knowledgeEnabled}
-          fixture={dataFixture?.knowledge}
-          session={session}
-          fetch={fetcher}
-        />
-      ) : (
-        <DataWorkspace
-          // Each sibling view starts clean; a record within Records is not
-          // a new view, so opening one keeps the list's state.
-          key={route.view}
-          route={route}
-          navigate={navigate}
-          enabled={dataEnabled}
-          fixture={dataFixture}
-          session={session}
-          fetch={fetcher}
-          ops={ops}
-        />
-      )}
-    </div>
+    <FixtureOriginContext.Provider value={ops.fixtureOrigin ?? SAMPLE_ORIGIN}>
+      <div onClick={onClientLinkClick}>
+        {route.view === "overview" ? (
+          <AdminOverview
+            content={content ?? []}
+            dataEnabled={dataEnabled}
+            dataFixture={dataFixture}
+            session={session}
+            fetch={fetcher}
+            {...ops}
+          />
+        ) : route.view === "health" ? (
+          <HealthView
+            enabled={dataEnabled && healthEnabled}
+            fixture={dataFixture?.health}
+            session={healthSession}
+            fetch={fetcher}
+            ops={ops}
+          />
+        ) : route.view === "knowledge" ? (
+          <KnowledgeView
+            route={route}
+            navigate={navigate}
+            enabled={dataEnabled && knowledgeEnabled}
+            fixture={dataFixture?.knowledge}
+            session={session}
+            fetch={fetcher}
+          />
+        ) : (
+          <DataWorkspace
+            // Each sibling view starts clean; a record within Records is not
+            // a new view, so opening one keeps the list's state.
+            key={route.view}
+            route={route}
+            navigate={navigate}
+            enabled={dataEnabled}
+            fixture={dataFixture}
+            session={session}
+            fetch={fetcher}
+            ops={ops}
+          />
+        )}
+      </div>
+    </FixtureOriginContext.Provider>
   );
 }
