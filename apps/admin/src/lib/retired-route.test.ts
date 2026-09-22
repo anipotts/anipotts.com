@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { APIContext } from "astro";
 import { ALL } from "./retired-route";
 import { RETIRED_ROUTE_REDIRECTS } from "./retired-routes.mjs";
+import config from "../../astro.config.mjs";
 
 const answer = (path: string, method = "GET") =>
   ALL({
@@ -28,5 +29,24 @@ describe("retired routes", () => {
       expect(destination).toMatch(
         /^\/(?:$|content\/pages$|data\/records$|observability\/(?:status|activity)$)/,
       );
+  });
+
+  it("are each injected into the router by the app's own Astro config", async () => {
+    const integration = config.integrations?.find(
+      (item) => item && "name" in item && item.name === "admin-retired-routes",
+    );
+    expect(integration).toBeDefined();
+    const injected: Array<{ pattern: string; entrypoint: string | URL }> = [];
+    const setup = integration!.hooks[
+      "astro:config:setup"
+    ] as unknown as (options: {
+      injectRoute: (route: (typeof injected)[number]) => void;
+    }) => void;
+    setup({ injectRoute: (route) => injected.push(route) });
+    expect(injected.map((route) => route.pattern).sort()).toEqual(
+      Object.keys(RETIRED_ROUTE_REDIRECTS).sort(),
+    );
+    for (const route of injected)
+      expect(String(route.entrypoint)).toMatch(/\/retired-route\.ts$/);
   });
 });
