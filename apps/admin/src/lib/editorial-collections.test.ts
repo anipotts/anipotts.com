@@ -11,6 +11,7 @@ describe("retired /content/edit diagnostics", () => {
     ["newsletter_archive", "/content/newsletterPage/newsletter"],
     ["writing:saturdays", "/content/writing/saturdays"],
     ["writing%3Asaturdays", "/content/writing/saturdays"],
+    ["writing%3Asaturdays%3aextra", "/content/pages"],
     ["project:agents", "/content/projects/agents"],
     ["new", "/content/new"],
     ["writing:new", "/content/new"],

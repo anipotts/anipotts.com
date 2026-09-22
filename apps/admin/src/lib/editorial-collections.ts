@@ -49,7 +49,7 @@ const LEGACY_PAGE_KEYS: Record<string, keyof typeof PAGE_COLLECTIONS> = {
 /** The retired `/content/edit/<page key>` diagnostics: a record lands on its
  * editor, a new one on the create page and anything else on Pages. */
 export function legacyEditRedirect(pageKey = ""): string {
-  const key = pageKey.replace(/%3a/i, ":");
+  const key = pageKey.replace(/%3a/gi, ":");
   if (key === "new" || key === "writing:new") return "/content/new";
   const [, prefix, id] = /^(writing|project):(.+)$/.exec(key) ?? [];
   const record = editorialRecordSchema.safeParse({
