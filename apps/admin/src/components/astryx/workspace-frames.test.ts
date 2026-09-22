@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const read = (path: string) =>
   readFileSync(new URL(path, import.meta.url), "utf8").replace(/\s+/g, " ");
-const editorial = read("../../styles/editorial.css");
+const shell = read("../../styles/shell.css");
 const operations = read("./operations-workspace.css");
 const kit = read("../workspace/workspace.css");
 const header = read("./WorkspaceHeader.css");
@@ -19,9 +19,15 @@ const block = (css: string, query: string) => {
 };
 
 describe("workspace page frames", () => {
-  it("gives every workspace page the Content library's inline gutter", () => {
-    expect(editorial).toContain(
-      ".editorial-workspace-shell .admin-page-frame { padding-block: var(--spacing-6); padding-inline: clamp(var(--spacing-4), 3vw, var(--spacing-12));",
+  it("gives every workspace page one inline gutter, 12px at compact", () => {
+    expect(shell).toContain(
+      ".editorial-workspace-shell { --admin-gutter: clamp(var(--spacing-4), 3vw, var(--spacing-12)); }",
+    );
+    expect(shell).toContain(
+      "@media (max-width: 640px) { .editorial-workspace-shell { --admin-gutter: var(--spacing-3); } }",
+    );
+    expect(shell).toContain(
+      ".editorial-workspace-shell .admin-page-frame { padding-block: var(--spacing-6); padding-inline: var(--admin-gutter);",
     );
     // Data and Observability pages sit in that frame as they are; neither
     // resets it to set a gutter of its own.
@@ -29,28 +35,31 @@ describe("workspace page frames", () => {
       expect(css).not.toContain("admin-page-frame");
   });
 
-  it("hides phone columns only through the shared table", () => {
-    const phone = block(editorial, "(max-width: 480px)");
-    for (const rule of phone.matchAll(/([^{}]+)\{[^}]*display: none/g)) {
-      const selectors = rule[1]!.split(",").map((part) => part.trim());
-      for (const selector of selectors.filter((part) =>
-        part.includes("editorial-record-table"),
-      ))
-        expect(selector).toMatch(/^\.workspace-table /);
-    }
+  it("hides columns only through the shared table, by named range", () => {
+    for (const [query, range] of [
+      ["(max-width: 1439px)", "wide"],
+      ["(max-width: 1023px)", "large"],
+    ])
+      expect(block(kit, query)).toContain(
+        `.workspace-table [data-hide-below="${range}"] { display: none; }`,
+      );
+    // No stylesheet counts columns by position any more.
+    for (const css of [shell, kit, operations])
+      expect(css).not.toMatch(/nth-child|nth-last-child/);
   });
 
-  it("moves every table's middle columns under its title on phones", () => {
-    expect(editorial).toContain(
-      ".workspace-table .editorial-record-table :is(th, td):nth-child(n + 2):nth-last-child(n + 2) { display: none; }",
+  it("turns every table into a full-bleed list of lead cells at compact", () => {
+    const compact = block(kit, "(max-width: 640px)");
+    expect(compact).toContain(
+      ".workspace-table :is(th, td):not(:first-child) { display: none; }",
     );
-    expect(editorial).toContain(
-      ".workspace-table .editorial-mobile-status { display: flex; }",
+    expect(compact).toContain(
+      "margin-inline: calc(-1 * var(--admin-gutter, 0px));",
     );
+    expect(compact).toContain(".workspace-table-footer { display: none; }");
+    expect(compact).toContain(".workspace-row-end { display: inline-flex; }");
     // Observability keeps no column rules of its own.
-    expect(operations).not.toMatch(
-      /nth-child|ops-status-table|ops-mobile-status/,
-    );
+    expect(operations).not.toMatch(/ops-status-table|ops-mobile-status/);
     // Workspace themes cannot tint a table apart from the others.
     expect(kit).toContain(
       ".workspace-table .astryx-base-table:not(#\\#):not(#\\#) { background: transparent; }",
@@ -101,34 +110,24 @@ describe("workspace page frames", () => {
     );
   });
 
-  it("keeps the library table one line per record", () => {
-    const library = read("../../styles/editorial.css");
+  it("keeps each table row one control tall, the whole row the target", () => {
     // Cells carry their own inset; only the cell holding the tallest control
     // goes without, so rows stay one control tall.
-    expect(library).toContain(
-      ".workspace-table .editorial-record-table .astryx-table-cell { vertical-align: middle; padding-block: var(--spacing-1); }",
+    expect(kit).toContain(
+      ".workspace-table .astryx-table-cell { vertical-align: middle; padding-block: var(--spacing-1); }",
     );
-    expect(library).toContain(
-      ".workspace-table .editorial-record-table .astryx-table-cell:last-child { padding-block: 0; }",
+    expect(kit).toContain(
+      ".workspace-table .astryx-table-cell:last-child { padding-block: 0; }",
     );
     // The whole row is the click target; the title link wraps only its text.
-    expect(library).toContain(
-      '.workspace-table .record-link::after { content: ""; position: absolute; inset: 0; }',
+    expect(kit).toContain(
+      '.workspace-row-link::after { content: ""; position: absolute; inset: 0; }',
     );
-    expect(library).toContain(
-      ".workspace-table .editorial-record-table tr { position: relative; }",
+    expect(kit).toContain(".workspace-table tbody tr { position: relative; }");
+    // Hover tints only where hover exists, and focus tints instead of rings.
+    expect(block(kit, "(hover: hover)")).toContain(
+      '.workspace-table[data-interactive="true"] tbody tr:hover',
     );
-    for (const rule of [
-      ".workspace-table .editorial-record-summary,",
-      ".workspace-table .editorial-record-state > .astryx-token:not(#\\#):not(#\\#):not(#\\#) { flex: 0 0 auto; }",
-    ])
-      expect(library).toContain(rule);
-    // The phone row keeps its state under the title and gets the room for it.
-    expect(library).toContain(
-      ".workspace-table .editorial-record-table .astryx-table-cell { padding-block: var(--spacing-2); }",
-    );
-    expect(library).toContain(
-      ":is(th, td):nth-child(n + 2):nth-last-child(n + 2) { display: none; }",
-    );
+    expect(kit).not.toMatch(/outline:\s*(?!none)[^;]*solid/);
   });
 });

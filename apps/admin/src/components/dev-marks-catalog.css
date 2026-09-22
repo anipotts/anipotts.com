@@ -1,0 +1,82 @@
+.dev-marks {
+  box-sizing: border-box;
+  min-block-size: 100dvh;
+  padding: var(--spacing-6, 24px) var(--admin-gutter, 16px);
+  background: var(--color-background-body);
+  color: var(--color-text-primary);
+  font-family: var(--font-interface, system-ui);
+}
+
+.dev-marks h1 {
+  margin: 0 0 var(--spacing-4, 16px);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.dev-marks-panels {
+  display: grid;
+  gap: var(--spacing-4, 16px);
+}
+
+@media (min-width: 1024px) {
+  .dev-marks-panels {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.dev-marks-panel {
+  padding: var(--spacing-4, 16px);
+  border-radius: var(--radius-outer, 12px);
+  background: var(--color-background-body);
+  color: var(--color-text-primary);
+}
+
+.dev-marks-panel h2 {
+  margin: var(--spacing-4, 16px) 0 var(--spacing-2, 8px);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dev-marks-panel h2:first-child {
+  margin-block-start: 0;
+}
+
+.dev-marks-panel ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--spacing-2, 8px) var(--spacing-4, 16px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dev-marks-entry {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2, 8px);
+  min-inline-size: 0;
+  font-size: 13px;
+}
+
+.dev-marks-sizes {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.dev-marks-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dev-marks-note {
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-family: var(--font-code, ui-monospace);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -56,12 +56,12 @@ describe("the one overview", () => {
     const table = host.querySelector('table[aria-label="Firing alerts"]')!;
     const rows = [...table.querySelectorAll("tbody tr")].map(
       (row) =>
-        `${row.textContent} ${row.querySelector("a.record-link")?.getAttribute("title")}`,
+        `${row.textContent} ${row.querySelector("a.workspace-row-link")?.getAttribute("title")}`,
     );
     expect(
       [...table.querySelectorAll("thead th")].map((th) => th.textContent),
-    ).toEqual(["Alert", "State", "Since", "Opens"]);
-    const link = table.querySelector("tbody a.record-link")!;
+    ).toEqual(["Alert", "State", "Since"]);
+    const link = table.querySelector("tbody a.workspace-row-link")!;
     expect(link.getAttribute("aria-label")).toMatch(/^Open runbook for /);
     expect(link.getAttribute("target")).toBe("_blank");
     // No runbook column and no link buttons: the row is the link.

@@ -29,7 +29,7 @@ import {
   RowTitle,
   SampleBadge,
   StateNotice,
-  TierSwatch,
+  TierMark,
   WorkspacePage,
   WorkspaceSection,
 } from "../workspace/Workspace";
@@ -109,6 +109,7 @@ function RecentContent({ records }: { records: CatalogRecord[] }) {
                         <RecordStatus status={item.status} />
                       </>
                     }
+                    time={item.updated?.at}
                   />
                 );
               },
@@ -206,9 +207,10 @@ function RecentData({
                     mobile={
                       <>
                         <KindBadge icon={glyph} label={kind} />
-                        <TierSwatch tier={text(item.tier)} />
+                        <TierMark tier={text(item.tier)} />
                       </>
                     }
+                    time={text(item.observed_at)}
                   />
                 );
               },
@@ -226,7 +228,7 @@ function RecentData({
               key: "tier",
               header: <Text className="sr-only">Tier</Text>,
               width: 44,
-              render: (item) => <TierSwatch tier={text(item.tier)} />,
+              render: (item) => <TierMark tier={text(item.tier)} />,
             },
             {
               key: "observed",

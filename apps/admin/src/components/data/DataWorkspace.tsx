@@ -2,7 +2,6 @@ import React, { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@astryxdesign/core/Button";
 import { Collapsible } from "@astryxdesign/core/Collapsible";
 import {
-  DropdownMenu,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from "@astryxdesign/core/DropdownMenu";
@@ -17,6 +16,7 @@ import {
   HeartbeatIcon,
   LockKeyIcon,
   MapPinIcon,
+  ShapesIcon,
   SignOutIcon,
   TreeStructureIcon,
   UserIcon,
@@ -42,13 +42,14 @@ import {
   DataTable,
   DetailPanel,
   FilterBar,
+  FilterMenu,
   LoadingSkeleton,
   RelativeTime,
   RowTitle,
   SampleBadge,
   StateBadge,
   StateNotice,
-  TierSwatch,
+  TierMark,
   WorkspacePage,
   type Column,
 } from "../workspace/Workspace";
@@ -95,21 +96,9 @@ export function recordKindGlyph(kind: unknown): [Icon, string] {
   }
 }
 
-/** Record status as a chip: confirmed is positive, superseded is calm. */
+/** Record status as a chip, only when it is not the default Observed. */
 function RecordBadge({ status }: { status: unknown }) {
-  const value = text(status, "unknown");
-  return (
-    <StateBadge
-      tone={
-        value === "confirmed"
-          ? "positive"
-          : value === "superseded"
-            ? "calm"
-            : "neutral"
-      }
-      label={`${value.charAt(0).toUpperCase()}${value.slice(1)}`}
-    />
-  );
+  return <StateBadge domain="record" state={text(status, "unknown")} />;
 }
 
 /** A failed read, in the kit's notice. The copy never repeats reader text. */
@@ -248,7 +237,7 @@ export function RecordDetail({
       badge={
         <HStack gap={2} vAlign="center">
           <RecordBadge status={record.status} />
-          <TierSwatch tier={text(record.tier) || null} />
+          <TierMark tier={text(record.tier) || null} />
         </HStack>
       }
       back={back}
@@ -293,6 +282,7 @@ export function RecordDetail({
                     kind="Revision"
                     title={`Source version ${text(item.source_version, "unknown")}${item.revision_id === record.revision_id ? ", current" : ""}`}
                     secondary={text(item.revision_id)}
+                    time={text(item.observed_at)}
                   />
                 ),
               },
@@ -354,9 +344,10 @@ function recordColumns(
             mobile={
               <>
                 <RecordBadge status={item.status} />
-                <TierSwatch tier={text(item.tier) || null} />
+                <TierMark tier={text(item.tier) || null} />
               </>
             }
+            time={text(item.observed_at)}
           />
         );
       },
@@ -365,7 +356,7 @@ function recordColumns(
       key: "kind",
       header: "Kind",
       width: 112,
-      hideBelow: 1024,
+      hideBelow: "large",
       render: (item) => (
         <Text color="secondary">{recordKindGlyph(item.kind)[1]}</Text>
       ),
@@ -374,14 +365,14 @@ function recordColumns(
       key: "state",
       header: "State",
       width: 132,
-      hideBelow: 1280,
+      hideBelow: "large",
       render: (item) => <RecordBadge status={item.status} />,
     },
     {
       key: "tier",
       header: <Text className="sr-only">Tier</Text>,
       width: 44,
-      render: (item) => <TierSwatch tier={text(item.tier) || null} />,
+      render: (item) => <TierMark tier={text(item.tier) || null} />,
     },
     {
       key: "observed",
@@ -564,19 +555,19 @@ function RecordsExplorer({
           search={{
             label: "Search records",
             value: query,
-            onChange: (value) => setQuery(value.slice(0, 2048)),
-            onSubmit: () => void search(query, kind, [0]),
+            onChange: (value) => {
+              const q = value.slice(0, 2048);
+              setQuery(q);
+              void search(q, kind, [0]);
+            },
             isBusy: busy,
           }}
         >
-          <DropdownMenu
-            button={{
-              label: kind === "all" ? "Kind" : DATA_KINDS[kind].label,
-              tooltip: `Kind: ${DATA_KINDS[kind].label}`,
-              size: "sm",
-              variant: "secondary",
-            }}
-            menuWidth="max-content"
+          <FilterMenu
+            label="Kind"
+            icon={ShapesIcon}
+            value={DATA_KINDS[kind].label}
+            isActive={kind !== "all"}
           >
             <DropdownMenuRadioGroup
               label="Record kind"
@@ -591,7 +582,7 @@ function RecordsExplorer({
                 />
               ))}
             </DropdownMenuRadioGroup>
-          </DropdownMenu>
+          </FilterMenu>
         </FilterBar>
         {!result ? (
           <LoadingSkeleton label="records" columns={4} />
@@ -716,6 +707,7 @@ function SourcesExplorer({ reader }: { reader: LifeReader }) {
                 kind="Source"
                 title={text(item.source_id, "Unnamed source")}
                 secondary={`${text(item.record_count, "0")} records, ${text(item.revision_count, "0")} revisions`}
+                time={text(item.last_observed_at)}
               />
             ),
           },
@@ -723,7 +715,7 @@ function SourcesExplorer({ reader }: { reader: LifeReader }) {
             key: "first",
             header: "First seen",
             width: 128,
-            hideBelow: 1024,
+            hideBelow: "large",
             render: (item) => (
               <RelativeTime
                 value={text(item.first_observed_at)}
@@ -780,6 +772,10 @@ function CardsTable({
                 kind={name}
                 title={card.title}
                 secondary={card.summary}
+                mobile={
+                  <StateBadge domain="freshness" state={card.freshness} />
+                }
+                time={card.observed_at}
               />
             );
           },
@@ -788,27 +784,16 @@ function CardsTable({
           key: "source",
           header: "Source",
           width: 176,
-          hideBelow: 1024,
+          hideBelow: "large",
           render: (card) => <Text color="secondary">{card.source}</Text>,
         },
         {
           key: "freshness",
           header: "Freshness",
           width: 120,
-          hideBelow: 1024,
+          hideBelow: "large",
           render: (card) => (
-            <StateBadge
-              tone={
-                card.freshness === "fresh"
-                  ? "positive"
-                  : card.freshness === "stale"
-                    ? "warning"
-                    : "neutral"
-              }
-              label={
-                card.freshness.charAt(0).toUpperCase() + card.freshness.slice(1)
-              }
-            />
+            <StateBadge domain="freshness" state={card.freshness} />
           ),
         },
         {

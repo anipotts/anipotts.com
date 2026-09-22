@@ -1,0 +1,621 @@
+/* The record editor: writing surfaces, rich fields, the action bar, review
+   diffs, publication progress and the record panel. Shell and page frame
+   rules live in shell.css. */
+/* Source editing and the actual page preview each own one full-width region. */
+.editorial-source {
+  min-width: 0;
+  background: var(--color-background-surface);
+  color: var(--color-text-primary);
+}
+.editorial-source .cm-editor {
+  min-height: 24rem;
+}
+.editorial-source .cm-scroller {
+  overflow: auto;
+}
+.editorial-preview {
+  width: 100%;
+  height: 70vh;
+  border: 0;
+  border-radius: var(--radius-md);
+}
+/* One document region, capped for comfortable writing. Controls stay compact. */
+.editor-actionbar {
+  padding-bottom: var(--spacing-2);
+}
+.editor-save-group {
+  flex: 1 1 auto;
+}
+.editor-primary-actions {
+  margin-inline-start: auto;
+  flex-wrap: wrap;
+}
+.editor-primary-actions > [aria-haspopup="menu"] {
+  flex: 0 0 auto;
+  width: var(--spacing-9);
+  min-height: var(--spacing-9);
+  padding-inline: 0;
+}
+.editor-history-row {
+  padding-block: var(--spacing-3);
+  justify-content: space-between;
+}
+.editorial-content .editor-fields,
+.editor-workspace > .astryx-form-layout {
+  width: 100%;
+  max-width: 52rem;
+}
+.rich-field,
+.rich-field-surface,
+.rich-writing {
+  min-width: 0;
+  width: 100%;
+}
+.rich-field-surface {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-element);
+  background: var(--color-background-surface);
+  overflow: hidden;
+}
+.rich-field .astryx-toolbar {
+  background: var(--color-background-muted);
+}
+.rich-writing .tiptap {
+  padding: var(--spacing-4);
+  min-height: 4.5rem;
+  outline: none;
+  line-height: 1.8;
+  font-size: var(--font-size-lg);
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+.rich-writing .tiptap p {
+  margin: 0;
+}
+.rich-writing .tiptap p + p {
+  margin-top: var(--spacing-3);
+}
+.rich-writing a {
+  color: var(--color-text-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: text;
+}
+.rich-writing strong {
+  font-weight: var(--font-weight-bold);
+}
+.rich-writing em {
+  font-style: italic;
+}
+.rich-writing u {
+  text-underline-offset: 0.2em;
+}
+.rich-writing .inline-image {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  margin: 0 0.15em 0 0;
+  vertical-align: -0.1em;
+  object-fit: contain;
+  border-radius: var(--radius-inner);
+}
+.rich-writing .inline-image-wide {
+  width: 1.24em;
+}
+.rich-writing .inline-image-mark {
+  width: 1.08em;
+  height: 1.08em;
+}
+.rich-writing .inline-image-white {
+  filter: brightness(0) invert(1);
+}
+.rich-writing .ProseMirror-selectednode {
+  outline: 2px solid var(--color-accent);
+}
+.rich-inspector {
+  padding: var(--spacing-4);
+}
+.editorial-content .editor-review {
+  min-width: 0;
+  width: 100%;
+}
+.editor-change {
+  padding-block: var(--spacing-3);
+}
+.editorial-source {
+  background: var(--color-background-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-element);
+  overflow: hidden;
+}
+.editorial-source .cm-content {
+  font-family: var(--font-family-code);
+  padding: var(--spacing-4);
+}
+.editorial-source .cm-cursor {
+  border-left-color: var(--color-text-primary);
+}
+.editorial-source .cm-focused .cm-selectionBackground {
+  background: var(--color-accent-muted);
+}
+.editorial-preview {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-element);
+  background: var(--color-background-surface);
+}
+@media (pointer: coarse), (max-width: 540px) {
+  .editor-primary-actions > [aria-haspopup="menu"] {
+    width: var(--spacing-11);
+    min-height: var(--spacing-11);
+  }
+}
+@media (max-width: 480px) {
+  .editor-primary-actions {
+    width: 100%;
+    margin-inline-start: 0;
+    justify-content: flex-end;
+  }
+  .editor-primary-actions > .astryx-button[data-variant="primary"] {
+    flex: 1;
+  }
+  .editor-primary-actions:not(:has(> .astryx-button[data-variant="primary"])) {
+    width: auto;
+    margin-inline-start: auto;
+  }
+}
+@media (max-width: 640px) {
+  .rich-writing .tiptap {
+    padding: var(--spacing-3);
+  }
+}
+
+html[data-theme="light"] .rich-writing .inline-image-white {
+  filter: brightness(0);
+}
+@media (prefers-color-scheme: light) {
+  html:not([data-theme="dark"]) .rich-writing .inline-image-white {
+    filter: brightness(0);
+  }
+}
+
+.editor-destination {
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+/* Save outcomes must remain readable when text is enlarged. Token's default
+   single-line truncation is useful for tags, but would hide recovery status. */
+.editor-save-status .astryx-token > span:last-child {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+.editor-diff-heading > .astryx-button {
+  margin-inline-start: auto;
+}
+.editor-revision-diff {
+  min-width: 0;
+  container-type: inline-size;
+}
+.editor-diff-content {
+  min-width: 0;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-element);
+  overflow: hidden;
+}
+.editor-diff-columns {
+  background: var(--color-background-surface);
+}
+.editor-diff-columns > .astryx-text {
+  padding: var(--spacing-2) var(--spacing-3);
+}
+.editor-diff-line {
+  min-width: 0;
+  grid-row: var(--editor-diff-row);
+}
+.editor-diff-line[data-side="before"] {
+  grid-column: 1;
+}
+.editor-diff-line[data-side="after"] {
+  grid-column: 2;
+}
+.editor-diff-line-content {
+  min-width: 0;
+  flex: 1;
+}
+.editor-diff-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  min-block-size: 1lh;
+}
+.editor-diff-gutter {
+  min-width: 3ch;
+  text-align: end;
+  user-select: none;
+}
+.editor-diff-sign {
+  width: 1ch;
+  user-select: none;
+}
+.editor-diff-line[data-kind="removed"] {
+  background: color-mix(in srgb, var(--color-error-muted) 35%, transparent);
+}
+.editor-diff-line[data-kind="added"] {
+  background: color-mix(in srgb, var(--color-success-muted) 35%, transparent);
+}
+.editor-diff-text ins {
+  color: var(--color-text-primary);
+  background: var(--color-success-muted);
+  text-decoration: none;
+}
+.editor-diff-text del {
+  color: var(--color-text-primary);
+  background: var(--color-error-muted);
+  text-decoration: none;
+}
+.editor-revision-diff[data-layout="unified"] .editor-diff-hunk {
+  grid-template-columns: minmax(0, 1fr);
+}
+.editor-revision-diff[data-layout="unified"] .editor-diff-line {
+  grid-column: 1;
+  grid-row: auto;
+}
+.editor-revision-diff[data-layout="unified"] .editor-diff-columns,
+.editor-revision-diff[data-layout="unified"]
+  .editor-diff-line[data-side="after"][data-kind="equal"] {
+  display: none;
+}
+@container (max-width: 46rem) {
+  .editor-diff-hunk {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .editor-diff-line {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .editor-diff-line[data-side="before"],
+  .editor-diff-line[data-side="after"] {
+    grid-column: 1;
+  }
+  .editor-diff-columns,
+  .editor-diff-layout,
+  .editor-diff-line[data-side="after"][data-kind="equal"] {
+    display: none;
+  }
+}
+.editor-diff-added {
+  color: var(--color-text-primary);
+  background: var(--color-success-muted);
+  padding-inline: var(--spacing-1);
+  border-radius: var(--radius-inner);
+}
+.editor-diff-removed {
+  color: var(--color-text-primary);
+  background: var(--color-error-muted);
+  padding-inline: var(--spacing-1);
+  border-radius: var(--radius-inner);
+}
+.publication-step {
+  flex: 1;
+  min-width: 0;
+  padding-block-end: var(--spacing-2);
+  border-block-end: var(--spacing-0-5) solid var(--color-border);
+}
+.publication-step[data-state="complete"] {
+  border-block-end-color: var(--color-success);
+}
+.publication-step[data-state="active"] {
+  border-block-end-color: var(--color-accent);
+}
+.publication-step[data-state="blocked"] {
+  border-block-end-color: var(--color-error);
+}
+
+/* New shared controls follow the same pointer target and content budgets. */
+.admin-loading {
+  min-width: 0;
+}
+.admin-loading .astryx-stack {
+  width: 100%;
+}
+.rich-field .astryx-toolbar {
+  min-width: 0;
+}
+.editor-actionbar .astryx-section {
+  padding: 0;
+}
+.editor-actionbar .astryx-toolbar {
+  width: 100%;
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+}
+.editor-actionbar .astryx-toolbar > * {
+  flex-shrink: 0;
+  min-width: 0;
+  max-width: 100%;
+}
+@media (max-width: 540px) {
+  .editor-actionbar .astryx-toolbar {
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+  }
+  .editor-actionbar .astryx-toolbar > * {
+    width: 100%;
+  }
+  .editor-actionbar .editor-primary-actions {
+    width: 100%;
+  }
+}
+
+/* Writing uses a single readable column; controls wrap rather than squeeze it. */
+.new-writing-form {
+  width: 100%;
+  max-width: 40rem;
+}
+.article-composer {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-element);
+  background: var(--color-background-surface);
+  overflow: hidden;
+}
+.article-composer .astryx-toolbar {
+  padding: var(--spacing-2);
+}
+.article-composer .tiptap {
+  min-height: 24rem;
+  padding: var(--spacing-4);
+  outline: none;
+  line-height: var(--line-height-relaxed, 1.65);
+  overflow-wrap: anywhere;
+}
+.article-composer .tiptap > * + * {
+  margin-top: var(--spacing-4);
+}
+.article-composer .tiptap h2 {
+  font-size: var(--text-heading-2-size);
+  font-weight: var(--font-weight-semibold);
+}
+.article-composer .tiptap h3 {
+  font-size: var(--text-heading-3-size);
+  font-weight: var(--font-weight-semibold);
+}
+.article-composer .tiptap ul {
+  list-style: disc;
+  padding-inline-start: var(--spacing-6);
+}
+.article-composer .tiptap ol {
+  list-style: decimal;
+  padding-inline-start: var(--spacing-6);
+}
+.article-composer .tiptap blockquote {
+  border-inline-start: var(--spacing-1) solid var(--color-border);
+  padding-inline-start: var(--spacing-4);
+}
+.article-composer .tiptap img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-element);
+}
+.article-composer .tiptap a {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+.article-composer .tiptap pre {
+  white-space: pre-wrap;
+  padding: var(--spacing-3);
+}
+.article-image-preview {
+  width: 100%;
+  max-height: 24rem;
+  object-fit: contain;
+  border-radius: var(--radius-element);
+}
+
+/* A document has one reading measure and one shared left edge. */
+.editorial-content.writing-content,
+.editorial-content .writing-workspace {
+  width: 100%;
+  max-width: none;
+  margin-inline: auto;
+}
+.record-workspace-layout {
+  width: 100%;
+}
+.record-workspace-main {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
+.writing-workspace .record-workspace-main {
+  max-width: 45rem;
+  margin-inline: auto;
+}
+.writing-workspace .editor-actionbar {
+  position: sticky;
+  top: var(--_app-shell-header-height, 0px);
+  z-index: 20;
+  background: var(--color-background-body);
+  padding-block: var(--spacing-2);
+}
+.writing-workspace .document-title {
+  min-width: 0;
+  width: 100%;
+}
+.document-title textarea {
+  font-family: var(--font-family-heading);
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.25;
+  min-height: 0;
+  field-sizing: content;
+  resize: none;
+  padding: var(--spacing-3);
+  background: var(--color-background-surface);
+  border-radius: var(--radius-element);
+  overflow-wrap: anywhere;
+}
+.document-subtitle .rich-field-surface,
+.writing-workspace .article-composer {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-element);
+  background: var(--color-background-surface);
+}
+.document-subtitle .rich-writing {
+  min-height: 0;
+  padding: 0;
+  color: var(--color-text-primary);
+}
+.document-subtitle .rich-writing .tiptap {
+  padding: var(--spacing-3);
+  min-height: 0;
+}
+.writing-workspace .article-composer .tiptap {
+  min-height: calc(var(--spacing-8) * 3);
+  padding: var(--spacing-3);
+  font-size: var(--font-size-lg);
+  line-height: 1.7;
+}
+.writing-workspace .article-composer .tiptap img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: 15rem;
+  object-fit: contain;
+  margin-block: var(--spacing-4);
+}
+.document-preview {
+  width: 100%;
+  border: 0;
+  display: block;
+}
+
+/* Formatting is always present. Selection never changes the writing measure.
+   Related controls wrap as groups on narrow screens and at enlarged text sizes. */
+.document-editor-toolbar,
+.document-editor-toolbar [role="toolbar"],
+.document-editor-toolbar [role="toolbar"] > *,
+.editor-toolbar-controls {
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+}
+.document-editor-toolbar > .astryx-section {
+  padding: 0;
+}
+.document-editor-toolbar [role="toolbar"] {
+  flex-wrap: wrap;
+  padding: 0;
+}
+.editor-toolbar-controls {
+  flex-wrap: wrap;
+  gap: var(--spacing-1);
+}
+.editor-toolbar-group {
+  flex: 0 0 auto;
+  gap: var(--spacing-1);
+}
+.document-editor-toolbar .astryx-button,
+.document-editor-toolbar .astryx-toggle-button,
+.document-editor-toolbar [aria-haspopup="menu"] {
+  min-height: var(--spacing-9);
+  min-width: var(--spacing-9);
+}
+.document-editor-toolbar {
+  padding: var(--spacing-1);
+  background: var(--color-background-muted);
+}
+.publication-progress {
+  min-width: 0;
+  width: 100%;
+  overflow-wrap: anywhere;
+}
+.publication-steps {
+  flex-wrap: wrap;
+}
+@media (pointer: coarse), (max-width: 540px) {
+  .document-editor-toolbar .astryx-button,
+  .document-editor-toolbar .astryx-toggle-button,
+  .document-editor-toolbar [aria-haspopup="menu"] {
+    min-height: var(--spacing-11);
+    min-width: var(--spacing-11);
+  }
+  .document-title textarea {
+    font-size: var(--text-heading-2-size);
+  }
+  .writing-workspace .article-composer .tiptap {
+    padding: var(--spacing-3);
+  }
+  .writing-workspace .editor-actionbar {
+    /* A wrapped sticky header leaves too little room above the phone keyboard. */
+    position: static;
+  }
+  .record-panel-dialog .astryx-layout-content {
+    padding-bottom: max(var(--spacing-4), env(safe-area-inset-bottom));
+  }
+}
+
+.writing-workspace[data-editor-view="publish"] .record-workspace-main {
+  max-width: none;
+}
+
+/* Record detail panels share a measured workspace; the document owns its scroll. */
+.record-panel-host {
+  display: contents;
+}
+.record-inspector {
+  position: sticky;
+  top: var(--_app-shell-header-height, 0px);
+  align-self: flex-start;
+  max-height: calc(100dvh - var(--_app-shell-header-height, 0px));
+  background-color: var(--color-background-surface);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.record-inspector .astryx-heading {
+  font-size: var(--text-body-size);
+}
+.record-panel-dialog {
+  height: 100dvh;
+  max-height: 100dvh;
+  border-radius: 0;
+  margin: 0;
+}
+.record-panel-dialog .astryx-layout-content {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+/* Match document actions to the navigation density without shrinking touch targets. */
+.editor-actionbar .astryx-button {
+  min-height: var(--spacing-9);
+  padding-block: var(--spacing-1);
+  padding-inline: var(--spacing-3);
+}
+.article-word-count {
+  display: block;
+  margin-block-start: var(--spacing-3);
+}
+@media (pointer: coarse), (max-width: 540px) {
+  .editor-actionbar .astryx-button {
+    min-height: var(--spacing-11);
+  }
+}
+
+.document-auto-textarea textarea {
+  resize: none;
+  overflow: hidden;
+  min-height: var(--spacing-9);
+  border-radius: inherit;
+  background: transparent;
+}
+
+/* Keep secondary document tools together instead of orphaning the overflow button. */
+.editor-secondary-actions {
+  flex-shrink: 0;
+}
+@media (max-width: 540px) {
+  .editor-actionbar .editor-secondary-actions {
+    flex-basis: 100%;
+    justify-content: flex-end;
+  }
+}
