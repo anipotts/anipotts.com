@@ -279,8 +279,10 @@ describe("Health and Knowledge", () => {
     expect(host.querySelector("h1")?.textContent).toBe("Health");
     expect(host.textContent).toContain("No vitals collected");
     expect(host.textContent).not.toContain("not connected");
-    // No ops session: no phone sync line, and never a number.
-    expect(host.textContent).not.toContain("Last phone sync");
+    // The phone sync is withheld (A-38), and there is never a number.
+    expect(host.querySelector(".health-meta")?.textContent).toBe(
+      "Last phone syncNot recorded",
+    );
     const view = host.querySelector(".health-view")!.cloneNode(true) as Element;
     view.querySelector(".workspace-clock")?.remove();
     expect(view.textContent).not.toMatch(/\d/);
@@ -289,7 +291,9 @@ describe("Health and Knowledge", () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
-  it("names the last phone sync from ops while its flag is off, with no badge", async () => {
+  it("withholds the last phone sync even when ops has a health.ingest success (A-38)", async () => {
+    // health.ingest's success is the export file's modification time, not
+    // a phone's arrival (System S-14).
     const snapshot = {
       ...opsSample,
       status: opsSample.status.map((row) =>
@@ -300,9 +304,9 @@ describe("Health and Knowledge", () => {
     };
     await render("/data/health", { fixture: snapshot });
     expect(host.textContent).toContain("No vitals collected");
-    expect(host.textContent).toContain("Last phone sync");
-    expect(host.textContent).toContain("20m ago");
     const meta = host.querySelector(".health-meta")!;
+    expect(meta.textContent).toContain("Last phone syncNot recorded");
+    expect(meta.textContent).not.toContain("ago");
     expect(meta.textContent).not.toMatch(/\b(?:OK|Live|Connected)\b/);
     expect(meta.querySelector(".workspace-state")).toBeNull();
     expect(host.querySelector("table")).toBeNull();
@@ -409,32 +413,79 @@ describe("Health and Knowledge", () => {
     expect(host.textContent).not.toContain("97");
   });
 
-  it("says when the phone last synced and what has not arrived, from ops", async () => {
-    const ingest = opsSample.catalog.find((row) => row.id === "health.ingest")!;
-    const status = opsSample.status.find((row) => row.id === "health.ingest")!;
-    const snapshot = {
-      ...opsSample,
-      catalog: [
-        ...opsSample.catalog,
-        { ...ingest, id: "health.metrics", name: "health metrics" },
-      ],
-      status: [
-        ...opsSample.status.map((row) =>
-          row.id === "health.ingest"
-            ? { ...row, last_success_at: "2026-09-21T17:40:00Z" }
-            : row,
-        ),
-        { ...status, id: "health.metrics", detail: "missing:steps" },
-      ],
+  describe("the health.metrics check (A-9)", () => {
+    const metrics = (
+      row: Record<string, unknown>,
+      generatedAt = opsSample.generated_at,
+    ) => {
+      const ingest = opsSample.catalog.find(
+        (entry) => entry.id === "health.ingest",
+      )!;
+      const status = opsSample.status.find(
+        (entry) => entry.id === "health.ingest",
+      )!;
+      return {
+        ...opsSample,
+        generated_at: generatedAt,
+        catalog: [
+          ...opsSample.catalog,
+          {
+            ...ingest,
+            id: "health.metrics",
+            name: "health metrics",
+            freshness_budget_s: 7200,
+          },
+        ],
+        status: [
+          ...opsSample.status,
+          { ...status, id: "health.metrics", state: "ok", ...row },
+        ],
+      };
     };
-    await render("/data/health", {
-      dataFixture: dataFixture as unknown as DataFixture,
-      fixture: snapshot,
+
+    it("names each metric a current check says has not arrived", async () => {
+      await render("/data/health", {
+        dataFixture: dataFixture as unknown as DataFixture,
+        fixture: metrics({ detail: "missing:steps" }),
+      });
+      expect(host.textContent).toContain("Last phone syncNot recorded");
+      expect(host.textContent).toContain("Steps not arrived in the last 24h");
+      expect(host.textContent).not.toContain("Not checked");
+      expect(host.textContent).toContain("No vitals collected");
     });
-    expect(host.textContent).toContain("Last phone sync");
-    expect(host.textContent).toContain("20m ago");
-    expect(host.textContent).toContain("Steps not arrived in the last 24h");
-    expect(host.textContent).toContain("No vitals collected");
+
+    it.each([
+      ["stale", { state: "stale", detail: "ok" }],
+      ["failing", { state: "failing", detail: "missing:steps" }],
+      ["unknown", { state: "unknown", detail: "ok" }],
+    ])("reads a %s row as Not checked, flag off or on", async (_state, row) => {
+      await render("/data/health", { fixture: metrics(row) });
+      expect(host.textContent).toContain("Metric arrivalsNot checked");
+      expect(host.textContent).not.toContain("not arrived");
+      await render("/data/health", {
+        dataFixture: dataFixture as unknown as DataFixture,
+        fixture: metrics(row),
+      });
+      expect(host.textContent).toContain("Metric arrivalsNot checked");
+      expect(host.textContent).not.toContain("not arrived");
+    });
+
+    it("reads a stopped sampler's ok as Not checked", async () => {
+      // Read five minutes after the snapshot was generated: the sampler
+      // stopped, so its last ok is only last known.
+      await render("/data/health", {
+        fixture: metrics({ detail: "ok" }),
+        now: Date.parse(opsSample.generated_at) + 5 * 60_000,
+      });
+      expect(host.textContent).toContain("Metric arrivalsNot checked");
+    });
+
+    it("says nothing more when every metric arrived", async () => {
+      await render("/data/health", { fixture: metrics({ detail: "ok" }) });
+      expect(host.querySelector(".health-meta")?.textContent).toBe(
+        "Last phone syncNot recorded",
+      );
+    });
   });
 
   it("hands the overview and Data pages the same reader switches", () => {

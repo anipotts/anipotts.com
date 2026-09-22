@@ -29,8 +29,10 @@
   white-space: nowrap;
 }
 
-/* A phone row: the day, then one fixed slot per reading, right-aligned in
-   tabular figures. A slot with no reading stays empty, holding its place. */
+/* A phone row: the day, then one fixed slot per reading. The glyph keeps a
+   fixed place and the figure is right-aligned in a fixed width of tabular
+   figures ("10,065" and "3,200" end on one edge), so the glyphs form a
+   column too. A slot with no reading stays empty, holding its place. */
 .health-phone {
   display: inline-flex;
   align-items: center;
@@ -38,16 +40,17 @@
   font-variant-numeric: tabular-nums;
 }
 .health-phone-slot {
-  display: inline-flex;
+  display: inline-grid;
+  grid-template-columns: var(--spacing-3) 7ch;
   align-items: center;
-  justify-content: flex-end;
-  gap: var(--spacing-1);
-  min-width: calc(var(--spacing-12) + var(--spacing-4));
+  column-gap: var(--spacing-1);
   white-space: nowrap;
 }
 .health-phone-slot > svg {
   width: var(--spacing-3);
   height: var(--spacing-3);
-  flex: none;
   color: var(--color-text-secondary);
+}
+.health-phone-figure {
+  text-align: end;
 }

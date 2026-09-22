@@ -26,7 +26,8 @@ import {
 } from "../../lib/private-reader-health";
 import {
   HEALTH_METRIC_LABELS,
-  healthCollection,
+  HEALTH_METRICS_ID,
+  healthMetricsCheck,
   type HealthMetricName,
 } from "../../lib/health-metrics";
 import { useLiveText } from "../../lib/live-clock";
@@ -37,7 +38,6 @@ import {
   DataTable,
   FilterMenu,
   LoadingSkeleton,
-  RelativeTime,
   RowTitle,
   SampleBadge,
   StateNotice,
@@ -51,11 +51,12 @@ import "./data-workspace.css";
 import "./health.css";
 
 /**
- * Data Health: only what really arrived. The header says when the phone last
- * synced and which expected metrics have not arrived (both from the ops
- * snapshot, lib/health-metrics.ts) and how many days of the range hold a
- * reading; then one row per day of the range, "Nothing arrived" where none
- * did.
+ * Data Health: only what really arrived. The header says the last phone
+ * sync is not recorded (System has no arrival marker yet), which expected
+ * metrics have not arrived or that the check is not current (health.metrics
+ * in the ops snapshot, lib/health-metrics.ts), and how many days of the
+ * range hold a reading; then one row per day of the range, "Nothing
+ * arrived" where none did.
  *
  * A metric shows only once a collector feeds it. Steps come from the phone's
  * export today; weight joins once System's Withings collector writes real
@@ -64,8 +65,8 @@ import "./health.css";
  * were seeded, never measured.
  *
  * Off (PRIVATE_READER_HEALTH_ENABLED unset, as in production), the view is
- * "No vitals collected" and the last phone sync from ops, and makes no
- * health request. On, it reads through its own health:read session
+ * "No vitals collected", the withheld phone sync and the metric check from
+ * ops, and makes no health request. On, it reads through its own health:read session
  * (lib/private-reader-health.ts), memory only.
  */
 
@@ -157,39 +158,48 @@ const METRIC_GLYPHS: Partial<Record<HealthMetricName, Icon>> = {
 };
 
 /**
- * What the ops snapshot says about collection: the phone's last push (System's
- * health.ingest success) and each expected metric that has not arrived in
- * the last 24 hours (health.metrics). Read only when the ops reader is on,
- * or in development from the snapshot fixture; nothing when neither has it.
+ * The last phone sync, withheld: System's only time today is the export
+ * file's modification time (lib/health-metrics.ts), which is not a phone's
+ * arrival, so it reads "Not recorded" until System serves a real one.
  */
-function CollectionFacts({
-  ops,
-  phoneOnly = false,
-}: {
-  ops: OpsViewProps;
-  /** Only the last phone sync, as the off view says. */
-  phoneOnly?: boolean;
-}) {
-  const { snapshot, fixedNow } = useOpsData(ops, false);
-  const facts = snapshot ? healthCollection(snapshot) : null;
-  if (!facts) return null;
-  const missing =
-    !phoneOnly && facts.metrics?.kind === "missing"
-      ? facts.metrics.metrics
-      : [];
+function PhoneSync() {
+  return (
+    <span className="health-meta-item">
+      <BrandTile id="ap-phone" kind="device" size={20} label="ap-phone" />
+      <span>Last phone sync</span>
+      <span className="health-none">Not recorded</span>
+    </span>
+  );
+}
+
+/**
+ * What health.metrics says: each expected metric that has not arrived in
+ * the last 24 hours, or that the check is not current. Nothing when every
+ * metric arrived or System lists no such check. Read from the ops snapshot
+ * (the ops reader's gate, or the development fixture).
+ */
+function MetricsCheck({ ops }: { ops: OpsViewProps }) {
+  const { snapshot, stopped } = useOpsData(ops, false);
+  const check = snapshot ? healthMetricsCheck(snapshot, stopped) : null;
+  if (!check || check.kind === "ok") return null;
+  if (check.kind === "not_checked")
+    return (
+      <span className="health-meta-item" title={HEALTH_METRICS_ID}>
+        <CalendarDotsIcon weight="regular" aria-hidden="true" />
+        <span>Metric arrivals</span>
+        <span className="health-none">Not checked</span>
+      </span>
+    );
   return (
     <>
-      {facts.lastPhoneSync && (
-        <span className="health-meta-item" title="health.ingest">
-          <BrandTile id="ap-phone" kind="device" size={20} label="ap-phone" />
-          <span>Last phone sync</span>
-          <RelativeTime value={facts.lastPhoneSync} now={fixedNow} />
-        </span>
-      )}
-      {missing.map((name) => {
+      {check.metrics.map((name) => {
         const Glyph = METRIC_GLYPHS[name] ?? CalendarDotsIcon;
         return (
-          <span key={name} className="health-meta-item" title="health.metrics">
+          <span
+            key={name}
+            className="health-meta-item"
+            title={HEALTH_METRICS_ID}
+          >
             <Glyph weight="regular" aria-hidden="true" />
             <span>
               {HEALTH_METRIC_LABELS[name]} not arrived in the last 24h
@@ -204,6 +214,17 @@ function CollectionFacts({
 const opsReadable = (ops?: OpsViewProps): ops is OpsViewProps =>
   Boolean(ops && (ops.enabled || ops.fixture !== undefined));
 
+/** The collection facts every Health view leads with: the withheld phone
+ * sync, then what the per-metric check says, when ops can be read. */
+function CollectionFacts({ ops }: { ops?: OpsViewProps }) {
+  return (
+    <>
+      <PhoneSync />
+      {opsReadable(ops) && <MetricsCheck ops={ops} />}
+    </>
+  );
+}
+
 /** The header's line: the last phone sync and what has not arrived (from
  * ops), how many days of the range hold a reading, and no vitals. */
 function HealthMeta({ data, ops }: { data: HealthDaily; ops?: OpsViewProps }) {
@@ -213,7 +234,7 @@ function HealthMeta({ data, ops }: { data: HealthDaily; ops?: OpsViewProps }) {
   const oldest = days.at(-1)?.date;
   return (
     <span className="health-meta">
-      {opsReadable(ops) && <CollectionFacts ops={ops} />}
+      <CollectionFacts ops={ops} />
       {newest && oldest && (
         <span
           className="health-meta-item"
@@ -252,7 +273,9 @@ function Reading({ metric, row }: { metric: Metric; row: Row }) {
   return <span className="workspace-figure">{metric.format(value)}</span>;
 }
 
-/** A phone row's figures: fixed slots so the days line up in columns. */
+/** A phone row's figures: fixed slots, the glyph at a fixed place and the
+ * figure right-aligned in a fixed width, so glyphs and figures each form a
+ * column down the days whatever the figure's length. */
 function PhoneReadings({ row }: { row: Row }) {
   if (!row.item || !arrived(row.item))
     return <span className="health-none">Nothing arrived</span>;
@@ -272,8 +295,10 @@ function PhoneReadings({ row }: { row: Row }) {
             ) : (
               <>
                 <Glyph weight="regular" aria-hidden="true" />
-                <span className="sr-only">{metric.header} </span>
-                {metric.format(value)}
+                <span className="health-phone-figure">
+                  <span className="sr-only">{metric.header} </span>
+                  {metric.format(value)}
+                </span>
               </>
             )}
           </span>
@@ -546,16 +571,15 @@ export function HealthView({
   if (fixture !== undefined)
     return <FixtureHealth fixture={fixture} ops={ops} />;
   // Off: nothing is read. What is true is that no vitals are collected,
-  // and when the phone last pushed, if ops can say; never a number.
+  // no phone sync is recorded, and what the metric check says; never a
+  // number.
   if (!enabled)
     return (
       <Page
         meta={
-          opsReadable(ops) ? (
-            <span className="health-meta">
-              <CollectionFacts ops={ops} phoneOnly />
-            </span>
-          ) : null
+          <span className="health-meta">
+            <CollectionFacts ops={ops} />
+          </span>
         }
       >
         <StateNotice

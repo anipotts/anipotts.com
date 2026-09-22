@@ -1,20 +1,24 @@
 /**
  * What System's ops snapshot says about health collection, for Data Health.
  *
- * - `health.ingest` ("health data received", when the phone pushes) holds
- *   the last phone sync as its own `last_success_at`, a field System serves
- *   today; /v1/health/daily carries no push time.
  * - `health.metrics` (System, announced 2026-09-22 16:50, not live yet) is
  *   one hourly job whose detail is exactly `ok`, or `missing:` and a comma
  *   list of the expected metrics that did not arrive in the last 24 hours
- *   (`missing:steps,weight`). Any other detail is unknown, never data.
+ *   (`missing:steps,weight`). Any other detail is unknown, never data. The
+ *   detail is only the last check's answer, so it is trusted only while the
+ *   check itself is current: its row ok (or degraded, naming what is
+ *   missing) and the sampler running. A stale, failing, asleep or unknown
+ *   row, or a stopped sampler, is "Not checked", never a stale ok.
+ * - The last phone sync is withheld. `health.ingest`'s `last_success_at` is
+ *   the modification time of the file the phone export writes (System S-14),
+ *   which any rewrite moves, so it is not a phone's arrival. Health reads
+ *   "Not recorded" until System serves a real arrival marker.
  *
- * Nothing here reads a health value; both are catalog rows of machine
+ * Nothing here reads a health value; the check is a catalog row of machine
  * metadata.
  */
 import { opsServices, type OpsSnapshot } from "./ops-v1";
 
-export const HEALTH_INGEST_ID = "health.ingest";
 export const HEALTH_METRICS_ID = "health.metrics";
 
 /** The metric words `missing:` may list, as the Health view names them.
@@ -69,24 +73,35 @@ export function healthMetricsText(state: HealthMetricsState): string | null {
   return `${list} not arrived in the last 24h`;
 }
 
-export type HealthCollection = {
-  /** The phone's last push, from health.ingest's own success. */
-  lastPhoneSync: string | null;
-  /** health.metrics, when System lists it; null when it does not. */
-  metrics: HealthMetricsState | null;
-};
+/** What the per-metric check says now: its answer, or that it is not
+ * checking. */
+export type HealthMetricsCheck =
+  | { kind: "ok" }
+  | { kind: "missing"; metrics: HealthMetricName[] }
+  | { kind: "not_checked" };
 
-export function healthCollection(snapshot: OpsSnapshot): HealthCollection {
-  const services = opsServices(snapshot);
-  const ingest = services.find((service) => service.id === HEALTH_INGEST_ID);
-  const metrics = services.find((service) => service.id === HEALTH_METRICS_ID);
-  return {
-    lastPhoneSync: ingest?.missingStatus
-      ? null
-      : (ingest?.status.last_success_at ?? null),
-    metrics:
-      metrics && !metrics.missingStatus
-        ? parseHealthMetrics(metrics.status.detail)
-        : null,
-  };
+/**
+ * The `health.metrics` answer, judged by the row as well as its detail.
+ * Null while System lists no such entry. `ok` stands only on an ok row;
+ * a `missing:` list on an ok or degraded row; anything else, a stopped
+ * sampler or a detail that is not the agreed shape, is not checked.
+ */
+export function healthMetricsCheck(
+  snapshot: OpsSnapshot,
+  samplerStopped: boolean,
+): HealthMetricsCheck | null {
+  const row = opsServices(snapshot).find(
+    (service) => service.id === HEALTH_METRICS_ID,
+  );
+  if (!row) return null;
+  const NOT_CHECKED = { kind: "not_checked" } as const;
+  if (row.missingStatus || samplerStopped) return NOT_CHECKED;
+  const answer = parseHealthMetrics(row.status.detail);
+  if (answer.kind === "ok")
+    return row.status.state === "ok" ? answer : NOT_CHECKED;
+  if (answer.kind === "missing")
+    return row.status.state === "ok" || row.status.state === "degraded"
+      ? answer
+      : NOT_CHECKED;
+  return NOT_CHECKED;
 }

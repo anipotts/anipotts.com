@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import sample from "../fixtures/ops_v1.sample.json";
 import {
-  healthCollection,
+  healthMetricsCheck,
   healthMetricsText,
   parseHealthMetrics,
 } from "./health-metrics";
@@ -47,20 +47,11 @@ describe("health.metrics", () => {
   });
 });
 
-describe("health collection from the ops snapshot", () => {
-  it("takes the last phone sync from health.ingest and no metrics row yet", () => {
-    const snapshot = parseOpsSnapshot(sample);
-    expect(healthCollection(snapshot)).toEqual({
-      // The sample's health.ingest has no success recorded.
-      lastPhoneSync: null,
-      metrics: null,
-    });
-  });
-
-  it("reads health.metrics once System lists it", () => {
-    const entry = sample.catalog.find((row) => row.id === "health.ingest")!;
-    const status = sample.status.find((row) => row.id === "health.ingest")!;
-    const snapshot = parseOpsSnapshot({
+describe("the health.metrics check, judged by its row (A-9)", () => {
+  const entry = sample.catalog.find((row) => row.id === "health.ingest")!;
+  const status = sample.status.find((row) => row.id === "health.ingest")!;
+  const withMetrics = (row: Partial<typeof status> | null) =>
+    parseOpsSnapshot({
       ...sample,
       catalog: [
         ...sample.catalog,
@@ -73,17 +64,65 @@ describe("health collection from the ops snapshot", () => {
         },
       ],
       status: [
-        ...sample.status.map((row) =>
-          row.id === "health.ingest"
-            ? { ...row, last_success_at: "2026-09-21T17:40:00Z" }
-            : row,
-        ),
-        { ...status, id: "health.metrics", detail: "missing:steps" },
+        ...sample.status,
+        ...(row
+          ? [{ ...status, id: "health.metrics", state: "ok", ...row }]
+          : []),
       ],
     });
-    expect(healthCollection(snapshot)).toEqual({
-      lastPhoneSync: "2026-09-21T17:40:00Z",
-      metrics: { kind: "missing", metrics: ["steps"] },
+
+  it("says nothing while System lists no health.metrics entry", () => {
+    expect(healthMetricsCheck(parseOpsSnapshot(sample), false)).toBeNull();
+  });
+
+  it("trusts the detail on a current ok or degraded row", () => {
+    expect(healthMetricsCheck(withMetrics({ detail: "ok" }), false)).toEqual({
+      kind: "ok",
     });
+    expect(
+      healthMetricsCheck(withMetrics({ detail: "missing:steps" }), false),
+    ).toEqual({ kind: "missing", metrics: ["steps"] });
+    expect(
+      healthMetricsCheck(
+        withMetrics({ state: "degraded", detail: "missing:steps,weight" }),
+        false,
+      ),
+    ).toEqual({ kind: "missing", metrics: ["steps", "weight"] });
+  });
+
+  it.each(["stale", "failing", "unknown", "asleep"] as const)(
+    "never reads a %s row's last ok as ok",
+    (state) => {
+      expect(
+        healthMetricsCheck(withMetrics({ state, detail: "ok" }), false),
+      ).toEqual({ kind: "not_checked" });
+      expect(
+        healthMetricsCheck(
+          withMetrics({ state, detail: "missing:steps" }),
+          false,
+        ),
+      ).toEqual({ kind: "not_checked" });
+    },
+  );
+
+  it("is not checked while the sampler is stopped, whatever the row says", () => {
+    expect(healthMetricsCheck(withMetrics({ detail: "ok" }), true)).toEqual({
+      kind: "not_checked",
+    });
+  });
+
+  it("is not checked for a listed entry with no row, a degraded ok or an unknown detail", () => {
+    expect(healthMetricsCheck(withMetrics(null), false)).toEqual({
+      kind: "not_checked",
+    });
+    expect(
+      healthMetricsCheck(
+        withMetrics({ state: "degraded", detail: "ok" }),
+        false,
+      ),
+    ).toEqual({ kind: "not_checked" });
+    expect(
+      healthMetricsCheck(withMetrics({ detail: "missing:sleep" }), false),
+    ).toEqual({ kind: "not_checked" });
   });
 });
