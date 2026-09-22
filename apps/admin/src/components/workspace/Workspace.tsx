@@ -1021,6 +1021,12 @@ export function CompactOnly({ children }: { children: ReactNode }) {
   return <span className="workspace-compact-only">{children}</span>;
 }
 
+/** Part of a row's `mobile` line that only medium shows, because compact
+ * carries it elsewhere and large has its column (a device tile). */
+export function MediumOnly({ children }: { children: ReactNode }) {
+  return <span className="workspace-medium-only">{children}</span>;
+}
+
 /** `rest` is a host that sleeps on purpose: blue, so it reads apart from
  * healthy green and from an unknown's neutral. */
 export type Tone =

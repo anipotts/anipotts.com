@@ -9,6 +9,7 @@ import {
   CELL_WIDTHS,
   CompactOnly,
   DataTable,
+  MediumOnly,
   DetailText,
   Figure,
   RelativeTime,
@@ -147,6 +148,11 @@ export function AlertsTable({
           tooltip={row.detail ? `${row.subject}\n${row.detail}` : row.subject}
           mobile={
             <>
+              {naming.device && (
+                <MediumOnly>
+                  <DeviceTile device={row.host} />
+                </MediumOnly>
+              )}
               <CompactOnly>
                 {row.status === "firing" ? (
                   <StateBadge domain="ops" state={row.state} />
@@ -215,6 +221,8 @@ export function AlertsTable({
       key: "device",
       header: <span className="sr-only">Device</span>,
       width: CELL_WIDTHS.tile,
+      // Below large the tile leads line 2, so names keep the width.
+      hideBelow: "large",
       render: (row) =>
         entryNaming({
           id: row.subject,

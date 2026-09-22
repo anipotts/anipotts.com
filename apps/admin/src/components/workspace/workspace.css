@@ -404,9 +404,16 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   flex: 0 1 auto;
   min-width: 0;
 }
-/* Parts of line 2 that a wider range already shows in a column. */
-.workspace-compact-only {
+/* Parts of line 2 that a wider range already shows in a column, or that
+   only medium needs there. */
+.workspace-compact-only,
+.workspace-medium-only {
   display: none;
+}
+@media (min-width: 641px) and (max-width: 1023px) {
+  .workspace-medium-only {
+    display: contents;
+  }
 }
 /* A row whose detail column drops below large carries its detail as line 2
    there too (medium), as phones do. */
