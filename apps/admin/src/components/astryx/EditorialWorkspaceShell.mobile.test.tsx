@@ -92,7 +92,7 @@ describe("responsive workspace navigation", () => {
       const bar = host.querySelector(".admin-phone-bar")!;
       expect(bar.closest('[role="banner"]')).not.toBeNull();
       expect(bar.querySelector(".admin-bracket-wordmark")?.textContent).toBe(
-        "[admin]",
+        "[A]",
       );
       const announce = vi.fn();
       document.addEventListener("admin:search", announce);
@@ -103,8 +103,9 @@ describe("responsive workspace navigation", () => {
       );
       document.removeEventListener("admin:search", announce);
       expect(announce).toHaveBeenCalledTimes(1);
-      // One tap reaches any workspace, and the current one's pages.
-      const tabs = host.querySelector('nav[aria-label="Workspaces"]')!;
+      // One tap reaches any workspace from the bar, and the current one's
+      // pages from the chips under it.
+      const tabs = bar.querySelector('nav[aria-label="Workspaces"]')!;
       expect(
         [
           ...tabs.querySelectorAll<HTMLAnchorElement>(".admin-phone-workspace"),
@@ -115,9 +116,11 @@ describe("responsive workspace navigation", () => {
         "/observability/status",
       ]);
       expect(
-        [...tabs.querySelectorAll(".admin-phone-page")].map(
-          (chip) => chip.textContent,
-        ),
+        [
+          ...host.querySelectorAll(
+            'nav.admin-phone-pages[aria-label="Content"] .admin-phone-page',
+          ),
+        ].map((chip) => chip.textContent),
       ).toEqual(["Pages", "Writing", "Projects", "Newsletter"]);
     },
   );

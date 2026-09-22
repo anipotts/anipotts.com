@@ -1,6 +1,6 @@
 /* The sidebar and its rail (EditorialWorkspaceShell, UnifiedSidebar). The
    sidebar exists from 641px (lib/admin-sidebar.ts); compact phones use the
-   top bar and tab row in styles/shell.css instead. "AP Structural" is
+   top bar and page chips in styles/shell.css instead. "AP Structural" is
    declared once, in styles/fonts.css.
 
    AppShell renders the inline sidebar on the server and removes it below its

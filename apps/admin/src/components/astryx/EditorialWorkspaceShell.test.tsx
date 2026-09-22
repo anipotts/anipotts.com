@@ -63,7 +63,7 @@ describe("Website workspace navigation", () => {
   });
 });
 
-it("writes the phone top bar and tab row into server HTML, with no drawer", () => {
+it("writes the one-row phone top bar and the page chips into server HTML, with no drawer", () => {
   // The server has no viewport, so AppShell renders its desktop layout. The
   // phone bar must still be in that markup: hydration cannot be what shows it.
   const html = renderToStaticMarkup(
@@ -81,24 +81,19 @@ it("writes the phone top bar and tab row into server HTML, with no drawer", () =
   host.innerHTML = html;
   const bar = host.querySelector('[role="banner"] .admin-phone-bar')!;
   expect(bar).not.toBeNull();
-  const home = bar.querySelector<HTMLAnchorElement>(
-    "a.admin-bracket-wordmark",
-  )!;
+  // One row: the [A] monogram, the three workspaces, then search.
+  expect([...bar.children].map((child) => child.tagName)).toEqual([
+    "A",
+    "NAV",
+    "BUTTON",
+  ]);
+  const home = bar.firstElementChild as HTMLAnchorElement;
+  expect(home.matches("a.admin-bracket-wordmark")).toBe(true);
   expect(home.getAttribute("href")).toBe("/");
   expect(home.getAttribute("aria-label")).toBe("Overview");
-  expect(home.textContent).toBe("[admin]");
-  expect(bar.querySelector('button[aria-label="Search"]')).not.toBeNull();
-  expect(bar.querySelector(".admin-phone-bar-title")?.textContent).toBe(
-    "Writing",
-  );
-  // No menu button and no drawer.
-  expect(html).not.toContain("Open navigation");
-  expect(host.querySelector(".astryx-mobile-nav")).toBeNull();
-  expect(html).not.toContain('data-mode="topbar"');
-  // The tab row: three workspaces, then the current workspace's pages.
-  const tabs = host.querySelector(
-    '#astryx-app-shell-main nav[aria-label="Workspaces"]',
-  )!;
+  expect(home.textContent).toBe("[A]");
+  expect(bar.lastElementChild?.getAttribute("aria-label")).toBe("Search");
+  const tabs = bar.querySelector('nav[aria-label="Workspaces"]')!;
   expect(
     [...tabs.querySelectorAll(".admin-phone-workspace")].map((tab) => [
       tab.textContent,
@@ -109,8 +104,18 @@ it("writes the phone top bar and tab row into server HTML, with no drawer", () =
     ["Data", null],
     ["Observability", null],
   ]);
+  // No device tile, page title, menu button or drawer in the bar.
+  expect(bar.querySelector(".brand-tile")).toBeNull();
+  expect(bar.textContent).toBe("[A]ContentDataObservability");
+  expect(html).not.toContain("Open navigation");
+  expect(host.querySelector(".astryx-mobile-nav")).toBeNull();
+  expect(html).not.toContain('data-mode="topbar"');
+  // Under it, in the page, the current workspace's pages.
+  const pages = host.querySelector(
+    '#astryx-app-shell-main nav.admin-phone-pages[aria-label="Content"]',
+  )!;
   expect(
-    [...tabs.querySelectorAll(".admin-phone-page")].map((chip) => [
+    [...pages.querySelectorAll(".admin-phone-page")].map((chip) => [
       chip.textContent,
       chip.getAttribute("aria-current"),
     ]),
@@ -137,7 +142,7 @@ it("lets a record page draw its own phone bar", () => {
     </EditorialWorkspaceShell>,
   );
   expect(host.querySelector(".admin-phone-bar")).toBeNull();
-  expect(host.querySelector(".admin-phone-tabs")).toBeNull();
+  expect(host.querySelector(".admin-phone-pages")).toBeNull();
   expect(
     host
       .querySelector(".editorial-workspace-shell")
@@ -203,13 +208,11 @@ describe("local owner indicator", () => {
     const host = document.createElement("div");
     host.innerHTML = render(true);
     const tiles = host.querySelectorAll('[data-admin-local-owner="true"]');
-    expect(tiles).toHaveLength(2);
+    // Beside the sidebar wordmark; the phone top bar holds no device tile.
+    expect(tiles).toHaveLength(1);
     for (const tile of tiles) {
       // A laptop tile beside the wordmark, never a floating pill.
-      expect(
-        tile.previousElementSibling?.matches(".admin-bracket-wordmark") ||
-          tile.parentElement?.matches(".editorial-identity-end"),
-      ).toBe(true);
+      expect(tile.parentElement?.matches(".editorial-identity-end")).toBe(true);
       expect(
         tile.querySelector('.brand-tile[data-mark="ap-pro"]'),
       ).not.toBeNull();

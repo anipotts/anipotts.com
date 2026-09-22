@@ -1,5 +1,5 @@
 /* The admin shell: the canvas, safe areas, the one gutter, the app shell's
-   main region, the phone top bar and tab row, the wordmark and server-rendered
+   main region, the phone top bar and page chips, the wordmark and server-rendered
    prose. The sidebar and rail live in components/astryx/WorkspaceHeader.css,
    tables and lists in components/workspace/workspace.css, writing surfaces in
    editor.css. Widths follow lib/breakpoints.ts: compact is 640px and below,
@@ -175,11 +175,11 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   }
 }
 
-/* The phone top bar (EditorialWorkspaceShell PhoneBar). The server writes it
-   on every page in AppShell's banner slot and the width alone decides
-   whether it shows, so it never waits for hydration. The wordmark starts on
-   the gutter and the search glyph ends on it. A record page's own bar can
-   take this class for the same placement. */
+/* The phone top bar (EditorialWorkspaceShell PhoneBar), one row: the [A]
+   monogram, the three workspaces beside it, search at the end. The server
+   writes it on every page in AppShell's banner slot and the width alone
+   decides whether it shows, so it never waits for hydration. The monogram's
+   bracket starts on the gutter and the search glyph ends on it. */
 .admin-phone-bar {
   display: none;
 }
@@ -188,7 +188,6 @@ body [data-astryx-theme]:not([data-astryx-media]) {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    gap: var(--spacing-3);
     box-sizing: border-box;
     min-height: calc(var(--spacing-11) + env(safe-area-inset-top));
     padding-block-start: env(safe-area-inset-top);
@@ -201,50 +200,43 @@ body [data-astryx-theme]:not([data-astryx-media]) {
     display: none;
   }
 }
-.admin-phone-bar-identity {
-  min-width: 0;
-}
+/* A 44px target whose bracket stays on the gutter, so the first workspace
+   sits as far from it as the workspaces sit from each other. */
 .admin-phone-bar .admin-bracket-wordmark {
+  box-sizing: border-box;
+  min-width: var(--spacing-11);
   min-height: var(--spacing-11);
+  margin-inline-start: calc(-1 * var(--spacing-1));
+  padding-inline-start: var(--spacing-1);
 }
-.admin-phone-bar-title {
+/* The workspaces scroll sideways only when a narrow phone cannot hold
+   them. */
+.admin-phone-workspaces {
+  display: flex;
   min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  opacity: 0;
-  transition: opacity var(--duration-fast) ease-out;
-}
-.admin-phone-bar-title[data-visible="true"] {
-  opacity: 1;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
 }
 /* The glyph, not the 44px target, lines up with the gutter. */
 .admin-phone-bar-search {
   margin-inline-end: calc((var(--spacing-5) - var(--spacing-11)) / 2);
 }
 
-/* The phone tab row: the workspaces, then the current workspace's pages,
-   each a row that scrolls sideways past the gutter to the screen edge. */
-.admin-phone-tabs {
+/* The current workspace's pages under the bar: a row that scrolls sideways
+   past the gutter to the screen edge, and with the page. */
+.admin-phone-pages {
   display: none;
 }
 @media (max-width: 640px) {
-  .admin-phone-tabs {
-    display: grid;
+  .admin-phone-pages {
+    display: flex;
     gap: var(--spacing-1);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
     margin-inline: calc(-1 * var(--admin-gutter));
-    padding-block-start: var(--spacing-1);
+    padding-inline: var(--admin-gutter);
+    scroll-padding-inline: var(--admin-gutter);
   }
-}
-.admin-phone-tab-row {
-  display: flex;
-  gap: var(--spacing-1);
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  padding-inline: var(--admin-gutter);
-  scroll-padding-inline: var(--admin-gutter);
 }
 .admin-phone-workspace,
 .admin-phone-page {
@@ -260,13 +252,11 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   white-space: nowrap;
   -webkit-tap-highlight-color: transparent;
 }
-/* The first workspace's label starts on the gutter. */
+/* Full size from about 390px; narrower phones scale the labels down so the
+   three still fit one row. */
 .admin-phone-workspace {
   padding-inline: var(--spacing-2);
-  font-size: var(--font-size-lg);
-}
-.admin-phone-workspace:first-child {
-  margin-inline-start: calc(-1 * var(--spacing-2));
+  font-size: clamp(var(--font-size-base), 4.4vw, var(--font-size-lg));
 }
 .admin-phone-workspace[aria-current="true"] {
   color: var(--color-text-primary);
@@ -355,8 +345,7 @@ body [data-astryx-theme]:not([data-astryx-media]) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .editorial-workspace-shell #astryx-app-shell-main,
-  .admin-phone-bar-title {
+  .editorial-workspace-shell #astryx-app-shell-main {
     transition: none;
   }
 }

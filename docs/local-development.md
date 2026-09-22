@@ -125,8 +125,9 @@ How the session is bounded:
 - Every method is allowed, so local D1 and the local editorial Durable Object
   accept writes. Route handlers keep their own checks: editorial writes still
   need their CSRF token.
-- A fixed `Local owner` token marks every Content, Operations and Life screen
-  at every width and theme.
+- A `Local owner` laptop tile beside the sidebar wordmark marks every
+  Content, Data and Observability screen from 641px, in both themes. The
+  one-row phone top bar holds no device tile.
 - Release builds compile the path out. Deploy jobs fail when the flag is set,
   and the Admin deploy scans its exact bundle with
   `node scripts/ci/admin-local-owner-leak.mjs --expect absent apps/admin/dist`
