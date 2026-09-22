@@ -1,7 +1,14 @@
 import { DurableObject } from "cloudflare:workers";
-import type { CodeStatsEvent, Commit } from "../types";
+import type { CodeStatsEvent, CodeStatsSummary, Commit } from "../types";
 
 const MAX_COMMITS = 500;
+
+/**
+ * When a producer last reached this object with at least one well-formed
+ * commit, new or already held. Kept outside the `commit:` prefix so the
+ * window and trim never see it.
+ */
+export const RECEIVED_KEY = "meta:last_received_at";
 
 /**
  * CodeStats: stores recent git commits across Ani's local repos. Single
@@ -23,6 +30,10 @@ export class CodeStats extends DurableObject {
       return Response.json({ commits });
     }
 
+    if (url.pathname === "/summary" && request.method === "GET") {
+      return Response.json(await this.summary());
+    }
+
     if (url.pathname === "/commits" && request.method === "POST") {
       const payload = (await request.json()) as
         Partial<Commit> | { commits: Partial<Commit>[] };
@@ -34,8 +45,10 @@ export class CodeStats extends DurableObject {
         : [payload as Partial<Commit>];
 
       const accepted: Commit[] = [];
+      let wellFormed = 0;
       for (const raw of incoming) {
         if (!raw.sha || !raw.repo || !raw.ts) continue;
+        wellFormed += 1;
         const commit: Commit = {
           sha: raw.sha,
           repo: raw.repo,
@@ -54,6 +67,9 @@ export class CodeStats extends DurableObject {
       }
 
       await this.trimToMax();
+      if (wellFormed > 0) {
+        await this.ctx.storage.put(RECEIVED_KEY, new Date().toISOString());
+      }
       return Response.json({ accepted: accepted.length });
     }
 
@@ -67,6 +83,16 @@ export class CodeStats extends DurableObject {
       limit,
     });
     return Array.from(map.values());
+  }
+
+  /** Feeds GET /health: a count and the last receipt, nothing else. */
+  private async summary(): Promise<CodeStatsSummary> {
+    const held = await this.ctx.storage.list({ prefix: "commit:" });
+    const last = await this.ctx.storage.get<string>(RECEIVED_KEY);
+    return {
+      held: held.size,
+      last_received_at: typeof last === "string" ? last : null,
+    };
   }
 
   private async trimToMax(): Promise<void> {

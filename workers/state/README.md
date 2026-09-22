@@ -26,6 +26,10 @@ older May 2026 personal-cloud sketch is archived at
   `GET /` does not advertise it.
 - No admin view reads this worker.
 
+`GET /health` reports each of these planes (see [Health](#health)). Against
+the state above it reads `ok: false`, with links `readable`, commits
+`never_received` and control `disabled`.
+
 ## Quick start
 
 ```bash
@@ -40,7 +44,7 @@ pnpm --filter @anipotts/state test:cli http://localhost:8787
 | Method | Path              | What                                                                                            |
 | ------ | ----------------- | ----------------------------------------------------------------------------------------------- |
 | GET    | `/`               | Service info: the Durable Objects plus the links and commits endpoints                          |
-| GET    | `/health`         | Liveness                                                                                        |
+| GET    | `/health`         | Per-plane state; see [Health](#health)                                                          |
 | GET    | `/api/links`      | List saved links                                                                                |
 | POST   | `/api/links`      | Save a link (publish key). Body: `{ url, title?, tag?, note?, source? }`                        |
 | DELETE | `/api/links/:id`  | Remove a link (publish key)                                                                     |
@@ -50,8 +54,29 @@ pnpm --filter @anipotts/state test:cli http://localhost:8787
 | GET    | `/api/commits/ws` | WebSocket. Receives `snapshot` on connect, then `commit.added`                                  |
 
 Write routes require `Authorization: Bearer $STATE_PUBLISH_KEY` and answer 503
-when that secret is not configured. A link's `source` is `shortcut`, `admin` or
-`manual`, and defaults to `manual`.
+when that secret is not configured. `POST /api/links` answers 400 unless the
+body is a JSON object whose `source`, when present, is `shortcut`, `admin` or
+`manual`. A link without one is stored as `manual`.
+
+## Health
+
+`GET /health` answers 200 with `Cache-Control: no-store` and one bounded fact
+per plane: state names, counts and times, never a link url, a commit sha or a
+binding or secret value.
+
+| Plane     | States                                                                                    | Measured from                                                                                     |
+| --------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `links`   | `readable`, `unreadable`                                                                  | LinkVault's held count and newest `savedAt`                                                       |
+| `commits` | `receiving`, `none_in_budget`, `never_received`, `unrecorded`, `unreadable`               | CodeStats' held count and the last POST that carried a well-formed commit, against a 7 day budget |
+| `control` | `disabled` (no device key, every connect returns 401), `configured` (a device key is set) | whether `CONTROL_PLANE_DEVICE_PUBLIC_JWK` is set; the value is never read into the response       |
+
+`ok` is true only while `links` is `readable` and `commits` is `receiving`.
+`control` never sets it, and `configured` does not mean a device connects.
+`none_in_budget` means no commit arrived in 7 days; the publisher posts only
+when a repo has a new commit, so it cannot tell a quiet week from a stopped
+publisher. `unrecorded` means commits are held that arrived before receipts
+were recorded. Each Durable Object read gets 2.5 seconds before its plane reads
+`unreadable`.
 
 ## Deploy
 

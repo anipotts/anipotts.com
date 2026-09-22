@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import type { Link, LinkVaultEvent } from "../types";
+import type { Link, LinkVaultEvent, LinkVaultSummary } from "../types";
 
 /**
  * LinkVault: stores user-saved links. Single named DO instance ("default")
@@ -17,6 +17,10 @@ export class LinkVault extends DurableObject {
     if (url.pathname === "/links" && request.method === "GET") {
       const links = await this.list();
       return Response.json({ links });
+    }
+
+    if (url.pathname === "/summary" && request.method === "GET") {
+      return Response.json(await this.summary());
     }
 
     if (url.pathname === "/links" && request.method === "POST") {
@@ -42,6 +46,20 @@ export class LinkVault extends DurableObject {
     return Array.from(map.values()).sort((a, b) =>
       b.savedAt.localeCompare(a.savedAt),
     );
+  }
+
+  /** Feeds GET /health: a count and the newest parseable savedAt, nothing else. */
+  private async summary(): Promise<LinkVaultSummary> {
+    const map = await this.ctx.storage.list<Link>({ prefix: "link:" });
+    let newest: number | null = null;
+    for (const link of map.values()) {
+      const ms = Date.parse(link.savedAt);
+      if (Number.isFinite(ms) && (newest === null || ms > newest)) newest = ms;
+    }
+    return {
+      held: map.size,
+      last_saved_at: newest === null ? null : new Date(newest).toISOString(),
+    };
   }
 
   private async add(input: Pick<Link, "url"> & Partial<Link>): Promise<Link> {
