@@ -9,7 +9,7 @@
 // worktree, then to the managed preview at http://localhost:4311.
 //
 // Options:
-//   --only /inbox,/work       limit routes
+//   --only /,/data/records    limit routes
 //   --modes system-dark,...   limit modes
 //   --widths 390,1280         viewport widths (default 1280)
 //   --concurrency 2           parallel page loads
@@ -46,18 +46,13 @@ const MODES = [
 ];
 const HEIGHTS = { 390: 844, 768: 1024, 1280: 900 };
 
-// Known failures that a later slice fixes. Each entry names one element.
-const ALLOWLIST = [
-  {
-    route: "/inbox",
-    selector:
-      "header.activation-focus > button.semantic-reference.is-action > span",
-  },
-];
+// Known failures that a later slice fixes. Each entry names one element as
+// { route, selector }.
+const ALLOWLIST = [];
 
-// The dev preview allowance in apps/admin/src/lib/admin-access-policy.ts does
-// not list these, so they redirect to /auth without a session.
-const DEV_PREVIEW_DENIED = new Set(["/ops/destructive"]);
+// Routes the dev preview allowance in apps/admin/src/lib/admin-access-policy.ts
+// does not list, so they redirect to /auth without a session.
+const DEV_PREVIEW_DENIED = new Set();
 
 const args = process.argv.slice(2);
 const flags = new Map();
@@ -126,7 +121,7 @@ const routes = ADMIN_ROUTES.filter(
 ).map(({ route }) => route);
 
 // Follows same-path redirects so the page is requested at its final URL.
-// A redirect such as /work -> /work?view=now would otherwise drop ?theme.
+// A same-path redirect would otherwise drop ?theme.
 async function resolveTarget(route) {
   let path = route;
   for (let hop = 0; hop < 4; hop++) {

@@ -20,19 +20,8 @@ describe("operational search adapter", () => {
       "/observability/activity",
       "/observability/alerts",
     ]);
-    const advanced = operationalSearchNavigation(navItems);
-    expect(advanced.some((row) => row.href.startsWith("/inbox"))).toBe(false);
-    for (const href of ["/fleet", "/repos", "/deploys"])
-      expect(advanced.some((row) => row.href === href)).toBe(false);
-    expect(advanced.some((row) => row.href === "/work?view=now")).toBe(true);
-    expect(
-      advanced.some((row) =>
-        ["content", "life", "website"].includes(row.group),
-      ),
-    ).toBe(false);
-    expect(
-      advanced.some((row) => /carousels|preview|projects/.test(row.href)),
-    ).toBe(false);
+    // The retired console pages were its only advanced entries.
+    expect(operationalSearchNavigation(navItems)).toEqual([]);
   });
   it("reads only operational runtime metadata and encodes record destinations", async () => {
     const fetcher = vi.fn().mockResolvedValue(

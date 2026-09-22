@@ -49,13 +49,6 @@ for (const file of fixtureConsumers) {
   }
 }
 
-const runtimeOperatorWork = readFileSync(
-  join(adminSource, "data/operator-work.ts"),
-  "utf8",
-);
-assert.match(runtimeOperatorWork, /mode:\s*"disconnected"/);
-assert.doesNotMatch(runtimeOperatorWork, /operatorWorkFixture/);
-
 const editorialLayout = readFileSync(
   join(adminSource, "layouts/EditorialLayout.astro"),
   "utf8",

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { JSDOM } from "jsdom";
-import CmsMarkdown from "../../src/components/CmsMarkdown.astro";
 import InlineMention from "../../../www/src/components/InlineMention.astro";
 
 const destinations = [
@@ -34,32 +33,4 @@ describe("rendered content link destinations", () => {
       expectDestination(document.querySelector("a"), href, target);
     },
   );
-
-  it.each([
-    ["heading", "## ", "h2"],
-    ["subheading", "### ", "h3"],
-    ["list", "- ", "li"],
-    ["paragraph", "", "p"],
-  ])(
-    "CmsMarkdown preserves navigation context in a %s",
-    async (_, prefix, selector) => {
-      const links = destinations
-        .map(([label, href]) => `[${label}](${href})`)
-        .join(" ");
-      const document = await render(CmsMarkdown, { body: `${prefix}${links}` });
-      const anchors = [...document.querySelectorAll(`${selector} a`)];
-      expect(anchors).toHaveLength(destinations.length);
-      destinations.forEach(([, href, target], index) => {
-        expectDestination(anchors[index], href, target);
-      });
-    },
-  );
-
-  it("CmsMarkdown still renders unsupported destinations as text", async () => {
-    const document = await render(CmsMarkdown, {
-      body: "[Script](javascript:alert%281%29) [Protocol relative](//example.com) [HTTP](http://example.com)",
-    });
-    expect(document.querySelectorAll("a")).toHaveLength(0);
-    expect(document.querySelector("p")?.textContent).toContain("Script");
-  });
 });

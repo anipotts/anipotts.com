@@ -5,6 +5,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   ADMIN_PROTECTED_SMOKE_ROUTES,
+  ADMIN_REDIRECTS,
   ADMIN_ROUTES,
   RETIRED_ADMIN_AUTH_FILES,
   PUBLIC_UNSMOKED_ROUTE_FILES,
@@ -15,33 +16,12 @@ const sidebarSource = readFileSync(
   "apps/admin/src/components/astryx/UnifiedSidebar.tsx",
   "utf8",
 );
-const inboxSource = readFileSync("apps/admin/src/pages/inbox.astro", "utf8");
 const rootSource = readFileSync("apps/admin/src/pages/index.astro", "utf8");
 const layoutSource = readFileSync(
   "apps/admin/src/layouts/AdminLayout.astro",
   "utf8",
 );
-const semanticInspectorSource = readFileSync(
-  "apps/admin/src/components/SemanticInspector.astro",
-  "utf8",
-);
-const semanticReferenceSource = readFileSync(
-  "apps/admin/src/data/semantic-reference.ts",
-  "utf8",
-);
-const workSource = readFileSync("apps/admin/src/pages/work.astro", "utf8");
-const operatorWorkTableSource = readFileSync(
-  "apps/admin/src/components/astryx/OperatorWorkTable.tsx",
-  "utf8",
-);
-const operatorWorkSource = readFileSync(
-  "apps/admin/src/data/operator-work.ts",
-  "utf8",
-);
-const devOperatorWorkSource = readFileSync(
-  "apps/admin/src/data/dev-operator-work.ts",
-  "utf8",
-);
+const astroConfigSource = readFileSync("apps/admin/astro.config.mjs", "utf8");
 const lifecycleSource = readFileSync(
   "packages/lib/src/admin-control/work-lifecycle.ts",
   "utf8",
@@ -249,11 +229,9 @@ for (const route of ADMIN_ROUTES) {
   }
 
   if (route.nav) {
-    const navHref = route.route === "/work" ? "/work?view=now" : route.route;
     assert.ok(
-      sidebarSource.includes(`href: "${navHref}"`) ||
-        navSource.includes(`href: "${navHref}"`),
-      `${route.route} missing from the sidebar and admin nav`,
+      sidebarSource.includes(`href: "${route.route}"`),
+      `${route.route} missing from the sidebar`,
     );
   }
 
@@ -274,7 +252,7 @@ for (const route of ADMIN_ROUTES) {
 }
 
 // Inbox is retired: no navigation entry, no page or API, and old links land
-// on Operations. Its inbox_items projection in @anipotts/lib stays for /api/mcp.
+// on Observability. Its inbox_items projection in @anipotts/lib stays for /api/mcp.
 assert.equal(
   navSource.includes('"/inbox"'),
   false,
@@ -291,8 +269,9 @@ for (const file of [
 ])
   assert.equal(existsSync(file), false, `${file} must stay retired`);
 assert.ok(rootSource.includes("<PrivateShell"), "root is the one overview");
-assert.ok(
-  inboxSource.includes('Astro.redirect("/observability/status", 308)'),
+assert.equal(
+  ADMIN_REDIRECTS["/inbox"],
+  "/observability/status",
   "retired inbox redirects to Observability Status",
 );
 // The sidebar lists Content (4), Data (2) and Observability (3) under one
@@ -316,16 +295,14 @@ for (const retired of ["/life", "/knowledge", "/operations/observability"])
     false,
     `sidebar must not link ${retired}`,
   );
-// Every retired URL answers 308 with its new home.
+// Every retired URL answers 308 with its new home. Request-dependent
+// redirects stay pages; fixed ones live in astro.config.mjs.
 for (const [page, marker] of [
   ["content/index", "libraryStateUrl("],
   ["newsletter", "libraryStateUrl("],
-  ["life/index", 'Astro.redirect("/data/records", 308)'],
   ["life/[section]", "Astro.redirect(lifeRedirect(Astro.params.section), 308)"],
   ["knowledge", "knowledgeRedirect("],
   ["knowledge/locations", 'Astro.redirect(dataRecordsHref("places"), 308)'],
-  ["operations/observability", 'Astro.redirect("/observability/status", 308)'],
-  ["data/index", 'Astro.redirect("/data/records", 308)'],
 ]) {
   const source = readFileSync(`apps/admin/src/pages/${page}.astro`, "utf8");
   assert.ok(source.includes(marker), `/${page} redirects with ${marker}`);
@@ -338,26 +315,50 @@ for (const file of [
   "apps/admin/src/components/life/PrivateDataWorkspace.tsx",
 ])
   assert.equal(existsSync(file), false, `${file} must stay retired`);
-// Fixture pages and the retired Infra fleet view are gone; old links land on
-// the closest current view, and the fake server observability reader stays out.
-for (const [page, destination] of [
-  ["fleet", "/observability/status"],
-  ["repos", "/observability/status"],
-  ["deploys", "/proof"],
-  ["handoffs", "/work?view=history"],
-  ["mutations", "/ops/destructive"],
-]) {
-  const source = readFileSync(`apps/admin/src/pages/${page}.astro`, "utf8");
-  assert.ok(
-    source.includes(`Astro.redirect("${destination}", 308)`),
-    `retired /${page} redirects to ${destination}`,
-  );
+// Retired pages, fixture views and the old console are gone. Each URL is a
+// config redirect to a live route, with no page file or navigation entry.
+assert.ok(
+  astroConfigSource.includes("retiredRoutes(),"),
+  "astro.config.mjs must serve the retired route redirects",
+);
+assert.ok(
+  readFileSync("apps/admin/src/lib/retired-route.ts", "utf8").includes(
+    "status: 308",
+  ),
+  "retired routes redirect permanently",
+);
+const liveRoutes = new Set(ADMIN_ROUTES.map((route) => route.route));
+for (const [from, destination] of Object.entries(ADMIN_REDIRECTS)) {
+  assert.ok(liveRoutes.has(destination), `${from} redirects to a live route`);
+  assert.equal(liveRoutes.has(from), false, `${from} is not also a live route`);
+  for (const file of [
+    `apps/admin/src/pages${from}.astro`,
+    `apps/admin/src/pages${from}/index.astro`,
+  ])
+    assert.equal(existsSync(file), false, `${file} must stay retired`);
   assert.equal(
-    navSource.includes(`href: "/${page}"`),
+    sidebarSource.includes(`href: "${from}"`) ||
+      navSource.includes(`href: "${from}"`),
     false,
-    `admin nav must not link the retired /${page}`,
+    `navigation must not link the retired ${from}`,
   );
 }
+for (const file of [
+  "apps/admin/src/components/AdminTable.astro",
+  "apps/admin/src/components/CmsMarkdown.astro",
+  "apps/admin/src/components/SemanticInspector.astro",
+  "apps/admin/src/components/SemanticReference.astro",
+  "apps/admin/src/components/astryx/OperatorWorkTable.tsx",
+  "apps/admin/src/components/auth/AuthFrame.astro",
+  "apps/admin/src/data/carousels.ts",
+  "apps/admin/src/data/operator-work.ts",
+  "apps/admin/src/data/proof.ts",
+  "apps/admin/src/data/semantic-reference.ts",
+  "apps/admin/src/data/static/carousels",
+  "apps/admin/src/styles/admin-canvas.css",
+  "apps/admin/public/media/carousels",
+])
+  assert.equal(existsSync(file), false, `${file} must stay retired`);
 for (const file of [
   "apps/admin/src/lib/observability-model.ts",
   "apps/admin/src/lib/observability-reader.ts",
@@ -389,59 +390,6 @@ assert.equal(
   false,
   "retired action queue route must not stay in manual smoke",
 );
-
-for (const marker of [
-  "calendar_event",
-  "source_time",
-  "providerDestination",
-  "isSafeProviderHref",
-  "source not checked",
-  "checked, no value found",
-]) {
-  assert.ok(
-    semanticReferenceSource.includes(marker),
-    `semantic reference contract missing marker ${marker}`,
-  );
-}
-for (const marker of [
-  "data-semantic-inspector",
-  "data-semantic-inspector-panel",
-  "showModal",
-  "data-semantic-close",
-]) {
-  assert.ok(
-    semanticInspectorSource.includes(marker),
-    `semantic inspector missing marker ${marker}`,
-  );
-}
-
-for (const marker of [
-  "data-work-now",
-  "Currently working",
-  "Last verified work",
-  "OperatorWorkTable",
-  "view=projects",
-  "view=history",
-  "Loose conversations",
-  "preserved",
-]) {
-  assert.ok(workSource.includes(marker), `admin work missing marker ${marker}`);
-}
-assert.ok(
-  operatorWorkTableSource.includes("data-semantic-open"),
-  "admin work table must use the shared semantic inspector",
-);
-for (const marker of [
-  "019f7fb8-69b7-7791-8e67-87c87acfae02",
-  "019f95c5-be35-7991-811c-371611daa94b",
-  "019f99d2-90a1-7761-8582-17b7037c748b",
-  "searchable_history_disposition",
-]) {
-  assert.ok(
-    devOperatorWorkSource.includes(marker),
-    `operator work fixture missing marker ${marker}`,
-  );
-}
 
 for (const marker of [
   "sourceIdentityKey",

@@ -36,8 +36,6 @@ const structuralEdges = new Set([
   ".admin-side-nav border-right", // navigation pane edge
   ".sidebar border-right", // navigation pane edge
   ".sidebar border-bottom", // stacked navigation pane edge
-  ".semantic-inspector border-left", // side sheet edge
-  ".semantic-inspector border-top", // bottom sheet edge
   ".operator-inspector-panel border-left", // side sheet edge
   ".operator-inspector-panel border-top", // bottom sheet edge
   // sticky or fixed bars over scrolling content
@@ -45,7 +43,6 @@ const structuralEdges = new Set([
   ".admin-mobile-nav border-top",
   ".admin-mobile-strip border-bottom",
   ".astryx-editor-actions border-top",
-  ".semantic-inspector-actions border-top",
   // markers on a single element
   ".publication-step border-block-end", // progress bar whose color is state
   ".article-composer .tiptap blockquote border-inline-start", // quote bar
