@@ -40,7 +40,7 @@ import { recordColumns } from "../data/RecordsView";
 import { parseItems, parseRecord } from "../data/data-model";
 
 /** A Content record's type, with the glyph its sidebar library uses. */
-export function contentType(record: CatalogRecord): [Icon, string] {
+function contentType(record: CatalogRecord): [Icon, string] {
   return record.collection === "projects" ||
     record.href.startsWith("/content/projects/")
     ? [BriefcaseIcon, "Project"]

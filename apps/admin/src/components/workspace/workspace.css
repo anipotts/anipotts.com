@@ -342,11 +342,6 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
 .workspace-state-mark {
   flex: none;
 }
-/* A view switch sits where a filter bar would, at its own width. */
-.workspace-views {
-  align-self: flex-start;
-  width: auto;
-}
 
 /* Content library cells: a record's state beside its chip, and the summary
    column. The whole row opens the record. */
@@ -512,22 +507,6 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   color: var(--color-text-accent, var(--color-accent));
 }
 
-/* The overview's host strip: one tile per host on the page surface. */
-.workspace-tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
-  gap: var(--spacing-3);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.workspace-tile {
-  min-width: 0;
-  padding: var(--spacing-4);
-  background: var(--color-background-surface);
-  border-radius: var(--radius-container);
-}
-
 /* Compact: a list, not a table. Rows bleed to the screen edges on the body
    colour with their content on the gutter; each row is the lead cell alone,
    two lines at most, with the header kept for assistive technology and no
@@ -609,19 +588,12 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
     display: none;
   }
   .workspace-notice,
-  .workspace-detail,
-  .workspace-tile {
+  .workspace-detail {
     background: transparent;
     border-radius: 0;
     padding-inline: 0;
   }
   .workspace-detail {
     padding-block: 0;
-  }
-  .workspace-tiles {
-    gap: var(--spacing-1);
-  }
-  .workspace-tile {
-    padding-block: var(--spacing-2);
   }
 }

@@ -38,7 +38,7 @@ const unconfirmedCreation = "Couldn’t confirm draft creation";
 
 /** An address as it is typed: lowercase, hyphens for anything else, and a
  * trailing hyphen kept so the next word can follow it. */
-export function typedAddress(value: string): string {
+function typedAddress(value: string): string {
   return value
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/gu, "")

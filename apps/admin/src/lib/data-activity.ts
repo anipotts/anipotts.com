@@ -32,7 +32,7 @@ const fields = [
   "record_count",
   "observed_at",
 ];
-export type DataActivity = {
+type DataActivity = {
   change_id: number;
   trace_id: string;
   stage: string;

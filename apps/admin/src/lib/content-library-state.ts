@@ -1,4 +1,4 @@
-export const libraryGroups = [
+const libraryGroups = [
   "pages",
   "website",
   "writing",

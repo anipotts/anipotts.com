@@ -42,7 +42,7 @@ export type DataSessionOptions = {
 
 /** A reopen shows its progress for at least this long, so a fast failure
  * still reads as a retry. */
-export const REOPEN_MIN_MS = 400;
+const REOPEN_MIN_MS = 400;
 
 /** A session for the server render, which never opens. */
 const serverSession = () =>

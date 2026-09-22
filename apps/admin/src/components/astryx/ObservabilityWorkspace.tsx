@@ -110,7 +110,7 @@ const stateLabel = (state: OpsState) => badgeFor("ops", state).label;
 
 /** A state chip, drawn only for an exception: an ok entry carries its name
  * for assistive technology alone. */
-export function OpsStateBadge({ state }: { state: OpsState }) {
+function OpsStateBadge({ state }: { state: OpsState }) {
   return (
     <span className="ops-state" data-state={state}>
       <StateBadge domain="ops" state={state} />
@@ -161,7 +161,7 @@ function detailOf(service: OpsServiceView) {
 }
 
 /** The anchor on an entry's Status row or host tile. */
-export function opsEntryAnchor(id: string) {
+function opsEntryAnchor(id: string) {
   return `entry-${id}`;
 }
 

@@ -127,7 +127,7 @@ export type EditorialAppProps = {
 /** Record counts for the Content items in the sidebar, on every Content
  * route: from the libraries when the page has them, otherwise from the
  * inventory's search entries, which every Content page carries. */
-export function navigationCounts(
+function navigationCounts(
   groups?: CatalogGroup[],
   entries?: AdminSearchResult[],
 ): Record<string, number> | undefined {
