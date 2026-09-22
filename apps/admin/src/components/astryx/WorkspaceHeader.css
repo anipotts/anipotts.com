@@ -360,9 +360,9 @@
    collapsible groups in one navigation. Space separates the groups; nothing
    is ruled off. Headings are quiet labels on the same row height as the
    pages, and the pages sit on the heading's own inset instead of Astryx's
-   nested indent, so one icon column runs down the whole sidebar. One accent:
-   the wordmark's brackets and the current page's icon take the workspace
-   accent; headings and chevrons stay secondary. */
+   nested indent, so one icon column runs down the whole sidebar. The
+   headings, their chevrons, the wordmark's brackets and the current page's
+   icon take the current workspace's accent (themes/workspace-accents.css). */
 .admin-unified-nav {
   display: flex;
   flex-direction: column;
@@ -373,13 +373,13 @@
 .admin-unified-nav[data-rail="true"] {
   gap: var(--spacing-3);
 }
+.admin-unified-nav [data-sidebar-group],
+.admin-unified-nav [data-sidebar-group] svg {
+  color: var(--color-text-accent);
+}
 .admin-unified-nav [data-sidebar-group] {
   font-size: var(--text-supporting-size);
   font-weight: var(--font-weight-semibold);
-  color: var(--color-text-secondary);
-}
-.admin-unified-nav [data-sidebar-group] svg {
-  color: var(--color-text-secondary);
 }
 .admin-unified-nav [aria-current="page"] svg {
   color: var(--color-icon-accent);
@@ -432,9 +432,13 @@
   transition: none !important;
 }
 
-/* Local owner builds only: the laptop tile beside the wordmark. */
+/* Local owner builds only: the laptop tile beside the wordmark. In the
+   rail it takes a control's width, so it centres on the icon column. */
 .admin-local-owner {
   display: inline-grid;
   place-items: center;
   line-height: 0;
+}
+.approved-workspace-header[data-collapsed="true"] > .admin-local-owner {
+  width: var(--workspace-control-size);
 }

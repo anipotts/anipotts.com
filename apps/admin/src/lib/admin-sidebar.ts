@@ -8,10 +8,13 @@ export const SIDEBAR_STORAGE_KEYS = [
 ] as const;
 
 /** The sidebar contract, on lib/breakpoints.ts. Compact phones (640px and
- * below) have no sidebar: the top bar and tab row replace it. From medium
- * (641px) up the sidebar is inline, a rail by default until 1280px, where the
- * full sidebar has room; a saved choice wins at every inline width. */
+ * below) have no sidebar: the top bar and tab row replace it. Medium widths
+ * (641px to 1023px) always open on the rail, because the full sidebar would
+ * leave a table too little room; the rail button still opens it for the
+ * moment. From large (1024px) a saved choice wins, and without one the
+ * sidebar is a rail until 1280px, where the full sidebar has room. */
 export const COMPACT_MAX_WIDTH = BREAKPOINT_MIN.medium - 1;
+export const RAIL_ONLY_MAX_WIDTH = BREAKPOINT_MIN.large - 1;
 export const FULL_SIDEBAR_MIN_WIDTH = 1280;
 export const RAIL_QUERY = `(min-width: ${BREAKPOINT_MIN.medium}px) and (max-width: ${FULL_SIDEBAR_MIN_WIDTH - 1}px)`;
 export const COMPACT_QUERY = `(max-width: ${COMPACT_MAX_WIDTH}px)`;
@@ -34,7 +37,9 @@ export function sidebarRail(
   collapsed: boolean | null,
   inRailRange: boolean,
 ) {
-  return width <= COMPACT_MAX_WIDTH ? false : (collapsed ?? inRailRange);
+  if (width <= COMPACT_MAX_WIDTH) return false;
+  if (width <= RAIL_ONLY_MAX_WIDTH) return true;
+  return collapsed ?? inRailRange;
 }
 
 /** The unified sidebar's groups, in the order they are shown. The ids are the
@@ -52,14 +57,11 @@ export const ALL_GROUPS_OPEN: SidebarGroupsCollapsed = {
 
 /** The workspace that owns a path, or null for the overview and anything
  * outside the three workspaces, which stay workspace-neutral: no group is
- * forced open and the accent is the editorial theme's own. Content review and
- * preview routes are Content pages even though they render in the
- * operational layout; the retired console pages belong to Observability. */
+ * forced open and the accent is the editorial theme's own. */
 export function workspaceForPath(pathname: string): SidebarGroupId | null {
   if (/^\/(?:content|newsletter)(?:\/|$)/.test(pathname)) return "content";
   if (/^\/data(?:\/|$)/.test(pathname)) return "life";
-  if (/^\/(?:observability|work|system|proof|ops)(?:\/|$)/.test(pathname))
-    return "operations";
+  if (/^\/observability(?:\/|$)/.test(pathname)) return "operations";
   return null;
 }
 
@@ -106,13 +108,16 @@ export function prepaintAdminSidebar() {
       break;
     }
   }
+  // Keep in step with sidebarRail.
   const width = window.innerWidth;
   const rail =
     width <= 640
       ? false
-      : (collapsed ??
-        window.matchMedia("(min-width: 641px) and (max-width: 1279px)")
-          .matches);
+      : width <= 1023
+        ? true
+        : (collapsed ??
+          window.matchMedia("(min-width: 641px) and (max-width: 1279px)")
+            .matches);
   document.documentElement.dataset.adminSidebar = rail ? "rail" : "full";
   // Groups the viewer closed, except the active page's group, which always
   // opens. CSS holds these closed until the sidebar hydrates, so a saved
@@ -127,7 +132,7 @@ export function prepaintAdminSidebar() {
       ? "content"
       : /^\/data(?:\/|$)/.test(path)
         ? "life"
-        : /^\/(?:observability|work|system|proof|ops)(?:\/|$)/.test(path)
+        : /^\/observability(?:\/|$)/.test(path)
           ? "operations"
           : "";
     if (saved && typeof saved === "object")

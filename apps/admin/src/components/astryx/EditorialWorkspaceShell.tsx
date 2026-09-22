@@ -305,7 +305,10 @@ function WorkspaceIdentity({
         hAlign="between"
         vAlign="center"
       >
-        <SideNavCollapseButton size="md">
+        <SideNavCollapseButton
+          size="md"
+          tooltip={rail ? "Expand sidebar" : "Collapse sidebar"}
+        >
           <SidebarSimpleIcon size={18} aria-hidden="true" />
         </SideNavCollapseButton>
         {!rail && <AdminWordmark href="/" label="Overview" />}

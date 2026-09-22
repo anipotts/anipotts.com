@@ -1,12 +1,14 @@
-// Retired Admin URLs and the closest live page for each. One injected
-// endpoint answers every one with a 308 behind the normal middleware, and the
-// route inventory classifies them, so a retired URL needs no page file.
+// Retired Admin URLs and bare workspace roots, and the closest live page
+// for each. One injected endpoint answers every one with a 308 behind the
+// normal middleware, and the route inventory classifies them, so a retired
+// URL needs no page file.
 // Astro's own `redirects` option would send 301 for GET whenever the
 // destination is a dynamic route, which most of these are.
 // Routes whose destination depends on the request stay pages (/content,
 // /newsletter, /life/[section], /knowledge and /knowledge/locations).
 export const RETIRED_ROUTE_REDIRECTS = Object.freeze({
   "/data": "/data/records",
+  "/observability": "/observability/status",
   "/life": "/data/records",
   "/operations/observability": "/observability/status",
   "/inbox": "/observability/status",

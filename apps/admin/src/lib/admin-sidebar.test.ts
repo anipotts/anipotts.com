@@ -39,12 +39,15 @@ function prepaint(
 }
 
 describe("sidebar rail choice", () => {
-  it("has no sidebar at compact widths and follows a saved choice from 641px", () => {
+  it("has no sidebar at compact widths, the rail at medium, and a saved choice from 1024px", () => {
     expect(RAIL_QUERY).toBe("(min-width: 641px) and (max-width: 1279px)");
     expect(sidebarRail(390, true, false)).toBe(false);
     expect(sidebarRail(640, true, false)).toBe(false);
     expect(sidebarRail(641, null, true)).toBe(true);
     expect(sidebarRail(768, true, true)).toBe(true);
+    // A saved expand never crushes a tablet's tables.
+    expect(sidebarRail(768, false, true)).toBe(true);
+    expect(sidebarRail(1023, false, true)).toBe(true);
     expect(sidebarRail(1024, false, true)).toBe(false);
     expect(sidebarRail(1440, true, false)).toBe(true);
     expect(sidebarRail(1440, null, false)).toBe(false);
@@ -56,7 +59,9 @@ describe("sidebar rail choice", () => {
     expect(workspaceForPath("/newsletter/issue")).toBe("content");
     expect(workspaceForPath("/data/records/rec-1")).toBe("life");
     expect(workspaceForPath("/observability/alerts")).toBe("operations");
-    expect(workspaceForPath("/proof")).toBe("operations");
+    expect(workspaceForPath("/observability")).toBe("operations");
+    // Retired console URLs redirect before rendering, so they own nothing.
+    expect(workspaceForPath("/proof")).toBeNull();
     expect(workspaceForPath("/404")).toBeNull();
     // Nothing is forced open on a neutral page.
     expect(sidebarGroupsState('{"content":true}', null).content).toBe(true);
@@ -156,7 +161,12 @@ describe("sidebar rail choice", () => {
     expect(run("/", closed)).toBe("content life");
     expect(run("/life/people", closed)).toBe("content life");
     expect(run("/content/newsletter", "not json")).toBeUndefined();
-    for (const path of ["/content/pages", "/data/sources", "/", "/proof"]) {
+    for (const path of [
+      "/content/pages",
+      "/data/sources",
+      "/",
+      "/observability/alerts",
+    ]) {
       const expected = Object.entries(
         sidebarGroupsState(closed, workspaceForPath(path)),
       )

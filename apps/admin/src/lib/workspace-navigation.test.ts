@@ -88,9 +88,6 @@ describe("workspace return destinations", () => {
           `/observability/${view}?panel=traces&q=secret&item=private`,
         ),
       ).toBe(`/observability/${view}?panel=traces`);
-    expect(workspaceReturnPath("operations", "/work?view=now")).toBe(
-      "/work?view=now",
-    );
   });
   it("keeps Data navigation only, never private queries, record ids or cursors", () => {
     expect(
@@ -138,6 +135,11 @@ describe("retired routes", () => {
     );
   });
   it.each([
+    "/work",
+    "/system",
+    "/proof",
+    "/ops/destructive",
+    "/content/review",
     "/fleet",
     "/deploys",
     "/repos",
@@ -152,7 +154,10 @@ describe("retired routes", () => {
   });
   it("discards misplaced filters on operational pages", () => {
     expect(
-      workspaceReturnPath("operations", "/system?kind=system&category=system"),
-    ).toBe("/system");
+      workspaceReturnPath(
+        "operations",
+        "/observability/alerts?kind=system&category=system",
+      ),
+    ).toBe("/observability/alerts");
   });
 });

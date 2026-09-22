@@ -33,11 +33,7 @@ export function workspaceReturnPath(
       )
     )
       return fallback;
-  } else if (
-    !/^\/(observability\/(?:status|activity|alerts)|work|system|proof|ops\/destructive|content\/(?:review|drafts|preview|operations|carousels))$/.test(
-      path,
-    )
-  )
+  } else if (!/^\/observability\/(?:status|activity|alerts)$/.test(path))
     return fallback;
   const params = new URLSearchParams();
   for (const key of ["status", "sort", "view", "panel"])

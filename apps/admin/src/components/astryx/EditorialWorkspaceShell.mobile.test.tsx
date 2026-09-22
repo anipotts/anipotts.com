@@ -157,7 +157,7 @@ describe("responsive workspace navigation", () => {
       localStorage.removeItem("admin:sidebar-collapsed");
     },
   );
-  it("persists explicit expansion and collapse independently of the tablet default", () => {
+  it("opens the full sidebar for the moment on a tablet and saves the choice for wider screens", () => {
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
       value: 930,
@@ -185,13 +185,22 @@ describe("responsive workspace navigation", () => {
       ).not.toBe(0);
     }
     act(() => expand.click());
-    expect(localStorage.getItem("admin:sidebar-collapsed")).toBe("false");
-    render(vi.fn(), "remounted");
-    expect(
+    const collapsed = () =>
       host
         .querySelector(".editorial-workspace-shell")
-        ?.getAttribute("data-sidebar-collapsed"),
-    ).toBe("false");
+        ?.getAttribute("data-sidebar-collapsed");
+    expect(collapsed()).toBe("false");
+    expect(localStorage.getItem("admin:sidebar-collapsed")).toBe("false");
+    // A tablet opens on the rail again: the saved expand would leave its
+    // tables too little room.
+    render(vi.fn(), "remounted");
+    expect(collapsed()).toBe("true");
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1100,
+    });
+    render(vi.fn(), "wide");
+    expect(collapsed()).toBe("false");
   });
   it("keeps desktop search below the identity row", () => {
     Object.defineProperty(window, "innerWidth", {

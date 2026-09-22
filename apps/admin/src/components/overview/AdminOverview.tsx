@@ -127,7 +127,7 @@ function ContentState({ record }: { record: CatalogRecord }) {
 
 function RecentContent({ records }: { records: CatalogRecord[] }) {
   return (
-    <WorkspaceSection title="Recent content">
+    <WorkspaceSection title="Recent content" href="/content/pages">
       {records.length ? (
         <DataTable
           rows={records}

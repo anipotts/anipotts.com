@@ -74,12 +74,16 @@ describe("workspace page frames", () => {
     );
   });
 
-  it("gives the sidebar one accent: the current page's icon", () => {
+  it("draws the group headings and the current page's icon in the workspace accent", () => {
     expect(header).toContain(
       '.admin-unified-nav [aria-current="page"] svg { color: var(--color-icon-accent); }',
     );
+    // Headings and chevrons take the accent, as the approved sidebar did.
     expect(header).toContain(
-      ".admin-unified-nav [data-sidebar-group] { font-size: var(--text-supporting-size); font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); }",
+      ".admin-unified-nav [data-sidebar-group], .admin-unified-nav [data-sidebar-group] svg { color: var(--color-text-accent); }",
+    );
+    expect(header).not.toMatch(
+      /\[data-sidebar-group\][^{]*\{[^}]*color: var\(--color-text-secondary\)/,
     );
     // Workspace accents are the theme's own tokens, declared once in
     // themes/workspace-accents.css; the shell keeps no copies.

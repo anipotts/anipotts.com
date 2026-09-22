@@ -77,7 +77,7 @@ describe("the one overview", () => {
     expect(table.querySelector('[data-mark="1password"]')).not.toBeNull();
   });
 
-  it("links the Alerts and Recent records headings, and nothing says View all", () => {
+  it("links every section heading to its page, and nothing says View all", () => {
     const host = render({ fixture: snapshot, eventsFixture: events });
     const heading = (name: string) =>
       [...host.querySelectorAll("h2")].find((h) => h.textContent === name)!;
@@ -87,7 +87,9 @@ describe("the one overview", () => {
     expect(
       heading("Recent records").querySelector("a")?.getAttribute("href"),
     ).toBe("/data/records");
-    expect(heading("Recent content").querySelector("a")).toBeNull();
+    expect(
+      heading("Recent content").querySelector("a")?.getAttribute("href"),
+    ).toBe("/content/pages");
     expect(host.textContent).not.toContain("View all");
     expect(host.textContent).not.toContain("session");
   });
