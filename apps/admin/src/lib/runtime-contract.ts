@@ -30,6 +30,12 @@ export const RUNTIME_CONTRACT = {
   EDITORIAL_PUBLISH_ENABLED: { source: "vars", check: "flag" },
   PRIVATE_READER_ENABLED: { source: "vars", check: "flag" },
   PRIVATE_READER_OPS_ENABLED: { source: "vars", check: "flag" },
+  /** Data Health's health:read issuance. Unset in production until System's
+   * daily health collection is proven. */
+  PRIVATE_READER_HEALTH_ENABLED: { source: "vars", check: "flag" },
+  /** Data Knowledge's entity reads. Unset in production until System serves
+   * the entity routes. */
+  PRIVATE_READER_KNOWLEDGE_ENABLED: { source: "vars", check: "flag" },
   PRIVATE_READER_SIGNING_KEY: { source: "secret", check: "text" },
   PUBLIC_RELEASE_SHA: { source: "build", check: "sha" },
 } as const satisfies Record<string, { source: Source; check: Check }>;
@@ -42,10 +48,12 @@ export const RUNTIME_REQUIRED = [
   "ACCESS_POLICY_AUD",
 ] as const satisfies readonly RuntimeName[];
 
-/** Mirrors productionEditor, and the Data Health and Knowledge pages, which
- * read DB through loadDataExtras.
+/** Mirrors productionEditor. DB stays bound for its migrations; no admin
+ * page reads it since Health and Knowledge moved to the private reader.
  * Flags switch a feature off; needs make an enabled feature unavailable when
- * absent. EDITORIAL_PUBLISH_ENABLED is the publishing kill switch.
+ * absent. EDITORIAL_PUBLISH_ENABLED is the publishing kill switch. The
+ * private reader flags gate issuance routes, not bindings, so they need no
+ * feature here.
  */
 export const RUNTIME_FEATURES = {
   editorial: {

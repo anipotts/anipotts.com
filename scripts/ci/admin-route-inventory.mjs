@@ -195,6 +195,12 @@ export const ADMIN_ROUTES = [
     smoke: false,
   },
   {
+    route: "/api/private-reader/health-credential",
+    file: "apps/admin/src/pages/api/private-reader/[mode].ts",
+    nav: false,
+    smoke: false,
+  },
+  {
     // Unknown paths and rejected route params render here, inside the shell.
     route: "/404",
     file: "apps/admin/src/pages/404.astro",

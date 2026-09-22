@@ -624,6 +624,21 @@ describe("admin wrangler.toml runtime contract drift", () => {
     expect(undeclared(declaredRuntimeNames(publishDisabled))).toEqual([]);
   });
 
+  it("keeps the Health and Knowledge reader flags registered and unset in production", () => {
+    const declared = declaredRuntimeNames(wrangler);
+    for (const name of [
+      "PRIVATE_READER_HEALTH_ENABLED",
+      "PRIVATE_READER_KNOWLEDGE_ENABLED",
+    ] as const) {
+      expect(RUNTIME_CONTRACT[name]).toEqual({ source: "vars", check: "flag" });
+      expect(declared.vars).not.toContain(name);
+      expect(wrangler).not.toContain(name);
+    }
+    // The flags they sit beside stay as deployed.
+    expect(declared.varValues.PRIVATE_READER_ENABLED).toBe("true");
+    expect(declared.varValues.PRIVATE_READER_OPS_ENABLED).toBe("true");
+  });
+
   it("keeps each feature built from contract names only", () => {
     for (const feature of Object.values(RUNTIME_FEATURES))
       for (const name of [...feature.flags, ...feature.needs])
