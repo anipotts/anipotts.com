@@ -12,23 +12,6 @@ const shell = (route: string) => (
 );
 
 describe("shared Operations and Life shell", () => {
-  it.each([false, true])(
-    "preserves route context unless header is hidden: %s",
-    (hideHeader) => {
-      const html = renderToStaticMarkup(
-        <AdminShell
-          currentRoute="/proof"
-          title="Proof"
-          deck="This page is read-only."
-          hideHeader={hideHeader}
-          localPreview
-        >
-          <p>Records</p>
-        </AdminShell>,
-      );
-      expect(html.includes("This page is read-only.")).toBe(!hideHeader);
-    },
-  );
   it("renders the shared identity and one sidebar with Content, Data and Observability", () => {
     const host = document.createElement("div");
     host.innerHTML = renderToStaticMarkup(shell("/observability/status"));

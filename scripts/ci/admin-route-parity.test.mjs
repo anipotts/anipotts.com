@@ -42,10 +42,6 @@ const passkeyProofSource = readFileSync(
   "utf8",
 );
 const authSource = readFileSync("apps/admin/src/pages/auth.astro", "utf8");
-const contentEditorSource = readFileSync(
-  "apps/admin/src/pages/content/edit/[pageKey].astro",
-  "utf8",
-);
 const deployWorkflow = readFileSync(".github/workflows/deploy.yml", "utf8");
 const smokeWorkflow = readFileSync(".github/workflows/smoke.yml", "utf8");
 assert.ok(
@@ -292,6 +288,10 @@ for (const [page, marker] of [
   ["life/[section]", "Astro.redirect(lifeRedirect(Astro.params.section), 308)"],
   ["knowledge", "knowledgeRedirect("],
   ["knowledge/locations", 'Astro.redirect(dataRecordsHref("places"), 308)'],
+  [
+    "content/edit/[pageKey]",
+    "Astro.redirect(legacyEditRedirect(Astro.params.pageKey), 308)",
+  ],
 ]) {
   const source = readFileSync(`apps/admin/src/pages/${page}.astro`, "utf8");
   assert.ok(source.includes(marker), `/${page} redirects with ${marker}`);
@@ -408,17 +408,6 @@ for (const marker of [
 }
 for (const retired of ["continue with passkey", "recover access", "use phone"])
   assert.equal(authSource.includes(retired), false);
-
-for (const marker of [
-  "readPageContentInventoryStore",
-  "/api/admin/content/editor",
-  "Legacy content diagnostics",
-]) {
-  assert.ok(
-    contentEditorSource.includes(marker),
-    `/content/edit/:pageKey missing draft editor marker ${marker}`,
-  );
-}
 
 function listAdminPageFiles(dir = "apps/admin/src/pages") {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
