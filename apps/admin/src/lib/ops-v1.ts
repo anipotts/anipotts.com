@@ -5,7 +5,9 @@
  * read-only. The parser follows the contract's client rules: unknown catalog
  * ids and groups are accepted and rendered generically, unknown fields inside
  * an entry are rejected, and a catalog entry without a status row is
- * `unknown`. Unknown never renders like ok.
+ * `unknown`. Unknown never renders like ok. The run fields System added on
+ * 2026-09-22 (catalog `trigger`; row `runs`, `interval_s`, `last_duration_s`,
+ * `next_run_at`) are optional: present or absent, both parse.
  *
  * Rejection throws `OpsSnapshotError` with a fixed message. Rejected input is
  * never echoed into the message, the UI or a log.
@@ -28,10 +30,20 @@ export const OPS_V1_KINDS = [
   "web",
 ] as const;
 export const OPS_V1_HOSTS = ["ap-mini", "ap-pro", "cloudflare"] as const;
+/** How launchd starts a job, read from its plist. `sampled` is a host row. */
+export const OPS_V1_TRIGGERS = [
+  "interval",
+  "calendar",
+  "keepalive",
+  "watch",
+  "manual",
+  "sampled",
+] as const;
 
 export type OpsState = (typeof OPS_V1_STATES)[number];
 export type OpsKind = (typeof OPS_V1_KINDS)[number];
 export type OpsHost = (typeof OPS_V1_HOSTS)[number];
+export type OpsTrigger = (typeof OPS_V1_TRIGGERS)[number];
 
 /** Client bounds. The contract caps the transport at 64 KB. */
 export const OPS_V1_BOUNDS = {
@@ -48,6 +60,8 @@ export const OPS_V1_BOUNDS = {
   budgetMaxSeconds: 366 * 24 * 60 * 60,
   exitMin: -(2 ** 31),
   exitMax: 2 ** 31 - 1,
+  runsMax: 2 ** 31 - 1,
+  trigger: /^[a-z][a-z0-9_-]{0,31}$/,
 } as const;
 
 export type OpsCatalogEntry = {
@@ -61,6 +75,8 @@ export type OpsCatalogEntry = {
   runbook: string;
   /** Short human string ("hourly", "daily 04:00", "continuous") or null. */
   schedule: string | null;
+  /** Null when System sends none, or a trigger this client does not know. */
+  trigger: OpsTrigger | null;
 };
 
 export type OpsStatusRow = {
@@ -69,6 +85,15 @@ export type OpsStatusRow = {
   last_success_at: string | null;
   last_run_at: string | null;
   last_exit: number | null;
+  /** launchd's run count. */
+  runs: number | null;
+  /** StartInterval seconds. */
+  interval_s: number | null;
+  /** Seconds the last receipted run took. */
+  last_duration_s: number | null;
+  /** Approximate for interval jobs; the only timestamp that may postdate the
+   * snapshot. */
+  next_run_at: string | null;
 };
 
 export type OpsCounts = Record<OpsState, number>;
@@ -104,12 +129,19 @@ const ENTRY_KEYS = [
   "runbook",
   "schedule",
 ] as const;
+const ENTRY_OPTIONAL_KEYS = ["trigger"] as const;
 const ROW_KEYS = [
   "state",
   "detail",
   "last_success_at",
   "last_run_at",
   "last_exit",
+] as const;
+const ROW_OPTIONAL_KEYS = [
+  "runs",
+  "interval_s",
+  "last_duration_s",
+  "next_run_at",
 ] as const;
 const ROOT_KEYS = [
   "version",
@@ -124,15 +156,17 @@ function record(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-/** Exactly these keys: a missing field and an unknown field both reject. */
+/** Exactly these keys, plus any of `optional`: a missing required field and
+ * an unknown field both reject. */
 export function exact(
   value: unknown,
   keys: readonly string[],
+  optional: readonly string[] = [],
 ): Record<string, unknown> {
   const object = record(value);
   const present = Object.keys(object);
   if (
-    present.some((key) => !keys.includes(key)) ||
+    present.some((key) => !keys.includes(key) && !optional.includes(key)) ||
     keys.some((key) => !Object.hasOwn(object, key))
   )
     fail();
@@ -233,8 +267,30 @@ function runbook(value: unknown): string {
   return result;
 }
 
+/** A known trigger, or null for none or one this client does not know yet
+ * (System adds triggers without a website deploy). */
+function trigger(value: unknown): OpsTrigger | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "string" || !OPS_V1_BOUNDS.trigger.test(value)) fail();
+  return (OPS_V1_TRIGGERS as readonly string[]).includes(value)
+    ? (value as OpsTrigger)
+    : null;
+}
+
+/** A finite, non-negative number of seconds, at most `max`. */
+function seconds(value: unknown, max: number): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    value < 0 ||
+    value > max
+  )
+    fail();
+  return value;
+}
+
 function entry(value: unknown): OpsCatalogEntry {
-  const e = exact(value, ENTRY_KEYS);
+  const e = exact(value, ENTRY_KEYS, ENTRY_OPTIONAL_KEYS);
   if (typeof e.id !== "string" || !OPS_V1_BOUNDS.id.test(e.id)) fail();
   return {
     // Short human string, such as "hourly" or "daily 04:00", or null.
@@ -252,10 +308,17 @@ function entry(value: unknown): OpsCatalogEntry {
         ? null
         : integer(e.freshness_budget_s, 1, OPS_V1_BOUNDS.budgetMaxSeconds),
     runbook: runbook(e.runbook),
+    trigger: trigger(e.trigger),
   };
 }
 
+/** Absent and null both read as null. */
+function optional<T>(value: unknown, read: (value: unknown) => T): T | null {
+  return value === undefined || value === null ? null : read(value);
+}
+
 function row(value: Record<string, unknown>, notAfter: number): OpsStatusRow {
+  const budget = OPS_V1_BOUNDS.budgetMaxSeconds;
   return {
     state: member(value.state, OPS_V1_STATES),
     detail: text(value.detail, OPS_V1_BOUNDS.detailMax),
@@ -269,6 +332,15 @@ function row(value: Record<string, unknown>, notAfter: number): OpsStatusRow {
             OPS_V1_BOUNDS.exitMin,
             OPS_V1_BOUNDS.exitMax,
           ),
+    runs: optional(value.runs, (v) => integer(v, 0, OPS_V1_BOUNDS.runsMax)),
+    interval_s: optional(value.interval_s, (v) => integer(v, 1, budget)),
+    last_duration_s: optional(value.last_duration_s, (v) => seconds(v, budget)),
+    // A next run is in the future, but not beyond a year past the snapshot.
+    next_run_at: optional(value.next_run_at, (v) => {
+      const at = timestamp(v);
+      if (Date.parse(at) > notAfter + budget * 1000) fail();
+      return at;
+    }),
   };
 }
 
@@ -285,7 +357,7 @@ function statusRows(
   if (!Array.isArray(value) || value.length > OPS_V1_BOUNDS.maxEntries) fail();
   const rows = new Map<string, OpsStatusRow>();
   for (const item of value) {
-    const body = exact(item, ["id", ...ROW_KEYS]);
+    const body = exact(item, ["id", ...ROW_KEYS], ROW_OPTIONAL_KEYS);
     const id = body.id;
     if (typeof id !== "string" || !catalogIds.has(id) || rows.has(id)) fail();
     rows.set(id, row(body, notAfter));
@@ -350,6 +422,10 @@ export const MISSING_STATUS: OpsStatusRow = Object.freeze({
   last_success_at: null,
   last_run_at: null,
   last_exit: null,
+  runs: null,
+  interval_s: null,
+  last_duration_s: null,
+  next_run_at: null,
 });
 
 export function opsServices(snapshot: OpsSnapshot): OpsServiceView[] {
