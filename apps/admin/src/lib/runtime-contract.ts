@@ -31,6 +31,9 @@ export const RUNTIME_CONTRACT = {
   PRIVATE_READER_ENABLED: { source: "vars", check: "flag" },
   PRIVATE_READER_OPS_ENABLED: { source: "vars", check: "flag" },
   PRIVATE_READER_SIGNING_KEY: { source: "secret", check: "text" },
+  PRIVATE_READER_CANARY_ENABLED: { source: "vars", check: "flag" },
+  PRIVATE_READER_CANARY_ACCESS_AUD: { source: "vars", check: "text" },
+  PRIVATE_READER_CANARY_CLIENT_ID: { source: "vars", check: "text" },
   PUBLIC_RELEASE_SHA: { source: "build", check: "sha" },
 } as const satisfies Record<string, { source: Source; check: Check }>;
 
