@@ -12,34 +12,89 @@ const productionFiles = collect(adminSource).filter(
     !file.includes("/dev-"),
 );
 
-for (const file of productionFiles) {
-  const source = readFileSync(file, "utf8");
-  assert.doesNotMatch(
-    source,
-    /from\s+["'][^"']*(?:dev-fixtures|dev-work-lifecycle-fixtures|dev-operator-work)["']/,
-    `${relative(root, file)} statically imports development fixture data`,
+// Synthetic and replayed data reach the overview, Data and Observability
+// only through lib/shell-fixtures.ts, which loads them dynamically under
+// import.meta.env.DEV. No other production module may import a fixture.
+const FIXTURE_IMPORT =
+  /(?:from\s+|import\s*\(\s*)["'][^"']*(?:\/fixtures\/|dev-review-catalog|\.synthetic(?:\.json)?["'])/;
+const shellFixtures = join(adminSource, "lib/shell-fixtures.ts");
+const fixtureImporters = productionFiles.filter((file) =>
+  FIXTURE_IMPORT.test(readFileSync(file, "utf8")),
+);
+assert.deepEqual(
+  fixtureImporters
+    .map((file) => relative(root, file))
+    .filter(
+      (file) =>
+        file !== relative(root, shellFixtures) &&
+        // The dev-only component catalog is guarded and checked below.
+        file !== "apps/admin/src/dev/dev-catalog.astro",
+    ),
+  [],
+  "only lib/shell-fixtures.ts may load fixture data",
+);
+assert.ok(
+  fixtureImporters.includes(shellFixtures),
+  "the fixture import scan must see lib/shell-fixtures.ts",
+);
+const loader = readFileSync(shellFixtures, "utf8");
+assert.match(
+  loader,
+  /=\s*import\.meta\.env\.DEV\s*\?/,
+  "shell-fixtures must choose its loader on import.meta.env.DEV",
+);
+assert.doesNotMatch(
+  loader,
+  /^import\s(?!type\b)[^;]*["'](?:node:|\.\.\/fixtures\/)/m,
+  "shell-fixtures must not statically import node modules or fixtures",
+);
+// Everything the loader reads sits inside its DEV branch, so a build drops it.
+const devBranch = loader.slice(
+  loader.search(/=\s*import\.meta\.env\.DEV\s*\?/),
+  loader.search(/:\s*async\s*\(\)\s*=>\s*undefined;\s*$/),
+);
+for (const fixture of [
+  "ops_v1.sample.json",
+  "ops_events_v1.synthetic.json",
+  "data_v1.synthetic.json",
+])
+  assert.ok(
+    devBranch.includes(`import("../fixtures/${fixture}")`),
+    `shell-fixtures must load ${fixture} dynamically inside its DEV branch`,
   );
-}
+assert.ok(
+  devBranch.includes('await import("node:fs/promises")') &&
+    devBranch.includes(".local/replay/"),
+  "shell-fixtures must read replay files through a dynamic node:fs import inside its DEV branch",
+);
+assert.match(
+  loader,
+  /:\s*async\s*\(\)\s*=>\s*undefined;\s*$/,
+  "the production loader must return no fixtures",
+);
 
-const fixtureConsumers = productionFiles.filter((file) => {
-  const source = readFileSync(file, "utf8");
-  return /admin-control\/(?:dev-fixtures|dev-work-lifecycle-fixtures)/.test(
-    source,
-  );
-});
-
-for (const file of fixtureConsumers) {
-  const source = readFileSync(file, "utf8");
-  assert.match(
-    source,
-    /import\.meta\.env\.DEV/,
-    `${relative(root, file)} must guard fixture loading with import.meta.env.DEV`,
-  );
-  assert.match(
-    source,
-    /await import\(/,
-    `${relative(root, file)} must load development fixtures dynamically`,
-  );
+// A built admin bundle must hold none of it. CI builds before this runs;
+// locally the scan covers whatever dist exists.
+const dist = join(root, "apps/admin/dist");
+let distFiles = 0;
+if (existsSync(dist)) {
+  const leaks = [
+    /ops_v1\.sample/,
+    /ops_events_v1\.synthetic/,
+    /data_v1\.synthetic/,
+    /\.local\/replay/,
+    /["']node:fs(?:\/promises)?["']/,
+  ];
+  for (const file of collectBuilt(dist)) {
+    distFiles += 1;
+    const text = readFileSync(file, "utf8");
+    for (const leak of leaks)
+      assert.doesNotMatch(
+        text,
+        leak,
+        `${relative(root, file)} ships development fixture code (${leak})`,
+      );
+  }
 }
 
 const editorialLayout = readFileSync(
@@ -92,8 +147,19 @@ assert.doesNotMatch(
 );
 
 console.log(
-  `admin fixture boundary passed for ${productionFiles.length} production modules`,
+  `admin fixture boundary passed for ${productionFiles.length} production modules` +
+    (existsSync(dist) ? ` and ${distFiles} built files` : " (no dist built)"),
 );
+
+function collectBuilt(directory) {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) return collectBuilt(path);
+    return [".js", ".mjs", ".html", ".json"].includes(extname(path))
+      ? [path]
+      : [];
+  });
+}
 
 function collect(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
