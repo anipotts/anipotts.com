@@ -917,10 +917,12 @@ describe("private Data workspace", () => {
     expect(container.textContent).not.toContain("Synthetic note");
   });
 
-  it("shows denied and unavailable issuance distinctly, and retries in place", async () => {
+  it("shows denied and failed issuance distinctly, and retries in place", async () => {
+    // A failed issuance is admin's hop: ap-mini was never asked (A-26).
     for (const [status, title] of [
       [401, "Access refused"],
-      [503, "Reader unavailable"],
+      [503, "Credential not issued"],
+      [500, "Credential not issued"],
     ] as const) {
       const fetcher = vi.fn(async () =>
         json({ error: "fixture" }, status),
@@ -945,13 +947,24 @@ describe("private Data workspace", () => {
     }
   });
 
-  it("shows an unreachable reader instead of an empty store", async () => {
+  it("shows an unavailable reader instead of an empty store", async () => {
     const { fetcher } = network(() =>
       json({ error: "personal_context_unavailable" }, 503),
     );
     await openWorkspace(makeSession(fetcher), fetcher);
-    expect(container.textContent).toContain("ap-mini unreachable");
+    // ap-mini answered, so it was reached: the reader's own hop.
+    expect(container.textContent).toContain("Reader unavailable");
+    expect(container.textContent).not.toContain("ap-mini unreachable");
     expect(container.textContent).not.toContain("No matching records");
+  });
+
+  it("never blames ap-mini for a request that failed with no reply", async () => {
+    const { fetcher } = network(() => {
+      throw new TypeError("Failed to fetch");
+    });
+    await openWorkspace(makeSession(fetcher), fetcher);
+    expect(container.textContent).toContain("No answer from ap-mini");
+    expect(container.textContent).not.toContain("ap-mini unreachable");
   });
 
   it("touches no persistence API across a full session", async () => {

@@ -107,7 +107,7 @@ describe("live alerts on the overview", () => {
     host.remove();
   });
 
-  it("says ap-mini is unreachable instead of reading as all clear", async () => {
+  it("names the failed hop instead of reading as all clear", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-21T18:00:10Z"));
     const fetcher = vi.fn(async (input: RequestInfo | URL) => {
@@ -146,7 +146,9 @@ describe("live alerts on the overview", () => {
     await settle();
     const section = host.querySelector("section[aria-labelledby]");
     expect(section?.querySelector("h2")?.textContent).toBe("Alerts");
-    expect(section?.textContent).toContain("ap-mini unreachable");
+    // The request failed at once with no reply: a block and a refused
+    // connection look the same, so ap-mini is not called unreachable.
+    expect(section?.textContent).toContain("No answer from ap-mini");
     expect(section?.textContent).toContain("Try again");
     expect(host.querySelector('table[aria-label="Firing alerts"]')).toBeNull();
     await act(async () => root.unmount());

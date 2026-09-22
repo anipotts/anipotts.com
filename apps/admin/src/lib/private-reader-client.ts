@@ -19,8 +19,10 @@ export type PrivateReaderState =
   | { status: "cleared"; reason: PrivateReaderClearReason };
 
 /**
- * `denied`: the admin refused issuance or the reader refused the credential.
- * `unavailable`: issuance is switched off (503) or could not be reached.
+ * `denied`: the owner gate refused issuance (401, 403) or the reader refused
+ * the credential. `unavailable`: issuance did not produce a credential: it
+ * is switched off (503), failed, sent something unusable or could not be
+ * reached.
  */
 export type PrivateReaderClearReason =
   "logout" | "expired" | "denied" | "unavailable";
@@ -132,16 +134,20 @@ export function createPrivateReaderSession(
         body: "{}",
       });
       if (attempt !== generation) return state;
-      if (response.status === 503) {
+      // Only the owner gate's refusal is a denial; any other failure is
+      // admin not issuing, which says nothing about access.
+      if (response.status === 401 || response.status === 403) {
+        clear("denied");
+        return state;
+      }
+      if (!response.ok) {
         clear("unavailable");
         return state;
       }
-      const credential = response.ok
-        ? parseCredential(await response.json())
-        : null;
+      const credential = parseCredential(await response.json());
       if (attempt !== generation) return state;
       if (!credential || credential.expiresAt * 1000 <= now()) {
-        clear("denied");
+        clear("unavailable");
         return state;
       }
       inflight = null;

@@ -23,7 +23,12 @@ import {
   parseOpsEvents,
   type OpsEventLog,
 } from "../../lib/ops-events";
-import type { OpsConnection, OpsStatusController } from "../../lib/ops-reader";
+import type {
+  OpsConnection,
+  OpsStatusController,
+  OpsStatusState,
+} from "../../lib/ops-reader";
+import { READER_HOP_TITLES } from "../../lib/reader-reach";
 import { useOpsStatus } from "../hooks/useOpsStatus";
 import { relativeAgo, useLiveText } from "../../lib/live-clock";
 import { opsDistinctNames } from "../../lib/ops-view";
@@ -52,6 +57,7 @@ export const OPS_VIEW_TITLES = {
 export type OpsView = keyof typeof OPS_VIEW_TITLES;
 
 const retryable = new Set([
+  "unissued",
   "unreachable",
   "unavailable",
   "rejected",
@@ -233,9 +239,15 @@ const CONNECTION_NOTICES: Partial<
   >
 > = {
   off: { title: "Reader off", kind: "not-connected", icon: PlugsIcon },
+  unissued: {
+    title: READER_HOP_TITLES.unissued,
+    kept: READER_HOP_TITLES.unissued,
+    kind: "error",
+    icon: PlugsIcon,
+  },
+  // Titled by the hop that failed (opsConnectionNotice).
   unreachable: {
-    title: "ap-mini unreachable",
-    kept: "ap-mini unreachable",
+    title: READER_HOP_TITLES.reader,
     kind: "not-connected",
     icon: LinkBreakIcon,
   },
@@ -248,6 +260,16 @@ const CONNECTION_NOTICES: Partial<
   denied: { title: "Access refused", kind: "error", icon: ShieldWarningIcon },
   ended: { title: "Session ended", kind: "not-connected" },
 };
+
+/** An unconnected state's notice. An unreachable reader names the hop that
+ * failed (A-26): only a request that got no reply in time is "ap-mini
+ * unreachable". */
+export function opsConnectionNotice(state: OpsStatusState) {
+  const notice = CONNECTION_NOTICES[state.connection];
+  if (!notice || state.connection !== "unreachable") return notice;
+  const title = READER_HOP_TITLES[state.hop ?? "reader"];
+  return { ...notice, title, kept: title };
+}
 
 /**
  * The page's one notice: the connection when it is not connected, else a
@@ -264,9 +286,7 @@ function OpsNotice({
   retained: boolean;
 }) {
   const { state } = data;
-  const notice = data.fixtureMode
-    ? undefined
-    : CONNECTION_NOTICES[state.connection];
+  const notice = data.fixtureMode ? undefined : opsConnectionNotice(state);
   if (notice) {
     const retry = data.retry && (
       <Button

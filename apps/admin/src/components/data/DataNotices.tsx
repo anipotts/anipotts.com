@@ -10,6 +10,7 @@ import {
   type Icon,
 } from "@phosphor-icons/react";
 import type { DataResult } from "../../data/personal-context";
+import { READER_HOP_TITLES } from "../../lib/reader-reach";
 import { LoadingSkeleton, StateNotice } from "../workspace/Workspace";
 import type { DataSession } from "./useDataSession";
 
@@ -59,10 +60,11 @@ const CLOSED: Record<NonNullable<DataSession["reason"]>, Notice> = {
     action: "Try again",
     actionIcon: ArrowClockwiseIcon,
   },
+  // Admin's own credential route failed: ap-mini was never asked (A-26).
   unavailable: {
     kind: "error",
     icon: PlugsIcon,
-    title: "Reader unavailable",
+    title: READER_HOP_TITLES.unissued,
     action: "Try again",
     actionIcon: ArrowClockwiseIcon,
   },
@@ -126,7 +128,28 @@ export function DataSessionControl({ session }: { session: DataSession }) {
   );
 }
 
-/** A failed read, in fixed copy that never repeats reader text. */
+/** A failed read's title: fixed copy that never repeats reader text. An
+ * unavailable read names the hop that failed (lib/reader-reach.ts); only a
+ * request that went out and got no reply says ap-mini is unreachable. */
+export function readNoticeTitle(
+  result: Exclude<DataResult, { state: "ready" }>,
+): string {
+  if (result.state === "unavailable")
+    return READER_HOP_TITLES[result.hop ?? "reader"];
+  return {
+    disconnected: "Reader off",
+    denied: "Access refused",
+    not_found: "Record not found",
+    invalid: "Unreadable response",
+  }[result.state];
+}
+
+/** Results a second try cannot change: the reader is off, or it answered
+ * that the record is not there (withdrawn, excluded or never held). */
+const FINAL = new Set<DataResult["state"]>(["disconnected", "not_found"]);
+
+/** A failed read. Try again is offered only where another try could get a
+ * different answer (A-25). */
 export function ReadNotice({
   result,
   onRetry,
@@ -134,20 +157,13 @@ export function ReadNotice({
   result: Exclude<DataResult, { state: "ready" }>;
   onRetry?: () => void;
 }) {
-  const title = {
-    disconnected: "Reader off",
-    denied: "Access refused",
-    unavailable: "ap-mini unreachable",
-    not_found: "Record not found",
-    invalid: "Unreadable response",
-  }[result.state];
   return (
     <StateNotice
       kind={result.state === "disconnected" ? "not-connected" : "error"}
       icon={result.state === "disconnected" ? PlugsIcon : undefined}
-      title={title}
+      title={readNoticeTitle(result)}
       action={
-        onRetry && result.state !== "disconnected" ? (
+        onRetry && !FINAL.has(result.state) ? (
           <Button
             label="Try again"
             size="sm"

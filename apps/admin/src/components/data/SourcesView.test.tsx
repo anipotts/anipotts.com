@@ -204,11 +204,26 @@ describe("Sources by connector", () => {
     expect(host.textContent).not.toContain("Failed");
   });
 
-  it("says a failed read plainly and offers a retry", async () => {
-    const reader = async () => ({ state: "unavailable", message: "" }) as const;
-    await act(async () => root.render(<SourcesExplorer reader={reader} />));
-    await settle();
-    expect(host.textContent).toContain("ap-mini unreachable");
-    expect(button("Try again")).toBeTruthy();
+  it("says a failed read plainly, naming the hop, and offers a retry", async () => {
+    for (const [hop, title] of [
+      [undefined, "Reader unavailable"],
+      ["reader", "Reader unavailable"],
+      ["unanswered", "No answer from ap-mini"],
+      ["blocked", "Blocked by this browser"],
+      ["offline", "Browser offline"],
+      ["timeout", "ap-mini unreachable"],
+    ] as const) {
+      const reader = async () =>
+        ({
+          state: "unavailable",
+          message: "",
+          ...(hop ? { hop } : {}),
+        }) as const;
+      await act(async () => root.render(<SourcesExplorer reader={reader} />));
+      await settle();
+      expect(host.textContent).toContain(title);
+      expect(button("Try again")).toBeTruthy();
+      await act(async () => root.render(<></>));
+    }
   });
 });

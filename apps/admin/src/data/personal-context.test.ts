@@ -59,7 +59,12 @@ describe("Data read boundary", () => {
         },
       );
       await vi.advanceTimersByTimeAsync(5000);
-      expect((await pending).state).toBe("unavailable");
+      // A request that went out and got nothing back in time is the one
+      // failure that says ap-mini is unreachable (A-26).
+      expect(await pending).toMatchObject({
+        state: "unavailable",
+        hop: "timeout",
+      });
       expect(signal?.aborted).toBe(true);
     } finally {
       vi.useRealTimers();
@@ -165,6 +170,7 @@ describe("Data read boundary", () => {
       },
     );
     expect(result.state).toBe("unavailable");
+    expect(result).not.toHaveProperty("hop");
     expect(JSON.stringify(result)).not.toContain("private-path-and-body");
   });
   it("rejects a mislabeled ordinary-agent preview", async () => {
@@ -342,7 +348,10 @@ it("propagates caller cancellation and never starts an already cancelled read", 
     controller.signal,
   );
   controller.abort();
-  expect((await pending).state).toBe("unavailable");
+  const cancelled = await pending;
+  expect(cancelled.state).toBe("unavailable");
+  // The caller's own cancellation is not a timeout.
+  expect(cancelled).not.toHaveProperty("hop");
   expect(observed?.aborted).toBe(true);
   await readPersonalContext(
     { method: "status" },

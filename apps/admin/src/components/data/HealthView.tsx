@@ -13,6 +13,7 @@ import {
 import { Button } from "@astryxdesign/core/Button";
 import type { PrivateReaderSession } from "../../lib/private-reader-client";
 import { PrivateReaderError } from "../../lib/private-reader-fetch";
+import { READER_HOP_TITLES, ReaderNoReplyError } from "../../lib/reader-reach";
 import {
   HEALTH_DEFAULT_RANGE,
   HEALTH_RANGES,
@@ -135,7 +136,9 @@ function failureTitle(error: unknown): string {
       return "Access refused";
     if (error.failure === "malformed") return "Unreadable response";
   }
-  return "ap-mini unreachable";
+  // Which hop failed (A-26): only a request that got no reply names ap-mini.
+  if (error instanceof ReaderNoReplyError) return READER_HOP_TITLES[error.hop];
+  return READER_HOP_TITLES.reader;
 }
 
 const RANGE_LABELS: Record<HealthRange, string> = {

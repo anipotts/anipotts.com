@@ -11,6 +11,7 @@ import {
 } from "../data/personal-context-http";
 import { ENTITY_ID } from "./data-routes";
 import { discardBody } from "./response-body";
+import { fetchReader } from "./reader-reach";
 import type { DataReader } from "./data-read-session";
 import {
   usePrivateReaderState,
@@ -254,7 +255,8 @@ type BearerSource = Pick<
 /**
  * One private GET. A 401 renews the credential once and retries; a second 401
  * (or a failed renewal) clears the session. A logout while the request is in
- * flight discards the reply.
+ * flight discards the reply. A request that gets no reply throws
+ * ReaderNoReplyError (lib/reader-reach.ts), naming the hop.
  */
 export async function readerFetch(
   session: BearerSource,
@@ -268,7 +270,8 @@ export async function readerFetch(
     options.beforeSend?.();
     const bearer = session.bearer();
     if (!bearer) throw new PrivateReaderError(401, "expired");
-    const response = await fetcher(
+    const response = await fetchReader(
+      fetcher,
       url,
       privateReaderInit(bearer, options.signal),
     );

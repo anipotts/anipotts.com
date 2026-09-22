@@ -7,6 +7,11 @@ import {
 import { readBoundedBytes } from "./bounded-body";
 import { discardBody } from "./response-body";
 import {
+  ReaderNoReplyError,
+  fetchReader,
+  type ReaderHop,
+} from "./reader-reach";
+import {
   OPS_V1_BOUNDS,
   OpsSnapshotError,
   parseOpsSnapshotBytes,
@@ -133,7 +138,7 @@ async function opsGet(
     if (!bearer) throw new PrivateReaderError(401, "expired");
     const init = privateReaderInit(bearer, options.signal);
     init.headers = { ...(init.headers as Record<string, string>), ...headers };
-    const response = await fetcher(url, init);
+    const response = await fetchReader(fetcher, url, init);
     if (session.getState().status !== "ready") {
       discardBody(response);
       throw new PrivateReaderError(401, "expired");
@@ -214,18 +219,21 @@ export async function readOpsEvents(
 }
 
 /**
- * `off`: the server flags are not both "true". `unreachable`: issuance or the
- * reader could not be reached or answered with an unexpected error.
- * `unavailable`: the reader answered 503, it has no valid snapshot.
- * `rejected`: the reader sent a snapshot that breaks the contract. `denied`:
- * the owner gate refused issuance, or the reader answered 403 (no ops:read).
- * `ended`: the private session was closed.
+ * `off`: the server flags are not both "true". `unissued`: admin's own
+ * credential route failed, so nothing reached ap-mini. `unreachable`: the
+ * read got no reply, or an unexpected error; `hop` says which hop the
+ * browser can name (lib/reader-reach.ts). `unavailable`: the reader answered
+ * 503, it has no valid snapshot. `rejected`: the reader sent a snapshot that
+ * breaks the contract. `denied`: the owner gate refused issuance, or the
+ * reader answered 403 (no ops:read). `ended`: the private session was
+ * closed.
  */
 export type OpsConnection =
   | "off"
   | "idle"
   | "connecting"
   | "connected"
+  | "unissued"
   | "unreachable"
   | "unavailable"
   | "rejected"
@@ -241,6 +249,8 @@ export type OpsStatusState = {
   events: OpsEventLog | null;
   /** The last events read failed; what is held is the last good read. */
   eventsStale: boolean;
+  /** While `unreachable`: the hop that failed (lib/reader-reach.ts). */
+  hop?: Exclude<ReaderHop, "unissued">;
 };
 
 type Timer = ReturnType<typeof setTimeout>;
@@ -410,7 +420,11 @@ export function createOpsStatusController(options: OpsStatusOptions) {
     const controller = new AbortController();
     inflight = controller;
     lastAttempt = now();
-    const deadline = setTimer(() => controller.abort(), timeoutMs);
+    let timedOut = false;
+    const deadline = setTimer(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeoutMs);
     const current = () => inflight === controller && running;
     try {
       if (session.getState().status !== "ready") {
@@ -420,7 +434,8 @@ export function createOpsStatusController(options: OpsStatusOptions) {
         if (started.status !== "ready") {
           if (started.status === "cleared" && started.reason === "denied")
             return stop("denied");
-          set({ connection: "unreachable" });
+          // Admin's own credential route failed; ap-mini was never asked.
+          set({ connection: "unissued", hop: undefined });
           return;
         }
       }
@@ -435,8 +450,9 @@ export function createOpsStatusController(options: OpsStatusOptions) {
           connection: "connected",
           snapshot: read.snapshot,
           checkedAt: now(),
+          hop: undefined,
         });
-      } else set({ connection: "connected", checkedAt: now() });
+      } else set({ connection: "connected", checkedAt: now(), hop: undefined });
       // The first events read follows the first snapshot, on its own loop.
       if (withEvents && !eventsRead && !eventsInflight) void eventsTick();
     } catch (error) {
@@ -458,8 +474,18 @@ export function createOpsStatusController(options: OpsStatusOptions) {
       // 64 KB or not ops_v1). The last snapshot stays, aging honestly.
       else if (error instanceof PrivateReaderError && error.status === 503)
         set({ connection: "unavailable" });
-      // Transport failure: keep the last snapshot, marked as not current.
-      else set({ connection: "unreachable" });
+      // No reply, or an unexpected answer: keep the last snapshot, marked as
+      // not current, with the hop that failed. Only a request that went out
+      // and got nothing back within the deadline is ap-mini unreachable.
+      else
+        set({
+          connection: "unreachable",
+          hop: timedOut
+            ? "timeout"
+            : error instanceof ReaderNoReplyError
+              ? error.hop
+              : "reader",
+        });
     } finally {
       clearTimer(deadline);
       if (inflight === controller) {

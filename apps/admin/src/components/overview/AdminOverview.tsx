@@ -23,6 +23,8 @@ import { opsUnreadTitle } from "../observability/frame";
 import { UnverifiedBadge } from "../observability/cells";
 import { opsServices } from "../../lib/ops-v1";
 import { opsUnverified } from "../../lib/ops-view";
+import type { OpsStatusState } from "../../lib/ops-reader";
+import { READER_HOP_TITLES } from "../../lib/reader-reach";
 import { DataReadSession } from "../../lib/data-read-session";
 import type { DataResult } from "../../data/personal-context";
 import { dataRecordHref } from "../../lib/data-routes";
@@ -64,18 +66,34 @@ function contentType(record: CatalogRecord): [Icon, string] {
 type Down = { title: string; icon?: Icon; kind: "not-connected" | "error" };
 
 /** Ops reads that failed, as one notice in place of the alerts. A reader
- * that is switched off, connecting or fine says nothing here. */
-const OPS_DOWN: Partial<Record<string, Down>> = {
-  unreachable: {
-    title: "ap-mini unreachable",
-    icon: LinkBreakIcon,
-    kind: "not-connected",
-  },
-  unavailable: { title: "No current snapshot", kind: "error" },
-  rejected: { title: "Snapshot rejected", kind: "error" },
-  denied: { title: "Access refused", icon: ShieldWarningIcon, kind: "error" },
-  ended: { title: "Session ended", kind: "not-connected" },
-};
+ * that is switched off, connecting or fine says nothing here. An
+ * unreachable reader names the hop that failed (A-26). */
+function opsDown(state: OpsStatusState): Down | undefined {
+  switch (state.connection) {
+    case "unissued":
+      return { title: READER_HOP_TITLES.unissued, kind: "error" };
+    case "unreachable":
+      return {
+        title: READER_HOP_TITLES[state.hop ?? "reader"],
+        icon: LinkBreakIcon,
+        kind: "not-connected",
+      };
+    case "unavailable":
+      return { title: "No current snapshot", kind: "error" };
+    case "rejected":
+      return { title: "Snapshot rejected", kind: "error" };
+    case "denied":
+      return {
+        title: "Access refused",
+        icon: ShieldWarningIcon,
+        kind: "error",
+      };
+    case "ended":
+      return { title: "Session ended", kind: "not-connected" };
+    default:
+      return undefined;
+  }
+}
 
 /**
  * Firing alerts only, and nothing at all when everything is clear. They are
@@ -99,7 +117,7 @@ function FiringAlerts(props: OpsViewProps) {
     [data.snapshot],
   );
   const down: Down | undefined =
-    (data.fixtureMode ? undefined : OPS_DOWN[data.state.connection]) ??
+    (data.fixtureMode ? undefined : opsDown(data.state)) ??
     // An unread event may have been a failure, so no silence reads as clear.
     ((data.events?.skipped ?? 0) > 0
       ? { title: opsUnreadTitle(data.events!.skipped), kind: "error" }

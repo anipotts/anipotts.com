@@ -829,7 +829,7 @@ describe("Status connection states", () => {
 
     up = false;
     await act(() => vi.advanceTimersByTimeAsync(OPS_POLL_MS));
-    expect(host.textContent).toContain("ap-mini unreachable");
+    expect(host.textContent).toContain("No answer from ap-mini");
     expect(meta(host)).toMatch(/^Not current, generated/);
     expect(host.querySelector("table")).not.toBeNull();
     expect(localStorage.length).toBe(0);
@@ -844,7 +844,7 @@ describe("Status connection states", () => {
       root.render(<ObservabilityWorkspace enabled controller={controller} />),
     );
     await act(() => vi.advanceTimersByTimeAsync(0));
-    expect(host.textContent).toContain("ap-mini unreachable");
+    expect(host.textContent).toContain("No answer from ap-mini");
     const retry = [...host.querySelectorAll("button")].find(
       (button) => button.textContent === "Try again",
     );

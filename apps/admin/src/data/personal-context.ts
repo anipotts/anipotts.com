@@ -1,6 +1,7 @@
 import { PersonalContextHttpError } from "./personal-context-http";
 import { applyActivityPage, emptyActivity } from "../lib/data-activity";
 import { READER_KINDS, type ReaderKind } from "../lib/data-routes";
+import { ReaderNoReplyError, type ReaderHop } from "../lib/reader-reach";
 /** Transport-neutral reads. Wiring a private transport requires separate access approval. */
 export const DATA_READ_DEFAULTS = {
   mode: "lookup",
@@ -33,6 +34,9 @@ export type DataResult =
       state:
         "disconnected" | "unavailable" | "denied" | "invalid" | "not_found";
       message: string;
+      /** For `unavailable`: the hop that failed, where it is known
+       * (lib/reader-reach.ts). */
+      hop?: Exclude<ReaderHop, "unissued">;
     };
 export type DataTransport = {
   protocol?: "personal_context_data_v1" | "personal_context_observability_v1";
@@ -55,12 +59,22 @@ async function readWithDeadline(
     ? AbortSignal.any([parent, controller.signal])
     : controller.signal;
   signal.throwIfAborted();
+  let timedOut = false;
   let rejectAbort: () => void = () => {};
   const aborted = new Promise<never>((_, reject) => {
-    rejectAbort = () => reject(new Error("Read cancelled"));
+    // The deadline passing is a request that went out and got no reply.
+    rejectAbort = () =>
+      reject(
+        timedOut && !parent?.aborted
+          ? new ReaderNoReplyError("timeout")
+          : new Error("Read cancelled"),
+      );
     signal.addEventListener("abort", rejectAbort, { once: true });
   });
-  const timer = setTimeout(() => controller.abort(), 5000);
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, 5000);
   try {
     return await Promise.race([transport.read(path, signal), aborted]);
   } finally {
@@ -286,6 +300,7 @@ export async function readPersonalContext(
     )
       return {
         state: "unavailable",
+        hop: "reader",
         message:
           "The canonical source is unavailable. This is not an empty record collection.",
       };
@@ -319,6 +334,7 @@ export async function readPersonalContext(
     if ("error" in data)
       return {
         state: "unavailable",
+        hop: "reader",
         message: "The source could not complete this read.",
       };
     if (
@@ -373,9 +389,19 @@ export async function readPersonalContext(
           message: "The source rejected this read request.",
         };
     }
+    if (error instanceof ReaderNoReplyError)
+      return {
+        state: "unavailable",
+        hop: error.hop,
+        message:
+          "PersonalContext could not be reached. Try again when the source is available.",
+      };
     // Provider errors can contain source paths or private payloads. Never forward them.
     return {
       state: "unavailable",
+      ...(error instanceof PersonalContextHttpError
+        ? { hop: "reader" as const }
+        : {}),
       message:
         "PersonalContext could not be reached. Try again when the source is available.",
     };

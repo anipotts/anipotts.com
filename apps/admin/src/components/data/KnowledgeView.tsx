@@ -22,6 +22,7 @@ import {
 } from "../../lib/data-routes";
 import type { PrivateReaderSession } from "../../lib/private-reader-client";
 import { PrivateReaderError } from "../../lib/private-reader-fetch";
+import { READER_HOP_TITLES, ReaderNoReplyError } from "../../lib/reader-reach";
 import {
   ENTITY_KINDS,
   KNOWLEDGE_KINDS,
@@ -83,7 +84,10 @@ function failureOf(error: unknown): Failure {
     if (error.failure === "not_found") return { title: "Not served yet" };
     if (error.failure === "malformed") return { title: "Unreadable response" };
   }
-  return { title: "ap-mini unreachable" };
+  // Which hop failed (A-26): only a request that got no reply names ap-mini.
+  if (error instanceof ReaderNoReplyError)
+    return { title: READER_HOP_TITLES[error.hop] };
+  return { title: READER_HOP_TITLES.reader };
 }
 
 const kindName = (kind: string) =>

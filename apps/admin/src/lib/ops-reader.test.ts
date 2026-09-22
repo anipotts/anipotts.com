@@ -14,6 +14,7 @@ import {
   OPS_EVENTS_SHORT_HOLD_MS,
   OPS_EVENTS_WAIT_S,
   OPS_POLL_MS,
+  OPS_READ_TIMEOUT_MS,
   OPS_SNAPSHOT_PATH,
   createOpsStatusController,
   readOpsSnapshot,
@@ -339,9 +340,45 @@ describe("ops status polling", () => {
     expect(controller.getState().connection).toBe("unreachable");
     expect(controller.getState().snapshot).not.toBeNull();
 
+    // The reader answered, with a server error: its own hop.
     h.replies.push(status(500));
     await vi.advanceTimersByTimeAsync(OPS_POLL_MS);
-    expect(controller.getState().connection).toBe("unreachable");
+    expect(controller.getState()).toMatchObject({
+      connection: "unreachable",
+      hop: "reader",
+    });
+    controller.dispose();
+  });
+
+  it("names the hop for a read with no reply: at once, or past the deadline (A-26)", async () => {
+    const h = harness();
+    const controller = controllerFor(h);
+    // No reply queued: the fetch fails at once, as a block would.
+    controller.start();
+    await flush();
+    expect(controller.getState()).toMatchObject({
+      connection: "unreachable",
+      hop: "unanswered",
+    });
+    // A request that goes out and hangs until the deadline aborts it.
+    h.replies.push(
+      (init) =>
+        new Promise<Response>((_, reject) =>
+          init.signal?.addEventListener("abort", () =>
+            reject(new DOMException("aborted", "AbortError")),
+          ),
+        ),
+    );
+    await vi.advanceTimersByTimeAsync(OPS_POLL_MS);
+    await vi.advanceTimersByTimeAsync(OPS_READ_TIMEOUT_MS);
+    expect(controller.getState()).toMatchObject({
+      connection: "unreachable",
+      hop: "timeout",
+    });
+    h.replies.push(ok());
+    await vi.advanceTimersByTimeAsync(OPS_POLL_MS);
+    expect(controller.getState().connection).toBe("connected");
+    expect(controller.getState().hop).toBeUndefined();
     controller.dispose();
   });
 
@@ -395,7 +432,7 @@ describe("ops status polling", () => {
     controller.dispose();
   });
 
-  it("reports unreachable when issuance is unavailable", async () => {
+  it("names admin's issuance, never ap-mini, when no credential is issued (A-26)", async () => {
     const h = harness();
     vi.mocked(h.fetch).mockImplementationOnce(
       async () => new Response(null, { status: 503 }),
@@ -403,7 +440,7 @@ describe("ops status polling", () => {
     const controller = controllerFor(h);
     controller.start();
     await flush();
-    expect(controller.getState().connection).toBe("unreachable");
+    expect(controller.getState().connection).toBe("unissued");
     expect(h.snapshotRequests).toHaveLength(0);
     controller.dispose();
   });
