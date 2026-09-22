@@ -12,13 +12,11 @@ import { projectSchema, writingSchema } from "@anipotts/content/public/schema";
 import { isPublicProject, isPublishedWriting } from "@anipotts/content/public";
 import { createMarkdownProcessor } from "@astrojs/markdown-remark";
 import rehypeSanitize from "rehype-sanitize";
-import { usesPublishedContent } from "./content-runtime-mode";
 
 export type PublishedInventory = Awaited<
   ReturnType<typeof getPublishedInventory>
 >;
 export type PublicContentContext = {
-  cms: boolean;
   /** The full coherent read. It starts on first use, so a revalidation that
    * needs only the version never loads the publications. */
   readonly inventory: Promise<PublishedInventory>;
@@ -32,9 +30,9 @@ export function publicContentContext(locals: App.Locals): PublicContentContext {
   let context = requests.get(locals);
   if (!context) {
     const env = locals.runtime?.env;
-    const cms = usesPublishedContent(env);
-    // Both reads share the mode and binding guards, so an invalid mode or a
-    // missing database never reaches storage.
+    // The content store is the only runtime. Both reads share the mode and
+    // binding guards, so any mode other than "cms" or a missing database
+    // fails closed before storage is read.
     const guarded = <T>(read: (db: D1Database) => Promise<T>) =>
       env?.CONTENT_RUNTIME !== "cms"
         ? Promise.reject(new Error("content_runtime_mode_invalid"))
@@ -44,18 +42,13 @@ export function publicContentContext(locals: App.Locals): PublicContentContext {
     let inventory: Promise<PublishedInventory> | undefined;
     let version: Promise<number> | undefined;
     context = {
-      cms,
       get inventory() {
-        return (inventory ??= cms
-          ? guarded(getPublishedInventory)
-          : Promise.resolve({ version: 0, publications: [] }));
+        return (inventory ??= guarded(getPublishedInventory));
       },
       get version() {
         return (version ??= inventory
           ? inventory.then((value) => value.version)
-          : cms
-            ? guarded(getPublishedInventoryVersion)
-            : Promise.resolve(0));
+          : guarded(getPublishedInventoryVersion));
       },
       parsed: new Map(),
       rendered: new Map(),

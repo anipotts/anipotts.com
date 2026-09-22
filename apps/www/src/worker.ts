@@ -1,15 +1,13 @@
 import {
-  usesPublishedContent,
   canonicalContentPath,
   isRuntimeContentPath,
-} from "./lib/content-runtime-mode";
+} from "./lib/content-paths";
 import type { SSRManifest } from "astro";
 import { createExports as createAstroExports } from "@astrojs/cloudflare/entrypoints/server.js";
 import { withSecurityHeaders } from "./lib/security-headers";
 import {
   isStaticAssetPath,
   withConditionalStatus,
-  withRenderedValidator,
   withStaticCacheControl,
 } from "./lib/static-assets";
 import { hiddenWritingCard, writingCardSlug } from "./lib/social-card/gate";
@@ -44,7 +42,6 @@ const GATED_CARD_CACHE = "public, max-age=0, must-revalidate";
 export function createExports(manifest: SSRManifest) {
   // The adapter checks manifest assets before middleware. Keep CMS-controlled
   // paths in the route dispatcher even if an old bundled image has this name.
-  // Legacy mode still serves assets through the existing Worker/middleware path.
   const astro = createAstroExports({
     ...manifest,
     assets: new Set(
@@ -55,23 +52,21 @@ export function createExports(manifest: SSRManifest) {
     try {
       const url = new URL(request.url);
       const { pathname } = url;
-      if (usesPublishedContent(env)) {
-        const canonical = canonicalContentPath(pathname);
-        if (canonical === null)
-          return withSecurityHeaders(
-            new Response("Invalid path", {
-              status: 400,
-              headers: { "Cache-Control": "no-store" },
-            }),
-          );
-        if (canonical !== pathname) {
-          url.pathname = canonical;
-          return withSecurityHeaders(Response.redirect(url, 308));
-        }
+      const canonical = canonicalContentPath(pathname);
+      if (canonical === null)
+        return withSecurityHeaders(
+          new Response("Invalid path", {
+            status: 400,
+            headers: { "Cache-Control": "no-store" },
+          }),
+        );
+      if (canonical !== pathname) {
+        url.pathname = canonical;
+        return withSecurityHeaders(Response.redirect(url, 308));
       }
-      // Previously prerendered aliases cannot bypass an activated CMS reader.
+      // Content pages once shipped as .html files. Those URLs keep resolving
+      // to the reader's route instead of any asset under the old name.
       if (
-        usesPublishedContent(env) &&
         /^(?:\/index|\/(?:work|writing|systems)(?:\/[^/]+)?)\.html$/u.test(
           pathname,
         )
@@ -80,12 +75,16 @@ export function createExports(manifest: SSRManifest) {
         return withSecurityHeaders(Response.redirect(url, 308));
       }
       const card =
-        usesPublishedContent(env) &&
-        (request.method === "GET" || request.method === "HEAD")
+        request.method === "GET" || request.method === "HEAD"
           ? writingCardSlug(pathname)
           : null;
       if (card !== null) {
-        const database = (env as { CONTENT_DB?: D1Database }).CONTENT_DB;
+        const store = env as {
+          CONTENT_RUNTIME?: string;
+          CONTENT_DB?: D1Database;
+        };
+        const database =
+          store.CONTENT_RUNTIME === "cms" ? store.CONTENT_DB : undefined;
         if (!database) return withSecurityHeaders(contentUnavailable());
         let hidden: Response | null;
         try {
@@ -97,7 +96,7 @@ export function createExports(manifest: SSRManifest) {
       }
       if (
         (request.method === "GET" || request.method === "HEAD") &&
-        !(usesPublishedContent(env) && isRuntimeContentPath(pathname)) &&
+        !isRuntimeContentPath(pathname) &&
         isStaticAssetPath(pathname)
       ) {
         // The same request object. The adapter's handler type and the ASSETS
@@ -119,8 +118,8 @@ export function createExports(manifest: SSRManifest) {
           return withSecurityHeaders(gated);
         }
       }
-      // HEAD renders as GET and drops the body here, so a rendered validator
-      // is computed over the real body and HEAD reports the ETag GET does.
+      // HEAD renders as GET and drops the body here, so every route answers
+      // HEAD with the status and headers GET gets.
       const head = request.method === "HEAD" && !pathname.startsWith("/api/");
       const rendered = head
         ? (new Request(request as unknown as Request, {
@@ -134,11 +133,7 @@ export function createExports(manifest: SSRManifest) {
         response.headers.get("cache-control") !== "no-store"
       )
         throw new Error("upstream_unavailable");
-      const result = withConditionalStatus(
-        request,
-        pathname,
-        await withRenderedValidator(rendered, pathname, response),
-      );
+      const result = withConditionalStatus(request, pathname, response);
       if (head && result.body) {
         void result.body.cancel();
         return withSecurityHeaders(

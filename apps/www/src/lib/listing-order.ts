@@ -1,8 +1,8 @@
 /** Deterministic listing comparators shared by every public list.
  *
- * Git entries and CMS publications both pass through these, so writing,
- * work, home, feed, sitemap and search index order stays identical across
- * the legacy and published paths. Routes are unique (content.ts rejects
+ * Bundled Git defaults and CMS publications both pass through these, so
+ * writing, work, home, feed, sitemap and search index share one order
+ * whichever source a record comes from. Routes are unique (content.ts rejects
  * collisions), so the slug tie-break makes each order total. Slugs compare
  * by code point, not locale, so Node and workerd agree.
  */

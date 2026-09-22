@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
-import { DatabaseSync } from "node:sqlite";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -14,6 +12,12 @@ import {
   executionContext,
   worker,
 } from "./worker-runtime.mjs";
+import {
+  contentDatabase as database,
+  contentEnv as cms,
+  sha256 as hash,
+} from "./content-database.mjs";
+import { collectGitSeed } from "../../../scripts/content/content-d1-seed.mjs";
 
 // Actual emitted Astro/Worker rendering with a synthetic SQLite D1 adapter.
 // This proves read/query/render integration, not provider D1 transaction semantics.
@@ -21,7 +25,6 @@ const root = fileURLToPath(new URL("../../../", import.meta.url));
 const source = (kind, id) =>
   readFileSync(join(root, "content/public", kind, `${id}.md`), "utf8");
 const original = source("writing", "awareness-is-alpha");
-const hash = (text) => createHash("sha256").update(text).digest("hex");
 const bundledSourceSha256 = hash(
   JSON.stringify(
     ["pages", "projects", "writing"]
@@ -51,110 +54,6 @@ function edit(raw, fields, body) {
   const front = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
   return `---\n${stringify({ ...parse(front[1]), ...fields })}---\n${body ?? raw.slice(front[0].length)}`;
 }
-function database() {
-  const sqlite = new DatabaseSync(":memory:");
-  for (const name of [
-    "0001_published_snapshots.sql",
-    "0002_content_schema_version.sql",
-  ])
-    sqlite.exec(
-      readFileSync(
-        join(root, "apps/admin/migrations/content-publication", name),
-        "utf8",
-      ),
-    );
-  let reads = 0;
-  let versionReads = 0;
-  const db = {
-    /** Full inventory reads (the one atomic batch that loads publications). */
-    get reads() {
-      return reads;
-    },
-    /** Single-row inventory counter reads used for revalidation. */
-    get versionReads() {
-      return versionReads;
-    },
-    prepare(sql) {
-      let values = [];
-      const statement = {
-        bind(...args) {
-          values = args;
-          return statement;
-        },
-        async first() {
-          if (/FROM editorial_published_inventory/u.test(sql)) versionReads++;
-          return sqlite.prepare(sql).get(...values) ?? null;
-        },
-        async all() {
-          return { success: true, results: sqlite.prepare(sql).all(...values) };
-        },
-      };
-      return statement;
-    },
-    async batch(statements) {
-      reads++;
-      sqlite.exec("BEGIN");
-      try {
-        const result = await Promise.all(
-          statements.map((statement) => statement.all()),
-        );
-        sqlite.exec("COMMIT");
-        return result;
-      } catch (error) {
-        sqlite.exec("ROLLBACK");
-        throw error;
-      }
-    },
-    publish({
-      kind = "writing",
-      id = "awareness-is-alpha",
-      text = original,
-      schema = 1,
-      digest = hash(text),
-      operation = `synthetic-${kind}-${id}-${sqlite.prepare("SELECT version FROM editorial_published_inventory").get().version}`,
-    } = {}) {
-      const version = sqlite
-        .prepare(
-          "SELECT version FROM editorial_published_inventory WHERE singleton=1",
-        )
-        .get().version;
-      sqlite
-        .prepare(
-          `INSERT INTO editorial_published_revisions (publication_id,record_kind,record_id,source,revision,source_sha256,published_at,expected_publication_id,expected_inventory_version,content_schema_version) VALUES (?,?,?,?,?,?,?,?,?,?)`,
-        )
-        .run(
-          operation,
-          kind,
-          id,
-          text,
-          1,
-          digest,
-          "2026-09-20T12:00:00.000Z",
-          null,
-          version,
-          schema,
-        );
-      sqlite
-        .prepare(
-          "INSERT INTO editorial_published_active VALUES (?,?,?) ON CONFLICT(record_kind,record_id) DO UPDATE SET publication_id=excluded.publication_id",
-        )
-        .run(kind, id, operation);
-      sqlite.exec(
-        "UPDATE editorial_published_inventory SET version=version+1 WHERE singleton=1",
-      );
-      return { operation, digest, version: version + 1 };
-    },
-    close() {
-      sqlite.close();
-    },
-  };
-  return db;
-}
-const cms = (db, other = {}) => ({
-  CONTENT_RUNTIME: "cms",
-  CONTENT_DB: db,
-  ...other,
-});
 const staleAssets = fileAssets(renderedDir);
 const paths = [
   "/",
@@ -205,14 +104,35 @@ test("activated CMS fails closed without its database, even with old asset respo
   }
 });
 
-test("unknown and null runtime modes fail closed even when the database is healthy", async () => {
+test("every runtime mode but cms fails closed, even when the database is healthy", async () => {
+  // Git is never a runtime source on its own: absent and "legacy" refuse the
+  // same way any unknown mode does, on every content surface.
   const db = database();
   try {
-    for (const CONTENT_RUNTIME of [null, "CMS", "disabled", "", false]) {
+    db.publish();
+    const card = "/social/writing-awareness-is-alpha.png";
+    for (const CONTENT_RUNTIME of [
+      undefined,
+      "legacy",
+      null,
+      "CMS",
+      "disabled",
+      "",
+      false,
+    ]) {
       for (const path of [
         "/",
+        "/writing",
         "/writing/awareness-is-alpha",
+        "/work",
+        "/work/chainedchat",
+        "/systems",
+        "/feed.xml",
+        "/sitemap.xml",
+        "/search-index.json",
         "/api/content-version",
+        `/images/editorial/${"a".repeat(64)}.png`,
+        card,
       ]) {
         const response = await serve(path, {
           ...cms(db),
@@ -221,9 +141,15 @@ test("unknown and null runtime modes fail closed even when the database is healt
         });
         assert.equal(response.status, 503, `${CONTENT_RUNTIME} ${path}`);
         assert.equal(await response.text(), "Content unavailable");
+        assert.equal(response.headers.get("cache-control"), "no-store");
       }
     }
+    // An env with no CONTENT_RUNTIME key at all refuses the same way.
+    const unset = cms(db, { ASSETS: staleAssets });
+    delete unset.CONTENT_RUNTIME;
+    assert.equal((await serve("/writing", unset)).status, 503);
     assert.equal(db.reads, 0);
+    assert.equal(db.versionReads, 0);
   } finally {
     db.close();
   }
@@ -762,74 +688,72 @@ test("Markdown text mentioning a private image is not a public media reference",
   }
 });
 
-test("legacy/default mode still renders Git; old HTML aliases cannot bypass CMS authority", async () => {
-  const db = database();
+test("a store seeded from Git renders every route exactly like the bundled defaults", async () => {
+  // The recovery seed must be a zero visible change: same status and body on
+  // every public route, with detail pages now answered from the store.
+  const seed = await collectGitSeed(root);
+  const empty = database();
+  const seeded = database();
   try {
-    db.publish({
-      text: edit(original, { title: "CMS hidden from legacy mode" }),
-    });
-    for (const CONTENT_RUNTIME of [undefined, "legacy"]) {
-      const response = await serve("/writing/awareness-is-alpha", {
-        CONTENT_DB: db,
-        CONTENT_RUNTIME,
+    for (const record of seed.records)
+      seeded.publish({
+        kind: record.record.kind,
+        id: record.record.id,
+        text: record.source,
+        operation: record.publicationId,
       });
-      assert.equal(response.status, 200);
-      assert.doesNotMatch(await response.text(), /CMS hidden from legacy mode/);
-    }
-    assert.equal(db.reads, 0);
-    assert.equal((await serve("/api/content-version")).status, 503);
-    for (const [path, target] of [
-      ["/index.html", "/"],
-      ["/writing.html", "/writing"],
-      ["/writing/awareness-is-alpha.html", "/writing/awareness-is-alpha"],
-    ]) {
-      const response = await serve(path, cms(db, { ASSETS: staleAssets }));
-      assert.equal(response.status, 308);
+    const rendered = JSON.parse(
+      readFileSync(join(renderedDir, ".runtime-proof.json"), "utf8"),
+    ).paths;
+    assert.ok(rendered.length > 10, "the build rendered the public routes");
+    for (const path of rendered) {
+      const [before, after] = await Promise.all([
+        serve(path, cms(empty)),
+        serve(path, cms(seeded)),
+      ]);
+      assert.equal(before.status, 200, path);
+      assert.equal(after.status, 200, path);
       assert.equal(
-        response.headers.get("location"),
-        `https://anipotts.com${target}`,
+        after.headers.get("x-content-version"),
+        String(seed.records.length),
+        path,
       );
+      assert.equal(await after.text(), await before.text(), path);
+      if (/^\/(?:work|writing)\/./u.test(path))
+        assert.match(
+          after.headers.get("x-content-sha256") ?? "",
+          /^[a-f0-9]{64}$/u,
+          path,
+        );
     }
   } finally {
-    db.close();
+    empty.close();
+    seeded.close();
   }
 });
 
-test("legacy HEAD reports the ETag GET does on rendered pages and discovery files", async () => {
-  // A HEAD body is empty, so a digest over it named a body no GET returns.
-  const emptyBodyTag = `"${hash("").slice(0, 32)}"`;
-  for (const path of [
-    "/",
-    "/writing",
-    "/writing/awareness-is-alpha",
-    "/feed.xml",
-    "/search-index.json",
-    "/sitemap.xml",
-  ]) {
-    const env = { CONTENT_RUNTIME: "legacy" };
-    const get = await serve(path, env);
-    assert.equal(get.status, 200, path);
-    const etag = get.headers.get("etag");
-    assert.match(etag ?? "", /^"[0-9a-f]{32}"$/u, path);
-    assert.equal(
-      get.headers.get("cache-control"),
-      "public, max-age=0, must-revalidate",
-      path,
-    );
-    await get.body?.cancel();
-    const head = await serve(path, env, { method: "HEAD" });
-    assert.equal(head.status, 200, `HEAD ${path}`);
-    assert.equal(head.body, null, `HEAD ${path}`);
-    assert.equal(head.headers.get("etag"), etag, `HEAD ${path}`);
-    assert.notEqual(etag, emptyBodyTag, path);
-    for (const method of ["GET", "HEAD"]) {
-      const revalidated = await serve(path, env, {
-        method,
-        headers: { "if-none-match": etag },
-      });
-      assert.equal(revalidated.status, 304, `${method} ${path}`);
-      assert.equal(revalidated.body, null, `${method} ${path}`);
+test("old .html content URLs redirect to their reader routes", async () => {
+  const db = database();
+  try {
+    for (const [path, target] of [
+      ["/index.html", "/"],
+      ["/writing.html", "/writing"],
+      ["/work.html", "/work"],
+      ["/systems.html", "/systems"],
+      ["/writing/awareness-is-alpha.html", "/writing/awareness-is-alpha"],
+      ["/work/chainedchat.html", "/work/chainedchat"],
+    ]) {
+      const response = await serve(path, cms(db, { ASSETS: staleAssets }));
+      assert.equal(response.status, 308, path);
+      assert.equal(
+        response.headers.get("location"),
+        `https://anipotts.com${target}`,
+        path,
+      );
     }
+    assert.equal(db.reads + db.versionReads, 0);
+  } finally {
+    db.close();
   }
 });
 

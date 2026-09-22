@@ -59,14 +59,25 @@ function loadMiddleware({ dev = false } = {}) {
         },
       },
       "./lib/runtime-contract": contract,
-      "./lib/content-runtime-mode": compile(
-        "../src/lib/content-runtime-mode.ts",
+      "./lib/content-paths": compile(
+        "../src/lib/content-paths.ts",
         [],
         {},
         console,
       ),
-      // CMS behavior is exercised against the actual built Worker in published-runtime.test.mjs.
-      "./lib/published-runtime": {},
+      // CMS behavior is exercised against the actual built Worker in
+      // published-runtime.test.mjs. This stub only lets content routes pass.
+      "./lib/published-runtime": {
+        publicContentContext: () => ({
+          inventory: Promise.resolve({ version: 0, publications: [] }),
+          version: Promise.resolve(0),
+        }),
+        publicEntityTag: async () => '"stub"',
+        publicCacheHeaders: () => ({}),
+        publicVersionHeaders: () => ({}),
+        publicEdgeCache: () => null,
+        contentUnavailable: () => new Response(null, { status: 503 }),
+      },
       "./lib/security-headers": headers,
       "./lib/static-assets": compile(
         "../src/lib/static-assets.ts",
@@ -141,7 +152,7 @@ test("dynamic routes report the contract once per isolate without blocking", asy
 test("the report is logged before a page request needs the missing binding", async () => {
   const { onRequest, lines } = loadMiddleware();
   // Page requests already fail without ASSETS; the contract adds no new status.
-  await assert.rejects(onRequest(context("/work", { env: {} }), next));
+  await assert.rejects(onRequest(context("/links", { env: {} }), next));
   assert.equal(lines.warn.length, 1);
   assert.deepEqual(JSON.parse(lines.warn[0]).missing, ["ASSETS"]);
 });
@@ -159,11 +170,7 @@ test("prerendered pages and dev skip the contract report", async () => {
   const dev = loadMiddleware({ dev: true });
   const local = context("/api/health", {});
   assert.equal((await dev.onRequest(local, next)).status, 200);
-  assert.equal(
-    local.runtimeReads,
-    1,
-    "dev checks explicit CMS mode without reporting bindings",
-  );
+  assert.equal(local.runtimeReads, 0, "dev never reads bindings to report");
   assert.equal(dev.lines.warn.length + dev.lines.info.length, 0);
 });
 
@@ -176,6 +183,9 @@ test("a complete environment logs one info line", async () => {
       },
     },
     DB: { prepare() {} },
+    CONTENT_RUNTIME: "cms",
+    CONTENT_DB: { prepare() {} },
+    CONTENT_MEDIA: { get() {} },
     NEWSLETTER_QUEUE: { send() {} },
     RESEND_WEBHOOK_SECRET: `whsec_${CANARY}`,
   };

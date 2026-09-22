@@ -9,6 +9,7 @@ import {
   withSecurityHeaders,
 } from "../src/lib/security-headers.ts";
 import { dist } from "./built-html.mjs";
+import { contentDatabase, contentEnv } from "./content-database.mjs";
 
 // The reviewed policy, written out here on purpose. Served responses are
 // compared with this literal, not with the imported map, so dropping a header
@@ -101,8 +102,10 @@ function immutable(response) {
 }
 
 const ctx = { waitUntil() {}, passThroughOnException() {} };
-const serve = (url, init) =>
-  worker.fetch(new Request(url, init), { ASSETS }, ctx);
+// The deployed vars over an empty content store: content routes render the
+// bundled defaults through the reader, everything else is served as built.
+const env = { ASSETS, ...contentEnv(contentDatabase()) };
+const serve = (url, init) => worker.fetch(new Request(url, init), env, ctx);
 
 function assertSecured(response, label) {
   for (const [name, value] of Object.entries(EXPECTED)) {
@@ -153,28 +156,27 @@ const STATIC_PATHS = [
   "/favicon.svg",
   "/favicon.ico",
   "/apple-touch-icon.png",
-  "/feed.xml",
-  "/search-index.json",
   "/robots.txt",
-  "/sitemap.xml",
 ];
 
-// Prerendered pages and manifest assets are answered before middleware runs.
+// Prerendered pages and manifest assets are answered as built.
 const ASSET_PATHS = [
-  "/",
-  "/index.html",
-  "/writing",
-  "/work",
-  "/systems",
   "/links",
   "/404",
-  project,
-  post,
   script,
   stylesheet,
   "/favicon.svg",
-  "/feed.xml",
   "/robots.txt",
+];
+// The content reader renders these on every request.
+const CONTENT_PATHS = [
+  "/",
+  "/writing",
+  "/work",
+  "/systems",
+  project,
+  post,
+  "/feed.xml",
   "/sitemap.xml",
   "/search-index.json",
 ];
@@ -274,7 +276,12 @@ test("every host gets the header set once on pages and static assets", async () 
     "staging.anipotts.com",
     "news.anipotts.com",
   ]) {
-    for (const path of [...ASSET_PATHS, "/definitely-missing"]) {
+    for (const path of [
+      ...ASSET_PATHS,
+      ...CONTENT_PATHS,
+      "/index.html",
+      "/definitely-missing",
+    ]) {
       const response = await serve(`https://${host}${path}`);
       const wrong = Object.entries(EXPECTED)
         .filter(([name, value]) => response.headers.get(name) !== value)
@@ -308,9 +315,9 @@ test("asset responses keep status, body and validators", async () => {
 });
 
 test("a revalidated page stays a bodyless 304 with its validator", async () => {
-  const etag = (
-    await ASSETS.fetch(`https://anipotts.com${project}`)
-  ).headers.get("etag");
+  const etag = (await serve(`https://anipotts.com${project}`)).headers.get(
+    "etag",
+  );
   const response = await serve(`https://anipotts.com${project}`, {
     headers: { "if-none-match": etag },
   });
@@ -321,13 +328,14 @@ test("a revalidated page stays a bodyless 304 with its validator", async () => {
 });
 
 test("top-level pages revalidate to a bodyless secured 304", async () => {
-  // The adapter answers these from ASSETS by URL string, which drops the
-  // validator. A prefetched page then downloads again on the click.
+  // The adapter answers /links from ASSETS by URL string, which drops the
+  // validator, and the reader tags the rest. A prefetched page must not
+  // download again on the click.
   const failed = [];
   for (const host of ["anipotts.com", "staging.anipotts.com"]) {
     for (const path of ["/", "/work", "/writing", "/systems", "/links"]) {
       const url = `https://${host}${path}`;
-      const etag = (await ASSETS.fetch(url)).headers.get("etag");
+      const etag = (await serve(url)).headers.get("etag");
       for (const validator of [etag, `W/${etag}`, `"other", ${etag}`]) {
         for (const method of ["GET", "HEAD"]) {
           const response = await serve(url, {
@@ -544,7 +552,7 @@ test("a failing ASSETS binding still returns the header set", async () => {
   console.error = (...args) => logged.push(args.join(" "));
   try {
     // The adapter's early ASSETS returns run outside Astro's error handling.
-    for (const path of ["/", "/writing", script]) {
+    for (const path of ["/links", "/definitely-missing", script]) {
       const response = await worker.fetch(
         new Request(`https://anipotts.com${path}`),
         { ASSETS: failing },
@@ -669,30 +677,5 @@ test("the header map has one source", () => {
       false,
       `${dir}_headers`,
     );
-  }
-});
-
-test("rendered content pages keep an ETag and revalidate to 304", async () => {
-  // Content routes render per request so the CMS reader can take over. In
-  // legacy Git mode they must keep the prerendered revalidation contract.
-  for (const path of ["/", "/writing", "/work", "/systems"]) {
-    const url = `https://anipotts.com${path}`;
-    const first = await serve(url);
-    assert.equal(first.status, 200, path);
-    const etag = first.headers.get("etag");
-    assert.match(etag ?? "", /^"[0-9a-f]{32}"$/u, path);
-    assert.equal(
-      first.headers.get("cache-control"),
-      "public, max-age=0, must-revalidate",
-      path,
-    );
-    const again = await serve(url);
-    assert.equal(again.headers.get("etag"), etag, `${path} stable`);
-    const revalidated = await serve(url, {
-      headers: { "if-none-match": etag },
-    });
-    assert.equal(revalidated.status, 304, path);
-    assert.equal(revalidated.body, null, path);
-    assertSecured(revalidated, `${path} 304`);
   }
 });

@@ -11,11 +11,6 @@ import {
 export const prerender = false;
 export const GET: APIRoute = async ({ locals, url }) => {
   const context = publicContentContext(locals);
-  if (!context.cms)
-    return Response.json(
-      { runtime: 0 },
-      { status: 503, headers: { "Cache-Control": "no-store" } },
-    );
   const { version } = await context.inventory;
   const capabilities = {
     runtime: 1,
