@@ -176,9 +176,13 @@ const APP_KEYS: Readonly<Record<string, MarkId>> = {
 };
 
 /** The app mark for a metadata key such as "chrome", "safari" or "atlas":
- * a mark id, a mark's label or alias, or a known browser key. */
+ * a mark id, a mark's label or alias, or a known browser key. Devices are
+ * never apps. */
 export function appMark(key: string): MarkId | null {
   const word = key.trim().toLowerCase().replace(/[-_]+/g, " ");
+  // A one- or two-letter key ("x", "id") is a coordinate or a code, never
+  // an app.
+  if (word.length < 3) return null;
   if (Object.hasOwn(APP_KEYS, word)) return APP_KEYS[word]!;
   const id = word.replace(/\s+/g, "");
   if (isMarkId(id) && brandMark(id)?.kind !== "device") return id;

@@ -299,6 +299,8 @@ describe("apps", () => {
     expect(appMark("imessage")).toBe("messages");
     expect(appMark("ap-pro")).toBeNull();
     expect(appMark("firefox")).toBeNull();
+    expect(appMark("x")).toBeNull();
+    expect(appMark("github")).toBe("github");
     expect(appCounts({ safari: 3, chrome: 44, firefox: 2, bad: "x" })).toEqual([
       { key: "chrome", id: "chrome", count: 44 },
       { key: "safari", id: "safari", count: 3 },
