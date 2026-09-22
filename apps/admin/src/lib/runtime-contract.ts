@@ -24,8 +24,8 @@ type Check =
   | "mode";
 export type PublisherMode = "legacy" | "direct" | "maintenance";
 
-/** Names match deployment configuration when their mode is enabled. Direct
- * bindings remain optional while production uses the legacy publisher.
+/** Names match deployment configuration when their mode is enabled. Each
+ * publisher's bindings are needed only in its own mode; production runs direct.
  * This checks binding shape and build identity, not schema or reader readiness.
  */
 export const RUNTIME_CONTRACT = {

@@ -483,19 +483,6 @@ export function adminJson(data: unknown, init: ResponseInit = {}): Response {
   });
 }
 
-export function handleAdminAuthError(error: unknown): Response {
-  if (error instanceof Response) return error;
-  return adminJson(
-    {
-      error: "admin_auth_request_failed",
-      ...(import.meta.env.DEV && error instanceof Error
-        ? { detail: error.message }
-        : {}),
-    },
-    { status: 400 },
-  );
-}
-
 export async function recordAdminAudit(
   db: AdminD1Database,
   input: {

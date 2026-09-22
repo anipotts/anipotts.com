@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compactDiff, textDiff } from "./text-diff";
+import { textDiff } from "./text-diff";
 
 describe("publication text diff", () => {
   it.each([
@@ -38,16 +38,5 @@ describe("publication text diff", () => {
       { kind: "added", text: "music " },
       { kind: "equal", text: "artist discovery" },
     ]);
-  });
-  it("compacts only unchanged context", () => {
-    const parts = textDiff(
-      `${"context ".repeat(60)}old${" tail".repeat(60)}`,
-      `${"context ".repeat(60)}new${" tail".repeat(60)}`,
-    );
-    const compact = compactDiff(parts);
-    expect(compact.filter((p) => p.kind !== "equal")).toEqual(
-      parts.filter((p) => p.kind !== "equal"),
-    );
-    expect(compact.map((p) => p.text).join("").length).toBeLessThan(220);
   });
 });

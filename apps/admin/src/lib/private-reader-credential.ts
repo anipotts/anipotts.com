@@ -10,9 +10,9 @@ import {
  * Short private reader delegation for the tailnet reader on ap-mini.
  *
  * Disabled unless PRIVATE_READER_ENABLED is exactly "true" and a dedicated
- * ES256 private JWK is bound. No key is installed; this module only defines the
- * issuance contract. Device admission is enforced by the tailnet grant, never
- * by request headers, so this route reads no device, principal or scope header.
+ * ES256 private JWK is bound. Device admission is enforced by the tailnet
+ * grant, never by request headers, so this reads no device, principal or scope
+ * header. It reuses the owner middleware verified, verifying only without one.
  */
 export const PRIVATE_READER_PATH = "/api/private-reader/credential";
 /** Separate issuance for the Observability Status view. */
@@ -40,7 +40,7 @@ export type PrivateReaderConfig = {
   ACCESS_TEAM_DOMAIN?: string;
   ACCESS_POLICY_AUD?: string;
   PRIVATE_READER_ENABLED?: string;
-  /** Ops issuance also needs this, exactly "true". Unset in every deploy. */
+  /** Ops issuance also needs this, exactly "true". */
   PRIVATE_READER_OPS_ENABLED?: string;
   PRIVATE_READER_SIGNING_KEY?: string;
 };

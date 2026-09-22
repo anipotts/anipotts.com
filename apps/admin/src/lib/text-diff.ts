@@ -56,21 +56,3 @@ export function textDiff(before: string, after: string): DiffPart[] {
   append("equal", a.slice(endA).join(""));
   return result;
 }
-
-/** Hide only unchanged context; changed text always remains complete. */
-export function compactDiff(parts: DiffPart[], context = 72): DiffPart[] {
-  return parts.map((part, index) => {
-    if (part.kind !== "equal" || part.text.length <= context * 2) return part;
-    const head = part.text.slice(0, context).replace(/\S+$/u, "");
-    const tail = part.text.slice(-context).replace(/^\S+/u, "");
-    return {
-      ...part,
-      text:
-        index === 0
-          ? `…${tail}`
-          : index === parts.length - 1
-            ? `${head}…`
-            : `${head} … ${tail}`,
-    };
-  });
-}
