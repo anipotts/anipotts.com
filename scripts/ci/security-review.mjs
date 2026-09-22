@@ -167,12 +167,6 @@ function withoutKnownPublicReferences(file, line) {
   // Access audience identifiers and uppercase secret reference names are public
   // configuration. Provider-token and private-key patterns still scan all bytes.
   if (/^ACCESS_POLICY_AUD = "[a-f0-9]{64}"$/.test(candidate.trim())) return "";
-  if (
-    candidate.trim() ===
-    "# Secrets: " +
-      "EDITORIAL_GITHUB_PRIVATE_KEY and EDITORIAL_SIGNING_PRIVATE_KEY."
-  )
-    return "";
   return candidate;
 }
 

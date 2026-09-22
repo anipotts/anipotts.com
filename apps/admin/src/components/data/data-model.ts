@@ -77,7 +77,7 @@ export function sourceLabel(id: string): SourceLabel {
   };
 }
 
-export type DataRevision = {
+type DataRevision = {
   id: string;
   version: string | null;
   observedAt: string | null;

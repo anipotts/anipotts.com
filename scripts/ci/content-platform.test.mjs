@@ -14,21 +14,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
-  buildPasskeyProofItems,
-  contentInventorySource,
-  expectedPasskeyTables,
-  manualPasskeyEnrollmentSequence,
-  missingRequiredPasskeyAuditEvents,
-  nextPasskeyProofAction,
-  nextPasskeyStatusAction,
-  passkeyAccessRemovalBlockers,
-  passkeyMissingProofItems,
-  REQUIRED_PASSKEY_AUDIT_EVENTS,
-  sourceContentRecordsFromProjection,
-  summarizeSourceContentRecords,
-} from "../../packages/content/dist/admin/index.js";
-import {
-  contentInventorySource as rootContentInventorySource,
+  DEFAULT_CMS_PROJECTS,
   DEFAULT_HOMEPAGE_CONTENT,
   DEFAULT_SYSTEMS_CONTENT,
   normalizeHomepageContent,
@@ -124,166 +110,7 @@ assert.equal(
   "the small writing index must not carry a redundant client-side search UI",
 );
 
-assert.deepEqual(
-  REQUIRED_PASSKEY_AUDIT_EVENTS,
-  [
-    "passkey.credential.registered",
-    "passkey.session.created",
-    "passkey.session.revoked",
-    "passkey.credential.revoked",
-    "passkey.authentication.denied",
-  ],
-  "passkey audit events must stay stable for Access removal proof",
-);
-assert.deepEqual(
-  expectedPasskeyTables,
-  [
-    "admin_passkey_audit",
-    "admin_passkey_challenges",
-    "admin_passkey_credentials",
-    "admin_passkey_sessions",
-  ],
-  "passkey proof must check every required D1 table",
-);
-assert.equal(manualPasskeyEnrollmentSequence.length, 7);
-
-const passkeyAuditEvents = {
-  "passkey.credential.registered": 1,
-  "passkey.session.created": 1,
-  "passkey.session.revoked": 0,
-  "passkey.credential.revoked": 0,
-  "passkey.authentication.denied": 0,
-};
-assert.deepEqual(missingRequiredPasskeyAuditEvents(passkeyAuditEvents), [
-  "passkey.session.revoked",
-  "passkey.credential.revoked",
-  "passkey.authentication.denied",
-]);
-assert.deepEqual(
-  passkeyAccessRemovalBlockers({
-    credentialCount: 1,
-    sessionCount: 1,
-    auditEvents: passkeyAuditEvents,
-  }),
-  [
-    "passkey.session.revoked",
-    "passkey.credential.revoked",
-    "passkey.authentication.denied",
-  ],
-);
-assert.deepEqual(
-  passkeyAccessRemovalBlockers({
-    schemaReady: false,
-    credentialCount: 0,
-    sessionCount: 0,
-    auditEvents: {},
-  }),
-  [
-    "schema_ready",
-    "active_credential",
-    "active_session",
-    ...REQUIRED_PASSKEY_AUDIT_EVENTS,
-  ],
-);
-assert.deepEqual(
-  passkeyMissingProofItems({
-    accessRemovalBlockers: ["active_credential"],
-    routeBoundary: "unknown",
-  }),
-  ["active_credential", "app_native_route_boundary"],
-);
-assert.equal(
-  nextPasskeyProofAction({
-    credentialCount: 0,
-    sessionCount: 0,
-    missingAuditEvents: REQUIRED_PASSKEY_AUDIT_EVENTS,
-  }),
-  "open /auth/passkey behind Cloudflare Access and register the first platform passkey",
-);
-assert.equal(
-  nextPasskeyProofAction({
-    credentialCount: 1,
-    sessionCount: 1,
-    missingAuditEvents: [],
-    routeBoundary: "cloudflare_access",
-  }),
-  "passkey proof is staged; remove Cloudflare Access and rerun this proof",
-);
-assert.equal(
-  nextPasskeyStatusAction({
-    hasSession: false,
-    credentialCount: 0,
-    accessIdentityVerified: true,
-  }),
-  "register the first passkey with verified Cloudflare Access identity",
-);
-assert.deepEqual(
-  buildPasskeyProofItems(1, true, passkeyAuditEvents).map((item) => [
-    item.id,
-    item.complete,
-  ]),
-  [
-    ["active_credential", true],
-    ["active_session", true],
-    ["passkey.credential.registered", true],
-    ["passkey.session.created", true],
-    ["passkey.session.revoked", false],
-    ["passkey.credential.revoked", false],
-    ["passkey.authentication.denied", false],
-  ],
-);
-
-const passkeyProofScript = readFileSync(
-  "scripts/admin/passkey-proof.mjs",
-  "utf8",
-);
-assert.ok(passkeyProofScript.includes("REQUIRED_PASSKEY_AUDIT_EVENTS"));
-assert.ok(passkeyProofScript.includes("expectedPasskeyTables"));
-assert.equal(passkeyProofScript.includes("const REQUIRED_AUDIT_EVENTS"), false);
-assert.equal(passkeyProofScript.includes("function nextSafeAction"), false);
-
-const passkeyAuthSource = readFileSync(
-  "apps/admin/src/lib/passkey-auth.ts",
-  "utf8",
-);
-assert.ok(
-  passkeyAuthSource.includes("ON CONFLICT(credential_id) DO UPDATE SET"),
-  "passkey registration must support re-registering a revoked platform credential",
-);
-assert.ok(
-  passkeyAuthSource.includes("revoked_at = NULL"),
-  "passkey replacement registration must reactivate a previously revoked credential",
-);
-
-const contentEditorSource = readFileSync(
-  "apps/admin/src/lib/content-editor.ts",
-  "utf8",
-);
-const sourceContentModule = readFileSync(
-  "apps/admin/src/data/source-content.ts",
-  "utf8",
-);
 const prettierIgnore = readFileSync(".prettierignore", "utf8");
-const adminContentInventory = readFileSync(
-  "packages/content/src/admin/content.ts",
-  "utf8",
-);
-assert.ok(
-  sourceContentModule.includes(
-    "packages/content/generated/admin-public-content.json",
-  ),
-  "Admin inventory must consume the canonical generated projection",
-);
-assert.equal(
-  sourceContentModule.includes("import.meta.glob"),
-  false,
-  "Admin must not parse canonical Markdown through a second runtime path",
-);
-assert.equal(
-  sourceContentModule.includes("../../../www/src/content/"),
-  false,
-  "Admin must not read the removed public content collections",
-);
 assert.match(
   prettierIgnore,
   /^content\/public\/$/m,
@@ -294,23 +121,13 @@ assert.doesNotMatch(
   /^apps\/www\/src\/content\/$/m,
   "Prettier must not retain the removed public content path",
 );
-assert.match(
-  adminContentInventory,
-  /content\/public\/pages\/newsletter_archive\.md/,
-  "Admin newsletter inventory must reference the canonical filename",
-);
 
-const generatedAdminProjection = JSON.parse(
-  readFileSync("packages/content/generated/admin-public-content.json", "utf8"),
-);
-const pgiStoryField = generatedAdminProjection.source_records
-  .find((record) => record.slug === "pgi-research-platform")
-  ?.fields.find((field) => field.path === "story");
-assert.equal(pgiStoryField?.kind, "array");
 assert.equal(
-  JSON.parse(pgiStoryField?.value ?? "[]").length,
+  DEFAULT_CMS_PROJECTS.find(
+    (project) => project.slug === "pgi-research-platform",
+  )?.story.length,
   4,
-  "structured project story arrays must remain reviewable in the Admin projection",
+  "structured project story arrays must survive generation intact",
 );
 
 const projectDetailSource = readFileSync(
@@ -383,21 +200,15 @@ try {
     [resolve("scripts/content/generate-public-content.mjs")],
     { cwd: alternateSlugRoot, stdio: "ignore" },
   );
-  const alternateAdminProjection = JSON.parse(
-    readFileSync(
-      join(
-        alternateSlugRoot,
-        "packages/content/generated/admin-public-content.json",
-      ),
-      "utf8",
-    ),
+  const alternateGenerated = readFileSync(
+    join(alternateSlugRoot, "packages/content/src/public/generated.ts"),
+    "utf8",
   );
-  const expectedSource = "content/public/projects/source-name.md";
-  const projected = alternateAdminProjection.records.find(
-    (record) => record.entity_id === "public-project:route-name",
+  assert.match(
+    alternateGenerated,
+    /slug: "route-name",[\s\S]*?detail_path: "\/work\/route-name"/,
+    "a frontmatter slug must name the generated record and its route",
   );
-  assert.equal(projected.source_ref, expectedSource);
-  assert.match(projected.source_hash, /^[a-f0-9]{64}$/);
   const alternateFile = join(
     alternateSlugRoot,
     "content/public/projects/source-name.md",
@@ -425,104 +236,6 @@ try {
 } finally {
   rmSync(alternateSlugRoot, { recursive: true, force: true });
 }
-assert.ok(
-  contentEditorSource.includes("publish_batch_required"),
-  "content editor publish must fail closed when D1 batch semantics are unavailable",
-);
-assert.equal(
-  contentEditorSource.includes("runSequentialPublish"),
-  false,
-  "content editor publish must not fall back to sequential public writes",
-);
-assert.ok(
-  contentEditorSource.includes("content_publish_events"),
-  "content editor publish must keep explicit publish proof writes",
-);
-
-const sourceRecords = sourceContentRecordsFromProjection([
-  {
-    id: "projects.hidden-lab",
-    surface: "projects",
-    slug: "hidden-lab",
-    title: "Hidden Lab",
-    route: "/work/hidden-lab",
-    status: "hidden",
-    source_ref: "content/public/projects/hidden-lab.md",
-    summary: "Internal project page",
-    body_words: 0,
-    body_state: "frontmatter only",
-    body_section_count: 0,
-    body_preview: "no markdown body yet",
-    fields: [{ path: "visible", value: "false", kind: "boolean" }],
-    next_safe_action: "review project source",
-  },
-  {
-    id: "writing.control-plane",
-    surface: "writing",
-    slug: "control-plane",
-    title: "Control Plane",
-    route: "/writing/control-plane",
-    status: "published",
-    source_ref: "content/public/writing/control-plane.md",
-    summary: "Agents need authority, proof, and state.",
-    body_words: 17,
-    body_state: "short body",
-    body_section_count: 1,
-    body_preview:
-      "## opening The admin app should render source-backed writing as a preview before any publish or send path exists.",
-    fields: [{ path: "tags", value: "agents, admin", kind: "array" }],
-    next_safe_action: "review writing source",
-  },
-]);
-
-assert.deepEqual(
-  summarizeSourceContentRecords(sourceRecords),
-  {
-    projects: 1,
-    writing: 1,
-    published_writing: 1,
-    visible_projects: 0,
-  },
-  "generated source content projection must preserve admin summary counts",
-);
-
-const hiddenProject = sourceRecords.find(
-  (record) => record.id === "projects.hidden-lab",
-);
-assert.ok(hiddenProject, "hidden project source record must be projected");
-assert.equal(hiddenProject.status, "hidden");
-assert.equal(hiddenProject.source_ref, "content/public/projects/hidden-lab.md");
-assert.equal(hiddenProject.body_state, "frontmatter only");
-assert.equal(hiddenProject.body_preview, "no markdown body yet");
-
-const writingRecord = sourceRecords.find(
-  (record) => record.id === "writing.control-plane",
-);
-assert.ok(writingRecord, "writing source record must be projected");
-assert.equal(writingRecord.status, "published");
-assert.equal(writingRecord.body_section_count, 1);
-assert.ok(
-  writingRecord.fields.some(
-    (field) => field.path === "tags" && field.value === "agents, admin",
-  ),
-  "generated source content projection must preserve list frontmatter fields",
-);
-assert.ok(
-  writingRecord.body_preview.includes("admin app should render source-backed"),
-  "generated source content projection must expose a markdown body preview",
-);
-
-assert.throws(
-  () => sourceContentRecordsFromProjection([{ surface: "invalid" }]),
-  /surface is invalid/,
-  "invalid generated source records must fail closed",
-);
-
-assert.equal(contentInventorySource.mode, "canonical_source_plus_d1_drafts");
-assert.equal(
-  rootContentInventorySource.mode,
-  "canonical_source_plus_d1_drafts",
-);
 
 const systemsContent = normalizeSystemsPageContent({});
 assert.deepEqual(validateSystemsPageContent(systemsContent), { ok: true });
@@ -702,10 +415,10 @@ assert.equal(
     process.execPath,
     [
       "-e",
-      "import('@anipotts/content/admin').then((mod) => process.stdout.write(mod.contentInventorySource.mode))",
+      "import('@anipotts/content/public').then((mod) => process.stdout.write(typeof mod.normalizeHomepageContent))",
     ],
     { cwd: "apps/admin", encoding: "utf8" },
   ),
-  "canonical_source_plus_d1_drafts",
-  "apps/admin must be able to import @anipotts/content/admin from the built package export",
+  "function",
+  "apps/admin must be able to import @anipotts/content/public from the built package export",
 );

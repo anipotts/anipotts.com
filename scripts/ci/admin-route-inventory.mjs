@@ -129,43 +129,16 @@ export const ADMIN_ROUTES = [
     nav: false,
   },
   {
+    // Retired; 308 redirects to the record's editor.
     route: "/content/edit/home",
     file: "apps/admin/src/pages/content/edit/[pageKey].astro",
     nav: false,
+    smoke: false,
   },
   {
     route: "/newsletter/first-thing-agents-need-control-plane",
     file: "apps/admin/src/pages/newsletter/[slug].astro",
     nav: false,
-  },
-  {
-    route: "/api/admin/control-plane",
-    file: "apps/admin/src/pages/api/admin/control-plane.ts",
-    nav: false,
-    smoke: false,
-  },
-  {
-    route: "/api/admin/projections",
-    file: "apps/admin/src/pages/api/admin/projections.ts",
-    nav: false,
-    smoke: false,
-  },
-  {
-    route: "/api/admin/knowledge",
-    file: "apps/admin/src/pages/api/admin/knowledge.ts",
-    nav: false,
-    smoke: false,
-  },
-  {
-    route: "/api/admin/content/draft-operation",
-    file: "apps/admin/src/pages/api/admin/content/draft-operation.ts",
-    nav: false,
-  },
-  {
-    route: "/api/admin/content/editor",
-    file: "apps/admin/src/pages/api/admin/content/editor.ts",
-    nav: false,
-    smoke: false,
   },
   {
     route: "/content/home/home",
@@ -238,7 +211,27 @@ export const ADMIN_REDIRECTS = RETIRED_ROUTE_REDIRECTS;
 export const PUBLIC_UNSMOKED_ROUTE_FILES = [
   "apps/admin/src/pages/auth.astro",
   "apps/admin/src/pages/api/health.ts",
+];
+
+// Removed JSON and compatibility APIs, with their libraries. Nothing outside
+// Admin called them. Middleware refuses a signed-out request to any of these
+// paths with 401 JSON, and the admitted owner gets the 404 page.
+export const RETIRED_ADMIN_API_FILES = [
   "apps/admin/src/pages/api/mcp.ts",
+  "apps/admin/src/pages/api/admin/projections.ts",
+  "apps/admin/src/pages/api/admin/knowledge.ts",
+  "apps/admin/src/pages/api/admin/runtime-feed.ts",
+  "apps/admin/src/pages/api/admin/control-plane.ts",
+  "apps/admin/src/pages/api/admin/content/editor.ts",
+  "apps/admin/src/pages/api/admin/content/draft-operation.ts",
+  "apps/admin/src/lib/admin-machine-tokens.ts",
+  "apps/admin/src/lib/admin-compatibility-request.ts",
+  "apps/admin/src/lib/content-draft-operation.ts",
+  "apps/admin/src/data/control-plane.ts",
+  "apps/admin/src/data/source-content.ts",
+  "packages/lib/src/admin-control/mcp.ts",
+  "packages/lib/src/admin-control/inbox-write.ts",
+  "packages/lib/src/admin-control/work-lifecycle.ts",
 ];
 
 export const RETIRED_ADMIN_AUTH_FILES = [

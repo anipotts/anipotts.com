@@ -11,10 +11,7 @@ import {
 import { basename, join, relative, resolve } from "node:path";
 import { format } from "prettier";
 import { parse } from "yaml";
-import {
-  isPublicProject,
-  isPublishedWriting,
-} from "../../packages/content/src/public/visibility.ts";
+import { isPublishedWriting } from "../../packages/content/src/public/visibility.ts";
 import {
   projectSchema,
   publicSlugSchema,
@@ -29,10 +26,6 @@ const PROJECTS_ROOT = join(SOURCE_ROOT, "projects");
 const WRITING_ROOT = join(SOURCE_ROOT, "writing");
 const PAGES_ROOT = join(SOURCE_ROOT, "pages");
 const GENERATED_TS = join(ROOT, "packages/content/src/public/generated.ts");
-const ADMIN_JSON = join(
-  ROOT,
-  "packages/content/generated/admin-public-content.json",
-);
 const CHECK = process.argv.includes("--check");
 
 const pageExports = {
@@ -50,18 +43,8 @@ const pageExports = {
   systems: ["DEFAULT_SYSTEMS_CONTENT", "SystemsPageContent"],
 };
 
-const projectEntries = markdownFiles(PROJECTS_ROOT).map((file) => ({
-  content: projectRecord(file),
-  source: sourceRef(file),
-  source_record: sourceContentRecord("projects", file),
-}));
-const writingEntries = markdownFiles(WRITING_ROOT).map((file) => ({
-  content: writingRecord(file),
-  source: sourceRef(file),
-  source_record: sourceContentRecord("writing", file),
-}));
-const projects = projectEntries.map(({ content }) => content);
-const writing = writingEntries.map(({ content }) => content);
+const projects = markdownFiles(PROJECTS_ROOT).map(projectRecord);
+const writing = markdownFiles(WRITING_ROOT).map(writingRecord);
 for (const [surface, entries] of Object.entries({ projects, writing })) {
   const slugs = new Set();
   for (const entry of entries) {
@@ -101,32 +84,6 @@ const sourceHash = sha256(
   ),
 );
 
-const adminProjection = {
-  schema_version: 1,
-  source_hash: sourceHash,
-  source_records: [
-    ...projectEntries.map(({ source_record }) => source_record),
-    ...writingEntries.map(({ source_record }) => source_record),
-  ].sort(compareSourceRecords),
-  records: [
-    ...Object.entries(pages).map(([key, content]) => ({
-      entity_id: `public-page:${key === "work" ? "making" : key}`,
-      kind: "page",
-      title: content.title ?? content.headline ?? key.replaceAll("_", " "),
-      status: "source_controlled",
-      route: pageRoute(key),
-      source_ref: `content/public/pages/${key}.md`,
-      source_hash: sourceManifest[`content/public/pages/${key}.md`],
-    })),
-    ...projectEntries.map(({ content, source }) =>
-      projectionRecord("project", content, source),
-    ),
-    ...writingEntries.map(({ content, source }) =>
-      projectionRecord("writing", content, source),
-    ),
-  ],
-};
-
 const outputs = new Map([
   [
     GENERATED_TS,
@@ -134,7 +91,6 @@ const outputs = new Map([
       parser: "typescript",
     }),
   ],
-  [ADMIN_JSON, await formatJson(adminProjection)],
 ]);
 
 let drift = false;
@@ -152,10 +108,6 @@ for (const [file, value] of outputs) {
 }
 
 if (drift) process.exitCode = 1;
-
-async function formatJson(value) {
-  return format(JSON.stringify(value), { parser: "json" });
-}
 
 function markdownFiles(dir) {
   if (!existsSync(dir)) return [];
@@ -236,124 +188,6 @@ function writingRecord(file) {
   };
 }
 
-function sourceContentRecord(surface, file) {
-  const { frontmatter, body } = parseMarkdown(file);
-  const slug = String(frontmatter.slug ?? basename(file, ".md"));
-  const status =
-    surface === "writing"
-      ? String(frontmatter.status ?? "draft")
-      : frontmatter.public_state === "hidden"
-        ? "hidden"
-        : String(frontmatter.status ?? "unknown");
-
-  return {
-    id: `${surface}.${slug}`,
-    surface,
-    slug,
-    title: String(frontmatter.title ?? slug),
-    route: `/${surface === "projects" ? "work" : surface}/${slug}`,
-    status,
-    source_ref: sourceRef(file),
-    summary: String(
-      frontmatter.summary ??
-        frontmatter.subtitle ??
-        frontmatter.description ??
-        "no summary field",
-    ),
-    body_words: countWords(body),
-    body_state: bodyState(surface, body),
-    body_section_count: body
-      .split("\n")
-      .filter((line) => /^#{2,6}\s+\S/.test(line.trim())).length,
-    body_preview: markdownPreview(body),
-    fields: Object.entries(frontmatter).map(([path, value]) => ({
-      path,
-      value: formatFieldValue(value),
-      kind: fieldKind(value),
-    })),
-    next_safe_action:
-      surface === "projects"
-        ? "review project frontmatter, detail body, and structured sections before modeling a draft operation"
-        : "review title, summary, tags, and body before newsletter backfill",
-  };
-}
-
-function compareSourceRecords(a, b) {
-  if (a.surface !== b.surface) return a.surface.localeCompare(b.surface);
-  if (a.surface === "projects") {
-    const aOrder = Number(
-      a.fields.find((field) => field.path === "sort_order")?.value ?? 0,
-    );
-    const bOrder = Number(
-      b.fields.find((field) => field.path === "sort_order")?.value ?? 0,
-    );
-    return bOrder - aOrder || a.title.localeCompare(b.title);
-  }
-  return b.source_ref.localeCompare(a.source_ref);
-}
-
-function countWords(body) {
-  return body.trim().split(/\s+/).filter(Boolean).length;
-}
-
-function bodyState(surface, body) {
-  const words = countWords(body);
-  if (words === 0 && surface === "projects") return "frontmatter only";
-  if (words === 0) return "empty body";
-  if (words < 80) return "short body";
-  return "body ready for preview";
-}
-
-function markdownPreview(body) {
-  const normalized = body
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .join(" ");
-  if (!normalized) return "no markdown body yet";
-  return normalized.length > 220
-    ? `${normalized.slice(0, 217).trimEnd()}...`
-    : normalized;
-}
-
-function formatFieldValue(value) {
-  if (Array.isArray(value)) {
-    return value.some((item) => item !== null && typeof item === "object")
-      ? JSON.stringify(value)
-      : value.join(", ");
-  }
-  if (typeof value === "boolean") return value ? "true" : "false";
-  if (typeof value === "number") return String(value);
-  if (typeof value === "string") {
-    return value.length > 96 ? `${value.slice(0, 93)}...` : value;
-  }
-  return JSON.stringify(value) ?? String(value);
-}
-
-function fieldKind(value) {
-  if (Array.isArray(value)) return "array";
-  return typeof value;
-}
-
-function projectionRecord(kind, content, source) {
-  return {
-    entity_id: `public-${kind}:${content.slug}`,
-    kind,
-    title: content.title,
-    status:
-      kind === "project"
-        ? isPublicProject(content)
-          ? content.status
-          : "hidden"
-        : content.visible
-          ? "published"
-          : "draft",
-    route: `/${kind === "project" ? "work" : "writing"}/${content.slug}`,
-    source_ref: source,
-    source_hash: sourceManifest[source],
-  };
-}
-
 function generatedTypescript(pages, projects, writing, hash) {
   const exports = Object.entries(pageExports)
     .map(([key, [name, type]]) => typedExport(name, pages[key], type))
@@ -363,14 +197,6 @@ function generatedTypescript(pages, projects, writing, hash) {
 
 function typedExport(name, value, type) {
   return `export const ${name}: ${type} = ${JSON.stringify(value, null, 2)};`;
-}
-
-function pageRoute(key) {
-  return key === "home"
-    ? "/"
-    : key === "newsletter_archive"
-      ? "/newsletter/archive"
-      : `/${key}`;
 }
 
 function strings(value) {

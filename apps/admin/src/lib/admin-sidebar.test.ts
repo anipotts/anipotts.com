@@ -57,9 +57,9 @@ describe("sidebar rail choice", () => {
     expect(workspaceForPath("/")).toBeNull();
     expect(workspaceForPath("/content/writing")).toBe("content");
     expect(workspaceForPath("/newsletter/issue")).toBe("content");
-    expect(workspaceForPath("/data/records/rec-1")).toBe("life");
-    expect(workspaceForPath("/observability/alerts")).toBe("operations");
-    expect(workspaceForPath("/observability")).toBe("operations");
+    expect(workspaceForPath("/data/records/rec-1")).toBe("data");
+    expect(workspaceForPath("/observability/alerts")).toBe("observability");
+    expect(workspaceForPath("/observability")).toBe("observability");
     // Retired console URLs redirect before rendering, so they own nothing.
     expect(workspaceForPath("/proof")).toBeNull();
     expect(workspaceForPath("/404")).toBeNull();
@@ -148,18 +148,18 @@ describe("sidebar rail choice", () => {
       });
       return root.dataset.adminNavClosed;
     };
-    const closed = '{"content":true,"life":true,"operations":false}';
+    const closed = '{"content":true,"data":true,"observability":false}';
     expect(run("/content/pages")).toBeUndefined();
-    expect(run("/content/writing", closed)).toBe("life");
+    expect(run("/content/writing", closed)).toBe("data");
     expect(run("/data/records", closed)).toBe("content");
     expect(
       run("/data/records/rec-00000000000000000000000000000001", closed),
     ).toBe("content");
-    expect(run("/observability/status", closed)).toBe("content life");
+    expect(run("/observability/status", closed)).toBe("content data");
     // The overview and retired Life URLs belong to no workspace, so every
     // saved choice holds; retired Life URLs redirect before rendering.
-    expect(run("/", closed)).toBe("content life");
-    expect(run("/life/people", closed)).toBe("content life");
+    expect(run("/", closed)).toBe("content data");
+    expect(run("/life/people", closed)).toBe("content data");
     expect(run("/content/newsletter", "not json")).toBeUndefined();
     for (const path of [
       "/content/pages",
@@ -175,6 +175,45 @@ describe("sidebar rail choice", () => {
         .join(" ");
       expect(run(path, closed) ?? "").toBe(expected);
     }
+  });
+
+  it("keeps a choice saved under the Life and Operations ids", () => {
+    const run = (path: string, raw: string) => {
+      const root = { dataset: {} as Record<string, string> };
+      runInNewContext(adminSidebarPrepaintScript, {
+        window: {
+          innerWidth: 1280,
+          location: { pathname: path },
+          matchMedia: () => ({ matches: false }),
+        },
+        localStorage: storage({ "admin:sidebar-groups": raw }),
+        document: { documentElement: root },
+      });
+      return root.dataset.adminNavClosed ?? "";
+    };
+    const earlier = '{"content":false,"life":true,"operations":true}';
+    expect(sidebarGroupsState(earlier, null)).toEqual({
+      content: false,
+      data: true,
+      observability: true,
+    });
+    expect(run("/", earlier)).toBe("data observability");
+    // The active group still opens, and a current id wins over an earlier one.
+    expect(run("/data/records", earlier)).toBe("observability");
+    const both = '{"data":false,"life":true,"operations":true}';
+    expect(sidebarGroupsState(both, null).data).toBe(false);
+    expect(run("/", both)).toBe("observability");
+    for (const [path, raw] of [
+      ["/", earlier],
+      ["/content/pages", earlier],
+      ["/observability/alerts", both],
+    ])
+      expect(run(path!, raw!)).toBe(
+        Object.entries(sidebarGroupsState(raw!, workspaceForPath(path!)))
+          .filter(([, value]) => value)
+          .map(([id]) => id)
+          .join(" "),
+      );
   });
 
   it("runs the prepaint in the one document and holds rail geometry only before hydration", () => {

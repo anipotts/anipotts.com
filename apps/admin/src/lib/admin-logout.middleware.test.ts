@@ -12,17 +12,11 @@ vi.mock("./editorial-content", () => ({
 vi.mock("./editorial-media", () => ({
   editorialImagePreview: (value: string) => value,
 }));
-vi.mock("./admin-auth", () => ({
-  resolveAdminSession: vi.fn(async () => ({ principal: null, setCookies: [] })),
-  applyAdminSetCookies: (response: Response) => response,
-  adminJson: (body: unknown, init: ResponseInit) => Response.json(body, init),
-  sanitizeAdminReturnPath: () => "/",
-}));
 import { onRequest } from "../middleware";
-import { resolveAdminSession } from "./admin-auth";
+import { retainedAccessPrincipal } from "./access-identity";
 beforeEach(() => vi.clearAllMocks());
 for (const pathname of ["/api/admin/logout", "/auth/logout"])
-  it(`dispatches ${pathname} without touching native sessions`, async () => {
+  it(`dispatches ${pathname} to its own Access check`, async () => {
     const next = vi.fn(
       async () => new Response("inert page or self-authenticating API"),
     );
@@ -35,7 +29,7 @@ for (const pathname of ["/api/admin/logout", "/auth/logout"])
       next,
     );
     expect(next).toHaveBeenCalledTimes(1);
-    expect(resolveAdminSession).not.toHaveBeenCalled();
+    expect(retainedAccessPrincipal).not.toHaveBeenCalled();
   });
 for (const pathname of ["/api/admin/logout/extra", "/auth/logout-other"])
   it(`does not bypass authentication for ${pathname}`, async () => {
@@ -50,6 +44,6 @@ for (const pathname of ["/api/admin/logout/extra", "/auth/logout-other"])
       } as never,
       next,
     );
-    expect(resolveAdminSession).toHaveBeenCalledTimes(1);
+    expect(retainedAccessPrincipal).toHaveBeenCalledTimes(1);
     expect(next).not.toHaveBeenCalled();
   });

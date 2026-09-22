@@ -91,10 +91,3 @@
   --code: var(--font-code);
   --mono: var(--font-code);
 }
-
-.brand-display {
-  font-family: var(--font-display);
-  font-style: normal;
-  font-weight: 900;
-  font-synthesis: none;
-}

@@ -9,7 +9,7 @@ import {
   ShieldWarningIcon,
   type Icon,
 } from "@phosphor-icons/react";
-import type { LifeResult } from "../../data/personal-context";
+import type { DataResult } from "../../data/personal-context";
 import { LoadingSkeleton, StateNotice } from "../workspace/Workspace";
 import type { DataSession } from "./useDataSession";
 
@@ -131,7 +131,7 @@ export function ReadNotice({
   result,
   onRetry,
 }: {
-  result: Exclude<LifeResult, { state: "ready" }>;
+  result: Exclude<DataResult, { state: "ready" }>;
   onRetry?: () => void;
 }) {
   const title = {

@@ -46,9 +46,10 @@ database_id = "a8aadf73-bbf4-447c-97db-cb3e50b4e26f"
 binding = "NEWSLETTER_QUEUE"
 queue = "newsletter-send"
 
-# Dedicated published-content store and media. The public reader serves from
-# it because CONTENT_RUNTIME is "cms". Rollback: set CONTENT_RUNTIME back to
-# "legacy" and redeploy to serve the bundled Git content again.
+# Dedicated published-content store and media. The public reader serves only
+# from it and needs CONTENT_RUNTIME = "cms"; any other value returns a 503 on
+# every content route. Content rollback is a D1 Time Travel restore; code
+# rollback is a redeploy of an earlier release.
 [[d1_databases]]
 binding = "CONTENT_DB"
 database_name = "anipotts-content"

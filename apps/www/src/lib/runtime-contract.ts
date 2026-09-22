@@ -20,14 +20,11 @@ type Check = "fetch" | "prepare" | "get" | "send" | "text";
 export const RUNTIME_CONTRACT = {
   ASSETS: { source: "assets", check: "fetch" },
   DB: { source: "d1", check: "prepare" },
-  CONTENT_DB: { source: "d1", check: "prepare", optional: true },
-  CONTENT_MEDIA: { source: "r2", check: "get", optional: true },
+  CONTENT_DB: { source: "d1", check: "prepare" },
+  CONTENT_MEDIA: { source: "r2", check: "get" },
   NEWSLETTER_QUEUE: { source: "queue_producer", check: "send" },
   RESEND_WEBHOOK_SECRET: { source: "secret", check: "text" },
-} as const satisfies Record<
-  string,
-  { source: Source; check: Check; optional?: boolean }
->;
+} as const satisfies Record<string, { source: Source; check: Check }>;
 
 export type RuntimeName = keyof typeof RUNTIME_CONTRACT;
 
@@ -36,8 +33,9 @@ export const RUNTIME_REQUIRED = [
 ] as const satisfies readonly RuntimeName[];
 
 /** Mirrors the existing route checks: env.DB in the newsletter and health
- * routes, env.NEWSLETTER_QUEUE in lib/newsletter.ts and
- * env.RESEND_WEBHOOK_SECRET in the Resend webhook route.
+ * routes, env.NEWSLETTER_QUEUE in lib/newsletter.ts,
+ * env.RESEND_WEBHOOK_SECRET in the Resend webhook route, and the content
+ * reader, which also needs CONTENT_RUNTIME to be exactly "cms".
  */
 export const RUNTIME_FEATURES = {
   database: { needs: ["DB"] },
@@ -51,7 +49,7 @@ export const RUNTIME_FEATURES = {
 >;
 
 type RuntimeFeature = keyof typeof RUNTIME_FEATURES;
-type RuntimeFeatureState = "available" | "unavailable" | "disabled";
+type RuntimeFeatureState = "available" | "unavailable";
 type RuntimeContractReport = {
   ok: boolean;
   missing: RuntimeName[];
@@ -94,24 +92,14 @@ export function evaluateRuntimeContract(env: unknown): RuntimeContractReport {
   };
   const missing: RuntimeName[] = RUNTIME_REQUIRED.filter((name) => !has(name));
   const features = {} as RuntimeContractReport["features"];
+  const cms = read(env, "CONTENT_RUNTIME") === "cms";
   for (const [feature, definition] of Object.entries(RUNTIME_FEATURES)) {
-    if ("cms" in definition) {
-      const mode = read(env, "CONTENT_RUNTIME");
-      if (mode === undefined || mode === "legacy") {
-        features[feature as RuntimeFeature] = {
-          state: "disabled",
-          missing: [],
-        };
-        continue;
-      }
-    }
     const absent = (definition.needs as readonly RuntimeName[]).filter(
       (name) => !has(name),
     );
     features[feature as RuntimeFeature] = {
       state:
-        absent.length ||
-        ("cms" in definition && read(env, "CONTENT_RUNTIME") !== "cms")
+        absent.length || ("cms" in definition && !cms)
           ? "unavailable"
           : "available",
       missing: absent,

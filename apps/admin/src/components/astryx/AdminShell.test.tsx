@@ -11,28 +11,13 @@ const shell = (route: string) => (
   </AdminShell>
 );
 
-describe("shared Operations and Life shell", () => {
-  it.each([false, true])(
-    "preserves route context unless header is hidden: %s",
-    (hideHeader) => {
-      const html = renderToStaticMarkup(
-        <AdminShell
-          currentRoute="/proof"
-          title="Proof"
-          deck="This page is read-only."
-          hideHeader={hideHeader}
-          localPreview
-        >
-          <p>Records</p>
-        </AdminShell>,
-      );
-      expect(html.includes("This page is read-only.")).toBe(!hideHeader);
-    },
-  );
+describe("shared Data and Observability shell", () => {
   it("renders the shared identity and one sidebar with Content, Data and Observability", () => {
     const host = document.createElement("div");
     host.innerHTML = renderToStaticMarkup(shell("/observability/status"));
-    expect(host.querySelector('[data-workspace="operations"]')).not.toBeNull();
+    expect(
+      host.querySelector('[data-workspace="observability"]'),
+    ).not.toBeNull();
     // The wordmark is the home link, in the sidebar and the phone top bar.
     const wordmarks = host.querySelectorAll<HTMLAnchorElement>(
       "a.admin-bracket-wordmark",
@@ -56,7 +41,7 @@ describe("shared Operations and Life shell", () => {
     ).toBe("/");
     const links = [
       ...navigation.querySelectorAll<HTMLAnchorElement>(
-        'a[data-sidebar-member="operations"]',
+        'a[data-sidebar-member="observability"]',
       ),
     ];
     expect(links.map((link) => link.textContent)).toEqual([
@@ -97,7 +82,7 @@ describe("shared Operations and Life shell", () => {
   );
   it("renders Data navigation with the one palette", () => {
     const markup = renderToStaticMarkup(shell("/data/sources"));
-    expect(markup).toContain('data-workspace="life"');
+    expect(markup).toContain('data-workspace="data"');
     expect(markup).toMatch(/href="\/data\/sources"[^>]*aria-current="page"/);
     expect(markup).toContain('href="/data/records"');
     expect(markup).not.toContain('href="/life');
@@ -119,7 +104,7 @@ describe("shared Operations and Life shell", () => {
   });
 });
 
-describe("local owner indicator in Operations and Life", () => {
+describe("local owner indicator in Data and Observability", () => {
   afterEach(() => vi.unstubAllGlobals());
   it.each(["/observability/status", "/data/records"])(
     "shows the laptop tile beside the wordmark on %s",

@@ -92,9 +92,10 @@ true`, and `find_additional_modules: true`. `main` must be inside `base_dir`.
   publisher uses it to stage publication assets; the public reader uses it to
   serve assets referenced by active visible publications.
 
-Admin vars additionally require exactly `EDITORIAL_ENABLED: "true"`,
-`EDITORIAL_PUBLISH_MODE: "maintenance"`, and `EDITORIAL_PUBLISH_ENABLED: "false"`.
-This permits the CMS storage path while preventing new publication activation.
+Admin vars additionally require exactly `EDITORIAL_ENABLED: "true"` and
+`EDITORIAL_PUBLISH_ENABLED: "false"`, the publishing kill switch. This permits
+the CMS storage path while preventing new publication activation. Any other
+admin var, including the retired `EDITORIAL_PUBLISH_MODE`, is rejected.
 Public vars additionally require exactly `CONTENT_RUNTIME: "cms"`, so a missing
 publication dependency cannot silently fall back to bundled content.
 

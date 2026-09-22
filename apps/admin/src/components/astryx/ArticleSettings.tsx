@@ -21,13 +21,11 @@ export function ArticleSettings({
   onChange,
   errors,
   disclosure = true,
-  publicationMode = "legacy",
   publicUrl,
 }: {
   /** The live page, when the article is on the site. */
   publicUrl?: string;
   disclosure?: boolean;
-  publicationMode?: "legacy" | "maintenance" | "direct";
   errors: Map<string, string>;
   source: string;
   id: string;
@@ -66,7 +64,7 @@ export function ArticleSettings({
           {
             value: "draft",
             label: "Draft, hidden from the website",
-            disabled: publicationMode === "direct",
+            disabled: true,
           },
           {
             value: "published",
@@ -75,7 +73,7 @@ export function ArticleSettings({
           {
             value: "scheduled",
             label: "Scheduled",
-            disabled: publicationMode === "direct",
+            disabled: true,
           },
         ]}
         onChange={(value) => {

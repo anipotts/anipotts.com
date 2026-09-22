@@ -41,7 +41,6 @@ describe("article properties", () => {
         source={source}
         id="original-id"
         errors={new Map()}
-        publicationMode="direct"
         onChange={() => {
           throw new Error("must not rewrite source");
         }}

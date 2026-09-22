@@ -21,11 +21,10 @@ import { CardsExplorer, SourcesExplorer } from "./SourcesView";
 import "./data-workspace.css";
 
 export type { DataNavigate } from "./DataNotices";
-export { DataSessionControl, SessionNotice } from "./DataNotices";
 
 /** The content width at which a record opens beside its list: about
  * 1024px, which a 1280px window with the full sidebar just holds. */
-export const SPLIT_MIN_WIDTH = 960;
+const SPLIT_MIN_WIDTH = 960;
 
 const useIsomorphicLayoutEffect =
   typeof window === "undefined" ? useEffect : useLayoutEffect;

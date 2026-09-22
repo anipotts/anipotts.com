@@ -1,14 +1,9 @@
 import { ADMIN_ROUTES } from "../../../../scripts/ci/admin-route-inventory.mjs";
 
-/** Signed-out surfaces. The retained passkey, invite and recovery entries
- * name retired routes; the gated auth cleanup removes them. */
+/** Paths served without an Access principal. */
 export const PUBLIC_PATHS = new Set([
   "/auth",
-  "/auth/passkey",
-  "/auth/invite",
-  "/auth/recover",
   "/api/health",
-  "/api/mcp",
   "/favicon.svg",
   "/admin-bracket.svg",
   "/favicon-light.svg",
@@ -18,28 +13,6 @@ export const PUBLIC_PATHS = new Set([
   "/favicon-16x16.png",
   "/favicon-32x32.png",
   "/apple-touch-icon.png",
-]);
-
-export const PUBLIC_PASSKEY_API_PATHS = new Set([
-  "/api/admin/auth/session",
-  "/api/admin/passkey/login-options",
-  "/api/admin/passkey/login-verify",
-  "/api/admin/passkey/logout",
-  "/api/admin/passkey/register-options",
-  "/api/admin/passkey/register-verify",
-  "/api/admin/passkey/revoke-current",
-  "/api/admin/passkey/status",
-  "/api/admin/password/login",
-  "/api/admin/password/logout",
-  "/api/admin/password/status",
-  "/api/admin/device/start",
-  "/api/admin/device/status",
-  "/api/admin/device/claim",
-  "/api/admin/invites/status",
-  "/api/admin/invites/register-options",
-  "/api/admin/invites/register-verify",
-  "/api/admin/recovery/google/start",
-  "/api/admin/recovery/google/callback",
 ]);
 
 export const PUBLIC_PREFIXES = ["/_astro/", "/assets/"];
@@ -204,7 +177,6 @@ export function isApprovedDevPreviewOrigin(url: URL): boolean {
 export function isPublicAdminPath(pathname: string): boolean {
   return (
     PUBLIC_PATHS.has(pathname) ||
-    PUBLIC_PASSKEY_API_PATHS.has(pathname) ||
     PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))
   );
 }

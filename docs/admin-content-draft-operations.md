@@ -1,7 +1,12 @@
 # admin content draft operations
 
 Date: 2026-06-27
-Status: draft operation save path staged; publish remains blocked
+Status: retired 2026-09-22. The draft operation API and its request library
+were removed; Admin edits and publishes through the direct CMS publisher (see
+[direct CMS publication](design/admin-workspace/direct-cms-publication.md)).
+The removed code is recoverable from the `archive/admin-retired-auth-2026-09-22`
+tag, and the `content_draft_operations` table stays in place. The rest of this
+document is historical.
 
 ## purpose
 

@@ -21,7 +21,6 @@ import {
 import type { EditorialDraftStore } from "../../src/editorial/draft-store";
 import {
   DirectPublisher,
-  editorialPublishMode,
   type DirectPublisherDependencies,
 } from "../../src/editorial/direct-publisher";
 import {
@@ -36,7 +35,6 @@ import {
   setEditorialField,
 } from "@anipotts/content/editorial/source";
 import { newProjectSource } from "../../src/lib/project-draft";
-import { PublicationJobs } from "../../src/editorial/publication-jobs";
 import type { StartDirectPublication } from "../../src/lib/editorial-publication-status";
 import {
   sourceIsPublic,
@@ -383,19 +381,7 @@ describe("direct publication with real local D1, R2 and SQLite Durable Objects",
       replacement.operationId,
     );
   });
-  it("does not route direct mode to Git and treats unknown mode as maintenance", async () => {
-    expect(editorialPublishMode({})).toBe("legacy");
-    expect(editorialPublishMode({ EDITORIAL_PUBLISH_MODE: "typo" })).toBe(
-      "maintenance",
-    );
-    const f = await fixture();
-    expect(
-      await f.store.startPublication({
-        record: f.record,
-        operationId: crypto.randomUUID(),
-        expectedRevision: 1,
-      }),
-    ).toEqual({ ok: false, code: "invalid_request" });
+  it("refuses a publication that would change visibility", async () => {
     const hidden = await fixture(
       source.replace("status: published", "status: draft"),
     );
@@ -615,34 +601,6 @@ describe("direct publication with real local D1, R2 and SQLite Durable Objects",
     ).toBe("validate");
     expect(await getPublished(env.CONTENT_DB, failed.record)).toBeNull();
   });
-  it("suspends untouched legacy work and refuses legacy work that may have external effects", async () => {
-    const f = await fixture();
-    await runInDurableObject(f.store, async (_instance, state) => {
-      const jobs = new PublicationJobs(state.storage);
-      jobs.enqueue("legacy-pending", Date.now());
-    });
-    expect((await f.store.startDirectPublication(f.input)).ok).toBe(true);
-    await f.advance();
-    await f.advance();
-    await f.advance();
-    await runInDurableObject(f.store, async (_instance, state) => {
-      expect(
-        new PublicationJobs(state.storage).get("legacy-pending")?.attempts,
-      ).toBe(0);
-      state.storage.sql.exec(
-        "UPDATE publication_jobs SET attempts=1 WHERE id='legacy-pending'",
-      );
-    });
-    expect(
-      await f.store.startDirectPublication({
-        ...f.input,
-        operationId: crypto.randomUUID(),
-      }),
-    ).toEqual({
-      ok: false,
-      code: "legacy_publication_requires_reconciliation",
-    });
-  });
   it("stops preparation and verification retries at their windows and preserves explicit retry identity", async () => {
     const f = await fixture();
     await f.store.startDirectPublication(f.input);
@@ -746,8 +704,8 @@ describe("direct publication with real local D1, R2 and SQLite Durable Objects",
     const receipt = await getDirectReceipt(env.CONTENT_DB, f.input.operationId);
     expect(receipt?.publicationId).toBe(f.input.operationId);
   });
-  it("maintenance without R2 retains readable status and schedules a wake for accepted work", async () => {
-    const store = env.MAINTENANCE_EDITORIAL.getByName(crypto.randomUUID());
+  it("publishing off without R2 retains readable status and keeps accepted work waiting", async () => {
+    const store = env.DISABLED_EDITORIAL.getByName(crypto.randomUUID());
     const record = freshRecord();
     await store.save(save(record));
     const input = await directInput(record);
@@ -765,23 +723,21 @@ describe("direct publication with real local D1, R2 and SQLite Durable Objects",
         acknowledge: () => {},
       });
       expect((await engine.start(input)).ok).toBe(true);
-      new PublicationJobs(state.storage).enqueue(
-        "legacy-maintenance",
-        Date.now(),
-      );
     });
     await runDurableObjectAlarm(store);
-    expect((await store.latestDirectPublication(record))?.attempts).toBe(0);
-    expect((await store.latestDirectPublication(record))?.phase).toBe(
-      "validate",
-    );
+    expect(await store.latestDirectPublication(record)).toMatchObject({
+      phase: "validate",
+      blocked: "publishing_disabled",
+      publicationId: null,
+    });
     expect(await getPublished(env.CONTENT_DB, record)).toBeNull();
     await runInDurableObject(store, async (_instance, state) => {
       expect(await state.storage.getAlarm()).toBeGreaterThan(Date.now());
-      expect(
-        new PublicationJobs(state.storage).get("legacy-maintenance")?.attempts,
-      ).toBe(0);
     });
+    const status = (await store.latestDirectPublication(record))!;
+    expect(
+      await store.retryDirectPublication(record, status.id, status.version),
+    ).toEqual({ ok: false, code: "publisher_not_configured" });
   });
   it("a corrupt copied object blocks activation and retry retains its original approval", async () => {
     const f = await fixture();

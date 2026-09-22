@@ -266,7 +266,7 @@ describe("private SQLite drafts", () => {
       });
     }
     // baseCommit/baseFileHash are read from the stored draft rather than sent
-    // by the caller, and the publication alarm rewrites them in place. An otherwise
+    // by the caller, and a publication acknowledgment rewrites them in place. An otherwise
     // unchanged retry that carries the advanced base is the same request and
     // replays its original outcome.
     expect(
@@ -287,7 +287,7 @@ describe("private SQLite drafts", () => {
     const original = request("first acknowledged source");
     const saved = await instance.save(original);
     await runInDurableObject(instance, (_instance, state) => {
-      // The publication alarm advances only the active draft's Git base.
+      // A publication acknowledgment advances only the active draft's Git base.
       state.storage.sql.exec(
         "UPDATE drafts SET baseCommit = ?, baseFileHash = ?",
         "c".repeat(40),
@@ -347,7 +347,7 @@ describe("private SQLite drafts", () => {
     const original = request("acknowledged before publication");
     const saved = await instance.save(original);
     await runInDurableObject(instance, (_instance, state) => {
-      // Exact metadata update used by the publication alarm's live callback.
+      // Server-derived base update, as a publication acknowledgment does.
       state.storage.sql.exec(
         "UPDATE drafts SET baseCommit = ?, baseFileHash = ?",
         "c".repeat(40),
@@ -458,8 +458,8 @@ describe("private SQLite drafts", () => {
       const instance = store();
       await instance.save(request("winning source"));
       await runInDurableObject(instance, (_instance, state) => {
-        // Apply the exact metadata update used by the publication alarm, without
-        // invoking any provider I/O. The historical revision remains unchanged.
+        // Advance the server-derived base as a publication acknowledgment does,
+        // without any provider I/O. The historical revision remains unchanged.
         state.storage.sql.exec(
           "UPDATE drafts SET baseCommit = ?, baseFileHash = ?",
           "c".repeat(40),
@@ -636,7 +636,7 @@ describe("private SQLite drafts", () => {
       revision: 3,
       discardedAt: null,
     });
-    expect(await instance.latestPublication(record)).toBeNull();
+    expect(await instance.latestDirectPublication(record)).toBeNull();
     await runInDurableObject(instance, async (local) => {
       await expect(
         (local as unknown as EditorialDraftStore).restore(record, 2),

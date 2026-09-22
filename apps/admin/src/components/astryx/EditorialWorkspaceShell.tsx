@@ -94,7 +94,7 @@ export function useWorkspaceMemory(workspace: Workspace | null) {
             location.pathname + location.search,
           );
           // A page outside the workspace's own routes (Content review renders
-          // in the operational layout) leaves the remembered page alone.
+          // in the Observability layout) leaves the remembered page alone.
           if (
             here !== workspaces[workspace].href ||
             location.pathname === workspaces[workspace].href
@@ -427,7 +427,7 @@ export function EditorialWorkspaceShell({
   searchEntries?: AdminSearchResult[];
   /** The group the current page belongs to; null on the overview. */
   workspace?: Workspace | null;
-  /** Path and query of an operational or Data page, which selects its item.
+  /** Path and query of an Observability or Data page, which selects its item.
    * Content pages select from their own record and library state instead. */
   currentRoute?: string;
   /** The phone top bar's title. Defaults to the selected page's name. */

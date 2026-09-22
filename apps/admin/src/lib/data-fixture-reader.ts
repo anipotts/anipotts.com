@@ -1,5 +1,5 @@
-import type { LifeRead, LifeResult } from "../data/personal-context";
-import type { LifeReader } from "./life-read-session";
+import type { DataRead, DataResult } from "../data/personal-context";
+import type { DataReader } from "./data-read-session";
 
 /**
  * Development preview reader over a synthetic dataset, shaped like the
@@ -16,8 +16,8 @@ export type DataFixture = {
 
 const PAGE = 20;
 
-export function createFixtureReader(fixture: DataFixture): LifeReader {
-  const ready = (data: Record<string, unknown>): LifeResult => ({
+export function createFixtureReader(fixture: DataFixture): DataReader {
+  const ready = (data: Record<string, unknown>): DataResult => ({
     state: "ready",
     scope: "owner",
     observedAt: new Date().toISOString(),
@@ -28,7 +28,7 @@ export function createFixtureReader(fixture: DataFixture): LifeReader {
     total: items.length,
     next_offset: offset + PAGE < items.length ? offset + PAGE : null,
   });
-  return async (request: LifeRead) => {
+  return async (request: DataRead) => {
     switch (request.method) {
       case "status":
         return ready(fixture.status);

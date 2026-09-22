@@ -1,6 +1,5 @@
 import React, { useEffect, useState, type ReactNode } from "react";
 import { VStack } from "@astryxdesign/core/VStack";
-import { Text } from "@astryxdesign/core/Text";
 import { Theme } from "@astryxdesign/core/theme";
 import {
   savedTheme,
@@ -20,8 +19,6 @@ const shellTheme = { ...editorialTheme, icons: adminThemeIcons };
 type AdminShellProps = {
   children: ReactNode;
   currentRoute: string;
-  deck?: string;
-  hideHeader?: boolean;
   title: string;
   searchEntries?: AdminSearchResult[];
   localPreview?: boolean;
@@ -34,8 +31,6 @@ type AdminShellProps = {
 export function AdminShell({
   children,
   currentRoute: initialRoute,
-  deck,
-  hideHeader = false,
   title,
   searchEntries,
   localPreview = false,
@@ -77,16 +72,6 @@ export function AdminShell({
         title={currentRoute === initialRoute ? title : undefined}
       >
         <VStack gap={4} className="admin-page-frame">
-          {!hideHeader && (
-            <header className="page-header">
-              <h1>{title}</h1>
-              {deck && (
-                <Text as="p" type="supporting">
-                  {deck}
-                </Text>
-              )}
-            </header>
-          )}
           <section className="admin-page-content">{children}</section>
         </VStack>
       </EditorialWorkspaceShell>

@@ -98,11 +98,8 @@ import {
 import type { Draft } from "../../editorial/draft-store";
 import type { HomeBase } from "../../lib/editorial-home-api";
 import { discardBody } from "../../lib/response-body";
-import type { PublishJob } from "../../editorial/publication-jobs";
-import type {
-  DirectPublicationStatus,
-  PublicationStatus,
-} from "../../lib/editorial-publication-status";
+import { readEditorialCsrf } from "../../lib/editorial-client";
+import type { DirectPublicationStatus } from "../../lib/editorial-publication-status";
 import { prepareWritingPublication } from "../../lib/writing-publication-source";
 import { publicationSourceHash } from "@anipotts/content/editorial/publication-contract";
 import {
@@ -111,15 +108,7 @@ import {
   unpublishedSource,
 } from "../../lib/editorial-visibility";
 
-// Older releases can still return the original job during a rolling deploy.
-type VisiblePublication =
-  | (PublishJob &
-      Partial<Pick<PublicationStatus, "queue" | "canCancel" | "revision">> & {
-        mode?: "legacy";
-        publicationId?: never;
-        superseded?: never;
-      })
-  | DirectPublicationStatus;
+type VisiblePublication = DirectPublicationStatus;
 
 type Snapshot = {
   recoveryScope?: string;
@@ -128,7 +117,6 @@ type Snapshot = {
   history: Draft[];
   nextBeforeRevision?: number | null;
   publishing: "ready" | "not_configured";
-  publicationMode?: "legacy" | "maintenance" | "direct";
   publication: VisiblePublication | null;
 };
 
@@ -148,6 +136,16 @@ const savedDraftNotFound = {
  * edits back for review, which is only true while recovery is working.
  */
 const SourceEditor = lazy(() => import("./SourceEditor"));
+
+/** An editorial read's JSON; a refused response throws. */
+async function getJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+  if (!response.ok) {
+    discardBody(response);
+    throw new Error("read refused");
+  }
+  return response.json();
+}
 
 function refusedSaveCopy(
   code: SaveState["saveFailureCode"],
@@ -614,16 +612,7 @@ function HomeEditorImpl({
     body: unknown,
     guard?: () => boolean,
   ) {
-    if (!csrf.current) {
-      const response = await fetch("/api/editorial/csrf", {
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!response.ok) {
-        discardBody(response);
-        throw new Error("session expired");
-      }
-      csrf.current = (await response.json()).csrf;
-    }
+    csrf.current ||= await readEditorialCsrf(AbortSignal.timeout(15000));
     if (guard && !guard()) throw new Error("operation no longer current");
     const response = await fetch(endpoint(action), {
       method: "POST",
@@ -659,13 +648,8 @@ function HomeEditorImpl({
     setRecoveryRead({ status: "missing" });
     setRecoveryProblem(null);
     setError("");
-    fetch(endpoint("record"), { signal: AbortSignal.timeout(15000) })
-      .then(async (response) => {
-        if (!response.ok) {
-          discardBody(response);
-          throw new Error("draft storage unavailable");
-        }
-        const data: Snapshot = await response.json();
+    getJson<Snapshot>(endpoint("record"))
+      .then(async (data) => {
         if (cancelled) return;
         setSnapshot(data);
         setPublication(data.publication ?? null);
@@ -777,10 +761,7 @@ function HomeEditorImpl({
       clearTimeout(timer);
       timer = undefined;
       if (!cancelled && !active && !document.hidden)
-        timer = setTimeout(
-          () => void poll(),
-          job.blocked || job.queue?.head?.blocked ? 30000 : 4000,
-        );
+        timer = setTimeout(() => void poll(), job.blocked ? 30000 : 4000);
     };
     async function poll() {
       timer = undefined;
@@ -807,11 +788,10 @@ function HomeEditorImpl({
           if (
             submitted &&
             data.publication.phase === "live" &&
-            (data.publication.mode !== "direct" ||
-              (!data.publication.superseded &&
-                data.publication.publicationId &&
-                data.publication.verifiedAt != null &&
-                !data.publication.blocked)) &&
+            !data.publication.superseded &&
+            data.publication.publicationId &&
+            data.publication.verifiedAt != null &&
+            !data.publication.blocked &&
             submitted.operationId === data.publication.id
           ) {
             const publishedAt = new Date().toISOString();
@@ -936,8 +916,7 @@ function HomeEditorImpl({
   // A visibility change moves the public base. Once it activates, read the
   // base again so the editor offers the opposite action.
   const activatedVisibility =
-    publication?.mode === "direct" &&
-    publication.publicationId &&
+    publication?.publicationId &&
     snapshot &&
     canUnpublish(record) &&
     (publication.action === "unpublish" ||
@@ -1004,11 +983,10 @@ function HomeEditorImpl({
       );
     }
     unsupportedPublication =
-      snapshot.publicationMode === "direct" &&
-      ((record.kind === "writing" && metadata.status !== "published") ||
-        (record.kind === "work" &&
-          !["featured", "listed"].includes(String(metadata.public_state))) ||
-        (record.kind === "page" && record.id === "newsletter"));
+      (record.kind === "writing" && metadata.status !== "published") ||
+      (record.kind === "work" &&
+        !["featured", "listed"].includes(String(metadata.public_state))) ||
+      (record.kind === "page" && record.id === "newsletter");
     const configuredSlug = (parsed.data as Record<string, unknown>).slug;
     if (
       record.kind !== "page" &&
@@ -1111,14 +1089,7 @@ function HomeEditorImpl({
     setSaveComparisonError("");
     setSaveComparison(null);
     try {
-      const response = await fetch(endpoint("draft"), {
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!response.ok) {
-        discardBody(response);
-        throw new Error();
-      }
-      const data: { draft: Draft | null } = await response.json();
+      const data = await getJson<{ draft: Draft | null }>(endpoint("draft"));
       if (data.draft === undefined) throw new Error();
       if (isCurrent()) setSaveComparison(data);
     } catch {
@@ -1149,11 +1120,7 @@ function HomeEditorImpl({
       }
       await ensureDraft();
       if (!isCurrent()) return;
-      if (
-        snapshot.publicationMode === "direct" &&
-        record.kind === "writing" &&
-        controller
-      ) {
+      if (record.kind === "writing" && controller) {
         const candidate = prepareWritingPublication(controller.state.source);
         if (candidate !== controller.state.source) {
           controller.edit(candidate);
@@ -1165,8 +1132,7 @@ function HomeEditorImpl({
       // fresh private revision with identical text, never reactivate the old job.
       if (
         publication?.phase === "cancelled" &&
-        (publication.revision === undefined ||
-          publication.revision === controller?.state.revision)
+        publication.revision === controller?.state.revision
       )
         await controller?.checkpoint();
       if (
@@ -1175,22 +1141,19 @@ function HomeEditorImpl({
         controller !== editor.current
       )
         return;
-      let baseline = snapshot.base;
-      if (snapshot.publicationMode === "direct") {
-        const response = await fetch(endpoint("baseline"), {
-          signal: AbortSignal.timeout(15000),
-        });
-        if (!response.ok) {
-          discardBody(response);
-          throw new Error();
-        }
-        baseline = (await response.json()).base;
-        if (!baseline || typeof baseline.source !== "string") throw new Error();
-        if (!isCurrent()) return;
-        setSnapshot((previous) =>
-          previous ? { ...previous, base: baseline } : previous,
-        );
+      const response = await fetch(endpoint("baseline"), {
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!response.ok) {
+        discardBody(response);
+        throw new Error();
       }
+      const baseline: HomeBase | undefined = (await response.json()).base;
+      if (!baseline || typeof baseline.source !== "string") throw new Error();
+      if (!isCurrent()) return;
+      setSnapshot((previous) =>
+        previous ? { ...previous, base: baseline } : previous,
+      );
       const reviewed = captureReviewedDraft(controller?.state ?? null);
       setReviewedBase(baseline);
       setReviewedDraft(reviewed);
@@ -1249,18 +1212,11 @@ function HomeEditorImpl({
     setHistoryError(false);
     try {
       await flush();
-      const response = await fetch(
+      const data = await getJson<
+        Pick<Snapshot, "history" | "nextBeforeRevision">
+      >(
         `${endpoint("history")}${beforeRevision === undefined ? "" : `&beforeRevision=${beforeRevision}`}`,
-        {
-          signal: AbortSignal.timeout(15000),
-        },
       );
-      if (!response.ok) {
-        discardBody(response);
-        throw new Error();
-      }
-      const data: Pick<Snapshot, "history" | "nextBeforeRevision"> =
-        await response.json();
       if (
         request !== historyRequest.current ||
         navigation !== navigationGeneration.current ||
@@ -1302,15 +1258,7 @@ function HomeEditorImpl({
     if (comparisonLoading) return;
     setComparisonLoading(true);
     try {
-      const response = await fetch(endpoint("record"), {
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!response.ok) {
-        discardBody(response);
-        throw new Error();
-      }
-      const data: Snapshot = await response.json();
-      setComparison(data.base);
+      setComparison((await getJson<Snapshot>(endpoint("record"))).base);
       setError("");
     } catch {
       setError("Couldn’t load the current website source. Try again.");
@@ -1326,8 +1274,7 @@ function HomeEditorImpl({
   };
   const reviewedSource = reviewedDraft?.source ?? state.source;
   const reviewCurrent =
-    matchesReviewedDraft(reviewedDraft, state) &&
-    (snapshot.publicationMode !== "direct" || reviewedBase !== null);
+    matchesReviewedDraft(reviewedDraft, state) && reviewedBase !== null;
   const saveStatus = saveStatusFromController(state, {
     discarded: Boolean(snapshot.draft?.discardedAt),
     bodyDirty,
@@ -1336,12 +1283,11 @@ function HomeEditorImpl({
   const publicationActive = Boolean(
     publication &&
     !["live", "cancelled"].includes(publication.phase) &&
-    !(publication.mode === "direct" && publication.publicationId),
+    !publication.publicationId,
   );
   const needsNewPublicationReview =
     publication?.phase === "cancelled" &&
-    (publication.revision === undefined ||
-      publication.revision === state.revision);
+    publication.revision === state.revision;
   const publishUnavailable = uploadPending
     ? "Finish uploading or close the image crop before publishing."
     : localPreview
@@ -1371,8 +1317,7 @@ function HomeEditorImpl({
     typeof snapshot.base.baseFileHash === "string" ||
     Boolean(snapshot.base.publicationId);
   const basePublic = sourceIsPublic(record, snapshot.base.source);
-  const directRecord =
-    snapshot.publicationMode === "direct" && canUnpublish(record) && onWebsite;
+  const directRecord = canUnpublish(record) && onWebsite;
   const hiddenFromSite = directRecord && !basePublic;
   const unpublishAvailable =
     directRecord &&
@@ -1419,8 +1364,6 @@ function HomeEditorImpl({
         const reasons: Record<string, string> = {
           publication_in_progress:
             "A publication for this piece is still in progress. Its status is shown below; let it finish or stop it first.",
-          legacy_publication_requires_reconciliation:
-            "The previous publisher has unfinished work that needs reconciliation first. Nothing was changed.",
           already_hidden: "This is already hidden from the website.",
           baseline_changed:
             "The website changed while you were confirming. Nothing was changed; try again.",
@@ -1450,13 +1393,7 @@ function HomeEditorImpl({
   };
   const publicationControls = publication ? (
     <>
-      {(publication.canCancel ??
-        Boolean(
-          publication.blocked &&
-          ["validate", "commit", "branch", "pr", "checks"].includes(
-            publication.phase,
-          ),
-        )) && (
+      {publication.canCancel && (
         <Button
           label="Stop publishing"
           size="sm"
@@ -1464,12 +1401,10 @@ function HomeEditorImpl({
         />
       )}
       {publication.blocked &&
-        !["publication_base_changed", "record_changed"].includes(
-          publication.blocked,
-        ) && (
+        publication.blocked !== "publication_base_changed" && (
           <Button
             label={
-              publication.mode === "direct" && publication.publicationId
+              publication.publicationId
                 ? "Retry verification"
                 : "Retry publishing"
             }
@@ -1525,7 +1460,9 @@ function HomeEditorImpl({
     }
   }
   const publishNow = async () => {
-    if (publishPending.current || !reviewCurrent || reviewLoading) return;
+    const baseline = reviewedBase;
+    if (publishPending.current || !reviewCurrent || reviewLoading || !baseline)
+      return;
     publishPending.current = true;
     const navigation = navigationGeneration.current;
     const reviewed = reviewedDraft;
@@ -1555,17 +1492,9 @@ function HomeEditorImpl({
           expectedRevision: current.revision,
           operationId: publishRequest.current.id,
           discloseSource: true,
-          ...(snapshot.publicationMode === "direct" && reviewedBase
-            ? {
-                reviewedSourceSha256: await publicationSourceHash(
-                  current.source,
-                ),
-                expectedBaselineSha256: await publicationSourceHash(
-                  reviewedBase.source,
-                ),
-                expectedPublicationId: reviewedBase.publicationId ?? null,
-              }
-            : {}),
+          reviewedSourceSha256: await publicationSourceHash(current.source),
+          expectedBaselineSha256: await publicationSourceHash(baseline.source),
+          expectedPublicationId: baseline.publicationId ?? null,
         },
         () =>
           navigation === navigationGeneration.current &&
@@ -1576,8 +1505,6 @@ function HomeEditorImpl({
         const reasons: Record<string, string> = {
           publication_in_progress:
             "This record already has a publication in progress. Its current status is shown below; retry or stop that operation before publishing another revision.",
-          legacy_publication_requires_reconciliation:
-            "The previous publisher has unfinished work that needs reconciliation before the new publisher can start. Your draft is saved privately.",
           revision_conflict:
             "The saved draft changed. Review the latest revision before publishing.",
           publication_review_upgrade_required:
@@ -2599,7 +2526,6 @@ function HomeEditorImpl({
               parseable && (
                 <ArticleSettings
                   disclosure={false}
-                  publicationMode={snapshot.publicationMode}
                   errors={fieldErrors}
                   source={state.source}
                   id={record.id}
@@ -2613,7 +2539,6 @@ function HomeEditorImpl({
                 source={state.source}
                 errors={fieldErrors}
                 disabled={discarded}
-                publicationMode={snapshot.publicationMode}
                 onChange={(source) => editor.current!.edit(source)}
               />
             )}

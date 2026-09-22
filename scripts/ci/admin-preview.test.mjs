@@ -5,10 +5,6 @@ import { readFileSync } from "node:fs";
 
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const previewSource = readFileSync("scripts/admin/admin-preview.mjs", "utf8");
-const passkeySource = readFileSync(
-  "apps/admin/src/lib/passkey-auth.ts",
-  "utf8",
-);
 const agentGuide = readFileSync("AGENTS.md", "utf8");
 const previewGuide = readFileSync(
   "docs/local-admin-preview-thread-prompt.md",
@@ -86,16 +82,6 @@ for (const value of ["", "0", "yes"]) {
     `ADMIN_LOCAL_OWNER=${JSON.stringify(value)} must not reach the preview`,
   );
 }
-
-assert.ok(
-  passkeySource.includes("isLoopbackDevOrigin"),
-  "passkey auth must recognize the canonical loopback preview",
-);
-assert.equal(
-  passkeySource.includes('const LOCAL_ORIGIN = "http://localhost:3001"'),
-  false,
-  "passkey auth must not pin local development to one port",
-);
 
 for (const source of [agentGuide, previewGuide]) {
   assert.ok(

@@ -201,7 +201,7 @@ const adminReceipt = await smokeRelease({
 });
 assert.ok(adminReceipt.checks.every((check) => check.status === 302));
 
-const publicPasskeyReceipt = await smokeRelease({
+const publicAuthReceipt = await smokeRelease({
   target: "admin",
   baseUrl: "https://admin.example.test",
   expectedSha,
@@ -214,12 +214,11 @@ const publicPasskeyReceipt = await smokeRelease({
         schema_version: "0042",
       });
     }
-    return response(url.endsWith("/auth/passkey") ? 200 : 302);
+    return response(url.endsWith("/auth") ? 200 : 302);
   },
 });
 assert.equal(
-  publicPasskeyReceipt.checks.find((check) => check.path === "/auth/passkey")
-    ?.status,
+  publicAuthReceipt.checks.find((check) => check.path === "/auth")?.status,
   200,
 );
 

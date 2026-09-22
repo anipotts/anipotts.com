@@ -13,13 +13,11 @@ import type { AdminSearchResult } from "../data/admin-search";
 
 type Props = {
   title: string;
-  deck?: string;
-  hideHeader?: boolean;
   /** Content the page already read, for the palette to search. */
   searchEntries?: AdminSearchResult[];
 };
 
-const { title, deck = "", hideHeader = false, searchEntries } = Astro.props;
+const { title, searchEntries } = Astro.props;
 const initialMode = initialAdminTheme(
   Astro.url.searchParams.get("theme"),
   Astro.cookies.get("ap-theme")?.value,
@@ -38,8 +36,6 @@ const localOwner =
     localOwner={localOwner}
     initialMode={initialMode}
     currentRoute={currentRoute}
-    deck={deck}
-    hideHeader={hideHeader}
     searchEntries={searchEntries}
     title={title}
   >

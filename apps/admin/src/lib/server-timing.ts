@@ -17,13 +17,11 @@ export const SERVER_TIMING_METRICS = {
   inventory: "duration",
   record: "duration",
   newsletter: "duration",
-  operations: "duration",
-  life: "duration",
   d1: "duration",
   d1q: "count",
 } as const;
 
-export type ServerTimingMetric = keyof typeof SERVER_TIMING_METRICS;
+type ServerTimingMetric = keyof typeof SERVER_TIMING_METRICS;
 export type ServerTimingDuration = {
   [
     K in ServerTimingMetric

@@ -9,7 +9,7 @@ import {
   PRIVATE_READER_ORIGIN,
   PRIVATE_READER_ROUTES,
   PrivateReaderError,
-  createPrivateLifeReader,
+  createPrivateDataReader,
   privateReaderPath,
   readerFetch,
 } from "./private-reader-fetch";
@@ -378,7 +378,7 @@ describe("private reader contract", () => {
     const cases: [
       number,
       string,
-      Parameters<ReturnType<typeof createPrivateLifeReader>>[0],
+      Parameters<ReturnType<typeof createPrivateDataReader>>[0],
     ][] = [
       [400, "invalid", { method: "status" }],
       [403, "denied", { method: "status" }],
@@ -392,7 +392,7 @@ describe("private reader contract", () => {
       );
       const session = makeSession(fetcher);
       await session.start();
-      const result = await createPrivateLifeReader(session, {
+      const result = await createPrivateDataReader(session, {
         fetch: fetcher,
       })(request);
       expect(result.state, `HTTP ${status}`).toBe(state);
@@ -455,7 +455,7 @@ describe("System reader bounds", () => {
     const { fetcher, calls } = network();
     const session = makeSession(fetcher);
     await session.start();
-    const reader = createPrivateLifeReader(session, { fetch: fetcher });
+    const reader = createPrivateDataReader(session, { fetch: fetcher });
     const result = await reader({ method: "get", id: "rec-fixture" });
     expect(result.state).toBe("invalid");
     await expect(

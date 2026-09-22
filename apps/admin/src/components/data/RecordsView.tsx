@@ -20,12 +20,12 @@ import {
   EyeIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { nextLifeOffset, type LifeResult } from "../../data/personal-context";
+import { nextDataOffset, type DataResult } from "../../data/personal-context";
 import {
-  LifeReadSession,
-  appendLifeBody,
-  type LifeReader,
-} from "../../lib/life-read-session";
+  DataReadSession,
+  appendDataBody,
+  type DataReader,
+} from "../../lib/data-read-session";
 import {
   DATA_KINDS,
   dataKind,
@@ -59,7 +59,7 @@ import {
 import { ReadNotice, type DataNavigate } from "./DataNotices";
 import { provideSearchEntries } from "../../lib/admin-search-index";
 
-type Failure = Exclude<LifeResult, { state: "ready" }>;
+type Failure = Exclude<DataResult, { state: "ready" }>;
 
 /** A source's tile and short name, with its id as the tooltip. */
 export function SourceName({
@@ -520,10 +520,10 @@ export function RecordDetail({
   );
 }
 
-function pageAfter(result: LifeResult, offset: number): number | null {
+function pageAfter(result: DataResult, offset: number): number | null {
   if (result.state !== "ready") return null;
   try {
-    return nextLifeOffset(result.data.next_offset, offset);
+    return nextDataOffset(result.data.next_offset, offset);
   } catch {
     return null;
   }
@@ -547,7 +547,7 @@ export function RecordsExplorer({
   split,
   onCount,
 }: {
-  reader: LifeReader;
+  reader: DataReader;
   route: RecordsRoute;
   navigate: DataNavigate;
   split: boolean;
@@ -570,7 +570,7 @@ export function RecordsExplorer({
               return {
                 id: `data:record:${item.id}`,
                 label: item.title ?? "Untitled",
-                domain: "life" as const,
+                domain: "data" as const,
                 kind: "record",
                 currentFact: kindName,
                 source: item.source ?? "",
@@ -589,8 +589,8 @@ export function RecordsExplorer({
   const [detailBusy, setDetailBusy] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [moreFailed, setMoreFailed] = useState(false);
-  const listSession = useRef(new LifeReadSession());
-  const detailSession = useRef(new LifeReadSession());
+  const listSession = useRef(new DataReadSession());
+  const detailSession = useRef(new DataReadSession());
   const reads = useRef(0);
   const loaded = useRef<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -608,7 +608,7 @@ export function RecordsExplorer({
     let total: number | null = null;
     let pages = 0;
     do {
-      const result: LifeResult | null = await listSession.current.run(reader, {
+      const result: DataResult | null = await listSession.current.run(reader, {
         method: "search",
         q: search.q,
         offset,
@@ -683,7 +683,7 @@ export function RecordsExplorer({
     setDetailBusy(false);
     try {
       if (next.state !== "ready") throw new Error("unreadable");
-      setRecord(parseRecord(appendLifeBody(current.raw, next.data)));
+      setRecord(parseRecord(appendDataBody(current.raw, next.data)));
     } catch {
       setMoreFailed(true);
     }

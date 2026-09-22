@@ -16,14 +16,7 @@ vi.mock("./editorial-security", () => ({
   privateJson: (body: unknown, status: number) =>
     Response.json(body, { status }),
 }));
-vi.mock("./admin-auth", () => ({
-  resolveAdminSession: vi.fn(async () => ({ principal: null, setCookies: [] })),
-  applyAdminSetCookies: (response: Response) => response,
-  adminJson: (body: unknown, init: ResponseInit) => Response.json(body, init),
-  sanitizeAdminReturnPath: () => "/",
-}));
 import { onRequest } from "../middleware";
-import { resolveAdminSession } from "./admin-auth";
 import {
   retainedAccessPrincipal,
   verifyEditorialOwner,
@@ -98,7 +91,7 @@ describe("middleware without the build-time flag", () => {
     expect(api.response.status).toBe(401);
     expect(api.next).not.toHaveBeenCalled();
     expect(api.locals.adminPrincipal).toBeUndefined();
-    expect(resolveAdminSession).toHaveBeenCalledTimes(1);
+    expect(retainedAccessPrincipal).toHaveBeenCalledTimes(1);
 
     const record = await dispatch(
       "http://localhost:4321/content/writing/example",
@@ -196,7 +189,7 @@ describe("local owner framing policy", () => {
 describe("middleware with the build-time flag", () => {
   beforeEach(() => vi.stubGlobal("__LOCAL_OWNER_BUILD__", true));
 
-  it("serves a loopback API write as the synthetic owner without native auth", async () => {
+  it("serves a loopback API write as the synthetic owner without Access", async () => {
     const { response, next, locals } = await dispatch(
       "http://127.0.0.1:8787/api/admin/inbox",
       { method: "POST", headers: { origin: "http://127.0.0.1:8787" } },
@@ -206,7 +199,6 @@ describe("middleware with the build-time flag", () => {
     expect(locals.adminPrincipal).toEqual(localOwnerPrincipal());
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(retainedAccessPrincipal).not.toHaveBeenCalled();
-    expect(resolveAdminSession).not.toHaveBeenCalled();
   });
 
   it("opens a record editor on a loopback dev server without Access", async () => {
@@ -241,9 +233,14 @@ describe("middleware with the build-time flag", () => {
     expect(locals.adminPrincipal).toBeUndefined();
   });
 
-  it("leaves public auth paths on the native flow", async () => {
-    await dispatch("http://localhost:4321/auth");
-    expect(resolveAdminSession).toHaveBeenCalledTimes(1);
+  it("serves the public sign-in page without attaching an identity", async () => {
+    const { response, next, locals } = await dispatch(
+      "http://localhost:4321/auth",
+    );
+    expect(response.status).toBe(200);
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(locals.adminPrincipal).toBeUndefined();
+    expect(retainedAccessPrincipal).not.toHaveBeenCalled();
   });
 
   it.each([

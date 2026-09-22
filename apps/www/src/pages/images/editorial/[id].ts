@@ -11,7 +11,6 @@ import {
 export const prerender = false;
 export const GET: APIRoute = async ({ params, locals, request }) => {
   const context = publicContentContext(locals);
-  if (!context.cms) return locals.runtime.env.ASSETS.fetch(request);
   const id = params.id ?? "";
   if (!publicMediaId.test(id))
     return new Response("Not found", { status: 404 });

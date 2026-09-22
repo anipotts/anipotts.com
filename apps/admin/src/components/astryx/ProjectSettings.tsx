@@ -32,13 +32,11 @@ export function ProjectSettings({
   source,
   errors,
   disabled,
-  publicationMode,
   onChange,
 }: {
   source: string;
   errors: Map<string, string>;
   disabled?: boolean;
-  publicationMode?: "legacy" | "maintenance" | "direct";
   onChange: (source: string) => void;
 }) {
   const data = parseEditorialSource(source).data as Record<string, unknown>;
@@ -81,10 +79,8 @@ export function ProjectSettings({
             value,
             label:
               labels[value] ?? value.charAt(0).toUpperCase() + value.slice(1),
-            disabled:
-              key === "public_state" &&
-              value === "hidden" &&
-              publicationMode === "direct",
+            // Taking a project down is its own reviewed action (Unpublish).
+            disabled: key === "public_state" && value === "hidden",
           }))}
           onChange={(value) => update(key, value)}
         />

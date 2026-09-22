@@ -3,8 +3,8 @@ import { safeReturnPath } from "./editorial-return-path";
 
 export const workspaces = {
   content: { label: "Content", href: "/content/pages" },
-  operations: { label: "Observability", href: "/observability/status" },
-  life: { label: "Data", href: "/data/records" },
+  observability: { label: "Observability", href: "/observability/status" },
+  data: { label: "Data", href: "/data/records" },
 } as const;
 export type Workspace = keyof typeof workspaces;
 
@@ -18,7 +18,7 @@ export function workspaceReturnPath(
   const url = safeReturnPath(value);
   if (!url) return fallback;
   const path = url.pathname;
-  if (workspace === "life") {
+  if (workspace === "data") {
     if (!/^\/data\/(?:records|sources|health|knowledge)$/.test(path))
       return fallback;
     // The kind filter is a view, not a record identity.

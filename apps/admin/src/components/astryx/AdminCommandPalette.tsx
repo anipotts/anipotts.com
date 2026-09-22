@@ -67,7 +67,7 @@ const KIND_GLYPHS: Readonly<Record<string, Icon>> = {
 const GROUPS: Readonly<Record<string, string>> = {
   navigation: "Go to",
   content: "Content",
-  life: "Data",
+  data: "Data",
   system: "Observability",
 };
 

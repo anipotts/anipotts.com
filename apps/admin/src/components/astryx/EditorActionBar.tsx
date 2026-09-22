@@ -11,7 +11,7 @@ import { CaretLeftIcon, DotsThreeIcon, EyeIcon } from "@phosphor-icons/react";
 import { below } from "../../lib/breakpoints";
 import { SaveStatus, type SaveStatusState } from "./SaveStatus";
 
-export type EditorMenuItem = {
+type EditorMenuItem = {
   label: string;
   onClick: () => void;
   isDisabled?: boolean;

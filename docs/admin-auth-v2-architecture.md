@@ -2,9 +2,11 @@
 
 Date: 2026-07-31
 
-Status: implemented and locally verified behind Cloudflare Access. The additive
-D1 migration, production deployment, provider configuration, live ceremonies,
-and Access removal have not run.
+Status: retired 2026-09-22. Cloudflare Access with the exact-owner check is the
+only Admin sign-in. The passkey, password, invite, recovery, device, machine
+token and native session code this describes was removed and is recoverable
+from the `archive/admin-retired-auth-2026-09-22` tag. Its D1 tables and
+migrations stay in place. The rest of this document is historical.
 
 ## decision
 

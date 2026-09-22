@@ -7,7 +7,6 @@ import { PUBLIC_SMOKE_ROUTES } from "./public-route-inventory.mjs";
 const deployWorkflow = readFileSync(".github/workflows/deploy.yml", "utf8");
 const smokeWorkflow = readFileSync(".github/workflows/smoke.yml", "utf8");
 const releaseSmoke = readFileSync("scripts/ci/release-smoke.mjs", "utf8");
-const contentProof = readFileSync("scripts/admin/content-proof.mjs", "utf8");
 
 assert.ok(PUBLIC_SMOKE_ROUTES.includes("/"));
 assert.equal(PUBLIC_SMOKE_ROUTES.includes("/newsletter"), false);
@@ -28,31 +27,6 @@ assert.ok(
   "release smoke must import the canonical public route inventory",
 );
 
-assert.ok(
-  contentProof.includes(
-    'import { PUBLIC_SMOKE_ROUTES } from "../ci/public-route-inventory.mjs";',
-  ),
-  "content-proof must import shared public smoke routes",
-);
-assert.ok(
-  contentProof.includes("const PUBLIC_ROUTES = PUBLIC_SMOKE_ROUTES;"),
-  "content-proof must probe the shared public smoke route set",
-);
-
 assert.ok(releaseSmoke.includes("healthAttempts = 6"));
 assert.ok(releaseSmoke.includes("retryDelayMs = 10_000"));
 assert.ok(releaseSmoke.includes("health.release_sha === expectedSha"));
-
-for (const marker of [
-  'method: "HEAD"',
-  "runD1(`",
-  "publishedEventRoutes",
-  "UNPUBLISHED_PUBLIC_ROUTES",
-  "publishedEventRouteChecks",
-  "unpublishedPublicRouteChecks",
-]) {
-  assert.ok(
-    contentProof.includes(marker),
-    `content-proof must retain ${marker}`,
-  );
-}

@@ -1,7 +1,7 @@
 export type PreviewStatus =
   "ready" | "unavailable" | "stale" | "invalid-source" | "source-only";
 export const previewStatusType = "editorial-preview-status";
-export function previewRequest(url: URL): string {
+function previewRequest(url: URL): string {
   const value = url.searchParams.get("previewRequest") ?? "";
   return value.length <= 4096 ? value : "";
 }

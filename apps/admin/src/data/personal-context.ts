@@ -1,14 +1,14 @@
 import { PersonalContextHttpError } from "./personal-context-http";
-import { applyActivityPage, emptyActivity } from "../lib/life-activity";
+import { applyActivityPage, emptyActivity } from "../lib/data-activity";
 import { READER_KINDS, type ReaderKind } from "../lib/data-routes";
 /** Transport-neutral reads. Wiring a private transport requires separate access approval. */
-export const LIFE_DEFAULTS = {
+export const DATA_READ_DEFAULTS = {
   mode: "lookup",
   budget: 3000,
   recent_days: 7,
   limit: 30,
 } as const;
-export type LifeRead =
+export type DataRead =
   | { method: "status" }
   | { method: "sources"; offset?: number }
   | {
@@ -21,7 +21,7 @@ export type LifeRead =
   | { method: "get"; id: string; body_offset?: number }
   | { method: "preview"; q: string }
   | { method: "activity"; after?: number };
-export type LifeResult =
+export type DataResult =
   | {
       state: "ready";
       scope: "agent" | "owner";
@@ -34,19 +34,19 @@ export type LifeResult =
         "disconnected" | "unavailable" | "denied" | "invalid" | "not_found";
       message: string;
     };
-export type LifeTransport = {
+export type DataTransport = {
   protocol?: "personal_context_data_v1" | "personal_context_observability_v1";
   scope: "agent" | "owner";
   /**
    * Maps a validated read to this transport's route. Defaults to the loopback
    * owner browser's `/api/*` shape. Throwing means the read is unsupported.
    */
-  path?: (request: LifeRead) => string;
+  path?: (request: DataRead) => string;
   /** Enforce the byte cap while reading, before decoding an untrusted body. */
   read: (path: string, signal: AbortSignal) => Promise<unknown>;
 };
 async function readWithDeadline(
-  transport: LifeTransport,
+  transport: DataTransport,
   path: string,
   parent?: AbortSignal,
 ) {
@@ -74,7 +74,7 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 const isCursor = (value: unknown) =>
   typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-export function nextLifeOffset(value: unknown, current = 0): number | null {
+export function nextDataOffset(value: unknown, current = 0): number | null {
   if (value === null) return null;
   if (
     !isCursor(value) ||
@@ -85,7 +85,7 @@ export function nextLifeOffset(value: unknown, current = 0): number | null {
   return Number(value);
 }
 function validResponse(
-  request: LifeRead,
+  request: DataRead,
   data: Record<string, unknown>,
   versioned = false,
 ): boolean {
@@ -155,7 +155,7 @@ const query = (value: string) => {
     throw new Error("Invalid query");
   return value;
 };
-export function lifeReadPath(request: LifeRead): string {
+export function dataReadPath(request: DataRead): string {
   const params = new URLSearchParams();
   let path: string = request.method;
   switch (request.method) {
@@ -166,12 +166,12 @@ export function lifeReadPath(request: LifeRead): string {
           throw new Error("Invalid kind");
         params.set("kind", request.kind);
       }
-      params.set("limit", String(LIFE_DEFAULTS.limit));
+      params.set("limit", String(DATA_READ_DEFAULTS.limit));
       params.set("offset", String(integer(request.offset)));
       break;
     case "timeline":
       if (request.entity_id) params.set("entity_id", query(request.entity_id));
-      params.set("limit", String(LIFE_DEFAULTS.limit));
+      params.set("limit", String(DATA_READ_DEFAULTS.limit));
       params.set("offset", String(integer(request.offset)));
       break;
     case "get":
@@ -183,16 +183,16 @@ export function lifeReadPath(request: LifeRead): string {
       break;
     case "preview":
       params.set("q", query(request.q));
-      params.set("mode", LIFE_DEFAULTS.mode);
-      params.set("budget", String(LIFE_DEFAULTS.budget));
-      params.set("recent_days", String(LIFE_DEFAULTS.recent_days));
+      params.set("mode", DATA_READ_DEFAULTS.mode);
+      params.set("budget", String(DATA_READ_DEFAULTS.budget));
+      params.set("recent_days", String(DATA_READ_DEFAULTS.recent_days));
       break;
     case "activity":
       params.set("after", String(integer(request.after)));
       params.set("limit", "100");
       break;
     case "sources":
-      params.set("limit", String(LIFE_DEFAULTS.limit));
+      params.set("limit", String(DATA_READ_DEFAULTS.limit));
       params.set("offset", String(integer(request.offset)));
       break;
     case "status":
@@ -203,13 +203,13 @@ export function lifeReadPath(request: LifeRead): string {
   return `/api/${path}${params.size ? `?${params}` : ""}`;
 }
 export async function readPersonalContext(
-  request: LifeRead,
-  transport?: LifeTransport,
+  request: DataRead,
+  transport?: DataTransport,
   signal?: AbortSignal,
-): Promise<LifeResult> {
+): Promise<DataResult> {
   let path: string;
   try {
-    path = lifeReadPath(request);
+    path = dataReadPath(request);
   } catch {
     return {
       state: "invalid",

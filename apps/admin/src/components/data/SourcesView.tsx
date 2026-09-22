@@ -3,8 +3,8 @@ import { Button } from "@astryxdesign/core/Button";
 import { HStack } from "@astryxdesign/core/HStack";
 import { VStack } from "@astryxdesign/core/VStack";
 import { RowsIcon, StackSimpleIcon } from "@phosphor-icons/react";
-import { nextLifeOffset, type LifeResult } from "../../data/personal-context";
-import { LifeReadSession, type LifeReader } from "../../lib/life-read-session";
+import { nextDataOffset, type DataResult } from "../../data/personal-context";
+import { DataReadSession, type DataReader } from "../../lib/data-read-session";
 import { dataRecordsHref, dataSource } from "../../lib/data-routes";
 import type { CardSet, CardsView, DataCard } from "../../lib/data-extras";
 import { BrandTile } from "../BrandTile";
@@ -27,7 +27,7 @@ import {
 import { ReadNotice } from "./DataNotices";
 import { SourceName } from "./RecordsView";
 
-type Failure = Exclude<LifeResult, { state: "ready" }>;
+type Failure = Exclude<DataResult, { state: "ready" }>;
 
 /** A source's counts as glyph and number pairs, named in full for
  * assistive technology. */
@@ -52,7 +52,7 @@ export function SourcesExplorer({
   reader,
   onCount,
 }: {
-  reader: LifeReader;
+  reader: DataReader;
   onCount?: (count: number | undefined) => void;
 }) {
   const [items, setItems] = useState<DataSourceRow[] | null>(null);
@@ -60,7 +60,7 @@ export function SourcesExplorer({
   const [total, setTotal] = useState<number | undefined>(undefined);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [busy, setBusy] = useState(false);
-  const session = useRef(new LifeReadSession());
+  const session = useRef(new DataReadSession());
   async function read(offset: number) {
     setBusy(true);
     const result = await session.current.run(reader, {
@@ -83,7 +83,7 @@ export function SourcesExplorer({
       typeof result.data.total === "number" ? result.data.total : undefined,
     );
     try {
-      setNext(nextLifeOffset(result.data.next_offset, offset));
+      setNext(nextDataOffset(result.data.next_offset, offset));
     } catch {
       setNext(null);
     }

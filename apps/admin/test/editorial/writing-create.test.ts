@@ -46,7 +46,7 @@ describe("create writing with durable storage", () => {
         },
       });
     }
-    expect(await storage.latestPublication(record)).toBeNull();
+    expect(await storage.latestDirectPublication(record)).toBeNull();
     expect((await storage.history(record)).length).toBe(1);
     const collision = await homeEditorApi(
       request({ ...input, title: "Overwrite", requestId: crypto.randomUUID() }),

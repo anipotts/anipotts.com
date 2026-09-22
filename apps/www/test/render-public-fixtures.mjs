@@ -1,5 +1,7 @@
-/** Capture the actual built Worker in legacy/default mode. These are test artifacts,
- * never deployed static fallbacks. Linked assets retain existing HTML/CSS guards. */
+/** Capture the actual built Worker as deployed (CONTENT_RUNTIME "cms") over an
+ * empty synthetic content store, so every route renders the bundled Git
+ * defaults. These are test artifacts, never deployed static fallbacks. Linked
+ * assets retain existing HTML/CSS guards. */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import {
@@ -15,6 +17,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { buildDir, renderedDir, serve } from "./worker-runtime.mjs";
+import { contentDatabase, contentEnv } from "./content-database.mjs";
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const content = join(root, "content/public");
 function routes(kind, prefix, visible) {
@@ -54,9 +57,11 @@ function linkAssets(from, into) {
   }
 }
 linkAssets(buildDir, renderedDir);
+const env = contentEnv(contentDatabase());
 for (const path of paths) {
-  const response = await serve(path);
+  const response = await serve(path, env);
   assert.equal(response.status, 200, `render ${path}`);
+  assert.equal(response.headers.get("x-content-version"), "0", path);
   const name =
     path === "/"
       ? "index.html"

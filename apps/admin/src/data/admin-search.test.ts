@@ -5,7 +5,7 @@ const rows: AdminSearchResult[] = [
   {
     id: "person:ani",
     label: "Ani Potts",
-    domain: "people",
+    domain: "data",
     kind: "person",
     currentFact: "owner of the current work",
     source: "brain",
@@ -16,7 +16,7 @@ const rows: AdminSearchResult[] = [
   {
     id: "work:site",
     label: "chief/site",
-    domain: "work",
+    domain: "system",
     kind: "working",
     currentFact: "finish the quiet admin console",
     source: "codex",

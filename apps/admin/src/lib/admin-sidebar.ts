@@ -44,15 +44,15 @@ export function sidebarRail(
 
 /** The unified sidebar's groups, in the order they are shown. The ids are the
  * workspace ids; the labels live in `workspaces`. */
-const SIDEBAR_GROUP_IDS = ["content", "life", "operations"] as const;
+const SIDEBAR_GROUP_IDS = ["content", "data", "observability"] as const;
 export type SidebarGroupId = (typeof SIDEBAR_GROUP_IDS)[number];
 export type SidebarGroupsCollapsed = Record<SidebarGroupId, boolean>;
 /** Per-viewer preference: which groups the viewer closed. */
 export const SIDEBAR_GROUPS_KEY = "admin:sidebar-groups";
 export const ALL_GROUPS_OPEN: SidebarGroupsCollapsed = {
   content: false,
-  life: false,
-  operations: false,
+  data: false,
+  observability: false,
 };
 
 /** The workspace that owns a path, or null for the overview and anything
@@ -60,10 +60,19 @@ export const ALL_GROUPS_OPEN: SidebarGroupsCollapsed = {
  * forced open and the accent is the editorial theme's own. */
 export function workspaceForPath(pathname: string): SidebarGroupId | null {
   if (/^\/(?:content|newsletter)(?:\/|$)/.test(pathname)) return "content";
-  if (/^\/data(?:\/|$)/.test(pathname)) return "life";
-  if (/^\/observability(?:\/|$)/.test(pathname)) return "operations";
+  if (/^\/data(?:\/|$)/.test(pathname)) return "data";
+  if (/^\/observability(?:\/|$)/.test(pathname)) return "observability";
   return null;
 }
+
+/** The ids a choice saved before Life and Operations became Data and
+ * Observability used. Read only when the current id is absent; the next toggle
+ * saves the current ids alone. */
+const EARLIER_GROUP_IDS: Record<SidebarGroupId, string> = {
+  content: "content",
+  data: "life",
+  observability: "operations",
+};
 
 /** The saved choice, with the active page's group always open. */
 export function sidebarGroupsState(
@@ -73,9 +82,12 @@ export function sidebarGroupsState(
   const state = { ...ALL_GROUPS_OPEN };
   try {
     const saved: unknown = raw ? JSON.parse(raw) : null;
-    if (saved && typeof saved === "object")
+    if (saved && typeof saved === "object") {
+      const choice = saved as Record<string, unknown>;
       for (const id of SIDEBAR_GROUP_IDS)
-        state[id] = (saved as Record<string, unknown>)[id] === true;
+        state[id] =
+          (id in choice ? choice[id] : choice[EARLIER_GROUP_IDS[id]]) === true;
+    }
   } catch {
     /* A malformed preference opens every group. */
   }
@@ -121,8 +133,8 @@ export function prepaintAdminSidebar() {
   document.documentElement.dataset.adminSidebar = rail ? "rail" : "full";
   // Groups the viewer closed, except the active page's group, which always
   // opens. CSS holds these closed until the sidebar hydrates, so a saved
-  // choice never shifts the page. Keep in step with sidebarGroupsState and
-  // workspaceForPath.
+  // choice never shifts the page. Keep in step with sidebarGroupsState,
+  // EARLIER_GROUP_IDS and workspaceForPath.
   let closed = "";
   try {
     const raw = localStorage.getItem("admin:sidebar-groups");
@@ -131,14 +143,20 @@ export function prepaintAdminSidebar() {
     const active = /^\/(?:content|newsletter)(?:\/|$)/.test(path)
       ? "content"
       : /^\/data(?:\/|$)/.test(path)
-        ? "life"
+        ? "data"
         : /^\/observability(?:\/|$)/.test(path)
-          ? "operations"
+          ? "observability"
           : "";
     if (saved && typeof saved === "object")
-      for (const id of ["content", "life", "operations"])
-        if (id !== active && saved[id] === true)
+      for (const id of ["content", "data", "observability"]) {
+        const earlier =
+          id === "data" ? "life" : id === "observability" ? "operations" : id;
+        if (
+          id !== active &&
+          (id in saved ? saved[id] : saved[earlier]) === true
+        )
           closed = closed ? `${closed} ${id}` : id;
+      }
   } catch {
     closed = "";
   }

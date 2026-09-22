@@ -76,7 +76,7 @@ describe("unified sidebar", () => {
   });
 
   it("marks only the active page with aria-current", () => {
-    render("life", "sources");
+    render("data", "sources");
     const current = host.querySelectorAll('[aria-current="page"]');
     expect(current).toHaveLength(1);
     expect(current[0]?.getAttribute("href")).toBe("/data/sources");
@@ -84,62 +84,64 @@ describe("unified sidebar", () => {
 
   it("saves each group's open state and always opens the active page's group", () => {
     render();
-    act(() => heading("life").click());
-    expect(heading("life").getAttribute("aria-expanded")).toBe("false");
+    act(() => heading("data").click());
+    expect(heading("data").getAttribute("aria-expanded")).toBe("false");
     expect(JSON.parse(localStorage.getItem("admin:sidebar-groups")!)).toEqual({
       content: false,
-      life: true,
-      operations: false,
+      data: true,
+      observability: false,
     });
     act(() => root.unmount());
     root = createRoot(host);
     render("content");
-    expect(heading("life").getAttribute("aria-expanded")).toBe("false");
+    expect(heading("data").getAttribute("aria-expanded")).toBe("false");
     act(() => root.unmount());
     root = createRoot(host);
-    render("life", "records");
-    expect(heading("life").getAttribute("aria-expanded")).toBe("true");
+    render("data", "records");
+    expect(heading("data").getAttribute("aria-expanded")).toBe("true");
   });
 
   it("drops the prepaint hold once React owns the state", () => {
-    localStorage.setItem("admin:sidebar-groups", '{"operations":true}');
-    document.documentElement.dataset.adminNavClosed = "operations";
+    localStorage.setItem("admin:sidebar-groups", '{"observability":true}');
+    document.documentElement.dataset.adminNavClosed = "observability";
     render();
     expect(document.documentElement.dataset.adminNavClosed).toBeUndefined();
-    expect(heading("operations").getAttribute("aria-expanded")).toBe("false");
+    expect(heading("observability").getAttribute("aria-expanded")).toBe(
+      "false",
+    );
   });
 
   it("moves with the arrow keys, skipping pages in closed groups", () => {
-    localStorage.setItem("admin:sidebar-groups", '{"life":true}');
+    localStorage.setItem("admin:sidebar-groups", '{"data":true}');
     render();
     page("content:newsletter").focus();
     key(document.activeElement!, "ArrowDown");
-    expect(document.activeElement).toBe(heading("life"));
+    expect(document.activeElement).toBe(heading("data"));
     key(document.activeElement!, "ArrowDown");
-    expect(document.activeElement).toBe(heading("operations"));
+    expect(document.activeElement).toBe(heading("observability"));
     key(document.activeElement!, "ArrowUp");
-    expect(document.activeElement).toBe(heading("life"));
+    expect(document.activeElement).toBe(heading("data"));
     // Right opens a closed group, then enters it.
     key(document.activeElement!, "ArrowRight");
-    expect(heading("life").getAttribute("aria-expanded")).toBe("true");
+    expect(heading("data").getAttribute("aria-expanded")).toBe("true");
     key(document.activeElement!, "ArrowRight");
-    expect(document.activeElement).toBe(page("life:records"));
+    expect(document.activeElement).toBe(page("data:records"));
     // Left returns to the heading, then closes the group.
     key(document.activeElement!, "ArrowLeft");
-    expect(document.activeElement).toBe(heading("life"));
+    expect(document.activeElement).toBe(heading("data"));
     key(document.activeElement!, "ArrowLeft");
-    expect(heading("life").getAttribute("aria-expanded")).toBe("false");
+    expect(heading("data").getAttribute("aria-expanded")).toBe("false");
     key(document.activeElement!, "Home");
     expect(document.activeElement).toBe(page("overview"));
     key(document.activeElement!, "ArrowDown");
     expect(document.activeElement).toBe(heading("content"));
     key(document.activeElement!, "End");
-    expect(document.activeElement).toBe(page("operations:alerts"));
+    expect(document.activeElement).toBe(page("observability:alerts"));
   });
 
   it("returns focus to the page opened from the keyboard", () => {
     render();
-    const link = page("life:sources");
+    const link = page("data:sources");
     link.addEventListener("click", (event) => event.preventDefault());
     // Keyboard activation reaches a link as a click with detail 0.
     act(() => {
@@ -147,17 +149,17 @@ describe("unified sidebar", () => {
         new MouseEvent("click", { bubbles: true, cancelable: true, detail: 0 }),
       );
     });
-    expect(sessionStorage.getItem("admin:sidebar-focus")).toBe("life:sources");
+    expect(sessionStorage.getItem("admin:sidebar-focus")).toBe("data:sources");
     act(() => root.unmount());
     root = createRoot(host);
-    render("life", "sources");
-    expect(document.activeElement).toBe(page("life:sources"));
+    render("data", "sources");
+    expect(document.activeElement).toBe(page("data:sources"));
     expect(sessionStorage.getItem("admin:sidebar-focus")).toBeNull();
   });
 
   it("leaves pointer navigation to the browser", () => {
     render();
-    const link = page("life:sources");
+    const link = page("data:sources");
     link.addEventListener("click", (event) => event.preventDefault());
     act(() => {
       link.dispatchEvent(
@@ -169,7 +171,7 @@ describe("unified sidebar", () => {
 
   it("shows the rail as unlabeled runs of icons", () => {
     host.innerHTML = renderToStaticMarkup(
-      <UnifiedNavigation rail activeGroup="operations" selected="alerts" />,
+      <UnifiedNavigation rail activeGroup="observability" selected="alerts" />,
     );
     expect(host.querySelectorAll("[data-sidebar-group]")).toHaveLength(0);
     expect(host.querySelectorAll("[data-sidebar-section]")).toHaveLength(3);
