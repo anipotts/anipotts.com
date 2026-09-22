@@ -208,6 +208,16 @@ export function saveTheme(preference: ThemePreference) {
   followCanvas(preference);
 }
 
+/** The theme cookie's value, or undefined without one. */
+function themeCookie(): string | undefined {
+  try {
+    const raw = document.cookie.match(/(?:^|;\s*)ap-theme=([^;]*)/)?.[1];
+    return raw === undefined ? undefined : decodeURIComponent(raw);
+  } catch {
+    return undefined;
+  }
+}
+
 export function savedTheme(): ThemePreference {
   const preference = prepaintAdminTheme();
   const url = new URL(location.href);
@@ -220,6 +230,10 @@ export function savedTheme(): ThemePreference {
     } catch {
       /* Sandboxed preview. */
     }
+  } else if (preference !== "system" && themeCookie() !== preference) {
+    // Storage chose a fixed mode the server cannot read. The cookie lets the
+    // next document render it, theme-color meta included, from the server.
+    saveTheme(preference);
   }
   followCanvas(preference);
   return preference;

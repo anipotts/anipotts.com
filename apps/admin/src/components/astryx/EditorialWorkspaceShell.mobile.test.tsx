@@ -92,7 +92,7 @@ describe("responsive workspace navigation", () => {
       const bar = host.querySelector(".admin-phone-bar")!;
       expect(bar.closest('[role="banner"]')).not.toBeNull();
       expect(bar.querySelector(".admin-bracket-wordmark")?.textContent).toBe(
-        "[admin]",
+        "[A]",
       );
       const announce = vi.fn();
       document.addEventListener("admin:search", announce);
@@ -103,8 +103,9 @@ describe("responsive workspace navigation", () => {
       );
       document.removeEventListener("admin:search", announce);
       expect(announce).toHaveBeenCalledTimes(1);
-      // One tap reaches any workspace, and the current one's pages.
-      const tabs = host.querySelector('nav[aria-label="Workspaces"]')!;
+      // One tap reaches any workspace from the bar, and the current one's
+      // pages from the chips under it.
+      const tabs = bar.querySelector('nav[aria-label="Workspaces"]')!;
       expect(
         [
           ...tabs.querySelectorAll<HTMLAnchorElement>(".admin-phone-workspace"),
@@ -115,29 +116,41 @@ describe("responsive workspace navigation", () => {
         "/observability/status",
       ]);
       expect(
-        [...tabs.querySelectorAll(".admin-phone-page")].map(
-          (chip) => chip.textContent,
-        ),
+        [
+          ...host.querySelectorAll(
+            'nav.admin-phone-pages[aria-label="Content"] .admin-phone-page',
+          ),
+        ].map((chip) => chip.textContent),
       ).toEqual(["Pages", "Writing", "Projects", "Newsletter"]);
     },
   );
   it.each([
-    [390, 1],
-    [1280, 0],
+    [390, 1, 0],
+    [1280, 0, 1],
   ])(
-    "starts a page drawn in place at the top of the document at %ipx",
-    (width, calls) => {
+    "starts a page drawn in place at the top of its scroller at %ipx",
+    (width, documentCalls, mainCalls) => {
       Object.defineProperty(window, "innerWidth", {
         configurable: true,
         value: width,
       });
       const scroll = vi.fn();
       vi.stubGlobal("scrollTo", scroll);
+      const panel = vi.fn();
       render();
+      const main = host.querySelector("#astryx-app-shell-main");
+      if (main)
+        Object.defineProperty(main, "scrollTop", {
+          configurable: true,
+          get: () => 0,
+          set: panel,
+        });
       act(() => {
         window.dispatchEvent(new Event("admin:workspace-navigation"));
       });
-      expect(scroll).toHaveBeenCalledTimes(calls);
+      // The document on phones, main's own panel beside the sidebar.
+      expect(scroll).toHaveBeenCalledTimes(documentCalls);
+      expect(panel).toHaveBeenCalledTimes(mainCalls);
     },
   );
   it.each([390, 640])(

@@ -2,8 +2,10 @@
 import EditorialLayout from "../layouts/EditorialLayout.astro";
 import { DevDataCatalog } from "../components/astryx/dev-data-catalog";
 import { DevReviewCatalog } from "../components/astryx/dev-review-catalog";
+import { DevSplitCatalog } from "../components/astryx/dev-split-catalog";
 import { DevMarksCatalog } from "../components/dev-marks-catalog";
 import { DevKitCatalog } from "../components/workspace/dev-kit-catalog";
+import { loadShellFixtures } from "../lib/shell-fixtures";
 
 // The normal Content owner/origin middleware still applies. This route cannot
 // expose a catalog in a deployed build, even to an authenticated owner.
@@ -23,26 +25,9 @@ const inventoryProjection = {
 };
 const fixture = Astro.url.searchParams.get("fixture");
 
-// The kit reads a local replay of the live ops payloads when one exists
-// (.local/ is ignored and never committed), else System's sample.
-const replay = import.meta.glob<unknown>("../../.local/replay/*.json", {
-  import: "default",
-});
-const readReplay = (name: string) =>
-  replay[`../../.local/replay/${name}`]?.() ?? Promise.resolve(null);
-const kit =
-  fixture === "kit"
-    ? await Promise.all([
-        readReplay("ops_v1.json"),
-        readReplay("ops_events_v1.json"),
-      ]).then(async ([ops, events]) => ({
-        ops: ops ?? (await import("../fixtures/ops_v1.sample.json")).default,
-        events:
-          events ??
-          (await import("../fixtures/ops_events_v1.synthetic.json")).default,
-        source: ops ? "replay" : "sample",
-      }))
-    : null;
+// The kit reads the same local replay as the pages (.local/ is ignored and
+// never committed), else System's sample.
+const kit = fixture === "kit" ? await loadShellFixtures(Astro.url) : undefined;
 ---
 
 <EditorialLayout
@@ -56,12 +41,14 @@ const kit =
       <DevDataCatalog client:load />
     ) : fixture === "marks" ? (
       <DevMarksCatalog />
+    ) : fixture === "split" ? (
+      <DevSplitCatalog client:load />
     ) : kit ? (
       <DevKitCatalog
         client:load
-        ops={kit.ops}
+        ops={kit.snapshot}
         opsEvents={kit.events}
-        source={kit.source}
+        source={kit.replay ? "replay" : "sample"}
       />
     ) : (
       <DevReviewCatalog client:load />

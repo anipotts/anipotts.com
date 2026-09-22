@@ -1,6 +1,6 @@
 /* The sidebar and its rail (EditorialWorkspaceShell, UnifiedSidebar). The
    sidebar exists from 641px (lib/admin-sidebar.ts); compact phones use the
-   top bar and tab row in styles/shell.css instead. "AP Structural" is
+   top bar and page chips in styles/shell.css instead. "AP Structural" is
    declared once, in styles/fonts.css.
 
    AppShell renders the inline sidebar on the server and removes it below its
@@ -35,6 +35,14 @@
     width: 100%;
     min-width: 0;
     transition: none;
+  }
+}
+
+/* The sidebar's list scrolls on its own between the identity and the
+   footer, and never chains into main or the document. */
+@media (min-width: 641px) {
+  .editorial-workspace-nav > :has(> .admin-unified-nav) {
+    overscroll-behavior: contain;
   }
 }
 
@@ -312,6 +320,10 @@
     visibility: hidden;
   }
   :root[data-admin-sidebar="rail"]
+    .editorial-workspace-shell[data-sidebar-ready="false"] {
+    --admin-main-block-size: 100dvh;
+  }
+  :root[data-admin-sidebar="rail"]
     .editorial-workspace-shell[data-sidebar-ready="false"]
     #astryx-app-shell-main {
     height: 100%;
@@ -433,7 +445,8 @@
 }
 
 /* Local owner builds only: the laptop tile beside the wordmark. In the
-   rail it takes a control's width, so it centres on the icon column. */
+   rail it takes a control's square, so it centres on the icon column and
+   keeps the rail's row rhythm. */
 .admin-local-owner {
   display: inline-grid;
   place-items: center;
@@ -441,4 +454,5 @@
 }
 .approved-workspace-header[data-collapsed="true"] > .admin-local-owner {
   width: var(--workspace-control-size);
+  height: var(--workspace-control-size);
 }

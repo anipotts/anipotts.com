@@ -51,7 +51,6 @@ import { onClientLinkClick } from "../../lib/client-routes";
 import { navigateAdmin } from "../../lib/editorial-navigation";
 import {
   UnifiedNavigation,
-  overviewDestination,
   selectedSidebarItem,
   sidebarGroups,
 } from "./UnifiedSidebar";
@@ -134,55 +133,13 @@ export function useWorkspaceMemory(workspace: Workspace | null) {
   return memory;
 }
 
-/** Whether the page's own heading has scrolled under the phone top bar, so
- * the bar shows the page title only once the page stops showing it. */
-function useHeadingScrolledAway(route: string) {
-  const [away, setAway] = useState(false);
-  useEffect(() => {
-    if (typeof IntersectionObserver !== "function") return;
-    let observer: IntersectionObserver | null = null;
-    let frame = 0;
-    const watch = () => {
-      observer?.disconnect();
-      const heading = document.querySelector("#astryx-app-shell-main h1");
-      if (!heading) return setAway(true);
-      observer = new IntersectionObserver(
-        ([entry]) =>
-          setAway(
-            !!entry &&
-              !entry.isIntersecting &&
-              entry.boundingClientRect.top < 0,
-          ),
-        { rootMargin: "-64px 0px 0px 0px" },
-      );
-      observer.observe(heading);
-    };
-    // A client route commits its page after the navigation event.
-    const later = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        frame = requestAnimationFrame(watch);
-      });
-    };
-    watch();
-    window.addEventListener("admin:workspace-navigation", later);
-    window.addEventListener("popstate", later);
-    return () => {
-      cancelAnimationFrame(frame);
-      observer?.disconnect();
-      window.removeEventListener("admin:workspace-navigation", later);
-      window.removeEventListener("popstate", later);
-    };
-  }, [route]);
-  return away;
-}
-
 const openSearch = () =>
   document.dispatchEvent(new CustomEvent("admin:search"));
 
-/** Local owner builds only: the laptop tile beside the wordmark. The flag
- * is a build-time literal, so deployable builds drop the marker below as dead
- * code; scripts/ci/admin-local-owner-leak.mjs checks the bundle. */
+/** Local owner builds only: the laptop tile beside the sidebar wordmark.
+ * The flag is a build-time literal, so deployable builds drop the marker
+ * below as dead code; scripts/ci/admin-local-owner-leak.mjs checks the
+ * bundle. */
 function LocalOwnerTile() {
   if (!__LOCAL_OWNER_BUILD__) return null;
   return (
@@ -192,32 +149,33 @@ function LocalOwnerTile() {
   );
 }
 
-/** The phone top bar, in AppShell's banner slot. The server writes it on
+/** The phone top bar, in AppShell's banner slot: the [A] monogram (home),
+ * the three workspaces, then search, in one row. The server writes it on
  * every page and CSS shows it at compact widths only, so it is on screen
  * from the first paint. It sticks to the top of the document scroll and
  * reaches under the status bar on the canvas colour. */
 function PhoneBar({
-  title,
-  showTitle,
-  localOwner,
+  workspace,
+  workspaceHref,
 }: {
-  title: string;
-  showTitle: boolean;
-  localOwner: boolean;
+  workspace: Workspace | null;
+  workspaceHref: (id: Workspace) => string;
 }) {
   return (
     <div className="admin-phone-bar" onClickCapture={onClientLinkClick}>
-      <HStack gap={2} vAlign="center" className="admin-phone-bar-identity">
-        <AdminWordmark href="/" label="Overview" />
-        {__LOCAL_OWNER_BUILD__ && localOwner && <LocalOwnerTile />}
-      </HStack>
-      <span
-        className="admin-phone-bar-title"
-        data-visible={showTitle}
-        aria-hidden="true"
-      >
-        {title}
-      </span>
+      <AdminWordmark href="/" label="Overview" monogram />
+      <nav className="admin-phone-workspaces" aria-label="Workspaces">
+        {sidebarGroups.map((group) => (
+          <a
+            key={group.id}
+            className="admin-phone-workspace"
+            href={workspaceHref(group.id)}
+            aria-current={group.id === workspace ? "true" : undefined}
+          >
+            {group.label}
+          </a>
+        ))}
+      </nav>
       <Button
         className="admin-phone-bar-search"
         label="Search"
@@ -231,60 +189,45 @@ function PhoneBar({
   );
 }
 
-/** The phone tab row: the three workspaces, then the current workspace's
- * pages as chips. It scrolls with the page, under the top bar. */
-function PhoneTabs({
+/** The current workspace's pages as chips, in a row under the top bar that
+ * scrolls sideways past the gutter and moves with the page. The overview
+ * belongs to no workspace and has none. */
+function PhonePages({
   workspace,
   selected,
-  workspaceHref,
   pageHref,
 }: {
   workspace: Workspace | null;
   selected?: string;
-  workspaceHref: (id: Workspace) => string;
   pageHref: (group: Workspace, id: string, href: string) => string;
 }) {
-  const pages = useRef<HTMLDivElement>(null);
+  const row = useRef<HTMLElement>(null);
   const current = sidebarGroups.find((group) => group.id === workspace);
   useEffect(() => {
     // The current chip starts in view without moving the page.
-    const row = pages.current;
-    const chip = row?.querySelector<HTMLElement>('[aria-current="page"]');
-    if (row && chip && chip.offsetLeft + chip.offsetWidth > row.clientWidth)
-      row.scrollLeft = chip.offsetLeft - row.clientWidth / 3;
+    const pages = row.current;
+    const chip = pages?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (pages && chip && chip.offsetLeft + chip.offsetWidth > pages.clientWidth)
+      pages.scrollLeft = chip.offsetLeft - pages.clientWidth / 3;
   }, [workspace, selected]);
+  if (!current) return null;
   return (
     <nav
-      className="admin-phone-tabs"
-      aria-label="Workspaces"
+      ref={row}
+      className="admin-phone-pages"
+      aria-label={current.label}
       onClickCapture={onClientLinkClick}
     >
-      <div className="admin-phone-tab-row">
-        {sidebarGroups.map((group) => (
-          <a
-            key={group.id}
-            className="admin-phone-workspace"
-            href={workspaceHref(group.id)}
-            aria-current={group.id === workspace ? "true" : undefined}
-          >
-            {group.label}
-          </a>
-        ))}
-      </div>
-      {current && (
-        <div className="admin-phone-tab-row" ref={pages}>
-          {current.items.map((item) => (
-            <a
-              key={item.id}
-              className="admin-phone-page"
-              href={pageHref(current.id, item.id, item.href)}
-              aria-current={item.id === selected ? "page" : undefined}
-            >
-              {item.label}
-            </a>
-          ))}
-        </div>
-      )}
+      {current.items.map((item) => (
+        <a
+          key={item.id}
+          className="admin-phone-page"
+          href={pageHref(current.id, item.id, item.href)}
+          aria-current={item.id === selected ? "page" : undefined}
+        >
+          {item.label}
+        </a>
+      ))}
     </nav>
   );
 }
@@ -409,7 +352,6 @@ export function EditorialWorkspaceShell({
   groupCounts,
   workspace = "content",
   currentRoute,
-  title,
   recordPage = false,
 }: {
   children: ReactNode;
@@ -430,11 +372,8 @@ export function EditorialWorkspaceShell({
   /** Path and query of an Observability or Data page, which selects its item.
    * Content pages select from their own record and library state instead. */
   currentRoute?: string;
-  /** The phone top bar's title. Defaults to the selected page's name. */
-  title?: string;
   /** A record page draws its own phone bar (the editor bar), so the top bar
-   * and tab row step aside at compact widths. The page's bar can reuse the
-   * `admin-phone-bar` class for the same sticky, safe-area placement. */
+   * and page chips step aside at compact widths. */
   recordPage?: boolean;
 }) {
   const [rail, setRail] = useState(false);
@@ -536,11 +475,15 @@ export function EditorialWorkspaceShell({
     [searchEntries],
   );
   useEffect(() => {
-    // On phones the document scrolls, so a page drawn in place (overview to
-    // Data) starts at the top the way a loaded page does. Back and forward
-    // keep the browser's own restoration.
+    // A page drawn in place (overview to Data) starts at the top the way a
+    // loaded page does: the document on phones, main's own panel beside the
+    // sidebar. Back and forward keep the browser's own restoration.
     const top = () => {
       if (window.matchMedia(COMPACT_QUERY).matches) window.scrollTo(0, 0);
+      else {
+        const main = document.getElementById("astryx-app-shell-main");
+        if (main) main.scrollTop = 0;
+      }
     };
     window.addEventListener("admin:workspace-navigation", top);
     return () => window.removeEventListener("admin:workspace-navigation", top);
@@ -574,14 +517,6 @@ export function EditorialWorkspaceShell({
     currentRoute === undefined
       ? workspaceSelection(area, selectedGroup, recordKind)
       : selectedSidebarItem(currentRoute);
-  const pageTitle =
-    title ??
-    (selected === overviewDestination.id
-      ? overviewDestination.label
-      : (sidebarGroups
-          .flatMap((group) => group.items)
-          .find((item) => item.id === selected)?.label ?? "Admin"));
-  const headingAway = useHeadingScrolledAway(currentRoute ?? pageLibrary);
   const pageHref = (group: Workspace, id: string, href: string) =>
     group === "content" ? destination(id) : href;
   const workspaceHref = (id: Workspace) =>
@@ -602,15 +537,11 @@ export function EditorialWorkspaceShell({
         variant={rail ? "section" : "wash"}
         contentPadding={0}
         // Compact widths have no sidebar and no drawer; the phone top bar and
-        // tab row take its place (see PhoneBar and PhoneTabs).
+        // page chips take its place (see PhoneBar and PhonePages).
         mobileNav={{ breakpoint: "sm", hasToggle: false, content: NO_DRAWER }}
         banner={
           recordPage ? undefined : (
-            <PhoneBar
-              title={pageTitle}
-              showTitle={headingAway}
-              localOwner={showLocalOwner}
-            />
+            <PhoneBar workspace={workspace} workspaceHref={workspaceHref} />
           )
         }
         sideNav={
@@ -645,10 +576,9 @@ export function EditorialWorkspaceShell({
         }
       >
         {!recordPage && (
-          <PhoneTabs
+          <PhonePages
             workspace={workspace}
             selected={selected}
-            workspaceHref={workspaceHref}
             pageHref={pageHref}
           />
         )}

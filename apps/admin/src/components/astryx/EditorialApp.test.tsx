@@ -322,13 +322,13 @@ it("gives a record page's editor bar the phone top in place of the shell's bar a
     groups: [{ name: "writing", href: "/content/writing", records }],
   });
   expect(library).toContain("admin-phone-bar");
-  expect(library).toContain("admin-phone-tabs");
+  expect(library).toContain("admin-phone-pages");
   for (const record of [
     page({ newWriting: true }),
     page({ review: { back: "/content/writing", status: "draft" } }),
   ]) {
     expect(record).toContain("editor-bar");
     expect(record).not.toContain("admin-phone-bar");
-    expect(record).not.toContain("admin-phone-tabs");
+    expect(record).not.toContain("admin-phone-pages");
   }
 });

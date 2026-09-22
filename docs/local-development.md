@@ -125,8 +125,9 @@ How the session is bounded:
 - Every method is allowed, so local D1 and the local editorial Durable Object
   accept writes. Route handlers keep their own checks: editorial writes still
   need their CSRF token.
-- A fixed `Local owner` token marks every Content, Operations and Life screen
-  at every width and theme.
+- A `Local owner` laptop tile beside the sidebar wordmark marks every
+  Content, Data and Observability screen from 641px, in both themes. The
+  one-row phone top bar holds no device tile.
 - Release builds compile the path out. Deploy jobs fail when the flag is set,
   and the Admin deploy scans its exact bundle with
   `node scripts/ci/admin-local-owner-leak.mjs --expect absent apps/admin/dist`
@@ -147,6 +148,13 @@ System's `ops_v1.sample.json` and `ops_events_v1.synthetic.json`. Each such
 page carries one `Sample data` badge. Add `?fixture=none` to see the real local
 states instead (the reader is not connected, and ops reads are off). The
 fixtures load only when `import.meta.env.DEV` is true, so no build ships them.
+
+To preview real ops state, copy a snapshot and an events page captured from
+System into `apps/admin/.local/replay/` as `ops_v1.json` and
+`ops_events_v1.json`. When either file exists the dev server serves it in
+place of the synthetic one, read again on every load, and
+`?fixture=synthetic` switches back. `.local/` is ignored: a replay is machine
+metadata and is never committed.
 
 Content is not affected: it reads the local editorial inventory as before.
 
