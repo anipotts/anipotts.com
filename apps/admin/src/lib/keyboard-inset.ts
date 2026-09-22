@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, type RefObject } from "react";
+import type { Editor } from "@tiptap/react";
 
 /**
  * While `active`, keeps `--keyboard-inset` on the root element at the height
@@ -35,4 +36,47 @@ export function useKeyboardInset(active: boolean) {
       root.style.removeProperty("--keyboard-inset");
     };
   }, [active]);
+}
+
+/** The room kept between the caret and a docked toolbar's top edge. */
+const CARET_CLEARANCE = 8;
+
+/**
+ * On a phone the writing toolbar docks over the bottom of the page, above
+ * the keyboard. While `editor` has focus and its toolbar (inside `surface`)
+ * is docked, the caret is scrolled back above the toolbar whenever it moves
+ * or the keyboard resizes the visual viewport. The composer's docked padding
+ * (styles/editor.css) leaves the page room to scroll at the end.
+ */
+export function useCaretAboveDock(
+  editor: Editor | null,
+  surface: RefObject<HTMLElement | null>,
+) {
+  useEffect(() => {
+    if (!editor || typeof window === "undefined") return;
+    let frame = 0;
+    const keep = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (editor.isDestroyed || !editor.isFocused) return;
+        const dock = surface.current?.querySelector<HTMLElement>(
+          ".document-editor-toolbar",
+        );
+        if (!dock || getComputedStyle(dock).position !== "fixed") return;
+        const caret = editor.view.coordsAtPos(editor.state.selection.head);
+        const limit = dock.getBoundingClientRect().top - CARET_CLEARANCE;
+        if (caret.bottom > limit) window.scrollBy(0, caret.bottom - limit);
+      });
+    };
+    editor.on("selectionUpdate", keep);
+    editor.on("focus", keep);
+    const viewport = window.visualViewport;
+    viewport?.addEventListener("resize", keep);
+    return () => {
+      cancelAnimationFrame(frame);
+      editor.off("selectionUpdate", keep);
+      editor.off("focus", keep);
+      viewport?.removeEventListener("resize", keep);
+    };
+  }, [editor, surface]);
 }

@@ -161,7 +161,8 @@
   background: transparent;
   overflow: visible;
 }
-.rich-field-surface:not(:focus-within) .document-editor-toolbar {
+.rich-field-surface:not(:focus-within):not([data-toolbar-open])
+  .document-editor-toolbar {
   display: none;
 }
 .rich-writing .tiptap {
@@ -344,15 +345,26 @@ html[data-theme="light"] .rich-writing .inline-image-white {
     display: none;
   }
 }
-/* On a phone a toolbar exists only while its field is being written in,
-   and then docks above the keyboard (lib/keyboard-inset.ts sets the inset
-   from the visual viewport). */
+/* On a phone a toolbar exists only while its field is being written in or
+   one of its menus or panels is open (data-toolbar-open), and then docks
+   above the keyboard (lib/keyboard-inset.ts sets the inset from the visual
+   viewport). The article keeps the docked toolbar's height free at its end,
+   so its last line can scroll above the toolbar. */
 @media (max-width: 640px) {
-  .article-composer:not(:focus-within) > .document-editor-toolbar {
+  .article-composer {
+    --editor-dock-end: max(
+      var(--spacing-1),
+      calc(env(safe-area-inset-bottom, 0px) - var(--keyboard-inset, 0px))
+    );
+  }
+  .article-composer:not(:focus-within):not([data-toolbar-open])
+    > .document-editor-toolbar {
     display: none;
   }
-  .article-composer:focus-within > .document-editor-toolbar,
-  .rich-field-surface:focus-within .document-editor-toolbar {
+  .article-composer:is(:focus-within, [data-toolbar-open])
+    > .document-editor-toolbar,
+  .rich-field-surface:is(:focus-within, [data-toolbar-open])
+    .document-editor-toolbar {
     position: fixed;
     inset-inline: 0;
     top: auto;
@@ -362,6 +374,12 @@ html[data-theme="light"] .rich-writing .inline-image-white {
     padding-block-end: max(
       var(--spacing-1),
       calc(env(safe-area-inset-bottom, 0px) - var(--keyboard-inset, 0px))
+    );
+  }
+  .article-composer:is(:focus-within, [data-toolbar-open]) {
+    padding-block-end: calc(
+      var(--spacing-11) + var(--spacing-1) + var(--editor-dock-end) +
+        var(--keyboard-inset, 0px)
     );
   }
   .article-word-count {

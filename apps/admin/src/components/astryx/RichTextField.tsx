@@ -352,6 +352,7 @@ export function RichTextField({
           gap={0}
           className="rich-field-surface"
           data-disabled={disabled || undefined}
+          data-toolbar-open={panel ? "true" : undefined}
           onFocusCapture={() => setFocused(true)}
           onBlurCapture={(event) => {
             if (
