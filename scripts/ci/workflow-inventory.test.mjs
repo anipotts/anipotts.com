@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { parse } from "yaml";
 
 const WORKFLOW_DIR = ".github/workflows";
 const ALLOWED_WORKFLOWS = [
@@ -213,6 +214,45 @@ for (const workflow of [deployWorkflow, smokeWorkflow]) {
     workflow.includes("scripts/ci/release-smoke.mjs"),
     "deploy and manual smoke must share one smoke implementation",
   );
+}
+
+// A-33: every health smoke that names a release also names the schema
+// version that release must report, and a forward deploy smoke takes it from
+// the release job, never a literal.
+for (const [file, workflow] of [
+  ["deploy.yml", deployWorkflow],
+  ["smoke.yml", smokeWorkflow],
+]) {
+  const smokes = workflow
+    .split("\n")
+    .filter((line) => line.includes("scripts/ci/release-smoke.mjs"));
+  assert.ok(smokes.length > 0, `${file} must run the release smoke`);
+  for (const line of smokes) {
+    if (line.includes("--allow-unversioned")) continue;
+    assert.match(
+      line,
+      /--expected-sha "[^"]+" --expected-schema "[^"]+"$/,
+      `${file} smoke must pass an expected schema version: ${line.trim()}`,
+    );
+  }
+}
+const deployJobs = parse(deployWorkflow).jobs;
+for (const job of ["deploy-www", "deploy-admin"]) {
+  const forward = deployJobs[job].steps.filter(
+    (step) =>
+      typeof step.run === "string" &&
+      step.run.includes("release-smoke.mjs") &&
+      step.run.includes('--expected-sha "${{ github.sha }}"'),
+  );
+  assert.ok(forward.length > 0, `${job} must smoke its exact release`);
+  for (const step of forward) {
+    assert.ok(
+      step.run.includes(
+        '--expected-schema "${{ needs.release.outputs.database_schema_version }}"',
+      ),
+      `${job} ${step.name} must expect the release job's schema version`,
+    );
+  }
 }
 
 for (const file of workflowFiles) {
