@@ -2,11 +2,49 @@ import React from "react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Button } from "@astryxdesign/core/Button";
+import { IconButton } from "@astryxdesign/core/IconButton";
+import { DropdownMenu } from "@astryxdesign/core/DropdownMenu";
+import { Heading } from "@astryxdesign/core/Heading";
+import {
+  CaretDownIcon,
+  CaretUpIcon,
+  PlusIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { Selector } from "@astryxdesign/core/Selector";
 import { Text } from "@astryxdesign/core/Text";
 import { parseEditorialSource } from "@anipotts/content/editorial/source";
 import type { ProjectSectionEdit } from "../../lib/project-sections";
+
+/** Move and remove controls: glyphs named by their label and tooltip. */
+function RowAction({
+  label,
+  icon,
+  isDisabled,
+  onClick,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  isDisabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <IconButton
+      label={label}
+      tooltip={label}
+      size="sm"
+      variant="ghost"
+      icon={icon}
+      isDisabled={isDisabled}
+      onClick={onClick}
+    />
+  );
+}
+const up = <CaretUpIcon weight="regular" aria-hidden="true" />;
+const down = <CaretDownIcon weight="regular" aria-hidden="true" />;
+const remove = <XIcon weight="regular" aria-hidden="true" />;
+const plus = <PlusIcon weight="regular" aria-hidden="true" />;
 
 export function ProjectSections({
   source,
@@ -25,8 +63,10 @@ export function ProjectSections({
       ? { type: "error" as const, message: errors.get(path) }
       : undefined;
   return (
-    <VStack gap={2}>
-      <Text>Sections</Text>
+    <VStack gap={2} className="editor-sections">
+      <Heading level={2} className="editor-sections-title">
+        Sections
+      </Heading>
       {(["story", "technical"] as const).map((kind) => {
         const entries = Array.isArray(data[kind])
           ? (data[kind] as Array<{ title?: string; paragraphs?: string[] }>)
@@ -35,35 +75,33 @@ export function ProjectSections({
           <VStack key={kind} gap={1}>
             {entries.map((entry, index) => (
               <HStack key={index} gap={1} wrap="wrap" vAlign="center">
-                <Text>
+                <Text className="editor-section-name">
                   {(typeof entry?.title === "string" && entry.title) ||
                     `${kind === "story" ? "Story" : "Technical"} ${index + 1}`}
                 </Text>
-                <Button
-                  label={`Move ${kind} ${index + 1} up`}
-                  children="Up"
-                  size="sm"
-                  variant="ghost"
-                  isDisabled={disabled || index === 0}
-                  onClick={() =>
-                    onEdit({ type: "move", kind, index, direction: -1 })
-                  }
-                />
-                <Button
-                  label={`Move ${kind} ${index + 1} down`}
-                  children="Down"
-                  size="sm"
-                  variant="ghost"
-                  isDisabled={disabled || index === entries.length - 1}
-                  onClick={() =>
-                    onEdit({ type: "move", kind, index, direction: 1 })
-                  }
-                />
-                <Button
+                {index > 0 && (
+                  <RowAction
+                    label={`Move ${kind} ${index + 1} up`}
+                    icon={up}
+                    isDisabled={disabled}
+                    onClick={() =>
+                      onEdit({ type: "move", kind, index, direction: -1 })
+                    }
+                  />
+                )}
+                {index < entries.length - 1 && (
+                  <RowAction
+                    label={`Move ${kind} ${index + 1} down`}
+                    icon={down}
+                    isDisabled={disabled}
+                    onClick={() =>
+                      onEdit({ type: "move", kind, index, direction: 1 })
+                    }
+                  />
+                )}
+                <RowAction
                   label={`Remove ${kind} section ${index + 1}`}
-                  children="Remove section"
-                  size="sm"
-                  variant="ghost"
+                  icon={remove}
                   isDisabled={disabled}
                   onClick={() => onEdit({ type: "remove", kind, index })}
                 />
@@ -94,28 +132,41 @@ export function ProjectSections({
                 )}
               </HStack>
             ))}
-            <Button
-              label={
-                kind === "story" ? "Add story section" : "Add technical section"
-              }
-              size="sm"
-              variant="ghost"
-              isDisabled={disabled}
-              onClick={() => onEdit({ type: "add", kind })}
-            />
           </VStack>
         );
       })}
-      <Text>Roadmap</Text>
+      <HStack>
+        <DropdownMenu
+          button={{
+            label: "Add section",
+            icon: plus,
+            size: "sm",
+            variant: "ghost",
+            isDisabled: disabled,
+          }}
+          hasChevron={false}
+          items={[
+            {
+              label: "Story section",
+              onClick: () => onEdit({ type: "add", kind: "story" }),
+            },
+            {
+              label: "Technical section",
+              onClick: () => onEdit({ type: "add", kind: "technical" }),
+            },
+          ]}
+        />
+      </HStack>
+      <Heading level={2} className="editor-sections-title">
+        Roadmap
+      </Heading>
       {(Array.isArray(data.roadmap)
         ? (data.roadmap as Array<{ text?: string; status?: string }>)
         : []
       ).map((item, index, items) => (
         <VStack key={index} gap={1}>
           {(!item || typeof item !== "object") && (
-            <Text>
-              This item is malformed. Remove it or repair it in source mode.
-            </Text>
+            <Text color="secondary">Malformed item</Text>
           )}
           <TextInput
             label={`Roadmap item ${index + 1}`}
@@ -141,44 +192,50 @@ export function ProjectSections({
                 onEdit({ type: "roadmap-field", index, field: "status", value })
               }
             />
-            <Button
-              label={`Move roadmap item ${index + 1} up`}
-              children="Up"
-              size="sm"
-              variant="ghost"
-              isDisabled={disabled || index === 0}
-              onClick={() =>
-                onEdit({ type: "move", kind: "roadmap", index, direction: -1 })
-              }
-            />
-            <Button
-              label={`Move roadmap item ${index + 1} down`}
-              children="Down"
-              size="sm"
-              variant="ghost"
-              isDisabled={disabled || index === items.length - 1}
-              onClick={() =>
-                onEdit({ type: "move", kind: "roadmap", index, direction: 1 })
-              }
-            />
-            <Button
+            {index > 0 && (
+              <RowAction
+                label={`Move roadmap item ${index + 1} up`}
+                icon={up}
+                isDisabled={disabled}
+                onClick={() =>
+                  onEdit({
+                    type: "move",
+                    kind: "roadmap",
+                    index,
+                    direction: -1,
+                  })
+                }
+              />
+            )}
+            {index < items.length - 1 && (
+              <RowAction
+                label={`Move roadmap item ${index + 1} down`}
+                icon={down}
+                isDisabled={disabled}
+                onClick={() =>
+                  onEdit({ type: "move", kind: "roadmap", index, direction: 1 })
+                }
+              />
+            )}
+            <RowAction
               label={`Remove roadmap item ${index + 1}`}
-              children="Remove item"
-              size="sm"
-              variant="ghost"
+              icon={remove}
               isDisabled={disabled}
               onClick={() => onEdit({ type: "remove", kind: "roadmap", index })}
             />
           </HStack>
         </VStack>
       ))}
-      <Button
-        label="Add roadmap item"
-        size="sm"
-        variant="ghost"
-        isDisabled={disabled}
-        onClick={() => onEdit({ type: "add", kind: "roadmap" })}
-      />
+      <HStack>
+        <Button
+          label="Add roadmap item"
+          icon={plus}
+          size="sm"
+          variant="ghost"
+          isDisabled={disabled}
+          onClick={() => onEdit({ type: "add", kind: "roadmap" })}
+        />
+      </HStack>
     </VStack>
   );
 }

@@ -79,6 +79,16 @@ it("uses the real review controls with an explicit synthetic-save explanation", 
       unobserve() {}
     },
   );
+  // The icon toggles' tooltips read the pointer type.
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn((media: string) => ({
+      matches: false,
+      media,
+      addEventListener() {},
+      removeEventListener() {},
+    })),
+  );
   const network = vi.fn();
   vi.stubGlobal("fetch", network);
   host = document.createElement("section");
@@ -93,12 +103,12 @@ it("uses the real review controls with an explicit synthetic-save explanation", 
   expect(status.closest(".editor-review-title-row")).not.toBeNull();
   expect(host.querySelectorAll('[aria-label="Diff legend"]')).toHaveLength(1);
   const sourceButton = [...host.querySelectorAll("button")].find(
-    (button) => button.textContent === "Source diff",
+    (button) => button.getAttribute("aria-label") === "Source diff",
   )!;
   await act(async () => sourceButton.click());
   expect(host.querySelector(".editor-change")?.textContent).toContain(
     "card_copy:",
   );
-  expect(host.textContent).not.toContain("Approve and publish");
+  expect(host.textContent).not.toContain("Publish now");
   expect(network).not.toHaveBeenCalled();
 });

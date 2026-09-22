@@ -1,50 +1,152 @@
-/* The record editor: writing surfaces, rich fields, the action bar, review
-   diffs, publication progress and the record panel. Shell and page frame
-   rules live in shell.css. */
-/* Source editing and the actual page preview each own one full-width region. */
-.editorial-source {
+/* The record editor: the editor bar, writing surfaces, rich fields and
+   their toolbars, review diffs, publication progress and the record panel.
+   Shell and page frame rules live in shell.css. Media queries use the
+   ranges in lib/breakpoints.ts: compact is (max-width: 640px). */
+
+/* The editor bar: one sticky row on every width. Back, the title on one
+   line, the save dot, then Preview, Publish and the overflow. It sits on the
+   canvas colour so text scrolling under it never shows through. */
+.editor-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
   min-width: 0;
-  background: var(--color-background-surface);
-  color: var(--color-text-primary);
+  min-height: calc(var(--spacing-11) + var(--spacing-2));
+  background: var(--color-background-body);
 }
-.editorial-source .cm-editor {
-  min-height: 24rem;
-}
-.editorial-source .cm-scroller {
-  overflow: auto;
-}
-.editorial-preview {
-  width: 100%;
-  height: 70vh;
-  border: 0;
-  border-radius: var(--radius-md);
-}
-/* One document region, capped for comfortable writing. Controls stay compact. */
-.editor-actionbar {
-  padding-bottom: var(--spacing-2);
-}
-.editor-save-group {
-  flex: 1 1 auto;
-}
-.editor-primary-actions {
-  margin-inline-start: auto;
-  flex-wrap: wrap;
-}
-.editor-primary-actions > [aria-haspopup="menu"] {
+.editor-bar-back {
   flex: 0 0 auto;
-  width: var(--spacing-9);
-  min-height: var(--spacing-9);
+  margin-inline-start: calc(-1 * var(--spacing-2));
+}
+.editor-bar-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.editor-bar-title h1 {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--text-body-size);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--spacing-6);
+}
+.editor-bar-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--spacing-1);
+  margin-inline-start: auto;
+}
+/* The save dot: a fixed square so its state never moves the bar. */
+.editor-save-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+}
+/* On a phone the bar is the top of the page: it takes the status bar's
+   inset and the shell's top bar steps aside for it. */
+@media (max-width: 640px) {
+  .editor-bar {
+    top: 0;
+    padding-block-start: env(safe-area-inset-top, 0px);
+    margin-block-start: calc(-1 * var(--spacing-3));
+  }
+  .editorial-workspace-shell:has(.editor-bar)
+    .astryx-app-shell-header:has(.admin-mobile-header) {
+    display: none;
+  }
+}
+.editor-action-sheet-title {
+  padding-inline: var(--spacing-3);
+  padding-block: var(--spacing-1);
+}
+.editor-action-sheet-item:not(#\#) {
+  justify-content: flex-start;
+  width: 100%;
+  min-height: var(--spacing-11);
+}
+
+/* One measure for every record: the writing column, 45rem. */
+.editor-workspace,
+.new-writing-form {
+  width: 100%;
+  min-width: 0;
+}
+.record-workspace-layout {
+  width: 100%;
+}
+.record-workspace-main {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  max-width: 45rem;
+  margin-inline: auto;
+}
+/* The inline inspector widens the column around the writing, never into it. */
+.editorial-workspace-shell
+  .editorial-content.writing-content:has(.record-inspector) {
+  max-width: calc(45rem + 16rem + 3 * var(--spacing-6));
+}
+
+/* Writing surfaces are borderless: the title, the subtitle and the body sit
+   on the page. Metadata fields keep their borders. */
+.document-title {
+  min-width: 0;
+  width: 100%;
+}
+/* Astryx paints the field's frame on its wrapper with atomic classes, so
+   the reset carries an id-weight chain to outrank them in every state. */
+.document-title .astryx-textarea:not(#\#):not(#\#) {
+  border-color: transparent;
+  box-shadow: none;
+  outline: none;
+  background: transparent;
   padding-inline: 0;
 }
-.editor-history-row {
-  padding-block: var(--spacing-3);
-  justify-content: space-between;
+.document-title textarea {
+  font-family: var(--font-family-heading);
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.25;
+  min-height: 0;
+  padding-inline: 0;
+  resize: none;
+  overflow-wrap: anywhere;
 }
-.editorial-content .editor-fields,
-.editor-workspace > .astryx-form-layout {
-  width: 100%;
-  max-width: 52rem;
+.document-auto-textarea textarea {
+  resize: none;
+  overflow: hidden;
+  min-height: var(--spacing-9);
+  border-radius: inherit;
+  background: transparent;
 }
+.editor-address {
+  min-width: 0;
+  max-width: 100%;
+}
+.editor-address-path {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-family-code);
+  font-size: var(--text-supporting-size, var(--font-size-sm));
+  color: var(--color-text-secondary);
+}
+@media (max-width: 640px) {
+  .document-title textarea {
+    font-size: 1.5rem;
+  }
+}
+
+/* Rich fields: the words first, the formatting row under them only while
+   the field has focus. */
 .rich-field,
 .rich-field-surface,
 .rich-writing {
@@ -57,17 +159,27 @@
   background: var(--color-background-surface);
   overflow: hidden;
 }
-.rich-field .astryx-toolbar {
-  background: var(--color-background-muted);
+.document-subtitle .rich-field-surface {
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
+.rich-field-surface:not(:focus-within) .document-editor-toolbar {
+  display: none;
 }
 .rich-writing .tiptap {
-  padding: var(--spacing-4);
-  min-height: 4.5rem;
+  padding: var(--spacing-3);
+  min-height: 3rem;
   outline: none;
-  line-height: 1.8;
+  line-height: 1.7;
   font-size: var(--font-size-lg);
   color: var(--color-text-primary);
   overflow-wrap: anywhere;
+}
+.document-subtitle .rich-writing .tiptap {
+  padding-inline: 0;
+  min-height: 0;
+  color: var(--color-text-secondary);
 }
 .rich-writing .tiptap p {
   margin: 0;
@@ -109,24 +221,212 @@
 .rich-writing .inline-image-white {
   filter: brightness(0) invert(1);
 }
+html[data-theme="light"] .rich-writing .inline-image-white {
+  filter: brightness(0);
+}
+@media (prefers-color-scheme: light) {
+  html:not([data-theme="dark"]) .rich-writing .inline-image-white {
+    filter: brightness(0);
+  }
+}
 .rich-writing .ProseMirror-selectednode {
   outline: 2px solid var(--color-accent);
 }
 .rich-inspector {
   padding: var(--spacing-4);
 }
-.editorial-content .editor-review {
-  min-width: 0;
-  width: 100%;
-}
-.editor-change {
+
+/* The article body: borderless, on the page. */
+.article-composer .tiptap {
+  min-height: calc(var(--spacing-8) * 3);
   padding-block: var(--spacing-3);
+  outline: none;
+  font-size: var(--font-size-lg);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
 }
+.article-composer .tiptap > * + * {
+  margin-top: var(--spacing-4);
+}
+.article-composer .tiptap h2 {
+  font-size: var(--text-heading-2-size);
+  font-weight: var(--font-weight-semibold);
+}
+.article-composer .tiptap h3 {
+  font-size: var(--text-heading-3-size);
+  font-weight: var(--font-weight-semibold);
+}
+.article-composer .tiptap ul {
+  list-style: disc;
+  padding-inline-start: var(--spacing-6);
+}
+.article-composer .tiptap ol {
+  list-style: decimal;
+  padding-inline-start: var(--spacing-6);
+}
+.article-composer .tiptap blockquote {
+  border-inline-start: var(--spacing-1) solid var(--color-border);
+  padding-inline-start: var(--spacing-4);
+}
+.article-composer .tiptap img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: 15rem;
+  height: auto;
+  object-fit: contain;
+  margin-block: var(--spacing-4);
+  border-radius: var(--radius-element);
+}
+.article-composer .tiptap a {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+.article-composer .tiptap pre {
+  white-space: pre-wrap;
+  padding: var(--spacing-3);
+}
+.article-image-preview {
+  width: 100%;
+  max-height: 24rem;
+  object-fit: contain;
+  border-radius: var(--radius-element);
+}
+.article-word-count {
+  display: block;
+  margin-block-start: var(--spacing-3);
+}
+
+/* Writing toolbars: one row of 36px controls (44px on touch). On desktop
+   the body's row holds under the editor bar while you write. Undo and redo
+   stay on the keyboard where touch has its own. */
+.document-editor-toolbar,
+.document-editor-toolbar [role="toolbar"],
+.editor-toolbar-controls {
+  min-width: 0;
+  max-width: 100%;
+}
+.document-editor-toolbar > .astryx-section {
+  padding: 0;
+}
+.document-editor-toolbar [role="toolbar"] {
+  flex-wrap: nowrap;
+  padding: 0;
+}
+.editor-toolbar-controls {
+  flex-wrap: nowrap;
+  gap: var(--spacing-1);
+}
+.editor-toolbar-group {
+  flex: 0 0 auto;
+  gap: var(--spacing-1);
+}
+.document-editor-toolbar {
+  padding-block: var(--spacing-1);
+  background: var(--color-background-body);
+}
+.article-composer > .document-editor-toolbar {
+  position: sticky;
+  top: calc(var(--spacing-11) + var(--spacing-2));
+  z-index: 10;
+}
+.document-editor-toolbar .astryx-button,
+.document-editor-toolbar .astryx-toggle-button,
+.document-editor-toolbar [aria-haspopup="menu"] {
+  min-height: var(--spacing-9);
+  min-width: var(--spacing-9);
+}
+@media (pointer: coarse) {
+  .document-editor-toolbar .astryx-button,
+  .document-editor-toolbar .astryx-toggle-button,
+  .document-editor-toolbar [aria-haspopup="menu"] {
+    min-height: var(--spacing-11);
+    min-width: var(--spacing-11);
+  }
+  .editor-history-tools {
+    display: none;
+  }
+}
+/* On a phone a toolbar exists only while its field is being written in,
+   and then docks above the keyboard (lib/keyboard-inset.ts sets the inset
+   from the visual viewport). */
+@media (max-width: 640px) {
+  .article-composer:not(:focus-within) > .document-editor-toolbar {
+    display: none;
+  }
+  .article-composer:focus-within > .document-editor-toolbar,
+  .rich-field-surface:focus-within .document-editor-toolbar {
+    position: fixed;
+    inset-inline: 0;
+    top: auto;
+    bottom: var(--keyboard-inset, 0px);
+    z-index: 40;
+    padding-inline: var(--admin-gutter, var(--spacing-3));
+    padding-block-end: max(
+      var(--spacing-1),
+      calc(env(safe-area-inset-bottom, 0px) - var(--keyboard-inset, 0px))
+    );
+  }
+  .article-word-count {
+    display: none;
+  }
+}
+
+/* Tags: chips with their own remove targets. */
+.editor-tag {
+  display: inline-flex;
+}
+@media (pointer: coarse) {
+  .editor-tag .astryx-token button {
+    min-width: var(--spacing-11);
+    min-height: var(--spacing-11);
+  }
+}
+
+/* History: one row per revision, the row opens its comparison. */
+.editor-history-row {
+  min-height: var(--spacing-11);
+}
+.editor-history-compare {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+  min-height: var(--spacing-11);
+  padding-inline: var(--spacing-2);
+  border: 0;
+  border-radius: var(--radius-element);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .editor-history-compare:hover {
+    background: var(--color-background-muted);
+  }
+}
+.editor-history-compare:focus-visible,
+.editor-history-compare[aria-expanded="true"] {
+  outline: none;
+  background: var(--color-background-muted);
+}
+
+/* Source editing and the page preview each own one full-width region. */
 .editorial-source {
+  min-width: 0;
   background: var(--color-background-surface);
-  border: var(--border-width) solid var(--color-border);
+  color: var(--color-text-primary);
   border-radius: var(--radius-element);
   overflow: hidden;
+}
+.editorial-source .cm-editor {
+  min-height: 24rem;
+}
+.editorial-source .cm-scroller {
+  overflow: auto;
 }
 .editorial-source .cm-content {
   font-family: var(--font-family-code);
@@ -138,56 +438,31 @@
 .editorial-source .cm-focused .cm-selectionBackground {
   background: var(--color-accent-muted);
 }
-.editorial-preview {
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-element);
-  background: var(--color-background-surface);
-}
-@media (pointer: coarse), (max-width: 540px) {
-  .editor-primary-actions > [aria-haspopup="menu"] {
-    width: var(--spacing-11);
-    min-height: var(--spacing-11);
-  }
-}
-@media (max-width: 480px) {
-  .editor-primary-actions {
-    width: 100%;
-    margin-inline-start: 0;
-    justify-content: flex-end;
-  }
-  .editor-primary-actions > .astryx-button[data-variant="primary"] {
-    flex: 1;
-  }
-  .editor-primary-actions:not(:has(> .astryx-button[data-variant="primary"])) {
-    width: auto;
-    margin-inline-start: auto;
-  }
-}
-@media (max-width: 640px) {
-  .rich-writing .tiptap {
-    padding: var(--spacing-3);
-  }
+.document-preview {
+  width: 100%;
+  border: 0;
+  display: block;
 }
 
-html[data-theme="light"] .rich-writing .inline-image-white {
-  filter: brightness(0);
+/* Review: a wide dialog, a tall sheet on phones. */
+.editor-review {
+  min-width: 0;
+  width: 100%;
 }
-@media (prefers-color-scheme: light) {
-  html:not([data-theme="dark"]) .rich-writing .inline-image-white {
-    filter: brightness(0);
+.editor-review-actions > .astryx-button {
+  flex: 1 1 auto;
+}
+@media (min-width: 641px) {
+  .editor-review-actions > .astryx-button {
+    flex: 0 0 auto;
   }
 }
-
+.editor-change {
+  padding-block: var(--spacing-3);
+}
 .editor-destination {
   text-align: start;
   overflow-wrap: anywhere;
-}
-/* Save outcomes must remain readable when text is enlarged. Token's default
-   single-line truncation is useful for tags, but would hide recovery status. */
-.editor-save-status .astryx-token > span:last-child {
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
 }
 .editor-diff-heading > .astryx-button {
   margin-inline-start: auto;
@@ -198,8 +473,8 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 }
 .editor-diff-content {
   min-width: 0;
-  border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-element);
+  background: var(--color-background-surface);
   overflow: hidden;
 }
 .editor-diff-columns {
@@ -265,6 +540,7 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   .editor-diff-line[data-side="after"][data-kind="equal"] {
   display: none;
 }
+/* Narrow reviews are unified, so the layout switch has nothing to do. */
 @container (max-width: 46rem) {
   .editor-diff-hunk {
     grid-template-columns: minmax(0, 1fr);
@@ -295,6 +571,16 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   padding-inline: var(--spacing-1);
   border-radius: var(--radius-inner);
 }
+
+/* Publication progress: steps fill toward the current one. */
+.publication-progress {
+  min-width: 0;
+  width: 100%;
+  overflow-wrap: anywhere;
+}
+.publication-steps {
+  flex-wrap: wrap;
+}
 .publication-step {
   flex: 1;
   min-width: 0;
@@ -311,262 +597,23 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   border-block-end-color: var(--color-error);
 }
 
-/* New shared controls follow the same pointer target and content budgets. */
+/* Loading shapes mirror the editor they stand in for. */
 .admin-loading {
   min-width: 0;
 }
 .admin-loading .astryx-stack {
   width: 100%;
 }
-.rich-field .astryx-toolbar {
-  min-width: 0;
-}
-.editor-actionbar .astryx-section {
-  padding: 0;
-}
-.editor-actionbar .astryx-toolbar {
-  width: 100%;
-  flex-wrap: wrap;
-  gap: var(--spacing-3);
-}
-.editor-actionbar .astryx-toolbar > * {
-  flex-shrink: 0;
-  min-width: 0;
-  max-width: 100%;
-}
-@media (max-width: 540px) {
-  .editor-actionbar .astryx-toolbar {
-    flex-wrap: wrap;
-    gap: var(--spacing-3);
-  }
-  .editor-actionbar .astryx-toolbar > * {
-    width: 100%;
-  }
-  .editor-actionbar .editor-primary-actions {
-    width: 100%;
-  }
-}
 
-/* Writing uses a single readable column; controls wrap rather than squeeze it. */
-.new-writing-form {
-  width: 100%;
-  max-width: 40rem;
-}
-.article-composer {
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-element);
-  background: var(--color-background-surface);
-  overflow: hidden;
-}
-.article-composer .astryx-toolbar {
-  padding: var(--spacing-2);
-}
-.article-composer .tiptap {
-  min-height: 24rem;
-  padding: var(--spacing-4);
-  outline: none;
-  line-height: var(--line-height-relaxed, 1.65);
-  overflow-wrap: anywhere;
-}
-.article-composer .tiptap > * + * {
-  margin-top: var(--spacing-4);
-}
-.article-composer .tiptap h2 {
-  font-size: var(--text-heading-2-size);
-  font-weight: var(--font-weight-semibold);
-}
-.article-composer .tiptap h3 {
-  font-size: var(--text-heading-3-size);
-  font-weight: var(--font-weight-semibold);
-}
-.article-composer .tiptap ul {
-  list-style: disc;
-  padding-inline-start: var(--spacing-6);
-}
-.article-composer .tiptap ol {
-  list-style: decimal;
-  padding-inline-start: var(--spacing-6);
-}
-.article-composer .tiptap blockquote {
-  border-inline-start: var(--spacing-1) solid var(--color-border);
-  padding-inline-start: var(--spacing-4);
-}
-.article-composer .tiptap img {
-  max-width: 100%;
-  height: auto;
-  border-radius: var(--radius-element);
-}
-.article-composer .tiptap a {
-  color: var(--color-accent);
-  text-decoration: underline;
-}
-.article-composer .tiptap pre {
-  white-space: pre-wrap;
-  padding: var(--spacing-3);
-}
-.article-image-preview {
-  width: 100%;
-  max-height: 24rem;
-  object-fit: contain;
-  border-radius: var(--radius-element);
-}
-
-/* A document has one reading measure and one shared left edge. */
-.editorial-content.writing-content,
-.editorial-content .writing-workspace {
-  width: 100%;
-  max-width: none;
-  margin-inline: auto;
-}
-.record-workspace-layout {
-  width: 100%;
-}
-.record-workspace-main {
-  flex: 1;
-  min-width: 0;
-  width: 100%;
-}
-.writing-workspace .record-workspace-main {
-  max-width: 45rem;
-  margin-inline: auto;
-}
-.writing-workspace .editor-actionbar {
-  position: sticky;
-  top: var(--_app-shell-header-height, 0px);
-  z-index: 20;
-  background: var(--color-background-body);
-  padding-block: var(--spacing-2);
-}
-.writing-workspace .document-title {
-  min-width: 0;
-  width: 100%;
-}
-.document-title textarea {
-  font-family: var(--font-family-heading);
-  font-size: 2rem;
-  font-weight: 600;
-  line-height: 1.25;
-  min-height: 0;
-  field-sizing: content;
-  resize: none;
-  padding: var(--spacing-3);
-  background: var(--color-background-surface);
-  border-radius: var(--radius-element);
-  overflow-wrap: anywhere;
-}
-.document-subtitle .rich-field-surface,
-.writing-workspace .article-composer {
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-element);
-  background: var(--color-background-surface);
-}
-.document-subtitle .rich-writing {
-  min-height: 0;
-  padding: 0;
-  color: var(--color-text-primary);
-}
-.document-subtitle .rich-writing .tiptap {
-  padding: var(--spacing-3);
-  min-height: 0;
-}
-.writing-workspace .article-composer .tiptap {
-  min-height: calc(var(--spacing-8) * 3);
-  padding: var(--spacing-3);
-  font-size: var(--font-size-lg);
-  line-height: 1.7;
-}
-.writing-workspace .article-composer .tiptap img {
-  display: block;
-  width: auto;
-  max-width: 100%;
-  max-height: 15rem;
-  object-fit: contain;
-  margin-block: var(--spacing-4);
-}
-.document-preview {
-  width: 100%;
-  border: 0;
-  display: block;
-}
-
-/* Formatting is always present. Selection never changes the writing measure.
-   Related controls wrap as groups on narrow screens and at enlarged text sizes. */
-.document-editor-toolbar,
-.document-editor-toolbar [role="toolbar"],
-.document-editor-toolbar [role="toolbar"] > *,
-.editor-toolbar-controls {
-  min-width: 0;
-  max-width: 100%;
-  width: 100%;
-}
-.document-editor-toolbar > .astryx-section {
-  padding: 0;
-}
-.document-editor-toolbar [role="toolbar"] {
-  flex-wrap: wrap;
-  padding: 0;
-}
-.editor-toolbar-controls {
-  flex-wrap: wrap;
-  gap: var(--spacing-1);
-}
-.editor-toolbar-group {
-  flex: 0 0 auto;
-  gap: var(--spacing-1);
-}
-.document-editor-toolbar .astryx-button,
-.document-editor-toolbar .astryx-toggle-button,
-.document-editor-toolbar [aria-haspopup="menu"] {
-  min-height: var(--spacing-9);
-  min-width: var(--spacing-9);
-}
-.document-editor-toolbar {
-  padding: var(--spacing-1);
-  background: var(--color-background-muted);
-}
-.publication-progress {
-  min-width: 0;
-  width: 100%;
-  overflow-wrap: anywhere;
-}
-.publication-steps {
-  flex-wrap: wrap;
-}
-@media (pointer: coarse), (max-width: 540px) {
-  .document-editor-toolbar .astryx-button,
-  .document-editor-toolbar .astryx-toggle-button,
-  .document-editor-toolbar [aria-haspopup="menu"] {
-    min-height: var(--spacing-11);
-    min-width: var(--spacing-11);
-  }
-  .document-title textarea {
-    font-size: var(--text-heading-2-size);
-  }
-  .writing-workspace .article-composer .tiptap {
-    padding: var(--spacing-3);
-  }
-  .writing-workspace .editor-actionbar {
-    /* A wrapped sticky header leaves too little room above the phone keyboard. */
-    position: static;
-  }
-  .record-panel-dialog .astryx-layout-content {
-    padding-bottom: max(var(--spacing-4), env(safe-area-inset-bottom));
-  }
-}
-
-.writing-workspace[data-editor-view="publish"] .record-workspace-main {
-  max-width: none;
-}
-
-/* Record detail panels share a measured workspace; the document owns its scroll. */
+/* Record panels: an inspector beside the writing, a drawer, or a sheet. */
 .record-panel-host {
   display: contents;
 }
 .record-inspector {
   position: sticky;
-  top: var(--_app-shell-header-height, 0px);
+  top: 0;
   align-self: flex-start;
-  max-height: calc(100dvh - var(--_app-shell-header-height, 0px));
+  max-height: 100dvh;
   background-color: var(--color-background-surface);
   min-width: 0;
   overflow-wrap: anywhere;
@@ -574,7 +621,7 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 .record-inspector .astryx-heading {
   font-size: var(--text-body-size);
 }
-.record-panel-dialog {
+.record-panel-dialog:not(.record-review-dialog) {
   height: 100dvh;
   max-height: 100dvh;
   border-radius: 0;
@@ -584,38 +631,54 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   overflow-wrap: anywhere;
   min-width: 0;
 }
-
-/* Match document actions to the navigation density without shrinking touch targets. */
-.editor-actionbar .astryx-button {
-  min-height: var(--spacing-9);
-  padding-block: var(--spacing-1);
-  padding-inline: var(--spacing-3);
+.record-panel-sheet .astryx-heading {
+  font-size: var(--text-body-size);
 }
-.article-word-count {
-  display: block;
+
+/* A date and its time share one row, with UTC named once after them. */
+.editor-date-row {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.editor-date-row > * {
+  flex: 1 1 9rem;
+  min-width: 0;
+}
+.editor-date-row > .editor-date-zone {
+  flex: 0 0 auto;
+}
+.editor-date-zone {
+  flex: 0 0 auto;
+  padding-block-end: var(--spacing-2);
+}
+
+/* Project sections: small headings, left-aligned adds, glyph controls. */
+.editor-sections-title {
+  font-size: var(--text-body-size);
+  font-weight: var(--font-weight-semibold);
   margin-block-start: var(--spacing-3);
 }
-@media (pointer: coarse), (max-width: 540px) {
-  .editor-actionbar .astryx-button {
-    min-height: var(--spacing-11);
-  }
+.editor-section-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.editor-homepage-row {
+  min-height: var(--spacing-11);
 }
 
-.document-auto-textarea textarea {
-  resize: none;
-  overflow: hidden;
-  min-height: var(--spacing-9);
-  border-radius: inherit;
-  background: transparent;
+/* Media: a 56px thumb with its controls beside it. */
+.editor-media-row {
+  min-height: var(--spacing-11);
+  min-width: 0;
 }
-
-/* Keep secondary document tools together instead of orphaning the overflow button. */
-.editor-secondary-actions {
-  flex-shrink: 0;
+.editor-media-thumb {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border-radius: var(--radius-element);
+  background: var(--color-background-muted);
 }
-@media (max-width: 540px) {
-  .editor-actionbar .editor-secondary-actions {
-    flex-basis: 100%;
-    justify-content: flex-end;
-  }
+.editor-media-thumb[data-fit="contain"] {
+  object-fit: contain;
 }

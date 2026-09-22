@@ -2,7 +2,9 @@ import {
   libraryPaths,
   libraryReturnPath,
 } from "../../lib/content-library-state";
-import { WorkspacePage } from "../workspace/Workspace";
+import { InlineNotice, WorkspacePage } from "../workspace/Workspace";
+import { IconButton } from "@astryxdesign/core/IconButton";
+import { ArrowClockwiseIcon } from "@phosphor-icons/react";
 import {
   RECORD_CREATED_EVENT,
   RECORD_SAVED_EVENT,
@@ -11,7 +13,6 @@ import {
   applyEditorialRecordSaved,
 } from "../../lib/editorial-inventory-events";
 import { startEditorialInventoryRelay } from "../../lib/editorial-inventory-relay";
-import { Banner } from "@astryxdesign/core/Banner";
 import { NewWriting } from "./NewWriting";
 import React, { useEffect, useState, type ReactNode } from "react";
 const HomeEditor = React.lazy(() =>
@@ -30,7 +31,7 @@ import { Button } from "@astryxdesign/core/Button";
 import { Token } from "@astryxdesign/core/Token";
 import { Card } from "@astryxdesign/core/Card";
 import { Collapsible, CollapsibleGroup } from "@astryxdesign/core/Collapsible";
-import { Breadcrumbs, BreadcrumbItem } from "@astryxdesign/core/Breadcrumbs";
+import { EditorActionBar } from "./EditorActionBar";
 import { Timestamp } from "@astryxdesign/core/Timestamp";
 import {
   MetadataList,
@@ -47,6 +48,13 @@ import { ContentLibrary, Updated, RecordStatus } from "./ContentLibrary";
 export { matchingRecords, recentlyUpdated } from "./ContentLibrary";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { adminThemeIcons } from "./adminThemeIcons";
+
+const LIBRARY_NAMES = {
+  website: "Pages",
+  writing: "Writing",
+  work: "Projects",
+  newsletter: "Newsletter",
+} as const;
 
 // The library owns the theme. Only the icons used by this interface differ.
 const theme = { ...editorialTheme, icons: adminThemeIcons };
@@ -116,6 +124,37 @@ export type EditorialAppProps = {
   children?: ReactNode;
 };
 
+/** Record counts for the Content items in the sidebar, on every Content
+ * route: from the libraries when the page has them, otherwise from the
+ * inventory's search entries, which every Content page carries. */
+export function navigationCounts(
+  groups?: CatalogGroup[],
+  entries?: AdminSearchResult[],
+): Record<string, number> | undefined {
+  if (groups)
+    return Object.fromEntries(
+      groups.map((group) => [group.name, group.records.length]),
+    );
+  if (!entries) return undefined;
+  const counts: Record<string, number> = {
+    website: 0,
+    writing: 0,
+    work: 0,
+    newsletter: 0,
+  };
+  for (const entry of entries) {
+    if (entry.domain !== "content") continue;
+    const id =
+      entry.kind === "projects"
+        ? "work"
+        : entry.kind === "writing" || entry.kind === "newsletter"
+          ? entry.kind
+          : "website";
+    counts[id] = (counts[id] ?? 0) + 1;
+  }
+  return counts;
+}
+
 export function EditorialApp({
   title,
   area,
@@ -175,7 +214,36 @@ export function EditorialApp({
     };
   }, []);
 
-  const [draftTitle, setDraftTitle] = useState(title);
+  // A new draft opens in place: the create surface becomes its editor.
+  const [created, setCreated] = useState<{
+    kind: "writing" | "work";
+    id: string;
+  } | null>(null);
+  const openRecord = editorRecord ?? created ?? undefined;
+  const recordKind =
+    openRecord?.kind ??
+    (newProject
+      ? "work"
+      : newWriting
+        ? "writing"
+        : editHome
+          ? "home"
+          : undefined);
+  const recordPage = Boolean(
+    editorRecord || editHome || newWriting || newProject,
+  );
+  const library =
+    area === "newsletter"
+      ? "newsletter"
+      : recordKind === "writing"
+        ? "writing"
+        : recordKind === "work"
+          ? "work"
+          : "website";
+  const back = {
+    href: libraryBack ?? review?.back ?? libraryPaths[library],
+    label: `Back to ${LIBRARY_NAMES[library]}`,
+  };
   const comparisonSiteUrl = localPreview ? "https://anipotts.com/" : siteUrl;
   const [siteHref, setSiteHref] = useState(comparisonSiteUrl);
   useEffect(() => {
@@ -193,119 +261,69 @@ export function EditorialApp({
       <EditorialWorkspaceShell
         area={area}
         selectedGroup={selectedGroup}
-        recordKind={
-          editorRecord?.kind ??
-          (newProject
-            ? "work"
-            : newWriting
-              ? "writing"
-              : editHome
-                ? "home"
-                : undefined)
-        }
+        recordKind={recordKind}
         mode={mode}
         changeTheme={changeTheme}
         siteHref={siteHref}
         localPreview={localPreview}
         localOwner={localOwner}
         searchEntries={inventoryView.searchEntries}
-        groupCounts={
-          inventoryView.groups &&
-          Object.fromEntries(
-            inventoryView.groups.map((group) => [
-              group.name,
-              group.records.length,
-            ]),
-          )
-        }
+        groupCounts={navigationCounts(
+          inventoryView.groups,
+          inventoryView.searchEntries,
+        )}
       >
         <VStack
           gap={editorRecord ? 4 : 6}
-          className={`editorial-content${groups ? " editorial-library-page" : ""}${editorRecord?.kind === "writing" ? " writing-content" : ""}`}
+          className={`editorial-content${groups ? " editorial-library-page" : ""}${recordPage ? " writing-content" : ""}`}
         >
-          {(review || editHome || editorRecord || newWriting || newProject) && (
-            <Breadcrumbs variant="supporting">
-              <BreadcrumbItem
-                href={
-                  libraryBack ??
-                  review?.back ??
-                  (area === "newsletter"
-                    ? libraryPaths.newsletter
-                    : editorRecord?.kind === "writing" || newWriting
-                      ? libraryPaths.writing
-                      : editorRecord?.kind === "work" || newProject
-                        ? libraryPaths.work
-                        : libraryPaths.website)
-                }
-              >
-                {area === "newsletter"
-                  ? "Newsletter"
-                  : editorRecord?.kind === "writing" || newWriting
-                    ? "Writing"
-                    : editorRecord?.kind === "work" || newProject
-                      ? "Projects"
-                      : "Pages"}
-              </BreadcrumbItem>
-              <BreadcrumbItem isCurrent>
-                {editorRecord?.kind === "writing"
-                  ? draftTitle || "Untitled article"
-                  : title}
-              </BreadcrumbItem>
-            </Breadcrumbs>
+          {!hideHeader && review && !editHome && !editorRecord && (
+            <EditorActionBar back={back} title={title} />
           )}
           {!hideHeader &&
+            !groups &&
+            !review &&
             !editorRecord &&
             !editHome &&
-            (groups || review || children || newWriting || newProject) && (
-              <WorkspacePage
-                title={
-                  newProject
-                    ? "New project"
-                    : newWriting
-                      ? "New article"
-                      : title
-                }
-                actions={
-                  groups &&
-                  ["writing", "work"].includes(selectedGroup ?? "") && (
-                    <Button
-                      label={
-                        selectedGroup === "work" ? "New project" : "New article"
-                      }
-                      href={
-                        selectedGroup === "work"
-                          ? "/content/new-project"
-                          : "/content/new"
-                      }
-                      variant="primary"
-                      size="sm"
-                    />
-                  )
-                }
-              />
-            )}
+            !newWriting &&
+            !newProject &&
+            children && <WorkspacePage title={title} />}
           {inventoryError && (
-            <Banner
-              status="warning"
+            <InlineNotice
+              tone="warning"
               title="Private drafts couldn’t be loaded"
-              description="Published records are still available."
-              endContent={
-                <Button
+              action={
+                <IconButton
                   label="Reload"
+                  tooltip="Reload"
                   size="sm"
+                  variant="ghost"
+                  icon={
+                    <ArrowClockwiseIcon weight="regular" aria-hidden="true" />
+                  }
                   onClick={() => window.location.reload()}
                 />
               }
             />
           )}
-          {(newWriting || newProject) && (
+          {(newWriting || newProject) && !created && (
             <NewWriting
               recoveryScope={recoveryScope}
               recordKind={newProject ? "work" : "writing"}
+              back={back}
+              onCreated={(record) => {
+                window.history.replaceState(
+                  window.history.state,
+                  "",
+                  `/content/${record.kind === "work" ? "projects" : "writing"}/${record.id}`,
+                );
+                setCreated(record);
+              }}
             />
           )}
           {groups && (
             <ContentLibrary
+              title={title}
               groups={inventoryView.groups ?? groups}
               selectedGroup={selectedGroup}
               initialSearch={librarySearch}
@@ -313,23 +331,34 @@ export function EditorialApp({
               area={area}
             />
           )}
-          {(editHome || editorRecord) && (
+          {(editHome || openRecord) && (
             <React.Suspense
               fallback={
-                <AdminSkeleton
-                  fields={editorialFields(
-                    editorRecord ?? { kind: "page", id: "home" },
-                  )}
-                />
+                <VStack gap={3} className="editor-workspace">
+                  <EditorActionBar back={back} title={title} />
+                  <AdminSkeleton
+                    fields={editorialFields(
+                      openRecord ?? { kind: "page", id: "home" },
+                    )}
+                  />
+                </VStack>
               }
             >
               <HomeEditor
-                pageTitle={title}
+                pageTitle={
+                  openRecord?.kind === "writing" || openRecord?.kind === "work"
+                    ? undefined
+                    : title
+                }
+                back={back}
+                publicUrl={(path) =>
+                  themedUrl(new URL(path, comparisonSiteUrl).href, mode)
+                }
                 homepageWritingOptions={homepageWritingOptions}
-                onTitleChange={setDraftTitle}
                 localPreview={localPreview}
-                key={editorRecord?.id ?? "home"}
-                record={editorRecord ?? { kind: "page", id: "home" }}
+                key={openRecord?.id ?? "home"}
+                record={openRecord ?? { kind: "page", id: "home" }}
+                autoFocus={Boolean(created)}
               />
             </React.Suspense>
           )}

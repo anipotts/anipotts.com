@@ -11,6 +11,7 @@ import {
   visibleProjects,
 } from "../../../../www/src/lib/content";
 import { productionEditor } from "../../lib/editorial-server";
+import { previewFailure } from "../../lib/preview-status";
 let home;
 {
   const storage = import.meta.env.DEV
@@ -29,7 +30,7 @@ let home;
     }
   }
 }
-if (!home) return new Response("preview unavailable", { status: 409 });
+if (!home) return previewFailure(Astro.url, "stale", 409);
 ---
 
 <HomePage
@@ -38,3 +39,33 @@ if (!home) return new Response("preview unavailable", { status: 409 });
   allWriting={await publishedWriting(context)}
   preview
 />
+
+<script is:inline>
+  // The editor's frame trusts a status and a size only from this exact
+  // navigation, the same handshake the record preview makes.
+  const request =
+    new URL(location.href).searchParams.get("previewRequest") ?? "";
+  parent.postMessage(
+    { type: "editorial-preview-status", request, status: "ready" },
+    "*",
+  );
+  let queued = false;
+  const reportSize = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      parent.postMessage(
+        {
+          type: "editorial-preview-size",
+          request,
+          height: Math.ceil(document.body.getBoundingClientRect().height),
+        },
+        "*",
+      );
+    });
+  };
+  new ResizeObserver(reportSize).observe(document.body);
+  window.addEventListener("load", reportSize);
+  reportSize();
+</script>

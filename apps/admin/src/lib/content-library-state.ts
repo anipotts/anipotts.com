@@ -3,6 +3,7 @@ export const libraryGroups = [
   "website",
   "writing",
   "work",
+  "newsletter",
   "systems",
 ] as const;
 /** One route per Content library. The mixed `pages` overview and `systems`
@@ -29,27 +30,34 @@ export function libraryPath(group: string): string {
     ? libraryPaths[group as keyof typeof libraryPaths]
     : libraryPaths.website;
 }
+export type LibrarySort = "attention" | "updated" | "title";
 export type LibraryState = {
   group: string;
   q: string;
   status: string;
-  sort: "attention" | "updated" | "title";
-  sections?: string[];
+  sort: LibrarySort;
 };
-const statuses = new Set([
-  "all",
-  "changes",
+/** Every status a library can filter by, in lifecycle order. Menus list the
+ * ones a library holds in this order, whatever order the records came in. */
+export const LIBRARY_STATUSES = [
   "draft",
+  "review",
+  "ready",
+  "scheduled",
   "published",
   "featured",
   "listed",
   "hidden",
   "archived",
-  "scheduled",
-  "review",
-  "ready",
   "blocked",
-]);
+] as const;
+const statuses = new Set<string>(["all", "changes", ...LIBRARY_STATUSES]);
+/** Each sort's one name, in the menu, its tooltip and its accessible name. */
+export const SORT_LABELS: Record<LibrarySort, string> = {
+  attention: "Needs attention",
+  updated: "Last updated",
+  title: "Title",
+};
 const origin = "https://editorial.invalid";
 export function readLibraryState(
   search: string,
@@ -58,24 +66,14 @@ export function readLibraryState(
   const params = new URLSearchParams(search);
   const group = params.get("group") ?? fallbackGroup;
   const status = params.get("status") ?? "all";
+  const sort = params.get("sort");
   return {
     group: libraryGroups.includes(group as (typeof libraryGroups)[number])
       ? group
       : "website",
     q: (params.get("q") ?? "").slice(0, 512),
     status: statuses.has(status) ? status : "all",
-    sort:
-      params.get("sort") === "title"
-        ? "title"
-        : params.get("sort") === "updated"
-          ? "updated"
-          : "attention",
-    sections: params.has("sections")
-      ? (params.get("sections") ?? "")
-          .split(",")
-          .filter((value) => /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(value))
-          .slice(0, 30)
-      : undefined,
+    sort: sort === "title" || sort === "updated" ? sort : "attention",
   };
 }
 export function libraryStateUrl(
@@ -85,19 +83,15 @@ export function libraryStateUrl(
 ): string {
   const params = new URLSearchParams(search);
   for (const key of [...params.keys()])
-    if (!["theme", "group", "q", "status", "sort", "sections"].includes(key))
-      params.delete(key);
+    if (!["theme", "q", "status", "sort"].includes(key)) params.delete(key);
   if (!["light", "dark", "system"].includes(params.get("theme") ?? ""))
     params.delete("theme");
   const set = (key: string, value: string, omit: boolean) =>
     omit ? params.delete(key) : params.set(key, value);
   // The route names the library, so the group never travels as a parameter.
-  params.delete("group");
   set("q", state.q, !state.q);
   set("status", state.status, state.status === "all");
   set("sort", state.sort, state.sort === "attention");
-  if (state.sections === undefined) params.delete("sections");
-  else params.set("sections", [...new Set(state.sections)].sort().join(","));
   const query = params.toString();
   const path = NEWSLETTER_PATHS.includes(pathname)
     ? libraryPaths.newsletter

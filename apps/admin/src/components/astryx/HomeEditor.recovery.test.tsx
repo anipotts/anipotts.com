@@ -316,7 +316,11 @@ it("can use the compared saved draft without an additional write", async () => {
 
 it("keeps typing buffered during comparison when the owner chooses their version", async () => {
   await mount();
-  await click("Back to editor");
+  // Leave the review sheet for the editor, as its close button does.
+  await act(async () => {
+    window.history.pushState(null, "", window.location.pathname);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
   let finish!: (value: Response) => void;
   fetcher.mockImplementationOnce(
     () =>
@@ -403,8 +407,9 @@ it("keeps retained edits as a new draft when no saved draft exists", async () =>
   // One title for every no-saved-draft trigger, matching a null-current conflict.
   expect(host.textContent).toContain("Saved draft not found");
   expect(host.textContent).not.toContain("Compare before saving again");
-  expect(host.textContent).toContain(
-    "No saved draft is available to compare. Keep your version to save your retained edits as a new draft.",
+  // The banner says it; no second paragraph repeats it.
+  expect(host.textContent).not.toContain(
+    "No saved draft is available to compare",
   );
   expect(host.textContent).not.toContain("comparing again");
   expect(host.textContent).not.toContain("Saved on another tab or device");
@@ -439,7 +444,9 @@ it("offers a new draft when a conflict reports no saved draft", async () => {
   expect(buttons("Use saved version")).toHaveLength(0);
   expect(host.textContent).not.toContain("Another edit was saved");
   expect(host.textContent).toContain("Saved draft not found");
-  expect(host.textContent).toContain("No saved draft is available to compare");
+  expect(host.textContent).not.toContain(
+    "No saved draft is available to compare",
+  );
   await click("Keep my version");
   expect(saves()).toHaveLength(2);
   const next = saveBodies()[1];
@@ -494,13 +501,13 @@ it("hides Save now while a save is refused", async () => {
   await act(async () => {
     (
       host.querySelector(
-        'button[aria-label="Document actions"]',
+        'button[aria-label="More actions"]',
       ) as HTMLButtonElement
     ).click();
   });
   const items = [
     ...document.querySelectorAll(
-      '[role="menu"][aria-label="Document actions"] [role="menuitem"]',
+      '[role="menu"][aria-label="More actions"] [role="menuitem"]',
     ),
   ].map((item) => item.textContent ?? "");
   expect(items.some((label) => label.includes("Download draft"))).toBe(true);

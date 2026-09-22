@@ -69,7 +69,14 @@ const title =
       ? privateTitle
       : (entry?.id ??
         (privateUnavailable ? "Record unavailable" : "Record not found"));
-const rendered = entry ? await render(entry) : null;
+const editorRecord = entry
+  ? (inventoryIdentity(entry) ?? undefined)
+  : privateDraft && privateIdentity.success
+    ? privateIdentity.data
+    : undefined;
+// An editable record opens its editor, which reads the record itself; the
+// rendered article and review props are only for read-only records.
+const rendered = entry && !editorRecord ? await render(entry) : null;
 stopRecordTiming();
 const Content = rendered?.Content;
 const project = entry?.collection === "projects" ? entry.data : null;
@@ -87,55 +94,56 @@ const publicPath =
           ? "/"
           : `/${entry.id}`
         : null;
-const review: Review | undefined = entry
-  ? {
-      updated: recordUpdate(entry.collection, entry.id),
-      back: libraryPath(project ? "work" : writing ? "writing" : "website"),
-      status:
-        project?.public_state ??
-        writing?.status ??
-        (entry.collection === "newsletterPage"
-          ? entry.data.status
-          : "published"),
-      publicUrl: publicPath ? new URL(publicPath, publicSiteUrl).href : null,
-      metadata: project ? [project.role, project.year] : [],
-      summary: project?.description ?? writing?.summary,
-      media: project?.preview_media
-        ? {
-            ...project.preview_media,
-            src: new URL(project.preview_media.src, publicSiteUrl).href,
-          }
-        : null,
-      sections: project?.story.map((section) => ({
-        heading: section.title,
-        paragraphs: section.paragraphs,
-      })),
-      fields: project
-        ? {
-            subtitle: project.subtitle,
-            card_copy: project.card_copy,
-            duration: project.duration,
-            status: project.status,
-            live: project.link_live,
-            repository: project.link_repo,
-            tags: project.tags,
-            technical: project.technical,
-            roadmap: project.roadmap,
-          }
-        : writing
+const review: Review | undefined =
+  entry && !editorRecord
+    ? {
+        updated: recordUpdate(entry.collection, entry.id),
+        back: libraryPath(project ? "work" : writing ? "writing" : "website"),
+        status:
+          project?.public_state ??
+          writing?.status ??
+          (entry.collection === "newsletterPage"
+            ? entry.data.status
+            : "published"),
+        publicUrl: publicPath ? new URL(publicPath, publicSiteUrl).href : null,
+        metadata: project ? [project.role, project.year] : [],
+        summary: project?.description ?? writing?.summary,
+        media: project?.preview_media
           ? {
-              published: writing.published_at,
-              scheduled: writing.scheduled_at,
-              tags: writing.tags,
-              type: writing.content_type,
-              series: writing.series_type,
-              project: writing.project,
-              artifact: writing.artifact_url,
+              ...project.preview_media,
+              src: new URL(project.preview_media.src, publicSiteUrl).href,
             }
-          : undefined,
-      contentFields: !project && !writing ? entry.data : undefined,
-    }
-  : undefined;
+          : null,
+        sections: project?.story.map((section) => ({
+          heading: section.title,
+          paragraphs: section.paragraphs,
+        })),
+        fields: project
+          ? {
+              subtitle: project.subtitle,
+              card_copy: project.card_copy,
+              duration: project.duration,
+              status: project.status,
+              live: project.link_live,
+              repository: project.link_repo,
+              tags: project.tags,
+              technical: project.technical,
+              roadmap: project.roadmap,
+            }
+          : writing
+            ? {
+                published: writing.published_at,
+                scheduled: writing.scheduled_at,
+                tags: writing.tags,
+                type: writing.content_type,
+                series: writing.series_type,
+                project: writing.project,
+                artifact: writing.artifact_url,
+              }
+            : undefined,
+        contentFields: !project && !writing ? entry.data : undefined,
+      }
+    : undefined;
 ---
 
 <EditorialLayout
@@ -144,11 +152,7 @@ const review: Review | undefined = entry
   title={title}
   review={review}
   editHome={entry?.collection === "home"}
-  editorRecord={entry
-    ? (inventoryIdentity(entry) ?? undefined)
-    : privateDraft && privateIdentity.success
-      ? privateIdentity.data
-      : undefined}
+  editorRecord={editorRecord}
 >
   {Content && <Content />}
 </EditorialLayout>

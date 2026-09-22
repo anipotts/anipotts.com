@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import {
   ContentLibrary,
   changedFieldSummary,
-  libraryFigures,
   matchingRecords,
   recentlyUpdated,
   Updated,
@@ -112,7 +111,8 @@ describe("Quiet Precision library rows", () => {
     );
     expect(html).toContain("workspace-row-mark");
     expect(html).toContain("editorial-record-state");
-    expect(html).toContain("editorial-record-action");
+    // The whole row opens the record: no separate action column.
+    expect(html).not.toContain("editorial-record-action");
     expect(html).toContain("Shared context across models");
     expect(html).not.toContain("Next step");
   });
@@ -142,7 +142,8 @@ describe("Quiet Precision library rows", () => {
     );
     expect(html).toContain('aria-label="Continue draft: Private article"');
     expect(html).toContain('aria-label="Open record: Published article"');
-    expect(html).toContain("Unpublished draft");
+    // The Draft chip says it; no line repeats it.
+    expect(html).not.toContain("Unpublished draft");
     expect(html).not.toContain("Up to date");
     expect(html).not.toContain("view=review");
   });
@@ -168,7 +169,9 @@ describe("Quiet Precision library rows", () => {
       />,
     );
     expect(html).toContain("Published");
-    expect(html).toContain("Draft status unavailable");
+    // A glyph named on hover, not a line of text on every row.
+    expect(html).toContain('aria-label="Draft status unavailable"');
+    expect(html).toContain('title="Draft status unavailable"');
     expect(html).toContain('aria-label="Open record: Public article"');
     expect(html).not.toContain('aria-label="Review changes:');
     expect(html).not.toContain("Up to date");
@@ -302,8 +305,9 @@ describe("Row actions", () => {
     expect(html).toContain("Article");
     expect(html).toContain('title="Project"');
     expect(html).toContain('title="Article"');
-    // The action column header is announced rather than empty.
-    expect(html).toContain("Action");
+    // No Kind column repeats the tile, and no action column follows.
+    expect(html).not.toContain(">Kind<");
+    expect(html).not.toContain(">Action<");
   });
   it("bounds the changed-field description on the row action", () => {
     // The tooltip renders on the client, so assert the bounding directly.
@@ -329,7 +333,7 @@ describe("table language", () => {
     },
     { title: "Quiet", href: "/content/writing/quiet", status: "hidden" },
   ];
-  it("tints only public states and sums the view under the table", () => {
+  it("tints only public states and counts the view beside the title", () => {
     const html = renderToStaticMarkup(
       <ContentLibrary
         groups={[
@@ -339,28 +343,19 @@ describe("table language", () => {
       />,
     );
     // Published is the default: it draws no chip, only its spoken name. Every
-    // other state stays neutral. Each row renders its state twice: the State
-    // column and the line that replaces it on phones.
+    // other state stays neutral. The State column names every row's state;
+    // the phone line appears only where it adds something, so the unchanged
+    // published row has none.
     expect(html.match(/astryx-token green/g)).toBeNull();
     expect(html.match(/astryx-token default/g)).toHaveLength(4);
     expect(html.match(/<span class="sr-only">Published<\/span>/g)).toHaveLength(
-      4,
+      3,
     );
-    expect(libraryFigures(mixed)).toEqual([
-      ["public", 2],
-      ["drafts", 1],
-      ["hidden", 1],
-      ["with changes pending", 1],
-    ]);
-    // The count that screen readers hear sits under the table, once.
-    expect(html.match(/workspace-table-count"/g)).toHaveLength(1);
-    expect(html.indexOf("</table>")).toBeLessThan(
-      html.indexOf('aria-label="4 records"'),
+    // The count sits beside the H1; no strip follows the table.
+    expect(html).toMatch(
+      /<h1[^>]*>Writing<\/h1><span[^>]*workspace-count[^>]*>4<\/span>/,
     );
-    expect(html).toContain(" records in view</span>");
-    expect(html).toContain("<strong>2</strong> public");
-  });
-  it("lists no figures for an empty view", () => {
-    expect(libraryFigures([])).toEqual([]);
+    expect(html).not.toContain("workspace-table-count");
+    expect(html).not.toContain("in view");
   });
 });

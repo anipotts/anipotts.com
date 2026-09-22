@@ -52,33 +52,26 @@ export function AdminSkeleton({
       <VStack gap={3} aria-hidden="true">
         {kind === "editor" && (
           <>
-            <HStack gap={2} wrap="wrap" vAlign="center">
-              <Skeleton width="28%" height="var(--spacing-6)" />
-              <Skeleton width="20%" height="var(--spacing-9)" />
-              <Skeleton width="20%" height="var(--spacing-9)" />
-            </HStack>
+            {/* The editor bar is real while this loads, so the shape starts
+                at the title: one large line with no label, then fields. */}
             <VStack gap={4}>
               {fields.map((field, index) => (
                 <VStack gap={1} key={field.path?.join(".") ?? index}>
-                  <Skeleton
-                    width="24%"
-                    height="var(--spacing-4)"
-                    index={index}
-                  />
-                  {field.rich && (
+                  {index > 0 && (
                     <Skeleton
-                      width="48%"
-                      height="calc(var(--spacing-10) + var(--spacing-1))"
+                      width="24%"
+                      height="var(--spacing-4)"
                       index={index}
                     />
                   )}
                   <Skeleton
+                    width={index === 0 ? "72%" : undefined}
                     height={
-                      field.path?.[0] === "title"
+                      index === 0
                         ? "var(--spacing-10)"
-                        : field.path?.[0] === "opening"
-                          ? "var(--spacing-9)"
-                          : "var(--spacing-8)"
+                        : field.rich
+                          ? "calc(var(--spacing-10) + var(--spacing-1))"
+                          : "var(--spacing-9)"
                     }
                     index={index + 1}
                   />
