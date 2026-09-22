@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const read = (path: string) =>
   readFileSync(new URL(path, import.meta.url), "utf8").replace(/\s+/g, " ");
-const editorial = read("../../styles/editorial.css");
+const shell = read("../../styles/shell.css");
 const operations = read("./operations-workspace.css");
 const kit = read("../workspace/workspace.css");
 const header = read("./WorkspaceHeader.css");
@@ -20,7 +20,7 @@ const block = (css: string, query: string) => {
 
 describe("workspace page frames", () => {
   it("gives every workspace page the Content library's inline gutter", () => {
-    expect(editorial).toContain(
+    expect(shell).toContain(
       ".editorial-workspace-shell .admin-page-frame { padding-block: var(--spacing-6); padding-inline: clamp(var(--spacing-4), 3vw, var(--spacing-12));",
     );
     // Data and Observability pages sit in that frame as they are; neither
@@ -30,7 +30,7 @@ describe("workspace page frames", () => {
   });
 
   it("hides phone columns only through the shared table", () => {
-    const phone = block(editorial, "(max-width: 480px)");
+    const phone = block(kit, "(max-width: 480px)");
     for (const rule of phone.matchAll(/([^{}]+)\{[^}]*display: none/g)) {
       const selectors = rule[1]!.split(",").map((part) => part.trim());
       for (const selector of selectors.filter((part) =>
@@ -41,10 +41,10 @@ describe("workspace page frames", () => {
   });
 
   it("moves every table's middle columns under its title on phones", () => {
-    expect(editorial).toContain(
+    expect(kit).toContain(
       ".workspace-table .editorial-record-table :is(th, td):nth-child(n + 2):nth-last-child(n + 2) { display: none; }",
     );
-    expect(editorial).toContain(
+    expect(kit).toContain(
       ".workspace-table .editorial-mobile-status { display: flex; }",
     );
     // Observability keeps no column rules of its own.
@@ -102,7 +102,7 @@ describe("workspace page frames", () => {
   });
 
   it("keeps the library table one line per record", () => {
-    const library = read("../../styles/editorial.css");
+    const library = kit;
     // Cells carry their own inset; only the cell holding the tallest control
     // goes without, so rows stay one control tall.
     expect(library).toContain(

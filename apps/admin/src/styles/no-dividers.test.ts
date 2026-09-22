@@ -168,11 +168,11 @@ it("hides the rule Astryx draws under every table header", () => {
       ".astryx-table-header-cell border-bottom",
     ),
   );
-  expect(resets.map(({ path }) => path)).toEqual(["styles/editorial.css"]);
+  expect(resets.map(({ path }) => path)).toEqual(["styles/shell.css"]);
   for (const layout of ["AdminLayout", "EditorialLayout"])
     expect(
       readFileSync(join(root, `layouts/${layout}.astro`), "utf8"),
-    ).toContain('import "../styles/editorial.css";');
+    ).toContain('import "../styles/shell.css";');
 });
 
 it("separates admin rows, columns and sections without border rules", () => {
