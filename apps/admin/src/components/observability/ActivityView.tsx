@@ -202,7 +202,11 @@ function When({ row, now }: { row: Row; now?: number }) {
   );
 }
 
-function activityColumns(catalog: OpsCatalog, now?: number): Column<Row>[] {
+function activityColumns(
+  catalog: OpsCatalog,
+  now?: number,
+  names?: ReadonlyMap<string, string>,
+): Column<Row>[] {
   return [
     {
       key: "event",
@@ -252,6 +256,7 @@ function activityColumns(catalog: OpsCatalog, now?: number): Column<Row>[] {
         }
         const naming = entryNaming(
           entry ?? { id: latest.subject, name: latest.subject },
+          names,
         );
         return (
           <RowTitle
@@ -384,8 +389,8 @@ export function ActivityView({ data }: { data: OpsData }) {
     return [...seen].sort((a, b) => a[1].label.localeCompare(b[1].label));
   }, [rows, sourceOf]);
   const columns = useMemo(
-    () => activityColumns(catalog, data.fixedNow),
-    [catalog, data.fixedNow],
+    () => activityColumns(catalog, data.fixedNow, data.names),
+    [catalog, data.fixedNow, data.names],
   );
   const shown =
     source === "all" ? rows : rows.filter((row) => sourceOf(row).id === source);

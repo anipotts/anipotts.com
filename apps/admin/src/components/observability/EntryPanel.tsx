@@ -83,6 +83,7 @@ export function EntryPanel({
   const subject = service?.id ?? alert!.subject;
   const naming = entryNaming(
     service ?? { id: subject, name: alert?.name ?? subject },
+    data.names,
   );
   const name = alert?.name ?? naming.name;
   const now = data.fixedNow;

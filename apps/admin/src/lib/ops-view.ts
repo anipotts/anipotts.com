@@ -22,7 +22,7 @@ import {
   type OpsEvent,
   type OpsRunEvent,
 } from "./ops-events";
-import { SYNC_JOBS, syncedApps } from "./naming";
+import { SYNC_JOBS, deviceName, opsNaming, syncedApps } from "./naming";
 import { dayKey } from "../components/workspace/format";
 
 // Hosts
@@ -469,7 +469,7 @@ export function opsSyncRows(services: readonly OpsServiceView[]): OpsSyncRow[] {
     app === null ? "" : (brandMark(app)?.label ?? app);
   return services
     .filter((service) => !opsIsHost(service))
-    .flatMap((service, index) =>
+    .flatMap((service, index): Array<OpsSyncRow & { index: number }> =>
       SYNC_JOBS.includes(service.id)
         ? [{ key: `${service.id}:job`, app: null, service, index }]
         : (syncedApps(service.id) ?? []).map((app) => ({
@@ -501,4 +501,33 @@ export function opsSyncFreshness(
   const freshness = opsFreshness(service, now);
   if (freshness.kind !== "budget") return "never";
   return freshness.overBudget ? "stale" : "fresh";
+}
+
+// Names
+
+/**
+ * Short names two catalog entries would share once their device word goes
+ * ("session transcripts to R2" on ap-mini and "pro session transcripts to
+ * R2" on ap-pro both read "Session transcripts to R2"), with their host
+ * after a comma so every row names itself: "Session transcripts to R2,
+ * ap-mini". Entries whose names are their own keep them, and are absent.
+ */
+export function opsDistinctNames(
+  catalog: readonly Pick<OpsCatalogEntry, "id" | "name" | "kind" | "host">[],
+): ReadonlyMap<string, string> {
+  const named = catalog.map((entry) => ({
+    entry,
+    name: opsNaming(entry).name,
+  }));
+  const counts = new Map<string, number>();
+  for (const { name } of named)
+    counts.set(name.toLowerCase(), (counts.get(name.toLowerCase()) ?? 0) + 1);
+  return new Map(
+    named
+      .filter(({ name }) => (counts.get(name.toLowerCase()) ?? 0) > 1)
+      .map(({ entry, name }) => [
+        entry.id,
+        `${name}, ${deviceName(entry.host)}`,
+      ]),
+  );
 }

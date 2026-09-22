@@ -93,7 +93,10 @@ function useOpsSearchEntries(data: OpsData) {
       icon: firing.has(id) ? BellSimpleIcon : PulseIcon,
     });
     const rows = services.map((service) =>
-      row(service.id, entryNaming(service).name, [service.name, service.group]),
+      row(service.id, entryNaming(service, data.names).name, [
+        service.name,
+        service.group,
+      ]),
     );
     const listed = new Set(services.map((service) => service.id));
     for (const alert of firing.values())

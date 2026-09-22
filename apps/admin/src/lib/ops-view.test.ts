@@ -19,6 +19,7 @@ import {
   opsRuns,
   opsSyncFreshness,
   opsSyncRows,
+  opsDistinctNames,
   opsNextRun,
   opsPeriodText,
   opsSchedulePeriod,
@@ -458,5 +459,37 @@ describe("syncs", () => {
     ).toBe("unjudged");
     // No status row and no budget: still not judged, never fresh.
     expect(opsSyncFreshness(byId.get("pro.voicememos")!, now)).toBe("unjudged");
+  });
+});
+
+describe("names two entries share", () => {
+  it("adds the host after a comma, and leaves every own name alone", () => {
+    // The live catalog on 2026-09-22: one upload on each Mac.
+    const catalog = [
+      {
+        id: "transcripts.upload",
+        name: "session transcripts to R2",
+        kind: "job",
+        host: "ap-mini",
+      },
+      {
+        id: "pro.transcripts",
+        name: "pro session transcripts to R2",
+        kind: "job",
+        host: "ap-pro",
+      },
+      {
+        id: "pro.pc-send",
+        name: "pro intake and offsite upload",
+        kind: "job",
+        host: "ap-pro",
+      },
+    ] as const;
+    const names = opsDistinctNames(catalog);
+    expect([...names]).toEqual([
+      ["transcripts.upload", "Session transcripts to R2, ap-mini"],
+      ["pro.transcripts", "Session transcripts to R2, ap-pro"],
+    ]);
+    expect(names.has("pro.pc-send")).toBe(false);
   });
 });

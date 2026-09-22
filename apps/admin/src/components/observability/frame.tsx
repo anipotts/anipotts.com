@@ -26,6 +26,7 @@ import {
 import type { OpsConnection, OpsStatusController } from "../../lib/ops-reader";
 import { useOpsStatus } from "../hooks/useOpsStatus";
 import { relativeAgo, useLiveText } from "../../lib/live-clock";
+import { opsDistinctNames } from "../../lib/ops-view";
 import { sentenceCase } from "../../lib/sentence-case";
 import {
   InlineNotice,
@@ -142,11 +143,17 @@ export function useOpsData(props: OpsViewProps, withEvents: boolean) {
   const current = !fixtureMode && state.connection === "connected" && !stopped;
   const retry =
     live && retryable.has(state.connection) ? () => live.start() : undefined;
+  const names = useMemo(
+    () => opsDistinctNames(snapshot?.catalog ?? []),
+    [snapshot],
+  );
   return {
     fixtureMode,
     state,
     snapshot,
     events,
+    /** Names two entries share, with their host (opsDistinctNames). */
+    names,
     /** The fixed clock for a fixture or a test; undefined when live. */
     fixedNow,
     serverNow: mounted,

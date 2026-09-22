@@ -3,6 +3,7 @@ import { VStack } from "@astryxdesign/core/VStack";
 import { BellSimpleIcon } from "@phosphor-icons/react";
 import type { OpsEventLog } from "../../lib/ops-events";
 import { deriveOpsAlerts, type OpsAlert } from "../../lib/ops-events";
+import { opsDistinctNames } from "../../lib/ops-view";
 import { opsServices, type OpsSnapshot } from "../../lib/ops-v1";
 import { SplitView, useSplitView } from "../astryx/SplitView";
 import {
@@ -52,11 +53,12 @@ export function opsAlertRows(
   snapshot: OpsSnapshot | null,
 ): AlertRow[] {
   const catalog = catalogOf(snapshot);
+  const names = opsDistinctNames(snapshot?.catalog ?? []);
   return deriveOpsAlerts(events?.transitions ?? []).map((alert) => {
     const entry = catalog.get(alert.subject);
     return {
       ...alert,
-      name: entry ? entryNaming(entry).name : alert.subject,
+      name: entry ? entryNaming(entry, names).name : alert.subject,
       kind: entry?.kind ?? null,
       host: entry?.host ?? null,
       runbook: entry?.runbook ?? null,
@@ -123,12 +125,17 @@ export function AlertsTable({
     key: "alert",
     header: "Alert",
     render: (row) => {
-      const naming = entryNaming({
-        id: row.subject,
+      // The row's name is already the one to show (with its host when two
+      // entries share it); only the tiles come from naming.
+      const naming = {
+        ...entryNaming({
+          id: row.subject,
+          name: row.name,
+          kind: row.kind,
+          host: row.host,
+        }),
         name: row.name,
-        kind: row.kind,
-        host: row.host,
-      });
+      };
       return (
         <RowTitle
           mark={<EntryTile naming={naming} />}

@@ -141,14 +141,18 @@ function Reason({ service }: { service: OpsServiceView }) {
  * its state, its last success and its next run, so nothing scrolls sideways.
  */
 function statusColumns(
-  { narrow, now }: { narrow: boolean; now?: number },
+  {
+    narrow,
+    now,
+    names,
+  }: { narrow: boolean; now?: number; names: ReadonlyMap<string, string> },
   select: Select,
 ): Column<Row>[] {
   const lead: Column<Row> = {
     key: "name",
     header: "Service",
     render: (row) => {
-      const naming = entryNaming(row);
+      const naming = entryNaming(row, names);
       const exception = row.status.state !== "ok" || opsUnverified(row);
       return (
         <RowTitle
@@ -513,17 +517,19 @@ function SyncGrid({
   rows,
   now,
   select,
+  names,
 }: {
   rows: OpsSyncRow[];
   now?: number;
   select: Select;
+  names: ReadonlyMap<string, string>;
 }) {
   if (!rows.length) return null;
   return (
     <WorkspaceSection title="Syncs" meta={String(rows.length)}>
       <ul className="ops-cards ops-syncs" aria-label="Syncs">
         {rows.map((row) => {
-          const naming = entryNaming(row.service);
+          const naming = entryNaming(row.service, names);
           const budget = row.service.freshness_budget_s;
           const budgetText =
             budget === null
@@ -626,19 +632,22 @@ function StatusList({
   lastKnown,
   select,
   panelOpen,
+  names,
 }: {
   services: OpsServiceView[];
   now?: number;
   lastKnown: boolean;
   select: Select;
   panelOpen: boolean;
+  /** Names two entries share, with their host. */
+  names: ReadonlyMap<string, string>;
 }) {
   const beside = useSplitView();
   const narrow = beside && panelOpen;
   const hosts = services.filter(opsIsHost);
   const rows = services.filter((service) => !opsIsHost(service)) as Row[];
   const syncs = useMemo(() => opsSyncRows(services), [services]);
-  const columns = statusColumns({ narrow, now }, select);
+  const columns = statusColumns({ narrow, now, names }, select);
   useAnchorLanding(services.length > 0);
   return (
     <VStack gap={6}>
@@ -660,7 +669,7 @@ function StatusList({
       ) : (
         <StateNotice kind="empty" title="No services in the catalog" />
       )}
-      <SyncGrid rows={syncs} now={now} select={select} />
+      <SyncGrid rows={syncs} now={now} select={select} names={names} />
     </VStack>
   );
 }
@@ -695,6 +704,7 @@ export function StatusView({
             lastKnown={data.stopped}
             select={select}
             panelOpen={Boolean(current)}
+            names={data.names}
           />
         }
         panel={

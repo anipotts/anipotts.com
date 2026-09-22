@@ -63,9 +63,15 @@ type Entry = Pick<OpsCatalogEntry, "id" | "name"> & {
   host?: string | null;
 };
 
-/** An entry's short name, tile, device and tooltip. */
-export function entryNaming(entry: Entry): Naming {
-  return opsNaming(entry);
+/** An entry's short name, tile, device and tooltip. With the catalog's
+ * `names` (opsDistinctNames), a name two entries share carries its host. */
+export function entryNaming(
+  entry: Entry,
+  names?: ReadonlyMap<string, string>,
+): Naming {
+  const naming = opsNaming(entry);
+  const name = names?.get(entry.id);
+  return name ? { ...naming, name } : naming;
 }
 
 /** What an entry's tile stands for, for its tooltip. */
