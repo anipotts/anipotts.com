@@ -1,10 +1,34 @@
 import { describe, expect, test } from "vitest";
 import {
-  decideAdminAccess,
   isDevLoopbackPreviewRequest,
   isLocalOwnerRequest,
   isPublicAdminPath,
 } from "./admin-access-policy";
+
+/** The order middleware applies the policy in, for requests outside the
+ * editorial namespace. */
+function decideAdminAccess({
+  isDev,
+  localOwner = false,
+  method,
+  url,
+  headers = new Headers(),
+  hasSession,
+}: {
+  isDev: boolean;
+  localOwner?: boolean;
+  method: string;
+  url: URL;
+  headers?: Headers;
+  hasSession: boolean;
+}) {
+  if (isPublicAdminPath(url.pathname)) return "public";
+  if (isLocalOwnerRequest({ enabled: localOwner, method, url, headers }))
+    return "local-owner";
+  if (isDevLoopbackPreviewRequest({ isDev, method, url }))
+    return "dev-loopback-preview";
+  return hasSession ? "session" : "passkey-required";
+}
 
 const local = (path: string, origin = "http://localhost:4311") =>
   new URL(path, origin);
@@ -211,7 +235,7 @@ test("observability preview allows only the local read surface, keeping its API 
       method: "GET",
       url: new URL("https://admin.anipotts.com/operations/observability"),
     },
-    { isDev: true, method: "GET", url: local("/api/admin/runtime-feed") },
+    { isDev: true, method: "GET", url: local("/api/admin/projections") },
     { isDev: true, method: "POST", url: local("/operations/observability") },
   ])
     expect(decideAdminAccess({ ...input, hasSession: false })).toBe(

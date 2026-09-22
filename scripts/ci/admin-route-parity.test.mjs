@@ -9,6 +9,17 @@ import {
   RETIRED_ADMIN_AUTH_FILES,
   PUBLIC_UNSMOKED_ROUTE_FILES,
 } from "./admin-route-inventory.mjs";
+import {
+  DEV_LOOPBACK_PREVIEW_PATHS,
+  DEV_PREVIEW_ASSET_PATHS,
+  DEV_PREVIEW_ASSET_PREFIXES,
+  LOOPBACK_HOSTNAMES,
+  PUBLIC_PASSKEY_API_PATHS,
+  PUBLIC_PATHS,
+  PUBLIC_PREFIXES,
+  isApprovedDevPreviewOrigin,
+  isDevLoopbackPreviewRequest,
+} from "../../apps/admin/src/lib/admin-access-policy.ts";
 
 const navSource = readFileSync("apps/admin/src/data/admin.ts", "utf8");
 const sidebarSource = readFileSync(
@@ -47,10 +58,6 @@ const lifecycleSource = readFileSync(
   "utf8",
 );
 const middlewareSource = readFileSync("apps/admin/src/middleware.ts", "utf8");
-const accessPolicySource = readFileSync(
-  "apps/admin/src/lib/admin-access-policy.ts",
-  "utf8",
-);
 const passkeyProofSource = readFileSync(
   "scripts/admin/passkey-proof.mjs",
   "utf8",
@@ -72,28 +79,10 @@ assert.ok(
 );
 const deploySmokeRoutes = new Set(ADMIN_PROTECTED_SMOKE_ROUTES);
 const manualSmokeRoutes = new Set(ADMIN_PROTECTED_SMOKE_ROUTES);
-const publicPaths = extractStringList(accessPolicySource, "PUBLIC_PATHS");
-const publicPasskeyApiPaths = extractStringList(
-  accessPolicySource,
-  "PUBLIC_PASSKEY_API_PATHS",
-);
-const publicPrefixes = extractStringList(accessPolicySource, "PUBLIC_PREFIXES");
-const loopbackHostnames = extractStringList(
-  accessPolicySource,
-  "LOOPBACK_HOSTNAMES",
-);
-const devLoopbackPreviewPaths = extractStringList(
-  accessPolicySource,
-  "DEV_LOOPBACK_PREVIEW_PATHS",
-);
-const devPreviewAssetPaths = extractStringList(
-  accessPolicySource,
-  "DEV_PREVIEW_ASSET_PATHS",
-);
-const devPreviewAssetPrefixes = extractStringList(
-  accessPolicySource,
-  "DEV_PREVIEW_ASSET_PREFIXES",
-);
+const sorted = (values) => [...values].sort();
+const publicPaths = sorted(PUBLIC_PATHS);
+const publicPasskeyApiPaths = sorted(PUBLIC_PASSKEY_API_PATHS);
+const publicPrefixes = sorted(PUBLIC_PREFIXES);
 const retiredActionQueueFiles = [
   "apps/admin/src/pages/needs-ani.astro",
   "apps/admin/src/data/needs.ts",
@@ -140,58 +129,57 @@ assert.deepEqual(publicPasskeyApiPaths, [
   "/api/admin/recovery/google/start",
 ]);
 assert.deepEqual(publicPrefixes, ["/_astro/", "/assets/"]);
-assert.deepEqual(loopbackHostnames, ["127.0.0.1", "[::1]", "localhost"]);
-assert.deepEqual(devLoopbackPreviewPaths, [
-  "/",
-  "/content",
-  "/content/carousels",
-  "/content/drafts",
-  "/content/newsletter",
-  "/content/operations",
-  "/content/pages",
-  "/content/preview",
-  "/content/projects",
-  "/content/review",
-  "/content/writing",
-  "/data",
-  "/data/records",
-  "/data/sources",
-  "/deploys",
-  "/fleet",
-  "/handoffs",
-  "/inbox",
-  "/knowledge",
-  "/knowledge/locations",
-  "/life",
-  "/life/aesthetics",
-  "/life/health",
-  "/life/people",
-  "/life/places",
-  "/life/preview",
-  "/life/projects",
-  "/life/sources",
-  "/life/timeline",
-  "/mutations",
-  "/newsletter",
-  "/observability/activity",
-  "/observability/alerts",
-  "/observability/status",
-  "/operations/observability",
-  "/proof",
-  "/repos",
-  "/system",
-  "/work",
+assert.deepEqual(sorted(LOOPBACK_HOSTNAMES), [
+  "127.0.0.1",
+  "[::1]",
+  "localhost",
 ]);
-assert.deepEqual(devPreviewAssetPaths, ["/@react-refresh"]);
-assert.deepEqual(devPreviewAssetPrefixes, ["/@id/", "/@vite/", "/src/"]);
-assert.ok(
-  !/anipotts\\?\.localhost/.test(accessPolicySource),
-  "the dev preview must not trust named localhost hosts",
-);
-assert.match(
-  accessPolicySource,
-  /url\.protocol === "http:" &&\s*LOOPBACK_HOSTNAMES\.has\(url\.hostname\)/,
-  "the dev preview must accept only plain HTTP loopback origins",
+// The development preview follows the route inventory: every page, never an
+// API, auth or draft preview route, and nothing the inventory does not name.
+const inventoriedRoutes = new Set(ADMIN_ROUTES.map((route) => route.route));
+for (const path of DEV_LOOPBACK_PREVIEW_PATHS) {
+  assert.ok(
+    inventoriedRoutes.has(path),
+    `${path} must be an inventoried route`,
+  );
+  assert.doesNotMatch(path, /^\/(?:api|auth|preview)(?:\/|$)/);
+}
+for (const route of ["/data/records", "/observability/status", "/"])
+  assert.ok(DEV_LOOPBACK_PREVIEW_PATHS.has(route), `${route} previews locally`);
+assert.deepEqual(sorted(DEV_PREVIEW_ASSET_PATHS), ["/@react-refresh"]);
+assert.deepEqual(sorted(DEV_PREVIEW_ASSET_PREFIXES), [
+  "/@id/",
+  "/@vite/",
+  "/src/",
+]);
+for (const origin of [
+  "http://localhost:4311",
+  "http://127.0.0.1:4401",
+  "http://[::1]:3001",
+])
+  assert.ok(
+    isApprovedDevPreviewOrigin(new URL(origin)),
+    `${origin} is loopback`,
+  );
+for (const origin of [
+  "https://localhost:4311",
+  "http://admin.anipotts.localhost:1355",
+  "http://localhost.example:4401",
+  "https://admin.anipotts.com",
+])
+  assert.equal(
+    isApprovedDevPreviewOrigin(new URL(origin)),
+    false,
+    `the dev preview must accept only plain HTTP loopback origins, not ${origin}`,
+  );
+assert.equal(
+  isDevLoopbackPreviewRequest({
+    isDev: false,
+    method: "GET",
+    url: new URL("http://localhost:4311/data/records"),
+  }),
+  false,
+  "loopback preview must remain gated by Astro development mode",
 );
 assert.ok(
   middlewareSource.includes("isDev: import.meta.env.DEV"),
@@ -481,15 +469,6 @@ for (const marker of [
     contentEditorSource.includes(marker),
     `/content/edit/:pageKey missing draft editor marker ${marker}`,
   );
-}
-
-function extractStringList(source, name) {
-  const match =
-    source.match(
-      new RegExp(`const ${name} = new Set\\(\\[([\\s\\S]*?)\\]\\);`),
-    ) ?? source.match(new RegExp(`const ${name} = \\[([\\s\\S]*?)\\];`));
-  assert.ok(match, `missing middleware list ${name}`);
-  return [...match[1].matchAll(/"([^"]+)"/g)].map((item) => item[1]).sort();
 }
 
 function listAdminPageFiles(dir = "apps/admin/src/pages") {
