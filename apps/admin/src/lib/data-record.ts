@@ -335,6 +335,26 @@ const CONTAINERS: ReadonlySet<string> = new Set([
   "workout",
 ]);
 
+/** Vital signs a health day could carry. No collector feeds any of them
+ * (Ani's watch has never sent vitals; the Withings events carry no weight),
+ * and System marks no vital feed as collected, so a health day never shows
+ * one: whatever number a record holds came from somewhere else. It reads
+ * "No vitals collected" instead. Activity (steps, distance, flights, active
+ * energy) is collected and shows. */
+const VITALS: ReadonlySet<string> = new Set([
+  "avg_hr_bpm",
+  "body_fat_pct",
+  "hrv_avg_ms",
+  "resting_hr_bpm",
+  "sleep_h",
+  "weight_lbs",
+  "wrist_temp_delta_c",
+]);
+const HEALTH_DAYS: ReadonlySet<string> = new Set([
+  "health_day",
+  "health_day_private",
+]);
+
 /** Keys that repeat what the panel already shows: the tier glyph and the
  * device tile in its facts, the record's title and date, and lists the body
  * spells out. */
@@ -428,7 +448,11 @@ const UNITS: Readonly<Record<string, (value: number) => DetailValue>> = {
         : `${NUMBER.format(value)} m`,
   }),
   min: (value) => ({ type: "duration", ms: value * 60_000 }),
-  ms: (value) => ({ type: "duration", ms: value }),
+  // Under a second it is a measurement ("48 ms", like "56 bpm"), not a wait.
+  ms: (value) =>
+    Math.abs(value) < 1000
+      ? { type: "figure", text: `${NUMBER.format(value)} ms` }
+      : { type: "duration", ms: value },
   pct: (value) => ({ type: "figure", text: `${NUMBER.format(value)}%` }),
   s: (value) => ({ type: "duration", ms: value * 1000 }),
   seconds: (value) => ({ type: "duration", ms: value * 1000 }),
@@ -454,10 +478,16 @@ const WORDS: Readonly<Record<string, string>> = {
   prs: "PRs",
 };
 
-/** A key as a label: its entry in LABELS, or its words in sentence case. */
+/** A key as a label: its entry in LABELS, or its words in sentence case.
+ * A unit the value already says goes ("distance_m" reads "Distance"). */
 export function detailLabel(key: string): string {
   if (Object.hasOwn(LABELS, key)) return LABELS[key]!;
-  return keyLabel(withoutOwner(key))
+  const words = key.split("_");
+  const bare =
+    words.length > 1 && Object.hasOwn(UNITS, words.at(-1)!)
+      ? words.slice(0, -1).join("_")
+      : key;
+  return keyLabel(withoutOwner(bare))
     .split(" ")
     .map((word) => WORDS[word.toLowerCase()] ?? word)
     .join(" ");
@@ -637,6 +667,7 @@ function readFields(
   const skip = new Set([...SHOWN, ...((kind && IN_BODY[kind]) || [])]);
   for (const [key, value] of Object.entries(fields)) {
     if (!prefix && skip.has(key)) continue;
+    if (kind && HEALTH_DAYS.has(kind) && VITALS.has(key)) continue;
     const path = prefix ? `${prefix.key}.${key}` : key;
     if (!prefix && key === "coverage") {
       // Coverage is the capture's own receipt; only a note's says what the
@@ -828,6 +859,12 @@ export function recordDetails(raw: Item): {
       details,
       technical,
     );
+  if (kind && HEALTH_DAYS.has(kind))
+    details.push({
+      key: "vitals",
+      label: "Vitals",
+      value: { type: "text", text: "No vitals collected" },
+    });
   // One entry per label: a time the reader states twice (on the record and
   // in its assertion) reads once.
   const unique = <T extends { label: string }>(entries: T[]) => {

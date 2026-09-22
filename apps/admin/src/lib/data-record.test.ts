@@ -169,9 +169,7 @@ describe("record details", () => {
     expect(health.map((detail) => [detail.label, detail.value])).toEqual([
       ["Time zone", { type: "text", text: "America/New_York" }],
       ["Steps", { type: "figure", text: "8,412" }],
-      ["Sleep", { type: "duration", ms: 7.2 * 3_600_000 }],
-      ["Resting heart rate", { type: "figure", text: "56 bpm" }],
-      ["Heart rate variability", { type: "duration", ms: 48 }],
+      ["Vitals", { type: "text", text: "No vitals collected" }],
     ]);
     expect(labels(byKind("work_day"))).toEqual([
       "Visibility",
@@ -187,6 +185,48 @@ describe("record details", () => {
       "Full name",
       "Organization",
       "Job title",
+    ]);
+  });
+
+  it("never shows a vital on a health day, whatever number the record holds", () => {
+    const day = {
+      kind: "health_day",
+      metadata: {
+        date: "2026-09-18",
+        vitals: {
+          steps: 8412,
+          distance_m: 6200,
+          sleep_h: 7.2,
+          resting_hr_bpm: 56,
+          avg_hr_bpm: 71,
+          hrv_avg_ms: 48,
+          weight_lbs: 172.4,
+          body_fat_pct: 18,
+          wrist_temp_delta_c: 0.2,
+        },
+      },
+    };
+    const details = recordDetails(day).details;
+    expect(details.map((detail) => detail.label)).toEqual([
+      "Steps",
+      "Distance",
+      "Vitals",
+    ]);
+    expect(details.at(-1)!.value).toEqual({
+      type: "text",
+      text: "No vitals collected",
+    });
+    expect(JSON.stringify(details)).not.toMatch(/bpm|lbs|°C|7\.2|48/);
+    // Outside a health day a value in milliseconds reads with its unit
+    // spaced, like "56 bpm".
+    expect(
+      recordDetails({ kind: "note", metadata: { latency_ms: 48 } }).details,
+    ).toEqual([
+      {
+        key: "latency_ms",
+        label: "Latency",
+        value: { type: "figure", text: "48 ms" },
+      },
     ]);
   });
 
