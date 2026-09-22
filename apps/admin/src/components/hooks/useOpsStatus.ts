@@ -20,6 +20,13 @@ const offStore = {
   getState: () => OFF,
   subscribe: () => () => undefined,
 };
+/** The server render of an enabled page: the controller's own starting
+ * state, so hydration matches without creating a session on the server. */
+const IDLE: OpsStatusState = Object.freeze({ ...OFF, connection: "idle" });
+const idleStore = {
+  getState: () => IDLE,
+  subscribe: () => () => undefined,
+};
 
 /** A fresh ops session, under the same idle rule as the Data session. */
 function opsController(events: boolean): OpsStatusController {
@@ -48,8 +55,12 @@ export function useOpsStatus({
   /** Also read the events feed. */
   events?: boolean;
 }): { state: OpsStatusState; controller: OpsStatusController | null } {
+  // The session and its listeners are browser-only; the server renders the
+  // idle state the controller starts in.
   const [controller] = useState<OpsStatusController | null>(() =>
-    !enabled ? null : (injected ?? opsController(events)),
+    !enabled || (typeof window === "undefined" && !injected)
+      ? null
+      : (injected ?? opsController(events)),
   );
   useEffect(() => {
     if (!controller) return;
@@ -65,7 +76,7 @@ export function useOpsStatus({
       controller.end();
     };
   }, [controller]);
-  const store = controller ?? offStore;
+  const store = controller ?? (enabled ? idleStore : offStore);
   const state = useSyncExternalStore(
     store.subscribe,
     store.getState,
