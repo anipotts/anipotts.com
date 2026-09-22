@@ -165,15 +165,19 @@
   flex: none;
 }
 
-/* Card summaries take two lines instead of one, the tile on the first. */
-.data-cards .data-source {
-  align-items: flex-start;
-}
-.data-cards .data-source-name {
-  display: -webkit-box;
-  white-space: normal;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+/* Card summaries take two lines instead of one, the tile on the first. On a
+   phone a row keeps to two lines, so line 2 (a freshness chip, the tile and
+   the summary) stays on one and the summary ends in an ellipsis. */
+@media (min-width: 641px) {
+  .data-cards .data-source {
+    align-items: flex-start;
+  }
+  .data-cards .data-source-name {
+    display: -webkit-box;
+    white-space: normal;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
 }
 
 /* The record page. */
