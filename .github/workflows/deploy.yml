@@ -262,6 +262,7 @@ jobs:
         run: pnpm turbo build --filter=@anipotts/www
         env:
           PUBLIC_RELEASE_SHA: ${{ github.sha }}
+          PUBLIC_RELEASE_SCHEMA_VERSION: ${{ needs.release.outputs.database_schema_version }}
 
       # apps/www is Astro (@astrojs/cloudflare). `astro build` already emits the
       # worker bundle at dist/_worker.js; no opennextjs adapter step here.

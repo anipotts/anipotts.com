@@ -140,20 +140,44 @@ function validateNewRecord(record, sql, file, bootstrap) {
   return record;
 }
 
+// With no migration in the diff, production is at the highest migration the
+// manifest records: the bootstrap baseline or a later record, which applies in
+// the release that adds it. A pinned after-fingerprint travels with it.
+function recordedSchema(manifest) {
+  const latest = [...manifest.migrations]
+    .sort((a, b) => a.file.localeCompare(b.file))
+    .at(-1);
+  const file = [
+    manifest.bootstrap.baseline_through,
+    ...manifest.historical.map(([name]) => name),
+    latest?.file,
+  ]
+    .filter(Boolean)
+    .sort()
+    .at(-1);
+  const fingerprint =
+    latest?.file === file &&
+    /^sha256:[0-9a-f]{64}$/.test(latest.schema_fingerprint_after ?? "")
+      ? latest.schema_fingerprint_after
+      : manifest.bootstrap.schema_fingerprint;
+  return { version: file.slice(0, 4), fingerprint };
+}
+
 export function inspectMigrationChanges(paths, options = {}) {
   const manifest = verifyManifest(options);
   const migrationFiles = paths
     .filter((path) => /^drizzle\/migrations\/\d{4}_.+\.sql$/.test(path))
     .map((path) => basename(path));
   if (migrationFiles.length === 0) {
+    const schema = recordedSchema(manifest);
     return {
       changed: false,
       risk: "none",
       consumers: [],
       remoteAllowed: false,
-      schemaVersion: manifest.bootstrap.baseline_through.slice(0, 4),
-      schemaFingerprintBefore: manifest.bootstrap.schema_fingerprint,
-      schemaFingerprintAfter: manifest.bootstrap.schema_fingerprint,
+      schemaVersion: schema.version,
+      schemaFingerprintBefore: schema.fingerprint,
+      schemaFingerprintAfter: schema.fingerprint,
       reasons: [],
     };
   }

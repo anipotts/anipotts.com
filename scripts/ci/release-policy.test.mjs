@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { readdirSync } from "node:fs";
 import { protectionPayload, REQUIRED_CHECKS } from "./branch-protection.mjs";
 import {
   parseD1SchemaResult,
@@ -135,6 +136,48 @@ assert.equal(safeMigration.deploy_targets.www, true);
 assert.equal(safeMigration.database_schema_version, "0043");
 assert.equal(safeMigration.migration_schema_before, `sha256:${"1".repeat(64)}`);
 assert.equal(safeMigration.migration_schema_after, `sha256:${"2".repeat(64)}`);
+
+// A release without a migration reports the highest recorded migration, not
+// the bootstrap baseline it was recorded after.
+const appliedFile = "0044_release_canary_rows.sql";
+const appliedManifest = {
+  bootstrap: {
+    status: "verified",
+    automatic_remote_apply: true,
+    baseline_through: "0043_admin_auth_v2.sql",
+    schema_fingerprint: `sha256:${"1".repeat(64)}`,
+  },
+  historical: [],
+  migrations: [{ ...safeManifest.migrations[0], file: appliedFile }],
+};
+const afterApplied = classifyRelease(["M\tapps/www/src/styles/global.css"], {
+  ...base,
+  manifest: appliedManifest,
+  files: [appliedFile],
+  readFile: () => safeSql,
+});
+assert.equal(afterApplied.d1_changed, false);
+assert.equal(afterApplied.database_schema_version, "0044");
+assert.equal(afterApplied.migration_schema_before, `sha256:${"2".repeat(64)}`);
+assert.equal(afterApplied.migration_schema_after, `sha256:${"2".repeat(64)}`);
+const baselineOnly = classifyRelease(["M\tapps/www/src/styles/global.css"], {
+  ...base,
+  manifest: { ...appliedManifest, migrations: [] },
+  files: [],
+});
+assert.equal(baselineOnly.database_schema_version, "0043");
+assert.equal(baselineOnly.migration_schema_after, `sha256:${"1".repeat(64)}`);
+const highestOnDisk = readdirSync("drizzle/migrations")
+  .filter((file) => /^\d{4}_.+\.sql$/.test(file))
+  .sort()
+  .at(-1)
+  .slice(0, 4);
+assert.equal(
+  classifyRelease(["M\tapps/www/src/styles/global.css"], base)
+    .database_schema_version,
+  highestOnDisk,
+  "the repository manifest reports its newest migration",
+);
 
 const heldFile = "0042_held_rewrite.sql";
 const heldSql = "UPDATE release_canary SET id = id;";

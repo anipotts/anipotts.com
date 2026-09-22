@@ -20,7 +20,7 @@ export const GET: APIRoute = async ({ locals }) => {
       tables_ok: tablesOk,
       release_sha: import.meta.env.PUBLIC_RELEASE_SHA || "dev",
       schema_version:
-        import.meta.env.PUBLIC_RELEASE_SCHEMA_VERSION || "0042-unverified",
+        import.meta.env.PUBLIC_RELEASE_SCHEMA_VERSION || "unknown",
       ts: new Date().toISOString(),
     },
     { status: tablesOk ? 200 : 503 },
