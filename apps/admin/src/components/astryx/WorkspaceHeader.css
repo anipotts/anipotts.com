@@ -1,6 +1,45 @@
-/* "AP Structural" is declared once, in styles/fonts.css. */
-/* The desktop rail changes width, never its row rhythm or icon centerline. */
-@media (width > 768px) {
+/* The sidebar and its rail (EditorialWorkspaceShell, UnifiedSidebar). The
+   sidebar exists from 641px (lib/admin-sidebar.ts); compact phones use the
+   top bar and tab row in styles/shell.css instead. "AP Structural" is
+   declared once, in styles/fonts.css.
+
+   AppShell renders the inline sidebar on the server and removes it below its
+   breakpoint after hydration. CSS hides it from the first paint, so the
+   compact layout never depends on hydration. */
+@media (max-width: 640px) {
+  .editorial-workspace-shell .astryx-app-shell-sidenav {
+    display: none;
+  }
+}
+
+/* Widths: 200px expanded, the 52px rail collapsed. AppShell has no sidenav
+   width prop and SideNav hardcodes its rail width, so the parent sets it;
+   only the parent animates, on the 125ms theme token, and the icons stay
+   still. The pane edge is space, never a rule, in either state. */
+@media (min-width: 641px) {
+  .editorial-workspace-shell .astryx-app-shell-sidenav {
+    flex: 0 0 auto;
+    min-width: 0;
+    width: calc(var(--spacing-10) * 5);
+    border-inline-end: 0;
+    background: var(--color-workspace-sidebar, var(--color-background-body));
+    transition: width var(--duration-fast) cubic-bezier(0.2, 0, 0, 1);
+  }
+  .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    .astryx-app-shell-sidenav {
+    flex-basis: auto;
+    width: calc(var(--spacing-9) + var(--spacing-2) * 2);
+  }
+  .editorial-workspace-shell[data-sidebar-collapsed]
+    nav.astryx-side-nav.editorial-workspace-nav {
+    width: 100%;
+    min-width: 0;
+    transition: none;
+  }
+}
+
+/* The rail changes width, never its row rhythm or icon centerline. */
+@media (min-width: 641px) {
   .editorial-workspace-nav .approved-workspace-header {
     gap: var(--spacing-0-5);
   }
@@ -19,34 +58,38 @@
     box-sizing: border-box;
   }
 }
-@media (width > 768px) and (pointer: coarse) {
+@media (min-width: 641px) and (pointer: coarse) {
   .editorial-workspace-nav .astryx-side-nav-item {
     height: var(--spacing-11);
     min-height: var(--spacing-11);
   }
 }
-/* Shared geometry: one square target and icon column in either sidebar state. */
+/* Shared geometry: one square target and icon column in either state. */
 .editorial-workspace-nav .approved-workspace-header {
   --workspace-control-size: var(--spacing-9);
+}
+@media (pointer: coarse) {
+  .editorial-workspace-nav .approved-workspace-header {
+    --workspace-control-size: var(--spacing-11);
+  }
 }
 .approved-workspace-header .editorial-identity-primary-row {
   flex-direction: row;
   min-height: var(--workspace-control-size);
 }
+/* The wordmark keeps the middle of the row between the collapse button and
+   an end slot of the same size, which holds the local owner tile. */
 .approved-workspace-header .admin-bracket-wordmark {
-  display: inline-flex;
-  align-items: center;
   flex: 1;
   justify-content: center;
-  gap: calc(var(--spacing-1) / 2);
-  font-family: "AP Structural", sans-serif;
-  font-weight: 900;
-  font-size: var(--font-size-xl);
-  line-height: 1;
-  white-space: nowrap;
+  min-height: var(--workspace-control-size);
 }
-.admin-bracket-wordmark > span {
-  color: var(--color-text-accent);
+.editorial-identity-end {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: var(--workspace-control-size);
+  height: var(--workspace-control-size);
 }
 .editorial-workspace-nav .approved-workspace-header button,
 .editorial-workspace-nav .approved-workspace-header > a {
@@ -61,55 +104,25 @@
   padding: 0;
   flex: none;
 }
-/* The identity column spans its panel, so the workspace menu is as wide as
-   the sidebar on desktop and as the drawer on phones and tablets. The phone
-   and tablet top bar is a row instead: wordmark, then a compact menu. */
+/* The identity column spans the sidebar, so search is as wide as it. */
 .editorial-workspace-nav .editorial-workspace-identity {
   align-self: stretch;
   width: 100%;
+  min-width: 0;
   box-sizing: border-box;
 }
-.approved-workspace-header .admin-workspace-selector,
-.approved-workspace-header .editorial-header-search,
-.approved-workspace-header .editorial-header-site,
-.editorial-workspace-utilities .admin-sidebar-menu {
+.approved-workspace-header .editorial-header-search {
   width: 100%;
   justify-content: flex-start;
   padding-inline: var(--spacing-2);
   gap: var(--spacing-2);
 }
-/* Sidebar menus (workspace, appearance): icon, label, then the current
-   choice and caret pushed to the end, like a navigation item's count. */
-.editorial-workspace-nav .admin-sidebar-menu > span:first-child {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  min-width: 0;
-  gap: var(--spacing-2);
-}
-/* Astryx wraps endContent in its own span; that wrapper takes the free space. */
-.editorial-workspace-nav
-  .admin-sidebar-menu
-  > span:first-child
-  > span:has(> .admin-sidebar-menu-end) {
-  margin-inline-start: auto;
-  flex-shrink: 0;
-}
-.editorial-workspace-nav .admin-sidebar-menu .admin-sidebar-menu-end {
-  color: var(--color-text-secondary);
-}
 .approved-workspace-header svg {
   flex-shrink: 0;
 }
 .approved-workspace-header .editorial-identity-primary-row button,
-.approved-workspace-header .editorial-header-search svg,
-.approved-workspace-header .editorial-header-site svg {
+.approved-workspace-header .editorial-header-search svg {
   color: var(--color-text-secondary);
-}
-.editorial-workspace-nav
-  .approved-workspace-header[data-collapsed="true"]
-  .editorial-identity-primary-row {
-  flex-direction: row;
 }
 .editorial-workspace-nav
   .approved-workspace-header[data-collapsed="true"]
@@ -120,9 +133,6 @@
   padding: 0;
   justify-content: center;
 }
-.editorial-workspace-nav .approved-workspace-header[data-collapsed="true"] {
-  align-items: center;
-}
 .approved-workspace-header[data-collapsed="true"]
   .editorial-identity-primary-row {
   justify-content: center;
@@ -130,120 +140,8 @@
 .editorial-workspace-nav .astryx-side-nav-item {
   white-space: nowrap;
 }
-@media (pointer: coarse), (max-width: 768px) {
-  .editorial-workspace-nav .approved-workspace-header {
-    --workspace-control-size: var(--spacing-11);
-  }
-}
-/* AppShell's md mobile query includes 768px; the rail starts above it. */
-@media (max-width: 768px) {
-  /* AppShell renders the desktop layout on the server and removes this
-     inline panel after hydration. CSS hides it from the first paint, so the
-     narrow layout never depends on hydration. */
-  .editorial-workspace-shell .astryx-app-shell-sidenav {
-    display: none;
-  }
-}
-/* Phone and tablet header (WorkspaceTopBar in AppShell's banner slot). The
-   server writes it on every document and the breakpoint alone decides whether
-   it shows, matching AppShell's md drawer query, so it is on screen from the
-   first paint of every page and never hidden while a page hydrates. */
-@media (width > 768px) {
-  .editorial-workspace-shell
-    .astryx-app-shell-header:has(.admin-mobile-header) {
-    display: none;
-  }
-}
-.admin-mobile-header {
-  box-sizing: border-box;
-  width: 100%;
-  min-height: calc(var(--spacing-11) + var(--spacing-3));
-  padding-block: calc(var(--spacing-3) / 2);
-  padding-inline: var(--spacing-4);
-}
-.admin-mobile-header-identity {
-  min-width: 0;
-}
-.admin-mobile-header .admin-bracket-wordmark {
-  display: inline-flex;
-  align-items: center;
-  gap: calc(var(--spacing-1) / 2);
-  font-family: "AP Structural", sans-serif;
-  font-weight: 900;
-  font-size: var(--font-size-xl);
-  line-height: 1;
-  white-space: nowrap;
-}
-.admin-mobile-header .admin-sidebar-menu {
-  width: auto;
-  min-height: var(--spacing-11);
-  padding-inline: var(--spacing-3);
-  gap: var(--spacing-2);
-}
-.admin-mobile-header .admin-sidebar-menu > span:first-child {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-}
-.admin-mobile-header .admin-sidebar-menu .admin-sidebar-menu-end {
-  color: var(--color-text-secondary);
-}
-.admin-mobile-header-menu {
-  flex-shrink: 0;
-  min-width: var(--spacing-11);
-  min-height: var(--spacing-11);
-}
-/* Phone and tablet drawer. Astryx puts the sidebar header in one row with its
-   close button and rules the row off. The close button moves to the corner
-   of the wordmark row so the workspace menu spans the drawer, the rule goes,
-   and the content column becomes a flex column so the footer reaches the
-   bottom, inset as far from it as the wordmark is from the top. */
-.astryx-mobile-nav.editorial-workspace-nav
-  div:has(> .editorial-workspace-identity) {
-  position: relative;
-  border-block-end: 0;
-}
-.astryx-mobile-nav.editorial-workspace-nav
-  div:has(> .editorial-workspace-identity)
-  > .astryx-button:last-child {
-  position: absolute;
-  inset-block-start: var(--spacing-2);
-  inset-inline-end: var(--spacing-2);
-}
-.astryx-mobile-nav.editorial-workspace-nav
-  div:has(> div > .editorial-workspace-utilities) {
-  display: flex;
-  flex-direction: column;
-  padding-block-end: max(var(--spacing-2), env(safe-area-inset-bottom));
-}
-/* SideNav keeps an empty collapse-button row after the footer (the shell
-   draws its own collapse control), and its gap would double the bottom
-   inset. */
-.editorial-workspace-nav div:has(> .editorial-workspace-utilities) > div:empty {
-  display: none;
-}
-.astryx-mobile-nav.editorial-workspace-nav .editorial-workspace-utilities {
-  --workspace-control-size: var(--spacing-11);
-}
-.astryx-mobile-nav.editorial-workspace-nav
-  .editorial-workspace-utilities
-  .admin-sidebar-menu {
-  min-height: var(--workspace-control-size);
-  height: var(--workspace-control-size);
-}
-.editorial-workspace-nav
-  .approved-workspace-header
-  .editorial-identity-primary-row
-  .editorial-header-site {
-  flex: none;
-  width: var(--workspace-control-size);
-  min-width: var(--workspace-control-size);
-  height: var(--workspace-control-size);
-  padding: 0;
-  justify-content: center;
-}
-/* The icon column is stationary while the native rail animates its width. */
-@media (width > 768px) {
+/* The icon column is stationary while the rail animates its width. */
+@media (min-width: 641px) {
   .editorial-workspace-nav .approved-workspace-header[data-collapsed="true"] {
     align-items: flex-start;
   }
@@ -261,16 +159,6 @@
     width: calc(var(--spacing-9) / 2);
     margin-inline: 0;
   }
-  .editorial-workspace-utilities[data-collapsed="true"] {
-    align-items: flex-start;
-  }
-}
-/* The drawer gives every control the same inset; the bordered menus spend a
-   pixel of theirs on their border, so they ask for a pixel less. */
-.editorial-workspace-nav :is(.admin-workspace-selector, .admin-sidebar-menu) {
-  padding-inline-start: calc(var(--spacing-2) - var(--border-width));
-}
-@media (width > 768px) {
   .editorial-workspace-nav > :has(> .astryx-side-nav-section) {
     align-items: stretch;
   }
@@ -280,39 +168,23 @@
     width: var(--spacing-9);
     min-width: var(--spacing-9);
   }
-  /* One inset for every control, measured from its own edge: the bordered
-     menus spend a pixel of it on their border, the navigation items and the
-     search button have none. Icons and labels then share two lines down the
-     sidebar. */
+  /* One inset for every control, measured from its own edge, so icons and
+     labels share two lines down the sidebar. */
   .approved-workspace-header .editorial-header-search {
     padding-inline-start: calc(var(--spacing-9) / 4);
   }
-  .approved-workspace-header .admin-workspace-selector,
-  .editorial-workspace-utilities .admin-sidebar-menu {
-    padding-inline-start: calc(var(--spacing-9) / 4 - var(--border-width));
-  }
-}
-/* The appearance menu squeezed its icon into that slot instead of overflowing
-   it, which left the glyph a pixel narrow and a pixel right of the rest. */
-.admin-sidebar-menu
-  > span:first-child
-  > span:first-child
-  > svg:not(#\#):not(#\#) {
-  width: calc(var(--spacing-9) / 2);
-  height: calc(var(--spacing-9) / 2);
-  flex: none;
 }
 /* The slot holds the icon's own width, so the label after it starts on the
    same line as every navigation label. */
 .editorial-workspace-nav
-  :is(.admin-sidebar-menu, .editorial-header-search)
+  .editorial-header-search
   > span:first-child
   > span:first-child:not(#\#):not(#\#) {
   width: calc(var(--spacing-9) / 2);
   flex: none;
 }
-/* Symmetric rail targets, including the appearance group's inner padding. */
-@media (width > 768px) {
+/* Symmetric rail targets. */
+@media (min-width: 641px) {
   .editorial-workspace-shell[data-sidebar-collapsed="true"]
     .editorial-workspace-nav
     .astryx-side-nav-item {
@@ -322,28 +194,27 @@
   }
   /* The leading inset above aligns icons with the labels beside them. In the
      rail there are no labels: every control is a square with its icon in the
-     middle, and an inset would push the two menus' icons to the left edge. */
+     middle. */
   .editorial-workspace-shell[data-sidebar-collapsed="true"]
     .editorial-workspace-nav
-    :is(.admin-sidebar-menu, .editorial-header-search) {
+    .editorial-header-search {
     padding-inline: 0;
     justify-content: center;
   }
   /* Ghost buttons in the rail answer the pointer the way its navigation items
      do, so every square in the rail behaves alike. */
-  .editorial-workspace-shell[data-sidebar-collapsed="true"]
-    .editorial-workspace-nav
-    :is(.admin-sidebar-menu, .editorial-header-search):is(
-      :hover,
-      :focus-visible
-    ) {
-    background-color: var(--color-background-muted);
+  @media (hover: hover) {
+    .editorial-workspace-shell[data-sidebar-collapsed="true"]
+      .editorial-workspace-nav
+      :is(.editorial-header-search, .admin-theme-cycle):hover {
+      background-color: var(--color-background-muted);
+    }
   }
   /* Astryx lays a button's content out in a row that fills the button, so
      centring the button alone leaves the icon at the start of that row. */
   .editorial-workspace-shell[data-sidebar-collapsed="true"]
     .editorial-workspace-nav
-    :is(.admin-sidebar-menu, .editorial-header-search)
+    .editorial-header-search
     > span:first-child {
     justify-content: center;
   }
@@ -356,9 +227,8 @@
   word-break: normal;
   overflow-wrap: normal;
 }
-/* In the desktop rail, tooltips sit beside the rail so they never cover
-   sidebar controls. Where the right side has no room they move below, then
-   above. The phone and tablet drawer keeps Astryx's own placement. */
+/* In the rail, tooltips sit beside it so they never cover sidebar controls.
+   Where the right side has no room they move below, then above. */
 @position-try --admin-tooltip-below {
   position-area: block-end span-inline-end;
   margin: var(--spacing-2) 0 0 0;
@@ -367,7 +237,7 @@
   position-area: block-start span-inline-end;
   margin: 0 0 var(--spacing-2) 0;
 }
-@media (width > 768px) {
+@media (min-width: 641px) {
   .editorial-workspace-shell[data-sidebar-collapsed="true"]
     .editorial-workspace-nav
     .astryx-tooltip {
@@ -378,61 +248,57 @@
     margin-block: 0 !important;
   }
 }
+
+/* Footer: log out, then the one theme button at the row's end. In the rail
+   they stack on the icon column. SideNav keeps an empty collapse-button row
+   after the footer (the shell draws its own collapse control), and its gap
+   would double the bottom inset. */
 .editorial-workspace-nav > :has(> .editorial-workspace-utilities) {
   align-items: stretch;
 }
-@media (width > 768px) {
+.editorial-workspace-nav div:has(> .editorial-workspace-utilities) > div:empty {
+  display: none;
+}
+.editorial-workspace-utilities {
+  align-items: center;
+}
+.editorial-workspace-utilities > .astryx-side-nav-item {
+  flex: 1;
+  min-width: 0;
+}
+.editorial-workspace-utilities > .admin-theme-cycle {
+  flex: none;
+}
+.editorial-workspace-utilities > .admin-theme-cycle:not(:first-child) {
+  margin-inline-start: auto;
+}
+.editorial-workspace-utilities .admin-theme-cycle svg {
+  color: var(--color-text-secondary);
+}
+@media (min-width: 641px) {
   .editorial-workspace-nav
     .editorial-workspace-utilities[data-collapsed="true"] {
     align-self: flex-start;
+    align-items: flex-start;
     width: var(--spacing-9);
   }
-  .editorial-workspace-nav
-    .editorial-workspace-utilities[data-collapsed="true"]
-    .admin-sidebar-menu {
-    width: var(--spacing-9);
-    min-width: var(--spacing-9);
-    height: var(--spacing-9);
-    padding: 0;
-    justify-content: center;
-  }
-}
-@media (width > 768px) {
   .editorial-workspace-shell[data-sidebar-collapsed="true"]
     .editorial-workspace-nav
     > :has(> .editorial-workspace-utilities) {
     align-items: flex-start;
     padding-inline: var(--spacing-2);
   }
-}
-/* AppShell has no sidenav-width prop and SideNav hardcodes its rail width.
-   This parent override preserves the approved 52px rail and stationary icons;
-   only the parent animates, using the existing 125ms theme token. */
-@media (width > 768px) {
-  .editorial-workspace-shell .astryx-app-shell-sidenav {
-    flex: 0 0 auto;
-    min-width: 0;
-    width: calc(var(--spacing-10) * 5);
-    transition: width var(--duration-fast) cubic-bezier(0.2, 0, 0, 1);
-  }
-  .editorial-workspace-shell[data-sidebar-collapsed="true"]
-    .astryx-app-shell-sidenav {
-    flex-basis: auto;
-    min-width: 0;
-    width: calc(var(--spacing-9) + var(--spacing-2) * 2);
-  }
-  .editorial-workspace-shell[data-sidebar-collapsed]
-    nav.astryx-side-nav.editorial-workspace-nav {
-    width: 100%;
-    min-width: 0;
-    transition: none;
+  .editorial-workspace-utilities[data-collapsed="true"]
+    > .admin-theme-cycle:not(:first-child) {
+    margin-inline-start: 0;
   }
 }
+
 /* Before the shell hydrates, the server has rendered the expanded sidebar but
    the prepaint script has already chosen the rail on the root element. Hold the
    rail's geometry from first paint, without animating, and keep the expanded
    controls out of sight until the shell renders the rail itself. */
-@media (width > 768px) {
+@media (min-width: 641px) {
   :root[data-admin-sidebar="rail"]
     .editorial-workspace-shell[data-sidebar-ready="false"]
     .astryx-app-shell-sidenav {
@@ -461,8 +327,8 @@
 }
 
 /* Touch tablets retain the 52px rail: 44px targets plus 4px on each side.
-   Desktop pointer geometry and the mobile drawer keep their existing rules. */
-@media (width > 768px) and (pointer: coarse) {
+   Desktop pointer geometry keeps its own rules. */
+@media (min-width: 641px) and (pointer: coarse) {
   .editorial-workspace-shell[data-sidebar-collapsed="true"]
     .editorial-workspace-nav
     > :is(
@@ -475,18 +341,14 @@
   }
   .editorial-workspace-shell[data-sidebar-collapsed="true"]
     .editorial-workspace-nav
-    :is(
-      .astryx-side-nav-item,
-      .editorial-workspace-utilities,
-      .admin-sidebar-menu
-    ) {
+    :is(.astryx-side-nav-item, .editorial-workspace-utilities) {
     box-sizing: border-box;
     width: var(--spacing-11);
     min-width: var(--spacing-11);
   }
   .editorial-workspace-shell[data-sidebar-collapsed="true"]
     .editorial-workspace-nav
-    :is(.astryx-side-nav-item, .admin-sidebar-menu) {
+    .astryx-side-nav-item {
     height: var(--spacing-11);
     min-height: var(--spacing-11);
     padding-inline: 0;
@@ -494,34 +356,89 @@
   }
 }
 
-/* Local owner builds only. Fixed so every width, theme and nav state shows it
-   without shifting the layout under measurement. The token fill is
-   translucent, so an opaque surface keeps it legible over scrolling content. */
-.admin-local-owner-indicator {
-  position: fixed;
-  inset-block-end: max(var(--spacing-3), env(safe-area-inset-bottom));
-  inset-inline-end: max(var(--spacing-3), env(safe-area-inset-right));
-  z-index: 80;
-  pointer-events: none;
-  border-radius: var(--radius-full);
-  background-color: var(--color-background-popover);
-  box-shadow: var(--shadow-low);
+/* Unified sidebar (UnifiedSidebar.tsx): Content, Data and Observability as
+   collapsible groups in one navigation. Space separates the groups; nothing
+   is ruled off. Headings are quiet labels on the same row height as the
+   pages, and the pages sit on the heading's own inset instead of Astryx's
+   nested indent, so one icon column runs down the whole sidebar. The
+   headings, their chevrons, the wordmark's brackets and the current page's
+   icon take the current workspace's accent (themes/workspace-accents.css). */
+.admin-unified-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  width: 100%;
+  min-width: 0;
+}
+.admin-unified-nav[data-rail="true"] {
+  gap: var(--spacing-3);
+}
+.admin-unified-nav [data-sidebar-group],
+.admin-unified-nav [data-sidebar-group] svg {
+  color: var(--color-text-accent);
+}
+.admin-unified-nav [data-sidebar-group] {
+  font-size: var(--text-supporting-size);
+  font-weight: var(--font-weight-semibold);
+}
+.admin-unified-nav [aria-current="page"] svg {
+  color: var(--color-icon-accent);
+}
+.admin-unified-nav [data-sidebar-group] + [role="group"] > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-0-5);
+  padding-inline-start: 0;
+}
+@media (min-width: 641px) {
+  .editorial-workspace-nav > :has(> .admin-unified-nav) {
+    padding-block-start: var(--spacing-0-5);
+    align-items: stretch;
+  }
+}
+/* Before the sidebar hydrates, the server has rendered every group open, but
+   the prepaint script has recorded the groups this viewer closed. Hold them
+   closed from first paint so a saved choice never moves the page. The
+   sidebar removes the record once React owns the same state. */
+:root[data-admin-nav-closed~="content"]
+  .admin-unified-nav
+  [data-sidebar-group="content"]
+  + [role="group"],
+:root[data-admin-nav-closed~="life"]
+  .admin-unified-nav
+  [data-sidebar-group="life"]
+  + [role="group"],
+:root[data-admin-nav-closed~="operations"]
+  .admin-unified-nav
+  [data-sidebar-group="operations"]
+  + [role="group"] {
+  grid-template-rows: 0fr !important;
+  visibility: hidden;
+  transition: none !important;
+}
+:root[data-admin-nav-closed~="content"]
+  .admin-unified-nav
+  [data-sidebar-group="content"]
+  > :last-child,
+:root[data-admin-nav-closed~="life"]
+  .admin-unified-nav
+  [data-sidebar-group="life"]
+  > :last-child,
+:root[data-admin-nav-closed~="operations"]
+  .admin-unified-nav
+  [data-sidebar-group="operations"]
+  > :last-child {
+  transform: none !important;
+  transition: none !important;
 }
 
-/* One action per appearance choice, including the collapsed navigation rail. */
-.admin-theme-tabs {
-  width: 100%;
+/* Local owner builds only: the laptop tile beside the wordmark. In the
+   rail it takes a control's width, so it centres on the icon column. */
+.admin-local-owner {
+  display: inline-grid;
+  place-items: center;
+  line-height: 0;
 }
-.admin-theme-tabs [role="radio"] {
-  min-width: 36px;
-  min-height: 36px;
-}
-.editorial-workspace-utilities[data-collapsed="true"] .admin-theme-tabs {
-  flex-direction: column;
-}
-@media (max-width: 767px) {
-  .admin-theme-tabs [role="radio"] {
-    min-width: 44px;
-    min-height: 44px;
-  }
+.approved-workspace-header[data-collapsed="true"] > .admin-local-owner {
+  width: var(--workspace-control-size);
 }

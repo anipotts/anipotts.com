@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   checkEditorialMutation,
   issueEditorialCsrf,
-  privateEditorialResponse,
+  privateJson,
   readEditorialJson,
 } from "./editorial-security";
 
@@ -76,7 +76,7 @@ describe("editorial mutation boundary", () => {
     expect(response.headers.get("Cache-Control")).toContain("no-store");
   });
   it("keeps error responses private too", () => {
-    const response = privateEditorialResponse({ error: "forbidden" }, 403);
+    const response = privateJson({ error: "forbidden" }, 403);
     expect(response.status).toBe(403);
     expect(response.headers.get("CDN-Cache-Control")).toBe("no-store");
     expect(response.headers.get("Content-Security-Policy")).toContain(

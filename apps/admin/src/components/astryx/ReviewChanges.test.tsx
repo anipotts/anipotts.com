@@ -136,6 +136,16 @@ it("switches layout/source and expands only unchanged context without losing edi
       unobserve() {}
     },
   );
+  // Tooltips on the icon toggle read the pointer type.
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn((media: string) => ({
+      matches: false,
+      media,
+      addEventListener() {},
+      removeEventListener() {},
+    })),
+  );
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -156,7 +166,8 @@ it("switches layout/source and expands only unchanged context without losing edi
   );
   const button = (label: string) =>
     Array.from(host!.querySelectorAll("button")).find(
-      (node) => node.textContent === label,
+      (node) =>
+        node.textContent === label || node.getAttribute("aria-label") === label,
     )!;
   await act(async () => button("Unified").click());
   expect(
@@ -171,7 +182,9 @@ it("switches layout/source and expands only unchanged context without losing edi
   await act(async () => button("Full context").click());
   expect(sideText(host, "before")).toBe(before.slice(0, -1));
   expect(sideText(host, "after")).toBe(after.slice(0, -1));
-  await act(async () => button("Field changes").click());
+  // The Code toggle is one pressed/unpressed control, not two labels.
+  expect(button("Source diff").getAttribute("aria-pressed")).toBe("true");
+  await act(async () => button("Source diff").click());
   expect(sideText(host, "before")).toBe("Before");
   expect(sideText(host, "after")).toBe("After");
 });
@@ -194,15 +207,31 @@ it("groups the review title with its legend and destination with view controls",
   );
   expect(tools.querySelector('[aria-label="Diff layout"]')).not.toBeNull();
   expect(
-    Array.from(
-      tools.querySelectorAll("button"),
-      (button) => button.textContent,
+    Array.from(tools.querySelectorAll("button"), (button) =>
+      button.getAttribute("aria-label"),
     ),
   ).toContain("Source diff");
   expect(tools.querySelector(".editor-diff-legend")).toBeNull();
   expect(region.querySelector("[aria-expanded]")).toBeNull();
   expect(region.querySelector('[data-kind="removed"]')).not.toBeNull();
   expect(region.querySelector('[data-kind="added"]')).not.toBeNull();
+});
+
+it("names itself from its sheet and shows its tools only for a diff", () => {
+  const html = renderToStaticMarkup(
+    <ReviewChanges
+      label="Review changes"
+      destination="anipotts.com/"
+      before="same"
+      after="same"
+      changes={[{ label: "Title", before: "Same", after: "Same" }]}
+    />,
+  );
+  expect(html).toContain('aria-label="Review changes"');
+  expect(html).not.toContain("<h2");
+  expect(html).not.toContain("Diff legend");
+  expect(html).not.toContain("Diff layout");
+  expect(html).toContain("No changes");
 });
 
 it("offers direct editing only for fields with a supported edit action", async () => {

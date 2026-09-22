@@ -11,6 +11,8 @@ export type AdminSearchResult = {
   freshness: string;
   href: string;
   keywords: string[];
+  /** The glyph a provider leads its row with, over the palette's default. */
+  icon?: import("@phosphor-icons/react").Icon;
 };
 
 export function searchAdminResults(

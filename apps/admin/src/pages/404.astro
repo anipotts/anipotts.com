@@ -1,0 +1,12 @@
+---
+import AdminLayout from "../layouts/AdminLayout.astro";
+import { NotFound } from "../components/astryx/NotFound";
+
+// Unknown paths, and routes that rewrite here, render inside the shell.
+Astro.response.status = 404;
+Astro.response.headers.set("Cache-Control", "private, no-store");
+---
+
+<AdminLayout title="Not found" hideHeader>
+  <NotFound />
+</AdminLayout>

@@ -26,6 +26,9 @@ describe("admin auth policy", () => {
     expect(sanitizeAdminReturnPath("https://example.com/control")).toBe("/");
     expect(sanitizeAdminReturnPath("//example.com/control")).toBe("/");
     expect(sanitizeAdminReturnPath("/\\example.com/control")).toBe("/");
+    // Dot segments that normalize to a scheme-relative Location.
+    for (const path of ["/.//evil.com/x", "/..//evil.com", "/%2e//evil.com"])
+      expect(sanitizeAdminReturnPath(path)).toBe("/");
     expect(sanitizeAdminReturnPath("/auth?next=%2Fcontent")).toBe("/");
     expect(sanitizeAdminReturnPath("/auth/passkey")).toBe("/");
     expect(sanitizeAdminReturnPath("/auth/recover")).toBe("/");

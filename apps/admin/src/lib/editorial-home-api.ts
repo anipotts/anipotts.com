@@ -1,3 +1,4 @@
+import { z } from "astro/zod";
 import { EDITORIAL_OWNER_EMAIL } from "./editorial-owner";
 import {
   MAX_SOURCE_BYTES,
@@ -6,18 +7,18 @@ import {
   validateEditorialSource,
 } from "@anipotts/content/editorial/source";
 import type { EditorialDraftStore } from "../editorial/draft-store";
-import { newWritingSource } from "./writing-draft";
-import { newProjectSource } from "./project-draft";
+import { newRecordSource } from "./editorial-collections";
 import {
   MAX_PUBLICATION_QUEUE_PAGE,
-  type PublicationQueueOptions,
+  type StartDirectPublication,
 } from "./editorial-publication-status";
 import {
   checkEditorialMutation,
   issueEditorialCsrf,
-  privateEditorialResponse as json,
+  privateJson as json,
   readEditorialJson,
 } from "./editorial-security";
+import { OPERATION_ID, POSITIVE_INTEGER } from "./patterns";
 
 export const homeRecord = { kind: "page", id: "home" } as const;
 export type HomeBase = {
@@ -49,6 +50,87 @@ export type PublicationStorage = Pick<
   | "cancelPublication"
   | "cancelUnstartedLegacyPublication"
 >;
+type DirectStorage = Pick<
+  EditorialDraftStore,
+  | "startDirectPublication"
+  | "latestDirectPublication"
+  | "directPublicationStatus"
+  | "retryDirectPublication"
+  | "cancelDirectPublication"
+>;
+
+// One schema per request body. A failure keeps the error code its action has
+// always returned, and nothing outside a schema is read.
+const safeInteger = z.number().int().safe();
+const revisionBody = z.object({ expectedRevision: safeInteger.min(0) });
+const operationBody = z.object({
+  operationId: z.string().regex(OPERATION_ID),
+});
+const legacyCancelBody = operationBody.extend({
+  expectedVersion: safeInteger.min(0),
+});
+const versionBody = z.object({ expectedVersion: safeInteger });
+const disclosureBody = z.object({ discloseSource: z.literal(true) });
+const reviewBody = z.object({
+  reviewedSourceSha256: z.string(),
+  expectedBaselineSha256: z.string(),
+  expectedPublicationId: z.string().nullable(),
+});
+const createBody = z.object({
+  title: z
+    .string()
+    .max(300)
+    .refine((title) => title.trim() !== ""),
+  requestId: z.string(),
+});
+const writeBody = z.object({ source: z.string(), requestId: z.string() });
+
+function parse<T>(schema: z.ZodType<T>, body: unknown): T | null {
+  const result = schema.safeParse(body);
+  return result.success ? result.data : null;
+}
+
+/** Positive integer page parameters; null when one is malformed or too large. */
+function pageParams<K extends string>(
+  url: URL,
+  cursor: K,
+  maxLimit: number,
+): Partial<Record<K | "limit", number>> | null {
+  const options: Partial<Record<K | "limit", number>> = {};
+  for (const name of [cursor, "limit"] as const) {
+    const value = url.searchParams.get(name);
+    if (value === null) continue;
+    if (!POSITIVE_INTEGER.test(value) || !Number.isSafeInteger(Number(value)))
+      return null;
+    options[name] = Number(value);
+  }
+  return (options.limit ?? 0) > maxLimit ? null : options;
+}
+
+/** Starts a direct intent and answers with its stored status. */
+async function startDirect(
+  direct: DirectStorage,
+  input: StartDirectPublication,
+): Promise<Response> {
+  const result = await direct.startDirectPublication(input);
+  if (!result.ok)
+    return json(
+      {
+        error: result.code,
+        ...("publication" in result ? { publication: result.publication } : {}),
+      },
+      409,
+    );
+  return json(
+    {
+      publication: await direct.directPublicationStatus(
+        input.record,
+        result.publication.id,
+      ),
+    },
+    202,
+  );
+}
 
 /** Called only after owner verification. The browser never supplies a Git path or base. */
 export async function homeEditorApi(
@@ -59,14 +141,7 @@ export async function homeEditorApi(
     storage: PublicationStorage;
     enabled: boolean;
     mode?: "legacy" | "maintenance" | "direct";
-    direct?: Pick<
-      EditorialDraftStore,
-      | "startDirectPublication"
-      | "latestDirectPublication"
-      | "directPublicationStatus"
-      | "retryDirectPublication"
-      | "cancelDirectPublication"
-    >;
+    direct?: DirectStorage;
   },
 ): Promise<Response> {
   const url = new URL(request.url);
@@ -78,33 +153,18 @@ export async function homeEditorApi(
   );
   if (!identity.success) return json({ error: "invalid_record" }, 400);
   const record = identity.data;
-  const direct =
-    publisher?.mode === "direct" || publisher?.mode === "maintenance"
-      ? publisher.direct
-      : undefined;
-  if (
-    (publisher?.mode === "direct" || publisher?.mode === "maintenance") &&
-    !direct
-  )
+  const directMode =
+    publisher?.mode === "direct" || publisher?.mode === "maintenance";
+  const direct = directMode ? publisher?.direct : undefined;
+  if (directMode && !direct)
     return json({ error: "publisher_unavailable" }, 503);
   if (request.method === "GET") {
     if (action === "csrf") return issueEditorialCsrf(request);
     if (action === "draft") return json({ draft: await storage.get(record) });
     if (action === "baseline") return json({ base: await readBase(record) });
     if (action === "history") {
-      const options: { beforeRevision?: number; limit?: number } = {};
-      for (const name of ["beforeRevision", "limit"] as const) {
-        const value = url.searchParams.get(name);
-        if (value === null) continue;
-        if (
-          !/^[1-9][0-9]*$/.test(value) ||
-          !Number.isSafeInteger(Number(value))
-        )
-          return json({ error: "invalid_history_page" }, 400);
-        options[name] = Number(value);
-      }
-      if (options.limit !== undefined && options.limit > 100)
-        return json({ error: "invalid_history_page" }, 400);
+      const options = pageParams(url, "beforeRevision", 100);
+      if (!options) return json({ error: "invalid_history_page" }, 400);
       return json(await storage.historyPage(record, options));
     }
     if (action === "home" || action === "record") {
@@ -126,31 +186,23 @@ export async function homeEditorApi(
         nextBeforeRevision: historyPage.nextBeforeRevision,
         publication,
         publishing: publisher?.enabled ? "ready" : "not_configured",
-        publicationMode: publisher?.mode ?? "legacy",
+        // Production publishes directly, so an editor without a publisher
+        // (local development) shows the same review and field rules.
+        publicationMode: publisher?.mode ?? "direct",
       });
     }
     if (action === "publication-queue" && publisher) {
-      const options: PublicationQueueOptions = {};
-      for (const name of ["afterSequence", "limit"] as const) {
-        const value = url.searchParams.get(name);
-        if (value === null) continue;
-        if (
-          !/^[1-9][0-9]*$/.test(value) ||
-          !Number.isSafeInteger(Number(value))
-        )
-          return json({ error: "invalid_publication_page" }, 400);
-        options[name] = Number(value);
-      }
-      if (
-        options.limit !== undefined &&
-        options.limit > MAX_PUBLICATION_QUEUE_PAGE
-      )
-        return json({ error: "invalid_publication_page" }, 400);
+      const options = pageParams(
+        url,
+        "afterSequence",
+        MAX_PUBLICATION_QUEUE_PAGE,
+      );
+      if (!options) return json({ error: "invalid_publication_page" }, 400);
       return json(await publisher.storage.publicationQueue(options));
     }
     if (action === "legacy-publication" && publisher) {
       const id = url.searchParams.get("operationId");
-      if (!id || !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(id))
+      if (!id || !OPERATION_ID.test(id))
         return json({ error: "invalid_request" }, 400);
       return json({
         publication: await publisher.storage.publicationStatus(record, id),
@@ -179,57 +231,40 @@ export async function homeEditorApi(
   } catch {
     return json({ error: "invalid_request" }, 400);
   }
-  if (
-    !body ||
-    typeof body !== "object" ||
-    !("expectedRevision" in body) ||
-    !Number.isSafeInteger(body.expectedRevision) ||
-    Number(body.expectedRevision) < 0
-  )
-    return json({ error: "invalid_revision" }, 400);
-  const expectedRevision = Number(body.expectedRevision);
+  const revision = parse(revisionBody, body);
+  if (!revision) return json({ error: "invalid_revision" }, 400);
+  const { expectedRevision } = revision;
   if (action === "cancel-legacy-publication") {
     // Publishing stays disabled in maintenance. This narrowly scoped operation
     // uses the same verified owner, origin and CSRF boundary as draft writes.
     if (!publisher || publisher.mode !== "maintenance")
       return json({ error: "maintenance_required" }, 409);
-    if (
-      !("operationId" in body) ||
-      typeof body.operationId !== "string" ||
-      !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(body.operationId) ||
-      !("expectedVersion" in body) ||
-      !Number.isSafeInteger(body.expectedVersion) ||
-      Number(body.expectedVersion) < 0 ||
-      expectedRevision < 1
-    )
+    const input = parse(legacyCancelBody, body);
+    if (!input || expectedRevision < 1)
       return json({ error: "invalid_request" }, 400);
     const result = await publisher.storage.cancelUnstartedLegacyPublication(
       record,
-      body.operationId,
+      input.operationId,
       expectedRevision,
-      Number(body.expectedVersion),
+      input.expectedVersion,
     );
     return json(
       {
         ...result,
         publication: await publisher.storage.publicationStatus(
           record,
-          body.operationId,
+          input.operationId,
         ),
       },
       result.ok ? 200 : 409,
     );
   }
   if (action === "create") {
+    const input = parse(createBody, body);
     if (
       (record.kind !== "writing" && record.kind !== "work") ||
       expectedRevision !== 0 ||
-      !("title" in body) ||
-      typeof body.title !== "string" ||
-      !body.title.trim() ||
-      body.title.length > 300 ||
-      !("requestId" in body) ||
-      typeof body.requestId !== "string"
+      !input
     )
       return json({ error: "invalid_request" }, 400);
     const base = await readBase(record);
@@ -237,12 +272,9 @@ export async function homeEditorApi(
       return json({ error: "record_exists" }, 409);
     const result = await storage.save({
       record,
-      source:
-        record.kind === "work"
-          ? newProjectSource(record.id, body.title)
-          : newWritingSource(body.title),
+      source: newRecordSource(record, input.title),
       expectedRevision: 0,
-      requestId: body.requestId,
+      requestId: input.requestId,
       baseCommit: base.baseCommit,
       baseFileHash: null,
     });
@@ -256,110 +288,46 @@ export async function homeEditorApi(
   ) {
     if (!publisher?.enabled)
       return json({ error: "publisher_not_configured" }, 503);
-    if (
-      !("operationId" in body) ||
-      typeof body.operationId !== "string" ||
-      !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(body.operationId)
-    )
-      return json({ error: "invalid_request" }, 400);
+    const operation = parse(operationBody, body);
+    if (!operation) return json({ error: "invalid_request" }, 400);
+    const { operationId } = operation;
     if (action === "unpublish") {
       // Direct publishing only: the older repository publisher has no
       // reviewed lifecycle for taking a piece off the site.
       if (!direct || publisher.mode !== "direct")
         return json({ error: "unpublish_requires_direct_publishing" }, 409);
-      if (
-        !("reviewedSourceSha256" in body) ||
-        typeof body.reviewedSourceSha256 !== "string" ||
-        !("expectedBaselineSha256" in body) ||
-        typeof body.expectedBaselineSha256 !== "string" ||
-        !("expectedPublicationId" in body) ||
-        !(
-          body.expectedPublicationId === null ||
-          typeof body.expectedPublicationId === "string"
-        )
-      )
-        return json({ error: "invalid_request" }, 400);
+      const review = parse(reviewBody, body);
+      if (!review) return json({ error: "invalid_request" }, 400);
       // The browser reviewed hashes only. The public source comes from the
       // server's own read, and the publisher checks it against both.
       const base = await readBase(record);
-      const result = await direct.startDirectPublication({
+      return startDirect(direct, {
         record,
-        operationId: body.operationId,
+        operationId,
         // A record with no private draft still has an immutable revision.
         expectedRevision: Math.max(1, expectedRevision),
-        reviewedSourceSha256: body.reviewedSourceSha256,
-        expectedBaselineSha256: body.expectedBaselineSha256,
-        expectedPublicationId: body.expectedPublicationId,
+        ...review,
         action: "unpublish",
         baselineSource: base.source,
       });
-      if (!result.ok)
-        return json(
-          {
-            error: result.code,
-            ...("publication" in result
-              ? { publication: result.publication }
-              : {}),
-          },
-          409,
-        );
-      return json(
-        {
-          publication: await direct.directPublicationStatus(
-            record,
-            result.publication.id,
-          ),
-        },
-        202,
-      );
     }
     if (action === "publish") {
-      if (!("discloseSource" in body) || body.discloseSource !== true)
+      if (!parse(disclosureBody, body))
         return json({ error: "source_disclosure_required" }, 400);
       if (direct) {
-        if (
-          !("reviewedSourceSha256" in body) ||
-          typeof body.reviewedSourceSha256 !== "string" ||
-          !("expectedBaselineSha256" in body) ||
-          typeof body.expectedBaselineSha256 !== "string" ||
-          !("expectedPublicationId" in body) ||
-          !(
-            body.expectedPublicationId === null ||
-            typeof body.expectedPublicationId === "string"
-          )
-        )
+        const review = parse(reviewBody, body);
+        if (!review)
           return json({ error: "publication_review_upgrade_required" }, 409);
-        const result = await direct.startDirectPublication({
+        return startDirect(direct, {
           record,
-          operationId: body.operationId,
+          operationId,
           expectedRevision,
-          reviewedSourceSha256: body.reviewedSourceSha256,
-          expectedBaselineSha256: body.expectedBaselineSha256,
-          expectedPublicationId: body.expectedPublicationId,
+          ...review,
         });
-        if (!result.ok)
-          return json(
-            {
-              error: result.code,
-              ...("publication" in result
-                ? { publication: result.publication }
-                : {}),
-            },
-            409,
-          );
-        return json(
-          {
-            publication: await direct.directPublicationStatus(
-              record,
-              result.publication.id,
-            ),
-          },
-          202,
-        );
       }
       const result = await publisher.storage.startPublication({
         record,
-        operationId: body.operationId,
+        operationId,
         expectedRevision,
       });
       if (!result.ok)
@@ -377,90 +345,72 @@ export async function homeEditorApi(
         202,
       );
     }
-    if (
-      !("expectedVersion" in body) ||
-      !Number.isSafeInteger(body.expectedVersion)
-    )
-      return json({ error: "invalid_request" }, 400);
-    if (direct) {
-      const result =
-        action === "cancel-publication"
-          ? await direct.cancelDirectPublication(
-              record,
-              body.operationId,
-              Number(body.expectedVersion),
-            )
-          : await direct.retryDirectPublication(
-              record,
-              body.operationId,
-              Number(body.expectedVersion),
-            );
-      return json(
-        {
-          ...result,
-          publication: await direct.directPublicationStatus(
+    const version = parse(versionBody, body);
+    if (!version) return json({ error: "invalid_request" }, 400);
+    const { expectedVersion } = version;
+    const cancel = action === "cancel-publication";
+    const result = direct
+      ? cancel
+        ? await direct.cancelDirectPublication(
             record,
-            body.operationId,
-          ),
-        },
-        result.ok ? 202 : 409,
-      );
-    }
-    const result =
-      action === "cancel-publication"
+            operationId,
+            expectedVersion,
+          )
+        : await direct.retryDirectPublication(
+            record,
+            operationId,
+            expectedVersion,
+          )
+      : cancel
         ? await publisher.storage.cancelPublication(
             record,
-            body.operationId,
-            Number(body.expectedVersion),
+            operationId,
+            expectedVersion,
           )
         : await publisher.storage.retryPublication(
             record,
-            body.operationId,
-            Number(body.expectedVersion),
+            operationId,
+            expectedVersion,
           );
     return json(
       {
         ...result,
-        publication: await publisher.storage.publicationStatus(
-          record,
-          body.operationId,
-        ),
+        publication: direct
+          ? await direct.directPublicationStatus(record, operationId)
+          : await publisher.storage.publicationStatus(record, operationId),
       },
       result.ok ? 202 : 409,
     );
   }
   if (action === "save" || action === "rebase") {
-    if (
-      !("source" in body) ||
-      typeof body.source !== "string" ||
-      !("requestId" in body) ||
-      typeof body.requestId !== "string"
-    )
-      return json({ error: "invalid_request" }, 400);
+    const input = parse(writeBody, body);
+    if (!input) return json({ error: "invalid_request" }, 400);
     const current = await storage.get(record);
     const base =
       action === "rebase"
         ? await readBase(record)
         : (current ?? (await readBase(record)));
+    // The revision schema already proved the body is an object.
+    const reviewed = body as Record<string, unknown>;
     if (
       action === "rebase" &&
-      (!("reviewedBaseCommit" in body) ||
-        body.reviewedBaseCommit !== base.baseCommit ||
-        !("reviewedBaseFileHash" in body) ||
-        body.reviewedBaseFileHash !== base.baseFileHash)
+      (!("reviewedBaseCommit" in reviewed) ||
+        reviewed.reviewedBaseCommit !== base.baseCommit ||
+        !("reviewedBaseFileHash" in reviewed) ||
+        reviewed.reviewedBaseFileHash !== base.baseFileHash)
     )
       return json({ error: "upstream_changed", base }, 409);
     const result = await storage[action]({
       record,
-      source: body.source,
+      source: input.source,
       expectedRevision,
-      requestId: body.requestId,
+      requestId: input.requestId,
       baseCommit: base.baseCommit,
       baseFileHash: base.baseFileHash,
     });
     let valid = false;
     try {
-      valid = validateEditorialSource(record, body.source).success;
+      valid = validateEditorialSource(record, input.source).success;
     } catch {
       /* Invalid intermediate source is still privately saved. */
     }

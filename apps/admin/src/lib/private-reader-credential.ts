@@ -1,8 +1,8 @@
 import { SignJWT, importJWK, type JWK, type JWTVerifyGetKey } from "jose";
-import { verifyEditorialOwnerSession } from "./access-identity";
+import { verifyEditorialOwner, type AccessOwner } from "./access-identity";
 import {
   checkEditorialMutation,
-  privateEditorialResponse,
+  privateJson,
   readEditorialJson,
 } from "./editorial-security";
 
@@ -10,15 +10,29 @@ import {
  * Short private reader delegation for the tailnet reader on ap-mini.
  *
  * Disabled unless PRIVATE_READER_ENABLED is exactly "true" and a dedicated
- * ES256 private JWK is bound. No key is installed; this module only defines the
- * issuance contract. Device admission is enforced by the tailnet grant, never
- * by request headers, so this route reads no device, principal or scope header.
+ * ES256 private JWK is bound. Device admission is enforced by the tailnet
+ * grant, never by request headers, so this reads no device, principal or scope
+ * header. It reuses the owner middleware verified, verifying only without one.
  */
 export const PRIVATE_READER_PATH = "/api/private-reader/credential";
+/** Separate issuance for the Observability Status view. */
+export const PRIVATE_READER_OPS_PATH = "/api/private-reader/ops-credential";
 export const PRIVATE_READER_ISSUER = "https://admin.anipotts.com";
 export const PRIVATE_READER_AUDIENCE = "https://ap-mini.tail060490.ts.net";
 /** Server selected. Client-requested scopes are ignored. */
 export const PRIVATE_READER_SCOPES = ["data:read", "activity:read"] as const;
+/** Ops credentials carry only this scope and never a Data scope. */
+export const PRIVATE_READER_OPS_SCOPES = ["ops:read"] as const;
+
+/**
+ * Each mode has its own path and fixed scope set, so an Observability
+ * credential can never read Data and a Data credential never carries ops.
+ */
+export const PRIVATE_READER_MODES = {
+  data: { path: PRIVATE_READER_PATH, scope: PRIVATE_READER_SCOPES },
+  ops: { path: PRIVATE_READER_OPS_PATH, scope: PRIVATE_READER_OPS_SCOPES },
+} as const;
+export type PrivateReaderMode = keyof typeof PRIVATE_READER_MODES;
 export const PRIVATE_READER_MAX_LIFETIME_SECONDS = 60;
 const MAX_BODY_BYTES = 1024;
 
@@ -26,10 +40,22 @@ export type PrivateReaderConfig = {
   ACCESS_TEAM_DOMAIN?: string;
   ACCESS_POLICY_AUD?: string;
   PRIVATE_READER_ENABLED?: string;
+  /** Ops issuance also needs this, exactly "true". */
+  PRIVATE_READER_OPS_ENABLED?: string;
   PRIVATE_READER_SIGNING_KEY?: string;
 };
 
+/** Ops mode is on only when both flags are exactly "true". */
+export function privateReaderOpsEnabled(config: PrivateReaderConfig): boolean {
+  return (
+    config.PRIVATE_READER_ENABLED === "true" &&
+    config.PRIVATE_READER_OPS_ENABLED === "true"
+  );
+}
+
 export type PrivateReaderOptions = {
+  /** The owner middleware already verified for this request. */
+  owner?: AccessOwner;
   /** Test seam for the Access certificate set; production fetches the team certs. */
   resolveAccessKey?: JWTVerifyGetKey;
   now?: () => number;
@@ -46,11 +72,7 @@ export type PrivateReaderCredentialBody = {
 };
 
 function deny(error: string, status: number, headers?: HeadersInit): Response {
-  const response = privateEditorialResponse({ error }, status);
-  for (const [name, value] of new Headers(headers)) {
-    response.headers.set(name, value);
-  }
-  return response;
+  return privateJson({ error }, status, headers);
 }
 
 async function signingKey(value: string | undefined) {
@@ -75,22 +97,25 @@ export async function privateReaderCredentialApi(
   request: Request,
   config: PrivateReaderConfig,
   options: PrivateReaderOptions = {},
+  mode: PrivateReaderMode = "data",
 ): Promise<Response> {
+  const selected = PRIVATE_READER_MODES[mode];
   const url = new URL(request.url);
-  if (url.pathname !== PRIVATE_READER_PATH) return deny("not_found", 404);
+  if (url.pathname !== selected.path) return deny("not_found", 404);
   if (request.method !== "POST")
     return deny("method_not_allowed", 405, { Allow: "POST" });
   if (url.search) return deny("invalid_request", 400);
-  if (config.PRIVATE_READER_ENABLED !== "true")
+  if (
+    config.PRIVATE_READER_ENABLED !== "true" ||
+    (mode === "ops" && !privateReaderOpsEnabled(config))
+  )
     return deny("reader_unavailable", 503);
   const key = await signingKey(config.PRIVATE_READER_SIGNING_KEY);
   if (!key) return deny("reader_unavailable", 503);
 
-  const owner = await verifyEditorialOwnerSession(
-    request,
-    config,
-    options.resolveAccessKey,
-  );
+  const owner =
+    options.owner ??
+    (await verifyEditorialOwner(request, config, options.resolveAccessKey));
   if (!owner) return deny("owner_required", 401);
 
   const rejection = checkEditorialMutation(
@@ -116,7 +141,7 @@ export async function privateReaderCredentialApi(
   // The delegation never outlives its parent Access session. No grace.
   if (expiresAt <= now) return deny("owner_required", 401);
 
-  const scope = [...PRIVATE_READER_SCOPES];
+  const scope: string[] = [...selected.scope];
   const credential = await new SignJWT({
     email: owner.email,
     scope: scope.join(" "),
@@ -138,5 +163,5 @@ export async function privateReaderCredentialApi(
     issuedAt: now,
     expiresAt,
   };
-  return privateEditorialResponse(payload);
+  return privateJson(payload);
 }

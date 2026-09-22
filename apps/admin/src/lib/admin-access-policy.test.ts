@@ -1,10 +1,34 @@
 import { describe, expect, test } from "vitest";
 import {
-  decideAdminAccess,
   isDevLoopbackPreviewRequest,
   isLocalOwnerRequest,
   isPublicAdminPath,
 } from "./admin-access-policy";
+
+/** The order middleware applies the policy in, for requests outside the
+ * editorial namespace. */
+function decideAdminAccess({
+  isDev,
+  localOwner = false,
+  method,
+  url,
+  headers = new Headers(),
+  hasSession,
+}: {
+  isDev: boolean;
+  localOwner?: boolean;
+  method: string;
+  url: URL;
+  headers?: Headers;
+  hasSession: boolean;
+}) {
+  if (isPublicAdminPath(url.pathname)) return "public";
+  if (isLocalOwnerRequest({ enabled: localOwner, method, url, headers }))
+    return "local-owner";
+  if (isDevLoopbackPreviewRequest({ isDev, method, url }))
+    return "dev-loopback-preview";
+  return hasSession ? "session" : "passkey-required";
+}
 
 const local = (path: string, origin = "http://localhost:4311") =>
   new URL(path, origin);
@@ -42,14 +66,15 @@ describe("admin access policy", () => {
 
   test.each([
     "/",
-    "/inbox",
-    "/work?view=now",
+    "/observability/status",
+    "/observability/activity?source=all",
     "/content",
+    "/content/pages",
     "/knowledge",
-    "/life",
-    "/system",
-    "/fleet",
-    "/proof",
+    "/data/records",
+    "/data/records/rec-0123456789abcdef0123456789abcdef",
+    "/data/sources",
+    "/observability/alerts",
   ])("allows the read-only development preview for %s", (path) => {
     expect(
       isDevLoopbackPreviewRequest({
@@ -65,7 +90,7 @@ describe("admin access policy", () => {
       isDevLoopbackPreviewRequest({
         isDev: true,
         method: "HEAD",
-        url: local("/inbox", "http://127.0.0.1:4311"),
+        url: local("/observability/status", "http://127.0.0.1:4311"),
       }),
     ).toBe(true);
   });
@@ -79,7 +104,7 @@ describe("admin access policy", () => {
       isDevLoopbackPreviewRequest({
         isDev: true,
         method: "GET",
-        url: local("/inbox", origin),
+        url: local("/observability/status", origin),
       }),
     ).toBe(true);
   });
@@ -104,13 +129,13 @@ describe("admin access policy", () => {
       name: "production",
       isDev: false,
       method: "GET",
-      url: local("/inbox"),
+      url: local("/observability/status"),
     },
     {
       name: "write method",
       isDev: true,
       method: "POST",
-      url: local("/work"),
+      url: local("/observability/activity"),
     },
     {
       name: "protected api",
@@ -131,7 +156,7 @@ describe("admin access policy", () => {
       name: "non-loopback host",
       isDev: true,
       method: "GET",
-      url: local("/inbox", "https://admin.anipotts.com"),
+      url: local("/observability/status", "https://admin.anipotts.com"),
     },
     {
       name: "unapproved auth operation",
@@ -143,19 +168,22 @@ describe("admin access policy", () => {
       name: "retired named localhost host",
       isDev: true,
       method: "GET",
-      url: local("/inbox", "http://admin.anipotts.localhost:1355"),
+      url: local(
+        "/observability/status",
+        "http://admin.anipotts.localhost:1355",
+      ),
     },
     {
       name: "lookalike loopback host",
       isDev: true,
       method: "GET",
-      url: local("/inbox", "http://localhost.example:4401"),
+      url: local("/observability/status", "http://localhost.example:4401"),
     },
     {
       name: "loopback over https",
       isDev: true,
       method: "GET",
-      url: local("/inbox", "https://localhost:4401"),
+      url: local("/observability/status", "https://localhost:4401"),
     },
     {
       name: "unapproved page",
@@ -178,7 +206,7 @@ describe("admin access policy", () => {
       decideAdminAccess({
         isDev: false,
         method: "GET",
-        url: new URL("https://admin.anipotts.com/inbox"),
+        url: new URL("https://admin.anipotts.com/observability/status"),
         hasSession: false,
       }),
     ).toBe("passkey-required");
@@ -189,7 +217,7 @@ describe("admin access policy", () => {
       decideAdminAccess({
         isDev: false,
         method: "GET",
-        url: new URL("https://admin.anipotts.com/work?view=now"),
+        url: new URL("https://admin.anipotts.com/observability/activity"),
         hasSession: true,
       }),
     ).toBe("session");
@@ -201,7 +229,7 @@ test("observability preview allows only the local read surface, keeping its API 
     decideAdminAccess({
       isDev: true,
       method: "GET",
-      url: local("/operations/observability"),
+      url: local("/observability/status"),
       hasSession: false,
     }),
   ).toBe("dev-loopback-preview");
@@ -209,10 +237,10 @@ test("observability preview allows only the local read surface, keeping its API 
     {
       isDev: false,
       method: "GET",
-      url: new URL("https://admin.anipotts.com/operations/observability"),
+      url: new URL("https://admin.anipotts.com/observability/status"),
     },
-    { isDev: true, method: "GET", url: local("/api/admin/observability") },
-    { isDev: true, method: "POST", url: local("/operations/observability") },
+    { isDev: true, method: "GET", url: local("/api/admin/projections") },
+    { isDev: true, method: "POST", url: local("/observability/status") },
   ])
     expect(decideAdminAccess({ ...input, hasSession: false })).toBe(
       "passkey-required",
@@ -358,7 +386,7 @@ describe("local owner session", () => {
         request({
           localOwner: false,
           origin: "http://localhost:4311",
-          path: "/inbox",
+          path: "/observability/status",
           method: "GET",
         }),
       ),
@@ -368,7 +396,7 @@ describe("local owner session", () => {
         request({
           localOwner: false,
           origin: "https://admin.anipotts.com",
-          path: "/inbox",
+          path: "/observability/status",
           method: "GET",
           isDev: false,
           hasSession: true,
@@ -466,7 +494,7 @@ describe("local owner session", () => {
       decideAdminAccess(
         request({
           origin: "http://localhost:4311",
-          path: "/inbox",
+          path: "/observability/status",
           method: "GET",
         }),
       ),

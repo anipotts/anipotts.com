@@ -89,10 +89,11 @@ assert.ok(
 const www = readFileSync("apps/www/src/styles/global.css", "utf8");
 const admin = readFileSync("apps/admin/src/styles/admin.css", "utf8");
 assert.ok(www.startsWith('@import "@anipotts/brand/public.css"'));
-// Admin takes brand tokens and motion from the package but declares its font
-// faces once, in fonts.css, with font-display: optional so pages never repaint
-// in a second font. Those faces must use the brand's own font files and names.
-assert.ok(admin.includes('@import "@anipotts/brand/tokens.css"'));
+// Admin takes brand motion from the package and every color from its Astryx
+// theme. It declares its font faces once, in fonts.css, with font-display:
+// optional so pages never repaint in a second font. Those faces must use the
+// brand's own font files and names.
+assert.ok(!admin.includes("@anipotts/brand/tokens.css"));
 assert.ok(admin.includes('@import "@anipotts/brand/motion.css"'));
 assert.ok(!admin.includes("@anipotts/brand/public.css"));
 const adminFonts = readFileSync("apps/admin/src/styles/fonts.css", "utf8");

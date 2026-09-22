@@ -89,11 +89,13 @@ it("makes reference removal explicit and unavailable during image processing", a
   );
   const remove = () =>
     [...host.querySelectorAll("button")].find(
-      (button) => button.textContent === "Remove preview",
+      (button) => button.getAttribute("aria-label") === "Remove preview",
     )!;
   expect(remove()).toBeTruthy();
   act(() => uploads.props[0].onPendingChange(true));
-  expect(remove().disabled).toBe(true);
+  expect(
+    remove().disabled || remove().getAttribute("aria-disabled") === "true",
+  ).toBe(true);
   act(() => remove().click());
   expect(onEdit).not.toHaveBeenCalled();
   act(() => uploads.props[0].onPendingChange(false));

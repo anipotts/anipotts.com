@@ -1,0 +1,358 @@
+{
+  "status": {
+    "database": {
+      "exists": true,
+      "writer": false,
+      "principal": "owner"
+    },
+    "counts": {
+      "records": 8,
+      "revisions": 16,
+      "sources": 3,
+      "changes": 3
+    },
+    "last_change_at": "2026-09-21T17:41:00.000000Z"
+  },
+  "records": [
+    {
+      "record_id": "rec-7addae2b6a74ba1d627368cb77371780",
+      "revision_id": "rev-c2a7da44fa2b52f29d09055f3abfd2ef",
+      "kind": "person",
+      "title": "Sample person: Robin Example",
+      "body": "Synthetic fixture text for the person preview. It is not a real record.",
+      "source_id": "synthetic-contacts",
+      "status": "confirmed",
+      "tier": "open",
+      "observed_at": "2026-09-21T17:41:00.000000Z",
+      "occurred_at": "2026-03-02",
+      "date_precision": "day",
+      "provenance": {
+        "source_uri": "fixture://synthetic-contacts/0",
+        "extractor": "synthetic"
+      },
+      "history_limit": 100,
+      "revisions": [
+        {
+          "revision_id": "rev-c2a7da44fa2b52f29d09055f3abfd2ef",
+          "source_version": "v2",
+          "observed_at": "2026-09-21T17:41:00.000000Z",
+          "source_modified_at": null
+        },
+        {
+          "revision_id": "rev-a00b8ba963151d6fe28990ddf881e859",
+          "source_version": "v1",
+          "observed_at": "2026-09-01T09:00:00.000000Z",
+          "source_modified_at": null
+        }
+      ]
+    },
+    {
+      "record_id": "rec-028c284009a43940832082f91e93be2b",
+      "revision_id": "rev-4a86ea42de85da00c073d496673353ea",
+      "kind": "project",
+      "title": "Sample project: garden planner",
+      "body": "Synthetic fixture text for the project preview. It is not a real record.",
+      "source_id": "synthetic-notes",
+      "status": "observed",
+      "tier": "restricted",
+      "observed_at": "2026-09-21T15:06:00.000000Z",
+      "occurred_at": "2026-08-14",
+      "date_precision": "day",
+      "provenance": {
+        "source_uri": "fixture://synthetic-notes/1",
+        "extractor": "synthetic"
+      },
+      "history_limit": 100,
+      "revisions": [
+        {
+          "revision_id": "rev-4a86ea42de85da00c073d496673353ea",
+          "source_version": "v2",
+          "observed_at": "2026-09-21T15:06:00.000000Z",
+          "source_modified_at": null
+        },
+        {
+          "revision_id": "rev-f498e1d1ab4c0c10a10a05e8d609cd98",
+          "source_version": "v1",
+          "observed_at": "2026-09-01T09:00:00.000000Z",
+          "source_modified_at": null
+        }
+      ]
+    },
+    {
+      "record_id": "rec-497ac87e3b9f6b38bfa46d6129b59e4f",
+      "revision_id": "rev-9d8e5f1666887c734fb819a941ce41cf",
+      "kind": "place",
+      "title": "Sample place: corner cafe",
+      "body": "Synthetic fixture text for the place preview. It is not a real record.",
+      "source_id": "synthetic-calendar",
+      "status": "observed",
+      "tier": "open",
+      "observed_at": "2026-09-21T11:20:00.000000Z",
+      "occurred_at": "2026-09-20",
+      "date_precision": "day",
+      "provenance": {
+        "source_uri": "fixture://synthetic-calendar/2",
+        "extractor": "synthetic"
+      },
+      "history_limit": 100,
+      "revisions": [
+        {
+          "revision_id": "rev-9d8e5f1666887c734fb819a941ce41cf",
+          "source_version": "v2",
+          "observed_at": "2026-09-21T11:20:00.000000Z",
+          "source_modified_at": null
+        },
+        {
+          "revision_id": "rev-56ff5c945c37e48c3d5c33df109ed6db",
+          "source_version": "v1",
+          "observed_at": "2026-09-01T09:00:00.000000Z",
+          "source_modified_at": null
+        }
+      ]
+    },
+    {
+      "record_id": "rec-baa3a40212137c353372b006f768f466",
+      "revision_id": "rev-e0dbdace10995833ac5315cd20aad02b",
+      "kind": "person",
+      "title": "Sample person: Jordan Placeholder",
+      "body": "Synthetic fixture text for the person preview. It is not a real record.",
+      "source_id": "synthetic-contacts",
+      "status": "observed",
+      "tier": "restricted",
+      "observed_at": "2026-09-20T22:12:00.000000Z",
+      "occurred_at": null,
+      "date_precision": null,
+      "provenance": {
+        "source_uri": "fixture://synthetic-contacts/3",
+        "extractor": "synthetic"
+      },
+      "history_limit": 100,
+      "revisions": [
+        {
+          "revision_id": "rev-e0dbdace10995833ac5315cd20aad02b",
+          "source_version": "v2",
+          "observed_at": "2026-09-20T22:12:00.000000Z",
+          "source_modified_at": null
+        },
+        {
+          "revision_id": "rev-6d4a7979dcd0da6a2d8425d9b25fbefd",
+          "source_version": "v1",
+          "observed_at": "2026-09-01T09:00:00.000000Z",
+          "source_modified_at": null
+        }
+      ]
+    },
+    {
+      "record_id": "rec-2545a44fbb87cc9251f8725008b6df9e",
+      "revision_id": "rev-d22d6d1311772b808edcc738c637bb67",
+      "kind": "note",
+      "title": "Sample note: reading list",
+      "body": "Synthetic fixture text for the note preview. It is not a real record.",
+      "source_id": "synthetic-notes",
+      "status": "observed",
+      "tier": "open",
+      "observed_at": "2026-09-20T19:45:00.000000Z",
+      "occurred_at": "2026-09",
+      "date_precision": "month",
+      "provenance": {
+        "source_uri": "fixture://synthetic-notes/4",
+        "extractor": "synthetic"
+      },
+      "history_limit": 100,
+      "revisions": [
+        {
+          "revision_id": "rev-d22d6d1311772b808edcc738c637bb67",
+          "source_version": "v2",
+          "observed_at": "2026-09-20T19:45:00.000000Z",
+          "source_modified_at": null
+        },
+        {
+          "revision_id": "rev-0d4497889f21bf539c239268c70ccba7",
+          "source_version": "v1",
+          "observed_at": "2026-09-01T09:00:00.000000Z",
+          "source_modified_at": null
+        }
+      ]
+    },
+    {
+      "record_id": "rec-fb591ceb3b0878ab59669de61adb0a7c",
+      "revision_id": "rev-e4f3ca8da50000788b895ea976722c85",
+      "kind": "project",
+      "title": "Sample project: bike repair log",
+      "body": "Synthetic fixture text for the project preview. It is not a real record.",
+      "source_id": "synthetic-notes",
+      "status": "confirmed",
+      "tier": "open",
+      "observed_at": "2026-09-19T08:30:00.000000Z",
+      "occurred_at": "2026-07-01",
+      "date_precision": "day",
+      "provenance": {
+        "source_uri": "fixture://synthetic-notes/5",
+        "extractor": "synthetic"
+      },
+      "history_limit": 100,
+      "revisions": [
+        {
+          "revision_id": "rev-e4f3ca8da50000788b895ea976722c85",
+          "source_version": "v2",
+          "observed_at": "2026-09-19T08:30:00.000000Z",
+          "source_modified_at": null
+        },
+        {
+          "revision_id": "rev-6991887f74110056ccc9650aaa354d29",
+          "source_version": "v1",
+          "observed_at": "2026-09-01T09:00:00.000000Z",
+          "source_modified_at": null
+        }
+      ]
+    },
+    {
+      "record_id": "rec-ba6333fd5fcb3f208ce09de17c99c489",
+      "revision_id": "rev-9df7ecbbf137b8b95884ea8c19570818",
+      "kind": "place",
+      "title": "Sample place: river trail",
+      "body": "Synthetic fixture text for the place preview. It is not a real record.",
+      "source_id": "synthetic-calendar",
+      "status": "observed",
+      "tier": "restricted",
+      "observed_at": "2026-09-18T13:02:00.000000Z",
+      "occurred_at": "2026-06",
+      "date_precision": "month",
+      "provenance": {
+        "source_uri": "fixture://synthetic-calendar/6",
+        "extractor": "synthetic"
+      },
+      "history_limit": 100,
+      "revisions": [
+        {
+          "revision_id": "rev-9df7ecbbf137b8b95884ea8c19570818",
+          "source_version": "v2",
+          "observed_at": "2026-09-18T13:02:00.000000Z",
+          "source_modified_at": null
+        },
+        {
+          "revision_id": "rev-d284162d0acaa25e36e01bd2ffc05d2b",
+          "source_version": "v1",
+          "observed_at": "2026-09-01T09:00:00.000000Z",
+          "source_modified_at": null
+        }
+      ]
+    },
+    {
+      "record_id": "rec-f41c7cab76d25826a54f539e9ed8f78e",
+      "revision_id": "rev-dca8977ab483d0594a69ae92352b496c",
+      "kind": "event",
+      "title": "Sample event: team dinner",
+      "body": "Synthetic fixture text for the event preview. It is not a real record.",
+      "source_id": "synthetic-calendar",
+      "status": "observed",
+      "tier": "open",
+      "observed_at": "2026-09-17T20:15:00.000000Z",
+      "occurred_at": "2026-09-16",
+      "date_precision": "day",
+      "provenance": {
+        "source_uri": "fixture://synthetic-calendar/7",
+        "extractor": "synthetic"
+      },
+      "history_limit": 100,
+      "revisions": [
+        {
+          "revision_id": "rev-dca8977ab483d0594a69ae92352b496c",
+          "source_version": "v2",
+          "observed_at": "2026-09-17T20:15:00.000000Z",
+          "source_modified_at": null
+        },
+        {
+          "revision_id": "rev-a20b5f141f0107dda2373f921bc30ad1",
+          "source_version": "v1",
+          "observed_at": "2026-09-01T09:00:00.000000Z",
+          "source_modified_at": null
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "source_id": "synthetic-contacts",
+      "first_observed_at": "2026-05-02T09:00:00.000000Z",
+      "last_observed_at": "2026-09-21T17:41:00.000000Z",
+      "record_count": 2,
+      "revision_count": 4
+    },
+    {
+      "source_id": "synthetic-notes",
+      "first_observed_at": "2026-04-11T09:00:00.000000Z",
+      "last_observed_at": "2026-09-21T15:06:00.000000Z",
+      "record_count": 3,
+      "revision_count": 6
+    },
+    {
+      "source_id": "synthetic-calendar",
+      "first_observed_at": "2026-06-20T09:00:00.000000Z",
+      "last_observed_at": "2026-09-21T11:20:00.000000Z",
+      "record_count": 3,
+      "revision_count": 6
+    }
+  ],
+  "extras": {
+    "available": true,
+    "health": [
+      {
+        "id": "card-synthetic-1",
+        "kind": "reference",
+        "title": "Sample health summary: sleep",
+        "summary": "Synthetic weekly sleep summary",
+        "source": "synthetic-health",
+        "freshness": "fresh",
+        "observed_at": "2026-09-21T07:00:00Z"
+      },
+      {
+        "id": "card-synthetic-2",
+        "kind": "reference",
+        "title": "Sample health summary: steps",
+        "summary": "Synthetic daily activity summary",
+        "source": "synthetic-health",
+        "freshness": "stale",
+        "observed_at": "2026-09-19T21:00:00Z"
+      }
+    ],
+    "knowledge": [
+      {
+        "id": "card-synthetic-3",
+        "kind": "decision",
+        "title": "Sample decision: weekly review day",
+        "summary": "Synthetic decision card",
+        "source": "synthetic-notes",
+        "freshness": "fresh",
+        "observed_at": "2026-09-20T12:00:00Z"
+      },
+      {
+        "id": "card-synthetic-4",
+        "kind": "concept",
+        "title": "Sample concept: slow mornings",
+        "summary": "Synthetic concept card",
+        "source": "synthetic-notes",
+        "freshness": "fresh",
+        "observed_at": "2026-09-18T09:30:00Z"
+      },
+      {
+        "id": "card-synthetic-5",
+        "kind": "system",
+        "title": "Sample system: backup rotation",
+        "summary": "Synthetic system card",
+        "source": "synthetic-notes",
+        "freshness": "stale",
+        "observed_at": "2026-09-12T16:00:00Z"
+      },
+      {
+        "id": "card-synthetic-6",
+        "kind": "person",
+        "title": "Sample person: Robin Example",
+        "summary": "Synthetic person card",
+        "source": "synthetic-contacts",
+        "freshness": "unknown",
+        "observed_at": null
+      }
+    ]
+  }
+}

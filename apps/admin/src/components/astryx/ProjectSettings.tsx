@@ -77,13 +77,6 @@ export function ProjectSettings({
           }
           isDisabled={disabled}
           status={status(key)}
-          description={
-            key === "public_state" && publicationMode === "direct"
-              ? "To hide a project from the website, use Unpublish in the document actions. Listed and featured projects can be published after review."
-              : key === "status"
-                ? "An archived project can remain visible on the website."
-                : undefined
-          }
           options={values.map((value) => ({
             value,
             label:
@@ -132,9 +125,6 @@ export function ProjectSettings({
         error={errors.get("tags")}
         onChange={(tags) => update("tags", tags)}
       />
-      <Text color="secondary">
-        Changes stay private until you review and publish them.
-      </Text>
     </FormLayout>
   );
 }

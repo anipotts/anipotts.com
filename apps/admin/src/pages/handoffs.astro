@@ -1,9 +1,0 @@
----
-import AdminTable from "../components/AdminTable.astro";
-import AdminLayout from "../layouts/AdminLayout.astro";
-import { handoffRows } from "../data/admin";
----
-
-<AdminLayout title="Handoffs" deck="Newest, stale, and unabsorbed handoffs.">
-  <AdminTable rows={handoffRows} />
-</AdminLayout>

@@ -13,7 +13,7 @@ vi.mock("./editorial-media", () => ({
   editorialImagePreview: (value: string) => value,
 }));
 vi.mock("./editorial-security", () => ({
-  privateEditorialResponse: (body: unknown, status: number) =>
+  privateJson: (body: unknown, status: number) =>
     Response.json(body, { status }),
 }));
 vi.mock("./admin-auth", () => ({
@@ -94,7 +94,7 @@ describe("local owner identity", () => {
 
 describe("middleware without the build-time flag", () => {
   it("keeps loopback API and record requests on the existing denial", async () => {
-    const api = await dispatch("http://localhost:4321/api/admin/observability");
+    const api = await dispatch("http://localhost:4321/api/admin/projections");
     expect(api.response.status).toBe(401);
     expect(api.next).not.toHaveBeenCalled();
     expect(api.locals.adminPrincipal).toBeUndefined();

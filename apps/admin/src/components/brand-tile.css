@@ -1,0 +1,50 @@
+/* The brand tile. It borrows the badge's geometry: a Token sm is 20px tall
+   with --radius-inner (6px), so the tile's corner is 0.3 of its side at every
+   size (6px at 20, 7.2px at 24, 8.4px at 28). A rounded square, never a
+   circle, on the badge's neutral fill with no border or shadow. */
+.brand-tile {
+  --brand-tile-size: var(--row-mark-size, 24px);
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  box-sizing: border-box;
+  inline-size: var(--brand-tile-size);
+  block-size: var(--brand-tile-size);
+  overflow: hidden;
+  border-radius: calc(var(--brand-tile-size) * 0.3);
+  background-color: var(--color-neutral);
+  color: var(--color-text-secondary);
+  line-height: 0;
+  vertical-align: middle;
+}
+
+.brand-tile > picture {
+  display: contents;
+}
+
+/* Glyph artwork sits inside the tile; the colour is the brand's, and black
+   brands take the dark ink in the dark theme. */
+.brand-tile-art {
+  display: block;
+  inline-size: calc(var(--brand-tile-size) * 0.64);
+  block-size: calc(var(--brand-tile-size) * 0.64);
+  object-fit: contain;
+  fill: light-dark(
+    var(--brand-mark-color, currentColor),
+    var(--brand-mark-dark, currentColor)
+  );
+}
+
+/* App plates and device renders are the tile: edge to edge, clipped to its
+   corner. */
+.brand-tile[data-fit="fill"] .brand-tile-art {
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+/* Phosphor fallbacks read a little lighter than brand glyphs, so they sit
+   about 2px larger at the same tile size. */
+.brand-tile-glyph {
+  inline-size: calc(var(--brand-tile-size) * 0.72);
+  block-size: calc(var(--brand-tile-size) * 0.72);
+}

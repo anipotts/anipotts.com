@@ -1,7 +1,11 @@
+import { clientNavigate } from "./client-routes";
+
 export const adminNavigationEvent = "admin:navigate";
 
+/** Moves within the document when the mounted island draws the route, so an
+ * open Data session survives, and loads a document otherwise. */
 export function commitAdminNavigation(href: string): void {
-  window.location.assign(href);
+  if (!clientNavigate(href)) window.location.assign(href);
 }
 
 /** The mounted editor may defer navigation until its private save completes. */

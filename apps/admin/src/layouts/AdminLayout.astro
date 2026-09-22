@@ -1,38 +1,25 @@
 ---
+// The overview, Data and Observability. Their own stylesheets load first, so
+// the shared document's styles still come after them in the cascade.
 import "@astryxdesign/core/reset.css";
-import {
-  initialAdminTheme,
-  adminThemePrepaintScript,
-} from "../lib/admin-theme";
-import { adminSidebarPrepaintScript } from "../lib/admin-sidebar";
 import "@astryxdesign/core/astryx.css";
 import "../styles/admin-interactions.css";
-import "@astryxdesign/theme-neutral/theme.css";
 import "../styles/admin.css";
 import "../styles/fonts.css";
-import "../styles/admin-canvas.css";
+import AdminDocument from "./AdminDocument.astro";
 import { AdminShell } from "../components/astryx/AdminShell";
-import "../themes/editorial.generated.css";
-import "../themes/operations.generated.css";
-import "../themes/life.generated.css";
-import "../styles/editorial.css";
-import "../styles/focus.css";
-import { navItems, routeTitle } from "../data/admin";
-import { preloadedFontUrls } from "../lib/admin-fonts";
+import { initialAdminTheme } from "../lib/admin-theme";
+import type { AdminSearchResult } from "../data/admin-search";
 
 type Props = {
-  title?: string;
+  title: string;
   deck?: string;
-  chrome?: "admin" | "auth";
   hideHeader?: boolean;
+  /** Content the page already read, for the palette to search. */
+  searchEntries?: AdminSearchResult[];
 };
 
-const {
-  title = routeTitle(Astro.url.pathname),
-  deck = "",
-  chrome = "admin",
-  hideHeader = false,
-} = Astro.props;
+const { title, deck = "", hideHeader = false, searchEntries } = Astro.props;
 const initialMode = initialAdminTheme(
   Astro.url.searchParams.get("theme"),
   Astro.cookies.get("ap-theme")?.value,
@@ -44,68 +31,18 @@ const localOwner =
   Astro.locals.adminPrincipal?.authMethod === "local_owner";
 ---
 
-<!doctype html>
-<html
-  lang="en"
-  data-astryx-theme="editorial"
-  data-theme={initialMode === "system" ? undefined : initialMode}
-  style={{ colorScheme: initialMode === "system" ? "light dark" : initialMode }}
->
-  <head>
-    <meta charset="utf-8" />
-    <link
-      rel="icon"
-      href="/admin-bracket.svg?v=4"
-      type="image/svg+xml"
-      sizes="any"
-    />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    {
-      preloadedFontUrls.map((href) => (
-        <link
-          rel="preload"
-          as="font"
-          type="font/woff2"
-          href={href}
-          crossorigin=""
-        />
-      ))
-    }
-
-    <link
-      rel="apple-touch-icon"
-      sizes="180x180"
-      href="/apple-touch-icon.png?v=20260717a"
-    />
-
-    <meta
-      name="theme-color"
-      media="(prefers-color-scheme: light)"
-      content="#ffffff"
-    />
-    <meta
-      name="theme-color"
-      media="(prefers-color-scheme: dark)"
-      content="#0b1220"
-    />
-    <title>{title} | Anipotts Admin</title>
-    <script is:inline set:html={adminThemePrepaintScript} />
-    <script is:inline set:html={adminSidebarPrepaintScript} />
-  </head>
-  <body>
-    <AdminShell
-      client:load
-      localPreview={import.meta.env.DEV}
-      localOwner={localOwner}
-      initialMode={initialMode}
-      chrome={chrome}
-      currentRoute={currentRoute}
-      deck={deck}
-      hideHeader={hideHeader}
-      navItems={navItems}
-      title={title}
-    >
-      <slot />
-    </AdminShell>
-  </body>
-</html>
+<AdminDocument title={title}>
+  <AdminShell
+    client:load
+    localPreview={import.meta.env.DEV}
+    localOwner={localOwner}
+    initialMode={initialMode}
+    currentRoute={currentRoute}
+    deck={deck}
+    hideHeader={hideHeader}
+    searchEntries={searchEntries}
+    title={title}
+  >
+    <slot />
+  </AdminShell>
+</AdminDocument>

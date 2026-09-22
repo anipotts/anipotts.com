@@ -11,20 +11,13 @@ import {
   type AdminD1Database,
 } from "./admin-auth";
 import { verifyEditorialOwner } from "./access-identity";
+import { constantTimeEqual } from "./crypto";
 
 type Session = { id: string; user_id: string; credential_id: string | null };
 type PresentedSession = Session & {
   table: "admin_sessions" | "admin_passkey_sessions";
 };
 type Dependencies = { verifyOwner?: typeof verifyEditorialOwner };
-
-function equal(left: string, right: string): boolean {
-  if (left.length !== right.length) return false;
-  let difference = 0;
-  for (let i = 0; i < left.length; i++)
-    difference |= left.charCodeAt(i) ^ right.charCodeAt(i);
-  return difference === 0;
-}
 
 /** Logout reads existing rows only. It never resolves, refreshes, or migrates a session. */
 async function presentedSessions(
@@ -93,7 +86,7 @@ export async function adminLogout(
     const destination = owner ? "/cdn-cgi/access/logout" : "/auth";
     if (method === "GET") return adminJson({ csrf, destination });
     const supplied = context.request.headers.get("x-admin-csrf") ?? "";
-    if (!supplied || !equal(supplied, csrf))
+    if (!supplied || !constantTimeEqual(supplied, csrf))
       return adminJson({ error: "csrf_invalid" }, { status: 403 });
     if (sessions.length) {
       if (!db?.batch)

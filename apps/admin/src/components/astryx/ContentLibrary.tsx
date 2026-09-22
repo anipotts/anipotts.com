@@ -4,41 +4,56 @@ import type { CatalogRecord, CatalogGroup } from "./EditorialApp";
 import { Button } from "@astryxdesign/core/Button";
 import { IconButton } from "@astryxdesign/core/IconButton";
 import {
-  ArrowRightIcon,
   ArticleIcon,
   BriefcaseIcon,
+  CloudSlashIcon,
   EnvelopeIcon,
   FileTextIcon,
+  FunnelSimpleIcon,
+  PlusIcon,
+  SortAscendingIcon,
+  XIcon,
+  type Icon,
 } from "@phosphor-icons/react";
-import { Token } from "@astryxdesign/core/Token";
-import {
-  Timestamp,
-  type TimestampTooltipEntry,
-} from "@astryxdesign/core/Timestamp";
 import { HStack } from "@astryxdesign/core/HStack";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Text } from "@astryxdesign/core/Text";
-import { TextInput } from "@astryxdesign/core/TextInput";
 import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from "@astryxdesign/core/DropdownMenu";
-import { EmptyState } from "@astryxdesign/core/EmptyState";
-import { Table, proportional, pixel } from "@astryxdesign/core/Table";
-import { StatusDot } from "@astryxdesign/core/StatusDot";
 import {
+  DataTable,
+  FilterBar,
+  FilterMenu,
+  RelativeTime,
+  RowTitle,
+  StateBadge,
+  StateNotice,
+  WorkspacePage,
+  badgeFor,
+  type Column,
+} from "../workspace/Workspace";
+import {
+  LIBRARY_STATUSES,
+  SORT_LABELS,
   readLibraryState,
   libraryStateUrl,
   recordLibraryHref,
+  type LibrarySort,
   type LibraryState,
 } from "../../lib/content-library-state";
+
+/** A record's address segment, so a search finds it by its slug too. */
+const recordSlug = (record: CatalogRecord) =>
+  record.publishedSlug ??
+  record.id ??
+  decodeURIComponent(record.href.split("?")[0]!.split("/").pop() ?? "");
+
 export function matchingRecords(
   records: CatalogRecord[],
   query: string,
   status: string,
-  sections?: string[],
 ): CatalogRecord[] {
   const text = query.trim().toLocaleLowerCase();
   return records.filter(
@@ -47,8 +62,7 @@ export function matchingRecords(
         (status === "changes"
           ? record.changesPending
           : record.status === status)) &&
-      (sections === undefined || sections.includes(record.section ?? "")) &&
-      `${record.title} ${record.summary ?? ""} ${record.section ?? ""}`
+      `${record.title} ${record.summary ?? ""} ${recordSlug(record)}`
         .toLocaleLowerCase()
         .includes(text),
   );
@@ -65,19 +79,10 @@ export function recentlyUpdated(records: CatalogRecord[]): CatalogRecord[] {
   );
 }
 
-type UpdatedSource = NonNullable<CatalogRecord["updated"]>["source"];
-
-/** One shared tooltip entry list per source, so every render hands Timestamp
- * the same array instead of a new one per cell. */
-const UPDATED_TOOLTIP_ENTRIES: Record<
-  UpdatedSource,
-  ReadonlyArray<TimestampTooltipEntry>
-> = {
-  private: [
-    { label: "Private draft saved", timezoneID: "local", format: "full" },
-  ],
-  local: [{ label: "Local edit", timezoneID: "local", format: "full" }],
-  git: [{ label: "Latest Git change", timezoneID: "local", format: "full" }],
+const UPDATE_LABELS: Record<string, string> = {
+  private: "Private draft saved",
+  local: "Local edit",
+  git: "Latest Git change",
 };
 
 function UpdatedCell({
@@ -94,14 +99,7 @@ function UpdatedCell({
     return column ? <Text color="secondary">Not recorded</Text> : null;
   return (
     <HStack gap={2} wrap="wrap">
-      <Timestamp
-        value={updated.at}
-        format="relative_short"
-        isLive
-        tooltipEntries={
-          UPDATED_TOOLTIP_ENTRIES[updated.source] ?? UPDATED_TOOLTIP_ENTRIES.git
-        }
-      />
+      <RelativeTime value={updated.at} label={UPDATE_LABELS[updated.source]} />
       {updated.source === "local" && (
         <Text type="supporting" color="secondary">
           Local edit
@@ -111,11 +109,9 @@ function UpdatedCell({
   );
 }
 
-/** Library rows re-render whenever the island commits, and each Timestamp
- * holds a dehydrated Suspense boundary for its lazy hover card. Skipping
- * renders when the recorded time and source are unchanged keeps React from
- * hydrating every boundary again at sync priority after the first commit.
- * Timestamp keeps its own live clock, so the relative text still advances. */
+/** Library rows re-render whenever the island commits. Skipping renders when
+ * the recorded time and source are unchanged keeps rows still; the shared
+ * live clock still advances the relative text. */
 export const Updated = memo(
   UpdatedCell,
   (previous, next) =>
@@ -124,33 +120,13 @@ export const Updated = memo(
     previous.updated?.source === next.updated?.source,
 );
 
-/** States whose plain name would undersell where the record stands. */
-const STATUS_LABELS: Record<string, string> = {
-  hidden: "Hidden from site",
-};
-
-function interfaceLabel(value: string) {
-  if (STATUS_LABELS[value]) return STATUS_LABELS[value];
-  const text = value.replaceAll("_", " ");
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
-/** Statuses the public site shows. Their chip is tinted; every other state
- * stays neutral, so colour in a table always means "live on the site". */
-const PUBLIC_STATUSES = ["published", "featured", "listed"];
-
-/** Figures for the strip under a library table. Only non-zero figures render,
- * so a filtered view describes what is in it rather than listing every state. */
-export function libraryFigures(records: readonly CatalogRecord[]) {
-  const count = (test: (record: CatalogRecord) => boolean) =>
-    records.filter(test).length;
-  const figures: Array<[label: string, value: number]> = [
-    ["public", count((record) => PUBLIC_STATUSES.includes(record.status))],
-    ["drafts", count((record) => record.status === "draft")],
-    ["hidden", count((record) => record.status === "hidden")],
-    ["with changes pending", count((record) => Boolean(record.changesPending))],
-  ];
-  return figures.filter(([, value]) => value > 0);
+/** A status filter's one name: the chip's label, from the badge table. */
+function statusLabel(value: string) {
+  return value === "all"
+    ? "All"
+    : value === "changes"
+      ? "Changes pending"
+      : badgeFor("content", value).label;
 }
 
 export function RecordStatus({
@@ -160,20 +136,9 @@ export function RecordStatus({
   status: string;
   changesPending?: boolean;
 }) {
-  const visible = PUBLIC_STATUSES.includes(status);
   return (
     <VStack gap={1}>
-      <Token
-        size="sm"
-        color={visible ? "green" : "default"}
-        label={interfaceLabel(status)}
-        icon={
-          <StatusDot
-            variant={visible ? "success" : "neutral"}
-            label={visible ? "Public" : "Not public"}
-          />
-        }
-      />
+      <StateBadge domain="content" state={status} />
       {changesPending && (
         <Text type="supporting" color="secondary">
           Changes pending
@@ -183,52 +148,70 @@ export function RecordStatus({
   );
 }
 
-/** The record's library section, derived from its URL when rows omit it. */
-export function recordSection(record: CatalogRecord): string {
-  return (
-    record.section ??
-    (record.href.startsWith("/content/projects/")
-      ? "Projects"
-      : record.href.startsWith("/content/writing/")
-        ? "Writing"
-        : record.href.startsWith("/newsletter/")
-          ? "Newsletter"
-          : "Pages")
-  );
-}
+/** Each library's kind: its glyph, its name, its title and what it creates. */
+const LIBRARIES: Record<
+  string,
+  { icon: Icon; kind: string; title: string; create?: [string, string] }
+> = {
+  website: { icon: FileTextIcon, kind: "Page", title: "Pages" },
+  writing: {
+    icon: ArticleIcon,
+    kind: "Article",
+    title: "Writing",
+    create: ["New article", "/content/new"],
+  },
+  work: {
+    icon: BriefcaseIcon,
+    kind: "Project",
+    title: "Projects",
+    create: ["New project", "/content/new-project"],
+  },
+  newsletter: {
+    icon: EnvelopeIcon,
+    kind: "Newsletter issue",
+    title: "Newsletter",
+  },
+};
 
-function RecordGlyph({ record }: { record: CatalogRecord }) {
-  const [Icon, kind] =
+/** The record's kind, as a glyph and its name. */
+function recordGlyph(record: CatalogRecord): [Icon, string] {
+  const library =
     record.collection === "projects" ||
     record.href.startsWith("/content/projects/")
-      ? ([BriefcaseIcon, "Project"] as const)
+      ? LIBRARIES.work!
       : record.collection === "writing" ||
           record.href.startsWith("/content/writing/")
-        ? ([ArticleIcon, "Article"] as const)
+        ? LIBRARIES.writing!
         : record.href.startsWith("/newsletter/")
-          ? ([EnvelopeIcon, "Newsletter issue"] as const)
-          : ([FileTextIcon, "Page"] as const);
-  // A record with a summary shows the summary in place of its section label, so
-  // this glyph is the only remaining kind signal. It carries the kind as text
-  // rather than aria-hidden decoration, and as a tooltip, so the row is
-  // readable without a legend and announces its kind to assistive technology.
-  return (
-    <span className="editorial-record-icon" title={kind}>
-      <Icon weight="regular" size="var(--spacing-5)" aria-hidden="true" />
-      <Text className="sr-only">{kind}</Text>
-    </span>
-  );
+          ? LIBRARIES.newsletter!
+          : LIBRARIES.website!;
+  return [library.icon, library.kind];
 }
 
-/** The row action's tooltip and aria-describedby both carry this string, and a
- * screen reader reads it on every focus, so it stays bounded rather than
- * listing every changed frontmatter field. */
+/** The row link's tooltip carries this string, so it stays bounded rather
+ * than listing every changed frontmatter field. */
 export function changedFieldSummary(fields: readonly string[]): string {
   if (!fields.length) return "Source changes";
   const shown = fields.slice(0, 2).join(", ");
   return fields.length > 2 ? `${shown} +${fields.length - 2}` : shown;
 }
 
+/** The private draft state could not be read: a glyph, named on hover. */
+function UnavailableMark() {
+  return (
+    <span
+      className="editorial-record-unavailable"
+      role="img"
+      aria-label="Draft status unavailable"
+      title="Draft status unavailable"
+    >
+      <CloudSlashIcon weight="regular" aria-hidden="true" />
+    </span>
+  );
+}
+
+/** The state chip, then a line only when it says something the chip does
+ * not. A default state (Published, Listed) shows nothing at all. */
 function RecordState({
   record,
   inventoryError,
@@ -237,49 +220,30 @@ function RecordState({
   inventoryError: boolean;
 }) {
   const decision = contentDecision(record, !inventoryError);
-  const unavailable = inventoryError && record.privateRevision === undefined;
   return (
     <HStack gap={2} vAlign="center" className="editorial-record-state">
-      <RecordStatus status={record.status} />
-      <Text
-        type="supporting"
-        color="secondary"
-        className="editorial-record-state-detail"
-      >
-        {unavailable
-          ? "Draft status unavailable"
-          : (decision.detail ?? decision.label)}
-      </Text>
+      <StateBadge domain="content" state={record.status} />
+      {decision.unavailable && <UnavailableMark />}
+      {decision.detail && (
+        <Text
+          type="supporting"
+          color="secondary"
+          className="editorial-record-state-detail"
+        >
+          {decision.detail}
+        </Text>
+      )}
     </HStack>
   );
 }
 
-function RecordAction({
-  record,
-  returnTo,
-  inventoryError = false,
-}: {
-  record: CatalogRecord;
-  returnTo: string;
-  inventoryError?: boolean;
-}) {
+/** Whether a row's state says anything beyond the default. */
+function stateIsNews(record: CatalogRecord, inventoryError: boolean) {
   const decision = contentDecision(record, !inventoryError);
-  const changed =
-    decision.action === "Review changes" && record.changedFields !== undefined
-      ? changedFieldSummary(record.changedFields)
-      : undefined;
-  const label = `${decision.action ?? "Open record"}: ${record.title}`;
-  const href = recordLibraryHref(record.href, returnTo);
   return (
-    <IconButton
-      size="sm"
-      variant="ghost"
-      className="editorial-record-action"
-      icon={<ArrowRightIcon weight="regular" />}
-      label={label}
-      tooltip={changed ? `${label} (${changed})` : label}
-      href={decision.view ? decisionHref(href, decision.view) : href}
-    />
+    !badgeFor("content", record.status).isDefault ||
+    Boolean(decision.detail) ||
+    Boolean(decision.unavailable)
   );
 }
 
@@ -289,19 +253,23 @@ export function ContentLibrary({
   initialSearch = "",
   inventoryError = false,
   area = "content",
+  title,
 }: {
   groups: CatalogGroup[];
   selectedGroup?: string;
   initialSearch?: string;
   inventoryError?: boolean;
   area?: "content" | "newsletter";
+  /** The page's H1. Defaults to the library's name. */
+  title?: string;
 }) {
+  const home = area === "newsletter" ? "/content/newsletter" : "/content";
   const [state, setState] = useState<LibraryState>(() =>
     readLibraryState(initialSearch, selectedGroup),
   );
   const [currentUrl, setCurrentUrl] = useState(() =>
     libraryStateUrl(
-      area === "newsletter" ? "/newsletter" : "/content",
+      home,
       initialSearch,
       readLibraryState(initialSearch, selectedGroup),
     ),
@@ -340,370 +308,212 @@ export function ContentLibrary({
     groups.find((item) => item.name === state.group) ??
     groups.find((item) => item.name === selectedGroup) ??
     groups[0];
-  const { q: query, status } = state;
-  const sectionOptions = [
-    ...new Set(
-      group?.records.flatMap((item) => (item.section ? [item.section] : [])) ??
-        [],
-    ),
-  ].sort();
-  const sections = state.sections ?? sectionOptions;
-  const setQuery = (q: string) => change({ q }, true);
-  const setStatus = (status: string) => change({ status });
-  const setSections = (sections: string[]) => change({ sections });
+  const library = LIBRARIES[group?.name ?? ""] ?? LIBRARIES.website!;
+  const heading = title ?? library.title;
+  const create = area === "content" ? library.create : undefined;
+  const actions = create && (
+    <IconButton
+      label={create[0]}
+      tooltip={create[0]}
+      variant="ghost"
+      icon={<PlusIcon weight="regular" aria-hidden="true" />}
+      href={create[1]}
+      className="editorial-library-create"
+    />
+  );
   if (!group)
     return (
-      <EmptyState
-        title={inventoryError ? "Records unavailable" : "No records yet"}
-      />
+      <WorkspacePage title={heading} actions={actions}>
+        <StateNotice
+          kind={inventoryError ? "error" : "empty"}
+          icon={inventoryError ? undefined : library.icon}
+          title={inventoryError ? "Records unavailable" : "No records yet"}
+        />
+      </WorkspacePage>
     );
-  const matched = matchingRecords(
-    group.records,
-    query,
-    status,
-    sectionOptions.length > 1 ? sections : undefined,
+  const { q: query, status } = state;
+  const decisions = new Map(
+    group.records.map((item) => [item, contentDecision(item, !inventoryError)]),
   );
+  // Needs attention only reorders when records differ in what they need.
+  const attentionSorts =
+    new Set([...decisions.values()].map((decision) => decision.priority)).size >
+    1;
+  const defaultSort: LibrarySort = attentionSorts ? "attention" : "updated";
+  const sort: LibrarySort =
+    !attentionSorts && state.sort === "attention" ? "updated" : state.sort;
+  const matched = matchingRecords(group.records, query, status);
   const records =
-    state.sort === "title"
+    sort === "title"
       ? [...matched].sort(
           (a, b) =>
             a.title.localeCompare(b.title) || a.href.localeCompare(b.href),
         )
-      : state.sort === "attention"
+      : sort === "attention"
         ? recentlyUpdated(matched).sort(
-            (a, b) =>
-              contentDecision(a, !inventoryError).priority -
-              contentDecision(b, !inventoryError).priority,
+            (a, b) => decisions.get(a)!.priority - decisions.get(b)!.priority,
           )
         : recentlyUpdated(matched);
-  const recent =
-    area === "content" && group.name === "pages" && !query && status === "all"
-      ? recentlyUpdated(
-          group.records.filter(
-            (record) =>
-              record.updated?.source === "private" ||
-              record.updated?.source === "local",
-          ),
-        ).slice(0, 3)
-      : [];
-  // One library of one kind needs no kind column; the mixed overview does.
-  const showSections =
-    new Set(group.records.map((item) => recordSection(item))).size > 1;
-  const statuses = [...new Set(group.records.map((item) => item.status))];
+  const present = new Set(group.records.map((item) => item.status));
+  const statusOptions = [
+    ...(group.records.some((item) => item.changesPending) ? ["changes"] : []),
+    ...LIBRARY_STATUSES.filter((item) => present.has(item)),
+    ...[...present]
+      .filter((item) => !(LIBRARY_STATUSES as readonly string[]).includes(item))
+      .sort(),
+  ];
+  const filtered = status !== "all" || sort !== defaultSort;
+  const reset = () => change({ status: "all", sort: "attention" });
+  const rowHref = (item: CatalogRecord) => {
+    const href = recordLibraryHref(item.href, currentUrl);
+    const view = decisions.get(item)?.view;
+    return view ? decisionHref(href, view) : href;
+  };
+  const rowName = (item: CatalogRecord) =>
+    `${decisions.get(item)?.action ?? "Open record"}: ${item.title}`;
+  const columns: Column<CatalogRecord>[] = [
+    {
+      key: "title",
+      header: "Title",
+      render: (item) => {
+        const decision = decisions.get(item)!;
+        const changed =
+          decision.action === "Review changes" &&
+          item.changedFields !== undefined
+            ? changedFieldSummary(item.changedFields)
+            : undefined;
+        return (
+          <RowTitle
+            icon={recordGlyph(item)[0]}
+            kind={recordGlyph(item)[1]}
+            title={item.title}
+            href={rowHref(item)}
+            linkLabel={rowName(item)}
+            tooltip={changed ? `${rowName(item)} (${changed})` : rowName(item)}
+            mobile={
+              stateIsNews(item, inventoryError) ? (
+                <RecordState record={item} inventoryError={inventoryError} />
+              ) : undefined
+            }
+            time={item.updated?.at}
+          />
+        );
+      },
+    },
+    {
+      key: "summary",
+      header: "Summary",
+      hideBelow: "large",
+      render: (item) =>
+        item.summary ? (
+          <Text
+            type="supporting"
+            color="secondary"
+            className="editorial-record-summary"
+          >
+            {item.summary}
+          </Text>
+        ) : null,
+    },
+    {
+      key: "status",
+      header: "State",
+      width: 200,
+      render: (item) => (
+        <RecordState record={item} inventoryError={inventoryError} />
+      ),
+    },
+    {
+      key: "updated",
+      header: "Updated",
+      width: 112,
+      render: (item) => <Updated updated={item.updated} column />,
+    },
+  ];
   return (
-    <VStack
-      gap={5}
-      className="editorial-library"
-      data-kind-column={showSections}
-    >
-      {recent.length > 0 && (
-        <section className="editorial-resume" aria-label="Recently edited">
-          <HStack vAlign="center" className="editorial-resume-heading">
-            <Text type="label">Recently edited</Text>
-            <Text type="supporting" color="secondary">
-              Pick up where you left off
-            </Text>
-          </HStack>
-          <ul className="editorial-resume-list">
-            {recent.map((record) => {
-              const decision = contentDecision(record, !inventoryError);
-              const href = recordLibraryHref(record.href, currentUrl);
-              const section = recordSection(record);
-              return (
-                <li key={record.href} className="editorial-resume-row">
-                  <div className="editorial-resume-meta">
-                    <HStack
-                      gap={2}
-                      vAlign="center"
-                      className="editorial-resume-kind"
-                    >
-                      <RecordGlyph record={record} />
-                      <Text type="supporting" color="secondary">
-                        {interfaceLabel(section)}
-                      </Text>
-                    </HStack>
-                    <div className="editorial-resume-time">
-                      <Updated updated={record.updated} />
-                    </div>
-                  </div>
-                  <a
-                    className="editorial-resume-link"
-                    href={
-                      decision.view ? decisionHref(href, decision.view) : href
-                    }
-                  >
-                    <span className="editorial-resume-title">
-                      {record.title}
-                    </span>
-                    <span className="editorial-resume-action">
-                      {decision.action ?? "Open record"}
-                      <ArrowRightIcon
-                        weight="regular"
-                        size={16}
-                        aria-hidden="true"
-                      />
-                    </span>
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
-      <HStack
-        gap={3}
-        wrap="wrap"
-        vAlign="center"
-        className="editorial-library-toolbar"
-      >
-        <TextInput
-          className="editorial-library-search"
-          label="Search records"
-          isLabelHidden
-          placeholder="Search records"
-          startIcon="search"
-          value={query}
-          onChange={setQuery}
-          hasClear
-        />
-        <HStack
-          gap={2}
-          hAlign="start"
-          vAlign="center"
-          className="editorial-filter-row editorial-library-filters"
+    <WorkspacePage title={heading} count={records.length} actions={actions}>
+      <VStack gap={5} className="editorial-library">
+        <FilterBar
+          search={{
+            label: `Search ${library.title.toLocaleLowerCase()}`,
+            value: query,
+            onChange: (q) => change({ q }, true),
+          }}
         >
-          {sectionOptions.length > 1 && (
-            <DropdownMenu
-              button={{
-                label:
-                  sections.length === sectionOptions.length
-                    ? "Sections"
-                    : sections.length === 0
-                      ? "No sections"
-                      : sections.length === 1
-                        ? interfaceLabel(sections[0]!)
-                        : `${sections.length} sections`,
-                size: "sm",
-                variant: "secondary",
-              }}
-            >
-              <DropdownMenuCheckboxItem
-                label="All sections"
-                value={sections.length === sectionOptions.length}
-                onChange={(checked) =>
-                  setSections(checked ? sectionOptions : [])
-                }
-              />
-              {sectionOptions.map((section) => (
-                <DropdownMenuCheckboxItem
-                  key={section}
-                  label={interfaceLabel(section)}
-                  value={sections.includes(section)}
-                  onChange={(checked) =>
-                    setSections(
-                      checked
-                        ? [...sections, section]
-                        : sections.filter((item) => item !== section),
-                    )
-                  }
-                />
-              ))}
-            </DropdownMenu>
-          )}
-          {(statuses.length > 1 ||
-            group.records.some((item) => item.changesPending)) && (
-            <DropdownMenu
-              button={{
-                label:
-                  status === "all"
-                    ? "Status"
-                    : status === "changes"
-                      ? "Changes"
-                      : interfaceLabel(status),
-                tooltip: `Status: ${status === "all" ? "All" : status === "changes" ? "Changes pending" : interfaceLabel(status)}`,
-                size: "sm",
-                variant: "secondary",
-              }}
-              menuWidth="max-content"
+          {statusOptions.length > 1 && (
+            <FilterMenu
+              label="Status"
+              icon={FunnelSimpleIcon}
+              value={statusLabel(status)}
+              isActive={status !== "all"}
             >
               <DropdownMenuRadioGroup
-                label="Publication status"
+                label="Status"
                 value={status}
-                onChange={setStatus}
+                onChange={(next) => change({ status: next })}
               >
-                {[
-                  "all",
-                  ...(group.records.some((item) => item.changesPending)
-                    ? ["changes"]
-                    : []),
-                  ...statuses,
-                ].map((item) => (
+                {["all", ...statusOptions].map((item) => (
                   <DropdownMenuRadioItem
                     key={item}
                     value={item}
-                    label={
-                      item === "changes"
-                        ? "Changes pending"
-                        : interfaceLabel(item)
-                    }
+                    label={statusLabel(item)}
                   />
                 ))}
               </DropdownMenuRadioGroup>
-            </DropdownMenu>
+            </FilterMenu>
           )}
-          <DropdownMenu
-            button={{
-              label:
-                state.sort === "attention"
-                  ? "Needs attention"
-                  : state.sort === "updated"
-                    ? "Recently edited"
-                    : "Title A–Z",
-              tooltip: `Sort: ${state.sort === "attention" ? "Needs attention" : state.sort === "updated" ? "Last updated" : "Title"}`,
-              size: "sm",
-              variant: "secondary",
-            }}
+          <FilterMenu
+            label="Sort"
+            icon={SortAscendingIcon}
+            value={SORT_LABELS[sort]}
+            isActive={sort !== defaultSort}
           >
             <DropdownMenuRadioGroup
-              label="Sort records"
-              value={state.sort}
-              onChange={(sort) =>
+              label="Sort"
+              value={sort}
+              onChange={(next) =>
                 change({
                   sort:
-                    sort === "title"
-                      ? "title"
-                      : sort === "updated"
-                        ? "updated"
-                        : "attention",
+                    next === "title" || next === "updated" ? next : "attention",
                 })
               }
             >
-              <DropdownMenuRadioItem
-                value="attention"
-                label="Needs attention"
-              />
-              <DropdownMenuRadioItem value="updated" label="Last updated" />
-              <DropdownMenuRadioItem value="title" label="Title" />
+              {(attentionSorts
+                ? (["attention", "updated", "title"] as const)
+                : (["updated", "title"] as const)
+              ).map((item) => (
+                <DropdownMenuRadioItem
+                  key={item}
+                  value={item}
+                  label={SORT_LABELS[item]}
+                />
+              ))}
             </DropdownMenuRadioGroup>
-          </DropdownMenu>
-        </HStack>
-      </HStack>
-      <VStack gap={0} className="admin-table-surface">
-        {records.length ? (
-          <>
-            <Table
-              className="editorial-record-table"
-              data={records}
-              idKey="href"
-              density="compact"
-              dividers="none"
-              hasHover
-              aria-label={`${interfaceLabel(group.name)} records`}
-              columns={[
-                {
-                  key: "title",
-                  header: "Title",
-                  width: proportional(1, { minWidth: 80 }),
-                  renderCell: (item) => (
-                    <HStack
-                      gap={3}
-                      vAlign="center"
-                      className="editorial-record-heading"
-                    >
-                      <RecordGlyph record={item} />
-                      <VStack gap={1} className="editorial-record-content">
-                        <Button
-                          size="sm"
-                          label={item.title}
-                          href={recordLibraryHref(item.href, currentUrl)}
-                          variant="ghost"
-                          className="record-link"
-                        />
-                        <HStack
-                          className="editorial-mobile-status"
-                          gap={3}
-                          wrap="wrap"
-                          vAlign="center"
-                        >
-                          <RecordState
-                            record={item}
-                            inventoryError={inventoryError}
-                          />
-                          <Updated updated={item.updated} column />
-                        </HStack>
-                      </VStack>
-                    </HStack>
-                  ),
-                },
-                {
-                  key: "summary",
-                  header: "Summary",
-                  width: proportional(1, { minWidth: 80 }),
-                  renderCell: (item) =>
-                    item.summary ? (
-                      <Text
-                        type="supporting"
-                        color="secondary"
-                        className="editorial-record-summary"
-                      >
-                        {item.summary}
-                      </Text>
-                    ) : null,
-                },
-                ...(showSections
-                  ? [
-                      {
-                        key: "section",
-                        header: "Kind",
-                        width: pixel(124),
-                        renderCell: (item: CatalogRecord) => (
-                          <Token
-                            size="sm"
-                            color="default"
-                            className="editorial-record-kind"
-                            label={interfaceLabel(recordSection(item))}
-                          />
-                        ),
-                      },
-                    ]
-                  : []),
-                {
-                  key: "status",
-                  header: "State",
-                  width: pixel(228),
-                  renderCell: (item) => (
-                    <RecordState
-                      record={item}
-                      inventoryError={inventoryError}
-                    />
-                  ),
-                },
-                {
-                  key: "updated",
-                  header: "Updated",
-                  width: pixel(112),
-                  renderCell: (item) => (
-                    <Updated updated={item.updated} column />
-                  ),
-                },
-                {
-                  key: "action",
-                  header: <Text className="sr-only">Action</Text>,
-                  width: pixel(52),
-                  align: "end",
-                  renderCell: (item) => (
-                    <RecordAction
-                      record={item}
-                      returnTo={currentUrl}
-                      inventoryError={inventoryError}
-                    />
-                  ),
-                },
-              ]}
+          </FilterMenu>
+          {filtered && (
+            <IconButton
+              label="Reset filters"
+              tooltip="Reset filters"
+              variant="ghost"
+              size="sm"
+              icon={<XIcon weight="regular" aria-hidden="true" />}
+              onClick={reset}
             />
-          </>
+          )}
+        </FilterBar>
+        {records.length ? (
+          <DataTable
+            rows={records}
+            columns={columns}
+            rowKey="href"
+            label={`${library.title} records`}
+            noun={["record", "records"]}
+            footer={false}
+          />
         ) : (
-          <EmptyState
+          <StateNotice
+            kind={inventoryError ? "error" : "empty"}
+            icon={inventoryError ? undefined : library.icon}
             title={
               inventoryError
                 ? "Records unavailable"
@@ -711,68 +521,19 @@ export function ContentLibrary({
                   ? "No records yet"
                   : "No matching records"
             }
-            actions={
-              inventoryError ? undefined : group.records.length === 0 ? (
-                area === "content" &&
-                ["writing", "work", "pages"].includes(group.name) ? (
-                  <Button
-                    label={
-                      group.name === "work" ? "New project" : "New article"
-                    }
-                    href={
-                      group.name === "work"
-                        ? "/content/new-project"
-                        : "/content/new"
-                    }
-                  />
-                ) : undefined
-              ) : (
+            action={
+              !inventoryError &&
+              group.records.length > 0 &&
+              status !== "all" && (
                 <Button
                   label="Clear filters"
-                  onClick={() => {
-                    change({ q: "", status: "all", sections: undefined });
-                  }}
+                  onClick={() => change({ q: "", status: "all" })}
                 />
               )
             }
           />
         )}
-        <HStack
-          gap={5}
-          wrap="wrap"
-          vAlign="center"
-          className="admin-table-footer"
-        >
-          <Text
-            type="supporting"
-            color="secondary"
-            aria-live="polite"
-            role="status"
-            aria-label={`${records.length} ${records.length === 1 ? "record" : "records"}`}
-            className="editorial-record-count"
-          >
-            {records.length}
-            <Text
-              type="supporting"
-              color="secondary"
-              className="editorial-record-count-label"
-            >
-              {" "}
-              {records.length === 1 ? "record" : "records"} in view
-            </Text>
-          </Text>
-          {libraryFigures(records).map(([label, value]) => (
-            <Text
-              key={label}
-              type="supporting"
-              color="secondary"
-              className="admin-table-figure"
-            >
-              <strong>{value}</strong> {label}
-            </Text>
-          ))}
-        </HStack>
       </VStack>
-    </VStack>
+    </WorkspacePage>
   );
 }

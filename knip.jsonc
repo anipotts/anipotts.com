@@ -19,14 +19,13 @@
         "src/worker.ts!",
         // Inputs to `astryx theme build` in package.json scripts.
         "src/themes/editorial.ts!",
-        "src/themes/operations.ts!",
-        "src/themes/life.ts!",
       ],
       // cloudflare:* are workerd runtime modules. astro.config.mjs registers
       // the astro-icon integration with include ph, which reads @iconify-json/ph
-      // at build; --production does not count config integrations. No admin
-      // file renders an astro-icon Icon today, so keeping the pair needs
-      // intent (#358). jetbrains-mono is a CSS @import, which knip does not read.
+      // at build; --production does not count config integrations. The
+      // pages/preview routes render www components (HomePage, WritingDetail)
+      // that draw astro-icon Icons, so admin keeps the pair (#358).
+      // jetbrains-mono is a CSS @import, which knip does not read.
       "ignoreDependencies": [
         "cloudflare",
         "astro-icon",

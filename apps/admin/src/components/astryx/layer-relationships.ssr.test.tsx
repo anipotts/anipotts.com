@@ -15,7 +15,7 @@ import { Tooltip } from "@astryxdesign/core/Tooltip";
 import { ContentLibrary } from "./ContentLibrary";
 import { EditorialApp } from "./EditorialApp";
 import { ObservabilityWorkspace } from "./ObservabilityWorkspace";
-import { createUnconfiguredSnapshot } from "../../lib/observability-model";
+import opsSample from "../../fixtures/ops_v1.sample.json";
 
 // Astryx layers mount their surface only after hydration. Server markup must
 // not point assistive technology at ids that are not in the document yet.
@@ -136,17 +136,11 @@ describe("server-rendered Astryx relationship attributes", () => {
     expect(danglingRelationships(html)).toEqual([]);
   });
 
-  it("renders the Operations workspace without dangling references", () => {
+  it("renders the Observability workspace without dangling references", () => {
     const html = serverMarkup(
-      <ObservabilityWorkspace
-        initial={{
-          status: "unconfigured",
-          snapshot: createUnconfiguredSnapshot(),
-        }}
-        initialView="machines"
-      />,
+      <ObservabilityWorkspace enabled={false} fixture={opsSample} />,
     );
-    expect(html).toContain('aria-haspopup="menu"');
+    expect(html).toContain('aria-label="Status entries"');
     expect(danglingRelationships(html)).toEqual([]);
   });
 
@@ -159,7 +153,7 @@ describe("server-rendered Astryx relationship attributes", () => {
         siteUrl="https://anipotts.com/"
       />,
     );
-    expect(html).toContain("admin-workspace-selector");
+    expect(html).toContain("admin-unified-nav");
     expect(danglingRelationships(html)).toEqual([]);
   });
 });

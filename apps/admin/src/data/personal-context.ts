@@ -1,5 +1,6 @@
 import { PersonalContextHttpError } from "./personal-context-http";
 import { applyActivityPage, emptyActivity } from "../lib/life-activity";
+import { READER_KINDS, type ReaderKind } from "../lib/data-routes";
 /** Transport-neutral reads. Wiring a private transport requires separate access approval. */
 export const LIFE_DEFAULTS = {
   mode: "lookup",
@@ -13,7 +14,7 @@ export type LifeRead =
   | {
       method: "search";
       q: string;
-      kind?: "person" | "project" | "place";
+      kind?: ReaderKind;
       offset?: number;
     }
   | { method: "timeline"; entity_id?: string; offset?: number }
@@ -161,7 +162,7 @@ export function lifeReadPath(request: LifeRead): string {
     case "search":
       params.set("q", query(request.q));
       if (request.kind) {
-        if (!["person", "project", "place"].includes(request.kind))
+        if (!(READER_KINDS as readonly string[]).includes(request.kind))
           throw new Error("Invalid kind");
         params.set("kind", request.kind);
       }

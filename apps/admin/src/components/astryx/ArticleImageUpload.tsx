@@ -194,7 +194,6 @@ export function ArticleImageUpload({
         label="Upload image"
         value={file}
         mode="dropzone"
-        description="JPEG, PNG or WebP, up to 10 MB. Uploaded images stay private until publication. Cropping keeps your original."
         accept="image/jpeg,image/png,image/webp"
         maxSize={10 * 1024 * 1024}
         isDisabled={disabled || busy || cropping}

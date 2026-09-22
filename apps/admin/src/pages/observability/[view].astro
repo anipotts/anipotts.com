@@ -1,0 +1,39 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import {
+  OPS_VIEW_TITLES,
+  ObservabilityWorkspace,
+  opsAlertParam,
+  type OpsView,
+} from "../../components/astryx/ObservabilityWorkspace";
+import { privateReaderOpsEnabled } from "../../lib/private-reader-credential";
+import { loadShellFixtures } from "../../lib/shell-fixtures";
+
+// Status, Activity and Alerts. Every other segment is the shared 404.
+const view = Astro.params.view ?? "";
+if (!Object.hasOwn(OPS_VIEW_TITLES, view)) return Astro.rewrite("/404");
+const key = view as OpsView;
+
+// Off unless PRIVATE_READER_ENABLED and PRIVATE_READER_OPS_ENABLED are both
+// exactly "true". The Data flag alone never turns on ops reads. The server
+// makes no read; the browser reads System's snapshot and events with an
+// ops:read credential only when this is on.
+const enabled = privateReaderOpsEnabled(Astro.locals.runtime?.env ?? {});
+
+// Development uses System's snapshot sample and a synthetic events page
+// (lib/shell-fixtures.ts); none ships.
+const fixtures = await loadShellFixtures(Astro.url);
+Astro.response.headers.set("Cache-Control", "private, no-store");
+---
+
+<AdminLayout title={OPS_VIEW_TITLES[key]} hideHeader>
+  <ObservabilityWorkspace
+    view={key}
+    alert={key === "alerts" ? opsAlertParam(Astro.url.search) : null}
+    enabled={enabled}
+    fixture={fixtures?.snapshot}
+    eventsFixture={fixtures?.events}
+    renderedAt={Date.now()}
+    client:load
+  />
+</AdminLayout>

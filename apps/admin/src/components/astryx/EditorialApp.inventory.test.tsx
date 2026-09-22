@@ -72,7 +72,7 @@ it("refreshes mounted library only from newer acknowledged metadata", () => {
   act(() => {
     dispatchEditorialRecordSaved(event);
   });
-  expect(host.querySelector(".record-link")?.textContent).toContain(
+  expect(host.querySelector(".workspace-row-link")?.textContent).toContain(
     "Saved title",
   );
   expect(host.textContent).toContain("Saved summary");
@@ -83,7 +83,7 @@ it("refreshes mounted library only from newer acknowledged metadata", () => {
       new CustomEvent(RECORD_SAVED_EVENT, { detail: { source: "secret" } }),
     );
   });
-  expect(host.querySelector(".record-link")?.textContent).toContain(
+  expect(host.querySelector(".workspace-row-link")?.textContent).toContain(
     "Saved title",
   );
 });

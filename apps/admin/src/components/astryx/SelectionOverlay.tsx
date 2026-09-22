@@ -25,6 +25,11 @@ export function SelectionOverlay({
   );
 }
 
+/** The link panel's width and its gutter: it keeps the page's side gutter
+ * on a phone, so it is never clipped at the screen edge. */
+const GUTTER = "var(--admin-gutter, var(--spacing-4))";
+const PANEL_WIDTH = `min(calc(var(--spacing-10) * 9), calc(100vw - 2 * ${GUTTER}))`;
+
 function LinkOverlay({
   editor,
   onClose,
@@ -60,7 +65,7 @@ function LinkOverlay({
     const position = () => {
       if (!anchor.current || editor.isDestroyed) return;
       const point = editor.view.coordsAtPos(editor.state.selection.from);
-      anchor.current.style.left = `clamp(var(--spacing-4), ${point.left}px, calc(100vw - var(--spacing-4)))`;
+      anchor.current.style.left = `clamp(${GUTTER}, ${point.left}px, calc(100vw - ${GUTTER} - ${PANEL_WIDTH}))`;
       anchor.current.style.top = `clamp(var(--spacing-4), ${point.bottom}px, calc(100dvh - var(--spacing-4)))`;
     };
     position();
@@ -116,8 +121,7 @@ function LinkOverlay({
           alignment: "start",
           className: "editor-link-overlay",
           style: {
-            width:
-              "min(calc(var(--spacing-10) * 9), calc(100vw - var(--spacing-8)))",
+            width: PANEL_WIDTH,
             maxHeight: "calc(100dvh - var(--spacing-8))",
             overflowY: "auto",
           },

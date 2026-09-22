@@ -1,163 +1,114 @@
+/* Observability draws with the workspace kit; only ops marks live here.
+   The workspace is the kit's `workspace` container, so an alert opens beside
+   its list on a wide content area (workspace.css). */
 .operations-workspace {
-  container-type: inline-size;
+  container: workspace / inline-size;
+  min-width: 0;
+}
+.operations-workspace .ops-state {
+  display: inline-flex;
+}
+.operations-workspace .ops-id {
+  font-family: var(--font-family-code, ui-monospace, monospace);
+  font-size: 0.92em;
 }
 
-.admin-page-frame:has(.operations-workspace) {
-  padding: 0;
+/* Rows hold 36px on wide screens, like the controls around them. */
+.operations-workspace .workspace-table .astryx-table-cell {
+  height: var(--spacing-9);
 }
 
-/* Operations shares the Content library's page frame and table rhythm. */
-.operations-workspace .astryx-layout-content {
-  padding: var(--spacing-6) clamp(var(--spacing-4), 3vw, var(--spacing-12));
+/* A state cell and a phone row's line 2: the chip, the reason, and a
+   non-zero exit or an overrun budget as a critical figure. */
+.operations-workspace .ops-state-cell {
+  min-width: 0;
 }
-
-.operations-workspace .operations-header {
-  min-height: var(--size-element-sm);
+.operations-workspace .ops-reason {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
-
-.operations-workspace .operations-source-status {
-  min-height: var(--spacing-6);
-}
-
-.operations-workspace .operations-toolbar {
-  width: 100%;
-}
-
-.operations-workspace .operations-toolbar > .astryx-field {
-  flex: 0 1 calc(var(--spacing-12) * 5);
-  min-width: min(100%, calc(var(--spacing-12) * 4));
-}
-
-/* The count leads the summary strip under the table. */
-.operations-workspace .operations-count {
+.operations-workspace .ops-exit,
+.operations-workspace .ops-over {
+  flex: none;
+  color: var(--color-text-red, var(--color-error));
   white-space: nowrap;
 }
 
-.operations-workspace .editorial-record-table {
-  background: transparent;
+/* Hosts and the exception counts share one line above the table. */
+.ops-overview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-3);
 }
-
-.operations-workspace .editorial-record-table .astryx-table-header-cell,
-.operations-workspace .editorial-record-table .astryx-table-cell {
-  padding-inline: var(--spacing-3);
-  background: transparent;
+.ops-hosts,
+.ops-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
-
-.operations-workspace .editorial-record-table .astryx-table-header-cell {
-  padding-block: var(--spacing-2);
-  color: var(--color-text-secondary);
-  text-transform: none;
+.ops-counts {
+  align-items: center;
+  margin-inline-start: auto;
 }
-
-.operations-workspace .editorial-record-table .astryx-table-cell {
-  padding-block: var(--spacing-3);
-  /* Wrap between words; break inside one only when it cannot fit at all. */
-  word-break: normal;
-  overflow-wrap: break-word;
-}
-
-/* On phones the state and last observation move under the name, the way the
-   Content library keeps status with its title. */
-.operations-workspace .operations-mobile-status {
-  display: none;
-}
-
-.operations-workspace .operations-master-detail {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.operations-workspace .operations-master-detail[data-has-detail="true"] {
-  grid-template-columns: minmax(0, 1fr) minmax(0, calc(var(--spacing-8) * 10));
-}
-
-.operations-workspace .operations-results,
-.operations-workspace .operations-service-detail {
+.ops-host {
+  --row-mark-size: var(--spacing-6);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
   min-width: 0;
-}
-
-.operations-workspace .operations-service-detail {
-  border-inline-start: var(--border-width) solid var(--color-border);
-  padding-inline-start: var(--spacing-6);
-  overflow-wrap: anywhere;
-  background: var(--color-background-surface);
-}
-
-.operations-workspace .operations-service-name {
-  justify-content: start;
-  text-align: start;
-  white-space: normal;
-  font-weight: var(--font-weight-semibold);
   min-height: var(--spacing-9);
-  padding-inline: var(--spacing-2);
+  padding-inline: var(--spacing-2) var(--spacing-3);
+  background: var(--color-background-surface);
+  border-radius: var(--radius-container);
+  scroll-margin-block: var(--spacing-12);
+}
+.ops-host-name,
+.ops-host-detail {
+  white-space: nowrap;
+}
+
+/* The detail's way back sits on the content's start edge. */
+.operations-workspace .ops-detail-back {
+  align-self: flex-start;
   margin-inline-start: calc(-1 * var(--spacing-2));
 }
 
-.operations-workspace .operations-entity-icon {
-  width: var(--spacing-5);
-  height: var(--spacing-5);
-  flex-shrink: 0;
+/* A link into Status tints the row it lands on for a moment. */
+.operations-workspace [data-landed] {
+  background-color: var(--color-accent-muted);
+  transition: background-color 600ms ease-out;
 }
 
-.operations-workspace
-  .astryx-table-row:has([data-service-id][aria-expanded="true"]) {
-  background-color: var(--color-background-muted);
-}
-
-@container (max-width: 48rem) {
-  .operations-workspace .operations-master-detail[data-has-detail="true"] {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .operations-workspace
-    .operations-master-detail[data-has-detail="true"]
-    .operations-results {
-    display: none;
-  }
-
-  .operations-workspace .operations-service-detail {
-    border-inline-start: none;
-    padding-inline-start: 0;
-  }
-}
-
-@media (pointer: coarse) {
-  .operations-workspace .operations-service-name {
-    min-height: var(--spacing-11);
-  }
-}
-
-@media (max-width: 480px) {
-  .operations-workspace .editorial-record-table {
-    min-width: 0 !important;
-  }
-  .operations-workspace .editorial-record-table th:first-child {
-    width: auto !important;
-    min-width: 0 !important;
-  }
-  .operations-workspace .operations-inventory-table th:nth-child(n + 2),
-  .operations-workspace .operations-inventory-table td:nth-child(n + 2),
-  .operations-workspace .operations-evidence-table th:nth-child(2),
-  .operations-workspace .operations-evidence-table td:nth-child(2) {
-    display: none;
-  }
-  .operations-workspace .operations-mobile-status {
-    display: flex;
-  }
+/* The source menu's counts. Its items take the shared touch size
+   (styles/admin-interactions.css). */
+.ops-menu-count {
+  color: var(--color-text-secondary);
 }
 
 @media (max-width: 640px) {
-  .operations-workspace .astryx-layout-content {
-    padding-block: var(--spacing-4);
-    padding-inline: var(--spacing-4);
+  .operations-workspace .workspace-table .astryx-table-cell {
+    height: auto;
   }
-
-  .operations-workspace .operations-toolbar > .astryx-field {
-    flex-basis: 100%;
-    min-width: 0;
+  .ops-overview {
+    gap: var(--spacing-2);
   }
-
-  .operations-workspace .operations-count {
+  .ops-counts {
     margin-inline-start: 0;
+  }
+  .ops-host {
+    --row-mark-size: var(--spacing-7);
+    flex: 1 1 100%;
+    padding-inline: 0;
+    background: transparent;
+  }
+  .ops-host-detail {
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }

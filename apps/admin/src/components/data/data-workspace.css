@@ -1,0 +1,256 @@
+/* The Data workspace: the records toolbar, the record page and the source
+   and card rows. The list and record split and everything else come from
+   the workspace kit. No rules or rings: depth is surface tint and spacing.
+   The workspace is the kit's `workspace` container, so a record opens beside
+   its list once the content area is 960px wide (SPLIT_MIN_WIDTH in
+   DataWorkspace.tsx). */
+.data-workspace {
+  container: workspace / inline-size;
+  width: 100%;
+  min-width: 0;
+}
+
+/* The session control holds its place in every session state. */
+.data-session-slot {
+  display: inline-flex;
+  justify-content: flex-end;
+  min-width: var(--spacing-9);
+  min-height: var(--spacing-9);
+}
+
+/* Toolbar: the search on one row, then the kind and source chips on a row
+   that scrolls sideways rather than wrapping. Wide enough, both share one
+   row. */
+.data-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+.data-chips {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.data-chips::-webkit-scrollbar {
+  display: none;
+}
+.data-chips > * {
+  flex: 0 0 auto;
+}
+.data-chips .astryx-button {
+  white-space: nowrap;
+}
+/* Chips sit on the badge's neutral fill; a chosen chip takes the accent.
+   The fill is id-weighted to beat the button's own, so hover, press and
+   keyboard focus lay their tint over it instead of losing it: focus is the
+   admin's accent tint (styles/focus.css), a chosen chip's focus a darker
+   overlay on its accent. */
+.data-chips .astryx-button:not(#\#) {
+  background-color: var(--color-neutral);
+}
+.data-chips .astryx-button[aria-pressed="true"]:not(#\#) {
+  background-color: var(--color-accent-muted);
+  color: var(--color-text-accent, var(--color-accent));
+}
+.data-chips .astryx-button:focus-visible:not([aria-pressed="true"]):not(#\#) {
+  background-color: var(--color-accent-muted);
+}
+.data-chips .astryx-button[aria-pressed="true"]:focus-visible:not(#\#) {
+  background-image: linear-gradient(
+    var(--color-overlay-pressed),
+    var(--color-overlay-pressed)
+  );
+}
+@media (hover: hover) {
+  .data-chips .astryx-button:hover:not(#\#) {
+    background-image: linear-gradient(
+      var(--color-overlay-hover),
+      var(--color-overlay-hover)
+    );
+  }
+}
+.data-chips .astryx-button:active:not(#\#) {
+  background-image: linear-gradient(
+    var(--color-overlay-pressed),
+    var(--color-overlay-pressed)
+  );
+}
+/* On phones the chip row runs to the screen edges, like the list below. */
+@media (max-width: 640px) {
+  .data-chips {
+    margin-inline: calc(-1 * var(--admin-gutter, 0px));
+    padding-inline: var(--admin-gutter, 0px);
+    scroll-padding-inline: var(--admin-gutter, 0px);
+  }
+}
+.data-chip-text {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+.data-chip-clear {
+  width: var(--spacing-3);
+  height: var(--spacing-3);
+  margin-inline-start: var(--spacing-1);
+  color: var(--color-text-secondary);
+}
+@container workspace-list (min-width: 760px) {
+  .data-toolbar {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--spacing-3);
+  }
+  .data-toolbar > .workspace-filter-bar {
+    flex: 0 1 calc(var(--spacing-12) * 5);
+    width: auto;
+  }
+}
+
+/* On its own a record is the page: the page header steps aside too (the
+   kit hides the list), and the record's title becomes the H1. */
+@container workspace (max-width: 959px) {
+  .data-workspace[data-record-open="true"] .workspace-page-header {
+    display: none;
+  }
+}
+
+/* Record rows are two lines, so their skeleton is as tall. */
+.data-workspace .workspace-skeleton-row {
+  min-height: calc(var(--spacing-12) + var(--spacing-1));
+}
+
+/* A source as a small tile and its short name, on line 2 and in facts. */
+.data-source {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.data-source > .brand-tile {
+  flex: 0 0 auto;
+}
+.data-source-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.workspace-row-meta .data-source {
+  padding-block: 2px;
+}
+
+/* A source's record and revision counts, glyph and figure. */
+.data-figures {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  font-variant-numeric: tabular-nums;
+}
+.data-figures > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+}
+.data-figures svg {
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+  flex: none;
+}
+
+/* Card summaries take two lines instead of one, the tile on the first. On a
+   phone a row keeps to two lines, so line 2 (a freshness chip, the tile and
+   the summary) stays on one and the summary ends in an ellipsis. */
+@media (min-width: 641px) {
+  .data-cards .data-source {
+    align-items: flex-start;
+  }
+  .data-cards .data-source-name {
+    display: -webkit-box;
+    white-space: normal;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+}
+
+/* The record page. */
+.data-detail-bar {
+  display: flex;
+  margin-block-end: calc(-1 * var(--spacing-3));
+  margin-inline-start: calc(-1 * var(--spacing-2));
+}
+.data-detail[data-split="true"] .data-detail-bar {
+  justify-content: flex-end;
+  margin-inline: 0 calc(-1 * var(--spacing-2));
+  margin-block-end: calc(-1 * var(--spacing-9) - var(--spacing-2));
+}
+.data-detail[data-split="true"] .data-detail-title {
+  padding-inline-end: var(--spacing-9);
+}
+.data-detail-title {
+  overflow-wrap: anywhere;
+}
+.data-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2) var(--spacing-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--color-text-secondary);
+}
+.data-facts > li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+.data-facts > li,
+.data-facts .workspace-time {
+  font-size: var(--font-size-sm);
+  line-height: var(--spacing-5);
+  color: var(--color-text-secondary);
+}
+.data-facts > li > svg {
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+  flex: none;
+}
+.data-fields,
+.data-evidence {
+  padding-block: var(--spacing-3);
+}
+/* Field labels in sentence case, as they are written. */
+:is(.data-fields, .data-evidence) dt:not(#\#) {
+  text-transform: none;
+  letter-spacing: normal;
+}
+.data-history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  margin: 0;
+  padding: var(--spacing-2) 0;
+  list-style: none;
+}
+.data-history > li {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: var(--spacing-8);
+}
+.data-history-time {
+  margin-inline-start: auto;
+}
+.data-history-count {
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-regular, 400);
+}

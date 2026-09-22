@@ -18,17 +18,27 @@ async function render(scope = "owner") {
     root.render(<NewWriting recoveryScope={scope} />);
   });
 }
+/** The title: the create page's first, large field. */
+const titleField = () => host.querySelector("textarea")!;
 async function type(value: string) {
-  const input = host.querySelector("input")!;
+  const input = titleField();
   await act(async () => {
     Object.getOwnPropertyDescriptor(
-      HTMLInputElement.prototype,
+      HTMLTextAreaElement.prototype,
       "value",
     )!.set!.call(input, value);
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
 }
 beforeEach(() => {
+  // The title grows with its text.
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
   vi.stubGlobal(
     "matchMedia",
     vi.fn(() => ({
@@ -65,7 +75,7 @@ it("restores only the server-provided account and preserves legacy unscoped data
     JSON.stringify({ title: "Other account", slug: "other" }),
   );
   await render();
-  expect(host.querySelector("input")!.value).toBe("");
+  expect(titleField().value).toBe("");
   expect(sessionStorage.getItem("editorial:new-writing")).toContain(
     "Legacy private text",
   );
@@ -74,7 +84,7 @@ it("restores only the server-provided account and preserves legacy unscoped data
     readNewWritingRecovery(localStorage, newWritingRecoveryKey("owner"))!,
   ).toMatchObject({ title: "New draft", slug: "new-draft" });
   await render("other");
-  expect(host.querySelector("input")!.value).toBe("Other account");
+  expect(titleField().value).toBe("Other account");
   expect(
     readNewWritingRecovery(localStorage, newWritingRecoveryKey("owner"))!.title,
   ).toBe("New draft");
@@ -84,8 +94,8 @@ it("clears creation recovery on same-tab logout and does not repopulate it", asy
   await type("Private title");
   act(() => clearEditorialRecovery(localStorage));
   expect(localStorage.getItem(newWritingRecoveryKey("owner"))).toBeNull();
-  expect(host.querySelector("input")!.value).toBe("");
-  expect(host.querySelector("input")!.disabled).toBe(true);
+  expect(titleField().value).toBe("");
+  expect(titleField().disabled).toBe(true);
   expect(host.textContent).toContain("Session ended");
 });
 it("handles another tab's logout and ignores unrelated storage events", async () => {
@@ -94,14 +104,14 @@ it("handles another tab's logout and ignores unrelated storage events", async ()
   act(() =>
     window.dispatchEvent(new StorageEvent("storage", { key: "theme" })),
   );
-  expect(host.querySelector("input")!.value).toBe("Private title");
+  expect(titleField().value).toBe("Private title");
   act(() =>
     window.dispatchEvent(
       new StorageEvent("storage", { key: recoveryLogoutKey }),
     ),
   );
-  expect(host.querySelector("input")!.value).toBe("");
-  expect(host.querySelector("input")!.disabled).toBe(true);
+  expect(titleField().value).toBe("");
+  expect(titleField().disabled).toBe(true);
 });
 it("blocks duplicate submissions and stops creation when logout happens during CSRF fetch", async () => {
   let resolve!: (value: Response) => void;
@@ -147,7 +157,7 @@ it("retains creation operation identity after an ambiguous network failure", asy
     if (count === 1) {
       await render("other");
       await render("owner");
-      expect(host.querySelector("input")!.value).toBe("Retry me");
+      expect(titleField().value).toBe("Retry me");
       expect(ids).toHaveLength(1); // Recovery never submits a creation request.
     }
     await act(async () => {
@@ -165,7 +175,7 @@ it("retains creation operation identity after an ambiguous network failure", asy
     readNewWritingRecovery(localStorage, newWritingRecoveryKey("owner"))!
       .request!.id,
   ).toBe(ids[0]);
-  expect(host.querySelector("input")!.value).toBe("Retry me");
+  expect(titleField().value).toBe("Retry me");
 });
 
 it("announces the created draft so open libraries list it without a reload", async () => {
@@ -231,7 +241,7 @@ it("keeps project recovery separate and creates with project identity", async ()
   await act(async () =>
     root.render(<NewWriting recoveryScope="owner" recordKind="work" />),
   );
-  expect(host.querySelector("input")!.value).toBe("");
+  expect(titleField().value).toBe("");
   expect(host.textContent).toContain("Project address");
   await type("New project");
   const calls: string[] = [];
@@ -256,11 +266,11 @@ it("keeps project recovery separate and creates with project identity", async ()
   ]);
   expect(host.textContent).toContain("A project already uses this address");
   await render();
-  expect(host.querySelector("input")!.value).toBe("Article retained");
+  expect(titleField().value).toBe("Article retained");
   await act(async () =>
     root.render(<NewWriting recoveryScope="owner" recordKind="work" />),
   );
-  expect(host.querySelector("input")!.value).toBe("New project");
+  expect(titleField().value).toBe("New project");
 });
 
 it.each(["network", "malformed"])(
@@ -292,7 +302,7 @@ it.each(["network", "malformed"])(
       expect(host.textContent).toContain("Couldn’t confirm draft creation");
       expect(host.textContent).not.toContain("PRIVATE");
       expect(host.textContent).not.toContain("Draft not created");
-      expect(host.querySelector("input")!.value).toBe("Keep this draft");
+      expect(titleField().value).toBe("Keep this draft");
     }
     expect(ids).toHaveLength(2);
     expect(ids[0]).toBe(ids[1]);

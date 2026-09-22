@@ -1,0 +1,726 @@
+/* The record editor: the editor bar, writing surfaces, rich fields and
+   their toolbars, review diffs, publication progress and the record panel.
+   Shell and page frame rules live in shell.css. Media queries use the
+   ranges in lib/breakpoints.ts: compact is (max-width: 640px). */
+
+/* The editor bar: one sticky row on every width. Back, the title on one
+   line, the save dot, then Preview, Publish and the overflow. It sits on the
+   canvas colour so text scrolling under it never shows through. */
+.editor-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+  min-height: calc(var(--spacing-11) + var(--spacing-2));
+  background: var(--color-background-body);
+}
+.editor-bar-back {
+  flex: 0 0 auto;
+  margin-inline-start: calc(-1 * var(--spacing-2));
+}
+.editor-bar-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.editor-bar-title h1 {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--text-body-size);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--spacing-6);
+}
+.editor-bar-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--spacing-1);
+  margin-inline-start: auto;
+}
+/* The save dot: a fixed square so its state never moves the bar. */
+.editor-save-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+}
+/* On a phone the bar is the top of the page: it takes the status bar's
+   inset, and the shell leaves out its top bar and tab row for a record page
+   (EditorialWorkspaceShell recordPage). */
+@media (max-width: 640px) {
+  .editor-bar {
+    top: 0;
+    padding-block-start: env(safe-area-inset-top, 0px);
+    margin-block-start: calc(-1 * var(--spacing-3));
+  }
+}
+/* The phone sheets lift on their shadow alone, with no outline. */
+.editor-action-sheet:not(#\#),
+.record-panel-sheet:not(#\#) {
+  border: 0;
+}
+.editor-action-sheet-title {
+  padding-inline: var(--spacing-3);
+  padding-block: var(--spacing-1);
+}
+.editor-action-sheet-item:not(#\#) {
+  justify-content: flex-start;
+  width: 100%;
+  min-height: var(--spacing-11);
+}
+
+/* One measure for every record: the writing column, 45rem. */
+.editor-workspace,
+.new-writing-form {
+  width: 100%;
+  min-width: 0;
+}
+.record-workspace-layout {
+  width: 100%;
+}
+.record-workspace-main {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  max-width: 45rem;
+  margin-inline: auto;
+}
+/* The inline inspector widens the column around the writing, never into it. */
+.editorial-workspace-shell
+  .editorial-content.writing-content:has(.record-inspector) {
+  max-width: calc(45rem + 16rem + 3 * var(--spacing-6));
+}
+
+/* Writing surfaces are borderless: the title, the subtitle and the body sit
+   on the page. Metadata fields keep their borders. */
+.document-title {
+  min-width: 0;
+  width: 100%;
+}
+/* Astryx paints the field's frame on its wrapper with atomic classes, so
+   the reset carries an id-weight chain to outrank them in every state. */
+.document-title .astryx-textarea:not(#\#):not(#\#) {
+  border-color: transparent;
+  box-shadow: none;
+  outline: none;
+  background: transparent;
+  padding-inline: 0;
+}
+.document-title textarea {
+  font-family: var(--font-family-heading);
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.25;
+  min-height: 0;
+  padding-inline: 0;
+  resize: none;
+  overflow-wrap: anywhere;
+}
+.document-auto-textarea textarea {
+  resize: none;
+  overflow: hidden;
+  min-height: var(--spacing-9);
+  border-radius: inherit;
+  background: transparent;
+}
+.editor-address {
+  min-width: 0;
+  max-width: 100%;
+}
+.editor-address-path {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-family-code);
+  font-size: var(--text-supporting-size, var(--font-size-sm));
+  color: var(--color-text-secondary);
+}
+@media (max-width: 640px) {
+  .document-title textarea {
+    font-size: 1.5rem;
+  }
+}
+
+/* Rich fields: the words first, the formatting row under them only while
+   the field has focus. */
+.rich-field,
+.rich-field-surface,
+.rich-writing {
+  min-width: 0;
+  width: 100%;
+}
+.rich-field-surface {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-element);
+  background: var(--color-background-surface);
+  overflow: hidden;
+}
+.document-subtitle .rich-field-surface {
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
+.rich-field-surface:not(:focus-within):not([data-toolbar-open])
+  .document-editor-toolbar {
+  display: none;
+}
+.rich-writing .tiptap {
+  padding: var(--spacing-3);
+  min-height: 3rem;
+  outline: none;
+  line-height: 1.7;
+  font-size: var(--font-size-lg);
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+.document-subtitle .rich-writing .tiptap {
+  padding-inline: 0;
+  min-height: 0;
+  color: var(--color-text-secondary);
+}
+.rich-writing .tiptap p {
+  margin: 0;
+}
+.rich-writing .tiptap p + p {
+  margin-top: var(--spacing-3);
+}
+.rich-writing a {
+  color: var(--color-text-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: text;
+}
+.rich-writing strong {
+  font-weight: var(--font-weight-bold);
+}
+.rich-writing em {
+  font-style: italic;
+}
+.rich-writing u {
+  text-underline-offset: 0.2em;
+}
+.rich-writing .inline-image {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  margin: 0 0.15em 0 0;
+  vertical-align: -0.1em;
+  object-fit: contain;
+  border-radius: var(--radius-inner);
+}
+.rich-writing .inline-image-wide {
+  width: 1.24em;
+}
+.rich-writing .inline-image-mark {
+  width: 1.08em;
+  height: 1.08em;
+}
+.rich-writing .inline-image-white {
+  filter: brightness(0) invert(1);
+}
+html[data-theme="light"] .rich-writing .inline-image-white {
+  filter: brightness(0);
+}
+@media (prefers-color-scheme: light) {
+  html:not([data-theme="dark"]) .rich-writing .inline-image-white {
+    filter: brightness(0);
+  }
+}
+.rich-writing .ProseMirror-selectednode {
+  outline: 2px solid var(--color-accent);
+}
+.rich-inspector {
+  padding: var(--spacing-4);
+}
+
+/* The article body: borderless, on the page. */
+.article-composer .tiptap {
+  min-height: calc(var(--spacing-8) * 3);
+  padding-block: var(--spacing-3);
+  outline: none;
+  font-size: var(--font-size-lg);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.article-composer .tiptap > * + * {
+  margin-top: var(--spacing-4);
+}
+.article-composer .tiptap h2 {
+  font-size: var(--text-heading-2-size);
+  font-weight: var(--font-weight-semibold);
+}
+.article-composer .tiptap h3 {
+  font-size: var(--text-heading-3-size);
+  font-weight: var(--font-weight-semibold);
+}
+.article-composer .tiptap ul {
+  list-style: disc;
+  padding-inline-start: var(--spacing-6);
+}
+.article-composer .tiptap ol {
+  list-style: decimal;
+  padding-inline-start: var(--spacing-6);
+}
+.article-composer .tiptap blockquote {
+  border-inline-start: var(--spacing-1) solid var(--color-border);
+  padding-inline-start: var(--spacing-4);
+}
+.article-composer .tiptap img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: 15rem;
+  height: auto;
+  object-fit: contain;
+  margin-block: var(--spacing-4);
+  border-radius: var(--radius-element);
+}
+.article-composer .tiptap a {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+.article-composer .tiptap pre {
+  white-space: pre-wrap;
+  padding: var(--spacing-3);
+}
+.article-image-preview {
+  width: 100%;
+  max-height: 24rem;
+  object-fit: contain;
+  border-radius: var(--radius-element);
+}
+.article-word-count {
+  display: block;
+  margin-block-start: var(--spacing-3);
+}
+
+/* Writing toolbars: one row of 36px controls (44px on touch). On desktop
+   the body's row holds under the editor bar while you write. Undo and redo
+   stay on the keyboard where touch has its own. */
+.document-editor-toolbar,
+.document-editor-toolbar [role="toolbar"],
+.editor-toolbar-controls {
+  min-width: 0;
+  max-width: 100%;
+}
+.document-editor-toolbar > .astryx-section {
+  padding: 0;
+}
+.document-editor-toolbar [role="toolbar"] {
+  flex-wrap: nowrap;
+  padding: 0;
+}
+.editor-toolbar-controls {
+  flex-wrap: nowrap;
+  gap: var(--spacing-1);
+}
+.editor-toolbar-group {
+  flex: 0 0 auto;
+  gap: var(--spacing-1);
+}
+.document-editor-toolbar {
+  padding-block: var(--spacing-1);
+  background: var(--color-background-body);
+}
+.article-composer > .document-editor-toolbar {
+  position: sticky;
+  top: calc(var(--spacing-11) + var(--spacing-2));
+  z-index: 10;
+}
+.document-editor-toolbar .astryx-button,
+.document-editor-toolbar .astryx-toggle-button,
+.document-editor-toolbar [aria-haspopup="menu"] {
+  min-height: var(--spacing-9);
+  min-width: var(--spacing-9);
+}
+@media (pointer: coarse) {
+  .document-editor-toolbar .astryx-button,
+  .document-editor-toolbar .astryx-toggle-button,
+  .document-editor-toolbar [aria-haspopup="menu"] {
+    min-height: var(--spacing-11);
+    min-width: var(--spacing-11);
+  }
+  .editor-history-tools {
+    display: none;
+  }
+}
+/* On a phone a toolbar exists only while its field is being written in or
+   one of its menus or panels is open (data-toolbar-open), and then docks
+   above the keyboard (lib/keyboard-inset.ts sets the inset from the visual
+   viewport). The article keeps the docked toolbar's height free at its end,
+   so its last line can scroll above the toolbar. */
+@media (max-width: 640px) {
+  .article-composer {
+    --editor-dock-end: max(
+      var(--spacing-1),
+      calc(env(safe-area-inset-bottom, 0px) - var(--keyboard-inset, 0px))
+    );
+  }
+  .article-composer:not(:focus-within):not([data-toolbar-open])
+    > .document-editor-toolbar {
+    display: none;
+  }
+  .article-composer:is(:focus-within, [data-toolbar-open])
+    > .document-editor-toolbar,
+  .rich-field-surface:is(:focus-within, [data-toolbar-open])
+    .document-editor-toolbar {
+    position: fixed;
+    inset-inline: 0;
+    top: auto;
+    bottom: var(--keyboard-inset, 0px);
+    z-index: 40;
+    padding-inline: var(--admin-gutter, var(--spacing-3));
+    padding-block-end: max(
+      var(--spacing-1),
+      calc(env(safe-area-inset-bottom, 0px) - var(--keyboard-inset, 0px))
+    );
+  }
+  .article-composer:is(:focus-within, [data-toolbar-open]) {
+    padding-block-end: calc(
+      var(--spacing-11) + var(--spacing-1) + var(--editor-dock-end) +
+        var(--keyboard-inset, 0px)
+    );
+  }
+  .article-word-count {
+    display: none;
+  }
+}
+
+/* Tags: chips with their own remove targets. */
+.editor-tag {
+  display: inline-flex;
+}
+@media (pointer: coarse) {
+  .editor-tag .astryx-token button {
+    min-width: var(--spacing-11);
+    min-height: var(--spacing-11);
+  }
+}
+
+/* History: one row per revision, the row opens its comparison. */
+.editor-history-row {
+  min-height: var(--spacing-11);
+}
+.editor-history-compare {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+  min-height: var(--spacing-11);
+  padding-inline: var(--spacing-2);
+  border: 0;
+  border-radius: var(--radius-element);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .editor-history-compare:hover {
+    background: var(--color-background-muted);
+  }
+}
+.editor-history-compare:focus-visible,
+.editor-history-compare[aria-expanded="true"] {
+  outline: none;
+  background: var(--color-background-muted);
+}
+
+/* Source editing and the page preview each own one full-width region. */
+.editorial-source {
+  min-width: 0;
+  background: var(--color-background-surface);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-element);
+  overflow: hidden;
+}
+.editorial-source .cm-editor {
+  min-height: 24rem;
+}
+.editorial-source .cm-scroller {
+  overflow: auto;
+}
+.editorial-source .cm-content {
+  font-family: var(--font-family-code);
+  padding: var(--spacing-4);
+}
+.editorial-source .cm-cursor {
+  border-left-color: var(--color-text-primary);
+}
+.editorial-source .cm-focused .cm-selectionBackground {
+  background: var(--color-accent-muted);
+}
+.document-preview {
+  width: 100%;
+  border: 0;
+  display: block;
+}
+
+/* Review: a wide dialog, a tall sheet on phones. */
+.editor-review {
+  min-width: 0;
+  width: 100%;
+}
+.editor-review-actions > .astryx-button {
+  flex: 1 1 auto;
+}
+@media (min-width: 641px) {
+  .editor-review-actions > .astryx-button {
+    flex: 0 0 auto;
+  }
+}
+.editor-change {
+  padding-block: var(--spacing-3);
+}
+.editor-destination {
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+.editor-diff-heading > .astryx-button {
+  margin-inline-start: auto;
+}
+.editor-revision-diff {
+  min-width: 0;
+  container-type: inline-size;
+}
+.editor-diff-content {
+  min-width: 0;
+  border-radius: var(--radius-element);
+  background: var(--color-background-surface);
+  overflow: hidden;
+}
+.editor-diff-columns {
+  background: var(--color-background-surface);
+}
+.editor-diff-columns > .astryx-text {
+  padding: var(--spacing-2) var(--spacing-3);
+}
+.editor-diff-line {
+  min-width: 0;
+  grid-row: var(--editor-diff-row);
+}
+.editor-diff-line[data-side="before"] {
+  grid-column: 1;
+}
+.editor-diff-line[data-side="after"] {
+  grid-column: 2;
+}
+.editor-diff-line-content {
+  min-width: 0;
+  flex: 1;
+}
+.editor-diff-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  min-block-size: 1lh;
+}
+.editor-diff-gutter {
+  min-width: 3ch;
+  text-align: end;
+  user-select: none;
+}
+.editor-diff-sign {
+  width: 1ch;
+  user-select: none;
+}
+.editor-diff-line[data-kind="removed"] {
+  background: color-mix(in srgb, var(--color-error-muted) 35%, transparent);
+}
+.editor-diff-line[data-kind="added"] {
+  background: color-mix(in srgb, var(--color-success-muted) 35%, transparent);
+}
+.editor-diff-text ins {
+  color: var(--color-text-primary);
+  background: var(--color-success-muted);
+  text-decoration: none;
+}
+.editor-diff-text del {
+  color: var(--color-text-primary);
+  background: var(--color-error-muted);
+  text-decoration: none;
+}
+.editor-revision-diff[data-layout="unified"] .editor-diff-hunk {
+  grid-template-columns: minmax(0, 1fr);
+}
+.editor-revision-diff[data-layout="unified"] .editor-diff-line {
+  grid-column: 1;
+  grid-row: auto;
+}
+.editor-revision-diff[data-layout="unified"] .editor-diff-columns,
+.editor-revision-diff[data-layout="unified"]
+  .editor-diff-line[data-side="after"][data-kind="equal"] {
+  display: none;
+}
+/* Narrow reviews are unified, so the layout switch has nothing to do. */
+@container (max-width: 46rem) {
+  .editor-diff-hunk {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .editor-diff-line {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .editor-diff-line[data-side="before"],
+  .editor-diff-line[data-side="after"] {
+    grid-column: 1;
+  }
+  .editor-diff-columns,
+  .editor-diff-layout,
+  .editor-diff-line[data-side="after"][data-kind="equal"] {
+    display: none;
+  }
+}
+.editor-diff-added {
+  color: var(--color-text-primary);
+  background: var(--color-success-muted);
+  padding-inline: var(--spacing-1);
+  border-radius: var(--radius-inner);
+}
+.editor-diff-removed {
+  color: var(--color-text-primary);
+  background: var(--color-error-muted);
+  padding-inline: var(--spacing-1);
+  border-radius: var(--radius-inner);
+}
+
+/* Publication progress: steps fill toward the current one. */
+.publication-progress {
+  min-width: 0;
+  width: 100%;
+  overflow-wrap: anywhere;
+}
+.publication-steps {
+  flex-wrap: wrap;
+}
+.publication-step {
+  flex: 1;
+  min-width: 0;
+  padding-block-end: var(--spacing-2);
+  border-block-end: var(--spacing-0-5) solid var(--color-border);
+}
+.publication-step[data-state="complete"] {
+  border-block-end-color: var(--color-success);
+}
+.publication-step[data-state="active"] {
+  border-block-end-color: var(--color-accent);
+}
+.publication-step[data-state="blocked"] {
+  border-block-end-color: var(--color-error);
+}
+
+/* Loading shapes mirror the editor they stand in for. */
+.admin-loading {
+  min-width: 0;
+}
+.admin-loading .astryx-stack {
+  width: 100%;
+}
+
+/* Record panels: an inspector beside the writing, a drawer, or a sheet. */
+.record-panel-host {
+  display: contents;
+}
+.record-inspector {
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  max-height: 100dvh;
+  background-color: var(--color-background-surface);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.record-inspector .astryx-heading {
+  font-size: var(--text-body-size);
+}
+.record-panel-dialog:not(.record-review-dialog) {
+  height: 100dvh;
+  max-height: 100dvh;
+  border-radius: 0;
+  margin: 0;
+}
+.record-panel-dialog .astryx-layout-content {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.record-panel-sheet .astryx-heading {
+  font-size: var(--text-body-size);
+}
+
+/* A date and its time share one row, with UTC named once after them. The
+   date never shrinks under its own text; on a narrow sheet the time and its
+   zone wrap together to the next line. */
+.editor-date-row {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.editor-date-row > .astryx-field {
+  flex: 1 1 auto;
+  min-width: max-content;
+}
+.editor-date-time {
+  flex: 1 1 11rem;
+  min-width: 0;
+}
+.editor-date-time > .astryx-field {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.editor-date-zone {
+  flex: 0 0 auto;
+  padding-block-end: var(--spacing-2);
+}
+@media (pointer: coarse), (max-width: 640px) {
+  .editor-date-zone {
+    padding-block-end: var(--spacing-3);
+  }
+}
+
+/* Project sections: small headings, left-aligned adds, glyph controls. */
+.editor-sections-title {
+  font-size: var(--text-body-size);
+  font-weight: var(--font-weight-semibold);
+  margin-block-start: var(--spacing-3);
+}
+.editor-section-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.editor-homepage-row {
+  min-height: var(--spacing-11);
+}
+/* An empty move slot holds an icon button's width (36px, 44px on touch). */
+.editor-homepage-slot {
+  flex: none;
+  width: var(--spacing-9);
+}
+@media (pointer: coarse), (max-width: 640px) {
+  .editor-homepage-slot {
+    width: var(--spacing-11);
+  }
+}
+
+/* Media: a 56px thumb with its controls beside it. */
+.editor-media-row {
+  min-height: var(--spacing-11);
+  min-width: 0;
+}
+.editor-media-thumb {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border-radius: var(--radius-element);
+  background: var(--color-background-muted);
+}
+.editor-media-thumb[data-fit="contain"] {
+  object-fit: contain;
+}

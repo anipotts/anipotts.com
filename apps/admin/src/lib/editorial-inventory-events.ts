@@ -7,6 +7,7 @@ import {
   editorialRecordSchema,
   type EditorialRecord,
 } from "@anipotts/content/editorial/source";
+import { collectionKind } from "./editorial-collections";
 export const RECORD_SAVED_EVENT = "editorial:record-saved";
 export const RECORD_CREATED_EVENT = "editorial:record-created";
 export type EditorialRecordSaved = {
@@ -134,20 +135,7 @@ function matchesRecord(
   id: string,
   record: EditorialRecord,
 ) {
-  return (
-    id === record.id &&
-    (record.kind === "writing"
-      ? collection === "writing"
-      : record.kind === "work"
-        ? collection === "projects"
-        : [
-            "home",
-            "workPage",
-            "writingPage",
-            "systemsPage",
-            "newsletterPage",
-          ].includes(collection))
-  );
+  return id === record.id && collectionKind(collection) === record.kind;
 }
 function matchesHref(href: string, record: EditorialRecord) {
   const match = /^\/content\/([^/]+)\/([^/?#]+)(?:[?#]|$)/.exec(href);

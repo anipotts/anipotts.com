@@ -7,9 +7,8 @@ import type { CatalogGroup, CatalogRecord } from "./EditorialApp";
 import { ContentLibrary, Updated } from "./ContentLibrary";
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-// Astryx Timestamp builds three Intl.DateTimeFormat instances on every render
-// (visible text, aria-label and tooltip line). Counting constructions counts
-// Timestamp renders without reaching into Astryx internals.
+// Counting Intl.DateTimeFormat constructions and calls shows whether a render
+// formats times again.
 const OriginalDateTimeFormat = Intl.DateTimeFormat;
 let formatterCount = 0;
 function countFormatters() {
@@ -159,8 +158,8 @@ describe("Updated", () => {
         await new Promise((resolve) => setTimeout(resolve, 350));
       });
       expect(timestampCount(host)).toBe(timestamps);
-      expect(formatterCount).toBeLessThanOrEqual(3 * timestamps);
-      const hydrated = formatterCount;
+      // Times format with shared formatters: hydrating builds none per cell.
+      expect(formatterCount).toBe(0);
       countFormatters();
       let commits = 0;
       await act(async () =>
@@ -168,7 +167,6 @@ describe("Updated", () => {
       );
       expect(commits).toBeGreaterThan(0);
       expect(formatterCount).toBe(0);
-      expect(hydrated).toBeGreaterThan(0);
     },
     SLOW,
   );
@@ -189,25 +187,13 @@ describe("Updated", () => {
             <Updated updated={{ at: "2026-09-10T12:00:00.000Z", source }} />,
           ),
         );
-        // the hover card chunk loads lazily and replaces the fallback <time>,
-        // so focus the current element until the dialog attaches
-        await vi.waitFor(
-          async () => {
-            await act(async () => {
-              const time = host.querySelector("time");
-              time?.focus();
-              time?.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
-            });
-            expect(host.querySelector('[role="dialog"] dt')).not.toBeNull();
-          },
-          { timeout: 10_000, interval: 50 },
+        // The source and the absolute time are the tooltip and the name.
+        const time = host.querySelector("time")!;
+        expect(time.getAttribute("title")).toMatch(
+          new RegExp(`^${labels[source]}: Sep 10, 2026`),
         );
-        const card = host.querySelector('[role="dialog"]');
-        expect(card?.getAttribute("aria-label")).toBe("Timestamp details");
-        const rows = [...(card?.querySelectorAll("dt") ?? [])];
-        expect(rows.map((row) => row.textContent)).toEqual([labels[source]]);
-        expect(rows[0].nextElementSibling?.textContent).toContain(
-          "September 10, 2026",
+        expect(time.getAttribute("aria-label")).toBe(
+          time.getAttribute("title"),
         );
       }
     },

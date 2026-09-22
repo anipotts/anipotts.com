@@ -35,7 +35,7 @@ export function recordWorkspaceUrl(
       pathname,
     )
   )
-    return "/content";
+    return "/content/pages";
   const previous = new URLSearchParams(search);
   const params = new URLSearchParams();
   const theme = previous.get("theme");

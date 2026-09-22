@@ -42,6 +42,8 @@ type Runtime = import("@astrojs/cloudflare").Runtime<{
   RESEND_API_KEY?: string;
   /** Private reader issuance stays off unless exactly "true". */
   PRIVATE_READER_ENABLED?: string;
+  /** Observability ops:read issuance and reads; off unless exactly "true". */
+  PRIVATE_READER_OPS_ENABLED?: string;
   /** Dedicated ES256 private JWK. Not installed; absent means 503. */
   PRIVATE_READER_SIGNING_KEY?: string;
 }>;
@@ -58,6 +60,8 @@ declare namespace App {
     passkeySessionActive?: boolean;
     adminPrincipal?: import("./lib/admin-auth").AdminPrincipal;
     adminSetCookies?: string[];
+    /** Set by middleware after it verifies the Access assertion. */
+    accessOwner?: import("./lib/access-identity").AccessOwner;
     /** Durations and counts only; see lib/server-timing.ts. */
     serverTiming?: import("./lib/server-timing").ServerTiming;
   }

@@ -299,13 +299,64 @@ export const navName = (label) =>
     `^${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\s+\\d+(\\s+records?)?)?$`,
   );
 
+/** The workspace sidebar before the unified sidebar carried the workspace's
+ * own label; the unified sidebar is one navigation named "Admin". */
+const NAV_SCOPE = (workspace) =>
+  `nav[aria-label="${workspace}"], nav[aria-label="Admin"], dialog[aria-label="Navigation"]`;
+
+/**
+ * A cross-workspace switch. With the unified sidebar the destination is a
+ * visible sidebar link. Before it, the destination is a workspace menu item:
+ * the menu opens first (not timed), then the item is the press target.
+ */
+const workspaceSwitch = (label, menuLabel, href, expect) => ({
+  label,
+  async target(page, session, ctx) {
+    const nav = page.locator(NAV_SCOPE(menuLabel));
+    const drawerOpener = page.getByRole("button", { name: "Open navigation" });
+    const legacy =
+      (await page
+        .getByRole("button", { name: /^Switch workspace/ })
+        .filter({ visible: true })
+        .count()) > 0;
+    if (legacy) {
+      const trigger = page
+        .getByRole("button", { name: /^Switch workspace/ })
+        .filter({ visible: true })
+        .first();
+      await trigger.click({ timeout: ctx.timeout });
+      const item = page
+        .getByRole("menuitemradio", { name: menuLabel })
+        .filter({ visible: true })
+        .first();
+      await item.waitFor({ state: "visible" });
+      return item;
+    }
+    const link = nav
+      .locator(`a[href="${href}"]`)
+      .filter({ visible: true })
+      .first();
+    if ((await link.count()) === 0 && (await drawerOpener.isVisible())) {
+      if (ctx.input === "touch")
+        await drawerOpener.tap({ timeout: ctx.timeout });
+      else await drawerOpener.click({ timeout: ctx.timeout });
+    }
+    const target = page
+      .locator(NAV_SCOPE(menuLabel))
+      .locator(`a[href="${href}"]`)
+      .filter({ visible: true })
+      .first();
+    await target.waitFor({ state: "visible" });
+    return target;
+  },
+  expect,
+});
+
 const navLink = (workspace, label, expect) => ({
   label,
   async target(page, session, ctx) {
     const link = page
-      .locator(
-        `nav[aria-label="${workspace}"], dialog[aria-label="Navigation"]`,
-      )
+      .locator(NAV_SCOPE(workspace))
       // Group links may append a count to the label ("Writing 6 records").
       .getByRole("link", { name: navName(label) })
       .filter({ visible: true })
@@ -448,20 +499,20 @@ export const CELLS = [
   {
     id: "load:content",
     kind: "load",
-    label: "Content overview",
-    path: "/content",
+    label: "Pages library",
+    path: "/content/pages",
   },
   {
     id: "load:writing",
     kind: "load",
     label: "Writing library",
-    path: "/content?group=writing",
+    path: "/content/writing",
   },
   {
     id: "load:newsletter",
     kind: "load",
     label: "Newsletter library",
-    path: "/newsletter",
+    path: "/content/newsletter",
   },
   {
     id: "load:record",
@@ -472,33 +523,45 @@ export const CELLS = [
   {
     id: "load:operations",
     kind: "load",
-    label: "Operations machines",
-    path: "/operations/observability?view=machines",
+    label: "Observability status",
+    path: "/observability/status",
   },
-  { id: "load:life", kind: "load", label: "Life overview", path: "/life" },
   {
-    id: "load:life-health",
+    id: "load:life",
     kind: "load",
-    label: "Life health (D1)",
-    path: "/life/health",
+    label: "Data records",
+    path: "/data/records",
   },
+  { id: "load:overview", kind: "load", label: "Overview", path: "/" },
   {
     id: "switch:content-nav",
     kind: "switch",
     label: "Content navigation",
-    start: "/content",
+    start: "/content/pages",
     steps: [
-      navLink("Content", "Writing", (url) => group(url, "/content", "writing")),
-      navLink("Content", "Pages", (url) => group(url, "/content", "website")),
-      navLink("Content", "Projects", (url) => group(url, "/content", "work")),
-      navLink("Content", "Newsletter", (url) => url.pathname === "/newsletter"),
+      navLink(
+        "Content",
+        "Writing",
+        (url) => url.pathname === "/content/writing",
+      ),
+      navLink("Content", "Pages", (url) => url.pathname === "/content/pages"),
+      navLink(
+        "Content",
+        "Projects",
+        (url) => url.pathname === "/content/projects",
+      ),
+      navLink(
+        "Content",
+        "Newsletter",
+        (url) => url.pathname === "/content/newsletter",
+      ),
     ],
   },
   {
     id: "switch:record",
     kind: "switch",
     label: "Library record round trip",
-    start: "/content",
+    start: "/content/pages",
     steps: [
       {
         label: "Library to record",
@@ -512,38 +575,69 @@ export const CELLS = [
             .locator('nav[aria-label="Breadcrumb"] a')
             .filter({ visible: true })
             .first(),
-        expect: (url) => url.pathname === "/content",
+        expect: (url) => url.pathname === "/content/pages",
       },
     ],
   },
   {
     id: "switch:operations",
     kind: "switch",
-    label: "Operations views",
-    start: "/operations/observability?view=machines",
+    label: "Observability views",
+    start: "/observability/status",
     steps: [
       navLink(
-        "Operations",
-        "Loops",
-        (url) => url.searchParams.get("view") === "loops",
+        "Observability",
+        "Activity",
+        (url) => url.pathname === "/observability/activity",
+      ),
+      navLink(
+        "Observability",
+        "Alerts",
+        (url) => url.pathname === "/observability/alerts",
       ),
     ],
   },
   {
     id: "switch:life",
     kind: "switch",
-    label: "Life sections",
-    start: "/life",
+    label: "Data views",
+    start: "/data/records",
     steps: [
-      navLink("Life", "People", (url) => url.pathname === "/life/people"),
-      navLink("Life", "Timeline", (url) => url.pathname === "/life/timeline"),
+      navLink("Data", "Sources", (url) => url.pathname === "/data/sources"),
+      navLink("Data", "Records", (url) => url.pathname === "/data/records"),
+    ],
+  },
+  {
+    id: "switch:workspaces",
+    kind: "switch",
+    label: "Cross-workspace round trip",
+    start: "/content/pages",
+    steps: [
+      workspaceSwitch(
+        "Content to Data",
+        "Data",
+        "/data/records",
+        (url) => url.pathname === "/data/records",
+      ),
+      workspaceSwitch(
+        "Data to Observability",
+        "Observability",
+        "/observability/status",
+        (url) => url.pathname === "/observability/status",
+      ),
+      workspaceSwitch(
+        "Observability to Content",
+        "Content",
+        "/content/pages",
+        (url) => url.pathname === "/content/pages",
+      ),
     ],
   },
   {
     id: "idle:content",
     kind: "idle",
     label: "Content idle, visible, no input",
-    path: "/content",
+    path: "/content/pages",
     durationMs: 120000,
     widths: [1280],
     optIn: true,
@@ -551,8 +645,8 @@ export const CELLS = [
   {
     id: "idle:operations",
     kind: "idle",
-    label: "Operations idle, visible, no input",
-    path: "/operations/observability?view=machines",
+    label: "Observability idle, visible, no input",
+    path: "/observability/status",
     durationMs: 125000,
     widths: [1280],
     optIn: true,
@@ -561,7 +655,7 @@ export const CELLS = [
     id: "intent:hover",
     kind: "intent",
     label: "Hover nav items and rows for 10 s",
-    path: "/content",
+    path: "/content/pages",
     gesture: INTENTS.hover,
     widths: [1280],
     optIn: true,
@@ -570,7 +664,7 @@ export const CELLS = [
     id: "intent:press-cancel",
     kind: "intent",
     label: "Press a row, move off, release",
-    path: "/content",
+    path: "/content/pages",
     gesture: INTENTS.pressCancel,
     widths: [1280],
     optIn: true,
@@ -579,7 +673,7 @@ export const CELLS = [
     id: "intent:touch-scroll",
     kind: "intent",
     label: "100 touch scrolls starting on rows",
-    path: "/content",
+    path: "/content/pages",
     gesture: INTENTS.touchScroll,
     widths: [390],
     input: "touch",
@@ -589,7 +683,7 @@ export const CELLS = [
     id: "intent:drag-select",
     kind: "intent",
     label: "50 drag-selects starting on row titles",
-    path: "/content",
+    path: "/content/pages",
     gesture: INTENTS.dragSelect,
     widths: [1280],
     optIn: true,
@@ -598,7 +692,7 @@ export const CELLS = [
     id: "intent:right-click",
     kind: "intent",
     label: "50 secondary presses on rows",
-    path: "/content",
+    path: "/content/pages",
     gesture: INTENTS.rightClick,
     widths: [1280],
     optIn: true,
@@ -607,9 +701,11 @@ export const CELLS = [
     id: "warm:content",
     kind: "warm",
     label: "Second Content document in one context",
-    start: "/content",
-    step: navLink("Content", "Writing", (url) =>
-      group(url, "/content", "writing"),
+    start: "/content/pages",
+    step: navLink(
+      "Content",
+      "Writing",
+      (url) => url.pathname === "/content/writing",
     ),
     widths: [1280],
     optIn: true,
@@ -617,19 +713,17 @@ export const CELLS = [
   {
     id: "back:content",
     kind: "back",
-    label: "Back from Writing to the Content overview",
-    start: "/content",
-    step: navLink("Content", "Writing", (url) =>
-      group(url, "/content", "writing"),
+    label: "Back from Writing to Pages",
+    start: "/content/pages",
+    step: navLink(
+      "Content",
+      "Writing",
+      (url) => url.pathname === "/content/writing",
     ),
     widths: [1280],
     optIn: true,
   },
 ];
-
-function group(url, pathname, value) {
-  return url.pathname === pathname && url.searchParams.get("group") === value;
-}
 
 /**
  * Counts announcements (design 4.5). `mutated` is called for each live region

@@ -5,12 +5,12 @@ import { recordPanelMode } from "./RecordPanel";
 import { ArticleSettings } from "./ArticleSettings";
 
 describe("record inspector budgets", () => {
-  it("requires both desktop viewport and enough actual document workspace", () => {
-    expect(recordPanelMode(1600, 899)).toBe("drawer");
-    expect(recordPanelMode(1280, 900)).toBe("inspector");
-    expect(recordPanelMode(1279, 1100)).toBe("drawer");
-    expect(recordPanelMode(767, 767)).toBe("sheet");
-    expect(recordPanelMode(768, 768)).toBe("drawer");
+  it("measures the main region, not the capped writing column", () => {
+    expect(recordPanelMode(1600, 1039)).toBe("drawer");
+    expect(recordPanelMode(1280, 1040)).toBe("inspector");
+    expect(recordPanelMode(1100, 1060)).toBe("inspector");
+    expect(recordPanelMode(640, 640)).toBe("sheet");
+    expect(recordPanelMode(641, 641)).toBe("drawer");
   });
 });
 
@@ -35,7 +35,7 @@ describe("article properties", () => {
     expect(html).not.toContain("astryx-collapsible");
     expect(html).not.toContain("Body stays here.");
   });
-  it("explains direct publisher limits while preserving an existing private draft", () => {
+  it("keeps the direct publisher's limits in the options, not in helper copy", () => {
     const html = renderToStaticMarkup(
       <ArticleSettings
         source={source}
@@ -47,8 +47,9 @@ describe("article properties", () => {
         }}
       />,
     );
-    expect(html).toContain("use Unpublish in the document actions");
+    expect(html).not.toContain("use Unpublish in the document actions");
     expect(html).toContain("Draft, hidden from the website");
+    expect(html).toContain("/writing/stable-address");
   });
   it("retains disclosure by default for existing callers", () => {
     const html = renderToStaticMarkup(

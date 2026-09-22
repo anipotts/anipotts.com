@@ -36,10 +36,16 @@ import {
   QuotesIcon,
   LinkIcon,
   ImageIcon,
-  TextHOneIcon,
+  TextHIcon,
+  TextHTwoIcon,
+  TextHThreeIcon,
+  TextTIcon,
+  PlusIcon,
+  CheckIcon,
   ArrowCounterClockwiseIcon,
   ArrowClockwiseIcon,
 } from "@phosphor-icons/react";
+import { useCaretAboveDock, useKeyboardInset } from "../../lib/keyboard-inset";
 import { safeInlineUrl } from "@anipotts/content/public/inline";
 import { ArticleImageUpload } from "./ArticleImageUpload";
 import { editorialImagePreview } from "../../lib/editorial-media";
@@ -50,6 +56,7 @@ const imageSelection = (selection: Selection): selection is NodeSelection =>
 const insertionSource = createStaticSource([
   { id: "paragraph", label: "Paragraph" },
   { id: "heading", label: "Heading" },
+  { id: "subheading", label: "Subheading" },
   { id: "bulletList", label: "Bullet list" },
   { id: "orderedList", label: "Numbered list" },
   { id: "blockquote", label: "Quote" },
@@ -74,11 +81,7 @@ export function ArticleBody({
 }) {
   return needsMarkdownEditor(value) ? (
     <VStack gap={3}>
-      <Banner
-        status="info"
-        title="This article includes advanced formatting"
-        description="Edit its Markdown here to preserve HTML, tables and embedded media. Preview shows the result."
-      />
+      <Banner status="info" title="This article includes advanced formatting" />
       <TextArea
         label="Article body"
         value={value}
@@ -133,6 +136,11 @@ function VisualArticleBody({
   const [imagePending, setImagePending] = useState(false);
   const [cropSrc, setCropSrc] = useState("");
   const [focused, setFocused] = useState(false);
+  useKeyboardInset(focused);
+  /** A Style or Insert menu is open: on a phone its toolbar stays docked
+   * while focus is in the menu, outside the composer. */
+  const [menuOpen, setMenuOpen] = useState(false);
+  const composer = useRef<HTMLDivElement>(null);
   const [commandsOpen, setCommandsOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [panelGeneration, setPanelGeneration] = useState(0);
@@ -246,7 +254,9 @@ function VisualArticleBody({
             image: imageSelection(editor.state.selection),
             bold: editor.isActive("bold"),
             italic: editor.isActive("italic"),
-            heading: editor.isActive("heading"),
+            heading: editor.isActive("heading", { level: 2 }),
+            subheading: editor.isActive("heading", { level: 3 }),
+            paragraph: editor.isActive("paragraph"),
             bulletList: editor.isActive("bulletList"),
             orderedList: editor.isActive("orderedList"),
             blockquote: editor.isActive("blockquote"),
@@ -304,8 +314,14 @@ function VisualArticleBody({
     {
       name: "heading",
       label: "Heading",
-      icon: <TextHOneIcon />,
+      icon: <TextHTwoIcon />,
       run: () => editor?.chain().focus().toggleHeading({ level: 2 }).run(),
+    },
+    {
+      name: "subheading",
+      label: "Subheading",
+      icon: <TextHThreeIcon />,
+      run: () => editor?.chain().focus().toggleHeading({ level: 3 }).run(),
     },
     {
       name: "bulletList",
@@ -326,6 +342,7 @@ function VisualArticleBody({
       run: () => editor?.chain().focus().toggleBlockquote().run(),
     },
   ];
+  useCaretAboveDock(editor, composer);
   function open(
     next: "link" | "image",
     mode: "insert" | "replace" | "crop" | "alt" = "insert",
@@ -388,7 +405,9 @@ function VisualArticleBody({
     <Field label="Article body" inputID={id}>
       <VStack
         gap={0}
+        ref={composer}
         className="article-composer"
+        data-toolbar-open={menuOpen || panel ? "true" : undefined}
         onFocusCapture={() => setFocused(true)}
         onBlurCapture={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget as Node | null))
@@ -404,20 +423,35 @@ function VisualArticleBody({
               <DropdownMenu
                 button={{
                   label: "Style",
+                  tooltip: "Style",
+                  isIconOnly: true,
+                  icon: <TextHIcon aria-hidden="true" />,
                   variant: "ghost",
                   isDisabled: disabled || !editor,
                 }}
+                hasChevron={false}
+                onOpenChange={setMenuOpen}
                 items={[
                   {
                     label: "Paragraph",
+                    icon: <TextTIcon />,
+                    endContent: toolbarState?.paragraph ? (
+                      <CheckIcon aria-label="Current" />
+                    ) : undefined,
                     onClick: () => editor?.chain().focus().setParagraph().run(),
                   },
-                  {
-                    label: "Heading",
-                    icon: <TextHOneIcon />,
-                    onClick: () =>
-                      editor?.chain().focus().setHeading({ level: 2 }).run(),
-                  },
+                  ...format
+                    .filter((item) => !["bold", "italic"].includes(item.name))
+                    .map((item) => ({
+                      label: item.label,
+                      icon: item.icon,
+                      endContent: toolbarState?.[
+                        item.name as keyof typeof toolbarState
+                      ] ? (
+                        <CheckIcon aria-label="Current" />
+                      ) : undefined,
+                      onClick: item.run,
+                    })),
                 ]}
               />
               <HStack gap={1} className="editor-toolbar-group">
@@ -454,39 +488,34 @@ function VisualArticleBody({
                   ))}
                 </ToggleButtonGroup>
               </HStack>
-              <Button
-                label="Link"
-                tooltip="Link"
-                icon={<LinkIcon />}
-                isIconOnly
-                variant="ghost"
-                isDisabled={disabled || !editor}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => open("link")}
-              />
               <DropdownMenu
                 button={{
                   label: "Insert",
+                  tooltip: "Insert",
+                  isIconOnly: true,
+                  icon: <PlusIcon aria-hidden="true" />,
                   variant: "ghost",
                   isDisabled: disabled || !editor,
                 }}
+                hasChevron={false}
+                onOpenChange={setMenuOpen}
                 items={[
                   {
                     label: "Image",
                     icon: <ImageIcon />,
                     onClick: () => open("image"),
                   },
-                  ...format.slice(3).map((item) => ({
-                    label: item.label,
-                    icon: item.icon,
-                    endContent: editor?.isActive(item.name) ? (
-                      <Text type="supporting">On</Text>
-                    ) : undefined,
-                    onClick: item.run,
-                  })),
+                  {
+                    label: "Link",
+                    icon: <LinkIcon />,
+                    onClick: () => open("link"),
+                  },
                 ]}
               />
-              <HStack gap={1} className="editor-toolbar-group">
+              <HStack
+                gap={1}
+                className="editor-toolbar-group editor-history-tools"
+              >
                 <Button
                   label="Undo"
                   tooltip="Undo"
@@ -648,11 +677,6 @@ function VisualArticleBody({
                       setUrl(v);
                       setError("");
                     }}
-                    description={
-                      panel === "image"
-                        ? "Use an existing image’s HTTPS address or site image path."
-                        : undefined
-                    }
                     status={
                       error ? { type: "error", message: error } : undefined
                     }
@@ -664,7 +688,6 @@ function VisualArticleBody({
                     label="Alt text"
                     value={alt}
                     onChange={setAlt}
-                    description="Describe what the image shows for readers using a screen reader."
                   />
                 )}
               </FormLayout>

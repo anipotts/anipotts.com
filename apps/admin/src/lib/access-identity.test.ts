@@ -90,6 +90,7 @@ describe("editorial Access identity", () => {
     ).toEqual({
       email: EDITORIAL_OWNER_EMAIL,
       subject: "owner-subject",
+      expiresAt: expect.any(Number),
     });
   });
 

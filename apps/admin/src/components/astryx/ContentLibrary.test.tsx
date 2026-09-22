@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import {
   ContentLibrary,
   changedFieldSummary,
-  libraryFigures,
   matchingRecords,
   recentlyUpdated,
   Updated,
@@ -34,7 +33,8 @@ describe("Content library", () => {
       />,
     );
     expect(html).toContain("Review changes");
-    expect(html).toContain("Up to date");
+    // A record with nothing to act on carries no line beside its chip.
+    expect(html).not.toContain("Up to date");
     expect(html).toContain("view=review");
     expect(html.indexOf("/content/writing/b?")).toBeLessThan(
       html.indexOf("/content/writing/a?"),
@@ -75,48 +75,6 @@ describe("Content library", () => {
       "New article",
     );
   });
-  it("offers recent acknowledged work before the attention-ordered library", () => {
-    const html = renderToStaticMarkup(
-      <ContentLibrary
-        groups={[
-          {
-            name: "pages",
-            href: "/content",
-            records: [
-              {
-                title: "Older local work",
-                href: "/content/writing/older",
-                status: "draft",
-                updated: { at: "2026-09-10T12:00:00Z", source: "local" },
-              },
-              {
-                title: "Fresh draft",
-                href: "/content/writing/fresh",
-                status: "draft",
-                updated: { at: "2026-09-11T12:00:00Z", source: "private" },
-              },
-              {
-                title: "Git update",
-                href: "/content/writing/git",
-                status: "published",
-                updated: { at: "2026-09-12T12:00:00Z", source: "git" },
-              },
-            ],
-          },
-        ]}
-      />,
-    );
-    expect(html).toContain("Recently edited");
-    expect(html).toContain("Needs attention");
-    const resume = html.slice(
-      html.indexOf("Recently edited"),
-      html.indexOf('placeholder="Search records"'),
-    );
-    expect(resume.indexOf("Fresh draft")).toBeLessThan(
-      resume.indexOf("Older local work"),
-    );
-    expect(resume).not.toContain("Git update");
-  });
 });
 
 describe("Quiet Precision library rows", () => {
@@ -149,11 +107,12 @@ describe("Quiet Precision library rows", () => {
     expect(html).toContain('aria-label="Review changes: ChainedChat"');
     expect(html).toContain("view=review");
     expect(html).toContain(
-      "returnTo=%2Fcontent%3Fgroup%3Dwork%26q%3DChained%26sort%3Dupdated",
+      "returnTo=%2Fcontent%2Fprojects%3Fq%3DChained%26sort%3Dupdated",
     );
-    expect(html).toContain("editorial-record-icon");
+    expect(html).toContain("workspace-row-mark");
     expect(html).toContain("editorial-record-state");
-    expect(html).toContain("editorial-record-action");
+    // The whole row opens the record: no separate action column.
+    expect(html).not.toContain("editorial-record-action");
     expect(html).toContain("Shared context across models");
     expect(html).not.toContain("Next step");
   });
@@ -183,8 +142,9 @@ describe("Quiet Precision library rows", () => {
     );
     expect(html).toContain('aria-label="Continue draft: Private article"');
     expect(html).toContain('aria-label="Open record: Published article"');
-    expect(html).toContain("Unpublished draft");
-    expect(html).toContain("Up to date");
+    // The Draft chip says it; no line repeats it.
+    expect(html).not.toContain("Unpublished draft");
+    expect(html).not.toContain("Up to date");
     expect(html).not.toContain("view=review");
   });
   it("does not offer a review action when private draft state is unavailable", () => {
@@ -209,12 +169,14 @@ describe("Quiet Precision library rows", () => {
       />,
     );
     expect(html).toContain("Published");
-    expect(html).toContain("Draft status unavailable");
+    // A glyph named on hover, not a line of text on every row.
+    expect(html).toContain('aria-label="Draft status unavailable"');
+    expect(html).toContain('title="Draft status unavailable"');
     expect(html).toContain('aria-label="Open record: Public article"');
     expect(html).not.toContain('aria-label="Review changes:');
     expect(html).not.toContain("Up to date");
   });
-  it("uses compact linked recent rows before a shared search and filter toolbar", () => {
+  it("renders one shared search and filter toolbar before the table, with no resume strip", () => {
     const records = ["One", "Two", "Three"].map((title, index) => ({
       title,
       href: `/content/writing/${title.toLowerCase()}`,
@@ -229,18 +191,17 @@ describe("Quiet Precision library rows", () => {
         groups={[{ name: "pages", href: "/content", records }]}
       />,
     );
-    expect(html).toContain("editorial-resume-list");
-    expect(html.match(/editorial-resume-row/g)).toHaveLength(3);
-    expect(html).not.toContain("editorial-resume-grid");
-    expect(html).not.toContain("editorial-resume-item");
-    expect(html.indexOf("editorial-library-toolbar")).toBeLessThan(
-      html.indexOf("editorial-library-search"),
+    expect(html).not.toContain("editorial-resume");
+    expect(html).not.toContain("Recently edited</");
+    expect(html).toContain("workspace-table");
+    expect(html.indexOf("workspace-filter-bar")).toBeLessThan(
+      html.indexOf("workspace-search"),
     );
-    expect(html.indexOf("editorial-library-search")).toBeLessThan(
-      html.indexOf("editorial-library-filters"),
+    expect(html.indexOf("workspace-search")).toBeLessThan(
+      html.indexOf("workspace-filters"),
     );
-    expect(html.indexOf("editorial-library-filters")).toBeLessThan(
-      html.indexOf("editorial-record-table"),
+    expect(html.indexOf("workspace-filters")).toBeLessThan(
+      html.indexOf("workspace-table-grid"),
     );
   });
   it("keeps unknown timestamps explicit and never renders an invalid date", () => {
@@ -286,14 +247,14 @@ describe("Quiet Precision library rows", () => {
   });
 });
 
-describe("Recently edited actions", () => {
-  it("opens changed public records in review and preserves the overview return path", () => {
+describe("Row actions", () => {
+  it("opens changed public records in review and returns to the library route", () => {
     const html = renderToStaticMarkup(
       <ContentLibrary
         groups={[
           {
             name: "pages",
-            href: "/content",
+            href: "/content/pages",
             records: [
               {
                 title: "A revised project",
@@ -307,19 +268,11 @@ describe("Recently edited actions", () => {
         ]}
       />,
     );
-    const recent = html.slice(
-      html.indexOf('aria-label="Recently edited"'),
-      html.indexOf('placeholder="Search records"'),
+    expect(html).toContain(
+      'href="/content/projects/example?returnTo=%2Fcontent%2Fpages&amp;view=review"',
     );
-    expect(recent).toContain(
-      'href="/content/projects/example?returnTo=%2Fcontent&amp;view=review"',
-    );
-    expect(recent).toContain("Review changes");
-    expect(recent).not.toContain("Continue draft");
-    // Timestamp remains outside the link, avoiding nested keyboard targets.
-    expect(recent.indexOf("<time")).toBeLessThan(
-      recent.indexOf('class="editorial-resume-link"'),
-    );
+    expect(html).toContain("Review changes: A revised project");
+    expect(html).not.toContain("Continue draft");
   });
 
   it("names the record kind even when a summary replaces the section", () => {
@@ -352,8 +305,9 @@ describe("Recently edited actions", () => {
     expect(html).toContain("Article");
     expect(html).toContain('title="Project"');
     expect(html).toContain('title="Article"');
-    // The action column header is announced rather than empty.
-    expect(html).toContain("Action");
+    // No Kind column repeats the tile, and no action column follows.
+    expect(html).not.toContain(">Kind<");
+    expect(html).not.toContain(">Action<");
   });
   it("bounds the changed-field description on the row action", () => {
     // The tooltip renders on the client, so assert the bounding directly.
@@ -379,7 +333,7 @@ describe("table language", () => {
     },
     { title: "Quiet", href: "/content/writing/quiet", status: "hidden" },
   ];
-  it("tints only public states and sums the view under the table", () => {
+  it("tints only public states and counts the view beside the title", () => {
     const html = renderToStaticMarkup(
       <ContentLibrary
         groups={[
@@ -388,26 +342,20 @@ describe("table language", () => {
         selectedGroup="writing"
       />,
     );
-    // Public states carry the green tint; every other state stays neutral.
-    // Each row renders its state twice: the State column and the stack that
-    // replaces it on narrow screens.
-    expect(html.match(/astryx-token green/g)).toHaveLength(4);
+    // Published is the default: it draws no chip, only its spoken name. Every
+    // other state stays neutral. The State column names every row's state;
+    // the phone line appears only where it adds something, so the unchanged
+    // published row has none.
+    expect(html.match(/astryx-token green/g)).toBeNull();
     expect(html.match(/astryx-token default/g)).toHaveLength(4);
-    expect(libraryFigures(mixed)).toEqual([
-      ["public", 2],
-      ["drafts", 1],
-      ["hidden", 1],
-      ["with changes pending", 1],
-    ]);
-    // The count that screen readers hear sits under the table, once.
-    expect(html.match(/editorial-record-count"/g)).toHaveLength(1);
-    expect(html.indexOf("</table>")).toBeLessThan(
-      html.indexOf('aria-label="4 records"'),
+    expect(html.match(/<span class="sr-only">Published<\/span>/g)).toHaveLength(
+      3,
     );
-    expect(html).toContain(" records in view</span>");
-    expect(html).toContain("<strong>2</strong> public");
-  });
-  it("lists no figures for an empty view", () => {
-    expect(libraryFigures([])).toEqual([]);
+    // The count sits beside the H1; no strip follows the table.
+    expect(html).toMatch(
+      /<h1[^>]*>Writing<\/h1><span[^>]*workspace-count[^>]*>4<\/span>/,
+    );
+    expect(html).not.toContain("workspace-table-count");
+    expect(html).not.toContain("in view");
   });
 });

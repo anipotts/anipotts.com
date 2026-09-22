@@ -6,7 +6,12 @@ import { newProjectSource } from "../../lib/project-draft";
 import { newWritingSource } from "../../lib/writing-draft";
 import * as navigation from "../../lib/editorial-navigation";
 import { HomeEditor } from "./HomeEditor";
-import { WorkspaceIdentity } from "./EditorialWorkspaceShell";
+import { useWorkspaceMemory } from "./EditorialWorkspaceShell";
+
+function WorkspaceMemory() {
+  useWorkspaceMemory("content");
+  return null;
+}
 import { EditorialApp } from "./EditorialApp";
 import { recoveryKey, draftRecovery } from "../../lib/draft-recovery";
 import {
@@ -121,7 +126,7 @@ async function mount(search = "", localPreview = true, withIdentity = false) {
   await act(async () => {
     root.render(
       <>
-        {withIdentity && <WorkspaceIdentity workspace="content" />}
+        {withIdentity && <WorkspaceMemory />}
         <HomeEditor
           record={{ kind: "writing", id: "test" }}
           localPreview={localPreview}
@@ -139,12 +144,29 @@ async function mount(search = "", localPreview = true, withIdentity = false) {
 }
 async function click(label: string) {
   const button = [...host.querySelectorAll("button")].find(
-    (el) => el.textContent?.trim() === label,
+    (el) =>
+      el.textContent?.trim() === label ||
+      el.getAttribute("aria-label") === label,
   );
   expect(button, label).toBeTruthy();
   await act(async () => {
     button!.click();
   });
+}
+/** Opens the editor bar's overflow and chooses one of its items. */
+async function menuItem(label: string) {
+  await act(async () => {
+    (
+      host.querySelector(
+        'button[aria-label="More actions"]',
+      ) as HTMLButtonElement
+    ).click();
+  });
+  const item = [...document.querySelectorAll('[role="menuitem"]')].find(
+    (node) => node.textContent?.trim() === label,
+  ) as HTMLElement | undefined;
+  expect(item, label).toBeTruthy();
+  await act(async () => item!.click());
 }
 beforeEach(() => {
   vi.stubGlobal("React", React);
@@ -206,11 +228,9 @@ it("deep-linked preview loads the saved revision and keeps the same document thr
 });
 it("deep-linked history opens one panel alongside the mounted document", async () => {
   await mount("?panel=history");
-  expect(
-    host.querySelector('aside[aria-label="Version history"]'),
-  ).not.toBeNull();
+  expect(host.querySelector('aside[aria-label="History"]')).not.toBeNull();
   const body = host.querySelector('textarea[aria-label="Test article body"]');
-  await click("Properties");
+  await menuItem("Properties");
   expect(host.querySelectorAll("aside")).toHaveLength(1);
   expect(host.querySelector('aside[aria-label="Properties"]')).not.toBeNull();
   expect(host.querySelector('textarea[aria-label="Test article body"]')).toBe(
@@ -222,7 +242,7 @@ it("deep-linked history opens one panel alongside the mounted document", async (
 
 it("closing Properties does not silently approve newly edited metadata", async () => {
   await mount("?view=review");
-  await click("Properties");
+  await menuItem("Properties");
   const label = [...host.querySelectorAll("label")].find(
     (el) => el.textContent?.trim() === "Tags",
   );
@@ -232,7 +252,8 @@ it("closing Properties does not silently approve newly edited metadata", async (
     Object.getOwnPropertyDescriptor(
       HTMLInputElement.prototype,
       "value",
-    )!.set!.call(input, "new-tag");
+    )!.set!.call(input, "new-tag,");
+    // A comma turns the typed text into a tag chip.
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
   await click("Close panel");
@@ -251,7 +272,7 @@ it("leaving review during session preparation never starts publication", async (
   );
   vi.stubGlobal("fetch", fetcher);
   await mount("?view=review", false);
-  await click("Approve and publish");
+  await click("Publish now");
   await act(async () => {
     await vi.waitFor(() =>
       expect(fetcher.mock.calls.some(([url]) => url.includes("/csrf"))).toBe(
@@ -259,7 +280,8 @@ it("leaving review during session preparation never starts publication", async (
       ),
     );
   });
-  await click("Back to editor");
+  // The review sheet's close returns to the editor.
+  await click("Close panel");
   await act(async () => {
     finish(response({ csrf: "test-only" }));
     await csrf;
@@ -277,7 +299,7 @@ it("restores the main panel scroll position when returning from preview", async 
   await click("Preview");
   expect(host.textContent).toContain("Article preview");
   host.scrollTop = 24;
-  await click("Edit");
+  await click("Preview");
   await act(async () => {
     await vi.waitFor(() => expect(host.scrollTop).toBe(480));
   });
@@ -505,7 +527,7 @@ it("keeps the document mounted and hidden inside its Astryx surface during previ
   await click("Preview");
   expect(body.closest("[hidden]")).not.toBeNull();
   expect((body.closest("[hidden]") as HTMLElement).style.display).toBe("none");
-  await click("Edit");
+  await click("Preview");
   expect(host.querySelector('textarea[aria-label="Test article body"]')).toBe(
     body,
   );
@@ -539,7 +561,7 @@ it("does not clear recovery when sign-out navigation is canceled", async () => {
   }
 });
 
-it("remembers pushed editor views and panels in the workspace switcher", async () => {
+it("remembers pushed editor views and panels for the Content workspace", async () => {
   await mount("?theme=dark", true, true);
   await click("Preview");
   expect(sessionStorage.getItem("admin:navigation:content")).toBe(
@@ -548,7 +570,7 @@ it("remembers pushed editor views and panels in the workspace switcher", async (
   expect(sessionStorage.getItem("admin:navigation:content")).toContain(
     "view=preview",
   );
-  await click("Properties");
+  await menuItem("Properties");
   expect(sessionStorage.getItem("admin:navigation:content")).toContain(
     "panel=properties",
   );
@@ -787,7 +809,7 @@ it("holds project navigation and unload while media is pending", async () => {
   );
   expect(host.querySelector('[data-testid="project-media"]')).not.toBeNull();
   act(() => projectMedia.props.onPendingChange(true));
-  await click("Properties");
+  await menuItem("Properties");
   expect(host.querySelector('aside[aria-label="Properties"]')).toBeNull();
   expect(host.textContent).toContain(
     "Finish uploading or close the image crop",
@@ -805,7 +827,7 @@ it("holds project navigation and unload while media is pending", async () => {
   });
   expect(window.location.search).not.toContain("view=preview");
   act(() => projectMedia.props.onPendingChange(false));
-  await click("Properties");
+  await menuItem("Properties");
   expect(host.querySelector('aside[aria-label="Properties"]')).not.toBeNull();
 });
 
@@ -845,12 +867,12 @@ it("loads older revisions with the server cursor and retains history through a f
   ).value;
   await click("Load older revisions");
   expect(host.textContent).toContain("Couldn’t load history");
-  expect(host.textContent).toContain("Revision 3");
+  expect(host.textContent).toContain("r3");
   failOlder = false;
   await click("Try again");
-  expect(host.textContent).toContain("Revision 3");
-  expect(host.textContent).toContain("Revision 2");
-  expect(host.textContent).toContain("Revision 1");
+  expect(host.textContent).toContain("r3");
+  expect(host.textContent).toContain("r2");
+  expect(host.textContent).toContain("r1");
   expect(host.textContent).not.toContain("Load older revisions");
   expect(
     requested.filter((url) => url.includes("beforeRevision=3")),

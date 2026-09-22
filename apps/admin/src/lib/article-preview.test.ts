@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { expect, it } from "vitest";
 import { renderArticlePreview } from "./article-preview";
 
@@ -18,4 +19,54 @@ it("removes active HTML and unsafe link protocols from the preview", async () =>
   );
   expect(html).not.toMatch(/<script|<iframe|onerror|javascript:/i);
   expect(html).toContain("Keep label");
+});
+
+// Parity with the Astro Markdown engine this replaced, which pulled its
+// syntax highlighter into the Worker. The corpus is every published article
+// plus the constructs the published site relies on.
+const published = import.meta.glob("../../../../content/public/writing/*.md", {
+  query: "?raw",
+  import: "default",
+  eager: true,
+}) as Record<string, string>;
+const constructs = [
+  '## "Quoted" heading -- with a dash...\n\nIt\'s "smart" -- punctuation...',
+  "## Repeat\n\n## Repeat\n\n### Code `inline` heading-\n\n#### {Braced} $value",
+  "| a | b |\n| - | :-: |\n| 1 | ~~2~~ |\n\n- [x] done\n- [ ] open\n\nwww.example.com",
+  "```ts\nconst x = 1;\n```\n\n> quote\n\n1. one\n2. two\n\n---\n\n[^1]\n\n[^1]: note",
+  '<div id="x" onclick="y()"><h2>Raw heading</h2></div>\n\n<!-- hidden -->\n\n![alt](/images/a.png "title")',
+];
+
+// Compared as parsed documents without whitespace-only text outside <pre>:
+// Astro's re-parse moved the newlines between table rows ahead of the table,
+// which renders identically.
+function parsed(html: string): string {
+  const document = new DOMParser().parseFromString(html, "text/html");
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const blank: Node[] = [];
+  for (let node = walker.nextNode(); node; node = walker.nextNode())
+    if (!node.textContent?.trim() && !node.parentElement?.closest("pre"))
+      blank.push(node);
+  for (const node of blank) node.parentNode?.removeChild(node);
+  return document.body.innerHTML;
+}
+
+it("renders the document the Astro Markdown engine rendered", async () => {
+  const { createMarkdownProcessor } = await import("@astrojs/markdown-remark");
+  const rehypeSanitize = (await import("rehype-sanitize")).default;
+  const astro = await createMarkdownProcessor({
+    syntaxHighlight: false,
+    rehypePlugins: [rehypeSanitize],
+  });
+  const bodies = [
+    ...Object.values(published).map((source) =>
+      source.replace(/^---\n[\s\S]*?\n---\n/, ""),
+    ),
+    ...constructs,
+  ];
+  expect(bodies.length).toBeGreaterThan(constructs.length);
+  for (const body of bodies)
+    expect(parsed(await renderArticlePreview(body))).toBe(
+      parsed((await astro.render(body)).code),
+    );
 });

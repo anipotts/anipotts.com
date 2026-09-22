@@ -1,3 +1,60 @@
 ---
-return Astro.redirect(`/content${Astro.url.search}`, 302);
+import AdminLayout from "../layouts/AdminLayout.astro";
+import { PrivateShell } from "../components/data/PrivateShell";
+import { recentlyUpdated } from "../components/astryx/ContentLibrary";
+import { loadEditorialInventory } from "../lib/editorial-inventory-server";
+import { privateReaderOpsEnabled } from "../lib/private-reader-credential";
+import { measureServerTiming } from "../lib/server-timing";
+import { loadShellFixtures } from "../lib/shell-fixtures";
+
+// The one overview. Content is read here from the editorial inventory; ops
+// and Data are read in the browser, each behind its own gate. The shell also
+// draws Data, so a record opened from here keeps the private session.
+const inventory = await measureServerTiming(Astro.locals, "inventory", () =>
+  loadEditorialInventory(Astro.locals.runtime?.env),
+);
+const content = recentlyUpdated(inventory.records)
+  .slice(0, 5)
+  .map(
+    ({
+      title,
+      href,
+      status,
+      collection,
+      section,
+      changesPending,
+      updated,
+    }) => ({
+      title,
+      href,
+      status,
+      collection,
+      section,
+      changesPending,
+      updated,
+    }),
+  );
+const env = Astro.locals.runtime?.env ?? {};
+// Development shows System's snapshot sample, a synthetic events page and a
+// synthetic Data set (lib/shell-fixtures.ts); none ships.
+const fixtures = await loadShellFixtures(Astro.url);
+Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
+
+<AdminLayout
+  title="Overview"
+  hideHeader
+  searchEntries={inventory.searchEntries}
+>
+  <PrivateShell
+    initialPath="/"
+    content={content}
+    dataEnabled={env.PRIVATE_READER_ENABLED === "true"}
+    dataFixture={fixtures?.data}
+    enabled={privateReaderOpsEnabled(env)}
+    fixture={fixtures?.snapshot}
+    eventsFixture={fixtures?.events}
+    renderedAt={Date.now()}
+    client:load
+  />
+</AdminLayout>

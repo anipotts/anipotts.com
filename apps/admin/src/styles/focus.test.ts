@@ -1,14 +1,12 @@
 import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
 const css = readFileSync(new URL("./focus.css", import.meta.url), "utf8");
-it("shares a neutral keyboard focus policy across both admin layouts", () => {
-  for (const name of ["AdminLayout", "EditorialLayout"]) {
-    const layout = readFileSync(
-      new URL(`../layouts/${name}.astro`, import.meta.url),
-      "utf8",
-    );
-    expect(layout).toContain('import "../styles/focus.css"');
-  }
+it("shares one neutral keyboard focus policy through the one document", () => {
+  const document = readFileSync(
+    new URL("../layouts/AdminDocument.astro", import.meta.url),
+    "utf8",
+  );
+  expect(document).toContain('import "../styles/focus.css"');
   expect(css).toContain("--focus-outline-width: 0");
   expect(css).toContain("--focus-outline-style: none");
   expect(css).toContain(":focus-visible");
