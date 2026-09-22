@@ -25,12 +25,12 @@ Read-only checks used for this pass:
 
 ## retained workers
 
-| Worker                 | Cloudflare name              | Trigger or route                                                   | Data boundary                                                                                                                              | Current classification             | Next cleanup action                                                                                |
-| ---------------------- | ---------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `workers/ingest`       | `anipotts-ingest`            | workers.dev fetch only, `crons = []`                               | accepts only `brands_email` rows, from the scoped brands key or the mini key; GET judges the newest capture against a 7 day budget         | keep, brands_email receiver only   | Ani decides whether the Apps Script capture is retired; if it is, retire this worker and both keys |
-| `workers/newsletter`   | `anipotts-newsletter-worker` | queue consumer for `newsletter-send`, workers.dev fetch health     | sends confirmation and issue email through Resend when configured; records newsletter events in D1                                         | keep, outbound-send gated          | keep while newsletter subscription and issue delivery remain worker-backed                         |
-| `workers/state`        | `anipotts-state`             | `api.anipotts.com` custom domain, REST, WebSocket, Durable Objects | read routes are public metadata; write routes require `STATE_PUBLISH_KEY`; Durable Objects hold link and code state                        | keep                               | keep as state plane for admin/fleet work; do not expand write routes without route-level proof     |
-| `workers/weekly-email` | `anipotts-weekly-email`      | workers.dev GET status only, `crons = []`                          | sends nothing and reads no secret; GET reports `retired: true`, `ok: false` and the queue counts by status; every other method answers 405 | retired in place: no cron, no send | Ani decides when to remove its unread secrets, turn off its workers.dev URL and delete the worker  |
+| Worker                 | Cloudflare name              | Trigger or route                                                   | Data boundary                                                                                                                                                                                                                                    | Current classification             | Next cleanup action                                                                                |
+| ---------------------- | ---------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `workers/ingest`       | `anipotts-ingest`            | workers.dev fetch only, `crons = []`                               | accepts only `brands_email` rows, from the scoped brands key or the mini key; GET reports the newest arrival, `quiet` after 7 days without one, and is `ok: false` only when D1 or the newest timestamp is unreadable or the brands key is unset | keep, brands_email receiver only   | Ani decides whether the Apps Script capture is retired; if it is, retire this worker and both keys |
+| `workers/newsletter`   | `anipotts-newsletter-worker` | queue consumer for `newsletter-send`, workers.dev GET status       | sends confirmation and issue email through Resend when configured; records newsletter events in D1; GET reports subscriber counts, the last send and send error, `dormant` while nobody is confirmed and nothing was sent                        | keep, outbound-send gated          | keep while newsletter subscription and issue delivery remain worker-backed                         |
+| `workers/state`        | `anipotts-state`             | `api.anipotts.com` custom domain, REST, WebSocket, Durable Objects | read routes are public metadata; write routes require `STATE_PUBLISH_KEY`; Durable Objects hold link and code state                                                                                                                              | keep                               | keep as state plane for admin/fleet work; do not expand write routes without route-level proof     |
+| `workers/weekly-email` | `anipotts-weekly-email`      | workers.dev GET status only, `crons = []`                          | sends nothing and reads no secret; GET reports `retired: true`, `ok: false` and the queue counts by status; every other method answers 405                                                                                                       | retired in place: no cron, no send | Ani decides when to remove its unread secrets, turn off its workers.dev URL and delete the worker  |
 
 Secrets that no code reads any more may still be set in Cloudflare:
 `GITHUB_TOKEN` and `CF_API_TOKEN` on `anipotts-ingest`, and the Resend,
@@ -73,7 +73,14 @@ worker only after current evidence proves all of these are true:
 
 No worker is deleted in this pass. `workers/weekly-email` is retired in place:
 it has no schedule and no send path, and its GET status reports `ok: false`.
-`workers/ingest` keeps only the `brands_email` receiver, and its GET status
-reports `ok: false` whenever the capture is older than its budget. Deleting
-either worker, removing their unread secrets or turning off a workers.dev URL
-waits for Ani. `workers/newsletter` and `workers/state` are unchanged.
+`workers/ingest` keeps only the `brands_email` receiver. Its GET status reports
+a week without brand mail as `quiet`, because the worker sees only the rows
+that reach it and can't tell a quiet inbox from a stopped capture. It reports
+`ok: false` only for a fault it can see: D1 unreadable, an unparseable newest
+timestamp, or an unset `BRANDS_INGEST_KEY`. `workers/newsletter` keeps its
+queue consumer unchanged, and its GET status replaces the constant
+`newsletter worker ok` with counts, the last send and send error, the send
+secrets' presence and `dormant`. It can't see the `newsletter-send` queue or
+its dead-letter depth, and says so. Deleting the weekly-email or ingest worker,
+removing their unread secrets or turning off a workers.dev URL waits for Ani.
+`workers/state` is unchanged here.
