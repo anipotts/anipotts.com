@@ -70,15 +70,14 @@ Scoped approvals that sit inside the hard stops below, granted for this round:
   admin compatibility routes for confirmed security findings
 - runtime binding contracts for www, admin and the four retained workers,
   including the worker redeploys they cause
-- deleting dead code confirmed by the knip audit; retained authentication
-  libraries stay
+- deleting dead code confirmed by the knip audit
 - pruning missing worktree registrations and removing merged or preserved
   worktrees after additive preservation refs are verified
 - preserving unshipped Codex working-tree changes to a pushed branch, excluding
   private writing drafts
 
 Still requiring Ani's exact approval: changing the authentication mode, removing
-Cloudflare Access or the native session fallback, newsletter worker send changes,
+Cloudflare Access or the exact-owner check, newsletter worker send changes,
 production content database bindings or remote migrations, backup key custody or
 provider setup, secrets and `.env*`, and force-push or history rewrite.
 
@@ -98,10 +97,9 @@ The legacy Solid admin is retired from this repository. Rollback uses the
 previous verified Astro admin deployment. Production legacy resources and
 data are not deleted as part of source cleanup.
 
-Reviewed additive D1 migrations remain subject to release controls. Production
-Content currently uses the signed Cloudflare Access owner flow. Retained
-passkey/password libraries do not authorize enabling a new authentication mode
-or removing Access. Authentication changes require their separate exact approval.
+Reviewed additive D1 migrations remain subject to release controls. Cloudflare
+Access with the exact-owner check is the only sign-in. Authentication changes
+require their separate exact approval.
 
 ### public-site lane
 
@@ -118,24 +116,12 @@ presentation work:
 Docs-only changes use a PR and wait for Ani's review. They should not run app
 deploy targets.
 
-## Historical passkey and Access sequence
+## retired passkey sequence
 
-Retained for historical recovery context only. This is not the active rollout
-plan or authorization to change the current Access owner boundary:
-
-1. merge the reviewed passkey PR
-2. apply its reviewed D1 migration to `anipotts-db`
-3. deploy `admin=true` only
-4. prove passkey register, login, logout, session persistence, and blocked
-   failure paths
-5. prove `/auth/passkey` and every route in `ADMIN_PROTECTED_SMOKE_ROUTES`
-   from `scripts/ci/admin-route-inventory.mjs`. Retired URLs are listed in
-   `ADMIN_REDIRECTS` and answer 308 to their live page
-6. remove Cloudflare Access only after proof passes
-7. verify app-native unauthenticated block and authenticated passkey access
-8. rollback by restoring the previous Access app or policy if proof fails
-
-Do not remove Access before app-native passkey proof exists.
+Admin once planned app-native passkeys behind Cloudflare Access. That code was
+removed on 2026-09-22 and is recoverable from the
+`archive/admin-retired-auth-2026-09-22` tag. Access plus the exact-owner check
+is the only sign-in; do not remove Access.
 
 ## hard stops
 
@@ -222,15 +208,16 @@ navigation/footer text, SEO and media. Layouts and executable behavior stay in c
 
 Public content defaults, normalizers, validators, settings, and homepage summary
 helpers live in `@anipotts/content/public`. Canonical frontmatter schemas are
-shared by Astro and generation. Git supplies initial/default records. The approved
-CMS architecture makes published complete editable records authoritative over
-Git, including explicit unpublication and URL changes. It adds no automatic
-CMS-to-Git mirroring or bidirectional draft synchronization. The current merged
-Git renderer and legacy publisher remain active until reader compatibility,
-durable atomic publication, recovery and owner acceptance are demonstrated.
+shared by Astro and generation. www serves only published records from `anipotts-content`
+(`CONTENT_RUNTIME="cms"`), and Admin publishes and unpublishes directly. Git
+content is the seed and the source for build-time social cards, not a
+runtime reader. The Git renderer and the legacy GitHub publisher were removed
+on 2026-09-22. Recovery is D1 Time Travel plus the nightly
+`anipotts-content` export on ap-mini, which System owns.
 
-Operations provides read-only machine, loop and service observations. Life
-provides authorized read-only knowledge from its canonical source, with
+Observability provides read-only service, job and host status, activity and
+alerts from System's ops reader on ap-mini (scope `ops:read`). Data provides
+authorized read-only records and sources from the Personal Context reader, with
 provenance and session-bound presentation. Neither workspace publishes content
 or persists a new cloud replica of personal records.
 
