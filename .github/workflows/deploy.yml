@@ -1,7 +1,6 @@
 # Required GitHub Secrets:
 #   CLOUDFLARE_API_TOKEN    - Cloudflare API token with Workers deploy permissions
 #   CLOUDFLARE_ACCOUNT_ID   - 0f856093bdcd34a7da1bde5ee4385163
-#   ADMIN_PASSWORD          - Admin UI password
 #   RESEND_API_KEY          - Resend API key for newsletter worker deployments
 #   NEWSLETTER_MAILING_ADDRESS - Physical mailing address for newsletter issue footers
 #   TYPEFULLY_API_KEY       - Typefully API key

@@ -42,7 +42,8 @@ export const RUNTIME_REQUIRED = [
   "ACCESS_POLICY_AUD",
 ] as const satisfies readonly RuntimeName[];
 
-/** Mirrors productionEditor and adminDb.
+/** Mirrors productionEditor, and the Data Health and Knowledge pages, which
+ * read DB through loadDataExtras.
  * Flags switch a feature off; needs make an enabled feature unavailable when
  * absent. EDITORIAL_PUBLISH_ENABLED is the publishing kill switch.
  */
