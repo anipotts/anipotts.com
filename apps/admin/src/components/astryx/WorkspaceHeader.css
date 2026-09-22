@@ -203,10 +203,12 @@
   }
   /* Ghost buttons in the rail answer the pointer the way its navigation items
      do, so every square in the rail behaves alike. */
-  .editorial-workspace-shell[data-sidebar-collapsed="true"]
-    .editorial-workspace-nav
-    :is(.editorial-header-search, .admin-theme-cycle):hover {
-    background-color: var(--color-background-muted);
+  @media (hover: hover) {
+    .editorial-workspace-shell[data-sidebar-collapsed="true"]
+      .editorial-workspace-nav
+      :is(.editorial-header-search, .admin-theme-cycle):hover {
+      background-color: var(--color-background-muted);
+    }
   }
   /* Astryx lays a button's content out in a row that fills the button, so
      centring the button alone leaves the icon at the start of that row. */

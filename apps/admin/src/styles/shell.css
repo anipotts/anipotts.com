@@ -147,6 +147,10 @@ body {
   .editorial-workspace-shell .editorial-content {
     padding-block: var(--spacing-3) var(--spacing-6);
   }
+  /* A modal (the palette, a sheet) holds the page still behind it. */
+  html:has(dialog:modal) {
+    overflow: hidden;
+  }
 }
 
 /* The phone top bar (EditorialWorkspaceShell PhoneBar). The server writes it
