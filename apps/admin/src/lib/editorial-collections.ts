@@ -1,7 +1,7 @@
 import {
   editorialRecordSchema,
   type EditorialRecord,
-} from "@anipotts/content/editorial/source";
+} from "@anipotts/content/editorial/record";
 import { libraryPaths } from "./content-library-state";
 import { newProjectSource } from "./project-draft";
 import { newWritingSource } from "./writing-draft";

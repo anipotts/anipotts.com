@@ -1,4 +1,4 @@
-import { MAX_SOURCE_BYTES } from "@anipotts/content/editorial/source";
+import { MAX_SOURCE_BYTES } from "@anipotts/content/editorial/record";
 
 /** v1 remains readable by old tabs. New writers never mutate that namespace. */
 export const recoveryLogoutGenerationKey = "editorial-recovery:logout";

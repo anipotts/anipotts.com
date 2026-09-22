@@ -1,4 +1,4 @@
-import type { EditorialRecord } from "@anipotts/content/editorial/source";
+import type { EditorialRecord } from "@anipotts/content/editorial/record";
 
 /** Shared catalog and acknowledged-edit metadata; never includes the document body. */
 export function editorialRecordSummary(

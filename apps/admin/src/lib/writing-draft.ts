@@ -1,4 +1,4 @@
-import { editorialRecordSchema } from "@anipotts/content/editorial/source";
+import { editorialRecordSchema } from "@anipotts/content/editorial/record";
 
 /** A new document stays private until the existing publication review is approved. */
 export function newWritingSource(title = "Untitled article"): string {

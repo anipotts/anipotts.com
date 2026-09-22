@@ -6,7 +6,7 @@ import type { AdminSearchResult } from "../data/admin-search";
 import {
   editorialRecordSchema,
   type EditorialRecord,
-} from "@anipotts/content/editorial/source";
+} from "@anipotts/content/editorial/record";
 import { collectionKind } from "./editorial-collections";
 export const RECORD_SAVED_EVENT = "editorial:record-saved";
 export const RECORD_CREATED_EVENT = "editorial:record-created";

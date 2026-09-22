@@ -71,6 +71,8 @@ export function ProjectSections({
         const entries = Array.isArray(data[kind])
           ? (data[kind] as Array<{ title?: string; paragraphs?: string[] }>)
           : [];
+        // An empty kind draws nothing, so it adds no gap under the heading.
+        if (!entries.length) return null;
         return (
           <VStack key={kind} gap={1}>
             {entries.map((entry, index) => (
@@ -135,7 +137,7 @@ export function ProjectSections({
           </VStack>
         );
       })}
-      <HStack>
+      <HStack className="editor-add-row">
         <DropdownMenu
           button={{
             label: "Add section",
@@ -226,7 +228,7 @@ export function ProjectSections({
           </HStack>
         </VStack>
       ))}
-      <HStack>
+      <HStack className="editor-add-row">
         <Button
           label="Add roadmap item"
           icon={plus}

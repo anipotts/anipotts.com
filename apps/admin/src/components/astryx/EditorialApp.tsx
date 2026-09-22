@@ -1,7 +1,9 @@
 import {
+  libraryGroupForPath,
   libraryPaths,
   libraryReturnPath,
 } from "../../lib/content-library-state";
+import { registerClientRoutes } from "../../lib/client-routes";
 import { InlineNotice, WorkspacePage } from "../workspace/Workspace";
 import { IconButton } from "@astryxdesign/core/IconButton";
 import { ArrowClockwiseIcon } from "@phosphor-icons/react";
@@ -118,7 +120,7 @@ export type EditorialAppProps = {
   newProject?: boolean;
   recoveryScope?: string;
   editHome?: boolean;
-  editorRecord?: import("@anipotts/content/editorial/source").EditorialRecord;
+  editorRecord?: import("@anipotts/content/editorial/record").EditorialRecord;
   /** The slotted page content supplies its own primary heading. */
   hideHeader?: boolean;
   children?: ReactNode;
@@ -155,16 +157,31 @@ function navigationCounts(
   return counts;
 }
 
+/** The library a URL shows in place: its group, name and area. */
+function libraryShown(url: URL) {
+  // `/content` and `/newsletter` are redirects, never drawn in place.
+  if (url.pathname === "/content" || url.pathname === "/newsletter")
+    return null;
+  const group = libraryGroupForPath(url.pathname);
+  if (!group || !Object.hasOwn(LIBRARY_NAMES, group)) return null;
+  return {
+    selectedGroup: group,
+    title: LIBRARY_NAMES[group as keyof typeof LIBRARY_NAMES],
+    area:
+      group === "newsletter" ? ("newsletter" as const) : ("content" as const),
+  };
+}
+
 export function EditorialApp({
-  title,
-  area,
+  title: pageTitle,
+  area: pageArea,
   localPreview,
   localOwner = false,
   siteUrl,
   initialMode = "light",
   searchEntries,
   groups,
-  selectedGroup,
+  selectedGroup: pageGroup,
   librarySearch,
   review,
   editHome,
@@ -177,6 +194,35 @@ export function EditorialApp({
   hideHeader = false,
   children,
 }: EditorialAppProps) {
+  // A library page holds every library's records, so moving between
+  // libraries draws in place instead of loading a document.
+  const [shown, setShown] = useState<ReturnType<typeof libraryShown>>(null);
+  const { title, area, selectedGroup } = shown ?? {
+    title: pageTitle,
+    area: pageArea,
+    selectedGroup: pageGroup,
+  };
+  useEffect(() => {
+    if (!groups) return;
+    const show = (url: URL) => {
+      const next = libraryShown(url);
+      if (!next) return;
+      setShown(next);
+      document.title = `${next.title} | Admin`;
+      // The shell's library links follow the page's own query and ordering.
+      window.dispatchEvent(new Event("editorial:library-state"));
+    };
+    const unregister = registerClientRoutes({
+      handles: (url) => libraryShown(url) !== null,
+      show,
+    });
+    const back = () => show(new URL(window.location.href));
+    window.addEventListener("popstate", back);
+    return () => {
+      unregister();
+      window.removeEventListener("popstate", back);
+    };
+  }, [groups]);
   const [libraryBack, setLibraryBack] = useState<string | null>(null);
   useEffect(() => {
     const returnTo = new URLSearchParams(window.location.search).get(
