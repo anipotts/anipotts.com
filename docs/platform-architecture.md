@@ -1,17 +1,17 @@
 # Platform architecture
 
-Updated: 2026-09-08. Release completion evidence lives in [the site release review](site-release-review-2026-09-07.md).
+Updated: 2026-09-22. Release completion evidence lives in [the site release review](site-release-review-2026-09-07.md).
 
 ## Active surfaces
 
-| Surface            | Source                 | Role                                                                     |
-| ------------------ | ---------------------- | ------------------------------------------------------------------------ |
-| anipotts.com       | `apps/www`             | Public Astro pages, Git-backed work and writing, newsletter endpoints    |
-| admin.anipotts.com | `apps/admin`           | Astro admin behind Cloudflare Access, editor, previews, operations state |
-| api.anipotts.com   | `workers/state`        | Durable state and authenticated command relay                            |
-| Ingest             | `workers/ingest`       | Scheduled ingest and authenticated event receivers                       |
-| Newsletter         | `workers/newsletter`   | Subscription and issue queue consumer                                    |
-| Weekly email       | `workers/weekly-email` | Scheduled operational summary                                            |
+| Surface            | Source                 | Role                                                                                 |
+| ------------------ | ---------------------- | ------------------------------------------------------------------------------------ |
+| anipotts.com       | `apps/www`             | Public Astro pages served from the `anipotts-content` D1 store, newsletter endpoints |
+| admin.anipotts.com | `apps/admin`           | Astro admin behind Cloudflare Access, editor, previews, operations state             |
+| api.anipotts.com   | `workers/state`        | Durable state and authenticated command relay                                        |
+| Ingest             | `workers/ingest`       | Scheduled ingest and authenticated event receivers                                   |
+| Newsletter         | `workers/newsletter`   | Subscription and issue queue consumer                                                |
+| Weekly email       | `workers/weekly-email` | Scheduled operational summary                                                        |
 
 The legacy Solid app and deploy target are removed. Historical source is recoverable through Git; the cleanup does not delete any production worker or database. Active Astro route and authentication tests remain independent of retirement.
 
@@ -27,21 +27,21 @@ The four retained workers still have explicit routes, cron schedules, queues, or
 - `packages/content/src/public/providers.ts`: approved workflow artwork
 - `packages/content/src/public/visibility.ts`: public inclusion rules
 
-Two generated projections have active consumers: typed defaults for app rendering/adapters, and an admin review JSON projection. Generation is one-way from canonical sources and drift-checked. The unused validation JSON, future database seed, and reverse-bootstrap mode are removed.
+One generated projection has active consumers: typed defaults for app rendering and adapters. Generation is one-way from canonical sources and drift-checked. The admin review JSON, unused validation JSON, future database seed, and reverse-bootstrap mode are removed.
 
-Public pages do not read D1 CMS content. Admin can review source-controlled copy and keep proposals and operational records separately. Stored identifiers such as `making` and `project:<slug>` survive only at compatibility boundaries. They do not create another published dataset. Historical migrations and production data are unchanged.
+Public pages serve published records from the `anipotts-content` D1 store. `CONTENT_RUNTIME` must be exactly `cms`; any other value is a no-store 503 on every content route, and the bundled Git content is never a runtime source on its own. Git Markdown supplies the initial records and the Admin editor's source baseline; see [direct CMS publication](design/admin-workspace/direct-cms-publication.md). Stored identifiers such as `making` and `project:<slug>` survive only at compatibility boundaries. They do not create another published dataset. Historical migrations and production data are unchanged.
 
 `/work` owns the public work index and details. Permanent old-URL redirects remain in the public middleware. Hidden projects and unpublished writing return 404 at detail URLs. Feeds, sitemap and release smoke consume the same public content inclusion decisions.
 
 ## Shared code
 
-| Package                         | Responsibility                                           |
-| ------------------------------- | -------------------------------------------------------- |
-| `packages/content`              | Public contracts/settings and admin content review logic |
-| `packages/types`                | Shared app and operational contracts                     |
-| `packages/lib`                  | Admin-control runtime and the Drizzle migration schema   |
-| `packages/brand`                | Marks, fonts, shared tokens and typography               |
-| `packages/control-plane-runner` | Local relay client, journal and proof outbox             |
+| Package                         | Responsibility                                                        |
+| ------------------------------- | --------------------------------------------------------------------- |
+| `packages/content`              | Public contracts/settings, editorial source and publication contracts |
+| `packages/types`                | Shared app and operational contracts                                  |
+| `packages/lib`                  | Admin knowledge card reader and the Drizzle migration schema          |
+| `packages/brand`                | Marks, fonts, shared tokens and typography                            |
+| `packages/control-plane-runner` | Local relay client, journal and proof outbox                          |
 
 The old database-first public readers, fallback datasets, Solid-only services and unused package exports are removed. Astro admin consumes the admin-control entrypoint; root Drizzle tooling still consumes the database schema. Worker and runner implementations remain in their own active packages.
 

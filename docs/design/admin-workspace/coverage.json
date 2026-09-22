@@ -832,16 +832,6 @@
       ]
     },
     {
-      "path": "apps/admin/src/components/admin-icons.tsx",
-      "area": "ui",
-      "sha256": "5ad15e21c93313f3aa7be18f166ac18c96d5eae38671a7fb55a5ea6353f3df41",
-      "disposition": "updated",
-      "evidence": [
-        "2026-09-14 issue #358 knip audit: removes the unused iconForNav export and the nine icon imports only it used. knip@6.35.1 (default and --production) and git grep found no reference. Source changed since recorded SHA-256 0d75cbfb8246a16472fe22a416673bac23a2a348ed487fea4566cf712979edef; earlier audit references are historical. Admin typecheck and focused tests pass; no behavior change.",
-        "docs/design/admin-workspace/source-marks-audit.md: exact-byte source review; findings and verification limits retained."
-      ]
-    },
-    {
       "path": "apps/admin/src/components/astryx/AdminCommandPalette.tsx",
       "area": "ui",
       "sha256": "d66f7f86e38d7cfe400626952e792f7213ed9a2695eb0efbce53a30eb2609eb9",
@@ -1125,15 +1115,6 @@
       ]
     },
     {
-      "path": "apps/admin/src/components/astryx/WritingEditor.tsx",
-      "area": "ui",
-      "sha256": "bdf1b4379e1e155ffb2844b17208726bbe0cdb31dfea2d37210aee8bd75d43cf",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/legacy-content-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
       "path": "apps/admin/src/components/auth/AuthFrame.astro",
       "area": "ui",
       "sha256": "50138ec35335ec050bdc4511f2e4ce35565f5f09cffa6c15902355afc3a8ad26",
@@ -1203,33 +1184,6 @@
       "disposition": "reviewed-retained",
       "evidence": [
         "docs/design/admin-workspace/operations-data-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/data/content.ts",
-      "area": "data-and-contracts",
-      "sha256": "4c38aff2594b3f20abb559b38872863f41ae982692f08917acf44cc34c898eea",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/legacy-content-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/data/control-plane.test.ts",
-      "area": "tests",
-      "sha256": "4f57dd0f9ea08112ab64ab168090cd952bb982d19f56653943b69271186a33dc",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/operations-data-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/data/control-plane.ts",
-      "area": "data-and-contracts",
-      "sha256": "d2bfe817e08308b7d4a98d01dcd6f5a216e63887777fa8f38e7f093f55a1aa5e",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/api-audit.md: exact-byte source review; open findings and verification limits retained."
       ]
     },
     {
@@ -1360,24 +1314,6 @@
       ]
     },
     {
-      "path": "apps/admin/src/data/source-content.test.ts",
-      "area": "tests",
-      "sha256": "c0ab0ab1e076aa7f935c96311cee33c9dfcab9c0839615f070c0b426ff678047",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/inventory-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/data/source-content.ts",
-      "area": "data-and-contracts",
-      "sha256": "81944ba8e1e5b42444b7a068b037f325d675b090a5d5753da4e5724798f4806c",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/inventory-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
       "path": "apps/admin/src/data/static/carousels/durable_agent_workflows_v2.json",
       "area": "data-and-contracts",
       "sha256": "a8c55de94991f7b70bff024cb64f4c8210331efce00475b3b6c3e4795fd6f952",
@@ -1479,24 +1415,6 @@
       ]
     },
     {
-      "path": "apps/admin/src/lib/admin-auth-flows.test.ts",
-      "area": "tests",
-      "sha256": "a94c3cc9c3a2f2ffa0a5c2e37e785cd8052903984bc3c2ddbd51fa93eacb956b",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/auth-compatibility-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/lib/admin-auth-security.test.ts",
-      "area": "tests",
-      "sha256": "39f2795bddda2e40c4e2e904634d8a11f4388af622cc4570e8fe2ee9433797b3",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/auth-compatibility-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
       "path": "apps/admin/src/lib/admin-auth.test.ts",
       "area": "tests",
       "sha256": "500d17ecfe52ca557719c1fa23ae713009462366eb441c11a3592201b0b33fd2",
@@ -1512,69 +1430,6 @@
       "disposition": "reviewed-retained",
       "evidence": [
         "docs/design/admin-workspace/api-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/lib/admin-client-auth.test.ts",
-      "area": "tests",
-      "sha256": "d6ce0654d73d9c513275b2ab613d3f3017efd30d7e2ae6261a342dfbf1553204",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/legacy-content-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/lib/admin-client-auth.ts",
-      "area": "data-and-contracts",
-      "sha256": "df529b3cf48b6e6d436e1bd0a02475b2514741dbcf7ab5d86ca18392e62f5bcc",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/legacy-content-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/lib/admin-invites.ts",
-      "area": "data-and-contracts",
-      "sha256": "f2e67ad5838fc1f2285caacf6903f1f41e900a854a07fcbcc3a93e762cbe9f6e",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/auth-compatibility-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/lib/admin-machine-tokens.test.ts",
-      "area": "tests",
-      "sha256": "9dc7209da097003e1fc8eb19f10351f92244332f9184840f09aa1c20f9f618fe",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/auth-compatibility-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/lib/admin-machine-tokens.ts",
-      "area": "data-and-contracts",
-      "sha256": "d2139edc32466d6820e41cd0077f39556ae1801fff9768f0ad90a523097273c0",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/api-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/lib/admin-public-rate-limit.ts",
-      "area": "data-and-contracts",
-      "sha256": "d0f509e1c45b34f47b2d995e23aa91c290abe19598cfe022d3df61a3998362b2",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/auth-compatibility-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/lib/admin-recovery.ts",
-      "area": "data-and-contracts",
-      "sha256": "be7fc12b9985c5f141668c8a172dbb71f184fe1178f251d197521b004a767b61",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/auth-compatibility-audit.md: exact-byte source review; open findings and verification limits retained."
       ]
     },
     {
@@ -1602,42 +1457,6 @@
       "disposition": "reviewed-retained",
       "evidence": [
         "docs/design/admin-workspace/identity-preview-audit.md: scoped source review and verification; shared shell files remain pending full audit."
-      ]
-    },
-    {
-      "path": "apps/admin/src/lib/content-draft-operation.ts",
-      "area": "data-and-contracts",
-      "sha256": "4b7dd8dc84bc4a63ad5b15e51fb48bd816e1eb2ab3c49164df1a5c42f0d4c5bd",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/legacy-content-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/lib/content-editor.test.ts",
-      "area": "tests",
-      "sha256": "c85c1f64f1ed2457535e9ce2f1be38ebbed4df666ee61cac5b5b9bf2d8ce7310",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/legacy-content-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/lib/content-editor.ts",
-      "area": "data-and-contracts",
-      "sha256": "8600e6bf84684cc54b78ddc941f947caf129e3193d3cab9369d5d750a8544f08",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/legacy-content-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/lib/device-authorization.ts",
-      "area": "data-and-contracts",
-      "sha256": "0d40bf68c1ab2e64a9d4c4dc8b0206e48e464beb34133c9b783a02f06c92cfdf",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/auth-compatibility-audit.md: exact-byte source review; open findings and verification limits retained."
       ]
     },
     {
@@ -1830,51 +1649,6 @@
       ]
     },
     {
-      "path": "apps/admin/src/lib/passkey-auth.test.ts",
-      "area": "tests",
-      "sha256": "6eb0f006a860239c5b3a32c4d863fdcebeba82bc503ef3dde052438da848a661",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/auth-compatibility-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/lib/passkey-auth.ts",
-      "area": "data-and-contracts",
-      "sha256": "79fe053fda9fccab845eab63573f9cc09d60e9371771fcebc5ed4d3b9b55a967",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/shared-shell-audit.md: exact-byte source review; findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/lib/passkey-ceremony.test.ts",
-      "area": "tests",
-      "sha256": "ff5a2443548af600bb3fddb2ba222ab27f6e33b592c419315dddb401586f6506",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/auth-compatibility-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/lib/password-auth.test.ts",
-      "area": "tests",
-      "sha256": "5d56ba0547f71b24450bd15004a96bb218ab1eb78dcea5740c9f8b22c8fce232",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/auth-compatibility-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/lib/password-auth.ts",
-      "area": "data-and-contracts",
-      "sha256": "e9bbc30187015ca3fe7aa0270f3bfd367e390878f6b3a6191aff1380fdadce2e",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/auth-compatibility-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
       "path": "apps/admin/src/lib/record-workspace-state.test.ts",
       "area": "tests",
       "sha256": "11c53dcf95a26afaac36ce0872674555afc5f93036de3ce4f6c7502e63a0520e",
@@ -1951,15 +1725,6 @@
       ]
     },
     {
-      "path": "apps/admin/src/lib/security-notifications.ts",
-      "area": "data-and-contracts",
-      "sha256": "0a5668fc3d29b336b0fef658e694ad4092b3fbf4aa77153cf0f6092663dbb473",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/auth-compatibility-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
       "path": "apps/admin/src/lib/text-diff.test.ts",
       "area": "tests",
       "sha256": "b33afce5d00500571b279cfd6418ed5d73872c7447be57edfaf559238ff701d5",
@@ -2024,60 +1789,12 @@
       ]
     },
     {
-      "path": "apps/admin/src/pages/api/admin/content/draft-operation.ts",
-      "area": "api",
-      "sha256": "e45844723867565c73d5a08ff504f241f7cf09c1f0f3a5140c617939665702ca",
-      "disposition": "updated",
-      "evidence": [
-        "2026-09-14 issue #356 admin compatibility fix: reads JSON through the shared byte-bounded reader (131,072 bytes, 413 request_too_large, 400 invalid_json) and answers unexpected exceptions with the fixed draft_save_failed code instead of exception text. Success bodies, statuses, headers and authorization checks are unchanged. Source changed since recorded SHA-256 cc1bdcc335cd9463a180eab6683a5a15a9b3c7f9db37a83eefaff379ad0e899a; earlier audit references are historical. Focused route tests and admin typecheck pass. See docs/design/admin-workspace/public-api-audit.md F6.",
-        "docs/design/admin-workspace/legacy-content-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/pages/api/admin/content/editor.ts",
-      "area": "api",
-      "sha256": "465c497f04bbb181852a34b894f33bbd77cc18d9e50e80d76c537927937e2750",
-      "disposition": "updated",
-      "evidence": [
-        "2026-09-14 issue #356 admin compatibility fix: reads JSON through the shared byte-bounded reader (524,288 bytes, 413 request_too_large, 400 invalid_json), treats a non-object body as unknown_editor_action, and answers unexpected exceptions with the fixed content_editor_failed code instead of exception text. Success bodies, statuses, headers and authorization checks are unchanged. Source changed since recorded SHA-256 13bde5a87712051b53b6a44e24356fa8142be2b7a782602edc79c3bdc62b20a5; earlier audit references are historical. Focused route tests and admin typecheck pass. See docs/design/admin-workspace/public-api-audit.md F6.",
-        "docs/design/admin-workspace/legacy-content-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/pages/api/admin/control-plane.ts",
-      "area": "api",
-      "sha256": "1940e83ac8edc3e59ca69ca602ab9acff716be632a97e4894b98bc6d3236de82",
-      "disposition": "updated",
-      "evidence": [
-        "2026-09-14 issue #356 admin compatibility fix: replaces the Content-Length-only check with the shared byte-bounded reader (2,048 bytes, 413 control_command_too_large, 400 invalid_json), keeps the relay_binding_missing and invalid_control_command_request codes, and answers other GET and POST exceptions with fixed codes instead of exception text. Success bodies, statuses, headers and authorization checks are unchanged. Source changed since recorded SHA-256 79383af26cf95eccd49beee83e24a7a2459ae9b6656632597eb31b8e1e464147; earlier audit references are historical. Focused route tests and admin typecheck pass. See docs/design/admin-workspace/public-api-audit.md F6.",
-        "docs/design/admin-workspace/api-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
       "path": "apps/admin/src/pages/api/admin/inbox.ts",
       "area": "api",
       "sha256": "8d40687c1a382096085abe314895049ed0b3d9bfedf3123e4f82c0c189332e17",
       "disposition": "updated",
       "evidence": [
         "2026-09-14 issue #356 admin compatibility fix: reads JSON through the shared byte-bounded reader (32,768 bytes, 413 request_too_large, 400 invalid_json), keeps inbox validation codes without caller-supplied suffixes, and answers unexpected exceptions with the fixed inbox_write_failed code instead of exception text. Success bodies, statuses, headers and authorization checks are unchanged. Source changed since recorded SHA-256 25d58203d22009de56e90c8096c2d04f17bcb5adf245f593135aa9fbafa7add2; earlier audit references are historical. Focused route tests and admin typecheck pass. See docs/design/admin-workspace/public-api-audit.md F6.",
-        "docs/design/admin-workspace/api-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/pages/api/admin/knowledge.ts",
-      "area": "api",
-      "sha256": "87012f2108bb8bf49c87bad2f00e3968895eabd2bc1475b60c44930ca0078ee5",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/remaining-server-audit.md: exact-byte source review; findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/pages/api/admin/projections.ts",
-      "area": "api",
-      "sha256": "bc15e55b2128d4e3d317f2cdc1d13492a1e973421763ecb70d8763870bab5209",
-      "disposition": "reviewed-retained",
-      "evidence": [
         "docs/design/admin-workspace/api-audit.md: exact-byte source review; open findings and verification limits retained."
       ]
     },
@@ -2112,15 +1829,6 @@
       "path": "apps/admin/src/pages/api/health.ts",
       "area": "api",
       "sha256": "92545ca3092a459d220803ab4ae11e9dc4e68d04934861715e0b353036780e70",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/api-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/pages/api/mcp.ts",
-      "area": "api",
-      "sha256": "fe8a55ba4f4d03fe5d29473c141d16469089a1bfc00ea027ff8759c6f422138a",
       "disposition": "reviewed-retained",
       "evidence": [
         "docs/design/admin-workspace/api-audit.md: exact-byte source review; open findings and verification limits retained."
@@ -2697,15 +2405,6 @@
       ]
     },
     {
-      "path": "apps/admin/src/components/astryx/WritingEditor.test.tsx",
-      "area": "audited-addition",
-      "sha256": "7d73dbaef89dd329eb4cbf372e77e46e66f2dd5e8623b9c01c55c5978226d39d",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/legacy-content-audit.md: exact-byte source review; open findings and verification limits retained."
-      ]
-    },
-    {
       "path": "apps/admin/src/components/astryx/RichTextField.test.tsx",
       "area": "components",
       "sha256": "56d1389ecad285b76f5f5fbf55493aa440de26e87fee43d6a764b65c4f1cb948",
@@ -3033,42 +2732,6 @@
       "path": "apps/admin/src/data/personal-context.ts",
       "area": "life",
       "sha256": "d0554290f4341bfd995826b2349b2bb56cca9b34944d8e224a1ac07092dc395b",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/life-integration-source-audit.md: exact-byte source review; findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/lib/life-activity.test.ts",
-      "area": "life",
-      "sha256": "da03b0f29e4ca9d3b0fbcd601cebf4d2698c3a9290dd59302dcca86b95f41f96",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/remaining-supporting-ui-audit.md: exact-byte source review; findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/lib/life-activity.ts",
-      "area": "life",
-      "sha256": "41c1cb078ea522cf5f1e96460fdaa50e470a57480cfa8b5452ac7e26ae3b66c3",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/remaining-supporting-ui-audit.md: exact-byte source review; findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/lib/life-read-session.test.ts",
-      "area": "life",
-      "sha256": "0da6c517aa9a378dbb175ebc3feedcd1372be314e1a9a9203bb6a3ee9218cace",
-      "disposition": "reviewed-retained",
-      "evidence": [
-        "docs/design/admin-workspace/life-integration-source-audit.md: exact-byte source review; findings and verification limits retained."
-      ]
-    },
-    {
-      "path": "apps/admin/src/lib/life-read-session.ts",
-      "area": "life",
-      "sha256": "8cd3624ee8d1ba9f2db0fdd9e512ea574b5ede204698894f322122bbe21ded95",
       "disposition": "reviewed-retained",
       "evidence": [
         "docs/design/admin-workspace/life-integration-source-audit.md: exact-byte source review; findings and verification limits retained."
