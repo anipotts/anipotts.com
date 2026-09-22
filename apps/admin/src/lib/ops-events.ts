@@ -378,7 +378,8 @@ export type OpsAlert = {
 
 /** Problem states, most severe first. */
 const SEVERITY: readonly OpsState[] = ["failing", "degraded", "stale"];
-const worse = (a: OpsState, b: OpsState) =>
+/** The more severe of two states; a non-problem state never outranks. */
+export const worse = (a: OpsState, b: OpsState) =>
   SEVERITY.indexOf(b) !== -1 &&
   (SEVERITY.indexOf(a) === -1 || SEVERITY.indexOf(b) < SEVERITY.indexOf(a))
     ? b

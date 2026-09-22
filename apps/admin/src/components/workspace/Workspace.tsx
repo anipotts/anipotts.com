@@ -1210,26 +1210,40 @@ export function StateCell({
 export function StateTransition({
   domain,
   from,
+  via,
   to,
 }: {
   domain: BadgeDomain;
   from: string | null | undefined;
+  /** A state passed through on the way, for a change that came back. */
+  via?: string | null;
   to: string;
 }) {
+  const step = (
+    <>
+      <ArrowRightIcon
+        weight="regular"
+        aria-hidden="true"
+        className="workspace-transition-mark"
+      />
+      <span className="sr-only">to</span>
+    </>
+  );
   return (
     <span className="workspace-transition">
       {from ? (
         <>
           <Chip badge={badgeFor(domain, from)} />
-          <ArrowRightIcon
-            weight="regular"
-            aria-hidden="true"
-            className="workspace-transition-mark"
-          />
-          <span className="sr-only">to</span>
+          {step}
         </>
       ) : (
         <span className="sr-only">First seen</span>
+      )}
+      {via && (
+        <>
+          <Chip badge={badgeFor(domain, via)} />
+          {step}
+        </>
       )}
       <Chip badge={badgeFor(domain, to)} />
     </span>

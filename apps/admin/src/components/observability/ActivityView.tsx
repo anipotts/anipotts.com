@@ -105,19 +105,29 @@ function TookInline({ row }: { row: Row }) {
   );
 }
 
-/** What changed: the two states of a transition (the first state a burst
- * left and the last it entered), a run's result, a read's status code, each
- * with the burst's count. A detail that has no room left is dropped rather
- * than shown as a sliver (observability-workspace.css). */
+/** What changed: the two states of a transition (a burst of one pair, or a
+ * burst that came back, through the worst state it reached), a run's
+ * result, a read's status code, each with the burst's count. A detail that
+ * has no room left is dropped rather than shown as a sliver
+ * (observability-workspace.css). */
 function Change({ row, catalog }: { row: Row; catalog: OpsCatalog }) {
   const { latest, earliest } = row;
   if (latest.kind === "transition" && earliest.kind === "transition")
     return (
       <span className="ops-change">
-        <StateTransition domain="ops" from={earliest.from} to={latest.to} />
-        {row.count > 1 && (
-          <Burst count={row.count} noun={["change", "changes"]} />
-        )}
+        <StateTransition
+          domain="ops"
+          from={earliest.from}
+          via={row.via}
+          to={latest.to}
+        />
+        {row.via
+          ? row.flaps > 1 && (
+              <Burst count={row.flaps} noun={["round trip", "round trips"]} />
+            )
+          : row.count > 1 && (
+              <Burst count={row.count} noun={["change", "changes"]} />
+            )}
         {latest.detail && <DetailText>{latest.detail}</DetailText>}
       </span>
     );

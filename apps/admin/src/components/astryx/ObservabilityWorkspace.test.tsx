@@ -1130,6 +1130,39 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
     );
   });
 
+  it("draws a flap through the worst state it reached, never OK to OK", () => {
+    const change = (seq: number, minute: number, from: string, to: string) =>
+      access(seq, minute, {
+        kind: "transition",
+        subject: "pc.writer",
+        from_state: from,
+        to_state: to,
+        status: null,
+        ms: null,
+        detail: "inference not ok",
+      });
+    const host = view(
+      "activity",
+      null,
+      page([
+        change(1, 10, "ok", "degraded"),
+        change(2, 11, "degraded", "ok"),
+        change(3, 12, "ok", "degraded"),
+        change(4, 13, "degraded", "ok"),
+      ]),
+    );
+    const lines = bodyRows(host);
+    expect(lines).toHaveLength(1);
+    const cellText = cell(host, "", "Change", lines[0]!);
+    const chips = [...cellText.querySelectorAll(".workspace-transition > *")]
+      .map((node) => node.textContent)
+      .filter((text) => text && text !== "to");
+    expect(chips).toEqual(["OK", "Degraded", "OK"]);
+    expect(cellText.querySelector(".ops-burst")?.getAttribute("title")).toBe(
+      "2 round trips",
+    );
+  });
+
   it("caps a long feed and steps it with Show more", async () => {
     const items = Array.from({ length: 150 }, (_, index) => ({
       seq: index + 1,

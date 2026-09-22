@@ -317,22 +317,56 @@ describe("activity rows", () => {
       item(7, at(24), { device: "ap-phone" }),
     ]);
     const rows = opsActivityRows(events);
+    // OK to Degraded to OK to Degraded is neither one pair nor a return, so
+    // it cannot read as one "OK to Degraded" change: one row each.
     expect(
       rows.map((row) => [row.latest.seq, row.earliest.seq, row.count]),
     ).toEqual([
       [7, 7, 1],
       [6, 6, 1],
       [5, 4, 2],
-      [3, 1, 3],
+      [3, 3, 1],
+      [2, 2, 1],
+      [1, 1, 1],
     ]);
-    const flaps = rows.at(-1)!;
-    expect(flaps.earliest.kind === "transition" && flaps.earliest.from).toBe(
+    expect(OPS_BURST_GAP_MS).toBe(120_000);
+  });
+
+  it("folds identical changes, and a flap that came back through its worst state", () => {
+    const at = (minute: number) => `2026-09-22T17:${minute}:00Z`;
+    const same = opsActivityRows(
+      parse([
+        transition(1, "pc.writer", at(10), "ok", "degraded"),
+        transition(2, "pc.writer", at(11), "ok", "degraded"),
+      ]),
+    );
+    expect(same).toHaveLength(1);
+    expect(same[0]).toMatchObject({ count: 2, via: null, flaps: 0 });
+    const flap = opsActivityRows(
+      parse([
+        transition(1, "host.ap-pro", at(10), "ok", "degraded"),
+        transition(2, "host.ap-pro", at(11), "degraded", "failing"),
+        transition(3, "host.ap-pro", at(12), "failing", "ok"),
+        transition(4, "host.ap-pro", at(13), "ok", "degraded"),
+        transition(5, "host.ap-pro", at(14), "degraded", "ok"),
+      ]),
+    );
+    expect(flap).toHaveLength(1);
+    const [row] = flap;
+    // Never "OK to OK": it names the worst state it reached, and how many
+    // times it left OK.
+    expect(row!.earliest.kind === "transition" && row!.earliest.from).toBe(
       "ok",
     );
-    expect(flaps.latest.kind === "transition" && flaps.latest.to).toBe(
-      "degraded",
+    expect(row!.latest.kind === "transition" && row!.latest.to).toBe("ok");
+    expect(row).toMatchObject({ count: 5, via: "failing", flaps: 2 });
+    const asleep = opsActivityRows(
+      parse([
+        transition(1, "host.ap-pro", at(10), "ok", "asleep"),
+        transition(2, "host.ap-pro", at(11), "asleep", "ok"),
+      ]),
     );
-    expect(OPS_BURST_GAP_MS).toBe(120_000);
+    expect(asleep[0]).toMatchObject({ via: "asleep", flaps: 1 });
   });
 
   it("counts a run reported twice once, with its launchd runs", () => {

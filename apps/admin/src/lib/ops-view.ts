@@ -13,9 +13,15 @@ import {
   opsIsHost,
   type OpsCatalogEntry,
   type OpsServiceView,
+  type OpsState,
   type OpsStatusRow,
 } from "./ops-v1";
-import { opsIsPlumbing, type OpsEvent, type OpsRunEvent } from "./ops-events";
+import {
+  opsIsPlumbing,
+  worse,
+  type OpsEvent,
+  type OpsRunEvent,
+} from "./ops-events";
 import { syncedApps } from "./naming";
 import { dayKey } from "../components/workspace/format";
 
@@ -323,6 +329,10 @@ export type OpsActivityRow = {
   count: number;
   /** For run rows: launchd runs behind the row. */
   runs: number;
+  /** For a transition burst that came back to the state it left: the worst
+   * state it reached on the way, and how many times it left. */
+  via: OpsState | null;
+  flaps: number;
   day: string;
 } & Record<string, unknown>;
 
@@ -387,10 +397,53 @@ export function opsActivityRows(
       earliest: event,
       count: 1,
       runs: runs.get(event.seq) ?? 0,
+      via: null,
+      flaps: 0,
       day,
     });
   }
-  return rows;
+  return rows.flatMap(settleTransitions);
+}
+
+/**
+ * A transition burst keeps one row only when it can be told truthfully in
+ * one: every change is the same pair ("OK to Degraded ×3"), or it came back
+ * to where it started, when it shows the worst state it reached ("OK to
+ * Degraded to OK ×2"), never "OK to OK". Anything else is one row per
+ * change.
+ */
+function settleTransitions(row: OpsActivityRow): OpsActivityRow[] {
+  const { earliest, latest } = row;
+  if (
+    row.count < 2 ||
+    earliest.kind !== "transition" ||
+    latest.kind !== "transition"
+  )
+    return [row];
+  const changes = row.events.filter((event) => event.kind === "transition");
+  if (new Set(changes.map((e) => `${e.from ?? ""}>${e.to}`)).size === 1)
+    return [row];
+  const start = earliest.from;
+  if (start !== null && start === latest.to) {
+    const away = changes.map((event) => event.to).filter((to) => to !== start);
+    if (!away.length) return [row];
+    const via = away.reduce(worse, away.at(-1)!);
+    return [
+      {
+        ...row,
+        via,
+        flaps: changes.filter((event) => event.from === start).length,
+      },
+    ];
+  }
+  return row.events.map((event) => ({
+    ...row,
+    key: String(event.seq),
+    events: [event],
+    latest: event,
+    earliest: event,
+    count: 1,
+  }));
 }
 
 /** How many events the default Activity view leaves out as plumbing. */
