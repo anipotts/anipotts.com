@@ -121,6 +121,53 @@ describe("the one overview", () => {
     ).not.toBeNull();
   });
 
+  it("lines the state and time columns up across its sections", () => {
+    const host = render({ fixture: snapshot, eventsFixture: events });
+    const tail = (label: string) =>
+      [...host.querySelectorAll(`table[aria-label="${label}"] thead th`)]
+        .slice(-2)
+        .map((th) => (th as HTMLElement).style.width);
+    expect(tail("Firing alerts")).toEqual(["144px", "112px"]);
+    expect(tail("Recently updated content")).toEqual(["144px", "112px"]);
+  });
+
+  it("shows each recent record as one row: tile, title, source, state and time", async () => {
+    const { createRoot } = await import("react-dom/client");
+    const { act } = await import("react");
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const host = document.createElement("div");
+    const root = createRoot(host);
+    await act(async () =>
+      root.render(
+        <AdminOverview
+          content={content}
+          dataEnabled
+          dataFixture={data as never}
+          enabled={false}
+          now={NOW}
+        />,
+      ),
+    );
+    for (let i = 0; i < 10; i++)
+      await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    const table = host.querySelector('table[aria-label="Recent records"]')!;
+    expect(
+      [...table.querySelectorAll("thead th")].map((th) => th.textContent),
+    ).toEqual(["Record", "Source", "State", "Observed"]);
+    expect(
+      [...table.querySelectorAll("thead th")]
+        .slice(-2)
+        .map((th) => (th as HTMLElement).style.width),
+    ).toEqual(["144px", "112px"]);
+    const first = table.querySelector("tbody tr")!;
+    expect(first.querySelector(".workspace-row-title")?.textContent).toBe(
+      "Browsing, Sep 21",
+    );
+    expect(first.querySelector('[data-mark="chrome"]')).not.toBeNull();
+    expect(host.textContent).not.toMatch(/\bAni\b/);
+    act(() => root.unmount());
+  });
+
   it("marks synthetic data once", () => {
     const host = render({ dataEnabled: true, dataFixture: data });
     expect(host.textContent?.match(/Sample data/g)).toHaveLength(1);

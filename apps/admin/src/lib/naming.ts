@@ -225,7 +225,7 @@ const MONTH_DAY_YEAR = new Intl.DateTimeFormat("en-US", {
 
 /** A calendar date in a title as people read it: "Sep 22" this year, "Sep
  * 22, 2025" in another. A trailing date follows a comma. */
-function readableDates(title: string, now: number): string {
+export function readableDates(title: string, now: number): string {
   const year = new Date(now).getFullYear();
   return title.replace(
     /(\s*)\b(\d{4})-(\d{2})-(\d{2})\b(\s*)/g,

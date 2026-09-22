@@ -19,7 +19,7 @@ import {
 } from "./private-reader-client";
 import { PRIVATE_READER_AUDIENCE } from "./private-reader-credential";
 import { PrivateShell } from "../components/data/PrivateShell";
-import { RecordDetail } from "../components/data/RecordsView";
+import { RecordPanel } from "../components/data/RecordPanel";
 import { parseRecord } from "../components/data/data-model";
 
 // Synthetic fixtures only, shaped like the System adapter examples in the
@@ -567,7 +567,7 @@ describe("revision history cap", () => {
   const render = async (record: Record<string, unknown>) => {
     await act(async () =>
       root.render(
-        <RecordDetail
+        <RecordPanel
           record={parseRecord(record)}
           busy={false}
           failure={null}
@@ -591,29 +591,35 @@ describe("revision history cap", () => {
         '[title="Latest 100 revisions; older ones are kept"]',
       ),
     ).not.toBeNull();
-    await click("History");
+    // The history is a compact timeline in view, never paged.
     const history = container.querySelector('[aria-label="Revision history"]')!;
     expect(history.querySelectorAll("li")).toHaveLength(100);
-    // No paging control exists for history.
-    expect(history.querySelector("button")).toBeNull();
+    // Its only buttons copy each source version.
+    const buttons = [...history.querySelectorAll("button")];
+    expect(buttons).toHaveLength(100);
+    for (const button of buttons)
+      expect(button.getAttribute("aria-label")).toBe("Copy source version");
+    // The latest 100 cannot say which revision number each is.
+    expect(history.textContent).not.toMatch(/Revision \d/);
   });
 
   it("counts a history under the cap exactly", async () => {
     const text = await render({ ...fixtureRecord, history_limit: 100 });
     expect(text).not.toContain("100+");
-    await click("History");
     const history = container.querySelector('[aria-label="Revision history"]')!;
-    expect(history.textContent).toContain("v2");
-    expect(history.textContent).toContain("Current");
-    expect(
-      history.querySelector('[title="rev-11111111111111111111111111111111"]'),
-    ).not.toBeNull();
+    // Newest first, numbered, each with its source version.
+    const items = [...history.querySelectorAll("li")];
+    expect(items.map((item) => item.textContent)).toEqual([
+      expect.stringMatching(/^Revision 2, .*v2$/),
+      expect.stringMatching(/^Revision 1, .*v1$/),
+    ]);
+    expect(items[0]!.querySelector('[aria-label="Current"]')).not.toBeNull();
+    expect(items[1]!.querySelector('[aria-label="Current"]')).toBeNull();
   });
 
   it("shows times as people read them, never raw ISO text", async () => {
     await render({ ...fixtureRecord, history_limit: 100 });
-    await click("History");
-    await click("Details");
+    await click("Technical");
     const text = container.textContent ?? "";
     expect(text).not.toContain(observed);
     expect(text).not.toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/);

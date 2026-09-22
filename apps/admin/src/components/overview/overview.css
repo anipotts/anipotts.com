@@ -1,0 +1,15 @@
+/* The overview: its sections are the kit's tables, so their state and time
+   columns share the kit's widths and line up down the page. A content row's
+   two chips keep to the state column; the second gives way. */
+.overview-state {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+.overview-state > .workspace-state:not(:first-child) {
+  flex: 0 1 auto;
+  min-width: 0;
+}

@@ -221,10 +221,16 @@ describe("admin mark maps", () => {
       "github",
       "handoff",
       "health.daily",
+      "synthetic-browsing",
       "synthetic-calendar",
       "synthetic-contacts",
+      "synthetic-github",
       "synthetic-health",
+      "synthetic-manual",
+      "synthetic-messages",
       "synthetic-notes",
+      "synthetic-transcripts",
+      "synthetic-voice-memos",
     ]);
     expect(Object.keys(SOURCE_WORDS).sort()).toEqual([
       "atlas",
