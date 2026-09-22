@@ -93,11 +93,7 @@
         "tsconfig.json",
         "package.json"
       ],
-      "outputs": [
-        "dist/**",
-        "src/public/generated.ts",
-        "generated/admin-public-content.json"
-      ]
+      "outputs": ["dist/**", "src/public/generated.ts"]
     },
     "@anipotts/admin#test": {
       "dependsOn": ["^build"],

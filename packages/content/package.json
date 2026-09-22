@@ -39,10 +39,6 @@
       "types": "./dist/public/homepage.d.ts",
       "import": "./dist/public/homepage.js"
     },
-    "./admin": {
-      "types": "./dist/admin/index.d.ts",
-      "import": "./dist/admin/index.js"
-    },
     "./public/inline": "./src/public/inline.ts"
   },
   "scripts": {

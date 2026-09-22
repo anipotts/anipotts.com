@@ -14,10 +14,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
-  sourceContentRecordsFromProjection,
-  summarizeSourceContentRecords,
-} from "../../packages/content/dist/admin/index.js";
-import {
+  DEFAULT_CMS_PROJECTS,
   DEFAULT_HOMEPAGE_CONTENT,
   DEFAULT_SYSTEMS_CONTENT,
   normalizeHomepageContent,
@@ -125,17 +122,12 @@ assert.doesNotMatch(
   "Prettier must not retain the removed public content path",
 );
 
-const generatedAdminProjection = JSON.parse(
-  readFileSync("packages/content/generated/admin-public-content.json", "utf8"),
-);
-const pgiStoryField = generatedAdminProjection.source_records
-  .find((record) => record.slug === "pgi-research-platform")
-  ?.fields.find((field) => field.path === "story");
-assert.equal(pgiStoryField?.kind, "array");
 assert.equal(
-  JSON.parse(pgiStoryField?.value ?? "[]").length,
+  DEFAULT_CMS_PROJECTS.find(
+    (project) => project.slug === "pgi-research-platform",
+  )?.story.length,
   4,
-  "structured project story arrays must remain reviewable in the Admin projection",
+  "structured project story arrays must survive generation intact",
 );
 
 const projectDetailSource = readFileSync(
@@ -208,21 +200,15 @@ try {
     [resolve("scripts/content/generate-public-content.mjs")],
     { cwd: alternateSlugRoot, stdio: "ignore" },
   );
-  const alternateAdminProjection = JSON.parse(
-    readFileSync(
-      join(
-        alternateSlugRoot,
-        "packages/content/generated/admin-public-content.json",
-      ),
-      "utf8",
-    ),
+  const alternateGenerated = readFileSync(
+    join(alternateSlugRoot, "packages/content/src/public/generated.ts"),
+    "utf8",
   );
-  const expectedSource = "content/public/projects/source-name.md";
-  const projected = alternateAdminProjection.records.find(
-    (record) => record.entity_id === "public-project:route-name",
+  assert.match(
+    alternateGenerated,
+    /slug: "route-name",[\s\S]*?detail_path: "\/work\/route-name"/,
+    "a frontmatter slug must name the generated record and its route",
   );
-  assert.equal(projected.source_ref, expectedSource);
-  assert.match(projected.source_hash, /^[a-f0-9]{64}$/);
   const alternateFile = join(
     alternateSlugRoot,
     "content/public/projects/source-name.md",
@@ -250,85 +236,6 @@ try {
 } finally {
   rmSync(alternateSlugRoot, { recursive: true, force: true });
 }
-
-const sourceRecords = sourceContentRecordsFromProjection([
-  {
-    id: "projects.hidden-lab",
-    surface: "projects",
-    slug: "hidden-lab",
-    title: "Hidden Lab",
-    route: "/work/hidden-lab",
-    status: "hidden",
-    source_ref: "content/public/projects/hidden-lab.md",
-    summary: "Internal project page",
-    body_words: 0,
-    body_state: "frontmatter only",
-    body_section_count: 0,
-    body_preview: "no markdown body yet",
-    fields: [{ path: "visible", value: "false", kind: "boolean" }],
-    next_safe_action: "review project source",
-  },
-  {
-    id: "writing.control-plane",
-    surface: "writing",
-    slug: "control-plane",
-    title: "Control Plane",
-    route: "/writing/control-plane",
-    status: "published",
-    source_ref: "content/public/writing/control-plane.md",
-    summary: "Agents need authority, proof, and state.",
-    body_words: 17,
-    body_state: "short body",
-    body_section_count: 1,
-    body_preview:
-      "## opening The admin app should render source-backed writing as a preview before any publish or send path exists.",
-    fields: [{ path: "tags", value: "agents, admin", kind: "array" }],
-    next_safe_action: "review writing source",
-  },
-]);
-
-assert.deepEqual(
-  summarizeSourceContentRecords(sourceRecords),
-  {
-    projects: 1,
-    writing: 1,
-    published_writing: 1,
-    visible_projects: 0,
-  },
-  "generated source content projection must preserve admin summary counts",
-);
-
-const hiddenProject = sourceRecords.find(
-  (record) => record.id === "projects.hidden-lab",
-);
-assert.ok(hiddenProject, "hidden project source record must be projected");
-assert.equal(hiddenProject.status, "hidden");
-assert.equal(hiddenProject.source_ref, "content/public/projects/hidden-lab.md");
-assert.equal(hiddenProject.body_state, "frontmatter only");
-assert.equal(hiddenProject.body_preview, "no markdown body yet");
-
-const writingRecord = sourceRecords.find(
-  (record) => record.id === "writing.control-plane",
-);
-assert.ok(writingRecord, "writing source record must be projected");
-assert.equal(writingRecord.status, "published");
-assert.equal(writingRecord.body_section_count, 1);
-assert.ok(
-  writingRecord.fields.some(
-    (field) => field.path === "tags" && field.value === "agents, admin",
-  ),
-  "generated source content projection must preserve list frontmatter fields",
-);
-assert.ok(
-  writingRecord.body_preview.includes("admin app should render source-backed"),
-  "generated source content projection must expose a markdown body preview",
-);
-
-assert.throws(
-  () => sourceContentRecordsFromProjection([{ surface: "invalid" }]),
-  /surface is invalid/,
-  "invalid generated source records must fail closed",
-);
 
 const systemsContent = normalizeSystemsPageContent({});
 assert.deepEqual(validateSystemsPageContent(systemsContent), { ok: true });
@@ -508,10 +415,10 @@ assert.equal(
     process.execPath,
     [
       "-e",
-      "import('@anipotts/content/admin').then((mod) => process.stdout.write(typeof mod.sourceContentRecordsFromProjection))",
+      "import('@anipotts/content/public').then((mod) => process.stdout.write(typeof mod.normalizeHomepageContent))",
     ],
     { cwd: "apps/admin", encoding: "utf8" },
   ),
   "function",
-  "apps/admin must be able to import @anipotts/content/admin from the built package export",
+  "apps/admin must be able to import @anipotts/content/public from the built package export",
 );

@@ -35,14 +35,6 @@ assert.deepEqual(
   PUBLIC_SMOKE_ROUTES.filter((route) => route.startsWith("/work/")).sort(),
   visible.map((project) => project.detail_path).sort(),
 );
-const projection = JSON.parse(
-  readFileSync("packages/content/generated/admin-public-content.json", "utf8"),
-);
-const workPage = projection.records.find(
-  (record) => record.entity_id === "public-page:making",
-);
-assert.equal(workPage.route, "/work");
-assert.equal(workPage.source_ref, "content/public/pages/work.md");
 const middleware = readFileSync("apps/www/src/middleware.ts", "utf8");
 for (const from of ["making", "projects", "shipping", "running"])
   assert.ok(middleware.includes(`"/${from}": "/work"`));
