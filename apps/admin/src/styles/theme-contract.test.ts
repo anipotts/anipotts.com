@@ -1,6 +1,8 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
+import { ADMIN_CANVAS } from "../lib/admin-theme";
+import { editorialTheme } from "../themes/editorial.js";
 
 // Admin colors switch on the computed color-scheme, the same switch Astryx
 // uses through light-dark(). System mode removes html[data-theme], so tokens
@@ -397,13 +399,237 @@ it("declares no custom properties under [data-theme] or prefers-color-scheme", (
   expect(themedCustomProperties(css)).toEqual([]);
 });
 
-it("leaves the root color-scheme to the layout's inline style", () => {
+it("leaves the root color-scheme to the document's inline style", () => {
   expect(pinnedRootSchemes(css)).toEqual([]);
-  const layout = readFileSync(
-    new URL("../layouts/AdminLayout.astro", import.meta.url),
-    "utf8",
+  expect(document).toContain(
+    'style={{ colorScheme: mode === "system" ? "light dark" : mode }}',
   );
-  expect(layout).toContain(
-    'colorScheme: initialMode === "system" ? "light dark" : initialMode',
+});
+
+const read = (path: string) =>
+  readFileSync(new URL(path, import.meta.url), "utf8");
+const document = read("../layouts/AdminDocument.astro");
+const shell = read("./shell.css");
+const accents = read("../themes/workspace-accents.css");
+const flat = (text: string) => text.replace(/\s+/g, " ");
+
+describe("the one admin document", () => {
+  it("covers the screen, stays out of indexes and titles every page alike", () => {
+    expect(document).toContain(
+      'content="width=device-width, initial-scale=1, viewport-fit=cover"',
+    );
+    expect(document).toContain(
+      '<meta name="robots" content="noindex, nofollow, noarchive" />',
+    );
+    expect(document).toContain("<title>{title} | Admin</title>");
+    expect(document).toContain(
+      '<meta name="apple-mobile-web-app-title" content="Admin" />',
+    );
+    expect(flat(document)).toContain(
+      'rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials"',
+    );
+    // Every page renders through it: the layouts and the standalone pages.
+    for (const page of [
+      "../layouts/AdminLayout.astro",
+      "../layouts/EditorialLayout.astro",
+      "../pages/auth.astro",
+      "../pages/auth/logout.astro",
+    ]) {
+      const source = read(page);
+      expect(source, page).toContain("<AdminDocument");
+      expect(source, page).not.toContain("<!doctype html>");
+    }
+  });
+
+  it("writes one theme-color meta on the canvas colour", () => {
+    expect(document.match(/name="theme-color"/g)).toHaveLength(1);
+    expect(document).not.toContain("prefers-color-scheme");
+    expect(flat(document)).toContain(
+      'content={mode === "dark" ? ADMIN_CANVAS[1] : ADMIN_CANVAS[0]}',
+    );
+    expect(editorialTheme.tokens["--color-background-body"]).toBe(
+      `light-dark(${ADMIN_CANVAS[0]}, ${ADMIN_CANVAS[1]})`,
+    );
+    const manifest = JSON.parse(read("../../public/manifest.webmanifest"));
+    expect(manifest).toMatchObject({
+      name: "Admin",
+      display: "standalone",
+      background_color: ADMIN_CANVAS[0],
+      theme_color: ADMIN_CANVAS[0],
+    });
+  });
+
+  it("paints html, body, main and the phone top bar on the one canvas", () => {
+    const rules = blocks(shell);
+    const background = (selector: string) =>
+      rules
+        .filter((block) => ownSelectors(block).includes(selector))
+        .flatMap((block) => block.declarations)
+        .filter(
+          ([name]) => name === "background" || name === "background-color",
+        )
+        .map(([, value]) => value);
+    for (const selector of ["html", "body"])
+      expect(background(selector)).toEqual(["var(--color-background-body)"]);
+    expect(
+      background(".editorial-workspace-shell #astryx-app-shell-main"),
+    ).toEqual(["var(--color-background-body)"]);
+    expect(background(".admin-phone-bar")).toEqual([
+      "var(--color-background-body)",
+    ]);
+    expect(
+      background(".editorial-workspace-shell .astryx-app-shell-header"),
+    ).toEqual(["var(--color-background-body)"]);
+  });
+
+  it("scrolls the document on phones under a sticky top bar and paints no bottom bar", () => {
+    const compact = blocks(shell).filter((block) =>
+      block.preludes.includes("@media (max-width: 640px)"),
+    );
+    const declarations = (selector: string) =>
+      Object.fromEntries(
+        compact
+          .filter((block) => ownSelectors(block).includes(selector))
+          .flatMap((block) => block.declarations),
+      );
+    expect(declarations(".editorial-workspace-shell")).toMatchObject({
+      height: "auto",
+      "--admin-gutter": "var(--spacing-3)",
+    });
+    expect(
+      declarations(".editorial-workspace-shell #astryx-app-shell-main"),
+    ).toMatchObject({
+      height: "auto",
+      overflow: "visible",
+      "padding-block-end": "env(safe-area-inset-bottom)",
+    });
+    expect(
+      declarations(".editorial-workspace-shell .astryx-app-shell-header"),
+    ).toMatchObject({ position: "sticky", "inset-block-start": "0" });
+    expect(declarations(".admin-phone-bar")).toMatchObject({
+      "padding-block-start": "env(safe-area-inset-top)",
+      "padding-inline": "var(--admin-gutter)",
+    });
+    // The inner scroller and its document lock start only with the sidebar.
+    const lock = blocks(shell).find((block) =>
+      ownSelectors(block).includes("html:has(.editorial-workspace-shell)"),
+    );
+    expect(lock?.preludes[0]).toBe("@media (min-width: 641px)");
+    // Nothing is fixed to the bottom edge.
+    expect(shell).not.toMatch(
+      /inset-block-end|(?<!border-)bottom:|position:\s*fixed/,
+    );
+  });
+
+  it("declares the gutter once per range and applies it once, on main", () => {
+    const gutters = blocks(shell).flatMap((block) =>
+      block.declarations
+        .filter(([name]) => name === "--admin-gutter")
+        .map(([, value]) => `${block.preludes.join(" ")} ${value}`),
+    );
+    expect(gutters).toEqual([
+      ".editorial-workspace-shell clamp(var(--spacing-4), 3vw, var(--spacing-12))",
+      "@media (max-width: 640px) .editorial-workspace-shell var(--spacing-3)",
+    ]);
+    const inline = (selector: string) =>
+      blocks(shell)
+        .filter((block) => ownSelectors(block).includes(selector))
+        .flatMap((block) => block.declarations)
+        .filter(([name]) => name === "padding-inline")
+        .map(([, value]) => value);
+    expect(inline(".editorial-workspace-shell #astryx-app-shell-main")).toEqual(
+      ["var(--admin-gutter)"],
+    );
+    for (const frame of [
+      ".editorial-workspace-shell .admin-page-frame",
+      ".editorial-content",
+    ])
+      expect(inline(frame), frame).toEqual(["0"]);
+  });
+});
+
+// Accent text on its own surfaces, in [light, dark].
+function pair(value: unknown): [string, string] {
+  const match = /^light-dark\((#[\da-f]{6}), (#[\da-f]{6})\)$/i.exec(
+    String(value),
   );
+  if (!match) throw new Error(`not a light-dark pair: ${String(value)}`);
+  return [match[1]!, match[2]!];
+}
+function luminance(hex: string): number {
+  const channels = [1, 3, 5].map((offset) => {
+    const value = Number.parseInt(hex.slice(offset, offset + 2), 16) / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  return channels[0]! * 0.2126 + channels[1]! * 0.7152 + channels[2]! * 0.0722;
+}
+function contrast(a: string, b: string): number {
+  const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (high! + 0.05) / (low! + 0.05);
+}
+
+describe("workspace accents", () => {
+  const sets = blocks(accents).map((block) => ({
+    selectors: ownSelectors(block),
+    tokens: Object.fromEntries(block.declarations),
+  }));
+
+  it("declares one token set per workspace, and no theme file of its own", () => {
+    expect(sets.map(({ selectors }) => selectors)).toEqual([
+      [
+        ':root[data-admin-workspace="life"]',
+        ':root[data-admin-workspace="life"] [data-astryx-theme]',
+      ],
+      [
+        ':root[data-admin-workspace="operations"]',
+        ':root[data-admin-workspace="operations"] [data-astryx-theme]',
+      ],
+    ]);
+    for (const { tokens } of sets)
+      expect(Object.keys(tokens).sort()).toEqual([
+        "--color-accent",
+        "--color-accent-muted",
+        "--color-on-accent",
+      ]);
+    expect(
+      readdirSync(new URL("../themes/", import.meta.url)).filter(
+        (name) => name.endsWith(".ts") && !name.endsWith(".d.ts"),
+      ),
+    ).toEqual(["editorial.ts"]);
+    expect(unswitchedRootColors(accents)).toEqual([]);
+    expect(document).toContain('import "../themes/workspace-accents.css";');
+    expect(document).toContain("data-admin-workspace={workspace ?? undefined}");
+  });
+
+  it("keeps each accent readable on the sidebar, its tint and the document", () => {
+    const base = editorialTheme.tokens;
+    const content = {
+      "--color-accent": base["--color-accent"],
+      "--color-accent-muted": base["--color-accent-muted"],
+      "--color-on-accent": base["--color-on-accent"],
+    };
+    const sidebar = pair(
+      editorialTheme.components?.["app-shell"]?.base?.[
+        "--color-workspace-sidebar"
+      ],
+    );
+    for (const tokens of [content, ...sets.map((set) => set.tokens)]) {
+      const accent = pair(tokens["--color-accent"]);
+      const onAccent = pair(tokens["--color-on-accent"]);
+      for (const surface of [
+        sidebar,
+        pair(tokens["--color-accent-muted"]),
+        pair(base["--color-background-surface"]),
+        pair(base["--color-background-body"]),
+      ])
+        for (const mode of [0, 1])
+          expect(
+            contrast(accent[mode]!, surface[mode]!),
+          ).toBeGreaterThanOrEqual(4.5);
+      for (const mode of [0, 1])
+        expect(contrast(accent[mode]!, onAccent[mode]!)).toBeGreaterThanOrEqual(
+          4.5,
+        );
+    }
+  });
 });

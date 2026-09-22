@@ -1,4 +1,5 @@
-/* Shared interaction targets and motion policy for both admin shells. */
+/* Shared interaction targets and motion policy for every admin page: 36px
+   controls for a precise pointer, 44px on touch and at compact widths. */
 .astryx-icon-button,
 .astryx-toggle-button,
 .astryx-button[data-icon-only="true"],
@@ -9,8 +10,14 @@
 .astryx-command-palette {
   overflow-wrap: anywhere;
 }
-@media (pointer: coarse), (max-width: 540px) {
-  .astryx-button {
+@media (pointer: coarse), (max-width: 640px) {
+  .astryx-button,
+  .astryx-tab,
+  .astryx-segmented-control-item,
+  .astryx-dropdown-menu-item,
+  .astryx-dropdown-menu-radio,
+  .astryx-text-input,
+  .astryx-collapsible-trigger {
     min-height: var(--spacing-11);
   }
   .astryx-icon-button,

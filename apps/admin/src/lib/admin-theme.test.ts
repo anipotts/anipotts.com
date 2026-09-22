@@ -3,12 +3,31 @@ import { runInNewContext } from "node:vm";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  ADMIN_CANVAS,
   adminThemePrepaintScript,
   initialAdminTheme,
+  nextTheme,
   prepaintAdminTheme,
   savedTheme,
   saveTheme,
 } from "./admin-theme";
+import { editorialTheme } from "../themes/editorial.js";
+
+/** The one theme-color meta, as the document writes it. */
+function themeColorMeta() {
+  const meta = { content: "#ffffff" };
+  return {
+    meta,
+    querySelector: (selector: string) =>
+      selector === 'meta[name="theme-color"]'
+        ? {
+            setAttribute: (name: string, value: string) => {
+              if (name === "content") meta.content = value;
+            },
+          }
+        : null,
+  };
+}
 function setup(query = "", cookie = "", stored: Record<string, string> = {}) {
   vi.stubGlobal(
     "location",
@@ -100,8 +119,19 @@ it("runs the production-bundled prepaint script without bundler globals", () => 
     ["", "", {}, "system"],
   ] as const) {
     setup(query, cookie, stored);
+    const { meta, querySelector } = themeColorMeta();
+    Object.assign(document, { querySelector });
     // A separate browser context has no esbuild __name helper from the Worker.
-    runInNewContext(script, { URL, location, document, localStorage });
+    runInNewContext(script, {
+      URL,
+      location,
+      document,
+      localStorage,
+      matchMedia: () => ({ matches: false }),
+    });
+    expect(meta.content).toBe(
+      expected === "dark" ? ADMIN_CANVAS[1] : ADMIN_CANVAS[0],
+    );
     expect(document.documentElement.dataset.theme).toBe(
       expected === "system" ? undefined : expected,
     );
@@ -109,4 +139,40 @@ it("runs the production-bundled prepaint script without bundler globals", () => 
       expected === "system" ? "light dark" : expected,
     );
   }
+});
+
+describe("status bar colour", () => {
+  it("reads the canvas from the editorial theme's body colour", () => {
+    expect(editorialTheme.tokens["--color-background-body"]).toBe(
+      `light-dark(${ADMIN_CANVAS[0]}, ${ADMIN_CANVAS[1]})`,
+    );
+  });
+
+  it.each([
+    ["ap-theme=light", false, ADMIN_CANVAS[0]],
+    ["ap-theme=dark", false, ADMIN_CANVAS[1]],
+    ["ap-theme=system", false, ADMIN_CANVAS[0]],
+    ["ap-theme=system", true, ADMIN_CANVAS[1]],
+  ] as const)(
+    "prepaints and saves the canvas colour for %s (system dark: %s)",
+    (cookie, systemDark, expected) => {
+      setup("", cookie);
+      const { meta, querySelector } = themeColorMeta();
+      Object.assign(document, { querySelector });
+      vi.stubGlobal("matchMedia", () => ({ matches: systemDark }));
+      new Function(adminThemePrepaintScript)();
+      expect(meta.content).toBe(expected);
+      meta.content = "#ffffff";
+      const preference = cookie.slice("ap-theme=".length) as
+        "light" | "dark" | "system";
+      saveTheme(preference);
+      expect(meta.content).toBe(expected);
+    },
+  );
+
+  it("cycles light, dark and system", () => {
+    expect(nextTheme("light")).toBe("dark");
+    expect(nextTheme("dark")).toBe("system");
+    expect(nextTheme("system")).toBe("light");
+  });
 });

@@ -2,25 +2,11 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { navItems } from "../../data/admin";
 import { AdminShell } from "./AdminShell";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-const operational = vi.hoisted(() => ({ render: vi.fn() }));
-vi.mock("./OperationalCommandPalette", () => ({
-  OperationalCommandPalette: () => {
-    operational.render();
-    return null;
-  },
-}));
 const shell = (route: string) => (
-  <AdminShell
-    chrome="admin"
-    currentRoute={route}
-    navItems={navItems}
-    title="Record"
-    localPreview
-  >
+  <AdminShell currentRoute={route} title="Record" localPreview>
     <div>Content</div>
   </AdminShell>
 );
@@ -31,9 +17,7 @@ describe("shared Operations and Life shell", () => {
     (hideHeader) => {
       const html = renderToStaticMarkup(
         <AdminShell
-          chrome="admin"
           currentRoute="/proof"
-          navItems={navItems}
           title="Proof"
           deck="This page is read-only."
           hideHeader={hideHeader}
@@ -49,10 +33,16 @@ describe("shared Operations and Life shell", () => {
     const host = document.createElement("div");
     host.innerHTML = renderToStaticMarkup(shell("/observability/status"));
     expect(host.querySelector('[data-workspace="operations"]')).not.toBeNull();
-    expect(
-      host.querySelector('.admin-bracket-wordmark[aria-label="Admin"]')
-        ?.textContent,
-    ).toBe("[admin]");
+    // The wordmark is the home link, in the sidebar and the phone top bar.
+    const wordmarks = host.querySelectorAll<HTMLAnchorElement>(
+      "a.admin-bracket-wordmark",
+    );
+    expect(wordmarks).toHaveLength(2);
+    for (const wordmark of wordmarks) {
+      expect(wordmark.textContent).toBe("[admin]");
+      expect(wordmark.getAttribute("href")).toBe("/");
+      expect(wordmark.getAttribute("aria-label")).toBe("Overview");
+    }
     const navigation = host.querySelector(".admin-unified-nav")!;
     expect(
       [...navigation.querySelectorAll("[data-sidebar-group]")].map(
@@ -105,56 +95,54 @@ describe("shared Operations and Life shell", () => {
       ).toHaveLength(0);
     },
   );
-  it("renders Data navigation without mounting the Operations search provider", () => {
-    operational.render.mockClear();
+  it("renders Data navigation with the one palette", () => {
     const markup = renderToStaticMarkup(shell("/data/sources"));
     expect(markup).toContain('data-workspace="life"');
     expect(markup).toMatch(/href="\/data\/sources"[^>]*aria-current="page"/);
     expect(markup).toContain('href="/data/records"');
     expect(markup).not.toContain('href="/life');
     expect(markup).not.toContain('href="/inbox"');
-    expect(operational.render).not.toHaveBeenCalled();
+    expect(markup.match(/admin-command-palette-centered/g)).toHaveLength(1);
   });
-  it("keeps auth outside the workspace and its search providers", () => {
-    operational.render.mockClear();
-    const markup = renderToStaticMarkup(
-      <AdminShell
-        chrome="auth"
-        currentRoute="/auth/passkey"
-        navItems={navItems}
-        title="Sign in"
-      >
-        <p>Sign in</p>
-      </AdminShell>,
+  it("keeps the overview workspace-neutral", () => {
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(shell("/"));
+    expect(host.querySelector("[data-workspace]")).toBeNull();
+    // No group is forced open and no workspace tab is current.
+    expect(
+      host.querySelector('.admin-phone-workspace[aria-current="true"]'),
+    ).toBeNull();
+    expect(host.querySelector(".admin-phone-page")).toBeNull();
+    expect(host.querySelector(".admin-phone-bar-title")?.textContent).toBe(
+      "Record",
     );
-    expect(markup).toContain("admin-auth-frame");
-    expect(markup).not.toContain("editorial-workspace-shell");
-    expect(operational.render).not.toHaveBeenCalled();
   });
 });
 
 describe("local owner indicator in Operations and Life", () => {
   afterEach(() => vi.unstubAllGlobals());
   it.each(["/observability/status", "/data/records"])(
-    "shows the non-dismissable local owner token on %s",
+    "shows the laptop tile beside the wordmark on %s",
     (route) => {
       vi.stubGlobal("__LOCAL_OWNER_BUILD__", true);
       const host = document.createElement("div");
       host.innerHTML = renderToStaticMarkup(
-        <AdminShell
-          chrome="admin"
-          currentRoute={route}
-          navItems={navItems}
-          title="Record"
-          localOwner
-        >
+        <AdminShell currentRoute={route} title="Record" localOwner>
           <div>Content</div>
         </AdminShell>,
       );
-      const token = host.querySelector("[data-admin-local-owner]");
-      expect(token?.textContent).toBe("Local owner");
-      expect(token?.getAttribute("role")).toBe("status");
-      expect(token?.querySelector("button")).toBeNull();
+      const tiles = host.querySelectorAll("[data-admin-local-owner]");
+      // Beside the sidebar wordmark and the phone wordmark.
+      expect(tiles).toHaveLength(2);
+      for (const tile of tiles) {
+        expect(
+          tile.closest(".editorial-identity-end, .admin-phone-bar"),
+        ).not.toBeNull();
+        expect(
+          tile.querySelector('[role="img"]')?.getAttribute("aria-label"),
+        ).toBe("Local owner");
+        expect(tile.querySelector("button")).toBeNull();
+      }
       host.innerHTML = renderToStaticMarkup(shell(route));
       expect(host.querySelector("[data-admin-local-owner]")).toBeNull();
     },

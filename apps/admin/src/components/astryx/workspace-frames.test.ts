@@ -19,18 +19,11 @@ const block = (css: string, query: string) => {
 };
 
 describe("workspace page frames", () => {
-  it("gives every workspace page one inline gutter, 12px at compact", () => {
-    expect(shell).toContain(
-      ".editorial-workspace-shell { --admin-gutter: clamp(var(--spacing-4), 3vw, var(--spacing-12)); }",
-    );
-    expect(shell).toContain(
-      "@media (max-width: 640px) { .editorial-workspace-shell { --admin-gutter: var(--spacing-3); } }",
-    );
-    expect(shell).toContain(
-      ".editorial-workspace-shell .admin-page-frame { padding-block: var(--spacing-6); padding-inline: var(--admin-gutter);",
-    );
-    // Data and Observability pages sit in that frame as they are; neither
-    // resets it to set a gutter of its own.
+  it("leaves the one gutter to the shell", () => {
+    // styles/theme-contract.test.ts holds the gutter itself: declared once per
+    // range, applied once on main. Data and Observability pages sit in the
+    // frame as they are; neither resets it to set a gutter of its own.
+    expect(shell).toContain("padding-inline: var(--admin-gutter);");
     for (const css of [kit, operations])
       expect(css).not.toContain("admin-page-frame");
   });
@@ -68,37 +61,29 @@ describe("workspace page frames", () => {
 
   it("keeps every sidebar icon on one centerline", () => {
     // Astryx centres an 18px icon in a 16px slot, so the glyph starts a pixel
-    // outside it. The bordered menus absorb that with their border; the
-    // borderless search button adds the same width.
+    // outside it; the search button holds the icon's own width instead.
     expect(header).toContain(
       ".approved-workspace-header .editorial-header-search { padding-inline-start: calc(var(--spacing-9) / 4); }",
     );
     expect(header).toContain(
-      ".approved-workspace-header .admin-workspace-selector, .editorial-workspace-utilities .admin-sidebar-menu { padding-inline-start: calc(var(--spacing-9) / 4 - var(--border-width)); }",
-    );
-    // The drawer uses the same inset, so the bordered menus ask for a pixel
-    // less there too.
-    expect(header).toContain(
-      ".editorial-workspace-nav :is(.admin-workspace-selector, .admin-sidebar-menu) { padding-inline-start: calc(var(--spacing-2) - var(--border-width)); }",
+      ".editorial-workspace-nav .editorial-header-search > span:first-child > span:first-child:not(#\\#):not(#\\#) { width: calc(var(--spacing-9) / 2); flex: none; }",
     );
     // In the rail there is no label to align to, so the icon takes the middle.
     expect(header).toContain(
-      ":is(.admin-sidebar-menu, .editorial-header-search) { padding-inline: 0; justify-content: center; }",
-    );
-    expect(header).toContain(
-      ":is(.admin-sidebar-menu, .editorial-header-search) > span:first-child { justify-content: center; }",
-    );
-    expect(header).toContain(
-      ".admin-sidebar-menu > span:first-child > span:first-child > svg:not(#\\#):not(#\\#) { width: calc(var(--spacing-9) / 2); height: calc(var(--spacing-9) / 2); flex: none; }",
+      ".editorial-header-search { padding-inline: 0; justify-content: center; }",
     );
   });
 
-  it("keeps one tint and one accent token per workspace", () => {
-    for (const workspace of ["content", "data", "observability"])
-      for (const role of ["tint", "accent"])
-        expect(header).toMatch(
-          new RegExp(`--ws-${workspace}-${role}: light-dark\\(`),
-        );
+  it("gives the sidebar one accent: the current page's icon", () => {
+    expect(header).toContain(
+      '.admin-unified-nav [aria-current="page"] svg { color: var(--color-icon-accent); }',
+    );
+    expect(header).toContain(
+      ".admin-unified-nav [data-sidebar-group] { font-size: var(--text-supporting-size); font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); }",
+    );
+    // Workspace accents are the theme's own tokens, declared once in
+    // themes/workspace-accents.css; the shell keeps no copies.
+    for (const css of [header, shell]) expect(css).not.toMatch(/--ws-/);
   });
 
   it("separates the sidebar groups with space and pins pages to one inset", () => {

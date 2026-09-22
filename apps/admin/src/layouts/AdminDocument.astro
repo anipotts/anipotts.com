@@ -1,0 +1,106 @@
+---
+/**
+ * The one admin document: every page's html, head and body. It sets the
+ * viewport to cover the whole screen (safe areas come from env()), writes one
+ * theme-color meta that the prepaint and saveTheme keep on the canvas colour,
+ * names the workspace on the root for its accent, and keeps every page out of
+ * search indexes. Layouts put their page inside it; standalone pages (sign
+ * in, sign out, not found) use it directly.
+ */
+import "@astryxdesign/core/reset.css";
+import "@astryxdesign/core/astryx.css";
+import "../styles/admin-interactions.css";
+import "../themes/editorial.generated.css";
+import "../themes/workspace-accents.css";
+import "../styles/fonts.css";
+import "../styles/shell.css";
+import "../styles/editor.css";
+import "../styles/focus.css";
+import "../styles/scrollbars.css";
+import {
+  ADMIN_CANVAS,
+  adminThemePrepaintScript,
+  initialAdminTheme,
+} from "../lib/admin-theme";
+import {
+  adminSidebarPrepaintScript,
+  workspaceForPath,
+} from "../lib/admin-sidebar";
+import { preloadedFontUrls } from "../lib/admin-fonts";
+
+type Props = {
+  /** The page's own name; the document title is `{title} | Admin`. */
+  title: string;
+  /** False on pages without the sidebar, which skip its prepaint. */
+  shell?: boolean;
+};
+
+const { title, shell = true } = Astro.props;
+const mode = initialAdminTheme(
+  Astro.url.searchParams.get("theme"),
+  Astro.cookies.get("ap-theme")?.value,
+);
+const workspace = shell ? workspaceForPath(Astro.url.pathname) : null;
+---
+
+<!doctype html>
+<html
+  lang="en"
+  data-astryx-theme="editorial"
+  data-admin-workspace={workspace ?? undefined}
+  data-theme={mode === "system" ? undefined : mode}
+  style={{ colorScheme: mode === "system" ? "light dark" : mode }}
+>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="robots" content="noindex, nofollow, noarchive" />
+    <meta
+      name="theme-color"
+      content={mode === "dark" ? ADMIN_CANVAS[1] : ADMIN_CANVAS[0]}
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="Admin" />
+    <link
+      rel="icon"
+      href="/admin-bracket.svg?v=4"
+      type="image/svg+xml"
+      sizes="any"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="/apple-touch-icon.png?v=20260717a"
+    />
+    <link
+      rel="manifest"
+      href="/manifest.webmanifest"
+      crossorigin="use-credentials"
+    />
+    {
+      preloadedFontUrls.map((href) => (
+        <link
+          rel="preload"
+          as="font"
+          type="font/woff2"
+          href={href}
+          crossorigin=""
+        />
+      ))
+    }
+    <title>{title} | Admin</title>
+    <script is:inline set:html={adminThemePrepaintScript} />
+    {shell && <script is:inline set:html={adminSidebarPrepaintScript} />}
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

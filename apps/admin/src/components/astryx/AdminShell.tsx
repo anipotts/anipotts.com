@@ -7,42 +7,37 @@ import {
   saveTheme,
   type ThemePreference,
 } from "../../lib/admin-theme";
-import type { NavItem } from "../../data/admin";
 import { EditorialWorkspaceShell } from "./EditorialWorkspaceShell";
-import { workspaceThemes } from "../../themes/workspaces";
-import { OperationalCommandPalette } from "./OperationalCommandPalette";
-import { AdminCommandPalette } from "./AdminCommandPalette";
-import { sidebarGroupForPath } from "../../lib/admin-sidebar";
-import { sidebarSearchEntries } from "./UnifiedSidebar";
+import { editorialTheme } from "../../themes/editorial.js";
+import { workspaceForPath } from "../../lib/admin-sidebar";
+import type { AdminSearchResult } from "../../data/admin-search";
 import { adminThemeIcons } from "./adminThemeIcons";
 
-// Built once, so the theme provider sees a stable object per workspace.
-const shellThemes = {
-  content: { ...workspaceThemes.content, icons: adminThemeIcons },
-  life: { ...workspaceThemes.life, icons: adminThemeIcons },
-  operations: { ...workspaceThemes.operations, icons: adminThemeIcons },
-};
+// Built once, so the theme provider sees a stable object. Every workspace
+// renders this one theme; its accent comes from themes/workspace-accents.css.
+const shellTheme = { ...editorialTheme, icons: adminThemeIcons };
 
 type AdminShellProps = {
   children: ReactNode;
-  chrome: "admin" | "auth";
   currentRoute: string;
   deck?: string;
   hideHeader?: boolean;
-  navItems: NavItem[];
   title: string;
+  searchEntries?: AdminSearchResult[];
   localPreview?: boolean;
   localOwner?: boolean;
   initialMode?: ThemePreference;
 };
+
+/** The shell for the overview, Data, Observability and the retired console
+ * pages. Content pages render the same workspace shell from EditorialApp. */
 export function AdminShell({
   children,
-  chrome,
   currentRoute: initialRoute,
   deck,
   hideHeader = false,
-  navItems,
   title,
+  searchEntries,
   localPreview = false,
   localOwner = false,
   initialMode = "light",
@@ -65,41 +60,21 @@ export function AdminShell({
     setMode(next);
     saveTheme(next);
   };
-  const workspace = sidebarGroupForPath(currentRoute.split("?")[0] ?? "");
-  if (chrome === "auth")
-    return (
-      <main className="admin-auth-frame">
-        <section className="admin-auth-card">{children}</section>
-      </main>
-    );
-  const operationalItems = navItems.filter(
-    (item) => item.group !== "life" && item.group !== "website",
-  );
+  const workspace = workspaceForPath(currentRoute.split("?")[0] ?? "");
   return (
-    <Theme theme={shellThemes[workspace]} mode={mode}>
+    <Theme theme={shellTheme} mode={mode}>
       <EditorialWorkspaceShell
         area="content"
         workspace={workspace}
         mode={mode}
         changeTheme={changeTheme}
-        siteHref="https://anipotts.com"
         localPreview={localPreview}
         localOwner={localOwner}
         currentRoute={currentRoute}
-        palette={
-          workspace === "life" ? (
-            <AdminCommandPalette
-              entries={sidebarSearchEntries}
-              navItems={[]}
-              showTrigger={false}
-            />
-          ) : (
-            <OperationalCommandPalette
-              navItems={operationalItems}
-              showTrigger={false}
-            />
-          )
-        }
+        searchEntries={searchEntries}
+        // A client route (overview to Data) keeps the document; the selected
+        // page names the bar instead of the first page's title.
+        title={currentRoute === initialRoute ? title : undefined}
       >
         <VStack gap={4} className="admin-page-frame">
           {!hideHeader && (
