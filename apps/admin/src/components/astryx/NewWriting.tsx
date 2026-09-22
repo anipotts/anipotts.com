@@ -1,5 +1,5 @@
 import { dispatchEditorialRecordCreated } from "../../lib/editorial-inventory-events";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { TextInput } from "@astryxdesign/core/TextInput";
@@ -102,6 +102,16 @@ function NewWritingForm({
   const titleHost = useRef<HTMLDivElement>(null);
   /** A press on the address pencil has started; the title's blur waits. */
   const holding = useRef(false);
+  /** The pencil opened the address field: it takes focus as it mounts, in
+   * the same tap, so a phone keeps its keyboard. */
+  const focusAddress = useRef(false);
+  const addressField = useCallback((input: HTMLInputElement | null) => {
+    addressHints(input);
+    if (input && focusAddress.current) {
+      focusAddress.current = false;
+      input.focus();
+    }
+  }, []);
   const form = useRef<HTMLFormElement>(null);
   useEffect(() => {
     const field = titleHost.current?.querySelector("textarea");
@@ -358,7 +368,7 @@ function NewWritingForm({
           <TextInput
             label={addressLabel}
             value={slug}
-            ref={addressHints}
+            ref={addressField}
             isDisabled={busy || loggedOut}
             status={
               slugError ? { type: "error", message: slugError } : undefined
@@ -390,6 +400,7 @@ function NewWritingForm({
               }}
               onClick={() => {
                 holding.current = false;
+                focusAddress.current = true;
                 setEditingSlug(true);
               }}
             />

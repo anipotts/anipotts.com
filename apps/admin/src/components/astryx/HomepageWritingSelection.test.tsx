@@ -45,6 +45,12 @@ it("retains unresolved and unpublished selections while moving or removing only 
   expect(host.textContent).toContain("Unresolved");
   expect(host.textContent).toContain("Not published");
   expect(onChange).not.toHaveBeenCalled();
+  // Up, down and remove keep their columns: a move that does not apply
+  // leaves an empty slot, so every row has three.
+  for (const row of host.querySelectorAll(".editor-homepage-row"))
+    expect(row.querySelectorAll("button, .editor-homepage-slot")).toHaveLength(
+      3,
+    );
   act(() =>
     host
       .querySelector<HTMLButtonElement>('[aria-label="Move selection 2 up"]')!

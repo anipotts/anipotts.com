@@ -333,6 +333,15 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   max-width: 100%;
   flex: 0 0 auto;
 }
+/* A chip's baseline is its mark's bottom edge, which differs between the
+   8px dot and a 12px glyph (Stale's clock, Asleep's moon). Chips align on
+   their middle instead, so glyph chips sit level with dot chips in a row. */
+.workspace-state {
+  vertical-align: middle;
+}
+.workspace-state-mark {
+  flex: none;
+}
 .workspace-kind {
   color: var(--color-text-secondary);
 }
@@ -490,6 +499,13 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
    two lines at most, with the header kept for assistive technology and no
    count strip. */
 @media (max-width: 640px) {
+  /* A page header's or filter row's controls end their last glyph, not its
+     44px target, on the gutter, as the top bar's search does, so the glyphs
+     line up down the page. */
+  .workspace-page-actions,
+  .workspace-filters {
+    margin-inline-end: calc((var(--spacing-5) - var(--spacing-11)) / 2);
+  }
   .workspace-table-frame {
     --workspace-table-min: var(--workspace-table-min-compact);
   }

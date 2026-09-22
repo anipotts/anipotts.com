@@ -47,13 +47,40 @@
 .data-chips .astryx-button {
   white-space: nowrap;
 }
-/* Chips sit on the badge's neutral fill; a chosen chip takes the accent. */
+/* Chips sit on the badge's neutral fill; a chosen chip takes the accent.
+   The fill is id-weighted to beat the button's own, so hover, press and
+   keyboard focus lay their tint over it instead of losing it: focus is the
+   admin's accent tint (styles/focus.css), a chosen chip's focus a darker
+   overlay on its accent. */
 .data-chips .astryx-button:not(#\#) {
   background-color: var(--color-neutral);
 }
 .data-chips .astryx-button[aria-pressed="true"]:not(#\#) {
   background-color: var(--color-accent-muted);
   color: var(--color-text-accent, var(--color-accent));
+}
+.data-chips .astryx-button:focus-visible:not([aria-pressed="true"]):not(#\#) {
+  background-color: var(--color-accent-muted);
+}
+.data-chips .astryx-button[aria-pressed="true"]:focus-visible:not(#\#) {
+  background-image: linear-gradient(
+    var(--color-overlay-pressed),
+    var(--color-overlay-pressed)
+  );
+}
+@media (hover: hover) {
+  .data-chips .astryx-button:hover:not(#\#) {
+    background-image: linear-gradient(
+      var(--color-overlay-hover),
+      var(--color-overlay-hover)
+    );
+  }
+}
+.data-chips .astryx-button:active:not(#\#) {
+  background-image: linear-gradient(
+    var(--color-overlay-pressed),
+    var(--color-overlay-pressed)
+  );
 }
 /* On phones the chip row runs to the screen edges, like the list below. */
 @media (max-width: 640px) {

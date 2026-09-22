@@ -379,7 +379,7 @@ export function EditorialApp({
                   {value}
                 </Text>
               ))}
-              <Card padding={5}>
+              <Card padding={5} className="editorial-review-card">
                 <VStack gap={5} className="editorial-prose">
                   {review.summary && <Text as="p">{review.summary}</Text>}
                   {review.media &&

@@ -72,7 +72,9 @@ export function HomepageWritingSelection({
             {exception && (
               <Token size="sm" label={exception} className="workspace-state" />
             )}
-            {index > 0 && (
+            {/* Up, down and remove keep fixed columns: a move that does not
+                apply leaves its slot empty. */}
+            {index > 0 ? (
               <IconButton
                 label={`Move selection ${index + 1} up`}
                 tooltip="Move up"
@@ -82,8 +84,10 @@ export function HomepageWritingSelection({
                 isDisabled={disabled}
                 onClick={() => move(index, -1)}
               />
+            ) : (
+              <span className="editor-homepage-slot" aria-hidden="true" />
             )}
-            {index < value.length - 1 && (
+            {index < value.length - 1 ? (
               <IconButton
                 label={`Move selection ${index + 1} down`}
                 tooltip="Move down"
@@ -93,6 +97,8 @@ export function HomepageWritingSelection({
                 isDisabled={disabled}
                 onClick={() => move(index, 1)}
               />
+            ) : (
+              <span className="editor-homepage-slot" aria-hidden="true" />
             )}
             <IconButton
               label={`Remove selection ${index + 1}`}

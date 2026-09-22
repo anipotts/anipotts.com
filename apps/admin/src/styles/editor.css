@@ -59,6 +59,11 @@
     margin-block-start: calc(-1 * var(--spacing-3));
   }
 }
+/* The phone sheets lift on their shadow alone, with no outline. */
+.editor-action-sheet:not(#\#),
+.record-panel-sheet:not(#\#) {
+  border: 0;
+}
 .editor-action-sheet-title {
   padding-inline: var(--spacing-3);
   padding-block: var(--spacing-1);
@@ -691,6 +696,16 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 }
 .editor-homepage-row {
   min-height: var(--spacing-11);
+}
+/* An empty move slot holds an icon button's width (36px, 44px on touch). */
+.editor-homepage-slot {
+  flex: none;
+  width: var(--spacing-9);
+}
+@media (pointer: coarse), (max-width: 640px) {
+  .editor-homepage-slot {
+    width: var(--spacing-11);
+  }
 }
 
 /* Media: a 56px thumb with its controls beside it. */

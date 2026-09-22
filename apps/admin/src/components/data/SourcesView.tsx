@@ -250,7 +250,8 @@ export function CardsExplorer({
           {
             key: "observed",
             header: "Observed",
-            width: 96,
+            // Holds "Not recorded" with the cell inset.
+            width: 120,
             render: (card) => <RelativeTime value={card.observed_at} />,
           },
         ]}

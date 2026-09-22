@@ -147,7 +147,8 @@ export function recordColumns({
     {
       key: "observed",
       header: "Observed",
-      width: 96,
+      // Holds "Not recorded" with the cell inset.
+      width: 120,
       render: (record) => <RelativeTime value={record.observedAt} />,
     },
   ];

@@ -93,6 +93,17 @@ body {
 .editorial-prose astro-slot > * + * {
   margin-top: var(--spacing-4);
 }
+/* On a phone an issue's prose sits on the canvas: no card, border or inset
+   narrowing the column. */
+@media (max-width: 640px) {
+  .editorial-review-card:not(#\#) {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+}
 
 /* Astryx rules off every header row; admin tables separate with spacing. */
 .astryx-table-header-cell {
