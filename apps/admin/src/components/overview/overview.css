@@ -13,3 +13,25 @@
   flex: 0 1 auto;
   min-width: 0;
 }
+
+/* An entry never proven (a restore drill that never ran) is not all clear:
+   its Unverified chip opens the entry on Status. Focus shows as a tint. */
+.overview-unverified {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-block-size: 36px;
+  padding-inline: var(--spacing-1);
+  border-radius: var(--radius-inner);
+  color: inherit;
+  text-decoration: none;
+}
+.overview-unverified:hover,
+.overview-unverified:focus-visible {
+  background-color: var(--color-accent-muted);
+}
+@media (pointer: coarse) {
+  .overview-unverified {
+    min-block-size: 44px;
+  }
+}

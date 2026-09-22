@@ -279,6 +279,24 @@ export function NextDue({
   );
 }
 
+/** The warning chip for entries whose check was never proven (a restore
+ * drill that never ran), with a count when it summarises several. */
+export function UnverifiedBadge({ count }: { count?: number }) {
+  return (
+    <StateBadge
+      tone="warning"
+      label={count === undefined ? "Unverified" : `${count} Unverified`}
+      icon={
+        <SealQuestionIcon
+          weight="regular"
+          aria-hidden="true"
+          className="workspace-state-mark"
+        />
+      }
+    />
+  );
+}
+
 /**
  * An entry's state: in a state column (`cell`) a quiet dot for ok and a
  * chip otherwise; elsewhere a chip only for an exception. A restore drill
@@ -291,20 +309,7 @@ export function EntryState({
   service: OpsServiceView;
   cell?: boolean;
 }) {
-  if (opsUnverified(service))
-    return (
-      <StateBadge
-        tone="warning"
-        label="Unverified"
-        icon={
-          <SealQuestionIcon
-            weight="regular"
-            aria-hidden="true"
-            className="workspace-state-mark"
-          />
-        }
-      />
-    );
+  if (opsUnverified(service)) return <UnverifiedBadge />;
   return cell ? (
     <StateCell domain="ops" state={service.status.state} />
   ) : (

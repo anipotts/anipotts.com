@@ -15,10 +15,14 @@ import type { CatalogRecord } from "../astryx/EditorialApp";
 import {
   AlertsTable,
   opsAlertRows,
+  opsEntryHref,
   useOpsData,
   type OpsViewProps,
 } from "../astryx/ObservabilityWorkspace";
 import { opsUnreadTitle } from "../observability/frame";
+import { UnverifiedBadge } from "../observability/cells";
+import { opsServices } from "../../lib/ops-v1";
+import { opsUnverified } from "../../lib/ops-view";
 import { DataReadSession } from "../../lib/data-read-session";
 import type { DataResult } from "../../data/personal-context";
 import { dataRecordHref } from "../../lib/data-routes";
@@ -77,7 +81,8 @@ const OPS_DOWN: Partial<Record<string, Down>> = {
  * Firing alerts only, and nothing at all when everything is clear. They are
  * the Alerts page's own rows, so each opens its alert in admin, where the
  * runbook is. When ops cannot be read the section says so instead of
- * reading as all clear.
+ * reading as all clear, and an entry never proven (a restore drill that
+ * never ran) is named Unverified, since that is not clear either.
  */
 function FiringAlerts(props: OpsViewProps) {
   const data = useOpsData(props, true);
@@ -88,13 +93,18 @@ function FiringAlerts(props: OpsViewProps) {
       ),
     [data.events, data.snapshot],
   );
+  const unverified = useMemo(
+    () =>
+      data.snapshot ? opsServices(data.snapshot).filter(opsUnverified) : [],
+    [data.snapshot],
+  );
   const down: Down | undefined =
     (data.fixtureMode ? undefined : OPS_DOWN[data.state.connection]) ??
     // An unread event may have been a failure, so no silence reads as clear.
     ((data.events?.skipped ?? 0) > 0
       ? { title: opsUnreadTitle(data.events!.skipped), kind: "error" }
       : undefined);
-  if (!firing.length && !down) return null;
+  if (!firing.length && !down && !unverified.length) return null;
   return (
     <WorkspaceSection title="Alerts" href="/observability/alerts">
       {down && (
@@ -116,6 +126,15 @@ function FiringAlerts(props: OpsViewProps) {
             ) : undefined
           }
         />
+      )}
+      {unverified.length > 0 && (
+        <a
+          className="overview-unverified"
+          href={opsEntryHref(unverified[0]!.id)}
+          title={unverified.map((service) => service.name).join(", ")}
+        >
+          <UnverifiedBadge count={unverified.length} />
+        </a>
       )}
       {firing.length > 0 && <AlertsTable rows={firing} now={data.fixedNow} />}
     </WorkspaceSection>

@@ -60,6 +60,7 @@ import {
   TriggerMark,
   entryKind,
   entryNaming,
+  UnverifiedBadge,
 } from "./cells";
 import { EntryPanel, OPS_PANEL_ID } from "./EntryPanel";
 import { OpsPage, type OpsData } from "./frame";
@@ -265,34 +266,49 @@ const EXCEPTIONS: readonly OpsState[] = [
   "asleep",
 ];
 
-/** One count chip per non-ok state; nothing when everything is ok. */
+/** One count chip per non-ok state, and one for entries never proven
+ * (Unverified, which is never ok), so the summary never reads all clear
+ * while a restore is unproven. An unverified entry counts once, as its row
+ * reads. Problems first, then Unverified, then what is only unknown. */
 function ExceptionCounts({ services }: { services: OpsServiceView[] }) {
-  const counts = opsRenderedCounts(services);
+  const unverified = services.filter(opsUnverified).length;
+  const counts = opsRenderedCounts(
+    services.filter((service) => !opsUnverified(service)),
+  );
   const shown = EXCEPTIONS.filter((state) => counts[state] > 0);
-  if (!shown.length) return null;
+  if (!shown.length && !unverified) return null;
+  const chip = (state: OpsState) => {
+    const badge = badgeFor("ops", state);
+    const Glyph = badge.icon;
+    return (
+      <li key={state}>
+        <StateBadge
+          tone={badge.tone}
+          label={`${counts[state]} ${badge.label}`}
+          icon={
+            Glyph ? (
+              <Glyph
+                weight="regular"
+                aria-hidden="true"
+                className="workspace-state-mark"
+              />
+            ) : undefined
+          }
+        />
+      </li>
+    );
+  };
+  const problem = (state: OpsState) =>
+    state === "failing" || state === "degraded" || state === "stale";
   return (
     <ul className="ops-counts" aria-label="Not ok">
-      {shown.map((state) => {
-        const badge = badgeFor("ops", state);
-        const Glyph = badge.icon;
-        return (
-          <li key={state}>
-            <StateBadge
-              tone={badge.tone}
-              label={`${counts[state]} ${badge.label}`}
-              icon={
-                Glyph ? (
-                  <Glyph
-                    weight="regular"
-                    aria-hidden="true"
-                    className="workspace-state-mark"
-                  />
-                ) : undefined
-              }
-            />
-          </li>
-        );
-      })}
+      {shown.filter(problem).map(chip)}
+      {unverified > 0 && (
+        <li key="unverified">
+          <UnverifiedBadge count={unverified} />
+        </li>
+      )}
+      {shown.filter((state) => !problem(state)).map(chip)}
     </ul>
   );
 }

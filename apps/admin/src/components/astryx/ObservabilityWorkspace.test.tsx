@@ -438,6 +438,11 @@ describe("Status view edge cases", () => {
     const state = cell(host, "backup.restore-drill", "State");
     expect(state.textContent).toBe("Unverified");
     expect(state.querySelector(".workspace-state-quiet")).toBeNull();
+    // The summary counts it once, as Unverified, never among the ok rows.
+    const summary = [
+      ...host.querySelectorAll('ul[aria-label="Not ok"] li'),
+    ].map((item) => item.textContent);
+    expect(summary).toContain("1 Unverified");
     // Recovery sits right after backups.
     expect(groupTitles(host).slice(0, 3)).toEqual([
       "Personal context",

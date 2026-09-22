@@ -77,6 +77,37 @@ describe("the one overview", () => {
     expect(table.querySelector('[data-mark="1password"]')).not.toBeNull();
   });
 
+  it("names a restore that was never proven, so it never reads all clear", () => {
+    const value = structuredClone(snapshot) as Record<string, any>;
+    value.catalog.push({
+      ...value.catalog[1],
+      id: "backup.restore-drill",
+      name: "restore drill",
+      group: "recovery",
+      kind: "job",
+      freshness_budget_s: null,
+      schedule: "monthly",
+    });
+    value.status.push({
+      id: "backup.restore-drill",
+      state: "ok",
+      detail: "never_run",
+      last_success_at: null,
+      last_run_at: null,
+      last_exit: null,
+    });
+    // No firing alerts: before this, the section was absent and read clear.
+    const quiet = { ...events, items: [] };
+    const host = render({ fixture: value, eventsFixture: quiet });
+    expect(headings(host)).toContain("Alerts");
+    const link = host.querySelector("a.overview-unverified")!;
+    expect(link.textContent).toBe("1 Unverified");
+    expect(link.getAttribute("href")).toBe(
+      "/observability/status?entry=backup.restore-drill",
+    );
+    expect(host.querySelector('table[aria-label="Firing alerts"]')).toBeNull();
+  });
+
   it("links every section heading to its page, and nothing says View all", () => {
     const host = render({ fixture: snapshot, eventsFixture: events });
     const heading = (name: string) =>
