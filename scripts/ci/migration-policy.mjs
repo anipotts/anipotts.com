@@ -140,13 +140,26 @@ function validateNewRecord(record, sql, file, bootstrap) {
   return record;
 }
 
-// With no migration in the diff, production is at the highest migration the
-// manifest records: the bootstrap baseline or a later record, which applies in
-// the release that adds it. A pinned after-fingerprint travels with it.
-function recordedSchema(manifest) {
-  const latest = [...manifest.migrations]
-    .sort((a, b) => a.file.localeCompare(b.file))
-    .at(-1);
+// With no migration in the diff, production is at the highest migration it has
+// applied. The bootstrap baseline and historical files are applied. A later
+// record counts only if a release applies it on its own: an automatic record
+// under a verified ledger with automatic apply, which applies in the release
+// that adds it or stops that release. An approval record never auto-applies,
+// and it holds every record after it, so the version stays below it until a
+// reviewed manifest change moves it into historical, as 0043 was. A pinned
+// after-fingerprint travels with the last applied record.
+function appliedSchema(manifest) {
+  const autoApplies =
+    manifest.bootstrap.status === "verified" &&
+    manifest.bootstrap.automatic_remote_apply === true;
+  const records = [...manifest.migrations].sort((a, b) =>
+    a.file.localeCompare(b.file),
+  );
+  const firstHeld = records.findIndex(
+    (record) => !autoApplies || record.risk !== "automatic",
+  );
+  const applied = firstHeld === -1 ? records : records.slice(0, firstHeld);
+  const latest = applied.at(-1);
   const file = [
     manifest.bootstrap.baseline_through,
     ...manifest.historical.map(([name]) => name),
@@ -169,7 +182,7 @@ export function inspectMigrationChanges(paths, options = {}) {
     .filter((path) => /^drizzle\/migrations\/\d{4}_.+\.sql$/.test(path))
     .map((path) => basename(path));
   if (migrationFiles.length === 0) {
-    const schema = recordedSchema(manifest);
+    const schema = appliedSchema(manifest);
     return {
       changed: false,
       risk: "none",
