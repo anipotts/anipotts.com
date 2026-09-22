@@ -180,8 +180,11 @@ function useHeadingScrolledAway(route: string) {
 const openSearch = () =>
   document.dispatchEvent(new CustomEvent("admin:search"));
 
-/** Local owner builds only: the laptop tile beside the wordmark. */
+/** Local owner builds only: the laptop tile beside the wordmark. The flag
+ * is a build-time literal, so deployable builds drop the marker below as dead
+ * code; scripts/ci/admin-local-owner-leak.mjs checks the bundle. */
 function LocalOwnerTile() {
+  if (!__LOCAL_OWNER_BUILD__) return null;
   return (
     <span className="admin-local-owner" data-admin-local-owner="true">
       <BrandTile id="ap-pro" size={24} label="Local owner" />
@@ -206,7 +209,7 @@ function PhoneBar({
     <div className="admin-phone-bar" onClickCapture={onClientLinkClick}>
       <HStack gap={2} vAlign="center" className="admin-phone-bar-identity">
         <AdminWordmark href="/" label="Overview" />
-        {localOwner && <LocalOwnerTile />}
+        {__LOCAL_OWNER_BUILD__ && localOwner && <LocalOwnerTile />}
       </HStack>
       <span
         className="admin-phone-bar-title"
@@ -316,7 +319,7 @@ function WorkspaceIdentity({
             the middle of the row. */}
         {!rail && (
           <span className="editorial-identity-end">
-            {localOwner && <LocalOwnerTile />}
+            {__LOCAL_OWNER_BUILD__ && localOwner && <LocalOwnerTile />}
           </span>
         )}
       </HStack>
@@ -331,7 +334,7 @@ function WorkspaceIdentity({
         icon={<MagnifyingGlassIcon size={18} aria-hidden="true" />}
         onClick={openSearch}
       />
-      {rail && localOwner && <LocalOwnerTile />}
+      {__LOCAL_OWNER_BUILD__ && rail && localOwner && <LocalOwnerTile />}
     </VStack>
   );
 }
