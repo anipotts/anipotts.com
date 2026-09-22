@@ -84,17 +84,33 @@ describe("brand mark registry", () => {
     ]);
   });
 
-  it("gives every sprite glyph a brand colour and every black one a dark ink", () => {
+  it("gives every sprite glyph its own plate edge to edge, never the neutral tile", () => {
+    const plated = [];
     for (const mark of Object.values(MARKS)) {
       if (mark.art.type !== "symbol") {
         expect(mark.color, mark.id).toBeUndefined();
+        expect(mark.plate, mark.id).toBeUndefined();
         continue;
       }
-      expect(mark.fit, mark.id).toBe("glyph");
+      plated.push(mark.id);
+      expect(mark.fit, mark.id).toBe("plate");
+      expect(mark.plate, mark.id).toMatch(/^#[0-9A-F]{6}$/);
       expect(mark.color, mark.id).toMatch(/^#[0-9A-F]{6}$/);
-      const black = ["#000000", "#181717"].includes(mark.color ?? "");
-      expect(mark.dark, mark.id).toBe(black ? "#EEF0F4" : undefined);
+      // The glyph's ink is never the plate's.
+      expect(mark.color, mark.id).not.toBe(mark.plate);
+      expect(mark).not.toHaveProperty("dark");
     }
+    expect(plated.sort()).toEqual([
+      "buttondown",
+      "cloudflare",
+      "github",
+      "linear",
+      "npm",
+      "resend",
+      "vercel",
+      "x",
+      "youtube",
+    ]);
   });
 
   it("fills the tile with every raster plate, Chrome's included", () => {

@@ -14,9 +14,16 @@ or account information is included in any of them.
 
 - Brand artwork keeps its official colours in both themes. It is never
   recoloured, redrawn or used to show state.
-- `svg/` holds flat single-colour glyphs only. The tile paints them in the
-  brand colour recorded in `src/marks.ts`; black brands swap to `#EEF0F4` in
-  the dark theme.
+- Every mark fills its tile. `svg/` holds flat single-colour glyphs only;
+  each sits on its brand's own plate, drawn edge to edge like an app icon,
+  in the pairing the brand uses for its own icon (`plate` and `color` in
+  `src/marks.ts`: white on GitHub's `#181717`, X's, Vercel's and Resend's
+  black, Buttondown's blue, Linear's indigo and npm's red; Cloudflare's
+  orange and YouTube's red on white). Plates keep their colours in both
+  themes; a dark plate keeps a faint rim on the dark canvas.
+- Device renders are the icon itself, with no plate or tile behind them.
+  ap-plus, a matte black phone, takes a light drop-shadow rim on the dark
+  canvas so its outline reads.
 - `img/` holds artwork that brings its own colours: a 56 and a 112 px WebP
   (2x and 4x of the 28 px tile) with a 112 px PNG fallback, or one standalone
   vector when the official file needs gradients or clip paths.
@@ -38,8 +45,8 @@ or account information is included in any of them.
   on white, so the tile's corner clips the white margin.
 - ChatGPT Atlas's `.icns` tops out at 256 px (`icon_128x128@2x`), which
   still covers the 112 px rendition.
-- Chrome's macOS icon has no plate, so it is trimmed to its circle and drawn
-  at glyph size inside the neutral tile.
+- Chrome's vendored icon is its white app plate, so it fills the tile like
+  every other app plate.
 - Rasters were resized with ImageMagick (Lanczos), written as WebP with
   `cwebp -q 90 -alpha_q 100 -m 6 -sharp_yuv`, and the PNG fallback was
   quantized with `pngquant --quality 80-98` (kept lossless when that would cost

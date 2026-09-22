@@ -1,7 +1,8 @@
 /* The brand tile. It borrows the badge's geometry: a Token sm is 20px tall
    with --radius-inner (6px), so the tile's corner is 0.3 of its side at every
    size (6px at 20, 7.2px at 24, 8.4px at 28). A rounded square, never a
-   circle, on the badge's neutral fill with no border or shadow. */
+   circle, with no border or shadow; the badge's neutral fill shows only
+   behind a Phosphor fallback. */
 .brand-tile {
   --brand-tile-size: var(--row-mark-size, 24px);
   display: inline-grid;
@@ -28,17 +29,30 @@
   background-color: transparent;
 }
 
-/* Glyph artwork is sized to its tile like an app icon's plate: the brand's
-   colour, black brands taking the dark ink in the dark theme. */
+/* ap-plus is a matte black phone: on the dark canvas a light rim traces
+   its outline so it reads, without a square behind it. */
+.brand-tile[data-mark="ap-plus"] .brand-tile-art {
+  filter: drop-shadow(0 0 0.5px light-dark(transparent, rgb(255 255 255 / 0.7)))
+    drop-shadow(0 0 0.5px light-dark(transparent, rgb(255 255 255 / 0.45)));
+}
+
+/* A flat brand glyph on the brand's own plate: the plate fills the tile
+   edge to edge, like an app icon, and the glyph sits in the plate's ink.
+   Neither changes with the theme. */
+.brand-tile[data-fit="plate"] {
+  background-color: var(--brand-plate);
+}
 .brand-tile-art {
   display: block;
-  inline-size: calc(var(--brand-tile-size) * 0.75);
-  block-size: calc(var(--brand-tile-size) * 0.75);
+  inline-size: calc(var(--brand-tile-size) * 0.62);
+  block-size: calc(var(--brand-tile-size) * 0.62);
   object-fit: contain;
-  fill: light-dark(
-    var(--brand-mark-color, currentColor),
-    var(--brand-mark-dark, currentColor)
-  );
+  fill: var(--brand-mark-color, currentColor);
+}
+
+/* A dark plate keeps a faint rim on the dark canvas so its corner reads. */
+.brand-tile[data-plate="dark"] {
+  box-shadow: inset 0 0 0 1px light-dark(transparent, rgb(255 255 255 / 0.14));
 }
 
 /* App plates and device renders are the tile: edge to edge, clipped to its
