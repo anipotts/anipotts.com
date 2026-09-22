@@ -57,7 +57,6 @@ export const OPS_V1_BOUNDS = {
   id: /^[a-z0-9][a-z0-9.-]{0,63}$/,
   nameMax: 120,
   groupMax: 64,
-  ownerMax: 64,
   detailMax: 160,
   runbookMax: 512,
   scheduleMax: 64,
@@ -81,7 +80,6 @@ export type OpsCatalogEntry = {
   group: string;
   kind: OpsKind;
   host: OpsHost;
-  owner: string;
   freshness_budget_s: number | null;
   runbook: string;
   /** Short human string ("hourly", "daily 04:00", "continuous") or null. */
@@ -142,12 +140,16 @@ const ENTRY_KEYS = [
   "group",
   "kind",
   "host",
-  "owner",
   "freshness_budget_s",
   "runbook",
   "schedule",
 ] as const;
 const ENTRY_OPTIONAL_KEYS = ["trigger"] as const;
+/** Fields System still sends that admin accepts and never reads, so they
+ * raise no drift notice and System can drop them without breaking the
+ * snapshot. `owner` is System's retired owner taxonomy (memory, system/chief,
+ * life/chief); nothing in admin shows it. */
+const ENTRY_IGNORED_KEYS = ["owner"] as const;
 const ROW_KEYS = [
   "state",
   "detail",
@@ -344,7 +346,12 @@ function seconds(value: unknown, max: number): number {
 }
 
 function entry(value: unknown, drift: FieldDrift): OpsCatalogEntry {
-  const e = known(value, ENTRY_KEYS, ENTRY_OPTIONAL_KEYS, drift);
+  const e = known(
+    value,
+    ENTRY_KEYS,
+    [...ENTRY_OPTIONAL_KEYS, ...ENTRY_IGNORED_KEYS],
+    drift,
+  );
   if (typeof e.id !== "string" || !OPS_V1_BOUNDS.id.test(e.id)) fail();
   return {
     // Short human string, such as "hourly" or "daily 04:00", or null.
@@ -356,7 +363,6 @@ function entry(value: unknown, drift: FieldDrift): OpsCatalogEntry {
     group: text(e.group, OPS_V1_BOUNDS.groupMax),
     kind: member(e.kind, OPS_V1_KINDS),
     host: host(e.host),
-    owner: text(e.owner, OPS_V1_BOUNDS.ownerMax),
     freshness_budget_s:
       e.freshness_budget_s === null
         ? null
@@ -480,6 +486,8 @@ export type OpsServiceView = OpsCatalogEntry & {
   status: OpsStatusRow;
   /** True when System sent no status row; the state is then `unknown`. */
   missingStatus: boolean;
+  /** The snapshot's `generated_at`: when System observed this row. */
+  sampledAt: string;
 };
 
 export const MISSING_STATUS: OpsStatusRow = Object.freeze({
@@ -504,6 +512,7 @@ export function opsServices(snapshot: OpsSnapshot): OpsServiceView[] {
       ...item,
       status: status ?? MISSING_STATUS,
       missingStatus: !status,
+      sampledAt: snapshot.generated_at,
     };
   });
 }
@@ -527,7 +536,7 @@ export function opsSamplerStopped(snapshot: OpsSnapshot, now: number) {
 }
 
 /**
- * Owner priority for the Status table: Personal Context memory, its
+ * Group order for the Status table: Personal Context memory, its
  * snapshots and offsite copies first, then restore drills (recovery), then
  * health ingest, then agent sessions, then services. Groups System adds
  * later follow in catalog order. The "hosts" group renders as the strip

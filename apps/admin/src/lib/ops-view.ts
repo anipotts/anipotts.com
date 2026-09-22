@@ -106,12 +106,99 @@ export function opsCadenceText(seconds: number): string {
 
 export type OpsTriggerFacts = {
   label: string;
-  /** How often or when: "every 15 min", "daily 04:30", "always running". */
+  /** How often or when: "checks every 15m", "daily 04:30", "always
+   * running". An interval is only how often launchd starts the job, which
+   * is not always its cadence, so it reads as a check. */
   cadence: string | null;
   /** launchd does not expose an interval job's timer, so its next run is
    * the last run plus the interval. */
   approximate: boolean;
 };
+
+/** A launchd interval as a compact period: "15s", "15m", "1h", "4h",
+ * "90m", "2d". */
+export function opsPeriodText(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600 || seconds % 3600 !== 0)
+    return seconds % 60 === 0 ? `${seconds / 60}m` : `${seconds}s`;
+  if (seconds < 86_400 || seconds % 86_400 !== 0) return `${seconds / 3600}h`;
+  return `${seconds / 86_400}d`;
+}
+
+const PERIOD_UNITS: Readonly<Record<string, number>> = {
+  s: 1,
+  sec: 1,
+  secs: 1,
+  second: 1,
+  seconds: 1,
+  m: 60,
+  min: 60,
+  mins: 60,
+  minute: 60,
+  minutes: 60,
+  h: 3600,
+  hr: 3600,
+  hrs: 3600,
+  hour: 3600,
+  hours: 3600,
+  d: 86_400,
+  day: 86_400,
+  days: 86_400,
+};
+
+/** The period a catalog schedule names, in seconds: "hourly" and "every
+ * hour" are 3600, "every 15 min while awake" is 900. Null for a schedule
+ * that names a time of day ("daily 04:00", "nightly after 03:00") or no
+ * period at all. */
+export function opsSchedulePeriod(schedule: string | null): number | null {
+  const text = schedule?.trim().toLowerCase() ?? "";
+  if (text === "hourly") return 3600;
+  const every = /^every (?:(\d+) ?)?([a-z]+)\b/.exec(text);
+  if (!every) return null;
+  const unit = PERIOD_UNITS[every[2]!];
+  if (unit === undefined) return null;
+  return (every[1] ? Number(every[1]) : 1) * unit;
+}
+
+export type OpsNextRun = {
+  at: string;
+  /** An interval job's next run is its last run plus its interval. */
+  approximate: boolean;
+  /** Seconds past due that still read a quiet "due now". */
+  graceS: number;
+};
+
+/**
+ * What an entry's Next run may truthfully say, or null for nothing.
+ *
+ * An interval job whose schedule names a different cadence from its
+ * interval ("nightly after 03:00" on an hourly interval) is only checked
+ * that often, so a next run at or before the snapshot is not a run that is
+ * due: it is unknown, and hidden. Lateness on an interval job reads "due
+ * now" until it passes the entry's own freshness budget, and only then
+ * overdue; a null budget is liveness only and never overdue. A calendar
+ * time is exact, so it keeps a minute's grace.
+ */
+export function opsNextRun(
+  service: Pick<
+    OpsServiceView,
+    "trigger" | "schedule" | "freshness_budget_s" | "sampledAt"
+  > & { status: Pick<OpsStatusRow, "next_run_at" | "interval_s"> },
+): OpsNextRun | null {
+  const at = service.status.next_run_at;
+  if (!at) return null;
+  if (service.trigger !== "interval")
+    return { at, approximate: false, graceS: 60 };
+  const interval = service.status.interval_s;
+  const cadence =
+    interval !== null && opsSchedulePeriod(service.schedule) === interval;
+  if (!cadence && Date.parse(at) <= Date.parse(service.sampledAt)) return null;
+  return {
+    at,
+    approximate: true,
+    graceS: service.freshness_budget_s ?? Number.POSITIVE_INFINITY,
+  };
+}
 
 /** How launchd starts an entry, in words, or null when System names no
  * trigger. */
@@ -125,7 +212,7 @@ export function opsTriggerFacts(
         label: "Interval",
         cadence:
           status.interval_s !== null
-            ? opsCadenceText(status.interval_s)
+            ? `checks every ${opsPeriodText(status.interval_s)}`
             : entry.schedule,
         approximate: true,
       };

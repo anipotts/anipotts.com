@@ -122,6 +122,17 @@ describe("contract client rules", () => {
     },
   );
 
+  it("accepts System's retired owner field without reading or naming it", () => {
+    const value = fresh();
+    value.catalog[0].owner = "system/chief";
+    value.catalog[1].owner = "line\nbreak and private text";
+    delete value.catalog[2].owner;
+    const snapshot = parseOpsSnapshot(value);
+    expect(snapshot.unknown_fields).toEqual([]);
+    expect(snapshot.catalog.every((entry) => !("owner" in entry))).toBe(true);
+    expect(JSON.stringify(snapshot.catalog)).not.toContain("private text");
+  });
+
   it("names odd field names only as other, and bounds the list", () => {
     const value = fresh();
     value.catalog[0]["Bad Name\u2028"] = 1;
@@ -364,7 +375,6 @@ describe("bounds", () => {
     rejects(entryCase("name", ""));
     rejects(entryCase("name", "x".repeat(OPS_V1_BOUNDS.nameMax + 1)));
     rejects(entryCase("group", "x".repeat(OPS_V1_BOUNDS.groupMax + 1)));
-    rejects(entryCase("owner", "line\nbreak"));
     rejects(entryCase("name", " padded"));
     rejects(rowCase("detail", "x".repeat(OPS_V1_BOUNDS.detailMax + 1)));
     rejects(rowCase("detail", null));
@@ -552,7 +562,7 @@ describe("sampler freshness", () => {
   });
 });
 
-describe("owner priority order", () => {
+describe("group order", () => {
   it("orders personal context, backups, health ingest, agent sessions, services", () => {
     const ordered = opsOrdered(opsServices(parseOpsSnapshot(fresh())));
     const table = ordered.filter((item) => !opsIsHost(item));

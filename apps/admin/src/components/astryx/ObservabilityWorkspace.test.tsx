@@ -222,11 +222,12 @@ describe("Status view from System's fixture", () => {
     expect(
       cell(host, "pc.writer", "Last success").querySelector(".ops-over"),
     ).toBeNull();
-    // Never succeeded: nothing visible, and said for assistive technology.
+    // No success recorded: nothing visible, and said for assistive
+    // technology, without claiming it never succeeded.
     expect(
       cell(host, "health.ingest", "Last success").querySelector(".sr-only")
         ?.textContent,
-    ).toBe("Never");
+    ).toBe("Not recorded");
   });
 
   it("shows a null-budget job's age with no stale judgement", () => {
@@ -273,7 +274,7 @@ describe("Status view from System's fixture", () => {
       cell(host, "pc.writer", "Trigger")
         .querySelector(".ops-trigger")
         ?.getAttribute("aria-label"),
-    ).toBe("Interval, every hour");
+    ).toBe("Interval, checks every 1h");
     expect(
       cell(host, "health.api", "Trigger")
         .querySelector(".ops-trigger")
@@ -521,14 +522,14 @@ describe("Status view edge cases", () => {
 });
 
 describe("an entry's panel", () => {
-  const open = (id: string, now = NOW) => {
+  const open = (id: string, now = NOW, fixture: unknown = sample) => {
     const host = document.createElement("div");
     host.innerHTML = renderToStaticMarkup(
       <ObservabilityWorkspace
         view="status"
         entry={id}
         enabled={false}
-        fixture={sample}
+        fixture={fixture}
         eventsFixture={events}
         now={now}
       />,
@@ -542,6 +543,54 @@ describe("an entry's panel", () => {
         row.querySelector("dd")?.textContent,
       ]),
     );
+
+  it("says a success was not recorded beside a clean exit, never Never", () => {
+    const value = fresh();
+    const row = value.status.find((item: Json) => item.id === "pc.writer");
+    row.last_success_at = null;
+    row.last_exit = 0;
+    const panel = open("pc.writer", NOW, value).querySelector(
+      "#ops-entry-detail",
+    )!;
+    expect(facts(panel)).toMatchObject({
+      "Last success": "Not recorded",
+      Exit: "Exit 0",
+    });
+    expect(panel.textContent).not.toContain("Never");
+  });
+
+  it("hides a passed check time on a nightly job and keeps a late run quiet within its budget", () => {
+    const value = fresh();
+    const inference = value.status.find(
+      (item: Json) => item.id === "pc.inference",
+    );
+    inference.interval_s = 3600;
+    inference.next_run_at = value.generated_at;
+    const writer = value.status.find((item: Json) => item.id === "pc.writer");
+    writer.next_run_at = "2026-09-21T17:59:00Z";
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(
+      <ObservabilityWorkspace
+        view="status"
+        enabled={false}
+        fixture={value}
+        eventsFixture={events}
+        now={NOW}
+      />,
+    );
+    const hidden = cell(host, "pc.inference", "Next run");
+    expect(hidden.textContent).toBe("Not known");
+    expect(hidden.querySelector(".sr-only")).not.toBeNull();
+    // A minute late on a 75 minute budget reads due now, not overdue.
+    const late = cell(host, "pc.writer", "Next run");
+    expect(late.textContent).toBe("~about due now");
+    expect(late.querySelector("[data-overdue]")).toBeNull();
+    expect(
+      facts(
+        open("pc.inference", NOW, value).querySelector("#ops-entry-detail")!,
+      ),
+    ).not.toHaveProperty("Next run");
+  });
 
   it("opens beside the list with the catalog facts, the runbook as an action and the next run", () => {
     const host = open("pc.writer");
@@ -558,21 +607,14 @@ describe("an entry's panel", () => {
       Took: "5.2s",
       "Next run": "~about in 55m",
       Schedule: "hourly",
-      Trigger: "Interval, every hour",
+      Trigger: "Interval, checks every 1h",
       Runs: "115 runs",
       "Freshness budget": "1h 15m",
       Host: "ap-mini",
     });
-    // The retired owner taxonomy sits under Technical only.
-    const main = [...panel.querySelectorAll(".workspace-definition")].filter(
-      (row) => !row.closest(".workspace-technical"),
-    );
-    expect(
-      main.map((row) => row.querySelector("dt")?.textContent),
-    ).not.toContain("Owner");
-    expect(panel.querySelector(".workspace-technical")?.textContent).toContain(
-      "memory",
-    );
+    // System's retired owner taxonomy never shows, even when it sends one.
+    expect(Object.keys(facts(panel))).not.toContain("Owner");
+    expect(panel.textContent).not.toContain("memory");
     const runbook = [...panel.querySelectorAll("a")].find(
       (link) => link.textContent === "Runbook on GitHub",
     )!;

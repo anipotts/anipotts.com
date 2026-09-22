@@ -15,6 +15,7 @@ import type { OpsAlert, OpsTransitionEvent } from "../../lib/ops-events";
 import { opsIncidentsBySubject } from "../../lib/ops-events";
 import {
   opsCadenceText,
+  opsNextRun,
   opsDetailDisk,
   opsHostFacts,
   opsRecordsRuns,
@@ -203,13 +204,6 @@ export function EntryPanel({
           items={[
             { label: "Catalog ID", value: subject },
             { label: "Runbook path", value: runbook },
-            // System's retired owner taxonomy: kept out of the facts.
-            {
-              label: "Owner",
-              node: service?.owner ? (
-                <span className="ops-muted">{service.owner}</span>
-              ) : undefined,
-            },
           ]}
         />
       </VStack>
@@ -322,7 +316,11 @@ function EntryFacts({
               [
                 "Last success",
                 <span key="success" className="ops-inline">
-                  <LastSuccess service={service} now={now} empty="Never" />
+                  <LastSuccess
+                    service={service}
+                    now={now}
+                    empty="Not recorded"
+                  />
                   {budget !== null &&
                     freshness.kind === "budget" &&
                     freshness.overBudget && (
@@ -352,7 +350,7 @@ function EntryFacts({
               ],
               [
                 "Next run",
-                status.next_run_at ? (
+                opsNextRun(service) ? (
                   <NextDue service={service} now={now} />
                 ) : null,
               ],

@@ -19,6 +19,9 @@ import {
   opsRuns,
   opsSyncFreshness,
   opsSyncRows,
+  opsNextRun,
+  opsPeriodText,
+  opsSchedulePeriod,
   opsTriggerFacts,
   opsUnverified,
 } from "./ops-view";
@@ -124,13 +127,89 @@ describe("cadence and triggers", () => {
     expect(opsRecordsRuns({ interval_s: null })).toBe(true);
   });
 
+  it("reads the period a schedule names, and none for a time of day", () => {
+    expect(opsSchedulePeriod("hourly")).toBe(3600);
+    expect(opsSchedulePeriod("every hour")).toBe(3600);
+    expect(opsSchedulePeriod("every minute")).toBe(60);
+    expect(opsSchedulePeriod("every 15 seconds")).toBe(15);
+    expect(opsSchedulePeriod("every 15 min while awake")).toBe(900);
+    expect(opsSchedulePeriod("every 4 hours")).toBe(14_400);
+    expect(opsSchedulePeriod("nightly after 03:00")).toBeNull();
+    expect(opsSchedulePeriod("daily 04:00")).toBeNull();
+    expect(opsSchedulePeriod("every fortnight")).toBeNull();
+    expect(opsSchedulePeriod(null)).toBeNull();
+    expect(
+      [15, 60, 900, 3600, 5400, 14_400, 172_800].map(opsPeriodText),
+    ).toEqual(["15s", "1m", "15m", "1h", "90m", "4h", "2d"]);
+  });
+
+  describe("next run", () => {
+    const sampledAt = "2026-09-22T18:01:39Z";
+    const job = (
+      schedule: string | null,
+      interval: number | null,
+      next: string | null,
+      budget: number | null = 4500,
+      trigger: "interval" | "calendar" = "interval",
+    ) => ({
+      trigger,
+      schedule,
+      freshness_budget_s: budget,
+      sampledAt,
+      status: { next_run_at: next, interval_s: interval },
+    });
+
+    it("hides a check time that has passed on a job whose schedule is not its interval", () => {
+      // pc.inference on 2026-09-22: nightly work, checked hourly, next run
+      // equal to generated_at. That is not a run that is due.
+      expect(
+        opsNextRun(job("nightly after 03:00", 3600, sampledAt, 93_600)),
+      ).toBeNull();
+      expect(
+        opsNextRun(job("daily 04:00", 3600, "2026-09-22T17:30:00Z")),
+      ).toBeNull();
+      // Still ahead, it is shown as the next check, approximate.
+      expect(
+        opsNextRun(job("nightly after 03:00", 3600, "2026-09-22T18:40:00Z")),
+      ).toMatchObject({ approximate: true });
+    });
+
+    it("keeps a late run due now until it passes the entry's own budget", () => {
+      // pro.pc-send: every 15 min, a 30 min budget, 74 s late.
+      const late = opsNextRun(
+        job("every 15 min while awake", 900, "2026-09-22T18:00:25Z", 1800),
+      )!;
+      expect(late).toEqual({
+        at: "2026-09-22T18:00:25Z",
+        approximate: true,
+        graceS: 1800,
+      });
+      expect(
+        opsNextRun(job("every 10 min", 600, sampledAt, null))!.graceS,
+      ).toBe(Number.POSITIVE_INFINITY);
+    });
+
+    it("keeps a calendar time exact and shows nothing without a next run", () => {
+      expect(
+        opsNextRun(
+          job("daily 04:30", null, "2026-09-23T08:30:00Z", 93_600, "calendar"),
+        ),
+      ).toEqual({ at: "2026-09-23T08:30:00Z", approximate: false, graceS: 60 });
+      expect(opsNextRun(job("hourly", 3600, null))).toBeNull();
+    });
+  });
+
   it("words each trigger, approximate only for intervals", () => {
     expect(
       opsTriggerFacts(
         { trigger: "interval", schedule: "hourly" },
         { interval_s: 3600 },
       ),
-    ).toEqual({ label: "Interval", cadence: "every hour", approximate: true });
+    ).toEqual({
+      label: "Interval",
+      cadence: "checks every 1h",
+      approximate: true,
+    });
     expect(
       opsTriggerFacts(
         { trigger: "calendar", schedule: "daily 04:30" },

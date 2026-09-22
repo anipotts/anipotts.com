@@ -31,7 +31,7 @@ import {
   type OpsState,
   type OpsTrigger,
 } from "../../lib/ops-v1";
-import { opsTriggerFacts, opsUnverified } from "../../lib/ops-view";
+import { opsNextRun, opsTriggerFacts, opsUnverified } from "../../lib/ops-view";
 import {
   deviceName,
   hostDevice,
@@ -216,11 +216,12 @@ export function LastSuccess({
     now,
   );
   const at = service.status.last_success_at;
+  // System recorded no success: that is not the same as never succeeding.
   if (!at)
     return empty ? (
       <RelativeTime value={null} empty={empty} />
     ) : (
-      <span className="sr-only">Never</span>
+      <span className="sr-only">Not recorded</span>
     );
   return (
     <span className="ops-last" data-over={over ? "true" : undefined}>
@@ -241,7 +242,8 @@ export function LastSuccess({
 
 /** The next run: "in 12m", "due now", "3m overdue". An interval job's is
  * approximate (launchd does not expose its timer): a tilde, and a tooltip
- * that says so. */
+ * that says so. It is overdue only past the entry's own budget, and one
+ * that cannot be known is not shown (see `opsNextRun`). */
 export function NextDue({
   service,
   now,
@@ -249,9 +251,14 @@ export function NextDue({
   service: OpsServiceView;
   now?: number;
 }) {
-  const at = service.status.next_run_at;
-  if (!at) return <span className="sr-only">Not scheduled</span>;
-  const approximate = service.trigger === "interval";
+  const next = opsNextRun(service);
+  if (!next)
+    return (
+      <span className="sr-only">
+        {service.status.next_run_at ? "Not known" : "Not scheduled"}
+      </span>
+    );
+  const { at, approximate, graceS } = next;
   return (
     <span
       className="ops-due"
@@ -267,7 +274,7 @@ export function NextDue({
           <span className="sr-only">about </span>
         </>
       )}
-      <DueTime value={at} now={now} />
+      <DueTime value={at} now={now} graceS={graceS} />
     </span>
   );
 }
