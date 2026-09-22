@@ -44,7 +44,7 @@ export function HomepageWritingSelection({
   };
   return (
     <VStack gap={1} className="editor-homepage-writing">
-      <HStack gap={2} vAlign="center">
+      <HStack gap={2} className="editor-homepage-heading">
         <Heading level={2} className="editor-sections-title">
           Homepage writing
         </Heading>

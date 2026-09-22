@@ -58,6 +58,18 @@
     padding-block-start: env(safe-area-inset-top, 0px);
     margin-block-start: calc(-1 * var(--spacing-3));
   }
+  /* The bar's end glyphs sit on the 12px gutter, like the text below them;
+     their 44px targets reach inward instead of past the gutter. */
+  .editor-bar-back:not(#\#) {
+    margin-inline-start: 0;
+    padding-inline-start: 0;
+    justify-content: flex-start;
+  }
+  .editor-bar-actions > .astryx-button[aria-haspopup="dialog"]:not(#\#),
+  .record-panel-sheet button[aria-label^="Close"]:not(#\#) {
+    padding-inline-end: 0;
+    justify-content: flex-end;
+  }
 }
 /* The phone sheets lift on their shadow alone, with no outline. */
 .editor-action-sheet:not(#\#),
@@ -327,6 +339,13 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 .document-editor-toolbar {
   padding-block: var(--spacing-1);
   background: var(--color-background-body);
+}
+/* Beside the sidebar the first control's glyph lines up with the text
+   column, as the editor bar's back glyph does. */
+@media (min-width: 641px) {
+  .article-composer > .document-editor-toolbar {
+    margin-inline-start: calc(-1 * var(--spacing-2));
+  }
 }
 .article-composer > .document-editor-toolbar {
   position: sticky;
@@ -694,8 +713,25 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   flex: 1 1 auto;
   min-width: 0;
 }
+/* An add button's plus sits on the column edge, like the labels above it. */
+.editor-add-row:not(#\#) {
+  margin-inline-start: calc(-1 * var(--spacing-3));
+}
 .editor-homepage-row {
   min-height: var(--spacing-11);
+}
+/* The count reads on the heading's line, like every page count. */
+.editor-homepage-heading:not(#\#) {
+  align-items: baseline;
+}
+.editor-homepage-writing > :last-child {
+  margin-block-start: var(--spacing-2);
+}
+@media (max-width: 640px) {
+  .editor-homepage-row > button[aria-label^="Remove selection"]:not(#\#) {
+    padding-inline-end: 0;
+    justify-content: flex-end;
+  }
 }
 /* An empty move slot holds an icon button's width (36px, 44px on touch). */
 .editor-homepage-slot {
