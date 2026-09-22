@@ -1,4 +1,4 @@
-import { MAX_SOURCE_BYTES } from "@anipotts/content/editorial/source";
+import { MAX_SOURCE_BYTES } from "@anipotts/content/editorial/record";
 import type { Draft, SaveResult } from "../editorial/draft-store";
 import { discardBody } from "./response-body";
 

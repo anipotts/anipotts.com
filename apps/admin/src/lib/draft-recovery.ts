@@ -1,4 +1,4 @@
-import { MAX_SOURCE_BYTES } from "@anipotts/content/editorial/source";
+import { MAX_SOURCE_BYTES } from "@anipotts/content/editorial/record";
 import type { RecoverySnapshot } from "./home-autosave";
 import {
   BrowserRecovery,
