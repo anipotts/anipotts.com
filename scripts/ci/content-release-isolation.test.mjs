@@ -76,7 +76,6 @@ function fixture(t) {
           ? {
               EDITORIAL_ENABLED: "true",
               EDITORIAL_PUBLISH_ENABLED: "false",
-              EDITORIAL_PUBLISH_MODE: "maintenance",
             }
           : { CONTENT_RUNTIME: "cms" }),
       },
@@ -592,15 +591,19 @@ test("CMS isolation binds publication storage separately from the shared applica
   }
 });
 
-test("reader must use CMS while writer remains in maintenance with activation disabled", (t) => {
+test("reader must use CMS while the writer keeps activation disabled", (t) => {
   const f = fixture(t);
   f.configs.www.vars.CONTENT_RUNTIME = "legacy";
   assert.throws(() => f.run(), /unsafe_runtime_vars/);
   f.configs.www.vars.CONTENT_RUNTIME = "cms";
-  for (const mode of ["legacy", "direct", undefined]) {
-    f.configs.admin.vars.EDITORIAL_PUBLISH_MODE = mode;
+  for (const enabled of ["true", undefined]) {
+    f.configs.admin.vars.EDITORIAL_PUBLISH_ENABLED = enabled;
     assert.throws(() => f.run());
   }
+  f.configs.admin.vars.EDITORIAL_PUBLISH_ENABLED = "false";
+  // The retired publish mode is an unreviewed extra var, never a selector.
+  f.configs.admin.vars.EDITORIAL_PUBLISH_MODE = "maintenance";
+  assert.throws(() => f.run(), /unexpected_or_missing_key/);
 });
 
 test("an active direct cloud profile is blocked until verification targets the isolated reader", (t) => {
