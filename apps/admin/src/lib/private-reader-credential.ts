@@ -90,6 +90,33 @@ export function privateReaderHealthEnabled(
   return privateReaderModeEnabled(config, "health");
 }
 
+/**
+ * The reader switches a page hands the shared overview and Data shell
+ * (components/data/PrivateShell.tsx). The shell draws every Data view in
+ * place, Health and Knowledge included, so every page that mounts it passes
+ * the same set: a view reached by a client navigation reads what a reload
+ * would. Knowledge needs PRIVATE_READER_ENABLED and
+ * PRIVATE_READER_KNOWLEDGE_ENABLED both exactly "true".
+ */
+export function privateShellFlags(
+  config: PrivateReaderConfig & { PRIVATE_READER_KNOWLEDGE_ENABLED?: string },
+): {
+  dataEnabled: boolean;
+  healthEnabled: boolean;
+  knowledgeEnabled: boolean;
+  /** Ops reads (the overview's alerts, Sources' jobs). */
+  enabled: boolean;
+} {
+  const dataEnabled = config.PRIVATE_READER_ENABLED === "true";
+  return {
+    dataEnabled,
+    healthEnabled: privateReaderHealthEnabled(config),
+    knowledgeEnabled:
+      dataEnabled && config.PRIVATE_READER_KNOWLEDGE_ENABLED === "true",
+    enabled: privateReaderOpsEnabled(config),
+  };
+}
+
 export type PrivateReaderOptions = {
   /** The owner middleware already verified for this request. */
   owner?: AccessOwner;

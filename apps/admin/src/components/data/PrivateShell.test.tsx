@@ -3,7 +3,12 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PrivateShell, shellRoute } from "./PrivateShell";
-import { PRIVATE_READER_AUDIENCE } from "../../lib/private-reader-credential";
+import { readFileSync } from "node:fs";
+import {
+  PRIVATE_READER_AUDIENCE,
+  privateShellFlags,
+} from "../../lib/private-reader-credential";
+import { clientNavigate } from "../../lib/client-routes";
 import { PRIVATE_READER_ROUTES } from "../../lib/private-reader-fetch";
 import {
   PRIVATE_SESSION_IDLE_MS,
@@ -371,6 +376,60 @@ describe("Health and Knowledge", () => {
     expect(host.textContent).toContain("Unreadable response");
     expect(host.querySelector("table")).toBeNull();
     expect(host.textContent).not.toContain("97");
+  });
+
+  it("hands the overview and Data pages the same reader switches", () => {
+    for (const page of [
+      "../../pages/index.astro",
+      "../../pages/data/[...path].astro",
+    ])
+      expect(
+        readFileSync(new URL(page, import.meta.url), "utf8"),
+        page,
+      ).toContain("{...privateShellFlags(env)}");
+    expect(
+      privateShellFlags({
+        PRIVATE_READER_ENABLED: "true",
+        PRIVATE_READER_HEALTH_ENABLED: "true",
+        PRIVATE_READER_KNOWLEDGE_ENABLED: "true",
+      }),
+    ).toEqual({
+      dataEnabled: true,
+      healthEnabled: true,
+      knowledgeEnabled: true,
+      enabled: false,
+    });
+    expect(
+      privateShellFlags({ PRIVATE_READER_KNOWLEDGE_ENABLED: "true" }),
+    ).toMatchObject({ dataEnabled: false, knowledgeEnabled: false });
+  });
+
+  it("reads Health after a client navigation from the overview", async () => {
+    const fetcher = healthNetwork(healthReply([healthDay("2026-09-21", 8412)]));
+    vi.stubGlobal("fetch", fetcher);
+    const healthSession = createPrivateReaderSession({
+      fetch: fetcher as unknown as typeof fetch,
+      csrf: async () => "c".repeat(64),
+      endpoint: HEALTH_CREDENTIAL_ENDPOINT,
+    });
+    // Exactly the index page's props, with the Health flags on.
+    await render("/", {
+      content: [],
+      healthSession,
+      ...privateShellFlags({
+        PRIVATE_READER_ENABLED: "true",
+        PRIVATE_READER_HEALTH_ENABLED: "true",
+      }),
+    });
+    let handled = false;
+    await act(async () => {
+      handled = clientNavigate("/data/health");
+    });
+    await settle();
+    expect(handled).toBe(true);
+    expect(host.querySelector("h1")?.textContent).toBe("Health");
+    expect(host.textContent).not.toContain("Health not connected");
+    expect(host.textContent).toContain("8,412");
   });
 
   it("keeps Knowledge to one notice and no request while its flag is off", async () => {
