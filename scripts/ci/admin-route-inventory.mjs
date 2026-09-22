@@ -22,7 +22,7 @@ export const ADMIN_ROUTES = [
   },
   {
     route: "/content/newsletter",
-    file: "apps/admin/src/pages/content/newsletter.astro",
+    file: "apps/admin/src/pages/content/[library].astro",
     nav: true,
   },
   {

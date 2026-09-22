@@ -19,7 +19,6 @@ describe("library URL state", () => {
       q: "lean",
       status: "changes",
       sort: "title",
-      sections: ["writing", "work"],
     });
     expect(readLibraryState("?group=admin&status=secret&sort=reverse")).toEqual(
       {
@@ -27,7 +26,6 @@ describe("library URL state", () => {
         q: "",
         status: "all",
         sort: "attention",
-        sections: undefined,
       },
     );
   });
@@ -44,14 +42,13 @@ describe("library URL state", () => {
     expect(libraryGroupForPath("/content")).toBe("website");
     expect(libraryGroupForPath("/content/new")).toBeUndefined();
   });
-  it("preserves theme while updating filters and distinguishes no sections from all", () => {
-    const next = libraryStateUrl("/content", "?theme=dark&unknown=discard", {
-      ...readLibraryState("?group=writing"),
-      q: "navier stokes",
-      sections: [],
-    });
-    expect(next).toBe("/content/writing?theme=dark&q=navier+stokes&sections=");
-    expect(readLibraryState(next.split("?")[1]).sections).toEqual([]);
+  it("preserves theme while updating filters and drops retired parameters", () => {
+    const next = libraryStateUrl(
+      "/content",
+      "?theme=dark&unknown=discard&sections=writing",
+      { ...readLibraryState("?group=writing"), q: "navier stokes" },
+    );
+    expect(next).toBe("/content/writing?theme=dark&q=navier+stokes");
     expect(
       libraryStateUrl("/content", "?status=draft", readLibraryState("")),
     ).toBe("/content/pages");

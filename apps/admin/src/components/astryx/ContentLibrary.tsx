@@ -4,21 +4,21 @@ import type { CatalogRecord, CatalogGroup } from "./EditorialApp";
 import { Button } from "@astryxdesign/core/Button";
 import { IconButton } from "@astryxdesign/core/IconButton";
 import {
-  ArrowRightIcon,
   ArticleIcon,
   BriefcaseIcon,
+  CloudSlashIcon,
   EnvelopeIcon,
   FileTextIcon,
   FunnelSimpleIcon,
+  PlusIcon,
   SortAscendingIcon,
-  StackSimpleIcon,
+  XIcon,
   type Icon,
 } from "@phosphor-icons/react";
 import { HStack } from "@astryxdesign/core/HStack";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Text } from "@astryxdesign/core/Text";
 import {
-  DropdownMenuCheckboxItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from "@astryxdesign/core/DropdownMenu";
@@ -26,25 +26,34 @@ import {
   DataTable,
   FilterBar,
   FilterMenu,
-  KindBadge,
   RelativeTime,
   RowTitle,
   StateBadge,
   StateNotice,
+  WorkspacePage,
+  badgeFor,
   type Column,
 } from "../workspace/Workspace";
 import {
+  LIBRARY_STATUSES,
+  SORT_LABELS,
   readLibraryState,
   libraryStateUrl,
   recordLibraryHref,
+  type LibrarySort,
   type LibraryState,
 } from "../../lib/content-library-state";
-import { sentenceCase } from "../../lib/sentence-case";
+
+/** A record's address segment, so a search finds it by its slug too. */
+const recordSlug = (record: CatalogRecord) =>
+  record.publishedSlug ??
+  record.id ??
+  decodeURIComponent(record.href.split("?")[0]!.split("/").pop() ?? "");
+
 export function matchingRecords(
   records: CatalogRecord[],
   query: string,
   status: string,
-  sections?: string[],
 ): CatalogRecord[] {
   const text = query.trim().toLocaleLowerCase();
   return records.filter(
@@ -53,8 +62,7 @@ export function matchingRecords(
         (status === "changes"
           ? record.changesPending
           : record.status === status)) &&
-      (sections === undefined || sections.includes(record.section ?? "")) &&
-      `${record.title} ${record.summary ?? ""} ${record.section ?? ""}`
+      `${record.title} ${record.summary ?? ""} ${recordSlug(record)}`
         .toLocaleLowerCase()
         .includes(text),
   );
@@ -112,31 +120,13 @@ export const Updated = memo(
     previous.updated?.source === next.updated?.source,
 );
 
-/** States whose plain name would undersell where the record stands. */
-const STATUS_LABELS: Record<string, string> = {
-  hidden: "Hidden from site",
-};
-
-function interfaceLabel(value: string) {
-  return STATUS_LABELS[value] ?? sentenceCase(value);
-}
-
-/** Statuses the public site shows. Their chip is tinted; every other state
- * stays neutral, so colour in a table always means "live on the site". */
-const PUBLIC_STATUSES = ["published", "featured", "listed"];
-
-/** Figures for the strip under a library table. Only non-zero figures render,
- * so a filtered view describes what is in it rather than listing every state. */
-export function libraryFigures(records: readonly CatalogRecord[]) {
-  const count = (test: (record: CatalogRecord) => boolean) =>
-    records.filter(test).length;
-  const figures: Array<[label: string, value: number]> = [
-    ["public", count((record) => PUBLIC_STATUSES.includes(record.status))],
-    ["drafts", count((record) => record.status === "draft")],
-    ["hidden", count((record) => record.status === "hidden")],
-    ["with changes pending", count((record) => Boolean(record.changesPending))],
-  ];
-  return figures.filter(([, value]) => value > 0);
+/** A status filter's one name: the chip's label, from the badge table. */
+function statusLabel(value: string) {
+  return value === "all"
+    ? "All"
+    : value === "changes"
+      ? "Changes pending"
+      : badgeFor("content", value).label;
 }
 
 export function RecordStatus({
@@ -158,42 +148,70 @@ export function RecordStatus({
   );
 }
 
-/** The record's library section, derived from its URL when rows omit it. */
-export function recordSection(record: CatalogRecord): string {
-  return (
-    record.section ??
-    (record.href.startsWith("/content/projects/")
-      ? "Projects"
-      : record.href.startsWith("/content/writing/")
-        ? "Writing"
-        : record.href.startsWith("/newsletter/")
-          ? "Newsletter"
-          : "Pages")
-  );
-}
+/** Each library's kind: its glyph, its name, its title and what it creates. */
+const LIBRARIES: Record<
+  string,
+  { icon: Icon; kind: string; title: string; create?: [string, string] }
+> = {
+  website: { icon: FileTextIcon, kind: "Page", title: "Pages" },
+  writing: {
+    icon: ArticleIcon,
+    kind: "Article",
+    title: "Writing",
+    create: ["New article", "/content/new"],
+  },
+  work: {
+    icon: BriefcaseIcon,
+    kind: "Project",
+    title: "Projects",
+    create: ["New project", "/content/new-project"],
+  },
+  newsletter: {
+    icon: EnvelopeIcon,
+    kind: "Newsletter issue",
+    title: "Newsletter",
+  },
+};
 
 /** The record's kind, as a glyph and its name. */
 function recordGlyph(record: CatalogRecord): [Icon, string] {
-  return record.collection === "projects" ||
+  const library =
+    record.collection === "projects" ||
     record.href.startsWith("/content/projects/")
-    ? [BriefcaseIcon, "Project"]
-    : record.collection === "writing" ||
-        record.href.startsWith("/content/writing/")
-      ? [ArticleIcon, "Article"]
-      : record.href.startsWith("/newsletter/")
-        ? [EnvelopeIcon, "Newsletter issue"]
-        : [FileTextIcon, "Page"];
+      ? LIBRARIES.work!
+      : record.collection === "writing" ||
+          record.href.startsWith("/content/writing/")
+        ? LIBRARIES.writing!
+        : record.href.startsWith("/newsletter/")
+          ? LIBRARIES.newsletter!
+          : LIBRARIES.website!;
+  return [library.icon, library.kind];
 }
 
-/** The row action's tooltip and aria-describedby both carry this string, and a
- * screen reader reads it on every focus, so it stays bounded rather than
- * listing every changed frontmatter field. */
+/** The row link's tooltip carries this string, so it stays bounded rather
+ * than listing every changed frontmatter field. */
 export function changedFieldSummary(fields: readonly string[]): string {
   if (!fields.length) return "Source changes";
   const shown = fields.slice(0, 2).join(", ");
   return fields.length > 2 ? `${shown} +${fields.length - 2}` : shown;
 }
 
+/** The private draft state could not be read: a glyph, named on hover. */
+function UnavailableMark() {
+  return (
+    <span
+      className="editorial-record-unavailable"
+      role="img"
+      aria-label="Draft status unavailable"
+      title="Draft status unavailable"
+    >
+      <CloudSlashIcon weight="regular" aria-hidden="true" />
+    </span>
+  );
+}
+
+/** The state chip, then a line only when it says something the chip does
+ * not. A default state (Published, Listed) shows nothing at all. */
 function RecordState({
   record,
   inventoryError,
@@ -202,54 +220,30 @@ function RecordState({
   inventoryError: boolean;
 }) {
   const decision = contentDecision(record, !inventoryError);
-  const unavailable = inventoryError && record.privateRevision === undefined;
-  const detail = unavailable
-    ? "Draft status unavailable"
-    : (decision.detail ?? decision.label);
-  // A record with nothing to act on needs no line beside its chip.
-  const quiet = !unavailable && decision.label === "Up to date";
   return (
     <HStack gap={2} vAlign="center" className="editorial-record-state">
-      <RecordStatus status={record.status} />
-      {!quiet && (
+      <StateBadge domain="content" state={record.status} />
+      {decision.unavailable && <UnavailableMark />}
+      {decision.detail && (
         <Text
           type="supporting"
           color="secondary"
           className="editorial-record-state-detail"
         >
-          {detail}
+          {decision.detail}
         </Text>
       )}
     </HStack>
   );
 }
 
-function RecordAction({
-  record,
-  returnTo,
-  inventoryError = false,
-}: {
-  record: CatalogRecord;
-  returnTo: string;
-  inventoryError?: boolean;
-}) {
+/** Whether a row's state says anything beyond the default. */
+function stateIsNews(record: CatalogRecord, inventoryError: boolean) {
   const decision = contentDecision(record, !inventoryError);
-  const changed =
-    decision.action === "Review changes" && record.changedFields !== undefined
-      ? changedFieldSummary(record.changedFields)
-      : undefined;
-  const label = `${decision.action ?? "Open record"}: ${record.title}`;
-  const href = recordLibraryHref(record.href, returnTo);
   return (
-    <IconButton
-      size="sm"
-      variant="ghost"
-      className="editorial-record-action"
-      icon={<ArrowRightIcon weight="regular" />}
-      label={label}
-      tooltip={changed ? `${label} (${changed})` : label}
-      href={decision.view ? decisionHref(href, decision.view) : href}
-    />
+    !badgeFor("content", record.status).isDefault ||
+    Boolean(decision.detail) ||
+    Boolean(decision.unavailable)
   );
 }
 
@@ -259,12 +253,15 @@ export function ContentLibrary({
   initialSearch = "",
   inventoryError = false,
   area = "content",
+  title,
 }: {
   groups: CatalogGroup[];
   selectedGroup?: string;
   initialSearch?: string;
   inventoryError?: boolean;
   area?: "content" | "newsletter";
+  /** The page's H1. Defaults to the library's name. */
+  title?: string;
 }) {
   const home = area === "newsletter" ? "/content/newsletter" : "/content";
   const [state, setState] = useState<LibraryState>(() =>
@@ -311,61 +308,97 @@ export function ContentLibrary({
     groups.find((item) => item.name === state.group) ??
     groups.find((item) => item.name === selectedGroup) ??
     groups[0];
-  const { q: query, status } = state;
-  const sectionOptions = [
-    ...new Set(
-      group?.records.flatMap((item) => (item.section ? [item.section] : [])) ??
-        [],
-    ),
-  ].sort();
-  const sections = state.sections ?? sectionOptions;
-  const setQuery = (q: string) => change({ q }, true);
-  const setStatus = (status: string) => change({ status });
-  const setSections = (sections: string[]) => change({ sections });
+  const library = LIBRARIES[group?.name ?? ""] ?? LIBRARIES.website!;
+  const heading = title ?? library.title;
+  const create = area === "content" ? library.create : undefined;
+  const actions = create && (
+    <IconButton
+      label={create[0]}
+      tooltip={create[0]}
+      variant="ghost"
+      icon={<PlusIcon weight="regular" aria-hidden="true" />}
+      href={create[1]}
+      className="editorial-library-create"
+    />
+  );
   if (!group)
     return (
-      <StateNotice
-        kind={inventoryError ? "error" : "empty"}
-        title={inventoryError ? "Records unavailable" : "No records yet"}
-      />
+      <WorkspacePage title={heading} actions={actions}>
+        <StateNotice
+          kind={inventoryError ? "error" : "empty"}
+          icon={inventoryError ? undefined : library.icon}
+          title={inventoryError ? "Records unavailable" : "No records yet"}
+        />
+      </WorkspacePage>
     );
-  const matched = matchingRecords(
-    group.records,
-    query,
-    status,
-    sectionOptions.length > 1 ? sections : undefined,
+  const { q: query, status } = state;
+  const decisions = new Map(
+    group.records.map((item) => [item, contentDecision(item, !inventoryError)]),
   );
+  // Needs attention only reorders when records differ in what they need.
+  const attentionSorts =
+    new Set([...decisions.values()].map((decision) => decision.priority)).size >
+    1;
+  const defaultSort: LibrarySort = attentionSorts ? "attention" : "updated";
+  const sort: LibrarySort =
+    !attentionSorts && state.sort === "attention" ? "updated" : state.sort;
+  const matched = matchingRecords(group.records, query, status);
   const records =
-    state.sort === "title"
+    sort === "title"
       ? [...matched].sort(
           (a, b) =>
             a.title.localeCompare(b.title) || a.href.localeCompare(b.href),
         )
-      : state.sort === "attention"
+      : sort === "attention"
         ? recentlyUpdated(matched).sort(
-            (a, b) =>
-              contentDecision(a, !inventoryError).priority -
-              contentDecision(b, !inventoryError).priority,
+            (a, b) => decisions.get(a)!.priority - decisions.get(b)!.priority,
           )
         : recentlyUpdated(matched);
-  // One library of one kind needs no kind column; a mixed library does.
-  const showSections =
-    new Set(group.records.map((item) => recordSection(item))).size > 1;
-  const statuses = [...new Set(group.records.map((item) => item.status))];
+  const present = new Set(group.records.map((item) => item.status));
+  const statusOptions = [
+    ...(group.records.some((item) => item.changesPending) ? ["changes"] : []),
+    ...LIBRARY_STATUSES.filter((item) => present.has(item)),
+    ...[...present]
+      .filter((item) => !(LIBRARY_STATUSES as readonly string[]).includes(item))
+      .sort(),
+  ];
+  const filtered = status !== "all" || sort !== defaultSort;
+  const reset = () => change({ status: "all", sort: "attention" });
+  const rowHref = (item: CatalogRecord) => {
+    const href = recordLibraryHref(item.href, currentUrl);
+    const view = decisions.get(item)?.view;
+    return view ? decisionHref(href, view) : href;
+  };
+  const rowName = (item: CatalogRecord) =>
+    `${decisions.get(item)?.action ?? "Open record"}: ${item.title}`;
   const columns: Column<CatalogRecord>[] = [
     {
       key: "title",
       header: "Title",
-      render: (item) => (
-        <RowTitle
-          icon={recordGlyph(item)[0]}
-          kind={recordGlyph(item)[1]}
-          title={item.title}
-          href={recordLibraryHref(item.href, currentUrl)}
-          mobile={<RecordState record={item} inventoryError={inventoryError} />}
-          time={item.updated?.at}
-        />
-      ),
+      render: (item) => {
+        const decision = decisions.get(item)!;
+        const changed =
+          decision.action === "Review changes" &&
+          item.changedFields !== undefined
+            ? changedFieldSummary(item.changedFields)
+            : undefined;
+        return (
+          <RowTitle
+            icon={recordGlyph(item)[0]}
+            kind={recordGlyph(item)[1]}
+            title={item.title}
+            href={rowHref(item)}
+            linkLabel={rowName(item)}
+            tooltip={changed ? `${rowName(item)} (${changed})` : rowName(item)}
+            mobile={
+              stateIsNews(item, inventoryError) ? (
+                <RecordState record={item} inventoryError={inventoryError} />
+              ) : undefined
+            }
+            time={item.updated?.at}
+          />
+        );
+      },
     },
     {
       key: "summary",
@@ -382,26 +415,10 @@ export function ContentLibrary({
           </Text>
         ) : null,
     },
-    ...(showSections
-      ? [
-          {
-            key: "section",
-            header: "Kind",
-            width: 124,
-            hideBelow: "large" as const,
-            render: (item: CatalogRecord) => (
-              <KindBadge
-                icon={recordGlyph(item)[0]}
-                label={interfaceLabel(recordSection(item))}
-              />
-            ),
-          },
-        ]
-      : []),
     {
       key: "status",
       header: "State",
-      width: 228,
+      width: 200,
       render: (item) => (
         <RecordState record={item} inventoryError={inventoryError} />
       ),
@@ -412,174 +429,111 @@ export function ContentLibrary({
       width: 112,
       render: (item) => <Updated updated={item.updated} column />,
     },
-    {
-      key: "action",
-      header: <Text className="sr-only">Action</Text>,
-      width: 52,
-      align: "end",
-      render: (item) => (
-        <RecordAction
-          record={item}
-          returnTo={currentUrl}
-          inventoryError={inventoryError}
-        />
-      ),
-    },
   ];
   return (
-    <VStack gap={5} className="editorial-library">
-      <FilterBar
-        search={{ label: "Search records", value: query, onChange: setQuery }}
-      >
-        {sectionOptions.length > 1 && (
+    <WorkspacePage title={heading} count={records.length} actions={actions}>
+      <VStack gap={5} className="editorial-library">
+        <FilterBar
+          search={{
+            label: `Search ${library.title.toLocaleLowerCase()}`,
+            value: query,
+            onChange: (q) => change({ q }, true),
+          }}
+        >
+          {statusOptions.length > 1 && (
+            <FilterMenu
+              label="Status"
+              icon={FunnelSimpleIcon}
+              value={statusLabel(status)}
+              isActive={status !== "all"}
+            >
+              <DropdownMenuRadioGroup
+                label="Status"
+                value={status}
+                onChange={(next) => change({ status: next })}
+              >
+                {["all", ...statusOptions].map((item) => (
+                  <DropdownMenuRadioItem
+                    key={item}
+                    value={item}
+                    label={statusLabel(item)}
+                  />
+                ))}
+              </DropdownMenuRadioGroup>
+            </FilterMenu>
+          )}
           <FilterMenu
-            label="Sections"
-            icon={StackSimpleIcon}
-            value={
-              sections.length === sectionOptions.length
-                ? "All"
-                : sections.length === 0
-                  ? "None"
-                  : sections.length === 1
-                    ? interfaceLabel(sections[0]!)
-                    : `${sections.length} sections`
-            }
-            isActive={sections.length !== sectionOptions.length}
-          >
-            <DropdownMenuCheckboxItem
-              label="All sections"
-              value={sections.length === sectionOptions.length}
-              onChange={(checked) => setSections(checked ? sectionOptions : [])}
-            />
-            {sectionOptions.map((section) => (
-              <DropdownMenuCheckboxItem
-                key={section}
-                label={interfaceLabel(section)}
-                value={sections.includes(section)}
-                onChange={(checked) =>
-                  setSections(
-                    checked
-                      ? [...sections, section]
-                      : sections.filter((item) => item !== section),
-                  )
-                }
-              />
-            ))}
-          </FilterMenu>
-        )}
-        {(statuses.length > 1 ||
-          group.records.some((item) => item.changesPending)) && (
-          <FilterMenu
-            label="Status"
-            icon={FunnelSimpleIcon}
-            value={
-              status === "all"
-                ? "All"
-                : status === "changes"
-                  ? "Changes pending"
-                  : interfaceLabel(status)
-            }
-            isActive={status !== "all"}
+            label="Sort"
+            icon={SortAscendingIcon}
+            value={SORT_LABELS[sort]}
+            isActive={sort !== defaultSort}
           >
             <DropdownMenuRadioGroup
-              label="Publication status"
-              value={status}
-              onChange={setStatus}
+              label="Sort"
+              value={sort}
+              onChange={(next) =>
+                change({
+                  sort:
+                    next === "title" || next === "updated" ? next : "attention",
+                })
+              }
             >
-              {[
-                "all",
-                ...(group.records.some((item) => item.changesPending)
-                  ? ["changes"]
-                  : []),
-                ...statuses,
-              ].map((item) => (
+              {(attentionSorts
+                ? (["attention", "updated", "title"] as const)
+                : (["updated", "title"] as const)
+              ).map((item) => (
                 <DropdownMenuRadioItem
                   key={item}
                   value={item}
-                  label={
-                    item === "changes"
-                      ? "Changes pending"
-                      : interfaceLabel(item)
-                  }
+                  label={SORT_LABELS[item]}
                 />
               ))}
             </DropdownMenuRadioGroup>
           </FilterMenu>
-        )}
-        <FilterMenu
-          label="Sort"
-          icon={SortAscendingIcon}
-          value={
-            state.sort === "attention"
-              ? "Needs attention"
-              : state.sort === "updated"
-                ? "Last updated"
-                : "Title"
-          }
-          isActive={state.sort !== "attention"}
-        >
-          <DropdownMenuRadioGroup
-            label="Sort records"
-            value={state.sort}
-            onChange={(sort) =>
-              change({
-                sort:
-                  sort === "title"
-                    ? "title"
-                    : sort === "updated"
-                      ? "updated"
-                      : "attention",
-              })
+          {filtered && (
+            <IconButton
+              label="Reset filters"
+              tooltip="Reset filters"
+              variant="ghost"
+              size="sm"
+              icon={<XIcon weight="regular" aria-hidden="true" />}
+              onClick={reset}
+            />
+          )}
+        </FilterBar>
+        {records.length ? (
+          <DataTable
+            rows={records}
+            columns={columns}
+            rowKey="href"
+            label={`${library.title} records`}
+            noun={["record", "records"]}
+            footer={false}
+          />
+        ) : (
+          <StateNotice
+            kind={inventoryError ? "error" : "empty"}
+            icon={inventoryError ? undefined : library.icon}
+            title={
+              inventoryError
+                ? "Records unavailable"
+                : group.records.length === 0
+                  ? "No records yet"
+                  : "No matching records"
             }
-          >
-            <DropdownMenuRadioItem value="attention" label="Needs attention" />
-            <DropdownMenuRadioItem value="updated" label="Last updated" />
-            <DropdownMenuRadioItem value="title" label="Title" />
-          </DropdownMenuRadioGroup>
-        </FilterMenu>
-      </FilterBar>
-      {records.length ? (
-        <DataTable
-          rows={records}
-          columns={columns}
-          rowKey="href"
-          label={`${interfaceLabel(group.name)} records`}
-          noun={["record", "records"]}
-          figures={libraryFigures(records)}
-        />
-      ) : (
-        <StateNotice
-          kind={inventoryError ? "error" : "empty"}
-          title={
-            inventoryError
-              ? "Records unavailable"
-              : group.records.length === 0
-                ? "No records yet"
-                : "No matching records"
-          }
-          action={
-            inventoryError ? undefined : group.records.length === 0 ? (
-              area === "content" && ["writing", "work"].includes(group.name) ? (
+            action={
+              !inventoryError &&
+              group.records.length > 0 &&
+              status !== "all" && (
                 <Button
-                  label={group.name === "work" ? "New project" : "New article"}
-                  href={
-                    group.name === "work"
-                      ? "/content/new-project"
-                      : "/content/new"
-                  }
+                  label="Clear filters"
+                  onClick={() => change({ q: "", status: "all" })}
                 />
-              ) : undefined
-            ) : (
-              <Button
-                label="Clear filters"
-                onClick={() => {
-                  change({ q: "", status: "all", sections: undefined });
-                }}
-              />
-            )
-          }
-        />
-      )}
-    </VStack>
+              )
+            }
+          />
+        )}
+      </VStack>
+    </WorkspacePage>
   );
 }

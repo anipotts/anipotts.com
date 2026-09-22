@@ -6,17 +6,29 @@ const record = {
   status: "published",
 };
 it("keeps unchanged public content quiet and offers review only for actual edits", () => {
-  expect(contentDecision(record)).toEqual({ label: "Up to date", priority: 4 });
+  expect(contentDecision(record)).toEqual({ priority: 4 });
   expect(contentDecision({ ...record, changesPending: true })).toMatchObject({
-    label: "Unpublished edits",
+    detail: "Unpublished edits",
     action: "Review changes",
     view: "review",
   });
 });
+it("says nothing beside a chip that already names the state", () => {
+  // Draft, Hidden and a newsletter's own status are the chip's words already.
+  expect(
+    contentDecision({ ...record, status: "draft" }).detail,
+  ).toBeUndefined();
+  expect(
+    contentDecision({ ...record, status: "hidden" }).detail,
+  ).toBeUndefined();
+  expect(
+    contentDecision({ ...record, href: "/newsletter/issue", status: "review" }),
+  ).toEqual({ priority: 3 });
+});
 it("distinguishes private drafts and visibility changes without implying readiness", () => {
   expect(
     contentDecision({ ...record, status: "draft", changesPending: true }),
-  ).toMatchObject({ label: "Unpublished draft", action: "Continue draft" });
+  ).toMatchObject({ action: "Continue draft", view: "edit" });
   expect(
     contentDecision({
       ...record,
@@ -24,7 +36,6 @@ it("distinguishes private drafts and visibility changes without implying readine
       intendedVisibility: "draft",
     }),
   ).toMatchObject({
-    label: "Visibility change",
     detail: "Public to Hidden",
     view: "review",
   });
@@ -68,7 +79,7 @@ it("opens exact record review without publishing and retains library return filt
 
 it("does not call unchecked private state up to date during an inventory failure", () => {
   expect(contentDecision(record, false)).toEqual({
-    label: "Draft status unavailable",
+    unavailable: true,
     priority: 3,
   });
   expect(

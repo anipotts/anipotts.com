@@ -2,7 +2,9 @@ import {
   libraryPaths,
   libraryReturnPath,
 } from "../../lib/content-library-state";
-import { WorkspacePage } from "../workspace/Workspace";
+import { InlineNotice, WorkspacePage } from "../workspace/Workspace";
+import { IconButton } from "@astryxdesign/core/IconButton";
+import { ArrowClockwiseIcon } from "@phosphor-icons/react";
 import {
   RECORD_CREATED_EVENT,
   RECORD_SAVED_EVENT,
@@ -11,7 +13,6 @@ import {
   applyEditorialRecordSaved,
 } from "../../lib/editorial-inventory-events";
 import { startEditorialInventoryRelay } from "../../lib/editorial-inventory-relay";
-import { Banner } from "@astryxdesign/core/Banner";
 import { NewWriting } from "./NewWriting";
 import React, { useEffect, useState, type ReactNode } from "react";
 const HomeEditor = React.lazy(() =>
@@ -116,6 +117,37 @@ export type EditorialAppProps = {
   children?: ReactNode;
 };
 
+/** Record counts for the Content items in the sidebar, on every Content
+ * route: from the libraries when the page has them, otherwise from the
+ * inventory's search entries, which every Content page carries. */
+export function navigationCounts(
+  groups?: CatalogGroup[],
+  entries?: AdminSearchResult[],
+): Record<string, number> | undefined {
+  if (groups)
+    return Object.fromEntries(
+      groups.map((group) => [group.name, group.records.length]),
+    );
+  if (!entries) return undefined;
+  const counts: Record<string, number> = {
+    website: 0,
+    writing: 0,
+    work: 0,
+    newsletter: 0,
+  };
+  for (const entry of entries) {
+    if (entry.domain !== "content") continue;
+    const id =
+      entry.kind === "projects"
+        ? "work"
+        : entry.kind === "writing" || entry.kind === "newsletter"
+          ? entry.kind
+          : "website";
+    counts[id] = (counts[id] ?? 0) + 1;
+  }
+  return counts;
+}
+
 export function EditorialApp({
   title,
   area,
@@ -209,15 +241,10 @@ export function EditorialApp({
         localPreview={localPreview}
         localOwner={localOwner}
         searchEntries={inventoryView.searchEntries}
-        groupCounts={
-          inventoryView.groups &&
-          Object.fromEntries(
-            inventoryView.groups.map((group) => [
-              group.name,
-              group.records.length,
-            ]),
-          )
-        }
+        groupCounts={navigationCounts(
+          inventoryView.groups,
+          inventoryView.searchEntries,
+        )}
       >
         <VStack
           gap={editorRecord ? 4 : 6}
@@ -254,9 +281,10 @@ export function EditorialApp({
             </Breadcrumbs>
           )}
           {!hideHeader &&
+            !groups &&
             !editorRecord &&
             !editHome &&
-            (groups || review || children || newWriting || newProject) && (
+            (review || children || newWriting || newProject) && (
               <WorkspacePage
                 title={
                   newProject
@@ -265,34 +293,21 @@ export function EditorialApp({
                       ? "New article"
                       : title
                 }
-                actions={
-                  groups &&
-                  ["writing", "work"].includes(selectedGroup ?? "") && (
-                    <Button
-                      label={
-                        selectedGroup === "work" ? "New project" : "New article"
-                      }
-                      href={
-                        selectedGroup === "work"
-                          ? "/content/new-project"
-                          : "/content/new"
-                      }
-                      variant="primary"
-                      size="sm"
-                    />
-                  )
-                }
               />
             )}
           {inventoryError && (
-            <Banner
-              status="warning"
+            <InlineNotice
+              tone="warning"
               title="Private drafts couldn’t be loaded"
-              description="Published records are still available."
-              endContent={
-                <Button
+              action={
+                <IconButton
                   label="Reload"
+                  tooltip="Reload"
                   size="sm"
+                  variant="ghost"
+                  icon={
+                    <ArrowClockwiseIcon weight="regular" aria-hidden="true" />
+                  }
                   onClick={() => window.location.reload()}
                 />
               }
@@ -306,6 +321,7 @@ export function EditorialApp({
           )}
           {groups && (
             <ContentLibrary
+              title={title}
               groups={inventoryView.groups ?? groups}
               selectedGroup={selectedGroup}
               initialSearch={librarySearch}

@@ -323,8 +323,8 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   width: auto;
 }
 
-/* Content library cells: a record's state beside its chip, the summary
-   column, and the row action. */
+/* Content library cells: a record's state beside its chip, and the summary
+   column. The whole row opens the record. */
 .workspace-table .editorial-record-state {
   align-items: flex-start;
   min-width: 0;
@@ -345,21 +345,11 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.editorial-record-action {
-  flex-shrink: 0;
-  min-width: var(--spacing-9);
-  min-height: var(--spacing-9);
-}
-/* The row's own action appears on hover and keyboard focus, and wherever
-   hover does not exist. */
-@media (hover: hover) and (pointer: fine) {
-  .workspace-table .editorial-record-action {
-    opacity: 0;
-  }
-  .workspace-table tr:hover .editorial-record-action,
-  .workspace-table tr:focus-within .editorial-record-action {
-    opacity: 1;
-  }
+.editorial-record-unavailable {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--color-text-secondary);
+  font-size: var(--spacing-4);
 }
 
 /* A notice stands where the table would be, on the same raised surface. */

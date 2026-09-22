@@ -280,7 +280,31 @@ export function projectEditorialInventory(
   return [...records.values()];
 }
 
-export function editorialInventoryGroups(records: ProjectedRecord[]) {
+/** Newsletter issues are read-only here: the row opens the issue's review
+ * page, and the issue's own status is its only state. */
+export function newsletterRecords(
+  entries: Array<{ id: string; data: Record<string, unknown> }>,
+  updated: (collection: string, id: string) => CatalogRecord["updated"] = () =>
+    undefined,
+): ProjectedRecord[] {
+  return entries.map(({ id, data }) => ({
+    collection: "newsletterDrafts",
+    id,
+    title: text(data.title) ?? id,
+    summary: text(data.summary) ?? "",
+    section: "newsletter",
+    status: text(data.status) ?? "draft",
+    href: `/newsletter/${encodeURIComponent(text(data.slug) ?? id)}`,
+    updated: updated("newsletterDrafts", id),
+    changesPending: false,
+    capabilities: { editable: false, previewable: false, reviewOnly: true },
+  }));
+}
+
+export function editorialInventoryGroups(
+  records: ProjectedRecord[],
+  newsletter: ProjectedRecord[] = [],
+) {
   return [
     { name: "pages", href: libraryPath("pages"), records },
     {
@@ -305,6 +329,11 @@ export function editorialInventoryGroups(records: ProjectedRecord[]) {
       href: libraryPath("systems"),
       records: records.filter((record) => record.collection === "systemsPage"),
     },
+    {
+      name: "newsletter",
+      href: libraryPath("newsletter"),
+      records: newsletter,
+    },
   ];
 }
 export function editorialInventorySearch(records: ProjectedRecord[]) {
@@ -312,7 +341,10 @@ export function editorialInventorySearch(records: ProjectedRecord[]) {
     id: `content:${record.collection}:${record.id}`,
     label: record.title,
     domain: "content" as const,
-    kind: record.collection,
+    kind:
+      record.collection === "newsletterDrafts"
+        ? "newsletter"
+        : record.collection,
     currentFact: record.changesPending
       ? `${record.status}; changes pending`
       : record.status,

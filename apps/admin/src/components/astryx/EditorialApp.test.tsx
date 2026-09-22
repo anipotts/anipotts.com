@@ -52,28 +52,13 @@ describe("editorial catalog", () => {
     expect(result[0].title).toBe("music");
     expect(matchingRecords(datedRecords, "missing", "all")).toEqual([]);
   });
-  it("combines multiple sections with search and status, including an empty selection", () => {
+  it("finds a record by its address as well as its words", () => {
     const items = [
-      { ...records[0], section: "writing" },
-      { ...records[1], section: "work" },
-      {
-        title: "home",
-        status: "published",
-        href: "/content/home/home",
-        section: "home",
-      },
+      { ...records[0], href: "/content/writing/lean-context" },
+      { ...records[1], id: "shipping-notes" },
     ];
-    expect(matchingRecords(items, "", "all", ["work", "writing"])).toEqual(
-      items.slice(0, 2),
-    );
-    expect(matchingRecords(items, "context", "published", ["writing"])).toEqual(
-      [items[0]],
-    );
-    expect(matchingRecords(items, "", "all", [])).toEqual([]);
-    expect(matchingRecords(items, "", "all", ["missing"])).toEqual([]);
-    expect(matchingRecords(items, "writing", "all", ["writing"])).toEqual([
-      items[0],
-    ]);
+    expect(matchingRecords(items, "lean-context", "all")).toEqual([items[0]]);
+    expect(matchingRecords(items, "shipping-notes", "all")).toEqual([items[1]]);
   });
   it("renders all pages as a flat table with a dedicated readable date column", () => {
     const html = renderToStaticMarkup(
@@ -274,7 +259,7 @@ it.each([[records], [[]]])(
       />,
     );
     expect(html).toContain("Private drafts couldn’t be loaded");
-    expect(html.match(/>Reload</g)).toHaveLength(1);
+    expect(html.match(/aria-label="Reload"/g)).toHaveLength(1);
     expect(html).not.toContain(">Retry<");
     if (availableRecords.length) {
       expect(html).toContain("agent notes");

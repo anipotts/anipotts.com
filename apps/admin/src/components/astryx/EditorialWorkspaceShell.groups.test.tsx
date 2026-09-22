@@ -56,7 +56,7 @@ function link(label: string) {
   expect(anchor).toBeDefined();
   return new URL(anchor!.getAttribute("href")!, location.origin);
 }
-it("clears source-only sections/status when switching libraries but preserves query, sort, and theme", () => {
+it("clears status when switching libraries but preserves query, sort, and theme", () => {
   render(
     "/content/projects?sections=work&status=featured&q=agent&sort=title&theme=dark",
   );
@@ -69,13 +69,14 @@ it("clears source-only sections/status when switching libraries but preserves qu
   });
   expect(link("Projects").pathname).toBe("/content/projects");
   expect(link("Projects").searchParams.get("status")).toBe("featured");
-  expect(link("Projects").searchParams.get("sections")).toBe("work");
+  // The retired Sections filter never travels.
+  expect(link("Projects").searchParams.has("sections")).toBe(false);
 });
-it("clears an explicitly empty sections filter when leaving Pages", () => {
+it("keeps a library's own status only on that library", () => {
   render("/content/pages?sections=&status=hidden&sort=updated");
   expect(link("Writing").searchParams.has("sections")).toBe(false);
   expect(link("Writing").searchParams.has("status")).toBe(false);
-  expect(link("Pages").searchParams.get("sections")).toBe("");
+  expect(link("Pages").searchParams.has("sections")).toBe(false);
   expect(link("Pages").searchParams.get("status")).toBe("hidden");
 });
 it("treats Newsletter and Pages as distinct libraries", () => {

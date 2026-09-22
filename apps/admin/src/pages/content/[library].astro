@@ -1,24 +1,35 @@
 ---
 import EditorialLayout from "../../layouts/EditorialLayout.astro";
-import { loadEditorialInventory } from "../../lib/editorial-inventory-server";
+import {
+  inventoryFixture,
+  loadEditorialInventory,
+} from "../../lib/editorial-inventory-server";
 import { measureServerTiming } from "../../lib/server-timing";
 
-// One route per library: /content/pages, /content/writing, /content/projects.
-// Newsletter has its own route; every other segment is not a library.
+// One route per library: /content/pages, /content/writing, /content/projects
+// and /content/newsletter. Every other segment is not a library.
 const libraries = {
   pages: { group: "website", title: "Pages" },
   writing: { group: "writing", title: "Writing" },
   projects: { group: "work", title: "Projects" },
+  newsletter: { group: "newsletter", title: "Newsletter" },
 } as const;
 const key = Astro.params.library ?? "";
 const library = Object.hasOwn(libraries, key)
   ? libraries[key as keyof typeof libraries]
   : null;
-if (!library) return new Response("Not found", { status: 404 });
+if (!library) {
+  Astro.response.status = 404;
+  return Astro.rewrite("/404");
+}
 const inventoryProjection = await measureServerTiming(
   Astro.locals,
   "inventory",
-  () => loadEditorialInventory(Astro.locals.runtime?.env),
+  () =>
+    loadEditorialInventory(
+      Astro.locals.runtime?.env,
+      inventoryFixture(Astro.url),
+    ),
 );
 ---
 
