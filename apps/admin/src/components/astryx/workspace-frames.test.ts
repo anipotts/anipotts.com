@@ -21,6 +21,18 @@ const block = (css: string, query: string) => {
 // styles/theme-contract.test.ts holds the gutter, and lib/breakpoints.test.ts
 // with Workspace.test.tsx the named column ranges.
 describe("workspace page frames", () => {
+  it("leaves the one gutter to the shell", () => {
+    // Data and Observability pages sit in the frame as they are; neither
+    // resets it to set a gutter of its own.
+    for (const css of [kit, observability])
+      expect(css).not.toContain("admin-page-frame");
+  });
+
+  it("never counts columns by position", () => {
+    for (const css of [shell, kit, observability])
+      expect(css).not.toMatch(/nth-child|nth-last-child/);
+  });
+
   it("turns every table into a full-bleed list of lead cells at compact", () => {
     const compact = block(kit, "(max-width: 640px)");
     expect(compact).toContain(
