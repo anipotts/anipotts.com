@@ -61,11 +61,13 @@ const WORDS: Readonly<Record<string, string>> = {
   html: "HTML",
   id: "ID",
   ids: "IDs",
+  nyu: "NYU",
+  os: "OS",
   r2: "R2",
   url: "URL",
 };
 
-/** The leading word a device tile makes redundant. */
+/** The word a device tile makes redundant, by device. */
 const DEVICE_WORDS: Readonly<Record<string, string>> = {
   "ap-mini": "mini",
   "ap-phone": "phone",
@@ -73,7 +75,28 @@ const DEVICE_WORDS: Readonly<Record<string, string>> = {
   "ap-pro": "pro",
 };
 
-function caseWords(text: string): string {
+/** Device words an id can carry ("codex-mini", "brain-pro-vault"). "plus"
+ * is left out: in an id it is more often a word than the phone. */
+const ID_DEVICES: Readonly<Record<string, string>> = {
+  mini: "ap-mini",
+  phone: "ap-phone",
+  pro: "ap-pro",
+};
+
+/** Whether a word in an id names one of the owner's devices. */
+export function isDeviceWord(word: string): boolean {
+  return Object.hasOwn(ID_DEVICES, word.toLowerCase());
+}
+
+/** The device a device word in an id names, or null. */
+export function idDevice(id: string): string | null {
+  for (const word of withoutOwner(id.toLowerCase()).split(/[^a-z0-9]+/))
+    if (isDeviceWord(word)) return ID_DEVICES[word]!;
+  return null;
+}
+
+/** Words cased as the admin writes them: "html" reads "HTML", "nyu" "NYU". */
+export function caseWords(text: string): string {
   return text
     .split(" ")
     .map((word) =>
@@ -86,9 +109,10 @@ function caseWords(text: string): string {
 
 /**
  * A name as a row shows it: no owner prefix, separators as spaces, the
- * brand word the tile says and the device word the device tile says dropped,
- * then sentence case. A name that is only the brand reads as the brand's own
- * label ("messages" beside Messages reads "Messages").
+ * brand word the tile says and the device word the device tile says dropped
+ * wherever it sits ("legacy silver pro" beside the MacBook reads "Legacy
+ * silver"), then sentence case. A name that is only the brand reads as the
+ * brand's own label ("messages" beside Messages reads "Messages").
  */
 export function displayName(
   raw: string,
@@ -106,7 +130,10 @@ export function displayName(
   const word =
     device && Object.hasOwn(DEVICE_WORDS, device) && DEVICE_WORDS[device];
   if (word) {
-    const rest = name.replace(new RegExp(`^${word}\\s+`, "i"), "");
+    const rest = name
+      .split(" ")
+      .filter((part) => part.toLowerCase() !== word)
+      .join(" ");
     if (rest) name = rest;
   }
   return sentenceCase(caseWords(name || base));
@@ -153,16 +180,23 @@ export function opsNaming(entry: OpsEntry): Naming {
   };
 }
 
-/** A data source by its id. `host` is System's optional source host; without
- * it the row has no device tile. */
+/**
+ * A data source, the same on every page. `displayName` is the catalog's own
+ * label (System's `display_name`), and wins; otherwise the name comes from
+ * the id. The device is System's `host`, else a device word in the id
+ * ("codex-mini"), so the name drops that word wherever the source shows.
+ */
 export function sourceNaming(source: {
   id: string;
   host?: string | null;
+  displayName?: string | null;
 }): Naming {
   const tile = sourceMark(withoutOwner(source.id));
-  const device = hostDevice(source.host);
+  const device = source.host
+    ? hostDevice(source.host)
+    : hostDevice(idDevice(source.id));
   return {
-    name: displayName(source.id, { tile, device }),
+    name: source.displayName || displayName(source.id, { tile, device }),
     tile,
     device,
     tooltip: source.id,

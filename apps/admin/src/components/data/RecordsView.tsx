@@ -21,7 +21,7 @@ import {
   type DataKind,
   type RecordsRoute,
 } from "../../lib/data-routes";
-import { deviceName, sourceNaming } from "../../lib/naming";
+import { deviceName } from "../../lib/naming";
 import { BrandTile } from "../BrandTile";
 import { SplitView, useSplitView } from "../astryx/SplitView";
 import {
@@ -47,34 +47,22 @@ import {
 } from "./data-model";
 import { ReadNotice, type DataNavigate } from "./DataNotices";
 import { RecordPanel } from "./RecordPanel";
+import {
+  SourceNamesContext,
+  namedSource,
+  useNamedSource,
+  useSourceNames,
+} from "./source-catalog";
 import { provideSearchEntries } from "../../lib/admin-search-index";
 
 type Failure = Exclude<DataResult, { state: "ready" }>;
 
-/** A source's tile and short name, with its id as the tooltip. */
-export function SourceName({
-  id,
-  text,
-}: {
-  id: string;
-  /** Text in place of the name, such as a search excerpt. */
-  text?: string | null;
-}) {
-  const source = sourceNaming({ id });
-  return (
-    <span className="data-source" title={source.tooltip}>
-      <BrandTile id={source.tile.id} kind={source.tile.kind} size={20} />
-      <span className="data-source-name">{text ?? source.name}</span>
-    </span>
-  );
-}
-
 /** A record's source as its column shows it: the device tile when System
- * names one, then the source's short name. The row's lead tile is already
- * the source's app, so the column does not repeat it. */
+ * names one, then the source's name as Sources reads it. The row's lead
+ * tile is already the source's app, so the column does not repeat it. */
 function RecordSource({ record }: { record: DataRecord }) {
-  if (!record.source) return null;
-  const source = sourceNaming({ id: record.source, host: record.host });
+  const source = useNamedSource(record.source, record.host);
+  if (!source) return null;
   return (
     <span className="data-source" title={source.tooltip}>
       {source.device && record.host && (
@@ -253,7 +241,7 @@ export function RecordsToolbar({
       { replace: true },
     );
   };
-  const source = route.source ? sourceNaming({ id: route.source }) : null;
+  const source = useNamedSource(route.source);
   return (
     <div className="data-toolbar">
       <FilterBar
@@ -368,6 +356,7 @@ export function RecordsExplorer({
   const detailId = useId();
   const [search, setSearch] = useState({ q: "", n: 0 });
   const [list, setList] = useState<List | null>(null);
+  const names = useSourceNames(reader);
   // The records this session has listed are what the palette finds under
   // Data. They go with the list: a locked or ended session remounts it.
   const items = list?.items;
@@ -385,7 +374,7 @@ export function RecordsExplorer({
                 kind: "record",
                 currentFact: mark.kindName,
                 source: item.source
-                  ? sourceNaming({ id: item.source }).name
+                  ? namedSource(item.source, names, item.host).name
                   : "",
                 freshness: "current",
                 href: dataRecordHref(item.id),
@@ -396,7 +385,7 @@ export function RecordsExplorer({
             }),
           )
         : undefined,
-    [items],
+    [items, names],
   );
   const [busy, setBusy] = useState(false);
   const [record, setRecord] = useState<DataRecord | null>(null);
@@ -606,82 +595,87 @@ export function RecordsExplorer({
   });
 
   return (
-    <SplitView
-      className="data-records"
-      listClassName="data-records-list"
-      list={
-        <VStack gap={4} ref={listRef}>
-          <RecordsToolbar
-            route={route}
-            navigate={navigate}
-            query={search.q}
-            onSearch={(q) => setSearch(({ n }) => ({ q, n: n + 1 }))}
-            onClear={() => setSearch(({ n }) => ({ q: "", n: n + 1 }))}
-            busy={busy}
-          />
-          {!list ? (
-            <LoadingSkeleton label="records" columns={4} />
-          ) : list.failure && !list.items.length ? (
-            <ReadNotice
-              result={list.failure}
-              onRetry={() => void load(false)}
+    <SourceNamesContext value={names}>
+      <SplitView
+        className="data-records"
+        listClassName="data-records-list"
+        list={
+          <VStack gap={4} ref={listRef}>
+            <RecordsToolbar
+              route={route}
+              navigate={navigate}
+              query={search.q}
+              onSearch={(q) => setSearch(({ n }) => ({ q, n: n + 1 }))}
+              onClear={() => setSearch(({ n }) => ({ q: "", n: n + 1 }))}
+              busy={busy}
             />
-          ) : list.items.length ? (
-            <VStack gap={3} aria-busy={busy}>
-              <DataTable
-                rows={list.items}
-                rowKey="id"
-                columns={withMatch(columns, list.items, beside)}
-                label={search.q ? "Search results" : "Recent records"}
-                noun={["record", "records"]}
-                footer={false}
+            {!list ? (
+              <LoadingSkeleton label="records" columns={4} />
+            ) : list.failure && !list.items.length ? (
+              <ReadNotice
+                result={list.failure}
+                onRetry={() => void load(false)}
               />
-              {list.failure && (
-                <InlineNotice tone="warning" title="More records unreadable" />
-              )}
-              {list.next !== null && (
-                <HStack>
-                  <Button
-                    label="Load more"
-                    size="sm"
-                    variant="secondary"
-                    isLoading={busy}
-                    onClick={() => {
-                      focusRow.current = list.items.length;
-                      void load(true);
-                    }}
+            ) : list.items.length ? (
+              <VStack gap={3} aria-busy={busy}>
+                <DataTable
+                  rows={list.items}
+                  rowKey="id"
+                  columns={withMatch(columns, list.items, beside)}
+                  label={search.q ? "Search results" : "Recent records"}
+                  noun={["record", "records"]}
+                  footer={false}
+                />
+                {list.failure && (
+                  <InlineNotice
+                    tone="warning"
+                    title="More records unreadable"
                   />
-                </HStack>
-              )}
-            </VStack>
-          ) : (
-            <StateNotice
-              kind="empty"
-              title="No matching records"
-              action={
-                filtered ? (
-                  <Button label="Clear filters" size="sm" onClick={reset} />
-                ) : undefined
-              }
+                )}
+                {list.next !== null && (
+                  <HStack>
+                    <Button
+                      label="Load more"
+                      size="sm"
+                      variant="secondary"
+                      isLoading={busy}
+                      onClick={() => {
+                        focusRow.current = list.items.length;
+                        void load(true);
+                      }}
+                    />
+                  </HStack>
+                )}
+              </VStack>
+            ) : (
+              <StateNotice
+                kind="empty"
+                title="No matching records"
+                action={
+                  filtered ? (
+                    <Button label="Clear filters" size="sm" onClick={reset} />
+                  ) : undefined
+                }
+              />
+            )}
+          </VStack>
+        }
+        panel={
+          id && (
+            <RecordPanel
+              id={detailId}
+              panelRef={panel}
+              record={record}
+              busy={detailBusy}
+              failure={failure}
+              moreFailed={moreFailed}
+              onMore={() => void more()}
+              onRetry={() => void open(id)}
+              onClose={close}
             />
-          )}
-        </VStack>
-      }
-      panel={
-        id && (
-          <RecordPanel
-            id={detailId}
-            panelRef={panel}
-            record={record}
-            busy={detailBusy}
-            failure={failure}
-            moreFailed={moreFailed}
-            onMore={() => void more()}
-            onRetry={() => void open(id)}
-            onClose={close}
-          />
-        )
-      }
-    />
+          )
+        }
+      />
+    </SourceNamesContext>
   );
 }

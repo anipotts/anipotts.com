@@ -2,14 +2,13 @@
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import { PrivateShell } from "../../components/data/PrivateShell";
 import { DATA_VIEW_TITLES, dataRoute } from "../../lib/data-routes";
-import {
-  privateReaderHealthEnabled,
-  privateReaderOpsEnabled,
-} from "../../lib/private-reader-credential";
+import { privateShellFlags } from "../../lib/private-reader-credential";
 import { loadShellFixtures } from "../../lib/shell-fixtures";
 
 // Records, Sources, Health and Knowledge. Every view is read in the browser
 // with a short private session, in memory only, and the server reads none.
+// Sources also reads the ops snapshot, behind the ops gate, for the jobs its
+// sources name.
 // Records, Sources and Knowledge share the Data session, off unless
 // PRIVATE_READER_ENABLED is exactly "true"; Knowledge's entity reads also
 // need PRIVATE_READER_KNOWLEDGE_ENABLED. Health has its own health:read
@@ -26,12 +25,9 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
 <AdminLayout title={DATA_VIEW_TITLES[route.view]}>
   <PrivateShell
     initialPath={`${Astro.url.pathname}${Astro.url.search}`}
-    dataEnabled={env.PRIVATE_READER_ENABLED === "true"}
-    healthEnabled={privateReaderHealthEnabled(env)}
-    knowledgeEnabled={env.PRIVATE_READER_ENABLED === "true" &&
-      env.PRIVATE_READER_KNOWLEDGE_ENABLED === "true"}
+    {...privateShellFlags(env)}
     dataFixture={fixtures?.data}
-    enabled={privateReaderOpsEnabled(env)}
+    fixture={fixtures?.snapshot}
     renderedAt={Date.now()}
     client:load
   />

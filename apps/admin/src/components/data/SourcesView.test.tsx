@@ -2,6 +2,7 @@
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import opsSample from "../../fixtures/ops_v1.sample.json";
 import { createFixtureReader } from "../../lib/data-fixture-reader";
 import { SourcesExplorer } from "./SourcesView";
 
@@ -25,17 +26,25 @@ const discovered = (id: string, extra: Record<string, unknown> = {}) =>
     ...extra,
   });
 const sources = [
+  // pc.writer in System's sample: ok, with a 75 minute budget.
   source("ani-browsing", {
     host: "ap-pro",
     collection: "live",
-    interval_s: 3600,
+    job: "pc.writer",
     last_success_at: ago(15),
   }),
   source("ani-messages-1to1", {
     host: "ap-pro",
     collection: "live",
-    interval_s: 900,
+    job: "pc.writer",
     last_success_at: ago(600),
+  }),
+  source("ani-health", {
+    record_count: 93,
+    revision_count: 93,
+    status: "excluded",
+    connector: "health",
+    host: "ap-mini",
   }),
   source("ani-contacts"),
   source("ani-contact-identity-map", { record_count: 1200 }),
@@ -76,11 +85,17 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-async function render() {
+async function render(withOps = true) {
   const onCount = vi.fn();
   const reader = createFixtureReader({ status: {}, records: [], sources });
   await act(async () =>
-    root.render(<SourcesExplorer reader={reader} onCount={onCount} />),
+    root.render(
+      <SourcesExplorer
+        reader={reader}
+        onCount={onCount}
+        ops={withOps ? { enabled: false, fixture: opsSample } : undefined}
+      />,
+    ),
   );
   await settle();
   return onCount;
@@ -103,7 +118,8 @@ describe("Sources by connector", () => {
     expect(headings[0]).toBe("Live");
     expect(headings[1]).toBe("Connected");
     expect(headings[2]).toBe("Imported once");
-    expect(headings[3]).toContain("Discovered, not connected");
+    expect(headings[3]).toBe("Excluded");
+    expect(headings[4]).toContain("Discovered, not connected");
     const fold = host.querySelector<HTMLButtonElement>(
       ".workspace-group-toggle",
     )!;
@@ -111,13 +127,31 @@ describe("Sources by connector", () => {
     expect(host.textContent).not.toContain("Gmail");
   });
 
-  it("marks a live source against its cadence, and only exceptions as chips", async () => {
+  it("marks a live source against its job's budget, and only exceptions as chips", async () => {
     await render();
     const table = host.querySelector('table[aria-label="Sources"]')!;
     expect(table.querySelector('[aria-label="Live"]')).not.toBeNull();
-    // Messages every 15 minutes, last synced ten hours ago.
+    // Messages' last success is ten hours old, over pc.writer's budget.
     expect(table.textContent).toContain("Stale");
     expect(table.textContent).not.toContain("Failed");
+  });
+
+  it("judges nothing stale without the ops snapshot", async () => {
+    await render(false);
+    const table = host.querySelector('table[aria-label="Sources"]')!;
+    expect(table.textContent).not.toContain("Stale");
+  });
+
+  it("shows an excluded source apart, with nothing to open or count", async () => {
+    await render();
+    const heading = [...host.querySelectorAll("th[scope=rowgroup]")].find(
+      (cell) => cell.textContent === "Excluded",
+    )!;
+    const row = heading.closest("tr")!.nextElementSibling!;
+    expect(row.textContent).toContain("Apple Health");
+    expect(row.textContent).toContain("Excluded");
+    expect(row.textContent).not.toContain("93");
+    expect(row.querySelector("a")).toBeNull();
   });
 
   it("opens Records filtered to a source from its row", async () => {

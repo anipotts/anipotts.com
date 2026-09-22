@@ -8,6 +8,7 @@ import React, {
 import { DATA_VIEW_TITLES, type RecordsRoute } from "../../lib/data-routes";
 import type { DataFixture } from "../../lib/data-fixture-reader";
 import type { PrivateReaderSession } from "../../lib/private-reader-client";
+import type { OpsViewProps } from "../observability/frame";
 import { SampleBadge, WorkspacePage } from "../workspace/Workspace";
 import { useDataSession } from "./useDataSession";
 import {
@@ -60,6 +61,7 @@ export function DataWorkspace({
   fixture,
   session: injected,
   fetch: fetcher,
+  ops,
 }: {
   route: RecordsRoute | { view: "sources" };
   navigate: DataNavigate;
@@ -67,6 +69,8 @@ export function DataWorkspace({
   fixture?: DataFixture;
   session?: PrivateReaderSession;
   fetch?: typeof fetch;
+  /** The ops reader's gate and fixtures: Sources joins each source's job. */
+  ops?: OpsViewProps;
 }) {
   const session = useDataSession({
     enabled,
@@ -109,6 +113,7 @@ export function DataWorkspace({
         key={session.generation}
         reader={session.reader!}
         onCount={setCount}
+        ops={ops}
       />
     );
   }

@@ -657,8 +657,14 @@ describe("private Data workspace", () => {
     expect(container.textContent).not.toMatch(/memory only|credential/i);
   }
   const h1 = () => container.querySelector("h1")?.textContent;
+  // Records reads the source catalog once, for the names Sources gives
+  // each source; list and record reads are asserted apart from it.
+  const isCatalog = (call: { url: URL }) =>
+    call.url.pathname === PRIVATE_READER_ROUTES.sources;
   const readerCalls = (calls: { url: URL }[]) =>
-    calls.map((call) => call.url.pathname + call.url.search);
+    calls
+      .filter((call) => !isCatalog(call))
+      .map((call) => call.url.pathname + call.url.search);
   afterEach(() => window.history.replaceState(null, "", "/"));
 
   it("says the reader is off, with no session control", async () => {
@@ -705,8 +711,9 @@ describe("private Data workspace", () => {
     ).toBeNull();
     await act(() => new Promise((resolve) => requestAnimationFrame(resolve)));
     expect(document.activeElement?.textContent).toBe("Synthetic note");
-    // The list was kept, not read again.
-    expect(calls).toHaveLength(3);
+    // The list was kept, not read again, and the catalog read once.
+    expect(readerCalls(calls)).toHaveLength(3);
+    expect(calls.filter(isCatalog)).toHaveLength(1);
   });
 
   it("closes a record on Escape", async () => {
@@ -750,9 +757,9 @@ describe("private Data workspace", () => {
       fetcher,
       "/data/records?kind=people",
     );
-    expect(calls.map((call) => call.url.search)).toEqual([
-      "?q=&limit=30&offset=0&kind=person",
-    ]);
+    expect(
+      calls.filter((call) => !isCatalog(call)).map((call) => call.url.search),
+    ).toEqual(["?q=&limit=30&offset=0&kind=person"]);
     const entries = window.history.length;
     await click("Notes");
     await settle();

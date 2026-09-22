@@ -158,6 +158,7 @@ export function PrivateShell({
           fixture={dataFixture}
           session={session}
           fetch={fetcher}
+          ops={ops}
         />
       )}
     </div>

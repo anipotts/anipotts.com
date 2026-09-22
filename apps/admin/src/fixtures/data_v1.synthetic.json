@@ -8,7 +8,7 @@
     "counts": {
       "records": 18,
       "revisions": 31,
-      "sources": 23,
+      "sources": 24,
       "changes": 3
     },
     "last_change_at": "2026-09-22T04:10:00.000000Z"
@@ -823,8 +823,8 @@
       "connector": "browsing",
       "host": "ap-pro",
       "collection": "live",
+      "job": "pc.writer",
       "status": "current",
-      "interval_s": 3600,
       "last_success_at": "2026-09-21T17:25:00.000000Z"
     },
     {
@@ -836,21 +836,21 @@
       "connector": "messages",
       "host": "ap-pro",
       "collection": "live",
+      "job": "pc.writer",
       "status": "partial",
-      "interval_s": 900,
       "last_success_at": "2026-09-19T17:45:00.000000Z"
     },
     {
       "source_id": "synthetic-contacts",
       "first_observed_at": "2026-05-02T09:00:00.000000Z",
       "last_observed_at": "2026-09-21T17:41:00.000000Z",
-      "record_count": 2,
-      "revision_count": 4,
+      "record_count": 3,
+      "revision_count": 5,
       "connector": "contacts",
       "host": "ap-pro",
       "collection": "live",
+      "job": "pc.writer",
       "status": "current",
-      "interval_s": 86400,
       "last_success_at": "2026-09-21T12:45:00.000000Z",
       "display_name": "Contacts"
     },
@@ -862,8 +862,8 @@
       "revision_count": 6,
       "connector": "calendar",
       "collection": "live",
+      "job": "pc.writer",
       "status": "paused",
-      "interval_s": 3600,
       "last_success_at": "2026-09-20T17:45:00.000000Z"
     },
     {
@@ -876,7 +876,6 @@
       "host": "ap-mini",
       "collection": "live",
       "status": "current",
-      "interval_s": 21600,
       "last_success_at": "2026-09-21T14:45:00.000000Z"
     },
     {
@@ -888,8 +887,8 @@
       "connector": "media",
       "host": "ap-pro",
       "collection": "live",
+      "job": "pc.writer",
       "status": "failed",
-      "interval_s": 86400,
       "failed_count": 1,
       "display_name": "Voice memos"
     },
@@ -902,8 +901,8 @@
       "connector": "agent_transcripts",
       "host": "ap-mini",
       "collection": "live",
+      "job": "pc.writer",
       "status": "current",
-      "interval_s": 3600,
       "last_success_at": "2026-09-18T09:30:00.000000Z"
     },
     {
@@ -919,6 +918,17 @@
       "display_name": "Daily health"
     },
     {
+      "source_id": "synthetic-body-scale",
+      "first_observed_at": "2026-07-25T08:00:00.000000Z",
+      "last_observed_at": "2026-08-12T08:00:00.000000Z",
+      "record_count": 5,
+      "revision_count": 5,
+      "connector": "health",
+      "host": "ap-mini",
+      "collection": "live",
+      "status": "excluded"
+    },
+    {
       "source_id": "synthetic-browsing-archive",
       "first_observed_at": "2026-09-15T17:45:00.000000Z",
       "last_observed_at": "2026-09-15T17:45:00.000000Z",
@@ -932,7 +942,7 @@
       "source_id": "synthetic-notes",
       "first_observed_at": "2026-04-11T09:00:00.000000Z",
       "last_observed_at": "2026-09-21T15:06:00.000000Z",
-      "record_count": 3,
+      "record_count": 4,
       "revision_count": 6,
       "connector": "notes",
       "collection": "one_shot",

@@ -25,8 +25,10 @@ import {
   WarningCircleIcon,
   type Icon,
 } from "@phosphor-icons/react";
-import { nextDataOffset, type DataResult } from "../../data/personal-context";
+import type { DataResult } from "../../data/personal-context";
 import { DataReadSession, type DataReader } from "../../lib/data-read-session";
+import { opsServices } from "../../lib/ops-v1";
+import { useOpsData, type OpsViewProps } from "../observability/frame";
 import { dataRecordsHref, dataSource } from "../../lib/data-routes";
 import { useLiveText } from "../../lib/live-clock";
 import { deviceName } from "../../lib/naming";
@@ -44,12 +46,15 @@ import {
   type Column,
   type Tone,
 } from "../workspace/Workspace";
-import { parseItems, parseSource, type DataSourceRow } from "./data-model";
+import type { DataSourceRow } from "./data-model";
 import { ReadNotice } from "./DataNotices";
+import { readSourceCatalog } from "./source-catalog";
 import {
   DISCOVERED_GROUP,
   SOURCE_GROUPS,
+  holdsRecords,
   sourceRows,
+  type SourceJobs,
   type SourceRow,
   type SourceState,
 } from "./sources-model";
@@ -57,9 +62,6 @@ import "./sources.css";
 
 type Failure = Exclude<DataResult, { state: "ready" }>;
 type TableRow = SourceRow & Record<string, unknown>;
-
-/** The catalog is read whole, since rows fold across pages; this bounds it. */
-const MAX_PAGES = 10;
 
 /** A connector's glyph, for a family whose accounts are different apps. */
 const CONNECTOR_GLYPHS: Record<SourceRow["connector"], Icon> = {
@@ -160,7 +162,7 @@ function Device({ id }: { id: string | null }) {
 /** Records and revisions as glyph and number pairs for a phone's line 2,
  * named in full for assistive technology. */
 function Figures({ row }: { row: SourceRow }) {
-  if (row.group === "discovered") return null;
+  if (!holdsRecords(row.group)) return null;
   const name = `${row.records} ${row.records === 1 ? "record" : "records"}, ${row.revisions} ${row.revisions === 1 ? "revision" : "revisions"}`;
   return (
     <span className="data-figures" aria-label={name} title={name}>
@@ -310,6 +312,36 @@ function SourceTitle({ row, family }: { row: SourceRow; family?: string }) {
   );
 }
 
+/** The ops jobs sources name, each with its state and freshness budget,
+ * from the ops snapshot (the reader's own gate, or the development
+ * fixture). Mounted only when some source names a job. */
+function JobStates({
+  ops,
+  onJobs,
+}: {
+  ops: OpsViewProps;
+  onJobs: (jobs: SourceJobs | null) => void;
+}) {
+  // A stopped sampler's states are only last known, so nothing is judged.
+  const { snapshot, stopped } = useOpsData(ops, false);
+  useEffect(() => {
+    onJobs(
+      snapshot && !stopped
+        ? new Map(
+            opsServices(snapshot).map((service) => [
+              service.id,
+              {
+                state: service.status.state,
+                budgetSeconds: service.freshness_budget_s,
+              },
+            ]),
+          )
+        : null,
+    );
+  }, [snapshot, stopped, onJobs]);
+  return null;
+}
+
 /** Every family and source, with each open family's accounts under it. */
 function tableRows(rows: SourceRow[], open: ReadonlySet<string>): TableRow[] {
   return rows.flatMap((row) =>
@@ -325,9 +357,12 @@ function tableRows(rows: SourceRow[], open: ReadonlySet<string>): TableRow[] {
 export function SourcesExplorer({
   reader,
   onCount,
+  ops,
 }: {
   reader: DataReader;
   onCount?: (count: number | undefined) => void;
+  /** The ops reader's gate and fixtures, for the jobs sources name. */
+  ops?: OpsViewProps;
 }) {
   const [sources, setSources] = useState<DataSourceRow[] | null>(null);
   const [total, setTotal] = useState<number | undefined>(undefined);
@@ -343,38 +378,13 @@ export function SourcesExplorer({
   );
   async function read() {
     setBusy(true);
-    const found: DataSourceRow[] = [];
-    let offset: number | null = 0;
-    let pages = 0;
-    while (offset !== null && pages < MAX_PAGES) {
-      const result = await session.current.run(reader, {
-        method: "sources",
-        offset,
-      });
-      if (!result) return;
-      pages += 1;
-      if (result.state !== "ready") {
-        setBusy(false);
-        setFailure(pages === 1 ? result : null);
-        setIncomplete(pages > 1);
-        setSources(found);
-        return;
-      }
-      if (pages === 1)
-        setTotal(
-          typeof result.data.total === "number" ? result.data.total : undefined,
-        );
-      found.push(...parseItems(result.data, parseSource));
-      try {
-        offset = nextDataOffset(result.data.next_offset, offset);
-      } catch {
-        offset = null;
-      }
-    }
+    const catalog = await readSourceCatalog(reader, session.current);
+    if (!catalog) return;
     setBusy(false);
-    setFailure(null);
-    setIncomplete(offset !== null);
-    setSources(found);
+    setTotal(catalog.total);
+    setFailure(catalog.failure);
+    setIncomplete(catalog.incomplete);
+    setSources(catalog.sources);
   }
   useEffect(() => {
     void read();
@@ -386,9 +396,15 @@ export function SourcesExplorer({
     () => onCount?.(failure ? undefined : total),
     [total, failure, onCount],
   );
+  // A live source is judged through the ops job that collects it; the
+  // snapshot is read only when some source names a job.
+  const [jobs, setJobs] = useState<SourceJobs | null>(null);
+  const wantsJobs =
+    Boolean(ops?.enabled || ops?.fixture !== undefined) &&
+    Boolean(sources?.some((source) => source.job));
   const rows = useMemo(
-    () => (sources ? sourceRows(sources, minute * 60_000) : []),
-    [sources, minute],
+    () => (sources ? sourceRows(sources, minute * 60_000, jobs) : []),
+    [sources, minute, jobs],
   );
   if (!sources) return <LoadingSkeleton label="sources" columns={4} />;
   if (failure && !sources.length)
@@ -448,7 +464,7 @@ export function SourcesExplorer({
       width: CELL_WIDTHS.figure,
       numeric: true,
       render: (row) => (
-        <Figure value={row.group === "discovered" ? null : row.records} />
+        <Figure value={holdsRecords(row.group) ? row.records : null} />
       ),
     },
     {
@@ -459,18 +475,24 @@ export function SourcesExplorer({
       numeric: true,
       hideBelow: "large",
       render: (row) => (
-        <Figure value={row.group === "discovered" ? null : row.revisions} />
+        <Figure value={holdsRecords(row.group) ? row.revisions : null} />
       ),
     },
     {
       key: "last",
       header: "Last sync",
       width: CELL_WIDTHS.time,
-      render: (row) => <RelativeTime value={row.lastSync} empty="Never" />,
+      render: (row) =>
+        row.group === "excluded" ? (
+          <span className="sr-only">Withdrawn</span>
+        ) : (
+          <RelativeTime value={row.lastSync} empty="Never" />
+        ),
     },
   ];
   return (
     <VStack gap={3} aria-busy={busy} className="sources-view">
+      {wantsJobs && ops && <JobStates ops={ops} onJobs={setJobs} />}
       <DataTable
         rows={tableRows(rows, open)}
         rowKey="key"

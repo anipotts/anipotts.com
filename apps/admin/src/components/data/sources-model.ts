@@ -3,17 +3,25 @@
  * a device, a lifecycle and a state; rows of one family in one lifecycle
  * fold into one row with their accounts nested (Gmail x3, Contacts x3).
  *
- * System's proposed catalog fields (`connector`, `host`, `collection`,
- * `status`, `interval_s`, `last_success_at`, `display_name`) decide when
- * present. Until System serves them, the id's words stand in for the
- * connector and the device, and a source with no records and no revisions
- * is discovery inventory, never a broken source. Nothing here guesses a
- * schedule: without `interval_s` a source is never called stale.
+ * System's catalog fields (`display_name`, `connector`, `host`,
+ * `collection`, `status`, `job`, `last_success_at`) decide when present.
+ * Until System serves them, the id's words stand in for the connector and
+ * the device, and a source with no records and no revisions is discovery
+ * inventory, never a broken source. An excluded source sits in its own
+ * group near the bottom, never as a live one, whatever its counts say.
+ *
+ * Nothing here guesses a schedule. A live source is judged only through the
+ * ops job that collects it (`job`, joined to the ops snapshot): that job's
+ * own state, and the source's success receipt against the job's own
+ * freshness budget. Without a job, a snapshot or a budget it is never stale.
  */
 import { brandMark } from "@anipotts/brand/marks";
 import type { TileRef } from "../../lib/marks";
 import {
+  caseWords,
   hostDevice,
+  idDevice,
+  isDeviceWord,
   keyLabel,
   sourceNaming,
   withoutOwner,
@@ -72,33 +80,29 @@ export function sourceConnector(source: DataSourceRow): SourceConnector {
   return "other";
 }
 
-/** Device words in an id ("codex-mini", "brain-pro-vault"). */
-const DEVICE_WORDS: Readonly<Record<string, string>> = {
-  mini: "ap-mini",
-  pro: "ap-pro",
-  phone: "ap-phone",
-};
-
 /** The device from System's `host`, else a device word in the id. */
 export function sourceHost(source: DataSourceRow): string | null {
   if (source.host) return hostDevice(source.host) ? source.host : null;
-  for (const word of words(source.id))
-    if (Object.hasOwn(DEVICE_WORDS, word)) return DEVICE_WORDS[word]!;
-  return null;
+  return idDevice(source.id);
 }
 
 /** Lifecycles, in the order their groups show. `connected` is a source with
- * records whose lifecycle System has not said. */
-export type SourceGroup = "live" | "connected" | "imported" | "discovered";
+ * records whose lifecycle System has not said. `excluded` holds what System
+ * withdrew: it sits after the others, just above the folded discovered
+ * group. */
+export type SourceGroup =
+  "live" | "connected" | "imported" | "excluded" | "discovered";
 export const SOURCE_GROUPS: Record<SourceGroup, string> = {
   live: "Live",
   connected: "Connected",
   imported: "Imported once",
+  excluded: "Excluded",
   discovered: "Discovered, not connected",
 };
 export const DISCOVERED_GROUP = SOURCE_GROUPS.discovered;
 
 export function sourceGroup(source: DataSourceRow): SourceGroup {
+  if (source.status === "excluded") return "excluded";
   if (source.collection === "live") return "live";
   if (source.collection === "one_shot") return "imported";
   if (
@@ -108,6 +112,12 @@ export function sourceGroup(source: DataSourceRow): SourceGroup {
   )
     return "discovered";
   return "connected";
+}
+
+/** Groups whose rows hold nothing to open or count: an excluded source's
+ * records are withdrawn, a discovered one never had any. */
+export function holdsRecords(group: SourceGroup): boolean {
+  return group !== "excluded" && group !== "discovered";
 }
 
 /**
@@ -135,31 +145,48 @@ export function lastSync(source: DataSourceRow): string | null {
   return source.lastSuccessAt ?? source.lastObservedAt;
 }
 
-/** A live source is stale once it has missed a run and ten more minutes. */
-export function staleAfterMs(intervalSeconds: number): number {
-  return (intervalSeconds * 2 + 600) * 1000;
+/** The ops job that collects a source, as the snapshot reports it. */
+export type SourceJob = {
+  /** The job's own state from System ("ok", "stale", "failing", ...). */
+  state: string;
+  /** Its freshness budget in seconds; null is liveness only. */
+  budgetSeconds: number | null;
+};
+export type SourceJobs = ReadonlyMap<string, SourceJob>;
+
+/** A live source through its job: failing when the job fails, stale when
+ * the job is stale or the source's own success receipt is older than the
+ * job's budget. No job or no budget is liveness only, never stale. */
+function liveState(
+  source: DataSourceRow,
+  now: number,
+  jobs: SourceJobs | null,
+): SourceState {
+  const job = source.job ? jobs?.get(source.job) : undefined;
+  if (!job) return "live";
+  if (job.state === "failing") return "failed";
+  if (job.state === "stale") return "stale";
+  if (job.budgetSeconds === null || !source.lastSuccessAt) return "live";
+  const at = Date.parse(source.lastSuccessAt);
+  return Number.isFinite(at) && now - at > job.budgetSeconds * 1000
+    ? "stale"
+    : "live";
 }
 
 export function sourceState(
   source: DataSourceRow,
   now: number = Date.now(),
+  jobs: SourceJobs | null = null,
 ): SourceState {
   const status = source.status;
+  if (status === "excluded") return "excluded";
   if (status === "failed") return "failed";
   if (status === "paused") return "paused";
-  if (status === "excluded") return "excluded";
   const group = sourceGroup(source);
   if (group === "discovered")
     return status === "unavailable" ? "unavailable" : "discovered";
   if (status === "unavailable") return "unavailable";
-  if (group === "live") {
-    if (source.intervalSeconds === null) return "live";
-    const at = Date.parse(lastSync(source) ?? "");
-    return Number.isFinite(at) &&
-      now - at <= staleAfterMs(source.intervalSeconds)
-      ? "live"
-      : "stale";
-  }
+  if (group === "live") return liveState(source, now, jobs);
   if (status === "pending") return "pending";
   return group === "imported" ? "imported" : "connected";
 }
@@ -171,18 +198,6 @@ export function worstState(states: readonly SourceState[]): SourceState {
       worst = state;
   return worst;
 }
-
-/** Acronyms System writes in lowercase inside source ids. */
-const ACRONYMS: Readonly<Record<string, string>> = { nyu: "NYU", os: "OS" };
-const acronyms = (text: string) =>
-  text
-    .split(" ")
-    .map((word) =>
-      Object.hasOwn(ACRONYMS, word.toLowerCase())
-        ? ACRONYMS[word.toLowerCase()]!
-        : word,
-    )
-    .join(" ");
 
 /** One reader source, resolved. */
 export type SourceEntry = {
@@ -196,35 +211,40 @@ export type SourceEntry = {
   tooltip: string;
 };
 
-/** A name without the device word its device tile already says, wherever
- * the word sits ("Life facts pro" beside ap-pro reads "Life facts"). */
-function withoutDeviceWord(name: string, device: string | null): string {
-  if (!device) return name;
-  const word = Object.keys(DEVICE_WORDS).find(
-    (key) => DEVICE_WORDS[key] === device,
-  );
-  if (!word) return name;
-  const rest = name
-    .split(" ")
-    .filter((part) => part.toLowerCase() !== word)
-    .join(" ");
-  return rest ? rest.charAt(0).toUpperCase() + rest.slice(1) : name;
-}
-
 export function sourceEntry(source: DataSourceRow): SourceEntry {
-  const host = sourceHost(source);
-  const naming = sourceNaming({ id: source.id, host });
-  const device = naming.device?.id ?? null;
+  const naming = sourceNaming({
+    id: source.id,
+    host: sourceHost(source),
+    displayName: source.displayName,
+  });
   return {
     source,
     connector: sourceConnector(source),
     group: sourceGroup(source),
-    name:
-      source.displayName ?? acronyms(withoutDeviceWord(naming.name, device)),
+    name: naming.name,
     tile: naming.tile,
-    device,
+    device: naming.device?.id ?? null,
     tooltip: source.id,
   };
+}
+
+/** Source names by id, from the catalog, for pages that name a record's
+ * source (Records, the overview, the record panel), so a source reads the
+ * same there as on Sources. */
+export type SourceNames = ReadonlyMap<
+  string,
+  { name: string; tile: TileRef; device: string | null }
+>;
+export function sourceNames(sources: readonly DataSourceRow[]): SourceNames {
+  return new Map(
+    sources.map((source) => {
+      const entry = sourceEntry(source);
+      return [
+        source.id,
+        { name: entry.name, tile: entry.tile, device: entry.device },
+      ];
+    }),
+  );
 }
 
 /** A nested account's label inside its family row: what tells it apart
@@ -247,13 +267,13 @@ export function accountName(
       : []),
   ]);
   const rest = words(entry.source.id).filter(
-    (word) => !drop.has(word) && !Object.hasOwn(DEVICE_WORDS, word),
+    (word) => !drop.has(word) && !isDeviceWord(word),
   );
   if (!rest.length)
     return entry.device
       ? (brandMark(entry.device)?.label ?? entry.name)
       : entry.name;
-  return acronyms(keyLabel(rest.join(" ")));
+  return caseWords(keyLabel(rest.join(" ")));
 }
 
 /** Accounts that read the same under one family ("Codex" on two Macs) take
@@ -291,7 +311,8 @@ export type SourceRow = {
   revisions: number;
   /** Items System found but has not recorded. */
   discovered: number | null;
-  /** The reader source id a row opens Records for; families open none. */
+  /** The reader source id a row opens Records for; families open none, and
+   * nor does an excluded source, whose records System withdrew. */
   sourceId: string | null;
   /** A family's accounts, by the names they read under it. */
   accounts: SourceRow[];
@@ -311,10 +332,12 @@ const newest = (values: Array<string | null>): string | null =>
 function sourceRow(
   entry: SourceEntry,
   now: number,
+  jobs: SourceJobs | null,
   kind: "source" | "account",
   name = entry.name,
 ): SourceRow {
   const { source } = entry;
+  const holds = holdsRecords(entry.group);
   return {
     key: `${kind}:${source.id}`,
     kind,
@@ -324,12 +347,12 @@ function sourceRow(
     tile: entry.tile,
     device: entry.device,
     tooltip: entry.tooltip,
-    state: sourceState(source, now),
-    lastSync: lastSync(source),
+    state: sourceState(source, now, jobs),
+    lastSync: holds ? lastSync(source) : null,
     records: source.records,
     revisions: source.revisions,
     discovered: source.discoveredCount,
-    sourceId: source.id,
+    sourceId: holds || entry.group === "discovered" ? source.id : null,
     accounts: [],
   };
 }
@@ -340,13 +363,14 @@ const byName = (a: { name: string }, b: { name: string }) =>
 
 /**
  * The table's rows: grouped by lifecycle (Live, Connected, Imported once,
- * then Discovered), one row per connector family in each, families in
- * connector order. Sources of the Other family never fold: they are
+ * Excluded, then Discovered), one row per connector family in each,
+ * families in connector order. Sources of the Other family never fold: they are
  * different things, not accounts of one connector.
  */
 export function sourceRows(
   sources: readonly DataSourceRow[],
   now: number = Date.now(),
+  jobs: SourceJobs | null = null,
 ): SourceRow[] {
   const buckets = new Map<string, SourceEntry[]>();
   for (const source of sources) {
@@ -362,7 +386,7 @@ export function sourceRows(
   const rows: SourceRow[] = [];
   for (const [key, entries] of buckets) {
     if (entries.length === 1) {
-      rows.push(sourceRow(entries[0]!, now, "source"));
+      rows.push(sourceRow(entries[0]!, now, jobs, "source"));
       continue;
     }
     const [first] = entries as [SourceEntry];
@@ -372,7 +396,13 @@ export function sourceRows(
       (shared && brandMark(shared)?.label) || CONNECTOR_LABELS[first.connector];
     const accounts = distinctNames(
       entries.map((entry) =>
-        sourceRow(entry, now, "account", accountName(entry, { label, tile })),
+        sourceRow(
+          entry,
+          now,
+          jobs,
+          "account",
+          accountName(entry, { label, tile }),
+        ),
       ),
     ).sort(byName);
     const discovered = entries.map((entry) => entry.source.discoveredCount);

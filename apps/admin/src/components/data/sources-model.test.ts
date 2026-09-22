@@ -10,7 +10,7 @@ import {
   sourceHost,
   sourceRows,
   sourceState,
-  staleAfterMs,
+  type SourceJobs,
 } from "./sources-model";
 
 const NOW = Date.parse("2026-09-22T12:00:00Z");
@@ -45,7 +45,7 @@ describe("source rows as System serves them", () => {
       host: null,
       collection: null,
       status: null,
-      intervalSeconds: null,
+      job: null,
       lastSuccessAt: null,
     });
     expect(
@@ -55,12 +55,9 @@ describe("source rows as System serves them", () => {
         host: "ap-pro",
         collection: "live",
         status: "current",
-        coverage: "imported_records_only",
-        adapter: "browser_days",
+        adapter: "memory/personal_context/adapters/browser_rollup.py",
         job: "pro.pc-send",
         transport: "launchd",
-        launchd_label: "com.anipotts.system.pc-send",
-        interval_s: 3600,
         discovered_count: 3,
         excluded_count: 1,
         failed_count: 0,
@@ -68,14 +65,18 @@ describe("source rows as System serves them", () => {
         held_from: ago(9000),
         held_to: ago(10),
       }),
-    ).toMatchObject({
+    ).toEqual({
+      id: "ani-browsing",
+      records: 10,
+      revisions: 12,
+      firstObservedAt: ago(60 * 24 * 30),
+      lastObservedAt: ago(30),
       displayName: "Browsing",
       connector: "browsing",
       host: "ap-pro",
       collection: "live",
       status: "current",
       job: "pro.pc-send",
-      intervalSeconds: 3600,
       discoveredCount: 3,
       lastSuccessAt: ago(10),
     });
@@ -86,7 +87,7 @@ describe("source rows as System serves them", () => {
       connector: "fax",
       collection: "sometimes",
       status: "great",
-      interval_s: -5,
+      job: "a/b",
       host: "a b",
       path: "/Users/someone/private",
       notes: "anything",
@@ -95,7 +96,7 @@ describe("source rows as System serves them", () => {
       connector: null,
       collection: null,
       status: null,
-      intervalSeconds: null,
+      job: null,
       host: null,
     });
     expect(JSON.stringify(odd)).not.toContain("private");
@@ -155,30 +156,82 @@ describe("connector, device and lifecycle", () => {
     expect(sourceState(row("ani-contacts"), NOW)).toBe("connected");
   });
 
-  it("judges a live source against its own interval, and never without one", () => {
-    const live = (minutes: number, interval_s?: number) =>
+  it("judges a live source only through the job that collects it", () => {
+    const jobs: SourceJobs = new Map([
+      ["pro.pc-send", { state: "ok", budgetSeconds: 1800 }],
+      ["pro.whatsapp", { state: "ok", budgetSeconds: null }],
+      ["pc.snapshot", { state: "stale", budgetSeconds: 93600 }],
+      ["pc.inference", { state: "failing", budgetSeconds: 93600 }],
+    ]);
+    const live = (job: string | null, minutes: number | null) =>
       row("ani-browsing", {
         collection: "live",
-        last_success_at: ago(minutes),
-        ...(interval_s ? { interval_s } : {}),
+        status: "current",
+        ...(job ? { job } : {}),
+        ...(minutes === null ? {} : { last_success_at: ago(minutes) }),
       });
-    expect(staleAfterMs(3600)).toBe((7200 + 600) * 1000);
-    expect(sourceState(live(60, 3600), NOW)).toBe("live");
-    expect(sourceState(live(129, 3600), NOW)).toBe("live");
-    expect(sourceState(live(131, 3600), NOW)).toBe("stale");
-    // No interval from System: never judged stale.
-    expect(sourceState(live(60 * 24 * 30), NOW)).toBe("live");
-    // Without a success receipt the newest record stands in.
+    // The receipt against the job's own budget (30 minutes).
+    expect(sourceState(live("pro.pc-send", 20), NOW, jobs)).toBe("live");
+    expect(sourceState(live("pro.pc-send", 31), NOW, jobs)).toBe("stale");
+    // The job's own state.
+    expect(sourceState(live("pc.snapshot", 5), NOW, jobs)).toBe("stale");
+    expect(sourceState(live("pc.inference", 5), NOW, jobs)).toBe("failed");
+    // No budget, no receipt, no job, no snapshot or an unknown job: liveness
+    // only, never stale.
+    expect(sourceState(live("pro.whatsapp", 60 * 24), NOW, jobs)).toBe("live");
+    expect(sourceState(live("pro.pc-send", null), NOW, jobs)).toBe("live");
+    expect(sourceState(live(null, 60 * 24 * 30), NOW, jobs)).toBe("live");
+    expect(sourceState(live("pro.pc-send", 60 * 24), NOW)).toBe("live");
+    expect(sourceState(live("pro.gone", 60 * 24), NOW, jobs)).toBe("live");
+    // The newest record never stands in for a receipt: a month-old record
+    // under an ok job is live.
     expect(
       sourceState(
         row("ani-messages-1to1", {
           collection: "live",
-          interval_s: 900,
-          last_observed_at: ago(60 * 24 * 6),
+          job: "pro.pc-send",
+          last_observed_at: ago(60 * 24 * 31),
         }),
         NOW,
+        jobs,
       ),
-    ).toBe("stale");
+    ).toBe("live");
+  });
+
+  it("puts an excluded source in its own group, whatever its counts say", () => {
+    // ani-health as System serves it once the exclusion lands.
+    const health = row("ani-health", {
+      record_count: 93,
+      revision_count: 93,
+      status: "excluded",
+      connector: "health",
+      host: "ap-mini",
+    });
+    expect(sourceGroup(health)).toBe("excluded");
+    expect(sourceState(health, NOW)).toBe("excluded");
+    const live = row("ani-health", {
+      record_count: 93,
+      status: "excluded",
+      collection: "live",
+      job: "health.ingest",
+      last_success_at: ago(5),
+    });
+    expect(sourceGroup(live)).toBe("excluded");
+    expect(
+      sourceState(
+        live,
+        NOW,
+        new Map([["health.ingest", { state: "ok", budgetSeconds: 60 }]]),
+      ),
+    ).toBe("excluded");
+    const [only] = sourceRows([live], NOW);
+    expect(only).toMatchObject({
+      group: "excluded",
+      state: "excluded",
+      // Nothing to open, and no sync to speak of.
+      sourceId: null,
+      lastSync: null,
+    });
   });
 
   it("names System's own states", () => {
@@ -198,11 +251,12 @@ describe("rows by connector", () => {
   const catalog: DataSourceRow[] = [
     row("ani-browsing", {
       collection: "live",
-      interval_s: 3600,
+      job: "pro.pc-send",
       last_success_at: ago(20),
       host: "ap-pro",
     }),
     row("ani-browsing-archive", { collection: "one_shot" }),
+    row("ani-health", { status: "excluded", record_count: 93 }),
     row("ani-contacts"),
     row("ani-contact-identity-map"),
     row("ani-food-orders"),
@@ -218,7 +272,7 @@ describe("rows by connector", () => {
 
   it("groups by lifecycle with discovered last", () => {
     expect([...new Set(rows.map((item) => SOURCE_GROUPS[item.group]))]).toEqual(
-      ["Live", "Connected", "Imported once", DISCOVERED_GROUP],
+      ["Live", "Connected", "Imported once", "Excluded", DISCOVERED_GROUP],
     );
   });
 
@@ -304,6 +358,27 @@ describe("the catalogs this view renders", () => {
       : []),
   ];
 
+  it("counts at least the records the synthetic fixture carries per source", () => {
+    const carried = new Map<string, number>();
+    for (const record of dataFixture.records) {
+      const id = (record as { source_id?: string }).source_id;
+      if (id) carried.set(id, (carried.get(id) ?? 0) + 1);
+    }
+    for (const source of dataFixture.sources as Array<{
+      source_id: string;
+      record_count: number;
+      revision_count: number;
+    }>) {
+      const records = carried.get(source.source_id) ?? 0;
+      expect(source.record_count, source.source_id).toBeGreaterThanOrEqual(
+        records,
+      );
+      expect(source.revision_count, source.source_id).toBeGreaterThanOrEqual(
+        source.record_count,
+      );
+    }
+  });
+
   it.each(catalogs)("resolves every %s source to a row", (_name, items) => {
     const sources = items.map((item) => parseSource(item)!);
     expect(sources.every(Boolean)).toBe(true);
@@ -311,7 +386,7 @@ describe("the catalogs this view renders", () => {
     const listed = rows.flatMap((item) =>
       item.kind === "family" ? item.accounts : [item],
     );
-    expect(listed.map((item) => item.sourceId).sort()).toEqual(
+    expect(listed.map((item) => item.tooltip).sort()).toEqual(
       sources.map((source) => source.id).sort(),
     );
     // Nothing with no records reads as broken unless System says so.

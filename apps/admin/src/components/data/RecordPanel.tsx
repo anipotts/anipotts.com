@@ -20,7 +20,8 @@ import {
   type SummaryBlock,
   type Technical,
 } from "../../lib/data-record";
-import { deviceName, hostDevice, sourceNaming } from "../../lib/naming";
+import { deviceName, hostDevice } from "../../lib/naming";
+import { useNamedSource } from "./source-catalog";
 import { BrandTile } from "../BrandTile";
 import { SplitPanel, useSplitView } from "../astryx/SplitView";
 import { clockText, durationText } from "../workspace/format";
@@ -231,9 +232,7 @@ function Summary({ blocks }: { blocks: SummaryBlock[] }) {
 /** One row of facts: where it came from, the device, its date and tier, and
  * a state other than the default. */
 function Facts({ record, mark }: { record: DataRecord; mark: RecordMark }) {
-  const source = record.source
-    ? sourceNaming({ id: record.source, host: record.host })
-    : null;
+  const source = useNamedSource(record.source, record.host);
   const tile = mark.tile ?? source?.tile ?? null;
   const occurred = effectiveDate(record.occurredAt, record.datePrecision);
   const date =

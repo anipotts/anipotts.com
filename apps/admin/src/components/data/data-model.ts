@@ -27,7 +27,7 @@ import {
   UserIcon,
   type Icon,
 } from "@phosphor-icons/react";
-import { markLabel, sourceMark, type TileRef } from "../../lib/marks";
+import type { TileRef } from "../../lib/marks";
 import { recordHost } from "../../lib/data-record";
 import { recordNaming, type Naming } from "../../lib/naming";
 import { sentenceCase } from "../../lib/sentence-case";
@@ -89,20 +89,6 @@ export function kindGlyph(kind: unknown): [Icon, string] {
     FileTextIcon,
     typeof kind === "string" && kind ? sentenceCase(kind) : "Record",
   ];
-}
-
-/** A source as a tile and a short name. A branded source reads as its
- * brand ("synthetic-contacts" is Contacts); others read as their id in
- * words. The raw id belongs in the tooltip. */
-export type SourceLabel = { id: string; tile: TileRef; name: string };
-
-export function sourceLabel(id: string): SourceLabel {
-  const tile = sourceMark(id);
-  return {
-    id,
-    tile,
-    name: markLabel(tile) ?? sentenceCase(id.replace(/[-_.]+/g, " ")),
-  };
 }
 
 type DataRevision = {
@@ -251,25 +237,17 @@ export type DataSourceRow = {
   revisions: number;
   firstObservedAt: string | null;
   lastObservedAt: string | null;
-  /** System's proposed catalog fields (round 2), each null until served. */
+  /** System's catalog fields (store.py SOURCE_METADATA_VIEW), each null
+   * until served. Only the ones a view reads are kept. */
   displayName: string | null;
   connector: SourceConnector | null;
   host: string | null;
   collection: SourceCollection | null;
   status: SourceStatus | null;
-  coverage: string | null;
-  adapter: string | null;
-  /** The ops catalog id that collects it. */
+  /** The ops catalog id that collects it, joined to the ops snapshot. */
   job: string | null;
-  transport: string | null;
-  launchdLabel: string | null;
-  intervalSeconds: number | null;
   discoveredCount: number | null;
-  excludedCount: number | null;
-  failedCount: number | null;
   lastSuccessAt: string | null;
-  heldFrom: string | null;
-  heldTo: string | null;
 };
 
 const oneOf = <T extends string>(
@@ -298,15 +276,15 @@ const optionalCount = (value: unknown): number | null =>
     : null;
 
 /**
- * A /v1/data/sources row. The five fields System serves today always parse;
- * the proposed catalog fields parse when present and valid and are null
- * otherwise. Any other field is ignored, as it always was.
+ * A /v1/data/sources row. The five fields System has always served parse;
+ * the catalog fields a view reads parse when present and valid and are null
+ * otherwise. Any other field (transport, adapter, held span, counts of
+ * excluded or failed items) is ignored, as unknown fields always were.
  */
 export function parseSource(value: unknown): DataSourceRow | null {
   const item = object(value);
   const id = text(item?.source_id);
   if (!item || !id) return null;
-  const interval = optionalCount(item.interval_s);
   return {
     id,
     records: count(item.record_count),
@@ -318,18 +296,9 @@ export function parseSource(value: unknown): DataSourceRow | null {
     host: token(item.host),
     collection: oneOf(SOURCE_COLLECTIONS, item.collection),
     status: oneOf(SOURCE_STATUSES, item.status),
-    coverage: token(item.coverage),
-    adapter: token(item.adapter),
     job: token(item.job),
-    transport: token(item.transport),
-    launchdLabel: token(item.launchd_label),
-    intervalSeconds: interval !== null && interval > 0 ? interval : null,
     discoveredCount: optionalCount(item.discovered_count),
-    excludedCount: optionalCount(item.excluded_count),
-    failedCount: optionalCount(item.failed_count),
     lastSuccessAt: instant(item.last_success_at),
-    heldFrom: instant(item.held_from),
-    heldTo: instant(item.held_to),
   };
 }
 

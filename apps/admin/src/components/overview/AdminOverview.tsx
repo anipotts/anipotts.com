@@ -39,6 +39,7 @@ import { useDataSession } from "../data/useDataSession";
 import { ReadNotice, SessionNotice } from "../data/DataNotices";
 import { recordColumns } from "../data/RecordsView";
 import { parseItems, parseRecord } from "../data/data-model";
+import { SourceNamesContext, useSourceNames } from "../data/source-catalog";
 import "./overview.css";
 
 /** A Content record's type, with the glyph its sidebar library uses. */
@@ -197,6 +198,7 @@ function RecentRecords({
     fetch: fetcher,
   });
   const [result, setResult] = useState<DataResult | null>(null);
+  const names = useSourceNames(session.reader);
   const read = useRef(new DataReadSession());
   useEffect(() => {
     setResult(null);
@@ -220,14 +222,16 @@ function RecentRecords({
       ) : result.state !== "ready" ? (
         <ReadNotice result={result} />
       ) : items.length ? (
-        <DataTable
-          rows={items}
-          rowKey="id"
-          label="Recent records"
-          noun={["record", "records"]}
-          footer={false}
-          columns={recordColumns({ href: (item) => dataRecordHref(item.id) })}
-        />
+        <SourceNamesContext value={names}>
+          <DataTable
+            rows={items}
+            rowKey="id"
+            label="Recent records"
+            noun={["record", "records"]}
+            footer={false}
+            columns={recordColumns({ href: (item) => dataRecordHref(item.id) })}
+          />
+        </SourceNamesContext>
       ) : (
         <StateNotice kind="empty" title="No records yet" />
       )}
