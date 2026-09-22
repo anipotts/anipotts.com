@@ -259,30 +259,10 @@ const contentEditorSource = readFileSync(
   "apps/admin/src/lib/content-editor.ts",
   "utf8",
 );
-const sourceContentModule = readFileSync(
-  "apps/admin/src/data/source-content.ts",
-  "utf8",
-);
 const prettierIgnore = readFileSync(".prettierignore", "utf8");
 const adminContentInventory = readFileSync(
   "packages/content/src/admin/content.ts",
   "utf8",
-);
-assert.ok(
-  sourceContentModule.includes(
-    "packages/content/generated/admin-public-content.json",
-  ),
-  "Admin inventory must consume the canonical generated projection",
-);
-assert.equal(
-  sourceContentModule.includes("import.meta.glob"),
-  false,
-  "Admin must not parse canonical Markdown through a second runtime path",
-);
-assert.equal(
-  sourceContentModule.includes("../../../www/src/content/"),
-  false,
-  "Admin must not read the removed public content collections",
 );
 assert.match(
   prettierIgnore,
@@ -425,19 +405,20 @@ try {
 } finally {
   rmSync(alternateSlugRoot, { recursive: true, force: true });
 }
-assert.ok(
-  contentEditorSource.includes("publish_batch_required"),
-  "content editor publish must fail closed when D1 batch semantics are unavailable",
-);
-assert.equal(
-  contentEditorSource.includes("runSequentialPublish"),
-  false,
-  "content editor publish must not fall back to sequential public writes",
-);
-assert.ok(
-  contentEditorSource.includes("content_publish_events"),
-  "content editor publish must keep explicit publish proof writes",
-);
+// The legacy content diagnostics only read the retained D1 tables; the
+// compatibility publish route and its writes are gone.
+for (const write of [
+  "INSERT INTO",
+  "UPDATE page_content",
+  "UPDATE content_draft_operations",
+  ".batch(",
+  ".run(",
+])
+  assert.equal(
+    contentEditorSource.includes(write),
+    false,
+    `legacy content diagnostics must not write (${write})`,
+  );
 
 const sourceRecords = sourceContentRecordsFromProjection([
   {

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { hashToken } from "./admin-auth";
 import { inviteState } from "./admin-invites";
-import { bearerToken, MCP_TOKEN_SECONDS } from "./admin-machine-tokens";
 import {
   buildGoogleAuthorizationUrl,
   validateGoogleClaims,
@@ -98,12 +97,5 @@ describe("admin auth flows", () => {
         now,
       ),
     ).rejects.toBeInstanceOf(Response);
-  });
-
-  it("accepts only explicit bearer tokens and fixes MCP expiry at 90 days", () => {
-    expect(bearerToken(`Bearer ${"a".repeat(32)}`)).toBe("a".repeat(32));
-    expect(bearerToken(`bearer ${"a".repeat(32)}`)).toBeNull();
-    expect(bearerToken("Bearer short")).toBeNull();
-    expect(MCP_TOKEN_SECONDS).toBe(90 * 24 * 60 * 60);
   });
 });

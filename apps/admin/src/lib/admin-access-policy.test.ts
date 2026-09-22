@@ -48,7 +48,6 @@ describe("admin access policy", () => {
     "/api/admin/password/status",
     "/api/admin/password/login",
     "/api/admin/password/logout",
-    "/api/mcp",
   ])("keeps the signed-out auth boundary public for %s", (path) => {
     expect(isPublicAdminPath(path)).toBe(true);
   });
@@ -239,7 +238,11 @@ test("observability preview allows only the local read surface, keeping its API 
       method: "GET",
       url: new URL("https://admin.anipotts.com/observability/status"),
     },
-    { isDev: true, method: "GET", url: local("/api/admin/projections") },
+    {
+      isDev: true,
+      method: "GET",
+      url: local("/api/private-reader/ops-credential"),
+    },
     { isDev: true, method: "POST", url: local("/observability/status") },
   ])
     expect(decideAdminAccess({ ...input, hasSession: false })).toBe(
@@ -483,7 +486,7 @@ describe("local owner session", () => {
   );
 
   test("keeps public paths public and checks the owner before a session", () => {
-    for (const path of ["/auth", "/api/health", "/api/mcp", "/_astro/app.js"])
+    for (const path of ["/auth", "/api/health", "/_astro/app.js"])
       expect(decideAdminAccess(request({ path, method: "GET" }))).toBe(
         "public",
       );

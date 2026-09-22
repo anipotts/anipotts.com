@@ -80,7 +80,7 @@ export async function verifyEditorialBoundary(fetchImpl = fetch) {
     "/inbox",
     "/proof",
     "/deploys",
-    "/api/admin/control-plane",
+    "/api/private-reader/credential",
   ]) {
     const response = await fetchImpl(`https://admin.anipotts.com${path}`, {
       redirect: "manual",

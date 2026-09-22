@@ -8,7 +8,6 @@ export const PUBLIC_PATHS = new Set([
   "/auth/invite",
   "/auth/recover",
   "/api/health",
-  "/api/mcp",
   "/favicon.svg",
   "/admin-bracket.svg",
   "/favicon-light.svg",
