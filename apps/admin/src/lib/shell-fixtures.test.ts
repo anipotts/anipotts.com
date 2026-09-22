@@ -42,6 +42,28 @@ describe("development fixtures", () => {
     expect((await load())?.events).toEqual(events);
   });
 
+  it("serves a captured sources reply in place of the synthetic sources", async () => {
+    const items = [
+      {
+        source_id: "replayed",
+        first_observed_at: null,
+        last_observed_at: null,
+        record_count: 0,
+        revision_count: 0,
+      },
+    ];
+    files.set(
+      "data_sources_v1.json",
+      JSON.stringify({ data: { items, total: 1, next_offset: null } }),
+    );
+    const fixtures = await load();
+    expect(fixtures?.data.sources).toEqual(items);
+    expect(fixtures?.data.records.length).toBeGreaterThan(0);
+    expect(fixtures?.replay).toBe(true);
+    files.set("data_sources_v1.json", JSON.stringify({ items }));
+    await expect(load()).rejects.toThrow("not a /v1/data/sources reply");
+  });
+
   it("keeps the samples on ?fixture=synthetic and nothing on none", async () => {
     files.set("ops_v1.json", "{}");
     expect((await load("?fixture=synthetic"))?.snapshot).toEqual(sample);

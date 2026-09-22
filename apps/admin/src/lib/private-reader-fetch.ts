@@ -9,6 +9,7 @@ import {
   PersonalContextHttpError,
   readPersonalContextResponse,
 } from "../data/personal-context-http";
+import { ENTITY_ID } from "./data-routes";
 import { discardBody } from "./response-body";
 import type { DataReader } from "./data-read-session";
 import {
@@ -39,6 +40,13 @@ export const PRIVATE_READER_ROUTES = {
   search: "/v1/data/search",
   record: "/v1/data/records/",
   activity: "/v1/observability/activity",
+  /** Daily health summary, under its own health:read credential
+   * (lib/private-reader-health.ts). */
+  health: "/v1/health/daily",
+  /** The life wiki's entities (lib/private-reader-knowledge.ts): System's
+   * target contract, not served yet. */
+  entities: "/v1/data/entities",
+  entity: "/v1/data/entities/",
 } as const;
 
 /** Verifier outcomes, by HTTP status. `expired` is local: no live bearer. */
@@ -78,13 +86,18 @@ export const PRIVATE_READER_BOUNDS = {
   queryMax: 2048,
   kind: /^[A-Za-z0-9_.-]{1,80}$/,
   recordId: /^rec-[0-9a-f]{32}$/,
+  entityId: ENTITY_ID,
   dataLimit: { min: 1, max: 200 },
+  healthDays: { min: 1, max: 90 },
   activityLimit: { min: 1, max: 500 },
   offsetMax: 10_000_000,
   bodyOffsetMax: 16 * 1024 * 1024,
   bodyLimit: { min: 1, max: 64_000 },
 } as const;
 const DATA_LIMIT = DATA_READ_DEFAULTS.limit;
+/** Sources groups by connector, so it reads the whole catalog: the
+ * reader's largest page. */
+const SOURCES_LIMIT = PRIVATE_READER_BOUNDS.dataLimit.max;
 const ACTIVITY_LIMIT = 100;
 const BODY_LIMIT = 32_000;
 
@@ -95,12 +108,17 @@ const ALLOWED_PARAMS: Record<string, readonly string[]> = {
   [PRIVATE_READER_ROUTES.search]: ["q", "limit", "offset", "kind"],
   [PRIVATE_READER_ROUTES.record]: ["body_offset", "body_limit"],
   [PRIVATE_READER_ROUTES.activity]: ["after", "limit"],
+  [PRIVATE_READER_ROUTES.health]: ["days"],
+  [PRIVATE_READER_ROUTES.entities]: ["q", "kind", "limit", "offset"],
+  [PRIVATE_READER_ROUTES.entity]: [],
 };
 const REQUIRED_PARAMS: Record<string, readonly string[]> = {
   [PRIVATE_READER_ROUTES.sources]: ["limit", "offset"],
   [PRIVATE_READER_ROUTES.search]: ["q", "limit", "offset"],
   [PRIVATE_READER_ROUTES.record]: ["body_offset", "body_limit"],
   [PRIVATE_READER_ROUTES.activity]: ["after", "limit"],
+  [PRIVATE_READER_ROUTES.health]: ["days"],
+  [PRIVATE_READER_ROUTES.entities]: ["limit", "offset"],
 };
 
 function bounded(value: number | undefined, max: number, min = 0): string {
@@ -127,7 +145,7 @@ export function privateReaderPath(request: DataRead): string {
       path = PRIVATE_READER_ROUTES.sources;
       params.set(
         "limit",
-        bounded(DATA_LIMIT, b.dataLimit.max, b.dataLimit.min),
+        bounded(SOURCES_LIMIT, b.dataLimit.max, b.dataLimit.min),
       );
       params.set("offset", bounded(request.offset, b.offsetMax));
       break;
@@ -180,12 +198,16 @@ function readerUrl(path: string): string {
   const url = new URL(path, PRIVATE_READER_ORIGIN);
   if (url.origin !== PRIVATE_READER_ORIGIN || url.hash)
     throw new PrivateReaderError(400, "malformed");
-  const { record } = PRIVATE_READER_ROUTES;
+  const { record, entity } = PRIVATE_READER_ROUTES;
   let route = url.pathname;
   if (route.startsWith(record)) {
     if (!PRIVATE_READER_BOUNDS.recordId.test(route.slice(record.length)))
       throw new PrivateReaderError(400, "malformed");
     route = record;
+  } else if (route.startsWith(entity)) {
+    if (!PRIVATE_READER_BOUNDS.entityId.test(route.slice(entity.length)))
+      throw new PrivateReaderError(400, "malformed");
+    route = entity;
   }
   const allowed = ALLOWED_PARAMS[route];
   if (!allowed) throw new PrivateReaderError(400, "malformed");

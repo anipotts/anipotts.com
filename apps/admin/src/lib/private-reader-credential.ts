@@ -70,11 +70,11 @@ export function privateReaderModeEnabled(
   config: PrivateReaderConfig,
   mode: PrivateReaderMode,
 ): boolean {
-  const selected: { flag?: keyof PrivateReaderConfig } =
-    PRIVATE_READER_MODES[mode];
+  const selected = PRIVATE_READER_MODES[mode];
+  const flag = "flag" in selected ? selected.flag : undefined;
   return (
     config.PRIVATE_READER_ENABLED === "true" &&
-    (selected.flag === undefined || config[selected.flag] === "true")
+    (flag === undefined || config[flag] === "true")
   );
 }
 

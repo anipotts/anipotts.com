@@ -9,6 +9,7 @@ import {
   CpuIcon,
   FileTextIcon,
   FolderSimpleIcon,
+  HashIcon,
   HeartbeatIcon,
   LightbulbIcon,
   MapPinIcon,
@@ -52,6 +53,7 @@ const KINDS: Record<string, [Icon, string]> = {
   system: [CpuIcon, "System"],
   reference: [BookOpenTextIcon, "Reference"],
   health: [HeartbeatIcon, "Health"],
+  topic: [HashIcon, "Topic"],
 };
 
 export function kindGlyph(kind: unknown): [Icon, string] {
@@ -154,24 +156,123 @@ export function parseRecord(value: unknown): DataRecord | null {
   };
 }
 
+/** System's source catalog vocabulary. Each optional field is read only
+ * when its value is one of these; anything else reads as absent, so the
+ * row falls back to what its id and counts say. */
+export const SOURCE_CONNECTORS = [
+  "browsing",
+  "messages",
+  "contacts",
+  "mail",
+  "calendar",
+  "notes",
+  "media",
+  "agent_transcripts",
+  "code",
+  "health",
+  "legacy_vaults",
+  "other",
+] as const;
+export type SourceConnector = (typeof SOURCE_CONNECTORS)[number];
+export const SOURCE_COLLECTIONS = ["live", "one_shot", "discovered"] as const;
+export type SourceCollection = (typeof SOURCE_COLLECTIONS)[number];
+export const SOURCE_STATUSES = [
+  "discovered",
+  "unavailable",
+  "pending",
+  "partial",
+  "current",
+  "failed",
+  "excluded",
+  "paused",
+] as const;
+export type SourceStatus = (typeof SOURCE_STATUSES)[number];
+
 export type DataSourceRow = {
   id: string;
   records: number;
   revisions: number;
   firstObservedAt: string | null;
   lastObservedAt: string | null;
+  /** System's proposed catalog fields (round 2), each null until served. */
+  displayName: string | null;
+  connector: SourceConnector | null;
+  host: string | null;
+  collection: SourceCollection | null;
+  status: SourceStatus | null;
+  coverage: string | null;
+  adapter: string | null;
+  /** The ops catalog id that collects it. */
+  job: string | null;
+  transport: string | null;
+  launchdLabel: string | null;
+  intervalSeconds: number | null;
+  discoveredCount: number | null;
+  excludedCount: number | null;
+  failedCount: number | null;
+  lastSuccessAt: string | null;
+  heldFrom: string | null;
+  heldTo: string | null;
 };
 
+const oneOf = <T extends string>(
+  values: readonly T[],
+  value: unknown,
+): T | null =>
+  typeof value === "string" && (values as readonly string[]).includes(value)
+    ? (value as T)
+    : null;
+/** A short catalog word or label, bounded so nothing long reaches a row. */
+const label = (value: unknown, max = 120): string | null =>
+  typeof value === "string" && value.trim() && value.length <= max
+    ? value.trim()
+    : null;
+const token = (value: unknown): string | null =>
+  typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(value)
+    ? value
+    : null;
+const instant = (value: unknown): string | null =>
+  typeof value === "string" && Number.isFinite(Date.parse(value))
+    ? value
+    : null;
+const optionalCount = (value: unknown): number | null =>
+  typeof value === "number" && Number.isSafeInteger(value) && value >= 0
+    ? value
+    : null;
+
+/**
+ * A /v1/data/sources row. The five fields System serves today always parse;
+ * the proposed catalog fields parse when present and valid and are null
+ * otherwise. Any other field is ignored, as it always was.
+ */
 export function parseSource(value: unknown): DataSourceRow | null {
   const item = object(value);
   const id = text(item?.source_id);
   if (!item || !id) return null;
+  const interval = optionalCount(item.interval_s);
   return {
     id,
     records: count(item.record_count),
     revisions: count(item.revision_count),
     firstObservedAt: text(item.first_observed_at),
     lastObservedAt: text(item.last_observed_at),
+    displayName: label(item.display_name),
+    connector: oneOf(SOURCE_CONNECTORS, item.connector),
+    host: token(item.host),
+    collection: oneOf(SOURCE_COLLECTIONS, item.collection),
+    status: oneOf(SOURCE_STATUSES, item.status),
+    coverage: token(item.coverage),
+    adapter: token(item.adapter),
+    job: token(item.job),
+    transport: token(item.transport),
+    launchdLabel: token(item.launchd_label),
+    intervalSeconds: interval !== null && interval > 0 ? interval : null,
+    discoveredCount: optionalCount(item.discovered_count),
+    excludedCount: optionalCount(item.excluded_count),
+    failedCount: optionalCount(item.failed_count),
+    lastSuccessAt: instant(item.last_success_at),
+    heldFrom: instant(item.held_from),
+    heldTo: instant(item.held_to),
   };
 }
 

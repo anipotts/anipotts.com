@@ -1,0 +1,58 @@
+/* Sources by connector. The table, rows, chips and group fold come from the
+   workspace kit; this adds a family's fold and its nested accounts. No
+   rules, no rings: an open family reads by its turned caret and its
+   indented accounts. */
+
+/* The family's button holds the name, the account count and the caret on
+   one line; the stretched hit area (the kit's ::after) makes the whole row
+   the target. */
+.sources-family-toggle {
+  align-items: center;
+  gap: var(--spacing-2);
+}
+.sources-family-toggle .workspace-row-title {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.sources-family-count {
+  flex: none;
+  font-weight: var(--font-weight-normal, 400);
+  color: var(--color-text-secondary);
+}
+.sources-family-caret {
+  flex: none;
+  width: var(--spacing-3);
+  height: var(--spacing-3);
+  color: var(--color-text-secondary);
+  transition: transform var(--duration-fast, 120ms) ease;
+}
+.sources-family-toggle[aria-expanded="true"] .sources-family-caret {
+  transform: rotate(90deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sources-family-caret {
+    transition: none;
+  }
+}
+
+/* An account sits under its family: its tile lines up with the family's
+   name, so the nesting reads without a rule. */
+.sources-account {
+  padding-inline-start: calc(
+    var(--row-mark-size, var(--spacing-6)) + var(--spacing-3)
+  );
+  min-width: 0;
+}
+.sources-account .workspace-row {
+  --row-mark-size: var(--spacing-5);
+  --row-mark-glyph: var(--spacing-3);
+}
+.sources-account .workspace-row-link,
+.sources-account .workspace-row-text {
+  font-weight: var(--font-weight-normal, 400);
+}
+@media (max-width: 640px) {
+  .sources-account {
+    padding-inline-start: calc(var(--spacing-7) + var(--spacing-3));
+  }
+}
