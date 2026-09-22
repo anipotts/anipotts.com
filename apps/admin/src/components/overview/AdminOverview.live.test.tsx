@@ -96,12 +96,58 @@ describe("live alerts on the overview", () => {
     await settle();
     const table = host.querySelector('table[aria-label="Firing alerts"]');
     expect(table?.querySelector("tbody tr")?.textContent).toContain(
-      "personal context writer",
+      "Personal context writer",
     );
 
     pending = [transition(last + 2, "failing", "ok", "2026-09-21T18:00:08Z")];
     await act(() => vi.advanceTimersByTimeAsync(OPS_EVENTS_POLL_MS));
     await settle();
+    expect(host.querySelector('table[aria-label="Firing alerts"]')).toBeNull();
+    await act(async () => root.unmount());
+    host.remove();
+  });
+
+  it("says ap-mini is unreachable instead of reading as all clear", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-21T18:00:10Z"));
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === OPS_CREDENTIAL_ENDPOINT)
+        return Response.json({
+          credential: "cred",
+          scope: ["ops:read"],
+          expiresAt: Math.floor(Date.now() / 1000) + 60,
+        });
+      throw new TypeError("network");
+    }) as unknown as typeof fetch;
+    const controller = createOpsStatusController({
+      session: createPrivateReaderSession({
+        fetch: fetcher,
+        csrf: async () => "csrf",
+        endpoint: OPS_CREDENTIAL_ENDPOINT,
+      }),
+      fetch: fetcher,
+      isHidden: () => false,
+      events: true,
+      eventsWaitS: null,
+    });
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    await act(async () =>
+      root.render(
+        <AdminOverview
+          content={[]}
+          dataEnabled={false}
+          enabled
+          controller={controller}
+        />,
+      ),
+    );
+    await settle();
+    const section = host.querySelector("section[aria-labelledby]");
+    expect(section?.querySelector("h2")?.textContent).toBe("Alerts");
+    expect(section?.textContent).toContain("ap-mini unreachable");
+    expect(section?.textContent).toContain("Try again");
     expect(host.querySelector('table[aria-label="Firing alerts"]')).toBeNull();
     await act(async () => root.unmount());
     host.remove();

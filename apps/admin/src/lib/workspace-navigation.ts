@@ -20,7 +20,8 @@ export function workspaceReturnPath(
   if (url.origin !== "https://admin.invalid") return fallback;
   const path = url.pathname;
   if (workspace === "life") {
-    if (!/^\/data\/(?:records|sources)$/.test(path)) return fallback;
+    if (!/^\/data\/(?:records|sources|health|knowledge)$/.test(path))
+      return fallback;
     // The kind filter is a view, not a record identity.
     return path === "/data/records"
       ? dataRecordsHref(dataKind(url.searchParams.get("kind")))

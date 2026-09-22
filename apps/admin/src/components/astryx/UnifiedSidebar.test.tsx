@@ -69,7 +69,7 @@ describe("unified sidebar", () => {
     ).toEqual(["Content", "Data", "Observability"]);
     for (const element of host.querySelectorAll("[data-sidebar-group]"))
       expect(element.getAttribute("aria-expanded")).toBe("true");
-    expect(host.querySelectorAll("a[data-sidebar-id]")).toHaveLength(10);
+    expect(host.querySelectorAll("a[data-sidebar-id]")).toHaveLength(12);
     expect(
       host.querySelector('a[data-sidebar-id="overview"]')?.getAttribute("href"),
     ).toBe("/");
@@ -203,6 +203,8 @@ describe("sidebar selection and search", () => {
       "/content/newsletter",
       "/data/records",
       "/data/sources",
+      "/data/health",
+      "/data/knowledge",
       "/observability/status",
       "/observability/activity",
       "/observability/alerts",

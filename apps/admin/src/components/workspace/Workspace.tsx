@@ -1,6 +1,6 @@
 /**
  * The admin workspace kit: the page header, filter bar, table, row, state
- * badge, notices, loading skeleton, detail panel, times and tier mark that
+ * badge, notices, loading skeleton, times and tier mark that
  * Content, Data and Observability all render with. Styling lives in
  * workspace.css under `workspace-*` names, so a list looks and behaves the
  * same wherever it appears.
@@ -48,10 +48,6 @@ import { Banner } from "@astryxdesign/core/Banner";
 import { DropdownMenu } from "@astryxdesign/core/DropdownMenu";
 import { Heading } from "@astryxdesign/core/Heading";
 import { HStack } from "@astryxdesign/core/HStack";
-import {
-  MetadataList,
-  MetadataListItem,
-} from "@astryxdesign/core/MetadataList";
 import { Skeleton } from "@astryxdesign/core/Skeleton";
 import { StatusDot } from "@astryxdesign/core/StatusDot";
 import { Table, type TablePlugin } from "@astryxdesign/core/Table";
@@ -60,6 +56,7 @@ import { TextInput } from "@astryxdesign/core/TextInput";
 import { Token } from "@astryxdesign/core/Token";
 import { VStack } from "@astryxdesign/core/VStack";
 import {
+  CaretRightIcon,
   CircleDashedIcon,
   ClockCounterClockwiseIcon,
   FlaskIcon,
@@ -136,14 +133,17 @@ export function WorkspacePage({
 /** Inside a section, a notice's title is one level below the section's. */
 const SectionLevel = createContext<2 | 3>(2);
 
-/** A titled part of a page, such as a group of rows on the overview. */
+/** A titled part of a page, such as a group of rows on the overview. With
+ * `href` the heading is the link to the section's own page. */
 export function WorkspaceSection({
   title,
+  href,
   meta,
   actions,
   children,
 }: {
   title: string;
+  href?: string;
   meta?: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
@@ -154,7 +154,18 @@ export function WorkspaceSection({
       <HStack gap={3} hAlign="between" vAlign="center" wrap="wrap">
         <HStack gap={2} vAlign="center" wrap="wrap">
           <Heading level={2} id={id}>
-            {title}
+            {href ? (
+              <a href={href} className="workspace-section-link">
+                {title}
+                <CaretRightIcon
+                  weight="bold"
+                  aria-hidden="true"
+                  className="workspace-section-link-mark"
+                />
+              </a>
+            ) : (
+              title
+            )}
           </Heading>
           {meta && (
             <Text type="supporting" color="secondary">
@@ -185,6 +196,8 @@ type SearchProps = {
   /** The field's clear button. Defaults to `onChange("")`. */
   onClear?: () => void;
   isBusy?: boolean;
+  /** Shown but not usable yet, such as while a private session opens. */
+  isDisabled?: boolean;
 };
 
 /**
@@ -236,7 +249,14 @@ function searchHints(input: HTMLInputElement | null) {
     input.setAttribute(name, value);
 }
 
-function LiveSearch({ label, value, onChange, onClear, isBusy }: SearchProps) {
+function LiveSearch({
+  label,
+  value,
+  onChange,
+  onClear,
+  isBusy,
+  isDisabled,
+}: SearchProps) {
   const [draft, setDraft] = useState(value);
   const sent = useRef(value);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -273,6 +293,7 @@ function LiveSearch({ label, value, onChange, onClear, isBusy }: SearchProps) {
       value={draft}
       hasClear
       isLoading={isBusy}
+      isDisabled={isDisabled}
       ref={searchHints}
       onChange={(next: string, event: unknown) => {
         setDraft(next);
@@ -939,62 +960,6 @@ export function LoadingSkeleton({
         ))}
       </VStack>
     </VStack>
-  );
-}
-
-/** One record, beside or in place of its list: a way back, the title with
- * its badge, a metadata grid, then the body. */
-export function DetailPanel({
-  title,
-  badge,
-  back,
-  fields,
-  children,
-  id,
-  panelRef,
-}: {
-  title: string;
-  badge?: ReactNode;
-  back?: ReactNode;
-  fields?: Array<[label: string, value: ReactNode]>;
-  children?: ReactNode;
-  id?: string;
-  panelRef?: React.Ref<HTMLElement>;
-}) {
-  return (
-    <section
-      id={id}
-      ref={panelRef}
-      tabIndex={-1}
-      aria-label={`${title} details`}
-      className="workspace-detail"
-    >
-      <VStack gap={5}>
-        {back}
-        <HStack gap={3} vAlign="center" wrap="wrap">
-          <Heading level={2}>{title}</Heading>
-          {badge}
-        </HStack>
-        {fields && fields.length > 0 && (
-          <MetadataList
-            className="workspace-detail-fields"
-            columns="multi"
-            label={{ position: "top" }}
-          >
-            {fields.map(([name, value]) => (
-              <MetadataListItem key={name} label={name}>
-                {typeof value === "string" ? (
-                  <Text wordBreak="break-word">{value}</Text>
-                ) : (
-                  value
-                )}
-              </MetadataListItem>
-            ))}
-          </MetadataList>
-        )}
-        {children}
-      </VStack>
-    </section>
   );
 }
 
