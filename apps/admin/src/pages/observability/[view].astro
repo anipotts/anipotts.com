@@ -7,6 +7,7 @@ import {
   type OpsView,
 } from "../../components/astryx/ObservabilityWorkspace";
 import { privateReaderOpsEnabled } from "../../lib/private-reader-credential";
+import { loadShellFixtures } from "../../lib/shell-fixtures";
 
 // Status, Activity and Alerts. Every other segment is the shared 404.
 const view = Astro.params.view ?? "";
@@ -19,18 +20,9 @@ const key = view as OpsView;
 // ops:read credential only when this is on.
 const enabled = privateReaderOpsEnabled(Astro.locals.runtime?.env ?? {});
 
-// Development uses System's snapshot sample and a synthetic events page by
-// default (a local preview cannot reach the reader; see
-// docs/local-development.md). `?fixture=none` shows the real local states.
-// `import.meta.env.DEV` is false in builds, so no fixture ships.
-const fixtures =
-  import.meta.env.DEV && Astro.url.searchParams.get("fixture") !== "none"
-    ? {
-        snapshot: (await import("../../fixtures/ops_v1.sample.json")).default,
-        events: (await import("../../fixtures/ops_events_v1.synthetic.json"))
-          .default,
-      }
-    : undefined;
+// Development uses System's snapshot sample and a synthetic events page
+// (lib/shell-fixtures.ts); none ships.
+const fixtures = await loadShellFixtures(Astro.url);
 Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
 

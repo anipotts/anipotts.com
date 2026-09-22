@@ -5,6 +5,7 @@ import {
   commitAdminNavigation,
 } from "../../lib/editorial-navigation";
 import { editorialRecordSummary } from "../../lib/editorial-record-summary";
+import { recordCollection } from "../../lib/editorial-collections";
 import { dispatchEditorialRecordSaved } from "../../lib/editorial-inventory-events";
 import { RecordPanel } from "./RecordPanel";
 import {
@@ -1748,7 +1749,7 @@ function HomeEditorImpl({
                     label: "Open production editor",
                     onClick: () => {
                       window.open(
-                        `https://admin.anipotts.com/content/${record.kind === "page" ? (record.id === "home" ? "home" : `${record.id}Page`) : record.kind === "work" ? "projects" : "writing"}/${record.id}`,
+                        `https://admin.anipotts.com/content/${recordCollection(record) ?? `${record.id}Page`}/${record.id}`,
                         "_blank",
                         "noopener,noreferrer",
                       );

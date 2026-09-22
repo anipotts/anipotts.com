@@ -1,4 +1,6 @@
 import React from "react";
+import { editorialRecordSchema } from "@anipotts/content/editorial/source";
+import { recordCollection } from "../../lib/editorial-collections";
 import { HStack } from "@astryxdesign/core/HStack";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Text } from "@astryxdesign/core/Text";
@@ -92,21 +94,8 @@ function blockingRecord(job: LegacyProgressJob) {
   if (!head || head.id === job.id || !head.record) return null;
   const { kind, id } = head.record;
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(id) || id.length > 120) return null;
-  const pageCollections: Record<string, string> = {
-    home: "home",
-    work: "workPage",
-    writing: "writingPage",
-    systems: "systemsPage",
-    newsletter: "newsletterPage",
-  };
-  const collection =
-    kind === "writing"
-      ? "writing"
-      : kind === "work"
-        ? "projects"
-        : kind === "page"
-          ? pageCollections[id]
-          : undefined;
+  const record = editorialRecordSchema.safeParse({ kind, id });
+  const collection = record.success ? recordCollection(record.data) : undefined;
   if (!collection) return null;
   return {
     name: id,

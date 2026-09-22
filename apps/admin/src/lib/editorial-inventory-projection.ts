@@ -1,6 +1,6 @@
 import { libraryPath } from "./content-library-state";
 import { editorialRecordSummary } from "./editorial-record-summary";
-import { createHash } from "node:crypto";
+import { gitBlobSha1 } from "./crypto";
 import {
   editorialRecordPath,
   editorialRecordSchema,
@@ -57,13 +57,6 @@ export function inventoryIdentity(
     id: entry.id,
   });
   return parsed.success ? parsed.data : null;
-}
-function sourceHash(source: string) {
-  const bytes = Buffer.from(source);
-  return createHash("sha1")
-    .update(`blob ${bytes.length}\0`)
-    .update(bytes)
-    .digest("hex");
 }
 function timestamp(value: number): string | undefined {
   return Number.isFinite(value) && !Number.isNaN(new Date(value).getTime())
@@ -215,7 +208,7 @@ export function projectEditorialInventory(
       : updated(entry.collection, entry.id);
     const privateUpdatedAt = draft ? timestamp(draft.updatedAt) : undefined;
     const changesPending = Boolean(
-      draft && sourceHash(draft.source) !== draft.baseFileHash,
+      draft && gitBlobSha1(draft.source) !== draft.baseFileHash,
     );
     const status = isPrivateOnly
       ? "draft"
