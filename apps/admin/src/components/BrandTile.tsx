@@ -1,9 +1,12 @@
 /**
  * The one tile every brand, app, device and fallback mark sits in: a rounded
  * square on the badge's neutral fill, with the badge's corner radius scaled
- * to the tile. Brand artwork keeps its own colours; black glyphs swap to the
- * dark ink in the dark theme. An id the registry does not know draws the
- * Phosphor glyph for its kind in the same tile, so a row never loses its lead.
+ * to the tile. An app plate fills the tile edge to edge; a flat brand glyph
+ * sits on the neutral fill like an app icon's plate; a device render is the
+ * icon itself, with no fill behind it. Brand artwork keeps its own colours;
+ * black glyphs swap to the dark ink in the dark theme. An id the registry
+ * does not know draws the Phosphor glyph for its kind in the same tile, so a
+ * row never loses its lead.
  *
  * Sizes are 20 (inline), 24 (desktop rows) and 28 (phone rows and detail
  * headers). Without `size` the tile follows `--row-mark-size`, which RowTitle
@@ -96,6 +99,7 @@ export function BrandTile({
     <span
       className={className ? `brand-tile ${className}` : "brand-tile"}
       data-mark={mark?.id ?? kind}
+      data-kind={mark?.kind}
       data-fit={mark ? mark.fit : "glyph"}
       style={style}
       {...naming}

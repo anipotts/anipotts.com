@@ -39,6 +39,8 @@ describe("BrandTile", () => {
     const markup = render(<BrandTile {...deviceMark("ap-plus")} />);
 
     expect(markup).toContain('data-mark="ap-plus"');
+    // The render is the icon: brand-tile.css drops the fill for this kind.
+    expect(markup).toContain('data-kind="device"');
     expect(markup).toMatch(/ap-plus-112\.png/);
     // No size: the tile follows RowTitle's --row-mark-size.
     expect(markup).not.toContain("--brand-tile-size");

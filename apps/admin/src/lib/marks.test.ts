@@ -97,6 +97,11 @@ describe("brand mark registry", () => {
     }
   });
 
+  it("fills the tile with every raster plate, Chrome's included", () => {
+    for (const mark of Object.values(MARKS))
+      if (mark.art.type === "raster") expect(mark.fit, mark.id).toBe("fill");
+  });
+
   it("renders devices edge to edge in their shared box", () => {
     const devices = MARK_IDS.filter((id) => MARKS[id].kind === "device");
     expect(devices).toEqual(["ap-mini", "ap-phone", "ap-plus", "ap-pro"]);

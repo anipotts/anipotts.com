@@ -22,12 +22,18 @@
   display: contents;
 }
 
-/* Glyph artwork sits inside the tile; the colour is the brand's, and black
-   brands take the dark ink in the dark theme. */
+/* A device render is the icon: the device itself at the tile's box size,
+   with no neutral square behind it. */
+.brand-tile[data-kind="device"] {
+  background-color: transparent;
+}
+
+/* Glyph artwork is sized to its tile like an app icon's plate: the brand's
+   colour, black brands taking the dark ink in the dark theme. */
 .brand-tile-art {
   display: block;
-  inline-size: calc(var(--brand-tile-size) * 0.64);
-  block-size: calc(var(--brand-tile-size) * 0.64);
+  inline-size: calc(var(--brand-tile-size) * 0.75);
+  block-size: calc(var(--brand-tile-size) * 0.75);
   object-fit: contain;
   fill: light-dark(
     var(--brand-mark-color, currentColor),
@@ -43,8 +49,8 @@
 }
 
 /* Phosphor fallbacks read a little lighter than brand glyphs, so they sit
-   about 2px larger at the same tile size. */
+   about 1px larger at the same tile size. */
 .brand-tile-glyph {
-  inline-size: calc(var(--brand-tile-size) * 0.72);
-  block-size: calc(var(--brand-tile-size) * 0.72);
+  inline-size: calc(var(--brand-tile-size) * 0.78);
+  block-size: calc(var(--brand-tile-size) * 0.78);
 }

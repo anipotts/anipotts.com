@@ -67,10 +67,11 @@ const ENTRIES = {
     fit: "fill",
     aliases: ["atlas"],
   },
+  // The vendored icon is Chrome's full white app plate, so it is the tile.
   chrome: {
     label: "Chrome",
     kind: "app",
-    fit: "glyph",
+    fit: "fill",
     aliases: ["google chrome"],
   },
   claude: {
