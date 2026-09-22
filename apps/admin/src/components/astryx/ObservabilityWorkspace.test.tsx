@@ -672,6 +672,87 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
     );
   });
 
+  it("leads a reader access with the device that made it", () => {
+    const access = (seq: number, device: string | null) => ({
+      seq,
+      at: `2026-09-21T17:${String(10 + seq).padStart(2, "0")}:00Z`,
+      kind: "access",
+      subject: "data.search",
+      from_state: null,
+      to_state: null,
+      status: 200,
+      ms: 40 + seq,
+      detail: null,
+      device,
+    });
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(
+      <ObservabilityWorkspace
+        view="activity"
+        enabled={false}
+        fixture={sample}
+        eventsFixture={{
+          version: "ops_events_v1",
+          items: [access(1, "ap-phone"), access(2, "ap-pro"), access(3, null)],
+          next_after: null,
+        }}
+        now={NOW}
+      />,
+    );
+    const marks = bodyRows(host).map((row) => [
+      row.querySelector(".brand-tile")?.getAttribute("data-mark"),
+      row.querySelector(".workspace-row-mark")?.getAttribute("title"),
+    ]);
+    expect(marks).toEqual([
+      ["tailscale", "Reader access"],
+      ["ap-pro", "Reader access from ap-pro"],
+      ["ap-phone", "Reader access from ap-phone"],
+    ]);
+  });
+
+  it("caps a long feed and steps it with Show more", async () => {
+    const items = Array.from({ length: 150 }, (_, index) => ({
+      seq: index + 1,
+      at: new Date(NOW - (150 - index) * 60_000)
+        .toISOString()
+        .replace(".000Z", "Z"),
+      kind: "access",
+      subject: "data.search",
+      from_state: null,
+      to_state: null,
+      status: 200,
+      ms: 20,
+      detail: null,
+    }));
+    const host = document.createElement("div");
+    const root = createRoot(host);
+    await act(async () =>
+      root.render(
+        <ObservabilityWorkspace
+          view="activity"
+          enabled={false}
+          fixture={sample}
+          eventsFixture={{ version: "ops_events_v1", items, next_after: null }}
+        />,
+      ),
+    );
+    expect(bodyRows(host)).toHaveLength(100);
+    expect(host.querySelector("h1")?.nextElementSibling?.textContent).toBe(
+      "150",
+    );
+    const more = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent === "Show more",
+    )!;
+    await act(async () => more.click());
+    expect(bodyRows(host)).toHaveLength(150);
+    expect(
+      [...host.querySelectorAll("button")].some(
+        (button) => button.textContent === "Show more",
+      ),
+    ).toBe(false);
+    await act(async () => root.unmount());
+  });
+
   it("names each event's source: catalog groups and reader access", () => {
     const host = view("activity");
     const index = headers(host).indexOf("Source");

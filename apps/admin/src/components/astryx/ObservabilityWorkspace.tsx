@@ -20,6 +20,7 @@ import {
   PulseIcon,
   ShieldWarningIcon,
   WarningCircleIcon,
+  type Icon,
 } from "@phosphor-icons/react";
 import {
   OPS_HOSTS_GROUP,
@@ -52,7 +53,7 @@ import {
   type OpsEventLog,
   type OpsTransitionEvent,
 } from "../../lib/ops-events";
-import type { OpsStatusController } from "../../lib/ops-reader";
+import type { OpsConnection, OpsStatusController } from "../../lib/ops-reader";
 import { useOpsStatus } from "../hooks/useOpsStatus";
 import {
   DataTable,
@@ -600,6 +601,36 @@ function SamplerStopped({ at, data }: { at: string; data: OpsData }) {
   );
 }
 
+/** Each unconnected state's notice: its title standing alone, and the
+ * title above retained content where the state keeps any. */
+const CONNECTION_NOTICES: Partial<
+  Record<
+    OpsConnection,
+    {
+      title: string;
+      kept?: string;
+      kind: React.ComponentProps<typeof StateNotice>["kind"];
+      icon?: Icon;
+    }
+  >
+> = {
+  off: { title: "Reader off", kind: "not-connected", icon: PlugsIcon },
+  unreachable: {
+    title: "ap-mini unreachable",
+    kept: "ap-mini unreachable",
+    kind: "not-connected",
+    icon: LinkBreakIcon,
+  },
+  unavailable: {
+    title: "No snapshot yet",
+    kept: "No current snapshot",
+    kind: "error",
+  },
+  rejected: { title: "Snapshot rejected", kind: "error" },
+  denied: { title: "Access refused", kind: "error", icon: ShieldWarningIcon },
+  ended: { title: "Session ended", kind: "not-connected" },
+};
+
 /**
  * The page's one notice: the connection when it is not connected, else a
  * stopped sampler, else events that are not current. With content retained
@@ -615,74 +646,35 @@ function OpsNotice({
   retained: boolean;
 }) {
   const { state } = data;
-  const retry = data.retry ? (
-    <Button
-      label={state.connection === "ended" ? "Open again" : "Try again"}
-      size="sm"
-      variant="secondary"
-      icon={<ArrowClockwiseIcon weight="regular" aria-hidden="true" />}
-      onClick={data.retry}
-    />
-  ) : undefined;
-  if (!data.fixtureMode)
-    switch (state.connection) {
-      case "off":
-        return (
-          <StateNotice
-            kind="not-connected"
-            icon={PlugsIcon}
-            title="Reader off"
-          />
-        );
-      case "unreachable":
-        return retained ? (
-          <InlineNotice
-            tone="warning"
-            icon={LinkBreakIcon}
-            title="ap-mini unreachable"
-            action={retry}
-          />
-        ) : (
-          <StateNotice
-            kind="not-connected"
-            title="ap-mini unreachable"
-            action={retry}
-          />
-        );
-      case "unavailable":
-        return retained ? (
-          <InlineNotice
-            tone="warning"
-            title="No current snapshot"
-            action={retry}
-          />
-        ) : (
-          <StateNotice kind="error" title="No snapshot yet" action={retry} />
-        );
-      case "rejected":
-        return (
-          <StateNotice kind="error" title="Snapshot rejected" action={retry} />
-        );
-      case "denied":
-        return (
-          <StateNotice
-            kind="error"
-            icon={ShieldWarningIcon}
-            title="Access refused"
-            action={retry}
-          />
-        );
-      case "ended":
-        return (
-          <StateNotice
-            kind="not-connected"
-            title="Session ended"
-            action={retry}
-          />
-        );
-      default:
-        break;
-    }
+  const notice = data.fixtureMode
+    ? undefined
+    : CONNECTION_NOTICES[state.connection];
+  if (notice) {
+    const retry = data.retry && (
+      <Button
+        label={state.connection === "ended" ? "Open again" : "Try again"}
+        size="sm"
+        variant="secondary"
+        icon={<ArrowClockwiseIcon weight="regular" aria-hidden="true" />}
+        onClick={data.retry}
+      />
+    );
+    return retained && notice.kept ? (
+      <InlineNotice
+        tone="warning"
+        icon={notice.icon}
+        title={notice.kept}
+        action={retry}
+      />
+    ) : (
+      <StateNotice
+        kind={notice.kind}
+        icon={notice.icon}
+        title={notice.title}
+        action={retry}
+      />
+    );
+  }
   if (data.stopped && data.snapshot)
     return <SamplerStopped at={data.snapshot.generated_at} data={data} />;
   if (!data.fixtureMode && view !== "status" && state.eventsStale)
@@ -711,12 +703,12 @@ function OpsSkeleton({ view }: { view: OpsView }) {
 // Activity
 
 /** Rows per step of Activity; "Show more" adds another step. */
-export const OPS_ACTIVITY_STEP = 100;
+const ACTIVITY_STEP = 100;
 
 type ActivityRow = {
   key: string;
   event: OpsEvent;
-  source: string;
+  source: { id: string; label: string };
   day: string;
 } & Record<string, unknown>;
 
@@ -809,10 +801,7 @@ function EventState({ event }: { event: OpsEvent }) {
   );
 }
 
-function activityColumns(
-  catalog: Catalog,
-  sourceLabel: ReadonlyMap<string, string>,
-): Column<ActivityRow>[] {
+function activityColumns(catalog: Catalog): Column<ActivityRow>[] {
   return [
     {
       key: "event",
@@ -845,9 +834,7 @@ function activityColumns(
       header: "Source",
       width: 176,
       hideBelow: "large",
-      render: ({ source: id }) => (
-        <Text color="secondary">{sourceLabel.get(id) ?? id}</Text>
-      ),
+      render: ({ source }) => <Text color="secondary">{source.label}</Text>,
     },
     {
       key: "at",
@@ -860,46 +847,46 @@ function activityColumns(
 
 function ActivityView({ data }: { data: OpsData }) {
   const [source, setSource] = useState("all");
-  const [limit, setLimit] = useState(OPS_ACTIVITY_STEP);
+  const [limit, setLimit] = useState(ACTIVITY_STEP);
   const catalog = useMemo(() => catalogOf(data.snapshot), [data.snapshot]);
   const rows = useMemo((): ActivityRow[] => {
     const events = [...(data.events?.recent ?? [])].reverse();
     return events.map((event) => ({
       key: String(event.seq),
       event,
-      source: opsActivitySource(event, catalog).id,
+      source: opsActivitySource(event, catalog),
       day: dayKey(Date.parse(event.at)),
     }));
   }, [data.events, catalog]);
+  // Each source once, with its count; admin's own polling goes last.
   const sources = useMemo(() => {
     const seen = new Map<string, { label: string; count: number }>();
-    for (const row of rows) {
-      const found = opsActivitySource(row.event, catalog);
-      const entry = seen.get(found.id) ?? { label: found.label, count: 0 };
+    for (const { source } of rows) {
+      const entry = seen.get(source.id) ?? { label: source.label, count: 0 };
       entry.count += 1;
-      seen.set(found.id, entry);
+      seen.set(source.id, entry);
     }
-    return [...seen].sort((a, b) => a[1].label.localeCompare(b[1].label));
-  }, [rows, catalog]);
-  const sourceLabel = useMemo(
-    () => new Map(sources.map(([id, { label }]) => [id, label])),
-    [sources],
-  );
-  const columns = useMemo(
-    () => activityColumns(catalog, sourceLabel),
-    [catalog, sourceLabel],
-  );
+    const polling = (id: string) => (id === OPS_ADMIN_POLLING_SOURCE ? 1 : 0);
+    return [...seen].sort(
+      (a, b) =>
+        polling(a[0]) - polling(b[0]) || a[1].label.localeCompare(b[1].label),
+    );
+  }, [rows]);
+  const columns = useMemo(() => activityColumns(catalog), [catalog]);
   // "All sources" leaves out admin's own ops polling; the menu lists it
   // with its count, so nothing is hidden quietly.
+  const everything = rows.filter(
+    (row) => row.source.id !== OPS_ADMIN_POLLING_SOURCE,
+  );
   const shown =
     source === "all"
-      ? rows.filter((row) => row.source !== OPS_ADMIN_POLLING_SOURCE)
-      : rows.filter((row) => row.source === source);
+      ? everything
+      : rows.filter((row) => row.source.id === source);
   const visible = shown.slice(0, limit);
-  const today = data.fixedNow ?? data.serverNow;
+  const today = data.fixedNow ?? Date.now();
   const choose = (next: string) => {
     setSource(next);
-    setLimit(OPS_ACTIVITY_STEP);
+    setLimit(ACTIVITY_STEP);
   };
   return (
     <OpsPage
@@ -912,7 +899,9 @@ function ActivityView({ data }: { data: OpsData }) {
           label="Source"
           icon={BroadcastIcon}
           value={
-            source === "all" ? "All" : (sourceLabel.get(source) ?? "Source")
+            source === "all"
+              ? "All"
+              : (sources.find(([id]) => id === source)?.[1].label ?? "Source")
           }
           isActive={source !== "all"}
         >
@@ -924,9 +913,7 @@ function ActivityView({ data }: { data: OpsData }) {
             <DropdownMenuRadioItem
               value="all"
               label="All sources"
-              endContent={
-                <MenuCount value={rows.length - pollingCount(sources)} />
-              }
+              endContent={<MenuCount value={everything.length} />}
             />
             {sources.map(([id, { label, count }]) => (
               <DropdownMenuRadioItem
@@ -958,7 +945,7 @@ function ActivityView({ data }: { data: OpsData }) {
               label="Show more"
               size="sm"
               variant="secondary"
-              onClick={() => setLimit((value) => value + OPS_ACTIVITY_STEP)}
+              onClick={() => setLimit((value) => value + ACTIVITY_STEP)}
             />
           )}
         </VStack>
@@ -979,12 +966,6 @@ function ActivityView({ data }: { data: OpsData }) {
         />
       )}
     </OpsPage>
-  );
-}
-
-function pollingCount(sources: Array<[string, { count: number }]>) {
-  return (
-    sources.find(([id]) => id === OPS_ADMIN_POLLING_SOURCE)?.[1].count ?? 0
   );
 }
 
@@ -1036,14 +1017,13 @@ export function opsAlertParam(search: string): string | null {
  */
 export function AlertsTable({
   rows,
-  compact = false,
   resolved = false,
   now,
   selected,
   onSelect,
 }: {
   rows: AlertRow[];
-  /** The overview's form: firing rows only. */
+  /** Accepted from the overview, whose firing rows are these same rows. */
   compact?: boolean;
   resolved?: boolean;
   now?: number;

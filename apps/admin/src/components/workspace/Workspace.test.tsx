@@ -7,6 +7,7 @@ import { ArticleIcon } from "@phosphor-icons/react";
 import {
   DataTable,
   FilterBar,
+  RelativeTime,
   RowTitle,
   SEARCH_DEBOUNCE_MS,
   StateBadge,
@@ -139,6 +140,59 @@ describe("DataTable", () => {
     expect(host.querySelector(".workspace-table-footer")!.textContent).toBe(
       "2 records in view1 drafts",
     );
+  });
+});
+
+describe("DataTable groups", () => {
+  it("heads each run of rows with one group row in the lead column", () => {
+    const grouped = [
+      { id: "a", title: "First", at: "", group: "Personal context" },
+      { id: "b", title: "Second", at: "", group: "Personal context" },
+      { id: "c", title: "Third", at: "", group: "Backups" },
+    ];
+    const host = html(
+      <DataTable
+        rows={grouped}
+        columns={columns as unknown as Column<(typeof grouped)[number]>[]}
+        rowKey="id"
+        label="Grouped"
+        noun={["row", "rows"]}
+        groupBy={(row) => row.group}
+        groupLabel={(key) => key.toUpperCase()}
+      />,
+    );
+    expect(host.querySelectorAll("table")).toHaveLength(1);
+    const body = [...host.querySelectorAll("tbody tr")];
+    expect(body.map((row) => row.hasAttribute("data-group-row"))).toEqual([
+      true,
+      false,
+      false,
+      true,
+      false,
+    ]);
+    const heading = body[0]!.querySelector("th")!;
+    expect(heading.getAttribute("scope")).toBe("rowgroup");
+    // One cell: a span would count hidden columns and take their width.
+    expect(heading.hasAttribute("colspan")).toBe(false);
+    expect(body[0]!.children).toHaveLength(1);
+    expect(body[3]!.textContent).toBe("BACKUPS");
+    // Group rows are not records: the count strip counts rows only.
+    expect(host.querySelector(".workspace-table-count")?.textContent).toBe(
+      "3 rows in view",
+    );
+  });
+});
+
+describe("RelativeTime", () => {
+  const at = "2026-09-21T17:45:00Z";
+  it("reads a fixed clock without ticking, and clock times on request", () => {
+    const fixed = html(
+      <RelativeTime value={at} now={Date.parse("2026-09-21T18:00:00Z")} />,
+    );
+    expect(fixed.textContent).toBe("15m ago");
+    const clock = html(<RelativeTime value={at} format="time" />);
+    expect(clock.textContent).toMatch(/^\d{1,2}:45\s?[AP]M$/);
+    expect(clock.querySelector("time")?.getAttribute("title")).toContain("UTC");
   });
 });
 
