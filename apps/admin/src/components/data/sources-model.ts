@@ -4,16 +4,20 @@
  * fold into one row with their accounts nested (Gmail x3, Contacts x3).
  *
  * System's catalog fields (`display_name`, `connector`, `host`,
- * `collection`, `status`, `job`, `last_success_at`) decide when present.
- * Until System serves them, the id's words stand in for the connector and
- * the device, and a source with no records and no revisions is discovery
- * inventory, never a broken source. An excluded source sits in its own
- * group near the bottom, never as a live one, whatever its counts say.
+ * `collection`, `status`, `job`, `last_success_at`, `held_to`) decide when
+ * present. Until System serves them, the id's words stand in for the
+ * connector and the device. A count never decides a lifecycle: with neither
+ * `collection` nor `status`, a source with nothing recorded is discovery
+ * inventory, and one with records is only "Status not reported", never
+ * Connected or Live. An excluded source sits in its own group near the
+ * bottom, whatever its counts say.
  *
- * Nothing here guesses a schedule. A live source is judged only through the
- * ops job that collects it (`job`, joined to the ops snapshot): that job's
- * own state, and the source's success receipt against the job's own
- * freshness budget. Without a job, a snapshot or a budget it is never stale.
+ * Nothing here guesses a schedule or a freshness. A live source mirrors the
+ * ops job that collects it (`job`, joined to the ops snapshot): an ok job is
+ * Live, and stale, failing, degraded and asleep read as themselves. No job,
+ * a job the snapshot does not list, an unknown one, or no current snapshot
+ * reads a neutral Unjudged. `held_to` is only the newest record, never a
+ * staleness signal.
  */
 import { brandMark } from "@anipotts/brand/marks";
 import type { TileRef } from "../../lib/marks";
@@ -86,16 +90,18 @@ export function sourceHost(source: DataSourceRow): string | null {
   return idDevice(source.id);
 }
 
-/** Lifecycles, in the order their groups show. `connected` is a source with
- * records whose lifecycle System has not said. `excluded` holds what System
+/** Lifecycles, in the order their groups show. `connected` is a source
+ * System gives a status but no lifecycle. `unreported` is one System says
+ * nothing about but that holds records. `excluded` holds what System
  * withdrew: it sits after the others, just above the folded discovered
  * group. */
 export type SourceGroup =
-  "live" | "connected" | "imported" | "excluded" | "discovered";
+  "live" | "connected" | "imported" | "unreported" | "excluded" | "discovered";
 export const SOURCE_GROUPS: Record<SourceGroup, string> = {
   live: "Live",
   connected: "Connected",
   imported: "Imported once",
+  unreported: "Status not reported",
   excluded: "Excluded",
   discovered: "Discovered, not connected",
 };
@@ -105,12 +111,15 @@ export function sourceGroup(source: DataSourceRow): SourceGroup {
   if (source.status === "excluded") return "excluded";
   if (source.collection === "live") return "live";
   if (source.collection === "one_shot") return "imported";
-  if (
-    source.collection === "discovered" ||
-    source.status === "discovered" ||
-    (source.records === 0 && source.revisions === 0)
-  )
+  if (source.collection === "discovered" || source.status === "discovered")
     return "discovered";
+  // Only with no word from System at all do the counts say anything, and
+  // then only that nothing was recorded. An enrolled source that is empty
+  // keeps its own lifecycle.
+  if (source.collection === null && source.status === null)
+    return source.records === 0 && source.revisions === 0
+      ? "discovered"
+      : "unreported";
   return "connected";
 }
 
@@ -128,13 +137,17 @@ export function holdsRecords(group: SourceGroup): boolean {
 export const SOURCE_STATES = [
   "failed",
   "stale",
+  "degraded",
   "unavailable",
   "paused",
   "pending",
+  "asleep",
   "excluded",
+  "unjudged",
   "live",
   "connected",
   "imported",
+  "unreported",
   "discovered",
 ] as const;
 export type SourceState = (typeof SOURCE_STATES)[number];
@@ -149,33 +162,35 @@ export function lastSync(source: DataSourceRow): string | null {
 export type SourceJob = {
   /** The job's own state from System ("ok", "stale", "failing", ...). */
   state: string;
-  /** Its freshness budget in seconds; null is liveness only. */
-  budgetSeconds: number | null;
 };
 export type SourceJobs = ReadonlyMap<string, SourceJob>;
 
-/** A live source through its job: failing when the job fails, stale when
- * the job is stale or the source's own success receipt is older than the
- * job's budget. No job or no budget is liveness only, never stale. */
+/** A live source mirrors its job's own state. Anything that cannot be
+ * joined (no job, no snapshot, a job the snapshot does not list, or an
+ * unknown state) is Unjudged, never Live. */
 function liveState(
   source: DataSourceRow,
-  now: number,
   jobs: SourceJobs | null,
 ): SourceState {
   const job = source.job ? jobs?.get(source.job) : undefined;
-  if (!job) return "live";
-  if (job.state === "failing") return "failed";
-  if (job.state === "stale") return "stale";
-  if (job.budgetSeconds === null || !source.lastSuccessAt) return "live";
-  const at = Date.parse(source.lastSuccessAt);
-  return Number.isFinite(at) && now - at > job.budgetSeconds * 1000
-    ? "stale"
-    : "live";
+  switch (job?.state) {
+    case "ok":
+      return "live";
+    case "stale":
+      return "stale";
+    case "failing":
+      return "failed";
+    case "degraded":
+      return "degraded";
+    case "asleep":
+      return "asleep";
+    default:
+      return "unjudged";
+  }
 }
 
 export function sourceState(
   source: DataSourceRow,
-  now: number = Date.now(),
   jobs: SourceJobs | null = null,
 ): SourceState {
   const status = source.status;
@@ -186,8 +201,9 @@ export function sourceState(
   if (group === "discovered")
     return status === "unavailable" ? "unavailable" : "discovered";
   if (status === "unavailable") return "unavailable";
-  if (group === "live") return liveState(source, now, jobs);
+  if (group === "live") return liveState(source, jobs);
   if (status === "pending") return "pending";
+  if (group === "unreported") return "unreported";
   return group === "imported" ? "imported" : "connected";
 }
 
@@ -216,6 +232,8 @@ export function sourceEntry(source: DataSourceRow): SourceEntry {
     id: source.id,
     host: sourceHost(source),
     displayName: source.displayName,
+    connector: source.connector,
+    transport: source.transport,
   });
   return {
     source,
@@ -307,6 +325,9 @@ export type SourceRow = {
   tooltip: string;
   state: SourceState;
   lastSync: string | null;
+  /** System's `held_to`: the newest record it holds. A detail only, never
+   * a staleness signal. */
+  newest: string | null;
   records: number;
   revisions: number;
   /** Items System found but has not recorded. */
@@ -331,7 +352,6 @@ const newest = (values: Array<string | null>): string | null =>
 
 function sourceRow(
   entry: SourceEntry,
-  now: number,
   jobs: SourceJobs | null,
   kind: "source" | "account",
   name = entry.name,
@@ -347,8 +367,9 @@ function sourceRow(
     tile: entry.tile,
     device: entry.device,
     tooltip: entry.tooltip,
-    state: sourceState(source, now, jobs),
+    state: sourceState(source, jobs),
     lastSync: holds ? lastSync(source) : null,
+    newest: holds ? source.heldTo : null,
     records: source.records,
     revisions: source.revisions,
     discovered: source.discoveredCount,
@@ -363,13 +384,12 @@ const byName = (a: { name: string }, b: { name: string }) =>
 
 /**
  * The table's rows: grouped by lifecycle (Live, Connected, Imported once,
- * Excluded, then Discovered), one row per connector family in each,
+ * Status not reported, Excluded, then Discovered), one row per connector family in each,
  * families in connector order. Sources of the Other family never fold: they are
  * different things, not accounts of one connector.
  */
 export function sourceRows(
   sources: readonly DataSourceRow[],
-  now: number = Date.now(),
   jobs: SourceJobs | null = null,
 ): SourceRow[] {
   const buckets = new Map<string, SourceEntry[]>();
@@ -386,7 +406,7 @@ export function sourceRows(
   const rows: SourceRow[] = [];
   for (const [key, entries] of buckets) {
     if (entries.length === 1) {
-      rows.push(sourceRow(entries[0]!, now, jobs, "source"));
+      rows.push(sourceRow(entries[0]!, jobs, "source"));
       continue;
     }
     const [first] = entries as [SourceEntry];
@@ -396,13 +416,7 @@ export function sourceRows(
       (shared && brandMark(shared)?.label) || CONNECTOR_LABELS[first.connector];
     const accounts = distinctNames(
       entries.map((entry) =>
-        sourceRow(
-          entry,
-          now,
-          jobs,
-          "account",
-          accountName(entry, { label, tile }),
-        ),
+        sourceRow(entry, jobs, "account", accountName(entry, { label, tile })),
       ),
     ).sort(byName);
     const discovered = entries.map((entry) => entry.source.discoveredCount);
@@ -417,6 +431,7 @@ export function sourceRows(
       tooltip: entries.map((entry) => entry.source.id).join(", "),
       state: worstState(accounts.map((row) => row.state)),
       lastSync: newest(accounts.map((row) => row.lastSync)),
+      newest: newest(accounts.map((row) => row.newest)),
       records: accounts.reduce((sum, row) => sum + row.records, 0),
       revisions: accounts.reduce((sum, row) => sum + row.revisions, 0),
       discovered: discovered.some((value) => value !== null)

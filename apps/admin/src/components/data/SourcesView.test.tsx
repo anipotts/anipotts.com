@@ -33,10 +33,11 @@ const sources = [
     job: "pc.writer",
     last_success_at: ago(15),
   }),
+  // pc.snapshot in System's sample: stale.
   source("ani-messages-1to1", {
     host: "ap-pro",
     collection: "live",
-    job: "pc.writer",
+    job: "pc.snapshot",
     last_success_at: ago(600),
   }),
   source("ani-health", {
@@ -115,43 +116,61 @@ describe("Sources by connector", () => {
     const headings = [...host.querySelectorAll("th[scope=rowgroup]")].map(
       (cell) => cell.textContent,
     );
-    expect(headings[0]).toBe("Live");
-    expect(headings[1]).toBe("Connected");
-    expect(headings[2]).toBe("Imported once");
-    expect(headings[3]).toBe("Excluded");
+    expect(headings.slice(0, 4)).toEqual([
+      "Live",
+      "Imported once",
+      // Records but no status or lifecycle from System: not "Connected".
+      "Status not reported",
+      "Excluded",
+    ]);
     expect(headings[4]).toContain("Discovered, not connected");
     const fold = host.querySelector<HTMLButtonElement>(
       ".workspace-group-toggle",
     )!;
     expect(fold.getAttribute("aria-expanded")).toBe("false");
     expect(host.textContent).not.toContain("Gmail");
+    // The folded heading counts the 23 discovered sources, not the two
+    // family rows it draws or the 25 it draws open.
+    expect(fold.textContent).toContain("23");
+    await act(async () => fold.click());
+    await act(async () => button("Gmail, 3 accounts")!.click());
+    expect(fold.textContent).toContain("23");
+    // A discovered source shows no 0/0 figures and no invented last sync.
+    const gmail = button("Gmail, 3 accounts")!.closest("tr")!;
+    expect(gmail.textContent).not.toMatch(/\b0\b/);
+    expect(gmail.textContent).not.toContain("Never");
   });
 
-  it("marks a live source against its job's budget, and only exceptions as chips", async () => {
+  it("mirrors each live source's job, and shows only exceptions as chips", async () => {
     await render();
     const table = host.querySelector('table[aria-label="Sources"]')!;
+    // Browsing's job is ok; Messages' job is stale in System's sample.
     expect(table.querySelector('[aria-label="Live"]')).not.toBeNull();
-    // Messages' last success is ten hours old, over pc.writer's budget.
     expect(table.textContent).toContain("Stale");
     expect(table.textContent).not.toContain("Failed");
+    expect(table.textContent).not.toContain("Unjudged");
   });
 
-  it("judges nothing stale without the ops snapshot", async () => {
+  it("calls a live source Unjudged, never Live, without the ops snapshot", async () => {
     await render(false);
     const table = host.querySelector('table[aria-label="Sources"]')!;
     expect(table.textContent).not.toContain("Stale");
+    expect(table.querySelector('[aria-label="Live"]')).toBeNull();
+    expect(table.textContent).toContain("Unjudged");
   });
 
-  it("shows an excluded source apart, with nothing to open or count", async () => {
+  it("shows an excluded source apart, with nothing to open and System's own count", async () => {
     await render();
     const heading = [...host.querySelectorAll("th[scope=rowgroup]")].find(
       (cell) => cell.textContent === "Excluded",
     )!;
     const row = heading.closest("tr")!.nextElementSibling!;
-    expect(row.textContent).toContain("Apple Health");
     expect(row.textContent).toContain("Excluded");
-    expect(row.textContent).not.toContain("93");
+    // The count is System's, shown as served: 93 while its records are
+    // withdrawn is System's to fix, and never papered over here.
+    expect(row.textContent).toContain("93");
     expect(row.querySelector("a")).toBeNull();
+    expect(row.textContent).toContain("Withdrawn");
   });
 
   it("opens Records filtered to a source from its row", async () => {

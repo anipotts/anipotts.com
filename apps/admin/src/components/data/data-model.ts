@@ -230,6 +230,13 @@ export const SOURCE_STATUSES = [
   "paused",
 ] as const;
 export type SourceStatus = (typeof SOURCE_STATUSES)[number];
+export const SOURCE_TRANSPORTS = [
+  "launchd",
+  "push",
+  "manual",
+  "derived",
+] as const;
+export type SourceTransport = (typeof SOURCE_TRANSPORTS)[number];
 
 export type DataSourceRow = {
   id: string;
@@ -246,8 +253,13 @@ export type DataSourceRow = {
   status: SourceStatus | null;
   /** The ops catalog id that collects it, joined to the ops snapshot. */
   job: string | null;
+  /** How it arrives. Read only to credit Apple Health: a health source is
+   * Apple's only when the phone pushes it. */
+  transport: SourceTransport | null;
   discoveredCount: number | null;
   lastSuccessAt: string | null;
+  /** The newest record System holds, a detail only. */
+  heldTo: string | null;
 };
 
 const oneOf = <T extends string>(
@@ -297,8 +309,10 @@ export function parseSource(value: unknown): DataSourceRow | null {
     collection: oneOf(SOURCE_COLLECTIONS, item.collection),
     status: oneOf(SOURCE_STATUSES, item.status),
     job: token(item.job),
+    transport: oneOf(SOURCE_TRANSPORTS, item.transport),
     discoveredCount: optionalCount(item.discovered_count),
     lastSuccessAt: instant(item.last_success_at),
+    heldTo: instant(item.held_to),
   };
 }
 

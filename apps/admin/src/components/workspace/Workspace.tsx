@@ -621,6 +621,7 @@ export function DataTable<T extends Record<string, unknown>>({
   groupBy,
   groupLabel = (key) => key,
   foldGroup,
+  foldCount,
 }: {
   rows: T[];
   columns: Column<T>[];
@@ -641,6 +642,9 @@ export function DataTable<T extends Record<string, unknown>>({
   /** The group that sits after the others and starts folded; its heading
    * shows its row count and opens it. Needs `groupBy`. */
   foldGroup?: string;
+  /** What the folded heading counts when its rows are not the things it
+   * holds (a family row folds several sources); its row count otherwise. */
+  foldCount?: number;
 }) {
   const [overflowing, wrapperRef] = useOverflow();
   const [foldOpen, setFoldOpen] = useState(false);
@@ -750,7 +754,7 @@ export function DataTable<T extends Record<string, unknown>>({
         groupBy,
         foldGroup === undefined
           ? undefined
-          : { key: foldGroup, open: foldOpen },
+          : { key: foldGroup, open: foldOpen, count: foldCount },
       )
     : rows;
   const minimum = tableMinWidths(columns);
@@ -835,7 +839,7 @@ function withGroupRows<T extends Record<string, unknown>>(
   rows: T[],
   rowKey: keyof T & string,
   groupBy: (row: T) => string,
-  fold?: { key: string; open: boolean },
+  fold?: { key: string; open: boolean; count?: number },
 ): T[] {
   const groups = new Map<string, T[]>();
   for (const row of rows) {
@@ -854,7 +858,11 @@ function withGroupRows<T extends Record<string, unknown>>(
     out.push({
       [rowKey]: `group:${key}`,
       [GROUP]: key,
-      ...(isFold ? { [FOLD]: { count: members.length, open: fold.open } } : {}),
+      ...(isFold
+        ? {
+            [FOLD]: { count: fold.count ?? members.length, open: fold.open },
+          }
+        : {}),
     } as unknown as T);
     if (!isFold || fold.open) out.push(...members);
   }

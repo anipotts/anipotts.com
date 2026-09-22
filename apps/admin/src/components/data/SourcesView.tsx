@@ -9,6 +9,7 @@ import {
   CalendarBlankIcon,
   CaretRightIcon,
   ChatCircleTextIcon,
+  CircleDashedIcon,
   ChatsCircleIcon,
   ClockCounterClockwiseIcon,
   CodeIcon,
@@ -16,6 +17,7 @@ import {
   EnvelopeSimpleIcon,
   HeartbeatIcon,
   ImagesSquareIcon,
+  MoonIcon,
   NotePencilIcon,
   PauseIcon,
   ProhibitIcon,
@@ -23,6 +25,7 @@ import {
   SpinnerGapIcon,
   StackSimpleIcon,
   WarningCircleIcon,
+  WarningIcon,
   type Icon,
 } from "@phosphor-icons/react";
 import type { DataResult } from "../../data/personal-context";
@@ -30,7 +33,6 @@ import { DataReadSession, type DataReader } from "../../lib/data-read-session";
 import { opsServices } from "../../lib/ops-v1";
 import { useOpsData, type OpsViewProps } from "../observability/frame";
 import { dataRecordsHref, dataSource } from "../../lib/data-routes";
-import { useLiveText } from "../../lib/live-clock";
 import { deviceName } from "../../lib/naming";
 import { BrandTile } from "../BrandTile";
 import {
@@ -52,7 +54,7 @@ import { readSourceCatalog } from "./source-catalog";
 import {
   DISCOVERED_GROUP,
   SOURCE_GROUPS,
-  holdsRecords,
+  sourceGroup,
   sourceRows,
   type SourceJobs,
   type SourceRow,
@@ -88,8 +90,13 @@ const STATES: Record<
   live: { label: "Live", tone: "positive", quiet: true },
   connected: { label: "Connected", tone: "neutral", quiet: true },
   imported: { label: "Imported once", tone: "neutral", quiet: true },
+  unreported: { label: "Status not reported", tone: "neutral", quiet: true },
   discovered: { label: "Not connected", tone: "neutral", quiet: true },
+  // A live source whose job cannot be joined: neither Live nor a problem.
+  unjudged: { label: "Unjudged", tone: "neutral", icon: CircleDashedIcon },
   stale: { label: "Stale", tone: "warning", icon: ClockCounterClockwiseIcon },
+  degraded: { label: "Degraded", tone: "warning", icon: WarningIcon },
+  asleep: { label: "Asleep", tone: "rest", icon: MoonIcon },
   failed: { label: "Failed", tone: "critical", icon: WarningCircleIcon },
   unavailable: { label: "Unavailable", tone: "neutral", icon: ProhibitIcon },
   paused: { label: "Paused", tone: "rest", icon: PauseIcon },
@@ -159,10 +166,15 @@ function Device({ id }: { id: string | null }) {
   return <BrandTile id={id} kind="device" size={20} label={deviceName(id)} />;
 }
 
+/** Whether a row shows System's counts. A discovered source has none to
+ * show. An excluded one shows what System reports, so a count that
+ * disagrees with its withdrawn records stays visible for System to fix. */
+const showsCounts = (row: SourceRow) => row.group !== "discovered";
+
 /** Records and revisions as glyph and number pairs for a phone's line 2,
  * named in full for assistive technology. */
 function Figures({ row }: { row: SourceRow }) {
-  if (!holdsRecords(row.group)) return null;
+  if (!showsCounts(row)) return null;
   const name = `${row.records} ${row.records === 1 ? "record" : "records"}, ${row.revisions} ${row.revisions === 1 ? "revision" : "revisions"}`;
   return (
     <span className="data-figures" aria-label={name} title={name}>
@@ -183,6 +195,16 @@ const foundText = (row: SourceRow) =>
   row.group === "discovered" && row.discovered
     ? `${row.discovered.toLocaleString("en-US")} found`
     : null;
+
+/** System's newest held record, as a quiet detail: never a freshness. */
+function newestRecord(row: SourceRow) {
+  if (!row.newest) return undefined;
+  return (
+    <span className="sources-newest">
+      Newest record <RelativeTime value={row.newest} />
+    </span>
+  );
+}
 
 /** A phone's line 2: an exception's chip and the figures. */
 function PhoneDetail({ row }: { row: SourceRow }) {
@@ -302,7 +324,7 @@ function SourceTitle({ row, family }: { row: SourceRow; family?: string }) {
           ? undefined
           : detail
       }
-      secondary={foundText(row) ?? undefined}
+      secondary={foundText(row) ?? newestRecord(row)}
     />
   );
   return row.kind === "account" ? (
@@ -330,10 +352,7 @@ function JobStates({
         ? new Map(
             opsServices(snapshot).map((service) => [
               service.id,
-              {
-                state: service.status.state,
-                budgetSeconds: service.freshness_budget_s,
-              },
+              { state: service.status.state },
             ]),
           )
         : null,
@@ -371,11 +390,6 @@ export function SourcesExplorer({
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
   const session = useRef(new DataReadSession());
-  // States are judged by the minute, so a live source turns stale on time
-  // without a reread.
-  const minute = Number(
-    useLiveText((now) => String(Math.floor(now / 60_000)), Date.now()),
-  );
   async function read() {
     setBusy(true);
     const catalog = await readSourceCatalog(reader, session.current);
@@ -403,8 +417,15 @@ export function SourcesExplorer({
     Boolean(ops?.enabled || ops?.fixture !== undefined) &&
     Boolean(sources?.some((source) => source.job));
   const rows = useMemo(
-    () => (sources ? sourceRows(sources, minute * 60_000, jobs) : []),
-    [sources, minute, jobs],
+    () => (sources ? sourceRows(sources, jobs) : []),
+    [sources, jobs],
+  );
+  // The folded group counts the sources it holds, not the rows it draws.
+  const discovered = useMemo(
+    () =>
+      sources?.filter((source) => sourceGroup(source) === "discovered")
+        .length ?? 0,
+    [sources],
   );
   if (!sources) return <LoadingSkeleton label="sources" columns={4} />;
   if (failure && !sources.length)
@@ -463,9 +484,7 @@ export function SourcesExplorer({
       header: "Records",
       width: CELL_WIDTHS.figure,
       numeric: true,
-      render: (row) => (
-        <Figure value={holdsRecords(row.group) ? row.records : null} />
-      ),
+      render: (row) => <Figure value={showsCounts(row) ? row.records : null} />,
     },
     {
       key: "revisions",
@@ -475,18 +494,22 @@ export function SourcesExplorer({
       numeric: true,
       hideBelow: "large",
       render: (row) => (
-        <Figure value={holdsRecords(row.group) ? row.revisions : null} />
+        <Figure value={showsCounts(row) ? row.revisions : null} />
       ),
     },
     {
       key: "last",
       header: "Last sync",
       width: CELL_WIDTHS.time,
+      // No time System did not record: an excluded source's is withdrawn, a
+      // discovered one was never connected, anything else is not recorded.
       render: (row) =>
         row.group === "excluded" ? (
           <span className="sr-only">Withdrawn</span>
+        ) : row.group === "discovered" && !row.lastSync ? (
+          <span className="sr-only">Not connected</span>
         ) : (
-          <RelativeTime value={row.lastSync} empty="Never" />
+          <RelativeTime value={row.lastSync} empty="Not recorded" />
         ),
     },
   ];
@@ -502,6 +525,7 @@ export function SourcesExplorer({
         columns={columns}
         groupBy={(row) => SOURCE_GROUPS[row.group]}
         foldGroup={DISCOVERED_GROUP}
+        foldCount={discovered}
       />
       {incomplete && (
         <InlineNotice tone="warning" title="More sources unreadable" />

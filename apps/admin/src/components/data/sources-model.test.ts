@@ -14,6 +14,7 @@ import {
 } from "./sources-model";
 
 const NOW = Date.parse("2026-09-22T12:00:00Z");
+// Times are relative to a fixed instant; nothing here reads a clock.
 const ago = (minutes: number) => new Date(NOW - minutes * 60_000).toISOString();
 /** A reader row as System serves it today, plus any proposed field. */
 const row = (id: string, extra: Record<string, unknown> = {}) =>
@@ -46,6 +47,7 @@ describe("source rows as System serves them", () => {
       collection: null,
       status: null,
       job: null,
+      transport: null,
       lastSuccessAt: null,
     });
     expect(
@@ -77,8 +79,10 @@ describe("source rows as System serves them", () => {
       collection: "live",
       status: "current",
       job: "pro.pc-send",
+      transport: "launchd",
       discoveredCount: 3,
       lastSuccessAt: ago(10),
+      heldTo: ago(10),
     });
   });
 
@@ -148,54 +152,98 @@ describe("connector, device and lifecycle", () => {
 
   it("treats a source with nothing recorded as discovered, never broken", () => {
     expect(sourceGroup(empty("gmail-work"))).toBe("discovered");
-    expect(sourceState(empty("gmail-work"), NOW)).toBe("discovered");
-    expect(
-      sourceState(empty("gmail-work", { status: "unavailable" }), NOW),
-    ).toBe("unavailable");
-    expect(sourceGroup(row("ani-contacts"))).toBe("connected");
-    expect(sourceState(row("ani-contacts"), NOW)).toBe("connected");
+    expect(sourceState(empty("gmail-work"))).toBe("discovered");
+    expect(sourceState(empty("gmail-work", { status: "unavailable" }))).toBe(
+      "unavailable",
+    );
   });
 
-  it("judges a live source only through the job that collects it", () => {
+  it("never lets a count decide a lifecycle", () => {
+    // Records but no word from System: not Connected, not Live.
+    expect(sourceGroup(row("ani-contacts"))).toBe("unreported");
+    expect(sourceState(row("ani-contacts"))).toBe("unreported");
+    expect(SOURCE_GROUPS.unreported).toBe("Status not reported");
+    // Enrolled but empty keeps System's lifecycle: never "not connected".
+    const enrolled = empty("gmail-work", { status: "current" });
+    expect(sourceGroup(enrolled)).toBe("connected");
+    expect(sourceGroup(empty("gmail-work", { collection: "live" }))).toBe(
+      "live",
+    );
+    // System's own "discovered" wins over any count.
+    expect(sourceGroup(row("gmail-work", { collection: "discovered" }))).toBe(
+      "discovered",
+    );
+    expect(sourceGroup(row("gmail-work", { status: "discovered" }))).toBe(
+      "discovered",
+    );
+  });
+
+  it("reads System's nested store shape as unreported, never Connected or Live", () => {
+    // System's store nests the catalog view under metadata; the reader
+    // contract is flat, so none of it is read (ASK SYSTEM: flatten).
+    const nested = parseSource({
+      source_id: "ani-browsing",
+      first_observed_at: ago(9000),
+      last_observed_at: ago(30),
+      record_count: 10,
+      revision_count: 12,
+      metadata: {
+        display_name: "Browsing",
+        connector: "browsing",
+        collection: "live",
+        status: "current",
+        job: "pro.pc-send",
+        last_success_at: ago(5),
+      },
+    })!;
+    expect(nested).toMatchObject({
+      collection: null,
+      status: null,
+      job: null,
+      lastSuccessAt: null,
+    });
+    const [only] = sourceRows(
+      [nested],
+      new Map([["pro.pc-send", { state: "ok" }]]),
+    );
+    expect(only).toMatchObject({ group: "unreported", state: "unreported" });
+    expect(["live", "connected"]).not.toContain(only!.state);
+  });
+
+  it("mirrors the job that collects a live source, and is Unjudged without one", () => {
     const jobs: SourceJobs = new Map([
-      ["pro.pc-send", { state: "ok", budgetSeconds: 1800 }],
-      ["pro.whatsapp", { state: "ok", budgetSeconds: null }],
-      ["pc.snapshot", { state: "stale", budgetSeconds: 93600 }],
-      ["pc.inference", { state: "failing", budgetSeconds: 93600 }],
+      ["pro.pc-send", { state: "ok" }],
+      ["pc.snapshot", { state: "stale" }],
+      ["pc.inference", { state: "failing" }],
+      ["host.ap-pro", { state: "degraded" }],
+      ["pro.whatsapp", { state: "asleep" }],
+      ["health.ingest", { state: "unknown" }],
     ]);
-    const live = (job: string | null, minutes: number | null) =>
+    const live = (job: string | null, extra: Record<string, unknown> = {}) =>
       row("ani-browsing", {
         collection: "live",
         status: "current",
         ...(job ? { job } : {}),
-        ...(minutes === null ? {} : { last_success_at: ago(minutes) }),
+        ...extra,
       });
-    // The receipt against the job's own budget (30 minutes).
-    expect(sourceState(live("pro.pc-send", 20), NOW, jobs)).toBe("live");
-    expect(sourceState(live("pro.pc-send", 31), NOW, jobs)).toBe("stale");
-    // The job's own state.
-    expect(sourceState(live("pc.snapshot", 5), NOW, jobs)).toBe("stale");
-    expect(sourceState(live("pc.inference", 5), NOW, jobs)).toBe("failed");
-    // No budget, no receipt, no job, no snapshot or an unknown job: liveness
-    // only, never stale.
-    expect(sourceState(live("pro.whatsapp", 60 * 24), NOW, jobs)).toBe("live");
-    expect(sourceState(live("pro.pc-send", null), NOW, jobs)).toBe("live");
-    expect(sourceState(live(null, 60 * 24 * 30), NOW, jobs)).toBe("live");
-    expect(sourceState(live("pro.pc-send", 60 * 24), NOW)).toBe("live");
-    expect(sourceState(live("pro.gone", 60 * 24), NOW, jobs)).toBe("live");
-    // The newest record never stands in for a receipt: a month-old record
-    // under an ok job is live.
-    expect(
-      sourceState(
-        row("ani-messages-1to1", {
-          collection: "live",
-          job: "pro.pc-send",
-          last_observed_at: ago(60 * 24 * 31),
-        }),
-        NOW,
-        jobs,
-      ),
-    ).toBe("live");
+    expect(sourceState(live("pro.pc-send"), jobs)).toBe("live");
+    expect(sourceState(live("pc.snapshot"), jobs)).toBe("stale");
+    expect(sourceState(live("pc.inference"), jobs)).toBe("failed");
+    expect(sourceState(live("host.ap-pro"), jobs)).toBe("degraded");
+    expect(sourceState(live("pro.whatsapp"), jobs)).toBe("asleep");
+    // No job, no snapshot, a job it does not list, or an unknown state:
+    // never Live.
+    expect(sourceState(live(null), jobs)).toBe("unjudged");
+    expect(sourceState(live("pro.pc-send"))).toBe("unjudged");
+    expect(sourceState(live("pro.gone"), jobs)).toBe("unjudged");
+    expect(sourceState(live("health.ingest"), jobs)).toBe("unjudged");
+    // The newest record is a detail, never a freshness: a month-old one
+    // under an ok job is Live, and a fresh one under no job is Unjudged.
+    const old = live("pro.pc-send", { held_to: ago(60 * 24 * 31) });
+    expect(sourceState(old, jobs)).toBe("live");
+    expect(sourceState(live(null, { held_to: ago(1) }), jobs)).toBe("unjudged");
+    const [shown] = sourceRows([old], jobs);
+    expect(shown!.newest).toBe(ago(60 * 24 * 31));
   });
 
   it("puts an excluded source in its own group, whatever its counts say", () => {
@@ -208,7 +256,7 @@ describe("connector, device and lifecycle", () => {
       host: "ap-mini",
     });
     expect(sourceGroup(health)).toBe("excluded");
-    expect(sourceState(health, NOW)).toBe("excluded");
+    expect(sourceState(health)).toBe("excluded");
     const live = row("ani-health", {
       record_count: 93,
       status: "excluded",
@@ -218,13 +266,9 @@ describe("connector, device and lifecycle", () => {
     });
     expect(sourceGroup(live)).toBe("excluded");
     expect(
-      sourceState(
-        live,
-        NOW,
-        new Map([["health.ingest", { state: "ok", budgetSeconds: 60 }]]),
-      ),
+      sourceState(live, new Map([["health.ingest", { state: "ok" }]])),
     ).toBe("excluded");
-    const [only] = sourceRows([live], NOW);
+    const [only] = sourceRows([live]);
     expect(only).toMatchObject({
       group: "excluded",
       state: "excluded",
@@ -235,15 +279,31 @@ describe("connector, device and lifecycle", () => {
   });
 
   it("names System's own states", () => {
-    expect(sourceState(row("x", { status: "failed" }), NOW)).toBe("failed");
+    expect(sourceState(row("x", { status: "failed" }))).toBe("failed");
     expect(
-      sourceState(row("x", { status: "paused", collection: "live" }), NOW),
+      sourceState(row("x", { status: "paused", collection: "live" })),
     ).toBe("paused");
-    expect(sourceState(row("x", { status: "excluded" }), NOW)).toBe("excluded");
-    expect(sourceState(row("x", { status: "pending" }), NOW)).toBe("pending");
-    expect(sourceState(row("x", { collection: "one_shot" }), NOW)).toBe(
-      "imported",
-    );
+    expect(sourceState(row("x", { status: "excluded" }))).toBe("excluded");
+    expect(sourceState(row("x", { status: "pending" }))).toBe("pending");
+    expect(sourceState(row("x", { status: "current" }))).toBe("connected");
+    expect(sourceState(row("x", { collection: "one_shot" }))).toBe("imported");
+  });
+
+  it("keeps an excluded account out of a family in another group", () => {
+    const rows = sourceRows([
+      row("ani-contacts", { status: "current" }),
+      row("contacts-work", { status: "current" }),
+      row("contacts-nyu", { status: "excluded" }),
+    ]);
+    const family = rows.find((item) => item.kind === "family")!;
+    expect(family.group).toBe("connected");
+    expect(family.state).toBe("connected");
+    expect(family.accounts).toHaveLength(2);
+    expect(rows.find((item) => item.tooltip === "contacts-nyu")).toMatchObject({
+      group: "excluded",
+      state: "excluded",
+      sourceId: null,
+    });
   });
 });
 
@@ -268,11 +328,17 @@ describe("rows by connector", () => {
     empty("codex-pro"),
     empty("claude-pro"),
   ];
-  const rows = sourceRows(catalog, NOW);
+  const rows = sourceRows(catalog, new Map([["pro.pc-send", { state: "ok" }]]));
 
   it("groups by lifecycle with discovered last", () => {
     expect([...new Set(rows.map((item) => SOURCE_GROUPS[item.group]))]).toEqual(
-      ["Live", "Connected", "Imported once", "Excluded", DISCOVERED_GROUP],
+      [
+        "Live",
+        "Imported once",
+        "Status not reported",
+        "Excluded",
+        DISCOVERED_GROUP,
+      ],
     );
   });
 
@@ -288,7 +354,7 @@ describe("rows by connector", () => {
     expect(gmail.discovered).toBe(15);
     expect(gmail.accounts.every((account) => account.sourceId)).toBe(true);
     const contacts = rows.find(
-      (item) => item.group === "connected" && item.connector === "contacts",
+      (item) => item.group === "unreported" && item.connector === "contacts",
     )!;
     expect(contacts.kind).toBe("family");
     expect(contacts.records).toBe(20);
@@ -382,7 +448,7 @@ describe("the catalogs this view renders", () => {
   it.each(catalogs)("resolves every %s source to a row", (_name, items) => {
     const sources = items.map((item) => parseSource(item)!);
     expect(sources.every(Boolean)).toBe(true);
-    const rows = sourceRows(sources, NOW);
+    const rows = sourceRows(sources);
     const listed = rows.flatMap((item) =>
       item.kind === "family" ? item.accounts : [item],
     );
