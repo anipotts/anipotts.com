@@ -1,8 +1,8 @@
 import { SignJWT, importJWK, type JWK, type JWTVerifyGetKey } from "jose";
-import { verifyEditorialOwnerSession } from "./access-identity";
+import { verifyEditorialOwner, type AccessOwner } from "./access-identity";
 import {
   checkEditorialMutation,
-  privateEditorialResponse,
+  privateJson,
   readEditorialJson,
 } from "./editorial-security";
 
@@ -10,9 +10,9 @@ import {
  * Short private reader delegation for the tailnet reader on ap-mini.
  *
  * Disabled unless PRIVATE_READER_ENABLED is exactly "true" and a dedicated
- * ES256 private JWK is bound. No key is installed; this module only defines the
- * issuance contract. Device admission is enforced by the tailnet grant, never
- * by request headers, so this route reads no device, principal or scope header.
+ * ES256 private JWK is bound. Device admission is enforced by the tailnet
+ * grant, never by request headers, so this reads no device, principal or scope
+ * header. It reuses the owner middleware verified, verifying only without one.
  */
 export const PRIVATE_READER_PATH = "/api/private-reader/credential";
 /** Separate issuance for the Observability Status view. */
@@ -40,7 +40,7 @@ export type PrivateReaderConfig = {
   ACCESS_TEAM_DOMAIN?: string;
   ACCESS_POLICY_AUD?: string;
   PRIVATE_READER_ENABLED?: string;
-  /** Ops issuance also needs this, exactly "true". Unset in every deploy. */
+  /** Ops issuance also needs this, exactly "true". */
   PRIVATE_READER_OPS_ENABLED?: string;
   PRIVATE_READER_SIGNING_KEY?: string;
 };
@@ -54,6 +54,8 @@ export function privateReaderOpsEnabled(config: PrivateReaderConfig): boolean {
 }
 
 export type PrivateReaderOptions = {
+  /** The owner middleware already verified for this request. */
+  owner?: AccessOwner;
   /** Test seam for the Access certificate set; production fetches the team certs. */
   resolveAccessKey?: JWTVerifyGetKey;
   now?: () => number;
@@ -70,11 +72,7 @@ export type PrivateReaderCredentialBody = {
 };
 
 function deny(error: string, status: number, headers?: HeadersInit): Response {
-  const response = privateEditorialResponse({ error }, status);
-  for (const [name, value] of new Headers(headers)) {
-    response.headers.set(name, value);
-  }
-  return response;
+  return privateJson({ error }, status, headers);
 }
 
 async function signingKey(value: string | undefined) {
@@ -115,11 +113,9 @@ export async function privateReaderCredentialApi(
   const key = await signingKey(config.PRIVATE_READER_SIGNING_KEY);
   if (!key) return deny("reader_unavailable", 503);
 
-  const owner = await verifyEditorialOwnerSession(
-    request,
-    config,
-    options.resolveAccessKey,
-  );
+  const owner =
+    options.owner ??
+    (await verifyEditorialOwner(request, config, options.resolveAccessKey));
   if (!owner) return deny("owner_required", 401);
 
   const rejection = checkEditorialMutation(
@@ -167,5 +163,5 @@ export async function privateReaderCredentialApi(
     issuedAt: now,
     expiresAt,
   };
-  return privateEditorialResponse(payload);
+  return privateJson(payload);
 }

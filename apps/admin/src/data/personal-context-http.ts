@@ -1,3 +1,4 @@
+import { readBoundedBytes } from "../lib/bounded-body";
 import { discardBody } from "../lib/response-body";
 
 /** A trusted transport outcome, never a provider error body or private URL. */
@@ -26,27 +27,7 @@ export async function readPersonalContextResponse(
     discardBody(response);
     throw new Error("Unsupported reader response");
   }
-  const limit = 1024 * 1024;
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let length = 0;
-  try {
-    while (true) {
-      const next = await reader.read();
-      if (next.done) break;
-      length += next.value.byteLength;
-      if (length > limit) throw new Error("Reader response exceeds limit");
-      chunks.push(next.value);
-    }
-    const bytes = new Uint8Array(length);
-    let offset = 0;
-    for (const chunk of chunks) {
-      bytes.set(chunk, offset);
-      offset += chunk.byteLength;
-    }
-    return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
-  } finally {
-    await reader.cancel().catch(() => undefined);
-    reader.releaseLock();
-  }
+  const bytes = await readBoundedBytes(response.body, 1024 * 1024);
+  if (!bytes) throw new Error("Reader response exceeds limit");
+  return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
 }

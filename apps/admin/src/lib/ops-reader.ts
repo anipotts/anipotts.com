@@ -4,6 +4,7 @@ import {
   PrivateReaderError,
   privateReaderInit,
 } from "./private-reader-fetch";
+import { readBoundedBytes } from "./bounded-body";
 import { discardBody } from "./response-body";
 import {
   OPS_V1_BOUNDS,
@@ -98,27 +99,8 @@ async function readBounded(
     discardBody(response);
     throw new OpsSnapshotError();
   }
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let length = 0;
-  try {
-    for (;;) {
-      const next = await reader.read();
-      if (next.done) break;
-      length += next.value.byteLength;
-      if (length > maxBytes) throw new OpsSnapshotError();
-      chunks.push(next.value);
-    }
-  } finally {
-    await reader.cancel().catch(() => undefined);
-    reader.releaseLock();
-  }
-  const bytes = new Uint8Array(length);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
+  const bytes = await readBoundedBytes(response.body, maxBytes);
+  if (!bytes) throw new OpsSnapshotError();
   return bytes;
 }
 

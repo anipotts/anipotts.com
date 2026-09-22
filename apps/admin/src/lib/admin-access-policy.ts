@@ -1,4 +1,8 @@
-const PUBLIC_PATHS = new Set([
+import { ADMIN_ROUTES } from "../../../../scripts/ci/admin-route-inventory.mjs";
+
+/** Signed-out surfaces. The retained passkey, invite and recovery entries
+ * name retired routes; the gated auth cleanup removes them. */
+export const PUBLIC_PATHS = new Set([
   "/auth",
   "/auth/passkey",
   "/auth/invite",
@@ -16,7 +20,7 @@ const PUBLIC_PATHS = new Set([
   "/apple-touch-icon.png",
 ]);
 
-const PUBLIC_PASSKEY_API_PATHS = new Set([
+export const PUBLIC_PASSKEY_API_PATHS = new Set([
   "/api/admin/auth/session",
   "/api/admin/passkey/login-options",
   "/api/admin/passkey/login-verify",
@@ -38,95 +42,32 @@ const PUBLIC_PASSKEY_API_PATHS = new Set([
   "/api/admin/recovery/google/callback",
 ]);
 
-const PUBLIC_PREFIXES = ["/_astro/", "/assets/"];
-const DEV_LOOPBACK_PREVIEW_PATHS = new Set([
-  "/",
-  "/inbox",
-  "/operations/observability",
-  "/work",
-  "/content",
-  "/content/pages",
-  "/content/writing",
-  "/content/projects",
-  "/content/newsletter",
-  "/content/carousels",
-  "/content/drafts",
-  "/content/operations",
-  "/content/preview",
-  "/content/review",
-  "/data",
-  "/data/records",
-  "/data/sources",
-  "/data/health",
-  "/data/knowledge",
-  "/deploys",
-  "/fleet",
-  "/handoffs",
-  "/knowledge",
-  "/knowledge/locations",
-  "/life",
-  "/life/people",
-  "/life/projects",
-  "/life/places",
-  "/life/timeline",
-  "/life/sources",
-  "/life/preview",
-  "/life/aesthetics",
-  "/life/health",
-  "/mutations",
-  "/newsletter",
-  "/observability/activity",
-  "/observability/alerts",
-  "/observability/status",
-  "/proof",
-  "/repos",
-  "/system",
-]);
-const DEV_PREVIEW_ASSET_PATHS = new Set(["/@react-refresh"]);
-const DEV_PREVIEW_ASSET_PREFIXES = ["/@id/", "/@vite/", "/src/"];
-const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+export const PUBLIC_PREFIXES = ["/_astro/", "/assets/"];
+
+/**
+ * In development, loopback reads reach every inventoried page without a
+ * session, so this list follows the route inventory instead of copying it.
+ * Editorial pages never get here: middleware serves them to the local editor.
+ */
+export const DEV_LOOPBACK_PREVIEW_PATHS = new Set(
+  ADMIN_ROUTES.map(({ route }) => route).filter(
+    (route) => !/^\/(?:api|auth|preview)(?:\/|$)/.test(route),
+  ),
+);
+/** Dynamic pages: a Data record, and the retired Life sections' redirects. */
+export const DEV_LOOPBACK_PREVIEW_PATTERNS = [
+  /^\/data\/records\/rec-[0-9a-f]{32}$/,
+  /^\/life\/[a-z]+$/,
+];
+export const DEV_PREVIEW_ASSET_PATHS = new Set(["/@react-refresh"]);
+export const DEV_PREVIEW_ASSET_PREFIXES = ["/@id/", "/@vite/", "/src/"];
+export const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
 const LOCAL_OWNER_CLIENT_ADDRESS_HEADERS = [
   "x-forwarded-for",
   "x-real-ip",
   "cf-connecting-ip",
   "true-client-ip",
 ];
-
-type AdminAccessInput = {
-  isDev: boolean;
-  /** The build-time ADMIN_LOCAL_OWNER flag, never a runtime value. */
-  localOwner?: boolean;
-  method: string;
-  url: URL;
-  headers?: Headers;
-  hasSession: boolean;
-};
-
-export type AdminAccessDecision =
-  | "public"
-  | "local-owner"
-  | "dev-loopback-preview"
-  | "session"
-  | "passkey-required";
-
-export function decideAdminAccess({
-  isDev,
-  localOwner = false,
-  method,
-  url,
-  headers = new Headers(),
-  hasSession,
-}: AdminAccessInput): AdminAccessDecision {
-  if (isPublicAdminPath(url.pathname)) return "public";
-  if (isLocalOwnerRequest({ enabled: localOwner, method, url, headers })) {
-    return "local-owner";
-  }
-  if (isDevLoopbackPreviewRequest({ isDev, method, url })) {
-    return "dev-loopback-preview";
-  }
-  if (hasSession) return "session";
-  return "passkey-required";
-}
 
 /**
  * A local owner request reaches a loopback Admin host directly.
@@ -234,18 +175,19 @@ export function isDevLoopbackPreviewRequest({
   isDev,
   method,
   url,
-}: Omit<AdminAccessInput, "hasSession">): boolean {
+}: {
+  isDev: boolean;
+  method: string;
+  url: URL;
+}): boolean {
   return (
     isDev &&
     (method === "GET" || method === "HEAD") &&
     isApprovedDevPreviewOrigin(url) &&
     (DEV_LOOPBACK_PREVIEW_PATHS.has(url.pathname) ||
-      /^\/content\/(?:home|workPage|writingPage|systemsPage|newsletterPage|newsletterArchivePage|projects|writing)\/[a-z0-9_-]+$/.test(
-        url.pathname,
+      DEV_LOOPBACK_PREVIEW_PATTERNS.some((pattern) =>
+        pattern.test(url.pathname),
       ) ||
-      /^\/newsletter\/[a-z0-9-]+$/.test(url.pathname) ||
-      /^\/data\/records\/rec-[0-9a-f]{32}$/.test(url.pathname) ||
-      /^\/data\/records\/rec-[0-9a-f]{32}$/.test(url.pathname) ||
       DEV_PREVIEW_ASSET_PATHS.has(url.pathname) ||
       DEV_PREVIEW_ASSET_PREFIXES.some((prefix) =>
         url.pathname.startsWith(prefix),

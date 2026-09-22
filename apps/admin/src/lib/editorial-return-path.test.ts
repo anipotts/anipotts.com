@@ -26,7 +26,7 @@ describe("editorial sign-in destination", () => {
     "/content\n",
     "/contentious",
   ])("rejects external, unsafe, or non-editorial destination %s", (path) => {
-    expect(editorialReturnPath(path)).toBe("/content");
+    expect(editorialReturnPath(path)).toBe("/content/pages");
   });
 
   it.each([

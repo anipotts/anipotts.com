@@ -6,10 +6,8 @@ import {
   type OpsStatusController,
   type OpsStatusState,
 } from "../../lib/ops-reader";
-import {
-  readEditorialCsrf,
-  trackPrivateSession,
-} from "../../lib/private-session-store";
+import { readEditorialCsrf } from "../../lib/editorial-client";
+import { trackPrivateSession } from "../../lib/private-session-store";
 
 const OFF: OpsStatusState = Object.freeze({
   connection: "off",

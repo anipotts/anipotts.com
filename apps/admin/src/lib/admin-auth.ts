@@ -1,4 +1,6 @@
 import type { APIContext } from "astro";
+import { constantTimeEqual, sha256Hex } from "./crypto";
+import { safeReturnPath } from "./editorial-return-path";
 
 export const ADMIN_SESSION_COOKIE = "__Host-admin_session";
 export const LEGACY_PASSKEY_SESSION_COOKIE = "admin_passkey_session";
@@ -169,25 +171,15 @@ export function sanitizeAdminReturnPath(
   value: string | null,
   fallback = "/",
 ): string {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+  const parsed = safeReturnPath(value);
+  if (
+    !parsed ||
+    parsed.pathname === "/auth" ||
+    parsed.pathname === "/auth/passkey" ||
+    parsed.pathname.startsWith("/auth/recover")
+  )
     return fallback;
-  }
-  if (value.includes("\\")) return fallback;
-
-  try {
-    const parsed = new URL(value, "https://admin.anipotts.com");
-    if (parsed.origin !== "https://admin.anipotts.com") return fallback;
-    if (
-      parsed.pathname === "/auth" ||
-      parsed.pathname === "/auth/passkey" ||
-      parsed.pathname.startsWith("/auth/recover")
-    ) {
-      return fallback;
-    }
-    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
-  } catch {
-    return fallback;
-  }
+  return `${parsed.pathname}${parsed.search}${parsed.hash}`;
 }
 
 export async function resolveAdminSession(
@@ -491,19 +483,6 @@ export function adminJson(data: unknown, init: ResponseInit = {}): Response {
   });
 }
 
-export function handleAdminAuthError(error: unknown): Response {
-  if (error instanceof Response) return error;
-  return adminJson(
-    {
-      error: "admin_auth_request_failed",
-      ...(import.meta.env.DEV && error instanceof Error
-        ? { detail: error.message }
-        : {}),
-    },
-    { status: 400 },
-  );
-}
-
 export async function recordAdminAudit(
   db: AdminD1Database,
   input: {
@@ -538,11 +517,7 @@ export async function recordAdminAudit(
 }
 
 export async function hashToken(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(value),
-  );
-  return bytesToHex(new Uint8Array(digest));
+  return sha256Hex(value);
 }
 
 export function randomToken(byteLength = 32): string {
@@ -671,24 +646,9 @@ function expiredCookie(name: string): string {
   return cookie(name, "", 0);
 }
 
-function constantTimeEqual(left: string, right: string): boolean {
-  const leftBytes = new TextEncoder().encode(left);
-  const rightBytes = new TextEncoder().encode(right);
-  if (leftBytes.length !== rightBytes.length) return false;
-  let mismatch = 0;
-  for (let index = 0; index < leftBytes.length; index += 1) {
-    mismatch |= leftBytes[index]! ^ rightBytes[index]!;
-  }
-  return mismatch === 0;
-}
-
 function bytesToBase64Url(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes))
     .replaceAll("+", "-")
     .replaceAll("/", "_")
     .replaceAll("=", "");
-}
-
-function bytesToHex(bytes: Uint8Array): string {
-  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }

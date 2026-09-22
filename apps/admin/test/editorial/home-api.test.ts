@@ -41,6 +41,9 @@ describe("home API with real SQLite", () => {
     expect(await snapshot.json()).toMatchObject({
       history: [{ revision: 3 }, { revision: 2 }, { revision: 1 }],
       nextBeforeRevision: null,
+      // Without a publisher (local development) the editor matches production.
+      publicationMode: "direct",
+      publishing: "not_configured",
     });
     const read = (query: string) =>
       homeEditorApi(

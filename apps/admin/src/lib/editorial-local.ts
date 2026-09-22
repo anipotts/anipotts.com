@@ -1,11 +1,10 @@
 import { Miniflare } from "miniflare";
 import { build } from "esbuild";
 import { readFile } from "node:fs/promises";
-import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { localGitHead } from "./local-git-head";
-import { newWritingSource } from "./writing-draft";
-import { newProjectSource } from "./project-draft";
+import { gitBlobSha1 } from "./crypto";
+import { newRecordSource } from "./editorial-collections";
 import type { DraftStorage, HomeBase } from "./editorial-home-api";
 import type { MediaStorage } from "./editorial-media-api";
 import {
@@ -85,19 +84,11 @@ export async function localHomeBase(
       (error as NodeJS.ErrnoException).code === "ENOENT"
     )
       return {
-        source:
-          record.kind === "work"
-            ? newProjectSource(record.id)
-            : newWritingSource(),
+        source: newRecordSource(record),
         baseCommit,
         baseFileHash: null,
       };
     throw error;
   }
-  const bytes = Buffer.from(source);
-  const baseFileHash = createHash("sha1")
-    .update(`blob ${bytes.length}\0`)
-    .update(bytes)
-    .digest("hex");
-  return { source, baseCommit, baseFileHash };
+  return { source, baseCommit, baseFileHash: gitBlobSha1(source) };
 }

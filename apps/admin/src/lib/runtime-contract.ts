@@ -1,4 +1,5 @@
 /// <reference types="astro/client" />
+import { GIT_SHA } from "./patterns";
 
 /** Closed admin runtime configuration contract.
  *
@@ -21,10 +22,10 @@ type Check =
   | "id"
   | "sha"
   | "mode";
-type PublisherMode = "legacy" | "direct" | "maintenance";
+export type PublisherMode = "legacy" | "direct" | "maintenance";
 
-/** Names match deployment configuration when their mode is enabled. Direct
- * bindings remain optional while production uses the legacy publisher.
+/** Names match deployment configuration when their mode is enabled. Each
+ * publisher's bindings are needed only in its own mode; production runs direct.
  * This checks binding shape and build identity, not schema or reader readiness.
  */
 export const RUNTIME_CONTRACT = {
@@ -117,7 +118,6 @@ type RuntimeContractReport = {
 type RuntimeEntry = "fetch" | "durable_object";
 type RuntimeLogSink = Pick<Console, "info" | "warn">;
 
-const sha = /^[a-f0-9]{40}$/;
 const unreadable = Symbol("unreadable");
 
 function read(
@@ -133,7 +133,11 @@ function read(
   }
 }
 
-function publisherMode(value: unknown): PublisherMode | null {
+/** The one EDITORIAL_PUBLISH_MODE parser. Omission alone keeps the
+ * rolling-upgrade legacy default; any other value, or an unreadable
+ * configuration, is null and each caller fails closed. */
+export function publisherMode(env: unknown): PublisherMode | null {
+  const value = read(env, "EDITORIAL_PUBLISH_MODE", unreadable);
   if (value === undefined) return "legacy";
   return value === "legacy" || value === "direct" || value === "maintenance"
     ? value
@@ -142,9 +146,9 @@ function publisherMode(value: unknown): PublisherMode | null {
 
 function satisfied(env: unknown, name: RuntimeName, release: string) {
   const { check } = RUNTIME_CONTRACT[name];
-  if (check === "sha") return sha.test(release);
+  if (check === "sha") return GIT_SHA.test(release);
+  if (check === "mode") return publisherMode(env) !== null;
   const value = read(env, name, unreadable);
-  if (check === "mode") return publisherMode(value) !== null;
   if (check === "getPut")
     return (
       typeof read(value, "get") === "function" &&
@@ -173,9 +177,8 @@ export function evaluateRuntimeContract(
     }
     return result;
   };
-  // Omission alone preserves the rolling-upgrade legacy default. Invalid or
-  // unreadable configuration never silently enables either publisher.
-  const mode = publisherMode(read(env, "EDITORIAL_PUBLISH_MODE", unreadable));
+  // Invalid or unreadable configuration never silently enables either publisher.
+  const mode = publisherMode(env);
   results.set("EDITORIAL_PUBLISH_MODE", mode !== null);
   const missing = RUNTIME_REQUIRED.filter((name) => !has(name));
   const features = {} as RuntimeContractReport["features"];
@@ -226,7 +229,7 @@ export function reportRuntimeContract(
       event: "runtime_contract",
       app: "admin",
       entry,
-      release: sha.test(release) ? release : "dev",
+      release: GIT_SHA.test(release) ? release : "dev",
       ...report,
     });
     if (degraded) sink.warn(line);
