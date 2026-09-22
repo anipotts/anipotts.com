@@ -32,7 +32,7 @@ const fields = [
   "record_count",
   "observed_at",
 ];
-export type LifeActivity = {
+type DataActivity = {
   change_id: number;
   trace_id: string;
   stage: string;
@@ -42,7 +42,7 @@ export type LifeActivity = {
 };
 export type ActivityWindow = {
   cursor: number;
-  items: LifeActivity[];
+  items: DataActivity[];
   catchingUp: boolean;
 };
 export const emptyActivity = (): ActivityWindow => ({
@@ -52,7 +52,7 @@ export const emptyActivity = (): ActivityWindow => ({
 });
 const count = (value: unknown): value is number =>
   typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-function checkpoint(value: unknown): LifeActivity {
+function checkpoint(value: unknown): DataActivity {
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new Error("Invalid activity");
   const item = value as Record<string, unknown>;
@@ -73,7 +73,7 @@ function checkpoint(value: unknown): LifeActivity {
     !Number.isFinite(Date.parse(item.observed_at))
   )
     throw new Error("Invalid activity metadata");
-  return item as LifeActivity;
+  return item as DataActivity;
 }
 /** Transactional projection: malformed pages never advance the resume cursor. */
 export function applyActivityPage(
@@ -104,8 +104,8 @@ export function applyActivityPage(
       previous &&
       fields.some(
         (field) =>
-          previous[field as keyof LifeActivity] !==
-          item[field as keyof LifeActivity],
+          previous[field as keyof DataActivity] !==
+          item[field as keyof DataActivity],
       )
     )
       throw new Error("Activity checkpoint changed");

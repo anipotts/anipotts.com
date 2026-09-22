@@ -129,9 +129,11 @@ export const ADMIN_ROUTES = [
     nav: false,
   },
   {
+    // Retired; 308 redirects to the record's editor.
     route: "/content/edit/home",
     file: "apps/admin/src/pages/content/edit/[pageKey].astro",
     nav: false,
+    smoke: false,
   },
   {
     route: "/newsletter/first-thing-agents-need-control-plane",

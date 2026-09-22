@@ -1,22 +1,22 @@
-import type { LifeRead, LifeResult } from "../data/personal-context";
+import type { DataRead, DataResult } from "../data/personal-context";
 
-export type LifeReader = (
-  request: LifeRead,
+export type DataReader = (
+  request: DataRead,
   signal?: AbortSignal,
-) => Promise<LifeResult>;
+) => Promise<DataResult>;
 
 /** One independent instance per list/detail view; late responses cannot replace newer reads. */
-export class LifeReadSession {
+export class DataReadSession {
   private generation = 0;
   private controller?: AbortController;
-  private pending?: { reader: LifeReader; key: string; generation: number };
+  private pending?: { reader: DataReader; key: string; generation: number };
   invalidate() {
     this.generation += 1;
     this.controller?.abort();
     this.controller = undefined;
     this.pending = undefined;
   }
-  async run(reader: LifeReader, request: LifeRead): Promise<LifeResult | null> {
+  async run(reader: DataReader, request: DataRead): Promise<DataResult | null> {
     const key = JSON.stringify(request);
     if (this.pending?.reader === reader && this.pending.key === key)
       return null;
@@ -25,7 +25,7 @@ export class LifeReadSession {
     this.controller = controller;
     const generation = ++this.generation;
     this.pending = { reader, key, generation };
-    let result: LifeResult;
+    let result: DataResult;
     try {
       result = await reader(request, controller.signal);
     } catch {
@@ -41,7 +41,7 @@ export class LifeReadSession {
 }
 
 /** Append only a contiguous chunk of the same canonical revision. */
-export function appendLifeBody(
+export function appendDataBody(
   current: Record<string, unknown>,
   next: Record<string, unknown>,
 ): Record<string, unknown> {

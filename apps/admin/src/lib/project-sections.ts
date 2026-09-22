@@ -1,5 +1,5 @@
 import { parseEditorialSource } from "@anipotts/content/editorial/source";
-export type ProjectSectionKind = "story" | "technical" | "roadmap";
+type ProjectSectionKind = "story" | "technical" | "roadmap";
 export type ProjectSectionEdit =
   | { type: "add"; kind: ProjectSectionKind }
   | { type: "remove"; kind: ProjectSectionKind; index: number }

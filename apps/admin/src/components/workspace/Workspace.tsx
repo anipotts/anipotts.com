@@ -1065,7 +1065,7 @@ const DATE_ONLY = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
 const TIME_ONLY = new Intl.DateTimeFormat("en-US", { timeStyle: "short" });
 
 /** The absolute time, local and UTC, for a tooltip and accessible name. */
-export function absoluteTime(ms: number): string {
+function absoluteTime(ms: number): string {
   return `${ABSOLUTE.format(ms)} local, ${new Date(ms).toISOString().slice(0, 16).replace("T", " ")} UTC`;
 }
 

@@ -97,7 +97,7 @@ describe("acknowledged inventory events", () => {
           records: [{ ...row, href, id: "demo", collection: "projects" }],
         },
       ],
-      [{ ...search, href, domain: "work" }],
+      [{ ...search, href, domain: "system" }],
     );
     const next = applyEditorialRecordSaved(current, {
       ...event,

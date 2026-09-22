@@ -9,7 +9,7 @@ export function gitBlobSha1(source: string): string {
     .digest("hex");
 }
 
-export function bytesToHex(bytes: ArrayBuffer | Uint8Array): string {
+function bytesToHex(bytes: ArrayBuffer | Uint8Array): string {
   return Array.from(new Uint8Array(bytes), (byte) =>
     byte.toString(16).padStart(2, "0"),
   ).join("");

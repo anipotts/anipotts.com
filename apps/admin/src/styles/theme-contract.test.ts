@@ -570,12 +570,12 @@ describe("workspace accents", () => {
   it("declares one token set per workspace, and no theme file of its own", () => {
     expect(sets.map(({ selectors }) => selectors)).toEqual([
       [
-        ':root[data-admin-workspace="life"]',
-        ':root[data-admin-workspace="life"] [data-astryx-theme]',
+        ':root[data-admin-workspace="data"]',
+        ':root[data-admin-workspace="data"] [data-astryx-theme]',
       ],
       [
-        ':root[data-admin-workspace="operations"]',
-        ':root[data-admin-workspace="operations"] [data-astryx-theme]',
+        ':root[data-admin-workspace="observability"]',
+        ':root[data-admin-workspace="observability"] [data-astryx-theme]',
       ],
     ]);
     for (const { tokens } of sets)

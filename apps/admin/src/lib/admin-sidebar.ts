@@ -44,15 +44,15 @@ export function sidebarRail(
 
 /** The unified sidebar's groups, in the order they are shown. The ids are the
  * workspace ids; the labels live in `workspaces`. */
-const SIDEBAR_GROUP_IDS = ["content", "life", "operations"] as const;
+const SIDEBAR_GROUP_IDS = ["content", "data", "observability"] as const;
 export type SidebarGroupId = (typeof SIDEBAR_GROUP_IDS)[number];
 export type SidebarGroupsCollapsed = Record<SidebarGroupId, boolean>;
 /** Per-viewer preference: which groups the viewer closed. */
 export const SIDEBAR_GROUPS_KEY = "admin:sidebar-groups";
 export const ALL_GROUPS_OPEN: SidebarGroupsCollapsed = {
   content: false,
-  life: false,
-  operations: false,
+  data: false,
+  observability: false,
 };
 
 /** The workspace that owns a path, or null for the overview and anything
@@ -60,8 +60,8 @@ export const ALL_GROUPS_OPEN: SidebarGroupsCollapsed = {
  * forced open and the accent is the editorial theme's own. */
 export function workspaceForPath(pathname: string): SidebarGroupId | null {
   if (/^\/(?:content|newsletter)(?:\/|$)/.test(pathname)) return "content";
-  if (/^\/data(?:\/|$)/.test(pathname)) return "life";
-  if (/^\/observability(?:\/|$)/.test(pathname)) return "operations";
+  if (/^\/data(?:\/|$)/.test(pathname)) return "data";
+  if (/^\/observability(?:\/|$)/.test(pathname)) return "observability";
   return null;
 }
 
@@ -131,12 +131,12 @@ export function prepaintAdminSidebar() {
     const active = /^\/(?:content|newsletter)(?:\/|$)/.test(path)
       ? "content"
       : /^\/data(?:\/|$)/.test(path)
-        ? "life"
+        ? "data"
         : /^\/observability(?:\/|$)/.test(path)
-          ? "operations"
+          ? "observability"
           : "";
     if (saved && typeof saved === "object")
-      for (const id of ["content", "life", "operations"])
+      for (const id of ["content", "data", "observability"])
         if (id !== active && saved[id] === true)
           closed = closed ? `${closed} ${id}` : id;
   } catch {

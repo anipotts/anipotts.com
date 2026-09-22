@@ -22,7 +22,7 @@ const extras =
 Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
 
-<AdminLayout title={DATA_VIEW_TITLES[route.view]} hideHeader>
+<AdminLayout title={DATA_VIEW_TITLES[route.view]}>
   <PrivateShell
     initialPath={`${Astro.url.pathname}${Astro.url.search}`}
     dataEnabled={env.PRIVATE_READER_ENABLED === "true"}

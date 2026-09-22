@@ -320,7 +320,7 @@ describe("Records paging and the split", () => {
     expect(host.querySelector(".workspace-count")?.textContent).toBe("25");
     // The listed records are what the palette finds under Data.
     const found = () =>
-      providedSearchEntries().filter((row) => row.domain === "life");
+      providedSearchEntries().filter((row) => row.domain === "data");
     expect(found()).toHaveLength(20);
     expect(found()[0]).toMatchObject({
       label: "Synthetic record 0",

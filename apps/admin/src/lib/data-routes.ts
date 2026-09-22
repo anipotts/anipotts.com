@@ -3,10 +3,10 @@
  * Records, Sources, Health and Knowledge are sibling destinations. The kind
  * and source filters carry over; queries, record ids and cursors never do.
  */
-export const DATA_RECORDS_PATH = "/data/records";
-export const DATA_SOURCES_PATH = "/data/sources";
-export const DATA_HEALTH_PATH = "/data/health";
-export const DATA_KNOWLEDGE_PATH = "/data/knowledge";
+const DATA_RECORDS_PATH = "/data/records";
+const DATA_SOURCES_PATH = "/data/sources";
+const DATA_HEALTH_PATH = "/data/health";
+const DATA_KNOWLEDGE_PATH = "/data/knowledge";
 
 /** The kind filter, in the order its chips show. `reader` is the value the
  * private reader's search takes (System's v1 bound is any short token). */

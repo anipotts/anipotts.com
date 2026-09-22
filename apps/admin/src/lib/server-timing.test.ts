@@ -67,13 +67,7 @@ describe("server timing header", () => {
   it("contains only allowlisted names with numeric dur and desc values", async () => {
     const timing = createServerTiming();
     const locals = { serverTiming: timing };
-    for (const metric of [
-      "inventory",
-      "record",
-      "newsletter",
-      "operations",
-      "life",
-    ] as const)
+    for (const metric of ["inventory", "record", "newsletter"] as const)
       await measureServerTiming(locals, metric, async () => PRIVATE_TEXT);
     const { db } = fakeDatabase();
     const wrapped = serverTimingD1(locals, db);
@@ -104,11 +98,11 @@ describe("server timing header", () => {
     stop();
     timing.add("private-record-id" as never, 40);
     timing.add("record", Number.NaN);
-    timing.add("life", -3);
+    timing.add("newsletter", -3);
     expect(parse(timing.header())).toEqual([
       { name: "inventory", kind: "dur", value: 7.3 },
       { name: "record", kind: "dur", value: 0 },
-      { name: "life", kind: "dur", value: 0 },
+      { name: "newsletter", kind: "dur", value: 0 },
     ]);
   });
 
@@ -149,7 +143,7 @@ describe("request helpers", () => {
       measureServerTiming({}, "inventory", async () => "loaded"),
     ).resolves.toBe("loaded");
     await expect(
-      measureServerTiming(undefined, "life", () => {
+      measureServerTiming(undefined, "newsletter", () => {
         throw new Error("unavailable");
       }),
     ).rejects.toThrow("unavailable");
@@ -161,11 +155,11 @@ describe("request helpers", () => {
   it("records a failed loader's duration", async () => {
     const timing = createServerTiming(clock(0, 2));
     await expect(
-      measureServerTiming({ serverTiming: timing }, "operations", async () => {
+      measureServerTiming({ serverTiming: timing }, "newsletter", async () => {
         throw new Error("disconnected");
       }),
     ).rejects.toThrow("disconnected");
-    expect(timing.header()).toBe("operations;dur=2");
+    expect(timing.header()).toBe("newsletter;dur=2");
   });
 
   it("leaves immutable response headers and non-responses alone", () => {

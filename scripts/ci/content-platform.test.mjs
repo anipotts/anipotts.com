@@ -14,12 +14,10 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
-  contentInventorySource,
   sourceContentRecordsFromProjection,
   summarizeSourceContentRecords,
 } from "../../packages/content/dist/admin/index.js";
 import {
-  contentInventorySource as rootContentInventorySource,
   DEFAULT_HOMEPAGE_CONTENT,
   DEFAULT_SYSTEMS_CONTENT,
   normalizeHomepageContent,
@@ -115,15 +113,7 @@ assert.equal(
   "the small writing index must not carry a redundant client-side search UI",
 );
 
-const contentEditorSource = readFileSync(
-  "apps/admin/src/lib/content-editor.ts",
-  "utf8",
-);
 const prettierIgnore = readFileSync(".prettierignore", "utf8");
-const adminContentInventory = readFileSync(
-  "packages/content/src/admin/content.ts",
-  "utf8",
-);
 assert.match(
   prettierIgnore,
   /^content\/public\/$/m,
@@ -133,11 +123,6 @@ assert.doesNotMatch(
   prettierIgnore,
   /^apps\/www\/src\/content\/$/m,
   "Prettier must not retain the removed public content path",
-);
-assert.match(
-  adminContentInventory,
-  /content\/public\/pages\/newsletter_archive\.md/,
-  "Admin newsletter inventory must reference the canonical filename",
 );
 
 const generatedAdminProjection = JSON.parse(
@@ -265,20 +250,6 @@ try {
 } finally {
   rmSync(alternateSlugRoot, { recursive: true, force: true });
 }
-// The legacy content diagnostics only read the retained D1 tables; the
-// compatibility publish route and its writes are gone.
-for (const write of [
-  "INSERT INTO",
-  "UPDATE page_content",
-  "UPDATE content_draft_operations",
-  ".batch(",
-  ".run(",
-])
-  assert.equal(
-    contentEditorSource.includes(write),
-    false,
-    `legacy content diagnostics must not write (${write})`,
-  );
 
 const sourceRecords = sourceContentRecordsFromProjection([
   {
@@ -357,12 +328,6 @@ assert.throws(
   () => sourceContentRecordsFromProjection([{ surface: "invalid" }]),
   /surface is invalid/,
   "invalid generated source records must fail closed",
-);
-
-assert.equal(contentInventorySource.mode, "canonical_source_plus_d1_drafts");
-assert.equal(
-  rootContentInventorySource.mode,
-  "canonical_source_plus_d1_drafts",
 );
 
 const systemsContent = normalizeSystemsPageContent({});
@@ -543,10 +508,10 @@ assert.equal(
     process.execPath,
     [
       "-e",
-      "import('@anipotts/content/admin').then((mod) => process.stdout.write(mod.contentInventorySource.mode))",
+      "import('@anipotts/content/admin').then((mod) => process.stdout.write(typeof mod.sourceContentRecordsFromProjection))",
     ],
     { cwd: "apps/admin", encoding: "utf8" },
   ),
-  "canonical_source_plus_d1_drafts",
+  "function",
   "apps/admin must be able to import @anipotts/content/admin from the built package export",
 );

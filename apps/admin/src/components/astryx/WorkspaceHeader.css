@@ -404,13 +404,13 @@
   .admin-unified-nav
   [data-sidebar-group="content"]
   + [role="group"],
-:root[data-admin-nav-closed~="life"]
+:root[data-admin-nav-closed~="data"]
   .admin-unified-nav
-  [data-sidebar-group="life"]
+  [data-sidebar-group="data"]
   + [role="group"],
-:root[data-admin-nav-closed~="operations"]
+:root[data-admin-nav-closed~="observability"]
   .admin-unified-nav
-  [data-sidebar-group="operations"]
+  [data-sidebar-group="observability"]
   + [role="group"] {
   grid-template-rows: 0fr !important;
   visibility: hidden;
@@ -420,13 +420,13 @@
   .admin-unified-nav
   [data-sidebar-group="content"]
   > :last-child,
-:root[data-admin-nav-closed~="life"]
+:root[data-admin-nav-closed~="data"]
   .admin-unified-nav
-  [data-sidebar-group="life"]
+  [data-sidebar-group="data"]
   > :last-child,
-:root[data-admin-nav-closed~="operations"]
+:root[data-admin-nav-closed~="observability"]
   .admin-unified-nav
-  [data-sidebar-group="operations"]
+  [data-sidebar-group="observability"]
   > :last-child {
   transform: none !important;
   transition: none !important;

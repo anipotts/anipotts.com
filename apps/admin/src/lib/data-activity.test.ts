@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyActivityPage, emptyActivity } from "./life-activity";
+import { applyActivityPage, emptyActivity } from "./data-activity";
 const item = (change_id: number) => ({
   change_id,
   trace_id: "1".repeat(32),
@@ -8,7 +8,7 @@ const item = (change_id: number) => ({
   record_count: 1,
   observed_at: "2026-01-01T00:00:00Z",
 });
-describe("Life activity resume", () => {
+describe("Data activity resume", () => {
   it("replays checkpoints idempotently and resumes at the committed cursor", () => {
     const page = { items: [item(1), item(2)], next_cursor: 2 };
     const first = applyActivityPage(emptyActivity(), page);

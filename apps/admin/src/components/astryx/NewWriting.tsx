@@ -28,6 +28,7 @@ import {
   BrowserRecoveryNotice,
   downloadBrowserRecovery,
 } from "./BrowserRecoveryNotice";
+import { readEditorialCsrf } from "../../lib/editorial-client";
 
 class DraftCreationError extends Error {}
 /** The address is taken: the field names it and links to the record. */
@@ -37,7 +38,7 @@ const unconfirmedCreation = "Couldn’t confirm draft creation";
 
 /** An address as it is typed: lowercase, hyphens for anything else, and a
  * trailing hyphen kept so the next word can follow it. */
-export function typedAddress(value: string): string {
+function typedAddress(value: string): string {
   return value
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/gu, "")
@@ -241,14 +242,13 @@ function NewWritingForm({
         setRecoveryProblem(problem);
         setRecoveryFailed(Boolean(problem));
       }
-      const csrfResponse = await fetch("/api/editorial/csrf", {
-        signal: AbortSignal.any([abort.signal, AbortSignal.timeout(15000)]),
-      });
-      if (!csrfResponse.ok)
+      const csrf = await readEditorialCsrf(
+        AbortSignal.any([abort.signal, AbortSignal.timeout(15000)]),
+      ).catch(() => {
         throw new DraftCreationError(
           "Your session needs refreshing. Your title is still here.",
         );
-      const { csrf } = await csrfResponse.json();
+      });
       if (!active.current || abort.signal.aborted) return;
       const response = await fetch(
         `/api/editorial/create?kind=${recordKind}&id=${encodeURIComponent(slug)}`,

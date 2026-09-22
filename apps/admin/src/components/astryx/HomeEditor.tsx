@@ -98,6 +98,7 @@ import {
 import type { Draft } from "../../editorial/draft-store";
 import type { HomeBase } from "../../lib/editorial-home-api";
 import { discardBody } from "../../lib/response-body";
+import { readEditorialCsrf } from "../../lib/editorial-client";
 import type { DirectPublicationStatus } from "../../lib/editorial-publication-status";
 import { prepareWritingPublication } from "../../lib/writing-publication-source";
 import { publicationSourceHash } from "@anipotts/content/editorial/publication-contract";
@@ -135,6 +136,16 @@ const savedDraftNotFound = {
  * edits back for review, which is only true while recovery is working.
  */
 const SourceEditor = lazy(() => import("./SourceEditor"));
+
+/** An editorial read's JSON; a refused response throws. */
+async function getJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+  if (!response.ok) {
+    discardBody(response);
+    throw new Error("read refused");
+  }
+  return response.json();
+}
 
 function refusedSaveCopy(
   code: SaveState["saveFailureCode"],
@@ -601,16 +612,7 @@ function HomeEditorImpl({
     body: unknown,
     guard?: () => boolean,
   ) {
-    if (!csrf.current) {
-      const response = await fetch("/api/editorial/csrf", {
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!response.ok) {
-        discardBody(response);
-        throw new Error("session expired");
-      }
-      csrf.current = (await response.json()).csrf;
-    }
+    csrf.current ||= await readEditorialCsrf(AbortSignal.timeout(15000));
     if (guard && !guard()) throw new Error("operation no longer current");
     const response = await fetch(endpoint(action), {
       method: "POST",
@@ -646,13 +648,8 @@ function HomeEditorImpl({
     setRecoveryRead({ status: "missing" });
     setRecoveryProblem(null);
     setError("");
-    fetch(endpoint("record"), { signal: AbortSignal.timeout(15000) })
-      .then(async (response) => {
-        if (!response.ok) {
-          discardBody(response);
-          throw new Error("draft storage unavailable");
-        }
-        const data: Snapshot = await response.json();
+    getJson<Snapshot>(endpoint("record"))
+      .then(async (data) => {
         if (cancelled) return;
         setSnapshot(data);
         setPublication(data.publication ?? null);
@@ -1092,14 +1089,7 @@ function HomeEditorImpl({
     setSaveComparisonError("");
     setSaveComparison(null);
     try {
-      const response = await fetch(endpoint("draft"), {
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!response.ok) {
-        discardBody(response);
-        throw new Error();
-      }
-      const data: { draft: Draft | null } = await response.json();
+      const data = await getJson<{ draft: Draft | null }>(endpoint("draft"));
       if (data.draft === undefined) throw new Error();
       if (isCurrent()) setSaveComparison(data);
     } catch {
@@ -1222,18 +1212,11 @@ function HomeEditorImpl({
     setHistoryError(false);
     try {
       await flush();
-      const response = await fetch(
+      const data = await getJson<
+        Pick<Snapshot, "history" | "nextBeforeRevision">
+      >(
         `${endpoint("history")}${beforeRevision === undefined ? "" : `&beforeRevision=${beforeRevision}`}`,
-        {
-          signal: AbortSignal.timeout(15000),
-        },
       );
-      if (!response.ok) {
-        discardBody(response);
-        throw new Error();
-      }
-      const data: Pick<Snapshot, "history" | "nextBeforeRevision"> =
-        await response.json();
       if (
         request !== historyRequest.current ||
         navigation !== navigationGeneration.current ||
@@ -1275,15 +1258,7 @@ function HomeEditorImpl({
     if (comparisonLoading) return;
     setComparisonLoading(true);
     try {
-      const response = await fetch(endpoint("record"), {
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!response.ok) {
-        discardBody(response);
-        throw new Error();
-      }
-      const data: Snapshot = await response.json();
-      setComparison(data.base);
+      setComparison((await getJson<Snapshot>(endpoint("record"))).base);
       setError("");
     } catch {
       setError("Couldn’t load the current website source. Try again.");

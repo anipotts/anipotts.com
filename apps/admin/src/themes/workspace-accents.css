@@ -11,15 +11,15 @@
  * `--color-icon-accent` (aliases of `--color-accent`) follow. Portals, dialogs
  * and tooltips inherit them from the root.
  */
-:root[data-admin-workspace="life"],
-:root[data-admin-workspace="life"] [data-astryx-theme] {
+:root[data-admin-workspace="data"],
+:root[data-admin-workspace="data"] [data-astryx-theme] {
   --color-accent: light-dark(#70559b, #c3ade5);
   --color-accent-muted: light-dark(#f0ebf7, #241b32);
   --color-on-accent: light-dark(#ffffff, #2b203c);
 }
 
-:root[data-admin-workspace="operations"],
-:root[data-admin-workspace="operations"] [data-astryx-theme] {
+:root[data-admin-workspace="observability"],
+:root[data-admin-workspace="observability"] [data-astryx-theme] {
   --color-accent: light-dark(#286c65, #8ac8bd);
   --color-accent-muted: light-dark(#e8f1ee, #142822);
   --color-on-accent: light-dark(#ffffff, #152d28);
