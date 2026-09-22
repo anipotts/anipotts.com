@@ -51,13 +51,14 @@ const ABSOLUTE = new Intl.DateTimeFormat("en-US", {
   timeStyle: "short",
 });
 
-/** A time as a detail: absolute, with the relative time muted beside it. */
+/** A time as a detail: the clock time on the timeline's pattern, with the
+ * relative time muted beside it. */
 function Observed({ value }: { value: string | null }) {
   const ms = Date.parse(value ?? "");
   if (!Number.isFinite(ms)) return <Text color="secondary">Not recorded</Text>;
   return (
     <span className="data-record-when">
-      <span>{ABSOLUTE.format(ms)}</span>
+      <Clock ms={ms} />
       <Text color="secondary">
         <RelativeTime value={value} />
       </Text>
