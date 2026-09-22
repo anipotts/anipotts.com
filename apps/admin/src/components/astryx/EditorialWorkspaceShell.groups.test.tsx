@@ -40,9 +40,7 @@ function render(path: string, area: "content" | "newsletter" = "content") {
         area={area}
         mode="light"
         changeTheme={() => {}}
-        siteHref="https://anipotts.com"
         localPreview
-        palette={<></>}
       >
         <p>Library</p>
       </EditorialWorkspaceShell>,

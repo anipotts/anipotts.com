@@ -8,9 +8,23 @@ import {
   clearEditorialRecovery,
   recoveryLogoutKey,
 } from "../../lib/draft-recovery";
+import { AdminWordmark } from "./AdminWordmark";
 
 function allowedDestination(value: unknown): value is string {
   return value === "/auth" || value === "/cdn-cgi/access/logout";
+}
+
+/** Cancel returns to the admin page that opened sign out, or the overview. */
+function returnFromSignOut(event: React.MouseEvent) {
+  try {
+    const from = document.referrer ? new URL(document.referrer) : null;
+    if (from?.origin === location.origin && history.length > 1) {
+      event.preventDefault();
+      history.back();
+    }
+  } catch {
+    /* The link's own href is the fallback. */
+  }
 }
 
 export function Logout({
@@ -72,26 +86,31 @@ export function Logout({
       navigate(result.destination);
     } catch {
       if (!active.current) return;
-      setError("Could not finish signing out. Try again.");
+      setError("Sign out did not finish. Try again");
       pending.current = false;
       setBusy(false);
     }
   }
   return (
-    <VStack gap={6}>
-      <Heading level={1}>Sign out</Heading>
+    <VStack gap={8} hAlign="start" className="admin-logout">
+      <AdminWordmark />
+      <Heading level={1} className="sr-only">
+        Sign out
+      </Heading>
       {error && <Banner status="error" title={error} />}
       <HStack gap={3}>
         <Button
+          variant="primary"
           onClick={() => void signOut()}
           isDisabled={busy}
           label={busy ? "Signing out…" : "Sign out"}
         />
         <Button
-          href="/content"
+          href="/"
           variant="secondary"
           isDisabled={busy}
           label="Cancel"
+          onClick={returnFromSignOut}
         />
       </HStack>
     </VStack>

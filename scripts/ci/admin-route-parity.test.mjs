@@ -459,7 +459,7 @@ for (const marker of [
 }
 
 for (const marker of [
-  "BrandMark",
+  "AdminWordmark",
   "editorialReturnPath",
   "href={destination}",
   "sign-in:focus-visible",

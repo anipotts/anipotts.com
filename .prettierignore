@@ -32,15 +32,5 @@ apps/admin/src/themes/editorial.js
 # Generated Cloudflare runtime declarations
 apps/admin/test/bindings.d.ts
 
-# Additional workspace themes use the same exact generated-output contract.
-apps/admin/src/themes/operations.generated.css
-apps/admin/src/themes/operations.d.ts
-apps/admin/src/themes/operations.variants.d.ts
-apps/admin/src/themes/operations.js
-apps/admin/src/themes/life.generated.css
-apps/admin/src/themes/life.d.ts
-apps/admin/src/themes/life.variants.d.ts
-apps/admin/src/themes/life.js
-
 # byte-exact copy of System's ops_v1 fixture; provenance in ops_v1.provenance.ts.
 apps/admin/src/fixtures/ops_v1.sample.json

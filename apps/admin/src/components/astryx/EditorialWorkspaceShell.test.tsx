@@ -1,4 +1,6 @@
+// @vitest-environment jsdom
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -6,8 +8,15 @@ import { EditorialApp } from "./EditorialApp";
 import {
   EditorialWorkspaceShell,
   workspaceSelection,
-  websiteNavigation,
 } from "./EditorialWorkspaceShell";
+import { sidebarGroups } from "./UnifiedSidebar";
+
+const websiteNavigation = sidebarGroups[0]!.items;
+// jsdom serves modules over http, so the stylesheet is read from the package.
+const HEADER_CSS = join(
+  process.cwd(),
+  "src/components/astryx/WorkspaceHeader.css",
+);
 
 describe("Website workspace navigation", () => {
   it("keeps record identity and newsletter selection independent of library filters", () => {
@@ -54,74 +63,97 @@ describe("Website workspace navigation", () => {
   });
 });
 
-it("writes the phone and tablet header into server HTML and lets CSS show it", () => {
+it("writes the phone top bar and tab row into server HTML, with no drawer", () => {
   // The server has no viewport, so AppShell renders its desktop layout. The
-  // header must still be in that markup: hydration cannot be what shows it.
+  // phone bar must still be in that markup: hydration cannot be what shows it.
   const html = renderToStaticMarkup(
     <EditorialWorkspaceShell
       area="content"
+      selectedGroup="writing"
       mode="light"
       changeTheme={() => {}}
-      siteHref="https://anipotts.com"
       localPreview
     >
       <p>Record</p>
     </EditorialWorkspaceShell>,
   );
-  const header = html.slice(html.indexOf('role="banner"'));
-  expect(html).toContain('role="banner"');
-  expect(header).toContain("admin-mobile-header");
-  expect(header).toContain("[</span>admin");
-  expect(header).not.toContain("Switch workspace");
-  expect(header).toContain('aria-label="Open navigation"');
-  // No drawer exists on the server, so the button references none.
-  const menuButton = /<button[^>]*aria-label="Open navigation"[^>]*>/.exec(
-    html,
-  )?.[0];
-  expect(menuButton).toBeDefined();
-  expect(menuButton).not.toContain("aria-controls");
-  // AppShell's own top bar, which only mounts after hydration, is off.
+  const host = document.createElement("div");
+  host.innerHTML = html;
+  const bar = host.querySelector('[role="banner"] .admin-phone-bar')!;
+  expect(bar).not.toBeNull();
+  const home = bar.querySelector<HTMLAnchorElement>(
+    "a.admin-bracket-wordmark",
+  )!;
+  expect(home.getAttribute("href")).toBe("/");
+  expect(home.getAttribute("aria-label")).toBe("Overview");
+  expect(home.textContent).toBe("[admin]");
+  expect(bar.querySelector('button[aria-label="Search"]')).not.toBeNull();
+  expect(bar.querySelector(".admin-phone-bar-title")?.textContent).toBe(
+    "Writing",
+  );
+  // No menu button and no drawer.
+  expect(html).not.toContain("Open navigation");
+  expect(host.querySelector(".astryx-mobile-nav")).toBeNull();
   expect(html).not.toContain('data-mode="topbar"');
-
-  const css = readFileSync(
-    new URL("./WorkspaceHeader.css", import.meta.url),
-    "utf8",
-  ).replace(/\s+/g, " ");
-  expect(css).toContain(
-    "@media (width > 768px) { .editorial-workspace-shell .astryx-app-shell-header:has(.admin-mobile-header) { display: none; } }",
-  );
-  const shell = readFileSync(
-    new URL("./EditorialWorkspaceShell.tsx", import.meta.url),
-    "utf8",
-  );
-  expect(shell).toContain('mobileNav={{ breakpoint: "md", hasToggle: false }}');
-  expect(shell).toContain("banner={<WorkspaceTopBar />}");
+  // The tab row: three workspaces, then the current workspace's pages.
+  const tabs = host.querySelector(
+    '#astryx-app-shell-main nav[aria-label="Workspaces"]',
+  )!;
+  expect(
+    [...tabs.querySelectorAll(".admin-phone-workspace")].map((tab) => [
+      tab.textContent,
+      tab.getAttribute("aria-current"),
+    ]),
+  ).toEqual([
+    ["Content", "true"],
+    ["Data", null],
+    ["Observability", null],
+  ]);
+  expect(
+    [...tabs.querySelectorAll(".admin-phone-page")].map((chip) => [
+      chip.textContent,
+      chip.getAttribute("aria-current"),
+    ]),
+  ).toEqual([
+    ["Pages", null],
+    ["Writing", "page"],
+    ["Projects", null],
+    ["Newsletter", null],
+  ]);
 });
 
-it("sizes sidebar menus to the sidebar and keeps tooltips whole", () => {
-  const css = readFileSync(
-    new URL("./WorkspaceHeader.css", import.meta.url),
-    "utf8",
-  ).replace(/\s+/g, " ");
+it("lets a record page draw its own phone bar", () => {
+  const host = document.createElement("div");
+  host.innerHTML = renderToStaticMarkup(
+    <EditorialWorkspaceShell
+      area="content"
+      recordKind="writing"
+      mode="light"
+      changeTheme={() => {}}
+      localPreview
+      recordPage
+    >
+      <p>Record</p>
+    </EditorialWorkspaceShell>,
+  );
+  expect(host.querySelector(".admin-phone-bar")).toBeNull();
+  expect(host.querySelector(".admin-phone-tabs")).toBeNull();
+  expect(
+    host
+      .querySelector(".editorial-workspace-shell")
+      ?.getAttribute("data-record-page"),
+  ).toBe("true");
+  // The desktop sidebar stays.
+  expect(host.querySelector(".admin-unified-nav")).not.toBeNull();
+});
+
+it("keeps tooltips whole and beside the rail", () => {
+  const css = readFileSync(HEADER_CSS, "utf8").replace(/\s+/g, " ");
   const rule = (selector: string) => {
     const start = css.indexOf(`${selector} {`);
     expect(start, selector).toBeGreaterThan(-1);
     return css.slice(start, css.indexOf("}", start));
   };
-  // The identity column spans the sidebar or drawer, so the workspace menu can.
-  expect(
-    rule(".editorial-workspace-nav .editorial-workspace-identity"),
-  ).toContain("align-self: stretch;");
-  // The phone and tablet header keeps a compact menu beside the wordmark.
-  expect(rule(".admin-mobile-header .admin-sidebar-menu")).toContain(
-    "width: auto;",
-  );
-  // The drawer's close button leaves the header row instead of narrowing it.
-  expect(
-    rule(
-      ".astryx-mobile-nav.editorial-workspace-nav div:has(> .editorial-workspace-identity) > .astryx-button:last-child",
-    ),
-  ).toContain("position: absolute;");
   // Tooltips never break inside a word, and the rail's side placement has
   // somewhere to go when the side has no room.
   const tooltip = rule(".astryx-tooltip");
@@ -131,15 +163,13 @@ it("sizes sidebar menus to the sidebar and keeps tooltips whole", () => {
   expect(css).toContain(
     "position-try-fallbacks: --admin-tooltip-below, --admin-tooltip-above !important;",
   );
-  expect(css).not.toContain("toggle-button-group");
 });
 
 it("uses 44px touch targets with 4px rail insets only on coarse tablets", () => {
-  const css = readFileSync(
-    new URL("./WorkspaceHeader.css", import.meta.url),
-    "utf8",
+  const css = readFileSync(HEADER_CSS, "utf8");
+  const start = css.lastIndexOf(
+    "@media (min-width: 641px) and (pointer: coarse)",
   );
-  const start = css.lastIndexOf("@media (width > 768px) and (pointer: coarse)");
   expect(start).toBeGreaterThanOrEqual(0);
   // Inspect this complete media block, not unrelated rules later in the file.
   const end = css.indexOf("\n}", start);
@@ -170,26 +200,30 @@ describe("local owner indicator", () => {
   it("marks a local owner screen only in a build compiled with the flag", () => {
     expect(render(true)).not.toContain("Local owner");
     vi.stubGlobal("__LOCAL_OWNER_BUILD__", true);
-    const html = render(true);
-    expect(html).toContain(">Local owner<");
-    expect(html).toContain('data-admin-local-owner="true"');
-    expect(html).toContain('role="status"');
-    expect(html).not.toContain('aria-label="Remove');
+    const host = document.createElement("div");
+    host.innerHTML = render(true);
+    const tiles = host.querySelectorAll('[data-admin-local-owner="true"]');
+    expect(tiles).toHaveLength(2);
+    for (const tile of tiles) {
+      // A laptop tile beside the wordmark, never a floating pill.
+      expect(
+        tile.previousElementSibling?.matches(".admin-bracket-wordmark") ||
+          tile.parentElement?.matches(".editorial-identity-end"),
+      ).toBe(true);
+      expect(
+        tile.querySelector('.brand-tile[data-mark="ap-pro"]'),
+      ).not.toBeNull();
+      expect(tile.querySelector('[aria-label="Remove"]')).toBeNull();
+    }
     expect(render(false)).not.toContain("Local owner");
     expect(render()).not.toContain("data-admin-local-owner");
   });
 
-  it("keeps the indicator fixed over every layout without a rule", () => {
-    const css = readFileSync(
-      new URL("./WorkspaceHeader.css", import.meta.url),
-      "utf8",
-    ).replace(/\s+/g, " ");
-    const start = css.indexOf(".admin-local-owner-indicator {");
+  it("keeps the tile in the flow, with no fixed position or rule", () => {
+    const css = readFileSync(HEADER_CSS, "utf8").replace(/\s+/g, " ");
+    const start = css.indexOf(".admin-local-owner {");
     expect(start).toBeGreaterThan(-1);
     const rule = css.slice(start, css.indexOf("}", start));
-    expect(rule).toContain("position: fixed;");
-    expect(rule).toContain("pointer-events: none;");
-    // Rounded corners only: no rule lines, no raw colours.
-    expect(rule).not.toMatch(/border(?!-radius)|#[0-9a-f]{3,6}\b/i);
+    expect(rule).not.toMatch(/position|border(?!-radius)|#[0-9a-f]{3,6}\b/i);
   });
 });

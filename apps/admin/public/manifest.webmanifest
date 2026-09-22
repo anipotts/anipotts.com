@@ -1,0 +1,21 @@
+{
+  "name": "Admin",
+  "short_name": "Admin",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f5f7",
+  "theme_color": "#f4f5f7",
+  "icons": [
+    {
+      "src": "/admin-bracket.svg?v=4",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/apple-touch-icon.png?v=20260717a",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

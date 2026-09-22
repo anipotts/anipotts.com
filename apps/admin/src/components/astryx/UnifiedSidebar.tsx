@@ -6,13 +6,7 @@ import React, {
   type KeyboardEvent,
   type MouseEvent,
 } from "react";
-import {
-  SideNavItem,
-  SideNavSection,
-  useSideNavRenderMode,
-} from "@astryxdesign/core/SideNav";
-import { Button } from "@astryxdesign/core/Button";
-import { useAppShellMobile } from "@astryxdesign/core/AppShell";
+import { SideNavItem, SideNavSection } from "@astryxdesign/core/SideNav";
 import { Text } from "@astryxdesign/core/Text";
 import {
   BellSimpleIcon,
@@ -54,9 +48,10 @@ export const overviewDestination: Destination = {
 
 /**
  * Every sidebar group and page, in the order shown: Content, then Data, then
- * Observability. This list is the one place to change the sidebar, the
- * command palette's page list and the selection rules below. Content ids are
- * library group names, so the library can keep its filters per destination.
+ * Observability. This list is the one place to change the sidebar, the phone
+ * tab row, the command palette's page list and the selection rules below.
+ * Content ids are library group names, so the library can keep its filters
+ * per destination.
  */
 export const sidebarGroups: ReadonlyArray<{
   id: SidebarGroupId;
@@ -137,10 +132,8 @@ export const sidebarGroups: ReadonlyArray<{
   },
 ];
 
-export const websiteNavigation = sidebarGroups[0]!.items;
-
-/** Every sidebar destination, for every workspace's command palette, so
- * search reaches the whole app from any page. */
+/** Every sidebar destination, for the one command palette, so search
+ * reaches the whole app from any page. */
 export const sidebarSearchEntries: AdminSearchResult[] = [
   { ...overviewDestination, group: "Admin" },
   ...sidebarGroups.flatMap((group) =>
@@ -184,7 +177,7 @@ function focusable(root: HTMLElement): HTMLElement[] {
  * client render show every group open; the prepaint script has already held
  * the saved closed groups closed with CSS, so applying the saved state after
  * hydration changes nothing on screen. */
-function useSidebarGroups(active: SidebarGroupId) {
+function useSidebarGroups(active: SidebarGroupId | null) {
   const [collapsed, setCollapsed] =
     useState<SidebarGroupsCollapsed>(ALL_GROUPS_OPEN);
   const [ready, setReady] = useState(false);
@@ -221,6 +214,7 @@ function useSidebarGroups(active: SidebarGroupId) {
  * The one admin sidebar: Content, Data and Observability as collapsible
  * groups. In the desktop rail the groups are unlabeled runs of icons, since a
  * rail has no room for a heading and a flyout would cost a click per page.
+ * Phones have no sidebar; the top bar and tab row reuse `sidebarGroups`.
  *
  * Keyboard: Up and Down move through the headings and pages, Home and End
  * jump to either end, Right opens a group or enters it, Left leaves a page for
@@ -235,7 +229,8 @@ export function UnifiedNavigation({
   groupCounts,
 }: {
   rail: boolean;
-  activeGroup: SidebarGroupId;
+  /** The current page's workspace; null on the overview. */
+  activeGroup: SidebarGroupId | null;
   /** The selected item id within the active group. */
   selected?: string;
   contentHref?: (id: string) => string;
@@ -243,27 +238,6 @@ export function UnifiedNavigation({
 }) {
   const { collapsed, toggle } = useSidebarGroups(activeGroup);
   const root = useRef<HTMLDivElement>(null);
-  const renderMode = useSideNavRenderMode();
-  const inDrawer = renderMode === "drawer" || renderMode === "drawer-content";
-  const { isMobileNavOpen, closeMobileNav } = useAppShellMobile();
-
-  // Opening the drawer shows the current page, not the top of the list.
-  useEffect(() => {
-    if (!inDrawer || !isMobileNavOpen) return;
-    const frame = requestAnimationFrame(() =>
-      root.current
-        ?.querySelector('[aria-current="page"]')
-        ?.scrollIntoView({ block: "center" }),
-    );
-    return () => cancelAnimationFrame(frame);
-  }, [inDrawer, isMobileNavOpen]);
-
-  const jumpTo = (id: SidebarGroupId) => {
-    if (collapsed[id]) toggle(id, false);
-    root.current
-      ?.querySelector(`[data-sidebar-group="${id}"]`)
-      ?.scrollIntoView({ block: "start" });
-  };
 
   useEffect(() => {
     let id: string | null = null;
@@ -284,10 +258,7 @@ export function UnifiedNavigation({
     // Overview and Data pages move within the document when the page can
     // draw them, so the private session is never opened twice.
     onClientLinkClick(event);
-    if (event.defaultPrevented) {
-      if (isMobileNavOpen) closeMobileNav();
-      return;
-    }
+    if (event.defaultPrevented) return;
     const link = (event.target as HTMLElement).closest<HTMLElement>(
       "a[data-sidebar-id]",
     );
@@ -355,27 +326,6 @@ export function UnifiedNavigation({
       onKeyDown={onKeyDown}
       onClickCapture={rememberKeyboardNavigation}
     >
-      {/* Phones and tablets: one tap reaches any workspace from anywhere in
-          the drawer. The row stays pinned while the list scrolls. */}
-      {inDrawer && (
-        <div
-          className="admin-unified-nav-jump"
-          role="group"
-          aria-label="Workspaces"
-        >
-          {sidebarGroups.map((group) => (
-            <Button
-              key={group.id}
-              label={group.label}
-              aria-label={`Go to ${group.label}`}
-              variant="ghost"
-              size="sm"
-              data-sidebar-jump={group.id}
-              onClick={() => jumpTo(group.id)}
-            />
-          ))}
-        </div>
-      )}
       <SideNavItem
         label={overviewDestination.label}
         href={overviewDestination.href}

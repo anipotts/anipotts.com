@@ -1,10 +1,6 @@
 ---
-import "../styles/fonts.css";
-import "@astryxdesign/core/reset.css";
-import "@astryxdesign/core/astryx.css";
-import "../themes/editorial.generated.css";
-import "../styles/scrollbars.css";
-import BrandMark from "@anipotts/brand/BrandMark.astro";
+import AdminDocument from "../layouts/AdminDocument.astro";
+import { AdminWordmark } from "../components/astryx/AdminWordmark";
 import { editorialReturnPath } from "../lib/editorial-return-path";
 import { isDevLoopbackPreviewRequest } from "../lib/admin-access-policy";
 
@@ -16,63 +12,31 @@ const localPreview = isDevLoopbackPreviewRequest({
 });
 ---
 
-<!doctype html>
-<html lang="en" data-astryx-theme="editorial">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="robots" content="noindex, nofollow, noarchive" />
-    <title>sign in | admin</title>
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  </head>
-  <body>
-    <main aria-label="Sign in">
-      <a
-        class="sign-in wordmark"
-        href={destination}
-        aria-label={localPreview ? "open preview" : "sign in"}
-        title={localPreview ? "open preview" : "sign in"}
-      >
-        <BrandMark />
-      </a>
-    </main>
-  </body>
-</html>
+<AdminDocument title="Sign in" shell={false}>
+  <main class="admin-standalone" aria-label="Sign in">
+    <AdminWordmark
+      href={destination}
+      label={localPreview ? "Open preview" : "Sign in"}
+      className="sign-in"
+    />
+  </main>
+</AdminDocument>
 
 <style>
-  :global(html) {
-    color-scheme: light dark;
-    background: var(--color-background-body);
-    font-family: var(--font-family-body);
-  }
-  :global(body) {
-    margin: 0;
-  }
-  main {
-    box-sizing: border-box;
-  }
-  .sign-in:focus-visible {
-    outline: var(--focus-outline-width) var(--focus-outline-style)
-      var(--focus-outline-color);
-    outline-offset: var(--focus-outline-offset);
-  }
-  main {
-    min-height: 100svh;
-    display: grid;
-    place-items: center;
-    padding: var(--spacing-8);
-  }
-
-  .sign-in {
-    display: block;
-    width: calc(var(--spacing-8) * 4);
-    height: calc(var(--spacing-8) * 4);
-    color: var(--color-text-primary);
+  /* The wordmark renders from React, outside Astro's scoped classes. */
+  :global(.sign-in) {
+    font-size: clamp(2.5rem, 12vw, 4.5rem);
+    min-height: var(--spacing-11);
+    padding-inline: var(--spacing-2);
+    margin-inline: calc(-1 * var(--spacing-2));
+    border-radius: var(--radius-element);
     text-decoration: none;
-    border-radius: var(--radius-container);
   }
-
-  .sign-in:active {
+  /* Keyboard focus tints the surface; admin draws no rings. */
+  :global(.sign-in:focus-visible) {
+    background-color: var(--color-accent-muted);
+  }
+  :global(.sign-in:active) {
     color: var(--color-accent);
   }
 </style>

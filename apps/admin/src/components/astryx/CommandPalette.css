@@ -1,19 +1,47 @@
-/* Scoped native-dialog treatment: retain page context behind the launcher. */
+/* The one command palette (AdminCommandPalette). It hangs from the top of
+   the screen, sizes to its results and never reaches under a phone's
+   keyboard: the palette sets --admin-visual-viewport-height from the visual
+   viewport while it is open. Elevation separates it from the page; nothing
+   inside it is ruled off. */
+:root {
+  --admin-palette-top: max(12vh, var(--spacing-8));
+  --admin-palette-max-height: min(
+    32rem,
+    calc(
+      var(--admin-visual-viewport-height, 100dvh) - var(--admin-palette-top) -
+        var(--spacing-4)
+    )
+  );
+}
+@media (max-width: 640px) {
+  :root {
+    --admin-palette-top: calc(env(safe-area-inset-top) + var(--spacing-2));
+  }
+}
 dialog.admin-command-palette-centered::backdrop {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  background-color: color-mix(in srgb, var(--color-overlay) 30%, transparent);
+  background-color: light-dark(
+    color-mix(in srgb, var(--color-overlay) 30%, transparent),
+    color-mix(in srgb, var(--color-overlay) 55%, transparent)
+  );
 }
 dialog.admin-command-palette-centered {
-  height: min(520px, calc(100dvh - 2 * var(--spacing-4)));
+  inset: 0;
+  height: fit-content;
+  max-height: var(--admin-palette-max-height);
+  margin-inline: auto;
+  margin-block: var(--admin-palette-top) auto;
   padding: 0;
-  border: var(--border-width) solid var(--color-border);
+  border: 0;
   border-radius: var(--radius-container);
-  background: var(--color-background-surface);
+  background: var(--color-background-popover);
+  box-shadow: var(--shadow-high);
   color: var(--color-text-primary);
 }
 dialog.admin-command-palette-centered > .astryx-layout {
-  height: 100%;
+  height: auto;
+  max-height: var(--admin-palette-max-height);
   min-height: 0;
 }
 dialog.admin-command-palette-centered .astryx-layout-content {
@@ -26,10 +54,12 @@ dialog.admin-command-palette-centered .astryx-layout-header,
 dialog.admin-command-palette-centered .astryx-layout-footer {
   flex-shrink: 0;
 }
-dialog.admin-command-palette-centered
-  .astryx-command-palette-input:focus-within {
-  box-shadow: inset 0 calc(-1 * var(--border-width)) var(--color-text-secondary);
+/* Astryx rules off the input and the key hints; space does it here. */
+dialog.admin-command-palette-centered [data-divider] {
+  border-block-width: 0;
 }
+dialog.admin-command-palette-centered
+  .astryx-command-palette-input:focus-within,
 dialog.admin-command-palette-centered
   .astryx-command-palette-input
   input:focus-visible {
@@ -37,61 +67,56 @@ dialog.admin-command-palette-centered
   box-shadow: none;
 }
 .admin-command-palette-centered .astryx-command-palette-input {
-  padding: var(--spacing-4);
   box-sizing: border-box;
-  height: calc(var(--spacing-16) + var(--spacing-1));
-  min-height: calc(var(--spacing-16) + var(--spacing-1));
+  min-height: calc(var(--spacing-11) + var(--spacing-3));
+  padding-block: var(--spacing-2);
+  padding-inline: var(--spacing-4) var(--spacing-2);
 }
 .admin-palette-clear[data-empty="true"] {
   visibility: hidden;
 }
-.admin-palette-error {
-  padding: var(--spacing-2) var(--spacing-4);
-  justify-content: space-between;
-  color: var(--color-text-secondary);
-  background: var(--color-background-surface);
-}
 .admin-command-palette-centered .astryx-command-palette-list {
   padding: var(--spacing-2);
+  padding-block-start: 0;
 }
 .admin-command-palette-centered .astryx-command-palette-group-heading {
   padding-inline: var(--spacing-3);
   color: var(--color-text-secondary);
 }
 .admin-command-palette-centered .astryx-command-palette-item {
-  padding: var(--spacing-3);
-  border-radius: var(--radius-element);
   min-height: var(--spacing-11);
+  padding-block: var(--spacing-1);
+  padding-inline: var(--spacing-3);
+  border-radius: var(--radius-element);
 }
 .admin-command-palette-centered .astryx-command-palette-footer {
-  padding: var(--spacing-3) var(--spacing-4);
+  padding: var(--spacing-2) var(--spacing-4) var(--spacing-3);
   gap: var(--spacing-4);
   flex-wrap: wrap;
   color: var(--color-text-secondary);
+}
+/* Key hints mean nothing without a keyboard. */
+@media (hover: none) {
+  dialog.admin-command-palette-centered .astryx-layout-footer {
+    display: none;
+  }
 }
 .admin-palette-result {
   width: 100%;
   min-width: 0;
 }
-.admin-palette-result-copy {
+.admin-palette-tile {
+  --brand-tile-size: 24px;
+}
+@media (max-width: 640px) {
+  .admin-palette-tile {
+    --brand-tile-size: 28px;
+  }
+}
+.admin-palette-result-label {
   flex: 1;
   min-width: 0;
-  overflow-wrap: anywhere;
-}
-.admin-palette-result-description {
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-}
-.admin-palette-result-kind {
-  flex-shrink: 0;
-  max-width: 30%;
-  overflow-wrap: anywhere;
-}
-.admin-palette-result-arrow {
-  width: var(--spacing-4);
-  height: var(--spacing-4);
-  flex-shrink: 0;
-  color: var(--color-text-secondary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }

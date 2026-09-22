@@ -161,13 +161,11 @@ describe("editorial catalog", () => {
         `>Writing</span><span[^>]*><span[^>]*aria-label="${records.length} records">${records.length}<`,
       ),
     );
-    expect(html).toContain("Theme");
-    expect(html.match(/aria-label="Theme"/g)).toHaveLength(1);
-    expect(html).toContain("Visit site");
-    const siteLink = html.match(/<a\b[^>]*aria-label="Visit site"[^>]*>/)?.[0];
-    expect(siteLink).toContain('href="https://anipotts.com/"');
-    expect(siteLink).toContain('target="_blank"');
-    expect(siteLink).toContain('rel="noopener noreferrer"');
+    // One theme button, and no outside link in the shell.
+    expect(
+      html.match(/aria-label="(?:Light|Dark|System) theme"/g),
+    ).toHaveLength(1);
+    expect(html).not.toContain("Visit site");
     expect(html).not.toContain("Log out");
     expect(html).not.toContain("·");
   });

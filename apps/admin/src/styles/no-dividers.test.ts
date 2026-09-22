@@ -169,10 +169,32 @@ it("hides the rule Astryx draws under every table header", () => {
     ),
   );
   expect(resets.map(({ path }) => path)).toEqual(["styles/shell.css"]);
-  for (const layout of ["AdminLayout", "EditorialLayout"])
-    expect(
-      readFileSync(join(root, `layouts/${layout}.astro`), "utf8"),
-    ).toContain('import "../styles/shell.css";');
+  expect(
+    readFileSync(join(root, "layouts/AdminDocument.astro"), "utf8"),
+  ).toContain('import "../styles/shell.css";');
+});
+
+// The sidebar's pane edge is space in the full sidebar and in the rail, and
+// the palette separates its input, results and key hints with space.
+it("keeps the rail edge and the palette free of rules", () => {
+  const header = readFileSync(
+    join(root, "components/astryx/WorkspaceHeader.css"),
+    "utf8",
+  );
+  expect(sideBorders(header, false)).toContain(
+    ".editorial-workspace-shell .astryx-app-shell-sidenav border-inline-end",
+  );
+  const palette = readFileSync(
+    join(root, "components/astryx/CommandPalette.css"),
+    "utf8",
+  ).replace(/\s+/g, " ");
+  expect(palette).toContain(
+    "dialog.admin-command-palette-centered [data-divider] { border-block-width: 0; }",
+  );
+  expect(palette).toMatch(
+    /dialog\.admin-command-palette-centered \{[^}]*border: 0;[^}]*box-shadow: var\(--shadow-high\);/,
+  );
+  expect(palette).not.toMatch(/box-shadow: inset/);
 });
 
 it("separates admin rows, columns and sections without border rules", () => {

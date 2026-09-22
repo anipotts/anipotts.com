@@ -67,7 +67,6 @@ describe("responsive workspace navigation", () => {
           area="content"
           mode="light"
           changeTheme={changeTheme}
-          siteHref="https://anipotts.com"
           localPreview
         >
           <p>Record</p>
@@ -75,80 +74,55 @@ describe("responsive workspace navigation", () => {
       ),
     );
   }
-  it.each([690, 768])(
-    "keeps a compact mobile identity with one navigation toggle at %ipx",
+  it.each([390, 640])(
+    "has no sidebar, drawer or menu at %ipx; the top bar searches",
     (width) => {
       Object.defineProperty(window, "innerWidth", {
         configurable: true,
         value: width,
       });
       render();
-      // Admin's own header replaces AppShell's hydration-time top bar.
+      // AppShell's own top bar and drawer never mount.
       expect(
         host.querySelector('.astryx-side-nav[data-mode="topbar"]'),
       ).toBeNull();
-      const topbar = host.querySelector(".admin-mobile-header")!;
-      expect(topbar).not.toBeNull();
-      expect(topbar.closest('[role="banner"]')).not.toBeNull();
-      expect(
-        topbar.querySelector('button[aria-label="Collapse sidebar"]'),
-      ).toBeNull();
-      expect(topbar.querySelector(".admin-bracket-wordmark")?.textContent).toBe(
+      expect(document.querySelector(".astryx-mobile-nav")).toBeNull();
+      expect(host.querySelector(".astryx-app-shell-sidenav")).toBeNull();
+      expect(host.textContent).not.toContain("Open navigation");
+      const bar = host.querySelector(".admin-phone-bar")!;
+      expect(bar.closest('[role="banner"]')).not.toBeNull();
+      expect(bar.querySelector(".admin-bracket-wordmark")?.textContent).toBe(
         "[admin]",
       );
-      // One sidebar replaces the workspace switcher; nothing in the bar
-      // opens a menu of workspaces.
-      expect(topbar.querySelector(".admin-workspace-selector")).toBeNull();
-      expect(topbar.querySelector('[aria-haspopup="menu"]')).toBeNull();
-      expect(
-        host.querySelectorAll('button[aria-label="Open navigation"]'),
-      ).toHaveLength(1);
-      expect(
-        host.querySelector(
-          'button[aria-label="Search"], button[aria-label="Search content"]',
-        ),
-      ).toBeNull();
-      expect(
-        [...host.querySelectorAll("button")].some(
-          (button) => button.textContent === "Search",
-        ),
-      ).toBe(false);
-      const toggle = topbar.querySelector(
-        'button[aria-label="Open navigation"]',
-      ) as HTMLButtonElement;
-      expect(toggle.getAttribute("aria-expanded")).toBe("false");
-      act(() => toggle.click());
-      expect(toggle.getAttribute("aria-expanded")).toBe("true");
-      const controlled = toggle.getAttribute("aria-controls");
-      expect(controlled).toBeTruthy();
-      const drawer = document.getElementById(controlled!);
-      expect(drawer).not.toBeNull();
-      expect(drawer?.textContent).toContain("Writing");
-      // The drawer holds the same three groups as the desktop sidebar.
-      expect(
-        [...drawer!.querySelectorAll("[data-sidebar-group]")].map(
-          (heading) => heading.textContent,
-        ),
-      ).toEqual(["Content", "Data", "Observability"]);
-      expect(drawer?.querySelector('a[href="/"]')).not.toBeNull();
-      expect(drawer?.querySelector('a[href="/data/records"]')).not.toBeNull();
-      expect(
-        drawer?.querySelector('a[href="/observability/alerts"]'),
-      ).not.toBeNull();
-      expect(
-        drawer?.querySelector('a[href^="/content/newsletter"]'),
-      ).not.toBeNull();
-      // Browser Escape raises the native dialog cancel event.
+      const announce = vi.fn();
+      document.addEventListener("admin:search", announce);
       act(() =>
-        drawer!.dispatchEvent(
-          new Event("cancel", { bubbles: true, cancelable: true }),
-        ),
+        (
+          bar.querySelector('button[aria-label="Search"]') as HTMLButtonElement
+        ).click(),
       );
-      expect(toggle.getAttribute("aria-expanded")).toBe("false");
+      document.removeEventListener("admin:search", announce);
+      expect(announce).toHaveBeenCalledTimes(1);
+      // One tap reaches any workspace, and the current one's pages.
+      const tabs = host.querySelector('nav[aria-label="Workspaces"]')!;
+      expect(
+        [
+          ...tabs.querySelectorAll<HTMLAnchorElement>(".admin-phone-workspace"),
+        ].map((tab) => tab.getAttribute("href")),
+      ).toEqual([
+        expect.stringMatching(/^\/content/),
+        "/data/records",
+        "/observability/status",
+      ]);
+      expect(
+        [...tabs.querySelectorAll(".admin-phone-page")].map(
+          (chip) => chip.textContent,
+        ),
+      ).toEqual(["Pages", "Writing", "Projects", "Newsletter"]);
     },
   );
-  it.each([390, 768])(
-    "never renders the collapsed rail inside the %ipx drawer, even when a rail was saved",
+  it.each([390, 640])(
+    "never renders the collapsed rail at %ipx, even when a rail was saved",
     (width) => {
       localStorage.setItem("admin:sidebar-collapsed", "true");
       Object.defineProperty(window, "innerWidth", {
@@ -228,27 +202,19 @@ describe("responsive workspace navigation", () => {
     document.removeEventListener("admin:search", announce);
     expect(announce).toHaveBeenCalledTimes(1);
   });
-  it("offers one-click appearance choices and a header visit-site link", () => {
+  it("cycles the theme with one button and links no outside site", () => {
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
       value: 1280,
     });
     const change = vi.fn();
     render(change);
-    const appearance = host.querySelector(
-      '.admin-theme-tabs[role="radiogroup"]',
+    expect(host.querySelector('[role="radiogroup"]')).toBeNull();
+    const theme = host.querySelector<HTMLButtonElement>(
+      ".editorial-workspace-utilities .admin-theme-cycle",
     )!;
-    expect(appearance.getAttribute("aria-label")).toBe("Theme");
-    const choices = [
-      ...appearance.querySelectorAll<HTMLButtonElement>('[role="radio"]'),
-    ];
-    expect(choices.map((choice) => choice.getAttribute("aria-label"))).toEqual([
-      "Light",
-      "Dark",
-      "System",
-    ]);
-    expect(appearance.querySelector('[aria-haspopup="menu"]')).toBeNull();
-    act(() => choices[1]!.click());
+    expect(theme.getAttribute("aria-label")).toBe("Light theme");
+    act(() => theme.click());
     expect(change).toHaveBeenCalledExactlyOnceWith("dark");
     const identity = host.querySelector(".editorial-workspace-identity")!;
     expect(identity.querySelector("svg")).not.toBeNull(); // Native collapse glyph, no AP paths.
@@ -259,18 +225,12 @@ describe("responsive workspace navigation", () => {
     expect(writing.closest(".astryx-side-nav-section")).toBe(
       newsletter.closest(".astryx-side-nav-section"),
     );
-    const live = host.querySelector('a[aria-label="Visit site"]')!;
-    expect(live.querySelector("rect")).toBeNull();
-    expect(live.getAttribute("aria-label")).toBe("Visit site");
-    expect(live.closest(".approved-workspace-header")).not.toBeNull();
-    act(() =>
-      (
-        host.querySelector(
-          'button[aria-label="Collapse sidebar"]',
-        ) as HTMLButtonElement
-      ).click(),
-    );
-    expect(host.querySelector('a[aria-label="Visit site"]')).toBeNull();
+    expect(host.querySelector('[aria-label="Visit site"]')).toBeNull();
+    expect(host.querySelector('a[target="_blank"]')).toBeNull();
+    const home = identity.querySelector<HTMLAnchorElement>(
+      "a.admin-bracket-wordmark",
+    )!;
+    expect(home.getAttribute("href")).toBe("/");
   });
 
   it.each([
@@ -278,7 +238,8 @@ describe("responsive workspace navigation", () => {
     [1024, "false", "false"],
     [1440, "true", "true"],
     [1440, null, "false"],
-    [690, "true", "false"],
+    [690, null, "true"],
+    [640, "true", "false"],
   ])(
     "chooses the rail at %ipx with saved %s in one commit after hydration",
     async (width, saved, expected) => {
