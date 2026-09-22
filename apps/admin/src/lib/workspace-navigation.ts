@@ -1,4 +1,5 @@
 import { dataKind, dataRecordsHref } from "./data-routes";
+import { safeReturnPath } from "./editorial-return-path";
 
 export const workspaces = {
   content: { label: "Content", href: "/content/pages" },
@@ -14,10 +15,8 @@ export function workspaceReturnPath(
   value: string,
 ): string {
   const fallback = workspaces[workspace].href;
-  if (!value.startsWith("/") || value.startsWith("//") || value.includes("\\"))
-    return fallback;
-  const url = new URL(value, "https://admin.invalid");
-  if (url.origin !== "https://admin.invalid") return fallback;
+  const url = safeReturnPath(value);
+  if (!url) return fallback;
   const path = url.pathname;
   if (workspace === "life") {
     if (!/^\/data\/(?:records|sources)$/.test(path)) return fallback;

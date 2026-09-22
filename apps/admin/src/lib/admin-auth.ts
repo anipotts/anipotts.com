@@ -1,5 +1,6 @@
 import type { APIContext } from "astro";
 import { constantTimeEqual, sha256Hex } from "./crypto";
+import { safeReturnPath } from "./editorial-return-path";
 
 export const ADMIN_SESSION_COOKIE = "__Host-admin_session";
 export const LEGACY_PASSKEY_SESSION_COOKIE = "admin_passkey_session";
@@ -170,25 +171,15 @@ export function sanitizeAdminReturnPath(
   value: string | null,
   fallback = "/",
 ): string {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+  const parsed = safeReturnPath(value);
+  if (
+    !parsed ||
+    parsed.pathname === "/auth" ||
+    parsed.pathname === "/auth/passkey" ||
+    parsed.pathname.startsWith("/auth/recover")
+  )
     return fallback;
-  }
-  if (value.includes("\\")) return fallback;
-
-  try {
-    const parsed = new URL(value, "https://admin.anipotts.com");
-    if (parsed.origin !== "https://admin.anipotts.com") return fallback;
-    if (
-      parsed.pathname === "/auth" ||
-      parsed.pathname === "/auth/passkey" ||
-      parsed.pathname.startsWith("/auth/recover")
-    ) {
-      return fallback;
-    }
-    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
-  } catch {
-    return fallback;
-  }
+  return `${parsed.pathname}${parsed.search}${parsed.hash}`;
 }
 
 export async function resolveAdminSession(
