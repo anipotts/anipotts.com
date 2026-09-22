@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { APIContext } from "astro";
+import type { APIContext, AstroIntegration } from "astro";
 import { ALL } from "./retired-route";
 import { RETIRED_ROUTE_REDIRECTS } from "./retired-routes.mjs";
 import config from "../../astro.config.mjs";
@@ -32,9 +32,13 @@ describe("retired routes", () => {
   });
 
   it("are each injected into the router by the app's own Astro config", async () => {
-    const integration = config.integrations?.find(
-      (item) => item && "name" in item && item.name === "admin-retired-routes",
-    );
+    const integration = (config.integrations ?? [])
+      .flat()
+      .find(
+        (item): item is AstroIntegration =>
+          Boolean(item) &&
+          (item as AstroIntegration).name === "admin-retired-routes",
+      );
     expect(integration).toBeDefined();
     const injected: Array<{ pattern: string; entrypoint: string | URL }> = [];
     const setup = integration!.hooks[
