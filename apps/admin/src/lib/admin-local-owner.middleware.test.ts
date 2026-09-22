@@ -94,7 +94,7 @@ describe("local owner identity", () => {
 
 describe("middleware without the build-time flag", () => {
   it("keeps loopback API and record requests on the existing denial", async () => {
-    const api = await dispatch("http://localhost:4321/api/admin/runtime-feed");
+    const api = await dispatch("http://localhost:4321/api/admin/projections");
     expect(api.response.status).toBe(401);
     expect(api.next).not.toHaveBeenCalled();
     expect(api.locals.adminPrincipal).toBeUndefined();

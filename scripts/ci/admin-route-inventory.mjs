@@ -236,12 +236,6 @@ export const ADMIN_ROUTES = [
     nav: true,
   },
   {
-    route: "/api/admin/runtime-feed",
-    file: "apps/admin/src/pages/api/admin/runtime-feed.ts",
-    nav: false,
-    smoke: false,
-  },
-  {
     route: "/api/admin/control-plane",
     file: "apps/admin/src/pages/api/admin/control-plane.ts",
     nav: false,
@@ -314,13 +308,13 @@ export const ADMIN_ROUTES = [
   },
   {
     route: "/api/private-reader/credential",
-    file: "apps/admin/src/pages/api/private-reader/credential.ts",
+    file: "apps/admin/src/pages/api/private-reader/[mode].ts",
     nav: false,
     smoke: false,
   },
   {
     route: "/api/private-reader/ops-credential",
-    file: "apps/admin/src/pages/api/private-reader/ops-credential.ts",
+    file: "apps/admin/src/pages/api/private-reader/[mode].ts",
     nav: false,
     smoke: false,
   },

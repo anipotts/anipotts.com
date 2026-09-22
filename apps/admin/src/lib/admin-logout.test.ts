@@ -45,7 +45,9 @@ function fixture({
     batch,
   };
   const verifyOwner = vi.fn(async () =>
-    access ? { subject: "access-owner", email: "owner@example.test" } : null,
+    access
+      ? { subject: "access-owner", email: "owner@example.test", expiresAt: 0 }
+      : null,
   );
   const run = (method = "GET", headers: Record<string, string> = {}) =>
     adminLogout(

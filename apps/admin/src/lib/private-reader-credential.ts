@@ -1,5 +1,5 @@
 import { SignJWT, importJWK, type JWK, type JWTVerifyGetKey } from "jose";
-import { verifyEditorialOwnerSession } from "./access-identity";
+import { verifyEditorialOwner, type AccessOwner } from "./access-identity";
 import {
   checkEditorialMutation,
   privateJson,
@@ -54,6 +54,8 @@ export function privateReaderOpsEnabled(config: PrivateReaderConfig): boolean {
 }
 
 export type PrivateReaderOptions = {
+  /** The owner middleware already verified for this request. */
+  owner?: AccessOwner;
   /** Test seam for the Access certificate set; production fetches the team certs. */
   resolveAccessKey?: JWTVerifyGetKey;
   now?: () => number;
@@ -111,11 +113,9 @@ export async function privateReaderCredentialApi(
   const key = await signingKey(config.PRIVATE_READER_SIGNING_KEY);
   if (!key) return deny("reader_unavailable", 503);
 
-  const owner = await verifyEditorialOwnerSession(
-    request,
-    config,
-    options.resolveAccessKey,
-  );
+  const owner =
+    options.owner ??
+    (await verifyEditorialOwner(request, config, options.resolveAccessKey));
   if (!owner) return deny("owner_required", 401);
 
   const rejection = checkEditorialMutation(
