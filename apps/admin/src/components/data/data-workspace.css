@@ -64,6 +64,8 @@
   }
 }
 .data-chip-text {
+  display: inline-flex;
+  align-items: center;
   white-space: nowrap;
 }
 .data-chip-clear {
@@ -223,6 +225,11 @@
 .data-fields,
 .data-evidence {
   padding-block: var(--spacing-3);
+}
+/* Field labels in sentence case, as they are written. */
+:is(.data-fields, .data-evidence) dt:not(#\#) {
+  text-transform: none;
+  letter-spacing: normal;
 }
 .data-history {
   display: flex;

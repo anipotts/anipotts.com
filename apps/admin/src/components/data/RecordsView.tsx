@@ -215,12 +215,14 @@ export function RecordsToolbar({
             }
             onPressedChange={() => filter({ source: null })}
           >
-            <span className="data-chip-text">{source.name}</span>
-            <XIcon
-              weight="bold"
-              aria-hidden="true"
-              className="data-chip-clear"
-            />
+            <span className="data-chip-text">
+              {source.name}
+              <XIcon
+                weight="bold"
+                aria-hidden="true"
+                className="data-chip-clear"
+              />
+            </span>
           </ToggleButton>
         )}
         <ToggleButtonGroup
