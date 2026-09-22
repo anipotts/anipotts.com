@@ -91,7 +91,7 @@ export const sidebarGroups: ReadonlyArray<{
     ],
   },
   {
-    id: "life",
+    id: "data",
     label: "Data",
     items: [
       {
@@ -121,7 +121,7 @@ export const sidebarGroups: ReadonlyArray<{
     ],
   },
   {
-    id: "operations",
+    id: "observability",
     label: "Observability",
     items: [
       {

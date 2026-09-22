@@ -5,7 +5,7 @@ import {
   type PrivateReaderSession,
 } from "../../lib/private-reader-client";
 import { usePrivateReader } from "../../lib/private-reader-fetch";
-import type { LifeReader } from "../../lib/life-read-session";
+import type { DataReader } from "../../lib/data-read-session";
 import {
   createFixtureReader,
   type DataFixture,
@@ -23,7 +23,7 @@ export type DataSession = {
   reason?: PrivateReaderClearReason | "idle";
   /** A reopen from a notice is under way; the notice stays in place. */
   busy: boolean;
-  reader: LifeReader | null;
+  reader: DataReader | null;
   /** Bumps with every new session, so views keyed on it start clean. */
   generation: number;
   fixture: boolean;
@@ -74,7 +74,7 @@ export function useDataSession({
   );
   const { state, reader } = usePrivateReader(session, { fetch: fetcher });
   const [busy, setBusy] = useState(false);
-  const generation = useRef<{ reader: LifeReader | null; key: number }>({
+  const generation = useRef<{ reader: DataReader | null; key: number }>({
     reader: null,
     key: 0,
   });

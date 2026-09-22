@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { lifeReadPath, readPersonalContext } from "./personal-context";
+import { dataReadPath, readPersonalContext } from "./personal-context";
 
-describe("Life read boundary", () => {
+describe("Data read boundary", () => {
   it("rejects mismatched or malformed body continuation metadata", async () => {
     const data = {
       record_id: "fixture",
@@ -126,7 +126,7 @@ describe("Life read boundary", () => {
   });
   it("keeps preview lookup-only and bounded", () => {
     const path = new URL(
-      lifeReadPath({ method: "preview", q: "a&consumer=owner" }),
+      dataReadPath({ method: "preview", q: "a&consumer=owner" }),
       "http://fixture.invalid",
     );
     expect(Object.fromEntries(path.searchParams)).toEqual({

@@ -1,36 +1,36 @@
 /* Observability draws with the workspace kit; only ops marks live here.
    The workspace is the kit's `workspace` container, so an alert opens beside
    its list on a wide content area (workspace.css). */
-.operations-workspace {
+.observability-workspace {
   container: workspace / inline-size;
   min-width: 0;
 }
-.operations-workspace .ops-state {
+.observability-workspace .ops-state {
   display: inline-flex;
 }
-.operations-workspace .ops-id {
+.observability-workspace .ops-id {
   font-family: var(--font-family-code, ui-monospace, monospace);
   font-size: 0.92em;
 }
 
 /* Rows hold 36px on wide screens, like the controls around them. */
-.operations-workspace .workspace-table .astryx-table-cell {
+.observability-workspace .workspace-table .astryx-table-cell {
   height: var(--spacing-9);
 }
 
 /* A state cell and a phone row's line 2: the chip, the reason, and a
    non-zero exit or an overrun budget as a critical figure. */
-.operations-workspace .ops-state-cell {
+.observability-workspace .ops-state-cell {
   min-width: 0;
 }
-.operations-workspace .ops-reason {
+.observability-workspace .ops-reason {
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.operations-workspace .ops-exit,
-.operations-workspace .ops-over {
+.observability-workspace .ops-exit,
+.observability-workspace .ops-over {
   flex: none;
   color: var(--color-text-red, var(--color-error));
   white-space: nowrap;
@@ -74,13 +74,13 @@
 }
 
 /* The detail's way back sits on the content's start edge. */
-.operations-workspace .ops-detail-back {
+.observability-workspace .ops-detail-back {
   align-self: flex-start;
   margin-inline-start: calc(-1 * var(--spacing-2));
 }
 
 /* A link into Status tints the row it lands on for a moment. */
-.operations-workspace [data-landed] {
+.observability-workspace [data-landed] {
   background-color: var(--color-accent-muted);
   transition: background-color 600ms ease-out;
 }
@@ -92,7 +92,7 @@
 }
 
 @media (max-width: 640px) {
-  .operations-workspace .workspace-table .astryx-table-cell {
+  .observability-workspace .workspace-table .astryx-table-cell {
     height: auto;
   }
   .ops-overview {

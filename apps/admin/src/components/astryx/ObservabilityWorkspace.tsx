@@ -85,7 +85,7 @@ import { sentenceCase } from "../../lib/sentence-case";
 import { relativeAgo, useLiveText } from "../../lib/live-clock";
 import { provideSearchEntries } from "../../lib/admin-search-index";
 import type { AdminSearchResult } from "../../data/admin-search";
-import "./operations-workspace.css";
+import "./observability-workspace.css";
 
 /**
  * Observability, read-only, on System's ops_v1 snapshot and ops_events_v1
@@ -1399,7 +1399,7 @@ function OpsPage({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="operations-workspace">
+    <div className="observability-workspace">
       <WorkspacePage
         title={OPS_VIEW_TITLES[view]}
         count={count}

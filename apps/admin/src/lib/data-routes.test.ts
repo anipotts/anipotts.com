@@ -9,7 +9,7 @@ import {
   knowledgeRedirect,
   lifeRedirect,
 } from "./data-routes";
-import { lifeReadPath } from "../data/personal-context";
+import { dataReadPath } from "../data/personal-context";
 
 const url = (path: string) => new URL(path, "https://admin.invalid");
 const id = "rec-0123456789abcdef0123456789abcdef";
@@ -34,7 +34,7 @@ describe("Data routes", () => {
       "note",
     ]);
     for (const kind of READER_KINDS)
-      expect(lifeReadPath({ method: "search", q: "", kind })).toContain(
+      expect(dataReadPath({ method: "search", q: "", kind })).toContain(
         `kind=${kind}`,
       );
   });

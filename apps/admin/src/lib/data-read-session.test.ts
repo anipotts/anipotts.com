@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { LifeReadSession, appendLifeBody } from "./life-read-session";
-import type { LifeResult } from "../data/personal-context";
-const ready = (title: string): LifeResult => ({
+import { DataReadSession, appendDataBody } from "./data-read-session";
+import type { DataResult } from "../data/personal-context";
+const ready = (title: string): DataResult => ({
   state: "ready",
   scope: "agent",
   observedAt: "2026-01-01",
   data: { title },
 });
-describe("Life request continuity", () => {
+describe("Data request continuity", () => {
   it("rejects unsafe continuation offsets before appending source text", () => {
     const current = {
       record_id: "fixture",
@@ -23,10 +23,10 @@ describe("Life request continuity", () => {
     };
     for (const offset of [NaN, Infinity, -1, 5.5, 10_000_001]) {
       expect(() =>
-        appendLifeBody(current, { ...next, next_body_offset: offset }),
+        appendDataBody(current, { ...next, next_body_offset: offset }),
       ).toThrow("changed");
       expect(() =>
-        appendLifeBody(
+        appendDataBody(
           { ...current, next_body_offset: offset },
           { ...next, body_offset: offset },
         ),
@@ -35,8 +35,8 @@ describe("Life request continuity", () => {
     expect(current.body).toBe("first");
   });
   it("discards old queries that finish after a newer query", async () => {
-    const session = new LifeReadSession();
-    let finish!: (result: LifeResult) => void;
+    const session = new DataReadSession();
+    let finish!: (result: DataResult) => void;
     const first = session.run(
       () =>
         new Promise((resolve) => {
@@ -54,7 +54,7 @@ describe("Life request continuity", () => {
     expect(await first).toBeNull();
   });
   it("discards a pending record when the view is closed", async () => {
-    const session = new LifeReadSession();
+    const session = new DataReadSession();
     const pending = session.run(async () => ready("record"), {
       method: "get",
       id: "rec-fixture",
@@ -70,7 +70,7 @@ describe("Life request continuity", () => {
       next_body_offset: 1,
     };
     expect(
-      appendLifeBody(current, {
+      appendDataBody(current, {
         ...current,
         body: "next",
         body_offset: 1,
@@ -78,7 +78,7 @@ describe("Life request continuity", () => {
       }).body,
     ).toBe("😀next");
     expect(() =>
-      appendLifeBody(current, {
+      appendDataBody(current, {
         ...current,
         revision_id: "rev-two",
         body_offset: 1,
@@ -86,14 +86,14 @@ describe("Life request continuity", () => {
       }),
     ).toThrow("changed");
     expect(() =>
-      appendLifeBody(current, {
+      appendDataBody(current, {
         ...current,
         body_offset: 2,
         next_body_offset: null,
       }),
     ).toThrow("changed");
     expect(() =>
-      appendLifeBody(current, {
+      appendDataBody(current, {
         ...current,
         body_offset: 1,
         next_body_offset: 1,
@@ -103,10 +103,10 @@ describe("Life request continuity", () => {
 });
 
 it("aborts obsolete transport reads on replacement and closure", async () => {
-  const session = new LifeReadSession();
+  const session = new DataReadSession();
   const signals: AbortSignal[] = [];
   const reader = (_request: unknown, signal?: AbortSignal) =>
-    new Promise<LifeResult>((_resolve, reject) => {
+    new Promise<DataResult>((_resolve, reject) => {
       signals.push(signal!);
       signal!.addEventListener("abort", () => reject(new Error("aborted")), {
         once: true,

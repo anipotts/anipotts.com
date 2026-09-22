@@ -1,16 +1,16 @@
 import { useMemo } from "react";
 import {
-  LIFE_DEFAULTS,
+  DATA_READ_DEFAULTS,
   readPersonalContext,
-  type LifeRead,
-  type LifeTransport,
+  type DataRead,
+  type DataTransport,
 } from "../data/personal-context";
 import {
   PersonalContextHttpError,
   readPersonalContextResponse,
 } from "../data/personal-context-http";
 import { discardBody } from "./response-body";
-import type { LifeReader } from "./life-read-session";
+import type { DataReader } from "./data-read-session";
 import {
   usePrivateReaderState,
   type PrivateReaderSession,
@@ -84,7 +84,7 @@ export const PRIVATE_READER_BOUNDS = {
   bodyOffsetMax: 16 * 1024 * 1024,
   bodyLimit: { min: 1, max: 64_000 },
 } as const;
-const DATA_LIMIT = LIFE_DEFAULTS.limit;
+const DATA_LIMIT = DATA_READ_DEFAULTS.limit;
 const ACTIVITY_LIMIT = 100;
 const BODY_LIMIT = 32_000;
 
@@ -115,7 +115,7 @@ function bounded(value: number | undefined, max: number, min = 0): string {
  * sent. Search always carries `q`, which may be empty (recent records).
  * Timeline and preview are not served by this reader.
  */
-export function privateReaderPath(request: LifeRead): string {
+export function privateReaderPath(request: DataRead): string {
   const b = PRIVATE_READER_BOUNDS;
   const params = new URLSearchParams();
   let path: string;
@@ -273,19 +273,19 @@ export async function readerFetch(
 }
 
 /** The Data workspace reader: owner Data reads plus metadata-only activity. */
-export function createPrivateLifeReader(
+export function createPrivateDataReader(
   session: BearerSource,
   options: { fetch?: typeof fetch } = {},
-): LifeReader {
+): DataReader {
   const read = (path: string, signal: AbortSignal) =>
     readerFetch(session, path, { fetch: options.fetch, signal });
-  const data: LifeTransport = {
+  const data: DataTransport = {
     protocol: "personal_context_data_v1",
     scope: "owner",
     path: privateReaderPath,
     read,
   };
-  const activity: LifeTransport = {
+  const activity: DataTransport = {
     protocol: "personal_context_observability_v1",
     scope: "agent",
     path: privateReaderPath,
@@ -307,12 +307,12 @@ export function createPrivateLifeReader(
 export function usePrivateReader(
   session: PrivateReaderSession,
   options: { fetch?: typeof fetch } = {},
-): { state: PrivateReaderState; reader: LifeReader | null } {
+): { state: PrivateReaderState; reader: DataReader | null } {
   const state = usePrivateReaderState(session);
   const ready = state.status === "ready";
   const fetcher = options.fetch;
   const reader = useMemo(
-    () => (ready ? createPrivateLifeReader(session, { fetch: fetcher }) : null),
+    () => (ready ? createPrivateDataReader(session, { fetch: fetcher }) : null),
     [session, ready, fetcher],
   );
   return { state, reader };

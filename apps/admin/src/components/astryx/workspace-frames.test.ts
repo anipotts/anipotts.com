@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 const read = (path: string) =>
   readFileSync(new URL(path, import.meta.url), "utf8").replace(/\s+/g, " ");
 const shell = read("../../styles/shell.css");
-const operations = read("./operations-workspace.css");
+const observability = read("./observability-workspace.css");
 const kit = read("../workspace/workspace.css");
 const header = read("./WorkspaceHeader.css");
 const block = (css: string, query: string) => {
@@ -24,7 +24,7 @@ describe("workspace page frames", () => {
     // range, applied once on main. Data and Observability pages sit in the
     // frame as they are; neither resets it to set a gutter of its own.
     expect(shell).toContain("padding-inline: var(--admin-gutter);");
-    for (const css of [kit, operations])
+    for (const css of [kit, observability])
       expect(css).not.toContain("admin-page-frame");
   });
 
@@ -37,7 +37,7 @@ describe("workspace page frames", () => {
         `.workspace-table [data-hide-below="${range}"] { display: none; }`,
       );
     // No stylesheet counts columns by position any more.
-    for (const css of [shell, kit, operations])
+    for (const css of [shell, kit, observability])
       expect(css).not.toMatch(/nth-child|nth-last-child/);
   });
 
@@ -52,7 +52,7 @@ describe("workspace page frames", () => {
     expect(compact).toContain(".workspace-table-footer { display: none; }");
     expect(compact).toContain(".workspace-row-end { display: inline-flex; }");
     // Observability keeps no column rules of its own.
-    expect(operations).not.toMatch(/ops-status-table|ops-mobile-status/);
+    expect(observability).not.toMatch(/ops-status-table|ops-mobile-status/);
     // Workspace themes cannot tint a table apart from the others.
     expect(kit).toContain(
       ".workspace-table .astryx-base-table:not(#\\#):not(#\\#) { background: transparent; }",

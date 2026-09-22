@@ -8,8 +8,8 @@ import {
 describe("workspace return destinations", () => {
   it("lands each workspace on its first page", () => {
     expect(workspaces.content.href).toBe("/content/pages");
-    expect(workspaces.life.href).toBe("/data/records");
-    expect(workspaces.operations.href).toBe("/observability/status");
+    expect(workspaces.data.href).toBe("/data/records");
+    expect(workspaces.observability.href).toBe("/observability/status");
   });
   it.each(Object.keys(workspaces) as Workspace[])(
     "rejects foreign or malformed destinations for %s",
@@ -59,7 +59,7 @@ describe("workspace return destinations", () => {
       expect(
         workspaceReturnPath("content", `${path}?title=private#draft`),
       ).toBe(path);
-      expect(workspaceReturnPath("life", path)).toBe("/data/records");
+      expect(workspaceReturnPath("data", path)).toBe("/data/records");
     }
   });
   it.each([
@@ -77,14 +77,14 @@ describe("workspace return destinations", () => {
       expect(
         workspaceReturnPath("content", `${path}?view=review&q=private#draft`),
       ).toBe(`${path}?view=review`);
-      expect(workspaceReturnPath("life", path)).toBe("/data/records");
+      expect(workspaceReturnPath("data", path)).toBe("/data/records");
     },
   );
   it("keeps an Observability view without retaining item or private query identities", () => {
     for (const view of ["status", "activity", "alerts"])
       expect(
         workspaceReturnPath(
-          "operations",
+          "observability",
           `/observability/${view}?panel=traces&q=secret&item=private`,
         ),
       ).toBe(`/observability/${view}?panel=traces`);
@@ -92,19 +92,19 @@ describe("workspace return destinations", () => {
   it("keeps Data navigation only, never private queries, record ids or cursors", () => {
     expect(
       workspaceReturnPath(
-        "life",
+        "data",
         "/data/records?kind=people&q=private&record=person-123&cursor=42#private",
       ),
     ).toBe("/data/records?kind=people");
-    expect(workspaceReturnPath("life", "/data/records?kind=private")).toBe(
+    expect(workspaceReturnPath("data", "/data/records?kind=private")).toBe(
       "/data/records",
     );
-    expect(workspaceReturnPath("life", "/data/sources?offset=20")).toBe(
+    expect(workspaceReturnPath("data", "/data/sources?offset=20")).toBe(
       "/data/sources",
     );
     expect(
       workspaceReturnPath(
-        "life",
+        "data",
         "/data/records/rec-00000000000000000000000000000001",
       ),
     ).toBe("/data/records");
@@ -113,10 +113,10 @@ describe("workspace return destinations", () => {
     expect(workspaceReturnPath("content", "/data/records")).toBe(
       "/content/pages",
     );
-    expect(workspaceReturnPath("life", "/content/writing/my-post")).toBe(
+    expect(workspaceReturnPath("data", "/content/writing/my-post")).toBe(
       "/data/records",
     );
-    expect(workspaceReturnPath("operations", "/data/records")).toBe(
+    expect(workspaceReturnPath("observability", "/data/records")).toBe(
       "/observability/status",
     );
   });
@@ -129,8 +129,8 @@ describe("retired routes", () => {
     "/knowledge?kind=people",
     "/knowledge/locations",
   ])("returns the retired %s to the workspace's first page", (path) => {
-    expect(workspaceReturnPath("life", path)).toBe("/data/records");
-    expect(workspaceReturnPath("operations", path)).toBe(
+    expect(workspaceReturnPath("data", path)).toBe("/data/records");
+    expect(workspaceReturnPath("observability", path)).toBe(
       "/observability/status",
     );
   });
@@ -148,14 +148,14 @@ describe("retired routes", () => {
     "/inbox?category=work&view=urgent",
     "/operations/observability?view=machines",
   ])("returns the retired %s to Observability Status", (path) => {
-    expect(workspaceReturnPath("operations", path)).toBe(
+    expect(workspaceReturnPath("observability", path)).toBe(
       "/observability/status",
     );
   });
   it("discards misplaced filters on operational pages", () => {
     expect(
       workspaceReturnPath(
-        "operations",
+        "observability",
         "/observability/alerts?kind=system&category=system",
       ),
     ).toBe("/observability/alerts");

@@ -424,7 +424,7 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
 
 /* A list and its open detail (a Data record, an alert). One column until
    the workspace (the page's `workspace` container: .data-workspace,
-   .operations-workspace) is 960px wide, SPLIT_MIN_WIDTH in DataWorkspace.tsx;
+   .observability-workspace) is 960px wide, SPLIT_MIN_WIDTH in DataWorkspace.tsx;
    then the detail opens beside the list and stays in view. Below that an
    open detail is the page and the list steps aside. The list is its own
    container, so its toolbar lays out by the list's width. */

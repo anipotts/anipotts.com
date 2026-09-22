@@ -18,8 +18,8 @@ import {
   useOpsData,
   type OpsViewProps,
 } from "../astryx/ObservabilityWorkspace";
-import { LifeReadSession } from "../../lib/life-read-session";
-import type { LifeResult } from "../../data/personal-context";
+import { DataReadSession } from "../../lib/data-read-session";
+import type { DataResult } from "../../data/personal-context";
 import { dataRecordHref } from "../../lib/data-routes";
 import type { DataFixture } from "../../lib/data-fixture-reader";
 import type { PrivateReaderSession } from "../../lib/private-reader-client";
@@ -193,8 +193,8 @@ function RecentRecords({
     session: injected,
     fetch: fetcher,
   });
-  const [result, setResult] = useState<LifeResult | null>(null);
-  const read = useRef(new LifeReadSession());
+  const [result, setResult] = useState<DataResult | null>(null);
+  const read = useRef(new DataReadSession());
   useEffect(() => {
     setResult(null);
     if (!session.reader) return;
