@@ -38,7 +38,6 @@
     "admin:preview:ensure": "node scripts/admin/admin-preview.mjs ensure",
     "admin:preview:status": "node scripts/admin/admin-preview.mjs status",
     "admin:preview:stop": "node scripts/admin/admin-preview.mjs stop",
-    "proof:admin-content": "node scripts/admin/content-proof.mjs",
     "content:generate": "node scripts/content/generate-public-content.mjs",
     "content:check": "pnpm content:generate && node scripts/content/generate-public-content.mjs --check",
     "brand:marks": "node scripts/brand/build-marks.mjs",
