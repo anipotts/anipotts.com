@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "@astryxdesign/core/Button";
 import {
-  DropdownMenu,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from "@astryxdesign/core/DropdownMenu";
@@ -10,12 +9,11 @@ import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
 import {
   ArrowClockwiseIcon,
-  ArrowSquareOutIcon,
   BellSimpleIcon,
+  BroadcastIcon,
   ClockCounterClockwiseIcon,
   KeyIcon,
   LinkBreakIcon,
-  MoonIcon,
   PlugsIcon,
   PulseIcon,
   ShieldWarningIcon,
@@ -67,10 +65,12 @@ import {
   WorkspacePage,
   WorkspaceSection,
   FilterBar,
+  FilterMenu,
   SampleBadge,
   type Column,
   type Tone,
 } from "../workspace/Workspace";
+import { sentenceCase } from "../../lib/sentence-case";
 import { useLiveNow } from "../../lib/live-clock";
 import "./operations-workspace.css";
 
@@ -96,23 +96,12 @@ export const STATE_PRESENTATION: Record<
   unknown: { label: "Unknown", variant: "neutral", tone: "neutral" },
 };
 
+/** Only an exception gets a chip: an ok entry carries its name for
+ * assistive technology alone. */
 export function OpsStateBadge({ state }: { state: OpsState }) {
-  const { label, tone } = STATE_PRESENTATION[state];
   return (
     <span className="ops-state" data-state={state}>
-      <StateBadge
-        tone={tone}
-        label={label}
-        icon={
-          state === "asleep" ? (
-            <MoonIcon
-              weight="regular"
-              aria-hidden="true"
-              className="ops-asleep-mark"
-            />
-          ) : undefined
-        }
-      />
+      <StateBadge domain="ops" state={state} />
     </span>
   );
 }
@@ -158,18 +147,6 @@ function detailOf(service: OpsServiceView) {
   return service.missingStatus
     ? "No status row from System"
     : service.status.detail;
-}
-
-/** The trailing mark on a row that opens outside admin. */
-function OpensOutside() {
-  return (
-    <ArrowSquareOutIcon
-      weight="regular"
-      size={16}
-      aria-hidden="true"
-      className="workspace-row-reveal"
-    />
-  );
 }
 
 type Row = OpsServiceView & Record<string, unknown>;
@@ -236,7 +213,7 @@ function statusColumns(services: Row[], now: number): Column<Row>[] {
             key: "schedule",
             header: "Schedule",
             width: 128,
-            hideBelow: 1440 as const,
+            hideBelow: "wide" as const,
             render: (row: Row) =>
               row.schedule ? (
                 <Text>{row.schedule}</Text>
@@ -250,7 +227,7 @@ function statusColumns(services: Row[], now: number): Column<Row>[] {
       key: "last_exit",
       header: "Last exit",
       width: 88,
-      hideBelow: 1024,
+      hideBelow: "large",
       render: (row) =>
         row.status.last_exit === null ? (
           <Text color="secondary">None</Text>
@@ -262,15 +239,8 @@ function statusColumns(services: Row[], now: number): Column<Row>[] {
       key: "owner",
       header: "Owner",
       width: 104,
-      hideBelow: 1440,
+      hideBelow: "wide",
       render: (row) => <Text>{row.owner}</Text>,
-    },
-    {
-      key: "opens",
-      header: <Text className="sr-only">Opens</Text>,
-      width: 44,
-      align: "end",
-      render: () => <OpensOutside />,
     },
   ];
 }
@@ -383,7 +353,7 @@ function StatusBody({
           return (
             <WorkspaceSection
               key={group}
-              title={group.charAt(0).toUpperCase() + group.slice(1)}
+              title={sentenceCase(group)}
               meta={`${members.length} ${members.length === 1 ? "entry" : "entries"}`}
             >
               <DataTable
@@ -638,6 +608,19 @@ function eventSecondary(event: OpsEvent) {
   return event.detail ? `${event.subject}, ${event.detail}` : event.subject;
 }
 
+/** A transition's new state, or an access failure's code. A 2xx or 3xx
+ * access needs no chip. */
+function EventState({ event }: { event: OpsEvent }) {
+  if (event.kind === "transition") return <OpsStateBadge state={event.to} />;
+  if (event.kind !== "access" || event.status < 400) return null;
+  return (
+    <StateBadge
+      tone={event.status >= 500 ? "critical" : "warning"}
+      label={String(event.status)}
+    />
+  );
+}
+
 function ActivityBody({ data }: { data: OpsData }) {
   const [source, setSource] = useState("all");
   const catalog = useMemo(
@@ -676,6 +659,8 @@ function ActivityBody({ data }: { data: OpsData }) {
           kind={event.kind === "access" ? "Reader access" : "Transition"}
           title={eventTitle(event, catalog)}
           secondary={eventSecondary(event)}
+          mobile={<EventState event={event} />}
+          time={event.at}
         />
       ),
     },
@@ -683,28 +668,14 @@ function ActivityBody({ data }: { data: OpsData }) {
       key: "state",
       header: "State",
       width: 140,
-      hideBelow: 1024,
-      render: ({ event }) =>
-        event.kind === "transition" ? (
-          <OpsStateBadge state={event.to} />
-        ) : event.kind === "access" ? (
-          <StateBadge
-            tone={
-              event.status >= 500
-                ? "critical"
-                : event.status >= 400
-                  ? "warning"
-                  : "neutral"
-            }
-            label={String(event.status)}
-          />
-        ) : null,
+      hideBelow: "large",
+      render: ({ event }) => <EventState event={event} />,
     },
     {
       key: "source",
       header: "Source",
       width: 176,
-      hideBelow: 1280,
+      hideBelow: "large",
       render: ({ source: id }) => (
         <Text color="secondary">{sourceLabel.get(id) ?? id}</Text>
       ),
@@ -719,17 +690,13 @@ function ActivityBody({ data }: { data: OpsData }) {
   return (
     <VStack gap={5}>
       <FilterBar>
-        <DropdownMenu
-          button={{
-            label:
-              source === "all"
-                ? "Source"
-                : (sourceLabel.get(source) ?? "Source"),
-            tooltip: `Source: ${source === "all" ? "All" : sourceLabel.get(source)}`,
-            size: "sm",
-            variant: "secondary",
-          }}
-          menuWidth="max-content"
+        <FilterMenu
+          label="Source"
+          icon={BroadcastIcon}
+          value={
+            source === "all" ? "All" : (sourceLabel.get(source) ?? "Source")
+          }
+          isActive={source !== "all"}
         >
           <DropdownMenuRadioGroup
             label="Event source"
@@ -741,7 +708,7 @@ function ActivityBody({ data }: { data: OpsData }) {
               <DropdownMenuRadioItem key={id} value={id} label={label} />
             ))}
           </DropdownMenuRadioGroup>
-        </DropdownMenu>
+        </FilterMenu>
       </FilterBar>
       {shown.length ? (
         <DataTable
@@ -832,12 +799,8 @@ export function AlertsTable({
             external={to.external}
             linkLabel={to.label}
             tooltip={row.detail ? `${row.subject}, ${row.detail}` : row.subject}
-            mobile={
-              <>
-                <AlertState row={row} />
-                <RelativeTime value={row.since} />
-              </>
-            }
+            mobile={<AlertState row={row} />}
+            time={row.since}
           />
         );
       },
@@ -861,7 +824,7 @@ export function AlertsTable({
             key: "resolved",
             header: "Resolved",
             width: 112,
-            hideBelow: 1024 as const,
+            hideBelow: "large" as const,
             render: (row: AlertRow) =>
               row.resolvedAt ? (
                 <RelativeTime value={row.resolvedAt} />
@@ -870,14 +833,6 @@ export function AlertsTable({
               ),
           },
         ]),
-    {
-      key: "open",
-      header: <Text className="sr-only">Opens</Text>,
-      width: 44,
-      align: "end",
-      render: (row) =>
-        alertDestination(row).external ? <OpensOutside /> : null,
-    },
   ];
   return (
     <DataTable
@@ -906,7 +861,7 @@ function AlertState({ row }: { row: AlertRow }) {
   return row.status === "firing" ? (
     <OpsStateBadge state={row.state} />
   ) : (
-    <StateBadge tone="positive" label="Resolved" />
+    <StateBadge domain="alert" state="resolved" />
   );
 }
 

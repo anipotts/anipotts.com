@@ -1,20 +1,50 @@
 /**
  * The admin workspace kit: the page header, filter bar, table, row, state
- * badge, notices, loading skeleton, detail panel, times and tier swatch that
- * Content, Data and Observability all render with. Content's library is the
- * reference; every other workspace uses these same pieces so only the data
- * shape differs. Styling lives in workspace.css and reuses the library's
- * classes, so a table looks and behaves the same wherever it appears.
+ * badge, notices, loading skeleton, detail panel, times and tier mark that
+ * Content, Data and Observability all render with. Styling lives in
+ * workspace.css under `workspace-*` names, so a list looks and behaves the
+ * same wherever it appears.
+ *
+ * The API, in the order a page uses it:
+ *
+ * | piece           | what it takes                                          |
+ * |-----------------|--------------------------------------------------------|
+ * | WorkspacePage   | title, count beside the H1, meta, badge, actions       |
+ * | FilterBar       | `search` (live, debounced) and FilterMenu children     |
+ * | FilterMenu      | an icon-only menu: label, current value, isActive      |
+ * | DataTable       | rows and Columns; a column's `hideBelow` names a range |
+ * | RowTitle        | the lead cell: `mark` tile, title, line 2, phone `end` |
+ * |                 | and `time`                                             |
+ * | StateBadge      | `domain` and `state`; default states render no chip    |
+ * | badgeFor        | the one state table: label, tone, isDefault, glyph     |
+ * | StateNotice     | stands in for an empty, unconnected or failed table    |
+ * | RelativeTime    | a live relative time with the absolute one as tooltip  |
+ * | TierMark        | a tier as a globe, shield or lock glyph                |
+ *
+ * Tile tokens for a `mark`: `--row-mark-size` (24px, 28px at compact),
+ * `--row-mark-glyph` (16px, 18px) and `--row-mark-radius` (the badge radius
+ * plus 1px, plus 2px at compact). The page gutter is `--admin-gutter` from
+ * styles/shell.css (12px at compact); compact lists bleed past it.
+ *
+ * Layout ranges come from lib/breakpoints.ts: compact <= 640, medium 641 to
+ * 1023, large 1024 to 1439, wide >= 1440. At compact a table is a full-bleed
+ * list of two-line rows: the lead column only, with the header kept for
+ * assistive technology, and no count strip.
  */
 import React, {
   createContext,
   memo,
+  useCallback,
   useContext,
+  useEffect,
   useId,
+  useMemo,
+  useRef,
+  useState,
   type ReactNode,
 } from "react";
 import { Banner } from "@astryxdesign/core/Banner";
-import { Button } from "@astryxdesign/core/Button";
+import { DropdownMenu } from "@astryxdesign/core/DropdownMenu";
 import { Heading } from "@astryxdesign/core/Heading";
 import { HStack } from "@astryxdesign/core/HStack";
 import {
@@ -23,30 +53,43 @@ import {
 } from "@astryxdesign/core/MetadataList";
 import { Skeleton } from "@astryxdesign/core/Skeleton";
 import { StatusDot } from "@astryxdesign/core/StatusDot";
-import { Table, pixel, proportional } from "@astryxdesign/core/Table";
+import { Table, type TablePlugin } from "@astryxdesign/core/Table";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { Token } from "@astryxdesign/core/Token";
 import { VStack } from "@astryxdesign/core/VStack";
 import {
+  CircleDashedIcon,
+  ClockCounterClockwiseIcon,
   FlaskIcon,
+  GlobeSimpleIcon,
   LinkBreakIcon,
-  MagnifyingGlassIcon,
+  LockSimpleIcon,
+  MoonIcon,
+  ShieldIcon,
   WarningCircleIcon,
   type Icon,
 } from "@phosphor-icons/react";
+import { BREAKPOINTS, isBelow, type Breakpoint } from "../../lib/breakpoints";
 import { relativeAgo, useLiveText } from "../../lib/live-clock";
+import { sentenceCase } from "../../lib/sentence-case";
 import "./workspace.css";
 
-/** Page title, one supporting line and the page's own actions. */
+/** Notice and chip copy never ends on a period. */
+const unpunctuated = (text: string) => text.replace(/\.\s*$/, "");
+
+/** Page title, its count, one supporting line and the page's own actions. */
 export function WorkspacePage({
   title,
+  count,
   meta,
   badge,
   actions,
   children,
 }: {
   title: string;
+  /** How many records the page lists, beside the title. */
+  count?: number;
   /** One short status line, only when the state needs it. */
   meta?: ReactNode;
   /** A chip beside the title, such as Sample data. */
@@ -65,6 +108,11 @@ export function WorkspacePage({
         <VStack gap={1} className="workspace-page-title">
           <HStack gap={3} vAlign="center" wrap="wrap">
             <Heading level={1}>{title}</Heading>
+            {count !== undefined && (
+              <Text color="secondary" className="workspace-count">
+                {count}
+              </Text>
+            )}
             {badge}
           </HStack>
           {meta && (
@@ -124,16 +172,25 @@ export function WorkspaceSection({
   );
 }
 
+/** How long typing rests before a live search runs. */
+export const SEARCH_DEBOUNCE_MS = 200;
+
 type SearchProps = {
   label: string;
+  /** The search that is running, from the page's state or URL. */
   value: string;
+  /** Runs as you type, once typing rests, and at once on Enter. */
   onChange: (value: string) => void;
-  /** Present when the search runs on submit rather than as you type. */
-  onSubmit?: () => void;
+  /** The field's clear button. Defaults to `onChange("")`. */
+  onClear?: () => void;
   isBusy?: boolean;
 };
 
-/** One search field, then the filter and sort menus, on one row. */
+/**
+ * One row: a live search that flexes, then the page's icon-only
+ * FilterMenus. The field shows keystrokes at once and hands the query on
+ * after SEARCH_DEBOUNCE_MS, or immediately on Enter or clear.
+ */
 export function FilterBar({
   search,
   children,
@@ -141,91 +198,198 @@ export function FilterBar({
   search?: SearchProps;
   children?: ReactNode;
 }) {
-  const field = search && (
-    <TextInput
-      className="editorial-library-search"
-      label={search.label}
-      isLabelHidden
-      placeholder={search.label}
-      startIcon="search"
-      value={search.value}
-      onChange={search.onChange}
-      hasClear
-    />
-  );
-  const filters = children && (
-    <HStack
-      gap={2}
-      hAlign="start"
-      vAlign="center"
-      className="editorial-filter-row editorial-library-filters"
-    >
-      {children}
-    </HStack>
-  );
-  if (search?.onSubmit)
-    return (
-      <HStack
-        as="form"
-        role="search"
-        gap={3}
-        wrap="wrap"
-        vAlign="center"
-        className="editorial-library-toolbar workspace-filter-bar"
-        onSubmit={(event: React.FormEvent) => {
-          event.preventDefault();
-          search.onSubmit?.();
-        }}
-      >
-        {field}
-        <HStack
-          gap={2}
-          hAlign="start"
-          vAlign="center"
-          className="editorial-filter-row editorial-library-filters"
-        >
-          <Button
-            type="submit"
-            label="Search"
-            size="sm"
-            variant="secondary"
-            isIconOnly
-            tooltip="Search"
-            icon={<MagnifyingGlassIcon weight="regular" aria-hidden="true" />}
-            isLoading={search.isBusy}
-          />
-          {children}
-        </HStack>
-      </HStack>
-    );
   return (
     <HStack
-      gap={3}
-      wrap="wrap"
+      as={search ? "form" : undefined}
+      role={search ? "search" : undefined}
+      gap={2}
       vAlign="center"
-      className="editorial-library-toolbar workspace-filter-bar"
+      className="workspace-filter-bar"
+      onSubmit={
+        search ? (event: React.FormEvent) => event.preventDefault() : undefined
+      }
     >
-      {field}
-      {filters}
+      {search && <LiveSearch {...search} />}
+      {children && (
+        <HStack gap={1} vAlign="center" className="workspace-filters">
+          {children}
+        </HStack>
+      )}
     </HStack>
   );
 }
 
-/** A column: the renderer, a width, and the widths below which it hides. The
- * first and last columns always show; on phones the row carries the rest. */
+/** A search keyboard with no autocorrection. TextInput forwards no input
+ * attributes, so they go on its input element directly. */
+const SEARCH_HINTS: Record<string, string> = {
+  inputmode: "search",
+  enterkeyhint: "search",
+  autocapitalize: "off",
+  autocorrect: "off",
+  autocomplete: "off",
+  spellcheck: "false",
+};
+function searchHints(input: HTMLInputElement | null) {
+  if (!input) return;
+  for (const [name, value] of Object.entries(SEARCH_HINTS))
+    input.setAttribute(name, value);
+}
+
+function LiveSearch({ label, value, onChange, onClear, isBusy }: SearchProps) {
+  const [draft, setDraft] = useState(value);
+  const sent = useRef(value);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // A timer runs the page's latest handler, not the one from the keystroke.
+  const latest = useRef(onChange);
+  latest.current = onChange;
+  const cancel = () => {
+    if (timer.current !== null) clearTimeout(timer.current);
+    timer.current = null;
+  };
+  /** Typing that lands back on the running query sends nothing; Enter always
+   * runs the search, so it doubles as a refresh. */
+  const send = (next: string, always = false) => {
+    cancel();
+    if (!always && next === sent.current) return;
+    sent.current = next;
+    latest.current(next);
+  };
+  // The page can change the query itself (a reset, back and forward).
+  useEffect(() => {
+    if (value === sent.current) return;
+    cancel();
+    sent.current = value;
+    setDraft(value);
+  }, [value]);
+  useEffect(() => cancel, []);
+  return (
+    <TextInput
+      className="workspace-search"
+      label={label}
+      isLabelHidden
+      placeholder={label}
+      startIcon="search"
+      value={draft}
+      hasClear
+      isLoading={isBusy}
+      ref={searchHints}
+      onChange={(next: string, event: unknown) => {
+        setDraft(next);
+        if (next === "" && event === null) {
+          cancel();
+          sent.current = "";
+          if (onClear) onClear();
+          else onChange("");
+          return;
+        }
+        cancel();
+        timer.current = setTimeout(() => send(next), SEARCH_DEBOUNCE_MS);
+      }}
+      onEnter={() => send(draft, true)}
+    />
+  );
+}
+
+/**
+ * An icon-only filter or sort menu for the FilterBar. Its name and tooltip
+ * read "Status: Draft"; `isActive` marks a choice other than the default.
+ */
+export function FilterMenu({
+  label,
+  value,
+  icon: Glyph,
+  isActive = false,
+  children,
+}: {
+  label: string;
+  /** The current choice, as the menu names it. */
+  value: string;
+  icon: Icon;
+  isActive?: boolean;
+  children: ReactNode;
+}) {
+  const name = `${label}: ${value}`;
+  return (
+    <div className="workspace-filter-menu" data-active={isActive}>
+      <DropdownMenu
+        button={{
+          label: name,
+          tooltip: name,
+          isIconOnly: true,
+          icon: <Glyph weight="regular" aria-hidden="true" />,
+          size: "sm",
+          variant: "ghost",
+        }}
+        hasChevron={false}
+        menuWidth="max-content"
+      >
+        {children}
+      </DropdownMenu>
+    </div>
+  );
+}
+
+/** A column: the renderer, a width, and the range below which it hides. The
+ * lead column always shows; at compact it is the only one, and the row
+ * carries the rest through RowTitle's `mobile`, `end` and `time`. */
 export type Column<T> = {
   key: string;
   header: ReactNode;
   /** Pixels, or omitted to share the remaining width. */
   width?: number;
   align?: "start" | "end";
-  hideBelow?: 1440 | 1280 | 1024;
+  /** Hidden in every range narrower than this one. */
+  hideBelow?: "large" | "wide";
   render: (row: T) => ReactNode;
 };
 
+/** The least a flexible column is given before the table scrolls. */
+const FLEX_MIN_WIDTH = 80;
+
+/** The table's minimum width in each range, from its visible columns only. */
+export function tableMinWidths<T>(
+  columns: readonly Column<T>[],
+): Record<Breakpoint, number> {
+  const at = (range: Breakpoint) =>
+    range === "compact"
+      ? 0
+      : columns
+          .filter(
+            (column) =>
+              column.hideBelow === undefined ||
+              !isBelow(range, column.hideBelow),
+          )
+          .reduce((sum, column) => sum + (column.width ?? FLEX_MIN_WIDTH), 0);
+  return Object.fromEntries(
+    BREAKPOINTS.map((range) => [range, at(range)]),
+  ) as Record<Breakpoint, number>;
+}
+
+/** The scroll wrapper is a tab stop only while its table overflows it. */
+function useOverflow() {
+  const [overflowing, setOverflowing] = useState(false);
+  const observer = useRef<ResizeObserver | null>(null);
+  const ref = useCallback((node: HTMLDivElement | null) => {
+    observer.current?.disconnect();
+    observer.current = null;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const measure = () =>
+      setOverflowing(node.scrollWidth > node.clientWidth + 1);
+    const next = new ResizeObserver(measure);
+    next.observe(node);
+    const table = node.querySelector("table");
+    if (table) next.observe(table);
+    observer.current = next;
+    measure();
+  }, []);
+  return [overflowing, ref] as const;
+}
+
 /**
- * The one table: a raised surface, compact rows with no rules, a sticky
- * header, and a count strip under it that screen readers hear.
+ * The one table: a raised surface on wide screens and a full-bleed list at
+ * compact, compact rows with no rules, and a count strip that screen readers
+ * hear. Widths go on the header cells here rather than through Astryx, so
+ * the table's minimum width counts only the columns each range shows.
  */
 export function DataTable<T extends Record<string, unknown>>({
   rows,
@@ -246,47 +410,85 @@ export function DataTable<T extends Record<string, unknown>>({
   /** Extra non-zero figures after the count. */
   figures?: Array<[label: string, value: number]>;
   footer?: boolean;
-  /** Rows open something: the whole row takes the hover and the click.
+  /** Rows open something: the whole row takes the hover and the tap.
    * Read-only tables (Status, Activity, Alerts) keep rows still. */
   interactive?: boolean;
 }) {
-  const id = useId();
-  const hiding = columns
-    .map((column, index) => [column.hideBelow, index + 1] as const)
-    .filter(([below]) => below !== undefined);
+  const [overflowing, wrapperRef] = useOverflow();
+  const shape = columns
+    .map((column) => `${column.key}:${column.width}:${column.hideBelow}`)
+    .join(",");
+  const plugin = useMemo((): TablePlugin<T> => {
+    const byKey = new Map(columns.map((column) => [column.key, column]));
+    const hiding = (key: string) => {
+      const below = byKey.get(key)?.hideBelow;
+      return below ? { "data-hide-below": below } : {};
+    };
+    return {
+      transformHeaderCell: (props, column) => {
+        const width = byKey.get(column.key)?.width;
+        return {
+          ...props,
+          htmlProps: {
+            ...props.htmlProps,
+            ...hiding(column.key),
+            style: {
+              ...props.htmlProps.style,
+              ...(width === undefined
+                ? { width: "auto", minWidth: FLEX_MIN_WIDTH }
+                : { width, minWidth: width }),
+            },
+          } as typeof props.htmlProps,
+        };
+      },
+      transformBodyCell: (props, column) => ({
+        ...props,
+        htmlProps: {
+          ...props.htmlProps,
+          ...hiding(column.key),
+        } as typeof props.htmlProps,
+      }),
+      transformScrollWrapper: (props) => ({
+        ...props,
+        htmlProps: {
+          ...props.htmlProps,
+          ref: wrapperRef,
+          tabIndex: overflowing ? 0 : undefined,
+          role: overflowing ? "group" : undefined,
+          "aria-label": overflowing ? label : undefined,
+        },
+      }),
+    };
+    // `shape` stands for the columns: consumers rebuild them every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shape, overflowing, label, wrapperRef]);
+  const minimum = tableMinWidths(columns);
+  const frameStyle = Object.fromEntries(
+    BREAKPOINTS.map((range) => [
+      `--workspace-table-min-${range}`,
+      `${minimum[range]}px`,
+    ]),
+  ) as React.CSSProperties;
+  const count = `${rows.length} ${rows.length === 1 ? noun[0] : noun[1]}`;
   return (
     <VStack
       gap={0}
-      className="admin-table-surface workspace-table"
+      className="workspace-table"
       data-footer={footer ? "true" : "false"}
       data-interactive={interactive ? "true" : "false"}
     >
-      {hiding.length > 0 && (
-        <style>
-          {hiding
-            .map(
-              ([below, nth]) =>
-                `@media (max-width:${below! - 1}px){[data-workspace-table="${id}"] :is(th,td):nth-child(${nth}){display:none}}`,
-            )
-            .join("")}
-        </style>
-      )}
-      <div data-workspace-table={id} className="workspace-table-frame">
+      <div className="workspace-table-frame" style={frameStyle}>
         <Table
-          className="editorial-record-table"
+          className="workspace-table-grid"
           data={rows}
           idKey={rowKey}
           density="compact"
           dividers="none"
-          hasHover={interactive}
           aria-label={label}
+          plugins={{ workspace: plugin }}
           columns={columns.map((column) => ({
             key: column.key,
             header: column.header,
-            width:
-              column.width === undefined
-                ? proportional(1, { minWidth: 80 })
-                : pixel(column.width),
             align: column.align,
             renderCell: column.render,
           }))}
@@ -297,25 +499,17 @@ export function DataTable<T extends Record<string, unknown>>({
           gap={5}
           wrap="wrap"
           vAlign="center"
-          className="admin-table-footer"
+          className="workspace-table-footer"
         >
           <Text
             type="supporting"
             color="secondary"
             role="status"
             aria-live="polite"
-            aria-label={`${rows.length} ${rows.length === 1 ? noun[0] : noun[1]}`}
-            className="editorial-record-count"
+            aria-label={count}
+            className="workspace-table-count"
           >
-            {rows.length}
-            <Text
-              type="supporting"
-              color="secondary"
-              className="editorial-record-count-label"
-            >
-              {" "}
-              {rows.length === 1 ? noun[0] : noun[1]} in view
-            </Text>
+            {count} in view
           </Text>
           {figures
             ?.filter(([, value]) => value > 0)
@@ -324,7 +518,7 @@ export function DataTable<T extends Record<string, unknown>>({
                 key={name}
                 type="supporting"
                 color="secondary"
-                className="admin-table-figure"
+                className="workspace-table-figure"
               >
                 <strong>{value}</strong> {name}
               </Text>
@@ -335,10 +529,19 @@ export function DataTable<T extends Record<string, unknown>>({
   );
 }
 
-/** A row's lead cell: glyph, title, one secondary line, and on phones the
- * meta the hidden columns carry on wider screens. */
+/**
+ * A row's lead cell. Line 1 is the mark tile, the title and, at compact, the
+ * `end` slot and a right-aligned time. Line 2 is `secondary` at every width
+ * and, at compact, `mobile` before it: only what adds information there.
+ *
+ * `mark` fills the tile: a BrandTile, or any node sized to the slot. The slot
+ * sets `--row-mark-size` (24px, 28px at compact), `--row-mark-glyph` and
+ * `--row-mark-radius`, and paints the neutral fill a full-bleed app icon
+ * covers. Without a mark, `icon` draws a Phosphor glyph in the same tile.
+ */
 export function RowTitle({
   icon: Glyph,
+  mark,
   kind,
   title,
   href,
@@ -347,30 +550,39 @@ export function RowTitle({
   controls,
   secondary,
   mobile,
+  end,
+  time,
   external = false,
   linkLabel,
   tooltip,
   anchorId,
 }: {
-  icon: Icon;
-  /** The row's kind, as a tooltip and for assistive technology. */
+  icon?: Icon;
+  mark?: ReactNode;
+  /** The row's kind, as the tile's tooltip and for assistive technology. */
   kind: string;
   title: string;
   /** The row's destination. The whole row opens it; the link itself wraps
-   * only the title text, so its focus ring fits the text. */
+   * only the title text. */
   href?: string;
   /** Opens the row in place. With an href, a plain click opens in place and
    * a modified click (new tab) follows the link. */
   onSelect?: (trigger: HTMLElement) => void;
   isPressed?: boolean;
   controls?: string;
+  /** Line 2 at every width. */
   secondary?: ReactNode;
+  /** Line 2 at compact, before `secondary`: a non-default state, a reason. */
   mobile?: ReactNode;
+  /** Line 1's trailing slot at compact, before the time. */
+  end?: ReactNode;
+  /** Line 1's right-aligned time at compact. */
+  time?: string | number | null;
   /** The destination is outside admin: it opens in a new tab. */
   external?: boolean;
   /** The link's accessible name when it differs from the title. */
   linkLabel?: string;
-  /** Extra detail on hover, kept out of the row so rows stay one line. */
+  /** Extra detail on hover, kept out of the row so rows stay short. */
   tooltip?: string;
   /** An id for the row, so other pages can link to it. */
   anchorId?: string;
@@ -390,72 +602,77 @@ export function RowTitle({
         onSelect(event.currentTarget);
       }
     : undefined;
-  const label = <span className="record-link-text">{title}</span>;
+  const label = <span className="workspace-row-title">{title}</span>;
+  const trailing = (end != null || time != null) && (
+    <Text type="supporting" color="secondary" className="workspace-row-end">
+      {end}
+      {time != null && <RelativeTime value={time} />}
+    </Text>
+  );
   return (
-    <HStack
-      gap={3}
-      vAlign="center"
-      className="editorial-record-heading"
-      id={anchorId}
-    >
-      <span className="editorial-record-icon" title={kind}>
-        <Glyph weight="regular" size={20} aria-hidden="true" />
-        <Text className="sr-only">{kind}</Text>
-      </span>
-      <VStack gap={0} className="editorial-record-content">
-        {href ? (
-          <a
-            href={href}
-            className="record-link"
-            data-row-link=""
-            target={external ? "_blank" : undefined}
-            rel={external ? "noopener noreferrer" : undefined}
-            referrerPolicy={external ? "no-referrer" : undefined}
-            aria-label={linkLabel}
-            title={tooltip}
-            onClick={select}
-            aria-current={onSelect && isPressed ? "true" : undefined}
-            aria-controls={controls}
+    <div className="workspace-row" id={anchorId}>
+      {(mark || Glyph) && (
+        <span className="workspace-row-mark" title={kind}>
+          {mark ?? (Glyph && <Glyph weight="regular" aria-hidden="true" />)}
+          <span className="sr-only">{kind}</span>
+        </span>
+      )}
+      <div className="workspace-row-body">
+        <div className="workspace-row-line">
+          {href ? (
+            <a
+              href={href}
+              className="workspace-row-link"
+              data-row-link=""
+              target={external ? "_blank" : undefined}
+              rel={external ? "noopener noreferrer" : undefined}
+              referrerPolicy={external ? "no-referrer" : undefined}
+              aria-label={linkLabel}
+              title={tooltip}
+              onClick={select}
+              aria-current={onSelect && isPressed ? "true" : undefined}
+              aria-controls={controls}
+            >
+              {label}
+            </a>
+          ) : onSelect ? (
+            <button
+              type="button"
+              className="workspace-row-link"
+              data-row-link=""
+              title={tooltip}
+              onClick={select}
+              aria-pressed={isPressed}
+              aria-controls={controls}
+            >
+              {label}
+            </button>
+          ) : (
+            <span className="workspace-row-text" title={tooltip}>
+              {label}
+            </span>
+          )}
+          {trailing}
+        </div>
+        {(secondary || mobile) && (
+          <div
+            className="workspace-row-meta"
+            data-compact-only={secondary ? undefined : "true"}
           >
-            {label}
-          </a>
-        ) : onSelect ? (
-          <button
-            type="button"
-            className="record-link"
-            data-row-link=""
-            onClick={select}
-            aria-pressed={isPressed}
-            aria-controls={controls}
-          >
-            {label}
-          </button>
-        ) : (
-          <Text weight="medium" className="workspace-row-title">
-            {title}
-          </Text>
+            {mobile && <span className="workspace-row-detail">{mobile}</span>}
+            {secondary && (
+              <Text
+                type="supporting"
+                color="secondary"
+                className="workspace-row-secondary"
+              >
+                {secondary}
+              </Text>
+            )}
+          </div>
         )}
-        {secondary && (
-          <Text
-            type="supporting"
-            color="secondary"
-            className="workspace-row-secondary"
-          >
-            {secondary}
-          </Text>
-        )}
-        {mobile && (
-          <HStack
-            gap={2}
-            wrap="wrap"
-            vAlign="center"
-            className="editorial-mobile-status"
-          >
-            {mobile}
-          </HStack>
-        )}
-      </VStack>
-    </HStack>
+      </div>
+    </div>
   );
 }
 
@@ -494,26 +711,105 @@ const TONES: Record<
   calm: { color: "default", dot: "neutral" },
 };
 
-/** The one status chip. The label is always text; the dot adds colour and
- * is hidden from assistive technology. */
-export function StateBadge({
-  tone,
-  label,
-  icon,
-}: {
-  tone: Tone;
+type Badge = {
   label: string;
-  icon?: ReactNode;
-}) {
-  const { color, dot } = TONES[tone];
+  tone: Tone;
+  /** The state a record is normally in. It gets no chip, only its name for
+   * assistive technology, so a chip always means an exception. */
+  isDefault?: true;
+  icon?: Icon;
+};
+
+/** Every workspace state, once. Unlisted states read as neutral exceptions. */
+const BADGES = {
+  content: {
+    published: { label: "Published", tone: "positive", isDefault: true },
+    listed: { label: "Listed", tone: "positive", isDefault: true },
+    featured: { label: "Featured", tone: "positive" },
+    scheduled: { label: "Scheduled", tone: "neutral" },
+    draft: { label: "Draft", tone: "neutral" },
+    hidden: { label: "Hidden from site", tone: "neutral" },
+  },
+  ops: {
+    ok: { label: "OK", tone: "positive", isDefault: true },
+    degraded: { label: "Degraded", tone: "warning" },
+    failing: { label: "Failing", tone: "critical" },
+    stale: {
+      label: "Stale",
+      tone: "warning",
+      icon: ClockCounterClockwiseIcon,
+    },
+    asleep: { label: "Asleep", tone: "calm", icon: MoonIcon },
+    unknown: { label: "Unknown", tone: "neutral" },
+  },
+  record: {
+    observed: { label: "Observed", tone: "neutral", isDefault: true },
+    confirmed: { label: "Confirmed", tone: "positive" },
+    superseded: { label: "Superseded", tone: "calm" },
+  },
+  freshness: {
+    fresh: { label: "Fresh", tone: "positive", isDefault: true },
+    stale: {
+      label: "Stale",
+      tone: "warning",
+      icon: ClockCounterClockwiseIcon,
+    },
+  },
+  alert: {
+    firing: { label: "Firing", tone: "critical" },
+    resolved: { label: "Resolved", tone: "neutral" },
+  },
+} satisfies Record<string, Record<string, Badge>>;
+
+export type BadgeDomain = keyof typeof BADGES;
+
+/** A state's label, tone and whether it is the default, from one table. */
+export function badgeFor(domain: BadgeDomain, state: string): Badge {
+  return (
+    (BADGES[domain] as Record<string, Badge>)[state] ?? {
+      label: sentenceCase(state || "unknown"),
+      tone: "neutral",
+    }
+  );
+}
+
+/**
+ * The one status chip. With a `domain` and `state` it reads the badge table
+ * and renders nothing visible for a default state (Published, OK, Observed),
+ * only its name for assistive technology. With `tone` and `label` it always
+ * renders. The label is always text; the dot adds colour and is hidden from
+ * assistive technology.
+ */
+export function StateBadge(
+  props:
+    | { domain: BadgeDomain; state: string; tone?: never; label?: never }
+    | { tone: Tone; label: string; icon?: ReactNode; domain?: never },
+) {
+  const badge: Badge =
+    props.domain !== undefined
+      ? badgeFor(props.domain, props.state)
+      : { tone: props.tone, label: props.label };
+  if (badge.isDefault) return <span className="sr-only">{badge.label}</span>;
+  const { color, dot } = TONES[badge.tone];
+  const Glyph = badge.icon;
+  const custom = props.domain === undefined ? props.icon : undefined;
   return (
     <Token
       size="sm"
       color={color}
-      label={label}
+      label={badge.label}
       className="workspace-state"
       icon={
-        icon ?? <StatusDot variant={dot} label={label} aria-hidden="true" />
+        custom ??
+        (Glyph ? (
+          <Glyph
+            weight="regular"
+            aria-hidden="true"
+            className="workspace-state-mark"
+          />
+        ) : (
+          <StatusDot variant={dot} label={badge.label} aria-hidden="true" />
+        ))
       }
     />
   );
@@ -521,7 +817,7 @@ export function StateBadge({
 
 type NoticeKind = "empty" | "not-connected" | "error";
 const NOTICE_ICONS: Record<NoticeKind, Icon> = {
-  empty: MagnifyingGlassIcon,
+  empty: CircleDashedIcon,
   "not-connected": LinkBreakIcon,
   error: WarningCircleIcon,
 };
@@ -554,7 +850,7 @@ export function StateNotice({
       </span>
       <VStack gap={1} className="workspace-notice-text">
         <Heading level={level} className="workspace-notice-title">
-          {title}
+          {unpunctuated(title)}
         </Heading>
         {action && (
           <HStack gap={2} wrap="wrap" className="workspace-notice-action">
@@ -582,15 +878,15 @@ export function InlineNotice({
     <Banner
       status={tone}
       container="section"
-      title={title}
+      title={unpunctuated(title)}
       icon={<Glyph weight="regular" />}
       endContent={action}
     />
   );
 }
 
-/** Loading rows shaped like the table that replaces them. Only the status
- * is spoken; Astryx Skeleton honours reduced motion. */
+/** Loading rows shaped like the rows that replace them, tile and all. Only
+ * the status is spoken; Astryx Skeleton honours reduced motion. */
 export function LoadingSkeleton({
   label,
   rows = 6,
@@ -605,21 +901,10 @@ export function LoadingSkeleton({
       gap={0}
       role="status"
       aria-label={`Loading ${label}`}
-      className="admin-table-surface workspace-skeleton"
+      className="workspace-skeleton"
     >
       <Text className="sr-only">Loading {label}</Text>
       <VStack gap={0} aria-hidden="true">
-        <HStack gap={4} className="workspace-skeleton-row" vAlign="center">
-          <Skeleton width="18%" height="var(--spacing-3)" />
-          {Array.from({ length: columns - 1 }, (_, index) => (
-            <Skeleton
-              key={index}
-              width="12%"
-              height="var(--spacing-3)"
-              className="workspace-skeleton-cell"
-            />
-          ))}
-        </HStack>
         {Array.from({ length: rows }, (_, row) => (
           <HStack
             key={row}
@@ -629,17 +914,16 @@ export function LoadingSkeleton({
           >
             <HStack gap={3} vAlign="center" className="workspace-skeleton-lead">
               <Skeleton
-                width="var(--spacing-5)"
-                height="var(--spacing-5)"
+                width="var(--row-mark-size)"
+                height="var(--row-mark-size)"
+                radius={1}
                 index={row}
               />
-              <VStack gap={1} className="workspace-skeleton-lead-text">
-                <Skeleton
-                  width={`${60 - (row % 3) * 12}%`}
-                  height="var(--spacing-4)"
-                  index={row}
-                />
-              </VStack>
+              <Skeleton
+                width={`${60 - (row % 3) * 12}%`}
+                height="var(--spacing-4)"
+                index={row}
+              />
             </HStack>
             {Array.from({ length: columns - 1 }, (_, index) => (
               <Skeleton
@@ -731,7 +1015,7 @@ function LiveAgo({ at }: { at: number }) {
 
 /** A time as people read it: relative and live from the one shared clock,
  * with the absolute local and UTC time as its tooltip and accessible name.
- * Never a raw ISO string. */
+ * Never a raw ISO string. Tabular and on one line. */
 function RelativeTimeCell({
   value,
   empty = "Not recorded",
@@ -776,11 +1060,22 @@ export const RelativeTime = memo(
     previous.label === next.label,
 );
 
-/** A record's classification as a small swatch. The name is the swatch's
- * accessible name and tooltip, never visible text. */
-export function TierSwatch({ tier }: { tier: string | null | undefined }) {
+const TIER_GLYPHS: Record<string, Icon> = {
+  open: GlobeSimpleIcon,
+  public: GlobeSimpleIcon,
+  restricted: ShieldIcon,
+  internal: ShieldIcon,
+  private: LockSimpleIcon,
+  closed: LockSimpleIcon,
+};
+
+/** A record's classification as a glyph: a globe when open, a shield when
+ * restricted, a lock when private. The name is its accessible name and
+ * tooltip, never visible text. */
+export function TierMark({ tier }: { tier: string | null | undefined }) {
   if (!tier) return null;
-  const name = `${tier.charAt(0).toUpperCase()}${tier.slice(1)} tier`;
+  const name = `${sentenceCase(tier)} tier`;
+  const Glyph = TIER_GLYPHS[tier.toLowerCase()] ?? CircleDashedIcon;
   return (
     <span
       className="workspace-tier"
@@ -788,7 +1083,9 @@ export function TierSwatch({ tier }: { tier: string | null | undefined }) {
       role="img"
       aria-label={name}
       title={name}
-    />
+    >
+      <Glyph weight="regular" aria-hidden="true" />
+    </span>
   );
 }
 
@@ -797,7 +1094,7 @@ export function SampleBadge() {
   return (
     <Token
       size="sm"
-      color="orange"
+      color="default"
       label="Sample data"
       className="workspace-sample"
       icon={<FlaskIcon weight="regular" size={14} aria-hidden="true" />}

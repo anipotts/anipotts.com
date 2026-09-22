@@ -92,8 +92,19 @@ describe("Status view from System's fixture", () => {
     for (const [id, label] of Object.entries(expected)) {
       const state = stateCell(rowFor(host, id)!);
       expect(state.textContent).toContain(label);
-      const dot = state.querySelector('[role="img"]')!;
-      expect(dot.getAttribute("aria-hidden")).toBe("true");
+      // OK is the default: its name is spoken, and no chip is drawn.
+      if (label === "OK") {
+        expect(state.querySelector(".workspace-state")).toBeNull();
+        continue;
+      }
+      const dot = state.querySelector('[role="img"]');
+      if (dot) expect(dot.getAttribute("aria-hidden")).toBe("true");
+      else
+        expect(
+          state
+            .querySelector("svg.workspace-state-mark")
+            ?.getAttribute("aria-hidden"),
+        ).toBe("true");
     }
     expect(host.querySelector(".ops-summary")?.textContent).toBe(
       "14 entries: 10 ok, 1 degraded, 1 failing, 1 stale, 1 unknown",
@@ -118,9 +129,9 @@ describe("Status view from System's fixture", () => {
     expect(
       unknown.querySelector("[data-variant]")?.getAttribute("data-variant"),
     ).toBe("neutral");
-    expect(
-      ok.querySelector("[data-variant]")?.getAttribute("data-variant"),
-    ).toBe("success");
+    // OK draws no chip at all, so nothing else can borrow its look.
+    expect(ok.querySelector("[data-variant]")).toBeNull();
+    expect(ok.textContent).toContain("OK");
     expect(unknown.textContent).not.toContain("OK");
     for (const state of OPS_V1_STATES.filter((value) => value !== "ok"))
       expect(STATE_PRESENTATION[state].variant).not.toBe("success");
@@ -160,7 +171,6 @@ describe("Status view from System's fixture", () => {
       "Schedule",
       "Last exit",
       "Owner",
-      "Opens",
     ]);
     expect(cell(host, "pc.writer", "Schedule").textContent).toBe("hourly");
     expect(cell(host, "health.ingest", "Schedule").textContent).toBe(
@@ -168,7 +178,9 @@ describe("Status view from System's fixture", () => {
     );
     expect(cell(host, "pc.writer", "Last exit").textContent).toBe("0");
     expect(cell(host, "pc.writer", "Owner").textContent).toBe("memory");
-    const link = rowFor(host, "pc.writer")!.querySelector("a.record-link")!;
+    const link = rowFor(host, "pc.writer")!.querySelector(
+      "a.workspace-row-link",
+    )!;
     expect(link.getAttribute("href")).toBe(
       "https://github.com/anipotts/system/blob/main/docs/runbooks/ops-mini.md",
     );
@@ -251,7 +263,7 @@ describe("Status view edge cases", () => {
     expect(cell(host, "web.site", "Schedule").textContent).toBe("Not set");
     expect(
       rowFor(host, "web.site")!
-        .querySelector("a.record-link")
+        .querySelector("a.workspace-row-link")
         ?.getAttribute("href"),
     ).toBe("https://example.com/runbook");
     expect(groupTitles(host).at(-1)).toBe("A brand new group");
@@ -284,11 +296,11 @@ describe("Status view edge cases", () => {
     const failing = stateCell(rowFor(host, "pc.inference")!);
     expect(asleep.textContent).toContain("Asleep");
     expect(asleep.querySelector("[data-variant]")).toBeNull();
-    expect(asleep.querySelector("svg.ops-asleep-mark")).not.toBeNull();
+    expect(asleep.querySelector("svg.workspace-state-mark")).not.toBeNull();
     expect(
       unknown.querySelector("[data-variant]")?.getAttribute("data-variant"),
     ).toBe("neutral");
-    expect(unknown.querySelector("svg.ops-asleep-mark")).toBeNull();
+    expect(unknown.querySelector("svg.workspace-state-mark")).toBeNull();
     expect(
       failing.querySelector("[data-variant]")?.getAttribute("data-variant"),
     ).toBe("error");
@@ -309,8 +321,10 @@ describe("Status view edge cases", () => {
       "Generated 30s ago",
     );
     expect(
-      within.querySelector('tbody [data-variant="success"]'),
-    ).not.toBeNull();
+      [...within.querySelectorAll("tbody .ops-state")].some(
+        (label) => label.textContent === "OK",
+      ),
+    ).toBe(true);
 
     const host = document.createElement("div");
     host.innerHTML = at(7);
@@ -373,7 +387,7 @@ describe("Status connection states", () => {
       root.render(<ObservabilityWorkspace enabled={false} />),
     );
     expect(host.textContent).toContain("Not connected");
-    expect(host.textContent).toContain("Not connected.");
+    expect(host.textContent).toContain("Not connected");
     expect(host.querySelector("table")).toBeNull();
     await act(() => vi.advanceTimersByTimeAsync(OPS_POLL_MS * 2));
     expect(fetch).not.toHaveBeenCalled();
@@ -440,7 +454,7 @@ describe("Status connection states", () => {
     );
     await act(() => vi.advanceTimersByTimeAsync(0));
     expect(host.textContent).toContain("Not connected");
-    expect(host.textContent).toContain("Not connected.");
+    expect(host.textContent).toContain("Not connected");
     const retry = [...host.querySelectorAll("button")].find(
       (button) => button.textContent === "Try again",
     );
@@ -484,7 +498,7 @@ describe("Status connection states", () => {
     );
     await act(() => vi.advanceTimersByTimeAsync(0));
     expect(host.textContent).toContain("No snapshot yet");
-    expect(host.textContent).toContain("No snapshot yet.");
+    expect(host.textContent).toContain("No snapshot yet");
     expect(host.querySelector("table")).toBeNull();
     expect(
       [...host.querySelectorAll("button")].some(
@@ -501,7 +515,7 @@ describe("Status connection states", () => {
     );
     await act(() => vi.advanceTimersByTimeAsync(0));
     expect(host.textContent).toContain("Access refused");
-    expect(host.textContent).toContain("Access refused.");
+    expect(host.textContent).toContain("Access refused");
     expect(host.querySelector("table")).toBeNull();
     await act(() => vi.advanceTimersByTimeAsync(OPS_POLL_MS * 3));
     expect(reply).toHaveBeenCalledTimes(1);
@@ -543,7 +557,7 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
   const rows = (host: HTMLElement) =>
     [...host.querySelectorAll("tbody tr")].map(
       (row) =>
-        `${row.textContent ?? ""} ${row.querySelector("a.record-link")?.getAttribute("title") ?? ""}`,
+        `${row.textContent ?? ""} ${row.querySelector("a.workspace-row-link")?.getAttribute("title") ?? ""}`,
     );
 
   it("lists every event newest first, with access rows as route, status and latency", () => {
@@ -629,7 +643,9 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
       (element) => element.getAttribute("data-variant"),
     );
     expect(variants).toContain("error");
-    expect(variants).toContain("success");
+    // Resolved is neutral, never the green of OK.
+    expect(variants).not.toContain("success");
+    expect(variants).toContain("neutral");
   });
 
   it("shows only a notice while ops reads are off", () => {

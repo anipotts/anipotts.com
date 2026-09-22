@@ -1,467 +1,14 @@
 /* The workspace kit: tables, rows, the filter bar, counts, notices,
    skeletons, detail panels and tiles, shared by Content, Data and
    Observability. Depth comes from surface tint and spacing, never from
-   rules. */
-.record-link {
-  max-width: 100%;
-  height: auto;
-  text-align: left;
-  justify-content: flex-start;
-  white-space: normal;
-}
-.record-link span {
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
+   rules, and focus is a tint, never a ring.
 
-.editorial-mobile-status {
-  display: none;
-}
+   Media queries use lib/breakpoints.ts and nothing else:
+   compact (max-width: 640px), medium from 641px, large from 1024px
+   (max-width: 1023px below it), wide from 1440px (max-width: 1439px below).
+   Hover tints apply only under (hover: hover). */
 
-.editorial-content .astryx-table-header-cell,
-.editorial-content .astryx-table-cell {
-  padding-inline: var(--spacing-3);
-}
-
-.editorial-record-table .record-link {
-  padding-inline: 0;
-}
-.editorial-record-heading .record-link {
-  min-width: 0;
-  flex: 0 1 auto;
-}
-.editorial-record-heading > .astryx-token {
-  flex-shrink: 0;
-}
-.editorial-record-count {
-  white-space: nowrap;
-}
-
-/* Surface ladder: the canvas, then a raised table, then tinted chips inside
-   it. Depth comes from tint, never from rules. The Astryx scroll wrapper is
-   the raised element, so rounded corners clip row hover tints. */
-
-.workspace-table .astryx-table-scroll-wrapper {
-  background: var(--color-background-surface);
-  border-radius: var(--radius-container);
-  padding-block: var(--spacing-1);
-}
-.workspace-table .astryx-table-cell:first-child,
-.workspace-table .astryx-table-header-cell:first-child {
-  padding-inline-start: var(--spacing-4);
-}
-.workspace-table .astryx-table-cell:last-child,
-.workspace-table .astryx-table-header-cell:last-child {
-  padding-inline-end: var(--spacing-4);
-}
-
-/* Summary strip under a table: the count that screen readers hear, then the
-   figures that describe what is in view. */
-.admin-table-footer {
-  padding-inline: var(--spacing-4);
-  font-variant-numeric: tabular-nums;
-}
-/* The table and its summary share one surface and no stack gap. Keep the
-   container unclipped so the table header and summary can remain sticky. */
-.admin-table-surface {
-  min-width: 0;
-  max-width: 100%;
-  background: var(--color-background-surface);
-  border-radius: var(--radius-container);
-}
-.admin-table-surface .astryx-table-scroll-wrapper {
-  border-end-start-radius: 0;
-  border-end-end-radius: 0;
-  padding-block-end: 0;
-}
-/* The library's strip stays on screen while its rows scroll, so what is in
-   view is always readable against the list it describes. */
-.admin-table-surface .admin-table-footer {
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
-  padding-block: var(--spacing-2);
-  background: var(--color-background-surface);
-  border-end-start-radius: var(--radius-container);
-  border-end-end-radius: var(--radius-container);
-  box-sizing: border-box;
-  min-width: 0;
-  flex-wrap: wrap;
-}
-.admin-table-footer .admin-table-figure strong {
-  font-weight: var(--font-weight-medium, 500);
-  color: var(--color-text-primary);
-}
-.editorial-filter-row {
-  flex-wrap: nowrap;
-  width: 100%;
-}
-.editorial-filter-row > * {
-  min-width: 0;
-}
-.editorial-record-count {
-  flex-shrink: 0;
-}
-
-/* Keep the date column on phones; status stays with its record title. */
-@media (max-width: 480px) {
-  .editorial-filter-row {
-    gap: var(--spacing-1);
-  }
-  .editorial-record-count-label {
-    display: none;
-  }
-  .workspace-table .editorial-record-table {
-    min-width: 0 !important;
-  }
-  .workspace-table .editorial-record-table th:first-child {
-    width: auto !important;
-    min-width: 0 !important;
-  }
-  .workspace-table .editorial-mobile-status {
-    display: flex;
-  }
-}
-
-/* Content inventory emphasizes the next decision over repeated public-state badges. */
-.record-decision-link {
-  padding-inline: 0;
-}
-.editorial-record-summary {
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-}
-
-/* Consistent top baselines and a compact, responsive return-to-work strip. */
-.editorial-record-table .astryx-table-cell {
-  vertical-align: top;
-  padding-block: var(--spacing-3);
-}
-.editorial-record-table .astryx-timestamp {
-  display: inline-block;
-  padding-block: var(--spacing-2);
-  white-space: nowrap;
-}
-.editorial-record-heading {
-  min-height: var(--size-element-sm);
-}
-.editorial-record-heading > .astryx-text {
-  flex-shrink: 0;
-}
-.editorial-record-content,
-.editorial-record-decision {
-  align-items: stretch;
-}
-.editorial-record-decision .record-decision-link {
-  justify-content: flex-start;
-}
-
-/* Quiet Precision libraries: broad frame, one toolbar, aligned record metadata. */
-
-.editorial-library-toolbar {
-  width: 100%;
-  flex-wrap: wrap;
-  align-items: center;
-}
-.editorial-library-toolbar > .astryx-field {
-  flex: 0 1 calc(var(--spacing-12) * 5);
-  min-width: min(100%, calc(var(--spacing-12) * 4));
-}
-.editorial-library-filters {
-  flex: 1 1 auto;
-  width: auto;
-  flex-wrap: wrap;
-  align-items: center;
-}
-/* The row is as tall as the 36px action target it must carry, and no taller.
-   Its cells still hold their own inset, so nothing sits flush against a row
-   edge. */
-.workspace-table .editorial-record-table .astryx-table-cell {
-  vertical-align: middle;
-  padding-block: var(--spacing-1);
-}
-/* The action cell carries the row's tallest control, so its own inset would
-   only make every row taller. */
-.workspace-table .editorial-record-table .astryx-table-cell:last-child {
-  padding-block: 0;
-}
-/* The header stays with the rows while a long library scrolls. */
-.workspace-table .editorial-record-table .astryx-table-header-cell {
-  position: sticky;
-  z-index: 1;
-  top: 0;
-  padding-block: var(--spacing-2);
-  background: var(--color-background-surface);
-}
-.workspace-table .editorial-record-summary {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.editorial-record-icon {
-  /* Holds the record kind as a tooltip and as sr-only text, so the kind
-     survives a row whose summary has replaced its section label. */
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  flex: 0 0 var(--spacing-5);
-  width: var(--spacing-5);
-  height: var(--spacing-5);
-  color: var(--color-text-secondary);
-}
-.workspace-table .editorial-record-table .astryx-timestamp {
-  padding-block: 0;
-}
-.editorial-record-state {
-  align-items: flex-start;
-}
-.editorial-record-state .astryx-token {
-  width: max-content;
-  max-width: 100%;
-}
-.editorial-record-action {
-  flex-shrink: 0;
-  min-width: var(--spacing-9);
-  min-height: var(--spacing-9);
-}
-/* One record is one line. Columns drop from the least load-bearing inward as
-   the table narrows: first the summary, then the kind, and on phones the row
-   carries its state and time under the title instead. */
-.workspace-table .editorial-record-table .astryx-table-cell,
-.workspace-table .editorial-record-table .astryx-table-header-cell {
-  white-space: nowrap;
-}
-.workspace-table .editorial-record-summary,
-.workspace-table .editorial-record-state-detail {
-  display: block;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.workspace-table .editorial-record-state {
-  min-width: 0;
-}
-/* The state chip keeps its full label; the sentence beside it truncates.
-   Astryx sizes both through StyleX, which these repeats outrank. */
-.workspace-table
-  .editorial-record-state
-  > .astryx-token:not(#\#):not(#\#):not(#\#) {
-  flex: 0 0 auto;
-}
-.workspace-table .editorial-record-state-detail:not(#\#):not(#\#):not(#\#) {
-  flex: 0 1 auto;
-  min-width: 0;
-}
-/* One row, one line: the title ellipsizes inside its own column. */
-.workspace-table .editorial-record-heading {
-  min-height: 0;
-}
-/* The title column's content fills its cell, so the title ellipsizes against
-   the column's width rather than its own text. */
-.workspace-table .editorial-record-content:not(#\#):not(#\#) {
-  flex: 1 1 auto;
-  width: 100%;
-  min-width: 0;
-}
-/* Rows are the click target: the title link wraps only its text, with a
-   focus ring that fits it, and a stretched hit area covers the row. Other
-   controls in the row sit above it. One subtle tint marks the hovered row. */
-.workspace-table .editorial-record-table tr {
-  position: relative;
-}
-.workspace-table .record-link {
-  position: static;
-  display: inline-flex;
-  max-width: 100%;
-  min-width: 0;
-  padding: 0;
-  margin: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  font-weight: var(--font-weight-medium, 500);
-  line-height: var(--spacing-6);
-  color: var(--color-text-primary);
-  text-align: start;
-  text-decoration: none;
-  cursor: pointer;
-  border-radius: var(--radius-element);
-}
-.workspace-table .record-link::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-}
-.workspace-table .record-link:focus-visible {
-  outline: 2px solid var(--color-focus-ring, var(--color-accent));
-  outline-offset: 2px;
-}
-.workspace-table .record-link-text {
-  display: block;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.workspace-table .editorial-record-table td :is(a, button):not(.record-link),
-.workspace-table .editorial-record-table td [role="button"] {
-  position: relative;
-  z-index: 1;
-}
-.workspace-table[data-interactive="true"] tbody tr:hover {
-  cursor: pointer;
-}
-.workspace-table[data-interactive="false"] .editorial-record-table tr {
-  position: static;
-}
-.workspace-table .editorial-record-kind {
-  width: max-content;
-  color: var(--color-text-secondary);
-}
-/* The row's own action reads as clutter repeated down the page. It appears on
-   hover, on keyboard focus, and wherever hover does not exist. */
-@media (hover: hover) and (pointer: fine) {
-  .workspace-table .editorial-record-table .editorial-record-action {
-    opacity: 0;
-  }
-  .workspace-table .editorial-record-table tr:hover .editorial-record-action,
-  .workspace-table
-    .editorial-record-table
-    tr:focus-within
-    .editorial-record-action {
-    opacity: 1;
-  }
-}
-@media (max-width: 768px) {
-  /* A phone row carries its state and time under the title, so it needs the
-     vertical room a one-line desktop row does not. */
-  .workspace-table .editorial-record-table .astryx-table-cell {
-    padding-block: var(--spacing-2);
-  }
-  /* Everything between the title and its action, whichever columns those are. */
-  .workspace-table
-    .editorial-record-table
-    :is(th, td):nth-child(n + 2):nth-last-child(n + 2) {
-    display: none;
-  }
-  .workspace-table .editorial-mobile-status {
-    display: flex;
-  }
-  .workspace-table .editorial-record-table {
-    min-width: 0 !important;
-  }
-  .workspace-table .editorial-record-table th:first-child {
-    width: auto !important;
-    min-width: 0 !important;
-  }
-}
-@media (max-width: 640px) {
-  .editorial-library-toolbar > .astryx-field {
-    flex-basis: 100%;
-    min-width: 0;
-  }
-  .editorial-library-filters {
-    width: 100%;
-    gap: var(--spacing-2);
-  }
-  .editorial-record-action {
-    min-width: var(--spacing-11);
-    min-height: var(--spacing-11);
-  }
-}
-
-/* A small resumption surface above the full content inventory. */
-.editorial-resume-heading {
-  justify-content: space-between;
-  gap: var(--spacing-3);
-  margin-block-end: var(--spacing-3);
-  flex-wrap: wrap;
-}
-.editorial-resume-list {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--spacing-3);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.editorial-resume-row {
-  position: relative;
-  min-width: 0;
-  display: grid;
-  grid-template-rows: auto 1fr;
-  padding: var(--spacing-4);
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-element);
-  background: var(--color-background-surface);
-}
-.editorial-resume-meta {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--spacing-2);
-  margin-block-end: var(--spacing-3);
-}
-.editorial-resume-kind {
-  min-width: 0;
-}
-.editorial-resume-kind > .astryx-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.editorial-resume-link {
-  color: inherit;
-  text-decoration: none;
-  min-width: 0;
-}
-.editorial-resume-link::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-}
-.editorial-resume-title {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  font-weight: 500;
-  line-height: 1.45;
-  min-height: 2.9em;
-}
-.editorial-resume-action {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  margin-block-start: var(--spacing-4);
-  font-size: var(--font-size-supporting, 13px);
-  color: var(--color-text-accent);
-}
-.editorial-resume-time {
-  position: relative;
-  z-index: 1;
-  flex-shrink: 0;
-}
-.editorial-resume-row:hover {
-  border-color: var(--color-accent);
-}
-.editorial-resume-link:focus-visible {
-  outline: none;
-}
-@media (max-width: 768px) {
-  .editorial-resume-list {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .editorial-resume-title {
-    min-height: 0;
-  }
-  .editorial-resume-link {
-    min-height: var(--spacing-11);
-  }
-}
-
+/* Page. */
 .workspace-page {
   width: 100%;
   min-width: 0;
@@ -475,44 +22,289 @@
 .workspace-page-actions {
   flex: 0 0 auto;
 }
-/* Times, counts and codes line up in columns. */
+/* Times, counts and codes line up in columns and stay on one line. */
 .workspace-time,
-.workspace-table .astryx-timestamp,
 .workspace-figure,
-.admin-table-footer {
+.workspace-count,
+.workspace-table-footer {
   font-variant-numeric: tabular-nums;
 }
-.workspace-time {
+.workspace-time,
+.workspace-count {
   white-space: nowrap;
 }
-.workspace-table-frame {
+
+/* Filter bar: one row. The search flexes; icon-only menus hold their size
+   (36px, 44px on touch through the shared interaction targets). */
+.workspace-filter-bar {
+  flex-wrap: nowrap;
+  width: 100%;
   min-width: 0;
 }
-/* A table without a count strip keeps the surface's rounded foot. */
-.workspace-table[data-footer="false"] .astryx-table-scroll-wrapper {
-  border-end-start-radius: var(--radius-container);
-  border-end-end-radius: var(--radius-container);
-  padding-block-end: var(--spacing-1);
+.workspace-filter-bar > .astryx-field {
+  flex: 0 1 calc(var(--spacing-12) * 5);
+  min-width: 0;
 }
-/* Workspace themes tint Astryx tables; every admin table sits on the same
-   raised surface instead. StyleX sets the fill, so this outranks it. */
+.workspace-filters {
+  flex: 0 0 auto;
+}
+.workspace-filter-menu {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+.workspace-filter-menu[data-active="true"] .astryx-button {
+  background-color: var(--color-accent-muted);
+  color: var(--color-text-accent, var(--color-accent));
+}
+
+/* Table surface: a raised panel with rounded corners that clip the row
+   tints. Workspace themes tint Astryx tables; every admin table sits on the
+   same surface instead. StyleX sets the fill, so this outranks it. */
+.workspace-table {
+  min-width: 0;
+  max-width: 100%;
+  background: var(--color-background-surface);
+  border-radius: var(--radius-container);
+}
+.workspace-table .astryx-table-scroll-wrapper {
+  background: var(--color-background-surface);
+  border-radius: var(--radius-container);
+  padding-block: var(--spacing-1);
+}
+.workspace-table[data-footer="true"] .astryx-table-scroll-wrapper {
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+  padding-block-end: 0;
+}
 .workspace-table .astryx-base-table:not(#\#):not(#\#) {
   background: transparent;
 }
-.workspace-table .workspace-row-title {
+/* Each range's minimum width counts only the columns it shows. DataTable
+   writes the four figures; the range picks one. */
+.workspace-table-frame {
+  position: relative;
+  min-width: 0;
+  --workspace-table-min: var(--workspace-table-min-wide);
+}
+.workspace-table-grid {
+  min-width: var(--workspace-table-min);
+}
+@media (max-width: 1439px) {
+  .workspace-table-frame {
+    --workspace-table-min: var(--workspace-table-min-large);
+  }
+  .workspace-table [data-hide-below="wide"] {
+    display: none;
+  }
+}
+@media (max-width: 1023px) {
+  .workspace-table-frame {
+    --workspace-table-min: var(--workspace-table-min-medium);
+  }
+  .workspace-table [data-hide-below="large"] {
+    display: none;
+  }
+}
+
+/* Cells: one line each, their own inset, no rules. Column labels stay on
+   one line; the column, not the label, gives way. */
+.workspace-table .astryx-table-header-cell,
+.workspace-table .astryx-table-cell {
+  padding-inline: var(--spacing-3);
+  white-space: nowrap;
+}
+.workspace-table .astryx-table-cell:first-child,
+.workspace-table .astryx-table-header-cell:first-child {
+  padding-inline-start: var(--spacing-4);
+}
+.workspace-table .astryx-table-cell:last-child,
+.workspace-table .astryx-table-header-cell:last-child {
+  padding-inline-end: var(--spacing-4);
+}
+.workspace-table .astryx-table-header-cell {
+  padding-block: var(--spacing-2);
+}
+/* The row is as tall as the 36px control it must carry, and no taller. The
+   cell holding that control goes without its own inset. */
+.workspace-table .astryx-table-cell {
+  vertical-align: middle;
+  padding-block: var(--spacing-1);
+}
+.workspace-table .astryx-table-cell:last-child {
+  padding-block: 0;
+}
+
+/* Rows are the tap target: the title link wraps only its text and a
+   stretched hit area covers the row. Other controls in the row sit above
+   it. Hover tints only where hover exists; a press tints everywhere; a
+   keyboard focus tints the row, never rings it. */
+.workspace-table tbody tr {
+  position: relative;
+}
+.workspace-table[data-interactive="false"] tbody tr {
+  position: static;
+}
+.workspace-table td :is(a, button):not(.workspace-row-link),
+.workspace-table td [role="button"] {
+  position: relative;
+  z-index: 1;
+}
+@media (hover: hover) {
+  .workspace-table[data-interactive="true"] tbody tr:hover {
+    background-color: var(--color-overlay-hover);
+    cursor: pointer;
+  }
+}
+.workspace-table[data-interactive="true"] tbody tr:active {
+  background-color: var(--color-overlay-pressed, var(--color-overlay-hover));
+}
+.workspace-table tbody tr:has(.workspace-row-link:focus-visible) {
+  background-color: var(--color-accent-muted);
+}
+
+/* The lead cell. The mark tile leads line 1; line 2 sits under the title.
+   The tile tokens are the contract a BrandTile in the `mark` slot reads. */
+.workspace-row,
+.workspace-skeleton-row {
+  --row-mark-size: var(--spacing-6);
+  --row-mark-glyph: var(--spacing-4);
+  --row-mark-radius: calc(var(--radius-inner, 6px) + 1px);
+}
+.workspace-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  min-width: 0;
+}
+.workspace-row[id] {
+  scroll-margin-block: var(--spacing-12);
+}
+.workspace-row-mark {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 var(--row-mark-size);
+  width: var(--row-mark-size);
+  height: var(--row-mark-size);
+  border-radius: var(--row-mark-radius);
+  background: var(--color-neutral);
+  color: var(--color-text-secondary);
+  overflow: hidden;
+}
+/* Phosphor glyphs take 2px more than brand glyphs to match their weight. */
+.workspace-row-mark > svg {
+  width: calc(var(--row-mark-glyph) + 2px);
+  height: calc(var(--row-mark-glyph) + 2px);
+  flex: none;
+}
+.workspace-row-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.workspace-row-line {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+  min-height: var(--row-mark-size);
+}
+.workspace-row-link,
+.workspace-row-text {
+  position: static;
+  display: inline-flex;
+  flex: 0 1 auto;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: var(--font-weight-medium, 500);
+  line-height: var(--spacing-6);
+  color: var(--color-text-primary);
+  text-align: start;
+  text-decoration: none;
+}
+.workspace-row-link {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.workspace-row-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+/* In a table the row takes the focus tint, so the link does not repeat it. */
+html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
+  background-color: transparent;
+}
+.workspace-row-title {
   display: block;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  min-height: var(--spacing-7);
-  line-height: var(--spacing-7);
 }
-.workspace-table .workspace-row-secondary {
+/* Line 1's end and time belong to compact, where their columns are gone. */
+.workspace-row-end {
+  display: none;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-inline-start: auto;
+  text-align: end;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.workspace-row-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+.workspace-row-meta[data-compact-only="true"],
+.workspace-row-detail {
+  display: none;
+}
+.workspace-row-detail {
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+.workspace-row-secondary {
   display: block;
+  min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+
+/* Count strip under a table: the count that screen readers hear, then the
+   figures that describe what is in view. */
+.workspace-table-footer {
+  padding-block: var(--spacing-2);
+  padding-inline: var(--spacing-4);
+  box-sizing: border-box;
+  min-width: 0;
+}
+.workspace-table-count {
+  white-space: nowrap;
+}
+.workspace-table-figure strong {
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--color-text-primary);
+}
+
+/* A default state renders only its name for assistive technology. The
+   wrapper around it steps aside, so no gap or line is kept for nothing. */
+.workspace-table :is(span, div):has(> .sr-only:only-child) {
+  display: contents;
+}
+
+/* Chips hold their full label. */
 .workspace-state,
 .workspace-kind,
 .workspace-sample {
@@ -527,6 +319,45 @@
 .workspace-views {
   align-self: flex-start;
   width: auto;
+}
+
+/* Content library cells: a record's state beside its chip, the summary
+   column, and the row action. */
+.workspace-table .editorial-record-state {
+  align-items: flex-start;
+  min-width: 0;
+}
+.workspace-table
+  .editorial-record-state
+  > .astryx-token:not(#\#):not(#\#):not(#\#) {
+  flex: 0 0 auto;
+}
+.workspace-table .editorial-record-state-detail:not(#\#):not(#\#):not(#\#) {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.workspace-table .editorial-record-summary,
+.workspace-table .editorial-record-state-detail {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.editorial-record-action {
+  flex-shrink: 0;
+  min-width: var(--spacing-9);
+  min-height: var(--spacing-9);
+}
+/* The row's own action appears on hover and keyboard focus, and wherever
+   hover does not exist. */
+@media (hover: hover) and (pointer: fine) {
+  .workspace-table .editorial-record-action {
+    opacity: 0;
+  }
+  .workspace-table tr:hover .editorial-record-action,
+  .workspace-table tr:focus-within .editorial-record-action {
+    opacity: 1;
+  }
 }
 
 /* A notice stands where the table would be, on the same raised surface. */
@@ -558,10 +389,12 @@
   margin-block-start: var(--spacing-2);
 }
 
-/* Skeleton rows keep the table's row height and gutters, so nothing moves
-   when the rows arrive. */
+/* Skeleton rows keep the table's row height, tile and gutters, so nothing
+   moves when the rows arrive. */
 .workspace-skeleton {
   padding-block: var(--spacing-1);
+  background: var(--color-background-surface);
+  border-radius: var(--radius-container);
 }
 .workspace-skeleton-row {
   min-height: var(--spacing-9);
@@ -571,26 +404,14 @@
   flex: 1 1 auto;
   min-width: 0;
 }
-.workspace-skeleton-lead-text {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-@media (max-width: 768px) {
-  .workspace-skeleton-cell {
-    display: none;
-  }
-}
 
-/* A record's own surface, beside its list on wide screens. */
+/* A record's own surface, beside its list on wide screens. It takes focus
+   for assistive technology only, so it shows none. */
 .workspace-detail {
   min-width: 0;
   padding: var(--spacing-5);
   background: var(--color-background-surface);
   border-radius: var(--radius-container);
-}
-.workspace-detail:focus-visible {
-  outline: 2px solid var(--color-focus-ring, var(--color-accent));
-  outline-offset: 2px;
 }
 .workspace-detail-body {
   max-width: 68ch;
@@ -599,37 +420,16 @@
   line-height: var(--line-height-relaxed, 1.65);
 }
 
-/* Classification swatch. Colour carries the tier; the name is the tooltip
-   and accessible name. */
+/* Classification glyph. The name is its tooltip and accessible name. */
 .workspace-tier {
-  display: inline-block;
+  display: inline-flex;
   flex: 0 0 auto;
-  width: var(--spacing-3);
-  height: var(--spacing-3);
-  border-radius: var(--radius-full, 999px);
-  background: var(--workspace-tier, var(--color-text-secondary));
-  box-shadow: inset 0 0 0 1px
-    color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+  color: var(--color-text-secondary);
   vertical-align: middle;
 }
-.workspace-tier[data-tier="open"] {
-  --workspace-tier: #4f9a74;
-}
-.workspace-tier[data-tier="restricted"] {
-  --workspace-tier: #c48a3a;
-}
-.workspace-tier[data-tier="private"],
-.workspace-tier[data-tier="closed"] {
-  --workspace-tier: #b35a5a;
-}
-.workspace-tier[data-tier="gold"] {
-  --workspace-tier: #c9a13b;
-}
-.workspace-tier[data-tier="silver"] {
-  --workspace-tier: #9aa3ad;
-}
-.workspace-tier[data-tier="bronze"] {
-  --workspace-tier: #a86f45;
+.workspace-tier > svg {
+  width: var(--spacing-4);
+  height: var(--spacing-4);
 }
 
 /* Two panes on wide screens: the list and the open record. */
@@ -666,22 +466,91 @@
   border-radius: var(--radius-container);
 }
 
-/* A row's trailing hint (an external-link mark) shows only while the row is
-   hovered or holds focus. */
-.workspace-row-reveal {
-  color: var(--color-text-secondary);
-  opacity: 0;
-  vertical-align: middle;
-}
-.workspace-table tr:hover .workspace-row-reveal,
-.workspace-table tr:focus-within .workspace-row-reveal {
-  opacity: 1;
-}
-@media (hover: none) {
-  .workspace-row-reveal {
-    opacity: 1;
+/* Compact: a list, not a table. Rows bleed to the screen edges on the body
+   colour with their content on the gutter; each row is the lead cell alone,
+   two lines at most, with the header kept for assistive technology and no
+   count strip. */
+@media (max-width: 640px) {
+  .workspace-table-frame {
+    --workspace-table-min: var(--workspace-table-min-compact);
   }
-}
-.editorial-record-heading[id] {
-  scroll-margin-block: var(--spacing-12);
+  /* The id-free :not(#\#) outranks the page frame's max-width on stacks. */
+  .workspace-table:not(#\#),
+  .workspace-skeleton:not(#\#) {
+    width: calc(100% + 2 * var(--admin-gutter, 0px));
+    max-width: none;
+    margin-inline: calc(-1 * var(--admin-gutter, 0px));
+    background: transparent;
+    border-radius: 0;
+  }
+  .workspace-table .astryx-table-scroll-wrapper {
+    background: transparent;
+    border-radius: 0;
+    padding-block: 0;
+  }
+  .workspace-table :is(th, td):not(:first-child) {
+    display: none;
+  }
+  .workspace-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .workspace-table .astryx-table-cell:first-child {
+    padding-block: var(--spacing-1);
+    padding-inline: var(--admin-gutter, var(--spacing-3));
+  }
+  .workspace-table-footer {
+    display: none;
+  }
+  .workspace-filter-bar > .astryx-field {
+    flex: 1 1 auto;
+  }
+  .workspace-row,
+  .workspace-skeleton-row {
+    --row-mark-size: var(--spacing-7);
+    --row-mark-glyph: calc(var(--spacing-4) + 2px);
+    --row-mark-radius: calc(var(--radius-inner, 6px) + 2px);
+  }
+  .workspace-row {
+    min-height: var(--spacing-9);
+  }
+  .workspace-row-end {
+    display: inline-flex;
+  }
+  .workspace-row-meta[data-compact-only="true"] {
+    display: flex;
+  }
+  .workspace-row-detail {
+    display: inline-flex;
+  }
+  .workspace-row-meta {
+    overflow: hidden;
+  }
+  .workspace-skeleton-row {
+    min-height: calc(var(--spacing-9) + var(--spacing-2));
+    padding-inline: var(--admin-gutter, var(--spacing-3));
+  }
+  .workspace-skeleton-cell {
+    display: none;
+  }
+  .workspace-notice,
+  .workspace-detail,
+  .workspace-tile {
+    background: transparent;
+    border-radius: 0;
+    padding-inline: 0;
+  }
+  .workspace-detail {
+    padding-block: 0;
+  }
+  .workspace-tiles {
+    gap: var(--spacing-1);
+  }
+  .workspace-tile {
+    padding-block: var(--spacing-2);
+  }
 }

@@ -9,13 +9,15 @@ import {
   BriefcaseIcon,
   EnvelopeIcon,
   FileTextIcon,
+  FunnelSimpleIcon,
+  SortAscendingIcon,
+  StackSimpleIcon,
   type Icon,
 } from "@phosphor-icons/react";
 import { HStack } from "@astryxdesign/core/HStack";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Text } from "@astryxdesign/core/Text";
 import {
-  DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -23,6 +25,7 @@ import {
 import {
   DataTable,
   FilterBar,
+  FilterMenu,
   KindBadge,
   RelativeTime,
   RowTitle,
@@ -36,6 +39,7 @@ import {
   recordLibraryHref,
   type LibraryState,
 } from "../../lib/content-library-state";
+import { sentenceCase } from "../../lib/sentence-case";
 export function matchingRecords(
   records: CatalogRecord[],
   query: string,
@@ -114,9 +118,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 function interfaceLabel(value: string) {
-  if (STATUS_LABELS[value]) return STATUS_LABELS[value];
-  const text = value.replaceAll("_", " ");
-  return text.charAt(0).toUpperCase() + text.slice(1);
+  return STATUS_LABELS[value] ?? sentenceCase(value);
 }
 
 /** Statuses the public site shows. Their chip is tinted; every other state
@@ -146,10 +148,7 @@ export function RecordStatus({
 }) {
   return (
     <VStack gap={1}>
-      <StateBadge
-        tone={PUBLIC_STATUSES.includes(status) ? "positive" : "neutral"}
-        label={interfaceLabel(status)}
-      />
+      <StateBadge domain="content" state={status} />
       {changesPending && (
         <Text type="supporting" color="secondary">
           Changes pending
@@ -363,19 +362,15 @@ export function ContentLibrary({
           kind={recordGlyph(item)[1]}
           title={item.title}
           href={recordLibraryHref(item.href, currentUrl)}
-          mobile={
-            <>
-              <RecordState record={item} inventoryError={inventoryError} />
-              <Updated updated={item.updated} column />
-            </>
-          }
+          mobile={<RecordState record={item} inventoryError={inventoryError} />}
+          time={item.updated?.at}
         />
       ),
     },
     {
       key: "summary",
       header: "Summary",
-      hideBelow: 1280,
+      hideBelow: "large",
       render: (item) =>
         item.summary ? (
           <Text
@@ -393,7 +388,7 @@ export function ContentLibrary({
             key: "section",
             header: "Kind",
             width: 124,
-            hideBelow: 1024 as const,
+            hideBelow: "large" as const,
             render: (item: CatalogRecord) => (
               <KindBadge
                 icon={recordGlyph(item)[0]}
@@ -437,19 +432,19 @@ export function ContentLibrary({
         search={{ label: "Search records", value: query, onChange: setQuery }}
       >
         {sectionOptions.length > 1 && (
-          <DropdownMenu
-            button={{
-              label:
-                sections.length === sectionOptions.length
-                  ? "Sections"
-                  : sections.length === 0
-                    ? "No sections"
-                    : sections.length === 1
-                      ? interfaceLabel(sections[0]!)
-                      : `${sections.length} sections`,
-              size: "sm",
-              variant: "secondary",
-            }}
+          <FilterMenu
+            label="Sections"
+            icon={StackSimpleIcon}
+            value={
+              sections.length === sectionOptions.length
+                ? "All"
+                : sections.length === 0
+                  ? "None"
+                  : sections.length === 1
+                    ? interfaceLabel(sections[0]!)
+                    : `${sections.length} sections`
+            }
+            isActive={sections.length !== sectionOptions.length}
           >
             <DropdownMenuCheckboxItem
               label="All sections"
@@ -470,23 +465,21 @@ export function ContentLibrary({
                 }
               />
             ))}
-          </DropdownMenu>
+          </FilterMenu>
         )}
         {(statuses.length > 1 ||
           group.records.some((item) => item.changesPending)) && (
-          <DropdownMenu
-            button={{
-              label:
-                status === "all"
-                  ? "Status"
-                  : status === "changes"
-                    ? "Changes"
-                    : interfaceLabel(status),
-              tooltip: `Status: ${status === "all" ? "All" : status === "changes" ? "Changes pending" : interfaceLabel(status)}`,
-              size: "sm",
-              variant: "secondary",
-            }}
-            menuWidth="max-content"
+          <FilterMenu
+            label="Status"
+            icon={FunnelSimpleIcon}
+            value={
+              status === "all"
+                ? "All"
+                : status === "changes"
+                  ? "Changes pending"
+                  : interfaceLabel(status)
+            }
+            isActive={status !== "all"}
           >
             <DropdownMenuRadioGroup
               label="Publication status"
@@ -511,20 +504,19 @@ export function ContentLibrary({
                 />
               ))}
             </DropdownMenuRadioGroup>
-          </DropdownMenu>
+          </FilterMenu>
         )}
-        <DropdownMenu
-          button={{
-            label:
-              state.sort === "attention"
-                ? "Needs attention"
-                : state.sort === "updated"
-                  ? "Recently edited"
-                  : "Title A to Z",
-            tooltip: `Sort: ${state.sort === "attention" ? "Needs attention" : state.sort === "updated" ? "Last updated" : "Title"}`,
-            size: "sm",
-            variant: "secondary",
-          }}
+        <FilterMenu
+          label="Sort"
+          icon={SortAscendingIcon}
+          value={
+            state.sort === "attention"
+              ? "Needs attention"
+              : state.sort === "updated"
+                ? "Last updated"
+                : "Title"
+          }
+          isActive={state.sort !== "attention"}
         >
           <DropdownMenuRadioGroup
             label="Sort records"
@@ -544,7 +536,7 @@ export function ContentLibrary({
             <DropdownMenuRadioItem value="updated" label="Last updated" />
             <DropdownMenuRadioItem value="title" label="Title" />
           </DropdownMenuRadioGroup>
-        </DropdownMenu>
+        </FilterMenu>
       </FilterBar>
       {records.length ? (
         <DataTable

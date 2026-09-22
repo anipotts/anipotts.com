@@ -110,7 +110,7 @@ describe("Quiet Precision library rows", () => {
     expect(html).toContain(
       "returnTo=%2Fcontent%2Fprojects%3Fq%3DChained%26sort%3Dupdated",
     );
-    expect(html).toContain("editorial-record-icon");
+    expect(html).toContain("workspace-row-mark");
     expect(html).toContain("editorial-record-state");
     expect(html).toContain("editorial-record-action");
     expect(html).toContain("Shared context across models");
@@ -191,14 +191,14 @@ describe("Quiet Precision library rows", () => {
     expect(html).not.toContain("editorial-resume");
     expect(html).not.toContain("Recently edited</");
     expect(html).toContain("workspace-table");
-    expect(html.indexOf("editorial-library-toolbar")).toBeLessThan(
-      html.indexOf("editorial-library-search"),
+    expect(html.indexOf("workspace-filter-bar")).toBeLessThan(
+      html.indexOf("workspace-search"),
     );
-    expect(html.indexOf("editorial-library-search")).toBeLessThan(
-      html.indexOf("editorial-library-filters"),
+    expect(html.indexOf("workspace-search")).toBeLessThan(
+      html.indexOf("workspace-filters"),
     );
-    expect(html.indexOf("editorial-library-filters")).toBeLessThan(
-      html.indexOf("editorial-record-table"),
+    expect(html.indexOf("workspace-filters")).toBeLessThan(
+      html.indexOf("workspace-table-grid"),
     );
   });
   it("keeps unknown timestamps explicit and never renders an invalid date", () => {
@@ -338,11 +338,14 @@ describe("table language", () => {
         selectedGroup="writing"
       />,
     );
-    // Public states carry the green tint; every other state stays neutral.
-    // Each row renders its state twice: the State column and the stack that
-    // replaces it on narrow screens.
-    expect(html.match(/astryx-token green/g)).toHaveLength(4);
+    // Published is the default: it draws no chip, only its spoken name. Every
+    // other state stays neutral. Each row renders its state twice: the State
+    // column and the line that replaces it on phones.
+    expect(html.match(/astryx-token green/g)).toBeNull();
     expect(html.match(/astryx-token default/g)).toHaveLength(4);
+    expect(html.match(/<span class="sr-only">Published<\/span>/g)).toHaveLength(
+      4,
+    );
     expect(libraryFigures(mixed)).toEqual([
       ["public", 2],
       ["drafts", 1],
@@ -350,7 +353,7 @@ describe("table language", () => {
       ["with changes pending", 1],
     ]);
     // The count that screen readers hear sits under the table, once.
-    expect(html.match(/editorial-record-count"/g)).toHaveLength(1);
+    expect(html.match(/workspace-table-count"/g)).toHaveLength(1);
     expect(html.indexOf("</table>")).toBeLessThan(
       html.indexOf('aria-label="4 records"'),
     );

@@ -263,6 +263,16 @@
 .editorial-workspace-shell {
   background: var(--color-workspace-sidebar, var(--color-background-body));
 }
+/* One inline gutter, the content's distance from the screen edge, applied
+   once by the page frame. Compact gets 12px and full-bleed lists. */
+.editorial-workspace-shell {
+  --admin-gutter: clamp(var(--spacing-4), 3vw, var(--spacing-12));
+}
+@media (max-width: 640px) {
+  .editorial-workspace-shell {
+    --admin-gutter: var(--spacing-3);
+  }
+}
 .editorial-workspace-shell .astryx-app-shell-sidenav {
   background: var(--color-workspace-sidebar, var(--color-background-body));
 }
@@ -270,7 +280,7 @@
    Content library, at every width. */
 .editorial-workspace-shell .admin-page-frame {
   padding-block: var(--spacing-6);
-  padding-inline: clamp(var(--spacing-4), 3vw, var(--spacing-12));
+  padding-inline: var(--admin-gutter);
   max-width: 100%;
   width: 100%;
   margin: 0;
@@ -409,7 +419,18 @@ body:has(.editorial-workspace-shell) {
 
 .editorial-workspace-shell .editorial-content.editorial-library-page {
   max-width: none;
-  padding-inline: clamp(var(--spacing-4), 3vw, var(--spacing-12));
+  padding-inline: var(--admin-gutter);
+}
+/* At compact the gutter is the only inset: main adds none, and every
+   Content page and the top bar sit on it. */
+@media (max-width: 640px) {
+  .editorial-workspace-shell #astryx-app-shell-main {
+    padding-inline: 0;
+  }
+  .editorial-workspace-shell .editorial-content,
+  .editorial-workspace-shell .admin-mobile-header {
+    padding-inline: var(--admin-gutter);
+  }
 }
 
 /* The editorial layout does not load admin.css, so text intended only for

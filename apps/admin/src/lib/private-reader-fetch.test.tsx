@@ -188,10 +188,13 @@ async function search(value: string) {
     )!.set!.call(input, value);
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
+  // The search is live; Enter runs it without waiting for typing to rest.
   await act(async () => {
     container
-      .querySelector("form")!
-      .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      .querySelector("input")!
+      .dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      );
   });
 }
 async function settle() {
@@ -631,7 +634,7 @@ describe("private Data workspace", () => {
         />,
       ),
     );
-    expect(container.textContent).toContain("Not connected.");
+    expect(container.textContent).toContain("Not connected");
     expect(container.textContent).not.toContain("session");
     expect(spy).not.toHaveBeenCalled();
   });
@@ -721,7 +724,7 @@ describe("private Data workspace", () => {
     await settle();
     expect(container.textContent).toContain("Synthetic note");
     await click("End session");
-    expect(container.textContent).toContain("Private session ended.");
+    expect(container.textContent).toContain("Private session ended");
     expect(container.textContent).not.toContain("Synthetic note");
     expect(session.bearer()).toBeNull();
   });
@@ -768,14 +771,14 @@ describe("private Data workspace", () => {
       status: "cleared",
       reason: "expired",
     });
-    expect(container.textContent).toContain("Private session expired.");
+    expect(container.textContent).toContain("Private session expired");
     expect(container.textContent).not.toContain("Synthetic note");
   });
 
   it("shows denied and unavailable issuance distinctly", async () => {
     for (const [status, title] of [
-      [401, "Private access was refused."],
-      [503, "Private reader unavailable."],
+      [401, "Private access was refused"],
+      [503, "Private reader unavailable"],
     ] as const) {
       const fetcher = vi.fn(async () =>
         json({ error: "fixture" }, status),
