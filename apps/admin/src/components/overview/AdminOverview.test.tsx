@@ -61,9 +61,12 @@ describe("the one overview", () => {
     expect(
       [...table.querySelectorAll("thead th")].map((th) => th.textContent),
     ).toEqual(["Alert", "State", "Since"]);
+    // An alert opens in admin first; its runbook is an action there.
     const link = table.querySelector("tbody a.workspace-row-link")!;
-    expect(link.getAttribute("aria-label")).toMatch(/^Open runbook for /);
-    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("href")).toMatch(
+      /^\/observability\/alerts\?alert=/,
+    );
+    expect(link.getAttribute("target")).toBeNull();
     // No runbook column and no link buttons: the row is the link.
     expect(table.querySelectorAll("a")).toHaveLength(3);
     expect(rows).toHaveLength(3);

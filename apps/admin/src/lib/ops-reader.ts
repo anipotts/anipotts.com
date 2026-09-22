@@ -1,8 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
-import {
-  createPrivateReaderSession,
-  type PrivateReaderSession,
-} from "./private-reader-client";
+import type { PrivateReaderSession } from "./private-reader-client";
 import {
   PRIVATE_READER_ORIGIN,
   PrivateReaderError,
@@ -33,7 +29,10 @@ import {
  * `ops:read`; a credential with any other scope is refused before it is sent.
  * The snapshot and its ETag live in memory only (`cache: "no-store"`, no Web
  * Storage) and are dropped on logout, denial or credential expiry. Polling
- * runs every 30 seconds and only while the tab is visible.
+ * runs every 30 seconds and only while the tab is visible. The session
+ * follows the shared idle rule (lib/private-session-store.ts); a session the
+ * rule opens again resumes polling. The React binding is
+ * components/hooks/useOpsStatus.ts.
  *
  * Nothing here runs unless PRIVATE_READER_ENABLED and
  * PRIVATE_READER_OPS_ENABLED are both exactly "true" on the server. The ops
@@ -521,8 +520,15 @@ export function createOpsStatusController(options: OpsStatusOptions) {
   }
 
   // Logout, denial and expiry clear the snapshot along with the credential.
+  // Only the idle rule opens a session this controller has stopped, on the
+  // owner's next interaction, and polling resumes with it.
   const unsubscribe = session.subscribe(() => {
     const next = session.getState();
+    if (next.status === "ready" && !running && state.connection === "ended") {
+      running = true;
+      if (!inflight) schedule(0);
+      return;
+    }
     if (next.status !== "cleared") return;
     if (next.reason === "logout") stop("ended");
     else if (next.reason === "denied") stop("denied");
@@ -575,78 +581,3 @@ export function createOpsStatusController(options: OpsStatusOptions) {
 }
 
 export type OpsStatusController = ReturnType<typeof createOpsStatusController>;
-
-/** Reads the existing same-origin editorial CSRF token for issuance. */
-async function readEditorialCsrf(): Promise<string> {
-  const response = await fetch("/api/editorial/csrf", {
-    credentials: "same-origin",
-    cache: "no-store",
-  });
-  if (!response.ok) throw new Error("CSRF unavailable");
-  const body = (await response.json()) as { csrf?: unknown };
-  if (typeof body.csrf !== "string") throw new Error("CSRF unavailable");
-  return body.csrf;
-}
-
-const OFF: OpsStatusState = Object.freeze({
-  connection: "off",
-  snapshot: null,
-  checkedAt: null,
-  events: null,
-  eventsStale: false,
-}) as OpsStatusState;
-const offStore = {
-  getState: () => OFF,
-  subscribe: () => () => undefined,
-};
-
-/**
- * Status view binding. With the reader off, nothing is created and no request
- * is made. Otherwise polling starts on mount, follows tab visibility, and the
- * private session ends on page hide (bfcache) and unmount.
- */
-export function useOpsStatus({
-  enabled,
-  controller: injected,
-  events = false,
-}: {
-  enabled: boolean;
-  controller?: OpsStatusController;
-  /** Also read the events feed. */
-  events?: boolean;
-}): { state: OpsStatusState; controller: OpsStatusController | null } {
-  const [controller] = useState<OpsStatusController | null>(() =>
-    !enabled
-      ? null
-      : (injected ??
-        createOpsStatusController({
-          session: createPrivateReaderSession({
-            fetch: (...args) => globalThis.fetch(...args),
-            csrf: readEditorialCsrf,
-            endpoint: OPS_CREDENTIAL_ENDPOINT,
-          }),
-          events,
-        })),
-  );
-  useEffect(() => {
-    if (!controller) return;
-    const visibility = () => controller.visibilityChanged();
-    const end = () => controller.end();
-    document.addEventListener("visibilitychange", visibility);
-    window.addEventListener("pagehide", end);
-    controller.start();
-    return () => {
-      document.removeEventListener("visibilitychange", visibility);
-      window.removeEventListener("pagehide", end);
-      // End, not dispose: a remount (Strict Mode) starts the same controller.
-      controller.end();
-    };
-  }, [controller]);
-  const store = controller ?? offStore;
-  const state = useSyncExternalStore(
-    store.subscribe,
-    store.getState,
-    store.getState,
-  );
-  return { state, controller };
-}

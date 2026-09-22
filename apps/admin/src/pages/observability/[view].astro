@@ -1,14 +1,17 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
-import { ObservabilityWorkspace } from "../../components/astryx/ObservabilityWorkspace";
+import {
+  OPS_VIEW_TITLES,
+  ObservabilityWorkspace,
+  opsAlertParam,
+  type OpsView,
+} from "../../components/astryx/ObservabilityWorkspace";
 import { privateReaderOpsEnabled } from "../../lib/private-reader-credential";
 
-// Status, Activity and Alerts. Every other segment is not a view.
-const titles = { status: "Status", activity: "Activity", alerts: "Alerts" };
+// Status, Activity and Alerts. Every other segment is the shared 404.
 const view = Astro.params.view ?? "";
-if (!Object.hasOwn(titles, view))
-  return new Response("Not found", { status: 404 });
-const key = view as keyof typeof titles;
+if (!Object.hasOwn(OPS_VIEW_TITLES, view)) return Astro.rewrite("/404");
+const key = view as OpsView;
 
 // Off unless PRIVATE_READER_ENABLED and PRIVATE_READER_OPS_ENABLED are both
 // exactly "true". The Data flag alone never turns on ops reads. The server
@@ -31,9 +34,10 @@ const fixtures =
 Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
 
-<AdminLayout title={titles[key]} hideHeader>
+<AdminLayout title={OPS_VIEW_TITLES[key]} hideHeader>
   <ObservabilityWorkspace
     view={key}
+    alert={key === "alerts" ? opsAlertParam(Astro.url.search) : null}
     enabled={enabled}
     fixture={fixtures?.snapshot}
     eventsFixture={fixtures?.events}

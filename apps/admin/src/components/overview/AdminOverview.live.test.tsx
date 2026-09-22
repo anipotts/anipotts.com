@@ -96,7 +96,7 @@ describe("live alerts on the overview", () => {
     await settle();
     const table = host.querySelector('table[aria-label="Firing alerts"]');
     expect(table?.querySelector("tbody tr")?.textContent).toContain(
-      "personal context writer",
+      "Personal context writer",
     );
 
     pending = [transition(last + 2, "failing", "ok", "2026-09-21T18:00:08Z")];

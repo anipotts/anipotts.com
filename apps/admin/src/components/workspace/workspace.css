@@ -162,6 +162,25 @@
   background-color: var(--color-accent-muted);
 }
 
+/* A group's heading row inside one table: the group's name on the row
+   inset, with air above every group but the first. It is never a target. */
+.workspace-group-row {
+  padding: var(--spacing-4) var(--spacing-4) var(--spacing-1);
+  text-align: start;
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+.workspace-table tbody tr[data-group-row]:first-child .workspace-group-row {
+  padding-block-start: var(--spacing-2);
+}
+.workspace-table[data-interactive="true"]
+  tbody
+  tr[data-group-row]:is(:hover, :active) {
+  background-color: transparent;
+  cursor: default;
+}
+
 /* The lead cell. The mark tile leads line 1; line 2 sits under the title.
    The tile tokens are the contract a BrandTile in the `mark` slot reads. The
    corner is 0.3 of the side, BrandTile's badge-scaled radius, so the slot and
@@ -503,6 +522,9 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   }
   .workspace-table .astryx-table-cell:first-child {
     padding-block: var(--spacing-1);
+    padding-inline: var(--admin-gutter, var(--spacing-3));
+  }
+  .workspace-group-row {
     padding-inline: var(--admin-gutter, var(--spacing-3));
   }
   .workspace-table-footer {

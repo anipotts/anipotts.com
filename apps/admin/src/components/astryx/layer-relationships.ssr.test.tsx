@@ -140,7 +140,7 @@ describe("server-rendered Astryx relationship attributes", () => {
     const html = serverMarkup(
       <ObservabilityWorkspace enabled={false} fixture={opsSample} />,
     );
-    expect(html).toContain('aria-label="personal context services"');
+    expect(html).toContain('aria-label="Status entries"');
     expect(danglingRelationships(html)).toEqual([]);
   });
 
