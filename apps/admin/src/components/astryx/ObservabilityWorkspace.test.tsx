@@ -1273,10 +1273,13 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
       ...events,
       items: [...items, { ...last, seq: last.seq + 1, at: "yesterday" }],
     };
-    for (const name of ["activity", "alerts"] as const)
-      expect(view(name, null, broken).textContent).toContain(
-        "1 event unreadable",
-      );
+    for (const name of ["activity", "alerts"] as const) {
+      const page = view(name, null, broken);
+      // A quiet chip beside the title, never a banner over the rows.
+      const chip = page.querySelector(".workspace-page-header .ops-unread");
+      expect(chip?.textContent).toContain("1 event unreadable");
+      expect(page.querySelector('[role="alert"]')).toBeNull();
+    }
     expect(view("alerts").textContent).not.toContain("unreadable");
   });
 

@@ -9,6 +9,7 @@ import {
   PlugsIcon,
   ShieldWarningIcon,
   BracketsCurlyIcon,
+  WarningCircleIcon,
   type Icon,
 } from "@phosphor-icons/react";
 import {
@@ -277,11 +278,6 @@ function OpsNotice({
     ) : (
       <StateNotice kind="error" title="Events not current" />
     );
-  // A skipped event may have been a change of state: Activity and Alerts
-  // never read as complete while one is unread.
-  const unread = data.events?.skipped ?? 0;
-  if (view !== "status" && unread > 0)
-    return <InlineNotice tone="warning" title={opsUnreadTitle(unread)} />;
   return null;
 }
 
@@ -339,6 +335,28 @@ function DriftChip({ fields }: { fields: string[] }) {
   );
 }
 
+/** One quiet chip beside the drift chip while events were skipped as
+ * unreadable: a skipped event may have been a change of state, so Activity,
+ * Alerts and run history never read as complete while one is unread. */
+function UnreadChip({ count }: { count: number }) {
+  if (!count) return null;
+  return (
+    <span className="ops-drift ops-unread" title={opsUnreadTitle(count)}>
+      <StateBadge
+        tone="neutral"
+        label={opsUnreadTitle(count)}
+        icon={
+          <WarningCircleIcon
+            weight="regular"
+            aria-hidden="true"
+            className="workspace-state-mark"
+          />
+        }
+      />
+    </span>
+  );
+}
+
 /** Title, count, the live line, the one notice, then the view. */
 export function OpsPage({
   data,
@@ -366,6 +384,9 @@ export function OpsPage({
           <>
             {data.fixtureMode && <SampleBadge />}
             <DriftChip fields={opsUnknownFields(data)} />
+            {view !== "status" && (
+              <UnreadChip count={data.events?.skipped ?? 0} />
+            )}
           </>
         }
         actions={actions}

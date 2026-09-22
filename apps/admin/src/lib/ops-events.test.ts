@@ -13,6 +13,7 @@ import {
   opsIncidentsBySubject,
   opsIsPlumbing,
   opsRouteLabel,
+  opsEventsDrifted,
   parseOpsEvents,
   parseOpsEventsBytes,
   type OpsAccessEvent,
@@ -231,16 +232,38 @@ describe("ops_events_v1 parser", () => {
     expect(EMPTY_EVENT_LOG.skipped).toBe(0);
   });
 
-  it("refuses a page with more than one unreadable item as drift", () => {
-    // A format change in one field breaks every item: never a quiet page.
-    rejects(
+  it("reads a mostly unreadable page as drift, and still moves past it", () => {
+    // A format change in one field breaks every item: never a quiet page,
+    // and never the same page read again forever.
+    const page = parseOpsEvents(
       envelope([
         access(1, { at: "2026-09-22 10:00:00" }),
         access(2, { at: "2026-09-22 10:00:00" }),
         access(3, { at: "2026-09-22 10:00:00" }),
       ]),
+      0,
     );
-    rejects(envelope([access(1, { ms: -1 }), access(2, { status: null })]));
+    expect(page).toMatchObject({ items: [], skipped: 3, lastSeq: 3 });
+    expect(opsEventsDrifted(page.skipped, 3)).toBe(true);
+  });
+
+  it("skips and counts a few strays on an otherwise readable page", () => {
+    const page = parseOpsEvents(
+      envelope([
+        access(1),
+        access(2, { ms: -1 }),
+        access(3),
+        access(4, { status: null }),
+        access(5),
+      ]),
+      0,
+    );
+    expect(page.items.map((event) => event.seq)).toEqual([1, 3, 5]);
+    expect(page.skipped).toBe(2);
+    expect(page.lastSeq).toBe(5);
+    expect(opsEventsDrifted(2, 5)).toBe(false);
+    expect(opsEventsDrifted(3, 5)).toBe(true);
+    expect(opsEventsDrifted(0, 0)).toBe(false);
   });
 
   it("still rejects an item whose own seq is unreadable", () => {

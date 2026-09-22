@@ -120,8 +120,13 @@ export type OpsEventsPage = {
   unknownFields: string[];
 };
 
-/** Unreadable items a page may carry before it is refused as drift. */
-export const OPS_EVENTS_MAX_SKIPPED = 1;
+/** Whether a page's unreadable items are drift rather than strays: most
+ * of the page. The reader still moves past them (refusing the page would
+ * read the same items forever) and marks the events not current, so a
+ * format change can never quietly empty Activity, run history or Alerts. */
+export function opsEventsDrifted(skipped: number, items: number): boolean {
+  return skipped > 0 && skipped * 2 > items;
+}
 
 function fail(): never {
   throw new OpsSnapshotError();
@@ -191,13 +196,13 @@ function item(value: unknown, drift: FieldDrift): OpsEvent {
  * and above the one before it. `next_after` is null when the page is the
  * last, otherwise the last item's seq.
  *
- * One item per page whose own seq is readable but whose other known fields
- * are not is skipped and counted, never rendered: rejecting the page would
- * clear the log and read the same item again forever. The count reaches the
- * log, which shows it (a skipped item could be a failing transition, so it
- * is never dropped without a mark). More than one on a page is drift, not a
- * stray item, and rejects the page as before, marking the events not
- * current. A bad seq or envelope still rejects.
+ * An item whose own seq is readable but whose other known fields are not is
+ * skipped and counted, never rendered: rejecting the page would clear the
+ * log and read the same item again forever. The count reaches the log,
+ * which shows it (a skipped item could be a failing transition, so it is
+ * never dropped without a mark). When most of a page is unreadable that is
+ * drift, not strays: the reader marks the events not current
+ * (`opsEventsDrifted`). A bad seq or envelope still rejects the page.
  */
 export function parseOpsEvents(value: unknown, after: number): OpsEventsPage {
   const root = exact(value, ["version", "items", "next_after"]);
@@ -236,7 +241,6 @@ export function parseOpsEvents(value: unknown, after: number): OpsEventsPage {
   );
   if (nextAfter !== null && (root.items.length === 0 || nextAfter !== previous))
     fail();
-  if (skipped > OPS_EVENTS_MAX_SKIPPED) fail();
   return {
     items,
     nextAfter,

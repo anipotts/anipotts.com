@@ -17,6 +17,7 @@ import {
   OPS_EVENTS_BOUNDS,
   OPS_EVENTS_PAGES_PER_READ,
   appendOpsEvents,
+  opsEventsDrifted,
   opsEventsMoveSnapshot,
   opsEventsPath,
   parseOpsEventsBytes,
@@ -519,7 +520,12 @@ export function createOpsStatusController(options: OpsStatusOptions) {
           read.lastSeq,
           read.skipped,
         ),
-        eventsStale: false,
+        // Mostly unreadable is drift: the cursor still moves past it, and
+        // the events read as not current until a readable page arrives.
+        eventsStale: opsEventsDrifted(
+          read.skipped,
+          read.items.length + read.skipped,
+        ),
       });
       if (read.nextAfter === null) return result();
     }

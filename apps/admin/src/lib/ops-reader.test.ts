@@ -657,14 +657,19 @@ describe("ops events polling", () => {
     controller.dispose();
   });
 
-  it("marks events not current when a page holds more than one unreadable item", async () => {
+  it("marks events not current when most of a page is unreadable, and moves on", async () => {
     const bad = (seq: number) => ({ ...item(seq), at: "2026-09-22 10:00:00" });
     const { controller } = eventsHarness({
       0: () => page([bad(1), bad(2), bad(3)], null),
     });
     controller.start();
     await flush();
-    expect(controller.getState().events?.cursor).toBe(0);
+    // Past the drift, so the next poll never reads it again, but not
+    // current: Activity cannot read as a quiet, complete page.
+    expect(controller.getState().events).toMatchObject({
+      cursor: 3,
+      skipped: 3,
+    });
     expect(controller.getState().eventsStale).toBe(true);
     controller.dispose();
   });
