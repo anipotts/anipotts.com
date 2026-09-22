@@ -5,14 +5,16 @@ account_id = "0f856093bdcd34a7da1bde5ee4385163"
 main = "src/index.ts"
 workers_dev = true
 
-# Non-secret env vars (secrets set via `wrangler secret put`)
-[vars]
-CF_ACCOUNT_ID = "0f856093bdcd34a7da1bde5ee4385163"
-# Secrets: MAC_MINI_INGEST_KEY, BRANDS_INGEST_KEY, GITHUB_TOKEN and CF_API_TOKEN.
+# Secrets: MAC_MINI_INGEST_KEY and BRANDS_INGEST_KEY.
+# GITHUB_TOKEN and CF_API_TOKEN may still be set in Cloudflare. No code reads
+# them since the cron jobs were retired on 2026-09-22. Removing them is Ani's
+# call.
 
-# Cron: fires every minute, dispatcher picks jobs by minute offset
+# Keep this block. An explicit empty list removes the old every-minute
+# "* * * * *" schedule on deploy. wrangler 4.x sends the schedules PUT only
+# when crons is set, so deleting the block would leave that trigger live.
 [triggers]
-crons = ["* * * * *"]
+crons = []
 
 # D1 database binding
 [[d1_databases]]

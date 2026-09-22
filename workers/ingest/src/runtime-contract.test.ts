@@ -13,16 +13,17 @@ import {
 const secrets = {
   MAC_MINI_INGEST_KEY: "synthetic-mini-41",
   BRANDS_INGEST_KEY: "synthetic-brand-52",
+};
+// Stand-ins for names that may still be set in Cloudflare after the cron
+// jobs were retired. The contract neither reads nor reports them.
+const staleNames = {
   GITHUB_TOKEN: "synthetic-gh-63",
   CF_API_TOKEN: "synthetic-cf-74",
+  CF_ACCOUNT_ID: "synthetic-acct-85",
 };
 
 function completeEnv(): Record<string, unknown> {
-  return {
-    DB: { prepare: () => null },
-    CF_ACCOUNT_ID: "synthetic-acct-85",
-    ...secrets,
-  };
+  return { DB: { prepare: () => null }, ...secrets };
 }
 
 function without(...names: string[]) {
@@ -34,8 +35,7 @@ function without(...names: string[]) {
 const available = { state: "available", missing: [] };
 const allAvailable = {
   brands_ingest: available,
-  github_stats: available,
-  cf_deployments: available,
+  mini_ingest: available,
 };
 
 function sink() {
@@ -61,17 +61,40 @@ describe("ingest runtime contract evaluation", () => {
     });
   }
 
-  it("reports each feature from its own names", () => {
-    const report = evaluateRuntimeContract(
-      without("BRANDS_INGEST_KEY", "CF_ACCOUNT_ID"),
-    );
-    expect(report).toEqual({
+  it("drops the retired cron job names from the contract", () => {
+    expect(Object.keys(RUNTIME_CONTRACT)).toEqual([
+      "DB",
+      "MAC_MINI_INGEST_KEY",
+      "BRANDS_INGEST_KEY",
+    ]);
+    expect([...RUNTIME_REQUIRED]).toEqual(["DB"]);
+    const report = evaluateRuntimeContract({ ...completeEnv(), ...staleNames });
+    expect(report).toEqual({ ok: true, missing: [], features: allAvailable });
+    const text = JSON.stringify(report);
+    for (const [name, value] of Object.entries(staleNames)) {
+      expect(text).not.toContain(name);
+      expect(text).not.toContain(value);
+    }
+  });
+
+  it("reports each key from its own name", () => {
+    expect(evaluateRuntimeContract(without("BRANDS_INGEST_KEY"))).toEqual({
       ok: true,
       missing: [],
       features: {
         brands_ingest: { state: "unavailable", missing: ["BRANDS_INGEST_KEY"] },
-        github_stats: available,
-        cf_deployments: { state: "unavailable", missing: ["CF_ACCOUNT_ID"] },
+        mini_ingest: available,
+      },
+    });
+    expect(evaluateRuntimeContract(without("MAC_MINI_INGEST_KEY"))).toEqual({
+      ok: true,
+      missing: [],
+      features: {
+        brands_ingest: available,
+        mini_ingest: {
+          state: "unavailable",
+          missing: ["MAC_MINI_INGEST_KEY"],
+        },
       },
     });
   });
@@ -81,17 +104,12 @@ describe("ingest runtime contract evaluation", () => {
       ...completeEnv(),
       DB: { prepare: "not a function" },
       MAC_MINI_INGEST_KEY: " ",
-      GITHUB_TOKEN: 42,
-      CF_API_TOKEN: null,
+      BRANDS_INGEST_KEY: 42,
     });
-    expect(report.missing).toEqual(["DB", "MAC_MINI_INGEST_KEY"]);
-    expect(report.features.github_stats).toEqual({
-      state: "unavailable",
-      missing: ["GITHUB_TOKEN"],
-    });
-    expect(report.features.cf_deployments).toEqual({
-      state: "unavailable",
-      missing: ["CF_API_TOKEN"],
+    expect(report.missing).toEqual(["DB"]);
+    expect(report.features).toEqual({
+      brands_ingest: { state: "unavailable", missing: ["BRANDS_INGEST_KEY"] },
+      mini_ingest: { state: "unavailable", missing: ["MAC_MINI_INGEST_KEY"] },
     });
   });
 
@@ -105,10 +123,9 @@ describe("ingest runtime contract evaluation", () => {
             state: "unavailable",
             missing: ["BRANDS_INGEST_KEY"],
           },
-          github_stats: { state: "unavailable", missing: ["GITHUB_TOKEN"] },
-          cf_deployments: {
+          mini_ingest: {
             state: "unavailable",
-            missing: ["CF_API_TOKEN", "CF_ACCOUNT_ID"],
+            missing: ["MAC_MINI_INGEST_KEY"],
           },
         },
       });
@@ -143,7 +160,7 @@ describe("ingest runtime contract logging", () => {
     const log = sink();
     const report = createRuntimeContractReporter(log);
     let reads = 0;
-    const env = new Proxy(without("MAC_MINI_INGEST_KEY", "GITHUB_TOKEN"), {
+    const env = new Proxy(without("DB", "MAC_MINI_INGEST_KEY"), {
       get(target, key) {
         reads += 1;
         return Reflect.get(target, key);
@@ -165,10 +182,10 @@ describe("ingest runtime contract logging", () => {
       worker: "ingest",
       entry: "scheduled",
       ok: false,
-      missing: ["MAC_MINI_INGEST_KEY"],
+      missing: ["DB"],
       features: {
         ...allAvailable,
-        github_stats: { state: "unavailable", missing: ["GITHUB_TOKEN"] },
+        mini_ingest: { state: "unavailable", missing: ["MAC_MINI_INGEST_KEY"] },
       },
     });
     for (const value of Object.values(completeEnv()))
@@ -185,7 +202,7 @@ describe("ingest runtime contract logging", () => {
 
   it("warns when only a feature is unavailable", () => {
     const log = sink();
-    createRuntimeContractReporter(log)(without("CF_API_TOKEN"), "fetch");
+    createRuntimeContractReporter(log)(without("BRANDS_INGEST_KEY"), "fetch");
     expect(log.info).not.toHaveBeenCalled();
     const line = log.warn.mock.calls[0]?.[0] as unknown as string;
     expect(JSON.parse(line).ok).toBe(true);
@@ -218,6 +235,7 @@ describe("ingest runtime contract logging", () => {
 // `# Secrets:` comment names the values set with `wrangler secret put`.
 type Source = "vars" | "d1" | "secret";
 type Declared = Record<Source, string[]> & {
+  crons: string | null;
   observability: boolean;
   invocationLogs: boolean;
   unrecognized: string[];
@@ -247,6 +265,7 @@ function declaredRuntimeNames(text: string): Declared {
     vars: [],
     d1: [],
     secret: [],
+    crons: null,
     observability: false,
     invocationLogs: true,
     unrecognized: [],
@@ -274,6 +293,7 @@ function declaredRuntimeNames(text: string): Declared {
     if (section === "vars") declared.vars.push(key);
     if (section === "d1_databases" && key === "binding" && quoted)
       declared.d1.push(quoted);
+    if (section === "triggers" && key === "crons") declared.crons = value;
     if (section === "observability" && key === "enabled")
       declared.observability = value === "true";
     if (section === "observability.logs" && key === "invocation_logs")
@@ -306,8 +326,16 @@ describe("ingest wrangler.toml runtime contract drift", () => {
 
   it("classifies every deployed binding, var and secret in the contract", () => {
     const declared = declaredRuntimeNames(wrangler);
+    expect(declared.vars).toEqual([]);
     expect(unclassified(declared)).toEqual([]);
     expect(declared.unrecognized).toEqual([]);
+  });
+
+  it("keeps an explicit empty schedule so a deploy removes the minute cron", () => {
+    expect(declaredRuntimeNames(wrangler).crons).toBe("[]");
+    const dropped = wrangler.replace(/^\[triggers\]\ncrons = \[\]\n/m, "");
+    expect(dropped).not.toBe(wrangler);
+    expect(declaredRuntimeNames(dropped).crons).toBeNull();
   });
 
   it("flags a binding table or top-level binding the parser cannot classify", () => {
@@ -323,16 +351,23 @@ describe("ingest wrangler.toml runtime contract drift", () => {
     expect(declared.invocationLogs).toBe(false);
   });
 
-  it("flags a removed or renamed name", () => {
+  it("flags a removed, renamed or re-added name", () => {
     const d1 = wrangler.replace('binding = "DB"', 'binding = "DATABASE"');
-    const vars = wrangler.replace(/^CF_ACCOUNT_ID = .*$/m, 'ACCOUNT_ID = "x"');
-    const secret = wrangler.replace(" GITHUB_TOKEN and", "");
-    for (const changed of [d1, vars, secret])
+    const secret = wrangler.replace(" and BRANDS_INGEST_KEY", "");
+    const vars = `${wrangler}\n[vars]\nCF_ACCOUNT_ID = "x"\n`;
+    const token = wrangler.replace(
+      "# Secrets: MAC_MINI_INGEST_KEY and BRANDS_INGEST_KEY.",
+      "# Secrets: MAC_MINI_INGEST_KEY, BRANDS_INGEST_KEY and GITHUB_TOKEN.",
+    );
+    for (const changed of [d1, secret, token])
       expect(changed).not.toBe(wrangler);
     expect(undeclared(declaredRuntimeNames(d1))).toEqual(["DB"]);
-    expect(undeclared(declaredRuntimeNames(vars))).toEqual(["CF_ACCOUNT_ID"]);
-    expect(unclassified(declaredRuntimeNames(vars))).toEqual(["ACCOUNT_ID"]);
-    expect(undeclared(declaredRuntimeNames(secret))).toEqual(["GITHUB_TOKEN"]);
+    expect(unclassified(declaredRuntimeNames(d1))).toEqual(["DATABASE"]);
+    expect(undeclared(declaredRuntimeNames(secret))).toEqual([
+      "BRANDS_INGEST_KEY",
+    ]);
+    expect(unclassified(declaredRuntimeNames(vars))).toEqual(["CF_ACCOUNT_ID"]);
+    expect(unclassified(declaredRuntimeNames(token))).toEqual(["GITHUB_TOKEN"]);
   });
 
   it("keeps every contract name required or owned by a feature", () => {

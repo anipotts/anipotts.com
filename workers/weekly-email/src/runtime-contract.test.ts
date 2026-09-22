@@ -2,119 +2,73 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it, mock } from "bun:test";
 import {
   RUNTIME_CONTRACT,
-  RUNTIME_DEFAULTED,
-  RUNTIME_FEATURES,
   RUNTIME_REQUIRED,
   createRuntimeContractReporter,
   evaluateRuntimeContract,
-  type RuntimeName,
 } from "./runtime-contract";
 
 // Synthetic values stay short so the literal-secret scan keeps working here.
-const secrets = {
+// They stand in for secrets that may still be set in Cloudflare.
+const staleSecrets = {
   RESEND_API_KEY: "synthetic-resend-51",
   MERCURY_API_TOKEN: "synthetic-mercury-62",
-  MERCURY_ACCOUNT_ID_CHECKING: "synthetic-chk-73",
-  MERCURY_ACCOUNT_ID_SAVINGS: "synthetic-sav-84",
   MINI_API_KEY: "synthetic-mini-95",
   MINI_API_URL: "https://mini.example",
 };
 
 function completeEnv(): Record<string, unknown> {
-  return { DB: { prepare: () => null }, ...secrets };
+  return { DB: { prepare: () => null } };
 }
-
-function without(...names: string[]) {
-  const env = completeEnv();
-  for (const name of names) delete env[name];
-  return env;
-}
-
-const available = { state: "available", missing: [] };
-const allAvailable = {
-  mercury_checking: available,
-  mercury_savings: available,
-  mini_status: available,
-};
 
 function sink() {
   return { info: mock(() => {}), warn: mock(() => {}) };
 }
 
 describe("weekly email runtime contract evaluation", () => {
-  it("reports a complete deployment as ready with every feature available", () => {
+  it("needs only DB now that the worker sends nothing", () => {
+    expect(Object.keys(RUNTIME_CONTRACT)).toEqual(["DB"]);
+    expect([...RUNTIME_REQUIRED]).toEqual(["DB"]);
     expect(evaluateRuntimeContract(completeEnv())).toEqual({
       ok: true,
       missing: [],
-      features: allAvailable,
     });
   });
 
-  for (const name of RUNTIME_REQUIRED) {
-    it(`names a missing required ${name}`, () => {
-      const report = evaluateRuntimeContract(without(name));
-      expect(report.ok).toBe(false);
-      expect(report.missing).toEqual([name]);
-      // Required configuration never changes feature reporting.
-      expect(report.features).toEqual(allAvailable);
+  it("ignores stale secrets that may still be set in Cloudflare", () => {
+    const report = evaluateRuntimeContract({
+      ...completeEnv(),
+      ...staleSecrets,
     });
-  }
-
-  it("reports each Mercury account from the shared token and its own id", () => {
-    expect(
-      evaluateRuntimeContract(without("MERCURY_ACCOUNT_ID_SAVINGS")).features,
-    ).toEqual({
-      ...allAvailable,
-      mercury_savings: {
-        state: "unavailable",
-        missing: ["MERCURY_ACCOUNT_ID_SAVINGS"],
-      },
-    });
-    expect(
-      evaluateRuntimeContract(without("MERCURY_API_TOKEN", "MINI_API_KEY"))
-        .features,
-    ).toEqual({
-      mercury_checking: {
-        state: "unavailable",
-        missing: ["MERCURY_API_TOKEN"],
-      },
-      mercury_savings: { state: "unavailable", missing: ["MERCURY_API_TOKEN"] },
-      mini_status: { state: "unavailable", missing: ["MINI_API_KEY"] },
-    });
+    expect(report).toEqual({ ok: true, missing: [] });
+    const text = JSON.stringify(report);
+    for (const [name, value] of Object.entries(staleSecrets)) {
+      expect(text).not.toContain(name);
+      expect(text).not.toContain(value);
+    }
   });
 
-  it("keeps the defaulted Mini URL out of readiness", () => {
-    expect(evaluateRuntimeContract(without(...RUNTIME_DEFAULTED))).toEqual(
-      evaluateRuntimeContract(completeEnv()),
-    );
+  it("names a missing DB", () => {
+    expect(evaluateRuntimeContract({ ...staleSecrets })).toEqual({
+      ok: false,
+      missing: ["DB"],
+    });
   });
 
   for (const env of [null, undefined, "env", 7]) {
-    it(`reports every name for a non-object env ${String(env)}`, () => {
+    it(`reports DB missing for a non-object env ${String(env)}`, () => {
       expect(evaluateRuntimeContract(env)).toEqual({
         ok: false,
-        missing: [...RUNTIME_REQUIRED],
-        features: {
-          mercury_checking: {
-            state: "unavailable",
-            missing: ["MERCURY_API_TOKEN", "MERCURY_ACCOUNT_ID_CHECKING"],
-          },
-          mercury_savings: {
-            state: "unavailable",
-            missing: ["MERCURY_API_TOKEN", "MERCURY_ACCOUNT_ID_SAVINGS"],
-          },
-          mini_status: { state: "unavailable", missing: ["MINI_API_KEY"] },
-        },
+        missing: ["DB"],
       });
     });
   }
 
   it("reports a shapeless or throwing binding as missing instead of throwing", () => {
-    expect(
-      evaluateRuntimeContract({ ...completeEnv(), DB: {}, RESEND_API_KEY: "" })
-        .missing,
-    ).toEqual(["DB", "RESEND_API_KEY"]);
-    const env = completeEnv();
+    expect(evaluateRuntimeContract({ DB: {} }).missing).toEqual(["DB"]);
+    expect(evaluateRuntimeContract({ DB: { prepare: "no" } }).missing).toEqual([
+      "DB",
+    ]);
+    const env: Record<string, unknown> = {};
     Object.defineProperty(env, "DB", {
       enumerable: true,
       get() {
@@ -125,15 +79,6 @@ describe("weekly email runtime contract evaluation", () => {
     expect(report.missing).toEqual(["DB"]);
     expect(JSON.stringify(report)).not.toContain("provider detail");
   });
-
-  it("never copies configuration values into the report", () => {
-    const env = completeEnv();
-    for (const input of [env, { ...env, DB: undefined }]) {
-      const text = JSON.stringify(evaluateRuntimeContract(input));
-      for (const value of Object.values(env))
-        if (typeof value === "string") expect(text).not.toContain(value);
-    }
-  });
 });
 
 describe("weekly email runtime contract logging", () => {
@@ -141,12 +86,15 @@ describe("weekly email runtime contract logging", () => {
     const log = sink();
     const report = createRuntimeContractReporter(log);
     let reads = 0;
-    const env = new Proxy(without("RESEND_API_KEY", "MINI_API_KEY"), {
-      get(target, key) {
-        reads += 1;
-        return Reflect.get(target, key);
+    const env = new Proxy(
+      { ...staleSecrets },
+      {
+        get(target, key) {
+          reads += 1;
+          return Reflect.get(target, key);
+        },
       },
-    });
+    );
     expect(report(env, "scheduled")).toBeUndefined();
     const readsAfterFirst = reads;
     expect(readsAfterFirst).toBeGreaterThan(0);
@@ -162,14 +110,10 @@ describe("weekly email runtime contract logging", () => {
       worker: "weekly-email",
       entry: "scheduled",
       ok: false,
-      missing: ["RESEND_API_KEY"],
-      features: {
-        ...allAvailable,
-        mini_status: { state: "unavailable", missing: ["MINI_API_KEY"] },
-      },
+      missing: ["DB"],
     });
-    for (const value of Object.values(completeEnv()))
-      if (typeof value === "string") expect(line).not.toContain(value);
+    for (const value of Object.values(staleSecrets))
+      expect(line).not.toContain(value);
   });
 
   it("logs a complete deployment at info level", () => {
@@ -177,7 +121,13 @@ describe("weekly email runtime contract logging", () => {
     createRuntimeContractReporter(log)(completeEnv(), "fetch");
     expect(log.warn).not.toHaveBeenCalled();
     const line = log.info.mock.calls[0]?.[0] as unknown as string;
-    expect(JSON.parse(line)).toMatchObject({ entry: "fetch", ok: true });
+    expect(JSON.parse(line)).toEqual({
+      event: "runtime_contract",
+      worker: "weekly-email",
+      entry: "fetch",
+      ok: true,
+      missing: [],
+    });
   });
 
   it("swallows evaluation and sink failures", () => {
@@ -203,12 +153,14 @@ describe("weekly email runtime contract logging", () => {
   });
 });
 
-// wrangler.toml is the deployed source for the D1 binding, and its
-// `# Secrets:` comments name the values set with `wrangler secret put`.
-// A defaulted secret is listed under `# Optional secrets:` instead.
-type Source = "d1" | "secret";
-type Declared = Record<Source | "optionalSecret", string[]> & {
+// wrangler.toml is the deployed source for the D1 binding, and `# Secrets:`
+// or `# Optional secrets:` comments name the values set with
+// `wrangler secret put`. The retired worker declares none.
+type Declared = {
   vars: string[];
+  d1: string[];
+  secret: string[];
+  crons: string | null;
   observability: boolean;
   invocationLogs: boolean;
   unrecognized: string[];
@@ -238,7 +190,7 @@ function declaredRuntimeNames(text: string): Declared {
     vars: [],
     d1: [],
     secret: [],
-    optionalSecret: [],
+    crons: null,
     observability: false,
     invocationLogs: true,
     unrecognized: [],
@@ -246,11 +198,9 @@ function declaredRuntimeNames(text: string): Declared {
   let section = "";
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim();
-    const secretComment = /^# (Secrets|Optional secrets): (.+)\.$/.exec(line);
-    if (secretComment?.[2]) {
-      const names = secretComment[2].split(/,\s*|\s+and\s+/);
-      if (secretComment[1] === "Secrets") declared.secret.push(...names);
-      else declared.optionalSecret.push(...names);
+    const secretComment = /^# (?:Secrets|Optional secrets): (.+)\.$/.exec(line);
+    if (secretComment?.[1]) {
+      declared.secret.push(...secretComment[1].split(/,\s*|\s+and\s+/));
       continue;
     }
     if (!line || line.startsWith("#")) continue;
@@ -268,6 +218,7 @@ function declaredRuntimeNames(text: string): Declared {
     if (section === "vars") declared.vars.push(key);
     if (section === "d1_databases" && key === "binding" && quoted)
       declared.d1.push(quoted);
+    if (section === "triggers" && key === "crons") declared.crons = value;
     if (section === "observability" && key === "enabled")
       declared.observability = value === "true";
     if (section === "observability.logs" && key === "invocation_logs")
@@ -276,28 +227,16 @@ function declaredRuntimeNames(text: string): Declared {
   return declared;
 }
 
-// A secret read with a code default must be declared optional, not required.
-function declaredList(declared: Declared, name: RuntimeName) {
-  const { source } = RUNTIME_CONTRACT[name];
-  const defaulted = (RUNTIME_DEFAULTED as readonly string[]).includes(name);
-  return source === "secret" && defaulted
-    ? declared.optionalSecret
-    : declared[source];
-}
-
 function undeclared(declared: Declared) {
-  return (Object.keys(RUNTIME_CONTRACT) as RuntimeName[]).filter(
-    (name) => !declaredList(declared, name).includes(name),
+  return Object.keys(RUNTIME_CONTRACT).filter(
+    (name) => !declared.d1.includes(name),
   );
 }
 
 function unclassified(declared: Declared) {
-  return [
-    ...declared.vars,
-    ...declared.d1,
-    ...declared.secret,
-    ...declared.optionalSecret,
-  ].filter((name) => !(name in RUNTIME_CONTRACT));
+  return [...declared.vars, ...declared.d1, ...declared.secret].filter(
+    (name) => !(name in RUNTIME_CONTRACT),
+  );
 }
 
 describe("weekly email wrangler.toml runtime contract drift", () => {
@@ -306,14 +245,23 @@ describe("weekly email wrangler.toml runtime contract drift", () => {
     "utf8",
   );
 
-  it("declares every contract binding and secret under its contract name", () => {
+  it("declares the DB binding under its contract name", () => {
     expect(undeclared(declaredRuntimeNames(wrangler))).toEqual([]);
   });
 
-  it("classifies every deployed binding, var and secret in the contract", () => {
+  it("declares no var or secret the contract does not classify", () => {
     const declared = declaredRuntimeNames(wrangler);
+    expect(declared.vars).toEqual([]);
+    expect(declared.secret).toEqual([]);
     expect(unclassified(declared)).toEqual([]);
     expect(declared.unrecognized).toEqual([]);
+  });
+
+  it("keeps an explicit empty schedule so a deploy removes the Sunday cron", () => {
+    expect(declaredRuntimeNames(wrangler).crons).toBe("[]");
+    const dropped = wrangler.replace(/^\[triggers\]\ncrons = \[\]\n/m, "");
+    expect(dropped).not.toBe(wrangler);
+    expect(declaredRuntimeNames(dropped).crons).toBeNull();
   });
 
   it("flags a binding table or top-level binding the parser cannot classify", () => {
@@ -329,32 +277,18 @@ describe("weekly email wrangler.toml runtime contract drift", () => {
     expect(declared.invocationLogs).toBe(false);
   });
 
-  it("flags a removed or renamed name", () => {
+  it("flags a renamed binding or a secret declared again", () => {
     const d1 = wrangler.replace('binding = "DB"', 'binding = "DATABASE"');
-    const secret = wrangler.replace(" and MINI_API_KEY", "");
-    const optional = wrangler.replace(
-      "# Optional secrets: MINI_API_URL.",
-      "# Secrets: MINI_API_URL.",
-    );
-    for (const changed of [d1, secret, optional])
-      expect(changed).not.toBe(wrangler);
+    const secret = `${wrangler}\n# Secrets: RESEND_API_KEY.\n`;
+    const optional = `${wrangler}\n# Optional secrets: MINI_API_URL.\n`;
+    expect(d1).not.toBe(wrangler);
     expect(undeclared(declaredRuntimeNames(d1))).toEqual(["DB"]);
     expect(unclassified(declaredRuntimeNames(d1))).toEqual(["DATABASE"]);
-    expect(undeclared(declaredRuntimeNames(secret))).toEqual(["MINI_API_KEY"]);
-    expect(undeclared(declaredRuntimeNames(optional))).toEqual([
+    expect(unclassified(declaredRuntimeNames(secret))).toEqual([
+      "RESEND_API_KEY",
+    ]);
+    expect(unclassified(declaredRuntimeNames(optional))).toEqual([
       "MINI_API_URL",
     ]);
-  });
-
-  it("keeps every contract name required, owned by a feature or defaulted", () => {
-    const used = new Set<string>([
-      ...RUNTIME_REQUIRED,
-      ...Object.values(RUNTIME_FEATURES).flat(),
-      ...RUNTIME_DEFAULTED,
-    ]);
-    expect(Object.keys(RUNTIME_CONTRACT).filter((n) => !used.has(n))).toEqual(
-      [],
-    );
-    for (const name of used) expect(name in RUNTIME_CONTRACT).toBe(true);
   });
 });
