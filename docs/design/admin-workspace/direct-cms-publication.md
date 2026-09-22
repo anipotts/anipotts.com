@@ -49,12 +49,12 @@ Unpublish is the same durable operation with `action: "unpublish"`. It never del
 
 ## Deployment and transition
 
-Missing mode means legacy only for compatibility; unknown explicit values fail closed. The activation record below supersedes the original transition plan for the mode switch.
+For the admin, a missing mode means legacy only for compatibility; unknown explicit values fail closed. The public reader has one mode: `CONTENT_RUNTIME` must be exactly `cms`, and a missing, `legacy` or any other value returns a no-store 503 on every content route. The bundled Git content is never a runtime source on its own. The activation record below supersedes the original transition plan for the mode switch.
 
 | Control                        | Values                                                                          |
 | ------------------------------ | ------------------------------------------------------------------------------- |
 | Admin `EDITORIAL_PUBLISH_MODE` | `legacy`, `maintenance`, `direct`                                               |
-| Public `CONTENT_RUNTIME`       | `legacy`, `cms`                                                                 |
+| Public `CONTENT_RUNTIME`       | `cms`                                                                           |
 | Direct runtime bindings        | `CONTENT_DB`, `CONTENT_MEDIA`; never reuse shared `DB` as the publication store |
 
 Read-only provider verification on 2026-09-20 found dedicated D1 `anipotts-content` (`2679fc97-e251-46b7-ad01-db8b9fe04e8d`) with migration 0001 only and no active/publication rows. `anipotts-content-media` was private with no custom domain or r2.dev exposure and zero objects in provider metrics. Neither deployed app had these bindings. System recorded evidence in its existing consolidation handoff. This is resource inventory, not restore proof.
@@ -190,4 +190,4 @@ an additional recovery mechanism, not substituted for cross-store restore proof.
 
 `scripts/content/seed-content-d1.mjs` copies each public Git record into the dedicated content D1 as revision 1 with publication ID `git-seed.<kind>.<id>`, no expected publication and expected inventory version 0. All seeded records share one activation, so the inventory moves 0 to 1 once. Hidden projects, draft writing, the newsletter page and non-record files stay Git-only, because the publisher refuses to activate them and the database holds public snapshots only. The script is a dry run by default. It reads state before writing and refuses any row it did not produce. Every statement is guarded, so an interrupted file converges on rerun. Remote writes need `--confirm-remote anipotts-content`. Media upload is a separate `--upload-media` mode.
 
-`node apps/www/test/cms-seed-parity.mjs` serves the existing www build twice under local workerd, in legacy mode and against a seeded local D1, and compares every public route on all three hostnames. Bodies compare byte for byte. Activation is a zero visible change: sitemap `lastmod` comes from frontmatter dates only, articles emit no publication-based `dateModified`, a CMS article keeps its bundled social card by slug and falls back to the site card only when none was built, and CMS bodies are trimmed like Astro's loader.
+`node apps/www/test/cms-seed-routes.mjs` (`pnpm --filter @anipotts/www test:cms-routes`) seeds a local D1 with this script, serves the existing www build under local workerd and checks every public route on all three hostnames: status, the cms cache contract, and that each seeded record is answered from the store. `apps/www/test/published-runtime.test.mjs` proves in process that a store seeded from Git renders every route byte for byte like the bundled defaults, so a reseed is a zero visible change: sitemap `lastmod` comes from frontmatter dates only, articles emit no publication-based `dateModified`, a CMS article keeps its bundled social card by slug and falls back to the site card only when none was built, and CMS bodies are trimmed like Astro's loader.
