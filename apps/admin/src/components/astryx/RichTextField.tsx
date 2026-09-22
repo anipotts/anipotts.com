@@ -34,6 +34,16 @@ const publicSiteUrl = import.meta.env.DEV
   ? "http://localhost:4311/"
   : "https://anipotts.com/";
 import { inlineDocument, inlineMarkdown } from "../../lib/rich-text";
+import { useKeyboardInset } from "../../lib/keyboard-inset";
+
+export type RichTool = "bold" | "italic" | "underline" | "link" | "image";
+const ALL_TOOLS: readonly RichTool[] = [
+  "bold",
+  "italic",
+  "underline",
+  "link",
+  "image",
+];
 
 // Keep a typed suffix inside its link. Arrow-right still lets the writer leave the mark.
 const EditorialStarterKit = StarterKit.extend({
@@ -98,6 +108,7 @@ function fieldAttributes(
     "aria-label": label,
     "aria-multiline": "true",
     spellcheck: "true",
+    autocapitalize: "off",
     "aria-invalid": validationError ? "true" : "false",
     ...(describedBy ? { "aria-describedby": describedBy } : {}),
   };
@@ -114,6 +125,8 @@ export function RichTextField({
   resetGeneration = 0,
   flushRef,
   onDirty,
+  limit,
+  tools = ALL_TOOLS,
 }: {
   label: string;
   description?: string;
@@ -125,6 +138,10 @@ export function RichTextField({
   resetGeneration?: number;
   flushRef?: RefObject<(() => void) | null>;
   onDirty?: () => void;
+  /** Visible characters allowed. The counter appears within 20% of it. */
+  limit?: number;
+  /** The formatting this field offers; the rest never shows. */
+  tools?: readonly RichTool[];
 }) {
   const id = useId();
   const panelSelection = useRef(new EditorSelectionBookmark());
@@ -140,6 +157,8 @@ export function RichTextField({
   const [alt, setAlt] = useState("");
   const [urlError, setUrlError] = useState("");
   const [editingImage, setEditingImage] = useState(false);
+  const [focused, setFocused] = useState(false);
+  useKeyboardInset(focused);
   const editor = useEditor({
     immediatelyRender: false,
     shouldRerenderOnTransaction: false,
@@ -252,26 +271,28 @@ export function RichTextField({
     setUrlError("");
     setEditingImage(editor.isActive("image"));
   }
-  const actions = [
-    {
-      label: "Bold",
-      icon: TextBIcon,
-      active: "bold",
-      run: () => editor?.chain().focus().toggleBold().run(),
-    },
-    {
-      label: "Italic",
-      icon: TextItalicIcon,
-      active: "italic",
-      run: () => editor?.chain().focus().toggleItalic().run(),
-    },
-    {
-      label: "Underline",
-      icon: TextUnderlineIcon,
-      active: "underline",
-      run: () => editor?.chain().focus().toggleUnderline().run(),
-    },
-  ];
+  const actions = (
+    [
+      {
+        label: "Bold",
+        icon: TextBIcon,
+        active: "bold",
+        run: () => editor?.chain().focus().toggleBold().run(),
+      },
+      {
+        label: "Italic",
+        icon: TextItalicIcon,
+        active: "italic",
+        run: () => editor?.chain().focus().toggleItalic().run(),
+      },
+      {
+        label: "Underline",
+        icon: TextUnderlineIcon,
+        active: "underline",
+        run: () => editor?.chain().focus().toggleUnderline().run(),
+      },
+    ] as const
+  ).filter((action) => tools.includes(action.active));
   function applyPanel() {
     if (disabled) return;
     if (!editor) return;
@@ -331,7 +352,15 @@ export function RichTextField({
           gap={0}
           className="rich-field-surface"
           data-disabled={disabled || undefined}
+          onFocusCapture={() => setFocused(true)}
+          onBlurCapture={(event) => {
+            if (
+              !event.currentTarget.contains(event.relatedTarget as Node | null)
+            )
+              setFocused(false);
+          }}
         >
+          <EditorContent editor={editor} className="rich-writing" />
           <Toolbar
             label={`${label} formatting`}
             size="sm"
@@ -378,27 +407,34 @@ export function RichTextField({
                     ))}
                   </ToggleButtonGroup>
                 </HStack>
-                <Button
-                  label="Edit link"
-                  tooltip="Edit link"
-                  icon={<LinkIcon />}
-                  isIconOnly
-                  variant="ghost"
-                  isDisabled={disabled || !editor}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => openPanel("link")}
-                />
-                <Button
-                  label="Edit image"
-                  tooltip="Edit image"
-                  icon={<ImageIcon />}
-                  isIconOnly
-                  variant="ghost"
-                  isDisabled={disabled || !editor}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => openPanel("image")}
-                />
-                <HStack gap={1} className="editor-toolbar-group">
+                {tools.includes("link") && (
+                  <Button
+                    label="Edit link"
+                    tooltip="Edit link"
+                    icon={<LinkIcon />}
+                    isIconOnly
+                    variant="ghost"
+                    isDisabled={disabled || !editor}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => openPanel("link")}
+                  />
+                )}
+                {tools.includes("image") && (
+                  <Button
+                    label="Edit image"
+                    tooltip="Edit image"
+                    icon={<ImageIcon />}
+                    isIconOnly
+                    variant="ghost"
+                    isDisabled={disabled || !editor}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => openPanel("image")}
+                  />
+                )}
+                <HStack
+                  gap={1}
+                  className="editor-toolbar-group editor-history-tools"
+                >
                   <Button
                     label="Undo"
                     tooltip="Undo"
@@ -423,7 +459,6 @@ export function RichTextField({
               </HStack>
             }
           />
-          <EditorContent editor={editor} className="rich-writing" />
           {panel && (
             <SelectionOverlay
               editor={editor}
@@ -538,11 +573,12 @@ export function RichTextField({
             </SelectionOverlay>
           )}
         </VStack>
-        {!compact && (
-          <Text color="secondary" type="supporting">
-            {inlinePlainText(value).length} characters
-          </Text>
-        )}
+        {limit !== undefined &&
+          inlinePlainText(value).length >= limit * 0.8 && (
+            <Text color="secondary" type="supporting" className="rich-counter">
+              {inlinePlainText(value).length} of {limit}
+            </Text>
+          )}
       </Field>
     </VStack>
   );

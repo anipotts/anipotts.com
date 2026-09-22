@@ -7,6 +7,7 @@ import React, {
   type ReactNode,
   type RefObject,
 } from "react";
+import { BottomSheet } from "@astryxdesign/core/BottomSheet";
 import { Dialog, DialogHeader } from "@astryxdesign/core/Dialog";
 import { Layout, LayoutContent, LayoutPanel } from "@astryxdesign/core/Layout";
 import { VStack } from "@astryxdesign/core/VStack";
@@ -14,29 +15,42 @@ import { HStack } from "@astryxdesign/core/HStack";
 import { Heading } from "@astryxdesign/core/Heading";
 import { IconButton } from "@astryxdesign/core/IconButton";
 import { XIcon } from "@phosphor-icons/react";
+import { BREAKPOINT_MIN } from "../../lib/breakpoints";
 
 export type RecordPanelMode = "inspector" | "drawer" | "sheet";
-/** Budget includes the 256px inspector and a comfortable gap around 600px prose. */
+/** The inline inspector needs the 45rem writing measure, its own 16rem and
+ * the gap between them. */
+const INSPECTOR_BUDGET = 1040;
+/** Phones get a sheet. Wider screens get the inline inspector when the main
+ * region, not the capped document column, has room for it beside the
+ * writing; otherwise a drawer. */
 export function recordPanelMode(
   viewportWidth: number,
   availableWidth: number,
 ): RecordPanelMode {
-  if (viewportWidth < 768) return "sheet";
-  return viewportWidth >= 1280 && availableWidth >= 900
-    ? "inspector"
-    : "drawer";
+  if (viewportWidth < BREAKPOINT_MIN.medium) return "sheet";
+  return availableWidth >= INSPECTOR_BUDGET ? "inspector" : "drawer";
 }
 
 type Props = {
   title: string;
   onClose: () => void;
   children: ReactNode;
-  /** The full workspace region, before subtracting the inspector. */
+  /** The region to measure. Defaults to the page's main region. */
   containerRef?: RefObject<HTMLElement | null>;
+  /** `review` never sits inline: a wide dialog, and a tall sheet on phones.
+   * Properties and History are half-height sheets on phones. */
+  form?: "panel" | "review";
 };
 
 /** Mount beside the document in a `data-record-workspace` region when open. */
-export function RecordPanel({ title, onClose, children, containerRef }: Props) {
+export function RecordPanel({
+  title,
+  onClose,
+  children,
+  containerRef,
+  form = "panel",
+}: Props) {
   const marker = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const opener = useRef<HTMLElement | null>(null);
@@ -69,15 +83,16 @@ export function RecordPanel({ title, onClose, children, containerRef }: Props) {
   useEffect(() => {
     const container =
       containerRef?.current ??
+      marker.current?.closest<HTMLElement>("main") ??
       marker.current?.closest<HTMLElement>("[data-record-workspace]") ??
       marker.current?.parentElement;
-    const measure = () =>
-      setMode(
-        recordPanelMode(
-          window.innerWidth,
-          container?.clientWidth ?? window.innerWidth,
-        ),
+    const measure = () => {
+      const next = recordPanelMode(
+        window.innerWidth,
+        container?.clientWidth ?? window.innerWidth,
       );
+      setMode(form === "review" && next === "inspector" ? "drawer" : next);
+    };
     measure();
     const observer = new ResizeObserver(measure);
     if (container) observer.observe(container);
@@ -86,10 +101,13 @@ export function RecordPanel({ title, onClose, children, containerRef }: Props) {
       observer.disconnect();
       window.removeEventListener("resize", measure);
     };
-  }, [containerRef]);
+  }, [containerRef, form]);
   useEffect(() => {
     if (mode === "inspector") heading.current?.focus({ preventScroll: true });
   }, [mode, title]);
+  const dismiss = (open: boolean) => {
+    if (!open) close.current();
+  };
   return (
     <VStack ref={marker} className="record-panel-host">
       {mode === "inspector" ? (
@@ -128,31 +146,51 @@ export function RecordPanel({ title, onClose, children, containerRef }: Props) {
             {children}
           </VStack>
         </LayoutPanel>
+      ) : mode === "sheet" ? (
+        <BottomSheet
+          label={title}
+          isOpen
+          onOpenChange={dismiss}
+          purpose="form"
+          height={form === "review" ? "tall" : "50dvh"}
+          className="record-panel-sheet"
+        >
+          <VStack gap={4} padding={3}>
+            <HStack gap={2} hAlign="between" vAlign="center">
+              <Heading level={2} id={titleId}>
+                {title}
+              </Heading>
+              <IconButton
+                label={`Close ${title.toLowerCase()}`}
+                tooltip={`Close ${title.toLowerCase()}`}
+                variant="ghost"
+                icon={<XIcon size={18} aria-hidden="true" />}
+                onClick={onClose}
+              />
+            </HStack>
+            {children}
+          </VStack>
+        </BottomSheet>
       ) : mode ? (
         <Dialog
           isOpen
-          onOpenChange={(open) => {
-            if (!open) close.current();
-          }}
+          onOpenChange={dismiss}
           purpose="form"
-          variant={mode === "sheet" ? "fullscreen" : "standard"}
-          width="min(calc(var(--spacing-10) * 10), 100vw)"
+          variant="standard"
+          width={
+            form === "review"
+              ? "min(64rem, calc(100vw - 2 * var(--admin-gutter, 16px)))"
+              : "min(calc(var(--spacing-10) * 10), 100vw)"
+          }
           maxHeight="100dvh"
           position={
-            mode === "drawer" ? { top: 0, bottom: 0, end: 0 } : undefined
+            form === "review" ? undefined : { top: 0, bottom: 0, end: 0 }
           }
-          className="record-panel-dialog"
+          className={`record-panel-dialog${form === "review" ? " record-review-dialog" : ""}`}
         >
           <Layout
             height="fill"
-            header={
-              <DialogHeader
-                title={title}
-                onOpenChange={(open) => {
-                  if (!open) close.current();
-                }}
-              />
-            }
+            header={<DialogHeader title={title} onOpenChange={dismiss} />}
             content={<LayoutContent padding={4}>{children}</LayoutContent>}
           />
         </Dialog>

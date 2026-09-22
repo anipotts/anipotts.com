@@ -4,6 +4,10 @@ import { TagInput } from "./TagInput";
 import { Selector } from "@astryxdesign/core/Selector";
 import { FormLayout } from "@astryxdesign/core/FormLayout";
 import { Text } from "@astryxdesign/core/Text";
+import { VStack } from "@astryxdesign/core/VStack";
+import { HStack } from "@astryxdesign/core/HStack";
+import { IconButton } from "@astryxdesign/core/IconButton";
+import { CopySimpleIcon, GlobeSimpleIcon } from "@phosphor-icons/react";
 import { Collapsible, CollapsibleGroup } from "@astryxdesign/core/Collapsible";
 import {
   parseEditorialSource,
@@ -18,7 +22,10 @@ export function ArticleSettings({
   errors,
   disclosure = true,
   publicationMode = "legacy",
+  publicUrl,
 }: {
+  /** The live page, when the article is on the site. */
+  publicUrl?: string;
   disclosure?: boolean;
   publicationMode?: "legacy" | "maintenance" | "direct";
   errors: Map<string, string>;
@@ -55,11 +62,6 @@ export function ArticleSettings({
         value={typeof data.status === "string" ? data.status : "draft"}
         status={fieldStatus("status")}
         isDisabled={disabled}
-        description={
-          publicationMode === "direct"
-            ? "Publishing keeps a piece visible. To take it off the website, use Unpublish in the document actions; scheduling is not available yet. Your draft stays private until you approve publication."
-            : "Changes take effect only after you approve publication."
-        }
         options={[
           {
             value: "draft",
@@ -113,10 +115,10 @@ export function ArticleSettings({
         error={errors.get("tags")}
         onChange={(tags) => update("tags", tags)}
       />
-      <Text color="secondary">
-        Address: /writing/
-        {typeof data.slug === "string" && data.slug ? data.slug : id}
-      </Text>
+      <Address
+        path={`/writing/${typeof data.slug === "string" && data.slug ? data.slug : id}`}
+        publicUrl={publicUrl}
+      />
     </FormLayout>
   );
   return disclosure ? (
@@ -127,5 +129,41 @@ export function ArticleSettings({
     </CollapsibleGroup>
   ) : (
     fields
+  );
+}
+
+/** The article's address in the code face, clipped with an ellipsis, with
+ * copy and, once it is live, open. */
+function Address({ path, publicUrl }: { path: string; publicUrl?: string }) {
+  const address = publicUrl ?? `https://anipotts.com${path}`;
+  return (
+    <VStack gap={1}>
+      <Text type="label">Address</Text>
+      <HStack gap={1} vAlign="center" className="editor-address">
+        <code className="editor-address-path" title={path}>
+          {path}
+        </code>
+        <IconButton
+          label="Copy address"
+          tooltip="Copy address"
+          variant="ghost"
+          size="sm"
+          icon={<CopySimpleIcon weight="regular" aria-hidden="true" />}
+          onClick={() => void navigator.clipboard?.writeText(address)}
+        />
+        {publicUrl && (
+          <IconButton
+            label="Open on site"
+            tooltip="Open on site"
+            variant="ghost"
+            size="sm"
+            icon={<GlobeSimpleIcon weight="regular" aria-hidden="true" />}
+            href={publicUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          />
+        )}
+      </HStack>
+    </VStack>
   );
 }

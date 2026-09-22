@@ -9,6 +9,8 @@ import {
   SegmentedControlItem,
 } from "@astryxdesign/core/SegmentedControl";
 import { Heading } from "@astryxdesign/core/Heading";
+import { ToggleButton } from "@astryxdesign/core/ToggleButton";
+import { CodeIcon } from "@phosphor-icons/react";
 import {
   inlinePlainText,
   parseInline,
@@ -338,14 +340,37 @@ export function ReviewHeading({
   );
 }
 
+/** The diff's colour key, only where there is a diff to read. */
+function DiffLegend() {
+  return (
+    <HStack
+      gap={2}
+      role="group"
+      aria-label="Diff legend"
+      className="editor-diff-legend"
+    >
+      <Text type="supporting" className="editor-diff-added">
+        + Added
+      </Text>
+      <Text type="supporting" className="editor-diff-removed">
+        − Removed
+      </Text>
+    </HStack>
+  );
+}
+
 export function ReviewChanges({
   destination,
   changes,
   before,
   after,
   labelledBy,
+  label,
 }: {
   labelledBy?: string;
+  /** The section's name when a sheet or panel already titles it. The
+   * section then draws no heading of its own. */
+  label?: string;
   destination: string;
   changes: Change[];
   before: string;
@@ -356,15 +381,17 @@ export function ReviewChanges({
   const ownHeadingId = useId();
   const headingId = labelledBy ?? ownHeadingId;
   const changed = changes.filter((change) => change.before !== change.after);
+  const differs = before !== after;
   return (
     <VStack
       as="section"
-      aria-labelledby={headingId}
+      aria-labelledby={label ? undefined : headingId}
+      aria-label={label}
       gap={3}
       className="editor-revision-diff"
       data-layout={layout}
     >
-      {!labelledBy && <ReviewHeading id={headingId} />}
+      {!labelledBy && !label && <ReviewHeading id={headingId} />}
       <HStack
         gap={3}
         wrap="wrap"
@@ -387,31 +414,36 @@ export function ReviewChanges({
                 : "Source changed"}
           </Text>
         </HStack>
-        <HStack
-          gap={2}
-          wrap="wrap"
-          vAlign="center"
-          className="editor-diff-view-controls"
-        >
-          <HStack className="editor-diff-layout">
-            <SegmentedControl
-              label="Diff layout"
-              value={layout}
-              onChange={setLayout}
+        {differs && (
+          <HStack
+            gap={2}
+            wrap="wrap"
+            vAlign="center"
+            className="editor-diff-view-controls"
+          >
+            {label && <DiffLegend />}
+            <HStack className="editor-diff-layout">
+              <SegmentedControl
+                label="Diff layout"
+                value={layout}
+                onChange={setLayout}
+                size="sm"
+              >
+                <SegmentedControlItem value="split" label="Side by side" />
+                <SegmentedControlItem value="unified" label="Unified" />
+              </SegmentedControl>
+            </HStack>
+            <ToggleButton
+              label="Source diff"
+              tooltip="Source diff"
+              isIconOnly
               size="sm"
-            >
-              <SegmentedControlItem value="split" label="Side by side" />
-              <SegmentedControlItem value="unified" label="Unified" />
-            </SegmentedControl>
+              icon={<CodeIcon weight="regular" aria-hidden="true" />}
+              isPressed={sourceView}
+              onPressedChange={setSourceView}
+            />
           </HStack>
-          <Button
-            label={sourceView ? "Field changes" : "Source diff"}
-            aria-pressed={sourceView}
-            variant="ghost"
-            size="sm"
-            onClick={() => setSourceView(!sourceView)}
-          />
-        </HStack>
+        )}
       </HStack>
       {sourceView || !changed.length ? (
         before === after ? (

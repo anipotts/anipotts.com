@@ -1,8 +1,6 @@
 import React from "react";
 import type { SaveState } from "../../lib/home-autosave";
-import { HStack } from "@astryxdesign/core/HStack";
 import { StatusDot } from "@astryxdesign/core/StatusDot";
-import { Token } from "@astryxdesign/core/Token";
 
 export type SaveStatusState =
   | "unchanged"
@@ -58,13 +56,13 @@ export function saveStatusFromController(
   return localPreview ? "saved-locally" : "saved-privately";
 }
 
-/** Persistence status only. Publication and public verification are separate. */
+/** Persistence status only, as one dot in the editor bar. Its label is
+ * spoken on every change and shown on hover; at rest nothing is drawn.
+ * Publication and public verification are separate. */
 export function SaveStatus({ state, describedBy }: SaveStatusProps) {
   const { label, variant } = states[state];
   return (
-    <HStack
-      as="span"
-      gap={0}
+    <span
       role="status"
       aria-label="Draft save status"
       aria-live="polite"
@@ -72,32 +70,17 @@ export function SaveStatus({ state, describedBy }: SaveStatusProps) {
       aria-describedby={describedBy}
       className="editor-save-status"
       data-save-state={state}
-      style={{
-        inlineSize: "max-content",
-        maxInlineSize: "100%",
-        flexShrink: 0,
-      }}
+      title={label}
     >
-      <Token
-        label={label}
-        size="sm"
-        icon={
-          <StatusDot
-            variant={variant}
-            label={label}
-            aria-hidden="true"
-            isPulsing={false}
-          />
-        }
-        style={{
-          inlineSize: "max-content",
-          maxInlineSize: "100%",
-          height: "auto",
-          minBlockSize: "var(--spacing-6)",
-          gap: "var(--spacing-2)",
-          color: "var(--color-text-secondary)",
-        }}
-      />
-    </HStack>
+      {state !== "unchanged" && (
+        <StatusDot
+          variant={variant}
+          label={label}
+          aria-hidden="true"
+          isPulsing={state === "saving"}
+        />
+      )}
+      <span className="sr-only">{label}</span>
+    </span>
   );
 }

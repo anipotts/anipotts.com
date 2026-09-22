@@ -38,20 +38,19 @@ describe("draft save status", () => {
     ["conflict", "Resolve conflict"],
     ["session-expired", "Session expired"],
     ["discarded", "Draft discarded"],
-  ])(
-    "announces %s with visible text instead of color alone",
-    (state, label) => {
-      const status = render(state);
-      expect(status.textContent).toBe(label);
-      expect(status.getAttribute("aria-live")).toBe("polite");
-      expect(status.getAttribute("aria-atomic")).toBe("true");
-      // The adjacent visible label conveys the dot's meaning once.
-      expect(
-        status.querySelector('[role="img"]')?.getAttribute("aria-hidden"),
-      ).toBe("true");
-      expect(container.querySelector("button, a, [title]")).toBeNull();
-    },
-  );
+  ])("announces %s in words and names the dot on hover", (state, label) => {
+    const status = render(state);
+    expect(status.textContent).toBe(label);
+    expect(status.getAttribute("aria-live")).toBe("polite");
+    expect(status.getAttribute("aria-atomic")).toBe("true");
+    // The dot is a picture of the words, which are spoken and on hover.
+    expect(status.getAttribute("title")).toBe(label);
+    expect(status.querySelector(".sr-only")?.textContent).toBe(label);
+    const dot = status.querySelector('[role="img"]');
+    if (state === "unchanged") expect(dot).toBeNull();
+    else expect(dot?.getAttribute("aria-hidden")).toBe("true");
+    expect(container.querySelector("button, a")).toBeNull();
+  });
 
   it("replaces an acknowledged save immediately when current contents change or saving fails", () => {
     const original = render("saved-privately");
