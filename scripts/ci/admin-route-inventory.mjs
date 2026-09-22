@@ -100,8 +100,9 @@ export const ADMIN_ROUTES = [
     smoke: false,
   },
   {
+    // Development only: astro.config.mjs injects it under astro dev.
     route: "/content/dev-catalog",
-    file: "apps/admin/src/pages/content/dev-catalog.astro",
+    file: "apps/admin/src/dev/dev-catalog.astro",
     nav: false,
     smoke: false,
   },

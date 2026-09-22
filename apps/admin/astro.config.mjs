@@ -36,6 +36,20 @@ export default defineConfig({
     icon({ include: { ph: ["*"] } }),
     // Retired URLs answer 308 through the middleware, like any other route.
     retiredRoutes(),
+    // The component catalog exists only under astro dev. A build never
+    // compiles it or its fixtures.
+    {
+      name: "admin-dev-catalog",
+      hooks: {
+        "astro:config:setup": ({ command, injectRoute }) => {
+          if (command === "dev")
+            injectRoute({
+              pattern: "/content/dev-catalog",
+              entrypoint: "./src/dev/dev-catalog.astro",
+            });
+        },
+      },
+    },
     // Last, so it checks the host every other integration left behind.
     localOwnerLoopbackGuard({ enabled: adminLocalOwner }),
   ],

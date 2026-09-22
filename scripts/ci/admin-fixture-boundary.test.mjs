@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { extname, join, relative } from "node:path";
 
 const root = process.cwd();
@@ -60,8 +60,19 @@ assert.doesNotMatch(
   "checking slotted content must not consume nested island hydration before rendering",
 );
 
+// The catalog is injected under astro dev only, so a build never compiles it.
+assert.equal(
+  existsSync(join(adminSource, "pages/content/dev-catalog.astro")),
+  false,
+  "the component catalog must stay out of the file-routed pages",
+);
+assert.match(
+  readFileSync(join(root, "apps/admin/astro.config.mjs"), "utf8"),
+  /if \(command === "dev"\)\s*injectRoute\(\{\s*pattern: "\/content\/dev-catalog"/,
+  "the component catalog route must exist only under astro dev",
+);
 const catalogRoute = readFileSync(
-  join(adminSource, "pages/content/dev-catalog.astro"),
+  join(adminSource, "dev/dev-catalog.astro"),
   "utf8",
 );
 assert.match(catalogRoute, /if \(!import\.meta\.env\.DEV\)\s*\{/);
@@ -75,7 +86,7 @@ const catalogConsumers = collect(adminSource).filter((file) => {
   );
 });
 assert.deepEqual(catalogConsumers, [
-  join(adminSource, "pages/content/dev-catalog.astro"),
+  join(adminSource, "dev/dev-catalog.astro"),
 ]);
 const catalogFixture = readFileSync(
   join(adminSource, "components/astryx/dev-review-catalog.tsx"),
