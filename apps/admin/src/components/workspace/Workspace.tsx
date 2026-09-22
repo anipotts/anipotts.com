@@ -1780,6 +1780,8 @@ export function CompactTimeline({
   now?: number;
 }) {
   if (!items.length) return null;
+  // With a current entry, every entry keeps the dot's slot so titles align.
+  const marked = items.some((item) => item.current);
   return (
     <ol className="workspace-timeline" aria-label={label}>
       {items.map((item) => {
@@ -1791,7 +1793,7 @@ export function CompactTimeline({
             className="workspace-timeline-item"
             data-current={item.current ? "true" : undefined}
           >
-            {item.current && (
+            {item.current ? (
               <span
                 className="workspace-timeline-current"
                 role="img"
@@ -1804,6 +1806,13 @@ export function CompactTimeline({
                   aria-hidden="true"
                 />
               </span>
+            ) : (
+              marked && (
+                <span
+                  className="workspace-timeline-current"
+                  aria-hidden="true"
+                />
+              )
             )}
             <span className="workspace-timeline-text">
               <span className="workspace-timeline-title">{item.title}</span>

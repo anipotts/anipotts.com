@@ -855,7 +855,12 @@ describe("detail lists", () => {
         .querySelector(".workspace-timeline-current")!
         .getAttribute("aria-label"),
     ).toBe("Current");
-    expect(items[1]!.querySelector(".workspace-timeline-current")).toBeNull();
+    // The others keep the dot's slot, unnamed, so the titles line up.
+    expect(
+      items[1]!
+        .querySelector(".workspace-timeline-current")!
+        .hasAttribute("aria-label"),
+    ).toBe(false);
     expect(items[1]!.textContent).toBe("Revision 1");
     expect(host.querySelector("ol")!.getAttribute("aria-label")).toBe(
       "Revision history",

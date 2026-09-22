@@ -834,6 +834,7 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
 .workspace-timeline-current {
   display: inline-flex;
   flex: none;
+  width: var(--spacing-2);
 }
 
 /* A day heading above a list that is not a table, on the group row's
