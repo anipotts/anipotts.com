@@ -265,7 +265,7 @@ function distinctNames(rows: SourceRow[]): SourceRow[] {
     (counts.get(row.name) ?? 0) > 1 && row.device
       ? {
           ...row,
-          name: `${row.name}, ${brandMark(row.device)?.label ?? row.device}`,
+          name: `${row.name} on ${brandMark(row.device)?.label ?? row.device}`,
         }
       : row,
   );

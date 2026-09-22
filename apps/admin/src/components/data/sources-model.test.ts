@@ -246,8 +246,8 @@ describe("rows by connector", () => {
     expect(agents.tile).toBeNull();
     expect(agents.accounts.map((account) => account.name)).toEqual([
       "Claude",
-      "Codex, ap-mini",
-      "Codex, ap-pro",
+      "Codex on ap-mini",
+      "Codex on ap-pro",
     ]);
   });
 

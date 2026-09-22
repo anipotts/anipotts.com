@@ -251,9 +251,11 @@ function FamilyTitle({
           </Text>
         </div>
         <div className="workspace-row-meta">
-          <span className="workspace-row-detail">
-            <PhoneDetail row={row} />
-          </span>
+          {!(STATES[row.state].quiet && row.group === "discovered") && (
+            <span className="workspace-row-detail">
+              <PhoneDetail row={row} />
+            </span>
+          )}
           <Text
             type="supporting"
             color="secondary"
@@ -404,6 +406,10 @@ export function SourcesExplorer({
       row.accounts.map((account) => [account.key, row.name] as const),
     ),
   );
+  // A device column only when some row has a device to show.
+  const anyDevice = rows.some(
+    (row) => row.device || row.accounts.some((account) => account.device),
+  );
   const columns: Column<TableRow>[] = [
     {
       key: "source",
@@ -419,24 +425,22 @@ export function SourcesExplorer({
           <SourceTitle row={row} family={familyOf.get(row.key)} />
         ),
     },
-    {
-      key: "device",
-      header: <span className="sr-only">Device</span>,
-      width: CELL_WIDTHS.tile,
-      hideBelow: "large",
-      render: (row) => <Device id={row.device} />,
-    },
+    ...(anyDevice
+      ? [
+          {
+            key: "device",
+            header: <span className="sr-only">Device</span>,
+            width: CELL_WIDTHS.tile,
+            hideBelow: "large" as const,
+            render: (row: TableRow) => <Device id={row.device} />,
+          },
+        ]
+      : []),
     {
       key: "state",
       header: "State",
       width: CELL_WIDTHS.state,
       render: (row) => <SourceStateMark state={row.state} />,
-    },
-    {
-      key: "last",
-      header: "Last sync",
-      width: CELL_WIDTHS.time,
-      render: (row) => <RelativeTime value={row.lastSync} empty="Never" />,
     },
     {
       key: "records",
@@ -450,12 +454,19 @@ export function SourcesExplorer({
     {
       key: "revisions",
       header: "Revisions",
-      width: CELL_WIDTHS.figure,
+      // "Revisions" is wider than a figure cell's label room.
+      width: CELL_WIDTHS.time,
       numeric: true,
       hideBelow: "large",
       render: (row) => (
         <Figure value={row.group === "discovered" ? null : row.revisions} />
       ),
+    },
+    {
+      key: "last",
+      header: "Last sync",
+      width: CELL_WIDTHS.time,
+      render: (row) => <RelativeTime value={row.lastSync} empty="Never" />,
     },
   ];
   return (

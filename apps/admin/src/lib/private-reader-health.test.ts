@@ -135,7 +135,7 @@ describe("the health read", () => {
       status,
       headers: { "Content-Type": "application/json" },
     });
-  const session = (scope: string[], fetcher: typeof fetch) =>
+  const session = (_scope: string[], fetcher: typeof fetch) =>
     createPrivateReaderSession({
       fetch: fetcher,
       csrf: async () => "c".repeat(64),
