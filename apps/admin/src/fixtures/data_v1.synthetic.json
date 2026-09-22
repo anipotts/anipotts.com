@@ -851,7 +851,8 @@
       "collection": "live",
       "status": "current",
       "interval_s": 86400,
-      "last_success_at": "2026-09-21T12:45:00.000000Z"
+      "last_success_at": "2026-09-21T12:45:00.000000Z",
+      "display_name": "Contacts"
     },
     {
       "source_id": "synthetic-calendar",
@@ -889,7 +890,8 @@
       "collection": "live",
       "status": "failed",
       "interval_s": 86400,
-      "failed_count": 1
+      "failed_count": 1,
+      "display_name": "Voice memos"
     },
     {
       "source_id": "synthetic-transcripts",
@@ -913,7 +915,8 @@
       "connector": "health",
       "host": "ap-mini",
       "collection": "live",
-      "status": "paused"
+      "status": "paused",
+      "display_name": "Daily health"
     },
     {
       "source_id": "synthetic-browsing-archive",
@@ -934,7 +937,8 @@
       "connector": "notes",
       "collection": "one_shot",
       "status": "current",
-      "last_success_at": "2026-09-11T17:45:00.000000Z"
+      "last_success_at": "2026-09-11T17:45:00.000000Z",
+      "display_name": "Notes export"
     },
     {
       "source_id": "synthetic-food-orders",
