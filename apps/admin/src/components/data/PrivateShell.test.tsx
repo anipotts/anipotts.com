@@ -497,6 +497,11 @@ describe("Health and Knowledge", () => {
     await render("/data/knowledge");
     expect(host.querySelector("h1")?.textContent).toBe("Knowledge");
     expect(host.textContent).toContain("Not built yet");
+    // No count beside the title: nothing was measured.
+    expect(host.querySelector(".workspace-page-header .workspace-count")).toBe(
+      null,
+    );
+    expect(host.textContent).not.toContain("No knowledge cards");
     expect(host.querySelector("table")).toBeNull();
     expect(fetcher).not.toHaveBeenCalled();
   });
