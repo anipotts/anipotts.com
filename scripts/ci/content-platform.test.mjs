@@ -15,7 +15,6 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
   buildPasskeyProofItems,
-  contentInventorySource,
   expectedPasskeyTables,
   manualPasskeyEnrollmentSequence,
   missingRequiredPasskeyAuditEvents,
@@ -28,7 +27,6 @@ import {
   summarizeSourceContentRecords,
 } from "../../packages/content/dist/admin/index.js";
 import {
-  contentInventorySource as rootContentInventorySource,
   DEFAULT_HOMEPAGE_CONTENT,
   DEFAULT_SYSTEMS_CONTENT,
   normalizeHomepageContent,
@@ -264,10 +262,6 @@ const sourceContentModule = readFileSync(
   "utf8",
 );
 const prettierIgnore = readFileSync(".prettierignore", "utf8");
-const adminContentInventory = readFileSync(
-  "packages/content/src/admin/content.ts",
-  "utf8",
-);
 assert.ok(
   sourceContentModule.includes(
     "packages/content/generated/admin-public-content.json",
@@ -293,11 +287,6 @@ assert.doesNotMatch(
   prettierIgnore,
   /^apps\/www\/src\/content\/$/m,
   "Prettier must not retain the removed public content path",
-);
-assert.match(
-  adminContentInventory,
-  /content\/public\/pages\/newsletter_archive\.md/,
-  "Admin newsletter inventory must reference the canonical filename",
 );
 
 const generatedAdminProjection = JSON.parse(
@@ -518,12 +507,6 @@ assert.throws(
   "invalid generated source records must fail closed",
 );
 
-assert.equal(contentInventorySource.mode, "canonical_source_plus_d1_drafts");
-assert.equal(
-  rootContentInventorySource.mode,
-  "canonical_source_plus_d1_drafts",
-);
-
 const systemsContent = normalizeSystemsPageContent({});
 assert.deepEqual(validateSystemsPageContent(systemsContent), { ok: true });
 assert.equal("lifecycle" in systemsContent, false);
@@ -702,10 +685,10 @@ assert.equal(
     process.execPath,
     [
       "-e",
-      "import('@anipotts/content/admin').then((mod) => process.stdout.write(mod.contentInventorySource.mode))",
+      "import('@anipotts/content/admin').then((mod) => process.stdout.write(typeof mod.sourceContentRecordsFromProjection))",
     ],
     { cwd: "apps/admin", encoding: "utf8" },
   ),
-  "canonical_source_plus_d1_drafts",
+  "function",
   "apps/admin must be able to import @anipotts/content/admin from the built package export",
 );
