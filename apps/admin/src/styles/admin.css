@@ -105,19 +105,3 @@
   white-space: nowrap;
   border: 0;
 }
-
-.operator-source-mark {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  justify-content: center;
-  min-width: 48px;
-  height: 28px;
-  color: var(--color-text-primary);
-  font-size: 10px;
-  font-weight: 650;
-}
-
-.operator-source-label {
-  line-height: 1;
-}
