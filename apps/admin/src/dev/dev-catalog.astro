@@ -2,6 +2,7 @@
 import EditorialLayout from "../layouts/EditorialLayout.astro";
 import { DevDataCatalog } from "../components/astryx/dev-data-catalog";
 import { DevReviewCatalog } from "../components/astryx/dev-review-catalog";
+import { DevSplitCatalog } from "../components/astryx/dev-split-catalog";
 import { DevMarksCatalog } from "../components/dev-marks-catalog";
 
 // The normal Content owner/origin middleware still applies. This route cannot
@@ -34,6 +35,8 @@ const fixture = Astro.url.searchParams.get("fixture");
       <DevDataCatalog client:load />
     ) : fixture === "marks" ? (
       <DevMarksCatalog />
+    ) : fixture === "split" ? (
+      <DevSplitCatalog client:load />
     ) : (
       <DevReviewCatalog client:load />
     )

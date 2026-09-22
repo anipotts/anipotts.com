@@ -38,6 +38,14 @@
   }
 }
 
+/* The sidebar's list scrolls on its own between the identity and the
+   footer, and never chains into main or the document. */
+@media (min-width: 641px) {
+  .editorial-workspace-nav > :has(> .admin-unified-nav) {
+    overscroll-behavior: contain;
+  }
+}
+
 /* The rail changes width, never its row rhythm or icon centerline. */
 @media (min-width: 641px) {
   .editorial-workspace-nav .approved-workspace-header {
@@ -310,6 +318,10 @@
     .editorial-workspace-nav
     > * {
     visibility: hidden;
+  }
+  :root[data-admin-sidebar="rail"]
+    .editorial-workspace-shell[data-sidebar-ready="false"] {
+    --admin-main-block-size: 100dvh;
   }
   :root[data-admin-sidebar="rail"]
     .editorial-workspace-shell[data-sidebar-ready="false"]
