@@ -55,14 +55,20 @@ async function json(
   };
 }
 
-describe("A-32 LinkVault /summary", () => {
-  it("counts every held link and names the newest parseable savedAt", async () => {
-    const { object, data } = withCtx(new LinkVault({} as never, {} as never));
+/** Counts storage.list calls, so a summary can be held to key reads. */
+function countLists(data: { ctx: { storage: { list: unknown } } }["ctx"]) {
+  let lists = 0;
+  const list = data.storage.list as (...args: unknown[]) => unknown;
+  data.storage.list = (...args: unknown[]) => {
+    lists += 1;
+    return list(...args);
+  };
+  return () => lists;
+}
 
-    expect((await json(object, "/summary")).body).toEqual({
-      held: 0,
-      last_saved_at: null,
-    });
+describe("A-32 LinkVault /summary", () => {
+  it("counts links held before the counts were kept, once, and names the newest parseable savedAt", async () => {
+    const { object, data } = withCtx(new LinkVault({} as never, {} as never));
 
     data.set("link:a", {
       id: "a",
@@ -80,6 +86,7 @@ describe("A-32 LinkVault /summary", () => {
       savedAt: "2026-05-01T00:00:00Z",
     });
 
+    const lists = countLists((object as unknown as { ctx: never }).ctx);
     const { status, body } = await json(object, "/summary");
     expect(status).toBe(200);
     expect(body).toEqual({
@@ -87,6 +94,43 @@ describe("A-32 LinkVault /summary", () => {
       last_saved_at: "2026-05-14T23:04:08.297Z",
     });
     expect(JSON.stringify(body)).not.toContain(".test");
+    // Counted once; after that a summary reads two keys, never the vault.
+    expect(lists()).toBe(1);
+    await json(object, "/summary");
+    await json(object, "/summary");
+    expect(lists()).toBe(1);
+  });
+
+  // GET /health is public and uncached: each call must stay two key reads.
+  it("keeps its count and newest time on every write, so /health never lists the vault", async () => {
+    const { object } = withCtx(new LinkVault({} as never, {} as never));
+    const lists = countLists((object as unknown as { ctx: never }).ctx);
+    expect((await json(object, "/summary")).body).toEqual({
+      held: 0,
+      last_saved_at: null,
+    });
+    const add = (id: string, savedAt: string) =>
+      json(object, "/links", {
+        method: "POST",
+        body: JSON.stringify({ id, url: `https://${id}.test`, savedAt }),
+      });
+    await add("a", "2026-05-01T00:00:00.000Z");
+    await add("b", "2026-05-14T23:04:08.297Z");
+    await add("c", "not a time");
+    // Saving the same link again holds it once.
+    await add("a", "2026-05-01T00:00:00.000Z");
+    const listed = lists();
+    expect((await json(object, "/summary")).body).toEqual({
+      held: 3,
+      last_saved_at: "2026-05-14T23:04:08.297Z",
+    });
+    expect(lists()).toBe(listed);
+    // Removing the newest recomputes it from the listing the delete makes.
+    await json(object, "/links/b", { method: "DELETE" });
+    expect((await json(object, "/summary")).body).toEqual({
+      held: 2,
+      last_saved_at: "2026-05-01T00:00:00.000Z",
+    });
   });
 });
 
@@ -131,6 +175,24 @@ describe("A-32 CodeStats receipt and /summary", () => {
     const listed = await json(object, "/commits");
     expect(listed.body.commits).toHaveLength(1);
     expect((await json(object, "/summary")).body.held).toBe(1);
+  });
+
+  it("keeps its count on every write, so /health never lists the window", async () => {
+    const { object, data } = withCtx(new CodeStats({} as never, {} as never));
+    // Held before the count was kept: counted once.
+    data.set("commit:2026-09-01T00:00:00Z:old", { ...commit, sha: "old" });
+    const lists = countLists((object as unknown as { ctx: never }).ctx);
+    expect((await json(object, "/summary")).body.held).toBe(1);
+    expect(lists()).toBe(1);
+    await json(object, "/summary");
+    expect(lists()).toBe(1);
+    await json(object, "/commits", {
+      method: "POST",
+      body: JSON.stringify({ commits: [commit, { ...commit, sha: "two" }] }),
+    });
+    const listed = lists();
+    expect((await json(object, "/summary")).body.held).toBe(3);
+    expect(lists()).toBe(listed);
   });
 
   it("records no receipt when a post carries no well-formed commit", async () => {

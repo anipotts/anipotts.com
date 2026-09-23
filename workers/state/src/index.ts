@@ -32,10 +32,21 @@ app.use("*", async (c, next) => {
   })(c, next);
 });
 
+/** Presence only; the key itself never leaves the binding. */
+const controlConfigured = (env: Bindings) =>
+  typeof env.CONTROL_PLANE_DEVICE_PUBLIC_JWK === "string" &&
+  env.CONTROL_PLANE_DEVICE_PUBLIC_JWK.trim() !== "";
+
+// The command relay is named only while a device key is bound: without one
+// every connect is refused, so it is not a plane this worker offers (A-22).
 app.get("/", (c) =>
   c.json({
     service: "anipotts-state",
-    durableObjects: ["LinkVault", "CodeStats", "CommandRelay"],
+    durableObjects: [
+      "LinkVault",
+      "CodeStats",
+      ...(controlConfigured(c.env) ? ["CommandRelay"] : []),
+    ],
     endpoints: {
       links: {
         list: "GET /api/links",
@@ -58,9 +69,7 @@ app.get("/health", async (c) => {
     {
       links: () => linkVaultStub(c.env),
       commits: () => codeStatsStub(c.env),
-      controlConfigured:
-        typeof c.env.CONTROL_PLANE_DEVICE_PUBLIC_JWK === "string" &&
-        c.env.CONTROL_PLANE_DEVICE_PUBLIC_JWK.trim() !== "",
+      controlConfigured: controlConfigured(c.env),
     },
     Date.now(),
   );

@@ -10,6 +10,10 @@ const MAX_COMMITS = 500;
  */
 export const RECEIVED_KEY = "meta:last_received_at";
 
+/** How many commits the window holds, kept on every write so GET /health
+ * reads two keys instead of listing the window. */
+export const HELD_KEY = "meta:held";
+
 /**
  * CodeStats: stores recent git commits across Ani's local repos. Single
  * named instance ("default") holds the rolling window. Keys:
@@ -66,7 +70,7 @@ export class CodeStats extends DurableObject {
         this.broadcast({ type: "commit.added", commit });
       }
 
-      await this.trimToMax();
+      await this.ctx.storage.put(HELD_KEY, await this.trimToMax());
       if (wellFormed > 0) {
         await this.ctx.storage.put(RECEIVED_KEY, new Date().toISOString());
       }
@@ -85,19 +89,26 @@ export class CodeStats extends DurableObject {
     return Array.from(map.values());
   }
 
-  /** Feeds GET /health: a count and the last receipt, nothing else. */
+  /** Feeds GET /health: a count and the last receipt, nothing else. Two
+   * key reads; the window is listed once only, for commits held before the
+   * count was kept. */
   private async summary(): Promise<CodeStatsSummary> {
-    const held = await this.ctx.storage.list({ prefix: "commit:" });
+    let held = await this.ctx.storage.get<unknown>(HELD_KEY);
+    if (typeof held !== "number") {
+      held = (await this.ctx.storage.list({ prefix: "commit:" })).size;
+      await this.ctx.storage.put(HELD_KEY, held);
+    }
     const last = await this.ctx.storage.get<string>(RECEIVED_KEY);
     return {
-      held: held.size,
+      held: held as number,
       last_received_at: typeof last === "string" ? last : null,
     };
   }
 
-  private async trimToMax(): Promise<void> {
+  /** Trims the window to MAX_COMMITS and returns how many it holds. */
+  private async trimToMax(): Promise<number> {
     const map = await this.ctx.storage.list<Commit>({ prefix: "commit:" });
-    if (map.size <= MAX_COMMITS) return;
+    if (map.size <= MAX_COMMITS) return map.size;
     const overflow = map.size - MAX_COMMITS;
     const keysToDelete: string[] = [];
     for (const key of map.keys()) {
@@ -107,6 +118,7 @@ export class CodeStats extends DurableObject {
     if (keysToDelete.length > 0) {
       await this.ctx.storage.delete(keysToDelete);
     }
+    return map.size - keysToDelete.length;
   }
 
   private async handleWebSocketUpgrade(): Promise<Response> {

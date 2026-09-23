@@ -41,17 +41,17 @@ pnpm --filter @anipotts/state test:cli http://localhost:8787
 
 ## Endpoints
 
-| Method | Path              | What                                                                                            |
-| ------ | ----------------- | ----------------------------------------------------------------------------------------------- |
-| GET    | `/`               | Service info: the Durable Objects plus the links and commits endpoints                          |
-| GET    | `/health`         | Per-plane state; see [Health](#health)                                                          |
-| GET    | `/api/links`      | List saved links                                                                                |
-| POST   | `/api/links`      | Save a link (publish key). Body: `{ url, title?, tag?, note?, source? }`                        |
-| DELETE | `/api/links/:id`  | Remove a link (publish key)                                                                     |
-| GET    | `/api/links/ws`   | WebSocket. Receives `snapshot` on connect, then `link.added` / `link.removed` on every mutation |
-| GET    | `/api/commits`    | List held commits, newest first. `?limit=` caps the list (default 100)                          |
-| POST   | `/api/commits`    | Add one commit or `{ commits: [...] }` (publish key). The window keeps the newest 500           |
-| GET    | `/api/commits/ws` | WebSocket. Receives `snapshot` on connect, then `commit.added`                                  |
+| Method | Path              | What                                                                                                                                  |
+| ------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/`               | Service info: the links and commits endpoints, and the Durable Objects that can serve (`CommandRelay` only while a device key is set) |
+| GET    | `/health`         | Per-plane state; see [Health](#health)                                                                                                |
+| GET    | `/api/links`      | List saved links                                                                                                                      |
+| POST   | `/api/links`      | Save a link (publish key). Body: `{ url, title?, tag?, note?, source? }`                                                              |
+| DELETE | `/api/links/:id`  | Remove a link (publish key)                                                                                                           |
+| GET    | `/api/links/ws`   | WebSocket. Receives `snapshot` on connect, then `link.added` / `link.removed` on every mutation                                       |
+| GET    | `/api/commits`    | List held commits, newest first. `?limit=` caps the list (default 100)                                                                |
+| POST   | `/api/commits`    | Add one commit or `{ commits: [...] }` (publish key). The window keeps the newest 500                                                 |
+| GET    | `/api/commits/ws` | WebSocket. Receives `snapshot` on connect, then `commit.added`                                                                        |
 
 Write routes require `Authorization: Bearer $STATE_PUBLISH_KEY` and answer 503
 when that secret is not configured. `POST /api/links` answers 400 unless the
@@ -62,7 +62,9 @@ body is a JSON object whose `source`, when present, is `shortcut`, `admin` or
 
 `GET /health` answers 200 with `Cache-Control: no-store` and one bounded fact
 per plane: state names, counts and times, never a link url, a commit sha or a
-binding or secret value.
+binding or secret value. The route is public, so each call reads two stored
+keys per plane (a held count and a last time, kept on every write) and never
+lists a Durable Object's storage.
 
 | Plane     | States                                                                                    | Measured from                                                                                     |
 | --------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |

@@ -94,18 +94,18 @@ describe("state entry wiring", () => {
       expect(logs.text()).not.toContain(value);
   });
 
-  it("advertises only the links and commits endpoints", async () => {
+  it("A-22: advertises only the links and commits endpoints, and the relay only with a device key", async () => {
     const app = await freshApp("info");
     captureConsole();
+    const read = async (env: Record<string, unknown>) =>
+      (await (
+        await app.fetch(new Request("https://api.test/"), env)
+      ).json()) as {
+        durableObjects: string[];
+        endpoints: Record<string, unknown>;
+      };
 
-    const info = await app.fetch(
-      new Request("https://api.test/"),
-      completeEnv(),
-    );
-    const body = (await info.json()) as {
-      durableObjects: string[];
-      endpoints: Record<string, unknown>;
-    };
+    const body = await read(completeEnv());
     expect(Object.keys(body.endpoints)).toEqual(["links", "commits"]);
     expect(JSON.stringify(body)).not.toContain("/api/control");
     expect(body.durableObjects).toEqual([
@@ -113,9 +113,20 @@ describe("state entry wiring", () => {
       "CodeStats",
       "CommandRelay",
     ]);
+    // Production binds no device key: every connect is refused, so the
+    // relay is not named as a plane the worker offers.
+    for (const key of [undefined, "", "  "]) {
+      const env = completeEnv();
+      if (key === undefined) delete env.CONTROL_PLANE_DEVICE_PUBLIC_JWK;
+      else env.CONTROL_PLANE_DEVICE_PUBLIC_JWK = key;
+      expect((await read(env)).durableObjects).toEqual([
+        "LinkVault",
+        "CodeStats",
+      ]);
+    }
   });
 
-  it("refuses every control connect when no device key is configured", async () => {
+  it("A-22: refuses every control connect when no device key is configured", async () => {
     const app = await freshApp("no-device-key");
     captureConsole();
     const env = completeEnv();

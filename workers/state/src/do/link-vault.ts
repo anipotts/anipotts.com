@@ -1,6 +1,22 @@
 import { DurableObject } from "cloudflare:workers";
 import type { Link, LinkVaultEvent, LinkVaultSummary } from "../types";
 
+/** How many links are held and the newest parseable savedAt, kept on every
+ * write outside the `link:` prefix so GET /health reads two keys instead of
+ * listing the vault. */
+export const HELD_KEY = "meta:held";
+export const NEWEST_KEY = "meta:last_saved_at";
+
+/** The newest parseable savedAt of some links, as an ISO string. */
+function newestSaved(links: Iterable<Link>): string | null {
+  let newest: number | null = null;
+  for (const link of links) {
+    const ms = Date.parse(link.savedAt);
+    if (Number.isFinite(ms) && (newest === null || ms > newest)) newest = ms;
+  }
+  return newest === null ? null : new Date(newest).toISOString();
+}
+
 /**
  * LinkVault: stores user-saved links. Single named DO instance ("default")
  * holds the whole collection. Keys: `link:<sortableId>`. Hibernated
@@ -48,18 +64,31 @@ export class LinkVault extends DurableObject {
     );
   }
 
-  /** Feeds GET /health: a count and the newest parseable savedAt, nothing else. */
+  /** Feeds GET /health: a count and the newest parseable savedAt, nothing
+   * else. Two key reads; the vault is listed once only, for links saved
+   * before the counts were kept. */
   private async summary(): Promise<LinkVaultSummary> {
-    const map = await this.ctx.storage.list<Link>({ prefix: "link:" });
-    let newest: number | null = null;
-    for (const link of map.values()) {
-      const ms = Date.parse(link.savedAt);
-      if (Number.isFinite(ms) && (newest === null || ms > newest)) newest = ms;
-    }
+    const held = await this.ctx.storage.get<unknown>(HELD_KEY);
+    if (typeof held !== "number") return this.recount();
+    const newest = await this.ctx.storage.get<unknown>(NEWEST_KEY);
     return {
-      held: map.size,
-      last_saved_at: newest === null ? null : new Date(newest).toISOString(),
+      held,
+      last_saved_at: typeof newest === "string" ? newest : null,
     };
+  }
+
+  /** Counts the vault and keeps the result, from a listing already made or
+   * a fresh one. */
+  private async recount(map?: Map<string, Link>): Promise<LinkVaultSummary> {
+    const links =
+      map ?? (await this.ctx.storage.list<Link>({ prefix: "link:" }));
+    const summary = {
+      held: links.size,
+      last_saved_at: newestSaved(links.values()),
+    };
+    await this.ctx.storage.put(HELD_KEY, summary.held);
+    await this.ctx.storage.put(NEWEST_KEY, summary.last_saved_at);
+    return summary;
   }
 
   private async add(input: Pick<Link, "url"> & Partial<Link>): Promise<Link> {
@@ -73,7 +102,21 @@ export class LinkVault extends DurableObject {
       source: input.source ?? "manual",
       savedAt: input.savedAt ?? new Date().toISOString(),
     };
-    await this.ctx.storage.put(`link:${link.savedAt}:${id}`, link);
+    const key = `link:${link.savedAt}:${id}`;
+    const existed = (await this.ctx.storage.get(key)) !== undefined;
+    await this.ctx.storage.put(key, link);
+    const held = await this.ctx.storage.get<unknown>(HELD_KEY);
+    if (typeof held !== "number") await this.recount();
+    else {
+      if (!existed) await this.ctx.storage.put(HELD_KEY, held + 1);
+      const newest = await this.ctx.storage.get<unknown>(NEWEST_KEY);
+      const saved = Date.parse(link.savedAt);
+      if (
+        Number.isFinite(saved) &&
+        !(typeof newest === "string" && Date.parse(newest) >= saved)
+      )
+        await this.ctx.storage.put(NEWEST_KEY, new Date(saved).toISOString());
+    }
     this.broadcast({ type: "link.added", link });
     return link;
   }
@@ -83,6 +126,9 @@ export class LinkVault extends DurableObject {
     for (const [key, link] of map) {
       if (link.id === id) {
         await this.ctx.storage.delete(key);
+        map.delete(key);
+        // The listing is in hand, so the counts come from it.
+        await this.recount(map);
         break;
       }
     }
