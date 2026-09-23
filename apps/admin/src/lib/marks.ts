@@ -24,6 +24,7 @@ export const GLYPH_KINDS = [
   "agenda",
   "backup",
   "browser",
+  "checkout",
   "desktop",
   "device",
   "handoff",
@@ -31,6 +32,7 @@ export const GLYPH_KINDS = [
   "host",
   "inference",
   "job",
+  "key",
   "loopback",
   "sampler",
   "service",
@@ -75,6 +77,8 @@ export const OPS_MARKS = {
   "agents.sync": "claude",
   // The D1 content export lands on the Lexar drive on ap-mini.
   "content.d1-export": "lexar",
+  // Declared credentials and their expiry dates, of several providers.
+  "cred.expiry": "key",
   "health.api": "health",
   // Apple Health data the phone pushes.
   "health.ingest": "applehealth",
@@ -86,9 +90,15 @@ export const OPS_MARKS = {
   "pc.browser": "browser",
   "pc.inference": "inference",
   "pc.reader": "tailscale",
+  // The key admin reader credentials are issued with.
+  "pc.reader-key": "key",
   // Encrypted snapshot to the offsite remote; its provider is not settled.
   "pc.snapshot": "snapshot",
+  // The personal context store's record count against its floor.
+  "pc.store-floors": "source",
   "pc.writer": "writer",
+  // The ~/System checkout on each Mac against origin/main.
+  "pro.checkout": "checkout",
   // ap-pro's rclone sync to the memory-offsite remote on Cloudflare R2.
   "pro.lake-backup": "cloudflare",
   // ap-pro's intake to ap-mini: several apps, so the handoff glyph.
@@ -96,6 +106,7 @@ export const OPS_MARKS = {
   "pro.transcripts": "cloudflare",
   "pro.voicememos": "voicememos",
   "pro.whatsapp": "whatsapp",
+  "system.checkout": "checkout",
   // Session transcripts go to Cloudflare R2.
   "transcripts.upload": "cloudflare",
 } as const satisfies Record<string, Ref>;

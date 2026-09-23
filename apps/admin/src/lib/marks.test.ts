@@ -195,6 +195,7 @@ describe("admin mark maps", () => {
     expect(Object.keys(OPS_MARKS).sort()).toEqual([
       "agents.sync",
       "content.d1-export",
+      "cred.expiry",
       "health.api",
       "health.ingest",
       "imessage.agent",
@@ -205,13 +206,17 @@ describe("admin mark maps", () => {
       "pc.browser",
       "pc.inference",
       "pc.reader",
+      "pc.reader-key",
       "pc.snapshot",
+      "pc.store-floors",
       "pc.writer",
+      "pro.checkout",
       "pro.lake-backup",
       "pro.pc-send",
       "pro.transcripts",
       "pro.voicememos",
       "pro.whatsapp",
+      "system.checkout",
       "transcripts.upload",
     ]);
   });

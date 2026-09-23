@@ -26,7 +26,8 @@ import {
 
 const ADMIN = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 
-/** The live catalog System served on 2026-09-22: ids and hosts only. */
+/** The live catalog System served on 2026-09-22 and 23: ids and hosts
+ * only. */
 const LIVE_CATALOG: Array<{ id: string; kind: string; host: string }> = [
   ["host.ap-mini", "host", "ap-mini"],
   ["health.api", "service", "ap-mini"],
@@ -50,6 +51,12 @@ const LIVE_CATALOG: Array<{ id: string; kind: string; host: string }> = [
   ["pro.voicememos", "job", "ap-pro"],
   ["pro.whatsapp", "job", "ap-pro"],
   ["pro.pc-send", "job", "ap-pro"],
+  // First served on 2026-09-22 at 21:26Z and after.
+  ["pc.store-floors", "service", "ap-mini"],
+  ["pc.reader-key", "service", "ap-mini"],
+  ["cred.expiry", "service", "ap-mini"],
+  ["system.checkout", "service", "ap-mini"],
+  ["pro.checkout", "service", "ap-pro"],
 ].map(([id, kind, host]) => ({ id: id!, kind: kind!, host: host! }));
 
 /** A developer's local copy of the live payloads (`.local/` is ignored and
@@ -148,6 +155,11 @@ describe("names", () => {
             "pro.pc-send": "pro intake and offsite upload",
             "transcripts.upload": "session transcripts to R2",
             "host.ap-pro": "ap-pro",
+            "pc.store-floors": "personal context store size",
+            "pc.reader-key": "admin reader issuer key",
+            "cred.expiry": "declared credential expiries",
+            "system.checkout": "system checkout",
+            "pro.checkout": "pro system checkout",
           }[entry.id])!;
         const naming = opsNaming({ ...entry, name });
         return [
@@ -187,6 +199,11 @@ describe("names", () => {
       "pro.voicememos": ["voicememos", "ap-pro", "Mirror"],
       "pro.whatsapp": ["whatsapp", "ap-pro", "Sync"],
       "pro.pc-send": ["handoff", "ap-pro", "Intake and offsite upload"],
+      "pc.store-floors": ["source", "ap-mini", "Personal context store size"],
+      "pc.reader-key": ["key", "ap-mini", "Admin reader issuer key"],
+      "cred.expiry": ["key", "ap-mini", "Declared credential expiries"],
+      "system.checkout": ["checkout", "ap-mini", "System checkout"],
+      "pro.checkout": ["checkout", "ap-pro", "System checkout"],
     });
     const chatgpt = opsNaming({
       id: "keepalive.chatgpt",
