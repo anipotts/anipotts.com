@@ -279,7 +279,9 @@ function withMatch(
       key: "match",
       header: "Match",
       hideBelow: "large",
-      render: (record) => <DetailText>{record.excerpt ?? ""}</DetailText>,
+      render: (record) => (
+        <DetailText lines={1}>{record.excerpt ?? ""}</DetailText>
+      ),
     },
     ...rest.filter((column) => column.key !== "source"),
   ];

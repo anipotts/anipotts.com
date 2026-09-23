@@ -395,6 +395,21 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+/* A title that wraps rather than truncates: whole words onto a second line,
+   its kept host on the line of the word before it. */
+.workspace-row-title[data-wrap]:not(#\#) {
+  display: block;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: normal;
+  text-overflow: clip;
+  text-wrap: balance;
+}
+.workspace-row-title[data-wrap] > .workspace-title-base {
+  display: inline;
+  overflow: visible;
+  white-space: normal;
+}
 /* A title whose end stays whole (the host on a name two Macs share): the
    base gives way first, so ", ap-mini" never becomes ", a...". */
 [data-keep]:not(#\#) {
@@ -557,6 +572,43 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   white-space: nowrap;
   text-overflow: ellipsis;
   color: var(--color-text-secondary);
+}
+/* A detail with `lines` wraps onto that many lines and ends after a whole
+   word: each word is one box, so the ellipsis never lands inside a word or
+   a number. A word too long to keep (a hash) may break anywhere. */
+.workspace-detail-text[data-lines] {
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+}
+.workspace-detail-words {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+}
+.workspace-detail-words[data-lines="1"] {
+  display: block;
+  white-space: nowrap;
+}
+.workspace-word {
+  display: inline-block;
+  white-space: nowrap;
+}
+/* On one line a word carries the space before it. */
+.workspace-detail-words[data-lines="1"] > .workspace-word {
+  white-space: pre;
+}
+/* On a row's line 2 (phones, medium) a detail reads whole. */
+.workspace-row-detail .workspace-detail-words {
+  display: block;
+  -webkit-line-clamp: none;
+  line-clamp: none;
+  white-space: normal;
 }
 /* A next run that is past due takes the warning ink. */
 .workspace-due[data-overdue="true"] {
@@ -871,6 +923,21 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
 }
 .workspace-copy-value > .astryx-button {
   flex: none;
+}
+/* The copy glyph, not its 36px target, ends the line, so it shares one
+   right edge with the panel's other trailing glyphs (the Technical chevron,
+   the clock). The target reaches past the edge into the panel's inset. On
+   touch and phones, where the page gutter is all the inset there is, the
+   44px target stays inside and its glyph sits at its end instead. */
+.workspace-copy-value > .astryx-button:not(#\#) {
+  margin-inline-end: calc((var(--spacing-4) - var(--spacing-9)) / 2);
+}
+@media (pointer: coarse), (max-width: 640px) {
+  .workspace-copy-value > .astryx-button:not(#\#) {
+    margin-inline-end: 0;
+    justify-content: flex-end;
+    padding-inline-end: 0;
+  }
 }
 /* In a definition list the value fills its column and the button ends it,
    so the copy buttons line up down the list, as History's do. */

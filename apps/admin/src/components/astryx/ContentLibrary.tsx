@@ -30,6 +30,7 @@ import {
   RowTitle,
   StateBadge,
   StateNotice,
+  WordSafeText,
   WorkspacePage,
   badgeFor,
   leadWidth,
@@ -418,7 +419,8 @@ export function ContentLibrary({
             color="secondary"
             className="editorial-record-summary"
           >
-            {item.summary}
+            {/* A teaser gives way first, but after a whole word. */}
+            <WordSafeText title={item.summary}>{item.summary}</WordSafeText>
           </Text>
         ) : null,
     },

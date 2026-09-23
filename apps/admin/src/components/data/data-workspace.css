@@ -312,8 +312,15 @@
 .data-record[data-split="false"] .data-record-action {
   margin-inline-start: calc(-1 * var(--spacing-2));
 }
+/* Beside the list the close glyph, not its target, ends the line, on the
+   right edge the Technical chevron and the copy glyphs share. */
 .data-record[data-split="true"] .data-record-action {
-  margin-inline-end: calc(-1 * var(--spacing-2));
+  margin-inline-end: calc((var(--spacing-4) - var(--spacing-9)) / 2);
+}
+@media (pointer: coarse) {
+  .data-record[data-split="true"] .data-record-action {
+    margin-inline-end: calc((var(--spacing-4) - var(--spacing-11)) / 2);
+  }
 }
 
 /* The panel reads at the rows' size: prose, lists, details and chips. */

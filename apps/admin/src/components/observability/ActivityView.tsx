@@ -135,7 +135,7 @@ function Change({ row, catalog }: { row: Row; catalog: OpsCatalog }) {
           : row.count > 1 && (
               <Burst count={row.count} noun={["change", "changes"]} />
             )}
-        {latest.detail && <DetailText>{latest.detail}</DetailText>}
+        {latest.detail && <DetailText lines={1}>{latest.detail}</DetailText>}
       </span>
     );
   if (latest.kind === "run")
@@ -157,7 +157,9 @@ function Change({ row, catalog }: { row: Row; catalog: OpsCatalog }) {
         <TookInline row={row} />
       </span>
     );
-  return latest.detail ? <DetailText>{latest.detail}</DetailText> : null;
+  return latest.detail ? (
+    <DetailText lines={1}>{latest.detail}</DetailText>
+  ) : null;
 }
 
 /** How long it took: a read's latency (a burst's median) or a run's

@@ -24,7 +24,9 @@
 .editor-bar-title {
   flex: 1 1 auto;
   min-width: 0;
+  container: editor-bar-title / inline-size;
 }
+/* The title ends after a whole word (WordSafeText). */
 .editor-bar-title h1 {
   overflow: hidden;
   white-space: nowrap;
@@ -32,6 +34,27 @@
   font-size: var(--text-body-size);
   font-weight: var(--font-weight-semibold);
   line-height: var(--spacing-6);
+}
+/* Where not even its first word fits, the title is read, not drawn: the
+   title field under the bar shows it whole. The container query covers
+   the first paint; the bar's own measure covers a longer first word. */
+@container editor-bar-title (max-width: 5rem) {
+  h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+.editor-bar-title[data-fit="none"] h1 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 .editor-bar-actions {
   display: flex;

@@ -42,8 +42,10 @@
  * same kind of column lines up across sections: the state (StateCell), times
  * (RelativeTime, DueTime), figures and durations (`numeric`, right-aligned in
  * tabular figures) and a lone tile such as a device, whose header is for
- * assistive technology only. A cell's text never wraps and ends in an
- * ellipsis. A table with no flexible detail column and short names caps its
+ * assistive technology only. No word is ever cut: a title too long for its
+ * column wraps at a space, a DetailText with `lines` ends after a whole
+ * word, and other cells stay on one line. A table with no flexible detail
+ * column and short names caps its
  * lead at its widest content (`max`) and spreads the rest over its figure
  * columns (`spread`), so there is no dead middle either.
  * Grouped rows take `groupBy` and a `groupLabel` (DayLabel for activity);
@@ -512,6 +514,11 @@ export type Column<T> = {
   /** With `share`: the least the column keeps even when the lead's reserve
    * would take it, for cells that must never be cut (a row of chips). */
   min?: number;
+  /** With `share`: what the column would like, such as the width that holds
+   * its longest detail on two lines. It takes this before its even `share`
+   * when the table has the room, but never out of the lead's `reserve`, so
+   * a long detail wraps and clamps rather than cutting a name. */
+  want?: number;
   /** On the lead, in a table with no shared column: the most it takes, its
    * widest content (leadWidth). The width past it goes evenly to the
    * `spread` columns, so a short-named table has no dead middle. */
@@ -585,13 +592,31 @@ function shareWidth(
   share: number,
   reserve = 0,
   min = FLEX_MIN_WIDTH,
+  want?: number,
 ): React.CSSProperties {
   const room = "(100cqw - var(--workspace-table-fixed, 0px))";
-  const part = reserve
-    ? `min(${room} * ${share}, ${room} - ${reserve}px)`
-    : `${room} * ${share}`;
-  const width = `max(${min}px, ${part})`;
+  const even = `${room} * ${share}`;
+  const part = want ? `max(${even}, ${want}px)` : even;
+  const kept = reserve ? `min(${part}, ${room} - ${reserve}px)` : part;
+  const width = `max(${min}px, ${kept})`;
   return { width, minWidth: width };
+}
+
+/**
+ * A shared column's width in pixels for a table `frame` wide whose shown
+ * fixed columns take `fixed`: the arithmetic shareWidth writes in CSS, for
+ * tests that pin a layout at a given width.
+ */
+export function shareWidthAt(
+  column: Pick<Column<unknown>, "share" | "reserve" | "min" | "want">,
+  frame: number,
+  fixed: number,
+): number {
+  const room = frame - fixed;
+  const even = room * (column.share ?? 1);
+  const part = column.want ? Math.max(even, column.want) : even;
+  const kept = column.reserve ? Math.min(part, room - column.reserve) : part;
+  return Math.max(column.min ?? FLEX_MIN_WIDTH, kept);
 }
 
 /** The lead's inset, tile and gap around its title: 16px in, a 24px tile,
@@ -663,7 +688,7 @@ function spreadWidth(width: number, leadMax: number): React.CSSProperties {
 }
 
 /** What each range's fixed columns take, for a flexible column's `share`. */
-function tableFixedWidths<T>(
+export function tableFixedWidths<T>(
   columns: readonly Column<T>[],
 ): Record<Breakpoint, number> {
   return Object.fromEntries(
@@ -751,7 +776,7 @@ export function DataTable<T extends Record<string, unknown>>({
   const shape = columns
     .map(
       (column) =>
-        `${column.key}:${column.width}:${column.share}:${column.reserve}:${column.min}:${column.max}:${column.spread}:${column.hideBelow}:${column.numeric}`,
+        `${column.key}:${column.width}:${column.share}:${column.reserve}:${column.min}:${column.want}:${column.max}:${column.spread}:${column.hideBelow}:${column.numeric}`,
     )
     .join(",");
   const plugin = useMemo((): TablePlugin<T> => {
@@ -809,7 +834,7 @@ export function DataTable<T extends Record<string, unknown>>({
             }
           : props,
       transformHeaderCell: (props, column) => {
-        const { width, share, reserve, min, spread } =
+        const { width, share, reserve, min, want, spread } =
           byKey.get(column.key) ?? {};
         return {
           ...props,
@@ -823,7 +848,7 @@ export function DataTable<T extends Record<string, unknown>>({
                   ? spreadWidth(width, leadMax)
                   : { width, minWidth: width }
                 : share !== undefined
-                  ? shareWidth(share, reserve, min)
+                  ? shareWidth(share, reserve, min, want)
                   : { width: "auto", minWidth: FLEX_MIN_WIDTH }),
             },
           } as typeof props.htmlProps,
@@ -986,22 +1011,36 @@ export type KeepHidden = "always" | "compact";
 /** A title that ends in an ellipsis, keeping `keep` (its end) whole. With
  * `keepHidden`, the row's own device tile already names what the end says
  * (", ap-mini"), so there the end is for assistive technology only and the
- * name stands whole beside the tile. */
+ * name stands whole beside the tile. With `wrap`, a title too long for its
+ * column wraps at a space onto a second line instead, so no word is ever
+ * cut; `keep` stays on the line of the word before it. */
 export function TitleText({
   title,
   keep,
   keepHidden,
+  wrap = false,
   className = "workspace-row-title",
 }: {
   title: string;
   keep?: string;
   keepHidden?: KeepHidden;
+  wrap?: boolean;
   className?: string;
 }) {
+  const wraps = wrap ? "" : undefined;
   if (!keep || !title.endsWith(keep) || keep === title)
-    return <span className={className}>{title}</span>;
+    return (
+      <span className={className} data-wrap={wraps}>
+        {title}
+      </span>
+    );
   return (
-    <span className={className} data-keep="" data-keep-hidden={keepHidden}>
+    <span
+      className={className}
+      data-keep=""
+      data-keep-hidden={keepHidden}
+      data-wrap={wraps}
+    >
       <span className="workspace-title-base">
         {title.slice(0, -keep.length)}
       </span>
@@ -1040,6 +1079,7 @@ export function RowTitle({
   linkLabel,
   tooltip,
   anchorId,
+  wrap = true,
 }: {
   icon?: Icon;
   mark?: ReactNode;
@@ -1080,6 +1120,9 @@ export function RowTitle({
   tooltip?: string;
   /** An id for the row, so other pages can link to it. */
   anchorId?: string;
+  /** A title too long for its column wraps at a space rather than ending
+   * in an ellipsis (TitleText), so no word is ever cut; on by default. */
+  wrap?: boolean;
 }) {
   const select = onSelect
     ? (event: React.MouseEvent<HTMLElement>) => {
@@ -1096,7 +1139,9 @@ export function RowTitle({
         onSelect(event.currentTarget);
       }
     : undefined;
-  const label = <TitleText title={title} keep={keep} keepHidden={keepHidden} />;
+  const label = (
+    <TitleText title={title} keep={keep} keepHidden={keepHidden} wrap={wrap} />
+  );
   const trailing = (end != null || time != null) && (
     <Text type="supporting" color="secondary" className="workspace-row-end">
       {end}
@@ -1161,7 +1206,11 @@ export function RowTitle({
                 color="secondary"
                 className="workspace-row-secondary"
               >
-                {secondary}
+                {typeof secondary === "string" ? (
+                  <WordSafeText title={secondary}>{secondary}</WordSafeText>
+                ) : (
+                  secondary
+                )}
               </Text>
             )}
           </div>
@@ -1407,17 +1456,84 @@ export function StateTransition({
   );
 }
 
+/** A word longer than this is not kept whole: it may break anywhere, so a
+ * hash or a path never overflows a narrow cell. */
+const WORD_KEEP_MAX = 24;
+
+/** A text's words as unbreakable boxes with real spaces between them, so a
+ * line that runs out ends in an ellipsis after a whole word, never inside a
+ * word or a number ("expired 59d ago", never "expired 59…"). On one line
+ * (`attach`), each space rides at the front of the word after it, so the
+ * ellipsis follows the last whole word with no gap. */
+function wholeWords(text: string, attach = false): ReactNode[] {
+  const out: ReactNode[] = [];
+  let space = "";
+  text.split(/(\s+)/).forEach((part, index) => {
+    if (!part) return;
+    if (/^\s+$/.test(part)) {
+      if (attach) space = " ";
+      else out.push(" ");
+      return;
+    }
+    const word = `${space}${part}`;
+    space = "";
+    if (part.length > WORD_KEEP_MAX) out.push(word);
+    else
+      out.push(
+        <span key={index} className="workspace-word">
+          {word}
+        </span>,
+      );
+  });
+  return out;
+}
+
+/** A text on `lines` lines that ends after a whole word (wholeWords), for a
+ * cell that is not a DetailText (a summary). Its container keeps its own
+ * type; this only lays out and clamps the words. */
+export function WordSafeText({
+  children,
+  lines = 1,
+  title,
+}: {
+  children: string;
+  lines?: 1 | 2;
+  /** The full text on hover, where no container carries it. */
+  title?: string;
+}) {
+  return (
+    <span className="workspace-detail-words" data-lines={lines} title={title}>
+      {wholeWords(children, lines === 1)}
+    </span>
+  );
+}
+
 /** A short detail beside a row's title: one line that ends in an ellipsis,
- * its full text on hover. Muted: the title leads the row. */
+ * its full text on hover. Muted: the title leads the row. With `lines`, a
+ * string detail wraps onto that many lines and ends after a whole word
+ * (wholeWords), its full text on hover; its words keep their spaces, so it
+ * reads and copies as one text. On a row's line 2 it reads whole. */
 export function DetailText({
   children,
   tooltip,
+  lines,
 }: {
   children: ReactNode;
   /** The full text when the child is not a string, or says more. */
   tooltip?: string | null;
+  lines?: 1 | 2;
 }) {
   const title = tooltip ?? (typeof children === "string" ? children : null);
+  if (lines && typeof children === "string")
+    return (
+      <span
+        className="workspace-detail-text"
+        data-lines={lines}
+        title={title || undefined}
+      >
+        <WordSafeText lines={lines}>{children}</WordSafeText>
+      </span>
+    );
   return (
     <span className="workspace-detail-text" title={title || undefined}>
       {children}

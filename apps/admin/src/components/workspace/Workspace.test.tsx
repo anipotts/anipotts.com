@@ -36,6 +36,7 @@ import {
   easternClockText,
   easternClockTitle,
   leadWidth,
+  shareWidthAt,
   tableMinWidths,
   titleWidth,
   type Column,
@@ -771,6 +772,84 @@ describe("a name that never truncates", () => {
       expect(plain.querySelector("[data-keep]")).toBeNull();
       expect(plain.textContent).toBe("Sync");
     }
+  });
+});
+
+describe("no word is ever cut", () => {
+  it("wraps a row title at a space, its kept host on the last word's line", () => {
+    const host = html(
+      <RowTitle
+        kind="Job"
+        title="Session transcripts to R2, ap-mini"
+        keep=", ap-mini"
+      />,
+    );
+    const title = host.querySelector(".workspace-row-title")!;
+    // Wrapping is the default: a long title takes a second line rather
+    // than an ellipsis inside a word.
+    expect(title.hasAttribute("data-wrap")).toBe(true);
+    expect(title.textContent).toBe("Session transcripts to R2, ap-mini");
+    const plain = html(<RowTitle kind="Job" title="Sync" wrap={false} />);
+    expect(
+      plain.querySelector(".workspace-row-title")?.hasAttribute("data-wrap"),
+    ).toBe(false);
+  });
+
+  it("ends a clamped detail after a whole word or figure", () => {
+    const text =
+      "cannot tell if this is current: origin/main last fetched 77m ago, past the 60m budget";
+    const host = html(<DetailText lines={2}>{text}</DetailText>);
+    const detail = host.querySelector(".workspace-detail-text")!;
+    expect(detail.getAttribute("data-lines")).toBe("2");
+    expect(detail.getAttribute("title")).toBe(text);
+    // It reads and copies as one text, spaces kept.
+    expect(detail.textContent).toBe(text);
+    const words = [...detail.querySelectorAll(".workspace-word")].map(
+      (word) => word.textContent,
+    );
+    expect(words).toEqual(text.split(" "));
+    expect(words).toContain("77m");
+    // A word too long to keep whole (a hash) may break anywhere instead.
+    const hash = `sha256:${"0123456789abcdef".repeat(4)}`;
+    const long = html(<DetailText lines={1}>{`digest ${hash}`}</DetailText>);
+    expect(
+      [...long.querySelectorAll(".workspace-word")].map((w) => w.textContent),
+    ).toEqual(["digest"]);
+    expect(long.textContent).toBe(`digest ${hash}`);
+    // Without `lines` a detail is one text node, as before.
+    expect(
+      html(<DetailText>{text}</DetailText>).querySelector(".workspace-word"),
+    ).toBeNull();
+  });
+
+  it("gives a shared column its want, never the lead's reserve", () => {
+    const detail = { share: 0.5, reserve: 254, want: 400 };
+    // Room for both: the want before an even split.
+    expect(shareWidthAt(detail, 1384, 696)).toBe(400);
+    // Too little for both: the lead keeps its reserve.
+    expect(shareWidthAt(detail, 911, 436)).toBe(911 - 436 - 254);
+    // A want below the even split changes nothing.
+    expect(shareWidthAt({ ...detail, want: 100 }, 1384, 696)).toBe(344);
+    const host = html(
+      <DataTable
+        rows={[{ id: "a" }]}
+        rowKey="id"
+        label="Entries"
+        noun={["entry", "entries"]}
+        columns={[
+          { key: "name", header: "Service", render: () => null },
+          {
+            key: "detail",
+            header: "Detail",
+            ...detail,
+            render: () => null,
+          },
+        ]}
+      />,
+    );
+    const th = host.querySelectorAll("thead th")[1] as HTMLElement;
+    expect(th.style.width).toContain("400px");
+    expect(th.style.width).toContain("- 254px");
   });
 });
 
