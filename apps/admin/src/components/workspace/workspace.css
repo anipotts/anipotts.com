@@ -644,18 +644,18 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   overflow-wrap: anywhere;
   text-overflow: ellipsis;
 }
+/* One line is a one-line clamp: a word that does not fit wraps whole onto
+   the hidden second line, so the ellipsis always follows a whole word and
+   no word ever loses a glyph's edge at the clip. */
 .workspace-detail-words[data-lines="1"] {
-  display: block;
-  white-space: nowrap;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
 }
 .workspace-word {
   display: inline-block;
   white-space: nowrap;
 }
-/* On one line a word carries the space before it. */
-.workspace-detail-words[data-lines="1"] > .workspace-word {
-  white-space: pre;
-}
+
 /* On a row's line 2 (phones, medium) a detail reads whole. */
 .workspace-row-detail .workspace-detail-words {
   display: block;

@@ -1631,26 +1631,21 @@ const WORD_KEEP_MAX = 24;
 
 /** A text's words as unbreakable boxes with real spaces between them, so a
  * line that runs out ends in an ellipsis after a whole word, never inside a
- * word or a number ("expired 59d ago", never "expired 59…"). On one line
- * (`attach`), each space rides at the front of the word after it, so the
- * ellipsis follows the last whole word with no gap. */
-function wholeWords(text: string, attach = false): ReactNode[] {
+ * word or a number ("expired 59d ago", never "expired 59…"), and a word
+ * that does not fit wraps whole (onto a clamp's hidden line when clamped). */
+function wholeWords(text: string): ReactNode[] {
   const out: ReactNode[] = [];
-  let space = "";
   text.split(/(\s+)/).forEach((part, index) => {
     if (!part) return;
     if (/^\s+$/.test(part)) {
-      if (attach) space = " ";
-      else out.push(" ");
+      out.push(" ");
       return;
     }
-    const word = `${space}${part}`;
-    space = "";
-    if (part.length > WORD_KEEP_MAX) out.push(word);
+    if (part.length > WORD_KEEP_MAX) out.push(part);
     else
       out.push(
         <span key={index} className="workspace-word">
-          {word}
+          {part}
         </span>,
       );
   });
@@ -1672,7 +1667,7 @@ export function WordSafeText({
 }) {
   return (
     <span className="workspace-detail-words" data-lines={lines} title={title}>
-      {wholeWords(children, lines === 1)}
+      {wholeWords(children)}
     </span>
   );
 }
