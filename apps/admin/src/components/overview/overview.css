@@ -1,17 +1,22 @@
 /* The overview: its sections are the kit's tables, so their state and time
    columns share the kit's widths and line up down the page. A content row's
-   two chips keep to the state column; the second gives way. */
+   state is its chip, then a pending-changes glyph at the column's end, so
+   the glyphs read down one line and nothing in the column is cut. */
 .overview-state {
   display: flex;
   align-items: center;
-  gap: var(--spacing-1);
+  gap: var(--spacing-2);
   min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
 }
-.overview-state > .workspace-state:not(:first-child) {
-  flex: 0 1 auto;
-  min-width: 0;
+.overview-pending {
+  display: inline-flex;
+  flex: none;
+  margin-inline-start: auto;
+  color: var(--color-text-secondary);
+}
+.overview-pending > svg {
+  width: var(--spacing-4);
+  height: var(--spacing-4);
 }
 
 /* An entry never proven (a restore drill that never ran) is not all clear:

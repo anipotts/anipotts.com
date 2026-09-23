@@ -64,6 +64,36 @@ describe("development fixtures", () => {
     await expect(load()).rejects.toThrow("not a /v1/data/sources reply");
   });
 
+  it("names each payload a replay stood in for, with its own capture", async () => {
+    expect((await load())?.payloads).toEqual({});
+    files.set(
+      "ops_v1.json",
+      JSON.stringify({
+        version: "ops_v1",
+        generated_at: "2026-09-22T18:01:39Z",
+      }),
+    );
+    expect((await load())?.payloads).toEqual({
+      snapshot: "2026-09-22T18:01:39Z",
+    });
+    files.set(
+      "data_sources_v1.json",
+      JSON.stringify({
+        response_observed_at: "2026-09-22T19:00:00Z",
+        data: { items: [], total: 0, next_offset: null },
+      }),
+    );
+    files.set(
+      "ops_events_v1.json",
+      JSON.stringify({ version: "ops_events_v1", items: [], next_after: null }),
+    );
+    expect((await load())?.payloads).toEqual({
+      snapshot: "2026-09-22T18:01:39Z",
+      events: null,
+      sources: "2026-09-22T19:00:00Z",
+    });
+  });
+
   it("keeps the samples on ?fixture=synthetic and nothing on none", async () => {
     files.set("ops_v1.json", "{}");
     expect((await load("?fixture=synthetic"))?.snapshot).toEqual(sample);

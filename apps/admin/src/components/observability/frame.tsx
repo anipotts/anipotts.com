@@ -425,7 +425,7 @@ export function OpsPage({
         meta={retained ? opsMeta(data, view) : undefined}
         badge={
           <>
-            {data.fixtureMode && <SampleBadge />}
+            {data.fixtureMode && <SampleBadge from={["snapshot", "events"]} />}
             <DriftChip fields={opsUnknownFields(data)} />
             {view !== "status" && (
               <UnreadChip count={data.events?.skipped ?? 0} />

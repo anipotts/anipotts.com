@@ -8,6 +8,7 @@ import {
   EnvelopeSimpleIcon,
   LinkBreakIcon,
   PencilSimpleIcon,
+  PencilSimpleLineIcon,
   ShieldWarningIcon,
   type Icon,
 } from "@phosphor-icons/react";
@@ -154,19 +155,33 @@ function FiringAlerts(props: OpsViewProps) {
           <UnverifiedBadge count={unverified.length} />
         </a>
       )}
-      {firing.length > 0 && <AlertsTable rows={firing} now={data.fixedNow} />}
+      {firing.length > 0 && (
+        // The overview runs on the real clock, as its content and records
+        // do, so every age on the page and its clock agree; a fixture's
+        // alerts are aged from now, not from the fixture's own moment.
+        <AlertsTable rows={firing} now={props.now} />
+      )}
     </WorkspaceSection>
   );
 }
 
-/** A content row's non-default state, and unpublished changes. In the
- * state column the pair keeps to the column, the second chip giving way. */
+/** A content row's non-default state as its chip, then unpublished changes
+ * as a glyph at the column's end, named for hover and assistive technology,
+ * as a record's tier is. Both fit the state column whole at every width
+ * (ledger A-29): "Draft" and "Changes pending" as two chips did not. */
 function ContentState({ record }: { record: CatalogRecord }) {
   return (
     <span className="overview-state">
       <StateBadge domain="content" state={record.status} />
       {record.changesPending && (
-        <StateBadge tone="neutral" label="Changes pending" />
+        <span
+          className="overview-pending"
+          role="img"
+          aria-label="Changes pending"
+          title="Changes pending"
+        >
+          <PencilSimpleLineIcon weight="regular" aria-hidden="true" />
+        </span>
       )}
     </span>
   );
@@ -306,7 +321,14 @@ export function AdminOverview({
     <div className="admin-overview">
       <WorkspacePage
         title="Overview"
-        badge={sample ? <SampleBadge /> : undefined}
+        badge={
+          sample ? (
+            // Only the alerts can be a replay; records are the samples.
+            <SampleBadge
+              from={ops.fixture !== undefined ? ["snapshot", "events"] : []}
+            />
+          ) : undefined
+        }
       >
         <VStack gap={8}>
           <FiringAlerts {...ops} />

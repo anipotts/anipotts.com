@@ -28,7 +28,15 @@ export type ShellFixtures = {
   /** When a replay was captured: its snapshot's generated_at, else its
    * sources reply's response_observed_at. Null for the samples. */
   capturedAt: string | null;
+  /** Each payload a replay file stood in for, with its own capture stamp
+   * (null for the events page, which carries none), so a page marks Replay
+   * only where its data is replayed. Records, Health and Knowledge are
+   * always the synthetic samples. */
+  payloads: Partial<Record<ReplayPayload, string | null>>;
 };
+
+/** The payloads a local replay can stand in for. */
+export type ReplayPayload = "snapshot" | "events" | "sources";
 
 /** A replay's capture time, from the payloads' own stamps. */
 function capturedAt(snapshot: unknown, sources: unknown): string | null {
@@ -95,6 +103,15 @@ export const loadShellFixtures: (
           liveEvents !== undefined ||
           liveSources !== undefined,
         capturedAt: capturedAt(liveSnapshot, liveSources),
+        payloads: {
+          ...(liveSnapshot !== undefined
+            ? { snapshot: capturedAt(liveSnapshot, undefined) }
+            : {}),
+          ...(liveEvents !== undefined ? { events: null } : {}),
+          ...(liveSources !== undefined
+            ? { sources: capturedAt(undefined, liveSources) }
+            : {}),
+        },
       };
     }
   : async () => undefined;

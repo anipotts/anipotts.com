@@ -516,8 +516,9 @@ export const CELL_WIDTHS = {
   /** StateCell: the widest chip ("Superseded") with a record's tier glyph
    * beside it, so record, content and alert state columns line up. */
   state: 144,
-  /** RelativeTime and DueTime, "Not recorded" included. */
-  time: 112,
+  /** RelativeTime and DueTime, "Not recorded" included (85px at 14px),
+   * whole even as the last column, whose end inset is 16px, not 12px. */
+  time: 116,
   /** Figure and Duration. */
   figure: 80,
   /** A lone 24px tile, such as a device. */
@@ -1706,7 +1707,13 @@ export function TierMark({ tier }: { tier: string | null | undefined }) {
 /** Where a development page's data came from: the committed synthetic
  * samples, or a local replay of payloads captured from System (ignored by
  * git, never committed; lib/shell-fixtures.ts). */
-export type FixtureOrigin = { replay: boolean; capturedAt: string | null };
+export type FixtureOrigin = {
+  replay: boolean;
+  capturedAt: string | null;
+  /** Which payloads a replay stood in for, each with its capture stamp.
+   * Absent: every payload the page draws is the replay's. */
+  payloads?: Partial<Record<"snapshot" | "events" | "sources", string | null>>;
+};
 export const SAMPLE_ORIGIN: FixtureOrigin = Object.freeze({
   replay: false,
   capturedAt: null,
@@ -1714,12 +1721,33 @@ export const SAMPLE_ORIGIN: FixtureOrigin = Object.freeze({
 export const FixtureOriginContext = createContext<FixtureOrigin>(SAMPLE_ORIGIN);
 
 /** The one mark for development data: "Sample data" for the synthetic
- * samples, and a distinct "Replay" with the capture's age for a local
- * replay, so a replayed capture never passes for either the sample or the
- * live system. The screenshot guard refuses a page that carries Replay. */
-export function SampleBadge() {
+ * samples, and a distinct "Replay" with the capture's age where the page
+ * draws a replayed payload, so a replayed capture never passes for either
+ * the sample or the live system, and a synthetic page never reads as a
+ * replay. `from` names the payloads the page draws (none: only synthetic
+ * samples). The screenshot guard refuses a page that carries Replay. */
+export function SampleBadge({
+  from,
+}: {
+  from?: readonly ("snapshot" | "events" | "sources")[];
+}) {
   const origin = useContext(FixtureOriginContext);
-  if (origin.replay) return <ReplayBadge capturedAt={origin.capturedAt} />;
+  const drawn = from ?? [];
+  const replayed = !origin.replay
+    ? []
+    : origin.payloads
+      ? drawn.filter((payload) => payload in origin.payloads!)
+      : drawn;
+  if (replayed.length)
+    return (
+      <ReplayBadge
+        capturedAt={
+          replayed
+            .map((payload) => origin.payloads?.[payload])
+            .find((stamp) => typeof stamp === "string") ?? origin.capturedAt
+        }
+      />
+    );
   return (
     <span className="workspace-fixture" data-fixture="sample">
       <Token

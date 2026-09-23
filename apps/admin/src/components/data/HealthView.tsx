@@ -214,6 +214,14 @@ function MetricsCheck({ ops }: { ops: OpsViewProps }) {
   );
 }
 
+/** Whether an ops fixture lists the health.metrics check, so the page
+ * draws something from it. */
+const listsMetricsCheck = (fixture: unknown) =>
+  Array.isArray((fixture as { catalog?: unknown } | undefined)?.catalog) &&
+  (fixture as { catalog: Array<{ id?: unknown }> }).catalog.some(
+    (entry) => entry?.id === HEALTH_METRICS_ID,
+  );
+
 const opsReadable = (ops?: OpsViewProps): ops is OpsViewProps =>
   Boolean(ops && (ops.enabled || ops.fixture !== undefined));
 
@@ -456,7 +464,13 @@ function FixtureHealth({
   }, [fixture, range]);
   return (
     <Page
-      badge={<SampleBadge />}
+      // The days are the synthetic sample; only the metric check can come
+      // from a replayed snapshot.
+      badge={
+        <SampleBadge
+          from={listsMetricsCheck(ops?.fixture) ? ["snapshot"] : []}
+        />
+      }
       meta={
         read.status === "ready" ? (
           <HealthMeta data={read.data} ops={ops} />

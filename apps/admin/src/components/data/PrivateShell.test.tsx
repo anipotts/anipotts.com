@@ -114,10 +114,10 @@ describe("the overview and Data shell", () => {
       shellRoute(url(path), { overview });
     expect(route("/")).toEqual({ view: "overview" });
     expect(route("/", false)).toBeNull();
-    expect(route(`/data/records/${recordId}?kind=people`, false)).toEqual({
+    expect(route(`/data/records/${recordId}?kind=contact`, false)).toEqual({
       view: "records",
       id: recordId,
-      kind: "people",
+      kind: "contact",
       source: null,
     });
     expect(route("/data/records/not-an-id")).toBeNull();
@@ -411,6 +411,44 @@ describe("Health and Knowledge", () => {
     expect(host.textContent).toContain("Unreadable response");
     expect(host.querySelector("table")).toBeNull();
     expect(host.textContent).not.toContain("97");
+  });
+
+  it("marks Replay only on pages whose data is replayed", async () => {
+    const origin = {
+      replay: true,
+      capturedAt: "2026-09-22T18:01:39Z",
+      payloads: {
+        snapshot: "2026-09-22T18:01:39Z",
+        events: null,
+        sources: "2026-09-22T19:00:00Z",
+      },
+    };
+    const mark = () =>
+      host.querySelector("[data-fixture]")?.getAttribute("data-fixture");
+    for (const [path, expected] of [
+      ["/data/records", "sample"],
+      ["/data/health", "sample"],
+      ["/data/knowledge", "sample"],
+      ["/data/sources", "replay"],
+    ] as const) {
+      // Each page from a fresh shell, which keeps its own route.
+      await act(async () => root.render(<></>));
+      await render(path, {
+        dataFixture: dataFixture as unknown as DataFixture,
+        knowledgeEnabled: true,
+        fixture: opsSample,
+        fixtureOrigin: origin,
+      });
+      expect(mark(), path).toBe(expected);
+    }
+    // Only synthetic payloads replayed elsewhere: Sources is the sample too.
+    await act(async () => root.render(<></>));
+    await render("/data/sources", {
+      dataFixture: dataFixture as unknown as DataFixture,
+      fixture: opsSample,
+      fixtureOrigin: { ...origin, payloads: { events: null } },
+    });
+    expect(mark()).toBe("sample");
   });
 
   describe("the health.metrics check (A-9)", () => {

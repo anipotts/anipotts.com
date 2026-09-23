@@ -127,7 +127,15 @@ export function DataWorkspace({
       <WorkspacePage
         title={DATA_VIEW_TITLES[route.view]}
         count={ready ? count : undefined}
-        badge={session.fixture ? <SampleBadge /> : undefined}
+        badge={
+          session.fixture ? (
+            // Records are always the samples; Sources can be a replay of
+            // System's catalog, judged by a replayed snapshot's jobs.
+            <SampleBadge
+              from={route.view === "sources" ? ["sources", "snapshot"] : []}
+            />
+          ) : undefined
+        }
         actions={
           session.status !== "off" ? (
             <DataSessionControl session={session} />

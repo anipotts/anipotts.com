@@ -141,6 +141,30 @@ describe("the one overview", () => {
     expect(table.querySelectorAll(".workspace-kind")).toHaveLength(0);
   });
 
+  it("keeps a draft's state and its pending changes whole in the state column (A-29)", () => {
+    const host = render({
+      content: [
+        {
+          ...content[0]!,
+          status: "draft",
+          changesPending: true,
+        },
+      ],
+    });
+    const table = host.querySelector(
+      'table[aria-label="Recently updated content"]',
+    )!;
+    const state = table.querySelectorAll("tbody td")[1]!;
+    // One chip for the state, one named glyph for the pending changes, and
+    // no second chip to be cut at the column's edge.
+    expect(state.querySelectorAll(".workspace-state")).toHaveLength(1);
+    expect(state.textContent).toBe("Draft");
+    const pending = state.querySelector(".overview-pending")!;
+    expect(pending.getAttribute("role")).toBe("img");
+    expect(pending.getAttribute("aria-label")).toBe("Changes pending");
+    expect(pending.getAttribute("title")).toBe("Changes pending");
+  });
+
   it("opens the private session without a click and narrates nothing", () => {
     const host = render({ dataEnabled: true });
     expect(host.textContent).not.toContain("Open private session");
@@ -158,8 +182,8 @@ describe("the one overview", () => {
       [...host.querySelectorAll(`table[aria-label="${label}"] thead th`)]
         .slice(-2)
         .map((th) => (th as HTMLElement).style.width);
-    expect(tail("Firing alerts")).toEqual(["144px", "112px"]);
-    expect(tail("Recently updated content")).toEqual(["144px", "112px"]);
+    expect(tail("Firing alerts")).toEqual(["144px", "116px"]);
+    expect(tail("Recently updated content")).toEqual(["144px", "116px"]);
   });
 
   it("shows each recent record as one row: tile, title, source, state and time", async () => {
@@ -184,17 +208,22 @@ describe("the one overview", () => {
     const table = host.querySelector('table[aria-label="Recent records"]')!;
     expect(
       [...table.querySelectorAll("thead th")].map((th) => th.textContent),
-    ).toEqual(["Record", "Source", "State", "Observed"]);
+    ).toEqual(["Record", "Source", "State", "Occurred"]);
     expect(
       [...table.querySelectorAll("thead th")]
         .slice(-2)
         .map((th) => (th as HTMLElement).style.width),
-    ).toEqual(["144px", "112px"]);
-    const first = table.querySelector("tbody tr")!;
-    expect(first.querySelector(".workspace-row-title")?.textContent).toBe(
-      "Browsing, Sep 21",
+    ).toEqual(["144px", "116px"]);
+    // System's order: newest occurred date first, as stored text.
+    const titles = [...table.querySelectorAll("tbody tr")].map(
+      (row) => row.querySelector(".workspace-row-title")?.textContent,
     );
-    expect(first.querySelector('[data-mark="chrome"]')).not.toBeNull();
+    expect(titles.slice(0, 2)).toEqual([
+      "Received message",
+      "Browsing, Sep 21",
+    ]);
+    const browsing = table.querySelectorAll("tbody tr")[1]!;
+    expect(browsing.querySelector('[data-mark="chrome"]')).not.toBeNull();
     expect(host.textContent).not.toMatch(/\bAni\b/);
     act(() => root.unmount());
   });
