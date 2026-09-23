@@ -9,15 +9,28 @@ const DATA_SOURCES_PATH = "/data/sources";
 const DATA_HEALTH_PATH = "/data/health";
 const DATA_KNOWLEDGE_PATH = "/data/knowledge";
 
-/** The kind filter, in the order its chips show. `reader` is the value the
- * private reader's search takes (System's v1 bound is any short token). */
+/**
+ * The kind filter, in the order its chips show: the kinds System's adapters
+ * really write (ledger A-30), each keyed and read by its own name, since
+ * the reader's search takes one exact kind. In order of what they hold:
+ * activity, people, notes and documents, then the legacy vault archive.
+ * The store's other kinds (handle classifications, connections, group
+ * memberships, assertions, moments, profiles) stay under All kinds.
+ * Counts in the store on 2026-09-22 (read-only): legacy_event 5,610,
+ * message 5,000, document 2,751, contact 969, work_day 435, note 424,
+ * browsing_day 212, voice_memo 44.
+ */
 export const DATA_KINDS = {
   all: { label: "All kinds", reader: undefined },
-  people: { label: "People", reader: "person" },
-  projects: { label: "Projects", reader: "project" },
-  places: { label: "Places", reader: "place" },
-  events: { label: "Events", reader: "event" },
-  notes: { label: "Notes", reader: "note" },
+  browsing_day: { label: "Browsing", reader: "browsing_day" },
+  work_day: { label: "Work days", reader: "work_day" },
+  message: { label: "Messages", reader: "message" },
+  contact: { label: "Contacts", reader: "contact" },
+  note: { label: "Notes", reader: "note" },
+  voice_memo: { label: "Voice memos", reader: "voice_memo" },
+  document: { label: "Documents", reader: "document" },
+  // The legacy vaults' events, as Sources names the family.
+  legacy_event: { label: "Legacy", reader: "legacy_event" },
 } as const;
 export type DataKind = keyof typeof DATA_KINDS;
 export type ReaderKind = NonNullable<(typeof DATA_KINDS)[DataKind]["reader"]>;
@@ -168,10 +181,10 @@ export function dataRoute(url: URL): DataRoute | null {
 /** The old `/life/<section>` pages. */
 export function lifeRedirect(section: string | undefined): string {
   switch (section) {
+    // The retired Life taxonomy: its people are System's contacts, and no
+    // adapter writes projects or places.
     case "people":
-    case "projects":
-    case "places":
-      return dataRecordsHref(section);
+      return dataRecordsHref("contact");
     case "sources":
       return DATA_SOURCES_PATH;
     case "health":

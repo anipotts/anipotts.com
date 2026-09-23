@@ -518,7 +518,7 @@ describe("System reader bounds", () => {
       [{ method: "sources" }, ["limit", "offset"]],
       [{ method: "search", q: "" }, ["q", "limit", "offset"]],
       [
-        { method: "search", q: "", kind: "person" },
+        { method: "search", q: "", kind: "contact" },
         ["q", "limit", "offset", "kind"],
       ],
       [{ method: "get", id: recordId }, ["body_offset", "body_limit"]],
@@ -750,20 +750,20 @@ describe("private Data workspace", () => {
     );
   });
 
-  it("filters by kind from the route, events and notes included", async () => {
+  it("filters by kind from the route, by System's own kind names", async () => {
     const { fetcher, calls } = network();
     await openWorkspace(
       makeSession(fetcher),
       fetcher,
-      "/data/records?kind=people",
+      "/data/records?kind=contact",
     );
     expect(
       calls.filter((call) => !isCatalog(call)).map((call) => call.url.search),
-    ).toEqual(["?q=&limit=30&offset=0&kind=person"]);
+    ).toEqual(["?q=&limit=30&offset=0&kind=contact"]);
     const entries = window.history.length;
     await click("Notes");
     await settle();
-    expect(window.location.search).toBe("?kind=notes");
+    expect(window.location.search).toBe("?kind=note");
     expect(calls.at(-1)?.url.search).toBe("?q=&limit=30&offset=0&kind=note");
     // A filter replaces the entry rather than adding one.
     expect(window.history.length).toBe(entries);

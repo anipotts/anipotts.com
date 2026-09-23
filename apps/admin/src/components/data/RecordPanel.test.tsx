@@ -106,7 +106,7 @@ describe("record rows", () => {
 
   it("is one row of aligned columns: record, source, state and time", () => {
     const host = table();
-    expect(headers(host)).toEqual(["Record", "Source", "State", "Observed"]);
+    expect(headers(host)).toEqual(["Record", "Source", "State", "Occurred"]);
     const row = host
       .querySelector(`a[href="/r/${byKind("browsing_day").id}"]`)!
       .closest("tr")!;
@@ -121,6 +121,38 @@ describe("record rows", () => {
     expect(cells[1]?.textContent).toContain("Synthetic browsing");
     // The tier glyph sits in the state column, with any chip before it.
     expect(cells[2]?.querySelector(".workspace-tier")).not.toBeNull();
+  });
+
+  it("dates each row by when it occurred, the key the reader sorts by (A-28)", () => {
+    const host = table();
+    const time = (record: DataRecord) =>
+      host
+        .querySelector(`a[href="/r/${record.id}"]`)!
+        .closest("tr")!
+        .querySelector("td:last-child time")!;
+    // A day, a month and a year read at their own precision.
+    const month = records.find((row) => row.datePrecision === "month")!;
+    expect(time(month).textContent).toMatch(/^[A-Z][a-z]{2} \d{4}$/);
+    expect(time(month).getAttribute("title")).toMatch(/^Occurred: /);
+    const year = records.find((row) => row.occurredAt === "2025")!;
+    expect(time(year).textContent).toBe("2025");
+    // A record System holds no occurred date for shows its observed time,
+    // where System's order puts it, muted and named as observed.
+    const undated = records.find((row) => !row.occurredAt)!;
+    expect(time(undated).hasAttribute("data-observed")).toBe(true);
+    expect(time(undated).getAttribute("title")).toMatch(
+      /^Observed: .*No occurred date$/,
+    );
+  });
+
+  it("keeps the device's place on a phone's line 2, so sources line up", () => {
+    const host = table();
+    const lines = [
+      ...host.querySelectorAll(".workspace-row-meta .data-source"),
+    ];
+    expect(lines.length).toBeGreaterThan(1);
+    for (const line of lines)
+      expect(line.firstElementChild?.className).toBe("data-source-device");
   });
 
   it("puts a state other than the default before the tier", () => {
@@ -140,12 +172,12 @@ describe("record rows", () => {
     expect(headers(table({ beside: true }))).toEqual([
       "Record",
       "State",
-      "Observed",
+      "Occurred",
     ]);
     expect(headers(table({ hideSource: true }))).toEqual([
       "Record",
       "State",
-      "Observed",
+      "Occurred",
     ]);
   });
 });

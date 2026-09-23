@@ -19,6 +19,7 @@ import {
   withoutOwner,
 } from "./naming";
 import { clockText } from "../components/workspace/format";
+import { relativeAgo } from "./live-clock";
 import type { MarkId } from "@anipotts/brand/marks";
 
 type Item = Record<string, unknown>;
@@ -55,6 +56,58 @@ export function effectiveDate(
     ...options,
     timeZone: "UTC",
   }).format(ms);
+}
+
+const SHORT_MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+] as const;
+
+/**
+ * A record's occurred date as a list's time column shows it, the date the
+ * list is sorted by (ledger A-28). A time within the last day reads
+ * relative ("3h ago"); anything else reads at the precision System holds:
+ * "Sep 20" this year, "Sep 20, 2025" before it, "Sep 2026" for a month and
+ * "2025" for a year, so a month is never drawn as a day. Null when there is
+ * no occurred date.
+ */
+export function occurredText(
+  value: string | null,
+  precision: string | null,
+  now: number,
+): string | null {
+  if (!value) return null;
+  if (/T\d{2}:\d{2}/.test(value) && precision !== "day") {
+    const ms = Date.parse(value);
+    if (!Number.isFinite(ms)) return null;
+    if (now - ms < 24 * 3600_000) return relativeAgo(ms, now);
+    const at = new Date(ms);
+    const date = `${SHORT_MONTHS[at.getMonth()]} ${at.getDate()}`;
+    return at.getFullYear() === new Date(now).getFullYear()
+      ? date
+      : `${date}, ${at.getFullYear()}`;
+  }
+  const match = /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?/.exec(value);
+  if (!match) return null;
+  const [, year, month, day] = match;
+  if (precision === "year" || !month) return year!;
+  const name = SHORT_MONTHS[Number(month) - 1];
+  if (!name) return null;
+  if (precision === "month" || !day) return `${name} ${year}`;
+  const date = `${name} ${Number(day)}`;
+  return Number(year) === new Date(now).getFullYear()
+    ? date
+    : `${date}, ${year}`;
 }
 
 // The body.

@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@astryxdesign/core/Button";
 import { HStack } from "@astryxdesign/core/HStack";
+import { Text } from "@astryxdesign/core/Text";
 import {
   ToggleButton,
   ToggleButtonGroup,
@@ -22,6 +23,8 @@ import {
   type RecordsRoute,
 } from "../../lib/data-routes";
 import { deviceName } from "../../lib/naming";
+import { effectiveDate, occurredText } from "../../lib/data-record";
+import { useLiveText } from "../../lib/live-clock";
 import { BrandTile } from "../BrandTile";
 import { SplitView, useSplitView } from "../astryx/SplitView";
 import {
@@ -99,6 +102,49 @@ function RecordState({ record }: { record: DataRecord }) {
   );
 }
 
+/**
+ * When a record happened: the date the reader's list is sorted by (ledger
+ * A-28). System orders records by occurred date, newest first, and those
+ * with none last by observed time, so this column is that key: the occurred
+ * date, relative within a day and otherwise at System's own precision
+ * (lib/data-record.ts occurredText), or, for a record System holds no
+ * occurred date for, its observed time, muted and labelled as observed.
+ */
+function OccurredTime({ record }: { record: DataRecord }) {
+  const occurred = Boolean(
+    occurredText(record.occurredAt, record.datePrecision, Date.now()),
+  );
+  const value = occurred ? record.occurredAt : record.observedAt;
+  const text = useLiveText(
+    (now) =>
+      (occurred
+        ? occurredText(record.occurredAt, record.datePrecision, now)
+        : occurredText(record.observedAt, null, now)) ?? "",
+    Date.now(),
+  );
+  if (!text)
+    return (
+      <Text color="secondary" className="workspace-time">
+        Not recorded
+      </Text>
+    );
+  const full = occurred
+    ? `Occurred: ${effectiveDate(record.occurredAt, record.datePrecision)}`
+    : `Observed: ${effectiveDate(record.observedAt, null)}. No occurred date`;
+  return (
+    <time
+      className="workspace-time"
+      data-observed={occurred ? undefined : ""}
+      dateTime={value ?? undefined}
+      title={full}
+      aria-label={full}
+      suppressHydrationWarning
+    >
+      {text}
+    </time>
+  );
+}
+
 /** Source names are short ("Browsing", "Voice Memos"); the column holds
  * them with a device tile. */
 const SOURCE_WIDTH = 204;
@@ -167,11 +213,13 @@ export function recordColumns({
                 {record.excerpt ? (
                   <span className="data-record-excerpt">{record.excerpt}</span>
                 ) : (
-                  !hideSource && <RecordSource record={record} />
+                  // The device keeps its place, empty or not, so source
+                  // names line up down a phone's rows too.
+                  !hideSource && <RecordSource record={record} slot />
                 )}
               </>
             }
-            time={record.observedAt}
+            end={<OccurredTime record={record} />}
           />
         );
       },
@@ -200,10 +248,10 @@ export function recordColumns({
           render: (record) => <RecordState record={record} />,
         },
     {
-      key: "observed",
-      header: "Observed",
+      key: "occurred",
+      header: "Occurred",
       width: CELL_WIDTHS.time,
-      render: (record) => <RelativeTime value={record.observedAt} />,
+      render: (record) => <OccurredTime record={record} />,
     },
   );
   return columns;
@@ -264,7 +312,7 @@ export function RecordsToolbar({
   };
   const source = useNamedSource(route.source);
   return (
-    <div className="data-toolbar">
+    <div className="data-toolbar data-records-toolbar">
       <FilterBar
         search={{
           label: "Search records",

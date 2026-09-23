@@ -74,8 +74,15 @@ export function createFixtureReader(fixture: DataFixture): DataReader {
             (record) =>
               !q || `${record.title} ${record.body}`.toLowerCase().includes(q),
           )
-          .sort((a, b) =>
-            String(b.observed_at).localeCompare(String(a.observed_at)),
+          // System's order (store.timeline): records with an occurred date
+          // first, newest occurred first as stored text, then observed.
+          .sort(
+            (a, b) =>
+              Number(!a.occurred_at) - Number(!b.occurred_at) ||
+              String(b.occurred_at ?? "").localeCompare(
+                String(a.occurred_at ?? ""),
+              ) ||
+              String(b.observed_at).localeCompare(String(a.observed_at)),
           )
           .map(({ body: _body, revisions: _revisions, ...item }) => item);
         return ready(page(matches, request.offset));

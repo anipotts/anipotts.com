@@ -46,6 +46,22 @@
 .data-chips .astryx-button {
   white-space: nowrap;
 }
+/* Beside a phone's edge the chips scroll; wider, they wrap under the
+   search, so no chip is ever cut at the row's end. */
+@media (min-width: 641px) {
+  .data-chips,
+  .data-chips [role="group"] {
+    flex-wrap: wrap;
+    row-gap: var(--spacing-2);
+  }
+  .data-chips {
+    overflow-x: visible;
+  }
+  .data-chips > [role="group"] {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
 /* Chips sit on the badge's neutral fill; a chosen chip takes the accent.
    The fill is id-weighted to beat the button's own, so hover, press and
    keyboard focus lay their tint over it instead of losing it: focus is the
@@ -109,6 +125,19 @@
   .data-toolbar > .workspace-filter-bar {
     flex: 0 1 calc(var(--spacing-12) * 5);
     width: auto;
+  }
+}
+/* Records has more kinds than fit beside the search below this width, so
+   its chips take their own line under a search of the same width. */
+@container workspace-list (min-width: 760px) and (max-width: 1239px) {
+  .data-records-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-2);
+  }
+  .data-records-toolbar > .workspace-filter-bar {
+    flex: none;
+    width: calc(var(--spacing-12) * 5);
   }
 }
 
@@ -410,4 +439,10 @@
   .data-record[data-split="false"] .data-record-action {
     margin-inline-start: calc((var(--spacing-5) - var(--spacing-11)) / 2);
   }
+}
+
+/* A record with no occurred date shows its observed time in the Occurred
+   column, where System's order puts it; muted, and named in its tooltip. */
+.workspace-time[data-observed] {
+  color: var(--color-text-secondary);
 }
