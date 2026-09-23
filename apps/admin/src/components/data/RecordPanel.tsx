@@ -24,7 +24,7 @@ import { deviceName, hostDevice } from "../../lib/naming";
 import { useNamedSource } from "./source-catalog";
 import { BrandTile } from "../BrandTile";
 import { SplitPanel, useSplitView } from "../astryx/SplitView";
-import { clockText, durationText } from "../workspace/format";
+import { ADMIN_TIME_ZONE, clockText, durationText } from "../workspace/format";
 import {
   CompactTimeline,
   DefinitionList,
@@ -51,6 +51,7 @@ type Failure = Exclude<DataResult, { state: "ready" }>;
 const ABSOLUTE = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
   timeStyle: "short",
+  timeZone: ADMIN_TIME_ZONE,
 });
 
 /** A time as a detail: the clock time on the timeline's pattern, with the
@@ -68,13 +69,13 @@ function Observed({ value }: { value: string | null }) {
   );
 }
 
-/** A clock time on the timeline's pattern, with the absolute time on hover.
- * A record draws in the browser only, so the viewer's zone is safe here. */
+/** A clock time on the timeline's pattern, in Eastern Time as every admin
+ * time reads, with the absolute time on hover. */
 function Clock({ ms }: { ms: number }) {
   return (
     <time
       dateTime={new Date(ms).toISOString()}
-      title={ABSOLUTE.format(ms)}
+      title={`${ABSOLUTE.format(ms)} ET`}
       className="workspace-time"
     >
       {clockText(ms)}

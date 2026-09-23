@@ -212,6 +212,30 @@ describe("names", () => {
     expect(chatgpt.tooltip).toBe("keepalive.chatgpt");
   });
 
+  it("keeps a catalog name's own punctuation and device words mid-phrase", () => {
+    const name = (entryName: string, host = "ap-mini") =>
+      opsNaming({ id: "pc.store-floors", name: entryName, host }).name;
+    // Only the host's word as the first or last word goes.
+    expect(name("pro session transcripts to R2", "ap-pro")).toBe(
+      "Session transcripts to R2",
+    );
+    expect(name("legacy silver mini")).toBe("Legacy silver");
+    // Mid-phrase, the device and a hyphenated word stay whole.
+    expect(
+      name(
+        "personal context store size floors for every source family held on ap-mini with no shrink below the recorded floor today",
+      ),
+    ).toBe(
+      "Personal context store size floors for every source family held on ap-mini with no shrink below the recorded floor today",
+    );
+    expect(name("read-only probe of the reader")).toBe(
+      "Read-only probe of the reader",
+    );
+    expect(
+      name("hourly visit counts across ap-pro, ap-mini and phone", "ap-mini"),
+    ).toBe("Hourly visit counts across ap-pro, ap-mini and phone");
+  });
+
   it("A-27: names sources without the owner, the brand or the separators", () => {
     const read = (id: string, host?: string) => {
       const naming = sourceNaming({ id, host });

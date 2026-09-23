@@ -88,7 +88,6 @@
   .ops-reason
   > .workspace-detail-text:not(#\#) {
   white-space: normal;
-  overflow-wrap: anywhere;
 }
 /* A last success over its own budget: the warning ink and a glyph whose
    tooltip names the budget. */
@@ -155,6 +154,32 @@
   flex: 1 1 4.5rem;
   min-width: min(4.5rem, 100%);
   line-height: var(--spacing-6);
+}
+/* On a row's line 2 (phones) what changed reads whole: the chips stay on
+   the detail's first line and the detail wraps under itself, never clipped
+   to one line's height. */
+.workspace-row-detail > .ops-change {
+  display: block;
+  max-block-size: none;
+  overflow: visible;
+  line-height: var(--spacing-5);
+}
+/* The chips flow as words, and the detail's lines run back under them at
+   the row's full width. */
+.workspace-row-detail > .ops-change > :not(.workspace-detail-text) {
+  display: inline-flex;
+  vertical-align: bottom;
+  margin-inline-end: var(--spacing-2);
+}
+.workspace-row-detail > .ops-change > .workspace-detail-text:not(#\#),
+.workspace-row-detail
+  > .ops-change
+  > .workspace-detail-text
+  > .workspace-detail-words:not(#\#) {
+  display: inline;
+  min-width: 0;
+  line-height: var(--spacing-5);
+  white-space: normal;
 }
 /* Activity's time, and below large the device tile before it, ending the
    cell so times line up at the right as a phone row's do. */
@@ -306,13 +331,21 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
   min-width: 0;
   min-height: var(--spacing-6);
 }
-.ops-card-title {
+/* A card's title wraps at a space rather than losing a word; the device
+   beside it names the host. */
+.ops-card-title:not(#\#) {
+  display: block;
   flex: 0 1 auto;
   min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
   font-weight: var(--font-weight-medium, 500);
+}
+.ops-card-title > .workspace-title-base:not(#\#) {
+  display: inline;
+  overflow: visible;
+  white-space: normal;
 }
 .ops-card-state {
   display: inline-flex;
@@ -503,6 +536,45 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
     display: inline-flex;
   }
 }
+/* There, as at medium (workspace.css), line 2 runs the row's width under
+   the other columns, which keep to line 1. */
+@media (min-width: 1024px) {
+  @container (max-width: 1000px) {
+    .ops-alerts .astryx-table-cell:first-child {
+      overflow: visible;
+      text-overflow: clip;
+    }
+    .ops-alerts
+      .astryx-table-cell:first-child
+      .workspace-row-meta[data-below="large"] {
+      inline-size: calc(100cqw - 68px);
+    }
+    .ops-alerts tbody .astryx-table-cell {
+      vertical-align: top;
+    }
+    .ops-alerts tbody .astryx-table-cell:first-child {
+      padding-block: 6px var(--spacing-1);
+    }
+    .ops-alerts tbody .astryx-table-cell:not(:first-child) {
+      padding-block: 0;
+    }
+    .ops-alerts .workspace-cell {
+      display: flex;
+      align-items: center;
+      min-block-size: var(--spacing-9);
+      min-width: 0;
+    }
+    .ops-alerts [data-numeric] > .workspace-cell {
+      justify-content: flex-end;
+    }
+  }
+}
+
+/* The runbook is a glyph column: its 36px button and an 8px end inset, so
+   the glyph ends on the table's 16px edge like every other column. */
+.ops-alerts :is(th, td)[data-column="runbook"]:not(#\#) {
+  padding-inline: 0 var(--spacing-2);
+}
 
 /* The open row keeps a quiet tint, apart from the focus tint. */
 .ops-split
@@ -532,7 +604,10 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
   gap: var(--spacing-3);
   min-width: 0;
 }
-.ops-panel-header > .astryx-button {
+.ops-panel-header > .astryx-button,
+.ops-panel-header
+  > :is(.admin-split-beside-only, .admin-split-page-only)
+  > .astryx-button {
   flex: none;
   margin-inline-start: calc(-1 * var(--spacing-2));
 }
@@ -541,8 +616,7 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
   min-width: 0;
   margin: 0;
   overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  white-space: normal;
   font-size: var(--font-size-heading-3, 18px);
   line-height: var(--spacing-7);
 }
@@ -705,7 +779,6 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
     grid-row: 1;
     grid-column: 3;
     white-space: normal;
-    overflow-wrap: break-word;
   }
   .ops-panel-badge {
     grid-row: 2;

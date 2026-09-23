@@ -446,6 +446,37 @@ describe("alerts from transitions", () => {
     expect(observed!.firstSeen).toBeUndefined();
   });
 
+  it("A-31: never dates an episode from the first change held when it left another problem", () => {
+    // The earlier transitions aged out of retention: the first one held
+    // goes degraded to failing, so the episode was already open.
+    for (const from of ["degraded", "stale", "unknown", "asleep"] as const) {
+      const [alert] = deriveOpsAlerts(
+        parse([
+          transition(
+            10,
+            "agents.sync",
+            from,
+            "failing",
+            "2026-09-20T10:00:00Z",
+          ),
+        ]),
+      );
+      expect(alert, from).toMatchObject({
+        status: "firing",
+        since: null,
+        startedBefore: "2026-09-20T10:00:00Z",
+        firstSeen: true,
+      });
+    }
+    // From ok, the start is observed.
+    const [seen] = deriveOpsAlerts(
+      parse([
+        transition(10, "agents.sync", "ok", "failing", "2026-09-20T10:00:00Z"),
+      ]),
+    );
+    expect(seen).toMatchObject({ since: "2026-09-20T10:00:00Z" });
+  });
+
   it("dates an episode from its first problem, even as the problem changes", () => {
     const [alert] = deriveOpsAlerts(
       parse([

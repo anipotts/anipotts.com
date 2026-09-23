@@ -1,4 +1,4 @@
-import React, { useSyncExternalStore } from "react";
+import React from "react";
 import { Button } from "@astryxdesign/core/Button";
 import { StatusDot } from "@astryxdesign/core/StatusDot";
 import {
@@ -56,7 +56,12 @@ import {
   StateCell,
   badgeFor,
 } from "../workspace/Workspace";
-import { clockText, durationText, secondsText } from "../workspace/format";
+import {
+  clockText,
+  durationText,
+  hourText,
+  secondsText,
+} from "../workspace/format";
 
 /**
  * Observability's cells: tiles and names from lib/naming.ts, the trigger
@@ -299,12 +304,9 @@ function JudgedSuccess({
   );
   const at = service.status.last_success_at;
   // System recorded no success: that is not the same as never succeeding.
-  if (!at)
-    return empty ? (
-      <RelativeTime value={null} empty={empty} />
-    ) : (
-      <span className="sr-only">Not recorded</span>
-    );
+  // It reads the muted "Not recorded" a withheld time does (A-12), so a
+  // column never mixes a word with a blank for the same absence.
+  if (!at) return <RelativeTime value={null} empty={empty} />;
   return (
     <span className="ops-last" data-over={over ? "true" : undefined}>
       <RelativeTime value={at} now={now} />
@@ -322,8 +324,8 @@ function JudgedSuccess({
   );
 }
 
-/** When an entry last ran: live, or "Not recorded" where the time is a
- * file's (A-38), or nothing visible when System gives none. */
+/** When an entry last ran: live, or the muted "Not recorded" where the time
+ * is a file's (A-38) or System gives none. */
 export function LastRun({
   service,
   now,
@@ -331,18 +333,13 @@ export function LastRun({
 }: {
   service: OpsServiceView;
   now?: number;
-  /** Shown when System gives no time; for assistive technology only
-   * otherwise. */
+  /** Shown when System gives no time ("Not recorded" by default). */
   empty?: string;
 }) {
   if (opsSyncWithheld(service)) return <WithheldTime />;
   const at = service.status.last_run_at;
   if (at) return <RelativeTime value={at} now={now} />;
-  return empty ? (
-    <RelativeTime value={null} empty={empty} />
-  ) : (
-    <span className="sr-only">Not recorded</span>
-  );
+  return <RelativeTime value={null} empty={empty} />;
 }
 
 /** The next run: "in 12m", "due now", "3m overdue". An interval job's is
@@ -495,47 +492,29 @@ export function PastState({
   );
 }
 
-const noChange = () => () => undefined;
-
-/** A clock time, "Sep 22, 16:02", in the viewer's zone. The server writes
- * the UTC one and the browser swaps in its own after hydration, so the two
- * never disagree. The absolute local and UTC time is the tooltip. */
+/** A clock time, "Sep 22, 16:02", in Eastern Time as the page's clock
+ * reads, the same text on the server and in the browser. The UTC time is
+ * the tooltip. */
 export function ClockTime({ at, now }: { at: string; now?: number }) {
   const ms = Date.parse(at);
-  const text = useSyncExternalStore(
-    noChange,
-    () => clockText(ms, now),
-    () => clockText(ms, now, true),
-  );
   return (
     <time
       dateTime={at}
       title={`${new Date(ms).toISOString().slice(0, 16).replace("T", " ")} UTC`}
       className="workspace-time"
-      suppressHydrationWarning
     >
-      {text}
+      {clockText(ms, now)}
     </time>
   );
 }
 
-/** Only the clock, "16:02", for rows grouped under a day heading. */
+/** Only the clock, "16:02" in Eastern Time, for rows grouped under a day
+ * heading. */
 export function HourTime({ at, now }: { at: string; now?: number }) {
   const ms = Date.parse(at);
-  const hour = (utc: boolean) => clockText(ms, now, utc).split(", ").at(-1)!;
-  const text = useSyncExternalStore(
-    noChange,
-    () => hour(false),
-    () => hour(true),
-  );
   return (
-    <time
-      dateTime={at}
-      title={clockText(ms, now)}
-      className="workspace-time"
-      suppressHydrationWarning
-    >
-      {text}
+    <time dateTime={at} title={clockText(ms, now)} className="workspace-time">
+      {hourText(ms)}
     </time>
   );
 }
@@ -595,18 +574,12 @@ function StartBound({
   at: string;
   now?: number;
 }) {
-  const ms = Date.parse(at);
-  const text = useSyncExternalStore(
-    noChange,
-    () => clockText(ms, now),
-    () => clockText(ms, now, true),
-  );
+  const text = clockText(Date.parse(at), now);
   return (
     <time
       dateTime={at}
       className="workspace-time"
       title={boundTitle(alert, at)}
-      suppressHydrationWarning
     >
       Before {text}
     </time>
@@ -620,7 +593,7 @@ export function alertStartText(
   now: number = Date.now(),
 ): string | null {
   if (alert.since || !alert.startedBefore) return null;
-  return `Before ${clockText(Date.parse(alert.startedBefore), now, true)}`;
+  return `Before ${clockText(Date.parse(alert.startedBefore), now)}`;
 }
 
 /**

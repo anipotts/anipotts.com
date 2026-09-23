@@ -163,7 +163,9 @@ describe("record rows", () => {
       .closest("tr")!
       .querySelectorAll("td")[2]!;
     expect(cell.textContent).toContain("Superseded");
-    expect(cell.lastElementChild?.lastElementChild?.className).toBe(
+    // The kit wraps a cell past the lead (DataTable's .workspace-cell).
+    const content = cell.querySelector(".workspace-cell") ?? cell;
+    expect(content.lastElementChild?.lastElementChild?.className).toBe(
       "workspace-tier",
     );
   });

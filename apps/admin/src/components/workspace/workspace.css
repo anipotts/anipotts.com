@@ -180,6 +180,15 @@
   padding-inline: var(--spacing-3);
   white-space: nowrap;
   text-overflow: ellipsis;
+  /* Astryx cells break words anywhere; a title or a time here wraps only
+     at a space, and a column gives way before a word is split. */
+  word-break: normal;
+  overflow-wrap: normal;
+}
+/* A cell's content past the lead: inline everywhere but where the lead
+   carries a line 2 (below). */
+.workspace-cell {
+  display: contents;
 }
 /* Figures: right-aligned with their header, in tabular numerals. */
 .workspace-table [data-numeric] {
@@ -475,7 +484,8 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
 /* Parts of line 2 that a wider range already shows in a column, or that
    only medium needs there. */
 .workspace-compact-only,
-.workspace-medium-only {
+.workspace-medium-only,
+.workspace-yield-only {
   display: none;
 }
 @media (min-width: 641px) and (max-width: 1023px) {
@@ -491,6 +501,49 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   }
   .workspace-row-meta[data-below="large"] > .workspace-row-detail {
     display: inline-flex;
+  }
+}
+/* Medium: line 2 runs the row's whole width, from the title's start to the
+   table's end inset, under the other columns (which hold line 1 only), so
+   a reason wraps as a paragraph, never a word to a line in the lead's
+   column. Every column's content sits in a box of line 1's height at the
+   top, and the lead's line 1 takes the same centre, so a chip, a time and a
+   runbook glyph read on the title's line. */
+@media (min-width: 641px) and (max-width: 1023px) {
+  .workspace-table
+    .astryx-table-cell:first-child:has(
+      .workspace-row-meta[data-below="large"]
+    ) {
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .workspace-table
+    .astryx-table-cell:first-child
+    .workspace-row-meta[data-below="large"] {
+    /* 100cqw is the table frame; the title starts 52px in (16px inset, the
+       24px tile, 12px gap) and the row ends 16px in. */
+    inline-size: calc(100cqw - 68px);
+    max-inline-size: none;
+  }
+  .workspace-table tbody .astryx-table-cell {
+    vertical-align: top;
+  }
+  .workspace-table tbody .astryx-table-cell:first-child {
+    padding-block: 6px var(--spacing-1);
+  }
+  .workspace-table tbody .astryx-table-cell:not(:first-child) {
+    padding-block: 0;
+  }
+  .workspace-table .workspace-cell {
+    display: flex;
+    align-items: center;
+    min-block-size: var(--spacing-9);
+    min-width: 0;
+  }
+  .workspace-table [data-numeric] > .workspace-cell,
+  .workspace-table [style*="text-align: end"] > .workspace-cell,
+  .workspace-table [style*="text-align:end"] > .workspace-cell {
+    justify-content: flex-end;
   }
 }
 .workspace-row-secondary {
@@ -831,7 +884,8 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   .workspace-row-detail {
     display: inline-flex;
   }
-  .workspace-compact-only {
+  .workspace-compact-only,
+  .workspace-yield-only {
     display: contents;
   }
   .workspace-row-meta {
@@ -937,6 +991,10 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
     margin-inline-end: 0;
     justify-content: flex-end;
     padding-inline-end: 0;
+    /* The 44px target's empty start reaches back over the value, so the
+       value keeps all but the glyph and its 4px gap: a 12-character hash
+       reads whole at 320. */
+    margin-inline-start: calc(var(--spacing-4) - var(--spacing-11));
   }
 }
 /* In a definition list the value fills its column and the button ends it,
@@ -1067,5 +1125,10 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   }
   .workspace-timeline-item {
     min-height: var(--spacing-11);
+  }
+  /* 6px between the parts, so the 12-character hash keeps its last digit
+     beside "Revision 1, Sep 22, 11:30" at 320. */
+  .workspace-timeline {
+    column-gap: 6px;
   }
 }

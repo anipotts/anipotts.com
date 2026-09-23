@@ -15,10 +15,9 @@ import {
   type OpsServiceView,
   type OpsSnapshot,
 } from "../../lib/ops-v1";
-import { SplitView, useSplitView } from "../astryx/SplitView";
+import { SplitView } from "../astryx/SplitView";
 import {
   CELL_WIDTHS,
-  CompactOnly,
   DataTable,
   MediumOnly,
   DetailText,
@@ -29,7 +28,11 @@ import {
   StateCell,
   StateNotice,
   WorkspaceSection,
+  YieldOnly,
+  badgeFor,
+  figureWidth,
   leadWidth,
+  stateWidth,
   titleWidth,
   type Column,
 } from "../workspace/Workspace";
@@ -121,21 +124,26 @@ function unopenedAlerts(
 function current(
   alert: OpsAlert,
   services: ReadonlyMap<string, OpsServiceView>,
-): OpsAlert {
+  newer: boolean,
+): OpsAlert | null {
   if (alert.status !== "firing") return alert;
   const service = services.get(alert.subject);
-  if (
-    !service ||
-    service.missingStatus ||
-    !OPS_PROBLEM_STATES.includes(service.status.state)
-  )
-    return alert;
-  return {
-    ...alert,
-    state: service.status.state,
-    peak: worse(alert.peak, service.status.state),
-    detail: opsDetailText(service),
-  };
+  if (!service || service.missingStatus) return alert;
+  const state = service.status.state;
+  if (OPS_PROBLEM_STATES.includes(state))
+    return {
+      ...alert,
+      state,
+      peak: worse(alert.peak, state),
+      detail: opsDetailText(service),
+    };
+  // The snapshot read after the alert's last change says otherwise: it is
+  // not firing as Status shows it. Ok has recovered, its change not read
+  // yet (it lists again once the ok transition arrives, as resolved);
+  // unknown is unknown, never a problem still claimed.
+  if (!newer) return alert;
+  if (state === "ok") return null;
+  return { ...alert, state, detail: opsDetailText(service) };
 }
 
 /** Alerts with the catalog's name, kind and runbook, firing first: those
@@ -152,8 +160,27 @@ export function opsAlertRows(
       service,
     ]),
   );
-  const derived = deriveOpsAlerts(events?.transitions ?? []).map((alert) =>
-    current(alert, services),
+  // When each entry last changed, so the snapshot overrides a firing alert
+  // only once it was read after that change.
+  const changedAt = new Map<string, string>();
+  for (const event of events?.transitions ?? []) {
+    const at = changedAt.get(event.subject);
+    if (!at || event.at > at) changedAt.set(event.subject, event.at);
+  }
+  const generated = snapshot?.generated_at ?? "";
+  const derived = deriveOpsAlerts(events?.transitions ?? []).flatMap(
+    (alert) => {
+      // An entry System no longer watches never fires on forever under its
+      // raw id: no later ok can ever arrive for it.
+      if (alert.status === "firing" && snapshot && !catalog.has(alert.subject))
+        return [];
+      const read = current(
+        alert,
+        services,
+        generated > (changedAt.get(alert.subject) ?? ""),
+      );
+      return read ? [read] : [];
+    },
   );
   const unopened = unopenedAlerts(derived, events, snapshot);
   // One row per entry: a problem the snapshot shows replaces the entry's
@@ -222,7 +249,9 @@ export function alertStartWidth(
   let widest = 0;
   for (const row of rows) {
     const text = alertStartText(row, now);
-    if (text) widest = Math.max(widest, titleWidth(text));
+    // A time draws its digits in tabular numerals, wider than a
+    // proportional "1", so "Before Sep 11, 11:11" is measured at them.
+    if (text) widest = Math.max(widest, figureWidth(text));
   }
   return widest
     ? Math.max(OPS_WIDTHS.age, Math.ceil(START_CHROME + widest))
@@ -231,6 +260,25 @@ export function alertStartWidth(
 
 /** A time cell's inset. */
 const START_CHROME = 24;
+
+/** The State column's width on the Alerts page: its widest cell, a firing
+ * alert's chip or a resolved one's "was degraded", so a table of short
+ * chips gives the name the rest. Firing and Resolved share it. */
+export function alertStateWidth(rows: readonly OpsAlert[]): number {
+  return stateWidth(
+    "ops",
+    rows.filter((row) => row.status === "firing").map((row) => row.state),
+    rows
+      .filter((row) => row.status !== "firing")
+      .map((row) =>
+        titleWidth(`was ${badgeFor("ops", row.peak).label.toLowerCase()}`),
+      ),
+  );
+}
+
+/** The runbook column: its 36px glyph button and an 8px end inset, so the
+ * glyph ends on the table's 16px edge. */
+const RUNBOOK_WIDTH = 44;
 
 export function AlertsTable({
   rows,
@@ -242,8 +290,12 @@ export function AlertsTable({
   onSelect,
   names,
   startWidth,
+  stateColumnWidth,
 }: {
   rows: AlertRow[];
+  /** The State column's width (alertStateWidth), shared by the page's
+   * tables; this table's own rows' otherwise. */
+  stateColumnWidth?: number;
   /** The Started column's width (alertStartWidth), shared by the page's
    * tables; this table's own rows' otherwise. */
   startWidth?: number;
@@ -262,8 +314,10 @@ export function AlertsTable({
 }) {
   const clock = serverNow ?? now ?? Date.now();
   // Beside an open panel the list keeps the alert, its state and its time.
-  const beside = useSplitView();
-  const narrow = beside && Boolean(selected);
+  // Below 960px an open panel is the page and the list steps aside
+  // (styles/shell.css), so an open panel always means the short list, and
+  // the server writes the layout the browser keeps.
+  const narrow = Boolean(selected);
   const full = incidents && !narrow;
   const leadRoom = leadWidth(names ?? rows.map((row) => row.name));
   // The incident tables size their state and times to what they hold; the
@@ -271,7 +325,7 @@ export function AlertsTable({
   // every other overview section.
   const widths = incidents
     ? {
-        state: OPS_WIDTHS.incident,
+        state: stateColumnWidth ?? alertStateWidth(rows),
         time: OPS_WIDTHS.age,
         start: startWidth ?? alertStartWidth(rows, clock),
       }
@@ -283,6 +337,9 @@ export function AlertsTable({
   const lead: Column<AlertRow> = {
     key: "alert",
     header: "Alert",
+    // The incident columns give way to the name: State moves to line 2,
+    // then Started goes (For still says how long).
+    room: full ? leadRoom : undefined,
     render: (row) => {
       // The row's name is already the one to show (with its host when two
       // entries share it); only the tiles come from naming.
@@ -324,13 +381,13 @@ export function AlertsTable({
                   <DeviceTile device={row.host} />
                 </MediumOnly>
               )}
-              <CompactOnly>
+              <YieldOnly column="state">
                 {row.status === "firing" ? (
                   <StateBadge domain="ops" state={row.state} />
                 ) : (
                   <PastState state={row.peak} was />
                 )}
-              </CompactOnly>
+              </YieldOnly>
               {row.detail && (
                 <span className="ops-reason">
                   <DetailText lines={2}>{row.detail}</DetailText>
@@ -370,6 +427,7 @@ export function AlertsTable({
     key: "state",
     header: "State",
     width: widths.state,
+    yieldOrder: full ? 1 : undefined,
     render: (row) => <AlertState row={row} />,
   };
   // The short columns (the overview's, and the list beside a panel) say a
@@ -383,6 +441,7 @@ export function AlertsTable({
       : bounded
         ? Math.max(widths.time, CELL_WIDTHS.time)
         : widths.time,
+    yieldOrder: full ? 2 : undefined,
     render: (row) => <AlertStart alert={row} now={now} seen={!full} />,
   };
   const resolvedAt: Column<AlertRow> = {
@@ -441,6 +500,9 @@ export function AlertsTable({
       header: "Detail",
       share: 0.6,
       reserve: leadRoom,
+      // Beside the rail at large the column drops (a container query) and
+      // the detail is line 2, so it asks no least width of its own.
+      min: 0,
       hideBelow: "large",
       render: (row) =>
         row.detail ? <DetailText lines={2}>{row.detail}</DetailText> : null,
@@ -448,7 +510,7 @@ export function AlertsTable({
     {
       key: "runbook",
       header: <span className="sr-only">Runbook</span>,
-      width: OPS_WIDTHS.lastTile + 16,
+      width: RUNBOOK_WIDTH,
       render: (row) =>
         row.runbook ? (
           <RunbookButton path={row.runbook} iconOnly name={row.name} />
@@ -499,6 +561,7 @@ export function AlertsView({
     [rows],
   );
   const startWidth = alertStartWidth(rows, data.fixedNow ?? data.serverNow);
+  const stateColumnWidth = alertStateWidth(rows);
   const firing = rows.filter((row) => row.status === "firing");
   const resolved = rows.filter((row) => row.status === "resolved");
   const current = selected
@@ -530,6 +593,7 @@ export function AlertsView({
                     rows={firing}
                     names={names}
                     startWidth={startWidth}
+                    stateColumnWidth={stateColumnWidth}
                     incidents
                     now={data.fixedNow}
                     serverNow={data.serverNow}
@@ -553,6 +617,7 @@ export function AlertsView({
                     rows={resolved}
                     names={names}
                     startWidth={startWidth}
+                    stateColumnWidth={stateColumnWidth}
                     resolved
                     incidents
                     now={data.fixedNow}

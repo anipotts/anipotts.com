@@ -370,7 +370,10 @@ describe("Health and Knowledge", () => {
     await render("/data/health", { healthEnabled: true, healthSession });
     const table = host.querySelector('table[aria-label="Health by day"]')!;
     expect(table.textContent).not.toContain("Resting HR");
-    expect(host.textContent).not.toMatch(/54\.3|bpm|\b55\b/);
+    // The live clock ("3:55:45 AM ET") is not a vital.
+    expect(
+      host.textContent?.replace(/\d{1,2}:\d{2}:\d{2} [AP]M ET/g, ""),
+    ).not.toMatch(/54\.3|bpm|\b55\b/);
     expect(host.textContent).toContain("No vitals collected");
     expect(host.textContent).toContain("0 of 30 days");
     expect(table.querySelectorAll("tbody tr")).toHaveLength(30);

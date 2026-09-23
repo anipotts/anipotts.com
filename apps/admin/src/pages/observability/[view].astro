@@ -39,6 +39,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
     eventsFixture={fixtures?.events}
     fixtureOrigin={fixtures && {
       replay: fixtures.replay,
+      frozen: fixtures.frozen,
       capturedAt: fixtures.capturedAt,
       payloads: fixtures.payloads,
     }}

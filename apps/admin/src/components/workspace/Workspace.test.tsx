@@ -816,10 +816,24 @@ describe("no word is ever cut", () => {
       [...long.querySelectorAll(".workspace-word")].map((w) => w.textContent),
     ).toEqual(["digest"]);
     expect(long.textContent).toBe(`digest ${hash}`);
-    // Without `lines` a detail is one text node, as before.
+    // Without `lines` it is not clamped, but its words stay whole where it
+    // wraps, a hyphenated id or a date included.
+    const plain = html(
+      <DetailText>{"rotate pc.reader-key before 2026-10-01 09:00"}</DetailText>,
+    );
     expect(
-      html(<DetailText>{text}</DetailText>).querySelector(".workspace-word"),
-    ).toBeNull();
+      [...plain.querySelectorAll(".workspace-word")].map((w) => w.textContent),
+    ).toEqual(["rotate", "pc.reader-key", "before", "2026-10-01", "09:00"]);
+    expect(plain.querySelector("[data-lines]")).toBeNull();
+    // A definition's text value too.
+    const facts = html(
+      <DefinitionList items={[["Detail", "blocked: pc.reader-key 12d"]]} />,
+    );
+    expect(
+      [...facts.querySelectorAll("dd .workspace-word")].map(
+        (w) => w.textContent,
+      ),
+    ).toEqual(["blocked:", "pc.reader-key", "12d"]);
   });
 
   it("gives a shared column its want, never the lead's reserve", () => {
@@ -1060,8 +1074,9 @@ describe("detail lists", () => {
     expect(html(<TechnicalSection items={[]} />).innerHTML).toBe("");
   });
 
-  it("reads history as one short line per revision, in the viewer's zone", () => {
-    const at = new Date(2026, 8, 22, 11, 30).getTime();
+  it("reads history as one short line per revision, in Eastern Time", () => {
+    // 15:30 UTC is 11:30 EDT, whatever zone the test runs in.
+    const at = Date.UTC(2026, 8, 22, 15, 30);
     const timeline = (
       <CompactTimeline
         label="Revision history"
@@ -1079,11 +1094,12 @@ describe("detail lists", () => {
         ]}
       />
     );
-    // The server writes the UTC clock; the browser writes its own.
+    // The server writes the Eastern clock the browser keeps.
     const served = html(timeline);
     expect(served.querySelector(".workspace-timeline-text")!.textContent).toBe(
-      `Revision 2, ${clockText(at, at, true)}`,
+      `Revision 2, ${clockText(at, at)}`,
     );
+    expect(clockText(at, at)).toBe("Sep 22, 11:30");
     const host = document.createElement("div");
     document.body.append(host);
     const root = createRoot(host);

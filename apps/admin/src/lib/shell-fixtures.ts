@@ -9,8 +9,10 @@ import type { DataFixture } from "./data-fixture-reader";
  * `apps/admin/.local/replay/ops_v1.json`, `ops_events_v1.json` or
  * `data_sources_v1.json` (a /v1/data/sources reply) exists (ignored by git,
  * never committed), it is served instead, read on every load so a new
- * capture shows on reload. `?fixture=synthetic` keeps the committed samples
- * and `?fixture=none` shows the real local states.
+ * capture shows on reload. A replay runs on the real clock, so a stale
+ * capture reads as a stopped sampler; `?fixture=replay-frozen` pins the
+ * page to the capture's moment instead. `?fixture=synthetic` keeps the
+ * committed samples and `?fixture=none` shows the real local states.
  *
  * The loader is chosen on `import.meta.env.DEV`, which is false in builds,
  * so the production branch holds no import of the fixtures, the replay
@@ -25,6 +27,9 @@ export type ShellFixtures = {
   data: DataFixture;
   /** True when a local replay file stood in for a committed sample. */
   replay: boolean;
+  /** `?fixture=replay-frozen`: the replay is read at its capture's moment,
+   * as the committed samples are, rather than on the real clock. */
+  frozen: boolean;
   /** When a replay was captured: its snapshot's generated_at, else its
    * sources reply's response_observed_at. Null for the samples. */
   capturedAt: string | null;
@@ -102,6 +107,7 @@ export const loadShellFixtures: (
           liveSnapshot !== undefined ||
           liveEvents !== undefined ||
           liveSources !== undefined,
+        frozen: mode === "replay-frozen",
         capturedAt: capturedAt(liveSnapshot, liveSources),
         payloads: {
           ...(liveSnapshot !== undefined

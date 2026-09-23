@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   clockText,
+  hourText,
   countText,
   dayKey,
   dayLabel,
@@ -57,26 +58,34 @@ describe("due times", () => {
 });
 
 describe("days", () => {
-  const now = new Date(2026, 8, 22, 14, 0).getTime();
-  it("keys by the local day and heads with Today, Yesterday or the date", () => {
-    expect(dayKey(new Date(2026, 8, 22, 0, 5).getTime())).toBe("2026-09-22");
+  // 18:00 UTC is 14:00 EDT on Sep 22.
+  const now = Date.UTC(2026, 8, 22, 18, 0);
+  it("keys by the Eastern day and heads with Today, Yesterday or the date", () => {
+    // 04:05 UTC on Sep 22 is still Sep 22 00:05 in New York...
+    expect(dayKey(Date.UTC(2026, 8, 22, 4, 5))).toBe("2026-09-22");
+    // ...and 03:55 UTC is Sep 21, 23:55 there, whatever the runtime's zone.
+    expect(dayKey(Date.UTC(2026, 8, 22, 3, 55))).toBe("2026-09-21");
     expect(dayKey("not a time")).toBe("");
     expect(dayLabel("2026-09-22", now)).toBe("Today");
     expect(dayLabel("2026-09-21", now)).toBe("Yesterday");
     expect(dayLabel("2026-09-19", now)).toBe("Sat, Sep 19");
     expect(dayLabel("2025-12-31", now)).toBe("Dec 31, 2025");
     expect(dayLabel("", now)).toBe("Undated");
+    // Just after midnight in New York, Yesterday is the Eastern one.
+    const early = Date.UTC(2026, 8, 22, 4, 30);
+    expect(dayLabel("2026-09-22", early)).toBe("Today");
+    expect(dayLabel("2026-09-21", early)).toBe("Yesterday");
   });
 
-  it("reads a timeline moment on a 24-hour clock", () => {
-    const at = new Date(2026, 8, 22, 11, 30).getTime();
-    expect(clockText(at, now)).toBe("Sep 22, 11:30");
-    expect(clockText(new Date(2025, 0, 2, 9, 5).getTime(), now)).toBe(
+  it("reads a timeline moment on a 24-hour Eastern clock, on any runtime", () => {
+    expect(clockText(Date.UTC(2026, 8, 22, 15, 30), now)).toBe("Sep 22, 11:30");
+    // Winter is EST, five hours behind UTC.
+    expect(clockText(Date.UTC(2025, 0, 2, 14, 5), now)).toBe(
       "Jan 2, 2025, 09:05",
     );
-    expect(clockText(Date.UTC(2026, 8, 22, 15, 30), now, true)).toBe(
-      "Sep 22, 15:30",
-    );
+    // The Worker renders in UTC: the text is still the Eastern one.
+    expect(clockText(Date.UTC(2026, 8, 22, 21, 26), now)).toBe("Sep 22, 17:26");
+    expect(hourText(Date.UTC(2026, 8, 23, 4, 7))).toBe("00:07");
   });
 });
 

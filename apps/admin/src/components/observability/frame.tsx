@@ -119,14 +119,25 @@ export function useOpsData(props: OpsViewProps, withEvents: boolean) {
     events: withEvents,
   });
   const [mounted] = useState(() => props.renderedAt ?? Date.now());
+  // A local replay runs on the real clock, as the overview does: the page
+  // clock is the time, and a capture older than the sampler allows reads
+  // as a stopped sampler, the state a replay is there to show. Only a
+  // frozen replay and the committed samples are read at their own moment.
+  const realClock =
+    fixtureMode &&
+    props.fixtureOrigin?.replay === true &&
+    props.fixtureOrigin.frozen !== true &&
+    (props.fixtureOrigin.payloads === undefined ||
+      "snapshot" in props.fixtureOrigin.payloads);
   // A fixture's clock starts at its own generated_at and runs forward from
   // there on the shared clock, so its ages and the page clock tick like the
   // live page's instead of standing still. A test's `now` stays fixed.
-  const anchor = fixtureMode
-    ? preview
-      ? Date.parse(preview.generated_at)
-      : mounted
-    : undefined;
+  const anchor =
+    fixtureMode && !realClock
+      ? preview
+        ? Date.parse(preview.generated_at)
+        : mounted
+      : undefined;
   const elapsed = Number(
     useLiveText(
       (live) => String(Math.max(0, Math.floor((live - mounted) / 1000)) * 1000),
@@ -138,8 +149,9 @@ export function useOpsData(props: OpsViewProps, withEvents: boolean) {
     props.now ?? (anchor === undefined ? undefined : anchor + elapsed);
   const snapshot = fixtureMode ? preview : state.snapshot;
   const events = fixtureMode ? previewEvents : state.events;
-  // A fixture's sampler is judged at the fixture's own moment: its clock
-  // running on is the page's, not a sampler that stopped.
+  // A sample's sampler is judged at the sample's own moment: its clock
+  // running on is the page's, not a sampler that stopped. A replay on the
+  // real clock is judged at real now.
   const stopped =
     useLiveText(
       (now) => (snapshot && opsSamplerStopped(snapshot, now) ? "stopped" : ""),

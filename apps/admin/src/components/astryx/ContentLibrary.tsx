@@ -33,7 +33,9 @@ import {
   WordSafeText,
   WorkspacePage,
   badgeFor,
+  chipWidth,
   leadWidth,
+  titleWidth,
   type Column,
 } from "../workspace/Workspace";
 import {
@@ -241,6 +243,30 @@ function RecordState({
   );
 }
 
+/** The State column's width: its widest cell, a chip, the unavailable mark
+ * and a detail with their 8px gaps, so a column of short chips gives the
+ * titles the room. Never narrower than its header. */
+function contentStateWidth(
+  records: readonly CatalogRecord[],
+  inventoryError: boolean,
+): number {
+  let widest = titleWidth("State");
+  for (const record of records) {
+    const decision = contentDecision(record, !inventoryError);
+    const badge = badgeFor("content", record.status);
+    const parts = [
+      badge.isDefault ? 0 : chipWidth(badge.label),
+      decision.unavailable ? 16 : 0,
+      decision.detail ? (titleWidth(decision.detail) * 13) / 14 : 0,
+    ].filter(Boolean);
+    widest = Math.max(
+      widest,
+      parts.reduce((sum, part) => sum + part, 0) + 8 * (parts.length - 1),
+    );
+  }
+  return Math.ceil(24 + widest);
+}
+
 /** Whether a row's state says anything beyond the default. */
 function stateIsNews(record: CatalogRecord, inventoryError: boolean) {
   const decision = contentDecision(record, !inventoryError);
@@ -411,7 +437,12 @@ export function ContentLibrary({
       // The summary is a teaser and gives way first: the titles keep room
       // for the library's longest, so a search never moves the columns.
       share: 0.5,
-      reserve: leadWidth(group.records.map((item) => item.title)),
+      // Up to the library's longest title, so no title wraps while the
+      // summary beside it still has room.
+      reserve: leadWidth(
+        group.records.map((item) => item.title),
+        { max: 520 },
+      ),
       render: (item) =>
         item.summary ? (
           <Text
@@ -427,7 +458,7 @@ export function ContentLibrary({
     {
       key: "status",
       header: "State",
-      width: 200,
+      width: contentStateWidth(group.records, inventoryError),
       render: (item) => (
         <RecordState record={item} inventoryError={inventoryError} />
       ),

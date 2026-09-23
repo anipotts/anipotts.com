@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import React, { act } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRoot, type Root } from "react-dom/client";
@@ -15,10 +17,17 @@ import {
   badgeFor,
   easternClockText,
   leadWidth,
+  figureWidth,
   shareWidthAt,
   tableFixedWidths,
   titleWidth,
 } from "../workspace/Workspace";
+import { alertStartWidth, opsAlertRows } from "../observability/AlertsView";
+import {
+  EMPTY_EVENT_LOG,
+  appendOpsEvents,
+  type OpsTransitionEvent,
+} from "../../lib/ops-events";
 import { createPrivateReaderSession } from "../../lib/private-reader-client";
 import {
   OPS_CREDENTIAL_ENDPOINT,
@@ -236,12 +245,16 @@ describe("Status view from System's fixture", () => {
     expect(
       cell(host, "pc.writer", "Last success").querySelector(".ops-over"),
     ).toBeNull();
-    // No success recorded: nothing visible, and said for assistive
-    // technology, without claiming it never succeeded.
-    expect(
-      cell(host, "agents.sync", "Last success").querySelector(".sr-only")
-        ?.textContent,
-    ).toBe("Not recorded");
+    // No success recorded: the same muted "Not recorded" a withheld time
+    // reads (A-12), visible, without claiming it never succeeded.
+    const none = cell(host, "agents.sync", "Last success");
+    expect(none.querySelector(".sr-only")).toBeNull();
+    expect(none.querySelector(".workspace-time")?.textContent).toBe(
+      "Not recorded",
+    );
+    expect(cell(host, "health.ingest", "Last success").textContent).toBe(
+      "Not recorded",
+    );
   });
 
   it("shows a null-budget job's age with no stale judgement", () => {
@@ -349,6 +362,34 @@ describe("Status view from System's fixture", () => {
     );
     expect(link.getAttribute("target")).toBeNull();
     expect(host.innerHTML).not.toMatch(/ArrowSquareOut|workspace-row-reveal/);
+  });
+
+  it("draws one tile per entry: a sync card keeps the mark its Status row draws", () => {
+    const value = fresh();
+    value.catalog.push({
+      ...value.catalog.find((entry: Json) => entry.id === "agents.sync"),
+      id: "transcripts.upload",
+      name: "session transcripts to R2",
+      group: "backups",
+    });
+    value.status.push({
+      ...value.status.find((row: Json) => row.id === "agents.sync"),
+      id: "transcripts.upload",
+      last_success_at: "2026-09-21T17:30:00Z",
+    });
+    const page = render(value);
+    const tableMark = rowFor(page, "transcripts.upload")!
+      .querySelector(".workspace-row-mark .brand-tile")!
+      .getAttribute("data-mark");
+    expect(tableMark).toBe("cloudflare");
+    const card = [...page.querySelectorAll('ul[aria-label="Syncs"] li')].find(
+      (item) => item.textContent?.includes("Session transcripts to R2"),
+    )!;
+    expect(card.querySelector(".brand-tile")?.getAttribute("data-mark")).toBe(
+      tableMark,
+    );
+    // The app it carries stays in the tooltip.
+    expect(card.innerHTML).toContain("Claude via Session transcripts to R2");
   });
 
   it("lists every synced app with its tile and its row's own state (A-10)", () => {
@@ -752,6 +793,30 @@ describe("an entry's panel", () => {
         row.querySelector("dd")?.textContent,
       ]),
     );
+
+  it("server-renders the short list beside an open entry, the layout the browser keeps", () => {
+    const host = open("pc.inference");
+    // No measuring: an open panel always means the list mode (below 960px
+    // the list steps aside), so the first paint never shows the full table.
+    expect(headers(host)).toEqual(["Service", "State", "Last success"]);
+    // Both the close and the back control are written; the split view's
+    // container query shows one, so no glyph swaps at hydration.
+    const panel = host.querySelector(".ops-panel-header")!;
+    expect(
+      panel
+        .querySelector(
+          ".admin-split-beside-only button, .admin-split-beside-only a",
+        )
+        ?.getAttribute("aria-label"),
+    ).toBe("Close");
+    expect(
+      panel
+        .querySelector(
+          ".admin-split-page-only button, .admin-split-page-only a",
+        )
+        ?.getAttribute("aria-label"),
+    ).toBe("Back to status");
+  });
 
   it("A-12: says a success was not recorded beside a clean exit, never Never", () => {
     const value = fresh();
@@ -1221,6 +1286,48 @@ describe("a fixture's clock", () => {
     expect(host.textContent).not.toContain("Sample data");
     expect(host.querySelector('[data-fixture="sample"]')).toBeNull();
   });
+
+  it("runs a replay on the real clock, so a stale capture reads as a stopped sampler", () => {
+    const generated = Date.parse(sample.generated_at);
+    vi.useFakeTimers({
+      // Two hours after the capture.
+      now: generated + 2 * 3_600_000,
+      toFake: ["Date", "setTimeout", "clearTimeout"],
+    });
+    try {
+      const page = (frozen: boolean) => {
+        const host = document.createElement("div");
+        host.innerHTML = renderToStaticMarkup(
+          <ObservabilityWorkspace
+            view="status"
+            enabled={false}
+            fixture={sample}
+            eventsFixture={events}
+            fixtureOrigin={{
+              replay: true,
+              frozen,
+              capturedAt: sample.generated_at,
+              payloads: { snapshot: sample.generated_at, events: null },
+            }}
+          />,
+        );
+        return host;
+      };
+      const live = page(false);
+      expect(meta(live)).toBe("Last known values");
+      expect(live.querySelector(".workspace-clock")?.textContent).toBe(
+        easternClockText(generated + 2 * 3_600_000),
+      );
+      // Frozen, it reads at the capture's moment, as the samples do.
+      const frozen = page(true);
+      expect(frozen.textContent).not.toContain("Last known values");
+      expect(frozen.querySelector(".workspace-clock")?.textContent).toBe(
+        easternClockText(generated),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 /** A cell's text without the duration only medium widths show. */
@@ -1326,6 +1433,70 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
     expect(host.textContent).not.toMatch(/\bago\b/);
     // Access rows never carry query text or record ids.
     expect(host.textContent).not.toMatch(/rec-[0-9a-f]{32}|\?q=/);
+  });
+
+  it("writes every time in Eastern Time, whatever zone renders it (a UTC Worker, any browser)", () => {
+    const zone = process.env.TZ;
+    const texts = (host: HTMLElement) =>
+      [...host.querySelectorAll("tbody time")].map((time) => time.textContent);
+    try {
+      process.env.TZ = "UTC";
+      const activity = texts(view("activity"));
+      const alerts = view("alerts");
+      process.env.TZ = "Asia/Tokyo";
+      expect(texts(view("activity"))).toEqual(activity);
+      expect(texts(view("alerts"))).toEqual(texts(alerts));
+      // The newest event, 2026-09-21 17:5x UTC, reads 13:5x in New York.
+      const newest = events.items
+        .map((item) => item.at)
+        .filter((at) => at < new Date(NOW).toISOString())
+        .sort()
+        .at(-1)!;
+      const eastern = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        hourCycle: "h23",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(Date.parse(newest));
+      expect(activity).toContain(eastern);
+      expect(activity).not.toContain(newest.slice(11, 16));
+    } finally {
+      process.env.TZ = zone;
+    }
+  });
+
+  it("reads a change whole on a phone's line 2: its chips kept, its detail wrapping", () => {
+    const css = readFileSync(
+      join(process.cwd(), "src/components/astryx/observability-workspace.css"),
+      "utf8",
+    );
+    const rule = (selector: string) => {
+      const at = css.indexOf(`${selector} {`);
+      expect(at, selector).toBeGreaterThan(-1);
+      return css.slice(at, css.indexOf("}", at));
+    };
+    // The one-line clamp of the Change column never applies on line 2,
+    // where the live system.checkout detail runs to four lines at 393.
+    const line2 = rule(".workspace-row-detail > .ops-change");
+    expect(line2).toContain("max-block-size: none");
+    expect(line2).toContain("overflow: visible");
+    expect(line2).toContain("display: block");
+    // The chips flow inline ahead of the detail, so neither is pushed out.
+    expect(
+      rule(
+        ".workspace-row-detail > .ops-change > :not(.workspace-detail-text)",
+      ),
+    ).toContain("display: inline-flex");
+    // Nothing on line 2 breaks inside a word.
+    expect(css).not.toMatch(/ops-reason[^}]*overflow-wrap: anywhere/);
+    // The change the live detail makes on line 2: both chips in the row.
+    const host = view("activity");
+    const change = [
+      ...host.querySelectorAll(".workspace-row-detail .ops-change"),
+    ].find((node) => node.querySelector(".workspace-detail-text"));
+    expect(
+      change?.querySelectorAll(".workspace-state").length ?? 0,
+    ).toBeGreaterThan(0);
   });
 
   it("gives reads a colour-coded status and latency, and runs their exit and duration", () => {
@@ -1733,7 +1904,8 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
       (th) => th.textContent,
     );
     const at = (name: string) => row.cells[heading.indexOf(name)]!;
-    expect(at("Started").textContent).toBe("Before Sep 20, 09:00");
+    // In Eastern Time, as the page clock reads: 09:00 UTC is 05:00 EDT.
+    expect(at("Started").textContent).toBe("Before Sep 20, 05:00");
     expect(at("Started").querySelector("time")?.getAttribute("title")).toBe(
       "First seen 2026-09-20 09:00 UTC, already in this state: its start was not observed",
     );
@@ -1750,7 +1922,7 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
       ]),
     );
     expect(facts).toMatchObject({
-      Started: "Before Sep 20, 09:00first seen",
+      Started: "Before Sep 20, 05:00first seen",
       For: "Unknown",
       Detail: "inference not ok",
     });
@@ -1759,6 +1931,143 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
     expect(
       panel.querySelector('[aria-label$="changes"]')?.textContent,
     ).toContain("inference failed");
+  });
+
+  it("gives the Alert name its room at medium, State to line 2 and then Started giving way (641 to 760)", () => {
+    const value = fresh();
+    const entry = value.catalog.find(
+      (item: Json) => item.id === "pc.inference",
+    );
+    entry.name = "declared credential expiries";
+    const reason =
+      "the Connect write token expired 59d ago; unattended secret writes and token factories blocked, 3 more flagged";
+    value.status.find((item: Json) => item.id === "pc.inference").detail =
+      reason;
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(
+      <ObservabilityWorkspace
+        view="alerts"
+        enabled={false}
+        fixture={value}
+        eventsFixture={events}
+        now={NOW}
+      />,
+    );
+    const table = host.querySelector('table[aria-label="Firing alerts"]')!;
+    const frame = table.closest("[data-yield-scope]")!;
+    const scope = frame.getAttribute("data-yield-scope")!;
+    const css = [...host.querySelectorAll("style")]
+      .map((style) => style.textContent)
+      .find((text) => text?.includes(scope))!;
+    const medium = css
+      .split("\n")
+      .find((line) => line.startsWith("@media (min-width: 641px)"))!;
+    // Each yielding column and the frame width it hides below.
+    const below = new Map(
+      [
+        ...medium.matchAll(
+          /max-width: ([\d.]+)px\) \{ [^{]+\[data-column="(\w+)"\]/g,
+        ),
+      ].map((match) => [match[2]!, Number(match[1]) + 0.5]),
+    );
+    expect([...below.keys()]).toEqual(["state", "since"]);
+    const heads = [...table.querySelectorAll("thead th")] as HTMLElement[];
+    const shown = heads.filter((th) => !th.hasAttribute("data-hide-below"));
+    const width = (th: HTMLElement) => parseFloat(th.style.width);
+    // The runbook is a glyph column.
+    const runbook = heads.find((th) => th.dataset.column === "runbook")!;
+    expect(width(runbook)).toBe(44);
+    const name = "Declared credential expiries";
+    expect(table.textContent).toContain(name);
+    const room = leadWidth(
+      [...host.querySelectorAll("table .workspace-row-title")].map(
+        (title) => title.textContent ?? "",
+      ),
+    );
+    // Viewports 641 to 760 beside the 56px rail and two 16px gutters.
+    for (let viewport = 641; viewport <= 760; viewport += 8) {
+      const frameWidth = viewport - 56 - 32;
+      const fixed = shown
+        .slice(1)
+        .filter((th) => !(frameWidth < (below.get(th.dataset.column!) ?? 0)))
+        .reduce((sum, th) => sum + width(th), 0);
+      expect(frameWidth - fixed, `lead at ${viewport}`).toBeGreaterThanOrEqual(
+        room,
+      );
+      expect(room).toBeGreaterThanOrEqual(64 + titleWidth(name));
+    }
+    // What gives way still reads on line 2: the chip, and the reason whole.
+    const lead = [...table.querySelectorAll("tbody tr td:first-child")].find(
+      (td) => td.textContent?.includes(name),
+    )!;
+    expect(
+      lead.querySelector('[data-yield-for="state"] .workspace-state')
+        ?.textContent,
+    ).toContain("Failing");
+    expect(lead.querySelector(".ops-reason")?.textContent).toBe(reason);
+  });
+
+  it("sizes a bounded start's column at tabular digits, so no 1 is ever cut", () => {
+    // "Before Sep 11, 11:11" draws 133.3px in tabular numerals at 14px
+    // (8.4px a digit), where the proportional advances would say 118px.
+    const width = alertStartWidth(
+      [
+        {
+          subject: "x",
+          status: "firing",
+          state: "failing",
+          peak: "failing",
+          since: null,
+          startedBefore: "2026-09-11T15:11:00Z",
+          resolvedAt: null,
+          detail: null,
+          incidents: 1,
+        },
+      ],
+      Date.parse("2026-09-22T12:00:00Z"),
+    );
+    expect(width).toBeGreaterThanOrEqual(24 + 133.3);
+    expect(figureWidth("Before Sep 11, 11:11")).toBeGreaterThan(133.3);
+  });
+
+  it("reconciles a firing alert with a later snapshot, and drops an entry no longer watched", () => {
+    const snapshot = parseOpsSnapshot(fresh());
+    const generated = Date.parse(snapshot.generated_at);
+    const before = new Date(generated - 3_600_000).toISOString();
+    const log = (subject: string, at = before) =>
+      appendOpsEvents(EMPTY_EVENT_LOG, [
+        {
+          seq: 10,
+          at,
+          kind: "transition",
+          subject,
+          from: "ok",
+          to: "failing",
+          detail: "broke",
+        } as OpsTransitionEvent,
+      ]);
+    const firing = (rows: ReturnType<typeof opsAlertRows>, id: string) =>
+      rows.find((row) => row.subject === id && row.status === "firing");
+    // pc.writer is ok in the sample, read after the change: recovered, its
+    // ok transition not read yet, so it does not fire against Status.
+    expect(firing(opsAlertRows(log("pc.writer"), snapshot), "pc.writer")).toBe(
+      undefined,
+    );
+    // A change newer than the snapshot still fires until the next read.
+    const later = new Date(generated + 60_000).toISOString();
+    expect(
+      firing(opsAlertRows(log("pc.writer", later), snapshot), "pc.writer"),
+    ).toMatchObject({ state: "failing", detail: "broke" });
+    // Unknown in the snapshot reads unknown, never the old problem.
+    expect(
+      firing(opsAlertRows(log("health.ingest"), snapshot), "health.ingest"),
+    ).toMatchObject({ state: "unknown", detail: "file missing" });
+    // An entry System removed from its catalog never fires on forever.
+    expect(
+      opsAlertRows(log("gone.job"), snapshot).find(
+        (row) => row.subject === "gone.job",
+      ),
+    ).toBeUndefined();
   });
 
   it("A-31: a firing alert reads the snapshot's current state and detail", () => {

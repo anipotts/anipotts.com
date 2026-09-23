@@ -18,7 +18,7 @@ import {
   readableDates,
   withoutOwner,
 } from "./naming";
-import { clockText } from "../components/workspace/format";
+import { clockText, easternParts } from "../components/workspace/format";
 import { relativeAgo } from "./live-clock";
 import type { MarkId } from "@anipotts/brand/marks";
 
@@ -91,11 +91,10 @@ export function occurredText(
     const ms = Date.parse(value);
     if (!Number.isFinite(ms)) return null;
     if (now - ms < 24 * 3600_000) return relativeAgo(ms, now);
-    const at = new Date(ms);
-    const date = `${SHORT_MONTHS[at.getMonth()]} ${at.getDate()}`;
-    return at.getFullYear() === new Date(now).getFullYear()
-      ? date
-      : `${date}, ${at.getFullYear()}`;
+    // In Eastern Time, as every admin time reads (format.ts).
+    const at = easternParts(ms);
+    const date = `${SHORT_MONTHS[at.month - 1]} ${at.day}`;
+    return at.year === easternParts(now).year ? date : `${date}, ${at.year}`;
   }
   const match = /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?/.exec(value);
   if (!match) return null;
@@ -105,9 +104,7 @@ export function occurredText(
   if (!name) return null;
   if (precision === "month" || !day) return `${name} ${year}`;
   const date = `${name} ${Number(day)}`;
-  return Number(year) === new Date(now).getFullYear()
-    ? date
-    : `${date}, ${year}`;
+  return Number(year) === easternParts(now).year ? date : `${date}, ${year}`;
 }
 
 // The body.

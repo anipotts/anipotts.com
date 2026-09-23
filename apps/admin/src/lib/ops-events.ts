@@ -484,12 +484,18 @@ export function opsIncidentsBySubject(
   };
   const latest = new Map<string, OpsState>();
   for (const event of [...transitions].sort((a, b) => a.seq - b.seq)) {
+    // The first transition held for an entry that leaves anything but ok
+    // (first sight, another problem, unknown or asleep) opens an episode
+    // that may be older than the log: its start was not observed (A-31).
+    const unobserved =
+      event.from === null ||
+      (!latest.has(event.subject) && event.from !== "ok");
     latest.set(event.subject, event.to);
     const current = open.get(event.subject);
     if (OPS_PROBLEM_STATES.includes(event.to)) {
       open.set(event.subject, {
         start: current?.start ?? event.at,
-        firstSeen: current ? current.firstSeen : event.from === null,
+        firstSeen: current ? current.firstSeen : unobserved,
         latest: event,
         peak: current ? worse(current.peak, event.to) : event.to,
       });

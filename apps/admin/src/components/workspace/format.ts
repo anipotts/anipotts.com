@@ -65,40 +65,93 @@ export function dueText(
 
 const pad = (value: number) => String(value).padStart(2, "0");
 
-/** The local calendar day of a time, as "YYYY-MM-DD", for grouping by day.
+/** Every absolute time admin shows reads in Eastern Time, the zone of the
+ * page's live clock, on the server and in the browser alike: a table's
+ * "07:04" never disagrees with the "3:04:12 AM ET" beside it, and a first
+ * paint is never rewritten. */
+export const ADMIN_TIME_ZONE = "America/New_York";
+
+const EASTERN_FIELDS = new Intl.DateTimeFormat("en-US", {
+  timeZone: ADMIN_TIME_ZONE,
+  hourCycle: "h23",
+  year: "numeric",
+  month: "numeric",
+  day: "numeric",
+  hour: "numeric",
+  minute: "numeric",
+});
+
+/** A moment's calendar fields in Eastern Time (month 1 to 12). */
+export function easternParts(ms: number): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+} {
+  const parts: Record<string, string> = {};
+  for (const part of EASTERN_FIELDS.formatToParts(ms))
+    parts[part.type] = part.value;
+  return {
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+    // Some engines write midnight as "24" under h23.
+    hour: Number(parts.hour) % 24,
+    minute: Number(parts.minute),
+  };
+}
+
+const keyOf = (year: number, month: number, day: number) =>
+  `${year}-${pad(month)}-${pad(day)}`;
+
+/** The Eastern calendar day of a time, as "YYYY-MM-DD", for grouping by day.
  * An unreadable time is "". */
 export function dayKey(value: string | number | null | undefined): string {
   const ms = typeof value === "number" ? value : Date.parse(value ?? "");
   if (!Number.isFinite(ms)) return "";
-  const date = new Date(ms);
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  const { year, month, day } = easternParts(ms);
+  return keyOf(year, month, day);
 }
 
 const WEEKDAY_DAY = new Intl.DateTimeFormat("en-US", {
   weekday: "short",
   month: "short",
   day: "numeric",
+  timeZone: "UTC",
 });
 const DAY_YEAR = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
   year: "numeric",
+  timeZone: "UTC",
 });
 
 /** A day key as a heading: "Today", "Yesterday", "Mon, Sep 21", or "Sep 21,
- * 2025" in another year. */
+ * 2025" in another year, judged on the Eastern calendar. */
 export function dayLabel(key: string, now: number = Date.now()): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
   if (!match) return "Undated";
-  const day = new Date(
+  // A calendar date, drawn at noon UTC so no zone moves it.
+  const day = Date.UTC(
     Number(match[1]),
     Number(match[2]) - 1,
     Number(match[3]),
+    12,
   );
-  if (key === dayKey(now)) return "Today";
-  if (key === dayKey(new Date(now).setDate(new Date(now).getDate() - 1)))
+  const today = easternParts(now);
+  if (key === keyOf(today.year, today.month, today.day)) return "Today";
+  const before = new Date(Date.UTC(today.year, today.month - 1, today.day - 1));
+  if (
+    key ===
+    keyOf(
+      before.getUTCFullYear(),
+      before.getUTCMonth() + 1,
+      before.getUTCDate(),
+    )
+  )
     return "Yesterday";
-  return day.getFullYear() === new Date(now).getFullYear()
+  return Number(match[1]) === today.year
     ? WEEKDAY_DAY.format(day)
     : DAY_YEAR.format(day);
 }
@@ -118,30 +171,31 @@ const MONTHS = [
   "Dec",
 ] as const;
 
+/** A month's short name, 1 to 12. */
+export const monthName = (month: number) => MONTHS[month - 1];
+
 /**
- * A moment on a timeline: "Sep 22, 11:30" on a 24-hour clock, with the year
- * when it is not this year's ("Jan 2, 2025, 09:05"). Composed by hand, not by
- * Intl, so every engine writes the same text (ICU builds disagree on the
- * joiner). `utc` reads the UTC clock: a server render's text, which the
- * browser then replaces with its own local one.
+ * A moment on a timeline: "Sep 22, 11:30" on a 24-hour clock in Eastern
+ * Time, with the year when it is not this year's ("Jan 2, 2025, 09:05").
+ * Composed by hand, not by Intl, so every engine writes the same text (ICU
+ * builds disagree on the joiner), and the server writes what the browser
+ * keeps.
  */
-export function clockText(
-  ms: number,
-  now: number = Date.now(),
-  utc = false,
-): string {
-  const at = new Date(ms);
-  const year = utc ? at.getUTCFullYear() : at.getFullYear();
-  const thisYear = utc
-    ? new Date(now).getUTCFullYear()
-    : new Date(now).getFullYear();
-  const month = MONTHS[utc ? at.getUTCMonth() : at.getMonth()];
-  const day = utc ? at.getUTCDate() : at.getDate();
-  const hours = pad(utc ? at.getUTCHours() : at.getHours());
-  const minutes = pad(utc ? at.getUTCMinutes() : at.getMinutes());
+export function clockText(ms: number, now: number = Date.now()): string {
+  const at = easternParts(ms);
+  const thisYear = easternParts(now).year;
+  const month = MONTHS[at.month - 1];
   const date =
-    year === thisYear ? `${month} ${day}` : `${month} ${day}, ${year}`;
-  return `${date}, ${hours}:${minutes}`;
+    at.year === thisYear
+      ? `${month} ${at.day}`
+      : `${month} ${at.day}, ${at.year}`;
+  return `${date}, ${pad(at.hour)}:${pad(at.minute)}`;
+}
+
+/** Only the clock of clockText, "16:02", for rows under a day heading. */
+export function hourText(ms: number): string {
+  const at = easternParts(ms);
+  return `${pad(at.hour)}:${pad(at.minute)}`;
 }
 
 /** A hash or long id as a row shows it: a digest loses its algorithm prefix

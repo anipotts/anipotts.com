@@ -219,6 +219,23 @@ body [data-astryx-theme]:not([data-astryx-media]) {
     display: none;
   }
 }
+/* A panel's parts that differ beside the list and as the page (its close
+   or back control): both are written, and the view's width shows one, so
+   the server's render is the layout the browser keeps. */
+.admin-split-beside-only,
+.admin-split-page-only {
+  display: contents;
+}
+@container admin-split (min-width: 960px) {
+  .admin-split-page-only {
+    display: none;
+  }
+}
+@container admin-split (max-width: 959px) {
+  .admin-split-beside-only {
+    display: none;
+  }
+}
 
 /* Compact: the document scrolls, so Safari's toolbars collapse and a tap on
    the status bar returns to the top. AppShell's fill heights resolve to auto
@@ -295,9 +312,13 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   overflow-x: auto;
   overscroll-behavior-x: contain;
 }
-/* The glyph, not the 44px target, lines up with the gutter. */
-.admin-phone-bar-search {
-  margin-inline-end: calc((var(--spacing-5) - var(--spacing-11)) / 2);
+/* The glyph, not the 44px target, lines up with the gutter: the target
+   ends on the gutter with its glyph at its end, as the copy and chevron
+   glyphs below do, so every trailing glyph shares one right edge. */
+.admin-phone-bar-search:not(#\#) {
+  margin-inline-end: 0;
+  justify-content: flex-end;
+  padding-inline-end: 0;
 }
 
 /* The current workspace's pages under the bar: a row that scrolls sideways

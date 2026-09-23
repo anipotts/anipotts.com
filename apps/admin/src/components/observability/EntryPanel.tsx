@@ -28,7 +28,7 @@ import {
 } from "../../lib/ops-view";
 import { deviceName } from "../../lib/naming";
 import { sentenceCase } from "../../lib/sentence-case";
-import { SplitPanel, useSplitView } from "../astryx/SplitView";
+import { SplitPanel } from "../astryx/SplitView";
 import {
   DefinitionList,
   DetailText,
@@ -39,6 +39,7 @@ import {
   StateCell,
   StateTransition,
   TechnicalSection,
+  WordSafeText,
 } from "../workspace/Workspace";
 import { secondsText } from "../workspace/format";
 import {
@@ -55,7 +56,6 @@ import {
   RunResult,
   RunbookButton,
   TriggerText,
-  entryKeep,
   entryNaming,
 } from "./cells";
 import { opsEventsGap, type OpsData } from "./frame";
@@ -124,10 +124,6 @@ export function EntryPanel({
         <PanelHeader
           naming={naming}
           name={name}
-          keep={
-            alert?.keep ??
-            entryKeep(service ?? { id: subject, name }, data.names)
-          }
           onClose={onClose}
           backLabel={backLabel}
           badge={
@@ -241,49 +237,50 @@ export function EntryPanel({
 function PanelHeader({
   naming,
   name,
-  keep,
   badge,
   onClose,
   backLabel,
 }: {
   naming: ReturnType<typeof entryNaming>;
   name: string;
-  /** The host suffix the title never breaks (entryKeep). */
-  keep?: string;
   badge: React.ReactNode;
   onClose: () => void;
   backLabel: string;
 }) {
-  // Beside the list the panel closes; as the page it goes back.
-  const beside = useSplitView();
+  // Beside the list the panel closes; as the page it goes back. Both are
+  // written and the split view's container query shows one (styles/
+  // shell.css), so the server's first paint is the browser's.
   return (
     <div className="ops-panel-header">
-      <Button
-        label={beside ? "Close" : backLabel}
-        tooltip={beside ? "Close" : backLabel}
-        isIconOnly
-        size="sm"
-        variant="ghost"
-        icon={
-          beside ? (
-            <XIcon weight="regular" aria-hidden="true" />
-          ) : (
-            <ArrowBendUpLeftIcon weight="regular" aria-hidden="true" />
-          )
-        }
-        onClick={onClose}
-      />
+      <span className="admin-split-beside-only">
+        <Button
+          label="Close"
+          tooltip="Close"
+          isIconOnly
+          size="sm"
+          variant="ghost"
+          icon={<XIcon weight="regular" aria-hidden="true" />}
+          onClick={onClose}
+        />
+      </span>
+      <span className="admin-split-page-only">
+        <Button
+          label={backLabel}
+          tooltip={backLabel}
+          isIconOnly
+          size="sm"
+          variant="ghost"
+          icon={<ArrowBendUpLeftIcon weight="regular" aria-hidden="true" />}
+          onClick={onClose}
+        />
+      </span>
       <EntryTile naming={naming} size={28} />
       <Heading level={2} className="ops-panel-title">
-        <span title={naming.tooltip}>
-          {keep && name.endsWith(keep) ? (
-            <>
-              {name.slice(0, -keep.length)}
-              <span className="ops-panel-keep">{keep}</span>
-            </>
-          ) : (
-            name
-          )}
+        {/* Two lines at most, ending after a whole word (the host a shared
+            name adds is one word, so it never splits); the full name and
+            id on hover. */}
+        <span title={`${name}\n${naming.tooltip}`}>
+          <WordSafeText lines={2}>{name}</WordSafeText>
         </span>
       </Heading>
       {badge && <span className="ops-panel-badge">{badge}</span>}

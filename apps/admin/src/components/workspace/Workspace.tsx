@@ -115,6 +115,7 @@ import { appMark, countNoun, keyLabel } from "../../lib/naming";
 import { sentenceCase } from "../../lib/sentence-case";
 import { BrandTile } from "../BrandTile";
 import {
+  ADMIN_TIME_ZONE,
   clockText,
   countText,
   dayLabel,
@@ -531,6 +532,15 @@ export type Column<T> = {
   numeric?: boolean;
   /** Hidden in every range narrower than this one. */
   hideBelow?: "large" | "wide";
+  /** Gives way to the lead: in a range where the table is narrower than
+   * the lead's `room` and the shown fixed columns, the column hides, lowest
+   * order first, until the lead has its room. What it held moves to line 2
+   * through YieldOnly, or stays in the row's panel. The rule is CSS the
+   * server writes (a container query), so the first paint is the layout. */
+  yieldOrder?: number;
+  /** On the lead: the width its longest title needs (leadWidth), which the
+   * `yieldOrder` columns give way to. */
+  room?: number;
   render: (row: T) => ReactNode;
 };
 
@@ -647,6 +657,56 @@ export function titleWidth(title: string): number {
   return width * TITLE_SLACK;
 }
 
+/** A digit's advance in tabular numerals at 14px, as every time, figure and
+ * duration cell draws them (font-variant-numeric: tabular-nums): wider than
+ * a proportional "1" (5.5px), so a time's column is sized from this. */
+const TABULAR_DIGIT = 8.4;
+
+/** A time's or figure's width at 14px in tabular numerals ("Before Sep 11,
+ * 11:11"): its letters at the title advances, its digits at the tabular
+ * one, so a column sized from it never cuts a digit. */
+export function figureWidth(text: string): number {
+  let width = 0;
+  for (const char of text) {
+    const code = char.charCodeAt(0) - 32;
+    width +=
+      char >= "0" && char <= "9" ? TABULAR_DIGIT : (TITLE_ADVANCES[code] ?? 10);
+  }
+  return width * TITLE_SLACK;
+}
+
+/** A cell's inline inset: 12px each side. */
+const CELL_INSET = 24;
+/** A chip's inset, dot or glyph and gap around its 12px label. */
+const CHIP_CHROME = 32;
+/** A quiet default state's dot box (StateCell). */
+const QUIET_STATE = 24;
+
+/** A state chip's width: its label at 12px (the title advances scaled from
+ * 14px), its dot or glyph and its inset; a default state's quiet dot. */
+export function chipWidth(label: string, quiet = false): number {
+  return quiet
+    ? QUIET_STATE
+    : Math.ceil((titleWidth(label) * 12) / 14 + CHIP_CHROME);
+}
+
+/** A state column's width: the widest cell its rows draw (StateCell), with
+ * the cell inset, so a column of dots is not as wide as a column that holds
+ * "Degraded". `extra` adds cells drawn another way (a past state's words). */
+export function stateWidth(
+  domain: BadgeDomain,
+  states: Iterable<string>,
+  extra: Iterable<number> = [],
+): number {
+  let widest = 0;
+  for (const state of states) {
+    const badge = badgeFor(domain, state);
+    widest = Math.max(widest, chipWidth(badge.label, badge.isDefault));
+  }
+  for (const width of extra) widest = Math.max(widest, width);
+  return Math.ceil(CELL_INSET + widest);
+}
+
 /**
  * The width a lead column needs to show its longest title whole, for a
  * `share` column's `reserve`. The server cannot measure text, so it is
@@ -700,6 +760,101 @@ export function tableFixedWidths<T>(
       ),
     ]),
   ) as Record<Breakpoint, number>;
+}
+
+/** The media query for each range above compact, as the kit's stylesheet
+ * writes it. */
+const RANGE_MEDIA: Record<Exclude<Breakpoint, "compact">, string> = {
+  medium: "(min-width: 641px) and (max-width: 1023px)",
+  large: "(min-width: 1024px) and (max-width: 1439px)",
+  wide: "(min-width: 1440px)",
+};
+
+/**
+ * Where each `yieldOrder` column gives way in a range: below the lead's
+ * `room` plus every shown fixed column (a shared column at its least), the
+ * lowest order first, and each next one below that less what the earlier
+ * ones gave back. Frame widths in px; a column hides where the table frame
+ * is narrower than its `below`.
+ */
+export function yieldThresholds<T>(
+  columns: readonly Column<T>[],
+  range: Exclude<Breakpoint, "compact">,
+): Array<{ key: string; below: number }> {
+  const room = columns[0]?.room;
+  if (!room) return [];
+  const shown = shownIn(columns, range).slice(1);
+  let need =
+    room +
+    shown.reduce(
+      (sum, column) =>
+        sum +
+        (column.width ??
+          (column.share !== undefined ? (column.min ?? FLEX_MIN_WIDTH) : 0)),
+      0,
+    );
+  const out: Array<{ key: string; below: number }> = [];
+  for (const column of shown
+    .filter((item) => item.yieldOrder !== undefined)
+    .sort((a, b) => a.yieldOrder! - b.yieldOrder!)) {
+    out.push({ key: column.key, below: need });
+    need -= column.width ?? 0;
+  }
+  return out;
+}
+
+/** The columns a table `frame` px wide shows in a range once its
+ * `yieldOrder` columns have given way: what the CSS below draws. */
+export function columnsAt<T>(
+  columns: readonly Column<T>[],
+  range: Exclude<Breakpoint, "compact">,
+  frame: number,
+): Column<T>[] {
+  const hidden = new Set(
+    yieldThresholds(columns, range)
+      .filter(({ below }) => frame < below)
+      .map(({ key }) => key),
+  );
+  return shownIn(columns, range).filter((column) => !hidden.has(column.key));
+}
+
+/**
+ * The container queries that hide `yieldOrder` columns where the table is
+ * too narrow for the lead's `room` beside them (yieldThresholds), one range
+ * at a time. A column's YieldOnly parts show where it hides. Empty when no
+ * column yields.
+ */
+export function tableYieldRules<T>(
+  columns: readonly Column<T>[],
+  scope: string,
+): string {
+  const at = `[data-yield-scope="${scope}"]`;
+  const rules: string[] = [];
+  for (const range of ["medium", "large", "wide"] as const) {
+    const queries = yieldThresholds(columns, range).map(
+      ({ key, below }) =>
+        `@container (max-width: ${below - 0.5}px) { ${at} [data-column="${key}"] { display: none; } ${at} [data-yield-for="${key}"] { display: contents; } }`,
+    );
+    if (queries.length)
+      rules.push(`@media ${RANGE_MEDIA[range]} { ${queries.join(" ")} }`);
+  }
+  return rules.join("\n");
+}
+
+/** What a `yieldOrder` column holds, on the lead's line 2 where the column
+ * gives way (and on phones, where no column but the lead shows). */
+export function YieldOnly({
+  column,
+  children,
+}: {
+  column: string;
+  children: ReactNode;
+}) {
+  return (
+    <span className="workspace-yield-only" data-yield-for={column}>
+      {children}
+    </span>
+  );
 }
 
 /** The scroll wrapper is a tab stop only while its table overflows it. */
@@ -905,6 +1060,8 @@ export function DataTable<T extends Record<string, unknown>>({
     ]),
   ) as React.CSSProperties;
   const count = `${rows.length} ${rows.length === 1 ? noun[0] : noun[1]}`;
+  const scope = useId();
+  const yieldRules = tableYieldRules(columns, scope);
   return (
     <VStack
       gap={0}
@@ -912,7 +1069,12 @@ export function DataTable<T extends Record<string, unknown>>({
       data-footer={footer ? "true" : "false"}
       data-interactive={interactive ? "true" : "false"}
     >
-      <div className="workspace-table-frame" style={frameStyle}>
+      {yieldRules && <style>{yieldRules}</style>}
+      <div
+        className="workspace-table-frame"
+        style={frameStyle}
+        data-yield-scope={yieldRules ? scope : undefined}
+      >
         <Table
           className="workspace-table-grid"
           data={data}
@@ -921,12 +1083,19 @@ export function DataTable<T extends Record<string, unknown>>({
           dividers="none"
           aria-label={label}
           plugins={{ workspace: plugin }}
-          columns={columns.map((column) => ({
+          columns={columns.map((column, index) => ({
             key: column.key,
             header: column.header,
             align: column.numeric ? "end" : column.align,
+            // Past the lead, a cell's content sits in a box of line 1's
+            // height, so where the lead carries a line 2 (medium) every
+            // column reads on line 1 (workspace.css).
             renderCell: (row: T) =>
-              isGroupRow(row) ? null : column.render(row),
+              isGroupRow(row) ? null : index === 0 ? (
+                column.render(row)
+              ) : (
+                <span className="workspace-cell">{column.render(row)}</span>
+              ),
           }))}
         />
       </div>
@@ -1536,7 +1705,9 @@ export function DetailText({
     );
   return (
     <span className="workspace-detail-text" title={title || undefined}>
-      {children}
+      {/* Where it wraps (a panel's list), a word, a number or an id such
+          as "pc.reader-key" or "2026-10-01" never splits at its hyphen. */}
+      {typeof children === "string" ? wholeWords(children) : children}
     </span>
   );
 }
@@ -1865,13 +2036,21 @@ export function DetailPanel({
 const ABSOLUTE = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
   timeStyle: "short",
+  timeZone: ADMIN_TIME_ZONE,
 });
-const DATE_ONLY = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
-const TIME_ONLY = new Intl.DateTimeFormat("en-US", { timeStyle: "short" });
+const DATE_ONLY = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeZone: ADMIN_TIME_ZONE,
+});
+const TIME_ONLY = new Intl.DateTimeFormat("en-US", {
+  timeStyle: "short",
+  timeZone: ADMIN_TIME_ZONE,
+});
 
-/** The absolute time, local and UTC, for a tooltip and accessible name. */
+/** The absolute time, Eastern (the page clock's zone) and UTC, for a
+ * tooltip and accessible name. */
 function absoluteTime(ms: number): string {
-  return `${ABSOLUTE.format(ms)} local, ${new Date(ms).toISOString().slice(0, 16).replace("T", " ")} UTC`;
+  return `${ABSOLUTE.format(ms)} ET, ${new Date(ms).toISOString().slice(0, 16).replace("T", " ")} UTC`;
 }
 
 function LiveAgo({ at, now }: { at: number; now?: number }) {
@@ -1973,6 +2152,9 @@ export function TierMark({ tier }: { tier: string | null | undefined }) {
  * git, never committed; lib/shell-fixtures.ts). */
 export type FixtureOrigin = {
   replay: boolean;
+  /** A replay read at its capture's moment (`?fixture=replay-frozen`);
+   * otherwise a replay runs on the real clock. */
+  frozen?: boolean;
   capturedAt: string | null;
   /** Which payloads a replay stood in for, each with its capture stamp.
    * Absent: every payload the page draws is the replay's. */
@@ -2095,7 +2277,9 @@ export function DefinitionList({
       {shown.map(([name, value]) => (
         <div key={name} className="workspace-definition">
           <dt>{name}</dt>
-          <dd>{value}</dd>
+          {/* A text value wraps between whole words: an id or a date
+              ("pc.reader-key", "2026-10-01") never splits at a hyphen. */}
+          <dd>{typeof value === "string" ? wholeWords(value) : value}</dd>
         </div>
       ))}
     </dl>
@@ -2281,17 +2465,10 @@ export function ValueChips({
   );
 }
 
-const unchanging = () => () => undefined;
-
-/** A clock time in the viewer's zone. The server writes the UTC one and the
- * browser swaps in its own after hydration, so the two never disagree. */
+/** A clock time in Eastern Time, as the page's clock reads; the server
+ * writes the text the browser keeps. */
 function LocalClock({ ms, now }: { ms: number; now?: number }) {
-  const text = React.useSyncExternalStore(
-    unchanging,
-    () => clockText(ms, now),
-    () => clockText(ms, now, true),
-  );
-  return <>{text}</>;
+  return <>{clockText(ms, now)}</>;
 }
 
 /**

@@ -31,10 +31,9 @@ import { useLiveText } from "../../lib/live-clock";
 import { deviceName } from "../../lib/naming";
 import { sentenceCase } from "../../lib/sentence-case";
 import { BrandTile } from "../BrandTile";
-import { SplitView, useSplitView } from "../astryx/SplitView";
+import { SplitView } from "../astryx/SplitView";
 import {
   CELL_WIDTHS,
-  CompactOnly,
   DataTable,
   DetailText,
   Duration,
@@ -46,8 +45,11 @@ import {
   StateNotice,
   TitleText,
   WorkspaceSection,
+  YieldOnly,
   badgeFor,
+  chipWidth,
   leadWidth,
+  stateWidth,
   titleWidth,
   type Column,
 } from "../workspace/Workspace";
@@ -147,8 +149,11 @@ export function statusColumns(
     names,
     leadRoom,
     reasonWant,
+    stateColumn = OPS_WIDTHS.state,
   }: {
     narrow: boolean;
+    /** The State column's width (opsStateWidth): its widest chip. */
+    stateColumn?: number;
     now?: number;
     names: ReadonlyMap<string, string>;
     /** What the service column needs for its longest name (leadWidth). */
@@ -162,6 +167,9 @@ export function statusColumns(
   const lead: Column<Row> = {
     key: "name",
     header: "Service",
+    // Where the table is too narrow for its longest name, Next run gives
+    // way first, then State moves to line 2.
+    room: narrow ? undefined : leadRoom,
     render: (row) => {
       const naming = entryNaming(row, names);
       const exception = row.status.state !== "ok" || opsUnverified(row);
@@ -183,9 +191,9 @@ export function statusColumns(
           mobile={
             exception ? (
               <>
-                <CompactOnly>
+                <YieldOnly column="state">
                   <EntryState service={row} />
-                </CompactOnly>
+                </YieldOnly>
                 <Reason service={row} />
               </>
             ) : undefined
@@ -204,7 +212,8 @@ export function statusColumns(
   const state: Column<Row> = {
     key: "state",
     header: "State",
-    width: OPS_WIDTHS.state,
+    width: stateColumn,
+    yieldOrder: narrow ? undefined : 2,
     render: (row) => <EntryState service={row} cell />,
   };
   const lastSuccess: Column<Row> = {
@@ -217,6 +226,7 @@ export function statusColumns(
     key: "next",
     header: "Next run",
     width: CELL_WIDTHS.time,
+    yieldOrder: 1,
     render: (row) => <NextDue service={row} now={now} />,
   };
   if (narrow)
@@ -275,6 +285,19 @@ export function statusColumns(
       render: (row) => <TriggerMark entry={row} status={row.status} />,
     },
   ];
+}
+
+/** The State column's width: the widest cell its rows draw, a quiet dot
+ * for ok and a chip otherwise ("Unverified" for a check never proven), so a
+ * column of dots gives the service names the room. */
+export function opsStateWidth(services: readonly OpsServiceView[]): number {
+  return stateWidth(
+    "ops",
+    services
+      .filter((service) => !opsUnverified(service))
+      .map((service) => service.status.state),
+    services.some(opsUnverified) ? [chipWidth("Unverified")] : [],
+  );
 }
 
 /** A cell's inset, and the gap before an exit code. */
@@ -639,8 +662,8 @@ function SyncGrid({
                 id={service.id}
                 select={select}
                 tile={<EntryTile naming={naming} size={28} />}
-                title={naming.name}
-                keep={entryKeep(service, names)}
+                // The device beside it names the host, so the bare name.
+                title={device ? bare.name : naming.name}
                 tooltip={`${naming.name}\n${budgetText}\n${service.id}`}
                 state={state}
                 meta={
@@ -661,20 +684,37 @@ function SyncGrid({
               />
             );
           const app = brandMark(row.app)?.label ?? sentenceCase(row.app);
+          // One tile per thing: an entry the table draws with another mark
+          // (Session transcripts to R2 is Cloudflare's, where it lands) keeps
+          // that mark and its name here, the app it carries in the tooltip.
+          const own = naming.tile.id !== row.app;
           return (
             <Card
               key={row.key}
               id={service.id}
               select={select}
-              tile={<BrandTile id={row.app} size={28} />}
-              title={app}
+              tile={
+                own ? (
+                  <EntryTile naming={naming} size={28} />
+                ) : (
+                  <BrandTile id={row.app} size={28} />
+                )
+              }
+              // The device beside it names the host, so the bare name.
+              title={own ? (device ? bare.name : naming.name) : app}
               tooltip={`${app} via ${naming.name}\n${budgetText}\n${service.id}`}
               state={state}
               meta={
-                <SyncWhere
-                  device={device}
-                  name={device ? bare.name : naming.name}
-                />
+                own ? (
+                  device ? (
+                    <SyncWhere device={device} name={deviceName(device)} />
+                  ) : undefined
+                ) : (
+                  <SyncWhere
+                    device={device}
+                    name={device ? bare.name : naming.name}
+                  />
+                )
               }
               end={
                 <LastSuccess service={service} now={now} empty="Not recorded" />
@@ -729,8 +769,11 @@ function StatusList({
   /** Names two entries share, with their host. */
   names: ReadonlyMap<string, string>;
 }) {
-  const beside = useSplitView();
-  const narrow = beside && panelOpen;
+  // An open panel sits beside the list from 960px, and below that the list
+  // steps aside (styles/shell.css), so whenever a panel is open the list
+  // that shows is the short one. Decided without measuring, the server
+  // writes the layout the browser keeps.
+  const narrow = panelOpen;
   const hosts = services.filter(opsIsHost);
   const rows = services.filter((service) => !opsIsHost(service)) as Row[];
   const syncs = useMemo(() => opsSyncRows(services), [services]);
@@ -746,8 +789,9 @@ function StatusList({
     [services],
   );
   const want = useMemo(() => reasonWant(rows), [rows]);
+  const stateColumn = useMemo(() => opsStateWidth(rows), [rows]);
   const columns = statusColumns(
-    { narrow, now, names, leadRoom, reasonWant: want },
+    { narrow, now, names, leadRoom, reasonWant: want, stateColumn },
     select,
   );
   useAnchorLanding(services.length > 0);

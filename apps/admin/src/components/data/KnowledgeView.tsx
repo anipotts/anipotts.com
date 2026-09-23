@@ -52,6 +52,7 @@ import {
   WorkspacePage,
   type Column,
 } from "../workspace/Workspace";
+import { ADMIN_TIME_ZONE } from "../workspace/format";
 import { kindGlyph } from "./data-model";
 import {
   DataSessionControl,
@@ -288,6 +289,7 @@ const EVENT_DATE = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
   year: "numeric",
+  timeZone: ADMIN_TIME_ZONE,
 });
 const EVENT_DATE_UTC = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -295,22 +297,16 @@ const EVENT_DATE_UTC = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
   timeZone: "UTC",
 });
-const unchanging = () => () => undefined;
 
 /** A timeline entry's day. A calendar date reads as itself everywhere; a
- * moment reads in UTC from the server and in the viewer's zone once
- * hydrated, so the two renders never disagree. */
+ * moment reads on the Eastern calendar, as every admin time does, the same
+ * on the server and in the browser. */
 function EventDate({ at }: { at: string }) {
   const ms = Date.parse(at);
   const dateOnly = at.length === 10;
-  const text = React.useSyncExternalStore(
-    unchanging,
-    () => (dateOnly ? EVENT_DATE_UTC : EVENT_DATE).format(ms),
-    () => EVENT_DATE_UTC.format(ms),
-  );
   return (
     <time dateTime={at} className="workspace-time">
-      {text}
+      {(dateOnly ? EVENT_DATE_UTC : EVENT_DATE).format(ms)}
     </time>
   );
 }

@@ -117,11 +117,19 @@ export function caseWords(text: string): string {
 export function displayName(
   raw: string,
   tiles: { tile?: TileRef | null; device?: TileRef | null } = {},
+  /** `raw` is a name System wrote for display (an ops catalog name), not
+   * an id: its hyphens and dots are its own ("read-only probe", "ap-mini"),
+   * and a device word goes only where it names the host, as the name's
+   * first or last word ("pro session transcripts to R2"), never from the
+   * middle of a phrase ("held on ap-mini with no shrink" stays whole). */
+  { text = false }: { text?: boolean } = {},
 ): string {
-  const base = withoutOwner(raw.trim())
-    .replace(/[-_.]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  const base = text
+    ? withoutOwner(raw.trim()).replace(/\s+/g, " ").trim()
+    : withoutOwner(raw.trim())
+        .replace(/[-_.]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
   const brand = tiles.tile?.id ?? null;
   let name = brand ? shortName(base, brand) : base;
   const label = brand ? brandMark(brand)?.label : undefined;
@@ -132,7 +140,16 @@ export function displayName(
   const device = tiles.device?.id ?? null;
   const word =
     device && Object.hasOwn(DEVICE_WORDS, device) && DEVICE_WORDS[device];
-  if (word) {
+  if (word && text) {
+    // The host's word or its whole id, as the first or the last word.
+    const host = (part: string | undefined) =>
+      part !== undefined &&
+      [word, `ap-${word}`, `ap ${word}`].includes(part.toLowerCase());
+    const parts = name.split(" ");
+    if (parts.length > 1 && host(parts[0])) parts.shift();
+    else if (parts.length > 1 && host(parts.at(-1))) parts.pop();
+    name = parts.join(" ");
+  } else if (word) {
     const rest = name
       .split(" ")
       .filter((part) => part.toLowerCase() !== word)
@@ -176,7 +193,7 @@ export function opsNaming(entry: OpsEntry): Naming {
     hostDevice(entry.host) ??
     (entry.id.startsWith("pro.") ? hostDevice("ap-pro") : null);
   return {
-    name: displayName(entry.name, { tile, device }),
+    name: displayName(entry.name, { tile, device }, { text: true }),
     tile,
     device,
     tooltip: entry.id,

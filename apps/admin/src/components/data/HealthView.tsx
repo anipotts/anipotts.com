@@ -336,7 +336,7 @@ function HealthTable({ data }: { data: HealthDaily }) {
           ({
             date,
             item,
-            label: dayLabel(date, Date.parse(`${today}T12:00:00`)),
+            label: dayLabel(date, Date.parse(`${today}T16:00:00Z`)),
           }) as Row,
       ),
     [data, today],
