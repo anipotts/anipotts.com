@@ -59,8 +59,9 @@
 
 /* A phone's line 2: the counts have their own slot that never gives way,
    so a figure is whole ("4,468", never "4,"); the state chip and the counts
-   wrap as units, and the account names after them wrap onto the next line
-   instead of cutting a figure. */
+   wrap as units. Account names that fit stay beside the counts; longer
+   ones move to their own line under them and wrap there, never cutting a
+   figure. */
 .data-workspace[data-view="sources"] .workspace-row-meta {
   flex-wrap: wrap;
   row-gap: var(--spacing-1);
@@ -78,7 +79,7 @@
   white-space: nowrap;
 }
 .data-workspace[data-view="sources"] .workspace-row-secondary {
-  flex: 1 1 8rem;
+  flex: 1 1 auto;
   white-space: normal;
   overflow-wrap: anywhere;
 }

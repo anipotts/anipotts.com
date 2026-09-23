@@ -9,6 +9,7 @@ import {
   LinkBreakIcon,
   PencilSimpleIcon,
   PencilSimpleLineIcon,
+  PlugsIcon,
   ShieldWarningIcon,
   type Icon,
 } from "@phosphor-icons/react";
@@ -72,7 +73,11 @@ type Down = { title: string; icon?: Icon; kind: "not-connected" | "error" };
 function opsDown(state: OpsStatusState): Down | undefined {
   switch (state.connection) {
     case "unissued":
-      return { title: READER_HOP_TITLES.unissued, kind: "error" };
+      return {
+        title: READER_HOP_TITLES.unissued,
+        icon: PlugsIcon,
+        kind: "error",
+      };
     case "unreachable":
       return {
         title: READER_HOP_TITLES[state.hop ?? "reader"],

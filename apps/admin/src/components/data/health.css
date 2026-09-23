@@ -41,7 +41,7 @@
 }
 .health-phone-slot {
   display: inline-grid;
-  grid-template-columns: var(--spacing-3) 7ch;
+  grid-template-columns: var(--spacing-3) 6ch;
   align-items: center;
   column-gap: var(--spacing-1);
   white-space: nowrap;
