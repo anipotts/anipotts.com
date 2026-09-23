@@ -103,7 +103,7 @@ describe("ingest health", () => {
     return worker.fetch(new Request("https://ingest.test/"), env);
   }
 
-  it("A-24: reports a month without brand mail as silent, naming the last day, not as a failure", async () => {
+  it("A-24: reads a capture silent past its 14 day budget as degraded, naming the last day", async () => {
     const worker = await freshWorker("health-silent");
     captureConsole();
     const network = forbidNetwork();
@@ -115,30 +115,32 @@ describe("ingest health", () => {
     // The live shape on 2026-09-22: the newest row is from 2026-06-24.
     expect(body).toMatchObject({
       app: "ingest",
-      ok: true,
+      ok: false,
+      state: "degraded",
       d1: "connected",
       brands_key: "configured",
       brands_email: {
         state: "silent",
         last_ingested_at: "2026-06-24T02:49:13.052Z",
         quiet_after_s: 604800,
-        silent_after_s: 2592000,
-        // The note names the last day, so it never reads as a 7 day gap.
-        note: "No brand mail since 2026-06-24, over 30 days. A quiet inbox rarely explains that long; check the capture.",
+        freshness_budget_s: 1209600,
+        // The note names the last day, so it never reads as a 14 day gap.
+        note: "No brand mail since 2026-06-24, past the 14 day budget. The longest gap while the capture ran was 7 days, so it may have stopped.",
       },
     });
-    // It says plainly what it can't see, and it has no budget to fail.
+    // It says plainly what it can't see.
     expect(body.unobserved).toBe(
       "The Apps Script capture itself. This worker sees only the rows that reach it and keeps no record of rejected posts.",
     );
-    expect(JSON.stringify(body)).not.toContain("stale");
-    expect(JSON.stringify(body)).not.toContain("budget");
+    // Over budget is degraded, never failing: the worker itself is fine.
+    expect(JSON.stringify(body)).not.toContain("failing");
     expect(Object.keys(body).sort()).toEqual([
       "app",
       "brands_email",
       "brands_key",
       "d1",
       "ok",
+      "state",
       "ts",
       "unobserved",
     ]);
@@ -151,24 +153,46 @@ describe("ingest health", () => {
     expect(network).not.toHaveBeenCalled();
   });
 
-  it("A-24: reports a week to a month without brand mail as quiet, naming the last day", async () => {
+  it("A-24: turns degraded one minute past the budget and stays ok one minute inside it", async () => {
+    const worker = await freshWorker("health-budget-edge");
+    captureConsole();
+    const inside = new Date(Date.now() - 14 * DAY_MS + 60_000).toISOString();
+    const past = new Date(Date.now() - 14 * DAY_MS - 60_000).toISOString();
+    const read = async (last: string) =>
+      (await (
+        await getHealth(worker, completeEnv(fakeDb(last)))
+      ).json()) as Record<string, unknown>;
+    expect(await read(inside)).toMatchObject({
+      ok: true,
+      state: "ok",
+      brands_email: { state: "quiet" },
+    });
+    expect(await read(past)).toMatchObject({
+      ok: false,
+      state: "degraded",
+      brands_email: { state: "silent" },
+    });
+  });
+
+  it("A-24: reports a week to two weeks without brand mail as quiet and ok, naming the last day", async () => {
     const worker = await freshWorker("health-quiet");
     captureConsole();
-    const last = new Date(Date.now() - 12 * DAY_MS).toISOString();
+    const last = new Date(Date.now() - 10 * DAY_MS).toISOString();
     const body = (await (
       await getHealth(worker, completeEnv(fakeDb(last)))
     ).json()) as Record<string, unknown>;
     expect(body).toMatchObject({
       ok: true,
+      state: "ok",
       brands_email: {
         state: "quiet",
         last_ingested_at: last,
-        note: `No brand mail since ${last.slice(0, 10)}. A quiet inbox and a stopped capture look the same here.`,
+        note: `No brand mail since ${last.slice(0, 10)}, inside the 14 day budget. A quiet inbox and a stopped capture look the same here.`,
       },
     });
   });
 
-  it("A-24: reports brand mail inside 7 days as recent", async () => {
+  it("A-24: reports brand mail inside 7 days as recent and ok", async () => {
     const worker = await freshWorker("health-recent");
     captureConsole();
     const recent = new Date(Date.now() - 6 * DAY_MS).toISOString();
@@ -177,6 +201,7 @@ describe("ingest health", () => {
     ).json()) as Record<string, unknown>;
     expect(body).toMatchObject({
       ok: true,
+      state: "ok",
       brands_email: {
         state: "recent",
         last_ingested_at: recent,
@@ -185,19 +210,20 @@ describe("ingest health", () => {
     });
   });
 
-  it("A-24: reports an empty table as no mail recorded, not as zero", async () => {
+  it("A-24: reads an empty table as degraded, since the capture was never seen working", async () => {
     const worker = await freshWorker("health-empty");
     captureConsole();
     const body = (await (
       await getHealth(worker, completeEnv(fakeDb(null)))
     ).json()) as Record<string, unknown>;
     expect(body).toMatchObject({
-      ok: true,
+      ok: false,
+      state: "degraded",
       d1: "connected",
       brands_email: {
         state: "empty",
         last_ingested_at: null,
-        note: "No brand mail recorded.",
+        note: "No brand mail recorded, so the capture has never been seen working.",
       },
     });
   });
@@ -211,6 +237,7 @@ describe("ingest health", () => {
       const text = await (await getHealth(worker, env)).text();
       expect(JSON.parse(text)).toMatchObject({
         ok: false,
+        state: "failing",
         brands_key: "missing",
         brands_email: { state: "recent" },
       });
@@ -223,6 +250,22 @@ describe("ingest health", () => {
     expect(text).not.toContain(secrets.BRANDS_INGEST_KEY);
   });
 
+  it("A-24: reads a silent capture with its key unset as failing, since the fault outranks the silence", async () => {
+    const worker = await freshWorker("health-silent-no-key");
+    captureConsole();
+    const env = { ...completeEnv(), BRANDS_INGEST_KEY: "" };
+    const body = (await (await getHealth(worker, env)).json()) as Record<
+      string,
+      unknown
+    >;
+    expect(body).toMatchObject({
+      ok: false,
+      state: "failing",
+      brands_key: "missing",
+      brands_email: { state: "silent" },
+    });
+  });
+
   it("A-24: is not ok when the newest time isn't a timestamp", async () => {
     const worker = await freshWorker("health-unparseable");
     captureConsole();
@@ -231,6 +274,7 @@ describe("ingest health", () => {
     ).json()) as Record<string, unknown>;
     expect(body).toMatchObject({
       ok: false,
+      state: "failing",
       brands_email: {
         state: "unknown",
         last_ingested_at: "not a time",
@@ -253,12 +297,14 @@ describe("ingest health", () => {
     expect(text).not.toContain("provider detail");
     expect(JSON.parse(text)).toMatchObject({
       ok: false,
+      state: "failing",
       d1: "error",
       brands_key: "configured",
       brands_email: {
         state: "unknown",
         last_ingested_at: null,
         quiet_after_s: 604800,
+        freshness_budget_s: 1209600,
       },
     });
   });

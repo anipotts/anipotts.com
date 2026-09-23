@@ -49,14 +49,18 @@ const TS_COLUMN: Record<Category, string> = {
 
 /**
  * The Apps Script capture posts a brands_email row only when brand mail
- * arrives. This worker sees the rows that reach it and nothing else: a quiet
- * inbox and a stopped capture look the same here. So a week with no row is
- * "quiet", and a month is "silent": past what a quiet inbox usually explains.
- * Neither is a fault of this worker, so neither sets ok false; both name the
- * newest arrival, so the note never understates the gap (A-24).
+ * arrives, so this worker can't tell a quiet inbox from a stopped capture.
+ * The budget comes from the capture's own history, as the 2026-09-22 audit
+ * read it: while it ran (2026-05-12 to 2026-06-24) a row landed every 1 to 3
+ * days, and the longest gap was 7 days (06-16 to 06-23). So a week without a
+ * row is "quiet" and still ok.
+ * Past 14 days, twice that longest gap, it is "silent": over budget, so the
+ * GET reads degraded and ok false, naming the newest arrival's day. Degraded
+ * is not failing: failing is kept for faults this worker can see (A-24).
  */
-const BRANDS_EMAIL_QUIET_AFTER_S = 7 * 24 * 60 * 60;
-const BRANDS_EMAIL_SILENT_AFTER_S = 30 * 24 * 60 * 60;
+const DAY_S = 24 * 60 * 60;
+const BRANDS_EMAIL_QUIET_AFTER_S = 7 * DAY_S;
+const BRANDS_EMAIL_FRESHNESS_BUDGET_S = 14 * DAY_S;
 
 const UNOBSERVED =
   "The Apps Script capture itself. This worker sees only the rows that reach it and keeps no record of rejected posts.";
@@ -151,9 +155,12 @@ type BrandsEmailArrival = {
   state: "recent" | "quiet" | "silent" | "empty" | "unknown";
   last_ingested_at: string | null;
   quiet_after_s: number;
-  silent_after_s: number;
+  freshness_budget_s: number;
   note: string;
 };
+
+/** The ops vocabulary: failing is a fault this worker sees, degraded is not. */
+type HealthState = "ok" | "degraded" | "failing";
 
 /** The day of the newest arrival, in UTC: "2026-06-24". */
 const day = (last: string | null) =>
@@ -165,10 +172,11 @@ const ARRIVAL_NOTE: Record<
 > = {
   recent: () => "Brand mail arrived in the last 7 days.",
   quiet: (last) =>
-    `No brand mail since ${day(last)}. A quiet inbox and a stopped capture look the same here.`,
+    `No brand mail since ${day(last)}, inside the 14 day budget. A quiet inbox and a stopped capture look the same here.`,
   silent: (last) =>
-    `No brand mail since ${day(last)}, over 30 days. A quiet inbox rarely explains that long; check the capture.`,
-  empty: () => "No brand mail recorded.",
+    `No brand mail since ${day(last)}, past the 14 day budget. The longest gap while the capture ran was 7 days, so it may have stopped.`,
+  empty: () =>
+    "No brand mail recorded, so the capture has never been seen working.",
   unknown: () => "Couldn't read the newest arrival time.",
 };
 
@@ -180,7 +188,7 @@ function arrival(
     state,
     last_ingested_at: last,
     quiet_after_s: BRANDS_EMAIL_QUIET_AFTER_S,
-    silent_after_s: BRANDS_EMAIL_SILENT_AFTER_S,
+    freshness_budget_s: BRANDS_EMAIL_FRESHNESS_BUDGET_S,
     note: ARRIVAL_NOTE[state](last),
   };
 }
@@ -201,7 +209,7 @@ async function brandsEmailArrival(
   return arrival(
     age <= BRANDS_EMAIL_QUIET_AFTER_S * 1000
       ? "recent"
-      : age <= BRANDS_EMAIL_SILENT_AFTER_S * 1000
+      : age <= BRANDS_EMAIL_FRESHNESS_BUDGET_S * 1000
         ? "quiet"
         : "silent",
     last,
@@ -219,10 +227,13 @@ export default {
       return new Response(null, { status: 204 });
     }
 
-    // Health: ok is false only for a fault this worker can see. D1 unreadable
-    // means every capture post would fail. An unset BRANDS_INGEST_KEY means
-    // every capture post is refused. A newest time that isn't a timestamp
-    // can't be judged. A quiet week or a silent month is reported, not failed.
+    // Health, in the ops vocabulary. failing is a fault this worker can see:
+    // D1 unreadable means every capture post would fail, an unset
+    // BRANDS_INGEST_KEY means every capture post is refused, and a newest
+    // time that isn't a timestamp can't be judged. degraded is no fault here
+    // but no proof the capture works: silent past its budget, or never seen.
+    // ok is true only when state is ok, so no reader of ok alone mistakes a
+    // silent capture for all clear.
     if (request.method === "GET") {
       let brands: BrandsEmailArrival | null = null;
       try {
@@ -235,12 +246,18 @@ export default {
         env.BRANDS_INGEST_KEY.trim() !== ""
           ? "configured"
           : "missing";
+      const state: HealthState =
+        brands === null ||
+        brands.state === "unknown" ||
+        brandsKey !== "configured"
+          ? "failing"
+          : brands.state === "silent" || brands.state === "empty"
+            ? "degraded"
+            : "ok";
       return jsonResponse({
         app: "ingest",
-        ok:
-          brands !== null &&
-          brands.state !== "unknown" &&
-          brandsKey === "configured",
+        ok: state === "ok",
+        state,
         d1: brands ? "connected" : "error",
         brands_key: brandsKey,
         brands_email: brands ?? arrival("unknown", null),
