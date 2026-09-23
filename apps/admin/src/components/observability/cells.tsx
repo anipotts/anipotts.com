@@ -88,8 +88,9 @@ export const OPS_WIDTHS = {
   lastTile: 48,
   figure: 72,
   age: 88,
-  /** "Last success" as the last column beside an open panel (82px). */
-  lastTime: 112,
+  /** "Last success" as the last column beside an open panel: "Not
+   * recorded" (85px) with a 12px start and 16px end inset. */
+  lastTime: 116,
   time: CELL_WIDTHS.time,
 } as const;
 

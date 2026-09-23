@@ -276,6 +276,12 @@ export function alertStateWidth(rows: readonly OpsAlert[]): number {
   );
 }
 
+/** The widest "Seen ..." a bounded start reads in a short column, "Seen
+ * just now" or "Seen 999d ago", with a last column's 28px of insets. */
+const SEEN_WIDTH = Math.ceil(
+  28 + Math.max(figureWidth("Seen just now"), figureWidth("Seen 999d ago")),
+);
+
 /** The runbook column: its 36px glyph button and an 8px end inset, so the
  * glyph ends on the table's 16px edge. */
 const RUNBOOK_WIDTH = 44;
@@ -431,7 +437,8 @@ export function AlertsTable({
     render: (row) => <AlertState row={row} />,
   };
   // The short columns (the overview's, and the list beside a panel) say a
-  // bound as "Seen 7h ago", which an age's width cannot hold.
+  // bound as "Seen 7h ago", which an age's width cannot hold: the widest it
+  // can read, at tabular digits, with the last column's 12px and 16px insets.
   const bounded = rows.some((row) => !row.since && row.startedBefore);
   const since: Column<AlertRow> = {
     key: "since",
@@ -439,7 +446,7 @@ export function AlertsTable({
     width: full
       ? widths.start
       : bounded
-        ? Math.max(widths.time, CELL_WIDTHS.time)
+        ? Math.max(widths.time, SEEN_WIDTH)
         : widths.time,
     yieldOrder: full ? 2 : undefined,
     render: (row) => <AlertStart alert={row} now={now} seen={!full} />,
