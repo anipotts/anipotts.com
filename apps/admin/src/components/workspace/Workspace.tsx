@@ -507,6 +507,9 @@ export type Column<T> = {
   /** With `share`: pixels the column always leaves the lead (leadWidth), so
    * the detail gives way before a name would truncate. */
   reserve?: number;
+  /** With `share`: the least the column keeps even when the lead's reserve
+   * would take it, for cells that must never be cut (a row of chips). */
+  min?: number;
   align?: "start" | "end";
   /** Figures: right-aligned, header included, in tabular numerals. */
   numeric?: boolean;
@@ -558,7 +561,7 @@ export function tableMinWidths<T>(
     range === "compact"
       ? 0
       : shownIn(columns, range).reduce(
-          (sum, column) => sum + (column.width ?? FLEX_MIN_WIDTH),
+          (sum, column) => sum + (column.width ?? column.min ?? FLEX_MIN_WIDTH),
           0,
         );
   return Object.fromEntries(
@@ -569,12 +572,16 @@ export function tableMinWidths<T>(
 /** A shared column's width. The frame is a size container, so 100cqw is the
  * width the table has: a length, which a fixed layout honours. Header cells
  * carry max-width 0 (for their ellipsis), so the width is the minimum too. */
-function shareWidth(share: number, reserve = 0): React.CSSProperties {
+function shareWidth(
+  share: number,
+  reserve = 0,
+  min = FLEX_MIN_WIDTH,
+): React.CSSProperties {
   const room = "(100cqw - var(--workspace-table-fixed, 0px))";
   const part = reserve
     ? `min(${room} * ${share}, ${room} - ${reserve}px)`
     : `${room} * ${share}`;
-  const width = `max(${FLEX_MIN_WIDTH}px, ${part})`;
+  const width = `max(${min}px, ${part})`;
   return { width, minWidth: width };
 }
 
@@ -712,7 +719,7 @@ export function DataTable<T extends Record<string, unknown>>({
   const shape = columns
     .map(
       (column) =>
-        `${column.key}:${column.width}:${column.share}:${column.reserve}:${column.hideBelow}:${column.numeric}`,
+        `${column.key}:${column.width}:${column.share}:${column.reserve}:${column.min}:${column.hideBelow}:${column.numeric}`,
     )
     .join(",");
   const plugin = useMemo((): TablePlugin<T> => {
@@ -767,7 +774,7 @@ export function DataTable<T extends Record<string, unknown>>({
             }
           : props,
       transformHeaderCell: (props, column) => {
-        const { width, share, reserve } = byKey.get(column.key) ?? {};
+        const { width, share, reserve, min } = byKey.get(column.key) ?? {};
         return {
           ...props,
           htmlProps: {
@@ -778,7 +785,7 @@ export function DataTable<T extends Record<string, unknown>>({
               ...(width !== undefined
                 ? { width, minWidth: width }
                 : share !== undefined
-                  ? shareWidth(share, reserve)
+                  ? shareWidth(share, reserve, min)
                   : { width: "auto", minWidth: FLEX_MIN_WIDTH }),
             },
           } as typeof props.htmlProps,

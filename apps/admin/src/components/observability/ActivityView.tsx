@@ -30,9 +30,11 @@ import {
   DetailText,
   Duration,
   FilterMenu,
+  MediumOnly,
   RowTitle,
   StateNotice,
   StateTransition,
+  leadWidth,
   type Column,
 } from "../workspace/Workspace";
 import {
@@ -211,6 +213,7 @@ function activityColumns(
   catalog: OpsCatalog,
   now?: number,
   names?: ReadonlyMap<string, string>,
+  leadRoom?: number,
 ): Column<Row>[] {
   return [
     {
@@ -290,6 +293,13 @@ function activityColumns(
     {
       key: "change",
       header: "Change",
+      // What changed gives way before an entry's name: its detail drops
+      // first (observability-workspace.css).
+      share: 0.5,
+      reserve: leadRoom,
+      // A change of state through its worst state is three chips (230px);
+      // they stay whole and the name gives way, keeping its host.
+      min: 256,
       render: (row) => <Change row={row} catalog={catalog} />,
     },
     {
@@ -306,6 +316,9 @@ function activityColumns(
       key: "device",
       header: <span className="sr-only">Device</span>,
       width: CELL_WIDTHS.tile,
+      // Below large the tile rides in the When cell, so Event and Change
+      // keep the width: a name whole and a change's chips whole.
+      hideBelow: "large",
       render: ({ latest }) => {
         const device = deviceOf(latest, catalog);
         return device ? (
@@ -319,7 +332,19 @@ function activityColumns(
       key: "at",
       header: "When",
       width: CELL_WIDTHS.time,
-      render: (row) => <When row={row} now={now} />,
+      render: (row) => {
+        const device = deviceOf(row.latest, catalog);
+        return (
+          <span className="ops-when">
+            {device && (
+              <MediumOnly>
+                <DeviceTile device={device} />
+              </MediumOnly>
+            )}
+            <When row={row} now={now} />
+          </span>
+        );
+      },
     },
   ];
 }
@@ -401,9 +426,20 @@ export function ActivityView({ data }: { data: OpsData }) {
     }
     return [...seen].sort((a, b) => a[1].label.localeCompare(b[1].label));
   }, [rows, sourceOf]);
+  // Room for the longest name a row can carry: an entry's, with its host
+  // when two share it, or a reader route's.
+  const leadRoom = useMemo(
+    () =>
+      leadWidth(
+        (data.snapshot?.catalog ?? []).map(
+          (entry) => entryNaming(entry, data.names).name,
+        ),
+      ),
+    [data.snapshot, data.names],
+  );
   const columns = useMemo(
-    () => activityColumns(catalog, data.fixedNow, data.names),
-    [catalog, data.fixedNow, data.names],
+    () => activityColumns(catalog, data.fixedNow, data.names, leadRoom),
+    [catalog, data.fixedNow, data.names, leadRoom],
   );
   const shown =
     source === "all" ? rows : rows.filter((row) => sourceOf(row).id === source);

@@ -62,17 +62,23 @@ import { clockText, durationText, secondsText } from "../workspace/format";
 /**
  * Observability's column widths, cell inset included, sized to what its
  * cells hold rather than to the kit's widest (CELL_WIDTHS), so the room goes
- * to names: a state chip no wider than "Unverified" or a past state such as
- * "was degraded" (91px), a 20px tile, a figure such as "1m 24s" or "8,612",
- * and an incident's age, which is always a relative one ("23h ago").
+ * to names: a state chip, a 20px tile, a figure such as "1m 24s" or "8,612",
+ * an incident's age, which is always a relative one ("23h ago"), and a last
+ * success beside an open panel, whose "Not recorded" is for assistive
+ * technology only.
  */
 export const OPS_WIDTHS = {
-  state: 116,
+  /** A state chip, "Unverified" (86px) at the widest. */
+  state: 112,
+  /** A chip or a past state such as "was degraded" (91px), for incidents. */
+  incident: 116,
   tile: 44,
   /** A 20px tile as the last column, whose end inset is 16px. */
   lastTile: 48,
   figure: 72,
   age: 88,
+  /** "Last success" as the last column beside an open panel (82px). */
+  lastTime: 112,
   time: CELL_WIDTHS.time,
 } as const;
 

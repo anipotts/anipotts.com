@@ -715,6 +715,35 @@ describe("a name that never truncates", () => {
     expect(detail!.getAttribute("data-column")).toBe("detail");
   });
 
+  it("keeps a floor under a shared column whose cells must stay whole", () => {
+    const columns: Column<{ id: string }>[] = [
+      { key: "name", header: "Event", render: () => null },
+      {
+        key: "change",
+        header: "Change",
+        share: 0.5,
+        reserve: 290,
+        min: 256,
+        render: () => null,
+      },
+      { key: "at", header: "When", width: 116, render: () => null },
+    ];
+    const host = html(
+      <DataTable
+        rows={[{ id: "a" }]}
+        rowKey="id"
+        label="Events"
+        noun={["event", "events"]}
+        columns={columns}
+      />,
+    );
+    const change = host.querySelectorAll("thead th")[1] as HTMLElement;
+    expect(change.style.width.startsWith("max(256px,")).toBe(true);
+    // The floor counts toward the table's minimum, so the table scrolls
+    // before it would cut the chips.
+    expect(tableMinWidths(columns).wide).toBe(80 + 256 + 116);
+  });
+
   it("clamps the room between its bounds and counts wide glyphs wider", () => {
     expect(leadWidth(["OK"])).toBe(160);
     expect(leadWidth(["x".repeat(200)])).toBe(360);

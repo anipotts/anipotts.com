@@ -110,6 +110,19 @@
   min-width: min(4.5rem, 100%);
   line-height: var(--spacing-6);
 }
+/* Activity's time, and below large the device tile before it, ending the
+   cell so times line up at the right as a phone row's do. */
+.ops-when {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  vertical-align: middle;
+}
+@media (min-width: 641px) and (max-width: 1023px) {
+  .observability-workspace :is(td, th)[data-column="at"] {
+    text-align: end;
+  }
+}
 /* A run's or read's duration beside its result where Took has dropped. */
 .ops-change-took {
   display: none;
@@ -458,8 +471,10 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
 
 /* The entry panel: a pinned header (the way back or out, the tile, the
    name and its state), then facts, actions and short lists. */
+/* 29rem leaves the list beside it room for a service's longest name, its
+   state and its last success at 1280. */
 .ops-split {
-  --admin-split-panel-size: 30rem;
+  --admin-split-panel-size: 29rem;
 }
 .ops-panel {
   outline: none;
@@ -488,6 +503,10 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
 .ops-panel-badge {
   display: inline-flex;
   flex: none;
+}
+/* A name's host suffix never breaks across lines. */
+.ops-panel-keep {
+  white-space: nowrap;
 }
 .ops-panel-actions {
   min-width: 0;
@@ -552,6 +571,12 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
 .ops-list-detail {
   min-width: 0;
 }
+/* A change's detail reads whole: it wraps inside its cell rather than
+   ending in an ellipsis in a narrow panel. */
+.ops-list-detail .workspace-detail-text:not(#\#) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 
 /* A link into Status tints the row or card it lands on for a moment. */
 .observability-workspace [data-landed] {
@@ -596,6 +621,38 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
   .ops-list-item {
     grid-template-columns: 6.5rem minmax(0, auto) minmax(0, 1fr);
     min-height: var(--spacing-11);
+  }
+  /* On phones a change's detail takes its own line under the states. */
+  .ops-list-item[data-change] {
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+  }
+  .ops-list-item[data-change] > .ops-list-detail {
+    grid-column: 2;
+    padding-block-end: var(--spacing-2);
+  }
+  /* The panel's title keeps the header's width and wraps rather than
+     cutting a name; its state chip takes the line under it. */
+  .ops-panel-header {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    align-items: center;
+    row-gap: var(--spacing-1);
+  }
+  .ops-panel-title:not(#\#) {
+    grid-row: 1;
+    grid-column: 3;
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+  .ops-panel-badge {
+    grid-row: 2;
+    grid-column: 3;
+    justify-self: start;
+  }
+  /* An ok entry's quiet dot stays at the line's end. */
+  .ops-panel-badge:has(> .workspace-state-quiet) {
+    grid-row: 1;
+    grid-column: 4;
   }
   /* The open entry is the page: flush on the body colour, its content on
      the gutter, its short facts still in two columns. */

@@ -139,7 +139,7 @@ export function AlertsTable({
   // overview's summary keeps the kit's widths, so its columns line up with
   // every other overview section.
   const widths = incidents
-    ? { state: OPS_WIDTHS.state, time: OPS_WIDTHS.age }
+    ? { state: OPS_WIDTHS.incident, time: OPS_WIDTHS.age }
     : { state: CELL_WIDTHS.state, time: CELL_WIDTHS.time };
   const lead: Column<AlertRow> = {
     key: "alert",

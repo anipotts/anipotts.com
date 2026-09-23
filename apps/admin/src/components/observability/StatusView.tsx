@@ -219,7 +219,8 @@ function statusColumns(
     width: CELL_WIDTHS.time,
     render: (row) => <NextDue service={row} now={now} />,
   };
-  if (narrow) return [lead, state, lastSuccess];
+  if (narrow)
+    return [lead, state, { ...lastSuccess, width: OPS_WIDTHS.lastTime }];
   return [
     lead,
     // Kept at medium too: two services can share a name on two Macs.

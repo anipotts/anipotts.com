@@ -49,6 +49,7 @@ import {
   RunResult,
   RunbookButton,
   TriggerText,
+  entryKeep,
   entryNaming,
 } from "./cells";
 import { opsEventsGap, type OpsData } from "./frame";
@@ -75,7 +76,7 @@ export function EntryPanel({
 }: {
   service: OpsServiceView | null;
   /** The alert this panel opens for, on Alerts. */
-  alert?: OpsAlert & { name: string; runbook: string | null };
+  alert?: OpsAlert & { name: string; keep?: string; runbook: string | null };
   data: OpsData;
   onClose: () => void;
   panelRef: React.Ref<HTMLElement>;
@@ -117,6 +118,10 @@ export function EntryPanel({
         <PanelHeader
           naming={naming}
           name={name}
+          keep={
+            alert?.keep ??
+            entryKeep(service ?? { id: subject, name }, data.names)
+          }
           onClose={onClose}
           backLabel={backLabel}
           badge={
@@ -220,12 +225,15 @@ export function EntryPanel({
 function PanelHeader({
   naming,
   name,
+  keep,
   badge,
   onClose,
   backLabel,
 }: {
   naming: ReturnType<typeof entryNaming>;
   name: string;
+  /** The host suffix the title never breaks (entryKeep). */
+  keep?: string;
   badge: React.ReactNode;
   onClose: () => void;
   backLabel: string;
@@ -251,7 +259,16 @@ function PanelHeader({
       />
       <EntryTile naming={naming} size={28} />
       <Heading level={2} className="ops-panel-title">
-        <span title={naming.tooltip}>{name}</span>
+        <span title={naming.tooltip}>
+          {keep && name.endsWith(keep) ? (
+            <>
+              {name.slice(0, -keep.length)}
+              <span className="ops-panel-keep">{keep}</span>
+            </>
+          ) : (
+            name
+          )}
+        </span>
       </Heading>
       {badge && <span className="ops-panel-badge">{badge}</span>}
     </div>

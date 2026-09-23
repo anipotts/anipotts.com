@@ -32,6 +32,7 @@ import {
   StateNotice,
   WorkspacePage,
   badgeFor,
+  leadWidth,
   type Column,
 } from "../workspace/Workspace";
 import {
@@ -406,6 +407,10 @@ export function ContentLibrary({
       key: "summary",
       header: "Summary",
       hideBelow: "large",
+      // The summary is a teaser and gives way first: the titles keep room
+      // for the library's longest, so a search never moves the columns.
+      share: 0.5,
+      reserve: leadWidth(group.records.map((item) => item.title)),
       render: (item) =>
         item.summary ? (
           <Text
