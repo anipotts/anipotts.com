@@ -71,6 +71,18 @@
   flex-wrap: wrap;
   row-gap: 2px;
 }
+/* A reason that wraps on line 2 keeps its state chip and exit code on its
+   first line, wherever the row is (Status, Alerts, the overview), never
+   centred against the paragraph. */
+.workspace-row-detail:has(.ops-reason) {
+  align-items: baseline;
+}
+.workspace-row-meta .ops-reason {
+  align-items: baseline;
+}
+.workspace-row-detail:has(.ops-reason) .brand-tile {
+  align-self: flex-start;
+}
 .observability-workspace
   .workspace-row-meta
   .ops-reason
@@ -137,8 +149,10 @@
 .ops-change > * {
   flex: none;
 }
+/* It takes line 1 whenever 4.5rem is left beside the chips (its basis, not
+   its whole width, decides the wrap), and ends after a whole word. */
 .ops-change > .workspace-detail-text {
-  flex: 0 1 auto;
+  flex: 1 1 4.5rem;
   min-width: min(4.5rem, 100%);
   line-height: var(--spacing-6);
 }
@@ -590,6 +604,16 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
   color: var(--color-text-secondary);
   white-space: nowrap;
 }
+/* A list with a start known only as a bound ("Before Sep 22, 17:26"). */
+.ops-list[data-bounded] > .ops-list-item:not(#\#) {
+  grid-template-columns: 9.5rem minmax(0, auto) minmax(0, 1fr);
+}
+/* A panel's bounded start: the bound, then why it is one. */
+.ops-start-bound {
+  flex-wrap: wrap;
+  column-gap: var(--spacing-2);
+  row-gap: 0;
+}
 .ops-list-state {
   display: inline-flex;
   align-items: center;
@@ -602,6 +626,13 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
 }
 .ops-list-detail {
   min-width: 0;
+}
+/* A change whose detail wraps keeps its time and states on the detail's
+   first line: the row's parts share a first baseline, and a one-line row
+   still sits centred in its 36px. */
+.ops-list-item[data-change] {
+  align-items: baseline;
+  align-content: center;
 }
 /* A change's detail reads whole: it wraps inside its cell rather than
    ending in an ellipsis in a narrow panel. */

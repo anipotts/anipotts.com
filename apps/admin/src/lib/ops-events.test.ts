@@ -390,11 +390,60 @@ describe("alerts from transitions", () => {
       state: "failing",
       since: "2026-09-21T09:00:00Z",
     });
+    // Opened on first sight: its start was not observed, only bounded.
     expect(alerts[3]).toMatchObject({
       state: "failing",
-      since: "2026-09-21T07:00:00Z",
+      since: null,
+      startedBefore: "2026-09-21T07:00:00Z",
+      firstSeen: true,
       resolvedAt: "2026-09-21T07:30:00Z",
     });
+  });
+
+  it("A-31: never dates a first-sight problem from when System first saw it", () => {
+    // The live cred.expiry shape: a new catalog row first sampled already
+    // failing, its own detail saying the problem is 59 days old.
+    const detail =
+      "the Connect write token expired 59d ago; unattended secret writes and token factories blocked, 3 more flagged";
+    const [alert] = deriveOpsAlerts(
+      parse([
+        {
+          ...transition(357, "cred.expiry", null, "failing"),
+          at: "2026-09-22T21:26:20Z",
+          detail,
+        },
+      ]),
+    );
+    expect(alert).toMatchObject({
+      subject: "cred.expiry",
+      status: "firing",
+      state: "failing",
+      since: null,
+      startedBefore: "2026-09-22T21:26:20Z",
+      firstSeen: true,
+      detail,
+    });
+    // A change within the episode keeps it unobserved; a problem after a
+    // later ok is observed from its own transition.
+    const [again] = deriveOpsAlerts(
+      parse([
+        transition(1, "a.job", null, "degraded", "2026-09-22T01:00:00Z"),
+        transition(2, "a.job", "degraded", "failing", "2026-09-22T02:00:00Z"),
+      ]),
+    );
+    expect(again).toMatchObject({ since: null, firstSeen: true });
+    const [observed] = deriveOpsAlerts(
+      parse([
+        transition(1, "a.job", null, "failing", "2026-09-22T01:00:00Z"),
+        transition(2, "a.job", "failing", "ok", "2026-09-22T02:00:00Z"),
+        transition(3, "a.job", "ok", "failing", "2026-09-22T03:00:00Z"),
+      ]),
+    );
+    expect(observed).toMatchObject({
+      since: "2026-09-22T03:00:00Z",
+      status: "firing",
+    });
+    expect(observed!.firstSeen).toBeUndefined();
   });
 
   it("dates an episode from its first problem, even as the problem changes", () => {
@@ -581,9 +630,14 @@ describe("round-2 events", () => {
         ]),
     ).toEqual([
       ["resolved", "degraded", "degraded", at(17), at(18)],
-      // Failing, then degraded: it was failing at its worst.
-      ["resolved", "failing", "degraded", at(5), at(16)],
+      // Failing, then degraded: it was failing at its worst. It opened on
+      // first sight, so its start is only bounded (A-31).
+      ["resolved", "failing", "degraded", null, at(16)],
     ]);
+    expect(incidents.get("host.ap-pro")![1]).toMatchObject({
+      startedBefore: at(5),
+      firstSeen: true,
+    });
     const alerts = deriveOpsAlerts(transitions);
     expect(
       alerts.map((alert) => [alert.subject, alert.status, alert.incidents]),

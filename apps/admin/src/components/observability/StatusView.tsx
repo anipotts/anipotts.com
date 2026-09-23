@@ -19,19 +19,14 @@ import {
   type OpsState,
 } from "../../lib/ops-v1";
 import {
+  opsDetailText,
   opsHostFacts,
   opsUnverified,
   opsSyncState,
   opsSyncRows,
-  opsSyncWithheld,
   type OpsSyncRow,
   type OpsSyncState,
 } from "../../lib/ops-view";
-import {
-  HEALTH_METRICS_ID,
-  healthMetricsText,
-  parseHealthMetrics,
-} from "../../lib/health-metrics";
 import { useLiveText } from "../../lib/live-clock";
 import { deviceName } from "../../lib/naming";
 import { sentenceCase } from "../../lib/sentence-case";
@@ -61,6 +56,7 @@ import {
   DeviceTile,
   EntryState,
   EntryTile,
+  LastRun,
   LastSuccess,
   NextDue,
   TriggerMark,
@@ -112,17 +108,7 @@ export function opsView(snapshot: OpsSnapshot, lastKnown: boolean) {
   return lastKnown ? ordered.map(asLastKnown) : ordered;
 }
 
-function detailOf(service: OpsServiceView) {
-  if (service.missingStatus) return "No status row from System";
-  // health.metrics' `missing:<list>` reads as words; any other shape stays
-  // System's own text.
-  if (service.id === HEALTH_METRICS_ID)
-    return (
-      healthMetricsText(parseHealthMetrics(service.status.detail)) ??
-      service.status.detail
-    );
-  return service.status.detail;
-}
+const detailOf = opsDetailText;
 
 type Row = OpsServiceView & Record<string, unknown>;
 type Select = {
@@ -130,12 +116,14 @@ type Select = {
   open: (id: string, trigger: HTMLElement) => void;
 };
 
-/** A short detail, and a non-zero exit as a critical figure after it. */
+/** A detail on at most two lines, ending after a whole word (its full text
+ * on hover), and a non-zero exit as a critical figure after it. On line 2
+ * (phones, medium) it reads whole. */
 function Reason({ service }: { service: OpsServiceView }) {
   const exit = service.status.last_exit;
   return (
     <span className="ops-reason">
-      <DetailText>{detailOf(service)}</DetailText>
+      <DetailText lines={2}>{detailOf(service)}</DetailText>
       {exit !== null && exit !== 0 && (
         <span className="ops-exit workspace-figure">exit {exit}</span>
       )}
@@ -146,25 +134,28 @@ function Reason({ service }: { service: OpsServiceView }) {
 /**
  * The Status columns. Beside an open panel the list keeps only the service,
  * its state, its last success and its next run, so nothing scrolls sideways.
- * The service column keeps room for its longest name (`leadRoom`); the detail
- * shares what is left and gives way first, its full text on hover.
+ * The service column always keeps room for its longest name (`leadRoom`),
+ * and a name that still meets less room wraps rather than losing a word.
+ * The detail takes what is left, up to what holds its longest reason on two
+ * lines (`reasonWant`); a longer reason ends after a whole word on line 2,
+ * its full text on hover.
  */
-function statusColumns(
+export function statusColumns(
   {
     narrow,
     now,
     names,
     leadRoom,
-    reasonRoom,
+    reasonWant,
   }: {
     narrow: boolean;
     now?: number;
     names: ReadonlyMap<string, string>;
     /** What the service column needs for its longest name (leadWidth). */
     leadRoom: number;
-    /** What the detail needs for the longest reason a row that is not ok
-     * gives, with its exit code (reasonWidth). */
-    reasonRoom: number;
+    /** What the detail would like: the longest reason a row that is not ok
+     * gives, with its exit code, on two lines (reasonWant). */
+    reasonWant: number;
   },
   select: Select,
 ): Column<Row>[] {
@@ -245,10 +236,9 @@ function statusColumns(
       key: "detail",
       header: "Detail",
       share: 0.5,
+      // Names never give way to a reason: the reason wraps and clamps.
       reserve: leadRoom,
-      // A failing row's reason and its exit code stay whole: names give
-      // way before them.
-      min: reasonRoom,
+      want: reasonWant,
       hideBelow: "large",
       render: (row) => <Reason service={row} />,
     },
@@ -258,12 +248,7 @@ function statusColumns(
       header: "Last run",
       width: CELL_WIDTHS.time,
       hideBelow: "wide",
-      render: (row) =>
-        row.status.last_run_at ? (
-          <RelativeTime value={row.status.last_run_at} now={now} />
-        ) : (
-          <span className="sr-only">Not recorded</span>
-        ),
+      render: (row) => <LastRun service={row} now={now} />,
     },
     {
       key: "duration",
@@ -295,26 +280,38 @@ function statusColumns(
 /** A cell's inset, and the gap before an exit code. */
 const REASON_CHROME = 24;
 const EXIT_GAP = 8;
-/** The most the detail reserves for a reason; a longer one gives way. */
-const REASON_MAX = 320;
+/** The most the detail asks for past its even share. */
+const REASON_WANT_MAX = 480;
 
 /**
- * The width the Detail column keeps for the reasons that matter: each row
- * that is not ok (or never proven), its detail and its exit code whole
- * (titleWidth errs wide), so "keepalive export_failed exit 1" is never cut
- * while a dot or a time holds spare width. Ok rows' details may give way.
+ * The width that holds the longest reason on two lines: each row that is
+ * not ok (or never proven), its detail and its exit code (titleWidth errs
+ * wide). Two lines of half the text each can still lose up to one word to
+ * the wrap, so the longest word is added. The Detail column takes this
+ * before its even share when the table has room, never out of the service
+ * column's room, so "keepalive export_failed exit 1" reads whole where it
+ * fits and ends after a whole word where it does not. Ok rows' details may
+ * clamp.
  */
-export function reasonWidth(services: readonly OpsServiceView[]): number {
+export function reasonWant(services: readonly OpsServiceView[]): number {
   let widest = 0;
   for (const service of services) {
     if (service.status.state === "ok" && !opsUnverified(service)) continue;
+    const text = detailOf(service);
     const exit = service.status.last_exit;
+    const longestWord = Math.max(
+      0,
+      ...text.split(/\s+/).map((word) => titleWidth(word)),
+    );
     const width =
-      titleWidth(detailOf(service)) +
+      titleWidth(text) / 2 +
+      longestWord +
       (exit !== null && exit !== 0 ? EXIT_GAP + titleWidth(`exit ${exit}`) : 0);
     widest = Math.max(widest, width);
   }
-  return Math.min(REASON_MAX, Math.ceil(REASON_CHROME + widest));
+  return widest
+    ? Math.min(REASON_WANT_MAX, Math.ceil(REASON_CHROME + widest))
+    : 0;
 }
 
 /** Non-ok states, most severe first, as the Status summary's order. */
@@ -566,21 +563,25 @@ function SyncState({
     return <StateCell domain="freshness" state={key} />;
   // Without a budget System judges liveness only, so freshness is not
   // judged here either: the mark says so rather than reading as fresh. A
-  // withheld sync's time is a file's, not an arrival (A-38).
-  const unjudged = key === "unjudged";
+  // withheld sync's time is a file's, not an arrival (A-38): this slot
+  // still says its budget, and its time slot says "Not recorded", as every
+  // other card's does (A-12).
+  const noBudget =
+    key === "unjudged" ||
+    (key === "withheld" && service.freshness_budget_s === null);
   return (
     <span
       className="ops-unjudged"
       title={
-        unjudged
+        noBudget
           ? "System gives this sync no freshness budget"
           : key === "withheld"
-            ? "System records no arrival for this sync, only its file's time"
-            : "System has recorded no success for this sync"
+            ? "Not judged: System records no arrival for this sync, only its file's time"
+            : "Not judged: System has recorded no success for this sync"
       }
     >
       <CircleDashedIcon weight="regular" aria-hidden="true" />
-      {unjudged ? "No budget" : "Not recorded"}
+      {noBudget ? "No budget" : "Not judged"}
     </span>
   );
 }
@@ -597,9 +598,10 @@ function SyncWhere({ device, name }: { device: string | null; name: string }) {
 
 /** Every synced app with its app tile and its state on line 1, then the
  * sync that carries it (its device tile and name) and its last success on
- * line 2, judged against that sync's own budget. A sync whose success time
- * is not an arrival (health.ingest, A-38) shows no time in any state, as
- * Data Health withholds it. */
+ * line 2, judged against that sync's own budget. Line 1's end is always the
+ * state or the budget, line 2's end always the time. A sync whose success
+ * time is not an arrival (health.ingest, A-38) reads "Not recorded" in its
+ * time slot, as Data Health withholds it. */
 function SyncGrid({
   rows,
   now,
@@ -675,13 +677,7 @@ function SyncGrid({
                 />
               }
               end={
-                opsSyncWithheld(service) ? undefined : (
-                  <LastSuccess
-                    service={service}
-                    now={now}
-                    empty="Not recorded"
-                  />
-                )
+                <LastSuccess service={service} now={now} empty="Not recorded" />
               }
             />
           );
@@ -749,9 +745,9 @@ function StatusList({
       ),
     [services],
   );
-  const reasonRoom = useMemo(() => reasonWidth(rows), [rows]);
+  const want = useMemo(() => reasonWant(rows), [rows]);
   const columns = statusColumns(
-    { narrow, now, names, leadRoom, reasonRoom },
+    { narrow, now, names, leadRoom, reasonWant: want },
     select,
   );
   useAnchorLanding(services.length > 0);

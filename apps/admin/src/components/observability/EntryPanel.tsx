@@ -13,7 +13,10 @@ import {
 } from "@phosphor-icons/react";
 import { opsFreshness, opsIsHost, type OpsServiceView } from "../../lib/ops-v1";
 import type { OpsAlert, OpsTransitionEvent } from "../../lib/ops-events";
-import { opsIncidentsBySubject } from "../../lib/ops-events";
+import {
+  opsAlertStartBound,
+  opsIncidentsBySubject,
+} from "../../lib/ops-events";
 import {
   opsCadenceText,
   opsNextRun,
@@ -21,6 +24,7 @@ import {
   opsHostFacts,
   opsRecordsRuns,
   opsRunHistory,
+  opsSyncWithheld,
 } from "../../lib/ops-view";
 import { deviceName } from "../../lib/naming";
 import { sentenceCase } from "../../lib/sentence-case";
@@ -44,8 +48,8 @@ import {
   DeviceTile,
   EntryState,
   EntryTile,
+  LastRun,
   LastSuccess,
-  Lasted,
   NextDue,
   PastState,
   RunResult,
@@ -179,10 +183,21 @@ export function EntryPanel({
         )}
         {alert && incidents.length > 1 && (
           <PanelSection title="Incidents">
-            <ol className="ops-list" aria-label={`${name} incidents`}>
+            <ol
+              className="ops-list"
+              aria-label={`${name} incidents`}
+              // A start known only as a bound reads "Before Sep 22, 17:26",
+              // wider than a clock time: every row's first column widens.
+              data-bounded={
+                incidents.some((incident) => !incident.since) ? "" : undefined
+              }
+            >
               {incidents.map((incident) => (
-                <li key={incident.since} className="ops-list-item">
-                  <ClockTime at={incident.since} now={now} />
+                <li
+                  key={opsAlertStartBound(incident)}
+                  className="ops-list-item"
+                >
+                  <AlertStart alert={incident} now={now} clock />
                   <span className="ops-list-state">
                     {incident.status === "firing" ? (
                       <StateBadge domain="ops" state={incident.state} />
@@ -191,9 +206,8 @@ export function EntryPanel({
                     )}
                   </span>
                   <span className="ops-list-figure">
-                    <Lasted
-                      from={incident.since}
-                      to={incident.resolvedAt}
+                    <AlertFor
+                      alert={incident}
                       now={now}
                       serverNow={data.serverNow}
                     />
@@ -347,6 +361,7 @@ function EntryFacts({
                     empty="Not recorded"
                   />
                   {budget !== null &&
+                    !opsSyncWithheld(service) &&
                     freshness.kind === "budget" &&
                     freshness.overBudget && (
                       <span className="ops-warning">
@@ -357,8 +372,8 @@ function EntryFacts({
               ],
               [
                 "Last run",
-                status.last_run_at ? (
-                  <RelativeTime value={status.last_run_at} now={now} />
+                status.last_run_at || opsSyncWithheld(service) ? (
+                  <LastRun key="run" service={service} now={now} />
                 ) : null,
               ],
               [
@@ -423,7 +438,13 @@ function IncidentFacts({ alert, data }: { alert: OpsAlert; data: OpsData }) {
         ["Was", firing ? null : <PastState key="was" state={alert.peak} />],
         [
           "Started",
-          <AlertStart key="since" alert={alert} now={data.fixedNow} clock />,
+          <AlertStart
+            key="since"
+            alert={alert}
+            now={data.fixedNow}
+            clock
+            note
+          />,
         ],
         [
           "Resolved",
@@ -433,14 +454,12 @@ function IncidentFacts({ alert, data }: { alert: OpsAlert; data: OpsData }) {
         ],
         [
           firing ? "For" : "Lasted",
-          alert.since || alert.startedBefore ? (
-            <AlertFor
-              key="lasted"
-              alert={alert}
-              now={data.fixedNow}
-              serverNow={data.serverNow}
-            />
-          ) : null,
+          <AlertFor
+            key="lasted"
+            alert={alert}
+            now={data.fixedNow}
+            serverNow={data.serverNow}
+          />,
         ],
         ["Detail", alert.detail],
       ]}

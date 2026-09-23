@@ -21,7 +21,11 @@ import {
   useOpsData,
   type OpsViewProps,
 } from "../astryx/ObservabilityWorkspace";
-import { OPS_ALERTS_SOURCE, opsUnreadTitle } from "../observability/frame";
+import {
+  OPS_ALERTS_SOURCE,
+  SamplerStopped,
+  opsUnreadTitle,
+} from "../observability/frame";
 import { UnverifiedBadge } from "../observability/cells";
 import { opsServices } from "../../lib/ops-v1";
 import { opsUnverified } from "../../lib/ops-view";
@@ -124,18 +128,29 @@ function FiringAlerts(props: OpsViewProps) {
       data.snapshot ? opsServices(data.snapshot).filter(opsUnverified) : [],
     [data.snapshot],
   );
+  const unconnected = data.fixtureMode ? undefined : opsDown(data.state);
+  // A sampler that stopped (a snapshot older than a minute, as when the
+  // reader keeps serving its last current.json) is never all clear: the
+  // overview shows the notice Observability shows, after a read failure
+  // and before events that are not current, as Observability orders them.
+  const stopped =
+    !unconnected && data.stopped && data.snapshot ? data.snapshot : null;
   const down: Down | undefined =
-    (data.fixtureMode ? undefined : opsDown(data.state)) ??
-    // Events that failed to read, or a page that was rejected, are not all
-    // clear: the Alerts page says "Events not current", and so does this.
-    (!data.fixtureMode && data.state.eventsStale
-      ? { title: "Events not current", kind: "error" }
-      : undefined) ??
-    // An unread event may have been a failure, so no silence reads as clear.
-    ((data.events?.skipped ?? 0) > 0
-      ? { title: opsUnreadTitle(data.events!.skipped), kind: "error" }
-      : undefined);
-  if (!firing.length && !down && !unverified.length) return null;
+    unconnected ??
+    (stopped
+      ? undefined
+      : // Events that failed to read, or a page that was rejected, are not
+        // all clear: the Alerts page says "Events not current", and so
+        // does this.
+        ((!data.fixtureMode && data.state.eventsStale
+          ? { title: "Events not current", kind: "error" }
+          : undefined) ??
+        // An unread event may have been a failure, so no silence reads as
+        // clear.
+        ((data.events?.skipped ?? 0) > 0
+          ? { title: opsUnreadTitle(data.events!.skipped), kind: "error" }
+          : undefined)));
+  if (!firing.length && !down && !stopped && !unverified.length) return null;
   return (
     <WorkspaceSection
       title="Alerts"
@@ -162,6 +177,7 @@ function FiringAlerts(props: OpsViewProps) {
           }
         />
       )}
+      {stopped && <SamplerStopped at={stopped.generated_at} data={data} />}
       {unverified.length > 0 && (
         <a
           className="overview-unverified"

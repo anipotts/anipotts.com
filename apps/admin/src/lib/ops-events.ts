@@ -387,13 +387,20 @@ export type OpsAlert = {
   /** The most severe state the episode reached: what a resolved incident
    * was. */
   peak: OpsState;
-  /** When the episode began: its first problem transition. Null for a
-   * problem the snapshot shows with no opening transition in the events
-   * held (opsAlertRows): its start was never observed. */
+  /** When the episode began: its first problem transition after an ok.
+   * Null when its start was never observed: an episode that opened on first
+   * sight (from_state null: System began watching an entry already in a
+   * problem state), or a problem the snapshot shows with no opening
+   * transition in the events held (opsAlertRows). */
   since: string | null;
-  /** With no `since`: the oldest event held, which the problem is older
-   * than, when the entry has no transition in the log at all. */
+  /** With no `since`: a time the problem is known to be older than. Its
+   * first sighting for an episode that opened on first sight
+   * (`firstSeen`); the oldest event held when the entry has no transition
+   * in the log at all. */
   startedBefore?: string | null;
+  /** The episode opened on first sight, so `startedBefore` is when System
+   * first saw it, and its start is unknown (A-31). */
+  firstSeen?: boolean;
   /** When the later ok arrived, for a resolved alert. */
   resolvedAt: string | null;
   detail: string | null;
@@ -401,8 +408,18 @@ export type OpsAlert = {
   incidents: number;
 };
 
-/** An episode read from transitions: its start is always observed. */
-export type OpsIncident = OpsAlert & { since: string };
+/** An episode read from transitions. Its start is observed, except for an
+ * episode that opened on first sight, which is bounded by that sighting
+ * (`firstSeen`, `startedBefore`). */
+export type OpsIncident = OpsAlert;
+
+/** When an episode is known to have begun by: its observed start, else the
+ * time it is known to be older than. For sorting and keys. */
+export function opsAlertStartBound(
+  alert: Pick<OpsAlert, "since" | "startedBefore">,
+): string {
+  return alert.since ?? alert.startedBefore ?? "";
+}
 
 /** Problem states, most severe first. */
 const SEVERITY: readonly OpsState[] = ["failing", "degraded", "stale"];
@@ -430,7 +447,9 @@ export function deriveOpsAlerts(
     if (latest.status === "firing") firing.push(latest);
     else resolved.push(latest);
   }
-  firing.sort((a, b) => b.since.localeCompare(a.since));
+  firing.sort((a, b) =>
+    opsAlertStartBound(b).localeCompare(opsAlertStartBound(a)),
+  );
   resolved.sort((a, b) => b.resolvedAt!.localeCompare(a.resolvedAt!));
   return [...firing, ...resolved];
 }
@@ -439,12 +458,23 @@ export function deriveOpsAlerts(
  * Every episode per catalog id, newest first: its current one when firing,
  * then each resolved one. An episode starts at the first problem state after
  * an ok (or after first sight) and ends at the next ok; unknown and asleep
- * neither start nor end one.
+ * neither start nor end one. An episode that opens on first sight (from_state
+ * null) was already a problem when System began watching: its start is not
+ * observed, only that it began before that sighting (A-31).
  */
 export function opsIncidentsBySubject(
   transitions: readonly OpsTransitionEvent[],
 ): Map<string, OpsIncident[]> {
-  type Open = { start: string; latest: OpsTransitionEvent; peak: OpsState };
+  type Open = {
+    start: string;
+    firstSeen: boolean;
+    latest: OpsTransitionEvent;
+    peak: OpsState;
+  };
+  const times = (current: Open) =>
+    current.firstSeen
+      ? { since: null, startedBefore: current.start, firstSeen: true }
+      : { since: current.start };
   const open = new Map<string, Open>();
   const episodes = new Map<string, OpsIncident[]>();
   const push = (subject: string, alert: OpsIncident) => {
@@ -459,6 +489,7 @@ export function opsIncidentsBySubject(
     if (OPS_PROBLEM_STATES.includes(event.to)) {
       open.set(event.subject, {
         start: current?.start ?? event.at,
+        firstSeen: current ? current.firstSeen : event.from === null,
         latest: event,
         peak: current ? worse(current.peak, event.to) : event.to,
       });
@@ -468,7 +499,7 @@ export function opsIncidentsBySubject(
         status: "resolved",
         state: current.latest.to,
         peak: current.peak,
-        since: current.start,
+        ...times(current),
         resolvedAt: event.at,
         detail: current.latest.detail,
         incidents: 0,
@@ -485,7 +516,7 @@ export function opsIncidentsBySubject(
         status: "firing",
         state: current.latest.to,
         peak: current.peak,
-        since: current.start,
+        ...times(current),
         resolvedAt: null,
         detail: current.latest.detail,
         incidents: 0,

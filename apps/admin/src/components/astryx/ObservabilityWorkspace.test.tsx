@@ -11,7 +11,14 @@ import {
   opsAlertParam,
   opsEntryParam,
 } from "./ObservabilityWorkspace";
-import { badgeFor, easternClockText } from "../workspace/Workspace";
+import {
+  badgeFor,
+  easternClockText,
+  leadWidth,
+  shareWidthAt,
+  tableFixedWidths,
+  titleWidth,
+} from "../workspace/Workspace";
 import { createPrivateReaderSession } from "../../lib/private-reader-client";
 import {
   OPS_CREDENTIAL_ENDPOINT,
@@ -19,7 +26,14 @@ import {
   createOpsStatusController,
 } from "../../lib/ops-reader";
 import { LIVE_CLOCK_SLACK_MS, sharedLiveClock } from "../../lib/live-clock";
-import { OPS_V1_STATES } from "../../lib/ops-v1";
+import { OPS_V1_STATES, opsIsHost, parseOpsSnapshot } from "../../lib/ops-v1";
+import { opsNaming } from "../../lib/naming";
+import {
+  opsView,
+  reasonWant,
+  statusColumns,
+} from "../observability/StatusView";
+
 import { providedSearchEntries } from "../../lib/admin-search-index";
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -225,19 +239,59 @@ describe("Status view from System's fixture", () => {
     // No success recorded: nothing visible, and said for assistive
     // technology, without claiming it never succeeded.
     expect(
-      cell(host, "health.ingest", "Last success").querySelector(".sr-only")
+      cell(host, "agents.sync", "Last success").querySelector(".sr-only")
         ?.textContent,
     ).toBe("Not recorded");
   });
 
   it("shows a null-budget job's age with no stale judgement", () => {
     const value = fresh();
-    value.status.find(
-      (row: Json) => row.id === "health.ingest",
-    ).last_success_at = "2026-09-18T18:00:00Z";
-    const age = cell(render(value), "health.ingest", "Last success");
+    value.status.find((row: Json) => row.id === "agents.sync").last_success_at =
+      "2026-09-18T18:00:00Z";
+    const age = cell(render(value), "agents.sync", "Last success");
     expect(age.textContent).toBe("3d ago");
     expect(age.querySelector(".ops-over")).toBeNull();
+  });
+
+  it("A-38: never shows health.ingest's file time as a success or a run", () => {
+    // Live, System reads the export file's time as the row's success and
+    // run: "file present", 3h ago. That is not an arrival.
+    const value = fresh();
+    const row = value.status.find(
+      (entry: Json) => entry.id === "health.ingest",
+    );
+    Object.assign(row, {
+      state: "ok",
+      detail: "file present",
+      last_success_at: "2026-09-21T15:00:00Z",
+      last_run_at: "2026-09-21T15:00:00Z",
+    });
+    const view = render(value);
+    const success = cell(view, "health.ingest", "Last success");
+    expect(success.textContent).toBe("Not recorded");
+    expect(success.querySelector("[title]")?.getAttribute("title")).toMatch(
+      /time of the file the phone export writes, not an arrival/,
+    );
+    // System's own state and detail stay visible as System's.
+    expect(cell(view, "health.ingest", "Detail").textContent).toBe(
+      "file present",
+    );
+    // No age of that file anywhere on the page, the Syncs card included.
+    const text = (node: Element) =>
+      [...node.querySelectorAll("time")].map((time) => time.dateTime);
+    expect(text(view)).not.toContain("2026-09-21T15:00:00Z");
+    // A-12: "Not recorded" means one thing on every Syncs card: the time
+    // slot (line 2's end). The state slot keeps the sync's budget state.
+    const card = view.querySelector('.ops-syncs a[href*="health.ingest"]')!;
+    expect(card.querySelector(".ops-card-state")?.textContent).toBe(
+      "No budget",
+    );
+    expect(card.querySelector(".ops-card-end")?.textContent).toBe(
+      "Not recorded",
+    );
+    expect(
+      card.querySelector(".ops-card-end [title]")?.getAttribute("title"),
+    ).toMatch(/not an arrival/);
   });
 
   it("A-5: shows last run, duration, the next run, runs and the trigger, and no Owner", () => {
@@ -383,6 +437,93 @@ describe("Status view from System's fixture", () => {
     );
     // Every field is known: no drift chip.
     expect(host.querySelector(".ops-drift")).toBeNull();
+  });
+});
+
+describe("Status layout with the longest live reason and name", () => {
+  // The live worst case (2026-09-23): cred.expiry failing with a 710px
+  // reason, and "Declared credential expiries", the longest name.
+  const REASON =
+    "the Connect write token expired 59d ago; unattended secret writes and token factories blocked, 3 more flagged";
+  const worst = () => {
+    const value = fresh();
+    const entry = value.catalog.find((row: Json) => row.id === "pc.inference");
+    entry.name = "declared credential expiries";
+    Object.assign(
+      value.status.find((row: Json) => row.id === "pc.inference"),
+      { state: "failing", detail: REASON, last_exit: 1 },
+    );
+    return value;
+  };
+  // The Status table frame's width at each viewport, measured in Chromium
+  // with the sidebar open: 911px at 1024, 1003px at 1280, 1154px at 1440.
+  const FRAMES = [
+    ["large", 1024, 911],
+    ["large", 1280, 1003],
+    ["wide", 1440, 1154],
+  ] as const;
+
+  it.each(FRAMES)(
+    "keeps every service name whole at %s %ipx: the reason wraps and clamps instead",
+    (range, _viewport, frame) => {
+      const services = opsView(parseOpsSnapshot(worst()), false).filter(
+        (service) => !opsIsHost(service),
+      );
+      const leadRoom = leadWidth(
+        services.map((service) => opsNaming(service).name),
+      );
+      expect(leadRoom).toBeGreaterThanOrEqual(
+        64 + titleWidth("Declared credential expiries"),
+      );
+      const want = reasonWant(services);
+      const columns = statusColumns(
+        {
+          narrow: false,
+          names: new Map(),
+          leadRoom,
+          reasonWant: want,
+        },
+        { selected: null, open: () => undefined },
+      );
+      const detail = columns.find((column) => column.key === "detail")!;
+      expect(detail.min).toBeUndefined();
+      const fixed = tableFixedWidths(columns)[range];
+      const width = shareWidthAt(detail, frame, fixed);
+      // The service column keeps its longest name's room at every width.
+      expect(frame - fixed - width).toBeGreaterThanOrEqual(leadRoom);
+      expect(width).toBeGreaterThanOrEqual(80);
+    },
+  );
+
+  it("renders the reason on two lines, whole words, its full text on hover", () => {
+    const host = render(worst());
+    const reason = cell(host, "pc.inference", "Detail");
+    const text = reason.querySelector(".workspace-detail-text")!;
+    expect(text.getAttribute("data-lines")).toBe("2");
+    expect(text.getAttribute("title")).toBe(REASON);
+    expect(text.textContent).toBe(REASON);
+    // Every word is one box, so the clamp ends after a whole word or
+    // figure ("59d"), never inside one.
+    const words = [...text.querySelectorAll(".workspace-word")].map(
+      (word) => word.textContent,
+    );
+    expect(words).toContain("59d");
+    expect(words.join(" ")).toBe(REASON);
+    expect(reason.querySelector(".ops-exit")?.textContent).toBe("exit 1");
+  });
+
+  it("takes what holds the reason on two lines where the table has room", () => {
+    const services = opsView(parseOpsSnapshot(worst()), false);
+    const want = reasonWant(services);
+    // Half the reason, its longest word and its exit code, plus the inset.
+    expect(want).toBeGreaterThan(24 + titleWidth(REASON) / 2);
+    const detail = { share: 0.5, reserve: 254, want };
+    // At 1680 the frame is 1384px and the wide columns take 696px: the
+    // detail takes its want before an even split, never the name's room.
+    expect(shareWidthAt(detail, 1384, 696)).toBe(
+      Math.min(want, 1384 - 696 - 254),
+    );
+    expect(shareWidthAt(detail, 1384, 696)).toBeGreaterThan((1384 - 696) / 2);
   });
 });
 
@@ -1547,18 +1688,120 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
     );
     const at = (name: string) => row.cells[heading.indexOf(name)]!;
     expect(at("State").textContent).toBe("Failing");
-    // It began before the oldest event held: that bound, never a start.
-    expect(at("Started").textContent).toBe("Earlier");
-    expect(at("Started").querySelector("span")?.getAttribute("title")).toMatch(
-      /^Before 2026-09-\d{2} \d{2}:\d{2} UTC, the oldest event held$/,
+    // It began before the oldest event held: that bound, never a start,
+    // and no duration, not even a lower bound.
+    expect(at("Started").textContent).toMatch(
+      /^Before Sep \d{1,2}, \d{2}:\d{2}$/,
     );
-    expect(at("For").textContent).toMatch(/^\d+[smhd]( \d+[smh])?\+$/);
+    expect(at("Started").querySelector("time")?.getAttribute("title")).toMatch(
+      /^Before 2026-09-\d{2} \d{2}:\d{2} UTC, the oldest event held: its start was not observed$/,
+    );
+    expect(at("For").textContent).toBe("Unknown");
     // With nothing held at all, the start is unknown and no duration shows.
     const empty = view("alerts", null, { ...events, items: [] });
     expect(empty.textContent).not.toContain("No alerts");
     const lone = empty.querySelector('table[aria-label="Firing alerts"]')!;
     expect(lone.textContent).toContain("Unknown");
     expect(lone.textContent).not.toMatch(/\d+[smhd]\+/);
+  });
+
+  it("A-31: bounds a first-sight episode, never dating it from the sighting", () => {
+    // The live cred.expiry shape: System first samples an entry already in a
+    // problem state (from_state null). The sighting is when System began
+    // watching, not when the problem began.
+    const items = (
+      events as {
+        items: Array<{ subject: string; kind: string } & Json>;
+      }
+    ).items.flatMap((item) =>
+      item.kind === "transition" && item.subject === "pc.inference"
+        ? item.from_state === null
+          ? [{ ...item, to_state: "failing", detail: "inference failed" }]
+          : []
+        : [item],
+    );
+    const firstSight = { ...events, items };
+    const host = view("alerts", null, firstSight);
+    const firing = host.querySelector('table[aria-label="Firing alerts"]')!;
+    const row = [...firing.querySelectorAll("tbody tr")].find((tr) =>
+      tr
+        .querySelector("a.workspace-row-link")
+        ?.getAttribute("title")
+        ?.startsWith("pc.inference"),
+    ) as HTMLTableRowElement;
+    const heading = [...firing.querySelectorAll("thead th")].map(
+      (th) => th.textContent,
+    );
+    const at = (name: string) => row.cells[heading.indexOf(name)]!;
+    expect(at("Started").textContent).toBe("Before Sep 20, 09:00");
+    expect(at("Started").querySelector("time")?.getAttribute("title")).toBe(
+      "First seen 2026-09-20 09:00 UTC, already in this state: its start was not observed",
+    );
+    expect(at("For").textContent).toBe("Unknown");
+    // The detail is the entry's current one, not the frozen sighting's.
+    expect(at("Detail").textContent).toBe("inference not ok");
+    const panel = view("alerts", "pc.inference", firstSight).querySelector(
+      "#ops-entry-detail",
+    )!;
+    const facts = Object.fromEntries(
+      [...panel.querySelectorAll(".workspace-definition")].map((fact) => [
+        fact.querySelector("dt")?.textContent,
+        fact.querySelector("dd")?.textContent,
+      ]),
+    );
+    expect(facts).toMatchObject({
+      Started: "Before Sep 20, 09:00first seen",
+      For: "Unknown",
+      Detail: "inference not ok",
+    });
+    expect(panel.textContent).not.toMatch(/\d+[hd] \d+m/);
+    // The sighting's own detail stays in the entry's Changes.
+    expect(
+      panel.querySelector('[aria-label$="changes"]')?.textContent,
+    ).toContain("inference failed");
+  });
+
+  it("A-31: a firing alert reads the snapshot's current state and detail", () => {
+    // System writes a transition only on a change of state, so the opening
+    // one's detail freezes ("disk 85% used") while the reading moves on.
+    const value = fresh();
+    const connect = value.status.find(
+      (entry: Json) => entry.id === "keepalive.onepassword-connect",
+    );
+    connect.detail = "token refresh failed twice";
+    const items = [
+      ...(events as { items: Json[] }).items.filter(
+        (item) =>
+          !(
+            item.kind === "transition" &&
+            item.subject === "keepalive.onepassword-connect"
+          ),
+      ),
+      {
+        seq: 9000,
+        at: "2026-09-21T17:00:00Z",
+        kind: "transition",
+        subject: "keepalive.onepassword-connect",
+        from_state: "ok",
+        to_state: "degraded",
+        status: null,
+        ms: null,
+        detail: "token refresh failed once",
+      },
+    ];
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(
+      <ObservabilityWorkspace
+        view="alerts"
+        enabled={false}
+        fixture={value}
+        eventsFixture={{ ...events, items }}
+        now={NOW}
+      />,
+    );
+    const firing = host.querySelector('table[aria-label="Firing alerts"]')!;
+    expect(firing.textContent).toContain("token refresh failed twice");
+    expect(firing.textContent).not.toContain("token refresh failed once");
   });
 
   it("opens an alert's incident in admin, with its runbook as an action", () => {

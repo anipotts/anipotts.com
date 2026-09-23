@@ -222,7 +222,10 @@ function latestEventAt(events: OpsEventLog | null): string | undefined {
   return latest;
 }
 
-function SamplerStopped({ at, data }: { at: string; data: OpsData }) {
+/** The one notice for a sampler that stopped (its snapshot older than
+ * OPS_SAMPLER_STALE_SECONDS): Observability's pages and the overview both
+ * show it, so a silent sampler never reads as all clear (A-31). */
+export function SamplerStopped({ at, data }: { at: string; data: OpsData }) {
   const age = useLiveText(
     (now) => relativeAgo(Date.parse(at), now, "minute"),
     data.serverNow,

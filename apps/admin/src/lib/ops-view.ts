@@ -29,7 +29,29 @@ import {
   opsNaming,
   syncedApps,
 } from "./naming";
+import {
+  HEALTH_METRICS_ID,
+  healthMetricsText,
+  parseHealthMetrics,
+} from "./health-metrics";
 import { dayKey } from "../components/workspace/format";
+
+// Details
+
+/** What an entry's detail reads as: System's own text, health.metrics'
+ * `missing:<list>` as words, and a word for an entry with no status row.
+ * Status and Alerts read it the same way. */
+export function opsDetailText(
+  service: Pick<OpsServiceView, "id" | "missingStatus" | "status">,
+): string {
+  if (service.missingStatus) return "No status row from System";
+  if (service.id === HEALTH_METRICS_ID)
+    return (
+      healthMetricsText(parseHealthMetrics(service.status.detail)) ??
+      service.status.detail
+    );
+  return service.status.detail;
+}
 
 // Hosts
 
@@ -541,8 +563,9 @@ export type OpsSyncState =
   | { kind: "unrecorded" }
   | { kind: "withheld" };
 
-/** Whether a sync's card withholds its success time (A-38): it is a file's
- * time, not an arrival (SYNC_ARRIVAL_UNRECORDED). */
+/** Whether an entry's success and run times are withheld wherever they
+ * render (A-38): they are a file's time, not an arrival
+ * (SYNC_ARRIVAL_UNRECORDED). Its state and detail stay System's. */
 export function opsSyncWithheld(service: Pick<OpsServiceView, "id">): boolean {
   return SYNC_ARRIVAL_UNRECORDED.includes(service.id);
 }

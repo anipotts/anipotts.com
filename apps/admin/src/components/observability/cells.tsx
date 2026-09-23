@@ -31,7 +31,12 @@ import {
   type OpsState,
   type OpsTrigger,
 } from "../../lib/ops-v1";
-import { opsNextRun, opsTriggerFacts, opsUnverified } from "../../lib/ops-view";
+import {
+  opsNextRun,
+  opsSyncWithheld,
+  opsTriggerFacts,
+  opsUnverified,
+} from "../../lib/ops-view";
 import type { OpsAlert } from "../../lib/ops-events";
 import {
   deviceName,
@@ -240,10 +245,40 @@ export function TriggerText({
   );
 }
 
+/** Why an entry's success and run times are withheld (A-38). */
+export const WITHHELD_TITLE =
+  "System's check here is the time of the file the phone export writes, not an arrival";
+
+/** "Not recorded" for a time System gives but that is not what it is named
+ * for (opsSyncWithheld): visible, muted, its reason on hover. */
+export function WithheldTime() {
+  return (
+    <span className="workspace-time ops-withheld" title={WITHHELD_TITLE}>
+      Not recorded
+    </span>
+  );
+}
+
 /** The last success, live, judged against the entry's own budget: over it,
  * the time takes the warning ink and a glyph whose tooltip names the budget.
- * A null budget is liveness only and is never judged. */
+ * A null budget is liveness only and is never judged. An entry whose
+ * success time is a file's, not an arrival (health.ingest, A-38), reads
+ * "Not recorded" everywhere it renders. */
 export function LastSuccess({
+  service,
+  now,
+  empty,
+}: {
+  service: OpsServiceView;
+  now?: number;
+  empty?: string;
+}) {
+  if (opsSyncWithheld(service)) return <WithheldTime />;
+  return <JudgedSuccess service={service} now={now} empty={empty} />;
+}
+
+/** The last success of an entry whose time is what it says. */
+function JudgedSuccess({
   service,
   now,
   empty,
@@ -284,6 +319,29 @@ export function LastSuccess({
         </span>
       )}
     </span>
+  );
+}
+
+/** When an entry last ran: live, or "Not recorded" where the time is a
+ * file's (A-38), or nothing visible when System gives none. */
+export function LastRun({
+  service,
+  now,
+  empty,
+}: {
+  service: OpsServiceView;
+  now?: number;
+  /** Shown when System gives no time; for assistive technology only
+   * otherwise. */
+  empty?: string;
+}) {
+  if (opsSyncWithheld(service)) return <WithheldTime />;
+  const at = service.status.last_run_at;
+  if (at) return <RelativeTime value={at} now={now} />;
+  return empty ? (
+    <RelativeTime value={null} empty={empty} />
+  ) : (
+    <span className="sr-only">Not recorded</span>
   );
 }
 
@@ -482,21 +540,17 @@ export function HourTime({ at, now }: { at: string; now?: number }) {
   );
 }
 
-/** How long something has lasted, live until it ends: "1h 24m". With
- * `atLeast` the start is only a bound (the oldest event held), so it reads
- * "1h 24m+". */
+/** How long something has lasted, live until it ends: "1h 24m". */
 export function Lasted({
   from,
   to,
   now,
   serverNow,
-  atLeast = false,
 }: {
   from: string;
   to?: string | null;
   now?: number;
   serverNow: number;
-  atLeast?: boolean;
 }) {
   const start = Date.parse(from);
   const end = to ? Date.parse(to) : null;
@@ -508,15 +562,9 @@ export function Lasted({
   return (
     <span
       className="workspace-figure workspace-duration"
-      title={
-        atLeast
-          ? "At least this long: it began before the oldest event held"
-          : undefined
-      }
       suppressHydrationWarning
     >
       {text}
-      {atLeast && text && "+"}
     </span>
   );
 }
@@ -525,23 +573,78 @@ export function Lasted({
 const utcStamp = (at: string) =>
   `${new Date(Date.parse(at)).toISOString().slice(0, 16).replace("T", " ")} UTC`;
 
-type AlertTimes = Pick<OpsAlert, "since" | "startedBefore" | "resolvedAt">;
+type AlertTimes = Pick<
+  OpsAlert,
+  "since" | "startedBefore" | "resolvedAt" | "firstSeen"
+>;
+
+/** Why an alert's start is only a bound, for its tooltip. */
+function boundTitle(alert: AlertTimes, at: string) {
+  return alert.firstSeen
+    ? `First seen ${utcStamp(at)}, already in this state: its start was not observed`
+    : `Before ${utcStamp(at)}, the oldest event held: its start was not observed`;
+}
+
+/** "Before Sep 22, 17:26": a start known only to be earlier than a time. */
+function StartBound({
+  alert,
+  at,
+  now,
+}: {
+  alert: AlertTimes;
+  at: string;
+  now?: number;
+}) {
+  const ms = Date.parse(at);
+  const text = useSyncExternalStore(
+    noChange,
+    () => clockText(ms, now),
+    () => clockText(ms, now, true),
+  );
+  return (
+    <time
+      dateTime={at}
+      className="workspace-time"
+      title={boundTitle(alert, at)}
+      suppressHydrationWarning
+    >
+      Before {text}
+    </time>
+  );
+}
+
+/** The text a bounded start takes, for sizing its column: "Before Sep 22,
+ * 17:26", its year added when it is not this year's. */
+export function alertStartText(
+  alert: AlertTimes,
+  now: number = Date.now(),
+): string | null {
+  if (alert.since || !alert.startedBefore) return null;
+  return `Before ${clockText(Date.parse(alert.startedBefore), now, true)}`;
+}
 
 /**
- * When an alert began (A-31). A problem only the snapshot shows has no
- * opening transition held, and its start is never made up: "Earlier" when
- * it began before the oldest event held (that time is the tooltip), else
- * "Unknown". `clock` gives the clock time a panel shows, "Before Sep 21,
- * 18:32" for a bound.
+ * When an alert began (A-31). A start that was not observed is never made
+ * up: an episode that opened on first sight (System began watching an entry
+ * already in a problem state) or a problem the snapshot shows with no
+ * opening transition held reads "Before Sep 22, 17:26", the time it is
+ * known to be older than (why is the tooltip), or "Unknown" with no bound.
+ * `seen`, for the overview's short column, says "Seen 7h ago" instead, and
+ * `note` adds why in words, for a panel.
  */
 export function AlertStart({
   alert,
   now,
   clock = false,
+  seen = false,
+  note = false,
 }: {
   alert: AlertTimes;
   now?: number;
+  /** The clock time, as a panel shows it. */
   clock?: boolean;
+  seen?: boolean;
+  note?: boolean;
 }) {
   if (alert.since)
     return clock ? (
@@ -549,18 +652,23 @@ export function AlertStart({
     ) : (
       <RelativeTime value={alert.since} now={now} />
     );
-  if (alert.startedBefore)
-    return clock ? (
-      <span className="ops-inline">
-        Before <ClockTime at={alert.startedBefore} now={now} />
+  const bound = alert.startedBefore;
+  if (bound && seen)
+    return (
+      <span className="workspace-time" title={boundTitle(alert, bound)}>
+        Seen <RelativeTime value={bound} now={now} />
+      </span>
+    );
+  if (bound)
+    return note ? (
+      <span className="ops-inline ops-start-bound">
+        <StartBound alert={alert} at={bound} now={now} />
+        <span className="ops-muted">
+          {alert.firstSeen ? "first seen" : "oldest event held"}
+        </span>
       </span>
     ) : (
-      <span
-        className="workspace-time"
-        title={`Before ${utcStamp(alert.startedBefore)}, the oldest event held`}
-      >
-        Earlier
-      </span>
+      <StartBound alert={alert} at={bound} now={now} />
     );
   return (
     <span className="workspace-time" title="Its start was not observed">
@@ -569,9 +677,9 @@ export function AlertStart({
   );
 }
 
-/** How long an alert has fired or lasted; at least since the oldest event
- * held for a problem whose start was not observed, and nothing when there
- * is no bound. */
+/** How long an alert has fired or lasted, from an observed start. A start
+ * that was not observed has no duration, not even a lower bound: it reads
+ * "Unknown" (A-31). */
 export function AlertFor({
   alert,
   now,
@@ -581,15 +689,25 @@ export function AlertFor({
   now?: number;
   serverNow: number;
 }) {
-  const from = alert.since ?? alert.startedBefore ?? null;
-  if (!from) return <span className="sr-only">Not recorded</span>;
+  if (!alert.since)
+    return (
+      <span
+        className="workspace-figure ops-muted"
+        title={
+          alert.startedBefore
+            ? boundTitle(alert, alert.startedBefore)
+            : "Its start was not observed"
+        }
+      >
+        Unknown
+      </span>
+    );
   return (
     <Lasted
-      from={from}
+      from={alert.since}
       to={alert.resolvedAt}
       now={now}
       serverNow={serverNow}
-      atLeast={!alert.since}
     />
   );
 }

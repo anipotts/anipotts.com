@@ -5,11 +5,16 @@ import {
   OPS_PROBLEM_STATES,
   deriveOpsAlerts,
   opsTransitionsFrom,
+  worse,
   type OpsAlert,
   type OpsEventLog,
 } from "../../lib/ops-events";
-import { opsDistinctNames } from "../../lib/ops-view";
-import { opsServices, type OpsSnapshot } from "../../lib/ops-v1";
+import { opsDetailText, opsDistinctNames } from "../../lib/ops-view";
+import {
+  opsServices,
+  type OpsServiceView,
+  type OpsSnapshot,
+} from "../../lib/ops-v1";
 import { SplitView, useSplitView } from "../astryx/SplitView";
 import {
   CELL_WIDTHS,
@@ -25,12 +30,14 @@ import {
   StateNotice,
   WorkspaceSection,
   leadWidth,
+  titleWidth,
   type Column,
 } from "../workspace/Workspace";
 import {
   DeviceTile,
   AlertFor,
   AlertStart,
+  alertStartText,
   EntryTile,
   OPS_WIDTHS,
   PastState,
@@ -96,11 +103,39 @@ function unopenedAlerts(
       since: null,
       startedBefore: changed.has(service.id) ? null : from,
       resolvedAt: null,
-      detail: service.status.detail,
+      detail: opsDetailText(service),
       incidents:
         (alerts.find((alert) => alert.subject === service.id)?.incidents ?? 0) +
         1,
     }));
+}
+
+/**
+ * A firing alert as the snapshot reads now (A-31). System writes a
+ * transition only when a state changes, so the opening transition's detail
+ * freezes ("disk 85% used") while the entry's own reading moves on ("disk
+ * 89% used"). While the snapshot shows the entry in a problem state, the
+ * alert takes that state and detail; the transitions keep their own in the
+ * entry's Changes. A resolved alert keeps what its episode said.
+ */
+function current(
+  alert: OpsAlert,
+  services: ReadonlyMap<string, OpsServiceView>,
+): OpsAlert {
+  if (alert.status !== "firing") return alert;
+  const service = services.get(alert.subject);
+  if (
+    !service ||
+    service.missingStatus ||
+    !OPS_PROBLEM_STATES.includes(service.status.state)
+  )
+    return alert;
+  return {
+    ...alert,
+    state: service.status.state,
+    peak: worse(alert.peak, service.status.state),
+    detail: opsDetailText(service),
+  };
 }
 
 /** Alerts with the catalog's name, kind and runbook, firing first: those
@@ -111,7 +146,15 @@ export function opsAlertRows(
 ): AlertRow[] {
   const catalog = catalogOf(snapshot);
   const names = opsDistinctNames(snapshot?.catalog ?? []);
-  const derived = deriveOpsAlerts(events?.transitions ?? []);
+  const services = new Map(
+    (snapshot ? opsServices(snapshot) : []).map((service) => [
+      service.id,
+      service,
+    ]),
+  );
+  const derived = deriveOpsAlerts(events?.transitions ?? []).map((alert) =>
+    current(alert, services),
+  );
   const unopened = unopenedAlerts(derived, events, snapshot);
   // One row per entry: a problem the snapshot shows replaces the entry's
   // last resolved episode.
@@ -168,6 +211,27 @@ function AlertState({ row }: { row: AlertRow }) {
  * keeps room for the longest one in either table (`names`), and the detail
  * takes the rest, giving way first. Below large the detail is line 2.
  */
+/** The Started column's width on the Alerts page: an age ("23h ago") by
+ * default, or the widest "Before Sep 22, 17:26" a row with an unobserved
+ * start reads, so that bound is never cut (A-31). Firing and Resolved share
+ * it, so their columns line up. */
+export function alertStartWidth(
+  rows: readonly OpsAlert[],
+  now: number = Date.now(),
+): number {
+  let widest = 0;
+  for (const row of rows) {
+    const text = alertStartText(row, now);
+    if (text) widest = Math.max(widest, titleWidth(text));
+  }
+  return widest
+    ? Math.max(OPS_WIDTHS.age, Math.ceil(START_CHROME + widest))
+    : OPS_WIDTHS.age;
+}
+
+/** A time cell's inset. */
+const START_CHROME = 24;
+
 export function AlertsTable({
   rows,
   resolved = false,
@@ -177,8 +241,12 @@ export function AlertsTable({
   selected,
   onSelect,
   names,
+  startWidth,
 }: {
   rows: AlertRow[];
+  /** The Started column's width (alertStartWidth), shared by the page's
+   * tables; this table's own rows' otherwise. */
+  startWidth?: number;
   /** Every name the page shows, so Firing and Resolved keep one name
    * column width and line up; the rows' own names otherwise. */
   names?: readonly string[];
@@ -202,8 +270,16 @@ export function AlertsTable({
   // overview's summary keeps the kit's widths, so its columns line up with
   // every other overview section.
   const widths = incidents
-    ? { state: OPS_WIDTHS.incident, time: OPS_WIDTHS.age }
-    : { state: CELL_WIDTHS.state, time: CELL_WIDTHS.time };
+    ? {
+        state: OPS_WIDTHS.incident,
+        time: OPS_WIDTHS.age,
+        start: startWidth ?? alertStartWidth(rows, clock),
+      }
+    : {
+        state: CELL_WIDTHS.state,
+        time: CELL_WIDTHS.time,
+        start: CELL_WIDTHS.time,
+      };
   const lead: Column<AlertRow> = {
     key: "alert",
     header: "Alert",
@@ -257,7 +333,7 @@ export function AlertsTable({
               </CompactOnly>
               {row.detail && (
                 <span className="ops-reason">
-                  <DetailText>{row.detail}</DetailText>
+                  <DetailText lines={2}>{row.detail}</DetailText>
                 </span>
               )}
             </>
@@ -269,11 +345,17 @@ export function AlertsTable({
           end={
             <>
               {incidents && !resolved ? (
-                <AlertFor alert={row} now={now} serverNow={clock} />
+                // How long it has fired; with no observed start, when it
+                // was seen.
+                row.since ? (
+                  <AlertFor alert={row} now={now} serverNow={clock} />
+                ) : (
+                  <AlertStart alert={row} now={now} seen />
+                )
               ) : resolved ? (
                 <RelativeTime value={row.resolvedAt} now={now} />
               ) : (
-                <AlertStart alert={row} now={now} />
+                <AlertStart alert={row} now={now} seen />
               )}
               <span className="ops-device-slot">
                 {naming.device && <DeviceTile device={row.host} />}
@@ -290,11 +372,18 @@ export function AlertsTable({
     width: widths.state,
     render: (row) => <AlertState row={row} />,
   };
+  // The short columns (the overview's, and the list beside a panel) say a
+  // bound as "Seen 7h ago", which an age's width cannot hold.
+  const bounded = rows.some((row) => !row.since && row.startedBefore);
   const since: Column<AlertRow> = {
     key: "since",
     header: full ? "Started" : "Since",
-    width: widths.time,
-    render: (row) => <AlertStart alert={row} now={now} />,
+    width: full
+      ? widths.start
+      : bounded
+        ? Math.max(widths.time, CELL_WIDTHS.time)
+        : widths.time,
+    render: (row) => <AlertStart alert={row} now={now} seen={!full} />,
   };
   const resolvedAt: Column<AlertRow> = {
     key: "resolved",
@@ -354,7 +443,7 @@ export function AlertsTable({
       reserve: leadRoom,
       hideBelow: "large",
       render: (row) =>
-        row.detail ? <DetailText>{row.detail}</DetailText> : null,
+        row.detail ? <DetailText lines={2}>{row.detail}</DetailText> : null,
     },
     {
       key: "runbook",
@@ -409,6 +498,7 @@ export function AlertsView({
       ),
     [rows],
   );
+  const startWidth = alertStartWidth(rows, data.fixedNow ?? data.serverNow);
   const firing = rows.filter((row) => row.status === "firing");
   const resolved = rows.filter((row) => row.status === "resolved");
   const current = selected
@@ -439,6 +529,7 @@ export function AlertsView({
                   <AlertsTable
                     rows={firing}
                     names={names}
+                    startWidth={startWidth}
                     incidents
                     now={data.fixedNow}
                     serverNow={data.serverNow}
@@ -461,6 +552,7 @@ export function AlertsView({
                   <AlertsTable
                     rows={resolved}
                     names={names}
+                    startWidth={startWidth}
                     resolved
                     incidents
                     now={data.fixedNow}
