@@ -4,14 +4,16 @@ Updated: 2026-09-22. Release completion evidence lives in [the site release revi
 
 ## Active surfaces
 
-| Surface            | Source                 | Role                                                                                         |
-| ------------------ | ---------------------- | -------------------------------------------------------------------------------------------- |
-| anipotts.com       | `apps/www`             | Public Astro pages served from the `anipotts-content` D1 store, newsletter endpoints         |
-| admin.anipotts.com | `apps/admin`           | Astro admin behind Cloudflare Access, editor, previews, operations state                     |
-| api.anipotts.com   | `workers/state`        | Links vault; a commits plane with no producer; a device relay with no key bound, so disabled |
-| Ingest             | `workers/ingest`       | Scheduled ingest and authenticated event receivers                                           |
-| Newsletter         | `workers/newsletter`   | Subscription and issue queue consumer                                                        |
-| Weekly email       | `workers/weekly-email` | Scheduled operational summary                                                                |
+| Surface            | Source                 | Role                                                                                 |
+| ------------------ | ---------------------- | ------------------------------------------------------------------------------------ |
+| anipotts.com       | `apps/www`             | Public Astro pages served from the `anipotts-content` D1 store, newsletter endpoints |
+| admin.anipotts.com | `apps/admin`           | Astro admin behind Cloudflare Access, editor, previews, operations state             |
+| api.anipotts.com   | `workers/state`        | Durable state and authenticated command relay                                        |
+| Ingest             | `workers/ingest`       | `brands_email` receiver for the Apps Script capture, no schedule                     |
+| Newsletter         | `workers/newsletter`   | Subscription and issue queue consumer                                                |
+| Weekly email       | `workers/weekly-email` | Retired in place: no schedule and no send, GET reports queue counts                  |
+
+`api.anipotts.com` holds the links vault today: its commits plane has no producer, and its command relay stays disabled while no device key is bound (ledger A-22).
 
 The legacy Solid app's source and deploy target are removed from this repo. Historical source is recoverable through Git; the cleanup does not delete any production worker or database, so its last deploy, the `anipotts-admin-solid` worker, still answers on `legacy-admin-solid.anipotts.com` with its own passkey page and an `anipotts-db` binding. Retiring that worker and its domain waits on Ani (ledger A-36.7). Active Astro route and authentication tests remain independent of retirement.
 
