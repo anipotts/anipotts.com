@@ -56,3 +56,29 @@
     padding-inline-start: calc(var(--spacing-7) + var(--spacing-3));
   }
 }
+
+/* A phone's line 2: the counts have their own slot that never gives way,
+   so a figure is whole ("4,468", never "4,"); the state chip and the counts
+   wrap as units, and the account names after them wrap onto the next line
+   instead of cutting a figure. */
+.data-workspace[data-view="sources"] .workspace-row-meta {
+  flex-wrap: wrap;
+  row-gap: var(--spacing-1);
+}
+.data-workspace[data-view="sources"] .workspace-row-detail {
+  flex: none;
+  flex-wrap: wrap;
+  row-gap: var(--spacing-1);
+  max-width: 100%;
+  overflow: visible;
+}
+.data-workspace[data-view="sources"] .data-figures,
+.data-workspace[data-view="sources"] .data-figures > span {
+  flex: none;
+  white-space: nowrap;
+}
+.data-workspace[data-view="sources"] .workspace-row-secondary {
+  flex: 1 1 8rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

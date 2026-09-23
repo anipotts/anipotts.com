@@ -213,9 +213,7 @@ function EntityList({
       key: "seen",
       header: "Last seen",
       width: CELL_WIDTHS.time,
-      render: (entity) => (
-        <RelativeTime value={entity.lastSeenAt} empty="Never" />
-      ),
+      render: (entity) => <RelativeTime value={entity.lastSeenAt} />,
     },
   ];
   let body: React.ReactNode;
