@@ -28,14 +28,35 @@ function wrangler(args, exec = execFileSync) {
   }
 }
 
-export function verifyEditorialVersion(deployment, version, expectedSha) {
+/** The version message the deploy step writes: the release and the schema
+ * version its build bakes in (PUBLIC_RELEASE_SCHEMA_VERSION), from the same
+ * release job output. */
+export function editorialVersionMessage(expectedSha, expectedSchema) {
+  return `release:${expectedSha} schema:${expectedSchema}`;
+}
+
+/** A-33: the editorial path cannot read admin's /api/health behind Access, so
+ * the active version's message carries the schema version, and a version
+ * deployed for another release or another schema fails the release. */
+export function verifyEditorialVersion(
+  deployment,
+  version,
+  expectedSha,
+  expectedSchema,
+) {
   if (
-    !/^[a-f0-9]{40}$/.test(expectedSha) ||
+    !/^[a-f0-9]{40}$/.test(expectedSha ?? "") ||
+    !/^\d{4}$/.test(expectedSchema ?? "") ||
     activeVersion(deployment) !== version.id ||
-    version.annotations?.["workers/message"] !== `release:${expectedSha}`
+    version.annotations?.["workers/message"] !==
+      editorialVersionMessage(expectedSha, expectedSchema)
   )
     throw new Error(identityMismatch);
-  return { version: version.id, release_sha: expectedSha };
+  return {
+    version: version.id,
+    release_sha: expectedSha,
+    schema_version: expectedSchema,
+  };
 }
 
 /** Provider metadata can lag an upload by a few seconds, and the Cloudflare API
@@ -44,12 +65,16 @@ export function verifyEditorialVersion(deployment, version, expectedSha) {
  */
 export async function verifyEditorialIdentity(
   expectedSha,
+  expectedSchema,
   {
     exec = execFileSync,
     sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   } = {},
 ) {
-  if (!/^[a-f0-9]{40}$/.test(expectedSha ?? ""))
+  if (
+    !/^[a-f0-9]{40}$/.test(expectedSha ?? "") ||
+    !/^\d{4}$/.test(expectedSchema ?? "")
+  )
     throw new Error(identityMismatch);
   for (let attempt = 0; ; attempt += 1) {
     try {
@@ -58,7 +83,12 @@ export async function verifyEditorialIdentity(
         ["versions", "view", activeVersion(deployment)],
         exec,
       );
-      return verifyEditorialVersion(deployment, version, expectedSha);
+      return verifyEditorialVersion(
+        deployment,
+        version,
+        expectedSha,
+        expectedSchema,
+      );
     } catch (error) {
       if (attempt >= identityRetryDelays.length) throw error;
       await sleep(identityRetryDelays[attempt]);
@@ -116,7 +146,10 @@ if (
     } else if (mode === "boundary") {
       console.log(JSON.stringify({ checks: await verifyEditorialBoundary() }));
     } else if (mode === "verify") {
-      const identity = await verifyEditorialIdentity(process.argv[3]);
+      const identity = await verifyEditorialIdentity(
+        process.argv[3],
+        process.argv[4],
+      );
       console.log(
         JSON.stringify({
           ...identity,
@@ -124,7 +157,9 @@ if (
         }),
       );
     } else
-      throw new Error("expected capture, boundary, or verify <release-sha>");
+      throw new Error(
+        "expected capture, boundary, or verify <release-sha> <schema-version>",
+      );
   } catch (error) {
     // Provider stderr may contain account information; report a bounded failure.
     console.error(error?.status ? providerFailure : error.message);

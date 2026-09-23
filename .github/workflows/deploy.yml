@@ -397,7 +397,10 @@ jobs:
         uses: cloudflare/wrangler-action@v4
         with:
           workingDirectory: apps/admin
-          command: deploy --message "release:${{ github.sha }}"
+          # The version message names the release and the schema version its
+          # build reports, so the editorial path, which cannot read admin's
+          # /api/health behind Access, still checks both (A-33).
+          command: deploy --message "release:${{ github.sha }} schema:${{ needs.release.outputs.database_schema_version }}"
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
@@ -449,7 +452,7 @@ jobs:
         if: needs.release.outputs.editorial_admin == 'true'
         id: editorial_smoke
         continue-on-error: true
-        run: node scripts/ci/editorial-release-smoke.mjs verify "${{ github.sha }}"
+        run: node scripts/ci/editorial-release-smoke.mjs verify "${{ github.sha }}" "${{ needs.release.outputs.database_schema_version }}"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

@@ -255,6 +255,30 @@ for (const job of ["deploy-www", "deploy-admin"]) {
   }
 }
 
+// A-33: the editorial admin path skips the /api/health smokes (Access has one
+// human owner), so the deployed version's message names the release's schema
+// and the editorial verify step compares it with the release job's output.
+{
+  const steps = deployJobs["deploy-admin"].steps;
+  const deploy = steps.find(
+    (step) => step.name === "Deploy to Cloudflare Workers",
+  );
+  assert.match(
+    deploy.with.command,
+    /--message "release:\$\{\{ github\.sha \}\} schema:\$\{\{ needs\.release\.outputs\.database_schema_version \}\}"$/,
+    "the admin version message must carry the release's schema version",
+  );
+  const verify = steps.find(
+    (step) => step.name === "Verify editorial release and owner boundary",
+  );
+  assert.ok(
+    verify.run.includes(
+      'editorial-release-smoke.mjs verify "${{ github.sha }}" "${{ needs.release.outputs.database_schema_version }}"',
+    ),
+    "the editorial verify step must expect the release job's schema version",
+  );
+}
+
 // A deploy job runs only after the release job succeeded. always() would let
 // admin deploy after a held migration, schema drift or a failed postcondition.
 for (const [name, job] of Object.entries(deployJobs)) {

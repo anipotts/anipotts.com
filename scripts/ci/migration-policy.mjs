@@ -146,8 +146,15 @@ function validateNewRecord(record, sql, file, bootstrap) {
 // under a verified ledger with automatic apply, which applies in the release
 // that adds it or stops that release. An approval record never auto-applies,
 // and it holds every record after it, so the version stays below it until a
-// reviewed manifest change moves it into historical, as 0043 was. A pinned
-// after-fingerprint travels with the last applied record.
+// reviewed manifest change moves it into historical, as 0043 was. The
+// fingerprint is known only where one was captured: a record's pinned
+// after-fingerprint when that record is the highest applied file, and the
+// bootstrap's when its baseline is. A historical file past the baseline (an
+// approval record recorded as history after it is applied) carries none, so
+// the schema then reads "unknown", never the baseline's fingerprint beside a
+// later version.
+export const UNKNOWN_FINGERPRINT = "unknown";
+
 function appliedSchema(manifest) {
   const autoApplies =
     manifest.bootstrap.status === "verified" &&
@@ -168,11 +175,16 @@ function appliedSchema(manifest) {
     .filter(Boolean)
     .sort()
     .at(-1);
-  const fingerprint =
+  const pinned =
     latest?.file === file &&
     /^sha256:[0-9a-f]{64}$/.test(latest.schema_fingerprint_after ?? "")
       ? latest.schema_fingerprint_after
-      : manifest.bootstrap.schema_fingerprint;
+      : null;
+  const fingerprint =
+    pinned ??
+    (file === manifest.bootstrap.baseline_through
+      ? manifest.bootstrap.schema_fingerprint
+      : UNKNOWN_FINGERPRINT);
   return { version: file.slice(0, 4), fingerprint };
 }
 

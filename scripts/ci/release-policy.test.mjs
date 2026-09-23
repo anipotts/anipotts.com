@@ -255,6 +255,32 @@ assert.equal(
   `sha256:${"4".repeat(64)}`,
 );
 
+// A-23: when the highest applied file is a historical one past the
+// baseline (an approval record recorded as history once applied), no
+// fingerprint was captured for it: the release reports "unknown", never
+// the baseline's fingerprint beside the later version.
+const historyAtHead = classifyRelease(cssOnly, {
+  ...base,
+  manifest: {
+    ...appliedManifest,
+    historical: [[heldApprovalFile, sha256(heldApprovalSql)]],
+    migrations: [appliedRecord],
+  },
+  files: [appliedFile, heldApprovalFile],
+  readFile: heldReadFile,
+});
+assert.equal(historyAtHead.database_schema_version, "0045");
+assert.equal(
+  historyAtHead.migration_schema_after,
+  "unknown",
+  "A-23: a historical head with no captured fingerprint reads unknown",
+);
+assert.equal(historyAtHead.migration_schema_before, "unknown");
+assert.notEqual(
+  historyAtHead.migration_schema_after,
+  appliedManifest.bootstrap.schema_fingerprint,
+);
+
 // A-23: without a verified ledger that applies automatic records, no record
 // applies on its own, so the version stays at the baseline.
 const unverifiedLedger = classifyRelease(cssOnly, {
