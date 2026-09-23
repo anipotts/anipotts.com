@@ -45,7 +45,9 @@ Public pages serve published records from the `anipotts-content` D1 store. `CONT
 
 The old database-first public readers, fallback datasets, Solid-only services and unused package exports are removed. The admin-control entrypoint is gone from `packages/lib`; Astro admin reads its own contracts, and root Drizzle tooling still consumes the database schema. Worker and runner implementations remain in their own active packages.
 
-Admin still binds `anipotts-db` as `DB` so the deploy applies its migrations, but no admin page reads it, and the runtime contract reports no feature for it. Health and Knowledge read the private reader instead; the `admin_knowledge_cards` table and migration 0041 stay in place, quarantined rather than dropped.
+Admin still binds `anipotts-db` as `DB` so the deploy applies its migrations, but no admin page reads it, and the runtime contract reports no feature for it. The `admin_knowledge_cards` table and migration 0041 stay in place, quarantined rather than dropped.
+
+Production sets `PRIVATE_READER_ENABLED` and `PRIVATE_READER_OPS_ENABLED`, and leaves `PRIVATE_READER_HEALTH_ENABLED` and `PRIVATE_READER_KNOWLEDGE_ENABLED` unset. So Records and Sources read the private reader, and Sources, Observability and the overview read the ops snapshot. Knowledge shows "Not built yet" and makes no request. Health makes no health request: it shows "No vitals collected", the last phone sync as "Not recorded" (System has no arrival marker yet), and, once System lists it, the `health.metrics` check from the ops snapshot. Each reads the private reader only behind its own flag, and enabling `PRIVATE_READER_HEALTH_ENABLED` (a new `health:read` credential) is an auth change for Ani to approve.
 
 ## Authentication and production boundaries
 
