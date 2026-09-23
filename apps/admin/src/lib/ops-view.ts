@@ -114,7 +114,10 @@ export type OpsTriggerFacts = {
   label: string;
   /** How often or when: "checks every 15m", "daily 04:30", "always
    * running". An interval is only how often launchd starts the job, which
-   * is not always its cadence, so it reads as a check. */
+   * is not always its cadence, so it reads as a check. A generic phrase
+   * ("always running", "when its files change") stands only where the
+   * catalog's schedule names no cadence of its own, so the trigger never
+   * says what the schedule contradicts. */
   cadence: string | null;
   /** launchd does not expose an interval job's timer, so its next run is
    * the last run plus the interval. */
@@ -206,12 +209,30 @@ export function opsNextRun(
   };
 }
 
+/** Whether a catalog schedule names a cadence, a period ("hourly", "every
+ * 15 min") or a clock time ("daily 04:30"), which a generic trigger phrase
+ * such as "always running" would contradict. "continuous" and "launchd"
+ * name none. */
+export function opsScheduleTimed(schedule: string | null): boolean {
+  if (!schedule) return false;
+  return (
+    opsSchedulePeriod(schedule) !== null ||
+    /\b\d{1,2}:\d{2}\b/.test(schedule) ||
+    /\b(?:hourly|daily|nightly|weekly|monthly)\b/i.test(schedule)
+  );
+}
+
 /** How launchd starts an entry, in words, or null when System names no
- * trigger. */
+ * trigger. The wording comes from the entry's kind and schedule: a job that
+ * launchd keeps alive (health.ingest, "when the phone pushes") runs when its
+ * schedule says, not always. */
 export function opsTriggerFacts(
-  entry: Pick<OpsCatalogEntry, "trigger" | "schedule">,
+  entry: Pick<OpsCatalogEntry, "trigger" | "schedule"> & {
+    kind?: string | null;
+  },
   status: Pick<OpsStatusRow, "interval_s">,
 ): OpsTriggerFacts | null {
+  const schedule = entry.schedule?.trim() || null;
   switch (entry.trigger) {
     case "interval":
       return {
@@ -219,27 +240,34 @@ export function opsTriggerFacts(
         cadence:
           status.interval_s !== null
             ? `checks every ${opsPeriodText(status.interval_s)}`
-            : entry.schedule,
+            : schedule,
         approximate: true,
       };
     case "calendar":
-      return { label: "Calendar", cadence: entry.schedule, approximate: false };
+      return { label: "Calendar", cadence: schedule, approximate: false };
     case "keepalive":
+      // A service kept alive runs always, unless its schedule names a
+      // cadence; a job kept alive runs when its schedule says.
       return {
         label: "Keepalive",
-        cadence: "always running",
+        cadence:
+          entry.kind === "service" && !opsScheduleTimed(schedule)
+            ? "always running"
+            : schedule,
         approximate: false,
       };
     case "watch":
       return {
         label: "Watch",
-        cadence: "when its files change",
+        cadence: opsScheduleTimed(schedule)
+          ? schedule
+          : "when its files change",
         approximate: false,
       };
     case "manual":
-      return { label: "Manual", cadence: entry.schedule, approximate: false };
+      return { label: "Manual", cadence: schedule, approximate: false };
     case "sampled":
-      return { label: "Sampled", cadence: entry.schedule, approximate: false };
+      return { label: "Sampled", cadence: schedule, approximate: false };
     default:
       return null;
   }
@@ -488,19 +516,35 @@ export function opsSyncRows(services: readonly OpsServiceView[]): OpsSyncRow[] {
     .map(({ index: _index, ...row }) => row);
 }
 
-/** A sync's freshness against its own budget. A null budget cannot be
- * judged, however old the last success or whether there is one; with a
- * budget and no success recorded, there is nothing to judge yet. */
-export type OpsSyncFreshness = "fresh" | "stale" | "unjudged" | "never";
+/**
+ * What a sync shows for its state (A-10). The row's own state comes first: a
+ * sync whose row is failing, degraded, stale, asleep or unknown shows that
+ * state whatever the age of its last success, an entry with no status row is
+ * unknown, and a restore never proven is Unverified. Only an ok row is judged
+ * against its own budget, fresh or stale; a null budget cannot be judged
+ * however old the last success, and an ok row with no success recorded has
+ * nothing to judge yet.
+ */
+export type OpsSyncState =
+  | { kind: "state"; state: Exclude<OpsState, "ok"> }
+  | { kind: "unverified" }
+  | { kind: "fresh" }
+  | { kind: "stale" }
+  | { kind: "unjudged" }
+  | { kind: "unrecorded" };
 
-export function opsSyncFreshness(
+export function opsSyncState(
   service: OpsServiceView,
   now: number,
-): OpsSyncFreshness {
-  if (service.freshness_budget_s === null) return "unjudged";
+): OpsSyncState {
+  if (service.missingStatus) return { kind: "state", state: "unknown" };
+  if (opsUnverified(service)) return { kind: "unverified" };
+  const { state } = service.status;
+  if (state !== "ok") return { kind: "state", state };
+  if (service.freshness_budget_s === null) return { kind: "unjudged" };
   const freshness = opsFreshness(service, now);
-  if (freshness.kind !== "budget") return "never";
-  return freshness.overBudget ? "stale" : "fresh";
+  if (freshness.kind !== "budget") return { kind: "unrecorded" };
+  return { kind: freshness.overBudget ? "stale" : "fresh" };
 }
 
 // Names

@@ -19,14 +19,17 @@ import {
   StateCell,
   StateNotice,
   WorkspaceSection,
+  leadWidth,
   type Column,
 } from "../workspace/Workspace";
 import {
   DeviceTile,
   EntryTile,
   Lasted,
+  OPS_WIDTHS,
   PastState,
   RunbookButton,
+  entryKeep,
   entryKind,
   entryNaming,
 } from "./cells";
@@ -42,6 +45,9 @@ const ALERTS_PATH = "/observability/alerts";
 
 export type AlertRow = OpsAlert & {
   name: string;
+  /** The end of `name` a title keeps whole: its host, when two entries
+   * share the name. */
+  keep?: string;
   kind: string | null;
   host: string | null;
   runbook: string | null;
@@ -59,6 +65,7 @@ export function opsAlertRows(
     return {
       ...alert,
       name: entry ? entryNaming(entry, names).name : alert.subject,
+      keep: entry ? entryKeep(entry, names) : undefined,
       kind: entry?.kind ?? null,
       host: entry?.host ?? null,
       runbook: entry?.runbook ?? null,
@@ -93,8 +100,10 @@ function AlertState({ row }: { row: AlertRow }) {
  * place); the runbook is the row's one action. Firing and Resolved share one
  * set of columns, so the two tables line up: the state (live for a firing
  * alert, "was failing" for a resolved one), when it started and resolved,
- * how long it lasted (live while it fires) and what System says. The detail
- * gives way before the alert's name, and drops to line 2 below large.
+ * how long it lasted (live while it fires) and what System says. Every
+ * column but the name and the detail is sized to what it holds; the name
+ * keeps room for the longest one in either table (`names`), and the detail
+ * takes the rest, giving way first. Below large the detail is line 2.
  */
 export function AlertsTable({
   rows,
@@ -104,8 +113,12 @@ export function AlertsTable({
   serverNow,
   selected,
   onSelect,
+  names,
 }: {
   rows: AlertRow[];
+  /** Every name the page shows, so Firing and Resolved keep one name
+   * column width and line up; the rows' own names otherwise. */
+  names?: readonly string[];
   resolved?: boolean;
   /** The Alerts page's incident columns; without it the summary the
    * overview shows (alert, state, since). */
@@ -121,6 +134,13 @@ export function AlertsTable({
   const beside = useSplitView();
   const narrow = beside && Boolean(selected);
   const full = incidents && !narrow;
+  const leadRoom = leadWidth(names ?? rows.map((row) => row.name));
+  // The incident tables size their state and times to what they hold; the
+  // overview's summary keeps the kit's widths, so its columns line up with
+  // every other overview section.
+  const widths = incidents
+    ? { state: OPS_WIDTHS.state, time: OPS_WIDTHS.age }
+    : { state: CELL_WIDTHS.state, time: CELL_WIDTHS.time };
   const lead: Column<AlertRow> = {
     key: "alert",
     header: "Alert",
@@ -144,6 +164,7 @@ export function AlertsTable({
             naming,
           )}
           title={row.name}
+          keep={row.keep}
           href={opsAlertHref(row.subject)}
           onSelect={
             onSelect ? (trigger) => onSelect(row.subject, trigger) : undefined
@@ -200,19 +221,19 @@ export function AlertsTable({
   const state: Column<AlertRow> = {
     key: "state",
     header: "State",
-    width: CELL_WIDTHS.state,
+    width: widths.state,
     render: (row) => <AlertState row={row} />,
   };
   const since: Column<AlertRow> = {
     key: "since",
     header: full ? "Started" : "Since",
-    width: CELL_WIDTHS.time,
+    width: widths.time,
     render: (row) => <RelativeTime value={row.since} now={now} />,
   };
   const resolvedAt: Column<AlertRow> = {
     key: "resolved",
     header: "Resolved",
-    width: CELL_WIDTHS.time,
+    width: widths.time,
     render: (row) =>
       row.resolvedAt ? (
         <RelativeTime value={row.resolvedAt} now={now} />
@@ -227,7 +248,7 @@ export function AlertsTable({
     {
       key: "device",
       header: <span className="sr-only">Device</span>,
-      width: CELL_WIDTHS.tile,
+      width: OPS_WIDTHS.tile,
       // Below large the tile leads line 2, so names keep the width.
       hideBelow: "large",
       render: (row) =>
@@ -246,7 +267,7 @@ export function AlertsTable({
     {
       key: "lasted",
       header: "Lasted",
-      width: CELL_WIDTHS.figure + 16,
+      width: OPS_WIDTHS.figure + 16,
       numeric: true,
       render: (row) => (
         <Lasted
@@ -260,7 +281,7 @@ export function AlertsTable({
     {
       key: "incidents",
       header: "Incidents",
-      width: CELL_WIDTHS.figure,
+      width: OPS_WIDTHS.figure + 16,
       numeric: true,
       hideBelow: "wide",
       render: (row) => <Figure value={row.incidents} />,
@@ -268,7 +289,8 @@ export function AlertsTable({
     {
       key: "detail",
       header: "Detail",
-      share: 0.4,
+      share: 0.6,
+      reserve: leadRoom,
       hideBelow: "large",
       render: (row) =>
         row.detail ? <DetailText>{row.detail}</DetailText> : null,
@@ -276,7 +298,7 @@ export function AlertsTable({
     {
       key: "runbook",
       header: <span className="sr-only">Runbook</span>,
-      width: CELL_WIDTHS.tile + 8,
+      width: OPS_WIDTHS.lastTile + 16,
       render: (row) =>
         row.runbook ? (
           <RunbookButton path={row.runbook} iconOnly name={row.name} />
@@ -285,15 +307,19 @@ export function AlertsTable({
   ]);
 
   function table(columns: Column<AlertRow>[]) {
+    // With the incident columns, a table too narrow to show its detail
+    // whole moves it to line 2 (observability-workspace.css).
     return (
-      <DataTable
-        rows={rows}
-        columns={columns}
-        rowKey="subject"
-        label={resolved ? "Resolved alerts" : "Firing alerts"}
-        noun={["alert", "alerts"]}
-        footer={false}
-      />
+      <div className={full ? "ops-alerts" : undefined}>
+        <DataTable
+          rows={rows}
+          columns={columns}
+          rowKey="subject"
+          label={resolved ? "Resolved alerts" : "Firing alerts"}
+          noun={["alert", "alerts"]}
+          footer={false}
+        />
+      </div>
     );
   }
 }
@@ -313,6 +339,7 @@ export function AlertsView({
     path: ALERTS_PATH,
     param: "alert",
   });
+  const names = useMemo(() => rows.map((row) => row.name), [rows]);
   const firing = rows.filter((row) => row.status === "firing");
   const resolved = rows.filter((row) => row.status === "resolved");
   const current = selected
@@ -342,6 +369,7 @@ export function AlertsView({
                 {firing.length ? (
                   <AlertsTable
                     rows={firing}
+                    names={names}
                     incidents
                     now={data.fixedNow}
                     serverNow={data.serverNow}
@@ -363,6 +391,7 @@ export function AlertsView({
                 >
                   <AlertsTable
                     rows={resolved}
+                    names={names}
                     resolved
                     incidents
                     now={data.fixedNow}

@@ -181,19 +181,31 @@ function MinuteAgo({ at, data }: { at: number; data: OpsData }) {
   return <span suppressHydrationWarning>{text}</span>;
 }
 
+/** Alerts have no rules behind them: System keeps no alert rules and sends
+ * no notification, so admin derives each alert from the state changes it
+ * reads (deriveOpsAlerts), and the page says so (A-31). */
+const ALERTS_SOURCE = "derived from state changes";
+export const OPS_ALERTS_SOURCE = sentenceCase(ALERTS_SOURCE);
+
 /** The page's one status line: whether it is live, and the age of what it
- * shows (the snapshot on Status, the newest event elsewhere). */
+ * shows (the snapshot on Status, the newest event elsewhere). Alerts lead
+ * with where they come from. */
 function opsMeta(data: OpsData, view: OpsView): React.ReactNode {
   if (view === "status" && data.stopped) return "Last known values";
   const at =
     view === "status"
       ? data.snapshot?.generated_at
       : latestEventAt(data.events);
-  if (!at) return undefined;
-  const what = view === "status" ? "generated" : "latest event";
-  const lead = data.fixtureMode
-    ? sentenceCase(what)
-    : `${data.current ? "Live" : "Not current"}, ${what}`;
+  const source = view === "alerts" ? ALERTS_SOURCE : null;
+  if (!at) return source ? OPS_ALERTS_SOURCE : undefined;
+  const what =
+    view === "status" ? "generated" : source ? "latest" : "latest event";
+  const parts = [
+    ...(data.fixtureMode ? [] : [data.current ? "live" : "not current"]),
+    ...(source ? [source] : []),
+    what,
+  ];
+  const lead = sentenceCase(parts.join(", "));
   return (
     <>
       {lead} <MinuteAgo at={Date.parse(at)} data={data} />
@@ -329,6 +341,21 @@ export function opsUnreadTitle(count: number): string {
   return `${count} ${count === 1 ? "event" : "events"} unreadable`;
 }
 
+/**
+ * Why the events on screen may be incomplete, or null when they are whole:
+ * none were read, the last read failed, or some were skipped as unreadable.
+ * A run history or change list says this instead of an empty state that
+ * would imply nothing ran or changed.
+ */
+export function opsEventsGap(
+  data: Pick<OpsData, "events" | "fixtureMode" | "state">,
+): string | null {
+  if (!data.events) return "No events read";
+  if (!data.fixtureMode && data.state.eventsStale) return "Events not current";
+  if (data.events.skipped > 0) return opsUnreadTitle(data.events.skipped);
+  return null;
+}
+
 /** Loading, shaped like what replaces it: the host line and the rows. */
 export function OpsSkeleton({ view }: { view: OpsView }) {
   return (
@@ -380,7 +407,8 @@ function DriftChip({ fields }: { fields: string[] }) {
 
 /** One quiet chip beside the drift chip while events were skipped as
  * unreadable: a skipped event may have been a change of state, so Activity,
- * Alerts and run history never read as complete while one is unread. */
+ * Alerts and Status, whose entries hold the run history, never read as
+ * complete while one is unread. */
 function UnreadChip({ count }: { count: number }) {
   if (!count) return null;
   return (
@@ -427,9 +455,7 @@ export function OpsPage({
           <>
             {data.fixtureMode && <SampleBadge from={["snapshot", "events"]} />}
             <DriftChip fields={opsUnknownFields(data)} />
-            {view !== "status" && (
-              <UnreadChip count={data.events?.skipped ?? 0} />
-            )}
+            <UnreadChip count={data.events?.skipped ?? 0} />
           </>
         }
         actions={actions}

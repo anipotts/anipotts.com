@@ -21,7 +21,7 @@ import {
   useOpsData,
   type OpsViewProps,
 } from "../astryx/ObservabilityWorkspace";
-import { opsUnreadTitle } from "../observability/frame";
+import { OPS_ALERTS_SOURCE, opsUnreadTitle } from "../observability/frame";
 import { UnverifiedBadge } from "../observability/cells";
 import { opsServices } from "../../lib/ops-v1";
 import { opsUnverified } from "../../lib/ops-view";
@@ -130,7 +130,11 @@ function FiringAlerts(props: OpsViewProps) {
       : undefined);
   if (!firing.length && !down && !unverified.length) return null;
   return (
-    <WorkspaceSection title="Alerts" href="/observability/alerts">
+    <WorkspaceSection
+      title="Alerts"
+      href="/observability/alerts"
+      meta={OPS_ALERTS_SOURCE}
+    >
       {down && (
         <StateNotice
           kind={down.kind}

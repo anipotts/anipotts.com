@@ -17,12 +17,13 @@ import {
   opsRunCount,
   opsRunHistory,
   opsRuns,
-  opsSyncFreshness,
+  opsSyncState,
   opsSyncRows,
   opsDistinctNames,
   opsNextRun,
   opsPeriodText,
   opsSchedulePeriod,
+  opsScheduleTimed,
   opsTriggerFacts,
   opsUnverified,
 } from "./ops-view";
@@ -223,7 +224,7 @@ describe("cadence and triggers", () => {
     });
     expect(
       opsTriggerFacts(
-        { trigger: "keepalive", schedule: null },
+        { trigger: "keepalive", schedule: null, kind: "service" },
         { interval_s: null },
       )?.cadence,
     ).toBe("always running");
@@ -233,6 +234,57 @@ describe("cadence and triggers", () => {
         { interval_s: null },
       ),
     ).toBeNull();
+  });
+
+  it("never words a trigger the schedule contradicts", () => {
+    const cadence = (
+      trigger: "keepalive" | "watch",
+      kind: string,
+      schedule: string | null,
+    ) => opsTriggerFacts({ trigger, schedule, kind }, { interval_s: null });
+    // health.ingest on the live catalog: a job launchd keeps alive that runs
+    // when the phone pushes, never "always running".
+    expect(cadence("keepalive", "job", "when the phone pushes")).toEqual({
+      label: "Keepalive",
+      cadence: "when the phone pushes",
+      approximate: false,
+    });
+    expect(cadence("keepalive", "job", null)?.cadence).toBeNull();
+    // A service kept alive runs always; "continuous" agrees with that, a
+    // cadence of its own does not.
+    expect(cadence("keepalive", "service", "continuous")?.cadence).toBe(
+      "always running",
+    );
+    expect(cadence("keepalive", "service", "daily 04:30")?.cadence).toBe(
+      "daily 04:30",
+    );
+    // A watched job runs when its files change, unless its schedule names a
+    // cadence; "launchd" names none.
+    expect(cadence("watch", "job", "launchd")?.cadence).toBe(
+      "when its files change",
+    );
+    expect(cadence("watch", "job", "every 15 min")?.cadence).toBe(
+      "every 15 min",
+    );
+  });
+
+  it("tells a schedule that names a cadence from one that does not", () => {
+    for (const timed of [
+      "hourly",
+      "every 15 min while awake",
+      "daily 04:00",
+      "nightly after 03:00",
+      "monthly",
+    ])
+      expect(opsScheduleTimed(timed)).toBe(true);
+    for (const untimed of [
+      null,
+      "",
+      "continuous",
+      "launchd",
+      "when the phone pushes",
+    ])
+      expect(opsScheduleTimed(untimed)).toBe(false);
   });
 
   it("never reads a restore drill that never ran as ok", () => {
@@ -449,16 +501,66 @@ describe("syncs", () => {
 
   it("judges freshness against each sync's own budget, never a null one", () => {
     const byId = new Map(services.map((service) => [service.id, service]));
-    expect(opsSyncFreshness(byId.get("pro.pc-send")!, now)).toBe("fresh");
-    expect(opsSyncFreshness(byId.get("pro.pc-send")!, now + 2 * 3600_000)).toBe(
-      "stale",
-    );
+    expect(opsSyncState(byId.get("pro.pc-send")!, now)).toEqual({
+      kind: "fresh",
+    });
+    expect(opsSyncState(byId.get("pro.pc-send")!, now + 2 * 3600_000)).toEqual({
+      kind: "stale",
+    });
     // A null budget is never stale, however old.
     expect(
-      opsSyncFreshness(byId.get("pro.whatsapp")!, now + 30 * 86_400_000),
-    ).toBe("unjudged");
-    // No status row and no budget: still not judged, never fresh.
-    expect(opsSyncFreshness(byId.get("pro.voicememos")!, now)).toBe("unjudged");
+      opsSyncState(byId.get("pro.whatsapp")!, now + 30 * 86_400_000),
+    ).toEqual({ kind: "unjudged" });
+  });
+
+  // A-10: a sync card honours its row's state before any age.
+  it("shows the row's own state whenever it is not ok, whatever the age", () => {
+    const pcSend = services.find((service) => service.id === "pro.pc-send")!;
+    const withState = (
+      state: OpsServiceView["status"]["state"],
+    ): OpsServiceView => ({ ...pcSend, status: { ...pcSend.status, state } });
+    // Inside its budget, where an age alone would read Fresh.
+    for (const state of [
+      "failing",
+      "degraded",
+      "asleep",
+      "unknown",
+      "stale",
+    ] as const)
+      expect(opsSyncState(withState(state), now)).toEqual({
+        kind: "state",
+        state,
+      });
+    expect(
+      opsSyncState(
+        { ...pcSend, status: { ...pcSend.status, detail: "never_run" } },
+        now,
+      ),
+    ).toEqual({ kind: "unverified" });
+  });
+
+  it("reads a budgeted sync with no status row as unknown, never as no success", () => {
+    const voiceMemos = services.find(
+      (service) => service.id === "pro.voicememos",
+    )!;
+    expect(voiceMemos.missingStatus).toBe(true);
+    expect(opsSyncState(voiceMemos, now)).toEqual({
+      kind: "state",
+      state: "unknown",
+    });
+    expect(
+      opsSyncState({ ...voiceMemos, freshness_budget_s: 3600 }, now),
+    ).toEqual({ kind: "state", state: "unknown" });
+  });
+
+  it("has nothing to judge on an ok row that records no success", () => {
+    const pcSend = services.find((service) => service.id === "pro.pc-send")!;
+    expect(
+      opsSyncState(
+        { ...pcSend, status: { ...pcSend.status, last_success_at: null } },
+        now,
+      ),
+    ).toEqual({ kind: "unrecorded" });
   });
 });
 

@@ -183,9 +183,11 @@
   max-width: 100%;
   min-width: 0;
 }
+/* 20rem holds an app's name and state on line 1 and its sync's device,
+   name and last success on line 2 whole. */
 .ops-syncs {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
   gap: var(--spacing-2);
 }
 .ops-card {
@@ -282,8 +284,14 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.ops-card-meta .workspace-time {
+.ops-card-where {
+  flex: 0 1 auto;
+}
+/* A card's second line is supporting text, its "Not recorded" included. */
+.ops-card-meta .workspace-time:not(#\#) {
   color: inherit;
+  font-size: inherit;
+  line-height: inherit;
 }
 /* A fact on a card: a muted glyph and its value. */
 .ops-fact {
@@ -371,6 +379,27 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
 .ops-chip-count {
   color: inherit;
 }
+.ops-chip-glyph {
+  display: none;
+  flex: none;
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+}
+/* Phones: the pipe glyph for the word, named still for assistive
+   technology. */
+@media (max-width: 640px) {
+  .ops-chip-glyph {
+    display: block;
+  }
+  .ops-chip-label:not(#\#) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
 .observability-workspace
   .workspace-table[data-interactive="false"]
   tbody
@@ -397,6 +426,23 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
    (styles/admin-interactions.css). */
 .ops-menu-count {
   color: var(--color-text-secondary);
+}
+
+/* An incident table too narrow to show its detail whole (a large window
+   beside the rail) carries the detail as line 2, as medium does, and drops
+   the column, so neither a detail nor a name is cut. The table frame is the
+   size container. */
+@container (max-width: 1000px) {
+  .ops-alerts [data-column="detail"] {
+    display: none;
+  }
+  .ops-alerts
+    .workspace-row-meta[data-below="large"][data-compact-only="true"] {
+    display: flex;
+  }
+  .ops-alerts .workspace-row-meta[data-below="large"] > .workspace-row-detail {
+    display: inline-flex;
+  }
 }
 
 /* The open row keeps a quiet tint, apart from the focus tint. */
@@ -463,6 +509,13 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
   gap: var(--spacing-2);
   margin: 0;
   min-height: var(--spacing-9);
+}
+/* Events a list may be missing: muted words, the glyph in warning ink. */
+.ops-panel-gap {
+  color: var(--color-text-secondary);
+}
+.ops-panel-gap > .ops-inline-glyph {
+  color: var(--color-text-orange, var(--color-text-warning, currentColor));
 }
 /* Runs, changes and incidents: one line each, the time, the result, then a
    figure or a detail that gives way first. */

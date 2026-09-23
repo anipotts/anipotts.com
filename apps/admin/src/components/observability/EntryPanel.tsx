@@ -8,6 +8,7 @@ import {
   BellSimpleRingingIcon,
   PulseIcon,
   RepeatIcon,
+  WarningCircleIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import { opsFreshness, opsIsHost, type OpsServiceView } from "../../lib/ops-v1";
@@ -50,7 +51,7 @@ import {
   TriggerText,
   entryNaming,
 } from "./cells";
-import type { OpsData } from "./frame";
+import { opsEventsGap, type OpsData } from "./frame";
 import { opsSelectionHref } from "./selection";
 
 /** Changes and runs a panel lists, newest first. */
@@ -104,6 +105,7 @@ export function EntryPanel({
     ? alert.status === "firing"
     : incidents[0]?.status === "firing";
   const runbook = service?.runbook ?? alert?.runbook ?? null;
+  const gap = opsEventsGap(data);
   return (
     <SplitPanel
       ref={panelRef}
@@ -166,7 +168,7 @@ export function EntryPanel({
           )}
         </HStack>
         {!alert && service && !opsIsHost(service) && (
-          <RunHistory service={service} data={data} />
+          <RunHistory service={service} data={data} gap={gap} />
         )}
         {alert && incidents.length > 1 && (
           <PanelSection title="Incidents">
@@ -195,10 +197,13 @@ export function EntryPanel({
           </PanelSection>
         )}
         <PanelSection title="Changes">
+          {gap && <EventsGap text={gap} />}
           {transitions.length ? (
             <ChangeList events={transitions} now={now} label={name} />
           ) : (
-            <p className="ops-muted ops-panel-empty">No changes recorded</p>
+            !gap && (
+              <p className="ops-muted ops-panel-empty">No changes recorded</p>
+            )
           )}
         </PanelSection>
         <TechnicalSection
@@ -423,14 +428,33 @@ function IncidentFacts({ alert, data }: { alert: OpsAlert; data: OpsData }) {
   );
 }
 
+/** Events the panel's lists may be missing (opsEventsGap), as one quiet
+ * line where an empty list would otherwise read as nothing happened. */
+function EventsGap({ text }: { text: string }) {
+  return (
+    <p className="ops-inline ops-panel-empty ops-panel-gap">
+      <WarningCircleIcon
+        weight="regular"
+        aria-hidden="true"
+        className="ops-inline-glyph"
+      />
+      {text}
+    </p>
+  );
+}
+
 /** A job's recent runs from System's run events. A job that runs more often
- * than every 15 minutes has none recorded, so it says how often it runs. */
+ * than every 15 minutes has none recorded, so it says how often it runs.
+ * When the events are not whole, the list says so, and never reads "No runs
+ * recorded" for runs it could not read. */
 function RunHistory({
   service,
   data,
+  gap,
 }: {
   service: OpsServiceView;
   data: OpsData;
+  gap: string | null;
 }) {
   const runs = useMemo(
     () => opsRunHistory(data.events?.runs ?? [], service.id, PANEL_ROWS),
@@ -450,24 +474,33 @@ function RunHistory({
           {sentenceCase(`runs ${opsCadenceText(interval)}`)}
         </p>
       ) : runs.length ? (
-        <ol className="ops-list" aria-label={`${service.name} runs`}>
-          {runs.map((run) => (
-            <li key={run.key} className="ops-list-item">
-              <ClockTime at={run.at} now={now} />
-              <span className="ops-list-state">
-                <RunResult exit={run.exit} trigger={service.trigger} labelled />
-                {run.runs > 1 && (
-                  <span className="ops-muted workspace-figure">
-                    {run.runs} runs
-                  </span>
-                )}
-              </span>
-              <span className="ops-list-figure">
-                <Duration ms={run.ms} />
-              </span>
-            </li>
-          ))}
-        </ol>
+        <>
+          {gap && <EventsGap text={gap} />}
+          <ol className="ops-list" aria-label={`${service.name} runs`}>
+            {runs.map((run) => (
+              <li key={run.key} className="ops-list-item">
+                <ClockTime at={run.at} now={now} />
+                <span className="ops-list-state">
+                  <RunResult
+                    exit={run.exit}
+                    trigger={service.trigger}
+                    labelled
+                  />
+                  {run.runs > 1 && (
+                    <span className="ops-muted workspace-figure">
+                      {run.runs} runs
+                    </span>
+                  )}
+                </span>
+                <span className="ops-list-figure">
+                  <Duration ms={run.ms} />
+                </span>
+              </li>
+            ))}
+          </ol>
+        </>
+      ) : gap ? (
+        <EventsGap text={gap} />
       ) : (
         <p className="ops-muted ops-panel-empty">No runs recorded</p>
       )}

@@ -21,9 +21,10 @@ import {
 import {
   opsHostFacts,
   opsUnverified,
-  opsSyncFreshness,
+  opsSyncState,
   opsSyncRows,
   type OpsSyncRow,
+  type OpsSyncState,
 } from "../../lib/ops-view";
 import {
   HEALTH_METRICS_ID,
@@ -47,8 +48,10 @@ import {
   StateBadge,
   StateCell,
   StateNotice,
+  TitleText,
   WorkspaceSection,
   badgeFor,
+  leadWidth,
   type Column,
 } from "../workspace/Workspace";
 import { secondsText } from "../workspace/format";
@@ -61,7 +64,9 @@ import {
   TriggerMark,
   entryKind,
   entryNaming,
+  OPS_WIDTHS,
   UnverifiedBadge,
+  entryKeep,
 } from "./cells";
 import { EntryPanel, OPS_PANEL_ID } from "./EntryPanel";
 import { OpsPage, type OpsData } from "./frame";
@@ -139,13 +144,22 @@ function Reason({ service }: { service: OpsServiceView }) {
 /**
  * The Status columns. Beside an open panel the list keeps only the service,
  * its state, its last success and its next run, so nothing scrolls sideways.
+ * The service column keeps room for its longest name (`leadRoom`); the detail
+ * shares what is left and gives way first, its full text on hover.
  */
 function statusColumns(
   {
     narrow,
     now,
     names,
-  }: { narrow: boolean; now?: number; names: ReadonlyMap<string, string> },
+    leadRoom,
+  }: {
+    narrow: boolean;
+    now?: number;
+    names: ReadonlyMap<string, string>;
+    /** What the service column needs for its longest name (leadWidth). */
+    leadRoom: number;
+  },
   select: Select,
 ): Column<Row>[] {
   const lead: Column<Row> = {
@@ -159,6 +173,7 @@ function statusColumns(
           mark={<EntryTile naming={naming} />}
           kind={entryKind(row, naming)}
           title={naming.name}
+          keep={entryKeep(row, names)}
           anchorId={opsEntryAnchor(row.id)}
           href={opsEntryHref(row.id)}
           onSelect={(trigger) => select.open(row.id, trigger)}
@@ -189,7 +204,7 @@ function statusColumns(
   const state: Column<Row> = {
     key: "state",
     header: "State",
-    width: CELL_WIDTHS.state,
+    width: OPS_WIDTHS.state,
     render: (row) => <EntryState service={row} cell />,
   };
   const lastSuccess: Column<Row> = {
@@ -211,7 +226,7 @@ function statusColumns(
     {
       key: "device",
       header: <span className="sr-only">Device</span>,
-      width: CELL_WIDTHS.tile,
+      width: OPS_WIDTHS.tile,
       render: (row) =>
         entryNaming(row).device ? <DeviceTile device={row.host} /> : null,
     },
@@ -219,6 +234,8 @@ function statusColumns(
     {
       key: "detail",
       header: "Detail",
+      share: 0.5,
+      reserve: leadRoom,
       hideBelow: "large",
       render: (row) => <Reason service={row} />,
     },
@@ -238,7 +255,7 @@ function statusColumns(
     {
       key: "duration",
       header: "Took",
-      width: CELL_WIDTHS.figure,
+      width: OPS_WIDTHS.figure,
       numeric: true,
       hideBelow: "wide",
       render: (row) => <Duration seconds={row.status.last_duration_s} />,
@@ -247,7 +264,7 @@ function statusColumns(
     {
       key: "runs",
       header: "Runs",
-      width: CELL_WIDTHS.figure,
+      width: OPS_WIDTHS.figure,
       numeric: true,
       hideBelow: "wide",
       render: (row) => <Figure value={row.status.runs} />,
@@ -255,7 +272,7 @@ function statusColumns(
     {
       key: "trigger",
       header: <span className="sr-only">Trigger</span>,
-      width: CELL_WIDTHS.tile,
+      width: OPS_WIDTHS.lastTile,
       hideBelow: "large",
       render: (row) => <TriggerMark entry={row} status={row.status} />,
     },
@@ -324,6 +341,7 @@ function Card({
   id,
   tile,
   title,
+  keep,
   state,
   meta,
   end,
@@ -334,6 +352,8 @@ function Card({
   id: string;
   tile: React.ReactNode;
   title: string;
+  /** The end of `title` that stays whole (TitleText). */
+  keep?: string;
   state: React.ReactNode;
   meta: React.ReactNode;
   end?: React.ReactNode;
@@ -366,7 +386,7 @@ function Card({
         <span className="ops-card-tile">{tile}</span>
         <span className="ops-card-body">
           <span className="ops-card-line">
-            <span className="ops-card-title">{title}</span>
+            <TitleText title={title} keep={keep} className="ops-card-title" />
             <span className="ops-card-state">{state}</span>
           </span>
           <span className="ops-card-line ops-card-meta">
@@ -477,42 +497,66 @@ function HostStrip({
   );
 }
 
-/** A sync's freshness against its own budget: a quiet dot when fresh, the
- * Stale chip over it, and a neutral mark when System gives no budget. */
-function SyncFreshness({
+type SyncKey =
+  | `state:${Extract<OpsSyncState, { kind: "state" }>["state"]}`
+  | Exclude<OpsSyncState["kind"], "state">;
+
+/** A sync's state (opsSyncState): the row's own state chip whenever it is
+ * not ok, so a failing or asleep sync never reads fresh; for an ok row, a
+ * quiet dot when fresh and the Stale chip over its budget; a neutral mark
+ * when System gives no budget or records no success. */
+function SyncState({
   service,
   now,
 }: {
   service: OpsServiceView;
   now?: number;
 }) {
-  const freshness = useLiveText(
-    (live) => opsSyncFreshness(service, live),
+  // One string per judgement, so the card re-renders only when it changes.
+  const key = useLiveText(
+    (live) => {
+      const judged = opsSyncState(service, live);
+      return judged.kind === "state" ? `state:${judged.state}` : judged.kind;
+    },
     Date.now(),
     now,
-  );
-  if (freshness === "fresh" || freshness === "stale")
-    return <StateCell domain="freshness" state={freshness} />;
+  ) as SyncKey;
+  if (key === "unverified") return <UnverifiedBadge />;
+  if (key.startsWith("state:"))
+    return <StateCell domain="ops" state={key.slice("state:".length)} />;
+  if (key === "fresh" || key === "stale")
+    return <StateCell domain="freshness" state={key} />;
   // Without a budget System judges liveness only, so freshness is not
   // judged here either: the mark says so rather than reading as fresh.
-  const label = freshness === "never" ? "No success yet" : "No budget";
+  const unjudged = key === "unjudged";
   return (
     <span
       className="ops-unjudged"
       title={
-        freshness === "never"
-          ? "System has recorded no success"
-          : "System gives this sync no freshness budget"
+        unjudged
+          ? "System gives this sync no freshness budget"
+          : "System has recorded no success for this sync"
       }
     >
       <CircleDashedIcon weight="regular" aria-hidden="true" />
-      {label}
+      {unjudged ? "No budget" : "Not recorded"}
     </span>
   );
 }
 
-/** Every synced app with its app tile, the sync that carries it, its last
- * success and its freshness against that sync's own budget. */
+/** Where a sync runs, as its device tile and a name. */
+function SyncWhere({ device, name }: { device: string | null; name: string }) {
+  return (
+    <span className="ops-fact ops-card-where">
+      {device && <DeviceTile device={device} />}
+      <span className="ops-card-detail">{name}</span>
+    </span>
+  );
+}
+
+/** Every synced app with its app tile and its state on line 1, then the
+ * sync that carries it (its device tile and name) and its last success on
+ * line 2, judged against that sync's own budget. */
 function SyncGrid({
   rows,
   now,
@@ -529,69 +573,67 @@ function SyncGrid({
     <WorkspaceSection title="Syncs" meta={String(rows.length)}>
       <ul className="ops-cards ops-syncs" aria-label="Syncs">
         {rows.map((row) => {
-          const naming = entryNaming(row.service, names);
-          const budget = row.service.freshness_budget_s;
+          const { service } = row;
+          const naming = entryNaming(service, names);
+          // The device tile names the host, so a name two Macs share drops
+          // its ", ap-mini" beside it; the tooltip keeps the full name.
+          const bare = entryNaming(service);
+          const device = naming.device ? service.host : null;
+          const budget = service.freshness_budget_s;
           const budgetText =
             budget === null
               ? "No freshness budget"
               : `Budget ${secondsText(budget)}`;
+          const state = <SyncState service={service} now={now} />;
           if (row.app === null)
             // A multi-app pass: its own job, in job words, with no app mark
             // borrowing its freshness.
             return (
               <Card
                 key={row.key}
-                id={row.service.id}
+                id={service.id}
                 select={select}
                 tile={<EntryTile naming={naming} size={28} />}
                 title={naming.name}
-                tooltip={`${naming.name}\n${budgetText}\n${row.service.id}`}
-                state={
+                keep={entryKeep(service, names)}
+                tooltip={`${naming.name}\n${budgetText}\n${service.id}`}
+                state={state}
+                meta={
+                  device ? (
+                    <SyncWhere device={device} name={deviceName(device)} />
+                  ) : undefined
+                }
+                end={
                   <span className="ops-inline">
                     Last pass
                     <LastSuccess
-                      service={row.service}
+                      service={service}
                       now={now}
                       empty="Not recorded"
                     />
                   </span>
                 }
-                meta={
-                  naming.device ? (
-                    <span className="ops-fact">
-                      <DeviceTile device={row.service.host} />
-                      <span className="ops-card-detail">
-                        {deviceName(row.service.host)}
-                      </span>
-                    </span>
-                  ) : undefined
-                }
-                end={<SyncFreshness service={row.service} now={now} />}
               />
             );
           const app = brandMark(row.app)?.label ?? sentenceCase(row.app);
           return (
             <Card
               key={row.key}
-              id={row.service.id}
+              id={service.id}
               select={select}
               tile={<BrandTile id={row.app} size={28} />}
               title={app}
-              tooltip={`${app} via ${naming.name}\n${budgetText}\n${row.service.id}`}
-              state={
-                <LastSuccess
-                  service={row.service}
-                  now={now}
-                  empty="Not recorded"
+              tooltip={`${app} via ${naming.name}\n${budgetText}\n${service.id}`}
+              state={state}
+              meta={
+                <SyncWhere
+                  device={device}
+                  name={device ? bare.name : naming.name}
                 />
               }
-              meta={
-                <span className="ops-fact">
-                  {naming.device && <DeviceTile device={row.service.host} />}
-                  <span className="ops-card-detail">{naming.name}</span>
-                </span>
+              end={
+                <LastSuccess service={service} now={now} empty="Not recorded" />
               }
-              end={<SyncFreshness service={row.service} now={now} />}
             />
           );
         })}
@@ -647,7 +689,16 @@ function StatusList({
   const hosts = services.filter(opsIsHost);
   const rows = services.filter((service) => !opsIsHost(service)) as Row[];
   const syncs = useMemo(() => opsSyncRows(services), [services]);
-  const columns = statusColumns({ narrow, now, names }, select);
+  const leadRoom = useMemo(
+    () =>
+      leadWidth(
+        services
+          .filter((service) => !opsIsHost(service))
+          .map((service) => entryNaming(service, names).name),
+      ),
+    [services, names],
+  );
+  const columns = statusColumns({ narrow, now, names, leadRoom }, select);
   useAnchorLanding(services.length > 0);
   return (
     <VStack gap={6}>

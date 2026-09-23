@@ -5,7 +5,11 @@ import {
   DropdownMenuRadioItem,
 } from "@astryxdesign/core/DropdownMenu";
 import { VStack } from "@astryxdesign/core/VStack";
-import { BroadcastIcon, ListBulletsIcon } from "@phosphor-icons/react";
+import {
+  BroadcastIcon,
+  ListBulletsIcon,
+  PipeIcon,
+} from "@phosphor-icons/react";
 import {
   humanize,
   opsActivitySource,
@@ -37,6 +41,7 @@ import {
   HourTime,
   HttpStatus,
   RunResult,
+  entryKeep,
   entryKind,
   entryNaming,
   routeMark,
@@ -276,6 +281,7 @@ function activityColumns(
                   : `Change, ${entry ? entryKind(entry, naming) : "not in the catalog"}`
             }
             title={entry ? naming.name : latest.subject}
+            keep={entry ? entryKeep(entry, names) : undefined}
             href={entry ? opsEntryHref(entry.id) : undefined}
           />
         );
@@ -349,7 +355,14 @@ function PlumbingChip({
       }
       onClick={onToggle}
     >
-      <span>Polling</span>
+      {/* On phones the pipe stands for the word, so the chip and the source
+          menu fit beside the clock's line. */}
+      <PipeIcon
+        weight="regular"
+        aria-hidden="true"
+        className="ops-chip-glyph"
+      />
+      <span className="ops-chip-label">Polling</span>
       <span className="workspace-figure ops-chip-count">{count}</span>
     </button>
   );

@@ -297,16 +297,18 @@ describe("Status view from System's fixture", () => {
     expect(host.innerHTML).not.toMatch(/ArrowSquareOut|workspace-row-reveal/);
   });
 
-  it("lists every synced app with its tile and freshness against its own budget", () => {
+  it("lists every synced app with its tile and its row's own state (A-10)", () => {
     const syncs = host.querySelector('ul[aria-label="Syncs"]')!;
-    // The sample carries one sync: Apple Health, with no budget.
+    // The sample carries one sync: Apple Health, with no budget, on a row
+    // System reports unknown ("file missing"): the card says Unknown, never
+    // a freshness it cannot have.
     expect(syncs.querySelectorAll("li")).toHaveLength(1);
     expect(syncs.querySelector(".brand-tile")?.getAttribute("data-mark")).toBe(
       "applehealth",
     );
     expect(syncs.textContent).toContain("Apple Health");
-    expect(syncs.textContent).toContain("No budget");
-    expect(syncs.textContent).not.toMatch(/Fresh|Stale/);
+    expect(syncs.textContent).toContain("Unknown");
+    expect(syncs.textContent).not.toMatch(/Fresh|Stale|No budget/);
     expect(syncs.querySelector("a")?.getAttribute("href")).toBe(
       "/observability/status?entry=health.ingest",
     );
@@ -735,6 +737,69 @@ describe("an entry's panel", () => {
     expect(facts(panel).Detail).toBeUndefined();
     expect(panel.textContent).not.toContain("Runs every");
     expect(panel.querySelector('ol[aria-label$="runs"]')).toBeNull();
+  });
+
+  it("words a pushed job's trigger from its schedule, never always running", () => {
+    // health.ingest: a job launchd keeps alive that runs when the phone
+    // pushes. The schedule says when; the trigger names only the mechanism.
+    const panel = open("health.ingest").querySelector("#ops-entry-detail")!;
+    expect(facts(panel)).toMatchObject({
+      Schedule: "when the phone pushes",
+      Trigger: "Keepalive",
+    });
+    expect(panel.textContent).not.toContain("always running");
+    // A service kept alive does run always.
+    expect(
+      facts(open("pc.reader").querySelector("#ops-entry-detail")!).Trigger,
+    ).toBe("Keepalive, always running");
+  });
+
+  it("says events were unreadable instead of an empty run history", () => {
+    const items = (events as { items: Array<Json> }).items;
+    const unreadable = {
+      ...events,
+      // Only the probe and one malformed item: nothing for pc.writer reads.
+      items: [
+        ...items.filter((item) => item.subject !== "pc.writer"),
+        { ...items.at(-1)!, seq: 9_999, at: "yesterday" },
+      ],
+    };
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(
+      <ObservabilityWorkspace
+        view="status"
+        entry="pc.writer"
+        enabled={false}
+        fixture={sample}
+        eventsFixture={unreadable}
+        now={NOW}
+      />,
+    );
+    const panel = host.querySelector("#ops-entry-detail")!;
+    expect(panel.textContent).toContain("1 event unreadable");
+    expect(panel.textContent).not.toContain("No runs recorded");
+    expect(panel.textContent).not.toContain("No changes recorded");
+    // Status names it beside its title too, where the history lives.
+    expect(
+      host.querySelector(".workspace-page-header .ops-unread")?.textContent,
+    ).toContain("1 event unreadable");
+  });
+
+  it("says no events were read rather than that nothing ran", () => {
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(
+      <ObservabilityWorkspace
+        view="status"
+        entry="pc.writer"
+        enabled={false}
+        fixture={sample}
+        eventsFixture={{ version: "ops_events_v1", items: "broken" }}
+        now={NOW}
+      />,
+    );
+    const panel = host.querySelector("#ops-entry-detail")!;
+    expect(panel.textContent).toContain("No events read");
+    expect(panel.textContent).not.toMatch(/No (runs|changes) recorded/);
   });
 
   it("opens nothing for an id outside the catalog or a malformed one", () => {
@@ -1321,6 +1386,13 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
       expect(page.querySelector('[role="alert"]')).toBeNull();
     }
     expect(view("alerts").textContent).not.toContain("unreadable");
+  });
+
+  // A-31: System keeps no alert rules and sends no notification.
+  it("says alerts are derived from state changes, never rules on mini", () => {
+    const host = view("alerts");
+    expect(meta(host)).toMatch(/^Derived from state changes, latest /);
+    expect(host.textContent).not.toMatch(/\brules?\b|notif/i);
   });
 
   it("splits alerts into Firing and Resolved incidents, each row opening in admin", () => {

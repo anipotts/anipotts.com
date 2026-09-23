@@ -43,6 +43,7 @@ import { useLiveText } from "../../lib/live-clock";
 import { sentenceCase } from "../../lib/sentence-case";
 import { BrandTile, type BrandTileSize } from "../BrandTile";
 import {
+  CELL_WIDTHS,
   DueTime,
   RelativeTime,
   StateBadge,
@@ -58,6 +59,23 @@ import { clockText, durationText, secondsText } from "../workspace/format";
  * a kit column (components/workspace) at its CELL_WIDTHS width.
  */
 
+/**
+ * Observability's column widths, cell inset included, sized to what its
+ * cells hold rather than to the kit's widest (CELL_WIDTHS), so the room goes
+ * to names: a state chip no wider than "Unverified" or a past state such as
+ * "was degraded" (91px), a 20px tile, a figure such as "1m 24s" or "8,612",
+ * and an incident's age, which is always a relative one ("23h ago").
+ */
+export const OPS_WIDTHS = {
+  state: 116,
+  tile: 44,
+  /** A 20px tile as the last column, whose end inset is 16px. */
+  lastTile: 48,
+  figure: 72,
+  age: 88,
+  time: CELL_WIDTHS.time,
+} as const;
+
 type Entry = Pick<OpsCatalogEntry, "id" | "name"> & {
   kind?: string | null;
   host?: string | null;
@@ -72,6 +90,17 @@ export function entryNaming(
   const naming = opsNaming(entry);
   const name = names?.get(entry.id);
   return name ? { ...naming, name } : naming;
+}
+
+/** The host an entry's shown name ends with when two entries share its
+ * name (opsDistinctNames), which a title keeps whole; otherwise undefined. */
+export function entryKeep(
+  entry: Entry,
+  names?: ReadonlyMap<string, string>,
+): string | undefined {
+  const name = names?.get(entry.id);
+  const keep = `, ${deviceName(entry.host)}`;
+  return name?.endsWith(keep) ? keep : undefined;
 }
 
 /** What an entry's tile stands for, for its tooltip. */
@@ -166,7 +195,7 @@ export function TriggerMark({
   entry,
   status,
 }: {
-  entry: Pick<OpsCatalogEntry, "trigger" | "schedule">;
+  entry: Pick<OpsCatalogEntry, "trigger" | "schedule" | "kind">;
   status: OpsServiceView["status"];
 }) {
   const facts = opsTriggerFacts(entry, status);
@@ -180,21 +209,26 @@ export function TriggerMark({
   );
 }
 
-/** A trigger in words, for a panel: its glyph, label and cadence. */
+/** A trigger in words, for a panel: its glyph, label and cadence. A cadence
+ * that is the schedule itself is left to the Schedule row above it. */
 export function TriggerText({
   entry,
   status,
 }: {
-  entry: Pick<OpsCatalogEntry, "trigger" | "schedule">;
+  entry: Pick<OpsCatalogEntry, "trigger" | "schedule" | "kind">;
   status: OpsServiceView["status"];
 }) {
   const facts = opsTriggerFacts(entry, status);
   if (!facts || !entry.trigger) return null;
   const Glyph = TRIGGER_GLYPHS[entry.trigger];
+  const cadence =
+    facts.cadence && facts.cadence !== entry.schedule?.trim()
+      ? facts.cadence
+      : null;
   return (
     <span className="ops-inline">
       <Glyph weight="regular" aria-hidden="true" className="ops-inline-glyph" />
-      {facts.cadence ? `${facts.label}, ${facts.cadence}` : facts.label}
+      {cadence ? `${facts.label}, ${cadence}` : facts.label}
     </span>
   );
 }
