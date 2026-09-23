@@ -513,6 +513,13 @@ function declaredRuntimeNames(text: string): Declared {
       declared.secret.push(...secretComment[1].split(/,\s*|\s+and\s+/));
       continue;
     }
+    // A comment naming one secret in prose, as the reader key's does:
+    // "# The reader signing key is the PRIVATE_READER_SIGNING_KEY secret."
+    const namedSecret = /^# .*\bthe ([A-Z][A-Z0-9_]+) secret\.$/.exec(line);
+    if (namedSecret) {
+      declared.secret.push(namedSecret[1]!);
+      continue;
+    }
     if (!line || line.startsWith("#")) continue;
     const header = /^\[{1,2}([^\]]+)\]{1,2}$/.exec(line);
     if (header) {
@@ -658,7 +665,7 @@ describe("admin wrangler.toml runtime contract drift", () => {
 
   it("flags the reader flags deployed on without their signing key", () => {
     const unsigned = wrangler.replace(
-      /^# Secrets: PRIVATE_READER_SIGNING_KEY\.$/m,
+      /^# The reader signing key is the PRIVATE_READER_SIGNING_KEY secret\.$/m,
       "",
     );
     expect(unsigned).not.toBe(wrangler);
