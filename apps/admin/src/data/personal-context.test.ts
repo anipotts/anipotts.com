@@ -70,6 +70,60 @@ describe("Data read boundary", () => {
       vi.useRealTimers();
     }
   });
+  const statusData = {
+    database: { exists: true },
+    ingestion: {},
+    wiki: {},
+  };
+  const wait = (ms: number) =>
+    new Promise<void>((resolve) => setTimeout(resolve, ms));
+  it("A-26: holds the reader's deadline while admin renews the credential", async () => {
+    vi.useFakeTimers();
+    try {
+      // Each hop is inside 5 s; together they are not.
+      const pending = readPersonalContext(
+        { method: "status" },
+        {
+          scope: "agent",
+          read: async (_path, _signal, hold) => {
+            await wait(3000);
+            await hold!(() => wait(4000));
+            await wait(3000);
+            return statusData;
+          },
+        },
+      );
+      await vi.advanceTimersByTimeAsync(11_000);
+      expect((await pending).state).toBe("ready");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("A-26: names admin's issuance when a renewal outlasts its own deadline", async () => {
+    vi.useFakeTimers();
+    let signal: AbortSignal | undefined;
+    try {
+      const pending = readPersonalContext(
+        { method: "status" },
+        {
+          scope: "agent",
+          read: async (_path, input, hold) => {
+            signal = input;
+            await hold!(() => new Promise(() => {}));
+            return statusData;
+          },
+        },
+      );
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(await pending).toMatchObject({
+        state: "unavailable",
+        hop: "unissued",
+      });
+      expect(signal?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it("rejects incomplete success responses and oversized payloads", async () => {
     for (const data of [{}, { body: "x".repeat(1024 * 1024) }]) {
       expect(

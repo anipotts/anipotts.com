@@ -32,6 +32,7 @@ import {
   type OpsTrigger,
 } from "../../lib/ops-v1";
 import { opsNextRun, opsTriggerFacts, opsUnverified } from "../../lib/ops-view";
+import type { OpsAlert } from "../../lib/ops-events";
 import {
   deviceName,
   hostDevice,
@@ -481,17 +482,21 @@ export function HourTime({ at, now }: { at: string; now?: number }) {
   );
 }
 
-/** How long something has lasted, live until it ends: "1h 24m". */
+/** How long something has lasted, live until it ends: "1h 24m". With
+ * `atLeast` the start is only a bound (the oldest event held), so it reads
+ * "1h 24m+". */
 export function Lasted({
   from,
   to,
   now,
   serverNow,
+  atLeast = false,
 }: {
   from: string;
   to?: string | null;
   now?: number;
   serverNow: number;
+  atLeast?: boolean;
 }) {
   const start = Date.parse(from);
   const end = to ? Date.parse(to) : null;
@@ -503,10 +508,89 @@ export function Lasted({
   return (
     <span
       className="workspace-figure workspace-duration"
+      title={
+        atLeast
+          ? "At least this long: it began before the oldest event held"
+          : undefined
+      }
       suppressHydrationWarning
     >
       {text}
+      {atLeast && text && "+"}
     </span>
+  );
+}
+
+/** A UTC stamp for a tooltip: "2026-09-21 18:32 UTC". */
+const utcStamp = (at: string) =>
+  `${new Date(Date.parse(at)).toISOString().slice(0, 16).replace("T", " ")} UTC`;
+
+type AlertTimes = Pick<OpsAlert, "since" | "startedBefore" | "resolvedAt">;
+
+/**
+ * When an alert began (A-31). A problem only the snapshot shows has no
+ * opening transition held, and its start is never made up: "Earlier" when
+ * it began before the oldest event held (that time is the tooltip), else
+ * "Unknown". `clock` gives the clock time a panel shows, "Before Sep 21,
+ * 18:32" for a bound.
+ */
+export function AlertStart({
+  alert,
+  now,
+  clock = false,
+}: {
+  alert: AlertTimes;
+  now?: number;
+  clock?: boolean;
+}) {
+  if (alert.since)
+    return clock ? (
+      <ClockTime at={alert.since} now={now} />
+    ) : (
+      <RelativeTime value={alert.since} now={now} />
+    );
+  if (alert.startedBefore)
+    return clock ? (
+      <span className="ops-inline">
+        Before <ClockTime at={alert.startedBefore} now={now} />
+      </span>
+    ) : (
+      <span
+        className="workspace-time"
+        title={`Before ${utcStamp(alert.startedBefore)}, the oldest event held`}
+      >
+        Earlier
+      </span>
+    );
+  return (
+    <span className="workspace-time" title="Its start was not observed">
+      Unknown
+    </span>
+  );
+}
+
+/** How long an alert has fired or lasted; at least since the oldest event
+ * held for a problem whose start was not observed, and nothing when there
+ * is no bound. */
+export function AlertFor({
+  alert,
+  now,
+  serverNow,
+}: {
+  alert: AlertTimes;
+  now?: number;
+  serverNow: number;
+}) {
+  const from = alert.since ?? alert.startedBefore ?? null;
+  if (!from) return <span className="sr-only">Not recorded</span>;
+  return (
+    <Lasted
+      from={from}
+      to={alert.resolvedAt}
+      now={now}
+      serverNow={serverNow}
+      atLeast={!alert.since}
+    />
   );
 }
 

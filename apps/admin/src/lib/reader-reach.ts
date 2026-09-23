@@ -29,6 +29,15 @@ export const READER_HOP_TITLES: Record<ReaderHop, string> = {
   reader: "Reader unavailable",
 };
 
+/** Admin's credential issuance gave no answer within its own deadline:
+ * `unissued`, and nothing was sent to ap-mini on it. */
+export class IssuanceTimeoutError extends Error {
+  constructor() {
+    super("credential issuance timed out");
+    this.name = "IssuanceTimeoutError";
+  }
+}
+
 /** A reader request that got no reply, and which hop the browser can name. */
 export class ReaderNoReplyError extends Error {
   readonly hop: Extract<

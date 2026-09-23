@@ -81,17 +81,45 @@ describe("the health.metrics check, judged by its row (A-9)", () => {
     });
     expect(
       healthMetricsCheck(withMetrics({ detail: "missing:steps" }), false),
-    ).toEqual({ kind: "missing", metrics: ["steps"] });
+    ).toEqual({ kind: "missing", metrics: ["steps"], state: "ok" });
     expect(
       healthMetricsCheck(
         withMetrics({ state: "degraded", detail: "missing:steps,weight" }),
         false,
       ),
-    ).toEqual({ kind: "missing", metrics: ["steps", "weight"] });
+    ).toEqual({
+      kind: "missing",
+      metrics: ["steps", "weight"],
+      state: "degraded",
+    });
   });
 
-  it.each(["stale", "failing", "unknown", "asleep"] as const)(
-    "never reads a %s row's last ok as ok",
+  // A-9: failing is a check that ran and found a problem, so every expected
+  // metric missing reads as the list, never "Not checked".
+  it("A-9: shows the missing list on a failing row, with its state", () => {
+    expect(
+      healthMetricsCheck(
+        withMetrics({
+          state: "failing",
+          detail: "missing:steps,distance,flights,active_energy",
+        }),
+        false,
+      ),
+    ).toEqual({
+      kind: "missing",
+      metrics: ["steps", "distance", "flights", "active_energy"],
+      state: "failing",
+    });
+    expect(
+      healthMetricsCheck(
+        withMetrics({ state: "failing", detail: "ok" }),
+        false,
+      ),
+    ).toEqual({ kind: "not_checked" });
+  });
+
+  it.each(["stale", "unknown", "asleep"] as const)(
+    "never reads a %s row's last answer as current",
     (state) => {
       expect(
         healthMetricsCheck(withMetrics({ state, detail: "ok" }), false),

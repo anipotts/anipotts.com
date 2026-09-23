@@ -45,6 +45,7 @@ import {
   RowTitle,
   StateBadge,
   StateNotice,
+  titleWidth,
   type Column,
   type Tone,
 } from "../workspace/Workspace";
@@ -271,7 +272,9 @@ function FamilyTitle({
             className="workspace-row-end"
           >
             <Device id={row.device} />
-            {row.lastSync && <RelativeTime value={row.lastSync} />}
+            {row.lastSeen && (
+              <RelativeTime value={row.lastSeen} label="Last seen" />
+            )}
           </Text>
         </div>
         <div className="workspace-row-meta">
@@ -317,8 +320,16 @@ function SourceTitle({ row, family }: { row: SourceRow; family?: string }) {
       tooltip={row.tooltip}
       href={href}
       linkLabel={`${label} records`}
-      end={row.device ? <Device id={row.device} /> : undefined}
-      time={row.lastSync}
+      end={
+        row.device || row.lastSeen ? (
+          <>
+            <Device id={row.device} />
+            {row.lastSeen && (
+              <RelativeTime value={row.lastSeen} label="Last seen" />
+            )}
+          </>
+        ) : undefined
+      }
       mobile={
         STATES[row.state].quiet && row.group === "discovered"
           ? undefined
@@ -359,6 +370,51 @@ function JobStates({
     );
   }, [snapshot, stopped, onJobs]);
   return null;
+}
+
+/** A time column's cell: nothing for a source whose time is withdrawn
+ * (excluded) or that was never connected (discovered), else the time or
+ * "Not recorded". */
+function timeCell(row: SourceRow, value: string | null, label: string) {
+  if (row.group === "excluded")
+    return <span className="sr-only">Withdrawn</span>;
+  if (row.group === "discovered" && !value)
+    return <span className="sr-only">Not connected</span>;
+  return <RelativeTime value={value} empty="Not recorded" label={label} />;
+}
+
+/** A family's count and caret beside its name (sources.css). */
+const FAMILY_CHROME = 40;
+/** Line 2 is supporting text, 12px beside the title's 14px. */
+const SECONDARY_SCALE = 12 / 14;
+/** An account's indent under its family (sources.css). */
+const ACCOUNT_INDENT = 36;
+
+/**
+ * The widest the Source column's content runs: a name with its tile, a
+ * family's count and caret, an open family's indented accounts, and line 2
+ * (a family's accounts, a source's newest record). The column takes no
+ * more, and the figures after it share the rest, so a table of short names
+ * has no dead middle (the kit's `max` and `spread`).
+ */
+export function sourceLeadMax(rows: readonly SourceRow[]): number {
+  const widths = rows.flatMap((row) => {
+    const own =
+      titleWidth(row.name) + (row.kind === "family" ? FAMILY_CHROME : 0);
+    const line =
+      row.kind === "family"
+        ? row.accounts.map((account) => account.name).join(", ")
+        : (foundText(row) ?? (row.newest ? "Newest record 00d ago" : ""));
+    return [
+      own,
+      titleWidth(line) * SECONDARY_SCALE,
+      ...row.accounts.map(
+        (account) => ACCOUNT_INDENT + titleWidth(account.name),
+      ),
+    ];
+  });
+  // The lead's inset, tile and gaps around its text, as leadWidth counts.
+  return Math.min(480, Math.max(160, Math.ceil(64 + Math.max(0, ...widths))));
 }
 
 /** Every family and source, with each open family's accounts under it. */
@@ -447,10 +503,14 @@ export function SourcesExplorer({
   const anyDevice = rows.some(
     (row) => row.device || row.accounts.some((account) => account.device),
   );
+  const anySync = rows.some(
+    (row) => row.lastSync || row.accounts.some((account) => account.lastSync),
+  );
   const columns: Column<TableRow>[] = [
     {
       key: "source",
       header: "Source",
+      max: sourceLeadMax(rows),
       render: (row) =>
         row.kind === "family" ? (
           <FamilyTitle
@@ -484,6 +544,7 @@ export function SourcesExplorer({
       header: "Records",
       width: CELL_WIDTHS.figure,
       numeric: true,
+      spread: true,
       render: (row) => <Figure value={showsCounts(row) ? row.records : null} />,
     },
     {
@@ -493,24 +554,34 @@ export function SourcesExplorer({
       width: CELL_WIDTHS.time,
       numeric: true,
       hideBelow: "large",
+      spread: true,
       render: (row) => (
         <Figure value={showsCounts(row) ? row.revisions : null} />
       ),
     },
+    // "Last sync" is System's own success time for the source, and shows
+    // only once System serves one; "Last seen" is when the newest record
+    // was observed, never a sync. No time System did not record: an
+    // excluded source's is withdrawn (its last observation can be the
+    // exclusion itself, S-20), a discovered one was never connected.
+    ...(anySync
+      ? [
+          {
+            key: "sync",
+            header: "Last sync",
+            width: CELL_WIDTHS.time,
+            render: (row: TableRow) => timeCell(row, row.lastSync, "Last sync"),
+          },
+        ]
+      : []),
     {
       key: "last",
-      header: "Last sync",
+      header: "Last seen",
       width: CELL_WIDTHS.time,
-      // No time System did not record: an excluded source's is withdrawn, a
-      // discovered one was never connected, anything else is not recorded.
-      render: (row) =>
-        row.group === "excluded" ? (
-          <span className="sr-only">Withdrawn</span>
-        ) : row.group === "discovered" && !row.lastSync ? (
-          <span className="sr-only">Not connected</span>
-        ) : (
-          <RelativeTime value={row.lastSync} empty="Not recorded" />
-        ),
+      // Beside a Last sync column it waits for the width of large, so a
+      // tablet's names keep their room.
+      ...(anySync ? { hideBelow: "large" as const } : {}),
+      render: (row) => timeCell(row, row.lastSeen, "Last seen"),
     },
   ];
   return (

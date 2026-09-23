@@ -79,6 +79,8 @@ describe("the one overview", () => {
 
   it("names a restore that was never proven, so it never reads all clear", () => {
     const value = structuredClone(snapshot) as Record<string, any>;
+    // Every entry ok, so only the drill can keep the section.
+    for (const row of value.status) Object.assign(row, { state: "ok" });
     value.catalog.push({
       ...value.catalog[1],
       id: "backup.restore-drill",
@@ -106,6 +108,25 @@ describe("the one overview", () => {
       "/observability/status?entry=backup.restore-drill",
     );
     expect(host.querySelector('table[aria-label="Firing alerts"]')).toBeNull();
+  });
+
+  // A-31: a problem the snapshot shows with no opening transition in the
+  // events held (older than System's 35 days, or not read yet) still fires.
+  it("A-31: lists a snapshot problem with no transition as firing, its start unknown", () => {
+    const quiet = { ...events, items: [] };
+    const host = render({ fixture: snapshot, eventsFixture: quiet });
+    const table = host.querySelector('table[aria-label="Firing alerts"]')!;
+    const text = table.textContent ?? "";
+    // pc.inference is failing in System's sample.
+    expect(
+      [...table.querySelectorAll("a.workspace-row-link")]
+        .map((link) => link.getAttribute("title"))
+        .join(" "),
+    ).toContain("pc.inference");
+    expect(text).toContain("Failing");
+    // No event is held, so no start is made up.
+    expect(text).toContain("Unknown");
+    expect(text).not.toMatch(/\d+[smhd] ago/);
   });
 
   it("links every section heading to its page, and nothing says View all", () => {
@@ -206,14 +227,23 @@ describe("the one overview", () => {
     for (let i = 0; i < 10; i++)
       await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
     const table = host.querySelector('table[aria-label="Recent records"]')!;
+    // No recent record has a state to show, so the column holds the tier
+    // glyphs under an assistive heading, never an empty "State" over them.
+    const heads = [...table.querySelectorAll("thead th")];
+    expect(heads.map((th) => th.textContent)).toEqual([
+      "Record",
+      "Source",
+      "Tier",
+      "Occurred",
+    ]);
+    expect(heads[2]!.querySelector(".sr-only")).not.toBeNull();
     expect(
-      [...table.querySelectorAll("thead th")].map((th) => th.textContent),
-    ).toEqual(["Record", "Source", "State", "Occurred"]);
+      heads.slice(-2).map((th) => (th as HTMLElement).style.width),
+    ).toEqual(["56px", "116px"]);
     expect(
-      [...table.querySelectorAll("thead th")]
-        .slice(-2)
-        .map((th) => (th as HTMLElement).style.width),
-    ).toEqual(["144px", "116px"]);
+      table.querySelectorAll('tbody td[data-column="state"] .workspace-tier')
+        .length,
+    ).toBe(table.querySelectorAll("tbody tr").length);
     // System's order: newest occurred date first, as stored text.
     const titles = [...table.querySelectorAll("tbody tr")].map(
       (row) => row.querySelector(".workspace-row-title")?.textContent,

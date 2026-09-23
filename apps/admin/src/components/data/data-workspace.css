@@ -299,6 +299,16 @@
   flex-direction: column;
   gap: var(--spacing-1);
 }
+/* The record page's first line: the way back, then the clock at the line's
+   end, where every workspace page keeps it. */
+.data-record-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  align-self: stretch;
+  min-width: 0;
+}
 .data-record[data-split="false"] .data-record-action {
   margin-inline-start: calc(-1 * var(--spacing-2));
 }

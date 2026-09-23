@@ -43,7 +43,9 @@
  * (RelativeTime, DueTime), figures and durations (`numeric`, right-aligned in
  * tabular figures) and a lone tile such as a device, whose header is for
  * assistive technology only. A cell's text never wraps and ends in an
- * ellipsis.
+ * ellipsis. A table with no flexible detail column and short names caps its
+ * lead at its widest content (`max`) and spreads the rest over its figure
+ * columns (`spread`), so there is no dead middle either.
  * Grouped rows take `groupBy` and a `groupLabel` (DayLabel for activity);
  * `foldGroup` names the group that sits last and starts folded, such as
  * sources that were never connected.
@@ -510,6 +512,13 @@ export type Column<T> = {
   /** With `share`: the least the column keeps even when the lead's reserve
    * would take it, for cells that must never be cut (a row of chips). */
   min?: number;
+  /** On the lead, in a table with no shared column: the most it takes, its
+   * widest content (leadWidth). The width past it goes evenly to the
+   * `spread` columns, so a short-named table has no dead middle. */
+  max?: number;
+  /** With a fixed `width`: the column also takes an even part of the width
+   * the lead leaves past its `max`. */
+  spread?: boolean;
   align?: "start" | "end";
   /** Figures: right-aligned, header included, in tabular numerals. */
   numeric?: boolean;
@@ -630,6 +639,29 @@ export function leadWidth(
   return Math.min(max, Math.max(min, width));
 }
 
+/** How many `spread` columns each range shows, for their even part. */
+function tableSpreadCounts<T>(
+  columns: readonly Column<T>[],
+): Record<Breakpoint, number> {
+  return Object.fromEntries(
+    BREAKPOINTS.map((range) => [
+      range,
+      shownIn(columns, range).filter((column) => column.spread).length,
+    ]),
+  ) as Record<Breakpoint, number>;
+}
+
+/** A spread column's width: its own, and an even part of what the lead
+ * leaves past `leadMax` in the range (the frame is a size container, and
+ * the range's fixed columns, spread ones included, are
+ * --workspace-table-fixed). */
+function spreadWidth(width: number, leadMax: number): React.CSSProperties {
+  const extra = `max(0px, 100cqw - var(--workspace-table-fixed, 0px) - ${leadMax}px)`;
+  // Header cells carry max-width 0, so the width is the minimum too.
+  const spread = `calc(${width}px + ${extra} / var(--workspace-table-spread, 1))`;
+  return { width: spread, minWidth: spread };
+}
+
 /** What each range's fixed columns take, for a flexible column's `share`. */
 function tableFixedWidths<T>(
   columns: readonly Column<T>[],
@@ -719,11 +751,14 @@ export function DataTable<T extends Record<string, unknown>>({
   const shape = columns
     .map(
       (column) =>
-        `${column.key}:${column.width}:${column.share}:${column.reserve}:${column.min}:${column.hideBelow}:${column.numeric}`,
+        `${column.key}:${column.width}:${column.share}:${column.reserve}:${column.min}:${column.max}:${column.spread}:${column.hideBelow}:${column.numeric}`,
     )
     .join(",");
   const plugin = useMemo((): TablePlugin<T> => {
     const byKey = new Map(columns.map((column) => [column.key, column]));
+    const leadMax = columns.find(
+      (column) => column.width === undefined && column.max !== undefined,
+    )?.max;
     const hiding = (key: string) => {
       const column = byKey.get(key);
       return {
@@ -774,7 +809,8 @@ export function DataTable<T extends Record<string, unknown>>({
             }
           : props,
       transformHeaderCell: (props, column) => {
-        const { width, share, reserve, min } = byKey.get(column.key) ?? {};
+        const { width, share, reserve, min, spread } =
+          byKey.get(column.key) ?? {};
         return {
           ...props,
           htmlProps: {
@@ -783,7 +819,9 @@ export function DataTable<T extends Record<string, unknown>>({
             style: {
               ...props.htmlProps.style,
               ...(width !== undefined
-                ? { width, minWidth: width }
+                ? spread && leadMax !== undefined
+                  ? spreadWidth(width, leadMax)
+                  : { width, minWidth: width }
                 : share !== undefined
                   ? shareWidth(share, reserve, min)
                   : { width: "auto", minWidth: FLEX_MIN_WIDTH }),
@@ -823,14 +861,21 @@ export function DataTable<T extends Record<string, unknown>>({
       )
     : rows;
   const minimum = tableMinWidths(columns);
-  const fixed = columns.some((column) => column.share !== undefined)
-    ? tableFixedWidths(columns)
+  const spreads = columns.some((column) => column.spread)
+    ? tableSpreadCounts(columns)
     : null;
+  const fixed =
+    spreads || columns.some((column) => column.share !== undefined)
+      ? tableFixedWidths(columns)
+      : null;
   const frameStyle = Object.fromEntries(
     BREAKPOINTS.flatMap((range) => [
       [`--workspace-table-min-${range}`, `${minimum[range]}px`],
       ...(fixed
         ? [[`--workspace-table-fixed-${range}`, `${fixed[range]}px`]]
+        : []),
+      ...(spreads
+        ? [[`--workspace-table-spread-${range}`, String(spreads[range] || 1)]]
         : []),
     ]),
   ) as React.CSSProperties;
@@ -934,20 +979,29 @@ function withGroupRows<T extends Record<string, unknown>>(
   return out;
 }
 
-/** A title that ends in an ellipsis, keeping `keep` (its end) whole. */
+/** Where a title's kept end is said by a tile beside it instead: at every
+ * width, or on phones only. */
+export type KeepHidden = "always" | "compact";
+
+/** A title that ends in an ellipsis, keeping `keep` (its end) whole. With
+ * `keepHidden`, the row's own device tile already names what the end says
+ * (", ap-mini"), so there the end is for assistive technology only and the
+ * name stands whole beside the tile. */
 export function TitleText({
   title,
   keep,
+  keepHidden,
   className = "workspace-row-title",
 }: {
   title: string;
   keep?: string;
+  keepHidden?: KeepHidden;
   className?: string;
 }) {
   if (!keep || !title.endsWith(keep) || keep === title)
     return <span className={className}>{title}</span>;
   return (
-    <span className={className} data-keep="">
+    <span className={className} data-keep="" data-keep-hidden={keepHidden}>
       <span className="workspace-title-base">
         {title.slice(0, -keep.length)}
       </span>
@@ -972,6 +1026,7 @@ export function RowTitle({
   kind,
   title,
   keep,
+  keepHidden,
   href,
   onSelect,
   isPressed,
@@ -994,6 +1049,9 @@ export function RowTitle({
   /** The end of `title` that never truncates, such as ", ap-mini" on a name
    * two hosts share: the rest of the title gives way first. */
   keep?: string;
+  /** Where the row's own device tile names the host, so `keep` is for
+   * assistive technology only (TitleText). */
+  keepHidden?: KeepHidden;
   /** The row's destination. The whole row opens it; the link itself wraps
    * only the title text. */
   href?: string;
@@ -1038,7 +1096,7 @@ export function RowTitle({
         onSelect(event.currentTarget);
       }
     : undefined;
-  const label = <TitleText title={title} keep={keep} />;
+  const label = <TitleText title={title} keep={keep} keepHidden={keepHidden} />;
   const trailing = (end != null || time != null) && (
     <Text type="supporting" color="secondary" className="workspace-row-end">
       {end}
@@ -1851,24 +1909,41 @@ export function SampleBadge({
   );
 }
 
+/** A capture's moment in Eastern Time, as the page's clock reads. */
+const EASTERN_STAMP = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+/** "Sep 22, 2:01 PM ET", assembled from its parts: engines join the date
+ * and the time differently (WebKit writes "Sep 22 at 2:01 PM"), and the
+ * server's text must be the browser's. */
+function easternStamp(ms: number): string {
+  const part = Object.fromEntries(
+    EASTERN_STAMP.formatToParts(ms).map((item) => [item.type, item.value]),
+  );
+  return `${part.month} ${part.day}, ${part.hour}:${part.minute} ${part.dayPeriod} ET`;
+}
+
 function ReplayBadge({ capturedAt }: { capturedAt: string | null }) {
   const at = Date.parse(capturedAt ?? "");
-  // The capture's age on the real clock, never on a fixture's own clock.
-  const age = useLiveText(
-    (now) => (Number.isFinite(at) ? relativeAgo(at, now, "minute") : ""),
-    Date.now(),
-  );
+  // A replay's page runs its clock from the capture's own moment, so an age
+  // measured on the real clock would disagree with the clock beside it: the
+  // capture reads as the Eastern moment it was taken.
+  const stamp = Number.isFinite(at) ? easternStamp(at) : "";
   return (
     <span
       className="workspace-fixture"
       data-fixture="replay"
       title={capturedAt ? `Captured ${capturedAt}` : undefined}
-      suppressHydrationWarning
     >
       <Token
         size="sm"
         color="default"
-        label={age ? `Replay, captured ${age}` : "Replay"}
+        label={stamp ? `Replay, captured ${stamp}` : "Replay"}
         className="workspace-sample"
         icon={
           <ClockCounterClockwiseIcon
@@ -2131,7 +2206,11 @@ export function CompactTimeline({
   // With a current entry, every entry keeps the dot's slot so titles align.
   const marked = items.some((item) => item.current);
   return (
-    <ol className="workspace-timeline" aria-label={label}>
+    <ol
+      className="workspace-timeline"
+      aria-label={label}
+      data-marked={marked ? "true" : "false"}
+    >
       {items.map((item) => {
         const ms =
           typeof item.at === "number" ? item.at : Date.parse(item.at ?? "");

@@ -375,6 +375,16 @@ export const SYNCED_APPS = {
  */
 export const SYNC_JOBS: readonly string[] = ["pro.pc-send"];
 
+/**
+ * Syncs whose success time is not an arrival (A-38). health.ingest's
+ * `last_success_at` is the modification time of the file the phone export
+ * writes (System S-14), which any rewrite moves, so its card withholds the
+ * time as Data Health does ("Not recorded") until System serves an arrival
+ * marker (XA-15, XA-19). A state other than ok still shows: a missing file
+ * is real.
+ */
+export const SYNC_ARRIVAL_UNRECORDED: readonly string[] = ["health.ingest"];
+
 /** The apps a sync carries, or null when the id is not a sync. */
 export function syncedApps(id: string): readonly MarkId[] | null {
   return Object.hasOwn(SYNCED_APPS, id)

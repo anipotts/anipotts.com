@@ -245,7 +245,14 @@ export type ReaderFetchOptions = {
   /** Runs before every send, the renewed one included, and throws to stop
    * it: a mode's exact-scope check (lib/private-reader-health.ts). */
   beforeSend?: () => void;
+  /** Runs a 401's renewal, so the caller can hold its reader deadline while
+   * admin issues the new credential (A-26). */
+  renewing?: DeadlineHold;
 };
+
+/** Runs admin's own work (a credential renewal) outside a read's reader
+ * deadline, under a deadline of its own. */
+export type DeadlineHold = <T>(work: () => Promise<T>) => Promise<T>;
 
 type BearerSource = Pick<
   PrivateReaderSession,
@@ -286,7 +293,8 @@ export async function readerFetch(
         throw new PrivateReaderError(401);
       }
       renewed = true;
-      const next = await session.renew();
+      const renew = () => session.renew();
+      const next = await (options.renewing ? options.renewing(renew) : renew());
       if (next.status !== "ready") throw new PrivateReaderError(401);
       continue;
     }
@@ -306,8 +314,12 @@ export function createPrivateDataReader(
   session: BearerSource,
   options: { fetch?: typeof fetch } = {},
 ): DataReader {
-  const read = (path: string, signal: AbortSignal) =>
-    readerFetch(session, path, { fetch: options.fetch, signal });
+  const read = (path: string, signal: AbortSignal, hold?: DeadlineHold) =>
+    readerFetch(session, path, {
+      fetch: options.fetch,
+      signal,
+      renewing: hold,
+    });
   const data: DataTransport = {
     protocol: "personal_context_data_v1",
     scope: "owner",

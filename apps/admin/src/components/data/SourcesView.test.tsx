@@ -109,7 +109,7 @@ const button = (name: string) =>
   );
 
 describe("Sources by connector", () => {
-  it("reads every page and groups by lifecycle, discovered last and folded", async () => {
+  it("A-4: reads every page and groups by lifecycle, discovered last and folded", async () => {
     const onCount = await render();
     // 28 rows over two fixture pages of 20.
     expect(onCount).toHaveBeenLastCalledWith(sources.length);
@@ -151,7 +151,7 @@ describe("Sources by connector", () => {
     expect(table.textContent).not.toContain("Unjudged");
   });
 
-  it("calls a live source Unjudged, never Live, without the ops snapshot", async () => {
+  it("A-7: calls a live source Unjudged, never Live, without the ops snapshot", async () => {
     await render(false);
     const table = host.querySelector('table[aria-label="Sources"]')!;
     expect(table.textContent).not.toContain("Stale");
@@ -159,7 +159,7 @@ describe("Sources by connector", () => {
     expect(table.textContent).toContain("Unjudged");
   });
 
-  it("shows an excluded source apart, with nothing to open and System's own count", async () => {
+  it("A-3: shows an excluded source apart, with nothing to open and System's own count", async () => {
     await render();
     const heading = [...host.querySelectorAll("th[scope=rowgroup]")].find(
       (cell) => cell.textContent === "Excluded",
@@ -171,6 +171,41 @@ describe("Sources by connector", () => {
     expect(row.textContent).toContain("93");
     expect(row.querySelector("a")).toBeNull();
     expect(row.textContent).toContain("Withdrawn");
+  });
+
+  // A-3: the newest record's observation is not a sync (Messages read
+  // "Last sync 6d ago" while its intake passed 16m ago).
+  it("A-3: heads the observation Last seen, and shows Last sync only from System's last_success_at", async () => {
+    await render();
+    const heads = () =>
+      [...host.querySelectorAll('table[aria-label="Sources"] thead th')].map(
+        (cell) => cell.textContent,
+      );
+    // The fixture's live sources carry last_success_at.
+    expect(heads()).toContain("Last sync");
+    expect(heads()).toContain("Last seen");
+    // The live reader today: no source sends last_success_at.
+    const reader = createFixtureReader({
+      status: {},
+      records: [],
+      sources: sources.map((item) => {
+        const { last_success_at: _gone, ...rest } = item as Record<
+          string,
+          unknown
+        >;
+        return rest;
+      }) as typeof sources,
+    });
+    await act(async () => root.render(<SourcesExplorer reader={reader} />));
+    await settle();
+    expect(heads()).not.toContain("Last sync");
+    expect(heads()).toContain("Last seen");
+    const contacts = host
+      .querySelector(
+        'a[aria-label="Contacts records"], button[aria-label^="Contacts"]',
+      )
+      ?.closest("tr");
+    expect(contacts?.textContent).toContain("30m ago");
   });
 
   it("opens Records filtered to a source from its row", async () => {

@@ -28,6 +28,7 @@ import { clockText, durationText } from "../workspace/format";
 import {
   CompactTimeline,
   DefinitionList,
+  EasternClock,
   InlineNotice,
   LoadingSkeleton,
   RelativeTime,
@@ -434,7 +435,15 @@ export function RecordPanel({
       data-split={split ? "true" : "false"}
       header={
         <div className="data-record-bar">
-          {!split && close}
+          {/* On its own the record is the page, so its first line carries
+              the way back and the live Eastern clock, as every workspace
+              page's title line does. */}
+          {!split && (
+            <div className="data-record-line">
+              {close}
+              <EasternClock />
+            </div>
+          )}
           {mark && (
             <div className="data-record-heading" title={record?.title ?? title}>
               <Heading level={split ? 2 : 1} className="data-record-title">

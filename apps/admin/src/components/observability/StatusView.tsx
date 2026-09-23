@@ -23,6 +23,7 @@ import {
   opsUnverified,
   opsSyncState,
   opsSyncRows,
+  opsSyncWithheld,
   type OpsSyncRow,
   type OpsSyncState,
 } from "../../lib/ops-view";
@@ -52,6 +53,7 @@ import {
   WorkspaceSection,
   badgeFor,
   leadWidth,
+  titleWidth,
   type Column,
 } from "../workspace/Workspace";
 import { secondsText } from "../workspace/format";
@@ -153,12 +155,16 @@ function statusColumns(
     now,
     names,
     leadRoom,
+    reasonRoom,
   }: {
     narrow: boolean;
     now?: number;
     names: ReadonlyMap<string, string>;
     /** What the service column needs for its longest name (leadWidth). */
     leadRoom: number;
+    /** What the detail needs for the longest reason a row that is not ok
+     * gives, with its exit code (reasonWidth). */
+    reasonRoom: number;
   },
   select: Select,
 ): Column<Row>[] {
@@ -174,6 +180,9 @@ function statusColumns(
           kind={entryKind(row, naming)}
           title={naming.name}
           keep={entryKeep(row, names)}
+          // Beside a panel there is no device column; otherwise the row's
+          // device tile names the host a shared name adds.
+          keepHidden={narrow ? undefined : "always"}
           anchorId={opsEntryAnchor(row.id)}
           href={opsEntryHref(row.id)}
           onSelect={(trigger) => select.open(row.id, trigger)}
@@ -237,6 +246,9 @@ function statusColumns(
       header: "Detail",
       share: 0.5,
       reserve: leadRoom,
+      // A failing row's reason and its exit code stay whole: names give
+      // way before them.
+      min: reasonRoom,
       hideBelow: "large",
       render: (row) => <Reason service={row} />,
     },
@@ -278,6 +290,31 @@ function statusColumns(
       render: (row) => <TriggerMark entry={row} status={row.status} />,
     },
   ];
+}
+
+/** A cell's inset, and the gap before an exit code. */
+const REASON_CHROME = 24;
+const EXIT_GAP = 8;
+/** The most the detail reserves for a reason; a longer one gives way. */
+const REASON_MAX = 320;
+
+/**
+ * The width the Detail column keeps for the reasons that matter: each row
+ * that is not ok (or never proven), its detail and its exit code whole
+ * (titleWidth errs wide), so "keepalive export_failed exit 1" is never cut
+ * while a dot or a time holds spare width. Ok rows' details may give way.
+ */
+export function reasonWidth(services: readonly OpsServiceView[]): number {
+  let widest = 0;
+  for (const service of services) {
+    if (service.status.state === "ok" && !opsUnverified(service)) continue;
+    const exit = service.status.last_exit;
+    const width =
+      titleWidth(detailOf(service)) +
+      (exit !== null && exit !== 0 ? EXIT_GAP + titleWidth(`exit ${exit}`) : 0);
+    widest = Math.max(widest, width);
+  }
+  return Math.min(REASON_MAX, Math.ceil(REASON_CHROME + widest));
 }
 
 /** Non-ok states, most severe first, as the Status summary's order. */
@@ -528,7 +565,8 @@ function SyncState({
   if (key === "fresh" || key === "stale")
     return <StateCell domain="freshness" state={key} />;
   // Without a budget System judges liveness only, so freshness is not
-  // judged here either: the mark says so rather than reading as fresh.
+  // judged here either: the mark says so rather than reading as fresh. A
+  // withheld sync's time is a file's, not an arrival (A-38).
   const unjudged = key === "unjudged";
   return (
     <span
@@ -536,7 +574,9 @@ function SyncState({
       title={
         unjudged
           ? "System gives this sync no freshness budget"
-          : "System has recorded no success for this sync"
+          : key === "withheld"
+            ? "System records no arrival for this sync, only its file's time"
+            : "System has recorded no success for this sync"
       }
     >
       <CircleDashedIcon weight="regular" aria-hidden="true" />
@@ -557,7 +597,9 @@ function SyncWhere({ device, name }: { device: string | null; name: string }) {
 
 /** Every synced app with its app tile and its state on line 1, then the
  * sync that carries it (its device tile and name) and its last success on
- * line 2, judged against that sync's own budget. */
+ * line 2, judged against that sync's own budget. A sync whose success time
+ * is not an arrival (health.ingest, A-38) shows no time in any state, as
+ * Data Health withholds it. */
 function SyncGrid({
   rows,
   now,
@@ -633,7 +675,13 @@ function SyncGrid({
                 />
               }
               end={
-                <LastSuccess service={service} now={now} empty="Not recorded" />
+                opsSyncWithheld(service) ? undefined : (
+                  <LastSuccess
+                    service={service}
+                    now={now}
+                    empty="Not recorded"
+                  />
+                )
               }
             />
           );
@@ -690,16 +738,22 @@ function StatusList({
   const hosts = services.filter(opsIsHost);
   const rows = services.filter((service) => !opsIsHost(service)) as Row[];
   const syncs = useMemo(() => opsSyncRows(services), [services]);
+  // The detail's reserve is for the names rows draw: an entry's own, since
+  // the row's device tile names the host a shared name adds.
   const leadRoom = useMemo(
     () =>
       leadWidth(
         services
           .filter((service) => !opsIsHost(service))
-          .map((service) => entryNaming(service, names).name),
+          .map((service) => entryNaming(service).name),
       ),
-    [services, names],
+    [services],
   );
-  const columns = statusColumns({ narrow, now, names, leadRoom }, select);
+  const reasonRoom = useMemo(() => reasonWidth(rows), [rows]);
+  const columns = statusColumns(
+    { narrow, now, names, leadRoom, reasonRoom },
+    select,
+  );
   useAnchorLanding(services.length > 0);
   return (
     <VStack gap={6}>

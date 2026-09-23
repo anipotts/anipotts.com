@@ -4,16 +4,16 @@ Updated: 2026-09-22. Release completion evidence lives in [the site release revi
 
 ## Active surfaces
 
-| Surface            | Source                 | Role                                                                                 |
-| ------------------ | ---------------------- | ------------------------------------------------------------------------------------ |
-| anipotts.com       | `apps/www`             | Public Astro pages served from the `anipotts-content` D1 store, newsletter endpoints |
-| admin.anipotts.com | `apps/admin`           | Astro admin behind Cloudflare Access, editor, previews, operations state             |
-| api.anipotts.com   | `workers/state`        | Durable state and authenticated command relay                                        |
-| Ingest             | `workers/ingest`       | Scheduled ingest and authenticated event receivers                                   |
-| Newsletter         | `workers/newsletter`   | Subscription and issue queue consumer                                                |
-| Weekly email       | `workers/weekly-email` | Scheduled operational summary                                                        |
+| Surface            | Source                 | Role                                                                                         |
+| ------------------ | ---------------------- | -------------------------------------------------------------------------------------------- |
+| anipotts.com       | `apps/www`             | Public Astro pages served from the `anipotts-content` D1 store, newsletter endpoints         |
+| admin.anipotts.com | `apps/admin`           | Astro admin behind Cloudflare Access, editor, previews, operations state                     |
+| api.anipotts.com   | `workers/state`        | Links vault; a commits plane with no producer; a device relay with no key bound, so disabled |
+| Ingest             | `workers/ingest`       | Scheduled ingest and authenticated event receivers                                           |
+| Newsletter         | `workers/newsletter`   | Subscription and issue queue consumer                                                        |
+| Weekly email       | `workers/weekly-email` | Scheduled operational summary                                                                |
 
-The legacy Solid app and deploy target are removed. Historical source is recoverable through Git; the cleanup does not delete any production worker or database. Active Astro route and authentication tests remain independent of retirement.
+The legacy Solid app's source and deploy target are removed from this repo. Historical source is recoverable through Git; the cleanup does not delete any production worker or database, so its last deploy, the `anipotts-admin-solid` worker, still answers on `legacy-admin-solid.anipotts.com` with its own passkey page and an `anipotts-db` binding. Retiring that worker and its domain waits on Ani (ledger A-36.7). Active Astro route and authentication tests remain independent of retirement.
 
 The four retained workers still have explicit routes, cron schedules, queues, or Durable Object bindings. They are operational functionality, not public-page rendering dependencies. Their outbound and data-mutation boundaries remain intact.
 
@@ -51,7 +51,7 @@ Production sets `PRIVATE_READER_ENABLED` and `PRIVATE_READER_OPS_ENABLED`, and l
 
 ## Authentication and production boundaries
 
-Cloudflare Access is the only Admin sign-in. Middleware verifies the signed Access assertion for the exact owner; editorial reads and writes require it, other pages accept it for reads only, and sign out ends the Access session. The passkey, password, invite, recovery, device and native D1 session code was removed on 2026-09-22 and is recoverable from the `archive/admin-retired-auth-2026-09-22` tag. Its D1 tables and migrations stay in place.
+Cloudflare Access guards `admin.anipotts.com`, the only route `apps/admin/wrangler.toml` declares. The production admin worker also answers on `legacy-admin.anipotts.com`, a dashboard custom domain that Access does not cover, where only the middleware's owner check below stands between a request and the app; removing that domain or adding it to the Access app waits on Ani (ledger A-36.6). Middleware verifies the signed Access assertion for the exact owner; editorial reads and writes require it, other pages accept it for reads only, and sign out ends the Access session. The passkey, password, invite, recovery, device and native D1 session code was removed on 2026-09-22 and is recoverable from the `archive/admin-retired-auth-2026-09-22` tag. Its D1 tables and migrations stay in place.
 
 The protected route inventory in `scripts/ci/admin-route-inventory.mjs` drives the route parity and smoke checks. Newsletter controls retain their existing authorization checks. Admin no longer binds the command relay or serves the MCP, projection, knowledge, control-plane or compatibility write APIs; the relay itself stays in `workers/state`. Public code must not import admin-only contracts or operational write tables; `pnpm test:public-boundary` enforces this separation.
 

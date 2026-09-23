@@ -41,6 +41,7 @@ import {
   LoadingSkeleton,
   RowTitle,
   SampleBadge,
+  StateBadge,
   StateNotice,
   WorkspacePage,
   type Column,
@@ -195,6 +196,11 @@ function MetricsCheck({ ops }: { ops: OpsViewProps }) {
     );
   return (
     <>
+      {check.state !== "ok" && (
+        <span className="health-meta-item" title={HEALTH_METRICS_ID}>
+          <StateBadge domain="ops" state={check.state} />
+        </span>
+      )}
       {check.metrics.map((name) => {
         const Glyph = METRIC_GLYPHS[name] ?? CalendarDotsIcon;
         return (

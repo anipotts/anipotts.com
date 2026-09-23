@@ -52,7 +52,7 @@ describe("the record panel", () => {
     expect(chips.querySelector('[data-mark="chatgpt-atlas"]')).not.toBeNull();
   });
 
-  it("never shows raw JSON, ISO times or an owner-named label", () => {
+  it("A-27: never shows raw JSON, ISO times or an owner-named label", () => {
     for (const record of records) {
       const host = panel(record);
       const text = host.textContent ?? "";

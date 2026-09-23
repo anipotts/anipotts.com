@@ -25,6 +25,20 @@
   max-width: 100%;
   vertical-align: middle;
 }
+/* A value of glyphs and text in a definition list is a line of the label's
+   height, so its text sits on the label's baseline, never below it. */
+.workspace-definition > dd > .ops-inline {
+  display: flex;
+  min-height: var(--spacing-6);
+}
+/* A phone row's device, after its time: a 20px place of its own, kept
+   empty for a host, so tiles line up down the rows. */
+.ops-device-slot {
+  display: inline-flex;
+  flex: none;
+  width: var(--spacing-5);
+  height: var(--spacing-5);
+}
 .ops-inline-glyph {
   flex: none;
   width: var(--spacing-4);
@@ -45,6 +59,24 @@
   flex: none;
   color: var(--color-text-red, var(--color-error));
   white-space: nowrap;
+}
+/* On line 2 (phones and medium) a reason is read whole: it wraps under its
+   chip rather than ending in an ellipsis, and its exit code keeps with it. */
+.observability-workspace .workspace-row-meta .workspace-row-detail {
+  flex-wrap: wrap;
+  row-gap: 2px;
+  overflow: visible;
+}
+.observability-workspace .workspace-row-meta .ops-reason {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+.observability-workspace
+  .workspace-row-meta
+  .ops-reason
+  > .workspace-detail-text:not(#\#) {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 /* A last success over its own budget: the warning ink and a glyph whose
    tooltip names the budget. */

@@ -18,7 +18,7 @@ import {
   OPS_POLL_MS,
   createOpsStatusController,
 } from "../../lib/ops-reader";
-import { sharedLiveClock } from "../../lib/live-clock";
+import { LIVE_CLOCK_SLACK_MS, sharedLiveClock } from "../../lib/live-clock";
 import { OPS_V1_STATES } from "../../lib/ops-v1";
 import { providedSearchEntries } from "../../lib/admin-search-index";
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -240,7 +240,7 @@ describe("Status view from System's fixture", () => {
     expect(age.querySelector(".ops-over")).toBeNull();
   });
 
-  it("shows last run, duration, the next run, runs and the trigger", () => {
+  it("A-5: shows last run, duration, the next run, runs and the trigger, and no Owner", () => {
     expect(headers(host)).toEqual([
       "Service",
       "Device",
@@ -312,6 +312,34 @@ describe("Status view from System's fixture", () => {
     expect(syncs.querySelector("a")?.getAttribute("href")).toBe(
       "/observability/status?entry=health.ingest",
     );
+  });
+
+  // A-38: the card never shows health.ingest's last_success_at, which is the
+  // export file's time (S-14), not a phone arrival; Data Health withholds it
+  // the same way.
+  it("A-38: withholds Apple Health's sync time, as the live row sends it", () => {
+    const value = fresh();
+    const row = value.status.find((item: Json) => item.id === "health.ingest");
+    // The live shape at 2026-09-22: ok, "file present", a fresh mtime.
+    Object.assign(row, {
+      state: "ok",
+      detail: "file present",
+      last_success_at: "2026-09-21T17:50:32Z",
+      last_run_at: "2026-09-21T17:50:32Z",
+    });
+    for (const failing of [false, true]) {
+      if (failing) Object.assign(row, { state: "failing" });
+      const syncs = render(value).querySelector('ul[aria-label="Syncs"]')!;
+      const card = [...syncs.querySelectorAll("li")].find(
+        (item) =>
+          item.querySelector(".brand-tile")?.getAttribute("data-mark") ===
+          "applehealth",
+      )!;
+      expect(card.textContent).toContain("Apple Health");
+      expect(card.querySelector("time")).toBeNull();
+      expect(card.textContent).not.toMatch(/ago|just now|Fresh|Stale/);
+      expect(card.textContent).toContain(failing ? "Failing" : "Not recorded");
+    }
   });
 
   it("shows a multi-app pass as its own job, with no app mark borrowing its freshness", () => {
@@ -584,7 +612,7 @@ describe("an entry's panel", () => {
       ]),
     );
 
-  it("says a success was not recorded beside a clean exit, never Never", () => {
+  it("A-12: says a success was not recorded beside a clean exit, never Never", () => {
     const value = fresh();
     const row = value.status.find((item: Json) => item.id === "pc.writer");
     row.last_success_at = null;
@@ -632,7 +660,7 @@ describe("an entry's panel", () => {
     ).not.toHaveProperty("Next run");
   });
 
-  it("opens beside the list with the catalog facts, the runbook as an action and the next run", () => {
+  it("A-6: opens beside the list with the catalog facts, the runbook as an action and the next run", () => {
     const host = open("pc.writer");
     const panel = host.querySelector("#ops-entry-detail")!;
     expect(panel.querySelector("h2")?.textContent).toBe(
@@ -992,7 +1020,8 @@ describe("a fixture's clock", () => {
   it("runs forward from the fixture's own generated_at, never standing still", async () => {
     vi.useFakeTimers({
       now: Date.parse("2026-09-22T12:00:00Z"),
-      toFake: ["Date", "setInterval", "clearInterval"],
+      // The shared clock ticks on second boundaries with one timeout each.
+      toFake: ["Date", "setTimeout", "clearTimeout"],
     });
     try {
       const host = document.createElement("div");
@@ -1013,8 +1042,9 @@ describe("a fixture's clock", () => {
       }
       const clock = () => host.querySelector(".workspace-clock")?.textContent;
       expect(clock()).toBe(easternClockText(generated));
+      // Each tick lands just past its second's boundary.
       await act(async () => {
-        vi.advanceTimersByTime(3000);
+        vi.advanceTimersByTime(3000 + LIVE_CLOCK_SLACK_MS);
       });
       expect(clock()).toBe(easternClockText(generated + 3000));
       expect(sharedLiveClock().running()).toBe(true);
@@ -1031,7 +1061,7 @@ describe("a fixture's clock", () => {
     }
   });
 
-  it("marks a local replay apart from the sample, with its capture age", () => {
+  it("marks a local replay apart from the sample, with its capture moment", () => {
     const host = document.createElement("div");
     host.innerHTML = renderToStaticMarkup(
       <ObservabilityWorkspace
@@ -1044,7 +1074,9 @@ describe("a fixture's clock", () => {
       />,
     );
     const mark = host.querySelector('[data-fixture="replay"]')!;
-    expect(mark.textContent).toMatch(/^Replay, captured \d+[mhd] ago$/);
+    // The capture's own Eastern moment, on the page's fixed clock, never an
+    // age on the real clock beside it.
+    expect(mark.textContent).toBe("Replay, captured Sep 21, 11:00 AM ET");
     expect(host.textContent).not.toContain("Sample data");
     expect(host.querySelector('[data-fixture="sample"]')).toBeNull();
   });
@@ -1409,20 +1441,21 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
     )!;
     const heads = (table: Element) =>
       [...table.querySelectorAll("thead th")].map((th) => th.textContent);
-    // One set of columns for both, so the two tables line up.
-    const incidentColumns = [
+    // One set of columns for both, so the two tables line up. A firing
+    // alert has not ended: its duration is "For", never "Lasted".
+    const incidentColumns = (duration: string) => [
       "Alert",
       "Device",
       "State",
       "Started",
       "Resolved",
-      "Lasted",
+      duration,
       "Incidents",
       "Detail",
       "Runbook",
     ];
-    expect(heads(firingTable)).toEqual(incidentColumns);
-    expect(heads(resolvedTable)).toEqual(incidentColumns);
+    expect(heads(firingTable)).toEqual(incidentColumns("For"));
+    expect(heads(resolvedTable)).toEqual(incidentColumns("Lasted"));
     const widths = (table: Element) =>
       [...table.querySelectorAll<HTMLElement>("thead th")].map(
         (th) => th.style.width,
@@ -1489,6 +1522,43 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
     );
     expect(variants).toContain("error");
     expect(variants).not.toContain("success");
+  });
+
+  // A-31: System keeps events 35 days; a problem older than the events held
+  // must still fire, with its start bounded, never made up.
+  it("A-31: fires a snapshot problem with no opening transition, its start bounded", () => {
+    const items = (events as { items: Array<{ subject: string; at: string }> })
+      .items;
+    const without = {
+      ...events,
+      items: items.filter((item) => item.subject !== "pc.inference"),
+    };
+    const host = view("alerts", null, without);
+    expect(host.textContent).not.toContain("Nothing firing");
+    const firing = host.querySelector('table[aria-label="Firing alerts"]')!;
+    const row = [...firing.querySelectorAll("tbody tr")].find((tr) =>
+      tr
+        .querySelector("a.workspace-row-link")
+        ?.getAttribute("title")
+        ?.startsWith("pc.inference"),
+    ) as HTMLTableRowElement;
+    const heading = [...firing.querySelectorAll("thead th")].map(
+      (th) => th.textContent,
+    );
+    const at = (name: string) => row.cells[heading.indexOf(name)]!;
+    expect(at("State").textContent).toBe("Failing");
+    // It began before the oldest event held: that bound, never a start.
+    expect(at("Started").textContent).toBe("Earlier");
+    expect(at("Started").querySelector("span")?.getAttribute("title")).toMatch(
+      /^Before 2026-09-\d{2} \d{2}:\d{2} UTC, the oldest event held$/,
+    );
+    expect(at("For").textContent).toMatch(/^\d+[smhd]( \d+[smh])?\+$/);
+    // With nothing held at all, the start is unknown and no duration shows.
+    const empty = view("alerts", null, { ...events, items: [] });
+    expect(empty.textContent).not.toContain("No alerts");
+    const lone = empty.querySelector('table[aria-label="Firing alerts"]')!;
+    expect(lone.textContent).toContain("Unknown");
+    expect(lone.textContent).not.toMatch(/\d+[smhd]\+/);
   });
 
   it("opens an alert's incident in admin, with its runbook as an action", () => {

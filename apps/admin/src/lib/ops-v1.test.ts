@@ -122,7 +122,7 @@ describe("contract client rules", () => {
     },
   );
 
-  it("accepts System's retired owner field without reading or naming it", () => {
+  it("A-5: accepts System's retired owner field without reading or naming it", () => {
     const value = fresh();
     value.catalog[0].owner = "system/chief";
     value.catalog[1].owner = "line\nbreak and private text";

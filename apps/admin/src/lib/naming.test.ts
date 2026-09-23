@@ -125,7 +125,7 @@ describe("live catalog guard", () => {
 });
 
 describe("names", () => {
-  it("drops the owner's name from the front of a label", () => {
+  it("A-27: drops the owner's name from the front of a label", () => {
     expect(withoutOwner("Ani browsing")).toBe("browsing");
     expect(withoutOwner("ani-messages-1to1")).toBe("messages-1to1");
     expect(withoutOwner("Ani's notes")).toBe("notes");
@@ -195,7 +195,7 @@ describe("names", () => {
     expect(chatgpt.tooltip).toBe("keepalive.chatgpt");
   });
 
-  it("names sources without the owner, the brand or the separators", () => {
+  it("A-27: names sources without the owner, the brand or the separators", () => {
     const read = (id: string, host?: string) => {
       const naming = sourceNaming({ id, host });
       return [

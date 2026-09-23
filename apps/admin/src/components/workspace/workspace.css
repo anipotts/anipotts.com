@@ -146,6 +146,7 @@
   container-type: inline-size;
   --workspace-table-min: var(--workspace-table-min-wide);
   --workspace-table-fixed: var(--workspace-table-fixed-wide, 0px);
+  --workspace-table-spread: var(--workspace-table-spread-wide, 1);
 }
 .workspace-table-grid {
   min-width: var(--workspace-table-min);
@@ -154,6 +155,7 @@
   .workspace-table-frame {
     --workspace-table-min: var(--workspace-table-min-large);
     --workspace-table-fixed: var(--workspace-table-fixed-large, 0px);
+    --workspace-table-spread: var(--workspace-table-spread-large, 1);
   }
   .workspace-table [data-hide-below="wide"] {
     display: none;
@@ -163,6 +165,7 @@
   .workspace-table-frame {
     --workspace-table-min: var(--workspace-table-min-medium);
     --workspace-table-fixed: var(--workspace-table-fixed-medium, 0px);
+    --workspace-table-spread: var(--workspace-table-spread-medium, 1);
   }
   .workspace-table [data-hide-below="large"] {
     display: none;
@@ -366,6 +369,13 @@
   text-align: start;
   text-decoration: none;
 }
+/* A title that fits but for a fraction of a pixel stays whole: before the
+   line's end (a time) it may take 3px of the gap, so a rounding shortfall
+   never costs a word to the ellipsis. Squeezed, the gap still reads 5px. */
+.workspace-row-line
+  > :is(.workspace-row-link, .workspace-row-text):not(:last-child) {
+  margin-inline-end: -3px;
+}
 .workspace-row-link {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -402,6 +412,16 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
 .workspace-title-keep {
   flex: none;
   white-space: pre;
+}
+/* Where the row's own device tile names the host, the kept host is read
+   out but not drawn, so the name stands whole beside the tile. */
+[data-keep-hidden="always"] > .workspace-title-keep {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 /* Line 1's end and time belong to compact, where their columns are gone. */
 .workspace-row-end {
@@ -730,6 +750,15 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   .workspace-table-footer {
     display: none;
   }
+  /* Phones draw the device tile at line 1's end (TitleText keepHidden). */
+  [data-keep-hidden="compact"] > .workspace-title-keep {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
   .workspace-filter-bar > .astryx-field {
     flex: 1 1 auto;
   }
@@ -801,6 +830,12 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   min-width: 0;
   overflow-wrap: anywhere;
   color: var(--color-text-primary);
+}
+/* An empty value ("Not recorded") keeps the value's size and line, beside
+   its label; only its colour is quiet. */
+.workspace-definition > dd .workspace-time:not(#\#) {
+  font-size: inherit;
+  line-height: inherit;
 }
 /* Chips and copy values sit centred on the label's 24px line. */
 .workspace-definition > dd > :is(.workspace-chips, .workspace-copy-value) {
@@ -897,25 +932,33 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   color: var(--color-text-primary);
 }
 
-/* A compact history: one line per entry, the hash at the end. */
+/* A compact history: one line per entry, the hash at the end. The entries
+   share one grid (subgrid rows), so every hash starts at one x and every
+   copy button ends the line. "Revision 3, Sep 22, 11:30" stays whole: its
+   column is as wide as the widest entry, and the hash is what gives way,
+   down to its copy button, shortened under its tooltip. */
 .workspace-timeline {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-1);
+  display: grid;
+  grid-template-columns: auto max-content minmax(0, 1fr);
+  column-gap: var(--spacing-2);
+  row-gap: var(--spacing-1);
   margin: 0;
   padding: 0;
   list-style: none;
   min-width: 0;
 }
+.workspace-timeline[data-marked="false"] {
+  grid-template-columns: max-content minmax(0, 1fr);
+}
 .workspace-timeline-item {
-  display: flex;
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   align-items: center;
-  gap: var(--spacing-2);
   min-width: 0;
   min-height: var(--spacing-9);
 }
 .workspace-timeline-text {
-  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
@@ -927,13 +970,15 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
 .workspace-timeline-text .workspace-time {
   color: var(--color-text-secondary);
 }
-/* A 12-character hash stays whole; the line's text gives way first. */
 .workspace-timeline-item > .workspace-copy-value {
-  flex: none;
+  display: flex;
+  width: 100%;
+}
+.workspace-timeline-item > .workspace-copy-value > .workspace-copy-text {
+  flex: 1 1 auto;
 }
 .workspace-timeline-current {
   display: inline-flex;
-  flex: none;
   width: var(--spacing-2);
 }
 

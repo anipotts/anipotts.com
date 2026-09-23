@@ -16,8 +16,16 @@
  * ops job that collects it (`job`, joined to the ops snapshot): an ok job is
  * Live, and stale, failing, degraded and asleep read as themselves. No job,
  * a job the snapshot does not list, an unknown one, or no current snapshot
- * reads a neutral Unjudged. `held_to` is only the newest record, never a
+ * reads a neutral Unjudged. A multi-app pass (SYNC_JOBS: pro.pc-send) never
+ * judges a source, in any state: its receipt proves a pass finished, not that
+ * this source's data arrived (Messages held nothing past May 2024 under a
+ * green pass, S-3), so its sources read Unjudged until System serves a
+ * per-source arrival (XA-12). `held_to` is only the newest record, never a
  * staleness signal.
+ *
+ * Times: `last_success_at` is the only sync time ("Last sync");
+ * `last_observed_at` is when the newest record was observed ("Last seen"),
+ * never a sync.
  */
 import { brandMark } from "@anipotts/brand/marks";
 import type { TileRef } from "../../lib/marks";
@@ -27,6 +35,7 @@ import {
   idDevice,
   isDeviceWord,
   keyLabel,
+  SYNC_JOBS,
   sourceNaming,
   withoutOwner,
 } from "../../lib/naming";
@@ -152,10 +161,17 @@ export const SOURCE_STATES = [
 ] as const;
 export type SourceState = (typeof SOURCE_STATES)[number];
 
-/** The newest proof that the source synced: System's success receipt, else
- * the newest record it observed. */
+/** When System last recorded the source syncing: its own `last_success_at`
+ * only. The newest record's observation is not a sync (lastSeen). */
 export function lastSync(source: DataSourceRow): string | null {
-  return source.lastSuccessAt ?? source.lastObservedAt;
+  return source.lastSuccessAt;
+}
+
+/** When System observed the source's newest record: "Last seen", never a
+ * sync. For an excluded source it can be the exclusion itself (S-20), so
+ * excluded rows show none. */
+export function lastSeen(source: DataSourceRow): string | null {
+  return source.lastObservedAt;
 }
 
 /** The ops job that collects a source, as the snapshot reports it. */
@@ -167,11 +183,13 @@ export type SourceJobs = ReadonlyMap<string, SourceJob>;
 
 /** A live source mirrors its job's own state. Anything that cannot be
  * joined (no job, no snapshot, a job the snapshot does not list, or an
- * unknown state) is Unjudged, never Live. */
+ * unknown state) is Unjudged, never Live, and so is a source collected by a
+ * multi-app pass (SYNC_JOBS), whose state says nothing about one source. */
 function liveState(
   source: DataSourceRow,
   jobs: SourceJobs | null,
 ): SourceState {
+  if (source.job && SYNC_JOBS.includes(source.job)) return "unjudged";
   const job = source.job ? jobs?.get(source.job) : undefined;
   switch (job?.state) {
     case "ok":
@@ -324,7 +342,10 @@ export type SourceRow = {
   device: string | null;
   tooltip: string;
   state: SourceState;
+  /** System's own `last_success_at` for the source. */
   lastSync: string | null;
+  /** When the newest record was observed. */
+  lastSeen: string | null;
   /** System's `held_to`: the newest record it holds. A detail only, never
    * a staleness signal. */
   newest: string | null;
@@ -369,6 +390,7 @@ function sourceRow(
     tooltip: entry.tooltip,
     state: sourceState(source, jobs),
     lastSync: holds ? lastSync(source) : null,
+    lastSeen: holds ? lastSeen(source) : null,
     newest: holds ? source.heldTo : null,
     records: source.records,
     revisions: source.revisions,
@@ -431,6 +453,7 @@ export function sourceRows(
       tooltip: entries.map((entry) => entry.source.id).join(", "),
       state: worstState(accounts.map((row) => row.state)),
       lastSync: newest(accounts.map((row) => row.lastSync)),
+      lastSeen: newest(accounts.map((row) => row.lastSeen)),
       newest: newest(accounts.map((row) => row.newest)),
       records: accounts.reduce((sum, row) => sum + row.records, 0),
       revisions: accounts.reduce((sum, row) => sum + row.revisions, 0),

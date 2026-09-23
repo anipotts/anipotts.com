@@ -46,7 +46,7 @@ import {
 } from "../workspace/Workspace";
 import { useDataSession } from "../data/useDataSession";
 import { ReadNotice, SessionNotice } from "../data/DataNotices";
-import { recordColumns } from "../data/RecordsView";
+import { recordColumns, recordTiersOnly } from "../data/RecordsView";
 import { parseItems, parseRecord } from "../data/data-model";
 import { SourceNamesContext, useSourceNames } from "../data/source-catalog";
 import "./overview.css";
@@ -103,10 +103,12 @@ function opsDown(state: OpsStatusState): Down | undefined {
 
 /**
  * Firing alerts only, and nothing at all when everything is clear. They are
- * the Alerts page's own rows, so each opens its alert in admin, where the
- * runbook is. When ops cannot be read the section says so instead of
- * reading as all clear, and an entry never proven (a restore drill that
- * never ran) is named Unverified, since that is not clear either.
+ * the Alerts page's own rows (snapshot problems with no opening transition
+ * included, A-31), so each opens its alert in admin, where the runbook is.
+ * When ops cannot be read, or its events are not current, the section says
+ * so instead of reading as all clear, and an entry never proven (a restore
+ * drill that never ran) is named Unverified, since that is not clear
+ * either.
  */
 function FiringAlerts(props: OpsViewProps) {
   const data = useOpsData(props, true);
@@ -124,6 +126,11 @@ function FiringAlerts(props: OpsViewProps) {
   );
   const down: Down | undefined =
     (data.fixtureMode ? undefined : opsDown(data.state)) ??
+    // Events that failed to read, or a page that was rejected, are not all
+    // clear: the Alerts page says "Events not current", and so does this.
+    (!data.fixtureMode && data.state.eventsStale
+      ? { title: "Events not current", kind: "error" }
+      : undefined) ??
     // An unread event may have been a failure, so no silence reads as clear.
     ((data.events?.skipped ?? 0) > 0
       ? { title: opsUnreadTitle(data.events!.skipped), kind: "error" }
@@ -296,7 +303,10 @@ function RecentRecords({
             label="Recent records"
             noun={["record", "records"]}
             footer={false}
-            columns={recordColumns({ href: (item) => dataRecordHref(item.id) })}
+            columns={recordColumns({
+              href: (item) => dataRecordHref(item.id),
+              tiersOnly: recordTiersOnly(items),
+            })}
           />
         </SourceNamesContext>
       ) : (

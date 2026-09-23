@@ -285,6 +285,9 @@ function activityColumns(
             }
             title={entry ? naming.name : latest.subject}
             keep={entry ? entryKeep(entry, names) : undefined}
+            // The row's device tile (its own column, the When cell, or line
+            // 1's end on phones) names the host a shared name adds.
+            keepHidden="always"
             href={entry ? opsEntryHref(entry.id) : undefined}
           />
         );
@@ -426,16 +429,14 @@ export function ActivityView({ data }: { data: OpsData }) {
     }
     return [...seen].sort((a, b) => a[1].label.localeCompare(b[1].label));
   }, [rows, sourceOf]);
-  // Room for the longest name a row can carry: an entry's, with its host
-  // when two share it, or a reader route's.
+  // Room for the longest name a row draws: an entry's own (a shared name's
+  // host is its device tile), or a reader route's.
   const leadRoom = useMemo(
     () =>
       leadWidth(
-        (data.snapshot?.catalog ?? []).map(
-          (entry) => entryNaming(entry, data.names).name,
-        ),
+        (data.snapshot?.catalog ?? []).map((entry) => entryNaming(entry).name),
       ),
-    [data.snapshot, data.names],
+    [data.snapshot],
   );
   const columns = useMemo(
     () => activityColumns(catalog, data.fixedNow, data.names, leadRoom),

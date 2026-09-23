@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { LIVE_CLOCK_TICK_MS, createLiveClock, relativeAgo } from "./live-clock";
+import {
+  LIVE_CLOCK_SLACK_MS,
+  createLiveClock,
+  relativeAgo,
+  untilNextSecond,
+} from "./live-clock";
 
 const T = Date.parse("2026-09-21T18:00:00Z");
 
@@ -48,35 +53,44 @@ describe("relative time text", () => {
 });
 
 describe("the shared clock", () => {
-  function fake() {
-    let now = T;
+  function fake(start = T) {
+    let now = start;
     let hidden = false;
-    const intervals = new Set<number>();
+    const pending = new Map<number, { callback: () => void; at: number }>();
+    const delays: number[] = [];
     let next = 0;
-    const callbacks = new Map<number, () => void>();
     const clock = createLiveClock({
       now: () => now,
       isHidden: () => hidden,
-      setInterval: (callback, ms) => {
-        expect(ms).toBe(LIVE_CLOCK_TICK_MS);
+      setTimeout: (callback, ms) => {
         next += 1;
-        intervals.add(next);
-        callbacks.set(next, callback);
+        delays.push(ms);
+        pending.set(next, { callback, at: now + ms });
         return next;
       },
-      clearInterval: (id) => {
-        intervals.delete(id as number);
-        callbacks.delete(id as number);
+      clearTimeout: (id) => {
+        pending.delete(id as number);
       },
     });
-    const tick = (ms: number) => {
-      now += ms;
-      for (const callback of callbacks.values()) callback();
+    /** Moves the wall clock on, firing each timer at its own moment. */
+    const advance = (ms: number) => {
+      const end = now + ms;
+      for (;;) {
+        const due = [...pending.entries()]
+          .filter(([, timer]) => timer.at <= end)
+          .sort((a, b) => a[1].at - b[1].at)[0];
+        if (!due) break;
+        pending.delete(due[0]);
+        now = due[1].at;
+        due[1].callback();
+      }
+      now = end;
     };
     return {
       clock,
-      intervals,
-      tick,
+      pending,
+      delays,
+      advance,
       hide: (value: boolean) => {
         hidden = value;
         clock.visibilityChanged();
@@ -84,28 +98,57 @@ describe("the shared clock", () => {
     };
   }
 
-  it("runs one timer however many times are listening", () => {
-    const { clock, intervals } = fake();
+  it("runs one timer however many are listening", () => {
+    const { clock, pending } = fake();
     const stops = Array.from({ length: 50 }, () => clock.subscribe(() => {}));
-    expect(intervals.size).toBe(1);
+    expect(pending.size).toBe(1);
     stops.forEach((stop) => stop());
-    expect(intervals.size).toBe(0);
+    expect(pending.size).toBe(0);
   });
 
   it("ticks every second while visible and pauses while hidden", () => {
-    const { clock, intervals, tick, hide } = fake();
+    const { clock, pending, advance, hide } = fake();
     let heard = 0;
     const stop = clock.subscribe(() => (heard += 1));
-    tick(1_000);
-    tick(1_000);
+    advance(2_010);
     expect(heard).toBe(2);
-    expect(clock.now()).toBe(T + 2_000);
+    expect(Math.floor(clock.now() / 1000)).toBe(Math.floor((T + 2_000) / 1000));
     hide(true);
-    expect(intervals.size).toBe(0);
+    expect(pending.size).toBe(0);
     hide(false);
     // Showing the tab reads the time at once, then resumes the one timer.
     expect(heard).toBe(3);
-    expect(intervals.size).toBe(1);
+    expect(pending.size).toBe(1);
     stop();
+  });
+
+  // The clock showed the second before for most of every second, and after
+  // a load held one for over a second and then skipped the next.
+  it("ticks on the second boundary, never late and never skipping one", () => {
+    const { clock, delays, advance } = fake(T + 730);
+    const seconds: number[] = [];
+    const stop = clock.subscribe(() =>
+      seconds.push(Math.floor(clock.now() / 1000)),
+    );
+    // The first tick waits only for the next boundary.
+    expect(delays[0]).toBe(1000 - 730 + LIVE_CLOCK_SLACK_MS);
+    advance(5_000);
+    const first = Math.floor(T / 1000) + 1;
+    expect(seconds).toEqual([
+      first,
+      first + 1,
+      first + 2,
+      first + 3,
+      first + 4,
+    ]);
+    // Each tick lands just past its boundary, so the next is a second on.
+    for (const delay of delays.slice(1)) expect(delay).toBe(1000);
+    stop();
+  });
+
+  it("realigns after a timer fires late", () => {
+    expect(untilNextSecond(T + 250)).toBe(750 + LIVE_CLOCK_SLACK_MS);
+    expect(untilNextSecond(T + 999)).toBe(1 + LIVE_CLOCK_SLACK_MS);
+    expect(untilNextSecond(T)).toBe(1000 + LIVE_CLOCK_SLACK_MS);
   });
 });

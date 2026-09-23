@@ -38,6 +38,8 @@ import {
 } from "../workspace/Workspace";
 import { secondsText } from "../workspace/format";
 import {
+  AlertFor,
+  AlertStart,
   ClockTime,
   DeviceTile,
   EntryState,
@@ -421,7 +423,7 @@ function IncidentFacts({ alert, data }: { alert: OpsAlert; data: OpsData }) {
         ["Was", firing ? null : <PastState key="was" state={alert.peak} />],
         [
           "Started",
-          <ClockTime key="since" at={alert.since} now={data.fixedNow} />,
+          <AlertStart key="since" alert={alert} now={data.fixedNow} clock />,
         ],
         [
           "Resolved",
@@ -431,13 +433,14 @@ function IncidentFacts({ alert, data }: { alert: OpsAlert; data: OpsData }) {
         ],
         [
           firing ? "For" : "Lasted",
-          <Lasted
-            key="lasted"
-            from={alert.since}
-            to={alert.resolvedAt}
-            now={data.fixedNow}
-            serverNow={data.serverNow}
-          />,
+          alert.since || alert.startedBefore ? (
+            <AlertFor
+              key="lasted"
+              alert={alert}
+              now={data.fixedNow}
+              serverNow={data.serverNow}
+            />
+          ) : null,
         ],
         ["Detail", alert.detail],
       ]}

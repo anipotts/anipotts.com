@@ -6,8 +6,8 @@
  *   list of the expected metrics that did not arrive in the last 24 hours
  *   (`missing:steps,weight`). Any other detail is unknown, never data. The
  *   detail is only the last check's answer, so it is trusted only while the
- *   check itself is current: its row ok (or degraded, naming what is
- *   missing) and the sampler running. A stale, failing, asleep or unknown
+ *   check itself is current: its row ok (or degraded or failing, naming
+ *   what is missing) and the sampler running. A stale, asleep or unknown
  *   row, or a stopped sampler, is "Not checked", never a stale ok.
  * - The last phone sync is withheld. `health.ingest`'s `last_success_at` is
  *   the modification time of the file the phone export writes (System S-14),
@@ -77,14 +77,22 @@ export function healthMetricsText(state: HealthMetricsState): string | null {
  * checking. */
 export type HealthMetricsCheck =
   | { kind: "ok" }
-  | { kind: "missing"; metrics: HealthMetricName[] }
+  | {
+      kind: "missing";
+      metrics: HealthMetricName[];
+      /** The row's own state, shown beside the list when it is not ok. */
+      state: "ok" | "degraded" | "failing";
+    }
   | { kind: "not_checked" };
 
 /**
  * The `health.metrics` answer, judged by the row as well as its detail.
- * Null while System lists no such entry. `ok` stands only on an ok row;
- * a `missing:` list on an ok or degraded row; anything else, a stopped
- * sampler or a detail that is not the agreed shape, is not checked.
+ * Null while System lists no such entry. `ok` stands only on an ok row. A
+ * `missing:` list stands on an ok, degraded or failing row: failing is a
+ * check that ran and found a problem (System docs/ops-v1.md), so every
+ * expected metric missing is exactly what it shows (A-9). Stale, unknown or
+ * asleep, a stopped sampler, no row, or a detail that is not the agreed
+ * shape is not checked.
  */
 export function healthMetricsCheck(
   snapshot: OpsSnapshot,
@@ -99,9 +107,10 @@ export function healthMetricsCheck(
   const answer = parseHealthMetrics(row.status.detail);
   if (answer.kind === "ok")
     return row.status.state === "ok" ? answer : NOT_CHECKED;
+  const { state } = row.status;
   if (answer.kind === "missing")
-    return row.status.state === "ok" || row.status.state === "degraded"
-      ? answer
+    return state === "ok" || state === "degraded" || state === "failing"
+      ? { ...answer, state }
       : NOT_CHECKED;
   return NOT_CHECKED;
 }

@@ -7,6 +7,7 @@ import {
 import { readBoundedBytes } from "./bounded-body";
 import { discardBody } from "./response-body";
 import {
+  IssuanceTimeoutError,
   ReaderNoReplyError,
   fetchReader,
   type ReaderHop,
@@ -113,7 +114,16 @@ async function readBounded(
   return bytes;
 }
 
-type ReadOptions = { fetch?: typeof fetch; signal?: AbortSignal };
+type ReadOptions = {
+  fetch?: typeof fetch;
+  signal?: AbortSignal;
+  /** Runs a 401's renewal: the controller holds its reader deadline while
+   * admin issues the new credential, so a slow issuance is never read as
+   * ap-mini's (A-26). */
+  renewing?: (
+    renew: () => ReturnType<BearerSource["renew"]>,
+  ) => ReturnType<BearerSource["renew"]>;
+};
 
 /**
  * One ops:read GET. A 401 renews the credential once and retries; a second
@@ -150,7 +160,8 @@ async function opsGet(
         throw new PrivateReaderError(401);
       }
       renewed = true;
-      const next = await session.renew();
+      const renew = () => session.renew();
+      const next = await (options.renewing ? options.renewing(renew) : renew());
       if (next.status !== "ready") throw new PrivateReaderError(401);
       continue;
     }
@@ -397,6 +408,20 @@ export function createOpsStatusController(options: OpsStatusOptions) {
     }
   }
 
+  /** Admin's own credential issuance, under its own deadline: past it the
+   * read fails as "Credential not issued", never as a reader timeout. */
+  function issued<T>(start: () => Promise<T>): Promise<T> {
+    let limit: Timer | null = null;
+    return Promise.race([
+      start(),
+      new Promise<never>((_, reject) => {
+        limit = setTimer(() => reject(new IssuanceTimeoutError()), timeoutMs);
+      }),
+    ]).finally(() => {
+      if (limit !== null) clearTimer(limit);
+    });
+  }
+
   function schedule(delay: number) {
     if (timer !== null) clearTimer(timer);
     timer = null;
@@ -421,15 +446,26 @@ export function createOpsStatusController(options: OpsStatusOptions) {
     inflight = controller;
     lastAttempt = now();
     let timedOut = false;
-    const deadline = setTimer(() => {
-      timedOut = true;
-      controller.abort();
-    }, timeoutMs);
+    let deadline: Timer | null = null;
+    // The reader's deadline runs only while a request to ap-mini is out.
+    const arm = () => {
+      deadline = setTimer(() => {
+        timedOut = true;
+        controller.abort();
+      }, timeoutMs);
+    };
+    const disarm = () => {
+      if (deadline !== null) clearTimer(deadline);
+      deadline = null;
+    };
     const current = () => inflight === controller && running;
     try {
       if (session.getState().status !== "ready") {
         if (!state.snapshot) set({ connection: "connecting" });
-        const started = await session.start();
+        // Admin's own issuance has its own deadline, and a slow one reads as
+        // admin's failure, never as ap-mini's (A-26): the reader's deadline
+        // starts only once there is a credential to send.
+        const started = await issued(() => session.start());
         if (!current()) return;
         if (started.status !== "ready") {
           if (started.status === "cleared" && started.reason === "denied")
@@ -439,9 +475,18 @@ export function createOpsStatusController(options: OpsStatusOptions) {
           return;
         }
       }
+      arm();
       const read = await readOpsSnapshot(session, etag, {
         fetch: options.fetch,
         signal: controller.signal,
+        renewing: async (renew) => {
+          disarm();
+          try {
+            return await issued(renew);
+          } finally {
+            arm();
+          }
+        },
       });
       if (!current()) return;
       if (read.kind === "snapshot") {
@@ -457,7 +502,10 @@ export function createOpsStatusController(options: OpsStatusOptions) {
       if (withEvents && !eventsRead && !eventsInflight) void eventsTick();
     } catch (error) {
       if (!current()) return;
-      if (error instanceof OpsSnapshotError) drop("rejected");
+      // Admin's issuance gave no credential in time; ap-mini was not asked.
+      if (error instanceof IssuanceTimeoutError)
+        set({ connection: "unissued", hop: undefined });
+      else if (error instanceof OpsSnapshotError) drop("rejected");
       else if (
         error instanceof PrivateReaderError &&
         (error.failure === "forbidden" ||
@@ -487,7 +535,7 @@ export function createOpsStatusController(options: OpsStatusOptions) {
               : "reader",
         });
     } finally {
-      clearTimer(deadline);
+      disarm();
       if (inflight === controller) {
         inflight = null;
         schedule(owed ? 0 : pollMs);

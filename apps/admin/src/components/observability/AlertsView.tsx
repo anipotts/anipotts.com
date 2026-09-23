@@ -1,8 +1,13 @@
 import React, { useMemo } from "react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { BellSimpleIcon } from "@phosphor-icons/react";
-import type { OpsEventLog } from "../../lib/ops-events";
-import { deriveOpsAlerts, type OpsAlert } from "../../lib/ops-events";
+import {
+  OPS_PROBLEM_STATES,
+  deriveOpsAlerts,
+  opsTransitionsFrom,
+  type OpsAlert,
+  type OpsEventLog,
+} from "../../lib/ops-events";
 import { opsDistinctNames } from "../../lib/ops-view";
 import { opsServices, type OpsSnapshot } from "../../lib/ops-v1";
 import { SplitView, useSplitView } from "../astryx/SplitView";
@@ -24,8 +29,9 @@ import {
 } from "../workspace/Workspace";
 import {
   DeviceTile,
+  AlertFor,
+  AlertStart,
   EntryTile,
-  Lasted,
   OPS_WIDTHS,
   PastState,
   RunbookButton,
@@ -53,14 +59,71 @@ export type AlertRow = OpsAlert & {
   runbook: string | null;
 } & Record<string, unknown>;
 
-/** Alerts with the catalog's name, kind and runbook, firing first. */
+/**
+ * Alerts the snapshot shows that no transition opened (A-31): an entry in a
+ * problem state whose episode began before the events held, or whose change
+ * is not read yet. System keeps events 35 days, so a problem older than
+ * that would otherwise leave Alerts reading "Nothing firing" while Status
+ * shows it failing. Its start was never observed, so none is made up: it
+ * started before the oldest event held when the entry has no transition in
+ * the log, and is unknown otherwise.
+ */
+function unopenedAlerts(
+  alerts: readonly OpsAlert[],
+  events: OpsEventLog | null,
+  snapshot: OpsSnapshot | null,
+): OpsAlert[] {
+  if (!snapshot) return [];
+  const firing = new Set(
+    alerts.filter((alert) => alert.status === "firing").map((a) => a.subject),
+  );
+  const changed = new Set(
+    (events?.transitions ?? []).map((event) => event.subject),
+  );
+  const from = events ? opsTransitionsFrom(events) : null;
+  return opsServices(snapshot)
+    .filter(
+      (service) =>
+        !service.missingStatus &&
+        OPS_PROBLEM_STATES.includes(service.status.state) &&
+        !firing.has(service.id),
+    )
+    .map((service) => ({
+      subject: service.id,
+      status: "firing",
+      state: service.status.state,
+      peak: service.status.state,
+      since: null,
+      startedBefore: changed.has(service.id) ? null : from,
+      resolvedAt: null,
+      detail: service.status.detail,
+      incidents:
+        (alerts.find((alert) => alert.subject === service.id)?.incidents ?? 0) +
+        1,
+    }));
+}
+
+/** Alerts with the catalog's name, kind and runbook, firing first: those
+ * from transitions, newest first, then those only the snapshot shows. */
 export function opsAlertRows(
   events: OpsEventLog | null,
   snapshot: OpsSnapshot | null,
 ): AlertRow[] {
   const catalog = catalogOf(snapshot);
   const names = opsDistinctNames(snapshot?.catalog ?? []);
-  return deriveOpsAlerts(events?.transitions ?? []).map((alert) => {
+  const derived = deriveOpsAlerts(events?.transitions ?? []);
+  const unopened = unopenedAlerts(derived, events, snapshot);
+  // One row per entry: a problem the snapshot shows replaces the entry's
+  // last resolved episode.
+  const reopened = new Set(unopened.map((alert) => alert.subject));
+  const alerts = [
+    ...derived.filter((alert) => alert.status === "firing"),
+    ...unopened,
+    ...derived.filter(
+      (alert) => alert.status === "resolved" && !reopened.has(alert.subject),
+    ),
+  ];
+  return alerts.map((alert) => {
     const entry = catalog.get(alert.subject);
     return {
       ...alert,
@@ -165,6 +228,10 @@ export function AlertsTable({
           )}
           title={row.name}
           keep={row.keep}
+          // The incident tables show the device at every width (its column,
+          // line 2 at medium, line 1's end on phones); the summary and the
+          // list beside a panel only on phones.
+          keepHidden={full ? "always" : "compact"}
           href={opsAlertHref(row.subject)}
           onSelect={
             onSelect ? (trigger) => onSelect(row.subject, trigger) : undefined
@@ -196,22 +263,21 @@ export function AlertsTable({
             </>
           }
           mobileBelow={full ? "large" : "compact"}
+          // As Status does: the time, then the device in a slot of its own
+          // (empty for a host, whose tile is the device), so the tiles form
+          // one column down a phone's rows.
           end={
             <>
-              {naming.device && <DeviceTile device={row.host} />}
               {incidents && !resolved ? (
-                <Lasted
-                  from={row.since}
-                  to={row.resolvedAt}
-                  now={now}
-                  serverNow={clock}
-                />
+                <AlertFor alert={row} now={now} serverNow={clock} />
+              ) : resolved ? (
+                <RelativeTime value={row.resolvedAt} now={now} />
               ) : (
-                <RelativeTime
-                  value={resolved ? row.resolvedAt : row.since}
-                  now={now}
-                />
+                <AlertStart alert={row} now={now} />
               )}
+              <span className="ops-device-slot">
+                {naming.device && <DeviceTile device={row.host} />}
+              </span>
             </>
           }
         />
@@ -228,7 +294,7 @@ export function AlertsTable({
     key: "since",
     header: full ? "Started" : "Since",
     width: widths.time,
-    render: (row) => <RelativeTime value={row.since} now={now} />,
+    render: (row) => <AlertStart alert={row} now={now} />,
   };
   const resolvedAt: Column<AlertRow> = {
     key: "resolved",
@@ -266,17 +332,12 @@ export function AlertsTable({
     { ...resolvedAt, hideBelow: "large" },
     {
       key: "lasted",
-      header: "Lasted",
+      // A firing alert has not ended: it has fired "For" so long, and only
+      // a resolved one "Lasted".
+      header: resolved ? "Lasted" : "For",
       width: OPS_WIDTHS.figure + 16,
       numeric: true,
-      render: (row) => (
-        <Lasted
-          from={row.since}
-          to={row.resolvedAt}
-          now={now}
-          serverNow={clock}
-        />
-      ),
+      render: (row) => <AlertFor alert={row} now={now} serverNow={clock} />,
     },
     {
       key: "incidents",
@@ -339,7 +400,15 @@ export function AlertsView({
     path: ALERTS_PATH,
     param: "alert",
   });
-  const names = useMemo(() => rows.map((row) => row.name), [rows]);
+  // The names the incident tables draw: a shared name's host is its
+  // device tile there.
+  const names = useMemo(
+    () =>
+      rows.map((row) =>
+        row.keep ? row.name.slice(0, -row.keep.length) : row.name,
+      ),
+    [rows],
+  );
   const firing = rows.filter((row) => row.status === "firing");
   const resolved = rows.filter((row) => row.status === "resolved");
   const current = selected

@@ -46,6 +46,10 @@ describe("admin runtime contract evaluation", () => {
         editorial_publishing: available,
         private_reader: available,
         private_reader_ops: available,
+        // Unset in production: switched off, not missing anything.
+        private_reader_health: { state: "disabled", missing: [] },
+        private_reader_knowledge: { state: "disabled", missing: [] },
+        private_reader_canary: { state: "disabled", missing: [] },
       },
     });
   });
@@ -55,7 +59,9 @@ describe("admin runtime contract evaluation", () => {
     expect(report.ok).toBe(false);
     expect(report.missing).toEqual([name]);
     // Required configuration never changes feature reporting.
-    expect(Object.values(report.features)).toEqual(Array(4).fill(available));
+    expect(report.features).toEqual(
+      evaluateRuntimeContract(completeEnv(), release).features,
+    );
   });
 
   it("treats empty text and shapeless bindings as missing", () => {
@@ -88,6 +94,9 @@ describe("admin runtime contract evaluation", () => {
           editorial_publishing: { state: "disabled", missing: [] },
           private_reader: { state: "disabled", missing: [] },
           private_reader_ops: { state: "disabled", missing: [] },
+          private_reader_health: { state: "disabled", missing: [] },
+          private_reader_knowledge: { state: "disabled", missing: [] },
+          private_reader_canary: { state: "disabled", missing: [] },
         },
       });
     },
@@ -111,7 +120,10 @@ describe("admin runtime contract evaluation", () => {
     }
   });
 
-  it("reads the Observability credential as needing both reader flags", () => {
+  // A-34: a mode's own flag on while PRIVATE_READER_ENABLED is off issues
+  // nothing (privateReaderModeEnabled): a flag backed by nothing, so it
+  // reads unavailable and names the flag it lacks, never disabled or ok.
+  it("A-34: reads a reader mode's lone flag as unavailable, naming PRIVATE_READER_ENABLED", () => {
     const opsOnly = evaluateRuntimeContract(
       {
         ...completeEnv(),
@@ -120,15 +132,13 @@ describe("admin runtime contract evaluation", () => {
       },
       release,
     );
-    // Issuance needs PRIVATE_READER_ENABLED too (privateReaderModeEnabled),
-    // so an ops flag alone is off, not a key it lacks.
     expect(opsOnly.features.private_reader).toEqual({
       state: "disabled",
       missing: [],
     });
     expect(opsOnly.features.private_reader_ops).toEqual({
-      state: "disabled",
-      missing: [],
+      state: "unavailable",
+      missing: ["PRIVATE_READER_ENABLED", "PRIVATE_READER_SIGNING_KEY"],
     });
     const dataOnly = evaluateRuntimeContract(
       { ...completeEnv(), PRIVATE_READER_OPS_ENABLED: "TRUE" },
@@ -138,6 +148,62 @@ describe("admin runtime contract evaluation", () => {
     expect(dataOnly.features.private_reader_ops).toEqual({
       state: "disabled",
       missing: [],
+    });
+  });
+
+  it("A-34: judges the health, knowledge and canary flags as the ops one", () => {
+    const on = {
+      ...completeEnv(),
+      PRIVATE_READER_HEALTH_ENABLED: "true",
+      PRIVATE_READER_KNOWLEDGE_ENABLED: "true",
+      PRIVATE_READER_CANARY_ENABLED: "true",
+      PRIVATE_READER_CANARY_ACCESS_AUD: "synthetic-aud-9f3",
+      PRIVATE_READER_CANARY_CLIENT_ID: "synthetic-client-2b8",
+    };
+    const all = evaluateRuntimeContract(on, release);
+    expect(all.features.private_reader_health).toEqual(available);
+    expect(all.features.private_reader_knowledge).toEqual(available);
+    expect(all.features.private_reader_canary).toEqual(available);
+    // Each alone, without PRIVATE_READER_ENABLED: unavailable.
+    const lone = evaluateRuntimeContract(
+      { ...on, PRIVATE_READER_ENABLED: undefined },
+      release,
+    );
+    for (const feature of [
+      "private_reader_health",
+      "private_reader_knowledge",
+      "private_reader_canary",
+    ] as const)
+      expect(lone.features[feature]).toEqual({
+        state: "unavailable",
+        missing: ["PRIVATE_READER_ENABLED"],
+      });
+    // Without the signing key, every one of them is unavailable.
+    const unsigned = evaluateRuntimeContract(
+      { ...on, PRIVATE_READER_SIGNING_KEY: "" },
+      release,
+    );
+    expect(unsigned.features.private_reader_health.missing).toEqual([
+      "PRIVATE_READER_SIGNING_KEY",
+    ]);
+    expect(unsigned.features.private_reader_knowledge.missing).toEqual([
+      "PRIVATE_READER_SIGNING_KEY",
+    ]);
+    // The canary answers 503 without its Access audience or client id.
+    const noAudience = evaluateRuntimeContract(
+      {
+        ...on,
+        PRIVATE_READER_CANARY_ACCESS_AUD: undefined,
+        PRIVATE_READER_CANARY_CLIENT_ID: " ",
+      },
+      release,
+    );
+    expect(noAudience.features.private_reader_canary).toEqual({
+      state: "unavailable",
+      missing: [
+        "PRIVATE_READER_CANARY_ACCESS_AUD",
+        "PRIVATE_READER_CANARY_CLIENT_ID",
+      ],
     });
   });
 
@@ -401,6 +467,9 @@ describe("admin runtime contract logging", () => {
         editorial_publishing: available,
         private_reader: available,
         private_reader_ops: available,
+        private_reader_health: { state: "disabled", missing: [] },
+        private_reader_knowledge: { state: "disabled", missing: [] },
+        private_reader_canary: { state: "disabled", missing: [] },
       },
     });
     for (const value of Object.values(completeEnv()))
@@ -428,7 +497,7 @@ describe("admin runtime contract logging", () => {
     expect(JSON.parse(log.warn.mock.calls[0][0]).ok).toBe(true);
   });
 
-  it("claims no feature for the migrations-only DB binding", async () => {
+  it("A-13: claims no feature for the migrations-only DB binding", async () => {
     const { reportRuntimeContract } = await freshModule();
     const log = sink();
     reportRuntimeContract(without("DB"), "fetch", release, log);
@@ -439,6 +508,9 @@ describe("admin runtime contract logging", () => {
       "editorial_publishing",
       "private_reader",
       "private_reader_ops",
+      "private_reader_health",
+      "private_reader_knowledge",
+      "private_reader_canary",
     ]);
     expect(JSON.stringify(line)).not.toContain('"DB"');
   });
@@ -550,6 +622,15 @@ function declaredRuntimeNames(text: string): Declared {
   return declared;
 }
 
+/** Feature flags production leaves unset on purpose, each switched on only
+ * with Ani's approval (health:read, the entity routes, the canary's auth
+ * change). Absent from wrangler.toml, their features read disabled. */
+const UNSET_IN_PRODUCTION: readonly RuntimeName[] = [
+  "PRIVATE_READER_HEALTH_ENABLED",
+  "PRIVATE_READER_KNOWLEDGE_ENABLED",
+  "PRIVATE_READER_CANARY_ENABLED",
+];
+
 function undeclared(declared: Declared) {
   // Evaluate the same feature flags against declaration-only stubs.
   // Secrets are names in comments here; no actual credential is loaded.
@@ -565,7 +646,10 @@ function undeclared(declared: Declared) {
     ...Object.values(report.features).flatMap((feature) => feature.missing),
     ...Object.values(RUNTIME_FEATURES)
       .flatMap((feature) => feature.flags)
-      .filter((name) => !declared.vars.includes(name)),
+      .filter(
+        (name) =>
+          !declared.vars.includes(name) && !UNSET_IN_PRODUCTION.includes(name),
+      ),
   ]);
   return (Object.keys(RUNTIME_CONTRACT) as RuntimeName[]).filter((name) =>
     missing.has(name),
@@ -582,6 +666,12 @@ describe("admin wrangler.toml runtime contract drift", () => {
     expect(undeclared(declaredRuntimeNames(wrangler))).toEqual([]);
   });
 
+  it("A-34: leaves the health, knowledge and canary flags unset, so their features read disabled", () => {
+    const declared = declaredRuntimeNames(wrangler);
+    for (const name of UNSET_IN_PRODUCTION)
+      expect(declared.vars).not.toContain(name);
+  });
+
   it("classifies every deployed binding and var in the contract", () => {
     const declared = declaredRuntimeNames(wrangler);
     const deployed = [
@@ -593,6 +683,13 @@ describe("admin wrangler.toml runtime contract drift", () => {
       ...declared.secret,
     ];
     expect(deployed.filter((name) => !(name in RUNTIME_CONTRACT))).toEqual([]);
+  });
+
+  // A-22 (admin half): the state API has no reader in admin any more.
+  it("A-22: deploys no PUBLIC_STATE_API var, which nothing reads", () => {
+    const declared = declaredRuntimeNames(wrangler);
+    expect(declared.vars).not.toContain("PUBLIC_STATE_API");
+    expect("PUBLIC_STATE_API" in RUNTIME_CONTRACT).toBe(false);
   });
 
   it("retains the contract line without request URL invocation logs", () => {

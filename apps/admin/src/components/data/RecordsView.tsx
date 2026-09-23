@@ -175,8 +175,9 @@ export function recordColumns({
   hideSource?: boolean;
   /** An open record sits beside the list. */
   beside?: boolean;
-  /** No row shows a state chip, so the state column holds only the tier
-   * glyph and gives the rest of its width to the titles. */
+  /** No row shows a state chip (recordTiersOnly), so the state column
+   * holds only the tier glyph under an assistive "Tier" heading and gives
+   * the rest of its width to the titles. */
   tiersOnly?: boolean;
 }): Column<DataRecord>[] {
   const columns: Column<DataRecord>[] = [
@@ -255,6 +256,12 @@ export function recordColumns({
     },
   );
   return columns;
+}
+
+/** Whether no listed record has a non-default state, so the state column
+ * holds only tier glyphs (recordColumns' `tiersOnly`). */
+export function recordTiersOnly(records: readonly DataRecord[]): boolean {
+  return records.every((item) => badgeFor("record", item.status).isDefault);
 }
 
 /** A search's rows add the reader's excerpt, the one flexible column beside
@@ -661,13 +668,9 @@ export function RecordsExplorer({
     controls: id ? detailId : undefined,
     hideSource: Boolean(source),
     beside,
-    // Beside an open record the titles take the state column's width when
-    // no row has a state to show.
-    tiersOnly:
-      beside &&
-      (list?.items ?? []).every(
-        (item) => badgeFor("record", item.status).isDefault,
-      ),
+    // When no row has a state to show, the column holds only the tier
+    // glyph, with no empty "State" heading over it.
+    tiersOnly: recordTiersOnly(list?.items ?? []),
   });
 
   return (

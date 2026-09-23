@@ -48,6 +48,7 @@ import {
   RowTitle,
   SampleBadge,
   StateNotice,
+  EasternClock,
   WorkspacePage,
   type Column,
 } from "../workspace/Workspace";
@@ -473,7 +474,7 @@ function EntityPanel({
           <Heading level={split ? 2 : 1} className="knowledge-title">
             {title}
           </Heading>
-          {split && close}
+          {split ? close : <EasternClock />}
         </HStack>
       }
     >
@@ -533,29 +534,31 @@ function KnowledgeWorkspace({
       data-view="knowledge"
       data-entity-open={route.id ? "true" : "false"}
     >
-      <SplitView
-        list={
-          <Page count={count} badge={badge} actions={actions}>
+      {/* The page's title line spans the list and the open entity, so its
+          clock ends the line at the page's edge, as on Records. */}
+      <Page count={count} badge={badge} actions={actions}>
+        <SplitView
+          list={
             <EntityList
               reader={reader}
               route={route}
               navigate={navigate}
               onCount={setCount}
             />
-          </Page>
-        }
-        panel={
-          route.id ? (
-            <EntityPanel
-              key={route.id}
-              reader={reader}
-              id={route.id}
-              route={route}
-              navigate={navigate}
-            />
-          ) : null
-        }
-      />
+          }
+          panel={
+            route.id ? (
+              <EntityPanel
+                key={route.id}
+                reader={reader}
+                id={route.id}
+                route={route}
+                navigate={navigate}
+              />
+            ) : null
+          }
+        />
+      </Page>
     </div>
   );
 }

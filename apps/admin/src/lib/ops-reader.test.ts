@@ -444,6 +444,66 @@ describe("ops status polling", () => {
     expect(h.snapshotRequests).toHaveLength(0);
     controller.dispose();
   });
+
+  /** The harness's fetch with admin's issuance route answering after `ms`. */
+  const slowIssuance = (h: ReturnType<typeof harness>, ms: number) => {
+    const real = vi.mocked(h.fetch).getMockImplementation()!;
+    vi.mocked(h.fetch).mockImplementation(async (input, init) => {
+      if (String(input) === OPS_CREDENTIAL_ENDPOINT)
+        await new Promise((resolve) => setTimeout(resolve, ms));
+      return real(input, init);
+    });
+  };
+  const answerAfter =
+    (ms: number): Reply =>
+    (init) =>
+      new Promise<Response>((resolve, reject) => {
+        const timer = setTimeout(() => resolve(ok()(init)), ms);
+        init.signal?.addEventListener("abort", () => {
+          clearTimeout(timer);
+          reject(new DOMException("aborted", "AbortError"));
+        });
+      });
+
+  it("A-26: names admin's issuance when it is slower than the deadline, never ap-mini", async () => {
+    const h = harness();
+    slowIssuance(h, OPS_READ_TIMEOUT_MS + 1_000);
+    const controller = controllerFor(h);
+    controller.start();
+    await vi.advanceTimersByTimeAsync(OPS_READ_TIMEOUT_MS + 2_000);
+    expect(controller.getState()).toMatchObject({ connection: "unissued" });
+    expect(controller.getState().hop).toBeUndefined();
+    // ap-mini was never sent an aborted request.
+    expect(h.snapshotRequests.every((init) => !init.signal?.aborted)).toBe(
+      true,
+    );
+    controller.dispose();
+  });
+
+  it("A-26: starts the reader's deadline only once a credential is issued", async () => {
+    const h = harness();
+    slowIssuance(h, OPS_READ_TIMEOUT_MS - 1_000);
+    // Issuance and the read together pass the deadline; each alone does not.
+    h.replies.push(answerAfter(OPS_READ_TIMEOUT_MS - 2_000));
+    const controller = controllerFor(h);
+    controller.start();
+    await vi.advanceTimersByTimeAsync(2 * OPS_READ_TIMEOUT_MS);
+    expect(controller.getState().connection).toBe("connected");
+    controller.dispose();
+  });
+
+  it("A-26: holds the reader's deadline while a 401 renews the credential", async () => {
+    const h = harness();
+    await h.session.start();
+    slowIssuance(h, OPS_READ_TIMEOUT_MS - 1_000);
+    h.replies.push(status(401), answerAfter(OPS_READ_TIMEOUT_MS - 2_000));
+    const controller = controllerFor(h);
+    controller.start();
+    await vi.advanceTimersByTimeAsync(2 * OPS_READ_TIMEOUT_MS);
+    expect(controller.getState().connection).toBe("connected");
+    expect(h.issued()).toBe(2);
+    controller.dispose();
+  });
 });
 
 describe("ops events polling", () => {

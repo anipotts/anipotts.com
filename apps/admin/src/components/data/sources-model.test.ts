@@ -1,4 +1,3 @@
-import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import dataFixture from "../../fixtures/data_v1.synthetic.json";
 import { parseSource, type DataSourceRow } from "./data-model";
@@ -150,7 +149,7 @@ describe("connector, device and lifecycle", () => {
     expect(sourceHost(row("codex-mini", { host: "somewhere" }))).toBeNull();
   });
 
-  it("treats a source with nothing recorded as discovered, never broken", () => {
+  it("A-4: treats a source with nothing recorded as discovered, never broken", () => {
     expect(sourceGroup(empty("gmail-work"))).toBe("discovered");
     expect(sourceState(empty("gmail-work"))).toBe("discovered");
     expect(sourceState(empty("gmail-work", { status: "unavailable" }))).toBe(
@@ -158,7 +157,7 @@ describe("connector, device and lifecycle", () => {
     );
   });
 
-  it("never lets a count decide a lifecycle", () => {
+  it("A-3, A-4: never lets a count decide a lifecycle", () => {
     // Records but no word from System: not Connected, not Live.
     expect(sourceGroup(row("ani-contacts"))).toBe("unreported");
     expect(sourceState(row("ani-contacts"))).toBe("unreported");
@@ -178,7 +177,7 @@ describe("connector, device and lifecycle", () => {
     );
   });
 
-  it("reads System's nested store shape as unreported, never Connected or Live", () => {
+  it("A-7: reads System's nested store shape as unreported, never Connected or Live", () => {
     // System's store nests the catalog view under metadata; the reader
     // contract is flat, so none of it is read (ASK SYSTEM: flatten).
     const nested = parseSource({
@@ -210,9 +209,10 @@ describe("connector, device and lifecycle", () => {
     expect(["live", "connected"]).not.toContain(only!.state);
   });
 
-  it("mirrors the job that collects a live source, and is Unjudged without one", () => {
+  it("A-7: mirrors the job that collects a live source, and is Unjudged without one", () => {
     const jobs: SourceJobs = new Map([
       ["pro.pc-send", { state: "ok" }],
+      ["pro.voicememos", { state: "ok" }],
       ["pc.snapshot", { state: "stale" }],
       ["pc.inference", { state: "failing" }],
       ["host.ap-pro", { state: "degraded" }],
@@ -226,7 +226,7 @@ describe("connector, device and lifecycle", () => {
         ...(job ? { job } : {}),
         ...extra,
       });
-    expect(sourceState(live("pro.pc-send"), jobs)).toBe("live");
+    expect(sourceState(live("pro.voicememos"), jobs)).toBe("live");
     expect(sourceState(live("pc.snapshot"), jobs)).toBe("stale");
     expect(sourceState(live("pc.inference"), jobs)).toBe("failed");
     expect(sourceState(live("host.ap-pro"), jobs)).toBe("degraded");
@@ -239,14 +239,59 @@ describe("connector, device and lifecycle", () => {
     expect(sourceState(live("health.ingest"), jobs)).toBe("unjudged");
     // The newest record is a detail, never a freshness: a month-old one
     // under an ok job is Live, and a fresh one under no job is Unjudged.
-    const old = live("pro.pc-send", { held_to: ago(60 * 24 * 31) });
+    const old = live("pro.voicememos", { held_to: ago(60 * 24 * 31) });
     expect(sourceState(old, jobs)).toBe("live");
     expect(sourceState(live(null, { held_to: ago(1) }), jobs)).toBe("unjudged");
     const [shown] = sourceRows([old], jobs);
     expect(shown!.newest).toBe(ago(60 * 24 * 31));
   });
 
-  it("puts an excluded source in its own group, whatever its counts say", () => {
+  // A-7: pro.pc-send's pass completes while Messages holds nothing past
+  // 2024-05-19 (S-3, S-16); a multi-app pass never judges one source.
+  it("A-7: never reads a source collected by pro.pc-send as Live, in any job state", () => {
+    // System's catalog gives pro.pc-send to five live pro sources.
+    const sources = [
+      "ani-messages-1to1",
+      "ani-browsing",
+      "ani-browsing-archive",
+      "ani-contacts",
+      "ani-voice-memos",
+    ].map((id) =>
+      row(id, {
+        connector: id.includes("messages")
+          ? "messages"
+          : id.includes("contacts")
+            ? "contacts"
+            : id.includes("voice")
+              ? "media"
+              : "browsing",
+        job: "pro.pc-send",
+        collection: "live",
+        status: "current",
+        held_to: "2024-05-19T00:00:00Z",
+      }),
+    );
+    for (const state of ["ok", "degraded", "failing", "stale", "asleep"]) {
+      const jobs: SourceJobs = new Map([["pro.pc-send", { state }]]);
+      for (const source of sources)
+        expect(sourceState(source, jobs), `${source.id} ${state}`).toBe(
+          "unjudged",
+        );
+      for (const shown of sourceRows(sources, jobs))
+        expect(shown.state).not.toBe("live");
+    }
+  });
+
+  it("A-3: shows a sync time only from System's last_success_at, never the newest observation", () => {
+    const [seen] = sourceRows([row("ani-food-orders")]);
+    expect(seen).toMatchObject({ lastSync: null, lastSeen: ago(30) });
+    const [synced] = sourceRows([
+      row("ani-food-orders", { last_success_at: ago(5) }),
+    ]);
+    expect(synced).toMatchObject({ lastSync: ago(5), lastSeen: ago(30) });
+  });
+
+  it("A-3: puts an excluded source in its own group, whatever its counts say", () => {
     // ani-health as System serves it once the exclusion lands.
     const health = row("ani-health", {
       record_count: 93,
@@ -272,9 +317,11 @@ describe("connector, device and lifecycle", () => {
     expect(only).toMatchObject({
       group: "excluded",
       state: "excluded",
-      // Nothing to open, and no sync to speak of.
+      // Nothing to open, and no sync or observation to speak of: its last
+      // observation can be the exclusion marker itself (S-20).
       sourceId: null,
       lastSync: null,
+      lastSeen: null,
     });
   });
 
@@ -380,12 +427,13 @@ describe("rows by connector", () => {
     ]);
   });
 
-  it("keeps the owner and the device word out of names", () => {
+  it("A-27: keeps the owner and the device word out of names", () => {
     const live = rows.find((item) => item.group === "live")!;
+    // Its job is pro.pc-send, a multi-app pass: Unjudged, never Live (A-7).
     expect(live).toMatchObject({
       name: "Browsing",
       device: "ap-pro",
-      state: "live",
+      state: "unjudged",
     });
     expect(
       rows
@@ -404,24 +452,9 @@ describe("rows by connector", () => {
 });
 
 describe("the catalogs this view renders", () => {
-  const replay = new URL(
-    "../../../.local/replay/data_sources_v1.json",
-    import.meta.url,
-  );
+  // Committed fixtures only: a live capture never feeds a committed test.
   const catalogs: Array<[string, unknown[]]> = [
     ["synthetic fixture", dataFixture.sources],
-    ...(existsSync(replay)
-      ? [
-          [
-            "local replay",
-            (
-              JSON.parse(readFileSync(replay, "utf8")) as {
-                data: { items: unknown[] };
-              }
-            ).data.items,
-          ] as [string, unknown[]],
-        ]
-      : []),
   ];
 
   it("counts at least the records the synthetic fixture carries per source", () => {

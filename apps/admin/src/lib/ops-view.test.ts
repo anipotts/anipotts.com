@@ -161,7 +161,7 @@ describe("cadence and triggers", () => {
       status: { next_run_at: next, interval_s: interval },
     });
 
-    it("hides a check time that has passed on a job whose schedule is not its interval", () => {
+    it("A-11: hides a check time that has passed on a job whose schedule is not its interval", () => {
       // pc.inference on 2026-09-22: nightly work, checked hourly, next run
       // equal to generated_at. That is not a run that is due.
       expect(
@@ -176,7 +176,7 @@ describe("cadence and triggers", () => {
       ).toMatchObject({ approximate: true });
     });
 
-    it("keeps a late run due now until it passes the entry's own budget", () => {
+    it("A-11: keeps a late run due now until it passes the entry's own budget", () => {
       // pro.pc-send: every 15 min, a 30 min budget, 74 s late.
       const late = opsNextRun(
         job("every 15 min while awake", 900, "2026-09-22T18:00:25Z", 1800),
@@ -561,6 +561,26 @@ describe("syncs", () => {
         now,
       ),
     ).toEqual({ kind: "unrecorded" });
+  });
+
+  it("A-38: withholds health.ingest's file time whatever its budget", () => {
+    const ingest = services.find((service) => service.id === "health.ingest")!;
+    const ok = {
+      ...ingest,
+      freshness_budget_s: 3600,
+      status: {
+        ...ingest.status,
+        state: "ok" as const,
+        detail: "file present",
+        last_success_at: snapshot.generated_at,
+      },
+    };
+    expect(opsSyncState(ok, now)).toEqual({ kind: "withheld" });
+    expect(opsSyncState(ok, now + 86_400_000)).toEqual({ kind: "withheld" });
+    // A missing file is real: a non-ok row shows its state.
+    expect(
+      opsSyncState({ ...ok, status: { ...ok.status, state: "failing" } }, now),
+    ).toEqual({ kind: "state", state: "failing" });
   });
 });
 

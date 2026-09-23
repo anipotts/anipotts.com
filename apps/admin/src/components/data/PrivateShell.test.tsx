@@ -272,7 +272,7 @@ describe("Health and Knowledge", () => {
     await settle();
   };
 
-  it("says No vitals collected and makes no request while its flag is off", async () => {
+  it("A-2: says No vitals collected and makes no request while its flag is off", async () => {
     const fetcher = network();
     vi.stubGlobal("fetch", fetcher);
     await render("/data/health");
@@ -352,7 +352,7 @@ describe("Health and Knowledge", () => {
     expect(window.sessionStorage.length).toBe(0);
   });
 
-  it("never draws a vital, whatever the feed carries", async () => {
+  it("A-9: never draws a vital, whatever the feed carries", async () => {
     // Heart rate, sleep and HRV have no collector: a number here was seeded.
     const fetcher = healthNetwork(
       healthReply([
@@ -492,10 +492,28 @@ describe("Health and Knowledge", () => {
       expect(host.textContent).toContain("No vitals collected");
     });
 
+    // A-9: a failing row is a check that ran: its list shows, with the
+    // row's state beside it.
+    it("A-9: names what a failing check says has not arrived, with its state", async () => {
+      await render("/data/health", {
+        fixture: metrics({
+          state: "failing",
+          detail: "missing:steps,distance,flights,active_energy",
+        }),
+      });
+      expect(host.textContent).toContain("Failing");
+      expect(host.textContent).toContain("Steps not arrived in the last 24h");
+      expect(host.textContent).toContain(
+        "Active energy not arrived in the last 24h",
+      );
+      expect(host.textContent).not.toContain("Not checked");
+    });
+
     it.each([
       ["stale", { state: "stale", detail: "ok" }],
-      ["failing", { state: "failing", detail: "missing:steps" }],
+      ["failing ok", { state: "failing", detail: "ok" }],
       ["unknown", { state: "unknown", detail: "ok" }],
+      ["asleep", { state: "asleep", detail: "missing:steps" }],
     ])("reads a %s row as Not checked, flag off or on", async (_state, row) => {
       await render("/data/health", { fixture: metrics(row) });
       expect(host.textContent).toContain("Metric arrivalsNot checked");
@@ -580,7 +598,7 @@ describe("Health and Knowledge", () => {
     expect(host.textContent).toContain("8,412");
   });
 
-  it("keeps Knowledge to one notice and no request while its flag is off", async () => {
+  it("A-1: keeps Knowledge to one notice and no request while its flag is off", async () => {
     const fetcher = network();
     vi.stubGlobal("fetch", fetcher);
     await render("/data/knowledge");

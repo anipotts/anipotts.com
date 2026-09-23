@@ -347,6 +347,22 @@ export function appendOpsEvents(
   };
 }
 
+/**
+ * The earliest time from which the log holds every state change: its first
+ * transition once the transitions were capped, else the oldest event of any
+ * kind held. A catalog entry with no transition in the log has been in its
+ * state since before this. Null when nothing is held.
+ */
+export function opsTransitionsFrom(log: OpsEventLog): string | null {
+  if (log.transitions.length >= OPS_EVENTS_KEEP.transitions)
+    return log.transitions[0]!.at;
+  const firsts = [log.transitions[0], log.runs[0], log.recent[0]]
+    .filter((event): event is OpsEvent => event !== undefined)
+    .map((event) => event.at)
+    .sort();
+  return firsts[0] ?? null;
+}
+
 /** Whether a page of events changes what the snapshot says: a state change
  * or a finished run. Access rows never do. */
 export function opsEventsMoveSnapshot(items: readonly OpsEvent[]): boolean {
@@ -371,14 +387,22 @@ export type OpsAlert = {
   /** The most severe state the episode reached: what a resolved incident
    * was. */
   peak: OpsState;
-  /** When the episode began: its first problem transition. */
-  since: string;
+  /** When the episode began: its first problem transition. Null for a
+   * problem the snapshot shows with no opening transition in the events
+   * held (opsAlertRows): its start was never observed. */
+  since: string | null;
+  /** With no `since`: the oldest event held, which the problem is older
+   * than, when the entry has no transition in the log at all. */
+  startedBefore?: string | null;
   /** When the later ok arrived, for a resolved alert. */
   resolvedAt: string | null;
   detail: string | null;
   /** Every episode this entry had in the events held, this one included. */
   incidents: number;
 };
+
+/** An episode read from transitions: its start is always observed. */
+export type OpsIncident = OpsAlert & { since: string };
 
 /** Problem states, most severe first. */
 const SEVERITY: readonly OpsState[] = ["failing", "degraded", "stale"];
@@ -398,9 +422,9 @@ export const worse = (a: OpsState, b: OpsState) =>
  */
 export function deriveOpsAlerts(
   transitions: readonly OpsTransitionEvent[],
-): OpsAlert[] {
-  const firing: OpsAlert[] = [];
-  const resolved: OpsAlert[] = [];
+): OpsIncident[] {
+  const firing: OpsIncident[] = [];
+  const resolved: OpsIncident[] = [];
   for (const episodes of opsIncidentsBySubject(transitions).values()) {
     const latest = episodes[0]!;
     if (latest.status === "firing") firing.push(latest);
@@ -419,11 +443,11 @@ export function deriveOpsAlerts(
  */
 export function opsIncidentsBySubject(
   transitions: readonly OpsTransitionEvent[],
-): Map<string, OpsAlert[]> {
+): Map<string, OpsIncident[]> {
   type Open = { start: string; latest: OpsTransitionEvent; peak: OpsState };
   const open = new Map<string, Open>();
-  const episodes = new Map<string, OpsAlert[]>();
-  const push = (subject: string, alert: OpsAlert) => {
+  const episodes = new Map<string, OpsIncident[]>();
+  const push = (subject: string, alert: OpsIncident) => {
     const list = episodes.get(subject);
     if (list) list.unshift(alert);
     else episodes.set(subject, [alert]);
