@@ -61,7 +61,7 @@ describe("ingest runtime contract evaluation", () => {
     });
   }
 
-  it("drops the retired cron job names from the contract", () => {
+  it("A-16: drops the retired cron job names from the contract", () => {
     expect(Object.keys(RUNTIME_CONTRACT)).toEqual([
       "DB",
       "MAC_MINI_INGEST_KEY",
@@ -331,7 +331,7 @@ describe("ingest wrangler.toml runtime contract drift", () => {
     expect(declared.unrecognized).toEqual([]);
   });
 
-  it("keeps an explicit empty schedule so a deploy removes the minute cron", () => {
+  it("A-16: keeps an explicit empty schedule so a deploy removes the minute cron", () => {
     expect(declaredRuntimeNames(wrangler).crons).toBe("[]");
     const dropped = wrangler.replace(/^\[triggers\]\ncrons = \[\]\n/m, "");
     expect(dropped).not.toBe(wrangler);

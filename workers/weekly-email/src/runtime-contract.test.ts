@@ -34,7 +34,7 @@ describe("weekly email runtime contract evaluation", () => {
     });
   });
 
-  it("ignores stale secrets that may still be set in Cloudflare", () => {
+  it("A-14: ignores stale secrets that may still be set in Cloudflare", () => {
     const report = evaluateRuntimeContract({
       ...completeEnv(),
       ...staleSecrets,
@@ -257,7 +257,7 @@ describe("weekly email wrangler.toml runtime contract drift", () => {
     expect(declared.unrecognized).toEqual([]);
   });
 
-  it("keeps an explicit empty schedule so a deploy removes the Sunday cron", () => {
+  it("A-14: keeps an explicit empty schedule so a deploy removes the Sunday cron", () => {
     expect(declaredRuntimeNames(wrangler).crons).toBe("[]");
     const dropped = wrangler.replace(/^\[triggers\]\ncrons = \[\]\n/m, "");
     expect(dropped).not.toBe(wrangler);

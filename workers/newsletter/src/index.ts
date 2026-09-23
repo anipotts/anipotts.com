@@ -80,6 +80,11 @@ const UNOBSERVED =
 // send. Mocked sends are not sends.
 const SENT_EVENT_TYPES = ["confirm_email_sent", "issue_delivery_sent"];
 
+// The event types a failed send records: this consumer's queue_error, and
+// www's confirm_email_failed when a confirmation never reached the queue
+// (apps/www/src/lib/newsletter.ts). Either is a send that did not happen.
+const FAILED_EVENT_TYPES = ["queue_error", "confirm_email_failed"];
+
 type NewsletterFacts = {
   subscribers: { confirmed: number; total: number };
   last_sent_at: string | null;
@@ -109,9 +114,9 @@ async function newsletterFacts(db: D1Database): Promise<NewsletterFacts> {
       .first<{ total: unknown; confirmed: unknown }>(),
     db
       .prepare(
-        `SELECT MAX(CASE WHEN type IN (${SENT_EVENT_TYPES.map(() => "?").join(", ")}) THEN created_at END) AS last_sent_at, MAX(CASE WHEN type = 'queue_error' THEN created_at END) AS last_error_at FROM newsletter_events`,
+        `SELECT MAX(CASE WHEN type IN (${SENT_EVENT_TYPES.map(() => "?").join(", ")}) THEN created_at END) AS last_sent_at, MAX(CASE WHEN type IN (${FAILED_EVENT_TYPES.map(() => "?").join(", ")}) THEN created_at END) AS last_error_at FROM newsletter_events`,
       )
-      .bind(...SENT_EVENT_TYPES)
+      .bind(...SENT_EVENT_TYPES, ...FAILED_EVENT_TYPES)
       .first<{ last_sent_at: unknown; last_error_at: unknown }>(),
   ]);
   return {

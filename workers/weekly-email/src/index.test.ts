@@ -76,7 +76,7 @@ afterEach(() => {
 });
 
 describe("retired weekly email status", () => {
-  it("reports the retirement with queue counts and no send", async () => {
+  it("A-14: reports the retirement with queue counts and no send", async () => {
     const worker = await freshWorker("status-live");
     captureConsole();
     const network = forbidNetwork();
@@ -178,7 +178,7 @@ describe("retired weekly email status", () => {
 });
 
 describe("retired weekly email schedule", () => {
-  it("logs a stale schedule and does nothing else", async () => {
+  it("A-14: logs a stale schedule and does nothing else", async () => {
     const worker = await freshWorker("scheduled");
     const logs = captureConsole();
     const network = forbidNetwork();
@@ -247,7 +247,7 @@ describe("weekly email entry wiring", () => {
       expect(logs.text()).not.toContain(value);
   });
 
-  it("keeps the send, the retry and every report source out of the source", () => {
+  it("A-14, A-15: keeps the send, the retry and every report source out of the source", () => {
     const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
     for (const retired of [
       "api.resend.com",

@@ -103,8 +103,8 @@ describe("ingest health", () => {
     return worker.fetch(new Request("https://ingest.test/"), env);
   }
 
-  it("A-24: reports a week without brand mail as quiet, not as a failure", async () => {
-    const worker = await freshWorker("health-quiet");
+  it("A-24: reports a month without brand mail as silent, naming the last day, not as a failure", async () => {
+    const worker = await freshWorker("health-silent");
     captureConsole();
     const network = forbidNetwork();
     const env = completeEnv();
@@ -119,10 +119,12 @@ describe("ingest health", () => {
       d1: "connected",
       brands_key: "configured",
       brands_email: {
-        state: "quiet",
+        state: "silent",
         last_ingested_at: "2026-06-24T02:49:13.052Z",
         quiet_after_s: 604800,
-        note: "No brand mail in 7 days. A quiet inbox and a stopped capture look the same here.",
+        silent_after_s: 2592000,
+        // The note names the last day, so it never reads as a 7 day gap.
+        note: "No brand mail since 2026-06-24, over 30 days. A quiet inbox rarely explains that long; check the capture.",
       },
     });
     // It says plainly what it can't see, and it has no budget to fail.
@@ -147,6 +149,23 @@ describe("ingest health", () => {
       "SELECT MAX(ingested_at) AS last_at FROM brands_emails",
     ]);
     expect(network).not.toHaveBeenCalled();
+  });
+
+  it("A-24: reports a week to a month without brand mail as quiet, naming the last day", async () => {
+    const worker = await freshWorker("health-quiet");
+    captureConsole();
+    const last = new Date(Date.now() - 12 * DAY_MS).toISOString();
+    const body = (await (
+      await getHealth(worker, completeEnv(fakeDb(last)))
+    ).json()) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      ok: true,
+      brands_email: {
+        state: "quiet",
+        last_ingested_at: last,
+        note: `No brand mail since ${last.slice(0, 10)}. A quiet inbox and a stopped capture look the same here.`,
+      },
+    });
   });
 
   it("A-24: reports brand mail inside 7 days as recent", async () => {
@@ -405,7 +424,7 @@ describe("ingest writes", () => {
 });
 
 describe("retired ingest schedule", () => {
-  it("logs a stale schedule and does nothing else", async () => {
+  it("A-16: logs a stale schedule and does nothing else", async () => {
     const worker = await freshWorker("scheduled");
     const logs = captureConsole();
     const network = forbidNetwork();
@@ -480,7 +499,7 @@ describe("ingest entry wiring", () => {
       expect(logs.text()).not.toContain(value);
   });
 
-  it("keeps the retired cron jobs and categories out of the source", () => {
+  it("A-16, A-17, A-18, A-19: keeps the retired cron jobs and categories out of the source", () => {
     const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
     for (const retired of [
       "await fetch(",

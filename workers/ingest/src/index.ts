@@ -51,9 +51,12 @@ const TS_COLUMN: Record<Category, string> = {
  * The Apps Script capture posts a brands_email row only when brand mail
  * arrives. This worker sees the rows that reach it and nothing else: a quiet
  * inbox and a stopped capture look the same here. So a week with no row is
- * "quiet", never a failure.
+ * "quiet", and a month is "silent": past what a quiet inbox usually explains.
+ * Neither is a fault of this worker, so neither sets ok false; both name the
+ * newest arrival, so the note never understates the gap (A-24).
  */
 const BRANDS_EMAIL_QUIET_AFTER_S = 7 * 24 * 60 * 60;
+const BRANDS_EMAIL_SILENT_AFTER_S = 30 * 24 * 60 * 60;
 
 const UNOBSERVED =
   "The Apps Script capture itself. This worker sees only the rows that reach it and keeps no record of rejected posts.";
@@ -145,18 +148,28 @@ async function writeToTable(
 }
 
 type BrandsEmailArrival = {
-  state: "recent" | "quiet" | "empty" | "unknown";
+  state: "recent" | "quiet" | "silent" | "empty" | "unknown";
   last_ingested_at: string | null;
   quiet_after_s: number;
+  silent_after_s: number;
   note: string;
 };
 
-const ARRIVAL_NOTE: Record<BrandsEmailArrival["state"], string> = {
-  recent: "Brand mail arrived in the last 7 days.",
-  quiet:
-    "No brand mail in 7 days. A quiet inbox and a stopped capture look the same here.",
-  empty: "No brand mail recorded.",
-  unknown: "Couldn't read the newest arrival time.",
+/** The day of the newest arrival, in UTC: "2026-06-24". */
+const day = (last: string | null) =>
+  last ? new Date(Date.parse(last)).toISOString().slice(0, 10) : "";
+
+const ARRIVAL_NOTE: Record<
+  BrandsEmailArrival["state"],
+  (last: string | null) => string
+> = {
+  recent: () => "Brand mail arrived in the last 7 days.",
+  quiet: (last) =>
+    `No brand mail since ${day(last)}. A quiet inbox and a stopped capture look the same here.`,
+  silent: (last) =>
+    `No brand mail since ${day(last)}, over 30 days. A quiet inbox rarely explains that long; check the capture.`,
+  empty: () => "No brand mail recorded.",
+  unknown: () => "Couldn't read the newest arrival time.",
 };
 
 function arrival(
@@ -167,7 +180,8 @@ function arrival(
     state,
     last_ingested_at: last,
     quiet_after_s: BRANDS_EMAIL_QUIET_AFTER_S,
-    note: ARRIVAL_NOTE[state],
+    silent_after_s: BRANDS_EMAIL_SILENT_AFTER_S,
+    note: ARRIVAL_NOTE[state](last),
   };
 }
 
@@ -183,8 +197,13 @@ async function brandsEmailArrival(
   if (last === null) return arrival("empty", null);
   const lastMs = Date.parse(last);
   if (!Number.isFinite(lastMs)) return arrival("unknown", last);
+  const age = nowMs - lastMs;
   return arrival(
-    nowMs - lastMs <= BRANDS_EMAIL_QUIET_AFTER_S * 1000 ? "recent" : "quiet",
+    age <= BRANDS_EMAIL_QUIET_AFTER_S * 1000
+      ? "recent"
+      : age <= BRANDS_EMAIL_SILENT_AFTER_S * 1000
+        ? "quiet"
+        : "silent",
     last,
   );
 }
@@ -203,7 +222,7 @@ export default {
     // Health: ok is false only for a fault this worker can see. D1 unreadable
     // means every capture post would fail. An unset BRANDS_INGEST_KEY means
     // every capture post is refused. A newest time that isn't a timestamp
-    // can't be judged. A quiet week is reported, not failed.
+    // can't be judged. A quiet week or a silent month is reported, not failed.
     if (request.method === "GET") {
       let brands: BrandsEmailArrival | null = null;
       try {

@@ -229,7 +229,14 @@ describe("A-32 newsletter health", () => {
     const reads = db.sql.join("\n");
     for (const column of ["email", "subject", "token", "payload", "html"])
       expect(reads).not.toContain(column);
-    expect(db.bound).toEqual([["confirm_email_sent", "issue_delivery_sent"]]);
+    expect(db.bound).toEqual([
+      [
+        "confirm_email_sent",
+        "issue_delivery_sent",
+        "queue_error",
+        "confirm_email_failed",
+      ],
+    ]);
     expect(network).not.toHaveBeenCalled();
     for (const value of Object.values(secrets))
       expect(JSON.stringify(body)).not.toContain(value);
@@ -276,6 +283,34 @@ describe("A-32 newsletter health", () => {
         notes: ["The last send attempt failed."],
       });
     }
+  });
+
+  // www records a confirmation that never reached the queue as
+  // confirm_email_failed in the same table: a send that did not happen.
+  it("A-32: counts a confirmation that never reached the queue as a failed send", async () => {
+    const worker = await freshWorker("health-enqueue");
+    captureConsole();
+    const db = healthDb({
+      total: 1,
+      confirmed: 0,
+      last_sent_at: null,
+      last_error_at: "2026-09-21T09:15:00.000Z",
+    });
+    const body = await health(worker, { DB: db, ...secrets });
+    const events = db.sql.find((query) => query.includes("newsletter_events"))!;
+    // last_error_at is the newest of both failure types.
+    expect(events).toMatch(
+      /MAX\(CASE WHEN type IN \(\?, \?\) THEN created_at END\) AS last_error_at/,
+    );
+    expect(db.bound[0]!.slice(2)).toEqual([
+      "queue_error",
+      "confirm_email_failed",
+    ]);
+    expect(body).toMatchObject({
+      ok: false,
+      last_error_at: "2026-09-21T09:15:00.000Z",
+      notes: expect.arrayContaining(["The last send attempt failed."]),
+    });
   });
 
   it("is not ok when a send secret is missing, and says which", async () => {
