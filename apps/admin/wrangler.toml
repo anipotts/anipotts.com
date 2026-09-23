@@ -31,7 +31,7 @@ EDITORIAL_PUBLISH_ENABLED = "true"
 PRIVATE_READER_ENABLED = "true"
 # Observability reads (ops:read) from the same tailnet reader.
 PRIVATE_READER_OPS_ENABLED = "true"
-# The reader signing key is the PRIVATE_READER_SIGNING_KEY secret.
+# Secrets: PRIVATE_READER_SIGNING_KEY.
 
 [[durable_objects.bindings]]
 name = "EDITORIAL"

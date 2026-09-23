@@ -55,10 +55,13 @@ export const RUNTIME_REQUIRED = [
 
 /** Mirrors productionEditor. Flags switch a feature off; needs make an
  * enabled feature unavailable when absent. EDITORIAL_PUBLISH_ENABLED is the
- * publishing kill switch. The private reader flags gate issuance routes, not
- * bindings, so they need no feature here. DB is bound for migrations only
- * and backs no feature: reporting it available would claim a read that no
- * page makes.
+ * publishing kill switch. The private reader's issuance routes sign with
+ * PRIVATE_READER_SIGNING_KEY, so a reader flag that is on without the key
+ * reports its feature unavailable instead of ok (A-34): the Data credential
+ * (private_reader) and the Observability one (private_reader_ops, which also
+ * needs PRIVATE_READER_ENABLED, as privateReaderModeEnabled does). DB is
+ * bound for migrations only and backs no feature: reporting it available
+ * would claim a read that no page makes.
  */
 export const RUNTIME_FEATURES = {
   editorial: {
@@ -68,6 +71,14 @@ export const RUNTIME_FEATURES = {
   editorial_publishing: {
     flags: ["EDITORIAL_ENABLED", "EDITORIAL_PUBLISH_ENABLED"],
     needs: ["EDITORIAL", "CONTENT_DB", "CONTENT_MEDIA", "PUBLIC_RELEASE_SHA"],
+  },
+  private_reader: {
+    flags: ["PRIVATE_READER_ENABLED"],
+    needs: ["PRIVATE_READER_SIGNING_KEY"],
+  },
+  private_reader_ops: {
+    flags: ["PRIVATE_READER_ENABLED", "PRIVATE_READER_OPS_ENABLED"],
+    needs: ["PRIVATE_READER_SIGNING_KEY"],
   },
 } as const satisfies Record<
   string,
