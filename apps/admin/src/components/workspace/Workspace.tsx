@@ -125,8 +125,10 @@ const unpunctuated = (text: string) => text.replace(/\.\s*$/, "");
 
 /** Page title, its count, one supporting line and the page's own actions.
  * The title line has one fixed height, the largest action's (36px, 44px on
- * phones), and carries the actions and the live Eastern clock, so the title
- * sits at the same place on every page and the meta line hangs below it. */
+ * phones), and carries the actions and then the live Eastern clock, whose
+ * right edge is the line's on every page. The meta line hangs below it; on
+ * phones the actions end the meta line instead of wrapping under the title
+ * (workspace.css). */
 export function WorkspacePage({
   title,
   count,
@@ -169,7 +171,6 @@ export function WorkspacePage({
             {badge}
           </HStack>
           <div className="workspace-page-end">
-            <EasternClock now={clock} />
             {actions && (
               <HStack
                 gap={2}
@@ -179,6 +180,7 @@ export function WorkspacePage({
                 {actions}
               </HStack>
             )}
+            <EasternClock now={clock} />
           </div>
         </div>
         {meta && (
@@ -502,6 +504,9 @@ export type Column<T> = {
    * leave, so the lead keeps the rest: a detail column at 0.4 gives way
    * before the names beside it. Without it flexible columns split evenly. */
   share?: number;
+  /** With `share`: pixels the column always leaves the lead (leadWidth), so
+   * the detail gives way before a name would truncate. */
+  reserve?: number;
   align?: "start" | "end";
   /** Figures: right-aligned, header included, in tabular numerals. */
   numeric?: boolean;
@@ -564,9 +569,58 @@ export function tableMinWidths<T>(
 /** A shared column's width. The frame is a size container, so 100cqw is the
  * width the table has: a length, which a fixed layout honours. Header cells
  * carry max-width 0 (for their ellipsis), so the width is the minimum too. */
-function shareWidth(share: number): React.CSSProperties {
-  const width = `max(${FLEX_MIN_WIDTH}px, (100cqw - var(--workspace-table-fixed, 0px)) * ${share})`;
+function shareWidth(share: number, reserve = 0): React.CSSProperties {
+  const room = "(100cqw - var(--workspace-table-fixed, 0px))";
+  const part = reserve
+    ? `min(${room} * ${share}, ${room} - ${reserve}px)`
+    : `${room} * ${share}`;
+  const width = `max(${FLEX_MIN_WIDTH}px, ${part})`;
   return { width, minWidth: width };
+}
+
+/** The lead's inset, tile and gap around its title: 16px in, a 24px tile,
+ * 12px to the title and 12px out. */
+const LEAD_CHROME = 64;
+/** Advance widths, in px, of printable ASCII (space to tilde) in the row
+ * title's face: Instrument Sans at 14px and weight 500, as Chromium draws
+ * it. Anything else counts as a wide 10px. */
+const TITLE_ADVANCES = [
+  2.8, 4, 5.8, 10.1, 8.7, 11, 10.7, 3.4, 5.9, 5.9, 5.9, 7.5, 3.7, 7, 3.7, 6.2,
+  9.4, 5.5, 7.7, 8.1, 8.5, 8.1, 8.5, 7.7, 8.3, 8.6, 3.7, 3.7, 7.5, 7.5, 7.5, 8,
+  12, 10.2, 9, 10.4, 10.6, 8.9, 8.4, 10.7, 10.2, 3.6, 6.2, 9.8, 8.2, 12.6, 10.2,
+  11.1, 9.3, 11.2, 9.2, 8.7, 9.2, 9.9, 10.2, 15.2, 9.8, 9.6, 8.8, 5.9, 6.2, 5.9,
+  7.5, 6.2, 5, 7.6, 8.6, 7.6, 8.6, 7.9, 5.1, 8.6, 8.5, 3.5, 3.5, 7.7, 3.5, 13,
+  8.5, 8.3, 8.6, 8.6, 5.4, 6.8, 5.5, 8.3, 7.4, 11, 8, 7.4, 7.1, 5.9, 3.3, 5.9,
+  7.5,
+];
+/** Kerning and rendering differences, so the estimate errs wide. */
+const TITLE_SLACK = 1.04;
+
+/** A title's width in the row's face, estimated from its characters. */
+export function titleWidth(title: string): number {
+  let width = 0;
+  for (const char of title) {
+    const code = char.charCodeAt(0) - 32;
+    width += TITLE_ADVANCES[code] ?? 10;
+  }
+  return width * TITLE_SLACK;
+}
+
+/**
+ * The width a lead column needs to show its longest title whole, for a
+ * `share` column's `reserve`. The server cannot measure text, so it is
+ * estimated from the face's advances (titleWidth), and kept between `min`
+ * and `max` so a very long title truncates rather than squeezing the detail
+ * away.
+ */
+export function leadWidth(
+  titles: Iterable<string>,
+  { min = 160, max = 360 }: { min?: number; max?: number } = {},
+): number {
+  let widest = 0;
+  for (const title of titles) widest = Math.max(widest, titleWidth(title));
+  const width = Math.ceil(LEAD_CHROME + widest);
+  return Math.min(max, Math.max(min, width));
 }
 
 /** What each range's fixed columns take, for a flexible column's `share`. */
@@ -658,7 +712,7 @@ export function DataTable<T extends Record<string, unknown>>({
   const shape = columns
     .map(
       (column) =>
-        `${column.key}:${column.width}:${column.share}:${column.hideBelow}:${column.numeric}`,
+        `${column.key}:${column.width}:${column.share}:${column.reserve}:${column.hideBelow}:${column.numeric}`,
     )
     .join(",");
   const plugin = useMemo((): TablePlugin<T> => {
@@ -666,6 +720,9 @@ export function DataTable<T extends Record<string, unknown>>({
     const hiding = (key: string) => {
       const column = byKey.get(key);
       return {
+        // Names the column, so a page's own rules (a container query) can
+        // move it without reaching into cell order.
+        "data-column": key,
         ...(column?.hideBelow ? { "data-hide-below": column.hideBelow } : {}),
         ...(column?.numeric ? { "data-numeric": "" } : {}),
       };
@@ -710,7 +767,7 @@ export function DataTable<T extends Record<string, unknown>>({
             }
           : props,
       transformHeaderCell: (props, column) => {
-        const { width, share } = byKey.get(column.key) ?? {};
+        const { width, share, reserve } = byKey.get(column.key) ?? {};
         return {
           ...props,
           htmlProps: {
@@ -721,7 +778,7 @@ export function DataTable<T extends Record<string, unknown>>({
               ...(width !== undefined
                 ? { width, minWidth: width }
                 : share !== undefined
-                  ? shareWidth(share)
+                  ? shareWidth(share, reserve)
                   : { width: "auto", minWidth: FLEX_MIN_WIDTH }),
             },
           } as typeof props.htmlProps,
@@ -870,6 +927,28 @@ function withGroupRows<T extends Record<string, unknown>>(
   return out;
 }
 
+/** A title that ends in an ellipsis, keeping `keep` (its end) whole. */
+export function TitleText({
+  title,
+  keep,
+  className = "workspace-row-title",
+}: {
+  title: string;
+  keep?: string;
+  className?: string;
+}) {
+  if (!keep || !title.endsWith(keep) || keep === title)
+    return <span className={className}>{title}</span>;
+  return (
+    <span className={className} data-keep="">
+      <span className="workspace-title-base">
+        {title.slice(0, -keep.length)}
+      </span>
+      <span className="workspace-title-keep">{keep}</span>
+    </span>
+  );
+}
+
 /**
  * A row's lead cell. Line 1 is the mark tile, the title and, at compact, the
  * `end` slot and a right-aligned time. Line 2 is `secondary` at every width
@@ -885,6 +964,7 @@ export function RowTitle({
   mark,
   kind,
   title,
+  keep,
   href,
   onSelect,
   isPressed,
@@ -904,6 +984,9 @@ export function RowTitle({
   /** The row's kind, as the tile's tooltip and for assistive technology. */
   kind: string;
   title: string;
+  /** The end of `title` that never truncates, such as ", ap-mini" on a name
+   * two hosts share: the rest of the title gives way first. */
+  keep?: string;
   /** The row's destination. The whole row opens it; the link itself wraps
    * only the title text. */
   href?: string;
@@ -948,7 +1031,7 @@ export function RowTitle({
         onSelect(event.currentTarget);
       }
     : undefined;
-  const label = <span className="workspace-row-title">{title}</span>;
+  const label = <TitleText title={title} keep={keep} />;
   const trailing = (end != null || time != null) && (
     <Text type="supporting" color="secondary" className="workspace-row-end">
       {end}

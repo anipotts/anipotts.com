@@ -29,16 +29,20 @@
     --workspace-page-line: var(--spacing-11);
   }
 }
+/* The title and the end (actions, then the clock) share one line. When they
+   do not fit, the end gives way, never the title: it wraps in reverse, so the
+   clock keeps the title's line at the right edge and the actions drop to a
+   line of their own under it, right-aligned, never under the title. */
 .workspace-page-line {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: flex-start;
   column-gap: var(--spacing-3);
   min-width: 0;
 }
 .workspace-page-title:not(#\#) {
-  flex: 1 1 auto;
-  min-width: 0;
+  flex: 1 0 auto;
+  max-width: 100%;
   row-gap: 0;
 }
 .workspace-page-title > h1,
@@ -51,15 +55,23 @@
   margin-block: 0;
 }
 .workspace-page-end {
-  flex: 0 0 auto;
-  gap: var(--spacing-3);
+  flex: 0 1 auto;
+  flex-wrap: wrap-reverse;
+  justify-content: flex-end;
+  column-gap: var(--spacing-3);
+  row-gap: var(--spacing-1);
+  min-width: 0;
   margin-inline-start: auto;
 }
 .workspace-page-actions {
   flex: 0 0 auto;
 }
-/* The live Eastern clock: quiet, tabular, one line. */
+/* The live Eastern clock: quiet, tabular, one line, centred on the title
+   line's height whichever line of the end it sits on. */
 .workspace-clock {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--workspace-page-line);
   color: var(--color-text-secondary);
   font-size: var(--text-supporting-size);
   font-variant-numeric: tabular-nums;
@@ -310,9 +322,12 @@
   color: var(--color-text-secondary);
   overflow: hidden;
 }
-/* A device render is its own icon, with no fill behind it. */
+/* A device render is its own icon, with no fill behind it and no corner
+   clipping its outline. */
 .workspace-row-mark:has(> .brand-tile[data-kind="device"]) {
   background: transparent;
+  border-radius: 0;
+  overflow: visible;
 }
 /* Phosphor glyphs take 2px more than brand glyphs to match their weight. */
 .workspace-row-mark > svg {
@@ -369,6 +384,24 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+/* A title whose end stays whole (the host on a name two Macs share): the
+   base gives way first, so ", ap-mini" never becomes ", a...". */
+[data-keep]:not(#\#) {
+  display: flex;
+  min-width: 0;
+  overflow: visible;
+}
+.workspace-title-base {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.workspace-title-keep {
+  flex: none;
+  white-space: pre;
 }
 /* Line 1's end and time belong to compact, where their columns are gone. */
 .workspace-row-end {

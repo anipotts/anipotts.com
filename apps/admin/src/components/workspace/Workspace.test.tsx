@@ -29,12 +29,15 @@ import {
   StateTransition,
   TechnicalSection,
   TierMark,
+  TitleText,
   ValueChips,
   WorkspacePage,
   badgeFor,
   easternClockText,
   easternClockTitle,
+  leadWidth,
   tableMinWidths,
+  titleWidth,
   type Column,
 } from "./Workspace";
 
@@ -112,6 +115,10 @@ describe("the page title line", () => {
       "Tuesday, September 22, 2026, UTC-04:00",
     );
     expect(line.querySelector("button")?.textContent).toBe("Lock");
+    // The clock ends the line on every page, after any actions, so its
+    // right edge never moves between pages.
+    const end = line.querySelector(".workspace-page-end")!;
+    expect(end.lastElementChild?.className).toBe("workspace-clock");
     expect(line.querySelector(".workspace-page-meta")).toBeNull();
     expect(host.querySelector(".workspace-page-meta")?.textContent).toBe(
       "Live",
@@ -653,6 +660,88 @@ describe("the table convention", () => {
       (th) => (th as HTMLElement).style.width,
     );
     expect(widths).toEqual(["auto", "144px", "auto", "116px", "116px", "80px"]);
+  });
+});
+
+describe("a name that never truncates", () => {
+  it("keeps room for the longest title, the detail giving way first", () => {
+    type Row = { id: string; name: string; detail: string };
+    const rows: Row[] = [
+      {
+        id: "a",
+        name: "Session transcripts to R2, ap-mini",
+        detail: "healthy",
+      },
+      { id: "b", name: "Sync", detail: "last run ok" },
+    ];
+    const room = leadWidth(rows.map((row) => row.name));
+    // Instrument Sans draws the longest title at about 219px; the lead's
+    // inset, tile and gaps add 64, and the estimate errs wide.
+    expect(room).toBeGreaterThanOrEqual(64 + 219);
+    expect(room).toBeLessThan(64 + 219 + 16);
+    const host = html(
+      <DataTable
+        rows={rows}
+        rowKey="id"
+        label="Entries"
+        noun={["entry", "entries"]}
+        columns={[
+          {
+            key: "name",
+            header: "Service",
+            render: (row) => <RowTitle kind="Job" title={row.name} />,
+          },
+          { key: "state", header: "State", width: 116, render: () => null },
+          {
+            key: "detail",
+            header: "Detail",
+            share: 0.5,
+            reserve: room,
+            render: (row) => <DetailText>{row.detail}</DetailText>,
+          },
+        ]}
+      />,
+    );
+    const [lead, state, detail] = [
+      ...host.querySelectorAll("thead th"),
+    ] as HTMLElement[];
+    expect(lead!.style.width).toBe("auto");
+    expect(state!.style.width).toBe("116px");
+    // Half of what the fixed columns leave, but never the lead's room.
+    expect(detail!.style.width).toContain(`- ${room}px`);
+    expect(detail!.style.width).toContain("* 0.5");
+    expect(detail!.style.minWidth).toBe(detail!.style.width);
+    // Every cell names its column for page rules.
+    expect(detail!.getAttribute("data-column")).toBe("detail");
+  });
+
+  it("clamps the room between its bounds and counts wide glyphs wider", () => {
+    expect(leadWidth(["OK"])).toBe(160);
+    expect(leadWidth(["x".repeat(200)])).toBe(360);
+    expect(titleWidth("mmmm")).toBeGreaterThan(titleWidth("iiii") * 3);
+    // Anything outside printable ASCII counts as wide.
+    expect(titleWidth("é")).toBeGreaterThanOrEqual(10);
+  });
+
+  it("keeps a host suffix whole while the base gives way", () => {
+    const host = html(
+      <TitleText title="Session transcripts to R2, ap-mini" keep=", ap-mini" />,
+    );
+    const title = host.querySelector(".workspace-row-title")!;
+    expect(title.hasAttribute("data-keep")).toBe(true);
+    expect(title.querySelector(".workspace-title-base")?.textContent).toBe(
+      "Session transcripts to R2",
+    );
+    expect(title.querySelector(".workspace-title-keep")?.textContent).toBe(
+      ", ap-mini",
+    );
+    expect(title.textContent).toBe("Session transcripts to R2, ap-mini");
+    // A suffix the title does not end with, or no suffix, is one span.
+    for (const keep of [", ap-pro", undefined]) {
+      const plain = html(<TitleText title="Sync" keep={keep} />);
+      expect(plain.querySelector("[data-keep]")).toBeNull();
+      expect(plain.textContent).toBe("Sync");
+    }
   });
 });
 
