@@ -37,6 +37,8 @@ export const OPS_EVENTS_BOUNDS = {
   maxSeq: 10_000_000_000,
   /** One hour. A slower reader response is not a latency. */
   maxMs: 60 * 60 * 1000,
+  /** A run can take as long as a freshness budget allows: a year. */
+  maxRunMs: OPS_V1_BOUNDS.budgetMaxSeconds * 1000,
   kind: /^[a-z][a-z0-9_.-]{0,31}$/,
   route: /^[a-z][a-z0-9_.]{0,39}$/,
   subjectMax: 64,
@@ -104,6 +106,11 @@ export type OpsEvent =
 export type OpsEventsPage = {
   items: OpsEvent[];
   nextAfter: number | null;
+  /** The page's last seq, counting skipped items, so the cursor moves past
+   * an item this client cannot read instead of asking for it again. */
+  lastSeq: number | null;
+  /** Items dropped because a known field was malformed. */
+  skipped: number;
   /** Item field names this client does not know yet, sorted. */
   unknownFields: string[];
 };
@@ -146,7 +153,7 @@ function item(value: unknown, drift: FieldDrift): OpsEvent {
   const status = nullable(e.status, (v) =>
     integer(v, OPS_V1_BOUNDS.exitMin, OPS_V1_BOUNDS.exitMax),
   );
-  const ms = nullable(e.ms, (v) => integer(v, 0, OPS_EVENTS_BOUNDS.maxMs));
+  const ms = nullable(e.ms, (v) => integer(v, 0, OPS_EVENTS_BOUNDS.maxRunMs));
   const subject = text(e.subject, OPS_EVENTS_BOUNDS.subjectMax);
   if (kind === "transition") {
     if (!OPS_V1_BOUNDS.id.test(subject) || to === null) fail();
@@ -162,7 +169,8 @@ function item(value: unknown, drift: FieldDrift): OpsEvent {
       status === null ||
       status < 100 ||
       status > 599 ||
-      ms === null
+      ms === null ||
+      ms > OPS_EVENTS_BOUNDS.maxMs
     )
       fail();
     return { kind, seq, at, subject, status, ms, device: accessDevice };
@@ -174,6 +182,10 @@ function item(value: unknown, drift: FieldDrift): OpsEvent {
  * One page read with `after`. Items are oldest first, each seq above `after`
  * and above the one before it. `next_after` is null when the page is the
  * last, otherwise the last item's seq.
+ *
+ * An item whose own seq is readable but whose other known fields are not is
+ * skipped and counted, never rendered: rejecting the page would clear the log
+ * and read the same item again forever. A bad seq or envelope still rejects.
  */
 export function parseOpsEvents(value: unknown, after: number): OpsEventsPage {
   const root = exact(value, ["version", "items", "next_after"]);
@@ -184,18 +196,41 @@ export function parseOpsEvents(value: unknown, after: number): OpsEventsPage {
   )
     fail();
   const drift: FieldDrift = new Set();
-  const items = root.items.map((value) => item(value, drift));
+  const items: OpsEvent[] = [];
   let previous = after;
-  for (const event of items) {
-    if (event.seq <= previous) fail();
-    previous = event.seq;
+  let skipped = 0;
+  for (const value of root.items) {
+    let event: OpsEvent | null = null;
+    let seq: number;
+    try {
+      event = item(value, drift);
+      seq = event.seq;
+    } catch (error) {
+      if (!(error instanceof OpsSnapshotError)) throw error;
+      const raw = value as Record<string, unknown> | null;
+      seq = integer(
+        raw && typeof raw === "object" ? raw.seq : null,
+        1,
+        OPS_EVENTS_BOUNDS.maxSeq,
+      );
+      skipped++;
+    }
+    if (seq <= previous) fail();
+    previous = seq;
+    if (event) items.push(event);
   }
   const nextAfter = nullable(root.next_after, (v) =>
     integer(v, 1, OPS_EVENTS_BOUNDS.maxSeq),
   );
-  if (nextAfter !== null && (items.length === 0 || nextAfter !== previous))
+  if (nextAfter !== null && (root.items.length === 0 || nextAfter !== previous))
     fail();
-  return { items, nextAfter, unknownFields: [...drift].sort() };
+  return {
+    items,
+    nextAfter,
+    lastSeq: root.items.length ? previous : null,
+    skipped,
+    unknownFields: [...drift].sort(),
+  };
 }
 
 export function parseOpsEventsBytes(
@@ -243,11 +278,14 @@ export const EMPTY_EVENT_LOG: OpsEventLog = Object.freeze({
   recent: [],
 }) as OpsEventLog;
 
+/** `through` is the page's last seq when it ends on a skipped item. */
 export function appendOpsEvents(
   log: OpsEventLog,
   items: readonly OpsEvent[],
+  through: number | null = null,
 ): OpsEventLog {
-  if (!items.length) return log;
+  const cursor = Math.max(log.cursor, items.at(-1)?.seq ?? 0, through ?? 0);
+  if (!items.length) return cursor === log.cursor ? log : { ...log, cursor };
   const transitions = [
     ...log.transitions,
     ...items.filter(
@@ -255,7 +293,7 @@ export function appendOpsEvents(
     ),
   ].slice(-OPS_EVENTS_KEEP.transitions);
   return {
-    cursor: items.at(-1)!.seq,
+    cursor,
     transitions,
     recent: [...log.recent, ...items].slice(-OPS_EVENTS_KEEP.recent),
   };

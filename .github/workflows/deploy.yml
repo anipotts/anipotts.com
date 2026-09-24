@@ -262,6 +262,7 @@ jobs:
         run: pnpm turbo build --filter=@anipotts/www
         env:
           PUBLIC_RELEASE_SHA: ${{ github.sha }}
+          PUBLIC_RELEASE_SCHEMA_VERSION: ${{ needs.release.outputs.database_schema_version }}
 
       # apps/www is Astro (@astrojs/cloudflare). `astro build` already emits the
       # worker bundle at dist/_worker.js; no opennextjs adapter step here.
@@ -269,8 +270,7 @@ jobs:
         id: previous
         run: |
           node scripts/ci/worker-version.mjs capture apps/www/wrangler.toml >> "$GITHUB_OUTPUT"
-          previous_sha="$(curl -fsS https://anipotts.com/api/health | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).release_sha||"unknown"))')"
-          echo "previous_sha=${previous_sha}" >> "$GITHUB_OUTPUT"
+          node scripts/ci/worker-version.mjs health https://anipotts.com www >> "$GITHUB_OUTPUT"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -285,20 +285,22 @@ jobs:
       - name: Smoke exact www release
         id: smoke
         continue-on-error: true
-        run: node scripts/ci/release-smoke.mjs --target www --base-url https://anipotts.com --expected-sha "${{ github.sha }}"
+        run: node scripts/ci/release-smoke.mjs --target www --base-url https://anipotts.com --expected-sha "${{ github.sha }}" --expected-schema "${{ needs.release.outputs.database_schema_version }}"
 
       - name: Restore previous www version after app-only smoke failure
         if: steps.smoke.outcome == 'failure' && needs.release.outputs.app_rollback_enabled == 'true' && needs.release.outputs.d1_changed != 'true'
         run: |
           node scripts/ci/worker-version.mjs rollback apps/www/wrangler.toml "${{ steps.previous.outputs.previous_version }}"
-          if [ "${{ steps.previous.outputs.previous_sha }}" = "unknown" ]; then
+          if [ "$PREVIOUS_SHA" = "unknown" ]; then
             node scripts/ci/release-smoke.mjs --target www --base-url https://anipotts.com --allow-unversioned
           else
-            node scripts/ci/release-smoke.mjs --target www --base-url https://anipotts.com --expected-sha "${{ steps.previous.outputs.previous_sha }}"
+            node scripts/ci/release-smoke.mjs --target www --base-url https://anipotts.com --expected-sha "$PREVIOUS_SHA" --expected-schema "$PREVIOUS_SCHEMA"
           fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PREVIOUS_SHA: ${{ steps.previous.outputs.previous_sha }}
+          PREVIOUS_SCHEMA: ${{ steps.previous.outputs.previous_schema }}
 
       - name: Fail unsuccessful www release
         if: steps.smoke.outcome == 'failure'
@@ -309,8 +311,10 @@ jobs:
   deploy-admin:
     name: Deploy admin
     needs: [release]
+    # A failed or cancelled release job (a held migration, schema drift, a
+    # failed postcondition) must stop admin like every other target.
     if: >
-      always() &&
+      needs.release.result == 'success' &&
       needs.release.outputs.production_enabled == 'true' &&
       needs.release.outputs.admin_enabled == 'true' &&
       (
@@ -393,7 +397,10 @@ jobs:
         uses: cloudflare/wrangler-action@v4
         with:
           workingDirectory: apps/admin
-          command: deploy --message "release:${{ github.sha }}"
+          # The version message names the release and the schema version its
+          # build reports, so the editorial path, which cannot read admin's
+          # /api/health behind Access, still checks both (A-33).
+          command: deploy --message "release:${{ github.sha }} schema:${{ needs.release.outputs.database_schema_version }}"
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
@@ -401,7 +408,7 @@ jobs:
         if: needs.release.outputs.editorial_admin != 'true'
         id: boundary_smoke
         continue-on-error: true
-        run: node scripts/ci/release-smoke.mjs --target admin --mode unauthenticated --base-url https://admin.anipotts.com --expected-sha "${{ github.sha }}"
+        run: node scripts/ci/release-smoke.mjs --target admin --mode unauthenticated --base-url https://admin.anipotts.com --expected-sha "${{ github.sha }}" --expected-schema "${{ needs.release.outputs.database_schema_version }}"
         env:
           ADMIN_CI_ACCESS_CLIENT_ID: ${{ secrets.ADMIN_CI_ACCESS_CLIENT_ID }}
           ADMIN_CI_ACCESS_CLIENT_SECRET: ${{ secrets.ADMIN_CI_ACCESS_CLIENT_SECRET }}
@@ -411,7 +418,7 @@ jobs:
         if: needs.release.outputs.editorial_admin != 'true'
         id: identity_smoke
         continue-on-error: true
-        run: node scripts/ci/release-smoke.mjs --target admin --mode authenticated --base-url https://admin.anipotts.com --expected-sha "${{ github.sha }}"
+        run: node scripts/ci/release-smoke.mjs --target admin --mode authenticated --base-url https://admin.anipotts.com --expected-sha "${{ github.sha }}" --expected-schema "${{ needs.release.outputs.database_schema_version }}"
         env:
           ADMIN_CI_ACCESS_CLIENT_ID: ${{ secrets.ADMIN_CI_ACCESS_CLIENT_ID }}
           ADMIN_CI_ACCESS_CLIENT_SECRET: ${{ secrets.ADMIN_CI_ACCESS_CLIENT_SECRET }}
@@ -421,10 +428,10 @@ jobs:
         if: (steps.boundary_smoke.outcome == 'failure' || steps.identity_smoke.outcome == 'failure') && needs.release.outputs.app_rollback_enabled == 'true' && needs.release.outputs.d1_changed != 'true'
         run: |
           node scripts/ci/worker-version.mjs rollback apps/admin/wrangler.toml "${{ steps.previous.outputs.previous_version }}"
-          if [ "${{ steps.previous.outputs.previous_sha }}" = "unknown" ]; then
+          if [ "$PREVIOUS_SHA" = "unknown" ]; then
             node scripts/ci/release-smoke.mjs --target admin --mode unauthenticated --base-url https://admin.anipotts.com --allow-unversioned
           else
-            node scripts/ci/release-smoke.mjs --target admin --mode unauthenticated --base-url https://admin.anipotts.com --expected-sha "${{ steps.previous.outputs.previous_sha }}"
+            node scripts/ci/release-smoke.mjs --target admin --mode unauthenticated --base-url https://admin.anipotts.com --expected-sha "$PREVIOUS_SHA" --expected-schema "$PREVIOUS_SCHEMA"
           fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -432,6 +439,8 @@ jobs:
           ADMIN_CI_ACCESS_CLIENT_ID: ${{ secrets.ADMIN_CI_ACCESS_CLIENT_ID }}
           ADMIN_CI_ACCESS_CLIENT_SECRET: ${{ secrets.ADMIN_CI_ACCESS_CLIENT_SECRET }}
           ADMIN_CI_READ_TOKEN: ${{ secrets.ADMIN_CI_READ_TOKEN }}
+          PREVIOUS_SHA: ${{ steps.previous.outputs.previous_sha }}
+          PREVIOUS_SCHEMA: ${{ steps.previous.outputs.previous_schema }}
 
       - name: Fail unsuccessful admin release
         if: steps.boundary_smoke.outcome == 'failure' || steps.identity_smoke.outcome == 'failure'
@@ -443,7 +452,7 @@ jobs:
         if: needs.release.outputs.editorial_admin == 'true'
         id: editorial_smoke
         continue-on-error: true
-        run: node scripts/ci/editorial-release-smoke.mjs verify "${{ github.sha }}"
+        run: node scripts/ci/editorial-release-smoke.mjs verify "${{ github.sha }}" "${{ needs.release.outputs.database_schema_version }}"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

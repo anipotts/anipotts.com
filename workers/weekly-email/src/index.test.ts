@@ -1,17 +1,18 @@
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 
 // Synthetic values stay short so the literal-secret scan keeps working here.
-const secrets = {
+// They stand in for secrets that may still be set in Cloudflare after the
+// retirement; the worker must neither read nor echo them.
+const staleSecrets = {
   RESEND_API_KEY: "synthetic-resend-51",
   MERCURY_API_TOKEN: "synthetic-mercury-62",
-  MERCURY_ACCOUNT_ID_CHECKING: "synthetic-chk-73",
-  MERCURY_ACCOUNT_ID_SAVINGS: "synthetic-sav-84",
   MINI_API_KEY: "synthetic-mini-95",
 };
 
 type Worker = {
   fetch(request: Request, env: unknown): Promise<Response>;
-  scheduled(event: unknown, env: unknown, ctx: unknown): Promise<void>;
+  scheduled(event: unknown, env: unknown, ctx?: unknown): Promise<void>;
 };
 
 // A query suffix loads a fresh module instance, which stands in for a new isolate.
@@ -19,24 +20,28 @@ async function freshWorker(isolate: string): Promise<Worker> {
   return (await import(`./index.ts?isolate=${isolate}`)).default as Worker;
 }
 
-function healthyDb() {
-  const statement = {
-    bind: () => statement,
-    first: async () => ({ cnt: 3 }),
-  };
-  return { prepare: mock(() => statement) };
-}
+type QueueRow = { status: string; n: number; last_at: string | null };
 
-// Every query succeeds with no rows, so the report builds and reaches the send.
-function emptyDb() {
+// Shaped like production on 2026-09-22: 17 failed and 4 pending, none sent.
+const liveQueue: QueueRow[] = [
+  { status: "failed", n: 17, last_at: "2026-09-20T13:00:41.955Z" },
+  { status: "pending", n: 4, last_at: "2026-09-20T13:00:42.635Z" },
+];
+
+function queueDb(rows: QueueRow[] = liveQueue) {
   const statement = {
     bind: () => statement,
-    first: async () => ({ cnt: 0 }),
-    all: async () => ({ results: [] }),
+    all: async () => ({ results: rows }),
+    first: async () => null,
     run: async () => ({}),
   };
   const prepare = mock((_sql: string) => statement);
-  return { prepare, sql: () => prepare.mock.calls.map(([sql]) => sql) };
+  const batch = mock(async () => []);
+  return {
+    prepare,
+    batch,
+    sql: () => prepare.mock.calls.map(([sql]) => sql),
+  };
 }
 
 function captureConsole() {
@@ -45,116 +50,217 @@ function captureConsole() {
   );
   const output = () =>
     spies.flatMap((spy) => spy.mock.calls.map((args) => args.map(String)));
+  const events = (name: string) =>
+    output()
+      .map((args) => args[0] ?? "")
+      .filter((line) => line.includes(`"event":"${name}"`))
+      .map((line) => JSON.parse(line));
   return {
-    contractLines: () =>
-      output()
-        .map((args) => args[0] ?? "")
-        .filter((line) => line.includes('"event":"runtime_contract"'))
-        .map((line) => JSON.parse(line)),
+    contractLines: () => events("runtime_contract"),
+    retiredLines: () => events("scheduled_retired"),
     text: () => JSON.stringify(output()),
   };
 }
 
 const realFetch = globalThis.fetch;
 
+function forbidNetwork() {
+  const network = mock(async () => new Response("unexpected", { status: 500 }));
+  globalThis.fetch = network as unknown as typeof fetch;
+  return network;
+}
+
 afterEach(() => {
   globalThis.fetch = realFetch;
   mock.restore();
 });
 
-describe("weekly email entry wiring", () => {
-  it("logs one contract line from the first fetch and keeps responses unchanged", async () => {
-    const worker = await freshWorker("fetch-first");
-    const logs = captureConsole();
-    const env = { DB: healthyDb(), ...secrets };
+describe("retired weekly email status", () => {
+  it("A-14: reports the retirement with queue counts and no send", async () => {
+    const worker = await freshWorker("status-live");
+    captureConsole();
+    const network = forbidNetwork();
+    const db = queueDb();
 
-    const health = await worker.fetch(new Request("https://weekly.test/"), env);
-    expect(health.status).toBe(200);
-    expect(await health.json()).toMatchObject({
-      app: "weekly-email",
-      ok: true,
-      d1: "connected",
-      tables_ok: true,
+    const response = await worker.fetch(new Request("https://weekly.test/"), {
+      DB: db,
+      ...staleSecrets,
     });
-    const rejected = await worker.fetch(
-      new Request("https://weekly.test/", { method: "PUT" }),
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      app: "weekly-email",
+      ok: false,
+      retired: true,
+      d1: "connected",
+      last_sent_at: null,
+      email_queue: { pending: 4, failed: 17, sent: 0 },
+    });
+    expect(Object.keys(body).sort()).toEqual([
+      "app",
+      "d1",
+      "email_queue",
+      "last_sent_at",
+      "ok",
+      "retired",
+      "ts",
+    ]);
+
+    // One aggregate read of the queue. It never selects a report body,
+    // subject or address, and it never counts the retired thoughts table.
+    const [sql, ...rest] = db.sql();
+    expect(rest).toEqual([]);
+    expect(sql).toContain("FROM email_queue GROUP BY status");
+    for (const column of ["html", "subject", "to_address", "thoughts"])
+      expect(sql).not.toContain(column);
+    expect(db.batch).not.toHaveBeenCalled();
+    expect(network).not.toHaveBeenCalled();
+  });
+
+  it("reads last_sent_at from a delivered queue row when one exists", async () => {
+    const worker = await freshWorker("status-sent");
+    captureConsole();
+    const db = queueDb([
+      ...liveQueue,
+      { status: "sent", n: 1, last_at: "2026-04-26T13:00:05.000Z" },
+    ]);
+    const body = (await (
+      await worker.fetch(new Request("https://weekly.test/"), { DB: db })
+    ).json()) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      ok: false,
+      last_sent_at: "2026-04-26T13:00:05.000Z",
+      email_queue: { pending: 4, failed: 17, sent: 1 },
+    });
+  });
+
+  it("reports an unreadable queue as a D1 error instead of zero counts", async () => {
+    const worker = await freshWorker("status-error");
+    captureConsole();
+    const db = {
+      prepare: () => ({
+        all: async () => {
+          throw new Error("D1 offline with provider detail");
+        },
+      }),
+    };
+    const response = await worker.fetch(new Request("https://weekly.test/"), {
+      DB: db,
+    });
+    expect(response.status).toBe(200);
+    const text = await response.text();
+    expect(text).not.toContain("provider detail");
+    expect(JSON.parse(text)).toMatchObject({
+      ok: false,
+      retired: true,
+      d1: "error",
+      last_sent_at: null,
+      email_queue: null,
+    });
+  });
+
+  for (const method of ["POST", "PUT", "DELETE"]) {
+    it(`answers ${method} with 405 and never reads, writes or sends`, async () => {
+      const worker = await freshWorker(`method-${method}`);
+      captureConsole();
+      const network = forbidNetwork();
+      const db = queueDb();
+      const response = await worker.fetch(
+        new Request("https://weekly.test/", { method }),
+        { DB: db, ...staleSecrets },
+      );
+      expect(response.status).toBe(405);
+      expect(await response.json()).toEqual({ error: "Method not allowed" });
+      expect(db.prepare).not.toHaveBeenCalled();
+      expect(network).not.toHaveBeenCalled();
+    });
+  }
+});
+
+describe("retired weekly email schedule", () => {
+  it("A-14: logs a stale schedule and does nothing else", async () => {
+    const worker = await freshWorker("scheduled");
+    const logs = captureConsole();
+    const network = forbidNetwork();
+    const db = queueDb();
+    const waitUntil = mock((_promise: Promise<unknown>) => {});
+
+    await worker.scheduled(
+      { cron: "0 13 * * SUN", scheduledTime: Date.UTC(2026, 8, 27, 13) },
+      { DB: db, ...staleSecrets },
+      { waitUntil },
+    );
+
+    expect(db.prepare).not.toHaveBeenCalled();
+    expect(db.batch).not.toHaveBeenCalled();
+    expect(network).not.toHaveBeenCalled();
+    expect(waitUntil).not.toHaveBeenCalled();
+    expect(logs.retiredLines()).toEqual([
+      {
+        event: "scheduled_retired",
+        worker: "weekly-email",
+        cron: "0 13 * * SUN",
+        scheduled_at: "2026-09-27T13:00:00.000Z",
+      },
+    ]);
+  });
+
+  it("logs a malformed event without throwing", async () => {
+    const worker = await freshWorker("scheduled-malformed");
+    const logs = captureConsole();
+    await worker.scheduled({ scheduledTime: Number.NaN }, { DB: queueDb() });
+    expect(logs.retiredLines()).toEqual([
+      {
+        event: "scheduled_retired",
+        worker: "weekly-email",
+        cron: null,
+        scheduled_at: null,
+      },
+    ]);
+  });
+});
+
+describe("weekly email entry wiring", () => {
+  it("logs one contract line from the first entry and never echoes a secret", async () => {
+    const worker = await freshWorker("contract-once");
+    const logs = captureConsole();
+    const env = { DB: queueDb(), ...staleSecrets };
+
+    await worker.scheduled({ scheduledTime: Date.now() }, env);
+    await worker.fetch(new Request("https://weekly.test/"), env);
+    await worker.fetch(
+      new Request("https://weekly.test/", { method: "POST" }),
       env,
     );
-    expect(rejected.status).toBe(405);
 
     const lines = logs.contractLines();
-    expect(lines).toHaveLength(1);
-    expect(lines[0]).toMatchObject({
-      event: "runtime_contract",
-      worker: "weekly-email",
-      entry: "fetch",
-      ok: true,
-      missing: [],
-    });
-    for (const value of Object.values(secrets))
+    expect(lines).toEqual([
+      {
+        event: "runtime_contract",
+        worker: "weekly-email",
+        entry: "scheduled",
+        ok: true,
+        missing: [],
+      },
+    ]);
+    for (const value of Object.values(staleSecrets))
       expect(logs.text()).not.toContain(value);
   });
 
-  it("logs from the first cron and still runs the report when names are missing", async () => {
-    const worker = await freshWorker("scheduled-first");
-    const logs = captureConsole();
-    // A 4xx answer is not retried, so the send path runs without backoff sleeps.
-    const provider = mock(
-      async (_input: RequestInfo | URL, _init?: RequestInit) =>
-        new Response("rejected", { status: 422 }),
-    );
-    globalThis.fetch = provider as unknown as typeof fetch;
-    const db = emptyDb();
-    const pending: Promise<unknown>[] = [];
-    const ctx = {
-      waitUntil: (promise: Promise<unknown>) => pending.push(promise),
-    };
-
-    await worker.scheduled({ scheduledTime: Date.now() }, { DB: db }, ctx);
-    expect(pending).toHaveLength(1);
-    await Promise.all(pending);
-    // Snapshot before the health fetch below adds its own query.
-    const cronQueries = db.sql();
-
-    // Unchanged: without the Resend key the cron still reads the retry queue
-    // and every report source, attempts the send, then queues the failure.
-    expect(cronQueries).toHaveLength(7);
-    expect(cronQueries[0]).toContain(
-      "FROM email_queue WHERE status = 'pending'",
-    );
-    expect(cronQueries.at(-1)).toContain("INSERT INTO email_queue");
-    expect(provider).toHaveBeenCalledTimes(1);
-    expect(String(provider.mock.calls[0]?.[0])).toBe(
-      "https://api.resend.com/emails",
-    );
-
-    const health = await worker.fetch(new Request("https://weekly.test/"), {
-      DB: db,
-    });
-    expect(health.status).toBe(200);
-    expect(await health.json()).toMatchObject({
-      app: "weekly-email",
-      ok: true,
-      d1: "connected",
-      tables_ok: true,
-    });
-    const rejected = await worker.fetch(
-      new Request("https://weekly.test/", { method: "PUT" }),
-      { DB: db },
-    );
-    expect(rejected.status).toBe(405);
-    expect(await rejected.json()).toEqual({ error: "Method not allowed" });
-
-    const lines = logs.contractLines();
-    expect(lines).toHaveLength(1);
-    expect(lines[0]).toMatchObject({
-      worker: "weekly-email",
-      entry: "scheduled",
-      ok: false,
-      missing: ["RESEND_API_KEY"],
-      features: {
-        mini_status: { state: "unavailable", missing: ["MINI_API_KEY"] },
-      },
-    });
+  it("A-14, A-15: keeps the send, the retry and every report source out of the source", () => {
+    const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+    for (const retired of [
+      "api.resend.com",
+      "api.mercury.com",
+      "mini.anipotts.com",
+      "INSERT",
+      "UPDATE",
+      "business_data",
+      "code_health",
+      "ops_snapshots",
+      "thoughts",
+      "RESEND_API_KEY",
+    ])
+      expect(source).not.toContain(retired);
   });
 });

@@ -54,6 +54,13 @@ const envelope = (items: Json[], next_after: number | null = null): Json => ({
 });
 const rejects = (value: unknown, after = 0) =>
   expect(() => parseOpsEvents(value, after)).toThrow(OpsSnapshotError);
+/** One bad item is skipped and counted; the page and its cursor survive. */
+const skips = (value: Json, after = 0) => {
+  const page = parseOpsEvents(value, after);
+  expect(page.skipped).toBe(1);
+  expect(page.items).toHaveLength((value.items as unknown[]).length - 1);
+  expect(page.lastSeq).toBe((value.items as Json[]).at(-1)!.seq);
+};
 
 describe("ops_events_v1 parser", () => {
   it("accepts System's synthetic fixture", () => {
@@ -90,10 +97,10 @@ describe("ops_events_v1 parser", () => {
     expect(extra.items).toHaveLength(1);
     expect(extra.unknownFields).toEqual(["extra"]);
     expect(parseOpsEvents(envelope([access(1)]), 0).unknownFields).toEqual([]);
-    rejects(envelope([access(1, { status: "200" })]));
+    skips(envelope([access(1, { status: "200" })]));
     const missing = access(1);
     delete missing.detail;
-    rejects(envelope([missing]));
+    skips(envelope([missing]));
   });
 
   it("keeps an unknown kind as other instead of rejecting the page", () => {
@@ -110,24 +117,24 @@ describe("ops_events_v1 parser", () => {
       0,
     ).items;
     expect(event).toMatchObject({ kind: "other", rawKind: "deploy" });
-    rejects(envelope([{ ...access(1), kind: "Not A Kind" }]));
+    skips(envelope([{ ...access(1), kind: "Not A Kind" }]));
   });
 
   it("requires a catalog id and a to_state on transitions", () => {
-    rejects(envelope([transition(1, "Not An Id", null, "ok")]));
-    rejects(
+    skips(envelope([transition(1, "Not An Id", null, "ok")]));
+    skips(
       envelope([{ ...transition(1, "pc.writer", null, "ok"), to_state: null }]),
     );
-    rejects(envelope([transition(1, "pc.writer", null, "sideways")]));
-    rejects(envelope([transition(1, "pc.writer", "sideways", "ok")]));
+    skips(envelope([transition(1, "pc.writer", null, "sideways")]));
+    skips(envelope([transition(1, "pc.writer", "sideways", "ok")]));
   });
 
   it("requires status and ms on access rows", () => {
-    rejects(envelope([access(1, { status: null })]));
-    rejects(envelope([access(1, { ms: null })]));
-    rejects(envelope([access(1, { status: 99 })]));
-    rejects(envelope([access(1, { ms: -1 })]));
-    rejects(envelope([access(1, { subject: "data search?q=secret" })]));
+    skips(envelope([access(1, { status: null })]));
+    skips(envelope([access(1, { ms: null })]));
+    skips(envelope([access(1, { status: 99 })]));
+    skips(envelope([access(1, { ms: -1 })]));
+    skips(envelope([access(1, { subject: "data search?q=secret" })]));
   });
 
   it("parses run rows with an exit code and a duration, either may be null", () => {
@@ -162,14 +169,46 @@ describe("ops_events_v1 parser", () => {
       id: "kind:run",
       label: "Runs",
     });
-    rejects(envelope([run(1, { subject: "not an id" })]));
-    rejects(envelope([run(1, { status: 1.5 })]));
-    rejects(envelope([run(1, { status: 2 ** 31 })]));
+    skips(envelope([run(1, { subject: "not an id" })]));
+    skips(envelope([run(1, { status: 1.5 })]));
+    skips(envelope([run(1, { status: 2 ** 31 })]));
   });
 
   it("keeps HTTP status bounds on access rows only", () => {
-    rejects(envelope([access(1, { status: 0 })]));
-    rejects(envelope([access(1, { status: 600 })]));
+    skips(envelope([access(1, { status: 0 })]));
+    skips(envelope([access(1, { status: 600 })]));
+  });
+
+  it("keeps a run longer than an hour, but not an access that slow", () => {
+    const run = {
+      ...access(1),
+      kind: "run",
+      subject: "pc.writer",
+      status: 0,
+      ms: 3 * 60 * 60 * 1000,
+    };
+    const [event] = parseOpsEvents(envelope([run]), 0).items;
+    expect(event).toMatchObject({ kind: "run", ms: 3 * 60 * 60 * 1000 });
+    skips(envelope([access(1, { ms: 60 * 60 * 1000 + 1 }), access(2)]));
+  });
+
+  it("moves the cursor past a skipped last item instead of reading it again", () => {
+    const page = parseOpsEvents(
+      envelope([access(1), access(2, { ms: -1 })]),
+      0,
+    );
+    expect(page.items.map((event) => event.seq)).toEqual([1]);
+    expect(page.lastSeq).toBe(2);
+    const log = appendOpsEvents(EMPTY_EVENT_LOG, page.items, page.lastSeq);
+    expect(log.cursor).toBe(2);
+    const onlyBad = parseOpsEvents(envelope([access(3, { status: null })]), 2);
+    expect(appendOpsEvents(log, onlyBad.items, onlyBad.lastSeq).cursor).toBe(3);
+    expect(appendOpsEvents(log, [], null)).toBe(log);
+  });
+
+  it("still rejects an item whose own seq is unreadable", () => {
+    rejects(envelope([access(1), { ...access(2), seq: "2" }]));
+    rejects(envelope([{ nonsense: true }]));
   });
 
   it("requires seq to ascend above after", () => {

@@ -349,9 +349,16 @@ describe("bounds", () => {
 
   it("rejects kinds, hosts and states outside the contract", () => {
     rejects(entryCase("kind", "daemon"));
-    rejects(entryCase("host", "ap-air"));
+    rejects(entryCase("host", "Not A Host"));
+    rejects(entryCase("host", 3));
     rejects(rowCase("state", "healthy"));
     rejects(rowCase("state", "OK"));
+  });
+
+  it("reads a machine it does not know yet as other", () => {
+    expect(parseOpsSnapshot(entryCase("host", "ap-air")).catalog[0]!.host).toBe(
+      "other",
+    );
   });
 
   it("bounds text fields", () => {

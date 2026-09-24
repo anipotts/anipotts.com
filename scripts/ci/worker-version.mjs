@@ -3,7 +3,14 @@
 import { execFileSync } from "node:child_process";
 import { healthRequestInit } from "./release-smoke.mjs";
 
-export async function previousReleaseSha(baseUrl, target, options = {}) {
+// Values land in $GITHUB_OUTPUT, so anything outside a plain token (a newline
+// could forge another output) reads as unknown.
+const reported = (value) =>
+  typeof value === "string" && /^[\w.-]{1,64}$/.test(value) ? value : "unknown";
+
+/** The live release's identity before a deploy. A rollback smoke expects the
+ *  restored release to report this exact sha and schema version again. */
+export async function previousRelease(baseUrl, target, options = {}) {
   if (!["www", "admin"].includes(target))
     throw new Error("unsupported health target");
   const response = await (options.fetchImpl ?? fetch)(
@@ -13,9 +20,10 @@ export async function previousReleaseSha(baseUrl, target, options = {}) {
   if (response.status !== 200)
     throw new Error(`previous release health returned HTTP ${response.status}`);
   const health = await response.json();
-  return typeof health.release_sha === "string" && health.release_sha
-    ? health.release_sha
-    : "unknown";
+  return {
+    sha: reported(health.release_sha),
+    schema: reported(health.schema_version),
+  };
 }
 
 export function activeVersion(status) {
@@ -54,7 +62,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     ]);
     console.log(`restored_version=${versionId}`);
   } else if (command === "health" && config && versionId) {
-    console.log(`previous_sha=${await previousReleaseSha(config, versionId)}`);
+    const previous = await previousRelease(config, versionId);
+    console.log(`previous_sha=${previous.sha}`);
+    console.log(`previous_schema=${previous.schema}`);
   } else {
     console.error(
       "usage: worker-version.mjs capture <config> | rollback <config> <version-id> | health <base-url> <www|admin>",

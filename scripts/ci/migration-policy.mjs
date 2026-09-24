@@ -140,20 +140,69 @@ function validateNewRecord(record, sql, file, bootstrap) {
   return record;
 }
 
+// With no migration in the diff, production is at the highest migration it has
+// applied. The bootstrap baseline and historical files are applied. A later
+// record counts only if a release applies it on its own: an automatic record
+// under a verified ledger with automatic apply, which applies in the release
+// that adds it or stops that release. An approval record never auto-applies,
+// and it holds every record after it, so the version stays below it until a
+// reviewed manifest change moves it into historical, as 0043 was. The
+// fingerprint is known only where one was captured: a record's pinned
+// after-fingerprint when that record is the highest applied file, and the
+// bootstrap's when its baseline is. A historical file past the baseline (an
+// approval record recorded as history after it is applied) carries none, so
+// the schema then reads "unknown", never the baseline's fingerprint beside a
+// later version.
+export const UNKNOWN_FINGERPRINT = "unknown";
+
+function appliedSchema(manifest) {
+  const autoApplies =
+    manifest.bootstrap.status === "verified" &&
+    manifest.bootstrap.automatic_remote_apply === true;
+  const records = [...manifest.migrations].sort((a, b) =>
+    a.file.localeCompare(b.file),
+  );
+  const firstHeld = records.findIndex(
+    (record) => !autoApplies || record.risk !== "automatic",
+  );
+  const applied = firstHeld === -1 ? records : records.slice(0, firstHeld);
+  const latest = applied.at(-1);
+  const file = [
+    manifest.bootstrap.baseline_through,
+    ...manifest.historical.map(([name]) => name),
+    latest?.file,
+  ]
+    .filter(Boolean)
+    .sort()
+    .at(-1);
+  const pinned =
+    latest?.file === file &&
+    /^sha256:[0-9a-f]{64}$/.test(latest.schema_fingerprint_after ?? "")
+      ? latest.schema_fingerprint_after
+      : null;
+  const fingerprint =
+    pinned ??
+    (file === manifest.bootstrap.baseline_through
+      ? manifest.bootstrap.schema_fingerprint
+      : UNKNOWN_FINGERPRINT);
+  return { version: file.slice(0, 4), fingerprint };
+}
+
 export function inspectMigrationChanges(paths, options = {}) {
   const manifest = verifyManifest(options);
   const migrationFiles = paths
     .filter((path) => /^drizzle\/migrations\/\d{4}_.+\.sql$/.test(path))
     .map((path) => basename(path));
   if (migrationFiles.length === 0) {
+    const schema = appliedSchema(manifest);
     return {
       changed: false,
       risk: "none",
       consumers: [],
       remoteAllowed: false,
-      schemaVersion: manifest.bootstrap.baseline_through.slice(0, 4),
-      schemaFingerprintBefore: manifest.bootstrap.schema_fingerprint,
-      schemaFingerprintAfter: manifest.bootstrap.schema_fingerprint,
+      schemaVersion: schema.version,
+      schemaFingerprintBefore: schema.fingerprint,
+      schemaFingerprintAfter: schema.fingerprint,
       reasons: [],
     };
   }

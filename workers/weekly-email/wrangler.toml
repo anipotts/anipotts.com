@@ -11,15 +11,16 @@ binding = "DB"
 database_name = "anipotts-db"
 database_id = "a8aadf73-bbf4-447c-97db-cb3e50b4e26f"
 
-# Secrets: RESEND_API_KEY and MINI_API_KEY.
-# Secrets: MERCURY_API_TOKEN, MERCURY_ACCOUNT_ID_CHECKING and MERCURY_ACCOUNT_ID_SAVINGS.
-# MINI_API_URL falls back to https://api.mini.anipotts.com in code when unset.
-# Optional secrets: MINI_API_URL.
+# Retired on 2026-09-22: the worker sends nothing and reads no secret.
+# RESEND_API_KEY, MINI_API_KEY, MINI_API_URL, MERCURY_API_TOKEN,
+# MERCURY_ACCOUNT_ID_CHECKING and MERCURY_ACCOUNT_ID_SAVINGS may still be set
+# in Cloudflare. Removing them is Ani's call.
 
-# Sunday 9am EDT = 13:00 UTC (during DST, arrives 8am EST in winter)
-# DST covers ~8 months of the year, so optimizing for EDT
+# Keep this block. An explicit empty list removes the old Sunday
+# "0 13 * * SUN" schedule on deploy. wrangler 4.x sends the schedules PUT only
+# when crons is set, so deleting the block would leave that trigger live.
 [triggers]
-crons = ["0 13 * * SUN"]
+crons = []
 
 # Workers Logs keep the once-per-isolate runtime contract line (names and
 # states only). Invocation logs stay off: they record request headers and
