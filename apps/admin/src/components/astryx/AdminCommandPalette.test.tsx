@@ -2,7 +2,10 @@
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, afterEach, it, expect, vi } from "vitest";
+import { XIcon } from "@phosphor-icons/react";
 import { AdminCommandPalette } from "./AdminCommandPalette";
+import { provideSearchEntries } from "../../lib/admin-search-index";
+import * as clientRoutes from "../../lib/client-routes";
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 let host: HTMLDivElement;
 let opener: HTMLButtonElement;
@@ -41,9 +44,7 @@ beforeEach(async () => {
   outside = document.createElement("input");
   document.body.append(opener, outside, host);
   root = createRoot(host);
-  await act(async () =>
-    root.render(<AdminCommandPalette navItems={[]} showTrigger={false} />),
-  );
+  await act(async () => root.render(<AdminCommandPalette />));
 });
 afterEach(() => {
   act(() => root.unmount());
@@ -159,37 +160,128 @@ it("clears a query in one click and returns focus to search", async () => {
     )!.set!.call(input, "no matching record");
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
-  const clear = [...dialog.querySelectorAll("button")].find(
-    (button) => button.textContent === "Clear",
+  // An icon, not a text button.
+  const clear = dialog.querySelector<HTMLButtonElement>(
+    'button[aria-label="Clear search"]',
   )!;
   expect(clear).toBeTruthy();
+  expect(clear.textContent).toBe("");
   await act(async () => clear.click());
   expect(input.value).toBe("");
   expect(document.activeElement).toBe(input);
   expect(dialog.querySelector(".astryx-command-palette-footer")).not.toBeNull();
 });
 
-it("keeps source failure concise, accessible and retryable", async () => {
+async function type(dialog: HTMLDialogElement, text: string) {
+  const input = dialog.querySelector("input")!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )!.set!.call(input, text);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+const labels = (dialog: HTMLDialogElement) =>
+  [...dialog.querySelectorAll('[role="option"]')].map(
+    (option) => option.textContent,
+  );
+
+it("opens on every destination and the actions, each led by its glyph tile", async () => {
+  const run = vi.fn();
   await act(async () =>
     root.render(
       <AdminCommandPalette
-        navItems={[]}
-        showTrigger={false}
-        loadEntries={async () => {
-          throw new Error("private failure");
-        }}
+        actions={[{ id: "theme:dark", label: "Dark theme", icon: XIcon, run }]}
       />,
     ),
   );
   const dialog = await open();
-  expect(
-    dialog.querySelector('.admin-palette-error [role="status"]')?.textContent,
-  ).toBe("Search unavailable");
-  expect(dialog.textContent).not.toContain("private failure");
-  expect(
-    [...dialog.querySelectorAll("button")].some(
-      (button) => button.textContent === "Retry search",
+  expect(labels(dialog)).toEqual([
+    "Overview",
+    "Pages",
+    "Writing",
+    "Projects",
+    "Newsletter",
+    "Records",
+    "Sources",
+    "Health",
+    "Knowledge",
+    "Status",
+    "Activity",
+    "Alerts",
+    "Dark theme",
+  ]);
+  for (const option of dialog.querySelectorAll('[role="option"]'))
+    expect(option.querySelector(".brand-tile svg")).not.toBeNull();
+  // No trailing arrows or raw kinds.
+  expect(dialog.textContent).not.toContain("destination");
+  const theme = [
+    ...dialog.querySelectorAll<HTMLElement>('[role="option"]'),
+  ].find((option) => option.textContent === "Dark theme")!;
+  await act(async () => theme.click());
+  expect(run).toHaveBeenCalledOnce();
+});
+
+it("finds what the workspaces provide and withdraws it with them", async () => {
+  const withdraw = provideSearchEntries("content", [
+    {
+      id: "content:writing:snap",
+      label: "Snapshot notes",
+      domain: "content",
+      kind: "writing",
+      currentFact: "draft",
+      source: "content inventory",
+      freshness: "current",
+      href: "/content/writing/snap",
+      keywords: ["snap"],
+    },
+  ]);
+  let dialog = await open();
+  await type(dialog, "snap");
+  expect(labels(dialog)).toEqual(["Snapshot notes"]);
+  await act(async () =>
+    dialog.dispatchEvent(new Event("cancel", { cancelable: true })),
+  );
+  withdraw();
+  dialog = await open();
+  await type(dialog, "snap");
+  expect(labels(dialog)).toEqual([]);
+});
+
+it("moves within the document when the island draws the page", async () => {
+  const navigate = vi
+    .spyOn(clientRoutes, "clientNavigate")
+    .mockReturnValue(true);
+  const dialog = await open();
+  await type(dialog, "records");
+  const records = dialog.querySelector<HTMLElement>('[role="option"]')!;
+  expect(records.textContent).toBe("Records");
+  await act(async () => records.click());
+  expect(navigate).toHaveBeenCalledWith("/data/records");
+});
+
+it("runs the first match on Return, so a phone keyboard's Go opens it", async () => {
+  const run = vi.fn();
+  await act(async () =>
+    root.render(
+      <AdminCommandPalette
+        actions={[{ id: "theme:dark", label: "Dark theme", icon: XIcon, run }]}
+      />,
     ),
-  ).toBe(true);
-  expect(dialog.querySelector(".astryx-command-palette-footer")).not.toBeNull();
+  );
+  const dialog = await open();
+  const input = dialog.querySelector("input")!;
+  // The empty palette preselects nothing.
+  expect(input.getAttribute("aria-activedescendant")).toBeNull();
+  await type(dialog, "dark theme");
+  const [first] = dialog.querySelectorAll('[role="option"]');
+  expect(input.getAttribute("aria-activedescendant")).toBe(first!.id);
+  await act(async () =>
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    ),
+  );
+  expect(run).toHaveBeenCalledOnce();
+  expect(dialog.open).toBe(false);
 });

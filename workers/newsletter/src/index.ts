@@ -73,12 +73,134 @@ const DEFAULT_NEWSLETTER_REPLY_TO = "contact@anipotts.com";
 // skips or changes a send, and never changes a response.
 const reportRuntimeContract = createRuntimeContractReporter();
 
+const UNOBSERVED =
+  "The newsletter-send queue and its dead-letter depth: this worker consumes the queue and holds no binding to read it. Whether Resend accepts the key shows only once a send is tried.";
+
+// The event types sendConfirmation and sendIssueDelivery record for a real
+// send. Mocked sends are not sends.
+const SENT_EVENT_TYPES = ["confirm_email_sent", "issue_delivery_sent"];
+
+// The event types a failed send records: this consumer's queue_error, and
+// www's confirm_email_failed when a confirmation never reached the queue
+// (apps/www/src/lib/newsletter.ts). Either is a send that did not happen.
+const FAILED_EVENT_TYPES = ["queue_error", "confirm_email_failed"];
+
+type NewsletterFacts = {
+  subscribers: { confirmed: number; total: number };
+  last_sent_at: string | null;
+  last_error_at: string | null;
+};
+
+function count(value: unknown): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0)
+    throw new Error("count is not a count");
+  return value;
+}
+
+function timeOrNull(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string" || !Number.isFinite(Date.parse(value)))
+    throw new Error("time is not a timestamp");
+  return value;
+}
+
+/** Counts and two timestamps. Never an address, subject, token or payload. */
+async function newsletterFacts(db: D1Database): Promise<NewsletterFacts> {
+  const [subscribers, events] = await Promise.all([
+    db
+      .prepare(
+        "SELECT COUNT(*) AS total, COALESCE(SUM(CASE WHEN status = 'confirmed' THEN 1 ELSE 0 END), 0) AS confirmed FROM newsletter_subscribers",
+      )
+      .first<{ total: unknown; confirmed: unknown }>(),
+    db
+      .prepare(
+        `SELECT MAX(CASE WHEN type IN (${SENT_EVENT_TYPES.map(() => "?").join(", ")}) THEN created_at END) AS last_sent_at, MAX(CASE WHEN type IN (${FAILED_EVENT_TYPES.map(() => "?").join(", ")}) THEN created_at END) AS last_error_at FROM newsletter_events`,
+      )
+      .bind(...SENT_EVENT_TYPES, ...FAILED_EVENT_TYPES)
+      .first<{ last_sent_at: unknown; last_error_at: unknown }>(),
+  ]);
+  return {
+    subscribers: {
+      confirmed: count(subscribers?.confirmed),
+      total: count(subscribers?.total),
+    },
+    last_sent_at: timeOrNull(events?.last_sent_at),
+    last_error_at: timeOrNull(events?.last_error_at),
+  };
+}
+
+function configured(value: unknown): "configured" | "missing" {
+  return typeof value === "string" && value.trim() !== ""
+    ? "configured"
+    : "missing";
+}
+
+/**
+ * ok is false only for a fault this worker can see: unreadable tables, a
+ * missing send secret, or a send error newer than the last send. dormant
+ * says nothing has been sent and nobody is confirmed to send to.
+ */
+async function health(env: Env): Promise<Record<string, unknown>> {
+  let facts: NewsletterFacts | null = null;
+  try {
+    facts = await newsletterFacts(env.DB);
+  } catch {
+    facts = null;
+  }
+  const resendKey = configured(env.RESEND_API_KEY);
+  const mailingAddress = configured(env.NEWSLETTER_MAILING_ADDRESS);
+  const lastSendFailed =
+    facts?.last_error_at != null &&
+    (facts.last_sent_at === null ||
+      Date.parse(facts.last_error_at) > Date.parse(facts.last_sent_at));
+  const dormant =
+    facts === null
+      ? null
+      : facts.subscribers.confirmed === 0 && facts.last_sent_at === null;
+
+  const notes: string[] = [];
+  if (facts === null) notes.push("Couldn't read the newsletter tables.");
+  if (resendKey === "missing")
+    notes.push(
+      "RESEND_API_KEY isn't set, so sends are recorded as mocked and nothing is delivered.",
+    );
+  if (mailingAddress === "missing")
+    notes.push(
+      "NEWSLETTER_MAILING_ADDRESS isn't set, so issue deliveries fail.",
+    );
+  if (lastSendFailed) notes.push("The last send attempt failed.");
+  if (dormant)
+    notes.push("Dormant: no confirmed subscriber and no send recorded.");
+
+  return {
+    app: "newsletter",
+    ok:
+      facts !== null &&
+      resendKey === "configured" &&
+      mailingAddress === "configured" &&
+      !lastSendFailed,
+    dormant,
+    d1: facts ? "connected" : "error",
+    subscribers: facts?.subscribers ?? null,
+    last_sent_at: facts?.last_sent_at ?? null,
+    last_error_at: facts?.last_error_at ?? null,
+    resend_key: resendKey,
+    mailing_address: mailingAddress,
+    notes,
+    unobserved: UNOBSERVED,
+    ts: new Date().toISOString(),
+  };
+}
+
 export default {
-  async fetch(_request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env): Promise<Response> {
     reportRuntimeContract(env, "fetch");
-    return new Response("newsletter worker ok", {
-      headers: { "content-type": "text/plain; charset=utf-8" },
-    });
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      return Response.json({ error: "Method not allowed" }, { status: 405 });
+    }
+    const body = await health(env);
+    // The status mirrors ok, so a monitor reading only the code agrees with the body.
+    return Response.json(body, { status: body.ok ? 200 : 503 });
   },
 
   async queue(

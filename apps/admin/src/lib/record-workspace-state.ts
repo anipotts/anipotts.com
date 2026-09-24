@@ -1,8 +1,8 @@
 import { libraryReturnPath } from "./content-library-state";
 
-export const recordViews = ["edit", "preview", "review", "source"] as const;
-export const recordPanels = ["properties", "history", "publication"] as const;
-export type RecordView = (typeof recordViews)[number];
+const recordViews = ["edit", "preview", "review", "source"] as const;
+const recordPanels = ["properties", "history", "publication"] as const;
+type RecordView = (typeof recordViews)[number];
 export type RecordPanel = (typeof recordPanels)[number];
 export type RecordWorkspaceState = {
   view: RecordView;
@@ -35,7 +35,7 @@ export function recordWorkspaceUrl(
       pathname,
     )
   )
-    return "/content";
+    return "/content/pages";
   const previous = new URLSearchParams(search);
   const params = new URLSearchParams();
   const theme = previous.get("theme");

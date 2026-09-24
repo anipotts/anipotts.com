@@ -134,6 +134,21 @@ it("exposes paragraph, heading and insertion effects through the stable menus", 
   expect(editor!.isActive("bulletList")).toBe(true);
 });
 
+it("keeps its toolbar open while a menu is open, so a phone's docked toolbar never hides its own menu", async () => {
+  await render();
+  const composer = host.querySelector(".article-composer")!;
+  expect(composer.hasAttribute("data-toolbar-open")).toBe(false);
+  act(() => control("Style").click());
+  expect(composer.getAttribute("data-toolbar-open")).toBe("true");
+  act(() => control("Heading").click());
+  expect(composer.hasAttribute("data-toolbar-open")).toBe(false);
+  act(() => control("Insert").click());
+  expect(composer.getAttribute("data-toolbar-open")).toBe("true");
+  act(() => control("Image").click());
+  // The image panel holds the toolbar open too, until it closes.
+  expect(composer.getAttribute("data-toolbar-open")).toBe("true");
+});
+
 it("preserves pending typing through parent renders and discards it only for an explicit authoritative reset", async () => {
   await render();
   act(() => editor!.commands.insertContent("Pending "));

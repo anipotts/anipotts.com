@@ -1,5 +1,6 @@
 import { readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
+import { GIT_SHA } from "./patterns";
 
 /** Read-only local preview metadata. No dependency on Apple's developer tools. */
 export async function localGitHead(root: string): Promise<string> {
@@ -13,8 +14,7 @@ export async function localGitHead(root: string): Promise<string> {
     directory = resolve(root, match[1]);
   }
   const head = (await readFile(resolve(directory, "HEAD"), "utf8")).trim();
-  const hash = /^[a-f0-9]{40}$/;
-  if (hash.test(head)) return head;
+  if (GIT_SHA.test(head)) return head;
   const reference = head.startsWith("ref: ") ? head.slice(5) : "";
   if (
     !/^refs\/[A-Za-z0-9_./-]+$/.test(reference) ||
@@ -33,7 +33,7 @@ export async function localGitHead(root: string): Promise<string> {
   for (const base of new Set([directory, common])) {
     try {
       const value = (await readFile(resolve(base, reference), "utf8")).trim();
-      if (!hash.test(value)) throw new Error("invalid_git_reference");
+      if (!GIT_SHA.test(value)) throw new Error("invalid_git_reference");
       return value;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
@@ -44,6 +44,6 @@ export async function localGitHead(root: string): Promise<string> {
     .split(/\r?\n/)
     .find((line) => line.endsWith(` ${reference}`));
   const value = entry?.split(" ")[0];
-  if (!value || !hash.test(value)) throw new Error("git_head_unavailable");
+  if (!value || !GIT_SHA.test(value)) throw new Error("git_head_unavailable");
   return value;
 }

@@ -1,4 +1,5 @@
 /// <reference types="astro/client" />
+import { GIT_SHA } from "./patterns";
 
 /** Closed admin runtime configuration contract.
  *
@@ -12,39 +13,35 @@
 type Source =
   "assets" | "vars" | "d1" | "r2" | "durable_objects" | "secret" | "build";
 type Check =
-  | "fetch"
-  | "prepare"
-  | "getByName"
-  | "getPut"
-  | "text"
-  | "flag"
-  | "id"
-  | "sha"
-  | "mode";
-type PublisherMode = "legacy" | "direct" | "maintenance";
+  "fetch" | "prepare" | "getByName" | "getPut" | "text" | "flag" | "sha";
 
-/** Names match deployment configuration when their mode is enabled. Direct
- * bindings remain optional while production uses the legacy publisher.
+/** Names match deployment configuration when their feature is enabled.
  * This checks binding shape and build identity, not schema or reader readiness.
  */
 export const RUNTIME_CONTRACT = {
   ASSETS: { source: "assets", check: "fetch" },
   ACCESS_TEAM_DOMAIN: { source: "vars", check: "text" },
   ACCESS_POLICY_AUD: { source: "vars", check: "text" },
+  /** anipotts-db, bound so deploy applies its migrations. No admin page
+   * reads it, so no feature needs it. */
   DB: { source: "d1", check: "prepare" },
   CONTENT_DB: { source: "d1", check: "prepare" },
   CONTENT_MEDIA: { source: "r2", check: "getPut" },
   EDITORIAL: { source: "durable_objects", check: "getByName" },
-  COMMAND_RELAY: { source: "durable_objects", check: "getByName" },
   EDITORIAL_ENABLED: { source: "vars", check: "flag" },
   EDITORIAL_PUBLISH_ENABLED: { source: "vars", check: "flag" },
-  EDITORIAL_PUBLISH_MODE: { source: "vars", check: "mode" },
-  EDITORIAL_GITHUB_APP_ID: { source: "vars", check: "text" },
-  EDITORIAL_GITHUB_INSTALLATION_ID: { source: "vars", check: "id" },
-  EDITORIAL_GITHUB_PRIVATE_KEY: { source: "secret", check: "text" },
-  EDITORIAL_SIGNING_PRIVATE_KEY: { source: "secret", check: "text" },
   PRIVATE_READER_ENABLED: { source: "vars", check: "flag" },
+  PRIVATE_READER_OPS_ENABLED: { source: "vars", check: "flag" },
+  /** Data Health's health:read issuance. Unset in production until System's
+   * daily health collection is proven. */
+  PRIVATE_READER_HEALTH_ENABLED: { source: "vars", check: "flag" },
+  /** Data Knowledge's entity reads. Unset in production until System serves
+   * the entity routes. */
+  PRIVATE_READER_KNOWLEDGE_ENABLED: { source: "vars", check: "flag" },
   PRIVATE_READER_SIGNING_KEY: { source: "secret", check: "text" },
+  PRIVATE_READER_CANARY_ENABLED: { source: "vars", check: "flag" },
+  PRIVATE_READER_CANARY_ACCESS_AUD: { source: "vars", check: "text" },
+  PRIVATE_READER_CANARY_CLIENT_ID: { source: "vars", check: "text" },
   PUBLIC_RELEASE_SHA: { source: "build", check: "sha" },
 } as const satisfies Record<string, { source: Source; check: Check }>;
 
@@ -56,51 +53,62 @@ export const RUNTIME_REQUIRED = [
   "ACCESS_POLICY_AUD",
 ] as const satisfies readonly RuntimeName[];
 
-const legacyEditorialNeeds = [
-  "EDITORIAL",
-  "EDITORIAL_GITHUB_APP_ID",
-  "EDITORIAL_GITHUB_INSTALLATION_ID",
-  "EDITORIAL_GITHUB_PRIVATE_KEY",
-] as const satisfies readonly RuntimeName[];
-
-/** Mirrors productionEditor, editorialRuntime().publishing, adminDb and the
- * control-plane relay lookup. Flags switch a feature off; needs make an
- * enabled feature unavailable when absent.
+/** Mirrors productionEditor. Flags switch a feature off; needs make an
+ * enabled feature unavailable when absent. EDITORIAL_PUBLISH_ENABLED is the
+ * publishing kill switch. The private reader's issuance routes sign with
+ * PRIVATE_READER_SIGNING_KEY, so a reader flag that is on without the key
+ * reports its feature unavailable instead of ok (A-34). Every reader mode
+ * but the Data credential also `requires` PRIVATE_READER_ENABLED
+ * (privateReaderModeEnabled): its own flag on while that one is off is a
+ * flag backed by nothing, so it reads unavailable, naming the missing flag,
+ * never disabled. The canary also needs its Access audience and client id,
+ * without which it answers 503. DB is bound for migrations only and backs no
+ * feature: reporting it available would claim a read that no page makes.
  */
-const directEditorialNeeds = [
-  "EDITORIAL",
-  "CONTENT_DB",
-] as const satisfies readonly RuntimeName[];
-
 export const RUNTIME_FEATURES = {
   editorial: {
     flags: ["EDITORIAL_ENABLED"],
-    needs: {
-      legacy: legacyEditorialNeeds,
-      direct: directEditorialNeeds,
-      maintenance: directEditorialNeeds,
-    },
+    needs: ["EDITORIAL", "CONTENT_DB"],
   },
   editorial_publishing: {
     flags: ["EDITORIAL_ENABLED", "EDITORIAL_PUBLISH_ENABLED"],
-    needs: {
-      legacy: [
-        ...legacyEditorialNeeds,
-        "EDITORIAL_SIGNING_PRIVATE_KEY",
-        "PUBLIC_RELEASE_SHA",
-      ],
-      direct: [...directEditorialNeeds, "CONTENT_MEDIA", "PUBLIC_RELEASE_SHA"],
-      maintenance: [],
-    },
+    needs: ["EDITORIAL", "CONTENT_DB", "CONTENT_MEDIA", "PUBLIC_RELEASE_SHA"],
   },
-  admin_database: { flags: [], needs: ["DB"] },
-  control_plane: { flags: [], needs: ["COMMAND_RELAY"] },
+  private_reader: {
+    flags: ["PRIVATE_READER_ENABLED"],
+    needs: ["PRIVATE_READER_SIGNING_KEY"],
+  },
+  private_reader_ops: {
+    flags: ["PRIVATE_READER_OPS_ENABLED"],
+    requires: ["PRIVATE_READER_ENABLED"],
+    needs: ["PRIVATE_READER_SIGNING_KEY"],
+  },
+  private_reader_health: {
+    flags: ["PRIVATE_READER_HEALTH_ENABLED"],
+    requires: ["PRIVATE_READER_ENABLED"],
+    needs: ["PRIVATE_READER_SIGNING_KEY"],
+  },
+  private_reader_knowledge: {
+    flags: ["PRIVATE_READER_KNOWLEDGE_ENABLED"],
+    requires: ["PRIVATE_READER_ENABLED"],
+    needs: ["PRIVATE_READER_SIGNING_KEY"],
+  },
+  private_reader_canary: {
+    flags: ["PRIVATE_READER_CANARY_ENABLED"],
+    requires: ["PRIVATE_READER_ENABLED"],
+    needs: [
+      "PRIVATE_READER_SIGNING_KEY",
+      "PRIVATE_READER_CANARY_ACCESS_AUD",
+      "PRIVATE_READER_CANARY_CLIENT_ID",
+    ],
+  },
 } as const satisfies Record<
   string,
   {
     flags: readonly RuntimeName[];
-    needs:
-      readonly RuntimeName[] | Record<PublisherMode, readonly RuntimeName[]>;
+    /** Flags that must be on too; off, the feature is unavailable. */
+    requires?: readonly RuntimeName[];
+    needs: readonly RuntimeName[];
   }
 >;
 
@@ -117,7 +125,6 @@ type RuntimeContractReport = {
 type RuntimeEntry = "fetch" | "durable_object";
 type RuntimeLogSink = Pick<Console, "info" | "warn">;
 
-const sha = /^[a-f0-9]{40}$/;
 const unreadable = Symbol("unreadable");
 
 function read(
@@ -133,18 +140,10 @@ function read(
   }
 }
 
-function publisherMode(value: unknown): PublisherMode | null {
-  if (value === undefined) return "legacy";
-  return value === "legacy" || value === "direct" || value === "maintenance"
-    ? value
-    : null;
-}
-
 function satisfied(env: unknown, name: RuntimeName, release: string) {
   const { check } = RUNTIME_CONTRACT[name];
-  if (check === "sha") return sha.test(release);
+  if (check === "sha") return GIT_SHA.test(release);
   const value = read(env, name, unreadable);
-  if (check === "mode") return publisherMode(value) !== null;
   if (check === "getPut")
     return (
       typeof read(value, "get") === "function" &&
@@ -152,10 +151,6 @@ function satisfied(env: unknown, name: RuntimeName, release: string) {
     );
   if (check === "text") return typeof value === "string" && !!value.trim();
   if (check === "flag") return value === "true";
-  if (check === "id") {
-    const id = typeof value === "string" && value.trim() ? Number(value) : NaN;
-    return Number.isSafeInteger(id) && id > 0;
-  }
   return typeof read(value, check) === "function";
 }
 
@@ -173,25 +168,18 @@ export function evaluateRuntimeContract(
     }
     return result;
   };
-  // Omission alone preserves the rolling-upgrade legacy default. Invalid or
-  // unreadable configuration never silently enables either publisher.
-  const mode = publisherMode(read(env, "EDITORIAL_PUBLISH_MODE", unreadable));
-  results.set("EDITORIAL_PUBLISH_MODE", mode !== null);
   const missing = RUNTIME_REQUIRED.filter((name) => !has(name));
   const features = {} as RuntimeContractReport["features"];
-  for (const [feature, { flags, needs }] of Object.entries(RUNTIME_FEATURES)) {
-    const modeSpecific = "legacy" in needs;
-    const enabled =
-      (flags as readonly RuntimeName[]).every(has) &&
-      !(feature === "editorial_publishing" && mode === "maintenance");
-    const selectedNeeds = modeSpecific ? (mode ? needs[mode] : []) : needs;
-    const absent: RuntimeName[] = !enabled
-      ? []
-      : modeSpecific && mode === null
-        ? ["EDITORIAL_PUBLISH_MODE"]
-        : (selectedNeeds as readonly RuntimeName[]).filter(
-            (name) => !has(name),
-          );
+  for (const [feature, spec] of Object.entries(RUNTIME_FEATURES)) {
+    const { flags, needs } = spec;
+    const requires: readonly RuntimeName[] =
+      "requires" in spec ? spec.requires : [];
+    const enabled = (flags as readonly RuntimeName[]).every(has);
+    const absent: RuntimeName[] = enabled
+      ? [...requires, ...(needs as readonly RuntimeName[])].filter(
+          (name) => !has(name),
+        )
+      : [];
     features[feature as RuntimeFeature] = {
       state: !enabled
         ? "disabled"
@@ -226,7 +214,7 @@ export function reportRuntimeContract(
       event: "runtime_contract",
       app: "admin",
       entry,
-      release: sha.test(release) ? release : "dev",
+      release: GIT_SHA.test(release) ? release : "dev",
       ...report,
     });
     if (degraded) sink.warn(line);

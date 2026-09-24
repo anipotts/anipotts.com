@@ -53,11 +53,12 @@ vi.mock("./ReviewChanges", async (importOriginal) => ({
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 let root: Root;
 let host: HTMLDivElement;
+// Already public, so the review's visibility preparation leaves it unchanged.
 const source =
-  newWritingSource("Original title").replace(
-    'summary: ""',
-    'summary: "A short summary"',
-  ) + "Original body.";
+  newWritingSource("Original title")
+    .replace('summary: ""', 'summary: "A short summary"')
+    .replace("status: draft", "status: published\npublished_at: 2026-09-20") +
+  "Original body.";
 const draft = {
   key: "content/public/writing/test.md",
   source,
@@ -101,12 +102,29 @@ async function mount(search = "", localPreview = true) {
 }
 async function click(label: string) {
   const button = [...host.querySelectorAll("button")].find(
-    (el) => el.textContent?.trim() === label,
+    (el) =>
+      el.textContent?.trim() === label ||
+      el.getAttribute("aria-label") === label,
   );
   expect(button, label).toBeTruthy();
   await act(async () => {
     button!.click();
   });
+}
+/** Opens the editor bar's overflow and chooses one of its items. */
+async function menuItem(label: string) {
+  await act(async () => {
+    (
+      host.querySelector(
+        'button[aria-label="More actions"]',
+      ) as HTMLButtonElement
+    ).click();
+  });
+  const item = [...document.querySelectorAll('[role="menuitem"]')].find(
+    (node) => node.textContent?.trim() === label,
+  ) as HTMLElement | undefined;
+  expect(item, label).toBeTruthy();
+  await act(async () => item!.click());
 }
 beforeEach(() => {
   vi.stubGlobal("React", React);
@@ -149,46 +167,34 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
-it("keeps one publish action beside Back to editor in the document toolbar", async () => {
+it("keeps one editor bar and opens review as its own sheet with one Publish now", async () => {
   await mount("?view=review", false);
-  const toolbar = host.querySelector(
-    '[role="toolbar"][aria-label="Document actions"]',
-  );
-  expect(toolbar).not.toBeNull();
+  const bar = host.querySelector(".editor-bar")!;
+  expect(bar).not.toBeNull();
+  // The bar's title is the page's only H1; the review sheet is titled by
+  // its panel and names its diff section.
   expect(
     [...host.querySelectorAll("h1")].map((node) => node.textContent),
-  ).toEqual(["Review changes"]);
-  const heading = host.querySelector("h1")!;
-  expect(
-    host
-      .querySelector(".editor-revision-diff")
-      ?.getAttribute("aria-labelledby"),
-  ).toBe(heading.id);
-  expect(host.querySelector(".editor-revision-diff h2")).toBeNull();
-  expect(
-    heading.parentElement?.querySelector('[aria-label="Diff legend"]'),
-  ).not.toBeNull();
-  const saveStatus = host.querySelector('[aria-label="Draft save status"]');
-  expect(
-    host.querySelectorAll('[aria-label="Draft save status"]'),
-  ).toHaveLength(1);
-  expect(
-    heading.closest(".editor-review-title-row")?.contains(saveStatus),
-  ).toBe(true);
-  expect(toolbar!.contains(saveStatus)).toBe(false);
-  const buttons = [...host.querySelectorAll("button")];
-  const publish = buttons.filter(
-    (button) => button.textContent?.trim() === "Approve and publish",
+  ).toEqual(["Original title"]);
+  const sheet = host.querySelector('aside[aria-label="Review changes"]')!;
+  expect(sheet).not.toBeNull();
+  expect(sheet.querySelector(".editor-revision-diff")).not.toBeNull();
+  const saveStatus = host.querySelectorAll('[aria-label="Draft save status"]');
+  expect(saveStatus).toHaveLength(1);
+  expect(bar.contains(saveStatus[0]!)).toBe(true);
+  const publish = [...host.querySelectorAll("button")].filter(
+    (button) => button.textContent?.trim() === "Publish now",
   );
   expect(publish).toHaveLength(1);
-  expect(toolbar!.contains(publish[0])).toBe(true);
+  expect(sheet.contains(publish[0]!)).toBe(true);
+  expect(publish[0]!.hasAttribute("aria-describedby")).toBe(false);
+  expect(publish[0]!.hasAttribute("title")).toBe(false);
+  // The bar keeps its own Publish, which opened this sheet.
   expect(
-    [...toolbar!.querySelectorAll("button")].some(
-      (button) => button.textContent?.trim() === "Back to editor",
+    [...bar.querySelectorAll("button")].some(
+      (button) => button.textContent?.trim() === "Publish",
     ),
   ).toBe(true);
-  expect(publish[0].hasAttribute("aria-describedby")).toBe(false);
-  expect(publish[0].hasAttribute("title")).toBe(false);
   expect(host.textContent).not.toContain(
     "Publishes this record’s source to GitHub and the website",
   );
@@ -223,7 +229,7 @@ it.each([
     const status = host.querySelector('[role="status"][data-save-state]');
     expect(status?.getAttribute("data-save-state")).toBe(state);
     expect(status?.textContent).toBe(label);
-    expect(status?.closest('[aria-label="Document actions"]')).not.toBeNull();
+    expect(status?.closest(".editor-bar")).not.toBeNull();
   },
 );
 
@@ -282,7 +288,7 @@ it("does not mark newer buffered edits saved when an earlier save is acknowledge
   expect(title.value).toBe("Newer buffered title");
 });
 
-it("submits the reviewed revision once and preserves the legacy publication contract", async () => {
+it("submits the reviewed revision once with its exact source identities", async () => {
   let finish!: (value: Response) => void;
   const posts: Record<string, unknown>[] = [];
   vi.stubGlobal(
@@ -298,22 +304,28 @@ it("submits the reviewed revision once and preserves the legacy publication cont
   );
   await mount("?view=review", false);
   const publish = [...host.querySelectorAll("button")].find(
-    (button) => button.textContent?.trim() === "Approve and publish",
+    (button) => button.textContent?.trim() === "Publish now",
   )!;
   await act(async () => {
     publish.click();
     publish.click();
     await vi.waitFor(() => expect(posts).toHaveLength(1));
   });
+  const { publicationSourceHash } =
+    await import("@anipotts/content/editorial/publication-contract");
   expect(posts[0]).toEqual({
     expectedRevision: 1,
     operationId: expect.any(String),
     discloseSource: true,
+    reviewedSourceSha256: await publicationSourceHash(source),
+    expectedBaselineSha256: await publicationSourceHash(snapshot.base.source),
+    expectedPublicationId: null,
   });
   await act(async () => {
     finish(
       response({
         publication: {
+          mode: "direct",
           id: "test-publication",
           phase: "validate",
           version: 1,
@@ -323,6 +335,10 @@ it("submits the reviewed revision once and preserves the legacy publication cont
           leaseUntil: 0,
           blocked: null,
           checkpoint: {},
+          publicationId: null,
+          revision: 1,
+          canCancel: true,
+          queue: { pending: 1, position: null, head: null, alarmAt: null },
         },
       }),
     );
@@ -335,7 +351,7 @@ it("submits the reviewed revision once and preserves the legacy publication cont
 it("preserves local publishing restrictions until transfer is released", async () => {
   await mount("?view=review", true);
   const publish = [...host.querySelectorAll("button")].find(
-    (button) => button.textContent?.trim() === "Approve and publish",
+    (button) => button.textContent?.trim() === "Publish now",
   )!;
   expect(publish.disabled).toBe(true);
 });
@@ -371,7 +387,7 @@ it("rejects publication when buffered edits no longer match the reviewed revisio
     )!.set!.call(title, "Changed after review");
     title.dispatchEvent(new Event("input", { bubbles: true }));
   });
-  await click("Approve and publish");
+  await click("Publish now");
   expect(posts).toEqual([]);
   expect(host.textContent).toContain("The draft changed before publishing");
   expect(title.value).toBe("Changed after review");
@@ -388,14 +404,15 @@ it("keeps the local production navigation fallback in the menu without claiming 
   await act(async () => {
     (
       host.querySelector(
-        'button[aria-label="Document actions"]',
+        'button[aria-label="More actions"]',
       ) as HTMLButtonElement
     ).click();
   });
   const fallback = [...document.querySelectorAll('[role="menuitem"]')].find(
     (item) => item.textContent?.includes("Open production editor"),
   ) as HTMLElement;
-  expect(fallback.textContent).toContain("Download this local draft");
+  // The item names itself; no description runs off the menu.
+  expect(fallback.textContent).not.toContain("Download this local draft");
   await act(async () => fallback.click());
   expect(open).toHaveBeenCalledWith(
     "https://admin.anipotts.com/content/writing/test",
@@ -422,12 +439,12 @@ it("groups document actions under labeled menu sections, not dividers", async ()
     await act(async () => {
       (
         host.querySelector(
-          'button[aria-label="Document actions"]',
+          'button[aria-label="More actions"]',
         ) as HTMLButtonElement
       ).click();
     });
     const menu = document.querySelector(
-      '[role="menu"][aria-label="Document actions"]',
+      '[role="menu"][aria-label="More actions"]',
     )!;
     expect(menu.querySelector('[role="separator"], hr')).toBeNull();
     return menu;
@@ -439,6 +456,8 @@ it("groups document actions under labeled menu sections, not dividers", async ()
         (item) => item.querySelector("span > span")?.textContent,
       ),
     ]);
+  // The record's own panels lead, untitled; Unpublish would close the menu.
+  const record = [null, ["Properties", "History"]];
   const inspect = ["Inspect", ["View source", "Compare with website"]];
   const draftActions = [
     "Open production editor",
@@ -446,8 +465,8 @@ it("groups document actions under labeled menu sections, not dividers", async ()
     "Import draft…",
   ];
   let menu = await openMenu();
-  expect(sections(menu)).toEqual([inspect, ["Draft", draftActions]]);
-  expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(5);
+  expect(sections(menu)).toEqual([record, inspect, ["Draft", draftActions]]);
+  expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(7);
   // Leaving the editor tab commits the buffered title, so Save now appears.
   const viewSource = [...menu.querySelectorAll('[role="menuitem"]')].find(
     (item) => item.textContent === "View source",
@@ -455,10 +474,11 @@ it("groups document actions under labeled menu sections, not dividers", async ()
   await act(async () => viewSource.click());
   menu = await openMenu();
   expect(sections(menu)).toEqual([
+    record,
     inspect,
     ["Draft", [...draftActions, "Save now"]],
   ]);
-  expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(6);
+  expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(8);
 });
 
 it("polls an unfinished publication only while the page is visible", async () => {
@@ -543,19 +563,15 @@ it("releases an unread record error body and shows the load failure", async () =
   expect(cancel).toHaveBeenCalledOnce();
 });
 
-it.each(["legacy", "verified", "superseded", "unverified"])(
+it.each(["verified", "superseded", "unverified"])(
   "announces only a confirmed current publication (%s)",
   async (mode) => {
     const job = (phase: string) => ({
       id: "test-publication",
-      ...(mode === "legacy"
-        ? {}
-        : {
-            mode: "direct",
-            publicationId: "receipt",
-            superseded: mode === "superseded",
-            verifiedAt: mode === "unverified" ? null : 12345,
-          }),
+      mode: "direct",
+      publicationId: "receipt",
+      superseded: mode === "superseded",
+      verifiedAt: mode === "unverified" ? null : 12345,
       phase,
       version: 1,
       attempts: 0,
@@ -566,7 +582,7 @@ it.each(["legacy", "verified", "superseded", "unverified"])(
       checkpoint: {},
     });
     let finish!: (value: Response) => void;
-    let phase = "deploy";
+    let phase = "verify";
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string) => {
@@ -584,7 +600,7 @@ it.each(["legacy", "verified", "superseded", "unverified"])(
     try {
       await mount("?view=review", false);
       const publish = [...host.querySelectorAll("button")].find(
-        (button) => button.textContent?.trim() === "Approve and publish",
+        (button) => button.textContent?.trim() === "Publish now",
       )!;
       await act(async () => {
         publish.click();
@@ -666,6 +682,7 @@ it("reconciles a lost submit response without creating another publication", asy
       if (url.includes("/publication?"))
         return response({
           publication: {
+            mode: "direct",
             id: requests[0].operationId,
             phase: "validate",
             version: 0,
@@ -675,41 +692,28 @@ it("reconciles a lost submit response without creating another publication", asy
             leaseUntil: 0,
             blocked: null,
             checkpoint: {},
-            queue: {
-              position: 2,
-              pending: 2,
-              alarmAt: null,
-              head: {
-                id: "older",
-                sequence: 1,
-                record: { kind: "work", id: "sample-project" },
-                revision: 1,
-                createdAt: 0,
-                phase: "validate",
-                version: 3,
-                attempts: 2,
-                dueAt: 0,
-                leaseUntil: 0,
-                blocked: "unreleased_public_changes",
-                cancelRequested: false,
-              },
-            },
+            publicationId: null,
+            revision: 1,
+            canCancel: true,
+            queue: { pending: 1, position: null, head: null, alarmAt: null },
           },
         });
       return response(snapshot);
     }),
   );
   await mount("?view=review", false);
-  await click("Approve and publish");
+  await click("Publish now");
+  await act(async () => {
+    await vi.waitFor(() => expect(requests).toHaveLength(1));
+  });
   expect(requests).toHaveLength(1);
-  expect(host.textContent).toContain("sample-project");
   expect(host.textContent).not.toContain("Couldn’t confirm publication");
   expect(
-    host.querySelector('[aria-label="Publication progress"]'),
-  ).not.toBeNull();
+    host.querySelector('[aria-label="Publication progress"]')?.textContent,
+  ).toContain("Publication queued; preparation has not started.");
   expect(
     [...host.querySelectorAll("button")].find(
-      (b) => b.textContent?.trim() === "Approve and publish",
+      (b) => b.textContent?.trim() === "Publish now",
     )?.disabled,
   ).toBe(true);
 });
@@ -731,6 +735,7 @@ it("prepares a new private revision when reviewing an identical cancelled public
         requests.push(JSON.parse(init!.body as string));
         return response({
           publication: {
+            mode: "direct",
             id: "new-operation",
             revision: 2,
             phase: "validate",
@@ -741,12 +746,16 @@ it("prepares a new private revision when reviewing an identical cancelled public
             leaseUntil: 0,
             blocked: null,
             checkpoint: {},
+            publicationId: null,
+            canCancel: true,
+            queue: { pending: 1, position: null, head: null, alarmAt: null },
           },
         });
       }
       return response({
         ...snapshot,
         publication: {
+          mode: "direct",
           id: "old-operation",
           revision: 1,
           phase: "cancelled",
@@ -757,12 +766,18 @@ it("prepares a new private revision when reviewing an identical cancelled public
           leaseUntil: 0,
           blocked: null,
           checkpoint: {},
+          publicationId: null,
+          canCancel: false,
+          queue: { pending: 0, position: null, head: null, alarmAt: null },
         },
       });
     }),
   );
   await mount("?view=review", false);
-  await click("Approve and publish");
+  await click("Publish now");
+  await act(async () => {
+    await vi.waitFor(() => expect(requests).toHaveLength(1));
+  });
   expect(saved.source).toBe(draft.source);
   expect(requests).toHaveLength(1);
   expect(requests[0].expectedRevision).toBe(2);
@@ -809,7 +824,6 @@ it("direct publishing reviews the current public baseline and sends exact source
     }
     return response({
       ...snapshot,
-      publicationMode: "direct",
       base: cmsBase,
       draft: { ...draft, source: currentSource },
     });
@@ -817,7 +831,7 @@ it("direct publishing reviews the current public baseline and sends exact source
   vi.stubGlobal("fetch", fetcher);
   await mount("", false);
   await click("Publish");
-  await click("Approve and publish");
+  await click("Publish now");
   await act(async () => {
     await vi.waitFor(() => expect(payload).toBeDefined());
   });
@@ -849,16 +863,12 @@ it("explains a known direct publisher refusal instead of claiming an ambiguous s
       if (url.includes("/csrf")) return response({ csrf: "test-only" });
       if (url.includes("/baseline")) return response({ base: cmsBase });
       if (url.includes("/publish?"))
-        return new Response(
-          JSON.stringify({
-            error: "legacy_publication_requires_reconciliation",
-          }),
-          { status: 409 },
-        );
+        return new Response(JSON.stringify({ error: "revision_conflict" }), {
+          status: 409,
+        });
       if (url.includes("/publication?")) return response({ publication: null });
       return response({
         ...snapshot,
-        publicationMode: "direct",
         base: cmsBase,
         draft: {
           ...draft,
@@ -869,7 +879,7 @@ it("explains a known direct publisher refusal instead of claiming an ambiguous s
   );
   await mount("", false);
   await click("Publish");
-  await click("Approve and publish");
+  await click("Publish now");
   await act(async () => {
     await vi.waitFor(() =>
       expect(
@@ -879,7 +889,9 @@ it("explains a known direct publisher refusal instead of claiming an ambiguous s
       ).toBe(true),
     );
   });
-  expect(host.textContent).toContain("previous publisher has unfinished work");
+  expect(host.textContent).toContain(
+    "The saved draft changed. Review the latest revision before publishing.",
+  );
   expect(host.textContent).not.toContain("Couldn’t confirm publication");
 });
 
@@ -896,14 +908,13 @@ it("blocks unsupported direct publication before submission while retaining the 
           ...draft,
           source: draft.source.replace(/status: [^\n]+/, "status: scheduled"),
         },
-        publicationMode: "direct",
       });
     }),
   );
   await mount("?view=review", false);
   expect(host.textContent).toContain("scheduling is not available yet");
   const approve = [...host.querySelectorAll("button")].find(
-    (button) => button.textContent?.trim() === "Approve and publish",
+    (button) => button.textContent?.trim() === "Publish now",
   );
   expect(approve).toBeTruthy();
   expect(approve?.disabled).toBe(true);
@@ -935,7 +946,7 @@ it("labels an activated retry as verification", async () => {
     "fetch",
     vi.fn(async (url: string) => {
       if (url.includes("/csrf")) return response({ csrf: "test-only" });
-      return response({ ...snapshot, publicationMode: "direct", publication });
+      return response({ ...snapshot, publication });
     }),
   );
   await mount("?panel=publication", false);
@@ -996,7 +1007,6 @@ it("unpublishes a public piece only after a compact confirmation, bound to the s
     if (url.includes("/publication?")) return response({ publication: null });
     return response({
       ...snapshot,
-      publicationMode: "direct",
       base: cmsBase,
       draft: { ...draft, source: publishedSource },
     });
@@ -1004,22 +1014,22 @@ it("unpublishes a public piece only after a compact confirmation, bound to the s
   vi.stubGlobal("fetch", fetcher);
   await mount("", false);
   expect(host.textContent).not.toContain("Unpublish this piece?");
-  await click("Unpublish");
+  await menuItem("Unpublish");
   // Opening the confirmation sends nothing.
   expect(fetcher.mock.calls.some(([url]) => url.includes("/unpublish?"))).toBe(
     false,
   );
   expect(host.textContent).toContain("Unpublish this piece?");
-  expect(host.textContent).toContain("its page returns not found");
-  expect(host.textContent).toContain("Publish again restores it");
+  // A title and two buttons, no explanation.
+  expect(host.textContent).not.toContain("its page returns not found");
   await click("Keep it published");
   expect(host.textContent).not.toContain("Unpublish this piece?");
-  await click("Unpublish");
+  await menuItem("Unpublish");
   const confirm = [...host.querySelectorAll("button")].filter(
     (button) => button.textContent?.trim() === "Unpublish",
   );
-  // The toolbar action and the confirmation's own action.
-  expect(confirm).toHaveLength(2);
+  // Unpublish lives in the overflow; the only button is the confirmation's.
+  expect(confirm).toHaveLength(1);
   await act(async () => {
     confirm.at(-1)!.click();
   });
@@ -1073,14 +1083,14 @@ it("offers Publish again, not Unpublish, while a piece is hidden from the websit
       if (url.includes("/publication?")) return response({ publication: null });
       return response({
         ...snapshot,
-        publicationMode: "direct",
         base: hiddenBase,
         draft: { ...draft, source: publishedSource },
       });
     }),
   );
   await mount("", false);
-  expect(host.textContent).toContain("Hidden from the website.");
+  // The bar's Publish again says it; no line narrates it.
+  expect(host.textContent).not.toContain("Hidden from the website.");
   const labels = [...host.querySelectorAll("button")].map((button) =>
     button.textContent?.trim(),
   );
@@ -1088,5 +1098,5 @@ it("offers Publish again, not Unpublish, while a piece is hidden from the websit
   expect(labels).not.toContain("Unpublish");
   expect(labels).not.toContain("Publish");
   await click("Publish again");
-  expect(host.textContent).toContain("Approve and publish");
+  expect(host.textContent).toContain("Publish now");
 });

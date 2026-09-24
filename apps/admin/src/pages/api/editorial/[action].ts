@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { homeEditorApi } from "../../../lib/editorial-home-api";
-import { privateEditorialResponse } from "../../../lib/editorial-security";
+import { privateJson } from "../../../lib/editorial-security";
 import { productionEditor } from "../../../lib/editorial-server";
 import { measureServerTiming } from "../../../lib/server-timing";
 
@@ -8,17 +8,11 @@ export const ALL: APIRoute = async ({ request, locals }) => {
   try {
     if (!import.meta.env.DEV) {
       const runtime = productionEditor(locals.runtime?.env);
-      if (!runtime)
-        return privateEditorialResponse(
-          { error: "editor_not_configured" },
-          503,
-        );
+      if (!runtime) return privateJson({ error: "editor_not_configured" }, 503);
       return await measureServerTiming(locals, "record", () =>
         homeEditorApi(request, runtime.storage, runtime.readBase, {
           storage: runtime.storage,
           enabled: runtime.publishing,
-          mode: runtime.publicationMode,
-          direct: runtime.storage,
         }),
       );
     }
@@ -28,6 +22,6 @@ export const ALL: APIRoute = async ({ request, locals }) => {
       homeEditorApi(request, await localDraftStorage(), localHomeBase),
     );
   } catch {
-    return privateEditorialResponse({ error: "storage_unavailable" }, 503);
+    return privateJson({ error: "storage_unavailable" }, 503);
   }
 };

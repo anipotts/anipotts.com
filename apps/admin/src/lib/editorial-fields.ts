@@ -1,9 +1,10 @@
-import type { EditorialRecord } from "@anipotts/content/editorial/source";
+import type { EditorialRecord } from "@anipotts/content/editorial/record";
 export type EditorialField = {
   label: string;
   path: string[];
   rich?: boolean;
-  description?: string;
+  /** Visible characters the field allows; its counter shows near the end. */
+  limit?: number;
 };
 export function editorialFields(
   record: EditorialRecord,
@@ -12,28 +13,14 @@ export function editorialFields(
   if (record.kind === "writing")
     return [
       { label: "Title", path: ["title"] },
-      {
-        label: "Subtitle",
-        path: ["summary"],
-        rich: true,
-        description: "Shown on writing cards and beneath the article title.",
-      },
-      {
-        label: "Opening note (optional)",
-        path: ["opening"],
-      },
+      { label: "Subtitle", path: ["summary"], rich: true },
+      { label: "Opening note", path: ["opening"] },
     ];
   if (record.kind === "work") {
     const fields: EditorialField[] = [
       { label: "Title", path: ["title"] },
       { label: "Subtitle", path: ["subtitle"], rich: true },
-      {
-        label: "Card copy",
-        path: ["card_copy"],
-        rich: true,
-        description:
-          "A short introduction for project cards. Up to 180 visible characters.",
-      },
+      { label: "Card copy", path: ["card_copy"], rich: true, limit: 180 },
       { label: "Description", path: ["description"], rich: true },
     ];
     const content =
@@ -82,8 +69,6 @@ export function editorialFields(
         label: "Subheading",
         path: ["sections", "intro", "subheading"],
         rich: true,
-        description:
-          "Your homepage introduction. Edit the words directly; links and logos stay attached.",
       },
       { label: "Work section label", path: ["sections", "past_work", "label"] },
       {

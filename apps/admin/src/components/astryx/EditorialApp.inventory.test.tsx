@@ -72,7 +72,7 @@ it("refreshes mounted library only from newer acknowledged metadata", () => {
   act(() => {
     dispatchEditorialRecordSaved(event);
   });
-  expect(host.querySelector(".record-link")?.textContent).toContain(
+  expect(host.querySelector(".workspace-row-link")?.textContent).toContain(
     "Saved title",
   );
   expect(host.textContent).toContain("Saved summary");
@@ -83,7 +83,7 @@ it("refreshes mounted library only from newer acknowledged metadata", () => {
       new CustomEvent(RECORD_SAVED_EVENT, { detail: { source: "secret" } }),
     );
   });
-  expect(host.querySelector(".record-link")?.textContent).toContain(
+  expect(host.querySelector(".workspace-row-link")?.textContent).toContain(
     "Saved title",
   );
 });
@@ -218,4 +218,87 @@ it("follows a save and a create made in another open tab", async () => {
     );
   });
   stopOther();
+});
+
+it("moves between libraries in place and back again with history", () => {
+  window.history.replaceState(null, "", "/content/pages");
+  const push = vi.spyOn(window.history, "pushState");
+  const record = (title: string, href: string) => ({
+    title,
+    href,
+    status: "published",
+  });
+  act(() =>
+    root.render(
+      <EditorialApp
+        title="Pages"
+        area="content"
+        localPreview
+        siteUrl="https://anipotts.com"
+        selectedGroup="website"
+        groups={[
+          {
+            name: "website",
+            href: "/content/pages",
+            records: [record("Home", "/content/home/home")],
+          },
+          {
+            name: "writing",
+            href: "/content/writing",
+            records: [record("First post", "/content/writing/first-post")],
+          },
+          {
+            name: "newsletter",
+            href: "/content/newsletter",
+            records: [record("Issue one", "/newsletter/issue-one")],
+          },
+        ]}
+      />,
+    ),
+  );
+  const heading = () => host.querySelector("h1")?.textContent ?? "";
+  const rows = () =>
+    [...host.querySelectorAll(".workspace-row-link")].map(
+      (link) => link.textContent,
+    );
+  const sidebarLink = (href: string) =>
+    [...host.querySelectorAll<HTMLAnchorElement>("a[href]")].find(
+      (link) =>
+        new URL(link.href).pathname === href &&
+        link.closest('nav[aria-label="Admin"]'),
+    );
+  expect(heading()).toContain("Pages");
+  expect(rows().join()).toContain("Home");
+
+  const writing = sidebarLink("/content/writing");
+  expect(writing).toBeDefined();
+  act(() => {
+    writing!.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }),
+    );
+  });
+  expect(push).toHaveBeenCalledWith(null, "", "/content/writing");
+  expect(window.location.pathname).toBe("/content/writing");
+  expect(heading()).toContain("Writing");
+  expect(rows().join()).toContain("First post");
+  expect(rows().join()).not.toContain("Home");
+  expect(document.title).toBe("Writing | Admin");
+  expect(host.querySelector('a[aria-label="New article"]')).not.toBeNull();
+
+  act(() => {
+    sidebarLink("/content/newsletter")!.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }),
+    );
+  });
+  expect(heading()).toContain("Newsletter");
+  expect(rows().join()).toContain("Issue one");
+  expect(host.querySelector('a[aria-label="New article"]')).toBeNull();
+
+  act(() => {
+    window.history.replaceState(null, "", "/content/pages");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
+  expect(heading()).toContain("Pages");
+  expect(rows().join()).toContain("Home");
+  push.mockRestore();
 });

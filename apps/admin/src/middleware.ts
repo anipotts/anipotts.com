@@ -4,9 +4,8 @@ import {
   retainedAccessPrincipal,
   verifyEditorialOwner,
 } from "./lib/access-identity";
-import { privateEditorialResponse } from "./lib/editorial-security";
-import { publicSiteUrl } from "./lib/editorial-content";
-import { editorialImagePreview } from "./lib/editorial-media";
+import { privateJson } from "./lib/editorial-security";
+import { PREVIEW_PATHS, previewResponse } from "./lib/preview-html";
 import {
   isApprovedDevPreviewOrigin,
   isDevLoopbackPreviewRequest,
@@ -17,29 +16,51 @@ import {
   denyLocalOwnerFraming,
   localOwnerPrincipal,
 } from "./lib/admin-local-owner";
-import {
-  adminJson,
-  applyAdminSetCookies,
-  resolveAdminSession,
-  sanitizeAdminReturnPath,
-} from "./lib/admin-auth";
+import { adminJson } from "./lib/admin-auth";
+import { PRIVATE_READER_CANARY_PATH } from "./lib/private-reader-canary";
 import { applyServerTiming, createServerTiming } from "./lib/server-timing";
+
+/** Content, the overview, the editorial APIs, the private reader and the
+ * draft previews accept only the signed owner. */
+function isEditorialPath(pathname: string): boolean {
+  return (
+    pathname === "/" ||
+    pathname === "/content" ||
+    pathname.startsWith("/content/") ||
+    pathname === "/newsletter" ||
+    pathname.startsWith("/newsletter/") ||
+    pathname.startsWith("/api/editorial/") ||
+    pathname.startsWith("/api/private-reader/") ||
+    PREVIEW_PATHS.has(pathname)
+  );
+}
+
+/** Owner responses are never cached or indexed, and a local owner is never framed. */
+function withPrivateHeaders(response: Response, localOwner: boolean) {
+  response.headers.set("Cache-Control", "private, no-store");
+  response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  if (localOwner) denyLocalOwnerFraming(response.headers);
+  return response;
+}
 
 async function handleRequest(
   context: APIContext,
   next: MiddlewareNext,
 ): Promise<Response> {
-  // This logout-only route validates its own cookies without refreshing or migrating them.
-  if (
-    context.url.pathname === "/api/admin/logout" ||
-    context.url.pathname === "/auth/logout"
-  )
+  const { pathname } = context.url;
+  // Sign out verifies the Access assertion itself.
+  if (pathname === "/api/admin/logout" || pathname === "/auth/logout")
     return next();
+  // The reader canary admits exactly one Access service token, which its
+  // route verifies against its own Access application. No owner is involved.
+  if (pathname === PRIVATE_READER_CANARY_PATH)
+    return withPrivateHeaders(await next(), false);
+  const env = context.locals.runtime?.env ?? {};
   // A build-time constant, never a runtime value. Deployable builds compile
   // it to false, which removes this whole path from the bundle.
   const localOwner =
     __LOCAL_OWNER_BUILD__ &&
-    !isPublicAdminPath(context.url.pathname) &&
+    !isPublicAdminPath(pathname) &&
     isLocalOwnerRequest({
       enabled: true,
       method: context.request.method,
@@ -47,72 +68,28 @@ async function handleRequest(
       headers: context.request.headers,
     });
   if (localOwner) context.locals.adminPrincipal = localOwnerPrincipal();
-  if (
-    context.url.pathname === "/" ||
-    context.url.pathname === "/content" ||
-    context.url.pathname.startsWith("/content/") ||
-    context.url.pathname === "/newsletter" ||
-    context.url.pathname.startsWith("/newsletter/") ||
-    context.url.pathname.startsWith("/api/editorial/") ||
-    context.url.pathname.startsWith("/api/private-reader/") ||
-    ["/preview/home", "/preview/record"].includes(context.url.pathname)
-  ) {
+  if (isEditorialPath(pathname)) {
     const local =
       localOwner ||
       (import.meta.env.DEV &&
         import.meta.env.EDITORIAL_LOCAL_PREVIEW === true &&
         isApprovedDevPreviewOrigin(context.url));
-    // This namespace never accepts legacy passwords, sessions, or identity headers.
-    if (
-      !local &&
-      !(await verifyEditorialOwner(
-        context.request,
-        context.locals.runtime?.env ?? {},
-      ))
-    ) {
-      return privateEditorialResponse({ error: "owner_required" }, 401);
+    // This namespace never accepts legacy passwords, sessions, or identity
+    // headers. Routes read the verified owner from locals, never again.
+    if (!local) {
+      const owner = await verifyEditorialOwner(context.request, env);
+      if (!owner) return privateJson({ error: "owner_required" }, 401);
+      context.locals.accessOwner = owner;
     }
-    let response = await next();
-    if (
-      ["/preview/home", "/preview/record"].includes(context.url.pathname) &&
-      response.headers.get("Content-Type")?.includes("text/html")
-    ) {
-      // Existing public assets are served by www; drafts never acquire public URLs.
-      const html = (await response.text())
-        .replace(
-          /(src|poster)="(\/(?:images|media|fonts)\/[^"<>]*)"/g,
-          (_match, attribute, path) => {
-            const preview = editorialImagePreview(path);
-            return `${attribute}="${new URL(preview, preview !== path || import.meta.env.DEV ? context.url : publicSiteUrl).href}"`;
-          },
-        )
-        .replace(
-          /<a(\s[^>]*?)href="(\/(?!\/)[^"<>]*)"/g,
-          (_match, attributes, path) =>
-            `<a${attributes}href="${new URL(path, publicSiteUrl).href}"`,
-        );
-      response = new Response(html, {
-        status: response.status,
-        headers: response.headers,
-      });
-    }
-    response.headers.set("Cache-Control", "private, no-store");
-    response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
-    if (["/preview/home", "/preview/record"].includes(context.url.pathname))
-      response.headers.set(
-        "Content-Security-Policy",
-        "sandbox allow-scripts; form-action 'none'; frame-ancestors 'self'; connect-src 'none'",
-      );
-    if (localOwner) denyLocalOwnerFraming(response.headers);
-    return response;
-  }
-  if (localOwner) {
     const response = await next();
-    response.headers.set("Cache-Control", "private, no-store");
-    response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
-    denyLocalOwnerFraming(response.headers);
-    return response;
+    return withPrivateHeaders(
+      PREVIEW_PATHS.has(pathname)
+        ? await previewResponse(response, context.url)
+        : response,
+      localOwner,
+    );
   }
+  if (localOwner) return withPrivateHeaders(await next(), true);
   if (
     isDevLoopbackPreviewRequest({
       isDev: import.meta.env.DEV,
@@ -123,67 +100,21 @@ async function handleRequest(
     return next();
   }
 
-  if (!isPublicAdminPath(context.url.pathname)) {
-    const principal = await retainedAccessPrincipal(
-      context.request,
-      context.locals.runtime?.env ?? {},
-    );
-    if (principal) {
-      context.locals.adminPrincipal = principal;
-      const response = await next();
-      response.headers.set("Cache-Control", "private, no-store");
-      response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
-      return response;
-    }
+  if (isPublicAdminPath(pathname)) return next();
+
+  // Cloudflare Access is the only sign-in. The verified owner reads these
+  // pages; writes live in the editorial namespace above.
+  const principal = await retainedAccessPrincipal(context.request, env);
+  if (principal) {
+    context.locals.adminPrincipal = principal;
+    return withPrivateHeaders(await next(), false);
   }
 
-  const resolved = await resolveAdminSession(context);
-  context.locals.adminPrincipal = resolved.principal ?? undefined;
-  context.locals.adminSetCookies = resolved.setCookies;
+  if (pathname.startsWith("/api/"))
+    return adminJson({ error: "admin_session_required" }, { status: 401 });
 
-  if (isPublicAdminPath(context.url.pathname)) {
-    if (
-      context.url.pathname === "/auth" &&
-      resolved.principal &&
-      !resolved.principal.restriction &&
-      context.url.searchParams.get("stepup") !== "1"
-    ) {
-      const destination = sanitizeAdminReturnPath(
-        context.url.searchParams.get("next"),
-      );
-      return applyAdminSetCookies(
-        context.redirect(destination, 302),
-        resolved.setCookies,
-      );
-    }
-    return applyAdminSetCookies(await next(), resolved.setCookies);
-  }
-
-  const isRecoveryRoute =
-    context.url.pathname === "/auth/recover/passkey" ||
-    context.url.pathname.startsWith("/api/admin/recovery/passkey/");
-  if (
-    resolved.principal &&
-    (resolved.principal.restriction === null ||
-      (isRecoveryRoute && resolved.principal.restriction === "recovery"))
-  ) {
-    return applyAdminSetCookies(await next(), resolved.setCookies);
-  }
-
-  if (context.url.pathname.startsWith("/api/")) {
-    return applyAdminSetCookies(
-      adminJson({ error: "admin_session_required" }, { status: 401 }),
-      resolved.setCookies,
-    );
-  }
-
-  const nextPath = encodeURIComponent(
-    `${context.url.pathname}${context.url.search}`,
-  );
-  return applyAdminSetCookies(
-    context.redirect(`/auth?next=${nextPath}`, 302),
-    resolved.setCookies,
-  );
+  const nextPath = encodeURIComponent(`${pathname}${context.url.search}`);
+  return context.redirect(`/auth?next=${nextPath}`, 302);
 }
 
 // Loaders record durations and counts on the request. The header is written

@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 
 const read = (path: string) =>
   readFileSync(new URL(path, import.meta.url), "utf8").replace(/\s+/g, " ");
-const editorial = read("../../styles/editorial.css");
-const operations = read("./operations-workspace.css");
-const life = read("../life/life-workspace.css");
+const shell = read("../../styles/shell.css");
+const observability = read("./observability-workspace.css");
+const kit = read("../workspace/workspace.css");
 const header = read("./WorkspaceHeader.css");
 const block = (css: string, query: string) => {
   const start = css.indexOf(`@media ${query} {`);
@@ -18,104 +18,97 @@ const block = (css: string, query: string) => {
   return css.slice(start);
 };
 
+// styles/theme-contract.test.ts holds the gutter, and lib/breakpoints.test.ts
+// with Workspace.test.tsx the named column ranges.
 describe("workspace page frames", () => {
-  it("gives every workspace page the Content library's inline gutter", () => {
-    expect(editorial).toContain(
-      ".editorial-workspace-shell .admin-page-frame { padding-block: var(--spacing-6); padding-inline: clamp(var(--spacing-4), 3vw, var(--spacing-12));",
-    );
-    expect(life).toContain(
-      ".editorial-workspace-shell .admin-page-frame:has(.life-workspace) { padding: 0; }",
-    );
+  it("leaves the one gutter to the shell", () => {
+    // Data and Observability pages sit in the frame as they are; neither
+    // resets it to set a gutter of its own.
+    for (const css of [kit, observability])
+      expect(css).not.toContain("admin-page-frame");
   });
 
-  it("keeps the Content library's phone columns out of Operations", () => {
-    const phone = block(editorial, "(max-width: 480px)");
-    for (const rule of phone.matchAll(/([^{}]+)\{[^}]*display: none/g)) {
-      const selectors = rule[1]!.split(",").map((part) => part.trim());
-      for (const selector of selectors.filter((part) =>
-        part.includes("editorial-record-table"),
-      ))
-        expect(selector).toMatch(/^\.editorial-library /);
-    }
+  it("never counts columns by position", () => {
+    for (const css of [shell, kit, observability])
+      expect(css).not.toMatch(/nth-child|nth-last-child/);
   });
 
-  it("moves Operations state under the name on phones instead of hiding it", () => {
-    expect(operations).toContain(
-      ".operations-workspace .operations-mobile-status { display: none; }",
+  it("turns every table into a full-bleed list of lead cells at compact", () => {
+    const compact = block(kit, "(max-width: 640px)");
+    expect(compact).toContain(
+      ".workspace-table :is(th, td):not(:first-child) { display: none; }",
     );
-    const phone = block(operations, "(max-width: 480px)");
-    expect(phone).toContain(".operations-inventory-table td:nth-child(n + 2)");
-    expect(phone).toContain(".operations-evidence-table td:nth-child(2)");
-    expect(phone).toContain(
-      ".operations-workspace .operations-mobile-status { display: flex; }",
+    expect(compact).toContain(
+      "margin-inline: calc(-1 * var(--admin-gutter, 0px));",
     );
-    expect(operations).toContain("word-break: normal;");
+    expect(compact).toContain(".workspace-table-footer { display: none; }");
+    expect(compact).toContain(".workspace-row-end { display: inline-flex; }");
+    // Observability keeps no column rules of its own.
+    expect(observability).not.toMatch(/ops-status-table|ops-mobile-status/);
+    // Workspace themes cannot tint a table apart from the others.
+    expect(kit).toContain(
+      ".workspace-table .astryx-base-table:not(#\\#):not(#\\#) { background: transparent; }",
+    );
   });
 
   it("keeps every sidebar icon on one centerline", () => {
     // Astryx centres an 18px icon in a 16px slot, so the glyph starts a pixel
-    // outside it. The bordered menus absorb that with their border; the
-    // borderless search button adds the same width.
+    // outside it; the search button holds the icon's own width instead.
     expect(header).toContain(
       ".approved-workspace-header .editorial-header-search { padding-inline-start: calc(var(--spacing-9) / 4); }",
     );
     expect(header).toContain(
-      ".approved-workspace-header .admin-workspace-selector, .editorial-workspace-utilities .admin-sidebar-menu { padding-inline-start: calc(var(--spacing-9) / 4 - var(--border-width)); }",
-    );
-    // The drawer uses the same inset, so the bordered menus ask for a pixel
-    // less there too.
-    expect(header).toContain(
-      ".editorial-workspace-nav :is(.admin-workspace-selector, .admin-sidebar-menu) { padding-inline-start: calc(var(--spacing-2) - var(--border-width)); }",
+      ".editorial-workspace-nav .editorial-header-search > span:first-child > span:first-child:not(#\\#):not(#\\#) { width: calc(var(--spacing-9) / 2); flex: none; }",
     );
     // In the rail there is no label to align to, so the icon takes the middle.
     expect(header).toContain(
-      ":is(.admin-sidebar-menu, .editorial-header-search) { padding-inline: 0; justify-content: center; }",
-    );
-    expect(header).toContain(
-      ":is(.admin-sidebar-menu, .editorial-header-search) > span:first-child { justify-content: center; }",
-    );
-    expect(header).toContain(
-      ".admin-sidebar-menu > span:first-child > span:first-child > svg:not(#\\#):not(#\\#) { width: calc(var(--spacing-9) / 2); height: calc(var(--spacing-9) / 2); flex: none; }",
+      ".editorial-header-search { padding-inline: 0; justify-content: center; }",
     );
   });
 
-  it("gives the rail's menus the same quiet treatment as its icons", () => {
-    const shell = read("./EditorialWorkspaceShell.tsx");
-    // A menu with a label carries a surface; one icon among icons does not.
-    expect(shell).toContain('variant: compact ? "ghost" : "secondary",');
-    const library = read("../../styles/editorial.css");
-    expect(library).toContain(
-      '.editorial-workspace-shell:not([data-sidebar-collapsed="true"]) .admin-sidebar-menu, .editorial-workspace-shell .astryx-app-shell-header .admin-sidebar-menu { border: 1px solid var(--color-border);',
+  it("draws the group headings and the current page's icon in the workspace accent", () => {
+    expect(header).toContain(
+      '.admin-unified-nav [aria-current="page"] svg { color: var(--color-icon-accent); }',
+    );
+    // Headings and chevrons take the accent, as the approved sidebar did.
+    expect(header).toContain(
+      ".admin-unified-nav [data-sidebar-group], .admin-unified-nav [data-sidebar-group] svg { color: var(--color-text-accent); }",
+    );
+    expect(header).not.toMatch(
+      /\[data-sidebar-group\][^{]*\{[^}]*color: var\(--color-text-secondary\)/,
+    );
+    // Workspace accents are the theme's own tokens, declared once in
+    // themes/workspace-accents.css; the shell keeps no copies.
+    for (const css of [header, shell]) expect(css).not.toMatch(/--ws-/);
+  });
+
+  it("separates the sidebar groups with space and pins pages to one inset", () => {
+    expect(header).toContain(
+      ".admin-unified-nav { display: flex; flex-direction: column; gap: var(--spacing-2);",
     );
     expect(header).toContain(
-      ":is(.admin-sidebar-menu, .editorial-header-search):is( :hover, :focus-visible ) { background-color: var(--color-background-muted); }",
+      '.admin-unified-nav [data-sidebar-group] + [role="group"] > div { display: flex; flex-direction: column; gap: var(--spacing-0-5); padding-inline-start: 0; }',
     );
   });
 
-  it("keeps the library table one line per record", () => {
-    const library = read("../../styles/editorial.css");
+  it("keeps each table row one control tall, the whole row the target", () => {
     // Cells carry their own inset; only the cell holding the tallest control
     // goes without, so rows stay one control tall.
-    expect(library).toContain(
-      ".editorial-library .editorial-record-table .astryx-table-cell { vertical-align: middle; padding-block: var(--spacing-1); }",
+    expect(kit).toContain(
+      ".workspace-table .astryx-table-cell { vertical-align: middle; padding-block: var(--spacing-1); }",
     );
-    expect(library).toContain(
-      ".editorial-library .editorial-record-table .astryx-table-cell:last-child { padding-block: 0; }",
+    expect(kit).toContain(
+      ".workspace-table .astryx-table-cell:last-child { padding-block: 0; }",
     );
-    expect(library).toContain(
-      "min-height: var(--spacing-7); justify-content: flex-start; padding-block: var(--spacing-1); padding-inline: var(--spacing-2);",
+    // The whole row is the click target; the title link wraps only its text.
+    expect(kit).toContain(
+      '.workspace-row-link::after { content: ""; position: absolute; inset: 0; }',
     );
-    for (const rule of [
-      ".editorial-library .editorial-record-summary,",
-      ".editorial-library .editorial-record-state > .astryx-token:not(#\\#):not(#\\#):not(#\\#) { flex: 0 0 auto; }",
-    ])
-      expect(library).toContain(rule);
-    // The phone row keeps its state under the title and gets the room for it.
-    expect(library).toContain(
-      ".editorial-library .editorial-record-table .astryx-table-cell { padding-block: var(--spacing-2); }",
+    expect(kit).toContain(".workspace-table tbody tr { position: relative; }");
+    // Hover tints only where hover exists, and focus tints instead of rings.
+    expect(block(kit, "(hover: hover)")).toContain(
+      '.workspace-table[data-interactive="true"] tbody tr:hover',
     );
-    expect(library).toContain(
-      ":is(th, td):nth-child(n + 2):nth-last-child(n + 2) { display: none; }",
-    );
+    expect(kit).not.toMatch(/outline:\s*(?!none)[^;]*solid/);
   });
 });

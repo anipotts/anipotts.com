@@ -1,0 +1,26 @@
+/*
+ * One accent token set per workspace, declared once. Every page renders the
+ * one editorial theme; the document root names its workspace in
+ * `data-admin-workspace` (AdminDocument on the server, the shell after a
+ * client route), and only these three tokens change with it. Content and the
+ * overview keep the editorial theme's own accent, so they need no block.
+ *
+ * The editorial theme sets its tokens on every theme root: the document and
+ * each Astryx Theme wrapper. Both carry these, unlayered, so they win over the
+ * theme's layer, and the theme's own `--color-text-accent` and
+ * `--color-icon-accent` (aliases of `--color-accent`) follow. Portals, dialogs
+ * and tooltips inherit them from the root.
+ */
+:root[data-admin-workspace="data"],
+:root[data-admin-workspace="data"] [data-astryx-theme] {
+  --color-accent: light-dark(#70559b, #c3ade5);
+  --color-accent-muted: light-dark(#f0ebf7, #241b32);
+  --color-on-accent: light-dark(#ffffff, #2b203c);
+}
+
+:root[data-admin-workspace="observability"],
+:root[data-admin-workspace="observability"] [data-astryx-theme] {
+  --color-accent: light-dark(#286c65, #8ac8bd);
+  --color-accent-muted: light-dark(#e8f1ee, #142822);
+  --color-on-accent: light-dark(#ffffff, #152d28);
+}

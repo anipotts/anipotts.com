@@ -6,7 +6,8 @@ import type { AdminSearchResult } from "../data/admin-search";
 import {
   editorialRecordSchema,
   type EditorialRecord,
-} from "@anipotts/content/editorial/source";
+} from "@anipotts/content/editorial/record";
+import { collectionKind } from "./editorial-collections";
 export const RECORD_SAVED_EVENT = "editorial:record-saved";
 export const RECORD_CREATED_EVENT = "editorial:record-created";
 export type EditorialRecordSaved = {
@@ -134,20 +135,7 @@ function matchesRecord(
   id: string,
   record: EditorialRecord,
 ) {
-  return (
-    id === record.id &&
-    (record.kind === "writing"
-      ? collection === "writing"
-      : record.kind === "work"
-        ? collection === "projects"
-        : [
-            "home",
-            "workPage",
-            "writingPage",
-            "systemsPage",
-            "newsletterPage",
-          ].includes(collection))
-  );
+  return id === record.id && collectionKind(collection) === record.kind;
 }
 function matchesHref(href: string, record: EditorialRecord) {
   const match = /^\/content\/([^/]+)\/([^/?#]+)(?:[?#]|$)/.exec(href);
@@ -182,11 +170,20 @@ export function applyEditorialRecordSaved(
     })
   )
     return current;
-  const publishedUpdated = published
-    ? { at: saved.publishedAt!, source: "git" as const }
-    : undefined;
   const visibilityIsStatus =
     saved.record.kind === "writing" || saved.record.kind === "work";
+  // A publish that took the record off the site reads as that, never as
+  // Published (lib/editorial-inventory-projection.ts latestPublishedUpdate).
+  const hidden =
+    visibilityIsStatus &&
+    saved.intendedVisibility !== undefined &&
+    !["published", "featured", "listed"].includes(saved.intendedVisibility);
+  const publishedUpdated = published
+    ? {
+        at: saved.publishedAt!,
+        source: hidden ? ("hidden" as const) : ("cms" as const),
+      }
+    : undefined;
   const revisions = { ...current.revisions };
   for (const href of matched) revisions[href] = saved.revision;
   const status = (item: { status: string }) =>

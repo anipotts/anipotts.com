@@ -1,0 +1,1134 @@
+/* The workspace kit: tables, rows, the filter bar, counts, notices,
+   skeletons, detail panels and tiles, shared by Content, Data and
+   Observability. Depth comes from surface tint and spacing, never from
+   rules, and focus is a tint, never a ring.
+
+   Media queries use lib/breakpoints.ts and nothing else:
+   compact (max-width: 640px), medium from 641px, large from 1024px
+   (max-width: 1023px below it), wide from 1440px (max-width: 1439px below).
+   The list and detail split is a container query on the content area.
+   Hover tints apply only under (hover: hover). */
+
+/* Page. */
+.workspace-page {
+  width: 100%;
+  min-width: 0;
+}
+/* The title line is as tall as its largest action (36px, 44px on touch and
+   phones), whether the page has one or not, and the actions and the clock
+   sit on it, so the title never moves between sibling pages and the meta
+   line hangs below. Every part of the line keeps that height, so a badge
+   that wraps, or actions that drop under a long title on a narrow phone,
+   never move the title itself. */
+.workspace-page-header {
+  --workspace-page-line: var(--spacing-9);
+  min-width: 0;
+}
+@media (pointer: coarse), (max-width: 640px) {
+  .workspace-page-header {
+    --workspace-page-line: var(--spacing-11);
+  }
+}
+/* The title and the end (actions, then the clock) share one line. When they
+   do not fit, the end gives way, never the title: it wraps in reverse, so the
+   clock keeps the title's line at the right edge and the actions drop to a
+   line of their own under it, right-aligned, never under the title. */
+.workspace-page-line {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  column-gap: var(--spacing-3);
+  min-width: 0;
+}
+.workspace-page-title:not(#\#) {
+  flex: 1 0 auto;
+  max-width: 100%;
+  row-gap: 0;
+}
+.workspace-page-title > h1,
+.workspace-page-end {
+  display: flex;
+  align-items: center;
+  min-height: var(--workspace-page-line);
+}
+.workspace-page-title > h1 {
+  margin-block: 0;
+}
+.workspace-page-end {
+  flex: 0 1 auto;
+  flex-wrap: wrap-reverse;
+  justify-content: flex-end;
+  column-gap: var(--spacing-3);
+  row-gap: var(--spacing-1);
+  min-width: 0;
+  margin-inline-start: auto;
+}
+.workspace-page-actions {
+  flex: 0 0 auto;
+}
+/* The live Eastern clock: quiet, tabular, one line, centred on the title
+   line's height whichever line of the end it sits on. */
+.workspace-clock {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--workspace-page-line);
+  color: var(--color-text-secondary);
+  font-size: var(--text-supporting-size);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* Times, counts and codes line up in columns and stay on one line. */
+.workspace-time,
+.workspace-figure,
+.workspace-count,
+.workspace-table-footer {
+  font-variant-numeric: tabular-nums;
+}
+.workspace-time,
+.workspace-figure,
+.workspace-count {
+  white-space: nowrap;
+}
+
+/* Filter bar: one row. The search flexes; icon-only menus hold their size
+   (36px, 44px on touch through the shared interaction targets). */
+.workspace-filter-bar {
+  flex-wrap: nowrap;
+  width: 100%;
+  min-width: 0;
+}
+.workspace-filter-bar > .astryx-field {
+  flex: 0 1 calc(var(--spacing-12) * 5);
+  min-width: 0;
+}
+.workspace-filters {
+  flex: 0 0 auto;
+}
+.workspace-filter-menu {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+.workspace-filter-menu[data-active="true"] .astryx-button {
+  background-color: var(--color-accent-muted);
+  color: var(--color-text-accent, var(--color-accent));
+}
+
+/* Table surface: a raised panel with rounded corners that clip the row
+   tints. Workspace themes tint Astryx tables; every admin table sits on the
+   same surface instead. StyleX sets the fill, so this outranks it. */
+.workspace-table {
+  min-width: 0;
+  max-width: 100%;
+  background: var(--color-background-surface);
+  border-radius: var(--radius-container);
+}
+.workspace-table .astryx-table-scroll-wrapper {
+  background: var(--color-background-surface);
+  border-radius: var(--radius-container);
+  padding-block: var(--spacing-1);
+}
+.workspace-table[data-footer="true"] .astryx-table-scroll-wrapper {
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+  padding-block-end: 0;
+}
+.workspace-table .astryx-base-table:not(#\#):not(#\#) {
+  background: transparent;
+}
+/* Each range's minimum width counts only the columns it shows. DataTable
+   writes the four figures; the range picks one. */
+/* The frame is a size container, so a column with a `share` can take its
+   part of what the range's fixed columns leave (100cqw minus
+   --workspace-table-fixed). */
+.workspace-table-frame {
+  position: relative;
+  min-width: 0;
+  container-type: inline-size;
+  --workspace-table-min: var(--workspace-table-min-wide);
+  --workspace-table-fixed: var(--workspace-table-fixed-wide, 0px);
+  --workspace-table-spread: var(--workspace-table-spread-wide, 1);
+}
+.workspace-table-grid {
+  min-width: var(--workspace-table-min);
+}
+@media (max-width: 1439px) {
+  .workspace-table-frame {
+    --workspace-table-min: var(--workspace-table-min-large);
+    --workspace-table-fixed: var(--workspace-table-fixed-large, 0px);
+    --workspace-table-spread: var(--workspace-table-spread-large, 1);
+  }
+  .workspace-table [data-hide-below="wide"] {
+    display: none;
+  }
+}
+@media (max-width: 1023px) {
+  .workspace-table-frame {
+    --workspace-table-min: var(--workspace-table-min-medium);
+    --workspace-table-fixed: var(--workspace-table-fixed-medium, 0px);
+    --workspace-table-spread: var(--workspace-table-spread-medium, 1);
+  }
+  .workspace-table [data-hide-below="large"] {
+    display: none;
+  }
+}
+
+/* Cells: one line each, their own inset, no rules. Column labels stay on
+   one line; the column, not the label, gives way, and text that does not
+   fit ends in an ellipsis instead of running under the next column. */
+.workspace-table .astryx-table-header-cell,
+.workspace-table .astryx-table-cell {
+  padding-inline: var(--spacing-3);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  /* Astryx cells break words anywhere; a title or a time here wraps only
+     at a space, and a column gives way before a word is split. */
+  word-break: normal;
+  overflow-wrap: normal;
+}
+/* A cell's content past the lead: inline everywhere but where the lead
+   carries a line 2 (below). */
+.workspace-cell {
+  display: contents;
+}
+/* Figures: right-aligned with their header, in tabular numerals. */
+.workspace-table [data-numeric] {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+.workspace-table .astryx-table-cell:first-child,
+.workspace-table .astryx-table-header-cell:first-child {
+  padding-inline-start: var(--spacing-4);
+}
+.workspace-table .astryx-table-cell:last-child,
+.workspace-table .astryx-table-header-cell:last-child {
+  padding-inline-end: var(--spacing-4);
+}
+.workspace-table .astryx-table-header-cell {
+  padding-block: var(--spacing-2);
+}
+/* The row is as tall as the 36px control it must carry, and no taller. The
+   cell holding that control goes without its own inset. */
+.workspace-table .astryx-table-cell {
+  vertical-align: middle;
+  padding-block: var(--spacing-1);
+}
+.workspace-table .astryx-table-cell:last-child {
+  padding-block: 0;
+}
+
+/* Rows are the tap target: the title link wraps only its text and a
+   stretched hit area covers the row. Other controls in the row sit above
+   it. Hover tints only where hover exists; a press tints everywhere; a
+   keyboard focus tints the row, never rings it. */
+.workspace-table tbody tr {
+  position: relative;
+}
+.workspace-table[data-interactive="false"] tbody tr {
+  position: static;
+}
+.workspace-table td :is(a, button):not(.workspace-row-link),
+.workspace-table td [role="button"] {
+  position: relative;
+  z-index: 1;
+}
+@media (hover: hover) {
+  .workspace-table[data-interactive="true"] tbody tr:hover {
+    background-color: var(--color-overlay-hover);
+    cursor: pointer;
+  }
+}
+.workspace-table[data-interactive="true"] tbody tr:active {
+  background-color: var(--color-overlay-pressed, var(--color-overlay-hover));
+}
+.workspace-table tbody tr:has(.workspace-row-link:focus-visible) {
+  background-color: var(--color-accent-muted);
+}
+
+/* A group's heading row inside one table: the group's name on the row
+   inset, with air above every group but the first. It is never a target. */
+.workspace-group-row {
+  padding: var(--spacing-4) var(--spacing-4) var(--spacing-1);
+  text-align: start;
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+.workspace-table tbody tr[data-group-row]:first-child .workspace-group-row {
+  padding-block-start: var(--spacing-2);
+}
+.workspace-table[data-interactive="true"]
+  tbody
+  tr[data-group-row]:is(:hover, :active) {
+  background-color: transparent;
+  cursor: default;
+}
+/* The folded group's heading opens it: the caret turns, the count stays
+   beside the name, and the tint is the button's own, never a ring. */
+.workspace-group-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: var(--spacing-9);
+  margin-inline: calc(-1 * var(--spacing-2));
+  padding: 0 var(--spacing-2);
+  border: 0;
+  border-radius: var(--radius-inner);
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.workspace-group-toggle .workspace-count {
+  font-weight: var(--font-weight-normal, 400);
+  color: var(--color-text-secondary);
+}
+.workspace-group-caret {
+  flex: none;
+  width: var(--spacing-3);
+  height: var(--spacing-3);
+  color: var(--color-text-secondary);
+  transition: transform var(--duration-fast, 120ms) ease;
+}
+.workspace-group-toggle[aria-expanded="true"] .workspace-group-caret {
+  transform: rotate(90deg);
+}
+@media (hover: hover) {
+  .workspace-group-toggle:hover {
+    background-color: var(--color-overlay-hover);
+  }
+}
+.workspace-group-toggle:active {
+  background-color: var(--color-overlay-pressed, var(--color-overlay-hover));
+}
+
+/* The lead cell. The mark tile leads line 1; line 2 sits under the title.
+   The tile tokens are the contract a BrandTile in the `mark` slot reads. The
+   corner is 0.3 of the side, BrandTile's badge-scaled radius, so the slot and
+   a tile inside it share one corner at every size. */
+.workspace-row,
+.workspace-skeleton-row {
+  --row-mark-size: var(--spacing-6);
+  --row-mark-glyph: var(--spacing-4);
+  --row-mark-radius: calc(var(--row-mark-size) * 0.3);
+}
+.workspace-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  min-width: 0;
+}
+.workspace-row[id] {
+  scroll-margin-block: var(--spacing-12);
+}
+.workspace-row-mark {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 var(--row-mark-size);
+  width: var(--row-mark-size);
+  height: var(--row-mark-size);
+  border-radius: var(--row-mark-radius);
+  background: var(--color-neutral);
+  color: var(--color-text-secondary);
+  overflow: hidden;
+}
+/* A device render is its own icon, with no fill behind it and no corner
+   clipping its outline. */
+.workspace-row-mark:has(> .brand-tile[data-kind="device"]) {
+  background: transparent;
+  border-radius: 0;
+  overflow: visible;
+}
+/* Phosphor glyphs take 2px more than brand glyphs to match their weight. */
+.workspace-row-mark > svg {
+  width: calc(var(--row-mark-glyph) + 2px);
+  height: calc(var(--row-mark-glyph) + 2px);
+  flex: none;
+}
+.workspace-row-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.workspace-row-line {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+  min-height: var(--row-mark-size);
+}
+.workspace-row-link,
+.workspace-row-text {
+  position: static;
+  display: inline-flex;
+  flex: 0 1 auto;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: var(--font-weight-medium, 500);
+  line-height: var(--spacing-6);
+  color: var(--color-text-primary);
+  text-align: start;
+  text-decoration: none;
+}
+/* A title that fits but for a fraction of a pixel stays whole: before the
+   line's end (a time) it may take 3px of the gap, so a rounding shortfall
+   never costs a word to the ellipsis. Squeezed, the gap still reads 5px. */
+.workspace-row-line
+  > :is(.workspace-row-link, .workspace-row-text):not(:last-child) {
+  margin-inline-end: -3px;
+}
+.workspace-row-link {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.workspace-row-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+/* In a table the row takes the focus tint, so the link does not repeat it. */
+html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
+  background-color: transparent;
+}
+.workspace-row-title {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* A title that wraps rather than truncates: whole words onto a second line,
+   its kept host on the line of the word before it. */
+.workspace-row-title[data-wrap]:not(#\#) {
+  display: block;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: normal;
+  text-overflow: clip;
+  text-wrap: balance;
+}
+.workspace-row-title[data-wrap] > .workspace-title-base {
+  display: inline;
+  overflow: visible;
+  white-space: normal;
+}
+/* A title whose end stays whole (the host on a name two Macs share): the
+   base gives way first, so ", ap-mini" never becomes ", a...". */
+[data-keep]:not(#\#) {
+  display: flex;
+  min-width: 0;
+  overflow: visible;
+}
+.workspace-title-base {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.workspace-title-keep {
+  flex: none;
+  white-space: pre;
+}
+/* Where the row's own device tile names the host, the kept host is read
+   out but not drawn, so the name stands whole beside the tile. */
+[data-keep-hidden="always"] > .workspace-title-keep {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+/* Line 1's end and time belong to compact, where their columns are gone. */
+.workspace-row-end {
+  display: none;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-inline-start: auto;
+  text-align: end;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.workspace-row-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+.workspace-row-meta[data-compact-only="true"],
+.workspace-row-detail {
+  display: none;
+}
+/* Line 2's detail gives way before its chips: the prose truncates, while a
+   state chip or an exit code (flex: none) always stays whole. */
+.workspace-row-detail {
+  flex: 0 1 auto;
+  min-width: 0;
+  align-items: center;
+  gap: var(--spacing-2);
+  overflow: hidden;
+}
+.workspace-row-detail .workspace-detail-text {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+/* Parts of line 2 that a wider range already shows in a column, or that
+   only medium needs there. */
+.workspace-compact-only,
+.workspace-medium-only,
+.workspace-yield-only {
+  display: none;
+}
+@media (min-width: 641px) and (max-width: 1023px) {
+  .workspace-medium-only {
+    display: contents;
+  }
+}
+/* A row whose detail column drops below large carries its detail as line 2
+   there too (medium), as phones do. */
+@media (max-width: 1023px) {
+  .workspace-row-meta[data-below="large"][data-compact-only="true"] {
+    display: flex;
+  }
+  .workspace-row-meta[data-below="large"] > .workspace-row-detail {
+    display: inline-flex;
+  }
+}
+/* Medium: line 2 runs the row's whole width, from the title's start to the
+   table's end inset, under the other columns (which hold line 1 only), so
+   a reason wraps as a paragraph, never a word to a line in the lead's
+   column. Every column's content sits in a box of line 1's height at the
+   top, and the lead's line 1 takes the same centre, so a chip, a time and a
+   runbook glyph read on the title's line. */
+@media (min-width: 641px) and (max-width: 1023px) {
+  .workspace-table
+    .astryx-table-cell:first-child:has(
+      .workspace-row-meta[data-below="large"]
+    ) {
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .workspace-table
+    .astryx-table-cell:first-child
+    .workspace-row-meta[data-below="large"] {
+    /* 100cqw is the table frame; the title starts 52px in (16px inset, the
+       24px tile, 12px gap) and the row ends 16px in. */
+    inline-size: calc(100cqw - 68px);
+    max-inline-size: none;
+  }
+  .workspace-table tbody .astryx-table-cell {
+    vertical-align: top;
+  }
+  .workspace-table tbody .astryx-table-cell:first-child {
+    padding-block: 6px var(--spacing-1);
+  }
+  .workspace-table tbody .astryx-table-cell:not(:first-child) {
+    padding-block: 0;
+  }
+  .workspace-table .workspace-cell {
+    display: flex;
+    align-items: center;
+    min-block-size: var(--spacing-9);
+    min-width: 0;
+  }
+  .workspace-table [data-numeric] > .workspace-cell,
+  .workspace-table [style*="text-align: end"] > .workspace-cell,
+  .workspace-table [style*="text-align:end"] > .workspace-cell {
+    justify-content: flex-end;
+  }
+}
+.workspace-row-secondary {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Count strip under a table: the count that screen readers hear, then the
+   figures that describe what is in view. */
+.workspace-table-footer {
+  padding-block: var(--spacing-2);
+  padding-inline: var(--spacing-4);
+  box-sizing: border-box;
+  min-width: 0;
+}
+.workspace-table-count {
+  white-space: nowrap;
+}
+.workspace-table-figure strong {
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--color-text-primary);
+}
+
+/* A default state renders only its name for assistive technology. The
+   wrapper around it steps aside, so no gap or line is kept for nothing. */
+.workspace-table :is(span, div):has(> .sr-only:only-child) {
+  display: contents;
+}
+
+/* Chips hold their full label. */
+.workspace-state,
+.workspace-sample {
+  width: max-content;
+  max-width: 100%;
+  flex: 0 0 auto;
+}
+/* A chip's baseline is its mark's bottom edge, which differs between the
+   8px dot and a 12px glyph (Stale's clock, Asleep's moon). Chips align on
+   their middle instead, so glyph chips sit level with dot chips in a row. */
+.workspace-state {
+  vertical-align: middle;
+}
+.workspace-state-mark {
+  flex: none;
+}
+/* A default state in a state column: its dot alone, where a chip's dot sits
+   (the chip's 8px inset), so the column reads down one line of marks. */
+.workspace-state-quiet {
+  display: inline-flex;
+  align-items: center;
+  height: var(--spacing-5);
+  padding-inline: var(--spacing-2);
+  vertical-align: middle;
+}
+/* A change of state: the two chips with a muted glyph between them. */
+.workspace-transition {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  min-width: 0;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.workspace-transition-mark {
+  flex: none;
+  width: var(--spacing-3);
+  height: var(--spacing-3);
+  color: var(--color-text-secondary);
+}
+
+/* A short detail column: muted, one line, an ellipsis, the rest on hover. */
+.workspace-detail-text {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--color-text-secondary);
+}
+/* A detail with `lines` wraps onto that many lines and ends after a whole
+   word: each word is one box, so the ellipsis never lands inside a word or
+   a number. A word too long to keep (a hash) may break anywhere. */
+.workspace-detail-text[data-lines] {
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+}
+.workspace-detail-words {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+}
+/* One line is a one-line clamp: a word that does not fit wraps whole onto
+   the hidden second line, so the ellipsis always follows a whole word and
+   no word ever loses a glyph's edge at the clip. */
+.workspace-detail-words[data-lines="1"] {
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+.workspace-word {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* On a row's line 2 (phones, medium) a detail reads whole. */
+.workspace-row-detail .workspace-detail-words {
+  display: block;
+  -webkit-line-clamp: none;
+  line-clamp: none;
+  white-space: normal;
+}
+/* A next run that is past due takes the warning ink. */
+.workspace-due[data-overdue="true"] {
+  color: var(--color-text-orange, var(--color-text-warning, currentColor));
+}
+
+/* Content library cells: a record's state beside its chip, and the summary
+   column. The whole row opens the record. */
+.workspace-table .editorial-record-state {
+  align-items: flex-start;
+  min-width: 0;
+}
+.workspace-table
+  .editorial-record-state
+  > .astryx-token:not(#\#):not(#\#):not(#\#) {
+  flex: 0 0 auto;
+}
+.workspace-table .editorial-record-state-detail:not(#\#):not(#\#):not(#\#) {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.workspace-table .editorial-record-summary,
+.workspace-table .editorial-record-state-detail {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.editorial-record-unavailable {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--color-text-secondary);
+  font-size: var(--spacing-4);
+}
+
+/* A notice stands where the table would be, on the same raised surface. */
+.workspace-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  padding: var(--spacing-5) var(--spacing-4);
+  background: var(--color-background-surface);
+  border-radius: var(--radius-container);
+}
+.workspace-notice-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--color-text-secondary);
+}
+.workspace-notice[data-kind="error"] .workspace-notice-icon {
+  color: var(--color-text-warning, var(--color-text-secondary));
+}
+.workspace-notice-text {
+  min-width: 0;
+  max-width: 40rem;
+}
+.workspace-notice-title:not(#\#) {
+  font-size: var(--font-size-body, 15px);
+  line-height: var(--spacing-6);
+}
+.workspace-notice-action {
+  margin-block-start: var(--spacing-2);
+}
+
+/* Skeleton rows keep the table's row height, tile and gutters, so nothing
+   moves when the rows arrive. */
+.workspace-skeleton {
+  padding-block: var(--spacing-1);
+  background: var(--color-background-surface);
+  border-radius: var(--radius-container);
+}
+.workspace-skeleton-row {
+  min-height: var(--spacing-9);
+  padding-inline: var(--spacing-4);
+}
+.workspace-skeleton-lead {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* A record's own surface, beside its list on wide screens. It takes focus
+   for assistive technology only, so it shows none. */
+.workspace-detail {
+  min-width: 0;
+  padding: var(--spacing-5);
+  background: var(--color-background-surface);
+  border-radius: var(--radius-container);
+}
+.workspace-detail-body {
+  max-width: 68ch;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: var(--line-height-relaxed, 1.65);
+}
+
+/* Classification glyph. The name is its tooltip and accessible name. */
+.workspace-tier {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--color-text-secondary);
+  vertical-align: middle;
+}
+.workspace-tier > svg {
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+}
+
+/* A section heading that opens the section's page: the heading's own ink,
+   with a muted caret that takes the accent on hover and focus. */
+.workspace-section-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  min-height: var(--spacing-9);
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--radius-inner);
+  -webkit-tap-highlight-color: transparent;
+}
+.workspace-section-link-mark {
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+  color: var(--color-text-secondary);
+}
+@media (hover: hover) {
+  .workspace-section-link:hover .workspace-section-link-mark {
+    color: var(--color-text-accent, var(--color-accent));
+  }
+}
+.workspace-section-link:focus-visible .workspace-section-link-mark {
+  color: var(--color-text-accent, var(--color-accent));
+}
+
+/* Compact: a list, not a table. Rows bleed to the screen edges on the body
+   colour with their content on the gutter; each row is the lead cell alone,
+   two lines at most, with the header kept for assistive technology and no
+   count strip. */
+@media (max-width: 640px) {
+  /* A page header's or filter row's controls end their last glyph, not its
+     44px target, on the gutter, as the top bar's search does, so the glyphs
+     line up down the page. */
+  .workspace-page-actions,
+  .workspace-filters {
+    margin-inline-end: calc((var(--spacing-5) - var(--spacing-11)) / 2);
+  }
+  .workspace-table-frame {
+    --workspace-table-min: var(--workspace-table-min-compact);
+  }
+  /* Sample data is its flask alone beside a phone's title; the words stay
+     for assistive technology. */
+  .workspace-sample > span:not(#\#) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  /* The id-free :not(#\#) outranks the page frame's max-width on stacks. */
+  .workspace-table:not(#\#),
+  .workspace-skeleton:not(#\#) {
+    width: calc(100% + 2 * var(--admin-gutter, 0px));
+    max-width: none;
+    margin-inline: calc(-1 * var(--admin-gutter, 0px));
+    background: transparent;
+    border-radius: 0;
+  }
+  .workspace-table .astryx-table-scroll-wrapper {
+    background: transparent;
+    border-radius: 0;
+    padding-block: 0;
+  }
+  .workspace-table :is(th, td):not(:first-child) {
+    display: none;
+  }
+  .workspace-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .workspace-table .astryx-table-cell:first-child {
+    padding-block: var(--spacing-1);
+    padding-inline: var(--admin-gutter, var(--spacing-3));
+  }
+  .workspace-group-row {
+    padding-inline: var(--admin-gutter, var(--spacing-3));
+  }
+  .workspace-table-footer {
+    display: none;
+  }
+  /* Phones draw the device tile at line 1's end (TitleText keepHidden). */
+  [data-keep-hidden="compact"] > .workspace-title-keep {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .workspace-filter-bar > .astryx-field {
+    flex: 1 1 auto;
+  }
+  .workspace-row,
+  .workspace-skeleton-row {
+    --row-mark-size: var(--spacing-7);
+    --row-mark-glyph: calc(var(--spacing-4) + 2px);
+  }
+  .workspace-row {
+    min-height: var(--spacing-9);
+  }
+  .workspace-row-end {
+    display: inline-flex;
+  }
+  .workspace-row-meta[data-compact-only="true"] {
+    display: flex;
+  }
+  .workspace-row-detail {
+    display: inline-flex;
+  }
+  .workspace-compact-only,
+  .workspace-yield-only {
+    display: contents;
+  }
+  .workspace-row-meta {
+    overflow: hidden;
+  }
+  .workspace-skeleton-row {
+    min-height: calc(var(--spacing-9) + var(--spacing-2));
+    padding-inline: var(--admin-gutter, var(--spacing-3));
+  }
+  .workspace-skeleton-cell {
+    display: none;
+  }
+  .workspace-notice,
+  .workspace-detail {
+    background: transparent;
+    border-radius: 0;
+    padding-inline: 0;
+  }
+  .workspace-detail {
+    padding-block: 0;
+  }
+}
+
+/* Label and value pairs: a fixed label column so every row's values start
+   on one line, stacking label over value in a narrow panel or on a phone. */
+.workspace-definitions {
+  container: workspace-definitions / inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin: 0;
+  min-width: 0;
+}
+.workspace-definition {
+  display: grid;
+  grid-template-columns: var(--workspace-definition-label, 9rem) minmax(0, 1fr);
+  column-gap: var(--spacing-4);
+  align-items: start;
+  min-width: 0;
+  line-height: var(--spacing-6);
+}
+.workspace-definition > dt {
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+.workspace-definition > dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-text-primary);
+}
+/* An empty value ("Not recorded") keeps the value's size and line, beside
+   its label; only its colour is quiet. */
+.workspace-definition > dd .workspace-time:not(#\#) {
+  font-size: inherit;
+  line-height: inherit;
+}
+/* Chips and copy values sit centred on the label's 24px line. */
+.workspace-definition > dd > :is(.workspace-chips, .workspace-copy-value) {
+  min-height: var(--spacing-6);
+  align-items: center;
+}
+@container workspace-definitions (max-width: 22rem) {
+  .workspace-definition {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 2px;
+  }
+}
+
+/* A shortened id or hash and its copy button. The value truncates; the
+   button never moves. */
+.workspace-copy-value {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  min-width: 0;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.workspace-copy-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-family-code, ui-monospace, monospace);
+  font-size: 0.92em;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+.workspace-copy-value > .astryx-button {
+  flex: none;
+}
+/* The copy glyph, not its 36px target, ends the line, so it shares one
+   right edge with the panel's other trailing glyphs (the Technical chevron,
+   the clock). The target reaches past the edge into the panel's inset. On
+   touch and phones, where the page gutter is all the inset there is, the
+   44px target stays inside and its glyph sits at its end instead. */
+.workspace-copy-value > .astryx-button:not(#\#) {
+  margin-inline-end: calc((var(--spacing-4) - var(--spacing-9)) / 2);
+}
+@media (pointer: coarse), (max-width: 640px) {
+  .workspace-copy-value > .astryx-button:not(#\#) {
+    margin-inline-end: 0;
+    justify-content: flex-end;
+    padding-inline-end: 0;
+    /* The 44px target's empty start reaches back over the value, so the
+       value keeps all but the glyph and its 4px gap: a 12-character hash
+       reads whole at 320. */
+    margin-inline-start: calc(var(--spacing-4) - var(--spacing-11));
+  }
+}
+/* In a definition list the value fills its column and the button ends it,
+   so the copy buttons line up down the list, as History's do. */
+.workspace-definition > dd > .workspace-copy-value {
+  display: flex;
+  width: 100%;
+}
+.workspace-definition > dd > .workspace-copy-value > .workspace-copy-text {
+  flex: 1 1 auto;
+}
+/* The collapsed technical fields sit under the readable ones. Each value is
+   one line beside its copy button, so the label centres on the button. */
+.workspace-technical .workspace-definitions {
+  padding-block-start: var(--spacing-3);
+  gap: 0;
+}
+.workspace-technical .workspace-definition {
+  align-items: center;
+}
+
+/* Key and value chips: 20px, the badge's corner, an app key as its tile flush
+   at the chip's start. They wrap as a group and each truncates alone. */
+.workspace-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+.workspace-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  height: var(--spacing-5);
+  max-width: 100%;
+  min-width: 0;
+  padding-inline: var(--spacing-2);
+  border-radius: var(--radius-inner);
+  background: var(--color-neutral);
+  font-size: var(--text-supporting-size);
+  line-height: var(--spacing-5);
+  white-space: nowrap;
+}
+.workspace-chip[data-app="true"] {
+  padding-inline-start: 0;
+  gap: var(--spacing-2);
+}
+.workspace-chip-key {
+  flex: none;
+  color: var(--color-text-secondary);
+}
+.workspace-chip-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+
+/* A compact history: one line per entry, the hash at the end. The entries
+   share one grid (subgrid rows), so every hash starts at one x and every
+   copy button ends the line. "Revision 3, Sep 22, 11:30" stays whole: its
+   column is as wide as the widest entry, and the hash is what gives way,
+   down to its copy button, shortened under its tooltip. */
+.workspace-timeline {
+  display: grid;
+  grid-template-columns: auto max-content minmax(0, 1fr);
+  column-gap: var(--spacing-2);
+  row-gap: var(--spacing-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+.workspace-timeline[data-marked="false"] {
+  grid-template-columns: max-content minmax(0, 1fr);
+}
+.workspace-timeline-item {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  min-width: 0;
+  min-height: var(--spacing-9);
+}
+.workspace-timeline-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.workspace-timeline-title {
+  font-weight: var(--font-weight-medium, 500);
+}
+.workspace-timeline-text .workspace-time {
+  color: var(--color-text-secondary);
+}
+.workspace-timeline-item > .workspace-copy-value {
+  display: flex;
+  width: 100%;
+}
+.workspace-timeline-item > .workspace-copy-value > .workspace-copy-text {
+  flex: 1 1 auto;
+}
+.workspace-timeline-current {
+  display: inline-flex;
+  width: var(--spacing-2);
+}
+
+/* A day heading above a list that is not a table, on the group row's
+   inset and weight. */
+.workspace-day-header:not(#\#) {
+  font-size: var(--text-body-size);
+  line-height: var(--spacing-6);
+  padding-block: var(--spacing-4) var(--spacing-1);
+}
+
+@media (max-width: 640px) {
+  .workspace-definition {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 2px;
+  }
+  .workspace-group-toggle {
+    min-height: var(--spacing-11);
+  }
+  .workspace-timeline-item {
+    min-height: var(--spacing-11);
+  }
+  /* 6px between the parts, so the 12-character hash keeps its last digit
+     beside "Revision 1, Sep 22, 11:30" at 320. */
+  .workspace-timeline {
+    column-gap: 6px;
+  }
+}

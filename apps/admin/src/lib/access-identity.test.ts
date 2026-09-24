@@ -12,7 +12,6 @@ import {
   retainedAccessPrincipal,
   verifyEditorialOwner,
 } from "./access-identity";
-import { hasAdminCapability } from "./admin-auth";
 
 const config = {
   ACCESS_TEAM_DOMAIN: "https://anipotts.cloudflareaccess.com",
@@ -64,13 +63,8 @@ describe("editorial Access identity", () => {
       const principal = await retainedAccessPrincipal(req, config, keys);
       expect(principal?.authMethod).toBe("cloudflare_access");
       expect(principal?.displayName).toBe(EDITORIAL_OWNER_EMAIL);
-      expect(hasAdminCapability(principal!.role, "admin:read")).toBe(true);
-      expect(hasAdminCapability(principal!.role, "control:execute")).toBe(
-        false,
-      );
-      expect(hasAdminCapability(principal!.role, "content:publish")).toBe(
-        false,
-      );
+      // Reads only: owner writes go through the editorial namespace.
+      expect(principal?.role).toBe("viewer");
       expect(
         await retainedAccessPrincipal(
           new Request(req, { method: "POST" }),
@@ -90,6 +84,7 @@ describe("editorial Access identity", () => {
     ).toEqual({
       email: EDITORIAL_OWNER_EMAIL,
       subject: "owner-subject",
+      expiresAt: expect.any(Number),
     });
   });
 

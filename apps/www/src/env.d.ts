@@ -2,7 +2,8 @@
 
 type CfEnv = {
   DB: D1Database;
-  CONTENT_RUNTIME?: "legacy" | "cms";
+  /** Must be exactly "cms"; anything else fails content routes closed. */
+  CONTENT_RUNTIME?: "cms";
   CONTENT_DB?: D1Database;
   CONTENT_MEDIA?: R2Bucket;
   ASSETS: Fetcher;

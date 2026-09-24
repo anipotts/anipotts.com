@@ -7,13 +7,15 @@ import {
   RAIL_QUERY,
   adminSidebarPrepaintScript,
   savedSidebarCollapsed,
+  sidebarGroupsState,
   sidebarRail,
+  workspaceForPath,
 } from "./admin-sidebar";
 
 const storage = (values: Record<string, string>) => ({
   getItem: (key: string) => values[key] ?? null,
 });
-const inRailRange = (width: number) => width >= 769 && width <= 1279;
+const inRailRange = (width: number) => width >= 641 && width <= 1279;
 
 /** Runs the serialized script the way the browser does, in a bare context. */
 function prepaint(
@@ -37,12 +39,32 @@ function prepaint(
 }
 
 describe("sidebar rail choice", () => {
-  it("never shows the rail in the drawer range and follows a saved choice above it", () => {
-    expect(sidebarRail(768, true, false)).toBe(false);
-    expect(sidebarRail(769, null, true)).toBe(true);
+  it("has no sidebar at compact widths, the rail at medium, and a saved choice from 1024px", () => {
+    expect(RAIL_QUERY).toBe("(min-width: 641px) and (max-width: 1279px)");
+    expect(sidebarRail(390, true, false)).toBe(false);
+    expect(sidebarRail(640, true, false)).toBe(false);
+    expect(sidebarRail(641, null, true)).toBe(true);
+    expect(sidebarRail(768, true, true)).toBe(true);
+    // A saved expand never crushes a tablet's tables.
+    expect(sidebarRail(768, false, true)).toBe(true);
+    expect(sidebarRail(1023, false, true)).toBe(true);
     expect(sidebarRail(1024, false, true)).toBe(false);
     expect(sidebarRail(1440, true, false)).toBe(true);
     expect(sidebarRail(1440, null, false)).toBe(false);
+  });
+
+  it("keeps the overview workspace-neutral", () => {
+    expect(workspaceForPath("/")).toBeNull();
+    expect(workspaceForPath("/content/writing")).toBe("content");
+    expect(workspaceForPath("/newsletter/issue")).toBe("content");
+    expect(workspaceForPath("/data/records/rec-1")).toBe("data");
+    expect(workspaceForPath("/observability/alerts")).toBe("observability");
+    expect(workspaceForPath("/observability")).toBe("observability");
+    // Retired console URLs redirect before rendering, so they own nothing.
+    expect(workspaceForPath("/proof")).toBeNull();
+    expect(workspaceForPath("/404")).toBeNull();
+    // Nothing is forced open on a neutral page.
+    expect(sidebarGroupsState('{"content":true}', null).content).toBe(true);
   });
 
   it("reads the current key first, then the earlier one, and ignores junk", () => {
@@ -91,7 +113,7 @@ describe("sidebar rail choice", () => {
       adminSidebarPrepaintScript,
       compiled.exports.adminSidebarPrepaintScript!,
     ])
-      for (const width of [390, 768, 769, 1024, 1279, 1280, 1440])
+      for (const width of [390, 640, 641, 768, 1024, 1279, 1280, 1440])
         for (const values of <Record<string, string>[]>[
           {},
           { "admin:sidebar-collapsed": "true" },
@@ -112,16 +134,103 @@ describe("sidebar rail choice", () => {
         }
   });
 
-  it("runs the prepaint in both layouts and holds rail geometry only before hydration", () => {
-    for (const layout of ["EditorialLayout", "AdminLayout"]) {
-      const source = readFileSync(
-        new URL(`../layouts/${layout}.astro`, import.meta.url),
-        "utf8",
-      );
-      expect(source).toContain(
-        "<script is:inline set:html={adminSidebarPrepaintScript} />",
-      );
+  it("prepaints the closed groups the sidebar will show, never the active one", () => {
+    const run = (path: string, raw?: string) => {
+      const root = { dataset: {} as Record<string, string> };
+      runInNewContext(adminSidebarPrepaintScript, {
+        window: {
+          innerWidth: 1280,
+          location: { pathname: path },
+          matchMedia: () => ({ matches: false }),
+        },
+        localStorage: storage(raw ? { "admin:sidebar-groups": raw } : {}),
+        document: { documentElement: root },
+      });
+      return root.dataset.adminNavClosed;
+    };
+    const closed = '{"content":true,"data":true,"observability":false}';
+    expect(run("/content/pages")).toBeUndefined();
+    expect(run("/content/writing", closed)).toBe("data");
+    expect(run("/data/records", closed)).toBe("content");
+    expect(
+      run("/data/records/rec-00000000000000000000000000000001", closed),
+    ).toBe("content");
+    expect(run("/observability/status", closed)).toBe("content data");
+    // The overview and retired Life URLs belong to no workspace, so every
+    // saved choice holds; retired Life URLs redirect before rendering.
+    expect(run("/", closed)).toBe("content data");
+    expect(run("/life/people", closed)).toBe("content data");
+    expect(run("/content/newsletter", "not json")).toBeUndefined();
+    for (const path of [
+      "/content/pages",
+      "/data/sources",
+      "/",
+      "/observability/alerts",
+    ]) {
+      const expected = Object.entries(
+        sidebarGroupsState(closed, workspaceForPath(path)),
+      )
+        .filter(([, value]) => value)
+        .map(([id]) => id)
+        .join(" ");
+      expect(run(path, closed) ?? "").toBe(expected);
     }
+  });
+
+  it("keeps a choice saved under the Life and Operations ids", () => {
+    const run = (path: string, raw: string) => {
+      const root = { dataset: {} as Record<string, string> };
+      runInNewContext(adminSidebarPrepaintScript, {
+        window: {
+          innerWidth: 1280,
+          location: { pathname: path },
+          matchMedia: () => ({ matches: false }),
+        },
+        localStorage: storage({ "admin:sidebar-groups": raw }),
+        document: { documentElement: root },
+      });
+      return root.dataset.adminNavClosed ?? "";
+    };
+    const earlier = '{"content":false,"life":true,"operations":true}';
+    expect(sidebarGroupsState(earlier, null)).toEqual({
+      content: false,
+      data: true,
+      observability: true,
+    });
+    expect(run("/", earlier)).toBe("data observability");
+    // The active group still opens, and a current id wins over an earlier one.
+    expect(run("/data/records", earlier)).toBe("observability");
+    const both = '{"data":false,"life":true,"operations":true}';
+    expect(sidebarGroupsState(both, null).data).toBe(false);
+    expect(run("/", both)).toBe("observability");
+    for (const [path, raw] of [
+      ["/", earlier],
+      ["/content/pages", earlier],
+      ["/observability/alerts", both],
+    ])
+      expect(run(path!, raw!)).toBe(
+        Object.entries(sidebarGroupsState(raw!, workspaceForPath(path!)))
+          .filter(([, value]) => value)
+          .map(([id]) => id)
+          .join(" "),
+      );
+  });
+
+  it("runs the prepaint in the one document and holds rail geometry only before hydration", () => {
+    const document = readFileSync(
+      new URL("../layouts/AdminDocument.astro", import.meta.url),
+      "utf8",
+    );
+    expect(document).toContain(
+      "<script is:inline set:html={adminSidebarPrepaintScript} />",
+    );
+    for (const layout of ["EditorialLayout", "AdminLayout"])
+      expect(
+        readFileSync(
+          new URL(`../layouts/${layout}.astro`, import.meta.url),
+          "utf8",
+        ),
+      ).toContain('import AdminDocument from "./AdminDocument.astro";');
     const css = readFileSync(
       new URL("../components/astryx/WorkspaceHeader.css", import.meta.url),
       "utf8",

@@ -1,17 +1,27 @@
-/** Navigation stays on the current deployment; auth and API URLs are not destinations. */
-export function editorialReturnPath(value: string | null): string {
-  if (!value || !value.startsWith("/") || /[\\\u0000-\u0020]/.test(value)) {
-    return "/content";
-  }
-  const origin = "https://editorial.invalid";
+const origin = "https://admin.invalid";
+
+/** A same-deployment path as a URL, or null for anything that could leave
+ * it: absolute or scheme-relative URLs, backslashes, a changed origin, or a
+ * path whose dot segments normalize to a scheme-relative one
+ * (`/.//evil.com` parses to the pathname `//evil.com`, which a Location
+ * header would send off-site). */
+export function safeReturnPath(value: string | null | undefined): URL | null {
+  if (!value?.startsWith("/") || value.startsWith("//") || value.includes("\\"))
+    return null;
   try {
     const url = new URL(value, origin);
-    if (url.origin !== origin) return "/content";
-    if (!/^\/(?:content|newsletter)(?:\/|$)/.test(url.pathname)) {
-      return "/content";
-    }
-    return `${url.pathname}${url.search}${url.hash}`;
+    return url.origin === origin && !url.pathname.startsWith("//") ? url : null;
   } catch {
-    return "/content";
+    return null;
   }
+}
+
+/** Navigation stays on the current deployment; auth and API URLs are not destinations. */
+export function editorialReturnPath(value: string | null): string {
+  const url = /[\u0000-\u0020]/u.test(value ?? "")
+    ? null
+    : safeReturnPath(value);
+  return url && /^\/(?:content|newsletter)(?:\/|$)/.test(url.pathname)
+    ? `${url.pathname}${url.search}${url.hash}`
+    : "/content/pages";
 }

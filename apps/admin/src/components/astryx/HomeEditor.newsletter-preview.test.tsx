@@ -79,11 +79,14 @@ it.each(["", "?view=preview"])(
         ),
       );
       await act(async () => {
+        // No preview toggle and no sentence about its absence.
         await vi.waitFor(() =>
-          expect(host.textContent).toContain("draft-only newsletter page"),
+          expect(host.querySelector(".document-title textarea")).not.toBeNull(),
         );
       });
       expect(host.querySelector("iframe")).toBeNull();
+      expect(host.textContent).not.toContain("draft-only newsletter page");
+      expect(host.querySelector('button[aria-label="Preview"]')).toBeNull();
       expect(
         Array.from(host.querySelectorAll("button")).some((button) =>
           ["Preview", "Retry preview", "Refresh preview"].includes(

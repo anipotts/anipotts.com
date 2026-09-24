@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Button } from "@astryxdesign/core/Button";
 import { VStack } from "@astryxdesign/core/VStack";
+import { HStack } from "@astryxdesign/core/HStack";
+import { Heading } from "@astryxdesign/core/Heading";
+import { IconButton } from "@astryxdesign/core/IconButton";
+import { XIcon } from "@phosphor-icons/react";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { Selector } from "@astryxdesign/core/Selector";
@@ -89,8 +92,10 @@ export function ProjectMedia({
   return (
     <VStack gap={4}>
       {storyIndex === undefined && (
-        <VStack gap={2}>
-          <Text>Project logo</Text>
+        <VStack gap={4}>
+          <Heading level={2} className="editor-sections-title">
+            Project logo
+          </Heading>
           <Selector
             label="Fallback icon"
             value={String(identity.icon ?? "")}
@@ -112,13 +117,24 @@ export function ProjectMedia({
             status={status("identity.icon")}
             onChange={(value) => emit({ type: "icon", value })}
           />
-          <Text>Used when no logo is set.</Text>
           {logoSrc && (
-            <img
-              src={logoSrc}
-              alt={String(identity.logo_alt ?? "")}
-              style={{ maxWidth: 160, maxHeight: 120, objectFit: "contain" }}
-            />
+            <HStack gap={2} vAlign="center" className="editor-media-row">
+              <img
+                src={logoSrc}
+                alt={String(identity.logo_alt ?? "")}
+                className="editor-media-thumb"
+                data-fit="contain"
+              />
+              <IconButton
+                label="Remove logo"
+                tooltip="Remove logo"
+                variant="ghost"
+                size="sm"
+                icon={<XIcon weight="regular" aria-hidden="true" />}
+                isDisabled={disabled || busy}
+                onClick={() => emit({ type: "remove", slot: "logo" })}
+              />
+            </HStack>
           )}
           <ArticleImageUpload
             key={String(identity.logo_src ?? "no-logo")}
@@ -131,15 +147,6 @@ export function ProjectMedia({
             onUploaded={(src) => upload("logo", src)}
             onPendingChange={logoPending}
           />
-          {Boolean(identity.logo_src) && (
-            <Button
-              label="Remove logo"
-              variant="ghost"
-              size="sm"
-              isDisabled={disabled || busy}
-              onClick={() => emit({ type: "remove", slot: "logo" })}
-            />
-          )}
           {Boolean(identity.logo_src) && (
             <Selector
               label="Logo theme treatment"
@@ -169,27 +176,43 @@ export function ProjectMedia({
         </VStack>
       )}
       <VStack gap={2}>
-        <Text>
+        <Heading level={2} className="editor-sections-title">
           {storyIndex === undefined
             ? "Preview media"
             : `Story ${storyIndex + 1} media`}
-        </Text>
-        {previewSrc && preview?.kind !== "video" && (
-          <img
-            src={previewSrc}
-            alt={String(preview?.alt ?? "")}
-            style={{
-              maxWidth: "100%",
-              maxHeight: 240,
-              objectFit: preview?.fit === "contain" ? "contain" : "cover",
-            }}
-          />
-        )}
-        {preview?.kind === "video" && (
-          <Text>
-            Existing video: {String(preview.src ?? "")}. Uploading an image
-            replaces this preview.
-          </Text>
+        </Heading>
+        {preview && (
+          <HStack gap={2} vAlign="center" className="editor-media-row">
+            {previewSrc && preview.kind !== "video" ? (
+              <img
+                src={previewSrc}
+                alt={String(preview.alt ?? "")}
+                className="editor-media-thumb"
+                data-fit={preview.fit === "contain" ? "contain" : "cover"}
+              />
+            ) : (
+              <Text
+                type="supporting"
+                color="secondary"
+                className="editor-address-path"
+              >
+                {String(preview.src ?? "")}
+              </Text>
+            )}
+            <IconButton
+              label={
+                storyIndex === undefined
+                  ? "Remove preview"
+                  : "Remove story media"
+              }
+              tooltip="Remove"
+              variant="ghost"
+              size="sm"
+              icon={<XIcon weight="regular" aria-hidden="true" />}
+              isDisabled={disabled || busy}
+              onClick={() => emit({ type: "remove", slot: "preview" })}
+            />
+          </HStack>
         )}
         <ArticleImageUpload
           key={String(preview?.src ?? "no-preview")}
@@ -206,21 +229,9 @@ export function ProjectMedia({
         />
         {preview && (
           <>
-            <Button
-              label={
-                storyIndex === undefined
-                  ? "Remove preview"
-                  : "Remove story media"
-              }
-              variant="ghost"
-              size="sm"
-              isDisabled={disabled || busy}
-              onClick={() => emit({ type: "remove", slot: "preview" })}
-            />
             <TextInput
               label={`${mediaLabel} alt text`}
               value={String(preview.alt ?? "")}
-              isRequired
               isDisabled={disabled}
               status={status("preview_media.alt")}
               onChange={(value) => emit({ type: "preview-alt", value })}

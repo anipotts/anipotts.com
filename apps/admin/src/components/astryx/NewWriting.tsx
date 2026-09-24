@@ -1,11 +1,16 @@
 import { dispatchEditorialRecordCreated } from "../../lib/editorial-inventory-events";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
-import { FormLayout } from "@astryxdesign/core/FormLayout";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { Button } from "@astryxdesign/core/Button";
+import { IconButton } from "@astryxdesign/core/IconButton";
 import { Banner } from "@astryxdesign/core/Banner";
+import { Link } from "@astryxdesign/core/Link";
+import { Text } from "@astryxdesign/core/Text";
+import { PencilSimpleIcon } from "@phosphor-icons/react";
+import { AutoSizeTextArea } from "./AutoSizeTextArea";
+import { EditorActionBar } from "./EditorActionBar";
 import { writingId, validWritingId } from "../../lib/writing-draft";
 import {
   newWritingRecoveryKey,
@@ -23,38 +28,101 @@ import {
   BrowserRecoveryNotice,
   downloadBrowserRecovery,
 } from "./BrowserRecoveryNotice";
+import { readEditorialCsrf } from "../../lib/editorial-client";
 
 class DraftCreationError extends Error {}
+/** The address is taken: the field names it and links to the record. */
+class AddressTakenError extends DraftCreationError {}
 
-const unconfirmedCreation =
-  "Couldn’t confirm draft creation. Your details are retained; retry to check the same request safely.";
+const unconfirmedCreation = "Couldn’t confirm draft creation";
+
+/** An address as it is typed: lowercase, hyphens for anything else, and a
+ * trailing hyphen kept so the next word can follow it. */
+function typedAddress(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/gu, "-")
+    .replace(/^-/u, "")
+    .slice(0, 120);
+}
+
+/** An address keyboard: no capitals, corrections or spelling marks. */
+const ADDRESS_HINTS: Record<string, string> = {
+  inputmode: "url",
+  autocapitalize: "none",
+  autocorrect: "off",
+  autocomplete: "off",
+  spellcheck: "false",
+  enterkeyhint: "go",
+};
+function addressHints(input: HTMLInputElement | null) {
+  if (!input) return;
+  for (const [name, value] of Object.entries(ADDRESS_HINTS))
+    input.setAttribute(name, value);
+}
 
 type NewWritingProps = {
   recoveryScope?: string;
   recordKind?: "writing" | "work";
+  back?: { href: string; label: string };
+  /** Open the created draft in place. Without it the page navigates. */
+  onCreated?: (record: { kind: "writing" | "work"; id: string }) => void;
 };
-export function NewWriting({
-  recoveryScope,
-  recordKind = "writing",
-}: NewWritingProps) {
+export function NewWriting(props: NewWritingProps) {
+  const { recordKind = "writing", recoveryScope } = props;
   return (
     <NewWritingForm
       key={`${recordKind}:${recoveryScope ?? "unavailable"}`}
-      recoveryScope={recoveryScope}
+      {...props}
       recordKind={recordKind}
     />
   );
 }
+/**
+ * Create is the editor itself: a large title and, under it, the address it
+ * derives with a pencil to change it. Return or leaving the title creates
+ * the private draft and opens it; every keystroke before that is kept in
+ * browser recovery.
+ */
 function NewWritingForm({
   recoveryScope,
   recordKind = "writing",
+  back,
+  onCreated,
 }: NewWritingProps) {
   const project = recordKind === "work";
   const collection = project ? "projects" : "writing";
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [customSlug, setCustomSlug] = useState(false);
+  const [editingSlug, setEditingSlug] = useState(false);
   const [error, setError] = useState("");
+  const [taken, setTaken] = useState(false);
+  const titleHost = useRef<HTMLDivElement>(null);
+  /** A press on the address pencil has started; the title's blur waits. */
+  const holding = useRef(false);
+  /** The pencil opened the address field: it takes focus as it mounts, in
+   * the same tap, so a phone keeps its keyboard. */
+  const focusAddress = useRef(false);
+  const addressField = useCallback((input: HTMLInputElement | null) => {
+    addressHints(input);
+    if (input && focusAddress.current) {
+      focusAddress.current = false;
+      input.focus();
+    }
+  }, []);
+  const form = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    const field = titleHost.current?.querySelector("textarea");
+    if (!field) return;
+    field.setAttribute("enterkeyhint", "go");
+    field.setAttribute("autocapitalize", "off");
+    // A hardware keyboard starts typing at once; a phone waits for a tap, so
+    // the keyboard never covers the page before it is wanted.
+    if (window.matchMedia?.("(pointer: fine)").matches) field.focus();
+  }, []);
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
   const [restored, setRestored] = useState(false);
@@ -174,14 +242,13 @@ function NewWritingForm({
         setRecoveryProblem(problem);
         setRecoveryFailed(Boolean(problem));
       }
-      const csrfResponse = await fetch("/api/editorial/csrf", {
-        signal: AbortSignal.any([abort.signal, AbortSignal.timeout(15000)]),
-      });
-      if (!csrfResponse.ok)
+      const csrf = await readEditorialCsrf(
+        AbortSignal.any([abort.signal, AbortSignal.timeout(15000)]),
+      ).catch(() => {
         throw new DraftCreationError(
           "Your session needs refreshing. Your title is still here.",
         );
-      const { csrf } = await csrfResponse.json();
+      });
       if (!active.current || abort.signal.aborted) return;
       const response = await fetch(
         `/api/editorial/create?kind=${recordKind}&id=${encodeURIComponent(slug)}`,
@@ -202,13 +269,13 @@ function NewWritingForm({
       const result = await response.json();
       if (!active.current || abort.signal.aborted) return;
       if (!response.ok || !result.ok)
-        throw new DraftCreationError(
-          response.status === 409
-            ? project
-              ? "A project already uses this address. Choose another address or open it from Projects."
-              : "An article already uses this address. Choose another address or open it from Writing."
-            : unconfirmedCreation,
-        );
+        throw response.status === 409
+          ? new AddressTakenError(
+              project
+                ? "A project already uses this address"
+                : "An article already uses this address",
+            )
+          : new DraftCreationError(unconfirmedCreation);
       // The library in this tab and in other open tabs lists the new draft
       // without a reload.
       if (result.draft)
@@ -221,9 +288,12 @@ function NewWritingForm({
         });
       if (channel) await channel.write(null);
       if (!active.current || abort.signal.aborted) return;
-      window.location.assign(`/content/${collection}/${slug}`);
+      if (onCreated) onCreated({ kind: recordKind, id: slug });
+      else window.location.assign(`/content/${collection}/${slug}`);
     } catch (error) {
       if (!active.current || abort.signal.aborted) return;
+      setTaken(error instanceof AddressTakenError);
+      if (error instanceof AddressTakenError) setEditingSlug(true);
       setError(
         error instanceof DraftCreationError
           ? error.message
@@ -234,61 +304,114 @@ function NewWritingForm({
       if (active.current) setBusy(false);
     }
   }
+  const addressLabel = project ? "Project address" : "Article address";
+  const path = `/${project ? "work" : "writing"}/`;
+  const slugError =
+    slug && !validWritingId(slug)
+      ? "Lowercase letters, numbers and hyphens"
+      : taken
+        ? error
+        : undefined;
   return (
     <form
+      ref={form}
       onSubmit={(event) => {
         event.preventDefault();
         void create();
       }}
     >
-      <VStack gap={6} className="new-writing-form">
-        <FormLayout>
-          <TextInput
+      <VStack gap={4} className="new-writing-form">
+        {back && (
+          <EditorActionBar
+            back={back}
+            title={title.trim() || (project ? "New project" : "New article")}
+          />
+        )}
+        <div
+          ref={titleHost}
+          className="document-title"
+          onKeyDown={(event) => {
+            if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+            event.preventDefault();
+            form.current?.requestSubmit();
+          }}
+        >
+          <AutoSizeTextArea
             label="Title"
+            isLabelHidden
+            placeholder="Title"
             value={title}
-            isRequired
             isDisabled={busy || loggedOut}
             status={
               title.length > 300
-                ? {
-                    type: "error",
-                    message: "Keep the title to 300 characters or fewer.",
-                  }
+                ? { type: "error", message: "Up to 300 characters" }
                 : undefined
             }
-            onChange={(value) => {
+            onBlur={(event) => {
+              // Moving to the address pencil or field is not leaving.
+              if (
+                holding.current ||
+                form.current?.contains(event.relatedTarget as Node | null)
+              )
+                return;
+              if (valid) void create();
+            }}
+            onChange={(input) => {
+              const value = input.replace(/[\r\n]+/gu, " ");
               setTitle(value);
+              setTaken(false);
               if (!customSlug) setSlug(writingId(value));
             }}
           />
+        </div>
+        {editingSlug ? (
           <TextInput
-            label={project ? "Project address" : "Article address"}
+            label={addressLabel}
             value={slug}
-            isRequired
+            ref={addressField}
             isDisabled={busy || loggedOut}
-            description={`anipotts.com/${project ? "work" : "writing"}/${slug || (project ? "your-project" : "your-article")}`}
             status={
-              slug && !validWritingId(slug)
-                ? {
-                    type: "error",
-                    message:
-                      "Use lowercase letters, numbers and hyphens, up to 120 characters.",
-                  }
-                : undefined
+              slugError ? { type: "error", message: slugError } : undefined
             }
+            onEnter={() => form.current?.requestSubmit()}
             onChange={(value) => {
-              setCustomSlug(value.length > 0);
-              setSlug(value);
+              const next = typedAddress(value);
+              setCustomSlug(next.length > 0);
+              setTaken(false);
+              setSlug(next);
             }}
           />
-        </FormLayout>
-        {loggedOut && (
-          <Banner
-            status="warning"
-            title="Session ended"
-            description={`Sign in again before creating ${project ? "a project" : "an article"}.`}
-          />
+        ) : (
+          <HStack gap={1} vAlign="center" className="editor-address">
+            <span className="sr-only">{addressLabel}</span>
+            <code className="editor-address-path">
+              {path}
+              {slug}
+            </code>
+            <IconButton
+              label="Edit address"
+              tooltip="Edit address"
+              variant="ghost"
+              size="sm"
+              icon={<PencilSimpleIcon weight="regular" aria-hidden="true" />}
+              isDisabled={busy || loggedOut}
+              onPointerDown={() => {
+                holding.current = true;
+              }}
+              onClick={() => {
+                holding.current = false;
+                focusAddress.current = true;
+                setEditingSlug(true);
+              }}
+            />
+          </HStack>
         )}
+        {taken && (
+          <Link href={`/content/${collection}/${slug}`}>
+            Open the existing {project ? "project" : "article"}
+          </Link>
+        )}
+        {loggedOut && <Banner status="warning" title="Session ended" />}
         {recoveryProblem && !loggedOut && (
           <BrowserRecoveryNotice
             problem={recoveryProblem}
@@ -333,34 +456,27 @@ function NewWritingForm({
           />
         )}
         {recoveryFailed && !recoveryProblem && !loggedOut && (
-          <Banner
-            status="warning"
-            title="Browser recovery unavailable"
-            description="Keep this page open until you create the draft. Your details cannot be recovered after leaving."
-          />
+          <Banner status="warning" title="Browser recovery unavailable" />
         )}
-        {error && (
+        {error && !taken && (
           <Banner
             status="error"
-            title="Draft creation needs attention"
-            description={error}
+            title={error}
+            endContent={
+              <Button
+                label="Retry"
+                size="sm"
+                isLoading={busy}
+                onClick={() => void create()}
+              />
+            }
           />
         )}
-        <HStack gap={2}>
-          <Button
-            label="Create draft"
-            type="submit"
-            variant="primary"
-            isDisabled={!valid}
-            isLoading={busy}
-          />
-          <Button
-            label="Cancel"
-            variant="ghost"
-            href={`/content?group=${recordKind}`}
-            isDisabled={busy || loggedOut}
-          />
-        </HStack>
+        {busy && (
+          <Text role="status" className="sr-only">
+            Creating draft
+          </Text>
+        )}
       </VStack>
     </form>
   );

@@ -1,0 +1,98 @@
+/* The brand tile. It borrows the badge's geometry: a Token sm is 20px tall
+   with --radius-inner (6px), so the tile's corner is 0.3 of its side at every
+   size (6px at 20, 7.2px at 24, 8.4px at 28). A rounded square, never a
+   circle, with no border or outer shadow (a faint inner rim, below, keeps
+   a white plate's edge); the badge's neutral fill shows only behind a
+   Phosphor fallback. */
+.brand-tile {
+  --brand-tile-size: var(--row-mark-size, 24px);
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  box-sizing: border-box;
+  inline-size: var(--brand-tile-size);
+  block-size: var(--brand-tile-size);
+  overflow: hidden;
+  border-radius: calc(var(--brand-tile-size) * 0.3);
+  background-color: var(--color-neutral);
+  color: var(--color-text-secondary);
+  line-height: 0;
+  vertical-align: middle;
+}
+
+.brand-tile > picture {
+  display: contents;
+}
+
+/* A device render is the icon: the device itself at the tile's box size,
+   its longer side edge to edge (packages/brand/marks/MARKS.md), with no
+   neutral square behind it and no corner clipping its own outline. */
+.brand-tile[data-kind="device"] {
+  background-color: transparent;
+  border-radius: 0;
+  overflow: visible;
+}
+
+/* ap-plus is a matte black phone: on the dark canvas a light rim traces
+   its outline so it reads, without a square behind it. */
+.brand-tile[data-mark="ap-plus"] .brand-tile-art {
+  filter: drop-shadow(0 0 0.5px light-dark(transparent, rgb(255 255 255 / 0.7)))
+    drop-shadow(0 0 0.5px light-dark(transparent, rgb(255 255 255 / 0.45)));
+}
+
+/* A flat brand glyph on the brand's own plate: the plate fills the tile
+   edge to edge, like an app icon, and the glyph sits in the plate's ink.
+   Neither changes with the theme. */
+.brand-tile[data-fit="plate"] {
+  background-color: var(--brand-plate);
+}
+/* A plate's glyph spans about two thirds of the tile, so it reads the same
+   size as the logos inside full app plates (Chrome's, Claude's). */
+.brand-tile-art {
+  display: block;
+  inline-size: calc(var(--brand-tile-size) * 0.68);
+  block-size: calc(var(--brand-tile-size) * 0.68);
+  object-fit: contain;
+  fill: var(--brand-mark-color, currentColor);
+}
+
+/* Every brand and app tile keeps a faint inner rim, so a white plate
+   (Cloudflare's, YouTube's, Chrome's, Apple Health's) still reads as a tile
+   on a white surface rather than as a glyph floating on nothing, and a black
+   one (Voice Memos, Lexar, GitHub's) on the dark canvas; a dark sprite plate
+   keeps a slightly stronger one there. The rim sits over the artwork, so an
+   app plate that fills the tile keeps it too. */
+.brand-tile:is([data-fit="fill"], [data-fit="plate"]):not(
+    [data-kind="device"]
+  ) {
+  position: relative;
+}
+.brand-tile:is([data-fit="fill"], [data-fit="plate"]):not(
+    [data-kind="device"]
+  )::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px
+    light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.08));
+  pointer-events: none;
+}
+.brand-tile[data-plate="dark"]::after {
+  box-shadow: inset 0 0 0 1px
+    light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.14));
+}
+
+/* App plates and device renders are the tile: edge to edge, clipped to its
+   corner. */
+.brand-tile[data-fit="fill"] .brand-tile-art {
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+/* Phosphor fallbacks read a little lighter than brand glyphs, so they sit
+   about 1px larger at the same tile size. */
+.brand-tile-glyph {
+  inline-size: calc(var(--brand-tile-size) * 0.78);
+  block-size: calc(var(--brand-tile-size) * 0.78);
+}

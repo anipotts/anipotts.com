@@ -32,27 +32,9 @@ const markupViolations = (text: string) =>
 // One-sided borders that frame or mark something rather than separate
 // siblings. Rows, columns and sections separate with spacing tokens.
 const structuralEdges = new Set([
-  // pane and sheet edges
-  ".admin-side-nav border-right", // navigation pane edge
-  ".sidebar border-right", // navigation pane edge
-  ".sidebar border-bottom", // stacked navigation pane edge
-  ".operations-workspace .operations-service-detail border-inline-start", // master/detail pane edge
-  ".semantic-inspector border-left", // side sheet edge
-  ".semantic-inspector border-top", // bottom sheet edge
-  ".operator-inspector-panel border-left", // side sheet edge
-  ".operator-inspector-panel border-top", // bottom sheet edge
-  // sticky or fixed bars over scrolling content
-  ".admin-mobile-topbar border-bottom",
-  ".admin-mobile-nav border-top",
-  ".admin-mobile-strip border-bottom",
-  ".astryx-editor-actions border-top",
-  ".semantic-inspector-actions border-top",
   // markers on a single element
   ".publication-step border-block-end", // progress bar whose color is state
   ".article-composer .tiptap blockquote border-inline-start", // quote bar
-  ".knowledge-retrieval border-left", // 2px callout accent
-  ".operator-candidate-status border-left", // 2px status accent
-  ".operator-inspector-summary > div border-left", // 2px summary accent
 ]);
 
 // Drawn one-sided borders by default, or the ones reset to 0 or none.
@@ -169,11 +151,33 @@ it("hides the rule Astryx draws under every table header", () => {
       ".astryx-table-header-cell border-bottom",
     ),
   );
-  expect(resets.map(({ path }) => path)).toEqual(["styles/editorial.css"]);
-  for (const layout of ["AdminLayout", "EditorialLayout"])
-    expect(
-      readFileSync(join(root, `layouts/${layout}.astro`), "utf8"),
-    ).toContain('import "../styles/editorial.css";');
+  expect(resets.map(({ path }) => path)).toEqual(["styles/shell.css"]);
+  expect(
+    readFileSync(join(root, "layouts/AdminDocument.astro"), "utf8"),
+  ).toContain('import "../styles/shell.css";');
+});
+
+// The sidebar's pane edge is space in the full sidebar and in the rail, and
+// the palette separates its input, results and key hints with space.
+it("keeps the rail edge and the palette free of rules", () => {
+  const header = readFileSync(
+    join(root, "components/astryx/WorkspaceHeader.css"),
+    "utf8",
+  );
+  expect(sideBorders(header, false)).toContain(
+    ".editorial-workspace-shell .astryx-app-shell-sidenav border-inline-end",
+  );
+  const palette = readFileSync(
+    join(root, "components/astryx/CommandPalette.css"),
+    "utf8",
+  ).replace(/\s+/g, " ");
+  expect(palette).toContain(
+    "dialog.admin-command-palette-centered [data-divider] { border-block-width: 0; }",
+  );
+  expect(palette).toMatch(
+    /dialog\.admin-command-palette-centered \{[^}]*border: 0;[^}]*box-shadow: var\(--shadow-high\);/,
+  );
+  expect(palette).not.toMatch(/box-shadow: inset/);
 });
 
 it("separates admin rows, columns and sections without border rules", () => {

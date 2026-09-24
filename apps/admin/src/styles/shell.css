@@ -1,0 +1,458 @@
+/* The admin shell: the canvas, safe areas, the one gutter, the app shell's
+   main region, the phone top bar and page chips, the wordmark and server-rendered
+   prose. The sidebar and rail live in components/astryx/WorkspaceHeader.css,
+   tables and lists in components/workspace/workspace.css, writing surfaces in
+   editor.css. Widths follow lib/breakpoints.ts: compact is 640px and below,
+   where there is no sidebar and the document scrolls; the sidebar starts at
+   641px. Media conditions cannot read custom properties, so the edge is
+   written out. */
+
+/* One canvas: html, body, main and the phone top bar are the body colour,
+   and the theme-color meta names the same colour for the status bar. */
+html,
+body {
+  background-color: var(--color-background-body);
+}
+
+/* One colour scheme, on the root. The prepaint script sets it before the
+   first paint and saveTheme moves it. Astryx's Theme wrapper also sets a
+   scheme, from React state, and its first render only has the server's
+   guess: a preference kept in storage never reaches the server, so under a
+   dark system setting the wrapper painted the light page dark until
+   hydration. Wrappers inherit the root's scheme instead. Media overlays
+   keep their own. Unlayered, so it outranks the Astryx layers. */
+body [data-astryx-theme]:not([data-astryx-media]) {
+  color-scheme: inherit;
+}
+
+/* The one inline gutter, applied once, on main. The frames inside it add no
+   inline padding of their own; compact lists bleed back to the screen edge
+   with it (workspace.css). The shell insets by the landscape safe areas, so
+   the sidebar and content clear a notch. */
+.editorial-workspace-shell {
+  --admin-gutter: clamp(var(--spacing-4), 3vw, var(--spacing-12));
+  box-sizing: border-box;
+  padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
+  background: var(--color-workspace-sidebar, var(--color-background-body));
+}
+.editorial-workspace-shell #astryx-app-shell-main {
+  box-sizing: border-box;
+  min-height: 0;
+  padding-inline: var(--admin-gutter);
+  overscroll-behavior: contain;
+  background: var(--color-background-body);
+  transition:
+    margin-block-start var(--duration-fast) ease-out,
+    border-start-start-radius var(--duration-fast) ease-out;
+}
+.editorial-workspace-shell .admin-page-frame {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding-block: var(--spacing-6);
+  padding-inline: 0;
+}
+.editorial-workspace-shell .admin-page-content {
+  min-width: 0;
+}
+
+/* Content pages: a centred column inside the gutter. Libraries and review
+   use the full width; writing keeps its reading measure. */
+.editorial-content {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 68rem;
+  min-width: 0;
+  margin-inline: auto;
+  padding-block: var(--spacing-6);
+  padding-inline: 0;
+}
+.editorial-workspace-shell .editorial-content.writing-content {
+  max-width: 45rem;
+}
+.editorial-content.editorial-library-page,
+.editorial-content:has(.editor-workspace[data-editor-view="publish"]) {
+  max-width: none;
+}
+.editorial-content .astryx-stack,
+.editorial-content .astryx-card {
+  min-width: 0;
+  max-width: 100%;
+}
+.editorial-prose {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.editorial-prose img,
+.editorial-prose video {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-element);
+}
+.editorial-prose p {
+  line-height: var(--line-height-relaxed, 1.65);
+}
+.editorial-prose pre {
+  overflow: auto;
+  max-width: 100%;
+  padding: var(--spacing-4);
+}
+.editorial-prose ul,
+.editorial-prose ol {
+  padding-left: var(--spacing-6);
+}
+.editorial-prose astro-slot > * + * {
+  margin-top: var(--spacing-4);
+}
+/* On a phone an issue's prose sits on the canvas: no card, border or inset
+   narrowing the column. */
+@media (max-width: 640px) {
+  .editorial-review-card:not(#\#) {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+}
+
+/* Astryx rules off every header row; admin tables separate with spacing. */
+.astryx-table-header-cell {
+  border-bottom: 0;
+}
+/* Column labels stay on one line; the column, not the label, gives way. */
+.astryx-table-header-cell {
+  white-space: nowrap;
+}
+
+/* From 641px the sidebar and main are fixed panels that each scroll on
+   their own (the sidebar's list in WorkspaceHeader.css), so the document
+   stays still and neither chains its scroll into the other. Beside the full
+   sidebar, main is a panel with one rounded corner under a strip of the
+   sidebar colour. --admin-main-block-size is main's height, for panels
+   that stick inside it (Split view, below). */
+@media (min-width: 641px) {
+  html:has(.editorial-workspace-shell),
+  body:has(.editorial-workspace-shell) {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  .editorial-workspace-shell {
+    --admin-main-block-size: 100dvh;
+  }
+  .editorial-workspace-shell[data-sidebar-collapsed="false"] {
+    --admin-main-block-size: calc(100dvh - var(--spacing-3));
+  }
+  .editorial-workspace-shell[data-sidebar-collapsed="false"]
+    #astryx-app-shell-main {
+    height: calc(100% - var(--spacing-3));
+    margin-block-start: var(--spacing-3);
+    border-start-start-radius: var(--radius-container);
+  }
+}
+
+/* Split view (components/astryx/SplitView.tsx): a list and its open panel.
+   One column until the view is 960px wide (SPLIT_VIEW_MIN_WIDTH); then the
+   panel sits beside the list, sticks inside main as the list scrolls and
+   scrolls its own body under a pinned header. Narrower, an open panel is
+   the page and the list steps aside. The panel is a surface, set apart by
+   tint and space, never a rule. */
+.admin-split {
+  container: admin-split / inline-size;
+  min-width: 0;
+}
+.admin-split-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--spacing-5);
+  align-items: start;
+}
+.admin-split-list,
+.admin-split-panel,
+.admin-split-panel-body {
+  min-width: 0;
+}
+.admin-split-panel {
+  box-sizing: border-box;
+  background: var(--color-background-surface);
+  border-radius: var(--radius-container);
+}
+.admin-split-panel-header {
+  padding: var(--spacing-5) var(--spacing-5) var(--spacing-3);
+  background: var(--color-background-surface);
+}
+.admin-split-panel-body {
+  padding: 0 var(--spacing-5) var(--spacing-5);
+  overflow-wrap: anywhere;
+}
+.admin-split-panel:not(:has(> .admin-split-panel-header))
+  > .admin-split-panel-body {
+  padding-block-start: var(--spacing-5);
+}
+@container admin-split (min-width: 960px) {
+  .admin-split-grid[data-panel-open="true"] {
+    grid-template-columns: minmax(0, 1fr) minmax(
+        0,
+        var(--admin-split-panel-size, 28rem)
+      );
+  }
+  .admin-split-grid[data-panel-open="true"] > .admin-split-panel {
+    position: sticky;
+    inset-block-start: var(--spacing-5);
+    /* SplitView measures the room below the panel's own top as main
+       scrolls; before it does, main's height less the insets. */
+    max-block-size: var(
+      --admin-split-panel-room,
+      calc(var(--admin-main-block-size, 100dvh) - 2 * var(--spacing-5))
+    );
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .admin-split-grid[data-panel-open="true"] .admin-split-panel-header {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 1;
+  }
+}
+@container admin-split (max-width: 959px) {
+  .admin-split-grid[data-panel-open="true"] > .admin-split-list {
+    display: none;
+  }
+}
+/* A panel's parts that differ beside the list and as the page (its close
+   or back control): both are written, and the view's width shows one, so
+   the server's render is the layout the browser keeps. */
+.admin-split-beside-only,
+.admin-split-page-only {
+  display: contents;
+}
+@container admin-split (min-width: 960px) {
+  .admin-split-page-only {
+    display: none;
+  }
+}
+@container admin-split (max-width: 959px) {
+  .admin-split-beside-only {
+    display: none;
+  }
+}
+
+/* Compact: the document scrolls, so Safari's toolbars collapse and a tap on
+   the status bar returns to the top. AppShell's fill heights resolve to auto
+   under an auto-height root. The top bar sticks under the status bar on the
+   canvas, and the bottom safe area is content padding, never a painted bar. */
+@media (max-width: 640px) {
+  .editorial-workspace-shell {
+    --admin-gutter: var(--spacing-3);
+    height: auto;
+    min-height: 100dvh;
+    background: var(--color-background-body);
+  }
+  .editorial-workspace-shell #astryx-app-shell-main {
+    height: auto;
+    overflow: visible;
+    overscroll-behavior: auto;
+    padding-block-end: env(safe-area-inset-bottom);
+  }
+  .editorial-workspace-shell .astryx-app-shell-header {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 30;
+    background: var(--color-background-body);
+  }
+  .editorial-workspace-shell .admin-page-frame,
+  .editorial-workspace-shell .editorial-content {
+    padding-block: var(--spacing-3) var(--spacing-6);
+  }
+  /* A modal (the palette, a sheet) holds the page still behind it. */
+  html:has(dialog:modal) {
+    overflow: hidden;
+  }
+}
+
+/* The phone top bar (EditorialWorkspaceShell PhoneBar), one row: the [A]
+   monogram, the three workspaces beside it, search at the end. The server
+   writes it on every page in AppShell's banner slot and the width alone
+   decides whether it shows, so it never waits for hydration. The monogram's
+   bracket starts on the gutter and the search glyph ends on it. */
+.admin-phone-bar {
+  display: none;
+}
+@media (max-width: 640px) {
+  .admin-phone-bar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    box-sizing: border-box;
+    min-height: calc(var(--spacing-11) + env(safe-area-inset-top));
+    padding-block-start: env(safe-area-inset-top);
+    padding-inline: var(--admin-gutter);
+    background: var(--color-background-body);
+  }
+}
+@media (min-width: 641px) {
+  .editorial-workspace-shell .astryx-app-shell-header:has(.admin-phone-bar) {
+    display: none;
+  }
+}
+/* A 44px target whose bracket stays on the gutter, so the first workspace
+   sits as far from it as the workspaces sit from each other. */
+.admin-phone-bar .admin-bracket-wordmark {
+  box-sizing: border-box;
+  min-width: var(--spacing-11);
+  min-height: var(--spacing-11);
+  margin-inline-start: calc(-1 * var(--spacing-1));
+  padding-inline-start: var(--spacing-1);
+}
+/* The workspaces scroll sideways only when a narrow phone cannot hold
+   them. */
+.admin-phone-workspaces {
+  display: flex;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+/* The glyph, not the 44px target, lines up with the gutter: the target
+   ends on the gutter with its glyph at its end, as the copy and chevron
+   glyphs below do, so every trailing glyph shares one right edge. */
+.admin-phone-bar-search:not(#\#) {
+  margin-inline-end: 0;
+  justify-content: flex-end;
+  padding-inline-end: 0;
+}
+
+/* The current workspace's pages under the bar: a row that scrolls sideways
+   past the gutter to the screen edge, and with the page. */
+.admin-phone-pages {
+  display: none;
+}
+@media (max-width: 640px) {
+  .admin-phone-pages {
+    display: flex;
+    gap: var(--spacing-1);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    margin-inline: calc(-1 * var(--admin-gutter));
+    padding-inline: var(--admin-gutter);
+    scroll-padding-inline: var(--admin-gutter);
+  }
+}
+.admin-phone-workspace,
+.admin-phone-page {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: var(--spacing-11);
+  border-radius: var(--radius-element);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+/* Full size from about 390px; narrower phones scale the labels down so the
+   three still fit one row. */
+.admin-phone-workspace {
+  padding-inline: var(--spacing-2);
+  font-size: clamp(var(--font-size-base), 4.4vw, var(--font-size-lg));
+}
+.admin-phone-workspace[aria-current="true"] {
+  color: var(--color-text-primary);
+}
+/* Page chips read like the sidebar: only the current page carries a fill,
+   the sidebar's own selected fill, so keyboard focus (a tint) stays
+   distinct from it. Chip boxes start on the gutter. */
+.admin-phone-page {
+  position: relative;
+  min-height: var(--spacing-9);
+  margin-block: calc((var(--spacing-11) - var(--spacing-9)) / 2);
+  padding-inline: var(--spacing-3);
+  font-size: var(--text-body-size, var(--font-size-base));
+}
+/* The chip reads 36px; its target is the row's full 44px. */
+.admin-phone-page::before {
+  content: "";
+  position: absolute;
+  inset: calc((var(--spacing-9) - var(--spacing-11)) / 2) 0;
+}
+.admin-phone-page[aria-current="page"] {
+  background: var(--color-neutral);
+  color: var(--color-text-primary);
+}
+.admin-phone-bar .admin-bracket-wordmark:active,
+.admin-phone-workspace:active,
+.admin-phone-page:active {
+  background: var(--color-overlay-pressed);
+}
+
+/* The [admin] wordmark. The brackets carry the workspace accent. */
+.admin-bracket-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--spacing-1) / 2);
+  font-family: "AP Structural", sans-serif;
+  font-weight: 900;
+  font-size: var(--font-size-xl);
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--color-text-primary);
+  text-decoration: none;
+  border-radius: var(--radius-element);
+  -webkit-tap-highlight-color: transparent;
+}
+.admin-bracket-wordmark > span {
+  color: var(--color-text-accent);
+}
+
+/* Sign in and sign out: the wordmark and its controls, left-anchored on the
+   canvas with room around them. */
+.admin-standalone {
+  box-sizing: border-box;
+  display: flex;
+  min-height: 100svh;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding-block: max(var(--spacing-8), env(safe-area-inset-top))
+    max(var(--spacing-8), env(safe-area-inset-bottom));
+  padding-inline: max(
+      clamp(var(--spacing-6), 10vw, 7.5rem),
+      env(safe-area-inset-left)
+    )
+    max(clamp(var(--spacing-6), 10vw, 7.5rem), env(safe-area-inset-right));
+  color: var(--color-text-primary);
+  font-family: var(--font-family-body);
+}
+.admin-logout .admin-bracket-wordmark {
+  font-size: var(--font-size-2xl);
+}
+.admin-logout .astryx-button {
+  min-height: var(--spacing-11);
+}
+
+/* Not found sits on the page frame like any other page. */
+.admin-not-found {
+  display: grid;
+  padding-block: var(--spacing-6);
+}
+
+/* Text for assistive technology only. Content and standalone pages do not
+   load admin.css, so the definition lives here. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editorial-workspace-shell #astryx-app-shell-main {
+    transition: none;
+  }
+}

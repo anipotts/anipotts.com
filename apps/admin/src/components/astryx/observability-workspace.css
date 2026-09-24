@@ -1,0 +1,811 @@
+/* Observability draws with the workspace kit (components/workspace) and the
+   split view (styles/shell.css); only ops cells, cards, the entry panel and
+   its lists live here. Depth is tint and spacing, never a rule; focus is a
+   tint, never a ring. */
+.observability-workspace {
+  container: workspace / inline-size;
+  min-width: 0;
+}
+
+/* Rows hold 36px on wide screens, like the controls around them. */
+.observability-workspace .workspace-table .astryx-table-cell {
+  height: var(--spacing-9);
+}
+
+/* Cells. */
+.ops-muted {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+.ops-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+  max-width: 100%;
+  vertical-align: middle;
+}
+/* A value of glyphs and text in a definition list is a line of the label's
+   height, so its text sits on the label's baseline, never below it. */
+.workspace-definition > dd > .ops-inline {
+  display: flex;
+  min-height: var(--spacing-6);
+}
+/* A phone row's device, after its time: a 20px place of its own, kept
+   empty for a host, so tiles line up down the rows. */
+.ops-device-slot {
+  display: inline-flex;
+  flex: none;
+  width: var(--spacing-5);
+  height: var(--spacing-5);
+}
+.ops-inline-glyph {
+  flex: none;
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+  color: var(--color-text-secondary);
+}
+.ops-warning {
+  color: var(--color-text-orange, var(--color-text-warning, currentColor));
+}
+.ops-reason {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+  max-width: 100%;
+}
+.ops-exit {
+  flex: none;
+  color: var(--color-text-red, var(--color-error));
+  white-space: nowrap;
+}
+/* On line 2 (phones and medium) a reason is read whole: it wraps under its
+   chip rather than ending in an ellipsis, and its exit code keeps with it. */
+.observability-workspace .workspace-row-meta .workspace-row-detail {
+  flex-wrap: wrap;
+  row-gap: 2px;
+  overflow: visible;
+}
+.observability-workspace .workspace-row-meta .ops-reason {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+/* A reason that wraps on line 2 keeps its state chip and exit code on its
+   first line, wherever the row is (Status, Alerts, the overview), never
+   centred against the paragraph. */
+.workspace-row-detail:has(.ops-reason) {
+  align-items: baseline;
+}
+.workspace-row-meta .ops-reason {
+  align-items: baseline;
+}
+.workspace-row-detail:has(.ops-reason) .brand-tile {
+  align-self: flex-start;
+}
+.observability-workspace
+  .workspace-row-meta
+  .ops-reason
+  > .workspace-detail-text:not(#\#) {
+  white-space: normal;
+}
+/* A last success over its own budget: the warning ink and a glyph whose
+   tooltip names the budget. */
+.ops-last {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  white-space: nowrap;
+}
+.ops-last[data-over="true"] .workspace-time {
+  color: var(--color-text-orange, var(--color-text-warning, currentColor));
+}
+.ops-over {
+  display: inline-flex;
+  flex: none;
+  color: var(--color-text-orange, var(--color-text-warning, currentColor));
+}
+.ops-over > svg {
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+}
+.ops-due {
+  display: inline-flex;
+  align-items: baseline;
+  white-space: nowrap;
+}
+.ops-approx {
+  color: var(--color-text-secondary);
+}
+/* The trigger glyph, muted, on the tile column. */
+.ops-trigger {
+  display: inline-flex;
+  color: var(--color-text-secondary);
+  vertical-align: middle;
+}
+.ops-trigger > svg {
+  width: var(--spacing-5);
+  height: var(--spacing-5);
+}
+/* A past state: its name only, muted, so it never reads as current. */
+.ops-past {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+/* What changed, on one line. Its detail needs 4.5rem to say anything; with
+   less it wraps onto a second line that the cell's one-line height hides,
+   so a narrow cell never shows a one-glyph sliver. */
+.ops-change {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--spacing-2);
+  min-width: 0;
+  max-width: 100%;
+  max-block-size: var(--spacing-6);
+  overflow: hidden;
+}
+.ops-change > * {
+  flex: none;
+}
+/* It takes line 1 whenever 4.5rem is left beside the chips (its basis, not
+   its whole width, decides the wrap), and ends after a whole word. */
+.ops-change > .workspace-detail-text {
+  flex: 1 1 4.5rem;
+  min-width: min(4.5rem, 100%);
+  line-height: var(--spacing-6);
+}
+/* On a row's line 2 (phones) what changed reads whole: the chips stay on
+   the detail's first line and the detail wraps under itself, never clipped
+   to one line's height. */
+.workspace-row-detail > .ops-change {
+  display: block;
+  max-block-size: none;
+  overflow: visible;
+  line-height: var(--spacing-5);
+}
+/* The chips flow as words, and the detail's lines run back under them at
+   the row's full width. */
+.workspace-row-detail > .ops-change > :not(.workspace-detail-text) {
+  display: inline-flex;
+  vertical-align: bottom;
+  margin-inline-end: var(--spacing-2);
+}
+.workspace-row-detail > .ops-change > .workspace-detail-text:not(#\#),
+.workspace-row-detail
+  > .ops-change
+  > .workspace-detail-text
+  > .workspace-detail-words:not(#\#) {
+  display: inline;
+  min-width: 0;
+  line-height: var(--spacing-5);
+  white-space: normal;
+}
+/* Activity's time, and below large the device tile before it, ending the
+   cell so times line up at the right as a phone row's do. */
+.ops-when {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  vertical-align: middle;
+}
+@media (min-width: 641px) and (max-width: 1023px) {
+  .observability-workspace :is(td, th)[data-column="at"] {
+    text-align: end;
+  }
+}
+/* A run's or read's duration beside its result where Took has dropped. */
+.ops-change-took {
+  display: none;
+  color: var(--color-text-secondary);
+}
+@media (min-width: 641px) and (max-width: 1023px) {
+  .ops-change-took {
+    display: inline-flex;
+  }
+}
+.ops-burst {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+/* No budget from System: a dashed mark and its reason, muted, never a
+   chip that could read as a judgement. */
+.ops-unjudged {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+.ops-unjudged > svg {
+  flex: none;
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+}
+.ops-run-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+.ops-run-ok > .workspace-state-quiet {
+  padding-inline-start: 0;
+}
+
+/* Hosts and the exception counts share one line above the table. */
+.ops-overview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+.ops-counts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin: 0 0 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+/* Cards: a host or a sync on the table's surface, two lines beside a 28px
+   tile. The whole card opens the entry's panel. */
+.ops-cards {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+.ops-hosts {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+.ops-hosts > .ops-card {
+  flex: 0 0 18rem;
+  max-width: 100%;
+  min-width: 0;
+}
+/* 20rem holds an app's name and state on line 1 and its sync's device,
+   name and last success on line 2 whole. */
+.ops-syncs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  gap: var(--spacing-2);
+}
+.ops-card {
+  min-width: 0;
+  scroll-margin-block: var(--spacing-12);
+}
+.ops-card-link {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: var(--spacing-12);
+  height: 100%;
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--radius-container);
+  background-color: var(--color-background-surface);
+  color: inherit;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+@media (hover: hover) {
+  .ops-card-link:hover {
+    background-image: linear-gradient(
+      var(--color-overlay-hover),
+      var(--color-overlay-hover)
+    );
+  }
+}
+.ops-card-link:active {
+  background-image: linear-gradient(
+    var(--color-overlay-pressed, var(--color-overlay-hover)),
+    var(--color-overlay-pressed, var(--color-overlay-hover))
+  );
+}
+.ops-card[data-open="true"] > .ops-card-link {
+  background-image: linear-gradient(var(--color-neutral), var(--color-neutral));
+}
+html[data-astryx-theme] .ops-card-link:focus-visible {
+  background-color: var(--color-accent-muted);
+  background-image: none;
+}
+.ops-card-tile {
+  display: inline-flex;
+  flex: none;
+}
+.ops-card-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ops-card-line {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+  min-height: var(--spacing-6);
+}
+/* A card's title wraps at a space rather than losing a word; the device
+   beside it names the host. */
+.ops-card-title:not(#\#) {
+  display: block;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  font-weight: var(--font-weight-medium, 500);
+}
+.ops-card-title > .workspace-title-base:not(#\#) {
+  display: inline;
+  overflow: visible;
+  white-space: normal;
+}
+.ops-card-state {
+  display: inline-flex;
+  flex: none;
+  margin-inline-start: auto;
+}
+.ops-card-meta {
+  font-size: var(--text-supporting-size);
+  color: var(--color-text-secondary);
+}
+.ops-card-facts {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+.ops-card-end {
+  display: inline-flex;
+  flex: none;
+  margin-inline-start: auto;
+  white-space: nowrap;
+}
+.ops-card-detail {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ops-card-where {
+  flex: 0 1 auto;
+}
+/* A card's second line is supporting text, its "Not recorded" included. */
+.ops-card-meta .workspace-time:not(#\#) {
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+/* A fact on a card: a muted glyph and its value. */
+.ops-fact {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  min-width: 0;
+  white-space: nowrap;
+}
+.ops-fact > svg {
+  flex: none;
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+}
+.ops-fact > .brand-tile {
+  flex: none;
+}
+/* Disk use: a short meter in the host's own tone. */
+.ops-meter {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: var(--spacing-8);
+  height: var(--spacing-1);
+  margin-inline-start: var(--spacing-1);
+  border-radius: 999px;
+  background: var(--color-neutral);
+  overflow: hidden;
+}
+.ops-meter > span {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  border-radius: inherit;
+  background: var(--color-text-secondary);
+}
+.ops-meter[data-tone="positive"] > span {
+  background: var(--color-success, var(--color-text-green, currentColor));
+}
+.ops-meter[data-tone="warning"] > span {
+  background: var(--color-warning, var(--color-text-orange, currentColor));
+}
+.ops-meter[data-tone="critical"] > span {
+  background: var(--color-error, var(--color-text-red, currentColor));
+}
+
+/* Activity: the chip that shows plumbing, and linked rows (runs and
+   changes open their entry) taking the row's hover and tap. */
+.ops-chip-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: var(--spacing-8);
+  padding: 0 var(--spacing-3);
+  border: 0;
+  border-radius: var(--radius-inner);
+  background: var(--color-neutral);
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--text-supporting-size);
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+/* The chip reads 32px; on touch its target is 44px. */
+@media (pointer: coarse), (max-width: 640px) {
+  .ops-chip-toggle {
+    position: relative;
+  }
+  .ops-chip-toggle::before {
+    content: "";
+    position: absolute;
+    inset: calc((var(--spacing-8) - var(--spacing-11)) / 2) 0;
+  }
+}
+.ops-chip-toggle[aria-pressed="true"] {
+  background-color: var(--color-accent-muted);
+  color: var(--color-text-accent, var(--color-accent));
+}
+@media (hover: hover) {
+  .ops-chip-toggle:hover {
+    color: var(--color-text-primary);
+  }
+}
+.ops-chip-count {
+  color: inherit;
+}
+.ops-chip-glyph {
+  display: none;
+  flex: none;
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+}
+/* Phones: the pipe glyph for the word, named still for assistive
+   technology. */
+@media (max-width: 640px) {
+  .ops-chip-glyph {
+    display: block;
+  }
+  .ops-chip-label:not(#\#) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+.observability-workspace
+  .workspace-table[data-interactive="false"]
+  tbody
+  tr:has(.workspace-row-link) {
+  position: relative;
+}
+@media (hover: hover) {
+  .observability-workspace
+    .workspace-table[data-interactive="false"]
+    tbody
+    tr:has(.workspace-row-link):hover {
+    background-color: var(--color-overlay-hover);
+    cursor: pointer;
+  }
+}
+.observability-workspace
+  .workspace-table[data-interactive="false"]
+  tbody
+  tr:has(.workspace-row-link):active {
+  background-color: var(--color-overlay-pressed, var(--color-overlay-hover));
+}
+
+/* The source menu's counts. Its items take the shared touch size
+   (styles/admin-interactions.css). */
+.ops-menu-count {
+  color: var(--color-text-secondary);
+}
+
+/* An incident table too narrow to show its detail whole (a large window
+   beside the rail) carries the detail as line 2, as medium does, and drops
+   the column, so neither a detail nor a name is cut. The table frame is the
+   size container. */
+@container (max-width: 1000px) {
+  .ops-alerts [data-column="detail"] {
+    display: none;
+  }
+  .ops-alerts
+    .workspace-row-meta[data-below="large"][data-compact-only="true"] {
+    display: flex;
+  }
+  .ops-alerts .workspace-row-meta[data-below="large"] > .workspace-row-detail {
+    display: inline-flex;
+  }
+}
+/* There, as at medium (workspace.css), line 2 runs the row's width under
+   the other columns, which keep to line 1. */
+@media (min-width: 1024px) {
+  @container (max-width: 1000px) {
+    .ops-alerts .astryx-table-cell:first-child {
+      overflow: visible;
+      text-overflow: clip;
+    }
+    .ops-alerts
+      .astryx-table-cell:first-child
+      .workspace-row-meta[data-below="large"] {
+      inline-size: calc(100cqw - 68px);
+    }
+    .ops-alerts tbody .astryx-table-cell {
+      vertical-align: top;
+    }
+    .ops-alerts tbody .astryx-table-cell:first-child {
+      padding-block: 6px var(--spacing-1);
+    }
+    .ops-alerts tbody .astryx-table-cell:not(:first-child) {
+      padding-block: 0;
+    }
+    .ops-alerts .workspace-cell {
+      display: flex;
+      align-items: center;
+      min-block-size: var(--spacing-9);
+      min-width: 0;
+    }
+    .ops-alerts [data-numeric] > .workspace-cell {
+      justify-content: flex-end;
+    }
+  }
+}
+
+/* The runbook is a glyph column: its 36px button and an 8px end inset, so
+   the glyph ends on the table's 16px edge like every other column. */
+.ops-alerts :is(th, td)[data-column="runbook"]:not(#\#) {
+  padding-inline: 0 var(--spacing-2);
+}
+
+/* The open row keeps a quiet tint, apart from the focus tint. */
+.ops-split
+  .admin-split-list
+  tbody
+  tr:has(
+    .workspace-row-link[aria-current="true"],
+    .workspace-row-link[aria-pressed="true"]
+  ):not(:hover) {
+  background-color: var(--color-neutral);
+}
+
+/* The entry panel: a pinned header (the way back or out, the tile, the
+   name and its state), then facts, actions and short lists. */
+/* 29rem leaves the list beside it room for a service's longest name, its
+   state and its last success at 1280. */
+.ops-split {
+  --admin-split-panel-size: 29rem;
+}
+.ops-panel {
+  outline: none;
+  scroll-margin-block-start: var(--spacing-12);
+}
+.ops-panel-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  min-width: 0;
+}
+.ops-panel-header > .astryx-button,
+.ops-panel-header
+  > :is(.admin-split-beside-only, .admin-split-page-only)
+  > .astryx-button {
+  flex: none;
+  margin-inline-start: calc(-1 * var(--spacing-2));
+}
+.ops-panel-title:not(#\#) {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  white-space: normal;
+  font-size: var(--font-size-heading-3, 18px);
+  line-height: var(--spacing-7);
+}
+.ops-panel-badge {
+  display: inline-flex;
+  flex: none;
+}
+/* A name's host suffix never breaks across lines. */
+.ops-panel-keep {
+  white-space: nowrap;
+}
+.ops-panel-actions {
+  min-width: 0;
+}
+.ops-panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+.ops-panel-heading:not(#\#) {
+  margin: 0;
+  font-size: var(--text-body-size);
+  line-height: var(--spacing-6);
+}
+.ops-panel-empty {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin: 0;
+  min-height: var(--spacing-9);
+}
+/* Events a list may be missing: muted words, the glyph in warning ink. */
+.ops-panel-gap {
+  color: var(--color-text-secondary);
+}
+.ops-panel-gap > .ops-inline-glyph {
+  color: var(--color-text-orange, var(--color-text-warning, currentColor));
+}
+/* Runs, changes and incidents: one line each, the time, the result, then a
+   figure or a detail that gives way first. */
+.ops-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+.ops-list-item {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, auto) minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--spacing-3);
+  min-width: 0;
+  min-height: var(--spacing-9);
+}
+.ops-list-item > .workspace-time {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+/* A list with a start known only as a bound ("Before Sep 22, 17:26"). */
+.ops-list[data-bounded] > .ops-list-item:not(#\#) {
+  grid-template-columns: 9.5rem minmax(0, auto) minmax(0, 1fr);
+}
+/* A panel's bounded start: the bound, then why it is one. */
+.ops-start-bound {
+  flex-wrap: wrap;
+  column-gap: var(--spacing-2);
+  row-gap: 0;
+}
+.ops-list-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+.ops-list-figure {
+  justify-self: end;
+  white-space: nowrap;
+}
+.ops-list-detail {
+  min-width: 0;
+}
+/* A change whose detail wraps keeps its time and states on the detail's
+   first line: the row's parts share a first baseline, and a one-line row
+   still sits centred in its 36px. */
+.ops-list-item[data-change] {
+  align-items: baseline;
+  align-content: center;
+}
+/* A change's detail reads whole: it wraps inside its cell rather than
+   ending in an ellipsis in a narrow panel. */
+.ops-list-detail .workspace-detail-text:not(#\#) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* A link into Status tints the row or card it lands on for a moment. */
+.observability-workspace [data-landed] {
+  background-color: var(--color-accent-muted);
+  transition: background-color 600ms ease-out;
+}
+
+/* Compact: cards are rows flush on the body colour, full bleed with their
+   content on the gutter, like every other list. */
+@media (max-width: 640px) {
+  .observability-workspace .workspace-table .astryx-table-cell {
+    height: auto;
+  }
+  .ops-overview {
+    gap: var(--spacing-2);
+  }
+  .ops-counts {
+    margin-inline-start: 0;
+  }
+  .ops-cards:not(#\#) {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    width: calc(100% + 2 * var(--admin-gutter, 0px));
+    margin-inline: calc(-1 * var(--admin-gutter, 0px));
+  }
+  .ops-hosts > .ops-card {
+    flex: none;
+  }
+  .ops-overview > .ops-hosts {
+    flex: 1 1 100%;
+  }
+  .ops-card-link {
+    min-height: calc(var(--spacing-12) + var(--spacing-2));
+    padding-inline: var(--admin-gutter, var(--spacing-3));
+    border-radius: 0;
+    background-color: transparent;
+  }
+  .ops-card[data-open="true"] > .ops-card-link {
+    background-image: none;
+  }
+  .ops-list-item {
+    grid-template-columns: 6.5rem minmax(0, auto) minmax(0, 1fr);
+    min-height: var(--spacing-11);
+  }
+  /* On phones a change's detail takes its own line under the states. */
+  .ops-list-item[data-change] {
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+  }
+  .ops-list-item[data-change] > .ops-list-detail {
+    grid-column: 2;
+    padding-block-end: var(--spacing-2);
+  }
+  /* The panel's title keeps the header's width and wraps rather than
+     cutting a name; its state chip takes the line under it. */
+  .ops-panel-header {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    align-items: center;
+    row-gap: var(--spacing-1);
+  }
+  .ops-panel-title:not(#\#) {
+    grid-row: 1;
+    grid-column: 3;
+    white-space: normal;
+  }
+  .ops-panel-badge {
+    grid-row: 2;
+    grid-column: 3;
+    justify-self: start;
+  }
+  /* An ok entry's quiet dot stays at the line's end. */
+  .ops-panel-badge:has(> .workspace-state-quiet) {
+    grid-row: 1;
+    grid-column: 4;
+  }
+  /* The open entry is the page: flush on the body colour, its content on
+     the gutter, its short facts still in two columns. */
+  .ops-panel:not(#\#) {
+    background: transparent;
+    border-radius: 0;
+  }
+  .ops-panel .admin-split-panel-header,
+  .ops-panel .admin-split-panel-body {
+    padding-inline: 0;
+    background: transparent;
+  }
+  .ops-panel .admin-split-panel-header {
+    padding-block-start: 0;
+  }
+  .ops-panel .workspace-definition:not(#\#) {
+    grid-template-columns: 8.5rem minmax(0, 1fr);
+    row-gap: 0;
+  }
+}

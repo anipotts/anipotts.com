@@ -1,5 +1,4 @@
-export type AdminSearchDomain =
-  "navigation" | "work" | "content" | "life" | "people" | "system";
+type AdminSearchDomain = "navigation" | "content" | "data" | "system";
 
 export type AdminSearchResult = {
   id: string;
@@ -11,6 +10,8 @@ export type AdminSearchResult = {
   freshness: string;
   href: string;
   keywords: string[];
+  /** The glyph a provider leads its row with, over the palette's default. */
+  icon?: import("@phosphor-icons/react").Icon;
 };
 
 export function searchAdminResults(

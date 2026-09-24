@@ -4,6 +4,7 @@
   "private": true,
   "exports": {
     "./theme": "./src/theme.ts",
+    "./marks": "./src/marks.ts",
     "./BrandMark.astro": "./src/BrandMark.astro",
     "./tokens.css": "./src/tokens.css",
     "./typography.css": "./src/typography.css",

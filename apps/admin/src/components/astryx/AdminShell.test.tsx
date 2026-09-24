@@ -2,170 +2,133 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { navItems } from "../../data/admin";
 import { AdminShell } from "./AdminShell";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-const operational = vi.hoisted(() => ({ render: vi.fn() }));
-vi.mock("./OperationalCommandPalette", () => ({
-  OperationalCommandPalette: () => {
-    operational.render();
-    return null;
-  },
-}));
 const shell = (route: string) => (
-  <AdminShell
-    chrome="admin"
-    currentRoute={route}
-    navItems={navItems}
-    title="Record"
-    localPreview
-  >
+  <AdminShell currentRoute={route} localPreview>
     <div>Content</div>
   </AdminShell>
 );
 
-describe("shared Operations and Life shell", () => {
-  it.each([false, true])(
-    "preserves route context unless header is hidden: %s",
-    (hideHeader) => {
-      const html = renderToStaticMarkup(
-        <AdminShell
-          chrome="admin"
-          currentRoute="/proof"
-          navItems={navItems}
-          title="Proof"
-          deck="This page is read-only."
-          hideHeader={hideHeader}
-          localPreview
-        >
-          <p>Records</p>
-        </AdminShell>,
-      );
-      expect(html.includes("This page is read-only.")).toBe(!hideHeader);
-    },
-  );
-  it("renders the shared identity and only the two distinct Operations destinations", () => {
+describe("shared Data and Observability shell", () => {
+  it("renders the shared identity and one sidebar with Content, Data and Observability", () => {
     const host = document.createElement("div");
-    host.innerHTML = renderToStaticMarkup(shell("/operations/observability"));
-    expect(host.querySelector('[data-workspace="operations"]')).not.toBeNull();
+    host.innerHTML = renderToStaticMarkup(shell("/observability/status"));
     expect(
-      host.querySelector('.admin-bracket-wordmark[aria-label="Admin"]')
-        ?.textContent,
-    ).toBe("[admin]");
-    const navigation = host.querySelector(".astryx-side-nav-section")!;
-    const links = [...navigation.querySelectorAll("a")];
+      host.querySelector('[data-workspace="observability"]'),
+    ).not.toBeNull();
+    // The home link: the wordmark in the sidebar, the monogram on phones.
+    const wordmarks = host.querySelectorAll<HTMLAnchorElement>(
+      "a.admin-bracket-wordmark",
+    );
+    expect([...wordmarks].map((wordmark) => wordmark.textContent)).toEqual([
+      "[A]",
+      "[admin]",
+    ]);
+    for (const wordmark of wordmarks) {
+      expect(wordmark.getAttribute("href")).toBe("/");
+      expect(wordmark.getAttribute("aria-label")).toBe("Overview");
+    }
+    const navigation = host.querySelector(".admin-unified-nav")!;
+    expect(
+      [...navigation.querySelectorAll("[data-sidebar-group]")].map(
+        (heading) => heading.textContent,
+      ),
+    ).toEqual(["Content", "Data", "Observability"]);
+    expect(
+      navigation
+        .querySelector('a[data-sidebar-id="overview"]')
+        ?.getAttribute("href"),
+    ).toBe("/");
+    const links = [
+      ...navigation.querySelectorAll<HTMLAnchorElement>(
+        'a[data-sidebar-member="observability"]',
+      ),
+    ];
     expect(links.map((link) => link.textContent)).toEqual([
-      "Machines",
-      "Loops",
+      "Status",
+      "Activity",
+      "Alerts",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
-      "/operations/observability?view=machines",
-      "/operations/observability?view=loops",
+      "/observability/status",
+      "/observability/activity",
+      "/observability/alerts",
     ]);
-    expect(new Set(links.map((link) => link.href)).size).toBe(2);
     expect(navigation.querySelector("details")).toBeNull();
   });
   it.each([
-    "/operations/observability",
-    "/operations/observability?machine=mini",
-  ])("selects Machines for the default view: %s", (route) => {
+    ["/observability/status", "Status"],
+    ["/observability/activity", "Activity"],
+    ["/observability/alerts", "Alerts"],
+    ["/", "Overview"],
+  ])("selects only its own destination: %s", (route, label) => {
     const host = document.createElement("div");
     host.innerHTML = renderToStaticMarkup(shell(route));
     const selected = host.querySelectorAll(
-      '.astryx-side-nav-section a[aria-current="page"]',
+      '.admin-unified-nav a[aria-current="page"]',
     );
     expect(selected).toHaveLength(1);
-    expect(selected[0]?.textContent).toBe("Machines");
-    expect(selected[0]?.getAttribute("href")).toBe(
-      "/operations/observability?view=machines",
-    );
+    expect(selected[0]?.textContent).toBe(label);
   });
-  it.each(["machines", "loops"])("selects only the %s destination", (view) => {
-    const host = document.createElement("div");
-    host.innerHTML = renderToStaticMarkup(
-      shell(`/operations/observability?view=${view}`),
-    );
-    const selected = host.querySelectorAll(
-      '.astryx-side-nav-section a[aria-current="page"]',
-    );
-    expect(selected).toHaveLength(1);
-    expect(selected[0]?.getAttribute("href")).toBe(
-      `/operations/observability?view=${view}`,
-    );
-  });
-  it.each([
-    "/work?view=machines",
-    "/operations/observability?view=machines-old",
-    "/operations/observability?view=loops-extra",
-  ])(
+  it.each(["/work?view=machines", "/observability/status-old", "/proof"])(
     "does not select a destination from a partial route match: %s",
     (route) => {
       const host = document.createElement("div");
       host.innerHTML = renderToStaticMarkup(shell(route));
       expect(
-        host.querySelectorAll(
-          '.astryx-side-nav-section a[aria-current="page"]',
-        ),
+        host.querySelectorAll('.admin-unified-nav a[aria-current="page"]'),
       ).toHaveLength(0);
     },
   );
-  it("renders Life navigation without mounting the Operations search provider", () => {
-    operational.render.mockClear();
-    const markup = renderToStaticMarkup(shell("/life/people"));
-    expect(markup).toContain('data-workspace="life"');
-    expect(markup).toMatch(/href="\/life\/people"[^>]*aria-current="page"/);
-    for (const section of [
-      "projects",
-      "places",
-      "timeline",
-      "sources",
-      "preview",
-    ])
-      expect(markup).toContain(`href="/life/${section}"`);
+  it("renders Data navigation with the one palette", () => {
+    const markup = renderToStaticMarkup(shell("/data/sources"));
+    expect(markup).toContain('data-workspace="data"');
+    expect(markup).toMatch(/href="\/data\/sources"[^>]*aria-current="page"/);
+    expect(markup).toContain('href="/data/records"');
+    expect(markup).not.toContain('href="/life');
     expect(markup).not.toContain('href="/inbox"');
-    expect(operational.render).not.toHaveBeenCalled();
+    expect(markup.match(/admin-command-palette-centered/g)).toHaveLength(1);
   });
-  it("keeps auth outside the workspace and its search providers", () => {
-    operational.render.mockClear();
-    const markup = renderToStaticMarkup(
-      <AdminShell
-        chrome="auth"
-        currentRoute="/auth/passkey"
-        navItems={navItems}
-        title="Sign in"
-      >
-        <p>Sign in</p>
-      </AdminShell>,
-    );
-    expect(markup).toContain("admin-auth-frame");
-    expect(markup).not.toContain("editorial-workspace-shell");
-    expect(operational.render).not.toHaveBeenCalled();
+  it("keeps the overview workspace-neutral", () => {
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(shell("/"));
+    expect(host.querySelector("[data-workspace]")).toBeNull();
+    // No group is forced open and no workspace tab is current.
+    expect(
+      host.querySelector('.admin-phone-workspace[aria-current="true"]'),
+    ).toBeNull();
+    expect(host.querySelector(".admin-phone-page")).toBeNull();
+    expect(host.querySelector(".admin-phone-pages")).toBeNull();
   });
 });
 
-describe("local owner indicator in Operations and Life", () => {
+describe("local owner indicator in Data and Observability", () => {
   afterEach(() => vi.unstubAllGlobals());
-  it.each(["/operations/observability", "/life/people"])(
-    "shows the non-dismissable local owner token on %s",
+  it.each(["/observability/status", "/data/records"])(
+    "shows the laptop tile beside the wordmark on %s",
     (route) => {
       vi.stubGlobal("__LOCAL_OWNER_BUILD__", true);
       const host = document.createElement("div");
       host.innerHTML = renderToStaticMarkup(
-        <AdminShell
-          chrome="admin"
-          currentRoute={route}
-          navItems={navItems}
-          title="Record"
-          localOwner
-        >
+        <AdminShell currentRoute={route} localOwner>
           <div>Content</div>
         </AdminShell>,
       );
-      const token = host.querySelector("[data-admin-local-owner]");
-      expect(token?.textContent).toBe("Local owner");
-      expect(token?.getAttribute("role")).toBe("status");
-      expect(token?.querySelector("button")).toBeNull();
+      const tiles = host.querySelectorAll("[data-admin-local-owner]");
+      // Beside the sidebar wordmark only: the phone bar holds no device tile.
+      expect(tiles).toHaveLength(1);
+      expect(
+        host.querySelector(".admin-phone-bar [data-admin-local-owner]"),
+      ).toBeNull();
+      for (const tile of tiles) {
+        expect(tile.closest(".editorial-identity-end")).not.toBeNull();
+        expect(
+          tile.querySelector('[role="img"]')?.getAttribute("aria-label"),
+        ).toBe("Local owner");
+        expect(tile.querySelector("button")).toBeNull();
+      }
       host.innerHTML = renderToStaticMarkup(shell(route));
       expect(host.querySelector("[data-admin-local-owner]")).toBeNull();
     },

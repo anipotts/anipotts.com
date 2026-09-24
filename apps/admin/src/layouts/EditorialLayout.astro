@@ -1,18 +1,6 @@
 ---
-import "@astryxdesign/core/reset.css";
-import {
-  initialAdminTheme,
-  adminThemePrepaintScript,
-} from "../lib/admin-theme";
-import { adminSidebarPrepaintScript } from "../lib/admin-sidebar";
-import "@astryxdesign/core/astryx.css";
-import "../styles/admin-interactions.css";
-import "../themes/editorial.generated.css";
-import "../styles/fonts.css";
-import "../styles/editorial.css";
-import "../styles/focus.css";
-import "../styles/scrollbars.css";
-import { preloadedFontUrls } from "../lib/admin-fonts";
+import AdminDocument from "./AdminDocument.astro";
+import { initialAdminTheme } from "../lib/admin-theme";
 import { publicSiteUrl } from "../lib/editorial-content";
 import { EDITORIAL_OWNER_EMAIL } from "../lib/editorial-owner";
 import { loadEditorialInventory } from "../lib/editorial-inventory-server";
@@ -38,9 +26,11 @@ const initialMode = initialAdminTheme(
   Astro.url.searchParams.get("theme"),
   Astro.cookies.get("ap-theme")?.value,
 );
-const area = Astro.url.pathname.startsWith("/newsletter")
-  ? "newsletter"
-  : "content";
+const area =
+  Astro.url.pathname.startsWith("/newsletter") ||
+  Astro.url.pathname === "/content/newsletter"
+    ? "newsletter"
+    : "content";
 const {
   inventoryProjection: suppliedInventory,
   hasContent = false,
@@ -84,47 +74,14 @@ const appProps = {
 } satisfies EditorialAppProps;
 ---
 
-<!doctype html>
-<html
-  lang="en"
-  data-astryx-theme="editorial"
-  data-theme={initialMode === "system" ? undefined : initialMode}
-  style={{ colorScheme: initialMode === "system" ? "light dark" : initialMode }}
->
-  <head>
-    <meta charset="utf-8" />
-    <link
-      rel="icon"
-      href="/admin-bracket.svg?v=4"
-      type="image/svg+xml"
-      sizes="any"
-    />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="robots" content="noindex, nofollow, noarchive" />
-    {
-      preloadedFontUrls.map((href) => (
-        <link
-          rel="preload"
-          as="font"
-          type="font/woff2"
-          href={href}
-          crossorigin=""
-        />
-      ))
-    }
-    <title>{Astro.props.title} | Admin</title>
-    <script is:inline set:html={adminThemePrepaintScript} />
-    <script is:inline set:html={adminSidebarPrepaintScript} />
-  </head>
-  <body>
-    {
-      renderContent ? (
-        <EditorialApp {...appProps} client:load>
-          <slot />
-        </EditorialApp>
-      ) : (
-        <EditorialApp {...appProps} client:load />
-      )
-    }
-  </body>
-</html>
+<AdminDocument title={Astro.props.title}>
+  {
+    renderContent ? (
+      <EditorialApp {...appProps} client:load>
+        <slot />
+      </EditorialApp>
+    ) : (
+      <EditorialApp {...appProps} client:load />
+    )
+  }
+</AdminDocument>

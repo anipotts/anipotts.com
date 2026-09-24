@@ -1,51 +1,36 @@
-import {
-  HouseIcon,
-  UsersIcon,
-  FolderIcon,
-  MapPinIcon,
-  ClockIcon,
-  LinkIcon,
-  FileTextIcon,
-  DesktopIcon,
-  ArrowsClockwiseIcon,
-} from "@phosphor-icons/react";
 import React, { useEffect, useState, type ReactNode } from "react";
-import { SideNavItem, SideNavSection } from "@astryxdesign/core/SideNav";
 import { VStack } from "@astryxdesign/core/VStack";
-import { Text } from "@astryxdesign/core/Text";
 import { Theme } from "@astryxdesign/core/theme";
 import {
   savedTheme,
   saveTheme,
   type ThemePreference,
 } from "../../lib/admin-theme";
-import type { NavItem } from "../../data/admin";
 import { EditorialWorkspaceShell } from "./EditorialWorkspaceShell";
-import { workspaceThemes } from "../../themes/workspaces";
-import { OperationalCommandPalette } from "./OperationalCommandPalette";
-import { AdminCommandPalette } from "./AdminCommandPalette";
-import { lifeSections } from "../../lib/life-sections";
+import { editorialTheme } from "../../themes/editorial.js";
+import { workspaceForPath } from "../../lib/admin-sidebar";
+import type { AdminSearchResult } from "../../data/admin-search";
+import { adminThemeIcons } from "./adminThemeIcons";
+
+// Built once, so the theme provider sees a stable object. Every workspace
+// renders this one theme; its accent comes from themes/workspace-accents.css.
+const shellTheme = { ...editorialTheme, icons: adminThemeIcons };
 
 type AdminShellProps = {
   children: ReactNode;
-  chrome: "admin" | "auth";
   currentRoute: string;
-  deck?: string;
-  hideHeader?: boolean;
-  navItems: NavItem[];
-  title: string;
+  searchEntries?: AdminSearchResult[];
   localPreview?: boolean;
   localOwner?: boolean;
   initialMode?: ThemePreference;
 };
+
+/** The shell for the overview, Data, Observability and the retired console
+ * pages. Content pages render the same workspace shell from EditorialApp. */
 export function AdminShell({
   children,
-  chrome,
   currentRoute: initialRoute,
-  deck,
-  hideHeader = false,
-  navItems,
-  title,
+  searchEntries,
   localPreview = false,
   localOwner = false,
   initialMode = "light",
@@ -68,139 +53,23 @@ export function AdminShell({
     setMode(next);
     saveTheme(next);
   };
-  const workspace = currentRoute.split("?")[0].startsWith("/life")
-    ? "life"
-    : "operations";
-  if (chrome === "auth")
-    return (
-      <main className="admin-auth-frame">
-        <section className="admin-auth-card">{children}</section>
-      </main>
-    );
-  const operationalItems = navItems.filter(
-    (item) => item.group !== "life" && item.group !== "website",
-  );
-  const lifeIcons = [
-    HouseIcon,
-    UsersIcon,
-    FolderIcon,
-    MapPinIcon,
-    ClockIcon,
-    LinkIcon,
-    FileTextIcon,
-  ];
-  const lifeEntries = Object.entries(lifeSections).map(([id, label]) => ({
-    id: `life-nav:${id}`,
-    label,
-    href: id === "overview" ? "/life" : `/life/${id}`,
-    domain: "navigation" as const,
-    kind: "destination",
-    currentFact: "",
-    source: "admin",
-    freshness: "current",
-    keywords: [label],
-  }));
-  const navigation =
-    workspace === "life" ? (
-      <SideNavSection title="Data" isHeaderHidden>
-        {lifeEntries.map((item, index) => (
-          <SideNavItem
-            key={item.id}
-            label={item.id === "life-nav:overview" ? "Overview" : item.label}
-            href={item.href}
-            icon={React.createElement(lifeIcons[index]!, {
-              size: 18,
-              "aria-hidden": true,
-            })}
-            isSelected={isActive(currentRoute, item.href)}
-          />
-        ))}
-      </SideNavSection>
-    ) : (
-      <SideNavSection title="Observability" isHeaderHidden>
-        <SideNavItem
-          label="Machines"
-          href="/operations/observability?view=machines"
-          icon={<DesktopIcon size={18} aria-hidden="true" />}
-          isSelected={
-            isActive(currentRoute, "/operations/observability?view=machines") ||
-            (currentRoute.split("?")[0] === "/operations/observability" &&
-              !new URLSearchParams(currentRoute.split("?")[1]).has("view"))
-          }
-        />
-        <SideNavItem
-          label="Loops"
-          href="/operations/observability?view=loops"
-          icon={<ArrowsClockwiseIcon size={18} aria-hidden="true" />}
-          isSelected={isActive(
-            currentRoute,
-            "/operations/observability?view=loops",
-          )}
-        />
-      </SideNavSection>
-    );
+  const workspace = workspaceForPath(currentRoute.split("?")[0] ?? "");
   return (
-    <Theme theme={workspaceThemes[workspace]} mode={mode}>
+    <Theme theme={shellTheme} mode={mode}>
       <EditorialWorkspaceShell
         area="content"
         workspace={workspace}
         mode={mode}
         changeTheme={changeTheme}
-        siteHref="https://anipotts.com"
         localPreview={localPreview}
         localOwner={localOwner}
-        navigationContent={navigation}
-        palette={
-          workspace === "life" ? (
-            <AdminCommandPalette
-              entries={lifeEntries}
-              navItems={[]}
-              showTrigger={false}
-            />
-          ) : (
-            <OperationalCommandPalette
-              navItems={operationalItems}
-              showTrigger={false}
-            />
-          )
-        }
+        currentRoute={currentRoute}
+        searchEntries={searchEntries}
       >
         <VStack gap={4} className="admin-page-frame">
-          {!hideHeader && (
-            <header className="page-header">
-              <h1>{title}</h1>
-              {deck && (
-                <Text as="p" type="supporting">
-                  {deck}
-                </Text>
-              )}
-            </header>
-          )}
           <section className="admin-page-content">{children}</section>
         </VStack>
       </EditorialWorkspaceShell>
     </Theme>
   );
-}
-
-function isActive(currentRoute: string, href: string): boolean {
-  const [currentPath, currentQuery = ""] = currentRoute.split("?");
-  const [targetPath, targetQuery = ""] = href.split("?");
-  const canonicalCurrentPath = currentPath;
-  const currentParams = new URLSearchParams(currentQuery);
-
-  if (targetQuery) {
-    const targetParams = new URLSearchParams(targetQuery);
-    return (
-      canonicalCurrentPath === targetPath &&
-      [...targetParams].every(
-        ([key, value]) => currentParams.get(key) === value,
-      )
-    );
-  }
-
-  if (href === "/knowledge") {
-    return canonicalCurrentPath === "/knowledge" && !currentParams.has("kind");
-  }
-  return canonicalCurrentPath === href;
 }

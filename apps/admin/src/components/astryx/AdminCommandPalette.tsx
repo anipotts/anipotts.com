@@ -4,6 +4,7 @@ import {
   CommandPalette,
   CommandPaletteInput,
   CommandPaletteFooter,
+  useCommandPaletteContext,
 } from "@astryxdesign/core/CommandPalette";
 import type {
   SearchableItem,
@@ -11,82 +12,132 @@ import type {
 } from "@astryxdesign/core/Typeahead";
 import { Button } from "@astryxdesign/core/Button";
 import { HStack } from "@astryxdesign/core/HStack";
-import { VStack } from "@astryxdesign/core/VStack";
 import { Text } from "@astryxdesign/core/Text";
-import { ArrowRightIcon, MagnifyingGlassIcon } from "../admin-icons";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  BriefcaseIcon,
+  BrowserIcon,
+  EnvelopeSimpleIcon,
+  FileTextIcon,
+  KeyReturnIcon,
+  PencilSimpleIcon,
+  XIcon,
+  type Icon,
+} from "@phosphor-icons/react";
 import "./CommandPalette.css";
-import type { NavItem } from "../../data/admin";
+import "../brand-tile.css";
 import {
   searchAdminResults,
   type AdminSearchResult,
 } from "../../data/admin-search";
+import { providedSearchEntries } from "../../lib/admin-search-index";
+import {
+  overviewDestination,
+  sidebarGroups,
+  sidebarSearchEntries,
+} from "./UnifiedSidebar";
 
-type SearchItem = SearchableItem<AdminSearchResult & { group: string }>;
-
-type Props = {
-  navItems: NavItem[];
-  searchableNavItems?: NavItem[];
-  showTrigger?: boolean;
-  entries?: AdminSearchResult[];
-  loadEntries?: () => Promise<AdminSearchResult[]>;
-  compact?: boolean;
-  scope?: "editorial" | "operational";
+/** A command the palette runs in place instead of opening a page. */
+export type PaletteAction = {
+  id: string;
+  label: string;
+  icon: Icon;
+  keywords?: readonly string[];
+  run: () => void;
 };
 
-const titleCase = (value: string) =>
-  value.charAt(0).toUpperCase() + value.slice(1);
-const EMPTY_NAV_ITEMS: NavItem[] = [];
+type Row = AdminSearchResult & { group: string; icon: Icon; run?: () => void };
+type SearchItem = SearchableItem<Row>;
 
-function navResults(navItems: NavItem[]): AdminSearchResult[] {
-  return navItems.map((item) => ({
-    id: `nav:${item.href}`,
-    label: item.label,
+/** Each row leads with the glyph of what it opens: a destination's own
+ * sidebar icon, or the kind of Content record. */
+const DESTINATION_GLYPHS = new Map<string, Icon>([
+  [overviewDestination.href, overviewDestination.icon],
+  ...sidebarGroups.flatMap((group) =>
+    group.items.map((item) => [item.href, item.icon] as const),
+  ),
+]);
+const KIND_GLYPHS: Readonly<Record<string, Icon>> = {
+  pages: BrowserIcon,
+  writing: PencilSimpleIcon,
+  projects: BriefcaseIcon,
+  newsletter: EnvelopeSimpleIcon,
+};
+const GROUPS: Readonly<Record<string, string>> = {
+  navigation: "Go to",
+  content: "Content",
+  data: "Data",
+  system: "Observability",
+};
+
+function toRow(entry: AdminSearchResult): Row {
+  return {
+    ...entry,
+    group: GROUPS[entry.domain] ?? "Results",
+    icon:
+      entry.icon ??
+      DESTINATION_GLYPHS.get(entry.href) ??
+      KIND_GLYPHS[entry.kind] ??
+      FileTextIcon,
+  };
+}
+
+function actionRows(actions: readonly PaletteAction[]): Row[] {
+  return actions.map(({ id, label, icon, keywords = [], run }) => ({
+    id: `action:${id}`,
+    label,
     domain: "navigation",
-    kind: item.parent ? item.parent : "destination",
-    currentFact: item.description,
+    kind: "action",
+    currentFact: "",
     source: "admin",
     freshness: "current",
-    href: item.href,
-    keywords: [item.group, item.status, item.parent ?? ""],
+    href: "",
+    keywords: [...keywords],
+    group: "Actions",
+    icon,
+    run,
   }));
 }
 
-function toSearchItems(results: AdminSearchResult[]): SearchItem[] {
-  return results.map((row) => ({
-    id: row.id,
-    label: row.label,
-    auxiliaryData: {
-      ...row,
-      group: row.domain === "navigation" ? "Go to" : titleCase(row.domain),
-    },
-  }));
+const toItems = (rows: Row[]): SearchItem[] =>
+  rows.map((row) => ({ id: row.id, label: row.label, auxiliaryData: row }));
+
+/**
+ * Typing highlights the first result, so Return (or a phone keyboard's Go,
+ * which has no arrow keys) runs the best match. The empty palette keeps no
+ * highlight, so its first destination is never preselected.
+ */
+function HighlightFirstResult() {
+  const palette = useCommandPaletteContext();
+  const search = palette?.search.trim() ?? "";
+  const first = palette?.selectableItems[0]?.value;
+  const highlight = palette?.setHighlightedIndex;
+  useEffect(() => {
+    if (search && first !== undefined) highlight?.(0);
+  }, [search, first, highlight]);
+  return null;
 }
 
+/**
+ * The one command palette, mounted once by the shell and opened with Cmd+K,
+ * Ctrl+K or the `admin:search` event (the sidebar and phone search buttons).
+ * It finds every sidebar destination, whatever the workspaces have provided
+ * (lib/admin-search-index.ts) and the shell's actions. Choosing a page moves
+ * within the document when the mounted island draws it.
+ */
 export function AdminCommandPalette({
-  navItems,
-  searchableNavItems = EMPTY_NAV_ITEMS,
   entries,
-  loadEntries,
-  compact = false,
-  scope = "operational",
-  showTrigger = true,
-}: Props) {
+  actions = [],
+}: {
+  /** Rows beyond the sidebar destinations and the provided sources. */
+  entries?: readonly AdminSearchResult[];
+  actions?: readonly PaletteAction[];
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const queryRef = useRef("");
-  const hrefs = useRef(new Map<string, string>());
-  const staticRows = useMemo(
-    () => [
-      ...navResults(navItems),
-      ...navResults(searchableNavItems),
-      ...(entries ?? []),
-    ],
-    [navItems, searchableNavItems, entries],
-  );
-  const [loadError, setLoadError] = useState("");
-  const [attempt, setAttempt] = useState(0);
-  const loaded = useRef(false);
-  const loading = useRef<Promise<void> | null>(null);
+  const rows = useRef(new Map<string, Row>());
   const previousFocus = useRef<HTMLElement | null>(null);
   const wasOpen = useRef(false);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -108,50 +159,32 @@ export function AdminCommandPalette({
     document.addEventListener("focusin", preserveLaterFocus);
     return () => document.removeEventListener("focusin", preserveLaterFocus);
   }, []);
-  const liveRows = useRef<AdminSearchResult[]>([]);
 
   const source = useMemo<SearchSource<SearchItem>>(() => {
-    const load = async () => {
-      if (!loadEntries || loaded.current) return;
-      loading.current ??= loadEntries()
-        .then((rows) => {
-          liveRows.current = rows;
-          loaded.current = true;
-          setLoadError("");
-        })
-        .catch(() => {
-          setLoadError(
-            "Operational search is unavailable. Navigation is still available.",
-          );
-          loaded.current = true;
-        })
-        .finally(() => {
-          loading.current = null;
-        });
-      await loading.current;
+    const index = () => [
+      ...sidebarSearchEntries.map(toRow),
+      ...(entries ?? []).map(toRow),
+      ...providedSearchEntries().map(toRow),
+    ];
+    const commands = actionRows(actions);
+    const remember = (found: Row[]) => {
+      rows.current = new Map(found.map((row) => [row.id, row]));
+      return toItems(found);
     };
+    const find = (text: string) => [
+      ...(searchAdminResults(index(), text) as Row[]),
+      ...(searchAdminResults(commands, text) as Row[]),
+    ];
     return {
-      async bootstrap() {
-        await load();
-        const rows = [...staticRows, ...liveRows.current];
-        hrefs.current = new Map(rows.map((row) => [row.id, row.href]));
-        return toSearchItems(
+      bootstrap: () =>
+        remember(
           queryRef.current
-            ? searchAdminResults(rows, queryRef.current)
-            : [...navResults(navItems), ...(entries ?? [])].slice(0, 18),
-        );
-      },
-      async search(query) {
-        await load();
-        const rows = searchAdminResults(
-          [...staticRows, ...liveRows.current],
-          query,
-        );
-        hrefs.current = new Map(rows.map((row) => [row.id, row.href]));
-        return toSearchItems(rows);
-      },
+            ? find(queryRef.current)
+            : [...sidebarSearchEntries.map(toRow), ...commands],
+        ),
+      search: (text) => remember(find(text)),
     };
-  }, [staticRows, navItems, entries, loadEntries, attempt]);
+  }, [entries, actions]);
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -191,10 +224,37 @@ export function AdminCommandPalette({
     // The installed input schedules uncancelled animation-frame autofocus.
     // Own it here, after the child opens its native dialog, so a rapid close
     // cannot leave a delayed opening callback that steals restored focus.
-    if (isOpen && dialog.current?.open) {
-      input.current?.focus({ preventScroll: true });
+    const field = input.current;
+    if (isOpen && dialog.current?.open && field) {
+      // A search keyboard with no capitals or corrections. The Astryx input
+      // types none of these attributes, so they are set on the element.
+      field.inputMode = "search";
+      field.enterKeyHint = "go";
+      field.autocapitalize = "none";
+      field.spellcheck = false;
+      field.setAttribute("autocorrect", "off");
+      field.focus({ preventScroll: true });
     }
-  }, [isOpen, attempt]);
+  }, [isOpen]);
+
+  useEffect(() => {
+    // On a phone the keyboard covers the bottom of the screen; the palette
+    // keeps to what the visual viewport leaves above it.
+    const viewport = window.visualViewport;
+    if (!isOpen || !viewport) return;
+    const root = document.documentElement;
+    const fit = () =>
+      root.style.setProperty(
+        "--admin-visual-viewport-height",
+        `${Math.round(viewport.height)}px`,
+      );
+    fit();
+    viewport.addEventListener("resize", fit);
+    return () => {
+      viewport.removeEventListener("resize", fit);
+      root.style.removeProperty("--admin-visual-viewport-height");
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (wasOpen.current && !isOpen) {
@@ -219,144 +279,111 @@ export function AdminCommandPalette({
   }, [isOpen]);
 
   return (
-    <>
-      {showTrigger ? (
-        <Button
-          label={scope === "editorial" ? "Search content" : "Search admin"}
-          tooltip="Search (⌘K / Ctrl+K)"
-          size="sm"
-          isIconOnly={compact}
-          icon={<MagnifyingGlassIcon size={18} aria-hidden="true" />}
-          aria-keyshortcuts="Meta+K Control+K"
-          onClick={() => {
-            previousFocus.current = document.activeElement as HTMLElement;
-            setIsOpen(true);
+    <CommandPalette
+      ref={dialog}
+      onKeyDownCapture={(event) => {
+        // Keep composition cancellation inside the input; the palette input's
+        // Escape handler runs before the dialog's own composition guard.
+        if (event.key === "Escape" && event.nativeEvent.isComposing)
+          event.stopPropagation();
+      }}
+      className="admin-command-palette-centered"
+      isOpen={isOpen}
+      onOpenChange={(open) => {
+        closing.current = !open;
+        if (!open) {
+          const active = document.activeElement;
+          dismissalFocus.current =
+            active instanceof HTMLElement &&
+            active !== document.body &&
+            !dialog.current?.contains(active)
+              ? active
+              : null;
+        }
+        setIsOpen(open);
+        if (!open) {
+          queryRef.current = "";
+          setQuery("");
+        }
+      }}
+      searchSource={source}
+      input={
+        <CommandPaletteInput
+          ref={input}
+          hasAutoFocus={false}
+          endContent={
+            <Button
+              className="admin-palette-clear"
+              data-empty={!query}
+              aria-hidden={!query}
+              tabIndex={query ? 0 : -1}
+              isDisabled={!query}
+              isIconOnly
+              label="Clear search"
+              size="md"
+              variant="ghost"
+              icon={<XIcon size={18} aria-hidden="true" />}
+              onClick={() => {
+                queryRef.current = "";
+                setQuery("");
+                input.current?.focus({ preventScroll: true });
+              }}
+            />
+          }
+          value={query}
+          onChange={(event) => {
+            queryRef.current = event.currentTarget.value;
+            setQuery(event.currentTarget.value);
           }}
+          placeholder="Search admin"
         />
-      ) : null}
-      <CommandPalette
-        ref={dialog}
-        onKeyDownCapture={(event) => {
-          // Keep composition cancellation inside the input; the palette input's
-          // Escape handler runs before the dialog's own composition guard.
-          if (event.key === "Escape" && event.nativeEvent.isComposing)
-            event.stopPropagation();
-        }}
-        key={attempt}
-        className="admin-command-palette-centered"
-        isOpen={isOpen}
-        onOpenChange={(open) => {
-          closing.current = !open;
-          if (!open) {
-            const active = document.activeElement;
-            dismissalFocus.current =
-              active instanceof HTMLElement &&
-              active !== document.body &&
-              !dialog.current?.contains(active)
-                ? active
-                : null;
-          }
-          setIsOpen(open);
-          if (!open) {
-            queryRef.current = "";
-            setQuery("");
-          }
-        }}
-        searchSource={source}
-        input={
-          <CommandPaletteInput
-            ref={input}
-            hasAutoFocus={false}
-            endContent={
-              <Button
-                className="admin-palette-clear"
-                data-empty={!query}
-                aria-hidden={!query}
-                tabIndex={query ? 0 : -1}
-                isDisabled={!query}
-                label="Clear"
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  queryRef.current = "";
-                  setQuery("");
-                  input.current?.focus({ preventScroll: true });
-                }}
-              />
-            }
-            value={query}
-            onChange={(event) => {
-              queryRef.current = event.currentTarget.value;
-              setQuery(event.currentTarget.value);
-            }}
-            placeholder={
-              scope === "editorial" ? "Search content" : "Search admin"
-            }
-          />
-        }
-        label="Search admin"
-        width="min(600px, calc(100vw - 2 * var(--spacing-4)))"
-        maxHeight="min(520px, 80dvh)"
-        footer={
-          <VStack gap={0}>
-            {loadError ? (
-              <HStack gap={3} vAlign="center" className="admin-palette-error">
-                <Text role="status" color="secondary">
-                  Search unavailable
-                </Text>
-                <Button
-                  label="Retry search"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    loaded.current = false;
-                    setLoadError("");
-                    setAttempt((value) => value + 1);
-                  }}
-                />
-              </HStack>
-            ) : null}
-            <CommandPaletteFooter />
-          </VStack>
-        }
-        onValueChange={(id) => {
-          const href = hrefs.current.get(id);
-          if (href) navigateAdmin(href);
-        }}
-        renderItem={(item) => (
+      }
+      label="Search admin"
+      width="min(600px, calc(100vw - 2 * var(--spacing-3)))"
+      maxHeight="var(--admin-palette-max-height)"
+      footer={
+        // Keycaps drawn with glyphs, not the text arrows Astryx's hints use.
+        <CommandPaletteFooter className="admin-palette-keys">
+          <HighlightFirstResult />
+          <span className="admin-palette-key">
+            <kbd aria-label="Up arrow">
+              <ArrowUpIcon size={12} aria-hidden="true" />
+            </kbd>
+            <kbd aria-label="Down arrow">
+              <ArrowDownIcon size={12} aria-hidden="true" />
+            </kbd>
+            Move
+          </span>
+          <span className="admin-palette-key">
+            <kbd aria-label="Return">
+              <KeyReturnIcon size={12} aria-hidden="true" />
+            </kbd>
+            Open
+          </span>
+          <span className="admin-palette-key">
+            <kbd>esc</kbd>
+            Close
+          </span>
+        </CommandPaletteFooter>
+      }
+      onValueChange={(id) => {
+        const row = rows.current.get(id);
+        if (row?.run) row.run();
+        else if (row?.href) navigateAdmin(row.href);
+      }}
+      renderItem={(item) => {
+        const Glyph = item.auxiliaryData?.icon ?? FileTextIcon;
+        return (
           <HStack gap={3} vAlign="center" className="admin-palette-result">
-            <VStack gap={1} className="admin-palette-result-copy">
-              <Text weight="semibold">{item.label}</Text>
-              {item.auxiliaryData?.domain !== "navigation" &&
-              item.auxiliaryData?.currentFact ? (
-                <Text
-                  type="supporting"
-                  color="secondary"
-                  className="admin-palette-result-description"
-                >
-                  {item.auxiliaryData?.currentFact}
-                </Text>
-              ) : null}
-            </VStack>
-            {item.auxiliaryData?.domain !== "navigation" ? (
-              <Text
-                type="supporting"
-                color="secondary"
-                className="admin-palette-result-kind"
-              >
-                {item.auxiliaryData?.kind}
-              </Text>
-            ) : (
-              <ArrowRightIcon
-                aria-hidden="true"
-                className="admin-palette-result-arrow"
-              />
-            )}
+            <span className="brand-tile admin-palette-tile" aria-hidden="true">
+              <Glyph className="brand-tile-glyph" weight="regular" />
+            </span>
+            <Text className="admin-palette-result-label">{item.label}</Text>
           </HStack>
-        )}
-        emptySearchText="No matches"
-        emptyBootstrapText="No available destinations"
-      />
-    </>
+        );
+      }}
+      emptySearchText="No matches"
+      emptyBootstrapText="Nothing to open"
+    />
   );
 }

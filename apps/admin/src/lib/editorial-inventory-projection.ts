@@ -1,5 +1,6 @@
+import { libraryPath } from "./content-library-state";
 import { editorialRecordSummary } from "./editorial-record-summary";
-import { createHash } from "node:crypto";
+import { gitBlobSha1 } from "./crypto";
 import {
   editorialRecordPath,
   editorialRecordSchema,
@@ -18,6 +19,11 @@ export type InventoryEntry = {
   /** Set when the content store holds this record, so a hidden state there
    * means it was published and then taken off the site. */
   published?: boolean;
+  /** When the content store last published this record. */
+  publishedAt?: string;
+  /** The content store's id for that publication. The Git seed's are
+   * `git-seed.<kind>.<id>` (scripts/content/content-d1-seed.mjs). */
+  publicationId?: string;
 };
 export type ProjectedRecord = CatalogRecord & {
   collection: string;
@@ -57,17 +63,50 @@ export function inventoryIdentity(
   });
   return parsed.success ? parsed.data : null;
 }
-function sourceHash(source: string) {
-  const bytes = Buffer.from(source);
-  return createHash("sha1")
-    .update(`blob ${bytes.length}\0`)
-    .update(bytes)
-    .digest("hex");
-}
 function timestamp(value: number): string | undefined {
   return Number.isFinite(value) && !Number.isNaN(new Date(value).getTime())
     ? new Date(value).toISOString()
     : undefined;
+}
+/** The Git seed's publication ids (scripts/content/content-d1-seed.mjs
+ * SEED_ID_PREFIX): the store's first copy of each Git file, stamped with the
+ * moment the seed ran, not a publish. */
+export const SEED_PUBLICATION_PREFIX = "git-seed.";
+
+/** Whether a publication is a real one: an edit or publish through the
+ * editor, never the Git seed's copy. */
+export function editorPublication(publicationId: string | undefined): boolean {
+  return (
+    typeof publicationId === "string" &&
+    publicationId !== "" &&
+    !publicationId.startsWith(SEED_PUBLICATION_PREFIX)
+  );
+}
+
+/** A record's public state that keeps it on the site. */
+const LIVE_STATES = new Set(["published", "featured", "listed"]);
+
+/**
+ * The time a Content row reads: the newer of the content store's publish and
+ * the last Git change. Only a real publication counts; a seeded revision
+ * keeps its Git time, since the seed's stamp is when the seed ran. A real
+ * publication that took the record off the site reads "Hidden from site",
+ * never Published. An older publish never hides a newer commit.
+ */
+export function latestPublishedUpdate(
+  publication: { publishedAt?: string; publicationId?: string } | undefined,
+  git: CatalogRecord["updated"],
+  status?: string,
+): CatalogRecord["updated"] {
+  if (!publication || !editorPublication(publication.publicationId)) return git;
+  const cms = Date.parse(publication.publishedAt ?? "");
+  if (!Number.isFinite(cms)) return git;
+  const gitAt = Date.parse(git?.at ?? "");
+  if (Number.isFinite(gitAt) && gitAt >= cms) return git;
+  return {
+    at: new Date(cms).toISOString(),
+    source: status !== undefined && !LIVE_STATES.has(status) ? "hidden" : "cms",
+  };
 }
 function metadata(source: string): Record<string, unknown> {
   try {
@@ -209,12 +248,9 @@ export function projectEditorialInventory(
     if (!identity) return;
     const draft = privateByPath.get(editorialRecordPath(identity));
     const data = draft ? metadata(draft.source) : {};
-    const publishedUpdated = isPrivateOnly
-      ? undefined
-      : updated(entry.collection, entry.id);
     const privateUpdatedAt = draft ? timestamp(draft.updatedAt) : undefined;
     const changesPending = Boolean(
-      draft && sourceHash(draft.source) !== draft.baseFileHash,
+      draft && gitBlobSha1(draft.source) !== draft.baseFileHash,
     );
     const status = isPrivateOnly
       ? "draft"
@@ -229,6 +265,13 @@ export function projectEditorialInventory(
               entry.collection === "newsletterPage"
             ? (text(entry.data.status) ?? "draft")
             : "published";
+    const publishedUpdated = isPrivateOnly
+      ? undefined
+      : latestPublishedUpdate(
+          entry.published ? entry : undefined,
+          updated(entry.collection, entry.id),
+          status,
+        );
     const rawVisibility =
       entry.collection === "projects" ? data.public_state : data.status;
     const visibilityValues =
@@ -279,30 +322,59 @@ export function projectEditorialInventory(
   return [...records.values()];
 }
 
-export function editorialInventoryGroups(records: ProjectedRecord[]) {
+/** Newsletter issues are read-only here: the row opens the issue's review
+ * page, and the issue's own status is its only state. */
+export function newsletterRecords(
+  entries: Array<{ id: string; data: Record<string, unknown> }>,
+  updated: (collection: string, id: string) => CatalogRecord["updated"] = () =>
+    undefined,
+): ProjectedRecord[] {
+  return entries.map(({ id, data }) => ({
+    collection: "newsletterDrafts",
+    id,
+    title: text(data.title) ?? id,
+    summary: text(data.summary) ?? "",
+    section: "newsletter",
+    status: text(data.status) ?? "draft",
+    href: `/newsletter/${encodeURIComponent(text(data.slug) ?? id)}`,
+    updated: updated("newsletterDrafts", id),
+    changesPending: false,
+    capabilities: { editable: false, previewable: false, reviewOnly: true },
+  }));
+}
+
+export function editorialInventoryGroups(
+  records: ProjectedRecord[],
+  newsletter: ProjectedRecord[] = [],
+) {
   return [
-    { name: "pages", href: "/content?group=pages", records },
+    { name: "pages", href: libraryPath("pages"), records },
     {
       name: "website",
-      href: "/content?group=website",
+      href: libraryPath("website"),
       records: records.filter(
         (record) => !["writing", "projects"].includes(record.collection),
       ),
     },
     {
       name: "work",
-      href: "/content?group=work",
+      href: libraryPath("work"),
       records: records.filter((record) => record.collection === "projects"),
     },
     {
       name: "writing",
-      href: "/content?group=writing",
+      href: libraryPath("writing"),
       records: records.filter((record) => record.collection === "writing"),
     },
     {
       name: "systems",
-      href: "/content?group=systems",
+      href: libraryPath("systems"),
       records: records.filter((record) => record.collection === "systemsPage"),
+    },
+    {
+      name: "newsletter",
+      href: libraryPath("newsletter"),
+      records: newsletter,
     },
   ];
 }
@@ -311,7 +383,10 @@ export function editorialInventorySearch(records: ProjectedRecord[]) {
     id: `content:${record.collection}:${record.id}`,
     label: record.title,
     domain: "content" as const,
-    kind: record.collection,
+    kind:
+      record.collection === "newsletterDrafts"
+        ? "newsletter"
+        : record.collection,
     currentFact: record.changesPending
       ? `${record.status}; changes pending`
       : record.status,

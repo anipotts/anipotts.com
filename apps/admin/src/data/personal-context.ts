@@ -1,26 +1,32 @@
 import { PersonalContextHttpError } from "./personal-context-http";
-import { applyActivityPage, emptyActivity } from "../lib/life-activity";
+import { applyActivityPage, emptyActivity } from "../lib/data-activity";
+import { READER_KINDS, type ReaderKind } from "../lib/data-routes";
+import {
+  IssuanceTimeoutError,
+  ReaderNoReplyError,
+  type ReaderHop,
+} from "../lib/reader-reach";
 /** Transport-neutral reads. Wiring a private transport requires separate access approval. */
-export const LIFE_DEFAULTS = {
+export const DATA_READ_DEFAULTS = {
   mode: "lookup",
   budget: 3000,
   recent_days: 7,
   limit: 30,
 } as const;
-export type LifeRead =
+export type DataRead =
   | { method: "status" }
   | { method: "sources"; offset?: number }
   | {
       method: "search";
       q: string;
-      kind?: "person" | "project" | "place";
+      kind?: ReaderKind;
       offset?: number;
     }
   | { method: "timeline"; entity_id?: string; offset?: number }
   | { method: "get"; id: string; body_offset?: number }
   | { method: "preview"; q: string }
   | { method: "activity"; after?: number };
-export type LifeResult =
+export type DataResult =
   | {
       state: "ready";
       scope: "agent" | "owner";
@@ -32,20 +38,32 @@ export type LifeResult =
       state:
         "disconnected" | "unavailable" | "denied" | "invalid" | "not_found";
       message: string;
+      /** For `unavailable`: the hop that failed, where it is known
+       * (lib/reader-reach.ts). `unissued` is a renewal admin could not
+       * issue in time. */
+      hop?: ReaderHop;
     };
-export type LifeTransport = {
+export type DataTransport = {
   protocol?: "personal_context_data_v1" | "personal_context_observability_v1";
   scope: "agent" | "owner";
   /**
    * Maps a validated read to this transport's route. Defaults to the loopback
    * owner browser's `/api/*` shape. Throwing means the read is unsupported.
    */
-  path?: (request: LifeRead) => string;
-  /** Enforce the byte cap while reading, before decoding an untrusted body. */
-  read: (path: string, signal: AbortSignal) => Promise<unknown>;
+  path?: (request: DataRead) => string;
+  /** Enforce the byte cap while reading, before decoding an untrusted body.
+   * `hold` runs a credential renewal outside the read's deadline. */
+  read: (
+    path: string,
+    signal: AbortSignal,
+    hold?: <T>(work: () => Promise<T>) => Promise<T>,
+  ) => Promise<unknown>;
 };
+
+/** The reader's deadline, and admin's issuance deadline beside it. */
+const READ_DEADLINE_MS = 5000;
 async function readWithDeadline(
-  transport: LifeTransport,
+  transport: DataTransport,
   path: string,
   parent?: AbortSignal,
 ) {
@@ -54,14 +72,49 @@ async function readWithDeadline(
     ? AbortSignal.any([parent, controller.signal])
     : controller.signal;
   signal.throwIfAborted();
+  let timedOut = false;
   let rejectAbort: () => void = () => {};
   const aborted = new Promise<never>((_, reject) => {
-    rejectAbort = () => reject(new Error("Read cancelled"));
+    // The deadline passing is a request that went out and got no reply.
+    rejectAbort = () =>
+      reject(
+        timedOut && !parent?.aborted
+          ? new ReaderNoReplyError("timeout")
+          : new Error("Read cancelled"),
+      );
     signal.addEventListener("abort", rejectAbort, { once: true });
   });
-  const timer = setTimeout(() => controller.abort(), 5000);
+  // The deadline runs only while a request to ap-mini is out: a 401's
+  // renewal is admin's own hop, under its own deadline, so a slow issuance
+  // never reads as ap-mini unreachable (A-26).
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const arm = () => {
+    timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, READ_DEADLINE_MS);
+  };
+  const hold = async <T>(work: () => Promise<T>): Promise<T> => {
+    clearTimeout(timer);
+    let limit: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        work(),
+        new Promise<never>((_, reject) => {
+          limit = setTimeout(
+            () => reject(new IssuanceTimeoutError()),
+            READ_DEADLINE_MS,
+          );
+        }),
+      ]);
+    } finally {
+      clearTimeout(limit);
+      arm();
+    }
+  };
+  arm();
   try {
-    return await Promise.race([transport.read(path, signal), aborted]);
+    return await Promise.race([transport.read(path, signal, hold), aborted]);
   } finally {
     clearTimeout(timer);
     signal.removeEventListener("abort", rejectAbort);
@@ -73,7 +126,7 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 const isCursor = (value: unknown) =>
   typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-export function nextLifeOffset(value: unknown, current = 0): number | null {
+export function nextDataOffset(value: unknown, current = 0): number | null {
   if (value === null) return null;
   if (
     !isCursor(value) ||
@@ -84,7 +137,7 @@ export function nextLifeOffset(value: unknown, current = 0): number | null {
   return Number(value);
 }
 function validResponse(
-  request: LifeRead,
+  request: DataRead,
   data: Record<string, unknown>,
   versioned = false,
 ): boolean {
@@ -154,23 +207,23 @@ const query = (value: string) => {
     throw new Error("Invalid query");
   return value;
 };
-export function lifeReadPath(request: LifeRead): string {
+export function dataReadPath(request: DataRead): string {
   const params = new URLSearchParams();
   let path: string = request.method;
   switch (request.method) {
     case "search":
       params.set("q", query(request.q));
       if (request.kind) {
-        if (!["person", "project", "place"].includes(request.kind))
+        if (!(READER_KINDS as readonly string[]).includes(request.kind))
           throw new Error("Invalid kind");
         params.set("kind", request.kind);
       }
-      params.set("limit", String(LIFE_DEFAULTS.limit));
+      params.set("limit", String(DATA_READ_DEFAULTS.limit));
       params.set("offset", String(integer(request.offset)));
       break;
     case "timeline":
       if (request.entity_id) params.set("entity_id", query(request.entity_id));
-      params.set("limit", String(LIFE_DEFAULTS.limit));
+      params.set("limit", String(DATA_READ_DEFAULTS.limit));
       params.set("offset", String(integer(request.offset)));
       break;
     case "get":
@@ -182,16 +235,16 @@ export function lifeReadPath(request: LifeRead): string {
       break;
     case "preview":
       params.set("q", query(request.q));
-      params.set("mode", LIFE_DEFAULTS.mode);
-      params.set("budget", String(LIFE_DEFAULTS.budget));
-      params.set("recent_days", String(LIFE_DEFAULTS.recent_days));
+      params.set("mode", DATA_READ_DEFAULTS.mode);
+      params.set("budget", String(DATA_READ_DEFAULTS.budget));
+      params.set("recent_days", String(DATA_READ_DEFAULTS.recent_days));
       break;
     case "activity":
       params.set("after", String(integer(request.after)));
       params.set("limit", "100");
       break;
     case "sources":
-      params.set("limit", String(LIFE_DEFAULTS.limit));
+      params.set("limit", String(DATA_READ_DEFAULTS.limit));
       params.set("offset", String(integer(request.offset)));
       break;
     case "status":
@@ -202,13 +255,13 @@ export function lifeReadPath(request: LifeRead): string {
   return `/api/${path}${params.size ? `?${params}` : ""}`;
 }
 export async function readPersonalContext(
-  request: LifeRead,
-  transport?: LifeTransport,
+  request: DataRead,
+  transport?: DataTransport,
   signal?: AbortSignal,
-): Promise<LifeResult> {
+): Promise<DataResult> {
   let path: string;
   try {
-    path = lifeReadPath(request);
+    path = dataReadPath(request);
   } catch {
     return {
       state: "invalid",
@@ -285,6 +338,7 @@ export async function readPersonalContext(
     )
       return {
         state: "unavailable",
+        hop: "reader",
         message:
           "The canonical source is unavailable. This is not an empty record collection.",
       };
@@ -318,6 +372,7 @@ export async function readPersonalContext(
     if ("error" in data)
       return {
         state: "unavailable",
+        hop: "reader",
         message: "The source could not complete this read.",
       };
     if (
@@ -372,9 +427,25 @@ export async function readPersonalContext(
           message: "The source rejected this read request.",
         };
     }
+    if (error instanceof IssuanceTimeoutError)
+      return {
+        state: "unavailable",
+        hop: "unissued",
+        message: "Admin could not issue a credential in time.",
+      };
+    if (error instanceof ReaderNoReplyError)
+      return {
+        state: "unavailable",
+        hop: error.hop,
+        message:
+          "PersonalContext could not be reached. Try again when the source is available.",
+      };
     // Provider errors can contain source paths or private payloads. Never forward them.
     return {
       state: "unavailable",
+      ...(error instanceof PersonalContextHttpError
+        ? { hop: "reader" as const }
+        : {}),
       message:
         "PersonalContext could not be reached. Try again when the source is available.",
     };

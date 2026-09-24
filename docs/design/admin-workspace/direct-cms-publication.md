@@ -1,7 +1,7 @@
 # Direct CMS publication
 
-Status: the public reader serves from the content store (`CONTENT_RUNTIME = "cms"`). `claude/direct-publish-unpublish` switches the admin to `EDITORIAL_PUBLISH_MODE = "direct"` and adds per-record unpublish; it takes effect only when that change is reviewed, merged and deployed.
-This supersedes GitHub pull requests and site deployments as the normal content publication workflow. GitHub remains the software review and release system. The existing Quiet Precision contract remains applicable to appearance, private history and recovery.
+Status: the public reader serves from the content store (`CONTENT_RUNTIME = "cms"`) and the admin publishes directly, including per-record unpublish. The direct publisher is the only publisher; the repository (GitHub pull request) publisher was removed on 2026-09-22.
+This replaces GitHub pull requests and site deployments as the content publication workflow. GitHub remains the software review and release system. The existing Quiet Precision contract remains applicable to appearance, private history and recovery.
 
 ## The authoring flow
 
@@ -31,7 +31,7 @@ A later Git deployment cannot overwrite an existing CMS record. The public reade
 6. Reconcile the D1 receipt before every retry. A lost response cannot cause blind republishing. Update the private baseline without overwriting newer authored text.
 7. Verify public receipt identity, coherent rendered detail/discovery versions, and referenced public image hashes. Preserve incomplete verification truthfully after activation.
 
-The DO persists leases, backoff and terminal outcomes. Maintenance retains a bounded wake; disabled publishing blocks activation while committed effects can still reconcile. A missing media binding does not block private draft/status access. A browser timer only refreshes presentation.
+The DO persists leases, backoff and terminal outcomes. The kill switch (`EDITORIAL_PUBLISH_ENABLED = "false"`) blocks new activation and keeps a bounded wake, while committed effects still reconcile and verify. A missing `CONTENT_DB` binding keeps the wake without any external I/O. A missing media binding does not block private draft/status access. A browser timer only refreshes presentation.
 
 Scope is one reviewed record per operation. This does not implement atomic multi-record publication. Scheduling and URL changes wait for reviewed lifecycle/redirect ownership rather than silently taking partial effect. Drafts are preserved when an unsupported operation is refused. Limits remain 512 KiB source, ten editorial images and 10 MiB referenced image bytes per record.
 
@@ -47,35 +47,23 @@ Unpublish is the same durable operation with `action: "unpublish"`. It never del
 - Social cards are built at deploy time. Under the content store the www Worker serves `/social/writing-<slug>.png` only while that article is public at the current inventory, returns a no-store 404 with the version header otherwise, and makes a served card revalidate on every use.
 - Editor: a ghost Unpublish action (Phosphor EyeSlash) opens a compact inline confirmation; while hidden, the primary action reads Publish again. The Content library labels an unpublished record Hidden from site, apart from never-published drafts.
 
-## Deployment and transition
+## Deployment and controls
 
-Missing mode means legacy only for compatibility; unknown explicit values fail closed. The activation record below supersedes the original transition plan for the mode switch.
+The public reader has one mode: `CONTENT_RUNTIME` must be exactly `cms`, and a missing, `legacy` or any other value returns a no-store 503 on every content route. The bundled Git content is never a runtime source on its own.
 
-| Control                        | Values                                                                          |
-| ------------------------------ | ------------------------------------------------------------------------------- |
-| Admin `EDITORIAL_PUBLISH_MODE` | `legacy`, `maintenance`, `direct`                                               |
-| Public `CONTENT_RUNTIME`       | `legacy`, `cms`                                                                 |
-| Direct runtime bindings        | `CONTENT_DB`, `CONTENT_MEDIA`; never reuse shared `DB` as the publication store |
+| Control                           | Values                                                                          |
+| --------------------------------- | ------------------------------------------------------------------------------- |
+| Admin `EDITORIAL_PUBLISH_ENABLED` | `"true"` publishes; anything else is the kill switch                            |
+| Public `CONTENT_RUNTIME`          | `cms`                                                                           |
+| Runtime bindings                  | `CONTENT_DB`, `CONTENT_MEDIA`; never reuse shared `DB` as the publication store |
 
-Read-only provider verification on 2026-09-20 found dedicated D1 `anipotts-content` (`2679fc97-e251-46b7-ad01-db8b9fe04e8d`) with migration 0001 only and no active/publication rows. `anipotts-content-media` was private with no custom domain or r2.dev exposure and zero objects in provider metrics. Neither deployed app had these bindings. System recorded evidence in its existing consolidation handoff. This is resource inventory, not restore proof.
+`EDITORIAL_PUBLISH_MODE` and the GitHub App identity (`EDITORIAL_GITHUB_APP_ID`, `EDITORIAL_GITHUB_INSTALLATION_ID`) are no longer read. The retired publisher's private SQLite tables (`publications`, `publication_requests`, `publication_jobs`) stay in the Durable Object untouched; nothing reads or writes them. Its last signed manifest, `content/publication.json`, stays in the repository as content history.
 
-Activation gates, in order:
+The isolated release-test preflight uses `CONTENT_DB` and `CONTENT_MEDIA`, CMS reader mode and an admin with activation disabled. It explicitly rejects an active direct profile because the publisher verifies a fixed production origin. A run-owned verification target and real owner acceptance remain prerequisites for isolated cloud publishing proof.
 
-1. Review this implementation and required checks on its exact head. Preserve the current compatible software artifact.
-2. Prove isolated schema migration from 0001 to 0002 and an export/restore of exact draft/history/conflict/publication/media identities. Capture compatible app/schema identities. Existing provider PITR is not complete cross-store recovery proof.
-3. Prepare scoped resource bindings and dedicated migration controls in the existing release workflow. Do not run these migrations against `anipotts-db`.
-4. Deploy the compatible public reader and admin with direct writes disabled. Activate `CONTENT_RUNTIME=cms` only with verified schema/bindings and reader acceptance.
-5. Put the legacy publisher in maintenance. Inventory every unfinished job and inspect actual branch/PR/content effects before cancellation or reconciliation. Historical receipts remain. New direct operations reject unreconciled effectful legacy work.
-6. Enable direct publishing only after reader, recovery and owner acceptance. An actual public-content acceptance change requires Ani's approval.
-7. Record deployment versions, scoped targets, representative owner workflow and public verification. Retire legacy executable publishing after replacement acceptance and rollback compatibility are proven.
+Application rollback must retain a CMS-aware public reader. Content rollback creates a new reviewed publication. Database restore starts with the kill switch on, with pending work suspended for reconciliation. Restoring a draft never publishes it.
 
-Maintenance exposes owner-authenticated `legacy-publication` inspection and `cancel-legacy-publication` retirement independently of direct-mode dispatch. Retirement requires the exact operation, frozen revision and job version, and only accepts a never-claimed validation job with no lease, checkpoint or blocked state. Attempted or ambiguous jobs require separate effect reconciliation; an empty checkpoint alone is insufficient. Cancellation preserves the source, receipt and private history.
-
-The isolated release-test preflight now uses `CONTENT_DB` and `CONTENT_MEDIA`, CMS reader mode and a maintenance-mode admin with activation disabled. It explicitly rejects an active direct profile because the current publisher verifies a fixed production origin. A run-owned verification target and real owner acceptance remain prerequisites for isolated cloud publishing proof.
-
-The observed blocked chainedchat job was still in validation with `unreleased_public_changes`; a focused GitHub read found no matching current branch or PR. That alone is not exhaustive historical-effect proof and no production job was changed.
-
-After the first direct activation, application rollback must retain a CMS-aware public reader and publisher mode gates. Content rollback creates a new reviewed publication. Database restore starts in maintenance, with pending work suspended for reconciliation. Restoring a draft never publishes it.
+The activation records below are dated history. Where they name `EDITORIAL_PUBLISH_MODE`, maintenance or legacy jobs, those controls have since been removed.
 
 ## Direct activation, 2026-09-21
 
@@ -116,8 +104,8 @@ Time Travel restores to any minute in its retention window (30 days on the paid 
 Rollback, in order. Stop writes before restoring, and roll code back only if code regressed:
 
 ```bash
-# 1. stop publishing: set EDITORIAL_PUBLISH_MODE = "maintenance" in apps/admin/wrangler.toml and deploy,
-#    or roll the admin Worker back to the previous (maintenance) version
+# 1. stop publishing: set EDITORIAL_PUBLISH_ENABLED = "false" in apps/admin/wrangler.toml and deploy,
+#    or roll the admin Worker back to its previous version
 pnpm exec wrangler rollback --config apps/admin/wrangler.toml
 # 2. restore published content to the captured bookmark
 pnpm exec wrangler d1 time-travel restore anipotts-content --bookmark=<id> --config apps/admin/wrangler.toml
@@ -190,4 +178,4 @@ an additional recovery mechanism, not substituted for cross-store restore proof.
 
 `scripts/content/seed-content-d1.mjs` copies each public Git record into the dedicated content D1 as revision 1 with publication ID `git-seed.<kind>.<id>`, no expected publication and expected inventory version 0. All seeded records share one activation, so the inventory moves 0 to 1 once. Hidden projects, draft writing, the newsletter page and non-record files stay Git-only, because the publisher refuses to activate them and the database holds public snapshots only. The script is a dry run by default. It reads state before writing and refuses any row it did not produce. Every statement is guarded, so an interrupted file converges on rerun. Remote writes need `--confirm-remote anipotts-content`. Media upload is a separate `--upload-media` mode.
 
-`node apps/www/test/cms-seed-parity.mjs` serves the existing www build twice under local workerd, in legacy mode and against a seeded local D1, and compares every public route on all three hostnames. Bodies compare byte for byte. Activation is a zero visible change: sitemap `lastmod` comes from frontmatter dates only, articles emit no publication-based `dateModified`, a CMS article keeps its bundled social card by slug and falls back to the site card only when none was built, and CMS bodies are trimmed like Astro's loader.
+`node apps/www/test/cms-seed-routes.mjs` (`pnpm --filter @anipotts/www test:cms-routes`) seeds a local D1 with this script, serves the existing www build under local workerd and checks every public route on all three hostnames: status, the cms cache contract, and that each seeded record is answered from the store. `apps/www/test/published-runtime.test.mjs` proves in process that a store seeded from Git renders every route byte for byte like the bundled defaults, so a reseed is a zero visible change: sitemap `lastmod` comes from frontmatter dates only, articles emit no publication-based `dateModified`, a CMS article keeps its bundled social card by slug and falls back to the site card only when none was built, and CMS bodies are trimmed like Astro's loader.

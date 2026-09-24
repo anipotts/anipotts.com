@@ -32,26 +32,16 @@ export async function retainedAccessPrincipal(
   };
 }
 
-/** Only the signed application assertion can establish an owner session. */
+/** The verified owner and the parent Access session expiry, in seconds. */
+export type AccessOwner = { email: string; subject: string; expiresAt: number };
+
+/** Only the signed application assertion can establish an owner session.
+ * Middleware verifies it once per request into `locals.accessOwner`. */
 export async function verifyEditorialOwner(
   request: Request,
   config: AccessConfig,
   resolveKey?: JWTVerifyGetKey,
-): Promise<{ email: string; subject: string } | null> {
-  const session = await verifyEditorialOwnerSession(
-    request,
-    config,
-    resolveKey,
-  );
-  return session ? { email: session.email, subject: session.subject } : null;
-}
-
-/** The same exact owner verification, also returning the parent Access expiry. */
-export async function verifyEditorialOwnerSession(
-  request: Request,
-  config: AccessConfig,
-  resolveKey?: JWTVerifyGetKey,
-): Promise<{ email: string; subject: string; expiresAt: number } | null> {
+): Promise<AccessOwner | null> {
   const token = request.headers.get("cf-access-jwt-assertion");
   const issuer = config.ACCESS_TEAM_DOMAIN;
   const audience = config.ACCESS_POLICY_AUD;

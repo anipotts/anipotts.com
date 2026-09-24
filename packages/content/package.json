@@ -9,6 +9,7 @@
   "exports": {
     "./editorial/direct-publication": "./src/editorial/direct-publication.ts",
     "./editorial/publication-contract": "./src/editorial/publication-contract.ts",
+    "./editorial/record": "./src/editorial/record.ts",
     "./editorial/snapshot": "./src/editorial/snapshot.ts",
     "./editorial/source": "./src/editorial/source.ts",
     "./newsletter-draft": "./src/newsletter-draft.ts",
@@ -38,10 +39,6 @@
     "./public/homepage": {
       "types": "./dist/public/homepage.d.ts",
       "import": "./dist/public/homepage.js"
-    },
-    "./admin": {
-      "types": "./dist/admin/index.d.ts",
-      "import": "./dist/admin/index.js"
     },
     "./public/inline": "./src/public/inline.ts"
   },

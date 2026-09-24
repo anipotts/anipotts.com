@@ -32,13 +32,11 @@ export function ProjectSettings({
   source,
   errors,
   disabled,
-  publicationMode,
   onChange,
 }: {
   source: string;
   errors: Map<string, string>;
   disabled?: boolean;
-  publicationMode?: "legacy" | "maintenance" | "direct";
   onChange: (source: string) => void;
 }) {
   const data = parseEditorialSource(source).data as Record<string, unknown>;
@@ -77,21 +75,12 @@ export function ProjectSettings({
           }
           isDisabled={disabled}
           status={status(key)}
-          description={
-            key === "public_state" && publicationMode === "direct"
-              ? "To hide a project from the website, use Unpublish in the document actions. Listed and featured projects can be published after review."
-              : key === "status"
-                ? "An archived project can remain visible on the website."
-                : undefined
-          }
           options={values.map((value) => ({
             value,
             label:
               labels[value] ?? value.charAt(0).toUpperCase() + value.slice(1),
-            disabled:
-              key === "public_state" &&
-              value === "hidden" &&
-              publicationMode === "direct",
+            // Taking a project down is its own reviewed action (Unpublish).
+            disabled: key === "public_state" && value === "hidden",
           }))}
           onChange={(value) => update(key, value)}
         />
@@ -132,9 +121,6 @@ export function ProjectSettings({
         error={errors.get("tags")}
         onChange={(tags) => update("tags", tags)}
       />
-      <Text color="secondary">
-        Changes stay private until you review and publish them.
-      </Text>
     </FormLayout>
   );
 }

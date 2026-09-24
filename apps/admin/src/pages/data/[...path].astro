@@ -1,0 +1,39 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { PrivateShell } from "../../components/data/PrivateShell";
+import { DATA_VIEW_TITLES, dataRoute } from "../../lib/data-routes";
+import { privateShellFlags } from "../../lib/private-reader-credential";
+import { loadShellFixtures } from "../../lib/shell-fixtures";
+
+// Records, Sources, Health and Knowledge. Every view is read in the browser
+// with a short private session, in memory only, and the server reads none.
+// Sources also reads the ops snapshot, behind the ops gate, for the jobs its
+// sources name.
+// Records, Sources and Knowledge share the Data session, off unless
+// PRIVATE_READER_ENABLED is exactly "true"; Knowledge's entity reads also
+// need PRIVATE_READER_KNOWLEDGE_ENABLED. Health has its own health:read
+// session, off unless PRIVATE_READER_HEALTH_ENABLED is also exactly "true".
+// A route that is not a Data view, or an id the reader would refuse, is the
+// 404 page.
+const route = dataRoute(Astro.url);
+if (!route) return Astro.rewrite("/404");
+const env = Astro.locals.runtime?.env ?? {};
+const fixtures = await loadShellFixtures(Astro.url);
+Astro.response.headers.set("Cache-Control", "private, no-store");
+---
+
+<AdminLayout title={DATA_VIEW_TITLES[route.view]}>
+  <PrivateShell
+    initialPath={`${Astro.url.pathname}${Astro.url.search}`}
+    {...privateShellFlags(env)}
+    dataFixture={fixtures?.data}
+    fixture={fixtures?.snapshot}
+    fixtureOrigin={fixtures && {
+      replay: fixtures.replay,
+      capturedAt: fixtures.capturedAt,
+      payloads: fixtures.payloads,
+    }}
+    renderedAt={Date.now()}
+    client:load
+  />
+</AdminLayout>

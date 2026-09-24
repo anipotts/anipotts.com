@@ -1,18 +1,17 @@
-import React, { useMemo, useState } from "react";
+import React from "react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Text } from "@astryxdesign/core/Text";
-import { Selector } from "@astryxdesign/core/Selector";
-import { LifeWorkspace } from "../life/LifeWorkspace";
-import type { LifeResult } from "../../data/personal-context";
-import type { LifeReader } from "../../lib/life-read-session";
+import { PrivateShell } from "../data/PrivateShell";
 
 const observedAt = "2026-09-21T09:00:00.000Z";
 const records = [
   {
-    record_id: "catalog-one",
+    record_id: "rec-00000000000000000000000000000001",
     revision_id: "catalog-revision-one",
     title: "Synthetic field notes",
     source_id: "catalog",
+    kind: "note",
+    tier: "open",
     status: "observed",
     observed_at: observedAt,
     body: "This is synthetic record text for checking layout and focus. It is not personal data.",
@@ -21,10 +20,12 @@ const records = [
     provenance: { source_uri: "fixture://catalog/one" },
   },
   {
-    record_id: "catalog-two",
+    record_id: "rec-00000000000000000000000000000002",
     revision_id: "catalog-revision-two",
     title: "研究ノート / café / a longer synthetic record title",
     source_id: "catalog",
+    kind: "project",
+    tier: "restricted",
     status: "observed",
     observed_at: observedAt,
     body: "A second synthetic record with its own source evidence.",
@@ -33,58 +34,44 @@ const records = [
     provenance: { source_uri: "fixture://catalog/two" },
   },
 ];
-const ready = (data: Record<string, unknown>): LifeResult => ({
-  state: "ready",
-  scope: "owner",
-  observedAt,
-  data,
-});
-const initial = ready({
-  items: records,
-  total: records.length,
-  next_offset: null,
-});
-
-/** Real workspace components with an in-memory reader. Never reads a private source. */
-export function DevDataCatalog() {
-  const [mode, setMode] = useState("ready");
-  const reader = useMemo<LifeReader>(
-    () => async (request) => {
-      if (request.method === "get") {
-        if (mode === "unavailable")
-          return {
-            state: "unavailable",
-            message: "Synthetic source unavailable.",
-          };
-        if (mode === "denied")
-          return { state: "denied", message: "Synthetic access expired." };
-        const record = records.find((item) => item.record_id === request.id);
-        return record
-          ? ready(record)
-          : { state: "not_found", message: "Synthetic record not found." };
-      }
-      return initial;
+const fixture = {
+  status: {
+    database: { exists: true, writer: false, principal: "owner" },
+    counts: {
+      records: records.length,
+      revisions: records.length,
+      sources: 1,
+      changes: 0,
     },
-    [mode],
-  );
+    last_change_at: observedAt,
+  },
+  records,
+  sources: [
+    {
+      source_id: "catalog",
+      first_observed_at: observedAt,
+      last_observed_at: observedAt,
+      record_count: records.length,
+      revision_count: records.length,
+    },
+  ],
+};
+
+/** The real Data workspace on an in-memory synthetic reader. Never reads a
+ * private source. */
+export function DevDataCatalog() {
   return (
     <VStack gap={4}>
       <Text color="secondary">
         Synthetic Data workspace. No private reader, storage or network
         connection.
       </Text>
-      <Selector
-        label="Record response"
-        size="sm"
-        value={mode}
-        onChange={setMode}
-        options={[
-          { value: "ready", label: "Available record" },
-          { value: "unavailable", label: "Source unavailable" },
-          { value: "denied", label: "Access expired" },
-        ]}
+      <PrivateShell
+        initialPath="/data/records"
+        dataEnabled
+        dataFixture={fixture}
+        enabled={false}
       />
-      <LifeWorkspace section="people" result={initial} reader={reader} />
     </VStack>
   );
 }

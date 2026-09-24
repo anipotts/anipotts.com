@@ -30,7 +30,8 @@ describe("record workspace URLs", () => {
     );
     const params = new URLSearchParams(search(href));
     expect(params.get("theme")).toBe("dark");
-    expect(params.get("returnTo")).toBe("/content?group=writing&q=lean");
+    // A legacy group link returns to its library route.
+    expect(params.get("returnTo")).toBe("/content/writing?q=lean");
     expect(params.has("view")).toBe(false);
     expect(params.has("token")).toBe(false);
     expect(new URL(href, "https://admin.test").pathname).toBe(path);
@@ -55,7 +56,7 @@ describe("record workspace URLs", () => {
         readRecordWorkspaceState("?view=evil&panel=evil"),
       );
       expect(new URLSearchParams(search(href)).get("returnTo")).toBe(
-        "/content",
+        "/content/pages",
       );
       expect(new URLSearchParams(search(href)).has("theme")).toBe(false);
       expect(readRecordWorkspaceState(search(href))).toEqual({
@@ -72,7 +73,7 @@ describe("record workspace URLs", () => {
     ]) {
       expect(
         recordWorkspaceUrl(pathname, "", { view: "edit", panel: null }),
-      ).toBe("/content");
+      ).toBe("/content/pages");
     }
   });
   it("round-trips stored Back/Forward entries without mutation or dropping library context", () => {
@@ -99,7 +100,7 @@ describe("record workspace URLs", () => {
     ).toEqual([...transitions].reverse());
     for (const href of entries) {
       const params = new URLSearchParams(search(href));
-      expect(params.get("returnTo")).toBe("/content?group=work&status=changes");
+      expect(params.get("returnTo")).toBe("/content/projects?status=changes");
       expect(params.get("theme")).toBe("system");
       expect(
         recordWorkspaceUrl(

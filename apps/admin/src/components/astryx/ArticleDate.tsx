@@ -6,8 +6,11 @@ import {
   plainDateToISO,
 } from "@astryxdesign/core/utils";
 import { HStack } from "@astryxdesign/core/HStack";
+import { Text } from "@astryxdesign/core/Text";
 
-/** Display a single stored instant with an explicit, stable timezone. */
+/** One stored instant as one row: the date, then the time with UTC named
+ * once after it. The fields align by their labels, and on a narrow sheet
+ * the time and its zone wrap together under the date. */
 export function ArticleDate({
   label,
   value,
@@ -27,12 +30,10 @@ export function ArticleDate({
   const iso = date?.toISOString();
   const day = iso ? parseDateInput(iso.slice(0, 10)) : null;
   return (
-    <HStack gap={3} wrap="wrap" vAlign="start">
+    <HStack gap={2} vAlign="start" className="editor-date-row">
       <DateInput
         label={label}
-        description="UTC"
         value={day ? plainDateToISO(day) : undefined}
-        isRequired
         isDisabled={disabled}
         status={
           error || !date
@@ -51,24 +52,28 @@ export function ArticleDate({
             onChange(next.toISOString());
         }}
       />
-      <TimeInput
-        label="Time"
-        description="UTC"
-        value={
-          iso
-            ? (createISOTimeString(iso.slice(11, 19)) ?? undefined)
-            : undefined
-        }
-        isDisabled={disabled || !date}
-        onChange={(value) => {
-          if (!date || !value) return;
-          const [hours, minutes] = value.split(":").map(Number);
-          const next = new Date(date);
-          next.setUTCHours(hours!, minutes!);
-          if (!date || next.getTime() !== date.getTime())
-            onChange(next.toISOString());
-        }}
-      />
+      <HStack gap={2} vAlign="end" className="editor-date-time">
+        <TimeInput
+          label="Time"
+          value={
+            iso
+              ? (createISOTimeString(iso.slice(11, 19)) ?? undefined)
+              : undefined
+          }
+          isDisabled={disabled || !date}
+          onChange={(value) => {
+            if (!date || !value) return;
+            const [hours, minutes] = value.split(":").map(Number);
+            const next = new Date(date);
+            next.setUTCHours(hours!, minutes!);
+            if (!date || next.getTime() !== date.getTime())
+              onChange(next.toISOString());
+          }}
+        />
+        <Text type="supporting" color="secondary" className="editor-date-zone">
+          UTC
+        </Text>
+      </HStack>
     </HStack>
   );
 }

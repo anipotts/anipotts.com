@@ -1,21 +1,23 @@
 # Platform architecture
 
-Updated: 2026-09-08. Release completion evidence lives in [the site release review](site-release-review-2026-09-07.md).
+Updated: 2026-09-22. Release completion evidence lives in [the site release review](site-release-review-2026-09-07.md).
 
 ## Active surfaces
 
-| Surface            | Source                 | Role                                                                     |
-| ------------------ | ---------------------- | ------------------------------------------------------------------------ |
-| anipotts.com       | `apps/www`             | Public Astro pages, Git-backed work and writing, newsletter endpoints    |
-| admin.anipotts.com | `apps/admin`           | Astro admin, proposals, previews, operational state, app-native passkeys |
-| api.anipotts.com   | `workers/state`        | Durable state and authenticated command relay                            |
-| Ingest             | `workers/ingest`       | Scheduled ingest and authenticated event receivers                       |
-| Newsletter         | `workers/newsletter`   | Subscription and issue queue consumer                                    |
-| Weekly email       | `workers/weekly-email` | Scheduled operational summary                                            |
+| Surface            | Source                 | Role                                                                                 |
+| ------------------ | ---------------------- | ------------------------------------------------------------------------------------ |
+| anipotts.com       | `apps/www`             | Public Astro pages served from the `anipotts-content` D1 store, newsletter endpoints |
+| admin.anipotts.com | `apps/admin`           | Astro admin behind Cloudflare Access, editor, previews, operations state             |
+| api.anipotts.com   | `workers/state`        | Durable state and authenticated command relay                                        |
+| Ingest             | `workers/ingest`       | `brands_email` receiver for the Apps Script capture, no schedule                     |
+| Newsletter         | `workers/newsletter`   | Subscription and issue queue consumer                                                |
+| Weekly email       | `workers/weekly-email` | Retired in place: no schedule and no send, GET reports queue counts                  |
 
-The legacy Solid app and deploy target are removed. Historical source is recoverable through Git; the cleanup does not delete any production worker or database. Active Astro route and authentication tests remain independent of retirement.
+`api.anipotts.com` holds the links vault today: its commits plane has no producer, and its command relay stays disabled while no device key is bound (ledger A-22).
 
-The four retained workers still have explicit routes, cron schedules, queues, or Durable Object bindings. They are operational functionality, not public-page rendering dependencies. Their outbound and data-mutation boundaries remain intact.
+The legacy Solid app's source and deploy target are removed from this repo. Historical source is recoverable through Git at the parent of `26a6b98c`. Its production worker is gone too: the `legacy-admin-solid.anipotts.com` domain was removed on 2026-09-23 and the `anipotts-admin-solid` worker was deleted on 2026-09-24 (ledger A-36.7). `anipotts-db` was shared and is untouched. Active Astro route and authentication tests remain independent of retirement.
+
+The four retained workers keep an explicit route, queue or Durable Object binding. None has a cron schedule since 2026-09-22; see [worker inventory](worker-inventory.md). They are operational functionality, not public-page rendering dependencies. Their remaining outbound and data-mutation boundaries are unchanged.
 
 ## Public content ownership
 
@@ -27,31 +29,33 @@ The four retained workers still have explicit routes, cron schedules, queues, or
 - `packages/content/src/public/providers.ts`: approved workflow artwork
 - `packages/content/src/public/visibility.ts`: public inclusion rules
 
-Two generated projections have active consumers: typed defaults for app rendering/adapters, and an admin review JSON projection. Generation is one-way from canonical sources and drift-checked. The unused validation JSON, future database seed, and reverse-bootstrap mode are removed.
+One generated projection has active consumers: typed defaults for app rendering and adapters. Generation is one-way from canonical sources and drift-checked. The admin review JSON, unused validation JSON, future database seed, and reverse-bootstrap mode are removed.
 
-Public pages do not read D1 CMS content. Admin can review source-controlled copy and keep proposals and operational records separately. Stored identifiers such as `making` and `project:<slug>` survive only at compatibility boundaries. They do not create another published dataset. Historical migrations and production data are unchanged.
+Public pages serve published records from the `anipotts-content` D1 store. `CONTENT_RUNTIME` must be exactly `cms`; any other value is a no-store 503 on every content route, and the bundled Git content is never a runtime source on its own. Git Markdown supplies the initial records and the Admin editor's source baseline; see [direct CMS publication](design/admin-workspace/direct-cms-publication.md). Stored identifiers such as `making` and `project:<slug>` survive only at compatibility boundaries. They do not create another published dataset. Historical migrations and production data are unchanged.
 
 `/work` owns the public work index and details. Permanent old-URL redirects remain in the public middleware. Hidden projects and unpublished writing return 404 at detail URLs. Feeds, sitemap and release smoke consume the same public content inclusion decisions.
 
 ## Shared code
 
-| Package                         | Responsibility                                           |
-| ------------------------------- | -------------------------------------------------------- |
-| `packages/content`              | Public contracts/settings and admin content review logic |
-| `packages/types`                | Shared app and operational contracts                     |
-| `packages/lib`                  | Admin-control runtime and the Drizzle migration schema   |
-| `packages/brand`                | Marks, fonts, shared tokens and typography               |
-| `packages/control-plane-runner` | Local relay client, journal and proof outbox             |
+| Package                         | Responsibility                                                        |
+| ------------------------------- | --------------------------------------------------------------------- |
+| `packages/content`              | Public contracts/settings, editorial source and publication contracts |
+| `packages/types`                | Shared app and operational contracts                                  |
+| `packages/lib`                  | The Drizzle migration schema                                          |
+| `packages/brand`                | Marks, fonts, shared tokens and typography                            |
+| `packages/control-plane-runner` | Local relay client, journal and proof outbox                          |
 
-The old database-first public readers, fallback datasets, Solid-only services and unused package exports are removed. Astro admin consumes the admin-control entrypoint; root Drizzle tooling still consumes the database schema. Worker and runner implementations remain in their own active packages.
+The old database-first public readers, fallback datasets, Solid-only services and unused package exports are removed. The admin-control entrypoint is gone from `packages/lib`; Astro admin reads its own contracts, and root Drizzle tooling still consumes the database schema. Worker and runner implementations remain in their own active packages.
+
+Admin still binds `anipotts-db` as `DB` so the deploy applies its migrations, but no admin page reads it, and the runtime contract reports no feature for it. The `admin_knowledge_cards` table and migration 0041 stay in place, quarantined rather than dropped.
+
+Production sets `PRIVATE_READER_ENABLED` and `PRIVATE_READER_OPS_ENABLED`, and leaves `PRIVATE_READER_HEALTH_ENABLED` and `PRIVATE_READER_KNOWLEDGE_ENABLED` unset. So Records and Sources read the private reader, and Sources, Observability and the overview read the ops snapshot. Knowledge shows "Not built yet" and makes no request. Health makes no health request: it shows "No vitals collected", the last phone sync as "Not recorded" (System has no arrival marker yet), and, once System lists it, the `health.metrics` check from the ops snapshot. Each reads the private reader only behind its own flag, and enabling `PRIVATE_READER_HEALTH_ENABLED` (a new `health:read` credential) is an auth change for Ani to approve.
 
 ## Authentication and production boundaries
 
-Cloudflare Access remains in front of Admin. Local source retirement is not proof of passkey enrollment or authenticated production access.
+Cloudflare Access guards `admin.anipotts.com`, the only route `apps/admin/wrangler.toml` declares. The production admin worker also answers on `legacy-admin.anipotts.com`, a dashboard custom domain that Access does not cover, where only the middleware's owner check below stands between a request and the app; removing that domain or adding it to the Access app waits on Ani (ledger A-36.6). Middleware verifies the signed Access assertion for the exact owner; editorial reads and writes require it, other pages accept it for reads only, and sign out ends the Access session. The passkey, password, invite, recovery, device and native D1 session code was removed on 2026-09-22 and is recoverable from the `archive/admin-retired-auth-2026-09-22` tag. Its D1 tables and migrations stay in place.
 
-App-native authentication is tested through the protected route inventory in `scripts/ci/admin-route-inventory.mjs`. Removing Access still requires registration, login, logout, persistence, revoked-credential denial, unauthenticated blocking and rollback proof. No authentication or secret changes are part of source cleanup.
-
-The focused admin draft operations, newsletter controls and command relay retain their existing authorization checks. Public code must not import admin-only contracts or operational write tables; `pnpm test:public-boundary` enforces this separation.
+The protected route inventory in `scripts/ci/admin-route-inventory.mjs` drives the route parity and smoke checks. Newsletter controls retain their existing authorization checks. Admin no longer binds the command relay or serves the MCP, projection, knowledge, control-plane or compatibility write APIs; the relay itself stays in `workers/state`. Public code must not import admin-only contracts or operational write tables; `pnpm test:public-boundary` enforces this separation.
 
 ## Verification and releases
 

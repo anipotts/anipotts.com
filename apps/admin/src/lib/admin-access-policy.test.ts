@@ -1,55 +1,77 @@
 import { describe, expect, test } from "vitest";
 import {
-  decideAdminAccess,
   isDevLoopbackPreviewRequest,
   isLocalOwnerRequest,
   isPublicAdminPath,
 } from "./admin-access-policy";
 
+/** The order middleware applies the policy in, for requests outside the
+ * editorial namespace. */
+function decideAdminAccess({
+  isDev,
+  localOwner = false,
+  method,
+  url,
+  headers = new Headers(),
+  hasAccess,
+}: {
+  isDev: boolean;
+  localOwner?: boolean;
+  method: string;
+  url: URL;
+  headers?: Headers;
+  hasAccess: boolean;
+}) {
+  if (isPublicAdminPath(url.pathname)) return "public";
+  if (isLocalOwnerRequest({ enabled: localOwner, method, url, headers }))
+    return "local-owner";
+  if (isDevLoopbackPreviewRequest({ isDev, method, url }))
+    return "dev-loopback-preview";
+  return hasAccess ? "access" : "access-required";
+}
+
 const local = (path: string, origin = "http://localhost:4311") =>
   new URL(path, origin);
 
 describe("admin access policy", () => {
+  test.each(["/auth", "/api/health"])(
+    "keeps the signed-out sign-in boundary public for %s",
+    (path) => {
+      expect(isPublicAdminPath(path)).toBe(true);
+    },
+  );
+
   test.each([
-    "/auth",
     "/auth/invite",
     "/auth/passkey",
     "/auth/recover",
+    "/auth/recover/passkey",
+    "/auth/device/opaque-request",
     "/api/admin/auth/session",
     "/api/admin/device/start",
     "/api/admin/device/status",
     "/api/admin/device/claim",
     "/api/admin/invites/status",
-    "/api/admin/recovery/google/start",
-    "/api/admin/password/status",
+    "/api/admin/passkey/login-options",
     "/api/admin/password/login",
-    "/api/admin/password/logout",
+    "/api/admin/recovery/google/start",
+    "/api/admin/recovery/google/callback",
     "/api/mcp",
-  ])("keeps the signed-out auth boundary public for %s", (path) => {
-    expect(isPublicAdminPath(path)).toBe(true);
-  });
-
-  test.each([
-    "/auth/device/opaque-request",
-    "/auth/recover/passkey",
-    "/api/admin/device/approve",
-    "/api/admin/device/review",
-    "/api/admin/members/invite",
-    "/api/admin/recovery/passkey/options",
-  ])("keeps authenticated auth operations protected for %s", (path) => {
+  ])("keeps the retired sign-in path %s behind Access", (path) => {
     expect(isPublicAdminPath(path)).toBe(false);
   });
 
   test.each([
     "/",
-    "/inbox",
-    "/work?view=now",
+    "/observability/status",
+    "/observability/activity?source=all",
     "/content",
+    "/content/pages",
     "/knowledge",
-    "/life",
-    "/system",
-    "/fleet",
-    "/proof",
+    "/data/records",
+    "/data/records/rec-0123456789abcdef0123456789abcdef",
+    "/data/sources",
+    "/observability/alerts",
   ])("allows the read-only development preview for %s", (path) => {
     expect(
       isDevLoopbackPreviewRequest({
@@ -65,7 +87,7 @@ describe("admin access policy", () => {
       isDevLoopbackPreviewRequest({
         isDev: true,
         method: "HEAD",
-        url: local("/inbox", "http://127.0.0.1:4311"),
+        url: local("/observability/status", "http://127.0.0.1:4311"),
       }),
     ).toBe(true);
   });
@@ -79,7 +101,7 @@ describe("admin access policy", () => {
       isDevLoopbackPreviewRequest({
         isDev: true,
         method: "GET",
-        url: local("/inbox", origin),
+        url: local("/observability/status", origin),
       }),
     ).toBe(true);
   });
@@ -104,13 +126,13 @@ describe("admin access policy", () => {
       name: "production",
       isDev: false,
       method: "GET",
-      url: local("/inbox"),
+      url: local("/observability/status"),
     },
     {
       name: "write method",
       isDev: true,
       method: "POST",
-      url: local("/work"),
+      url: local("/observability/activity"),
     },
     {
       name: "protected api",
@@ -131,7 +153,7 @@ describe("admin access policy", () => {
       name: "non-loopback host",
       isDev: true,
       method: "GET",
-      url: local("/inbox", "https://admin.anipotts.com"),
+      url: local("/observability/status", "https://admin.anipotts.com"),
     },
     {
       name: "unapproved auth operation",
@@ -143,19 +165,22 @@ describe("admin access policy", () => {
       name: "retired named localhost host",
       isDev: true,
       method: "GET",
-      url: local("/inbox", "http://admin.anipotts.localhost:1355"),
+      url: local(
+        "/observability/status",
+        "http://admin.anipotts.localhost:1355",
+      ),
     },
     {
       name: "lookalike loopback host",
       isDev: true,
       method: "GET",
-      url: local("/inbox", "http://localhost.example:4401"),
+      url: local("/observability/status", "http://localhost.example:4401"),
     },
     {
       name: "loopback over https",
       isDev: true,
       method: "GET",
-      url: local("/inbox", "https://localhost:4401"),
+      url: local("/observability/status", "https://localhost:4401"),
     },
     {
       name: "unapproved page",
@@ -163,7 +188,7 @@ describe("admin access policy", () => {
       method: "GET",
       url: local("/content/editor/unsupported"),
     },
-  ])("does not bypass native auth for $name", ({ isDev, method, url }) => {
+  ])("does not bypass Access for $name", ({ isDev, method, url }) => {
     expect(
       isDevLoopbackPreviewRequest({
         isDev,
@@ -173,15 +198,15 @@ describe("admin access policy", () => {
     ).toBe(false);
   });
 
-  test("requires native auth for an unauthenticated production admin route", () => {
+  test("requires Access for an unauthenticated production admin route", () => {
     expect(
       decideAdminAccess({
         isDev: false,
         method: "GET",
-        url: new URL("https://admin.anipotts.com/inbox"),
-        hasSession: false,
+        url: new URL("https://admin.anipotts.com/observability/status"),
+        hasAccess: false,
       }),
-    ).toBe("passkey-required");
+    ).toBe("access-required");
   });
 
   test("keeps authenticated production access intact", () => {
@@ -189,10 +214,10 @@ describe("admin access policy", () => {
       decideAdminAccess({
         isDev: false,
         method: "GET",
-        url: new URL("https://admin.anipotts.com/work?view=now"),
-        hasSession: true,
+        url: new URL("https://admin.anipotts.com/observability/activity"),
+        hasAccess: true,
       }),
-    ).toBe("session");
+    ).toBe("access");
   });
 });
 
@@ -201,21 +226,25 @@ test("observability preview allows only the local read surface, keeping its API 
     decideAdminAccess({
       isDev: true,
       method: "GET",
-      url: local("/operations/observability"),
-      hasSession: false,
+      url: local("/observability/status"),
+      hasAccess: false,
     }),
   ).toBe("dev-loopback-preview");
   for (const input of [
     {
       isDev: false,
       method: "GET",
-      url: new URL("https://admin.anipotts.com/operations/observability"),
+      url: new URL("https://admin.anipotts.com/observability/status"),
     },
-    { isDev: true, method: "GET", url: local("/api/admin/observability") },
-    { isDev: true, method: "POST", url: local("/operations/observability") },
+    {
+      isDev: true,
+      method: "GET",
+      url: local("/api/private-reader/ops-credential"),
+    },
+    { isDev: true, method: "POST", url: local("/observability/status") },
   ])
-    expect(decideAdminAccess({ ...input, hasSession: false })).toBe(
-      "passkey-required",
+    expect(decideAdminAccess({ ...input, hasAccess: false })).toBe(
+      "access-required",
     );
 });
 
@@ -274,7 +303,7 @@ describe("local owner session", () => {
     headers = {},
     localOwner = true,
     isDev = true,
-    hasSession = false,
+    hasAccess = false,
   }: {
     origin?: string;
     path?: string;
@@ -282,7 +311,7 @@ describe("local owner session", () => {
     headers?: Record<string, string>;
     localOwner?: boolean;
     isDev?: boolean;
-    hasSession?: boolean;
+    hasAccess?: boolean;
   } = {}) => {
     const url = new URL(path, origin);
     return {
@@ -291,7 +320,7 @@ describe("local owner session", () => {
       method,
       url,
       headers: new Headers({ host: url.host, ...headers }),
-      hasSession,
+      hasAccess,
     };
   };
 
@@ -352,13 +381,13 @@ describe("local owner session", () => {
   test("keeps behaviour unchanged when the build-time flag is off", () => {
     expect(
       decideAdminAccess(request({ localOwner: false, method: "POST" })),
-    ).toBe("passkey-required");
+    ).toBe("access-required");
     expect(
       decideAdminAccess(
         request({
           localOwner: false,
           origin: "http://localhost:4311",
-          path: "/inbox",
+          path: "/observability/status",
           method: "GET",
         }),
       ),
@@ -368,13 +397,13 @@ describe("local owner session", () => {
         request({
           localOwner: false,
           origin: "https://admin.anipotts.com",
-          path: "/inbox",
+          path: "/observability/status",
           method: "GET",
           isDev: false,
-          hasSession: true,
+          hasAccess: true,
         }),
       ),
-    ).toBe("session");
+    ).toBe("access");
     expect(
       isLocalOwnerRequest({
         enabled: false,
@@ -397,7 +426,7 @@ describe("local owner session", () => {
     "http://feature.admin.anipotts.localhost:1355",
     "http://anipotts.localhost:1355",
   ])("never grants a non-loopback host %s", (origin) => {
-    expect(decideAdminAccess(request({ origin }))).toBe("passkey-required");
+    expect(decideAdminAccess(request({ origin }))).toBe("access-required");
   });
 
   const spoofed: { name: string; headers: Record<string, string> }[] = [
@@ -449,24 +478,22 @@ describe("local owner session", () => {
     "refuses a spoofed or proxied request: $name",
     ({ headers }) => {
       const input = request({ headers });
-      expect(decideAdminAccess(input)).toBe("passkey-required");
+      expect(decideAdminAccess(input)).toBe("access-required");
       expect(isLocalOwnerRequest({ enabled: true, ...input })).toBe(false);
     },
   );
 
-  test("keeps public paths public and checks the owner before a session", () => {
-    for (const path of ["/auth", "/api/health", "/api/mcp", "/_astro/app.js"])
+  test("keeps public paths public and checks the owner before Access", () => {
+    for (const path of ["/auth", "/api/health", "/_astro/app.js"])
       expect(decideAdminAccess(request({ path, method: "GET" }))).toBe(
         "public",
       );
-    expect(decideAdminAccess(request({ hasSession: true }))).toBe(
-      "local-owner",
-    );
+    expect(decideAdminAccess(request({ hasAccess: true }))).toBe("local-owner");
     expect(
       decideAdminAccess(
         request({
           origin: "http://localhost:4311",
-          path: "/inbox",
+          path: "/observability/status",
           method: "GET",
         }),
       ),

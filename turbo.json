@@ -27,7 +27,7 @@
         "wrangler.toml"
       ],
       "outputs": ["dist/**"],
-      "env": ["NODE_ENV", "PUBLIC_RELEASE_SHA"]
+      "env": ["NODE_ENV", "PUBLIC_RELEASE_SHA", "PUBLIC_RELEASE_SCHEMA_VERSION"]
     },
     "@anipotts/admin#build": {
       "dependsOn": ["^build"],
@@ -43,12 +43,7 @@
         "wrangler.toml"
       ],
       "outputs": ["dist/**"],
-      "env": [
-        "NODE_ENV",
-        "PUBLIC_STATE_API",
-        "PUBLIC_RELEASE_SHA",
-        "PUBLIC_RELEASE_SCHEMA_VERSION"
-      ]
+      "env": ["NODE_ENV", "PUBLIC_RELEASE_SHA", "PUBLIC_RELEASE_SCHEMA_VERSION"]
     },
     "@anipotts/state#build": {
       "dependsOn": ["^build"],
@@ -93,11 +88,7 @@
         "tsconfig.json",
         "package.json"
       ],
-      "outputs": [
-        "dist/**",
-        "src/public/generated.ts",
-        "generated/admin-public-content.json"
-      ]
+      "outputs": ["dist/**", "src/public/generated.ts"]
     },
     "@anipotts/admin#test": {
       "dependsOn": ["^build"],

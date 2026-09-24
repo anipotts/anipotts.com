@@ -13,7 +13,7 @@ const draft = entry?.data;
 if (!draft) Astro.response.status = 404;
 const review: Review | undefined = draft
   ? {
-      back: "/newsletter",
+      back: "/content/newsletter",
       updated: entry ? recordUpdate("newsletterDrafts", entry.id) : undefined,
       status: draft.status,
       metadata: draft.subject === draft.title ? [] : [draft.subject],

@@ -9,25 +9,22 @@ import {
 } from "./runtime-contract";
 
 const release = "a".repeat(40);
-// Synthetic values stay short so the literal-secret scan keeps working here.
-const secrets = {
-  ACCESS_POLICY_AUD: "synthetic-aud-7c1",
-  EDITORIAL_GITHUB_PRIVATE_KEY: "synthetic-pem-51",
-  EDITORIAL_SIGNING_PRIVATE_KEY: "synthetic-sig-93",
-};
-
 function completeEnv(): Record<string, unknown> {
   return {
     ASSETS: { fetch: async () => new Response(null) },
     ACCESS_TEAM_DOMAIN: "https://owner.cloudflareaccess.com",
-    ...secrets,
+    // Synthetic and short so the literal-secret scan keeps working here.
+    ACCESS_POLICY_AUD: "synthetic-aud-7c1",
     DB: { prepare: () => null },
     EDITORIAL: { getByName: () => null },
-    COMMAND_RELAY: { getByName: () => null },
     EDITORIAL_ENABLED: "true",
     EDITORIAL_PUBLISH_ENABLED: "true",
-    EDITORIAL_GITHUB_APP_ID: "4242",
-    EDITORIAL_GITHUB_INSTALLATION_ID: "9001",
+    CONTENT_DB: { prepare: () => null },
+    CONTENT_MEDIA: { get: async () => null, put: async () => null },
+    PRIVATE_READER_ENABLED: "true",
+    PRIVATE_READER_OPS_ENABLED: "true",
+    // Synthetic and short, like the audience above.
+    PRIVATE_READER_SIGNING_KEY: "synthetic-jwk-4d2",
   };
 }
 
@@ -35,20 +32,6 @@ function without(...names: string[]) {
   const env = completeEnv();
   for (const name of names) delete env[name];
   return env;
-}
-
-function directEnv(): Record<string, unknown> {
-  return {
-    ...without(
-      "EDITORIAL_GITHUB_APP_ID",
-      "EDITORIAL_GITHUB_INSTALLATION_ID",
-      "EDITORIAL_GITHUB_PRIVATE_KEY",
-      "EDITORIAL_SIGNING_PRIVATE_KEY",
-    ),
-    EDITORIAL_PUBLISH_MODE: "direct",
-    CONTENT_DB: { prepare: () => null },
-    CONTENT_MEDIA: { get: async () => null, put: async () => null },
-  };
 }
 
 const available = { state: "available", missing: [] };
@@ -61,8 +44,12 @@ describe("admin runtime contract evaluation", () => {
       features: {
         editorial: available,
         editorial_publishing: available,
-        admin_database: available,
-        control_plane: available,
+        private_reader: available,
+        private_reader_ops: available,
+        // Unset in production: switched off, not missing anything.
+        private_reader_health: { state: "disabled", missing: [] },
+        private_reader_knowledge: { state: "disabled", missing: [] },
+        private_reader_canary: { state: "disabled", missing: [] },
       },
     });
   });
@@ -72,7 +59,9 @@ describe("admin runtime contract evaluation", () => {
     expect(report.ok).toBe(false);
     expect(report.missing).toEqual([name]);
     // Required configuration never changes feature reporting.
-    expect(Object.values(report.features)).toEqual(Array(4).fill(available));
+    expect(report.features).toEqual(
+      evaluateRuntimeContract(completeEnv(), release).features,
+    );
   });
 
   it("treats empty text and shapeless bindings as missing", () => {
@@ -83,18 +72,14 @@ describe("admin runtime contract evaluation", () => {
         ACCESS_TEAM_DOMAIN: " ",
         ACCESS_POLICY_AUD: 42,
         DB: { prepare: "not a function" },
-        COMMAND_RELAY: null,
+        EDITORIAL: null,
       },
       release,
     );
     expect(report.missing).toEqual(RUNTIME_REQUIRED);
-    expect(report.features.admin_database).toEqual({
+    expect(report.features.editorial).toEqual({
       state: "unavailable",
-      missing: ["DB"],
-    });
-    expect(report.features.control_plane).toEqual({
-      state: "unavailable",
-      missing: ["COMMAND_RELAY"],
+      missing: ["EDITORIAL"],
     });
   });
 
@@ -107,40 +92,135 @@ describe("admin runtime contract evaluation", () => {
         features: {
           editorial: { state: "disabled", missing: [] },
           editorial_publishing: { state: "disabled", missing: [] },
-          admin_database: { state: "unavailable", missing: ["DB"] },
-          control_plane: { state: "unavailable", missing: ["COMMAND_RELAY"] },
+          private_reader: { state: "disabled", missing: [] },
+          private_reader_ops: { state: "disabled", missing: [] },
+          private_reader_health: { state: "disabled", missing: [] },
+          private_reader_knowledge: { state: "disabled", missing: [] },
+          private_reader_canary: { state: "disabled", missing: [] },
         },
       });
     },
   );
 
+  // A-34: a flag that is on but backed by nothing reads unavailable, never ok.
+  it("reports a reader flag that is on without its signing key as unavailable", () => {
+    for (const key of [undefined, "", " "]) {
+      const report = evaluateRuntimeContract(
+        { ...completeEnv(), PRIVATE_READER_SIGNING_KEY: key },
+        release,
+      );
+      const unsigned = {
+        state: "unavailable",
+        missing: ["PRIVATE_READER_SIGNING_KEY"],
+      };
+      expect(report.features.private_reader).toEqual(unsigned);
+      expect(report.features.private_reader_ops).toEqual(unsigned);
+      // The editor never needed the key.
+      expect(report.features.editorial).toEqual(available);
+    }
+  });
+
+  // A-34: a mode's own flag on while PRIVATE_READER_ENABLED is off issues
+  // nothing (privateReaderModeEnabled): a flag backed by nothing, so it
+  // reads unavailable and names the flag it lacks, never disabled or ok.
+  it("A-34: reads a reader mode's lone flag as unavailable, naming PRIVATE_READER_ENABLED", () => {
+    const opsOnly = evaluateRuntimeContract(
+      {
+        ...completeEnv(),
+        PRIVATE_READER_ENABLED: "false",
+        PRIVATE_READER_SIGNING_KEY: undefined,
+      },
+      release,
+    );
+    expect(opsOnly.features.private_reader).toEqual({
+      state: "disabled",
+      missing: [],
+    });
+    expect(opsOnly.features.private_reader_ops).toEqual({
+      state: "unavailable",
+      missing: ["PRIVATE_READER_ENABLED", "PRIVATE_READER_SIGNING_KEY"],
+    });
+    const dataOnly = evaluateRuntimeContract(
+      { ...completeEnv(), PRIVATE_READER_OPS_ENABLED: "TRUE" },
+      release,
+    );
+    expect(dataOnly.features.private_reader).toEqual(available);
+    expect(dataOnly.features.private_reader_ops).toEqual({
+      state: "disabled",
+      missing: [],
+    });
+  });
+
+  it("A-34: judges the health, knowledge and canary flags as the ops one", () => {
+    const on = {
+      ...completeEnv(),
+      PRIVATE_READER_HEALTH_ENABLED: "true",
+      PRIVATE_READER_KNOWLEDGE_ENABLED: "true",
+      PRIVATE_READER_CANARY_ENABLED: "true",
+      PRIVATE_READER_CANARY_ACCESS_AUD: "synthetic-aud-9f3",
+      PRIVATE_READER_CANARY_CLIENT_ID: "synthetic-client-2b8",
+    };
+    const all = evaluateRuntimeContract(on, release);
+    expect(all.features.private_reader_health).toEqual(available);
+    expect(all.features.private_reader_knowledge).toEqual(available);
+    expect(all.features.private_reader_canary).toEqual(available);
+    // Each alone, without PRIVATE_READER_ENABLED: unavailable.
+    const lone = evaluateRuntimeContract(
+      { ...on, PRIVATE_READER_ENABLED: undefined },
+      release,
+    );
+    for (const feature of [
+      "private_reader_health",
+      "private_reader_knowledge",
+      "private_reader_canary",
+    ] as const)
+      expect(lone.features[feature]).toEqual({
+        state: "unavailable",
+        missing: ["PRIVATE_READER_ENABLED"],
+      });
+    // Without the signing key, every one of them is unavailable.
+    const unsigned = evaluateRuntimeContract(
+      { ...on, PRIVATE_READER_SIGNING_KEY: "" },
+      release,
+    );
+    expect(unsigned.features.private_reader_health.missing).toEqual([
+      "PRIVATE_READER_SIGNING_KEY",
+    ]);
+    expect(unsigned.features.private_reader_knowledge.missing).toEqual([
+      "PRIVATE_READER_SIGNING_KEY",
+    ]);
+    // The canary answers 503 without its Access audience or client id.
+    const noAudience = evaluateRuntimeContract(
+      {
+        ...on,
+        PRIVATE_READER_CANARY_ACCESS_AUD: undefined,
+        PRIVATE_READER_CANARY_CLIENT_ID: " ",
+      },
+      release,
+    );
+    expect(noAudience.features.private_reader_canary).toEqual({
+      state: "unavailable",
+      missing: [
+        "PRIVATE_READER_CANARY_ACCESS_AUD",
+        "PRIVATE_READER_CANARY_CLIENT_ID",
+      ],
+    });
+  });
+
   it("keeps the app ready when editorial bindings are missing", () => {
     const report = evaluateRuntimeContract(
-      without("EDITORIAL", "EDITORIAL_GITHUB_PRIVATE_KEY"),
+      without("EDITORIAL", "CONTENT_DB"),
       release,
     );
     expect(report.ok).toBe(true);
     expect(report.features.editorial).toEqual({
       state: "unavailable",
-      missing: ["EDITORIAL", "EDITORIAL_GITHUB_PRIVATE_KEY"],
+      missing: ["EDITORIAL", "CONTENT_DB"],
     });
     expect(report.features.editorial_publishing).toEqual({
       state: "unavailable",
-      missing: ["EDITORIAL", "EDITORIAL_GITHUB_PRIVATE_KEY"],
+      missing: ["EDITORIAL", "CONTENT_DB"],
     });
-  });
-
-  it("mirrors the editorial installation id rule", () => {
-    for (const id of ["0", "-3", "abc", "1.5", "9007199254740993"])
-      expect(
-        evaluateRuntimeContract(
-          { ...completeEnv(), EDITORIAL_GITHUB_INSTALLATION_ID: id },
-          release,
-        ).features.editorial,
-      ).toEqual({
-        state: "unavailable",
-        missing: ["EDITORIAL_GITHUB_INSTALLATION_ID"],
-      });
   });
 
   it("reports switched-off editorial flags as disabled, not unavailable", () => {
@@ -157,7 +237,7 @@ describe("admin runtime contract evaluation", () => {
       missing: [],
     });
     const publishingOff = evaluateRuntimeContract(
-      { ...without("EDITORIAL_SIGNING_PRIVATE_KEY") },
+      without("CONTENT_MEDIA"),
       release,
     );
     expect(publishingOff.features.editorial_publishing.state).toBe(
@@ -174,65 +254,63 @@ describe("admin runtime contract evaluation", () => {
     });
   });
 
-  it("requires a baked release identity and signing key for publishing", () => {
-    for (const build of ["dev", "", "A".repeat(40), "a".repeat(39)])
-      expect(
-        evaluateRuntimeContract(without("EDITORIAL_SIGNING_PRIVATE_KEY"), build)
-          .features.editorial_publishing,
-      ).toEqual({
+  it("requires a baked release identity for publishing only", () => {
+    for (const build of ["dev", "", "A".repeat(40), "a".repeat(39)]) {
+      const report = evaluateRuntimeContract(completeEnv(), build);
+      expect(report.features.editorial).toEqual(available);
+      expect(report.features.editorial_publishing).toEqual({
         state: "unavailable",
-        missing: ["EDITORIAL_SIGNING_PRIVATE_KEY", "PUBLIC_RELEASE_SHA"],
+        missing: ["PUBLIC_RELEASE_SHA"],
       });
+    }
   });
 
   it("reports a throwing binding as missing instead of throwing", () => {
     const env = completeEnv();
-    Object.defineProperty(env, "DB", {
+    Object.defineProperty(env, "CONTENT_DB", {
       enumerable: true,
       get() {
         throw new Error("binding exploded with provider detail");
       },
     });
     const report = evaluateRuntimeContract(env, release);
-    expect(report.features.admin_database).toEqual({
+    expect(report.features.editorial).toEqual({
       state: "unavailable",
-      missing: ["DB"],
+      missing: ["CONTENT_DB"],
     });
     expect(JSON.stringify(report)).not.toContain("provider detail");
   });
 
-  it("keeps the omitted mode compatible with explicit legacy deployment", () => {
-    expect(evaluateRuntimeContract(completeEnv(), release)).toEqual(
-      evaluateRuntimeContract(
-        { ...completeEnv(), EDITORIAL_PUBLISH_MODE: "legacy" },
-        release,
-      ),
-    );
-  });
-
-  it("makes direct authoring and publishing available without reading Git credentials", () => {
-    const env = directEnv();
-    const secretRead = vi.fn(() => {
-      throw new Error("credential must not be read");
+  it("ignores the retired publish mode and never reads repository publisher credentials", () => {
+    const env = completeEnv();
+    const retiredRead = vi.fn(() => {
+      throw new Error("retired configuration must not be read");
     });
     for (const name of [
+      "EDITORIAL_PUBLISH_MODE",
       "EDITORIAL_GITHUB_APP_ID",
       "EDITORIAL_GITHUB_INSTALLATION_ID",
       "EDITORIAL_GITHUB_PRIVATE_KEY",
       "EDITORIAL_SIGNING_PRIVATE_KEY",
     ])
-      Object.defineProperty(env, name, { get: secretRead });
-    const report = evaluateRuntimeContract(env, release);
-    expect(report.ok).toBe(true);
-    expect(report.features.editorial).toEqual(available);
-    expect(report.features.editorial_publishing).toEqual(available);
-    expect(secretRead).not.toHaveBeenCalled();
+      Object.defineProperty(env, name, { get: retiredRead });
+    expect(evaluateRuntimeContract(env, release)).toEqual(
+      evaluateRuntimeContract(completeEnv(), release),
+    );
+    expect(retiredRead).not.toHaveBeenCalled();
+    for (const mode of ["legacy", "maintenance", "future"])
+      expect(
+        evaluateRuntimeContract(
+          { ...completeEnv(), EDITORIAL_PUBLISH_MODE: mode },
+          release,
+        ),
+      ).toEqual(evaluateRuntimeContract(completeEnv(), release));
   });
 
   it.each(["EDITORIAL", "CONTENT_DB"])(
-    "requires %s for direct save/read and publication",
+    "requires %s for save/read and publication",
     (name) => {
-      const env = directEnv();
+      const env = completeEnv();
       delete env[name];
       const report = evaluateRuntimeContract(env, release);
       expect(report.features.editorial).toEqual({
@@ -253,10 +331,10 @@ describe("admin runtime contract evaluation", () => {
     { put: (): null => null },
     { get: "get", put: (): null => null },
   ])(
-    "requires readable and writable direct media storage for publishing only (%s)",
+    "requires readable and writable media storage for publishing only (%s)",
     (media) => {
       const report = evaluateRuntimeContract(
-        { ...directEnv(), CONTENT_MEDIA: media },
+        { ...completeEnv(), CONTENT_MEDIA: media },
         release,
       );
       expect(report.features.editorial).toEqual(available);
@@ -269,30 +347,20 @@ describe("admin runtime contract evaluation", () => {
 
   it("does not accept an unrelated DB as the CMS database", () => {
     const report = evaluateRuntimeContract(
-      { ...directEnv(), CONTENT_DB: { prepare: false } },
+      { ...completeEnv(), CONTENT_DB: { prepare: false } },
       release,
     );
-    expect(report.features.admin_database).toEqual(available);
     expect(report.features.editorial).toEqual({
       state: "unavailable",
       missing: ["CONTENT_DB"],
     });
   });
 
-  it("requires a build identity for direct publishing without requiring a signing key", () => {
-    const report = evaluateRuntimeContract(directEnv(), "dev");
-    expect(report.features.editorial).toEqual(available);
-    expect(report.features.editorial_publishing).toEqual({
-      state: "unavailable",
-      missing: ["PUBLIC_RELEASE_SHA"],
-    });
-  });
-
-  it("keeps save/read available in maintenance while publication is disabled", () => {
+  it("keeps save/read available while the publishing kill switch is off", () => {
     const report = evaluateRuntimeContract(
       {
-        ...directEnv(),
-        EDITORIAL_PUBLISH_MODE: "maintenance",
+        ...completeEnv(),
+        EDITORIAL_PUBLISH_ENABLED: "false",
         CONTENT_MEDIA: undefined,
       },
       "dev",
@@ -305,8 +373,8 @@ describe("admin runtime contract evaluation", () => {
     expect(
       evaluateRuntimeContract(
         {
-          ...directEnv(),
-          EDITORIAL_PUBLISH_MODE: "maintenance",
+          ...completeEnv(),
+          EDITORIAL_PUBLISH_ENABLED: "false",
           CONTENT_DB: undefined,
         },
         release,
@@ -314,42 +382,8 @@ describe("admin runtime contract evaluation", () => {
     ).toEqual({ state: "unavailable", missing: ["CONTENT_DB"] });
   });
 
-  it.each(["DIRECT", "", "other", null, true, { privateValue: "do not log" }])(
-    "fails closed for an invalid publisher mode (%s)",
-    (mode) => {
-      const report = evaluateRuntimeContract(
-        { ...completeEnv(), EDITORIAL_PUBLISH_MODE: mode },
-        release,
-      );
-      expect(report.features.editorial).toEqual({
-        state: "unavailable",
-        missing: ["EDITORIAL_PUBLISH_MODE"],
-      });
-      expect(report.features.editorial_publishing).toEqual({
-        state: "unavailable",
-        missing: ["EDITORIAL_PUBLISH_MODE"],
-      });
-      expect(JSON.stringify(report)).not.toContain("do not log");
-    },
-  );
-
-  it("fails closed on an unreadable mode instead of selecting legacy", () => {
-    const env = completeEnv();
-    const modeRead = vi.fn(() => {
-      throw new Error("private provider error");
-    });
-    Object.defineProperty(env, "EDITORIAL_PUBLISH_MODE", { get: modeRead });
-    const report = evaluateRuntimeContract(env, release);
-    expect(report.features.editorial_publishing).toEqual({
-      state: "unavailable",
-      missing: ["EDITORIAL_PUBLISH_MODE"],
-    });
-    expect(modeRead).toHaveBeenCalledTimes(1);
-    expect(JSON.stringify(report)).not.toContain("private provider error");
-  });
-
-  it("still honors disabled flags in direct mode without reading disabled storage", () => {
-    const env = { ...directEnv(), EDITORIAL_ENABLED: "false" };
+  it("still honors disabled flags without reading disabled storage", () => {
+    const env = { ...completeEnv(), EDITORIAL_ENABLED: "false" };
     const storageRead = vi.fn(() => {
       throw new Error("offline storage");
     });
@@ -367,7 +401,7 @@ describe("admin runtime contract evaluation", () => {
     expect(
       evaluateRuntimeContract(
         {
-          ...directEnv(),
+          ...completeEnv(),
           EDITORIAL_PUBLISH_ENABLED: "false",
           CONTENT_MEDIA: undefined,
         },
@@ -431,8 +465,11 @@ describe("admin runtime contract logging", () => {
       features: {
         editorial: available,
         editorial_publishing: available,
-        admin_database: { state: "unavailable", missing: ["DB"] },
-        control_plane: available,
+        private_reader: available,
+        private_reader_ops: available,
+        private_reader_health: { state: "disabled", missing: [] },
+        private_reader_knowledge: { state: "disabled", missing: [] },
+        private_reader_canary: { state: "disabled", missing: [] },
       },
     });
     for (const value of Object.values(completeEnv()))
@@ -455,9 +492,27 @@ describe("admin runtime contract logging", () => {
   it("warns when only a feature is unavailable", async () => {
     const { reportRuntimeContract } = await freshModule();
     const log = sink();
-    reportRuntimeContract(without("COMMAND_RELAY"), "fetch", release, log);
+    reportRuntimeContract(without("CONTENT_DB"), "fetch", release, log);
     expect(log.info).not.toHaveBeenCalled();
     expect(JSON.parse(log.warn.mock.calls[0][0]).ok).toBe(true);
+  });
+
+  it("A-13: claims no feature for the migrations-only DB binding", async () => {
+    const { reportRuntimeContract } = await freshModule();
+    const log = sink();
+    reportRuntimeContract(without("DB"), "fetch", release, log);
+    expect(log.warn).not.toHaveBeenCalled();
+    const line = JSON.parse(log.info.mock.calls[0][0]);
+    expect(Object.keys(line.features)).toEqual([
+      "editorial",
+      "editorial_publishing",
+      "private_reader",
+      "private_reader_ops",
+      "private_reader_health",
+      "private_reader_knowledge",
+      "private_reader_canary",
+    ]);
+    expect(JSON.stringify(line)).not.toContain('"DB"');
   });
 
   it("bounds the release label to a commit identity or dev", async () => {
@@ -530,6 +585,13 @@ function declaredRuntimeNames(text: string): Declared {
       declared.secret.push(...secretComment[1].split(/,\s*|\s+and\s+/));
       continue;
     }
+    // A comment naming one secret in prose, as the reader key's does:
+    // "# The reader signing key is the PRIVATE_READER_SIGNING_KEY secret."
+    const namedSecret = /^# .*\bthe ([A-Z][A-Z0-9_]+) secret\.$/.exec(line);
+    if (namedSecret) {
+      declared.secret.push(namedSecret[1]!);
+      continue;
+    }
     if (!line || line.startsWith("#")) continue;
     const header = /^\[{1,2}([^\]]+)\]{1,2}$/.exec(line);
     if (header) {
@@ -560,8 +622,17 @@ function declaredRuntimeNames(text: string): Declared {
   return declared;
 }
 
+/** Feature flags production leaves unset on purpose, each switched on only
+ * with Ani's approval (health:read, the entity routes, the canary's auth
+ * change). Absent from wrangler.toml, their features read disabled. */
+const UNSET_IN_PRODUCTION: readonly RuntimeName[] = [
+  "PRIVATE_READER_HEALTH_ENABLED",
+  "PRIVATE_READER_KNOWLEDGE_ENABLED",
+  "PRIVATE_READER_CANARY_ENABLED",
+];
+
 function undeclared(declared: Declared) {
-  // Evaluate the same mode and feature flags against declaration-only stubs.
+  // Evaluate the same feature flags against declaration-only stubs.
   // Secrets are names in comments here; no actual credential is loaded.
   const env: Record<string, unknown> = { ...declared.varValues };
   for (const name of declared.assets) env[name] = { fetch() {} };
@@ -575,15 +646,15 @@ function undeclared(declared: Declared) {
     ...Object.values(report.features).flatMap((feature) => feature.missing),
     ...Object.values(RUNTIME_FEATURES)
       .flatMap((feature) => feature.flags)
-      .filter((name) => !declared.vars.includes(name)),
+      .filter(
+        (name) =>
+          !declared.vars.includes(name) && !UNSET_IN_PRODUCTION.includes(name),
+      ),
   ]);
   return (Object.keys(RUNTIME_CONTRACT) as RuntimeName[]).filter((name) =>
     missing.has(name),
   );
 }
-
-// Declared for retained or build tooling; no admin runtime surface reads it.
-const UNCONTRACTED_VARS = ["PUBLIC_STATE_API"];
 
 describe("admin wrangler.toml runtime contract drift", () => {
   const wrangler = readFileSync(
@@ -595,6 +666,12 @@ describe("admin wrangler.toml runtime contract drift", () => {
     expect(undeclared(declaredRuntimeNames(wrangler))).toEqual([]);
   });
 
+  it("A-34: leaves the health, knowledge and canary flags unset, so their features read disabled", () => {
+    const declared = declaredRuntimeNames(wrangler);
+    for (const name of UNSET_IN_PRODUCTION)
+      expect(declared.vars).not.toContain(name);
+  });
+
   it("classifies every deployed binding and var in the contract", () => {
     const declared = declaredRuntimeNames(wrangler);
     const deployed = [
@@ -604,8 +681,15 @@ describe("admin wrangler.toml runtime contract drift", () => {
       ...declared.r2,
       ...declared.durable_objects,
       ...declared.secret,
-    ].filter((name) => !UNCONTRACTED_VARS.includes(name));
+    ];
     expect(deployed.filter((name) => !(name in RUNTIME_CONTRACT))).toEqual([]);
+  });
+
+  // A-22 (admin half): the state API has no reader in admin any more.
+  it("A-22: deploys no PUBLIC_STATE_API var, which nothing reads", () => {
+    const declared = declaredRuntimeNames(wrangler);
+    expect(declared.vars).not.toContain("PUBLIC_STATE_API");
+    expect("PUBLIC_STATE_API" in RUNTIME_CONTRACT).toBe(false);
   });
 
   it("retains the contract line without request URL invocation logs", () => {
@@ -615,43 +699,39 @@ describe("admin wrangler.toml runtime contract drift", () => {
   });
 
   it("flags a removed or renamed binding", () => {
-    const relay = wrangler.replace('name = "COMMAND_RELAY"', 'name = "RELAY"');
+    const drafts = wrangler.replace('name = "EDITORIAL"', 'name = "DRAFTS"');
     const vars = wrangler.replace(
       /^ACCESS_TEAM_DOMAIN = .*$/m,
       'ACCESS_DOMAIN = "x"',
     );
     const assets = wrangler.replace('binding = "ASSETS"', 'binding = "FILES"');
-    // Maintenance reads no Git credential, so check secrets against the
-    // legacy rollback target they are retained for.
-    const legacy = wrangler.replace(
-      /^EDITORIAL_PUBLISH_MODE = .*$/m,
-      'EDITORIAL_PUBLISH_MODE = "legacy"',
-    );
-    const secret = legacy.replace(" and EDITORIAL_SIGNING_PRIVATE_KEY", "");
     const database = wrangler.replace(
       'binding = "CONTENT_DB"',
       'binding = "CONTENT"',
     );
-    expect(legacy).not.toBe(wrangler);
     expect(database).not.toBe(wrangler);
-    expect(relay).not.toBe(wrangler);
+    expect(drafts).not.toBe(wrangler);
     expect(vars).not.toBe(wrangler);
     expect(assets).not.toBe(wrangler);
-    expect(secret).not.toBe(legacy);
-    expect(undeclared(declaredRuntimeNames(relay))).toEqual(["COMMAND_RELAY"]);
+    expect(undeclared(declaredRuntimeNames(drafts))).toEqual(["EDITORIAL"]);
     expect(undeclared(declaredRuntimeNames(vars))).toEqual([
       "ACCESS_TEAM_DOMAIN",
     ]);
     expect(undeclared(declaredRuntimeNames(assets))).toEqual(["ASSETS"]);
-    expect(undeclared(declaredRuntimeNames(secret))).toEqual([
-      "EDITORIAL_SIGNING_PRIVATE_KEY",
-    ]);
     expect(undeclared(declaredRuntimeNames(database))).toEqual(["CONTENT_DB"]);
   });
 
   it("deploys direct publishing with its content bindings", () => {
     const declared = declaredRuntimeNames(wrangler);
-    expect(wrangler).toMatch(/^EDITORIAL_PUBLISH_MODE = "direct"$/m);
+    // The retired repository publisher's mode and App identity stay out.
+    for (const name of [
+      "EDITORIAL_PUBLISH_MODE",
+      "EDITORIAL_GITHUB_APP_ID",
+      "EDITORIAL_GITHUB_INSTALLATION_ID",
+    ])
+      expect(declared.vars).not.toContain(name);
+    // The reader's signing key is the one secret, declared by name.
+    expect(declared.secret).toEqual(["PRIVATE_READER_SIGNING_KEY"]);
     expect(declared.varValues.EDITORIAL_PUBLISH_ENABLED).toBe("true");
     expect(declared.varValues.EDITORIAL_ENABLED).toBe("true");
     expect(declared.d1).toContain("CONTENT_DB");
@@ -666,6 +746,8 @@ describe("admin wrangler.toml runtime contract drift", () => {
     const { features } = evaluateRuntimeContract(env, release);
     expect(features.editorial).toEqual(available);
     expect(features.editorial_publishing).toEqual(available);
+    expect(features.private_reader).toEqual(available);
+    expect(features.private_reader_ops).toEqual(available);
     // Without the media binding direct publishing reports what is missing
     // instead of silently activating.
     const { features: withoutMedia } = evaluateRuntimeContract(
@@ -678,75 +760,68 @@ describe("admin wrangler.toml runtime contract drift", () => {
     });
   });
 
-  it("keeps the maintenance rollback target complete", () => {
-    const maintenance = wrangler.replace(
-      /^EDITORIAL_PUBLISH_MODE = .*$/m,
-      'EDITORIAL_PUBLISH_MODE = "maintenance"',
+  it("flags the reader flags deployed on without their signing key", () => {
+    const unsigned = wrangler.replace(
+      /^# The reader signing key is the PRIVATE_READER_SIGNING_KEY secret\.$/m,
+      "",
     );
-    expect(maintenance).not.toBe(wrangler);
-    expect(undeclared(declaredRuntimeNames(maintenance))).toEqual([]);
+    expect(unsigned).not.toBe(wrangler);
+    expect(undeclared(declaredRuntimeNames(unsigned))).toEqual([
+      "PRIVATE_READER_SIGNING_KEY",
+    ]);
   });
 
-  it("keeps the retained legacy rollback target complete", () => {
-    const legacy = wrangler.replace(
-      /^EDITORIAL_PUBLISH_MODE = .*$/m,
-      'EDITORIAL_PUBLISH_MODE = "legacy"',
+  it("keeps the publishing-off kill switch complete", () => {
+    const off = wrangler.replace(
+      /^EDITORIAL_PUBLISH_ENABLED = .*$/m,
+      'EDITORIAL_PUBLISH_ENABLED = "false"',
     );
-    expect(undeclared(declaredRuntimeNames(legacy))).toEqual([]);
+    expect(off).not.toBe(wrangler);
+    expect(undeclared(declaredRuntimeNames(off))).toEqual([]);
   });
 
-  // The direct-mode checks below start from a config without the content
-  // resources, so each missing binding is reported on its own.
+  // The checks below start from a config without the content resources, so
+  // each missing binding is reported on its own.
   const bare = wrangler
-    .replace(/^EDITORIAL_PUBLISH_MODE = .*\n/m, "")
     .replace(/^\[\[d1_databases\]\]\nbinding = "CONTENT_DB"\n(?:.+\n)*/m, "")
     .replace(/^\[\[r2_buckets\]\]\nbinding = "CONTENT_MEDIA"\n(?:.+\n)*/m, "");
 
-  it("requires direct bindings only when their mode and feature are enabled", () => {
-    const direct = bare
-      .replace(
-        'EDITORIAL_ENABLED = "true"',
-        'EDITORIAL_ENABLED = "true"\nEDITORIAL_PUBLISH_MODE = "direct"',
-      )
-      .replace(/^EDITORIAL_GITHUB_.*$/gm, "")
-      .replace(/^# Secrets:.*$/gm, "");
-    expect(undeclared(declaredRuntimeNames(direct))).toEqual([
+  it("requires content bindings only when their feature is enabled", () => {
+    expect(undeclared(declaredRuntimeNames(bare))).toEqual([
       "CONTENT_DB",
       "CONTENT_MEDIA",
     ]);
-    const withDatabase = `${direct}\n[[d1_databases]]\nbinding = "CONTENT_DB"\n`;
+    const withDatabase = `${bare}\n[[d1_databases]]\nbinding = "CONTENT_DB"\n`;
     expect(undeclared(declaredRuntimeNames(withDatabase))).toEqual([
       "CONTENT_MEDIA",
     ]);
     const withMedia = `${withDatabase}\n[[r2_buckets]]\nbinding = "CONTENT_MEDIA"\n`;
     expect(undeclared(declaredRuntimeNames(withMedia))).toEqual([]);
-    const maintenance = withDatabase.replace(
-      'EDITORIAL_PUBLISH_MODE = "direct"',
-      'EDITORIAL_PUBLISH_MODE = "maintenance"',
-    );
-    expect(undeclared(declaredRuntimeNames(maintenance))).toEqual([]);
     const publishDisabled = withDatabase.replace(
       'EDITORIAL_PUBLISH_ENABLED = "true"',
       'EDITORIAL_PUBLISH_ENABLED = "false"',
     );
     expect(undeclared(declaredRuntimeNames(publishDisabled))).toEqual([]);
-    const invalid = withMedia.replace(
-      'EDITORIAL_PUBLISH_MODE = "direct"',
-      'EDITORIAL_PUBLISH_MODE = "future"',
-    );
-    expect(undeclared(declaredRuntimeNames(invalid))).toEqual([
-      "EDITORIAL_PUBLISH_MODE",
-    ]);
+  });
+
+  it("keeps the Health and Knowledge reader flags registered and unset in production", () => {
+    const declared = declaredRuntimeNames(wrangler);
+    for (const name of [
+      "PRIVATE_READER_HEALTH_ENABLED",
+      "PRIVATE_READER_KNOWLEDGE_ENABLED",
+    ] as const) {
+      expect(RUNTIME_CONTRACT[name]).toEqual({ source: "vars", check: "flag" });
+      expect(declared.vars).not.toContain(name);
+      expect(wrangler).not.toContain(name);
+    }
+    // The flags they sit beside stay as deployed.
+    expect(declared.varValues.PRIVATE_READER_ENABLED).toBe("true");
+    expect(declared.varValues.PRIVATE_READER_OPS_ENABLED).toBe("true");
   });
 
   it("keeps each feature built from contract names only", () => {
-    for (const feature of Object.values(RUNTIME_FEATURES)) {
-      const needs =
-        "legacy" in feature.needs
-          ? Object.values(feature.needs).flat()
-          : feature.needs;
-      for (const name of [...feature.flags, ...needs])
+    for (const feature of Object.values(RUNTIME_FEATURES))
+      for (const name of [...feature.flags, ...feature.needs])
         expect(name in RUNTIME_CONTRACT).toBe(true);
-    }
   });
 });
