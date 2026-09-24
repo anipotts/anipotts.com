@@ -65,8 +65,9 @@ describe("state entry wiring", () => {
     const env = completeEnv();
 
     const health = await app.fetch(new Request("https://api.test/health"), env);
-    expect(health.status).toBe(200);
-    expect(await health.json()).toMatchObject({ service: "anipotts-state" });
+    const healthBody = (await health.json()) as { ok: boolean };
+    expect(healthBody).toMatchObject({ service: "anipotts-state" });
+    expect(health.status).toBe(healthBody.ok ? 200 : 503);
     const info = await app.fetch(
       new Request("https://api.test/", { headers: { Origin: origin } }),
       env,
@@ -170,7 +171,8 @@ describe("state entry wiring", () => {
     );
     expect(socket.status).toBe(426);
     const health = await app.fetch(new Request("https://api.test/health"), env);
-    expect(health.status).toBe(200);
+    const healthBody = (await health.json()) as { ok: boolean };
+    expect(health.status).toBe(healthBody.ok ? 200 : 503);
 
     const lines = logs.contractLines();
     expect(lines).toHaveLength(1);
@@ -224,12 +226,14 @@ function summaries(links: unknown, commits: unknown) {
 
 async function readHealth(app: App, env: Record<string, unknown>) {
   const response = await app.fetch(new Request("https://api.test/health"), env);
-  expect(response.status).toBe(200);
   expect(response.headers.get("cache-control")).toBe("no-store");
-  return (await response.json()) as Record<string, unknown> & {
+  const body = (await response.json()) as Record<string, unknown> & {
     ok: boolean;
     planes: Record<string, Record<string, unknown>>;
   };
+  // A-32: the status mirrors ok, so a code-only monitor agrees with the body.
+  expect(response.status).toBe(body.ok ? 200 : 503);
+  return body;
 }
 
 describe("A-32 GET /health reports each plane", () => {

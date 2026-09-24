@@ -198,7 +198,9 @@ export default {
     if (request.method !== "GET" && request.method !== "HEAD") {
       return Response.json({ error: "Method not allowed" }, { status: 405 });
     }
-    return Response.json(await health(env));
+    const body = await health(env);
+    // The status mirrors ok, so a monitor reading only the code agrees with the body.
+    return Response.json(body, { status: body.ok ? 200 : 503 });
   },
 
   async queue(

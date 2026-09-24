@@ -234,7 +234,10 @@ describe("ingest health", () => {
     const recent = new Date(Date.now() - DAY_MS).toISOString();
     for (const key of [undefined, "", "  "]) {
       const env = { ...completeEnv(fakeDb(recent)), BRANDS_INGEST_KEY: key };
-      const text = await (await getHealth(worker, env)).text();
+      const response = await getHealth(worker, env);
+      // A-32: a fault the worker can see answers 503, not 200 with ok false.
+      expect(response.status).toBe(503);
+      const text = await response.text();
       expect(JSON.parse(text)).toMatchObject({
         ok: false,
         state: "failing",
@@ -254,10 +257,9 @@ describe("ingest health", () => {
     const worker = await freshWorker("health-silent-no-key");
     captureConsole();
     const env = { ...completeEnv(), BRANDS_INGEST_KEY: "" };
-    const body = (await (await getHealth(worker, env)).json()) as Record<
-      string,
-      unknown
-    >;
+    const silentResponse = await getHealth(worker, env);
+    expect(silentResponse.status).toBe(503);
+    const body = (await silentResponse.json()) as Record<string, unknown>;
     expect(body).toMatchObject({
       ok: false,
       state: "failing",

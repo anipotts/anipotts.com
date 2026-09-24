@@ -54,8 +54,9 @@ describe("newsletter entry wiring", () => {
       new Request("https://newsletter.test/"),
       env,
     );
-    expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ app: "newsletter" });
+    const body = (await response.json()) as { ok: boolean };
+    expect(body).toMatchObject({ app: "newsletter" });
+    expect(response.status).toBe(body.ok ? 200 : 503);
     await worker.queue({ queue: "newsletter-send", messages: [] }, env);
 
     const lines = logs.contractLines();
@@ -107,7 +108,7 @@ describe("newsletter entry wiring", () => {
         new Request("https://newsletter.test/"),
         env,
       );
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(503);
       expect(await response.json()).toMatchObject({
         ok: false,
         d1: "error",
@@ -182,8 +183,10 @@ async function health(worker: Worker, env: unknown) {
     new Request("https://newsletter.test/"),
     env,
   );
-  expect(response.status).toBe(200);
-  return (await response.json()) as Record<string, unknown>;
+  const body = (await response.json()) as Record<string, unknown>;
+  // A-32: the status mirrors ok, so a code-only monitor agrees with the body.
+  expect(response.status).toBe(body.ok ? 200 : 503);
+  return body;
 }
 
 describe("A-32 newsletter health", () => {

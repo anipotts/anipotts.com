@@ -254,16 +254,21 @@ export default {
           : brands.state === "silent" || brands.state === "empty"
             ? "degraded"
             : "ok";
-      return jsonResponse({
-        app: "ingest",
-        ok: state === "ok",
-        state,
-        d1: brands ? "connected" : "error",
-        brands_key: brandsKey,
-        brands_email: brands ?? arrival("unknown", null),
-        unobserved: UNOBSERVED,
-        ts: new Date().toISOString(),
-      });
+      // failing is a fault this worker sees: 503. degraded is no proof either
+      // way, so it stays 200 with ok false.
+      return jsonResponse(
+        {
+          app: "ingest",
+          ok: state === "ok",
+          state,
+          d1: brands ? "connected" : "error",
+          brands_key: brandsKey,
+          brands_email: brands ?? arrival("unknown", null),
+          unobserved: UNOBSERVED,
+          ts: new Date().toISOString(),
+        },
+        state === "failing" ? 503 : 200,
+      );
     }
 
     if (request.method !== "POST") {
