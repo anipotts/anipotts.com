@@ -45,10 +45,13 @@ import {
   RowTitle,
   StateBadge,
   StateNotice,
+  chipWidth,
+  figureWidth,
   titleWidth,
   type Column,
   type Tone,
 } from "../workspace/Workspace";
+import { countText } from "../workspace/format";
 import type { DataSourceRow } from "./data-model";
 import { ReadNotice } from "./DataNotices";
 import { readSourceCatalog } from "./source-catalog";
@@ -383,38 +386,31 @@ function timeCell(row: SourceRow, value: string | null, label: string) {
   return <RelativeTime value={value} empty="Not recorded" label={label} />;
 }
 
-/** A family's count and caret beside its name (sources.css). */
-const FAMILY_CHROME = 40;
-/** Line 2 is supporting text, 12px beside the title's 14px. */
-const SECONDARY_SCALE = 12 / 14;
-/** An account's indent under its family (sources.css). */
-const ACCOUNT_INDENT = 36;
+/** A cell's inline inset: 12px each side. */
+const SOURCE_CELL_INSET = 24;
 
-/**
- * The widest the Source column's content runs: a name with its tile, a
- * family's count and caret, an open family's indented accounts, and line 2
- * (a family's accounts, a source's newest record). The column takes no
- * more, and the figures after it share the rest, so a table of short names
- * has no dead middle (the kit's `max` and `spread`).
- */
-export function sourceLeadMax(rows: readonly SourceRow[]): number {
-  const widths = rows.flatMap((row) => {
-    const own =
-      titleWidth(row.name) + (row.kind === "family" ? FAMILY_CHROME : 0);
-    const line =
-      row.kind === "family"
-        ? row.accounts.map((account) => account.name).join(", ")
-        : (foundText(row) ?? (row.newest ? "Newest record 00d ago" : ""));
-    return [
-      own,
-      titleWidth(line) * SECONDARY_SCALE,
-      ...row.accounts.map(
-        (account) => ACCOUNT_INDENT + titleWidth(account.name),
-      ),
-    ];
-  });
-  // The lead's inset, tile and gaps around its text, as leadWidth counts.
-  return Math.min(480, Math.max(160, Math.ceil(64 + Math.max(0, ...widths))));
+/** The State column at its widest cell: a quiet dot, or the widest chip
+ * the rows draw, and never narrower than its header. */
+export function sourceStateWidth(rows: readonly SourceRow[]): number {
+  let widest = titleWidth("State");
+  for (const row of [...rows, ...rows.flatMap((row) => row.accounts)]) {
+    const badge = STATES[row.state];
+    widest = Math.max(widest, chipWidth(badge.label, badge.quiet));
+  }
+  return Math.ceil(SOURCE_CELL_INSET + widest);
+}
+
+/** A count column at its header or its widest figure, whichever is wider,
+ * so the numbers sit tight beside State rather than across a dead band. */
+export function sourceFigureWidth(
+  header: string,
+  values: readonly (number | null)[],
+): number {
+  let widest = titleWidth(header);
+  for (const value of values)
+    if (value != null && Number.isFinite(value))
+      widest = Math.max(widest, figureWidth(countText(value)));
+  return Math.ceil(SOURCE_CELL_INSET + widest);
 }
 
 /** Every family and source, with each open family's accounts under it. */
@@ -506,11 +502,15 @@ export function SourcesExplorer({
   const anySync = rows.some(
     (row) => row.lastSync || row.accounts.some((account) => account.lastSync),
   );
+  // Every count a row shows, open accounts included.
+  const counted = (key: "records" | "revisions") =>
+    [...rows, ...rows.flatMap((row) => row.accounts)]
+      .filter(showsCounts)
+      .map((row) => row[key]);
   const columns: Column<TableRow>[] = [
     {
       key: "source",
       header: "Source",
-      max: sourceLeadMax(rows),
       render: (row) =>
         row.kind === "family" ? (
           <FamilyTitle
@@ -536,25 +536,22 @@ export function SourcesExplorer({
     {
       key: "state",
       header: "State",
-      width: CELL_WIDTHS.state,
+      width: sourceStateWidth(rows),
       render: (row) => <SourceStateMark state={row.state} />,
     },
     {
       key: "records",
       header: "Records",
-      width: CELL_WIDTHS.figure,
+      width: sourceFigureWidth("Records", counted("records")),
       numeric: true,
-      spread: true,
       render: (row) => <Figure value={showsCounts(row) ? row.records : null} />,
     },
     {
       key: "revisions",
       header: "Revisions",
-      // "Revisions" is wider than a figure cell's label room.
-      width: CELL_WIDTHS.time,
+      width: sourceFigureWidth("Revisions", counted("revisions")),
       numeric: true,
       hideBelow: "large",
-      spread: true,
       render: (row) => (
         <Figure value={showsCounts(row) ? row.revisions : null} />
       ),

@@ -256,15 +256,15 @@
   list-style: none;
   min-width: 0;
 }
+/* Equal columns, each wide enough for a host's detail on two lines beside
+   its sampled time; a row's cards stretch to the tallest. */
 .ops-hosts {
-  display: flex;
+  display: grid;
   flex: 1 1 auto;
-  flex-wrap: wrap;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr));
   gap: var(--spacing-2);
 }
 .ops-hosts > .ops-card {
-  flex: 0 0 18rem;
-  max-width: 100%;
   min-width: 0;
 }
 /* 20rem holds an app's name and state on line 1 and its sync's device,
@@ -370,11 +370,46 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
   margin-inline-start: auto;
   white-space: nowrap;
 }
+/* A host's detail wraps at whole words onto a second line rather than
+   losing its end; the card's tooltip carries it too. */
 .ops-card-detail {
+  flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+/* Host cards line up on their first line: the tile sits on the name and
+   state pair, and a wrapped detail keeps the sampled time on its own first
+   line. Cards in a row stretch to the tallest. */
+.ops-hosts .ops-card-link {
+  align-items: flex-start;
+}
+.ops-hosts .ops-card-tile {
+  margin-block-start: calc((2 * var(--spacing-6) - 28px) / 2);
+}
+/* The second line sits at the card's foot, so disk bars and sampled times
+   line up across a row whatever wraps above them. */
+.ops-hosts .ops-card-body {
+  align-self: stretch;
+}
+.ops-hosts .ops-card-meta {
+  align-items: flex-end;
+  margin-block-start: auto;
+}
+.ops-hosts .ops-card-facts {
+  flex-wrap: wrap;
+  row-gap: 0;
+  min-height: var(--spacing-6);
+  overflow: visible;
+}
+.ops-hosts .ops-card-facts > .ops-fact,
+.ops-hosts .ops-card-meta > .ops-card-end {
+  min-height: var(--spacing-6);
+}
+.ops-hosts .ops-card-detail {
+  padding-block: calc((var(--spacing-6) - 1lh) / 2);
 }
 .ops-card-where {
   flex: 0 1 auto;

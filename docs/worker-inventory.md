@@ -79,6 +79,8 @@ is an endpoint, DNS, account, secret or deletion change:
 | ghost    | deployed and still answering or running, but retired, parked, duplicated or with no known owner |
 | dangling | a DNS name or domain claim with nothing real behind it                                          |
 | orphan   | storage that no deployed worker binds and no known job uses                                     |
+| deleted  | removed from the account with Ani's approval; the row stays as the record of when and why       |
+| removed  | a host or route detached from its worker with Ani's approval; the row records when              |
 
 ### security findings
 
