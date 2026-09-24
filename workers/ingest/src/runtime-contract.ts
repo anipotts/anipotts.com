@@ -1,13 +1,12 @@
 /**
  * Closed ingest runtime configuration contract.
  *
- * Evaluation reports names and bounded states only. Binding objects, vars and
+ * Evaluation reports names and bounded states only. Binding objects and
  * secret values never leave this module. Reporting is log only: it never
- * blocks a request, skips a cron job or changes a response. Each handler keeps
- * its own checks.
+ * blocks a request or changes a response. Each handler keeps its own checks.
  */
 
-type Source = "vars" | "d1" | "secret";
+type Source = "d1" | "secret";
 type Check = "prepare" | "text";
 
 /** Every name must match workers/ingest/wrangler.toml; the drift test enforces it. */
@@ -15,24 +14,22 @@ export const RUNTIME_CONTRACT = {
   DB: { source: "d1", check: "prepare" },
   MAC_MINI_INGEST_KEY: { source: "secret", check: "text" },
   BRANDS_INGEST_KEY: { source: "secret", check: "text" },
-  GITHUB_TOKEN: { source: "secret", check: "text" },
-  CF_API_TOKEN: { source: "secret", check: "text" },
-  CF_ACCOUNT_ID: { source: "vars", check: "text" },
 } as const satisfies Record<string, { source: Source; check: Check }>;
 
 export type RuntimeName = keyof typeof RUNTIME_CONTRACT;
 
-/** Every write and cron job reads DB. Five of six categories need the mini key. */
+/** Every write and the GET arrival read use DB. */
 export const RUNTIME_REQUIRED = [
   "DB",
-  "MAC_MINI_INGEST_KEY",
 ] as const satisfies readonly RuntimeName[];
 
-/** Mirrors the scoped brands key check, runGitHubStats and runCfDeployments. */
+/**
+ * brands_email is the only category, and either key authorizes it: the
+ * scoped brands key the Apps Script capture sends, or the superset mini key.
+ */
 export const RUNTIME_FEATURES = {
   brands_ingest: ["BRANDS_INGEST_KEY"],
-  github_stats: ["GITHUB_TOKEN"],
-  cf_deployments: ["CF_API_TOKEN", "CF_ACCOUNT_ID"],
+  mini_ingest: ["MAC_MINI_INGEST_KEY"],
 } as const satisfies Record<string, readonly RuntimeName[]>;
 
 type RuntimeFeature = keyof typeof RUNTIME_FEATURES;
