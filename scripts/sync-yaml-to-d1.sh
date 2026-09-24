@@ -1,4 +1,12 @@
 #!/bin/bash
+# Retired on 2026-09-22. This synced ~/Business/data/*.yaml into D1 through
+# the ingest Worker's "business" category. The Worker no longer accepts
+# business rows and nothing reads them, so the script exits before it reads a
+# file or sends a request. The original sync body stays below for reference.
+
+echo "sync-yaml-to-d1 is retired: the ingest Worker no longer accepts business rows." >&2
+exit 1
+
 # Syncs ~/Business/data/*.yaml to D1 via the ingest Worker.
 # Run from Mac Mini: ./scripts/sync-yaml-to-d1.sh
 # Requires: yq (https://github.com/mikefarah/yq), curl, INGEST_KEY env var

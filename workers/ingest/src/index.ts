@@ -1,73 +1,34 @@
 import { createRuntimeContractReporter } from "./runtime-contract";
 
+// brands_email is the one category left. The ops, code, analytics, business
+// and rollup categories and the four cron jobs were retired on 2026-09-22:
+// nothing called or read them, and none of their output could tell the truth.
+// A stale schedule is logged and ignored.
+
 interface Env {
   DB: D1Database;
   MAC_MINI_INGEST_KEY: string;
   BRANDS_INGEST_KEY: string;
-  GITHUB_TOKEN: string;
-  CF_API_TOKEN: string;
-  CF_ACCOUNT_ID: string;
 }
 
-type Category =
-  "ops" | "code" | "analytics" | "business" | "rollup" | "brands_email";
+type Category = "brands_email";
 
 const CATEGORY_TABLE: Record<Category, string> = {
-  ops: "ops_snapshots",
-  code: "code_health",
-  analytics: "analytics_events",
-  business: "business_data",
-  rollup: "daily_rollups",
   brands_email: "brands_emails",
 };
 
-const VALID_CATEGORIES = new Set<Category>([
-  "ops",
-  "code",
-  "analytics",
-  "business",
-  "rollup",
-  "brands_email",
-]);
+const VALID_CATEGORIES = new Set<Category>(["brands_email"]);
 
 /**
  * Categories writable with a scoped secret (BRANDS_INGEST_KEY).
  * Anything NOT in this set requires the global MAC_MINI_INGEST_KEY.
  */
 const SCOPED_CATEGORIES: Record<Category, "mac_mini" | "brands"> = {
-  ops: "mac_mini",
-  code: "mac_mini",
-  analytics: "mac_mini",
-  business: "mac_mini",
-  rollup: "mac_mini",
   brands_email: "brands",
 };
 
 /** Allowlisted columns per table. Only these can be written via ingest. */
 const TABLE_COLUMNS: Record<Category, Set<string>> = {
-  ops: new Set(["key", "category", "value", "updated_at"]),
-  code: new Set([
-    "repo",
-    "dirty",
-    "unpushed_count",
-    "stale_branches",
-    "last_commit_at",
-    "last_commit_msg",
-    "deployment_status",
-    "updated_at",
-  ]),
-  analytics: new Set([
-    "id",
-    "source",
-    "metric",
-    "value",
-    "dimensions",
-    "period_start",
-    "period_end",
-    "fetched_at",
-  ]),
-  business: new Set(["key", "value", "source_file", "updated_at"]),
-  rollup: new Set(["id", "date", "hour", "metric", "value", "created_at"]),
   // Apps Script sends identity fields only; status/notes/deal_slug are edited
   // through other paths (admin UI) and must not be overwritten by re-ingest.
   brands_email: new Set([
@@ -81,45 +42,28 @@ const TABLE_COLUMNS: Record<Category, Set<string>> = {
   ]),
 };
 
-/** Primary key column(s) per table, used to look up existing rows for merging. */
-const PK_COLUMNS: Record<Category, string[]> = {
-  ops: ["key", "category"],
-  code: ["repo"],
-  analytics: ["id"],
-  business: ["key"],
-  rollup: ["id"],
-  brands_email: ["message_id"],
-};
-
 /** Timestamp column name per table (set automatically on ingest). */
 const TS_COLUMN: Record<Category, string> = {
-  ops: "updated_at",
-  code: "updated_at",
-  analytics: "fetched_at",
-  business: "updated_at",
-  rollup: "created_at",
   brands_email: "ingested_at",
 };
 
 /**
- * Conflict strategy per category.
- *
- * - "replace": INSERT OR REPLACE — overwrites the existing row. Safe for
- *   categories where the ingest path owns every column in the table.
- * - "ignore":  INSERT OR IGNORE  — drops the new row on PK collision.
- *   Required when non-allowlisted columns (e.g. admin-set status/notes on
- *   brands_emails) must not be clobbered by re-ingest. INSERT OR REPLACE
- *   would delete the existing row, then re-insert with DEFAULTs for any
- *   columns the worker doesn't write.
+ * The Apps Script capture posts a brands_email row only when brand mail
+ * arrives, so this worker can't tell a quiet inbox from a stopped capture.
+ * The budget comes from the capture's own history, as the 2026-09-22 audit
+ * read it: while it ran (2026-05-12 to 2026-06-24) a row landed every 1 to 3
+ * days, and the longest gap was 7 days (06-16 to 06-23). So a week without a
+ * row is "quiet" and still ok.
+ * Past 14 days, twice that longest gap, it is "silent": over budget, so the
+ * GET reads degraded and ok false, naming the newest arrival's day. Degraded
+ * is not failing: failing is kept for faults this worker can see (A-24).
  */
-const CONFLICT_STRATEGY: Record<Category, "replace" | "ignore"> = {
-  ops: "replace",
-  code: "replace",
-  analytics: "replace",
-  business: "replace",
-  rollup: "replace",
-  brands_email: "ignore",
-};
+const DAY_S = 24 * 60 * 60;
+const BRANDS_EMAIL_QUIET_AFTER_S = 7 * DAY_S;
+const BRANDS_EMAIL_FRESHNESS_BUDGET_S = 14 * DAY_S;
+
+const UNOBSERVED =
+  "The Apps Script capture itself. This worker sees only the rows that reach it and keeps no record of rejected posts.";
 
 interface IngestPayload {
   category: Category;
@@ -133,449 +77,147 @@ function jsonResponse(body: Record<string, unknown>, status = 200): Response {
   });
 }
 
-/**
- * Fetch the existing row from D1 so we can merge incoming fields over it,
- * preventing INSERT OR REPLACE from NULL-ing omitted columns.
- */
-async function fetchExistingRow(
-  db: D1Database,
-  table: string,
-  pkColumns: string[],
-  incomingRecord: Record<string, unknown>,
-): Promise<Record<string, unknown> | null> {
-  const whereClauses = pkColumns.map((col) => `${col} = ?`);
-  const whereValues = pkColumns.map((col) => incomingRecord[col]);
-
-  // If any PK value is missing, can't look up existing row
-  if (whereValues.some((v) => v === undefined || v === null)) return null;
-
-  const sql = `SELECT * FROM ${table} WHERE ${whereClauses.join(" AND ")} LIMIT 1`;
-  const result = await db
-    .prepare(sql)
-    .bind(...whereValues)
-    .first();
-  return result as Record<string, unknown> | null;
+function isoOrNull(ms: unknown): string | null {
+  return typeof ms === "number" && Number.isFinite(ms)
+    ? new Date(ms).toISOString()
+    : null;
 }
 
-// ---------------------------------------------------------------------------
-// Shared write helper: used by both the HTTP ingest path and cron jobs
-// ---------------------------------------------------------------------------
+type WriteReceipt =
+  | { rows_written: number; rows_ignored: number }
+  | {
+      rows_written: null;
+      rows_ignored: null;
+    };
 
+/**
+ * INSERT OR IGNORE drops a row whose message_id already exists. INSERT OR
+ * REPLACE would delete the existing row and re-insert it with DEFAULTs for the
+ * admin-set columns (status, notes, deal_slug) the worker never writes.
+ * IGNORE also drops a row missing a NOT NULL column (thread_id, received_at,
+ * from_addr, subject, label), so the receipt counts D1's changes, not the rows
+ * posted.
+ */
 async function writeToTable(
   db: D1Database,
   category: Category,
   data: Record<string, unknown> | Record<string, unknown>[],
-): Promise<number> {
+): Promise<WriteReceipt> {
   const table = CATEGORY_TABLE[category];
   const allowedColumns = TABLE_COLUMNS[category];
-  const pkColumns = PK_COLUMNS[category];
   const tsColumn = TS_COLUMN[category];
   const rows = Array.isArray(data) ? data : [data];
 
-  if (rows.length === 0) return 0;
+  if (rows.length === 0) return { rows_written: 0, rows_ignored: 0 };
 
   const ts = new Date().toISOString();
   const statements = [];
 
   for (const row of rows) {
     // Filter to allowlisted columns only, add timestamp
-    const incoming: Record<string, unknown> = {};
+    const record: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(row)) {
       if (allowedColumns.has(k)) {
-        incoming[k] =
-          typeof v === "object" && v !== null ? JSON.stringify(v) : v;
+        record[k] = typeof v === "object" && v !== null ? JSON.stringify(v) : v;
       }
     }
-    incoming[tsColumn] = ts;
+    record[tsColumn] = ts;
 
-    if (Object.keys(incoming).length <= 1) {
+    if (Object.keys(record).length <= 1) {
       // Only the timestamp column. Nothing useful to write.
       throw new Error("No valid columns in row");
     }
 
-    const strategy = CONFLICT_STRATEGY[category];
-    let record: Record<string, unknown>;
-
-    if (strategy === "replace") {
-      // Merge: fetch existing row so columns the ingest path owns but didn't
-      // include in this payload keep their values across re-ingest.
-      const existing = await fetchExistingRow(db, table, pkColumns, incoming);
-      const merged = existing ? { ...existing, ...incoming } : incoming;
-
-      record = {};
-      for (const [k, v] of Object.entries(merged)) {
-        if (allowedColumns.has(k)) {
-          record[k] = v;
-        }
-      }
-    } else {
-      // IGNORE — never touches existing rows; merge/fetch is dead weight here.
-      record = incoming;
-    }
-
     const keys = Object.keys(record);
     const placeholders = keys.map(() => "?").join(", ");
-    const values = Object.values(record);
-    const verb =
-      strategy === "ignore" ? "INSERT OR IGNORE" : "INSERT OR REPLACE";
-
     statements.push(
       db
         .prepare(
-          `${verb} INTO ${table} (${keys.join(", ")}) VALUES (${placeholders})`,
+          `INSERT OR IGNORE INTO ${table} (${keys.join(", ")}) VALUES (${placeholders})`,
         )
-        .bind(...values),
+        .bind(...Object.values(record)),
     );
   }
 
-  await db.batch(statements);
-  return rows.length;
-}
-
-// ---------------------------------------------------------------------------
-// Cron job: Health probes (every minute)
-// ---------------------------------------------------------------------------
-
-const HEALTH_ENDPOINTS = [
-  { key: "www", url: "https://anipotts.com/api/health" },
-  { key: "admin", url: "https://admin.anipotts.com/_health" },
-  { key: "ingest", url: "https://anipotts-ingest.anipotts.workers.dev" },
-  { key: "mini", url: "https://api.mini.anipotts.com/health" },
-];
-
-async function runHealthProbes(db: D1Database): Promise<void> {
-  const results = await Promise.allSettled(
-    HEALTH_ENDPOINTS.map(async (endpoint) => {
-      const start = Date.now();
-      try {
-        const res = await fetch(endpoint.url, {
-          signal: AbortSignal.timeout(5000),
-        });
-        const ms = Date.now() - start;
-        return {
-          key: endpoint.key,
-          category: "health_probe",
-          value: JSON.stringify({
-            ok: res.ok,
-            status: res.status,
-            ms,
-            ts: new Date().toISOString(),
-          }),
-        };
-      } catch (e) {
-        const ms = Date.now() - start;
-        return {
-          key: endpoint.key,
-          category: "health_probe",
-          value: JSON.stringify({
-            ok: false,
-            status: 0,
-            ms,
-            error: e instanceof Error ? e.message : "Fetch failed",
-            ts: new Date().toISOString(),
-          }),
-        };
-      }
-    }),
-  );
-
-  const rows: Record<string, unknown>[] = [];
-  for (const r of results) {
-    if (r.status === "fulfilled") rows.push(r.value);
+  const results = await db.batch(statements);
+  const changes = results.map((result) => result?.meta?.changes);
+  if (
+    changes.length !== rows.length ||
+    !changes.every((n) => typeof n === "number" && Number.isSafeInteger(n))
+  ) {
+    return { rows_written: null, rows_ignored: null };
   }
-
-  if (rows.length > 0) {
-    await writeToTable(db, "ops", rows);
-  }
+  const written = (changes as number[]).reduce((sum, n) => sum + n, 0);
+  return { rows_written: written, rows_ignored: rows.length - written };
 }
 
-// ---------------------------------------------------------------------------
-// Cron job: GitHub stats (every 5 min)
-// ---------------------------------------------------------------------------
+type BrandsEmailArrival = {
+  state: "recent" | "quiet" | "silent" | "empty" | "unknown";
+  last_ingested_at: string | null;
+  quiet_after_s: number;
+  freshness_budget_s: number;
+  note: string;
+};
 
-// Rows are keyed github-<repo name>-<metric>-<hour>. anipotts/agents wrote
-// under "claude-code-tips" (its old name, through GitHub's redirect) until
-// 2026-09-16; earlier hourly rows keep that label and nothing reads them
-// back, so the series continues under "agents" from the next run.
-const GITHUB_REPOS = [
-  "anipotts/anipotts.com",
-  "anipotts/agents",
-  "anipotts/imessage-mcp",
-  "anipotts/claudemon",
-  "anipotts/antileak",
-  "anipotts/vector-seo",
-  "anipotts/quantercise",
-  // anipotts/rudy was dropped on 2026-09-16: Rudy is retired.
-];
+/** The ops vocabulary: failing is a fault this worker sees, degraded is not. */
+type HealthState = "ok" | "degraded" | "failing";
 
-interface GhRepoResponse {
-  stargazers_count: number;
-  open_issues_count: number;
-}
+/** The day of the newest arrival, in UTC: "2026-06-24". */
+const day = (last: string | null) =>
+  last ? new Date(Date.parse(last)).toISOString().slice(0, 10) : "";
 
-interface GhSearchResponse {
-  total_count: number;
-}
+const ARRIVAL_NOTE: Record<
+  BrandsEmailArrival["state"],
+  (last: string | null) => string
+> = {
+  recent: () => "Brand mail arrived in the last 7 days.",
+  quiet: (last) =>
+    `No brand mail since ${day(last)}, inside the 14 day budget. A quiet inbox and a stopped capture look the same here.`,
+  silent: (last) =>
+    `No brand mail since ${day(last)}, past the 14 day budget. The longest gap while the capture ran was 7 days, so it may have stopped.`,
+  empty: () =>
+    "No brand mail recorded, so the capture has never been seen working.",
+  unknown: () => "Couldn't read the newest arrival time.",
+};
 
-async function runGitHubStats(db: D1Database, token: string): Promise<void> {
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    Accept: "application/vnd.github+json",
-    "X-GitHub-Api-Version": "2022-11-28",
-  };
-
-  const now = new Date();
-  const dateHour = `${now.toISOString().slice(0, 13)}`; // YYYY-MM-DDTHH
-
-  const results = await Promise.allSettled(
-    GITHUB_REPOS.map(async (fullName) => {
-      const repoName = fullName.split("/")[1] ?? fullName;
-
-      try {
-        const [repoRes, prRes] = await Promise.all([
-          fetch(`https://api.github.com/repos/${fullName}`, {
-            headers,
-            signal: AbortSignal.timeout(5000),
-          }),
-          fetch(
-            `https://api.github.com/search/issues?q=repo:${fullName}+type:pr+state:open&per_page=1`,
-            {
-              headers,
-              signal: AbortSignal.timeout(5000),
-            },
-          ),
-        ]);
-
-        let stars = 0;
-        let openIssues = 0;
-        let openPRs = 0;
-
-        if (repoRes.ok) {
-          const repoData = (await repoRes.json()) as GhRepoResponse;
-          stars = repoData.stargazers_count;
-          openIssues = repoData.open_issues_count;
-        }
-
-        if (prRes.ok) {
-          const prData = (await prRes.json()) as GhSearchResponse;
-          openPRs = prData.total_count ?? 0;
-          // open_issues_count includes PRs, so subtract
-          openIssues = Math.max(0, openIssues - openPRs);
-        }
-
-        return [
-          {
-            id: `github-${repoName}-stars-${dateHour}`,
-            source: "github",
-            metric: "stars",
-            value: JSON.stringify({ repo: repoName, count: stars }),
-          },
-          {
-            id: `github-${repoName}-issues-${dateHour}`,
-            source: "github",
-            metric: "open_issues",
-            value: JSON.stringify({ repo: repoName, count: openIssues }),
-          },
-          {
-            id: `github-${repoName}-prs-${dateHour}`,
-            source: "github",
-            metric: "open_prs",
-            value: JSON.stringify({ repo: repoName, count: openPRs }),
-          },
-        ];
-      } catch {
-        return [];
-      }
-    }),
-  );
-
-  const rows: Record<string, unknown>[] = [];
-  for (const r of results) {
-    if (r.status === "fulfilled") rows.push(...r.value);
-  }
-
-  if (rows.length > 0) {
-    await writeToTable(db, "analytics", rows);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Cron job: CF Worker deployments (every 5 min)
-// ---------------------------------------------------------------------------
-
-const CF_WORKERS = [
-  "anipotts-www",
-  "anipotts-admin",
-  "anipotts-ingest",
-  "claudemon-api",
-];
-
-interface CfWorkerResponse {
-  success: boolean;
-  result?: {
-    id: string;
-    modified_on?: string;
-    size?: number;
+function arrival(
+  state: BrandsEmailArrival["state"],
+  last: string | null,
+): BrandsEmailArrival {
+  return {
+    state,
+    last_ingested_at: last,
+    quiet_after_s: BRANDS_EMAIL_QUIET_AFTER_S,
+    freshness_budget_s: BRANDS_EMAIL_FRESHNESS_BUDGET_S,
+    note: ARRIVAL_NOTE[state](last),
   };
 }
 
-async function runCfDeployments(
+/** One timestamp, never a subject, address or message id. */
+async function brandsEmailArrival(
   db: D1Database,
-  token: string,
-  accountId: string,
-): Promise<void> {
-  const results = await Promise.allSettled(
-    CF_WORKERS.map(async (name) => {
-      try {
-        const res = await fetch(
-          `https://api.cloudflare.com/client/v4/accounts/${accountId}/workers/scripts/${name}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-            signal: AbortSignal.timeout(5000),
-          },
-        );
-
-        if (!res.ok) {
-          return {
-            key: name,
-            category: "cf_deployment",
-            value: JSON.stringify({
-              status: "error",
-              error: `HTTP ${res.status}`,
-              ts: new Date().toISOString(),
-            }),
-          };
-        }
-
-        const data = (await res.json()) as CfWorkerResponse;
-        return {
-          key: name,
-          category: "cf_deployment",
-          value: JSON.stringify({
-            status: data.success ? "active" : "error",
-            modified_on: data.result?.modified_on ?? null,
-            size: data.result?.size ?? null,
-            ts: new Date().toISOString(),
-          }),
-        };
-      } catch (e) {
-        return {
-          key: name,
-          category: "cf_deployment",
-          value: JSON.stringify({
-            status: "error",
-            error: e instanceof Error ? e.message : "Fetch failed",
-            ts: new Date().toISOString(),
-          }),
-        };
-      }
-    }),
+  nowMs: number,
+): Promise<BrandsEmailArrival> {
+  const row = await db
+    .prepare("SELECT MAX(ingested_at) AS last_at FROM brands_emails")
+    .first<{ last_at: string | null }>();
+  const last = typeof row?.last_at === "string" ? row.last_at : null;
+  if (last === null) return arrival("empty", null);
+  const lastMs = Date.parse(last);
+  if (!Number.isFinite(lastMs)) return arrival("unknown", last);
+  const age = nowMs - lastMs;
+  return arrival(
+    age <= BRANDS_EMAIL_QUIET_AFTER_S * 1000
+      ? "recent"
+      : age <= BRANDS_EMAIL_FRESHNESS_BUDGET_S * 1000
+        ? "quiet"
+        : "silent",
+    last,
   );
-
-  const rows: Record<string, unknown>[] = [];
-  for (const r of results) {
-    if (r.status === "fulfilled") rows.push(r.value);
-  }
-
-  if (rows.length > 0) {
-    await writeToTable(db, "ops", rows);
-  }
 }
 
-// ---------------------------------------------------------------------------
-// Cron job: npm download counts (every hour)
-// ---------------------------------------------------------------------------
-
-const NPM_PACKAGES = ["imessage-mcp", "claudemon-cli"];
-
-interface NpmDownloadsResponse {
-  downloads: number;
-}
-
-async function runNpmDownloads(db: D1Database): Promise<void> {
-  const dateHour = new Date().toISOString().slice(0, 13); // YYYY-MM-DDTHH
-
-  const results = await Promise.allSettled(
-    NPM_PACKAGES.map(async (pkg) => {
-      try {
-        const res = await fetch(
-          `https://api.npmjs.org/downloads/point/last-week/${pkg}`,
-          { signal: AbortSignal.timeout(5000) },
-        );
-
-        if (!res.ok) return null;
-
-        const data = (await res.json()) as NpmDownloadsResponse;
-        return {
-          id: `npm-${pkg}-weekly-${dateHour}`,
-          source: "npm",
-          metric: "downloads_weekly",
-          value: JSON.stringify({
-            package: pkg,
-            downloads: data.downloads ?? 0,
-          }),
-        };
-      } catch {
-        return null;
-      }
-    }),
-  );
-
-  const rows: Record<string, unknown>[] = [];
-  for (const r of results) {
-    if (r.status === "fulfilled" && r.value !== null) rows.push(r.value);
-  }
-
-  if (rows.length > 0) {
-    await writeToTable(db, "analytics", rows);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Scheduler dispatcher
-// ---------------------------------------------------------------------------
-
-async function runScheduledJobs(env: Env, minute: number): Promise<void> {
-  // Health probes: every minute
-  try {
-    await runHealthProbes(env.DB);
-  } catch (e) {
-    console.error("Health probes failed:", e instanceof Error ? e.message : e);
-  }
-
-  // GitHub + CF deployments: every 5 minutes
-  if (minute % 5 === 0) {
-    const [ghResult, cfResult] = await Promise.allSettled([
-      runGitHubStats(env.DB, env.GITHUB_TOKEN),
-      runCfDeployments(env.DB, env.CF_API_TOKEN, env.CF_ACCOUNT_ID),
-    ]);
-    if (ghResult.status === "rejected") {
-      console.error("GitHub stats failed:", ghResult.reason);
-    }
-    if (cfResult.status === "rejected") {
-      console.error("CF deployments failed:", cfResult.reason);
-    }
-  }
-
-  // npm downloads: every hour
-  if (minute === 0) {
-    try {
-      await runNpmDownloads(env.DB);
-    } catch (e) {
-      console.error(
-        "npm downloads failed:",
-        e instanceof Error ? e.message : e,
-      );
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Worker exports
-// ---------------------------------------------------------------------------
-
-// Log only: one runtime contract line per isolate. It never blocks a request,
-// skips a cron job or changes a response.
+// Log only: one runtime contract line per isolate. It never blocks a request
+// or changes a response.
 const reportRuntimeContract = createRuntimeContractReporter();
 
 export default {
@@ -585,26 +227,41 @@ export default {
       return new Response(null, { status: 204 });
     }
 
-    // Health check endpoint
+    // Health, in the ops vocabulary. failing is a fault this worker can see:
+    // D1 unreadable means every capture post would fail, an unset
+    // BRANDS_INGEST_KEY means every capture post is refused, and a newest
+    // time that isn't a timestamp can't be judged. degraded is no fault here
+    // but no proof the capture works: silent past its budget, or never seen.
+    // ok is true only when state is ok, so no reader of ok alone mistakes a
+    // silent capture for all clear.
     if (request.method === "GET") {
-      let d1Status: "connected" | "error" = "error";
-      let tablesOk = false;
+      let brands: BrandsEmailArrival | null = null;
       try {
-        const result = await env.DB.prepare(
-          "SELECT COUNT(*) as cnt FROM thoughts LIMIT 1",
-        ).first<{ cnt: number }>();
-        if (result && typeof result.cnt === "number") {
-          d1Status = "connected";
-          tablesOk = true;
-        }
+        brands = await brandsEmailArrival(env.DB, Date.now());
       } catch {
-        d1Status = "error";
+        brands = null;
       }
+      const brandsKey =
+        typeof env.BRANDS_INGEST_KEY === "string" &&
+        env.BRANDS_INGEST_KEY.trim() !== ""
+          ? "configured"
+          : "missing";
+      const state: HealthState =
+        brands === null ||
+        brands.state === "unknown" ||
+        brandsKey !== "configured"
+          ? "failing"
+          : brands.state === "silent" || brands.state === "empty"
+            ? "degraded"
+            : "ok";
       return jsonResponse({
         app: "ingest",
-        ok: d1Status === "connected",
-        d1: d1Status,
-        tables_ok: tablesOk,
+        ok: state === "ok",
+        state,
+        d1: brands ? "connected" : "error",
+        brands_key: brandsKey,
+        brands_email: brands ?? arrival("unknown", null),
+        unobserved: UNOBSERVED,
         ts: new Date().toISOString(),
       });
     }
@@ -657,8 +314,8 @@ export default {
     }
 
     try {
-      const rowsWritten = await writeToTable(env.DB, payload.category, rows);
-      return jsonResponse({ success: true, rows_written: rowsWritten });
+      const receipt = await writeToTable(env.DB, payload.category, rows);
+      return jsonResponse({ success: true, ...receipt });
     } catch (e) {
       const isValidation =
         e instanceof Error && e.message === "No valid columns in row";
@@ -669,13 +326,17 @@ export default {
     }
   },
 
-  async scheduled(
-    event: ScheduledEvent,
-    env: Env,
-    ctx: ExecutionContext,
-  ): Promise<void> {
+  // The deploy removes the every-minute schedule. If a stale one still fires,
+  // log it and do nothing else.
+  async scheduled(event: ScheduledEvent, env: Env): Promise<void> {
     reportRuntimeContract(env, "scheduled");
-    const minute = new Date(event.scheduledTime).getMinutes();
-    ctx.waitUntil(runScheduledJobs(env, minute));
+    console.warn(
+      JSON.stringify({
+        event: "scheduled_retired",
+        worker: "ingest",
+        cron: typeof event?.cron === "string" ? event.cron : null,
+        scheduled_at: isoOrNull(event?.scheduledTime),
+      }),
+    );
   },
 };

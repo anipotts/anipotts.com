@@ -9,13 +9,13 @@ Updated: 2026-09-22. Release completion evidence lives in [the site release revi
 | anipotts.com       | `apps/www`             | Public Astro pages served from the `anipotts-content` D1 store, newsletter endpoints |
 | admin.anipotts.com | `apps/admin`           | Astro admin behind Cloudflare Access, editor, previews, operations state             |
 | api.anipotts.com   | `workers/state`        | Durable state and authenticated command relay                                        |
-| Ingest             | `workers/ingest`       | Scheduled ingest and authenticated event receivers                                   |
+| Ingest             | `workers/ingest`       | `brands_email` receiver for the Apps Script capture, no schedule                     |
 | Newsletter         | `workers/newsletter`   | Subscription and issue queue consumer                                                |
-| Weekly email       | `workers/weekly-email` | Scheduled operational summary                                                        |
+| Weekly email       | `workers/weekly-email` | Retired in place: no schedule and no send, GET reports queue counts                  |
 
 The legacy Solid app and deploy target are removed. Historical source is recoverable through Git; the cleanup does not delete any production worker or database. Active Astro route and authentication tests remain independent of retirement.
 
-The four retained workers still have explicit routes, cron schedules, queues, or Durable Object bindings. They are operational functionality, not public-page rendering dependencies. Their outbound and data-mutation boundaries remain intact.
+The four retained workers keep an explicit route, queue or Durable Object binding. None has a cron schedule since 2026-09-22; see [worker inventory](worker-inventory.md). They are operational functionality, not public-page rendering dependencies. Their remaining outbound and data-mutation boundaries are unchanged.
 
 ## Public content ownership
 
