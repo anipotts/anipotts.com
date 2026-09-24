@@ -108,7 +108,23 @@
       "picomatch@<2.3.2": "2.3.2",
       "picomatch@>=4 <4.0.4": "4.0.4",
       "protobufjs@<7.5.5": "7.5.5",
-      "fast-xml-builder@<1.1.7": "1.1.7"
+      "fast-xml-builder@<1.1.7": "1.1.7",
+      "undici@>=7 <7.29.0": "7.29.1",
+      "svgo@>=3 <3.3.5": "3.3.5",
+      "svgo@>=4 <4.1.0": "4.1.0",
+      "fast-uri@>=3 <3.1.6": "3.1.8",
+      "browserslist@<4.28.7": "4.28.9",
+      "postcss@<8.5.23": "8.5.28",
+      "ws@>=8 <8.21.0": "8.21.3",
+      "smol-toml@<1.7.1": "1.7.1",
+      "devalue@<5.9.2": "5.9.4",
+      "baseline-browser-mapping@<2.11.0": "2.11.25",
+      "js-yaml@>=4 <4.3.2": "4.3.2",
+      "brace-expansion@<1.1.16": "1.1.21",
+      "@humanfs/node@<0.16.8": "0.16.8",
+      "astro>vite": "6.4.3",
+      "@astrojs/cloudflare>vite": "6.4.3",
+      "@astrojs/react>vite": "6.4.3"
     },
     "patchedDependencies": {
       "@astryxdesign/core@0.4.6": "patches/@astryxdesign__core@0.4.6.patch"
