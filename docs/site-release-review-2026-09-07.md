@@ -182,7 +182,7 @@ Starting release head: `98d2d8292c0bf95c1d66edfd605c8e4d14e365fa`.
 The initial review scope includes 32 modified files, two untracked tests and 15 release-branch commits beyond main.
 Tracked changes are recoverable through `refs/cleanup-recovery/site-2026-09-08` (`a50dcd541cd15d7ee8f4508efb3a8be42f88e90a`).
 The initial untracked tests and ignored legacy build artifacts are preserved under `.local/cleanup-recovery/2026-09-08/`.
-The pre-retirement source is retained at `refs/cleanup-recovery/admin-solid-2026-09-08`.
+The pre-retirement source is recoverable from main at `26a6b98c^` (the ref once cited here was never pushed).
 
 ### Confirmed findings and dispositions
 
