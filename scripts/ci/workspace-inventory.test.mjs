@@ -115,6 +115,7 @@ const INVENTORY_STATUSES = new Set([
   "dangling",
   "orphan",
   "deleted",
+  "removed",
 ]);
 const outside = section(workerInventory, "## outside this repo");
 assert.ok(outside, "A-36: docs/worker-inventory.md needs its outside section");
@@ -126,7 +127,7 @@ assert.deepEqual(
 for (const [heading, status] of statusCells(outside)) {
   assert.ok(
     INVENTORY_STATUSES.has(status.split(/[,\s]/)[0].trim()),
-    `A-36: ${heading} row status "${status}" must start with live, ghost, dangling, orphan or deleted`,
+    `A-36: ${heading} row status "${status}" must start with live, ghost, dangling, orphan, deleted or removed`,
   );
 }
 for (const host of [
