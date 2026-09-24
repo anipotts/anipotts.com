@@ -1,7 +1,8 @@
 # Mini publishers
 
-Scripts that run on `ap-mini` and POST events to the state worker
-(`api.anipotts.com`). One launchd job per event type, each on its own cadence.
+A commit publisher for `ap-mini` that POSTs commits to the state worker
+(`api.anipotts.com`). It is not installed: on 2026-09-22 ap-mini had no loaded
+`com.anipotts.publisher.commits` job and the worker held 0 commits.
 
 ## Install on Mini
 
@@ -40,13 +41,17 @@ ssh mini 'tail -f ~/Library/Logs/anipotts/commit-publisher.*.log'
 - POSTs to `https://api.anipotts.com/api/commits` with `Bearer
 $STATE_PUBLISH_KEY`
 - The state worker forwards to the `CodeStats` Durable Object, which
-  broadcasts `commit.added` events to every connected admin client
+  broadcasts `commit.added` to open `/api/commits/ws` sockets. No admin view
+  reads it.
 
 ## Verify end-to-end
 
-After install, open `https://admin.anipotts.com`. The CodeStats panel
-should populate within 5 minutes (or immediately if you `kickstart -k`).
-The connection dot turns green when the WebSocket is live.
+After install, the held commit count rises within 5 minutes (or right away
+after `kickstart -k`):
+
+```bash
+curl -s https://api.anipotts.com/api/commits | jq '.commits | length'
+```
 
 ## Filter by author
 

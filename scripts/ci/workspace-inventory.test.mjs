@@ -79,6 +79,104 @@ assert.deepEqual(
   "docs/worker-inventory.md retained workers must match workspace workers",
 );
 
+// A-36: the account inventory lists every worker the read-only pass found on
+// 2026-09-23, and every row carries one of the four statuses. A worker added
+// to or removed from the account needs a new read, not a silent doc edit.
+const ACCOUNT_WORKERS = [
+  "anipotts-admin",
+  "anipotts-admin-solid",
+  "anipotts-ingest",
+  "anipotts-labs",
+  "anipotts-newsletter-worker",
+  "anipotts-state",
+  "anipotts-weekly-email",
+  "anipotts-www",
+  "anipotts-www-astro",
+  "chained-chat",
+  "claude-transcripts",
+  "claudemon",
+  "claudemon-api",
+  "claudemon-api-staging",
+  "claudemon-awareness-api",
+  "claudemon-awareness-mcp",
+  "howoldamiactually-com",
+  "labs",
+  "openproof-api",
+  "openproof-monitor",
+  "phone-agent",
+  "quantercise",
+  "quantercise-api-beta",
+  "saeshify",
+  "yapsync",
+];
+const INVENTORY_STATUSES = new Set(["live", "ghost", "dangling", "orphan"]);
+const outside = section(workerInventory, "## outside this repo");
+assert.ok(outside, "A-36: docs/worker-inventory.md needs its outside section");
+assert.deepEqual(
+  firstColumnNames(section(outside, "### workers")),
+  ACCOUNT_WORKERS,
+  "A-36: the outside section must list every account worker",
+);
+for (const [heading, status] of statusCells(outside)) {
+  assert.ok(
+    INVENTORY_STATUSES.has(status.split(",")[0].trim()),
+    `A-36: ${heading} row status "${status}" must start with live, ghost, dangling or orphan`,
+  );
+}
+for (const host of [
+  "legacy-admin.anipotts.com",
+  "legacy-admin-solid.anipotts.com",
+]) {
+  assert.ok(
+    section(outside, "### security findings")?.includes(`\`${host}\``),
+    `A-36: ${host} must stay a named security finding`,
+  );
+}
+assert.ok(
+  section(outside, "### content stores (A-37)"),
+  "A-37: the content store findings must stay recorded",
+);
+
+function section(source, heading) {
+  const level = heading.match(/^#+/)[0];
+  const start = source.indexOf(`\n${heading}\n`);
+  if (start === -1) return null;
+  const rest = source.slice(start + heading.length + 2);
+  const end = rest.search(new RegExp(`^#{1,${level.length}}\\s`, "m"));
+  return end === -1 ? rest : rest.slice(0, end);
+}
+
+function tableRows(source) {
+  return source
+    .split("\n")
+    .filter((line) => line.startsWith("|") && !/^\|\s*-/.test(line))
+    .map((line) =>
+      line
+        .slice(1, -1)
+        .split("|")
+        .map((cell) => cell.trim()),
+    );
+}
+
+function firstColumnNames(source) {
+  return tableRows(source ?? "")
+    .slice(1)
+    .map((cells) => cells[0].match(/^`([^`]+)`$/)?.[1] ?? cells[0])
+    .sort();
+}
+
+function statusCells(source) {
+  const cells = [];
+  for (const table of source.split(/\n(?=###\s)/)) {
+    const heading = table.match(/^###\s.*$/m)?.[0] ?? "outside";
+    const [header, ...rows] = tableRows(table);
+    const column = header?.indexOf("Status") ?? -1;
+    if (column === -1 || heading === "outside") continue;
+    for (const row of rows) cells.push([heading, row[column] ?? ""]);
+  }
+  return cells;
+}
+
 function packageDirs(root) {
   return readdirSync(root, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())

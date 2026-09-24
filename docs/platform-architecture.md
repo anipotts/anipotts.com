@@ -17,7 +17,7 @@ Updated: 2026-09-22. Release completion evidence lives in [the site release revi
 
 The legacy Solid app's source and deploy target are removed from this repo. Historical source is recoverable through Git; the cleanup does not delete any production worker or database, so its last deploy, the `anipotts-admin-solid` worker, still answers on `legacy-admin-solid.anipotts.com` with its own passkey page and an `anipotts-db` binding. Retiring that worker and its domain waits on Ani (ledger A-36.7). Active Astro route and authentication tests remain independent of retirement.
 
-The four retained workers still have explicit routes, cron schedules, queues, or Durable Object bindings. They are operational functionality, not public-page rendering dependencies. Their outbound and data-mutation boundaries remain intact.
+The four retained workers keep an explicit route, queue or Durable Object binding. None has a cron schedule since 2026-09-22; see [worker inventory](worker-inventory.md). They are operational functionality, not public-page rendering dependencies. Their remaining outbound and data-mutation boundaries are unchanged.
 
 ## Public content ownership
 

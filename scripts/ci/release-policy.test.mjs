@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { readdirSync } from "node:fs";
 import { protectionPayload, REQUIRED_CHECKS } from "./branch-protection.mjs";
 import {
   parseD1SchemaResult,
@@ -10,7 +11,7 @@ import {
   assertConditionResult,
   selectedConditions,
 } from "./d1-migration-conditions.mjs";
-import { classifySql, sha256 } from "./migration-policy.mjs";
+import { classifySql, loadManifest, sha256 } from "./migration-policy.mjs";
 import { classifyRelease } from "./release-policy.mjs";
 
 const base = { sourceSha: "a".repeat(40), eventName: "pull_request" };
@@ -135,6 +136,191 @@ assert.equal(safeMigration.deploy_targets.www, true);
 assert.equal(safeMigration.database_schema_version, "0043");
 assert.equal(safeMigration.migration_schema_before, `sha256:${"1".repeat(64)}`);
 assert.equal(safeMigration.migration_schema_after, `sha256:${"2".repeat(64)}`);
+
+// A-23: a release without a migration reports the highest migration
+// production has applied, not the bootstrap baseline it was recorded after.
+const cssOnly = ["M\tapps/www/src/styles/global.css"];
+const appliedFile = "0044_release_canary_rows.sql";
+const appliedRecord = { ...safeManifest.migrations[0], file: appliedFile };
+const appliedManifest = {
+  bootstrap: {
+    status: "verified",
+    automatic_remote_apply: true,
+    baseline_through: "0043_admin_auth_v2.sql",
+    schema_fingerprint: `sha256:${"1".repeat(64)}`,
+  },
+  historical: [],
+  migrations: [appliedRecord],
+};
+const afterApplied = classifyRelease(cssOnly, {
+  ...base,
+  manifest: appliedManifest,
+  files: [appliedFile],
+  readFile: () => safeSql,
+});
+assert.equal(afterApplied.d1_changed, false);
+assert.equal(afterApplied.database_schema_version, "0044");
+assert.equal(afterApplied.migration_schema_before, `sha256:${"2".repeat(64)}`);
+assert.equal(afterApplied.migration_schema_after, `sha256:${"2".repeat(64)}`);
+const baselineOnly = classifyRelease(cssOnly, {
+  ...base,
+  manifest: { ...appliedManifest, migrations: [] },
+  files: [],
+});
+assert.equal(baselineOnly.database_schema_version, "0043");
+assert.equal(baselineOnly.migration_schema_after, `sha256:${"1".repeat(64)}`);
+
+// A-23: an approval record never applies automatically, so a release merged
+// after it keeps the previous applied version and fingerprint.
+const heldApprovalFile = "0045_held_rewrite.sql";
+const heldApprovalSql = "UPDATE release_canary SET id = id;";
+const heldApprovalRecord = {
+  ...safeManifest.migrations[0],
+  file: heldApprovalFile,
+  checksum: `sha256:${sha256(heldApprovalSql)}`,
+  risk: "approval",
+  schema_fingerprint_before: `sha256:${"2".repeat(64)}`,
+  schema_fingerprint_after: `sha256:${"3".repeat(64)}`,
+};
+const behindHeldFile = "0046_release_canary_index.sql";
+const behindHeldRecord = {
+  ...safeManifest.migrations[0],
+  file: behindHeldFile,
+  schema_fingerprint_before: `sha256:${"3".repeat(64)}`,
+  schema_fingerprint_after: `sha256:${"4".repeat(64)}`,
+};
+const heldReadFile = (path) =>
+  path.endsWith(heldApprovalFile) ? heldApprovalSql : safeSql;
+const approvalMerged = classifyRelease(cssOnly, {
+  ...base,
+  manifest: {
+    ...appliedManifest,
+    migrations: [appliedRecord, heldApprovalRecord],
+  },
+  files: [appliedFile, heldApprovalFile],
+  readFile: heldReadFile,
+});
+assert.equal(approvalMerged.d1_changed, false);
+assert.equal(
+  approvalMerged.database_schema_version,
+  "0044",
+  "A-23: an approval migration merged but unapplied keeps the previous version",
+);
+assert.equal(approvalMerged.migration_schema_after, `sha256:${"2".repeat(64)}`);
+
+// A-23: an automatic record behind a held approval record is held with it,
+// because its own release stops on the pending approval record.
+const heldChain = {
+  ...appliedManifest,
+  migrations: [behindHeldRecord, appliedRecord, heldApprovalRecord],
+};
+const behindHeld = classifyRelease(cssOnly, {
+  ...base,
+  manifest: heldChain,
+  files: [appliedFile, heldApprovalFile, behindHeldFile],
+  readFile: heldReadFile,
+});
+assert.equal(
+  behindHeld.database_schema_version,
+  "0044",
+  "A-23: an automatic migration behind a held one is not applied",
+);
+assert.equal(behindHeld.migration_schema_after, `sha256:${"2".repeat(64)}`);
+const heldChainRelease = classifyRelease(
+  [`A\tdrizzle/migrations/${behindHeldFile}`],
+  {
+    ...base,
+    manifest: heldChain,
+    files: [appliedFile, heldApprovalFile, behindHeldFile],
+    readFile: heldReadFile,
+  },
+);
+assert.equal(heldChainRelease.remote_migration_allowed, false);
+
+// A-23: after the approval file is applied under approval and a reviewed
+// manifest change records it as history, as 0043 was, the version advances.
+const approvalRecorded = classifyRelease(cssOnly, {
+  ...base,
+  manifest: {
+    ...appliedManifest,
+    historical: [[heldApprovalFile, sha256(heldApprovalSql)]],
+    migrations: [appliedRecord, behindHeldRecord],
+  },
+  files: [appliedFile, heldApprovalFile, behindHeldFile],
+  readFile: heldReadFile,
+});
+assert.equal(approvalRecorded.database_schema_version, "0046");
+assert.equal(
+  approvalRecorded.migration_schema_after,
+  `sha256:${"4".repeat(64)}`,
+);
+
+// A-23: when the highest applied file is a historical one past the
+// baseline (an approval record recorded as history once applied), no
+// fingerprint was captured for it: the release reports "unknown", never
+// the baseline's fingerprint beside the later version.
+const historyAtHead = classifyRelease(cssOnly, {
+  ...base,
+  manifest: {
+    ...appliedManifest,
+    historical: [[heldApprovalFile, sha256(heldApprovalSql)]],
+    migrations: [appliedRecord],
+  },
+  files: [appliedFile, heldApprovalFile],
+  readFile: heldReadFile,
+});
+assert.equal(historyAtHead.database_schema_version, "0045");
+assert.equal(
+  historyAtHead.migration_schema_after,
+  "unknown",
+  "A-23: a historical head with no captured fingerprint reads unknown",
+);
+assert.equal(historyAtHead.migration_schema_before, "unknown");
+assert.notEqual(
+  historyAtHead.migration_schema_after,
+  appliedManifest.bootstrap.schema_fingerprint,
+);
+
+// A-23: without a verified ledger that applies automatic records, no record
+// applies on its own, so the version stays at the baseline.
+const unverifiedLedger = classifyRelease(cssOnly, {
+  ...base,
+  manifest: {
+    ...safeManifest,
+    bootstrap: {
+      ...safeManifest.bootstrap,
+      schema_fingerprint: `sha256:${"1".repeat(64)}`,
+    },
+  },
+  files: [safeFile],
+  readFile: () => safeSql,
+});
+assert.equal(unverifiedLedger.database_schema_version, "0042");
+assert.equal(
+  unverifiedLedger.migration_schema_after,
+  `sha256:${"1".repeat(64)}`,
+);
+
+// A-23: the repository manifest reports the newest file on disk below its
+// first held record. On 2026-09-22 that is 0044, production's d1_migrations
+// head.
+const repositoryManifest = loadManifest();
+const firstHeldRecord = [...repositoryManifest.migrations]
+  .sort((a, b) => a.file.localeCompare(b.file))
+  .find((record) => record.risk !== "automatic");
+const appliedOnDisk = readdirSync("drizzle/migrations")
+  .filter((file) => /^\d{4}_.+\.sql$/.test(file))
+  .filter((file) => !firstHeldRecord || file < firstHeldRecord.file)
+  .sort()
+  .at(-1)
+  .slice(0, 4);
+const repositoryRelease = classifyRelease(cssOnly, base);
+assert.match(repositoryRelease.database_schema_version, /^\d{4}$/);
+assert.equal(
+  repositoryRelease.database_schema_version,
+  appliedOnDisk,
+  "the repository manifest reports its newest applied migration",
+);
 
 const heldFile = "0042_held_rewrite.sql";
 const heldSql = "UPDATE release_canary SET id = id;";
