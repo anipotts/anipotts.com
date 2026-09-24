@@ -16,13 +16,16 @@ type D1Database = {
 
 type Runtime = import("@astrojs/cloudflare").Runtime<{
   DB: D1Database;
-  PUBLIC_STATE_API: string;
   ACCESS_TEAM_DOMAIN: string;
   ACCESS_POLICY_AUD: string;
   /** Private reader issuance stays off unless exactly "true". */
   PRIVATE_READER_ENABLED?: string;
   /** Observability ops:read issuance and reads; off unless exactly "true". */
   PRIVATE_READER_OPS_ENABLED?: string;
+  /** Data Health health:read issuance and reads; off unless exactly "true". */
+  PRIVATE_READER_HEALTH_ENABLED?: string;
+  /** Data Knowledge entity reads; off unless exactly "true". */
+  PRIVATE_READER_KNOWLEDGE_ENABLED?: string;
   /** Dedicated ES256 private JWK. Not installed; absent means 503. */
   PRIVATE_READER_SIGNING_KEY?: string;
   /** The ap-mini reader canary; off unless exactly "true". */

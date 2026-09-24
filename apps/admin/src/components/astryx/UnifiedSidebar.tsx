@@ -51,9 +51,9 @@ export const overviewDestination: Destination = {
 /**
  * Every sidebar group and page, in the order shown: Content, then Data, then
  * Observability. This list is the one place to change the sidebar, the phone
- * tab row, the command palette's page list and the selection rules below.
- * Content ids are library group names, so the library can keep its filters
- * per destination.
+ * top bar and page chips, the command palette's page list and the selection
+ * rules below. Content ids are library group names, so the library can keep
+ * its filters per destination.
  */
 export const sidebarGroups: ReadonlyArray<{
   id: SidebarGroupId;
@@ -228,7 +228,7 @@ function useSidebarGroups(active: SidebarGroupId | null) {
  * The one admin sidebar: Content, Data and Observability as collapsible
  * groups. In the desktop rail the groups are unlabeled runs of icons, since a
  * rail has no room for a heading and a flyout would cost a click per page.
- * Phones have no sidebar; the top bar and tab row reuse `sidebarGroups`.
+ * Phones have no sidebar; the top bar and page chips reuse `sidebarGroups`.
  *
  * Keyboard: Up and Down move through the headings and pages, Home and End
  * jump to either end, Right opens a group or enters it, Left leaves a page for

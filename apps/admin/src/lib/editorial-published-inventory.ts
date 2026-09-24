@@ -10,7 +10,9 @@ import {
 } from "./editorial-inventory-projection";
 import { recordCollection } from "./editorial-collections";
 
-/** Complete published records replace bundled values, including hidden records. */
+/** Complete published records replace bundled values, including hidden
+ * records, and carry the time and publication id the content store
+ * published them under. */
 export function overlayPublishedInventory(
   entries: InventoryEntry[],
   publications: PublishedSnapshot[],
@@ -38,6 +40,8 @@ export function overlayPublishedInventory(
       data: validated.data as Record<string, unknown>,
       body: parseEditorialSource(source).body,
       published: true,
+      publishedAt: publication.publishedAt,
+      publicationId: publication.publicationId,
     });
   }
   return [...result.values()];

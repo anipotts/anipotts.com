@@ -352,6 +352,61 @@
       "status": 200,
       "ms": 33,
       "detail": null
+    },
+    {
+      "seq": 33,
+      "at": "2026-09-21T16:55:05Z",
+      "kind": "run",
+      "subject": "pc.writer",
+      "from_state": null,
+      "to_state": null,
+      "status": 0,
+      "ms": 5200,
+      "detail": "1 run(s)"
+    },
+    {
+      "seq": 34,
+      "at": "2026-09-21T17:12:00Z",
+      "kind": "run",
+      "subject": "pc.inference",
+      "from_state": null,
+      "to_state": null,
+      "status": 1,
+      "ms": 64000,
+      "detail": "1 run(s)"
+    },
+    {
+      "seq": 35,
+      "at": "2026-09-21T15:10:00Z",
+      "kind": "run",
+      "subject": "pc.snapshot",
+      "from_state": null,
+      "to_state": null,
+      "status": 0,
+      "ms": null,
+      "detail": "1 run(s)"
+    },
+    {
+      "seq": 36,
+      "at": "2026-09-21T17:55:05Z",
+      "kind": "run",
+      "subject": "pc.writer",
+      "from_state": null,
+      "to_state": null,
+      "status": 0,
+      "ms": 4800,
+      "detail": "1 run(s)"
+    },
+    {
+      "seq": 37,
+      "at": "2026-09-21T15:10:00Z",
+      "kind": "run",
+      "subject": "pc.snapshot",
+      "from_state": null,
+      "to_state": null,
+      "status": 0,
+      "ms": null,
+      "detail": "1 run(s)"
     }
   ],
   "next_after": null

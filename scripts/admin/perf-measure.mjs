@@ -300,9 +300,10 @@ export const navName = (label) =>
   );
 
 /** The workspace sidebar before the unified sidebar carried the workspace's
- * own label; the unified sidebar is one navigation named "Admin". */
+ * own label; the unified sidebar is one navigation named "Admin", and the
+ * phone bar's workspaces are "Workspaces". */
 const NAV_SCOPE = (workspace) =>
-  `nav[aria-label="${workspace}"], nav[aria-label="Admin"], dialog[aria-label="Navigation"]`;
+  `nav[aria-label="${workspace}"], nav[aria-label="Admin"], nav[aria-label="Workspaces"], dialog[aria-label="Navigation"]`;
 
 /**
  * A cross-workspace switch. With the unified sidebar the destination is a
@@ -571,10 +572,8 @@ export const CELLS = [
       {
         label: "Record to library",
         target: async (page) =>
-          page
-            .locator('nav[aria-label="Breadcrumb"] a')
-            .filter({ visible: true })
-            .first(),
+          // The editor bar's back link replaced the breadcrumb.
+          page.locator("a.editor-bar-back").filter({ visible: true }).first(),
         expect: (url) => url.pathname === "/content/pages",
       },
     ],
@@ -2066,7 +2065,7 @@ async function resolveRecordPath(browser, options) {
   };
   const session = await openSession(browser, ctx);
   try {
-    await startAt(session, ctx, "/content");
+    await startAt(session, ctx, "/content/pages");
     const link = await firstRecordLink(session.page);
     const href = await link.getAttribute("href");
     return new URL(href, options.base).pathname;
@@ -2426,12 +2425,13 @@ async function main() {
     ? CELLS.filter((cell) => options.cells.includes(cell.id))
     : CELLS.filter((cell) => !cell.optIn);
 
-  const preflight = await fetch(`${options.base}/content`, {
+  // /content redirects to its first library, so the preflight asks it.
+  const preflight = await fetch(`${options.base}/content/pages`, {
     redirect: "manual",
   }).catch(() => null);
   if (!preflight || preflight.status !== 200)
     throw new Error(
-      `${options.base}/content answered ${preflight?.status ?? "nothing"}; start pnpm preview:admin:owner first`,
+      `${options.base}/content/pages answered ${preflight?.status ?? "nothing"}; start pnpm preview:admin:owner first`,
     );
 
   const proxy = options.proxy

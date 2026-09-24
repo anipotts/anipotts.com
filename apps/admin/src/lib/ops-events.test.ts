@@ -8,8 +8,12 @@ import {
   deriveOpsAlerts,
   opsAccessSummary,
   opsActivitySource,
+  opsEventsMoveSnapshot,
   opsEventsPath,
+  opsIncidentsBySubject,
+  opsIsPlumbing,
   opsRouteLabel,
+  opsEventsDrifted,
   parseOpsEvents,
   parseOpsEventsBytes,
   type OpsAccessEvent,
@@ -199,11 +203,67 @@ describe("ops_events_v1 parser", () => {
     );
     expect(page.items.map((event) => event.seq)).toEqual([1]);
     expect(page.lastSeq).toBe(2);
-    const log = appendOpsEvents(EMPTY_EVENT_LOG, page.items, page.lastSeq);
+    const log = appendOpsEvents(EMPTY_EVENT_LOG, page.items, [], page.lastSeq);
     expect(log.cursor).toBe(2);
     const onlyBad = parseOpsEvents(envelope([access(3, { status: null })]), 2);
-    expect(appendOpsEvents(log, onlyBad.items, onlyBad.lastSeq).cursor).toBe(3);
-    expect(appendOpsEvents(log, [], null)).toBe(log);
+    expect(
+      appendOpsEvents(log, onlyBad.items, [], onlyBad.lastSeq).cursor,
+    ).toBe(3);
+    expect(appendOpsEvents(log, [], [], null)).toBe(log);
+  });
+
+  it("counts a skipped item into the log, so it is never dropped unseen", () => {
+    const page = parseOpsEvents(
+      envelope([access(1), access(2, { ms: -1 })]),
+      0,
+    );
+    const log = appendOpsEvents(
+      EMPTY_EVENT_LOG,
+      page.items,
+      [],
+      page.lastSeq,
+      page.skipped,
+    );
+    expect(log.skipped).toBe(1);
+    const next = parseOpsEvents(envelope([access(3, { status: null })]), 2);
+    expect(
+      appendOpsEvents(log, next.items, [], next.lastSeq, next.skipped).skipped,
+    ).toBe(2);
+    expect(EMPTY_EVENT_LOG.skipped).toBe(0);
+  });
+
+  it("reads a mostly unreadable page as drift, and still moves past it", () => {
+    // A format change in one field breaks every item: never a quiet page,
+    // and never the same page read again forever.
+    const page = parseOpsEvents(
+      envelope([
+        access(1, { at: "2026-09-22 10:00:00" }),
+        access(2, { at: "2026-09-22 10:00:00" }),
+        access(3, { at: "2026-09-22 10:00:00" }),
+      ]),
+      0,
+    );
+    expect(page).toMatchObject({ items: [], skipped: 3, lastSeq: 3 });
+    expect(opsEventsDrifted(page.skipped, 3)).toBe(true);
+  });
+
+  it("skips and counts a few strays on an otherwise readable page", () => {
+    const page = parseOpsEvents(
+      envelope([
+        access(1),
+        access(2, { ms: -1 }),
+        access(3),
+        access(4, { status: null }),
+        access(5),
+      ]),
+      0,
+    );
+    expect(page.items.map((event) => event.seq)).toEqual([1, 3, 5]);
+    expect(page.skipped).toBe(2);
+    expect(page.lastSeq).toBe(5);
+    expect(opsEventsDrifted(2, 5)).toBe(false);
+    expect(opsEventsDrifted(3, 5)).toBe(true);
+    expect(opsEventsDrifted(0, 0)).toBe(false);
   });
 
   it("still rejects an item whose own seq is unreadable", () => {
@@ -330,11 +390,91 @@ describe("alerts from transitions", () => {
       state: "failing",
       since: "2026-09-21T09:00:00Z",
     });
+    // Opened on first sight: its start was not observed, only bounded.
     expect(alerts[3]).toMatchObject({
       state: "failing",
-      since: "2026-09-21T07:00:00Z",
+      since: null,
+      startedBefore: "2026-09-21T07:00:00Z",
+      firstSeen: true,
       resolvedAt: "2026-09-21T07:30:00Z",
     });
+  });
+
+  it("A-31: never dates a first-sight problem from when System first saw it", () => {
+    // The live cred.expiry shape: a new catalog row first sampled already
+    // failing, its own detail saying the problem is 59 days old.
+    const detail =
+      "the Connect write token expired 59d ago; unattended secret writes and token factories blocked, 3 more flagged";
+    const [alert] = deriveOpsAlerts(
+      parse([
+        {
+          ...transition(357, "cred.expiry", null, "failing"),
+          at: "2026-09-22T21:26:20Z",
+          detail,
+        },
+      ]),
+    );
+    expect(alert).toMatchObject({
+      subject: "cred.expiry",
+      status: "firing",
+      state: "failing",
+      since: null,
+      startedBefore: "2026-09-22T21:26:20Z",
+      firstSeen: true,
+      detail,
+    });
+    // A change within the episode keeps it unobserved; a problem after a
+    // later ok is observed from its own transition.
+    const [again] = deriveOpsAlerts(
+      parse([
+        transition(1, "a.job", null, "degraded", "2026-09-22T01:00:00Z"),
+        transition(2, "a.job", "degraded", "failing", "2026-09-22T02:00:00Z"),
+      ]),
+    );
+    expect(again).toMatchObject({ since: null, firstSeen: true });
+    const [observed] = deriveOpsAlerts(
+      parse([
+        transition(1, "a.job", null, "failing", "2026-09-22T01:00:00Z"),
+        transition(2, "a.job", "failing", "ok", "2026-09-22T02:00:00Z"),
+        transition(3, "a.job", "ok", "failing", "2026-09-22T03:00:00Z"),
+      ]),
+    );
+    expect(observed).toMatchObject({
+      since: "2026-09-22T03:00:00Z",
+      status: "firing",
+    });
+    expect(observed!.firstSeen).toBeUndefined();
+  });
+
+  it("A-31: never dates an episode from the first change held when it left another problem", () => {
+    // The earlier transitions aged out of retention: the first one held
+    // goes degraded to failing, so the episode was already open.
+    for (const from of ["degraded", "stale", "unknown", "asleep"] as const) {
+      const [alert] = deriveOpsAlerts(
+        parse([
+          transition(
+            10,
+            "agents.sync",
+            from,
+            "failing",
+            "2026-09-20T10:00:00Z",
+          ),
+        ]),
+      );
+      expect(alert, from).toMatchObject({
+        status: "firing",
+        since: null,
+        startedBefore: "2026-09-20T10:00:00Z",
+        firstSeen: true,
+      });
+    }
+    // From ok, the start is observed.
+    const [seen] = deriveOpsAlerts(
+      parse([
+        transition(10, "agents.sync", "ok", "failing", "2026-09-20T10:00:00Z"),
+      ]),
+    );
+    expect(seen).toMatchObject({ since: "2026-09-20T10:00:00Z" });
   });
 
   it("dates an episode from its first problem, even as the problem changes", () => {
@@ -433,5 +573,108 @@ describe("activity wording", () => {
       id: "kind:deploy",
       label: "Deploy",
     });
+  });
+});
+
+describe("round-2 events", () => {
+  const parse = (items: Json[]) => parseOpsEvents(envelope(items), 0).items;
+  const run = (seq: number, subject: string): Json => ({
+    ...access(seq),
+    kind: "run",
+    subject,
+    status: 0,
+    ms: 5200,
+    detail: "1 run(s)",
+  });
+
+  it("keeps runs apart for run history, and names drift fields", () => {
+    const log = appendOpsEvents(
+      EMPTY_EVENT_LOG,
+      parse([run(1, "pc.writer"), access(2), run(3, "pc.snapshot")]),
+      ["tier"],
+    );
+    expect(log.runs.map((event) => event.subject)).toEqual([
+      "pc.writer",
+      "pc.snapshot",
+    ]);
+    expect(log.recent).toHaveLength(3);
+    const next = appendOpsEvents(log, [], ["region", "tier"]);
+    expect(next.unknownFields).toEqual(["region", "tier"]);
+    expect(next.cursor).toBe(3);
+    expect(appendOpsEvents(next, [], ["tier"])).toBe(next);
+  });
+
+  it("moves the snapshot only for a transition or a run", () => {
+    expect(opsEventsMoveSnapshot(parse([access(1)]))).toBe(false);
+    expect(opsEventsMoveSnapshot(parse([access(1), run(2, "pc.writer")]))).toBe(
+      true,
+    );
+    expect(
+      opsEventsMoveSnapshot(parse([transition(1, "pc.writer", null, "ok")])),
+    ).toBe(true);
+  });
+
+  it("names every live reader route, health included", () => {
+    expect(opsRouteLabel("health.health")).toBe("Health daily");
+    expect(opsRouteLabel("activity.activity")).toBe("Activity feed");
+  });
+
+  it("calls preflights, the probe and admin's successful polls plumbing", () => {
+    const [preflight, probe, poll, failed, read] = parse([
+      access(1, { subject: "preflight", status: 200, ms: 0 }),
+      access(2, { subject: "probe", status: 200 }),
+      access(3, { subject: "ops.snapshot", status: 304 }),
+      access(4, { subject: "ops.events", status: 401 }),
+      access(5),
+    ]);
+    expect(opsIsPlumbing(preflight!)).toBe(true);
+    expect(opsIsPlumbing(probe!)).toBe(true);
+    expect(opsIsPlumbing(poll!)).toBe(true);
+    // A failure is an exception, never plumbing.
+    expect(opsIsPlumbing(failed!)).toBe(false);
+    expect(opsIsPlumbing(read!)).toBe(false);
+  });
+
+  it("reads each incident: its peak, its span and how many there were", () => {
+    const at = (hour: number) =>
+      `2026-09-22T${String(hour).padStart(2, "0")}:00:00Z`;
+    const transitions = parse([
+      transition(1, "host.ap-pro", null, "failing", at(5)),
+      transition(2, "host.ap-pro", "failing", "degraded", at(8)),
+      transition(3, "host.ap-pro", "degraded", "ok", at(16)),
+      transition(4, "host.ap-pro", "ok", "degraded", at(17)),
+      transition(5, "host.ap-pro", "degraded", "ok", at(18)),
+      transition(6, "content.d1-export", null, "failing", at(1)),
+      transition(7, "content.d1-export", "failing", "ok", at(2)),
+      transition(8, "content.d1-export", "ok", "failing", at(4)),
+    ]) as OpsTransitionEvent[];
+    const incidents = opsIncidentsBySubject(transitions);
+    expect(
+      incidents
+        .get("host.ap-pro")!
+        .map((incident) => [
+          incident.status,
+          incident.peak,
+          incident.state,
+          incident.since,
+          incident.resolvedAt,
+        ]),
+    ).toEqual([
+      ["resolved", "degraded", "degraded", at(17), at(18)],
+      // Failing, then degraded: it was failing at its worst. It opened on
+      // first sight, so its start is only bounded (A-31).
+      ["resolved", "failing", "degraded", null, at(16)],
+    ]);
+    expect(incidents.get("host.ap-pro")![1]).toMatchObject({
+      startedBefore: at(5),
+      firstSeen: true,
+    });
+    const alerts = deriveOpsAlerts(transitions);
+    expect(
+      alerts.map((alert) => [alert.subject, alert.status, alert.incidents]),
+    ).toEqual([
+      ["content.d1-export", "firing", 2],
+      ["host.ap-pro", "resolved", 2],
+    ]);
   });
 });

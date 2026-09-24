@@ -2,7 +2,10 @@
 import EditorialLayout from "../layouts/EditorialLayout.astro";
 import { DevDataCatalog } from "../components/astryx/dev-data-catalog";
 import { DevReviewCatalog } from "../components/astryx/dev-review-catalog";
+import { DevSplitCatalog } from "../components/astryx/dev-split-catalog";
 import { DevMarksCatalog } from "../components/dev-marks-catalog";
+import { DevKitCatalog } from "../components/workspace/dev-kit-catalog";
+import { loadShellFixtures } from "../lib/shell-fixtures";
 
 // The normal Content owner/origin middleware still applies. This route cannot
 // expose a catalog in a deployed build, even to an authenticated owner.
@@ -21,6 +24,10 @@ const inventoryProjection = {
   unavailable: false,
 };
 const fixture = Astro.url.searchParams.get("fixture");
+
+// The kit reads the same local replay as the pages (.local/ is ignored and
+// never committed), else System's sample.
+const kit = fixture === "kit" ? await loadShellFixtures(Astro.url) : undefined;
 ---
 
 <EditorialLayout
@@ -34,6 +41,15 @@ const fixture = Astro.url.searchParams.get("fixture");
       <DevDataCatalog client:load />
     ) : fixture === "marks" ? (
       <DevMarksCatalog />
+    ) : fixture === "split" ? (
+      <DevSplitCatalog client:load />
+    ) : kit ? (
+      <DevKitCatalog
+        client:load
+        ops={kit.snapshot}
+        opsEvents={kit.events}
+        source={kit.replay ? "replay" : "sample"}
+      />
     ) : (
       <DevReviewCatalog client:load />
     )

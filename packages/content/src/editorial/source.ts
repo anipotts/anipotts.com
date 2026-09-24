@@ -1,5 +1,4 @@
 import { isAlias, isMap, isNode, parseDocument, visit } from "yaml";
-import { z } from "zod";
 import {
   homepageSchema,
   listingPageSchema,
@@ -8,12 +7,12 @@ import {
   workPageSchema,
 } from "../public/pages.js";
 import { projectSchema, writingSchema } from "../public/schema.js";
+import {
+  MAX_SOURCE_BYTES,
+  editorialRecordSchema,
+  type EditorialRecord,
+} from "./record.js";
 
-export const MAX_SOURCE_BYTES = 512 * 1024;
-const recordId = z
-  .string()
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
-  .max(120);
 const pageSchemas = {
   home: homepageSchema,
   work: workPageSchema,
@@ -22,17 +21,7 @@ const pageSchemas = {
   newsletter: newsletterPageSchema,
 } as const;
 
-export const editorialRecordSchema = z.discriminatedUnion("kind", [
-  z
-    .object({
-      kind: z.literal("page"),
-      id: z.enum(["home", "work", "writing", "systems", "newsletter"]),
-    })
-    .strict(),
-  z.object({ kind: z.literal("work"), id: recordId }).strict(),
-  z.object({ kind: z.literal("writing"), id: recordId }).strict(),
-]);
-export type EditorialRecord = z.infer<typeof editorialRecordSchema>;
+export { MAX_SOURCE_BYTES, editorialRecordSchema, type EditorialRecord };
 
 /** Paths are derived only from validated identities, never supplied by clients. */
 export function editorialRecordPath(input: unknown): string {

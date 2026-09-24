@@ -1,5 +1,5 @@
 /* The admin shell: the canvas, safe areas, the one gutter, the app shell's
-   main region, the phone top bar and tab row, the wordmark and server-rendered
+   main region, the phone top bar and page chips, the wordmark and server-rendered
    prose. The sidebar and rail live in components/astryx/WorkspaceHeader.css,
    tables and lists in components/workspace/workspace.css, writing surfaces in
    editor.css. Widths follow lib/breakpoints.ts: compact is 640px and below,
@@ -12,6 +12,17 @@
 html,
 body {
   background-color: var(--color-background-body);
+}
+
+/* One colour scheme, on the root. The prepaint script sets it before the
+   first paint and saveTheme moves it. Astryx's Theme wrapper also sets a
+   scheme, from React state, and its first render only has the server's
+   guess: a preference kept in storage never reaches the server, so under a
+   dark system setting the wrapper painted the light page dark until
+   hydration. Wrappers inherit the root's scheme instead. Media overlays
+   keep their own. Unlayered, so it outranks the Astryx layers. */
+body [data-astryx-theme]:not([data-astryx-media]) {
+  color-scheme: inherit;
 }
 
 /* The one inline gutter, applied once, on main. The frames inside it add no
@@ -114,20 +125,115 @@ body {
   white-space: nowrap;
 }
 
-/* From 641px the sidebar and main are fixed panels and main scrolls inside
-   its own panel, so the document stays still. Beside the full sidebar, main
-   is a panel with one rounded corner under a strip of the sidebar colour. */
+/* From 641px the sidebar and main are fixed panels that each scroll on
+   their own (the sidebar's list in WorkspaceHeader.css), so the document
+   stays still and neither chains its scroll into the other. Beside the full
+   sidebar, main is a panel with one rounded corner under a strip of the
+   sidebar colour. --admin-main-block-size is main's height, for panels
+   that stick inside it (Split view, below). */
 @media (min-width: 641px) {
   html:has(.editorial-workspace-shell),
   body:has(.editorial-workspace-shell) {
     overflow: hidden;
     overscroll-behavior: none;
   }
+  .editorial-workspace-shell {
+    --admin-main-block-size: 100dvh;
+  }
+  .editorial-workspace-shell[data-sidebar-collapsed="false"] {
+    --admin-main-block-size: calc(100dvh - var(--spacing-3));
+  }
   .editorial-workspace-shell[data-sidebar-collapsed="false"]
     #astryx-app-shell-main {
     height: calc(100% - var(--spacing-3));
     margin-block-start: var(--spacing-3);
     border-start-start-radius: var(--radius-container);
+  }
+}
+
+/* Split view (components/astryx/SplitView.tsx): a list and its open panel.
+   One column until the view is 960px wide (SPLIT_VIEW_MIN_WIDTH); then the
+   panel sits beside the list, sticks inside main as the list scrolls and
+   scrolls its own body under a pinned header. Narrower, an open panel is
+   the page and the list steps aside. The panel is a surface, set apart by
+   tint and space, never a rule. */
+.admin-split {
+  container: admin-split / inline-size;
+  min-width: 0;
+}
+.admin-split-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--spacing-5);
+  align-items: start;
+}
+.admin-split-list,
+.admin-split-panel,
+.admin-split-panel-body {
+  min-width: 0;
+}
+.admin-split-panel {
+  box-sizing: border-box;
+  background: var(--color-background-surface);
+  border-radius: var(--radius-container);
+}
+.admin-split-panel-header {
+  padding: var(--spacing-5) var(--spacing-5) var(--spacing-3);
+  background: var(--color-background-surface);
+}
+.admin-split-panel-body {
+  padding: 0 var(--spacing-5) var(--spacing-5);
+  overflow-wrap: anywhere;
+}
+.admin-split-panel:not(:has(> .admin-split-panel-header))
+  > .admin-split-panel-body {
+  padding-block-start: var(--spacing-5);
+}
+@container admin-split (min-width: 960px) {
+  .admin-split-grid[data-panel-open="true"] {
+    grid-template-columns: minmax(0, 1fr) minmax(
+        0,
+        var(--admin-split-panel-size, 28rem)
+      );
+  }
+  .admin-split-grid[data-panel-open="true"] > .admin-split-panel {
+    position: sticky;
+    inset-block-start: var(--spacing-5);
+    /* SplitView measures the room below the panel's own top as main
+       scrolls; before it does, main's height less the insets. */
+    max-block-size: var(
+      --admin-split-panel-room,
+      calc(var(--admin-main-block-size, 100dvh) - 2 * var(--spacing-5))
+    );
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .admin-split-grid[data-panel-open="true"] .admin-split-panel-header {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 1;
+  }
+}
+@container admin-split (max-width: 959px) {
+  .admin-split-grid[data-panel-open="true"] > .admin-split-list {
+    display: none;
+  }
+}
+/* A panel's parts that differ beside the list and as the page (its close
+   or back control): both are written, and the view's width shows one, so
+   the server's render is the layout the browser keeps. */
+.admin-split-beside-only,
+.admin-split-page-only {
+  display: contents;
+}
+@container admin-split (min-width: 960px) {
+  .admin-split-page-only {
+    display: none;
+  }
+}
+@container admin-split (max-width: 959px) {
+  .admin-split-beside-only {
+    display: none;
   }
 }
 
@@ -164,11 +270,11 @@ body {
   }
 }
 
-/* The phone top bar (EditorialWorkspaceShell PhoneBar). The server writes it
-   on every page in AppShell's banner slot and the width alone decides
-   whether it shows, so it never waits for hydration. The wordmark starts on
-   the gutter and the search glyph ends on it. A record page's own bar can
-   take this class for the same placement. */
+/* The phone top bar (EditorialWorkspaceShell PhoneBar), one row: the [A]
+   monogram, the three workspaces beside it, search at the end. The server
+   writes it on every page in AppShell's banner slot and the width alone
+   decides whether it shows, so it never waits for hydration. The monogram's
+   bracket starts on the gutter and the search glyph ends on it. */
 .admin-phone-bar {
   display: none;
 }
@@ -177,7 +283,6 @@ body {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    gap: var(--spacing-3);
     box-sizing: border-box;
     min-height: calc(var(--spacing-11) + env(safe-area-inset-top));
     padding-block-start: env(safe-area-inset-top);
@@ -190,50 +295,47 @@ body {
     display: none;
   }
 }
-.admin-phone-bar-identity {
-  min-width: 0;
-}
+/* A 44px target whose bracket stays on the gutter, so the first workspace
+   sits as far from it as the workspaces sit from each other. */
 .admin-phone-bar .admin-bracket-wordmark {
+  box-sizing: border-box;
+  min-width: var(--spacing-11);
   min-height: var(--spacing-11);
+  margin-inline-start: calc(-1 * var(--spacing-1));
+  padding-inline-start: var(--spacing-1);
 }
-.admin-phone-bar-title {
+/* The workspaces scroll sideways only when a narrow phone cannot hold
+   them. */
+.admin-phone-workspaces {
+  display: flex;
   min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  opacity: 0;
-  transition: opacity var(--duration-fast) ease-out;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
 }
-.admin-phone-bar-title[data-visible="true"] {
-  opacity: 1;
-}
-/* The glyph, not the 44px target, lines up with the gutter. */
-.admin-phone-bar-search {
-  margin-inline-end: calc((var(--spacing-5) - var(--spacing-11)) / 2);
+/* The glyph, not the 44px target, lines up with the gutter: the target
+   ends on the gutter with its glyph at its end, as the copy and chevron
+   glyphs below do, so every trailing glyph shares one right edge. */
+.admin-phone-bar-search:not(#\#) {
+  margin-inline-end: 0;
+  justify-content: flex-end;
+  padding-inline-end: 0;
 }
 
-/* The phone tab row: the workspaces, then the current workspace's pages,
-   each a row that scrolls sideways past the gutter to the screen edge. */
-.admin-phone-tabs {
+/* The current workspace's pages under the bar: a row that scrolls sideways
+   past the gutter to the screen edge, and with the page. */
+.admin-phone-pages {
   display: none;
 }
 @media (max-width: 640px) {
-  .admin-phone-tabs {
-    display: grid;
+  .admin-phone-pages {
+    display: flex;
     gap: var(--spacing-1);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
     margin-inline: calc(-1 * var(--admin-gutter));
-    padding-block-start: var(--spacing-1);
+    padding-inline: var(--admin-gutter);
+    scroll-padding-inline: var(--admin-gutter);
   }
-}
-.admin-phone-tab-row {
-  display: flex;
-  gap: var(--spacing-1);
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  padding-inline: var(--admin-gutter);
-  scroll-padding-inline: var(--admin-gutter);
 }
 .admin-phone-workspace,
 .admin-phone-page {
@@ -249,13 +351,11 @@ body {
   white-space: nowrap;
   -webkit-tap-highlight-color: transparent;
 }
-/* The first workspace's label starts on the gutter. */
+/* Full size from about 390px; narrower phones scale the labels down so the
+   three still fit one row. */
 .admin-phone-workspace {
   padding-inline: var(--spacing-2);
-  font-size: var(--font-size-lg);
-}
-.admin-phone-workspace:first-child {
-  margin-inline-start: calc(-1 * var(--spacing-2));
+  font-size: clamp(var(--font-size-base), 4.4vw, var(--font-size-lg));
 }
 .admin-phone-workspace[aria-current="true"] {
   color: var(--color-text-primary);
@@ -264,15 +364,23 @@ body {
    the sidebar's own selected fill, so keyboard focus (a tint) stays
    distinct from it. Chip boxes start on the gutter. */
 .admin-phone-page {
+  position: relative;
   min-height: var(--spacing-9);
   margin-block: calc((var(--spacing-11) - var(--spacing-9)) / 2);
   padding-inline: var(--spacing-3);
   font-size: var(--text-body-size, var(--font-size-base));
 }
+/* The chip reads 36px; its target is the row's full 44px. */
+.admin-phone-page::before {
+  content: "";
+  position: absolute;
+  inset: calc((var(--spacing-9) - var(--spacing-11)) / 2) 0;
+}
 .admin-phone-page[aria-current="page"] {
   background: var(--color-neutral);
   color: var(--color-text-primary);
 }
+.admin-phone-bar .admin-bracket-wordmark:active,
 .admin-phone-workspace:active,
 .admin-phone-page:active {
   background: var(--color-overlay-pressed);
@@ -344,8 +452,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .editorial-workspace-shell #astryx-app-shell-main,
-  .admin-phone-bar-title {
+  .editorial-workspace-shell #astryx-app-shell-main {
     transition: none;
   }
 }

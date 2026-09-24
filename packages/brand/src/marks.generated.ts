@@ -16,12 +16,18 @@ import apPlusWebp56 from "../marks/img/ap-plus-56.webp?url&no-inline";
 import apProPng from "../marks/img/ap-pro-112.png?url&no-inline";
 import apProWebp112 from "../marks/img/ap-pro-112.webp?url&no-inline";
 import apProWebp56 from "../marks/img/ap-pro-56.webp?url&no-inline";
+import applehealthPng from "../marks/img/applehealth-112.png?url&no-inline";
+import applehealthWebp112 from "../marks/img/applehealth-112.webp?url&no-inline";
+import applehealthWebp56 from "../marks/img/applehealth-56.webp?url&no-inline";
 import calendarPng from "../marks/img/calendar-112.png?url&no-inline";
 import calendarWebp112 from "../marks/img/calendar-112.webp?url&no-inline";
 import calendarWebp56 from "../marks/img/calendar-56.webp?url&no-inline";
 import chatgptPng from "../marks/img/chatgpt-112.png?url&no-inline";
 import chatgptWebp112 from "../marks/img/chatgpt-112.webp?url&no-inline";
 import chatgptWebp56 from "../marks/img/chatgpt-56.webp?url&no-inline";
+import chatgptAtlasPng from "../marks/img/chatgpt-atlas-112.png?url&no-inline";
+import chatgptAtlasWebp112 from "../marks/img/chatgpt-atlas-112.webp?url&no-inline";
+import chatgptAtlasWebp56 from "../marks/img/chatgpt-atlas-56.webp?url&no-inline";
 import chromePng from "../marks/img/chrome-112.png?url&no-inline";
 import chromeWebp112 from "../marks/img/chrome-112.webp?url&no-inline";
 import chromeWebp56 from "../marks/img/chrome-56.webp?url&no-inline";
@@ -116,12 +122,22 @@ export const MARK_FILES = {
   },
   "ap-plus": { png: apPlusPng, webp112: apPlusWebp112, webp56: apPlusWebp56 },
   "ap-pro": { png: apProPng, webp112: apProWebp112, webp56: apProWebp56 },
+  applehealth: {
+    png: applehealthPng,
+    webp112: applehealthWebp112,
+    webp56: applehealthWebp56,
+  },
   calendar: {
     png: calendarPng,
     webp112: calendarWebp112,
     webp56: calendarWebp56,
   },
   chatgpt: { png: chatgptPng, webp112: chatgptWebp112, webp56: chatgptWebp56 },
+  "chatgpt-atlas": {
+    png: chatgptAtlasPng,
+    webp112: chatgptAtlasWebp112,
+    webp56: chatgptAtlasWebp56,
+  },
   chrome: { png: chromePng, webp112: chromeWebp112, webp56: chromeWebp56 },
   claude: { svg: claudeSvg },
   codex: { png: codexPng, webp112: codexWebp112, webp56: codexWebp56 },

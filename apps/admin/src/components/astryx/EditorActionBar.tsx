@@ -9,6 +9,7 @@ import { ToggleButton } from "@astryxdesign/core/ToggleButton";
 import { VStack } from "@astryxdesign/core/VStack";
 import { CaretLeftIcon, DotsThreeIcon, EyeIcon } from "@phosphor-icons/react";
 import { below } from "../../lib/breakpoints";
+import { WordSafeText } from "../workspace/Workspace";
 import { SaveStatus, type SaveStatusState } from "./SaveStatus";
 
 type EditorMenuItem = {
@@ -34,6 +35,29 @@ function useCompact() {
     return () => query.removeEventListener?.("change", update);
   }, []);
   return compact;
+}
+
+/** Whether the title's first word fits its slot. A word never shows cut:
+ * where not even the first fits (a 320px phone), the title stays the
+ * page's H1 for assistive technology but is not drawn, since the title
+ * field under the bar shows it whole. */
+function useFirstWordFits() {
+  const [fits, setFits] = useState(true);
+  const observer = React.useRef<ResizeObserver | null>(null);
+  const ref = React.useCallback((node: HTMLDivElement | null) => {
+    observer.current?.disconnect();
+    observer.current = null;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const measure = () => {
+      const word = node.querySelector<HTMLElement>(".workspace-word");
+      setFits(!word || word.offsetWidth <= node.clientWidth + 0.5);
+    };
+    const next = new ResizeObserver(measure);
+    next.observe(node);
+    observer.current = next;
+    measure();
+  }, []);
+  return [fits, ref] as const;
 }
 
 /**
@@ -67,6 +91,7 @@ export function EditorActionBar({
   menu?: EditorMenuSection[];
 }) {
   const compact = useCompact();
+  const [fits, titleRef] = useFirstWordFits();
   const [sheet, setSheet] = useState(false);
   const sections = menu.filter((section) => section.items.length > 0);
   return (
@@ -79,8 +104,15 @@ export function EditorActionBar({
         icon={<CaretLeftIcon weight="regular" aria-hidden="true" />}
         href={back.href}
       />
-      <div className="editor-bar-title" title={title}>
-        <Heading level={1}>{title}</Heading>
+      <div
+        className="editor-bar-title"
+        title={title}
+        ref={titleRef}
+        data-fit={fits ? undefined : "none"}
+      >
+        <Heading level={1}>
+          <WordSafeText>{title}</WordSafeText>
+        </Heading>
       </div>
       {save && <SaveStatus state={save} />}
       <div className="editor-bar-actions">

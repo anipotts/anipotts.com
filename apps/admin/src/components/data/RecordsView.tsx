@@ -1,25 +1,13 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@astryxdesign/core/Button";
-import { Collapsible } from "@astryxdesign/core/Collapsible";
-import { Heading } from "@astryxdesign/core/Heading";
 import { HStack } from "@astryxdesign/core/HStack";
-import {
-  MetadataList,
-  MetadataListItem,
-} from "@astryxdesign/core/MetadataList";
 import { Text } from "@astryxdesign/core/Text";
 import {
   ToggleButton,
   ToggleButtonGroup,
 } from "@astryxdesign/core/ToggleButton";
 import { VStack } from "@astryxdesign/core/VStack";
-import {
-  ArrowBendUpLeftIcon,
-  CalendarBlankIcon,
-  CopyIcon,
-  EyeIcon,
-  XIcon,
-} from "@phosphor-icons/react";
+import { XIcon } from "@phosphor-icons/react";
 import { nextDataOffset, type DataResult } from "../../data/personal-context";
 import {
   DataReadSession,
@@ -34,9 +22,16 @@ import {
   type DataKind,
   type RecordsRoute,
 } from "../../lib/data-routes";
+import { deviceName } from "../../lib/naming";
+import { effectiveDate, occurredText } from "../../lib/data-record";
+import { useLiveText } from "../../lib/live-clock";
 import { BrandTile } from "../BrandTile";
+import { SplitView, useSplitView } from "../astryx/SplitView";
 import {
+  badgeFor,
+  CELL_WIDTHS,
   DataTable,
+  DetailText,
   FilterBar,
   InlineNotice,
   LoadingSkeleton,
@@ -48,41 +43,120 @@ import {
   type Column,
 } from "../workspace/Workspace";
 import {
-  effectiveDate,
-  evidenceFields,
   kindGlyph,
   parseItems,
   parseRecord,
-  sourceLabel,
+  recordMark,
   type DataRecord,
 } from "./data-model";
 import { ReadNotice, type DataNavigate } from "./DataNotices";
+import { RecordPanel } from "./RecordPanel";
+import {
+  SourceNamesContext,
+  namedSource,
+  useNamedSource,
+  useSourceNames,
+} from "./source-catalog";
 import { provideSearchEntries } from "../../lib/admin-search-index";
 
 type Failure = Exclude<DataResult, { state: "ready" }>;
 
-/** A source's tile and short name, with its id as the tooltip. */
-export function SourceName({
-  id,
-  text,
+/** A record's source as its column shows it: the device tile when System
+ * names one, then the source's name as Sources reads it. The row's lead
+ * tile is already the source's app, so the column does not repeat it. */
+function RecordSource({
+  record,
+  slot = false,
 }: {
-  id: string;
-  /** Text in place of the name, such as a search excerpt. */
-  text?: string | null;
+  record: DataRecord;
+  /** In the Source column every cell keeps the device's place, empty or
+   * not, so the names line up down the column. */
+  slot?: boolean;
 }) {
-  const source = sourceLabel(id);
+  const source = useNamedSource(record.source, record.host);
+  if (!source) return null;
+  const device = source.device && record.host && (
+    <BrandTile
+      id={source.device.id}
+      kind="device"
+      size={20}
+      label={deviceName(record.host)}
+    />
+  );
   return (
-    <span className="data-source" title={id}>
-      <BrandTile id={source.tile.id} kind={source.tile.kind} size={20} />
-      <span className="data-source-name">{text ?? source.name}</span>
+    <span className="data-source" title={source.tooltip}>
+      {slot ? <span className="data-source-device">{device}</span> : device}
+      <span className="data-source-name">{source.name}</span>
+    </span>
+  );
+}
+
+/** A record's state column: a state other than the default as its chip,
+ * then the tier glyph at the column's end, so tiers read down one line. */
+function RecordState({ record }: { record: DataRecord }) {
+  return (
+    <span className="data-record-state">
+      <StateBadge domain="record" state={record.status} />
+      <TierMark tier={record.tier} />
     </span>
   );
 }
 
 /**
- * Record rows, for Records and the overview. Line 1 is the kind tile, the
- * title and the time; line 2 is the source (or the search excerpt), and at
- * compact a non-default state and the tier ahead of it.
+ * When a record happened: the date the reader's list is sorted by (ledger
+ * A-28). System orders records by occurred date, newest first, and those
+ * with none last by observed time, so this column is that key: the occurred
+ * date, relative within a day and otherwise at System's own precision
+ * (lib/data-record.ts occurredText), or, for a record System holds no
+ * occurred date for, its observed time, muted and labelled as observed.
+ */
+function OccurredTime({ record }: { record: DataRecord }) {
+  const occurred = Boolean(
+    occurredText(record.occurredAt, record.datePrecision, Date.now()),
+  );
+  const value = occurred ? record.occurredAt : record.observedAt;
+  const text = useLiveText(
+    (now) =>
+      (occurred
+        ? occurredText(record.occurredAt, record.datePrecision, now)
+        : occurredText(record.observedAt, null, now)) ?? "",
+    Date.now(),
+  );
+  if (!text)
+    return (
+      <Text color="secondary" className="workspace-time">
+        Not recorded
+      </Text>
+    );
+  const full = occurred
+    ? `Occurred: ${effectiveDate(record.occurredAt, record.datePrecision)}`
+    : `Observed: ${effectiveDate(record.observedAt, null)}. No occurred date`;
+  return (
+    <time
+      className="workspace-time"
+      data-observed={occurred ? undefined : ""}
+      dateTime={value ?? undefined}
+      title={full}
+      aria-label={full}
+      suppressHydrationWarning
+    >
+      {text}
+    </time>
+  );
+}
+
+/** Source names are short ("Browsing", "Voice Memos"); the column holds
+ * them with a device tile. */
+const SOURCE_WIDTH = 204;
+
+/**
+ * Record rows, for Records and the overview: one row of aligned columns.
+ * The lead is the app tile (the kind's glyph when the source has none) and
+ * the short title; then the source, the state and tier, and the time. A
+ * search adds the reader's excerpt as a Match column in place of the source.
+ * Beside an open record the list keeps only the lead, the state and the
+ * time. On phones a row is two lines: the title and time, then the tier, a
+ * state other than the default and the source (or the excerpt).
  */
 export function recordColumns({
   href,
@@ -90,68 +164,126 @@ export function recordColumns({
   selectedId = null,
   controls,
   hideSource = false,
+  beside = false,
+  tiersOnly = false,
 }: {
   href: (record: DataRecord) => string;
   onSelect?: (record: DataRecord, trigger: HTMLElement) => void;
   selectedId?: string | null;
   controls?: string;
-  /** Every row has the same source, so line 2 leaves it out. */
+  /** Every row has the same source, so no row names it. */
   hideSource?: boolean;
+  /** An open record sits beside the list. */
+  beside?: boolean;
+  /** No row shows a state chip (recordTiersOnly), so the state column
+   * holds only the tier glyph under an assistive "Tier" heading and gives
+   * the rest of its width to the titles. */
+  tiersOnly?: boolean;
 }): Column<DataRecord>[] {
-  return [
+  const columns: Column<DataRecord>[] = [
     {
       key: "record",
       header: "Record",
       render: (record) => {
-        const [glyph, kind] = kindGlyph(record.kind);
-        const line =
-          record.source && !hideSource ? (
-            <SourceName id={record.source} text={record.excerpt} />
-          ) : (
-            record.excerpt
-          );
+        const mark = recordMark(record);
         return (
           <RowTitle
-            icon={glyph}
-            kind={kind}
-            title={record.title ?? "Untitled"}
+            icon={mark.tile ? undefined : mark.glyph}
+            mark={
+              mark.tile ? (
+                <BrandTile id={mark.tile.id} kind={mark.tile.kind} />
+              ) : undefined
+            }
+            kind={mark.kindName}
+            title={mark.name}
+            tooltip={
+              record.title && record.title !== mark.name
+                ? `${record.title}\n${record.id}`
+                : record.id
+            }
             href={href(record)}
             onSelect={
               onSelect ? (trigger) => onSelect(record, trigger) : undefined
             }
             isPressed={onSelect ? selectedId === record.id : undefined}
             controls={controls}
-            secondary={line || undefined}
             mobile={
               <>
-                <StateBadge domain="record" state={record.status} />
                 <TierMark tier={record.tier} />
+                <StateBadge domain="record" state={record.status} />
+                {record.excerpt ? (
+                  <span className="data-record-excerpt">{record.excerpt}</span>
+                ) : (
+                  // The device keeps its place, empty or not, so source
+                  // names line up down a phone's rows too.
+                  !hideSource && <RecordSource record={record} slot />
+                )}
               </>
             }
-            time={record.observedAt}
+            end={<OccurredTime record={record} />}
           />
         );
       },
     },
+  ];
+  if (!beside && !hideSource)
+    columns.push({
+      key: "source",
+      header: "Source",
+      width: SOURCE_WIDTH,
+      hideBelow: "large",
+      render: (record) => <RecordSource record={record} slot />,
+    });
+  columns.push(
+    tiersOnly
+      ? {
+          key: "state",
+          header: <span className="sr-only">Tier</span>,
+          width: CELL_WIDTHS.tile,
+          render: (record) => <RecordState record={record} />,
+        }
+      : {
+          key: "state",
+          header: "State",
+          width: CELL_WIDTHS.state,
+          render: (record) => <RecordState record={record} />,
+        },
     {
-      key: "state",
-      header: "State",
-      width: 120,
-      render: (record) => <StateBadge domain="record" state={record.status} />,
+      key: "occurred",
+      header: "Occurred",
+      width: CELL_WIDTHS.time,
+      render: (record) => <OccurredTime record={record} />,
     },
+  );
+  return columns;
+}
+
+/** Whether no listed record has a non-default state, so the state column
+ * holds only tier glyphs (recordColumns' `tiersOnly`). */
+export function recordTiersOnly(records: readonly DataRecord[]): boolean {
+  return records.every((item) => badgeFor("record", item.status).isDefault);
+}
+
+/** A search's rows add the reader's excerpt, the one flexible column beside
+ * the lead, in place of the source. */
+function withMatch(
+  columns: Column<DataRecord>[],
+  rows: DataRecord[],
+  beside: boolean,
+): Column<DataRecord>[] {
+  if (beside || !rows.some((row) => row.excerpt)) return columns;
+  const [lead, ...rest] = columns;
+  return [
+    lead!,
     {
-      key: "tier",
-      header: <Text className="sr-only">Tier</Text>,
-      width: 44,
-      render: (record) => <TierMark tier={record.tier} />,
+      key: "match",
+      header: "Match",
+      hideBelow: "large",
+      render: (record) => (
+        <DetailText lines={1}>{record.excerpt ?? ""}</DetailText>
+      ),
     },
-    {
-      key: "observed",
-      header: "Observed",
-      // Holds "Not recorded" with the cell inset.
-      width: 120,
-      render: (record) => <RelativeTime value={record.observedAt} />,
-    },
+    ...rest.filter((column) => column.key !== "source"),
   ];
 }
 
@@ -187,9 +319,9 @@ export function RecordsToolbar({
       { replace: true },
     );
   };
-  const source = route.source ? sourceLabel(route.source) : null;
+  const source = useNamedSource(route.source);
   return (
-    <div className="data-toolbar">
+    <div className="data-toolbar data-records-toolbar">
       <FilterBar
         search={{
           label: "Search records",
@@ -265,261 +397,6 @@ type List = {
   failure: Failure | null;
 };
 
-const LOCAL_TIME = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
-/** A time for the details list: absolute, with the relative time muted. */
-function Observed({ value }: { value: string | null }) {
-  const ms = Date.parse(value ?? "");
-  if (!Number.isFinite(ms)) return <Text color="secondary">Not recorded</Text>;
-  return (
-    <HStack gap={2} wrap="wrap" vAlign="center">
-      <Text>{LOCAL_TIME.format(ms)}</Text>
-      <Text color="secondary">
-        <RelativeTime value={value} />
-      </Text>
-    </HStack>
-  );
-}
-
-function Evidence({
-  title,
-  value,
-}: {
-  title: string;
-  value: Record<string, unknown>;
-}) {
-  const fields = evidenceFields(value);
-  if (!fields.length) return null;
-  return (
-    <Collapsible trigger={<Text>{title}</Text>} defaultIsOpen={false}>
-      <VStack gap={3} className="data-evidence">
-        <MetadataList label={{ position: "top" }} columns="multi">
-          {fields.map(([name, entry]) => (
-            <MetadataListItem key={name} label={name}>
-              <Text wordBreak="break-word">{entry}</Text>
-            </MetadataListItem>
-          ))}
-        </MetadataList>
-        <HStack>
-          <Button
-            label="Copy JSON"
-            tooltip="Copy JSON"
-            isIconOnly
-            size="sm"
-            variant="ghost"
-            icon={<CopyIcon weight="regular" aria-hidden="true" />}
-            onClick={() =>
-              void navigator.clipboard?.writeText(
-                JSON.stringify(value, null, 2),
-              )
-            }
-          />
-        </HStack>
-      </VStack>
-    </Collapsible>
-  );
-}
-
-function History({ record }: { record: DataRecord }) {
-  const { revisions, historyLimit } = record;
-  if (!revisions.length) return null;
-  const capped = historyLimit !== null && revisions.length >= historyLimit;
-  return (
-    <Collapsible
-      trigger={
-        <HStack gap={2} vAlign="center">
-          <Text>History</Text>
-          <span
-            className="workspace-count data-history-count"
-            title={
-              capped
-                ? `Latest ${historyLimit} revisions; older ones are kept`
-                : undefined
-            }
-          >
-            {capped ? `${historyLimit}+` : revisions.length}
-          </span>
-        </HStack>
-      }
-      defaultIsOpen={false}
-    >
-      <ol className="data-history" aria-label="Revision history">
-        {revisions.map((revision) => (
-          <li key={revision.id} title={revision.id}>
-            <Text>{revision.version ?? "Unknown version"}</Text>
-            {revision.id === record.revisionId && (
-              <StateBadge tone="neutral" label="Current" />
-            )}
-            <Text color="secondary" className="data-history-time">
-              <RelativeTime value={revision.observedAt} />
-            </Text>
-          </li>
-        ))}
-      </ol>
-    </Collapsible>
-  );
-}
-
-/**
- * One record. On its own it is the page: an icon back, the title as the H1,
- * the body first, then one row of facts with the full fields collapsed.
- * Beside the list it takes a close icon and an H2.
- */
-export function RecordDetail({
-  record,
-  busy,
-  failure,
-  moreFailed = false,
-  onMore,
-  onRetry,
-  onClose,
-  split = false,
-  panelRef,
-  id,
-}: {
-  record: DataRecord | null;
-  busy: boolean;
-  failure: Failure | null;
-  /** The next part of the body could not be read. */
-  moreFailed?: boolean;
-  onMore: () => void;
-  onRetry?: () => void;
-  onClose?: () => void;
-  split?: boolean;
-  panelRef?: React.Ref<HTMLElement>;
-  id?: string;
-}) {
-  const title = record ? (record.title ?? "Untitled") : "Record";
-  const close = onClose && (
-    <Button
-      label={split ? "Close record" : "Back to records"}
-      tooltip={split ? "Close record" : "Back to records"}
-      isIconOnly
-      size="sm"
-      variant="ghost"
-      icon={
-        split ? (
-          <XIcon weight="regular" aria-hidden="true" />
-        ) : (
-          <ArrowBendUpLeftIcon weight="regular" aria-hidden="true" />
-        )
-      }
-      onClick={onClose}
-    />
-  );
-  const [Glyph, kindName] = kindGlyph(record?.kind);
-  const effective = record
-    ? effectiveDate(record.occurredAt, record.datePrecision)
-    : null;
-  return (
-    <section
-      id={id}
-      ref={panelRef}
-      tabIndex={-1}
-      aria-label={`${title} details`}
-      className="workspace-detail data-detail"
-      data-split={split ? "true" : "false"}
-    >
-      <VStack gap={5}>
-        {close && <div className="data-detail-bar">{close}</div>}
-        {!record ? (
-          failure ? (
-            <ReadNotice result={failure} onRetry={onRetry} />
-          ) : (
-            busy && <LoadingSkeleton label="record" rows={3} columns={2} />
-          )
-        ) : (
-          <>
-            <HStack gap={3} vAlign="center" wrap="wrap">
-              <Heading level={split ? 2 : 1} className="data-detail-title">
-                {title}
-              </Heading>
-              <StateBadge domain="record" state={record.status} />
-              <TierMark tier={record.tier} />
-            </HStack>
-            {record.body && (
-              <Text as="p" className="workspace-detail-body">
-                {record.body}
-              </Text>
-            )}
-            {record.nextBodyOffset !== null && (
-              <HStack>
-                <Button
-                  label="Read more"
-                  size="sm"
-                  variant="secondary"
-                  onClick={onMore}
-                  isLoading={busy}
-                />
-              </HStack>
-            )}
-            {moreFailed && (
-              <InlineNotice tone="warning" title="Next part unreadable" />
-            )}
-            <ul className="data-facts" aria-label="Record facts">
-              <li title="Kind">
-                <Glyph weight="regular" aria-hidden="true" />
-                {kindName}
-              </li>
-              {record.source && (
-                <li>
-                  <SourceName id={record.source} />
-                </li>
-              )}
-              {effective && (
-                <li title="Effective date">
-                  <CalendarBlankIcon weight="regular" aria-hidden="true" />
-                  {effective}
-                </li>
-              )}
-              <li title="Observed">
-                <EyeIcon weight="regular" aria-hidden="true" />
-                <RelativeTime value={record.observedAt} label="Observed" />
-              </li>
-            </ul>
-            <VStack gap={1}>
-              <Collapsible trigger={<Text>Details</Text>} defaultIsOpen={false}>
-                <MetadataList
-                  className="data-fields"
-                  label={{ position: "top" }}
-                  columns="multi"
-                >
-                  {(
-                    [
-                      ["Kind", kindName],
-                      ["Source", record.source ?? "Not reported"],
-                      ["Source reference", record.sourceUri ?? "Not reported"],
-                      ["Effective", effective ?? "Not reported"],
-                      ["Record", record.id],
-                    ] as const
-                  ).map(([name, value]) => (
-                    <MetadataListItem key={name} label={name}>
-                      <Text wordBreak="break-word">{value}</Text>
-                    </MetadataListItem>
-                  ))}
-                  <MetadataListItem label="Observed">
-                    <Observed value={record.observedAt} />
-                  </MetadataListItem>
-                </MetadataList>
-              </Collapsible>
-              <History record={record} />
-              {record.assertion && (
-                <Evidence title="Assertion" value={record.assertion} />
-              )}
-              {record.metadata && (
-                <Evidence title="Capture coverage" value={record.metadata} />
-              )}
-            </VStack>
-          </>
-        )}
-      </VStack>
-    </section>
-  );
-}
-
 function pageAfter(result: DataResult, offset: number): number | null {
   if (result.state !== "ready") return null;
   try {
@@ -557,6 +434,7 @@ export function RecordsExplorer({
   const detailId = useId();
   const [search, setSearch] = useState({ q: "", n: 0 });
   const [list, setList] = useState<List | null>(null);
+  const names = useSourceNames(reader);
   // The records this session has listed are what the palette finds under
   // Data. They go with the list: a locked or ended session remounts it.
   const items = list?.items;
@@ -566,23 +444,26 @@ export function RecordsExplorer({
         ? provideSearchEntries(
             "data",
             items.map((item) => {
-              const [icon, kindName] = kindGlyph(item.kind);
+              const mark = recordMark(item);
               return {
                 id: `data:record:${item.id}`,
-                label: item.title ?? "Untitled",
+                label: mark.name,
                 domain: "data" as const,
                 kind: "record",
-                currentFact: kindName,
-                source: item.source ?? "",
+                currentFact: mark.kindName,
+                source: item.source
+                  ? namedSource(item.source, names, item.host).name
+                  : "",
                 freshness: "current",
                 href: dataRecordHref(item.id),
-                keywords: [kindName],
-                icon,
+                // The title as the reader wrote it still finds the record.
+                keywords: [mark.kindName, ...(item.title ? [item.title] : [])],
+                icon: mark.glyph,
               };
             }),
           )
         : undefined,
-    [items],
+    [items, names],
   );
   const [busy, setBusy] = useState(false);
   const [record, setRecord] = useState<DataRecord | null>(null);
@@ -781,81 +662,101 @@ export function RecordsExplorer({
   };
   const filtered = Boolean(search.q || kind !== "all" || source);
 
+  const beside = split && id !== null;
+  const columns = recordColumns({
+    href: (item) => dataRecordHref(item.id, filter),
+    onSelect: select,
+    selectedId: id,
+    controls: id ? detailId : undefined,
+    hideSource: Boolean(source),
+    beside,
+    // When no row has a state to show, the column holds only the tier
+    // glyph, with no empty "State" heading over it.
+    tiersOnly: recordTiersOnly(list?.items ?? []),
+  });
+
   return (
-    <div className="workspace-split" data-detail-open={id ? "true" : "false"}>
-      <VStack gap={4} className="workspace-split-list" ref={listRef}>
-        <RecordsToolbar
-          route={route}
-          navigate={navigate}
-          query={search.q}
-          onSearch={(q) => setSearch(({ n }) => ({ q, n: n + 1 }))}
-          onClear={() => setSearch(({ n }) => ({ q: "", n: n + 1 }))}
-          busy={busy}
-        />
-        {!list ? (
-          <LoadingSkeleton label="records" columns={4} />
-        ) : list.failure && !list.items.length ? (
-          <ReadNotice result={list.failure} onRetry={() => void load(false)} />
-        ) : list.items.length ? (
-          <VStack gap={3} aria-busy={busy}>
-            <DataTable
-              rows={list.items}
-              rowKey="id"
-              columns={recordColumns({
-                href: (item) => dataRecordHref(item.id, filter),
-                onSelect: select,
-                selectedId: id,
-                controls: id ? detailId : undefined,
-                hideSource: Boolean(source),
-              })}
-              label={search.q ? "Search results" : "Recent records"}
-              noun={["record", "records"]}
-              footer={false}
+    <SourceNamesContext value={names}>
+      <SplitView
+        className="data-records"
+        listClassName="data-records-list"
+        list={
+          <VStack gap={4} ref={listRef}>
+            <RecordsToolbar
+              route={route}
+              navigate={navigate}
+              query={search.q}
+              onSearch={(q) => setSearch(({ n }) => ({ q, n: n + 1 }))}
+              onClear={() => setSearch(({ n }) => ({ q: "", n: n + 1 }))}
+              busy={busy}
             />
-            {list.failure && (
-              <InlineNotice tone="warning" title="More records unreadable" />
-            )}
-            {list.next !== null && (
-              <HStack>
-                <Button
-                  label="Load more"
-                  size="sm"
-                  variant="secondary"
-                  isLoading={busy}
-                  onClick={() => {
-                    focusRow.current = list.items.length;
-                    void load(true);
-                  }}
+            {!list ? (
+              <LoadingSkeleton label="records" columns={4} />
+            ) : list.failure && !list.items.length ? (
+              <ReadNotice
+                result={list.failure}
+                onRetry={() => void load(false)}
+              />
+            ) : list.items.length ? (
+              <VStack gap={3} aria-busy={busy}>
+                <DataTable
+                  rows={list.items}
+                  rowKey="id"
+                  columns={withMatch(columns, list.items, beside)}
+                  label={search.q ? "Search results" : "Recent records"}
+                  noun={["record", "records"]}
+                  footer={false}
                 />
-              </HStack>
+                {list.failure && (
+                  <InlineNotice
+                    tone="warning"
+                    title="More records unreadable"
+                  />
+                )}
+                {list.next !== null && (
+                  <HStack>
+                    <Button
+                      label="Load more"
+                      size="sm"
+                      variant="secondary"
+                      isLoading={busy}
+                      onClick={() => {
+                        focusRow.current = list.items.length;
+                        void load(true);
+                      }}
+                    />
+                  </HStack>
+                )}
+              </VStack>
+            ) : (
+              <StateNotice
+                kind="empty"
+                title="No matching records"
+                action={
+                  filtered ? (
+                    <Button label="Clear filters" size="sm" onClick={reset} />
+                  ) : undefined
+                }
+              />
             )}
           </VStack>
-        ) : (
-          <StateNotice
-            kind="empty"
-            title="No matching records"
-            action={
-              filtered ? (
-                <Button label="Clear filters" size="sm" onClick={reset} />
-              ) : undefined
-            }
-          />
-        )}
-      </VStack>
-      {id && (
-        <RecordDetail
-          id={detailId}
-          panelRef={panel}
-          record={record}
-          busy={detailBusy}
-          failure={failure}
-          moreFailed={moreFailed}
-          split={split}
-          onMore={() => void more()}
-          onRetry={() => void open(id)}
-          onClose={close}
-        />
-      )}
-    </div>
+        }
+        panel={
+          id && (
+            <RecordPanel
+              id={detailId}
+              panelRef={panel}
+              record={record}
+              busy={detailBusy}
+              failure={failure}
+              moreFailed={moreFailed}
+              onMore={() => void more()}
+              onRetry={() => void open(id)}
+              onClose={close}
+            />
+          )
+        }
+      />
+    </SourceNamesContext>
   );
 }

@@ -4,21 +4,35 @@
  * reads these; nothing downstream re-coerces reader JSON.
  */
 import {
+  ArchiveIcon,
+  BarbellIcon,
   BookOpenTextIcon,
+  BrowserIcon,
   CalendarBlankIcon,
+  ChatCircleSlashIcon,
+  ChatCircleTextIcon,
+  ChatsCircleIcon,
   CpuIcon,
   FileTextIcon,
   FolderSimpleIcon,
+  GitCommitIcon,
+  HashIcon,
   HeartbeatIcon,
   LightbulbIcon,
   MapPinIcon,
+  MicrophoneIcon,
   NotePencilIcon,
+  SealCheckIcon,
   SignpostIcon,
   UserIcon,
   type Icon,
 } from "@phosphor-icons/react";
-import { markLabel, sourceMark, type TileRef } from "../../lib/marks";
+import type { TileRef } from "../../lib/marks";
+import { recordHost } from "../../lib/data-record";
+import { recordNaming, type Naming } from "../../lib/naming";
 import { sentenceCase } from "../../lib/sentence-case";
+
+export { effectiveDate } from "../../lib/data-record";
 
 type Item = Record<string, unknown>;
 
@@ -38,7 +52,8 @@ const object = (value: unknown): Item | null =>
     : null;
 
 /** Record and card kinds, as a glyph and a name. One map for Records,
- * Knowledge and the overview. */
+ * Knowledge and the overview; the reader's own kinds (System's adapters)
+ * are listed so none reads as a raw token. */
 const KINDS: Record<string, [Icon, string]> = {
   person: [UserIcon, "Person"],
   contact: [UserIcon, "Person"],
@@ -52,6 +67,19 @@ const KINDS: Record<string, [Icon, string]> = {
   system: [CpuIcon, "System"],
   reference: [BookOpenTextIcon, "Reference"],
   health: [HeartbeatIcon, "Health"],
+  assertion: [SealCheckIcon, "Assertion"],
+  browsing_day: [BrowserIcon, "Browsing day"],
+  conversation_message: [ChatsCircleIcon, "Conversation message"],
+  health_day: [HeartbeatIcon, "Health day"],
+  health_day_private: [HeartbeatIcon, "Private health day"],
+  legacy_assertion: [ArchiveIcon, "Legacy assertion"],
+  legacy_event: [ArchiveIcon, "Legacy event"],
+  message: [ChatCircleTextIcon, "Message"],
+  message_retracted: [ChatCircleSlashIcon, "Retracted message"],
+  voice_memo: [MicrophoneIcon, "Voice memo"],
+  work_day: [GitCommitIcon, "Work day"],
+  workout: [BarbellIcon, "Workout"],
+  topic: [HashIcon, "Topic"],
 };
 
 export function kindGlyph(kind: unknown): [Icon, string] {
@@ -61,20 +89,6 @@ export function kindGlyph(kind: unknown): [Icon, string] {
     FileTextIcon,
     typeof kind === "string" && kind ? sentenceCase(kind) : "Record",
   ];
-}
-
-/** A source as a tile and a short name. A branded source reads as its
- * brand ("synthetic-contacts" is Contacts); others read as their id in
- * words. The raw id belongs in the tooltip. */
-export type SourceLabel = { id: string; tile: TileRef; name: string };
-
-export function sourceLabel(id: string): SourceLabel {
-  const tile = sourceMark(id);
-  return {
-    id,
-    tile,
-    name: markLabel(tile) ?? sentenceCase(id.replace(/[-_.]+/g, " ")),
-  };
 }
 
 type DataRevision = {
@@ -88,6 +102,9 @@ export type DataRecord = {
   revisionId: string | null;
   kind: string | null;
   title: string | null;
+  /** The device it came from: System's optional `host`, when it names one
+   * of the owner's devices. */
+  host: string | null;
   /** The reader's match excerpt, on search results only. */
   excerpt: string | null;
   body: string | null;
@@ -133,6 +150,7 @@ export function parseRecord(value: unknown): DataRecord | null {
     revisionId: text(item.revision_id),
     kind: text(item.kind),
     title: text(item.title),
+    host: recordHost(item),
     excerpt: text(item.search_excerpt),
     body: text(item.body),
     source: text(item.source_id),
@@ -154,14 +172,127 @@ export function parseRecord(value: unknown): DataRecord | null {
   };
 }
 
+/**
+ * A record as its row names it: the short title, the app tile (the browser
+ * most of a browsing day came from, else its source's app) or, when the
+ * source has no mark of its own, the glyph for its kind, and its device.
+ */
+export type RecordMark = Omit<Naming, "tile"> & {
+  /** The kind's glyph, drawn when `tile` is null. */
+  glyph: Icon;
+  kindName: string;
+  /** Null when neither the record nor its source has a mark. */
+  tile: TileRef | null;
+};
+
+export function recordMark(record: DataRecord, now?: number): RecordMark {
+  const naming = recordNaming(record, now);
+  const [glyph, kindName] = kindGlyph(record.kind);
+  const generic = naming.tile.id === null && naming.tile.kind === "source";
+  return {
+    ...naming,
+    // "Untitled" reads as the record's own title when it has none.
+    name: record.title ? naming.name : "Untitled",
+    tile: generic ? null : naming.tile,
+    glyph,
+    kindName,
+  };
+}
+
+/** System's source catalog vocabulary. Each optional field is read only
+ * when its value is one of these; anything else reads as absent, so the
+ * row falls back to what its id and counts say. */
+export const SOURCE_CONNECTORS = [
+  "browsing",
+  "messages",
+  "contacts",
+  "mail",
+  "calendar",
+  "notes",
+  "media",
+  "agent_transcripts",
+  "code",
+  "health",
+  "legacy_vaults",
+  "other",
+] as const;
+export type SourceConnector = (typeof SOURCE_CONNECTORS)[number];
+export const SOURCE_COLLECTIONS = ["live", "one_shot", "discovered"] as const;
+export type SourceCollection = (typeof SOURCE_COLLECTIONS)[number];
+export const SOURCE_STATUSES = [
+  "discovered",
+  "unavailable",
+  "pending",
+  "partial",
+  "current",
+  "failed",
+  "excluded",
+  "paused",
+] as const;
+export type SourceStatus = (typeof SOURCE_STATUSES)[number];
+export const SOURCE_TRANSPORTS = [
+  "launchd",
+  "push",
+  "manual",
+  "derived",
+] as const;
+export type SourceTransport = (typeof SOURCE_TRANSPORTS)[number];
+
 export type DataSourceRow = {
   id: string;
   records: number;
   revisions: number;
   firstObservedAt: string | null;
   lastObservedAt: string | null;
+  /** System's catalog fields (store.py SOURCE_METADATA_VIEW), each null
+   * until served. Only the ones a view reads are kept. */
+  displayName: string | null;
+  connector: SourceConnector | null;
+  host: string | null;
+  collection: SourceCollection | null;
+  status: SourceStatus | null;
+  /** The ops catalog id that collects it, joined to the ops snapshot. */
+  job: string | null;
+  /** How it arrives. Read only to credit Apple Health: a health source is
+   * Apple's only when the phone pushes it. */
+  transport: SourceTransport | null;
+  discoveredCount: number | null;
+  lastSuccessAt: string | null;
+  /** The newest record System holds, a detail only. */
+  heldTo: string | null;
 };
 
+const oneOf = <T extends string>(
+  values: readonly T[],
+  value: unknown,
+): T | null =>
+  typeof value === "string" && (values as readonly string[]).includes(value)
+    ? (value as T)
+    : null;
+/** A short catalog word or label, bounded so nothing long reaches a row. */
+const label = (value: unknown, max = 120): string | null =>
+  typeof value === "string" && value.trim() && value.length <= max
+    ? value.trim()
+    : null;
+const token = (value: unknown): string | null =>
+  typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(value)
+    ? value
+    : null;
+const instant = (value: unknown): string | null =>
+  typeof value === "string" && Number.isFinite(Date.parse(value))
+    ? value
+    : null;
+const optionalCount = (value: unknown): number | null =>
+  typeof value === "number" && Number.isSafeInteger(value) && value >= 0
+    ? value
+    : null;
+
+/**
+ * A /v1/data/sources row. The five fields System has always served parse;
+ * the catalog fields a view reads parse when present and valid and are null
+ * otherwise. Any other field (transport, adapter, held span, counts of
+ * excluded or failed items) is ignored, as unknown fields always were.
+ */
 export function parseSource(value: unknown): DataSourceRow | null {
   const item = object(value);
   const id = text(item?.source_id);
@@ -172,6 +303,16 @@ export function parseSource(value: unknown): DataSourceRow | null {
     revisions: count(item.revision_count),
     firstObservedAt: text(item.first_observed_at),
     lastObservedAt: text(item.last_observed_at),
+    displayName: label(item.display_name),
+    connector: oneOf(SOURCE_CONNECTORS, item.connector),
+    host: token(item.host),
+    collection: oneOf(SOURCE_COLLECTIONS, item.collection),
+    status: oneOf(SOURCE_STATUSES, item.status),
+    job: token(item.job),
+    transport: oneOf(SOURCE_TRANSPORTS, item.transport),
+    discoveredCount: optionalCount(item.discovered_count),
+    lastSuccessAt: instant(item.last_success_at),
+    heldTo: instant(item.held_to),
   };
 }
 
@@ -186,39 +327,4 @@ export function parseItems<T>(
         return parsed ? [parsed] : [];
       })
     : [];
-}
-
-/** An effective date at its own precision: a day, a month or a year, read in
- * UTC so a date never shifts across a timezone. */
-export function effectiveDate(
-  value: string | null,
-  precision: string | null,
-): string | null {
-  if (!value) return null;
-  const ms = Date.parse(value.length === 4 ? `${value}-01-01` : value);
-  if (!Number.isFinite(ms)) return value;
-  const options: Intl.DateTimeFormatOptions =
-    precision === "year" || value.length === 4
-      ? { year: "numeric" }
-      : precision === "month" || value.length === 7
-        ? { year: "numeric", month: "long" }
-        : { year: "numeric", month: "short", day: "numeric" };
-  return new Intl.DateTimeFormat("en-US", {
-    ...options,
-    timeZone: "UTC",
-  }).format(ms);
-}
-
-/** Evidence as label and value pairs, one level deep. */
-export function evidenceFields(value: Item): Array<[string, string]> {
-  return Object.entries(value).map(([key, entry]) => [
-    sentenceCase(key),
-    typeof entry === "string"
-      ? entry
-      : entry === null || entry === undefined
-        ? "None"
-        : typeof entry === "object"
-          ? JSON.stringify(entry)
-          : String(entry),
-  ]);
 }

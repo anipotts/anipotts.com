@@ -93,9 +93,13 @@ describe("workspace return destinations", () => {
     expect(
       workspaceReturnPath(
         "data",
-        "/data/records?kind=people&q=private&record=person-123&cursor=42#private",
+        "/data/records?kind=contact&q=private&record=person-123&cursor=42#private",
       ),
-    ).toBe("/data/records?kind=people");
+    ).toBe("/data/records?kind=contact");
+    // The retired Life taxonomy is no filter.
+    expect(workspaceReturnPath("data", "/data/records?kind=people")).toBe(
+      "/data/records",
+    );
     expect(workspaceReturnPath("data", "/data/records?kind=private")).toBe(
       "/data/records",
     );

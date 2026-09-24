@@ -17,6 +17,7 @@
   .astryx-dropdown-menu-item,
   .astryx-text-input,
   .astryx-time-input,
+  .astryx-selector,
   .astryx-collapsible-trigger {
     min-height: var(--spacing-11);
   }

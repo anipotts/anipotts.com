@@ -6,7 +6,7 @@ import { AdminShell } from "./AdminShell";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const shell = (route: string) => (
-  <AdminShell currentRoute={route} title="Record" localPreview>
+  <AdminShell currentRoute={route} localPreview>
     <div>Content</div>
   </AdminShell>
 );
@@ -18,13 +18,15 @@ describe("shared Data and Observability shell", () => {
     expect(
       host.querySelector('[data-workspace="observability"]'),
     ).not.toBeNull();
-    // The wordmark is the home link, in the sidebar and the phone top bar.
+    // The home link: the wordmark in the sidebar, the monogram on phones.
     const wordmarks = host.querySelectorAll<HTMLAnchorElement>(
       "a.admin-bracket-wordmark",
     );
-    expect(wordmarks).toHaveLength(2);
+    expect([...wordmarks].map((wordmark) => wordmark.textContent)).toEqual([
+      "[A]",
+      "[admin]",
+    ]);
     for (const wordmark of wordmarks) {
-      expect(wordmark.textContent).toBe("[admin]");
       expect(wordmark.getAttribute("href")).toBe("/");
       expect(wordmark.getAttribute("aria-label")).toBe("Overview");
     }
@@ -98,9 +100,7 @@ describe("shared Data and Observability shell", () => {
       host.querySelector('.admin-phone-workspace[aria-current="true"]'),
     ).toBeNull();
     expect(host.querySelector(".admin-phone-page")).toBeNull();
-    expect(host.querySelector(".admin-phone-bar-title")?.textContent).toBe(
-      "Record",
-    );
+    expect(host.querySelector(".admin-phone-pages")).toBeNull();
   });
 });
 
@@ -112,17 +112,18 @@ describe("local owner indicator in Data and Observability", () => {
       vi.stubGlobal("__LOCAL_OWNER_BUILD__", true);
       const host = document.createElement("div");
       host.innerHTML = renderToStaticMarkup(
-        <AdminShell currentRoute={route} title="Record" localOwner>
+        <AdminShell currentRoute={route} localOwner>
           <div>Content</div>
         </AdminShell>,
       );
       const tiles = host.querySelectorAll("[data-admin-local-owner]");
-      // Beside the sidebar wordmark and the phone wordmark.
-      expect(tiles).toHaveLength(2);
+      // Beside the sidebar wordmark only: the phone bar holds no device tile.
+      expect(tiles).toHaveLength(1);
+      expect(
+        host.querySelector(".admin-phone-bar [data-admin-local-owner]"),
+      ).toBeNull();
       for (const tile of tiles) {
-        expect(
-          tile.closest(".editorial-identity-end, .admin-phone-bar"),
-        ).not.toBeNull();
+        expect(tile.closest(".editorial-identity-end")).not.toBeNull();
         expect(
           tile.querySelector('[role="img"]')?.getAttribute("aria-label"),
         ).toBe("Local owner");

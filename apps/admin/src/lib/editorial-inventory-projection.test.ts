@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import type { Draft } from "../editorial/draft-store";
 import {
@@ -8,6 +9,7 @@ import {
   editorialInventorySearch,
   projectEditorialInventory,
   readInventoryDrafts,
+  SEED_PUBLICATION_PREFIX,
   type InventoryEntry,
 } from "./editorial-inventory-projection";
 const entries: InventoryEntry[] = [
@@ -66,6 +68,138 @@ describe("editorial inventory projection", () => {
     });
     expect(JSON.stringify(records)).not.toContain("baseCommit");
     expect(JSON.stringify(records)).not.toContain("---");
+  });
+  // A-8: only a real publication through the editor moves Updated. The Git
+  // seed (scripts/content/content-d1-seed.mjs) stamped 19 records with the
+  // moment it ran, 2026-09-21T17:09:31.683Z, which was never a publish.
+  const SEEDED_AT = "2026-09-21T17:09:31.683Z";
+  it("keeps the Git time for a seeded revision newer than the last Git change", () => {
+    const git = { at: "2026-09-08T12:00:00Z", source: "git" as const };
+    const [record] = projectEditorialInventory(
+      [
+        {
+          ...entries[0]!,
+          published: true,
+          publishedAt: SEEDED_AT,
+          publicationId: "git-seed.writing.post",
+        },
+      ],
+      [],
+      () => git,
+    );
+    expect(record!.updated).toEqual(git);
+    expect(record!.publishedUpdated).toEqual(git);
+  });
+  it("reads an edited record's publish time when it is newer than the last Git change", () => {
+    const git = { at: "2026-09-08T12:00:00Z", source: "git" as const };
+    const [record] = projectEditorialInventory(
+      [
+        {
+          ...entries[0]!,
+          published: true,
+          publishedAt: "2026-09-21T21:03:36Z",
+          publicationId: "pub-2",
+        },
+      ],
+      [],
+      () => git,
+    );
+    expect(record).toMatchObject({
+      status: "published",
+      updated: { at: "2026-09-21T21:03:36.000Z", source: "cms" },
+      publishedUpdated: { at: "2026-09-21T21:03:36.000Z", source: "cms" },
+    });
+  });
+  it("reads an explicit unpublication as hidden from the site, never published", () => {
+    const git = { at: "2026-09-08T12:00:00Z", source: "git" as const };
+    const [writing, project] = projectEditorialInventory(
+      [
+        {
+          ...entries[0]!,
+          data: { ...entries[0]!.data, status: "draft" },
+          published: true,
+          publishedAt: "2026-09-21T22:00:00Z",
+          publicationId: "pub-3",
+        },
+        {
+          ...entries[2]!,
+          data: { ...entries[2]!.data, public_state: "hidden" },
+          published: true,
+          publishedAt: "2026-09-21T22:05:00Z",
+          publicationId: "pub-4",
+        },
+      ],
+      [],
+      () => git,
+    );
+    expect(writing).toMatchObject({
+      status: "hidden",
+      updated: { at: "2026-09-21T22:00:00.000Z", source: "hidden" },
+    });
+    expect(project).toMatchObject({
+      status: "hidden",
+      updated: { at: "2026-09-21T22:05:00.000Z", source: "hidden" },
+    });
+  });
+  it("never counts a publication without an id", () => {
+    const git = { at: "2026-09-08T12:00:00Z", source: "git" as const };
+    const [record] = projectEditorialInventory(
+      [
+        {
+          ...entries[0]!,
+          published: true,
+          publishedAt: "2026-09-21T15:00:00Z",
+        },
+      ],
+      [],
+      () => git,
+    );
+    expect(record!.updated).toEqual(git);
+  });
+  it("keeps a newer Git change over an older publish", () => {
+    const git = { at: "2026-09-21T16:00:00Z", source: "git" as const };
+    const [record] = projectEditorialInventory(
+      [
+        {
+          ...entries[0]!,
+          published: true,
+          publishedAt: "2026-09-08T12:00:00Z",
+          publicationId: "pub-1",
+        },
+      ],
+      [],
+      () => git,
+    );
+    expect(record!.updated).toEqual(git);
+  });
+  it("keeps the private draft time while changes are pending over a newer publish", () => {
+    const [record] = projectEditorialInventory(
+      [
+        {
+          ...entries[0]!,
+          published: true,
+          publishedAt: "2026-09-21T15:00:00Z",
+          publicationId: "pub-1",
+        },
+      ],
+      [draft({ updatedAt: Date.parse("2026-09-22T09:00:00Z") })],
+    );
+    expect(record).toMatchObject({
+      updated: { at: "2026-09-22T09:00:00.000Z", source: "private" },
+      publishedUpdated: { at: "2026-09-21T15:00:00.000Z", source: "cms" },
+    });
+  });
+  it("names the seed's publication ids as the seed script writes them", () => {
+    const script = readFileSync(
+      new URL(
+        "../../../../scripts/content/content-d1-seed.mjs",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    expect(script).toContain('export const SEED_ID_PREFIX = "git-seed";');
+    expect(script).toContain("`${SEED_ID_PREFIX}.${record.kind}.${record.id}`");
+    expect(SEED_PUBLICATION_PREFIX).toBe("git-seed.");
   });
   it("does not call a retained draft pending when source equals its published Git blob", () => {
     const d = draft();

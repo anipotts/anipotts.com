@@ -107,6 +107,30 @@ describe("acknowledged inventory events", () => {
     expect(next.searchEntries![0].label).toBe("Old");
   });
 
+  it("reads a publish as Published, and an unpublication as hidden from the site (A-8)", () => {
+    const published = applyEditorialRecordSaved(initial(), {
+      ...event,
+      changesPending: false,
+      intendedVisibility: "published",
+      publishedAt: "2026-09-12T02:00:00Z",
+    });
+    expect(published.groups?.[0]?.records[0]?.updated).toEqual({
+      at: "2026-09-12T02:00:00.000Z",
+      source: "cms",
+    });
+    const unpublished = applyEditorialRecordSaved(published, {
+      ...event,
+      revision: event.revision + 1,
+      changesPending: false,
+      intendedVisibility: "draft",
+      publishedAt: "2026-09-12T03:00:00Z",
+    });
+    expect(unpublished.groups?.[0]?.records[0]).toMatchObject({
+      status: "draft",
+      updated: { at: "2026-09-12T03:00:00.000Z", source: "hidden" },
+    });
+  });
+
   it("clears pending changes once the same revision reaches the website", () => {
     const saved = applyEditorialRecordSaved(initial(), {
       ...event,
@@ -120,11 +144,13 @@ describe("acknowledged inventory events", () => {
       publishedAt: "2026-09-12T02:00:00Z",
     });
     const liveRow = live.groups?.[0]?.records[0];
+    // A scheduled post is not on the site yet, so its publish is not a
+    // Published time.
     expect(liveRow).toMatchObject({
       changesPending: false,
       status: "scheduled",
-      publishedUpdated: { at: "2026-09-12T02:00:00.000Z", source: "git" },
-      updated: { at: "2026-09-12T02:00:00.000Z", source: "git" },
+      publishedUpdated: { at: "2026-09-12T02:00:00.000Z", source: "hidden" },
+      updated: { at: "2026-09-12T02:00:00.000Z", source: "hidden" },
     });
     expect(live.searchEntries?.[0]?.currentFact).toBe("scheduled");
     // An older revision going live never replaces a newer saved row.

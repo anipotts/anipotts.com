@@ -125,8 +125,9 @@ How the session is bounded:
 - Every method is allowed, so local D1 and the local editorial Durable Object
   accept writes. Route handlers keep their own checks: editorial writes still
   need their CSRF token.
-- A fixed `Local owner` token marks every Content, Operations and Life screen
-  at every width and theme.
+- A `Local owner` laptop tile beside the sidebar wordmark marks every
+  Content, Data and Observability screen from 641px, in both themes. The
+  one-row phone top bar holds no device tile.
 - Release builds compile the path out. Deploy jobs fail when the flag is set,
   and the Admin deploy scans its exact bundle with
   `node scripts/ci/admin-local-owner-leak.mjs --expect absent apps/admin/dist`
@@ -147,6 +148,20 @@ System's `ops_v1.sample.json` and `ops_events_v1.synthetic.json`. Each such
 page carries one `Sample data` badge. Add `?fixture=none` to see the real local
 states instead (the reader is not connected, and ops reads are off). The
 fixtures load only when `import.meta.env.DEV` is true, so no build ships them.
+
+To preview real System state, copy payloads captured from System into
+`apps/admin/.local/replay/`:
+
+- `ops_v1.json`, a snapshot, and `ops_events_v1.json`, an events page, stand
+  in for the ops samples;
+- `data_sources_v1.json`, a whole `/v1/data/sources` reply, replaces the
+  synthetic source catalog on Sources (and the names Records gives each
+  source), while records stay synthetic.
+
+When a file exists the dev server serves it in place of its sample, read again
+on every load, and `?fixture=synthetic` switches back. `.local/` is ignored: a
+replay is live machine metadata and the source catalog names real sources, so
+none of it is ever committed.
 
 Content is not affected: it reads the local editorial inventory as before.
 

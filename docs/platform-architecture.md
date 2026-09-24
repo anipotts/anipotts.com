@@ -13,7 +13,9 @@ Updated: 2026-09-22. Release completion evidence lives in [the site release revi
 | Newsletter         | `workers/newsletter`   | Subscription and issue queue consumer                                                |
 | Weekly email       | `workers/weekly-email` | Retired in place: no schedule and no send, GET reports queue counts                  |
 
-The legacy Solid app and deploy target are removed. Historical source is recoverable through Git; the cleanup does not delete any production worker or database. Active Astro route and authentication tests remain independent of retirement.
+`api.anipotts.com` holds the links vault today: its commits plane has no producer, and its command relay stays disabled while no device key is bound (ledger A-22).
+
+The legacy Solid app's source and deploy target are removed from this repo. Historical source is recoverable through Git; the cleanup does not delete any production worker or database, so its last deploy, the `anipotts-admin-solid` worker, still answers on `legacy-admin-solid.anipotts.com` with its own passkey page and an `anipotts-db` binding. Retiring that worker and its domain waits on Ani (ledger A-36.7). Active Astro route and authentication tests remain independent of retirement.
 
 The four retained workers keep an explicit route, queue or Durable Object binding. None has a cron schedule since 2026-09-22; see [worker inventory](worker-inventory.md). They are operational functionality, not public-page rendering dependencies. Their remaining outbound and data-mutation boundaries are unchanged.
 
@@ -39,15 +41,19 @@ Public pages serve published records from the `anipotts-content` D1 store. `CONT
 | ------------------------------- | --------------------------------------------------------------------- |
 | `packages/content`              | Public contracts/settings, editorial source and publication contracts |
 | `packages/types`                | Shared app and operational contracts                                  |
-| `packages/lib`                  | Admin knowledge card reader and the Drizzle migration schema          |
+| `packages/lib`                  | The Drizzle migration schema                                          |
 | `packages/brand`                | Marks, fonts, shared tokens and typography                            |
 | `packages/control-plane-runner` | Local relay client, journal and proof outbox                          |
 
-The old database-first public readers, fallback datasets, Solid-only services and unused package exports are removed. Astro admin consumes the admin-control entrypoint; root Drizzle tooling still consumes the database schema. Worker and runner implementations remain in their own active packages.
+The old database-first public readers, fallback datasets, Solid-only services and unused package exports are removed. The admin-control entrypoint is gone from `packages/lib`; Astro admin reads its own contracts, and root Drizzle tooling still consumes the database schema. Worker and runner implementations remain in their own active packages.
+
+Admin still binds `anipotts-db` as `DB` so the deploy applies its migrations, but no admin page reads it, and the runtime contract reports no feature for it. The `admin_knowledge_cards` table and migration 0041 stay in place, quarantined rather than dropped.
+
+Production sets `PRIVATE_READER_ENABLED` and `PRIVATE_READER_OPS_ENABLED`, and leaves `PRIVATE_READER_HEALTH_ENABLED` and `PRIVATE_READER_KNOWLEDGE_ENABLED` unset. So Records and Sources read the private reader, and Sources, Observability and the overview read the ops snapshot. Knowledge shows "Not built yet" and makes no request. Health makes no health request: it shows "No vitals collected", the last phone sync as "Not recorded" (System has no arrival marker yet), and, once System lists it, the `health.metrics` check from the ops snapshot. Each reads the private reader only behind its own flag, and enabling `PRIVATE_READER_HEALTH_ENABLED` (a new `health:read` credential) is an auth change for Ani to approve.
 
 ## Authentication and production boundaries
 
-Cloudflare Access is the only Admin sign-in. Middleware verifies the signed Access assertion for the exact owner; editorial reads and writes require it, other pages accept it for reads only, and sign out ends the Access session. The passkey, password, invite, recovery, device and native D1 session code was removed on 2026-09-22 and is recoverable from the `archive/admin-retired-auth-2026-09-22` tag. Its D1 tables and migrations stay in place.
+Cloudflare Access guards `admin.anipotts.com`, the only route `apps/admin/wrangler.toml` declares. The production admin worker also answers on `legacy-admin.anipotts.com`, a dashboard custom domain that Access does not cover, where only the middleware's owner check below stands between a request and the app; removing that domain or adding it to the Access app waits on Ani (ledger A-36.6). Middleware verifies the signed Access assertion for the exact owner; editorial reads and writes require it, other pages accept it for reads only, and sign out ends the Access session. The passkey, password, invite, recovery, device and native D1 session code was removed on 2026-09-22 and is recoverable from the `archive/admin-retired-auth-2026-09-22` tag. Its D1 tables and migrations stay in place.
 
 The protected route inventory in `scripts/ci/admin-route-inventory.mjs` drives the route parity and smoke checks. Newsletter controls retain their existing authorization checks. Admin no longer binds the command relay or serves the MCP, projection, knowledge, control-plane or compatibility write APIs; the relay itself stays in `workers/state`. Public code must not import admin-only contracts or operational write tables; `pnpm test:public-boundary` enforces this separation.
 

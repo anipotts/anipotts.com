@@ -14,6 +14,7 @@ import {
   OPS_EVENTS_SHORT_HOLD_MS,
   OPS_EVENTS_WAIT_S,
   OPS_POLL_MS,
+  OPS_READ_TIMEOUT_MS,
   OPS_SNAPSHOT_PATH,
   createOpsStatusController,
   readOpsSnapshot,
@@ -339,9 +340,45 @@ describe("ops status polling", () => {
     expect(controller.getState().connection).toBe("unreachable");
     expect(controller.getState().snapshot).not.toBeNull();
 
+    // The reader answered, with a server error: its own hop.
     h.replies.push(status(500));
     await vi.advanceTimersByTimeAsync(OPS_POLL_MS);
-    expect(controller.getState().connection).toBe("unreachable");
+    expect(controller.getState()).toMatchObject({
+      connection: "unreachable",
+      hop: "reader",
+    });
+    controller.dispose();
+  });
+
+  it("names the hop for a read with no reply: at once, or past the deadline (A-26)", async () => {
+    const h = harness();
+    const controller = controllerFor(h);
+    // No reply queued: the fetch fails at once, as a block would.
+    controller.start();
+    await flush();
+    expect(controller.getState()).toMatchObject({
+      connection: "unreachable",
+      hop: "unanswered",
+    });
+    // A request that goes out and hangs until the deadline aborts it.
+    h.replies.push(
+      (init) =>
+        new Promise<Response>((_, reject) =>
+          init.signal?.addEventListener("abort", () =>
+            reject(new DOMException("aborted", "AbortError")),
+          ),
+        ),
+    );
+    await vi.advanceTimersByTimeAsync(OPS_POLL_MS);
+    await vi.advanceTimersByTimeAsync(OPS_READ_TIMEOUT_MS);
+    expect(controller.getState()).toMatchObject({
+      connection: "unreachable",
+      hop: "timeout",
+    });
+    h.replies.push(ok());
+    await vi.advanceTimersByTimeAsync(OPS_POLL_MS);
+    expect(controller.getState().connection).toBe("connected");
+    expect(controller.getState().hop).toBeUndefined();
     controller.dispose();
   });
 
@@ -395,7 +432,7 @@ describe("ops status polling", () => {
     controller.dispose();
   });
 
-  it("reports unreachable when issuance is unavailable", async () => {
+  it("names admin's issuance, never ap-mini, when no credential is issued (A-26)", async () => {
     const h = harness();
     vi.mocked(h.fetch).mockImplementationOnce(
       async () => new Response(null, { status: 503 }),
@@ -403,8 +440,68 @@ describe("ops status polling", () => {
     const controller = controllerFor(h);
     controller.start();
     await flush();
-    expect(controller.getState().connection).toBe("unreachable");
+    expect(controller.getState().connection).toBe("unissued");
     expect(h.snapshotRequests).toHaveLength(0);
+    controller.dispose();
+  });
+
+  /** The harness's fetch with admin's issuance route answering after `ms`. */
+  const slowIssuance = (h: ReturnType<typeof harness>, ms: number) => {
+    const real = vi.mocked(h.fetch).getMockImplementation()!;
+    vi.mocked(h.fetch).mockImplementation(async (input, init) => {
+      if (String(input) === OPS_CREDENTIAL_ENDPOINT)
+        await new Promise((resolve) => setTimeout(resolve, ms));
+      return real(input, init);
+    });
+  };
+  const answerAfter =
+    (ms: number): Reply =>
+    (init) =>
+      new Promise<Response>((resolve, reject) => {
+        const timer = setTimeout(() => resolve(ok()(init)), ms);
+        init.signal?.addEventListener("abort", () => {
+          clearTimeout(timer);
+          reject(new DOMException("aborted", "AbortError"));
+        });
+      });
+
+  it("A-26: names admin's issuance when it is slower than the deadline, never ap-mini", async () => {
+    const h = harness();
+    slowIssuance(h, OPS_READ_TIMEOUT_MS + 1_000);
+    const controller = controllerFor(h);
+    controller.start();
+    await vi.advanceTimersByTimeAsync(OPS_READ_TIMEOUT_MS + 2_000);
+    expect(controller.getState()).toMatchObject({ connection: "unissued" });
+    expect(controller.getState().hop).toBeUndefined();
+    // ap-mini was never sent an aborted request.
+    expect(h.snapshotRequests.every((init) => !init.signal?.aborted)).toBe(
+      true,
+    );
+    controller.dispose();
+  });
+
+  it("A-26: starts the reader's deadline only once a credential is issued", async () => {
+    const h = harness();
+    slowIssuance(h, OPS_READ_TIMEOUT_MS - 1_000);
+    // Issuance and the read together pass the deadline; each alone does not.
+    h.replies.push(answerAfter(OPS_READ_TIMEOUT_MS - 2_000));
+    const controller = controllerFor(h);
+    controller.start();
+    await vi.advanceTimersByTimeAsync(2 * OPS_READ_TIMEOUT_MS);
+    expect(controller.getState().connection).toBe("connected");
+    controller.dispose();
+  });
+
+  it("A-26: holds the reader's deadline while a 401 renews the credential", async () => {
+    const h = harness();
+    await h.session.start();
+    slowIssuance(h, OPS_READ_TIMEOUT_MS - 1_000);
+    h.replies.push(status(401), answerAfter(OPS_READ_TIMEOUT_MS - 2_000));
+    const controller = controllerFor(h);
+    controller.start();
+    await vi.advanceTimersByTimeAsync(2 * OPS_READ_TIMEOUT_MS);
+    expect(controller.getState().connection).toBe("connected");
+    expect(h.issued()).toBe(2);
     controller.dispose();
   });
 });
@@ -438,6 +535,7 @@ describe("ops events polling", () => {
     const afters: number[] = [];
     const waits: Array<string | null> = [];
     const signals: AbortSignal[] = [];
+    const snapshots: Array<string | undefined> = [];
     const fetch = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = new URL(String(input), "https://admin.invalid");
@@ -449,10 +547,15 @@ describe("ops events polling", () => {
             scope: ["ops:read"],
             expiresAt: Math.floor(Date.now() / 1000) + 60,
           });
-        if (url.pathname === OPS_SNAPSHOT_PATH)
-          return new Response(body, {
-            headers: { "content-type": "application/json", etag: '"v1"' },
-          });
+        if (url.pathname === OPS_SNAPSHOT_PATH) {
+          const tag = init ? header(init, "If-None-Match") : undefined;
+          snapshots.push(tag);
+          return tag === '"v1"'
+            ? new Response(null, { status: 304 })
+            : new Response(body, {
+                headers: { "content-type": "application/json", etag: '"v1"' },
+              });
+        }
         expect(url.origin).toBe(PRIVATE_READER_ORIGIN);
         expect(url.pathname).toBe("/v1/ops/events");
         expect(
@@ -478,7 +581,7 @@ describe("ops events polling", () => {
       events: true,
       ...extra,
     });
-    return { controller, afters, waits, signals };
+    return { controller, afters, waits, signals, snapshots };
   }
   // The snapshot read, then the events loop it starts.
   // Response bodies resolve on real macrotasks, so each round lets one run
@@ -566,6 +669,55 @@ describe("ops events polling", () => {
     controller.dispose();
   });
 
+  it("reads the snapshot at once when a transition or a run arrives", async () => {
+    const change = (seq: number, kind: "transition" | "run") => ({
+      seq,
+      at: "2026-09-21T17:59:00Z",
+      kind,
+      subject: "pc.writer",
+      from_state: kind === "transition" ? "ok" : null,
+      to_state: kind === "transition" ? "failing" : null,
+      status: kind === "run" ? 0 : null,
+      ms: kind === "run" ? 5200 : null,
+      detail: null,
+    });
+    // A zero delay set inside a fake-timer tick lands 1 ms later.
+    const settle = async () => {
+      await vi.advanceTimersByTimeAsync(1);
+      await flush();
+    };
+    for (const kind of ["transition", "run"] as const) {
+      const { controller, snapshots } = eventsHarness({
+        // The first read's backlog is history the snapshot already shows.
+        0: () => page([item(1), change(2, kind)], null),
+        // Access rows leave the snapshot to its 30 s poll.
+        2: () => page([item(3)], null),
+        3: () => page([change(4, kind)], null),
+        4: () => page([], null),
+      });
+      controller.start();
+      await flush();
+      await settle();
+      expect(snapshots).toEqual([undefined]);
+      await vi.advanceTimersByTimeAsync(OPS_EVENTS_POLL_MS);
+      await settle();
+      expect(snapshots).toEqual([undefined]);
+      // The change reads it now, conditionally, well inside the 30 s.
+      await vi.advanceTimersByTimeAsync(OPS_EVENTS_POLL_MS);
+      await settle();
+      expect(snapshots, kind).toEqual([undefined, '"v1"']);
+      expect(controller.getState().connection).toBe("connected");
+      // The next poll is 30 s after that read, not after the first one.
+      await vi.advanceTimersByTimeAsync(OPS_POLL_MS - 1_000);
+      await flush();
+      expect(snapshots).toHaveLength(2);
+      await vi.advanceTimersByTimeAsync(1_000);
+      await flush();
+      expect(snapshots).toHaveLength(3);
+      controller.dispose();
+    }
+  });
+
   it("keeps what was read when a later page fails and marks events stale", async () => {
     const { controller, afters } = eventsHarness({
       0: () => page([item(1), item(2)], 2),
@@ -593,9 +745,59 @@ describe("ops events polling", () => {
     expect(controller.getState().events).toEqual({
       cursor: 0,
       transitions: [],
+      runs: [],
       recent: [],
+      unknownFields: [],
+      skipped: 0,
     });
     expect(controller.getState().eventsStale).toBe(true);
+    controller.dispose();
+  });
+
+  it("marks events not current when most of a page is unreadable, and moves on", async () => {
+    const bad = (seq: number) => ({ ...item(seq), at: "2026-09-22 10:00:00" });
+    const { controller } = eventsHarness({
+      0: () => page([bad(1), bad(2), bad(3)], null),
+    });
+    controller.start();
+    await flush();
+    // Past the drift, so the next poll never reads it again, but not
+    // current: Activity cannot read as a quiet, complete page.
+    expect(controller.getState().events).toMatchObject({
+      cursor: 3,
+      skipped: 3,
+    });
+    expect(controller.getState().eventsStale).toBe(true);
+    controller.dispose();
+  });
+
+  it("keeps a lone unreadable item's count in the log", async () => {
+    const { controller } = eventsHarness({
+      0: () => page([item(1), { ...item(2), at: "yesterday" }], null),
+    });
+    controller.start();
+    await flush();
+    expect(controller.getState().events).toMatchObject({
+      cursor: 2,
+      skipped: 1,
+    });
+    expect(controller.getState().eventsStale).toBe(false);
+    controller.dispose();
+  });
+
+  it("names the item fields System sent that it does not read yet", async () => {
+    const { controller } = eventsHarness({
+      0: () => page([{ ...item(1), region: "x" }], null),
+      1: () => page([{ ...item(2), region: "y", tier: 2 }], null),
+      2: () => page([], null),
+    });
+    controller.start();
+    await flush();
+    await vi.advanceTimersByTimeAsync(OPS_EVENTS_POLL_MS);
+    await flush();
+    const events = controller.getState().events!;
+    expect(events.recent).toHaveLength(2);
+    expect(events.unknownFields).toEqual(["region", "tier"]);
     controller.dispose();
   });
 
@@ -611,7 +813,13 @@ describe("ops events polling", () => {
     expect(controller.getState()).toMatchObject({
       connection: "ended",
       snapshot: null,
-      events: { cursor: 0, transitions: [], recent: [] },
+      events: {
+        cursor: 0,
+        transitions: [],
+        runs: [],
+        recent: [],
+        unknownFields: [],
+      },
       eventsStale: false,
     });
   });

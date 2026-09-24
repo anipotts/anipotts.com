@@ -5,6 +5,8 @@ const published = (id: string, status = "published") =>
   ({
     record: { kind: "writing", id },
     source: `---\ntitle: CMS title\nsummary: CMS context\nstatus: ${status}\npublished_at: 2026-09-20\n---\nCMS body`,
+    publishedAt: "2026-09-21T15:04:05.000Z",
+    publicationId: `pub-${id}`,
   }) as PublishedSnapshot;
 it("replaces the complete bundled record and includes newly published identities", () => {
   const result = overlayPublishedInventory(
@@ -22,6 +24,8 @@ it("replaces the complete bundled record and includes newly published identities
   expect(result[0]).toMatchObject({
     data: { title: "CMS title" },
     body: "CMS body",
+    publishedAt: "2026-09-21T15:04:05.000Z",
+    publicationId: "pub-existing",
   });
   expect(result[0].data).not.toHaveProperty("obsolete");
   expect(result[1].id).toBe("new");

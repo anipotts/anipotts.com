@@ -14,9 +14,20 @@ or account information is included in any of them.
 
 - Brand artwork keeps its official colours in both themes. It is never
   recoloured, redrawn or used to show state.
-- `svg/` holds flat single-colour glyphs only. The tile paints them in the
-  brand colour recorded in `src/marks.ts`; black brands swap to `#EEF0F4` in
-  the dark theme.
+- Every mark fills its tile. `svg/` holds flat single-colour glyphs only;
+  each sits on its brand's own plate, drawn edge to edge like an app icon,
+  in the pairing the brand uses for its own icon (`plate` and `color` in
+  `src/marks.ts`: white on GitHub's `#181717`, X's, Vercel's and Resend's
+  black, Buttondown's blue, Linear's indigo and npm's red; Cloudflare's
+  orange and YouTube's red on white). Plates keep their colours in both
+  themes; a dark plate keeps a faint rim on the dark canvas.
+- Device renders are the icon itself, with no plate, tile, corner or clip
+  behind them. ap-plus, a matte black phone, takes a light drop-shadow rim on
+  the dark canvas so its outline reads.
+- Every brand and app tile keeps a faint inner rim in both themes, so a
+  white plate (Cloudflare's, YouTube's, Chrome's, Apple Health's) still reads
+  as a tile on a white surface and a black one (Voice Memos, Lexar) on the
+  dark canvas.
 - `img/` holds artwork that brings its own colours: a 56 and a 112 px WebP
   (2x and 4x of the 28 px tile) with a 112 px PNG fallback, or one standalone
   vector when the official file needs gradients or clip paths.
@@ -33,8 +44,13 @@ or account information is included in any of them.
   altered.
 - App Store artwork is the publisher-supplied `artworkUrl512` returned by
   `https://itunes.apple.com/lookup?id=<id>`, fetched as PNG.
-- Chrome's macOS icon has no plate, so it is trimmed to its circle and drawn
-  at glyph size inside the neutral tile.
+- Apple Health is Apple's own App Store listing artwork, so the Apple Design
+  Resources disk image and its licence are not involved. Its plate is drawn
+  on white, so the tile's corner clips the white margin.
+- ChatGPT Atlas's `.icns` tops out at 256 px (`icon_128x128@2x`), which
+  still covers the 112 px rendition.
+- Chrome's vendored icon is its white app plate, so it fills the tile like
+  every other app plate.
 - Rasters were resized with ImageMagick (Lanczos), written as WebP with
   `cwebp -q 90 -alpha_q 100 -m 6 -sharp_yuv`, and the PNG fallback was
   quantized with `pngquant --quality 80-98` (kept lossless when that would cost
@@ -44,15 +60,15 @@ or account information is included in any of them.
 - The device renders (ap-mini, ap-pro, ap-phone, ap-plus) were generated with
   ChatGPT on 2026-09-21 from the Mac mini source icon
   (`apps/www/public/brand/sources/mac-mini.png`), as transparent 512 px PNGs
-  sharing one bounding box. They are resized without cropping so every device
-  keeps that shared box.
+  sharing one bounding box. On 2026-09-22 each was cropped to its own alpha
+  bounding box (alpha above 8 of 255, with Pillow), centred on a transparent
+  square as wide as its longer side, then resized with ImageMagick (Lanczos)
+  and encoded as above. The device's longer side fills the tile, so the Mac
+  mini fills its box like an app plate, the MacBook spans its width and the
+  phones its height; the source hashes below are the uncropped renders.
 
 ## Not vendored yet
 
-- Apple Health. Apple publishes the icon only in Apple Design Resources
-  (`https://devimages-cdn.apple.com/design/resources/download/Icon-Apple-Health.dmg`),
-  whose disk image asks for its licence to be accepted. Health rows use the
-  Phosphor `Heartbeat` fallback until Ani accepts it and the PNG is added here.
 - Calendar sources stay on the Phosphor calendar glyph until it is settled
   whether the calendar source is Google or Apple.
 
@@ -65,9 +81,11 @@ or account information is included in any of them.
 | ap-phone       | ChatGPT-generated device render, iPhone 16 in blue (Ani, 2026-09-21)                                                                                           | 2026-09-21 | `6bfdc5ae41451304085f5129f7002e2b9976639440358c29d4fe1c1b2d78be88` |
 | ap-plus        | ChatGPT-generated device render, iPhone 15 Plus in matte black (Ani, 2026-09-21)                                                                               | 2026-09-21 | `eaf979cac984a9e1f3c21120ea16af0548cbc2f3f97051b7a68493d3432e6438` |
 | ap-pro         | ChatGPT-generated device render, MacBook (Ani, 2026-09-21)                                                                                                     | 2026-09-21 | `d7a90470e04017e477c148d0d33571953a372a434ae4ef74c309d42561716f86` |
+| applehealth    | App Store lookup 1242545199 (Apple Health, Apple Inc.), `artworkUrl512`                                                                                        | 2026-09-22 | `8b2cf50fdd2cfa1acfc4145524338d17775bad5dd4a247faa7461ddfa7933778` |
 | buttondown     | Buttondown press kit, `https://buttondown.com/next-assets/Buttondown_PressKit.zip`, `Buttondown-Logo.svg`                                                      | 2026-09-21 | `81e75a670065a2cbd3928ad056d172d3b1015f0aa59471c149207b2d542a83ea` |
 | calendar       | `/System/Applications/Calendar.app/Contents/Resources/AppIcon.icns` (com.apple.iCal 16.0)                                                                      | 2026-09-21 | `279f89daa017127bde7751e920576b1269621664827cccb00b19d829d1f6b0e4` |
 | chatgpt        | `/Applications/ChatGPT.app/Contents/Resources/AppIcon.icns` (com.openai.chat 1.2026.153)                                                                       | 2026-09-21 | `6899c38554e58b034e84c43695d3d1f5f2e8109803a67d784022ec4274b0ff1b` |
+| chatgpt-atlas  | `/Applications/ChatGPT Atlas.app/Contents/Resources/AppIcon.icns` (com.openai.atlas 1.2025.344.9)                                                              | 2026-09-22 | `c72e9b2be76257b8342d3723df818d1ad47514da029d5cc8c0dbdf6258a4e695` |
 | chrome         | `/Applications/Google Chrome.app/Contents/Resources/app.icns` (com.google.Chrome 153.0.8010.53)                                                                | 2026-09-21 | `770c76bce29805a54ffd4fa28929f7f03a86d42d8cf281cadcff694e17483b95` |
 | claude         | Anthropic press kit `ClaudeIcon-Rounded.svg`, `https://www.anthropic.com/press-kit`, unmodified (previously `apps/admin/src/assets/provider-marks/claude.svg`) | 2026-09-21 | `059e22f525d67c6258c4f64514f0b0e717c914df8a706936d0299d5e6b8082d9` |
 | cloudflare     | `simple-icons@16.32.0` `icons/cloudflare.svg`, colour `#F38020`, guidelines `https://www.cloudflare.com/trademark/`                                            | 2026-09-21 | `408096d99907fd99e0863cb5d73f77a72537c6a85fd8d5e2704178a83a891f08` |
@@ -123,24 +141,30 @@ press-kit SVG or the simple-icons SVG) before processing.
 | `img/1password-112.png`       | 7247  | `440ceeb4c182a5d22c1b70184724586c0f2221c66e5f21be4af4bd4d7ef15997` |
 | `img/1password-112.webp`      | 4692  | `fb07bb3bc50d083449cf674bbed9d7b905531d623b5720f547b4b6f5f7407d39` |
 | `img/1password-56.webp`       | 2032  | `fa28f77122786444cfb8c99cef167ce4043240116e6149488470a8f544b6f0dc` |
-| `img/ap-mini-112.png`         | 4827  | `3b7ab80ef563efdbfba7893c56ac61834da8d9375541f2c61cc508de48cc2a74` |
-| `img/ap-mini-112.webp`        | 2828  | `844b5f46d4014032925e857f96973731adcdc036d42d5fed9951eb164b443094` |
-| `img/ap-mini-56.webp`         | 1264  | `8911c634fd5f5da9e19c233382e35567caf78679d030fdbe7b6998e483f85cf1` |
-| `img/ap-phone-112.png`        | 4200  | `d00d2482a4a2f40f93b2859cb76cc1d9c0deed81acf1e8eae3b28a5726d3b593` |
-| `img/ap-phone-112.webp`       | 2496  | `a1619911945478388bb455bbfcf0dff30cbb10708c4300096bcfe807c990d761` |
-| `img/ap-phone-56.webp`        | 1222  | `185bccc9e21efda26f274485d1195b8328130e1a1e1b8243ad7a7b6dfcc63859` |
-| `img/ap-plus-112.png`         | 2650  | `95a944404585db88517c7f8c9168f37ff1e2b3f84139b3bc8e74b01543b7e029` |
-| `img/ap-plus-112.webp`        | 1508  | `d87ffd3a3b39e0ee148575ed0fb59e1ba112cd56cdd571605fdafd208dce5eed` |
-| `img/ap-plus-56.webp`         | 758   | `78f088b802f668adeb9a065cb8d97b73014b820534e97dc5193e23de12d4c5ff` |
-| `img/ap-pro-112.png`          | 3892  | `1c8df34a789c91518a1e928c5883f1dca6fcd24dc72a5736362493dc90625cd2` |
-| `img/ap-pro-112.webp`         | 2058  | `895372fbd1eabfe83626d2b70437d79f9b50111658be81efb81a44862089b0e5` |
-| `img/ap-pro-56.webp`          | 856   | `3e7b97c41fc0553c1cfa730dce7ff5dbd683dbe526a3b8cdf87e66301f846fee` |
+| `img/ap-mini-112.png`         | 6885  | `e29d0adf2568d147e78a079b6344863e5feeebc1b3eb4496944b79d6a223b107` |
+| `img/ap-mini-112.webp`        | 3328  | `634e374c2cf3d704298b596bd59a4a6cc468a32a4a17f3bb9370cd968573b1bc` |
+| `img/ap-mini-56.webp`         | 1492  | `07e536da5f40ca492e91b5a4f5810f31fcd5cbd7c5844107915f66659feb39c6` |
+| `img/ap-phone-112.png`        | 5660  | `115e7c2888f63dc63773aa9a6a3135ddb7dfd40f5abb79ecaa08268f11b6dca3` |
+| `img/ap-phone-112.webp`       | 2798  | `8f56ea7637b2074861af46ef6aefa0db4e35d4b26b2dacc456af7b6348f4d25e` |
+| `img/ap-phone-56.webp`        | 1382  | `5d465b7d38e3ff70fd049d1b5ac7810d5d2db19b3c62dd51e4e05c2ca6e3a5d2` |
+| `img/ap-plus-112.png`         | 4247  | `3154766333b287839e0acae79200450161e18eeef5a9fb432b2acbf801baeba4` |
+| `img/ap-plus-112.webp`        | 1902  | `4053bb69a29d968dd61c27f865a894be0574019c802e057cabdcf5422e7b3b89` |
+| `img/ap-plus-56.webp`         | 854   | `452f77665b6e75f95b9ab1014ffe74f937dfc6704b5756079ad9af9a02b6448c` |
+| `img/ap-pro-112.png`          | 5601  | `44bd9f6cd2c9b96c6f49ce3504246c42e61763746ea3d193d3552f85f05682c7` |
+| `img/ap-pro-112.webp`         | 2288  | `18f6ca9a674f0bbb511a04dd19b52530517eedda4621d69fb32b1d2ec2e50278` |
+| `img/ap-pro-56.webp`          | 1042  | `9f8dde5313ccaa65aa65dbb9fa1a1bf3405eba99d7d57c62013db651c1db792f` |
+| `img/applehealth-112.png`     | 3095  | `9c8296094631d66df5962577363d6a09b3a90c6f5debdd55c2fcc8410bde7f57` |
+| `img/applehealth-112.webp`    | 1090  | `78c9950b63ebbee78380ac8785b544cf060e4fd616b9f9515eaa63a8fe2d7b56` |
+| `img/applehealth-56.webp`     | 528   | `6e851f5dc2b1e5b5b9aed86c1211327b3813bfd519fcc42ac670de5fd85e1f0a` |
 | `img/calendar-112.png`        | 3638  | `f4247602c43dd3777430cec58ef162b47dfdd0646b25cb6fc1c3461ed454dea4` |
 | `img/calendar-112.webp`       | 3266  | `cc2df506923c389da2f2e8e1e5e26676d66b69d8a15ba86e0ffd06f737200425` |
 | `img/calendar-56.webp`        | 1542  | `131f10cb8b0365bbdf3b24e58a317851a2ff4083adc6d03d6bb91e80fb43e319` |
 | `img/chatgpt-112.png`         | 6218  | `a23a532da42682e230419ee155ca33bfb07f46787af9119bfeb2ac3dc1f30fae` |
 | `img/chatgpt-112.webp`        | 4030  | `d887e095827a75e60acf7255ce6376b140b75068ec93db5bc8355664549673e8` |
 | `img/chatgpt-56.webp`         | 1812  | `2c799e2aff1b5786765a58f856bfb93618afc29ab234ea0130e389c83705304a` |
+| `img/chatgpt-atlas-112.png`   | 5767  | `dfb5ba9dee2582500bd5e6f34433a238207167fc1ed1419c704eb8aaa3429a0f` |
+| `img/chatgpt-atlas-112.webp`  | 3366  | `9e9f5bc4972cb1a245fd56e5fde74c4743fc0750fc6e8a183f0f6f662cda01b4` |
+| `img/chatgpt-atlas-56.webp`   | 1648  | `5f610c71aad500dfd582359e0a2128c67980006399f4db002a6f277d2dbf9ff8` |
 | `img/chrome-112.png`          | 6037  | `4f4c7626770e9f3b6d731549f88b5c951483037c8c60852e04da7e3c5ec91a32` |
 | `img/chrome-112.webp`         | 4708  | `d7e44f32ec19ab7663bb0f9f1a3aad9810dec1807e93c99a46d24eae2af00b0e` |
 | `img/chrome-56.webp`          | 2236  | `56521d9b4109ef5e86e5426f477fb4fed4b89faee0d38b1808bb41c95714e7be` |

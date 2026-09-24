@@ -7,6 +7,12 @@ import {
 import { readBoundedBytes } from "./bounded-body";
 import { discardBody } from "./response-body";
 import {
+  IssuanceTimeoutError,
+  ReaderNoReplyError,
+  fetchReader,
+  type ReaderHop,
+} from "./reader-reach";
+import {
   OPS_V1_BOUNDS,
   OpsSnapshotError,
   parseOpsSnapshotBytes,
@@ -17,6 +23,8 @@ import {
   OPS_EVENTS_BOUNDS,
   OPS_EVENTS_PAGES_PER_READ,
   appendOpsEvents,
+  opsEventsDrifted,
+  opsEventsMoveSnapshot,
   opsEventsPath,
   parseOpsEventsBytes,
   type OpsEventLog,
@@ -30,7 +38,9 @@ import {
  * `ops:read`; a credential with any other scope is refused before it is sent.
  * The snapshot and its ETag live in memory only (`cache: "no-store"`, no Web
  * Storage) and are dropped on logout, denial or credential expiry. Polling
- * runs every 30 seconds and only while the tab is visible. The session
+ * runs every 30 seconds and only while the tab is visible, and a state change
+ * or a finished run in the events feed reads the snapshot at once (a 304
+ * when nothing moved) rather than waiting for the next poll. The session
  * follows the shared idle rule (lib/private-session-store.ts); a session the
  * rule opens again resumes polling. The React binding is
  * components/hooks/useOpsStatus.ts.
@@ -104,7 +114,16 @@ async function readBounded(
   return bytes;
 }
 
-type ReadOptions = { fetch?: typeof fetch; signal?: AbortSignal };
+type ReadOptions = {
+  fetch?: typeof fetch;
+  signal?: AbortSignal;
+  /** Runs a 401's renewal: the controller holds its reader deadline while
+   * admin issues the new credential, so a slow issuance is never read as
+   * ap-mini's (A-26). */
+  renewing?: (
+    renew: () => ReturnType<BearerSource["renew"]>,
+  ) => ReturnType<BearerSource["renew"]>;
+};
 
 /**
  * One ops:read GET. A 401 renews the credential once and retries; a second
@@ -129,7 +148,7 @@ async function opsGet(
     if (!bearer) throw new PrivateReaderError(401, "expired");
     const init = privateReaderInit(bearer, options.signal);
     init.headers = { ...(init.headers as Record<string, string>), ...headers };
-    const response = await fetcher(url, init);
+    const response = await fetchReader(fetcher, url, init);
     if (session.getState().status !== "ready") {
       discardBody(response);
       throw new PrivateReaderError(401, "expired");
@@ -141,7 +160,8 @@ async function opsGet(
         throw new PrivateReaderError(401);
       }
       renewed = true;
-      const next = await session.renew();
+      const renew = () => session.renew();
+      const next = await (options.renewing ? options.renewing(renew) : renew());
       if (next.status !== "ready") throw new PrivateReaderError(401);
       continue;
     }
@@ -210,18 +230,21 @@ export async function readOpsEvents(
 }
 
 /**
- * `off`: the server flags are not both "true". `unreachable`: issuance or the
- * reader could not be reached or answered with an unexpected error.
- * `unavailable`: the reader answered 503, it has no valid snapshot.
- * `rejected`: the reader sent a snapshot that breaks the contract. `denied`:
- * the owner gate refused issuance, or the reader answered 403 (no ops:read).
- * `ended`: the private session was closed.
+ * `off`: the server flags are not both "true". `unissued`: admin's own
+ * credential route failed, so nothing reached ap-mini. `unreachable`: the
+ * read got no reply, or an unexpected error; `hop` says which hop the
+ * browser can name (lib/reader-reach.ts). `unavailable`: the reader answered
+ * 503, it has no valid snapshot. `rejected`: the reader sent a snapshot that
+ * breaks the contract. `denied`: the owner gate refused issuance, or the
+ * reader answered 403 (no ops:read). `ended`: the private session was
+ * closed.
  */
 export type OpsConnection =
   | "off"
   | "idle"
   | "connecting"
   | "connected"
+  | "unissued"
   | "unreachable"
   | "unavailable"
   | "rejected"
@@ -237,6 +260,8 @@ export type OpsStatusState = {
   events: OpsEventLog | null;
   /** The last events read failed; what is held is the last good read. */
   eventsStale: boolean;
+  /** While `unreachable`: the hop that failed (lib/reader-reach.ts). */
+  hop?: Exclude<ReaderHop, "unissued">;
 };
 
 type Timer = ReturnType<typeof setTimeout>;
@@ -287,6 +312,8 @@ export function createOpsStatusController(options: OpsStatusOptions) {
   let eventsInflight: AbortController | null = null;
   let eventsRead = false;
   let shortHolds = 0;
+  /** A snapshot read is owed as soon as the one in flight settles. */
+  let owed = false;
 
   function set(next: Partial<OpsStatusState>) {
     state = { ...state, ...next };
@@ -317,6 +344,7 @@ export function createOpsStatusController(options: OpsStatusOptions) {
     timer = null;
     inflight?.abort();
     inflight = null;
+    owed = false;
     cancelEvents();
   }
 
@@ -348,7 +376,8 @@ export function createOpsStatusController(options: OpsStatusOptions) {
     const began = now();
     let next = eventsWait === null ? eventsPollMs : 0;
     try {
-      const got = await readEvents(controller.signal, current);
+      const { got, moved } = await readEvents(controller.signal, current);
+      if (moved) readSnapshotNow();
       if (eventsWait !== null) {
         const short = !got && now() - began < OPS_EVENTS_SHORT_HOLD_MS;
         shortHolds = short ? shortHolds + 1 : 0;
@@ -379,11 +408,35 @@ export function createOpsStatusController(options: OpsStatusOptions) {
     }
   }
 
+  /** Admin's own credential issuance, under its own deadline: past it the
+   * read fails as "Credential not issued", never as a reader timeout. */
+  function issued<T>(start: () => Promise<T>): Promise<T> {
+    let limit: Timer | null = null;
+    return Promise.race([
+      start(),
+      new Promise<never>((_, reject) => {
+        limit = setTimer(() => reject(new IssuanceTimeoutError()), timeoutMs);
+      }),
+    ]).finally(() => {
+      if (limit !== null) clearTimer(limit);
+    });
+  }
+
   function schedule(delay: number) {
     if (timer !== null) clearTimer(timer);
     timer = null;
     if (!running || isHidden()) return;
     timer = setTimer(() => void tick(), Math.max(0, delay));
+  }
+
+  /** A state changed or a run finished: read the snapshot now, with its
+   * ETag, instead of at the next poll. System writes the snapshot before it
+   * records the events, so the read sees the change. A read already in
+   * flight may predate it, so one more follows as soon as it settles. */
+  function readSnapshotNow() {
+    if (!running || isHidden()) return;
+    if (inflight) owed = true;
+    else schedule(0);
   }
 
   async function tick() {
@@ -392,23 +445,48 @@ export function createOpsStatusController(options: OpsStatusOptions) {
     const controller = new AbortController();
     inflight = controller;
     lastAttempt = now();
-    const deadline = setTimer(() => controller.abort(), timeoutMs);
+    let timedOut = false;
+    let deadline: Timer | null = null;
+    // The reader's deadline runs only while a request to ap-mini is out.
+    const arm = () => {
+      deadline = setTimer(() => {
+        timedOut = true;
+        controller.abort();
+      }, timeoutMs);
+    };
+    const disarm = () => {
+      if (deadline !== null) clearTimer(deadline);
+      deadline = null;
+    };
     const current = () => inflight === controller && running;
     try {
       if (session.getState().status !== "ready") {
         if (!state.snapshot) set({ connection: "connecting" });
-        const started = await session.start();
+        // Admin's own issuance has its own deadline, and a slow one reads as
+        // admin's failure, never as ap-mini's (A-26): the reader's deadline
+        // starts only once there is a credential to send.
+        const started = await issued(() => session.start());
         if (!current()) return;
         if (started.status !== "ready") {
           if (started.status === "cleared" && started.reason === "denied")
             return stop("denied");
-          set({ connection: "unreachable" });
+          // Admin's own credential route failed; ap-mini was never asked.
+          set({ connection: "unissued", hop: undefined });
           return;
         }
       }
+      arm();
       const read = await readOpsSnapshot(session, etag, {
         fetch: options.fetch,
         signal: controller.signal,
+        renewing: async (renew) => {
+          disarm();
+          try {
+            return await issued(renew);
+          } finally {
+            arm();
+          }
+        },
       });
       if (!current()) return;
       if (read.kind === "snapshot") {
@@ -417,13 +495,17 @@ export function createOpsStatusController(options: OpsStatusOptions) {
           connection: "connected",
           snapshot: read.snapshot,
           checkedAt: now(),
+          hop: undefined,
         });
-      } else set({ connection: "connected", checkedAt: now() });
+      } else set({ connection: "connected", checkedAt: now(), hop: undefined });
       // The first events read follows the first snapshot, on its own loop.
       if (withEvents && !eventsRead && !eventsInflight) void eventsTick();
     } catch (error) {
       if (!current()) return;
-      if (error instanceof OpsSnapshotError) drop("rejected");
+      // Admin's issuance gave no credential in time; ap-mini was not asked.
+      if (error instanceof IssuanceTimeoutError)
+        set({ connection: "unissued", hop: undefined });
+      else if (error instanceof OpsSnapshotError) drop("rejected");
       else if (
         error instanceof PrivateReaderError &&
         (error.failure === "forbidden" ||
@@ -440,13 +522,24 @@ export function createOpsStatusController(options: OpsStatusOptions) {
       // 64 KB or not ops_v1). The last snapshot stays, aging honestly.
       else if (error instanceof PrivateReaderError && error.status === 503)
         set({ connection: "unavailable" });
-      // Transport failure: keep the last snapshot, marked as not current.
-      else set({ connection: "unreachable" });
+      // No reply, or an unexpected answer: keep the last snapshot, marked as
+      // not current, with the hop that failed. Only a request that went out
+      // and got nothing back within the deadline is ap-mini unreachable.
+      else
+        set({
+          connection: "unreachable",
+          hop: timedOut
+            ? "timeout"
+            : error instanceof ReaderNoReplyError
+              ? error.hop
+              : "reader",
+        });
     } finally {
-      clearTimer(deadline);
+      disarm();
       if (inflight === controller) {
         inflight = null;
-        schedule(pollMs);
+        schedule(owed ? 0 : pollMs);
+        owed = false;
       }
     }
   }
@@ -454,13 +547,17 @@ export function createOpsStatusController(options: OpsStatusOptions) {
   /** Pages after the held cursor. Each page is kept as it arrives, so a
    * failure part way keeps what was read and the next poll continues. A
    * page that breaks the contract clears the events and starts over. */
-  /** Returns whether any event arrived. Only the first page waits; later
-   * pages of a backlog answer at once. */
+  /** Returns whether any event arrived, and whether one moved the snapshot
+   * after the first read (the first read's backlog is history the snapshot
+   * already shows). Only the first page waits; later pages of a backlog
+   * answer at once. */
   async function readEvents(
     signal: AbortSignal,
     current: () => boolean,
-  ): Promise<boolean> {
+  ): Promise<{ got: boolean; moved: boolean }> {
     let got = false;
+    let moved = false;
+    const result = () => ({ got, moved });
     for (let page = 0; page < OPS_EVENTS_PAGES_PER_READ; page++) {
       const log = state.events ?? EMPTY_EVENT_LOG;
       let read: OpsEventsPage;
@@ -471,10 +568,10 @@ export function createOpsStatusController(options: OpsStatusOptions) {
           wait: page === 0 ? eventsWait : null,
         });
       } catch (error) {
-        if (!current()) return got;
+        if (!current()) return result();
         if (error instanceof OpsSnapshotError) {
           set({ events: EMPTY_EVENT_LOG, eventsStale: true });
-          return got;
+          return result();
         }
         // Credential failures end or renew the session, as for the snapshot.
         if (
@@ -484,17 +581,29 @@ export function createOpsStatusController(options: OpsStatusOptions) {
           throw error;
         // Anything else leaves the snapshot alone: events are marked stale.
         set({ eventsStale: true });
-        return got;
+        return result();
       }
-      if (!current()) return got;
+      if (!current()) return result();
       got ||= read.items.length > 0;
+      moved ||= log.cursor > 0 && opsEventsMoveSnapshot(read.items);
       set({
-        events: appendOpsEvents(log, read.items, read.lastSeq),
-        eventsStale: false,
+        events: appendOpsEvents(
+          log,
+          read.items,
+          read.unknownFields,
+          read.lastSeq,
+          read.skipped,
+        ),
+        // Mostly unreadable is drift: the cursor still moves past it, and
+        // the events read as not current until a readable page arrives.
+        eventsStale: opsEventsDrifted(
+          read.skipped,
+          read.items.length + read.skipped,
+        ),
       });
-      if (read.nextAfter === null) return got;
+      if (read.nextAfter === null) return result();
     }
-    return got;
+    return result();
   }
 
   function stop(connection: OpsConnection) {

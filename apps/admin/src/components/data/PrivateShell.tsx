@@ -1,10 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { AdminOverview } from "../overview/AdminOverview";
 import { DataWorkspace, type DataNavigate } from "./DataWorkspace";
+import { HealthView } from "./HealthView";
+import { KnowledgeView } from "./KnowledgeView";
 import type { CatalogRecord } from "../astryx/EditorialApp";
 import type { OpsViewProps } from "../astryx/ObservabilityWorkspace";
+import { FixtureOriginContext, SAMPLE_ORIGIN } from "../workspace/Workspace";
 import type { DataFixture } from "../../lib/data-fixture-reader";
-import { fixtureExtras, type DataExtras } from "../../lib/data-extras";
 import {
   DATA_VIEW_TITLES,
   dataRoute,
@@ -20,22 +22,14 @@ import {
 type Route = { view: "overview" } | DataRoute;
 
 /** The routes this island draws, or null for a route that needs a document.
- * Health and Knowledge are read on the server, so they are drawn in place
- * only when this document already holds their cards. */
+ * Every Data view reads in the browser, so each is drawn in place. */
 export function shellRoute(
   url: URL,
-  { overview, extras }: { overview: boolean; extras?: DataExtras },
+  { overview }: { overview: boolean },
 ): Route | null {
   const path = url.pathname.replace(/\/$/, "") || "/";
   if (path === "/") return overview ? { view: "overview" } : null;
-  const route = dataRoute(url);
-  if (!route) return null;
-  if (
-    (route.view === "health" || route.view === "knowledge") &&
-    !extras?.[route.view]
-  )
-    return null;
-  return route;
+  return dataRoute(url);
 }
 
 const title = (route: Route) =>
@@ -58,9 +52,11 @@ export function PrivateShell({
   initialPath,
   content,
   dataEnabled,
+  healthEnabled = false,
+  knowledgeEnabled = false,
   dataFixture,
-  extras: loaded,
   session,
+  healthSession,
   fetch: fetcher,
   ...ops
 }: {
@@ -68,22 +64,20 @@ export function PrivateShell({
   /** The overview's recent Content; present only when `/` rendered this. */
   content?: CatalogRecord[];
   dataEnabled: boolean;
+  /** Health's own reader mode is on (PRIVATE_READER_HEALTH_ENABLED). */
+  healthEnabled?: boolean;
+  /** Knowledge's entity reads are on (PRIVATE_READER_KNOWLEDGE_ENABLED). */
+  knowledgeEnabled?: boolean;
   dataFixture?: DataFixture;
-  /** Health or Knowledge cards the server read for this page. */
-  extras?: DataExtras;
-  /** Test seams for the private session. */
+  /** Test seams for the private sessions. */
   session?: PrivateReaderSession;
+  healthSession?: PrivateReaderSession;
   fetch?: typeof fetch;
 } & OpsViewProps) {
   const overview = content !== undefined;
-  const extras = useMemo(
-    () =>
-      loaded ?? (dataFixture ? fixtureExtras(dataFixture.extras) : undefined),
-    [loaded, dataFixture],
-  );
   const resolve = useCallback(
-    (url: URL) => shellRoute(url, { overview, extras }),
-    [overview, extras],
+    (url: URL) => shellRoute(url, { overview }),
+    [overview],
   );
   const [route, setRoute] = useState<Route>(
     () =>
@@ -128,30 +122,49 @@ export function PrivateShell({
     [resolve],
   );
   return (
-    <div onClick={onClientLinkClick}>
-      {route.view === "overview" ? (
-        <AdminOverview
-          content={content ?? []}
-          dataEnabled={dataEnabled}
-          dataFixture={dataFixture}
-          session={session}
-          fetch={fetcher}
-          {...ops}
-        />
-      ) : (
-        <DataWorkspace
-          // Each sibling view starts clean; a record within Records is not
-          // a new view, so opening one keeps the list's state.
-          key={route.view}
-          route={route}
-          navigate={navigate}
-          enabled={dataEnabled}
-          fixture={dataFixture}
-          extras={extras}
-          session={session}
-          fetch={fetcher}
-        />
-      )}
-    </div>
+    <FixtureOriginContext.Provider value={ops.fixtureOrigin ?? SAMPLE_ORIGIN}>
+      <div onClick={onClientLinkClick}>
+        {route.view === "overview" ? (
+          <AdminOverview
+            content={content ?? []}
+            dataEnabled={dataEnabled}
+            dataFixture={dataFixture}
+            session={session}
+            fetch={fetcher}
+            {...ops}
+          />
+        ) : route.view === "health" ? (
+          <HealthView
+            enabled={dataEnabled && healthEnabled}
+            fixture={dataFixture?.health}
+            session={healthSession}
+            fetch={fetcher}
+            ops={ops}
+          />
+        ) : route.view === "knowledge" ? (
+          <KnowledgeView
+            route={route}
+            navigate={navigate}
+            enabled={dataEnabled && knowledgeEnabled}
+            fixture={dataFixture?.knowledge}
+            session={session}
+            fetch={fetcher}
+          />
+        ) : (
+          <DataWorkspace
+            // Each sibling view starts clean; a record within Records is not
+            // a new view, so opening one keeps the list's state.
+            key={route.view}
+            route={route}
+            navigate={navigate}
+            enabled={dataEnabled}
+            fixture={dataFixture}
+            session={session}
+            fetch={fetcher}
+            ops={ops}
+          />
+        )}
+      </div>
+    </FixtureOriginContext.Provider>
   );
 }

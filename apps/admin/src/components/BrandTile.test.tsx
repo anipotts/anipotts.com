@@ -1,7 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { BrandTile, TILE_GLYPHS } from "./BrandTile";
+import { BrandTile, TILE_GLYPHS, plateTone } from "./BrandTile";
 import { GLYPH_KINDS, deviceMark, opsMark } from "../lib/marks";
 
 const render = (element: React.ReactElement) => renderToStaticMarkup(element);
@@ -11,15 +11,27 @@ describe("BrandTile", () => {
     expect(Object.keys(TILE_GLYPHS).sort()).toEqual([...GLYPH_KINDS].sort());
   });
 
-  it("paints a sprite glyph in its brand colour with the dark ink swap", () => {
+  it("draws a sprite glyph on the brand's own plate, edge to edge", () => {
     const markup = render(<BrandTile id="github" size={24} />);
 
     expect(markup).toContain('data-mark="github"');
-    expect(markup).toContain('data-fit="glyph"');
+    expect(markup).toContain('data-fit="plate"');
+    expect(markup).toContain('data-plate="dark"');
     expect(markup).toContain("--brand-tile-size:24px");
-    expect(markup).toContain("--brand-mark-color:#181717");
-    expect(markup).toContain("--brand-mark-dark:#EEF0F4");
+    expect(markup).toContain("--brand-plate:#181717");
+    expect(markup).toContain("--brand-mark-color:#FFFFFF");
+    expect(markup).not.toContain("--brand-mark-dark");
     expect(markup).toMatch(/<use href="[^"#]*\.svg(?:\?[^"#]*)?#github"/);
+    const youtube = render(<BrandTile id="youtube" size={20} />);
+    expect(youtube).toContain('data-plate="light"');
+    expect(youtube).toContain("--brand-mark-color:#FF0000");
+  });
+
+  it("tells dark plates from light ones", () => {
+    expect(plateTone("#000000")).toBe("dark");
+    expect(plateTone("#181717")).toBe("dark");
+    expect(plateTone("#FFFFFF")).toBe("light");
+    expect(plateTone("#CB3837")).toBe("light");
   });
 
   it("serves app artwork lazily as WebP with a PNG fallback", () => {
@@ -39,6 +51,8 @@ describe("BrandTile", () => {
     const markup = render(<BrandTile {...deviceMark("ap-plus")} />);
 
     expect(markup).toContain('data-mark="ap-plus"');
+    // The render is the icon: brand-tile.css drops the fill for this kind.
+    expect(markup).toContain('data-kind="device"');
     expect(markup).toMatch(/ap-plus-112\.png/);
     // No size: the tile follows RowTitle's --row-mark-size.
     expect(markup).not.toContain("--brand-tile-size");

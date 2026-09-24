@@ -10,8 +10,9 @@ import { MARK_FILES, MARK_GLYPHS, MARK_SPRITE } from "./marks.generated";
 export { MARK_FILES, MARK_GLYPHS, MARK_SPRITE };
 
 /** `fill`: the artwork is the tile (an app plate or a device render).
- * `glyph`: the artwork sits inside the neutral tile at glyph size. */
-export type MarkFit = "fill" | "glyph";
+ * `plate`: a flat brand glyph on the brand's own plate, which fills the
+ * tile edge to edge like an app icon; the glyph sits in the plate's ink. */
+export type MarkFit = "fill" | "plate";
 export type MarkKind = "app" | "brand" | "device";
 
 type Entry = {
@@ -19,17 +20,17 @@ type Entry = {
   label: string;
   kind: MarkKind;
   fit: MarkFit;
-  /** Sprite glyphs only: the brand colour, and the dark-theme swap black
-   * brands need to stay visible. */
+  /** Sprite glyphs only: the plate that fills the tile and the glyph's ink
+   * on it, each the brand's own (a white mark on GitHub's black, YouTube's
+   * red mark on white). Plates keep their colours in both themes. */
+  plate?: string;
   color?: string;
-  dark?: string;
   /** Lowercase words a row can drop because the tile already says them.
    * The label, lowercased, is always one. */
   aliases?: readonly string[];
 };
 
-/** Black brands switch to the dark theme's primary ink. */
-const INK_DARK = "#EEF0F4";
+const WHITE = "#FFFFFF";
 
 const ENTRIES = {
   "1password": {
@@ -42,11 +43,18 @@ const ENTRIES = {
   "ap-phone": { label: "ap-phone", kind: "device", fit: "fill" },
   "ap-plus": { label: "ap-plus", kind: "device", fit: "fill" },
   "ap-pro": { label: "ap-pro", kind: "device", fit: "fill" },
+  applehealth: {
+    label: "Apple Health",
+    kind: "app",
+    fit: "fill",
+    aliases: ["health"],
+  },
   buttondown: {
     label: "Buttondown",
     kind: "brand",
-    fit: "glyph",
-    color: "#0069FF",
+    fit: "plate",
+    plate: "#0069FF",
+    color: WHITE,
   },
   calendar: { label: "Calendar", kind: "app", fit: "fill" },
   chatgpt: {
@@ -55,10 +63,17 @@ const ENTRIES = {
     fit: "fill",
     aliases: ["openai"],
   },
+  "chatgpt-atlas": {
+    label: "ChatGPT Atlas",
+    kind: "app",
+    fit: "fill",
+    aliases: ["atlas"],
+  },
+  // The vendored icon is Chrome's full white app plate, so it is the tile.
   chrome: {
     label: "Chrome",
     kind: "app",
-    fit: "glyph",
+    fit: "fill",
     aliases: ["google chrome"],
   },
   claude: {
@@ -70,7 +85,8 @@ const ENTRIES = {
   cloudflare: {
     label: "Cloudflare",
     kind: "brand",
-    fit: "glyph",
+    fit: "plate",
+    plate: WHITE,
     color: "#F38020",
   },
   codex: { label: "Codex", kind: "app", fit: "fill" },
@@ -78,9 +94,9 @@ const ENTRIES = {
   github: {
     label: "GitHub",
     kind: "brand",
-    fit: "glyph",
-    color: "#181717",
-    dark: INK_DARK,
+    fit: "plate",
+    plate: "#181717",
+    color: WHITE,
   },
   gmail: { label: "Gmail", kind: "app", fit: "fill" },
   googlecalendar: {
@@ -97,7 +113,13 @@ const ENTRIES = {
   granola: { label: "Granola", kind: "app", fit: "fill" },
   instagram: { label: "Instagram", kind: "app", fit: "fill" },
   lexar: { label: "Lexar", kind: "brand", fit: "fill" },
-  linear: { label: "Linear", kind: "brand", fit: "glyph", color: "#5E6AD2" },
+  linear: {
+    label: "Linear",
+    kind: "brand",
+    fit: "plate",
+    plate: "#5E6AD2",
+    color: WHITE,
+  },
   linkedin: { label: "LinkedIn", kind: "app", fit: "fill" },
   mercury: { label: "Mercury", kind: "app", fit: "fill" },
   messages: {
@@ -107,14 +129,20 @@ const ENTRIES = {
     aliases: ["imessage"],
   },
   notes: { label: "Notes", kind: "app", fit: "fill", aliases: ["apple notes"] },
-  npm: { label: "npm", kind: "brand", fit: "glyph", color: "#CB3837" },
+  npm: {
+    label: "npm",
+    kind: "brand",
+    fit: "plate",
+    plate: "#CB3837",
+    color: WHITE,
+  },
   obsidian: { label: "Obsidian", kind: "app", fit: "fill" },
   resend: {
     label: "Resend",
     kind: "brand",
-    fit: "glyph",
-    color: "#000000",
-    dark: INK_DARK,
+    fit: "plate",
+    plate: "#000000",
+    color: WHITE,
   },
   safari: { label: "Safari", kind: "app", fit: "fill" },
   spotify: { label: "Spotify", kind: "app", fit: "fill" },
@@ -128,9 +156,9 @@ const ENTRIES = {
   vercel: {
     label: "Vercel",
     kind: "brand",
-    fit: "glyph",
-    color: "#000000",
-    dark: INK_DARK,
+    fit: "plate",
+    plate: "#000000",
+    color: WHITE,
   },
   voicememos: {
     label: "Voice Memos",
@@ -142,11 +170,17 @@ const ENTRIES = {
   x: {
     label: "X",
     kind: "brand",
-    fit: "glyph",
-    color: "#000000",
-    dark: INK_DARK,
+    fit: "plate",
+    plate: "#000000",
+    color: WHITE,
   },
-  youtube: { label: "YouTube", kind: "brand", fit: "glyph", color: "#FF0000" },
+  youtube: {
+    label: "YouTube",
+    kind: "brand",
+    fit: "plate",
+    plate: WHITE,
+    color: "#FF0000",
+  },
 } as const satisfies Record<string, Entry>;
 
 export type MarkId = keyof typeof ENTRIES;

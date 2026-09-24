@@ -47,9 +47,11 @@ describe("brand mark registry", () => {
       "ap-phone",
       "ap-plus",
       "ap-pro",
+      "applehealth",
       "buttondown",
       "calendar",
       "chatgpt",
+      "chatgpt-atlas",
       "chrome",
       "claude",
       "cloudflare",
@@ -82,17 +84,38 @@ describe("brand mark registry", () => {
     ]);
   });
 
-  it("gives every sprite glyph a brand colour and every black one a dark ink", () => {
+  it("gives every sprite glyph its own plate edge to edge, never the neutral tile", () => {
+    const plated = [];
     for (const mark of Object.values(MARKS)) {
       if (mark.art.type !== "symbol") {
         expect(mark.color, mark.id).toBeUndefined();
+        expect(mark.plate, mark.id).toBeUndefined();
         continue;
       }
-      expect(mark.fit, mark.id).toBe("glyph");
+      plated.push(mark.id);
+      expect(mark.fit, mark.id).toBe("plate");
+      expect(mark.plate, mark.id).toMatch(/^#[0-9A-F]{6}$/);
       expect(mark.color, mark.id).toMatch(/^#[0-9A-F]{6}$/);
-      const black = ["#000000", "#181717"].includes(mark.color ?? "");
-      expect(mark.dark, mark.id).toBe(black ? "#EEF0F4" : undefined);
+      // The glyph's ink is never the plate's.
+      expect(mark.color, mark.id).not.toBe(mark.plate);
+      expect(mark).not.toHaveProperty("dark");
     }
+    expect(plated.sort()).toEqual([
+      "buttondown",
+      "cloudflare",
+      "github",
+      "linear",
+      "npm",
+      "resend",
+      "vercel",
+      "x",
+      "youtube",
+    ]);
+  });
+
+  it("fills the tile with every raster plate, Chrome's included", () => {
+    for (const mark of Object.values(MARKS))
+      if (mark.art.type === "raster") expect(mark.fit, mark.id).toBe("fill");
   });
 
   it("renders devices edge to edge in their shared box", () => {
@@ -171,6 +194,8 @@ describe("admin mark maps", () => {
   it("maps exactly the ops ids", () => {
     expect(Object.keys(OPS_MARKS).sort()).toEqual([
       "agents.sync",
+      "content.d1-export",
+      "cred.expiry",
       "health.api",
       "health.ingest",
       "imessage.agent",
@@ -181,8 +206,17 @@ describe("admin mark maps", () => {
       "pc.browser",
       "pc.inference",
       "pc.reader",
+      "pc.reader-key",
       "pc.snapshot",
+      "pc.store-floors",
       "pc.writer",
+      "pro.checkout",
+      "pro.lake-backup",
+      "pro.pc-send",
+      "pro.transcripts",
+      "pro.voicememos",
+      "pro.whatsapp",
+      "system.checkout",
       "transcripts.upload",
     ]);
   });
@@ -213,14 +247,16 @@ describe("admin mark maps", () => {
       "github",
       "handoff",
       "health.daily",
-      "synthetic-calendar",
-      "synthetic-contacts",
-      "synthetic-health",
-      "synthetic-notes",
+      "manual",
     ]);
     expect(Object.keys(SOURCE_WORDS).sort()).toEqual([
+      "atlas",
+      "browsing",
       "calendar",
+      "chatgpt",
       "chrome",
+      "claude",
+      "codex",
       "contacts",
       "drive",
       "github",
@@ -229,11 +265,14 @@ describe("admin mark maps", () => {
       "health",
       "imessage",
       "legacy",
+      "manual",
+      "memos",
       "messages",
       "notes",
       "obsidian",
       "safari",
       "spotify",
+      "voice",
       "whatsapp",
     ]);
   });
@@ -312,17 +351,31 @@ describe("admin mark maps", () => {
     });
   });
 
-  it("resolves every fixture data source exactly", () => {
+  it("resolves every fixture source by the word rules production uses", () => {
+    // Fixture ids never ship in the exact tables; they read like real ids.
+    for (const key of Object.keys(SOURCE_MARKS))
+      expect(key.startsWith("synthetic"), key).toBe(false);
     const sources = new Set<string>();
     for (const source of dataFixture.sources) sources.add(source.source_id);
     for (const record of dataFixture.records) sources.add(record.source_id);
-    for (const card of [
-      ...dataFixture.extras.health,
-      ...dataFixture.extras.knowledge,
-    ])
-      sources.add(card.source);
-    for (const source of sources)
-      expect(Object.hasOwn(SOURCE_MARKS, source), source).toBe(true);
+    // Sources with no brand or kind word keep the neutral source glyph.
+    const unbranded = new Set([
+      "synthetic-body-scale",
+      "synthetic-food-orders",
+      // Photos has no vendored mark yet.
+      "synthetic-photos-pro",
+      "synthetic-self-profile",
+    ]);
+    for (const source of sources) {
+      const tile = sourceMark(source);
+      expect(
+        tile.id !== null || tile.kind !== "source",
+        `${source} resolves to a mark or a named glyph`,
+      ).toBe(!unbranded.has(source));
+    }
+    // Every record's source has a brand or a named glyph.
+    for (const record of dataFixture.records)
+      expect(unbranded.has(record.source_id), record.source_id).toBe(false);
   });
 
   it("falls back by kind and never resolves inherited keys", () => {

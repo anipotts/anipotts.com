@@ -19,7 +19,7 @@ import {
 } from "./private-reader-client";
 import { PRIVATE_READER_AUDIENCE } from "./private-reader-credential";
 import { PrivateShell } from "../components/data/PrivateShell";
-import { RecordDetail } from "../components/data/RecordsView";
+import { RecordPanel } from "../components/data/RecordPanel";
 import { parseRecord } from "../components/data/data-model";
 
 // Synthetic fixtures only, shaped like the System adapter examples in the
@@ -220,8 +220,9 @@ describe("private reader contract", () => {
 
   it("maps reads onto the proposed v1 routes with bounded params", () => {
     expect(privateReaderPath({ method: "status" })).toBe("/v1/data/status");
+    // Sources reads the whole catalog, so it asks for the largest page.
     expect(privateReaderPath({ method: "sources" })).toBe(
-      "/v1/data/sources?limit=30&offset=0",
+      "/v1/data/sources?limit=200&offset=0",
     );
     expect(
       privateReaderPath({ method: "search", q: "Fixture", offset: 30 }),
@@ -517,7 +518,7 @@ describe("System reader bounds", () => {
       [{ method: "sources" }, ["limit", "offset"]],
       [{ method: "search", q: "" }, ["q", "limit", "offset"]],
       [
-        { method: "search", q: "", kind: "person" },
+        { method: "search", q: "", kind: "contact" },
         ["q", "limit", "offset", "kind"],
       ],
       [{ method: "get", id: recordId }, ["body_offset", "body_limit"]],
@@ -567,7 +568,7 @@ describe("revision history cap", () => {
   const render = async (record: Record<string, unknown>) => {
     await act(async () =>
       root.render(
-        <RecordDetail
+        <RecordPanel
           record={parseRecord(record)}
           busy={false}
           failure={null}
@@ -591,29 +592,35 @@ describe("revision history cap", () => {
         '[title="Latest 100 revisions; older ones are kept"]',
       ),
     ).not.toBeNull();
-    await click("History");
+    // The history is a compact timeline in view, never paged.
     const history = container.querySelector('[aria-label="Revision history"]')!;
     expect(history.querySelectorAll("li")).toHaveLength(100);
-    // No paging control exists for history.
-    expect(history.querySelector("button")).toBeNull();
+    // Its only buttons copy each source version.
+    const buttons = [...history.querySelectorAll("button")];
+    expect(buttons).toHaveLength(100);
+    for (const button of buttons)
+      expect(button.getAttribute("aria-label")).toBe("Copy source version");
+    // The latest 100 cannot say which revision number each is.
+    expect(history.textContent).not.toMatch(/Revision \d/);
   });
 
   it("counts a history under the cap exactly", async () => {
     const text = await render({ ...fixtureRecord, history_limit: 100 });
     expect(text).not.toContain("100+");
-    await click("History");
     const history = container.querySelector('[aria-label="Revision history"]')!;
-    expect(history.textContent).toContain("v2");
-    expect(history.textContent).toContain("Current");
-    expect(
-      history.querySelector('[title="rev-11111111111111111111111111111111"]'),
-    ).not.toBeNull();
+    // Newest first, numbered, each with its source version.
+    const items = [...history.querySelectorAll("li")];
+    expect(items.map((item) => item.textContent)).toEqual([
+      expect.stringMatching(/^Revision 2, .*v2$/),
+      expect.stringMatching(/^Revision 1, .*v1$/),
+    ]);
+    expect(items[0]!.querySelector('[aria-label="Current"]')).not.toBeNull();
+    expect(items[1]!.querySelector('[aria-label="Current"]')).toBeNull();
   });
 
   it("shows times as people read them, never raw ISO text", async () => {
     await render({ ...fixtureRecord, history_limit: 100 });
-    await click("History");
-    await click("Details");
+    await click("Technical");
     const text = container.textContent ?? "";
     expect(text).not.toContain(observed);
     expect(text).not.toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/);
@@ -650,8 +657,14 @@ describe("private Data workspace", () => {
     expect(container.textContent).not.toMatch(/memory only|credential/i);
   }
   const h1 = () => container.querySelector("h1")?.textContent;
+  // Records reads the source catalog once, for the names Sources gives
+  // each source; list and record reads are asserted apart from it.
+  const isCatalog = (call: { url: URL }) =>
+    call.url.pathname === PRIVATE_READER_ROUTES.sources;
   const readerCalls = (calls: { url: URL }[]) =>
-    calls.map((call) => call.url.pathname + call.url.search);
+    calls
+      .filter((call) => !isCatalog(call))
+      .map((call) => call.url.pathname + call.url.search);
   afterEach(() => window.history.replaceState(null, "", "/"));
 
   it("says the reader is off, with no session control", async () => {
@@ -698,8 +711,9 @@ describe("private Data workspace", () => {
     ).toBeNull();
     await act(() => new Promise((resolve) => requestAnimationFrame(resolve)));
     expect(document.activeElement?.textContent).toBe("Synthetic note");
-    // The list was kept, not read again.
-    expect(calls).toHaveLength(3);
+    // The list was kept, not read again, and the catalog read once.
+    expect(readerCalls(calls)).toHaveLength(3);
+    expect(calls.filter(isCatalog)).toHaveLength(1);
   });
 
   it("closes a record on Escape", async () => {
@@ -736,20 +750,20 @@ describe("private Data workspace", () => {
     );
   });
 
-  it("filters by kind from the route, events and notes included", async () => {
+  it("filters by kind from the route, by System's own kind names", async () => {
     const { fetcher, calls } = network();
     await openWorkspace(
       makeSession(fetcher),
       fetcher,
-      "/data/records?kind=people",
+      "/data/records?kind=contact",
     );
-    expect(calls.map((call) => call.url.search)).toEqual([
-      "?q=&limit=30&offset=0&kind=person",
-    ]);
+    expect(
+      calls.filter((call) => !isCatalog(call)).map((call) => call.url.search),
+    ).toEqual(["?q=&limit=30&offset=0&kind=contact"]);
     const entries = window.history.length;
     await click("Notes");
     await settle();
-    expect(window.location.search).toBe("?kind=notes");
+    expect(window.location.search).toBe("?kind=note");
     expect(calls.at(-1)?.url.search).toBe("?q=&limit=30&offset=0&kind=note");
     // A filter replaces the entry rather than adding one.
     expect(window.history.length).toBe(entries);
@@ -903,10 +917,12 @@ describe("private Data workspace", () => {
     expect(container.textContent).not.toContain("Synthetic note");
   });
 
-  it("shows denied and unavailable issuance distinctly, and retries in place", async () => {
+  it("shows denied and failed issuance distinctly, and retries in place", async () => {
+    // A failed issuance is admin's hop: ap-mini was never asked (A-26).
     for (const [status, title] of [
       [401, "Access refused"],
-      [503, "Reader unavailable"],
+      [503, "Credential not issued"],
+      [500, "Credential not issued"],
     ] as const) {
       const fetcher = vi.fn(async () =>
         json({ error: "fixture" }, status),
@@ -931,13 +947,24 @@ describe("private Data workspace", () => {
     }
   });
 
-  it("shows an unreachable reader instead of an empty store", async () => {
+  it("shows an unavailable reader instead of an empty store", async () => {
     const { fetcher } = network(() =>
       json({ error: "personal_context_unavailable" }, 503),
     );
     await openWorkspace(makeSession(fetcher), fetcher);
-    expect(container.textContent).toContain("ap-mini unreachable");
+    // ap-mini answered, so it was reached: the reader's own hop.
+    expect(container.textContent).toContain("Reader unavailable");
+    expect(container.textContent).not.toContain("ap-mini unreachable");
     expect(container.textContent).not.toContain("No matching records");
+  });
+
+  it("never blames ap-mini for a request that failed with no reply", async () => {
+    const { fetcher } = network(() => {
+      throw new TypeError("Failed to fetch");
+    });
+    await openWorkspace(makeSession(fetcher), fetcher);
+    expect(container.textContent).toContain("No answer from ap-mini");
+    expect(container.textContent).not.toContain("ap-mini unreachable");
   });
 
   it("touches no persistence API across a full session", async () => {

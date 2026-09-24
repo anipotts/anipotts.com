@@ -1,4 +1,4 @@
-import { editorialRecordSchema } from "@anipotts/content/editorial/source";
+import { editorialRecordSchema } from "@anipotts/content/editorial/record";
 
 /** Private project bootstrap; publication remains an explicit separate action. */
 export function newProjectSource(

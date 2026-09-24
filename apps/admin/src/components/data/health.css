@@ -1,0 +1,56 @@
+/* Data Health. The table is the workspace kit's; this adds the header's
+   line of facts and a phone row's fixed reading slots, so every day lines
+   up in columns on a phone too. Storage only: no colour judges a value. */
+
+.health-meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--spacing-4);
+  row-gap: var(--spacing-1);
+  min-width: 0;
+}
+.health-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.health-meta-item > svg {
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+  flex: none;
+}
+
+/* A reading System does not have: said plainly, never drawn as a number. */
+.health-none {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+/* A phone row: the day, then one fixed slot per reading. The glyph keeps a
+   fixed place and the figure is right-aligned in a fixed width of tabular
+   figures ("10,065" and "3,200" end on one edge), so the glyphs form a
+   column too. A slot with no reading stays empty, holding its place. */
+.health-phone {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-variant-numeric: tabular-nums;
+}
+.health-phone-slot {
+  display: inline-grid;
+  grid-template-columns: var(--spacing-3) 6ch;
+  align-items: center;
+  column-gap: var(--spacing-1);
+  white-space: nowrap;
+}
+.health-phone-slot > svg {
+  width: var(--spacing-3);
+  height: var(--spacing-3);
+  color: var(--color-text-secondary);
+}
+.health-phone-figure {
+  text-align: end;
+}

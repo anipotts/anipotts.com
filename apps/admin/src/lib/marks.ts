@@ -24,6 +24,7 @@ export const GLYPH_KINDS = [
   "agenda",
   "backup",
   "browser",
+  "checkout",
   "desktop",
   "device",
   "handoff",
@@ -31,6 +32,7 @@ export const GLYPH_KINDS = [
   "host",
   "inference",
   "job",
+  "key",
   "loopback",
   "sampler",
   "service",
@@ -69,11 +71,17 @@ export function markLabel(ref: TileRef): string | null {
   return brandMark(ref.id)?.label ?? null;
 }
 
-/** ops_v1 catalog ids. Hosts resolve through `deviceMark`. */
+/** ops_v1 catalog ids. Hosts resolve through `deviceMark`. A backup shows
+ * where it lands; a sync or agent shows the app it serves. */
 export const OPS_MARKS = {
   "agents.sync": "claude",
+  // The D1 content export lands on the Lexar drive on ap-mini.
+  "content.d1-export": "lexar",
+  // Declared credentials and their expiry dates, of several providers.
+  "cred.expiry": "key",
   "health.api": "health",
-  "health.ingest": "health",
+  // Apple Health data the phone pushes.
+  "health.ingest": "applehealth",
   "imessage.agent": "messages",
   "keepalive.chatgpt": "chatgpt",
   "keepalive.chrome-agent": "chrome",
@@ -82,9 +90,23 @@ export const OPS_MARKS = {
   "pc.browser": "browser",
   "pc.inference": "inference",
   "pc.reader": "tailscale",
+  // The key admin reader credentials are issued with.
+  "pc.reader-key": "key",
   // Encrypted snapshot to the offsite remote; its provider is not settled.
   "pc.snapshot": "snapshot",
+  // The personal context store's record count against its floor.
+  "pc.store-floors": "source",
   "pc.writer": "writer",
+  // The ~/System checkout on each Mac against origin/main.
+  "pro.checkout": "checkout",
+  // ap-pro's rclone sync to the memory-offsite remote on Cloudflare R2.
+  "pro.lake-backup": "cloudflare",
+  // ap-pro's intake to ap-mini: several apps, so the handoff glyph.
+  "pro.pc-send": "handoff",
+  "pro.transcripts": "cloudflare",
+  "pro.voicememos": "voicememos",
+  "pro.whatsapp": "whatsapp",
+  "system.checkout": "checkout",
   // Session transcripts go to Cloudflare R2.
   "transcripts.upload": "cloudflare",
 } as const satisfies Record<string, Ref>;
@@ -135,18 +157,24 @@ export const SOURCE_MARKS = {
   "codex.native": "codex",
   github: "github",
   handoff: "handoff",
+  manual: "writer",
+  // A health source is not Apple's unless System says it is the phone's
+  // export (see sourceNaming); its id alone never credits Apple Health.
   "health.daily": "health",
-  // Google or Apple is not settled, so calendars keep the neutral glyph.
-  "synthetic-calendar": "agenda",
-  "synthetic-contacts": "contacts",
-  "synthetic-health": "health",
-  "synthetic-notes": "notes",
 } as const satisfies Record<string, Ref>;
 
-/** Words inside other source ids ("apple.messages", "legacy.brain"). */
+/** Words inside other source ids ("apple.messages", "legacy.brain",
+ * "ani-voice-memos"). The synthetic fixture's ids resolve through these
+ * too, so no fixture id ships in the tables above. Google or Apple is not
+ * settled for calendars, so they keep the neutral glyph. */
 export const SOURCE_WORDS = {
+  atlas: "chatgpt-atlas",
+  browsing: "browser",
   calendar: "agenda",
+  chatgpt: "chatgpt",
   chrome: "chrome",
+  claude: "claude",
+  codex: "codex",
   contacts: "contacts",
   drive: "googledrive",
   github: "github",
@@ -155,11 +183,14 @@ export const SOURCE_WORDS = {
   health: "health",
   imessage: "messages",
   legacy: "backup",
+  manual: "writer",
+  memos: "voicememos",
   messages: "messages",
   notes: "notes",
   obsidian: "obsidian",
   safari: "safari",
   spotify: "spotify",
+  voice: "voicememos",
   whatsapp: "whatsapp",
 } as const satisfies Record<string, Ref>;
 

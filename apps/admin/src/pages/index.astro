@@ -3,7 +3,7 @@ import AdminLayout from "../layouts/AdminLayout.astro";
 import { PrivateShell } from "../components/data/PrivateShell";
 import { recentlyUpdated } from "../components/astryx/ContentLibrary";
 import { loadEditorialInventory } from "../lib/editorial-inventory-server";
-import { privateReaderOpsEnabled } from "../lib/private-reader-credential";
+import { privateShellFlags } from "../lib/private-reader-credential";
 import { measureServerTiming } from "../lib/server-timing";
 import { loadShellFixtures } from "../lib/shell-fixtures";
 
@@ -45,11 +45,16 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
   <PrivateShell
     initialPath="/"
     content={content}
-    dataEnabled={env.PRIVATE_READER_ENABLED === "true"}
+    {...privateShellFlags(env)}
     dataFixture={fixtures?.data}
-    enabled={privateReaderOpsEnabled(env)}
     fixture={fixtures?.snapshot}
     eventsFixture={fixtures?.events}
+    fixtureOrigin={fixtures && {
+      replay: fixtures.replay,
+      frozen: fixtures.frozen,
+      capturedAt: fixtures.capturedAt,
+      payloads: fixtures.payloads,
+    }}
     renderedAt={Date.now()}
     client:load
   />

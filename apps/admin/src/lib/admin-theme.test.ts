@@ -83,6 +83,31 @@ describe("admin appearance precedence", () => {
       expect(savedTheme()).toBe(expected);
     },
   );
+  it.each([
+    ["", { theme: "light" }, "ap-theme=light"],
+    ["", { "admin-theme:v1": "dark" }, "ap-theme=dark"],
+    ["ap-theme=%invalid", { theme: "light" }, "ap-theme=light"],
+  ])(
+    "writes a stored fixed mode to the cookie the server reads: %s %j",
+    (cookie, stored, written) => {
+      // Without it every document rendered the server's system guess first.
+      setup("", cookie, stored);
+      savedTheme();
+      expect(document.cookie.startsWith(`${written};`)).toBe(true);
+    },
+  );
+  it.each([
+    ["ap-theme=light", { theme: "dark" }],
+    ["", { theme: "system" }],
+    ["", {}],
+  ])(
+    "leaves the cookie alone when it already agrees: %s %j",
+    (cookie, stored) => {
+      setup("", cookie, stored);
+      savedTheme();
+      expect(document.cookie).toBe(cookie);
+    },
+  );
   it("SSR ignores invalid URL values instead of masking the cookie", () => {
     expect(initialAdminTheme("invalid", "dark")).toBe("dark");
     expect(initialAdminTheme(undefined, undefined)).toBe("system");

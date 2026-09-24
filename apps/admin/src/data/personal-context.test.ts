@@ -59,7 +59,66 @@ describe("Data read boundary", () => {
         },
       );
       await vi.advanceTimersByTimeAsync(5000);
-      expect((await pending).state).toBe("unavailable");
+      // A request that went out and got nothing back in time is the one
+      // failure that says ap-mini is unreachable (A-26).
+      expect(await pending).toMatchObject({
+        state: "unavailable",
+        hop: "timeout",
+      });
+      expect(signal?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  const statusData = {
+    database: { exists: true },
+    ingestion: {},
+    wiki: {},
+  };
+  const wait = (ms: number) =>
+    new Promise<void>((resolve) => setTimeout(resolve, ms));
+  it("A-26: holds the reader's deadline while admin renews the credential", async () => {
+    vi.useFakeTimers();
+    try {
+      // Each hop is inside 5 s; together they are not.
+      const pending = readPersonalContext(
+        { method: "status" },
+        {
+          scope: "agent",
+          read: async (_path, _signal, hold) => {
+            await wait(3000);
+            await hold!(() => wait(4000));
+            await wait(3000);
+            return statusData;
+          },
+        },
+      );
+      await vi.advanceTimersByTimeAsync(11_000);
+      expect((await pending).state).toBe("ready");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("A-26: names admin's issuance when a renewal outlasts its own deadline", async () => {
+    vi.useFakeTimers();
+    let signal: AbortSignal | undefined;
+    try {
+      const pending = readPersonalContext(
+        { method: "status" },
+        {
+          scope: "agent",
+          read: async (_path, input, hold) => {
+            signal = input;
+            await hold!(() => new Promise(() => {}));
+            return statusData;
+          },
+        },
+      );
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(await pending).toMatchObject({
+        state: "unavailable",
+        hop: "unissued",
+      });
       expect(signal?.aborted).toBe(true);
     } finally {
       vi.useRealTimers();
@@ -165,6 +224,7 @@ describe("Data read boundary", () => {
       },
     );
     expect(result.state).toBe("unavailable");
+    expect(result).not.toHaveProperty("hop");
     expect(JSON.stringify(result)).not.toContain("private-path-and-body");
   });
   it("rejects a mislabeled ordinary-agent preview", async () => {
@@ -342,7 +402,10 @@ it("propagates caller cancellation and never starts an already cancelled read", 
     controller.signal,
   );
   controller.abort();
-  expect((await pending).state).toBe("unavailable");
+  const cancelled = await pending;
+  expect(cancelled.state).toBe("unavailable");
+  // The caller's own cancellation is not a timeout.
+  expect(cancelled).not.toHaveProperty("hop");
   expect(observed?.aborted).toBe(true);
   await readPersonalContext(
     { method: "status" },

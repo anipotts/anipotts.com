@@ -19,7 +19,6 @@ const shellTheme = { ...editorialTheme, icons: adminThemeIcons };
 type AdminShellProps = {
   children: ReactNode;
   currentRoute: string;
-  title: string;
   searchEntries?: AdminSearchResult[];
   localPreview?: boolean;
   localOwner?: boolean;
@@ -31,7 +30,6 @@ type AdminShellProps = {
 export function AdminShell({
   children,
   currentRoute: initialRoute,
-  title,
   searchEntries,
   localPreview = false,
   localOwner = false,
@@ -67,9 +65,6 @@ export function AdminShell({
         localOwner={localOwner}
         currentRoute={currentRoute}
         searchEntries={searchEntries}
-        // A client route (overview to Data) keeps the document; the selected
-        // page names the bar instead of the first page's title.
-        title={currentRoute === initialRoute ? title : undefined}
       >
         <VStack gap={4} className="admin-page-frame">
           <section className="admin-page-content">{children}</section>

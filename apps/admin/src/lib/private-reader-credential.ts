@@ -17,20 +17,37 @@ import {
 export const PRIVATE_READER_PATH = "/api/private-reader/credential";
 /** Separate issuance for the Observability Status view. */
 export const PRIVATE_READER_OPS_PATH = "/api/private-reader/ops-credential";
+/** Separate issuance for the Data Health view. */
+export const PRIVATE_READER_HEALTH_PATH =
+  "/api/private-reader/health-credential";
 export const PRIVATE_READER_ISSUER = "https://admin.anipotts.com";
 export const PRIVATE_READER_AUDIENCE = "https://ap-mini.tail060490.ts.net";
 /** Server selected. Client-requested scopes are ignored. */
 export const PRIVATE_READER_SCOPES = ["data:read", "activity:read"] as const;
 /** Ops credentials carry only this scope and never a Data scope. */
 export const PRIVATE_READER_OPS_SCOPES = ["ops:read"] as const;
+/** Health credentials carry only the daily health summary scope. */
+export const PRIVATE_READER_HEALTH_SCOPES = ["health:read"] as const;
 
 /**
- * Each mode has its own path and fixed scope set, so an Observability
- * credential can never read Data and a Data credential never carries ops.
+ * Each mode has its own path, fixed scope set and switch, so an
+ * Observability credential can never read Data, a Data credential never
+ * carries ops or health, and a health credential reads only the daily health
+ * summary. A mode with a `flag` also needs that flag exactly "true", on top
+ * of PRIVATE_READER_ENABLED.
  */
 export const PRIVATE_READER_MODES = {
   data: { path: PRIVATE_READER_PATH, scope: PRIVATE_READER_SCOPES },
-  ops: { path: PRIVATE_READER_OPS_PATH, scope: PRIVATE_READER_OPS_SCOPES },
+  ops: {
+    path: PRIVATE_READER_OPS_PATH,
+    scope: PRIVATE_READER_OPS_SCOPES,
+    flag: "PRIVATE_READER_OPS_ENABLED",
+  },
+  health: {
+    path: PRIVATE_READER_HEALTH_PATH,
+    scope: PRIVATE_READER_HEALTH_SCOPES,
+    flag: "PRIVATE_READER_HEALTH_ENABLED",
+  },
 } as const;
 export type PrivateReaderMode = keyof typeof PRIVATE_READER_MODES;
 export const PRIVATE_READER_MAX_LIFETIME_SECONDS = 60;
@@ -42,15 +59,62 @@ export type PrivateReaderConfig = {
   PRIVATE_READER_ENABLED?: string;
   /** Ops issuance also needs this, exactly "true". */
   PRIVATE_READER_OPS_ENABLED?: string;
+  /** Health issuance also needs this, exactly "true". Unset in production. */
+  PRIVATE_READER_HEALTH_ENABLED?: string;
   PRIVATE_READER_SIGNING_KEY?: string;
 };
 
-/** Ops mode is on only when both flags are exactly "true". */
-export function privateReaderOpsEnabled(config: PrivateReaderConfig): boolean {
+/** A mode is on only when PRIVATE_READER_ENABLED and the mode's own flag, if
+ * it has one, are both exactly "true". */
+export function privateReaderModeEnabled(
+  config: PrivateReaderConfig,
+  mode: PrivateReaderMode,
+): boolean {
+  const selected = PRIVATE_READER_MODES[mode];
+  const flag = "flag" in selected ? selected.flag : undefined;
   return (
     config.PRIVATE_READER_ENABLED === "true" &&
-    config.PRIVATE_READER_OPS_ENABLED === "true"
+    (flag === undefined || config[flag] === "true")
   );
+}
+
+/** Ops mode is on only when both flags are exactly "true". */
+export function privateReaderOpsEnabled(config: PrivateReaderConfig): boolean {
+  return privateReaderModeEnabled(config, "ops");
+}
+
+/** Health mode is on only when both flags are exactly "true". */
+export function privateReaderHealthEnabled(
+  config: PrivateReaderConfig,
+): boolean {
+  return privateReaderModeEnabled(config, "health");
+}
+
+/**
+ * The reader switches a page hands the shared overview and Data shell
+ * (components/data/PrivateShell.tsx). The shell draws every Data view in
+ * place, Health and Knowledge included, so every page that mounts it passes
+ * the same set: a view reached by a client navigation reads what a reload
+ * would. Knowledge needs PRIVATE_READER_ENABLED and
+ * PRIVATE_READER_KNOWLEDGE_ENABLED both exactly "true".
+ */
+export function privateShellFlags(
+  config: PrivateReaderConfig & { PRIVATE_READER_KNOWLEDGE_ENABLED?: string },
+): {
+  dataEnabled: boolean;
+  healthEnabled: boolean;
+  knowledgeEnabled: boolean;
+  /** Ops reads (the overview's alerts, Sources' jobs). */
+  enabled: boolean;
+} {
+  const dataEnabled = config.PRIVATE_READER_ENABLED === "true";
+  return {
+    dataEnabled,
+    healthEnabled: privateReaderHealthEnabled(config),
+    knowledgeEnabled:
+      dataEnabled && config.PRIVATE_READER_KNOWLEDGE_ENABLED === "true",
+    enabled: privateReaderOpsEnabled(config),
+  };
 }
 
 export type PrivateReaderOptions = {
@@ -106,10 +170,7 @@ export async function privateReaderCredentialApi(
   if (request.method !== "POST")
     return deny("method_not_allowed", 405, { Allow: "POST" });
   if (url.search) return deny("invalid_request", 400);
-  if (
-    config.PRIVATE_READER_ENABLED !== "true" ||
-    (mode === "ops" && !privateReaderOpsEnabled(config))
-  )
+  if (!privateReaderModeEnabled(config, mode))
     return deny("reader_unavailable", 503);
   const key = await privateReaderSigningKey(config.PRIVATE_READER_SIGNING_KEY);
   if (!key) return deny("reader_unavailable", 503);

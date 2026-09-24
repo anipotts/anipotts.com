@@ -1,5 +1,5 @@
 /* The Data workspace: the records toolbar, the record page and the source
-   and card rows. The list and record split and everything else come from
+   rows. The list and record split and everything else come from
    the workspace kit. No rules or rings: depth is surface tint and spacing.
    The workspace is the kit's `workspace` container, so a record opens beside
    its list once the content area is 960px wide (SPLIT_MIN_WIDTH in
@@ -45,6 +45,22 @@
 }
 .data-chips .astryx-button {
   white-space: nowrap;
+}
+/* Beside a phone's edge the chips scroll; wider, they wrap under the
+   search, so no chip is ever cut at the row's end. */
+@media (min-width: 641px) {
+  .data-chips,
+  .data-chips [role="group"] {
+    flex-wrap: wrap;
+    row-gap: var(--spacing-2);
+  }
+  .data-chips {
+    overflow-x: visible;
+  }
+  .data-chips > [role="group"] {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
 }
 /* Chips sit on the badge's neutral fill; a chosen chip takes the accent.
    The fill is id-weighted to beat the button's own, so hover, press and
@@ -111,6 +127,19 @@
     width: auto;
   }
 }
+/* Records has more kinds than fit beside the search below this width, so
+   its chips take their own line under a search of the same width. */
+@container workspace-list (min-width: 760px) and (max-width: 1239px) {
+  .data-records-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-2);
+  }
+  .data-records-toolbar > .workspace-filter-bar {
+    flex: none;
+    width: calc(var(--spacing-12) * 5);
+  }
+}
 
 /* On its own a record is the page: the page header steps aside too (the
    kit hides the list), and the record's title becomes the H1. */
@@ -120,9 +149,11 @@
   }
 }
 
-/* Record rows are two lines, so their skeleton is as tall. */
-.data-workspace .workspace-skeleton-row {
-  min-height: calc(var(--spacing-12) + var(--spacing-1));
+/* Record rows are two lines on phones, so their skeleton is as tall. */
+@media (max-width: 640px) {
+  .data-workspace .workspace-skeleton-row {
+    min-height: calc(var(--spacing-12) + var(--spacing-1));
+  }
 }
 
 /* A source as a small tile and its short name, on line 2 and in facts. */
@@ -136,6 +167,12 @@
 }
 .data-source > .brand-tile {
   flex: 0 0 auto;
+}
+/* The Source column's device place: one 20px tile, kept when empty. */
+.data-source-device {
+  display: inline-flex;
+  flex: 0 0 20px;
+  inline-size: 20px;
 }
 .data-source-name {
   min-width: 0;
@@ -165,38 +202,195 @@
   flex: none;
 }
 
-/* Card summaries take two lines instead of one, the tile on the first. On a
-   phone a row keeps to two lines, so line 2 (a freshness chip, the tile and
-   the summary) stays on one and the summary ends in an ellipsis. */
-@media (min-width: 641px) {
-  .data-cards .data-source {
-    align-items: flex-start;
-  }
-  .data-cards .data-source-name {
-    display: -webkit-box;
-    white-space: normal;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+/* Records: the list and its open record (components/astryx/SplitView.tsx
+   lays them out). The list is its own container, so the toolbar lays out by
+   the list's width; the open record's row keeps a quiet tint. */
+.data-records-list {
+  container: workspace-list / inline-size;
+  min-width: 0;
+}
+.data-records-list
+  tbody
+  tr:has(.workspace-row-link[aria-current="true"]):not(:hover) {
+  background-color: var(--color-neutral);
+}
+.data-records {
+  --admin-split-panel-size: 28rem;
+}
+@media (min-width: 1440px) {
+  .data-records {
+    --admin-split-panel-size: 32rem;
   }
 }
 
-/* The record page. */
-.data-detail-bar {
+/* A record row's state column: a chip for a state other than the default,
+   then the tier glyph at the column's end, so tiers read down one line. */
+.data-record-state {
   display: flex;
-  margin-block-end: calc(-1 * var(--spacing-3));
-  margin-inline-start: calc(-1 * var(--spacing-2));
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
 }
-.data-detail[data-split="true"] .data-detail-bar {
-  justify-content: flex-end;
-  margin-inline: 0 calc(-1 * var(--spacing-2));
-  margin-block-end: calc(-1 * var(--spacing-9) - var(--spacing-2));
+.data-record-state > .workspace-state {
+  min-width: 0;
 }
-.data-detail[data-split="true"] .data-detail-title {
-  padding-inline-end: var(--spacing-9);
+.data-record-state > .workspace-tier {
+  margin-inline-start: auto;
 }
-.data-detail-title {
+.data-record-excerpt {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* A tile and its name inside a sentence of facts or a detail value. */
+.data-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.data-inline > :is(.brand-tile, svg) {
+  flex: none;
+}
+.data-inline > svg {
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+  color: var(--color-text-secondary);
+}
+.data-inline-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* The record. Beside the list it is a SplitPanel whose header (the title
+   and a close icon) stays pinned while its body scrolls; on its own it is
+   the page, with the back icon before the title. */
+.data-record-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+.data-record-heading {
+  flex: 1 1 auto;
+  min-width: 0;
+  /* The title's first line centres on the 36px icon button beside it. */
+  padding-block: calc((var(--spacing-9) - var(--spacing-7)) / 2);
+}
+.data-record-title {
   overflow-wrap: anywhere;
 }
+.data-record[data-split="true"] .data-record-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.data-record-action {
+  flex: none;
+}
+.data-record[data-split="false"] .data-record-bar {
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+/* The record page's first line: the way back, then the clock at the line's
+   end, where every workspace page keeps it. */
+.data-record-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  align-self: stretch;
+  min-width: 0;
+}
+.data-record[data-split="false"] .data-record-action {
+  margin-inline-start: calc(-1 * var(--spacing-2));
+}
+/* Beside the list the close glyph, not its target, ends the line, on the
+   right edge the Technical chevron and the copy glyphs share. */
+.data-record[data-split="true"] .data-record-action {
+  margin-inline-end: calc((var(--spacing-4) - var(--spacing-9)) / 2);
+}
+@media (pointer: coarse) {
+  .data-record[data-split="true"] .data-record-action {
+    margin-inline-end: calc((var(--spacing-4) - var(--spacing-11)) / 2);
+  }
+}
+
+/* The panel reads at the rows' size: prose, lists, details and chips. */
+.data-record .admin-split-panel-body {
+  font-size: var(--text-body-size);
+}
+.data-record .workspace-definition {
+  line-height: var(--spacing-6);
+}
+
+/* The body, as prose and lists. */
+.data-record-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  max-width: 68ch;
+  min-width: 0;
+  line-height: var(--line-height-relaxed, 1.65);
+  overflow-wrap: anywhere;
+}
+.data-record-summary p {
+  margin: 0;
+}
+.data-record-subhead {
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--color-text-primary);
+}
+.data-record-list-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  min-width: 0;
+}
+.data-record-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding-inline-start: 1.25em;
+  min-width: 0;
+}
+.data-record-list > li {
+  display: list-item;
+  list-style: disc outside;
+}
+.data-record-list > li::marker {
+  color: var(--color-text-secondary);
+}
+/* A list of counts: no markers, the figures right-aligned in one column. */
+.data-record-list[data-figures] {
+  padding-inline-start: 0;
+  list-style: none;
+}
+.data-record-list[data-figures] > li {
+  list-style: none;
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-4);
+  min-width: 0;
+}
+.data-record-list[data-figures] .data-record-item {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.data-record-list[data-figures] .workspace-figure {
+  flex: none;
+  margin-inline-start: auto;
+  color: var(--color-text-secondary);
+}
+
+/* One row of facts: tiles and glyphs with short names, wrapping as a row. */
 .data-facts {
   display: flex;
   flex-wrap: wrap;
@@ -206,51 +400,66 @@
   padding: 0;
   list-style: none;
   color: var(--color-text-secondary);
+  font-size: var(--text-supporting-size);
+  line-height: var(--spacing-5);
 }
 .data-facts > li {
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-2);
   min-width: 0;
+  max-width: 100%;
 }
-.data-facts > li,
-.data-facts .workspace-time {
-  font-size: var(--font-size-sm);
-  line-height: var(--spacing-5);
-  color: var(--color-text-secondary);
+.data-facts > li > :is(.brand-tile, svg) {
+  flex: none;
 }
 .data-facts > li > svg {
   width: var(--spacing-4);
   height: var(--spacing-4);
-  flex: none;
 }
-.data-fields,
-.data-evidence {
-  padding-block: var(--spacing-3);
+
+.data-record-when {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--spacing-2);
 }
-/* Field labels in sentence case, as they are written. */
-:is(.data-fields, .data-evidence) dt:not(#\#) {
-  text-transform: none;
-  letter-spacing: normal;
+.data-record-plain {
+  color: var(--color-text-primary);
 }
-.data-history {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-1);
-  margin: 0;
-  padding: var(--spacing-2) 0;
-  list-style: none;
-}
-.data-history > li {
+.data-record-section:not(#\#) {
   display: flex;
   align-items: center;
   gap: var(--spacing-2);
-  min-height: var(--spacing-8);
+  font-size: var(--text-body-size, var(--font-size-body, 15px));
+  line-height: var(--spacing-6);
 }
-.data-history-time {
-  margin-inline-start: auto;
-}
-.data-history-count {
+.data-record-count {
   color: var(--color-text-secondary);
   font-weight: var(--font-weight-regular, 400);
+}
+
+/* On a phone the record is the page on the body colour: no card, the text
+   on the gutter, and the back glyph (not its 44px target) on the gutter. */
+@media (max-width: 640px) {
+  .data-record.admin-split-panel {
+    background: transparent;
+    border-radius: 0;
+  }
+  .data-record > .admin-split-panel-header {
+    padding: 0 0 var(--spacing-3);
+    background: transparent;
+  }
+  .data-record > .admin-split-panel-body {
+    padding: 0;
+  }
+  .data-record[data-split="false"] .data-record-action {
+    margin-inline-start: calc((var(--spacing-5) - var(--spacing-11)) / 2);
+  }
+}
+
+/* A record with no occurred date shows its observed time in the Occurred
+   column, where System's order puts it; muted, and named in its tooltip. */
+.workspace-time[data-observed] {
+  color: var(--color-text-secondary);
 }

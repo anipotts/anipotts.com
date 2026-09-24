@@ -92,7 +92,7 @@ export function ProjectMedia({
   return (
     <VStack gap={4}>
       {storyIndex === undefined && (
-        <VStack gap={2}>
+        <VStack gap={4}>
           <Heading level={2} className="editor-sections-title">
             Project logo
           </Heading>

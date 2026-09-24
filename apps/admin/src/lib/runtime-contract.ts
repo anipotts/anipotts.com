@@ -22,6 +22,8 @@ export const RUNTIME_CONTRACT = {
   ASSETS: { source: "assets", check: "fetch" },
   ACCESS_TEAM_DOMAIN: { source: "vars", check: "text" },
   ACCESS_POLICY_AUD: { source: "vars", check: "text" },
+  /** anipotts-db, bound so deploy applies its migrations. No admin page
+   * reads it, so no feature needs it. */
   DB: { source: "d1", check: "prepare" },
   CONTENT_DB: { source: "d1", check: "prepare" },
   CONTENT_MEDIA: { source: "r2", check: "getPut" },
@@ -30,6 +32,12 @@ export const RUNTIME_CONTRACT = {
   EDITORIAL_PUBLISH_ENABLED: { source: "vars", check: "flag" },
   PRIVATE_READER_ENABLED: { source: "vars", check: "flag" },
   PRIVATE_READER_OPS_ENABLED: { source: "vars", check: "flag" },
+  /** Data Health's health:read issuance. Unset in production until System's
+   * daily health collection is proven. */
+  PRIVATE_READER_HEALTH_ENABLED: { source: "vars", check: "flag" },
+  /** Data Knowledge's entity reads. Unset in production until System serves
+   * the entity routes. */
+  PRIVATE_READER_KNOWLEDGE_ENABLED: { source: "vars", check: "flag" },
   PRIVATE_READER_SIGNING_KEY: { source: "secret", check: "text" },
   PRIVATE_READER_CANARY_ENABLED: { source: "vars", check: "flag" },
   PRIVATE_READER_CANARY_ACCESS_AUD: { source: "vars", check: "text" },
@@ -45,10 +53,17 @@ export const RUNTIME_REQUIRED = [
   "ACCESS_POLICY_AUD",
 ] as const satisfies readonly RuntimeName[];
 
-/** Mirrors productionEditor, and the Data Health and Knowledge pages, which
- * read DB through loadDataExtras.
- * Flags switch a feature off; needs make an enabled feature unavailable when
- * absent. EDITORIAL_PUBLISH_ENABLED is the publishing kill switch.
+/** Mirrors productionEditor. Flags switch a feature off; needs make an
+ * enabled feature unavailable when absent. EDITORIAL_PUBLISH_ENABLED is the
+ * publishing kill switch. The private reader's issuance routes sign with
+ * PRIVATE_READER_SIGNING_KEY, so a reader flag that is on without the key
+ * reports its feature unavailable instead of ok (A-34). Every reader mode
+ * but the Data credential also `requires` PRIVATE_READER_ENABLED
+ * (privateReaderModeEnabled): its own flag on while that one is off is a
+ * flag backed by nothing, so it reads unavailable, naming the missing flag,
+ * never disabled. The canary also needs its Access audience and client id,
+ * without which it answers 503. DB is bound for migrations only and backs no
+ * feature: reporting it available would claim a read that no page makes.
  */
 export const RUNTIME_FEATURES = {
   editorial: {
@@ -59,10 +74,42 @@ export const RUNTIME_FEATURES = {
     flags: ["EDITORIAL_ENABLED", "EDITORIAL_PUBLISH_ENABLED"],
     needs: ["EDITORIAL", "CONTENT_DB", "CONTENT_MEDIA", "PUBLIC_RELEASE_SHA"],
   },
-  admin_database: { flags: [], needs: ["DB"] },
+  private_reader: {
+    flags: ["PRIVATE_READER_ENABLED"],
+    needs: ["PRIVATE_READER_SIGNING_KEY"],
+  },
+  private_reader_ops: {
+    flags: ["PRIVATE_READER_OPS_ENABLED"],
+    requires: ["PRIVATE_READER_ENABLED"],
+    needs: ["PRIVATE_READER_SIGNING_KEY"],
+  },
+  private_reader_health: {
+    flags: ["PRIVATE_READER_HEALTH_ENABLED"],
+    requires: ["PRIVATE_READER_ENABLED"],
+    needs: ["PRIVATE_READER_SIGNING_KEY"],
+  },
+  private_reader_knowledge: {
+    flags: ["PRIVATE_READER_KNOWLEDGE_ENABLED"],
+    requires: ["PRIVATE_READER_ENABLED"],
+    needs: ["PRIVATE_READER_SIGNING_KEY"],
+  },
+  private_reader_canary: {
+    flags: ["PRIVATE_READER_CANARY_ENABLED"],
+    requires: ["PRIVATE_READER_ENABLED"],
+    needs: [
+      "PRIVATE_READER_SIGNING_KEY",
+      "PRIVATE_READER_CANARY_ACCESS_AUD",
+      "PRIVATE_READER_CANARY_CLIENT_ID",
+    ],
+  },
 } as const satisfies Record<
   string,
-  { flags: readonly RuntimeName[]; needs: readonly RuntimeName[] }
+  {
+    flags: readonly RuntimeName[];
+    /** Flags that must be on too; off, the feature is unavailable. */
+    requires?: readonly RuntimeName[];
+    needs: readonly RuntimeName[];
+  }
 >;
 
 type RuntimeFeature = keyof typeof RUNTIME_FEATURES;
@@ -123,10 +170,15 @@ export function evaluateRuntimeContract(
   };
   const missing = RUNTIME_REQUIRED.filter((name) => !has(name));
   const features = {} as RuntimeContractReport["features"];
-  for (const [feature, { flags, needs }] of Object.entries(RUNTIME_FEATURES)) {
+  for (const [feature, spec] of Object.entries(RUNTIME_FEATURES)) {
+    const { flags, needs } = spec;
+    const requires: readonly RuntimeName[] =
+      "requires" in spec ? spec.requires : [];
     const enabled = (flags as readonly RuntimeName[]).every(has);
     const absent: RuntimeName[] = enabled
-      ? (needs as readonly RuntimeName[]).filter((name) => !has(name))
+      ? [...requires, ...(needs as readonly RuntimeName[])].filter(
+          (name) => !has(name),
+        )
       : [];
     features[feature as RuntimeFeature] = {
       state: !enabled
