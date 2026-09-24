@@ -73,7 +73,8 @@ app.get("/health", async (c) => {
     },
     Date.now(),
   );
-  return c.json(body, 200, { "Cache-Control": "no-store" });
+  // The status mirrors ok, so a monitor reading only the code agrees with the body.
+  return c.json(body, body.ok ? 200 : 503, { "Cache-Control": "no-store" });
 });
 
 function linkVaultStub(env: Bindings): DurableObjectStub {

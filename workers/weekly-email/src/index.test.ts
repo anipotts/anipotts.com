@@ -86,7 +86,7 @@ describe("retired weekly email status", () => {
       DB: db,
       ...staleSecrets,
     });
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(410);
     const body = (await response.json()) as Record<string, unknown>;
     expect(body).toMatchObject({
       app: "weekly-email",
@@ -147,7 +147,7 @@ describe("retired weekly email status", () => {
     const response = await worker.fetch(new Request("https://weekly.test/"), {
       DB: db,
     });
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(410);
     const text = await response.text();
     expect(text).not.toContain("provider detail");
     expect(JSON.parse(text)).toMatchObject({

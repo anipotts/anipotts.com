@@ -75,15 +75,18 @@ export default {
     } catch {
       queue = null;
     }
-    return jsonResponse({
-      app: "weekly-email",
-      ok: false,
-      retired: true,
-      d1: queue ? "connected" : "error",
-      last_sent_at: queue?.lastSentAt ?? null,
-      email_queue: queue?.counts ?? null,
-      ts: new Date().toISOString(),
-    });
+    return jsonResponse(
+      {
+        app: "weekly-email",
+        ok: false,
+        retired: true,
+        d1: queue ? "connected" : "error",
+        last_sent_at: queue?.lastSentAt ?? null,
+        email_queue: queue?.counts ?? null,
+        ts: new Date().toISOString(),
+      },
+      410,
+    );
   },
 
   // The deploy removes the Sunday schedule. If a stale one still fires, log it
