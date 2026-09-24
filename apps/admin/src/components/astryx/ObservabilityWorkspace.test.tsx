@@ -23,6 +23,7 @@ import {
   titleWidth,
 } from "../workspace/Workspace";
 import { alertStartWidth, opsAlertRows } from "../observability/AlertsView";
+import { opsEntryAnchor } from "../observability/StatusView";
 import {
   EMPTY_EVENT_LOG,
   appendOpsEvents,
@@ -642,6 +643,58 @@ describe("Status view edge cases", () => {
       "Over its 1m budget",
     );
     expect(groupTitles(host).at(-1)).toBe("A brand new group");
+  });
+
+  it("keeps a long host detail whole: wrapped text, full tooltip", () => {
+    const value = fresh();
+    const details = {
+      "host.ap-mini.sampling":
+        "sampling stopped for 4m, resumed after the sampler restarted on its next launch",
+      "host.ap-pro.tailnet":
+        "on the tailnet; the keepalive answered from ap-mini within the last sampling window",
+    };
+    value.catalog.push(
+      {
+        id: "host.ap-mini.sampling",
+        name: "sampling continuity",
+        group: "hosts",
+        kind: "host",
+        host: "ap-mini",
+        owner: "system",
+        freshness_budget_s: 300,
+        runbook: "docs/runbooks/ops-host.md",
+        schedule: null,
+      },
+      {
+        id: "host.ap-pro.tailnet",
+        name: "on the tailnet",
+        group: "hosts",
+        kind: "host",
+        host: "ap-pro",
+        owner: "system",
+        freshness_budget_s: 300,
+        runbook: "docs/runbooks/ops-host.md",
+        schedule: null,
+      },
+    );
+    for (const [id, detail] of Object.entries(details))
+      value.status.push({
+        id,
+        state: "ok",
+        detail,
+        last_success_at: "2026-09-21T17:59:00Z",
+        last_run_at: null,
+        last_exit: null,
+      });
+    const host = render(value);
+    const strip = host.querySelector('ul[aria-label="Hosts"]')!;
+    for (const [id, detail] of Object.entries(details)) {
+      const card = strip.querySelector(`li#${CSS.escape(opsEntryAnchor(id))}`)!;
+      expect(card.querySelector(".ops-card-detail")?.textContent).toBe(detail);
+      expect(card.querySelector("a")?.getAttribute("title")).toBe(
+        `${detail}\n${id}`,
+      );
+    }
   });
 
   it("names System fields it does not read yet in one quiet chip", () => {
