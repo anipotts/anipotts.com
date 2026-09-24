@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { parse } from "yaml";
 
 const WORKFLOW_DIR = ".github/workflows";
 const ALLOWED_WORKFLOWS = [
@@ -214,6 +215,86 @@ for (const workflow of [deployWorkflow, smokeWorkflow]) {
     "deploy and manual smoke must share one smoke implementation",
   );
 }
+
+// A-33: every health smoke that names a release also names the schema
+// version that release must report, and a forward deploy smoke takes it from
+// the release job, never a literal.
+for (const [file, workflow] of [
+  ["deploy.yml", deployWorkflow],
+  ["smoke.yml", smokeWorkflow],
+]) {
+  const smokes = workflow
+    .split("\n")
+    .filter((line) => line.includes("scripts/ci/release-smoke.mjs"));
+  assert.ok(smokes.length > 0, `${file} must run the release smoke`);
+  for (const line of smokes) {
+    if (line.includes("--allow-unversioned")) continue;
+    assert.match(
+      line,
+      /--expected-sha "[^"]+" --expected-schema "[^"]+"$/,
+      `${file} smoke must pass an expected schema version: ${line.trim()}`,
+    );
+  }
+}
+const deployJobs = parse(deployWorkflow).jobs;
+for (const job of ["deploy-www", "deploy-admin"]) {
+  const forward = deployJobs[job].steps.filter(
+    (step) =>
+      typeof step.run === "string" &&
+      step.run.includes("release-smoke.mjs") &&
+      step.run.includes('--expected-sha "${{ github.sha }}"'),
+  );
+  assert.ok(forward.length > 0, `${job} must smoke its exact release`);
+  for (const step of forward) {
+    assert.ok(
+      step.run.includes(
+        '--expected-schema "${{ needs.release.outputs.database_schema_version }}"',
+      ),
+      `${job} ${step.name} must expect the release job's schema version`,
+    );
+  }
+}
+
+// A-33: the editorial admin path skips the /api/health smokes (Access has one
+// human owner), so the deployed version's message names the release's schema
+// and the editorial verify step compares it with the release job's output.
+{
+  const steps = deployJobs["deploy-admin"].steps;
+  const deploy = steps.find(
+    (step) => step.name === "Deploy to Cloudflare Workers",
+  );
+  assert.match(
+    deploy.with.command,
+    /--message "release:\$\{\{ github\.sha \}\} schema:\$\{\{ needs\.release\.outputs\.database_schema_version \}\}"$/,
+    "the admin version message must carry the release's schema version",
+  );
+  const verify = steps.find(
+    (step) => step.name === "Verify editorial release and owner boundary",
+  );
+  assert.ok(
+    verify.run.includes(
+      'editorial-release-smoke.mjs verify "${{ github.sha }}" "${{ needs.release.outputs.database_schema_version }}"',
+    ),
+    "the editorial verify step must expect the release job's schema version",
+  );
+}
+
+// A deploy job runs only after the release job succeeded. always() would let
+// admin deploy after a held migration, schema drift or a failed postcondition.
+for (const [name, job] of Object.entries(deployJobs)) {
+  if (!name.startsWith("deploy-")) continue;
+  assert.deepEqual(job.needs, ["release"], `${name} depends only on release`);
+  assert.equal(
+    /\b(?:always|failure|cancelled)\(\)/.test(job.if),
+    false,
+    `${name} must not run after a failed or cancelled release`,
+  );
+}
+assert.match(
+  deployJobs["deploy-admin"].if,
+  /^needs\.release\.result == 'success' &&/,
+  "deploy-admin must require a successful release job",
+);
 
 for (const file of workflowFiles) {
   const body = readFileSync(join(WORKFLOW_DIR, file), "utf8");

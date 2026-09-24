@@ -13,6 +13,10 @@ on:
         description: "commit sha expected to be deployed"
         required: true
         type: string
+      schema_version:
+        description: "schema version from the release summary (the health smokes fail without it)"
+        required: false
+        type: string
       mode:
         description: "admin smoke mode"
         required: true
@@ -58,12 +62,15 @@ jobs:
 
       - name: Smoke public site
         if: inputs.target == 'www'
-        run: node scripts/ci/release-smoke.mjs --target www --base-url https://anipotts.com --expected-sha "${{ inputs.commit_sha }}"
+        run: node scripts/ci/release-smoke.mjs --target www --base-url https://anipotts.com --expected-sha "${{ inputs.commit_sha }}" --expected-schema "$EXPECTED_SCHEMA"
+        env:
+          EXPECTED_SCHEMA: ${{ inputs.schema_version }}
 
       - name: Smoke admin
         if: inputs.target == 'admin' && steps.policy.outputs.editorial != 'true'
-        run: node scripts/ci/release-smoke.mjs --target admin --mode "${{ inputs.mode }}" --base-url https://admin.anipotts.com --expected-sha "${{ inputs.commit_sha }}"
+        run: node scripts/ci/release-smoke.mjs --target admin --mode "${{ inputs.mode }}" --base-url https://admin.anipotts.com --expected-sha "${{ inputs.commit_sha }}" --expected-schema "$EXPECTED_SCHEMA"
         env:
+          EXPECTED_SCHEMA: ${{ inputs.schema_version }}
           ADMIN_CI_ACCESS_CLIENT_ID: ${{ secrets.ADMIN_CI_ACCESS_CLIENT_ID }}
           ADMIN_CI_ACCESS_CLIENT_SECRET: ${{ secrets.ADMIN_CI_ACCESS_CLIENT_SECRET }}
           ADMIN_CI_READ_TOKEN: ${{ secrets.ADMIN_CI_READ_TOKEN }}

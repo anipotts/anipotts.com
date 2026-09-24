@@ -114,7 +114,7 @@ async function verifyHealth(
   baseUrl,
   expectedSha,
   fetchImpl,
-  { allowUnversioned, attempts, delayMs, requestInit, target },
+  { allowUnversioned, attempts, delayMs, expectedSchema, requestInit, target },
 ) {
   let lastHealth;
   let lastError;
@@ -127,8 +127,10 @@ async function verifyHealth(
         const versionMatches = allowUnversioned
           ? !health.release_sha
           : health.release_sha === expectedSha;
+        // Health must report the exact schema version the release expects,
+        // so a placeholder such as "unknown" or "0042-unverified" fails.
         const schemaMatches =
-          allowUnversioned || Boolean(health.schema_version);
+          allowUnversioned || health.schema_version === expectedSchema;
         const databaseHealthy =
           target !== "www" ||
           (health.ok === true &&
@@ -155,7 +157,12 @@ async function verifyHealth(
       `release SHA mismatch at ${baseUrl}: expected ${expectedSha}, received ${lastHealth?.release_sha || lastError || "missing"}`,
     );
   }
-  throw new Error(`${lastError || "schema version missing"} at ${baseUrl}`);
+  if (lastHealth.schema_version !== expectedSchema) {
+    throw new Error(
+      `schema version mismatch at ${baseUrl}: expected ${expectedSchema}, received ${lastHealth.schema_version || "missing"}`,
+    );
+  }
+  throw new Error(`${lastError || "health check failed"} at ${baseUrl}`);
 }
 
 export async function smokeRelease(options) {
@@ -163,6 +170,7 @@ export async function smokeRelease(options) {
     target,
     baseUrl,
     expectedSha,
+    expectedSchema,
     mode = "unauthenticated",
     fetchImpl = fetch,
     env = process.env,
@@ -173,12 +181,16 @@ export async function smokeRelease(options) {
   if (!expectedSha && !allowUnversioned) {
     throw new Error("expected release SHA is required");
   }
+  if (!expectedSchema && !allowUnversioned) {
+    throw new Error("expected database schema version is required");
+  }
 
   const health = await verifyHealth(baseUrl, expectedSha, fetchImpl, {
     target,
     allowUnversioned,
     attempts: healthAttempts,
     delayMs: retryDelayMs,
+    expectedSchema,
     requestInit: healthRequestInit(target, env),
   });
   const checks = [];
@@ -290,6 +302,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     target: argument("target"),
     baseUrl: argument("base-url"),
     expectedSha: argument("expected-sha"),
+    expectedSchema: argument("expected-schema"),
     mode: argument("mode") || "unauthenticated",
     allowUnversioned: process.argv.includes("--allow-unversioned"),
   })

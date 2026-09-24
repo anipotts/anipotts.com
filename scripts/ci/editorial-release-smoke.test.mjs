@@ -7,6 +7,7 @@ import {
 } from "./editorial-release-smoke.mjs";
 
 const releaseSha = "a".repeat(40);
+const schema = "0044";
 const providerDetail = "account 0123456789abcdef in provider stderr";
 
 function providerFailure() {
@@ -35,7 +36,9 @@ function fakeProvider(states) {
     if (command === "versions view")
       return JSON.stringify({
         id: args[4],
-        annotations: { "workers/message": `release:${state.sha}` },
+        annotations: {
+          "workers/message": `release:${state.sha} schema:${state.schema ?? schema}`,
+        },
       });
     throw new Error(`unexpected provider call ${command}`);
   };
@@ -80,14 +83,14 @@ test("provider receipt requires one active version with the exact build SHA", ()
     deployment = { versions: [{ version_id: "version-1", percentage: 100 }] };
   const version = {
     id: "version-1",
-    annotations: { "workers/message": `release:${head}` },
+    annotations: { "workers/message": `release:${head} schema:${schema}` },
   };
   assert.equal(
-    verifyEditorialVersion(deployment, version, head).release_sha,
+    verifyEditorialVersion(deployment, version, head, schema).release_sha,
     head,
   );
   assert.throws(
-    () => verifyEditorialVersion(deployment, version, "b".repeat(40)),
+    () => verifyEditorialVersion(deployment, version, "b".repeat(40), schema),
     /identity mismatch/,
   );
   assert.throws(() =>
@@ -95,7 +98,62 @@ test("provider receipt requires one active version with the exact build SHA", ()
       { versions: [{ version_id: "version-1", percentage: 50 }] },
       version,
       head,
+      schema,
     ),
+  );
+});
+// A-33: the editorial path cannot read admin's /api/health behind Access,
+// so the active version's message carries the schema, and a mismatch fails
+// the release.
+test("A-33: the editorial path fails on a schema version mismatch", async () => {
+  const head = "a".repeat(40),
+    deployment = { versions: [{ version_id: "version-1", percentage: 100 }] };
+  const stamped = (message) => ({
+    id: "version-1",
+    annotations: { "workers/message": message },
+  });
+  assert.deepEqual(
+    verifyEditorialVersion(
+      deployment,
+      stamped(`release:${head} schema:0044`),
+      head,
+      "0044",
+    ),
+    { version: "version-1", release_sha: head, schema_version: "0044" },
+  );
+  for (const message of [
+    `release:${head} schema:0043`,
+    `release:${head}`,
+    `release:${head} schema:unknown`,
+    `release:${head} schema:0044 extra`,
+  ])
+    assert.throws(
+      () => verifyEditorialVersion(deployment, stamped(message), head, "0044"),
+      /identity mismatch/,
+      message,
+    );
+  // An expected schema that is not a version fails before any provider call.
+  for (const expected of [undefined, "", "0042-unverified", "unknown"]) {
+    const clock = recordingSleep();
+    await assert.rejects(
+      verifyEditorialIdentity(head, expected, {
+        exec: () => assert.fail("provider must not be called"),
+        sleep: clock.sleep,
+      }),
+      { message: "editorial release identity mismatch" },
+    );
+  }
+  // A version deployed for another schema never resolves: the release fails.
+  const provider = fakeProvider([
+    { active: "version-3", sha: head, schema: "0043" },
+  ]);
+  const clock = recordingSleep();
+  await assert.rejects(
+    verifyEditorialIdentity(head, "0044", {
+      exec: provider.exec,
+      sleep: clock.sleep,
+    }),
+    { message: "editorial release identity mismatch" },
   );
 });
 test("provider identity retries a transient wrangler failure", async () => {
@@ -105,11 +163,11 @@ test("provider identity retries a transient wrangler failure", async () => {
   ]);
   const clock = recordingSleep();
   assert.deepEqual(
-    await verifyEditorialIdentity(releaseSha, {
+    await verifyEditorialIdentity(releaseSha, schema, {
       exec: provider.exec,
       sleep: clock.sleep,
     }),
-    { version: "version-2", release_sha: releaseSha },
+    { version: "version-2", release_sha: releaseSha, schema_version: schema },
   );
   assert.deepEqual(clock.waits, [5_000]);
   assert.deepEqual(provider.calls, [
@@ -122,7 +180,7 @@ test("persistent provider failure stops at the bound with a bounded message", as
   const provider = fakeProvider(["fail"]);
   const clock = recordingSleep();
   await assert.rejects(
-    verifyEditorialIdentity(releaseSha, {
+    verifyEditorialIdentity(releaseSha, schema, {
       exec: provider.exec,
       sleep: clock.sleep,
     }),
@@ -144,11 +202,11 @@ test("provider identity waits for the release annotation to propagate", async ()
   ]);
   const clock = recordingSleep();
   assert.deepEqual(
-    await verifyEditorialIdentity(releaseSha, {
+    await verifyEditorialIdentity(releaseSha, schema, {
       exec: provider.exec,
       sleep: clock.sleep,
     }),
-    { version: "version-2", release_sha: releaseSha },
+    { version: "version-2", release_sha: releaseSha, schema_version: schema },
   );
   assert.deepEqual(clock.waits, [5_000, 10_000]);
 });
@@ -156,7 +214,7 @@ test("persistent identity mismatch fails after the bound", async () => {
   const provider = fakeProvider([{ active: "version-1", sha: "b".repeat(40) }]);
   const clock = recordingSleep();
   await assert.rejects(
-    verifyEditorialIdentity(releaseSha, {
+    verifyEditorialIdentity(releaseSha, schema, {
       exec: provider.exec,
       sleep: clock.sleep,
     }),
@@ -168,7 +226,7 @@ test("persistent identity mismatch fails after the bound", async () => {
 test("malformed provider output is reported without echoing it", async () => {
   const clock = recordingSleep();
   await assert.rejects(
-    verifyEditorialIdentity(releaseSha, {
+    verifyEditorialIdentity(releaseSha, schema, {
       exec: () => `not json ${providerDetail}`,
       sleep: clock.sleep,
     }),
@@ -183,7 +241,7 @@ test("malformed provider output is reported without echoing it", async () => {
 test("an invalid expected release fails before any provider call", async () => {
   const clock = recordingSleep();
   await assert.rejects(
-    verifyEditorialIdentity("not-a-sha", {
+    verifyEditorialIdentity("not-a-sha", schema, {
       exec: () => assert.fail("provider must not be called"),
       sleep: clock.sleep,
     }),
