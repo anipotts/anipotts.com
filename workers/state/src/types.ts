@@ -3,14 +3,24 @@
  * frontends can deserialize WebSocket payloads with type safety.
  */
 
+/** POST /api/links answers 400 for any other source. */
+export const LINK_SOURCES = ["shortcut", "admin", "manual"] as const;
+export type LinkSource = (typeof LINK_SOURCES)[number];
+
 export type Link = {
   id: string;
   url: string;
   title?: string;
   tag?: string;
   note?: string;
-  source?: "rudy" | "shortcut" | "admin" | "manual";
+  source?: LinkSource;
   savedAt: string;
+};
+
+/** LinkVault GET /summary: a count and one time, never a url or title. */
+export type LinkVaultSummary = {
+  held: number;
+  last_saved_at: string | null;
 };
 
 export type LinkVaultEvent =
@@ -26,6 +36,12 @@ export type Commit = {
   ts: string;
   branch?: string;
   parentCount?: number;
+};
+
+/** CodeStats GET /summary: a count and one time, never a sha or subject. */
+export type CodeStatsSummary = {
+  held: number;
+  last_received_at: string | null;
 };
 
 export type CodeStatsEvent =

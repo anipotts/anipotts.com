@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import type { Bindings } from "./types";
+import { LINK_SOURCES, type Bindings } from "./types";
 import { verifyDeviceHandshake } from "./control-plane-auth";
+import { stateHealth } from "./health";
 import { createRuntimeContractReporter } from "./runtime-contract";
 
 export { LinkVault } from "./do/link-vault";
@@ -31,10 +32,21 @@ app.use("*", async (c, next) => {
   })(c, next);
 });
 
+/** Presence only; the key itself never leaves the binding. */
+const controlConfigured = (env: Bindings) =>
+  typeof env.CONTROL_PLANE_DEVICE_PUBLIC_JWK === "string" &&
+  env.CONTROL_PLANE_DEVICE_PUBLIC_JWK.trim() !== "";
+
+// The command relay is named only while a device key is bound: without one
+// every connect is refused, so it is not a plane this worker offers (A-22).
 app.get("/", (c) =>
   c.json({
     service: "anipotts-state",
-    durableObjects: ["LinkVault", "CodeStats", "CommandRelay"],
+    durableObjects: [
+      "LinkVault",
+      "CodeStats",
+      ...(controlConfigured(c.env) ? ["CommandRelay"] : []),
+    ],
     endpoints: {
       links: {
         list: "GET /api/links",
@@ -47,15 +59,22 @@ app.get("/", (c) =>
         publish: "POST /api/commits (bearer auth)",
         subscribe: "GET /api/commits/ws",
       },
-      control: {
-        connect: "GET /api/control/devices/ap-mini/connect (signed websocket)",
-        commands: "internal Durable Object RPC only",
-      },
     },
   }),
 );
 
-app.get("/health", (c) => c.json({ ok: true, ts: new Date().toISOString() }));
+// Per-plane facts read from the Durable Objects on every call; see health.ts.
+app.get("/health", async (c) => {
+  const body = await stateHealth(
+    {
+      links: () => linkVaultStub(c.env),
+      commits: () => codeStatsStub(c.env),
+      controlConfigured: controlConfigured(c.env),
+    },
+    Date.now(),
+  );
+  return c.json(body, 200, { "Cache-Control": "no-store" });
+});
 
 function linkVaultStub(env: Bindings): DurableObjectStub {
   const id = env.LINK_VAULT.idFromName("default");
@@ -100,10 +119,31 @@ app.get("/api/links", async (c) => {
   return new Response(res.body, res);
 });
 
+const LINK_SOURCE_ERROR = `source must be one of ${LINK_SOURCES.join(", ")}`;
+
+/** The vault stores `source` as given, so this route is the only check. */
+function linkSubmissionError(body: unknown): string | null {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return "body must be a JSON object";
+  }
+  if (!("source" in body)) return null;
+  const source = (body as { source: unknown }).source;
+  return (LINK_SOURCES as readonly unknown[]).includes(source)
+    ? null
+    : LINK_SOURCE_ERROR;
+}
+
 app.post("/api/links", async (c) => {
   const denied = requirePublishKey(c);
   if (denied) return denied;
-  const body = await c.req.json();
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "body must be a JSON object" }, 400);
+  }
+  const invalid = linkSubmissionError(body);
+  if (invalid) return c.json({ error: invalid }, 400);
   const stub = linkVaultStub(c.env);
   const res = await stub.fetch("https://internal/links", {
     method: "POST",
