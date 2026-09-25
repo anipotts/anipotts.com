@@ -24,8 +24,12 @@ type CfEnv = {
   NEWSLETTER_MAILING_ADDRESS?: string;
 };
 
-type Runtime = import("@astrojs/cloudflare").Runtime<CfEnv>;
+// Worker bindings come from `cloudflare:workers` (see src/lib/runtime-env.ts).
+declare namespace Cloudflare {
+  interface Env extends CfEnv {}
+}
+interface Env extends CfEnv {}
 
-declare namespace App {
-  interface Locals extends Runtime {}
+declare module "virtual:astro:manifest" {
+  export const manifest: { assets: Set<string> };
 }

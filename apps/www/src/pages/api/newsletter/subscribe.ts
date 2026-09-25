@@ -13,6 +13,7 @@ import {
   SUBSCRIBE_BODY_LIMIT_BYTES,
   subscribePayloadSchema,
 } from "../../../lib/newsletter";
+import { runtimeEnv } from "../../../lib/runtime-env";
 
 export const prerender = false;
 
@@ -21,7 +22,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const forbidden = checkOrigin(request);
     if (forbidden) return forbidden;
 
-    const env = locals.runtime.env;
+    const env = runtimeEnv(locals);
     if (!env.DB) return missingDbResponse();
 
     const allowed = await checkRateLimit(request, env.DB);

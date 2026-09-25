@@ -16,6 +16,12 @@ const PACKAGES = {
   zod: await import("zod"),
 };
 const modules = new Map();
+// Endpoints read bindings through src/lib/runtime-env.ts. Each test request
+// carries its own env on locals, standing in for `cloudflare:workers`.
+const RUNTIME_ENV = resolve(WWW, "src/lib/runtime-env.ts");
+modules.set(RUNTIME_ENV, {
+  exports: { runtimeEnv: (locals) => locals.env },
+});
 
 function load(file) {
   const cached = modules.get(file);
@@ -117,7 +123,7 @@ function environment(db, extra = {}) {
   };
 }
 
-const locals = (env) => ({ runtime: { env } });
+const locals = (env) => ({ env });
 const iso = (offsetMs = 0) => new Date(Date.now() + offsetMs).toISOString();
 const hash = (token) => createHash("sha256").update(token).digest("hex");
 const count = (db, query, ...args) =>

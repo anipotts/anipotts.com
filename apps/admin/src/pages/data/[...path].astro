@@ -1,4 +1,5 @@
 ---
+import { runtimeEnv } from "../../lib/runtime-env";
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import { PrivateShell } from "../../components/data/PrivateShell";
 import { DATA_VIEW_TITLES, dataRoute } from "../../lib/data-routes";
@@ -17,7 +18,7 @@ import { loadShellFixtures } from "../../lib/shell-fixtures";
 // 404 page.
 const route = dataRoute(Astro.url);
 if (!route) return Astro.rewrite("/404");
-const env = Astro.locals.runtime?.env ?? {};
+const env = runtimeEnv();
 const fixtures = await loadShellFixtures(Astro.url);
 Astro.response.headers.set("Cache-Control", "private, no-store");
 ---

@@ -1,4 +1,5 @@
 ---
+import { runtimeEnv } from "../../lib/runtime-env";
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import {
   OPS_VIEW_TITLES,
@@ -21,7 +22,7 @@ const key = view as OpsView;
 // exactly "true". The Data flag alone never turns on ops reads. The server
 // makes no read; the browser reads System's snapshot and events with an
 // ops:read credential only when this is on.
-const enabled = privateReaderOpsEnabled(Astro.locals.runtime?.env ?? {});
+const enabled = privateReaderOpsEnabled(runtimeEnv());
 
 // Development uses System's snapshot sample and a synthetic events page
 // (lib/shell-fixtures.ts); none ships.

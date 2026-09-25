@@ -8,6 +8,7 @@ import {
   verifyResendWebhook,
   WEBHOOK_BODY_LIMIT_BYTES,
 } from "../../../../lib/newsletter";
+import { runtimeEnv } from "../../../../lib/runtime-env";
 
 export const prerender = false;
 
@@ -18,7 +19,7 @@ const SUPPRESSION_EVENTS = new Set([
 ]);
 
 export const POST: APIRoute = async ({ request, locals }) => {
-  const env = locals.runtime.env;
+  const env = runtimeEnv(locals);
   if (!env.DB) return missingDbResponse();
   if (!env.RESEND_WEBHOOK_SECRET) {
     return json({ error: "resend webhook not configured" }, 501);

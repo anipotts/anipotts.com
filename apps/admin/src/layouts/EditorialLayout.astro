@@ -1,4 +1,5 @@
 ---
+import { runtimeEnv } from "../lib/runtime-env";
 import AdminDocument from "./AdminDocument.astro";
 import { initialAdminTheme } from "../lib/admin-theme";
 import { publicSiteUrl } from "../lib/editorial-content";
@@ -42,7 +43,7 @@ const renderContent = hasContent && Astro.slots.has("default");
 const inventory =
   suppliedInventory ??
   (await measureServerTiming(Astro.locals, "inventory", () =>
-    loadEditorialInventory(Astro.locals.runtime?.env),
+    loadEditorialInventory(runtimeEnv()),
   ));
 const appProps = {
   searchEntries: inventory.searchEntries,

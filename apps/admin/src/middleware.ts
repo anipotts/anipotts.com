@@ -19,6 +19,7 @@ import {
 import { adminJson } from "./lib/admin-auth";
 import { PRIVATE_READER_CANARY_PATH } from "./lib/private-reader-canary";
 import { applyServerTiming, createServerTiming } from "./lib/server-timing";
+import { runtimeEnv } from "./lib/runtime-env";
 
 /** Content, the overview, the editorial APIs, the private reader and the
  * draft previews accept only the signed owner. */
@@ -55,7 +56,7 @@ async function handleRequest(
   // route verifies against its own Access application. No owner is involved.
   if (pathname === PRIVATE_READER_CANARY_PATH)
     return withPrivateHeaders(await next(), false);
-  const env = context.locals.runtime?.env ?? {};
+  const env = runtimeEnv();
   // A build-time constant, never a runtime value. Deployable builds compile
   // it to false, which removes this whole path from the bundle.
   const localOwner =

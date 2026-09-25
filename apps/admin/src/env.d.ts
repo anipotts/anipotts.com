@@ -14,7 +14,8 @@ type D1Database = {
   ): Promise<Array<{ results?: unknown[]; success?: boolean; meta?: unknown }>>;
 };
 
-type Runtime = import("@astrojs/cloudflare").Runtime<{
+/** Worker bindings and vars; read them through src/lib/runtime-env.ts. */
+type AdminEnv = {
   DB: D1Database;
   ACCESS_TEAM_DOMAIN: string;
   ACCESS_POLICY_AUD: string;
@@ -34,7 +35,7 @@ type Runtime = import("@astrojs/cloudflare").Runtime<{
   PRIVATE_READER_CANARY_ACCESS_AUD?: string;
   /** Client id of the one Access service token the canary admits. */
   PRIVATE_READER_CANARY_CLIENT_ID?: string;
-}>;
+};
 
 /**
  * True only in a dev server or build started with ADMIN_LOCAL_OWNER=1. Vite
@@ -44,11 +45,16 @@ type Runtime = import("@astrojs/cloudflare").Runtime<{
 declare const __LOCAL_OWNER_BUILD__: boolean;
 
 declare namespace App {
-  interface Locals extends Runtime {
+  interface Locals {
     adminPrincipal?: import("./lib/admin-auth").AdminPrincipal;
     /** Set by middleware after it verifies the Access assertion. */
     accessOwner?: import("./lib/access-identity").AccessOwner;
     /** Durations and counts only; see lib/server-timing.ts. */
     serverTiming?: import("./lib/server-timing").ServerTiming;
   }
+}
+
+declare module "cloudflare:workers" {
+  /** The Worker's bindings; src/lib/runtime-env.ts narrows them to AdminEnv. */
+  export const env: unknown;
 }
