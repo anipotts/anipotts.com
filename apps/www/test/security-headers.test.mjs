@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { registerHooks } from "node:module";
 import { extname, join } from "node:path";
 import test from "node:test";
 import {
@@ -9,6 +8,7 @@ import {
   withSecurityHeaders,
 } from "../src/lib/security-headers.ts";
 import { dist } from "./built-html.mjs";
+import { withWorkerEnv } from "./cloudflare-workers.mjs";
 import { contentDatabase, contentEnv } from "./content-database.mjs";
 
 // The reviewed policy, written out here on purpose. Served responses are
@@ -34,18 +34,9 @@ const EXPECTED = Object.freeze({
 // Runs after the www build against the emitted Worker, so the adapter's own
 // early ASSETS returns are exercised. Node stands in for workerd: only the
 // runtime module import and the caches global need stubs.
-registerHooks({
-  resolve(specifier, context, next) {
-    return specifier === "cloudflare:workers"
-      ? {
-          url: "data:text/javascript,export const env = {};",
-          shortCircuit: true,
-        }
-      : next(specifier, context);
-  },
-});
-globalThis.caches ??= {};
-const worker = (await import(join(dist, "_worker.js", "index.js"))).default;
+const worker = withWorkerEnv(
+  (await import(new URL("../dist/server/entry.mjs", import.meta.url))).default,
+);
 
 const TYPES = {
   ".css": "text/css; charset=utf-8",
@@ -61,7 +52,6 @@ const TYPES = {
 };
 
 function file(pathname) {
-  if (pathname.startsWith("/_worker.js")) return null;
   const base = pathname === "/" ? "/index" : pathname;
   for (const candidate of [base, `${base}.html`, `${base}/index.html`]) {
     const path = join(dist, decodeURIComponent(candidate));
@@ -671,11 +661,18 @@ test("the header map has one source", () => {
       entry,
     );
   }
-  for (const dir of ["../public/", "../dist/"]) {
+  assert.equal(
+    existsSync(new URL("../public/_headers", import.meta.url)),
+    false,
+    "public/_headers",
+  );
+  // Adapter 14 always writes this one block for hashed build output. It is the
+  // same policy src/worker.ts applies, and it carries no security header.
+  const emitted = new URL("../dist/client/_headers", import.meta.url);
+  if (existsSync(emitted))
     assert.equal(
-      existsSync(new URL(`${dir}_headers`, import.meta.url)),
-      false,
-      `${dir}_headers`,
+      readFileSync(emitted, "utf8"),
+      "/_astro/*\n  Cache-Control: public, max-age=31536000, immutable\n",
+      "dist/client/_headers",
     );
-  }
 });

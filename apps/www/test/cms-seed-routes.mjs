@@ -31,11 +31,14 @@ writeFileSync(
   config,
   JSON.stringify({
     name: "cms-seed-routes",
-    main: join(root, "apps/www/dist/_worker.js/index.js"),
+    // The adapter's prebundled Worker, deployed as emitted.
+    main: join(root, "apps/www/dist/server/entry.mjs"),
+    no_bundle: true,
+    rules: [{ type: "ESModule", globs: ["**/*.js", "**/*.mjs"] }],
     compatibility_date: "2026-05-01",
     compatibility_flags: ["nodejs_compat"],
     assets: {
-      directory: join(root, "apps/www/dist"),
+      directory: join(root, "apps/www/dist/client"),
       binding: "ASSETS",
       run_worker_first: true,
     },

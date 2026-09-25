@@ -1,25 +1,20 @@
 import { readFileSync, existsSync, statSync } from "node:fs";
-import { registerHooks } from "node:module";
 import { join, extname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { withWorkerEnv } from "./cloudflare-workers.mjs";
 
-export const buildDir = fileURLToPath(new URL("../dist/", import.meta.url));
+/** Deploy assets. The adapter emits them to dist/client and the Worker to
+ * dist/server; wrangler deploys both through dist/server/wrangler.json. */
+export const buildDir = fileURLToPath(
+  new URL("../dist/client/", import.meta.url),
+);
+export const workerEntry = fileURLToPath(
+  new URL("../dist/server/entry.mjs", import.meta.url),
+);
 export const renderedDir = fileURLToPath(
   new URL("../.local/public-rendered/", import.meta.url),
 );
-registerHooks({
-  resolve(specifier, context, next) {
-    return specifier === "cloudflare:workers"
-      ? {
-          url: "data:text/javascript,export const env = {};",
-          shortCircuit: true,
-        }
-      : next(specifier, context);
-  },
-});
-globalThis.caches ??= {};
-export const worker = (await import(join(buildDir, "_worker.js/index.js")))
-  .default;
+export const worker = withWorkerEnv((await import(workerEntry)).default);
 export const executionContext = { waitUntil() {}, passThroughOnException() {} };
 const types = {
   ".html": "text/html",
@@ -35,8 +30,6 @@ export function fileAssets(directory = buildDir) {
     async fetch(input) {
       const request = input instanceof Request ? input : new Request(input);
       const pathname = decodeURIComponent(new URL(request.url).pathname);
-      if (pathname.startsWith("/_worker.js"))
-        return new Response(null, { status: 404 });
       const name = pathname === "/" ? "index" : pathname.slice(1);
       for (const candidate of [name, `${name}.html`, `${name}/index.html`]) {
         const path = join(directory, candidate);
@@ -64,22 +57,22 @@ export function serve(path, env = {}, init) {
   );
 }
 
-/** Reuse the emitted entry factory with stale manifest assets, as a future code
- * deployment could still bundle media referenced by an unpublished Git record. */
+/** Start the emitted Worker again over a manifest carrying stale assets, as
+ * a future code deployment could still bundle media referenced by an
+ * unpublished Git record. The manifest is a shared module; a fresh instance of
+ * the entry reruns its startup against it. */
+let fresh = 0;
 export async function workerWithManifestAssets(paths) {
-  const entry = readFileSync(join(buildDir, "_worker.js/index.js"), "utf8");
-  const factory = entry.match(
-    /import \{ (\w+) as createExports[^}]*\} from '([^']+)'/,
+  const entry = readFileSync(workerEntry, "utf8");
+  const chunk = entry.match(
+    /import \{[^}]*\b(\w+) as manifest\b[^}]*\} from "([^"]+)"/,
   );
-  const manifestFile = entry.match(/import \{ manifest \} from '([^']+)'/);
-  if (!factory || !manifestFile)
-    throw new Error("built_worker_factory_not_found");
-  const { manifest } = await import(
-    join(buildDir, "_worker.js", manifestFile[1])
+  if (!chunk) throw new Error("built_worker_manifest_not_found");
+  const { [chunk[1]]: manifest } = await import(
+    new URL(chunk[2], pathToFileURL(workerEntry)).href
   );
-  const exports = await import(join(buildDir, "_worker.js", factory[2]));
-  return exports[factory[1]]({
-    ...manifest,
-    assets: new Set([...manifest.assets, ...paths]),
-  }).default;
+  for (const path of paths) manifest.assets.add(path);
+  const url = pathToFileURL(workerEntry);
+  url.searchParams.set("stale-assets", String(++fresh));
+  return withWorkerEnv((await import(url.href)).default);
 }

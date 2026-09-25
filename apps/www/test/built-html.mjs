@@ -15,9 +15,7 @@ const proof = JSON.parse(
 assert.equal(
   proof.workerSha256,
   createHash("sha256")
-    .update(
-      readFileSync(new URL("../dist/_worker.js/index.js", import.meta.url)),
-    )
+    .update(readFileSync(new URL("../dist/server/entry.mjs", import.meta.url)))
     .digest("hex"),
   "Rendered fixtures must match the current built Worker",
 );

@@ -3,6 +3,7 @@ import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import reactRenderer from "@astrojs/react/server.js";
 import { ADMIN_ROUTES } from "../../../../scripts/ci/admin-route-inventory.mjs";
 import { contentDatabase } from "../../../www/test/content-database.mjs";
+import { env as workerEnv } from "cloudflare:workers";
 
 // Production renders every Admin page on the server. A browser global touched
 // during that render throws after the response has started, which ships an
@@ -138,6 +139,8 @@ const READERS_ON = {
   // The published store at version 0: previews overlay nothing on Git.
   CONTENT_DB: contentDatabase(),
 };
+// Every route reads these bindings, as a Worker reads its own.
+Object.assign(workerEnv, READERS_ON);
 
 const pageModules = {
   ...import.meta.glob("../../src/pages/**/*.astro"),
@@ -192,7 +195,7 @@ async function render({ file, route, url }) {
   return container.renderToResponse(page.default, {
     request: new Request(`https://admin.anipotts.com${url}`),
     params: paramsFor(file, route),
-    locals: { runtime: { env: READERS_ON } },
+    locals: {},
     partial: false,
   });
 }

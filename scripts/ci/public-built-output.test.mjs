@@ -7,15 +7,15 @@ import { parse } from "yaml";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const dist = join(root, "apps/www/.local/public-rendered");
-const deployDist = join(root, "apps/www/dist");
+// Adapter 14 emits deploy assets to dist/client and the Worker to dist/server.
+const deployDist = join(root, "apps/www/dist/client");
+const workerEntry = join(root, "apps/www/dist/server/entry.mjs");
 const proof = JSON.parse(
   readFileSync(join(dist, ".runtime-proof.json"), "utf8"),
 );
 assert.equal(
   proof.workerSha256,
-  createHash("sha256")
-    .update(readFileSync(join(deployDist, "_worker.js/index.js")))
-    .digest("hex"),
+  createHash("sha256").update(readFileSync(workerEntry)).digest("hex"),
   "Rendered fixtures must match the current built Worker",
 );
 // Runtime content must never be shipped as a stale static fallback.
