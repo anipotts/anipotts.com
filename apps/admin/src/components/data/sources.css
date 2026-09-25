@@ -83,3 +83,9 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
+
+/* A chip that carries System's meaning as its tooltip: the wrapper draws no
+   box, so the chip sits exactly where every other chip does. */
+.sources-state-hint {
+  display: contents;
+}
