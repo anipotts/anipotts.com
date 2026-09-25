@@ -556,15 +556,9 @@ export function AlertsView({
     path: ALERTS_PATH,
     param: "alert",
   });
-  // The names the incident tables draw: a shared name's host is its
-  // device tile there.
-  const names = useMemo(
-    () =>
-      rows.map((row) =>
-        row.keep ? row.name.slice(0, -row.keep.length) : row.name,
-      ),
-    [rows],
-  );
+  // The names the incident tables draw, a shared name's host included, so
+  // the Alert column keeps room for the longest on one line.
+  const names = useMemo(() => rows.map((row) => row.name), [rows]);
   const startWidth = alertStartWidth(rows, data.fixedNow ?? data.serverNow);
   const stateColumnWidth = alertStateWidth(rows);
   const firing = rows.filter((row) => row.status === "firing");

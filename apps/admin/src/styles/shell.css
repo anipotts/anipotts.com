@@ -335,6 +335,17 @@ body [data-astryx-theme]:not([data-astryx-media]) {
     margin-inline: calc(-1 * var(--admin-gutter));
     padding-inline: var(--admin-gutter);
     scroll-padding-inline: var(--admin-gutter);
+    /* A chip past the screen edge fades out across the gutter and a chip's
+       inset, so a row that scrolls reads as one. At rest, start and end,
+       every label sits inside that fade, so no whole label is ever faded. */
+    --admin-pages-fade: calc(var(--admin-gutter) + var(--spacing-3));
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 var(--admin-pages-fade),
+      #000 calc(100% - var(--admin-pages-fade)),
+      transparent
+    );
   }
 }
 .admin-phone-workspace,

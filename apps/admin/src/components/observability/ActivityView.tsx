@@ -430,14 +430,16 @@ export function ActivityView({ data }: { data: OpsData }) {
     }
     return [...seen].sort((a, b) => a[1].label.localeCompare(b[1].label));
   }, [rows, sourceOf]);
-  // Room for the longest name a row draws: an entry's own (a shared name's
-  // host is its device tile), or a reader route's.
+  // Room for the longest name a row draws: an entry's own, a shared name's
+  // host included, or a reader route's.
   const leadRoom = useMemo(
     () =>
       leadWidth(
-        (data.snapshot?.catalog ?? []).map((entry) => entryNaming(entry).name),
+        (data.snapshot?.catalog ?? []).map(
+          (entry) => entryNaming(entry, data.names).name,
+        ),
       ),
-    [data.snapshot],
+    [data.snapshot, data.names],
   );
   const columns = useMemo(
     () => activityColumns(catalog, data.fixedNow, data.names, leadRoom),

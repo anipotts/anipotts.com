@@ -769,16 +769,16 @@ function StatusList({
   const hosts = services.filter(opsIsHost);
   const rows = services.filter((service) => !opsIsHost(service)) as Row[];
   const syncs = useMemo(() => opsSyncRows(services), [services]);
-  // The detail's reserve is for the names rows draw: an entry's own, since
-  // the row's device tile names the host a shared name adds.
+  // The detail's reserve is for the names rows draw, a shared name's host
+  // included.
   const leadRoom = useMemo(
     () =>
       leadWidth(
         services
           .filter((service) => !opsIsHost(service))
-          .map((service) => entryNaming(service).name),
+          .map((service) => entryNaming(service, names).name),
       ),
-    [services],
+    [services, names],
   );
   const want = useMemo(() => reasonWant(rows), [rows]);
   const stateColumn = useMemo(() => opsStateWidth(rows), [rows]);
