@@ -120,14 +120,16 @@ describe("Sources by connector", () => {
     const headings = [...host.querySelectorAll("th[scope=rowgroup]")].map(
       (cell) => cell.textContent,
     );
-    expect(headings.slice(0, 4)).toEqual([
+    expect(headings.slice(0, 5)).toEqual([
       "Live",
+      // Messages' job is stale in System's sample.
+      "Needs attention",
       "Imported once",
       // Records but no status or lifecycle from System: not "Connected".
       "Status not reported",
       "Excluded",
     ]);
-    expect(headings[4]).toContain("Discovered, not connected");
+    expect(headings[5]).toContain("Discovered, not connected");
     const fold = host.querySelector<HTMLButtonElement>(
       ".workspace-group-toggle",
     )!;
@@ -192,7 +194,7 @@ describe("Sources by connector", () => {
         source("photos-pro", { status: "unavailable" }),
         source("calendar-work", { status: "failed" }),
         source("meeting-notes", { status: "paused" }),
-        source("ani-voice-memos", { status: "sometime-soon" }),
+        source("ani-self-profile", { status: "sometime-soon" }),
         source("ani-health", { status: "excluded", record_count: 0 }),
         discovered("gmail-work", { status: "discovered" }),
       ] as typeof sources,
@@ -210,7 +212,8 @@ describe("Sources by connector", () => {
         .querySelector('[aria-label="Live"]'),
     ).not.toBeNull();
     for (const label of [
-      "Syncing",
+      "Pending",
+      "Partial",
       "Unavailable",
       "Failed",
       "Paused",
@@ -218,21 +221,44 @@ describe("Sources by connector", () => {
       "Excluded",
     ])
       expect(table.textContent).toContain(label);
-    expect(table.querySelector('[aria-label="Connected"]')).not.toBeNull();
-    // Only the status admin cannot read sits under Status not reported.
-    const headings = [...host.querySelectorAll("th[scope=rowgroup]")].map(
-      (cell) => cell.textContent,
-    );
-    expect(headings.slice(0, 3)).toEqual([
+    expect(table.textContent).not.toContain("Syncing");
+    // The group follows the status: nothing Failed sits under Live, and
+    // nothing here reads as not reported.
+    const cells = [...host.querySelectorAll("th[scope=rowgroup]")];
+    const headings = cells.map((cell) => cell.textContent);
+    expect(headings.slice(0, 5)).toEqual([
+      "Live",
+      "Needs attention",
       "Connected",
-      "Status not reported",
+      "Paused",
       "Excluded",
     ]);
-    const unread = headings.indexOf("Status not reported");
-    const group = [...host.querySelectorAll("th[scope=rowgroup]")][
-      unread
-    ]!.closest("tr")!.nextElementSibling!;
-    expect(group.textContent).toContain("Unjudged");
+    const under = (heading: string) => {
+      const texts: string[] = [];
+      let row =
+        cells[headings.indexOf(heading)]!.closest("tr")!.nextElementSibling;
+      while (row && !row.querySelector("th[scope=rowgroup]")) {
+        texts.push(row.textContent ?? "");
+        row = row.nextElementSibling;
+      }
+      return texts.join(" | ");
+    };
+    expect(under("Live")).toContain("Food orders");
+    expect(under("Live")).not.toMatch(/Failed|Paused|Unjudged|Unavailable/);
+    for (const label of ["Failed", "Unavailable", "Unjudged"])
+      expect(under("Needs attention")).toContain(label);
+    expect(under("Paused")).toContain("Paused");
+    expect(under("Connected")).toContain("Pending");
+    expect(under("Connected")).toContain("Partial");
+    // Partial and Pending carry System's meaning as their tooltip.
+    expect(
+      table.querySelector(
+        '.sources-state-hint[title^="Records are retrievable"]',
+      ),
+    ).not.toBeNull();
+    expect(
+      table.querySelector('.sources-state-hint[title^="A capture attempt"]'),
+    ).not.toBeNull();
   });
 
   // A-3: the newest record's observation is not a sync (Messages read

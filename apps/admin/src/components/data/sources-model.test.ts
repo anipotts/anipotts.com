@@ -158,14 +158,14 @@ const served = (
 describe("System's status for every source", () => {
   it.each([
     ["excluded", "excluded", "excluded"],
-    ["partial", "connected", "connected"],
+    ["partial", "connected", "partial"],
     ["discovered", "discovered", "discovered"],
-    ["current", "connected", "live"],
+    ["current", "live", "live"],
     ["pending", "connected", "pending"],
-    ["unavailable", "connected", "unavailable"],
-    ["failed", "connected", "failed"],
-    ["paused", "connected", "paused"],
-    ["great", "unreported", "unjudged"],
+    ["unavailable", "attention", "unavailable"],
+    ["failed", "attention", "failed"],
+    ["paused", "paused", "paused"],
+    ["great", "attention", "unjudged"],
   ])(
     "A-3: reads %s as the %s group and the %s state",
     (status, group, state) => {
@@ -181,7 +181,7 @@ describe("System's status for every source", () => {
     expect(sourceGroup(served("gmail-work", "pending", none))).toBe(
       "connected",
     );
-    expect(sourceGroup(served("gmail-work", "great", none))).toBe("unreported");
+    expect(sourceGroup(served("gmail-work", "great", none))).toBe("attention");
     expect(sourceState(served("gmail-work", "great", none))).toBe("unjudged");
   });
 
@@ -222,6 +222,80 @@ describe("System's status for every source", () => {
         served("ani-food-orders", "current", { collection: "one_shot" }),
       ),
     ).toBe("imported");
+  });
+
+  it("A-3: never heads a source Live unless it is current and judged live", () => {
+    const jobs: SourceJobs = new Map([
+      ["pc.writer", { state: "ok" }],
+      ["pc.snapshot", { state: "stale" }],
+      ["pc.inference", { state: "failing" }],
+      ["host.ap-pro", { state: "degraded" }],
+      ["pro.whatsapp", { state: "asleep" }],
+    ]);
+    const live = (status: string, job?: string) =>
+      served("ani-browsing", status, {
+        collection: "live",
+        ...(job ? { job } : {}),
+      });
+    expect(sourceGroup(live("current", "pc.writer"), jobs)).toBe("live");
+    expect(sourceGroup(live("current"), jobs)).toBe("live");
+    // A job's exception moves a current source out of Live.
+    expect(sourceGroup(live("current", "pc.snapshot"), jobs)).toBe("attention");
+    expect(sourceGroup(live("current", "pc.inference"), jobs)).toBe(
+      "attention",
+    );
+    expect(sourceGroup(live("current", "host.ap-pro"), jobs)).toBe("attention");
+    expect(sourceGroup(live("current", "pro.whatsapp"), jobs)).toBe(
+      "connected",
+    );
+    // Unjudged is never Live: a multi-app pass or an unlisted job.
+    expect(sourceGroup(live("current", "pro.pc-send"), jobs)).toBe("connected");
+    expect(sourceGroup(live("current", "pro.gone"), jobs)).toBe("connected");
+    // collection: live never heads a source Live on its own.
+    expect(sourceGroup(live("failed", "pc.writer"), jobs)).toBe("attention");
+    expect(sourceGroup(live("paused", "pc.writer"), jobs)).toBe("paused");
+    expect(sourceGroup(live("unavailable"), jobs)).toBe("attention");
+    expect(sourceGroup(live("partial", "pc.writer"), jobs)).toBe("connected");
+    expect(sourceState(live("partial", "pc.writer"), jobs)).toBe("partial");
+    expect(sourceGroup(live("pending", "pc.writer"), jobs)).toBe("connected");
+    for (const [key, label] of [
+      ["attention", "Needs attention"],
+      ["paused", "Paused"],
+    ] as const)
+      expect(SOURCE_GROUPS[key]).toBe(label);
+  });
+
+  it("A-3: lets collection say Imported once only when the status agrees", () => {
+    const once = (status: string) =>
+      served("ani-food-orders", status, { collection: "one_shot" });
+    expect(sourceGroup(once("current"))).toBe("imported");
+    expect(sourceState(once("current"))).toBe("imported");
+    expect(sourceGroup(once("partial"))).toBe("imported");
+    expect(sourceState(once("partial"))).toBe("partial");
+    expect(sourceGroup(once("pending"))).toBe("connected");
+    expect(sourceGroup(once("failed"))).toBe("attention");
+    expect(sourceGroup(once("paused"))).toBe("paused");
+  });
+
+  it("keeps an older reader's groups as they were", () => {
+    const jobs: SourceJobs = new Map([["pc.writer", { state: "ok" }]]);
+    expect(sourceGroup(row("x", { collection: "live" }), jobs)).toBe("live");
+    expect(
+      sourceGroup(
+        row("x", { collection: "live", job: "pc.snapshot" }),
+        new Map([["pc.snapshot", { state: "stale" }]]),
+      ),
+    ).toBe("live");
+    expect(sourceGroup(row("x", { collection: "one_shot" }))).toBe("imported");
+    expect(sourceGroup(row("x", { collection: "discovered" }))).toBe(
+      "discovered",
+    );
+    expect(sourceGroup(row("x"))).toBe("unreported");
+    expect(sourceGroup(empty("x"))).toBe("discovered");
+    // Never Live without System's current.
+    expect(
+      sourceState(row("x", { collection: "live", job: "pc.writer" }), jobs),
+    ).toBe("unjudged");
   });
 
   it("A-3: shows ani-health as System serves it: Excluded, no records, nothing to open", () => {
@@ -272,15 +346,17 @@ describe("System's status for every source", () => {
     for (const item of rows)
       tally.set(item.state, (tally.get(item.state) ?? 0) + 1);
     expect(Object.fromEntries(tally)).toEqual({
-      connected: 16,
+      partial: 16,
       live: 7,
       excluded: 1,
       pending: 22,
       unavailable: 3,
     });
-    expect(new Set(rows.map((item) => SOURCE_GROUPS[item.group]))).toEqual(
-      new Set(["Connected", "Excluded"]),
+    expect([...new Set(rows.map((item) => SOURCE_GROUPS[item.group]))]).toEqual(
+      ["Live", "Needs attention", "Connected", "Excluded"],
     );
+    // Live holds only the seven current sources.
+    expect(rows.filter((item) => item.group === "live")).toHaveLength(7);
     expect(rows.some((item) => item.group === "unreported")).toBe(false);
   });
 });
@@ -341,7 +417,7 @@ describe("connector, device and lifecycle", () => {
     expect(sourceState(row("ani-contacts"))).toBe("unreported");
     expect(SOURCE_GROUPS.unreported).toBe("Status not reported");
     // Enrolled but empty keeps System's lifecycle: never "not connected".
-    const enrolled = empty("gmail-work", { status: "current" });
+    const enrolled = empty("gmail-work", { status: "pending" });
     expect(sourceGroup(enrolled)).toBe("connected");
     expect(sourceGroup(empty("gmail-work", { collection: "live" }))).toBe(
       "live",
@@ -514,7 +590,7 @@ describe("connector, device and lifecycle", () => {
     expect(sourceState(row("x", { status: "excluded" }))).toBe("excluded");
     expect(sourceState(row("x", { status: "pending" }))).toBe("pending");
     expect(sourceState(row("x", { status: "current" }))).toBe("live");
-    expect(sourceState(row("x", { status: "partial" }))).toBe("connected");
+    expect(sourceState(row("x", { status: "partial" }))).toBe("partial");
     expect(sourceState(row("x", { collection: "one_shot" }))).toBe("imported");
   });
 
@@ -525,7 +601,7 @@ describe("connector, device and lifecycle", () => {
       row("contacts-nyu", { status: "excluded" }),
     ]);
     const family = rows.find((item) => item.kind === "family")!;
-    expect(family.group).toBe("connected");
+    expect(family.group).toBe("live");
     expect(family.state).toBe("live");
     expect(family.accounts).toHaveLength(2);
     expect(rows.find((item) => item.tooltip === "contacts-nyu")).toMatchObject({

@@ -7,13 +7,14 @@
  * `collection`, `status`, `job`, `last_success_at`, `held_to`) decide when
  * present. The reader serves `status` for every source (system#231); the
  * rest are not served yet, so the id's words stand in for the connector and
- * the device. System's status comes first: a count never decides a
- * lifecycle, and only a reply with neither `collection` nor `status` (an
- * older reader) falls back to one, where a source with nothing recorded is
- * discovery inventory and one with records is only "Status not reported",
- * never Connected or Live. A status outside System's vocabulary is
- * Unjudged. An excluded source sits in its own group near the bottom,
- * whatever its counts say.
+ * the device. System's status comes first and decides the group (see
+ * SourceGroup); a count never decides one. Only a reply with neither
+ * `collection` nor `status` (an older reader) falls back to the counts,
+ * where a source with nothing recorded is discovery inventory and one with
+ * records is only "Status not reported", never Connected or Live. A status
+ * outside System's vocabulary is Unjudged, under Needs attention. An
+ * excluded source sits in its own group near the bottom, whatever its
+ * counts say.
  *
  * Nothing here guesses a schedule or a freshness. Only `current` is ever
  * Live. A source that names an ops job mirrors it (`job`, joined to the ops
@@ -104,42 +105,84 @@ export function sourceHost(source: DataSourceRow): string | null {
   return idDevice(source.id);
 }
 
-/** Lifecycles, in the order their groups show. `connected` is a source
- * System gives a status but no lifecycle. `unreported` is one whose status
- * admin cannot read: none from an older reader (with records), or a word
- * outside System's vocabulary. `excluded` holds what System
- * withdrew: it sits after the others, just above the folded discovered
- * group. */
+/** Groups, in the order they show. With a status from System (every source
+ * since system#231) the group follows the status: Live holds only current
+ * sources judged live, Needs attention holds failed, unavailable, stale and
+ * degraded ones and any status admin cannot read, and Paused holds what
+ * System stopped on purpose. `collection` still splits Imported once from
+ * the rest, but only for a status that agrees (current or partial).
+ * `connected` holds the enrolled rest (partial, pending). `unreported` is
+ * an older reader's source with records and no status. `excluded` holds
+ * what System withdrew: it sits after the others, just above the folded
+ * discovered group. */
 export type SourceGroup =
-  "live" | "connected" | "imported" | "unreported" | "excluded" | "discovered";
+  | "live"
+  | "attention"
+  | "connected"
+  | "imported"
+  | "paused"
+  | "unreported"
+  | "excluded"
+  | "discovered";
 export const SOURCE_GROUPS: Record<SourceGroup, string> = {
   live: "Live",
+  attention: "Needs attention",
   connected: "Connected",
   imported: "Imported once",
+  paused: "Paused",
   unreported: "Status not reported",
   excluded: "Excluded",
   discovered: "Discovered, not connected",
 };
 export const DISCOVERED_GROUP = SOURCE_GROUPS.discovered;
 
-export function sourceGroup(source: DataSourceRow): SourceGroup {
-  if (source.status === "excluded") return "excluded";
+/** An older reader's group, from `collection` and, with no word from
+ * System at all, the counts, which then say only that nothing was
+ * recorded. An enrolled source that is empty keeps its own lifecycle. */
+function legacyGroup(source: DataSourceRow): SourceGroup {
   if (source.collection === "live") return "live";
   if (source.collection === "one_shot") return "imported";
-  if (source.collection === "discovered" || source.status === "discovered")
-    return "discovered";
-  // A status admin cannot read is System's word all the same: no count
-  // stands in for it.
-  if (source.status === "unknown") return "unreported";
-  // Only with no word from System at all (an older reader) do the counts
-  // say anything, and then only that nothing was recorded. An enrolled
-  // source that is empty keeps its own lifecycle.
-  if (source.collection === null && source.status === null)
+  if (source.collection === "discovered") return "discovered";
+  if (source.collection === null)
     return source.records === 0 && source.revisions === 0
       ? "discovered"
       : "unreported";
   return "connected";
 }
+
+/** States that put a served source under Needs attention. */
+const ATTENTION: readonly SourceState[] = [
+  "failed",
+  "unavailable",
+  "stale",
+  "degraded",
+];
+
+export function sourceGroup(
+  source: DataSourceRow,
+  jobs: SourceJobs | null = null,
+): SourceGroup {
+  const status = source.status;
+  if (status === null) return legacyGroup(source);
+  if (status === "excluded") return "excluded";
+  const state = sourceState(source, jobs);
+  if (state === "discovered" || isDiscovered(source)) return "discovered";
+  // A status admin cannot read is System's word all the same: no count
+  // stands in for it, and it asks to be looked at.
+  if (status === "unknown" || ATTENTION.includes(state)) return "attention";
+  if (state === "paused") return "paused";
+  if (state === "live") return "live";
+  if (
+    state === "imported" ||
+    (status === "partial" && source.collection === "one_shot")
+  )
+    return "imported";
+  return "connected";
+}
+
+/** Found but never connected, on System's word. */
+const isDiscovered = (source: DataSourceRow) =>
+  source.collection === "discovered" || source.status === "discovered";
 
 /** Groups whose rows hold nothing to open or count: an excluded source's
  * records are withdrawn, a discovered one never had any. */
@@ -150,7 +193,7 @@ export function holdsRecords(group: SourceGroup): boolean {
 /**
  * A source's state, most severe first. `live` and `connected` and
  * `imported` and `discovered` are the ordinary states of their groups and
- * show as a quiet mark; the rest are exceptions and show as chips.
+ * show as a quiet mark; the rest show as chips.
  */
 export const SOURCE_STATES = [
   "failed",
@@ -162,6 +205,7 @@ export const SOURCE_STATES = [
   "asleep",
   "excluded",
   "unjudged",
+  "partial",
   "live",
   "connected",
   "imported",
@@ -192,11 +236,26 @@ export type SourceJob = {
 };
 export type SourceJobs = ReadonlyMap<string, SourceJob>;
 
+/** System's own word, where no job says otherwise: current is Live,
+ * pending and partial read as themselves, anything else is Unjudged. */
+function settled(source: DataSourceRow): SourceState {
+  switch (source.status) {
+    case "current":
+      return "live";
+    case "pending":
+      return "pending";
+    case "partial":
+      return "partial";
+    default:
+      return "unjudged";
+  }
+}
+
 /** A live or current source mirrors its job's own state. Live needs
- * System's `current` too: an ok job under any other status is Syncing when
- * pending and Unjudged otherwise. A current source that names no job is
- * Live on System's word. A named job that cannot be joined (no snapshot, a
- * job the snapshot does not list, or an unknown state) is Unjudged, and so
+ * System's `current` too: an ok job under any other status reads as that
+ * status (Pending, Partial) or Unjudged. A current source that names no job
+ * is Live on System's word. A named job that cannot be joined (no snapshot,
+ * a job the snapshot does not list, or an unknown state) is Unjudged, and so
  * is a source collected by a multi-app pass (SYNC_JOBS), whose state says
  * nothing about one source. */
 function liveState(
@@ -204,17 +263,11 @@ function liveState(
   jobs: SourceJobs | null,
 ): SourceState {
   if (source.job && SYNC_JOBS.includes(source.job)) return "unjudged";
-  const settled =
-    source.status === "current"
-      ? "live"
-      : source.status === "pending"
-        ? "pending"
-        : "unjudged";
-  if (!source.job) return settled;
+  if (!source.job) return settled(source);
   const job = jobs?.get(source.job);
   switch (job?.state) {
     case "ok":
-      return settled;
+      return settled(source);
     case "stale":
       return "stale";
     case "failing":
@@ -228,25 +281,39 @@ function liveState(
   }
 }
 
+/** An older reader's state, from its group as before. */
+function legacyState(
+  source: DataSourceRow,
+  jobs: SourceJobs | null,
+): SourceState {
+  const group = legacyGroup(source);
+  if (group === "discovered") return "discovered";
+  if (group === "live") return liveState(source, jobs);
+  if (group === "unreported") return "unreported";
+  return group === "imported" ? "imported" : "connected";
+}
+
 export function sourceState(
   source: DataSourceRow,
   jobs: SourceJobs | null = null,
 ): SourceState {
   const status = source.status;
+  if (status === null) return legacyState(source, jobs);
   if (status === "excluded") return "excluded";
   if (status === "failed") return "failed";
   if (status === "paused") return "paused";
   if (status === "unknown") return "unjudged";
-  const group = sourceGroup(source);
-  if (group === "discovered")
+  if (isDiscovered(source))
     return status === "unavailable" ? "unavailable" : "discovered";
   if (status === "unavailable") return "unavailable";
-  if (group === "live") return liveState(source, jobs);
-  if (status === "pending") return "pending";
-  if (group === "unreported") return "unreported";
-  if (group === "imported") return "imported";
-  // `partial` holds records System does not call current: Connected.
-  return status === "current" ? liveState(source, jobs) : "connected";
+  const state =
+    source.collection === "live" || status === "current"
+      ? liveState(source, jobs)
+      : settled(source);
+  // A finished one-shot import is Imported once, never Live.
+  return state === "live" && source.collection === "one_shot"
+    ? "imported"
+    : state;
 }
 
 export function worstState(states: readonly SourceState[]): SourceState {
@@ -269,7 +336,10 @@ export type SourceEntry = {
   tooltip: string;
 };
 
-export function sourceEntry(source: DataSourceRow): SourceEntry {
+export function sourceEntry(
+  source: DataSourceRow,
+  jobs: SourceJobs | null = null,
+): SourceEntry {
   const naming = sourceNaming({
     id: source.id,
     host: sourceHost(source),
@@ -280,7 +350,7 @@ export function sourceEntry(source: DataSourceRow): SourceEntry {
   return {
     source,
     connector: sourceConnector(source),
-    group: sourceGroup(source),
+    group: sourceGroup(source, jobs),
     name: naming.name,
     tile: naming.tile,
     device: naming.device?.id ?? null,
@@ -429,8 +499,9 @@ const byName = (a: { name: string }, b: { name: string }) =>
   a.name.localeCompare(b.name, "en");
 
 /**
- * The table's rows: grouped by lifecycle (Live, Connected, Imported once,
- * Status not reported, Excluded, then Discovered), one row per connector family in each,
+ * The table's rows: grouped in SOURCE_GROUPS order (Live, Needs attention,
+ * Connected, Imported once, Paused, Status not reported, Excluded, then
+ * Discovered), one row per connector family in each,
  * families in connector order. Sources of the Other family never fold: they are
  * different things, not accounts of one connector.
  */
@@ -440,7 +511,7 @@ export function sourceRows(
 ): SourceRow[] {
   const buckets = new Map<string, SourceEntry[]>();
   for (const source of sources) {
-    const entry = sourceEntry(source);
+    const entry = sourceEntry(source, jobs);
     const key =
       entry.connector === "other"
         ? `${entry.group}:other:${source.id}`

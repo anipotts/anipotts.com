@@ -8,6 +8,7 @@ import {
   BrowserIcon,
   CalendarBlankIcon,
   CaretRightIcon,
+  CircleHalfIcon,
   ChatCircleTextIcon,
   CircleDashedIcon,
   ChatsCircleIcon,
@@ -16,13 +17,13 @@ import {
   DatabaseIcon,
   EnvelopeSimpleIcon,
   HeartbeatIcon,
+  HourglassSimpleIcon,
   ImagesSquareIcon,
   MoonIcon,
   NotePencilIcon,
   PauseIcon,
   ProhibitIcon,
   RowsIcon,
-  SpinnerGapIcon,
   StackSimpleIcon,
   WarningCircleIcon,
   WarningIcon,
@@ -89,7 +90,7 @@ const CONNECTOR_GLYPHS: Record<SourceRow["connector"], Icon> = {
  * a chip's dot sits; every other state is its chip. */
 const STATES: Record<
   SourceState,
-  { label: string; tone: Tone; quiet?: true; icon?: Icon }
+  { label: string; tone: Tone; quiet?: true; icon?: Icon; hint?: string }
 > = {
   live: { label: "Live", tone: "positive", quiet: true },
   connected: { label: "Connected", tone: "neutral", quiet: true },
@@ -106,8 +107,19 @@ const STATES: Record<
   failed: { label: "Failed", tone: "critical", icon: WarningCircleIcon },
   unavailable: { label: "Unavailable", tone: "neutral", icon: ProhibitIcon },
   paused: { label: "Paused", tone: "rest", icon: PauseIcon },
-  // System's `pending`: enrolled, its collection not yet settled.
-  pending: { label: "Syncing", tone: "neutral", icon: SpinnerGapIcon },
+  // System's own meanings (personal_context INTERFACE.md) as tooltips.
+  pending: {
+    label: "Pending",
+    tone: "neutral",
+    icon: HourglassSimpleIcon,
+    hint: "A capture attempt started and has not recorded its outcome",
+  },
+  partial: {
+    label: "Partial",
+    tone: "neutral",
+    icon: CircleHalfIcon,
+    hint: "Records are retrievable; the last capture was incomplete or covered only an enrolled batch, or no catalog status exists",
+  },
   excluded: { label: "Excluded", tone: "neutral", icon: ProhibitIcon },
 };
 
@@ -152,7 +164,7 @@ export function SourceStateMark({
     );
   }
   const Glyph = badge.icon ?? WarningCircleIcon;
-  return (
+  const chip = (
     <StateBadge
       tone={badge.tone}
       label={badge.label}
@@ -165,6 +177,13 @@ export function SourceStateMark({
         />
       }
     />
+  );
+  return badge.hint ? (
+    <span className="sources-state-hint" title={badge.hint}>
+      {chip}
+    </span>
+  ) : (
+    chip
   );
 }
 
