@@ -357,6 +357,14 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   padding-inline: var(--spacing-2);
   font-size: clamp(var(--font-size-base), 4.4vw, var(--font-size-lg));
 }
+/* Below 360px the labels are at their least size and the three would
+   overflow, pushing "Observability" into the search target: the targets
+   narrow instead, so the row fits and the label keeps the gutter. */
+@media (max-width: 359px) {
+  .admin-phone-workspace {
+    padding-inline: var(--spacing-1);
+  }
+}
 .admin-phone-workspace[aria-current="true"] {
   color: var(--color-text-primary);
 }
