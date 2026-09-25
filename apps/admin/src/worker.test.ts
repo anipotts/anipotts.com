@@ -1,4 +1,3 @@
-import type { SSRManifest } from "astro";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HASHED_ASSET_CACHE } from "./lib/hashed-assets";
 
@@ -8,9 +7,7 @@ const inner = vi.hoisted(() => ({
       new Response("astro", { status: 200 }),
   ),
 }));
-vi.mock("@astrojs/cloudflare/entrypoints/server.js", () => ({
-  createExports: () => ({ default: { fetch: inner.fetch } }),
-}));
+vi.mock("@astrojs/cloudflare/handler", () => ({ handle: inner.fetch }));
 vi.mock("./editorial/draft-store", () => ({
   EditorialDraftStore: class EditorialDraftStore {},
 }));
@@ -28,8 +25,7 @@ function contractLines(...spies: Array<{ mock: { calls: unknown[][] } }>) {
 }
 
 async function freshWorker() {
-  const { createExports } = await import("./worker");
-  return createExports({} as SSRManifest);
+  return { ...(await import("./worker")) };
 }
 
 beforeEach(() => {

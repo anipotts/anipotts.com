@@ -2,8 +2,8 @@ import {
   canonicalContentPath,
   isRuntimeContentPath,
 } from "./lib/content-paths";
-import type { SSRManifest } from "astro";
-import { createExports as createAstroExports } from "@astrojs/cloudflare/entrypoints/server.js";
+import { handle } from "@astrojs/cloudflare/handler";
+import { manifest } from "virtual:astro:manifest";
 import { withSecurityHeaders } from "./lib/security-headers";
 import {
   isStaticAssetPath,
@@ -17,7 +17,7 @@ import { contentUnavailable } from "./lib/published-runtime";
  * revalidates on every use, so an unpublished article stops sharing it. */
 const GATED_CARD_CACHE = "public, max-age=0, must-revalidate";
 
-/** Cloudflare Worker entry, named by astro.config.mjs. The adapter answers
+/** Cloudflare Worker entry, named by `main` in wrangler.toml. The adapter answers
  * prerendered pages and manifest assets from env.ASSETS before middleware
  * runs, so the security headers are applied here to every response it returns.
  * Routing and redirects stay exactly as the adapter produces them.
@@ -39,124 +39,123 @@ const GATED_CARD_CACHE = "public, max-age=0, must-revalidate";
  * matches If-None-Match is answered with a 304 here, so prerendered pages
  * revalidate too. Routing, status and body are otherwise unchanged.
  */
-export function createExports(manifest: SSRManifest) {
-  // The adapter checks manifest assets before middleware. Keep CMS-controlled
-  // paths in the route dispatcher even if an old bundled image has this name.
-  const astro = createAstroExports({
-    ...manifest,
-    assets: new Set(
-      [...manifest.assets].filter((path) => !isRuntimeContentPath(path)),
-    ),
-  });
-  const fetch: typeof astro.default.fetch = async (request, env, context) => {
-    try {
-      const url = new URL(request.url);
-      const { pathname } = url;
-      const canonical = canonicalContentPath(pathname);
-      if (canonical === null)
-        return withSecurityHeaders(
-          new Response("Invalid path", {
-            status: 400,
-            headers: { "Cache-Control": "no-store" },
-          }),
-        );
-      if (canonical !== pathname) {
-        url.pathname = canonical;
-        return withSecurityHeaders(Response.redirect(url, 308));
-      }
-      // Content pages once shipped as .html files. Those URLs keep resolving
-      // to the reader's route instead of any asset under the old name.
-      if (
-        /^(?:\/index|\/(?:work|writing|systems)(?:\/[^/]+)?)\.html$/u.test(
-          pathname,
-        )
-      ) {
-        url.pathname = pathname === "/index.html" ? "/" : pathname.slice(0, -5);
-        return withSecurityHeaders(Response.redirect(url, 308));
-      }
-      const card =
-        request.method === "GET" || request.method === "HEAD"
-          ? writingCardSlug(pathname)
-          : null;
-      if (card !== null) {
-        const store = env as {
-          CONTENT_RUNTIME?: string;
-          CONTENT_DB?: D1Database;
-        };
-        const database =
-          store.CONTENT_RUNTIME === "cms" ? store.CONTENT_DB : undefined;
-        if (!database) return withSecurityHeaders(contentUnavailable());
-        let hidden: Response | null;
-        try {
-          hidden = await hiddenWritingCard(database, card);
-        } catch {
-          return withSecurityHeaders(contentUnavailable());
-        }
-        if (hidden) return withSecurityHeaders(hidden);
-      }
-      if (
-        (request.method === "GET" || request.method === "HEAD") &&
-        !isRuntimeContentPath(pathname) &&
-        isStaticAssetPath(pathname)
-      ) {
-        // The same request object. The adapter's handler type and the ASSETS
-        // Fetcher type come from different workers type sets.
-        const asset = await env.ASSETS.fetch(
-          request as unknown as Parameters<typeof env.ASSETS.fetch>[0],
-        );
-        if (asset.ok || asset.status === 304) {
-          const served = withStaticCacheControl(
-            pathname,
-            withConditionalStatus(request, pathname, asset),
-          );
-          if (card === null) return withSecurityHeaders(served);
-          const gated = new Response(
-            served.status === 304 ? null : served.body,
-            served,
-          );
-          gated.headers.set("Cache-Control", GATED_CARD_CACHE);
-          return withSecurityHeaders(gated);
-        }
-      }
-      // HEAD renders as GET and drops the body here, so every route answers
-      // HEAD with the status and headers GET gets.
-      const head = request.method === "HEAD" && !pathname.startsWith("/api/");
-      const rendered = head
-        ? (new Request(request as unknown as Request, {
-            method: "GET",
-          }) as unknown as typeof request)
-        : request;
-      const response = await astro.default.fetch(rendered, env, context);
-      if (
-        response.status === 500 &&
-        !pathname.startsWith("/api/") &&
-        response.headers.get("cache-control") !== "no-store"
-      )
-        throw new Error("upstream_unavailable");
-      const result = withConditionalStatus(request, pathname, response);
-      if (head && result.body) {
-        void result.body.cancel();
-        return withSecurityHeaders(
-          new Response(null, {
-            status: result.status,
-            statusText: result.statusText,
-            headers: result.headers,
-          }),
-        );
-      }
-      return withSecurityHeaders(result);
-    } catch {
-      console.error("www worker fetch failed");
+// The adapter checks manifest assets before middleware. Keep CMS-controlled
+// paths in the route dispatcher even if an old bundled image has this name.
+// The handler's app holds this same manifest object, so the filter applies
+// before the first request.
+for (const path of [...manifest.assets])
+  if (isRuntimeContentPath(path)) manifest.assets.delete(path);
+
+type Handler = typeof handle;
+const fetch: Handler = async (request, env, context) => {
+  try {
+    const url = new URL(request.url);
+    const { pathname } = url;
+    const canonical = canonicalContentPath(pathname);
+    if (canonical === null)
       return withSecurityHeaders(
-        new Response("internal error", {
-          status: 500,
-          headers: {
-            "cache-control": "no-store",
-            "content-type": "text/plain; charset=utf-8",
-          },
+        new Response("Invalid path", {
+          status: 400,
+          headers: { "Cache-Control": "no-store" },
+        }),
+      );
+    if (canonical !== pathname) {
+      url.pathname = canonical;
+      return withSecurityHeaders(Response.redirect(url, 308));
+    }
+    // Content pages once shipped as .html files. Those URLs keep resolving
+    // to the reader's route instead of any asset under the old name.
+    if (
+      /^(?:\/index|\/(?:work|writing|systems)(?:\/[^/]+)?)\.html$/u.test(
+        pathname,
+      )
+    ) {
+      url.pathname = pathname === "/index.html" ? "/" : pathname.slice(0, -5);
+      return withSecurityHeaders(Response.redirect(url, 308));
+    }
+    const card =
+      request.method === "GET" || request.method === "HEAD"
+        ? writingCardSlug(pathname)
+        : null;
+    if (card !== null) {
+      const store = env as {
+        CONTENT_RUNTIME?: string;
+        CONTENT_DB?: D1Database;
+      };
+      const database =
+        store.CONTENT_RUNTIME === "cms" ? store.CONTENT_DB : undefined;
+      if (!database) return withSecurityHeaders(contentUnavailable());
+      let hidden: Response | null;
+      try {
+        hidden = await hiddenWritingCard(database, card);
+      } catch {
+        return withSecurityHeaders(contentUnavailable());
+      }
+      if (hidden) return withSecurityHeaders(hidden);
+    }
+    if (
+      (request.method === "GET" || request.method === "HEAD") &&
+      !isRuntimeContentPath(pathname) &&
+      isStaticAssetPath(pathname)
+    ) {
+      // The same request object. The adapter's handler type and the ASSETS
+      // Fetcher type come from different workers type sets.
+      const asset = await env.ASSETS.fetch(
+        request as unknown as Parameters<typeof env.ASSETS.fetch>[0],
+      );
+      if (asset.ok || asset.status === 304) {
+        const served = withStaticCacheControl(
+          pathname,
+          withConditionalStatus(request, pathname, asset),
+        );
+        if (card === null) return withSecurityHeaders(served);
+        const gated = new Response(
+          served.status === 304 ? null : served.body,
+          served,
+        );
+        gated.headers.set("Cache-Control", GATED_CARD_CACHE);
+        return withSecurityHeaders(gated);
+      }
+    }
+    // HEAD renders as GET and drops the body here, so every route answers
+    // HEAD with the status and headers GET gets.
+    const head = request.method === "HEAD" && !pathname.startsWith("/api/");
+    const rendered = head
+      ? (new Request(request as unknown as Request, {
+          method: "GET",
+        }) as unknown as typeof request)
+      : request;
+    const response = await handle(rendered, env, context);
+    if (
+      response.status === 500 &&
+      !pathname.startsWith("/api/") &&
+      response.headers.get("cache-control") !== "no-store"
+    )
+      throw new Error("upstream_unavailable");
+    const result = withConditionalStatus(request, pathname, response);
+    if (head && result.body) {
+      void result.body.cancel();
+      return withSecurityHeaders(
+        new Response(null, {
+          status: result.status,
+          statusText: result.statusText,
+          headers: result.headers,
         }),
       );
     }
-  };
-  return { ...astro, default: { ...astro.default, fetch } };
-}
+    return withSecurityHeaders(result);
+  } catch {
+    console.error("www worker fetch failed");
+    return withSecurityHeaders(
+      new Response("internal error", {
+        status: 500,
+        headers: {
+          "cache-control": "no-store",
+          "content-type": "text/plain; charset=utf-8",
+        },
+      }),
+    );
+  }
+};
+
+export default { fetch };

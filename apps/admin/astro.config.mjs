@@ -2,6 +2,7 @@
 import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
+import { unified } from "@astrojs/markdown-remark";
 import icon from "astro-icon";
 import astroAdvisoryGuard from "../../config/astro/advisory-guard.mjs";
 import { publicContentHotReload } from "../../scripts/dev/public-content-hot-reload.mjs";
@@ -24,6 +25,14 @@ if (adminLocalOwner && process.env.GITHUB_ACTIONS === "true") {
 }
 
 export default defineConfig({
+  // Auth uses Access and application cookies, never Astro sessions. Without
+  // this the adapter provisions a SESSION KV binding the Worker never had.
+  session: false,
+  // Astro 7 defaults to JSX whitespace rules. Keep the lossless HTML
+  // compression the admin has always shipped.
+  compressHTML: true,
+  // Astro 7 defaults to Sätteri. Keep the remark/rehype pipeline.
+  markdown: { processor: unified() },
   site: "https://admin.anipotts.com",
   output: "server",
   // A local owner build never writes the directory wrangler deploys.
@@ -67,6 +76,17 @@ export default defineConfig({
     },
     plugins: [
       {
+        // astro dev renders in workerd, whose console.createTask throws "not
+        // implemented". React's development build calls it while its modules
+        // load, so the dev server renders without it. Builds are unaffected.
+        name: "admin-dev-workerd-console",
+        apply: "serve",
+        configEnvironment(name) {
+          if (name === "ssr")
+            return { define: { "console.createTask": "undefined" } };
+        },
+      },
+      {
         name: "admin-preview-cache",
         apply: "serve",
         config() {
@@ -97,12 +117,9 @@ export default defineConfig({
       },
     ],
   },
+  // The Worker entry, with the EditorialDraftStore export, is `main` in
+  // wrangler.toml (src/worker.ts).
   adapter: cloudflare({
-    workerEntryPoint: {
-      path: "./src/worker.ts",
-      namedExports: ["EditorialDraftStore"],
-    },
-    platformProxy: { enabled: true },
     imageService: "passthrough",
   }),
 });
