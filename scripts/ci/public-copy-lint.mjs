@@ -22,6 +22,7 @@ const surfaces = [
     "apps/www/src/pages/index.astro",
     "apps/www/src/pages/systems.astro",
     "apps/www/src/pages/links.astro",
+    "apps/www/src/pages/business.astro",
     "apps/www/src/pages/404.astro",
     "apps/www/src/components/Footer.astro",
   ].map((source) => ({

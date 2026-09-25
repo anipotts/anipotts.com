@@ -13,6 +13,7 @@ const inventory = [
   { route: "/work", file: "apps/www/src/pages/work/index.astro" },
   { route: "/systems", file: "apps/www/src/pages/systems.astro" },
   { route: "/links", file: "apps/www/src/pages/links.astro" },
+  { route: "/business", file: "apps/www/src/pages/business.astro" },
   ...DEFAULT_CMS_PROJECTS.filter(isPublicProject).map((project) => ({
     route: project.detail_path,
     file: "apps/www/src/pages/work/[slug].astro",

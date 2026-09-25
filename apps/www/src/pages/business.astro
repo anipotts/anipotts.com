@@ -1,0 +1,104 @@
+---
+import Shell from "../layouts/Shell.astro";
+import PageHero from "../components/PageHero.astro";
+import { siteConfig, siteLinks } from "@anipotts/content/public";
+
+// Static legal facts for banks, payment processors and partners. Kept in code
+// rather than a CMS record so the registered details only change by review.
+const legalName = "Ani Potts LLC";
+const summary = `${legalName}, a New Jersey limited liability company.`;
+const registeredAgent = {
+  name: "Northwest Registered Agent LLC",
+  lines: ["971 US Highway 202N, Ste N", "Branchburg, NJ 08876"],
+};
+
+const organizationLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: legalName,
+  legalName,
+  url: `${siteConfig.url}/business`,
+  email: siteConfig.email,
+};
+---
+
+<Shell
+  title="business"
+  description={`${summary} Contact and registered agent details.`}
+  path="/business"
+  jsonLd={organizationLd}
+>
+  <PageHero title="business" summary={summary} />
+  <section data-rise class="business" aria-label="Company details">
+    <p class="business__about">
+      Ani Potts LLC produces videos and writing about AI and software
+      development, including sponsored content for technology companies. It also
+      develops software.
+    </p>
+    <dl class="business__facts">
+      <div>
+        <dt class="section-label">contact</dt>
+        <dd>
+          <a href={siteLinks.email.href} class="accent-link">
+            {siteConfig.email}
+          </a>
+        </dd>
+      </div>
+      <div>
+        <dt class="section-label">registered agent</dt>
+        <dd>
+          <address>
+            {
+              [registeredAgent.name, ...registeredAgent.lines].map((line) => (
+                <span>{line}</span>
+              ))
+            }
+          </address>
+        </dd>
+      </div>
+    </dl>
+  </section>
+</Shell>
+
+<style>
+  .business {
+    display: grid;
+    gap: var(--s-6);
+    max-width: 40rem;
+  }
+
+  .business__about {
+    margin: 0;
+    font-size: var(--d-lede);
+    line-height: 1.52;
+    text-wrap: pretty;
+  }
+
+  .business__facts {
+    display: grid;
+    gap: var(--s-5);
+    margin: 0;
+  }
+
+  .business__facts dt {
+    margin-bottom: var(--s-2);
+  }
+
+  .business__facts dd {
+    margin: 0;
+    font-size: var(--p-body);
+    line-height: 1.5;
+  }
+
+  .business__facts a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    overflow-wrap: anywhere;
+  }
+
+  address {
+    display: grid;
+    font-style: normal;
+  }
+</style>
