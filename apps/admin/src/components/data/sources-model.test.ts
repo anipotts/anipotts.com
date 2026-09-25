@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import dataFixture from "../../fixtures/data_v1.synthetic.json";
-import { parseSource, type DataSourceRow } from "./data-model";
+import { SOURCE_STATUSES, parseSource, type DataSourceRow } from "./data-model";
 import {
   DISCOVERED_GROUP,
   SOURCE_GROUPS,
@@ -82,6 +82,7 @@ describe("source rows as System serves them", () => {
       discoveredCount: 3,
       lastSuccessAt: ago(10),
       heldTo: ago(10),
+      unknownFields: [],
     });
   });
 
@@ -98,12 +99,189 @@ describe("source rows as System serves them", () => {
     expect(odd).toMatchObject({
       connector: null,
       collection: null,
-      status: null,
+      // A status is System's word even when admin cannot read it.
+      status: "unknown",
       job: null,
       host: null,
+      unknownFields: ["notes", "path"],
     });
     expect(JSON.stringify(odd)).not.toContain("private");
     expect(sourceConnector(odd)).toBe("mail");
+  });
+
+  it("A-3: reads a status outside System's vocabulary as unknown for that source alone", () => {
+    for (const status of ["great", "CURRENT", "", 42, true, {}, ["current"]])
+      expect(row("gmail-work", { status }).status, String(status)).toBe(
+        "unknown",
+      );
+    // One odd item never costs its neighbours their own status.
+    const items = [
+      row("gmail-work", { status: "live-ish" }),
+      row("ani-contacts", { status: "partial" }),
+    ];
+    expect(items.map((item) => item.status)).toEqual(["unknown", "partial"]);
+  });
+
+  it("A-3: reads a reply without status (an older reader) as not reported", () => {
+    expect(row("ani-contacts").status).toBeNull();
+    expect(row("ani-contacts", { status: null }).status).toBeNull();
+    expect(sourceState(row("ani-contacts"))).toBe("unreported");
+  });
+
+  it("names unknown fields, bounded, without reading them", () => {
+    const extra = Object.fromEntries(
+      Array.from({ length: 20 }, (_, index) => [`field_${index}`, index]),
+    );
+    const many = row("manual", { "Bad Name!": 1, ...extra });
+    expect(many.unknownFields).toHaveLength(16);
+    expect(many.unknownFields).toContain("other");
+    expect(many.unknownFields).not.toContain("Bad Name!");
+  });
+});
+
+// The six keys personal_context_data_v1 serves per source (system#231).
+const served = (
+  id: string,
+  status: unknown,
+  extra: Record<string, unknown> = {},
+) =>
+  parseSource({
+    source_id: id,
+    status,
+    first_observed_at: ago(60 * 24 * 30),
+    last_observed_at: ago(30),
+    record_count: 10,
+    revision_count: 12,
+    ...extra,
+  })!;
+
+describe("System's status for every source", () => {
+  it.each([
+    ["excluded", "excluded", "excluded"],
+    ["partial", "connected", "connected"],
+    ["discovered", "discovered", "discovered"],
+    ["current", "connected", "live"],
+    ["pending", "connected", "pending"],
+    ["unavailable", "connected", "unavailable"],
+    ["failed", "connected", "failed"],
+    ["paused", "connected", "paused"],
+    ["great", "unreported", "unjudged"],
+  ])(
+    "A-3: reads %s as the %s group and the %s state",
+    (status, group, state) => {
+      const source = served("ani-food-orders", status);
+      expect(sourceGroup(source)).toBe(group);
+      expect(sourceState(source)).toBe(state);
+    },
+  );
+
+  it("A-3: never lets a count stand in for a status System served", () => {
+    // Nothing recorded, but System has a word: never folded as discovered.
+    const none = { record_count: 0, revision_count: 0 };
+    expect(sourceGroup(served("gmail-work", "pending", none))).toBe(
+      "connected",
+    );
+    expect(sourceGroup(served("gmail-work", "great", none))).toBe("unreported");
+    expect(sourceState(served("gmail-work", "great", none))).toBe("unjudged");
+  });
+
+  it("A-3: shows Live only for current, whatever the job says", () => {
+    const jobs: SourceJobs = new Map([["pc.writer", { state: "ok" }]]);
+    for (const status of [...SOURCE_STATUSES, "great", null]) {
+      for (const extra of [
+        {},
+        { collection: "live" },
+        { collection: "live", job: "pc.writer" },
+        { job: "pc.writer" },
+      ]) {
+        const state = sourceState(served("ani-browsing", status, extra), jobs);
+        if (status === "current") expect(state).toBe("live");
+        else
+          expect(state, `${status} ${JSON.stringify(extra)}`).not.toBe("live");
+      }
+    }
+    // A pending source under an ok job is Syncing; a stale job still wins.
+    expect(
+      sourceState(
+        served("ani-browsing", "pending", {
+          collection: "live",
+          job: "pc.writer",
+        }),
+        jobs,
+      ),
+    ).toBe("pending");
+    expect(
+      sourceState(
+        served("ani-browsing", "current", { job: "pc.writer" }),
+        new Map([["pc.writer", { state: "stale" }]]),
+      ),
+    ).toBe("stale");
+    // A one-shot import that finished is Imported once, not Live.
+    expect(
+      sourceState(
+        served("ani-food-orders", "current", { collection: "one_shot" }),
+      ),
+    ).toBe("imported");
+  });
+
+  it("A-3: shows ani-health as System serves it: Excluded, no records, nothing to open", () => {
+    const health = parseSource({
+      source_id: "ani-health",
+      status: "excluded",
+      // 0.14s before its first observation: read as given, never flagged.
+      first_observed_at: "2026-09-22T17:44:54.119Z",
+      last_observed_at: "2026-09-22T17:44:53.979Z",
+      record_count: 0,
+      revision_count: 92,
+    })!;
+    expect(health).toMatchObject({
+      status: "excluded",
+      records: 0,
+      revisions: 92,
+      unknownFields: [],
+    });
+    const [only] = sourceRows([health]);
+    expect(only).toMatchObject({
+      group: "excluded",
+      state: "excluded",
+      records: 0,
+      revisions: 92,
+      sourceId: null,
+      lastSeen: null,
+      lastSync: null,
+    });
+  });
+
+  it("A-3: groups the live catalog's mix by System's word", () => {
+    // Across all 49 live sources: partial 16, current 7, excluded 1,
+    // pending 22, unavailable 3 (system#231). Synthetic ids.
+    const mix: Array<[string, number]> = [
+      ["partial", 16],
+      ["current", 7],
+      ["excluded", 1],
+      ["pending", 22],
+      ["unavailable", 3],
+    ];
+    const sources = mix.flatMap(([status, n]) =>
+      Array.from({ length: n }, (_, index) =>
+        served(`other-${status}-${index}`, status, { connector: "other" }),
+      ),
+    );
+    const rows = sourceRows(sources);
+    const tally = new Map<string, number>();
+    for (const item of rows)
+      tally.set(item.state, (tally.get(item.state) ?? 0) + 1);
+    expect(Object.fromEntries(tally)).toEqual({
+      connected: 16,
+      live: 7,
+      excluded: 1,
+      pending: 22,
+      unavailable: 3,
+    });
+    expect(new Set(rows.map((item) => SOURCE_GROUPS[item.group]))).toEqual(
+      new Set(["Connected", "Excluded"]),
+    );
+    expect(rows.some((item) => item.group === "unreported")).toBe(false);
   });
 });
 
@@ -231,9 +409,9 @@ describe("connector, device and lifecycle", () => {
     expect(sourceState(live("pc.inference"), jobs)).toBe("failed");
     expect(sourceState(live("host.ap-pro"), jobs)).toBe("degraded");
     expect(sourceState(live("pro.whatsapp"), jobs)).toBe("asleep");
-    // No job, no snapshot, a job it does not list, or an unknown state:
-    // never Live.
-    expect(sourceState(live(null), jobs)).toBe("unjudged");
+    // A current source that names no job has only System's word: Live.
+    expect(sourceState(live(null), jobs)).toBe("live");
+    // No snapshot, a job it does not list, or an unknown state: never Live.
     expect(sourceState(live("pro.pc-send"))).toBe("unjudged");
     expect(sourceState(live("pro.gone"), jobs)).toBe("unjudged");
     expect(sourceState(live("health.ingest"), jobs)).toBe("unjudged");
@@ -241,7 +419,9 @@ describe("connector, device and lifecycle", () => {
     // under an ok job is Live, and a fresh one under no job is Unjudged.
     const old = live("pro.voicememos", { held_to: ago(60 * 24 * 31) });
     expect(sourceState(old, jobs)).toBe("live");
-    expect(sourceState(live(null, { held_to: ago(1) }), jobs)).toBe("unjudged");
+    expect(sourceState(live("pro.gone", { held_to: ago(1) }), jobs)).toBe(
+      "unjudged",
+    );
     const [shown] = sourceRows([old], jobs);
     expect(shown!.newest).toBe(ago(60 * 24 * 31));
   });
@@ -292,7 +472,8 @@ describe("connector, device and lifecycle", () => {
   });
 
   it("A-3: puts an excluded source in its own group, whatever its counts say", () => {
-    // ani-health as System serves it once the exclusion lands.
+    // ani-health as System served it before system#231 counted only
+    // retrievable records.
     const health = row("ani-health", {
       record_count: 93,
       revision_count: 93,
@@ -332,7 +513,8 @@ describe("connector, device and lifecycle", () => {
     ).toBe("paused");
     expect(sourceState(row("x", { status: "excluded" }))).toBe("excluded");
     expect(sourceState(row("x", { status: "pending" }))).toBe("pending");
-    expect(sourceState(row("x", { status: "current" }))).toBe("connected");
+    expect(sourceState(row("x", { status: "current" }))).toBe("live");
+    expect(sourceState(row("x", { status: "partial" }))).toBe("connected");
     expect(sourceState(row("x", { collection: "one_shot" }))).toBe("imported");
   });
 
@@ -344,7 +526,7 @@ describe("connector, device and lifecycle", () => {
     ]);
     const family = rows.find((item) => item.kind === "family")!;
     expect(family.group).toBe("connected");
-    expect(family.state).toBe("connected");
+    expect(family.state).toBe("live");
     expect(family.accounts).toHaveLength(2);
     expect(rows.find((item) => item.tooltip === "contacts-nyu")).toMatchObject({
       group: "excluded",

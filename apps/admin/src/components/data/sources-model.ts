@@ -5,18 +5,23 @@
  *
  * System's catalog fields (`display_name`, `connector`, `host`,
  * `collection`, `status`, `job`, `last_success_at`, `held_to`) decide when
- * present. Until System serves them, the id's words stand in for the
- * connector and the device. A count never decides a lifecycle: with neither
- * `collection` nor `status`, a source with nothing recorded is discovery
- * inventory, and one with records is only "Status not reported", never
- * Connected or Live. An excluded source sits in its own group near the
- * bottom, whatever its counts say.
+ * present. The reader serves `status` for every source (system#231); the
+ * rest are not served yet, so the id's words stand in for the connector and
+ * the device. System's status comes first: a count never decides a
+ * lifecycle, and only a reply with neither `collection` nor `status` (an
+ * older reader) falls back to one, where a source with nothing recorded is
+ * discovery inventory and one with records is only "Status not reported",
+ * never Connected or Live. A status outside System's vocabulary is
+ * Unjudged. An excluded source sits in its own group near the bottom,
+ * whatever its counts say.
  *
- * Nothing here guesses a schedule or a freshness. A live source mirrors the
- * ops job that collects it (`job`, joined to the ops snapshot): an ok job is
- * Live, and stale, failing, degraded and asleep read as themselves. No job,
- * a job the snapshot does not list, an unknown one, or no current snapshot
- * reads a neutral Unjudged. A multi-app pass (SYNC_JOBS: pro.pc-send) never
+ * Nothing here guesses a schedule or a freshness. Only `current` is ever
+ * Live. A source that names an ops job mirrors it (`job`, joined to the ops
+ * snapshot): an ok job with a current status is Live, and stale, failing,
+ * degraded and asleep read as themselves. A job the snapshot does not list,
+ * an unknown one, or no current snapshot reads a neutral Unjudged, and so
+ * does an ok job under any other status. A current source that names no job
+ * has only System's word, and is Live. A multi-app pass (SYNC_JOBS: pro.pc-send) never
  * judges a source, in any state: its receipt proves a pass finished, not that
  * this source's data arrived (Messages held nothing past May 2024 under a
  * green pass, S-3), so its sources read Unjudged until System serves a
@@ -100,8 +105,9 @@ export function sourceHost(source: DataSourceRow): string | null {
 }
 
 /** Lifecycles, in the order their groups show. `connected` is a source
- * System gives a status but no lifecycle. `unreported` is one System says
- * nothing about but that holds records. `excluded` holds what System
+ * System gives a status but no lifecycle. `unreported` is one whose status
+ * admin cannot read: none from an older reader (with records), or a word
+ * outside System's vocabulary. `excluded` holds what System
  * withdrew: it sits after the others, just above the folded discovered
  * group. */
 export type SourceGroup =
@@ -122,9 +128,12 @@ export function sourceGroup(source: DataSourceRow): SourceGroup {
   if (source.collection === "one_shot") return "imported";
   if (source.collection === "discovered" || source.status === "discovered")
     return "discovered";
-  // Only with no word from System at all do the counts say anything, and
-  // then only that nothing was recorded. An enrolled source that is empty
-  // keeps its own lifecycle.
+  // A status admin cannot read is System's word all the same: no count
+  // stands in for it.
+  if (source.status === "unknown") return "unreported";
+  // Only with no word from System at all (an older reader) do the counts
+  // say anything, and then only that nothing was recorded. An enrolled
+  // source that is empty keeps its own lifecycle.
   if (source.collection === null && source.status === null)
     return source.records === 0 && source.revisions === 0
       ? "discovered"
@@ -168,8 +177,10 @@ export function lastSync(source: DataSourceRow): string | null {
 }
 
 /** When System observed the source's newest record: "Last seen", never a
- * sync. For an excluded source it can be the exclusion itself (S-20), so
- * excluded rows show none. */
+ * sync. An exclusion marker no longer moves it (system#231, S-20), but an
+ * excluded source's records are withdrawn, so excluded rows show none. It
+ * can sit a moment before `first_observed_at` (ani-health's does, by 0.14s);
+ * nothing here compares the two. */
 export function lastSeen(source: DataSourceRow): string | null {
   return source.lastObservedAt;
 }
@@ -181,19 +192,29 @@ export type SourceJob = {
 };
 export type SourceJobs = ReadonlyMap<string, SourceJob>;
 
-/** A live source mirrors its job's own state. Anything that cannot be
- * joined (no job, no snapshot, a job the snapshot does not list, or an
- * unknown state) is Unjudged, never Live, and so is a source collected by a
- * multi-app pass (SYNC_JOBS), whose state says nothing about one source. */
+/** A live or current source mirrors its job's own state. Live needs
+ * System's `current` too: an ok job under any other status is Syncing when
+ * pending and Unjudged otherwise. A current source that names no job is
+ * Live on System's word. A named job that cannot be joined (no snapshot, a
+ * job the snapshot does not list, or an unknown state) is Unjudged, and so
+ * is a source collected by a multi-app pass (SYNC_JOBS), whose state says
+ * nothing about one source. */
 function liveState(
   source: DataSourceRow,
   jobs: SourceJobs | null,
 ): SourceState {
   if (source.job && SYNC_JOBS.includes(source.job)) return "unjudged";
-  const job = source.job ? jobs?.get(source.job) : undefined;
+  const settled =
+    source.status === "current"
+      ? "live"
+      : source.status === "pending"
+        ? "pending"
+        : "unjudged";
+  if (!source.job) return settled;
+  const job = jobs?.get(source.job);
   switch (job?.state) {
     case "ok":
-      return "live";
+      return settled;
     case "stale":
       return "stale";
     case "failing":
@@ -215,6 +236,7 @@ export function sourceState(
   if (status === "excluded") return "excluded";
   if (status === "failed") return "failed";
   if (status === "paused") return "paused";
+  if (status === "unknown") return "unjudged";
   const group = sourceGroup(source);
   if (group === "discovered")
     return status === "unavailable" ? "unavailable" : "discovered";
@@ -222,7 +244,9 @@ export function sourceState(
   if (group === "live") return liveState(source, jobs);
   if (status === "pending") return "pending";
   if (group === "unreported") return "unreported";
-  return group === "imported" ? "imported" : "connected";
+  if (group === "imported") return "imported";
+  // `partial` holds records System does not call current: Connected.
+  return status === "current" ? liveState(source, jobs) : "connected";
 }
 
 export function worstState(states: readonly SourceState[]): SourceState {

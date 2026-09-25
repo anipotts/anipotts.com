@@ -96,7 +96,9 @@ const STATES: Record<
   imported: { label: "Imported once", tone: "neutral", quiet: true },
   unreported: { label: "Status not reported", tone: "neutral", quiet: true },
   discovered: { label: "Not connected", tone: "neutral", quiet: true },
-  // A live source whose job cannot be joined: neither Live nor a problem.
+  // A source System does not call current under a job, a named job that
+  // cannot be joined, or a status admin cannot read: neither Live nor a
+  // problem.
   unjudged: { label: "Unjudged", tone: "neutral", icon: CircleDashedIcon },
   stale: { label: "Stale", tone: "warning", icon: ClockCounterClockwiseIcon },
   degraded: { label: "Degraded", tone: "warning", icon: WarningIcon },
@@ -104,6 +106,7 @@ const STATES: Record<
   failed: { label: "Failed", tone: "critical", icon: WarningCircleIcon },
   unavailable: { label: "Unavailable", tone: "neutral", icon: ProhibitIcon },
   paused: { label: "Paused", tone: "rest", icon: PauseIcon },
+  // System's `pending`: enrolled, its collection not yet settled.
   pending: { label: "Syncing", tone: "neutral", icon: SpinnerGapIcon },
   excluded: { label: "Excluded", tone: "neutral", icon: ProhibitIcon },
 };
@@ -171,8 +174,9 @@ function Device({ id }: { id: string | null }) {
 }
 
 /** Whether a row shows System's counts. A discovered source has none to
- * show. An excluded one shows what System reports, so a count that
- * disagrees with its withdrawn records stays visible for System to fix. */
+ * show. An excluded one shows what System reports: no retrievable records
+ * (0 since system#231) beside the revisions it retains, and a count that
+ * ever disagrees stays visible for System to fix. */
 const showsCounts = (row: SourceRow) => row.group !== "discovered";
 
 /** Records and revisions as glyph and number pairs for a phone's line 2,
@@ -559,8 +563,8 @@ export function SourcesExplorer({
     // "Last sync" is System's own success time for the source, and shows
     // only once System serves one; "Last seen" is when the newest record
     // was observed, never a sync. No time System did not record: an
-    // excluded source's is withdrawn (its last observation can be the
-    // exclusion itself, S-20), a discovered one was never connected.
+    // excluded source's is withdrawn with its records (S-20), a discovered
+    // one was never connected.
     ...(anySync
       ? [
           {
