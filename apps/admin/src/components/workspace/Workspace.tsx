@@ -1173,26 +1173,18 @@ function withGroupRows<T extends Record<string, unknown>>(
   return out;
 }
 
-/** Where a title's kept end is said by a tile beside it instead: at every
- * width, or on phones only. */
-export type KeepHidden = "always" | "compact";
-
-/** A title that ends in an ellipsis, keeping `keep` (its end) whole. With
- * `keepHidden`, the row's own device tile already names what the end says
- * (", ap-mini"), so there the end is for assistive technology only and the
- * name stands whole beside the tile. With `wrap`, a title too long for its
+/** A title that ends in an ellipsis, keeping `keep` (its end, ", ap-mini")
+ * whole. With `wrap`, a title too long for its
  * column wraps at a space onto a second line instead, so no word is ever
  * cut; `keep` stays on the line of the word before it. */
 export function TitleText({
   title,
   keep,
-  keepHidden,
   wrap = false,
   className = "workspace-row-title",
 }: {
   title: string;
   keep?: string;
-  keepHidden?: KeepHidden;
   wrap?: boolean;
   className?: string;
 }) {
@@ -1204,12 +1196,7 @@ export function TitleText({
       </span>
     );
   return (
-    <span
-      className={className}
-      data-keep=""
-      data-keep-hidden={keepHidden}
-      data-wrap={wraps}
-    >
+    <span className={className} data-keep="" data-wrap={wraps}>
       <span className="workspace-title-base">
         {title.slice(0, -keep.length)}
       </span>
@@ -1234,7 +1221,6 @@ export function RowTitle({
   kind,
   title,
   keep,
-  keepHidden,
   href,
   onSelect,
   isPressed,
@@ -1258,9 +1244,6 @@ export function RowTitle({
   /** The end of `title` that never truncates, such as ", ap-mini" on a name
    * two hosts share: the rest of the title gives way first. */
   keep?: string;
-  /** Where the row's own device tile names the host, so `keep` is for
-   * assistive technology only (TitleText). */
-  keepHidden?: KeepHidden;
   /** The row's destination. The whole row opens it; the link itself wraps
    * only the title text. */
   href?: string;
@@ -1308,9 +1291,7 @@ export function RowTitle({
         onSelect(event.currentTarget);
       }
     : undefined;
-  const label = (
-    <TitleText title={title} keep={keep} keepHidden={keepHidden} wrap={wrap} />
-  );
+  const label = <TitleText title={title} keep={keep} wrap={wrap} />;
   const trailing = (end != null || time != null) && (
     <Text type="supporting" color="secondary" className="workspace-row-end">
       {end}

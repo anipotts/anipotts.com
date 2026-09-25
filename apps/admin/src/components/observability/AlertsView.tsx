@@ -366,11 +366,9 @@ export function AlertsTable({
             naming,
           )}
           title={row.name}
+          // A name two Macs share carries its host in words at every width:
+          // the device tile beside it is too small to tell them apart.
           keep={row.keep}
-          // The incident tables show the device at every width (its column,
-          // line 2 at medium, line 1's end on phones); the summary and the
-          // list beside a panel only on phones.
-          keepHidden={full ? "always" : "compact"}
           href={opsAlertHref(row.subject)}
           onSelect={
             onSelect ? (trigger) => onSelect(row.subject, trigger) : undefined
@@ -558,15 +556,9 @@ export function AlertsView({
     path: ALERTS_PATH,
     param: "alert",
   });
-  // The names the incident tables draw: a shared name's host is its
-  // device tile there.
-  const names = useMemo(
-    () =>
-      rows.map((row) =>
-        row.keep ? row.name.slice(0, -row.keep.length) : row.name,
-      ),
-    [rows],
-  );
+  // The names the incident tables draw, a shared name's host included, so
+  // the Alert column keeps room for the longest on one line.
+  const names = useMemo(() => rows.map((row) => row.name), [rows]);
   const startWidth = alertStartWidth(rows, data.fixedNow ?? data.serverNow);
   const stateColumnWidth = alertStateWidth(rows);
   const firing = rows.filter((row) => row.status === "firing");

@@ -22,13 +22,7 @@ import {
   type OpsEvent,
   type OpsRunEvent,
 } from "./ops-events";
-import {
-  SYNC_ARRIVAL_UNRECORDED,
-  SYNC_JOBS,
-  deviceName,
-  opsNaming,
-  syncedApps,
-} from "./naming";
+import { SYNC_JOBS, deviceName, opsNaming, syncedApps } from "./naming";
 import {
   HEALTH_METRICS_ID,
   healthMetricsText,
@@ -551,8 +545,7 @@ export function opsSyncRows(services: readonly OpsServiceView[]): OpsSyncRow[] {
  * unknown, and a restore never proven is Unverified. Only an ok row is judged
  * against its own budget, fresh or stale; a null budget cannot be judged
  * however old the last success, and an ok row with no success recorded has
- * nothing to judge yet. An ok sync whose success time is not an arrival
- * (health.ingest, A-38) is withheld: no age, no freshness.
+ * nothing to judge yet.
  */
 export type OpsSyncState =
   | { kind: "state"; state: Exclude<OpsState, "ok"> }
@@ -560,15 +553,7 @@ export type OpsSyncState =
   | { kind: "fresh" }
   | { kind: "stale" }
   | { kind: "unjudged" }
-  | { kind: "unrecorded" }
-  | { kind: "withheld" };
-
-/** Whether an entry's success and run times are withheld wherever they
- * render (A-38): they are a file's time, not an arrival
- * (SYNC_ARRIVAL_UNRECORDED). Its state and detail stay System's. */
-export function opsSyncWithheld(service: Pick<OpsServiceView, "id">): boolean {
-  return SYNC_ARRIVAL_UNRECORDED.includes(service.id);
-}
+  | { kind: "unrecorded" };
 
 export function opsSyncState(
   service: OpsServiceView,
@@ -578,7 +563,6 @@ export function opsSyncState(
   if (opsUnverified(service)) return { kind: "unverified" };
   const { state } = service.status;
   if (state !== "ok") return { kind: "state", state };
-  if (opsSyncWithheld(service)) return { kind: "withheld" };
   if (service.freshness_budget_s === null) return { kind: "unjudged" };
   const freshness = opsFreshness(service, now);
   if (freshness.kind !== "budget") return { kind: "unrecorded" };

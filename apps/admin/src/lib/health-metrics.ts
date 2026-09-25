@@ -9,10 +9,11 @@
  *   check itself is current: its row ok (or degraded or failing, naming
  *   what is missing) and the sampler running. A stale, asleep or unknown
  *   row, or a stopped sampler, is "Not checked", never a stale ok.
- * - The last phone sync is withheld. `health.ingest`'s `last_success_at` is
- *   the modification time of the file the phone export writes (System S-14),
- *   which any rewrite moves, so it is not a phone's arrival. Health reads
- *   "Not recorded" until System serves a real arrival marker.
+ * - The last phone sync is `health.ingest`'s `last_success_at`: System's
+ *   arrival marker (`data/last-arrival.json` `arrived_at`, a push that
+ *   parsed at least one metric), judged against its own budget like any
+ *   sync. No row, no success time or a stopped sampler reads "Not
+ *   recorded", never a last known time as current.
  *
  * Nothing here reads a health value; the check is a catalog row of machine
  * metadata.
@@ -20,6 +21,7 @@
 import { opsServices, type OpsSnapshot } from "./ops-v1";
 
 export const HEALTH_METRICS_ID = "health.metrics";
+export const HEALTH_INGEST_ID = "health.ingest";
 
 /** The metric words `missing:` may list, as the Health view names them.
  * Steps, distance, flights and active energy are expected today; weight

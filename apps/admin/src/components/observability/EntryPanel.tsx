@@ -24,7 +24,6 @@ import {
   opsHostFacts,
   opsRecordsRuns,
   opsRunHistory,
-  opsSyncWithheld,
 } from "../../lib/ops-view";
 import { deviceName } from "../../lib/naming";
 import { sentenceCase } from "../../lib/sentence-case";
@@ -358,7 +357,6 @@ function EntryFacts({
                     empty="Not recorded"
                   />
                   {budget !== null &&
-                    !opsSyncWithheld(service) &&
                     freshness.kind === "budget" &&
                     freshness.overBudget && (
                       <span className="ops-warning">
@@ -369,7 +367,7 @@ function EntryFacts({
               ],
               [
                 "Last run",
-                status.last_run_at || opsSyncWithheld(service) ? (
+                status.last_run_at ? (
                   <LastRun key="run" service={service} now={now} />
                 ) : null,
               ],

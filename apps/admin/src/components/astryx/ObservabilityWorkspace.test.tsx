@@ -22,7 +22,11 @@ import {
   tableFixedWidths,
   titleWidth,
 } from "../workspace/Workspace";
-import { alertStartWidth, opsAlertRows } from "../observability/AlertsView";
+import {
+  AlertsTable,
+  alertStartWidth,
+  opsAlertRows,
+} from "../observability/AlertsView";
 import { opsEntryAnchor } from "../observability/StatusView";
 import {
   EMPTY_EVENT_LOG,
@@ -246,8 +250,8 @@ describe("Status view from System's fixture", () => {
     expect(
       cell(host, "pc.writer", "Last success").querySelector(".ops-over"),
     ).toBeNull();
-    // No success recorded: the same muted "Not recorded" a withheld time
-    // reads (A-12), visible, without claiming it never succeeded.
+    // No success recorded: the muted "Not recorded" (A-12), visible,
+    // without claiming it never succeeded.
     const none = cell(host, "agents.sync", "Last success");
     expect(none.querySelector(".sr-only")).toBeNull();
     expect(none.querySelector(".workspace-time")?.textContent).toBe(
@@ -267,45 +271,43 @@ describe("Status view from System's fixture", () => {
     expect(age.querySelector(".ops-over")).toBeNull();
   });
 
-  it("A-38: never shows health.ingest's file time as a success or a run", () => {
-    // Live, System reads the export file's time as the row's success and
-    // run: "file present", 3h ago. That is not an arrival.
+  it("A-38: shows health.ingest's arrival as its success, judged against its budget", () => {
+    // System's row now judges data/last-arrival.json's arrived_at, a push
+    // that parsed at least one metric, against a 26h budget.
     const value = fresh();
+    value.catalog.find(
+      (entry: Json) => entry.id === "health.ingest",
+    ).freshness_budget_s = 93_600;
     const row = value.status.find(
       (entry: Json) => entry.id === "health.ingest",
     );
     Object.assign(row, {
       state: "ok",
-      detail: "file present",
+      detail: "last push parsed at least one metric",
       last_success_at: "2026-09-21T15:00:00Z",
       last_run_at: "2026-09-21T15:00:00Z",
     });
     const view = render(value);
     const success = cell(view, "health.ingest", "Last success");
-    expect(success.textContent).toBe("Not recorded");
-    expect(success.querySelector("[title]")?.getAttribute("title")).toMatch(
-      /time of the file the phone export writes, not an arrival/,
-    );
-    // System's own state and detail stay visible as System's.
+    expect(success.textContent).toBe("3h ago");
+    expect(success.querySelector(".ops-over")).toBeNull();
+    expect(cell(view, "health.ingest", "Last run").textContent).toBe("3h ago");
     expect(cell(view, "health.ingest", "Detail").textContent).toBe(
-      "file present",
+      "last push parsed at least one metric",
     );
-    // No age of that file anywhere on the page, the Syncs card included.
-    const text = (node: Element) =>
-      [...node.querySelectorAll("time")].map((time) => time.dateTime);
-    expect(text(view)).not.toContain("2026-09-21T15:00:00Z");
-    // A-12: "Not recorded" means one thing on every Syncs card: the time
-    // slot (line 2's end). The state slot keeps the sync's budget state.
+    // Its Syncs card reads like any budgeted sync: its time in line 2's end.
     const card = view.querySelector('.ops-syncs a[href*="health.ingest"]')!;
-    expect(card.querySelector(".ops-card-state")?.textContent).toBe(
-      "No budget",
+    expect(card.querySelector(".ops-card-end")?.textContent).toBe("3h ago");
+    expect(card.querySelector(".ops-card-state")?.textContent).not.toMatch(
+      /No budget|Not judged/,
     );
-    expect(card.querySelector(".ops-card-end")?.textContent).toBe(
-      "Not recorded",
+    // Over the budget, the time is judged stale.
+    row.last_success_at = "2026-09-20T12:00:00Z";
+    const late = cell(render(value), "health.ingest", "Last success");
+    expect(late.textContent).toBe("1d ago");
+    expect(late.querySelector(".ops-over")?.getAttribute("aria-label")).toBe(
+      "Over its 1d 2h budget",
     );
-    expect(
-      card.querySelector(".ops-card-end [title]")?.getAttribute("title"),
-    ).toMatch(/not an arrival/);
   });
 
   it("A-5: shows last run, duration, the next run, runs and the trigger, and no Owner", () => {
@@ -410,18 +412,19 @@ describe("Status view from System's fixture", () => {
     );
   });
 
-  // A-38: the card never shows health.ingest's last_success_at, which is the
-  // export file's time (S-14), not a phone arrival; Data Health withholds it
-  // the same way.
-  it("A-38: withholds Apple Health's sync time, as the live row sends it", () => {
+  // A-38: health.ingest's last_success_at is a real phone arrival, so the
+  // card shows it, and the row's own state still leads when it is not ok.
+  it("A-38: shows Apple Health's last arrival, as the live row sends it", () => {
     const value = fresh();
+    value.catalog.find(
+      (item: Json) => item.id === "health.ingest",
+    ).freshness_budget_s = 93_600;
     const row = value.status.find((item: Json) => item.id === "health.ingest");
-    // The live shape at 2026-09-22: ok, "file present", a fresh mtime.
     Object.assign(row, {
       state: "ok",
-      detail: "file present",
-      last_success_at: "2026-09-21T17:50:32Z",
-      last_run_at: "2026-09-21T17:50:32Z",
+      detail: "last push parsed at least one metric",
+      last_success_at: "2026-09-21T17:50:00Z",
+      last_run_at: "2026-09-21T17:50:00Z",
     });
     for (const failing of [false, true]) {
       if (failing) Object.assign(row, { state: "failing" });
@@ -432,9 +435,12 @@ describe("Status view from System's fixture", () => {
           "applehealth",
       )!;
       expect(card.textContent).toContain("Apple Health");
-      expect(card.querySelector("time")).toBeNull();
-      expect(card.textContent).not.toMatch(/ago|just now|Fresh|Stale/);
-      expect(card.textContent).toContain(failing ? "Failing" : "Not recorded");
+      expect(card.querySelector("time")?.getAttribute("datetime")).toBe(
+        "2026-09-21T17:50:00.000Z",
+      );
+      expect(card.textContent).toContain("10m ago");
+      expect(card.textContent).not.toContain("Not recorded");
+      if (failing) expect(card.textContent).toContain("Failing");
     }
   });
 
@@ -2398,5 +2404,71 @@ describe("the open alert in the browser", () => {
     expect(
       providedSearchEntries().filter((row) => row.domain === "system"),
     ).toEqual([]);
+  });
+});
+
+describe("alerts two Macs share a name for", () => {
+  // Firing on both Macs, and ap-pro itself degraded: snapshot problems with
+  // no opening transition, so they fire from the snapshot alone.
+  const shared = () => {
+    const value = fresh();
+    const job = (id: string, name: string, host: string) => ({
+      ...value.catalog.find((entry: Json) => entry.id === "agents.sync"),
+      id,
+      name,
+      host,
+    });
+    const row = (id: string, state: string, detail: string) => ({
+      ...value.status.find((entry: Json) => entry.id === "agents.sync"),
+      id,
+      state,
+      detail,
+    });
+    value.catalog.push(
+      job("system.checkout", "system checkout", "ap-mini"),
+      job("pro.checkout", "pro system checkout", "ap-pro"),
+      {
+        ...value.catalog[0],
+        id: "host.ap-pro",
+        name: "ap-pro",
+        host: "ap-pro",
+      },
+    );
+    value.status.push(
+      row("system.checkout", "failing", "dirty tree"),
+      row("pro.checkout", "failing", "behind origin"),
+      { ...value.status[0], id: "host.ap-pro", state: "degraded" },
+    );
+    return opsAlertRows(null, parseOpsSnapshot(value));
+  };
+  const titles = (host: HTMLElement) =>
+    [...host.querySelectorAll(".workspace-row-title")].map(
+      (title) => title.textContent,
+    );
+
+  it.each([
+    ["the Alerts page", true],
+    ["the overview", false],
+  ])("names each by its host in words on %s", (_surface, incidents) => {
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(
+      <AlertsTable rows={shared()} incidents={incidents} now={NOW} />,
+    );
+    expect(titles(host)).toEqual(
+      expect.arrayContaining([
+        "System checkout, ap-mini",
+        "System checkout, ap-pro",
+      ]),
+    );
+    // The host is drawn, not only read out beside a device tile.
+    expect(host.querySelector("[data-keep-hidden]")).toBeNull();
+    // A host's row reads its name once: its tile says what it is.
+    const hostRow = [...host.querySelectorAll(".workspace-row")].find(
+      (row) =>
+        row.querySelector(".workspace-row-title")?.textContent === "ap-pro",
+    )!;
+    expect(
+      hostRow.querySelector(".workspace-row-mark .sr-only")?.textContent,
+    ).toBe("Host");
   });
 });

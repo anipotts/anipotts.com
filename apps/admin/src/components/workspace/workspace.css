@@ -437,16 +437,6 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   flex: none;
   white-space: pre;
 }
-/* Where the row's own device tile names the host, the kept host is read
-   out but not drawn, so the name stands whole beside the tile. */
-[data-keep-hidden="always"] > .workspace-title-keep {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
 /* Line 1's end and time belong to compact, where their columns are gone. */
 .workspace-row-end {
   display: none;
@@ -854,15 +844,6 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   }
   .workspace-table-footer {
     display: none;
-  }
-  /* Phones draw the device tile at line 1's end (TitleText keepHidden). */
-  [data-keep-hidden="compact"] > .workspace-title-keep {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
   }
   .workspace-filter-bar > .astryx-field {
     flex: 1 1 auto;

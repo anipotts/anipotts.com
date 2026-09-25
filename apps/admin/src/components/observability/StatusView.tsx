@@ -178,10 +178,9 @@ export function statusColumns(
           mark={<EntryTile naming={naming} />}
           kind={entryKind(row, naming)}
           title={naming.name}
+          // A name two Macs share carries its host in words, device column
+          // or not: the tile alone is too small to tell them apart.
           keep={entryKeep(row, names)}
-          // Beside a panel there is no device column; otherwise the row's
-          // device tile names the host a shared name adds.
-          keepHidden={narrow ? undefined : "always"}
           anchorId={opsEntryAnchor(row.id)}
           href={opsEntryHref(row.id)}
           onSelect={(trigger) => select.open(row.id, trigger)}
@@ -585,22 +584,15 @@ function SyncState({
   if (key === "fresh" || key === "stale")
     return <StateCell domain="freshness" state={key} />;
   // Without a budget System judges liveness only, so freshness is not
-  // judged here either: the mark says so rather than reading as fresh. A
-  // withheld sync's time is a file's, not an arrival (A-38): this slot
-  // still says its budget, and its time slot says "Not recorded", as every
-  // other card's does (A-12).
-  const noBudget =
-    key === "unjudged" ||
-    (key === "withheld" && service.freshness_budget_s === null);
+  // judged here either: the mark says so rather than reading as fresh.
+  const noBudget = key === "unjudged";
   return (
     <span
       className="ops-unjudged"
       title={
         noBudget
           ? "System gives this sync no freshness budget"
-          : key === "withheld"
-            ? "Not judged: System records no arrival for this sync, only its file's time"
-            : "Not judged: System has recorded no success for this sync"
+          : "Not judged: System has recorded no success for this sync"
       }
     >
       <CircleDashedIcon weight="regular" aria-hidden="true" />
@@ -777,16 +769,16 @@ function StatusList({
   const hosts = services.filter(opsIsHost);
   const rows = services.filter((service) => !opsIsHost(service)) as Row[];
   const syncs = useMemo(() => opsSyncRows(services), [services]);
-  // The detail's reserve is for the names rows draw: an entry's own, since
-  // the row's device tile names the host a shared name adds.
+  // The detail's reserve is for the names rows draw, a shared name's host
+  // included.
   const leadRoom = useMemo(
     () =>
       leadWidth(
         services
           .filter((service) => !opsIsHost(service))
-          .map((service) => entryNaming(service).name),
+          .map((service) => entryNaming(service, names).name),
       ),
-    [services],
+    [services, names],
   );
   const want = useMemo(() => reasonWant(rows), [rows]);
   const stateColumn = useMemo(() => opsStateWidth(rows), [rows]);
