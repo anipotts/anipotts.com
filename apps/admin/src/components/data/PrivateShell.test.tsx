@@ -279,7 +279,7 @@ describe("Health and Knowledge", () => {
     expect(host.querySelector("h1")?.textContent).toBe("Health");
     expect(host.textContent).toContain("No vitals collected");
     expect(host.textContent).not.toContain("not connected");
-    // The phone sync is withheld (A-38), and there is never a number.
+    // Without ops there is no phone sync to show, and never a number.
     expect(host.querySelector(".health-meta")?.textContent).toBe(
       "Last phone syncNot recorded",
     );
@@ -291,25 +291,82 @@ describe("Health and Knowledge", () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
-  it("withholds the last phone sync even when ops has a health.ingest success (A-38)", async () => {
-    // health.ingest's success is the export file's modification time, not
-    // a phone's arrival (System S-14).
-    const snapshot = {
+  describe("the last phone sync (A-38)", () => {
+    // health.ingest's success is System's arrival marker: the last push that
+    // parsed at least one metric (data/last-arrival.json arrived_at).
+    const arrival = (row: Record<string, unknown> | null) => ({
       ...opsSample,
-      status: opsSample.status.map((row) =>
-        row.id === "health.ingest"
-          ? { ...row, state: "ok", last_success_at: "2026-09-21T17:40:00Z" }
-          : row,
+      catalog: opsSample.catalog.map((entry) =>
+        entry.id === "health.ingest"
+          ? { ...entry, freshness_budget_s: 93_600 }
+          : entry,
       ),
+      status: opsSample.status.flatMap((entry) =>
+        entry.id !== "health.ingest"
+          ? [entry]
+          : row
+            ? [{ ...entry, ...row }]
+            : [],
+      ),
+    });
+    const ARRIVED = {
+      state: "ok",
+      detail: "last push parsed at least one metric",
+      last_success_at: "2026-09-21T17:40:00Z",
     };
-    await render("/data/health", { fixture: snapshot });
-    expect(host.textContent).toContain("No vitals collected");
-    const meta = host.querySelector(".health-meta")!;
-    expect(meta.textContent).toContain("Last phone syncNot recorded");
-    expect(meta.textContent).not.toContain("ago");
-    expect(meta.textContent).not.toMatch(/\b(?:OK|Live|Connected)\b/);
-    expect(meta.querySelector(".workspace-state")).toBeNull();
-    expect(host.querySelector("table")).toBeNull();
+
+    it("shows health.ingest's last success, the absolute time on hover", async () => {
+      await render("/data/health", {
+        fixture: arrival(ARRIVED),
+        now: Date.parse(opsSample.generated_at),
+      });
+      const meta = host.querySelector(".health-meta")!;
+      expect(meta.textContent).toContain("Last phone sync20m ago");
+      const time = meta.querySelector("time")!;
+      expect(time.getAttribute("datetime")).toBe("2026-09-21T17:40:00.000Z");
+      expect(time.getAttribute("title")).toMatch(/Sep 21/);
+      expect(meta.querySelector(".ops-over")).toBeNull();
+      expect(meta.querySelector(".workspace-state")).toBeNull();
+    });
+
+    it("judges a time over its budget stale, never current", async () => {
+      await render("/data/health", {
+        fixture: arrival({
+          ...ARRIVED,
+          last_success_at: "2026-09-19T18:00:00Z",
+        }),
+        now: Date.parse(opsSample.generated_at),
+      });
+      const meta = host.querySelector(".health-meta")!;
+      expect(meta.textContent).toContain("Last phone sync2d ago");
+      expect(meta.querySelector(".ops-over")?.getAttribute("aria-label")).toBe(
+        "Over its 1d 2h budget",
+      );
+    });
+
+    it.each([
+      ["no health.ingest row", null],
+      ["no success recorded", { ...ARRIVED, last_success_at: null }],
+    ])("reads Not recorded with %s", async (_case, row) => {
+      await render("/data/health", {
+        fixture: arrival(row),
+        now: Date.parse(opsSample.generated_at),
+      });
+      const meta = host.querySelector(".health-meta")!;
+      expect(meta.textContent).toContain("Last phone syncNot recorded");
+      expect(meta.querySelector("time")).toBeNull();
+    });
+
+    it("reads Not recorded once the sampler stopped", async () => {
+      // Five minutes after the snapshot: its last success is last known only.
+      await render("/data/health", {
+        fixture: arrival(ARRIVED),
+        now: Date.parse(opsSample.generated_at) + 5 * 60_000,
+      });
+      const meta = host.querySelector(".health-meta")!;
+      expect(meta.textContent).toContain("Last phone syncNot recorded");
+      expect(meta.textContent).not.toContain("ago");
+    });
   });
 
   it("reads Health through its own health:read credential only", async () => {

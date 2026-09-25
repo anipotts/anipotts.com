@@ -23,6 +23,26 @@
   flex: none;
 }
 
+/* The last phone sync over its budget (LastSuccess): the warning ink and a
+   glyph whose tooltip names the budget, as Status draws it. */
+.health-meta .ops-last {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+}
+.health-meta .ops-last[data-over="true"] .workspace-time,
+.health-meta .ops-over {
+  color: var(--color-text-orange, var(--color-text-warning, currentColor));
+}
+.health-meta .ops-over {
+  display: inline-flex;
+  flex: none;
+}
+.health-meta .ops-over > svg {
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+}
+
 /* A reading System does not have: said plainly, never drawn as a number. */
 .health-none {
   color: var(--color-text-secondary);

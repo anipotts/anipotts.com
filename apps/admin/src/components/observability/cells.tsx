@@ -31,12 +31,7 @@ import {
   type OpsState,
   type OpsTrigger,
 } from "../../lib/ops-v1";
-import {
-  opsNextRun,
-  opsSyncWithheld,
-  opsTriggerFacts,
-  opsUnverified,
-} from "../../lib/ops-view";
+import { opsNextRun, opsTriggerFacts, opsUnverified } from "../../lib/ops-view";
 import type { OpsAlert } from "../../lib/ops-events";
 import {
   deviceName,
@@ -121,9 +116,16 @@ export function entryKeep(
   return name?.endsWith(keep) ? keep : undefined;
 }
 
-/** What an entry's tile stands for, for its tooltip. */
+/** What an entry's tile stands for, for its tooltip. A tile whose label is
+ * the entry's own name (a host's device render, "ap-pro") says its kind
+ * instead, so the row never reads its name twice. */
 export function entryKind(entry: Entry, naming = entryNaming(entry)) {
-  return markLabel(naming.tile) ?? sentenceCase(entry.kind || "entry");
+  const label = markLabel(naming.tile);
+  return label && label.toLowerCase() !== naming.name.toLowerCase()
+    ? label
+    : sentenceCase(
+        entry.kind || (entry.id.startsWith("host.") ? "host" : "entry"),
+      );
 }
 
 /** A row's lead tile: the entry's brand, device or kind glyph. */
@@ -251,40 +253,10 @@ export function TriggerText({
   );
 }
 
-/** Why an entry's success and run times are withheld (A-38). */
-export const WITHHELD_TITLE =
-  "System's check here is the time of the file the phone export writes, not an arrival";
-
-/** "Not recorded" for a time System gives but that is not what it is named
- * for (opsSyncWithheld): visible, muted, its reason on hover. */
-export function WithheldTime() {
-  return (
-    <span className="workspace-time ops-withheld" title={WITHHELD_TITLE}>
-      Not recorded
-    </span>
-  );
-}
-
 /** The last success, live, judged against the entry's own budget: over it,
  * the time takes the warning ink and a glyph whose tooltip names the budget.
- * A null budget is liveness only and is never judged. An entry whose
- * success time is a file's, not an arrival (health.ingest, A-38), reads
- * "Not recorded" everywhere it renders. */
+ * A null budget is liveness only and is never judged. */
 export function LastSuccess({
-  service,
-  now,
-  empty,
-}: {
-  service: OpsServiceView;
-  now?: number;
-  empty?: string;
-}) {
-  if (opsSyncWithheld(service)) return <WithheldTime />;
-  return <JudgedSuccess service={service} now={now} empty={empty} />;
-}
-
-/** The last success of an entry whose time is what it says. */
-function JudgedSuccess({
   service,
   now,
   empty,
@@ -305,8 +277,8 @@ function JudgedSuccess({
   );
   const at = service.status.last_success_at;
   // System recorded no success: that is not the same as never succeeding.
-  // It reads the muted "Not recorded" a withheld time does (A-12), so a
-  // column never mixes a word with a blank for the same absence.
+  // It reads the muted "Not recorded" (A-12), so a column never mixes a
+  // word with a blank for the same absence.
   if (!at) return <RelativeTime value={null} empty={empty} />;
   return (
     <span className="ops-last" data-over={over ? "true" : undefined}>
@@ -325,8 +297,8 @@ function JudgedSuccess({
   );
 }
 
-/** When an entry last ran: live, or the muted "Not recorded" where the time
- * is a file's (A-38) or System gives none. */
+/** When an entry last ran: live, or the muted "Not recorded" where System
+ * gives none. */
 export function LastRun({
   service,
   now,
@@ -337,7 +309,6 @@ export function LastRun({
   /** Shown when System gives no time ("Not recorded" by default). */
   empty?: string;
 }) {
-  if (opsSyncWithheld(service)) return <WithheldTime />;
   const at = service.status.last_run_at;
   if (at) return <RelativeTime value={at} now={now} />;
   return <RelativeTime value={null} empty={empty} />;
