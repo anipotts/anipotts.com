@@ -563,21 +563,22 @@ describe("syncs", () => {
     ).toEqual({ kind: "unrecorded" });
   });
 
-  it("A-38: withholds health.ingest's file time whatever its budget", () => {
+  it("A-38: judges health.ingest's arrival against its budget like any sync", () => {
     const ingest = services.find((service) => service.id === "health.ingest")!;
     const ok = {
       ...ingest,
-      freshness_budget_s: 3600,
+      freshness_budget_s: 93_600,
       status: {
         ...ingest.status,
         state: "ok" as const,
-        detail: "file present",
+        detail: "last push parsed at least one metric",
         last_success_at: snapshot.generated_at,
       },
     };
-    expect(opsSyncState(ok, now)).toEqual({ kind: "withheld" });
-    expect(opsSyncState(ok, now + 86_400_000)).toEqual({ kind: "withheld" });
-    // A missing file is real: a non-ok row shows its state.
+    expect(opsSyncState(ok, now)).toEqual({ kind: "fresh" });
+    expect(opsSyncState(ok, now + 93_600_000 + 60_000)).toEqual({
+      kind: "stale",
+    });
     expect(
       opsSyncState({ ...ok, status: { ...ok.status, state: "failing" } }, now),
     ).toEqual({ kind: "state", state: "failing" });

@@ -286,10 +286,9 @@ function activityColumns(
                   : `Change, ${entry ? entryKind(entry, naming) : "not in the catalog"}`
             }
             title={entry ? naming.name : latest.subject}
+            // A name two Macs share carries its host in words, beside the
+            // device tile too, which alone is too small to tell them apart.
             keep={entry ? entryKeep(entry, names) : undefined}
-            // The row's device tile (its own column, the When cell, or line
-            // 1's end on phones) names the host a shared name adds.
-            keepHidden="always"
             href={entry ? opsEntryHref(entry.id) : undefined}
           />
         );

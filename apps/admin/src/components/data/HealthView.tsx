@@ -26,13 +26,17 @@ import {
   type HealthRange,
 } from "../../lib/private-reader-health";
 import {
+  HEALTH_INGEST_ID,
   HEALTH_METRIC_LABELS,
   HEALTH_METRICS_ID,
   healthMetricsCheck,
   type HealthMetricName,
 } from "../../lib/health-metrics";
+
+import { opsServices } from "../../lib/ops-v1";
 import { useLiveText } from "../../lib/live-clock";
 import { useOpsData, type OpsViewProps } from "../observability/frame";
+import { LastSuccess } from "../observability/cells";
 import { BrandTile } from "../BrandTile";
 import {
   CELL_WIDTHS,
@@ -53,10 +57,10 @@ import "./data-workspace.css";
 import "./health.css";
 
 /**
- * Data Health: only what really arrived. The header says the last phone
- * sync is not recorded (System has no arrival marker yet), which expected
- * metrics have not arrived or that the check is not current (health.metrics
- * in the ops snapshot, lib/health-metrics.ts), and how many days of the
+ * Data Health: only what really arrived. The header says when the phone
+ * last synced and which expected metrics have not arrived or that the check
+ * is not current (health.ingest and health.metrics in the ops snapshot,
+ * lib/health-metrics.ts), and how many days of the
  * range hold a reading; then one row per day of the range, "Nothing
  * arrived" where none did.
  *
@@ -67,9 +71,9 @@ import "./health.css";
  * were seeded, never measured.
  *
  * Off (PRIVATE_READER_HEALTH_ENABLED unset, as in production), the view is
- * "No vitals collected", the withheld phone sync and the metric check from
- * ops, and makes no health request. On, it reads through its own health:read session
- * (lib/private-reader-health.ts), memory only.
+ * "No vitals collected", the last phone sync and the metric check from
+ * ops, and makes no health request. On, it reads through its own
+ * health:read session (lib/private-reader-health.ts), memory only.
  */
 
 type Metric = {
@@ -161,19 +165,35 @@ const METRIC_GLYPHS: Partial<Record<HealthMetricName, Icon>> = {
   weight: HeartbeatIcon,
 };
 
+/** Not recorded: no snapshot, no health.ingest row or success in it, or a
+ * sampler that stopped, whose last known time may no longer be current. */
+function PhoneSyncUnrecorded() {
+  return <span className="health-none">Not recorded</span>;
+}
+
 /**
- * The last phone sync, withheld: System's only time today is the export
- * file's modification time (lib/health-metrics.ts), which is not a phone's
- * arrival, so it reads "Not recorded" until System serves a real one.
+ * The last phone sync: health.ingest's `last_success_at`, System's arrival
+ * marker (a push that parsed at least one metric), judged against its own
+ * budget as every sync is. Without ops it reads "Not recorded".
  */
-function PhoneSync() {
+function PhoneSync({ ops }: { ops?: OpsViewProps }) {
   return (
-    <span className="health-meta-item">
+    <span className="health-meta-item" title={HEALTH_INGEST_ID}>
       <BrandTile id="ap-phone" kind="device" size={20} label="ap-phone" />
       <span>Last phone sync</span>
-      <span className="health-none">Not recorded</span>
+      {opsReadable(ops) ? <PhoneSyncTime ops={ops} /> : <PhoneSyncUnrecorded />}
     </span>
   );
+}
+
+function PhoneSyncTime({ ops }: { ops: OpsViewProps }) {
+  const { snapshot, stopped, fixedNow } = useOpsData(ops, false);
+  const row = snapshot
+    ? opsServices(snapshot).find((service) => service.id === HEALTH_INGEST_ID)
+    : undefined;
+  if (!row || row.missingStatus || stopped || !row.status.last_success_at)
+    return <PhoneSyncUnrecorded />;
+  return <LastSuccess service={row} now={fixedNow} />;
 }
 
 /**
@@ -231,12 +251,12 @@ const listsMetricsCheck = (fixture: unknown) =>
 const opsReadable = (ops?: OpsViewProps): ops is OpsViewProps =>
   Boolean(ops && (ops.enabled || ops.fixture !== undefined));
 
-/** The collection facts every Health view leads with: the withheld phone
+/** The collection facts every Health view leads with: the last phone
  * sync, then what the per-metric check says, when ops can be read. */
 function CollectionFacts({ ops }: { ops?: OpsViewProps }) {
   return (
     <>
-      <PhoneSync />
+      <PhoneSync ops={ops} />
       {opsReadable(ops) && <MetricsCheck ops={ops} />}
     </>
   );

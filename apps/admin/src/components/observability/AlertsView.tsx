@@ -366,11 +366,9 @@ export function AlertsTable({
             naming,
           )}
           title={row.name}
+          // A name two Macs share carries its host in words at every width:
+          // the device tile beside it is too small to tell them apart.
           keep={row.keep}
-          // The incident tables show the device at every width (its column,
-          // line 2 at medium, line 1's end on phones); the summary and the
-          // list beside a panel only on phones.
-          keepHidden={full ? "always" : "compact"}
           href={opsAlertHref(row.subject)}
           onSelect={
             onSelect ? (trigger) => onSelect(row.subject, trigger) : undefined
