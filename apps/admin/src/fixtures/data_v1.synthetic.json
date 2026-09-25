@@ -964,6 +964,7 @@
       "last_observed_at": "2026-09-15T17:45:00.000000Z",
       "record_count": 86,
       "revision_count": 86,
+      "collection": "one_shot",
       "status": "current",
       "last_success_at": "2026-09-15T17:45:00.000000Z"
     },
@@ -973,7 +974,8 @@
       "last_observed_at": "2026-09-19T15:45:00.000000Z",
       "record_count": 12,
       "revision_count": 14,
-      "status": "partial"
+      "collection": "unknown",
+      "status": "current"
     },
     {
       "source_id": "synthetic-gmail-personal",
@@ -1011,6 +1013,7 @@
       "last_observed_at": null,
       "record_count": 0,
       "revision_count": 0,
+      "collection": "discovered",
       "status": "discovered"
     },
     {
@@ -1019,6 +1022,7 @@
       "last_observed_at": null,
       "record_count": 0,
       "revision_count": 0,
+      "collection": "discovered",
       "status": "discovered"
     },
     {
@@ -1028,6 +1032,7 @@
       "record_count": 0,
       "revision_count": 0,
       "discovered_count": 69,
+      "collection": "live",
       "status": "pending"
     },
     {
@@ -1037,6 +1042,7 @@
       "record_count": 0,
       "revision_count": 0,
       "discovered_count": 1800,
+      "collection": "live",
       "status": "pending"
     },
     {
@@ -1046,6 +1052,7 @@
       "record_count": 0,
       "revision_count": 0,
       "discovered_count": 3200,
+      "collection": "live",
       "status": "unavailable"
     },
     {
@@ -1055,6 +1062,7 @@
       "record_count": 0,
       "revision_count": 0,
       "discovered_count": 160,
+      "collection": "discovered",
       "status": "discovered"
     },
     {
@@ -1064,6 +1072,7 @@
       "record_count": 0,
       "revision_count": 0,
       "discovered_count": 1190,
+      "collection": "discovered",
       "status": "discovered"
     }
   ],

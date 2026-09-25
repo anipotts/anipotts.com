@@ -218,6 +218,9 @@ export const SOURCE_CONNECTORS = [
   "other",
 ] as const;
 export type SourceConnector = (typeof SOURCE_CONNECTORS)[number];
+/** System's `collection` (system#236). Its fourth value, "unknown" (the
+ * catalog entry names none), reads null here, as an older reader's absent
+ * key does: nothing is derived from it. */
 export const SOURCE_COLLECTIONS = ["live", "one_shot", "discovered"] as const;
 export type SourceCollection = (typeof SOURCE_COLLECTIONS)[number];
 export const SOURCE_STATUSES = [
