@@ -139,7 +139,8 @@ describe("source rows as System serves them", () => {
   });
 });
 
-// The six keys personal_context_data_v1 serves per source (system#231).
+// The keys personal_context_data_v1 serves per source (system#231), plus
+// collection (system#236) where a test names one.
 const served = (
   id: string,
   status: unknown,
@@ -157,19 +158,19 @@ const served = (
 
 describe("System's status for every source", () => {
   it.each([
-    ["excluded", "excluded", "excluded"],
-    ["partial", "connected", "partial"],
-    ["discovered", "discovered", "discovered"],
-    ["current", "live", "live"],
-    ["pending", "connected", "pending"],
-    ["unavailable", "attention", "unavailable"],
-    ["failed", "attention", "failed"],
-    ["paused", "paused", "paused"],
-    ["great", "attention", "unjudged"],
+    ["excluded", "excluded", "excluded", "unknown"],
+    ["partial", "connected", "partial", "live"],
+    ["discovered", "discovered", "discovered", "discovered"],
+    ["current", "live", "live", "live"],
+    ["pending", "connected", "pending", "live"],
+    ["unavailable", "attention", "unavailable", "live"],
+    ["failed", "attention", "failed", "live"],
+    ["paused", "paused", "paused", "live"],
+    ["great", "attention", "unjudged", "live"],
   ])(
     "A-3: reads %s as the %s group and the %s state",
-    (status, group, state) => {
-      const source = served("ani-food-orders", status);
+    (status, group, state, collection) => {
+      const source = served("ani-food-orders", status, { collection });
       expect(sourceGroup(source)).toBe(group);
       expect(sourceState(source)).toBe(state);
     },
@@ -193,9 +194,13 @@ describe("System's status for every source", () => {
         { collection: "live" },
         { collection: "live", job: "pc.writer" },
         { job: "pc.writer" },
+        { collection: "unknown" },
+        { collection: "unknown", job: "pc.writer" },
       ]) {
         const state = sourceState(served("ani-browsing", status, extra), jobs);
-        if (status === "current") expect(state).toBe("live");
+        // Live also needs System's live collection (system#236).
+        if (status === "current" && extra.collection === "live")
+          expect(state, JSON.stringify(extra)).toBe("live");
         else
           expect(state, `${status} ${JSON.stringify(extra)}`).not.toBe("live");
       }
@@ -212,7 +217,10 @@ describe("System's status for every source", () => {
     ).toBe("pending");
     expect(
       sourceState(
-        served("ani-browsing", "current", { job: "pc.writer" }),
+        served("ani-browsing", "current", {
+          collection: "live",
+          job: "pc.writer",
+        }),
         new Map([["pc.writer", { state: "stale" }]]),
       ),
     ).toBe("stale");
@@ -277,6 +285,77 @@ describe("System's status for every source", () => {
     expect(sourceGroup(once("paused"))).toBe("paused");
   });
 
+  it("A-3: never reads a current source Live when System names no collection", () => {
+    // manual on prod: current, and its catalog entry names no collection
+    // (system#236 "unknown"), which reads null, as an absent key does.
+    const manual = served("manual", "current", {
+      connector: "other",
+      collection: "unknown",
+    });
+    expect(manual.collection).toBeNull();
+    expect(sourceState(manual)).toBe("unjudged");
+    expect(sourceGroup(manual)).toBe("connected");
+    // An ok job proves no schedule either.
+    const jobs: SourceJobs = new Map([["pc.writer", { state: "ok" }]]);
+    const withJob = served("manual", "current", {
+      collection: "unknown",
+      job: "pc.writer",
+    });
+    expect(sourceState(withJob, jobs)).toBe("unjudged");
+    expect(sourceGroup(withJob, jobs)).toBe("connected");
+    const [only] = sourceRows([manual]);
+    expect(only).toMatchObject({ group: "connected", state: "unjudged" });
+    expect(SOURCE_GROUPS[only!.group]).toBe("Connected");
+  });
+
+  it("A-3: reads a current source System collects live, with no job, as Live", () => {
+    const source = served("ani-github-ledger", "current", {
+      collection: "live",
+    });
+    expect(source.job).toBeNull();
+    expect(sourceState(source)).toBe("live");
+    expect(sourceGroup(source)).toBe("live");
+  });
+
+  it("A-3: reads a current one-shot import as Imported once, never Live", () => {
+    for (const extra of [{}, { job: "pc.writer" }]) {
+      const source = served("ani-food-orders", "current", {
+        collection: "one_shot",
+        ...extra,
+      });
+      const jobs: SourceJobs = new Map([["pc.writer", { state: "ok" }]]);
+      expect(sourceState(source, jobs)).toBe("imported");
+      expect(sourceGroup(source, jobs)).toBe("imported");
+      expect(SOURCE_GROUPS[sourceGroup(source, jobs)]).toBe("Imported once");
+    }
+  });
+
+  it("keeps an older reader's source (no status) exactly as before", () => {
+    // No status reaches legacyState before any collection rule.
+    const jobs: SourceJobs = new Map([
+      ["pc.writer", { state: "ok" }],
+      ["pc.snapshot", { state: "stale" }],
+    ]);
+    const cases: Array<[Record<string, unknown>, string, string]> = [
+      [{ collection: "live" }, "live", "unjudged"],
+      [{ collection: "live", job: "pc.writer" }, "live", "unjudged"],
+      [{ collection: "live", job: "pc.snapshot" }, "live", "stale"],
+      [{ collection: "one_shot" }, "imported", "imported"],
+      [{ collection: "discovered" }, "discovered", "discovered"],
+      [{ collection: "unknown" }, "unreported", "unreported"],
+      [{}, "unreported", "unreported"],
+    ];
+    for (const [extra, group, state] of cases) {
+      const source = row("ani-browsing", extra);
+      expect(source.status).toBeNull();
+      expect(sourceGroup(source, jobs), JSON.stringify(extra)).toBe(group);
+      expect(sourceState(source, jobs), JSON.stringify(extra)).toBe(state);
+    }
+    expect(sourceGroup(empty("x", { collection: "unknown" }))).toBe(
+      "discovered",
+    );
+  });
+
   it("keeps an older reader's groups as they were", () => {
     const jobs: SourceJobs = new Map([["pc.writer", { state: "ok" }]]);
     expect(sourceGroup(row("x", { collection: "live" }), jobs)).toBe("live");
@@ -328,17 +407,43 @@ describe("System's status for every source", () => {
 
   it("A-3: groups the live catalog's mix by System's word", () => {
     // Across all 49 live sources: partial 16, current 7, excluded 1,
-    // pending 22, unavailable 3 (system#231). Synthetic ids.
-    const mix: Array<[string, number]> = [
-      ["partial", 16],
-      ["current", 7],
-      ["excluded", 1],
-      ["pending", 22],
-      ["unavailable", 3],
+    // pending 22, unavailable 3 (system#231); live 6, one_shot 16,
+    // discovered 25, unknown 2 (system#236), where ani-health (excluded)
+    // and manual (current) are unknown. The totals are the catalog's; how
+    // the other statuses pair with collections here is synthetic, as are
+    // the ids.
+    const mix: Array<[string, string, number]> = [
+      ["current", "live", 3],
+      ["current", "one_shot", 3],
+      ["current", "unknown", 1],
+      ["partial", "live", 2],
+      ["partial", "one_shot", 13],
+      ["partial", "discovered", 1],
+      ["pending", "discovered", 22],
+      ["unavailable", "live", 1],
+      ["unavailable", "discovered", 2],
+      ["excluded", "unknown", 1],
     ];
-    const sources = mix.flatMap(([status, n]) =>
+    const count = (at: 0 | 1, value: string) =>
+      mix
+        .filter((item) => item[at] === value)
+        .reduce((sum, item) => sum + item[2], 0);
+    expect(
+      ["partial", "current", "excluded", "pending", "unavailable"].map(
+        (status) => count(0, status),
+      ),
+    ).toEqual([16, 7, 1, 22, 3]);
+    expect(
+      ["live", "one_shot", "discovered", "unknown"].map((collection) =>
+        count(1, collection),
+      ),
+    ).toEqual([6, 16, 25, 2]);
+    const sources = mix.flatMap(([status, collection, n]) =>
       Array.from({ length: n }, (_, index) =>
-        served(`other-${status}-${index}`, status, { connector: "other" }),
+        served(`other-${status}-${collection}-${index}`, status, {
+          connector: "other",
+          collection,
+        }),
       ),
     );
     const rows = sourceRows(sources);
@@ -346,17 +451,35 @@ describe("System's status for every source", () => {
     for (const item of rows)
       tally.set(item.state, (tally.get(item.state) ?? 0) + 1);
     expect(Object.fromEntries(tally)).toEqual({
-      partial: 16,
-      live: 7,
-      excluded: 1,
-      pending: 22,
+      live: 3,
+      imported: 3,
+      unjudged: 1,
+      partial: 15,
+      discovered: 23,
       unavailable: 3,
+      excluded: 1,
     });
     expect([...new Set(rows.map((item) => SOURCE_GROUPS[item.group]))]).toEqual(
-      ["Live", "Needs attention", "Connected", "Excluded"],
+      [
+        "Live",
+        "Needs attention",
+        "Connected",
+        "Imported once",
+        "Excluded",
+        DISCOVERED_GROUP,
+      ],
     );
-    // Live holds only the seven current sources.
-    expect(rows.filter((item) => item.group === "live")).toHaveLength(7);
+    // Live holds only the three current sources System collects live: the
+    // current one-shots are Imported once, and manual's shape is Connected.
+    expect(rows.filter((item) => item.group === "live")).toHaveLength(3);
+    expect(
+      rows.filter((item) => item.group === "live").map((item) => item.state),
+    ).toEqual(["live", "live", "live"]);
+    expect(
+      rows.filter(
+        (item) => item.group === "connected" && item.state === "unjudged",
+      ),
+    ).toHaveLength(1);
     expect(rows.some((item) => item.group === "unreported")).toBe(false);
   });
 });
@@ -589,16 +712,18 @@ describe("connector, device and lifecycle", () => {
     ).toBe("paused");
     expect(sourceState(row("x", { status: "excluded" }))).toBe("excluded");
     expect(sourceState(row("x", { status: "pending" }))).toBe("pending");
-    expect(sourceState(row("x", { status: "current" }))).toBe("live");
+    expect(
+      sourceState(row("x", { status: "current", collection: "live" })),
+    ).toBe("live");
     expect(sourceState(row("x", { status: "partial" }))).toBe("partial");
     expect(sourceState(row("x", { collection: "one_shot" }))).toBe("imported");
   });
 
   it("keeps an excluded account out of a family in another group", () => {
     const rows = sourceRows([
-      row("ani-contacts", { status: "current" }),
-      row("contacts-work", { status: "current" }),
-      row("contacts-nyu", { status: "excluded" }),
+      row("ani-contacts", { status: "current", collection: "live" }),
+      row("contacts-work", { status: "current", collection: "live" }),
+      row("contacts-nyu", { status: "excluded", collection: "live" }),
     ]);
     const family = rows.find((item) => item.kind === "family")!;
     expect(family.group).toBe("live");

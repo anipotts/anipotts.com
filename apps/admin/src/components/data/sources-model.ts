@@ -254,9 +254,10 @@ function settled(source: DataSourceRow): SourceState {
 /** A live or current source mirrors its job's own state. Live needs
  * System's `current` too: an ok job under any other status reads as that
  * status (Pending, Partial) or Unjudged. A current source that names no job
- * is Live on System's word. A named job that cannot be joined (no snapshot,
- * a job the snapshot does not list, or an unknown state) is Unjudged, and so
- * is a source collected by a multi-app pass (SYNC_JOBS), whose state says
+ * is Live on System's word, once System also says it is collected live
+ * (sourceState). A named job that cannot be joined (no snapshot, a job the
+ * snapshot does not list, or an unknown state) is Unjudged, and so is a
+ * source collected by a multi-app pass (SYNC_JOBS), whose state says
  * nothing about one source. */
 function liveState(
   source: DataSourceRow,
@@ -310,10 +311,13 @@ export function sourceState(
     source.collection === "live" || status === "current"
       ? liveState(source, jobs)
       : settled(source);
-  // A finished one-shot import is Imported once, never Live.
-  return state === "live" && source.collection === "one_shot"
-    ? "imported"
-    : state;
+  if (state !== "live") return state;
+  // A finished one-shot import is Imported once, never Live. Live also
+  // needs System to say the source is collected on a schedule: a current
+  // source whose catalog entry names no collection (system#236 "unknown",
+  // manual today) is Unjudged, since a recent observation proves nothing.
+  if (source.collection === "one_shot") return "imported";
+  return source.collection === "live" ? "live" : "unjudged";
 }
 
 export function worstState(states: readonly SourceState[]): SourceState {

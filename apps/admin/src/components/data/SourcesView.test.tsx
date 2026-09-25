@@ -188,15 +188,25 @@ describe("Sources by connector", () => {
       status: {},
       records: [],
       sources: [
-        source("ani-food-orders", { status: "current" }),
-        source("manual", { status: "partial" }),
-        source("ani-github-ledger", { status: "pending" }),
-        source("photos-pro", { status: "unavailable" }),
-        source("calendar-work", { status: "failed" }),
-        source("meeting-notes", { status: "paused" }),
-        source("ani-self-profile", { status: "sometime-soon" }),
-        source("ani-health", { status: "excluded", record_count: 0 }),
-        discovered("gmail-work", { status: "discovered" }),
+        source("ani-food-orders", { status: "current", collection: "live" }),
+        source("manual", { status: "partial", collection: "unknown" }),
+        source("ani-github-ledger", { status: "pending", collection: "live" }),
+        source("photos-pro", { status: "unavailable", collection: "live" }),
+        source("calendar-work", { status: "failed", collection: "live" }),
+        source("meeting-notes", { status: "paused", collection: "live" }),
+        source("ani-self-profile", {
+          status: "sometime-soon",
+          collection: "one_shot",
+        }),
+        source("ani-health", {
+          status: "excluded",
+          collection: "unknown",
+          record_count: 0,
+        }),
+        discovered("gmail-work", {
+          status: "discovered",
+          collection: "discovered",
+        }),
       ] as typeof sources,
     });
     await act(async () => root.render(<SourcesExplorer reader={reader} />));
@@ -259,6 +269,50 @@ describe("Sources by connector", () => {
     expect(
       table.querySelector('.sources-state-hint[title^="A capture attempt"]'),
     ).not.toBeNull();
+  });
+
+  it("A-3: files a current source with no collection under Connected as Unjudged, never Live", async () => {
+    // manual on prod: current, with a catalog entry that names no collection.
+    const reader = createFixtureReader({
+      status: {},
+      records: [],
+      sources: [
+        source("ani-github-ledger", { status: "current", collection: "live" }),
+        source("manual", { status: "current", collection: "unknown" }),
+        source("ani-food-orders", {
+          status: "current",
+          collection: "one_shot",
+        }),
+      ] as typeof sources,
+    });
+    await act(async () => root.render(<SourcesExplorer reader={reader} />));
+    await settle();
+    const cells = [...host.querySelectorAll("th[scope=rowgroup]")];
+    const headings = cells.map((cell) => cell.textContent);
+    expect(headings).toEqual(["Live", "Connected", "Imported once"]);
+    const under = (heading: string) => {
+      const rows: Element[] = [];
+      let row =
+        cells[headings.indexOf(heading)]!.closest("tr")!.nextElementSibling;
+      while (row && !row.querySelector("th[scope=rowgroup]")) {
+        rows.push(row);
+        row = row.nextElementSibling;
+      }
+      return rows;
+    };
+    const live = under("Live");
+    expect(live).toHaveLength(1);
+    expect(live[0]!.textContent).toContain("ani-github-ledger");
+    expect(live[0]!.textContent).not.toContain("manual");
+    const connected = under("Connected");
+    expect(connected).toHaveLength(1);
+    expect(connected[0]!.textContent).toContain("manual");
+    expect(connected[0]!.textContent).toContain("Unjudged");
+    expect(connected[0]!.querySelector('[aria-label="Live"]')).toBeNull();
+    expect(under("Imported once")[0]!.textContent).toContain("ani-food-orders");
+    expect(
+      host.querySelectorAll('.workspace-state-quiet[aria-label="Live"]'),
+    ).toHaveLength(1);
   });
 
   // A-3: the newest record's observation is not a sync (Messages read
