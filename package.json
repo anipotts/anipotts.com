@@ -122,9 +122,7 @@
       "js-yaml@>=4 <4.3.2": "4.3.2",
       "brace-expansion@<1.1.16": "1.1.21",
       "@humanfs/node@<0.16.8": "0.16.8",
-      "astro>vite": "6.4.3",
-      "@astrojs/cloudflare>vite": "6.4.3",
-      "@astrojs/react>vite": "6.4.3"
+      "sharp@<0.35.4": "0.35.4"
     },
     "patchedDependencies": {
       "@astryxdesign/core@0.4.6": "patches/@astryxdesign__core@0.4.6.patch"
@@ -139,7 +137,7 @@
     "prettier-plugin-astro": "^0.14.1",
     "turbo": "^2.10.11",
     "typescript": "^5.7.0",
-    "wrangler": "^4.125.0",
+    "wrangler": "^4.141.0",
     "yaml": "2.8.2"
   }
 }
