@@ -7,7 +7,7 @@ import type { AdminPrincipal } from "./admin-auth";
  */
 export const LOCAL_OWNER_EMAIL = "local-owner@localhost";
 
-/** Only middleware compiled with ADMIN_LOCAL_OWNER=1 can attach this identity. */
+/** Only middleware compiled as a local owner build can attach this identity. */
 export function localOwnerPrincipal(): AdminPrincipal {
   return {
     userId: "local-owner",

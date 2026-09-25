@@ -72,9 +72,20 @@ async function ensurePreview() {
 
   const logFd = openSync(LOG_PATH, "a", 0o600);
   chmodSync(LOG_PATH, 0o600);
+  // Astro 7 detaches `astro dev` when it detects a coding agent. The manager
+  // records this process, so it stays in the foreground (--ignore-lock).
   const child = spawn(
     "pnpm",
-    ["exec", "astro", "dev", "--host", BIND_HOST, "--port", String(port)],
+    [
+      "exec",
+      "astro",
+      "dev",
+      "--host",
+      BIND_HOST,
+      "--port",
+      String(port),
+      "--ignore-lock",
+    ],
     {
       cwd: ADMIN_ROOT,
       detached: true,

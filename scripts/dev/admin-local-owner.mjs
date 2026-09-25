@@ -6,7 +6,7 @@
 // remote Cloudflare resources.
 
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { experimental_readRawConfig } from "wrangler";
@@ -14,6 +14,9 @@ import { experimental_readRawConfig } from "wrangler";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const ADMIN = join(ROOT, "apps", "admin");
 const OUT_DIR = join(ADMIN, ".local", "local-owner-dist");
+// @astrojs/cloudflare points `wrangler deploy` at the last build through this
+// file. A local owner build must never become that target.
+const DEPLOY_REDIRECT = join(ADMIN, ".wrangler/deploy/config.json");
 const HOST = "127.0.0.1";
 const DEFAULT_PORT = 8871;
 // The managed Admin preview; dev servers use 4400 to 4999.
@@ -50,10 +53,18 @@ function build() {
   );
   // Astro directly, not turbo: strict env mode would drop the flag, and a
   // cached local owner output must never be restored into dist.
-  run(["exec", "astro", "build"], {
-    cwd: ADMIN,
-    env: { ...inherited, ADMIN_LOCAL_OWNER: "1" },
-  });
+  const redirect = existsSync(DEPLOY_REDIRECT)
+    ? readFileSync(DEPLOY_REDIRECT, "utf8")
+    : null;
+  try {
+    run(["exec", "astro", "build"], {
+      cwd: ADMIN,
+      env: { ...inherited, ADMIN_LOCAL_OWNER: "1" },
+    });
+  } finally {
+    if (redirect === null) rmSync(DEPLOY_REDIRECT, { force: true });
+    else writeFileSync(DEPLOY_REDIRECT, redirect);
+  }
   console.log(`local owner build: ${OUT_DIR}`);
 }
 
@@ -71,8 +82,11 @@ function localWranglerConfig() {
   // The Worker trusts request headers, so the config pins loopback as well
   // as the --ip flag.
   config.dev = { ...config.dev, ip: HOST };
-  config.main = join(OUT_DIR, "_worker.js", "index.js");
-  config.assets = { ...config.assets, directory: OUT_DIR };
+  // The adapter's prebundled Worker and its assets, served as emitted.
+  config.main = join(OUT_DIR, "server", "entry.mjs");
+  config.no_bundle = true;
+  config.rules = [{ type: "ESModule", globs: ["**/*.js", "**/*.mjs"] }];
+  config.assets = { ...config.assets, directory: join(OUT_DIR, "client") };
   config.d1_databases = (config.d1_databases ?? []).map((database) =>
     database.migrations_dir
       ? { ...database, migrations_dir: resolve(ADMIN, database.migrations_dir) }
@@ -86,7 +100,7 @@ function localWranglerConfig() {
 function serve() {
   const listen = port();
   build();
-  if (!existsSync(join(OUT_DIR, "_worker.js", "index.js")))
+  if (!existsSync(join(OUT_DIR, "server", "entry.mjs")))
     throw new Error(`missing local owner build in ${OUT_DIR}`);
   const config = localWranglerConfig();
   // The flag is compiled in. Omitting it here shows runtime state cannot

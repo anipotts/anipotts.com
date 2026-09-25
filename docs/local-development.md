@@ -48,6 +48,30 @@ The stop command leaves the managed Admin fallback alone and keeps the
 recorded ports. Use `pnpm admin:preview:stop` only when Ani explicitly ends the
 Admin feedback loop.
 
+## astro 7 dev runtime
+
+Since Astro 7 and `@astrojs/cloudflare` 14, `astro dev` renders routes inside
+workerd through the Cloudflare Vite plugin, with the bindings from each app's
+`wrangler.toml` backed by local state under `apps/<app>/.wrangler/state`.
+Routes read bindings through `src/lib/runtime-env.ts`, never `locals.runtime`.
+
+- A fresh worktree has an empty local `CONTENT_DB`, so www content routes
+  answer 503 and Admin inventory pages 500 until it is seeded. That was already
+  true before Astro 7. Seed it with the content migrations in
+  `apps/admin/migrations/content-publication` and
+  `node scripts/content/seed-content-d1.mjs --local --persist-to apps/<app>/.wrangler/state --apply --media-ready`.
+- Astro 7 runs `astro dev` in the background when it detects a coding agent.
+  The dev server manager and the managed preview pass `--ignore-lock`, which
+  keeps the server in the foreground under their control.
+- Known gap: the Admin editorial fallback in `src/lib/editorial-local.ts`
+  starts Miniflare and esbuild from Node to hold local drafts. Under workerd
+  that module cannot load, so in `astro dev` record pages show "Private drafts
+  couldn't be loaded", draft autosave does not persist, and `/preview/home` and
+  `/preview/record` fail. Production is unaffected: builds replace that module
+  with a stub and use the `EDITORIAL` Durable Object. `pnpm preview:admin:owner`
+  serves the production bundle through wrangler dev with the real Durable
+  Object when a task needs local drafts.
+
 ## safety model
 
 The manager only ever runs `astro dev --host 127.0.0.1 --port <port>` for a

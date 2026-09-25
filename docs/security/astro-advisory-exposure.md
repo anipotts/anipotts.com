@@ -1,5 +1,10 @@
 # Astro advisory exposure
 
+Update: both apps now install astro 7.3.5 with @astrojs/cloudflare 14.3.3,
+past every first fixed version below. `config/astro/advisory-guard.mjs` reads
+the installed version and stays silent, so it no longer blocks anything. Its
+removal is a separate cleanup. The record below describes the Astro 5 state.
+
 Recorded September 14, 2026. Lockfile and config line references are to this branch after merging `origin/main` at `61b580c1`.
 
 Both apps install astro 5.18.2 with @astrojs/cloudflare 12.6.13. Admin also

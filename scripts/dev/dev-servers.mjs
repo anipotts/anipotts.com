@@ -188,9 +188,21 @@ function startApp(app, port, siteUrl) {
   mkdirSync(LOCAL_DIR, { recursive: true, mode: 0o700 });
   const logPath = join(LOCAL_DIR, `${app.key}.log`);
   const logFd = openSync(logPath, "a", 0o600);
+  // Astro 7 detaches `astro dev` when it detects a coding agent. This manager
+  // owns the process, its port and its log, so it keeps the server in the
+  // foreground and skips Astro's own lock (--ignore-lock does both).
   const child = spawn(
     "pnpm",
-    ["exec", "astro", "dev", "--host", DEV_HOST, "--port", String(port)],
+    [
+      "exec",
+      "astro",
+      "dev",
+      "--host",
+      DEV_HOST,
+      "--port",
+      String(port),
+      "--ignore-lock",
+    ],
     {
       cwd: app.cwd,
       env: childEnv({
