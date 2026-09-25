@@ -28,6 +28,7 @@ import {
   type Icon,
 } from "@phosphor-icons/react";
 import type { TileRef } from "../../lib/marks";
+import { OPS_V1_BOUNDS } from "../../lib/ops-v1";
 import { recordHost } from "../../lib/data-record";
 import { recordNaming, type Naming } from "../../lib/naming";
 import { sentenceCase } from "../../lib/sentence-case";
@@ -217,6 +218,9 @@ export const SOURCE_CONNECTORS = [
   "other",
 ] as const;
 export type SourceConnector = (typeof SOURCE_CONNECTORS)[number];
+/** System's `collection` (system#236). Its fourth value, "unknown" (the
+ * catalog entry names none), reads null here, as an older reader's absent
+ * key does: nothing is derived from it. */
 export const SOURCE_COLLECTIONS = ["live", "one_shot", "discovered"] as const;
 export type SourceCollection = (typeof SOURCE_COLLECTIONS)[number];
 export const SOURCE_STATUSES = [
@@ -230,6 +234,9 @@ export const SOURCE_STATUSES = [
   "paused",
 ] as const;
 export type SourceStatus = (typeof SOURCE_STATUSES)[number];
+/** A status as read: System's own word, `unknown` for a value outside
+ * SOURCE_STATUSES, or null when the reader sent none (an older reader). */
+export type SourceStatusRead = SourceStatus | "unknown";
 export const SOURCE_TRANSPORTS = [
   "launchd",
   "push",
@@ -250,7 +257,9 @@ export type DataSourceRow = {
   connector: SourceConnector | null;
   host: string | null;
   collection: SourceCollection | null;
-  status: SourceStatus | null;
+  /** System's status for the source (personal_context_data_v1 serves one
+   * for every source since system#231). Null only from an older reader. */
+  status: SourceStatusRead | null;
   /** The ops catalog id that collects it, joined to the ops snapshot. */
   job: string | null;
   /** How it arrives. Read only to credit Apple Health: a health source is
@@ -260,7 +269,62 @@ export type DataSourceRow = {
   lastSuccessAt: string | null;
   /** The newest record System holds, a detail only. */
   heldTo: string | null;
+  /** Field names System sent that this client does not know yet, sorted.
+   * Never read; only named, as ops-v1's `unknown_fields` are. */
+  unknownFields: string[];
 };
+
+/** The fields a source row reads. */
+const SOURCE_FIELDS = [
+  "source_id",
+  "status",
+  "first_observed_at",
+  "last_observed_at",
+  "record_count",
+  "revision_count",
+  "display_name",
+  "connector",
+  "host",
+  "collection",
+  "job",
+  "transport",
+  "discovered_count",
+  "last_success_at",
+  "held_to",
+];
+/** Proposed catalog fields admin knows and deliberately leaves unread. */
+const SOURCE_IGNORED_FIELDS = [
+  "adapter",
+  "held_from",
+  "excluded_count",
+  "failed_count",
+];
+
+/** Any other field's name, bounded, and `other` for a name not worth
+ * printing, as ops-v1's `known` notes drift. */
+function unknownSourceFields(item: Item): string[] {
+  const drift = new Set<string>();
+  for (const key of Object.keys(item)) {
+    if (SOURCE_FIELDS.includes(key) || SOURCE_IGNORED_FIELDS.includes(key))
+      continue;
+    if (drift.size >= OPS_V1_BOUNDS.maxUnknownFields) break;
+    drift.add(OPS_V1_BOUNDS.fieldName.test(key) ? key : "other");
+  }
+  return [...drift].sort();
+}
+
+/**
+ * System's status. Absent or null (an older reader) reads null, "Status not
+ * reported". Any other value outside SOURCE_STATUSES reads `unknown` for
+ * this source alone: the reply is never rejected and the value is never
+ * shown. This follows ops-v1, where a catalog entry with no readable state
+ * is `unknown` and a host it does not know is `other`, rather than its
+ * trigger rule, whose null would claim System said nothing.
+ */
+function sourceStatus(value: unknown): SourceStatusRead | null {
+  if (value === undefined || value === null) return null;
+  return oneOf(SOURCE_STATUSES, value) ?? "unknown";
+}
 
 const oneOf = <T extends string>(
   values: readonly T[],
@@ -288,10 +352,11 @@ const optionalCount = (value: unknown): number | null =>
     : null;
 
 /**
- * A /v1/data/sources row. The five fields System has always served parse;
- * the catalog fields a view reads parse when present and valid and are null
- * otherwise. Any other field (transport, adapter, held span, counts of
- * excluded or failed items) is ignored, as unknown fields always were.
+ * A /v1/data/sources row. The six fields System serves parse (`status` since
+ * system#231); the catalog fields a view reads parse when present and valid
+ * and are null otherwise. The proposed fields admin leaves unread (adapter,
+ * held span start, counts of excluded or failed items) are ignored, and any
+ * other field is never read, only named in `unknownFields`.
  */
 export function parseSource(value: unknown): DataSourceRow | null {
   const item = object(value);
@@ -307,12 +372,13 @@ export function parseSource(value: unknown): DataSourceRow | null {
     connector: oneOf(SOURCE_CONNECTORS, item.connector),
     host: token(item.host),
     collection: oneOf(SOURCE_COLLECTIONS, item.collection),
-    status: oneOf(SOURCE_STATUSES, item.status),
+    status: sourceStatus(item.status),
     job: token(item.job),
     transport: oneOf(SOURCE_TRANSPORTS, item.transport),
     discoveredCount: optionalCount(item.discovered_count),
     lastSuccessAt: instant(item.last_success_at),
     heldTo: instant(item.held_to),
+    unknownFields: unknownSourceFields(item),
   };
 }
 

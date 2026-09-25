@@ -916,9 +916,9 @@
     },
     {
       "source_id": "synthetic-body-scale",
-      "first_observed_at": "2026-07-25T08:00:00.000000Z",
+      "first_observed_at": "2026-08-12T08:00:00.140000Z",
       "last_observed_at": "2026-08-12T08:00:00.000000Z",
-      "record_count": 5,
+      "record_count": 0,
       "revision_count": 5,
       "connector": "health",
       "host": "ap-mini",
@@ -963,14 +963,19 @@
       "first_observed_at": "2026-09-15T17:45:00.000000Z",
       "last_observed_at": "2026-09-15T17:45:00.000000Z",
       "record_count": 86,
-      "revision_count": 86
+      "revision_count": 86,
+      "collection": "one_shot",
+      "status": "current",
+      "last_success_at": "2026-09-15T17:45:00.000000Z"
     },
     {
       "source_id": "manual",
       "first_observed_at": "2026-09-10T17:45:00.000000Z",
       "last_observed_at": "2026-09-19T15:45:00.000000Z",
       "record_count": 12,
-      "revision_count": 14
+      "revision_count": 14,
+      "collection": "unknown",
+      "status": "current"
     },
     {
       "source_id": "synthetic-gmail-personal",
@@ -1007,14 +1012,18 @@
       "first_observed_at": null,
       "last_observed_at": null,
       "record_count": 0,
-      "revision_count": 0
+      "revision_count": 0,
+      "collection": "discovered",
+      "status": "discovered"
     },
     {
       "source_id": "synthetic-contacts-school",
       "first_observed_at": null,
       "last_observed_at": null,
       "record_count": 0,
-      "revision_count": 0
+      "revision_count": 0,
+      "collection": "discovered",
+      "status": "discovered"
     },
     {
       "source_id": "synthetic-messages-mini",
@@ -1022,7 +1031,9 @@
       "last_observed_at": null,
       "record_count": 0,
       "revision_count": 0,
-      "discovered_count": 69
+      "discovered_count": 69,
+      "collection": "live",
+      "status": "pending"
     },
     {
       "source_id": "synthetic-messages-pro",
@@ -1030,7 +1041,9 @@
       "last_observed_at": null,
       "record_count": 0,
       "revision_count": 0,
-      "discovered_count": 1800
+      "discovered_count": 1800,
+      "collection": "live",
+      "status": "pending"
     },
     {
       "source_id": "synthetic-photos-pro",
@@ -1038,7 +1051,9 @@
       "last_observed_at": null,
       "record_count": 0,
       "revision_count": 0,
-      "discovered_count": 3200
+      "discovered_count": 3200,
+      "collection": "live",
+      "status": "unavailable"
     },
     {
       "source_id": "synthetic-codex-mini",
@@ -1046,7 +1061,9 @@
       "last_observed_at": null,
       "record_count": 0,
       "revision_count": 0,
-      "discovered_count": 160
+      "discovered_count": 160,
+      "collection": "discovered",
+      "status": "discovered"
     },
     {
       "source_id": "synthetic-codex-pro",
@@ -1054,7 +1071,9 @@
       "last_observed_at": null,
       "record_count": 0,
       "revision_count": 0,
-      "discovered_count": 1190
+      "discovered_count": 1190,
+      "collection": "discovered",
+      "status": "discovered"
     }
   ],
   "sources_as_of": "2026-09-21T17:45:00Z",

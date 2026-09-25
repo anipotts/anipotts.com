@@ -34,27 +34,54 @@ const records = [
     provenance: { source_uri: "fixture://catalog/two" },
   },
 ];
+/** The seven fields the reader serves per source (system#236). The second
+ * is withdrawn the way System serves an excluded source: no retrievable
+ * records, its content revisions retained, and a last observation a moment
+ * before its first. The third is shaped like manual: current, with a
+ * catalog entry that names no collection, so it reads Unjudged, never
+ * Live. */
+const sources = [
+  {
+    source_id: "catalog",
+    status: "partial",
+    collection: "live",
+    first_observed_at: observedAt,
+    last_observed_at: observedAt,
+    record_count: records.length,
+    revision_count: records.length,
+  },
+  {
+    source_id: "catalog-withdrawn",
+    status: "excluded",
+    collection: "unknown",
+    first_observed_at: "2026-09-20T09:00:00.140Z",
+    last_observed_at: "2026-09-20T09:00:00.000Z",
+    record_count: 0,
+    revision_count: 4,
+  },
+  {
+    source_id: "catalog-manual",
+    status: "current",
+    collection: "unknown",
+    first_observed_at: observedAt,
+    last_observed_at: observedAt,
+    record_count: 0,
+    revision_count: 0,
+  },
+];
 const fixture = {
   status: {
     database: { exists: true, writer: false, principal: "owner" },
     counts: {
       records: records.length,
-      revisions: records.length,
-      sources: 1,
+      revisions: sources.reduce((sum, item) => sum + item.revision_count, 0),
+      sources: sources.length,
       changes: 0,
     },
     last_change_at: observedAt,
   },
   records,
-  sources: [
-    {
-      source_id: "catalog",
-      first_observed_at: observedAt,
-      last_observed_at: observedAt,
-      record_count: records.length,
-      revision_count: records.length,
-    },
-  ],
+  sources,
 };
 
 /** The real Data workspace on an in-memory synthetic reader. Never reads a

@@ -8,6 +8,7 @@ import {
   BrowserIcon,
   CalendarBlankIcon,
   CaretRightIcon,
+  CircleHalfIcon,
   ChatCircleTextIcon,
   CircleDashedIcon,
   ChatsCircleIcon,
@@ -16,13 +17,13 @@ import {
   DatabaseIcon,
   EnvelopeSimpleIcon,
   HeartbeatIcon,
+  HourglassSimpleIcon,
   ImagesSquareIcon,
   MoonIcon,
   NotePencilIcon,
   PauseIcon,
   ProhibitIcon,
   RowsIcon,
-  SpinnerGapIcon,
   StackSimpleIcon,
   WarningCircleIcon,
   WarningIcon,
@@ -89,14 +90,16 @@ const CONNECTOR_GLYPHS: Record<SourceRow["connector"], Icon> = {
  * a chip's dot sits; every other state is its chip. */
 const STATES: Record<
   SourceState,
-  { label: string; tone: Tone; quiet?: true; icon?: Icon }
+  { label: string; tone: Tone; quiet?: true; icon?: Icon; hint?: string }
 > = {
   live: { label: "Live", tone: "positive", quiet: true },
   connected: { label: "Connected", tone: "neutral", quiet: true },
   imported: { label: "Imported once", tone: "neutral", quiet: true },
   unreported: { label: "Status not reported", tone: "neutral", quiet: true },
   discovered: { label: "Not connected", tone: "neutral", quiet: true },
-  // A live source whose job cannot be joined: neither Live nor a problem.
+  // A source System does not call current under a job, a named job that
+  // cannot be joined, or a status admin cannot read: neither Live nor a
+  // problem.
   unjudged: { label: "Unjudged", tone: "neutral", icon: CircleDashedIcon },
   stale: { label: "Stale", tone: "warning", icon: ClockCounterClockwiseIcon },
   degraded: { label: "Degraded", tone: "warning", icon: WarningIcon },
@@ -104,7 +107,19 @@ const STATES: Record<
   failed: { label: "Failed", tone: "critical", icon: WarningCircleIcon },
   unavailable: { label: "Unavailable", tone: "neutral", icon: ProhibitIcon },
   paused: { label: "Paused", tone: "rest", icon: PauseIcon },
-  pending: { label: "Syncing", tone: "neutral", icon: SpinnerGapIcon },
+  // System's own meanings (personal_context INTERFACE.md) as tooltips.
+  pending: {
+    label: "Pending",
+    tone: "neutral",
+    icon: HourglassSimpleIcon,
+    hint: "A capture attempt started and has not recorded its outcome",
+  },
+  partial: {
+    label: "Partial",
+    tone: "neutral",
+    icon: CircleHalfIcon,
+    hint: "Records are retrievable; the last capture was incomplete or covered only an enrolled batch, or no catalog status exists",
+  },
   excluded: { label: "Excluded", tone: "neutral", icon: ProhibitIcon },
 };
 
@@ -149,7 +164,7 @@ export function SourceStateMark({
     );
   }
   const Glyph = badge.icon ?? WarningCircleIcon;
-  return (
+  const chip = (
     <StateBadge
       tone={badge.tone}
       label={badge.label}
@@ -163,6 +178,13 @@ export function SourceStateMark({
       }
     />
   );
+  return badge.hint ? (
+    <span className="sources-state-hint" title={badge.hint}>
+      {chip}
+    </span>
+  ) : (
+    chip
+  );
 }
 
 function Device({ id }: { id: string | null }) {
@@ -171,8 +193,9 @@ function Device({ id }: { id: string | null }) {
 }
 
 /** Whether a row shows System's counts. A discovered source has none to
- * show. An excluded one shows what System reports, so a count that
- * disagrees with its withdrawn records stays visible for System to fix. */
+ * show. An excluded one shows what System reports: no retrievable records
+ * (0 since system#231) beside the revisions it retains, and a count that
+ * ever disagrees stays visible for System to fix. */
 const showsCounts = (row: SourceRow) => row.group !== "discovered";
 
 /** Records and revisions as glyph and number pairs for a phone's line 2,
@@ -559,8 +582,8 @@ export function SourcesExplorer({
     // "Last sync" is System's own success time for the source, and shows
     // only once System serves one; "Last seen" is when the newest record
     // was observed, never a sync. No time System did not record: an
-    // excluded source's is withdrawn (its last observation can be the
-    // exclusion itself, S-20), a discovered one was never connected.
+    // excluded source's is withdrawn with its records (S-20), a discovered
+    // one was never connected.
     ...(anySync
       ? [
           {
