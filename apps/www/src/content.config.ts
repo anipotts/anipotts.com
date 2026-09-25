@@ -1,4 +1,5 @@
 import { defineCollection } from "astro:content";
+import { astroSchema } from "./lib/astro-schema";
 import { glob } from "astro/loaders";
 import { projectSchema, writingSchema } from "@anipotts/content/public/schema";
 import {
@@ -11,26 +12,26 @@ import {
 export const collections = {
   home: defineCollection({
     loader: glob({ pattern: "home.md", base: "../../content/public/pages" }),
-    schema: homepageSchema,
+    schema: astroSchema(homepageSchema),
   }),
   workPage: defineCollection({
     loader: glob({ pattern: "work.md", base: "../../content/public/pages" }),
-    schema: workPageSchema,
+    schema: astroSchema(workPageSchema),
   }),
   writingPage: defineCollection({
     loader: glob({ pattern: "writing.md", base: "../../content/public/pages" }),
-    schema: listingPageSchema,
+    schema: astroSchema(listingPageSchema),
   }),
   systemsPage: defineCollection({
     loader: glob({ pattern: "systems.md", base: "../../content/public/pages" }),
-    schema: systemsPageSchema,
+    schema: astroSchema(systemsPageSchema),
   }),
   writing: defineCollection({
     loader: glob({ pattern: "*.md", base: "../../content/public/writing" }),
-    schema: writingSchema,
+    schema: astroSchema(writingSchema),
   }),
   projects: defineCollection({
     loader: glob({ pattern: "*.md", base: "../../content/public/projects" }),
-    schema: projectSchema,
+    schema: astroSchema(projectSchema),
   }),
 };
