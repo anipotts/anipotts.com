@@ -78,6 +78,16 @@ const fetch: Handler = async (request, env, context) => {
       url.pathname = pathname === "/index.html" ? "/" : pathname.slice(0, -5);
       return withSecurityHeaders(Response.redirect(url, 308));
     }
+    // Adapter 14 injects a passthrough /_image endpoint that answers any
+    // same-origin href straight from ASSETS, around the card and media gates
+    // below. The site never emits /_image URLs, so it does not exist here.
+    if (pathname === "/_image" || pathname.startsWith("/_image/"))
+      return withSecurityHeaders(
+        new Response(null, {
+          status: 404,
+          headers: { "Cache-Control": "no-store" },
+        }),
+      );
     const card =
       request.method === "GET" || request.method === "HEAD"
         ? writingCardSlug(pathname)

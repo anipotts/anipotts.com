@@ -20,6 +20,14 @@ const fetch: Handler = async (request, env, context) => {
     );
   // Diagnostic only: Access fronts every route, so no smoke would catch a block.
   reportRuntimeContract(env, "fetch");
+  // Adapter 14's passthrough /_image endpoint would read any same-origin href
+  // from ASSETS. Admin never emits /_image URLs, so it answers 404.
+  const { pathname } = new URL(request.url);
+  if (pathname === "/_image" || pathname.startsWith("/_image/"))
+    return new Response(null, {
+      status: 404,
+      headers: { "Cache-Control": "private, no-store" },
+    });
   // Hashed build output skips the adapter, which would drop the request's
   // validators, and takes the long-lived cache policy. A miss or any
   // failure falls through to the adapter, which keeps the 404 page.

@@ -88,6 +88,23 @@ it("keeps the Durable Object export beside the wrapped handler", async () => {
   ]);
 });
 
+it("answers the adapter image endpoint with 404", async () => {
+  vi.spyOn(console, "info").mockImplementation(() => {});
+  vi.spyOn(console, "warn").mockImplementation(() => {});
+  const worker = await freshWorker();
+  const assets = { fetch: vi.fn(async () => new Response("bytes")) };
+  const response = await worker.default.fetch(
+    new Request(
+      "https://admin.example.test/_image?href=/admin-bracket.svg",
+    ) as never,
+    { ASSETS: assets } as never,
+    context as never,
+  );
+  expect(response.status).toBe(404);
+  expect(assets.fetch).not.toHaveBeenCalled();
+  expect(inner.fetch).not.toHaveBeenCalled();
+});
+
 describe("hashed build output", () => {
   const assetRequest = (init?: RequestInit, path = "/_astro/app.Ab12.js") =>
     new Request(`https://admin.example.test${path}`, init) as never;
