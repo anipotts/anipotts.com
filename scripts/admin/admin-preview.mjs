@@ -15,6 +15,7 @@ import { createConnection } from "node:net";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { adminPreviewChildEnv } from "./admin-preview-env.mjs";
+import { ensureLocalContentDatabase } from "../dev/local-content-db.mjs";
 
 const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const ADMIN_ROOT = join(REPO_ROOT, "apps/admin");
@@ -70,6 +71,9 @@ async function ensurePreview() {
     );
   }
 
+  // The preview edits through Admin's local bindings; migrate and seed its
+  // local CONTENT_DB once. Local state only.
+  ensureLocalContentDatabase({ appDir: ADMIN_ROOT });
   const logFd = openSync(LOG_PATH, "a", 0o600);
   chmodSync(LOG_PATH, 0o600);
   // Astro 7 detaches `astro dev` when it detects a coding agent. The manager

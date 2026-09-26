@@ -264,8 +264,9 @@ jobs:
           PUBLIC_RELEASE_SHA: ${{ github.sha }}
           PUBLIC_RELEASE_SCHEMA_VERSION: ${{ needs.release.outputs.database_schema_version }}
 
-      # apps/www is Astro (@astrojs/cloudflare). `astro build` already emits the
-      # worker bundle at dist/_worker.js; no opennextjs adapter step here.
+      # apps/www is Astro (@astrojs/cloudflare). `astro build` emits the Worker
+      # to dist/server and its assets to dist/client, and wrangler deploy finds
+      # both through .wrangler/deploy/config.json; no adapter step here.
       - name: Capture active www version
         id: previous
         run: |

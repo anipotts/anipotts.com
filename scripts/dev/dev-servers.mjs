@@ -13,6 +13,7 @@ import {
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { ensureLocalContentDatabase } from "./local-content-db.mjs";
 import {
   DEV_HOST,
   devUrl,
@@ -237,6 +238,9 @@ function prepareAppDependencies(app) {
     ],
     { stdio: "inherit" },
   );
+  // astro dev binds this app's local CONTENT_DB. Migrate and seed it once so a
+  // fresh worktree serves content instead of a 503. Local state only.
+  ensureLocalContentDatabase({ appDir: app.cwd });
 }
 
 async function waitForApp(app, record) {

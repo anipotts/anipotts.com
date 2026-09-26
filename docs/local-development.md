@@ -50,27 +50,46 @@ Admin feedback loop.
 
 ## astro 7 dev runtime
 
-Since Astro 7 and `@astrojs/cloudflare` 14, `astro dev` renders routes inside
-workerd through the Cloudflare Vite plugin, with the bindings from each app's
-`wrangler.toml` backed by local state under `apps/<app>/.wrangler/state`.
-Routes read bindings through `src/lib/runtime-env.ts`, never `locals.runtime`.
+Since Astro 7 and `@astrojs/cloudflare` 14, `astro dev` runs each app inside
+workerd through the Cloudflare Vite plugin, using the Worker entry and bindings
+from the app's `wrangler.toml`. Bindings are local only (`remoteBindings:
+false`) and persist under `apps/<app>/.wrangler/state`. Routes read them
+through `src/lib/runtime-env.ts`, never `locals.runtime`.
 
-- A fresh worktree has an empty local `CONTENT_DB`, so www content routes
-  answer 503 and Admin inventory pages 500 until it is seeded. That was already
-  true before Astro 7. Seed it with the content migrations in
-  `apps/admin/migrations/content-publication` and
-  `node scripts/content/seed-content-d1.mjs --local --persist-to apps/<app>/.wrangler/state --apply --media-ready`.
+- **Local content database.** `pnpm dev:www` and `pnpm dev:admin` bootstrap
+  the app's local `CONTENT_DB` before starting Astro: they apply the
+  migrations in `apps/admin/migrations/content-publication` and seed the Git
+  records with `scripts/content/seed-content-d1.mjs --local`, only when the
+  database is missing, unmigrated or unseeded. The log says either
+  `local content database ready` or `local content database: bootstrapping`.
+  Every command passes `--local`; `scripts/dev/local-content-db.mjs` refuses
+  `--remote`.
+- **Local drafts use the production path.** Admin in `astro dev` edits
+  through the same `productionEditor(env)` as the deployed Worker: the
+  `EditorialDraftStore` Durable Object exported by `src/worker.ts`, the local
+  `CONTENT_DB` for published bases, and the local `CONTENT_MEDIA` bucket.
+  Drafts, autosave, history, restore, discard, previews and image uploads all
+  persist in `apps/admin/.wrangler/state`, which `pnpm preview:admin:owner`
+  shares. Publishing stays off locally because `PUBLIC_RELEASE_SHA` is not a
+  release commit; the editor says "Publishing is available in the production
+  editor. This draft stays local."
+- **Old local drafts.** Before Astro 7, local drafts lived in a separate
+  Miniflare store under `.local/editorial-drafts`. Nothing reads that
+  directory any more. It is inert and kept; copy anything you need from it by
+  hand.
+- `run_worker_first = true` sends every dev request to the Worker, including
+  Vite's module and client URLs. Both Worker entries hand those to the dev
+  `ASSETS` binding (Vite's middleware) through
+  `apps/www/src/lib/vite-dev-request.ts`; builds compile that branch out.
+- Known dev-only gap: the draft preview is a sandboxed frame with an opaque
+  origin, and Astro 7's dev server refuses its cross-site subresource
+  requests (`Cross-origin request blocked`). Uploaded draft images therefore
+  show as broken inside `/preview/record` and `/preview/home` under
+  `astro dev`; the editor itself shows them, and the deployed Worker has no
+  such guard. The guard is left on rather than weakened for local media.
 - Astro 7 runs `astro dev` in the background when it detects a coding agent.
   The dev server manager and the managed preview pass `--ignore-lock`, which
   keeps the server in the foreground under their control.
-- Known gap: the Admin editorial fallback in `src/lib/editorial-local.ts`
-  starts Miniflare and esbuild from Node to hold local drafts. Under workerd
-  that module cannot load, so in `astro dev` record pages show "Private drafts
-  couldn't be loaded", draft autosave does not persist, and `/preview/home` and
-  `/preview/record` fail. Production is unaffected: builds replace that module
-  with a stub and use the `EDITORIAL` Durable Object. `pnpm preview:admin:owner`
-  serves the production bundle through wrangler dev with the real Durable
-  Object when a task needs local drafts.
 
 ## safety model
 
