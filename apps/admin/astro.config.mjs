@@ -3,6 +3,7 @@ import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
 import { unified } from "@astrojs/markdown-remark";
+import { publishedHeadingIds } from "../www/src/lib/published-heading-ids.mjs";
 import icon from "astro-icon";
 import astroAdvisoryGuard from "../../config/astro/advisory-guard.mjs";
 import { publicContentHotReload } from "../../scripts/dev/public-content-hot-reload.mjs";
@@ -32,7 +33,7 @@ export default defineConfig({
   // compression the admin has always shipped.
   compressHTML: true,
   // Astro 7 defaults to Sätteri. Keep the remark/rehype pipeline.
-  markdown: { processor: unified() },
+  markdown: { processor: unified({ rehypePlugins: [publishedHeadingIds] }) },
   site: "https://admin.anipotts.com",
   output: "server",
   // A local owner build never writes the directory wrangler deploys.

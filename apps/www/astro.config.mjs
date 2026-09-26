@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import { unified } from "@astrojs/markdown-remark";
+import { publishedHeadingIds } from "./src/lib/published-heading-ids.mjs";
 import icon from "astro-icon";
 import { siteConfig } from "@anipotts/content/public";
 import astroAdvisoryGuard from "../../config/astro/advisory-guard.mjs";
@@ -103,7 +104,7 @@ export default defineConfig({
   ],
   markdown: {
     // Astro 7 defaults to Sätteri. Keep the remark/rehype pipeline.
-    processor: unified(),
+    processor: unified({ rehypePlugins: [publishedHeadingIds] }),
     shikiConfig: { theme: "css-variables" },
   },
 });
