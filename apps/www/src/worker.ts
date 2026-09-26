@@ -12,6 +12,7 @@ import {
 } from "./lib/static-assets";
 import { hiddenWritingCard, writingCardSlug } from "./lib/social-card/gate";
 import { contentUnavailable } from "./lib/published-runtime";
+import { isViteDevRequest } from "./lib/vite-dev-request";
 
 /** Under the content store a per-article card follows its article: it
  * revalidates on every use, so an unpublished article stops sharing it. */
@@ -51,6 +52,10 @@ const fetch: Handler = async (request, env, context) => {
   try {
     const url = new URL(request.url);
     const { pathname } = url;
+    if (import.meta.env.DEV && isViteDevRequest(request))
+      return await env.ASSETS.fetch(
+        request as unknown as Parameters<typeof env.ASSETS.fetch>[0],
+      );
     const canonical = canonicalContentPath(pathname);
     if (canonical === null)
       return withSecurityHeaders(

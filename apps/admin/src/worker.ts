@@ -4,6 +4,7 @@ import {
   withHashedAssetCache,
 } from "./lib/hashed-assets";
 import { reportRuntimeContract } from "./lib/runtime-contract";
+import { isViteDevRequest } from "../../www/src/lib/vite-dev-request";
 
 export { EditorialDraftStore } from "./editorial/draft-store";
 
@@ -12,6 +13,11 @@ type Handler = typeof handle;
 /** Cloudflare Worker entry, named by `main` in wrangler.toml. It wraps the
  * adapter handler and exports the editorial Durable Object class. */
 const fetch: Handler = async (request, env, context) => {
+  // Development only: Vite's module and client URLs (see vite-dev-request).
+  if (import.meta.env.DEV && isViteDevRequest(request))
+    return env.ASSETS.fetch(
+      request as unknown as Parameters<typeof env.ASSETS.fetch>[0],
+    );
   // Diagnostic only: Access fronts every route, so no smoke would catch a block.
   reportRuntimeContract(env, "fetch");
   // Hashed build output skips the adapter, which would drop the request's
