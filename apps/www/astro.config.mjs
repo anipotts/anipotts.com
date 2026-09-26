@@ -55,6 +55,8 @@ export default defineConfig({
   // the security headers too.
   adapter: cloudflare({
     imageService: "passthrough",
+    // astro dev uses local-only D1, R2 and queue bindings under .wrangler/state.
+    remoteBindings: false,
     // Prerendered pages and the social cards read node:fs at build time.
     prerenderEnvironment: "node",
   }),

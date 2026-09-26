@@ -15,9 +15,7 @@ import { productionEditor } from "../../lib/editorial-server";
 import { previewFailure } from "../../lib/preview-status";
 let home;
 {
-  const storage = import.meta.env.DEV
-    ? await (await import("../../lib/editorial-local")).localDraftStorage()
-    : productionEditor(runtimeEnv())?.storage;
+  const storage = productionEditor(runtimeEnv())?.storage;
   const draft = await storage?.get({ kind: "page", id: "home" });
   if (
     draft &&

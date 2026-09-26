@@ -37,9 +37,7 @@ const parsedRecord = editorialRecordSchema.safeParse({
 if (!parsedRecord.success) return previewFailure(Astro.url, "unavailable", 400);
 const record = parsedRecord.data;
 const snapshot = await readEditorialSnapshot(async () => {
-  const storage = import.meta.env.DEV
-    ? await (await import("../../lib/editorial-local")).localDraftStorage()
-    : productionEditor(runtimeEnv())?.storage;
+  const storage = productionEditor(runtimeEnv())?.storage;
   if (!storage) throw new Error("storage_unavailable");
   return storage.get(record);
 });

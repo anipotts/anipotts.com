@@ -17,9 +17,8 @@ import { gitBlobSha1 } from "./crypto";
 import { newRecordSource } from "./editorial-collections";
 
 export function bundledEditorialSources() {
-  // Vite compiles this literal glob for production and provider-runtime tests.
-  // The local private-draft Worker is bundled by bare esbuild, which has no
-  // import.meta.glob transform. Defer access until a publication baseline is
+  // Vite compiles this literal glob for production, astro dev and
+  // provider-runtime tests. Access is deferred until a publication baseline is
   // actually requested; never substitute an empty inventory for direct mode.
   const sources = import.meta.glob("../../../../content/public/**/*.md", {
     query: "?raw",

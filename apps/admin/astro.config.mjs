@@ -105,14 +105,10 @@ export default defineConfig({
           // Public components are reused inside private preview frames. Their
           // navigation affordances must not prefetch owner-only admin routes.
           if (id === "astro:prefetch") return "\0editorial-preview-prefetch";
-          if (id.endsWith("/editorial-local"))
-            return "\0editorial-local-disabled";
         },
         load(id) {
           if (id === "\0editorial-preview-prefetch")
             return "export function prefetch() {}";
-          if (id === "\0editorial-local-disabled")
-            return "export function localDraftStorage(){throw new Error('local_only')} export function localHomeBase(){throw new Error('local_only')}";
         },
       },
     ],
@@ -121,5 +117,9 @@ export default defineConfig({
   // wrangler.toml (src/worker.ts).
   adapter: cloudflare({
     imageService: "passthrough",
+    // astro dev runs the Worker with local-only bindings: its own EDITORIAL
+    // Durable Object, local D1 and local R2 under .wrangler/state. Remote
+    // bindings stay off even if a binding is ever marked `remote`.
+    remoteBindings: false,
   }),
 });

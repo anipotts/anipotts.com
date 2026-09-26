@@ -6,9 +6,7 @@ import { runtimeEnv } from "../../../lib/runtime-env";
 
 export const ALL: APIRoute = async ({ request, locals }) => {
   try {
-    const storage = import.meta.env.DEV
-      ? await (await import("../../../lib/editorial-local")).localDraftStorage()
-      : productionEditor(runtimeEnv())?.storage;
+    const storage = productionEditor(runtimeEnv())?.storage;
     if (!storage) return privateJson({ error: "storage_unavailable" }, 503);
     return await editorialMediaApi(request, storage);
   } catch {

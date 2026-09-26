@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import reactRenderer from "@astrojs/react/server.js";
 import { JSDOM } from "jsdom";
+import { env as workerEnv } from "cloudflare:workers";
 import RecordPage from "../../src/pages/content/[collection]/[id].astro";
 import CatalogPage from "../../src/dev/dev-catalog.astro";
 
@@ -22,14 +23,20 @@ vi.mock("../../src/lib/editorial-inventory-server", () => ({
     unavailable: false,
   }),
 }));
-vi.mock("../../src/lib/editorial-local", () => ({
-  localDraftStorage: async () => ({
-    get: async () => {
-      if (boundary.unavailable) throw new Error("storage_unavailable");
-      return boundary.draft;
-    },
-  }),
-}));
+// The production editor, as astro dev and the Worker read it: an EDITORIAL
+// Durable Object binding whose draft reads are the synthetic boundary.
+Object.assign(workerEnv, {
+  EDITORIAL_ENABLED: "true",
+  CONTENT_DB: {},
+  EDITORIAL: {
+    getByName: () => ({
+      get: async () => {
+        if (boundary.unavailable) throw new Error("storage_unavailable");
+        return boundary.draft;
+      },
+    }),
+  },
+});
 
 async function render(page, path, params = {}) {
   const container = await AstroContainer.create();

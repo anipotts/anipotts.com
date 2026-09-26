@@ -97,21 +97,20 @@ vi.mock("../../src/lib/editorial-inventory-server", () => ({
   }),
 }));
 // Draft storage holds the current Git source at revision 1, so the preview
-// routes render their success path instead of the stale refusal.
-vi.mock("../../src/lib/editorial-local", () => ({
-  localDraftStorage: async () => ({
-    get: async ({ kind, id }) => {
-      const path = {
-        "page:home": "public/pages/home.md",
-        "writing:search-will-be-dead-by-2030":
-          "public/writing/search-will-be-dead-by-2030.md",
-      }[`${kind}:${id}`];
-      return path
-        ? { source: content.read(path), revision: 1, discardedAt: null }
-        : null;
-    },
-  }),
-}));
+// routes render their success path instead of the stale refusal. It is the
+// EDITORIAL Durable Object binding productionEditor reads, in dev and deploy.
+const draftStorage = {
+  get: async ({ kind, id }) => {
+    const path = {
+      "page:home": "public/pages/home.md",
+      "writing:search-will-be-dead-by-2030":
+        "public/writing/search-will-be-dead-by-2030.md",
+    }[`${kind}:${id}`];
+    return path
+      ? { source: content.read(path), revision: 1, discardedAt: null }
+      : null;
+  },
+};
 // The production loader: no development fixtures, so the readers' own
 // states render, as they do in the deployed Worker.
 vi.mock("../../src/lib/shell-fixtures", () => ({
@@ -138,6 +137,7 @@ const READERS_ON = {
   DB: emptyDatabase,
   // The published store at version 0: previews overlay nothing on Git.
   CONTENT_DB: contentDatabase(),
+  EDITORIAL: { getByName: () => draftStorage },
 };
 // Every route reads these bindings, as a Worker reads its own.
 Object.assign(workerEnv, READERS_ON);
