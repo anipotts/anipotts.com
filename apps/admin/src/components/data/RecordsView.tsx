@@ -352,7 +352,7 @@ export function RecordsToolbar({
             <span className="data-chip-text">
               {source.name}
               <XIcon
-                weight="bold"
+                weight="regular"
                 aria-hidden="true"
                 className="data-chip-clear"
               />

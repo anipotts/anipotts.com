@@ -231,21 +231,21 @@
   padding-inline-start: 0;
 }
 
-/* Hosts and the exception counts share one line above the table. */
-.ops-overview {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--spacing-3);
-}
+/* The exception counts, on the title line beside the clock. */
 .ops-counts {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--spacing-2);
-  margin: 0 0 0 auto;
+  justify-content: flex-end;
+  gap: var(--spacing-1) var(--spacing-2);
+  margin: 0;
   padding: 0;
   list-style: none;
+}
+/* A chip's own box, so the item is exactly its height and centres with
+   the clock rather than sitting on a text baseline. */
+.ops-counts > li {
+  display: flex;
 }
 
 /* Cards: a host or a sync on the table's surface, two lines beside a 28px
@@ -762,12 +762,6 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
   .observability-workspace .workspace-table .astryx-table-cell {
     height: auto;
   }
-  .ops-overview {
-    gap: var(--spacing-2);
-  }
-  .ops-counts {
-    margin-inline-start: 0;
-  }
   .ops-cards:not(#\#) {
     display: flex;
     flex-direction: column;
@@ -777,9 +771,6 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
   }
   .ops-hosts > .ops-card {
     flex: none;
-  }
-  .ops-overview > .ops-hosts {
-    flex: 1 1 100%;
   }
   .ops-card-link {
     min-height: calc(var(--spacing-12) + var(--spacing-2));

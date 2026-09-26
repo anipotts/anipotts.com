@@ -224,9 +224,12 @@
 }
 
 /* A record row's state column: a chip for a state other than the default,
-   then the tier glyph at the column's end, so tiers read down one line. */
+   then the tier glyph at the column's end, so tiers read down one line.
+   It fills the cell where the cell is itself a flex box (641px to 1023px),
+   or the tier would follow the chip instead. */
 .data-record-state {
   display: flex;
+  flex: 1 1 auto;
   align-items: center;
   gap: var(--spacing-2);
   min-width: 0;

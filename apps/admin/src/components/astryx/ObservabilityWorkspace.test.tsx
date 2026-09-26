@@ -199,9 +199,52 @@ describe("Status view from System's fixture", () => {
     expect(
       [...counts.querySelectorAll("li")].map((item) => item.textContent),
     ).toEqual(["1 Failing", "1 Degraded", "1 Stale", "1 Unknown"]);
+    // On the title line, immediately before the clock, not above the table.
+    const end = host.querySelector(".workspace-page-line .workspace-page-end")!;
+    expect(counts.closest(".workspace-page-status")?.parentElement).toBe(end);
+    expect(counts.closest(".workspace-page-status")?.nextElementSibling).toBe(
+      end.querySelector(".workspace-clock"),
+    );
+    expect(host.querySelector(".ops-split")?.contains(counts)).toBe(false);
     const clear = fresh();
     for (const row of clear.status) row.state = "ok";
     expect(render(clear).querySelector('ul[aria-label="Not ok"]')).toBeNull();
+  });
+
+  it("keeps the title line's counts live as the snapshot changes", async () => {
+    const node = document.createElement("div");
+    const root = createRoot(node);
+    const chips = () =>
+      [
+        ...node.querySelectorAll(
+          '.workspace-page-status ul[aria-label="Not ok"] li',
+        ),
+      ].map((item) => item.textContent);
+    await act(async () =>
+      root.render(
+        <ObservabilityWorkspace enabled={false} fixture={sample} now={NOW} />,
+      ),
+    );
+    expect(chips()).toEqual([
+      "1 Failing",
+      "1 Degraded",
+      "1 Stale",
+      "1 Unknown",
+    ]);
+    const recovered = fresh();
+    for (const row of recovered.status)
+      if (row.state === "failing") row.state = "ok";
+    await act(async () =>
+      root.render(
+        <ObservabilityWorkspace
+          enabled={false}
+          fixture={recovered}
+          now={NOW}
+        />,
+      ),
+    );
+    expect(chips()).toEqual(["1 Degraded", "1 Stale", "1 Unknown"]);
+    await act(async () => root.unmount());
   });
 
   it("shows failing with exit 0 as System reports it, and a non-zero exit as a critical figure", () => {
