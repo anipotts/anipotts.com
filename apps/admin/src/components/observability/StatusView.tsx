@@ -347,7 +347,8 @@ const EXCEPTIONS: readonly OpsState[] = [
 
 /** One count chip per non-ok state, and one for entries never proven
  * (Unverified, which is never ok), so the summary never reads all clear
- * while a restore is unproven. An unverified entry counts once, as its row
+ * while a restore is unproven. They sit on the title line beside the clock
+ * (WorkspacePage `status`) and follow every snapshot. An unverified entry counts once, as its row
  * reads. Problems first, then Unverified, then what is only unknown. */
 function ExceptionCounts({ services }: { services: OpsServiceView[] }) {
   const unverified = services.filter(opsUnverified).length;
@@ -748,14 +749,12 @@ function useAnchorLanding(ready: boolean) {
 function StatusList({
   services,
   now,
-  lastKnown,
   select,
   panelOpen,
   names,
 }: {
   services: OpsServiceView[];
   now?: number;
-  lastKnown: boolean;
   select: Select;
   panelOpen: boolean;
   /** Names two entries share, with their host. */
@@ -789,10 +788,7 @@ function StatusList({
   useAnchorLanding(services.length > 0);
   return (
     <VStack gap={6}>
-      <div className="ops-overview">
-        <HostStrip hosts={hosts} now={now} select={select} />
-        {!lastKnown && <ExceptionCounts services={services} />}
-      </div>
+      <HostStrip hosts={hosts} now={now} select={select} />
       {rows.length ? (
         <DataTable
           rows={rows}
@@ -832,14 +828,19 @@ export function StatusView({
     : null;
   const select = { selected: current ? selected : null, open };
   return (
-    <OpsPage data={data} view="status" count={services.length} retained>
+    <OpsPage
+      data={data}
+      view="status"
+      count={services.length}
+      retained
+      status={!data.stopped && <ExceptionCounts services={services} />}
+    >
       <SplitView
         className="ops-split"
         list={
           <StatusList
             services={services}
             now={data.fixedNow}
-            lastKnown={data.stopped}
             select={select}
             panelOpen={Boolean(current)}
             names={data.names}

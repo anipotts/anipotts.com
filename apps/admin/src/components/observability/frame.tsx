@@ -450,6 +450,7 @@ export function OpsPage({
   count,
   retained,
   actions,
+  status,
   children,
 }: {
   data: OpsData;
@@ -457,6 +458,8 @@ export function OpsPage({
   count?: number;
   retained: boolean;
   actions?: React.ReactNode;
+  /** The view's live state chips, beside the clock on the title line. */
+  status?: React.ReactNode;
   children?: React.ReactNode;
 }) {
   return (
@@ -474,6 +477,7 @@ export function OpsPage({
           </>
         }
         actions={actions}
+        status={status}
       >
         <OpsNotice data={data} view={view} retained={retained} />
         {children}

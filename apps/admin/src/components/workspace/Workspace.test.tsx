@@ -125,6 +125,36 @@ describe("the page title line", () => {
       "Live",
     );
   });
+
+  it("puts the status chips on the title line, right before the clock", () => {
+    const markup = renderToStaticMarkup(
+      <WorkspacePage
+        title="Status"
+        meta="Generated just now"
+        clock={Date.parse("2026-09-22T19:55:12Z")}
+        actions={<button type="button">Lock</button>}
+        status={<span>1 Failing</span>}
+      />,
+    );
+    const host = document.createElement("div");
+    host.innerHTML = markup;
+    const end = host.querySelector(".workspace-page-line .workspace-page-end")!;
+    expect([...end.children].map((child) => child.className)).toEqual([
+      expect.stringContaining("workspace-page-actions"),
+      "workspace-page-status",
+      "workspace-clock",
+    ]);
+    expect(end.querySelector(".workspace-page-status")?.textContent).toBe(
+      "1 Failing",
+    );
+    expect(
+      host.querySelector(".workspace-page-meta .workspace-page-status"),
+    ).toBeNull();
+    // No status, no slot.
+    const bare = document.createElement("div");
+    bare.innerHTML = renderToStaticMarkup(<WorkspacePage title="Records" />);
+    expect(bare.querySelector(".workspace-page-status")).toBeNull();
+  });
 });
 
 describe("DataTable", () => {
