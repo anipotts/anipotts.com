@@ -97,13 +97,19 @@ test("the transition scripts use getPointAtLength only as the arc fallback", () 
 });
 
 test("built styles acknowledge a pending card in both themes and drop the pointer focus ring", () => {
-  const dir = new URL("../dist/_astro/", import.meta.url);
+  const dir = new URL("../dist/client/_astro/", import.meta.url);
   const css = readdirSync(dir)
     .filter((name) => name.endsWith(".css"))
     .map((name) => readFileSync(new URL(name, dir), "utf8"))
     .join("\n");
+  // The minifier may merge rules that share declarations into one selector
+  // list, so a selector matches as any complete member of that list.
   const rule = (selector) =>
-    css.match(new RegExp(`${selector}\\{([^}]*)\\}`))?.[1] ?? null;
+    css.match(
+      new RegExp(
+        `(?:^|[{},])(?:[^{},]+,)*${selector}(?:,[^{},]+)*\\{([^}]*)\\}`,
+      ),
+    )?.[1] ?? null;
   const pending = "a\\.writing-card\\[data-writing-pending\\] \\.affordance";
   assert.match(rule(pending) ?? "", /color:var\(--flow-3\)/);
   assert.match(

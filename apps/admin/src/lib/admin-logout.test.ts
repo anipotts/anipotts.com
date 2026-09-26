@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+// Worker bindings: none unless a case supplies them.
+vi.mock("./runtime-env", () => ({ runtimeEnv: () => ({}) }));
 import { adminLogout } from "./admin-logout";
 import type { AdminAuthContext } from "./admin-auth";
 
@@ -23,7 +25,7 @@ function fixture({ access = true, presented = true } = {}) {
         }),
         url: new URL(`${ORIGIN}/api/admin/logout`),
         cookies: { get: () => ({ value: "native-secret" }) },
-        locals: { runtime: { env: {} } },
+        locals: {},
       } as unknown as AdminAuthContext,
       { verifyOwner },
     );

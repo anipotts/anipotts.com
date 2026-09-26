@@ -50,9 +50,7 @@ export async function loadEditorialInventory(
     unavailable: true,
   };
   try {
-    const storage = import.meta.env.DEV
-      ? await (await import("./editorial-local")).localDraftStorage()
-      : productionEditor(env)?.storage;
+    const storage = productionEditor(env)?.storage;
     if (storage && fixture !== "error")
       privateResult = await readInventoryDrafts(entries, storage);
   } catch {

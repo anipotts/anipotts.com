@@ -10,8 +10,8 @@ import {
 } from "@anipotts/content/editorial/source";
 import { projectSchema, writingSchema } from "@anipotts/content/public/schema";
 import { isPublicProject, isPublishedWriting } from "@anipotts/content/public";
-import { createMarkdownProcessor } from "@astrojs/markdown-remark";
-import rehypeSanitize from "rehype-sanitize";
+import { publicMarkdownHtml } from "./public-markdown";
+import { runtimeEnv } from "./runtime-env";
 
 export type PublishedInventory = Awaited<
   ReturnType<typeof getPublishedInventory>
@@ -29,7 +29,7 @@ const requests = new WeakMap<object, PublicContentContext>();
 export function publicContentContext(locals: App.Locals): PublicContentContext {
   let context = requests.get(locals);
   if (!context) {
-    const env = locals.runtime?.env;
+    const env = runtimeEnv(locals);
     // The content store is the only runtime. Both reads share the mode and
     // binding guards, so any mode other than "cms" or a missing database
     // fails closed before storage is read.
@@ -91,7 +91,6 @@ export function overlayByIdentity<T extends { id: string }>(
   for (const entry of overrides) entries.set(entry.id, entry);
   return [...entries.values()];
 }
-let processor: ReturnType<typeof createMarkdownProcessor> | undefined;
 export function publicationHtml(
   context: PublicContentContext,
   publication: PublishedSnapshot,
@@ -103,13 +102,7 @@ export function publicationHtml(
   }
   return rendered;
 }
-export async function publicMarkdownHtml(body: string): Promise<string> {
-  processor ??= createMarkdownProcessor({
-    syntaxHighlight: false,
-    rehypePlugins: [rehypeSanitize],
-  });
-  return (await (await processor).render(body)).code;
-}
+export { publicMarkdownHtml };
 export async function publicationFor(
   context: PublicContentContext,
   record: EditorialRecord,

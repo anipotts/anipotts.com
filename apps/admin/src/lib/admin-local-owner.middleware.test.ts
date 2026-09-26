@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+// Worker bindings: none unless a case supplies them.
+vi.mock("./runtime-env", () => ({ runtimeEnv: () => ({}) }));
 vi.mock("astro:middleware", () => ({
   defineMiddleware: (handler: unknown) => handler,
 }));
@@ -31,7 +33,7 @@ const DENY_FRAMING = "frame-ancestors 'none'";
 const PREVIEW_POLICY =
   "sandbox allow-scripts; form-action 'none'; frame-ancestors 'self'; connect-src 'none'";
 
-type Locals = { adminPrincipal?: unknown; runtime?: unknown };
+type Locals = { adminPrincipal?: unknown };
 
 async function dispatch(
   href: string,

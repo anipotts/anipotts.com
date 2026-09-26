@@ -1,4 +1,5 @@
 ---
+import { runtimeEnv } from "../../../lib/runtime-env";
 import { inventoryIdentity } from "../../../lib/editorial-inventory-projection";
 import { readEditorialSnapshot } from "../../../lib/editorial-snapshot-read";
 import { render } from "astro:content";
@@ -39,9 +40,7 @@ if (
   ["writing", "work"].includes(privateIdentity.data.kind)
 ) {
   const snapshot = await readEditorialSnapshot(async () => {
-    const storage = import.meta.env.DEV
-      ? await (await import("../../../lib/editorial-local")).localDraftStorage()
-      : productionEditor(Astro.locals.runtime?.env)?.storage;
+    const storage = productionEditor(runtimeEnv())?.storage;
     if (!storage) throw new Error("storage_unavailable");
     return storage.get(privateIdentity.data);
   });

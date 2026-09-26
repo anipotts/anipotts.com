@@ -20,6 +20,7 @@ import { siteConfig } from "@anipotts/content/public";
 import { reportRuntimeContract } from "./lib/runtime-contract";
 import { withSecurityHeaders } from "./lib/security-headers";
 import { ifNoneMatchMatches } from "./lib/static-assets";
+import { executionContext, runtimeEnv } from "./lib/runtime-env";
 
 /** A CMS surface. A cacheable route answers a matching validator with a 304,
  * and a stored colo copy with a 200, from the inventory counter alone, before
@@ -44,9 +45,8 @@ async function publishedResponse(
   const validator =
     condition?.trim() && condition.trim() !== "*" ? condition : null;
   const edge = cacheable ? publicEdgeCache() : null;
-  const waitUntil = context.locals.runtime?.ctx?.waitUntil?.bind(
-    context.locals.runtime.ctx,
-  );
+  const ctx = executionContext(context.locals);
+  const waitUntil = ctx?.waitUntil?.bind(ctx);
   if (validator || edge) {
     // Sequential on purpose: loading the publications alongside would save a
     // miss one single-row round trip but costs every hit the full read and
@@ -132,7 +132,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // covers dynamic routes only. Prerendering and dev have no deployed env.
   if (!import.meta.env.DEV && !context.isPrerendered) {
     reportRuntimeContract(
-      context.locals.runtime?.env,
+      runtimeEnv(context.locals),
       import.meta.env.PUBLIC_RELEASE_SHA || "dev",
     );
   }
@@ -207,7 +207,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     !cmsSurface &&
     !pathname.startsWith("/api/")
   ) {
-    const asset = await context.locals.runtime.env.ASSETS.fetch(
+    const asset = await runtimeEnv(context.locals).ASSETS.fetch(
       context.request,
     );
     if (asset.status !== 404) return withSecurityHeaders(asset);

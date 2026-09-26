@@ -16,7 +16,12 @@ import {
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
-import { buildDir, renderedDir, serve } from "./worker-runtime.mjs";
+import {
+  buildDir,
+  renderedDir,
+  serve,
+  workerEntry,
+} from "./worker-runtime.mjs";
 import { contentDatabase, contentEnv } from "./content-database.mjs";
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const content = join(root, "content/public");
@@ -81,7 +86,7 @@ writeFileSync(
   join(renderedDir, ".runtime-proof.json"),
   JSON.stringify({
     workerSha256: createHash("sha256")
-      .update(readFileSync(join(buildDir, "_worker.js/index.js")))
+      .update(readFileSync(workerEntry))
       .digest("hex"),
     paths,
   }),

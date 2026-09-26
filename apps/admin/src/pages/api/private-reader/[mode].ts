@@ -5,6 +5,7 @@ import {
   privateReaderCredentialApi,
   type PrivateReaderMode,
 } from "../../../lib/private-reader-credential";
+import { runtimeEnv } from "../../../lib/runtime-env";
 
 const modes = Object.keys(PRIVATE_READER_MODES) as PrivateReaderMode[];
 
@@ -19,7 +20,7 @@ export const ALL: APIRoute = async ({ request, locals, url }) => {
   try {
     return await privateReaderCredentialApi(
       request,
-      locals.runtime?.env ?? {},
+      runtimeEnv(),
       { owner: locals.accessOwner },
       mode,
     );

@@ -1,5 +1,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+// Worker bindings: none unless a case supplies them.
+vi.mock("./runtime-env", () => ({ runtimeEnv: () => ({}) }));
 vi.mock("astro:middleware", () => ({
   defineMiddleware: (handler: unknown) => handler,
 }));

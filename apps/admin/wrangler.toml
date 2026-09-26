@@ -2,7 +2,7 @@ name = "anipotts-admin"
 compatibility_date = "2026-05-01"
 compatibility_flags = ["nodejs_compat"]
 account_id = "0f856093bdcd34a7da1bde5ee4385163"
-main = "./dist/_worker.js/index.js"
+main = "./src/worker.ts"
 workers_dev = false
 
 # Canonical admin route. Editorial pages require the verified owner through
@@ -14,7 +14,7 @@ zone_id = "d56476e2905a2a19ad86aaa4b7c719c2"
 
 [assets]
 binding = "ASSETS"
-directory = "./dist"
+directory = "./dist/client"
 run_worker_first = true
 
 # Non-secret env vars available at runtime

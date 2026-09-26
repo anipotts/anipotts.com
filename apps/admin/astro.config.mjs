@@ -2,6 +2,8 @@
 import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
+import { unified } from "@astrojs/markdown-remark";
+import { publishedHeadingIds } from "../www/src/lib/published-heading-ids.mjs";
 import icon from "astro-icon";
 import astroAdvisoryGuard from "../../config/astro/advisory-guard.mjs";
 import { publicContentHotReload } from "../../scripts/dev/public-content-hot-reload.mjs";
@@ -24,6 +26,14 @@ if (adminLocalOwner && process.env.GITHUB_ACTIONS === "true") {
 }
 
 export default defineConfig({
+  // Auth uses Access and application cookies, never Astro sessions. Without
+  // this the adapter provisions a SESSION KV binding the Worker never had.
+  session: false,
+  // Astro 7 defaults to JSX whitespace rules. Keep the lossless HTML
+  // compression the admin has always shipped.
+  compressHTML: true,
+  // Astro 7 defaults to Sätteri. Keep the remark/rehype pipeline.
+  markdown: { processor: unified({ rehypePlugins: [publishedHeadingIds] }) },
   site: "https://admin.anipotts.com",
   output: "server",
   // A local owner build never writes the directory wrangler deploys.
@@ -67,6 +77,17 @@ export default defineConfig({
     },
     plugins: [
       {
+        // astro dev renders in workerd, whose console.createTask throws "not
+        // implemented". React's development build calls it while its modules
+        // load, so the dev server renders without it. Builds are unaffected.
+        name: "admin-dev-workerd-console",
+        apply: "serve",
+        configEnvironment(name) {
+          if (name === "ssr")
+            return { define: { "console.createTask": "undefined" } };
+        },
+      },
+      {
         name: "admin-preview-cache",
         apply: "serve",
         config() {
@@ -85,24 +106,21 @@ export default defineConfig({
           // Public components are reused inside private preview frames. Their
           // navigation affordances must not prefetch owner-only admin routes.
           if (id === "astro:prefetch") return "\0editorial-preview-prefetch";
-          if (id.endsWith("/editorial-local"))
-            return "\0editorial-local-disabled";
         },
         load(id) {
           if (id === "\0editorial-preview-prefetch")
             return "export function prefetch() {}";
-          if (id === "\0editorial-local-disabled")
-            return "export function localDraftStorage(){throw new Error('local_only')} export function localHomeBase(){throw new Error('local_only')}";
         },
       },
     ],
   },
+  // The Worker entry, with the EditorialDraftStore export, is `main` in
+  // wrangler.toml (src/worker.ts).
   adapter: cloudflare({
-    workerEntryPoint: {
-      path: "./src/worker.ts",
-      namedExports: ["EditorialDraftStore"],
-    },
-    platformProxy: { enabled: true },
     imageService: "passthrough",
+    // astro dev runs the Worker with local-only bindings: its own EDITORIAL
+    // Durable Object, local D1 and local R2 under .wrangler/state. Remote
+    // bindings stay off even if a binding is ever marked `remote`.
+    remoteBindings: false,
   }),
 });

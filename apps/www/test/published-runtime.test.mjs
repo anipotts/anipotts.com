@@ -646,6 +646,32 @@ test("media requires an active visible reference before either asset or bucket a
   }
 });
 
+test("the adapter image endpoint cannot serve a gated card or editorial media", async () => {
+  // Without the content store the card itself fails closed.
+  const card = "/social/writing-awareness-is-alpha.png";
+  assert.equal((await serve(card)).status, 503);
+  let reads = 0;
+  const assets = {
+    async fetch() {
+      reads++;
+      return new Response("bytes", {
+        headers: { "content-type": "image/png" },
+      });
+    },
+  };
+  for (const path of [
+    `/_image?href=${encodeURIComponent(card)}`,
+    `/_image?href=${card}&w=1200`,
+    `/_image?href=/images/editorial/${"d".repeat(64)}.png`,
+    "/_image/",
+  ]) {
+    const response = await serve(path, { ASSETS: assets });
+    assert.equal(response.status, 404, path);
+    assert.equal(response.headers.get("cache-control"), "no-store", path);
+  }
+  assert.equal(reads, 0);
+});
+
 test("the adapter manifest cannot expose an old bundled editorial image", async () => {
   const db = database();
   const path = `/images/editorial/${"c".repeat(64)}.png`;

@@ -1,4 +1,5 @@
 import type { APIRoute } from "astro";
+import { runtimeEnv } from "../lib/runtime-env";
 
 export const prerender = false;
 
@@ -9,7 +10,7 @@ export const prerender = false;
  *  (handling legacy redirects such as /thoughts and /making), and if it doesn't
  *  redirect, this catchall renders the prerendered 404 page. */
 export const GET: APIRoute = async ({ request, locals }) => {
-  const notFound = await locals.runtime.env.ASSETS.fetch(
+  const notFound = await runtimeEnv(locals).ASSETS.fetch(
     new URL("/404.html", request.url),
   );
   return new Response(notFound.body, {

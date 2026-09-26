@@ -52,12 +52,10 @@ function parsed(html: string): string {
 }
 
 it("renders the document the Astro Markdown engine rendered", async () => {
-  const { createMarkdownProcessor } = await import("@astrojs/markdown-remark");
-  const rehypeSanitize = (await import("rehype-sanitize")).default;
-  const astro = await createMarkdownProcessor({
-    syntaxHighlight: false,
-    rehypePlugins: [rehypeSanitize],
-  });
+  // The public site's own renderer: Astro's Markdown engine with the heading
+  // ids published articles have always carried.
+  const { publicMarkdownHtml } =
+    await import("../../../www/src/lib/public-markdown");
   const bodies = [
     ...Object.values(published).map((source) =>
       source.replace(/^---\n[\s\S]*?\n---\n/, ""),
@@ -67,6 +65,6 @@ it("renders the document the Astro Markdown engine rendered", async () => {
   expect(bodies.length).toBeGreaterThan(constructs.length);
   for (const body of bodies)
     expect(parsed(await renderArticlePreview(body))).toBe(
-      parsed((await astro.render(body)).code),
+      parsed(await publicMarkdownHtml(body)),
     );
 });

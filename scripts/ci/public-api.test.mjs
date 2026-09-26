@@ -158,8 +158,12 @@ const newsletter = endpoint("apps/www/src/lib/newsletter.ts", {
   "./api": guards,
   zod: createRequire(resolve("apps/www/package.json"))("zod"),
 });
+// Endpoints read bindings through lib/runtime-env; each request carries its
+// own env on locals, standing in for `cloudflare:workers`.
+const runtimeEnv = { runtimeEnv: (locals) => locals.env };
 const subscribe = endpoint("apps/www/src/pages/api/newsletter/subscribe.ts", {
   "../../../lib/api": guards,
+  "../../../lib/runtime-env": runtimeEnv,
   "../../../lib/newsletter": {
     ...newsletter,
     async createDoubleOptIn() {
@@ -209,7 +213,7 @@ for (const route of [subscribe, alias]) {
         },
         body: typeof payload === "string" ? payload : JSON.stringify(payload),
       }),
-      locals: { runtime: { env: { DB: db } } },
+      locals: { env: { DB: db } },
     });
     assert.equal(response.status, expected);
     assert.equal(outboundCalls - before, expected === 200 ? 1 : 0);
@@ -222,7 +226,9 @@ console.log(
   "subscribe and legacy alias: uniform success, validation, malformed and oversized bodies, origin, unavailable guard, and exceeded-limit behavior passed without outbound effects",
 );
 
-const healthRoute = endpoint("apps/www/src/pages/api/health.ts", {});
+const healthRoute = endpoint("apps/www/src/pages/api/health.ts", {
+  "../../lib/runtime-env": runtimeEnv,
+});
 for (const [db, expected] of [
   [undefined, 503],
   [
@@ -260,7 +266,7 @@ for (const [db, expected] of [
   ],
 ]) {
   const result = await healthRoute.GET({
-    locals: { runtime: { env: { DB: db } } },
+    locals: { env: { DB: db } },
   });
   assert.equal(result.status, expected);
   const body = await result.json();

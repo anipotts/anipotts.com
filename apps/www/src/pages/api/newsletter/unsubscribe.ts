@@ -5,6 +5,7 @@ import {
   missingDbResponse,
   unsubscribeByToken,
 } from "../../../lib/newsletter";
+import { runtimeEnv } from "../../../lib/runtime-env";
 
 export const prerender = false;
 
@@ -14,7 +15,7 @@ export const GET: APIRoute = async ({ request }) => {
 };
 
 export const POST: APIRoute = async ({ request, locals }) => {
-  const env = locals.runtime.env;
+  const env = runtimeEnv(locals);
   if (!env.DB) return missingDbResponse();
 
   const url = new URL(request.url);

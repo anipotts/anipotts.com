@@ -44,7 +44,7 @@
     "test:deploy-targets": "node scripts/ci/compute-deploy-targets.test.mjs",
     "test:deployment-plan": "node scripts/ci/deployment-plan.test.mjs",
     "test:admin-preview": "node scripts/ci/admin-preview.test.mjs",
-    "test:dev-servers": "node scripts/ci/dev-servers.test.mjs",
+    "test:dev-servers": "node scripts/ci/dev-servers.test.mjs && node --test scripts/ci/local-content-db.test.mjs",
     "test:brand": "node scripts/brand/build-marks.mjs --check && node scripts/ci/brand-contract.test.mjs",
     "test:admin-solid-retirement": "node scripts/ci/admin-solid-retirement.test.mjs",
     "test:admin-routes": "node scripts/ci/admin-route-parity.test.mjs",
@@ -122,9 +122,7 @@
       "js-yaml@>=4 <4.3.2": "4.3.2",
       "brace-expansion@<1.1.16": "1.1.21",
       "@humanfs/node@<0.16.8": "0.16.8",
-      "astro>vite": "6.4.3",
-      "@astrojs/cloudflare>vite": "6.4.3",
-      "@astrojs/react>vite": "6.4.3"
+      "sharp@<0.35.4": "0.35.4"
     },
     "patchedDependencies": {
       "@astryxdesign/core@0.4.6": "patches/@astryxdesign__core@0.4.6.patch"
@@ -139,7 +137,7 @@
     "prettier-plugin-astro": "^0.14.1",
     "turbo": "^2.10.11",
     "typescript": "^5.7.0",
-    "wrangler": "^4.125.0",
+    "wrangler": "^4.141.0",
     "yaml": "2.8.2"
   }
 }

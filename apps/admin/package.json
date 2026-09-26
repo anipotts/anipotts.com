@@ -26,8 +26,8 @@
   "dependencies": {
     "@anipotts/brand": "workspace:*",
     "@anipotts/content": "workspace:*",
-    "@astrojs/cloudflare": "^12.6.0",
-    "@astrojs/react": "^4.4.2",
+    "@astrojs/cloudflare": "^14.3.3",
+    "@astrojs/react": "^7.0.0",
     "@astryxdesign/core": "^0.4.6",
     "@astryxdesign/theme-neutral": "^0.4.6",
     "@codemirror/commands": "^6.11.0",
@@ -44,8 +44,8 @@
     "@tiptap/pm": "^3.31.3",
     "@tiptap/react": "^3.31.3",
     "@tiptap/starter-kit": "^3.31.3",
-    "astro": "^5.16.0",
-    "astro-icon": "^1.1.5",
+    "astro": "^7.3.5",
+    "astro-icon": "^1.2.0",
     "github-slugger": "^2.0.0",
     "jose": "^6.2.12",
     "react": "^19.2.8",
@@ -60,7 +60,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
-    "@astrojs/markdown-remark": "6.3.11",
+    "@astrojs/markdown-remark": "7.3.1",
     "@astryxdesign/cli": "^0.4.6",
     "@cloudflare/vitest-plugin": "1.1.6",
     "@cloudflare/workers-types": "5.20260908.1",
@@ -71,7 +71,6 @@
     "@types/react-dom": "^19.2.4",
     "esbuild": "^0.28.2",
     "jsdom": "^30.0.1",
-    "miniflare": "4.20260114.0",
     "typescript": "^5",
     "vitest": "^4.1.11"
   }

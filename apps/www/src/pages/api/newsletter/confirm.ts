@@ -8,6 +8,7 @@ import {
   missingDbResponse,
   TOKEN_BODY_LIMIT_BYTES,
 } from "../../../lib/newsletter";
+import { runtimeEnv } from "../../../lib/runtime-env";
 
 export const prerender = false;
 
@@ -21,7 +22,7 @@ export const GET: APIRoute = async ({ request }) => {
 };
 
 export const POST: APIRoute = async ({ request, locals }) => {
-  const env = locals.runtime.env;
+  const env = runtimeEnv(locals);
   if (!env.DB) return missingDbResponse();
 
   let token = new URL(request.url).searchParams.get("token") ?? "";

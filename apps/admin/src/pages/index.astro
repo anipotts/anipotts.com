@@ -1,4 +1,5 @@
 ---
+import { runtimeEnv } from "../lib/runtime-env";
 import AdminLayout from "../layouts/AdminLayout.astro";
 import { PrivateShell } from "../components/data/PrivateShell";
 import { recentlyUpdated } from "../components/astryx/ContentLibrary";
@@ -11,7 +12,7 @@ import { loadShellFixtures } from "../lib/shell-fixtures";
 // and Data are read in the browser, each behind its own gate. The shell also
 // draws Data, so a record opened from here keeps the private session.
 const inventory = await measureServerTiming(Astro.locals, "inventory", () =>
-  loadEditorialInventory(Astro.locals.runtime?.env),
+  loadEditorialInventory(runtimeEnv()),
 );
 const content = recentlyUpdated(inventory.records)
   .slice(0, 5)
@@ -34,7 +35,7 @@ const content = recentlyUpdated(inventory.records)
       updated,
     }),
   );
-const env = Astro.locals.runtime?.env ?? {};
+const env = runtimeEnv();
 // Development shows System's snapshot sample, a synthetic events page and a
 // synthetic Data set (lib/shell-fixtures.ts); none ships.
 const fixtures = await loadShellFixtures(Astro.url);

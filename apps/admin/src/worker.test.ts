@@ -1,4 +1,3 @@
-import type { SSRManifest } from "astro";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HASHED_ASSET_CACHE } from "./lib/hashed-assets";
 
@@ -8,9 +7,7 @@ const inner = vi.hoisted(() => ({
       new Response("astro", { status: 200 }),
   ),
 }));
-vi.mock("@astrojs/cloudflare/entrypoints/server.js", () => ({
-  createExports: () => ({ default: { fetch: inner.fetch } }),
-}));
+vi.mock("@astrojs/cloudflare/handler", () => ({ handle: inner.fetch }));
 vi.mock("./editorial/draft-store", () => ({
   EditorialDraftStore: class EditorialDraftStore {},
 }));
@@ -28,8 +25,7 @@ function contractLines(...spies: Array<{ mock: { calls: unknown[][] } }>) {
 }
 
 async function freshWorker() {
-  const { createExports } = await import("./worker");
-  return createExports({} as SSRManifest);
+  return { ...(await import("./worker")) };
 }
 
 beforeEach(() => {
@@ -90,6 +86,23 @@ it("keeps the Durable Object export beside the wrapped handler", async () => {
     "EditorialDraftStore",
     "default",
   ]);
+});
+
+it("answers the adapter image endpoint with 404", async () => {
+  vi.spyOn(console, "info").mockImplementation(() => {});
+  vi.spyOn(console, "warn").mockImplementation(() => {});
+  const worker = await freshWorker();
+  const assets = { fetch: vi.fn(async () => new Response("bytes")) };
+  const response = await worker.default.fetch(
+    new Request(
+      "https://admin.example.test/_image?href=/admin-bracket.svg",
+    ) as never,
+    { ASSETS: assets } as never,
+    context as never,
+  );
+  expect(response.status).toBe(404);
+  expect(assets.fetch).not.toHaveBeenCalled();
+  expect(inner.fetch).not.toHaveBeenCalled();
 });
 
 describe("hashed build output", () => {

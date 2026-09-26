@@ -59,6 +59,12 @@ function loadMiddleware({ dev = false } = {}) {
         },
       },
       "./lib/runtime-contract": contract,
+      // Bindings come from `cloudflare:workers` through this helper. Each
+      // test request supplies its own env and counts the reads.
+      "./lib/runtime-env": {
+        runtimeEnv: (locals) => requestEnvs.get(locals)(),
+        executionContext: () => undefined,
+      },
       "./lib/content-paths": compile(
         "../src/lib/content-paths.ts",
         [],
@@ -91,15 +97,15 @@ function loadMiddleware({ dev = false } = {}) {
   return { onRequest, lines };
 }
 
+const requestEnvs = new WeakMap();
+
 function context(path, { env, prerendered = false, method = "GET" } = {}) {
   const url = new URL(path, "https://anipotts.com");
   const locals = {};
   let runtimeReads = 0;
-  Object.defineProperty(locals, "runtime", {
-    get() {
-      runtimeReads += 1;
-      return { env };
-    },
+  requestEnvs.set(locals, () => {
+    runtimeReads += 1;
+    return env;
   });
   return {
     get runtimeReads() {

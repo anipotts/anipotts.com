@@ -6,6 +6,7 @@ import {
 } from "./admin-auth";
 import { verifyEditorialOwner } from "./access-identity";
 import { constantTimeEqual, sha256Hex } from "./crypto";
+import { runtimeEnv } from "./runtime-env";
 
 type Dependencies = { verifyOwner?: typeof verifyEditorialOwner };
 
@@ -31,7 +32,7 @@ export async function adminLogout(
     const assertion = context.request.headers.get("cf-access-jwt-assertion");
     const owner = await (dependencies.verifyOwner ?? verifyEditorialOwner)(
       context.request,
-      context.locals.runtime?.env ?? {},
+      runtimeEnv(),
     );
     if (!owner)
       return assertion

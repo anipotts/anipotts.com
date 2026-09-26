@@ -3,6 +3,7 @@ import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import reactRenderer from "@astrojs/react/server.js";
 import { ADMIN_ROUTES } from "../../../../scripts/ci/admin-route-inventory.mjs";
 import { contentDatabase } from "../../../www/test/content-database.mjs";
+import { env as workerEnv } from "cloudflare:workers";
 
 // Production renders every Admin page on the server. A browser global touched
 // during that render throws after the response has started, which ships an
@@ -96,21 +97,20 @@ vi.mock("../../src/lib/editorial-inventory-server", () => ({
   }),
 }));
 // Draft storage holds the current Git source at revision 1, so the preview
-// routes render their success path instead of the stale refusal.
-vi.mock("../../src/lib/editorial-local", () => ({
-  localDraftStorage: async () => ({
-    get: async ({ kind, id }) => {
-      const path = {
-        "page:home": "public/pages/home.md",
-        "writing:search-will-be-dead-by-2030":
-          "public/writing/search-will-be-dead-by-2030.md",
-      }[`${kind}:${id}`];
-      return path
-        ? { source: content.read(path), revision: 1, discardedAt: null }
-        : null;
-    },
-  }),
-}));
+// routes render their success path instead of the stale refusal. It is the
+// EDITORIAL Durable Object binding productionEditor reads, in dev and deploy.
+const draftStorage = {
+  get: async ({ kind, id }) => {
+    const path = {
+      "page:home": "public/pages/home.md",
+      "writing:search-will-be-dead-by-2030":
+        "public/writing/search-will-be-dead-by-2030.md",
+    }[`${kind}:${id}`];
+    return path
+      ? { source: content.read(path), revision: 1, discardedAt: null }
+      : null;
+  },
+};
 // The production loader: no development fixtures, so the readers' own
 // states render, as they do in the deployed Worker.
 vi.mock("../../src/lib/shell-fixtures", () => ({
@@ -137,7 +137,10 @@ const READERS_ON = {
   DB: emptyDatabase,
   // The published store at version 0: previews overlay nothing on Git.
   CONTENT_DB: contentDatabase(),
+  EDITORIAL: { getByName: () => draftStorage },
 };
+// Every route reads these bindings, as a Worker reads its own.
+Object.assign(workerEnv, READERS_ON);
 
 const pageModules = {
   ...import.meta.glob("../../src/pages/**/*.astro"),
@@ -192,7 +195,7 @@ async function render({ file, route, url }) {
   return container.renderToResponse(page.default, {
     request: new Request(`https://admin.anipotts.com${url}`),
     params: paramsFor(file, route),
-    locals: { runtime: { env: READERS_ON } },
+    locals: {},
     partial: false,
   });
 }

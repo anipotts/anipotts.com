@@ -1,4 +1,5 @@
 ---
+import { runtimeEnv } from "../../lib/runtime-env";
 import EditorialLayout from "../../layouts/EditorialLayout.astro";
 import {
   inventoryFixture,
@@ -25,11 +26,7 @@ if (!library) {
 const inventoryProjection = await measureServerTiming(
   Astro.locals,
   "inventory",
-  () =>
-    loadEditorialInventory(
-      Astro.locals.runtime?.env,
-      inventoryFixture(Astro.url),
-    ),
+  () => loadEditorialInventory(runtimeEnv(), inventoryFixture(Astro.url)),
 );
 ---
 

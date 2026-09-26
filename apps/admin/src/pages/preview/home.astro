@@ -1,4 +1,5 @@
 ---
+import { runtimeEnv } from "../../lib/runtime-env";
 import { applyEditorialPreviewContext } from "../../lib/editorial-preview-context";
 applyEditorialPreviewContext(Astro.locals);
 import { publicContentContext } from "../../../../www/src/lib/published-runtime";
@@ -14,9 +15,7 @@ import { productionEditor } from "../../lib/editorial-server";
 import { previewFailure } from "../../lib/preview-status";
 let home;
 {
-  const storage = import.meta.env.DEV
-    ? await (await import("../../lib/editorial-local")).localDraftStorage()
-    : productionEditor(Astro.locals.runtime?.env)?.storage;
+  const storage = productionEditor(runtimeEnv())?.storage;
   const draft = await storage?.get({ kind: "page", id: "home" });
   if (
     draft &&

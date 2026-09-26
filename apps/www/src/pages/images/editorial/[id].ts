@@ -8,6 +8,7 @@ import {
   publicVersionHeaders,
   contentUnavailable,
 } from "../../../lib/published-runtime";
+import { runtimeEnv } from "../../../lib/runtime-env";
 export const prerender = false;
 export const GET: APIRoute = async ({ params, locals, request }) => {
   const context = publicContentContext(locals);
@@ -18,9 +19,9 @@ export const GET: APIRoute = async ({ params, locals, request }) => {
   if (!reference) return new Response("Not found", { status: 404 });
   // Bundled media is available only after its current public reference passes.
   // Never let a stale asset bypass an unpublished or replaced record.
-  const asset = await locals.runtime.env.ASSETS.fetch(request);
+  const asset = await runtimeEnv(locals).ASSETS.fetch(request);
   if (asset.ok) return asset;
-  const bucket = locals.runtime?.env.CONTENT_MEDIA;
+  const bucket = runtimeEnv(locals).CONTENT_MEDIA;
   if (!bucket) return contentUnavailable();
   const object = await bucket.get(id);
   if (!object) return contentUnavailable();

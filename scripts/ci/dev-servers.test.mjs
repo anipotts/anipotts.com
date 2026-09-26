@@ -79,7 +79,7 @@ assert.ok(!/portless/i.test(manager), "the manager must not mention portless");
 assert.equal(DEV_HOST, "127.0.0.1");
 assert.match(
   manager,
-  /\["exec", "astro", "dev", "--host", DEV_HOST, "--port", String\(port\)\]/,
+  /\[\s*"exec",\s*"astro",\s*"dev",\s*"--host",\s*DEV_HOST,\s*"--port",\s*String\(port\),\s*"--ignore-lock",\s*\]/,
   "dev servers must bind loopback explicitly on their assigned port",
 );
 for (const forbidden of ['"--host", "0.0.0.0"', "--host true", '"--open"']) {

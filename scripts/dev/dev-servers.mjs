@@ -13,6 +13,7 @@ import {
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { ensureLocalContentDatabase } from "./local-content-db.mjs";
 import {
   DEV_HOST,
   devUrl,
@@ -188,9 +189,21 @@ function startApp(app, port, siteUrl) {
   mkdirSync(LOCAL_DIR, { recursive: true, mode: 0o700 });
   const logPath = join(LOCAL_DIR, `${app.key}.log`);
   const logFd = openSync(logPath, "a", 0o600);
+  // Astro 7 detaches `astro dev` when it detects a coding agent. This manager
+  // owns the process, its port and its log, so it keeps the server in the
+  // foreground and skips Astro's own lock (--ignore-lock does both).
   const child = spawn(
     "pnpm",
-    ["exec", "astro", "dev", "--host", DEV_HOST, "--port", String(port)],
+    [
+      "exec",
+      "astro",
+      "dev",
+      "--host",
+      DEV_HOST,
+      "--port",
+      String(port),
+      "--ignore-lock",
+    ],
     {
       cwd: app.cwd,
       env: childEnv({
@@ -225,6 +238,9 @@ function prepareAppDependencies(app) {
     ],
     { stdio: "inherit" },
   );
+  // astro dev binds this app's local CONTENT_DB. Migrate and seed it once so a
+  // fresh worktree serves content instead of a 503. Local state only.
+  ensureLocalContentDatabase({ appDir: app.cwd });
 }
 
 async function waitForApp(app, record) {
