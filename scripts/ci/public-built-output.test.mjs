@@ -171,9 +171,9 @@ const dividerAllowlist = [
 function builtFiles(dir, found = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const file = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (entry.name !== "_worker.js") builtFiles(file, found);
-    } else if (/\.(css|html)$/.test(entry.name)) found.push(file);
+    // Rendered output holds client assets only; the Worker is in dist/server.
+    if (entry.isDirectory()) builtFiles(file, found);
+    else if (/\.(css|html)$/.test(entry.name)) found.push(file);
   }
   return found;
 }
