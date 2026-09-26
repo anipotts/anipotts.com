@@ -905,6 +905,12 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   .workspace-row-end {
     display: inline-flex;
   }
+  /* The end sits on a wrapped title's first line, centred on the mark's
+     height, as it does beside a title of one line. */
+  .workspace-row-line > .workspace-row-end {
+    align-self: flex-start;
+    min-height: var(--row-mark-size);
+  }
   .workspace-row-meta[data-compact-only="true"] {
     display: flex;
   }

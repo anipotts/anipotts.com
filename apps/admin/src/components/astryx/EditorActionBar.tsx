@@ -143,7 +143,7 @@ export function EditorActionBar({
               label="More actions"
               tooltip="More actions"
               variant="ghost"
-              icon={<DotsThreeIcon weight="bold" aria-hidden="true" />}
+              icon={<DotsThreeIcon weight="regular" aria-hidden="true" />}
               aria-haspopup="dialog"
               aria-expanded={sheet}
               onClick={() => setSheet(true)}
@@ -151,7 +151,7 @@ export function EditorActionBar({
           ) : (
             <MoreMenu
               label="More actions"
-              icon={<DotsThreeIcon weight="bold" aria-hidden="true" />}
+              icon={<DotsThreeIcon weight="regular" aria-hidden="true" />}
               size="sm"
               alignment="end"
               items={sections.map((section, index) => ({

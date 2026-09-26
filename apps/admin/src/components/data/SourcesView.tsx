@@ -287,7 +287,7 @@ function FamilyTitle({
               {row.accounts.length}
             </span>
             <CaretRightIcon
-              weight="bold"
+              weight="regular"
               aria-hidden="true"
               className="sources-family-caret"
             />

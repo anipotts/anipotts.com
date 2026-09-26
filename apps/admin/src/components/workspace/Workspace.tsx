@@ -309,7 +309,7 @@ export function WorkspaceSection({
               <a href={href} className="workspace-section-link">
                 {title}
                 <CaretRightIcon
-                  weight="bold"
+                  weight="regular"
                   aria-hidden="true"
                   className="workspace-section-link-mark"
                 />
@@ -976,7 +976,7 @@ export function DataTable<T extends Record<string, unknown>>({
                       onClick={() => toggleFold.current()}
                     >
                       <CaretRightIcon
-                        weight="bold"
+                        weight="regular"
                         aria-hidden="true"
                         className="workspace-group-caret"
                       />
