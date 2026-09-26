@@ -66,6 +66,23 @@
 .workspace-page-actions {
   flex: 0 0 auto;
 }
+/* The page's live status chips, just before the clock and centred on the
+   same line height. Where they do not fit beside it they take the line
+   under it, still right-aligned, and wrap there rather than under the
+   title. */
+.workspace-page-status {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: center;
+  justify-content: flex-end;
+  min-width: 0;
+  min-height: var(--workspace-page-line);
+}
+.workspace-page-status:empty {
+  display: none;
+}
 /* The live Eastern clock: quiet, tabular, one line, centred on the title
    line's height whichever line of the end it sits on. */
 .workspace-clock {
@@ -796,6 +813,35 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   .workspace-page-actions,
   .workspace-filters {
     margin-inline-end: calc((var(--spacing-5) - var(--spacing-11)) / 2);
+  }
+  /* On phones the end is too narrow beside the title for a row of chips, so
+     a line with status chips becomes a grid: the title and the clock keep the
+     first row, and the actions and then the chips take full-width rows under
+     it, right-aligned, wrapping only when the whole width is not enough. */
+  .workspace-page-line:has(> .workspace-page-end > .workspace-page-status) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: var(--spacing-1);
+  }
+  .workspace-page-line:has(> .workspace-page-end > .workspace-page-status)
+    > .workspace-page-end {
+    display: contents;
+  }
+  .workspace-page-line:has(> .workspace-page-end > .workspace-page-status)
+    > .workspace-page-title {
+    grid-area: 1 / 1;
+  }
+  .workspace-page-end > .workspace-clock {
+    grid-area: 1 / 2;
+  }
+  .workspace-page-end > .workspace-page-actions {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+  .workspace-page-end > .workspace-page-status {
+    grid-column: 1 / -1;
+    justify-self: end;
+    min-height: 0;
   }
   .workspace-table-frame {
     --workspace-table-min: var(--workspace-table-min-compact);

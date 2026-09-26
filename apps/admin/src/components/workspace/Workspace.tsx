@@ -10,7 +10,8 @@
  *
  * | piece           | what it takes                                          |
  * |-----------------|--------------------------------------------------------|
- * | WorkspacePage   | title, count beside the H1, meta, badge, actions       |
+ * | WorkspacePage   | title, count beside the H1, meta, badge, actions,      |
+ * |                 | `status` beside the clock                              |
  * | FilterBar       | `search` (live, debounced) and FilterMenu children     |
  * | FilterMenu      | an icon-only menu: label, current value, isActive      |
  * | DataTable       | rows and Columns, `groupBy`, `foldGroup`               |
@@ -130,16 +131,17 @@ const unpunctuated = (text: string) => text.replace(/\.\s*$/, "");
 
 /** Page title, its count, one supporting line and the page's own actions.
  * The title line has one fixed height, the largest action's (36px, 44px on
- * phones), and carries the actions and then the live Eastern clock, whose
- * right edge is the line's on every page. The meta line hangs below it; on
- * phones the actions end the meta line instead of wrapping under the title
- * (workspace.css). */
+ * phones), and carries the actions, the page's live status chips and then
+ * the live Eastern clock, whose right edge is the line's on every page. The
+ * meta line hangs below it; what does not fit beside the clock drops to a
+ * line of its own under it, right-aligned (workspace.css). */
 export function WorkspacePage({
   title,
   count,
   meta,
   badge,
   actions,
+  status,
   clock,
   children,
 }: {
@@ -155,6 +157,9 @@ export function WorkspacePage({
   /** A chip beside the title, such as Sample data. */
   badge?: ReactNode;
   actions?: ReactNode;
+  /** Live state chips for the whole page, such as Status's counts, right
+   * beside the clock. */
+  status?: ReactNode;
   children?: ReactNode;
 }) {
   return (
@@ -185,6 +190,7 @@ export function WorkspacePage({
                 {actions}
               </HStack>
             )}
+            {status && <div className="workspace-page-status">{status}</div>}
             <EasternClock now={clock} />
           </div>
         </div>
