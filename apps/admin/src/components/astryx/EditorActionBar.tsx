@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { BottomSheet } from "@astryxdesign/core/BottomSheet";
 import { Button } from "@astryxdesign/core/Button";
-import { Heading } from "@astryxdesign/core/Heading";
 import { IconButton } from "@astryxdesign/core/IconButton";
 import { MoreMenu } from "@astryxdesign/core/MoreMenu";
 import { Text } from "@astryxdesign/core/Text";
@@ -10,6 +9,7 @@ import { VStack } from "@astryxdesign/core/VStack";
 import { CaretLeftIcon, DotsThreeIcon, EyeIcon } from "@phosphor-icons/react";
 import { below } from "../../lib/breakpoints";
 import { WordSafeText } from "../workspace/Workspace";
+import { RecordHeader } from "../workspace/RecordHeader";
 import { SaveStatus, type SaveStatusState } from "./SaveStatus";
 
 type EditorMenuItem = {
@@ -95,26 +95,26 @@ export function EditorActionBar({
   const [sheet, setSheet] = useState(false);
   const sections = menu.filter((section) => section.items.length > 0);
   return (
-    <div className="editor-bar" data-editor-bar="">
-      <IconButton
-        className="editor-bar-back"
-        label={back.label}
-        tooltip={back.label}
-        variant="ghost"
-        icon={<CaretLeftIcon weight="regular" aria-hidden="true" />}
-        href={back.href}
-      />
-      <div
-        className="editor-bar-title"
-        title={title}
-        ref={titleRef}
-        data-fit={fits ? undefined : "none"}
-      >
-        <Heading level={1}>
-          <WordSafeText>{title}</WordSafeText>
-        </Heading>
-      </div>
-      {save && <SaveStatus state={save} />}
+    <RecordHeader
+      title={title}
+      level={1}
+      className="editor-bar"
+      titleClassName="editor-bar-title"
+      titleRef={titleRef}
+      titleFits={fits}
+      titleContent={<WordSafeText>{title}</WordSafeText>}
+      leading={
+        <IconButton
+          className="editor-bar-back"
+          label={back.label}
+          tooltip={back.label}
+          variant="ghost"
+          icon={<CaretLeftIcon weight="regular" aria-hidden="true" />}
+          href={back.href}
+        />
+      }
+      status={save && <SaveStatus state={save} />}
+    >
       <div className="editor-bar-actions">
         {preview && (
           <ToggleButton
@@ -206,6 +206,6 @@ export function EditorActionBar({
           </VStack>
         </BottomSheet>
       )}
-    </div>
+    </RecordHeader>
   );
 }

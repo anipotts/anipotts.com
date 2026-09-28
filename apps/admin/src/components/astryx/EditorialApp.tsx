@@ -4,7 +4,11 @@ import {
   libraryReturnPath,
 } from "../../lib/content-library-state";
 import { registerClientRoutes } from "../../lib/client-routes";
-import { InlineNotice, WorkspacePage } from "../workspace/Workspace";
+import {
+  InlineNotice,
+  RecordDetails,
+  WorkspacePage,
+} from "../workspace/Workspace";
 import { IconButton } from "@astryxdesign/core/IconButton";
 import { ArrowClockwiseIcon } from "@phosphor-icons/react";
 import {
@@ -482,9 +486,9 @@ export function EditorialApp({
                   </Collapsible>
                 )}
                 {review.fields != null && (
-                  <Collapsible value="details" trigger="Details">
+                  <RecordDetails>
                     <Fields value={review.fields} />
-                  </Collapsible>
+                  </RecordDetails>
                 )}
               </CollapsibleGroup>
             </>

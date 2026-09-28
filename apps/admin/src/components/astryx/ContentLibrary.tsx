@@ -341,19 +341,16 @@ export function ContentLibrary({
   const library = LIBRARIES[group?.name ?? ""] ?? LIBRARIES.website!;
   const heading = title ?? library.title;
   const create = area === "content" ? library.create : undefined;
-  const actions = create && (
-    <IconButton
-      label={create[0]}
-      tooltip={create[0]}
-      variant="ghost"
-      icon={<PlusIcon weight="regular" aria-hidden="true" />}
-      href={create[1]}
-      className="editorial-library-create"
-    />
-  );
+  const primaryAction = create
+    ? {
+        label: create[0],
+        href: create[1],
+        icon: <PlusIcon weight="regular" aria-hidden="true" />,
+      }
+    : undefined;
   if (!group)
     return (
-      <WorkspacePage title={heading} actions={actions}>
+      <WorkspacePage title={heading} primaryAction={primaryAction}>
         <StateNotice
           kind={inventoryError ? "error" : "empty"}
           icon={inventoryError ? undefined : library.icon}
@@ -471,7 +468,11 @@ export function ContentLibrary({
     },
   ];
   return (
-    <WorkspacePage title={heading} count={records.length} actions={actions}>
+    <WorkspacePage
+      title={heading}
+      count={records.length}
+      primaryAction={primaryAction}
+    >
       <VStack gap={5} className="editorial-library">
         <FilterBar
           search={{

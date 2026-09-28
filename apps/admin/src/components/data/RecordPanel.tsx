@@ -24,10 +24,12 @@ import { deviceName, hostDevice } from "../../lib/naming";
 import { useNamedSource } from "./source-catalog";
 import { BrandTile } from "../BrandTile";
 import { SplitPanel, useSplitView } from "../astryx/SplitView";
+import { RecordHeader } from "../workspace/RecordHeader";
 import { ADMIN_TIME_ZONE, clockText, durationText } from "../workspace/format";
 import {
   CompactTimeline,
   DefinitionList,
+  RecordDetails,
   EasternClock,
   InlineNotice,
   LoadingSkeleton,
@@ -348,9 +350,9 @@ function Body({
         <InlineNotice tone="warning" title="Next part unreadable" />
       )}
       <Facts record={record} mark={mark} />
-      <DefinitionList
-        label="Details"
-        items={[
+      <RecordDetails
+        key={record.id}
+        summary={[
           [
             "Kind",
             <span key="kind" className="data-inline">
@@ -359,14 +361,14 @@ function Body({
             </span>,
           ],
           ["Observed", <Observed key="observed" value={record.observedAt} />],
-          ...details.map(
-            (detail) =>
-              [
-                detail.label,
-                <DetailNode key={detail.key} detail={detail} />,
-              ] as const,
-          ),
         ]}
+        details={details.map(
+          (detail) =>
+            [
+              detail.label,
+              <DetailNode key={detail.key} detail={detail} />,
+            ] as const,
+        )}
       />
       <TechnicalSection items={technical.map(technicalItem)} />
       <History record={record} />
@@ -445,14 +447,14 @@ export function RecordPanel({
               <EasternClock />
             </div>
           )}
-          {mark && (
-            <div className="data-record-heading" title={record?.title ?? title}>
-              <Heading level={split ? 2 : 1} className="data-record-title">
-                {title}
-              </Heading>
-            </div>
-          )}
-          {split && close}
+          <RecordHeader
+            title={record?.title ?? title}
+            titleContent={title}
+            level={split ? 2 : 1}
+            titleClassName="data-record-heading"
+            headingClassName="data-record-title"
+            actions={split && close}
+          />
         </div>
       }
     >

@@ -141,6 +141,7 @@ export function WorkspacePage({
   meta,
   badge,
   actions,
+  primaryAction,
   status,
   clock,
   children,
@@ -157,6 +158,15 @@ export function WorkspacePage({
   /** A chip beside the title, such as Sample data. */
   badge?: ReactNode;
   actions?: ReactNode;
+  /** The single next step, labelled and visible. Utilities belong in actions. */
+  primaryAction?: {
+    label: string;
+    href?: string;
+    onClick?: () => void;
+    icon?: ReactNode;
+    isDisabled?: boolean;
+    isLoading?: boolean;
+  };
   /** Live state chips for the whole page, such as Status's counts, right
    * beside the clock. */
   status?: ReactNode;
@@ -181,13 +191,18 @@ export function WorkspacePage({
             {badge}
           </HStack>
           <div className="workspace-page-end">
-            {actions && (
+            {(actions || primaryAction) && (
               <HStack
                 gap={2}
                 vAlign="center"
+                wrap="wrap"
                 className="workspace-page-actions"
+                data-has-primary={Boolean(primaryAction)}
               >
                 {actions}
+                {primaryAction && (
+                  <Button {...primaryAction} size="sm" variant="primary" />
+                )}
               </HStack>
             )}
             {status && <div className="workspace-page-status">{status}</div>}
@@ -2265,6 +2280,45 @@ export function DefinitionList({
         </div>
       ))}
     </dl>
+  );
+}
+
+/** Essential facts remain visible. Optional populated attributes share one
+ * disclosure across Content, Data and Observability. Empty optional fields
+ * do not create a control; missing essential observations stay explicit. */
+export function RecordDetails({
+  summary,
+  details = [],
+  label = "Details",
+  children,
+}: {
+  summary?: ReadonlyArray<readonly [label: string, value: ReactNode]>;
+  details?: ReadonlyArray<readonly [label: string, value: ReactNode]>;
+  label?: string;
+  children?: ReactNode;
+}) {
+  const populated = details.filter(
+    ([, value]) => value !== null && value !== undefined && value !== "",
+  );
+  return (
+    <VStack gap={3} className="workspace-record-details">
+      {summary && <DefinitionList label={label} items={summary} />}
+      {(populated.length > 0 || children) && (
+        <Collapsible
+          value="record-details"
+          trigger="All details"
+          defaultIsOpen={false}
+        >
+          <VStack gap={3} paddingBlockStart={3}>
+            <DefinitionList
+              label={`All ${label.toLowerCase()}`}
+              items={populated}
+            />
+            {children}
+          </VStack>
+        </Collapsible>
+      )}
+    </VStack>
   );
 }
 

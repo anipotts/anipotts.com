@@ -283,7 +283,9 @@ it("moves between libraries in place and back again with history", () => {
   expect(rows().join()).toContain("First post");
   expect(rows().join()).not.toContain("Home");
   expect(document.title).toBe("Writing | Admin");
-  expect(host.querySelector('a[aria-label="New article"]')).not.toBeNull();
+  expect(host.querySelector('a[href="/content/new"]')?.textContent).toContain(
+    "New article",
+  );
 
   act(() => {
     sidebarLink("/content/newsletter")!.dispatchEvent(
@@ -292,7 +294,7 @@ it("moves between libraries in place and back again with history", () => {
   });
   expect(heading()).toContain("Newsletter");
   expect(rows().join()).toContain("Issue one");
-  expect(host.querySelector('a[aria-label="New article"]')).toBeNull();
+  expect(host.querySelector('a[href="/content/new"]')).toBeNull();
 
   act(() => {
     window.history.replaceState(null, "", "/content/pages");

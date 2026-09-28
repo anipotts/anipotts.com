@@ -10,6 +10,22 @@
    Hover tints apply only under (hover: hover). */
 
 /* Page. */
+.workspace-record-header {
+  min-width: 0;
+  width: 100%;
+}
+.workspace-record-heading {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.workspace-record-heading > :is(h1, h2) {
+  min-width: 0;
+  margin-block: 0;
+}
+.workspace-record-header > :is(.astryx-button, .editor-save-status) {
+  flex: none;
+}
+
 .workspace-page {
   width: 100%;
   min-width: 0;
@@ -813,6 +829,11 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   .workspace-page-actions,
   .workspace-filters {
     margin-inline-end: calc((var(--spacing-5) - var(--spacing-11)) / 2);
+  }
+  /* A labelled action keeps its whole button inside the gutter. Only an
+     icon-only utility's target may reach beyond its visible glyph. */
+  .workspace-page-actions[data-has-primary="true"] {
+    margin-inline-end: 0;
   }
   /* On phones the end is too narrow beside the title for a row of chips, so
      a line with status chips becomes a grid: the title and the clock keep the
