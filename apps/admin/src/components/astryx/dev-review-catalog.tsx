@@ -7,6 +7,47 @@ import { HomeAutosave, type SaveState } from "../../lib/home-autosave";
 import type { Draft, SaveResult } from "../../editorial/draft-store";
 import { ReviewChanges, ReviewHeading } from "./ReviewChanges";
 import { saveStatusFromController } from "./SaveStatus";
+import { ProjectSections } from "./ProjectSections";
+import { PublicationProgress } from "./PublicationProgress";
+import { ObservabilityWorkspace } from "./ObservabilityWorkspace";
+import opsSample from "../../fixtures/ops_v1.sample.json";
+import { newProjectSource } from "../../lib/project-draft";
+import { setEditorialField } from "@anipotts/content/editorial/source";
+import type { DirectPublicationStatus } from "../../lib/editorial-publication-status";
+
+// Two incidents, including a start observed only as a bound. Kept within the
+// development catalog so narrow layouts can be checked without a live reader.
+const alignmentEvents = {
+  version: "ops_events_v1",
+  items: [
+    {
+      seq: 1,
+      at: "2025-09-20T09:00:00Z",
+      from_state: null,
+      to_state: "failing",
+    },
+    {
+      seq: 2,
+      at: "2025-09-20T10:00:00Z",
+      from_state: "failing",
+      to_state: "ok",
+    },
+    {
+      seq: 3,
+      at: "2026-09-21T12:00:00Z",
+      from_state: "ok",
+      to_state: "failing",
+    },
+  ].map((event) => ({
+    ...event,
+    kind: "transition",
+    subject: "pc.inference",
+    status: null,
+    ms: null,
+    detail: "Synthetic incident",
+  })),
+  next_after: null,
+};
 
 const scenarios = [
   { value: "private", label: "Saved privately" },
@@ -28,6 +69,58 @@ const longCard = `${afterCard}\n研究ノート · café · ملاحظات\n${"U
 function source(subtitle: string, card: string) {
   return `---\nsubtitle: ${JSON.stringify(subtitle)}\ncard_copy: ${JSON.stringify(card)}\n---\n`;
 }
+
+const alignmentContext = Array.from(
+  { length: 12 },
+  (_, index) => `Unchanged line ${index + 1}.`,
+).join("\n");
+const alignmentBefore = `${alignmentContext}\n**Previous field notes.**`;
+const alignmentAfter = `${alignmentContext}\n*Revised field notes.*`;
+let alignmentProject = newProjectSource("alignment-example");
+for (const [key, value] of Object.entries({
+  story: [
+    {
+      title: "First story section",
+      paragraphs: ["First paragraph.", "Second paragraph."],
+    },
+    {
+      title:
+        "A longer story section name to check wrapping on a narrow viewport",
+      paragraphs: ["One paragraph."],
+    },
+  ],
+  technical: [
+    { title: "First technical section", paragraphs: ["Technical notes."] },
+    { title: "Second technical section", paragraphs: ["Further notes."] },
+  ],
+  roadmap: [
+    { text: "First roadmap item", status: "planned" },
+    { text: "A roadmap item with a validation error", status: "unknown" },
+    { text: "Final roadmap item", status: "done" },
+  ],
+}))
+  alignmentProject = setEditorialField(alignmentProject, [key], value);
+const alignmentPublication: DirectPublicationStatus = {
+  id: "synthetic-alignment",
+  phase: "verify",
+  blocked: "verification_incomplete",
+  version: 1,
+  attempts: 1,
+  dueAt: 0,
+  lease: null,
+  leaseUntil: 0,
+  checkpoint: {},
+  mode: "direct",
+  revision: 2,
+  sourceSha256: "a".repeat(64),
+  baselineSha256: "b".repeat(64),
+  publicationId: "synthetic-receipt",
+  inventoryVersion: 3,
+  verifiedAt: null,
+  superseded: false,
+  canCancel: false,
+  queue: { position: null, pending: 0, head: null, alarmAt: null },
+};
 
 const before = source(beforeSubtitle, beforeCard);
 const after = source(afterSubtitle, afterCard);
@@ -96,7 +189,11 @@ export function DevReviewCatalog() {
   });
   const headingId = useId();
   const noteId = useId();
+  const alignment = copy === "alignment";
   const card = copy === "long" ? longCard : afterCard;
+  const candidate =
+    source(afterSubtitle, card) + (alignment ? alignmentAfter : "");
+  const baseline = before + (alignment ? alignmentBefore : "");
   useEffect(() => {
     let active = true;
     const fixture = reviewCatalogScenario(
@@ -104,13 +201,13 @@ export function DevReviewCatalog() {
       (next) => {
         if (active) setState(next);
       },
-      source(afterSubtitle, card),
+      candidate,
     );
     return () => {
       active = false;
       fixture.dispose();
     };
-  }, [scenario, card]);
+  }, [scenario, candidate]);
   return (
     <VStack gap={5}>
       <VStack gap={3} as="section" aria-label="Review catalog controls">
@@ -133,6 +230,7 @@ export function DevReviewCatalog() {
             options={[
               { value: "standard", label: "Standard fields" },
               { value: "long", label: "Long text and Unicode" },
+              { value: "alignment", label: "Alignment and wrapped states" },
             ]}
             value={copy}
             onChange={setCopy}
@@ -154,7 +252,7 @@ export function DevReviewCatalog() {
         <ReviewChanges
           labelledBy={headingId}
           destination="example.test/work/field-notes"
-          before={before}
+          before={scenario === "unchanged" ? state.source : baseline}
           after={state.source}
           changes={
             scenario === "unchanged"
@@ -167,10 +265,46 @@ export function DevReviewCatalog() {
                     rich: true,
                   },
                   { label: "Card copy", before: beforeCard, after: card },
+                  ...(alignment
+                    ? [
+                        {
+                          label: "Rich field with unchanged context",
+                          before: alignmentBefore,
+                          after: alignmentAfter,
+                          rich: true,
+                          onEdit: () => {},
+                        },
+                      ]
+                    : []),
                 ]
           }
         />
       </VStack>
+      {alignment && (
+        <VStack gap={5} as="section" aria-label="Alignment component examples">
+          <ProjectSections
+            source={alignmentProject}
+            errors={
+              new Map([
+                [
+                  "roadmap.1.status",
+                  "Choose a supported status before continuing with this roadmap item.",
+                ],
+              ])
+            }
+            onEdit={() => {}}
+          />
+          <PublicationProgress publication={alignmentPublication} compact />
+          <ObservabilityWorkspace
+            enabled={false}
+            fixture={opsSample}
+            eventsFixture={alignmentEvents}
+            now={Date.parse("2026-09-21T18:00:00Z")}
+            view="alerts"
+            alert="pc.inference"
+          />
+        </VStack>
+      )}
     </VStack>
   );
 }

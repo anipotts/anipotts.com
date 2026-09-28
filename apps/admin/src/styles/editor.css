@@ -522,11 +522,19 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 .editor-change {
   padding-block: var(--spacing-3);
 }
+.editor-review-title-row > .astryx-stack:first-child:not(#\#),
+.editor-destination:not(#\#) {
+  align-items: baseline;
+}
 .editor-destination {
   text-align: start;
   overflow-wrap: anywhere;
 }
-.editor-diff-heading > .astryx-button {
+.editor-diff-heading-text:not(#\#) {
+  align-items: baseline;
+  min-width: 0;
+}
+.editor-diff-heading-actions {
   margin-inline-start: auto;
 }
 .editor-revision-diff {
@@ -544,6 +552,9 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 }
 .editor-diff-columns > .astryx-text {
   padding: var(--spacing-2) var(--spacing-3);
+}
+.editor-diff-line:not(#\#) {
+  align-items: baseline;
 }
 .editor-diff-line {
   min-width: 0;
@@ -643,6 +654,14 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 .publication-steps {
   flex-wrap: wrap;
 }
+.publication-message {
+  min-width: 0;
+  flex: 1;
+}
+.publication-message-dot {
+  flex: none;
+  height: calc(var(--text-supporting-size) * var(--text-supporting-leading));
+}
 .publication-step {
   flex: 1;
   min-width: 0;
@@ -735,6 +754,45 @@ html[data-theme="light"] .rich-writing .inline-image-white {
 .editor-section-name {
   flex: 1 1 auto;
   min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* Move and remove slots keep their columns when boundary moves are absent. */
+.editor-section-actions {
+  flex: none;
+}
+.editor-section-action-slot {
+  flex: none;
+  width: var(--spacing-9);
+}
+@media (pointer: coarse), (max-width: 640px) {
+  .editor-section-action-slot {
+    width: var(--spacing-11);
+  }
+}
+/* Keep the field's native label and error wiring, while the control shares
+   its own row with the actions. Wrapped labels and errors never move them. */
+.editor-roadmap-controls:not(#\#) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.editor-roadmap-controls > .astryx-field:not(#\#) {
+  display: contents;
+}
+.editor-roadmap-controls .astryx-field-label {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+.editor-roadmap-controls .astryx-selector {
+  grid-column: 1;
+  grid-row: 2;
+}
+.editor-roadmap-controls > .editor-section-actions {
+  grid-column: 2;
+  grid-row: 2;
+}
+.editor-roadmap-controls .astryx-field-status {
+  grid-column: 1 / -1;
+  grid-row: 3;
 }
 /* An add button's plus sits on the column edge, like the labels above it. */
 .editor-add-row:not(#\#) {

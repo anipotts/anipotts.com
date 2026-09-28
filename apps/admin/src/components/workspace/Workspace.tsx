@@ -318,7 +318,12 @@ export function WorkspaceSection({
   return (
     <VStack gap={3} as="section" aria-labelledby={id}>
       <HStack gap={3} hAlign="between" vAlign="center" wrap="wrap">
-        <HStack gap={2} vAlign="center" wrap="wrap">
+        <HStack
+          gap={2}
+          vAlign="center"
+          wrap="wrap"
+          className="workspace-section-title"
+        >
           <Heading level={2} id={id}>
             {href ? (
               <a href={href} className="workspace-section-link">

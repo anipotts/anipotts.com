@@ -7,7 +7,7 @@
    one line; the stretched hit area (the kit's ::after) makes the whole row
    the target. */
 .sources-family-toggle {
-  align-items: center;
+  align-items: baseline;
   gap: var(--spacing-2);
 }
 .sources-family-toggle .workspace-row-title {
@@ -20,6 +20,7 @@
   color: var(--color-text-secondary);
 }
 .sources-family-caret {
+  align-self: center;
   flex: none;
   width: var(--spacing-3);
   height: var(--spacing-3);

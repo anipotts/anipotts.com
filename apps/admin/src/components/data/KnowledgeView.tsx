@@ -52,6 +52,7 @@ import {
   WorkspacePage,
   type Column,
 } from "../workspace/Workspace";
+import { RecordHeader } from "../workspace/RecordHeader";
 import { ADMIN_TIME_ZONE } from "../workspace/format";
 import { kindGlyph } from "./data-model";
 import {
@@ -447,6 +448,7 @@ function EntityPanel({
         )
       }
       onClick={() => navigate(knowledgeHref(route.kind))}
+      className="knowledge-panel-action"
     />
   );
   const title = entity ? entity.name : "Entity";
@@ -454,24 +456,35 @@ function EntityPanel({
   return (
     <SplitPanel
       className="knowledge-panel"
+      data-split={split ? "true" : "false"}
       aria-label={`${title} details`}
       header={
-        <HStack gap={3} vAlign="center" className="knowledge-panel-header">
-          {!split && close}
-          {entity && (
-            <span
-              className="workspace-row-mark knowledge-mark"
-              title={kindName(entity.kind)}
-            >
-              <Glyph weight="regular" aria-hidden="true" />
-              <span className="sr-only">{kindName(entity.kind)}</span>
-            </span>
+        <VStack gap={1} className="knowledge-panel-bar">
+          {!split && (
+            <HStack gap={3} vAlign="center" hAlign="between">
+              {close}
+              <EasternClock />
+            </HStack>
           )}
-          <Heading level={split ? 2 : 1} className="knowledge-title">
-            {title}
-          </Heading>
-          {split ? close : <EasternClock />}
-        </HStack>
+          <RecordHeader
+            title={title}
+            level={split ? 2 : 1}
+            className="knowledge-panel-header"
+            headingClassName="knowledge-title"
+            leading={
+              entity && (
+                <span
+                  className="workspace-row-mark knowledge-mark"
+                  title={kindName(entity.kind)}
+                >
+                  <Glyph weight="regular" aria-hidden="true" />
+                  <span className="sr-only">{kindName(entity.kind)}</span>
+                </span>
+              )
+            }
+            actions={split && close}
+          />
+        </VStack>
       }
     >
       {failure ? (

@@ -432,7 +432,7 @@
 }
 .data-record-section:not(#\#) {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--spacing-2);
   font-size: var(--text-body-size, var(--font-size-body, 15px));
   line-height: var(--spacing-6);

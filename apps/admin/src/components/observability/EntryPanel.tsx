@@ -352,7 +352,7 @@ function EntryFacts({
           : ([
               [
                 "Last success",
-                <span key="success" className="ops-inline">
+                <span key="success" className="ops-inline ops-success-fact">
                   <LastSuccess
                     service={service}
                     now={now}

@@ -50,6 +50,22 @@ import { ReadNotice } from "./DataNotices";
 
 type Failure = Exclude<DataResult, { state: "ready" }>;
 
+// These fields qualify how a record may be read. Keep them visible even when
+// optional descriptive attributes are collapsed.
+const READING_CONTEXT = new Set([
+  "authority",
+  "current_as_of_authority",
+  "day_state",
+  "temporal_status",
+  "temporal_warnings",
+  "current_as_of",
+  "current_as_of_status",
+  "omitted_fields",
+  "vitals",
+]);
+const isReadingContext = (detail: Detail) =>
+  READING_CONTEXT.has(detail.key.split(".").at(-1)!);
+
 const ABSOLUTE = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
   timeStyle: "short",
@@ -361,14 +377,25 @@ function Body({
             </span>,
           ],
           ["Observed", <Observed key="observed" value={record.observedAt} />],
+          ...details
+            .filter(isReadingContext)
+            .map(
+              (detail) =>
+                [
+                  detail.label,
+                  <DetailNode key={detail.key} detail={detail} />,
+                ] as const,
+            ),
         ]}
-        details={details.map(
-          (detail) =>
-            [
-              detail.label,
-              <DetailNode key={detail.key} detail={detail} />,
-            ] as const,
-        )}
+        details={details
+          .filter((detail) => !isReadingContext(detail))
+          .map(
+            (detail) =>
+              [
+                detail.label,
+                <DetailNode key={detail.key} detail={detail} />,
+              ] as const,
+          )}
       />
       <TechnicalSection items={technical.map(technicalItem)} />
       <History record={record} />

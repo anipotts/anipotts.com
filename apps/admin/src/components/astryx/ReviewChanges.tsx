@@ -214,29 +214,46 @@ function FieldDiff({
         vAlign="center"
         className="editor-diff-heading"
       >
-        <Text id={headingId} weight="semibold">
-          {label}
-        </Text>
-        {onEdit && (
-          <Button
-            label="Edit"
-            aria-label={`Edit ${label}`}
-            variant="ghost"
-            size="sm"
-            onClick={onEdit}
-          />
-        )}
-        {comparison.detail && (
-          <Text type="supporting">{comparison.detail}</Text>
-        )}
-        {hasHiddenContext && (
-          <Button
-            label={expanded ? "Less context" : "Full context"}
-            aria-expanded={expanded}
-            variant="ghost"
-            size="sm"
-            onClick={() => setExpanded(!expanded)}
-          />
+        <HStack
+          gap={2}
+          wrap="wrap"
+          vAlign="center"
+          className="editor-diff-heading-text"
+        >
+          <Text id={headingId} weight="semibold">
+            {label}
+          </Text>
+          {comparison.detail && (
+            <Text type="supporting">{comparison.detail}</Text>
+          )}
+        </HStack>
+        {(onEdit || hasHiddenContext) && (
+          <HStack
+            gap={1}
+            wrap="wrap"
+            vAlign="center"
+            hAlign="end"
+            className="editor-diff-heading-actions"
+          >
+            {onEdit && (
+              <Button
+                label="Edit"
+                aria-label={`Edit ${label}`}
+                variant="ghost"
+                size="sm"
+                onClick={onEdit}
+              />
+            )}
+            {hasHiddenContext && (
+              <Button
+                label={expanded ? "Less context" : "Full context"}
+                aria-expanded={expanded}
+                variant="ghost"
+                size="sm"
+                onClick={() => setExpanded(!expanded)}
+              />
+            )}
+          </HStack>
         )}
       </HStack>
       <VStack gap={0} className="editor-diff-content">

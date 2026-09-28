@@ -60,6 +60,10 @@
   flex: 1 0 auto;
   max-width: 100%;
   row-gap: 0;
+  align-items: baseline;
+}
+.workspace-section-title:not(#\#) {
+  align-items: baseline;
 }
 .workspace-page-title > h1,
 .workspace-page-end {

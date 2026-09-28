@@ -46,6 +46,52 @@ const down = <CaretDownIcon weight="regular" aria-hidden="true" />;
 const remove = <XIcon weight="regular" aria-hidden="true" />;
 const plus = <PlusIcon weight="regular" aria-hidden="true" />;
 
+function SectionActions({
+  kind,
+  index,
+  count,
+  disabled,
+  onEdit,
+}: {
+  kind: "story" | "technical" | "roadmap";
+  index: number;
+  count: number;
+  disabled?: boolean;
+  onEdit: (edit: ProjectSectionEdit) => void;
+}) {
+  const label = kind === "roadmap" ? "roadmap item" : kind;
+  return (
+    <HStack gap={1} vAlign="center" className="editor-section-actions">
+      <VStack as="span" className="editor-section-action-slot">
+        {index > 0 && (
+          <RowAction
+            label={`Move ${label} ${index + 1} up`}
+            icon={up}
+            isDisabled={disabled}
+            onClick={() => onEdit({ type: "move", kind, index, direction: -1 })}
+          />
+        )}
+      </VStack>
+      <VStack as="span" className="editor-section-action-slot">
+        {index < count - 1 && (
+          <RowAction
+            label={`Move ${label} ${index + 1} down`}
+            icon={down}
+            isDisabled={disabled}
+            onClick={() => onEdit({ type: "move", kind, index, direction: 1 })}
+          />
+        )}
+      </VStack>
+      <RowAction
+        label={`Remove ${kind === "roadmap" ? label : `${kind} section`} ${index + 1}`}
+        icon={remove}
+        isDisabled={disabled}
+        onClick={() => onEdit({ type: "remove", kind, index })}
+      />
+    </HStack>
+  );
+}
+
 export function ProjectSections({
   source,
   errors = new Map(),
@@ -76,63 +122,56 @@ export function ProjectSections({
         return (
           <VStack key={kind} gap={1}>
             {entries.map((entry, index) => (
-              <HStack key={index} gap={1} wrap="wrap" vAlign="center">
-                <Text className="editor-section-name">
-                  {(typeof entry?.title === "string" && entry.title) ||
-                    `${kind === "story" ? "Story" : "Technical"} ${index + 1}`}
-                </Text>
-                {index > 0 && (
-                  <RowAction
-                    label={`Move ${kind} ${index + 1} up`}
-                    icon={up}
-                    isDisabled={disabled}
-                    onClick={() =>
-                      onEdit({ type: "move", kind, index, direction: -1 })
-                    }
+              <VStack key={index} gap={1}>
+                <HStack gap={1} vAlign="center">
+                  <Text className="editor-section-name">
+                    {(typeof entry?.title === "string" && entry.title) ||
+                      `${kind === "story" ? "Story" : "Technical"} ${index + 1}`}
+                  </Text>
+                  <SectionActions
+                    kind={kind}
+                    index={index}
+                    count={entries.length}
+                    disabled={disabled}
+                    onEdit={onEdit}
                   />
-                )}
-                {index < entries.length - 1 && (
-                  <RowAction
-                    label={`Move ${kind} ${index + 1} down`}
-                    icon={down}
-                    isDisabled={disabled}
-                    onClick={() =>
-                      onEdit({ type: "move", kind, index, direction: 1 })
-                    }
-                  />
-                )}
-                <RowAction
-                  label={`Remove ${kind} section ${index + 1}`}
-                  icon={remove}
-                  isDisabled={disabled}
-                  onClick={() => onEdit({ type: "remove", kind, index })}
-                />
-                {kind === "story" &&
-                  Array.isArray(entry?.paragraphs) &&
-                  entry.paragraphs.length > 1 &&
-                  entry.paragraphs.map((_, paragraph) => (
+                </HStack>
+                {kind === "story" && entry && typeof entry === "object" && (
+                  <HStack
+                    gap={1}
+                    wrap="wrap"
+                    vAlign="center"
+                    className="editor-section-paragraph-actions"
+                  >
+                    {Array.isArray(entry.paragraphs) &&
+                      entry.paragraphs.length > 1 &&
+                      entry.paragraphs.map((_, paragraph) => (
+                        <Button
+                          key={paragraph}
+                          label={`Remove story ${index + 1} paragraph ${paragraph + 1}`}
+                          children={`Remove paragraph ${paragraph + 1}`}
+                          size="sm"
+                          variant="ghost"
+                          isDisabled={disabled}
+                          onClick={() =>
+                            onEdit({
+                              type: "remove-paragraph",
+                              index,
+                              paragraph,
+                            })
+                          }
+                        />
+                      ))}
                     <Button
-                      key={paragraph}
-                      label={`Remove story ${index + 1} paragraph ${paragraph + 1}`}
-                      children={`Remove paragraph ${paragraph + 1}`}
+                      label="Add paragraph"
                       size="sm"
                       variant="ghost"
                       isDisabled={disabled}
-                      onClick={() =>
-                        onEdit({ type: "remove-paragraph", index, paragraph })
-                      }
+                      onClick={() => onEdit({ type: "paragraph", index })}
                     />
-                  ))}
-                {kind === "story" && entry && typeof entry === "object" && (
-                  <Button
-                    label="Add paragraph"
-                    size="sm"
-                    variant="ghost"
-                    isDisabled={disabled}
-                    onClick={() => onEdit({ type: "paragraph", index })}
-                  />
+                  </HStack>
                 )}
-              </HStack>
+              </VStack>
             ))}
           </VStack>
         );
@@ -179,11 +218,12 @@ export function ProjectSections({
               onEdit({ type: "roadmap-field", index, field: "text", value })
             }
           />
-          <HStack gap={1} wrap="wrap" vAlign="center">
+          <HStack gap={1} vAlign="center" className="editor-roadmap-controls">
             <Selector
               label={`Roadmap item ${index + 1} status`}
               value={typeof item?.status === "string" ? item.status : ""}
               status={status(`roadmap.${index}.status`)}
+              statusVariant="detached"
               options={[
                 { value: "planned", label: "Planned" },
                 { value: "in-progress", label: "In progress" },
@@ -194,36 +234,12 @@ export function ProjectSections({
                 onEdit({ type: "roadmap-field", index, field: "status", value })
               }
             />
-            {index > 0 && (
-              <RowAction
-                label={`Move roadmap item ${index + 1} up`}
-                icon={up}
-                isDisabled={disabled}
-                onClick={() =>
-                  onEdit({
-                    type: "move",
-                    kind: "roadmap",
-                    index,
-                    direction: -1,
-                  })
-                }
-              />
-            )}
-            {index < items.length - 1 && (
-              <RowAction
-                label={`Move roadmap item ${index + 1} down`}
-                icon={down}
-                isDisabled={disabled}
-                onClick={() =>
-                  onEdit({ type: "move", kind: "roadmap", index, direction: 1 })
-                }
-              />
-            )}
-            <RowAction
-              label={`Remove roadmap item ${index + 1}`}
-              icon={remove}
-              isDisabled={disabled}
-              onClick={() => onEdit({ type: "remove", kind: "roadmap", index })}
+            <SectionActions
+              kind="roadmap"
+              index={index}
+              count={items.length}
+              disabled={disabled}
+              onEdit={onEdit}
             />
           </HStack>
         </VStack>

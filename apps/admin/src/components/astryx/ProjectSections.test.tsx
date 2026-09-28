@@ -26,6 +26,15 @@ it("shows roadmap validation beside its controls while keeping removal available
       ),
     );
     expect(host.textContent).toContain("Choose a supported status.");
+    const selector = host.querySelector('[role="combobox"]')!;
+    expect(selector.getAttribute("aria-invalid")).toBe("true");
+    expect(host.querySelector(`label[for="${selector.id}"]`)?.textContent).toBe(
+      "Roadmap item 1 status",
+    );
+    expect(
+      host.querySelector(`[id="${selector.getAttribute("aria-describedby")}"]`)
+        ?.textContent,
+    ).toBe("Choose a supported status.");
     const remove = host.querySelector<HTMLButtonElement>(
       'button[aria-label="Remove roadmap item 1"]',
     )!;

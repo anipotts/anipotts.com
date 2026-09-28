@@ -261,13 +261,19 @@ export function PublicationProgress({
         </HStack>
       )}
       <HStack gap={3} wrap="wrap" vAlign="center" hAlign="between">
-        <HStack gap={2} vAlign="start">
+        <HStack gap={2} vAlign="start" className="publication-message">
           {compact && (
-            <StatusDot
-              variant={progress.variant}
-              label="Publication"
-              isPulsing={progress.isRunning}
-            />
+            <HStack
+              as="span"
+              vAlign="center"
+              className="publication-message-dot"
+            >
+              <StatusDot
+                variant={progress.variant}
+                label="Publication"
+                isPulsing={progress.isRunning}
+              />
+            </HStack>
           )}
           <Text
             type="supporting"
