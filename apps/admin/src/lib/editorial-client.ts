@@ -1,3 +1,4 @@
+import { editorialResponseLimit } from "./editorial-response-bounds";
 import { protectedAdminJson } from "./protected-admin-json";
 import { discardBody } from "./response-body";
 
@@ -16,4 +17,16 @@ export async function readEditorialCsrf(signal?: AbortSignal): Promise<string> {
   const body = (await response.json()) as { csrf?: unknown };
   if (typeof body.csrf !== "string") throw new Error("CSRF unavailable");
   return body.csrf;
+}
+
+/** Source-bearing editorial responses use the server's bounded record/history
+ * contracts. CSRF, reader issuance and publication status keep the default. */
+export function editorialAdminJson(
+  input: string,
+  init: RequestInit = {},
+  fetcher: typeof fetch = globalThis.fetch,
+): Promise<Response> {
+  return protectedAdminJson(input, init, fetcher, {
+    maxBytes: editorialResponseLimit(input),
+  });
 }

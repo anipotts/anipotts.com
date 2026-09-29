@@ -887,3 +887,112 @@ it("loads older revisions with the server cursor and retains history through a f
     ).value,
   ).toBe(originalBody);
 });
+
+it("opens a valid record and history whose encoded responses exceed 2MiB", async () => {
+  // Each revision stays below the store's raw 512KiB source cap, and the
+  // serialized page stays below its separate 4MiB history budget.
+  const largeSource = source + "x".repeat(480 * 1024);
+  const history = Array.from({ length: 5 }, (_, index) => ({
+    ...draft,
+    source: largeSource,
+    revision: 5 - index,
+  }));
+  const page = { history, nextBeforeRevision: null };
+  const record = {
+    ...snapshot,
+    base: { ...snapshot.base, source: largeSource },
+    draft: { ...draft, source: largeSource, revision: 5 },
+    ...page,
+  };
+  expect(
+    new TextEncoder().encode(JSON.stringify(page)).byteLength,
+  ).toBeGreaterThan(2 * 1024 * 1024);
+  expect(
+    new TextEncoder().encode(JSON.stringify(page)).byteLength,
+  ).toBeLessThan(4 * 1024 * 1024);
+  expect(
+    new TextEncoder().encode(JSON.stringify(record)).byteLength,
+  ).toBeGreaterThan(2 * 1024 * 1024);
+  const fetcher = vi.fn(async (url: string) =>
+    response(url.includes("/history?") ? page : record),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  await mount("?panel=history");
+  expect(host.textContent).not.toContain("Couldn’t load history");
+  expect(host.textContent).not.toContain("Couldn’t load this record");
+  expect(host.textContent).toContain("r5");
+  expect(host.textContent).toContain("r1");
+  expect(
+    (
+      host.querySelector(
+        'textarea[aria-label="Test article body"]',
+      ) as HTMLTextAreaElement
+    ).value,
+  ).toContain("x".repeat(1024));
+  expect(fetcher.mock.calls.some(([url]) => url.includes("/record?"))).toBe(
+    true,
+  );
+  expect(fetcher.mock.calls.some(([url]) => url.includes("/history?"))).toBe(
+    true,
+  );
+});
+
+it.each(["record", "history"] as const)(
+  "rejects an over-cap %s response without mounting or replaying its plaintext",
+  async (action) => {
+    const {
+      MAX_EDITORIAL_RECORD_RESPONSE_BYTES,
+      MAX_EDITORIAL_HISTORY_RESPONSE_BYTES,
+    } = await import("../../lib/editorial-response-bounds");
+    const cap =
+      action === "record"
+        ? MAX_EDITORIAL_RECORD_RESPONSE_BYTES
+        : MAX_EDITORIAL_HISTORY_RESPONSE_BYTES;
+    const fetcher = vi.fn(async (url: string) =>
+      response(
+        url.includes(`/api/editorial/${action}?`)
+          ? { ...snapshot, padding: "x".repeat(cap) }
+          : snapshot,
+      ),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    if (action === "record") {
+      await act(async () =>
+        root.render(
+          <HomeEditor record={{ kind: "writing", id: "test" }} localPreview />,
+        ),
+      );
+      await act(async () => {
+        await vi.waitFor(() =>
+          expect(host.textContent).toContain("Couldn’t load this draft."),
+        );
+      });
+      expect(
+        host.querySelector('textarea[aria-label="Test article body"]'),
+      ).toBeNull();
+    } else {
+      await mount("?panel=history");
+      await act(async () => {
+        await vi.waitFor(() =>
+          expect(host.textContent).toContain("Couldn’t load history"),
+        );
+      });
+      expect(
+        (
+          host.querySelector(
+            'textarea[aria-label="Test article body"]',
+          ) as HTMLTextAreaElement
+        ).value,
+      ).toBe("\nOriginal body.");
+      expect(host.textContent).toContain("r1");
+    }
+    expect(
+      fetcher.mock.calls.filter(([url]) =>
+        url.includes(`/api/editorial/${action}?`),
+      ),
+    ).toHaveLength(1);
+    expect(fetcher.mock.calls.some(([url]) => url.includes("/save?"))).toBe(
+      false,
+    );
+  },
+);

@@ -1,7 +1,6 @@
 import { editorialReturnPath } from "../../lib/editorial-return-path";
 import {
   AdminRequestError,
-  protectedAdminJson,
   watchProtectedSession,
 } from "../../lib/protected-admin-json";
 import { EditorToolBoundary } from "./EditorToolBoundary";
@@ -104,7 +103,10 @@ import {
 import type { Draft } from "../../editorial/draft-store";
 import type { HomeBase } from "../../lib/editorial-home-api";
 import { discardBody } from "../../lib/response-body";
-import { readEditorialCsrf } from "../../lib/editorial-client";
+import {
+  editorialAdminJson,
+  readEditorialCsrf,
+} from "../../lib/editorial-client";
 import type { DirectPublicationStatus } from "../../lib/editorial-publication-status";
 import { prepareWritingPublication } from "../../lib/writing-publication-source";
 import { publicationSourceHash } from "@anipotts/content/editorial/publication-contract";
@@ -145,7 +147,7 @@ const SourceEditor = lazy(() => import("./SourceEditor"));
 
 /** An editorial read's JSON; a refused response throws. */
 async function getJson<T>(url: string): Promise<T> {
-  const response = await protectedAdminJson(url, {
+  const response = await editorialAdminJson(url, {
     signal: AbortSignal.timeout(15000),
   });
   if (!response.ok) {
@@ -625,7 +627,7 @@ function HomeEditorImpl({
     csrf.current ||= await readEditorialCsrf(AbortSignal.timeout(15000));
     if (sessionLocked.current) throw new Error("session locked");
     if (guard && !guard()) throw new Error("operation no longer current");
-    const response = await protectedAdminJson(endpoint(action), {
+    const response = await editorialAdminJson(endpoint(action), {
       method: "POST",
       signal: AbortSignal.timeout(15000),
       headers: {
@@ -780,7 +782,7 @@ function HomeEditorImpl({
       const request = new AbortController();
       active = request;
       try {
-        const response = await protectedAdminJson(
+        const response = await editorialAdminJson(
           `${endpoint("publication")}&operationId=${job.id}`,
           {
             signal: AbortSignal.any([
@@ -973,7 +975,7 @@ function HomeEditorImpl({
   useEffect(() => {
     if (!activatedVisibility) return;
     let cancelled = false;
-    protectedAdminJson(endpoint("baseline"), {
+    editorialAdminJson(endpoint("baseline"), {
       signal: AbortSignal.timeout(15000),
     })
       .then(async (response) => {
@@ -1203,7 +1205,7 @@ function HomeEditorImpl({
         controller !== editor.current
       )
         return;
-      const response = await protectedAdminJson(endpoint("baseline"), {
+      const response = await editorialAdminJson(endpoint("baseline"), {
         signal: AbortSignal.timeout(15000),
       });
       if (!response.ok) {
@@ -1397,7 +1399,7 @@ function HomeEditorImpl({
     setError("");
     try {
       // Review against the server's current public source, never a cached one.
-      const response = await protectedAdminJson(endpoint("baseline"), {
+      const response = await editorialAdminJson(endpoint("baseline"), {
         signal: AbortSignal.timeout(15000),
       });
       if (!response.ok) {
@@ -1479,7 +1481,7 @@ function HomeEditorImpl({
   async function readPublication(
     operationId: string,
   ): Promise<VisiblePublication | null> {
-    const response = await protectedAdminJson(
+    const response = await editorialAdminJson(
       `${endpoint("publication")}&operationId=${encodeURIComponent(operationId)}`,
       {
         signal: AbortSignal.timeout(15000),
