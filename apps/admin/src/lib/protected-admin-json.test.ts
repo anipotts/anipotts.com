@@ -128,9 +128,8 @@ it("invalidates a previously buffered JSON response on cross-tab logout", async 
     new StorageEvent("storage", { key: "editorial-recovery:logout" }),
   );
   // Use the actual persisted key, which is shared with recovery.
-  const { recoveryLogoutGenerationKey } = await import("./browser-recovery");
-  window.dispatchEvent(
-    new StorageEvent("storage", { key: recoveryLogoutGenerationKey }),
-  );
+  const { recoveryLogoutGenerationKey: logoutKey } =
+    await import("./browser-recovery");
+  window.dispatchEvent(new StorageEvent("storage", { key: logoutKey }));
   await expect(response.json()).rejects.toMatchObject({ kind: "locked" });
 });

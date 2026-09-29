@@ -27,10 +27,9 @@ it("cross-tab logout immediately clears bearer and cannot reopen from idle inter
   const policy = track(session);
   await session.start();
   expect(session.bearer()).toBe("synthetic");
-  const { recoveryLogoutGenerationKey } = await import("./browser-recovery");
-  window.dispatchEvent(
-    new StorageEvent("storage", { key: recoveryLogoutGenerationKey }),
-  );
+  const { recoveryLogoutGenerationKey: logoutKey } =
+    await import("./browser-recovery");
+  window.dispatchEvent(new StorageEvent("storage", { key: logoutKey }));
   expect(session.bearer()).toBeNull();
   expect(policy.endedByOwner).toBe(true);
   window.dispatchEvent(new Event("pointerdown"));
