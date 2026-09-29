@@ -116,6 +116,9 @@ export function Logout({
       <Heading level={1} className="sr-only">
         Sign out
       </Heading>
+      <p>
+        Signing out of Access clears browser recovery. Google stays signed in.
+      </p>
       {error && <Banner status="error" title={error} />}
       <HStack gap={3}>
         <Button

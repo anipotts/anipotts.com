@@ -1,3 +1,4 @@
+import { AuthReentry } from "./AuthReentry";
 import { editorialReturnPath } from "../../lib/editorial-return-path";
 import {
   AdminRequestError,
@@ -1003,9 +1004,8 @@ function HomeEditorImpl({
           status="warning"
           title="Session ended. Sign in again to resume your saved draft."
         />
-        <Button
+        <AuthReentry
           href={editorialReturnPath(location.pathname + location.search)}
-          label="Sign in again"
         />
       </VStack>
     );

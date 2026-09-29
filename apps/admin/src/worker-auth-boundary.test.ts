@@ -216,6 +216,46 @@ describe("Worker, signed identity and actual handler composition", () => {
     privateResponse(redirect);
     expect(redirect.headers.get("location")).toBe("/auth?next=%2Fdata");
   });
+  it("routes denied signed human entry to the inert auth shell without changing API or mutation denial", async () => {
+    const wrongOwner = await sign({ email: "other@example.test" });
+    for (const method of ["GET", "HEAD"]) {
+      for (const path of [
+        "/",
+        "/content/pages?record=synthetic",
+        "/newsletter/synthetic",
+      ]) {
+        const response = await dispatch(request(path, wrongOwner, { method }));
+        expect(response.status).toBe(302);
+        privateResponse(response);
+        expect(response.headers.get("cloudflare-cdn-cache-control")).toBe(
+          "no-store",
+        );
+        const destination = path === "/" ? "/content/pages" : path;
+        expect(response.headers.get("location")).toBe(
+          `/auth?next=${encodeURIComponent(destination)}`,
+        );
+        expect(await response.text()).toBe("");
+      }
+    }
+    const shell = await dispatch(
+      request("/auth?next=%2Fcontent%2Fpages", wrongOwner),
+    );
+    expect(shell.status).toBe(200);
+    const logout = await dispatch(request("/auth/logout", wrongOwner));
+    expect(logout.status).toBe(200);
+    privateResponse(logout);
+    for (const [path, init] of [
+      ["/api/editorial/record?kind=writing&id=synthetic", {}],
+      ["/content/pages", mutation()],
+    ] as const) {
+      const response = await dispatch(request(path, wrongOwner, init));
+      expect(response.status).toBe(401);
+      expect(await response.json()).toEqual({ error: "owner_required" });
+      expect(response.headers.get("location")).toBeNull();
+      privateResponse(response);
+    }
+    noEffects();
+  });
   it.each([
     ["wrong owner", { email: "other@example.test" }],
     ["alias", { email: "hello+admin@anipotts.com" }],

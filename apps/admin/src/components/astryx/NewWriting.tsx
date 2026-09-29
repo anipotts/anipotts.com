@@ -1,3 +1,4 @@
+import { AuthReentry } from "./AuthReentry";
 import { editorialReturnPath } from "../../lib/editorial-return-path";
 import {
   protectedAdminJson,
@@ -350,9 +351,8 @@ function NewWritingForm({
           status="warning"
           title="Session ended. Sign in again to resume."
         />
-        <Button
+        <AuthReentry
           href={editorialReturnPath(location.pathname + location.search)}
-          label="Sign in again"
         />
       </VStack>
     );

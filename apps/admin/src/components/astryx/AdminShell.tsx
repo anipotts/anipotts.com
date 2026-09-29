@@ -1,5 +1,5 @@
+import { AuthReentry } from "./AuthReentry";
 import React, { useEffect, useRef, useState, type ReactNode } from "react";
-import { Button } from "@astryxdesign/core/Button";
 import { Heading } from "@astryxdesign/core/Heading";
 import {
   protectedSessionIsLocked,
@@ -87,11 +87,7 @@ export function AdminShell({
       <Theme theme={shellTheme} mode={mode}>
         <VStack gap={3}>
           <Heading level={1}>Session ended</Heading>
-          <Button
-            label="Sign in again"
-            href={owner ? workspaceReturnPath(owner, path) : "/"}
-            onClick={(event) => event.stopPropagation()}
-          />
+          <AuthReentry href={owner ? workspaceReturnPath(owner, path) : "/"} />
         </VStack>
       </Theme>
     );

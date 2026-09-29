@@ -1,3 +1,4 @@
+import { AuthReentry } from "../astryx/AuthReentry";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   protectedSessionIsLocked,
@@ -326,15 +327,12 @@ function OpsNotice({
         kind="not-connected"
         title="Session locked"
         action={
-          <Button
-            label="Sign in again"
-            size="sm"
-            variant="secondary"
+          <AuthReentry
             href={workspaceReturnPath(
               "observability",
               location.pathname + location.search,
             )}
-            onClick={(event) => event.stopPropagation()}
+            size="sm"
           />
         }
       />

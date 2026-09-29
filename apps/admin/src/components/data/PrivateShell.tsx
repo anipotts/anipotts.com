@@ -1,5 +1,5 @@
+import { AuthReentry } from "../astryx/AuthReentry";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Button } from "@astryxdesign/core/Button";
 import { StateNotice } from "../workspace/Workspace";
 import {
   protectedSessionIsLocked,
@@ -158,13 +158,7 @@ export function PrivateShell({
       <StateNotice
         kind="not-connected"
         title="Session ended"
-        action={
-          <Button
-            label="Sign in again"
-            href={path}
-            onClick={(event) => event.stopPropagation()}
-          />
-        }
+        action={<AuthReentry href={path} />}
       />
     );
   }

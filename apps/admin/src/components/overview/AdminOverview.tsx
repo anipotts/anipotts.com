@@ -1,3 +1,4 @@
+import { AuthReentry } from "../astryx/AuthReentry";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { workspaceReturnPath } from "../../lib/workspace-navigation";
 import { Button } from "@astryxdesign/core/Button";
@@ -162,10 +163,7 @@ function FiringAlerts(props: OpsViewProps) {
           kind="not-connected"
           title="Session locked"
           action={
-            <Button
-              label="Sign in again"
-              size="sm"
-              variant="secondary"
+            <AuthReentry
               href={
                 location.pathname === "/"
                   ? "/"
@@ -174,7 +172,7 @@ function FiringAlerts(props: OpsViewProps) {
                       location.pathname + location.search,
                     )
               }
-              onClick={(event) => event.stopPropagation()}
+              size="sm"
             />
           }
         />

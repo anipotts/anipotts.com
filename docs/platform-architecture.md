@@ -98,7 +98,10 @@ introduced. Newsletter and reserved operation controls retain their boundaries.
 
 Same-origin Admin JSON requests send `X-Requested-With: XMLHttpRequest`, reject
 redirected HTML and handle bounded JSON. Confirmed expiry locks the document and
-provides safe top-level reentry without replaying writes. Network/HTML failures,
+provides safe top-level reentry without replaying writes. Locked views and the
+auth shell also offer explicit sign out to change account through `/auth/logout`;
+this uses the existing required plaintext cleanup and fixed Access logout flow.
+Expiry never triggers logout or recovery deletion automatically. Network/HTML failures,
 policy denial and application validation/CSRF refusals remain distinct. The
 cross-origin tailnet reader keeps its existing transport and device grant.
 

@@ -5,6 +5,7 @@ import {
   verifyEditorialOwner,
 } from "./lib/access-identity";
 import { privateJson } from "./lib/editorial-security";
+import { editorialReturnPath } from "./lib/editorial-return-path";
 import { PREVIEW_PATHS, previewResponse } from "./lib/preview-html";
 import {
   isApprovedDevPreviewOrigin,
@@ -81,7 +82,27 @@ async function handleRequest(
     // headers. Routes read the verified owner from locals, never again.
     if (!local) {
       const owner = await verifyEditorialOwner(context.request, env);
-      if (!owner) return privateJson({ error: "owner_required" }, 401);
+      if (!owner) {
+        // Human entry needs an inert account-change escape even when Access
+        // still holds a valid assertion for a different identity.
+        if (
+          !pathname.startsWith("/api/") &&
+          (context.request.method === "GET" ||
+            context.request.method === "HEAD")
+        ) {
+          const destination = editorialReturnPath(
+            `${pathname}${context.url.search}`,
+          );
+          return withPrivateHeaders(
+            context.redirect(
+              `/auth?next=${encodeURIComponent(destination)}`,
+              302,
+            ),
+            false,
+          );
+        }
+        return privateJson({ error: "owner_required" }, 401);
+      }
       context.locals.accessOwner = owner;
     }
     const response = await next();

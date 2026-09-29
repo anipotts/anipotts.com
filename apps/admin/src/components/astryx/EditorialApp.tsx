@@ -1,3 +1,4 @@
+import { AuthReentry } from "./AuthReentry";
 import {
   protectedSessionIsLocked,
   watchProtectedSession,
@@ -343,9 +344,8 @@ export function EditorialApp({
       <Theme theme={theme} mode={mode}>
         <VStack gap={3}>
           <Heading level={1}>Session ended</Heading>
-          <Button
+          <AuthReentry
             href={editorialReturnPath(location.pathname + location.search)}
-            label="Sign in again"
           />
         </VStack>
       </Theme>

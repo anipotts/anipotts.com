@@ -1,3 +1,4 @@
+import { AuthReentry } from "../astryx/AuthReentry";
 import { protectedSessionIsLocked } from "../../lib/protected-admin-json";
 import { workspaceReturnPath } from "../../lib/workspace-navigation";
 import React from "react";
@@ -92,15 +93,7 @@ export function SessionNotice({
         kind="not-connected"
         icon={LockKeyIcon}
         title="Session locked"
-        action={
-          <Button
-            label="Sign in again"
-            href={path}
-            onClick={(event) => event.stopPropagation()}
-            size="sm"
-            variant="secondary"
-          />
-        }
+        action={<AuthReentry href={path} size="sm" />}
       />
     );
   }
