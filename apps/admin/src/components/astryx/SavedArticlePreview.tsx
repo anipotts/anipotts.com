@@ -28,8 +28,10 @@ export function SavedArticlePreview({
   const id = useId();
   const [attempt, setAttempt] = useState(0);
   const request = `${id}:${src}:${attempt}`;
-  const separator = src.includes("?") ? "&" : "?";
-  const frameSrc = `${src}${separator}previewRequest=${encodeURIComponent(request)}`;
+  const frameUrl = new URL(src, "https://admin.anipotts.com");
+  frameUrl.searchParams.set("embedded", "1");
+  frameUrl.searchParams.set("previewRequest", request);
+  const frameSrc = frameUrl.pathname + frameUrl.search;
   const [result, setResult] = useState<{
     request: string;
     status: PreviewStatus | "loading";

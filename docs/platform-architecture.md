@@ -105,6 +105,15 @@ Expiry never triggers logout or recovery deletion automatically. Network/HTML fa
 policy denial and application validation/CSRF refusals remain distinct. The
 cross-origin tailnet reader keeps its existing transport and device grant.
 
+Private documents capture the logout generation synchronously in the head, before
+stylesheets or client islands can delay hydration. A later generation change
+withdraws server-rendered content, serialized island props and late streamed
+content, and prevents stale consumers from issuing protected requests.
+Standalone draft previews use this same-origin document fence around an opaque
+preview frame. Embedded previews require explicit frame mode and browser iframe
+fetch metadata; a raw-mode URL opened in a tab gets the fenced wrapper. Draft
+rendering keeps its existing sandbox and no-connect/no-form restrictions.
+
 Explicit logout invalidates browser generations, autosave, polling and pending
 responses before network cleanup, clears local plaintext/recovery across tabs,
 and awaits the same locks used by recovery writers. Storage or lock failure is

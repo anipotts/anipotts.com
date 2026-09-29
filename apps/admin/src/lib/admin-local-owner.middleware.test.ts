@@ -286,7 +286,8 @@ describe("middleware with the build-time flag", () => {
 
   it("keeps the same-origin frame the editor uses for draft previews", async () => {
     const { response, locals } = await dispatch(
-      "http://127.0.0.1:4471/preview/record?kind=writing&id=example",
+      "http://127.0.0.1:4471/preview/record?kind=writing&id=example&embedded=1",
+      { headers: { "sec-fetch-dest": "iframe" } },
     );
     expect(locals.adminPrincipal).toEqual(localOwnerPrincipal());
     expect(response.headers.get("Content-Security-Policy")).toBe(

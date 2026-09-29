@@ -38,6 +38,7 @@ function send(
 it("trusts only the exact frame and current navigation for status and size", () => {
   const frame = render();
   const current = request(frame);
+  expect(new URL(frame.src).searchParams.get("embedded")).toBe("1");
   send(frame, {
     type: "editorial-preview-status",
     request: current,

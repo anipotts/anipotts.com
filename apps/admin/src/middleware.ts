@@ -6,7 +6,13 @@ import {
 } from "./lib/access-identity";
 import { privateJson } from "./lib/editorial-security";
 import { editorialReturnPath } from "./lib/editorial-return-path";
-import { PREVIEW_PATHS, previewResponse } from "./lib/preview-html";
+import {
+  PREVIEW_PATHS,
+  STANDALONE_PREVIEW_PATH,
+  isEmbeddedPreviewRequest,
+  previewResponse,
+  standalonePreviewUrl,
+} from "./lib/preview-html";
 import {
   isApprovedDevPreviewOrigin,
   isDevLoopbackPreviewRequest,
@@ -33,7 +39,8 @@ function isEditorialPath(pathname: string): boolean {
     pathname.startsWith("/newsletter/") ||
     pathname.startsWith("/api/editorial/") ||
     pathname.startsWith("/api/private-reader/") ||
-    PREVIEW_PATHS.has(pathname)
+    PREVIEW_PATHS.has(pathname) ||
+    pathname === STANDALONE_PREVIEW_PATH
   );
 }
 
@@ -104,6 +111,17 @@ async function handleRequest(
         return privateJson({ error: "owner_required" }, 401);
       }
       context.locals.accessOwner = owner;
+    }
+    // Top-level preview navigation gets the normal same-origin document fence.
+    // Only an explicitly embedded browser frame renders the opaque draft.
+    if (
+      PREVIEW_PATHS.has(pathname) &&
+      !isEmbeddedPreviewRequest(context.request, context.url)
+    ) {
+      return withPrivateHeaders(
+        await context.rewrite(standalonePreviewUrl(context.url)),
+        localOwner,
+      );
     }
     const response = await next();
     return withPrivateHeaders(

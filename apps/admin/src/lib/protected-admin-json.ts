@@ -1,3 +1,4 @@
+import { documentSession } from "./admin-document-session";
 import { recoveryLogoutGenerationKey } from "./browser-recovery";
 
 export const protectedSessionLockEvent = "admin:session-lock";
@@ -17,19 +18,22 @@ let installed = false;
 let initialGeneration: string | null = null;
 /** A locked document requires a real navigation before private views mount. */
 export function protectedSessionIsLocked() {
+  installLifecycle();
+  reconcileDocument();
   return locked;
 }
 function persistedGeneration() {
   try {
     return window.localStorage.getItem(recoveryLogoutGenerationKey);
   } catch {
-    return null;
+    return undefined;
   }
 }
 export function lockProtectedSession(
   reason: AdminSessionLockReason = "locked",
 ) {
   locked = true;
+  documentSession()?.lock(reason === "logout" ? "logout" : "locked");
   lockReason = reason;
   generation++;
   for (const request of inflight) request.abort();
@@ -43,6 +47,7 @@ export function watchProtectedSession(
   onLock: (reason: AdminSessionLockReason) => void,
 ): () => void {
   installLifecycle();
+  reconcileDocument();
   const listener = (event: Event) =>
     onLock((event as CustomEvent<AdminSessionLockReason>).detail ?? "locked");
   window.addEventListener(protectedSessionLockEvent, listener);
@@ -52,7 +57,10 @@ export function watchProtectedSession(
 function installLifecycle() {
   if (installed || typeof window === "undefined") return;
   installed = true;
-  initialGeneration = persistedGeneration();
+  const bootstrap = documentSession();
+  const current = persistedGeneration();
+  initialGeneration = bootstrap ? bootstrap.generation : (current ?? null);
+  reconcileDocument();
   window.addEventListener(recoveryLogoutGenerationKey, () =>
     lockProtectedSession("logout"),
   );
@@ -62,10 +70,22 @@ function installLifecycle() {
   });
   window.addEventListener("pagehide", () => lockProtectedSession());
   window.addEventListener("pageshow", (event) => {
-    if (initialGeneration !== persistedGeneration())
-      lockProtectedSession("logout");
+    const current = persistedGeneration();
+    if (current === undefined) lockProtectedSession();
+    else if (initialGeneration !== current) lockProtectedSession("logout");
     else if (event.persisted) lockProtectedSession();
   });
+}
+/** Compare the immutable document baseline even when a storage event is
+ * delayed, and before consuming any private response from an earlier epoch. */
+function reconcileDocument() {
+  if (locked || typeof window === "undefined") return;
+  const bootstrap = documentSession();
+  const current = persistedGeneration();
+  if (bootstrap?.locked) lockProtectedSession(bootstrap.reason);
+  else if (current === undefined || bootstrap?.storageAvailable === false)
+    lockProtectedSession();
+  else if (initialGeneration !== current) lockProtectedSession("logout");
 }
 /** Same-origin JSON only. Binary previews and tailnet requests retain their own transports. */
 export async function protectedAdminJson(
@@ -75,6 +95,7 @@ export async function protectedAdminJson(
   options: { allowLocked?: boolean; maxBytes?: number } = {},
 ): Promise<Response> {
   installLifecycle();
+  reconcileDocument();
   if (
     !input.startsWith("/api/") ||
     input.startsWith("//") ||
@@ -100,6 +121,11 @@ export async function protectedAdminJson(
       cache: "no-store",
       redirect: "error",
     });
+    reconcileDocument();
+    if (locked && !options.allowLocked) {
+      void response.body?.cancel().catch(() => undefined);
+      throw new AdminRequestError("locked");
+    }
     if (response.status === 401) {
       void response.body?.cancel().catch(() => undefined);
       lockProtectedSession("expired");
@@ -133,9 +159,10 @@ export async function protectedAdminJson(
     } finally {
       await reader.cancel().catch(() => undefined);
     }
-    signal.throwIfAborted();
+    reconcileDocument();
     if (attempt !== generation && !options.allowLocked)
       throw new AdminRequestError("locked");
+    signal.throwIfAborted();
     const bytes = new Uint8Array(size);
     let offset = 0;
     for (const chunk of chunks) {
@@ -172,6 +199,7 @@ export async function protectedAdminJson(
     const read = result.json.bind(result);
     result.json = async () => {
       const value = await read();
+      reconcileDocument();
       if (attempt !== generation && !options.allowLocked)
         throw new AdminRequestError("locked");
       return value;
