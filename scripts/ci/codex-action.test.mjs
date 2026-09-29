@@ -65,6 +65,15 @@ try {
   result = run("check-all");
   assert.equal(result.status, 0, result.stderr);
   assert.match(readFileSync(calls, "utf8"), /pnpm\nvalidate/);
+  for (const [action, script] of [
+    ["www-dev", "dev:www"],
+    ["admin-dev", "dev:admin"],
+    ["check-changed", "check:changed"],
+  ]) {
+    result = run(action);
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(readFileSync(calls, "utf8").includes(`pnpm\n${script}\n`));
+  }
   result = run("setup");
   assert.match(result.stdout, /Existing dependencies detected/);
   rmSync(join(fixture, "pnpm-lock.yaml"));

@@ -9,26 +9,21 @@ bash ./scripts/codex-action setup
 '''
 
 [[actions]]
-name = "develop public"
+name = "start website"
 icon = "run"
 command = "bash ./scripts/codex-action www-dev"
 
 [[actions]]
-name = "develop admin"
+name = "start admin"
 icon = "run"
 command = "bash ./scripts/codex-action admin-dev"
 
 [[actions]]
-name = "check changed scope"
+name = "check changes"
 icon = "test"
 command = "bash ./scripts/codex-action check-changed"
 
 [[actions]]
-name = "inspect pull request"
+name = "install dependencies"
 icon = "tool"
-command = "bash ./scripts/codex-action pr-status"
-
-[[actions]]
-name = "inspect live state"
-icon = "tool"
-command = "bash ./scripts/codex-action live-state"
+command = "bash ./scripts/codex-action bootstrap"

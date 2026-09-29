@@ -252,3 +252,18 @@ so it works without any extra configuration.
 `bash ./scripts/codex-action setup` validates the repository manifests and Node/pnpm availability without installing packages or enabling global Corepack shims. Missing dependencies are explicitly reported as deferred; this is a startup preflight, not a passing application check. It avoids duplicate automatic installs when creating worktrees on a space-constrained host.
 
 When dependencies are needed and disk space is available, run `bash ./scripts/codex-action bootstrap` to install the frozen lockfile. Develop and check actions require local dependencies and otherwise stop with that actionable command. Existing dependencies still pass through the normal build/type/test checks; their presence is not a claim of validity.
+
+### Codex quick actions
+
+The shared `.codex/environments/environment.toml` exposes four local actions:
+
+| Action | Effect |
+| --- | --- |
+| start website | Starts or reuses this checkout’s public development server. |
+| start admin | Starts or reuses this checkout’s admin development server. |
+| check changes | Runs checks for the affected scope. |
+| install dependencies | Installs the frozen lockfile for this checkout. |
+
+Use Codex’s built-in Git controls for diffs and pull requests. Run `pnpm validate`
+in the terminal when shared changes require full-workspace validation. Setup stays
+lightweight; missing dependencies produce an explicit install instruction.
