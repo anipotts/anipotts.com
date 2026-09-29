@@ -2,7 +2,10 @@
 
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
-import { inspectMigrationChanges } from "./migration-policy.mjs";
+import {
+  inspectMigrationChanges,
+  inspectContentPublicationMigrations,
+} from "./migration-policy.mjs";
 
 export const DEPLOY_TARGETS = [
   "www",
@@ -14,6 +17,7 @@ export const DEPLOY_TARGETS = [
 ];
 
 const MIGRATION_PREFLIGHT_PATHS = [
+  /^apps\/admin\/migrations\/content-publication\//,
   /^drizzle\/migrations\//,
   /^drizzle\/meta\//,
   /^drizzle\/README\.md$/,
@@ -98,6 +102,8 @@ export function computeDeployTargets(paths) {
     if (!path || isReleaseIgnored(path)) continue;
     if (
       path.startsWith("apps/www/") ||
+      path.startsWith("apps/admin/migrations/content-publication/") ||
+      path === "packages/content/src/editorial/direct-publication.ts" ||
       path.startsWith("content/public/") ||
       path.startsWith("packages/content/src/public/") ||
       path === "packages/content/package.json" ||
@@ -143,6 +149,10 @@ export function classifyRelease(changeLines, options = {}) {
   const changes = changeLines.filter(Boolean).map(parseChange);
   const paths = changes.map((change) => change.path);
   const deployTargets = computeDeployTargets(paths);
+  const contentMigration = inspectContentPublicationMigrations(
+    changes,
+    options,
+  );
   const deletedMigrations = changes.filter(
     (change) =>
       change.status.startsWith("D") &&
@@ -168,7 +178,12 @@ export function classifyRelease(changeLines, options = {}) {
     if (Object.hasOwn(deployTargets, consumer)) deployTargets[consumer] = true;
   }
   const reasons = [];
-  let risk = migration.risk;
+  let risk =
+    contentMigration.changed && !contentMigration.allowed
+      ? "approval"
+      : migration.risk;
+  if (contentMigration.changed && !contentMigration.allowed)
+    reasons.push("CONTENT_DB migration is not an approved immutable bootstrap");
 
   for (const change of changes) {
     if (isReleaseIgnored(change.path)) continue;
@@ -209,6 +224,8 @@ export function classifyRelease(changeLines, options = {}) {
       LOCAL_DEV_PATHS.some((pattern) => pattern.test(path)),
     ),
     deploy_targets: deployTargets,
+    content_db_changed: contentMigration.changed,
+    content_db_migration_allowed: contentMigration.allowed,
     d1_changed: migration.changed,
     migration_risk: migration.risk,
     migration_consumers: migration.consumers,
@@ -235,6 +252,8 @@ export function githubOutputs(release) {
     migration_preflight_required: String(release.migration_preflight_required),
     ci_policy_changed: String(release.ci_policy_changed),
     local_dev_changed: String(release.local_dev_changed),
+    content_db_changed: String(release.content_db_changed),
+    content_db_migration_allowed: String(release.content_db_migration_allowed),
     d1_changed: String(release.d1_changed),
     migration_risk: release.migration_risk,
     migration_consumers: release.migration_consumers.join(","),

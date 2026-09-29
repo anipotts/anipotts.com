@@ -129,6 +129,8 @@ function endpoint(file, imports) {
   const context = {
     exports: {},
     Response,
+    setTimeout,
+    clearTimeout,
     console: { error() {} },
     require(name) {
       if (!(name in imports))
@@ -198,7 +200,10 @@ console.log(
   "subscribe and legacy alias: success, validation, origin, unavailable guard, and exceeded-limit behavior passed without outbound effects",
 );
 
-const healthRoute = endpoint("apps/www/src/pages/api/health.ts", {});
+const readiness = endpoint("apps/www/src/lib/publication-readiness.ts", {});
+const healthRoute = endpoint("apps/www/src/pages/api/health.ts", {
+  "../../lib/publication-readiness": readiness,
+});
 for (const [db, expected] of [
   [undefined, 503],
   [
@@ -244,8 +249,54 @@ for (const [db, expected] of [
   assert.equal(body.tables_ok, expected === 200);
   assert.equal(body.d1, expected === 200 ? "connected" : "error");
   assert.equal(body.release_sha, "test-release");
+  assert.equal(body.content_runtime, 0);
+  assert.equal(body.content_media, 0);
   assert.equal(
     JSON.stringify(body).includes("private database failure"),
     false,
   );
 }
+
+for (const [version, unavailableMedia, expectedRuntime, expectedMedia] of [
+  [0, false, 1, 1],
+  [12, false, 1, 1],
+  [-1, false, 0, 1],
+  [undefined, false, 0, 1],
+  [0, true, 0, 0],
+]) {
+  const result = await healthRoute.GET({
+    locals: {
+      runtime: {
+        env: {
+          DB: { prepare: () => ({ first: async () => ({ cnt: 0 }) }) },
+          CONTENT_DB: {
+            prepare(sql) {
+              assert.match(sql, /editorial_published_inventory/);
+              assert.match(sql, /editorial_published_active/);
+              assert.match(sql, /editorial_published_revisions/);
+              return {
+                first: async () => (version === undefined ? null : { version }),
+              };
+            },
+          },
+          CONTENT_MEDIA: {
+            async head(key) {
+              assert.equal(key, "__readiness__/publication-media");
+              if (unavailableMedia) throw new Error("private media failure");
+              return null;
+            },
+          },
+        },
+      },
+    },
+  });
+  assert.equal(result.status, 200);
+  const body = await result.json();
+  assert.equal(body.content_runtime, expectedRuntime);
+  assert.equal(body.content_media, expectedMedia);
+  assert.equal(body.ok, true);
+  assert.equal(JSON.stringify(body).includes("private media failure"), false);
+}
+console.log(
+  "health: liveness and real publication readiness remain separate, with fail-closed dependency checks",
+);

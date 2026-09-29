@@ -1,5 +1,11 @@
 export const ADMIN_ROUTES = [
   {
+    route: "/content/dev-catalog",
+    file: "apps/admin/src/pages/content/dev-catalog.astro",
+    nav: false,
+    smoke: false,
+  },
+  {
     route: "/life/people",
     file: "apps/admin/src/pages/life/[section].astro",
     nav: false,
@@ -240,6 +246,12 @@ export const ADMIN_ROUTES = [
     smoke: false,
   },
   {
+    route: "/content/transfer",
+    file: "apps/admin/src/pages/content/transfer.astro",
+    nav: false,
+    smoke: false,
+  },
+  {
     route: "/api/editorial/media",
     file: "apps/admin/src/pages/api/editorial/media.ts",
     nav: false,
@@ -255,6 +267,10 @@ export const ADMIN_ROUTES = [
 
 export const PUBLIC_UNSMOKED_ROUTE_FILES = [
   "apps/admin/src/pages/auth.astro",
+  // Logout bypasses session resolution so it cannot refresh the session it ends.
+  // The API validates the presented identity and CSRF itself; the page holds no private data.
+  "apps/admin/src/pages/auth/logout.astro",
+  "apps/admin/src/pages/api/admin/logout.ts",
   "apps/admin/src/pages/api/health.ts",
   "apps/admin/src/pages/api/mcp.ts",
 ];

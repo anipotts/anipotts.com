@@ -131,6 +131,7 @@ const retiredActionQueueFiles = [
 ];
 
 assert.deepEqual(publicPaths, [
+  "/admin-bracket.svg",
   "/api/health",
   "/api/mcp",
   "/apple-touch-icon.png",
@@ -240,6 +241,32 @@ for (const file of listAdminPageFiles()) {
 for (const file of PUBLIC_UNSMOKED_ROUTE_FILES) {
   assert.ok(existsSync(file), `public admin exception missing ${file}`);
 }
+
+const logoutApiSource = readFileSync(
+  "apps/admin/src/pages/api/admin/logout.ts",
+  "utf8",
+);
+const logoutHandlerSource = readFileSync(
+  "apps/admin/src/lib/admin-logout.ts",
+  "utf8",
+);
+assert.ok(logoutApiSource.includes("adminLogout(context)"));
+assert.ok(
+  middlewareSource.includes('context.url.pathname === "/api/admin/logout"'),
+);
+assert.ok(middlewareSource.includes('context.url.pathname === "/auth/logout"'));
+for (const marker of [
+  "assertExactOrigin(context.request, context.url)",
+  "verifyEditorialOwner",
+  "admin_session_required",
+  "csrf_invalid",
+])
+  assert.ok(
+    logoutHandlerSource.includes(marker),
+    `logout exception missing boundary ${marker}`,
+  );
+assert.equal(publicPaths.includes("/api/admin/logout"), false);
+assert.equal(publicPasskeyApiPaths.includes("/api/admin/logout"), false);
 
 assert.ok(
   passkeyProofSource.includes("ADMIN_PROTECTED_SMOKE_ROUTES"),
