@@ -1,0 +1,152 @@
+{
+  "format": "anipotts.admin-native-auth-retirement",
+  "version": 1,
+  "archive_tag": "archive/admin-retired-auth-2026-09-22",
+  "tag_object": "b8a586419a4419f18ac7e98d4ef04a29d471c780",
+  "source_commit": "7fb33edb3ab84486d001d17053688256133fc582",
+  "retirement_verified_at_release": "8fca4127ff8e2dacc5f5c50dfc75ca599fcf4fae",
+  "removed_source": [
+    {
+      "path": "apps/admin/src/lib/admin-auth-flows.test.ts",
+      "git_blob": "8817c8f78d6ce9dec35e5665f3269f8ca2840eea"
+    },
+    {
+      "path": "apps/admin/src/lib/admin-auth-security.test.ts",
+      "git_blob": "f3137dfd4d958697d2b968e08d68fcc4f13e400f"
+    },
+    {
+      "path": "apps/admin/src/lib/admin-client-auth.test.ts",
+      "git_blob": "6c6843cf54b3f43dff1bda963b05699eba39b39c"
+    },
+    {
+      "path": "apps/admin/src/lib/admin-client-auth.ts",
+      "git_blob": "f51089eaedd65ae3d0f0e4d8155e667be6393281"
+    },
+    {
+      "path": "apps/admin/src/lib/admin-compatibility-request.ts",
+      "git_blob": "64dbbae0bad4b9a32a53db2d770eb8462593a7c7"
+    },
+    {
+      "path": "apps/admin/src/lib/admin-compatibility-routes.test.ts",
+      "git_blob": "3753262fa1271ccbfd44b177c387231886806a34"
+    },
+    {
+      "path": "apps/admin/src/lib/admin-invites.ts",
+      "git_blob": "9c20ed2da7dc55b09a8244fba2ea21054cbf9a98"
+    },
+    {
+      "path": "apps/admin/src/lib/admin-logout.sqlite.test.ts",
+      "git_blob": "57fa9fc62a8f548c4314b342b1a6bd566a24bcef"
+    },
+    {
+      "path": "apps/admin/src/lib/admin-machine-tokens.test.ts",
+      "git_blob": "448cb7bab7f1c19f8e2e977c2eed077538677f26"
+    },
+    {
+      "path": "apps/admin/src/lib/admin-machine-tokens.ts",
+      "git_blob": "e3552946f07acc6b58a275773d4c6db387b27255"
+    },
+    {
+      "path": "apps/admin/src/lib/admin-public-rate-limit.ts",
+      "git_blob": "2d75d1b88725d82c0784d9c6a3676cbd0a2a21a6"
+    },
+    {
+      "path": "apps/admin/src/lib/admin-recovery.ts",
+      "git_blob": "0c35ef93939483b1cd1e8f03b08ea01a6e32d6f3"
+    },
+    {
+      "path": "apps/admin/src/lib/device-authorization.ts",
+      "git_blob": "8b614c4cc6fda8c0163def42fadc1c68c6b3ef42"
+    },
+    {
+      "path": "apps/admin/src/lib/passkey-auth.test.ts",
+      "git_blob": "1458e149a97b112c28262f8fb53fae8b6fddc88d"
+    },
+    {
+      "path": "apps/admin/src/lib/passkey-auth.ts",
+      "git_blob": "a885012cf05ef5040ca7b1ba1cae61fb101bf9fe"
+    },
+    {
+      "path": "apps/admin/src/lib/passkey-ceremony.test.ts",
+      "git_blob": "f89e567a5127d6b2abe891edc21f18d408bf7be5"
+    },
+    {
+      "path": "apps/admin/src/lib/password-auth.test.ts",
+      "git_blob": "2c6626a8c0a3f5ccacb7d6f6c3abba68d437e3ce"
+    },
+    {
+      "path": "apps/admin/src/lib/password-auth.ts",
+      "git_blob": "a485ea17cf848495d66ce9766d4bc0150c25b5c0"
+    },
+    {
+      "path": "apps/admin/src/lib/security-notifications.ts",
+      "git_blob": "07f558353059ea032f234d8ab1c5c86f08eba9b8"
+    },
+    {
+      "path": "apps/admin/src/pages/api/admin/content/draft-operation.ts",
+      "git_blob": "5a047ba38352166e6562d2278f6636bad6dbb080"
+    },
+    {
+      "path": "apps/admin/src/pages/api/admin/content/editor.ts",
+      "git_blob": "7dccb2d5e097ba26dc94ac41732fe818a9679f1d"
+    },
+    {
+      "path": "apps/admin/src/pages/api/admin/control-plane.ts",
+      "git_blob": "50d5f8997310c33eea71b83ee3a303dc25703026"
+    },
+    {
+      "path": "apps/admin/src/pages/api/admin/knowledge.ts",
+      "git_blob": "2a038e702264c085c63a33f7bc6a988dd3259e4b"
+    },
+    {
+      "path": "apps/admin/src/pages/api/admin/projections.ts",
+      "git_blob": "5af4518948b9177a586297e67e39524eaeb2185b"
+    },
+    {
+      "path": "apps/admin/src/pages/api/mcp.ts",
+      "git_blob": "856b07e7594ab88eeaf979f6020e23aaeccaf631"
+    },
+    {
+      "path": "packages/content/src/admin/content.ts",
+      "git_blob": "8a6babbba8a113da2210c304958f56022eddf98b"
+    },
+    {
+      "path": "packages/content/src/admin/index.ts",
+      "git_blob": "26fced9a213c64222cda15aa0673034dd3cbc573"
+    },
+    {
+      "path": "packages/content/src/admin/newsletter.ts",
+      "git_blob": "6f3a6cf36b81697539fb4ba057b2e7520675a239"
+    },
+    {
+      "path": "packages/content/src/admin/passkey.ts",
+      "git_blob": "3b3d74647dba36d321b482f41de3f39b6aaa819d"
+    },
+    {
+      "path": "packages/content/src/admin/source-content.ts",
+      "git_blob": "950565ec11d98c2436b83874efad43cb7e0a89f3"
+    },
+    {
+      "path": "scripts/admin/passkey-proof.mjs",
+      "git_blob": "52f115f1a0e060834b7eea4ebf1ce742c819c29c"
+    }
+  ],
+  "removed_dependencies": {
+    "@simplewebauthn/browser": "13.3.0",
+    "@simplewebauthn/server": "13.3.2"
+  },
+  "retained": [
+    "historical SQL migrations",
+    "native authentication records and audits",
+    "independent service tokens and machine credentials",
+    "signed Cloudflare Access assertion verifier",
+    "lean admin-auth.ts principal/origin/response helpers",
+    "browser draft recovery"
+  ],
+  "archive_storage": "remote Git objects; no executable source copied into active discovery",
+  "concurrent_work": {
+    "older_preservation_commit": "79159a76398a7869e225d81e6f6c7e08bc42b4c2",
+    "current_dirty_work": "preserved in original checkout; not represented by the September 14 snapshot or this retirement archive"
+  },
+  "restoration": "inspect original tree and original manifests in an isolated checkout; production restoration requires separate review, current dependencies, Access and exact-owner controls"
+}

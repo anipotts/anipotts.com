@@ -1,3 +1,4 @@
+import { watchProtectedSession } from "./protected-admin-json";
 import {
   createPrivateReaderSession,
   type PrivateReaderSession,
@@ -70,6 +71,7 @@ export function trackPrivateSession(
   };
   let hiddenAt: number | null = null;
   const interact = () => {
+    if (policy.endedByOwner) return;
     arm();
     if (policy.idle && !policy.endedByOwner) {
       policy.idle = false;
@@ -87,7 +89,12 @@ export function trackPrivateSession(
     interact();
   };
   // bfcache would otherwise keep private records in a restored page.
-  const hide = () => session.logout();
+  const hide = () => {
+    policy.endedByOwner = true;
+    policy.idle = false;
+    session.logout();
+  };
+  const stopWatching = watchProtectedSession(hide);
   const events = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
   for (const name of events)
     window.addEventListener(name, interact, { passive: true });
@@ -95,6 +102,7 @@ export function trackPrivateSession(
   window.addEventListener("pagehide", hide);
   arm();
   const stop = () => {
+    stopWatching();
     for (const name of events) window.removeEventListener(name, interact);
     document.removeEventListener("visibilitychange", visibility);
     window.removeEventListener("pagehide", hide);

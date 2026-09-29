@@ -4,7 +4,7 @@ vi.mock("./runtime-env", () => ({ runtimeEnv: () => ({}) }));
 import { adminLogout } from "./admin-logout";
 import type { AdminAuthContext } from "./admin-auth";
 
-const ORIGIN = "https://admin.example.test";
+const ORIGIN = "https://admin.anipotts.com";
 
 function fixture({ access = true, presented = true } = {}) {
   let assertion = "signed-fixture";

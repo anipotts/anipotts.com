@@ -158,6 +158,13 @@ export const ADMIN_ROUTES = [
     nav: false,
     smoke: false,
   },
+
+  {
+    route: "/preview/standalone",
+    file: "apps/admin/src/pages/preview/standalone.astro",
+    nav: false,
+    smoke: false,
+  },
   {
     route: "/content/new",
     file: "apps/admin/src/pages/content/new.astro",

@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { JSDOM } from "jsdom";
+import { recoveryLogoutGenerationKey } from "../../src/lib/browser-recovery";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import reactRenderer from "@astrojs/react/server.js";
 import { ADMIN_ROUTES } from "../../../../scripts/ci/admin-route-inventory.mjs";
@@ -170,6 +172,7 @@ function paramsFor(file, route) {
 // A preview request names the exact draft revision it shows.
 const QUERY = {
   "/preview/home": "?revision=1",
+  "/preview/standalone": "?previewPath=%2Fpreview%2Fhome&revision=1",
   "/preview/record": "?kind=writing&id=search-will-be-dead-by-2030&revision=1",
 };
 const pages = [
@@ -181,6 +184,21 @@ const pages = [
   url: route + (QUERY[route] ?? ""),
 }));
 
+// Compile the finite inventoried page graph as setup. Lazy glob imports used
+// to charge the first route for every shared Astro/React layout dependency;
+// on a cold CI runner that exhausted its five-second render assertion budget.
+// Keep each actual container render and complete-body assertion in its test.
+const loadedPages = new Map();
+beforeAll(async () => {
+  await Promise.all(
+    [...new Set(pages.map(({ file }) => file))].map(async (file) => {
+      const load = moduleFor(file);
+      // The inventory assertion below still reports any missing route module.
+      if (load) loadedPages.set(file, await load());
+    }),
+  );
+});
+
 async function render({ file, route, url }) {
   const container = await AstroContainer.create();
   container.addServerRenderer({
@@ -191,7 +209,7 @@ async function render({ file, route, url }) {
     name: "@astrojs/react",
     entrypoint: "@astrojs/react/client.js",
   });
-  const page = await moduleFor(file)();
+  const page = loadedPages.get(file);
   return container.renderToResponse(page.default, {
     request: new Request(`https://admin.anipotts.com${url}`),
     params: paramsFor(file, route),
@@ -220,8 +238,119 @@ describe("every Admin page server-renders with the readers on", () => {
     expect(html).toMatch(/<body[\s>]/);
     expect(html).toContain("</html>");
     expect(html.length).toBeGreaterThan(1000);
+    if (page.route === "/preview/home" || page.route === "/preview/record") {
+      // Revision 1 is a real saved-draft fixture. Prove authored components
+      // rendered, rather than accepting an HTML failure handshake as success.
+      expect(html).toMatch(/status:\s*"ready"/);
+      const preview = new JSDOM(html);
+      try {
+        expect(preview.window.document.body.textContent).toContain(
+          page.route === "/preview/home"
+            ? "hi, i'm ani!"
+            : "search will be dead by 2030",
+        );
+      } finally {
+        preview.window.close();
+      }
+    }
+    if (page.route === "/" || page.route === "/preview/standalone") {
+      const parsed = new JSDOM(html);
+      try {
+        const document = parsed.window.document;
+        const bootstrap = document.head.querySelector("script");
+        expect(bootstrap?.textContent).toContain("__adminDocumentSession");
+        const follows = parsed.window.Node.DOCUMENT_POSITION_FOLLOWING;
+        for (const blocker of document.querySelectorAll(
+          'style,link[rel="stylesheet"],astro-island',
+        ))
+          expect(bootstrap.compareDocumentPosition(blocker) & follows).toBe(
+            follows,
+          );
+        expect(
+          document.querySelector("[data-admin-private-document]"),
+        ).not.toBeNull();
+      } finally {
+        parsed.window.close();
+      }
+    }
+    if (page.route === "/auth" || page.route === "/auth/logout")
+      expect(html).not.toContain("__adminDocumentSession");
     // The reader pages took the readers-on branch.
     if (/^\/(?:$|data\/|observability\/)/.test(page.route))
       expect(html).toContain("&quot;enabled&quot;:[0,true]");
   });
 });
+
+it.each(["storage", "pagehide", "pageshow"])(
+  "the real standalone preview document withdraws its opaque iframe after %s",
+  async (event) => {
+    const response = await render(
+      pages.find(({ route }) => route === "/preview/standalone"),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Security-Policy")).toBeNull();
+    const dom = new JSDOM(await response.text(), {
+      url: "https://admin.anipotts.com/preview/standalone?previewPath=%2Fpreview%2Fhome&revision=1",
+      runScripts: "dangerously",
+      beforeParse(window) {
+        window.matchMedia = () => ({
+          matches: false,
+          addEventListener() {},
+          removeEventListener() {},
+        });
+      },
+    });
+    try {
+      const frame = dom.window.document.querySelector("iframe");
+      expect(frame).not.toBeNull();
+      expect(frame.getAttribute("sandbox")).toBe("allow-scripts");
+      const src = new URL(frame.src);
+      expect(src.origin).toBe("https://admin.anipotts.com");
+      expect(src.pathname).toBe("/preview/home");
+      expect(src.searchParams.get("revision")).toBe("1");
+      expect(src.searchParams.get("embedded")).toBe("1");
+      if (event === "storage")
+        dom.window.dispatchEvent(
+          new dom.window.StorageEvent(event, {
+            key: recoveryLogoutGenerationKey,
+            newValue: "new-generation",
+          }),
+        );
+      else
+        dom.window.dispatchEvent(
+          new dom.window.PageTransitionEvent(event, { persisted: true }),
+        );
+      expect(
+        dom.window.document.documentElement.hasAttribute(
+          "data-admin-document-locked",
+        ),
+      ).toBe(true);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(dom.window.document.querySelector("iframe")).toBeNull();
+      expect(
+        dom.window.document.querySelector("[data-admin-session-reentry]")
+          ?.textContent,
+      ).toContain("Sign in again");
+    } finally {
+      dom.window.close();
+    }
+  },
+);
+
+it.each([
+  "",
+  "//external.example/preview/home",
+  "/content/writing/private",
+  "/preview/standalone",
+])(
+  "the actual standalone route rejects unsupported preview path %s",
+  async (path) => {
+    const response = await render({
+      route: "/preview/standalone",
+      file: "apps/admin/src/pages/preview/standalone.astro",
+      url: `/preview/standalone?previewPath=${encodeURIComponent(path)}`,
+    });
+    expect(response.status).toBe(400);
+    expect(await response.text()).not.toContain("<iframe");
+  },
+);

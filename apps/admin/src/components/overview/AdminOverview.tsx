@@ -1,4 +1,6 @@
+import { AuthReentry } from "../astryx/AuthReentry";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { workspaceReturnPath } from "../../lib/workspace-navigation";
 import { Button } from "@astryxdesign/core/Button";
 import { VStack } from "@astryxdesign/core/VStack";
 import {
@@ -150,6 +152,33 @@ function FiringAlerts(props: OpsViewProps) {
         ((data.events?.skipped ?? 0) > 0
           ? { title: opsUnreadTitle(data.events!.skipped), kind: "error" }
           : undefined)));
+  if (data.sessionLocked) {
+    return (
+      <WorkspaceSection
+        title="Alerts"
+        href="/observability/alerts"
+        meta={OPS_ALERTS_SOURCE}
+      >
+        <StateNotice
+          kind="not-connected"
+          title="Session locked"
+          action={
+            <AuthReentry
+              href={
+                location.pathname === "/"
+                  ? "/"
+                  : workspaceReturnPath(
+                      "observability",
+                      location.pathname + location.search,
+                    )
+              }
+              size="sm"
+            />
+          }
+        />
+      </WorkspaceSection>
+    );
+  }
   if (!firing.length && !down && !stopped && !unverified.length) return null;
   return (
     <WorkspaceSection

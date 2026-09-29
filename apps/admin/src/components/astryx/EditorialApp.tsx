@@ -1,3 +1,9 @@
+import { AuthReentry } from "./AuthReentry";
+import {
+  protectedSessionIsLocked,
+  watchProtectedSession,
+} from "../../lib/protected-admin-json";
+import { editorialReturnPath } from "../../lib/editorial-return-path";
 import {
   libraryGroupForPath,
   libraryPaths,
@@ -16,7 +22,7 @@ import {
 } from "../../lib/editorial-inventory-events";
 import { startEditorialInventoryRelay } from "../../lib/editorial-inventory-relay";
 import { NewWriting } from "./NewWriting";
-import React, { useEffect, useState, type ReactNode } from "react";
+import React, { useEffect, useRef, useState, type ReactNode } from "react";
 const HomeEditor = React.lazy(() =>
   import("./HomeEditor").then((module) => ({ default: module.HomeEditor })),
 );
@@ -200,6 +206,10 @@ export function EditorialApp({
   hideHeader = false,
   children,
 }: EditorialAppProps) {
+  const sessionLocked = useRef(protectedSessionIsLocked());
+  const [locked, setLocked] = useState(protectedSessionIsLocked);
+  const stopRoutes = useRef<(() => void) | null>(null);
+  const stopInventory = useRef<(() => void) | null>(null);
   // A library page holds every library's records, so moving between
   // libraries draws in place instead of loading a document.
   const [shown, setShown] = useState<ReturnType<typeof libraryShown>>(null);
@@ -209,8 +219,9 @@ export function EditorialApp({
     selectedGroup: pageGroup,
   };
   useEffect(() => {
-    if (!groups) return;
+    if (!groups || sessionLocked.current) return;
     const show = (url: URL) => {
+      if (sessionLocked.current) return;
       const next = libraryShown(url);
       if (!next) return;
       setShown(next);
@@ -223,11 +234,13 @@ export function EditorialApp({
       show,
     });
     const back = () => show(new URL(window.location.href));
-    window.addEventListener("popstate", back);
-    return () => {
+    const stop = () => {
       unregister();
       window.removeEventListener("popstate", back);
     };
+    stopRoutes.current = stop;
+    window.addEventListener("popstate", back);
+    return stop;
   }, [groups]);
   const [libraryBack, setLibraryBack] = useState<string | null>(null);
   useEffect(() => {
@@ -238,20 +251,25 @@ export function EditorialApp({
   }, []);
   const [mode, setMode] = useState<ThemePreference>(initialMode);
   const [inventoryView, setInventoryView] = useState(() =>
-    createInventoryView(groups, searchEntries),
+    createInventoryView(
+      sessionLocked.current ? undefined : groups,
+      sessionLocked.current ? [] : searchEntries,
+    ),
   );
   useEffect(() => {
-    setInventoryView(createInventoryView(groups, searchEntries));
+    if (!sessionLocked.current)
+      setInventoryView(createInventoryView(groups, searchEntries));
   }, [groups, searchEntries]);
   useEffect(() => {
+    if (sessionLocked.current) return;
     const saved = (event: Event) => {
-      if (event instanceof CustomEvent)
+      if (!sessionLocked.current && event instanceof CustomEvent)
         setInventoryView((current) =>
           applyEditorialRecordSaved(current, event.detail),
         );
     };
     const created = (event: Event) => {
-      if (event instanceof CustomEvent)
+      if (!sessionLocked.current && event instanceof CustomEvent)
         setInventoryView((current) =>
           applyEditorialRecordCreated(current, event.detail),
         );
@@ -259,11 +277,13 @@ export function EditorialApp({
     window.addEventListener(RECORD_SAVED_EVENT, saved);
     window.addEventListener(RECORD_CREATED_EVENT, created);
     const stopRelay = startEditorialInventoryRelay();
-    return () => {
+    const stop = () => {
       stopRelay();
       window.removeEventListener(RECORD_SAVED_EVENT, saved);
       window.removeEventListener(RECORD_CREATED_EVENT, created);
     };
+    stopInventory.current = stop;
+    return stop;
   }, []);
 
   // A new draft opens in place: the create surface becomes its editor.
@@ -271,6 +291,23 @@ export function EditorialApp({
     kind: "writing" | "work";
     id: string;
   } | null>(null);
+  useEffect(
+    () =>
+      watchProtectedSession(() => {
+        sessionLocked.current = true;
+        stopRoutes.current?.();
+        stopRoutes.current = null;
+        stopInventory.current?.();
+        stopInventory.current = null;
+        setInventoryView(createInventoryView(undefined, []));
+        setShown(null);
+        setCreated(null);
+        setLibraryBack(null);
+        setLocked(true);
+        document.title = "Content | Admin";
+      }),
+    [],
+  );
   const openRecord = editorRecord ?? created ?? undefined;
   const recordKind =
     openRecord?.kind ??
@@ -302,6 +339,17 @@ export function EditorialApp({
     setMode(next);
     saveTheme(next);
   }
+  if (locked)
+    return (
+      <Theme theme={theme} mode={mode}>
+        <VStack gap={3}>
+          <Heading level={1}>Session ended</Heading>
+          <AuthReentry
+            href={editorialReturnPath(location.pathname + location.search)}
+          />
+        </VStack>
+      </Theme>
+    );
   return (
     <Theme theme={theme} mode={mode}>
       <EditorialWorkspaceShell

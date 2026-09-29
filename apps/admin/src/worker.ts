@@ -6,6 +6,11 @@ import {
 import { reportRuntimeContract } from "./lib/runtime-contract";
 import { isViteDevRequest } from "../../www/src/lib/vite-dev-request";
 
+import {
+  deniedAdminOrigin,
+  isAdminRequestOriginAllowed,
+} from "./lib/admin-request-origin";
+
 export { EditorialDraftStore } from "./editorial/draft-store";
 
 type Handler = typeof handle;
@@ -13,6 +18,14 @@ type Handler = typeof handle;
 /** Cloudflare Worker entry, named by `main` in wrangler.toml. It wraps the
  * adapter handler and exports the editorial Durable Object class. */
 const fetch: Handler = async (request, env, context) => {
+  if (
+    !isAdminRequestOriginAllowed(
+      request,
+      import.meta.env.DEV,
+      __LOCAL_OWNER_BUILD__,
+    )
+  )
+    return deniedAdminOrigin();
   // Development only: Vite's module and client URLs (see vite-dev-request).
   if (import.meta.env.DEV && isViteDevRequest(request))
     return env.ASSETS.fetch(

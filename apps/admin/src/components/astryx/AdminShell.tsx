@@ -1,4 +1,11 @@
-import React, { useEffect, useState, type ReactNode } from "react";
+import { AuthReentry } from "./AuthReentry";
+import React, { useEffect, useRef, useState, type ReactNode } from "react";
+import { Heading } from "@astryxdesign/core/Heading";
+import {
+  protectedSessionIsLocked,
+  watchProtectedSession,
+} from "../../lib/protected-admin-json";
+import { workspaceReturnPath } from "../../lib/workspace-navigation";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Theme } from "@astryxdesign/core/theme";
 import {
@@ -35,15 +42,34 @@ export function AdminShell({
   localOwner = false,
   initialMode = "light",
 }: AdminShellProps) {
+  const [locked, setLocked] = useState(protectedSessionIsLocked);
+  const inactive = useRef(locked);
+  const stopSync = useRef<(() => void) | null>(null);
+  useEffect(
+    () =>
+      watchProtectedSession(() => {
+        inactive.current = true;
+        stopSync.current?.();
+        stopSync.current = null;
+        setLocked(true);
+      }),
+    [],
+  );
   const [currentRoute, setCurrentRoute] = useState(initialRoute);
   useEffect(() => {
-    const sync = () => setCurrentRoute(location.pathname + location.search);
+    if (inactive.current || protectedSessionIsLocked()) return;
+    const sync = () => {
+      if (!inactive.current && !protectedSessionIsLocked())
+        setCurrentRoute(location.pathname + location.search);
+    };
     window.addEventListener("popstate", sync);
     window.addEventListener("admin:workspace-navigation", sync);
-    return () => {
+    const stop = () => {
       window.removeEventListener("popstate", sync);
       window.removeEventListener("admin:workspace-navigation", sync);
     };
+    stopSync.current = stop;
+    return stop;
   }, []);
   const [mode, setMode] = useState<ThemePreference>(initialMode);
   useEffect(() => {
@@ -54,6 +80,18 @@ export function AdminShell({
     saveTheme(next);
   };
   const workspace = workspaceForPath(currentRoute.split("?")[0] ?? "");
+  if (locked) {
+    const path = location.pathname + location.search;
+    const owner = workspaceForPath(location.pathname);
+    return (
+      <Theme theme={shellTheme} mode={mode}>
+        <VStack gap={3}>
+          <Heading level={1}>Session ended</Heading>
+          <AuthReentry href={owner ? workspaceReturnPath(owner, path) : "/"} />
+        </VStack>
+      </Theme>
+    );
+  }
   return (
     <Theme theme={shellTheme} mode={mode}>
       <EditorialWorkspaceShell

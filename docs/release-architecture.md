@@ -89,8 +89,9 @@ Database and authenticated Admin gates remain independent:
   exact-gated
 - authenticated Admin smoke stays held until its least-privileged production
   identity is installed and proven unable to write
-- Cloudflare Access stays in front of Admin until native auth production proof
-  passes
+- Cloudflare Access and the exact-owner assertion remain the human boundary;
+  Google/instant-authentication rollout follows the independent provider gates in
+  [platform architecture](platform-architecture.md#authentication-and-production-boundaries)
 
 No separate application canary ceremony is required. A normal scoped release
 with exact-SHA validation and smoke proof is the release proof.

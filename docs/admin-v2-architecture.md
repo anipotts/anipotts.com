@@ -1,7 +1,7 @@
 # admin.anipotts.com v2 architecture
 
 Historical design proposal. The Astro admin is now the current app and the
-Solid source/deployment target are retired. Follow [platform architecture](platform-architecture.md)
+Solid source/deployment target are retired. Follow [platform architecture](platform-architecture.md#authentication-and-production-boundaries)
 for current ownership and authentication gates; retention steps below are superseded.
 
 ## goal

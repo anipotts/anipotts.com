@@ -1,3 +1,4 @@
+import { jsonResponse } from "../../lib/test-json-response";
 // @vitest-environment jsdom
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -47,7 +48,7 @@ it.each([false, true])(
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ csrf: "test-only" })),
+        jsonResponse(JSON.stringify({ csrf: "test-only" })),
       )
       .mockReturnValueOnce(response);
     vi.stubGlobal("fetch", fetcher);
@@ -75,7 +76,7 @@ it.each([false, true])(
     }
     await act(async () => {
       finish(
-        new Response(
+        jsonResponse(
           JSON.stringify({ ok: true, media: { id: `${"a".repeat(64)}.png` } }),
         ),
       );
@@ -275,7 +276,7 @@ it("canceling during session preparation never starts media upload", async () =>
   const result = uploadEditorialImage(new Blob(["x"]), controller.signal);
   const rejected = expect(result).rejects.toMatchObject({ name: "AbortError" });
   controller.abort();
-  finish(new Response(JSON.stringify({ csrf: "test-only" })));
+  finish(jsonResponse(JSON.stringify({ csrf: "test-only" })));
   await rejected;
   expect(fetcher).toHaveBeenCalledOnce();
 });
@@ -287,7 +288,7 @@ it("canceling while reading aborts FileReader before media upload", async () => 
     .mockImplementation(() => {});
   const fetcher = vi
     .fn()
-    .mockResolvedValue(new Response(JSON.stringify({ csrf: "test-only" })));
+    .mockResolvedValue(jsonResponse(JSON.stringify({ csrf: "test-only" })));
   vi.stubGlobal("fetch", fetcher);
   const controller = new AbortController();
   const result = uploadEditorialImage(new Blob(["x"]), controller.signal);
