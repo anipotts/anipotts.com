@@ -19,6 +19,7 @@ try {
   copyFileSync("scripts/codex-action", join(fixture, "scripts/codex-action"));
   for (const file of ["package.json", "pnpm-workspace.yaml", "pnpm-lock.yaml"])
     writeFileSync(join(fixture, file), "{}\n");
+  writeFileSync(join(fixture, ".nvmrc"), "24.19.0\n");
   const calls = join(fixture, "calls");
   for (const name of ["pnpm", "corepack", "git"]) {
     const path = join(fixture, "bin", name);
@@ -30,7 +31,8 @@ try {
   }
   const env = {
     ...process.env,
-    CODEX_WORKTREE_PATH: fixture,
+    CODEX_WORKTREE_PATH: "/missing/stale-terminal-checkout",
+    MISE_DATA_DIR: join(fixture, "no-mise"),
     NVM_DIR: join(fixture, "no-nvm"),
     SETUP_TEST_CALLS: calls,
     PATH: `${join(fixture, "bin")}:${dirname(process.execPath)}:/usr/bin:/bin`,

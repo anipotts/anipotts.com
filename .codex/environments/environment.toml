@@ -5,26 +5,7 @@ name = "anipotts.com site"
 [setup]
 script = '''
 set -euo pipefail
-cd "$CODEX_WORKTREE_PATH"
 bash ./scripts/codex-action setup
-'''
-
-[setup.darwin]
-script = '''
-set -euo pipefail
-cd "$CODEX_WORKTREE_PATH"
-bash ./scripts/codex-action setup
-'''
-
-[cleanup]
-script = '''
-set -euo pipefail
-cd "$CODEX_WORKTREE_PATH"
-
-rm -rf .turbo
-rm -rf apps/www/dist
-rm -rf apps/admin/.next apps/labs/.next
-rm -rf apps/admin/.open-next apps/labs/.open-next
 '''
 
 [[actions]]
