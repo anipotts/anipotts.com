@@ -86,11 +86,14 @@ assert.ok(actions.includes("pnpm_cmd dev:www"));
 assert.ok(actions.includes("pnpm_cmd dev:admin"));
 assert.ok(actions.includes("nvm use --silent"));
 assert.ok(!actions.includes("v22.22.3"));
-assert.ok(environment.includes('name = "develop public"'));
-assert.ok(environment.includes('name = "develop admin"'));
-assert.ok(environment.includes('name = "check changed scope"'));
-assert.ok(environment.includes('name = "inspect pull request"'));
-assert.ok(environment.includes('name = "inspect live state"'));
+for (const action of [
+  "start website",
+  "start admin",
+  "check changes",
+  "install dependencies",
+]) {
+  assert.ok(environment.includes(`name = "${action}"`));
+}
 assert.ok(adminConfig.includes('[".admin.anipotts.localhost"]'));
 assert.ok(publicConfig.includes('".anipotts.localhost"'));
 assert.ok(adminConfig.includes("publicContentHotReload()"));
