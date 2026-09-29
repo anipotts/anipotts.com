@@ -6,6 +6,7 @@ const PUBLIC_PATHS = new Set([
   "/api/health",
   "/api/mcp",
   "/favicon.svg",
+  "/admin-bracket.svg",
   "/favicon-light.svg",
   "/favicon-dark.svg",
   "/favicon-light-32.png",

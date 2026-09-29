@@ -50,3 +50,10 @@ migrations_dir = "../../drizzle/migrations"
 name = "COMMAND_RELAY"
 class_name = "CommandRelay"
 script_name = "anipotts-state"
+
+# Dedicated public snapshots. Never apply these migrations to the shared DB.
+[[d1_databases]]
+binding = "CONTENT_DB"
+database_name = "anipotts-content"
+database_id = "2679fc97-e251-46b7-ad01-db8b9fe04e8d"
+migrations_dir = "./migrations/content-publication"

@@ -6,12 +6,12 @@ import {
   publishedWriting,
   visibleProjects,
 } from "../../../../www/src/lib/content";
-import { productionEditor } from "../../lib/editorial-server";
+import { editorialStorage } from "../../lib/editorial-server";
 let home;
 {
   const storage = import.meta.env.DEV
     ? await (await import("../../lib/editorial-local")).localDraftStorage()
-    : productionEditor(Astro.locals.runtime?.env)?.storage;
+    : editorialStorage(Astro.locals.runtime?.env);
   const draft = await storage?.get({ kind: "page", id: "home" });
   if (
     draft &&

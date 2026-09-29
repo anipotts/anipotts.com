@@ -375,6 +375,7 @@ export function RichTextField({
                         key={action.active}
                         value={action.active}
                         label={action.label}
+                        tooltip={action.label}
                         icon={<action.icon size={18} />}
                       />
                     ))}

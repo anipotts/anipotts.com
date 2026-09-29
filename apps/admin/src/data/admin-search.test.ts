@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { navItems } from "./admin";
+import {
+  navItems,
+  mutationRows,
+  deployRows,
+  handoffRows,
+  repoRows,
+} from "./admin";
 import { searchAdminResults, type AdminSearchResult } from "./admin-search";
 
 const rows: AdminSearchResult[] = [
@@ -64,5 +70,33 @@ describe("admin search and navigation", () => {
     expect(
       navItems.find((item) => item.href === "/knowledge/locations"),
     ).toMatchObject({ group: "knowledge", parent: "knowledge" });
+  });
+});
+
+// Reference tables must not masquerade as queried account/deployment status.
+describe("static diagnostics evidence boundaries", () => {
+  it("describes publication and authentication requirements without legacy or account-state claims", () => {
+    const copy = JSON.stringify({
+      mutationRows,
+      handoffRows,
+      repoRows,
+      deployRows,
+    });
+    expect(copy).not.toMatch(
+      /no active passkey|content_publish_events|page_content|production-reflective|return Cloudflare Access 302/,
+    );
+    expect(
+      mutationRows.every((row) => row.evidence.startsWith("Required:")),
+    ).toBe(true);
+    expect(
+      mutationRows.find((row) => row.title === "publish content edits")
+        ?.evidence,
+    ).toContain("Git-backed publication");
+  });
+  it("labels every static deployment proof as a verification requirement", () => {
+    expect(deployRows.length).toBeGreaterThan(0);
+    expect(deployRows.every((row) => row.proof.startsWith("Required:"))).toBe(
+      true,
+    );
   });
 });

@@ -1,3 +1,6 @@
+import { buildSync } from "esbuild";
+import { runInNewContext } from "node:vm";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   adminThemePrepaintScript,
@@ -71,4 +74,39 @@ describe("admin appearance precedence", () => {
     expect(document.documentElement.dataset.theme).toBeUndefined();
     expect(document.documentElement.style.colorScheme).toBe("light dark");
   });
+});
+
+it("runs the production-bundled prepaint script without bundler globals", () => {
+  const bundled = buildSync({
+    entryPoints: [fileURLToPath(new URL("./admin-theme.ts", import.meta.url))],
+    bundle: true,
+    write: false,
+    platform: "browser",
+    format: "cjs",
+    keepNames: true,
+    minify: true,
+    target: "es2022",
+  });
+  const compiledModule = {
+    exports: {} as { adminThemePrepaintScript?: string },
+  };
+  runInNewContext(bundled.outputFiles[0]!.text, { module: compiledModule });
+  const script = compiledModule.exports.adminThemePrepaintScript!;
+  for (const [query, cookie, stored, expected] of [
+    ["?theme=dark", "ap-theme=light", {}, "dark"],
+    ["?theme=invalid", "ap-theme=dark", {}, "dark"],
+    ["", "", { theme: "light" }, "light"],
+    ["", "ap-theme=%invalid", { "admin-theme:v1": "dark" }, "dark"],
+    ["", "", {}, "system"],
+  ] as const) {
+    setup(query, cookie, stored);
+    // A separate browser context has no esbuild __name helper from the Worker.
+    runInNewContext(script, { URL, location, document, localStorage });
+    expect(document.documentElement.dataset.theme).toBe(
+      expected === "system" ? undefined : expected,
+    );
+    expect(document.documentElement.style.colorScheme).toBe(
+      expected === "system" ? "light dark" : expected,
+    );
+  }
 });

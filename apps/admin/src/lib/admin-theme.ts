@@ -16,15 +16,8 @@ export function initialAdminTheme(...candidates: unknown[]): ThemePreference {
 
 /** Self-contained so the exact client resolver also runs before first paint. */
 export function prepaintAdminTheme(): ThemePreference {
-  const valid = (value: unknown): value is ThemePreference =>
-    value === "light" || value === "dark" || value === "system";
-  const read = (key: string) => {
-    try {
-      return localStorage.getItem(key);
-    } catch {
-      return null;
-    }
-  };
+  // Do not introduce nested functions here. Worker bundling can wrap them in
+  // name-preservation helpers that would escape into the serialized script.
   let cookie: string | undefined;
   try {
     const raw = document.cookie.match(/(?:^|;\s*)ap-theme=([^;]*)/)?.[1];
@@ -32,13 +25,25 @@ export function prepaintAdminTheme(): ThemePreference {
   } catch {
     /* Optional storage. */
   }
-  const candidates = [
-    new URL(location.href).searchParams.get("theme"),
-    cookie,
-    read("theme"),
-    read("admin-theme:v1"),
-  ];
-  const preference = candidates.find(valid) ?? "system";
+  const candidates = [new URL(location.href).searchParams.get("theme"), cookie];
+  for (const key of ["theme", "admin-theme:v1"]) {
+    try {
+      candidates.push(localStorage.getItem(key));
+    } catch {
+      // Storage is optional; the first valid earlier candidate still wins.
+    }
+  }
+  let preference: ThemePreference = "system";
+  for (const candidate of candidates) {
+    if (
+      candidate === "light" ||
+      candidate === "dark" ||
+      candidate === "system"
+    ) {
+      preference = candidate;
+      break;
+    }
+  }
   const root = document.documentElement;
   root.style.colorScheme = preference === "system" ? "light dark" : preference;
   if (preference === "system") delete root.dataset.theme;

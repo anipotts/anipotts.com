@@ -30,8 +30,10 @@ describe("shared Operations and Life shell", () => {
     const host = document.createElement("div");
     host.innerHTML = renderToStaticMarkup(shell("/operations/observability"));
     expect(host.querySelector('[data-workspace="operations"]')).not.toBeNull();
-    expect(host.textContent).toContain("Admin");
-    expect(host.textContent).toContain("ani potts");
+    expect(
+      host.querySelector('.admin-bracket-wordmark[aria-label="Admin"]')
+        ?.textContent,
+    ).toBe("[admin]");
     const navigation = host.querySelector(".astryx-side-nav-section")!;
     const links = [...navigation.querySelectorAll("a")];
     expect(links.map((link) => link.textContent)).toEqual([

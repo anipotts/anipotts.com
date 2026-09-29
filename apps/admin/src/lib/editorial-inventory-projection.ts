@@ -15,6 +15,8 @@ export type InventoryEntry = {
   id: string;
   data: Record<string, unknown>;
   body?: string;
+  /** Server-only exact active source; never included in catalog/search projections. */
+  publishedSource?: string;
 };
 export type ProjectedRecord = CatalogRecord & {
   collection: string;
@@ -211,7 +213,11 @@ export function projectEditorialInventory(
       : updated(entry.collection, entry.id);
     const privateUpdatedAt = draft ? timestamp(draft.updatedAt) : undefined;
     const changesPending = Boolean(
-      draft && sourceHash(draft.source) !== draft.baseFileHash,
+      draft &&
+      sourceHash(draft.source) !==
+        (typeof entry.publishedSource === "string"
+          ? sourceHash(entry.publishedSource)
+          : draft.baseFileHash),
     );
     const status = isPrivateOnly
       ? "draft"

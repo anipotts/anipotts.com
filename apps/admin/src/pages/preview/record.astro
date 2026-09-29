@@ -13,7 +13,7 @@ import {
   systemsPageSchema,
 } from "@anipotts/content/public/pages";
 import { projectSchema, writingSchema } from "@anipotts/content/public/schema";
-import { productionEditor } from "../../lib/editorial-server";
+import { editorialStorage } from "../../lib/editorial-server";
 import WritingDetail from "../../../../www/src/components/WritingDetail.astro";
 import WorkDetail from "../../../../www/src/components/WorkDetail.astro";
 import Shell from "../../../../www/src/layouts/Shell.astro";
@@ -31,7 +31,7 @@ const record = parsedRecord.data;
 const snapshot = await readEditorialSnapshot(async () => {
   const storage = import.meta.env.DEV
     ? await (await import("../../lib/editorial-local")).localDraftStorage()
-    : productionEditor(Astro.locals.runtime?.env)?.storage;
+    : editorialStorage(Astro.locals.runtime?.env);
   if (!storage) throw new Error("storage_unavailable");
   return storage.get(record);
 });

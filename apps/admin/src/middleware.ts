@@ -19,6 +19,12 @@ import {
 } from "./lib/admin-auth";
 
 export const onRequest = defineMiddleware(async (context, next) => {
+  // This logout-only route validates its own cookies without refreshing or migrating them.
+  if (
+    context.url.pathname === "/api/admin/logout" ||
+    context.url.pathname === "/auth/logout"
+  )
+    return next();
   if (
     context.url.pathname === "/" ||
     context.url.pathname === "/content" ||

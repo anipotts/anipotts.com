@@ -20,7 +20,9 @@ export async function localDraftStorage(): Promise<
     MediaStorage &
     Pick<
       import("../editorial/draft-store").EditorialDraftStore,
-      "listWritingDrafts"
+      | "listWritingDrafts"
+      | "readLocalPublishedBase"
+      | "acknowledgeLocalPublication"
     >
 > {
   runtime ??= (async () => {
@@ -64,7 +66,9 @@ export async function localDraftStorage(): Promise<
         MediaStorage &
         Pick<
           import("../editorial/draft-store").EditorialDraftStore,
-          "listWritingDrafts"
+          | "listWritingDrafts"
+          | "readLocalPublishedBase"
+          | "acknowledgeLocalPublication"
         >;
     };
   }>();
@@ -82,10 +86,29 @@ export async function localHomeBase(
     if (
       record.kind === "writing" &&
       (error as NodeJS.ErrnoException).code === "ENOENT"
-    )
+    ) {
+      const acknowledged = await (
+        await localDraftStorage()
+      ).readLocalPublishedBase(record);
+      if (acknowledged) {
+        const bytes = Buffer.from(acknowledged.source);
+        return {
+          source: acknowledged.source,
+          baseCommit,
+          baseFileHash: createHash("sha1")
+            .update(`blob ${bytes.length}\0`)
+            .update(bytes)
+            .digest("hex"),
+        };
+      }
       return { source: newWritingSource(), baseCommit, baseFileHash: null };
+    }
     throw error;
   }
+  const acknowledged = await (
+    await localDraftStorage()
+  ).readLocalPublishedBase(record);
+  if (acknowledged) source = acknowledged.source;
   const bytes = Buffer.from(source);
   const baseFileHash = createHash("sha1")
     .update(`blob ${bytes.length}\0`)

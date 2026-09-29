@@ -9,6 +9,7 @@ import "../styles/admin-interactions.css";
 import "../themes/editorial.generated.css";
 import "@fontsource-variable/instrument-sans";
 import "../styles/editorial.css";
+import "../styles/focus.css";
 import "../styles/scrollbars.css";
 import { publicSiteUrl } from "../lib/editorial-content";
 import { EDITORIAL_OWNER_EMAIL } from "../lib/editorial-owner";
@@ -22,6 +23,8 @@ type Props = Omit<
   "area" | "localPreview" | "siteUrl" | "initialMode" | "recoveryScope"
 > & {
   inventoryProjection?: Awaited<ReturnType<typeof loadEditorialInventory>>;
+  /** Set only when the route supplies actual body content, not an empty conditional slot. */
+  hasContent?: boolean;
 };
 const initialMode = initialAdminTheme(
   Astro.url.searchParams.get("theme"),
@@ -30,8 +33,14 @@ const initialMode = initialAdminTheme(
 const area = Astro.url.pathname.startsWith("/newsletter")
   ? "newsletter"
   : "content";
-const hasContent = Boolean((await Astro.slots.render("default"))?.trim());
-const { inventoryProjection: suppliedInventory, ...pageProps } = Astro.props;
+const {
+  inventoryProjection: suppliedInventory,
+  hasContent = false,
+  ...pageProps
+} = Astro.props;
+// Astro counts an empty conditional as a slot. The route knows whether it has
+// content; rendering it here to inspect it would consume island hydration.
+const renderContent = hasContent && Astro.slots.has("default");
 const inventory =
   suppliedInventory ??
   (await loadEditorialInventory(Astro.locals.runtime?.env));
@@ -57,15 +66,20 @@ const appProps = {
 >
   <head>
     <meta charset="utf-8" />
+    <link
+      rel="icon"
+      href="/admin-bracket.svg?v=4"
+      type="image/svg+xml"
+      sizes="any"
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow, noarchive" />
     <title>{Astro.props.title} | Admin</title>
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <script is:inline set:html={adminThemePrepaintScript} />
   </head>
   <body>
     {
-      hasContent ? (
+      renderContent ? (
         <EditorialApp {...appProps} client:load>
           <slot />
         </EditorialApp>

@@ -14,10 +14,8 @@ import "../themes/editorial.generated.css";
 import "../themes/operations.generated.css";
 import "../themes/life.generated.css";
 import "../styles/editorial.css";
+import "../styles/focus.css";
 import { navItems, routeTitle } from "../data/admin";
-
-import brandFaviconDark from "@anipotts/brand/ap-structural/icons/favicon-dark.svg?url";
-import brandFaviconLight from "@anipotts/brand/ap-structural/icons/favicon-light.svg?url";
 
 type Props = {
   title?: string;
@@ -49,56 +47,20 @@ const currentRoute = `${currentPath}${Astro.url.search}`;
 >
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link
       rel="icon"
-      type="image/png"
-      sizes="32x32"
-      href="/favicon-light-32.png?v=20260717a"
-      media="(prefers-color-scheme: light)"
-    />
-    <link
-      rel="icon"
-      type="image/png"
-      sizes="32x32"
-      href="/favicon-dark-32.png?v=20260717a"
-      media="(prefers-color-scheme: dark)"
-    />
-    <link
-      rel="icon"
-      href="/favicon.svg?v=20260717a"
+      href="/admin-bracket.svg?v=4"
       type="image/svg+xml"
       sizes="any"
     />
-    <link
-      rel="icon"
-      href="/favicon-light.svg?v=20260717a"
-      type="image/svg+xml"
-      media="(prefers-color-scheme: light)"
-    />
-    <link
-      rel="icon"
-      href="/favicon-dark.svg?v=20260717a"
-      type="image/svg+xml"
-      media="(prefers-color-scheme: dark)"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
     <link
       rel="apple-touch-icon"
       sizes="180x180"
       href="/apple-touch-icon.png?v=20260717a"
     />
-    <link
-      rel="icon"
-      href={brandFaviconLight}
-      type="image/svg+xml"
-      media="(prefers-color-scheme: light)"
-    />
-    <link
-      rel="icon"
-      href={brandFaviconDark}
-      type="image/svg+xml"
-      media="(prefers-color-scheme: dark)"
-    />
+
     <meta
       name="theme-color"
       media="(prefers-color-scheme: light)"

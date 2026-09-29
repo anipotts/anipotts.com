@@ -262,3 +262,14 @@ test.each(["people", "projects", "places", "timeline", "sources", "preview"])(
     expect(isPublicAdminPath(path)).toBe(false);
   },
 );
+
+test("exposes only the exact static Admin favicon path", () => {
+  expect(isPublicAdminPath("/admin-bracket.svg")).toBe(true);
+  for (const path of [
+    "/admin-bracket.svg/extra",
+    "/admin-bracket.svg.json",
+    "/admin-bracket-other.svg",
+  ]) {
+    expect(isPublicAdminPath(path)).toBe(false);
+  }
+});

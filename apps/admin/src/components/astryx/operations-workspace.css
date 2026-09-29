@@ -1,0 +1,135 @@
+.operations-workspace {
+  container-type: inline-size;
+}
+
+.admin-page-frame:has(.operations-workspace) {
+  padding: 0;
+}
+
+/* Operations shares the Content library's page frame and table rhythm. */
+.operations-workspace .astryx-layout-content {
+  padding: var(--spacing-6) clamp(var(--spacing-4), 3vw, var(--spacing-12));
+}
+
+.operations-workspace .operations-header {
+  min-height: var(--size-element-sm);
+}
+
+.operations-workspace .operations-source-status {
+  min-height: var(--spacing-6);
+}
+
+.operations-workspace .operations-toolbar {
+  width: 100%;
+}
+
+.operations-workspace .operations-toolbar > .astryx-field {
+  flex: 0 1 calc(var(--spacing-12) * 5);
+  min-width: min(100%, calc(var(--spacing-12) * 4));
+}
+
+.operations-workspace .operations-count {
+  margin-inline-start: auto;
+  white-space: nowrap;
+}
+
+.operations-workspace .editorial-record-table {
+  background: transparent;
+}
+
+.operations-workspace .editorial-record-table .astryx-table-header-cell,
+.operations-workspace .editorial-record-table .astryx-table-cell {
+  padding-inline: var(--spacing-3);
+  background: transparent;
+}
+
+.operations-workspace .editorial-record-table .astryx-table-header-cell {
+  padding-block: var(--spacing-2);
+  color: var(--color-text-secondary);
+  text-transform: none;
+}
+
+.operations-workspace .editorial-record-table .astryx-table-cell {
+  padding-block: var(--spacing-3);
+}
+
+.operations-workspace .operations-master-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.operations-workspace .operations-master-detail[data-has-detail="true"] {
+  grid-template-columns: minmax(0, 1fr) minmax(0, calc(var(--spacing-8) * 10));
+}
+
+.operations-workspace .operations-results,
+.operations-workspace .operations-service-detail {
+  min-width: 0;
+}
+
+.operations-workspace .operations-service-detail {
+  border-inline-start: var(--border-width) solid var(--color-border);
+  padding-inline-start: var(--spacing-6);
+  overflow-wrap: anywhere;
+  background: var(--color-background-surface);
+}
+
+.operations-workspace .operations-service-name {
+  justify-content: start;
+  text-align: start;
+  white-space: normal;
+  font-weight: var(--font-weight-semibold);
+  min-height: var(--spacing-9);
+  padding-inline: var(--spacing-2);
+  margin-inline-start: calc(-1 * var(--spacing-2));
+}
+
+.operations-workspace .operations-entity-icon {
+  width: var(--spacing-5);
+  height: var(--spacing-5);
+  flex-shrink: 0;
+}
+
+.operations-workspace
+  .astryx-table-row:has([data-service-id][aria-expanded="true"]) {
+  background-color: var(--color-background-muted);
+}
+
+@container (max-width: 48rem) {
+  .operations-workspace .operations-master-detail[data-has-detail="true"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .operations-workspace
+    .operations-master-detail[data-has-detail="true"]
+    .operations-results {
+    display: none;
+  }
+
+  .operations-workspace .operations-service-detail {
+    border-inline-start: none;
+    padding-inline-start: 0;
+  }
+}
+
+@media (pointer: coarse) {
+  .operations-workspace .operations-service-name {
+    min-height: var(--spacing-11);
+  }
+}
+
+@media (max-width: 640px) {
+  .operations-workspace .astryx-layout-content {
+    padding-block: var(--spacing-4);
+    padding-inline: var(--spacing-4);
+  }
+
+  .operations-workspace .operations-toolbar > .astryx-field {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+
+  .operations-workspace .operations-count {
+    margin-inline-start: 0;
+  }
+}

@@ -52,13 +52,32 @@ export type SaveResult =
       code:
         | "invalid_draft_request"
         | "idempotency_key_reused"
+        | "save_reconciliation_required"
         | "draft_base_changed";
     };
 
+export type HistoryPage = {
+  history: Draft[];
+  nextBeforeRevision: number | null;
+};
+export type HistoryPageOptions = { beforeRevision?: number; limit?: number };
+
+type SaveIdentity = {
+  key: string;
+  payloadHash: string;
+  outcome: "saved" | "conflict";
+  revision: number | null;
+  // Exact conflict receipts include the active draft's publication-adjusted
+  // base, which can differ from its immutable revision. This existing column
+  // also retains legacy successful receipts whose revisions were pruned.
+  legacyResult: string | null;
+};
+
 const uuid = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const gitHash = /^[a-f0-9]{40}$/;
-const thirtyDays = 30 * 24 * 60 * 60 * 1000;
-const retainedRevisions = 100;
+const cachedSaveReceipts = 100;
+const maxHistoryPageSize = 100;
+const maxHistoryPageBytes = 4 * 1024 * 1024;
 
 /** One object per site/environment is the serialization boundary for its editor. */
 export class EditorialDraftStore extends DurableObject<unknown> {
@@ -208,6 +227,8 @@ export class EditorialDraftStore extends DurableObject<unknown> {
     super(ctx, env);
     this.jobs = new PublicationJobs(ctx.storage);
     ctx.storage.sql.exec(`
+      CREATE TABLE IF NOT EXISTS local_published_bases (key TEXT PRIMARY KEY, source TEXT NOT NULL, publicationId TEXT NOT NULL, revision INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS handoff_receipts (id TEXT PRIMARY KEY, identity TEXT NOT NULL, snapshot TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS drafts (
         key TEXT PRIMARY KEY,
         source TEXT NOT NULL,
@@ -223,6 +244,14 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         snapshot TEXT NOT NULL,
         PRIMARY KEY (key, revision)
       );
+      -- Keep retention effective after an application rollback. IGNORE lets the
+      -- previous writer's pruning DELETE succeed without losing authored rows
+      -- or aborting its save. Only a controlled migration may remove this guard;
+      -- it does not protect against DROP TABLE or database replacement.
+      CREATE TRIGGER IF NOT EXISTS editorial_revisions_retained
+      BEFORE DELETE ON revisions BEGIN
+        SELECT RAISE(IGNORE);
+      END;
       CREATE TABLE IF NOT EXISTS conflicts (
         id TEXT PRIMARY KEY,
         key TEXT NOT NULL,
@@ -236,6 +265,35 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         payloadHash TEXT NOT NULL,
         result TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS save_request_identities (
+        id TEXT PRIMARY KEY,
+        key TEXT NOT NULL,
+        payloadHash TEXT NOT NULL,
+        outcome TEXT NOT NULL CHECK (outcome IN ('saved', 'conflict')),
+        revision INTEGER,
+        legacyResult TEXT
+      );
+      CREATE INDEX IF NOT EXISTS save_requests_key ON save_requests (key);
+      INSERT OR IGNORE INTO save_request_identities
+        (id, key, payloadHash, outcome, revision, legacyResult)
+      SELECT requests.id, requests.key, requests.payloadHash,
+        CASE WHEN json_extract(requests.result, '$.ok') = 1 THEN 'saved' ELSE 'conflict' END,
+        COALESCE(json_extract(requests.result, '$.draft.revision'), json_extract(requests.result, '$.current.revision')),
+        CASE WHEN json_extract(requests.result, '$.ok') = 0 OR
+          (COALESCE(json_extract(requests.result, '$.draft.revision'), json_extract(requests.result, '$.current.revision')) IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM revisions WHERE revisions.key = requests.key
+              AND revisions.revision = COALESCE(json_extract(requests.result, '$.draft.revision'), json_extract(requests.result, '$.current.revision'))
+          )) THEN requests.result ELSE NULL END
+      FROM save_requests AS requests
+      WHERE NOT EXISTS (SELECT 1 FROM save_request_identities AS existing WHERE existing.id = requests.id);
+      UPDATE save_request_identities AS identities
+      SET legacyResult = requests.result
+      FROM save_requests AS requests
+      WHERE identities.id = requests.id AND identities.key = requests.key
+        AND identities.payloadHash = requests.payloadHash
+        AND identities.outcome = 'conflict' AND identities.legacyResult IS NULL
+        AND json_extract(requests.result, '$.ok') = 0;
       CREATE TABLE IF NOT EXISTS publications (
         id TEXT PRIMARY KEY,
         key TEXT NOT NULL,
@@ -254,6 +312,208 @@ export class EditorialDraftStore extends DurableObject<unknown> {
 
   async get(record: EditorialRecord): Promise<Draft | null> {
     return this.read(editorialRecordPath(record));
+  }
+
+  async acknowledgeLocalPublication(input: {
+    record: EditorialRecord;
+    source: string;
+    sourceSha256: string;
+    publicationId: string;
+    localRevision: number;
+  }) {
+    let key: string;
+    try {
+      key = editorialRecordPath(input.record);
+    } catch {
+      return { ok: false };
+    }
+    if (
+      !Number.isSafeInteger(input.localRevision) ||
+      input.localRevision < 1 ||
+      !uuid.test(input.publicationId) ||
+      createHash("sha256").update(input.source).digest("hex") !==
+        input.sourceSha256
+    )
+      return { ok: false };
+    return this.ctx.storage.transactionSync(() => {
+      const prior = this.ctx.storage.sql
+        .exec<{ revision: number; source: string; publicationId: string }>(
+          "SELECT revision,source,publicationId FROM local_published_bases WHERE key = ?",
+          key,
+        )
+        .toArray()[0];
+      if (prior && prior.revision >= input.localRevision)
+        return {
+          ok:
+            prior.revision === input.localRevision &&
+            prior.source === input.source &&
+            prior.publicationId === input.publicationId,
+        };
+      // The originating local revision is independent of the production revision.
+      // Repeated text in a later draft must never re-date an older acknowledgment.
+      const retained = this.ctx.storage.sql
+        .exec<{ snapshot: string }>(
+          "SELECT snapshot FROM revisions WHERE key = ? AND revision = ?",
+          key,
+          input.localRevision,
+        )
+        .toArray()[0];
+      if (
+        !retained ||
+        (JSON.parse(retained.snapshot) as Draft).source !== input.source
+      )
+        return { ok: false };
+      this.ctx.storage.sql.exec(
+        "INSERT INTO local_published_bases (key,source,publicationId,revision) VALUES (?,?,?,?) ON CONFLICT(key) DO UPDATE SET source=excluded.source,publicationId=excluded.publicationId,revision=excluded.revision",
+        key,
+        input.source,
+        input.publicationId,
+        input.localRevision,
+      );
+      return { ok: true };
+    });
+  }
+  async readLocalPublishedBase(
+    record: EditorialRecord,
+  ): Promise<{ source: string; publicationId: string } | null> {
+    return (
+      this.ctx.storage.sql
+        .exec<{ source: string; publicationId: string }>(
+          "SELECT source,publicationId FROM local_published_bases WHERE key = ?",
+          editorialRecordPath(record),
+        )
+        .toArray()[0] ?? null
+    );
+  }
+
+  /** Private import receipt; never queues publication or mutates an existing dirty draft. */
+  async importHandoff(input: {
+    record: EditorialRecord;
+    source: string;
+    operationId: string;
+    baseSha256: string;
+    base: {
+      source: string;
+      baseCommit: string;
+      baseFileHash: string | null;
+      directPublication?: { publicationId: string } | null;
+    };
+  }): Promise<
+    | { ok: true; draft: Draft; expectedPublicationId: string | null }
+    | { ok: false; code: string }
+  > {
+    let key: string;
+    try {
+      key = editorialRecordPath(input.record);
+      if (
+        !uuid.test(input.operationId) ||
+        !validateEditorialSource(input.record, input.source).success
+      )
+        return { ok: false, code: "invalid_request" };
+    } catch {
+      return { ok: false, code: "invalid_request" };
+    }
+    const hash = (source: string) =>
+      createHash("sha256").update(source).digest("hex");
+    const identity = hash(
+      JSON.stringify([key, input.source, input.baseSha256]),
+    );
+    return this.ctx.storage.transactionSync(() => {
+      const prior = this.ctx.storage.sql
+        .exec<{ identity: string; snapshot: string }>(
+          "SELECT identity,snapshot FROM handoff_receipts WHERE id = ?",
+          input.operationId,
+        )
+        .toArray()[0];
+      if (prior)
+        return prior.identity === identity
+          ? {
+              ok: true,
+              ...(JSON.parse(prior.snapshot) as {
+                draft: Draft;
+                expectedPublicationId: string | null;
+              }),
+            }
+          : { ok: false, code: "idempotency_conflict" };
+      if (hash(input.base.source) !== input.baseSha256)
+        return { ok: false, code: "base_conflict" };
+      const current = this.read(key);
+      if (current?.discardedAt !== null && current?.discardedAt !== undefined)
+        return { ok: false, code: "draft_conflict" };
+      if (
+        current &&
+        current.source !== input.source &&
+        current.source !== input.base.source
+      )
+        return { ok: false, code: "draft_conflict" };
+      const draft =
+        current?.source === input.source
+          ? current
+          : {
+              key,
+              source: input.source,
+              baseCommit: input.base.baseCommit,
+              baseFileHash: input.base.baseFileHash,
+              revision: (current?.revision ?? 0) + 1,
+              updatedAt: Date.now(),
+              discardedAt: null,
+            };
+      if (draft !== current) this.write(draft);
+      this.ctx.storage.sql.exec(
+        "INSERT INTO handoff_receipts (id,identity,snapshot) VALUES (?,?,?)",
+        input.operationId,
+        identity,
+        JSON.stringify({
+          draft,
+          expectedPublicationId:
+            input.base.directPublication?.publicationId ?? null,
+        }),
+      );
+      return {
+        ok: true,
+        draft,
+        expectedPublicationId:
+          input.base.directPublication?.publicationId ?? null,
+      };
+    });
+  }
+
+  /** Capture one acknowledged revision without enqueuing the Git publisher. */
+  async captureDirectDraft(input: {
+    record: EditorialRecord;
+    expectedRevision: number;
+  }): Promise<
+    | { ok: true; draft: Draft }
+    | {
+        ok: false;
+        code: "invalid_request" | "revision_conflict" | "invalid_source";
+      }
+  > {
+    if (
+      !Number.isSafeInteger(input.expectedRevision) ||
+      input.expectedRevision < 1
+    )
+      return { ok: false, code: "invalid_request" };
+    let path: string;
+    try {
+      path = editorialRecordPath(input.record);
+    } catch {
+      return { ok: false, code: "invalid_request" };
+    }
+    const draft = this.read(path);
+    if (
+      !draft ||
+      draft.discardedAt !== null ||
+      draft.revision !== input.expectedRevision
+    )
+      return { ok: false, code: "revision_conflict" };
+    try {
+      if (!validateEditorialSource(input.record, draft.source).success)
+        return { ok: false, code: "invalid_source" };
+    } catch {
+      return { ok: false, code: "invalid_source" };
+    }
+    return { ok: true, draft };
   }
 
   /** Owner-only inventory. Draft source never enters a public content collection. */
@@ -433,6 +693,49 @@ export class EditorialDraftStore extends DurableObject<unknown> {
           return { ok: false, code: "idempotency_key_reused" };
         return JSON.parse(previous.result) as SaveResult;
       }
+      const identity = this.ctx.storage.sql
+        .exec<SaveIdentity>(
+          "SELECT key, payloadHash, outcome, revision, legacyResult FROM save_request_identities WHERE id = ?",
+          input.requestId,
+        )
+        .toArray()[0];
+      if (identity) {
+        if (identity.payloadHash !== payloadHash)
+          return { ok: false, code: "idempotency_key_reused" };
+        if (identity.legacyResult)
+          return JSON.parse(identity.legacyResult) as SaveResult;
+        // Earlier compact conflict identities did not retain the active draft's
+        // full metadata. If the exact receipt is gone, never invent its outcome
+        // from a historical revision or the now-current draft.
+        if (identity.outcome === "conflict")
+          return { ok: false, code: "save_reconciliation_required" };
+        const snapshot =
+          identity.revision === null
+            ? null
+            : this.readRevision(identity.key, identity.revision);
+        return snapshot
+          ? { ok: true, draft: snapshot }
+          : { ok: false, code: "save_reconciliation_required" };
+      }
+      // An older release may have pruned this conflict's receipt before the
+      // identity table existed. Its source survives, but its base/hash and exact
+      // original current revision cannot be proven. Never overwrite or replay it.
+      const legacyConflict = this.ctx.storage.sql
+        .exec<{ key: string; source: string; expectedRevision: number }>(
+          "SELECT key, source, expectedRevision FROM conflicts WHERE id = ?",
+          input.requestId,
+        )
+        .toArray()[0];
+      if (legacyConflict)
+        return {
+          ok: false,
+          code:
+            legacyConflict.key === key &&
+            legacyConflict.source === input.source &&
+            legacyConflict.expectedRevision === input.expectedRevision
+              ? "save_reconciliation_required"
+              : "idempotency_key_reused",
+        };
       const current = this.read(key);
       let result: SaveResult;
       if (
@@ -474,34 +777,73 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         result = { ok: true, draft };
       }
       this.ctx.storage.sql.exec(
+        "INSERT INTO save_request_identities (id, key, payloadHash, outcome, revision, legacyResult) VALUES (?, ?, ?, ?, ?, ?)",
+        input.requestId,
+        key,
+        payloadHash,
+        result.ok ? "saved" : "conflict",
+        result.ok ? result.draft.revision : (result.current?.revision ?? null),
+        result.ok ? null : JSON.stringify(result),
+      );
+      this.ctx.storage.sql.exec(
         "INSERT INTO save_requests (id, key, payloadHash, result) VALUES (?, ?, ?, ?)",
         input.requestId,
         key,
         payloadHash,
         JSON.stringify(result),
       );
-      // Retry receipts contain source snapshots, so bound these alongside
-      // revisions. Older retries still fail revision checks without overwrites.
+      // Bound duplicate response snapshots, not authored history or identities.
+      // Old retries resolve to the original immutable revision/conflict outcome.
       this.ctx.storage.sql.exec(
         "DELETE FROM save_requests WHERE key = ? AND rowid NOT IN (SELECT rowid FROM save_requests WHERE key = ? ORDER BY rowid DESC LIMIT ?)",
         key,
         key,
-        retainedRevisions,
+        cachedSaveReceipts,
       );
       return result;
     });
   }
 
   async history(record: EditorialRecord): Promise<Draft[]> {
+    return (await this.historyPage(record)).history;
+  }
+
+  async historyPage(
+    record: EditorialRecord,
+    options: HistoryPageOptions = {},
+  ): Promise<HistoryPage> {
     const key = editorialRecordPath(record);
-    return this.ctx.storage.sql
-      .exec<{ snapshot: string }>(
-        "SELECT snapshot FROM revisions WHERE key = ? ORDER BY revision DESC LIMIT ?",
-        key,
-        retainedRevisions,
+    const limit = options.limit ?? maxHistoryPageSize;
+    const beforeRevision = options.beforeRevision ?? Number.MAX_SAFE_INTEGER;
+    if (
+      !Number.isSafeInteger(limit) ||
+      limit < 1 ||
+      limit > maxHistoryPageSize ||
+      !Number.isSafeInteger(beforeRevision) ||
+      beforeRevision < 1
+    )
+      throw new Error("invalid_history_page");
+    const history: Draft[] = [];
+    let bytes = 0;
+    for (const row of this.ctx.storage.sql.exec<{ snapshot: string }>(
+      "SELECT snapshot FROM revisions WHERE key = ? AND revision < ? ORDER BY revision DESC LIMIT ?",
+      key,
+      beforeRevision,
+      limit + 1,
+    )) {
+      const nextBytes = new TextEncoder().encode(row.snapshot).byteLength;
+      if (
+        history.length === limit ||
+        (history.length > 0 && bytes + nextBytes > maxHistoryPageBytes)
       )
-      .toArray()
-      .map((row) => JSON.parse(row.snapshot) as Draft);
+        return {
+          history,
+          nextBeforeRevision: history.at(-1)!.revision,
+        };
+      history.push(JSON.parse(row.snapshot) as Draft);
+      bytes += nextBytes;
+    }
+    return { history, nextBeforeRevision: null };
   }
 
   async conflict(
@@ -542,13 +884,6 @@ export class EditorialDraftStore extends DurableObject<unknown> {
       const current = this.read(editorialRecordPath(record));
       if (!current || current.revision !== expectedRevision)
         throw new Error("revision_conflict");
-      if (
-        !discard &&
-        current.discardedAt !== null &&
-        current.discardedAt + thirtyDays < Date.now()
-      ) {
-        throw new Error("recovery_window_expired");
-      }
       const draft = {
         ...current,
         revision: current.revision + 1,
@@ -568,6 +903,17 @@ export class EditorialDraftStore extends DurableObject<unknown> {
     );
   }
 
+  private readRevision(key: string, revision: number): Draft | null {
+    const row = this.ctx.storage.sql
+      .exec<{ snapshot: string }>(
+        "SELECT snapshot FROM revisions WHERE key = ? AND revision = ?",
+        key,
+        revision,
+      )
+      .toArray()[0];
+    return row ? (JSON.parse(row.snapshot) as Draft) : null;
+  }
+
   private write(draft: Draft): void {
     this.ctx.storage.sql.exec(
       "INSERT OR REPLACE INTO drafts (key, source, baseCommit, baseFileHash, revision, updatedAt, discardedAt) VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -584,11 +930,6 @@ export class EditorialDraftStore extends DurableObject<unknown> {
       draft.key,
       draft.revision,
       JSON.stringify(draft),
-    );
-    this.ctx.storage.sql.exec(
-      "DELETE FROM revisions WHERE key = ? AND revision <= ?",
-      draft.key,
-      draft.revision - retainedRevisions,
     );
   }
 }

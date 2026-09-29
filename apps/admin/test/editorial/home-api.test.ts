@@ -21,6 +21,78 @@ const request = (action: string, body: unknown, headers = {}) =>
     body: JSON.stringify(body),
   });
 describe("home API with real SQLite", () => {
+  it("serves bounded private history pages independently of Git availability", async () => {
+    const storage = env.EDITORIAL.getByName(crypto.randomUUID());
+    for (let revision = 0; revision < 3; revision++) {
+      await storage.save({
+        ...(await base()),
+        record: homeRecord,
+        source: `source ${revision + 1}`,
+        expectedRevision: revision,
+        requestId: crypto.randomUUID(),
+      });
+    }
+    const snapshot = await homeEditorApi(
+      new Request("https://admin.anipotts.com/api/editorial/record"),
+      storage,
+      base,
+    );
+    expect(await snapshot.json()).toMatchObject({
+      history: [{ revision: 3 }, { revision: 2 }, { revision: 1 }],
+      nextBeforeRevision: null,
+    });
+    const read = (query: string) =>
+      homeEditorApi(
+        new Request(
+          `https://admin.anipotts.com/api/editorial/history?${query}`,
+        ),
+        storage,
+        async () => {
+          throw new Error("Git unavailable");
+        },
+      );
+    const current = await homeEditorApi(
+      new Request("https://admin.anipotts.com/api/editorial/draft"),
+      storage,
+      async () => {
+        throw new Error("Git unavailable");
+      },
+    );
+    expect(current.headers.get("Cache-Control")).toContain("no-store");
+    expect(await current.json()).toMatchObject({
+      draft: { source: "source 3", revision: 3 },
+    });
+    const first = await read("limit=2");
+    expect(first.status).toBe(200);
+    expect(first.headers.get("Cache-Control")).toContain("no-store");
+    expect(await first.json()).toMatchObject({
+      history: [{ revision: 3 }, { revision: 2 }],
+      nextBeforeRevision: 2,
+    });
+    expect(await (await read("beforeRevision=2&limit=2")).json()).toMatchObject(
+      {
+        history: [{ revision: 1 }],
+        nextBeforeRevision: null,
+      },
+    );
+    for (const query of [
+      "limit=101",
+      "limit=0",
+      "limit=2.5",
+      "beforeRevision=-1",
+      "beforeRevision=NaN",
+      "beforeRevision=9007199254740992",
+    ]) {
+      const response = await read(query);
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ error: "invalid_history_page" });
+    }
+    const differentRecord = await read("kind=page&id=work");
+    expect(await differentRecord.json()).toEqual({
+      history: [],
+      nextBeforeRevision: null,
+    });
+  });
   it("rebases only an explicitly reviewed upstream version and retains source history", async () => {
     const storage = env.EDITORIAL.getByName(crypto.randomUUID());
     await storage.save({

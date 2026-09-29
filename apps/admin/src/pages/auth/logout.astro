@@ -1,0 +1,53 @@
+---
+import "@fontsource-variable/instrument-sans";
+import "@astryxdesign/core/reset.css";
+import "@astryxdesign/core/astryx.css";
+import "../../themes/editorial.generated.css";
+import "../../styles/focus.css";
+import {
+  initialAdminTheme,
+  adminThemePrepaintScript,
+} from "../../lib/admin-theme";
+import { Logout } from "../../components/astryx/Logout";
+const mode = initialAdminTheme(
+  Astro.url.searchParams.get("theme"),
+  Astro.cookies.get("ap-theme")?.value,
+);
+Astro.response.headers.set("Cache-Control", "private, no-store");
+---
+
+<!doctype html>
+<html
+  lang="en"
+  data-astryx-theme="editorial"
+  data-theme={mode === "system" ? undefined : mode}
+>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow, noarchive" />
+    <link rel="icon" href="/admin-bracket.svg?v=4" type="image/svg+xml" />
+    <title>Sign out | Admin</title>
+    <script is:inline set:html={adminThemePrepaintScript} />
+  </head>
+  <body>
+    <main aria-label="Sign out"><Logout client:load /></main>
+  </body>
+</html>
+<style>
+  :global(html) {
+    background: var(--color-background-body);
+    color: var(--color-text-primary);
+    font-family: var(--font-family-body);
+  }
+  :global(body) {
+    margin: 0;
+  }
+  main {
+    min-height: 100svh;
+    display: grid;
+    place-content: center;
+    padding: var(--spacing-8);
+    box-sizing: border-box;
+  }
+</style>

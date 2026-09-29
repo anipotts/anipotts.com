@@ -1,5 +1,5 @@
-import { editorialInventory, recordUpdate } from "./editorial-content";
-import { productionEditor } from "./editorial-server";
+import { editorialInventory } from "./editorial-content";
+import { editorialStorage } from "./editorial-server";
 import {
   editorialInventoryGroups,
   editorialInventorySearch,
@@ -9,7 +9,9 @@ import {
 
 /** Called only from the existing authorized editorial server layout/routes. */
 export async function loadEditorialInventory(env: unknown) {
-  const inventory = await editorialInventory();
+  const inventory = await editorialInventory(env).catch(() => null);
+  if (!inventory)
+    return { records: [], groups: [], searchEntries: [], unavailable: true };
   const entries = [
     ...inventory.pages,
     ...inventory.projects,
@@ -22,7 +24,7 @@ export async function loadEditorialInventory(env: unknown) {
   try {
     const storage = import.meta.env.DEV
       ? await (await import("./editorial-local")).localDraftStorage()
-      : productionEditor(env)?.storage;
+      : editorialStorage(env);
     if (storage) privateResult = await readInventoryDrafts(entries, storage);
   } catch {
     /* Published inventory remains available with a recovery warning. */
@@ -30,7 +32,7 @@ export async function loadEditorialInventory(env: unknown) {
   const records = projectEditorialInventory(
     entries,
     privateResult.drafts,
-    recordUpdate,
+    inventory.updated,
   );
   return {
     records,

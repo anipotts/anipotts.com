@@ -4,6 +4,19 @@
   "main": "./editorial-worker.ts",
   "compatibility_date": "2026-09-08",
   "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "CONTENT_DB",
+      "database_name": "editorial-published-test",
+      "database_id": "00000000-0000-0000-0000-000000000001",
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "CONTENT_MEDIA",
+      "bucket_name": "editorial-published-media-test",
+    },
+  ],
   "durable_objects": {
     "bindings": [{ "name": "EDITORIAL", "class_name": "EditorialDraftStore" }],
   },
