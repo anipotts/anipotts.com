@@ -23,12 +23,21 @@ export function editorialImagePreview(src: string): string {
   const id = src.startsWith(editorialMediaPrefix)
     ? src.slice(editorialMediaPrefix.length)
     : "";
-  if (editorialMediaId.test(id)) return `/api/editorial/media?id=${id}`;
-  // Only emit the two accepted URL forms. Keep the path/query bytes intact
-  // rather than HTML-escaping them or double-encoding authored asset URLs.
-  return src.startsWith("/")
-    ? "/" + src.slice(1)
-    : "https://" + src.slice("https://".length);
+  return editorialMediaId.test(id) ? `/api/editorial/media?id=${id}` : src;
+}
+
+/** Attribute serialization for the editor's image preview, separate from
+ * source-path mapping used by public/private preview origin selection. */
+export function editorialImagePreviewUri(src: string): string {
+  const preview = editorialImagePreview(src);
+  try {
+    // URI-encode the DOM-bound value, preserving existing percent escapes
+    // and query separators. This affects previews, never the stored source.
+    return encodeURI(preview).replace(/%25([\da-f]{2})/giu, "%$1");
+  } catch {
+    // Malformed Unicode cannot be represented as an asset URI.
+    return "";
+  }
 }
 
 /** Normalize images copied from the private editor without leaking its API URL. */

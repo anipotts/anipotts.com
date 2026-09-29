@@ -46,7 +46,7 @@ import {
 import { useCaretAboveDock, useKeyboardInset } from "../../lib/keyboard-inset";
 import { safeInlineUrl } from "@anipotts/content/public/inline";
 import { ArticleImageUpload } from "./ArticleImageUpload";
-import { editorialImagePreview } from "../../lib/editorial-media";
+import { editorialImagePreviewUri } from "../../lib/editorial-media";
 
 const imageSelection = (selection: Selection): selection is NodeSelection =>
   selection instanceof NodeSelection && selection.node.type.name === "image";
@@ -571,7 +571,7 @@ function VisualArticleBody({
               label="View full size"
               size="sm"
               variant="ghost"
-              href={editorialImagePreview(
+              href={editorialImagePreviewUri(
                 String(editor?.getAttributes("image").src ?? ""),
               )}
               target="_blank"
@@ -660,7 +660,7 @@ function VisualArticleBody({
                 safeInlineUrl(url, true) && (
                   <img
                     className="article-image-preview"
-                    src={editorialImagePreview(url)}
+                    src={editorialImagePreviewUri(url)}
                     alt={alt}
                   />
                 )}
