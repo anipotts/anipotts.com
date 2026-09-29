@@ -1,3 +1,4 @@
+import { publicContentContext } from "../lib/content";
 import type { APIRoute } from "astro";
 import { siteConfig } from "@anipotts/content/public";
 import {
@@ -7,7 +8,7 @@ import {
   visibleProjects,
 } from "../lib/content";
 
-export const prerender = true;
+export const prerender = false;
 
 const BASE = siteConfig.url;
 
@@ -17,9 +18,11 @@ interface Entry {
   lastmod?: string;
 }
 
-export const GET: APIRoute = async () => {
-  const writingEntries = await publishedWriting();
-  const projects = await visibleProjects();
+export const GET: APIRoute = async (context) => {
+  const writingEntries = await publishedWriting(
+    publicContentContext(context.locals),
+  );
+  const projects = await visibleProjects(publicContentContext(context.locals));
 
   const entries: Entry[] = [
     { path: "/", priority: 1 },
@@ -52,7 +55,7 @@ ${entries
   return new Response(xml, {
     headers: {
       "Content-Type": "application/xml; charset=utf-8",
-      "Cache-Control": "public, max-age=3600",
+      "Cache-Control": "no-store",
     },
   });
 };

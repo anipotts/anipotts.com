@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import test from "node:test";
+import test, { after } from "node:test";
+import { startPublicTestWorker } from "./runtime-worker.mjs";
 
-// Run after the www build; verify emitted markup rather than source spelling.
-const html = readFileSync(
-  new URL("../dist/index.html", import.meta.url),
-  "utf8",
-);
+// Run after the www build; verify served worker markup rather than source spelling.
+const worker = await startPublicTestWorker();
+after(() => worker.stop());
+const response = await fetch(new URL("/", worker.origin));
+assert.equal(response.status, 200);
+const html = await response.text();
 const structured = [
   ...html.matchAll(
     /<script\b[^>]*type="application\/ld\+json"[^>]*>(.*?)<\/script>/gs,

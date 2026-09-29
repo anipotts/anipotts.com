@@ -1,18 +1,20 @@
 ---
 import WorkDetail from "../../components/WorkDetail.astro";
-import { projectSlug, visibleProjects, type Project } from "../../lib/content";
-
-export const prerender = true;
-export async function getStaticPaths() {
-  return (await visibleProjects()).map((project) => ({
-    params: { slug: projectSlug(project) },
-    props: { project },
-  }));
-}
-interface Props {
-  project: Project;
-}
-const { project } = Astro.props;
+import {
+  visibleProjects,
+  projectSlug,
+  publicContentContext,
+} from "../../lib/content";
+export const prerender = false;
+const entries = await visibleProjects(publicContentContext(Astro.locals));
+const project = entries.find(
+  (entry) => projectSlug(entry) === Astro.params.slug,
+);
+if (!project)
+  return new Response("Not found", {
+    status: 404,
+    headers: { "X-Robots-Tag": "noindex", "Cache-Control": "no-store" },
+  });
 ---
 
 <WorkDetail project={project} />

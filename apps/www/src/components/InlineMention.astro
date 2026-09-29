@@ -35,7 +35,7 @@ const {
   visualSuffix,
 } = Astro.props;
 const Tag = href ? "a" : "span";
-const external = Boolean(href && !href.startsWith("/"));
+const external = Boolean(href && /^https:\/\//iu.test(href));
 const hasVisual = Boolean(logoSrc || icon || mark);
 const [firstWord = label, ...remainingWords] = label.trim().split(/\s+/);
 const remainingLabel = remainingWords.join(" ");

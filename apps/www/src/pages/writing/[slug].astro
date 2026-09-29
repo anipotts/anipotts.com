@@ -1,18 +1,18 @@
 ---
 import WritingDetail from "../../components/WritingDetail.astro";
-import { publishedWriting, writingSlug, type Writing } from "../../lib/content";
-
-export const prerender = true;
-export async function getStaticPaths() {
-  return (await publishedWriting()).map((item) => ({
-    params: { slug: writingSlug(item) },
-    props: { item },
-  }));
-}
-interface Props {
-  item: Writing;
-}
-const { item } = Astro.props;
+import {
+  publishedWriting,
+  writingSlug,
+  publicContentContext,
+} from "../../lib/content";
+export const prerender = false;
+const entries = await publishedWriting(publicContentContext(Astro.locals));
+const item = entries.find((entry) => writingSlug(entry) === Astro.params.slug);
+if (!item)
+  return new Response("Not found", {
+    status: 404,
+    headers: { "X-Robots-Tag": "noindex", "Cache-Control": "no-store" },
+  });
 ---
 
-<WritingDetail item={item} />
+<WritingDetail item={item} allWriting={entries} />

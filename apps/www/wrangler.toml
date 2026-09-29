@@ -10,6 +10,8 @@ workers_dev = true
 account_id = "0f856093bdcd34a7da1bde5ee4385163"
 
 [vars]
+# Explicit compatibility mode until the dedicated publication reader is activated.
+CONTENT_MODE = "git"
 NEWSLETTER_BASE_URL = "https://news.anipotts.com"
 NEWSLETTER_FROM = "Ani Potts <news@anipotts.com>"
 NEWSLETTER_REPLY_TO = "contact@anipotts.com"

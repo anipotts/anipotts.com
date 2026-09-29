@@ -1,4 +1,5 @@
 import type { APIRoute } from "astro";
+import { publicationReadiness } from "../../lib/publication-readiness";
 
 export const prerender = false;
 
@@ -12,9 +13,11 @@ export const GET: APIRoute = async ({ locals }) => {
   } catch {
     // Report only availability, never database errors or subscriber data.
   }
+  const content = await publicationReadiness(locals.runtime?.env);
   return Response.json(
     {
       app: "www",
+      ...content,
       ok: tablesOk,
       d1: tablesOk ? "connected" : "error",
       tables_ok: tablesOk,
