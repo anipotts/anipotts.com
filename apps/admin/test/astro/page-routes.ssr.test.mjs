@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import reactRenderer from "@astrojs/react/server.js";
 import { ADMIN_ROUTES } from "../../../../scripts/ci/admin-route-inventory.mjs";
@@ -181,6 +181,21 @@ const pages = [
   url: route + (QUERY[route] ?? ""),
 }));
 
+// Compile the finite inventoried page graph as setup. Lazy glob imports used
+// to charge the first route for every shared Astro/React layout dependency;
+// on a cold CI runner that exhausted its five-second render assertion budget.
+// Keep each actual container render and complete-body assertion in its test.
+const loadedPages = new Map();
+beforeAll(async () => {
+  await Promise.all(
+    [...new Set(pages.map(({ file }) => file))].map(async (file) => {
+      const load = moduleFor(file);
+      // The inventory assertion below still reports any missing route module.
+      if (load) loadedPages.set(file, await load());
+    }),
+  );
+});
+
 async function render({ file, route, url }) {
   const container = await AstroContainer.create();
   container.addServerRenderer({
@@ -191,7 +206,7 @@ async function render({ file, route, url }) {
     name: "@astrojs/react",
     entrypoint: "@astrojs/react/client.js",
   });
-  const page = await moduleFor(file)();
+  const page = loadedPages.get(file);
   return container.renderToResponse(page.default, {
     request: new Request(`https://admin.anipotts.com${url}`),
     params: paramsFor(file, route),
