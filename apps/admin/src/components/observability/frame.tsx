@@ -1,4 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  protectedSessionIsLocked,
+  watchProtectedSession,
+} from "../../lib/protected-admin-json";
+import { workspaceReturnPath } from "../../lib/workspace-navigation";
 import { Button } from "@astryxdesign/core/Button";
 import { Skeleton } from "@astryxdesign/core/Skeleton";
 import { VStack } from "@astryxdesign/core/VStack";
@@ -89,6 +94,8 @@ export type OpsViewProps = {
  * flips between running and stopped.
  */
 export function useOpsData(props: OpsViewProps, withEvents: boolean) {
+  const [sessionLocked, setSessionLocked] = useState(protectedSessionIsLocked);
+  useEffect(() => watchProtectedSession(() => setSessionLocked(true)), []);
   const preview = useMemo(() => {
     if (props.fixture === undefined) return null;
     try {
@@ -167,6 +174,7 @@ export function useOpsData(props: OpsViewProps, withEvents: boolean) {
   );
   return {
     fixtureMode,
+    sessionLocked,
     state,
     snapshot,
     events,
@@ -312,6 +320,26 @@ function OpsNotice({
   view: OpsView;
   retained: boolean;
 }) {
+  if (data.sessionLocked) {
+    return (
+      <StateNotice
+        kind="not-connected"
+        title="Session locked"
+        action={
+          <Button
+            label="Sign in again"
+            size="sm"
+            variant="secondary"
+            href={workspaceReturnPath(
+              "observability",
+              location.pathname + location.search,
+            )}
+            onClick={(event) => event.stopPropagation()}
+          />
+        }
+      />
+    );
+  }
   const { state } = data;
   const notice = data.fixtureMode ? undefined : opsConnectionNotice(state);
   if (notice) {

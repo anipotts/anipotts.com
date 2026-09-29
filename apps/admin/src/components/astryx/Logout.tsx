@@ -1,3 +1,7 @@
+import {
+  lockProtectedSession,
+  protectedAdminJson,
+} from "../../lib/protected-admin-json";
 import React, { useEffect, useRef, useState } from "react";
 import { Heading } from "@astryxdesign/core/Heading";
 import { VStack } from "@astryxdesign/core/VStack";
@@ -51,43 +55,57 @@ export function Logout({
     controller.current = new AbortController();
     setBusy(true);
     setError("");
+    // Revoke local custody before any potentially expired provider request.
+    window.dispatchEvent(new Event(recoveryLogoutKey));
+    lockProtectedSession("logout");
     try {
-      const options = {
-        credentials: "same-origin",
-        cache: "no-store",
-        redirect: "error",
-        signal: controller.current.signal,
-      } as const;
-      const tokenResponse = await fetch("/api/admin/logout", options);
-      if (!tokenResponse.ok) throw new Error("request failed");
-      const token = await tokenResponse.json();
-      if (!active.current) return;
-      if (
-        typeof token.csrf !== "string" ||
-        !token.csrf ||
-        !allowedDestination(token.destination)
-      )
-        throw new Error("invalid response");
-      const response = await fetch("/api/admin/logout", {
-        ...options,
-        method: "POST",
-        headers: { "x-admin-csrf": token.csrf },
-      });
-      if (!response.ok) throw new Error("request failed");
-      const result = await response.json();
-      if (!active.current) return;
-      if (result.ok !== true || !allowedDestination(result.destination))
-        throw new Error("invalid response");
+      let complete = false;
       try {
-        clearEditorialRecovery(window.localStorage);
+        complete = await clearEditorialRecovery(window.localStorage);
       } catch {
-        // Storage denial must not prevent completing server-side sign out.
-        window.dispatchEvent(new Event(recoveryLogoutKey));
+        /* Storage access failure is incomplete cleanup. */
       }
-      navigate(result.destination);
+      if (!active.current) return;
+      if (!complete) throw new Error("cleanup incomplete");
+      const timer = setTimeout(() => controller.current?.abort(), 5000);
+      try {
+        const options = { signal: controller.current.signal };
+        const tokenResponse = await protectedAdminJson(
+          "/api/admin/logout",
+          options,
+          fetch,
+          { allowLocked: true },
+        );
+        if (!tokenResponse.ok) throw new Error("request failed");
+        const token = await tokenResponse.json();
+        if (!active.current) return;
+        if (
+          typeof token.csrf !== "string" ||
+          !token.csrf ||
+          !allowedDestination(token.destination)
+        )
+          throw new Error("invalid response");
+        await protectedAdminJson(
+          "/api/admin/logout",
+          {
+            ...options,
+            method: "POST",
+            headers: { "x-admin-csrf": token.csrf },
+          },
+          fetch,
+          { allowLocked: true },
+        );
+      } catch {
+        /* App cookie cleanup is best effort; Access logout is the next navigation. */
+      } finally {
+        clearTimeout(timer);
+      }
+      if (active.current) navigate("/cdn-cgi/access/logout");
     } catch {
       if (!active.current) return;
-      setError("Sign out did not finish. Try again");
+      setError(
+        "Browser cleanup did not finish. Sign out is incomplete. Try again",
+      );
       pending.current = false;
       setBusy(false);
     }

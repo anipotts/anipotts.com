@@ -3,6 +3,8 @@ import type { RecoverySnapshot } from "./home-autosave";
 import {
   BrowserRecovery,
   browserRecoveryLock,
+  browserRecoveryRecordLock,
+  browserRecoveryLogoutLock,
   recoveryV2Prefix,
   recoveryLogoutGenerationKey,
   utf8Bytes,
@@ -79,28 +81,79 @@ const recoveryKeys = (storage: Storage) =>
   Object.keys(storage).filter(
     (key) => key.startsWith(prefix) || key.startsWith(recoveryV2Prefix),
   );
-/** Logout clears plaintext. The generation is raised BEFORE the sweep so that a
- * write which has not yet passed its in-lock generation check can no longer
- * land; a write already inside its lock can still store bytes after the sweep,
- * so each key is swept again under its own lock. Such an envelope is already
- * unrestorable, because it carries the superseded generation and read() reports
- * it as signed-out, but the plaintext itself must not survive at rest. */
-export function clearEditorialRecovery(storage: Storage) {
-  storage.setItem(recoveryLogoutKey, crypto.randomUUID());
-  for (const key of recoveryKeys(storage)) storage.removeItem(key);
-  window.dispatchEvent(new Event(recoveryLogoutKey));
-  void Promise.all(
-    recoveryKeys(storage).map(async (key) => {
-      const lock = browserRecoveryLock(key);
-      try {
-        if (lock) await lock(() => storage.removeItem(key));
-        else storage.removeItem(key);
-      } catch {
-        // A contended or unavailable lock must not leave the bytes behind.
-        storage.removeItem(key);
+/** Translate every envelope/archive storage key to the writer's v1 identity. */
+function recoveryRecordKey(key: string) {
+  if (key.startsWith(prefix)) return key;
+  const identity = key
+    .slice(recoveryV2Prefix.length)
+    .replace(/:archive:[a-f\d-]{36}$/i, "");
+  return prefix + identity;
+}
+function belongsToGeneration(raw: string, generation: string) {
+  try {
+    const value = JSON.parse(raw);
+    return (
+      value?.format === "anipotts.browser-recovery" &&
+      value.version === 2 &&
+      value.logoutGeneration === generation
+    );
+  } catch {
+    return false;
+  }
+}
+/** Explicit logout invalidates channels first, then awaits coordinated plaintext
+ * removal. A failure never falls back to an unlocked successful logout. Fresh
+ * generation copies are preserved; acknowledged server drafts are untouched. */
+export async function clearEditorialRecovery(
+  storage: Storage,
+): Promise<boolean> {
+  try {
+    const knownRecords = new Set(recoveryKeys(storage).map(recoveryRecordKey));
+    const generation = crypto.randomUUID();
+    storage.setItem(recoveryLogoutKey, generation);
+    if (storage.getItem(recoveryLogoutKey) !== generation) return false;
+    window.dispatchEvent(new Event(recoveryLogoutKey));
+    const barrier = browserRecoveryLogoutLock();
+    if (!barrier) return false;
+    return await barrier(async () => {
+      if (storage.getItem(recoveryLogoutKey) !== generation) return false;
+      // The barrier has drained in-lock writers, including previously absent
+      // records. Queued writers will fail their persisted generation check.
+      for (const key of recoveryKeys(storage))
+        knownRecords.add(recoveryRecordKey(key));
+      for (const record of knownRecords) {
+        const lock = browserRecoveryRecordLock(record);
+        if (!lock) return false;
+        await lock(() => {
+          if (storage.getItem(recoveryLogoutKey) !== generation)
+            throw new Error("Logout changed");
+          for (const key of recoveryKeys(storage)) {
+            if (recoveryRecordKey(key) !== record) continue;
+            const raw = storage.getItem(key);
+            if (raw === null) continue;
+            if (
+              key.startsWith(recoveryV2Prefix) &&
+              belongsToGeneration(raw, generation)
+            )
+              continue;
+            // Storage APIs can be instrumented/reentrant; retain replacements.
+            if (storage.getItem(key) === raw) storage.removeItem(key);
+          }
+        });
       }
-    }),
-  );
+      if (storage.getItem(recoveryLogoutKey) !== generation) return false;
+      return recoveryKeys(storage).every((key) => {
+        const raw = storage.getItem(key);
+        return (
+          raw === null ||
+          (key.startsWith(recoveryV2Prefix) &&
+            belongsToGeneration(raw, generation))
+        );
+      });
+    });
+  } catch {
+    return false;
+  }
 }
 
 export type NewWritingRecovery = {

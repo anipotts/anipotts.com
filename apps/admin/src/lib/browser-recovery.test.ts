@@ -324,3 +324,52 @@ it("ordinary auth expiry does not invent a logout epoch or erase recoverable con
   // Authentication requests may fail, but only explicit logout changes the marker.
   expect(channel(local).read()).toEqual({ status: "ready", value: snapshot });
 });
+
+it("a mounted channel cannot rebind itself to a new logout generation by reading again", async () => {
+  const local = storage();
+  const current = channel(local);
+  current.read();
+  local.setItem(recoveryLogoutGenerationKey, "logout");
+  expect(current.read().status).toBe("signed-out");
+  expect(await current.write(snapshot)).toBe("signed-out");
+});
+it("a logout during storage commit removes only the stale writer's exact bytes", async () => {
+  const local = storage();
+  let replaceWithFresh = false;
+  let intercept = true;
+  const decorated = new Proxy(local, {
+    get(target, name) {
+      if (name !== "setItem") return Reflect.get(target, name);
+      return (storedKey: string, raw: string) => {
+        target.setItem(storedKey, raw);
+        if (storedKey === versionedRecoveryKey(key) && intercept) {
+          intercept = false;
+          target.setItem(recoveryLogoutGenerationKey, "logout-during-commit");
+          if (replaceWithFresh) {
+            const fresh = JSON.parse(raw);
+            fresh.logoutGeneration = "logout-during-commit";
+            fresh.payload = { ...snapshot, source: "fresh" };
+            target.setItem(storedKey, JSON.stringify(fresh));
+          }
+        }
+      };
+    },
+  });
+  const old = channel(decorated);
+  old.read();
+  expect(await old.write(snapshot)).toBe("signed-out");
+  expect(local.getItem(versionedRecoveryKey(key))).toBeNull();
+  const second = channel(decorated);
+  second.read();
+  intercept = true;
+  replaceWithFresh = true;
+  local.setItem(recoveryLogoutGenerationKey, "second-generation");
+  // Bind a distinct channel to the fresh generation before the commit race.
+  const next = channel(decorated);
+  next.read();
+  expect(await next.write(snapshot)).toBe("signed-out");
+  expect(channel(local).read()).toEqual({
+    status: "ready",
+    value: { ...snapshot, source: "fresh" },
+  });
+});

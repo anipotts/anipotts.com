@@ -1,9 +1,10 @@
+import { protectedAdminJson } from "./protected-admin-json";
 import { discardBody } from "./response-body";
 
 /** Browser side of the editorial boundary: the same-origin CSRF token that
  * every owner write and credential issuance carries. */
 export async function readEditorialCsrf(signal?: AbortSignal): Promise<string> {
-  const response = await fetch("/api/editorial/csrf", {
+  const response = await protectedAdminJson("/api/editorial/csrf", {
     credentials: "same-origin",
     cache: "no-store",
     signal,

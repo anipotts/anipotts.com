@@ -1,3 +1,8 @@
+import { editorialReturnPath } from "../../lib/editorial-return-path";
+import {
+  protectedAdminJson,
+  watchProtectedSession,
+} from "../../lib/protected-admin-json";
 import { dispatchEditorialRecordCreated } from "../../lib/editorial-inventory-events";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { VStack } from "@astryxdesign/core/VStack";
@@ -141,6 +146,13 @@ function NewWritingForm({
       : newWritingRecoveryKey(recoveryScope)
     : null;
   const request = useRef<{ key: string; id: string } | null>(null);
+  const latestRecovery = useRef<NewWritingRecovery | null>(null);
+  latestRecovery.current = {
+    title,
+    slug,
+    customSlug,
+    request: request.current,
+  };
   const active = useRef(true);
   const createAbort = useRef<AbortController | null>(null);
   const [loggedOut, setLoggedOut] = useState(false);
@@ -150,18 +162,36 @@ function NewWritingForm({
       if (event instanceof StorageEvent && event.key !== recoveryLogoutKey)
         return;
       active.current = false;
-      recoveryChannel.current?.close();
+      const channel = recoveryChannel.current;
+      if (
+        event instanceof CustomEvent &&
+        event.detail !== "logout" &&
+        channel &&
+        latestRecovery.current
+      )
+        void channel
+          .write(latestRecovery.current)
+          .finally(() => channel.close());
+      else channel?.close();
+      recoveryChannel.current = null;
+      latestRecovery.current = null;
       createAbort.current?.abort();
       request.current = null;
       setLoggedOut(true);
+      setRecoveryRead({ status: "missing" });
       setTitle("");
       setSlug("");
       setError("");
     };
+    const stopWatching = watchProtectedSession((reason) =>
+      logout(new CustomEvent("session-lock", { detail: reason })),
+    );
     window.addEventListener("storage", logout);
     window.addEventListener(recoveryLogoutKey, logout);
     try {
-      if (!recoveryKey) setRecoveryFailed(true);
+      if (!active.current) {
+        /* A locked document must never restore recovery into memory. */
+      } else if (!recoveryKey) setRecoveryFailed(true);
       else {
         const channel = writingRecovery(localStorage, recoveryKey);
         recoveryChannel.current = channel;
@@ -185,6 +215,7 @@ function NewWritingForm({
     }
     setRestored(true);
     return () => {
+      stopWatching();
       active.current = false;
       recoveryChannel.current?.close();
       createAbort.current?.abort();
@@ -250,7 +281,7 @@ function NewWritingForm({
         );
       });
       if (!active.current || abort.signal.aborted) return;
-      const response = await fetch(
+      const response = await protectedAdminJson(
         `/api/editorial/create?kind=${recordKind}&id=${encodeURIComponent(slug)}`,
         {
           method: "POST",
@@ -312,6 +343,19 @@ function NewWritingForm({
       : taken
         ? error
         : undefined;
+  if (loggedOut)
+    return (
+      <VStack gap={3}>
+        <Banner
+          status="warning"
+          title="Session ended. Sign in again to resume."
+        />
+        <Button
+          href={editorialReturnPath(location.pathname + location.search)}
+          label="Sign in again"
+        />
+      </VStack>
+    );
   return (
     <form
       ref={form}

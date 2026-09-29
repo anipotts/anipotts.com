@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { jsonResponse } from "../../lib/test-json-response";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { Editor } from "@tiptap/react";
@@ -99,12 +100,9 @@ function stubCropTransport() {
           new Blob([new Uint8Array(originals[input]!)], { type: "image/png" }),
       };
     if (input === "/api/editorial/csrf")
-      return { ok: true, json: async () => ({ csrf: "test-only" }) };
+      return jsonResponse(JSON.stringify({ csrf: "test-only" }));
     if (input === "/api/editorial/media")
-      return {
-        ok: true,
-        json: async () => ({ ok: true, media: { id: cropped } }),
-      };
+      return jsonResponse(JSON.stringify({ ok: true, media: { id: cropped } }));
     throw new Error(`unexpected request ${input}`);
   });
   vi.stubGlobal("fetch", fetcher);

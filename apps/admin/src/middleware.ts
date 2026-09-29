@@ -39,6 +39,8 @@ function isEditorialPath(pathname: string): boolean {
 /** Owner responses are never cached or indexed, and a local owner is never framed. */
 function withPrivateHeaders(response: Response, localOwner: boolean) {
   response.headers.set("Cache-Control", "private, no-store");
+  response.headers.set("CDN-Cache-Control", "no-store");
+  response.headers.set("Cloudflare-CDN-Cache-Control", "no-store");
   response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
   if (localOwner) denyLocalOwnerFraming(response.headers);
   return response;
@@ -51,7 +53,7 @@ async function handleRequest(
   const { pathname } = context.url;
   // Sign out verifies the Access assertion itself.
   if (pathname === "/api/admin/logout" || pathname === "/auth/logout")
-    return next();
+    return withPrivateHeaders(await next(), false);
   // The reader canary admits exactly one Access service token, which its
   // route verifies against its own Access application. No owner is involved.
   if (pathname === PRIVATE_READER_CANARY_PATH)
@@ -98,7 +100,7 @@ async function handleRequest(
       url: context.url,
     })
   ) {
-    return next();
+    return withPrivateHeaders(await next(), false);
   }
 
   if (isPublicAdminPath(pathname)) return next();
@@ -115,7 +117,10 @@ async function handleRequest(
     return adminJson({ error: "admin_session_required" }, { status: 401 });
 
   const nextPath = encodeURIComponent(`${pathname}${context.url.search}`);
-  return context.redirect(`/auth?next=${nextPath}`, 302);
+  return withPrivateHeaders(
+    context.redirect(`/auth?next=${nextPath}`, 302),
+    false,
+  );
 }
 
 // Loaders record durations and counts on the request. The header is written

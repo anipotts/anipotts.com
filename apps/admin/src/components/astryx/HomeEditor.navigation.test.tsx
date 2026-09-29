@@ -1,3 +1,4 @@
+import { jsonResponse } from "../../lib/test-json-response";
 // @vitest-environment jsdom
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -120,7 +121,7 @@ const snapshot = {
   publishing: "ready",
 };
 function response(data: unknown) {
-  return new Response(JSON.stringify(data));
+  return jsonResponse(JSON.stringify(data));
 }
 async function mount(search = "", localPreview = true, withIdentity = false) {
   window.history.replaceState(null, "", `/content/writing/test${search}`);

@@ -615,3 +615,29 @@ describe("explicit review checkpoint", () => {
     expect(editor.state.revision).toBe(4);
   });
 });
+
+it("does not restore plaintext or notify after disposed in-flight save", async () => {
+  let finish!: (value: SaveResult) => void;
+  const notify = vi.fn();
+  const send = vi.fn(
+    () =>
+      new Promise<SaveResult>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const editor = new HomeAutosave("saved", 1, send, notify);
+  editor.edit("private pending");
+  const pending = editor.flush();
+  editor.dispose();
+  notify.mockClear();
+  finish({ ok: true, draft: draft("private pending", 2) });
+  await pending;
+  expect(editor.recovery()).toMatchObject({
+    source: "",
+    saved: "",
+    pending: null,
+  });
+  expect(notify).not.toHaveBeenCalled();
+  await editor.flush();
+  expect(send).toHaveBeenCalledTimes(1);
+});

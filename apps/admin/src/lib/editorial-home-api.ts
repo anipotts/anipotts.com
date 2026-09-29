@@ -1,3 +1,4 @@
+import { adminMutationOrigin } from "./admin-request-origin";
 import { z } from "astro/zod";
 import { EDITORIAL_OWNER_EMAIL } from "./editorial-owner";
 import {
@@ -175,7 +176,10 @@ export async function homeEditorApi(
   }
   if (request.method !== "POST")
     return json({ error: "method_not_allowed" }, 405);
-  const rejection = checkEditorialMutation(request, url.origin);
+  const rejection = checkEditorialMutation(
+    request,
+    adminMutationOrigin(request),
+  );
   if (rejection) return json({ error: rejection }, 403);
   let body: unknown;
   try {

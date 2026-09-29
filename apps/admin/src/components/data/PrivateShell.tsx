@@ -1,4 +1,11 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "@astryxdesign/core/Button";
+import { StateNotice } from "../workspace/Workspace";
+import {
+  protectedSessionIsLocked,
+  watchProtectedSession,
+} from "../../lib/protected-admin-json";
+import { workspaceReturnPath } from "../../lib/workspace-navigation";
 import { AdminOverview } from "../overview/AdminOverview";
 import { DataWorkspace, type DataNavigate } from "./DataWorkspace";
 import { HealthView } from "./HealthView";
@@ -74,6 +81,19 @@ export function PrivateShell({
   healthSession?: PrivateReaderSession;
   fetch?: typeof fetch;
 } & OpsViewProps) {
+  const [locked, setLocked] = useState(protectedSessionIsLocked);
+  const inactive = useRef(locked);
+  const stopRoutes = useRef<(() => void) | null>(null);
+  useEffect(
+    () =>
+      watchProtectedSession(() => {
+        inactive.current = true;
+        stopRoutes.current?.();
+        stopRoutes.current = null;
+        setLocked(true);
+      }),
+    [],
+  );
   const overview = content !== undefined;
   const resolve = useCallback(
     (url: URL) => shellRoute(url, { overview }),
@@ -89,7 +109,9 @@ export function PrivateShell({
       },
   );
   useEffect(() => {
+    if (inactive.current || protectedSessionIsLocked()) return;
     const show = (url: URL, top: boolean) => {
+      if (inactive.current || protectedSessionIsLocked()) return;
       const next = resolve(url);
       if (!next) return;
       setRoute(next);
@@ -97,18 +119,24 @@ export function PrivateShell({
       if (top) scrollTop();
     };
     const unregister = registerClientRoutes({
-      handles: (url) => resolve(url) !== null,
+      handles: (url) =>
+        !inactive.current &&
+        !protectedSessionIsLocked() &&
+        resolve(url) !== null,
       show: (url) => show(url, true),
     });
     const back = () => show(new URL(window.location.href), false);
     window.addEventListener("popstate", back);
-    return () => {
+    const stop = () => {
       unregister();
       window.removeEventListener("popstate", back);
     };
+    stopRoutes.current = stop;
+    return stop;
   }, [resolve]);
   const navigate = useCallback<DataNavigate>(
     (href, options = {}) => {
+      if (inactive.current || protectedSessionIsLocked()) return;
       if (!options.replace) {
         if (!clientNavigate(href)) window.location.assign(href);
         return;
@@ -121,6 +149,25 @@ export function PrivateShell({
     },
     [resolve],
   );
+  if (locked) {
+    const path =
+      location.pathname === "/"
+        ? "/"
+        : workspaceReturnPath("data", location.pathname + location.search);
+    return (
+      <StateNotice
+        kind="not-connected"
+        title="Session ended"
+        action={
+          <Button
+            label="Sign in again"
+            href={path}
+            onClick={(event) => event.stopPropagation()}
+          />
+        }
+      />
+    );
+  }
   return (
     <FixtureOriginContext.Provider value={ops.fixtureOrigin ?? SAMPLE_ORIGIN}>
       <div onClick={onClientLinkClick}>

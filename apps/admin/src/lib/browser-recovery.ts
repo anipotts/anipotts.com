@@ -2,6 +2,7 @@ import { MAX_SOURCE_BYTES } from "@anipotts/content/editorial/record";
 
 /** v1 remains readable by old tabs. New writers never mutate that namespace. */
 export const recoveryLogoutGenerationKey = "editorial-recovery:logout";
+export const recoveryLifecycleLockName = "editorial-recovery:lifecycle";
 export const recoveryV2Prefix = "editorial-recovery:v2:";
 const format = "anipotts.browser-recovery";
 // Per-origin localStorage is about 5 MB in Chrome, Firefox and Safari, and this
@@ -43,6 +44,7 @@ export class BrowserRecovery<T> {
   private raw: string | null = null;
   private legacyRaw: string | null = null;
   private logoutGeneration: string | null = null;
+  private generationBound = false;
   private state: RecoveryRead<T> = { status: "missing" };
   private queue: Promise<unknown> = Promise.resolve();
   private closed = false;
@@ -58,9 +60,13 @@ export class BrowserRecovery<T> {
   }
   read(): RecoveryRead<T> {
     try {
+      const generation = this.storage.getItem(recoveryLogoutGenerationKey);
+      if (this.generationBound && generation !== this.logoutGeneration)
+        return (this.state = { status: "signed-out" });
+      this.logoutGeneration = generation;
+      this.generationBound = true;
       this.raw = this.storage.getItem(this.key);
       this.legacyRaw = this.storage.getItem(this.legacyKey);
-      this.logoutGeneration = this.storage.getItem(recoveryLogoutGenerationKey);
       if (this.raw === null) {
         if (this.legacyRaw === null)
           return (this.state = { status: "missing" });
@@ -208,14 +214,29 @@ export class BrowserRecovery<T> {
             logoutGeneration: this.logoutGeneration,
           });
           if (utf8Bytes(raw) > maxEnvelopeBytes) return "oversized";
+          let archive: { key: string; raw: string } | null = null;
           if (explicitChoice && this.raw !== null) {
-            this.storage.setItem(
-              `${this.key}:archive:${crypto.randomUUID()}`,
-              this.raw,
-            );
+            archive = {
+              key: `${this.key}:archive:${crypto.randomUUID()}`,
+              raw: this.raw,
+            };
+            this.storage.setItem(archive.key, archive.raw);
             this.pruneArchives();
           }
           this.storage.setItem(this.key, raw);
+          // A different tab can advance logout during synchronous storage calls.
+          // Remove only this writer's bytes, never a fresh channel's replacement.
+          if (
+            this.storage.getItem(recoveryLogoutGenerationKey) !==
+            this.logoutGeneration
+          ) {
+            if (this.storage.getItem(this.key) === raw)
+              this.storage.removeItem(this.key);
+            if (archive && this.storage.getItem(archive.key) === archive.raw)
+              this.storage.removeItem(archive.key);
+            this.state = { status: "signed-out" };
+            return "signed-out";
+          }
           this.raw = raw;
           this.state = value
             ? { status: "ready", value }
@@ -250,12 +271,36 @@ export class BrowserRecovery<T> {
     );
   }
 }
+/** All writers enter shared lifecycle admission before their existing record
+ * lock. Logout takes the exclusive barrier, including writers of absent keys. */
 export function browserRecoveryLock(key: string): RecoveryLock | null {
+  const recordLock = browserRecoveryRecordLock(key);
+  return recordLock && typeof navigator !== "undefined" && navigator.locks
+    ? async (task) =>
+        navigator.locks.request(
+          recoveryLifecycleLockName,
+          { mode: "shared", signal: AbortSignal.timeout(2000) },
+          () => recordLock(task),
+        )
+    : null;
+}
+/** Cleanup already owns exclusive lifecycle admission; do not reacquire it. */
+export function browserRecoveryRecordLock(key: string): RecoveryLock | null {
   return typeof navigator !== "undefined" && navigator.locks
     ? async (task) =>
-        await navigator.locks.request(
+        navigator.locks.request(
           `editorial-recovery:${key}`,
           { signal: AbortSignal.timeout(2000) },
+          task,
+        )
+    : null;
+}
+export function browserRecoveryLogoutLock(): RecoveryLock | null {
+  return typeof navigator !== "undefined" && navigator.locks
+    ? async (task) =>
+        navigator.locks.request(
+          recoveryLifecycleLockName,
+          { mode: "exclusive", signal: AbortSignal.timeout(2000) },
           task,
         )
     : null;

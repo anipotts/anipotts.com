@@ -13,13 +13,11 @@ import {
   privateReaderPath,
   readerFetch,
 } from "./private-reader-fetch";
-import {
-  createPrivateReaderSession,
-  type PrivateReaderSession,
-} from "./private-reader-client";
+import type { PrivateReaderSession } from "./private-reader-client";
+let createPrivateReaderSession: typeof import("./private-reader-client").createPrivateReaderSession;
 import { PRIVATE_READER_AUDIENCE } from "./private-reader-credential";
-import { PrivateShell } from "../components/data/PrivateShell";
-import { RecordPanel } from "../components/data/RecordPanel";
+let PrivateShell: typeof import("../components/data/PrivateShell").PrivateShell;
+let RecordPanel: typeof import("../components/data/RecordPanel").RecordPanel;
 import { parseRecord } from "../components/data/data-model";
 
 // Synthetic fixtures only, shaped like the System adapter examples in the
@@ -141,7 +139,11 @@ function makeSession(
 
 let root: Root;
 let container: HTMLElement;
-beforeEach(() => {
+beforeEach(async () => {
+  vi.resetModules();
+  ({ createPrivateReaderSession } = await import("./private-reader-client"));
+  ({ PrivateShell } = await import("../components/data/PrivateShell"));
+  ({ RecordPanel } = await import("../components/data/RecordPanel"));
   issued = 0;
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -917,35 +919,59 @@ describe("private Data workspace", () => {
     expect(container.textContent).not.toContain("Synthetic note");
   });
 
-  it("shows denied and failed issuance distinctly, and retries in place", async () => {
-    // A failed issuance is admin's hop: ap-mini was never asked (A-26).
-    for (const [status, title] of [
-      [401, "Access refused"],
-      [503, "Credential not issued"],
-      [500, "Credential not issued"],
-    ] as const) {
-      const fetcher = vi.fn(async () =>
-        json({ error: "fixture" }, status),
-      ) as unknown as typeof fetch;
-      const session = makeSession(fetcher);
+  it.each([503, 500])(
+    "distinguishes unavailable issuance %s and permits explicit retry",
+    async (status) => {
+      const fetcher = vi.fn(async () => json({ error: "fixture" }, status));
+      const session = makeSession(fetcher as typeof fetch);
       await act(async () =>
-        root.render(
-          <React.Fragment key={status}>
-            {shell(session, fetcher)}
-          </React.Fragment>,
-        ),
+        root.render(shell(session, fetcher as typeof fetch)),
       );
       await settle();
       await settle();
-      expect(container.textContent).toContain(title);
+      expect(container.textContent).toContain("Credential not issued");
       expect(container.querySelector('[role="alert"]')).not.toBeNull();
+      const before = fetcher.mock.calls.length;
       await click("Try again");
-      // The notice stays in place while the retry runs.
-      expect(container.textContent).toContain(title);
       await act(() => new Promise((resolve) => setTimeout(resolve, 450)));
-      expect(container.textContent).toContain(title);
-    }
-  });
+      expect(fetcher.mock.calls.length).toBeGreaterThan(before);
+      expect(container.textContent).toContain("Credential not issued");
+    },
+  );
+  it.each([401, 403])(
+    "locks owner refusal %s and offers fresh-document reentry without replay",
+    async (status) => {
+      const fetcher = vi.fn<typeof fetch>(async () =>
+        json({ error: "unauthorized" }, status),
+      );
+      const session = makeSession(fetcher);
+      await act(async () => root.render(shell(session, fetcher)));
+      await settle();
+      await settle();
+      expect(container.textContent).toContain("Session ended");
+      const reentry = [...container.querySelectorAll("a")].find((link) =>
+        link.textContent?.includes("Sign in again"),
+      );
+      expect(reentry?.getAttribute("href")).toBe("/data/records");
+      // The shell normally intercepts Data anchors. Reentry must bubble no
+      // farther than the link, leaving its default real-document navigation.
+      const intercepted = vi.fn();
+      document.addEventListener("click", intercepted);
+      reentry!.addEventListener("click", (event) => event.preventDefault(), {
+        once: true,
+      });
+      await act(async () => reentry!.click());
+      expect(intercepted).not.toHaveBeenCalled();
+      document.removeEventListener("click", intercepted);
+      expect(container.textContent).not.toContain("Try again");
+      expect(fetcher).toHaveBeenCalledTimes(1);
+      await settle();
+      expect(fetcher).toHaveBeenCalledTimes(1);
+      // A fresh document is required; retrying the same session cannot bypass it.
+      await session.start();
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("shows an unavailable reader instead of an empty store", async () => {
     const { fetcher } = network(() =>
@@ -967,7 +993,7 @@ describe("private Data workspace", () => {
     expect(container.textContent).not.toContain("ap-mini unreachable");
   });
 
-  it("touches no persistence API across a full session", async () => {
+  it("persists no private data and reads only logout generation metadata", async () => {
     const storage = [
       vi.spyOn(Storage.prototype, "setItem"),
       vi.spyOn(Storage.prototype, "getItem"),
@@ -989,8 +1015,11 @@ describe("private Data workspace", () => {
     await click("Synthetic note");
     await settle();
     await click("Lock session");
-    for (const spy of [...storage, idb, cacheOpen, register])
+    for (const spy of [storage[0], idb, cacheOpen, register])
       expect(spy).not.toHaveBeenCalled();
+    const { recoveryLogoutGenerationKey } = await import("./browser-recovery");
+    for (const [key] of storage[1]!.mock.calls)
+      expect(key).toBe(recoveryLogoutGenerationKey);
     expect(window.localStorage.length).toBe(0);
     expect(window.sessionStorage.length).toBe(0);
     delete (navigator as { serviceWorker?: unknown }).serviceWorker;
