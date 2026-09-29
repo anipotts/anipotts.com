@@ -5,15 +5,15 @@ import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { newProjectSource } from "../../lib/project-draft";
 import { newWritingSource } from "../../lib/writing-draft";
-import * as navigation from "../../lib/editorial-navigation";
-import { HomeEditor } from "./HomeEditor";
-import { useWorkspaceMemory } from "./EditorialWorkspaceShell";
+let navigation: typeof import("../../lib/editorial-navigation");
+let HomeEditor: (typeof import("./HomeEditor"))["HomeEditor"];
+let useWorkspaceMemory: (typeof import("./EditorialWorkspaceShell"))["useWorkspaceMemory"];
+let EditorialApp: (typeof import("./EditorialApp"))["EditorialApp"];
 
 function WorkspaceMemory() {
   useWorkspaceMemory("content");
   return null;
 }
-import { EditorialApp } from "./EditorialApp";
 import { recoveryKey, draftRecovery } from "../../lib/draft-recovery";
 import {
   versionedRecoveryKey,
@@ -94,6 +94,28 @@ vi.mock("./ReviewChanges", async (importOriginal) => ({
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 let root: Root;
 let host: HTMLDivElement;
+let stopDocumentListeners: (() => void) | undefined;
+let discardDocumentListeners: (() => void) | undefined;
+let viewCreated = false;
+
+// Compile the real graph outside bounded per-document setup. Each fixture then
+// imports new module instances so logout authority never leaks between documents.
+await Promise.all([
+  import("./HomeEditor"),
+  import("./EditorialApp"),
+  import("../../lib/editorial-navigation"),
+  import("./EditorialWorkspaceShell"),
+]);
+async function loadDocumentModules() {
+  vi.resetModules();
+  [{ HomeEditor }, { EditorialApp }, navigation, { useWorkspaceMemory }] =
+    await Promise.all([
+      import("./HomeEditor"),
+      import("./EditorialApp"),
+      import("../../lib/editorial-navigation"),
+      import("./EditorialWorkspaceShell"),
+    ]);
+}
 // Already public, so the review's visibility preparation leaves it unchanged.
 const source =
   newWritingSource("Original title")
@@ -170,7 +192,30 @@ async function menuItem(label: string) {
   expect(item, label).toBeTruthy();
   await act(async () => item!.click());
 }
-beforeEach(() => {
+beforeEach(async () => {
+  viewCreated = false;
+  localStorage.clear();
+  const listeners: [
+    string,
+    EventListenerOrEventListenerObject,
+    boolean | AddEventListenerOptions | undefined,
+  ][] = [];
+  const add = window.addEventListener.bind(window);
+  const remove = window.removeEventListener.bind(window);
+  const registration = vi
+    .spyOn(window, "addEventListener")
+    .mockImplementation((type, listener, options) => {
+      if (listener) listeners.push([type, listener, options]);
+      add(type, listener, options);
+    });
+  discardDocumentListeners = () => {
+    for (const [type, listener, options] of listeners.splice(0))
+      remove(type, listener, options);
+  };
+  stopDocumentListeners = () => {
+    discardDocumentListeners?.();
+    registration.mockRestore();
+  };
   vi.stubGlobal("React", React);
   vi.stubGlobal(
     "matchMedia",
@@ -200,16 +245,22 @@ beforeEach(() => {
       return response(snapshot);
     }),
   );
+  await loadDocumentModules();
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
+  viewCreated = true;
 });
-afterEach(() => {
-  act(() => root.unmount());
-  host.remove();
-  localStorage.clear();
-  vi.unstubAllGlobals();
-  vi.restoreAllMocks();
+afterEach(async () => {
+  try {
+    if (viewCreated) await act(async () => root.unmount());
+  } finally {
+    if (viewCreated) host.remove();
+    stopDocumentListeners?.();
+    localStorage.clear();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  }
 });
 it("deep-linked preview loads the saved revision and keeps the same document through popstate", async () => {
   await mount("?view=preview&theme=dark");
@@ -723,6 +774,10 @@ it("does not replay recovery from before an old-tab logout when no event was rec
     recoveryLogoutGenerationKey,
     "logged-out-in-old-browser-tab",
   );
+  // This mount represents a fresh owner document after the other tab signed out.
+  // The stored envelope still carries the previous generation and must be refused.
+  discardDocumentListeners?.();
+  await loadDocumentModules();
   const raw = localStorage.getItem(versionedRecoveryKey(key));
   const fetcher = vi.fn(async () =>
     response({ ...snapshot, recoveryScope: "recovery-owner" }),

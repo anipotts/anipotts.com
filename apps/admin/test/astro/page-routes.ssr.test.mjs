@@ -254,18 +254,24 @@ describe("every Admin page server-renders with the readers on", () => {
       }
     }
     if (page.route === "/" || page.route === "/preview/standalone") {
-      const head = html.slice(html.indexOf("<head"), html.indexOf("</head>"));
-      const firstScript = /<script\b[^>]*>([\s\S]*?)<\/script>/.exec(head);
-      expect(firstScript?.[1]).toContain("__adminDocumentSession");
-      const bootstrap = head.indexOf("__adminDocumentSession");
-      const blocking = head.search(
-        /<style\b|<link\b[^>]*rel=["']stylesheet["']/,
-      );
-      if (blocking >= 0) expect(bootstrap).toBeLessThan(blocking);
-      const hydration = html.indexOf("<astro-island");
-      if (hydration >= 0)
-        expect(html.indexOf("__adminDocumentSession")).toBeLessThan(hydration);
-      expect(html).toContain("data-admin-private-document");
+      const parsed = new JSDOM(html);
+      try {
+        const document = parsed.window.document;
+        const bootstrap = document.head.querySelector("script");
+        expect(bootstrap?.textContent).toContain("__adminDocumentSession");
+        const follows = parsed.window.Node.DOCUMENT_POSITION_FOLLOWING;
+        for (const blocker of document.querySelectorAll(
+          'style,link[rel="stylesheet"],astro-island',
+        ))
+          expect(bootstrap.compareDocumentPosition(blocker) & follows).toBe(
+            follows,
+          );
+        expect(
+          document.querySelector("[data-admin-private-document]"),
+        ).not.toBeNull();
+      } finally {
+        parsed.window.close();
+      }
     }
     if (page.route === "/auth" || page.route === "/auth/logout")
       expect(html).not.toContain("__adminDocumentSession");
