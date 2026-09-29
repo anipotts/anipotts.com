@@ -4,12 +4,23 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import fixture from "../../fixtures/data_v1.synthetic.json";
 
+// Compile the finite real component graph at collection, before each synthetic
+// document's bounded setup. Module resets below still give every document fresh
+// session and route authority rather than reusing the preloaded instances.
+await Promise.all([
+  import("../../lib/protected-admin-json"),
+  import("../../lib/client-routes"),
+  import("./PrivateShell"),
+]);
+
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 let auth: typeof import("../../lib/protected-admin-json");
 let routes: typeof import("../../lib/client-routes");
 let PrivateShell: (typeof import("./PrivateShell"))["PrivateShell"];
 let host: HTMLDivElement;
 let root: Root;
+let viewCreated = false;
+let stopDocumentListeners: (() => void) | undefined;
 const content = [
   {
     title: "Synthetic unpublished private sentinel",
@@ -19,6 +30,8 @@ const content = [
   },
 ];
 beforeEach(async () => {
+  viewCreated = false;
+  stopDocumentListeners = undefined;
   vi.resetModules();
   window.matchMedia = () =>
     ({
@@ -36,18 +49,45 @@ beforeEach(async () => {
   );
   localStorage.clear();
   history.replaceState(null, "", "/");
-  auth = await import("../../lib/protected-admin-json");
-  routes = await import("../../lib/client-routes");
-  ({ PrivateShell } = await import("./PrivateShell"));
+  // Discard listeners with the synthetic document, including module-owned
+  // lifecycle listeners that React unmount alone does not retire.
+  const listeners: [
+    string,
+    EventListenerOrEventListenerObject,
+    boolean | AddEventListenerOptions | undefined,
+  ][] = [];
+  const add = window.addEventListener.bind(window);
+  const remove = window.removeEventListener.bind(window);
+  const registration = vi
+    .spyOn(window, "addEventListener")
+    .mockImplementation((type, listener, options) => {
+      if (listener) listeners.push([type, listener, options]);
+      add(type, listener, options);
+    });
+  stopDocumentListeners = () => {
+    for (const [type, listener, options] of listeners)
+      remove(type, listener, options);
+    registration.mockRestore();
+  };
+  [auth, routes, { PrivateShell }] = await Promise.all([
+    import("../../lib/protected-admin-json"),
+    import("../../lib/client-routes"),
+    import("./PrivateShell"),
+  ]);
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
+  viewCreated = true;
 });
 afterEach(async () => {
-  await act(async () => root.unmount());
-  host.remove();
-  vi.unstubAllGlobals();
-  history.replaceState(null, "", "/");
+  try {
+    if (viewCreated) await act(async () => root.unmount());
+  } finally {
+    if (viewCreated) host.remove();
+    stopDocumentListeners?.();
+    vi.unstubAllGlobals();
+    history.replaceState(null, "", "/");
+  }
 });
 
 it.each(["expired", "denied", "logout"] as const)(
