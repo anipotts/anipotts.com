@@ -1,3 +1,9 @@
+import {
+  safeContactLinkUrl,
+  safeContentLinkUrl,
+  safeHttpsUrl,
+  safeLocalAssetUrl,
+} from "./urls.js";
 import type {
   CmsEditorLink,
   CmsProjectContent,
@@ -110,18 +116,6 @@ function normalizeLinks(value: unknown): CmsEditorLink[] {
     .slice(0, 4);
 }
 
-function isSafeCmsUrl(url: string): boolean {
-  if (!url || /[\u0000-\u001f\u007f\s]/.test(url)) return false;
-  if (url.startsWith("/")) return !url.startsWith("//");
-  if (!url.startsWith("https://") && !url.startsWith("mailto:")) return false;
-  try {
-    const parsed = new URL(url);
-    return ["https:", "mailto:"].includes(parsed.protocol);
-  } catch {
-    return false;
-  }
-}
-
 function validateCmsString(
   value: string,
   label: string,
@@ -145,7 +139,7 @@ function validateCmsLinks(
         CMS_TEXT_LIMITS.linkLabel,
       ) ??
       validateCmsString(link.url, `${owner} link`, CMS_TEXT_LIMITS.linkUrl) ??
-      (!isSafeCmsUrl(link.url)
+      (!safeContactLinkUrl(link.url)
         ? `${owner} link must start with /, https://, or mailto:`
         : null);
     if (error) return error;
@@ -300,17 +294,17 @@ export function validateCmsProject(project: CmsProjectContent): {
     (!project.identity.logo_src && !project.identity.icon
       ? "Project identity requires a logo or icon"
       : null) ??
-    (project.identity.logo_src && !project.identity.logo_src.startsWith("/")
+    (project.identity.logo_src && !safeLocalAssetUrl(project.identity.logo_src)
       ? "Project logo must use a local path"
       : null) ??
-    (project.preview_media && !project.preview_media.src.startsWith("/")
+    (project.preview_media && !safeLocalAssetUrl(project.preview_media.src)
       ? "Project preview media must use a local path"
       : null) ??
     project.story
       .map((section) =>
         !section.title.trim() || section.paragraphs.length === 0
           ? "Project story sections require a title and paragraph"
-          : section.media && !section.media.src.startsWith("/")
+          : section.media && !safeLocalAssetUrl(section.media.src)
             ? "Project story media must use a local path"
             : null,
       )
@@ -540,10 +534,10 @@ export function validateNewsletterContent(content: NewsletterContent): {
     ) ??
     validateCmsString(content.reply_to, "Reply-to", CMS_TEXT_LIMITS.sender);
   if (error) return { ok: false, error };
-  if (content.buttondown_url && !isSafeCmsUrl(content.buttondown_url)) {
+  if (content.buttondown_url && !safeHttpsUrl(content.buttondown_url)) {
     return { ok: false, error: "Newsletter URL is invalid" };
   }
-  if (!isSafeCmsUrl(content.archive_url)) {
+  if (!safeContentLinkUrl(content.archive_url)) {
     return { ok: false, error: "Newsletter archive URL is invalid" };
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(content.sender_email)) {
@@ -680,7 +674,7 @@ function validateListingHeroLink(content: ListingPageContent): string | null {
       "Listing page hero link",
       CMS_TEXT_LIMITS.linkUrl,
     ) ??
-    (!isSafeCmsUrl(content.hero_link_href ?? "")
+    (!safeContactLinkUrl(content.hero_link_href ?? "")
       ? "Listing page hero link must start with /, https://, or mailto:"
       : null)
   );

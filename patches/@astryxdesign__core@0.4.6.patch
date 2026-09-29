@@ -12,7 +12,7 @@ index 1243d875..a49fa114 100644
    focusTrigger = 'auto',
    touchTrigger = 'auto',
 diff --git a/src/Tooltip/useTooltip.tsx b/src/Tooltip/useTooltip.tsx
-index 79e17725..68af0b03 100644
+index 79e17725..c6c72973 100644
 --- a/src/Tooltip/useTooltip.tsx
 +++ b/src/Tooltip/useTooltip.tsx
 @@ -41,12 +41,6 @@ import {
@@ -82,7 +82,20 @@ index 79e17725..68af0b03 100644
  
    const handleFocusIn = useCallback(
      (e: Event) => {
-@@ -557,7 +554,7 @@ export function useTooltip(options: TooltipOptions = {}): TooltipReturn {
+@@ -396,7 +393,11 @@ export function useTooltip(options: TooltipOptions = {}): TooltipReturn {
+         return;
+       }
+       clearTimeouts();
+-      layer.show();
++      // Native popover dismissal can restore focus while its top-layer
++      // operation is still active. Defer only this focus-triggered show.
++      showTimeoutRef.current = setTimeout(() => {
++        layer.show();
++      }, 0);
+     },
+     [isEnabled, touch, clearTimeouts, layer],
+   );
+@@ -557,7 +558,7 @@ export function useTooltip(options: TooltipOptions = {}): TooltipReturn {
        const renderProps = {
          placement: renderPlacement,
          alignment: props?.alignment ?? alignment,
@@ -172,7 +185,7 @@ index bfb7c650..a05ca6b0 100644
    focusTrigger = 'auto',
    touchTrigger = 'auto',
 diff --git a/dist/Tooltip/useTooltip.js b/dist/Tooltip/useTooltip.js
-index 7ea137f1..2bac9527 100644
+index 7ea137f1..90c1ea9f 100644
 --- a/dist/Tooltip/useTooltip.js
 +++ b/dist/Tooltip/useTooltip.js
 @@ -21,13 +21,7 @@ import { isImeKeyEvent } from "../utils/ime.js";
@@ -243,7 +256,20 @@ index 7ea137f1..2bac9527 100644
    const handleFocusIn = useCallback(e => {
      if (!isEnabled) {
        return;
-@@ -352,7 +349,7 @@ export function useTooltip(options = {}) {
+@@ -223,7 +220,11 @@ export function useTooltip(options = {}) {
+       return;
+     }
+     clearTimeouts();
+-    layer.show();
++    // Native popover dismissal can restore focus while its top-layer
++    // operation is still active. Defer only this focus-triggered show.
++    showTimeoutRef.current = setTimeout(() => {
++      layer.show();
++    }, 0);
+   }, [isEnabled, touch, clearTimeouts, layer]);
+   const handleFocusOut = useCallback(() => {
+     scheduleHide();
+@@ -352,7 +353,7 @@ export function useTooltip(options = {}) {
      const renderProps = {
        placement: renderPlacement,
        alignment: props?.alignment ?? alignment,

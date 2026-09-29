@@ -1,5 +1,12 @@
 import { inlinePlainText } from "./inline.ts";
 import { z } from "zod";
+import { safeContentLinkUrl, safeLocalAssetUrl } from "./urls.ts";
+const contentLink = z.string().refine(safeContentLinkUrl, {
+  message: "Use an internal path, #anchor, or HTTPS URL without credentials",
+});
+const localAsset = z.string().refine(safeLocalAssetUrl, {
+  message: "Use a local asset path beginning with one /",
+});
 const status = z.enum(["draft", "scheduled", "published"]);
 export const publicSlugSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 const phosphor = z
@@ -9,7 +16,7 @@ const phosphor = z
 
 const projectMedia = z.object({
   kind: z.enum(["image", "gif", "video"]),
-  src: z.string().startsWith("/"),
+  src: localAsset,
   alt: z.string().min(1),
   caption: z.string().min(1).optional(),
   fit: z.enum(["cover", "contain"]).default("cover"),
@@ -27,7 +34,7 @@ export const writingSchema = z
     content_type: z.enum(["article", "note", "playbook"]).default("article"),
     series_type: z.string().optional(),
     project: z.string().optional(),
-    artifact_url: z.string().url().optional(),
+    artifact_url: contentLink.optional(),
     artifact_label: z.string().max(80).optional(),
     artifact_type: z
       .enum(["repo", "gist", "demo", "screenshot", "recording"])
@@ -70,7 +77,7 @@ export const projectSchema = z.object({
     .regex(/^\/(?:work|projects)\/[a-z0-9]+(?:-[a-z0-9]+)*$/)
     .transform((value) => value.replace(/^\/projects\//u, "/work/")),
   identity: z.object({
-    logo_src: z.string().startsWith("/").optional(),
+    logo_src: localAsset.optional(),
     logo_alt: z.string().min(1).optional(),
     logo_tone: z.enum(["default", "light", "adaptive"]).default("default"),
     icon: phosphor,
@@ -87,8 +94,8 @@ export const projectSchema = z.object({
     .default([]),
   sort_order: z.number().default(0),
   icon: phosphor,
-  link_live: z.string().url().optional(),
-  link_repo: z.string().url().optional(),
+  link_live: contentLink.optional(),
+  link_repo: contentLink.optional(),
   tags: z.array(z.string()).default([]),
   technical: z
     .array(z.object({ title: z.string(), content: z.string() }))

@@ -41,7 +41,8 @@
       "types": "./dist/admin/index.d.ts",
       "import": "./dist/admin/index.js"
     },
-    "./public/inline": "./src/public/inline.ts"
+    "./public/inline": "./src/public/inline.ts",
+    "./editorial/direct-publication": "./src/editorial/direct-publication.ts"
   },
   "scripts": {
     "build": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true })\" && tsc",

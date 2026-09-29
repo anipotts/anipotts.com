@@ -1,3 +1,4 @@
+import { safeContentLinkUrl, safeHomepageAssetUrl } from "./urls.js";
 import { inlinePlainText } from "./inline.js";
 import type {
   HomepageContent,
@@ -433,24 +434,6 @@ function normalizeMentionOption<T extends string>(
     : fallback;
 }
 
-function isSafeHomepageLink(href: string): boolean {
-  if (!href || /[\u0000-\u001f\u007f\s]/.test(href)) return false;
-  if (href.startsWith("/")) return !href.startsWith("//");
-  if (!href.startsWith("https://")) return false;
-
-  try {
-    const parsed = new URL(href);
-    return parsed.protocol === "https:" && Boolean(parsed.hostname);
-  } catch {
-    return false;
-  }
-}
-
-function isSafeHomepageAssetPath(path: string): boolean {
-  if (!path || /[\u0000-\u001f\u007f\s]/.test(path)) return false;
-  return path.startsWith("/images/") && !path.includes("..");
-}
-
 function validateTextField(
   value: string,
   label: string,
@@ -489,7 +472,7 @@ function validateSectionLink(section: HomepageSection, label: string) {
       HOMEPAGE_FIELD_LIMITS.linkHref,
       true,
     ) ??
-    (!isSafeHomepageLink(link.href)
+    (!safeContentLinkUrl(link.href)
       ? `${label} link must start with / or https://`
       : null)
   );
@@ -657,13 +640,13 @@ function validateMentions(
       validateOptionalMentionText(label, "mark", mention.mark);
     if (textError) return textError;
 
-    if (mention.href && !isSafeHomepageLink(mention.href)) {
+    if (mention.href && !safeContentLinkUrl(mention.href)) {
       return `${label} link must start with / or https://`;
     }
-    if (mention.logoSrc && !isSafeHomepageAssetPath(mention.logoSrc)) {
+    if (mention.logoSrc && !safeHomepageAssetUrl(mention.logoSrc)) {
       return `${label} logo must stay under /images/`;
     }
-    if (mention.badgeSrc && !isSafeHomepageAssetPath(mention.badgeSrc)) {
+    if (mention.badgeSrc && !safeHomepageAssetUrl(mention.badgeSrc)) {
       return `${label} badge must stay under /images/`;
     }
   }

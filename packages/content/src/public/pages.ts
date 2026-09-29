@@ -1,9 +1,17 @@
 import { z } from "zod";
 import { publicSlugSchema } from "./schema.js";
 import { workflowProviders } from "./providers.js";
+import {
+  safeContentLinkUrl,
+  safeHomepageAssetUrl,
+  safeHttpsUrl,
+} from "./urls.js";
 
 const text = z.string().min(1);
-const link = z.object({ label: text, href: text });
+const contentLink = text.refine(safeContentLinkUrl, {
+  message: "Use an internal path, #anchor, or HTTPS URL without credentials",
+});
+const link = z.object({ label: text, href: contentLink });
 const section = z.object({
   visible: z.boolean(),
   label: text,
@@ -13,14 +21,16 @@ const section = z.object({
   mention_keys: z.array(text).optional(),
   links: z.array(link).optional(),
   limit: z.number().int().positive().optional(),
-  view_all: text.optional(),
+  view_all: contentLink.optional(),
   writing_slugs: z.array(publicSlugSchema).optional(),
 });
 
 export const homepageMentionSchema = z.object({
   label: text,
-  href: text.optional(),
-  logoSrc: text.optional(),
+  href: contentLink.optional(),
+  logoSrc: text
+    .refine(safeHomepageAssetUrl, "Use a local asset path under /images/")
+    .optional(),
   logoAlt: text.optional(),
   logoTone: z.enum(["native", "white"]).optional(),
   logoShape: z.enum(["square", "wide", "mark", "large"]).optional(),
@@ -101,11 +111,14 @@ export const newsletterPageSchema = z.object({
   success_message: text,
   error_message: text,
   footer_text: text,
-  buttondown_url: z.string().url(),
+  buttondown_url: text.refine(
+    safeHttpsUrl,
+    "Use an HTTPS URL without credentials",
+  ),
   archive_label: text,
   archive_copy: text,
   archive_link_label: text,
-  archive_url: text,
+  archive_url: contentLink,
   sender_name: text,
   sender_email: z.string().email(),
   reply_to: z.string().email(),
