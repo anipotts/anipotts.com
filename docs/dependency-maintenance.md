@@ -13,14 +13,20 @@ eligibility and recent deployment runs. Pagination is a stop, not silent omissio
 Inspect live rulesets and actual diffs before mutations; the command does not claim
 that branch protection alone proves a PR requirement.
 
-The `Website dependency maintenance` Codex heartbeat belongs to the existing
-website task, runs every 30 minutes, and starts with this command. Each run has a
-15-minute work budget and at most one candidate repair or merge. Unchanged blocked
-results receive no repeated build or comment. Store concise evidence and retry
-conditions in the existing task summary, not another PR registry. An upstream or
-base change may justify a retry; elapsed time alone does not justify repeating a
-known incompatibility. Native GitHub auto-merge and automatic branch deletion are
-used after exact-head review and checks.
+Dependency maintenance belongs to the existing website task and its single
+continuation/maintenance channel. Inspect first, then repair at most one candidate
+at a time in a reviewable PR. Unchanged blocked results receive no repeated build
+or comment. Store concise evidence and retry conditions in the existing task
+summary, not another PR registry. An upstream or base change may justify a retry;
+elapsed time alone does not justify repeating a known incompatibility.
+
+Every dependency PR requires Ani's explicit review before merging. Do not enable
+auto-merge or create a separate dependency-merge automation. An
+`inspect_auto_merge` result takes priority over pending or failing checks because
+an existing auto-merge request could execute as soon as they pass. Resolve that
+condition through the applicable controls; the inspector itself remains read-only.
+After owner approval, refresh exact-head checks and use the native protected merge
+path. Preserve the reviewed branch and evidence until integration is verified.
 
 Execution is local to the Codex desktop host. It is not an always-on cloud worker:
 host sleep, app shutdown, authentication expiry, or a busy task can delay work.

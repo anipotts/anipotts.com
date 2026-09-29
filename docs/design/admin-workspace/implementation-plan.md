@@ -4,6 +4,48 @@ Current approved refinement: [Content / Operations / Life checklist](three-works
 Its September 12 user decisions supersede conflicting earlier navigation/branding
 proposals below. Completion evidence remains separately tracked.
 
+Current ownership, September 13: Ani consolidated all remaining admin/site
+implementation and release work into the `website` task. Operations and Life
+feature tasks hand off and stop further site edits; preserved dependency branches
+remain pending integration here. Do not restart parallel site tasks from older
+coordination instructions. System and canonical personal-data custody remain
+separate external dependencies. The immediate priority is production review with
+Ani, followed by focused fixes through the existing checked release process.
+
+Current integration sequence, updated September 13:
+
+1. The independent admin UI release is merged in [PR #339](https://github.com/anipotts/anipotts.com/pull/339)
+   at `dcca7160ac9e1762eeeabb09a3c68f93a4316747` and deployed successfully in
+   [run 34742850709](https://github.com/anipotts/anipotts.com/actions/runs/34742850709).
+   Only admin deployed; all five unrelated targets were skipped. Local responsive,
+   keyboard, theme and recoverable-draft checks passed. Production owner-boundary
+   checks passed; authenticated browser interaction acceptance still awaits owner
+   sign-in. Drafts were not published. Keep the managed preview running.
+2. Workers Paid is active. Dedicated `anipotts-content` D1 database
+   `2679fc97-e251-46b7-ad01-db8b9fe04e8d` is created and its reviewed initial
+   migration applied, with zero published revisions. Private R2 bucket
+   `anipotts-content-media` is created, empty, with public access disabled.
+   No publication bindings or direct publishing activation have occurred.
+3. Next Content release: integrate and verify dedicated bindings, authenticated
+   local-to-production draft continuity, exact-revision publishing, media reads,
+   recovery and public discovery parity. The local readiness fix requires both
+   D1 and R2 availability. Release www and admin together only after these checks;
+   never publish user drafts for QA.
+4. Operations and Life remain separate integration lanes. Operations supplied a
+   bounded metadata transport proposal using the existing mini device relay;
+   production transport is not activated. Life's canonical host/store/source
+   allowlist and approved owner read boundary remain unresolved. Neither workspace
+   may imply live data access from an adapter or mock result.
+5. PR #337 compatibility checks pass locally against the released baseline, but
+   classification selects all six targets and must be resolved before promotion.
+   The separate Astro/Cloudflare upgrade candidate remains unproven for local
+   filesystem editing under workerd; preserve the original PRs and candidate.
+   Host disk space is critically low (183 MiB at the latest check); defer heavy
+   installs/builds until space is restored. Preserve concurrent and user work.
+
+Current implementation and provider evidence:
+[direct publishing receipt](direct-publishing-implementation.md).
+
 Status: proposed implementation plan. No implementation or release is authorized
 by this document itself. It translates Ani's selected first generated board and
 subsequent page/flow decisions into a concrete delivery sequence.

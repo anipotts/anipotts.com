@@ -842,11 +842,10 @@
     {
       "path": "apps/admin/src/components/astryx/AdminCommandPalette.tsx",
       "area": "ui",
-      "sha256": "d66f7f86e38d7cfe400626952e792f7213ed9a2695eb0efbce53a30eb2609eb9",
-      "disposition": "pending",
+      "sha256": "8a8b04724a927b5baf26d568c287aa68a78d45af1b2c7d13195041f0758ece59",
+      "disposition": "reviewed-retained",
       "evidence": [
-        "docs/design/admin-workspace/shared-shell-audit.md: complete source audit; findings and Browser limitations remain explicit.",
-        "Current bytes changed after this receipt; review needs reconciliation."
+        "docs/design/admin-workspace/final-visual-source-audit.md: exact-current full-source owning-agent receipt; visual limits retained."
       ]
     },
     {
@@ -861,21 +860,19 @@
     {
       "path": "apps/admin/src/components/astryx/AdminShell.test.tsx",
       "area": "ui",
-      "sha256": "877dcf68a413467fa615a17b1277aa065ab92d48f7a68c5a800653590d72fd0c",
-      "disposition": "pending",
+      "sha256": "266b905e4a051dec7877b1f035868c170f4c0a872d2193b3e3c16e264d7daeb5",
+      "disposition": "reviewed-retained",
       "evidence": [
-        "Shared Operations integration changed this source; full-file review remains pending.",
-        "Current bytes changed after this receipt; review needs reconciliation."
+        "docs/design/admin-workspace/final-shell-focus-audit.md: exact-current full source receipt from owning agent; Browser limitations retained."
       ]
     },
     {
       "path": "apps/admin/src/components/astryx/AdminShell.tsx",
       "area": "ui",
-      "sha256": "0711ddb3ec277d2914395e0ed993b3db31bc21b53692013bd37ef47f3b3b4451",
-      "disposition": "pending",
+      "sha256": "800c0c2ff7387297039a00f47c5364ad6d179f2845c56d7faac4b7a3eb34b691",
+      "disposition": "reviewed-retained",
       "evidence": [
-        "docs/design/admin-workspace/shared-shell-audit.md: complete source audit; findings and Browser limitations remain explicit.",
-        "Current bytes changed after this receipt; review needs reconciliation."
+        "docs/design/admin-workspace/final-source-delta-audit.md: full current source integration read; open findings and Browser limits retained."
       ]
     },
     {
@@ -955,45 +952,64 @@
     {
       "path": "apps/admin/src/components/astryx/EditorialApp.test.tsx",
       "area": "ui",
-      "sha256": "b7ce2cd091d874d85c33e17529202f17b1e302f2c4498e3fa0220cd66275dfa2",
+      "sha256": "cb45d6ab68d242096b249ed9e04a0cf8149bd619d5d44c92bf388fdc58fa8faf",
       "disposition": "reviewed-retained",
       "evidence": [
-        "docs/design/admin-workspace/remaining-library-audit.md: exact-byte source review; findings and verification limits retained."
+        "docs/design/admin-workspace/final-shell-focus-audit.md: exact-current full source receipt from owning agent; Browser limitations retained."
       ]
     },
     {
       "path": "apps/admin/src/components/astryx/EditorialApp.tsx",
       "area": "ui",
-      "sha256": "fdd7f1ad49eab1e23401120c8844c588705793b202a3b8e924dace2cec4fcfad",
-      "disposition": "pending",
+      "sha256": "fc05fcda2f1a00daf013ca94b7adcdea7f17f9188e493771454498f32ec5e193",
+      "disposition": "pending-source-review",
       "evidence": [
-        "docs/design/admin-workspace/shared-shell-audit.md: complete source audit; findings and Browser limitations remain explicit.",
-        "Current bytes changed after this receipt; review needs reconciliation."
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ],
+      "priorReviews": [
+        {
+          "sha256": "7ac02997ca999b7caaf252aef536691d2b7d986319f77cd05281a7a5d818b253",
+          "disposition": "reviewed-retained",
+          "evidence": [
+            "docs/design/admin-workspace/final-source-delta-audit.md: full current source integration read; open findings and Browser limits retained."
+          ]
+        }
       ]
     },
     {
       "path": "apps/admin/src/components/astryx/HomeEditor.navigation.test.tsx",
       "area": "tests",
-      "sha256": "b30553a639301356bc85108767a397fee4018a198a0d3f16105be959db1102b0",
-      "disposition": "pending",
+      "sha256": "f32b2b1dfee5eb5f5877fa6010cc33d9d28afb82e1819ba4b006303d6acca6e0",
+      "disposition": "pending-source-review",
       "evidence": [
-        "Source review: URL mode owner, exclusive panels, exact acknowledged review source/revision, post-CSRF navigation guard.",
-        "HomeEditor navigation: four DOM interaction tests passed; helper and inspector focus tests passed.",
-        "Actual Browser responsive, live and latency QA remain pending; full check receipt in coverage.md.",
-        "Current bytes changed after this receipt; review needs reconciliation."
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ],
+      "priorReviews": [
+        {
+          "sha256": "48f5268fc962aa0f877c0c98aa32f09183f5281b90a3f0c00f4c6229d8820f93",
+          "disposition": "reviewed-retained",
+          "evidence": [
+            "docs/design/admin-workspace/final-source-delta-audit.md: full current source integration read; open findings and Browser limits retained."
+          ]
+        }
       ]
     },
     {
       "path": "apps/admin/src/components/astryx/HomeEditor.tsx",
       "area": "ui",
-      "sha256": "56197f59ffcd82a5f890a413ef7b000985d25d9c5405f0e506ea66bda64ba861",
-      "disposition": "pending",
+      "sha256": "88f4ab4832c966b0ce3126add0c7329987da935f609321085f8ba1460ad57e95",
+      "disposition": "pending-source-review",
       "evidence": [
-        "2026-09-12 reconciliation: source changed since recorded SHA-256 1ac05a74c070159d013dc6d473d21aed5ee242549243391475b46a0c16aa3212; earlier audit references are historical, current source review required.",
-        "Source review: URL mode owner, exclusive panels, exact acknowledged review source/revision, post-CSRF navigation guard.",
-        "HomeEditor navigation: four DOM interaction tests passed; helper and inspector focus tests passed.",
-        "Actual Browser responsive, live and latency QA remain pending; full check receipt in coverage.md.",
-        "Current bytes changed after this receipt; review needs reconciliation."
+        "docs/design/admin-workspace/direct-publishing-implementation.md: recovery audit fixes and local tests; final exact-source review pending."
+      ],
+      "priorReviews": [
+        {
+          "sha256": "abed004ea507d10bb67eabbfef7c93e201b19370a36e6eb74915461385d51c88",
+          "disposition": "reviewed-retained",
+          "evidence": [
+            "docs/design/admin-workspace/final-source-delta-audit.md: full current source integration read; open findings and Browser limits retained."
+          ]
+        }
       ]
     },
     {
@@ -1008,19 +1024,19 @@
     {
       "path": "apps/admin/src/components/astryx/OperationalCommandPalette.test.ts",
       "area": "ui",
-      "sha256": "4765be9e34f768253b778cc7ce4832acf86b08f92dfb83349eda5136159ea917",
+      "sha256": "36667b28efc60769e5decad5b49586367ae471fbe43329100a33e697ba8eed50",
       "disposition": "reviewed-retained",
       "evidence": [
-        "docs/design/admin-workspace/feedback-navigation-audit.md: exact-byte source review; findings and verification limits retained."
+        "docs/design/admin-workspace/final-visual-source-audit.md: exact-current full-source owning-agent receipt; visual limits retained."
       ]
     },
     {
       "path": "apps/admin/src/components/astryx/OperationalCommandPalette.tsx",
       "area": "ui",
-      "sha256": "66efdeb442ff248c1256d855f57ecd2f56e75289fa4504d277cff6a648351126",
+      "sha256": "8526345e3eaca0fc8d10b77f3aaaeb2ea6c1d69d6635db6c4b08f5aab743178e",
       "disposition": "reviewed-retained",
       "evidence": [
-        "docs/design/admin-workspace/shared-shell-audit.md: exact-byte source review; findings and verification limits retained."
+        "docs/design/admin-workspace/final-visual-source-audit.md: exact-current full-source owning-agent receipt; visual limits retained."
       ]
     },
     {
@@ -1168,10 +1184,10 @@
     {
       "path": "apps/admin/src/data/admin-search.test.ts",
       "area": "tests",
-      "sha256": "1f7b34d59c4aee05d9941afc44fe424d87c3a0e77c7c68faf28eb87c1461772e",
+      "sha256": "b1ebef2de44d573cbb3b30439ac1ed6ec27a0474d4bb8a6e500e3e3182c1118a",
       "disposition": "reviewed-retained",
       "evidence": [
-        "docs/design/admin-workspace/final-shell-source-audit.md: exact-byte source review; findings and verification limits retained."
+        "docs/design/admin-workspace/final-source-delta-audit.md: full current source integration read; open findings and Browser limits retained."
       ]
     },
     {
@@ -1186,10 +1202,10 @@
     {
       "path": "apps/admin/src/data/admin.ts",
       "area": "data-and-contracts",
-      "sha256": "917a9761183bf19726644863da381f5eb6e3325733cc543119c20635fbbf5166",
+      "sha256": "1d97f231c47415e824a4017f2ac4314d303c028568d4becad87fc3ac0efdf6ae",
       "disposition": "reviewed-retained",
       "evidence": [
-        "docs/design/admin-workspace/final-shell-source-audit.md: exact-byte source review; findings and verification limits retained."
+        "docs/design/admin-workspace/final-source-delta-audit.md: full current source integration read; open findings and Browser limits retained."
       ]
     },
     {
@@ -1240,10 +1256,10 @@
     {
       "path": "apps/admin/src/data/inbox-route-parity.test.ts",
       "area": "tests",
-      "sha256": "f15c4ff731753340d2ed84222874e309dfa7276333acb2b55bd60ca006079434",
-      "disposition": "updated",
+      "sha256": "a1f1460e6765963f1e1878ae368f8a27cfc12e2ca238dff25f0b53428c9a393f",
+      "disposition": "reviewed-retained",
       "evidence": [
-        "docs/design/admin-workspace/operations-audit.md: exact-hash source audit; limitations and browser QA tracked explicitly."
+        "docs/design/admin-workspace/final-visual-source-audit.md: exact-current full-source owning-agent receipt; visual limits retained."
       ]
     },
     {
@@ -1393,10 +1409,19 @@
     {
       "path": "apps/admin/src/editorial/draft-store.ts",
       "area": "editorial-services",
-      "sha256": "0151aeef4f7508e4400d770e0578433edf9c16758f24cbc7210a1f907b4f5ea5",
-      "disposition": "reviewed-retained",
+      "sha256": "dd9c1fb028a70768b3278c09f0b4889a2864cc1c3b2dab9ba8cd12ba50b276d4",
+      "disposition": "pending-source-review",
       "evidence": [
-        "docs/design/admin-workspace/publication-services-audit.md: exact-byte source review; open findings and verification limits retained."
+        "docs/design/admin-workspace/direct-publishing-implementation.md: recovery audit fixes and local tests; final exact-source review pending."
+      ],
+      "priorReviews": [
+        {
+          "sha256": "0151aeef4f7508e4400d770e0578433edf9c16758f24cbc7210a1f907b4f5ea5",
+          "disposition": "reviewed-retained",
+          "evidence": [
+            "docs/design/admin-workspace/publication-services-audit.md: exact-byte source review; open findings and verification limits retained."
+          ]
+        }
       ]
     },
     {
@@ -1546,21 +1571,19 @@
     {
       "path": "apps/admin/src/layouts/AdminLayout.astro",
       "area": "theme-and-layout",
-      "sha256": "8d8a74a073b4966e4359e2d453e0e0d1822185e2cc2be2d9f78be0f5a13d69a9",
-      "disposition": "pending",
+      "sha256": "62382afc6d34ee7dd9bec3c2fb51cde2e149344e5b36014cce49e3c83afab930",
+      "disposition": "reviewed-retained",
       "evidence": [
-        "docs/design/admin-workspace/shared-shell-audit.md: complete source audit; findings and Browser limitations remain explicit.",
-        "Current bytes changed after this receipt; review needs reconciliation."
+        "docs/design/admin-workspace/final-source-delta-audit.md: prior full read plus exact focus import delta reviewed."
       ]
     },
     {
       "path": "apps/admin/src/layouts/EditorialLayout.astro",
       "area": "theme-and-layout",
-      "sha256": "a18abb6d9eb82b2764258e842966703bcd23d11920da44719de520dcd9c83b02",
-      "disposition": "pending",
+      "sha256": "a3cd8e7b780ce2709fdd463481851458a205ad8b4ea29cd6ca02203df84f92a9",
+      "disposition": "reviewed-retained",
       "evidence": [
-        "docs/design/admin-workspace/shared-shell-audit.md: complete source audit; findings and Browser limitations remain explicit.",
-        "Current bytes changed after this receipt; review needs reconciliation."
+        "docs/design/admin-workspace/final-source-delta-audit.md: prior full read plus exact focus import delta reviewed."
       ]
     },
     {
@@ -1584,19 +1607,19 @@
     {
       "path": "apps/admin/src/lib/admin-access-policy.test.ts",
       "area": "tests",
-      "sha256": "38313cd16201bdf4496c64d2a94f2bc47d33fad382f468b81a75ab684fabc2ce",
+      "sha256": "5dddcab52354e831cdd72d04fa4517a1fdd698821e13668f7749401980b4cba4",
       "disposition": "reviewed-retained",
       "evidence": [
-        "docs/design/admin-workspace/remaining-server-audit.md: exact-byte source review; findings and verification limits retained."
+        "docs/design/admin-workspace/final-source-delta-audit.md: full reread after exact favicon fix;58tests pass."
       ]
     },
     {
       "path": "apps/admin/src/lib/admin-access-policy.ts",
       "area": "data-and-contracts",
-      "sha256": "2eb215ea7bad9df93269412daa789345d37c20ee563ed1c0512321386dd3868d",
+      "sha256": "a4c5e9ffe493900744241f37febb2b6a927fde76a381d94a94c173bc70fed768",
       "disposition": "reviewed-retained",
       "evidence": [
-        "docs/design/admin-workspace/remaining-server-audit.md: exact-byte source review; findings and verification limits retained."
+        "docs/design/admin-workspace/final-source-delta-audit.md: full reread after exact favicon fix;58tests pass."
       ]
     },
     {
@@ -1782,10 +1805,19 @@
     {
       "path": "apps/admin/src/lib/editorial-content.ts",
       "area": "data-and-contracts",
-      "sha256": "e4eff311ca5b6ae62484c954c39370f33a244c494019a3986dd26d7291d41d2d",
-      "disposition": "reviewed-retained",
+      "sha256": "7427d8da9af00b5a548b161d07461ec5bb792f2dcf17f3a5a06f1045458f50db",
+      "disposition": "pending-source-review",
       "evidence": [
-        "docs/design/admin-workspace/inventory-audit.md: exact-byte source review; open findings and verification limits retained."
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ],
+      "priorReviews": [
+        {
+          "sha256": "e4eff311ca5b6ae62484c954c39370f33a244c494019a3986dd26d7291d41d2d",
+          "disposition": "reviewed-retained",
+          "evidence": [
+            "docs/design/admin-workspace/inventory-audit.md: exact-byte source review; open findings and verification limits retained."
+          ]
+        }
       ]
     },
     {
@@ -1809,10 +1841,19 @@
     {
       "path": "apps/admin/src/lib/editorial-local.ts",
       "area": "data-and-contracts",
-      "sha256": "ed752911e8fdf379f7e3f3fbd2df83f81e5cf5ee0d10b47ffbb89898f18036db",
-      "disposition": "reviewed-retained",
+      "sha256": "aa5bdb7eb0eb9160e088ec6a3da265714a63006882586961751323a6f3eee04f",
+      "disposition": "pending-source-review",
       "evidence": [
-        "docs/design/admin-workspace/remaining-server-audit.md: exact-byte source review; findings and verification limits retained."
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ],
+      "priorReviews": [
+        {
+          "sha256": "ed752911e8fdf379f7e3f3fbd2df83f81e5cf5ee0d10b47ffbb89898f18036db",
+          "disposition": "reviewed-retained",
+          "evidence": [
+            "docs/design/admin-workspace/remaining-server-audit.md: exact-byte source review; findings and verification limits retained."
+          ]
+        }
       ]
     },
     {
@@ -1881,10 +1922,19 @@
     {
       "path": "apps/admin/src/lib/editorial-server.ts",
       "area": "data-and-contracts",
-      "sha256": "f5b71343c0da0ca927dab8cd9ad77c49d357231a609936cfcb6726306e7e3c64",
-      "disposition": "reviewed-retained",
+      "sha256": "0fbc823f5ccd0ed14c89fad4e00b0af41978ee7cf05a9d2b611eb7b5e6d5dd62",
+      "disposition": "pending-source-review",
       "evidence": [
-        "docs/design/admin-workspace/api-audit.md: exact-byte source review; open findings and verification limits retained."
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ],
+      "priorReviews": [
+        {
+          "sha256": "f5b71343c0da0ca927dab8cd9ad77c49d357231a609936cfcb6726306e7e3c64",
+          "disposition": "reviewed-retained",
+          "evidence": [
+            "docs/design/admin-workspace/api-audit.md: exact-byte source review; open findings and verification limits retained."
+          ]
+        }
       ]
     },
     {
@@ -2209,19 +2259,37 @@
     {
       "path": "apps/admin/src/pages/api/editorial/[action].ts",
       "area": "api",
-      "sha256": "fc5ba2360d672ff3ab9b06891280c07f8fffdb2a922ea18346be79a60b75a9ad",
-      "disposition": "reviewed-retained",
+      "sha256": "593559e00d1144fb2b081b212739e4f2f6b74940ed9b41c35e070dd0b26cb4a6",
+      "disposition": "pending-source-review",
       "evidence": [
-        "docs/design/admin-workspace/api-audit.md: exact-byte source review; open findings and verification limits retained."
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ],
+      "priorReviews": [
+        {
+          "sha256": "fc5ba2360d672ff3ab9b06891280c07f8fffdb2a922ea18346be79a60b75a9ad",
+          "disposition": "reviewed-retained",
+          "evidence": [
+            "docs/design/admin-workspace/api-audit.md: exact-byte source review; open findings and verification limits retained."
+          ]
+        }
       ]
     },
     {
       "path": "apps/admin/src/pages/api/editorial/media.ts",
       "area": "api",
-      "sha256": "0b072a83497ad0ac136cd5adca49ef63ec60015234abc515bbefcbe1249058dc",
-      "disposition": "reviewed-retained",
+      "sha256": "c95275796b94562a00039cb38b362487453fc2e3d51f1b6ba6d92c846f5a035d",
+      "disposition": "pending-source-review",
       "evidence": [
-        "docs/design/admin-workspace/api-audit.md: exact-byte source review; open findings and verification limits retained."
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ],
+      "priorReviews": [
+        {
+          "sha256": "0b072a83497ad0ac136cd5adca49ef63ec60015234abc515bbefcbe1249058dc",
+          "disposition": "reviewed-retained",
+          "evidence": [
+            "docs/design/admin-workspace/api-audit.md: exact-byte source review; open findings and verification limits retained."
+          ]
+        }
       ]
     },
     {
@@ -2245,19 +2313,37 @@
     {
       "path": "apps/admin/src/pages/auth.astro",
       "area": "routes",
-      "sha256": "2e22aeea8a61ca5bbc2ba6d8b18734748a2693504a39a1403c00028ccfb36ca7",
-      "disposition": "reviewed-retained",
+      "sha256": "da031b043b4d51453afb6b9721f791e1ed6f6739c5391f7f3f0f3107849923a0",
+      "disposition": "pending-source-review",
       "evidence": [
-        "docs/design/admin-workspace/operations-audit.md: exact-byte source review; open findings and verification limits retained."
+        "docs/design/admin-workspace/direct-publishing-implementation.md: recovery audit fixes and local tests; final exact-source review pending."
+      ],
+      "priorReviews": [
+        {
+          "sha256": "2e22aeea8a61ca5bbc2ba6d8b18734748a2693504a39a1403c00028ccfb36ca7",
+          "disposition": "reviewed-retained",
+          "evidence": [
+            "docs/design/admin-workspace/operations-audit.md: exact-byte source review; open findings and verification limits retained."
+          ]
+        }
       ]
     },
     {
       "path": "apps/admin/src/pages/content/[collection]/[id].astro",
       "area": "routes",
-      "sha256": "1cbfe7cb324bef948e84a7ccda2c98b2ff4a5a7e8d33dd930952a0538d32c0d5",
-      "disposition": "pending",
+      "sha256": "c4aaa7c048d659411ec69bdd42d6ba9a23856788ae8ae60008e873d00405ca8e",
+      "disposition": "pending-source-review",
       "evidence": [
-        "Current bytes changed after this receipt; review needs reconciliation."
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ],
+      "priorReviews": [
+        {
+          "sha256": "42cb47d5e4f7e5e113dee26278a63d0d26e38b737850c8790e06323b5ab23aa4",
+          "disposition": "reviewed-retained",
+          "evidence": [
+            "docs/design/admin-workspace/final-source-delta-audit.md: full current source integration read; open findings and Browser limits retained."
+          ]
+        }
       ]
     },
     {
@@ -2461,19 +2547,37 @@
     {
       "path": "apps/admin/src/pages/preview/home.astro",
       "area": "routes",
-      "sha256": "3eba3122440dd913ce772c89db1d1b91e9d7684acfe3c0f947c310f4dae20238",
-      "disposition": "reviewed-retained",
+      "sha256": "6f4d18950ec1e35353d1bcd9af84315472d6d772a8f14d6823e07f8151fc5625",
+      "disposition": "pending-source-review",
       "evidence": [
-        "docs/design/admin-workspace/operations-audit.md: exact-byte source review; open findings and verification limits retained."
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ],
+      "priorReviews": [
+        {
+          "sha256": "3eba3122440dd913ce772c89db1d1b91e9d7684acfe3c0f947c310f4dae20238",
+          "disposition": "reviewed-retained",
+          "evidence": [
+            "docs/design/admin-workspace/operations-audit.md: exact-byte source review; open findings and verification limits retained."
+          ]
+        }
       ]
     },
     {
       "path": "apps/admin/src/pages/preview/record.astro",
       "area": "routes",
-      "sha256": "56b774467dab0bbe06a93951184943065705ca9d0addfd9fed8032912e70263f",
-      "disposition": "reviewed-retained",
+      "sha256": "49d5c85f8e3355fd29c32cc4ffef59b3d3c53df2be080e928352876cedfa01bc",
+      "disposition": "pending-source-review",
       "evidence": [
-        "docs/design/admin-workspace/remaining-server-audit.md: exact-byte source review; findings and verification limits retained."
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ],
+      "priorReviews": [
+        {
+          "sha256": "56b774467dab0bbe06a93951184943065705ca9d0addfd9fed8032912e70263f",
+          "disposition": "reviewed-retained",
+          "evidence": [
+            "docs/design/admin-workspace/remaining-server-audit.md: exact-byte source review; findings and verification limits retained."
+          ]
+        }
       ]
     },
     {
@@ -2542,10 +2646,10 @@
     {
       "path": "apps/admin/src/styles/editorial.css",
       "area": "theme-and-layout",
-      "sha256": "1ebbb949f361fd83f1a608cb6dbbb4311b7896965e10e9acb3a813909af8a23d",
-      "disposition": "pending",
+      "sha256": "1ed76e5071d6669b5ead4793e8942dbc82475be74a7e8f843bbe5e5f3b8b6ff4",
+      "disposition": "reviewed-retained",
       "evidence": [
-        "docs/design/admin-workspace/shared-shell-audit.md: exact-hash source review; findings and verification limits remain explicit."
+        "docs/design/admin-workspace/final-visual-source-audit.md: exact-current full-source owning-agent receipt; visual limits retained."
       ]
     },
     {
@@ -2794,10 +2898,19 @@
     {
       "path": "apps/admin/test/wrangler.jsonc",
       "area": "tests",
-      "sha256": "6b777255d244048f7c32505b62ef4c0f454a5cef02e48e5512e2261df2076e96",
-      "disposition": "reviewed-retained",
+      "sha256": "33d528667ff4ad42345ebbf201cc28594ae6d400bb6df0d2aead3130ddf15f53",
+      "disposition": "pending-source-review",
       "evidence": [
-        "docs/design/admin-workspace/configuration-assets-audit.md: exact-byte source review; open findings and verification limits retained."
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ],
+      "priorReviews": [
+        {
+          "sha256": "6b777255d244048f7c32505b62ef4c0f454a5cef02e48e5512e2261df2076e96",
+          "disposition": "reviewed-retained",
+          "evidence": [
+            "docs/design/admin-workspace/configuration-assets-audit.md: exact-byte source review; open findings and verification limits retained."
+          ]
+        }
       ]
     },
     {
@@ -2848,10 +2961,19 @@
     {
       "path": "apps/admin/src/lib/editorial-inventory-server.ts",
       "area": "audited-addition",
-      "sha256": "74e05919e1f85073e430d1cf5cb935001c39cf32c12bc73b3d8efb46a7ed1b4e",
-      "disposition": "reviewed-retained",
+      "sha256": "4179799d7af99b78c8401b4fdde59748413385e9e5b264acde0a0c3cebf40f3d",
+      "disposition": "pending-source-review",
       "evidence": [
-        "docs/design/admin-workspace/shared-shell-audit.md: exact-byte source review; findings and verification limits retained."
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ],
+      "priorReviews": [
+        {
+          "sha256": "74e05919e1f85073e430d1cf5cb935001c39cf32c12bc73b3d8efb46a7ed1b4e",
+          "disposition": "reviewed-retained",
+          "evidence": [
+            "docs/design/admin-workspace/shared-shell-audit.md: exact-byte source review; findings and verification limits retained."
+          ]
+        }
       ]
     },
     {
@@ -2893,19 +3015,37 @@
     {
       "path": "apps/admin/src/lib/editorial-inventory-projection.ts",
       "area": "audited-addition",
-      "sha256": "54cd9643371e45e9d7c509df7a06946e719a27cdd641cd31499a78d0e100b95c",
-      "disposition": "reviewed-retained",
+      "sha256": "2732502b03a8e894276002daf0f76d814201a090b1d80de59bdb91e1333108da",
+      "disposition": "pending-source-review",
       "evidence": [
-        "docs/design/admin-workspace/remaining-library-audit.md: exact-byte source review; findings and verification limits retained."
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ],
+      "priorReviews": [
+        {
+          "sha256": "54cd9643371e45e9d7c509df7a06946e719a27cdd641cd31499a78d0e100b95c",
+          "disposition": "reviewed-retained",
+          "evidence": [
+            "docs/design/admin-workspace/remaining-library-audit.md: exact-byte source review; findings and verification limits retained."
+          ]
+        }
       ]
     },
     {
       "path": "apps/admin/src/lib/editorial-inventory-projection.test.ts",
       "area": "audited-addition",
-      "sha256": "6ba968ec9f4d98f9d1aab86e1876ed87bb45f7d03f1da35ef0a6a08fd87a6133",
-      "disposition": "pending",
+      "sha256": "7117a27b8f33726ad7b4c0b7505bd659d6f9ba28a6a187e887aceb3ce6b27274",
+      "disposition": "pending-source-review",
       "evidence": [
-        "docs/design/admin-workspace/remaining-library-audit.md: exact-hash source review; findings and verification limits remain explicit."
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ],
+      "priorReviews": [
+        {
+          "sha256": "90dc92bcdfdfbe5f365b4dce0570fd8a5dd387d9f9707b7de0f821dd69d4267c",
+          "disposition": "reviewed-retained",
+          "evidence": [
+            "docs/design/admin-workspace/final-source-delta-audit.md: full current source read; tests and remaining limits explicit."
+          ]
+        }
       ]
     },
     {
@@ -2956,11 +3096,10 @@
     {
       "path": "apps/admin/src/components/ControlPlaneReceipt.test.ts",
       "area": "components",
-      "sha256": "c69b7ccf243398314ca2f70d60ce4be18451e4eea6c49c6a53b5287782444103",
-      "disposition": "pending",
+      "sha256": "729ffc0b9e847ec36a5fa0534f516cba8f8b637dc15b73972dd5449a0ce4d6c9",
+      "disposition": "reviewed-retained",
       "evidence": [
-        "Added during 2026-09-12 tracked-tree reconciliation; current source review required.",
-        "Current bytes changed after this receipt; review needs reconciliation."
+        "docs/design/admin-workspace/final-source-delta-audit.md: full current source read; tests and remaining limits explicit."
       ]
     },
     {
@@ -2984,10 +3123,19 @@
     {
       "path": "apps/admin/src/components/astryx/ContentLibrary.tsx",
       "area": "components",
-      "sha256": "bbbf7c81349b77849ddcc5eaf47351e9fa4026e8f4033946d02610eeff3ef45c",
-      "disposition": "reviewed-retained",
+      "sha256": "4216a22362bf478cd55768e34eed1411b2243bf7802102a8977b20d878c795d4",
+      "disposition": "pending-source-review",
       "evidence": [
-        "docs/design/admin-workspace/remaining-library-audit.md: exact-byte source review; findings and verification limits retained."
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ],
+      "priorReviews": [
+        {
+          "sha256": "bbbf7c81349b77849ddcc5eaf47351e9fa4026e8f4033946d02610eeff3ef45c",
+          "disposition": "reviewed-retained",
+          "evidence": [
+            "docs/design/admin-workspace/remaining-library-audit.md: exact-byte source review; findings and verification limits retained."
+          ]
+        }
       ]
     },
     {
@@ -3002,31 +3150,28 @@
     {
       "path": "apps/admin/src/components/astryx/EditorialWorkspaceShell.mobile.test.tsx",
       "area": "components",
-      "sha256": "43762c5ff6097522da3a7a59f91926fc8f28aa46300873ee04eda69efe217951",
-      "disposition": "pending",
+      "sha256": "f539221d75e065f8d2a6acdfe63a748ee83418d1bc7d84ae38c4df87d981deaf",
+      "disposition": "reviewed-retained",
       "evidence": [
-        "Added during 2026-09-12 tracked-tree reconciliation; current source review required.",
-        "docs/design/admin-workspace/identity-preview-audit.md: scoped source review and verification; shared shell files remain pending full audit.",
-        "Current bytes changed after this receipt; review needs reconciliation."
+        "docs/design/admin-workspace/final-shell-focus-audit.md: exact-current full source receipt from owning agent; Browser limitations retained."
       ]
     },
     {
       "path": "apps/admin/src/components/astryx/EditorialWorkspaceShell.test.tsx",
       "area": "components",
-      "sha256": "3cfd1e0c815a17696dd55958e8105904816f579663343bda8ac99aecfc9546f4",
-      "disposition": "pending",
+      "sha256": "9fba98df765d939d001dc96304c33c9a0c283f48c6528060e8b2358c956904a3",
+      "disposition": "updated",
       "evidence": [
-        "Added during 2026-09-12 tracked-tree reconciliation; current source review required.",
-        "Current bytes changed after this receipt; review needs reconciliation."
+        "docs/design/admin-workspace/final-shell-focus-audit.md: source review and coarse-pointer delta; root Browser geometry in palette-sidebar-browser-receipt.md."
       ]
     },
     {
       "path": "apps/admin/src/components/astryx/EditorialWorkspaceShell.tsx",
       "area": "components",
-      "sha256": "3e0f4dbed657f2c8d23ec32c2322b85c33f89fcd695eb9dbee66c54d72674012",
-      "disposition": "pending",
+      "sha256": "bb4640cbd17447355e0dbbca35eb057640f576ee940fce4f87e4e8c95c8682e4",
+      "disposition": "reviewed-retained",
       "evidence": [
-        "docs/design/admin-workspace/shared-shell-audit.md: exact-hash source review; findings and verification limits remain explicit."
+        "docs/design/admin-workspace/final-shell-focus-audit.md: exact-current full source receipt from owning agent; Browser limitations retained."
       ]
     },
     {
@@ -3134,19 +3279,19 @@
     {
       "path": "apps/admin/src/components/astryx/ObservabilityWorkspace.test.tsx",
       "area": "observability",
-      "sha256": "e08021a41790c21af11c65a7c3d2e0a9f1dc7a754da4906e179c749d9364afa2",
-      "disposition": "pending",
+      "sha256": "a6ae9a7cf15693449fc835c5c5269045fa9f39007842aea6fbf6a2739b059dff",
+      "disposition": "reviewed-retained",
       "evidence": [
-        "docs/design/admin-workspace/remaining-supporting-ui-audit.md: full-read exact-hash audit; open findings retained."
+        "docs/design/admin-workspace/final-visual-source-audit.md: exact-current full-source owning-agent receipt; visual limits retained."
       ]
     },
     {
       "path": "apps/admin/src/components/astryx/ObservabilityWorkspace.tsx",
       "area": "observability",
-      "sha256": "96e018a3ac9edc0e99ffd03076824732f2887f08760b5423113df1f3837ba11e",
-      "disposition": "pending",
+      "sha256": "7202cb0b7b5038337f22ca7db95bde44420b3763ff77b209fcec841b03a6b651",
+      "disposition": "reviewed-retained",
       "evidence": [
-        "docs/design/admin-workspace/remaining-supporting-ui-audit.md: full-read exact-hash audit; open findings retained."
+        "docs/design/admin-workspace/final-visual-source-audit.md: exact-current full-source owning-agent receipt; visual limits retained."
       ]
     },
     {
@@ -3362,7 +3507,7 @@
       "sha256": "bbe6720b71395eb4983134d5d017aacb3fe83188c369ab4035e6d3e21d08dcb0",
       "disposition": "reviewed-retained",
       "evidence": [
-        "docs/design/admin-workspace/shared-shell-audit.md: exact-byte source review; findings and verification limits retained."
+        "docs/design/admin-workspace/final-visual-source-audit.md: exact-current full-source owning-agent receipt; visual limits retained."
       ]
     },
     {
@@ -3371,7 +3516,7 @@
       "sha256": "0ebab34fa867d187a335c1504777d68803949e4ae4de2e08fd565c5a16b7d72a",
       "disposition": "reviewed-retained",
       "evidence": [
-        "docs/design/admin-workspace/shared-shell-audit.md: exact-byte source review; findings and verification limits retained."
+        "docs/design/admin-workspace/final-visual-source-audit.md: exact-current full-source owning-agent receipt; visual limits retained."
       ]
     },
     {
@@ -3387,26 +3532,28 @@
       "path": "apps/admin/src/themes/operations.generated.css",
       "area": "shared-workspace-integration",
       "sha256": "2f809aa408651da41f0ae4b4a9c1bb12ec2ce9f3e284f14527d280a21d2787e6",
-      "disposition": "reviewed-retained",
+      "disposition": "producer-verified",
       "evidence": [
-        "docs/design/admin-workspace/shared-shell-audit.md: exact-byte source review; findings and verification limits retained."
+        "docs/design/admin-workspace/final-visual-source-audit.md: exact-current generated producer equivalence; not manual semantic review."
       ]
     },
     {
       "path": "apps/admin/src/themes/life.generated.css",
       "area": "shared-workspace-integration",
       "sha256": "cc0be7e3397177ca1b8a15934b4922b95fbafef940a7ef4e8794bfd0d54bbfef",
-      "disposition": "reviewed-retained",
+      "disposition": "producer-verified",
       "evidence": [
-        "docs/design/admin-workspace/shared-shell-audit.md: exact-byte source review; findings and verification limits retained."
+        "docs/design/admin-workspace/final-visual-source-audit.md: exact-current generated producer equivalence; not manual semantic review."
       ]
     },
     {
       "path": "apps/admin/public/admin-bracket.svg",
       "area": "integration-follow-up",
       "sha256": "00a8ab8d0a44921bb6b4e017448153cd665c2baff7cf84ca23bebd11eb002f20",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/final-source-delta-audit.md: full current source integration read; open findings and Browser limits retained."
+      ]
     },
     {
       "path": "apps/admin/src/components/astryx/ArticleBody.image-panel.test.tsx",
@@ -3420,9 +3567,11 @@
     {
       "path": "apps/admin/src/components/astryx/WorkspaceHeader.css",
       "area": "integration-follow-up",
-      "sha256": "ed8b6dbff57cba61f8a76bd298381d20bb4dfd2af26409f7f7047ed84e52c329",
-      "disposition": "pending",
-      "evidence": []
+      "sha256": "89adf73bd8af8d059d06037e3ac893335aa8837f8dfd37292e2c0bc005e9d660",
+      "disposition": "updated",
+      "evidence": [
+        "docs/design/admin-workspace/final-shell-focus-audit.md: source review and coarse-pointer delta; root Browser geometry in palette-sidebar-browser-receipt.md."
+      ]
     },
     {
       "path": "apps/admin/src/components/life/LifeSupportingView.test.tsx",
@@ -3436,10 +3585,10 @@
     {
       "path": "apps/admin/src/lib/editorial-local.test.ts",
       "area": "integration-follow-up",
-      "sha256": "04343a264e496a147e6b0f1573a1d19b1b7f80817c68ad808664878b1ce8084b",
+      "sha256": "cda6858b78f577af35a2ecdabb2723e1a9fe5e6fea945923b8f181f4ce6bd45b",
       "disposition": "reviewed-retained",
       "evidence": [
-        "docs/design/admin-workspace/remaining-server-audit.md: exact-byte source review; open findings and verification limits retained."
+        "docs/design/admin-workspace/final-source-delta-audit.md: full current source read; tests and remaining limits explicit."
       ]
     },
     {
@@ -3463,44 +3612,56 @@
     {
       "path": "apps/admin/src/components/astryx/AdminCommandPalette.test.tsx",
       "area": "integration-follow-up",
-      "sha256": "ae060885f2d920bc6159b38aaf7936e7122ddd4a621339b510c1b6c0a4137b70",
-      "disposition": "pending",
-      "evidence": []
+      "sha256": "5e652c4322b289cb1afef9ae525e5aa3508e21147b2ad7784a6952621ab8a0bf",
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/final-visual-source-audit.md: exact-current full-source owning-agent receipt; visual limits retained."
+      ]
     },
     {
       "path": "apps/admin/src/components/life/LifeSupportingView.tsx",
       "area": "integration-follow-up",
       "sha256": "5d8d93b3cce1c36ba85e356a99bfb39c0e9b41f6df4990428240f57ff0a6813e",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/final-source-delta-audit.md: full current source read; tests and remaining limits explicit."
+      ]
     },
     {
       "path": "apps/admin/src/lib/admin-theme.test.ts",
       "area": "integration-follow-up",
       "sha256": "fd4757e403b727eead145e45608dec724242cba735640431e21424899881a333",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/final-source-delta-audit.md: full current source read; tests and remaining limits explicit."
+      ]
     },
     {
       "path": "apps/admin/src/lib/admin-theme.ts",
       "area": "integration-follow-up",
       "sha256": "8e6f079876a7f54a255edf9cc757cafc1a46c6f6d4907046abc90db7392fdd74",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/final-source-delta-audit.md: full current source read; tests and remaining limits explicit."
+      ]
     },
     {
       "path": "apps/admin/src/lib/editorial-navigation.ts",
       "area": "integration-follow-up",
       "sha256": "bbfc872b82a569f377a4d52fd5433f9e4d7bd182c38a5ee663e36ac19b6450a3",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/final-source-delta-audit.md: full current source integration read; open findings and Browser limits retained."
+      ]
     },
     {
       "path": "apps/admin/src/lib/hover-timing.test.ts",
       "area": "integration-follow-up",
       "sha256": "cd50854261100818cb2df44f3b510a2fd9b3e4775912effd38ad970317dfee14",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/final-source-delta-audit.md: full current source read; tests and remaining limits explicit."
+      ]
     },
     {
       "path": "apps/admin/src/lib/observability-activity.test.ts",
@@ -3524,57 +3685,253 @@
       "path": "apps/admin/src/lib/workspace-navigation.test.ts",
       "area": "integration-follow-up",
       "sha256": "6674f68486f755d6eea3acf98462910391dc2b746adbc61dedddcb34fe035776",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/final-source-delta-audit.md: full current source integration read; open findings and Browser limits retained."
+      ]
     },
     {
       "path": "apps/admin/src/themes/life.d.ts",
       "area": "integration-follow-up",
       "sha256": "4b8946ac2603e310b22115107979cf7453892f7dcf7304e82257635e3fcef088",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "producer-verified",
+      "evidence": [
+        "docs/design/admin-workspace/final-visual-source-audit.md: exact-current generated producer equivalence; not manual semantic review."
+      ]
     },
     {
       "path": "apps/admin/src/themes/life.js",
       "area": "integration-follow-up",
       "sha256": "9c73b608aa1349686e399a2a7fe2e4bad4142a551fd2f40e06ae55d04bb0aef5",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "producer-verified",
+      "evidence": [
+        "docs/design/admin-workspace/final-visual-source-audit.md: exact-current generated producer equivalence; not manual semantic review."
+      ]
     },
     {
       "path": "apps/admin/src/themes/life.variants.d.ts",
       "area": "integration-follow-up",
       "sha256": "3cca60681ab03d7cc16740d432516c6fe7b618819c8cb482657e7f13e11185c8",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "producer-verified",
+      "evidence": [
+        "docs/design/admin-workspace/final-visual-source-audit.md: exact-current generated producer equivalence; not manual semantic review."
+      ]
     },
     {
       "path": "apps/admin/src/themes/operations.d.ts",
       "area": "integration-follow-up",
       "sha256": "b0a751faab67d9045846404f7121d22084dd45cb8a5a9e2e416aa10a68d27426",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "producer-verified",
+      "evidence": [
+        "docs/design/admin-workspace/final-visual-source-audit.md: exact-current generated producer equivalence; not manual semantic review."
+      ]
     },
     {
       "path": "apps/admin/src/themes/operations.js",
       "area": "integration-follow-up",
       "sha256": "d79dccdf095be35a64cff3ef232a7eb8ea99d88f9905057f0f71a558e4038d65",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "producer-verified",
+      "evidence": [
+        "docs/design/admin-workspace/final-visual-source-audit.md: exact-current generated producer equivalence; not manual semantic review."
+      ]
     },
     {
       "path": "apps/admin/src/themes/operations.variants.d.ts",
       "area": "integration-follow-up",
       "sha256": "3f899a34c58c9e05987fd58c5276f4c7fe5763118115c6c510695ec34b1ce52d",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "producer-verified",
+      "evidence": [
+        "docs/design/admin-workspace/final-visual-source-audit.md: exact-current generated producer equivalence; not manual semantic review."
+      ]
     },
     {
       "path": "apps/admin/src/themes/workspaces.test.ts",
       "area": "integration-follow-up",
       "sha256": "99344571a6da544346b55a6eab140bb69127c8594c4e35bea3e4856237714150",
-      "disposition": "pending",
-      "evidence": []
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/final-source-delta-audit.md: full current source read; tests and remaining limits explicit."
+      ]
+    },
+    {
+      "path": "apps/admin/src/styles/focus.css",
+      "area": "shared-shell",
+      "sha256": "2fcdb505aec7c4ff6820cd266d74a03cfdaf44a0ffb3ea523b38ab1638dd9a77",
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/final-shell-focus-audit.md: exact-current full source receipt from owning agent; Browser limitations retained."
+      ]
+    },
+    {
+      "path": "apps/admin/src/styles/focus.test.ts",
+      "area": "shared-shell",
+      "sha256": "6cc835614e20f7c325a97e5094584d438069fb41eeee4662813ca36447bf280e",
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/final-shell-focus-audit.md: exact-current full source receipt from owning agent; Browser limitations retained."
+      ]
+    },
+    {
+      "path": "apps/admin/src/components/astryx/CommandPalette.css",
+      "area": "shared-shell",
+      "sha256": "c2d7556c305c6875bd5f75322dca8d9ae6be56d338cd58f6a26be7c7809d691c",
+      "disposition": "reviewed-retained",
+      "evidence": [
+        "docs/design/admin-workspace/final-visual-source-audit.md: exact-current full-source owning-agent receipt; visual limits retained."
+      ]
+    },
+    {
+      "path": "apps/admin/migrations/content-publication/0001_published_snapshots.sql",
+      "area": "direct-publishing",
+      "sha256": "564cf948009acd41e8256b6c3dc6194057a20d040d64de2ec161a09dc8d44817",
+      "disposition": "pending-source-review",
+      "evidence": [
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/components/astryx/HomeEditor.publishing.test.tsx",
+      "area": "direct-publishing",
+      "sha256": "d4e7fbd4886577f1ee1a3ee806f1f04dc9e02b2ec6252c3c8931d0e036fc9ac1",
+      "disposition": "pending-source-review",
+      "evidence": [
+        "docs/design/admin-workspace/direct-publishing-implementation.md: recovery audit fixes and local tests; final exact-source review pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/editorial/direct-publisher.test.ts",
+      "area": "direct-publishing",
+      "sha256": "8a0548960a7b174e1d7f35f935563400d2d8f0a9fa1924a8a5ca58b1b2f47821",
+      "disposition": "pending-source-review",
+      "evidence": [
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/editorial/direct-publisher.ts",
+      "area": "direct-publishing",
+      "sha256": "b4b76f05c2706e770f4d34086328f0878f6c2b71f653355c408f3a4aba4a53ee",
+      "disposition": "pending-source-review",
+      "evidence": [
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/editorial-direct-api.test.ts",
+      "area": "direct-publishing",
+      "sha256": "30f051783dafd9a30c0cf75414cd17db7666385a25820bb674d0e37bdf05c6fb",
+      "disposition": "pending-source-review",
+      "evidence": [
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/editorial-direct-api.ts",
+      "area": "direct-publishing",
+      "sha256": "c0a0730ee00e34cde03a221e94309969eecc214926682dcc9b0b0059eae38251",
+      "disposition": "pending-source-review",
+      "evidence": [
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/editorial-handoff-api.test.ts",
+      "area": "direct-publishing",
+      "sha256": "3a4f32c27de2ca57118f97f8e62f67cabaabc72605345dabcb2d9eb018a89ca5",
+      "disposition": "pending-source-review",
+      "evidence": [
+        "docs/design/admin-workspace/direct-publishing-implementation.md: recovery audit fixes and local tests; final exact-source review pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/editorial-handoff-api.ts",
+      "area": "direct-publishing",
+      "sha256": "cc19032ab4cfb05d430333a2d9d73aedae3b1df072dace5ab0e4e8417feb0dc6",
+      "disposition": "pending-source-review",
+      "evidence": [
+        "docs/design/admin-workspace/direct-publishing-implementation.md: recovery audit fixes and local tests; final exact-source review pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/editorial-handoff-client.test.ts",
+      "area": "direct-publishing",
+      "sha256": "9f695774e8004d11749cdfd8f155441bbb755ede3a0e5b3e22497d2dbcb9585f",
+      "disposition": "pending-source-review",
+      "evidence": [
+        "docs/design/admin-workspace/direct-publishing-implementation.md: recovery audit fixes and local tests; final exact-source review pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/editorial-handoff-client.ts",
+      "area": "direct-publishing",
+      "sha256": "f786c948ce3070f31f551cd814efd3d53471bdc019d677ae90a810fc4d52cf3f",
+      "disposition": "pending-source-review",
+      "evidence": [
+        "docs/design/admin-workspace/direct-publishing-implementation.md: recovery audit fixes and local tests; final exact-source review pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/editorial-published-base.ts",
+      "area": "direct-publishing",
+      "sha256": "72ac6c463caf7ddb2415fd467ef27bd23e5097be4acd158a4b2823851b3d5b71",
+      "disposition": "pending-source-review",
+      "evidence": [
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/editorial-published-inventory.test.ts",
+      "area": "direct-publishing",
+      "sha256": "b8e6cf784c872d267f453f3b31a5be7af3e5bcb522ea09ea7bf2c403c6a2b7e3",
+      "disposition": "pending-source-review",
+      "evidence": [
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/lib/editorial-published-inventory.ts",
+      "area": "direct-publishing",
+      "sha256": "b08fa81b12d3d8516b48fca7d8fb4b9be1e3f2f0d3706cb7a07c83eb6e433c26",
+      "disposition": "pending-source-review",
+      "evidence": [
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ]
+    },
+    {
+      "path": "apps/admin/src/pages/content/transfer.astro",
+      "area": "direct-publishing",
+      "sha256": "8f2530000a97d79c3ec7feafa8f936be70d144aecb555ffc31e7e25d6cf5fa9b",
+      "disposition": "pending-source-review",
+      "evidence": [
+        "docs/design/admin-workspace/direct-publishing-implementation.md: recovery audit fixes and local tests; final exact-source review pending."
+      ]
+    },
+    {
+      "path": "apps/admin/test/editorial/direct-capture.test.ts",
+      "area": "direct-publishing",
+      "sha256": "7c956ae2aaf7b2a26563fe604420595d3850e48ea6c26d509c51570fab4fd9da",
+      "disposition": "pending-source-review",
+      "evidence": [
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ]
+    },
+    {
+      "path": "apps/admin/test/editorial/direct-integration.test.ts",
+      "area": "direct-publishing",
+      "sha256": "6d03580d8edf644a217da21a399bf46199f574daf86ce2b4e482ddddd62475c6",
+      "disposition": "pending-source-review",
+      "evidence": [
+        "docs/design/admin-workspace/direct-publishing-implementation.md: implementation and local QA receipt; final exact-source review remains pending."
+      ]
+    },
+    {
+      "path": "apps/admin/test/editorial/handoff.test.ts",
+      "area": "direct-publishing",
+      "sha256": "1fbb7ebdd84e94e0c82b286501e1c9df186528efb3fed5f57d6e86ad3244289f",
+      "disposition": "pending-source-review",
+      "evidence": [
+        "docs/design/admin-workspace/direct-publishing-implementation.md: recovery audit fixes and local tests; final exact-source review pending."
+      ]
     }
   ]
 }
