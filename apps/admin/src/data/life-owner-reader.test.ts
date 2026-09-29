@@ -173,13 +173,11 @@ describe("owner read proposal adapter", () => {
       vi.useFakeTimers();
       const cancel = vi.fn();
       const body = new ReadableStream<Uint8Array>({ cancel });
-      const send = vi
-        .fn<typeof fetch>()
-        .mockResolvedValue(
-          new Response(body, {
-            headers: { "content-type": "application/json" },
-          }),
-        );
+      const send = vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(body, {
+          headers: { "content-type": "application/json" },
+        }),
+      );
       const client = createLifeOwnerReader({
         endpoint,
         ticket: "synthetic",
