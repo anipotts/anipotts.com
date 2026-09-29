@@ -257,12 +257,12 @@ When dependencies are needed and disk space is available, run `bash ./scripts/co
 
 The shared `.codex/environments/environment.toml` exposes four local actions:
 
-| Action | Effect |
-| --- | --- |
-| start website | Starts or reuses this checkout’s public development server. |
-| start admin | Starts or reuses this checkout’s admin development server. |
-| check changes | Runs checks for the affected scope. |
-| install dependencies | Installs the frozen lockfile for this checkout. |
+| Action               | Effect                                                      |
+| -------------------- | ----------------------------------------------------------- |
+| start website        | Starts or reuses this checkout’s public development server. |
+| start admin          | Starts or reuses this checkout’s admin development server.  |
+| check changes        | Runs checks for the affected scope.                         |
+| install dependencies | Installs the frozen lockfile for this checkout.             |
 
 Use Codex’s built-in Git controls for diffs and pull requests. Run `pnpm validate`
 in the terminal when shared changes require full-workspace validation. Setup stays
