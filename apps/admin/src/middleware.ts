@@ -5,7 +5,14 @@ import {
   verifyEditorialOwner,
 } from "./lib/access-identity";
 import { privateJson } from "./lib/editorial-security";
-import { PREVIEW_PATHS, previewResponse } from "./lib/preview-html";
+import { editorialReturnPath } from "./lib/editorial-return-path";
+import {
+  PREVIEW_PATHS,
+  STANDALONE_PREVIEW_PATH,
+  isEmbeddedPreviewRequest,
+  previewResponse,
+  standalonePreviewUrl,
+} from "./lib/preview-html";
 import {
   isApprovedDevPreviewOrigin,
   isDevLoopbackPreviewRequest,
@@ -32,13 +39,16 @@ function isEditorialPath(pathname: string): boolean {
     pathname.startsWith("/newsletter/") ||
     pathname.startsWith("/api/editorial/") ||
     pathname.startsWith("/api/private-reader/") ||
-    PREVIEW_PATHS.has(pathname)
+    PREVIEW_PATHS.has(pathname) ||
+    pathname === STANDALONE_PREVIEW_PATH
   );
 }
 
 /** Owner responses are never cached or indexed, and a local owner is never framed. */
 function withPrivateHeaders(response: Response, localOwner: boolean) {
   response.headers.set("Cache-Control", "private, no-store");
+  response.headers.set("CDN-Cache-Control", "no-store");
+  response.headers.set("Cloudflare-CDN-Cache-Control", "no-store");
   response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
   if (localOwner) denyLocalOwnerFraming(response.headers);
   return response;
@@ -51,7 +61,7 @@ async function handleRequest(
   const { pathname } = context.url;
   // Sign out verifies the Access assertion itself.
   if (pathname === "/api/admin/logout" || pathname === "/auth/logout")
-    return next();
+    return withPrivateHeaders(await next(), false);
   // The reader canary admits exactly one Access service token, which its
   // route verifies against its own Access application. No owner is involved.
   if (pathname === PRIVATE_READER_CANARY_PATH)
@@ -79,8 +89,39 @@ async function handleRequest(
     // headers. Routes read the verified owner from locals, never again.
     if (!local) {
       const owner = await verifyEditorialOwner(context.request, env);
-      if (!owner) return privateJson({ error: "owner_required" }, 401);
+      if (!owner) {
+        // Human entry needs an inert account-change escape even when Access
+        // still holds a valid assertion for a different identity.
+        if (
+          !pathname.startsWith("/api/") &&
+          (context.request.method === "GET" ||
+            context.request.method === "HEAD")
+        ) {
+          const destination = editorialReturnPath(
+            `${pathname}${context.url.search}`,
+          );
+          return withPrivateHeaders(
+            context.redirect(
+              `/auth?next=${encodeURIComponent(destination)}`,
+              302,
+            ),
+            false,
+          );
+        }
+        return privateJson({ error: "owner_required" }, 401);
+      }
       context.locals.accessOwner = owner;
+    }
+    // Top-level preview navigation gets the normal same-origin document fence.
+    // Only an explicitly embedded browser frame renders the opaque draft.
+    if (
+      PREVIEW_PATHS.has(pathname) &&
+      !isEmbeddedPreviewRequest(context.request, context.url)
+    ) {
+      return withPrivateHeaders(
+        await context.rewrite(standalonePreviewUrl(context.url)),
+        localOwner,
+      );
     }
     const response = await next();
     return withPrivateHeaders(
@@ -98,7 +139,7 @@ async function handleRequest(
       url: context.url,
     })
   ) {
-    return next();
+    return withPrivateHeaders(await next(), false);
   }
 
   if (isPublicAdminPath(pathname)) return next();
@@ -115,7 +156,10 @@ async function handleRequest(
     return adminJson({ error: "admin_session_required" }, { status: 401 });
 
   const nextPath = encodeURIComponent(`${pathname}${context.url.search}`);
-  return context.redirect(`/auth?next=${nextPath}`, 302);
+  return withPrivateHeaders(
+    context.redirect(`/auth?next=${nextPath}`, 302),
+    false,
+  );
 }
 
 // Loaders record durations and counts on the request. The header is written

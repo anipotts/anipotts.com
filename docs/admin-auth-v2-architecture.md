@@ -8,6 +8,8 @@ token and native session code this describes was removed and is recoverable
 from the `archive/admin-retired-auth-2026-09-22` tag. Its D1 tables and
 migrations stay in place. The rest of this document is historical.
 
+Current authentication requirements: [platform architecture](platform-architecture.md#authentication-and-production-boundaries).
+
 ## decision
 
 `admin.anipotts.com` uses one passkey-first human auth boundary. `/auth` is the

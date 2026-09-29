@@ -15,7 +15,7 @@ vi.mock("./editorial/draft-store", () => ({
 const context = { waitUntil() {}, passThroughOnException() {} };
 // Workers request typing adds cf fields the adapter never reads here.
 const request = () =>
-  new Request("https://admin.example.test/content") as never;
+  new Request("https://admin.anipotts.com/content") as never;
 
 function contractLines(...spies: Array<{ mock: { calls: unknown[][] } }>) {
   return spies
@@ -30,9 +30,15 @@ async function freshWorker() {
 
 beforeEach(() => {
   vi.resetModules();
+  vi.stubEnv("DEV", false);
+  vi.stubGlobal("__LOCAL_OWNER_BUILD__", false);
   inner.fetch.mockClear();
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
 
 it("reports misconfiguration once per isolate without blocking requests", async () => {
   const info = vi.spyOn(console, "info").mockImplementation(() => {});
@@ -95,7 +101,7 @@ it("answers the adapter image endpoint with 404", async () => {
   const assets = { fetch: vi.fn(async () => new Response("bytes")) };
   const response = await worker.default.fetch(
     new Request(
-      "https://admin.example.test/_image?href=/admin-bracket.svg",
+      "https://admin.anipotts.com/_image?href=/admin-bracket.svg",
     ) as never,
     { ASSETS: assets } as never,
     context as never,
@@ -107,7 +113,7 @@ it("answers the adapter image endpoint with 404", async () => {
 
 describe("hashed build output", () => {
   const assetRequest = (init?: RequestInit, path = "/_astro/app.Ab12.js") =>
-    new Request(`https://admin.example.test${path}`, init) as never;
+    new Request(`https://admin.anipotts.com${path}`, init) as never;
   const assets = (response: () => Response) => ({
     fetch: vi.fn(async (_request: Request) => response()),
   });
@@ -183,5 +189,94 @@ describe("hashed build output", () => {
     expect(inner.fetch).toHaveBeenCalledTimes(6);
     // Only GET and HEAD under /_astro ever reach ASSETS here.
     expect(missing.fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("origin admission before every Worker branch", () => {
+  it.each([
+    "/",
+    "/auth",
+    "/auth/logout",
+    "/api/admin/logout",
+    "/api/health",
+    "/api/canary/credential",
+    "/api/private-reader/credential",
+    "/api/editorial/publish",
+    "/_image",
+    "/_astro/app.Ab12.js",
+    "/@vite/client",
+    "/src/private.ts",
+  ])(
+    "refuses alternate origin %s before assets, adapter or diagnostic reads",
+    async (path) => {
+      vi.stubEnv("DEV", true);
+      const worker = await freshWorker();
+      const get = vi.fn(() => {
+        throw new Error("must not inspect bindings");
+      });
+      const env = new Proxy({}, { get });
+      const response = await worker.default.fetch(
+        new Request(`https://alternate.example${path}`, {
+          headers: {
+            host: "localhost",
+            "x-forwarded-host": "admin.anipotts.com",
+            "x-forwarded-for": "127.0.0.1",
+          },
+        }) as never,
+        env as never,
+        context as never,
+      );
+      expect(response.status).toBe(403);
+      expect(response.body).toBeNull();
+      expect(response.headers.get("cache-control")).toBe("private, no-store");
+      expect(response.headers.get("cloudflare-cdn-cache-control")).toBe(
+        "no-store",
+      );
+      expect(get).not.toHaveBeenCalled();
+      expect(inner.fetch).not.toHaveBeenCalled();
+    },
+  );
+  it("production rejects loopback despite runtime flags and forwarded headers", async () => {
+    const worker = await freshWorker();
+    const assets = { fetch: vi.fn() };
+    const response = await worker.default.fetch(
+      new Request("http://localhost:4311/_astro/app.Ab12.js") as never,
+      { ASSETS: assets, ADMIN_LOCAL_OWNER: "1" } as never,
+      context as never,
+    );
+    expect(response.status).toBe(403);
+    expect(assets.fetch).not.toHaveBeenCalled();
+    expect(inner.fetch).not.toHaveBeenCalled();
+  });
+  it("permits direct DEV Vite modules but denies a tunnel naming loopback", async () => {
+    vi.stubEnv("DEV", true);
+    const worker = await freshWorker();
+    const assets = { fetch: vi.fn(async () => new Response("module")) };
+    const response = await worker.default.fetch(
+      new Request("http://localhost:4311/@vite/client") as never,
+      { ASSETS: assets } as never,
+      context as never,
+    );
+    expect(await response.text()).toBe("module");
+    assets.fetch.mockClear();
+    const tunneled = await worker.default.fetch(
+      new Request("http://localhost:4311/@vite/client", {
+        headers: { "x-forwarded-for": "203.0.113.8" },
+      }) as never,
+      { ASSETS: assets } as never,
+      context as never,
+    );
+    expect(tunneled.status).toBe(403);
+    expect(assets.fetch).not.toHaveBeenCalled();
+  });
+  it("admits direct compiled local-owner preview without creating production authority", async () => {
+    vi.stubGlobal("__LOCAL_OWNER_BUILD__", true);
+    const worker = await freshWorker();
+    const response = await worker.default.fetch(
+      new Request("http://localhost:4311/content") as never,
+      {} as never,
+      context as never,
+    );
+    expect(await response.text()).toBe("astro");
   });
 });

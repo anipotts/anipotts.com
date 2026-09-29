@@ -1,3 +1,4 @@
+import { jsonResponse } from "../../lib/test-json-response";
 // @vitest-environment jsdom
 import React, { act } from "react";
 import { readFileSync } from "node:fs";
@@ -48,17 +49,16 @@ it.each(["", "?view=preview"])(
       baseCommit: "a".repeat(40),
       baseFileHash: null,
     };
-    const fetcher = vi.fn(
-      async (_url: string, _init?: RequestInit) =>
-        new Response(
-          JSON.stringify({
-            base: { source, commit: "a".repeat(40), fileHash: null },
-            draft,
-            history: [draft],
-            publication: null,
-            publishing: "ready",
-          }),
-        ),
+    const fetcher = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse(
+        JSON.stringify({
+          base: { source, commit: "a".repeat(40), fileHash: null },
+          draft,
+          history: [draft],
+          publication: null,
+          publishing: "ready",
+        }),
+      ),
     );
     vi.stubGlobal("fetch", fetcher);
     window.history.replaceState(

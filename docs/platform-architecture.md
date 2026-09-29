@@ -1,6 +1,6 @@
 # Platform architecture
 
-Updated: 2026-09-22. Release completion evidence lives in [the site release review](site-release-review-2026-09-07.md).
+Updated: 2026-09-28. Release completion evidence lives in [the site release review](site-release-review-2026-09-07.md).
 
 ## Active surfaces
 
@@ -53,9 +53,104 @@ Production sets `PRIVATE_READER_ENABLED` and `PRIVATE_READER_OPS_ENABLED`, and l
 
 ## Authentication and production boundaries
 
-Cloudflare Access guards `admin.anipotts.com`, the only route `apps/admin/wrangler.toml` declares. The production admin worker also answers on `legacy-admin.anipotts.com`, a dashboard custom domain that Access does not cover, where only the middleware's owner check below stands between a request and the app; removing that domain or adding it to the Access app waits on Ani (ledger A-36.6). Middleware verifies the signed Access assertion for the exact owner; editorial reads and writes require it, other pages accept it for reads only, and sign out ends the Access session. The passkey, password, invite, recovery, device and native D1 session code was removed on 2026-09-22 and is recoverable from the `archive/admin-retired-auth-2026-09-22` tag. Its D1 tables and migrations stay in place.
+Cloudflare Access and the signed application assertion for exactly
+`hello@anipotts.com` are the human authority. The required login contract is
+Google through the existing human Access app/audience, with one selected Google
+IdP and instant authentication after staged owner and denial proof. Instant
+authentication skips the Access chooser; Google may require account selection,
+reauthentication or MFA. It does not prove MFA on every login.
 
-The protected route inventory in `scripts/ci/admin-route-inventory.mjs` drives the route parity and smoke checks. Newsletter controls retain their existing authorization checks. Admin no longer binds the command relay or serves the MCP, projection, knowledge, control-plane or compatibility write APIs; the relay itself stays in `workers/state`. Public code must not import admin-only contracts or operational write tables; `pnpm test:public-boundary` enforces this separation.
+Provider cutover is independently gated. Record the actual app/IdP UUIDs,
+policy/group bindings, path applications, bypasses, WARP authentication,
+MFA/device restrictions, session durations and alternate hosts before effects.
+Verify the actual Google email, not forwarding or alias delivery. Preserve the
+effective restrictions and durations. A shared policy must be copied to an
+app-owned policy before changing only the human app's binding. Shared IdPs,
+groups, other applications and account security settings keep their controls.
+The dated rollout receipt must distinguish this requirement from verified live
+configuration and owner/device acceptance.
+
+Stage an app-owned exact-email Include plus required Google login method, close
+competing human authorization paths, and perform the separately approved
+human-app token cutoff. This revokes all tokens for that app. After fresh Google
+owner success and wrong-user, service-identity, old-token and OTP-only global
+session denial, remove OTP from this app's IdP options and enable instant
+authentication. An unsuitable identity, missing policy/host evidence or
+incompatible MFA/device control holds cutover rather than relaxing controls.
+
+The custom Worker admits only `https://admin.anipotts.com` in production before
+Vite, assets, auth/health exceptions or adapter routing. Existing build-controlled
+DEV loopback and compiled local-owner predicates remain bounded to local review;
+forwarded headers cannot activate them. Other origins receive an inert uncached
+rejection. The earlier A-36.6 report of a dashboard-only
+`legacy-admin.anipotts.com` domain remains historical provider evidence, not proof
+that the domain was removed or covered by Access. Host inventory and canonical
+origin admission are independent controls. DNS/domain changes remain separately
+governed.
+
+Editorial reads and writes require the verified owner and retain CSRF, fixed
+production mutation origin, input bounds and concurrency controls. Other pages
+receive read authority only. Reader delegations retain fixed read scopes and a
+60-second expiry capped by the parent assertion. The canary endpoint retains its
+separate service identity/audience; human identity cannot authorize it. Health
+and Knowledge keep their existing flags. No new role or machine-auth mode is
+introduced. Newsletter and reserved operation controls retain their boundaries.
+
+Same-origin Admin JSON requests send `X-Requested-With: XMLHttpRequest`, reject
+redirected HTML and handle bounded JSON. Confirmed expiry locks the document and
+provides safe top-level reentry without replaying writes. Locked views and the
+auth shell also offer explicit sign out to change account through `/auth/logout`;
+this uses the existing required plaintext cleanup and fixed Access logout flow.
+Expiry never triggers logout or recovery deletion automatically. Network/HTML failures,
+policy denial and application validation/CSRF refusals remain distinct. The
+cross-origin tailnet reader keeps its existing transport and device grant.
+
+Private documents capture the logout generation synchronously in the head, before
+stylesheets or client islands can delay hydration. A later generation change
+withdraws server-rendered content, serialized island props and late streamed
+content, and prevents stale consumers from issuing protected requests.
+A separate nonsecret logout-intent latch also fences documents opened during
+required local cleanup and the bounded app-cookie attempt. The latch ends just
+before the fixed vendor logout navigation, after required cleanup succeeds;
+failure or interruption keeps it in place for explicit logout retry. This is
+client coordination, not evidence that provider logout has propagated. Fresh
+requests after vendor navigation still depend on Access verification and its
+documented propagation window.
+Standalone draft previews use this same-origin document fence around an opaque
+preview frame. Embedded previews require explicit frame mode and browser iframe
+fetch metadata; a raw-mode URL opened in a tab gets the fenced wrapper. Draft
+rendering keeps its existing sandbox and no-connect/no-form restrictions.
+
+Explicit logout invalidates browser generations, autosave, polling and pending
+responses before network cleanup, clears local plaintext/recovery across tabs,
+and awaits the same locks used by recovery writers. Storage or lock failure is
+incomplete cleanup, not success. Authentication expiry preserves owner-scoped
+browser recovery for deliberate resume; acknowledged server drafts remain.
+Open documents from an older release must close or reload before cross-tab
+acceptance: deployed JavaScript cannot retrofit the lifecycle guards into those
+documents.
+BFCache and resume cannot restore stale private state. After completed local
+cleanup and bounded best-effort app-cookie cleanup, the fixed
+`https://admin.anipotts.com/cdn-cgi/access/logout` destination ends the Access user
+session across Access apps. Google stays signed in. Access documents a 20 to 30
+second propagation window; each delegation remains valid for at most 60 seconds
+from issuance. Late issuance could extend reader access to roughly 90 seconds
+plus verified reader clock tolerance. This is an inference, not observed timing;
+participating documents stop renewal/rendering immediately and in-flight remote
+responses may finish later. See [Access session management](https://developers.cloudflare.com/cloudflare-one/access-controls/access-settings/session-management/).
+
+Native passkey, password, invite, recovery, device and D1 session fallback were
+retired on 2026-09-22. The [archive manifest](archive/admin-native-auth-retirement-2026-09-22.md)
+identifies recoverable remote Git source and dependency disposition. Historical
+auth tables, migrations and audits remain intact; lean Access principal helpers
+and browser draft recovery remain active.
+
+The protected inventory in `scripts/ci/admin-route-inventory.mjs` drives route
+parity and smoke. Content, Data, Observability and existing safe redirects remain
+supported. Admin no longer binds the command relay or serves MCP, projection,
+knowledge, control-plane or compatibility write APIs; the relay remains in
+`workers/state`. Public code must not import admin-only contracts or operational
+write tables; `pnpm test:public-boundary` enforces this separation.
 
 ## Verification and releases
 

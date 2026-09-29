@@ -1,3 +1,4 @@
+import { protectedAdminJson } from "../../lib/protected-admin-json";
 import React, { useEffect, useRef, useState } from "react";
 import { FileInput } from "@astryxdesign/core/FileInput";
 import { Button } from "@astryxdesign/core/Button";
@@ -47,6 +48,7 @@ export async function uploadEditorialImage(
   const csrf = await readEditorialCsrf(
     AbortSignal.any([signal, AbortSignal.timeout(15000)]),
   ).catch(() => {
+    signal.throwIfAborted();
     throw new ImageInputError(
       "Your session needs refreshing. Your selected image is retained.",
     );
@@ -54,7 +56,7 @@ export async function uploadEditorialImage(
   signal.throwIfAborted();
   const base64 = await fileBase64(file, signal);
   signal.throwIfAborted();
-  const response = await fetch("/api/editorial/media", {
+  const response = await protectedAdminJson("/api/editorial/media", {
     method: "POST",
     signal: AbortSignal.any([signal, AbortSignal.timeout(60000)]),
     headers: { "Content-Type": "application/json", "X-Editorial-CSRF": csrf },

@@ -25,7 +25,7 @@ for (const pathname of ["/api/admin/logout", "/auth/logout"])
     // Locals only receive the per-request Server-Timing collector.
     await onRequest(
       {
-        url: new URL(`https://admin.example.test${pathname}`),
+        url: new URL(`https://admin.anipotts.com${pathname}`),
         locals: {},
       } as never,
       next,
@@ -35,7 +35,7 @@ for (const pathname of ["/api/admin/logout", "/auth/logout"])
   });
 for (const pathname of ["/api/admin/logout/extra", "/auth/logout-other"])
   it(`does not bypass authentication for ${pathname}`, async () => {
-    const url = new URL(`https://admin.example.test${pathname}`);
+    const url = new URL(`https://admin.anipotts.com${pathname}`);
     const next = vi.fn();
     await onRequest(
       {

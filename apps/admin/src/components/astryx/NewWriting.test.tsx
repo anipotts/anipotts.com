@@ -1,8 +1,9 @@
+import { jsonResponse } from "../../lib/test-json-response";
 // @vitest-environment jsdom
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { NewWriting } from "./NewWriting";
+let NewWriting: typeof import("./NewWriting").NewWriting;
 import { RECORD_CREATED_EVENT } from "../../lib/editorial-inventory-events";
 import {
   clearEditorialRecovery,
@@ -30,7 +31,9 @@ async function type(value: string) {
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
 }
-beforeEach(() => {
+beforeEach(async () => {
+  vi.resetModules();
+  ({ NewWriting } = await import("./NewWriting"));
   // The title grows with its text.
   vi.stubGlobal(
     "ResizeObserver",
@@ -92,10 +95,11 @@ it("restores only the server-provided account and preserves legacy unscoped data
 it("clears creation recovery on same-tab logout and does not repopulate it", async () => {
   await render();
   await type("Private title");
-  act(() => clearEditorialRecovery(localStorage));
+  await act(async () => {
+    await clearEditorialRecovery(localStorage);
+  });
   expect(localStorage.getItem(newWritingRecoveryKey("owner"))).toBeNull();
-  expect(titleField().value).toBe("");
-  expect(titleField().disabled).toBe(true);
+  expect(titleField()).toBeNull();
   expect(host.textContent).toContain("Session ended");
 });
 it("handles another tab's logout and ignores unrelated storage events", async () => {
@@ -110,8 +114,7 @@ it("handles another tab's logout and ignores unrelated storage events", async ()
       new StorageEvent("storage", { key: recoveryLogoutKey }),
     ),
   );
-  expect(titleField().value).toBe("");
-  expect(titleField().disabled).toBe(true);
+  expect(titleField()).toBeNull();
 });
 it("blocks duplicate submissions and stops creation when logout happens during CSRF fetch", async () => {
   let resolve!: (value: Response) => void;
@@ -133,9 +136,11 @@ it("blocks duplicate submissions and stops creation when logout happens during C
       .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
   });
   expect(fetcher).toHaveBeenCalledTimes(1);
-  act(() => clearEditorialRecovery(localStorage));
+  await act(async () => {
+    await clearEditorialRecovery(localStorage);
+  });
   await act(async () =>
-    resolve(new Response(JSON.stringify({ csrf: "test" }), { status: 200 })),
+    resolve(jsonResponse(JSON.stringify({ csrf: "test" }), { status: 200 })),
   );
   expect(fetcher).toHaveBeenCalledTimes(1);
   expect(localStorage.getItem(newWritingRecoveryKey("owner"))).toBeNull();
@@ -146,7 +151,7 @@ it("retains creation operation identity after an ambiguous network failure", asy
     "fetch",
     vi.fn(async (url: string, options?: RequestInit) => {
       if (url.includes("csrf"))
-        return new Response(JSON.stringify({ csrf: "test" }), { status: 200 });
+        return jsonResponse(JSON.stringify({ csrf: "test" }), { status: 200 });
       ids.push(JSON.parse(options!.body as string).requestId);
       throw new TypeError("Network unavailable");
     }),
@@ -183,8 +188,8 @@ it("announces the created draft so open libraries list it without a reload", asy
     "fetch",
     vi.fn(async (url: string) => {
       if (url.includes("csrf"))
-        return new Response(JSON.stringify({ csrf: "test" }), { status: 200 });
-      return new Response(
+        return jsonResponse(JSON.stringify({ csrf: "test" }), { status: 200 });
+      return jsonResponse(
         JSON.stringify({
           ok: true,
           draft: {
@@ -250,8 +255,8 @@ it("keeps project recovery separate and creates with project identity", async ()
     vi.fn(async (url: string) => {
       calls.push(url);
       if (url.includes("csrf"))
-        return new Response(JSON.stringify({ csrf: "test" }));
-      return new Response(JSON.stringify({ ok: false }), { status: 409 });
+        return jsonResponse(JSON.stringify({ csrf: "test" }));
+      return jsonResponse(JSON.stringify({ ok: false }), { status: 409 });
     }),
   );
   await act(async () => {
@@ -281,7 +286,7 @@ it.each(["network", "malformed"])(
       "fetch",
       vi.fn(async (url: string, options?: RequestInit) => {
         if (url.includes("csrf"))
-          return new Response(JSON.stringify({ csrf: "test" }));
+          return jsonResponse(JSON.stringify({ csrf: "test" }));
         ids.push(JSON.parse(options!.body as string).requestId);
         if (failure === "network")
           throw new Error("PRIVATE transport diagnostic");
@@ -308,3 +313,24 @@ it.each(["network", "malformed"])(
     expect(ids[0]).toBe(ids[1]);
   },
 );
+
+it("does not restore recovery into a document locked before mount", async () => {
+  const key = newWritingRecoveryKey("owner");
+  localStorage.setItem(
+    key,
+    JSON.stringify({
+      title: "Private preserved title",
+      slug: "private",
+      customSlug: false,
+      request: null,
+    }),
+  );
+  const { lockProtectedSession } =
+    await import("../../lib/protected-admin-json");
+  lockProtectedSession("expired");
+  await render();
+  expect(host.textContent).toContain("Session ended");
+  expect(host.textContent).not.toContain("Private preserved title");
+  expect(titleField()).toBeNull();
+  expect(localStorage.getItem(key)).toContain("Private preserved title");
+});

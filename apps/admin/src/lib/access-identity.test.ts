@@ -1,6 +1,8 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import {
   createLocalJWKSet,
+  createRemoteJWKSet,
+  customFetch,
   exportJWK,
   generateKeyPair,
   SignJWT,
@@ -99,6 +101,10 @@ describe("editorial Access identity", () => {
     ["wrong audience", { aud: "another-app" }],
     ["wrong owner", { email: "other@example.com" }],
     ["nonexact owner", { email: "Hello@anipotts.com" }],
+    ["alias", { email: "hello+admin@anipotts.com" }],
+    ["missing email", { email: undefined }],
+    ["missing issuance", { iat: undefined }],
+    ["missing type", { type: undefined }],
     ["missing subject", { sub: undefined }],
     ["blank subject", { sub: " " }],
     ["service identity", { common_name: "ci.access" }],
@@ -141,6 +147,122 @@ describe("editorial Access identity", () => {
       await verifyEditorialOwner(req, config, async () => {
         throw new Error("unavailable");
       }),
+    ).toBeNull();
+  });
+});
+
+describe("remote Access signing keys, with real jose verification", () => {
+  it("rotates an unknown kid, retains verified cached keys during an outage, and fails closed otherwise", async () => {
+    const first = await generateKeyPair("RS256");
+    const second = await generateKeyPair("RS256");
+    const jwk1 = {
+      ...(await exportJWK(first.publicKey)),
+      kid: "first",
+      alg: "RS256",
+    };
+    const jwk2 = {
+      ...(await exportJWK(second.publicKey)),
+      kid: "second",
+      alg: "RS256",
+    };
+    let published = [jwk1];
+    let unavailable = false;
+    const fetchKeys = vi.fn(async () => {
+      if (unavailable) throw new Error("synthetic outage");
+      return Response.json({ keys: published });
+    });
+    const remote = createRemoteJWKSet(
+      new URL("/cdn-cgi/access/certs", config.ACCESS_TEAM_DOMAIN),
+      {
+        [customFetch]: fetchKeys,
+        cooldownDuration: 0,
+      },
+    );
+    const now = Math.floor(Date.now() / 1000);
+    const sign = (kid: string, key: CryptoKey) =>
+      new SignJWT({
+        iss: config.ACCESS_TEAM_DOMAIN,
+        aud: config.ACCESS_POLICY_AUD,
+        iat: now,
+        exp: now + 300,
+        sub: "synthetic-owner",
+        email: EDITORIAL_OWNER_EMAIL,
+        type: "app",
+      })
+        .setProtectedHeader({ alg: "RS256", kid })
+        .sign(key);
+    const original = await sign("first", first.privateKey);
+    expect(
+      await verifyEditorialOwner(request(original), config, remote),
+    ).not.toBeNull();
+    published = [jwk1, jwk2];
+    const rotated = await sign("second", second.privateKey);
+    expect(
+      await verifyEditorialOwner(request(rotated), config, remote),
+    ).not.toBeNull();
+    expect(fetchKeys).toHaveBeenCalledTimes(2);
+    unavailable = true;
+    expect(
+      await verifyEditorialOwner(request(rotated), config, remote),
+    ).not.toBeNull();
+    expect(fetchKeys).toHaveBeenCalledTimes(2);
+    expect(
+      await verifyEditorialOwner(
+        request(await sign("unknown", second.privateKey)),
+        config,
+        remote,
+      ),
+    ).toBeNull();
+    expect(fetchKeys).toHaveBeenCalledTimes(3);
+    const cold = createRemoteJWKSet(
+      new URL("https://fixture.cloudflareaccess.com/certs"),
+      { [customFetch]: fetchKeys },
+    );
+    expect(
+      await verifyEditorialOwner(request(original), config, cold),
+    ).toBeNull();
+  });
+  it.each([{}, { keys: "wrong" }, { keys: [{ kty: "invalid", kid: "test" }] }])(
+    "denies unusable signing-key responses without identity fallback",
+    async (body) => {
+      const remote = createRemoteJWKSet(
+        new URL("https://fixture.cloudflareaccess.com/certs"),
+        {
+          [customFetch]: async () => Response.json(body),
+        },
+      );
+      expect(
+        await verifyEditorialOwner(request(await assertion()), config, remote),
+      ).toBeNull();
+    },
+  );
+  it("denies unsigned/tampered assertions and ignores every retired cookie", async () => {
+    const valid = await assertion();
+    const [header, payload, signature] = valid.split(".");
+    const unsigned = `${btoa(JSON.stringify({ alg: "none" }))}.${payload}.`;
+    const tampered = `${header}.${payload}.${signature!.slice(0, -12)}aaaaaaaaaaaa`;
+    for (const token of [unsigned, tampered, "x".repeat(16_385)]) {
+      const req = new Request(request(token), {
+        headers: {
+          "cf-access-jwt-assertion": token,
+          "cf-access-authenticated-user-email": EDITORIAL_OWNER_EMAIL,
+          cookie:
+            "__Host-admin_session=old; admin_passkey_session=old; admin_session=old",
+        },
+      });
+      expect(await verifyEditorialOwner(req, config, keys)).toBeNull();
+    }
+    expect(
+      await verifyEditorialOwner(
+        new Request(request(), {
+          headers: {
+            cookie:
+              "__Host-admin_session=old; admin_passkey_session=old; admin_session=old",
+          },
+        }),
+        config,
+        keys,
+      ),
     ).toBeNull();
   });
 });

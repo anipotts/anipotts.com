@@ -1,3 +1,9 @@
+import { AuthReentry } from "./AuthReentry";
+import { editorialReturnPath } from "../../lib/editorial-return-path";
+import {
+  AdminRequestError,
+  watchProtectedSession,
+} from "../../lib/protected-admin-json";
 import { EditorToolBoundary } from "./EditorToolBoundary";
 import { AutoSizeTextArea } from "./AutoSizeTextArea";
 import {
@@ -98,7 +104,10 @@ import {
 import type { Draft } from "../../editorial/draft-store";
 import type { HomeBase } from "../../lib/editorial-home-api";
 import { discardBody } from "../../lib/response-body";
-import { readEditorialCsrf } from "../../lib/editorial-client";
+import {
+  editorialAdminJson,
+  readEditorialCsrf,
+} from "../../lib/editorial-client";
 import type { DirectPublicationStatus } from "../../lib/editorial-publication-status";
 import { prepareWritingPublication } from "../../lib/writing-publication-source";
 import { publicationSourceHash } from "@anipotts/content/editorial/publication-contract";
@@ -139,7 +148,9 @@ const SourceEditor = lazy(() => import("./SourceEditor"));
 
 /** An editorial read's JSON; a refused response throws. */
 async function getJson<T>(url: string): Promise<T> {
-  const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+  const response = await editorialAdminJson(url, {
+    signal: AbortSignal.timeout(15000),
+  });
   if (!response.ok) {
     discardBody(response);
     throw new Error("read refused");
@@ -253,6 +264,8 @@ function HomeEditorImpl({
   );
   const reviewHeadingId = useId();
   const toast = useToast();
+  const sessionLocked = useRef(false);
+  const [locked, setLocked] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [historyError, setHistoryError] = useState(false);
   const [comparedRevision, setComparedRevision] = useState<number | null>(null);
@@ -613,8 +626,9 @@ function HomeEditorImpl({
     guard?: () => boolean,
   ) {
     csrf.current ||= await readEditorialCsrf(AbortSignal.timeout(15000));
+    if (sessionLocked.current) throw new Error("session locked");
     if (guard && !guard()) throw new Error("operation no longer current");
-    const response = await fetch(endpoint(action), {
+    const response = await editorialAdminJson(endpoint(action), {
       method: "POST",
       signal: AbortSignal.timeout(15000),
       headers: {
@@ -623,10 +637,10 @@ function HomeEditorImpl({
       },
       body: JSON.stringify(body),
     });
-    if (response.status === 401 || response.status === 403) {
+    if (response.status === 403) {
       discardBody(response);
       csrf.current = "";
-      throw new Error("session expired");
+      throw new AdminRequestError("refused");
     }
     return response;
   }
@@ -650,7 +664,7 @@ function HomeEditorImpl({
     setError("");
     getJson<Snapshot>(endpoint("record"))
       .then(async (data) => {
-        if (cancelled) return;
+        if (cancelled || sessionLocked.current) return;
         setSnapshot(data);
         setPublication(data.publication ?? null);
         const source = data.draft?.source ?? data.base.source;
@@ -668,6 +682,7 @@ function HomeEditorImpl({
             return result;
           },
           (next) => {
+            if (sessionLocked.current) return;
             setState(next);
             try {
               const key = recoveryStorageKey.current;
@@ -768,7 +783,7 @@ function HomeEditorImpl({
       const request = new AbortController();
       active = request;
       try {
-        const response = await fetch(
+        const response = await editorialAdminJson(
           `${endpoint("publication")}&operationId=${job.id}`,
           {
             signal: AbortSignal.any([
@@ -876,10 +891,43 @@ function HomeEditorImpl({
       // so it routes through localLogout rather than repeating a subset here.
       if (event.key === recoveryLogoutKey) localLogout();
     };
-    const localLogout = () => {
+    const localLogout = (reason: unknown = "locked") => {
+      // Expiry retains buffered edits without issuing a network save. Explicit
+      // logout must discard them and make unmount flush callbacks inert.
+      const preserveRecovery =
+        typeof reason === "string" && reason !== "logout";
+      if (preserveRecovery && !sessionLocked.current) flushLocal();
+      sessionLocked.current = true;
+      setLocked(true);
+      saveScheduler.current?.dispose();
+      saveScheduler.current = null;
+      const recovery = editor.current?.recovery();
+      const channel = recoveryChannel.current;
+      if (preserveRecovery && recovery && channel)
+        void channel.write(recovery).finally(() => channel.close());
+      editor.current?.dispose();
+      editor.current = null;
+      titleFlush.current = subtitleFlush.current = bodyFlush.current = null;
+      bodyDirtyRef.current = false;
+      navigationGeneration.current++;
+      reviewRequest.current++;
+      previewRequest.current++;
+      historyRequest.current++;
+      csrf.current = "";
+      publishedDraft.current = null;
+      publishRequest.current = null;
+      unpublishRequest.current = null;
+      setState(null);
+      setSnapshot(null);
+      setReviewedBase(null);
+      setReviewedDraft(null);
+      setComparison(null);
+      setPublication(null);
+      setBarTitle("Content");
+      document.title = "Content | Admin";
       mediaAuthorized.current = false;
       recoveryStorageKey.current = null;
-      recoveryChannel.current?.close();
+      if (!preserveRecovery) recoveryChannel.current?.close();
       recoveryChannel.current = null;
       setRecoveryRead({ status: "missing" });
       setRecoveryProblem(null);
@@ -891,6 +939,7 @@ function HomeEditorImpl({
       setSaveComparisonLoading(false);
       setSaveComparisonError("");
     };
+    const stopWatching = watchProtectedSession(localLogout);
     window.addEventListener(recoveryLogoutKey, localLogout);
     window.addEventListener("storage", logout);
     const guard = (event: BeforeUnloadEvent) => {
@@ -908,6 +957,7 @@ function HomeEditorImpl({
     };
     window.addEventListener("beforeunload", guard);
     return () => {
+      stopWatching();
       window.removeEventListener("beforeunload", guard);
       window.removeEventListener("storage", logout);
       window.removeEventListener(recoveryLogoutKey, localLogout);
@@ -926,7 +976,9 @@ function HomeEditorImpl({
   useEffect(() => {
     if (!activatedVisibility) return;
     let cancelled = false;
-    fetch(endpoint("baseline"), { signal: AbortSignal.timeout(15000) })
+    editorialAdminJson(endpoint("baseline"), {
+      signal: AbortSignal.timeout(15000),
+    })
       .then(async (response) => {
         if (!response.ok) {
           discardBody(response);
@@ -945,6 +997,18 @@ function HomeEditorImpl({
       cancelled = true;
     };
   }, [activatedVisibility]);
+  if (locked)
+    return (
+      <VStack gap={3}>
+        <Banner
+          status="warning"
+          title="Session ended. Sign in again to resume your saved draft."
+        />
+        <AuthReentry
+          href={editorialReturnPath(location.pathname + location.search)}
+        />
+      </VStack>
+    );
   if (!state || !snapshot)
     return (
       <VStack gap={3} className="editor-workspace writing-workspace">
@@ -1141,7 +1205,7 @@ function HomeEditorImpl({
         controller !== editor.current
       )
         return;
-      const response = await fetch(endpoint("baseline"), {
+      const response = await editorialAdminJson(endpoint("baseline"), {
         signal: AbortSignal.timeout(15000),
       });
       if (!response.ok) {
@@ -1335,7 +1399,7 @@ function HomeEditorImpl({
     setError("");
     try {
       // Review against the server's current public source, never a cached one.
-      const response = await fetch(endpoint("baseline"), {
+      const response = await editorialAdminJson(endpoint("baseline"), {
         signal: AbortSignal.timeout(15000),
       });
       if (!response.ok) {
@@ -1417,7 +1481,7 @@ function HomeEditorImpl({
   async function readPublication(
     operationId: string,
   ): Promise<VisiblePublication | null> {
-    const response = await fetch(
+    const response = await editorialAdminJson(
       `${endpoint("publication")}&operationId=${encodeURIComponent(operationId)}`,
       {
         signal: AbortSignal.timeout(15000),
@@ -1584,7 +1648,12 @@ function HomeEditorImpl({
       }
     }
   };
+  const editSource = (transform: (source: string) => string) => {
+    if (sessionLocked.current || !editor.current) return;
+    editor.current.edit(transform(editor.current.state.source));
+  };
   const markDirty = () => {
+    if (sessionLocked.current || !editor.current) return;
     editGeneration.current += 1;
     bodyDirtyRef.current = true;
     setBodyDirty(true);
@@ -2196,18 +2265,14 @@ function HomeEditorImpl({
                         onDirty={markDirty}
                         onEnter={() => focusAfter(index)}
                         onDraftTitle={(value) => {
-                          if (!titled) return;
+                          if (!titled || sessionLocked.current) return;
                           setBarTitle(value || untitled);
                           onTitleChange?.(value);
                           document.title = `${value || untitled} | Admin`;
                         }}
                         onCommit={(value) =>
-                          editor.current!.edit(
-                            setEditorialField(
-                              editor.current!.state.source,
-                              field.path,
-                              value,
-                            ),
+                          editSource((source) =>
+                            setEditorialField(source, field.path, value),
                           )
                         }
                       />
@@ -2227,12 +2292,8 @@ function HomeEditorImpl({
                             : undefined
                         }
                         onChange={(value) =>
-                          editor.current!.edit(
-                            setEditorialField(
-                              editor.current!.state.source,
-                              field.path,
-                              value,
-                            ),
+                          editSource((source) =>
+                            setEditorialField(source, field.path, value),
                           )
                         }
                       />
@@ -2258,6 +2319,7 @@ function HomeEditorImpl({
                         value={values[index] ?? ""}
                         disabled={!parseable || discarded}
                         onChange={(value) => {
+                          if (sessionLocked.current || !editor.current) return;
                           let next = setEditorialField(
                             editor.current!.state.source,
                             field.path,
@@ -2287,12 +2349,8 @@ function HomeEditorImpl({
                         value={values[index] ?? ""}
                         isDisabled={!parseable || discarded}
                         onChange={(value) =>
-                          editor.current!.edit(
-                            setEditorialField(
-                              editor.current!.state.source,
-                              field.path,
-                              value,
-                            ),
+                          editSource((source) =>
+                            setEditorialField(source, field.path, value),
                           )
                         }
                       />
@@ -2338,7 +2396,13 @@ function HomeEditorImpl({
                     errors={fieldErrors}
                     disabled={uploadPending || discarded}
                     onEdit={(edit) => {
-                      if (mediaPending.current || discarded) return;
+                      if (
+                        sessionLocked.current ||
+                        !editor.current ||
+                        mediaPending.current ||
+                        discarded
+                      )
+                        return;
                       editor.current!.edit(
                         editProjectSections(editor.current!.state.source, edit),
                       );
@@ -2398,6 +2462,7 @@ function HomeEditorImpl({
                     value={parseEditorialSource(state.source).body}
                     disabled={discarded}
                     onChange={(body) => {
+                      if (sessionLocked.current || !editor.current) return;
                       const source = editor.current!.state.source;
                       const oldBody = parseEditorialSource(source).body;
                       editor.current!.edit(
@@ -2466,7 +2531,9 @@ function HomeEditorImpl({
                 >
                   <SourceEditor
                     source={state.source}
-                    onChange={(source) => editor.current!.edit(source)}
+                    onChange={(source) => {
+                      if (!sessionLocked.current) editor.current?.edit(source);
+                    }}
                     hidden={tab !== "source"}
                     readOnly={discarded}
                   />
@@ -2531,7 +2598,9 @@ function HomeEditorImpl({
                   id={record.id}
                   disabled={discarded}
                   publicUrl={onSite ? publicUrl?.(livePath) : undefined}
-                  onChange={(source) => editor.current!.edit(source)}
+                  onChange={(source) => {
+                    if (!sessionLocked.current) editor.current?.edit(source);
+                  }}
                 />
               )}
             {panel === "properties" && record.kind === "work" && parseable && (
@@ -2539,7 +2608,9 @@ function HomeEditorImpl({
                 source={state.source}
                 errors={fieldErrors}
                 disabled={discarded}
-                onChange={(source) => editor.current!.edit(source)}
+                onChange={(source) => {
+                  if (!sessionLocked.current) editor.current?.edit(source);
+                }}
               />
             )}
             {panel === "history" && (

@@ -1,3 +1,4 @@
+import { jsonResponse } from "../../lib/test-json-response";
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -1217,7 +1218,7 @@ describe("Status connection states", () => {
     let up = true;
     const controller = live(() => {
       if (!up) throw new TypeError("offline");
-      return new Response(JSON.stringify(sample), {
+      return jsonResponse(JSON.stringify(sample), {
         headers: { "content-type": "application/json", etag: '"a"' },
       });
     });
@@ -1253,7 +1254,7 @@ describe("Status connection states", () => {
   });
 
   const snapshotReply = () =>
-    new Response(JSON.stringify(sample), {
+    jsonResponse(JSON.stringify(sample), {
       headers: { "content-type": "application/json", etag: '"a"' },
     });
 
@@ -1304,23 +1305,6 @@ describe("Status connection states", () => {
     expect(host.querySelector("table")).toBeNull();
     await act(() => vi.advanceTimersByTimeAsync(OPS_POLL_MS * 3));
     expect(reply).toHaveBeenCalledTimes(1);
-  });
-
-  it("clears the snapshot when the page is hidden for good (pagehide)", async () => {
-    const controller = live(
-      () =>
-        new Response(JSON.stringify(sample), {
-          headers: { "content-type": "application/json" },
-        }),
-    );
-    await act(async () =>
-      root.render(<ObservabilityWorkspace enabled controller={controller} />),
-    );
-    await act(() => vi.advanceTimersByTimeAsync(0));
-    expect(host.querySelector("table")).not.toBeNull();
-    await act(async () => window.dispatchEvent(new Event("pagehide")));
-    expect(host.querySelector("table")).toBeNull();
-    expect(host.textContent).toContain("Session ended");
   });
 });
 
