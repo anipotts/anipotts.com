@@ -993,7 +993,7 @@ describe("private Data workspace", () => {
     expect(container.textContent).not.toContain("ap-mini unreachable");
   });
 
-  it("persists no private data and reads only logout generation metadata", async () => {
+  it("persists no private data and reads only logout generation and intent metadata", async () => {
     const storage = [
       vi.spyOn(Storage.prototype, "setItem"),
       vi.spyOn(Storage.prototype, "getItem"),
@@ -1017,9 +1017,12 @@ describe("private Data workspace", () => {
     await click("Lock session");
     for (const spy of [storage[0], idb, cacheOpen, register])
       expect(spy).not.toHaveBeenCalled();
-    const { recoveryLogoutGenerationKey } = await import("./browser-recovery");
+    const { recoveryLogoutGenerationKey, recoveryLogoutIntentKey } =
+      await import("./browser-recovery");
     for (const [key] of storage[1]!.mock.calls)
-      expect(key).toBe(recoveryLogoutGenerationKey);
+      expect([recoveryLogoutGenerationKey, recoveryLogoutIntentKey]).toContain(
+        key,
+      );
     expect(window.localStorage.length).toBe(0);
     expect(window.sessionStorage.length).toBe(0);
     delete (navigator as { serviceWorker?: unknown }).serviceWorker;
