@@ -1,3 +1,5 @@
+import { useOpenAIUI } from "../workspace/AdminUI";
+import { Badge } from "@openai/apps-sdk-ui/components/Badge";
 import React from "react";
 import type { SaveState } from "../../lib/home-autosave";
 import { StatusDot } from "@astryxdesign/core/StatusDot";
@@ -61,6 +63,7 @@ export function saveStatusFromController(
  * Publication and public verification are separate. */
 export function SaveStatus({ state, describedBy }: SaveStatusProps) {
   const { label, variant } = states[state];
+  const openAI = useOpenAIUI();
   return (
     <span
       role="status"
@@ -72,15 +75,31 @@ export function SaveStatus({ state, describedBy }: SaveStatusProps) {
       data-save-state={state}
       title={label}
     >
-      {state !== "unchanged" && (
-        <StatusDot
-          variant={variant}
-          label={label}
-          aria-hidden="true"
-          isPulsing={state === "saving"}
-        />
+      {openAI ? (
+        <Badge
+          color={
+            variant === "error"
+              ? "danger"
+              : variant === "warning"
+                ? "warning"
+                : variant === "success"
+                  ? "success"
+                  : "secondary"
+          }
+        >
+          {label}
+        </Badge>
+      ) : (
+        state !== "unchanged" && (
+          <StatusDot
+            variant={variant}
+            label={label}
+            aria-hidden="true"
+            isPulsing={state === "saving"}
+          />
+        )
       )}
-      <span className="sr-only">{label}</span>
+      {!openAI && <span className="sr-only">{label}</span>}
     </span>
   );
 }

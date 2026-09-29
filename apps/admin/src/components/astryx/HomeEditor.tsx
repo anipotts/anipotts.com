@@ -50,15 +50,15 @@ import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { Heading } from "@astryxdesign/core/Heading";
-import { TextInput } from "@astryxdesign/core/TextInput";
+import { TextInput } from "./WritingControls";
 import { saveStatusFromController } from "./SaveStatus";
 import {
   ArrowCounterClockwiseIcon,
   DownloadSimpleIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { Banner } from "@astryxdesign/core/Banner";
-import { IconButton } from "@astryxdesign/core/IconButton";
+import { Banner } from "./WritingControls";
+import { IconButton } from "./WritingControls";
 import { EditorActionBar } from "./EditorActionBar";
 import { RelativeTime, StateNotice } from "../workspace/Workspace";
 import { FormLayout } from "@astryxdesign/core/FormLayout";
@@ -80,8 +80,8 @@ import { editableHomeSummary } from "../../lib/rich-text";
 import { editorialFields } from "../../lib/editorial-fields";
 import { ReviewChanges } from "./ReviewChanges";
 import { PublicationProgress } from "./PublicationProgress";
-import { TextArea } from "@astryxdesign/core/TextArea";
-import { Button } from "@astryxdesign/core/Button";
+import { TextArea } from "./WritingControls";
+import { Button } from "./WritingControls";
 import {
   parseEditorialSource,
   setEditorialField,

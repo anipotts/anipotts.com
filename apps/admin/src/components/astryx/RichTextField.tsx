@@ -1,3 +1,4 @@
+import { ToggleButton } from "./WritingControls";
 import { EditorSelectionBookmark } from "../../lib/editor-selection-bookmark";
 import { SelectionOverlay } from "./SelectionOverlay";
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
@@ -7,15 +8,12 @@ import Image from "@tiptap/extension-image";
 import { Field } from "@astryxdesign/core/Field";
 import { FormLayout } from "@astryxdesign/core/FormLayout";
 import { Toolbar } from "@astryxdesign/core/Toolbar";
-import {
-  ToggleButton,
-  ToggleButtonGroup,
-} from "@astryxdesign/core/ToggleButton";
+import { ToggleButtonGroup } from "./WritingControls";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
-import { TextInput } from "@astryxdesign/core/TextInput";
-import { Button } from "@astryxdesign/core/Button";
+import { TextInput } from "./WritingControls";
+import { Button } from "./WritingControls";
 import {
   TextBIcon,
   TextItalicIcon,

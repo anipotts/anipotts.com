@@ -3,6 +3,7 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { EditorialRecord } from "@anipotts/content/editorial/source";
+import { AdminUIProvider } from "../workspace/AdminUI";
 import { HomeEditor } from "./HomeEditor";
 import { newWritingSource } from "../../lib/writing-draft";
 
@@ -106,7 +107,11 @@ it.each([
     );
     window.history.replaceState(null, "", `/content/${record.kind}/test`);
     await act(async () => {
-      root.render(<HomeEditor record={record} />);
+      root.render(
+        <AdminUIProvider enabled={record.kind === "writing"} mode="light">
+          <HomeEditor record={record} />
+        </AdminUIProvider>,
+      );
     });
     await act(async () => {
       await vi.waitFor(

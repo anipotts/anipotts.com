@@ -1,0 +1,3 @@
+/* Establish both systems' order before any component imports register a layer.
+   Legacy layers keep their existing relative order. SDK resets are scoped. */
+@layer reset, astryx-base, astryx-theme, theme, base, components, utilities;

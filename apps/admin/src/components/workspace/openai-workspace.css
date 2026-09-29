@@ -1,0 +1,283 @@
+/* Application composition, scoped to the explicit SDK opt-in boundary. */
+[data-admin-ui="openai"] {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  --spacing: 4px;
+  color: var(--color-text);
+  --font-body: var(--font-sans);
+  --font-heading: var(--font-sans);
+  --color-surface-raised: var(--color-surface-secondary);
+  --color-text-muted: var(--color-text-tertiary);
+}
+.admin-openai-boundary {
+  min-width: 0;
+  width: 100%;
+  background: var(--color-surface);
+  color-scheme: light dark;
+}
+[data-admin-ui="openai"][data-theme="light"] {
+  color-scheme: light;
+}
+[data-admin-ui="openai"][data-theme="dark"] {
+  color-scheme: dark;
+}
+[data-admin-ui="openai"] :is(h1, h2, h3, h4, p) {
+  font-family: inherit;
+}
+[data-admin-ui="openai"] :is(button, a, input, textarea, select):focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 3px;
+}
+[data-admin-ui="openai"] .openai-search {
+  flex: 1;
+  min-width: 0;
+  max-width: 28rem;
+}
+[data-admin-ui="openai"] .openai-table {
+  width: 100%;
+  min-width: 0;
+}
+[data-admin-ui="openai"] .openai-record-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+  font-size: 0.875rem;
+}
+[data-admin-ui="openai"] .openai-record-table :is(th, td) {
+  padding: 8px;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+[data-admin-ui="openai"] .openai-record-table th {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+[data-admin-ui="openai"] .openai-record-table td[data-numeric] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+[data-admin-ui="openai"] .openai-record-table tbody tr {
+  position: relative;
+}
+[data-admin-ui="openai"] .openai-record-table tbody tr[data-selected] {
+  background: var(--color-background-secondary-soft);
+}
+[data-admin-ui="openai"] .openai-record-table .openai-table-select {
+  width: 3rem;
+  position: relative;
+  z-index: 1;
+}
+[data-admin-ui="openai"] .openai-record-table .openai-table-select button {
+  min-width: 18px;
+  min-height: 18px;
+}
+[data-admin-ui="openai"] :is(.openai-table-footer, .openai-pagination) {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+[data-admin-ui="openai"] .openai-pagination {
+  justify-content: flex-end;
+}
+[data-admin-ui="openai"] :is(.openai-mobile-label, .openai-mobile-sort) {
+  display: none;
+}
+[data-admin-ui="openai"] :is(.openai-field, .openai-control-stack) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+}
+[data-admin-ui="openai"] .openai-field label {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+[data-admin-ui="openai"] .openai-field-hint {
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+}
+[data-admin-ui="openai"] .openai-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  align-items: center;
+}
+@media (hover: hover) {
+  [data-admin-ui="openai"]
+    .openai-table[data-interactive="true"]
+    tbody
+    tr:not(.openai-group-row):hover {
+    background: var(--color-background-secondary-soft);
+  }
+}
+@media (max-width: 640px) {
+  [data-admin-ui="openai"]
+    :is(button:not([role="checkbox"]), [role="button"], input, select) {
+    min-height: 44px;
+  }
+  [data-admin-ui="openai"] .openai-mobile-sort {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+  [data-admin-ui="openai"] .openai-record-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+    overflow: hidden;
+  }
+  [data-admin-ui="openai"] .openai-record-table :is(tbody, tr, td, th) {
+    display: block;
+    width: auto;
+  }
+  [data-admin-ui="openai"] .openai-record-table tbody tr {
+    padding: 0.75rem 0;
+  }
+  [data-admin-ui="openai"] .openai-record-table td {
+    padding: 0.25rem 0.75rem;
+  }
+  [data-admin-ui="openai"] .openai-record-table td[data-numeric] {
+    text-align: left;
+  }
+  [data-admin-ui="openai"] .openai-mobile-label {
+    display: inline;
+    color: var(--color-text-secondary);
+    margin-inline-end: 0.5rem;
+  }
+  [data-admin-ui="openai"] .openai-record-table .openai-table-select {
+    width: auto;
+  }
+  [data-admin-ui="openai"] .openai-pagination {
+    justify-content: space-between;
+    padding-inline: 0;
+  }
+}
+[data-admin-ui="openai"] .editor-save-status {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  flex-shrink: 0;
+}
+[data-admin-ui="openai"] {
+  --font-family-body: var(--font-sans);
+  --font-family-heading: var(--font-sans);
+  --font-family-code: var(--font-mono);
+}
+[data-admin-ui="openai"] .writing-control-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+}
+[data-admin-ui="openai"] .writing-control-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+[data-admin-ui="openai"] .writing-control-help {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+[data-admin-ui="openai"] .writing-toolbar {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+[data-admin-ui="openai"] .openai-mobile-column-name {
+  display: none;
+}
+@media (max-width: 640px) {
+  /* Clipped headers retain names, but their duplicated controls must not
+     become invisible keyboard stops. Phone controls are above the table. */
+  [data-admin-ui="openai"] .openai-record-table thead button {
+    display: none;
+  }
+  [data-admin-ui="openai"] .openai-mobile-column-name {
+    display: inline;
+  }
+}
+
+/* Keep the SDK's 18px checkbox; enlarge only its interactive area. */
+[data-admin-ui="openai"] .openai-table [role="checkbox"]::before {
+  content: "";
+  position: absolute;
+  inset: -9px;
+}
+@media (max-width: 640px) {
+  [data-admin-ui="openai"] .openai-table [role="checkbox"]::before {
+    inset: -13px;
+  }
+  [data-admin-ui="openai"] .openai-record-table .openai-table-select {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+}
+/* RowTitle supplies a stretched row link; sibling controls stay above it.
+   This table deliberately carries no legacy workspace-table class. */
+[data-admin-ui="openai"]
+  .openai-table
+  td
+  :is(a, button):not(.workspace-row-link),
+[data-admin-ui="openai"] .openai-table td [role="button"] {
+  position: relative;
+  z-index: 1;
+}
+[data-admin-ui="openai"]
+  .openai-table
+  tbody
+  tr:has(.workspace-row-link:focus-visible) {
+  background: var(--color-background-secondary-soft);
+}
+@media (max-width: 640px) {
+  /* Selection sits beside the title, rather than spending a separate line.
+     DOM order and explicit table roles retain row/cell navigation. */
+  [data-admin-ui="openai"]
+    .openai-record-table
+    tbody
+    tr:has(> .openai-table-select) {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    align-items: start;
+    padding-block: 8px;
+  }
+  [data-admin-ui="openai"]
+    .openai-record-table
+    tbody
+    tr:has(> .openai-table-select)
+    > td {
+    grid-column: 2;
+    min-width: 0;
+    padding: 2px 8px;
+  }
+  [data-admin-ui="openai"]
+    .openai-record-table
+    tbody
+    tr
+    > td.openai-table-select {
+    grid-column: 1;
+    grid-row: 1;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0;
+  }
+}
+/* Ani's existing Astryx shape scale remains the shared product vocabulary.
+   Override semantic control/container tokens, never the full/circle radius. */
+[data-admin-ui="openai"] {
+  --control-radius-sm: var(--radius-inner, 0.375rem);
+  --control-radius-md: var(--radius-element, 0.625rem);
+  --control-radius-lg: var(--radius-element, 0.625rem);
+  --control-radius-xl: var(--radius-element, 0.625rem);
+  --alert-border-radius: var(--radius-container, 0.75rem);
+  --menu-radius: var(--radius-container, 0.75rem);
+  --popover-radius: var(--radius-container, 0.75rem);
+  --composer-radius: var(--radius-container, 0.75rem);
+}

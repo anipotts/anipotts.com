@@ -2,6 +2,7 @@
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { AdminUIProvider } from "../workspace/AdminUI";
 import { NewWriting } from "./NewWriting";
 import { RECORD_CREATED_EVENT } from "../../lib/editorial-inventory-events";
 import {
@@ -15,7 +16,11 @@ let host: HTMLDivElement;
 let root: Root;
 async function render(scope = "owner") {
   await act(async () => {
-    root.render(<NewWriting recoveryScope={scope} />);
+    root.render(
+      <AdminUIProvider enabled mode="light">
+        <NewWriting recoveryScope={scope} />
+      </AdminUIProvider>,
+    );
   });
 }
 /** The title: the create page's first, large field. */
