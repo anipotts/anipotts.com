@@ -99,7 +99,7 @@ describe("editorial catalog", () => {
     expect(html).toContain('href="/content?group=website"');
     expect(html).not.toContain('role="tree"');
     expect(html).toContain("Overview");
-    expect(html).toContain("Last updated");
+    expect(html).toContain("Updated");
     expect(html).not.toContain("recently updated first");
     expect(html).toContain('href="/content/writing/music?returnTo=%2Fcontent"');
     expect(html).toContain('data-format="relative_short"');
