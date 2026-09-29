@@ -1,3 +1,4 @@
+import { adminMutationOrigin } from "./admin-request-origin";
 import type { APIContext } from "astro";
 
 /** Cookies the retired native sessions set. Nothing reads them; sign out
@@ -34,7 +35,12 @@ export type AdminAuthContext = Pick<
 
 export function assertExactOrigin(request: Request, url: URL): void {
   const origin = request.headers.get("origin");
-  if (origin !== url.origin) {
+  const expected = adminMutationOrigin(request);
+  if (
+    url.origin !== expected ||
+    new URL(request.url).origin !== expected ||
+    origin !== expected
+  ) {
     throw adminJson({ error: "invalid_origin" }, { status: 403 });
   }
 }
@@ -50,6 +56,8 @@ export function adminJson(data: unknown, init: ResponseInit = {}): Response {
     ...init,
     headers: {
       "cache-control": "private, no-store",
+      "CDN-Cache-Control": "no-store",
+      "Cloudflare-CDN-Cache-Control": "no-store",
       pragma: "no-cache",
       "referrer-policy": "no-referrer",
       ...(init.headers ?? {}),

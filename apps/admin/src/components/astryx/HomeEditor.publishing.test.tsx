@@ -1,3 +1,4 @@
+import { jsonResponse } from "../../lib/test-json-response";
 // @vitest-environment jsdom
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -80,7 +81,7 @@ const snapshot = {
   publishing: "ready",
 };
 function response(data: unknown) {
-  return new Response(JSON.stringify(data));
+  return jsonResponse(JSON.stringify(data));
 }
 async function mount(search = "", localPreview = true) {
   window.history.replaceState(null, "", `/content/writing/test${search}`);
@@ -863,7 +864,7 @@ it("explains a known direct publisher refusal instead of claiming an ambiguous s
       if (url.includes("/csrf")) return response({ csrf: "test-only" });
       if (url.includes("/baseline")) return response({ base: cmsBase });
       if (url.includes("/publish?"))
-        return new Response(JSON.stringify({ error: "revision_conflict" }), {
+        return jsonResponse(JSON.stringify({ error: "revision_conflict" }), {
           status: 409,
         });
       if (url.includes("/publication?")) return response({ publication: null });
@@ -976,7 +977,7 @@ it("unpublishes a public piece only after a compact confirmation, bound to the s
     if (url.includes("/baseline")) return response({ base: cmsBase });
     if (url.includes("/unpublish?")) {
       payload = JSON.parse(String(init?.body));
-      return new Response(
+      return jsonResponse(
         JSON.stringify({
           publication: {
             mode: "direct",

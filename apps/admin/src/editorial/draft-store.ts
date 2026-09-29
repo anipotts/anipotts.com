@@ -1,3 +1,4 @@
+import { MAX_HISTORY_PAGE_BYTES } from "../lib/editorial-response-bounds";
 import { DurableObject } from "cloudflare:workers";
 import { EditorialMediaStore } from "./media-store";
 import { gitBlobSha1, sha256Hex } from "../lib/crypto";
@@ -72,7 +73,6 @@ type SaveIdentity = {
 const uuid = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const cachedSaveReceipts = 100;
 const maxHistoryPageSize = 100;
-const maxHistoryPageBytes = 4 * 1024 * 1024;
 
 /** One object per site/environment is the serialization boundary for its editor. */
 export class EditorialDraftStore extends DurableObject<unknown> {
@@ -529,7 +529,7 @@ export class EditorialDraftStore extends DurableObject<unknown> {
       const nextBytes = new TextEncoder().encode(row.snapshot).byteLength;
       if (
         history.length === limit ||
-        (history.length > 0 && bytes + nextBytes > maxHistoryPageBytes)
+        (history.length > 0 && bytes + nextBytes > MAX_HISTORY_PAGE_BYTES)
       )
         return {
           history,

@@ -27,6 +27,22 @@ describe("admin auth helpers", () => {
     ).toThrow();
   });
 
+  it("does not reflect an alternate request host into the trusted mutation origin", () => {
+    const url = new URL("https://alternate.example/api/admin/logout");
+    expect(() =>
+      assertExactOrigin(
+        new Request(url, {
+          method: "POST",
+          headers: {
+            origin: url.origin,
+            "x-forwarded-host": "admin.anipotts.com",
+          },
+        }),
+        url,
+      ),
+    ).toThrow();
+  });
+
   it("expires every retired native session cookie with its original scope", () => {
     const cookies = expiredAdminSessionCookies();
     expect(cookies.map((cookie) => cookie.split("=", 1)[0])).toEqual([

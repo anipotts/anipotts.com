@@ -1,10 +1,11 @@
+import { jsonResponse } from "../../lib/test-json-response";
 // @vitest-environment jsdom
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { MAX_SOURCE_BYTES } from "@anipotts/content/editorial/source";
-import { HomeEditor } from "./HomeEditor";
-import * as navigation from "../../lib/editorial-navigation";
+let HomeEditor: typeof import("./HomeEditor").HomeEditor;
+let navigation: typeof import("../../lib/editorial-navigation");
 import { adminNavigationEvent } from "../../lib/editorial-navigation";
 import { newWritingSource } from "../../lib/writing-draft";
 import { recoveryKey, recoveryLogoutKey } from "../../lib/draft-recovery";
@@ -21,15 +22,22 @@ vi.mock("./ArticleBody", () => ({
     resetGeneration,
   }: any) => {
     const latest = React.useRef(value);
+    const dirty = React.useRef(false);
     const input = React.useRef<HTMLTextAreaElement>(null);
     React.useEffect(() => {
       latest.current = value;
       if (input.current) input.current.value = value;
     }, [resetGeneration]);
-    flushRef.current = () => onChange(latest.current);
+    const flush = () => {
+      if (!dirty.current) return;
+      dirty.current = false;
+      onChange(latest.current);
+    };
+    flushRef.current = flush;
     // Like the real body editor, an unmounted body has nothing left to flush.
     React.useEffect(
       () => () => {
+        flush();
         flushRef.current = null;
       },
       [],
@@ -41,6 +49,7 @@ vi.mock("./ArticleBody", () => ({
         defaultValue={value}
         onChange={(event) => {
           latest.current = event.target.value;
+          dirty.current = true;
           onDirty?.();
         }}
       />
@@ -100,7 +109,7 @@ let fetcher: ReturnType<typeof vi.fn>;
 /** Overrides the save reply; undefined falls through to the default server. */
 let answerSave: (input: SaveInput, body: string) => Response | undefined;
 function response(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), { status });
+  return jsonResponse(JSON.stringify(data), { status });
 }
 function buttons(label: string) {
   return [...host.querySelectorAll("button")].filter(
@@ -189,7 +198,10 @@ async function mountClean() {
     await vi.waitFor(() => expect(body()).not.toBeNull(), { timeout: 2000 });
   });
 }
-beforeEach(() => {
+beforeEach(async () => {
+  vi.resetModules();
+  ({ HomeEditor } = await import("./HomeEditor"));
+  navigation = await import("../../lib/editorial-navigation");
   vi.stubGlobal("React", React);
   // jsdom has no Web Locks, and browser recovery refuses every uncoordinated
   // write without one, so without this stub the whole recovery path is inert
@@ -787,4 +799,79 @@ it("requires explicit restoration of a discarded saved draft before choosing con
     source: mine,
     expectedRevision: 4,
   });
+});
+
+it("locks on expired save without replay and retains the owner's latest browser copy", async () => {
+  answerSave = () => response({ error: "unauthorized" }, 401);
+  await mountClean();
+  await type("Latest synthetic private edits.");
+  await pause();
+  expect(host.textContent).toContain("Session ended");
+  expect(body()).toBeNull();
+  expect(saves()).toHaveLength(1);
+  expect(writtenRecovery().source).toContain("Latest synthetic private edits.");
+  const reentry = [...host.querySelectorAll("a")].find((link) =>
+    link.textContent?.includes("Sign in again"),
+  );
+  expect(reentry?.getAttribute("href")).toBe("/content/writing/test");
+  await pause();
+  expect(saves()).toHaveLength(1);
+});
+it("clears visible private text on pagehide and stays locked after BFCache resume", async () => {
+  await mountClean();
+  await act(async () => window.dispatchEvent(new Event("pagehide")));
+  expect(body()).toBeNull();
+  expect(host.textContent).not.toContain("Original body.");
+  await act(async () =>
+    window.dispatchEvent(
+      new PageTransitionEvent("pageshow", { persisted: true }),
+    ),
+  );
+  expect(host.textContent).toContain("Session ended");
+});
+
+it("retains dirty body and actual title buffers on expiry before the typing pause", async () => {
+  await mountClean();
+  await type("Newest unflushed body.");
+  const title = host.querySelector(
+    ".document-title textarea",
+  ) as HTMLTextAreaElement;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value",
+    )!.set!.call(title, "Newest buffered title");
+    title.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  const { lockProtectedSession } =
+    await import("../../lib/protected-admin-json");
+  await act(async () => lockProtectedSession("expired"));
+  expect(body()).toBeNull();
+  expect(writtenRecovery().source).toContain("Newest unflushed body.");
+  expect(writtenRecovery().source).toContain("Newest buffered title");
+  await pause();
+  expect(saves()).toHaveLength(0);
+});
+it("dirty body and title unmount callbacks cannot throw or repopulate on explicit logout", async () => {
+  await mountClean();
+  await type("Never repopulate this body.");
+  const title = host.querySelector(
+    ".document-title textarea",
+  ) as HTMLTextAreaElement;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value",
+    )!.set!.call(title, "Never repopulate title");
+    title.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  const { clearEditorialRecovery } = await import("../../lib/draft-recovery");
+  await act(async () => {
+    expect(await clearEditorialRecovery(localStorage)).toBe(true);
+  });
+  expect(body()).toBeNull();
+  expect(host.textContent).not.toContain("Never repopulate");
+  expect(localStorage.getItem(versionedRecoveryKey(key))).toBeNull();
+  await pause();
+  expect(saves()).toHaveLength(0);
 });

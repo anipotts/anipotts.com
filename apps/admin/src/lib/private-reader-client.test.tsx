@@ -2,11 +2,9 @@
 import React, { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  createPrivateReaderSession,
-  usePrivateReaderState,
-  type PrivateReaderSession,
-} from "./private-reader-client";
+import type { PrivateReaderSession } from "./private-reader-client";
+let createPrivateReaderSession: typeof import("./private-reader-client").createPrivateReaderSession;
+let usePrivateReaderState: typeof import("./private-reader-client").usePrivateReaderState;
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -41,7 +39,10 @@ function session(fetcher: typeof fetch) {
   });
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  vi.resetModules();
+  ({ createPrivateReaderSession, usePrivateReaderState } =
+    await import("./private-reader-client"));
   vi.useFakeTimers();
   vi.setSystemTime(start);
 });
@@ -64,9 +65,7 @@ describe("private reader client session", () => {
     expect(init.method).toBe("POST");
     expect(init.credentials).toBe("same-origin");
     expect(init.body).toBe("{}");
-    expect(
-      (init.headers as Record<string, string>)["X-Editorial-CSRF"],
-    ).toHaveLength(64);
+    expect(new Headers(init.headers).get("X-Editorial-CSRF")).toHaveLength(64);
     expect(window.localStorage.length).toBe(0);
     expect(window.sessionStorage.length).toBe(0);
     reader.logout();
@@ -107,7 +106,7 @@ describe("private reader client session", () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
-  it("clears on denied renewal", async () => {
+  it("clears on expired renewal", async () => {
     const fetcher = vi
       .fn()
       .mockImplementationOnce(async () => json(fixture()))
@@ -117,7 +116,7 @@ describe("private reader client session", () => {
     const reader = session(fetcher as unknown as typeof fetch);
     await reader.start();
     await vi.advanceTimersByTimeAsync(50_000);
-    expect(reader.getState()).toEqual({ status: "cleared", reason: "denied" });
+    expect(reader.getState()).toEqual({ status: "cleared", reason: "expired" });
     expect(reader.bearer()).toBeNull();
   });
 

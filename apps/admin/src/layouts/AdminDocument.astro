@@ -29,6 +29,8 @@ import {
   adminSidebarPrepaintScript,
   workspaceForPath,
 } from "../lib/admin-sidebar";
+import { adminDocumentBootstrap } from "../lib/admin-document-bootstrap";
+import { workspaceReturnPath } from "../lib/workspace-navigation";
 import { preloadedFontUrls } from "../lib/admin-fonts";
 
 type Props = {
@@ -44,6 +46,9 @@ const mode = initialAdminTheme(
   Astro.cookies.get("ap-theme")?.value,
 );
 const workspace = shell ? workspaceForPath(Astro.url.pathname) : null;
+const reentry = workspace
+  ? workspaceReturnPath(workspace, Astro.url.pathname + Astro.url.search)
+  : "/";
 ---
 
 <!doctype html>
@@ -56,6 +61,17 @@ const workspace = shell ? workspaceForPath(Astro.url.pathname) : null;
 >
   <head>
     <meta charset="utf-8" />
+    {shell && <script is:inline set:html={adminDocumentBootstrap(reentry)} />}
+    {
+      shell && (
+        <style
+          is:inline
+          set:html={
+            "[data-admin-document-locked] [data-admin-private-document] { display: none !important; } [data-admin-session-reentry] a { display: block; margin-block: var(--spacing-4); }"
+          }
+        />
+      )
+    }
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
@@ -104,6 +120,14 @@ const workspace = shell ? workspaceForPath(Astro.url.pathname) : null;
     {shell && <script is:inline set:html={adminSidebarPrepaintScript} />}
   </head>
   <body>
-    <slot />
+    {
+      shell ? (
+        <section data-admin-private-document style="display: contents">
+          <slot />
+        </section>
+      ) : (
+        <slot />
+      )
+    }
   </body>
 </html>

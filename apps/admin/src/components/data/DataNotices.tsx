@@ -1,3 +1,6 @@
+import { AuthReentry } from "../astryx/AuthReentry";
+import { protectedSessionIsLocked } from "../../lib/protected-admin-json";
+import { workspaceReturnPath } from "../../lib/workspace-navigation";
 import React from "react";
 import { Button } from "@astryxdesign/core/Button";
 import {
@@ -80,6 +83,20 @@ export function SessionNotice({
   /** What is loading, such as "records" or "sources". */
   label: string;
 }) {
+  if (protectedSessionIsLocked()) {
+    const path =
+      location.pathname === "/"
+        ? "/"
+        : workspaceReturnPath("data", location.pathname + location.search);
+    return (
+      <StateNotice
+        kind="not-connected"
+        icon={LockKeyIcon}
+        title="Session locked"
+        action={<AuthReentry href={path} size="sm" />}
+      />
+    );
+  }
   if (session.status === "ready") return null;
   if (session.status === "off")
     return (

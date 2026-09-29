@@ -8,6 +8,8 @@ The removed code is recoverable from the `archive/admin-retired-auth-2026-09-22`
 tag, and the `content_draft_operations` table stays in place. The rest of this
 document is historical.
 
+Current authentication requirements: [platform architecture](platform-architecture.md#authentication-and-production-boundaries).
+
 ## purpose
 
 Admin content editing should not write directly from a browser form into public

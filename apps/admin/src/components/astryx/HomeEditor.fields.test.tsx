@@ -1,3 +1,4 @@
+import { jsonResponse } from "../../lib/test-json-response";
 // @vitest-environment jsdom
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -101,8 +102,8 @@ it.each([
       "fetch",
       vi.fn(async (url: string) =>
         url.includes("/csrf")
-          ? new Response(JSON.stringify({ csrf: "test-only" }))
-          : new Response(JSON.stringify(snapshot(source))),
+          ? jsonResponse(JSON.stringify({ csrf: "test-only" }))
+          : jsonResponse(JSON.stringify(snapshot(source))),
       ),
     );
     window.history.replaceState(null, "", `/content/${record.kind}/test`);
@@ -159,17 +160,17 @@ it("saves homepage selection changes through the existing editor without replaci
     "fetch",
     vi.fn(async (url: string, options?: RequestInit) => {
       if (url.includes("/csrf"))
-        return new Response(JSON.stringify({ csrf: "test" }));
+        return jsonResponse(JSON.stringify({ csrf: "test" }));
       if (url.includes("/save?")) {
         saved = JSON.parse(String(options?.body)).source;
-        return new Response(
+        return jsonResponse(
           JSON.stringify({
             ok: true,
             draft: { ...snapshot(saved).draft, revision: 2 },
           }),
         );
       }
-      return new Response(JSON.stringify(snapshot(homeSource)));
+      return jsonResponse(JSON.stringify(snapshot(homeSource)));
     }),
   );
   window.history.replaceState(null, "", "/content/home/home");
@@ -213,7 +214,7 @@ it("retains malformed homepage selections instead of exposing destructive replac
   );
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => new Response(JSON.stringify(snapshot(source)))),
+    vi.fn(async () => jsonResponse(JSON.stringify(snapshot(source)))),
   );
   await act(async () =>
     root.render(<HomeEditor record={{ kind: "page", id: "home" }} />),
@@ -237,15 +238,12 @@ it("opens project properties directly from an invalid draft warning", async () =
   };
   vi.stubGlobal(
     "fetch",
-    vi.fn(
-      async (url: string) =>
-        new Response(
-          JSON.stringify(
-            url.includes("/csrf")
-              ? { csrf: "test-only" }
-              : snapshot(workSource),
-          ),
+    vi.fn(async (url: string) =>
+      jsonResponse(
+        JSON.stringify(
+          url.includes("/csrf") ? { csrf: "test-only" } : snapshot(workSource),
         ),
+      ),
     ),
   );
   window.history.replaceState(null, "", "/content/projects/test");
