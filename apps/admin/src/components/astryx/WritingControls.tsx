@@ -50,9 +50,12 @@ export function Button(props: ComponentProps<typeof LegacyButton>) {
     onPointerDown: props.onPointerDown,
     "aria-describedby": props["aria-describedby"],
     "aria-label": props.isIconOnly ? label : props["aria-label"],
-    title: typeof props.tooltip === "string" ? props.tooltip : undefined,
+    title:
+      !props.isIconOnly && typeof props.tooltip === "string"
+        ? props.tooltip
+        : undefined,
   };
-  return href ? (
+  const control = href ? (
     <ButtonLink
       pill={false}
       {...common}
@@ -93,6 +96,15 @@ export function Button(props: ComponentProps<typeof LegacyButton>) {
       {props.endContent}
     </SDKButton>
   );
+  return props.isIconOnly ? (
+    <Tooltip
+      content={<AdminPortalScope>{props.tooltip || label}</AdminPortalScope>}
+    >
+      {control}
+    </Tooltip>
+  ) : (
+    control
+  );
 }
 
 export function IconButton(props: ComponentProps<typeof LegacyIconButton>) {
@@ -127,7 +139,13 @@ export function IconButton(props: ComponentProps<typeof LegacyIconButton>) {
   return (
     <Tooltip content={<AdminPortalScope>{tooltip || label}</AdminPortalScope>}>
       {href ? (
-        <ButtonLink pill={false} {...common} href={href}>
+        <ButtonLink
+          pill={false}
+          {...common}
+          href={href}
+          target={props.target}
+          rel={props.rel}
+        >
           {icon}
         </ButtonLink>
       ) : (
@@ -212,6 +230,7 @@ export function TextInput(props: ComponentProps<typeof LegacyInput>) {
     ref,
     className,
   } = props;
+  const help = status?.message || props.description;
   return (
     <div className={`writing-control-field ${className ?? ""}`}>
       <label
@@ -232,7 +251,7 @@ export function TextInput(props: ComponentProps<typeof LegacyInput>) {
         disabled={isDisabled}
         readOnly={isReadOnly}
         invalid={status?.type === "error"}
-        aria-describedby={status?.message ? `${id}-help` : undefined}
+        aria-describedby={help ? `${id}-help` : undefined}
         onChange={(event) => onChange?.(event.target.value, event)}
         onBlur={onBlur}
         onKeyDown={(event) => {
@@ -240,16 +259,17 @@ export function TextInput(props: ComponentProps<typeof LegacyInput>) {
           if (
             !event.defaultPrevented &&
             event.key === "Enter" &&
-            !event.nativeEvent.isComposing
+            !event.nativeEvent.isComposing &&
+            onEnter
           ) {
             event.preventDefault();
-            onEnter?.();
+            onEnter();
           }
         }}
       />
-      {status?.message && (
+      {help && (
         <small id={`${id}-help`} className="writing-control-help">
-          {status.message}
+          {help}
         </small>
       )}
     </div>
@@ -321,7 +341,12 @@ export function Banner(props: ComponentProps<typeof LegacyBanner>) {
             : "info"
       }
       title={props.title}
-      description={props.children}
+      description={
+        <>
+          {props.description}
+          {props.children && <div>{props.children}</div>}
+        </>
+      }
       actions={props.endContent}
     />
   );

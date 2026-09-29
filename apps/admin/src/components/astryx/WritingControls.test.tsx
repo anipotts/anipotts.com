@@ -10,6 +10,8 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Selector,
+  IconButton,
+  Banner,
 } from "./WritingControls";
 import { SaveStatus } from "./SaveStatus";
 
@@ -219,4 +221,94 @@ it("keeps the previous restrained corner shape for actions, links and metadata s
   );
   expect(host.querySelectorAll("button, a").length).toBeGreaterThanOrEqual(4);
   expect(host.querySelector("[data-pill]")).toBeNull();
+});
+
+it("leaves Enter available to enclosing forms unless a custom handler owns it", () => {
+  const enter = vi.fn();
+  const key = () =>
+    new KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true,
+    });
+  show(
+    <form>
+      <TextInput label="Link URL" value="https://example.com" />
+    </form>,
+  );
+  const nativeEnter = key();
+  act(() => host.querySelector("input")!.dispatchEvent(nativeEnter));
+  expect(nativeEnter.defaultPrevented).toBe(false);
+  show(<TextInput label="Tag" value="writing" onEnter={enter} />);
+  const customEnter = key();
+  act(() => host.querySelector("input")!.dispatchEvent(customEnter));
+  expect(customEnter.defaultPrevented).toBe(true);
+  expect(enter).toHaveBeenCalledOnce();
+});
+
+it("keeps recovery explanations and additional banner content visible", () => {
+  show(
+    <Banner
+      title="Save failed"
+      status="error"
+      description="Your edits remain available. Download the draft before leaving."
+    >
+      <span>Retry when connected.</span>
+    </Banner>,
+  );
+  expect(host.textContent).toContain(
+    "Your edits remain available. Download the draft before leaving.",
+  );
+  expect(host.textContent).toContain("Retry when connected.");
+});
+
+it("preserves the separate browsing context on public icon links", () => {
+  show(
+    <IconButton
+      label="Open on site"
+      icon={<span />}
+      href="https://example.com/article"
+      target="_blank"
+      rel="noopener noreferrer"
+    />,
+  );
+  const link = host.querySelector("a")!;
+  expect(link.target).toBe("_blank");
+  expect(link.rel).toBe("noopener noreferrer");
+});
+
+it("associates field guidance and replaces it with the validation message", () => {
+  const description = "Use a local image path or HTTPS URL.";
+  show(<TextInput label="Image URL" value="" description={description} />);
+  const help = () =>
+    document.getElementById(
+      host.querySelector("input")!.getAttribute("aria-describedby")!,
+    )?.textContent;
+  expect(help()).toBe(description);
+  show(
+    <TextInput
+      label="Image URL"
+      value=""
+      description={description}
+      status={{ type: "error", message: "Choose an accepted image URL." }}
+    />,
+  );
+  expect(help()).toBe("Choose an accepted image URL.");
+});
+
+it("shows an icon-only action tooltip when focused by keyboard", async () => {
+  show(
+    <Button
+      label="Undo"
+      isIconOnly
+      icon={<span />}
+      tooltip="Undo last change"
+    />,
+  );
+  await act(async () => host.querySelector("button")!.focus());
+  await vi.waitFor(() =>
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toBe(
+      "Undo last change",
+    ),
+  );
 });

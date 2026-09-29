@@ -1,3 +1,5 @@
+import { safeInlineUrl } from "@anipotts/content/public/inline";
+
 export const editorialMediaId = /^[a-f0-9]{64}\.(?:jpg|png|webp)$/u;
 export const editorialMediaPrefix = "/images/editorial/";
 export const MAX_PUBLICATION_MEDIA_BYTES = 10 * 1024 * 1024;
@@ -17,10 +19,16 @@ export function referencedMediaIds(source: string): string[] {
 }
 
 export function editorialImagePreview(src: string): string {
+  if (!safeInlineUrl(src, true)) return "";
   const id = src.startsWith(editorialMediaPrefix)
     ? src.slice(editorialMediaPrefix.length)
     : "";
-  return editorialMediaId.test(id) ? `/api/editorial/media?id=${id}` : src;
+  if (editorialMediaId.test(id)) return `/api/editorial/media?id=${id}`;
+  // Only emit the two accepted URL forms. Keep the path/query bytes intact
+  // rather than HTML-escaping them or double-encoding authored asset URLs.
+  return src.startsWith("/")
+    ? "/" + src.slice(1)
+    : "https://" + src.slice("https://".length);
 }
 
 /** Normalize images copied from the private editor without leaking its API URL. */
