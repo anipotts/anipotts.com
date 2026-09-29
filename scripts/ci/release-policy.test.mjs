@@ -586,10 +586,23 @@ for (const path of [
   assert.deepEqual(publication.migration_consumers, [], path);
 }
 
-const localEnvironment = classifyRelease(["M\t.codex/environments/environment.toml"], base);
+const localEnvironment = classifyRelease(
+  ["M\t.codex/environments/environment.toml"],
+  base,
+);
 assert.equal(localEnvironment.risk, "automatic");
 assert.equal(localEnvironment.local_dev_changed, true);
-assert.ok(Object.values(localEnvironment.deploy_targets).every((value) => value === false));
-assert.equal(classifyRelease(["M\t.codex/secrets.toml"], base).risk, "approval");
+assert.ok(
+  Object.values(localEnvironment.deploy_targets).every(
+    (value) => value === false,
+  ),
+);
+assert.equal(
+  classifyRelease(["M\t.codex/secrets.toml"], base).risk,
+  "approval",
+);
 
-assert.equal(classifyRelease(["M\t.codex/unrecognized.toml"], base).risk, "unknown");
+assert.equal(
+  classifyRelease(["M\t.codex/unrecognized.toml"], base).risk,
+  "unknown",
+);
