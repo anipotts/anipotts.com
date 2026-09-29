@@ -8,13 +8,13 @@
   "theme_color": "#f4f5f7",
   "icons": [
     {
-      "src": "/admin-bracket.svg?v=4",
+      "src": "/admin-bracket.svg?v=20260929",
       "sizes": "any",
       "type": "image/svg+xml"
     },
     {
-      "src": "/apple-touch-icon.png?v=20260717a",
-      "sizes": "512x512",
+      "src": "/apple-touch-icon.png?v=20260929",
+      "sizes": "180x180",
       "type": "image/png"
     }
   ]
