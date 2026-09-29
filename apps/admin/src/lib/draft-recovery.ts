@@ -7,6 +7,7 @@ import {
   browserRecoveryLogoutLock,
   recoveryV2Prefix,
   recoveryLogoutGenerationKey,
+  recoveryLogoutIntentKey,
   utf8Bytes,
 } from "./browser-recovery";
 
@@ -101,6 +102,58 @@ function belongsToGeneration(raw: string, generation: string) {
     return false;
   }
 }
+/** Client cleanup custody only. This marker does not establish provider logout.
+ * Separate exclusive admissions avoid nesting the plaintext cleanup barrier. */
+export async function beginEditorialLogout(
+  storage: Storage,
+): Promise<string | null> {
+  try {
+    const barrier = browserRecoveryLogoutLock();
+    if (!barrier) return null;
+    return await barrier(() => {
+      const attempt = crypto.randomUUID();
+      storage.setItem(recoveryLogoutIntentKey, attempt);
+      if (storage.getItem(recoveryLogoutIntentKey) !== attempt) return null;
+      window.dispatchEvent(new Event(recoveryLogoutIntentKey));
+      return attempt;
+    });
+  } catch {
+    return null;
+  }
+}
+export async function finishEditorialLogout(
+  storage: Storage,
+  attempt: string,
+  ready: () => boolean = () => true,
+  terminal: () => void = () => {},
+): Promise<boolean> {
+  try {
+    const barrier = browserRecoveryLogoutLock();
+    if (!barrier) return false;
+    return await barrier(() => {
+      if (!ready() || storage.getItem(recoveryLogoutIntentKey) !== attempt)
+        return false;
+      // Everything fallible except the terminal navigation happens before the
+      // native removal. No promise boundary separates removal from navigation.
+      window.dispatchEvent(new Event(recoveryLogoutIntentKey));
+      if (!ready() || storage.getItem(recoveryLogoutIntentKey) !== attempt)
+        return false;
+      storage.removeItem(recoveryLogoutIntentKey);
+      try {
+        terminal();
+      } catch {
+        // A failed navigation retains cleanup custody without replacing a retry.
+        if (storage.getItem(recoveryLogoutIntentKey) === null)
+          storage.setItem(recoveryLogoutIntentKey, attempt);
+        return false;
+      }
+      return true;
+    });
+  } catch {
+    return false;
+  }
+}
+
 /** Explicit logout invalidates channels first, then awaits coordinated plaintext
  * removal. A failure never falls back to an unlocked successful logout. Fresh
  * generation copies are preserved; acknowledged server drafts are untouched. */

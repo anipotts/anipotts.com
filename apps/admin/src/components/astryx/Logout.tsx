@@ -10,6 +10,8 @@ import { Button } from "@astryxdesign/core/Button";
 import { Banner } from "@astryxdesign/core/Banner";
 import {
   clearEditorialRecovery,
+  beginEditorialLogout,
+  finishEditorialLogout,
   recoveryLogoutKey,
 } from "../../lib/draft-recovery";
 import { AdminWordmark } from "./AdminWordmark";
@@ -60,6 +62,9 @@ export function Logout({
     lockProtectedSession("logout");
     try {
       let complete = false;
+      const attempt = await beginEditorialLogout(window.localStorage);
+      if (!active.current) return;
+      if (!attempt) throw new Error("cleanup intent unavailable");
       try {
         complete = await clearEditorialRecovery(window.localStorage);
       } catch {
@@ -100,7 +105,16 @@ export function Logout({
       } finally {
         clearTimeout(timer);
       }
-      if (active.current) navigate("/cdn-cgi/access/logout");
+      if (!active.current) return;
+      if (
+        !(await finishEditorialLogout(
+          window.localStorage,
+          attempt,
+          () => active.current,
+          () => navigate("/cdn-cgi/access/logout"),
+        ))
+      )
+        throw new Error("cleanup custody changed");
     } catch {
       if (!active.current) return;
       setError(

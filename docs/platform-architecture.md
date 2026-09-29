@@ -109,6 +109,13 @@ Private documents capture the logout generation synchronously in the head, befor
 stylesheets or client islands can delay hydration. A later generation change
 withdraws server-rendered content, serialized island props and late streamed
 content, and prevents stale consumers from issuing protected requests.
+A separate nonsecret logout-intent latch also fences documents opened during
+required local cleanup and the bounded app-cookie attempt. The latch ends just
+before the fixed vendor logout navigation, after required cleanup succeeds;
+failure or interruption keeps it in place for explicit logout retry. This is
+client coordination, not evidence that provider logout has propagated. Fresh
+requests after vendor navigation still depend on Access verification and its
+documented propagation window.
 Standalone draft previews use this same-origin document fence around an opaque
 preview frame. Embedded previews require explicit frame mode and browser iframe
 fetch metadata; a raw-mode URL opened in a tab gets the fenced wrapper. Draft

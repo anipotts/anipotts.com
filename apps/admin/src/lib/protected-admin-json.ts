@@ -1,5 +1,8 @@
 import { documentSession } from "./admin-document-session";
-import { recoveryLogoutGenerationKey } from "./browser-recovery";
+import {
+  recoveryLogoutGenerationKey,
+  recoveryLogoutIntentKey,
+} from "./browser-recovery";
 
 export const protectedSessionLockEvent = "admin:session-lock";
 export type AdminRequestFailure =
@@ -25,6 +28,13 @@ export function protectedSessionIsLocked() {
 function persistedGeneration() {
   try {
     return window.localStorage.getItem(recoveryLogoutGenerationKey);
+  } catch {
+    return undefined;
+  }
+}
+function persistedIntent() {
+  try {
+    return window.localStorage.getItem(recoveryLogoutIntentKey);
   } catch {
     return undefined;
   }
@@ -64,12 +74,20 @@ function installLifecycle() {
   window.addEventListener(recoveryLogoutGenerationKey, () =>
     lockProtectedSession("logout"),
   );
+  window.addEventListener(recoveryLogoutIntentKey, () =>
+    lockProtectedSession("logout"),
+  );
   window.addEventListener("storage", (event) => {
-    if (event.key === recoveryLogoutGenerationKey || event.key === null)
+    if (
+      event.key === recoveryLogoutGenerationKey ||
+      event.key === recoveryLogoutIntentKey ||
+      event.key === null
+    )
       lockProtectedSession("logout");
   });
   window.addEventListener("pagehide", () => lockProtectedSession());
   window.addEventListener("pageshow", (event) => {
+    reconcileDocument();
     const current = persistedGeneration();
     if (current === undefined) lockProtectedSession();
     else if (initialGeneration !== current) lockProtectedSession("logout");
@@ -82,10 +100,16 @@ function reconcileDocument() {
   if (locked || typeof window === "undefined") return;
   const bootstrap = documentSession();
   const current = persistedGeneration();
+  const intent = persistedIntent();
   if (bootstrap?.locked) lockProtectedSession(bootstrap.reason);
-  else if (current === undefined || bootstrap?.storageAvailable === false)
+  else if (
+    current === undefined ||
+    intent === undefined ||
+    bootstrap?.storageAvailable === false
+  )
     lockProtectedSession();
-  else if (initialGeneration !== current) lockProtectedSession("logout");
+  else if (intent !== null || initialGeneration !== current)
+    lockProtectedSession("logout");
 }
 /** Same-origin JSON only. Binary previews and tailnet requests retain their own transports. */
 export async function protectedAdminJson(

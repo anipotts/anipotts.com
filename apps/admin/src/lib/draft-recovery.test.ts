@@ -1,6 +1,8 @@
 import { afterEach, expect, it, vi } from "vitest";
 import {
   clearEditorialRecovery,
+  beginEditorialLogout,
+  finishEditorialLogout,
   readRecovery,
   recoveryKey,
   recoveryLogoutKey,
@@ -9,6 +11,7 @@ import {
 import {
   browserRecoveryLock,
   recoveryLifecycleLockName,
+  recoveryLogoutIntentKey,
   versionedRecoveryKey,
 } from "./browser-recovery";
 
@@ -342,4 +345,182 @@ it("reports incomplete cleanup if storage removal fails or another logout interr
   release.resolve();
   await holder;
   expect(await clearing).toBe(false);
+});
+
+it("begins intent before plaintext invalidation and finishes only its own attempt", async () => {
+  installLocks();
+  const local = storage();
+  const dispatchEvent = vi.fn();
+  vi.stubGlobal("window", { dispatchEvent });
+  local.setItem(recoveryKey("owner", { kind: "page", id: "home" }), "private");
+  const attempt = await beginEditorialLogout(local);
+  expect(attempt).toBeTruthy();
+  expect(local.getItem(recoveryLogoutIntentKey)).toBe(attempt);
+  expect(local.getItem(recoveryLogoutKey)).toBeNull();
+  expect(await clearEditorialRecovery(local)).toBe(true);
+  expect(local.getItem(recoveryLogoutIntentKey)).toBe(attempt);
+  expect(await finishEditorialLogout(local, attempt!)).toBe(true);
+  expect(local.getItem(recoveryLogoutIntentKey)).toBeNull();
+  expect(dispatchEvent.mock.calls.map(([event]) => event.type)).toEqual([
+    recoveryLogoutIntentKey,
+    recoveryLogoutKey,
+    recoveryLogoutIntentKey,
+  ]);
+});
+it("an older attempt cannot remove a newer retry's intent", async () => {
+  installLocks();
+  const local = storage();
+  vi.stubGlobal("window", { dispatchEvent: vi.fn() });
+  const previous = await beginEditorialLogout(local);
+  const retry = await beginEditorialLogout(local);
+  expect(retry).not.toBe(previous);
+  expect(await finishEditorialLogout(local, previous!)).toBe(false);
+  expect(local.getItem(recoveryLogoutIntentKey)).toBe(retry);
+  expect(await finishEditorialLogout(local, retry!)).toBe(true);
+});
+it("intent admissions wait for the same exclusive lifecycle barrier without nested cleanup deadlock", async () => {
+  installLocks();
+  const request = navigator.locks.request.bind(navigator.locks);
+  const local = storage();
+  vi.stubGlobal("window", { dispatchEvent: vi.fn() });
+  const gate = deferred();
+  const occupied = request(
+    recoveryLifecycleLockName,
+    { mode: "shared" },
+    () => gate.promise,
+  );
+  const started = beginEditorialLogout(local);
+  await Promise.resolve();
+  expect(local.getItem(recoveryLogoutIntentKey)).toBeNull();
+  gate.resolve();
+  await occupied;
+  const attempt = await started;
+  expect(await clearEditorialRecovery(local)).toBe(true);
+  expect(await finishEditorialLogout(local, attempt!)).toBe(true);
+});
+it("interrupted finishing retains intent and explicit retry can take custody", async () => {
+  installLocks();
+  const request = navigator.locks.request.bind(navigator.locks);
+  const local = storage();
+  vi.stubGlobal("window", { dispatchEvent: vi.fn() });
+  const attempt = await beginEditorialLogout(local);
+  const gate = deferred();
+  const occupied = request(
+    recoveryLifecycleLockName,
+    { mode: "shared" },
+    () => gate.promise,
+  );
+  let active = true;
+  const finished = finishEditorialLogout(local, attempt!, () => active);
+  active = false;
+  gate.resolve();
+  await occupied;
+  expect(await finished).toBe(false);
+  expect(local.getItem(recoveryLogoutIntentKey)).toBe(attempt);
+  const retry = await beginEditorialLogout(local);
+  expect(await clearEditorialRecovery(local)).toBe(true);
+  expect(await finishEditorialLogout(local, retry!)).toBe(true);
+});
+it("intent storage or lock failure never reports completion", async () => {
+  installLocks();
+  vi.stubGlobal("window", { dispatchEvent: vi.fn() });
+  const local = storage();
+  const attempt = await beginEditorialLogout(local);
+  const broken = {
+    ...local,
+    getItem: () => {
+      throw new Error("storage denied");
+    },
+  } as unknown as Storage;
+  expect(await beginEditorialLogout(broken)).toBeNull();
+  expect(await finishEditorialLogout(broken, attempt!)).toBe(false);
+  expect(local.getItem(recoveryLogoutIntentKey)).toBe(attempt);
+  vi.stubGlobal("navigator", {});
+  expect(await finishEditorialLogout(local, attempt!)).toBe(false);
+  expect(local.getItem(recoveryLogoutIntentKey)).toBe(attempt);
+});
+
+it("finishes removal and vendor navigation in one lock callback with no fallible read after removal", async () => {
+  installLocks();
+  const local = storage();
+  vi.stubGlobal("window", { dispatchEvent: vi.fn() });
+  const attempt = await beginEditorialLogout(local);
+  const operations: string[] = [];
+  let removed = false;
+  const guarded = new Proxy(local, {
+    get(target, property) {
+      if (property === "getItem")
+        return (name: string) => {
+          if (removed) throw new Error("post-removal reads unavailable");
+          return target.getItem(name);
+        };
+      if (property === "removeItem")
+        return (name: string) => {
+          target.removeItem(name);
+          removed = true;
+          operations.push("remove");
+        };
+      return Reflect.get(target, property);
+    },
+  });
+  expect(
+    await finishEditorialLogout(
+      guarded,
+      attempt!,
+      () => true,
+      () => operations.push("vendor-navigation"),
+    ),
+  ).toBe(true);
+  expect(operations).toEqual(["remove", "vendor-navigation"]);
+  expect(local.getItem(recoveryLogoutIntentKey)).toBeNull();
+});
+it("navigation failure restores absent intent but never overwrites a newer attempt", async () => {
+  installLocks();
+  const local = storage();
+  vi.stubGlobal("window", { dispatchEvent: vi.fn() });
+  const attempt = await beginEditorialLogout(local);
+  expect(
+    await finishEditorialLogout(
+      local,
+      attempt!,
+      () => true,
+      () => {
+        throw new Error("navigation denied");
+      },
+    ),
+  ).toBe(false);
+  expect(local.getItem(recoveryLogoutIntentKey)).toBe(attempt);
+  expect(
+    await finishEditorialLogout(
+      local,
+      attempt!,
+      () => true,
+      () => {
+        local.setItem(recoveryLogoutIntentKey, "newer-custody");
+        throw new Error("navigation denied");
+      },
+    ),
+  ).toBe(false);
+  expect(local.getItem(recoveryLogoutIntentKey)).toBe("newer-custody");
+});
+it("failed native removal leaves pending custody and never navigates", async () => {
+  installLocks();
+  const local = storage();
+  vi.stubGlobal("window", { dispatchEvent: vi.fn() });
+  const attempt = await beginEditorialLogout(local);
+  const terminal = vi.fn();
+  const broken = new Proxy(local, {
+    get(target, property) {
+      if (property === "removeItem")
+        return () => {
+          throw new Error("denied");
+        };
+      return Reflect.get(target, property);
+    },
+  });
+  expect(
+    await finishEditorialLogout(broken, attempt!, () => true, terminal),
+  ).toBe(false);
+  expect(terminal).not.toHaveBeenCalled();
+  expect(local.getItem(recoveryLogoutIntentKey)).toBe(attempt);
 });

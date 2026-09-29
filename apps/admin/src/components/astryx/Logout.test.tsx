@@ -4,7 +4,8 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { Logout } from "./Logout";
-import { recoveryKey } from "../../lib/draft-recovery";
+import { recoveryKey, beginEditorialLogout } from "../../lib/draft-recovery";
+import { recoveryLogoutIntentKey } from "../../lib/browser-recovery";
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 let host: HTMLDivElement;
 let root: Root;
@@ -80,9 +81,11 @@ it("clears plaintext before cookie cleanup and navigates only to fixed Access lo
     "XMLHttpRequest",
   );
   expect(navigate).not.toHaveBeenCalled();
+  expect(localStorage.getItem(recoveryLogoutIntentKey)).toBeTruthy();
   await act(async () =>
     finish(json({ ok: true, destination: "/cdn-cgi/access/logout" })),
   );
+  expect(localStorage.getItem(recoveryLogoutIntentKey)).toBeNull();
   expect(navigate).toHaveBeenCalledWith("/cdn-cgi/access/logout");
 });
 it.each(["GET", "POST"])(
@@ -147,5 +150,30 @@ it("aborts on unmount and ignores a late cookie response after local cleanup", a
     finish(json({ ok: true, destination: "/cdn-cgi/access/logout" })),
   );
   expect(localStorage.getItem(key)).toBeNull();
+  expect(localStorage.getItem(recoveryLogoutIntentKey)).toBeTruthy();
   expect(navigate).not.toHaveBeenCalled();
+});
+
+it("an older cookie attempt cannot finish a newer logout retry's custody", async () => {
+  let finish!: (response: Response) => void;
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockResolvedValueOnce(
+        json({ csrf: "test", destination: "/cdn-cgi/access/logout" }),
+      )
+      .mockReturnValueOnce(
+        new Promise<Response>((resolve) => {
+          finish = resolve;
+        }),
+      ),
+  );
+  render();
+  await click();
+  const newer = await beginEditorialLogout(localStorage);
+  await act(async () => finish(json({ ok: true })));
+  expect(navigate).not.toHaveBeenCalled();
+  expect(localStorage.getItem(recoveryLogoutIntentKey)).toBe(newer);
+  expect(host.textContent).toContain("Sign out is incomplete");
 });

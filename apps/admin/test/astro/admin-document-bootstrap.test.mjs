@@ -2,11 +2,19 @@ import { JSDOM } from "jsdom";
 import { afterEach, expect, it, vi } from "vitest";
 import { adminDocumentBootstrap } from "../../src/lib/admin-document-bootstrap";
 import { adminDocumentSessionKey } from "../../src/lib/admin-document-session";
-import { recoveryLogoutGenerationKey } from "../../src/lib/browser-recovery";
+import {
+  recoveryLogoutGenerationKey,
+  recoveryLogoutIntentKey,
+} from "../../src/lib/browser-recovery";
 let dom;
 const key = recoveryLogoutGenerationKey;
 const marker = "Synthetic private SSR sentinel";
-function html({ baseline = null, failStorage = false, between = "" } = {}) {
+function html({
+  baseline = null,
+  intent = null,
+  failStorage = false,
+  between = "",
+} = {}) {
   dom = new JSDOM(
     `<!doctype html><html><head><script>${adminDocumentBootstrap("/data/records?kind=note")}<\/script>${between}</head><body><div data-admin-private-document style="display:contents"><astro-island props='{"private":"${marker}"}'><div>${marker}</div></astro-island></div></body></html>`,
     {
@@ -14,6 +22,8 @@ function html({ baseline = null, failStorage = false, between = "" } = {}) {
       runScripts: "dangerously",
       beforeParse(window) {
         if (baseline !== null) window.localStorage.setItem(key, baseline);
+        if (intent !== null)
+          window.localStorage.setItem(recoveryLogoutIntentKey, intent);
         if (failStorage)
           Object.defineProperty(window, "localStorage", {
             get() {
@@ -304,4 +314,92 @@ it("changes observed props only after native unmount and physical detach", async
   expect(island.isConnected).toBe(false);
   expect(island.hasAttribute("props")).toBe(false);
   expect(connectedPropChanges).toBe(0);
+});
+
+it("a new document opened during cleanup latches intent before any generation advance", async () => {
+  const state = html({ intent: "active-local-cleanup" });
+  await settle();
+  expect(state.generation).toBeNull();
+  expect(state.locked).toBe(true);
+  expect(dom.window.document.body.textContent).not.toContain(marker);
+  expect(
+    dom.window.document
+      .querySelector("[data-admin-session-reentry] a")
+      .getAttribute("href"),
+  ).toBe("/auth/logout");
+  expect(
+    dom.window.document.querySelector("[data-admin-session-reentry] a")
+      .textContent,
+  ).toBe("Finish sign out");
+  const api = await consumer();
+  const fetcher = vi.fn();
+  await expect(
+    api.protectedAdminJson("/api/private-reader/credential", {}, fetcher),
+  ).rejects.toMatchObject({ kind: "locked" });
+  dom.window.localStorage.removeItem(recoveryLogoutIntentKey);
+  dom.window.dispatchEvent(
+    new dom.window.StorageEvent("storage", { key: recoveryLogoutIntentKey }),
+  );
+  await settle();
+  expect(state.locked).toBe(true);
+  expect(
+    dom.window.document.querySelector("[data-admin-session-reentry] a")
+      .textContent,
+  ).toBe("Sign in again");
+  await expect(
+    api.protectedAdminJson("/api/private-reader/credential", {}, fetcher),
+  ).rejects.toMatchObject({ kind: "locked" });
+  expect(fetcher).not.toHaveBeenCalled();
+});
+it("existing documents latch intent creation even before logout generation changes", async () => {
+  const state = html();
+  const api = await consumer();
+  const fetcher = vi.fn(
+    async () =>
+      new Response('{"ok":true}', {
+        headers: { "content-type": "application/json" },
+      }),
+  );
+  await api.protectedAdminJson("/api/editorial/record", {}, fetcher);
+  dom.window.localStorage.setItem(recoveryLogoutIntentKey, "pending");
+  // The transport reconciles intent even while the cross-tab event is delayed.
+  await expect(
+    api.protectedAdminJson("/api/editorial/record", {}, fetcher),
+  ).rejects.toMatchObject({ kind: "locked" });
+  await settle();
+  expect(state.locked).toBe(true);
+  expect(dom.window.document.body.textContent).not.toContain(marker);
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});
+it("a fresh document after local transaction finish can reenter without granting server authority", async () => {
+  const state = html({ baseline: "completed-local-generation" });
+  await settle();
+  expect(state.locked).toBe(false);
+  const api = await consumer();
+  const fetcher = vi.fn(
+    async () =>
+      new Response('{"error":"owner_required"}', {
+        status: 401,
+        headers: { "content-type": "application/json" },
+      }),
+  );
+  await expect(
+    api.protectedAdminJson("/api/editorial/record", {}, fetcher),
+  ).rejects.toMatchObject({ kind: "expired" });
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(api.protectedSessionIsLocked()).toBe(true);
+});
+it("intent events latch an already parsed document even after another tab finished removal", async () => {
+  const state = html();
+  await settle();
+  dom.window.dispatchEvent(
+    new dom.window.StorageEvent("storage", {
+      key: recoveryLogoutIntentKey,
+      oldValue: "completed",
+      newValue: null,
+    }),
+  );
+  await settle();
+  expect(state.locked).toBe(true);
+  expect(dom.window.document.body.textContent).not.toContain(marker);
 });

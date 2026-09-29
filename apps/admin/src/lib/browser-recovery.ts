@@ -2,6 +2,7 @@ import { MAX_SOURCE_BYTES } from "@anipotts/content/editorial/record";
 
 /** v1 remains readable by old tabs. New writers never mutate that namespace. */
 export const recoveryLogoutGenerationKey = "editorial-recovery:logout";
+export const recoveryLogoutIntentKey = "editorial-recovery:logout-intent";
 export const recoveryLifecycleLockName = "editorial-recovery:lifecycle";
 export const recoveryV2Prefix = "editorial-recovery:v2:";
 const format = "anipotts.browser-recovery";
