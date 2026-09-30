@@ -5,6 +5,7 @@ import ExperienceFeatureCard from "../components/ExperienceFeatureCard.astro";
 import WritingRow from "../components/WritingRow.astro";
 import CodingAgentTipsCard from "../components/CodingAgentTipsCard.astro";
 import HomepageRichSummary from "../components/HomepageRichSummary.astro";
+import PressMention from "../components/PressMention.astro";
 import { Icon } from "astro-icon/components";
 import type { CollectionEntry } from "astro:content";
 import { projectSlug, writingSlug } from "../lib/content";
@@ -89,26 +90,11 @@ const profileLd = {
         )
       }
     </p>
-    <p class="coverage-links mono muted">
-      <a
-        class="quiet-link"
-        href="https://www.businessinsider.com/ai-usage-limits-causing-some-to-restructure-their-workday-2026-4"
-        >business insider: original reporting</a
-      >
-      {
-        codingAgentEssay && (
-          <>
-            <span aria-hidden="true"> · </span>
-            <a
-              class="quiet-link"
-              href={`/writing/${writingSlug(codingAgentEssay)}`}
-            >
-              my essay on coding agent limits
-            </a>
-          </>
-        )
-      }
-    </p>
+    <PressMention
+      essayHref={codingAgentEssay
+        ? `/writing/${writingSlug(codingAgentEssay)}`
+        : undefined}
+    />
     <div class="experience-grid" role="group" aria-label="experience">
       {
         experiences.map((experience) =>
@@ -204,17 +190,11 @@ const profileLd = {
     }
   }
 
-  .coverage-links {
-    margin-top: var(--s-4);
-    font-size: 0.85rem;
-    line-height: 1.6;
-  }
-
   .experience-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--s-4);
-    margin-top: var(--s-6);
+    margin-top: var(--s-4);
   }
 
   .stack {

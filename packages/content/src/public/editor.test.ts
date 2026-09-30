@@ -298,7 +298,7 @@ describe("homepage cms validation", () => {
     const content = normalizeHomepageContent(DEFAULT_HOMEPAGE_CONTENT);
 
     expect(homepageSummaryText(content)).toBe(
-      "i build data intensive systems with AI and sometimes share what i'm learning online. i've worked on construction document agents at structured ai (YC F25) and artist discovery tools at our bad habit, an atlantic records venture. business insider also wrote about how i use coding agents in my everyday work under usage constraints.",
+      "i build data intensive systems with AI and sometimes share what i'm learning online. i've worked on construction document agents at structured ai (YC F25) and artist discovery tools at our bad habit, an atlantic records venture.",
     );
   });
 

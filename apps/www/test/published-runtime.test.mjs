@@ -271,7 +271,9 @@ test("homepage essay attribution follows its published slug and withdrawal", asy
   const essay = source("writing", id);
   const renamedSlug = "coding-agent-usage-limits";
   const coverage = (html) => {
-    const paragraph = html.match(/<p class="coverage-links[^>]*>(.*?)<\/p>/s);
+    const paragraph = html.match(
+      /<aside class="press-mention[^>]*>(.*?)<\/aside>/s,
+    );
     assert.ok(paragraph, "homepage reporting attribution is rendered");
     return paragraph[1];
   };
@@ -295,8 +297,8 @@ test("homepage essay attribution follows its published slug and withdrawal", asy
       text: edit(essay, { slug: renamedSlug, status: "draft" }),
     });
     attribution = coverage(await (await serve("/", cms(db))).text());
-    assert.doesNotMatch(attribution, /my essay|\/writing\/|aria-hidden/);
-    assert.match(attribution, /business insider: original reporting/);
+    assert.doesNotMatch(attribution, /my essay|\/writing\//);
+    assert.match(attribution, /read the story/);
     assert.equal((await serve(`/writing/${renamedSlug}`, cms(db))).status, 404);
   } finally {
     db.close();

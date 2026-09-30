@@ -98,6 +98,14 @@ test("homepage canonical and ordinary crawl destination remain HTTPS apex", () =
   );
 });
 
+test("homepage keeps reporting attribution in its dedicated card", () => {
+  const intro = html.match(/<p class="hero-summary[^>]*>(.*?)<\/p>/s)?.[1];
+  assert.ok(intro);
+  assert.doesNotMatch(intro, /business insider|business-insider/i);
+  assert.match(html, /featured in a story about coding agent limits/);
+  assert.match(html, /src="\/images\/brand\/business-insider-wordmark\.svg"/);
+});
+
 // Identity must be visible in search results as well as structured data.
 test("homepage uses the exact name and distinguishes reporting from the essay", () => {
   assert.match(
@@ -108,11 +116,11 @@ test("homepage uses the exact name and distinguishes reporting from the essay", 
   assert.match(html, /hi, i(?:&#39;|')m ani potts!/);
   assert.match(
     html,
-    /href="https:\/\/www.businessinsider.com\/ai-usage-limits-causing-some-to-restructure-their-workday-2026-4"[^>]*>business insider: original reporting/,
+    /href="https:\/\/www.businessinsider.com\/ai-usage-limits-causing-some-to-restructure-their-workday-2026-4"[^>]*>\s*<span[^>]*>read the story/,
   );
   assert.match(
     html,
-    /href="\/writing\/saturdays-are-for-claude-code"[^>]*>\s*my essay on coding agent limits/,
+    /href="\/writing\/saturdays-are-for-claude-code"[^>]*>\s*<span[^>]*>my essay/,
   );
   const article = readFileSync(
     new URL(

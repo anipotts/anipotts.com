@@ -26,6 +26,7 @@
   --d-lede: clamp(1.08rem, 2.2vw, 1.42rem);
   --radius-desktop-ui-media: 0.35rem;
   --paper-radius: 0.75rem;
+  --experience-card-padding: clamp(0.8rem, 2.6vw, 1.35rem);
   --paper-surface: #ffffff;
   --paper-surface-hover: #f7faff;
   --paper-ink: #0b1220;
