@@ -28,6 +28,9 @@ const selectedWritingSlugs = writing.writing_slugs ?? [];
 const homeWritingOrder = new Map<string, number>(
   selectedWritingSlugs.map((slug, index) => [slug, index]),
 );
+const codingAgentEssay = allWriting.find(
+  (entry) => entry.id === "saturdays-are-for-claude-code",
+);
 const codingAgentGuide = allWork.find(
   (project) => projectSlug(project) === "agents",
 );
@@ -92,10 +95,19 @@ const profileLd = {
         href="https://www.businessinsider.com/ai-usage-limits-causing-some-to-restructure-their-workday-2026-4"
         >business insider: original reporting</a
       >
-      <span aria-hidden="true"> · </span>
-      <a class="quiet-link" href="/writing/saturdays-are-for-claude-code"
-        >my essay on coding agent limits</a
-      >
+      {
+        codingAgentEssay && (
+          <>
+            <span aria-hidden="true"> · </span>
+            <a
+              class="quiet-link"
+              href={`/writing/${writingSlug(codingAgentEssay)}`}
+            >
+              my essay on coding agent limits
+            </a>
+          </>
+        )
+      }
     </p>
     <div class="experience-grid" role="group" aria-label="experience">
       {

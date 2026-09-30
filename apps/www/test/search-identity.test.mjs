@@ -112,7 +112,7 @@ test("homepage uses the exact name and distinguishes reporting from the essay", 
   );
   assert.match(
     html,
-    /href="\/writing\/saturdays-are-for-claude-code"[^>]*>my essay on coding agent limits/,
+    /href="\/writing\/saturdays-are-for-claude-code"[^>]*>\s*my essay on coding agent limits/,
   );
   const article = readFileSync(
     new URL(

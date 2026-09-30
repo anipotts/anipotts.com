@@ -265,6 +265,44 @@ test("unpublication suppresses Git detail, listings, homepage, discovery and pri
   }
 });
 
+test("homepage essay attribution follows its published slug and withdrawal", async () => {
+  const db = database();
+  const id = "saturdays-are-for-claude-code";
+  const essay = source("writing", id);
+  const renamedSlug = "coding-agent-usage-limits";
+  const coverage = (html) => {
+    const paragraph = html.match(/<p class="coverage-links[^>]*>(.*?)<\/p>/s);
+    assert.ok(paragraph, "homepage reporting attribution is rendered");
+    return paragraph[1];
+  };
+  try {
+    db.publish({ id, text: essay });
+    let attribution = coverage(await (await serve("/", cms(db))).text());
+    assert.match(
+      attribution,
+      /href="\/writing\/saturdays-are-for-claude-code"/,
+    );
+
+    db.publish({ id, text: edit(essay, { slug: renamedSlug }) });
+    attribution = coverage(await (await serve("/", cms(db))).text());
+    assert.match(attribution, /href="\/writing\/coding-agent-usage-limits"/);
+    assert.doesNotMatch(attribution, /saturdays-are-for-claude-code/);
+    assert.equal((await serve(`/writing/${renamedSlug}`, cms(db))).status, 200);
+    assert.equal((await serve(`/writing/${id}`, cms(db))).status, 404);
+
+    db.publish({
+      id,
+      text: edit(essay, { slug: renamedSlug, status: "draft" }),
+    });
+    attribution = coverage(await (await serve("/", cms(db))).text());
+    assert.doesNotMatch(attribution, /my essay|\/writing\/|aria-hidden/);
+    assert.match(attribution, /business insider: original reporting/);
+    assert.equal((await serve(`/writing/${renamedSlug}`, cms(db))).status, 404);
+  } finally {
+    db.close();
+  }
+});
+
 test("visible and hidden project records overlay before public-state filtering", async () => {
   const db = database();
   try {
