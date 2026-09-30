@@ -4,8 +4,9 @@ The dedicated press card replaces the plain reporting links. It uses the
 publisher's official stacked wordmark, the site's existing curved arrow icon,
 and the experience cards' shared padding, surface, radius and shadow.
 
-The card says "featured in a story about coding agent limits" and links to the
-original reporting and the published essay. The essay link follows its CMS
+The card says "read my feature in a story about coding agent limits" and links to the
+original reporting and the published essay. Each link starts with its existing
+BI or ap favicon, matching the paragraph's inline identity treatment. The essay link follows its CMS
 record identity and current slug, and disappears when the essay is unpublished.
 
 Logo source:
@@ -43,3 +44,11 @@ geometry checks cover 320, 375, 390, 480, 640, 768, 800, 801, 1024 and 1440 pixe
 matching press-card outer edges and inset padding to the experience cards.
 Check overflow, content bounds, 44-pixel link targets, keyboard focus and dark
 mode on the final head before integration.
+
+## Small-screen alignment refinement
+
+At the existing 800-pixel breakpoint, the logo aligns to the start of the copy
+while the copy and actions share one left edge. The 480-pixel mobile treatment
+retains that same structure with a smaller mark and tighter action gap. Links
+wrap naturally on narrow screens while preserving 44-pixel touch height. No
+fixed card height or viewport-specific copy is introduced.
