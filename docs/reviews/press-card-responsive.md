@@ -45,10 +45,15 @@ matching press-card outer edges and inset padding to the experience cards.
 Check overflow, content bounds, 44-pixel link targets, keyboard focus and dark
 mode on the final head before integration.
 
-## Small-screen alignment refinement
+## Responsive action row
 
-At the existing 800-pixel breakpoint, the logo aligns to the start of the copy
-while the copy and actions share one left edge. The 480-pixel mobile treatment
-retains that same structure with a smaller mark and tighter action gap. Links
-wrap naturally on narrow screens while preserving 44-pixel touch height. No
+Desktop keeps the logo, copy and actions in one compact row. At the existing
+800-pixel breakpoint, the logo and copy form a centered header above two equal
+width actions spanning the full card interior. Each action uses a subtle theme
+surface, a leading BI or ap mark, left-aligned text and the same curved arrow
+aligned to its right edge. A single remaining action fills the available row.
+
+The existing 480-pixel and 359-pixel treatments reduce mark sizing and spacing.
+Labels wrap naturally at the smallest widths while preserving 44-pixel touch
+height. The card retains the experience cards' shared insets and radius. No
 fixed card height or viewport-specific copy is introduced.
