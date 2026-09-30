@@ -28,6 +28,9 @@ const selectedWritingSlugs = writing.writing_slugs ?? [];
 const homeWritingOrder = new Map<string, number>(
   selectedWritingSlugs.map((slug, index) => [slug, index]),
 );
+const codingAgentEssay = allWriting.find(
+  (entry) => entry.id === "saturdays-are-for-claude-code",
+);
 const codingAgentGuide = allWork.find(
   (project) => projectSlug(project) === "agents",
 );
@@ -64,8 +67,8 @@ const profileLd = {
 ---
 
 <Shell
-  title={siteConfig.displayName}
-  description={summaryText}
+  title={siteConfig.homepageTitle}
+  description={siteConfig.description}
   path="/"
   jsonLd={profileLd}
   robots={Astro.props.preview ? "noindex, nofollow, noarchive" : undefined}
@@ -83,6 +86,26 @@ const profileLd = {
             mentionKeys={introMentionKeys}
             mentions={mentionMap}
           />
+        )
+      }
+    </p>
+    <p class="coverage-links mono muted">
+      <a
+        class="quiet-link"
+        href="https://www.businessinsider.com/ai-usage-limits-causing-some-to-restructure-their-workday-2026-4"
+        >business insider: original reporting</a
+      >
+      {
+        codingAgentEssay && (
+          <>
+            <span aria-hidden="true"> · </span>
+            <a
+              class="quiet-link"
+              href={`/writing/${writingSlug(codingAgentEssay)}`}
+            >
+              my essay on coding agent limits
+            </a>
+          </>
         )
       }
     </p>
@@ -179,6 +202,12 @@ const profileLd = {
       color: var(--interactive);
       text-decoration-color: var(--interactive);
     }
+  }
+
+  .coverage-links {
+    margin-top: var(--s-4);
+    font-size: 0.85rem;
+    line-height: 1.6;
   }
 
   .experience-grid {
