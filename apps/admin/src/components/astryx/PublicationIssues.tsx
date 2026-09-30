@@ -8,6 +8,7 @@ import { recordCollection } from "../../lib/editorial-collections";
 import {
   publicationIssues,
   publicationIssueMessage,
+  publicationIssueField,
 } from "../../lib/publication-diagnostics";
 
 export function PublicationIssues({
@@ -34,7 +35,7 @@ export function PublicationIssues({
                 {issue.record
                   ? `${issue.record.kind === "work" ? "project" : issue.record.kind} ${issue.record.id}`
                   : "Content inventory"}
-                {issue.field ? ` (${issue.field})` : ""}
+                {issue.field ? ` (${publicationIssueField(issue.field)})` : ""}
               </Text>
               {href && (
                 <Button

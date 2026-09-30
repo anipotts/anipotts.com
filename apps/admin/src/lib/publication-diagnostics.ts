@@ -76,3 +76,24 @@ export function publicationRefusal(code: unknown): string | null {
       return null;
   }
 }
+
+/** Field paths stay in the protocol; the interface uses familiar editor labels. */
+export function publicationIssueField(field: string): string {
+  const selection = /^sections\.latest_thoughts\.writing_slugs\.(\d+)$/.exec(
+    field,
+  );
+  if (selection) return `Writing selection ${Number(selection[1]) + 1}`;
+  const labels: Record<string, string> = {
+    title: "Title",
+    summary: "Subtitle",
+    slug: "Address",
+    project: "Related project",
+    detail_path: "Detail path",
+    homepage_placement: "Homepage placement",
+    status: "Visibility",
+    public_state: "Visibility",
+    published_at: "Publication date",
+    body: "Article body",
+  };
+  return labels[field] ?? field.replaceAll("_", " ").split(".").join(" / ");
+}

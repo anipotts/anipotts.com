@@ -37,7 +37,7 @@ it("links precise safe diagnostics to the existing editor routes", () => {
     "/content/projects/synthetic",
     "/content/writing/synthetic",
   ]);
-  expect(doc.body.textContent).toContain("writing_slugs.0");
+  expect(doc.body.textContent).toContain("Writing selection 1");
   expect(doc.body.textContent).toContain("publish the selected article first");
   expect(doc.body.textContent).not.toContain("private text");
 });
