@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import React, { act } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, afterEach, it, expect, vi } from "vitest";
 let EditorialApp: typeof import("./EditorialApp").EditorialApp;
@@ -410,3 +411,37 @@ it.each(["logout", "bfcache"])(
     expect(host.textContent).toContain("Session ended");
   },
 );
+
+it("keeps Writing's SDK boundary inside main, away from the shared navigation", () => {
+  const html = renderToStaticMarkup(
+    <EditorialApp
+      title="Writing"
+      area="content"
+      selectedGroup="writing"
+      localPreview
+      siteUrl="https://anipotts.com"
+      groups={[
+        {
+          name: "writing",
+          href: "/content/writing",
+          records: [
+            {
+              title: "Synthetic",
+              status: "draft",
+              href: "/content/writing/synthetic",
+            },
+          ],
+        },
+      ]}
+    />,
+  );
+  const host = document.createElement("div");
+  host.innerHTML = html;
+  const boundary = host.querySelector('[data-admin-ui="openai"]');
+  const main = host.querySelector("#astryx-app-shell-main");
+  const nav = host.querySelector("nav");
+  expect(boundary).not.toBeNull();
+  expect(main?.contains(boundary)).toBe(true);
+  expect(boundary?.contains(nav)).toBe(false);
+  expect(nav?.closest('[data-admin-ui="openai"]')).toBeNull();
+});

@@ -353,22 +353,22 @@ export function EditorialApp({
     );
   return (
     <Theme theme={theme} mode={mode}>
-      <AdminUIProvider enabled={library === "writing"} mode={mode}>
-        <EditorialWorkspaceShell
-          area={area}
-          selectedGroup={selectedGroup}
-          recordKind={recordKind}
-          mode={mode}
-          changeTheme={changeTheme}
-          localPreview={localPreview}
-          localOwner={localOwner}
-          searchEntries={inventoryView.searchEntries}
-          groupCounts={navigationCounts(
-            inventoryView.groups,
-            inventoryView.searchEntries,
-          )}
-          recordPage={recordPage || (Boolean(review) && !hideHeader)}
-        >
+      <EditorialWorkspaceShell
+        area={area}
+        selectedGroup={selectedGroup}
+        recordKind={recordKind}
+        mode={mode}
+        changeTheme={changeTheme}
+        localPreview={localPreview}
+        localOwner={localOwner}
+        searchEntries={inventoryView.searchEntries}
+        groupCounts={navigationCounts(
+          inventoryView.groups,
+          inventoryView.searchEntries,
+        )}
+        recordPage={recordPage || (Boolean(review) && !hideHeader)}
+      >
+        <AdminUIProvider enabled={library === "writing"} mode={mode}>
           <VStack
             gap={editorRecord ? 4 : 6}
             className={`editorial-content${groups ? " editorial-library-page" : ""}${recordPage ? " writing-content" : ""}`}
@@ -561,8 +561,8 @@ export function EditorialApp({
                 />
               ))}
           </VStack>
-        </EditorialWorkspaceShell>
-      </AdminUIProvider>
+        </AdminUIProvider>
+      </EditorialWorkspaceShell>
     </Theme>
   );
 }

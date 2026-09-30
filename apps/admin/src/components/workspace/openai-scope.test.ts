@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import postcss from "postcss";
+import { readFileSync } from "node:fs";
 import {
   openaiScope,
   scopeOpenAISelector,
@@ -22,6 +23,20 @@ describe("SDK stylesheet isolation", () => {
     expect(result.css).not.toContain("@property");
     expect(result.css).not.toContain(":root");
     expect(result.css).not.toContain(":host");
+  });
+  it("lets existing component geometry override SDK resets", () => {
+    const css = readFileSync(
+      new URL("../../styles/layers.css", import.meta.url),
+      "utf8",
+    );
+    const order = css
+      .match(/@layer ([^;]+);/)![1]
+      .split(",")
+      .map((name) => name.trim());
+    expect(order.indexOf("base")).toBeLessThan(order.indexOf("astryx-base"));
+    expect(order.indexOf("astryx-base")).toBeLessThan(
+      order.indexOf("astryx-theme"),
+    );
   });
   it("does not rewrite the legacy entry", async () => {
     const css = ":root {--color:red} button {color:red}";

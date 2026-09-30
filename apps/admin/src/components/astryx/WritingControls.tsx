@@ -43,7 +43,7 @@ export function Button(props: ComponentProps<typeof LegacyButton>) {
         : variant === "primary"
           ? ("solid" as const)
           : ("outline" as const),
-    size: "2xl" as const,
+    size: "lg" as const,
     disabled: isDisabled || isLoading || pending,
     className,
     onMouseDown: props.onMouseDown,
@@ -123,7 +123,7 @@ export function IconButton(props: ComponentProps<typeof LegacyIconButton>) {
   const common = {
     color: "secondary" as const,
     variant: "ghost" as const,
-    size: "2xl" as const,
+    size: "lg" as const,
     disabled: isDisabled,
     className,
     "aria-label": label,
@@ -186,7 +186,7 @@ export function ToggleButton(props: ComponentProps<typeof LegacyToggle>) {
         pill={false}
         color="secondary"
         variant="ghost"
-        size="2xl"
+        size="lg"
         type="button"
         className={className}
         uniform={isIconOnly}
@@ -246,7 +246,7 @@ export function TextInput(props: ComponentProps<typeof LegacyInput>) {
         required={props.isRequired}
         onFocus={props.onFocus}
         value={value}
-        size="2xl"
+        size="lg"
         placeholder={placeholder}
         disabled={isDisabled}
         readOnly={isReadOnly}
@@ -424,7 +424,7 @@ export function Selector(props: ComponentProps<typeof LegacySelector>) {
             pill={false}
             color="secondary"
             variant="outline"
-            size="2xl"
+            size="lg"
             type="button"
             aria-labelledby={id}
             disabled={props.isDisabled}
@@ -523,7 +523,7 @@ export function MoreMenu(props: ComponentProps<typeof LegacyMoreMenu>) {
           pill={false}
           color="secondary"
           variant="ghost"
-          size="2xl"
+          size="lg"
           uniform
           aria-label={props.label}
           title={props.label}
@@ -550,7 +550,7 @@ export function DropdownMenu(props: ComponentProps<typeof LegacyDropdown>) {
           pill={false}
           color="secondary"
           variant="ghost"
-          size="2xl"
+          size="lg"
           uniform={props.button?.isIconOnly}
           aria-label={props.button?.label}
           title={props.button?.label}
