@@ -512,12 +512,23 @@ describe("direct publication with real local D1, R2 and SQLite Durable Objects",
     const collision = await fixture(
       setEditorialField(source, ["slug"], data.slug ?? existing.record.id),
     );
-    await collision.store.startDirectPublication(collision.input);
-    await collision.advance();
+    const beforeCollision = (await getPublishedInventory(env.CONTENT_DB))
+      .version;
+    const refused = await collision.store.startDirectPublication(
+      collision.input,
+    );
+    expect(refused).toMatchObject({ ok: false, code: "invalid_snapshot" });
+    expect(refused).toMatchObject({
+      issues: expect.arrayContaining([
+        { record: collision.record, field: "slug", code: "duplicate_slug" },
+      ]),
+    });
     expect(
-      (await collision.store.latestDirectPublication(collision.record))
-        ?.blocked,
-    ).toBe("invalid_snapshot");
+      await collision.store.latestDirectPublication(collision.record),
+    ).toBeNull();
+    expect((await getPublishedInventory(env.CONTENT_DB)).version).toBe(
+      beforeCollision,
+    );
     expect(await getPublished(env.CONTENT_DB, collision.record)).toBeNull();
   });
   it("rejects existing route renames until redirects are supported", async () => {
@@ -529,18 +540,192 @@ describe("direct publication with real local D1, R2 and SQLite Durable Objects",
     const next = setEditorialField(source, ["slug"], "replacement-route");
     await f.store.save(save(f.record, next, 1));
     const base = await readPublishedBase(env.CONTENT_DB, f.record);
-    await f.store.startDirectPublication({
-      ...f.input,
+    const operationId = crypto.randomUUID();
+    expect(
+      await f.store.startDirectPublication({
+        ...f.input,
+        operationId,
+        expectedRevision: 2,
+        reviewedSourceSha256: hash(next),
+        expectedPublicationId: base.publicationId,
+        expectedBaselineSha256: base.sourceSha256,
+      }),
+    ).toEqual({
+      ok: false,
+      code: "unsupported_slug_change",
+      issues: [
+        { record: f.record, field: "slug", code: "unsupported_slug_change" },
+      ],
+    });
+    expect(
+      await f.store.directPublicationStatus(f.record, operationId),
+    ).toBeNull();
+    expect((await getPublished(env.CONTENT_DB, f.record))?.publicationId).toBe(
+      base.publicationId,
+    );
+    expect((await f.store.get(f.record))?.source).toBe(next);
+  });
+  it("retains an incomplete private draft while refusing publication with exact fields", async () => {
+    const text = setEditorialField(source, ["summary"], "");
+    const f = await fixture(text);
+    const before = (await getPublishedInventory(env.CONTENT_DB)).version;
+    expect(await f.store.startDirectPublication(f.input)).toMatchObject({
+      ok: false,
+      code: "invalid_source",
+      issues: expect.arrayContaining([
+        { record: f.record, field: "summary", code: "invalid_field" },
+      ]),
+    });
+    expect(await f.store.latestDirectPublication(f.record)).toBeNull();
+    expect(await f.store.get(f.record)).toMatchObject({
+      source: text,
+      revision: 1,
+    });
+    expect(await f.store.history(f.record)).toHaveLength(1);
+    expect((await getPublishedInventory(env.CONTENT_DB)).version).toBe(before);
+  });
+  it("fails safely before intent creation when preflight storage is unavailable", async () => {
+    const f = await fixture();
+    const draft = await f.store.get(f.record);
+    await runInDurableObject(f.store, async (_instance, state) => {
+      const engine = new DirectPublisher(state.storage, {
+        db: env.CONTENT_DB,
+        media: env.CONTENT_MEDIA,
+        readDraft: () => draft,
+        readMedia: async () => null,
+        acknowledge: () => {},
+        validateCandidate: async () => {
+          throw new Error("private provider error");
+        },
+      });
+      expect(await engine.start(f.input)).toEqual({
+        ok: false,
+        code: "preflight_unavailable",
+      });
+      expect(await state.storage.getAlarm()).toBeNull();
+    });
+    expect(await f.store.latestDirectPublication(f.record)).toBeNull();
+    expect((await f.store.get(f.record))?.source).toBe(source);
+  });
+  it.each(["storage_failure", "invalid_snapshot"] as const)(
+    "returns a concurrent accepted replay instead of a late %s refusal",
+    async (failure) => {
+      const f = await fixture();
+      const draft = await f.store.get(f.record);
+      const candidate = await validatePublishedCandidate(
+        env.CONTENT_DB,
+        f.record,
+        source,
+      );
+      await runInDurableObject(f.store, async (_instance, state) => {
+        let release!: () => void;
+        const waiting = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        let calls = 0;
+        const engine = new DirectPublisher(state.storage, {
+          db: env.CONTENT_DB,
+          media: env.CONTENT_MEDIA,
+          readDraft: () => draft,
+          readMedia: async () => null,
+          acknowledge: () => {},
+          validateCandidate: async () => {
+            if (++calls === 1) {
+              await waiting;
+              if (failure === "storage_failure")
+                throw new Error("synthetic storage unavailable");
+              return {
+                ...candidate,
+                valid: false,
+                issues: [
+                  { record: f.record, field: "slug", code: "duplicate_slug" },
+                ],
+              };
+            }
+            return candidate;
+          },
+        });
+        const pending = engine.start(f.input);
+        const accepted = await engine.start(f.input);
+        expect(accepted.ok).toBe(true);
+        release();
+        const replay = await pending;
+        expect(replay).toEqual(accepted);
+        expect(
+          state.storage.sql
+            .exec<{ count: number }>(
+              "SELECT COUNT(*) AS count FROM direct_publication_intents",
+            )
+            .one().count,
+        ).toBe(1);
+        await state.storage.setAlarm(Date.now() + 60 * 60_000);
+      });
+      expect((await f.store.latestDirectPublication(f.record))?.id).toBe(
+        f.input.operationId,
+      );
+      expect(await getPublished(env.CONTENT_DB, f.record)).toBeNull();
+    },
+  );
+  it("persists specific late inventory errors through eviction and retry revalidation", async () => {
+    const f = await fixture();
+    expect((await f.store.startDirectPublication(f.input)).ok).toBe(true);
+    await quiet(f.store);
+    const otherRecord = freshRecord();
+    const inventory = await getPublishedInventory(env.CONTENT_DB);
+    await publishDirect(env.CONTENT_DB, {
+      contentSchemaVersion: 1,
+      record: otherRecord,
+      source: setEditorialField(source, ["slug"], f.record.id),
+      revision: 1,
       operationId: crypto.randomUUID(),
-      expectedRevision: 2,
-      reviewedSourceSha256: hash(next),
-      expectedPublicationId: base.publicationId,
-      expectedBaselineSha256: base.sourceSha256,
+      expectedPublicationId: null,
+      expectedInventoryVersion: inventory.version,
+      publishedAt: new Date().toISOString(),
     });
     await f.advance();
-    expect((await f.store.latestDirectPublication(f.record))?.blocked).toBe(
-      "unsupported_slug_change",
-    );
+    await quiet(f.store);
+    const blocked = (await f.store.latestDirectPublication(f.record))!;
+    const issue = { record: f.record, field: "slug", code: "duplicate_slug" };
+    expect(blocked).toMatchObject({
+      blocked: "invalid_snapshot",
+      issues: expect.arrayContaining([issue]),
+    });
+    await evictDurableObject(f.store);
+    expect(await f.store.latestDirectPublication(f.record)).toMatchObject({
+      issues: blocked.issues,
+    });
+    expect(
+      await f.store.retryDirectPublication(
+        f.record,
+        blocked.id,
+        blocked.version,
+      ),
+    ).toEqual({ ok: true });
+    expect(await f.store.latestDirectPublication(f.record)).toMatchObject({
+      blocked: null,
+      issues: [],
+    });
+    await quiet(f.store);
+    await f.advance();
+    expect(await f.store.latestDirectPublication(f.record)).toMatchObject({
+      blocked: "invalid_snapshot",
+      issues: expect.arrayContaining([issue]),
+    });
+    const reblocked = (await f.store.latestDirectPublication(f.record))!;
+    expect(
+      await f.store.cancelDirectPublication(
+        f.record,
+        reblocked.id,
+        reblocked.version,
+      ),
+    ).toEqual({ ok: true });
+    expect(await f.store.latestDirectPublication(f.record)).toMatchObject({
+      phase: "cancelled",
+      blocked: null,
+      issues: [],
+    });
+    expect(await getPublished(env.CONTENT_DB, f.record)).toBeNull();
+    expect((await f.store.get(f.record))?.source).toBe(source);
   });
   it("stages immutable private media and verifies copied bytes before activation", async () => {
     const f = await fixture();
@@ -1222,23 +1407,19 @@ describe("unpublish and publish again through the reviewed direct operation", ()
     const store = env.DIRECT_EDITORIAL.getByName(crypto.randomUUID());
     const before = (await getPublishedInventory(env.CONTENT_DB)).version;
     expect(
-      (await store.startDirectPublication(await unpublishInput(record))).ok,
-    ).toBe(true);
-    await quiet(store);
-    await runInDurableObject(store, async (_instance, state) => {
-      await new DirectPublisher(state.storage, {
-        db: env.CONTENT_DB,
-        media: env.CONTENT_MEDIA,
-        readDraft: () => null,
-        readMedia: async () => null,
-        acknowledge: () => {},
-        transport: readerTransport,
-        now: () => Date.now() + 6000,
-      }).alarm();
+      await store.startDirectPublication(await unpublishInput(record)),
+    ).toMatchObject({
+      ok: false,
+      code: "invalid_snapshot",
+      issues: expect.arrayContaining([
+        {
+          record: { kind: "page", id: "home" },
+          field: "sections.latest_thoughts.writing_slugs.0",
+          code: "featured_writing_unavailable",
+        },
+      ]),
     });
-    expect((await store.latestDirectPublication(record))?.blocked).toBe(
-      "unpublish_breaks_reference",
-    );
+    expect(await store.latestDirectPublication(record)).toBeNull();
     expect(await getPublished(env.CONTENT_DB, record)).toBeNull();
     expect((await getPublishedInventory(env.CONTENT_DB)).version).toBe(before);
   });

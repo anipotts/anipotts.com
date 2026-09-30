@@ -1,6 +1,20 @@
 /// <reference types="@cloudflare/vitest-plugin/types" />
 import { env } from "cloudflare:workers";
-import { describe, it, expect } from "vitest";
+import { beforeAll, describe, it, expect } from "vitest";
+import {
+  DIRECT_PUBLICATION_SCHEMA_SQL,
+  DIRECT_PUBLICATION_CONTRACT_MIGRATION_SQL,
+} from "@anipotts/content/editorial/direct-publication";
+import { readPublishedBase } from "../../src/lib/editorial-published-base";
+
+beforeAll(async () => {
+  await env.CONTENT_DB.batch(
+    [
+      ...DIRECT_PUBLICATION_SCHEMA_SQL,
+      ...DIRECT_PUBLICATION_CONTRACT_MIGRATION_SQL,
+    ].map((sql) => env.CONTENT_DB.prepare(sql)),
+  );
+});
 import { homeEditorApi, homeRecord } from "../../src/lib/editorial-home-api";
 const base = async () => ({
   source: "original",
@@ -186,7 +200,8 @@ describe("home API with real SQLite", () => {
       operationId: crypto.randomUUID(),
       discloseSource: true,
       reviewedSourceSha256: await publicationSourceHash(source),
-      expectedBaselineSha256: "a".repeat(64),
+      expectedBaselineSha256: (await readPublishedBase(env.CONTENT_DB, record))
+        .sourceSha256,
       expectedPublicationId: null,
     };
     const scoped = (action: string, payload: unknown, headers = {}) => {
@@ -459,6 +474,53 @@ describe("direct publisher API boundary", () => {
     });
     expect(calls).toBe(0);
   });
+  it("forwards bounded preflight field issues with a private conflict response", async () => {
+    const storage = env.EDITORIAL.getByName(crypto.randomUUID());
+    const issues = [
+      {
+        record: { kind: "writing" as const, id: "essay" },
+        field: "summary",
+        code: "invalid_field",
+      },
+    ];
+    const direct = {
+      startDirectPublication: async () => ({
+        ok: false as const,
+        code: "invalid_snapshot" as const,
+        issues,
+      }),
+      latestDirectPublication: async () => null,
+      directPublicationStatus: async () => null,
+      retryDirectPublication: async () => ({
+        ok: false as const,
+        code: "publication_conflict" as const,
+      }),
+      cancelDirectPublication: async () => ({
+        ok: false as const,
+        code: "publication_conflict" as const,
+      }),
+    };
+    const req = request("publish", {
+      expectedRevision: 1,
+      operationId: crypto.randomUUID(),
+      reviewedSourceSha256: "a".repeat(64),
+      expectedBaselineSha256: "b".repeat(64),
+      expectedPublicationId: null,
+      discloseSource: true,
+    });
+    const response = await homeEditorApi(
+      new Request(req.url + "?kind=writing&id=essay", req),
+      storage,
+      base,
+      { storage: direct, enabled: true },
+    );
+    expect(response.status).toBe(409);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(await response.json()).toEqual({
+      error: "invalid_snapshot",
+      issues,
+    });
+  });
   it("unpublishes with the public source from the server's own read", async () => {
     const storage = env.EDITORIAL.getByName(crypto.randomUUID());
     const record = { kind: "writing", id: "api-unpublish" } as const;
@@ -537,7 +599,8 @@ it("direct API returns the original publication when another intent already owns
     operationId: crypto.randomUUID(),
     expectedRevision: 1,
     reviewedSourceSha256: await publicationSourceHash(source),
-    expectedBaselineSha256: "a".repeat(64),
+    expectedBaselineSha256: (await readPublishedBase(env.CONTENT_DB, record))
+      .sourceSha256,
     expectedPublicationId: null,
   };
   const original = await storage.startDirectPublication(input);

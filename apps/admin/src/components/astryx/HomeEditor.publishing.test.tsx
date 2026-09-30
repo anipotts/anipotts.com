@@ -896,6 +896,74 @@ it("explains a known direct publisher refusal instead of claiming an ambiguous s
   expect(host.textContent).not.toContain("Couldn’t confirm publication");
 });
 
+it("shows actionable preflight diagnostics without claiming a publication started", async () => {
+  const publishedSource = source.replace(
+    "status: draft",
+    "status: published\npublished_at: 2026-09-20",
+  );
+  const cmsBase = {
+    ...snapshot.base,
+    source: publishedSource,
+    publicationId: null,
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      if (url.includes("/baseline")) return response({ base: cmsBase });
+      if (url.includes("/publish?"))
+        return jsonResponse(
+          JSON.stringify({
+            error: "invalid_snapshot",
+            issues: [
+              {
+                record: { kind: "writing", id: "test" },
+                field: "project",
+                code: "unknown_project_reference",
+              },
+            ],
+          }),
+          {
+            status: 409,
+          },
+        );
+      if (url.includes("/publication?")) return response({ publication: null });
+      return response({
+        ...snapshot,
+        base: cmsBase,
+        draft: {
+          ...draft,
+          source: publishedSource.replace("Original body.", "Changed body."),
+        },
+      });
+    }),
+  );
+  await mount("", false);
+  await click("Publish");
+  await click("Publish now");
+  await act(async () => {
+    await vi.waitFor(() =>
+      expect(
+        vi
+          .mocked(fetch)
+          .mock.calls.some(([url]) => String(url).includes("/publication?")),
+      ).toBe(true),
+    );
+  });
+  expect(host.textContent).toContain("Publication was not started.");
+  expect(host.textContent).not.toContain("Couldn’t confirm publication");
+  expect(host.textContent).toContain("Choose an existing project");
+  await act(async () => {
+    (
+      host.querySelector(
+        '[aria-label="Publication issues"] a',
+      ) as HTMLAnchorElement
+    ).click();
+  });
+  expect(host.querySelector('[aria-label="Reviewed source"]')).toBeNull();
+  expect(host.textContent).toContain("Source");
+});
+
 it("blocks unsupported direct publication before submission while retaining the draft", async () => {
   const requests: string[] = [];
   vi.stubGlobal(

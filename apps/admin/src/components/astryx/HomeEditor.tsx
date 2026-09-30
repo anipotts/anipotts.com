@@ -86,6 +86,12 @@ import { editableHomeSummary } from "../../lib/rich-text";
 import { editorialFields } from "../../lib/editorial-fields";
 import { ReviewChanges } from "./ReviewChanges";
 import { PublicationProgress } from "./PublicationProgress";
+import { PublicationIssues } from "./PublicationIssues";
+import {
+  publicationIssues,
+  publicationRefusal,
+} from "../../lib/publication-diagnostics";
+import type { SnapshotIssue } from "@anipotts/content/editorial/snapshot";
 import { TextArea } from "@astryxdesign/core/TextArea";
 import { Button } from "@astryxdesign/core/Button";
 import {
@@ -275,6 +281,10 @@ function HomeEditorImpl({
   const [state, setState] = useState<SaveState | null>(null);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState("");
+  const [preflightIssues, setPreflightIssues] = useState<SnapshotIssue[]>([]);
+  useEffect(() => {
+    setPreflightIssues([]);
+  }, [record.kind, record.id, state?.source]);
   const [tab, setCurrentTab] = useState("edit");
   const sourceRequested = useRef(false);
   if (tab === "source") sourceRequested.current = true;
@@ -1396,6 +1406,7 @@ function HomeEditorImpl({
     const operationId = unpublishRequest.current;
     let refusal: string | null = null;
     setUnpublishing(true);
+    setPreflightIssues([]);
     setError("");
     try {
       // Review against the server's current public source, never a cached one.
@@ -1425,6 +1436,8 @@ function HomeEditorImpl({
       });
       if (result.publication) setPublication(result.publication);
       if (!result.publication || result.error) {
+        if (navigation === navigationGeneration.current)
+          setPreflightIssues(publicationIssues(result.issues));
         const reasons: Record<string, string> = {
           publication_in_progress:
             "A publication for this piece is still in progress. Its status is shown below; let it finish or stop it first.",
@@ -1436,7 +1449,8 @@ function HomeEditorImpl({
         };
         refusal =
           typeof result.error === "string"
-            ? (reasons[result.error] ??
+            ? (publicationRefusal(result.error) ??
+              reasons[result.error] ??
               "Unpublishing was refused. Nothing was changed.")
             : null;
         if (refusal) unpublishRequest.current = null;
@@ -1533,6 +1547,7 @@ function HomeEditorImpl({
     let submittedRequestId: string | null = null;
     let refusalMessage: string | null = null;
     setPublishing(true);
+    setPreflightIssues([]);
     setError("");
     try {
       await ensureDraft();
@@ -1566,6 +1581,11 @@ function HomeEditorImpl({
       );
       if (!result.publication || result.error) {
         if (result.publication) setPublication(result.publication);
+        if (
+          navigation === navigationGeneration.current &&
+          matchesReviewedDraft(reviewed, editor.current?.state ?? null)
+        )
+          setPreflightIssues(publicationIssues(result.issues));
         const reasons: Record<string, string> = {
           publication_in_progress:
             "This record already has a publication in progress. Its current status is shown below; retry or stop that operation before publishing another revision.",
@@ -1582,7 +1602,9 @@ function HomeEditorImpl({
         };
         refusalMessage =
           typeof result.error === "string"
-            ? (reasons[result.error] ?? null)
+            ? (publicationRefusal(result.error) ??
+              reasons[result.error] ??
+              null)
             : null;
         throw new Error();
       }
@@ -1633,6 +1655,26 @@ function HomeEditorImpl({
         : `/${record.id}`
       : `/${record.kind}/${destinationId}`;
   const onSite = record.kind === "page" || (onWebsite && basePublic);
+  const editPublicationIssue = (issue: SnapshotIssue) => {
+    if (
+      !issue.record ||
+      issue.record.kind !== record.kind ||
+      issue.record.id !== record.id
+    )
+      return false;
+    requestedEditingField.current = issue.field;
+    if (tab === "edit") {
+      const target = fieldElements.current
+        .get(issue.field)
+        ?.querySelector<HTMLElement>(
+          'input, textarea, [contenteditable="true"]',
+        );
+      target?.focus({ preventScroll: true });
+      target?.scrollIntoView({ block: "center", behavior: "instant" });
+      if (!target) setTab("source");
+    } else setTab(fieldElements.current.has(issue.field) ? "edit" : "source");
+    return true;
+  };
   const fieldKey = (field: { path: string[] }) => field.path.join(".");
   /** Return in a title moves to the next field's own input. */
   const focusAfter = (index: number) => {
@@ -1854,6 +1896,7 @@ function HomeEditorImpl({
       )}
       {publication && panel !== "publication" && (
         <PublicationProgress
+          onEditIssue={editPublicationIssue}
           publication={publication}
           stale={publicationStale}
           compact
@@ -2020,6 +2063,12 @@ function HomeEditorImpl({
               onRetry={() => download()}
             />
           ) : null}
+          {error && tab !== "publish" && (
+            <PublicationIssues
+              issues={preflightIssues}
+              onEdit={editPublicationIssue}
+            />
+          )}
           {comparisonLoading && <Spinner label="Loading website source…" />}
           {comparison && (
             <VStack gap={2}>
@@ -2725,6 +2774,7 @@ function HomeEditorImpl({
             )}
             {panel === "publication" && publication && (
               <PublicationProgress
+                onEditIssue={editPublicationIssue}
                 publication={publication}
                 stale={publicationStale}
               >
@@ -2743,6 +2793,15 @@ function HomeEditorImpl({
             onClose={() => setTab("edit")}
           >
             <VStack gap={4} className="editor-review">
+              {error && (
+                <VStack gap={2}>
+                  <Text role="alert">{error}</Text>
+                  <PublicationIssues
+                    issues={preflightIssues}
+                    onEdit={editPublicationIssue}
+                  />
+                </VStack>
+              )}
               {reviewLoading && <AdminSkeleton kind="preview" />}
               {!reviewedDraft && !reviewLoading && !untouched && (
                 <Button

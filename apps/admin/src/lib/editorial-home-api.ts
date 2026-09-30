@@ -102,6 +102,7 @@ async function startDirect(
     return json(
       {
         error: result.code,
+        ...("issues" in result ? { issues: result.issues } : {}),
         ...("publication" in result ? { publication: result.publication } : {}),
       },
       409,

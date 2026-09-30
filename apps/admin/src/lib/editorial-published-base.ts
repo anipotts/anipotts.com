@@ -98,8 +98,10 @@ export async function validatePublishedCandidate(
   for (const entry of inventory.publications)
     merged.set(editorialRecordPath(entry.record), entry);
   merged.set(editorialRecordPath(record), { record, source });
+  const issues = validateEditorialSnapshot([...merged.values()]);
   return {
-    valid: validateEditorialSnapshot([...merged.values()]).length === 0,
+    valid: issues.length === 0,
+    issues,
     inventoryVersion: inventory.version,
     baseline,
   };

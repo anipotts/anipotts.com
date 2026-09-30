@@ -1,4 +1,6 @@
 import React, { useEffect, useId, useState } from "react";
+import { PublicationIssues } from "./PublicationIssues";
+import { publicationRefusal } from "../../lib/publication-diagnostics";
 import { HStack } from "@astryxdesign/core/HStack";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Text } from "@astryxdesign/core/Text";
@@ -85,7 +87,11 @@ export function reviewCatalogScenario(
   };
 }
 
-export function DevReviewCatalog() {
+export function DevReviewCatalog({
+  publication = false,
+}: {
+  publication?: boolean;
+}) {
   const [scenario, setScenario] = useState<Scenario>("private");
   const [copy, setCopy] = useState("standard");
   const [state, setState] = useState<SaveState>({
@@ -151,6 +157,29 @@ export function DevReviewCatalog() {
             describedBy: noteId,
           }}
         />
+        {publication && (
+          <VStack
+            gap={2}
+            role="region"
+            aria-label="Synthetic publication refusal"
+          >
+            <Text role="alert">{publicationRefusal("invalid_snapshot")}</Text>
+            <PublicationIssues
+              issues={[
+                {
+                  record: { kind: "writing", id: "synthetic-field-notes" },
+                  field: "project",
+                  code: "unknown_project_reference",
+                },
+                {
+                  record: { kind: "page", id: "home" },
+                  field: "sections.latest_thoughts.writing_slugs.0",
+                  code: "featured_writing_unavailable",
+                },
+              ]}
+            />
+          </VStack>
+        )}
         <ReviewChanges
           labelledBy={headingId}
           destination="example.test/work/field-notes"
