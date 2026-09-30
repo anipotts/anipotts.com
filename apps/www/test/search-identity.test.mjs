@@ -97,3 +97,29 @@ test("homepage canonical and ordinary crawl destination remain HTTPS apex", () =
     "User-agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: https://anipotts.com/sitemap.xml\n",
   );
 });
+
+// Identity must be visible in search results as well as structured data.
+test("homepage uses the exact name and distinguishes reporting from the essay", () => {
+  assert.match(
+    html,
+    /<title>Ani Potts \| Software Engineer Building AI Systems<\/title>/,
+  );
+  assert.match(html, /name="description" content="Ani Potts builds AI agents/);
+  assert.match(html, /hi, i(?:&#39;|')m ani potts!/);
+  assert.match(
+    html,
+    /href="https:\/\/www.businessinsider.com\/ai-usage-limits-causing-some-to-restructure-their-workday-2026-4"[^>]*>business insider: original reporting/,
+  );
+  assert.match(
+    html,
+    /href="\/writing\/saturdays-are-for-claude-code"[^>]*>my essay on coding agent limits/,
+  );
+  const article = readFileSync(
+    new URL(
+      "../.local/public-rendered/writing/saturdays-are-for-claude-code.html",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.match(article, /href="\/" rel="author"[^>]*>ani potts<\/a>/);
+});

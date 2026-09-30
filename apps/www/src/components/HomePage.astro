@@ -64,8 +64,8 @@ const profileLd = {
 ---
 
 <Shell
-  title={siteConfig.displayName}
-  description={summaryText}
+  title={siteConfig.homepageTitle}
+  description={siteConfig.description}
   path="/"
   jsonLd={profileLd}
   robots={Astro.props.preview ? "noindex, nofollow, noarchive" : undefined}
@@ -85,6 +85,17 @@ const profileLd = {
           />
         )
       }
+    </p>
+    <p class="coverage-links mono muted">
+      <a
+        class="quiet-link"
+        href="https://www.businessinsider.com/ai-usage-limits-causing-some-to-restructure-their-workday-2026-4"
+        >business insider: original reporting</a
+      >
+      <span aria-hidden="true"> · </span>
+      <a class="quiet-link" href="/writing/saturdays-are-for-claude-code"
+        >my essay on coding agent limits</a
+      >
     </p>
     <div class="experience-grid" role="group" aria-label="experience">
       {
@@ -179,6 +190,12 @@ const profileLd = {
       color: var(--interactive);
       text-decoration-color: var(--interactive);
     }
+  }
+
+  .coverage-links {
+    margin-top: var(--s-4);
+    font-size: 0.85rem;
+    line-height: 1.6;
   }
 
   .experience-grid {

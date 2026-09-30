@@ -300,7 +300,7 @@ test("page overrides and a new CMS article render without bundled content or cod
   const db = database();
   try {
     const home = source("pages", "home").replace(
-      "hi, i'm ani!",
+      "hi, i'm ani potts!",
       "CMS home heading",
     );
     db.publish({ kind: "page", id: "home", text: home });

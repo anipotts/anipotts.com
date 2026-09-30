@@ -41,10 +41,7 @@ const {
 const description = inlinePlainText(rawDescription);
 const canonical =
   canonicalUrl ?? `${siteConfig.url}${path === "/" ? "" : path}`;
-const fullTitle =
-  path === "/"
-    ? siteConfig.displayName
-    : `${title} / ${siteConfig.displayName}`;
+const fullTitle = path === "/" ? title : `${title} / ${siteConfig.displayName}`;
 // Every route unfurls with a card built from its own strings at build time.
 const cardUrl = `${siteConfig.url}${cardPath(socialCard)}`;
 
