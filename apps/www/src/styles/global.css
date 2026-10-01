@@ -918,7 +918,7 @@ html.writing-detail:not([data-theme="dark"]) .article-body :not(pre) > code {
     );
   align-items: center;
   gap: var(--control-icon-gap);
-  min-height: 44px;
+  min-height: 36px;
   padding: 0.35rem 0.65rem;
   border: 1px solid var(--card-ui-border);
   border-radius: var(--card-ui-radius);

@@ -45,6 +45,8 @@ Work and writing cards now place metadata in a shared wrapping title group on th
 
 Listing work cards omit the `live` label and dot, leaving the timeframe beside the title. Archived and in-progress states remain meaningful; detail-page status metadata is unchanged.
 
-At 1024px and above, listing work dates consistently stack beneath titles. Below that breakpoint, title groups use a wrapping row so dates sit beside titles where available space permits. All card and highlight actions share a 44px minimum height and slimmer .35rem by .65rem padding. Writing actions retain the explicit `read` label and curved arrow without invented article marks.
+At 1024px and above, listing work dates consistently stack beneath titles. Below that breakpoint, title groups use a wrapping row so dates sit beside titles where available space permits. All card and highlight actions share a 36px minimum height and slimmer .35rem by .65rem padding. Writing actions retain the explicit `read` label and curved arrow without invented article marks.
 
 The press row now has one BI-marked `read the story` action linking to the published essay, with the original reporting link as a fallback if the essay is withdrawn. Above 600px the logo, copy and action occupy one row. At 600px and below the compact action aligns right beneath the logo and copy.
+
+Mobile balance refinement: below 1024px, the press action spans the same inner width as the logo-and-copy row. This creates matching left and right insets and removes the isolated right-hand button. Desktop retains the single-row composition. All actions retain the shared slim 36px height.
