@@ -44,3 +44,7 @@ The guide wave layer bleeds 1px beneath its outer rounded clip to avoid a pale a
 Work and writing cards now place metadata in a shared wrapping title group on the left, with the action in a separate right-hand header column. Listing work metadata uses an inline presentation rather than a separate pill beneath the description; project detail badges retain their existing treatment. Writing dates share the same subdued typography, and writing actions explicitly say `read` beside the curved arrow. This removes the extra work-card metadata row while allowing long titles and dates to wrap together at narrow widths.
 
 Listing work cards omit the `live` label and dot, leaving the timeframe beside the title. Archived and in-progress states remain meaningful; detail-page status metadata is unchanged.
+
+At 1024px and above, listing work dates consistently stack beneath titles. Below that breakpoint, title groups use a wrapping row so dates sit beside titles where available space permits. All card and highlight actions share a 44px minimum height and slimmer .35rem by .65rem padding. Writing actions retain the explicit `read` label and curved arrow without invented article marks.
+
+The press row now has one BI-marked `read the story` action linking to the published essay, with the original reporting link as a fallback if the essay is withdrawn. Above 600px the logo, copy and action occupy one row. At 600px and below the compact action aligns right beneath the logo and copy.

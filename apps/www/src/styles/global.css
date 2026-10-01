@@ -919,7 +919,7 @@ html.writing-detail:not([data-theme="dark"]) .article-body :not(pre) > code {
   align-items: center;
   gap: var(--control-icon-gap);
   min-height: 44px;
-  padding: var(--card-ui-padding);
+  padding: 0.35rem 0.65rem;
   border: 1px solid var(--card-ui-border);
   border-radius: var(--card-ui-radius);
   background: var(--card-ui-surface);
@@ -1031,4 +1031,12 @@ img[src="/images/brand/quantercise-legacy-icon.png"] {
   line-height: var(--control-leading);
   font-variant-numeric: tabular-nums;
   color: var(--paper-muted);
+}
+
+@media (min-width: 1024px) {
+  .work-card .card-title-group {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.375rem;
+  }
 }
