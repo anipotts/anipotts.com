@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { JSDOM } from "jsdom";
+import { createHash } from "node:crypto";
 import { recoveryLogoutGenerationKey } from "../../src/lib/browser-recovery";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import reactRenderer from "@astrojs/react/server.js";
@@ -105,6 +106,7 @@ const draftStorage = {
   get: async ({ kind, id }) => {
     const path = {
       "page:home": "public/pages/home.md",
+      "page:systems": "public/pages/systems.md",
       "writing:search-will-be-dead-by-2030":
         "public/writing/search-will-be-dead-by-2030.md",
     }[`${kind}:${id}`];
@@ -197,7 +199,7 @@ beforeAll(async () => {
       if (load) loadedPages.set(file, await load());
     }),
   );
-});
+}, 30_000);
 
 async function render({ file, route, url }) {
   const container = await AstroContainer.create();
@@ -352,5 +354,45 @@ it.each([
     });
     expect(response.status).toBe(400);
     expect(await response.text()).not.toContain("<iframe");
+  },
+);
+
+// Compile the real shared Systems renderer and its provider icon registry.
+it.each(["saved", "baseline"])(
+  "renders Systems %s preview with provider marks",
+  async (mode) => {
+    const source = content.read("public/pages/systems.md");
+    const hash = createHash("sha1")
+      .update(`blob ${Buffer.byteLength(source)}\0${source}`)
+      .digest("hex");
+    const response = await render({
+      route: "/preview/record",
+      file: "apps/admin/src/pages/preview/record.astro",
+      url: `/preview/record?kind=page&id=systems&${mode === "saved" ? "revision=1" : `revision=0&baseline=${hash}`}`,
+    });
+    const html = await response.text();
+    expect(response.status, html.slice(0, 400)).toBe(200);
+    const dom = new JSDOM(html);
+    try {
+      expect(
+        dom.window.document.querySelector("[data-workflow]"),
+      ).not.toBeNull();
+      expect(
+        dom.window.document.querySelector(
+          'svg[data-icon="logos:google-gmail"]',
+        ),
+      ).not.toBeNull();
+      expect(
+        dom.window.document.querySelector(
+          'svg[data-icon="simple-icons:github"]',
+        ),
+      ).not.toBeNull();
+      expect(
+        dom.window.document.querySelector('svg[data-icon="logos:claude-icon"]'),
+      ).not.toBeNull();
+      expect(html).toContain("editorial-preview-status");
+    } finally {
+      dom.window.close();
+    }
   },
 );

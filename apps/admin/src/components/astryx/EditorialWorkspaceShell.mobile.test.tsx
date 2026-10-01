@@ -68,12 +68,69 @@ describe("responsive workspace navigation", () => {
           mode="light"
           changeTheme={changeTheme}
           localPreview
+          localOwner
         >
           <p>Record</p>
         </EditorialWorkspaceShell>,
       ),
     );
   }
+  it.each([false, true])(
+    "keeps the machine and Overview in the intended DOM order for collapsed=%s",
+    (collapsed) => {
+      vi.stubGlobal("__LOCAL_OWNER_BUILD__", true);
+      localStorage.setItem("admin:sidebar-collapsed", String(collapsed));
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: 1280,
+      });
+      render();
+      const machine = host.querySelector<HTMLElement>(
+        "[data-admin-local-owner]",
+      )!;
+      const overview = host.querySelector<HTMLElement>(
+        'a[data-sidebar-id="overview"]',
+      )!;
+      const search = host.querySelector<HTMLElement>(
+        ".editorial-header-search",
+      )!;
+      expect(machine).not.toBeNull();
+      expect(overview).not.toBeNull();
+      expect(
+        search.compareDocumentPosition(overview) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      if (collapsed) {
+        expect(
+          machine.parentElement?.classList.contains("admin-unified-nav"),
+        ).toBe(true);
+        expect(machine.previousElementSibling?.contains(overview)).toBe(true);
+        expect(
+          overview.compareDocumentPosition(machine) &
+            Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+        expect(machine.querySelector("a,button,[tabindex]")).toBeNull();
+        act(() => {
+          overview.focus();
+          overview.dispatchEvent(
+            new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+          );
+        });
+        expect(document.activeElement).toBe(
+          host.querySelector('a[data-sidebar-id="content:website"]'),
+        );
+      } else {
+        expect(
+          machine.parentElement?.classList.contains("editorial-identity-end"),
+        ).toBe(true);
+        expect(
+          machine.compareDocumentPosition(overview) &
+            Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+      }
+    },
+  );
+
   it.each([390, 640])(
     "has no sidebar, drawer or menu at %ipx; the top bar searches",
     (width) => {
@@ -81,7 +138,8 @@ describe("responsive workspace navigation", () => {
         configurable: true,
         value: width,
       });
-      render();
+      const changeTheme = vi.fn();
+      render(changeTheme);
       // AppShell's own top bar and drawer never mount.
       expect(
         host.querySelector('.astryx-side-nav[data-mode="topbar"]'),
@@ -103,6 +161,13 @@ describe("responsive workspace navigation", () => {
       );
       document.removeEventListener("admin:search", announce);
       expect(announce).toHaveBeenCalledTimes(1);
+      const theme = bar.querySelector<HTMLButtonElement>(
+        'button[aria-label="Light theme"]',
+      )!;
+      expect(theme).not.toBeNull();
+      expect(theme.hasAttribute("aria-haspopup")).toBe(false);
+      act(() => theme.click());
+      expect(changeTheme).toHaveBeenCalledExactlyOnceWith("dark");
       // One tap reaches any workspace from the bar, and the current one's
       // pages from the chips under it.
       const tabs = bar.querySelector('nav[aria-label="Workspaces"]')!;

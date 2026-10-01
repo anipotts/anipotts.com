@@ -3,94 +3,75 @@
    Shell and page frame rules live in shell.css. Media queries use the
    ranges in lib/breakpoints.ts: compact is (max-width: 640px). */
 
-/* The editor bar: one sticky row on every width. Back, the title on one
-   line, the save dot, then Preview, Publish and the overflow. It sits on the
-   canvas colour so text scrolling under it never shows through. */
+/* The record identity remains visible while compact actions wrap below it
+   when space is limited. The measured height is shared with sticky toolbars. */
 .editor-bar {
   position: sticky;
   top: 0;
   z-index: 20;
-  display: flex;
   align-items: center;
-  gap: var(--spacing-2);
+  column-gap: var(--spacing-2);
+  row-gap: var(--spacing-1);
   min-width: 0;
   min-height: calc(var(--spacing-11) + var(--spacing-2));
+  padding-block: var(--spacing-1);
   background: var(--color-background-body);
 }
 .editor-bar-back {
   flex: 0 0 auto;
-  margin-inline-start: calc(-1 * var(--spacing-2));
 }
 .editor-bar-title {
-  flex: 1 1 auto;
+  flex: 1 1 calc(var(--spacing-8) * 3);
   min-width: 0;
-  container: editor-bar-title / inline-size;
 }
-/* The title ends after a whole word (WordSafeText). */
 .editor-bar-title h1 {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
   font-size: var(--text-body-size);
   font-weight: var(--font-weight-semibold);
   line-height: var(--spacing-6);
 }
-/* Where not even its first word fits, the title is read, not drawn: the
-   title field under the bar shows it whole. The container query covers
-   the first paint; the bar's own measure covers a longer first word. */
-@container editor-bar-title (max-width: 5rem) {
-  h1 {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-}
-.editor-bar-title[data-fit="none"] h1 {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
 .editor-bar-actions {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: var(--spacing-1);
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
   margin-inline-start: auto;
 }
-/* The save dot: a fixed square so its state never moves the bar. */
-.editor-save-status {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  width: var(--spacing-4);
-  height: var(--spacing-4);
+.editor-bar .astryx-button:not(#\#),
+.editor-bar .astryx-toggle-button:not(#\#) {
+  min-height: var(--spacing-9);
+  min-width: var(--spacing-9);
 }
-/* On a phone the bar is the top of the page: it takes the status bar's
-   inset, and the shell leaves out its top bar and tab row for a record page
-   (EditorialWorkspaceShell recordPage). */
+.editor-save-status {
+  flex: 0 0 auto;
+  min-height: var(--spacing-4);
+}
+.editor-save-label {
+  line-height: var(--spacing-6);
+}
+.editor-save-status[data-show-label="false"] {
+  width: var(--spacing-4);
+}
+/* Mobile keeps record identity on the first row and 44px action targets on
+   the next. No title or persistence evidence disappears in preview mode. */
+@media (max-width: 640px), (pointer: coarse) {
+  .editor-bar .astryx-button:not(#\#),
+  .editor-bar .astryx-toggle-button:not(#\#) {
+    min-height: var(--spacing-11);
+    min-width: var(--spacing-11);
+  }
+}
 @media (max-width: 640px) {
   .editor-bar {
-    top: 0;
-    padding-block-start: env(safe-area-inset-top, 0px);
-    margin-block-start: calc(-1 * var(--spacing-3));
+    padding-block-start: max(var(--spacing-1), env(safe-area-inset-top, 0px));
   }
-  /* The bar's end glyphs sit on the 12px gutter, like the text below them;
-     their 44px targets reach inward instead of past the gutter. */
-  .editor-bar-back:not(#\#) {
-    margin-inline-start: 0;
-    padding-inline-start: 0;
-    justify-content: flex-start;
+  .editor-bar-title h1 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
   }
-  .editor-bar-actions > .astryx-button[aria-haspopup="dialog"]:not(#\#),
-  .record-panel-sheet button[aria-label^="Close"]:not(#\#) {
-    padding-inline-end: 0;
+  .editor-bar-actions {
+    flex-basis: 100%;
     justify-content: flex-end;
   }
 }
@@ -347,9 +328,8 @@ html[data-theme="light"] .editor-inline-icon.inline-image-white {
   margin-block-start: var(--spacing-3);
 }
 
-/* Writing toolbars: one row of 36px controls (44px on touch). On desktop
-   the body's row holds under the editor bar while you write. Undo and redo
-   stay on the keyboard where touch has its own. */
+/* Writing toolbars stay above their fields with wrapping 36px controls,
+   enlarged to 44px on mobile and touch. Undo and redo stay available. */
 .document-editor-toolbar,
 .document-editor-toolbar [role="toolbar"],
 .editor-toolbar-controls {
@@ -375,16 +355,9 @@ html[data-theme="light"] .editor-inline-icon.inline-image-white {
   padding-block: var(--spacing-1);
   background: var(--color-background-body);
 }
-/* Beside the sidebar the first control's glyph lines up with the text
-   column, as the editor bar's back glyph does. */
-@media (min-width: 641px) {
-  .article-composer > .document-editor-toolbar {
-    margin-inline-start: calc(-1 * var(--spacing-2));
-  }
-}
 .article-composer > .document-editor-toolbar {
   position: sticky;
-  top: calc(var(--spacing-11) + var(--spacing-2));
+  top: var(--editor-bar-height, calc(var(--spacing-11) + var(--spacing-2)));
   z-index: 10;
 }
 .document-editor-toolbar .astryx-button,
@@ -393,7 +366,7 @@ html[data-theme="light"] .editor-inline-icon.inline-image-white {
   min-height: var(--spacing-9);
   min-width: var(--spacing-9);
 }
-@media (pointer: coarse) {
+@media (max-width: 640px), (pointer: coarse) {
   .document-editor-toolbar .astryx-button,
   .document-editor-toolbar .astryx-toggle-button,
   .document-editor-toolbar [aria-haspopup="menu"] {
@@ -401,46 +374,6 @@ html[data-theme="light"] .editor-inline-icon.inline-image-white {
     min-width: var(--spacing-11);
   }
 }
-/* On a phone a toolbar exists only while its field is being written in or
-   one of its menus or panels is open (data-toolbar-open), and then docks
-   above the keyboard (lib/keyboard-inset.ts sets the inset from the visual
-   viewport). The article keeps the docked toolbar's height free at its end,
-   so its last line can scroll above the toolbar. */
-@media (max-width: 640px) {
-  .article-composer {
-    --editor-dock-end: max(
-      var(--spacing-1),
-      calc(env(safe-area-inset-bottom, 0px) - var(--keyboard-inset, 0px))
-    );
-  }
-  .article-composer:not(:focus-within):not([data-toolbar-open])
-    > .document-editor-toolbar {
-    display: none;
-  }
-  .article-composer:is(:focus-within, [data-toolbar-open])
-    > .document-editor-toolbar {
-    position: fixed;
-    inset-inline: 0;
-    top: auto;
-    bottom: var(--keyboard-inset, 0px);
-    z-index: 40;
-    padding-inline: var(--admin-gutter, var(--spacing-3));
-    padding-block-end: max(
-      var(--spacing-1),
-      calc(env(safe-area-inset-bottom, 0px) - var(--keyboard-inset, 0px))
-    );
-  }
-  .article-composer:is(:focus-within, [data-toolbar-open]) {
-    padding-block-end: calc(
-      var(--spacing-11) + var(--spacing-1) + var(--editor-dock-end) +
-        var(--keyboard-inset, 0px)
-    );
-  }
-  .article-word-count {
-    display: none;
-  }
-}
-
 /* Tags: chips with their own remove targets. */
 .editor-tag {
   display: inline-flex;
@@ -789,4 +722,19 @@ html[data-theme="light"] .editor-inline-icon.inline-image-white {
 }
 .editor-media-thumb[data-fit="contain"] {
   object-fit: contain;
+}
+
+/* The sidebar carries theme on desktop; record headers retain it on phones. */
+.editor-bar-theme:not(#\#) {
+  display: none;
+}
+@media (max-width: 640px) {
+  .editor-bar-theme:not(#\#) {
+    display: inline-flex;
+    width: var(--spacing-11);
+    height: var(--spacing-11);
+    min-width: var(--spacing-11);
+    padding: 0;
+    justify-content: center;
+  }
 }

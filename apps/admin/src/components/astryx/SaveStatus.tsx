@@ -1,5 +1,7 @@
 import React from "react";
 import type { SaveState } from "../../lib/home-autosave";
+import { HStack } from "@astryxdesign/core/HStack";
+import { Text } from "@astryxdesign/core/Text";
 import { StatusDot } from "@astryxdesign/core/StatusDot";
 
 export type SaveStatusState =
@@ -57,26 +59,26 @@ export function saveStatusFromController(
   return localPreview ? "saved-locally" : "saved-privately";
 }
 
-/** Persistence status only, as one dot in the editor bar. Its label is
- * spoken on every change and shown on hover; at rest nothing is drawn.
- * Publication and public verification are separate. */
+/** Visible persistence evidence for the current draft. Publication and
+ * public verification are separate. Compact callers may hide the label. */
 export function SaveStatus({
   state,
   describedBy,
-  showLabel = false,
+  showLabel = true,
 }: SaveStatusProps) {
   const { label, variant } = states[state];
   return (
-    <span
+    <HStack
       role="status"
       aria-label="Draft save status"
       aria-live="polite"
       aria-atomic="true"
       aria-describedby={describedBy}
       className="editor-save-status"
-      style={showLabel ? { width: "auto", gap: "var(--spacing-1)" } : undefined}
+      gap={1}
+      vAlign="center"
+      data-show-label={showLabel ? "true" : "false"}
       data-save-state={state}
-      title={label}
     >
       {state !== "unchanged" && (
         <StatusDot
@@ -86,7 +88,13 @@ export function SaveStatus({
           isPulsing={state === "saving"}
         />
       )}
-      <span className={showLabel ? undefined : "sr-only"}>{label}</span>
-    </span>
+      <Text
+        type="supporting"
+        color="secondary"
+        className={showLabel ? "editor-save-label" : "sr-only"}
+      >
+        {label}
+      </Text>
+    </HStack>
   );
 }

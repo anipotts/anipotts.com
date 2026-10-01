@@ -334,3 +334,102 @@ it("does not restore recovery into a document locked before mount", async () => 
   expect(titleField()).toBeNull();
   expect(localStorage.getItem(key)).toContain("Private preserved title");
 });
+
+const createButton = () =>
+  Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find(
+    (button) => button.textContent === "Create draft",
+  )!;
+
+it("shows explicit creation while typing and incidental blur only preserves browser recovery", async () => {
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  await render();
+  expect(createButton().disabled).toBe(true);
+  await type("Unfinished idea");
+  expect(createButton().disabled).toBe(false);
+  await act(async () => {
+    titleField().focus();
+    titleField().blur();
+  });
+  expect(fetcher).not.toHaveBeenCalled();
+  expect(
+    readNewWritingRecovery(localStorage, newWritingRecoveryKey("owner")),
+  ).toMatchObject({ title: "Unfinished idea", slug: "unfinished-idea" });
+});
+
+it.each(["writing", "work"] as const)(
+  "creates a private %s draft through the visible button using its generated address",
+  async (recordKind) => {
+    const onCreated = vi.fn();
+    const fetcher = vi.fn(async (url: string) =>
+      jsonResponse(
+        JSON.stringify(url.includes("csrf") ? { csrf: "test" } : { ok: true }),
+      ),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    await act(async () =>
+      root.render(
+        <NewWriting
+          recoveryScope="owner"
+          recordKind={recordKind}
+          onCreated={onCreated}
+        />,
+      ),
+    );
+    await type("Fresh draft");
+    await act(async () => {
+      createButton().click();
+      await vi.waitFor(() => expect(onCreated).toHaveBeenCalled());
+    });
+    expect(onCreated).toHaveBeenCalledWith({
+      kind: recordKind,
+      id: "fresh-draft",
+    });
+    expect(fetcher.mock.calls[1]![0]).toBe(
+      `/api/editorial/create?kind=${recordKind}&id=fresh-draft`,
+    );
+  },
+);
+
+it("retains a custom address when title changes and Enter submits explicitly", async () => {
+  const onCreated = vi.fn();
+  const fetcher = vi.fn(async (url: string) =>
+    jsonResponse(
+      JSON.stringify(url.includes("csrf") ? { csrf: "test" } : { ok: true }),
+    ),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  await act(async () =>
+    root.render(<NewWriting recoveryScope="owner" onCreated={onCreated} />),
+  );
+  await type("Original name");
+  await act(async () =>
+    host
+      .querySelector<HTMLButtonElement>('button[aria-label="Edit address"]')!
+      .click(),
+  );
+  const address = host.querySelector("input")!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )!.set!.call(address, "Custom address");
+    address.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await type("New title");
+  expect(address.value).toBe("custom-address");
+  expect(fetcher).not.toHaveBeenCalled();
+  await act(async () => {
+    titleField().dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
+    await vi.waitFor(() => expect(onCreated).toHaveBeenCalled());
+  });
+  expect(onCreated).toHaveBeenCalledWith({
+    kind: "writing",
+    id: "custom-address",
+  });
+  expect(fetcher.mock.calls[1]![0]).toBe(
+    "/api/editorial/create?kind=writing&id=custom-address",
+  );
+});

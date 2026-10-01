@@ -1,4 +1,5 @@
 ---
+import { readEditorialPreviewSource } from "../../lib/editorial-preview-source";
 import { runtimeEnv } from "../../lib/runtime-env";
 import { applyEditorialPreviewContext } from "../../lib/editorial-preview-context";
 applyEditorialPreviewContext(Astro.locals);
@@ -13,23 +14,31 @@ import {
 } from "../../../../www/src/lib/content";
 import { productionEditor } from "../../lib/editorial-server";
 import { previewFailure } from "../../lib/preview-status";
+const record = { kind: "page", id: "home" } as const;
+const snapshot = await readEditorialPreviewSource(Astro.url, {
+  draft: async () => {
+    const editor = productionEditor(runtimeEnv());
+    if (!editor) throw new Error("storage_unavailable");
+    return editor.storage.get(record);
+  },
+  baseline: async () => {
+    const editor = productionEditor(runtimeEnv());
+    if (!editor) throw new Error("storage_unavailable");
+    return editor.readBase(record);
+  },
+});
+if (snapshot.status !== "found")
+  return previewFailure(
+    Astro.url,
+    snapshot.status,
+    snapshot.status === "stale" ? 409 : 503,
+  );
 let home;
-{
-  const storage = productionEditor(runtimeEnv())?.storage;
-  const draft = await storage?.get({ kind: "page", id: "home" });
-  if (
-    draft &&
-    !draft.discardedAt &&
-    String(draft.revision) === Astro.url.searchParams.get("revision")
-  ) {
-    try {
-      home = homepageSchema.parse(parseEditorialSource(draft.source).data);
-    } catch {
-      /* Invalid source never renders. */
-    }
-  }
+try {
+  home = homepageSchema.parse(parseEditorialSource(snapshot.source).data);
+} catch {
+  return previewFailure(Astro.url, "invalid-source", 409);
 }
-if (!home) return previewFailure(Astro.url, "stale", 409);
 ---
 
 <HomePage

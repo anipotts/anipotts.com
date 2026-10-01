@@ -37,8 +37,11 @@ import { SaveScheduler } from "../../lib/save-scheduler";
 import { structuredReviewChanges } from "../../lib/structured-review";
 import { writingReviewChanges } from "../../lib/writing-review";
 import { HomepageWritingSelection } from "./HomepageWritingSelection";
-import { ProjectSections } from "./ProjectSections";
-import { editProjectSections } from "../../lib/project-sections";
+import { ProjectSections, ProjectFieldControls } from "./ProjectSections";
+import {
+  editProjectSections,
+  type ProjectSectionEdit,
+} from "../../lib/project-sections";
 import { siteConfig } from "@anipotts/content/public/site";
 import { ProjectMedia } from "./ProjectMedia";
 import { editProjectMedia } from "../../lib/project-media";
@@ -1033,8 +1036,7 @@ function HomeEditorImpl({
         )}
       </VStack>
     );
-  /** A record with no draft whose text still matches the website: nothing
-   * to preview or publish, and opening either must not write a revision. */
+  /** An unchanged record can preview its pinned baseline without writing a draft. */
   const untouched =
     state.revision === 0 && state.source === snapshot.base.source;
   let fields = editorialFields(record);
@@ -1043,6 +1045,7 @@ function HomeEditorImpl({
   let valid = false;
   let destinationId = record.id;
   let unsupportedPublication = false;
+  let projectSectionData: Record<string, unknown> = {};
   let storyMediaIndexes: number[] = [];
   let homepageWritingSlugs: string[] | null = [];
   let homepageWritingLimit = 3;
@@ -1051,6 +1054,7 @@ function HomeEditorImpl({
     const parsed = parseEditorialSource(state.source);
     parseable = true;
     const metadata = parsed.data as Record<string, unknown>;
+    projectSectionData = metadata;
     if (Array.isArray(metadata.story)) {
       storyMediaIndexes = metadata.story.flatMap((section, index) =>
         section && typeof section === "object" ? [index] : [],
@@ -1243,12 +1247,25 @@ function HomeEditorImpl({
     }
   };
   const refreshPreview = async () => {
-    if (!previewSupported || snapshot.draft?.discardedAt || untouched) return;
+    if (!previewSupported || snapshot.draft?.discardedAt) return;
     const request = ++previewRequest.current;
     const navigation = navigationGeneration.current;
     const controller = editor.current;
     setPreviewLoading(true);
     try {
+      flushLocal();
+      const currentSource = controller?.state;
+      if (
+        currentSource?.revision === 0 &&
+        currentSource.source === snapshot.base.source &&
+        snapshot.base.baseFileHash
+      ) {
+        if (validateEditorialSource(record, currentSource.source).success) {
+          setError("");
+          setPreviewRevision(0);
+        } else setError("Correct the marked fields before previewing.");
+        return;
+      }
       await ensureDraft();
       if (
         request !== previewRequest.current ||
@@ -1703,6 +1720,17 @@ function HomeEditorImpl({
     setBodyDirty(true);
     saveScheduler.current?.changed();
   };
+  const onProjectSectionEdit = (edit: ProjectSectionEdit) => {
+    if (
+      sessionLocked.current ||
+      !editor.current ||
+      mediaPending.current ||
+      discarded
+    )
+      return;
+    flushLocal();
+    editor.current.edit(editProjectSections(editor.current.state.source, edit));
+  };
   const bar = (
     <EditorActionBar
       back={back}
@@ -1712,7 +1740,7 @@ function HomeEditorImpl({
         previewSupported
           ? {
               isPressed: tab === "preview",
-              isDisabled: untouched,
+              isDisabled: discarded,
               onChange: (pressed) => {
                 if (pressed && tab === "edit")
                   editScroll.current =
@@ -1732,19 +1760,22 @@ function HomeEditorImpl({
           setTab("publish");
         },
       }}
+      properties={
+        record.kind !== "page"
+          ? {
+              isPressed: panel === "properties",
+              onClick: () =>
+                openPanel(panel === "properties" ? null : "properties"),
+            }
+          : undefined
+      }
+      history={{
+        isPressed: panel === "history",
+        onClick: () => void openHistory(),
+      }}
       menu={[
         {
           items: [
-            ...(record.kind !== "page"
-              ? [
-                  {
-                    label: "Properties",
-                    onClick: () =>
-                      openPanel(panel === "properties" ? null : "properties"),
-                  },
-                ]
-              : []),
-            { label: "History", onClick: () => void openHistory() },
             ...(onSite && publicUrl
               ? [
                   {
@@ -2267,10 +2298,10 @@ function HomeEditorImpl({
           )}
           {tab === "preview" &&
             previewSupported &&
-            (previewRevision ? (
+            (previewRevision !== null ? (
               <SavedArticlePreview
                 title={`${record.id} draft preview`}
-                src={`/preview/${record.kind === "page" && record.id === "home" ? "home" : "record"}?${query}&revision=${previewRevision}`}
+                src={`/preview/${record.kind === "page" && record.id === "home" ? "home" : "record"}?${query}&revision=${previewRevision}${previewRevision === 0 ? `&baseline=${encodeURIComponent(snapshot.base.baseFileHash ?? "")}` : ""}`}
               />
             ) : previewLoading ? (
               <AdminSkeleton kind="preview" />
@@ -2312,6 +2343,15 @@ function HomeEditorImpl({
                           {index === 0 ? "Introduction" : "Section labels"}
                         </Text>
                       )}
+                    {record.kind === "work" && parseable && (
+                      <ProjectFieldControls
+                        data={projectSectionData}
+                        path={field.path}
+                        position="before"
+                        disabled={uploadPending || discarded}
+                        onEdit={onProjectSectionEdit}
+                      />
+                    )}
                     {index === 0 ? (
                       <DocumentTitle
                         resetGeneration={resetGeneration}
@@ -2414,6 +2454,15 @@ function HomeEditorImpl({
                         }
                       />
                     )}
+                    {record.kind === "work" && parseable && (
+                      <ProjectFieldControls
+                        data={projectSectionData}
+                        path={field.path}
+                        position="after"
+                        disabled={uploadPending || discarded}
+                        onEdit={onProjectSectionEdit}
+                      />
+                    )}
                   </VStack>
                 ))}
                 {record.kind === "page" &&
@@ -2454,18 +2503,7 @@ function HomeEditorImpl({
                     source={state.source}
                     errors={fieldErrors}
                     disabled={uploadPending || discarded}
-                    onEdit={(edit) => {
-                      if (
-                        sessionLocked.current ||
-                        !editor.current ||
-                        mediaPending.current ||
-                        discarded
-                      )
-                        return;
-                      editor.current!.edit(
-                        editProjectSections(editor.current!.state.source, edit),
-                      );
-                    }}
+                    onEdit={onProjectSectionEdit}
                   />
                 )}
                 {record.kind === "work" &&

@@ -54,7 +54,7 @@ export async function previewResponse(
       // Otherwise loading large images can permanently inflate the preview.
       .replace("</head>", "<style>body{min-height:0}</style></head>")
       .replace(
-        /(src|poster)="(\/(?:images|media|fonts)\/[^"<>]*)"/g,
+        /(src|poster)="(\/(?:images|media|fonts|brand)\/[^"<>]*)"/g,
         (_match, attribute, path) => {
           const preview = editorialImagePreview(path);
           const base = preview !== path ? requestUrl : siteConfig.url;
@@ -63,7 +63,7 @@ export async function previewResponse(
       )
       .replace(/srcset="([^"<>]*)"/g, (_match, sources) => {
         const resolved = sources.replace(
-          /(^|,\s*)(\/(?:images|media|fonts)\/[^\s,]+)/g,
+          /(^|,\s*)(\/(?:images|media|fonts|brand)\/[^\s,]+)/g,
           (_entry: string, separator: string, path: string) => {
             const preview = editorialImagePreview(path);
             const base = preview !== path ? requestUrl : siteConfig.url;

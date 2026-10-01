@@ -5,6 +5,7 @@ import react from "@astrojs/react";
 import { unified } from "@astrojs/markdown-remark";
 import { publishedHeadingIds } from "../www/src/lib/published-heading-ids.mjs";
 import icon from "astro-icon";
+import { previewIcons } from "./src/lib/preview-icons.mjs";
 import astroAdvisoryGuard from "../../config/astro/advisory-guard.mjs";
 import { publicContentHotReload } from "../../scripts/dev/public-content-hot-reload.mjs";
 import { editorialPublicAssets } from "../../scripts/dev/editorial-public-assets.mjs";
@@ -43,7 +44,7 @@ export default defineConfig({
   integrations: [
     astroAdvisoryGuard(),
     react(),
-    icon({ include: { ph: ["*"] } }),
+    icon({ include: previewIcons }),
     // Retired URLs answer 308 through the middleware, like any other route.
     retiredRoutes(),
     // The component catalog exists only under astro dev. A build never

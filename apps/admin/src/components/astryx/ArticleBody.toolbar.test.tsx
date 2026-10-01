@@ -134,19 +134,23 @@ it("exposes paragraph, heading and insertion effects through the stable menus", 
   expect(editor!.isActive("bulletList")).toBe(true);
 });
 
-it("keeps its toolbar open while a menu is open, so a phone's docked toolbar never hides its own menu", async () => {
+it("keeps the same top toolbar mounted across menu and image panel interactions", async () => {
   await render();
-  const composer = host.querySelector(".article-composer")!;
-  expect(composer.hasAttribute("data-toolbar-open")).toBe(false);
+  const toolbar = host.querySelector(
+    '[role="toolbar"][aria-label="Article formatting"]',
+  );
+  expect(toolbar).not.toBeNull();
   act(() => control("Style").click());
-  expect(composer.getAttribute("data-toolbar-open")).toBe("true");
+  expect(
+    host.querySelector('[role="toolbar"][aria-label="Article formatting"]'),
+  ).toBe(toolbar);
   act(() => control("Heading").click());
-  expect(composer.hasAttribute("data-toolbar-open")).toBe(false);
   act(() => control("Insert").click());
-  expect(composer.getAttribute("data-toolbar-open")).toBe("true");
   act(() => control("Image").click());
-  // The image panel holds the toolbar open too, until it closes.
-  expect(composer.getAttribute("data-toolbar-open")).toBe("true");
+  expect(
+    host.querySelector('[role="toolbar"][aria-label="Article formatting"]'),
+  ).toBe(toolbar);
+  expect(editor!.isActive("heading", { level: 2 })).toBe(true);
 });
 
 it("preserves pending typing through parent renders and discards it only for an explicit authoritative reset", async () => {

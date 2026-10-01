@@ -29,13 +29,9 @@ import {
   SideNavCollapseButton,
 } from "@astryxdesign/core/SideNav";
 import {
-  CircleHalfIcon,
   MagnifyingGlassIcon,
-  MoonIcon,
   SidebarSimpleIcon,
   SignOutIcon,
-  SunIcon,
-  type Icon,
 } from "@phosphor-icons/react";
 import { AdminCommandPalette, type PaletteAction } from "./AdminCommandPalette";
 import type { AdminSearchResult } from "../../data/admin-search";
@@ -46,7 +42,7 @@ import {
   savedSidebarCollapsed,
   sidebarRail,
 } from "../../lib/admin-sidebar";
-import { THEME_CYCLE, nextTheme } from "../../lib/admin-theme";
+import { THEME_CYCLE } from "../../lib/admin-theme";
 import { onClientLinkClick } from "../../lib/client-routes";
 import { navigateAdmin } from "../../lib/editorial-navigation";
 import {
@@ -56,6 +52,12 @@ import {
 } from "./UnifiedSidebar";
 import { AdminWordmark } from "./AdminWordmark";
 import { BrandTile } from "../BrandTile";
+import {
+  AdminThemeControls,
+  ThemeControl,
+  THEME_NAMES,
+  THEME_ICONS,
+} from "./ThemeControl";
 
 export function workspaceSelection(
   area: "content" | "newsletter",
@@ -136,7 +138,8 @@ export function useWorkspaceMemory(workspace: Workspace | null) {
 const openSearch = () =>
   document.dispatchEvent(new CustomEvent("admin:search"));
 
-/** Local owner builds only: the laptop tile beside the sidebar wordmark.
+/** Local owner builds only: the laptop tile beside the sidebar wordmark,
+ * or immediately after Overview in the collapsed rail.
  * The flag is a build-time literal, so deployable builds drop the marker
  * below as dead code; scripts/ci/admin-local-owner-leak.mjs checks the
  * bundle. */
@@ -150,7 +153,7 @@ function LocalOwnerTile() {
 }
 
 /** The phone top bar, in AppShell's banner slot: the [A] monogram (home),
- * the three workspaces, then search, in one row. The server writes it on
+ * the three workspaces, then search and theme, in one row. The server writes it on
  * every page and CSS shows it at compact widths only, so it is on screen
  * from the first paint. It sticks to the top of the document scroll and
  * reaches under the status bar on the canvas colour. */
@@ -185,6 +188,7 @@ function PhoneBar({
         icon={<MagnifyingGlassIcon size={20} aria-hidden="true" />}
         onClick={openSearch}
       />
+      <ThemeControl className="admin-phone-bar-theme" />
     </div>
   );
 }
@@ -277,36 +281,19 @@ function WorkspaceIdentity({
         icon={<MagnifyingGlassIcon size={18} aria-hidden="true" />}
         onClick={openSearch}
       />
-      {__LOCAL_OWNER_BUILD__ && rail && localOwner && <LocalOwnerTile />}
     </VStack>
   );
 }
-
-const THEME_NAMES: Record<ThemePreference, string> = {
-  light: "Light",
-  dark: "Dark",
-  system: "System",
-};
-const THEME_ICONS: Record<ThemePreference, Icon> = {
-  light: SunIcon,
-  dark: MoonIcon,
-  system: CircleHalfIcon,
-};
 
 /** Sidebar footer: log out outside local previews, then the one theme
  * button, which cycles light, dark and system. */
 function WorkspaceUtilities({
   rail,
-  mode,
-  changeTheme,
   localPreview,
 }: {
   rail: boolean;
-  mode: ThemePreference;
-  changeTheme: (mode: ThemePreference) => void;
   localPreview: boolean;
 }) {
-  const ThemeIcon = THEME_ICONS[mode];
   const Stack = rail ? VStack : HStack;
   return (
     <Stack
@@ -321,16 +308,7 @@ function WorkspaceUtilities({
           icon={<SignOutIcon size={18} aria-hidden="true" />}
         />
       )}
-      <Button
-        className="admin-theme-cycle"
-        label={`${THEME_NAMES[mode]} theme`}
-        tooltip={`${THEME_NAMES[mode]} theme`}
-        isIconOnly
-        variant="ghost"
-        size="md"
-        icon={<ThemeIcon size={18} aria-hidden="true" />}
-        onClick={() => changeTheme(nextTheme(mode))}
-      />
+      <ThemeControl />
     </Stack>
   );
 }
@@ -527,63 +505,63 @@ export function EditorialWorkspaceShell({
   return (
     <>
       <AdminCommandPalette actions={actions} />
-      <AppShell
-        className="editorial-workspace-shell"
-        data-sidebar-collapsed={rail}
-        data-sidebar-ready={railReady}
-        data-workspace={workspace ?? undefined}
-        data-record-page={recordPage || undefined}
-        height="fill"
-        variant={rail ? "section" : "wash"}
-        contentPadding={0}
-        // Compact widths have no sidebar and no drawer; the phone top bar and
-        // page chips take its place (see PhoneBar and PhonePages).
-        mobileNav={{ breakpoint: "sm", hasToggle: false, content: NO_DRAWER }}
-        banner={
-          recordPage ? undefined : (
-            <PhoneBar workspace={workspace} workspaceHref={workspaceHref} />
-          )
-        }
-        sideNav={
-          <SideNav
-            className="editorial-workspace-nav"
-            aria-label="Admin"
-            collapsible={{
-              isCollapsed: rail,
-              onCollapsedChange: changeCollapsed,
-              hasButton: false,
-            }}
-            header={
-              <WorkspaceIdentity rail={rail} localOwner={showLocalOwner} />
-            }
-            footer={
-              <WorkspaceUtilities
+      <AdminThemeControls.Provider value={{ mode, changeTheme }}>
+        <AppShell
+          className="editorial-workspace-shell"
+          data-sidebar-collapsed={rail}
+          data-sidebar-ready={railReady}
+          data-workspace={workspace ?? undefined}
+          data-record-page={recordPage || undefined}
+          height="fill"
+          variant={rail ? "section" : "wash"}
+          contentPadding={0}
+          // Compact widths have no sidebar and no drawer; the phone top bar and
+          // page chips take its place (see PhoneBar and PhonePages).
+          mobileNav={{ breakpoint: "sm", hasToggle: false, content: NO_DRAWER }}
+          banner={
+            recordPage ? undefined : (
+              <PhoneBar workspace={workspace} workspaceHref={workspaceHref} />
+            )
+          }
+          sideNav={
+            <SideNav
+              className="editorial-workspace-nav"
+              aria-label="Admin"
+              collapsible={{
+                isCollapsed: rail,
+                onCollapsedChange: changeCollapsed,
+                hasButton: false,
+              }}
+              header={
+                <WorkspaceIdentity rail={rail} localOwner={showLocalOwner} />
+              }
+              footer={
+                <WorkspaceUtilities rail={rail} localPreview={localPreview} />
+              }
+            >
+              <UnifiedNavigation
                 rail={rail}
-                mode={mode}
-                changeTheme={changeTheme}
-                localPreview={localPreview}
+                activeGroup={workspace}
+                selected={selected}
+                contentHref={destination}
+                groupCounts={groupCounts}
+                afterOverview={
+                  rail && showLocalOwner ? <LocalOwnerTile /> : undefined
+                }
               />
-            }
-          >
-            <UnifiedNavigation
-              rail={rail}
-              activeGroup={workspace}
+            </SideNav>
+          }
+        >
+          {!recordPage && (
+            <PhonePages
+              workspace={workspace}
               selected={selected}
-              contentHref={destination}
-              groupCounts={groupCounts}
+              pageHref={pageHref}
             />
-          </SideNav>
-        }
-      >
-        {!recordPage && (
-          <PhonePages
-            workspace={workspace}
-            selected={selected}
-            pageHref={pageHref}
-          />
-        )}
-        {children}
-      </AppShell>
+          )}
+          {children}
+        </AppShell>
+      </AdminThemeControls.Provider>
     </>
   );
 }

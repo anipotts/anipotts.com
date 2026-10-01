@@ -81,18 +81,21 @@ it("writes the one-row phone top bar and the page chips into server HTML, with n
   host.innerHTML = html;
   const bar = host.querySelector('[role="banner"] .admin-phone-bar')!;
   expect(bar).not.toBeNull();
-  // One row: the [A] monogram, the three workspaces, then search.
-  expect([...bar.children].map((child) => child.tagName)).toEqual([
-    "A",
-    "NAV",
-    "BUTTON",
-  ]);
+  // One row: the [A] monogram, the three workspaces, search and theme.
+  expect(
+    [...bar.children]
+      .filter((child) => child.tagName !== "TEMPLATE")
+      .map((child) => child.tagName),
+  ).toEqual(["A", "NAV", "BUTTON", "BUTTON"]);
   const home = bar.firstElementChild as HTMLAnchorElement;
   expect(home.matches("a.admin-bracket-wordmark")).toBe(true);
   expect(home.getAttribute("href")).toBe("/");
   expect(home.getAttribute("aria-label")).toBe("Overview");
   expect(home.textContent).toBe("[A]");
-  expect(bar.lastElementChild?.getAttribute("aria-label")).toBe("Search");
+  expect(bar.children[2]?.getAttribute("aria-label")).toBe("Search");
+  expect(
+    bar.querySelector(".admin-phone-bar-theme")?.getAttribute("aria-label"),
+  ).toBe("Light theme");
   const tabs = bar.querySelector('nav[aria-label="Workspaces"]')!;
   expect(
     [...tabs.querySelectorAll(".admin-phone-workspace")].map((tab) => [

@@ -27,8 +27,18 @@ vi.mock("./ArticleBody", () => ({
 }));
 vi.mock("./RichTextField", () => ({ RichTextField: () => <p>Subtitle</p> }));
 vi.mock("./SavedArticlePreview", () => ({
-  SavedArticlePreview: ({ revision }: any) => (
-    <p data-preview-revision={revision}>Article preview</p>
+  SavedArticlePreview: ({ src }: any) => (
+    <>
+      <iframe
+        title="Saved article preview"
+        src={src}
+        data-preview-revision={new URL(
+          src,
+          window.location.origin,
+        ).searchParams.get("revision")}
+      />
+      <p>Article preview</p>
+    </>
   ),
 }));
 vi.mock("./RecordPanel", () => ({
@@ -112,8 +122,9 @@ async function click(label: string) {
     button!.click();
   });
 }
-/** Opens the editor bar's overflow and chooses one of its items. */
+/** Frequent panels are direct actions; only secondary actions use overflow. */
 async function menuItem(label: string) {
+  if (label === "Properties" || label === "History") return click(label);
   await act(async () => {
     (
       host.querySelector(
@@ -457,8 +468,9 @@ it("groups document actions under labeled menu sections, not dividers", async ()
         (item) => item.querySelector("span > span")?.textContent,
       ),
     ]);
-  // The record's own panels lead, untitled; Unpublish would close the menu.
-  const record = [null, ["Properties", "History"]];
+  // Frequent record panels stay directly accessible and do not duplicate in overflow.
+  expect(host.querySelector('button[aria-label="Properties"]')).not.toBeNull();
+  expect(host.querySelector('button[aria-label="History"]')).not.toBeNull();
   const inspect = ["Inspect", ["View source", "Compare with website"]];
   const draftActions = [
     "Open production editor",
@@ -466,8 +478,8 @@ it("groups document actions under labeled menu sections, not dividers", async ()
     "Import draft…",
   ];
   let menu = await openMenu();
-  expect(sections(menu)).toEqual([record, inspect, ["Draft", draftActions]]);
-  expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(7);
+  expect(sections(menu)).toEqual([inspect, ["Draft", draftActions]]);
+  expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(5);
   // Leaving the editor tab commits the buffered title, so Save now appears.
   const viewSource = [...menu.querySelectorAll('[role="menuitem"]')].find(
     (item) => item.textContent === "View source",
@@ -475,11 +487,10 @@ it("groups document actions under labeled menu sections, not dividers", async ()
   await act(async () => viewSource.click());
   menu = await openMenu();
   expect(sections(menu)).toEqual([
-    record,
     inspect,
     ["Draft", [...draftActions, "Save now"]],
   ]);
-  expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(8);
+  expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(6);
 });
 
 it("polls an unfinished publication only while the page is visible", async () => {
