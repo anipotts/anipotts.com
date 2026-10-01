@@ -12,6 +12,7 @@ import {
   Selector,
   IconButton,
   Banner,
+  DropdownMenu,
 } from "./WritingControls";
 import { SaveStatus } from "./SaveStatus";
 
@@ -27,6 +28,7 @@ afterEach(() => {
   act(() => root.unmount());
   host.remove();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 function show(children: React.ReactNode, enabled = true) {
   act(() =>
@@ -311,4 +313,142 @@ it("shows an icon-only action tooltip when focused by keyboard", async () => {
       "Undo last change",
     ),
   );
+});
+
+it.each(["button", "icon", "toggle"] as const)(
+  "retains externally owned tooltip descriptions without adding an SDK tooltip on %s controls",
+  async (kind) => {
+    vi.useFakeTimers();
+    const ref = React.createRef<HTMLButtonElement>();
+    const props = {
+      label: "Preview",
+      "aria-describedby": "owned-preview-tooltip",
+      "aria-controls": "preview-frame",
+      ref,
+      icon: <span />,
+      tooltip: "Should not compete",
+    };
+    show(
+      kind === "button" ? (
+        <Button {...props} isIconOnly />
+      ) : kind === "icon" ? (
+        <IconButton {...props} />
+      ) : (
+        <ToggleButton {...props} isIconOnly />
+      ),
+    );
+    const button = host.querySelector("button")!;
+    expect(ref.current).toBe(button);
+    expect(button.getAttribute("aria-describedby")).toBe(
+      "owned-preview-tooltip",
+    );
+    expect(button.getAttribute("aria-controls")).toBe("preview-frame");
+    expect(button.hasAttribute("title")).toBe(false);
+    await act(async () => {
+      button.focus();
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    expect(button.getAttribute("aria-describedby")).toBe(
+      "owned-preview-tooltip",
+    );
+  },
+);
+
+it("lets a delayed caller own tooltips before its description id exists", async () => {
+  vi.useFakeTimers();
+  show(
+    <IconButton label="Back" icon={<span />} aria-describedby={undefined} />,
+  );
+  await act(async () => {
+    host.querySelector("button")!.focus();
+    await vi.advanceTimersByTimeAsync(500);
+  });
+  expect(document.querySelector('[role="tooltip"]')).toBeNull();
+});
+
+it.each(["button", "icon"] as const)(
+  "forwards link refs and external descriptions on %s links",
+  (kind) => {
+    const ref = React.createRef<HTMLButtonElement>();
+    const focus = vi.fn();
+    const props = {
+      label: "Back",
+      href: "/content/writing",
+      ref,
+      icon: <span />,
+      "aria-describedby": "back-tooltip",
+      "aria-controls": "writing-library",
+      onFocus: focus,
+    };
+    show(kind === "button" ? <Button {...props} /> : <IconButton {...props} />);
+    const link = host.querySelector("a")!;
+    expect(ref.current).toBe(link);
+    expect(link.getAttribute("aria-describedby")).toBe("back-tooltip");
+    expect(link.getAttribute("aria-controls")).toBe("writing-library");
+    act(() => link.focus());
+    expect(focus).toHaveBeenCalledOnce();
+  },
+);
+
+it("does not add a native title when a text button has an external tooltip owner", () => {
+  show(
+    <Button
+      label="Publish"
+      tooltip="Competing native title"
+      aria-describedby="publication-tip"
+    />,
+  );
+  const button = host.querySelector("button")!;
+  expect(button.getAttribute("aria-describedby")).toBe("publication-tip");
+  expect(button.hasAttribute("title")).toBe(false);
+});
+
+it("forwards the dropdown trigger contract, alignment and scoped portal ownership", async () => {
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  Element.prototype.scrollIntoView = vi.fn();
+  const ref = React.createRef<HTMLButtonElement>();
+  const open = vi.fn();
+  const key = vi.fn();
+  const select = vi.fn();
+  show(
+    <DropdownMenu
+      alignment="end"
+      onOpenChange={open}
+      button={{
+        label: "More actions",
+        isIconOnly: true,
+        ref,
+        "aria-describedby": "more-actions-tip",
+        onKeyDown: key,
+      }}
+      items={[{ label: "History", onClick: select }]}
+    />,
+  );
+  const button = host.querySelector("button")!;
+  expect(ref.current).toBe(button);
+  expect(button.getAttribute("aria-describedby")).toBe("more-actions-tip");
+  expect(button.hasAttribute("title")).toBe(false);
+  await act(async () => {
+    button.focus();
+    button.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+    );
+  });
+  expect(key).toHaveBeenCalledOnce();
+  expect(open).toHaveBeenCalledWith(true);
+  const menu = document.querySelector<HTMLElement>('[role="menu"]')!;
+  expect(menu.getAttribute("data-align")).toBe("end");
+  expect(menu.closest('[data-admin-ui="openai"]')).not.toBeNull();
+  const item = document.querySelector<HTMLElement>('[role="menuitem"]')!;
+  await act(async () => item.click());
+  expect(select).toHaveBeenCalledOnce();
+  expect(open).toHaveBeenCalledWith(false);
 });

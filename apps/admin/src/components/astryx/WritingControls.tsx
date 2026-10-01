@@ -17,6 +17,30 @@ import { Tooltip } from "@openai/apps-sdk-ui/components/Tooltip";
 import { Alert } from "@openai/apps-sdk-ui/components/Alert";
 import { useOpenAIUI, AdminPortalScope } from "../workspace/AdminUI";
 
+/** A supplied description belongs to the caller, even before its delayed
+ * tooltip has opened and assigned an id. Never add a competing tooltip. */
+function hasExternalTooltip(props: { "aria-describedby"?: string }) {
+  return Object.prototype.hasOwnProperty.call(props, "aria-describedby");
+}
+
+function controlTooltip(
+  control: React.ReactElement,
+  props: { label: string; tooltip?: string; "aria-describedby"?: string },
+) {
+  return hasExternalTooltip(props) ? (
+    control
+  ) : (
+    <Tooltip
+      openDelay={300}
+      content={
+        <AdminPortalScope>{props.tooltip || props.label}</AdminPortalScope>
+      }
+    >
+      {control}
+    </Tooltip>
+  );
+}
+
 export function Button(props: ComponentProps<typeof LegacyButton>) {
   const enabled = useOpenAIUI();
   const [pending, startAction] = React.useTransition();
@@ -48,10 +72,20 @@ export function Button(props: ComponentProps<typeof LegacyButton>) {
     className,
     onMouseDown: props.onMouseDown,
     onPointerDown: props.onPointerDown,
+    onFocus: props.onFocus,
+    onBlur: props.onBlur,
+    onKeyDown: props.onKeyDown,
     "aria-describedby": props["aria-describedby"],
+    "aria-labelledby": props["aria-labelledby"],
+    "aria-controls": props["aria-controls"],
+    "aria-expanded": props["aria-expanded"],
+    "aria-haspopup": props["aria-haspopup"],
+    "aria-pressed": props["aria-pressed"],
     "aria-label": props.isIconOnly ? label : props["aria-label"],
     title:
-      !props.isIconOnly && typeof props.tooltip === "string"
+      !hasExternalTooltip(props) &&
+      !props.isIconOnly &&
+      typeof props.tooltip === "string"
         ? props.tooltip
         : undefined,
   };
@@ -60,6 +94,8 @@ export function Button(props: ComponentProps<typeof LegacyButton>) {
       pill={false}
       {...common}
       href={href}
+      ref={props.ref as React.Ref<HTMLAnchorElement>}
+      onClick={props.onClick}
       target={props.target}
       rel={props.rel}
     >
@@ -96,30 +132,14 @@ export function Button(props: ComponentProps<typeof LegacyButton>) {
       {props.endContent}
     </SDKButton>
   );
-  return props.isIconOnly ? (
-    <Tooltip
-      content={<AdminPortalScope>{props.tooltip || label}</AdminPortalScope>}
-    >
-      {control}
-    </Tooltip>
-  ) : (
-    control
-  );
+  return props.isIconOnly ? controlTooltip(control, props) : control;
 }
 
 export function IconButton(props: ComponentProps<typeof LegacyIconButton>) {
   const enabled = useOpenAIUI();
   if (!enabled) return <LegacyIconButton {...props} />;
-  const {
-    label,
-    icon,
-    tooltip,
-    isDisabled,
-    href,
-    onClick,
-    onPointerDown,
-    className,
-  } = props;
+  const { label, icon, isDisabled, href, onClick, onPointerDown, className } =
+    props;
   const common = {
     color: "secondary" as const,
     variant: "ghost" as const,
@@ -131,36 +151,32 @@ export function IconButton(props: ComponentProps<typeof LegacyIconButton>) {
     onPointerDown,
     "aria-expanded": props["aria-expanded"],
     "aria-haspopup": props["aria-haspopup"],
+    "aria-pressed": props["aria-pressed"],
     "aria-describedby": props["aria-describedby"],
+    "aria-labelledby": props["aria-labelledby"],
+    "aria-controls": props["aria-controls"],
+    onFocus: props.onFocus,
     onMouseDown: props.onMouseDown,
     onKeyDown: props.onKeyDown,
     onBlur: props.onBlur,
   };
-  return (
-    <Tooltip content={<AdminPortalScope>{tooltip || label}</AdminPortalScope>}>
-      {href ? (
-        <ButtonLink
-          pill={false}
-          {...common}
-          href={href}
-          target={props.target}
-          rel={props.rel}
-        >
-          {icon}
-        </ButtonLink>
-      ) : (
-        <SDKButton
-          pill={false}
-          {...common}
-          ref={props.ref}
-          type="button"
-          uniform
-        >
-          {icon}
-        </SDKButton>
-      )}
-    </Tooltip>
+  const control = href ? (
+    <ButtonLink
+      pill={false}
+      {...common}
+      href={href}
+      ref={props.ref as React.Ref<HTMLAnchorElement>}
+      target={props.target}
+      rel={props.rel}
+    >
+      {icon}
+    </ButtonLink>
+  ) : (
+    <SDKButton pill={false} {...common} ref={props.ref} type="button" uniform>
+      {icon}
+    </SDKButton>
   );
+  return controlTooltip(control, props);
 }
 
 export function ToggleButton(props: ComponentProps<typeof LegacyToggle>) {
@@ -178,38 +194,42 @@ export function ToggleButton(props: ComponentProps<typeof LegacyToggle>) {
   } = props;
   const pressed =
     props.value && group ? group.value.includes(props.value) : isPressed;
-  return (
-    <Tooltip
-      content={<AdminPortalScope>{props.tooltip || label}</AdminPortalScope>}
+  const control = (
+    <SDKButton
+      pill={false}
+      color="secondary"
+      variant="ghost"
+      size="lg"
+      type="button"
+      className={className}
+      uniform={isIconOnly}
+      aria-label={label}
+      aria-pressed={pressed}
+      aria-describedby={props["aria-describedby"]}
+      aria-labelledby={props["aria-labelledby"]}
+      aria-controls={props["aria-controls"]}
+      aria-expanded={props["aria-expanded"]}
+      aria-haspopup={props["aria-haspopup"]}
+      onFocus={props.onFocus}
+      onBlur={props.onBlur}
+      onMouseDown={props.onMouseDown}
+      onPointerDown={props.onPointerDown}
+      ref={props.ref}
+      onKeyDown={props.onKeyDown}
+      selected={pressed}
+      disabled={isDisabled || group?.disabled}
+      onClick={(event) => {
+        props.onClick?.(event);
+        if (event.defaultPrevented) return;
+        if (props.value && group) group.change(props.value);
+        else onPressedChange?.(!isPressed, event);
+      }}
     >
-      <SDKButton
-        pill={false}
-        color="secondary"
-        variant="ghost"
-        size="lg"
-        type="button"
-        className={className}
-        uniform={isIconOnly}
-        aria-label={label}
-        aria-pressed={pressed}
-        onMouseDown={props.onMouseDown}
-        onPointerDown={props.onPointerDown}
-        ref={props.ref}
-        onKeyDown={props.onKeyDown}
-        selected={pressed}
-        disabled={isDisabled || group?.disabled}
-        onClick={(event) => {
-          props.onClick?.(event);
-          if (event.defaultPrevented) return;
-          if (props.value && group) group.change(props.value);
-          else onPressedChange?.(!isPressed, event);
-        }}
-      >
-        {icon}
-        {!isIconOnly && label}
-      </SDKButton>
-    </Tooltip>
+      {icon}
+      {!isIconOnly && label}
+    </SDKButton>
   );
+  return controlTooltip(control, props);
 }
 
 export function TextInput(props: ComponentProps<typeof LegacyInput>) {
@@ -542,6 +562,7 @@ export function DropdownMenu(props: ComponentProps<typeof LegacyDropdown>) {
   if (!enabled) return <LegacyDropdown {...props} />;
   return (
     <Menu
+      forceOpen={props.isMenuOpen}
       onOpen={() => props.onOpenChange?.(true)}
       onClose={() => props.onOpenChange?.(false)}
     >
@@ -552,14 +573,29 @@ export function DropdownMenu(props: ComponentProps<typeof LegacyDropdown>) {
           variant="ghost"
           size="lg"
           uniform={props.button?.isIconOnly}
-          aria-label={props.button?.label}
-          title={props.button?.label}
+          ref={props.button?.ref}
+          className={props.button?.className}
+          type="button"
+          aria-label={props.button?.["aria-label"] ?? props.button?.label}
+          aria-describedby={props.button?.["aria-describedby"]}
+          aria-labelledby={props.button?.["aria-labelledby"]}
+          aria-controls={props.button?.["aria-controls"]}
+          onFocus={props.button?.onFocus}
+          onBlur={props.button?.onBlur}
+          onKeyDown={props.button?.onKeyDown}
+          onMouseDown={props.button?.onMouseDown}
+          onPointerDown={props.button?.onPointerDown}
+          title={
+            props.button && !hasExternalTooltip(props.button)
+              ? props.button.tooltip || props.button.label
+              : undefined
+          }
         >
           {props.button?.icon}
           {!props.button?.isIconOnly && props.button?.label}
         </SDKButton>
       </Menu.Trigger>
-      <AdminMenuContent>
+      <AdminMenuContent align={props.alignment}>
         {menuEntries((props.items ?? []) as MenuEntry[])}
       </AdminMenuContent>
     </Menu>
