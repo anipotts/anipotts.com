@@ -3,6 +3,8 @@ import React, { act } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, afterEach, it, expect, vi } from "vitest";
+// Transform the shared SDK/Astryx graph during collection, before timed setup.
+import "./EditorialApp";
 let EditorialApp: typeof import("./EditorialApp").EditorialApp;
 import {
   dispatchEditorialRecordSaved,

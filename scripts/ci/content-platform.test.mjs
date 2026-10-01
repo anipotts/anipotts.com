@@ -33,7 +33,6 @@ assert.deepEqual(DEFAULT_HOMEPAGE_CONTENT.sections.intro.mention_keys, [
   "yCombinatorF25",
   "badHabit",
   "atlanticRecords",
-  "businessInsider",
 ]);
 assert.equal(
   DEFAULT_HOMEPAGE_CONTENT.sections.intro.rich_summary,

@@ -3,6 +3,8 @@ import { jsonResponse } from "../../lib/test-json-response";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+// Transform the shared SDK/Astryx graph during collection, before timed setup.
+import "./NewWriting";
 let AdminUIProvider: typeof import("../workspace/AdminUI").AdminUIProvider;
 let NewWriting: typeof import("./NewWriting").NewWriting;
 import { RECORD_CREATED_EVENT } from "../../lib/editorial-inventory-events";

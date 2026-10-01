@@ -2,22 +2,24 @@
 
 ## Change
 
-Writing opts into SDK controls inside the existing content shell. Shared navigation and gutters retain their original styles. SDK semantic tokens use the admin font, palette, control sizes and corners. The cascade places SDK resets before Astryx component geometry, preserving existing dialog insets and centering.
+Writing opts into SDK controls inside the existing content shell. Shared navigation and gutters retain their original styles. SDK semantic tokens use Instrument Sans and the admin palette, control sizes and corners. The cascade places SDK resets before Astryx component geometry, preserving existing dialog insets and centering.
 
-Both tables use one column layout calculation, including fixed widths, reservation, shares, visibility and container yielding. Phone records retain their compact title/status/time layout without duplicated metadata.
+Both tables use one column layout calculation, including fixed widths, reservation, shares, visibility and container yielding. Summaries yield before titles; dates and headers keep their widths. Phone records use a stacked layout without duplicated metadata or horizontal scrolling.
 
-## Evidence
+SDK wrappers preserve caller refs, events and described-by relationships. A control with an owned delayed tooltip does not also display an immediate SDK or native tooltip. Menus and dialogs mount in their own scoped portal; the shared shell never receives SDK resets.
 
-Pro preview: http://127.0.0.1:4739/content/writing
+## Review evidence
 
-Private local captures: /private/tmp/admin-geometry-proof. Before/after library and editor captures use a 1032px viewport. Final hydrated library inspection covers 390, 768, 1032 and 1440px with explicit light/dark and both sidebar states. Phone layouts omit the desktop sidebar. All 48 states have no horizontal overflow or SDK boundary enclosing navigation. Final desktop navigation positions match between Pages, Writing and Projects in each compared state. Saved root sidebar hints can lag actual rendered sidebar state; captures and hydrated controls supply visual evidence.
+Combined Pro preview for #461 and #464: http://127.0.0.1:4675/content/writing. The older mini preview on port 4935 is not the current acceptance target.
 
-Synthetic draft checks passed typing, bold, undo/redo, local save and reload. Compact publication review opened with local publishing disabled. Review dialog padding was visibly restored after correcting layer precedence. No production content was changed.
+Private local captures and measurements are under `/private/tmp/admin-qa-v2/combined`. The latest library matrix compares Writing, Pages and Projects at 390, 768, 1032 and 1440px in light and dark themes. Expanded and collapsed desktop/tablet states are compared; the phone sidebar is not applicable. Shared navigation positions remain stable and neither table has horizontal overflow.
 
-84 focused integration tests passed. CSS cascade and recovery regression checks passed 29 tests. Full validation passed formatting, build, typecheck and the other workspace checks but hit admin setup timeouts under unrestricted parallelism. The full admin suite passed with two workers: 1,990 tests across 153 files. Separate Astro and editorial runtime suites each passed 73 tests. No application behavior was changed to accommodate the timing failures.
+Synthetic local checks exercise typing, formatting, undo/redo, saving, reload, preview and compact publication review. The local preview does not permit production publication. Private records and production reader connectivity are not established by these synthetic checks.
+
+Collection preloads keep cold SDK/component transforms outside timed test setup. Per-case module resets, assertion timeouts and default worker concurrency remain unchanged. The final PR description records the exact validation result for the reviewed head.
 
 ## Release hold
 
-Mini confirmed the branch was clean at 79673e420a190c65bf307c039565ddf99da3934d and delegated integration here. No merge or deployment until Ani accepts the repaired visuals and exact-head required checks pass.
+This chat owns integration of both admin PRs. Ani's visual acceptance and required checks on the exact head are still required before merge and deployment. Source changes and local browser proof do not establish production state.
 
-Public-site PR 463 remains separate. Its owner reported build, 139 tests and responsive alignment checks passing, with changes pushed and no merge or deployment. Remaining obligation is Ani review and required checks before integration.
+Public-site work remains separate from this admin repair.
