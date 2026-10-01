@@ -3,8 +3,36 @@ import { siteConfig } from "@anipotts/content/public/site";
 vi.mock("./editorial-content", () => ({
   publicSiteUrl: "https://anipotts.com/",
 }));
-import { previewResponse } from "./preview-html";
+import { previewResponse, renderPreviewResponse } from "./preview-html";
 afterEach(() => vi.unstubAllEnvs());
+
+it.each(["throw", "error-page", "body-error"])(
+  "reports %s rendering failures without waiting for the frame timeout",
+  async (failure) => {
+    const response = await renderPreviewResponse(async () => {
+      if (failure === "throw") throw new Error("private rendering detail");
+      if (failure === "body-error")
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.error(new Error("private rendering detail"));
+            },
+          }),
+          { headers: { "Content-Type": "text/html" } },
+        );
+      return new Response("Framework error", { status: 500 });
+    }, new URL("https://admin.anipotts.com/preview/home?previewRequest=current"));
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(response.headers.get("Content-Security-Policy")).toContain(
+      "sandbox allow-scripts",
+    );
+    const html = await response.text();
+    expect(html).toContain('"request":"current"');
+    expect(html).toContain('"status":"unavailable"');
+    expect(html).not.toContain("private rendering detail");
+  },
+);
 
 it("loads production preview artwork from the configured public site", async () => {
   vi.stubEnv("DEV", false);

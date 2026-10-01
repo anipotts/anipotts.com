@@ -1026,16 +1026,22 @@ function HomeEditorImpl({
       const afterParsed = parseEditorialSource(after);
       const reviewFields = editorialFields(record, afterParsed.data);
       return [
-        ...reviewFields.map((field) => ({
-          label: field.label,
-          rich: field.rich,
-          onEdit: () => {
-            requestedEditingField.current = field.path.join(".");
-            setTab("edit");
-          },
-          before: String(beforeParsed.document.getIn(field.path) ?? ""),
-          after: String(afterParsed.document.getIn(field.path) ?? ""),
-        })),
+        ...reviewFields
+          .filter(
+            (field) =>
+              !(afterParsed.data as Record<string, unknown>).sections ||
+              field.path[0] !== "sections",
+          )
+          .map((field) => ({
+            label: field.label,
+            rich: field.rich,
+            onEdit: () => {
+              requestedEditingField.current = field.path.join(".");
+              setTab("edit");
+            },
+            before: String(beforeParsed.document.getIn(field.path) ?? ""),
+            after: String(afterParsed.document.getIn(field.path) ?? ""),
+          })),
         ...(record.kind === "writing"
           ? writingReviewChanges(before, after)
           : structuredReviewChanges(before, after, reviewFields)),

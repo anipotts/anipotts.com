@@ -38,6 +38,9 @@ export function SavedArticlePreview({
   }>({ request, status: "loading" });
   const status = result.request === request ? result.status : "loading";
   const [height, setHeight] = useState(800);
+  // Start navigation only after the receiver is installed. A cached frame can
+  // report readiness before React flushes passive effects.
+  const [listeningRequest, setListeningRequest] = useState<string | null>(null);
   useEffect(() => {
     setHeight(800);
     setResult({ request, status: "loading" });
@@ -77,6 +80,7 @@ export function SavedArticlePreview({
       }
     };
     window.addEventListener("message", receive);
+    setListeningRequest(request);
     return () => {
       window.clearTimeout(timeout);
       window.removeEventListener("message", receive);
@@ -102,7 +106,7 @@ export function SavedArticlePreview({
       )}
       <iframe
         ref={frame}
-        src={frameSrc}
+        src={listeningRequest === request ? frameSrc : undefined}
         title={title}
         sandbox="allow-scripts"
         referrerPolicy="no-referrer"

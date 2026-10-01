@@ -147,7 +147,7 @@ it("uses 44px touch targets with 4px rail insets only on coarse tablets", () => 
   expect(coarse).toContain(
     '.editorial-workspace-shell[data-sidebar-collapsed="true"]',
   );
-  expect(coarse).not.toContain(".astryx-app-shell-sidenav");
+  expect(coarse).not.toMatch(/\.astryx-app-shell-sidenav\s*\{/);
 });
 
 describe("local owner indicator", () => {
@@ -190,4 +190,19 @@ describe("local owner indicator", () => {
     const rule = css.slice(start, css.indexOf("}", start));
     expect(rule).not.toMatch(/position|border(?!-radius)|#[0-9a-f]{3,6}\b/i);
   });
+});
+
+it("confines collapsed geometry to the inline sidebar, excluding the modal drawer", () => {
+  const css = readFileSync(HEADER_CSS, "utf8").replace(/\s+/g, " ");
+  const collapsedSelectors = css.match(
+    /[^{}]*\[data-sidebar-collapsed="true"\][^{}]*\{/g,
+  )!;
+  expect(collapsedSelectors.length).toBeGreaterThan(0);
+  for (const selector of collapsedSelectors) {
+    if (selector.includes(".editorial-workspace-nav")) {
+      expect(selector).toContain(
+        ".astryx-app-shell-sidenav .editorial-workspace-nav",
+      );
+    }
+  }
 });
