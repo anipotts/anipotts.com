@@ -2,10 +2,15 @@
 import { env } from "cloudflare:workers";
 import { beforeAll, describe, it, expect } from "vitest";
 import {
+  getPublishedInventory,
+  publishDirect,
   DIRECT_PUBLICATION_SCHEMA_SQL,
   DIRECT_PUBLICATION_CONTRACT_MIGRATION_SQL,
 } from "@anipotts/content/editorial/direct-publication";
-import { readPublishedBase } from "../../src/lib/editorial-published-base";
+import {
+  readPublishedBase,
+  bundledEditorialSources,
+} from "../../src/lib/editorial-published-base";
 
 beforeAll(async () => {
   await env.CONTENT_DB.batch(
@@ -14,6 +19,20 @@ beforeAll(async () => {
       ...DIRECT_PUBLICATION_CONTRACT_MIGRATION_SQL,
     ].map((sql) => env.CONTENT_DB.prepare(sql)),
   );
+  // Direct-publication API fixtures require an explicit active CMS baseline.
+  for (const { record, source } of bundledEditorialSources()) {
+    const inventory = await getPublishedInventory(env.CONTENT_DB);
+    await publishDirect(env.CONTENT_DB, {
+      contentSchemaVersion: 1,
+      record,
+      source,
+      revision: 1,
+      operationId: `git-seed.${record.kind}.${record.id}`,
+      expectedPublicationId: null,
+      expectedInventoryVersion: inventory.version,
+      publishedAt: "2026-09-20T00:00:00Z",
+    });
+  }
 });
 import { homeEditorApi, homeRecord } from "../../src/lib/editorial-home-api";
 const base = async () => ({
@@ -52,7 +71,7 @@ describe("home API with real SQLite", () => {
       base,
     );
     expect(await snapshot.json()).toMatchObject({
-      history: [{ revision: 3 }, { revision: 2 }, { revision: 1 }],
+      history: [],
       nextBeforeRevision: null,
       // Without a publisher (local development) the editor matches production.
       publicationMode: "direct",
@@ -699,4 +718,73 @@ describe("private project creation", () => {
     ).toBe(400);
     expect(await storage.listProjectDrafts()).toEqual([]);
   });
+});
+
+it("preserves independent compact rich fields through private save, reload and history", async () => {
+  const { parseEditorialSource, setEditorialField } =
+    await import("@anipotts/content/editorial/source");
+  const original = `---
+# retained comment
+sections:
+  intro: { visible: true, label: Intro, heading: Hello, subheading: Default copy }
+  past_work: { visible: true, label: Work, heading: Work }
+  latest_thoughts: { visible: true, label: Writing, heading: Writing }
+section_order: [intro, past_work, latest_thoughts]
+mentions: {}
+---
+Retained body.
+`;
+  const storage = env.EDITORIAL.getByName(crypto.randomUUID());
+  await storage.save({
+    ...(await base()),
+    record: homeRecord,
+    source: original,
+    expectedRevision: 0,
+    requestId: crypto.randomUUID(),
+  });
+  let updated = setEditorialField(
+    original,
+    ["sections", "intro", "subheading_compact"],
+    "**Compact** copy",
+  );
+  updated = setEditorialField(
+    updated,
+    ["sections", "intro", "subheading_compact_format"],
+    "markdown",
+  );
+  const saved = await homeEditorApi(
+    request("save", {
+      source: updated,
+      expectedRevision: 1,
+      requestId: crypto.randomUUID(),
+    }),
+    storage,
+    base,
+  );
+  expect(saved.status).toBe(200);
+  const reloaded = await homeEditorApi(
+    new Request("https://admin.anipotts.com/api/editorial/record"),
+    storage,
+    base,
+  );
+  const snapshot = (await reloaded.json()) as {
+    draft: { source: string };
+    history: unknown[];
+  };
+  expect(snapshot.draft.source).toBe(updated);
+  expect(snapshot.history).toEqual([]);
+  const parsed = parseEditorialSource(snapshot.draft.source);
+  expect(parsed.document.getIn(["sections", "intro", "subheading"])).toBe(
+    "Default copy",
+  );
+  expect(
+    parsed.document.getIn(["sections", "intro", "subheading_format"]),
+  ).toBeUndefined();
+  expect(
+    parsed.document.getIn(["sections", "intro", "subheading_compact_format"]),
+  ).toBe("markdown");
+  expect(parsed.body).toBe("Retained body.\n");
+  expect(snapshot.draft.source).toContain("# retained comment");
+  const history = await storage.history(homeRecord);
+  expect(history.map((version) => version.source)).toEqual([updated, original]);
 });

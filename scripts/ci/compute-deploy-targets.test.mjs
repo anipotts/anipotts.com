@@ -180,3 +180,17 @@ assert.deepEqual(
   ["apps/admin/package.json"],
   "Astryx patch deployment mapping requires an explicit update when consumers change",
 );
+
+for (const directory of ["components", "layouts", "styles", "lib", "scripts"]) {
+  expectTargets(
+    `shared public ${directory} deploys both renderers`,
+    [`apps/www/src/${directory}/shared.ts`],
+    { www: true, admin: true },
+  );
+}
+assert.match(
+  deployWorkflow,
+  /deploy-admin:[\s\S]*?needs: \[release, deploy-www\]/,
+);
+assert.match(deployWorkflow, /needs\.deploy-www\.result == 'skipped' &&/);
+assert.match(deployWorkflow, /needs\.release\.outputs\.www != 'true'/);

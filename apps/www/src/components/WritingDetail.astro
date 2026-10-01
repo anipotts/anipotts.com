@@ -9,6 +9,8 @@ import Shell from "../layouts/Shell.astro";
 import { Icon } from "astro-icon/components";
 import {
   publishedWriting,
+  bundledWritingSeed,
+  publicContentContext,
   formatDate,
   writingSlug,
   type Writing,
@@ -26,12 +28,15 @@ const { item } = Astro.props;
 const slug = writingSlug(item);
 const { Content } = await render(item);
 const d = item.data;
-const moreWriting = (Astro.props.allWriting ?? (await publishedWriting()))
+const moreWriting = (
+  Astro.props.allWriting ??
+  (await publishedWriting(publicContentContext(Astro.locals)))
+)
   .filter((post) => writingSlug(post) !== slug)
   .slice(0, 2);
 // Cards are prerendered from Git writing. A CMS record keeps its bundled card
 // by slug; only a slug with no bundled card falls back to the site card.
-const bundledCard = (await publishedWriting()).some(
+const bundledCard = (await bundledWritingSeed()).some(
   (post) => writingSlug(post) === slug,
 );
 

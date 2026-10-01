@@ -3,7 +3,6 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EditorActionBar, type EditorActionBarProps } from "./EditorActionBar";
-import { AdminThemeControls } from "./ThemeControl";
 
 const observations: {
   node: Element;
@@ -109,26 +108,33 @@ describe("shared editor action bar", () => {
     },
   );
 
-  it("keeps one-click theme access inside the mobile record toolbar", () => {
+  it("keeps phone command actions separate from scrolling identity and shared theme", () => {
     compact = true;
-    const changeTheme = vi.fn();
-    act(() =>
-      root.render(
-        <AdminThemeControls.Provider value={{ mode: "dark", changeTheme }}>
-          <EditorActionBar
-            back={{ href: "/content/writing", label: "Back to Writing" }}
-            title="Record"
-          />
-        </AdminThemeControls.Provider>,
+    render({
+      properties: { onClick: vi.fn() },
+      history: { onClick: vi.fn() },
+      preview: { isPressed: false, onChange: vi.fn() },
+      publish: { label: "Publish", onClick: vi.fn() },
+      menu: [{ items: [{ label: "Download", onClick: vi.fn() }] }],
+    });
+    const identity = host.querySelector(".editor-bar-identity")!;
+    expect(identity.querySelector("h1")).not.toBeNull();
+    expect(identity.querySelector(".editor-save-status")).not.toBeNull();
+    const commands = host.querySelector(".editor-bar-actions")!;
+    expect(
+      [...commands.querySelectorAll("button")].map(
+        (button) => button.getAttribute("aria-label") ?? button.textContent,
       ),
-    );
-    const theme = host.querySelector<HTMLButtonElement>(
-      '.editor-bar-actions button[aria-label="Dark theme"]',
-    )!;
-    expect(theme.classList.contains("editor-bar-theme")).toBe(true);
-    expect(theme.hasAttribute("aria-haspopup")).toBe(false);
-    act(() => theme.click());
-    expect(changeTheme).toHaveBeenCalledExactlyOnceWith("system");
+    ).toEqual(["Properties", "History", "Preview", "Publish", "More actions"]);
+    expect(commands.querySelector(".editor-bar-theme")).toBeNull();
+    vi.spyOn(commands, "getBoundingClientRect").mockReturnValue({
+      height: 44,
+    } as DOMRect);
+    vi.spyOn(identity, "getBoundingClientRect").mockReturnValue({
+      height: 120,
+    } as DOMRect);
+    observations.find(({ node }) => node === commands)!.notify();
+    expect(host.style.getPropertyValue("--editor-bar-height")).toBe("44px");
   });
 
   it("exposes Properties and History without opening overflow and keeps their state", () => {

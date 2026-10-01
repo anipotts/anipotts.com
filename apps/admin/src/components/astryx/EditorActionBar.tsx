@@ -21,7 +21,6 @@ import {
 } from "@phosphor-icons/react";
 import { below } from "../../lib/breakpoints";
 import { SaveStatus, type SaveStatusState } from "./SaveStatus";
-import { ThemeControl } from "./ThemeControl";
 
 type EditorMenuItem = {
   label: string;
@@ -183,6 +182,7 @@ export function EditorActionBar({
 }: EditorActionBarProps) {
   const compact = useCompact();
   const barRef = useRef<HTMLElement>(null);
+  const commandRef = useRef<HTMLElement>(null);
   useEffect(() => {
     const bar = barRef.current;
     const workspace = bar?.closest<HTMLElement>(".editor-workspace");
@@ -191,12 +191,17 @@ export function EditorActionBar({
       "--editor-bar-height",
     );
     const measure = () => {
-      const height = bar.getBoundingClientRect().height;
+      const height =
+        (window.matchMedia(COMPACT).matches
+          ? commandRef.current
+          : bar
+        )?.getBoundingClientRect().height ?? 0;
       if (height > 0)
         workspace.style.setProperty("--editor-bar-height", `${height}px`);
     };
     const observer = new ResizeObserver(measure);
     observer.observe(bar);
+    if (commandRef.current) observer.observe(commandRef.current);
     measure();
     return () => {
       observer.disconnect();
@@ -216,24 +221,26 @@ export function EditorActionBar({
       vAlign="center"
       wrap="wrap"
     >
-      <EditorIconButton
-        className="editor-bar-back"
-        label={back.label}
-        variant="ghost"
-        icon={<CaretLeftIcon weight="regular" aria-hidden="true" />}
-        href={back.href}
-      />
-      <VStack className="editor-bar-title" gap={0}>
-        <Heading level={1}>{title}</Heading>
-      </VStack>
-      {save && <SaveStatus state={save} />}
+      <HStack className="editor-bar-identity" gap={2} vAlign="center">
+        <EditorIconButton
+          className="editor-bar-back"
+          label={back.label}
+          variant="ghost"
+          icon={<CaretLeftIcon weight="regular" aria-hidden="true" />}
+          href={back.href}
+        />
+        <VStack className="editor-bar-title" gap={0}>
+          <Heading level={1}>{title}</Heading>
+          {save && <SaveStatus state={save} />}
+        </VStack>
+      </HStack>
       <HStack
         className="editor-bar-actions"
+        ref={commandRef}
         gap={1}
         vAlign="center"
         wrap="wrap"
       >
-        <ThemeControl className="editor-bar-theme" />
         {properties && (
           <EditorIconButton
             label="Properties"

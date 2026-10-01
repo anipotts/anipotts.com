@@ -3,8 +3,8 @@
    Shell and page frame rules live in shell.css. Media queries use the
    ranges in lib/breakpoints.ts: compact is (max-width: 640px). */
 
-/* The record identity remains visible while compact actions wrap below it
-   when space is limited. The measured height is shared with sticky toolbars. */
+/* Desktop identity and commands share a sticky bar. On phones the identity
+   scrolls while the measured command row supplies the formatting offset. */
 .editor-bar {
   position: sticky;
   top: 0;
@@ -51,28 +51,54 @@
 .editor-save-status[data-show-label="false"] {
   width: var(--spacing-4);
 }
-/* Mobile keeps record identity on the first row and 44px action targets on
-   the next. No title or persistence evidence disappears in preview mode. */
+/* The phone identity scrolls normally. Only its compact command row sticks
+   below the shared appbar, and formatting uses the measured command height. */
+.editor-bar-identity {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 @media (max-width: 640px), (pointer: coarse) {
   .editor-bar .astryx-button:not(#\#),
-  .editor-bar .astryx-toggle-button:not(#\#) {
+  .editor-bar .astryx-toggle-button:not(#\#),
+  .editor-bar [data-writing-control]:not(#\#) {
     min-height: var(--spacing-11);
     min-width: var(--spacing-11);
   }
 }
 @media (max-width: 640px) {
   .editor-bar {
-    padding-block-start: max(var(--spacing-1), env(safe-area-inset-top, 0px));
+    display: contents;
+  }
+  .editor-bar-identity {
+    width: 100%;
+    align-items: flex-start;
   }
   .editor-bar-title h1 {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    overflow: hidden;
+    overflow-wrap: anywhere;
   }
   .editor-bar-actions {
-    flex-basis: 100%;
+    position: sticky;
+    top: var(--admin-appbar-height, 0px);
+    z-index: 20;
+    align-self: stretch;
     justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: var(--spacing-1);
+    min-height: var(--spacing-11);
+    margin-inline-start: 0;
+    background: var(--color-background-body);
+  }
+  .editor-bar-actions > :is(button, a) {
+    flex-shrink: 0;
+    min-height: var(--spacing-11);
+    min-width: var(--spacing-11);
+  }
+  .editor-bar-actions .astryx-button:not(#\#),
+  .editor-bar-actions .astryx-toggle-button:not(#\#) {
+    padding-inline: var(--spacing-2);
+  }
+  .editor-bar-actions :is(button, a):has(svg):not(:has([data-loading])) {
+    padding-inline: var(--spacing-1);
   }
 }
 /* The phone sheets lift on their shadow alone, with no outline. */
@@ -175,7 +201,7 @@
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-element);
   background: var(--color-background-surface);
-  overflow: hidden;
+  overflow: clip;
 }
 .document-subtitle .rich-field-surface {
   border: 0;
@@ -355,9 +381,13 @@ html[data-theme="light"] .editor-inline-icon.inline-image-white {
   padding-block: var(--spacing-1);
   background: var(--color-background-body);
 }
-.article-composer > .document-editor-toolbar {
+.article-composer > .document-editor-toolbar,
+.rich-field-surface > .document-editor-toolbar {
   position: sticky;
-  top: var(--editor-bar-height, calc(var(--spacing-11) + var(--spacing-2)));
+  top: calc(
+    var(--admin-appbar-height, 0px) +
+      var(--editor-bar-height, var(--spacing-11))
+  );
   z-index: 10;
 }
 .document-editor-toolbar .astryx-button,
@@ -722,19 +752,4 @@ html[data-theme="light"] .editor-inline-icon.inline-image-white {
 }
 .editor-media-thumb[data-fit="contain"] {
   object-fit: contain;
-}
-
-/* The sidebar carries theme on desktop; record headers retain it on phones. */
-.editor-bar-theme:not(#\#) {
-  display: none;
-}
-@media (max-width: 640px) {
-  .editor-bar-theme:not(#\#) {
-    display: inline-flex;
-    width: var(--spacing-11);
-    height: var(--spacing-11);
-    min-width: var(--spacing-11);
-    padding: 0;
-    justify-content: center;
-  }
 }

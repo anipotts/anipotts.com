@@ -145,10 +145,9 @@ export async function homeEditorApi(
       return json(await storage.historyPage(record, options));
     }
     if (action === "home" || action === "record") {
-      const [base, draft, historyPage] = await Promise.all([
+      const [base, draft] = await Promise.all([
         readBase(record),
         storage.get(record),
-        storage.historyPage(record),
       ]);
       const publication = direct
         ? await direct.latestDirectPublication(record)
@@ -157,8 +156,8 @@ export async function homeEditorApi(
         recoveryScope: EDITORIAL_OWNER_EMAIL,
         base,
         draft,
-        history: historyPage.history,
-        nextBeforeRevision: historyPage.nextBeforeRevision,
+        history: [],
+        nextBeforeRevision: null,
         publication,
         publishing: publisher?.enabled ? "ready" : "not_configured",
         // The only publisher. Editor tabs opened before this release read it.

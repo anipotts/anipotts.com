@@ -1,4 +1,6 @@
 // @ts-check
+import { fileURLToPath } from "node:url";
+import { adminPreviewIdentity } from "../../scripts/dev/admin-preview-identity.mjs";
 import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
@@ -83,6 +85,7 @@ export default defineConfig({
     },
     plugins: [
       tailwindcss(),
+      adminPreviewIdentity(fileURLToPath(new URL("../..", import.meta.url))),
       {
         // astro dev renders in workerd, whose console.createTask throws "not
         // implemented". React's development build calls it while its modules

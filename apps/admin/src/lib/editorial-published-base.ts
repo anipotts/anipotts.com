@@ -5,6 +5,7 @@ import {
 } from "@anipotts/content/editorial/source";
 import {
   getPublishedInventory,
+  getPublishedRecord,
   type PublicationDatabase,
   type PublishedSnapshot,
 } from "@anipotts/content/editorial/direct-publication";
@@ -12,7 +13,10 @@ import {
   publicationSourceHash,
   bundledPublicationSourceHash,
 } from "@anipotts/content/editorial/publication-contract";
-import { validateEditorialSnapshot } from "@anipotts/content/editorial/snapshot";
+import {
+  validateEditorialSnapshot,
+  type EditorialSourceRecord,
+} from "@anipotts/content/editorial/snapshot";
 import { gitBlobSha1 } from "./crypto";
 import { newRecordSource } from "./editorial-collections";
 
@@ -79,7 +83,11 @@ export async function readPublishedBase(
   db: PublicationDatabase,
   record: EditorialRecord,
 ) {
-  return publishedBaseFromInventory(await getPublishedInventory(db), record);
+  const { version, publication } = await getPublishedRecord(db, record);
+  return publishedBaseFromInventory(
+    { version, publications: publication ? [publication] : [] },
+    record,
+  );
 }
 
 export async function validatePublishedCandidate(
@@ -89,14 +97,12 @@ export async function validatePublishedCandidate(
 ) {
   const inventory = await getPublishedInventory(db);
   const baseline = await publishedBaseFromInventory(inventory, record);
-  const merged = new Map(
-    bundledEditorialSources().map((entry) => [
+  const merged = new Map<string, EditorialSourceRecord>(
+    inventory.publications.map((entry) => [
       editorialRecordPath(entry.record),
       entry,
     ]),
   );
-  for (const entry of inventory.publications)
-    merged.set(editorialRecordPath(entry.record), entry);
   merged.set(editorialRecordPath(record), { record, source });
   const issues = validateEditorialSnapshot([...merged.values()]);
   return {

@@ -21,10 +21,7 @@ import {
   MAX_PUBLICATION_MEDIA_BYTES,
   referencedMediaIds,
 } from "../lib/editorial-media";
-import {
-  validatePublishedCandidate,
-  bundledEditorialSourceHash,
-} from "../lib/editorial-published-base";
+import { validatePublishedCandidate } from "../lib/editorial-published-base";
 import type {
   DirectPublicationStatus,
   StartDirectPublication,
@@ -363,7 +360,7 @@ export class DirectPublisher {
     if (
       actionOf(intent) === "publish" &&
       intent.record.kind !== "page" &&
-      candidate.baseline.baseFileHash !== null
+      candidate.baseline.publicationId !== null
     ) {
       const base = parseEditorialSource(candidate.baseline.source)
         .data as Record<string, unknown>;
@@ -435,6 +432,8 @@ export class DirectPublisher {
   private hiddenRevision(input: StartDirectPublication) {
     if (!canUnpublish(input.record))
       return { code: "unpublish_unsupported" as const };
+    if (input.expectedPublicationId === null)
+      return { code: "already_hidden" as const };
     const base = input.baselineSource;
     if (typeof base !== "string" || hash(base) !== input.expectedBaselineSha256)
       return { code: "baseline_changed" as const };
@@ -724,7 +723,7 @@ export class DirectPublisher {
     const unpublish = actionOf(intent) === "unpublish";
     if (
       !value ||
-      value.runtime !== 1 ||
+      value.runtime !== 2 ||
       value.contentSchemaVersion !== CONTENT_SCHEMA_VERSION ||
       !Number.isSafeInteger(value.inventoryVersion) ||
       Number(value.inventoryVersion) < version
@@ -736,7 +735,8 @@ export class DirectPublisher {
     if (
       unpublish
         ? value.visible !== false
-        : value.publicationId !== receipt.publicationId ||
+        : value.visible !== true ||
+          value.publicationId !== receipt.publicationId ||
           value.sourceSha256 !== receipt.sourceSha256
     )
       return false;
@@ -932,18 +932,46 @@ export class DirectPublisher {
       }
       if (
         !reader ||
-        reader.runtime !== 1 ||
+        reader.runtime !== 2 ||
         reader.contentSchemaVersion !== CONTENT_SCHEMA_VERSION ||
         !Number.isSafeInteger(reader.inventoryVersion)
       ) {
         this.settle(claim, { blocked: "public_reader_not_ready" });
         return;
       }
-      if (reader.bundledSourceSha256 !== (await bundledEditorialSourceHash())) {
-        this.settle(claim, { blocked: "public_baseline_mismatch" });
+      // Revalidate the frozen source on every activation attempt, including
+      // persisted commit intents created by an older release. CAS still pins
+      // the validated inventory through the eventual atomic write.
+      const candidate = await (
+        this.dependencies.validateCandidate ?? validatePublishedCandidate
+      )(this.dependencies.db, intent.record, intent.source);
+      const problem = this.candidateProblem(intent, intent.source, candidate);
+      const unpublish = actionOf(intent) === "unpublish";
+      if (
+        problem ||
+        (unpublish &&
+          (!candidate.baseline.publicationId ||
+            !canUnpublish(intent.record) ||
+            !sourceIsPublic(intent.record, candidate.baseline.source) ||
+            unpublishedSource(intent.record, candidate.baseline.source) !==
+              intent.source))
+      ) {
+        this.settle(
+          claim,
+          {
+            blocked:
+              problem?.code === "baseline_changed" || !problem
+                ? "publication_base_changed"
+                : problem.code,
+          },
+          problem?.issues,
+        );
         return;
       }
-      if (reader.inventoryVersion !== claim.inventoryVersion) {
+      if (
+        reader.inventoryVersion !== candidate.inventoryVersion ||
+        claim.inventoryVersion !== candidate.inventoryVersion
+      ) {
         this.settle(claim, { phase: "validate", dueAt: this.now() + 5000 });
         return;
       }
@@ -987,7 +1015,9 @@ export class DirectPublisher {
     const unpublish = actionOf(intent) === "unpublish";
     if (
       unpublish &&
-      (!canUnpublish(intent.record) ||
+      (!candidate.baseline.publicationId ||
+        !canUnpublish(intent.record) ||
+        !sourceIsPublic(intent.record, candidate.baseline.source) ||
         unpublishedSource(intent.record, candidate.baseline.source) !==
           intent.source)
     ) {

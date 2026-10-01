@@ -102,14 +102,27 @@ export function trackPrivateSession(
   window.addEventListener("pagehide", hide);
   arm();
   const stop = () => {
+    policy.endedByOwner = true;
+    policy.idle = false;
     stopWatching();
     for (const name of events) window.removeEventListener(name, interact);
     document.removeEventListener("visibilitychange", visibility);
     window.removeEventListener("pagehide", hide);
     if (timer !== null) clearTimer(timer);
+    timer = null;
   };
   tracked.set(session, { session, policy, stop });
   return policy;
+}
+
+/** Retires an owned session; abandoned idle policies cannot reopen it. */
+export function releasePrivateSession(session: PrivateReaderSession): void {
+  const entry = tracked.get(session);
+  if (entry) {
+    entry.stop();
+    tracked.delete(session);
+  }
+  session.logout();
 }
 
 /** The document's shared session, created on first use. */

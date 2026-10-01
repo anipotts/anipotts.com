@@ -1186,3 +1186,57 @@ it("offers Publish again, not Unpublish, while a piece is hidden from the websit
   await click("Publish again");
   expect(host.textContent).toContain("Publish now");
 });
+
+it("allows unchanged seed source to be saved and reviewed for its first publication", async () => {
+  const seed = {
+    source,
+    baseCommit: "seed",
+    baseFileHash: "seed-hash",
+    publicationId: null,
+  };
+  const saved = {
+    ...draft,
+    source,
+    revision: 1,
+    baseCommit: "seed",
+    baseFileHash: "seed-hash",
+  };
+  const fetcher = vi.fn(async (url: string, options?: RequestInit) => {
+    if (url.includes("/csrf")) return response({ csrf: "test-only" });
+    if (url.includes("/baseline")) return response({ base: seed });
+    if (url.includes("/save")) {
+      expect(JSON.parse(options!.body as string).source).toBe(source);
+      return response({ ok: true, draft: saved });
+    }
+    return response({
+      ...snapshot,
+      base: seed,
+      draft: null,
+      history: [],
+      nextBeforeRevision: null,
+    });
+  });
+  vi.stubGlobal("fetch", fetcher);
+  await mount("", false);
+  const publish = [...host.querySelectorAll("button")].find(
+    (button) => button.textContent?.trim() === "Publish",
+  )!;
+  expect(publish.disabled).toBe(false);
+  expect(host.querySelector('[aria-label="Open on site"]')).toBeNull();
+  await click("Publish");
+  await act(async () => {
+    await vi.waitFor(() =>
+      expect(host.querySelector(".editor-review")?.textContent).not.toContain(
+        "Waiting for the latest saved revision",
+      ),
+    );
+  });
+  expect(
+    fetcher.mock.calls.filter(([url]) => url.includes("/save")),
+  ).toHaveLength(1);
+  const publishNow = [...host.querySelectorAll("button")].find(
+    (button) => button.textContent?.trim() === "Publish now",
+  )!;
+  expect(publishNow.disabled).toBe(false);
+  expect(host.textContent).not.toContain("There are no changes to publish.");
+});

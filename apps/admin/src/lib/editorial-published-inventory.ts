@@ -17,14 +17,19 @@ export function overlayPublishedInventory(
   entries: InventoryEntry[],
   publications: PublishedSnapshot[],
 ) {
-  const result = new Map(
+  const result = new Map<string, InventoryEntry>(
     entries.map((entry) => {
       const record = inventoryIdentity(entry);
       return [
         record
           ? editorialRecordPath(record)
           : `${entry.collection}:${entry.id}`,
-        entry,
+        {
+          ...entry,
+          published: false,
+          publishedAt: undefined,
+          publicationId: undefined,
+        },
       ];
     }),
   );

@@ -3,6 +3,10 @@ export type EditorialField = {
   label: string;
   path: string[];
   rich?: boolean;
+  /** Explicit per-field markdown marker for source-preserving rich edits. */
+  formatPath?: string[];
+  /** Legacy homepage mentions belong only to the field that opts into them. */
+  mentionKeysPath?: string[];
   /** Visible characters the field allows; its counter shows near the end. */
   limit?: number;
 };
@@ -19,6 +23,13 @@ export function editorialFields(
   if (record.kind === "work") {
     const fields: EditorialField[] = [
       { label: "Title", path: ["title"] },
+      { label: "Card title", path: ["card_title"] },
+      {
+        label: "Compact card copy",
+        path: ["card_copy_compact"],
+        rich: true,
+        limit: 180,
+      },
       { label: "Subtitle", path: ["subtitle"], rich: true },
       { label: "Card copy", path: ["card_copy"], rich: true, limit: 180 },
       { label: "Description", path: ["description"], rich: true },
@@ -68,6 +79,14 @@ export function editorialFields(
       {
         label: "Subheading",
         path: ["sections", "intro", "subheading"],
+        formatPath: ["sections", "intro", "subheading_format"],
+        mentionKeysPath: ["sections", "intro", "mention_keys"],
+        rich: true,
+      },
+      {
+        label: "Compact subheading",
+        path: ["sections", "intro", "subheading_compact"],
+        formatPath: ["sections", "intro", "subheading_compact_format"],
         rich: true,
       },
       { label: "Work section label", path: ["sections", "past_work", "label"] },
@@ -91,6 +110,11 @@ export function editorialFields(
   const fields: EditorialField[] = [
     { label: "Heading", path: ["hero_title"] },
     { label: "Introduction", path: ["hero_summary"], rich: true },
+    {
+      label: "Compact introduction",
+      path: ["hero_summary_compact"],
+      rich: true,
+    },
     { label: "Search title", path: ["title"] },
     { label: "Search description", path: ["description"] },
   ];

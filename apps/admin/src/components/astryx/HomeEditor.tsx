@@ -49,6 +49,7 @@ import { ProjectSettings } from "./ProjectSettings";
 import { ArticleSettings } from "./ArticleSettings";
 import React, {
   useEffect,
+  useMemo,
   useId,
   useRef,
   useState,
@@ -281,6 +282,15 @@ function HomeEditorImpl({
   const query = new URLSearchParams(record).toString();
   const endpoint = (action: string) => `/api/editorial/${action}?${query}`;
   const [state, setState] = useState<SaveState | null>(null);
+  const parsedSource = useMemo(() => {
+    if (!state) return null;
+    try {
+      return parseEditorialSource(state.source);
+    } catch {
+      return null;
+    }
+  }, [state?.source]);
+
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState("");
   const [preflightIssues, setPreflightIssues] = useState<SnapshotIssue[]>([]);
@@ -885,11 +895,9 @@ function HomeEditorImpl({
     if (!refusalShown) setLeaveRefused(false);
   }, [refusalShown]);
   useEffect(() => {
-    if (!titled || !state) return;
+    if (!titled || !state || !parsedSource) return;
     try {
-      const title = String(
-        parseEditorialSource(state.source).document.get("title") ?? "",
-      );
+      const title = String(parsedSource.document.get("title") ?? "");
       setBarTitle(title || untitled);
       onTitleChange?.(title);
       document.title = `${title || untitled} | Admin`;
@@ -1009,6 +1017,39 @@ function HomeEditorImpl({
       cancelled = true;
     };
   }, [activatedVisibility]);
+  const reviewChanges = useMemo(() => {
+    if (tab !== "publish" || !reviewedDraft || !reviewedBase) return [];
+    const before = reviewedBase.source;
+    const after = reviewedDraft.source;
+    try {
+      const beforeParsed = parseEditorialSource(before);
+      const afterParsed = parseEditorialSource(after);
+      const reviewFields = editorialFields(record, afterParsed.data);
+      return [
+        ...reviewFields.map((field) => ({
+          label: field.label,
+          rich: field.rich,
+          onEdit: () => {
+            requestedEditingField.current = field.path.join(".");
+            setTab("edit");
+          },
+          before: String(beforeParsed.document.getIn(field.path) ?? ""),
+          after: String(afterParsed.document.getIn(field.path) ?? ""),
+        })),
+        ...(record.kind === "writing"
+          ? writingReviewChanges(before, after)
+          : structuredReviewChanges(before, after, reviewFields)),
+      ];
+    } catch {
+      return [];
+    }
+  }, [
+    tab,
+    reviewedDraft?.source,
+    reviewedBase?.source,
+    record.kind,
+    record.id,
+  ]);
   if (locked)
     return (
       <VStack gap={3}>
@@ -1050,7 +1091,8 @@ function HomeEditorImpl({
   let homepageWritingLimit = 3;
   const fieldErrors = new Map<string, string>();
   try {
-    const parsed = parseEditorialSource(state.source);
+    const parsed = parsedSource;
+    if (!parsed) throw new Error("invalid source");
     parseable = true;
     const metadata = parsed.data as Record<string, unknown>;
     projectSectionData = metadata;
@@ -1098,18 +1140,24 @@ function HomeEditorImpl({
       ]);
       if (typeof limit === "number" && Number.isInteger(limit) && limit > 0)
         homepageWritingLimit = limit;
-      const index = fields.findIndex((field) => field.rich);
-      values[index] = editableHomeSummary(
-        values[index] ?? "",
-        (parsed.data as { sections: { intro: { mention_keys?: string[] } } })
-          .sections.intro.mention_keys ?? [],
-        (parsed.data as { mentions: Parameters<typeof editableHomeSummary>[2] })
-          .mentions,
-        parsed.document.getIn(["sections", "intro", "subheading_format"]) ===
-          "markdown",
-      );
+      fields.forEach((field, index) => {
+        if (!field.formatPath) return;
+        values[index] = editableHomeSummary(
+          values[index] ?? "",
+          field.mentionKeysPath
+            ? ((parsed.document.getIn(field.mentionKeysPath) as
+                string[] | undefined) ?? [])
+            : [],
+          (
+            parsed.data as {
+              mentions: Parameters<typeof editableHomeSummary>[2];
+            }
+          ).mentions,
+          parsed.document.getIn(field.formatPath) === "markdown",
+        );
+      });
     }
-    const validation = validateEditorialSource(record, state.source);
+    const validation = validateEditorialSource(record, state.source, parsed);
     valid = validation.success;
     if (!validation.success)
       for (const issue of validation.error.issues)
@@ -1190,7 +1238,7 @@ function HomeEditorImpl({
       navigation === navigationGeneration.current &&
       controller === editor.current;
     try {
-      if (untouched) {
+      if (untouched && snapshot.base.publicationId) {
         setReviewedBase(snapshot.base);
         setReviewedDraft(null);
         return;
@@ -1396,18 +1444,17 @@ function HomeEditorImpl({
                   ? "Correct the marked fields before publishing."
                   : snapshot.draft?.discardedAt
                     ? "Recover this draft before publishing."
-                    : untouched
+                    : untouched && snapshot.base.publicationId
                       ? "There are no changes to publish."
                       : !reviewCurrent || reviewLoading
                         ? "Waiting for the latest saved revision to finish reviewing."
-                        : state.source === snapshot.base.source
+                        : state.source === snapshot.base.source &&
+                            snapshot.base.publicationId
                           ? "There are no changes to publish."
                           : null;
   // Visibility on the website follows the public base, not the private draft.
   // A record that was never public has nothing to take down.
-  const onWebsite =
-    typeof snapshot.base.baseFileHash === "string" ||
-    Boolean(snapshot.base.publicationId);
+  const onWebsite = Boolean(snapshot.base.publicationId);
   const basePublic = sourceIsPublic(record, snapshot.base.source);
   const directRecord = canUnpublish(record) && onWebsite;
   const hiddenFromSite = directRecord && !basePublic;
@@ -1672,7 +1719,7 @@ function HomeEditorImpl({
         ? "/"
         : `/${record.id}`
       : `/${record.kind}/${destinationId}`;
-  const onSite = record.kind === "page" || (onWebsite && basePublic);
+  const onSite = onWebsite && (record.kind === "page" || basePublic);
   const editPublicationIssue = (issue: SnapshotIssue) => {
     if (
       !issue.record ||
@@ -1753,7 +1800,10 @@ function HomeEditorImpl({
       publish={{
         label: hiddenFromSite ? "Publish again" : "Publish",
         isLoading: reviewLoading && tab === "publish",
-        isDisabled: !valid || discarded || untouched,
+        isDisabled:
+          !valid ||
+          discarded ||
+          (untouched && Boolean(snapshot.base.publicationId)),
         onClick: () => {
           setConfirmingUnpublish(false);
           setTab("publish");
@@ -1860,38 +1910,6 @@ function HomeEditorImpl({
       ]}
     />
   );
-  const reviewChanges = [
-    ...fields.flatMap((field) => {
-      try {
-        return [
-          {
-            label: field.label,
-            rich: field.rich,
-            onEdit: () => {
-              requestedEditingField.current = fieldKey(field);
-              setTab("edit");
-            },
-            before: String(
-              parseEditorialSource(snapshot.base.source).document.getIn(
-                field.path,
-              ) ?? "",
-            ),
-            after: String(
-              parseEditorialSource(reviewedSource).document.getIn(field.path) ??
-                "",
-            ),
-          },
-        ];
-      } catch {
-        return [];
-      }
-    }),
-    ...(record.kind === "writing" && parseable
-      ? writingReviewChanges(snapshot.base.source, reviewedSource)
-      : parseable
-        ? structuredReviewChanges(snapshot.base.source, reviewedSource, fields)
-        : []),
-  ];
   const showFields = tab === "edit" || tab === "publish";
   return (
     <VStack
@@ -2423,10 +2441,10 @@ function HomeEditorImpl({
                             field.path,
                             value,
                           );
-                          if (record.kind === "page" && record.id === "home")
+                          if (field.formatPath)
                             next = setEditorialField(
                               next,
-                              ["sections", "intro", "subheading_format"],
+                              field.formatPath,
                               "markdown",
                             );
                           editor.current!.edit(next);
@@ -2555,7 +2573,7 @@ function HomeEditorImpl({
                     resetGeneration={resetGeneration}
                     flushRef={bodyFlush}
                     onDirty={markDirty}
-                    value={parseEditorialSource(state.source).body}
+                    value={parsedSource?.body ?? ""}
                     disabled={discarded}
                     onChange={(body) => {
                       if (sessionLocked.current || !editor.current) return;
@@ -2869,7 +2887,7 @@ function HomeEditorImpl({
               <ReviewChanges
                 label="Changes"
                 destination={`anipotts.com${livePath}`}
-                before={snapshot.base.source}
+                before={reviewedBase?.source ?? snapshot.base.source}
                 after={reviewedSource}
                 changes={reviewChanges}
               />
