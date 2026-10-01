@@ -68,12 +68,69 @@ describe("responsive workspace navigation", () => {
           mode="light"
           changeTheme={changeTheme}
           localPreview
+          localOwner
         >
           <p>Record</p>
         </EditorialWorkspaceShell>,
       ),
     );
   }
+  it.each([false, true])(
+    "keeps the machine and Overview in the intended DOM order for collapsed=%s",
+    (collapsed) => {
+      vi.stubGlobal("__LOCAL_OWNER_BUILD__", true);
+      localStorage.setItem("admin:sidebar-collapsed", String(collapsed));
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: 1280,
+      });
+      render();
+      const machine = host.querySelector<HTMLElement>(
+        "[data-admin-local-owner]",
+      )!;
+      const overview = host.querySelector<HTMLElement>(
+        'a[data-sidebar-id="overview"]',
+      )!;
+      const search = host.querySelector<HTMLElement>(
+        ".editorial-header-search",
+      )!;
+      expect(machine).not.toBeNull();
+      expect(overview).not.toBeNull();
+      expect(
+        search.compareDocumentPosition(overview) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      if (collapsed) {
+        expect(
+          machine.parentElement?.classList.contains("admin-unified-nav"),
+        ).toBe(true);
+        expect(machine.previousElementSibling?.contains(overview)).toBe(true);
+        expect(
+          overview.compareDocumentPosition(machine) &
+            Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+        expect(machine.querySelector("a,button,[tabindex]")).toBeNull();
+        act(() => {
+          overview.focus();
+          overview.dispatchEvent(
+            new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+          );
+        });
+        expect(document.activeElement).toBe(
+          host.querySelector('a[data-sidebar-id="content:website"]'),
+        );
+      } else {
+        expect(
+          machine.parentElement?.classList.contains("editorial-identity-end"),
+        ).toBe(true);
+        expect(
+          machine.compareDocumentPosition(overview) &
+            Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+      }
+    },
+  );
+
   it.each([390, 640])(
     "shares appbar search, theme and unified drawer at %ipx",
     (width) => {

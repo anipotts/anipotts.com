@@ -1,4 +1,6 @@
 // @ts-check
+import { fileURLToPath } from "node:url";
+import { adminPreviewIdentity } from "../../scripts/dev/admin-preview-identity.mjs";
 import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
@@ -7,6 +9,7 @@ import { openaiScope } from "./src/styles/openai-scope.mjs";
 import { unified } from "@astrojs/markdown-remark";
 import { publishedHeadingIds } from "../www/src/lib/published-heading-ids.mjs";
 import icon from "astro-icon";
+import { previewIcons } from "./src/lib/preview-icons.mjs";
 import astroAdvisoryGuard from "../../config/astro/advisory-guard.mjs";
 import { publicContentHotReload } from "../../scripts/dev/public-content-hot-reload.mjs";
 import { editorialPublicAssets } from "../../scripts/dev/editorial-public-assets.mjs";
@@ -45,7 +48,7 @@ export default defineConfig({
   integrations: [
     astroAdvisoryGuard(),
     react(),
-    icon({ include: { ph: ["*"] } }),
+    icon({ include: previewIcons }),
     // Retired URLs answer 308 through the middleware, like any other route.
     retiredRoutes(),
     // The component catalog exists only under astro dev. A build never
@@ -82,6 +85,7 @@ export default defineConfig({
     },
     plugins: [
       tailwindcss(),
+      adminPreviewIdentity(fileURLToPath(new URL("../..", import.meta.url))),
       {
         // astro dev renders in workerd, whose console.createTask throws "not
         // implemented". React's development build calls it while its modules

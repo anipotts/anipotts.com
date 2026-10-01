@@ -140,6 +140,11 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   .editorial-workspace-shell {
     --admin-main-block-size: 100dvh;
   }
+  /* A complete panel perimeter uses the theme's quiet border colour. The
+     inset stays visible in light mode and restrained on the dark canvas. */
+  .editorial-workspace-shell #astryx-app-shell-main {
+    border: var(--border-width) solid var(--color-border);
+  }
   .editorial-workspace-shell[data-sidebar-collapsed="false"] {
     --admin-main-block-size: calc(100dvh - var(--spacing-3));
   }
@@ -414,5 +419,22 @@ body [data-astryx-theme]:not([data-astryx-media]) {
 @media (prefers-reduced-motion: reduce) {
   .editorial-workspace-shell #astryx-app-shell-main {
     transition: none;
+  }
+}
+
+/* In the collapsed rail every icon follows the same compact row rhythm,
+   including the in-flow machine mark immediately after Overview. */
+.editorial-workspace-nav .admin-unified-nav[data-rail="true"] {
+  gap: var(--spacing-0-5);
+}
+.admin-unified-nav[data-rail="true"] > .admin-local-owner {
+  width: var(--spacing-9);
+  height: var(--spacing-9);
+  align-self: center;
+}
+@media (pointer: coarse) {
+  .admin-unified-nav[data-rail="true"] > .admin-local-owner {
+    width: var(--spacing-11);
+    height: var(--spacing-11);
   }
 }

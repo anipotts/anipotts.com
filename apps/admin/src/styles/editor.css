@@ -3,95 +3,102 @@
    Shell and page frame rules live in shell.css. Media queries use the
    ranges in lib/breakpoints.ts: compact is (max-width: 640px). */
 
-/* The editor bar: one sticky row on every width. Back, the title on one
-   line, the save dot, then Preview, Publish and the overflow. It sits on the
-   canvas colour so text scrolling under it never shows through. */
+/* Desktop identity and commands share a sticky bar. On phones the identity
+   scrolls while the measured command row supplies the formatting offset. */
 .editor-bar {
   position: sticky;
   top: 0;
   z-index: 20;
-  display: flex;
   align-items: center;
-  gap: var(--spacing-2);
+  column-gap: var(--spacing-2);
+  row-gap: var(--spacing-1);
   min-width: 0;
   min-height: calc(var(--spacing-11) + var(--spacing-2));
+  padding-block: var(--spacing-1);
   background: var(--color-background-body);
 }
 .editor-bar-back {
   flex: 0 0 auto;
-  margin-inline-start: calc(-1 * var(--spacing-2));
 }
 .editor-bar-title {
-  flex: 1 1 auto;
+  flex: 1 1 calc(var(--spacing-8) * 3);
   min-width: 0;
-  container: editor-bar-title / inline-size;
 }
-/* The title ends after a whole word (WordSafeText). */
 .editor-bar-title h1 {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
   font-size: var(--text-body-size);
   font-weight: var(--font-weight-semibold);
   line-height: var(--spacing-6);
 }
-/* Where not even its first word fits, the title is read, not drawn: the
-   title field under the bar shows it whole. The container query covers
-   the first paint; the bar's own measure covers a longer first word. */
-@container editor-bar-title (max-width: 5rem) {
-  h1 {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-}
-.editor-bar-title[data-fit="none"] h1 {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
 .editor-bar-actions {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: var(--spacing-1);
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
   margin-inline-start: auto;
 }
-/* The save dot: a fixed square so its state never moves the bar. */
-.editor-save-status {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  width: var(--spacing-4);
-  height: var(--spacing-4);
+.editor-bar .astryx-button:not(#\#),
+.editor-bar .astryx-toggle-button:not(#\#) {
+  min-height: var(--spacing-9);
+  min-width: var(--spacing-9);
 }
-/* On a phone the bar is the top of the page: it takes the status bar's
-   inset, and the shell leaves out its top bar and tab row for a record page
-   (EditorialWorkspaceShell recordPage). */
+.editor-save-status {
+  flex: 0 0 auto;
+  min-height: var(--spacing-4);
+}
+.editor-save-label {
+  line-height: var(--spacing-6);
+}
+.editor-save-status[data-show-label="false"] {
+  width: var(--spacing-4);
+}
+/* The phone identity scrolls normally. Only its compact command row sticks
+   below the shared appbar, and formatting uses the measured command height. */
+.editor-bar-identity {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+@media (max-width: 640px), (pointer: coarse) {
+  .editor-bar .astryx-button:not(#\#),
+  .editor-bar .astryx-toggle-button:not(#\#),
+  .editor-bar [data-writing-control]:not(#\#) {
+    min-height: var(--spacing-11);
+    min-width: var(--spacing-11);
+  }
+}
 @media (max-width: 640px) {
   .editor-bar {
-    top: 0;
-    padding-block-start: env(safe-area-inset-top, 0px);
-    margin-block-start: calc(-1 * var(--spacing-3));
+    display: contents;
   }
-  /* The bar's end glyphs sit on the 12px gutter, like the text below them;
-     their 44px targets reach inward instead of past the gutter. */
-  .editor-bar-back:not(#\#) {
-    margin-inline-start: 0;
-    padding-inline-start: 0;
-    justify-content: flex-start;
+  .editor-bar-identity {
+    width: 100%;
+    align-items: flex-start;
   }
-  .editor-bar-actions > .astryx-button[aria-haspopup="dialog"]:not(#\#),
-  .record-panel-sheet button[aria-label^="Close"]:not(#\#) {
-    padding-inline-end: 0;
+  .editor-bar-title h1 {
+    overflow-wrap: anywhere;
+  }
+  .editor-bar-actions {
+    position: sticky;
+    top: var(--admin-appbar-height, 0px);
+    z-index: 20;
+    align-self: stretch;
     justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: var(--spacing-1);
+    min-height: var(--spacing-11);
+    margin-inline-start: 0;
+    background: var(--color-background-body);
+  }
+  .editor-bar-actions > :is(button, a) {
+    flex-shrink: 0;
+    min-height: var(--spacing-11);
+    min-width: var(--spacing-11);
+  }
+  .editor-bar-actions .astryx-button:not(#\#),
+  .editor-bar-actions .astryx-toggle-button:not(#\#) {
+    padding-inline: var(--spacing-2);
+  }
+  .editor-bar-actions :is(button, a):has(svg):not(:has([data-loading])) {
+    padding-inline: var(--spacing-1);
   }
 }
 /* The phone sheets lift on their shadow alone, with no outline. */
@@ -182,8 +189,8 @@
   }
 }
 
-/* Rich fields: the words first, the formatting row under them only while
-   the field has focus. */
+/* Rich-field formatting stays above its text at every width. Focus changes
+   selection and controls, never the field's geometry or toolbar position. */
 .rich-field,
 .rich-field-surface,
 .rich-writing {
@@ -194,16 +201,12 @@
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-element);
   background: var(--color-background-surface);
-  overflow: hidden;
+  overflow: clip;
 }
 .document-subtitle .rich-field-surface {
   border: 0;
   background: transparent;
   overflow: visible;
-}
-.rich-field-surface:not(:focus-within):not([data-toolbar-open])
-  .document-editor-toolbar {
-  display: none;
 }
 .rich-writing .tiptap {
   padding: var(--spacing-3);
@@ -240,30 +243,46 @@
 .rich-writing u {
   text-underline-offset: 0.2em;
 }
+/* Match the published InlineMention geometry, rather than the control radius. */
+.rich-field,
+.editor-inline-icon {
+  --editor-inline-icon-radius: 0.19em;
+  --editor-inline-icon-size: 0.92em;
+}
 .rich-writing .inline-image {
   display: inline-block;
-  width: 1em;
-  height: 1em;
+  width: var(--editor-inline-icon-size);
+  height: var(--editor-inline-icon-size);
   margin: 0 0.15em 0 0;
   vertical-align: -0.1em;
   object-fit: contain;
-  border-radius: var(--radius-inner);
+  border-radius: var(--editor-inline-icon-radius);
 }
-.rich-writing .inline-image-wide {
+.editor-inline-icon {
+  border-radius: var(--editor-inline-icon-radius);
+}
+.rich-writing .inline-image-wide,
+.editor-inline-icon.inline-image-wide {
   width: 1.24em;
+  border-radius: 0;
 }
-.rich-writing .inline-image-mark {
+.rich-writing .inline-image-mark,
+.editor-inline-icon.inline-image-mark {
+  border-radius: 0;
   width: 1.08em;
   height: 1.08em;
 }
-.rich-writing .inline-image-white {
+.rich-writing .inline-image-white,
+.editor-inline-icon.inline-image-white {
   filter: brightness(0) invert(1);
 }
-html[data-theme="light"] .rich-writing .inline-image-white {
+html[data-theme="light"] .rich-writing .inline-image-white,
+html[data-theme="light"] .editor-inline-icon.inline-image-white {
   filter: brightness(0);
 }
 @media (prefers-color-scheme: light) {
-  html:not([data-theme="dark"]) .rich-writing .inline-image-white {
+  html:not([data-theme="dark"]) .rich-writing .inline-image-white,
+  html:not([data-theme="dark"]) .editor-inline-icon.inline-image-white {
     filter: brightness(0);
   }
 }
@@ -335,9 +354,8 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   margin-block-start: var(--spacing-3);
 }
 
-/* Writing toolbars: one row of 36px controls (44px on touch). On desktop
-   the body's row holds under the editor bar while you write. Undo and redo
-   stay on the keyboard where touch has its own. */
+/* Writing toolbars stay above their fields with wrapping 36px controls,
+   enlarged to 44px on mobile and touch. Undo and redo stay available. */
 .document-editor-toolbar,
 .document-editor-toolbar [role="toolbar"],
 .editor-toolbar-controls {
@@ -352,7 +370,7 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   padding: 0;
 }
 .editor-toolbar-controls {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: var(--spacing-1);
 }
 .editor-toolbar-group {
@@ -363,16 +381,13 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   padding-block: var(--spacing-1);
   background: var(--color-background-body);
 }
-/* Beside the sidebar the first control's glyph lines up with the text
-   column, as the editor bar's back glyph does. */
-@media (min-width: 641px) {
-  .article-composer > .document-editor-toolbar {
-    margin-inline-start: calc(-1 * var(--spacing-2));
-  }
-}
-.article-composer > .document-editor-toolbar {
+.article-composer > .document-editor-toolbar,
+.rich-field-surface > .document-editor-toolbar {
   position: sticky;
-  top: calc(var(--spacing-11) + var(--spacing-2));
+  top: calc(
+    var(--admin-appbar-height, 0px) +
+      var(--editor-bar-height, var(--spacing-11))
+  );
   z-index: 10;
 }
 .document-editor-toolbar .astryx-button,
@@ -381,59 +396,14 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   min-height: var(--spacing-9);
   min-width: var(--spacing-9);
 }
-@media (pointer: coarse) {
+@media (max-width: 640px), (pointer: coarse) {
   .document-editor-toolbar .astryx-button,
   .document-editor-toolbar .astryx-toggle-button,
   .document-editor-toolbar [aria-haspopup="menu"] {
     min-height: var(--spacing-11);
     min-width: var(--spacing-11);
   }
-  .editor-history-tools {
-    display: none;
-  }
 }
-/* On a phone a toolbar exists only while its field is being written in or
-   one of its menus or panels is open (data-toolbar-open), and then docks
-   above the keyboard (lib/keyboard-inset.ts sets the inset from the visual
-   viewport). The article keeps the docked toolbar's height free at its end,
-   so its last line can scroll above the toolbar. */
-@media (max-width: 640px) {
-  .article-composer {
-    --editor-dock-end: max(
-      var(--spacing-1),
-      calc(env(safe-area-inset-bottom, 0px) - var(--keyboard-inset, 0px))
-    );
-  }
-  .article-composer:not(:focus-within):not([data-toolbar-open])
-    > .document-editor-toolbar {
-    display: none;
-  }
-  .article-composer:is(:focus-within, [data-toolbar-open])
-    > .document-editor-toolbar,
-  .rich-field-surface:is(:focus-within, [data-toolbar-open])
-    .document-editor-toolbar {
-    position: fixed;
-    inset-inline: 0;
-    top: auto;
-    bottom: var(--keyboard-inset, 0px);
-    z-index: 40;
-    padding-inline: var(--admin-gutter, var(--spacing-3));
-    padding-block-end: max(
-      var(--spacing-1),
-      calc(env(safe-area-inset-bottom, 0px) - var(--keyboard-inset, 0px))
-    );
-  }
-  .article-composer:is(:focus-within, [data-toolbar-open]) {
-    padding-block-end: calc(
-      var(--spacing-11) + var(--spacing-1) + var(--editor-dock-end) +
-        var(--keyboard-inset, 0px)
-    );
-  }
-  .article-word-count {
-    display: none;
-  }
-}
-
 /* Tags: chips with their own remove targets. */
 .editor-tag {
   display: inline-flex;

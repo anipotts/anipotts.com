@@ -163,6 +163,7 @@ export function IconButton(props: ComponentProps<typeof LegacyIconButton>) {
   const control = href ? (
     <ButtonLink
       pill={false}
+      data-uniform=""
       {...common}
       href={href}
       ref={props.ref as React.Ref<HTMLAnchorElement>}

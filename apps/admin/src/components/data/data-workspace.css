@@ -27,40 +27,20 @@
   gap: var(--spacing-2);
   min-width: 0;
 }
-.data-chips {
+/* Filters wrap at every width so all choices stay directly visible. */
+.data-chips,
+.data-chips [role="group"] {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--spacing-2);
   min-width: 0;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
 }
-.data-chips::-webkit-scrollbar {
-  display: none;
-}
-.data-chips > * {
-  flex: 0 0 auto;
+.data-chips > [role="group"] {
+  flex: 1 1 auto;
 }
 .data-chips .astryx-button {
   white-space: nowrap;
-}
-/* Beside a phone's edge the chips scroll; wider, they wrap under the
-   search, so no chip is ever cut at the row's end. */
-@media (min-width: 641px) {
-  .data-chips,
-  .data-chips [role="group"] {
-    flex-wrap: wrap;
-    row-gap: var(--spacing-2);
-  }
-  .data-chips {
-    overflow-x: visible;
-  }
-  .data-chips > [role="group"] {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
 }
 /* Chips sit on the badge's neutral fill; a chosen chip takes the accent.
    The fill is id-weighted to beat the button's own, so hover, press and
@@ -96,14 +76,6 @@
     var(--color-overlay-pressed),
     var(--color-overlay-pressed)
   );
-}
-/* On phones the chip row runs to the screen edges, like the list below. */
-@media (max-width: 640px) {
-  .data-chips {
-    margin-inline: calc(-1 * var(--admin-gutter, 0px));
-    padding-inline: var(--admin-gutter, 0px);
-    scroll-padding-inline: var(--admin-gutter, 0px);
-  }
 }
 .data-chip-text {
   display: inline-flex;

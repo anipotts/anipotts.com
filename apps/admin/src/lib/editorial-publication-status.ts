@@ -1,3 +1,4 @@
+import type { SnapshotIssue } from "@anipotts/content/editorial/snapshot";
 import type { EditorialRecord } from "@anipotts/content/editorial/record";
 
 export type StartDirectPublication = {
@@ -30,6 +31,8 @@ export type DirectPublicationStatus = {
   lease: string | null;
   leaseUntil: number;
   blocked: string | null;
+  /** Bounded owner-only diagnostics, without authored values or parser errors. */
+  issues?: SnapshotIssue[];
   checkpoint: Record<string, string>;
   canCancel: boolean;
   /** Per-record pending count and the actual persisted DO alarm. */

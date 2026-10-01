@@ -292,7 +292,8 @@ export function createOpsStatusController(options: OpsStatusOptions) {
   const pollMs = options.pollMs ?? OPS_POLL_MS;
   const timeoutMs = options.timeoutMs ?? OPS_READ_TIMEOUT_MS;
   const listeners = new Set<() => void>();
-  const withEvents = options.events === true;
+  let withEvents = options.events === true;
+  let disposed = false;
   const eventsPollMs = options.eventsPollMs ?? OPS_EVENTS_POLL_MS;
   const eventsWait =
     options.eventsWaitS === undefined ? OPS_EVENTS_WAIT_S : options.eventsWaitS;
@@ -643,11 +644,13 @@ export function createOpsStatusController(options: OpsStatusOptions) {
     },
     /** Starts polling. Also the owner's "Try again". */
     start() {
+      if (disposed) return;
       running = true;
       if (!inflight) schedule(0);
     },
     /** Pauses on hide; on show, reads now if the last read is due. */
     visibilityChanged() {
+      if (disposed) return;
       if (isHidden()) {
         if (timer !== null) clearTimer(timer);
         timer = null;
@@ -666,10 +669,22 @@ export function createOpsStatusController(options: OpsStatusOptions) {
       session.logout();
       stop("ended");
     },
+    /** Event polling follows current consumer demand, using the same session. */
+    setEventsEnabled(enabled: boolean) {
+      if (disposed || withEvents === enabled) return;
+      withEvents = enabled;
+      cancelEvents();
+      eventsRead = false;
+      shortHolds = 0;
+      set({ events: enabled ? EMPTY_EVENT_LOG : null, eventsStale: false });
+      if (enabled) scheduleEvents(0);
+    },
     dispose() {
+      if (disposed) return;
+      disposed = true;
       unsubscribe();
-      running = false;
-      cancel();
+      stop("ended");
+      listeners.clear();
     },
   };
 }

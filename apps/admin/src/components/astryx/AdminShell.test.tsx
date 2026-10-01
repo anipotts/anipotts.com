@@ -12,7 +12,7 @@ const shell = (route: string) => (
 );
 
 describe("shared Data and Observability shell", () => {
-  it("renders the shared identity and one sidebar with Content, Data and Observability", () => {
+  it("renders the shared appbar identity and unified sidebar and drawer navigation", () => {
     const host = document.createElement("div");
     host.innerHTML = renderToStaticMarkup(shell("/observability/status"));
     expect(
@@ -35,6 +35,12 @@ describe("shared Data and Observability shell", () => {
       expect(wordmark.getAttribute("href")).toBe("/");
       expect(wordmark.getAttribute("aria-label")).toBe("Overview");
     }
+    expect(host.querySelector(".admin-phone-identity")?.textContent).toBe(
+      "Observability",
+    );
+    expect(
+      host.querySelector('dialog[aria-label="Admin navigation"]'),
+    ).not.toBeNull();
     const navigation = host.querySelector(".admin-unified-nav")!;
     expect(
       [...navigation.querySelectorAll("[data-sidebar-group]")].map(

@@ -50,7 +50,10 @@ it("keeps current-revision persistence evidence visible and separate from public
 });
 it("retains legacy controls outside the pilot", () => {
   show(<SaveStatus state="saved-locally" />, false);
-  expect(host.querySelector(".sr-only")?.textContent).toBe("Saved locally");
+  expect(host.querySelector(".sr-only")).toBeNull();
+  expect(host.querySelector('[role="status"]')?.textContent).toBe(
+    "Saved locally",
+  );
   expect(host.querySelector('[data-admin-ui="openai"]')).toBeNull();
 });
 it("preserves grouped editor formatting commands and pressed state", () => {
@@ -277,6 +280,7 @@ it("preserves the separate browsing context on public icon links", () => {
   const link = host.querySelector("a")!;
   expect(link.target).toBe("_blank");
   expect(link.rel).toBe("noopener noreferrer");
+  expect(link.hasAttribute("data-uniform")).toBe(true);
 });
 
 it("associates field guidance and replaces it with the validation message", () => {

@@ -1,7 +1,7 @@
-import { useOpenAIUI } from "../workspace/AdminUI";
-import { Badge } from "@openai/apps-sdk-ui/components/Badge";
 import React from "react";
 import type { SaveState } from "../../lib/home-autosave";
+import { HStack } from "@astryxdesign/core/HStack";
+import { Text } from "@astryxdesign/core/Text";
 import { StatusDot } from "@astryxdesign/core/StatusDot";
 
 export type SaveStatusState =
@@ -35,6 +35,7 @@ export type SaveStatusProps = {
    * This component does not infer persistence from time, connectivity or mode.
    */
   state: SaveStatusState;
+  showLabel?: boolean;
   /** ID of an existing explanation or recovery message, when applicable. */
   describedBy?: string;
 };
@@ -58,48 +59,42 @@ export function saveStatusFromController(
   return localPreview ? "saved-locally" : "saved-privately";
 }
 
-/** Persistence status only, as one dot in the editor bar. Its label is
- * spoken on every change and shown on hover; at rest nothing is drawn.
- * Publication and public verification are separate. */
-export function SaveStatus({ state, describedBy }: SaveStatusProps) {
+/** Visible persistence evidence for the current draft. Publication and
+ * public verification are separate. Compact callers may hide the label. */
+export function SaveStatus({
+  state,
+  describedBy,
+  showLabel = true,
+}: SaveStatusProps) {
   const { label, variant } = states[state];
-  const openAI = useOpenAIUI();
   return (
-    <span
+    <HStack
       role="status"
       aria-label="Draft save status"
       aria-live="polite"
       aria-atomic="true"
       aria-describedby={describedBy}
       className="editor-save-status"
+      gap={1}
+      vAlign="center"
+      data-show-label={showLabel ? "true" : "false"}
       data-save-state={state}
-      title={label}
     >
-      {openAI ? (
-        <Badge
-          color={
-            variant === "error"
-              ? "danger"
-              : variant === "warning"
-                ? "warning"
-                : variant === "success"
-                  ? "success"
-                  : "secondary"
-          }
-        >
-          {label}
-        </Badge>
-      ) : (
-        state !== "unchanged" && (
-          <StatusDot
-            variant={variant}
-            label={label}
-            aria-hidden="true"
-            isPulsing={state === "saving"}
-          />
-        )
+      {state !== "unchanged" && (
+        <StatusDot
+          variant={variant}
+          label={label}
+          aria-hidden="true"
+          isPulsing={state === "saving"}
+        />
       )}
-      {!openAI && <span className="sr-only">{label}</span>}
-    </span>
+      <Text
+        type="supporting"
+        color="secondary"
+        className={showLabel ? "editor-save-label" : "sr-only"}
+      >
+        {label}
+      </Text>
+    </HStack>
   );
 }

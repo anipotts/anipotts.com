@@ -42,3 +42,18 @@ it("fails closed on an invalid published record", () => {
     overlayPublishedInventory([], [{ ...published("bad"), source: "invalid" }]),
   ).toThrow();
 });
+
+it("retains authorable seeds without inferring publication from their visible metadata", () => {
+  const entries = overlayPublishedInventory(
+    [
+      {
+        collection: "writing",
+        id: "seed",
+        data: { status: "published", slug: "seed" },
+      },
+    ],
+    [],
+  );
+  expect(entries[0]).toMatchObject({ published: false });
+  expect(entries[0].publicationId).toBeUndefined();
+});

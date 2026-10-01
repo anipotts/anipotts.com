@@ -2,7 +2,7 @@
 import { runtimeEnv } from "../../lib/runtime-env";
 import { applyEditorialPreviewContext } from "../../lib/editorial-preview-context";
 applyEditorialPreviewContext(Astro.locals);
-import { readEditorialSnapshot } from "../../lib/editorial-snapshot-read";
+import { readEditorialPreviewSource } from "../../lib/editorial-preview-source";
 import { previewFailure } from "../../lib/preview-status";
 import { renderArticlePreview } from "../../lib/article-preview";
 import { getEntry } from "astro:content";
@@ -36,25 +36,30 @@ const parsedRecord = editorialRecordSchema.safeParse({
 });
 if (!parsedRecord.success) return previewFailure(Astro.url, "unavailable", 400);
 const record = parsedRecord.data;
-const snapshot = await readEditorialSnapshot(async () => {
-  const storage = productionEditor(runtimeEnv())?.storage;
-  if (!storage) throw new Error("storage_unavailable");
-  return storage.get(record);
+const snapshot = await readEditorialPreviewSource(Astro.url, {
+  draft: async () => {
+    const editor = productionEditor(runtimeEnv());
+    if (!editor) throw new Error("storage_unavailable");
+    return editor.storage.get(record);
+  },
+  baseline: async () => {
+    const editor = productionEditor(runtimeEnv());
+    if (!editor) throw new Error("storage_unavailable");
+    return editor.readBase(record);
+  },
 });
-if (snapshot.status === "unavailable")
-  return previewFailure(Astro.url, "unavailable", 503);
-const draft = snapshot.status === "found" ? snapshot.draft : null;
-if (
-  !draft ||
-  draft.discardedAt ||
-  String(draft.revision) !== Astro.url.searchParams.get("revision")
-)
-  return previewFailure(Astro.url, "stale", 409);
+if (snapshot.status !== "found")
+  return previewFailure(
+    Astro.url,
+    snapshot.status,
+    snapshot.status === "stale" ? 409 : 503,
+  );
 let data: unknown;
 let body = "";
 try {
-  if (!validateEditorialSource(record, draft.source).success) throw new Error();
-  const parsed = parseEditorialSource(draft.source);
+  if (!validateEditorialSource(record, snapshot.source).success)
+    throw new Error();
+  const parsed = parseEditorialSource(snapshot.source);
   data = parsed.data;
   body = parsed.body;
 } catch {

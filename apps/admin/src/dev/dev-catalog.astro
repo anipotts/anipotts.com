@@ -54,7 +54,7 @@ const kit = fixture === "kit" ? await loadShellFixtures(Astro.url) : undefined;
         source={kit.replay ? "replay" : "sample"}
       />
     ) : (
-      <DevReviewCatalog client:load />
+      <DevReviewCatalog client:load publication={fixture === "publication"} />
     )
   }
 </EditorialLayout>

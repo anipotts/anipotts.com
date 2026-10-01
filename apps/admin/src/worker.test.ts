@@ -192,6 +192,94 @@ describe("hashed build output", () => {
   });
 });
 
+describe("development public assets", () => {
+  const paths = [
+    "/admin-bracket.svg",
+    "/apple-touch-icon.png",
+    "/favicon.svg",
+    "/favicon-light.svg",
+    "/favicon-dark.svg",
+    "/favicon-light-32.png",
+    "/favicon-dark-32.png",
+    "/favicon-16x16.png",
+    "/favicon-32x32.png",
+    "/manifest.webmanifest",
+  ];
+
+  it.each(paths)(
+    "forwards GET and HEAD for %s, retaining queries and validators",
+    async (path) => {
+      vi.stubEnv("DEV", true);
+      const worker = await freshWorker();
+      const assets = {
+        fetch: vi.fn(
+          async (request: Request) =>
+            new Response(request.method === "HEAD" ? null : "public asset", {
+              headers: { ETag: '"synthetic"', "Cache-Control": "no-cache" },
+            }),
+        ),
+      };
+      for (const method of ["GET", "HEAD"]) {
+        const request = new Request(
+          `http://localhost:4311${path}?v=synthetic`,
+          {
+            method,
+            headers: { "If-None-Match": '"previous"' },
+          },
+        );
+        const response = await worker.default.fetch(
+          request as never,
+          { ASSETS: assets } as never,
+          context as never,
+        );
+        expect(assets.fetch).toHaveBeenLastCalledWith(request);
+        expect(response.status).toBe(200);
+        expect(response.headers.get("etag")).toBe('"synthetic"');
+        expect(response.headers.get("cache-control")).toBe("no-cache");
+        expect(await response.text()).toBe(
+          method === "HEAD" ? "" : "public asset",
+        );
+      }
+      expect(inner.fetch).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(paths)("retains production adapter routing for %s", async (path) => {
+    const worker = await freshWorker();
+    const assets = { fetch: vi.fn() };
+    await worker.default.fetch(
+      new Request(`https://admin.anipotts.com${path}`) as never,
+      { ASSETS: assets } as never,
+      context as never,
+    );
+    expect(assets.fetch).not.toHaveBeenCalled();
+    expect(inner.fetch).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["POST", "/admin-bracket.svg"],
+    ["PUT", "/manifest.webmanifest"],
+    ["GET", "/_headers"],
+    ["GET", "/missing.svg"],
+    ["GET", "/admin-bracket.svg/extra"],
+    ["GET", "/private/admin-bracket.svg"],
+    ["GET", "/admin-bracket.svg.json"],
+    ["GET", "/manifest.webmanifest.json"],
+    ["GET", "/api/editorial/media?id=synthetic"],
+  ])("leaves %s %s with the adapter", async (method, path) => {
+    vi.stubEnv("DEV", true);
+    const worker = await freshWorker();
+    const assets = { fetch: vi.fn() };
+    await worker.default.fetch(
+      new Request(`http://localhost:4311${path}`, { method }) as never,
+      { ASSETS: assets } as never,
+      context as never,
+    );
+    expect(assets.fetch).not.toHaveBeenCalled();
+    expect(inner.fetch).toHaveBeenCalledOnce();
+  });
+});
+
 describe("origin admission before every Worker branch", () => {
   it.each([
     "/",
@@ -206,6 +294,8 @@ describe("origin admission before every Worker branch", () => {
     "/_astro/app.Ab12.js",
     "/@vite/client",
     "/src/private.ts",
+    "/admin-bracket.svg",
+    "/manifest.webmanifest",
   ])(
     "refuses alternate origin %s before assets, adapter or diagnostic reads",
     async (path) => {

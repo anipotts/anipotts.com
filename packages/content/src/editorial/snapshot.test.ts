@@ -117,11 +117,12 @@ describe("complete editorial inventory validation", () => {
         ? { ...e, source: setEditorialField(e.source, ["slug"], "duplicate") }
         : e,
     );
-    expect(
-      validateEditorialSnapshot(collision).some(
-        (i) => i.code === "invalid_content_reference",
-      ),
-    ).toBe(true);
+    for (const essay of essays.slice(0, 2))
+      expect(validateEditorialSnapshot(collision)).toContainEqual({
+        record: essay.record,
+        field: "slug",
+        code: "duplicate_slug",
+      });
     const missing = entries.map((e) =>
       e.record.kind === "page" && e.record.id === "home"
         ? {
@@ -134,10 +135,35 @@ describe("complete editorial inventory validation", () => {
           }
         : e,
     );
-    expect(
-      validateEditorialSnapshot(missing).some(
-        (i) => i.code === "invalid_content_reference",
-      ),
-    ).toBe(true);
+    expect(validateEditorialSnapshot(missing)).toContainEqual({
+      record: { kind: "page", id: "home" },
+      field: "sections.latest_thoughts.writing_slugs.0",
+      code: "featured_writing_unavailable",
+    });
+  });
+  it("identifies the writing field with an unknown project without exposing its value", () => {
+    const entries = inventory();
+    const essay = entries.find((entry) => entry.record.kind === "writing")!;
+    const changed = entries.map((entry) =>
+      entry === essay
+        ? {
+            ...entry,
+            source: setEditorialField(
+              entry.source,
+              ["project"],
+              "private-missing-project",
+            ),
+          }
+        : entry,
+    );
+    const issues = validateEditorialSnapshot(changed);
+    expect(issues).toEqual([
+      {
+        record: essay.record,
+        field: "project",
+        code: "unknown_project_reference",
+      },
+    ]);
+    expect(JSON.stringify(issues)).not.toContain("private-missing-project");
   });
 });

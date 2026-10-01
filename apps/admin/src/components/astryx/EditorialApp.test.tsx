@@ -320,6 +320,7 @@ it("keeps shared phone navigation alongside record editor controls without retir
     groups: [{ name: "writing", href: "/content/writing", records }],
   });
   expect(library).toContain("admin-phone-bar");
+  expect(library).toContain("admin-navigation-drawer");
   expect(library).not.toContain("admin-phone-pages");
   expect(library).toContain('aria-label="Open navigation"');
   for (const record of [
@@ -328,6 +329,7 @@ it("keeps shared phone navigation alongside record editor controls without retir
   ]) {
     expect(record).toContain("editor-bar");
     expect(record).toContain("admin-phone-bar");
+    expect(record).toContain("admin-navigation-drawer");
     expect(record).toContain('data-record-page="true"');
     expect(record).toContain('aria-label="Open navigation"');
     expect(record).not.toContain("admin-phone-pages");

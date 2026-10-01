@@ -9,6 +9,7 @@ import {
   getPublished,
   listPublished,
   getPublishedInventory,
+  getPublishedRecord,
   getPublishedInventoryVersion,
   listPublicationHistory,
   getDirectReceipt,
@@ -412,4 +413,37 @@ it("runs the checked-in empty and populated migration proof during package tests
   expect(
     execFileSync(process.execPath, [script], { encoding: "utf8" }),
   ).toContain("CONTENT_DB migration proof passed");
+});
+
+it("pins one record and version without decoding unrelated corrupt publications", async () => {
+  await publishDirect(db, initial);
+  sqlite
+    .prepare(
+      `INSERT INTO editorial_published_revisions
+    (publication_id,record_kind,record_id,source,revision,source_sha256,published_at,expected_inventory_version,content_schema_version)
+    VALUES ('corrupt','writing','unrelated','invalid',1,?, ?,1,1)`,
+    )
+    .run("0".repeat(64), initial.publishedAt);
+  sqlite.exec(
+    "INSERT INTO editorial_published_active VALUES ('writing','unrelated','corrupt')",
+  );
+  const proof = await getPublishedRecord(db, initial.record);
+  expect(proof.version).toBe(1);
+  expect(proof.publication?.publicationId).toBe(initial.operationId);
+  expect(
+    await getPublishedRecord(db, { kind: "writing", id: "absent" }),
+  ).toEqual({ version: 1, publication: null });
+  await expect(getPublishedInventory(db)).rejects.toThrow();
+  await expect(
+    getPublishedRecord(db, { kind: "writing", id: "unrelated" }),
+  ).rejects.toThrow();
+});
+it("rejects an identity pointer to another record in the atomic record proof", async () => {
+  await publishDirect(db, initial);
+  sqlite.exec(
+    "UPDATE editorial_published_active SET record_id = 'other' WHERE record_id = 'hello'",
+  );
+  await expect(
+    getPublishedRecord(db, { kind: "writing", id: "other" }),
+  ).rejects.toThrow("invalid_published_snapshot");
 });
