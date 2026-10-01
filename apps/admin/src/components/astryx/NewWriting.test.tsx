@@ -3,6 +3,9 @@ import { jsonResponse } from "../../lib/test-json-response";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+// Transform the shared SDK/Astryx graph during collection, before timed setup.
+import "./NewWriting";
+let AdminUIProvider: typeof import("../workspace/AdminUI").AdminUIProvider;
 let NewWriting: typeof import("./NewWriting").NewWriting;
 import { RECORD_CREATED_EVENT } from "../../lib/editorial-inventory-events";
 import {
@@ -16,7 +19,11 @@ let host: HTMLDivElement;
 let root: Root;
 async function render(scope = "owner") {
   await act(async () => {
-    root.render(<NewWriting recoveryScope={scope} />);
+    root.render(
+      <AdminUIProvider enabled mode="light">
+        <NewWriting recoveryScope={scope} />
+      </AdminUIProvider>,
+    );
   });
 }
 /** The title: the create page's first, large field. */
@@ -33,6 +40,7 @@ async function type(value: string) {
 }
 beforeEach(async () => {
   vi.resetModules();
+  ({ AdminUIProvider } = await import("../workspace/AdminUI"));
   ({ NewWriting } = await import("./NewWriting"));
   // The title grows with its text.
   vi.stubGlobal(

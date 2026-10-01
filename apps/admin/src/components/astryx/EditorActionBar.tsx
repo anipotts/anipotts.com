@@ -1,13 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
+import { AdminPortalScope } from "../workspace/AdminUI";
 import { BottomSheet } from "@astryxdesign/core/BottomSheet";
-import { Button } from "@astryxdesign/core/Button";
-import { DropdownMenu } from "@astryxdesign/core/DropdownMenu";
+import {
+  Button,
+  DropdownMenu,
+  IconButton,
+  ToggleButton,
+} from "./WritingControls";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Heading } from "@astryxdesign/core/Heading";
-import { IconButton } from "@astryxdesign/core/IconButton";
 import { Text } from "@astryxdesign/core/Text";
 import { useTooltip } from "@astryxdesign/core/Tooltip";
-import { ToggleButton } from "@astryxdesign/core/ToggleButton";
 import { VStack } from "@astryxdesign/core/VStack";
 import {
   CaretLeftIcon,
@@ -286,39 +289,41 @@ export function EditorActionBar({
           height="hug"
           className="editor-action-sheet"
         >
-          <VStack gap={4} padding={3}>
-            {sections.map((section, index) => (
-              <VStack
-                key={section.title ?? index}
-                gap={0}
-                role="group"
-                aria-label={section.title}
-              >
-                {section.title && (
-                  <Text
-                    type="supporting"
-                    color="secondary"
-                    className="editor-action-sheet-title"
-                  >
-                    {section.title}
-                  </Text>
-                )}
-                {section.items.map((item) => (
-                  <Button
-                    key={item.label}
-                    label={item.label}
-                    variant="ghost"
-                    className="editor-action-sheet-item"
-                    isDisabled={item.isDisabled}
-                    onClick={() => {
-                      setSheet(false);
-                      item.onClick();
-                    }}
-                  />
-                ))}
-              </VStack>
-            ))}
-          </VStack>
+          <AdminPortalScope>
+            <VStack gap={4} padding={3}>
+              {sections.map((section, index) => (
+                <VStack
+                  key={section.title ?? index}
+                  gap={0}
+                  role="group"
+                  aria-label={section.title}
+                >
+                  {section.title && (
+                    <Text
+                      type="supporting"
+                      color="secondary"
+                      className="editor-action-sheet-title"
+                    >
+                      {section.title}
+                    </Text>
+                  )}
+                  {section.items.map((item) => (
+                    <Button
+                      key={item.label}
+                      label={item.label}
+                      variant="ghost"
+                      className="editor-action-sheet-item"
+                      isDisabled={item.isDisabled}
+                      onClick={() => {
+                        setSheet(false);
+                        item.onClick();
+                      }}
+                    />
+                  ))}
+                </VStack>
+              ))}
+            </VStack>
+          </AdminPortalScope>
         </BottomSheet>
       )}
     </HStack>

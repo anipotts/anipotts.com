@@ -1,7 +1,7 @@
 import { protectedAdminJson } from "../../lib/protected-admin-json";
 import React, { useEffect, useRef, useState } from "react";
 import { FileInput } from "@astryxdesign/core/FileInput";
-import { Button } from "@astryxdesign/core/Button";
+import { Button } from "./WritingControls";
 import { VStack } from "@astryxdesign/core/VStack";
 import {
   editorialMediaId,

@@ -1,8 +1,8 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import { AdminSkeleton } from "./AdminFeedback";
 import { VStack } from "@astryxdesign/core/VStack";
-import { Banner } from "@astryxdesign/core/Banner";
-import { Button } from "@astryxdesign/core/Button";
+import { Banner } from "./WritingControls";
+import { Button } from "./WritingControls";
 import {
   previewStatusType,
   type PreviewStatus,
