@@ -183,7 +183,11 @@ export function RecordPanel({
               ? "min(64rem, calc(100vw - 2 * var(--admin-gutter, 16px)))"
               : "min(calc(var(--spacing-10) * 10), 100vw)"
           }
-          maxHeight="100dvh"
+          maxHeight={
+            form === "review"
+              ? "calc(100dvh - 2 * var(--admin-gutter, 16px) - env(safe-area-inset-top) - env(safe-area-inset-bottom))"
+              : "100dvh"
+          }
           position={
             form === "review" ? undefined : { top: 0, bottom: 0, end: 0 }
           }

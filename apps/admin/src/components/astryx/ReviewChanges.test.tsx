@@ -35,82 +35,72 @@ function sideText(doc: Document | Element, side: string) {
 }
 
 describe("rich field review", () => {
-  it("shows changed URL and changed wording in separate before/after rows", () => {
+  it("renders links and formatting while retaining their changed destinations", () => {
     const doc = review(
-      "read [old copy](https://before.example/old)",
-      "read [new copy](https://after.example/new)",
+      "**[old](https://before.example/)**",
+      "*[new](https://after.example/)*",
     );
-    expect(doc.body.textContent).toContain("Formatting / links / images");
-    expect(sideText(doc, "before")).toBe(
-      "read [old copy](https://before.example/old)",
-    );
-    expect(sideText(doc, "after")).toBe(
-      "read [new copy](https://after.example/new)",
-    );
-    expect(doc.querySelector('[data-side="before"] ins')).toBeNull();
-    expect(doc.querySelector('[data-side="after"] del')).toBeNull();
-  });
-  it.each([
-    [
-      "old [link](https://same.example/)",
-      "new [link](https://same.example/)",
-      "old link",
-      "new link",
-    ],
-    ["**old**", "**new**", "old", "new"],
-    [
-      "[old](https://same.example/)",
-      "[new](https://same.example/)",
-      "old",
+    expect(
+      doc.querySelector('[data-side="before"] strong a')?.getAttribute("href"),
+    ).toBe("https://before.example/");
+    expect(doc.querySelector('[data-side="after"] em a')?.textContent).toBe(
       "new",
-    ],
-    [
-      "**[old](https://same.example/)**",
-      "**[new](https://same.example/)**",
-      "old",
-      "new",
-    ],
-  ])(
-    "keeps descendant copy edits readable: %s",
-    (before, after, plainBefore, plainAfter) => {
-      const doc = review(before, after);
-      expect(doc.body.textContent).not.toContain("Formatting / links / images");
-      expect(doc.body.textContent).not.toContain("https://same.example/");
-      expect(sideText(doc, "before")).toBe(plainBefore);
-      expect(sideText(doc, "after")).toBe(plainAfter);
-      expect(doc.querySelector("del")?.textContent).toBe("old");
-      expect(doc.querySelector("ins")?.textContent).toBe("new");
-    },
-  );
-  it.each([
-    ["**old**", "*new*"],
-    ["[old](https://before.example/)", "[new](https://after.example/)"],
-    [
-      "![old alt](/api/editorial/media/same)",
-      "![new alt](/api/editorial/media/same)",
-    ],
-    ["**[old](https://same.example/)**", "[**new**](https://same.example/)"],
-    ["**old** rest", "old **new**"],
-  ])("retains mark and attribute changes: %s", (before, after) => {
-    const doc = review(before, after);
-    expect(doc.body.textContent).toContain("Formatting / links / images");
-    expect(sideText(doc, "before")).toBe(before);
-    expect(sideText(doc, "after")).toBe(after);
+    );
+    expect(doc.body.textContent).not.toContain("https://after.example/");
   });
-  it("exposes image replacement without fetching or executing author content", () => {
-    const before = "old ![photo](/api/editorial/media/original)";
-    const after =
-      'new ![photo](/api/editorial/media/cropped) <script>alert("x")</script>';
-    const doc = review(before, after);
-    expect(sideText(doc, "before")).toBe(before);
-    expect(sideText(doc, "after")).toBe(after);
-    expect(doc.querySelector("img,script")).toBeNull();
+  it("renders image replacements and rejects executable author HTML", () => {
+    const doc = review(
+      "![old](/images/old.png)",
+      '![new](/images/new.png) <script>alert("x")</script> ![bad](javascript:alert)',
+    );
+    expect(
+      doc.querySelector('[data-side="before"] img')?.getAttribute("src"),
+    ).toBe("/images/old.png");
+    expect(
+      doc.querySelector('[data-side="after"] img')?.getAttribute("src"),
+    ).toBe("/images/new.png");
+    expect(doc.querySelector("script, [src^='javascript:']")).toBeNull();
   });
-  it("preserves whitespace alongside wording changes in rich fields", () => {
-    const doc = review(" old  copy\t\nnext", " new copy \nnext");
-    expect(sideText(doc, "before")).toBe(" old  copy\t\nnext");
-    expect(sideText(doc, "after")).toBe(" new copy \nnext");
-    expect(doc.body.textContent).toContain("Whitespace / source detail");
+  it("shows page sections in complete before/after order", () => {
+    const sections = {
+      intro: {
+        label: "Intro",
+        subheading: "![logo](/images/brand/logo.svg) hello",
+      },
+      work: {
+        label: "Work",
+        writing_slugs: ["first-article", "second-article"],
+      },
+    };
+    const html = renderToStaticMarkup(
+      <ReviewChanges
+        destination="anipotts.com/"
+        before="old"
+        after="new"
+        changes={[
+          {
+            label: "Page sections",
+            presentation: true,
+            before: JSON.stringify({ sections, order: ["intro", "work"] }),
+            after: JSON.stringify({ sections, order: ["work", "intro"] }),
+          },
+        ]}
+      />,
+    );
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    expect(
+      Array.from(
+        doc.querySelectorAll('[data-side="before"] h3'),
+        (e) => e.textContent,
+      ),
+    ).toEqual(["Intro", "Work"]);
+    expect(
+      Array.from(
+        doc.querySelectorAll('[data-side="after"] h3'),
+        (e) => e.textContent,
+      ),
+    ).toEqual(["Work", "Intro"]);
+    expect(doc.querySelector('[data-side="after"] img')).not.toBeNull();
   });
   it("keeps all removals before additions in DOM order for unified/mobile review", () => {
     const doc = review("old one\nold two", "new one\nnew two", false);
@@ -261,4 +251,17 @@ it("offers direct editing only for fields with a supported edit action", async (
   expect(
     host.querySelector('button[aria-label="Edit Historical source"]'),
   ).toBeNull();
+});
+
+it("keeps source-only formatting markers out of the default rendered review", () => {
+  const html = renderToStaticMarkup(
+    <ReviewChanges
+      destination="anipotts.com/"
+      before="old"
+      after="subheading_format: markdown"
+      changes={[]}
+    />,
+  );
+  expect(html).not.toContain("subheading_format");
+  expect(html).toContain("Source diff");
 });

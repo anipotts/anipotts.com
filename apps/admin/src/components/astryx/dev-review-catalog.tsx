@@ -1,3 +1,5 @@
+import { RecordPanel } from "./RecordPanel";
+import { Button } from "./WritingControls";
 import React, { useEffect, useId, useState } from "react";
 import { PublicationIssues } from "./PublicationIssues";
 import { HStack } from "@astryxdesign/core/HStack";
@@ -93,6 +95,7 @@ export function DevReviewCatalog({
 }) {
   const [scenario, setScenario] = useState<Scenario>("private");
   const [copy, setCopy] = useState("standard");
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [state, setState] = useState<SaveState>({
     source: after,
     revision: 1,
@@ -116,6 +119,68 @@ export function DevReviewCatalog({
       fixture.dispose();
     };
   }, [scenario, card]);
+  const reviewContent = (
+    <ReviewChanges
+      labelledBy={headingId}
+      destination="example.test/work/field-notes"
+      before={before}
+      after={state.source}
+      changes={
+        scenario === "unchanged"
+          ? []
+          : [
+              {
+                label: "Subtitle",
+                before:
+                  copy === "icons"
+                    ? "[![YC](/images/brand/ycombinator-favicon.ico) before](https://example.test/)"
+                    : beforeSubtitle,
+                after:
+                  copy === "icons"
+                    ? '[![logo](/images/brand/structured-ai-mark.svg "white mark") after](https://example.test/)'
+                    : afterSubtitle,
+                rich: true,
+              },
+              ...(copy === "icons"
+                ? [
+                    {
+                      label: "Page sections",
+                      presentation: true,
+                      before: JSON.stringify({
+                        sections: {
+                          intro: {
+                            label: "Intro",
+                            heading: "Hello",
+                            subheading: "A short introduction.",
+                          },
+                          writing: {
+                            label: "Writing",
+                            writing_slugs: ["first-article", "second-article"],
+                          },
+                        },
+                        order: ["intro", "writing"],
+                      }),
+                      after: JSON.stringify({
+                        sections: {
+                          intro: {
+                            label: "Intro",
+                            heading: "Hello",
+                            subheading: "A short introduction.",
+                          },
+                          writing: {
+                            label: "Writing",
+                            writing_slugs: ["second-article", "first-article"],
+                          },
+                        },
+                        order: ["writing", "intro"],
+                      }),
+                    },
+                  ]
+                : [{ label: "Card copy", before: beforeCard, after: card }]),
+            ]
+      }
+    />
+  );
   return (
     <VStack gap={5}>
       <VStack gap={3} as="section" aria-label="Review catalog controls">
@@ -138,6 +203,7 @@ export function DevReviewCatalog({
             options={[
               { value: "standard", label: "Standard fields" },
               { value: "long", label: "Long text and Unicode" },
+              { value: "icons", label: "Icons and section order" },
             ]}
             value={copy}
             onChange={setCopy}
@@ -183,25 +249,21 @@ export function DevReviewCatalog({
             />
           </VStack>
         )}
-        <ReviewChanges
-          labelledBy={headingId}
-          destination="example.test/work/field-notes"
-          before={before}
-          after={state.source}
-          changes={
-            scenario === "unchanged"
-              ? []
-              : [
-                  {
-                    label: "Subtitle",
-                    before: beforeSubtitle,
-                    after: afterSubtitle,
-                    rich: true,
-                  },
-                  { label: "Card copy", before: beforeCard, after: card },
-                ]
-          }
+        <Button
+          label="Open review dialog"
+          onClick={() => setReviewOpen(true)}
         />
+        {reviewOpen ? (
+          <RecordPanel
+            title="Review changes"
+            form="review"
+            onClose={() => setReviewOpen(false)}
+          >
+            {reviewContent}
+          </RecordPanel>
+        ) : (
+          reviewContent
+        )}
       </VStack>
     </VStack>
   );
