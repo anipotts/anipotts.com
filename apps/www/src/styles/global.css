@@ -976,7 +976,6 @@ html[data-theme="dark"] .site-action__mark--adaptive {
       var(--paper-accent) 10%,
       var(--paper-surface)
     );
-
     color: var(--paper-accent);
   }
 }

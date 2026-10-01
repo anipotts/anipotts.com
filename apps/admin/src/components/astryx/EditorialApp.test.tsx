@@ -146,10 +146,8 @@ describe("editorial catalog", () => {
         `>Writing</span><span[^>]*><span[^>]*aria-label="${records.length} records">${records.length}<`,
       ),
     );
-    // Sidebar, modal drawer and phone header share one theme owner.
-    expect(
-      html.match(/aria-label="(?:Light|Dark|System) theme"/g),
-    ).toHaveLength(3);
+    // Desktop, controlled drawer and phone expose the same theme cycle.
+    expect(html.match(/aria-label="Light theme"/g)).toHaveLength(3);
     expect(html).not.toContain("Visit site");
     expect(html).not.toContain("Log out");
     expect(html).not.toContain("·");
@@ -306,7 +304,7 @@ it("titles each library page with its own name and no Overview heading", () => {
   }
 });
 
-it("keeps the shared phone appbar and drawer on library and record routes", () => {
+it("keeps shared phone navigation alongside record editor controls without retired tabs", () => {
   const page = (props: Partial<React.ComponentProps<typeof EditorialApp>>) =>
     renderToStaticMarkup(
       <EditorialApp
@@ -324,6 +322,7 @@ it("keeps the shared phone appbar and drawer on library and record routes", () =
   expect(library).toContain("admin-phone-bar");
   expect(library).toContain("admin-navigation-drawer");
   expect(library).not.toContain("admin-phone-pages");
+  expect(library).toContain('aria-label="Open navigation"');
   for (const record of [
     page({ newWriting: true }),
     page({ review: { back: "/content/writing", status: "draft" } }),
@@ -331,6 +330,8 @@ it("keeps the shared phone appbar and drawer on library and record routes", () =
     expect(record).toContain("editor-bar");
     expect(record).toContain("admin-phone-bar");
     expect(record).toContain("admin-navigation-drawer");
+    expect(record).toContain('data-record-page="true"');
+    expect(record).toContain('aria-label="Open navigation"');
     expect(record).not.toContain("admin-phone-pages");
   }
 });
