@@ -52,3 +52,5 @@ The press row now has one BI-marked `read the story` action linking to the publi
 Mobile balance refinement: below 1024px, the press action spans the same inner width as the logo-and-copy row. This creates matching left and right insets and removes the isolated right-hand button. Desktop retains the single-row composition. All actions retain the shared slim 36px height.
 
 The press single-row breakpoint is now 768px: mobile retains the balanced full-width action, while tablet and smaller desktop windows restore the single row. Affected checks and the 16 responsive/theme combinations passed again.
+
+Recovered the earlier hero option B from this chat's saved history. Below 768px, its opening reads `i build AI agents and data intensive systems.` The remaining experience copy, links and marks use the shared rich-summary renderer. Desktop retains the CMS paragraph. The substitution applies only to the exact original opening, so later custom CMS copy is preserved. Affected checks passed; six viewport checks confirmed one visible paragraph, three company links, correct breakpoint selection and no overflow. Mobile capture inspected.
