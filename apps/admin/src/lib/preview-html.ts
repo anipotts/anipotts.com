@@ -1,5 +1,28 @@
 import { publicSiteUrl } from "./editorial-content";
 import { previewMediaUrl, previewMediaSrcset } from "./preview-media";
+import { previewFailure } from "./preview-status";
+
+/** Rendering and response materialization must both report failure to the
+ * parent. An ordinary framework error page has no preview handshake. */
+export async function renderPreviewResponse(
+  render: () => Promise<Response>,
+  requestUrl: URL,
+): Promise<Response> {
+  try {
+    const response = await render();
+    return await previewResponse(
+      response.status >= 500
+        ? previewFailure(requestUrl, "unavailable", 503)
+        : response,
+      requestUrl,
+    );
+  } catch {
+    return previewResponse(
+      previewFailure(requestUrl, "unavailable", 503),
+      requestUrl,
+    );
+  }
+}
 
 /** The two draft preview frames the editor embeds. */
 export const PREVIEW_PATHS = new Set(["/preview/home", "/preview/record"]);
