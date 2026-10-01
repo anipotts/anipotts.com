@@ -381,7 +381,7 @@ const { workflow } = Astro.props;
     width: 44px;
     height: 44px;
     border: 0;
-    border-radius: 8px;
+    border-radius: var(--card-ui-radius);
     background: transparent;
     color: var(--ink-muted);
     font: inherit;
@@ -392,7 +392,7 @@ const { workflow } = Astro.props;
     color: var(--interactive);
   }
   @media (hover: hover) and (pointer: fine) {
-    [data-motion-toggle]:hover {
+    :global(html:not([data-touch-input])) [data-motion-toggle]:hover {
       color: var(--interactive);
     }
   }
