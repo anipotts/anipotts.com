@@ -1,11 +1,13 @@
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { siteConfig } from "@anipotts/content/public/site";
 vi.mock("./editorial-content", () => ({
-  publicSiteUrl: "http://127.0.0.1:4674/",
+  publicSiteUrl: "https://anipotts.com/",
 }));
 import { previewResponse } from "./preview-html";
+afterEach(() => vi.unstubAllEnvs());
 
-it("loads public preview artwork independently of either local app server", async () => {
+it("loads production preview artwork from the configured public site", async () => {
+  vi.stubEnv("DEV", false);
   const response = await previewResponse(
     new Response(
       '<head></head><img src="/brand/ap-favicon.svg"><img src="/images/brand/yc.ico"><img src="/images/projects/demo.png" srcset="/images/projects/demo.png 1x, /images/projects/demo@2x.png 2x"><video poster="/media/cover.png"></video><a href="/work/demo">demo</a>',
@@ -30,10 +32,26 @@ it("loads public preview artwork independently of either local app server", asyn
   expect(html).toContain(
     `poster="${new URL("/media/cover.png", siteConfig.url)}"`,
   );
-  expect(html).toContain('href="http://127.0.0.1:4674/work/demo"');
+  expect(html).toContain('href="https://anipotts.com/work/demo"');
   expect(response.headers.get("Content-Security-Policy")).toContain(
     "sandbox allow-scripts",
   );
+});
+
+it("loads development preview artwork from the admin asset origin", async () => {
+  vi.stubEnv("DEV", true);
+  const response = await previewResponse(
+    new Response(
+      '<img src="/brand/ap-favicon.svg"><a href="/work/demo">demo</a>',
+      {
+        headers: { "Content-Type": "text/html" },
+      },
+    ),
+    new URL("http://127.0.0.1:4675/preview/home"),
+  );
+  const html = await response.text();
+  expect(html).toContain('src="http://127.0.0.1:4675/brand/ap-favicon.svg"');
+  expect(html).toContain('href="https://anipotts.com/work/demo"');
 });
 
 it("keeps unpublished uploads on the private admin media reader", async () => {
