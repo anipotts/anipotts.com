@@ -50,3 +50,5 @@ At 1024px and above, listing work dates consistently stack beneath titles. Below
 The press row now has one BI-marked `read the story` action linking to the published essay, with the original reporting link as a fallback if the essay is withdrawn. Above 600px the logo, copy and action occupy one row. At 600px and below the compact action aligns right beneath the logo and copy.
 
 Mobile balance refinement: below 1024px, the press action spans the same inner width as the logo-and-copy row. This creates matching left and right insets and removes the isolated right-hand button. Desktop retains the single-row composition. All actions retain the shared slim 36px height.
+
+The press single-row breakpoint is now 768px: mobile retains the balanced full-width action, while tablet and smaller desktop windows restore the single row. Affected checks and the 16 responsive/theme combinations passed again.
