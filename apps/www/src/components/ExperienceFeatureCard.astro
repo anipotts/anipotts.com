@@ -108,7 +108,7 @@ const shotSizes = "(max-width: 640px) 100vw, 27rem";
     color: var(--feature-ink);
     text-decoration: none;
     box-shadow: var(--paper-shadow);
-    transition: box-shadow 180ms ease;
+    transition: none;
   }
 
   .experience-feature__visual {
@@ -153,37 +153,31 @@ const shotSizes = "(max-width: 640px) 100vw, 27rem";
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: var(--s-2);
-    min-height: 8.5rem;
-    padding: var(--s-3) var(--experience-card-padding)
+    gap: var(--card-content-gap);
+    padding: var(--card-content-gap) var(--experience-card-padding)
       var(--experience-card-padding);
   }
 
   .experience-feature__name {
     font-family: var(--display);
-    font-size: clamp(1rem, 2vw, var(--p-h2));
-    font-weight: 900;
-    line-height: 1;
+    font-size: var(--card-title-size);
+    font-weight: var(--card-title-weight);
+    line-height: 1.12;
     overflow-wrap: anywhere;
   }
 
   .experience-feature__copy {
     max-width: none;
     color: var(--feature-muted);
-    font-size: var(--p-small);
-    line-height: 1.45;
+    font-size: var(--card-copy-size);
+    font-weight: var(--card-copy-weight);
+    line-height: var(--card-copy-leading);
     text-wrap: pretty;
   }
 
   .experience-feature:focus-visible {
-    outline: 3px solid var(--feature-blue);
-    outline-offset: 3px;
-  }
-
-  @media (hover: hover) and (pointer: fine) {
-    .experience-feature:hover {
-      box-shadow: 0 1.35rem 3rem rgb(11 18 32 / 20%);
-    }
+    outline: var(--focus-width) solid var(--paper-ink);
+    outline-offset: var(--focus-offset);
   }
 
   /* Scoped so the press ring outranks the card's own resting box-shadow. */

@@ -100,7 +100,8 @@ const d = project.data;
                 class:list={[
                   "project-mark",
                   d.identity.logo_tone === "light" && "project-mark--light",
-                  d.identity.logo_tone === "adaptive" &&
+                  (d.identity.logo_tone === "adaptive" ||
+                    slug === "pgi-research-platform") &&
                     "project-mark--adaptive",
                 ]}
               />
@@ -265,8 +266,10 @@ const d = project.data;
     min-height: 44px;
     display: inline-flex;
     align-items: center;
-    gap: 0.55rem;
-    font-size: 0.9rem;
+    gap: var(--control-icon-gap);
+    font-weight: var(--control-weight);
+    line-height: var(--control-leading);
+    font-size: var(--control-size);
     color: var(--paper-muted);
   }
 

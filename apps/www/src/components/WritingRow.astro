@@ -44,7 +44,7 @@ const { title, summary, published_at } = item.data;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    gap: var(--s-1);
+    gap: var(--card-content-gap);
     border-radius: var(--paper-radius);
     background: var(--paper-surface);
     color: var(--paper-ink);
@@ -78,8 +78,8 @@ const { title, summary, published_at } = item.data;
 
   .writing-card .title {
     font-family: var(--display);
-    font-size: var(--p-h2);
-    font-weight: 900;
+    font-size: var(--card-title-size);
+    font-weight: var(--card-title-weight);
     line-height: 1;
     letter-spacing: 0;
     font-synthesis: none;
@@ -108,7 +108,9 @@ const { title, summary, published_at } = item.data;
     position: relative;
     z-index: 1;
     color: var(--paper-muted);
-    font-size: var(--p-small);
+    font-size: var(--card-copy-size);
+    font-weight: var(--card-copy-weight);
+    line-height: var(--card-copy-leading);
   }
 
   .writing-card > .ambient-flow {
@@ -119,6 +121,7 @@ const { title, summary, published_at } = item.data;
 
   .writing-card .date {
     color: var(--paper-muted);
-    font-size: 0.8rem;
+    font-size: var(--control-size);
+    font-weight: var(--card-copy-weight);
   }
 </style>

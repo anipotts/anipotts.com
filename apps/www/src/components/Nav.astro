@@ -237,7 +237,7 @@ const current = Astro.url.pathname;
     flex-direction: column;
     gap: 0.36rem;
     border: 0;
-    border-radius: 0.5rem;
+    border-radius: var(--card-ui-radius);
     background: transparent;
     color: var(--ink-muted);
     cursor: pointer;
@@ -260,9 +260,9 @@ const current = Astro.url.pathname;
   }
 
   :is(.wordmark, .theme-toggle, .nav-toggle, .nav-link):focus-visible {
-    outline: 2px solid var(--interactive);
-    outline-offset: 4px;
-    border-radius: 0.5rem;
+    outline: var(--focus-width) solid var(--ink);
+    outline-offset: var(--focus-offset);
+    border-radius: var(--card-ui-radius);
   }
 
   @media (max-width: 720px) {
@@ -286,7 +286,7 @@ const current = Astro.url.pathname;
 
     .theme-toggle {
       margin-left: 0;
-      border-radius: 0.5rem;
+      border-radius: var(--card-ui-radius);
     }
 
     :is(.theme-toggle, .nav-toggle):active {
@@ -337,7 +337,7 @@ const current = Astro.url.pathname;
     .nav-link {
       min-height: 52px;
       padding-inline: var(--s-3);
-      border-radius: 0.5rem;
+      border-radius: var(--card-ui-radius);
     }
 
     .nav-link[aria-current="page"],

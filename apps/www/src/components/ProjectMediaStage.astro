@@ -258,14 +258,14 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
   .project-media {
     margin: 0;
     display: grid;
-    gap: 0.85rem;
+    gap: var(--card-content-gap);
     color: var(--paper-ink);
   }
 
   .project-media__stage {
     border: 1px solid color-mix(in srgb, var(--paper-ink) 12%, transparent);
-    border-radius: 1rem;
-    padding: clamp(0.5rem, 1.8vw, 1.25rem);
+    border-radius: var(--paper-radius);
+    padding: var(--card-inset);
     background: color-mix(in srgb, var(--paper-ink) 4%, var(--paper-surface));
   }
 
@@ -297,13 +297,14 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
     bottom: 0.65rem;
     display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
-    padding: 0.35rem 0.65rem;
-    border-radius: 0.35rem;
+    gap: var(--control-icon-gap);
+    padding: var(--card-ui-padding);
+    border-radius: var(--card-ui-radius);
     background: var(--paper-surface);
     color: var(--paper-ink);
     box-shadow: 0 1px 8px rgb(0 0 0 / 15%);
-    font-size: 0.75rem;
+    font-size: var(--control-size);
+    font-weight: var(--control-weight);
     line-height: 1.4;
   }
 
@@ -345,18 +346,20 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
   .project-media__rail {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: var(--control-group-gap);
   }
 
   .project-media__choice {
-    border: 1px solid color-mix(in srgb, var(--paper-ink) 18%, transparent);
-    border-radius: 0.4rem;
-    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--card-ui-border);
+    border-radius: var(--card-ui-radius);
+    padding: var(--card-ui-padding);
     min-height: 44px;
-    background: transparent;
+    background: var(--card-ui-surface);
     color: var(--paper-muted);
     font: inherit;
-    font-size: 0.85rem;
+    font-size: var(--control-size);
+    font-weight: var(--control-weight);
+    line-height: var(--control-leading);
     cursor: pointer;
   }
 
@@ -373,7 +376,9 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
   figcaption {
     max-width: 65ch;
     color: var(--paper-muted);
-    font-size: 0.85rem;
+    font-size: var(--control-size);
+    font-weight: var(--control-weight);
+    line-height: var(--control-leading);
     line-height: 1.55;
   }
 
@@ -383,7 +388,7 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
     max-height: calc(100dvh - 2rem);
     padding: 0.75rem;
     border: 1px solid color-mix(in srgb, var(--paper-ink) 15%, transparent);
-    border-radius: 0.8rem;
+    border-radius: var(--paper-radius);
     color: var(--paper-ink);
     background: var(--paper-surface);
     overflow: auto;
@@ -406,17 +411,20 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
     display: inline-flex;
     align-items: center;
     min-height: 44px;
-    padding: 0.4rem 0.55rem;
+    padding: var(--card-ui-padding);
     background: transparent;
     color: inherit;
-    border: 0;
+    border: 1px solid var(--card-ui-border);
+    border-radius: var(--card-ui-radius);
     font: inherit;
-    font-size: 0.85rem;
+    font-size: var(--control-size);
+    font-weight: var(--control-weight);
+    line-height: var(--control-leading);
     cursor: pointer;
   }
 
   .image-viewer__toolbar [data-image-zoom][aria-pressed="true"] {
-    border-radius: 0.4rem;
+    border-radius: var(--card-ui-radius);
     background: color-mix(
       in srgb,
       var(--paper-accent) 10%,
@@ -453,7 +461,9 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
   .image-viewer__description {
     margin: 0.75rem 0 0;
     color: var(--paper-muted);
-    font-size: 0.85rem;
+    font-size: var(--control-size);
+    font-weight: var(--control-weight);
+    line-height: var(--control-leading);
     line-height: 1.5;
   }
 </style>

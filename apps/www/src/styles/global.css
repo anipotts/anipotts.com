@@ -31,7 +31,24 @@
   --card-ui-padding: 0.5rem 0.7rem;
   --card-ui-surface: color-mix(in srgb, var(--paper-surface) 80%, transparent);
   --card-ui-border: color-mix(in srgb, var(--paper-ink) 15%, transparent);
-  --experience-card-padding: clamp(0.8rem, 2.6vw, 1.35rem);
+  --card-inset: clamp(1rem, 2vw, 1.5rem);
+  --experience-card-padding: var(--card-inset);
+  --card-content-gap: 0.875rem;
+  --card-header-gap: 0.75rem;
+  --card-title-size: clamp(1.05rem, 2vw, 1.625rem);
+  --card-title-weight: 900;
+  --card-copy-size: var(--p-small);
+  --card-copy-weight: 400;
+  --card-copy-leading: 1.45;
+  --control-size: 0.8rem;
+  --control-weight: 500;
+  --control-leading: 1.25;
+  --control-icon-size: 1rem;
+  --control-icon-gap: 0.45rem;
+  --control-group-gap: var(--s-2);
+  --status-weight: 600;
+  --focus-width: 2px;
+  --focus-offset: 4px;
   --paper-surface: #ffffff;
   --paper-surface-hover: #f7faff;
   --paper-ink: #0b1220;
@@ -315,7 +332,7 @@ h2.section-label {
   background: var(--paper-surface);
   color: var(--paper-ink);
   border-radius: var(--paper-radius);
-  padding: var(--s-5);
+  padding: var(--card-inset);
   box-shadow: var(--paper-shadow);
 }
 
@@ -896,17 +913,20 @@ html.writing-detail:not([data-theme="dark"]) .article-body :not(pre) > code {
 /* Shared filled action treatment for press, experience and work cards. */
 .site-action {
   display: grid;
-  grid-template-columns: 1rem minmax(0, 1fr) 1rem;
+  grid-template-columns: var(--control-icon-size) minmax(0, 1fr) var(
+      --control-icon-size
+    );
   align-items: center;
-  gap: 0.35em;
+  gap: var(--control-icon-gap);
   min-height: 44px;
   padding: var(--card-ui-padding);
   border: 1px solid var(--card-ui-border);
   border-radius: var(--card-ui-radius);
   background: var(--card-ui-surface);
   color: var(--paper-ink);
-  font-size: 0.85rem;
-  line-height: 1.25;
+  font-size: var(--control-size);
+  font-weight: var(--control-weight);
+  line-height: var(--control-leading);
   text-decoration: none;
 }
 .site-action > span {
@@ -914,8 +934,8 @@ html.writing-detail:not([data-theme="dark"]) .article-body :not(pre) > code {
 }
 .site-action > :is(img, svg) {
   display: block;
-  width: 1rem;
-  height: 1rem;
+  width: var(--control-icon-size);
+  height: var(--control-icon-size);
   object-fit: contain;
   border-radius: 0.19em;
 }
@@ -931,20 +951,18 @@ html[data-theme="dark"] .site-action__mark--adaptive {
   width: fit-content;
   max-width: 100%;
   flex: none;
-  align-self: flex-start;
   margin: 0;
   align-self: center;
-  font-size: 0.78rem;
   white-space: nowrap;
 }
 :is(.work-card__header, .experience-feature__heading, .guide-identity) {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--s-3);
+  gap: var(--card-header-gap);
 }
 :is(.work-card__body, .experience-feature__body) {
-  row-gap: var(--s-3);
+  row-gap: var(--card-content-gap);
 }
 .site-action:hover,
 a:hover .card-action,
@@ -961,5 +979,34 @@ a.site-action:focus-visible {
   .work-card,
   .experience-feature {
     transition: none;
+  }
+}
+
+/* The same focus geometry applies to compact controls and whole-card links. */
+:is(
+  .site-action,
+  .work-card,
+  .experience-feature,
+  .writing-card,
+  .coding-agent-card,
+  .quiet-link,
+  .view-all,
+  .back,
+  .project-action
+):focus-visible {
+  outline: var(--focus-width) solid var(--paper-ink);
+  outline-offset: var(--focus-offset);
+}
+:is(.quiet-link, .view-all, .back, .project-action) {
+  gap: var(--control-icon-gap);
+  font-size: var(--control-size);
+  font-weight: var(--control-weight);
+  line-height: var(--control-leading);
+  min-height: 44px;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --card-title-size: clamp(1.5rem, 2vw, 1.625rem);
   }
 }

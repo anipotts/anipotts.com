@@ -32,12 +32,12 @@ const timeframe = year
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.65rem 1rem;
+    gap: var(--control-group-gap);
   }
   .project-meta-ui {
     display: inline-flex;
     align-items: center;
-    gap: 0.8rem;
+    gap: var(--control-group-gap);
     width: fit-content;
     max-width: 100%;
     padding: var(--card-ui-padding);
@@ -45,14 +45,15 @@ const timeframe = year
     border-radius: var(--card-ui-radius);
     background: var(--card-ui-surface);
     color: var(--paper-muted);
-    font-size: 0.78rem;
-    line-height: 1.25;
+    font-size: var(--control-size);
+    font-weight: var(--card-copy-weight);
+    line-height: var(--control-leading);
   }
   .status {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    font-weight: 600;
+    gap: var(--control-icon-gap);
+    font-weight: var(--status-weight);
     white-space: nowrap;
   }
   .status-dot {
@@ -85,7 +86,7 @@ const timeframe = year
     white-space: nowrap;
   }
   .role {
-    font-size: 0.82rem;
+    font-size: var(--control-size);
     color: var(--ink-muted);
   }
   /* Generic spans cannot carry a name, so field labels ride along as hidden text. */
