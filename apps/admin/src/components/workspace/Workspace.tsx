@@ -74,6 +74,7 @@ import React, {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { Banner } from "@astryxdesign/core/Banner";
@@ -298,7 +299,30 @@ export function easternClockTitle(ms: number): string {
  * tabular figures, the full date and UTC offset as its tooltip. The server
  * writes its own second; the browser's replaces it on hydration.
  */
+const AMBIENT_CLOCK_QUERY = "(min-width: 1024px)";
+const subscribeClockViewport = (listener: () => void) => {
+  if (typeof window.matchMedia !== "function") return () => {};
+  const query = window.matchMedia(AMBIENT_CLOCK_QUERY);
+  query.addEventListener("change", listener);
+  return () => query.removeEventListener("change", listener);
+};
+const clockViewport = () =>
+  typeof window.matchMedia !== "function" ||
+  window.matchMedia(AMBIENT_CLOCK_QUERY).matches;
+const serverClockViewport = () => true;
+
+/** Remove ambient clock subscriptions on small screens. Freshness ages use
+ * their own shared-clock subscriptions and continue updating. */
 export function EasternClock({ now }: { now?: number }) {
+  const visible = useSyncExternalStore(
+    subscribeClockViewport,
+    clockViewport,
+    serverClockViewport,
+  );
+  return visible ? <LiveEasternClock now={now} /> : null;
+}
+
+function LiveEasternClock({ now }: { now?: number }) {
   const text = useLiveText(easternClockText, Date.now(), now);
   const title = useLiveText((live) => easternClockTitle(live), Date.now(), now);
   return (

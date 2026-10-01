@@ -75,53 +75,63 @@ describe("responsive workspace navigation", () => {
     );
   }
   it.each([390, 640])(
-    "has no sidebar, drawer or menu at %ipx; the top bar searches",
+    "shares appbar search, theme and unified drawer at %ipx",
     (width) => {
       Object.defineProperty(window, "innerWidth", {
         configurable: true,
         value: width,
       });
-      render();
-      // AppShell's own top bar and drawer never mount.
-      expect(
-        host.querySelector('.astryx-side-nav[data-mode="topbar"]'),
-      ).toBeNull();
-      expect(document.querySelector(".astryx-mobile-nav")).toBeNull();
-      expect(host.querySelector(".astryx-app-shell-sidenav")).toBeNull();
-      expect(host.textContent).not.toContain("Open navigation");
+      const change = vi.fn();
+      render(change);
       const bar = host.querySelector(".admin-phone-bar")!;
       expect(bar.closest('[role="banner"]')).not.toBeNull();
-      expect(bar.querySelector(".admin-bracket-wordmark")?.textContent).toBe(
-        "[A]",
-      );
+      expect(host.querySelector(".admin-phone-pages")).toBeNull();
+      expect(host.querySelector(".astryx-app-shell-sidenav")).toBeNull();
       const announce = vi.fn();
       document.addEventListener("admin:search", announce);
       act(() =>
         (
-          bar.querySelector('button[aria-label="Search"]') as HTMLButtonElement
+          bar.querySelector('[aria-label="Search"]') as HTMLButtonElement
         ).click(),
       );
       document.removeEventListener("admin:search", announce);
       expect(announce).toHaveBeenCalledTimes(1);
-      // One tap reaches any workspace from the bar, and the current one's
-      // pages from the chips under it.
-      const tabs = bar.querySelector('nav[aria-label="Workspaces"]')!;
+      act(() =>
+        (
+          bar.querySelector('[aria-label="Light theme"]') as HTMLButtonElement
+        ).click(),
+      );
+      expect(change).toHaveBeenCalledExactlyOnceWith("dark");
+      const menu = bar.querySelector(
+        '[aria-label="Open navigation"]',
+      ) as HTMLButtonElement;
+      act(() => menu.click());
+      expect(menu.getAttribute("aria-expanded")).toBe("true");
+      const drawer = host.querySelector(
+        "dialog.admin-navigation-drawer",
+      ) as HTMLDialogElement;
+      expect(drawer.open).toBe(true);
+      expect(drawer.id).toBe(menu.getAttribute("aria-controls"));
+      expect(drawer.querySelector('a[href="/data/records"]')).not.toBeNull();
       expect(
-        [
-          ...tabs.querySelectorAll<HTMLAnchorElement>(".admin-phone-workspace"),
-        ].map((tab) => tab.getAttribute("href")),
-      ).toEqual([
-        expect.stringMatching(/^\/content/),
-        "/data/records",
-        "/observability/status",
-      ]);
-      expect(
-        [
-          ...host.querySelectorAll(
-            'nav.admin-phone-pages[aria-label="Content"] .admin-phone-page',
-          ),
-        ].map((chip) => chip.textContent),
-      ).toEqual(["Pages", "Writing", "Projects", "Newsletter"]);
+        drawer.querySelector('a[href="/observability/status"]'),
+      ).not.toBeNull();
+      // A navigation request held by unsaved edits must leave the drawer open.
+      act(() =>
+        window.dispatchEvent(
+          new CustomEvent("admin:navigate", { detail: "/content/pages" }),
+        ),
+      );
+      expect(menu.getAttribute("aria-expanded")).toBe("true");
+      act(() =>
+        drawer.dispatchEvent(
+          new Event("cancel", { bubbles: false, cancelable: true }),
+        ),
+      );
+      expect(menu.getAttribute("aria-expanded")).toBe("false");
+      act(() => menu.click());
+      act(() => window.dispatchEvent(new Event("admin:workspace-navigation")));
+      expect(menu.getAttribute("aria-expanded")).toBe("false");
     },
   );
   it.each([
@@ -170,7 +180,7 @@ describe("responsive workspace navigation", () => {
       localStorage.removeItem("admin:sidebar-collapsed");
     },
   );
-  it("opens the full sidebar for the moment on a tablet and saves the choice for wider screens", () => {
+  it("opens a tablet overlay while preserving the rail and desktop preference", () => {
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
       value: 930,
@@ -202,8 +212,15 @@ describe("responsive workspace navigation", () => {
       host
         .querySelector(".editorial-workspace-shell")
         ?.getAttribute("data-sidebar-collapsed");
-    expect(collapsed()).toBe("false");
-    expect(localStorage.getItem("admin:sidebar-collapsed")).toBe("false");
+    expect(collapsed()).toBe("true");
+    expect(
+      (
+        host.querySelector(
+          "dialog.admin-navigation-drawer",
+        ) as HTMLDialogElement
+      ).open,
+    ).toBe(true);
+    expect(localStorage.getItem("admin:sidebar-collapsed")).toBeNull();
     // A tablet opens on the rail again: the saved expand would leave its
     // tables too little room.
     render(vi.fn(), "remounted");
@@ -213,7 +230,7 @@ describe("responsive workspace navigation", () => {
       value: 1100,
     });
     render(vi.fn(), "wide");
-    expect(collapsed()).toBe("false");
+    expect(collapsed()).toBe("true");
   });
   it("keeps desktop search below the identity row", () => {
     Object.defineProperty(window, "innerWidth", {
@@ -260,7 +277,7 @@ describe("responsive workspace navigation", () => {
     const identity = host.querySelector(".editorial-workspace-identity")!;
     expect(identity.querySelector("svg")).not.toBeNull(); // Native collapse glyph, no AP paths.
     expect(identity.querySelector('path[fill="currentColor"]')).toBeNull();
-    const links = [...host.querySelectorAll("a")];
+    const links = [...host.querySelectorAll(".astryx-app-shell-sidenav a")];
     const writing = links.find((link) => link.textContent === "Writing")!;
     const newsletter = links.find((link) => link.textContent === "Newsletter")!;
     expect(writing.closest(".astryx-side-nav-section")).toBe(

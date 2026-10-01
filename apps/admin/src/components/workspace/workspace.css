@@ -1165,3 +1165,43 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
     column-gap: 6px;
   }
 }
+
+/* Small-screen headers reserve the identity/count/actions row for commands.
+   Supporting live evidence wraps beneath it; ambient time stays desktop-only. */
+@media (max-width: 1023px) {
+  .workspace-clock {
+    display: none;
+  }
+  .workspace-page-line {
+    flex-wrap: wrap;
+  }
+  .workspace-page-title:not(#\#) {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .workspace-page-end {
+    flex-wrap: wrap;
+  }
+  .workspace-page-line:has(> .workspace-page-end > .workspace-page-status) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: var(--spacing-1);
+  }
+  .workspace-page-line:has(> .workspace-page-end > .workspace-page-status)
+    > .workspace-page-end {
+    display: contents;
+  }
+  .workspace-page-title {
+    grid-area: 1 / 1;
+  }
+  .workspace-page-end > .workspace-page-actions {
+    grid-area: 1 / 2;
+    justify-self: end;
+  }
+  .workspace-page-end > .workspace-page-status {
+    grid-area: 2 / 1 / auto / -1;
+    justify-self: start;
+    justify-content: flex-start;
+    min-height: 0;
+  }
+}

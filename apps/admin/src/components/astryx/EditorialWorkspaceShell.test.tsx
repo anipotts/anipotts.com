@@ -63,10 +63,9 @@ describe("Website workspace navigation", () => {
   });
 });
 
-it("writes the one-row phone top bar and the page chips into server HTML, with no drawer", () => {
-  // The server has no viewport, so AppShell renders its desktop layout. The
-  // phone bar must still be in that markup: hydration cannot be what shows it.
-  const html = renderToStaticMarkup(
+it("writes shared phone chrome and the unified drawer into server HTML", () => {
+  const host = document.createElement("div");
+  host.innerHTML = renderToStaticMarkup(
     <EditorialWorkspaceShell
       area="content"
       selectedGroup="writing"
@@ -77,57 +76,19 @@ it("writes the one-row phone top bar and the page chips into server HTML, with n
       <p>Record</p>
     </EditorialWorkspaceShell>,
   );
-  const host = document.createElement("div");
-  host.innerHTML = html;
   const bar = host.querySelector('[role="banner"] .admin-phone-bar')!;
   expect(bar).not.toBeNull();
-  // One row: the [A] monogram, the three workspaces, then search.
-  expect([...bar.children].map((child) => child.tagName)).toEqual([
-    "A",
-    "NAV",
-    "BUTTON",
-  ]);
-  const home = bar.firstElementChild as HTMLAnchorElement;
-  expect(home.matches("a.admin-bracket-wordmark")).toBe(true);
-  expect(home.getAttribute("href")).toBe("/");
-  expect(home.getAttribute("aria-label")).toBe("Overview");
-  expect(home.textContent).toBe("[A]");
-  expect(bar.lastElementChild?.getAttribute("aria-label")).toBe("Search");
-  const tabs = bar.querySelector('nav[aria-label="Workspaces"]')!;
-  expect(
-    [...tabs.querySelectorAll(".admin-phone-workspace")].map((tab) => [
-      tab.textContent,
-      tab.getAttribute("aria-current"),
-    ]),
-  ).toEqual([
-    ["Content", "true"],
-    ["Data", null],
-    ["Observability", null],
-  ]);
-  // No device tile, page title, menu button or drawer in the bar.
-  expect(bar.querySelector(".brand-tile")).toBeNull();
-  expect(bar.textContent).toBe("[A]ContentDataObservability");
-  expect(html).not.toContain("Open navigation");
-  expect(host.querySelector(".astryx-mobile-nav")).toBeNull();
-  expect(html).not.toContain('data-mode="topbar"');
-  // Under it, in the page, the current workspace's pages.
-  const pages = host.querySelector(
-    '#astryx-app-shell-main nav.admin-phone-pages[aria-label="Content"]',
-  )!;
-  expect(
-    [...pages.querySelectorAll(".admin-phone-page")].map((chip) => [
-      chip.textContent,
-      chip.getAttribute("aria-current"),
-    ]),
-  ).toEqual([
-    ["Pages", null],
-    ["Writing", "page"],
-    ["Projects", null],
-    ["Newsletter", null],
-  ]);
+  expect(bar.querySelector('[aria-label="Open navigation"]')).not.toBeNull();
+  expect(bar.querySelector('[aria-label="Search"]')).not.toBeNull();
+  expect(bar.querySelector('[aria-label="Light theme"]')).not.toBeNull();
+  expect(bar.querySelector(".admin-phone-identity")?.textContent).toBe(
+    "Content",
+  );
+  expect(host.querySelector(".admin-phone-pages")).toBeNull();
+  expect(host.querySelector("dialog.admin-navigation-drawer")).not.toBeNull();
 });
 
-it("lets a record page draw its own phone bar", () => {
+it("keeps shared phone chrome on record routes", () => {
   const host = document.createElement("div");
   host.innerHTML = renderToStaticMarkup(
     <EditorialWorkspaceShell
@@ -141,7 +102,7 @@ it("lets a record page draw its own phone bar", () => {
       <p>Record</p>
     </EditorialWorkspaceShell>,
   );
-  expect(host.querySelector(".admin-phone-bar")).toBeNull();
+  expect(host.querySelector(".admin-phone-bar")).not.toBeNull();
   expect(host.querySelector(".admin-phone-pages")).toBeNull();
   expect(
     host
