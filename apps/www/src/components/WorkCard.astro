@@ -93,11 +93,7 @@ const shotSizes = "(max-width: 52rem) 100vw, 26rem";
       <span class="work-card__name">{displayTitle}</span>
       <CardAction
         label="view project"
-        largeMark={[
-          "nyu-purity-test",
-          "quantercise",
-          "pgi-research-platform",
-        ].includes(slug)}
+        largeMark={["nyu-purity-test", "pgi-research-platform"].includes(slug)}
         logoSrc={identity.logo_src}
         icon={identity.icon}
         adaptive={identity.logo_tone === "adaptive" ||

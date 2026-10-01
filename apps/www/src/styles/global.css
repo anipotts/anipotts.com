@@ -1010,3 +1010,9 @@ a.site-action:focus-visible {
     --card-title-size: clamp(1.5rem, 2vw, 1.625rem);
   }
 }
+
+/* Crop the legacy Quantercise mark's empty canvas without enlarging its slot. */
+img[src="/images/brand/quantercise-legacy-icon.png"] {
+  transform: scale(1.5);
+  clip-path: inset(16.6667% round 0.12em);
+}
