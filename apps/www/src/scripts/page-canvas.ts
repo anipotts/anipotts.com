@@ -12,8 +12,7 @@ export function syncPageCanvas(doc: Document): void {
   const win = doc.defaultView as CanvasWindow | null;
   if (!win) return;
   let frame: number | undefined;
-  const eligible = () =>
-    doc.documentElement.matches('.editorial-detail:not([data-theme="dark"])');
+  const eligible = () => doc.documentElement.matches(".editorial-detail");
   const refresh = (force = true) => {
     const root = doc.documentElement;
     let reading = false;

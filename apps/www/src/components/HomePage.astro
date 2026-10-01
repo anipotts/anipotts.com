@@ -184,7 +184,7 @@ const profileLd = {
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .text-link:hover {
+    :global(html:not([data-touch-input])) .text-link:hover {
       color: var(--interactive);
       text-decoration-color: var(--interactive);
     }
@@ -212,8 +212,8 @@ const profileLd = {
   .view-all {
     display: inline-flex;
     align-items: center;
-    gap: 0.35em;
-    font-size: 0.85rem;
+    gap: var(--control-icon-gap);
+    font-size: var(--control-size);
   }
 
   .grid {

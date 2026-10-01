@@ -1,6 +1,6 @@
 ---
 import InlineText from "./InlineText.astro";
-import { Icon } from "astro-icon/components";
+import CardAction from "./CardAction.astro";
 import { formatDate, writingSlug, type Writing } from "../lib/content";
 import AmbientFlow from "./AmbientFlow.astro";
 
@@ -20,18 +20,18 @@ const { title, summary, published_at } = item.data;
   data-astro-prefetch="viewport"
 >
   <AmbientFlow kind="writing" seed={slug} variant={flowVariant} />
-  <span class="head">
-    <span class="title-group">
+  <span class="writing-card__header">
+    <span class="card-title-group">
       <span class="title">{title}</span>
       {
         published_at && (
-          <time class="date mono" datetime={published_at.toISOString()}>
+          <time class="date" datetime={published_at.toISOString()}>
             {formatDate(published_at)}
           </time>
         )
       }
     </span>
-    <Icon name="ph:arrow-bend-right-up" class="affordance" />
+    <CardAction label="read" showMark={false} />
   </span>
   <span class="sub"><InlineText text={summary} links={false} /></span>
 </a>
@@ -42,9 +42,10 @@ const { title, summary, published_at } = item.data;
     isolation: isolate;
     contain: paint;
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-1);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 0.5rem var(--card-header-gap);
     border-radius: var(--paper-radius);
     background: var(--paper-surface);
     color: var(--paper-ink);
@@ -54,61 +55,41 @@ const { title, summary, published_at } = item.data;
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .writing-card:hover {
+    :global(html:not([data-touch-input])) .writing-card:hover {
       background: var(--paper-surface-hover);
     }
   }
 
-  .writing-card .head {
+  .writing-card > :not(.ambient-flow) {
     position: relative;
     z-index: 1;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--s-3);
-  }
-
-  .writing-card .title-group {
-    display: flex;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: var(--s-1) var(--s-3);
-    min-width: 0;
   }
 
   .writing-card .title {
     font-family: var(--display);
-    font-size: var(--p-h2);
-    font-weight: 900;
-    line-height: 1;
+    font-size: var(--card-title-size);
+    font-weight: var(--card-title-weight);
+    line-height: 1.2;
     letter-spacing: 0;
     font-synthesis: none;
     text-wrap: pretty;
   }
 
-  .writing-card .affordance {
-    color: var(--paper-muted);
-    flex-shrink: 0;
-    transition:
-      color 0.2s,
-      transform 0.2s;
-  }
-
-  .writing-card:focus-visible .affordance {
-    color: var(--paper-accent);
-  }
-
-  @media (hover: hover) and (pointer: fine) {
-    .writing-card:hover .affordance {
-      color: var(--paper-accent);
-    }
+  .writing-card__header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--card-header-gap);
   }
 
   .writing-card .sub {
+    grid-column: 1 / -1;
     position: relative;
     z-index: 1;
     color: var(--paper-muted);
-    font-size: var(--p-small);
+    font-size: var(--card-copy-size);
+    font-weight: var(--card-copy-weight);
+    line-height: var(--card-copy-leading);
   }
 
   .writing-card > .ambient-flow {
@@ -118,7 +99,10 @@ const { title, summary, published_at } = item.data;
   }
 
   .writing-card .date {
+    align-self: center;
+    white-space: nowrap;
     color: var(--paper-muted);
-    font-size: 0.8rem;
+    font-size: var(--control-size);
+    font-weight: var(--card-copy-weight);
   }
 </style>
