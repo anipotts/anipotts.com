@@ -97,6 +97,11 @@ const articleLd = {
         }
       </div>
       <h1 class="title">{d.title}</h1>
+      <p class="mono muted">
+        by <a href="/" rel="author" class="quiet-link"
+          >{siteConfig.displayName}</a
+        >
+      </p>
       <p class="summary"><InlineText text={d.summary} /></p>
     </header>
 

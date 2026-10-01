@@ -1,7 +1,7 @@
 ---
 import InlineText from "./InlineText.astro";
 import AmbientFlow from "./AmbientFlow.astro";
-import { Icon } from "astro-icon/components";
+import CardAction from "./CardAction.astro";
 import type { Project } from "../lib/content";
 interface Props {
   project: Project;
@@ -16,28 +16,18 @@ const { project } = Astro.props;
   <AmbientFlow kind="work" seed={project.data.slug ?? project.id} />
   <span class="guide-content">
     <span class="guide-identity">
-      {
-        project.data.identity.logo_src && (
-          <img
-            src={project.data.identity.logo_src}
-            width="32"
-            height="32"
-            alt=""
-            loading="lazy"
-          />
-        )
-      }
       <span class="guide-label">{project.data.title}</span>
+      <CardAction
+        label="read the guide"
+        logoSrc={project.data.identity.logo_src}
+        icon={project.data.identity.icon}
+        adaptive={project.data.identity.logo_tone === "adaptive"}
+      />
     </span>
     <span class="guide-title"
       ><InlineText text={project.data.subtitle ?? ""} links={false} /></span
     >
   </span>
-  <span class="guide-action"
-    >read the guide <span class="action-arrow"
-      ><Icon name="ph:arrow-up-right-bold" aria-hidden="true" /></span
-    ></span
-  >
 </a>
 
 <style>
@@ -58,11 +48,6 @@ const { project } = Astro.props;
     gap: 1rem;
     min-width: 0;
   }
-  .guide-identity {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-  }
   .guide-identity img {
     width: 2rem;
     height: 2rem;
@@ -82,35 +67,7 @@ const { project } = Astro.props;
     letter-spacing: -0.02em;
     text-wrap: pretty;
   }
-  .guide-action {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.8rem;
-    flex: none;
-    min-height: 44px;
-    color: var(--paper-ink);
-    font-size: 0.85rem;
-    font-weight: 600;
-  }
-  .action-arrow {
-    display: grid;
-    place-items: center;
-    width: 44px;
-    height: 44px;
-    border-radius: 0.6rem;
-    background: #1247e6;
-    color: #fff;
-  }
-  .action-arrow :global(svg) {
-    width: 1.3rem;
-    height: 1.3rem;
-    transition: transform 0.18s ease;
-  }
-  @media (hover: hover) and (pointer: fine) {
-    .coding-agent-card:hover .action-arrow :global(svg) {
-      transform: translate(2px, -2px);
-    }
-  }
+
   .coding-agent-card:focus-visible {
     outline: 3px solid #1247e6;
     outline-offset: 4px;
@@ -127,14 +84,6 @@ const { project } = Astro.props;
       flex-direction: column;
       align-items: stretch;
       gap: 1.25rem;
-    }
-    .guide-action {
-      justify-content: space-between;
-    }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .action-arrow :global(svg) {
-      transition: none;
     }
   }
 </style>

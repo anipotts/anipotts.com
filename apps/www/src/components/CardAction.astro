@@ -1,0 +1,37 @@
+---
+import { Icon } from "astro-icon/components";
+interface Props {
+  label: string;
+  logoSrc?: string;
+  icon?: string;
+  adaptive?: boolean;
+}
+const { label, logoSrc, icon, adaptive = false } = Astro.props;
+---
+
+<span class="card-action site-action">
+  {
+    logoSrc ? (
+      <img
+        class:list={[
+          "site-action__mark",
+          { "site-action__mark--adaptive": adaptive },
+        ]}
+        src={logoSrc}
+        alt=""
+        width="16"
+        height="16"
+        loading="lazy"
+        decoding="async"
+      />
+    ) : (
+      <Icon
+        name={`ph:${icon ?? "globe"}`}
+        class="site-action__mark"
+        aria-hidden="true"
+      />
+    )
+  }
+  <span>{label}</span>
+  <Icon name="ph:arrow-bend-right-up" aria-hidden="true" />
+</span>

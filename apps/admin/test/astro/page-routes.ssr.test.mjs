@@ -246,7 +246,7 @@ describe("every Admin page server-renders with the readers on", () => {
       try {
         expect(preview.window.document.body.textContent).toContain(
           page.route === "/preview/home"
-            ? "hi, i'm ani!"
+            ? "hi, i'm ani potts!"
             : "search will be dead by 2030",
         );
       } finally {

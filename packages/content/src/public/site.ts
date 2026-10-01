@@ -3,6 +3,9 @@ export const siteConfig = {
   name: "Ani Potts",
   displayName: "ani potts",
   title: "builder and writer working with agents",
+  homepageTitle: "Ani Potts | Software Engineer Building AI Systems",
+  description:
+    "Ani Potts builds AI agents and data intensive software systems, and writes about working with coding agents.",
   url: "https://anipotts.com",
   email: "hello@anipotts.com",
   ogImage: "/og-image.png",

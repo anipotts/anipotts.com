@@ -5,6 +5,7 @@ import ExperienceFeatureCard from "../components/ExperienceFeatureCard.astro";
 import WritingRow from "../components/WritingRow.astro";
 import CodingAgentTipsCard from "../components/CodingAgentTipsCard.astro";
 import HomepageRichSummary from "../components/HomepageRichSummary.astro";
+import PressMention from "../components/PressMention.astro";
 import { Icon } from "astro-icon/components";
 import type { CollectionEntry } from "astro:content";
 import { projectSlug, writingSlug } from "../lib/content";
@@ -27,6 +28,9 @@ const mentionMap = cmsHome.mentions;
 const selectedWritingSlugs = writing.writing_slugs ?? [];
 const homeWritingOrder = new Map<string, number>(
   selectedWritingSlugs.map((slug, index) => [slug, index]),
+);
+const codingAgentEssay = allWriting.find(
+  (entry) => entry.id === "saturdays-are-for-claude-code",
 );
 const codingAgentGuide = allWork.find(
   (project) => projectSlug(project) === "agents",
@@ -64,8 +68,8 @@ const profileLd = {
 ---
 
 <Shell
-  title={siteConfig.displayName}
-  description={summaryText}
+  title={siteConfig.homepageTitle}
+  description={siteConfig.description}
   path="/"
   jsonLd={profileLd}
   robots={Astro.props.preview ? "noindex, nofollow, noarchive" : undefined}
@@ -86,6 +90,11 @@ const profileLd = {
         )
       }
     </p>
+    <PressMention
+      essayHref={codingAgentEssay
+        ? `/writing/${writingSlug(codingAgentEssay)}`
+        : undefined}
+    />
     <div class="experience-grid" role="group" aria-label="experience">
       {
         experiences.map((experience) =>
@@ -185,7 +194,7 @@ const profileLd = {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--s-4);
-    margin-top: var(--s-6);
+    margin-top: var(--s-4);
   }
 
   .stack {
@@ -221,6 +230,8 @@ const profileLd = {
 
   @media (max-width: 640px) {
     .home-hero {
+      font-size: var(--d-hero-mobile);
+      white-space: nowrap;
       margin-bottom: var(--s-3);
     }
 
