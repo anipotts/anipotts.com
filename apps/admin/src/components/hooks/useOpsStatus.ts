@@ -126,10 +126,15 @@ export function useOpsStatus({
     if (injected) {
       // An injected controller has an external owner; release only our listeners.
       const visibility = () => injected.visibilityChanged();
+      const hide = () => injected.end();
       document.addEventListener("visibilitychange", visibility);
+      window.addEventListener("pagehide", hide);
       injected.start();
       setController(injected);
-      return () => document.removeEventListener("visibilitychange", visibility);
+      return () => {
+        document.removeEventListener("visibilitychange", visibility);
+        window.removeEventListener("pagehide", hide);
+      };
     }
     const owned = acquireOps(events);
     lease.current = owned;

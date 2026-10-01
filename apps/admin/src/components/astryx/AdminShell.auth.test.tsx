@@ -40,6 +40,13 @@ beforeEach(async () => {
     },
   });
   vi.stubGlobal("scrollTo", () => {});
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -72,7 +79,9 @@ it.each(["logout", "bfcache", "expired"])(
     await act(async () =>
       document.dispatchEvent(new CustomEvent("admin:search")),
     );
-    const input = document.querySelector<HTMLInputElement>("dialog input")!;
+    const input = document.querySelector<HTMLInputElement>(
+      ".admin-command-palette-centered input",
+    )!;
     await act(async () => {
       Object.getOwnPropertyDescriptor(
         HTMLInputElement.prototype,
@@ -82,9 +91,10 @@ it.each(["logout", "bfcache", "expired"])(
     });
     await act(async () => {
       await vi.waitFor(() =>
-        expect(document.querySelector("dialog")?.textContent).toContain(
-          searchEntries[0]!.label,
-        ),
+        expect(
+          document.querySelector(".admin-command-palette-centered")
+            ?.textContent,
+        ).toContain(searchEntries[0]!.label),
       );
     });
     const remove = vi.spyOn(window, "removeEventListener");

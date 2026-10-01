@@ -12,24 +12,29 @@ const shell = (route: string) => (
 );
 
 describe("shared Data and Observability shell", () => {
-  it("renders the shared identity and one sidebar with Content, Data and Observability", () => {
+  it("renders the shared appbar identity and unified sidebar and drawer navigation", () => {
     const host = document.createElement("div");
     host.innerHTML = renderToStaticMarkup(shell("/observability/status"));
     expect(
       host.querySelector('[data-workspace="observability"]'),
     ).not.toBeNull();
-    // The home link: the wordmark in the sidebar, the monogram on phones.
+    // The desktop wordmark links home; the phone appbar identifies the workspace.
     const wordmarks = host.querySelectorAll<HTMLAnchorElement>(
       "a.admin-bracket-wordmark",
     );
     expect([...wordmarks].map((wordmark) => wordmark.textContent)).toEqual([
-      "[A]",
       "[admin]",
     ]);
     for (const wordmark of wordmarks) {
       expect(wordmark.getAttribute("href")).toBe("/");
       expect(wordmark.getAttribute("aria-label")).toBe("Overview");
     }
+    expect(host.querySelector(".admin-phone-identity")?.textContent).toBe(
+      "Observability",
+    );
+    expect(
+      host.querySelector('dialog[aria-label="Admin navigation"]'),
+    ).not.toBeNull();
     const navigation = host.querySelector(".admin-unified-nav")!;
     expect(
       [...navigation.querySelectorAll("[data-sidebar-group]")].map(
@@ -66,11 +71,13 @@ describe("shared Data and Observability shell", () => {
   ])("selects only its own destination: %s", (route, label) => {
     const host = document.createElement("div");
     host.innerHTML = renderToStaticMarkup(shell(route));
-    const selected = host.querySelectorAll(
-      '.admin-unified-nav a[aria-current="page"]',
-    );
-    expect(selected).toHaveLength(1);
-    expect(selected[0]?.textContent).toBe(label);
+    const navigation = host.querySelectorAll(".admin-unified-nav");
+    expect(navigation).toHaveLength(2);
+    for (const surface of navigation) {
+      const selected = surface.querySelectorAll('a[aria-current="page"]');
+      expect(selected).toHaveLength(1);
+      expect(selected[0]?.textContent).toBe(label);
+    }
   });
   it.each(["/work?view=machines", "/observability/status-old", "/proof"])(
     "does not select a destination from a partial route match: %s",
