@@ -146,10 +146,10 @@ describe("editorial catalog", () => {
         `>Writing</span><span[^>]*><span[^>]*aria-label="${records.length} records">${records.length}<`,
       ),
     );
-    // Sidebar and phone header share one theme owner; CSS shows one per viewport.
+    // Sidebar, modal drawer and phone header share one theme owner.
     expect(
       html.match(/aria-label="(?:Light|Dark|System) theme"/g),
-    ).toHaveLength(2);
+    ).toHaveLength(3);
     expect(html).not.toContain("Visit site");
     expect(html).not.toContain("Log out");
     expect(html).not.toContain("·");
@@ -306,7 +306,7 @@ it("titles each library page with its own name and no Overview heading", () => {
   }
 });
 
-it("gives a record page's editor bar the phone top in place of the shell's bar and tabs", () => {
+it("keeps the shared phone appbar and drawer on library and record routes", () => {
   const page = (props: Partial<React.ComponentProps<typeof EditorialApp>>) =>
     renderToStaticMarkup(
       <EditorialApp
@@ -322,13 +322,15 @@ it("gives a record page's editor bar the phone top in place of the shell's bar a
     groups: [{ name: "writing", href: "/content/writing", records }],
   });
   expect(library).toContain("admin-phone-bar");
-  expect(library).toContain("admin-phone-pages");
+  expect(library).toContain("admin-navigation-drawer");
+  expect(library).not.toContain("admin-phone-pages");
   for (const record of [
     page({ newWriting: true }),
     page({ review: { back: "/content/writing", status: "draft" } }),
   ]) {
     expect(record).toContain("editor-bar");
-    expect(record).not.toContain("admin-phone-bar");
+    expect(record).toContain("admin-phone-bar");
+    expect(record).toContain("admin-navigation-drawer");
     expect(record).not.toContain("admin-phone-pages");
   }
 });
