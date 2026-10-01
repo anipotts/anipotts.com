@@ -54,6 +54,10 @@ const writingEntries = allWriting
 const workLabel = work.label || "work";
 const workHref = work.view_all ?? work.links?.[0]?.href ?? "/work";
 const summaryText = intro.subheading;
+const compactSummaryText = intro.subheading_compact?.trim()
+  ? intro.subheading_compact
+  : summaryText;
+const hasCompactSummary = compactSummaryText !== summaryText;
 const introMentionKeys = intro.mention_keys ?? [];
 const profileLd = {
   "@context": "https://schema.org",
@@ -78,18 +82,32 @@ const profileLd = {
     <h1 class="home-hero">
       {heading}
     </h1>
-    <p class="hero-summary hero-line">
-      {
-        (
+    <p
+      class:list={[
+        "hero-summary",
+        "hero-line",
+        { "hero-line--desktop": hasCompactSummary },
+      ]}
+    >
+      <HomepageRichSummary
+        text={summaryText}
+        format={intro.subheading_format}
+        mentionKeys={introMentionKeys}
+        mentions={mentionMap}
+      />
+    </p>
+    {
+      hasCompactSummary && (
+        <p class="hero-summary hero-line hero-line--compact">
           <HomepageRichSummary
-            text={summaryText}
-            format={intro.subheading_format}
+            text={compactSummaryText}
+            format={intro.subheading_compact_format}
             mentionKeys={introMentionKeys}
             mentions={mentionMap}
           />
-        )
-      }
-    </p>
+        </p>
+      )
+    }
     <PressMention
       essayHref={codingAgentEssay
         ? `/writing/${writingSlug(codingAgentEssay)}`
@@ -173,6 +191,18 @@ const profileLd = {
     font-size: var(--d-lede);
     line-height: 1.52;
     text-wrap: pretty;
+  }
+
+  .hero-line--compact {
+    display: none;
+  }
+  @media (width < 768px) {
+    .hero-line--desktop {
+      display: none;
+    }
+    .hero-line--compact {
+      display: block;
+    }
   }
 
   .text-link {

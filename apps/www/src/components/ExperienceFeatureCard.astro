@@ -1,5 +1,5 @@
 ---
-import InlineText from "./InlineText.astro";
+import ResponsiveCopy from "./ResponsiveCopy.astro";
 import CardAction from "./CardAction.astro";
 import AmbientFlow from "./AmbientFlow.astro";
 import type { Project } from "../lib/content";
@@ -17,7 +17,7 @@ const identity = d.identity;
 const slug = project.data.slug ?? project.id;
 const isPgi = slug === "pgi-research-platform";
 const treatment = slug === "structured-ai" ? "current" : "community";
-const displayTitle = isPgi ? "pgi research" : d.title;
+const displayTitle = d.card_title?.trim() || d.title;
 const shot =
   preview?.kind === "video"
     ? undefined
@@ -88,7 +88,11 @@ const shotSizes = "(max-width: 640px) 100vw, 27rem";
       />
     </span>
     <span class="experience-feature__copy"
-      ><InlineText text={d.card_copy} links={false} /></span
+      ><ResponsiveCopy
+        text={d.card_copy}
+        compact={d.card_copy_compact}
+        links={false}
+      /></span
     >
   </span>
 </a>

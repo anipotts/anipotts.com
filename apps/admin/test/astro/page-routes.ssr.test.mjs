@@ -5,6 +5,7 @@ import { recoveryLogoutGenerationKey } from "../../src/lib/browser-recovery";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import reactRenderer from "@astrojs/react/server.js";
 import { ADMIN_ROUTES } from "../../../../scripts/ci/admin-route-inventory.mjs";
+import { collectGitSeed } from "../../../../scripts/content/content-d1-seed.mjs";
 import { contentDatabase } from "../../../www/test/content-database.mjs";
 import { env as workerEnv } from "cloudflare:workers";
 
@@ -102,8 +103,11 @@ vi.mock("../../src/lib/editorial-inventory-server", () => ({
 // Draft storage holds the current Git source at revision 1, so the preview
 // routes render their success path instead of the stale refusal. It is the
 // EDITORIAL Durable Object binding productionEditor reads, in dev and deploy.
+const candidateDrafts = new Map();
 const draftStorage = {
   get: async ({ kind, id }) => {
+    const candidate = candidateDrafts.get(`${kind}:${id}`);
+    if (candidate) return candidate;
     const path = {
       "page:home": "public/pages/home.md",
       "page:systems": "public/pages/systems.md",
@@ -133,14 +137,25 @@ const emptyDatabase = {
   prepare: () => emptyStatement,
   batch: async (statements) => statements.map(() => ({ results: [] })),
 };
+// Preview collection context is an explicitly activated CMS baseline.
+const publishedDatabase = contentDatabase();
+const seed = await collectGitSeed(
+  new URL("../../../../", import.meta.url).pathname,
+);
+for (const row of seed.records)
+  publishedDatabase.publish({
+    kind: row.record.kind,
+    id: row.record.id,
+    text: row.source,
+    operation: row.publicationId,
+  });
 const READERS_ON = {
   PRIVATE_READER_ENABLED: "true",
   PRIVATE_READER_OPS_ENABLED: "true",
   EDITORIAL_ENABLED: "true",
   EDITORIAL_PUBLISH_ENABLED: "true",
   DB: emptyDatabase,
-  // The published store at version 0: previews overlay nothing on Git.
-  CONTENT_DB: contentDatabase(),
+  CONTENT_DB: publishedDatabase,
   EDITORIAL: { getByName: () => draftStorage },
 };
 // Every route reads these bindings, as a Worker reads its own.
@@ -357,6 +372,75 @@ it.each([
   },
 );
 
+it("renders the exact saved project candidate body and card title without changing article identity", async () => {
+  const { setEditorialField, parseEditorialSource } =
+    await import("@anipotts/content/editorial/source");
+  const original = content.read("public/projects/chainedchat.md");
+  const data = parseEditorialSource(original).data;
+  let source = setEditorialField(
+    original,
+    ["card_title"],
+    "Candidate card title",
+  );
+  source = setEditorialField(
+    source,
+    ["card_copy_compact"],
+    "**Compact card copy**",
+  );
+  source +=
+    "\n\n## Candidate body\n\n**Exact saved project revision**\n\n<script>alert(1)</script>\n\n![candidate media](/images/editorial/" +
+    "a".repeat(64) +
+    ".png)\n";
+  candidateDrafts.set("work:chainedchat", {
+    source,
+    revision: 7,
+    discardedAt: null,
+  });
+  try {
+    const response = await render({
+      file: "apps/admin/src/pages/preview/record.astro",
+      route: "/preview/record",
+      url: "/preview/record?kind=work&id=chainedchat&revision=7",
+    });
+    expect(response.status).toBe(200);
+    const dom = new JSDOM(await response.text());
+    try {
+      const document = dom.window.document;
+      expect(document.querySelector(".project-prose")?.textContent).toContain(
+        "Exact saved project revision",
+      );
+      expect(document.querySelector(".project-prose h2")?.id).toBe(
+        "candidate-body",
+      );
+      expect(document.querySelector(".project-prose script")).toBeNull();
+      expect(document.querySelector(".work-card__name")?.textContent).toBe(
+        "Candidate card title",
+      );
+      expect(
+        document.querySelector(".responsive-copy__compact")?.textContent,
+      ).toContain("Compact card copy");
+      expect(document.querySelector(".hero-title")?.textContent.trim()).toBe(
+        data.title,
+      );
+      expect(
+        document.querySelector('link[rel="canonical"]')?.getAttribute("href"),
+      ).toBe("https://anipotts.com/work/" + (data.slug ?? "chainedchat"));
+    } finally {
+      dom.window.close();
+    }
+  } finally {
+    candidateDrafts.delete("work:chainedchat");
+  }
+});
+it("refuses to render another saved revision of the project candidate", async () => {
+  const response = await render({
+    file: "apps/admin/src/pages/preview/record.astro",
+    route: "/preview/record",
+    url: "/preview/record?kind=work&id=chainedchat&revision=99",
+  });
+  expect(response.status).toBe(409);
+  expect(await response.text()).not.toContain("Exact saved project revision");
+});
 // Compile the real shared Systems renderer and its provider icon registry.
 it.each(["saved", "baseline"])(
   "renders Systems %s preview with provider marks",
@@ -396,3 +480,80 @@ it.each(["saved", "baseline"])(
     }
   },
 );
+
+it("renders independently formatted desktop and compact homepage copy from one saved candidate", async () => {
+  const { setEditorialField } =
+    await import("@anipotts/content/editorial/source");
+  let source = content.read("public/pages/home.md");
+  for (const [field, value] of [
+    ["subheading", "**Desktop candidate summary**"],
+    ["subheading_format", "markdown"],
+    ["subheading_compact", "**Compact candidate summary**"],
+    ["subheading_compact_format", "markdown"],
+  ])
+    source = setEditorialField(source, ["sections", "intro", field], value);
+  candidateDrafts.set("page:home", { source, revision: 8, discardedAt: null });
+  try {
+    const response = await render({
+      file: "apps/admin/src/pages/preview/home.astro",
+      route: "/preview/home",
+      url: "/preview/home?revision=8",
+    });
+    expect(response.status).toBe(200);
+    const dom = new JSDOM(await response.text());
+    try {
+      expect(
+        dom.window.document.querySelector(".hero-line--desktop strong")
+          ?.textContent,
+      ).toBe("Desktop candidate summary");
+      expect(
+        dom.window.document.querySelector(".hero-line--compact strong")
+          ?.textContent,
+      ).toBe("Compact candidate summary");
+    } finally {
+      dom.window.close();
+    }
+  } finally {
+    candidateDrafts.delete("page:home");
+  }
+});
+it("uses one canonical page summary when the saved compact value is blank", async () => {
+  const { setEditorialField } =
+    await import("@anipotts/content/editorial/source");
+  let source = setEditorialField(
+    content.read("public/pages/writing.md"),
+    ["hero_summary"],
+    "Canonical candidate summary",
+  );
+  source = setEditorialField(source, ["hero_summary_compact"], "   ");
+  candidateDrafts.set("page:writing", {
+    source,
+    revision: 9,
+    discardedAt: null,
+  });
+  try {
+    const response = await render({
+      file: "apps/admin/src/pages/preview/record.astro",
+      route: "/preview/record",
+      url: "/preview/record?kind=page&id=writing&revision=9",
+    });
+    expect(response.status).toBe(200);
+    const dom = new JSDOM(await response.text());
+    try {
+      expect(
+        dom.window.document
+          .querySelector(".page-hero__summary")
+          ?.textContent.trim(),
+      ).toBe("Canonical candidate summary");
+      expect(
+        dom.window.document.querySelector(
+          ".page-hero__summary .responsive-copy__compact",
+        ),
+      ).toBeNull();
+    } finally {
+      dom.window.close();
+    }
+  } finally {
+    candidateDrafts.delete("page:writing");
+  }
+});

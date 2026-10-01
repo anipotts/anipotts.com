@@ -6,6 +6,10 @@
  * the database to an export taken before the unpublish, which is the local
  * equivalent of a D1 Time Travel restore to a captured bookmark. */
 import assert from "node:assert/strict";
+import {
+  collectGitSeed,
+  seedSql,
+} from "../../../scripts/content/content-d1-seed.mjs";
 import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -66,6 +70,13 @@ const sql =
       ),
     )
     .join("\n") +
+  seedSql(
+    (await collectGitSeed(root)).records.filter(
+      ({ record }) =>
+        record.kind !== "writing" || record.id !== "awareness-is-alpha",
+    ),
+    "2026-09-20T00:00:00Z",
+  ) +
   `\nINSERT INTO editorial_published_revisions (publication_id,record_kind,record_id,source,revision,source_sha256,published_at,expected_inventory_version,content_schema_version) VALUES ('workerd-synthetic','writing','awareness-is-alpha',${sqlString(source)},1,'${hash}','2026-09-20T12:00:00.000Z',0,1);\nINSERT INTO editorial_published_active VALUES ('writing','awareness-is-alpha','workerd-synthetic');\nUPDATE editorial_published_inventory SET version=1 WHERE singleton=1;`;
 
 function d1(...args) {
@@ -184,7 +195,7 @@ try {
   const receipt = await proof.json();
   assert.equal(receipt.sourceSha256, hash);
   assert.equal(receipt.inventoryVersion, 1);
-  assert.match(receipt.bundledSourceSha256, /^[a-f0-9]{64}$/);
+  assert.equal(receipt.runtime, 2);
   for (const path of [
     "/writing/awareness-is-alpha",
     "/writing",

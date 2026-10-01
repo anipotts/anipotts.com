@@ -1,5 +1,5 @@
 ---
-import InlineText from "./InlineText.astro";
+import ResponsiveCopy from "./ResponsiveCopy.astro";
 import CardAction from "./CardAction.astro";
 import type { Project } from "../lib/content";
 import AmbientFlow from "./AmbientFlow.astro";
@@ -21,7 +21,7 @@ const {
   priority = false,
 } = Astro.props;
 const d = project.data;
-const displayTitle = d.title;
+const displayTitle = d.card_title?.trim() || d.title;
 const slug = project.data.slug ?? project.id;
 const identity = d.identity;
 const preview = d.preview_media;
@@ -105,7 +105,11 @@ const shotSizes = "(max-width: 52rem) 100vw, 26rem";
       />
     </span>
     <span class="work-card__copy"
-      ><InlineText text={d.card_copy} links={false} /></span
+      ><ResponsiveCopy
+        text={d.card_copy}
+        compact={d.card_copy_compact}
+        links={false}
+      /></span
     >
   </span>
 </a>
