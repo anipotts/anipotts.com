@@ -18,13 +18,19 @@ describe("shared Data and Observability shell", () => {
     expect(
       host.querySelector('[data-workspace="observability"]'),
     ).not.toBeNull();
-    // The desktop wordmark links home; the phone appbar identifies the workspace.
+    // The home link stays in the desktop sidebar; phones show workspace identity.
     const wordmarks = host.querySelectorAll<HTMLAnchorElement>(
       "a.admin-bracket-wordmark",
     );
     expect([...wordmarks].map((wordmark) => wordmark.textContent)).toEqual([
       "[admin]",
     ]);
+    expect(host.querySelector(".admin-phone-identity")?.textContent).toBe(
+      "Observability",
+    );
+    expect(
+      host.querySelector('.admin-phone-bar [aria-label="Open navigation"]'),
+    ).not.toBeNull();
     for (const wordmark of wordmarks) {
       expect(wordmark.getAttribute("href")).toBe("/");
       expect(wordmark.getAttribute("aria-label")).toBe("Overview");
@@ -71,12 +77,13 @@ describe("shared Data and Observability shell", () => {
   ])("selects only its own destination: %s", (route, label) => {
     const host = document.createElement("div");
     host.innerHTML = renderToStaticMarkup(shell(route));
-    const navigation = host.querySelectorAll(".admin-unified-nav");
-    expect(navigation).toHaveLength(2);
-    for (const surface of navigation) {
-      const selected = surface.querySelectorAll('a[aria-current="page"]');
+    const navigations = host.querySelectorAll(".admin-unified-nav");
+    expect(navigations).toHaveLength(2); // Desktop sidebar and controlled drawer.
+    for (const navigation of navigations) {
+      const selected = navigation.querySelectorAll('a[aria-current="page"]');
       expect(selected).toHaveLength(1);
       expect(selected[0]?.textContent).toBe(label);
+      expect(selected[0]?.getAttribute("href")).toBe(route);
     }
   });
   it.each(["/work?view=machines", "/observability/status-old", "/proof"])(

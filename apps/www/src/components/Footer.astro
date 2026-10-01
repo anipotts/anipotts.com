@@ -86,7 +86,7 @@ const externalProfiles = [
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .contact-email:hover {
+    :global(html:not([data-touch-input])) .contact-email:hover {
       color: var(--interactive);
       text-decoration: underline;
       text-underline-offset: 0.2em;
@@ -99,7 +99,7 @@ const externalProfiles = [
     width: 44px;
     height: 44px;
     flex: 0 0 44px;
-    border-radius: 0.5rem;
+    border-radius: var(--card-ui-radius);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -112,16 +112,16 @@ const externalProfiles = [
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .glyph:hover {
+    :global(html:not([data-touch-input])) .glyph:hover {
       color: var(--interactive);
       background: color-mix(in srgb, var(--ink) 7%, transparent);
     }
   }
 
   :is(.glyph, .contact-email):focus-visible {
-    outline: 2px solid var(--interactive);
-    outline-offset: 4px;
-    border-radius: 0.5rem;
+    outline: var(--focus-width) solid var(--ink);
+    outline-offset: var(--focus-offset);
+    border-radius: var(--card-ui-radius);
   }
 
   .admin-glyph {
