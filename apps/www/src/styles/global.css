@@ -670,6 +670,20 @@ html.editorial-detail body {
   background-image: linear-gradient(var(--bg), var(--bg));
 }
 
+/* Keep light reading surfaces and the browser's bottom/overscroll canvas on
+   the same paper once the wave header has left the viewport. --bg and the
+   header's --detail-canvas remain unchanged for art and return-to-top. */
+html.editorial-detail:not([data-theme="dark"])[data-reading-canvas],
+html.editorial-detail:not([data-theme="dark"])[data-reading-canvas] body {
+  background-color: var(--reading-paper, var(--bg));
+}
+html.editorial-detail:not([data-theme="dark"])[data-reading-canvas] body {
+  background-image: linear-gradient(
+    var(--reading-paper, var(--bg)),
+    var(--reading-paper, var(--bg))
+  );
+}
+
 .editorial-detail .article-body {
   width: 100%;
   max-width: 65ch;
