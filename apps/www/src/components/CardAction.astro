@@ -6,6 +6,7 @@ interface Props {
   icon?: string;
   adaptive?: boolean;
   largeMark?: boolean;
+  showMark?: boolean;
 }
 const {
   label,
@@ -13,6 +14,7 @@ const {
   icon,
   adaptive = false,
   largeMark = false,
+  showMark = true,
 } = Astro.props;
 ---
 
@@ -20,36 +22,43 @@ const {
   class:list={[
     "card-action",
     "site-action",
-    { "site-action--large-mark": largeMark },
+    {
+      "site-action--large-mark": largeMark,
+      "site-action--text-only": !showMark,
+    },
   ]}
 >
   {
-    logoSrc ? (
-      <img
-        class:list={[
-          "site-action__mark",
-          { "site-action__mark--adaptive": adaptive },
-        ]}
-        src={logoSrc}
-        alt=""
-        width="16"
-        height="16"
-        loading="lazy"
-        decoding="async"
-      />
-    ) : (
-      <Icon
-        name={`ph:${icon ?? "globe"}`}
-        class="site-action__mark"
-        aria-hidden="true"
-      />
-    )
+    showMark &&
+      (logoSrc ? (
+        <img
+          class:list={[
+            "site-action__mark",
+            { "site-action__mark--adaptive": adaptive },
+          ]}
+          src={logoSrc}
+          alt=""
+          width="16"
+          height="16"
+          loading="lazy"
+          decoding="async"
+        />
+      ) : (
+        <Icon
+          name={`ph:${icon ?? "globe"}`}
+          class="site-action__mark"
+          aria-hidden="true"
+        />
+      ))
   }
   <span>{label}</span>
   <Icon name="ph:arrow-bend-right-up" aria-hidden="true" />
 </span>
 
 <style>
+  .site-action--text-only {
+    grid-template-columns: minmax(0, 1fr) var(--control-icon-size);
+  }
   .site-action--large-mark {
     grid-template-columns: 1.35rem minmax(0, 1fr) var(--control-icon-size);
   }

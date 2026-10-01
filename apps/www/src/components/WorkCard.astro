@@ -90,7 +90,14 @@ const shotSizes = "(max-width: 52rem) 100vw, 26rem";
   }
   <span class="work-card__body">
     <span class="work-card__header">
-      <span class="work-card__name">{displayTitle}</span>
+      <span class="card-title-group">
+        <span class="work-card__name">{displayTitle}</span>
+        {
+          variant === "project" && (
+            <ProjectMeta status={d.status} year={d.year} inline />
+          )
+        }
+      </span>
       <CardAction
         label="view project"
         largeMark={["nyu-purity-test", "pgi-research-platform"].includes(slug)}
@@ -103,7 +110,6 @@ const shotSizes = "(max-width: 52rem) 100vw, 26rem";
     <span class="work-card__copy"
       ><InlineText text={d.card_copy} links={false} /></span
     >
-    {variant === "project" && <ProjectMeta status={d.status} year={d.year} />}
   </span>
 </a>
 
@@ -173,9 +179,6 @@ const shotSizes = "(max-width: 52rem) 100vw, 26rem";
     aspect-ratio: 16 / 9;
     overflow: hidden;
     border-radius: var(--radius-desktop-ui-media);
-  }
-  .work-card__body :global(.project-meta-group) {
-    margin-top: auto;
   }
 
   .work-card__media picture {

@@ -1016,3 +1016,19 @@ img[src="/images/brand/quantercise-legacy-icon.png"] {
   transform: scale(1.5);
   clip-path: inset(16.6667% round 0.12em);
 }
+
+/* Titles and dates share the left-hand identity tier on card headers. */
+.card-title-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.375rem var(--card-header-gap);
+  min-width: 0;
+}
+.card-title-group :is(.date, .project-meta-ui) {
+  font-size: var(--control-size);
+  font-weight: var(--card-copy-weight);
+  line-height: var(--control-leading);
+  font-variant-numeric: tabular-nums;
+  color: var(--paper-muted);
+}

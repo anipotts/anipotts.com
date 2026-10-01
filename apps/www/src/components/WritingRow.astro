@@ -1,6 +1,6 @@
 ---
 import InlineText from "./InlineText.astro";
-import { Icon } from "astro-icon/components";
+import CardAction from "./CardAction.astro";
 import { formatDate, writingSlug, type Writing } from "../lib/content";
 import AmbientFlow from "./AmbientFlow.astro";
 
@@ -20,15 +20,19 @@ const { title, summary, published_at } = item.data;
   data-astro-prefetch="viewport"
 >
   <AmbientFlow kind="writing" seed={slug} variant={flowVariant} />
-  <span class="title">{title}</span>
-  {
-    published_at && (
-      <time class="date mono" datetime={published_at.toISOString()}>
-        {formatDate(published_at)}
-      </time>
-    )
-  }
-  <Icon name="ph:arrow-bend-right-up" class="affordance" aria-hidden="true" />
+  <span class="writing-card__header">
+    <span class="card-title-group">
+      <span class="title">{title}</span>
+      {
+        published_at && (
+          <time class="date" datetime={published_at.toISOString()}>
+            {formatDate(published_at)}
+          </time>
+        )
+      }
+    </span>
+    <CardAction label="read" showMark={false} />
+  </span>
   <span class="sub"><InlineText text={summary} links={false} /></span>
 </a>
 
@@ -39,7 +43,7 @@ const { title, summary, published_at } = item.data;
     contain: paint;
     overflow: hidden;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
     gap: 0.5rem var(--card-header-gap);
     border-radius: var(--paper-radius);
@@ -71,24 +75,11 @@ const { title, summary, published_at } = item.data;
     text-wrap: pretty;
   }
 
-  .writing-card .affordance {
-    color: var(--paper-muted);
-    width: 1rem;
-    height: 1rem;
-    align-self: center;
-    transition:
-      color 0.2s,
-      transform 0.2s;
-  }
-
-  .writing-card:focus-visible .affordance {
-    color: var(--paper-accent);
-  }
-
-  @media (hover: hover) and (pointer: fine) {
-    .writing-card:hover .affordance {
-      color: var(--paper-accent);
-    }
+  .writing-card__header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--card-header-gap);
   }
 
   .writing-card .sub {
@@ -113,22 +104,5 @@ const { title, summary, published_at } = item.data;
     color: var(--paper-muted);
     font-size: var(--control-size);
     font-weight: var(--card-copy-weight);
-  }
-  @media (max-width: 600px) {
-    .writing-card {
-      grid-template-columns: minmax(0, 1fr) auto;
-      row-gap: 0.375rem;
-    }
-    .writing-card .affordance {
-      grid-column: 2;
-      grid-row: 1;
-    }
-    .writing-card .date {
-      grid-column: 1;
-      grid-row: 2;
-    }
-    .writing-card .sub {
-      grid-row: 3;
-    }
   }
 </style>

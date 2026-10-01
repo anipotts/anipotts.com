@@ -3,8 +3,9 @@ interface Props {
   status: string;
   year: string;
   role?: string;
+  inline?: boolean;
 }
-const { status, year, role } = Astro.props;
+const { status, year, role, inline = false } = Astro.props;
 const label = status === "wip" ? "in progress" : status;
 const timeframe = year
   .trim()
@@ -12,15 +13,19 @@ const timeframe = year
   .replace(/\s*[-–—]\s*/gu, " – ");
 ---
 
-<span class="project-meta-group">
+<span
+  class:list={["project-meta-group", { "project-meta-group--inline": inline }]}
+>
   <span class="project-meta-ui">
-    <span class="status"
-      ><span
-        class:list={["status-dot", `status-dot--${status}`]}
-        aria-hidden="true"></span><span class="sr-only">Status: </span>{
-        label
-      }<span class="sr-only">.</span></span
-    >
+    {
+      (!inline || status !== "live") && (
+        <span class="status">
+          <span class="sr-only">Status: </span>
+          {label}
+          <span class="sr-only">.</span>
+        </span>
+      )
+    }
     <span class="timeframe"
       ><span class="sr-only">Timeframe: </span>{timeframe}</span
     >
@@ -48,6 +53,12 @@ const timeframe = year
     font-size: var(--control-size);
     font-weight: var(--card-copy-weight);
     line-height: var(--control-leading);
+  }
+  .project-meta-group--inline .project-meta-ui {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    gap: 0.5rem;
   }
   .status {
     display: inline-flex;
