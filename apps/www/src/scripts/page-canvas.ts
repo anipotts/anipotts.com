@@ -27,10 +27,13 @@ export function syncPageCanvas(doc: Document): void {
         reading = (writing ? box.top : box.bottom) <= 0;
       }
       // Short project pages reach the footer while the header is still visible.
-      // Keep the initial top canvas, then match paper at the scrolled page end.
+      // Match paper at the page end, including pages that cannot scroll at all.
       reading ||=
         win.scrollY > 0 &&
         win.scrollY + win.innerHeight >= root.scrollHeight - 1;
+      reading ||=
+        root.scrollHeight <= win.innerHeight &&
+        Boolean(doc.querySelector("body > .foot"));
     }
     const changed = root.hasAttribute("data-reading-canvas") !== reading;
     if (changed) root.toggleAttribute("data-reading-canvas", reading);

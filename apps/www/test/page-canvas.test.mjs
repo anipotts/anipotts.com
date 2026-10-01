@@ -173,11 +173,25 @@ test("short work footer matches paper before the header can leave the viewport",
   assert.equal(f.meta.content, "rgb(205, 218, 249)");
 });
 
-test("a page that fits the viewport does not replace its initial header canvas", () => {
+test("a fitting light detail page starts on paper because its footer cannot scroll", () => {
   const f = fixture({ kind: "work", boundary: 300 });
   f.root.scrollHeight = f.win.innerHeight;
   syncPageCanvas(f.doc);
+  assert.equal(f.reading(), true);
+  assert.equal(f.meta.content, "rgb(247, 250, 255)");
+  f.root.dataset.theme = "dark";
+  f.win.__apCanvasSync();
   assert.equal(f.reading(), false);
+  f.root.dataset.theme = "light";
+  f.win.__apCanvasSync();
+  assert.equal(f.reading(), true);
+  f.route("listing");
+  f.emit("astro:after-swap");
+  assert.equal(
+    f.reading(),
+    false,
+    "fitting ordinary blue routes retain their own canvas",
+  );
 });
 
 test("dark and ordinary blue routes skip scroll work; theme and route swaps clear stale paper", () => {
