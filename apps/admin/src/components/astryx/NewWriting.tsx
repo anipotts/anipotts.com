@@ -8,10 +8,10 @@ import { dispatchEditorialRecordCreated } from "../../lib/editorial-inventory-ev
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
-import { TextInput } from "@astryxdesign/core/TextInput";
-import { Button } from "@astryxdesign/core/Button";
-import { IconButton } from "@astryxdesign/core/IconButton";
-import { Banner } from "@astryxdesign/core/Banner";
+import { TextInput } from "./WritingControls";
+import { Button } from "./WritingControls";
+import { IconButton } from "./WritingControls";
+import { Banner } from "./WritingControls";
 import { Link } from "@astryxdesign/core/Link";
 import { Text } from "@astryxdesign/core/Text";
 import { PencilSimpleIcon } from "@phosphor-icons/react";

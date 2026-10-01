@@ -2,6 +2,8 @@
 import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
+import tailwindcss from "@tailwindcss/vite";
+import { openaiScope } from "./src/styles/openai-scope.mjs";
 import { unified } from "@astrojs/markdown-remark";
 import { publishedHeadingIds } from "../www/src/lib/published-heading-ids.mjs";
 import icon from "astro-icon";
@@ -68,6 +70,9 @@ export default defineConfig({
     port: 3001,
   },
   vite: {
+    // SDK foundations are scoped after Tailwind expands their imports. Legacy
+    // Astryx surfaces never receive the SDK reset or its document tokens.
+    css: { postcss: { plugins: [openaiScope()] } },
     // Explicit loopback-only editor development. Production compilation ignores it.
     define: {
       "import.meta.env.EDITORIAL_LOCAL_PREVIEW": "true",
@@ -76,6 +81,7 @@ export default defineConfig({
       __LOCAL_OWNER_BUILD__: JSON.stringify(adminLocalOwner),
     },
     plugins: [
+      tailwindcss(),
       {
         // astro dev renders in workerd, whose console.createTask throws "not
         // implemented". React's development build calls it while its modules

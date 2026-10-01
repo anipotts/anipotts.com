@@ -3,6 +3,7 @@ import React, { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { Editor } from "@tiptap/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { AdminUIProvider } from "../workspace/AdminUI";
 import { RichTextField } from "./RichTextField";
 import { inlineMarkdown } from "../../lib/rich-text";
 
@@ -34,15 +35,17 @@ const dirty = vi.fn();
 async function render(value = "Original", resetGeneration = 0) {
   await act(async () =>
     root.render(
-      <RichTextField
-        label="Subtitle"
-        value={value}
-        onChange={changed}
-        onDirty={dirty}
-        flushRef={flushRef}
-        resetGeneration={resetGeneration}
-        compact
-      />,
+      <AdminUIProvider enabled mode="light">
+        <RichTextField
+          label="Subtitle"
+          value={value}
+          onChange={changed}
+          onDirty={dirty}
+          flushRef={flushRef}
+          resetGeneration={resetGeneration}
+          compact
+        />
+      </AdminUIProvider>,
     ),
   );
 }

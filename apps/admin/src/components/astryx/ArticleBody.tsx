@@ -1,3 +1,4 @@
+import { ToggleButton } from "./WritingControls";
 import { EditorSelectionBookmark } from "../../lib/editor-selection-bookmark";
 import { SelectionOverlay } from "./SelectionOverlay";
 import {
@@ -16,18 +17,15 @@ import { Markdown } from "@tiptap/markdown";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Toolbar } from "@astryxdesign/core/Toolbar";
-import { DropdownMenu } from "@astryxdesign/core/DropdownMenu";
-import { Button } from "@astryxdesign/core/Button";
-import { TextInput } from "@astryxdesign/core/TextInput";
-import { TextArea } from "@astryxdesign/core/TextArea";
+import { DropdownMenu } from "./WritingControls";
+import { Button } from "./WritingControls";
+import { TextInput } from "./WritingControls";
+import { TextArea } from "./WritingControls";
 import { FormLayout } from "@astryxdesign/core/FormLayout";
 import { Text } from "@astryxdesign/core/Text";
 import { Field } from "@astryxdesign/core/Field";
-import { Banner } from "@astryxdesign/core/Banner";
-import {
-  ToggleButton,
-  ToggleButtonGroup,
-} from "@astryxdesign/core/ToggleButton";
+import { Banner } from "./WritingControls";
+import { ToggleButtonGroup } from "./WritingControls";
 import {
   TextBIcon,
   TextItalicIcon,
@@ -48,7 +46,7 @@ import {
 import { useCaretAboveDock, useKeyboardInset } from "../../lib/keyboard-inset";
 import { safeInlineUrl } from "@anipotts/content/public/inline";
 import { ArticleImageUpload } from "./ArticleImageUpload";
-import { editorialImagePreview } from "../../lib/editorial-media";
+import { editorialImagePreviewUri } from "../../lib/editorial-media";
 
 const imageSelection = (selection: Selection): selection is NodeSelection =>
   selection instanceof NodeSelection && selection.node.type.name === "image";
@@ -573,7 +571,7 @@ function VisualArticleBody({
               label="View full size"
               size="sm"
               variant="ghost"
-              href={editorialImagePreview(
+              href={editorialImagePreviewUri(
                 String(editor?.getAttributes("image").src ?? ""),
               )}
               target="_blank"
@@ -662,7 +660,7 @@ function VisualArticleBody({
                 safeInlineUrl(url, true) && (
                   <img
                     className="article-image-preview"
-                    src={editorialImagePreview(url)}
+                    src={editorialImagePreviewUri(url)}
                     alt={alt}
                   />
                 )}

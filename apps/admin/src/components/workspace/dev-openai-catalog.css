@@ -1,0 +1,131 @@
+.dev-openai-catalog {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4);
+  display: grid;
+  gap: calc(var(--spacing) * 4);
+}
+.dev-openai-catalog h1 {
+  font-size: var(--font-heading-lg-size);
+  font-weight: var(--font-weight-semibold);
+}
+.dev-openai-catalog h2 {
+  font-size: var(--font-heading-md-size);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: calc(var(--spacing) * 2);
+}
+.dev-openai-catalog h3 {
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: calc(var(--spacing) * 3);
+}
+.dev-openai-catalog section {
+  min-width: 0;
+}
+.dev-openai-catalog p {
+  margin: calc(var(--spacing) * 2) 0;
+}
+.dev-openai-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--spacing) * 3);
+  align-items: center;
+  margin: calc(var(--spacing) * 2) 0;
+}
+.dev-openai-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: calc(var(--spacing) * 8);
+}
+.dev-openai-catalog form {
+  display: grid;
+  gap: calc(var(--spacing) * 3);
+}
+.dev-openai-record {
+  text-align: left;
+  width: 100%;
+  padding: 0;
+  cursor: pointer;
+}
+.dev-openai-record small {
+  display: none;
+  font-size: var(--font-text-xs-size);
+  color: var(--color-text-secondary);
+  margin-top: var(--spacing);
+}
+.dev-openai-record:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: var(--spacing);
+}
+.dev-openai-chat {
+  display: block;
+  width: 100%;
+  height: 460px;
+}
+@media (max-width: 640px) {
+  .dev-openai-catalog {
+    padding: calc(var(--spacing) * 4) calc(var(--spacing) * 2);
+  }
+  .dev-openai-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dev-openai-controls > * {
+    max-width: 100%;
+  }
+  .dev-openai-catalog button:not([role="checkbox"]),
+  .dev-openai-catalog input {
+    min-height: 44px;
+  }
+}
+
+.dev-openai-header {
+  display: grid;
+  gap: calc(var(--spacing) * 2);
+}
+.dev-openai-header :is(h1, p, .dev-openai-controls) {
+  margin: 0;
+}
+.dev-openai-header p {
+  font-size: var(--font-text-sm-size);
+  line-height: var(--font-text-sm-line-height);
+}
+@media (min-width: 641px) {
+  [data-admin-ui="openai"]
+    .dev-openai-catalog
+    .openai-record-table
+    :is(th, td) {
+    padding: var(--spacing) calc(var(--spacing) * 2);
+    vertical-align: middle;
+  }
+  [data-admin-ui="openai"]
+    .dev-openai-catalog
+    :is(.openai-table-footer, .openai-pagination) {
+    padding: var(--spacing) calc(var(--spacing) * 2);
+  }
+}
+@media (max-width: 640px) {
+  .dev-openai-record small {
+    display: block;
+  }
+  [data-admin-ui="openai"]
+    .dev-openai-catalog
+    .openai-record-table
+    td:is([data-column="revision"], [data-column="status"]) {
+    display: none;
+  }
+}
+/* This compact synthetic detail keeps labels beside their values on phones.
+ * The existing workspace definition layout remains unchanged elsewhere. */
+@media (max-width: 640px) {
+  .dev-openai-catalog .workspace-definitions {
+    gap: var(--spacing);
+    font-size: var(--font-text-sm-size);
+  }
+  .dev-openai-catalog .workspace-definition {
+    grid-template-columns: minmax(0, 7em) minmax(0, 1fr);
+    column-gap: calc(var(--spacing) * 2);
+    line-height: var(--font-text-sm-line-height);
+  }
+  .dev-openai-catalog .workspace-definition > dd {
+    color: var(--color-text);
+  }
+}

@@ -1,0 +1,220 @@
+/* The SDK supplies controls, while the admin owns table geometry. */
+[data-admin-ui="openai"] .openai-table {
+  width: 100%;
+  min-width: 0;
+  border-radius: var(--radius-container);
+  background: var(--color-background-surface);
+}
+[data-admin-ui="openai"] .openai-table-frame {
+  min-width: 0;
+  container-type: inline-size;
+  --workspace-table-fixed: var(--workspace-table-fixed-wide, 0px);
+  --workspace-table-spread: var(--workspace-table-spread-wide, 1);
+}
+[data-admin-ui="openai"] .openai-record-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font: inherit;
+  font-size: var(--text-supporting-size);
+}
+[data-admin-ui="openai"] .openai-record-table :is(th, td) {
+  padding: var(--spacing-1) var(--spacing-3);
+  text-align: start;
+  vertical-align: middle;
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+[data-admin-ui="openai"] .openai-record-table th {
+  padding-block: var(--spacing-2);
+  max-width: 0;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+[data-admin-ui="openai"] .openai-record-table :is(th, td):first-child {
+  padding-inline-start: var(--spacing-4);
+}
+[data-admin-ui="openai"] .openai-record-table :is(th, td):last-child {
+  padding-inline-end: var(--spacing-4);
+}
+[data-admin-ui="openai"] .openai-record-table [data-align="end"] {
+  text-align: end;
+}
+[data-admin-ui="openai"] .openai-record-table [data-numeric] {
+  font-variant-numeric: tabular-nums;
+}
+[data-admin-ui="openai"] .openai-record-table thead button {
+  min-height: 36px;
+  max-width: 100%;
+  padding-inline: 0;
+  font: inherit;
+  white-space: nowrap;
+}
+[data-admin-ui="openai"] .openai-record-table tbody tr {
+  position: relative;
+}
+[data-admin-ui="openai"] .openai-record-table tbody tr[data-selected],
+[data-admin-ui="openai"]
+  .openai-table
+  tbody
+  tr:has(.workspace-row-link:focus-visible) {
+  background: var(--color-overlay-hover);
+}
+[data-admin-ui="openai"] .openai-record-table .openai-table-select {
+  width: 44px;
+  min-width: 44px;
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding-inline: 8px;
+}
+[data-admin-ui="openai"] .openai-record-table .openai-table-select button {
+  min-width: 18px;
+  min-height: 18px;
+}
+[data-admin-ui="openai"] .openai-table [role="checkbox"]::before {
+  content: "";
+  position: absolute;
+  inset: -9px;
+}
+[data-admin-ui="openai"]
+  .openai-table
+  td
+  :is(a, button):not(.workspace-row-link),
+[data-admin-ui="openai"] .openai-table td [role="button"] {
+  position: relative;
+  z-index: 1;
+}
+[data-admin-ui="openai"] :is(.openai-table-footer, .openai-pagination) {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--text-supporting-size);
+  color: var(--color-text-secondary);
+}
+[data-admin-ui="openai"] .openai-pagination {
+  justify-content: flex-end;
+}
+[data-admin-ui="openai"]
+  :is(.openai-mobile-label, .openai-mobile-sort, .openai-mobile-column-name) {
+  display: none;
+}
+@media (hover: hover) {
+  [data-admin-ui="openai"]
+    .openai-table[data-interactive="true"]
+    tbody
+    tr:not(.openai-group-row):hover {
+    background: var(--color-overlay-hover);
+  }
+}
+@media (max-width: 1439px) {
+  [data-admin-ui="openai"] .openai-table-frame {
+    --workspace-table-fixed: var(--workspace-table-fixed-large, 0px);
+    --workspace-table-spread: var(--workspace-table-spread-large, 1);
+  }
+  [data-admin-ui="openai"] .openai-table [data-hide-below="wide"] {
+    display: none;
+  }
+}
+@media (max-width: 1023px) {
+  [data-admin-ui="openai"] .openai-table-frame {
+    --workspace-table-fixed: var(--workspace-table-fixed-medium, 0px);
+    --workspace-table-spread: var(--workspace-table-spread-medium, 1);
+  }
+  [data-admin-ui="openai"] .openai-table [data-hide-below="large"] {
+    display: none;
+  }
+}
+@media (max-width: 640px) {
+  [data-admin-ui="openai"] .openai-table {
+    background: transparent;
+  }
+  [data-admin-ui="openai"] .openai-mobile-sort {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-1);
+    align-items: center;
+  }
+  [data-admin-ui="openai"] .openai-record-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+    overflow: hidden;
+  }
+  [data-admin-ui="openai"] .openai-record-table thead button {
+    display: none;
+  }
+  [data-admin-ui="openai"] .openai-mobile-column-name {
+    display: inline;
+  }
+  [data-admin-ui="openai"] .openai-record-table :is(tbody, tr, td, th) {
+    display: block;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+  }
+  [data-admin-ui="openai"] .openai-record-table tbody tr {
+    padding-block: var(--spacing-2);
+  }
+  [data-admin-ui="openai"] .openai-record-table tbody td {
+    padding: 2px var(--spacing-3);
+    text-align: start;
+    white-space: normal;
+  }
+  [data-admin-ui="openai"] .openai-record-table tbody [data-hide-below] {
+    display: none;
+  }
+  /* RecordRow already carries compact status and time beside the title. */
+  [data-admin-ui="openai"]
+    .openai-record-table
+    tbody
+    tr:has(.workspace-row)
+    > td:not([data-lead]):not(.openai-table-select) {
+    display: none;
+  }
+  [data-admin-ui="openai"] .openai-mobile-label {
+    display: inline;
+    margin-inline-end: var(--spacing-2);
+    color: var(--color-text-secondary);
+  }
+  [data-admin-ui="openai"]
+    .openai-record-table
+    tbody
+    tr:has(> .openai-table-select) {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    align-items: start;
+  }
+  [data-admin-ui="openai"]
+    .openai-record-table
+    tbody
+    tr:has(> .openai-table-select)
+    > td {
+    grid-column: 2;
+  }
+  [data-admin-ui="openai"]
+    .openai-record-table
+    tbody
+    tr
+    > td.openai-table-select {
+    display: flex;
+    grid-column: 1;
+    grid-row: 1;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0;
+  }
+  [data-admin-ui="openai"] .openai-table [role="checkbox"]::before {
+    inset: -13px;
+  }
+  [data-admin-ui="openai"] .openai-pagination {
+    justify-content: space-between;
+  }
+}

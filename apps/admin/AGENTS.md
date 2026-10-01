@@ -2,6 +2,22 @@
 
 Project-specific guidance for AI coding agents.
 
+## OpenAI-first migration
+
+The approved OpenAI-first pilot covers Content -> Writing and the development
+catalog's `fixture=openai` view. In those surfaces, use the shared workspace kit
+and actual `@openai/apps-sdk-ui` controls. Its scoped Tailwind 4 build supersedes
+the Astryx-only layout/styling rules below for this pilot. Retain existing
+editing engines, persistence, publication controls and access boundaries.
+
+New workspace components belong behind the existing workspace kit exports;
+do not create another page-specific design system. Unmigrated surfaces retain
+their Astryx behavior and house-style checks. Keep OpenAI CSS and portal roots
+inside the opt-in boundary, never install its reset on the document root.
+
+See `docs/design/admin-workspace/openai-components.md` at the repository root
+for coverage, intentional differences and the migration sequence.
+
 <!-- ASTRYX:START -->
 
 Astryx v0.4.6 · 158 components

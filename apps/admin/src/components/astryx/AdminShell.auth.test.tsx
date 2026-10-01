@@ -40,6 +40,14 @@ beforeEach(async () => {
     },
   });
   vi.stubGlobal("scrollTo", () => {});
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);

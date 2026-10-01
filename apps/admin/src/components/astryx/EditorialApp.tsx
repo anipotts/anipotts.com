@@ -1,3 +1,4 @@
+import { AdminUIProvider } from "../workspace/AdminUI";
 import { AuthReentry } from "./AuthReentry";
 import {
   protectedSessionIsLocked,
@@ -367,197 +368,200 @@ export function EditorialApp({
         )}
         recordPage={recordPage || (Boolean(review) && !hideHeader)}
       >
-        <VStack
-          gap={editorRecord ? 4 : 6}
-          className={`editorial-content${groups ? " editorial-library-page" : ""}${recordPage ? " writing-content" : ""}`}
-        >
-          {!hideHeader && review && !editHome && !editorRecord && (
-            <EditorActionBar back={back} title={title} />
-          )}
-          {!hideHeader &&
-            !groups &&
-            !review &&
-            !editorRecord &&
-            !editHome &&
-            !newWriting &&
-            !newProject &&
-            children && <WorkspacePage title={title} />}
-          {inventoryError && (
-            <InlineNotice
-              tone="warning"
-              title="Private drafts couldn’t be loaded"
-              action={
-                <IconButton
-                  label="Reload"
-                  tooltip="Reload"
-                  size="sm"
-                  variant="ghost"
-                  icon={
-                    <ArrowClockwiseIcon weight="regular" aria-hidden="true" />
-                  }
-                  onClick={() => window.location.reload()}
-                />
-              }
-            />
-          )}
-          {(newWriting || newProject) && !created && (
-            <NewWriting
-              recoveryScope={recoveryScope}
-              recordKind={newProject ? "work" : "writing"}
-              back={back}
-              onCreated={(record) => {
-                window.history.replaceState(
-                  window.history.state,
-                  "",
-                  `/content/${record.kind === "work" ? "projects" : "writing"}/${record.id}`,
-                );
-                setCreated(record);
-              }}
-            />
-          )}
-          {groups && (
-            <ContentLibrary
-              title={title}
-              groups={inventoryView.groups ?? groups}
-              selectedGroup={selectedGroup}
-              initialSearch={librarySearch}
-              inventoryError={inventoryError}
-              area={area}
-            />
-          )}
-          {(editHome || openRecord) && (
-            <React.Suspense
-              fallback={
-                <VStack gap={3} className="editor-workspace">
-                  <EditorActionBar back={back} title={title} />
-                  <AdminSkeleton
-                    fields={editorialFields(
-                      openRecord ?? { kind: "page", id: "home" },
-                    )}
-                  />
-                </VStack>
-              }
-            >
-              <HomeEditor
-                pageTitle={
-                  openRecord?.kind === "writing" || openRecord?.kind === "work"
-                    ? undefined
-                    : title
-                }
-                back={back}
-                publicUrl={(path) =>
-                  themedUrl(new URL(path, comparisonSiteUrl).href, mode)
-                }
-                homepageWritingOptions={homepageWritingOptions}
-                localPreview={localPreview}
-                key={openRecord?.id ?? "home"}
-                record={openRecord ?? { kind: "page", id: "home" }}
-                autoFocus={Boolean(created)}
-              />
-            </React.Suspense>
-          )}
-          {review && !editHome && !editorRecord && (
-            <>
-              {review.publicUrl && (
-                <Button
-                  label="View published page"
-                  href={themedUrl(review.publicUrl, mode)}
-                />
-              )}
-              <MetadataList orientation="horizontal">
-                <MetadataListItem label="Status">
-                  <RecordStatus status={review.status} />
-                </MetadataListItem>
-                {review.updated && (
-                  <MetadataListItem label="Updated">
-                    <Updated updated={review.updated} />
-                  </MetadataListItem>
-                )}
-              </MetadataList>
-              {review.metadata?.filter(Boolean).map((value, i) => (
-                <Text key={i} color="secondary">
-                  {value}
-                </Text>
-              ))}
-              <Card padding={5} className="editorial-review-card">
-                <VStack gap={5} className="editorial-prose">
-                  {review.summary && <Text as="p">{review.summary}</Text>}
-                  {review.media &&
-                    (review.media.kind === "video" ? (
-                      <video
-                        controls
-                        preload="metadata"
-                        src={review.media.src}
-                        aria-label={review.media.alt}
-                      />
-                    ) : (
-                      <img src={review.media.src} alt={review.media.alt} />
-                    ))}
-                  {review.sections?.map((section, i) => (
-                    <VStack gap={3} key={i}>
-                      {section.heading && (
-                        <Heading level={2}>{section.heading}</Heading>
-                      )}
-                      {section.paragraphs.map((paragraph, j) => (
-                        <Text as="p" key={j}>
-                          {paragraph}
-                        </Text>
-                      ))}
-                      {section.items && (
-                        <ul>
-                          {section.items.map((item, j) => (
-                            <li key={j}>{item}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </VStack>
-                  ))}
-                  {review.contentFields != null && (
-                    <Fields value={review.contentFields} />
-                  )}
-                  {children}
-                </VStack>
-              </Card>
-              <CollapsibleGroup type="multiple" density="balanced">
-                {review.claims != null && (
-                  <Collapsible value="claims" trigger="Claims to review">
-                    <Fields value={review.claims} />
-                  </Collapsible>
-                )}
-                {review.sources != null && (
-                  <Collapsible value="sources" trigger="Sources">
-                    <Fields value={review.sources} />
-                  </Collapsible>
-                )}
-                {review.fields != null && (
-                  <Collapsible value="details" trigger="Details">
-                    <Fields value={review.fields} />
-                  </Collapsible>
-                )}
-              </CollapsibleGroup>
-            </>
-          )}
-          {!groups &&
-            !review &&
-            !newWriting &&
-            !newProject &&
-            !editorRecord &&
-            !editHome &&
-            (children || (
-              <EmptyState
-                title={title}
-                headingLevel={1}
-                actions={
-                  <Button
-                    label={
-                      area === "newsletter" ? "Back to drafts" : back.label
+        <AdminUIProvider enabled={library === "writing"} mode={mode}>
+          <VStack
+            gap={editorRecord ? 4 : 6}
+            className={`editorial-content${groups ? " editorial-library-page" : ""}${recordPage ? " writing-content" : ""}`}
+          >
+            {!hideHeader && review && !editHome && !editorRecord && (
+              <EditorActionBar back={back} title={title} />
+            )}
+            {!hideHeader &&
+              !groups &&
+              !review &&
+              !editorRecord &&
+              !editHome &&
+              !newWriting &&
+              !newProject &&
+              children && <WorkspacePage title={title} />}
+            {inventoryError && (
+              <InlineNotice
+                tone="warning"
+                title="Private drafts couldn’t be loaded"
+                action={
+                  <IconButton
+                    label="Reload"
+                    tooltip="Reload"
+                    size="sm"
+                    variant="ghost"
+                    icon={
+                      <ArrowClockwiseIcon weight="regular" aria-hidden="true" />
                     }
-                    href={libraryPaths[library]}
+                    onClick={() => window.location.reload()}
                   />
                 }
               />
-            ))}
-        </VStack>
+            )}
+            {(newWriting || newProject) && !created && (
+              <NewWriting
+                recoveryScope={recoveryScope}
+                recordKind={newProject ? "work" : "writing"}
+                back={back}
+                onCreated={(record) => {
+                  window.history.replaceState(
+                    window.history.state,
+                    "",
+                    `/content/${record.kind === "work" ? "projects" : "writing"}/${record.id}`,
+                  );
+                  setCreated(record);
+                }}
+              />
+            )}
+            {groups && (
+              <ContentLibrary
+                title={title}
+                groups={inventoryView.groups ?? groups}
+                selectedGroup={selectedGroup}
+                initialSearch={librarySearch}
+                inventoryError={inventoryError}
+                area={area}
+              />
+            )}
+            {(editHome || openRecord) && (
+              <React.Suspense
+                fallback={
+                  <VStack gap={3} className="editor-workspace">
+                    <EditorActionBar back={back} title={title} />
+                    <AdminSkeleton
+                      fields={editorialFields(
+                        openRecord ?? { kind: "page", id: "home" },
+                      )}
+                    />
+                  </VStack>
+                }
+              >
+                <HomeEditor
+                  pageTitle={
+                    openRecord?.kind === "writing" ||
+                    openRecord?.kind === "work"
+                      ? undefined
+                      : title
+                  }
+                  back={back}
+                  publicUrl={(path) =>
+                    themedUrl(new URL(path, comparisonSiteUrl).href, mode)
+                  }
+                  homepageWritingOptions={homepageWritingOptions}
+                  localPreview={localPreview}
+                  key={openRecord?.id ?? "home"}
+                  record={openRecord ?? { kind: "page", id: "home" }}
+                  autoFocus={Boolean(created)}
+                />
+              </React.Suspense>
+            )}
+            {review && !editHome && !editorRecord && (
+              <>
+                {review.publicUrl && (
+                  <Button
+                    label="View published page"
+                    href={themedUrl(review.publicUrl, mode)}
+                  />
+                )}
+                <MetadataList orientation="horizontal">
+                  <MetadataListItem label="Status">
+                    <RecordStatus status={review.status} />
+                  </MetadataListItem>
+                  {review.updated && (
+                    <MetadataListItem label="Updated">
+                      <Updated updated={review.updated} />
+                    </MetadataListItem>
+                  )}
+                </MetadataList>
+                {review.metadata?.filter(Boolean).map((value, i) => (
+                  <Text key={i} color="secondary">
+                    {value}
+                  </Text>
+                ))}
+                <Card padding={5} className="editorial-review-card">
+                  <VStack gap={5} className="editorial-prose">
+                    {review.summary && <Text as="p">{review.summary}</Text>}
+                    {review.media &&
+                      (review.media.kind === "video" ? (
+                        <video
+                          controls
+                          preload="metadata"
+                          src={review.media.src}
+                          aria-label={review.media.alt}
+                        />
+                      ) : (
+                        <img src={review.media.src} alt={review.media.alt} />
+                      ))}
+                    {review.sections?.map((section, i) => (
+                      <VStack gap={3} key={i}>
+                        {section.heading && (
+                          <Heading level={2}>{section.heading}</Heading>
+                        )}
+                        {section.paragraphs.map((paragraph, j) => (
+                          <Text as="p" key={j}>
+                            {paragraph}
+                          </Text>
+                        ))}
+                        {section.items && (
+                          <ul>
+                            {section.items.map((item, j) => (
+                              <li key={j}>{item}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </VStack>
+                    ))}
+                    {review.contentFields != null && (
+                      <Fields value={review.contentFields} />
+                    )}
+                    {children}
+                  </VStack>
+                </Card>
+                <CollapsibleGroup type="multiple" density="balanced">
+                  {review.claims != null && (
+                    <Collapsible value="claims" trigger="Claims to review">
+                      <Fields value={review.claims} />
+                    </Collapsible>
+                  )}
+                  {review.sources != null && (
+                    <Collapsible value="sources" trigger="Sources">
+                      <Fields value={review.sources} />
+                    </Collapsible>
+                  )}
+                  {review.fields != null && (
+                    <Collapsible value="details" trigger="Details">
+                      <Fields value={review.fields} />
+                    </Collapsible>
+                  )}
+                </CollapsibleGroup>
+              </>
+            )}
+            {!groups &&
+              !review &&
+              !newWriting &&
+              !newProject &&
+              !editorRecord &&
+              !editHome &&
+              (children || (
+                <EmptyState
+                  title={title}
+                  headingLevel={1}
+                  actions={
+                    <Button
+                      label={
+                        area === "newsletter" ? "Back to drafts" : back.label
+                      }
+                      href={libraryPaths[library]}
+                    />
+                  }
+                />
+              ))}
+          </VStack>
+        </AdminUIProvider>
       </EditorialWorkspaceShell>
     </Theme>
   );
