@@ -280,6 +280,7 @@ it("preserves the separate browsing context on public icon links", () => {
   const link = host.querySelector("a")!;
   expect(link.target).toBe("_blank");
   expect(link.rel).toBe("noopener noreferrer");
+  expect(link.hasAttribute("data-uniform")).toBe(true);
 });
 
 it("associates field guidance and replaces it with the validation message", () => {
