@@ -30,9 +30,9 @@ import {
   inlinePlainText,
   safeInlineUrl,
 } from "@anipotts/content/public/inline";
-const publicSiteUrl = import.meta.env.DEV
-  ? "http://localhost:4311/"
-  : "https://anipotts.com/";
+// Relative inline assets belong to the public site, including in local admin
+// previews. The admin preview does not serve the public site's image paths.
+const publicSiteUrl = "https://anipotts.com/";
 import { inlineDocument, inlineMarkdown } from "../../lib/rich-text";
 import { useKeyboardInset } from "../../lib/keyboard-inset";
 

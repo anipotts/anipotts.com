@@ -33,6 +33,7 @@ export type SaveStatusProps = {
    * This component does not infer persistence from time, connectivity or mode.
    */
   state: SaveStatusState;
+  showLabel?: boolean;
   /** ID of an existing explanation or recovery message, when applicable. */
   describedBy?: string;
 };
@@ -59,7 +60,11 @@ export function saveStatusFromController(
 /** Persistence status only, as one dot in the editor bar. Its label is
  * spoken on every change and shown on hover; at rest nothing is drawn.
  * Publication and public verification are separate. */
-export function SaveStatus({ state, describedBy }: SaveStatusProps) {
+export function SaveStatus({
+  state,
+  describedBy,
+  showLabel = false,
+}: SaveStatusProps) {
   const { label, variant } = states[state];
   return (
     <span
@@ -69,6 +74,7 @@ export function SaveStatus({ state, describedBy }: SaveStatusProps) {
       aria-atomic="true"
       aria-describedby={describedBy}
       className="editor-save-status"
+      style={showLabel ? { width: "auto", gap: "var(--spacing-1)" } : undefined}
       data-save-state={state}
       title={label}
     >
@@ -80,7 +86,7 @@ export function SaveStatus({ state, describedBy }: SaveStatusProps) {
           isPulsing={state === "saving"}
         />
       )}
-      <span className="sr-only">{label}</span>
+      <span className={showLabel ? undefined : "sr-only"}>{label}</span>
     </span>
   );
 }

@@ -52,6 +52,13 @@ describe("draft save status", () => {
     expect(container.querySelector("button, a")).toBeNull();
   });
 
+  it("shows a readable label in publication review while retaining the compact editor default", () => {
+    act(() => root.render(<SaveStatus state="saved-privately" showLabel />));
+    expect(container.querySelector(".sr-only")).toBeNull();
+    expect(container.textContent).toBe("Saved privately");
+    expect(render("saved-privately").querySelector(".sr-only")).not.toBeNull();
+  });
+
   it("replaces an acknowledged save immediately when current contents change or saving fails", () => {
     const original = render("saved-privately");
     expect(original.textContent).toBe("Saved privately");

@@ -37,7 +37,31 @@ it("links precise safe diagnostics to the existing editor routes", () => {
     "/content/projects/synthetic",
     "/content/writing/synthetic",
   ]);
+  expect(doc.body.textContent).toContain("Resolve 3 issues before publishing");
+  expect(doc.querySelectorAll('[role="listitem"]')).toHaveLength(3);
+  expect(doc.body.textContent).not.toContain("Edit record");
   expect(doc.body.textContent).toContain("Writing selection 1");
   expect(doc.body.textContent).toContain("publish the selected article first");
   expect(doc.body.textContent).not.toContain("private text");
+});
+
+it("uses supplied record titles without exposing protocol ids", () => {
+  const html = renderToStaticMarkup(
+    <PublicationIssues
+      recordTitle={() => "Field notes"}
+      issues={[
+        {
+          record: { kind: "writing", id: "synthetic" },
+          field: "project",
+          code: "unknown_project_reference",
+        },
+      ]}
+    />,
+  );
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  expect(doc.body.textContent).toContain("Field notes");
+  expect(doc.body.textContent).not.toContain("synthetic");
+  expect(doc.querySelector("a")?.getAttribute("aria-label")).toBe(
+    "Fix Related project",
+  );
 });

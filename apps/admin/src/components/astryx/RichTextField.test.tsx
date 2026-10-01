@@ -303,3 +303,15 @@ it("preserves the link shortcut after validation updates replace field attribute
   expect(document.body.textContent).toContain("Apply link");
   expect(changed).not.toHaveBeenCalled();
 });
+it("renders relative inline assets from the public site and retains relative source paths", async () => {
+  const source = "A ![mark](/images/brand/logo.svg) logo";
+  await render(source);
+  const image = host.querySelector<HTMLImageElement>(".rich-writing img")!;
+  expect(image.getAttribute("src")).toBe(
+    "https://anipotts.com/images/brand/logo.svg",
+  );
+  expect(inlineMarkdown(editor!.getJSON())).toContain("/images/brand/logo.svg");
+  expect(inlineMarkdown(editor!.getJSON())).not.toContain(
+    "https://anipotts.com",
+  );
+});

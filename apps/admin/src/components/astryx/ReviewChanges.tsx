@@ -333,7 +333,7 @@ export function ReviewHeading({
       </HStack>
       {saveStatus && (
         <HStack maxWidth="100%" style={{ marginInlineStart: "auto" }}>
-          <SaveStatus {...saveStatus} />
+          <SaveStatus {...saveStatus} showLabel />
         </HStack>
       )}
     </HStack>

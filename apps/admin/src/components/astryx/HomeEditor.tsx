@@ -305,7 +305,7 @@ function HomeEditorImpl({
   const editScroll = useRef(0);
   const lastEditingFocus = useRef<HTMLElement | null>(null);
   const previousTab = useRef("edit");
-  const fieldElements = useRef(new Map<string, HTMLDivElement>());
+  const fieldElements = useRef(new Map<string, HTMLElement>());
   const requestedEditingField = useRef<string | null>(null);
   useEffect(() => {
     if (tab === "edit" && previousTab.current !== "edit") {
@@ -1362,29 +1362,31 @@ function HomeEditorImpl({
   const needsNewPublicationReview =
     publication?.phase === "cancelled" &&
     publication.revision === state.revision;
-  const publishUnavailable = uploadPending
-    ? "Finish uploading or close the image crop before publishing."
-    : localPreview
-      ? "Publishing is available in the production editor. This draft stays local."
-      : snapshot.publishing !== "ready"
-        ? "Publishing is not configured. Your private draft is retained."
-        : publicationActive
-          ? "A publication is already in progress. See its status below; you can keep editing privately."
-          : needsNewPublicationReview
-            ? "This publication was stopped. Review again to prepare a new private revision."
-            : unsupportedPublication
-              ? "Publishing keeps a piece visible. To take it off the website, use Unpublish; scheduling is not available yet. Update visibility in Properties or source before reviewing again; your draft is retained."
-              : !valid
-                ? "Correct the marked fields before publishing."
-                : snapshot.draft?.discardedAt
-                  ? "Recover this draft before publishing."
-                  : untouched
-                    ? "There are no changes to publish."
-                    : !reviewCurrent || reviewLoading
-                      ? "Waiting for the latest saved revision to finish reviewing."
-                      : state.source === snapshot.base.source
-                        ? "There are no changes to publish."
-                        : null;
+  const publishUnavailable = preflightIssues.length
+    ? "Resolve the publication issues, then review your changes again."
+    : uploadPending
+      ? "Finish uploading or close the image crop before publishing."
+      : localPreview
+        ? "Publishing is available in the production editor. This draft stays local."
+        : snapshot.publishing !== "ready"
+          ? "Publishing is not configured. Your private draft is retained."
+          : publicationActive
+            ? "A publication is already in progress. See its status below; you can keep editing privately."
+            : needsNewPublicationReview
+              ? "This publication was stopped. Review again to prepare a new private revision."
+              : unsupportedPublication
+                ? "Publishing keeps a piece visible. To take it off the website, use Unpublish; scheduling is not available yet. Update visibility in Properties or source before reviewing again; your draft is retained."
+                : !valid
+                  ? "Correct the marked fields before publishing."
+                  : snapshot.draft?.discardedAt
+                    ? "Recover this draft before publishing."
+                    : untouched
+                      ? "There are no changes to publish."
+                      : !reviewCurrent || reviewLoading
+                        ? "Waiting for the latest saved revision to finish reviewing."
+                        : state.source === snapshot.base.source
+                          ? "There are no changes to publish."
+                          : null;
   // Visibility on the website follows the public base, not the private draft.
   // A record that was never public has nothing to take down.
   const onWebsite =
@@ -2294,7 +2296,8 @@ function HomeEditorImpl({
             >
               <FormLayout>
                 {fields.map((field, index) => (
-                  <div
+                  <VStack
+                    gap={2}
                     key={fieldKey(field)}
                     ref={(element) => {
                       if (element)
@@ -2302,6 +2305,13 @@ function HomeEditorImpl({
                       else fieldElements.current.delete(fieldKey(field));
                     }}
                   >
+                    {record.kind === "page" &&
+                      record.id === "home" &&
+                      (index === 0 || index === 2) && (
+                        <Text weight="semibold">
+                          {index === 0 ? "Introduction" : "Section labels"}
+                        </Text>
+                      )}
                     {index === 0 ? (
                       <DocumentTitle
                         resetGeneration={resetGeneration}
@@ -2349,7 +2359,7 @@ function HomeEditorImpl({
                     ) : field.rich ? (
                       <RichTextField
                         resetGeneration={resetGeneration}
-                        compact={index === 1}
+                        compact={record.kind === "writing" && index === 1}
                         limit={field.limit}
                         tools={
                           record.kind === "page" && record.id === "home"
@@ -2404,7 +2414,7 @@ function HomeEditorImpl({
                         }
                       />
                     )}
-                  </div>
+                  </VStack>
                 ))}
                 {record.kind === "page" &&
                   record.id === "home" &&
@@ -2793,15 +2803,25 @@ function HomeEditorImpl({
             onClose={() => setTab("edit")}
           >
             <VStack gap={4} className="editor-review">
-              {error && (
-                <VStack gap={2}>
-                  <Text role="alert">{error}</Text>
+              {error &&
+                (preflightIssues.length ? (
                   <PublicationIssues
                     issues={preflightIssues}
                     onEdit={editPublicationIssue}
+                    recordTitle={(issue) =>
+                      issue.record?.kind === record.kind &&
+                      issue.record.id === record.id
+                        ? barTitle
+                        : undefined
+                    }
                   />
-                </VStack>
-              )}
+                ) : (
+                  <Banner
+                    status="warning"
+                    title="Publication was not started"
+                    description={error}
+                  />
+                ))}
               {reviewLoading && <AdminSkeleton kind="preview" />}
               {!reviewedDraft && !reviewLoading && !untouched && (
                 <Button
@@ -2810,7 +2830,7 @@ function HomeEditorImpl({
                 />
               )}
               <ReviewChanges
-                label="Review changes"
+                label="Changes"
                 destination={`anipotts.com${livePath}`}
                 before={snapshot.base.source}
                 after={reviewedSource}
@@ -2840,6 +2860,7 @@ function HomeEditorImpl({
               )}
               <HStack gap={2} wrap="wrap" className="editor-review-actions">
                 <Button
+                  size="sm"
                   label="Publish now"
                   variant="primary"
                   isDisabled={Boolean(publishUnavailable)}
@@ -2851,7 +2872,19 @@ function HomeEditorImpl({
                   isLoading={publishing}
                   clickAction={publishNow}
                 />
-                {needsNewPublicationReview && (
+                {preflightIssues.length > 0 && (
+                  <Button
+                    label="Review again"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setPreflightIssues([]);
+                      setError("");
+                      void refreshReview();
+                    }}
+                  />
+                )}
+                {needsNewPublicationReview && !preflightIssues.length && (
                   <Button
                     label="Review again"
                     variant="ghost"

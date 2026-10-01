@@ -1,6 +1,5 @@
 import React, { useEffect, useId, useState } from "react";
 import { PublicationIssues } from "./PublicationIssues";
-import { publicationRefusal } from "../../lib/publication-diagnostics";
 import { HStack } from "@astryxdesign/core/HStack";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Text } from "@astryxdesign/core/Text";
@@ -163,8 +162,12 @@ export function DevReviewCatalog({
             role="region"
             aria-label="Synthetic publication refusal"
           >
-            <Text role="alert">{publicationRefusal("invalid_snapshot")}</Text>
             <PublicationIssues
+              recordTitle={(issue) =>
+                issue.record?.kind === "writing"
+                  ? "Synthetic field notes"
+                  : "Home"
+              }
               issues={[
                 {
                   record: { kind: "writing", id: "synthetic-field-notes" },

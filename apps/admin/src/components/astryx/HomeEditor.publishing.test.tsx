@@ -953,6 +953,12 @@ it("shows actionable preflight diagnostics without claiming a publication starte
   expect(host.textContent).toContain("Publication was not started.");
   expect(host.textContent).not.toContain("Couldn’t confirm publication");
   expect(host.textContent).toContain("Choose an existing project");
+  expect(
+    [...host.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "Publish now",
+    )?.disabled,
+  ).toBe(true);
+  expect(host.textContent).toContain("Review again");
   await act(async () => {
     (
       host.querySelector(
