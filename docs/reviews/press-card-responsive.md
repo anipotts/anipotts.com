@@ -65,3 +65,7 @@ Experience, work and guide cards use the same filled icon, label and curved-arro
 The homepage greeting stays on one line through the existing 640px mobile breakpoint, with a dedicated 10.5vw display token. No fixed minimum font size causes narrow-screen overflow. The full name and copy remain unchanged.
 
 Verified www build and typecheck, all 139 www tests, and browser checks at 320, 375, 390, 640, 768 and 1440px. The homepage and work index actions fit their cards, preserve 44px minimum height, and contain no nested links. Mobile greeting text fits on one line without horizontal overflow. Local screenshots live under `output/playwright/actions-*`; production is unchanged.
+
+## continuous card surfaces
+
+The press row participates in the existing shared wave composition, with the same light and dark paper and wave palette as the work cards. Content sits above the decorative layer. The two featured experience screenshots no longer cast a shadow into a clipped media section. Their media-to-header spacing is reduced, and text and media now share the horizontal inset. The screenshot pixels and outer card shadow are unchanged.

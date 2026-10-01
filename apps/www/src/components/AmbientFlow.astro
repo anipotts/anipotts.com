@@ -36,9 +36,13 @@ interface Props {
   if (import.meta.hot) import.meta.hot.dispose(pauseSharedCurrents);
 </script>
 <style is:global>
-  :is(.work-card, .writing-card, .experience-feature, .coding-agent-card):has(
-    > .ambient-flow
-  ) {
+  :is(
+    .work-card,
+    .writing-card,
+    .experience-feature,
+    .coding-agent-card,
+    .press-mention
+  ):has(> .ambient-flow) {
     position: relative;
     isolation: isolate;
     overflow: hidden;
@@ -60,9 +64,13 @@ interface Props {
     --paper-accent: #14263a;
   }
   html[data-theme="dark"]
-    :is(.work-card, .writing-card, .experience-feature, .coding-agent-card):has(
-      > .ambient-flow
-    ) {
+    :is(
+      .work-card,
+      .writing-card,
+      .experience-feature,
+      .coding-agent-card,
+      .press-mention
+    ):has(> .ambient-flow) {
     --paper-surface: #151b26;
     --paper-surface-hover: #151b26;
     --paper-ink: #eff4fc;
@@ -113,7 +121,8 @@ interface Props {
     height: 100%;
     display: block;
   }
-  :is(.experience-feature, .coding-agent-card) > :not(.ambient-flow) {
+  :is(.experience-feature, .coding-agent-card, .press-mention)
+    > :not(.ambient-flow) {
     position: relative;
     z-index: 1;
   }
