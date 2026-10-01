@@ -22,10 +22,14 @@ const { Content } = await render(project);
 
 const hasBody = Boolean(project.body?.trim());
 const d = project.data;
+const displayTitle =
+  (project.data.slug ?? project.id) === "agents"
+    ? "coding agent tips"
+    : d.title;
 ---
 
 <Shell
-  title={d.title}
+  title={displayTitle}
   description={d.description}
   path={`/work/${slug}`}
   detail
@@ -110,7 +114,7 @@ const d = project.data;
             ) : null
           }
           <h1 class="hero-title">
-            {d.title}
+            {displayTitle}
           </h1>
         </div>
         <p class="project-summary">
@@ -126,7 +130,7 @@ const d = project.data;
         <section
           data-rise
           class="project-visual"
-          aria-label={`${d.title} preview`}
+          aria-label={`${displayTitle} preview`}
         >
           <ProjectMediaStage
             items={[d.preview_media]}

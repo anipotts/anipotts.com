@@ -30,3 +30,11 @@ Interaction checks passed for mobile menu open/Escape close, visible keyboard ca
 ## integration boundary
 
 Accepted card work in PR #463 merged as `fb8db4d839d2eab86ab50ba4d6b3ad14e20cdddd`. Exact-head CI run 36800824172 passed. Deploy run [36801232394](https://github.com/anipotts/anipotts.com/actions/runs/36801232394) passed www and admin, with worker targets skipped; the live public root contained the new press row and actions. This consistency revision is a separate branch awaiting Ani's visual acceptance. The website chat retains ownership of admin PRs #461 and #464; neither was included in this public-site change.
+
+## follow-up visual revision
+
+The `agents` repository and route keep their names; WorkCard, WorkDetail and the guide highlight display `coding agent tips`. The guide highlight now uses a brand mark, title and supporting copy with an action aligned right, then a full-width action below 600px. The Business Insider component remains unchanged.
+
+Writing rows use a compact grid with aligned right-side dates and arrows above 600px. On mobile, dates sit directly below titles and summaries follow with a smaller shared row gap. The footer keeps its stacked contact text on the left and seven icons on the right in one row. Below 720px horizontal targets become 28px and below 420px 24px, while retaining 44px height; smaller contact type makes the seven-link row fit at 320px. NYU purity test, Quantercise and PGI action marks use 1.35rem instead of 1rem, preserving the shared text and arrow scale.
+
+Affected checks passed again after these changes. The writing, guide, naming and footer revision passed all 440 browser combinations, including single-row footer bounds and all seven visible links. Final icon checks cover the four affected page layouts at all ten widths and both themes. Visual evidence remains local and is not production CMS acceptance.

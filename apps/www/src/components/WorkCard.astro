@@ -21,6 +21,10 @@ const {
   priority = false,
 } = Astro.props;
 const d = project.data;
+const displayTitle =
+  (project.data.slug ?? project.id) === "agents"
+    ? "coding agent tips"
+    : d.title;
 const slug = project.data.slug ?? project.id;
 const identity = d.identity;
 const preview = d.preview_media;
@@ -86,9 +90,14 @@ const shotSizes = "(max-width: 52rem) 100vw, 26rem";
   }
   <span class="work-card__body">
     <span class="work-card__header">
-      <span class="work-card__name">{d.title}</span>
+      <span class="work-card__name">{displayTitle}</span>
       <CardAction
         label="view project"
+        largeMark={[
+          "nyu-purity-test",
+          "quantercise",
+          "pgi-research-platform",
+        ].includes(slug)}
         logoSrc={identity.logo_src}
         icon={identity.icon}
         adaptive={identity.logo_tone === "adaptive" ||

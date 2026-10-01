@@ -57,7 +57,7 @@ const externalProfiles = [
 
   .glyphs {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: flex-end;
     gap: var(--s-2);
   }
@@ -129,17 +129,39 @@ const externalProfiles = [
   }
 
   @media (max-width: 720px) {
-    .rss-glyph {
-      display: none;
-    }
-
     .foot {
-      grid-template-columns: minmax(0, 1fr);
-      align-items: start;
-      gap: var(--s-3);
+      gap: 0.5rem;
     }
     .glyphs {
-      justify-content: flex-start;
+      gap: 0;
+    }
+    .glyph {
+      width: 28px;
+      flex-basis: 28px;
+      font-size: 1rem;
+    }
+    .contact-email {
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+    .contact-copy > span {
+      font-size: 0.7rem;
+    }
+  }
+  @media (max-width: 420px) {
+    .foot {
+      gap: 0.25rem;
+    }
+    .glyph {
+      width: 24px;
+      flex-basis: 24px;
+      font-size: 0.875rem;
+    }
+    .contact-email {
+      font-size: 0.65rem;
+    }
+    .contact-copy > span {
+      font-size: 0.6rem;
     }
   }
 

@@ -20,19 +20,15 @@ const { title, summary, published_at } = item.data;
   data-astro-prefetch="viewport"
 >
   <AmbientFlow kind="writing" seed={slug} variant={flowVariant} />
-  <span class="head">
-    <span class="title-group">
-      <span class="title">{title}</span>
-      {
-        published_at && (
-          <time class="date mono" datetime={published_at.toISOString()}>
-            {formatDate(published_at)}
-          </time>
-        )
-      }
-    </span>
-    <Icon name="ph:arrow-bend-right-up" class="affordance" />
-  </span>
+  <span class="title">{title}</span>
+  {
+    published_at && (
+      <time class="date mono" datetime={published_at.toISOString()}>
+        {formatDate(published_at)}
+      </time>
+    )
+  }
+  <Icon name="ph:arrow-bend-right-up" class="affordance" aria-hidden="true" />
   <span class="sub"><InlineText text={summary} links={false} /></span>
 </a>
 
@@ -42,9 +38,10 @@ const { title, summary, published_at } = item.data;
     isolation: isolate;
     contain: paint;
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    gap: var(--card-content-gap);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: start;
+    gap: 0.5rem var(--card-header-gap);
     border-radius: var(--paper-radius);
     background: var(--paper-surface);
     color: var(--paper-ink);
@@ -59,28 +56,16 @@ const { title, summary, published_at } = item.data;
     }
   }
 
-  .writing-card .head {
+  .writing-card > :not(.ambient-flow) {
     position: relative;
     z-index: 1;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--s-3);
-  }
-
-  .writing-card .title-group {
-    display: flex;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: var(--s-1) var(--s-3);
-    min-width: 0;
   }
 
   .writing-card .title {
     font-family: var(--display);
     font-size: var(--card-title-size);
     font-weight: var(--card-title-weight);
-    line-height: 1;
+    line-height: 1.2;
     letter-spacing: 0;
     font-synthesis: none;
     text-wrap: pretty;
@@ -88,7 +73,9 @@ const { title, summary, published_at } = item.data;
 
   .writing-card .affordance {
     color: var(--paper-muted);
-    flex-shrink: 0;
+    width: 1rem;
+    height: 1rem;
+    align-self: center;
     transition:
       color 0.2s,
       transform 0.2s;
@@ -105,6 +92,7 @@ const { title, summary, published_at } = item.data;
   }
 
   .writing-card .sub {
+    grid-column: 1 / -1;
     position: relative;
     z-index: 1;
     color: var(--paper-muted);
@@ -120,8 +108,27 @@ const { title, summary, published_at } = item.data;
   }
 
   .writing-card .date {
+    align-self: center;
+    white-space: nowrap;
     color: var(--paper-muted);
     font-size: var(--control-size);
     font-weight: var(--card-copy-weight);
+  }
+  @media (max-width: 600px) {
+    .writing-card {
+      grid-template-columns: minmax(0, 1fr) auto;
+      row-gap: 0.375rem;
+    }
+    .writing-card .affordance {
+      grid-column: 2;
+      grid-row: 1;
+    }
+    .writing-card .date {
+      grid-column: 1;
+      grid-row: 2;
+    }
+    .writing-card .sub {
+      grid-row: 3;
+    }
   }
 </style>

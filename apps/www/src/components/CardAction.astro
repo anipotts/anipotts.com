@@ -5,11 +5,24 @@ interface Props {
   logoSrc?: string;
   icon?: string;
   adaptive?: boolean;
+  largeMark?: boolean;
 }
-const { label, logoSrc, icon, adaptive = false } = Astro.props;
+const {
+  label,
+  logoSrc,
+  icon,
+  adaptive = false,
+  largeMark = false,
+} = Astro.props;
 ---
 
-<span class="card-action site-action">
+<span
+  class:list={[
+    "card-action",
+    "site-action",
+    { "site-action--large-mark": largeMark },
+  ]}
+>
   {
     logoSrc ? (
       <img
@@ -35,3 +48,13 @@ const { label, logoSrc, icon, adaptive = false } = Astro.props;
   <span>{label}</span>
   <Icon name="ph:arrow-bend-right-up" aria-hidden="true" />
 </span>
+
+<style>
+  .site-action--large-mark {
+    grid-template-columns: 1.35rem minmax(0, 1fr) var(--control-icon-size);
+  }
+  .site-action--large-mark > :global(.site-action__mark) {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+</style>
