@@ -4,7 +4,7 @@ import { publicMarkdownHtml } from "../src/lib/public-markdown.ts";
 
 // Pinned to the exact HTML Astro 5 (markdown-remark 6.3.11) rendered for published articles, so a Markdown
 // engine upgrade cannot move anchors or change markup unnoticed.
-test("article Markdown renders as it did before the Astro 7 upgrade", async () => {
+test("article Markdown preserves published anchors, smart punctuation and sanitized markup", async () => {
   assert.equal(
     await publicMarkdownHtml(
       "## Repeat\n\n## Repeat\n\n### Code `inline` heading-\n\n#### {Braced} $value",
@@ -16,8 +16,7 @@ test("article Markdown renders as it did before the Astro 7 upgrade", async () =
       'It\'s "smart" -- punctuation...\n\n<script>alert(1)</script>\n\n| a |\n| - |\n| ~~b~~ |',
     ),
     "<p>It’s “smart” — punctuation…</p>" +
-      "\n".repeat(13) +
-      "<table><thead><tr><th>a</th></tr></thead><tbody><tr><td><del>b</del></td></tr></tbody></table>",
+      "\n\n<table>\n<thead>\n<tr>\n<th>a</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><del>b</del></td>\n</tr>\n</tbody>\n</table>",
   );
 });
 

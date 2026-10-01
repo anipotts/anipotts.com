@@ -101,8 +101,11 @@ vi.mock("../../src/lib/editorial-inventory-server", () => ({
 // Draft storage holds the current Git source at revision 1, so the preview
 // routes render their success path instead of the stale refusal. It is the
 // EDITORIAL Durable Object binding productionEditor reads, in dev and deploy.
+const candidateDrafts = new Map();
 const draftStorage = {
   get: async ({ kind, id }) => {
+    const candidate = candidateDrafts.get(`${kind}:${id}`);
+    if (candidate) return candidate;
     const path = {
       "page:home": "public/pages/home.md",
       "writing:search-will-be-dead-by-2030":
@@ -354,3 +357,73 @@ it.each([
     expect(await response.text()).not.toContain("<iframe");
   },
 );
+
+it("renders the exact saved project candidate body and card title without changing article identity", async () => {
+  const { setEditorialField, parseEditorialSource } =
+    await import("@anipotts/content/editorial/source");
+  const original = content.read("public/projects/chainedchat.md");
+  const data = parseEditorialSource(original).data;
+  let source = setEditorialField(
+    original,
+    ["card_title"],
+    "Candidate card title",
+  );
+  source = setEditorialField(
+    source,
+    ["card_copy_compact"],
+    "**Compact card copy**",
+  );
+  source +=
+    "\n\n## Candidate body\n\n**Exact saved project revision**\n\n<script>alert(1)</script>\n\n![candidate media](/images/editorial/" +
+    "a".repeat(64) +
+    ".png)\n";
+  candidateDrafts.set("work:chainedchat", {
+    source,
+    revision: 7,
+    discardedAt: null,
+  });
+  try {
+    const response = await render({
+      file: "apps/admin/src/pages/preview/record.astro",
+      route: "/preview/record",
+      url: "/preview/record?kind=work&id=chainedchat&revision=7",
+    });
+    expect(response.status).toBe(200);
+    const dom = new JSDOM(await response.text());
+    try {
+      const document = dom.window.document;
+      expect(document.querySelector(".project-prose")?.textContent).toContain(
+        "Exact saved project revision",
+      );
+      expect(document.querySelector(".project-prose h2")?.id).toBe(
+        "candidate-body",
+      );
+      expect(document.querySelector(".project-prose script")).toBeNull();
+      expect(document.querySelector(".work-card__name")?.textContent).toBe(
+        "Candidate card title",
+      );
+      expect(
+        document.querySelector(".responsive-copy__compact")?.textContent,
+      ).toContain("Compact card copy");
+      expect(document.querySelector(".hero-title")?.textContent.trim()).toBe(
+        data.title,
+      );
+      expect(
+        document.querySelector('link[rel="canonical"]')?.getAttribute("href"),
+      ).toBe("https://anipotts.com/work/" + (data.slug ?? "chainedchat"));
+    } finally {
+      dom.window.close();
+    }
+  } finally {
+    candidateDrafts.delete("work:chainedchat");
+  }
+});
+it("refuses to render another saved revision of the project candidate", async () => {
+  const response = await render({
+    file: "apps/admin/src/pages/preview/record.astro",
+    route: "/preview/record",
+    url: "/preview/record?kind=work&id=chainedchat&revision=99",
+  });
+  expect(response.status).toBe(409);
+  expect(await response.text()).not.toContain("Exact saved project revision");
+});

@@ -54,10 +54,9 @@ const writingEntries = allWriting
 const workLabel = work.label || "work";
 const workHref = work.view_all ?? work.links?.[0]?.href ?? "/work";
 const summaryText = intro.subheading;
-const compactSummaryText = summaryText.replace(
-  "i build data intensive systems with AI and sometimes share what i'm learning online.",
-  "i build AI agents and data intensive systems.",
-);
+const compactSummaryText = intro.subheading_compact?.trim()
+  ? intro.subheading_compact
+  : summaryText;
 const hasCompactSummary = compactSummaryText !== summaryText;
 const introMentionKeys = intro.mention_keys ?? [];
 const profileLd = {
@@ -102,7 +101,7 @@ const profileLd = {
         <p class="hero-summary hero-line hero-line--compact">
           <HomepageRichSummary
             text={compactSummaryText}
-            format={intro.subheading_format}
+            format={intro.subheading_compact_format}
             mentionKeys={introMentionKeys}
             mentions={mentionMap}
           />

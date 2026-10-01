@@ -1,5 +1,5 @@
 ---
-import InlineText from "./InlineText.astro";
+import ResponsiveCopy from "./ResponsiveCopy.astro";
 import AmbientFlow from "./AmbientFlow.astro";
 import CardAction from "./CardAction.astro";
 import type { Project } from "../lib/content";
@@ -23,9 +23,15 @@ const { project } = Astro.props;
     /></span
   >
   <span class="guide-content">
-    <span class="guide-title">coding agent tips</span>
+    <span class="guide-title"
+      >{project.data.card_title?.trim() || project.data.title}</span
+    >
     <span class="guide-copy"
-      ><InlineText text={project.data.subtitle ?? ""} links={false} /></span
+      ><ResponsiveCopy
+        text={project.data.card_copy}
+        compact={project.data.card_copy_compact}
+        links={false}
+      /></span
     >
   </span>
   <CardAction

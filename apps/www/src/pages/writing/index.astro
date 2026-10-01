@@ -15,7 +15,11 @@ const copy = page;
 ---
 
 <Shell title={copy.title} description={copy.description} path="/writing">
-  <PageHero title={copy.hero_title} summary={copy.hero_summary} />
+  <PageHero
+    title={copy.hero_title}
+    summary={copy.hero_summary}
+    summaryCompact={copy.hero_summary_compact}
+  />
 
   <section data-rise class="stack">
     <div class="list">

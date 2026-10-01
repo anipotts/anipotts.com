@@ -1,5 +1,6 @@
 ---
 import InlineText from "./InlineText.astro";
+import ResponsiveCopy from "./ResponsiveCopy.astro";
 import WorkCard from "./WorkCard.astro";
 import { render } from "astro:content";
 import { Icon } from "astro-icon/components";
@@ -118,7 +119,10 @@ const displayTitle =
           </h1>
         </div>
         <p class="project-summary">
-          <InlineText text={d.card_copy || d.subtitle || d.description} />
+          <ResponsiveCopy
+            text={d.card_copy || d.subtitle || d.description}
+            compact={d.card_copy ? d.card_copy_compact : undefined}
+          />
         </p>
       </div>
 

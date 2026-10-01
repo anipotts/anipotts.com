@@ -5,7 +5,6 @@ applyEditorialPreviewContext(Astro.locals);
 import { readEditorialSnapshot } from "../../lib/editorial-snapshot-read";
 import { previewFailure } from "../../lib/preview-status";
 import { renderArticlePreview } from "../../lib/article-preview";
-import { getEntry } from "astro:content";
 import {
   editorialRecordSchema,
   parseEditorialSource,
@@ -64,9 +63,7 @@ try {
 let writing: Writing | undefined;
 let project: Project | undefined;
 if (record.kind === "writing") {
-  const original = await getEntry("writing", record.id);
   writing = {
-    ...original,
     id: record.id,
     collection: "writing",
     body,
@@ -74,18 +71,13 @@ if (record.kind === "writing") {
     rendered: { html: await renderArticlePreview(body) },
   };
 } else if (record.kind === "work") {
-  const original = await getEntry("projects", record.id);
-  if (body.trim() !== (original?.body ?? "").trim())
-    return previewFailure(Astro.url, "source-only", 409);
-  project = original
-    ? { ...original, data: projectSchema.parse(data) }
-    : {
-        id: record.id,
-        collection: "projects",
-        body: "",
-        rendered: { html: "" },
-        data: projectSchema.parse(data),
-      };
+  project = {
+    id: record.id,
+    collection: "projects",
+    body,
+    data: projectSchema.parse(data),
+    rendered: { html: await renderArticlePreview(body) },
+  };
 }
 const allWriting = writing
   ? await publishedWriting(publicContentContext(Astro.locals))
@@ -116,6 +108,7 @@ if (!writing && !project && !page?.success)
         <PageHero
           title={page.data.hero_title}
           summary={page.data.hero_summary}
+          summaryCompact={page.data.hero_summary_compact}
         />
         {systems && (
           <>
