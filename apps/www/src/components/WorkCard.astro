@@ -21,6 +21,7 @@ const {
   priority = false,
 } = Astro.props;
 const d = project.data;
+const displayTitle = d.title;
 const slug = project.data.slug ?? project.id;
 const identity = d.identity;
 const preview = d.preview_media;
@@ -46,47 +47,57 @@ const shotSizes = "(max-width: 52rem) 100vw, 26rem";
   {
     preview && (
       <span class="work-card__media landscape-frame">
-        {preview.kind === "video" ? (
-          <video
-            src={preview.src}
-            muted
-            playsinline
-            preload="metadata"
-            aria-label={preview.alt}
-          />
-        ) : shot ? (
-          <picture>
-            <source media={phoneMedia} srcset={shot.src} />
+        <span class="work-card__window">
+          {preview.kind === "video" ? (
+            <video
+              src={preview.src}
+              muted
+              playsinline
+              preload="metadata"
+              aria-label={preview.alt}
+            />
+          ) : shot ? (
+            <picture>
+              <source media={phoneMedia} srcset={shot.src} />
+              <img
+                src={shot.src}
+                srcset={shot.srcset}
+                sizes={shotSizes}
+                width={shot.width}
+                height={shot.height}
+                style={`aspect-ratio: ${shot.aspectRatio}`}
+                alt={preview.alt}
+                loading={priority ? "eager" : "lazy"}
+                fetchpriority={priority ? "high" : undefined}
+                decoding="async"
+              />
+            </picture>
+          ) : (
             <img
-              src={shot.src}
-              srcset={shot.srcset}
-              sizes={shotSizes}
-              width={shot.width}
-              height={shot.height}
-              style={`aspect-ratio: ${shot.aspectRatio}`}
+              src={preview.src}
               alt={preview.alt}
               loading={priority ? "eager" : "lazy"}
               fetchpriority={priority ? "high" : undefined}
               decoding="async"
             />
-          </picture>
-        ) : (
-          <img
-            src={preview.src}
-            alt={preview.alt}
-            loading={priority ? "eager" : "lazy"}
-            fetchpriority={priority ? "high" : undefined}
-            decoding="async"
-          />
-        )}
+          )}
+        </span>
       </span>
     )
   }
   <span class="work-card__body">
     <span class="work-card__header">
-      <span class="work-card__name">{d.title}</span>
+      <span class="card-title-group">
+        <span class="work-card__name">{displayTitle}</span>
+        {
+          variant === "project" && (
+            <ProjectMeta status={d.status} year={d.year} inline />
+          )
+        }
+      </span>
       <CardAction
         label="view project"
+        largeMark={["nyu-purity-test", "pgi-research-platform"].includes(slug)}
         logoSrc={identity.logo_src}
         icon={identity.icon}
         adaptive={identity.logo_tone === "adaptive" ||
@@ -96,7 +107,6 @@ const shotSizes = "(max-width: 52rem) 100vw, 26rem";
     <span class="work-card__copy"
       ><InlineText text={d.card_copy} links={false} /></span
     >
-    {variant === "project" && <ProjectMeta status={d.status} year={d.year} />}
   </span>
 </a>
 
@@ -107,7 +117,6 @@ const shotSizes = "(max-width: 52rem) 100vw, 26rem";
     contain: paint;
     display: flex;
     flex-direction: column;
-    min-height: 12rem;
     overflow: hidden;
     border-radius: var(--paper-radius);
     background: var(--paper-surface);
@@ -118,36 +127,23 @@ const shotSizes = "(max-width: 52rem) 100vw, 26rem";
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .work-card:hover {
+    :global(html:not([data-touch-input])) .work-card:hover {
       background: var(--paper-surface-hover);
     }
-  }
-
-  /* Scoped so the press ring outranks the card's own resting box-shadow. */
-  @media (width < 880px), (pointer: coarse) {
-    .work-card:active {
-      background: var(--paper-surface-hover);
-      box-shadow: inset 0 0 0 2px var(--paper-accent);
-    }
-  }
-
-  .work-card--experience {
-    min-height: 13rem;
   }
 
   .work-card--compact {
-    padding: var(--s-5);
+    padding: var(--card-inset);
   }
 
   .work-card--visual {
-    min-height: 22rem;
     padding: 0;
     background: var(--paper-surface);
     color: var(--paper-ink);
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .work-card--visual:hover {
+    :global(html:not([data-touch-input])) .work-card--visual:hover {
       background: var(--paper-surface-hover);
     }
   }
@@ -158,11 +154,20 @@ const shotSizes = "(max-width: 52rem) 100vw, 26rem";
     display: grid;
     place-items: center;
     flex: 0 0 auto;
-    aspect-ratio: 16 / 9;
     overflow: hidden;
-    padding: var(--s-4);
+    padding: var(--card-inset);
+    padding-bottom: var(--s-2);
     isolation: isolate;
     background: var(--paper-surface-hover);
+  }
+
+  .work-card__window {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: var(--radius-desktop-ui-media);
   }
 
   .work-card__media picture {
@@ -187,7 +192,7 @@ const shotSizes = "(max-width: 52rem) 100vw, 26rem";
     z-index: 1;
     display: flex;
     flex-direction: column;
-    gap: var(--s-2);
+    gap: var(--card-content-gap);
     height: 100%;
     justify-content: flex-start;
   }
@@ -195,16 +200,15 @@ const shotSizes = "(max-width: 52rem) 100vw, 26rem";
   .work-card--visual .work-card__body {
     flex: 1;
     height: auto;
-    min-height: 8rem;
-    padding: var(--s-4) var(--s-5) var(--s-5);
+    padding: var(--card-content-gap) var(--card-inset) var(--card-inset);
     background: transparent;
   }
 
   .work-card__name {
     font-family: var(--display);
-    font-size: clamp(1rem, 2vw, var(--p-h2));
-    font-weight: 900;
-    line-height: 1;
+    font-size: var(--card-title-size);
+    font-weight: var(--card-title-weight);
+    line-height: 1.12;
     font-synthesis: none;
     overflow-wrap: anywhere;
   }
@@ -212,7 +216,8 @@ const shotSizes = "(max-width: 52rem) 100vw, 26rem";
   .work-card__copy {
     max-width: none;
     color: var(--paper-muted);
-    font-size: var(--p-small);
-    line-height: 1.45;
+    font-size: var(--card-copy-size);
+    font-weight: var(--card-copy-weight);
+    line-height: var(--card-copy-leading);
   }
 </style>
