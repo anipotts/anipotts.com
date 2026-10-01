@@ -24,7 +24,7 @@ const reportingHref =
     read my feature in a story about coding agent limits
   </p>
   <div class="press-mention__links">
-    <a class="site-action" href={essayHref ?? reportingHref}>
+    <a class="site-action" href={reportingHref}>
       <img
         class="press-mention__link-mark"
         src="/images/brand/business-insider-favicon.svg"
@@ -36,13 +36,29 @@ const reportingHref =
       <span>read the story</span>
       <Icon name="ph:arrow-bend-right-up" aria-hidden="true" />
     </a>
+    {
+      essayHref && (
+        <a class="site-action" href={essayHref}>
+          <img
+            class="press-mention__link-mark"
+            src="/brand/ap-favicon.svg"
+            alt=""
+            width="16"
+            height="16"
+            decoding="async"
+          />
+          <span>my essay</span>
+          <Icon name="ph:arrow-bend-right-up" aria-hidden="true" />
+        </a>
+      )
+    }
   </div>
 </aside>
 
 <style>
   .press-mention {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) 20rem;
     align-items: center;
     gap: var(--s-4);
     margin-top: var(--s-5);
@@ -70,7 +86,7 @@ const reportingHref =
 
   .press-mention__links {
     display: grid;
-    grid-template-columns: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--s-3);
   }
 
@@ -82,7 +98,7 @@ const reportingHref =
     filter: brightness(0) invert(1);
   }
 
-  @media (max-width: 767px) {
+  @media (max-width: 800px) {
     .press-mention {
       grid-template-columns: auto minmax(0, 1fr);
       row-gap: var(--s-3);
@@ -94,7 +110,6 @@ const reportingHref =
 
     .press-mention__links {
       grid-column: 1 / -1;
-      width: 100%;
     }
   }
 
@@ -109,6 +124,16 @@ const reportingHref =
 
     .press-mention__copy {
       font-size: 0.85rem;
+    }
+
+    .press-mention__links a {
+      padding-inline: 0.5rem;
+      font-size: 0.8rem;
+    }
+
+    .press-mention__links :global(svg) {
+      width: 0.875rem;
+      height: 0.875rem;
     }
   }
 

@@ -670,14 +670,14 @@ html.editorial-detail body {
   background-image: linear-gradient(var(--bg), var(--bg));
 }
 
-/* Keep light reading surfaces and the browser's bottom/overscroll canvas on
-   the same paper once the wave header has left the viewport. --bg and the
+/* Keep reading surfaces and the browser's bottom/overscroll canvas on
+   the same ground once the wave header has left the viewport. --bg and the
    header's --detail-canvas remain unchanged for art and return-to-top. */
-html.editorial-detail:not([data-theme="dark"])[data-reading-canvas],
-html.editorial-detail:not([data-theme="dark"])[data-reading-canvas] body {
+html.editorial-detail[data-reading-canvas],
+html.editorial-detail[data-reading-canvas] body {
   background-color: var(--reading-paper, var(--bg));
 }
-html.editorial-detail:not([data-theme="dark"])[data-reading-canvas] body {
+html.editorial-detail[data-reading-canvas] body {
   background-image: linear-gradient(
     var(--reading-paper, var(--bg)),
     var(--reading-paper, var(--bg))
@@ -971,7 +971,12 @@ html[data-theme="dark"] .site-action__mark--adaptive {
 @media (hover: hover) and (pointer: fine) {
   html:not([data-touch-input]) .site-action:hover,
   html:not([data-touch-input]) a:hover .card-action {
-    background: color-mix(in srgb, var(--paper-accent) 10%, var(--paper-surface));
+    background: color-mix(
+      in srgb,
+      var(--paper-accent) 10%,
+      var(--paper-surface)
+    );
+
     color: var(--paper-accent);
   }
 }

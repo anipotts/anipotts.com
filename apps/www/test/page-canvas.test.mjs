@@ -18,8 +18,7 @@ function fixture({ kind = "writing", theme = "light", boundary = 400 } = {}) {
     classList: {
       contains: (name) => name === "writing-detail" && kind === "writing",
     },
-    matches: () =>
-      ["writing", "work"].includes(kind) && root.dataset.theme !== "dark",
+    matches: () => ["writing", "work"].includes(kind),
     hasAttribute: (name) => attributes.has(name),
     toggleAttribute: (name, enabled) =>
       enabled ? attributes.add(name) : attributes.delete(name),
@@ -47,14 +46,17 @@ function fixture({ kind = "writing", theme = "light", boundary = 400 } = {}) {
     },
     cancelAnimationFrame: (id) => frames.delete(id),
     getComputedStyle: () => ({
-      backgroundColor:
-        root.dataset.theme === "dark"
-          ? "rgb(28, 59, 96)"
-          : attributes.has("data-reading-canvas")
-            ? "rgb(247, 250, 255)"
-            : kind === "writing"
-              ? "rgb(88, 160, 228)"
-              : "rgb(205, 218, 249)",
+      backgroundColor: attributes.has("data-reading-canvas")
+        ? root.dataset.theme === "dark"
+          ? "rgb(8, 11, 16)"
+          : "rgb(247, 250, 255)"
+        : root.dataset.theme === "dark"
+          ? kind === "writing"
+            ? "rgb(28, 59, 96)"
+            : "rgb(26, 53, 86)"
+          : kind === "writing"
+            ? "rgb(88, 160, 228)"
+            : "rgb(205, 218, 249)",
     }),
   };
   const doc = {
@@ -136,6 +138,34 @@ test("work details use the header boundary, including records without Markdown p
   assert.equal(f.meta.content, "rgb(247, 250, 255)");
 });
 
+for (const [kind, topColor] of [
+  ["writing", "rgb(28, 59, 96)"],
+  ["work", "rgb(26, 53, 86)"],
+]) {
+  test(`dark ${kind} retains top artwork color and matches the reading ground through the footer`, () => {
+    const f = fixture({ kind, theme: "dark" });
+    syncPageCanvas(f.doc);
+    assert.equal(f.reading(), false);
+    assert.equal(f.meta.content, topColor);
+    f.boundary(0);
+    f.emit("scroll");
+    f.flush();
+    assert.equal(f.reading(), true);
+    assert.equal(f.meta.content, "rgb(8, 11, 16)");
+    const writes = f.writes.length;
+    f.boundary(-3000);
+    f.emit("scroll");
+    f.flush();
+    assert.equal(f.meta.content, "rgb(8, 11, 16)");
+    assert.equal(f.writes.length, writes);
+    f.boundary(400);
+    f.emit("scroll");
+    f.flush();
+    assert.equal(f.reading(), false);
+    assert.equal(f.meta.content, topColor);
+  });
+}
+
 test("short work footer matches paper before the header can leave the viewport", () => {
   const f = fixture({ kind: "work", boundary: 575.5 });
   f.root.scrollHeight = 1049.5;
@@ -149,7 +179,8 @@ test("short work footer matches paper before the header can leave the viewport",
   assert.equal(f.meta.content, "rgb(247, 250, 255)");
   f.root.dataset.theme = "dark";
   f.win.__apCanvasSync();
-  assert.equal(f.reading(), false);
+  assert.equal(f.reading(), true);
+  assert.equal(f.meta.content, "rgb(8, 11, 16)");
   f.root.dataset.theme = "light";
   f.win.__apCanvasSync();
   assert.equal(f.reading(), true);
@@ -173,7 +204,7 @@ test("short work footer matches paper before the header can leave the viewport",
   assert.equal(f.meta.content, "rgb(205, 218, 249)");
 });
 
-test("a fitting light detail page starts on paper because its footer cannot scroll", () => {
+test("a fitting detail page starts on its reading ground because its footer cannot scroll", () => {
   const f = fixture({ kind: "work", boundary: 300 });
   f.root.scrollHeight = f.win.innerHeight;
   syncPageCanvas(f.doc);
@@ -181,7 +212,8 @@ test("a fitting light detail page starts on paper because its footer cannot scro
   assert.equal(f.meta.content, "rgb(247, 250, 255)");
   f.root.dataset.theme = "dark";
   f.win.__apCanvasSync();
-  assert.equal(f.reading(), false);
+  assert.equal(f.reading(), true);
+  assert.equal(f.meta.content, "rgb(8, 11, 16)");
   f.root.dataset.theme = "light";
   f.win.__apCanvasSync();
   assert.equal(f.reading(), true);
@@ -194,18 +226,14 @@ test("a fitting light detail page starts on paper because its footer cannot scro
   );
 });
 
-test("dark and ordinary blue routes skip scroll work; theme and route swaps clear stale paper", () => {
+test("theme changes keep the reading ground; ordinary routes clear it and skip scroll work", () => {
   const f = fixture({ boundary: -100 });
   syncPageCanvas(f.doc);
   assert.equal(f.reading(), true);
   f.root.dataset.theme = "dark";
   f.win.__apCanvasSync();
-  assert.equal(f.reading(), false);
-  assert.equal(f.meta.content, "rgb(28, 59, 96)");
-  const reads = f.reads();
-  f.emit("scroll");
-  assert.equal(f.frames.size, 0);
-  assert.equal(f.reads(), reads);
+  assert.equal(f.reading(), true);
+  assert.equal(f.meta.content, "rgb(8, 11, 16)");
   f.root.dataset.theme = "light";
   f.win.__apCanvasSync();
   assert.equal(f.reading(), true);
@@ -257,8 +285,8 @@ test("resizing across the boundary and changing theme at the footer recalculate 
   assert.equal(f.reading(), true);
   f.root.dataset.theme = "dark";
   f.win.__apCanvasSync();
-  assert.equal(f.reading(), false);
-  assert.equal(f.meta.content, "rgb(28, 59, 96)");
+  assert.equal(f.reading(), true);
+  assert.equal(f.meta.content, "rgb(8, 11, 16)");
   f.root.dataset.theme = "light";
   f.win.__apCanvasSync();
   assert.equal(f.reading(), true);
