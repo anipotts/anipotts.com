@@ -1,0 +1,150 @@
+---
+import AmbientFlow from "./AmbientFlow.astro";
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  essayHref?: string;
+}
+const { essayHref } = Astro.props;
+const reportingHref =
+  "https://www.businessinsider.com/ai-usage-limits-causing-some-to-restructure-their-workday-2026-4";
+---
+
+<aside class="press-mention" aria-label="press coverage">
+  <AmbientFlow kind="work" seed="business-insider" />
+  <img
+    class="press-mention__logo"
+    src="/images/brand/business-insider-wordmark.svg"
+    alt="business insider"
+    width="930"
+    height="320"
+    decoding="async"
+  />
+  <p class="press-mention__copy">
+    read my feature in a story about coding agent limits
+  </p>
+  <div class="press-mention__links">
+    <a class="site-action" href={reportingHref}>
+      <img
+        class="press-mention__link-mark"
+        src="/images/brand/business-insider-favicon.svg"
+        alt=""
+        width="16"
+        height="16"
+        decoding="async"
+      />
+      <span>read the story</span>
+      <Icon name="ph:arrow-bend-right-up" aria-hidden="true" />
+    </a>
+    {
+      essayHref && (
+        <a class="site-action" href={essayHref}>
+          <img
+            class="press-mention__link-mark"
+            src="/brand/ap-favicon.svg"
+            alt=""
+            width="16"
+            height="16"
+            decoding="async"
+          />
+          <span>my essay</span>
+          <Icon name="ph:arrow-bend-right-up" aria-hidden="true" />
+        </a>
+      )
+    }
+  </div>
+</aside>
+
+<style>
+  .press-mention {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) 20rem;
+    align-items: center;
+    gap: var(--s-4);
+    margin-top: var(--s-5);
+    padding: var(--experience-card-padding);
+    border-radius: var(--paper-radius);
+    background: var(--paper-surface);
+    color: var(--paper-ink);
+    box-shadow: var(--paper-shadow);
+  }
+
+  .press-mention__logo {
+    grid-column: 1;
+    width: 6rem;
+    height: auto;
+    display: block;
+  }
+
+  .press-mention__copy {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 500;
+    line-height: 1.4;
+    text-wrap: pretty;
+  }
+
+  .press-mention__links {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-3);
+  }
+
+  .press-mention__links:has(a:only-child) {
+    grid-template-columns: 1fr;
+  }
+
+  :global(html[data-theme="dark"]) .press-mention__logo {
+    filter: brightness(0) invert(1);
+  }
+
+  @media (max-width: 800px) {
+    .press-mention {
+      grid-template-columns: auto minmax(0, 1fr);
+      row-gap: var(--s-3);
+    }
+
+    .press-mention__copy {
+      grid-column: 2;
+    }
+
+    .press-mention__links {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .press-mention {
+      column-gap: var(--s-3);
+    }
+
+    .press-mention__logo {
+      width: 4.25rem;
+    }
+
+    .press-mention__copy {
+      font-size: 0.85rem;
+    }
+
+    .press-mention__links a {
+      padding-inline: 0.5rem;
+      font-size: 0.8rem;
+    }
+
+    .press-mention__links :global(svg) {
+      width: 0.875rem;
+      height: 0.875rem;
+    }
+  }
+
+  @media (max-width: 359px) {
+    .press-mention__logo {
+      width: 3.25rem;
+    }
+
+    .press-mention,
+    .press-mention__links {
+      column-gap: var(--s-2);
+    }
+  }
+</style>

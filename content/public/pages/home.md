@@ -4,13 +4,12 @@ sections:
     visible: true
     label: index
     heading: hi, i'm ani potts!
-    subheading: i build data intensive systems with AI and sometimes share what i'm learning online. i've worked on construction document agents at structured ai (YC F25) and artist discovery tools at our bad habit, an atlantic records venture. business insider also wrote about how i use coding agents in my everyday work under usage constraints.
+    subheading: i build data intensive systems with AI and sometimes share what i'm learning online. i've worked on construction document agents at structured ai (YC F25) and artist discovery tools at our bad habit, an atlantic records venture.
     mention_keys:
       - structuredAi
       - yCombinatorF25
       - badHabit
       - atlanticRecords
-      - businessInsider
   past_work:
     visible: true
     label: work
