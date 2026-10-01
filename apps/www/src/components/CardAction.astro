@@ -51,11 +51,26 @@ const {
         />
       ))
   }
-  <span>{label}</span>
+  <span>
+    {
+      label === "view project" ? (
+        <>
+          view<span class="action-project-word"> project</span>
+        </>
+      ) : (
+        label
+      )
+    }
+  </span>
   <Icon name="ph:arrow-bend-right-up" aria-hidden="true" />
 </span>
 
 <style>
+  @media (max-width: 767px) {
+    .action-project-word {
+      display: none;
+    }
+  }
   .site-action--text-only {
     grid-template-columns: minmax(0, 1fr) var(--control-icon-size);
   }

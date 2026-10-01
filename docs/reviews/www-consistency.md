@@ -54,3 +54,7 @@ Mobile balance refinement: below 1024px, the press action spans the same inner w
 The press single-row breakpoint is now 768px: mobile retains the balanced full-width action, while tablet and smaller desktop windows restore the single row. Affected checks and the 16 responsive/theme combinations passed again.
 
 Recovered the earlier hero option B from this chat's saved history. Below 768px, its opening reads `i build AI agents and data intensive systems.` The remaining experience copy, links and marks use the shared rich-summary renderer. Desktop retains the CMS paragraph. The substitution applies only to the exact original opening, so later custom CMS copy is preserved. Affected checks passed; six viewport checks confirmed one visible paragraph, three company links, correct breakpoint selection and no overflow. Mobile capture inspected.
+
+Release preparation: mobile project actions now say `view` below 768px, retaining the full label above it. Twelve homepage/work viewport checks passed for label visibility, overflow and valid link nesting. The isolated worktree has no untracked files; six private draft/media files in the primary checkout were reviewed and excluded. Full validation exposed and corrected the stale canonical homepage mention-key expectation left behind by the already merged press-card change.
+
+Final local `pnpm validate` passed, including repository invariants, full formatting, builds, lint, typechecks and workspace tests. Production deployment remains pending exact-head provider checks and review.
