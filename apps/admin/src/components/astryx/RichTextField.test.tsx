@@ -176,6 +176,10 @@ it("keeps the compact toolbar mounted before, during and after a text selection"
     host.querySelector('[role="toolbar"][aria-label="Subtitle formatting"]');
   const original = toolbar();
   expect(original).not.toBeNull();
+  expect(
+    original!.compareDocumentPosition(host.querySelector('[role="textbox"]')!) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
   const buttons = original!.querySelectorAll("button").length;
   act(() => editor!.commands.setTextSelection({ from: 1, to: 5 }));
   expect(toolbar()).toBe(original);
@@ -314,4 +318,46 @@ it("renders relative inline assets from the public site and retains relative sou
   expect(inlineMarkdown(editor!.getJSON())).not.toContain(
     "https://anipotts.com",
   );
+});
+
+it("reinserts a site icon at the bookmarked caret and retains its source through undo and redo", async () => {
+  await render("before after");
+  // jsdom has no text Range geometry for ProseMirror's focus scrolling.
+  editor!.setOptions({
+    editorProps: { handleScrollToSelection: () => true },
+  });
+  act(() => editor!.commands.setTextSelection(8));
+  await act(async () =>
+    host
+      .querySelector<HTMLButtonElement>(
+        'button[aria-label="Insert site icon"]',
+      )!
+      .click(),
+  );
+  const choice = [
+    ...document.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+  ].find((item) => item.textContent?.trim() === "YC");
+  expect(choice).toBeTruthy();
+  act(() => choice!.click());
+  act(() => flushRef.current?.());
+  const inserted = changed.mock.lastCall![0];
+  expect(inserted).toContain("![YC](</images/brand/ycombinator-favicon.ico>)");
+  expect(editor!.getText()).toBe("before after");
+  act(() => editor!.commands.undo());
+  act(() => flushRef.current?.());
+  expect(changed).toHaveBeenLastCalledWith("before after");
+  act(() => editor!.commands.redo());
+  act(() => flushRef.current?.());
+  expect(changed).toHaveBeenLastCalledWith(inserted);
+  await render(inserted, 1);
+  let imageSource: string | undefined;
+  editor!.state.doc.descendants((node) => {
+    if (node.type.name === "image") imageSource = node.attrs.src;
+  });
+  expect(imageSource).toBe("/images/brand/ycombinator-favicon.ico");
+  await act(async () => {
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => resolve()),
+    );
+  });
 });

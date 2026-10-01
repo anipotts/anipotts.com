@@ -6,6 +6,8 @@ import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import { Field } from "@astryxdesign/core/Field";
 import { FormLayout } from "@astryxdesign/core/FormLayout";
+import { DropdownMenu } from "@astryxdesign/core/DropdownMenu";
+import { INLINE_ICONS } from "../../lib/inline-icon-library";
 import { Toolbar } from "@astryxdesign/core/Toolbar";
 import {
   ToggleButton,
@@ -22,6 +24,7 @@ import {
   TextUnderlineIcon,
   LinkIcon,
   ImageIcon,
+  SquaresFourIcon,
   ArrowCounterClockwiseIcon,
   ArrowClockwiseIcon,
 } from "@phosphor-icons/react";
@@ -34,7 +37,6 @@ import {
 // previews. The admin preview does not serve the public site's image paths.
 const publicSiteUrl = "https://anipotts.com/";
 import { inlineDocument, inlineMarkdown } from "../../lib/rich-text";
-import { useKeyboardInset } from "../../lib/keyboard-inset";
 
 export type RichTool = "bold" | "italic" | "underline" | "link" | "image";
 const ALL_TOOLS: readonly RichTool[] = [
@@ -145,6 +147,7 @@ export function RichTextField({
 }) {
   const id = useId();
   const panelSelection = useRef(new EditorSelectionBookmark());
+  const iconSelection = useRef(new EditorSelectionBookmark());
   const change = useRef(onChange);
   change.current = onChange;
   const lastValue = useRef(value);
@@ -157,8 +160,6 @@ export function RichTextField({
   const [alt, setAlt] = useState("");
   const [urlError, setUrlError] = useState("");
   const [editingImage, setEditingImage] = useState(false);
-  const [focused, setFocused] = useState(false);
-  useKeyboardInset(focused);
   const editor = useEditor({
     immediatelyRender: false,
     shouldRerenderOnTransaction: false,
@@ -201,7 +202,10 @@ export function RichTextField({
       },
       attributes: fieldAttributes(id, label, description, validationError),
     },
-    onTransaction: ({ transaction }) => panelSelection.current.map(transaction),
+    onTransaction: ({ transaction }) => {
+      panelSelection.current.map(transaction);
+      iconSelection.current.map(transaction);
+    },
     onUpdate: ({ editor }) => {
       if (flushRef && dirtyCallback.current) {
         pending.current = true;
@@ -353,15 +357,7 @@ export function RichTextField({
           className="rich-field-surface"
           data-disabled={disabled || undefined}
           data-toolbar-open={panel ? "true" : undefined}
-          onFocusCapture={() => setFocused(true)}
-          onBlurCapture={(event) => {
-            if (
-              !event.currentTarget.contains(event.relatedTarget as Node | null)
-            )
-              setFocused(false);
-          }}
         >
-          <EditorContent editor={editor} className="rich-writing" />
           <Toolbar
             label={`${label} formatting`}
             size="sm"
@@ -432,6 +428,58 @@ export function RichTextField({
                     onClick={() => openPanel("image")}
                   />
                 )}
+                {tools.includes("image") && (
+                  <DropdownMenu
+                    button={{
+                      label: "Insert site icon",
+                      tooltip: "Insert site icon",
+                      icon: <SquaresFourIcon />,
+                      isIconOnly: true,
+                      variant: "ghost",
+                      isDisabled: disabled || !editor,
+                    }}
+                    hasChevron={false}
+                    menuWidth="max-content"
+                    onOpenChange={(open) => {
+                      if (open && editor)
+                        iconSelection.current.capture(editor.state.selection);
+                    }}
+                    items={INLINE_ICONS.map((icon) => ({
+                      label: icon.label,
+                      icon: (
+                        <img
+                          src={new URL(icon.src, publicSiteUrl).href}
+                          alt=""
+                          className={`editor-inline-icon ${inlineImageClass(icon.title ?? undefined)}`}
+                          style={{
+                            width: "var(--spacing-4)",
+                            height: "var(--spacing-4)",
+                            objectFit: "contain",
+                          }}
+                        />
+                      ),
+                      onClick: () => {
+                        if (disabled || !editor) return;
+                        const selection = iconSelection.current.resolve(
+                          editor.state.doc,
+                        );
+                        if (!selection) return;
+                        editor.view.dispatch(
+                          editor.state.tr.setSelection(selection),
+                        );
+                        editor
+                          .chain()
+                          .focus()
+                          .setImage({
+                            src: icon.src,
+                            alt: icon.label,
+                            title: icon.title ?? undefined,
+                          })
+                          .run();
+                      },
+                    }))}
+                  />
+                )}
                 <HStack
                   gap={1}
                   className="editor-toolbar-group editor-history-tools"
@@ -460,6 +508,7 @@ export function RichTextField({
               </HStack>
             }
           />
+          <EditorContent editor={editor} className="rich-writing" />
           {panel && (
             <SelectionOverlay
               editor={editor}

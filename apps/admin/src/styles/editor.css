@@ -182,8 +182,8 @@
   }
 }
 
-/* Rich fields: the words first, the formatting row under them only while
-   the field has focus. */
+/* Rich-field formatting stays above its text at every width. Focus changes
+   selection and controls, never the field's geometry or toolbar position. */
 .rich-field,
 .rich-field-surface,
 .rich-writing {
@@ -200,10 +200,6 @@
   border: 0;
   background: transparent;
   overflow: visible;
-}
-.rich-field-surface:not(:focus-within):not([data-toolbar-open])
-  .document-editor-toolbar {
-  display: none;
 }
 .rich-writing .tiptap {
   padding: var(--spacing-3);
@@ -240,30 +236,46 @@
 .rich-writing u {
   text-underline-offset: 0.2em;
 }
+/* Match the published InlineMention geometry, rather than the control radius. */
+.rich-field,
+.editor-inline-icon {
+  --editor-inline-icon-radius: 0.19em;
+  --editor-inline-icon-size: 0.92em;
+}
 .rich-writing .inline-image {
   display: inline-block;
-  width: 1em;
-  height: 1em;
+  width: var(--editor-inline-icon-size);
+  height: var(--editor-inline-icon-size);
   margin: 0 0.15em 0 0;
   vertical-align: -0.1em;
   object-fit: contain;
-  border-radius: var(--radius-inner);
+  border-radius: var(--editor-inline-icon-radius);
 }
-.rich-writing .inline-image-wide {
+.editor-inline-icon {
+  border-radius: var(--editor-inline-icon-radius);
+}
+.rich-writing .inline-image-wide,
+.editor-inline-icon.inline-image-wide {
   width: 1.24em;
+  border-radius: 0;
 }
-.rich-writing .inline-image-mark {
+.rich-writing .inline-image-mark,
+.editor-inline-icon.inline-image-mark {
+  border-radius: 0;
   width: 1.08em;
   height: 1.08em;
 }
-.rich-writing .inline-image-white {
+.rich-writing .inline-image-white,
+.editor-inline-icon.inline-image-white {
   filter: brightness(0) invert(1);
 }
-html[data-theme="light"] .rich-writing .inline-image-white {
+html[data-theme="light"] .rich-writing .inline-image-white,
+html[data-theme="light"] .editor-inline-icon.inline-image-white {
   filter: brightness(0);
 }
 @media (prefers-color-scheme: light) {
-  html:not([data-theme="dark"]) .rich-writing .inline-image-white {
+  html:not([data-theme="dark"]) .rich-writing .inline-image-white,
+  html:not([data-theme="dark"]) .editor-inline-icon.inline-image-white {
     filter: brightness(0);
   }
 }
@@ -352,7 +364,7 @@ html[data-theme="light"] .rich-writing .inline-image-white {
   padding: 0;
 }
 .editor-toolbar-controls {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: var(--spacing-1);
 }
 .editor-toolbar-group {
@@ -388,9 +400,6 @@ html[data-theme="light"] .rich-writing .inline-image-white {
     min-height: var(--spacing-11);
     min-width: var(--spacing-11);
   }
-  .editor-history-tools {
-    display: none;
-  }
 }
 /* On a phone a toolbar exists only while its field is being written in or
    one of its menus or panels is open (data-toolbar-open), and then docks
@@ -409,9 +418,7 @@ html[data-theme="light"] .rich-writing .inline-image-white {
     display: none;
   }
   .article-composer:is(:focus-within, [data-toolbar-open])
-    > .document-editor-toolbar,
-  .rich-field-surface:is(:focus-within, [data-toolbar-open])
-    .document-editor-toolbar {
+    > .document-editor-toolbar {
     position: fixed;
     inset-inline: 0;
     top: auto;
