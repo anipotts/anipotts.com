@@ -14,7 +14,7 @@ const defaultWriting = readFileSync(
   "utf8",
 );
 
-/** An empty inventory at version 0 renders exactly the bundled Git defaults. */
+/** Synthetic content store. An empty inventory has no published records. */
 export function contentDatabase() {
   const sqlite = new DatabaseSync(":memory:");
   for (const name of [
@@ -107,6 +107,12 @@ export function contentDatabase() {
         "UPDATE editorial_published_inventory SET version=version+1 WHERE singleton=1",
       );
       return { operation, digest, version: version + 1 };
+    },
+    /** Fixture setup only: preserve expected counters after an explicit seed. */
+    resetFixtureVersion() {
+      sqlite.exec(
+        "UPDATE editorial_published_inventory SET version=0 WHERE singleton=1",
+      );
     },
     close() {
       sqlite.close();

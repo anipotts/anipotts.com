@@ -1,3 +1,4 @@
+import { AdminPortalScope } from "../workspace/AdminUI";
 import React, {
   useEffect,
   useId,
@@ -13,7 +14,7 @@ import { Layout, LayoutContent, LayoutPanel } from "@astryxdesign/core/Layout";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Heading } from "@astryxdesign/core/Heading";
-import { IconButton } from "@astryxdesign/core/IconButton";
+import { IconButton } from "./WritingControls";
 import { XIcon } from "@phosphor-icons/react";
 import { BREAKPOINT_MIN } from "../../lib/breakpoints";
 
@@ -168,7 +169,7 @@ export function RecordPanel({
                 onClick={onClose}
               />
             </HStack>
-            {children}
+            <AdminPortalScope>{children}</AdminPortalScope>
           </VStack>
         </BottomSheet>
       ) : mode ? (
@@ -191,7 +192,11 @@ export function RecordPanel({
           <Layout
             height="fill"
             header={<DialogHeader title={title} onOpenChange={dismiss} />}
-            content={<LayoutContent padding={4}>{children}</LayoutContent>}
+            content={
+              <LayoutContent padding={4}>
+                <AdminPortalScope>{children}</AdminPortalScope>
+              </LayoutContent>
+            }
           />
         </Dialog>
       ) : null}

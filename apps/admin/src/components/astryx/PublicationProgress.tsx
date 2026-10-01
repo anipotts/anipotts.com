@@ -1,4 +1,6 @@
 import React from "react";
+import { PublicationIssues } from "./PublicationIssues";
+import type { SnapshotIssue } from "@anipotts/content/editorial/snapshot";
 import { HStack } from "@astryxdesign/core/HStack";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Text } from "@astryxdesign/core/Text";
@@ -46,7 +48,7 @@ function pauseReason(code: string, activated: boolean): string {
     case "invalid_snapshot":
     case "invalid_content":
     case "invalid_source":
-      return "the draft could not be validated; correct the marked fields and review again";
+      return "the draft could not be validated; check this record and its references, then review again; your private draft is retained";
     case "idempotency_conflict":
     case "publication_receipt_missing":
       return "the publication receipt needs reconciliation; confirm its recorded effects before starting another publication";
@@ -57,7 +59,7 @@ function pauseReason(code: string, activated: boolean): string {
     case "unsupported_visibility_change":
       return "visibility changes need a separate reviewed action; keep the current visibility and review these edits again, or use Unpublish";
     case "unpublish_breaks_reference":
-      return "the homepage still features this piece; remove it from the homepage writing selection, publish the homepage, then unpublish again";
+      return "another record still references this piece; update and publish that record before unpublishing again";
     case "publisher_not_configured":
       return "publishing is unavailable in this environment; restore the publication storage connections before retrying";
     case "publication_unavailable":
@@ -183,11 +185,13 @@ export function PublicationProgress({
   stale = false,
   compact = false,
   children,
+  onEditIssue,
 }: {
   publication: DirectPublicationStatus;
   stale?: boolean;
   compact?: boolean;
   children?: React.ReactNode;
+  onEditIssue?: (issue: SnapshotIssue) => boolean;
 }) {
   const progress = publicationProgress(publication, stale);
   return (
@@ -259,6 +263,9 @@ export function PublicationProgress({
             </HStack>
           ))}
         </HStack>
+      )}
+      {publication.blocked && !stale && (
+        <PublicationIssues issues={publication.issues} onEdit={onEditIssue} />
       )}
       <HStack gap={3} wrap="wrap" vAlign="center" hAlign="between">
         <HStack gap={2} vAlign="start">

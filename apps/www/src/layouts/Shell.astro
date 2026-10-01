@@ -201,6 +201,8 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     <Footer />
     <script>
       import "../scripts/writing-transitions";
+      import { installPointerModality } from "../scripts/pointer-modality";
+      installPointerModality(document);
     </script>
   </body>
 </html>

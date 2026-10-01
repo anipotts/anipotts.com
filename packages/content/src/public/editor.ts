@@ -236,6 +236,14 @@ export function normalizeCmsProject(
       source.homepage_order,
       fallback?.homepage_order ?? 0,
     ),
+    card_title: coerceString(
+      source.card_title,
+      fallback?.card_title ?? "",
+    ).trim(),
+    card_copy_compact: coerceString(
+      source.card_copy_compact,
+      fallback?.card_copy_compact ?? "",
+    ).trim(),
     card_copy: coerceString(
       source.card_copy ?? source.summary ?? source.subtitle,
       fallback?.card_copy ?? fallback?.summary ?? "",
@@ -562,6 +570,10 @@ export function normalizeListingPageContent(
     title: coerceString(source.title, fallback.title).trim(),
     description: coerceString(source.description, fallback.description).trim(),
     hero_title: coerceString(source.hero_title, fallback.hero_title).trim(),
+    hero_summary_compact: coerceString(
+      source.hero_summary_compact,
+      fallback.hero_summary_compact ?? "",
+    ).trim(),
     hero_summary: coerceString(
       source.hero_summary,
       fallback.hero_summary,
@@ -730,6 +742,10 @@ export function normalizeSystemsPageContent(
     hero_title: coerceString(
       source.hero_title,
       DEFAULT_SYSTEMS_CONTENT.hero_title,
+    ).trim(),
+    hero_summary_compact: coerceString(
+      source.hero_summary_compact,
+      DEFAULT_SYSTEMS_CONTENT.hero_summary_compact ?? "",
     ).trim(),
     hero_summary: coerceString(
       source.hero_summary,

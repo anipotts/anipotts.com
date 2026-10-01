@@ -145,6 +145,17 @@ function normalizeSection(
         : coerceString(source.subheading, fallback.subheading ?? "").trim();
   }
 
+  if (
+    source.subheading_compact !== undefined ||
+    fallback.subheading_compact !== undefined
+  )
+    normalized.subheading_compact = coerceString(
+      source.subheading_compact,
+      fallback.subheading_compact ?? "",
+    ).trim();
+  if (source.subheading_compact_format === "markdown")
+    normalized.subheading_compact_format = "markdown";
+
   if (source.subheading_format === "markdown")
     normalized.subheading_format = "markdown";
 

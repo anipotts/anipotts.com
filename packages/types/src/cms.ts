@@ -8,6 +8,8 @@ export interface HomepageSection {
   heading: string;
   subheading?: string;
   subheading_format?: "markdown";
+  subheading_compact?: string;
+  subheading_compact_format?: "markdown";
   rich_summary?: HomepageRichSummarySentence[];
   mention_keys?: string[];
   paragraphs?: string[];
@@ -112,6 +114,8 @@ export interface CmsProjectContent {
   catalog_group: "active" | "past" | "taken_down";
   homepage_order: number;
   card_copy: string;
+  card_copy_compact?: string;
+  card_title?: string;
   detail_path: string;
   identity: {
     logo_src?: string;
@@ -166,6 +170,7 @@ export interface ListingPageContent {
   description: string;
   hero_title: string;
   hero_summary: string;
+  hero_summary_compact?: string;
   section_label?: string;
   hero_link_label?: string;
   hero_link_href?: string;
@@ -191,4 +196,5 @@ export interface SystemsPageContent {
   description: string;
   hero_title: string;
   hero_summary: string;
+  hero_summary_compact?: string;
 }

@@ -56,6 +56,9 @@ export async function previewResponse(
     const attribute = (value: string) =>
       value.replaceAll("&", "&amp;").replaceAll('"', "&quot;");
     const html = (await response.text())
+      // A self-sizing frame must follow content height, not its own viewport.
+      // Otherwise loading large images can permanently inflate the preview.
+      .replace("</head>", "<style>body{min-height:0}</style></head>")
       .replace(
         /(src|poster)="([^"<>]*)"/gu,
         (_match, name, source) =>

@@ -3,13 +3,13 @@ import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Grid } from "@astryxdesign/core/Grid";
 import { Text } from "@astryxdesign/core/Text";
-import { Button } from "@astryxdesign/core/Button";
+import { Button } from "./WritingControls";
 import {
   SegmentedControl,
   SegmentedControlItem,
 } from "@astryxdesign/core/SegmentedControl";
 import { Heading } from "@astryxdesign/core/Heading";
-import { ToggleButton } from "@astryxdesign/core/ToggleButton";
+import { ToggleButton } from "./WritingControls";
 import { CodeIcon } from "@phosphor-icons/react";
 import {
   inlinePlainText,
@@ -333,7 +333,7 @@ export function ReviewHeading({
       </HStack>
       {saveStatus && (
         <HStack maxWidth="100%" style={{ marginInlineStart: "auto" }}>
-          <SaveStatus {...saveStatus} />
+          <SaveStatus {...saveStatus} showLabel />
         </HStack>
       )}
     </HStack>

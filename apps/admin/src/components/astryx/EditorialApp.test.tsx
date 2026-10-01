@@ -146,10 +146,10 @@ describe("editorial catalog", () => {
         `>Writing</span><span[^>]*><span[^>]*aria-label="${records.length} records">${records.length}<`,
       ),
     );
-    // One theme button, and no outside link in the shell.
+    // Sidebar and phone header share one theme owner; CSS shows one per viewport.
     expect(
       html.match(/aria-label="(?:Light|Dark|System) theme"/g),
-    ).toHaveLength(1);
+    ).toHaveLength(2);
     expect(html).not.toContain("Visit site");
     expect(html).not.toContain("Log out");
     expect(html).not.toContain("·");

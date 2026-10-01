@@ -86,7 +86,7 @@ const externalProfiles = [
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .contact-email:hover {
+    :global(html:not([data-touch-input])) .contact-email:hover {
       color: var(--interactive);
       text-decoration: underline;
       text-underline-offset: 0.2em;
@@ -112,7 +112,7 @@ const externalProfiles = [
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .glyph:hover {
+    :global(html:not([data-touch-input])) .glyph:hover {
       color: var(--interactive);
       background: color-mix(in srgb, var(--ink) 7%, transparent);
     }

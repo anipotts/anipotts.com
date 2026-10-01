@@ -330,8 +330,13 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .project-media__enlarge:hover .project-media__hint :global(svg),
-    [data-image-original]:hover .image-viewer__affordance {
+    :global(html:not([data-touch-input]))
+      .project-media__enlarge:hover
+      .project-media__hint
+      :global(svg),
+    :global(html:not([data-touch-input]))
+      [data-image-original]:hover
+      .image-viewer__affordance {
       color: var(--paper-accent);
     }
   }

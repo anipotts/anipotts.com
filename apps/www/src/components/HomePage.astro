@@ -196,7 +196,7 @@ const profileLd = {
   .hero-line--compact {
     display: none;
   }
-  @media (max-width: 767px) {
+  @media (width < 768px) {
     .hero-line--desktop {
       display: none;
     }
@@ -214,7 +214,7 @@ const profileLd = {
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .text-link:hover {
+    :global(html:not([data-touch-input])) .text-link:hover {
       color: var(--interactive);
       text-decoration-color: var(--interactive);
     }

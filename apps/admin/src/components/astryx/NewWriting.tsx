@@ -8,10 +8,10 @@ import { dispatchEditorialRecordCreated } from "../../lib/editorial-inventory-ev
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
-import { TextInput } from "@astryxdesign/core/TextInput";
-import { Button } from "@astryxdesign/core/Button";
-import { IconButton } from "@astryxdesign/core/IconButton";
-import { Banner } from "@astryxdesign/core/Banner";
+import { TextInput } from "./WritingControls";
+import { Button } from "./WritingControls";
+import { IconButton } from "./WritingControls";
+import { Banner } from "./WritingControls";
 import { Link } from "@astryxdesign/core/Link";
 import { Text } from "@astryxdesign/core/Text";
 import { PencilSimpleIcon } from "@phosphor-icons/react";
@@ -88,9 +88,9 @@ export function NewWriting(props: NewWritingProps) {
 }
 /**
  * Create is the editor itself: a large title and, under it, the address it
- * derives with a pencil to change it. Return or leaving the title creates
- * the private draft and opens it; every keystroke before that is kept in
- * browser recovery.
+ * derives with a pencil to change it. Create draft or Return explicitly
+ * creates the private draft and opens it; every keystroke before that is
+ * kept in browser recovery.
  */
 function NewWritingForm({
   recoveryScope,
@@ -107,8 +107,6 @@ function NewWritingForm({
   const [error, setError] = useState("");
   const [taken, setTaken] = useState(false);
   const titleHost = useRef<HTMLDivElement>(null);
-  /** A press on the address pencil has started; the title's blur waits. */
-  const holding = useRef(false);
   /** The pencil opened the address field: it takes focus as it mounts, in
    * the same tap, so a phone keeps its keyboard. */
   const focusAddress = useRef(false);
@@ -371,7 +369,8 @@ function NewWritingForm({
             title={title.trim() || (project ? "New project" : "New article")}
           />
         )}
-        <div
+        <VStack
+          gap={0}
           ref={titleHost}
           className="document-title"
           onKeyDown={(event) => {
@@ -391,15 +390,6 @@ function NewWritingForm({
                 ? { type: "error", message: "Up to 300 characters" }
                 : undefined
             }
-            onBlur={(event) => {
-              // Moving to the address pencil or field is not leaving.
-              if (
-                holding.current ||
-                form.current?.contains(event.relatedTarget as Node | null)
-              )
-                return;
-              if (valid) void create();
-            }}
             onChange={(input) => {
               const value = input.replace(/[\r\n]+/gu, " ");
               setTitle(value);
@@ -407,7 +397,7 @@ function NewWritingForm({
               if (!customSlug) setSlug(writingId(value));
             }}
           />
-        </div>
+        </VStack>
         {editingSlug ? (
           <TextInput
             label={addressLabel}
@@ -439,17 +429,23 @@ function NewWritingForm({
               size="sm"
               icon={<PencilSimpleIcon weight="regular" aria-hidden="true" />}
               isDisabled={busy || loggedOut}
-              onPointerDown={() => {
-                holding.current = true;
-              }}
               onClick={() => {
-                holding.current = false;
                 focusAddress.current = true;
                 setEditingSlug(true);
               }}
             />
           </HStack>
         )}
+        <HStack gap={1} wrap="wrap">
+          <Button
+            label="Create draft"
+            variant="primary"
+            size="sm"
+            type="submit"
+            isLoading={busy}
+            isDisabled={!valid || busy}
+          />
+        </HStack>
         {taken && (
           <Link href={`/content/${collection}/${slug}`}>
             Open the existing {project ? "project" : "article"}

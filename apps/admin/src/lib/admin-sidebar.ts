@@ -8,10 +8,10 @@ export const SIDEBAR_STORAGE_KEYS = [
 ] as const;
 
 /** The sidebar contract, on lib/breakpoints.ts. Compact phones (640px and
- * below) have no sidebar: the top bar and tab row replace it. Medium widths
+ * below) use the shared appbar and unified navigation drawer. Medium widths
  * (641px to 1023px) always open on the rail, because the full sidebar would
- * leave a table too little room; the rail button still opens it for the
- * moment. From large (1024px) a saved choice wins, and without one the
+ * leave a table too little room; the rail button opens an overlay for the
+ * moment without changing saved desktop preferences. From large (1024px) a saved choice wins, and without one the
  * sidebar is a rail until 1280px, where the full sidebar has room. */
 export const COMPACT_MAX_WIDTH = BREAKPOINT_MIN.medium - 1;
 export const RAIL_ONLY_MAX_WIDTH = BREAKPOINT_MIN.large - 1;

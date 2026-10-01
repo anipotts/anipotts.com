@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import React, { act } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, afterEach, it, expect, vi } from "vitest";
+// Transform the shared SDK/Astryx graph during collection, before timed setup.
+import "./EditorialApp";
 let EditorialApp: typeof import("./EditorialApp").EditorialApp;
 import {
   dispatchEditorialRecordSaved,
@@ -43,6 +46,7 @@ it("refreshes mounted library only from newer acknowledged metadata", () => {
       <EditorialApp
         title="Content"
         area="content"
+        selectedGroup="writing"
         localPreview
         siteUrl="https://anipotts.com"
         groups={[
@@ -148,6 +152,7 @@ it("follows a save and a create made in another open tab", async () => {
       <EditorialApp
         title="Content"
         area="content"
+        selectedGroup="writing"
         localPreview
         siteUrl="https://anipotts.com"
         selectedGroup="writing"
@@ -235,6 +240,7 @@ it("moves between libraries in place and back again with history", () => {
       <EditorialApp
         title="Pages"
         area="content"
+        selectedGroup="writing"
         localPreview
         siteUrl="https://anipotts.com"
         selectedGroup="website"
@@ -407,3 +413,37 @@ it.each(["logout", "bfcache"])(
     expect(host.textContent).toContain("Session ended");
   },
 );
+
+it("keeps Writing's SDK boundary inside main, away from the shared navigation", () => {
+  const html = renderToStaticMarkup(
+    <EditorialApp
+      title="Writing"
+      area="content"
+      selectedGroup="writing"
+      localPreview
+      siteUrl="https://anipotts.com"
+      groups={[
+        {
+          name: "writing",
+          href: "/content/writing",
+          records: [
+            {
+              title: "Synthetic",
+              status: "draft",
+              href: "/content/writing/synthetic",
+            },
+          ],
+        },
+      ]}
+    />,
+  );
+  const host = document.createElement("div");
+  host.innerHTML = html;
+  const boundary = host.querySelector('[data-admin-ui="openai"]');
+  const main = host.querySelector("#astryx-app-shell-main");
+  const nav = host.querySelector("nav");
+  expect(boundary).not.toBeNull();
+  expect(main?.contains(boundary)).toBe(true);
+  expect(boundary?.contains(nav)).toBe(false);
+  expect(nav?.closest('[data-admin-ui="openai"]')).toBeNull();
+});

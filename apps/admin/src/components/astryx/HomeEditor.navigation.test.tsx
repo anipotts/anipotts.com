@@ -67,8 +67,18 @@ vi.mock("./ArticleBody", () => ({
 }));
 vi.mock("./RichTextField", () => ({ RichTextField: () => <p>Subtitle</p> }));
 vi.mock("./SavedArticlePreview", () => ({
-  SavedArticlePreview: ({ revision }: any) => (
-    <p data-preview-revision={revision}>Article preview</p>
+  SavedArticlePreview: ({ src }: any) => (
+    <>
+      <iframe
+        title="Saved article preview"
+        src={src}
+        data-preview-revision={new URL(
+          src,
+          window.location.origin,
+        ).searchParams.get("revision")}
+      />
+      <p>Article preview</p>
+    </>
   ),
 }));
 vi.mock("./RecordPanel", () => ({
@@ -177,8 +187,9 @@ async function click(label: string) {
     button!.click();
   });
 }
-/** Opens the editor bar's overflow and chooses one of its items. */
+/** Frequent panels are direct actions; only secondary actions use overflow. */
 async function menuItem(label: string) {
+  if (label === "Properties" || label === "History") return click(label);
   await act(async () => {
     (
       host.querySelector(
@@ -279,6 +290,58 @@ it("deep-linked preview loads the saved revision and keeps the same document thr
   expect(window.location.search).toContain("theme=dark");
   expect(window.location.search).toContain("view=preview");
 });
+it.each(["", "?view=preview"])(
+  "previews an untouched baseline without creating a private revision from %s",
+  async (search) => {
+    const baselineHash = "b".repeat(40);
+    const fetcher = vi.fn(async (url: string, options?: RequestInit) => {
+      if (options?.method === "POST")
+        throw new Error("A read-only preview must never write");
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      return response({
+        ...snapshot,
+        base: { ...snapshot.base, source, baseFileHash: baselineHash },
+        draft: null,
+        history: [],
+      });
+    });
+    vi.stubGlobal("fetch", fetcher);
+    await mount(search, false);
+    const preview = host.querySelector<HTMLButtonElement>(
+      'button[aria-label="Preview"]',
+    )!;
+    expect(preview.disabled).toBe(false);
+    if (!search) await click("Preview");
+    await act(async () => {
+      await vi.waitFor(() =>
+        expect(
+          host.querySelector('iframe[title="Saved article preview"]'),
+        ).not.toBeNull(),
+      );
+    });
+    const frame = host.querySelector<HTMLIFrameElement>(
+      'iframe[title="Saved article preview"]',
+    )!;
+    const url = new URL(frame.src);
+    expect(url.pathname).toBe("/preview/record");
+    expect(url.searchParams.get("kind")).toBe("writing");
+    expect(url.searchParams.get("id")).toBe("test");
+    expect(url.searchParams.get("revision")).toBe("0");
+    expect(url.searchParams.get("baseline")).toBe(baselineHash);
+    expect(
+      fetcher.mock.calls.filter(([, options]) => options?.method === "POST"),
+    ).toEqual([]);
+    expect(
+      fetcher.mock.calls.some(
+        ([url]) => url.includes("/save?") || url.includes("/publish"),
+      ),
+    ).toBe(false);
+    expect(
+      host.querySelector('[data-save-state="unchanged"]')?.textContent,
+    ).toBe("No changes");
+  },
+);
+
 it("deep-linked history opens one panel alongside the mounted document", async () => {
   await mount("?panel=history");
   expect(host.querySelector('aside[aria-label="History"]')).not.toBeNull();

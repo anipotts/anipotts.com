@@ -275,7 +275,7 @@ h2.section-label {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .accent-link:hover {
+  html:not([data-touch-input]) .accent-link:hover {
     text-decoration: underline;
     text-underline-offset: 0.18em;
     text-decoration-thickness: 0.06em;
@@ -293,7 +293,7 @@ h2.section-label {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .quiet-link:hover {
+  html:not([data-touch-input]) .quiet-link:hover {
     color: var(--interactive);
   }
 }
@@ -309,11 +309,11 @@ h2.section-label {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .row-link:hover {
+  html:not([data-touch-input]) .row-link:hover {
     background: var(--surface);
   }
 
-  .row-link:hover .row-title {
+  html:not([data-touch-input]) .row-link:hover .row-title {
     color: var(--ink);
   }
 }
@@ -347,17 +347,7 @@ h2.section-label {
   outline-offset: 4px;
 }
 
-/* The press ring for work, experience and agent cards lives in each component,
-   where it outranks that component's own resting box-shadow. The writing card
-   presses with a fill only: the later :active reset holds its resting shadow,
-   which the article morph depends on, so it never takes the ring. */
-@media (width < 880px), (pointer: coarse) {
-  .writing-card:active {
-    background: var(--paper-surface-hover);
-  }
-}
-
-/* Touch controls use their own press states, never the platform grey plate. */
+/* Scrolling over a touch target does not paint a press state. */
 a,
 button,
 summary {
@@ -964,8 +954,13 @@ html[data-theme="dark"] .site-action__mark--adaptive {
 :is(.work-card__body, .experience-feature__body) {
   row-gap: var(--card-content-gap);
 }
-.site-action:hover,
-a:hover .card-action,
+@media (hover: hover) and (pointer: fine) {
+  html:not([data-touch-input]) .site-action:hover,
+  html:not([data-touch-input]) a:hover .card-action {
+    background: color-mix(in srgb, var(--paper-accent) 10%, var(--paper-surface));
+    color: var(--paper-accent);
+  }
+}
 a:focus-visible .card-action {
   background: color-mix(in srgb, var(--paper-accent) 10%, var(--paper-surface));
   color: var(--paper-accent);
@@ -1039,4 +1034,17 @@ img[src="/images/brand/quantercise-legacy-icon.png"] {
     align-items: flex-start;
     gap: 0.375rem;
   }
+}
+
+/* Touch scrolling may focus a link in embedded browsers. Keyboard input clears
+   this marker before focus moves; editable controls retain their focus feedback. */
+html[data-touch-input] :where(a, button, summary):focus-visible {
+  outline: none !important;
+}
+html[data-touch-input] a:focus-visible .card-action {
+  background: var(--paper-surface);
+  color: var(--paper-ink);
+}
+html[data-touch-input] .wordmark .brand-mark__half {
+  transform: none !important;
 }

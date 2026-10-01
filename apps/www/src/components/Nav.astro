@@ -127,7 +127,18 @@ const current = Astro.url.pathname;
       mark.setAttribute("data-hover-restored", "");
     }
     const track = (event) => {
-      if (!finePointer.matches || event.pointerType === "touch") return;
+      if (event.pointerType === "touch" || event.pointerType === "pen") {
+        pointer = null;
+        mark.removeAttribute("data-hover-restored");
+        show(false);
+        try {
+          sessionStorage.removeItem(key);
+        } catch {
+          /* Storage is optional. */
+        }
+        return;
+      }
+      if (!finePointer.matches) return;
       pointer = { x: event.clientX, y: event.clientY };
       mark.removeAttribute("data-hover-restored");
       const next = contains(pointer);
@@ -196,7 +207,7 @@ const current = Astro.url.pathname;
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .nav-link:hover {
+    :global(html:not([data-touch-input])) .nav-link:hover {
       color: var(--interactive);
     }
   }
@@ -223,7 +234,7 @@ const current = Astro.url.pathname;
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .theme-toggle:hover {
+    :global(html:not([data-touch-input])) .theme-toggle:hover {
       color: var(--interactive);
     }
   }
@@ -254,7 +265,7 @@ const current = Astro.url.pathname;
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .nav-toggle:hover {
+    :global(html:not([data-touch-input])) .nav-toggle:hover {
       color: var(--interactive);
     }
   }
@@ -287,11 +298,6 @@ const current = Astro.url.pathname;
     .theme-toggle {
       margin-left: 0;
       border-radius: var(--card-ui-radius);
-    }
-
-    :is(.theme-toggle, .nav-toggle):active {
-      color: var(--ink);
-      background: color-mix(in srgb, var(--ink) 10%, transparent);
     }
 
     .nav-toggle {
@@ -340,8 +346,7 @@ const current = Astro.url.pathname;
       border-radius: var(--card-ui-radius);
     }
 
-    .nav-link[aria-current="page"],
-    .nav-link:active {
+    .nav-link[aria-current="page"] {
       background: color-mix(in srgb, var(--ink) 7%, transparent);
     }
 

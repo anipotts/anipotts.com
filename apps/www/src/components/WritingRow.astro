@@ -55,7 +55,7 @@ const { title, summary, published_at } = item.data;
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .writing-card:hover {
+    :global(html:not([data-touch-input])) .writing-card:hover {
       background: var(--paper-surface-hover);
     }
   }
