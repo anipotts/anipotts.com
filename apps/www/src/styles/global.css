@@ -21,11 +21,16 @@
      hero caps where the 944px column stops growing, so writing and work
      titles keep one line from 1024 to 1920. */
   --d-hero: clamp(3rem, 12vw, 7rem);
+  --d-hero-mobile: 10.5vw;
   --d-hero-compact: clamp(3rem, 10vw, 6rem);
   --d-hero-detail: clamp(2.6rem, 6.6vw, 4.2rem);
   --d-lede: clamp(1.08rem, 2.2vw, 1.42rem);
   --radius-desktop-ui-media: 0.35rem;
   --paper-radius: 0.75rem;
+  --card-ui-radius: 0.6rem;
+  --card-ui-padding: 0.5rem 0.7rem;
+  --card-ui-surface: color-mix(in srgb, var(--paper-surface) 80%, transparent);
+  --card-ui-border: color-mix(in srgb, var(--paper-ink) 15%, transparent);
   --experience-card-padding: clamp(0.8rem, 2.6vw, 1.35rem);
   --paper-surface: #ffffff;
   --paper-surface-hover: #f7faff;
@@ -886,4 +891,75 @@ html.writing-detail:not([data-theme="dark"]) .article-end {
 }
 html.writing-detail:not([data-theme="dark"]) .article-body :not(pre) > code {
   color: #0e2034;
+}
+
+/* Shared filled action treatment for press, experience and work cards. */
+.site-action {
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr) 1rem;
+  align-items: center;
+  gap: 0.35em;
+  min-height: 44px;
+  padding: var(--card-ui-padding);
+  border: 1px solid var(--card-ui-border);
+  border-radius: var(--card-ui-radius);
+  background: var(--card-ui-surface);
+  color: var(--paper-ink);
+  font-size: 0.85rem;
+  line-height: 1.25;
+  text-decoration: none;
+}
+.site-action > span {
+  text-wrap: balance;
+}
+.site-action > :is(img, svg) {
+  display: block;
+  width: 1rem;
+  height: 1rem;
+  object-fit: contain;
+  border-radius: 0.19em;
+}
+.site-action__mark--adaptive {
+  filter: brightness(0);
+}
+html[data-theme="dark"] .site-action__mark--adaptive {
+  filter: brightness(0) invert(1);
+}
+.card-action {
+  position: relative;
+  z-index: 1;
+  width: fit-content;
+  max-width: 100%;
+  flex: none;
+  align-self: flex-start;
+  margin: 0;
+  align-self: center;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+:is(.work-card__header, .experience-feature__heading, .guide-identity) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-3);
+}
+:is(.work-card__body, .experience-feature__body) {
+  row-gap: var(--s-3);
+}
+.site-action:hover,
+a:hover .card-action,
+a:focus-visible .card-action {
+  background: color-mix(in srgb, var(--paper-accent) 10%, var(--paper-surface));
+  color: var(--paper-accent);
+}
+a.site-action:focus-visible {
+  outline: 2px solid var(--paper-accent);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .work-card,
+  .experience-feature {
+    transition: none;
+  }
 }

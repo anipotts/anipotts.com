@@ -57,3 +57,11 @@ The existing 480-pixel and 359-pixel treatments reduce mark sizing and spacing.
 Labels wrap naturally at the smallest widths while preserving 44-pixel touch
 height. The card retains the experience cards' shared insets and radius. No
 fixed card height or viewport-specific copy is introduced.
+
+## shared www card actions
+
+Experience, work and guide cards use the same filled icon, label and curved-arrow treatment as the press actions. `CardAction` supplies a non-interactive visual action inside each existing whole-card link, avoiding nested links and duplicate keyboard targets. Project marks move from the title into the action, aligned at the right of the header row. Actions and status/timeframe badges share radius, padding, translucent surface and border tokens. The homepage, work index and editorial card previews inherit the shared components. Writing rows retain their existing presentation.
+
+The homepage greeting stays on one line through the existing 640px mobile breakpoint, with a dedicated 10.5vw display token. No fixed minimum font size causes narrow-screen overflow. The full name and copy remain unchanged.
+
+Verified www build and typecheck, all 139 www tests, and browser checks at 320, 375, 390, 640, 768 and 1440px. The homepage and work index actions fit their cards, preserve 44px minimum height, and contain no nested links. Mobile greeting text fits on one line without horizontal overflow. Local screenshots live under `output/playwright/actions-*`; production is unchanged.

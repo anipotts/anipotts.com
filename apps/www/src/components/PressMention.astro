@@ -22,7 +22,7 @@ const reportingHref =
     read my feature in a story about coding agent limits
   </p>
   <div class="press-mention__links">
-    <a href={reportingHref}>
+    <a class="site-action" href={reportingHref}>
       <img
         class="press-mention__link-mark"
         src="/images/brand/business-insider-favicon.svg"
@@ -36,7 +36,7 @@ const reportingHref =
     </a>
     {
       essayHref && (
-        <a href={essayHref}>
+        <a class="site-action" href={essayHref}>
           <img
             class="press-mention__link-mark"
             src="/brand/ap-favicon.svg"
@@ -55,16 +55,6 @@ const reportingHref =
 
 <style>
   .press-mention {
-    --press-action-surface: color-mix(
-      in srgb,
-      var(--paper-muted) 7%,
-      var(--paper-surface)
-    );
-    --press-action-hover: color-mix(
-      in srgb,
-      var(--paper-accent) 10%,
-      var(--paper-surface)
-    );
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) 20rem;
     align-items: center;
@@ -102,48 +92,6 @@ const reportingHref =
     grid-template-columns: 1fr;
   }
 
-  .press-mention__links a {
-    display: grid;
-    grid-template-columns: 1rem minmax(0, 1fr) 1rem;
-    align-items: center;
-    gap: 0.35em;
-    min-height: 44px;
-    padding: 0.4rem 0.65rem;
-    border-radius: var(--radius-desktop-ui-media);
-    background: var(--press-action-surface);
-    color: var(--paper-ink);
-    font-size: 0.85rem;
-    line-height: 1.25;
-    text-decoration: none;
-  }
-
-  .press-mention__links a span {
-    text-wrap: balance;
-  }
-
-  .press-mention__link-mark {
-    display: block;
-    width: 1rem;
-    height: 1rem;
-    object-fit: contain;
-    border-radius: 0.19em;
-  }
-
-  .press-mention__links :global(svg) {
-    width: 1rem;
-    height: 1rem;
-  }
-
-  .press-mention__links a:hover {
-    background: var(--press-action-hover);
-    color: var(--paper-accent);
-  }
-
-  .press-mention__links a:focus-visible {
-    outline: 2px solid var(--paper-accent);
-    outline-offset: 3px;
-  }
-
   :global(html[data-theme="dark"]) .press-mention__logo {
     filter: brightness(0) invert(1);
   }
@@ -177,7 +125,6 @@ const reportingHref =
     }
 
     .press-mention__links a {
-      grid-template-columns: 1rem minmax(0, 1fr) 0.875rem;
       padding-inline: 0.5rem;
       font-size: 0.8rem;
     }
