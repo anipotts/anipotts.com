@@ -147,6 +147,10 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
         // Safari's surrounding canvas and older theme-color consumers must use
         // the site's selected theme, even when it differs from the OS theme.
         const syncBrowserTheme = () => {
+          if (window.__apCanvasSync) {
+            window.__apCanvasSync();
+            return;
+          }
           root.style.colorScheme =
             root.dataset.theme === "dark" ? "dark" : "light";
           const background = getComputedStyle(root).backgroundColor;
