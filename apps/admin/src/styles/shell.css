@@ -438,3 +438,19 @@ body [data-astryx-theme]:not([data-astryx-media]) {
     height: var(--spacing-11);
   }
 }
+
+/* Tablets expand the desktop sidebar over content; the inline rail keeps
+   reserving its 52px. The sidebar owns its identity, search and footer. */
+@media (min-width: 641px) and (max-width: 1023px) {
+  .admin-tablet-sidebar > div:not(#\#) {
+    width: calc(var(--spacing-10) * 5);
+    max-width: calc(var(--spacing-10) * 5);
+    background: var(--color-workspace-sidebar, var(--color-background-body));
+  }
+  .admin-tablet-sidebar > div > div:first-child {
+    display: none;
+  }
+  .admin-tablet-sidebar > div > div:last-child {
+    padding: 0;
+  }
+}

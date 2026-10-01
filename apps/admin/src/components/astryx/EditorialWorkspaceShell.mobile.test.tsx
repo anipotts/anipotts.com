@@ -277,6 +277,20 @@ describe("responsive workspace navigation", () => {
         ) as HTMLDialogElement
       ).open,
     ).toBe(true);
+    const overlay = host.querySelector(".admin-tablet-sidebar")!;
+    expect(overlay).not.toBeNull();
+    expect(overlay.querySelector(".approved-workspace-header")).not.toBeNull();
+    expect(overlay.querySelector('[aria-label="Search"]')).not.toBeNull();
+    const close = overlay.querySelector(
+      '[aria-label="Collapse sidebar"]',
+    ) as HTMLButtonElement;
+    expect(close).not.toBeNull();
+    act(() => close.click());
+    expect(
+      host
+        .querySelector('[aria-label="Open navigation"]')
+        ?.getAttribute("aria-expanded"),
+    ).toBe("false");
     expect(localStorage.getItem("admin:sidebar-collapsed")).toBeNull();
     // A tablet opens on the rail again: the saved expand would leave its
     // tables too little room.
