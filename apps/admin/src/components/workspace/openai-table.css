@@ -1,220 +1,196 @@
-/* The SDK supplies controls, while the admin owns table geometry. */
-[data-admin-ui="openai"] .openai-table {
+/* Admin-owned table geometry, shared by both UI boundaries. */
+.admin-data-table {
   width: 100%;
   min-width: 0;
-  border-radius: var(--radius-container);
+  container-type: inline-size;
+  color: var(--color-text-primary);
+  font-size: var(--text-supporting-size, 14px);
   background: var(--color-background-surface);
+  border-radius: var(--radius-container, 8px);
 }
-[data-admin-ui="openai"] .openai-table-frame {
+.admin-data-table .openai-table-frame {
   min-width: 0;
   container-type: inline-size;
   --workspace-table-fixed: var(--workspace-table-fixed-wide, 0px);
   --workspace-table-spread: var(--workspace-table-spread-wide, 1);
 }
-[data-admin-ui="openai"] .openai-record-table {
+.admin-data-table .admin-table-scroll {
+  min-width: 0;
+}
+.admin-data-table[data-responsive="scroll"] .admin-table-scroll {
+  overflow-x: auto;
+}
+.admin-data-table[data-responsive="scroll"] table {
+  min-width: var(--workspace-table-min-wide);
+}
+.admin-data-table .openai-record-table {
   width: 100%;
   table-layout: fixed;
   border-collapse: collapse;
   font: inherit;
-  font-size: var(--text-supporting-size);
 }
-[data-admin-ui="openai"] .openai-record-table :is(th, td) {
-  padding: var(--spacing-1) var(--spacing-3);
+.admin-data-table .openai-record-table :is(th, td) {
+  padding: var(--spacing-2, 8px) var(--spacing-3, 12px);
   text-align: start;
   vertical-align: middle;
-  white-space: nowrap;
-  word-break: normal;
-  overflow-wrap: normal;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
-[data-admin-ui="openai"] .openai-record-table th {
-  padding-block: var(--spacing-2);
-  max-width: 0;
-  font-weight: 500;
+.admin-data-table .openai-record-table th {
+  font-weight: var(--font-weight-medium, 500);
   color: var(--color-text-secondary);
 }
-[data-admin-ui="openai"] .openai-record-table :is(th, td):first-child {
-  padding-inline-start: var(--spacing-4);
-}
-[data-admin-ui="openai"] .openai-record-table :is(th, td):last-child {
-  padding-inline-end: var(--spacing-4);
-}
-[data-admin-ui="openai"] .openai-record-table [data-align="end"] {
-  text-align: end;
-}
-[data-admin-ui="openai"] .openai-record-table [data-numeric] {
-  font-variant-numeric: tabular-nums;
-}
-[data-admin-ui="openai"] .openai-record-table thead button {
-  min-height: 36px;
-  max-width: 100%;
-  padding-inline: 0;
-  font: inherit;
+.admin-data-table .openai-record-table thead th {
   white-space: nowrap;
 }
-[data-admin-ui="openai"] .openai-record-table tbody tr {
+.admin-data-table .openai-record-table [data-align="end"] {
+  text-align: end;
+}
+.admin-data-table .openai-record-table [data-numeric] {
+  font-variant-numeric: tabular-nums;
+}
+.admin-data-table .openai-record-table tbody tr[data-record-id] {
   position: relative;
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--color-text-secondary) 13%, transparent);
 }
-[data-admin-ui="openai"] .openai-record-table tbody tr[data-selected],
-[data-admin-ui="openai"]
-  .openai-table
-  tbody
-  tr:has(.workspace-row-link:focus-visible) {
-  background: var(--color-overlay-hover);
+.admin-data-table .openai-record-table tbody tr[data-record-id]:last-child {
+  border-bottom: 0;
 }
-[data-admin-ui="openai"] .openai-record-table .openai-table-select {
+.admin-data-table .openai-group-row th {
+  padding: 0;
+  background: color-mix(
+    in srgb,
+    var(--color-text-secondary) 6%,
+    var(--color-background-surface)
+  );
+}
+.admin-data-table button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-control, 4px);
+  min-height: 36px;
+  padding: var(--spacing-1, 4px) var(--spacing-2, 8px);
+}
+.admin-data-table button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.admin-data-table :is(button, input, a, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-text-accent, var(--color-text-primary));
+  outline-offset: 2px;
+}
+.admin-data-table .admin-table-group-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: var(--spacing-2, 8px);
+  text-align: start;
+}
+.admin-data-table .admin-table-group-toggle svg {
+  width: var(--spacing-4, 16px);
+  height: var(--spacing-4, 16px);
+  flex: 0 0 auto;
+}
+.admin-data-table .admin-table-group-toggle[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+.admin-data-table .admin-table-count {
+  font-size: var(--text-caption-size, 12px);
+  font-variant-numeric: tabular-nums;
+  padding: 0 var(--spacing-1, 4px);
+  border-radius: var(--radius-control, 4px);
+  background: color-mix(in srgb, var(--color-text-secondary) 10%, transparent);
+}
+.admin-data-table .admin-table-select {
   width: 44px;
-  min-width: 44px;
-  position: relative;
-  z-index: 1;
+  padding: 0;
   text-align: center;
-  padding-inline: 8px;
 }
-[data-admin-ui="openai"] .openai-record-table .openai-table-select button {
-  min-width: 18px;
-  min-height: 18px;
-}
-[data-admin-ui="openai"] .openai-table [role="checkbox"]::before {
-  content: "";
-  position: absolute;
-  inset: -9px;
-}
-[data-admin-ui="openai"]
-  .openai-table
-  td
-  :is(a, button):not(.workspace-row-link),
-[data-admin-ui="openai"] .openai-table td [role="button"] {
+.admin-data-table .admin-table-selection {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }
-[data-admin-ui="openai"] :is(.openai-table-footer, .openai-pagination) {
+.admin-data-table .admin-table-selection input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-text-accent);
+}
+.admin-data-table .admin-table-primary,
+.admin-data-table .admin-table-value {
+  display: block;
+  min-width: 0;
+}
+.admin-data-table td :is(a, button, input):not(.workspace-row-link) {
+  position: relative;
+  z-index: 2;
+}
+/* Embedded controls and whitespace never become the primary navigation link. */
+.admin-data-table .workspace-row-link::after {
+  display: none;
+}
+.admin-data-table .workspace-row-link {
+  min-height: 36px;
+  align-items: center;
+}
+.admin-data-table .workspace-row-title {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+}
+.admin-data-table
+  :is(
+    .workspace-row-end,
+    .workspace-compact-only,
+    .workspace-yield-only,
+    .workspace-row-meta[data-compact-only="true"]
+  ) {
+  display: none;
+}
+.admin-data-table
+  :is(.openai-table-footer, .openai-pagination, .admin-table-controls) {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--spacing-3);
-  padding: var(--spacing-2) var(--spacing-4);
-  font-size: var(--text-supporting-size);
+  gap: var(--spacing-3, 12px);
+  padding: var(--spacing-2, 8px) var(--spacing-3, 12px);
   color: var(--color-text-secondary);
 }
-[data-admin-ui="openai"] .openai-pagination {
+.admin-data-table .openai-pagination {
   justify-content: flex-end;
 }
-[data-admin-ui="openai"]
-  :is(.openai-mobile-label, .openai-mobile-sort, .openai-mobile-column-name) {
+.admin-data-table .openai-mobile-label {
   display: none;
 }
+.admin-data-table .admin-table-state {
+  padding: var(--spacing-5, 20px) var(--spacing-3, 12px);
+  color: var(--color-text-secondary);
+}
 @media (hover: hover) {
-  [data-admin-ui="openai"]
-    .openai-table[data-interactive="true"]
-    tbody
-    tr:not(.openai-group-row):hover {
+  .admin-data-table[data-interactive="true"] tr[data-record-id]:hover,
+  .admin-data-table button:hover {
     background: var(--color-overlay-hover);
   }
 }
-@media (max-width: 1439px) {
-  [data-admin-ui="openai"] .openai-table-frame {
-    --workspace-table-fixed: var(--workspace-table-fixed-large, 0px);
-    --workspace-table-spread: var(--workspace-table-spread-large, 1);
-  }
-  [data-admin-ui="openai"] .openai-table [data-hide-below="wide"] {
-    display: none;
-  }
-}
-@media (max-width: 1023px) {
-  [data-admin-ui="openai"] .openai-table-frame {
-    --workspace-table-fixed: var(--workspace-table-fixed-medium, 0px);
-    --workspace-table-spread: var(--workspace-table-spread-medium, 1);
-  }
-  [data-admin-ui="openai"] .openai-table [data-hide-below="large"] {
-    display: none;
-  }
-}
-@media (max-width: 640px) {
-  [data-admin-ui="openai"] .openai-table {
-    background: transparent;
-  }
-  [data-admin-ui="openai"] .openai-mobile-sort {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-1);
-    align-items: center;
-  }
-  [data-admin-ui="openai"] .openai-record-table thead {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    clip-path: inset(50%);
-    overflow: hidden;
-  }
-  [data-admin-ui="openai"] .openai-record-table thead button {
-    display: none;
-  }
-  [data-admin-ui="openai"] .openai-mobile-column-name {
-    display: inline;
-  }
-  [data-admin-ui="openai"] .openai-record-table :is(tbody, tr, td, th) {
-    display: block;
-    width: auto;
-    min-width: 0;
-    max-width: none;
-  }
-  [data-admin-ui="openai"] .openai-record-table tbody tr {
-    padding-block: var(--spacing-2);
-  }
-  [data-admin-ui="openai"] .openai-record-table tbody td {
-    padding: 2px var(--spacing-3);
-    text-align: start;
-    white-space: normal;
-  }
-  [data-admin-ui="openai"] .openai-record-table tbody [data-hide-below] {
-    display: none;
-  }
-  /* RecordRow already carries compact status and time beside the title. */
-  [data-admin-ui="openai"]
-    .openai-record-table
-    tbody
-    tr:has(.workspace-row)
-    > td:not([data-lead]):not(.openai-table-select) {
-    display: none;
-  }
-  [data-admin-ui="openai"] .openai-mobile-label {
-    display: inline;
-    margin-inline-end: var(--spacing-2);
-    color: var(--color-text-secondary);
-  }
-  [data-admin-ui="openai"]
-    .openai-record-table
-    tbody
-    tr:has(> .openai-table-select) {
-    display: grid;
-    grid-template-columns: 44px minmax(0, 1fr);
-    align-items: start;
-  }
-  [data-admin-ui="openai"]
-    .openai-record-table
-    tbody
-    tr:has(> .openai-table-select)
-    > td {
-    grid-column: 2;
-  }
-  [data-admin-ui="openai"]
-    .openai-record-table
-    tbody
-    tr
-    > td.openai-table-select {
-    display: flex;
-    grid-column: 1;
-    grid-row: 1;
-    align-items: center;
-    justify-content: center;
+@media (pointer: coarse) {
+  .admin-data-table :is(button, .admin-table-selection, .workspace-row-link) {
     min-height: 44px;
-    padding: 0;
   }
-  [data-admin-ui="openai"] .openai-table [role="checkbox"]::before {
-    inset: -13px;
+  .admin-data-table .admin-table-selection {
+    min-width: 44px;
   }
-  [data-admin-ui="openai"] .openai-pagination {
-    justify-content: space-between;
+}
+@media (prefers-reduced-motion: reduce) {
+  .admin-data-table * {
+    animation: none;
+    transition: none;
   }
 }

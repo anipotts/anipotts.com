@@ -304,6 +304,11 @@ export function DevOpenAICatalog() {
             <p aria-busy="true">Loading synthetic records…</p>
           ) : (
             <DataTable
+              tableId="catalog-synthetic-articles"
+              totalCount={state.scenario === "empty" ? 0 : state.records.length}
+              filteredCount={state.scenario === "empty" ? 0 : filtered.length}
+              searchActive={Boolean(search || filter !== "all")}
+              groupBy={(row) => row.status}
               rows={
                 state.scenario === "empty"
                   ? []

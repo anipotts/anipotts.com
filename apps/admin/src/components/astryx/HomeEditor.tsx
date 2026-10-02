@@ -70,7 +70,7 @@ import {
 import { Banner } from "./WritingControls";
 import { IconButton } from "./WritingControls";
 import { EditorActionBar } from "./EditorActionBar";
-import { RelativeTime, StateNotice } from "../workspace/Workspace";
+import { DataTable, RelativeTime, StateNotice } from "../workspace/Workspace";
 import { FormLayout } from "@astryxdesign/core/FormLayout";
 import { Spinner } from "@astryxdesign/core/Spinner";
 import { useToast } from "@astryxdesign/core/Toast";
@@ -2744,71 +2744,89 @@ function HomeEditorImpl({
                 {historyLoading && !snapshot.history.length && (
                   <AdminSkeleton kind="history" />
                 )}
-                {snapshot.history.map((revision) => (
-                  <VStack key={revision.revision} gap={2}>
-                    <HStack
-                      gap={2}
-                      vAlign="center"
-                      className="editor-history-row"
-                    >
-                      <button
-                        type="button"
-                        className="editor-history-compare"
-                        aria-label={`Compare revision ${revision.revision}`}
-                        aria-expanded={comparedRevision === revision.revision}
-                        onClick={() =>
-                          setComparedRevision(
-                            comparedRevision === revision.revision
-                              ? null
-                              : revision.revision,
-                          )
-                        }
-                      >
-                        <Text weight="semibold">r{revision.revision}</Text>
-                        <RelativeTime value={revision.updatedAt} />
-                      </button>
-                      <IconButton
-                        label={`Restore revision ${revision.revision}`}
-                        tooltip={`Restore revision ${revision.revision}`}
-                        variant="ghost"
-                        size="sm"
-                        icon={
-                          <ArrowCounterClockwiseIcon
-                            weight="regular"
-                            aria-hidden="true"
+                <DataTable
+                  rows={snapshot.history}
+                  rowKey="revision"
+                  tableId={`editor-history:${record.kind}:${record.id}`}
+                  label="Saved revisions"
+                  noun={["revision", "revisions"]}
+                  footer={false}
+                  interactive={false}
+                  columns={[
+                    {
+                      key: "revision",
+                      header: "Revision",
+                      render: (revision) => (
+                        <button
+                          type="button"
+                          className="editor-history-compare"
+                          aria-label={`Compare revision ${revision.revision}`}
+                          aria-expanded={comparedRevision === revision.revision}
+                          onClick={() =>
+                            setComparedRevision(
+                              comparedRevision === revision.revision
+                                ? null
+                                : revision.revision,
+                            )
+                          }
+                        >
+                          <Text weight="semibold">r{revision.revision}</Text>
+                          <RelativeTime value={revision.updatedAt} />
+                        </button>
+                      ),
+                    },
+                    {
+                      key: "actions",
+                      header: "Actions",
+                      width: 104,
+                      render: (revision) => (
+                        <HStack gap={2} vAlign="center">
+                          <IconButton
+                            label={`Restore revision ${revision.revision}`}
+                            tooltip={`Restore revision ${revision.revision}`}
+                            variant="ghost"
+                            size="sm"
+                            icon={
+                              <ArrowCounterClockwiseIcon
+                                weight="regular"
+                                aria-hidden="true"
+                              />
+                            }
+                            isDisabled={discarded}
+                            onClick={() => {
+                              resetBuffers();
+                              editor.current!.edit(revision.source);
+                              setTab("edit");
+                              toast({
+                                body: `Revision ${revision.revision} restored as a draft.`,
+                                uniqueID: "draft-restore",
+                              });
+                            }}
                           />
-                        }
-                        isDisabled={discarded}
-                        onClick={() => {
-                          resetBuffers();
-                          editor.current!.edit(revision.source);
-                          setTab("edit");
-                          toast({
-                            body: `Revision ${revision.revision} restored as a draft.`,
-                            uniqueID: "draft-restore",
-                          });
-                        }}
-                      />
-                      <IconButton
-                        label={`Download revision ${revision.revision}`}
-                        tooltip={`Download revision ${revision.revision}`}
-                        variant="ghost"
-                        size="sm"
-                        icon={
-                          <DownloadSimpleIcon
-                            weight="regular"
-                            aria-hidden="true"
+                          <IconButton
+                            label={`Download revision ${revision.revision}`}
+                            tooltip={`Download revision ${revision.revision}`}
+                            variant="ghost"
+                            size="sm"
+                            icon={
+                              <DownloadSimpleIcon
+                                weight="regular"
+                                aria-hidden="true"
+                              />
+                            }
+                            onClick={() =>
+                              download(
+                                revision.source,
+                                `${record.id}-revision-${revision.revision}.md`,
+                              )
+                            }
                           />
-                        }
-                        onClick={() =>
-                          download(
-                            revision.source,
-                            `${record.id}-revision-${revision.revision}.md`,
-                          )
-                        }
-                      />
-                    </HStack>
-                    {comparedRevision === revision.revision && (
+                        </HStack>
+                      ),
+                    },
+                  ]}
+                  renderExpanded={(revision) =>
+                    comparedRevision === revision.revision ? (
                       <ReviewChanges
                         label={`Revision ${revision.revision} against your draft`}
                         destination={`Revision ${revision.revision}`}
@@ -2822,9 +2840,9 @@ function HomeEditorImpl({
                           },
                         ]}
                       />
-                    )}
-                  </VStack>
-                ))}
+                    ) : null
+                  }
+                />
                 {snapshot.nextBeforeRevision != null && (
                   <Button
                     label="Load older revisions"

@@ -179,7 +179,7 @@ describe("the one overview", () => {
     // One chip for the state, one named glyph for the pending changes, and
     // no second chip to be cut at the column's edge.
     expect(state.querySelectorAll(".workspace-state")).toHaveLength(1);
-    expect(state.textContent).toBe("Draft");
+    expect(state.querySelector(".workspace-state")?.textContent).toBe("Draft");
     const pending = state.querySelector(".overview-pending")!;
     expect(pending.getAttribute("role")).toBe("img");
     expect(pending.getAttribute("aria-label")).toBe("Changes pending");

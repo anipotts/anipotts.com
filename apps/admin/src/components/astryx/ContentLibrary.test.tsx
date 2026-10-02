@@ -201,7 +201,7 @@ describe("Quiet Precision library rows", () => {
       html.indexOf("workspace-filters"),
     );
     expect(html.indexOf("workspace-filters")).toBeLessThan(
-      html.indexOf("workspace-table-grid"),
+      html.indexOf("openai-table"),
     );
   });
   it("keeps unknown timestamps explicit and never renders an invalid date", () => {
@@ -351,11 +351,11 @@ describe("table language", () => {
     expect(html.match(/<span class="sr-only">Published<\/span>/g)).toHaveLength(
       3,
     );
-    // The count sits beside the H1; no strip follows the table.
+    // The title keeps its view count; the shared footer distinguishes loaded and total.
     expect(html).toMatch(
       /<h1[^>]*>Writing<\/h1><span[^>]*workspace-count[^>]*>4<\/span>/,
     );
-    expect(html).not.toContain("workspace-table-count");
+    expect(html).toContain("4 loaded, 4 total");
     expect(html).not.toContain("in view");
   });
 });

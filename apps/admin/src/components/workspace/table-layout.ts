@@ -217,3 +217,80 @@ export function tableFrameStyle<T>(
     ]),
   ) as CSSProperties;
 }
+
+/** Reflow the complete record before its title loses useful reading room. */
+export function tableReflowWidth<T>(
+  columns: readonly Column<T>[],
+  selectionWidth = 0,
+): number {
+  return Math.max(
+    560,
+    selectionWidth +
+      Math.max(240, columns[0]?.room ?? columns[0]?.reserve ?? 280) +
+      columns
+        .slice(1)
+        .reduce((sum, column) => sum + (column.width ?? column.min ?? 80), 0),
+  );
+}
+
+/** Scoped container queries provide correct geometry before hydration. */
+const REFLOW_CSS = `.admin-data-table[data-narrow="true"] .openai-record-table thead {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.admin-data-table[data-narrow="true"] .openai-record-table thead button {
+  visibility: hidden;
+}
+.admin-data-table[data-narrow="true"]
+  .openai-record-table
+  :is(tbody, tr, th, td) {
+  display: block;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+}
+.admin-data-table[data-narrow="true"] .openai-record-table tr[data-record-id] {
+  display: flex;
+  flex-direction: column;
+  padding-block: var(--spacing-2, 8px);
+}
+.admin-data-table[data-narrow="true"] .openai-record-table td {
+  padding-block: var(--spacing-1, 4px);
+  text-align: start;
+}
+.admin-data-table[data-narrow="true"]
+  .openai-record-table
+  td:not([data-lead]):not(.admin-table-select) {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-2, 8px);
+  padding-inline-start: var(--spacing-4, 16px);
+}
+.admin-data-table[data-narrow="true"] .openai-mobile-label {
+  display: inline;
+  color: var(--color-text-secondary);
+  flex: 0 0 auto;
+  max-inline-size: 45%;
+  overflow-wrap: anywhere;
+}
+.admin-data-table[data-narrow="true"]
+  .openai-record-table
+  tr:has(.admin-table-select) {
+  padding-inline-start: 44px;
+}
+.admin-data-table[data-narrow="true"]
+  .openai-record-table
+  td.admin-table-select {
+  position: absolute;
+  inset-inline-start: 0;
+  top: var(--spacing-2, 8px);
+  width: 44px;
+}
+`;
+export function tableResponsiveRules(scope: string, threshold: number): string {
+  const selector = `.admin-data-table .openai-table-frame[data-table-scope="${scope}"]`;
+  return `@container (max-width: ${threshold - 0.5}px) { ${REFLOW_CSS.replaceAll('.admin-data-table[data-narrow="true"]', selector)} }`;
+}

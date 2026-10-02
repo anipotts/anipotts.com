@@ -77,7 +77,7 @@ const headers = (host: HTMLElement) =>
   );
 const groupTitles = (host: HTMLElement) =>
   [...host.querySelectorAll('tbody th[scope="rowgroup"]')].map(
-    (heading) => heading.textContent,
+    (heading) => heading.querySelector("button > span")?.textContent,
   );
 /** A cell by its column header, so optional columns never shift a test.
  * Pass a row to read one that has no entry anchor. */
@@ -89,7 +89,9 @@ const cell = (
 ) => {
   const index = headers(host).indexOf(header);
   expect(index, header).toBeGreaterThan(-1);
-  return (row ?? rowFor(host, id)!).cells[index]!;
+  return (row ?? rowFor(host, id)!).cells[index]!.querySelector<HTMLElement>(
+    ".admin-table-value, .admin-table-primary",
+  )!;
 };
 /** The page's one status line under the title. */
 const meta = (host: HTMLElement) =>
@@ -339,12 +341,14 @@ describe("Status view from System's fixture", () => {
     expect(cell(view, "health.ingest", "Detail").textContent).toBe(
       "last push parsed at least one metric",
     );
-    // Its Syncs card reads like any budgeted sync: its time in line 2's end.
-    const card = view.querySelector('.ops-syncs a[href*="health.ingest"]')!;
-    expect(card.querySelector(".ops-card-end")?.textContent).toBe("3h ago");
-    expect(card.querySelector(".ops-card-state")?.textContent).not.toMatch(
-      /No budget|Not judged/,
-    );
+    // Sync rows preserve the same last-success time and budget judgment.
+    const sync = view
+      .querySelector('table[aria-label="Syncs"] a[href*="health.ingest"]')!
+      .closest("tr")!;
+    expect(sync.querySelector("time")?.textContent).toBe("3h ago");
+    expect(
+      sync.querySelector('[data-column="state"]')?.textContent,
+    ).not.toMatch(/No budget|Not judged/);
     // Over the budget, the time is judged stale.
     row.last_success_at = "2026-09-20T12:00:00Z";
     const late = cell(render(value), "health.ingest", "Last success");
@@ -395,9 +399,11 @@ describe("Status view from System's fixture", () => {
         ?.getAttribute("aria-label"),
     ).toBe("Keepalive, always running");
     // Numbers line up: figures are right-aligned in tabular numerals.
-    expect(cell(host, "agents.sync", "Runs").hasAttribute("data-numeric")).toBe(
-      true,
-    );
+    expect(
+      cell(host, "agents.sync", "Runs")
+        .closest("td")!
+        .hasAttribute("data-numeric"),
+    ).toBe(true);
   });
 
   it("opens each entry in admin, never its runbook, and draws no external squares", () => {
@@ -429,9 +435,11 @@ describe("Status view from System's fixture", () => {
       .querySelector(".workspace-row-mark .brand-tile")!
       .getAttribute("data-mark");
     expect(tableMark).toBe("cloudflare");
-    const card = [...page.querySelectorAll('ul[aria-label="Syncs"] li')].find(
-      (item) => item.textContent?.includes("Session transcripts to R2"),
-    )!;
+    const card = [
+      ...page.querySelectorAll(
+        'table[aria-label="Syncs"] tbody tr[data-record-id]',
+      ),
+    ].find((item) => item.textContent?.includes("Session transcripts to R2"))!;
     expect(card.querySelector(".brand-tile")?.getAttribute("data-mark")).toBe(
       tableMark,
     );
@@ -440,11 +448,11 @@ describe("Status view from System's fixture", () => {
   });
 
   it("lists every synced app with its tile and its row's own state (A-10)", () => {
-    const syncs = host.querySelector('ul[aria-label="Syncs"]')!;
+    const syncs = host.querySelector('table[aria-label="Syncs"]')!;
     // The sample carries one sync: Apple Health, with no budget, on a row
     // System reports unknown ("file missing"): the card says Unknown, never
     // a freshness it cannot have.
-    expect(syncs.querySelectorAll("li")).toHaveLength(1);
+    expect(syncs.querySelectorAll("tbody tr[data-record-id]")).toHaveLength(1);
     expect(syncs.querySelector(".brand-tile")?.getAttribute("data-mark")).toBe(
       "applehealth",
     );
@@ -472,8 +480,8 @@ describe("Status view from System's fixture", () => {
     });
     for (const failing of [false, true]) {
       if (failing) Object.assign(row, { state: "failing" });
-      const syncs = render(value).querySelector('ul[aria-label="Syncs"]')!;
-      const card = [...syncs.querySelectorAll("li")].find(
+      const syncs = render(value).querySelector('table[aria-label="Syncs"]')!;
+      const card = [...syncs.querySelectorAll("tbody tr[data-record-id]")].find(
         (item) =>
           item.querySelector(".brand-tile")?.getAttribute("data-mark") ===
           "applehealth",
@@ -508,12 +516,12 @@ describe("Status view from System's fixture", () => {
       last_run_at: "2026-09-21T17:53:00Z",
       last_exit: 0,
     });
-    const syncs = render(value).querySelector('ul[aria-label="Syncs"]')!;
-    const cards = [...syncs.querySelectorAll("li")];
+    const syncs = render(value).querySelector('table[aria-label="Syncs"]')!;
+    const cards = [...syncs.querySelectorAll("tbody tr[data-record-id]")];
     expect(cards).toHaveLength(2);
     const job = cards.at(-1)!;
     expect(job.textContent).toContain("Intake and offsite upload");
-    expect(job.textContent).toContain("Last pass7m ago");
+    expect(job.querySelector("time")?.textContent).toBe("7m ago");
     const marks = [...syncs.querySelectorAll(".brand-tile")].map((tile) =>
       tile.getAttribute("data-mark"),
     );
@@ -1010,8 +1018,8 @@ describe("an entry's panel", () => {
 
   it("lists recent runs newest first with their result and duration", () => {
     const panel = open("pc.writer").querySelector("#ops-entry-detail")!;
-    const runs = panel.querySelector('ol[aria-label$="runs"]')!;
-    const items = [...runs.querySelectorAll("li")];
+    const runs = panel.querySelector('table[aria-label$="runs"]')!;
+    const items = [...runs.querySelectorAll("tbody tr[data-record-id]")];
     expect(items).toHaveLength(2);
     expect(
       items.map((item) => item.querySelector("time")?.getAttribute("dateTime")),
@@ -1020,14 +1028,16 @@ describe("an entry's panel", () => {
     expect(items[0]?.textContent).toContain("4.8s");
     // A failed run is a critical chip.
     const failed = open("pc.inference")
-      .querySelector('#ops-entry-detail ol[aria-label$="runs"]')!
+      .querySelector('#ops-entry-detail table[aria-label$="runs"]')!
       .querySelector("[data-variant]");
     expect(failed?.getAttribute("data-variant")).toBe("error");
   });
 
   it("merges one run System reported twice", () => {
     const panel = open("pc.snapshot").querySelector("#ops-entry-detail")!;
-    const items = panel.querySelectorAll('ol[aria-label$="runs"] li');
+    const items = panel.querySelectorAll(
+      'table[aria-label$="runs"] tbody tr[data-record-id]',
+    );
     expect(items).toHaveLength(1);
     expect(items[0]?.textContent).toContain("2 runs");
   });
@@ -1035,12 +1045,16 @@ describe("an entry's panel", () => {
   it("says a job faster than every 15 minutes runs every N min instead of an empty history", () => {
     const panel = open("agents.sync").querySelector("#ops-entry-detail")!;
     expect(panel.textContent).toContain("Runs every 10 min");
-    expect(panel.querySelector('ol[aria-label$="runs"]')).toBeNull();
+    expect(panel.querySelector('table[aria-label$="runs"]')).toBeNull();
   });
 
   it("lists its changes of state as from and to chips", () => {
     const panel = open("pc.writer").querySelector("#ops-entry-detail")!;
-    const changes = [...panel.querySelectorAll('ol[aria-label$="changes"] li')];
+    const changes = [
+      ...panel.querySelectorAll(
+        'table[aria-label$="changes"] tbody tr[data-record-id]',
+      ),
+    ];
     expect(changes).toHaveLength(3);
     expect(changes[0]?.textContent).toContain("Degraded");
     expect(changes[0]?.textContent).toContain("OK");
@@ -1073,7 +1087,7 @@ describe("an entry's panel", () => {
     // The detail only repeats the disk figure, so it is left out.
     expect(facts(panel).Detail).toBeUndefined();
     expect(panel.textContent).not.toContain("Runs every");
-    expect(panel.querySelector('ol[aria-label$="runs"]')).toBeNull();
+    expect(panel.querySelector('table[aria-label$="runs"]')).toBeNull();
   });
 
   it("words a pushed job's trigger from its schedule, never always running", () => {
@@ -1419,6 +1433,9 @@ describe("a fixture's clock", () => {
 /** A cell's text without the duration only medium widths show. */
 const shown = (element: Element) => {
   const copy = element.cloneNode(true) as Element;
+  copy
+    .querySelectorAll(".openai-mobile-label")
+    .forEach((node) => node.remove());
   copy.querySelectorAll(".ops-change-took").forEach((node) => node.remove());
   return copy.textContent;
 };
@@ -1516,7 +1533,9 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
     expect(
       host.querySelector("tbody tr:not([data-group-row]) time")?.textContent,
     ).toMatch(/^\d{2}:\d{2}$/);
-    expect(host.textContent).not.toMatch(/\bago\b/);
+    expect(host.querySelector("table tbody")?.textContent).not.toMatch(
+      /\bago\b/,
+    );
     // Access rows never carry query text or record ids.
     expect(host.textContent).not.toMatch(/rec-[0-9a-f]{32}|\?q=/);
   });
@@ -1881,16 +1900,21 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
       ...resolvedTable.querySelectorAll("tbody tr:not([data-group-row])"),
     ] as HTMLTableRowElement[];
     const heading = heads(resolvedTable);
-    const at = (name: string) => sync!.cells[heading.indexOf(name)]!;
+    const at = (name: string) =>
+      sync!.cells[heading.indexOf(name)]!.querySelector<HTMLElement>(
+        ".admin-table-value, .admin-table-primary",
+      )!;
     expect(at("State").textContent).toBe("was failing");
     expect(at("State").querySelector(".workspace-state")).toBeNull();
     expect(at("Lasted").textContent).toBe("25m");
     const [connect] = [
       ...firingTable.querySelectorAll("tbody tr:not([data-group-row])"),
     ] as HTMLTableRowElement[];
-    expect(connect!.cells[heading.indexOf("Resolved")]!.textContent).toBe(
-      "Still firing",
-    );
+    expect(
+      connect!.cells[heading.indexOf("Resolved")]!.querySelector(
+        ".admin-table-value",
+      )?.textContent,
+    ).toBe("Still firing");
     expect(resolvedTable.querySelector('[data-variant="error"]')).toBeNull();
     // Unknown neither fires nor resolves.
     expect(host.textContent).not.toContain("health.ingest");
@@ -1943,7 +1967,10 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
     const heading = [...firing.querySelectorAll("thead th")].map(
       (th) => th.textContent,
     );
-    const at = (name: string) => row.cells[heading.indexOf(name)]!;
+    const at = (name: string) =>
+      row.cells[heading.indexOf(name)]!.querySelector<HTMLElement>(
+        ".admin-table-value, .admin-table-primary",
+      )!;
     expect(at("State").textContent).toBe("Failing");
     // It began before the oldest event held: that bound, never a start,
     // and no duration, not even a lower bound.
@@ -1989,7 +2016,10 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
     const heading = [...firing.querySelectorAll("thead th")].map(
       (th) => th.textContent,
     );
-    const at = (name: string) => row.cells[heading.indexOf(name)]!;
+    const at = (name: string) =>
+      row.cells[heading.indexOf(name)]!.querySelector<HTMLElement>(
+        ".admin-table-value, .admin-table-primary",
+      )!;
     // In Eastern Time, as the page clock reads: 09:00 UTC is 05:00 EDT.
     expect(at("Started").textContent).toBe("Before Sep 20, 05:00");
     expect(at("Started").querySelector("time")?.getAttribute("title")).toBe(
@@ -2040,48 +2070,20 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
       />,
     );
     const table = host.querySelector('table[aria-label="Firing alerts"]')!;
-    const frame = table.closest("[data-yield-scope]")!;
-    const scope = frame.getAttribute("data-yield-scope")!;
-    const css = [...host.querySelectorAll("style")]
-      .map((style) => style.textContent)
-      .find((text) => text?.includes(scope))!;
-    const medium = css
-      .split("\n")
-      .find((line) => line.startsWith("@media (min-width: 641px)"))!;
-    // Each yielding column and the frame width it hides below.
-    const below = new Map(
-      [
-        ...medium.matchAll(
-          /max-width: ([\d.]+)px\) \{ [^{]+\[data-column="(\w+)"\]/g,
-        ),
-      ].map((match) => [match[2]!, Number(match[1]) + 0.5]),
-    );
-    expect([...below.keys()]).toEqual(["state", "since"]);
+    // Narrow rows reflow every secondary value beneath the primary label.
+    // The shared table core verifies measured container behavior; this adapter
+    // retains its name, state, bounded start and directly operable runbook.
+    expect(
+      table.closest("[data-table-id]")?.getAttribute("data-table-id"),
+    ).toBe("ops-alerts-firing");
     const heads = [...table.querySelectorAll("thead th")] as HTMLElement[];
-    const shown = heads.filter((th) => !th.hasAttribute("data-hide-below"));
-    const width = (th: HTMLElement) => parseFloat(th.style.width);
-    // The runbook is a glyph column.
-    const runbook = heads.find((th) => th.dataset.column === "runbook")!;
-    expect(width(runbook)).toBe(44);
+    expect(
+      heads.find((th) => th.dataset.column === "runbook")?.style.width,
+    ).toBe("44px");
     const name = "Declared credential expiries";
     expect(table.textContent).toContain(name);
-    const room = leadWidth(
-      [...host.querySelectorAll("table .workspace-row-title")].map(
-        (title) => title.textContent ?? "",
-      ),
-    );
-    // Viewports 641 to 760 beside the 56px rail and two 16px gutters.
-    for (let viewport = 641; viewport <= 760; viewport += 8) {
-      const frameWidth = viewport - 56 - 32;
-      const fixed = shown
-        .slice(1)
-        .filter((th) => !(frameWidth < (below.get(th.dataset.column!) ?? 0)))
-        .reduce((sum, th) => sum + width(th), 0);
-      expect(frameWidth - fixed, `lead at ${viewport}`).toBeGreaterThanOrEqual(
-        room,
-      );
-      expect(room).toBeGreaterThanOrEqual(64 + titleWidth(name));
-    }
+    expect(heads.map((head) => head.textContent)).toContain("State");
+    expect(heads.map((head) => head.textContent)).toContain("Started");
     // What gives way still reads on line 2: the chip, and the reason whole.
     const lead = [...table.querySelectorAll("tbody tr td:first-child")].find(
       (td) => td.textContent?.includes(name),
@@ -2226,7 +2228,9 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
       "/observability/status?entry=pc.inference",
     );
     expect(
-      detail.querySelectorAll('ol[aria-label$="changes"] li'),
+      detail.querySelectorAll(
+        'table[aria-label$="changes"] tbody tr[data-record-id]',
+      ),
     ).toHaveLength(2);
     expect(
       host.querySelector(".admin-split-grid")?.getAttribute("data-panel-open"),

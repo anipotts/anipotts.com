@@ -31,9 +31,10 @@ const base = {
 };
 
 describe("OpenAI workspace opt-in", () => {
-  it("preserves the legacy table outside the provider and scopes opted-in tables", () => {
+  it("shares one admin-owned table without leaking the SDK boundary", () => {
     const legacy = renderToStaticMarkup(<DataTable {...base} />);
-    expect(legacy).not.toContain("openai-record-table");
+    expect(legacy).toContain("admin-data-table");
+    expect(legacy).toContain("openai-record-table");
     expect(legacy).not.toContain("data-admin-ui");
     const migrated = renderToStaticMarkup(
       <AdminUIProvider enabled mode="dark">
@@ -44,7 +45,9 @@ describe("OpenAI workspace opt-in", () => {
     expect(migrated).toContain("openai-record-table");
     // Legacy table rules hide every non-first cell on phones. A selection
     // column would make the record title disappear if that class leaked in.
-    expect(migrated).not.toMatch(/class="[^"]*\bworkspace-table\b/);
+    const parsed = document.createElement("div");
+    parsed.innerHTML = migrated;
+    expect(parsed.querySelector(".workspace-table")).toBeNull();
     expect(migrated).toContain('scope="col"');
     expect(migrated).toContain('data-record-id="a"');
   });
@@ -83,7 +86,7 @@ describe("OpenAI workspace opt-in", () => {
     );
     await act(async () =>
       (
-        host.querySelector('tbody [role="checkbox"]') as HTMLButtonElement
+        host.querySelector('tbody input[type="checkbox"]') as HTMLInputElement
       ).click(),
     );
     expect(onSelectionChange).toHaveBeenCalledWith(new Set(["off-page", "a"]));

@@ -184,6 +184,7 @@ function EntityList({
   const columns: Column<Row>[] = [
     {
       key: "name",
+      priority: 0,
       header: "Name",
       render: (entity) => {
         const [Glyph] = kindGlyph(entity.kind);
@@ -206,6 +207,7 @@ function EntityList({
     },
     {
       key: "records",
+      priority: 1,
       header: "Records",
       width: CELL_WIDTHS.figure,
       numeric: true,
@@ -214,6 +216,7 @@ function EntityList({
     },
     {
       key: "seen",
+      priority: 1,
       header: "Last seen",
       width: CELL_WIDTHS.time,
       render: (entity) => <RelativeTime value={entity.lastSeenAt} />,
@@ -248,11 +251,12 @@ function EntityList({
     body = (
       <VStack gap={3}>
         <DataTable
+          tableId="data-entities"
+          searchActive={Boolean(q || route.kind)}
           rows={items as Row[]}
           rowKey="id"
           label="Entities"
           noun={["entity", "entities"]}
-          footer={false}
           columns={columns}
         />
         {next !== null && (
@@ -321,6 +325,18 @@ function RecordLink({ id, title }: { id: string; title: string }) {
   );
 }
 
+/** The reader has no event IDs. Use its immutable event identity, adding
+ * an occurrence only for indistinguishable duplicates, never a page index. */
+function timelineRows(events: Entity["timeline"]) {
+  const occurrences = new Map<string, number>();
+  return events.map((event) => {
+    const identity = JSON.stringify([event.at, event.recordId, event.title]);
+    const occurrence = occurrences.get(identity) ?? 0;
+    occurrences.set(identity, occurrence + 1);
+    return { ...event, key: `${identity}:${occurrence}` };
+  });
+}
+
 function EntityBody({ entity }: { entity: Entity }) {
   // A backlink carries only a record id; the entity's own facts and
   // timeline name most of them.
@@ -365,20 +381,34 @@ function EntityBody({ entity }: { entity: Entity }) {
           <Heading level={3} id="knowledge-timeline">
             Timeline
           </Heading>
-          <ol className="knowledge-timeline">
-            {entity.timeline.map((event, index) => {
-              return (
-                <li key={`${event.at}:${index}`}>
-                  <EventDate at={event.at} />
-                  {event.recordId ? (
+          <DataTable
+            tableId={`entity-${entity.id}-timeline`}
+            label="Entity timeline"
+            noun={["event", "events"]}
+            footer={false}
+            rows={timelineRows(entity.timeline)}
+            rowKey="key"
+            columns={[
+              {
+                key: "event",
+                priority: 0,
+                header: "Event",
+                render: (event) =>
+                  event.recordId ? (
                     <RecordLink id={event.recordId} title={event.title} />
                   ) : (
                     <span>{event.title}</span>
-                  )}
-                </li>
-              );
-            })}
-          </ol>
+                  ),
+              },
+              {
+                key: "date",
+                priority: 1,
+                header: "Date",
+                width: CELL_WIDTHS.time,
+                render: (event) => <EventDate at={event.at} />,
+              },
+            ]}
+          />
         </section>
       )}
       {entity.backlinks.length > 0 && (
@@ -389,18 +419,36 @@ function EntityBody({ entity }: { entity: Entity }) {
           <Heading level={3} id="knowledge-backlinks">
             Records
           </Heading>
-          <ul className="knowledge-backlinks">
-            {entity.backlinks.map((id) => (
-              <li key={id}>
-                <RecordLink id={id} title={titles.get(id) ?? "Record"} />
-                {!titles.has(id) && (
-                  <code className="knowledge-record-id" title={id}>
-                    {id.slice(4, 16)}
-                  </code>
-                )}
-              </li>
-            ))}
-          </ul>
+          <DataTable
+            tableId={`entity-${entity.id}-backlinks`}
+            label="Linked records"
+            noun={["record", "records"]}
+            footer={false}
+            rows={entity.backlinks.map((id) => ({ id }))}
+            rowKey="id"
+            columns={[
+              {
+                key: "record",
+                priority: 0,
+                header: "Record",
+                render: ({ id }) => (
+                  <RecordLink id={id} title={titles.get(id) ?? "Record"} />
+                ),
+              },
+              {
+                key: "id",
+                priority: 1,
+                header: "Reference",
+                width: 160,
+                render: ({ id }) =>
+                  !titles.has(id) && (
+                    <code className="knowledge-record-id" title={id}>
+                      {id.slice(4, 16)}
+                    </code>
+                  ),
+              },
+            ]}
+          />
         </section>
       )}
     </VStack>

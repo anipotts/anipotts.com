@@ -404,6 +404,7 @@ export function ContentLibrary({
   const columns: Column<CatalogRecord>[] = [
     {
       key: "title",
+      priority: 0,
       header: "Title",
       render: (item) => {
         const decision = decisions.get(item)!;
@@ -432,6 +433,7 @@ export function ContentLibrary({
     },
     {
       key: "summary",
+      priority: 2,
       header: "Summary",
       hideBelow: "large",
       // The summary is a teaser and gives way first: the titles keep room
@@ -457,6 +459,7 @@ export function ContentLibrary({
     },
     {
       key: "status",
+      priority: 1,
       header: "State",
       width: contentStateWidth(group.records, inventoryError),
       render: (item) => (
@@ -465,6 +468,7 @@ export function ContentLibrary({
     },
     {
       key: "updated",
+      priority: 1,
       header: "Updated",
       width: 112,
       render: (item) => <Updated updated={item.updated} column />,
@@ -543,12 +547,36 @@ export function ContentLibrary({
         </FilterBar>
         {records.length ? (
           <DataTable
+            tableId={`content-${group.name}`}
+            totalCount={group.records.length}
+            filteredCount={
+              query || status !== "all" ? matched.length : undefined
+            }
+            groupTotals={Object.fromEntries(
+              [...new Set(group.records.map((record) => record.status))].map(
+                (status) => [
+                  status,
+                  group.records.filter((record) => record.status === status)
+                    .length,
+                ],
+              ),
+            )}
+            searchActive={Boolean(query || status !== "all")}
+            groupBy={(row) => row.status}
+            groupLabel={(key) =>
+              key === "published"
+                ? "Published"
+                : key === "draft"
+                  ? "Drafts"
+                  : key === "unpublished"
+                    ? "Unpublished"
+                    : key
+            }
             rows={records}
             columns={columns}
             rowKey="href"
             label={`${library.title} records`}
             noun={["record", "records"]}
-            footer={false}
           />
         ) : (
           <StateNotice
@@ -564,7 +592,7 @@ export function ContentLibrary({
             action={
               !inventoryError &&
               group.records.length > 0 &&
-              status !== "all" && (
+              (query || status !== "all") && (
                 <Button
                   label="Clear filters"
                   onClick={() => change({ q: "", status: "all" })}
