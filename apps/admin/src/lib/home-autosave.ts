@@ -64,6 +64,15 @@ export async function readSaveResponse(
 /** Serialize saves; an ambiguous retry must reuse its original operation id. */
 export class HomeAutosave {
   state: SaveState;
+  private disposed = false;
+  /** Revoke this editor without allowing late saves to restore its plaintext. */
+  dispose() {
+    this.disposed = true;
+    this.saved = "";
+    this.pending = null;
+    this.refused = null;
+    this.state = { source: "", revision: 0, status: "saved", conflict: null };
+  }
   private saved: string;
   private pending: Pending | null = null;
   /** Source of the last refused operation. Sending it again cannot succeed. */
@@ -87,6 +96,7 @@ export class HomeAutosave {
     };
   }
   recover(snapshot: RecoverySnapshot) {
+    if (this.disposed) return;
     // Preserve the old revision and operation identity. Server changes must conflict.
     this.saved = snapshot.saved;
     this.pending = snapshot.pending;
@@ -94,6 +104,7 @@ export class HomeAutosave {
     this.edit(snapshot.source);
   }
   edit(source: string) {
+    if (this.disposed) return;
     // Returning to the acknowledged source leaves no refused text to explain.
     const refusalSettled =
       !this.pending &&
@@ -117,6 +128,7 @@ export class HomeAutosave {
     this.notify(this.state);
   }
   flush(): Promise<void> {
+    if (this.disposed) return Promise.resolve();
     if (this.active) return this.active;
     this.active = this.drain().finally(() => {
       this.active = null;
@@ -125,8 +137,10 @@ export class HomeAutosave {
   }
   /** Preview needs a stored revision even before the first text edit. */
   ensureDraft(): Promise<void> {
+    if (this.disposed) return Promise.resolve();
     if (
       this.state.revision === 0 &&
+      !this.disposed &&
       !this.state.conflict &&
       this.state.source !== this.refused
     )
@@ -141,11 +155,13 @@ export class HomeAutosave {
    * when its text is unchanged. Use the ordinary durable save/recovery identity;
    * never replace pending work or bypass a failure/conflict to manufacture one. */
   checkpoint(): Promise<void> {
+    if (this.disposed) return Promise.resolve();
     if (
       !this.active &&
       !this.pending &&
       this.state.status === "saved" &&
       !this.state.saveFailed &&
+      !this.disposed &&
       !this.state.conflict &&
       this.state.source !== this.refused
     )
@@ -158,6 +174,7 @@ export class HomeAutosave {
   }
   private async drain() {
     while (
+      !this.disposed &&
       !this.state.conflict &&
       !saveNeedsComparison(this.state.saveFailureCode) &&
       (this.pending || this.state.source !== this.saved)
@@ -185,6 +202,7 @@ export class HomeAutosave {
       this.notify(this.state);
       try {
         const result = await this.send(this.pending);
+        if (this.disposed) return;
         if (
           !result.ok &&
           (result.code === "invalid_draft_request" ||
@@ -216,6 +234,7 @@ export class HomeAutosave {
         };
         this.notify(this.state);
       } catch {
+        if (this.disposed) return;
         this.state = { ...this.state, status: "unsaved", saveFailed: true };
         this.notify(this.state);
         return;
@@ -245,6 +264,7 @@ export class HomeAutosave {
    * the meantime still answers that save with a conflict.
    */
   resolve(current: Draft | null, keepMine: boolean) {
+    if (this.disposed) return;
     if (current ? current.discardedAt !== null : !keepMine) return;
     this.refused = null;
     if (!current) {

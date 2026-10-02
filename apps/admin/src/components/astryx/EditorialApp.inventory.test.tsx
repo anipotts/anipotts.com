@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
 import React, { act } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, afterEach, it, expect, vi } from "vitest";
-import { EditorialApp } from "./EditorialApp";
+// Transform the shared SDK/Astryx graph during collection, before timed setup.
+import "./EditorialApp";
+let EditorialApp: typeof import("./EditorialApp").EditorialApp;
 import {
   dispatchEditorialRecordSaved,
   RECORD_SAVED_EVENT,
@@ -10,7 +13,9 @@ import {
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 let host: HTMLDivElement;
 let root: Root;
-beforeEach(() => {
+beforeEach(async () => {
+  vi.resetModules();
+  ({ EditorialApp } = await import("./EditorialApp"));
   vi.stubGlobal(
     "ResizeObserver",
     class {
@@ -41,6 +46,7 @@ it("refreshes mounted library only from newer acknowledged metadata", () => {
       <EditorialApp
         title="Content"
         area="content"
+        selectedGroup="writing"
         localPreview
         siteUrl="https://anipotts.com"
         groups={[
@@ -146,6 +152,7 @@ it("follows a save and a create made in another open tab", async () => {
       <EditorialApp
         title="Content"
         area="content"
+        selectedGroup="writing"
         localPreview
         siteUrl="https://anipotts.com"
         selectedGroup="writing"
@@ -233,6 +240,7 @@ it("moves between libraries in place and back again with history", () => {
       <EditorialApp
         title="Pages"
         area="content"
+        selectedGroup="writing"
         localPreview
         siteUrl="https://anipotts.com"
         selectedGroup="website"
@@ -283,9 +291,7 @@ it("moves between libraries in place and back again with history", () => {
   expect(rows().join()).toContain("First post");
   expect(rows().join()).not.toContain("Home");
   expect(document.title).toBe("Writing | Admin");
-  expect(host.querySelector('a[href="/content/new"]')?.textContent).toContain(
-    "New article",
-  );
+  expect(host.querySelector('a[aria-label="New article"]')).not.toBeNull();
 
   act(() => {
     sidebarLink("/content/newsletter")!.dispatchEvent(
@@ -294,7 +300,7 @@ it("moves between libraries in place and back again with history", () => {
   });
   expect(heading()).toContain("Newsletter");
   expect(rows().join()).toContain("Issue one");
-  expect(host.querySelector('a[href="/content/new"]')).toBeNull();
+  expect(host.querySelector('a[aria-label="New article"]')).toBeNull();
 
   act(() => {
     window.history.replaceState(null, "", "/content/pages");
@@ -303,4 +309,141 @@ it("moves between libraries in place and back again with history", () => {
   expect(heading()).toContain("Pages");
   expect(rows().join()).toContain("Home");
   push.mockRestore();
+});
+
+it.each(["logout", "bfcache"])(
+  "clears private library and open palette after %s, stopping late inventory and routes",
+  async (reason) => {
+    Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
+      configurable: true,
+      value() {
+        this.open = true;
+      },
+    });
+    vi.stubGlobal("scrollTo", () => {});
+    const title = "Synthetic private draft title";
+    await act(async () =>
+      root.render(
+        <EditorialApp
+          title="Writing"
+          area="content"
+          localPreview
+          siteUrl="https://anipotts.com"
+          selectedGroup="writing"
+          groups={[
+            {
+              name: "writing",
+              href: "/content/writing",
+              records: [
+                {
+                  title,
+                  summary: "Private summary",
+                  href: "/content/writing/private",
+                  status: "draft",
+                  privateRevision: 1,
+                },
+              ],
+            },
+          ]}
+          searchEntries={[
+            {
+              id: "content:writing:private",
+              label: title,
+              domain: "content",
+              kind: "writing",
+              currentFact: "draft",
+              source: "content inventory",
+              freshness: "current",
+              href: "/content/writing/private",
+              keywords: ["private"],
+            },
+          ]}
+        />,
+      ),
+    );
+    expect(host.textContent).toContain(title);
+    await act(async () =>
+      document.dispatchEvent(new CustomEvent("admin:search")),
+    );
+    const input = document.querySelector("dialog input") as HTMLInputElement;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )!.set!.call(input, "Synthetic private");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      await vi.waitFor(() =>
+        expect(document.querySelector("dialog")?.textContent).toContain(title),
+      );
+    });
+    const { recoveryLogoutGenerationKey } =
+      await import("../../lib/browser-recovery");
+    await act(async () => {
+      window.dispatchEvent(
+        reason === "logout"
+          ? new StorageEvent("storage", { key: recoveryLogoutGenerationKey })
+          : new Event("pagehide"),
+      );
+    });
+    expect(host.textContent).not.toContain(title);
+    expect(host.textContent).not.toContain("Private summary");
+    expect(document.querySelector("dialog")).toBeNull();
+    expect(host.textContent).toContain("Session ended");
+    const { clientNavigate } = await import("../../lib/client-routes");
+    expect(clientNavigate("/content/pages")).toBe(false);
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent(RECORD_SAVED_EVENT, {
+          detail: {
+            record: { kind: "writing", id: "private" },
+            title: "Late private metadata",
+            summary: "",
+            revision: 2,
+            updatedAt: "2026-09-28T00:00:00Z",
+          },
+        }),
+      );
+      window.dispatchEvent(
+        new PageTransitionEvent("pageshow", { persisted: true }),
+      );
+    });
+    expect(host.textContent).not.toContain("Late private metadata");
+    expect(host.textContent).toContain("Session ended");
+  },
+);
+
+it("keeps Writing's SDK boundary inside main, away from the shared navigation", () => {
+  const html = renderToStaticMarkup(
+    <EditorialApp
+      title="Writing"
+      area="content"
+      selectedGroup="writing"
+      localPreview
+      siteUrl="https://anipotts.com"
+      groups={[
+        {
+          name: "writing",
+          href: "/content/writing",
+          records: [
+            {
+              title: "Synthetic",
+              status: "draft",
+              href: "/content/writing/synthetic",
+            },
+          ],
+        },
+      ]}
+    />,
+  );
+  const host = document.createElement("div");
+  host.innerHTML = html;
+  const boundary = host.querySelector('[data-admin-ui="openai"]');
+  const main = host.querySelector("#astryx-app-shell-main");
+  const nav = host.querySelector("nav");
+  expect(boundary).not.toBeNull();
+  expect(main?.contains(boundary)).toBe(true);
+  expect(boundary?.contains(nav)).toBe(false);
+  expect(nav?.closest('[data-admin-ui="openai"]')).toBeNull();
 });

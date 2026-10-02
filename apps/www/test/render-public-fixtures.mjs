@@ -1,6 +1,6 @@
 /** Capture the actual built Worker as deployed (CONTENT_RUNTIME "cms") over an
- * empty synthetic content store, so every route renders the bundled Git
- * defaults. These are test artifacts, never deployed static fallbacks. Linked
+ * explicitly seeded synthetic CMS store. These are test artifacts, never
+ * deployed static fallbacks. Linked
  * assets retain existing HTML/CSS guards. */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -23,6 +23,7 @@ import {
   workerEntry,
 } from "./worker-runtime.mjs";
 import { contentDatabase, contentEnv } from "./content-database.mjs";
+import { collectGitSeed } from "../../../scripts/content/content-d1-seed.mjs";
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const content = join(root, "content/public");
 function routes(kind, prefix, visible) {
@@ -62,7 +63,17 @@ function linkAssets(from, into) {
   }
 }
 linkAssets(buildDir, renderedDir);
-const env = contentEnv(contentDatabase());
+const db = contentDatabase();
+for (const row of (await collectGitSeed(root)).records) {
+  db.publish({
+    kind: row.record.kind,
+    id: row.record.id,
+    text: row.source,
+    operation: `git-seed.${row.record.kind}.${row.record.id}`,
+  });
+}
+db.resetFixtureVersion();
+const env = contentEnv(db);
 for (const path of paths) {
   const response = await serve(path, env);
   assert.equal(response.status, 200, `render ${path}`);

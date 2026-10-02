@@ -1,3 +1,4 @@
+import { AdminPortalScope } from "../workspace/AdminUI";
 import React, {
   useEffect,
   useId,
@@ -13,7 +14,7 @@ import { Layout, LayoutContent, LayoutPanel } from "@astryxdesign/core/Layout";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Heading } from "@astryxdesign/core/Heading";
-import { IconButton } from "@astryxdesign/core/IconButton";
+import { IconButton } from "./WritingControls";
 import { XIcon } from "@phosphor-icons/react";
 import { BREAKPOINT_MIN } from "../../lib/breakpoints";
 
@@ -168,7 +169,7 @@ export function RecordPanel({
                 onClick={onClose}
               />
             </HStack>
-            {children}
+            <AdminPortalScope>{children}</AdminPortalScope>
           </VStack>
         </BottomSheet>
       ) : mode ? (
@@ -182,7 +183,11 @@ export function RecordPanel({
               ? "min(64rem, calc(100vw - 2 * var(--admin-gutter, 16px)))"
               : "min(calc(var(--spacing-10) * 10), 100vw)"
           }
-          maxHeight="100dvh"
+          maxHeight={
+            form === "review"
+              ? "calc(100dvh - 2 * var(--admin-gutter, 16px) - env(safe-area-inset-top) - env(safe-area-inset-bottom))"
+              : "100dvh"
+          }
           position={
             form === "review" ? undefined : { top: 0, bottom: 0, end: 0 }
           }
@@ -191,7 +196,11 @@ export function RecordPanel({
           <Layout
             height="fill"
             header={<DialogHeader title={title} onOpenChange={dismiss} />}
-            content={<LayoutContent padding={4}>{children}</LayoutContent>}
+            content={
+              <LayoutContent padding={4}>
+                <AdminPortalScope>{children}</AdminPortalScope>
+              </LayoutContent>
+            }
           />
         </Dialog>
       ) : null}

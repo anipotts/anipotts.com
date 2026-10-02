@@ -1,3 +1,4 @@
+import { adminMutationOrigin } from "./admin-request-origin";
 import type { EditorialDraftStore } from "../editorial/draft-store";
 import { MAX_MEDIA_BYTES } from "../editorial/media-store";
 import {
@@ -28,7 +29,10 @@ export async function editorialMediaApi(
   }
   if (request.method !== "POST")
     return privateJson({ error: "method_not_allowed" }, 405);
-  const rejection = checkEditorialMutation(request, url.origin);
+  const rejection = checkEditorialMutation(
+    request,
+    adminMutationOrigin(request),
+  );
   if (rejection) return privateJson({ error: rejection }, 403);
   let body: unknown;
   try {

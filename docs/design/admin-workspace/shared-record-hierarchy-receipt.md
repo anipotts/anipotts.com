@@ -1,5 +1,14 @@
 # Shared page and record hierarchy
 
+## Reconciliation after the October 1 release
+
+The original verification below describes the historical PR tree. Reconciliation
+with current main retains only Data, Knowledge and Observability headers, optional
+record details and responsive fact alignment. All Content editor, library, review,
+project-section and publication changes are superseded by the shipped release.
+The current change does not alter Content or publication behavior. Fresh checks
+and browser acceptance are required for the reconciled tree.
+
 ## Local implementation
 
 The Writing and Projects libraries expose a labelled primary creation action in

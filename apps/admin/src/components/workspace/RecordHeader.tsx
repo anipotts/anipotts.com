@@ -1,4 +1,4 @@
-import React, { type ReactNode, type Ref } from "react";
+import React, { type ReactNode } from "react";
 import { Heading } from "@astryxdesign/core/Heading";
 import { HStack } from "@astryxdesign/core/HStack";
 
@@ -14,8 +14,6 @@ export function RecordHeader({
   className = "",
   titleClassName = "",
   headingClassName,
-  titleRef,
-  titleFits = true,
   titleContent,
   children,
 }: {
@@ -27,8 +25,6 @@ export function RecordHeader({
   className?: string;
   titleClassName?: string;
   headingClassName?: string;
-  titleRef?: Ref<HTMLDivElement>;
-  titleFits?: boolean;
   titleContent?: ReactNode;
   children?: ReactNode;
 }) {
@@ -39,11 +35,7 @@ export function RecordHeader({
       className={`workspace-record-header ${className}`}
     >
       {leading}
-      <HStack
-        ref={titleRef}
-        className={`workspace-record-heading ${titleClassName}`}
-        data-fit={titleFits ? undefined : "none"}
-      >
+      <HStack className={`workspace-record-heading ${titleClassName}`}>
         <Heading level={level} className={headingClassName}>
           <span title={title}>{titleContent ?? title}</span>
         </Heading>

@@ -37,8 +37,11 @@
     "@fontsource-variable/instrument-sans": "^5.2.8",
     "@fontsource-variable/jetbrains-mono": "^5.2.5",
     "@iconify-json/ph": "^1.2.2",
+    "@openai/apps-sdk-ui": "^0.2.2",
+    "@openai/chatkit-react": "^1.6.1",
     "@phosphor-icons/react": "^2.1.10",
     "@stylexjs/stylex": "^0.19.0",
+    "@tailwindcss/vite": "^4.3.3",
     "@tiptap/extension-image": "^3.31.3",
     "@tiptap/markdown": "3.31.3",
     "@tiptap/pm": "^3.31.3",
@@ -56,6 +59,7 @@
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
     "remark-smartypants": "^3.0.2",
+    "tailwindcss": "^4.3.3",
     "unified": "^11.0.5"
   },
   "devDependencies": {
@@ -64,6 +68,8 @@
     "@astryxdesign/cli": "^0.4.6",
     "@cloudflare/vitest-plugin": "1.1.6",
     "@cloudflare/workers-types": "5.20260908.1",
+    "@iconify-json/logos": "^1.2.13",
+    "@iconify-json/simple-icons": "^1.2.94",
     "@playwright/test": "1.63.0",
     "@types/hast": "^3.0.4",
     "@types/node": "22.19.19",
@@ -71,6 +77,8 @@
     "@types/react-dom": "^19.2.4",
     "esbuild": "^0.28.2",
     "jsdom": "^30.0.1",
+    "postcss": "^8.5.28",
+    "postcss-selector-parser": "^7.1.6",
     "typescript": "^5",
     "vitest": "^4.1.11"
   }

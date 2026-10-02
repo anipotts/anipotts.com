@@ -1,8 +1,8 @@
 import { contentDecision, decisionHref } from "../../lib/content-decision";
 import React, { memo, useEffect, useState } from "react";
 import type { CatalogRecord, CatalogGroup } from "./EditorialApp";
-import { Button } from "@astryxdesign/core/Button";
-import { IconButton } from "@astryxdesign/core/IconButton";
+import { Button } from "./WritingControls";
+import { IconButton } from "./WritingControls";
 import {
   ArticleIcon,
   BriefcaseIcon,
@@ -21,7 +21,7 @@ import { Text } from "@astryxdesign/core/Text";
 import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-} from "@astryxdesign/core/DropdownMenu";
+} from "./WritingControls";
 import {
   DataTable,
   FilterBar,
@@ -341,16 +341,19 @@ export function ContentLibrary({
   const library = LIBRARIES[group?.name ?? ""] ?? LIBRARIES.website!;
   const heading = title ?? library.title;
   const create = area === "content" ? library.create : undefined;
-  const primaryAction = create
-    ? {
-        label: create[0],
-        href: create[1],
-        icon: <PlusIcon weight="regular" aria-hidden="true" />,
-      }
-    : undefined;
+  const actions = create && (
+    <IconButton
+      label={create[0]}
+      tooltip={create[0]}
+      variant="ghost"
+      icon={<PlusIcon weight="regular" aria-hidden="true" />}
+      href={create[1]}
+      className="editorial-library-create"
+    />
+  );
   if (!group)
     return (
-      <WorkspacePage title={heading} primaryAction={primaryAction}>
+      <WorkspacePage title={heading} actions={actions}>
         <StateNotice
           kind={inventoryError ? "error" : "empty"}
           icon={inventoryError ? undefined : library.icon}
@@ -468,11 +471,7 @@ export function ContentLibrary({
     },
   ];
   return (
-    <WorkspacePage
-      title={heading}
-      count={records.length}
-      primaryAction={primaryAction}
-    >
+    <WorkspacePage title={heading} count={records.length} actions={actions}>
       <VStack gap={5} className="editorial-library">
         <FilterBar
           search={{

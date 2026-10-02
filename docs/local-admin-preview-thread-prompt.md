@@ -16,7 +16,8 @@ in-app browser, make scoped edits, and hand back checked patches or commits.
 
 Current source truth:
 
-- `main` contains the simplified admin overview and direct-main lane policy.
+- `main` contains the current Astro admin; same-repository PRs wait for exact-head
+  Ani review under `AGENTS.md`.
 - the old `Build admin content editor` thread is archived. Its editor work is
   already merged in `main`.
 - leave the `Redesign orchestrating page` thread and worktree alone.
@@ -42,8 +43,11 @@ Local auth notes:
 
 - Cloudflare Access is not in front of localhost.
 - loopback development origins are accepted only while Astro is in dev mode.
-- production passkeys are origin-bound and may not work on localhost.
-- if needed, register a local-only passkey in the dev D1 state.
+- native passkey/session auth is retired; use the existing synthetic local owner
+  and local fixtures, without enrollment or remote bindings.
+- the compiled local-owner mode is separately bounded to loopback, absent from
+  deployment bundles and refused by release checks.
+- follow [canonical auth requirements](platform-architecture.md#authentication-and-production-boundaries).
 - do not remove or change production Cloudflare Access from this thread.
 
 Preview lifecycle:

@@ -88,7 +88,7 @@ describe("local owner identity", () => {
 });
 
 describe("middleware without the build-time flag", () => {
-  it("keeps loopback API and record requests on the existing denial", async () => {
+  it("denies loopback APIs and routes denied human records to the auth shell", async () => {
     const api = await dispatch("http://localhost:4321/api/admin/projections");
     expect(api.response.status).toBe(401);
     expect(api.next).not.toHaveBeenCalled();
@@ -98,7 +98,13 @@ describe("middleware without the build-time flag", () => {
     const record = await dispatch(
       "http://localhost:4321/content/writing/example",
     );
-    expect(record.response.status).toBe(401);
+    expect(record.response.status).toBe(302);
+    expect(record.response.headers.get("location")).toBe(
+      "/auth?next=%2Fcontent%2Fwriting%2Fexample",
+    );
+    expect(record.response.headers.get("cache-control")).toBe(
+      "private, no-store",
+    );
     expect(record.next).not.toHaveBeenCalled();
     expect(verifyEditorialOwner).toHaveBeenCalledTimes(1);
   });
@@ -280,7 +286,8 @@ describe("middleware with the build-time flag", () => {
 
   it("keeps the same-origin frame the editor uses for draft previews", async () => {
     const { response, locals } = await dispatch(
-      "http://127.0.0.1:4471/preview/record?kind=writing&id=example",
+      "http://127.0.0.1:4471/preview/record?kind=writing&id=example&embedded=1",
+      { headers: { "sec-fetch-dest": "iframe" } },
     );
     expect(locals.adminPrincipal).toEqual(localOwnerPrincipal());
     expect(response.headers.get("Content-Security-Policy")).toBe(

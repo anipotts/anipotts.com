@@ -1,5 +1,11 @@
 # public content and Admin review
 
+Historical brief, superseded by the direct CMS publisher on 2026-09-22.
+Follow [platform architecture](platform-architecture.md#authentication-and-production-boundaries)
+and [direct CMS publication](design/admin-workspace/direct-cms-publication.md)
+for current authentication, content ownership and operations. The body below
+preserves the earlier design and is not an active implementation contract.
+
 ## source contract
 
 Public content has one render source: `content/public`.

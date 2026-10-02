@@ -1,3 +1,9 @@
+import { AuthReentry } from "./AuthReentry";
+import { editorialReturnPath } from "../../lib/editorial-return-path";
+import {
+  AdminRequestError,
+  watchProtectedSession,
+} from "../../lib/protected-admin-json";
 import { EditorToolBoundary } from "./EditorToolBoundary";
 import { AutoSizeTextArea } from "./AutoSizeTextArea";
 import {
@@ -31,8 +37,11 @@ import { SaveScheduler } from "../../lib/save-scheduler";
 import { structuredReviewChanges } from "../../lib/structured-review";
 import { writingReviewChanges } from "../../lib/writing-review";
 import { HomepageWritingSelection } from "./HomepageWritingSelection";
-import { ProjectSections } from "./ProjectSections";
-import { editProjectSections } from "../../lib/project-sections";
+import { ProjectSections, ProjectFieldControls } from "./ProjectSections";
+import {
+  editProjectSections,
+  type ProjectSectionEdit,
+} from "../../lib/project-sections";
 import { siteConfig } from "@anipotts/content/public/site";
 import { ProjectMedia } from "./ProjectMedia";
 import { editProjectMedia } from "../../lib/project-media";
@@ -40,6 +49,7 @@ import { ProjectSettings } from "./ProjectSettings";
 import { ArticleSettings } from "./ArticleSettings";
 import React, {
   useEffect,
+  useMemo,
   useId,
   useRef,
   useState,
@@ -50,15 +60,15 @@ import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { Heading } from "@astryxdesign/core/Heading";
-import { TextInput } from "@astryxdesign/core/TextInput";
+import { TextInput } from "./WritingControls";
 import { saveStatusFromController } from "./SaveStatus";
 import {
   ArrowCounterClockwiseIcon,
   DownloadSimpleIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { Banner } from "@astryxdesign/core/Banner";
-import { IconButton } from "@astryxdesign/core/IconButton";
+import { Banner } from "./WritingControls";
+import { IconButton } from "./WritingControls";
 import { EditorActionBar } from "./EditorActionBar";
 import { RelativeTime, StateNotice } from "../workspace/Workspace";
 import { FormLayout } from "@astryxdesign/core/FormLayout";
@@ -80,8 +90,13 @@ import { editableHomeSummary } from "../../lib/rich-text";
 import { editorialFields } from "../../lib/editorial-fields";
 import { ReviewChanges } from "./ReviewChanges";
 import { PublicationProgress } from "./PublicationProgress";
-import { TextArea } from "@astryxdesign/core/TextArea";
-import { Button } from "@astryxdesign/core/Button";
+import { PublicationIssues } from "./PublicationIssues";
+import {
+  publicationIssues,
+  publicationRefusal,
+} from "../../lib/publication-diagnostics";
+import type { SnapshotIssue } from "@anipotts/content/editorial/snapshot";
+import { TextArea, Button } from "./WritingControls";
 import {
   parseEditorialSource,
   setEditorialField,
@@ -98,7 +113,10 @@ import {
 import type { Draft } from "../../editorial/draft-store";
 import type { HomeBase } from "../../lib/editorial-home-api";
 import { discardBody } from "../../lib/response-body";
-import { readEditorialCsrf } from "../../lib/editorial-client";
+import {
+  editorialAdminJson,
+  readEditorialCsrf,
+} from "../../lib/editorial-client";
 import type { DirectPublicationStatus } from "../../lib/editorial-publication-status";
 import { prepareWritingPublication } from "../../lib/writing-publication-source";
 import { publicationSourceHash } from "@anipotts/content/editorial/publication-contract";
@@ -139,7 +157,9 @@ const SourceEditor = lazy(() => import("./SourceEditor"));
 
 /** An editorial read's JSON; a refused response throws. */
 async function getJson<T>(url: string): Promise<T> {
-  const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+  const response = await editorialAdminJson(url, {
+    signal: AbortSignal.timeout(15000),
+  });
   if (!response.ok) {
     discardBody(response);
     throw new Error("read refused");
@@ -253,6 +273,8 @@ function HomeEditorImpl({
   );
   const reviewHeadingId = useId();
   const toast = useToast();
+  const sessionLocked = useRef(false);
+  const [locked, setLocked] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [historyError, setHistoryError] = useState(false);
   const [comparedRevision, setComparedRevision] = useState<number | null>(null);
@@ -260,8 +282,21 @@ function HomeEditorImpl({
   const query = new URLSearchParams(record).toString();
   const endpoint = (action: string) => `/api/editorial/${action}?${query}`;
   const [state, setState] = useState<SaveState | null>(null);
+  const parsedSource = useMemo(() => {
+    if (!state) return null;
+    try {
+      return parseEditorialSource(state.source);
+    } catch {
+      return null;
+    }
+  }, [state?.source]);
+
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState("");
+  const [preflightIssues, setPreflightIssues] = useState<SnapshotIssue[]>([]);
+  useEffect(() => {
+    setPreflightIssues([]);
+  }, [record.kind, record.id, state?.source]);
   const [tab, setCurrentTab] = useState("edit");
   const sourceRequested = useRef(false);
   if (tab === "source") sourceRequested.current = true;
@@ -282,7 +317,7 @@ function HomeEditorImpl({
   const editScroll = useRef(0);
   const lastEditingFocus = useRef<HTMLElement | null>(null);
   const previousTab = useRef("edit");
-  const fieldElements = useRef(new Map<string, HTMLDivElement>());
+  const fieldElements = useRef(new Map<string, HTMLElement>());
   const requestedEditingField = useRef<string | null>(null);
   useEffect(() => {
     if (tab === "edit" && previousTab.current !== "edit") {
@@ -613,8 +648,9 @@ function HomeEditorImpl({
     guard?: () => boolean,
   ) {
     csrf.current ||= await readEditorialCsrf(AbortSignal.timeout(15000));
+    if (sessionLocked.current) throw new Error("session locked");
     if (guard && !guard()) throw new Error("operation no longer current");
-    const response = await fetch(endpoint(action), {
+    const response = await editorialAdminJson(endpoint(action), {
       method: "POST",
       signal: AbortSignal.timeout(15000),
       headers: {
@@ -623,10 +659,10 @@ function HomeEditorImpl({
       },
       body: JSON.stringify(body),
     });
-    if (response.status === 401 || response.status === 403) {
+    if (response.status === 403) {
       discardBody(response);
       csrf.current = "";
-      throw new Error("session expired");
+      throw new AdminRequestError("refused");
     }
     return response;
   }
@@ -650,7 +686,7 @@ function HomeEditorImpl({
     setError("");
     getJson<Snapshot>(endpoint("record"))
       .then(async (data) => {
-        if (cancelled) return;
+        if (cancelled || sessionLocked.current) return;
         setSnapshot(data);
         setPublication(data.publication ?? null);
         const source = data.draft?.source ?? data.base.source;
@@ -668,6 +704,7 @@ function HomeEditorImpl({
             return result;
           },
           (next) => {
+            if (sessionLocked.current) return;
             setState(next);
             try {
               const key = recoveryStorageKey.current;
@@ -768,7 +805,7 @@ function HomeEditorImpl({
       const request = new AbortController();
       active = request;
       try {
-        const response = await fetch(
+        const response = await editorialAdminJson(
           `${endpoint("publication")}&operationId=${job.id}`,
           {
             signal: AbortSignal.any([
@@ -858,11 +895,9 @@ function HomeEditorImpl({
     if (!refusalShown) setLeaveRefused(false);
   }, [refusalShown]);
   useEffect(() => {
-    if (!titled || !state) return;
+    if (!titled || !state || !parsedSource) return;
     try {
-      const title = String(
-        parseEditorialSource(state.source).document.get("title") ?? "",
-      );
+      const title = String(parsedSource.document.get("title") ?? "");
       setBarTitle(title || untitled);
       onTitleChange?.(title);
       document.title = `${title || untitled} | Admin`;
@@ -876,10 +911,43 @@ function HomeEditorImpl({
       // so it routes through localLogout rather than repeating a subset here.
       if (event.key === recoveryLogoutKey) localLogout();
     };
-    const localLogout = () => {
+    const localLogout = (reason: unknown = "locked") => {
+      // Expiry retains buffered edits without issuing a network save. Explicit
+      // logout must discard them and make unmount flush callbacks inert.
+      const preserveRecovery =
+        typeof reason === "string" && reason !== "logout";
+      if (preserveRecovery && !sessionLocked.current) flushLocal();
+      sessionLocked.current = true;
+      setLocked(true);
+      saveScheduler.current?.dispose();
+      saveScheduler.current = null;
+      const recovery = editor.current?.recovery();
+      const channel = recoveryChannel.current;
+      if (preserveRecovery && recovery && channel)
+        void channel.write(recovery).finally(() => channel.close());
+      editor.current?.dispose();
+      editor.current = null;
+      titleFlush.current = subtitleFlush.current = bodyFlush.current = null;
+      bodyDirtyRef.current = false;
+      navigationGeneration.current++;
+      reviewRequest.current++;
+      previewRequest.current++;
+      historyRequest.current++;
+      csrf.current = "";
+      publishedDraft.current = null;
+      publishRequest.current = null;
+      unpublishRequest.current = null;
+      setState(null);
+      setSnapshot(null);
+      setReviewedBase(null);
+      setReviewedDraft(null);
+      setComparison(null);
+      setPublication(null);
+      setBarTitle("Content");
+      document.title = "Content | Admin";
       mediaAuthorized.current = false;
       recoveryStorageKey.current = null;
-      recoveryChannel.current?.close();
+      if (!preserveRecovery) recoveryChannel.current?.close();
       recoveryChannel.current = null;
       setRecoveryRead({ status: "missing" });
       setRecoveryProblem(null);
@@ -891,6 +959,7 @@ function HomeEditorImpl({
       setSaveComparisonLoading(false);
       setSaveComparisonError("");
     };
+    const stopWatching = watchProtectedSession(localLogout);
     window.addEventListener(recoveryLogoutKey, localLogout);
     window.addEventListener("storage", logout);
     const guard = (event: BeforeUnloadEvent) => {
@@ -908,6 +977,7 @@ function HomeEditorImpl({
     };
     window.addEventListener("beforeunload", guard);
     return () => {
+      stopWatching();
       window.removeEventListener("beforeunload", guard);
       window.removeEventListener("storage", logout);
       window.removeEventListener(recoveryLogoutKey, localLogout);
@@ -926,7 +996,9 @@ function HomeEditorImpl({
   useEffect(() => {
     if (!activatedVisibility) return;
     let cancelled = false;
-    fetch(endpoint("baseline"), { signal: AbortSignal.timeout(15000) })
+    editorialAdminJson(endpoint("baseline"), {
+      signal: AbortSignal.timeout(15000),
+    })
       .then(async (response) => {
         if (!response.ok) {
           discardBody(response);
@@ -945,6 +1017,57 @@ function HomeEditorImpl({
       cancelled = true;
     };
   }, [activatedVisibility]);
+  const reviewChanges = useMemo(() => {
+    if (tab !== "publish" || !reviewedDraft || !reviewedBase) return [];
+    const before = reviewedBase.source;
+    const after = reviewedDraft.source;
+    try {
+      const beforeParsed = parseEditorialSource(before);
+      const afterParsed = parseEditorialSource(after);
+      const reviewFields = editorialFields(record, afterParsed.data);
+      return [
+        ...reviewFields
+          .filter(
+            (field) =>
+              !(afterParsed.data as Record<string, unknown>).sections ||
+              field.path[0] !== "sections",
+          )
+          .map((field) => ({
+            label: field.label,
+            rich: field.rich,
+            onEdit: () => {
+              requestedEditingField.current = field.path.join(".");
+              setTab("edit");
+            },
+            before: String(beforeParsed.document.getIn(field.path) ?? ""),
+            after: String(afterParsed.document.getIn(field.path) ?? ""),
+          })),
+        ...(record.kind === "writing"
+          ? writingReviewChanges(before, after)
+          : structuredReviewChanges(before, after, reviewFields)),
+      ];
+    } catch {
+      return [];
+    }
+  }, [
+    tab,
+    reviewedDraft?.source,
+    reviewedBase?.source,
+    record.kind,
+    record.id,
+  ]);
+  if (locked)
+    return (
+      <VStack gap={3}>
+        <Banner
+          status="warning"
+          title="Session ended. Sign in again to resume your saved draft."
+        />
+        <AuthReentry
+          href={editorialReturnPath(location.pathname + location.search)}
+        />
+      </VStack>
+    );
   if (!state || !snapshot)
     return (
       <VStack gap={3} className="editor-workspace writing-workspace">
@@ -959,8 +1082,7 @@ function HomeEditorImpl({
         )}
       </VStack>
     );
-  /** A record with no draft whose text still matches the website: nothing
-   * to preview or publish, and opening either must not write a revision. */
+  /** An unchanged record can preview its pinned baseline without writing a draft. */
   const untouched =
     state.revision === 0 && state.source === snapshot.base.source;
   let fields = editorialFields(record);
@@ -969,14 +1091,17 @@ function HomeEditorImpl({
   let valid = false;
   let destinationId = record.id;
   let unsupportedPublication = false;
+  let projectSectionData: Record<string, unknown> = {};
   let storyMediaIndexes: number[] = [];
   let homepageWritingSlugs: string[] | null = [];
   let homepageWritingLimit = 3;
   const fieldErrors = new Map<string, string>();
   try {
-    const parsed = parseEditorialSource(state.source);
+    const parsed = parsedSource;
+    if (!parsed) throw new Error("invalid source");
     parseable = true;
     const metadata = parsed.data as Record<string, unknown>;
+    projectSectionData = metadata;
     if (Array.isArray(metadata.story)) {
       storyMediaIndexes = metadata.story.flatMap((section, index) =>
         section && typeof section === "object" ? [index] : [],
@@ -1021,18 +1146,24 @@ function HomeEditorImpl({
       ]);
       if (typeof limit === "number" && Number.isInteger(limit) && limit > 0)
         homepageWritingLimit = limit;
-      const index = fields.findIndex((field) => field.rich);
-      values[index] = editableHomeSummary(
-        values[index] ?? "",
-        (parsed.data as { sections: { intro: { mention_keys?: string[] } } })
-          .sections.intro.mention_keys ?? [],
-        (parsed.data as { mentions: Parameters<typeof editableHomeSummary>[2] })
-          .mentions,
-        parsed.document.getIn(["sections", "intro", "subheading_format"]) ===
-          "markdown",
-      );
+      fields.forEach((field, index) => {
+        if (!field.formatPath) return;
+        values[index] = editableHomeSummary(
+          values[index] ?? "",
+          field.mentionKeysPath
+            ? ((parsed.document.getIn(field.mentionKeysPath) as
+                string[] | undefined) ?? [])
+            : [],
+          (
+            parsed.data as {
+              mentions: Parameters<typeof editableHomeSummary>[2];
+            }
+          ).mentions,
+          parsed.document.getIn(field.formatPath) === "markdown",
+        );
+      });
     }
-    const validation = validateEditorialSource(record, state.source);
+    const validation = validateEditorialSource(record, state.source, parsed);
     valid = validation.success;
     if (!validation.success)
       for (const issue of validation.error.issues)
@@ -1113,7 +1244,7 @@ function HomeEditorImpl({
       navigation === navigationGeneration.current &&
       controller === editor.current;
     try {
-      if (untouched) {
+      if (untouched && snapshot.base.publicationId) {
         setReviewedBase(snapshot.base);
         setReviewedDraft(null);
         return;
@@ -1141,7 +1272,7 @@ function HomeEditorImpl({
         controller !== editor.current
       )
         return;
-      const response = await fetch(endpoint("baseline"), {
+      const response = await editorialAdminJson(endpoint("baseline"), {
         signal: AbortSignal.timeout(15000),
       });
       if (!response.ok) {
@@ -1169,12 +1300,25 @@ function HomeEditorImpl({
     }
   };
   const refreshPreview = async () => {
-    if (!previewSupported || snapshot.draft?.discardedAt || untouched) return;
+    if (!previewSupported || snapshot.draft?.discardedAt) return;
     const request = ++previewRequest.current;
     const navigation = navigationGeneration.current;
     const controller = editor.current;
     setPreviewLoading(true);
     try {
+      flushLocal();
+      const currentSource = controller?.state;
+      if (
+        currentSource?.revision === 0 &&
+        currentSource.source === snapshot.base.source &&
+        snapshot.base.baseFileHash
+      ) {
+        if (validateEditorialSource(record, currentSource.source).success) {
+          setError("");
+          setPreviewRevision(0);
+        } else setError("Correct the marked fields before previewing.");
+        return;
+      }
       await ensureDraft();
       if (
         request !== previewRequest.current ||
@@ -1288,34 +1432,35 @@ function HomeEditorImpl({
   const needsNewPublicationReview =
     publication?.phase === "cancelled" &&
     publication.revision === state.revision;
-  const publishUnavailable = uploadPending
-    ? "Finish uploading or close the image crop before publishing."
-    : localPreview
-      ? "Publishing is available in the production editor. This draft stays local."
-      : snapshot.publishing !== "ready"
-        ? "Publishing is not configured. Your private draft is retained."
-        : publicationActive
-          ? "A publication is already in progress. See its status below; you can keep editing privately."
-          : needsNewPublicationReview
-            ? "This publication was stopped. Review again to prepare a new private revision."
-            : unsupportedPublication
-              ? "Publishing keeps a piece visible. To take it off the website, use Unpublish; scheduling is not available yet. Update visibility in Properties or source before reviewing again; your draft is retained."
-              : !valid
-                ? "Correct the marked fields before publishing."
-                : snapshot.draft?.discardedAt
-                  ? "Recover this draft before publishing."
-                  : untouched
-                    ? "There are no changes to publish."
-                    : !reviewCurrent || reviewLoading
-                      ? "Waiting for the latest saved revision to finish reviewing."
-                      : state.source === snapshot.base.source
-                        ? "There are no changes to publish."
-                        : null;
+  const publishUnavailable = preflightIssues.length
+    ? "Resolve the publication issues, then review your changes again."
+    : uploadPending
+      ? "Finish uploading or close the image crop before publishing."
+      : localPreview
+        ? "Publishing is available in the production editor. This draft stays local."
+        : snapshot.publishing !== "ready"
+          ? "Publishing is not configured. Your private draft is retained."
+          : publicationActive
+            ? "A publication is already in progress. See its status below; you can keep editing privately."
+            : needsNewPublicationReview
+              ? "This publication was stopped. Review again to prepare a new private revision."
+              : unsupportedPublication
+                ? "Publishing keeps a piece visible. To take it off the website, use Unpublish; scheduling is not available yet. Update visibility in Properties or source before reviewing again; your draft is retained."
+                : !valid
+                  ? "Correct the marked fields before publishing."
+                  : snapshot.draft?.discardedAt
+                    ? "Recover this draft before publishing."
+                    : untouched && snapshot.base.publicationId
+                      ? "There are no changes to publish."
+                      : !reviewCurrent || reviewLoading
+                        ? "Waiting for the latest saved revision to finish reviewing."
+                        : state.source === snapshot.base.source &&
+                            snapshot.base.publicationId
+                          ? "There are no changes to publish."
+                          : null;
   // Visibility on the website follows the public base, not the private draft.
   // A record that was never public has nothing to take down.
-  const onWebsite =
-    typeof snapshot.base.baseFileHash === "string" ||
-    Boolean(snapshot.base.publicationId);
+  const onWebsite = Boolean(snapshot.base.publicationId);
   const basePublic = sourceIsPublic(record, snapshot.base.source);
   const directRecord = canUnpublish(record) && onWebsite;
   const hiddenFromSite = directRecord && !basePublic;
@@ -1332,10 +1477,11 @@ function HomeEditorImpl({
     const operationId = unpublishRequest.current;
     let refusal: string | null = null;
     setUnpublishing(true);
+    setPreflightIssues([]);
     setError("");
     try {
       // Review against the server's current public source, never a cached one.
-      const response = await fetch(endpoint("baseline"), {
+      const response = await editorialAdminJson(endpoint("baseline"), {
         signal: AbortSignal.timeout(15000),
       });
       if (!response.ok) {
@@ -1361,6 +1507,8 @@ function HomeEditorImpl({
       });
       if (result.publication) setPublication(result.publication);
       if (!result.publication || result.error) {
+        if (navigation === navigationGeneration.current)
+          setPreflightIssues(publicationIssues(result.issues));
         const reasons: Record<string, string> = {
           publication_in_progress:
             "A publication for this piece is still in progress. Its status is shown below; let it finish or stop it first.",
@@ -1372,7 +1520,8 @@ function HomeEditorImpl({
         };
         refusal =
           typeof result.error === "string"
-            ? (reasons[result.error] ??
+            ? (publicationRefusal(result.error) ??
+              reasons[result.error] ??
               "Unpublishing was refused. Nothing was changed.")
             : null;
         if (refusal) unpublishRequest.current = null;
@@ -1417,7 +1566,7 @@ function HomeEditorImpl({
   async function readPublication(
     operationId: string,
   ): Promise<VisiblePublication | null> {
-    const response = await fetch(
+    const response = await editorialAdminJson(
       `${endpoint("publication")}&operationId=${encodeURIComponent(operationId)}`,
       {
         signal: AbortSignal.timeout(15000),
@@ -1469,6 +1618,7 @@ function HomeEditorImpl({
     let submittedRequestId: string | null = null;
     let refusalMessage: string | null = null;
     setPublishing(true);
+    setPreflightIssues([]);
     setError("");
     try {
       await ensureDraft();
@@ -1502,6 +1652,11 @@ function HomeEditorImpl({
       );
       if (!result.publication || result.error) {
         if (result.publication) setPublication(result.publication);
+        if (
+          navigation === navigationGeneration.current &&
+          matchesReviewedDraft(reviewed, editor.current?.state ?? null)
+        )
+          setPreflightIssues(publicationIssues(result.issues));
         const reasons: Record<string, string> = {
           publication_in_progress:
             "This record already has a publication in progress. Its current status is shown below; retry or stop that operation before publishing another revision.",
@@ -1518,7 +1673,9 @@ function HomeEditorImpl({
         };
         refusalMessage =
           typeof result.error === "string"
-            ? (reasons[result.error] ?? null)
+            ? (publicationRefusal(result.error) ??
+              reasons[result.error] ??
+              null)
             : null;
         throw new Error();
       }
@@ -1568,7 +1725,27 @@ function HomeEditorImpl({
         ? "/"
         : `/${record.id}`
       : `/${record.kind}/${destinationId}`;
-  const onSite = record.kind === "page" || (onWebsite && basePublic);
+  const onSite = onWebsite && (record.kind === "page" || basePublic);
+  const editPublicationIssue = (issue: SnapshotIssue) => {
+    if (
+      !issue.record ||
+      issue.record.kind !== record.kind ||
+      issue.record.id !== record.id
+    )
+      return false;
+    requestedEditingField.current = issue.field;
+    if (tab === "edit") {
+      const target = fieldElements.current
+        .get(issue.field)
+        ?.querySelector<HTMLElement>(
+          'input, textarea, [contenteditable="true"]',
+        );
+      target?.focus({ preventScroll: true });
+      target?.scrollIntoView({ block: "center", behavior: "instant" });
+      if (!target) setTab("source");
+    } else setTab(fieldElements.current.has(issue.field) ? "edit" : "source");
+    return true;
+  };
   const fieldKey = (field: { path: string[] }) => field.path.join(".");
   /** Return in a title moves to the next field's own input. */
   const focusAfter = (index: number) => {
@@ -1584,11 +1761,27 @@ function HomeEditorImpl({
       }
     }
   };
+  const editSource = (transform: (source: string) => string) => {
+    if (sessionLocked.current || !editor.current) return;
+    editor.current.edit(transform(editor.current.state.source));
+  };
   const markDirty = () => {
+    if (sessionLocked.current || !editor.current) return;
     editGeneration.current += 1;
     bodyDirtyRef.current = true;
     setBodyDirty(true);
     saveScheduler.current?.changed();
+  };
+  const onProjectSectionEdit = (edit: ProjectSectionEdit) => {
+    if (
+      sessionLocked.current ||
+      !editor.current ||
+      mediaPending.current ||
+      discarded
+    )
+      return;
+    flushLocal();
+    editor.current.edit(editProjectSections(editor.current.state.source, edit));
   };
   const bar = (
     <EditorActionBar
@@ -1599,7 +1792,7 @@ function HomeEditorImpl({
         previewSupported
           ? {
               isPressed: tab === "preview",
-              isDisabled: untouched,
+              isDisabled: discarded,
               onChange: (pressed) => {
                 if (pressed && tab === "edit")
                   editScroll.current =
@@ -1613,25 +1806,31 @@ function HomeEditorImpl({
       publish={{
         label: hiddenFromSite ? "Publish again" : "Publish",
         isLoading: reviewLoading && tab === "publish",
-        isDisabled: !valid || discarded || untouched,
+        isDisabled:
+          !valid ||
+          discarded ||
+          (untouched && Boolean(snapshot.base.publicationId)),
         onClick: () => {
           setConfirmingUnpublish(false);
           setTab("publish");
         },
       }}
+      properties={
+        record.kind !== "page"
+          ? {
+              isPressed: panel === "properties",
+              onClick: () =>
+                openPanel(panel === "properties" ? null : "properties"),
+            }
+          : undefined
+      }
+      history={{
+        isPressed: panel === "history",
+        onClick: () => void openHistory(),
+      }}
       menu={[
         {
           items: [
-            ...(record.kind !== "page"
-              ? [
-                  {
-                    label: "Properties",
-                    onClick: () =>
-                      openPanel(panel === "properties" ? null : "properties"),
-                  },
-                ]
-              : []),
-            { label: "History", onClick: () => void openHistory() },
             ...(onSite && publicUrl
               ? [
                   {
@@ -1717,38 +1916,6 @@ function HomeEditorImpl({
       ]}
     />
   );
-  const reviewChanges = [
-    ...fields.flatMap((field) => {
-      try {
-        return [
-          {
-            label: field.label,
-            rich: field.rich,
-            onEdit: () => {
-              requestedEditingField.current = fieldKey(field);
-              setTab("edit");
-            },
-            before: String(
-              parseEditorialSource(snapshot.base.source).document.getIn(
-                field.path,
-              ) ?? "",
-            ),
-            after: String(
-              parseEditorialSource(reviewedSource).document.getIn(field.path) ??
-                "",
-            ),
-          },
-        ];
-      } catch {
-        return [];
-      }
-    }),
-    ...(record.kind === "writing" && parseable
-      ? writingReviewChanges(snapshot.base.source, reviewedSource)
-      : parseable
-        ? structuredReviewChanges(snapshot.base.source, reviewedSource, fields)
-        : []),
-  ];
   const showFields = tab === "edit" || tab === "publish";
   return (
     <VStack
@@ -1785,6 +1952,7 @@ function HomeEditorImpl({
       )}
       {publication && panel !== "publication" && (
         <PublicationProgress
+          onEditIssue={editPublicationIssue}
           publication={publication}
           stale={publicationStale}
           compact
@@ -1951,6 +2119,12 @@ function HomeEditorImpl({
               onRetry={() => download()}
             />
           ) : null}
+          {error && tab !== "publish" && (
+            <PublicationIssues
+              issues={preflightIssues}
+              onEdit={editPublicationIssue}
+            />
+          )}
           {comparisonLoading && <Spinner label="Loading website source…" />}
           {comparison && (
             <VStack gap={2}>
@@ -2147,10 +2321,10 @@ function HomeEditorImpl({
           )}
           {tab === "preview" &&
             previewSupported &&
-            (previewRevision ? (
+            (previewRevision !== null ? (
               <SavedArticlePreview
                 title={`${record.id} draft preview`}
-                src={`/preview/${record.kind === "page" && record.id === "home" ? "home" : "record"}?${query}&revision=${previewRevision}`}
+                src={`/preview/${record.kind === "page" && record.id === "home" ? "home" : "record"}?${query}&revision=${previewRevision}${previewRevision === 0 ? `&baseline=${encodeURIComponent(snapshot.base.baseFileHash ?? "")}` : ""}`}
               />
             ) : previewLoading ? (
               <AdminSkeleton kind="preview" />
@@ -2176,7 +2350,8 @@ function HomeEditorImpl({
             >
               <FormLayout>
                 {fields.map((field, index) => (
-                  <div
+                  <VStack
+                    gap={2}
                     key={fieldKey(field)}
                     ref={(element) => {
                       if (element)
@@ -2184,6 +2359,22 @@ function HomeEditorImpl({
                       else fieldElements.current.delete(fieldKey(field));
                     }}
                   >
+                    {record.kind === "page" &&
+                      record.id === "home" &&
+                      (index === 0 || index === 2) && (
+                        <Text weight="semibold">
+                          {index === 0 ? "Introduction" : "Section labels"}
+                        </Text>
+                      )}
+                    {record.kind === "work" && parseable && (
+                      <ProjectFieldControls
+                        data={projectSectionData}
+                        path={field.path}
+                        position="before"
+                        disabled={uploadPending || discarded}
+                        onEdit={onProjectSectionEdit}
+                      />
+                    )}
                     {index === 0 ? (
                       <DocumentTitle
                         resetGeneration={resetGeneration}
@@ -2196,18 +2387,14 @@ function HomeEditorImpl({
                         onDirty={markDirty}
                         onEnter={() => focusAfter(index)}
                         onDraftTitle={(value) => {
-                          if (!titled) return;
+                          if (!titled || sessionLocked.current) return;
                           setBarTitle(value || untitled);
                           onTitleChange?.(value);
                           document.title = `${value || untitled} | Admin`;
                         }}
                         onCommit={(value) =>
-                          editor.current!.edit(
-                            setEditorialField(
-                              editor.current!.state.source,
-                              field.path,
-                              value,
-                            ),
+                          editSource((source) =>
+                            setEditorialField(source, field.path, value),
                           )
                         }
                       />
@@ -2227,19 +2414,15 @@ function HomeEditorImpl({
                             : undefined
                         }
                         onChange={(value) =>
-                          editor.current!.edit(
-                            setEditorialField(
-                              editor.current!.state.source,
-                              field.path,
-                              value,
-                            ),
+                          editSource((source) =>
+                            setEditorialField(source, field.path, value),
                           )
                         }
                       />
                     ) : field.rich ? (
                       <RichTextField
                         resetGeneration={resetGeneration}
-                        compact={index === 1}
+                        compact={record.kind === "writing" && index === 1}
                         limit={field.limit}
                         tools={
                           record.kind === "page" && record.id === "home"
@@ -2258,15 +2441,16 @@ function HomeEditorImpl({
                         value={values[index] ?? ""}
                         disabled={!parseable || discarded}
                         onChange={(value) => {
+                          if (sessionLocked.current || !editor.current) return;
                           let next = setEditorialField(
                             editor.current!.state.source,
                             field.path,
                             value,
                           );
-                          if (record.kind === "page" && record.id === "home")
+                          if (field.formatPath)
                             next = setEditorialField(
                               next,
-                              ["sections", "intro", "subheading_format"],
+                              field.formatPath,
                               "markdown",
                             );
                           editor.current!.edit(next);
@@ -2287,17 +2471,22 @@ function HomeEditorImpl({
                         value={values[index] ?? ""}
                         isDisabled={!parseable || discarded}
                         onChange={(value) =>
-                          editor.current!.edit(
-                            setEditorialField(
-                              editor.current!.state.source,
-                              field.path,
-                              value,
-                            ),
+                          editSource((source) =>
+                            setEditorialField(source, field.path, value),
                           )
                         }
                       />
                     )}
-                  </div>
+                    {record.kind === "work" && parseable && (
+                      <ProjectFieldControls
+                        data={projectSectionData}
+                        path={field.path}
+                        position="after"
+                        disabled={uploadPending || discarded}
+                        onEdit={onProjectSectionEdit}
+                      />
+                    )}
+                  </VStack>
                 ))}
                 {record.kind === "page" &&
                   record.id === "home" &&
@@ -2337,12 +2526,7 @@ function HomeEditorImpl({
                     source={state.source}
                     errors={fieldErrors}
                     disabled={uploadPending || discarded}
-                    onEdit={(edit) => {
-                      if (mediaPending.current || discarded) return;
-                      editor.current!.edit(
-                        editProjectSections(editor.current!.state.source, edit),
-                      );
-                    }}
+                    onEdit={onProjectSectionEdit}
                   />
                 )}
                 {record.kind === "work" &&
@@ -2395,9 +2579,10 @@ function HomeEditorImpl({
                     resetGeneration={resetGeneration}
                     flushRef={bodyFlush}
                     onDirty={markDirty}
-                    value={parseEditorialSource(state.source).body}
+                    value={parsedSource?.body ?? ""}
                     disabled={discarded}
                     onChange={(body) => {
+                      if (sessionLocked.current || !editor.current) return;
                       const source = editor.current!.state.source;
                       const oldBody = parseEditorialSource(source).body;
                       editor.current!.edit(
@@ -2466,7 +2651,9 @@ function HomeEditorImpl({
                 >
                   <SourceEditor
                     source={state.source}
-                    onChange={(source) => editor.current!.edit(source)}
+                    onChange={(source) => {
+                      if (!sessionLocked.current) editor.current?.edit(source);
+                    }}
                     hidden={tab !== "source"}
                     readOnly={discarded}
                   />
@@ -2531,7 +2718,9 @@ function HomeEditorImpl({
                   id={record.id}
                   disabled={discarded}
                   publicUrl={onSite ? publicUrl?.(livePath) : undefined}
-                  onChange={(source) => editor.current!.edit(source)}
+                  onChange={(source) => {
+                    if (!sessionLocked.current) editor.current?.edit(source);
+                  }}
                 />
               )}
             {panel === "properties" && record.kind === "work" && parseable && (
@@ -2539,7 +2728,9 @@ function HomeEditorImpl({
                 source={state.source}
                 errors={fieldErrors}
                 disabled={discarded}
-                onChange={(source) => editor.current!.edit(source)}
+                onChange={(source) => {
+                  if (!sessionLocked.current) editor.current?.edit(source);
+                }}
               />
             )}
             {panel === "history" && (
@@ -2654,6 +2845,7 @@ function HomeEditorImpl({
             )}
             {panel === "publication" && publication && (
               <PublicationProgress
+                onEditIssue={editPublicationIssue}
                 publication={publication}
                 stale={publicationStale}
               >
@@ -2672,6 +2864,25 @@ function HomeEditorImpl({
             onClose={() => setTab("edit")}
           >
             <VStack gap={4} className="editor-review">
+              {error &&
+                (preflightIssues.length ? (
+                  <PublicationIssues
+                    issues={preflightIssues}
+                    onEdit={editPublicationIssue}
+                    recordTitle={(issue) =>
+                      issue.record?.kind === record.kind &&
+                      issue.record.id === record.id
+                        ? barTitle
+                        : undefined
+                    }
+                  />
+                ) : (
+                  <Banner
+                    status="warning"
+                    title="Publication was not started"
+                    description={error}
+                  />
+                ))}
               {reviewLoading && <AdminSkeleton kind="preview" />}
               {!reviewedDraft && !reviewLoading && !untouched && (
                 <Button
@@ -2680,9 +2891,9 @@ function HomeEditorImpl({
                 />
               )}
               <ReviewChanges
-                label="Review changes"
+                label="Changes"
                 destination={`anipotts.com${livePath}`}
-                before={snapshot.base.source}
+                before={reviewedBase?.source ?? snapshot.base.source}
                 after={reviewedSource}
                 changes={reviewChanges}
               />
@@ -2710,6 +2921,7 @@ function HomeEditorImpl({
               )}
               <HStack gap={2} wrap="wrap" className="editor-review-actions">
                 <Button
+                  size="sm"
                   label="Publish now"
                   variant="primary"
                   isDisabled={Boolean(publishUnavailable)}
@@ -2721,7 +2933,19 @@ function HomeEditorImpl({
                   isLoading={publishing}
                   clickAction={publishNow}
                 />
-                {needsNewPublicationReview && (
+                {preflightIssues.length > 0 && (
+                  <Button
+                    label="Review again"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setPreflightIssues([]);
+                      setError("");
+                      void refreshReview();
+                    }}
+                  />
+                )}
+                {needsNewPublicationReview && !preflightIssues.length && (
                   <Button
                     label="Review again"
                     variant="ghost"

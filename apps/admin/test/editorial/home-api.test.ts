@@ -1,6 +1,39 @@
 /// <reference types="@cloudflare/vitest-plugin/types" />
 import { env } from "cloudflare:workers";
-import { describe, it, expect } from "vitest";
+import { beforeAll, describe, it, expect } from "vitest";
+import {
+  getPublishedInventory,
+  publishDirect,
+  DIRECT_PUBLICATION_SCHEMA_SQL,
+  DIRECT_PUBLICATION_CONTRACT_MIGRATION_SQL,
+} from "@anipotts/content/editorial/direct-publication";
+import {
+  readPublishedBase,
+  bundledEditorialSources,
+} from "../../src/lib/editorial-published-base";
+
+beforeAll(async () => {
+  await env.CONTENT_DB.batch(
+    [
+      ...DIRECT_PUBLICATION_SCHEMA_SQL,
+      ...DIRECT_PUBLICATION_CONTRACT_MIGRATION_SQL,
+    ].map((sql) => env.CONTENT_DB.prepare(sql)),
+  );
+  // Direct-publication API fixtures require an explicit active CMS baseline.
+  for (const { record, source } of bundledEditorialSources()) {
+    const inventory = await getPublishedInventory(env.CONTENT_DB);
+    await publishDirect(env.CONTENT_DB, {
+      contentSchemaVersion: 1,
+      record,
+      source,
+      revision: 1,
+      operationId: `git-seed.${record.kind}.${record.id}`,
+      expectedPublicationId: null,
+      expectedInventoryVersion: inventory.version,
+      publishedAt: "2026-09-20T00:00:00Z",
+    });
+  }
+});
 import { homeEditorApi, homeRecord } from "../../src/lib/editorial-home-api";
 const base = async () => ({
   source: "original",
@@ -38,7 +71,7 @@ describe("home API with real SQLite", () => {
       base,
     );
     expect(await snapshot.json()).toMatchObject({
-      history: [{ revision: 3 }, { revision: 2 }, { revision: 1 }],
+      history: [],
       nextBeforeRevision: null,
       // Without a publisher (local development) the editor matches production.
       publicationMode: "direct",
@@ -186,7 +219,8 @@ describe("home API with real SQLite", () => {
       operationId: crypto.randomUUID(),
       discloseSource: true,
       reviewedSourceSha256: await publicationSourceHash(source),
-      expectedBaselineSha256: "a".repeat(64),
+      expectedBaselineSha256: (await readPublishedBase(env.CONTENT_DB, record))
+        .sourceSha256,
       expectedPublicationId: null,
     };
     const scoped = (action: string, payload: unknown, headers = {}) => {
@@ -459,6 +493,53 @@ describe("direct publisher API boundary", () => {
     });
     expect(calls).toBe(0);
   });
+  it("forwards bounded preflight field issues with a private conflict response", async () => {
+    const storage = env.EDITORIAL.getByName(crypto.randomUUID());
+    const issues = [
+      {
+        record: { kind: "writing" as const, id: "essay" },
+        field: "summary",
+        code: "invalid_field",
+      },
+    ];
+    const direct = {
+      startDirectPublication: async () => ({
+        ok: false as const,
+        code: "invalid_snapshot" as const,
+        issues,
+      }),
+      latestDirectPublication: async () => null,
+      directPublicationStatus: async () => null,
+      retryDirectPublication: async () => ({
+        ok: false as const,
+        code: "publication_conflict" as const,
+      }),
+      cancelDirectPublication: async () => ({
+        ok: false as const,
+        code: "publication_conflict" as const,
+      }),
+    };
+    const req = request("publish", {
+      expectedRevision: 1,
+      operationId: crypto.randomUUID(),
+      reviewedSourceSha256: "a".repeat(64),
+      expectedBaselineSha256: "b".repeat(64),
+      expectedPublicationId: null,
+      discloseSource: true,
+    });
+    const response = await homeEditorApi(
+      new Request(req.url + "?kind=writing&id=essay", req),
+      storage,
+      base,
+      { storage: direct, enabled: true },
+    );
+    expect(response.status).toBe(409);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(await response.json()).toEqual({
+      error: "invalid_snapshot",
+      issues,
+    });
+  });
   it("unpublishes with the public source from the server's own read", async () => {
     const storage = env.EDITORIAL.getByName(crypto.randomUUID());
     const record = { kind: "writing", id: "api-unpublish" } as const;
@@ -537,7 +618,8 @@ it("direct API returns the original publication when another intent already owns
     operationId: crypto.randomUUID(),
     expectedRevision: 1,
     reviewedSourceSha256: await publicationSourceHash(source),
-    expectedBaselineSha256: "a".repeat(64),
+    expectedBaselineSha256: (await readPublishedBase(env.CONTENT_DB, record))
+      .sourceSha256,
     expectedPublicationId: null,
   };
   const original = await storage.startDirectPublication(input);
@@ -636,4 +718,73 @@ describe("private project creation", () => {
     ).toBe(400);
     expect(await storage.listProjectDrafts()).toEqual([]);
   });
+});
+
+it("preserves independent compact rich fields through private save, reload and history", async () => {
+  const { parseEditorialSource, setEditorialField } =
+    await import("@anipotts/content/editorial/source");
+  const original = `---
+# retained comment
+sections:
+  intro: { visible: true, label: Intro, heading: Hello, subheading: Default copy }
+  past_work: { visible: true, label: Work, heading: Work }
+  latest_thoughts: { visible: true, label: Writing, heading: Writing }
+section_order: [intro, past_work, latest_thoughts]
+mentions: {}
+---
+Retained body.
+`;
+  const storage = env.EDITORIAL.getByName(crypto.randomUUID());
+  await storage.save({
+    ...(await base()),
+    record: homeRecord,
+    source: original,
+    expectedRevision: 0,
+    requestId: crypto.randomUUID(),
+  });
+  let updated = setEditorialField(
+    original,
+    ["sections", "intro", "subheading_compact"],
+    "**Compact** copy",
+  );
+  updated = setEditorialField(
+    updated,
+    ["sections", "intro", "subheading_compact_format"],
+    "markdown",
+  );
+  const saved = await homeEditorApi(
+    request("save", {
+      source: updated,
+      expectedRevision: 1,
+      requestId: crypto.randomUUID(),
+    }),
+    storage,
+    base,
+  );
+  expect(saved.status).toBe(200);
+  const reloaded = await homeEditorApi(
+    new Request("https://admin.anipotts.com/api/editorial/record"),
+    storage,
+    base,
+  );
+  const snapshot = (await reloaded.json()) as {
+    draft: { source: string };
+    history: unknown[];
+  };
+  expect(snapshot.draft.source).toBe(updated);
+  expect(snapshot.history).toEqual([]);
+  const parsed = parseEditorialSource(snapshot.draft.source);
+  expect(parsed.document.getIn(["sections", "intro", "subheading"])).toBe(
+    "Default copy",
+  );
+  expect(
+    parsed.document.getIn(["sections", "intro", "subheading_format"]),
+  ).toBeUndefined();
+  expect(
+    parsed.document.getIn(["sections", "intro", "subheading_compact_format"]),
+  ).toBe("markdown");
+  expect(parsed.body).toBe("Retained body.\n");
+  expect(snapshot.draft.source).toContain("# retained comment");
+  const history = await storage.history(homeRecord);
+  expect(history.map((version) => version.source)).toEqual([updated, original]);
 });

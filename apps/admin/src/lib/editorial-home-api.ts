@@ -1,3 +1,4 @@
+import { adminMutationOrigin } from "./admin-request-origin";
 import { z } from "astro/zod";
 import { EDITORIAL_OWNER_EMAIL } from "./editorial-owner";
 import {
@@ -101,6 +102,7 @@ async function startDirect(
     return json(
       {
         error: result.code,
+        ...("issues" in result ? { issues: result.issues } : {}),
         ...("publication" in result ? { publication: result.publication } : {}),
       },
       409,
@@ -143,10 +145,9 @@ export async function homeEditorApi(
       return json(await storage.historyPage(record, options));
     }
     if (action === "home" || action === "record") {
-      const [base, draft, historyPage] = await Promise.all([
+      const [base, draft] = await Promise.all([
         readBase(record),
         storage.get(record),
-        storage.historyPage(record),
       ]);
       const publication = direct
         ? await direct.latestDirectPublication(record)
@@ -155,8 +156,8 @@ export async function homeEditorApi(
         recoveryScope: EDITORIAL_OWNER_EMAIL,
         base,
         draft,
-        history: historyPage.history,
-        nextBeforeRevision: historyPage.nextBeforeRevision,
+        history: [],
+        nextBeforeRevision: null,
         publication,
         publishing: publisher?.enabled ? "ready" : "not_configured",
         // The only publisher. Editor tabs opened before this release read it.
@@ -175,7 +176,10 @@ export async function homeEditorApi(
   }
   if (request.method !== "POST")
     return json({ error: "method_not_allowed" }, 405);
-  const rejection = checkEditorialMutation(request, url.origin);
+  const rejection = checkEditorialMutation(
+    request,
+    adminMutationOrigin(request),
+  );
   if (rejection) return json({ error: rejection }, 403);
   let body: unknown;
   try {

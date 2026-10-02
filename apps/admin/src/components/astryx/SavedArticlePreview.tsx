@@ -1,8 +1,8 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import { AdminSkeleton } from "./AdminFeedback";
 import { VStack } from "@astryxdesign/core/VStack";
-import { Banner } from "@astryxdesign/core/Banner";
-import { Button } from "@astryxdesign/core/Button";
+import { Banner } from "./WritingControls";
+import { Button } from "./WritingControls";
 import {
   previewStatusType,
   type PreviewStatus,
@@ -28,14 +28,19 @@ export function SavedArticlePreview({
   const id = useId();
   const [attempt, setAttempt] = useState(0);
   const request = `${id}:${src}:${attempt}`;
-  const separator = src.includes("?") ? "&" : "?";
-  const frameSrc = `${src}${separator}previewRequest=${encodeURIComponent(request)}`;
+  const frameUrl = new URL(src, "https://admin.anipotts.com");
+  frameUrl.searchParams.set("embedded", "1");
+  frameUrl.searchParams.set("previewRequest", request);
+  const frameSrc = frameUrl.pathname + frameUrl.search;
   const [result, setResult] = useState<{
     request: string;
     status: PreviewStatus | "loading";
   }>({ request, status: "loading" });
   const status = result.request === request ? result.status : "loading";
   const [height, setHeight] = useState(800);
+  // Start navigation only after the receiver is installed. A cached frame can
+  // report readiness before React flushes passive effects.
+  const [listeningRequest, setListeningRequest] = useState<string | null>(null);
   useEffect(() => {
     setHeight(800);
     setResult({ request, status: "loading" });
@@ -75,6 +80,7 @@ export function SavedArticlePreview({
       }
     };
     window.addEventListener("message", receive);
+    setListeningRequest(request);
     return () => {
       window.clearTimeout(timeout);
       window.removeEventListener("message", receive);
@@ -100,7 +106,7 @@ export function SavedArticlePreview({
       )}
       <iframe
         ref={frame}
-        src={frameSrc}
+        src={listeningRequest === request ? frameSrc : undefined}
         title={title}
         sandbox="allow-scripts"
         referrerPolicy="no-referrer"

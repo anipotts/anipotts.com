@@ -1,15 +1,25 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { AdminPortalScope } from "../workspace/AdminUI";
 import { BottomSheet } from "@astryxdesign/core/BottomSheet";
-import { Button } from "@astryxdesign/core/Button";
-import { IconButton } from "@astryxdesign/core/IconButton";
-import { MoreMenu } from "@astryxdesign/core/MoreMenu";
+import {
+  Button,
+  DropdownMenu,
+  IconButton,
+  ToggleButton,
+} from "./WritingControls";
+import { HStack } from "@astryxdesign/core/HStack";
+import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
-import { ToggleButton } from "@astryxdesign/core/ToggleButton";
+import { useTooltip } from "@astryxdesign/core/Tooltip";
 import { VStack } from "@astryxdesign/core/VStack";
-import { CaretLeftIcon, DotsThreeIcon, EyeIcon } from "@phosphor-icons/react";
+import {
+  CaretLeftIcon,
+  ClockCounterClockwiseIcon,
+  DotsThreeIcon,
+  EyeIcon,
+  SlidersHorizontalIcon,
+} from "@phosphor-icons/react";
 import { below } from "../../lib/breakpoints";
-import { WordSafeText } from "../workspace/Workspace";
-import { RecordHeader } from "../workspace/RecordHeader";
 import { SaveStatus, type SaveStatusState } from "./SaveStatus";
 
 type EditorMenuItem = {
@@ -37,43 +47,103 @@ function useCompact() {
   return compact;
 }
 
-/** Whether the title's first word fits its slot. A word never shows cut:
- * where not even the first fits (a 320px phone), the title stays the
- * page's H1 for assistive technology but is not drawn, since the title
- * field under the bar shows it whole. */
-function useFirstWordFits() {
-  const [fits, setFits] = useState(true);
-  const observer = React.useRef<ResizeObserver | null>(null);
-  const ref = React.useCallback((node: HTMLDivElement | null) => {
-    observer.current?.disconnect();
-    observer.current = null;
-    if (!node || typeof ResizeObserver === "undefined") return;
-    const measure = () => {
-      const word = node.querySelector<HTMLElement>(".workspace-word");
-      setFits(!word || word.offsetWidth <= node.clientWidth + 0.5);
-    };
-    const next = new ResizeObserver(measure);
-    next.observe(node);
-    observer.current = next;
-    measure();
-  }, []);
-  return [fits, ref] as const;
+type EditorPanelAction = {
+  onClick: () => void;
+  isDisabled?: boolean;
+  isPressed?: boolean;
+};
+
+/** Compact controls retain native keyboard focus without instant hover noise. */
+function EditorIconButton({
+  label,
+  ...props
+}: Omit<React.ComponentProps<typeof IconButton>, "tooltip" | "size">) {
+  const tooltip = useTooltip({ delay: 300, placement: "below" });
+  return (
+    <>
+      <IconButton
+        {...props}
+        label={label}
+        size="sm"
+        ref={tooltip.ref}
+        aria-describedby={tooltip.describedBy}
+      />
+      {tooltip.renderTooltip(
+        <Text type="supporting" style={{ color: "inherit" }}>
+          {label}
+        </Text>,
+      )}
+    </>
+  );
 }
 
-/**
- * The record editor's one bar, sticky at the top of every width: an icon
- * back to the library, the record's title on one line, the save dot, the
- * preview toggle, Publish and the overflow. It stands in for the page
- * header on record pages, and its title is the page's H1.
- */
-export function EditorActionBar({
-  back,
-  title,
-  save,
-  preview,
-  publish,
-  menu = [],
-}: {
+function PreviewButton({
+  isPressed,
+  isDisabled,
+  onChange,
+}: NonNullable<EditorActionBarProps["preview"]>) {
+  const tooltip = useTooltip({ delay: 300, placement: "below" });
+  return (
+    <>
+      <ToggleButton
+        label="Preview"
+        size="sm"
+        isIconOnly
+        icon={<EyeIcon weight="regular" aria-hidden="true" />}
+        isPressed={isPressed}
+        isDisabled={isDisabled}
+        onPressedChange={onChange}
+        ref={tooltip.ref}
+        aria-describedby={tooltip.describedBy}
+      />
+      {tooltip.renderTooltip(
+        <Text type="supporting" style={{ color: "inherit" }}>
+          Preview
+        </Text>,
+      )}
+    </>
+  );
+}
+
+function EditorMoreMenu({ sections }: { sections: EditorMenuSection[] }) {
+  const [open, setOpen] = useState(false);
+  const tooltip = useTooltip({
+    delay: 300,
+    placement: "below",
+    isEnabled: !open,
+  });
+  return (
+    <>
+      <DropdownMenu
+        hasChevron={false}
+        alignment="end"
+        onOpenChange={setOpen}
+        button={{
+          label: "More actions",
+          icon: <DotsThreeIcon weight="regular" aria-hidden="true" />,
+          variant: "ghost",
+          size: "sm",
+          isIconOnly: true,
+          ref: tooltip.ref,
+          "aria-describedby": tooltip.describedBy,
+        }}
+        items={sections.map((section, index) => ({
+          type: "section" as const,
+          id: section.title ?? `group-${index}`,
+          title: section.title,
+          items: section.items,
+        }))}
+      />
+      {tooltip.renderTooltip(
+        <Text type="supporting" style={{ color: "inherit" }}>
+          More actions
+        </Text>,
+      )}
+    </>
+  );
+}
+
+export type EditorActionBarProps = {
   back: { href: string; label: string };
   title: string;
   save?: SaveStatusState;
@@ -88,45 +158,112 @@ export function EditorActionBar({
     isLoading?: boolean;
     isDisabled?: boolean;
   };
+  /** Frequent inspectors remain directly accessible at every width. */
+  properties?: EditorPanelAction;
+  history?: EditorPanelAction;
   menu?: EditorMenuSection[];
-}) {
+};
+
+/**
+ * The record editor's one bar, sticky at the top of every width: an icon
+ * back to the library, the record's title and save evidence, then direct
+ * actions. On phones the actions wrap beneath the record identity. It stands in for the page
+ * header on record pages, and its title is the page's H1.
+ */
+export function EditorActionBar({
+  back,
+  title,
+  save,
+  preview,
+  publish,
+  properties,
+  history,
+  menu = [],
+}: EditorActionBarProps) {
   const compact = useCompact();
-  const [fits, titleRef] = useFirstWordFits();
+  const barRef = useRef<HTMLElement>(null);
+  const commandRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const bar = barRef.current;
+    const workspace = bar?.closest<HTMLElement>(".editor-workspace");
+    if (!bar || !workspace || typeof ResizeObserver === "undefined") return;
+    const previousHeight = workspace.style.getPropertyValue(
+      "--editor-bar-height",
+    );
+    const measure = () => {
+      const height =
+        (window.matchMedia(COMPACT).matches
+          ? commandRef.current
+          : bar
+        )?.getBoundingClientRect().height ?? 0;
+      if (height > 0)
+        workspace.style.setProperty("--editor-bar-height", `${height}px`);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(bar);
+    if (commandRef.current) observer.observe(commandRef.current);
+    measure();
+    return () => {
+      observer.disconnect();
+      if (previousHeight)
+        workspace.style.setProperty("--editor-bar-height", previousHeight);
+      else workspace.style.removeProperty("--editor-bar-height");
+    };
+  }, []);
   const [sheet, setSheet] = useState(false);
   const sections = menu.filter((section) => section.items.length > 0);
   return (
-    <RecordHeader
-      title={title}
-      level={1}
+    <HStack
       className="editor-bar"
-      titleClassName="editor-bar-title"
-      titleRef={titleRef}
-      titleFits={fits}
-      titleContent={<WordSafeText>{title}</WordSafeText>}
-      leading={
-        <IconButton
+      data-editor-bar=""
+      ref={barRef}
+      gap={2}
+      vAlign="center"
+      wrap="wrap"
+    >
+      <HStack className="editor-bar-identity" gap={2} vAlign="center">
+        <EditorIconButton
           className="editor-bar-back"
           label={back.label}
-          tooltip={back.label}
           variant="ghost"
           icon={<CaretLeftIcon weight="regular" aria-hidden="true" />}
           href={back.href}
         />
-      }
-      status={save && <SaveStatus state={save} />}
-    >
-      <div className="editor-bar-actions">
-        {preview && (
-          <ToggleButton
-            label="Preview"
-            tooltip="Preview"
-            isIconOnly
-            icon={<EyeIcon weight="regular" aria-hidden="true" />}
-            isPressed={preview.isPressed}
-            isDisabled={preview.isDisabled}
-            onPressedChange={(pressed) => preview.onChange(pressed)}
+        <VStack className="editor-bar-title" gap={0}>
+          <Heading level={1}>{title}</Heading>
+          {save && <SaveStatus state={save} />}
+        </VStack>
+      </HStack>
+      <HStack
+        className="editor-bar-actions"
+        ref={commandRef}
+        gap={1}
+        vAlign="center"
+        wrap="wrap"
+      >
+        {properties && (
+          <EditorIconButton
+            label="Properties"
+            variant="ghost"
+            icon={<SlidersHorizontalIcon weight="regular" aria-hidden="true" />}
+            aria-pressed={properties.isPressed}
+            isDisabled={properties.isDisabled}
+            onClick={properties.onClick}
           />
         )}
+        {history && (
+          <EditorIconButton
+            label="History"
+            variant="ghost"
+            icon={
+              <ClockCounterClockwiseIcon weight="regular" aria-hidden="true" />
+            }
+            aria-pressed={history.isPressed}
+            isDisabled={history.isDisabled}
+            onClick={history.onClick}
+          />
+        )}
+        {preview && <PreviewButton {...preview} />}
         {publish && (
           <Button
             label={publish.label}
@@ -139,9 +276,8 @@ export function EditorActionBar({
         )}
         {sections.length > 0 &&
           (compact ? (
-            <IconButton
+            <EditorIconButton
               label="More actions"
-              tooltip="More actions"
               variant="ghost"
               icon={<DotsThreeIcon weight="regular" aria-hidden="true" />}
               aria-haspopup="dialog"
@@ -149,20 +285,9 @@ export function EditorActionBar({
               onClick={() => setSheet(true)}
             />
           ) : (
-            <MoreMenu
-              label="More actions"
-              icon={<DotsThreeIcon weight="regular" aria-hidden="true" />}
-              size="sm"
-              alignment="end"
-              items={sections.map((section, index) => ({
-                type: "section" as const,
-                id: section.title ?? `group-${index}`,
-                title: section.title,
-                items: section.items,
-              }))}
-            />
+            <EditorMoreMenu sections={sections} />
           ))}
-      </div>
+      </HStack>
       {compact && (
         <BottomSheet
           label="More actions"
@@ -171,41 +296,43 @@ export function EditorActionBar({
           height="hug"
           className="editor-action-sheet"
         >
-          <VStack gap={4} padding={3}>
-            {sections.map((section, index) => (
-              <VStack
-                key={section.title ?? index}
-                gap={0}
-                role="group"
-                aria-label={section.title}
-              >
-                {section.title && (
-                  <Text
-                    type="supporting"
-                    color="secondary"
-                    className="editor-action-sheet-title"
-                  >
-                    {section.title}
-                  </Text>
-                )}
-                {section.items.map((item) => (
-                  <Button
-                    key={item.label}
-                    label={item.label}
-                    variant="ghost"
-                    className="editor-action-sheet-item"
-                    isDisabled={item.isDisabled}
-                    onClick={() => {
-                      setSheet(false);
-                      item.onClick();
-                    }}
-                  />
-                ))}
-              </VStack>
-            ))}
-          </VStack>
+          <AdminPortalScope>
+            <VStack gap={4} padding={3}>
+              {sections.map((section, index) => (
+                <VStack
+                  key={section.title ?? index}
+                  gap={0}
+                  role="group"
+                  aria-label={section.title}
+                >
+                  {section.title && (
+                    <Text
+                      type="supporting"
+                      color="secondary"
+                      className="editor-action-sheet-title"
+                    >
+                      {section.title}
+                    </Text>
+                  )}
+                  {section.items.map((item) => (
+                    <Button
+                      key={item.label}
+                      label={item.label}
+                      variant="ghost"
+                      className="editor-action-sheet-item"
+                      isDisabled={item.isDisabled}
+                      onClick={() => {
+                        setSheet(false);
+                        item.onClick();
+                      }}
+                    />
+                  ))}
+                </VStack>
+              ))}
+            </VStack>
+          </AdminPortalScope>
         </BottomSheet>
       )}
-    </RecordHeader>
+    </HStack>
   );
 }

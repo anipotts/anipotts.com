@@ -1,11 +1,17 @@
+import { AuthReentry } from "./AuthReentry";
+import { editorialReturnPath } from "../../lib/editorial-return-path";
+import {
+  protectedAdminJson,
+  watchProtectedSession,
+} from "../../lib/protected-admin-json";
 import { dispatchEditorialRecordCreated } from "../../lib/editorial-inventory-events";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
-import { TextInput } from "@astryxdesign/core/TextInput";
-import { Button } from "@astryxdesign/core/Button";
-import { IconButton } from "@astryxdesign/core/IconButton";
-import { Banner } from "@astryxdesign/core/Banner";
+import { TextInput } from "./WritingControls";
+import { Button } from "./WritingControls";
+import { IconButton } from "./WritingControls";
+import { Banner } from "./WritingControls";
 import { Link } from "@astryxdesign/core/Link";
 import { Text } from "@astryxdesign/core/Text";
 import { PencilSimpleIcon } from "@phosphor-icons/react";
@@ -82,9 +88,9 @@ export function NewWriting(props: NewWritingProps) {
 }
 /**
  * Create is the editor itself: a large title and, under it, the address it
- * derives with a pencil to change it. Return or leaving the title creates
- * the private draft and opens it; every keystroke before that is kept in
- * browser recovery.
+ * derives with a pencil to change it. Create draft or Return explicitly
+ * creates the private draft and opens it; every keystroke before that is
+ * kept in browser recovery.
  */
 function NewWritingForm({
   recoveryScope,
@@ -101,8 +107,6 @@ function NewWritingForm({
   const [error, setError] = useState("");
   const [taken, setTaken] = useState(false);
   const titleHost = useRef<HTMLDivElement>(null);
-  /** A press on the address pencil has started; the title's blur waits. */
-  const holding = useRef(false);
   /** The pencil opened the address field: it takes focus as it mounts, in
    * the same tap, so a phone keeps its keyboard. */
   const focusAddress = useRef(false);
@@ -141,6 +145,13 @@ function NewWritingForm({
       : newWritingRecoveryKey(recoveryScope)
     : null;
   const request = useRef<{ key: string; id: string } | null>(null);
+  const latestRecovery = useRef<NewWritingRecovery | null>(null);
+  latestRecovery.current = {
+    title,
+    slug,
+    customSlug,
+    request: request.current,
+  };
   const active = useRef(true);
   const createAbort = useRef<AbortController | null>(null);
   const [loggedOut, setLoggedOut] = useState(false);
@@ -150,18 +161,36 @@ function NewWritingForm({
       if (event instanceof StorageEvent && event.key !== recoveryLogoutKey)
         return;
       active.current = false;
-      recoveryChannel.current?.close();
+      const channel = recoveryChannel.current;
+      if (
+        event instanceof CustomEvent &&
+        event.detail !== "logout" &&
+        channel &&
+        latestRecovery.current
+      )
+        void channel
+          .write(latestRecovery.current)
+          .finally(() => channel.close());
+      else channel?.close();
+      recoveryChannel.current = null;
+      latestRecovery.current = null;
       createAbort.current?.abort();
       request.current = null;
       setLoggedOut(true);
+      setRecoveryRead({ status: "missing" });
       setTitle("");
       setSlug("");
       setError("");
     };
+    const stopWatching = watchProtectedSession((reason) =>
+      logout(new CustomEvent("session-lock", { detail: reason })),
+    );
     window.addEventListener("storage", logout);
     window.addEventListener(recoveryLogoutKey, logout);
     try {
-      if (!recoveryKey) setRecoveryFailed(true);
+      if (!active.current) {
+        /* A locked document must never restore recovery into memory. */
+      } else if (!recoveryKey) setRecoveryFailed(true);
       else {
         const channel = writingRecovery(localStorage, recoveryKey);
         recoveryChannel.current = channel;
@@ -185,6 +214,7 @@ function NewWritingForm({
     }
     setRestored(true);
     return () => {
+      stopWatching();
       active.current = false;
       recoveryChannel.current?.close();
       createAbort.current?.abort();
@@ -250,7 +280,7 @@ function NewWritingForm({
         );
       });
       if (!active.current || abort.signal.aborted) return;
-      const response = await fetch(
+      const response = await protectedAdminJson(
         `/api/editorial/create?kind=${recordKind}&id=${encodeURIComponent(slug)}`,
         {
           method: "POST",
@@ -312,6 +342,18 @@ function NewWritingForm({
       : taken
         ? error
         : undefined;
+  if (loggedOut)
+    return (
+      <VStack gap={3}>
+        <Banner
+          status="warning"
+          title="Session ended. Sign in again to resume."
+        />
+        <AuthReentry
+          href={editorialReturnPath(location.pathname + location.search)}
+        />
+      </VStack>
+    );
   return (
     <form
       ref={form}
@@ -327,7 +369,8 @@ function NewWritingForm({
             title={title.trim() || (project ? "New project" : "New article")}
           />
         )}
-        <div
+        <VStack
+          gap={0}
           ref={titleHost}
           className="document-title"
           onKeyDown={(event) => {
@@ -347,15 +390,6 @@ function NewWritingForm({
                 ? { type: "error", message: "Up to 300 characters" }
                 : undefined
             }
-            onBlur={(event) => {
-              // Moving to the address pencil or field is not leaving.
-              if (
-                holding.current ||
-                form.current?.contains(event.relatedTarget as Node | null)
-              )
-                return;
-              if (valid) void create();
-            }}
             onChange={(input) => {
               const value = input.replace(/[\r\n]+/gu, " ");
               setTitle(value);
@@ -363,7 +397,7 @@ function NewWritingForm({
               if (!customSlug) setSlug(writingId(value));
             }}
           />
-        </div>
+        </VStack>
         {editingSlug ? (
           <TextInput
             label={addressLabel}
@@ -395,17 +429,23 @@ function NewWritingForm({
               size="sm"
               icon={<PencilSimpleIcon weight="regular" aria-hidden="true" />}
               isDisabled={busy || loggedOut}
-              onPointerDown={() => {
-                holding.current = true;
-              }}
               onClick={() => {
-                holding.current = false;
                 focusAddress.current = true;
                 setEditingSlug(true);
               }}
             />
           </HStack>
         )}
+        <HStack gap={1} wrap="wrap">
+          <Button
+            label="Create draft"
+            variant="primary"
+            size="sm"
+            type="submit"
+            isLoading={busy}
+            isDisabled={!valid || busy}
+          />
+        </HStack>
         {taken && (
           <Link href={`/content/${collection}/${slug}`}>
             Open the existing {project ? "project" : "article"}

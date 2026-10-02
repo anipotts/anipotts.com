@@ -5,6 +5,7 @@ import React, {
   useState,
   type KeyboardEvent,
   type MouseEvent,
+  type ReactNode,
 } from "react";
 import { SideNavItem, SideNavSection } from "@astryxdesign/core/SideNav";
 import { Text } from "@astryxdesign/core/Text";
@@ -241,6 +242,7 @@ export function UnifiedNavigation({
   selected,
   contentHref,
   groupCounts,
+  afterOverview,
 }: {
   rail: boolean;
   /** The current page's workspace; null on the overview. */
@@ -249,6 +251,8 @@ export function UnifiedNavigation({
   selected?: string;
   contentHref?: (id: string) => string;
   groupCounts?: Readonly<Record<string, number>>;
+  /** Optional in-flow accessory; the navigation order remains the DOM order. */
+  afterOverview?: ReactNode;
 }) {
   const { collapsed, toggle } = useSidebarGroups(activeGroup);
   const root = useRef<HTMLDivElement>(null);
@@ -349,6 +353,7 @@ export function UnifiedNavigation({
         data-sidebar-focus="item"
         data-sidebar-id={overviewDestination.id}
       />
+      {afterOverview}
       {sidebarGroups.map((group) => {
         const items = group.items.map(({ id, label, href, icon: ItemIcon }) => {
           const count = group.id === "content" ? groupCounts?.[id] : undefined;

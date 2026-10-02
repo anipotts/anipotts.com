@@ -1,8 +1,8 @@
 import React from "react";
-import { Banner } from "@astryxdesign/core/Banner";
-import { Button } from "@astryxdesign/core/Button";
+import { Banner } from "./WritingControls";
+import { Button } from "./WritingControls";
 import { VStack } from "@astryxdesign/core/VStack";
-import { TextArea } from "@astryxdesign/core/TextArea";
+import { TextArea } from "./WritingControls";
 import type { RecoveryProblem } from "../../lib/browser-recovery";
 
 const descriptions: Record<RecoveryProblem, string> = {

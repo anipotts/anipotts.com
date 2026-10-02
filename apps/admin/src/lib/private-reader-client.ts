@@ -1,3 +1,4 @@
+import { AdminRequestError, protectedAdminJson } from "./protected-admin-json";
 import { useSyncExternalStore } from "react";
 
 /**
@@ -122,17 +123,21 @@ export function createPrivateReaderSession(
     try {
       const token = await options.csrf();
       if (attempt !== generation) return state;
-      const response = await options.fetch(endpoint, {
-        method: "POST",
-        credentials: "same-origin",
-        cache: "no-store",
-        signal: controller.signal,
-        headers: {
-          "Content-Type": "application/json",
-          "X-Editorial-CSRF": token,
+      const response = await protectedAdminJson(
+        endpoint,
+        {
+          method: "POST",
+          credentials: "same-origin",
+          cache: "no-store",
+          signal: controller.signal,
+          headers: {
+            "Content-Type": "application/json",
+            "X-Editorial-CSRF": token,
+          },
+          body: "{}",
         },
-        body: "{}",
-      });
+        options.fetch,
+      );
       if (attempt !== generation) return state;
       // Only the owner gate's refusal is a denial; any other failure is
       // admin not issuing, which says nothing about access.
@@ -154,8 +159,16 @@ export function createPrivateReaderSession(
       set({ status: "ready", credential });
       schedule(credential);
       return state;
-    } catch {
-      if (attempt === generation) clear("unavailable");
+    } catch (error) {
+      if (attempt === generation)
+        clear(
+          error instanceof AdminRequestError && error.kind === "expired"
+            ? "expired"
+            : error instanceof AdminRequestError &&
+                ["denied", "locked"].includes(error.kind)
+              ? "denied"
+              : "unavailable",
+        );
       return state;
     }
   }

@@ -1,0 +1,39 @@
+---
+import InlineText from "./InlineText.astro";
+interface Props {
+  text: string;
+  compact?: string;
+  links?: boolean;
+}
+const { text, compact, links = true } = Astro.props;
+const short = compact?.trim() ? compact : text;
+const distinct = short !== text;
+---
+
+<span
+  class:list={["responsive-copy", { "responsive-copy--distinct": distinct }]}
+>
+  <span class="responsive-copy__wide"
+    ><InlineText text={text} links={links} /></span
+  >
+  {
+    distinct && (
+      <span class="responsive-copy__compact">
+        <InlineText text={short} links={links} />
+      </span>
+    )
+  }
+</span>
+<style>
+  .responsive-copy__compact {
+    display: none;
+  }
+  @media (width < 768px) {
+    .responsive-copy--distinct > .responsive-copy__wide {
+      display: none;
+    }
+    .responsive-copy--distinct > .responsive-copy__compact {
+      display: inline;
+    }
+  }
+</style>

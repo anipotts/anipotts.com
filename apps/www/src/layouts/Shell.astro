@@ -41,10 +41,7 @@ const {
 const description = inlinePlainText(rawDescription);
 const canonical =
   canonicalUrl ?? `${siteConfig.url}${path === "/" ? "" : path}`;
-const fullTitle =
-  path === "/"
-    ? siteConfig.displayName
-    : `${title} / ${siteConfig.displayName}`;
+const fullTitle = path === "/" ? title : `${title} / ${siteConfig.displayName}`;
 // Every route unfurls with a card built from its own strings at build time.
 const cardUrl = `${siteConfig.url}${cardPath(socialCard)}`;
 
@@ -82,24 +79,24 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
       rel="icon"
       type="image/png"
       sizes="96x96"
-      href="/brand/ap-favicon-96.png"
+      href="/brand/ap-favicon-96.png?v=20260929"
     />
     <link
       rel="icon"
       type="image/png"
       sizes="32x32"
-      href="/brand/ap-favicon-32.png?v=20260908"
+      href="/brand/ap-favicon-32.png?v=20260929"
     />
     <link
       rel="icon"
-      href="/brand/ap-favicon.svg?v=20260908"
+      href="/brand/ap-favicon.svg?v=20260929"
       type="image/svg+xml"
       sizes="any"
     />
     <link
       rel="apple-touch-icon"
       sizes="180x180"
-      href="/brand/apple-touch-icon.png?v=20260908"
+      href="/brand/apple-touch-icon.png?v=20260929"
     />
     <link rel="alternate" type="application/rss+xml" href="/feed.xml" />
     <meta name="theme-color" content="#61abea" />
@@ -150,6 +147,10 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
         // Safari's surrounding canvas and older theme-color consumers must use
         // the site's selected theme, even when it differs from the OS theme.
         const syncBrowserTheme = () => {
+          if (window.__apCanvasSync) {
+            window.__apCanvasSync();
+            return;
+          }
           root.style.colorScheme =
             root.dataset.theme === "dark" ? "dark" : "light";
           const background = getComputedStyle(root).backgroundColor;
@@ -204,6 +205,8 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     <Footer />
     <script>
       import "../scripts/writing-transitions";
+      import { installPointerModality } from "../scripts/pointer-modality";
+      installPointerModality(document);
     </script>
   </body>
 </html>

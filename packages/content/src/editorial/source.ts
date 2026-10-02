@@ -119,9 +119,9 @@ export function setEditorialField(
 export function validateEditorialSource(
   record: EditorialRecord,
   source: string,
+  parsed = parseEditorialSource(source),
 ) {
   const identity = editorialRecordSchema.parse(record);
-  const parsed = parseEditorialSource(source);
   const schema =
     identity.kind === "page"
       ? pageSchemas[identity.id]

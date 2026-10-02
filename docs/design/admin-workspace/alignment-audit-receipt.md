@@ -1,3 +1,10 @@
+# Historical alignment audit
+
+This is historical evidence from the original PR457 tree. Content changes were
+superseded by the October 1 release. Current reconciliation retains only the
+Data and Observability hierarchy and alignment changes; previous check and
+screenshot claims do not establish acceptance of the reconciled tree.
+
 # Admin alignment audit receipt
 
 Date: September 28, 2026. PR: #457. Target: Astro admin only.

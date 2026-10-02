@@ -1,14 +1,17 @@
+import { AdminUIProvider } from "../workspace/AdminUI";
+import { AuthReentry } from "./AuthReentry";
+import {
+  protectedSessionIsLocked,
+  watchProtectedSession,
+} from "../../lib/protected-admin-json";
+import { editorialReturnPath } from "../../lib/editorial-return-path";
 import {
   libraryGroupForPath,
   libraryPaths,
   libraryReturnPath,
 } from "../../lib/content-library-state";
 import { registerClientRoutes } from "../../lib/client-routes";
-import {
-  InlineNotice,
-  RecordDetails,
-  WorkspacePage,
-} from "../workspace/Workspace";
+import { InlineNotice, WorkspacePage } from "../workspace/Workspace";
 import { IconButton } from "@astryxdesign/core/IconButton";
 import { ArrowClockwiseIcon } from "@phosphor-icons/react";
 import {
@@ -20,7 +23,7 @@ import {
 } from "../../lib/editorial-inventory-events";
 import { startEditorialInventoryRelay } from "../../lib/editorial-inventory-relay";
 import { NewWriting } from "./NewWriting";
-import React, { useEffect, useState, type ReactNode } from "react";
+import React, { useEffect, useRef, useState, type ReactNode } from "react";
 const HomeEditor = React.lazy(() =>
   import("./HomeEditor").then((module) => ({ default: module.HomeEditor })),
 );
@@ -204,6 +207,10 @@ export function EditorialApp({
   hideHeader = false,
   children,
 }: EditorialAppProps) {
+  const sessionLocked = useRef(protectedSessionIsLocked());
+  const [locked, setLocked] = useState(protectedSessionIsLocked);
+  const stopRoutes = useRef<(() => void) | null>(null);
+  const stopInventory = useRef<(() => void) | null>(null);
   // A library page holds every library's records, so moving between
   // libraries draws in place instead of loading a document.
   const [shown, setShown] = useState<ReturnType<typeof libraryShown>>(null);
@@ -213,8 +220,9 @@ export function EditorialApp({
     selectedGroup: pageGroup,
   };
   useEffect(() => {
-    if (!groups) return;
+    if (!groups || sessionLocked.current) return;
     const show = (url: URL) => {
+      if (sessionLocked.current) return;
       const next = libraryShown(url);
       if (!next) return;
       setShown(next);
@@ -227,11 +235,13 @@ export function EditorialApp({
       show,
     });
     const back = () => show(new URL(window.location.href));
-    window.addEventListener("popstate", back);
-    return () => {
+    const stop = () => {
       unregister();
       window.removeEventListener("popstate", back);
     };
+    stopRoutes.current = stop;
+    window.addEventListener("popstate", back);
+    return stop;
   }, [groups]);
   const [libraryBack, setLibraryBack] = useState<string | null>(null);
   useEffect(() => {
@@ -242,20 +252,25 @@ export function EditorialApp({
   }, []);
   const [mode, setMode] = useState<ThemePreference>(initialMode);
   const [inventoryView, setInventoryView] = useState(() =>
-    createInventoryView(groups, searchEntries),
+    createInventoryView(
+      sessionLocked.current ? undefined : groups,
+      sessionLocked.current ? [] : searchEntries,
+    ),
   );
   useEffect(() => {
-    setInventoryView(createInventoryView(groups, searchEntries));
+    if (!sessionLocked.current)
+      setInventoryView(createInventoryView(groups, searchEntries));
   }, [groups, searchEntries]);
   useEffect(() => {
+    if (sessionLocked.current) return;
     const saved = (event: Event) => {
-      if (event instanceof CustomEvent)
+      if (!sessionLocked.current && event instanceof CustomEvent)
         setInventoryView((current) =>
           applyEditorialRecordSaved(current, event.detail),
         );
     };
     const created = (event: Event) => {
-      if (event instanceof CustomEvent)
+      if (!sessionLocked.current && event instanceof CustomEvent)
         setInventoryView((current) =>
           applyEditorialRecordCreated(current, event.detail),
         );
@@ -263,11 +278,13 @@ export function EditorialApp({
     window.addEventListener(RECORD_SAVED_EVENT, saved);
     window.addEventListener(RECORD_CREATED_EVENT, created);
     const stopRelay = startEditorialInventoryRelay();
-    return () => {
+    const stop = () => {
       stopRelay();
       window.removeEventListener(RECORD_SAVED_EVENT, saved);
       window.removeEventListener(RECORD_CREATED_EVENT, created);
     };
+    stopInventory.current = stop;
+    return stop;
   }, []);
 
   // A new draft opens in place: the create surface becomes its editor.
@@ -275,6 +292,23 @@ export function EditorialApp({
     kind: "writing" | "work";
     id: string;
   } | null>(null);
+  useEffect(
+    () =>
+      watchProtectedSession(() => {
+        sessionLocked.current = true;
+        stopRoutes.current?.();
+        stopRoutes.current = null;
+        stopInventory.current?.();
+        stopInventory.current = null;
+        setInventoryView(createInventoryView(undefined, []));
+        setShown(null);
+        setCreated(null);
+        setLibraryBack(null);
+        setLocked(true);
+        document.title = "Content | Admin";
+      }),
+    [],
+  );
   const openRecord = editorRecord ?? created ?? undefined;
   const recordKind =
     openRecord?.kind ??
@@ -306,6 +340,17 @@ export function EditorialApp({
     setMode(next);
     saveTheme(next);
   }
+  if (locked)
+    return (
+      <Theme theme={theme} mode={mode}>
+        <VStack gap={3}>
+          <Heading level={1}>Session ended</Heading>
+          <AuthReentry
+            href={editorialReturnPath(location.pathname + location.search)}
+          />
+        </VStack>
+      </Theme>
+    );
   return (
     <Theme theme={theme} mode={mode}>
       <EditorialWorkspaceShell
@@ -323,197 +368,200 @@ export function EditorialApp({
         )}
         recordPage={recordPage || (Boolean(review) && !hideHeader)}
       >
-        <VStack
-          gap={editorRecord ? 4 : 6}
-          className={`editorial-content${groups ? " editorial-library-page" : ""}${recordPage ? " writing-content" : ""}`}
-        >
-          {!hideHeader && review && !editHome && !editorRecord && (
-            <EditorActionBar back={back} title={title} />
-          )}
-          {!hideHeader &&
-            !groups &&
-            !review &&
-            !editorRecord &&
-            !editHome &&
-            !newWriting &&
-            !newProject &&
-            children && <WorkspacePage title={title} />}
-          {inventoryError && (
-            <InlineNotice
-              tone="warning"
-              title="Private drafts couldn’t be loaded"
-              action={
-                <IconButton
-                  label="Reload"
-                  tooltip="Reload"
-                  size="sm"
-                  variant="ghost"
-                  icon={
-                    <ArrowClockwiseIcon weight="regular" aria-hidden="true" />
-                  }
-                  onClick={() => window.location.reload()}
-                />
-              }
-            />
-          )}
-          {(newWriting || newProject) && !created && (
-            <NewWriting
-              recoveryScope={recoveryScope}
-              recordKind={newProject ? "work" : "writing"}
-              back={back}
-              onCreated={(record) => {
-                window.history.replaceState(
-                  window.history.state,
-                  "",
-                  `/content/${record.kind === "work" ? "projects" : "writing"}/${record.id}`,
-                );
-                setCreated(record);
-              }}
-            />
-          )}
-          {groups && (
-            <ContentLibrary
-              title={title}
-              groups={inventoryView.groups ?? groups}
-              selectedGroup={selectedGroup}
-              initialSearch={librarySearch}
-              inventoryError={inventoryError}
-              area={area}
-            />
-          )}
-          {(editHome || openRecord) && (
-            <React.Suspense
-              fallback={
-                <VStack gap={3} className="editor-workspace">
-                  <EditorActionBar back={back} title={title} />
-                  <AdminSkeleton
-                    fields={editorialFields(
-                      openRecord ?? { kind: "page", id: "home" },
-                    )}
-                  />
-                </VStack>
-              }
-            >
-              <HomeEditor
-                pageTitle={
-                  openRecord?.kind === "writing" || openRecord?.kind === "work"
-                    ? undefined
-                    : title
-                }
-                back={back}
-                publicUrl={(path) =>
-                  themedUrl(new URL(path, comparisonSiteUrl).href, mode)
-                }
-                homepageWritingOptions={homepageWritingOptions}
-                localPreview={localPreview}
-                key={openRecord?.id ?? "home"}
-                record={openRecord ?? { kind: "page", id: "home" }}
-                autoFocus={Boolean(created)}
-              />
-            </React.Suspense>
-          )}
-          {review && !editHome && !editorRecord && (
-            <>
-              {review.publicUrl && (
-                <Button
-                  label="View published page"
-                  href={themedUrl(review.publicUrl, mode)}
-                />
-              )}
-              <MetadataList orientation="horizontal">
-                <MetadataListItem label="Status">
-                  <RecordStatus status={review.status} />
-                </MetadataListItem>
-                {review.updated && (
-                  <MetadataListItem label="Updated">
-                    <Updated updated={review.updated} />
-                  </MetadataListItem>
-                )}
-              </MetadataList>
-              {review.metadata?.filter(Boolean).map((value, i) => (
-                <Text key={i} color="secondary">
-                  {value}
-                </Text>
-              ))}
-              <Card padding={5} className="editorial-review-card">
-                <VStack gap={5} className="editorial-prose">
-                  {review.summary && <Text as="p">{review.summary}</Text>}
-                  {review.media &&
-                    (review.media.kind === "video" ? (
-                      <video
-                        controls
-                        preload="metadata"
-                        src={review.media.src}
-                        aria-label={review.media.alt}
-                      />
-                    ) : (
-                      <img src={review.media.src} alt={review.media.alt} />
-                    ))}
-                  {review.sections?.map((section, i) => (
-                    <VStack gap={3} key={i}>
-                      {section.heading && (
-                        <Heading level={2}>{section.heading}</Heading>
-                      )}
-                      {section.paragraphs.map((paragraph, j) => (
-                        <Text as="p" key={j}>
-                          {paragraph}
-                        </Text>
-                      ))}
-                      {section.items && (
-                        <ul>
-                          {section.items.map((item, j) => (
-                            <li key={j}>{item}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </VStack>
-                  ))}
-                  {review.contentFields != null && (
-                    <Fields value={review.contentFields} />
-                  )}
-                  {children}
-                </VStack>
-              </Card>
-              <CollapsibleGroup type="multiple" density="balanced">
-                {review.claims != null && (
-                  <Collapsible value="claims" trigger="Claims to review">
-                    <Fields value={review.claims} />
-                  </Collapsible>
-                )}
-                {review.sources != null && (
-                  <Collapsible value="sources" trigger="Sources">
-                    <Fields value={review.sources} />
-                  </Collapsible>
-                )}
-                {review.fields != null && (
-                  <RecordDetails>
-                    <Fields value={review.fields} />
-                  </RecordDetails>
-                )}
-              </CollapsibleGroup>
-            </>
-          )}
-          {!groups &&
-            !review &&
-            !newWriting &&
-            !newProject &&
-            !editorRecord &&
-            !editHome &&
-            (children || (
-              <EmptyState
-                title={title}
-                headingLevel={1}
-                actions={
-                  <Button
-                    label={
-                      area === "newsletter" ? "Back to drafts" : back.label
+        <AdminUIProvider enabled={library === "writing"} mode={mode}>
+          <VStack
+            gap={editorRecord ? 4 : 6}
+            className={`editorial-content${groups ? " editorial-library-page" : ""}${recordPage ? " writing-content" : ""}`}
+          >
+            {!hideHeader && review && !editHome && !editorRecord && (
+              <EditorActionBar back={back} title={title} />
+            )}
+            {!hideHeader &&
+              !groups &&
+              !review &&
+              !editorRecord &&
+              !editHome &&
+              !newWriting &&
+              !newProject &&
+              children && <WorkspacePage title={title} />}
+            {inventoryError && (
+              <InlineNotice
+                tone="warning"
+                title="Private drafts couldn’t be loaded"
+                action={
+                  <IconButton
+                    label="Reload"
+                    tooltip="Reload"
+                    size="sm"
+                    variant="ghost"
+                    icon={
+                      <ArrowClockwiseIcon weight="regular" aria-hidden="true" />
                     }
-                    href={libraryPaths[library]}
+                    onClick={() => window.location.reload()}
                   />
                 }
               />
-            ))}
-        </VStack>
+            )}
+            {(newWriting || newProject) && !created && (
+              <NewWriting
+                recoveryScope={recoveryScope}
+                recordKind={newProject ? "work" : "writing"}
+                back={back}
+                onCreated={(record) => {
+                  window.history.replaceState(
+                    window.history.state,
+                    "",
+                    `/content/${record.kind === "work" ? "projects" : "writing"}/${record.id}`,
+                  );
+                  setCreated(record);
+                }}
+              />
+            )}
+            {groups && (
+              <ContentLibrary
+                title={title}
+                groups={inventoryView.groups ?? groups}
+                selectedGroup={selectedGroup}
+                initialSearch={librarySearch}
+                inventoryError={inventoryError}
+                area={area}
+              />
+            )}
+            {(editHome || openRecord) && (
+              <React.Suspense
+                fallback={
+                  <VStack gap={3} className="editor-workspace">
+                    <EditorActionBar back={back} title={title} />
+                    <AdminSkeleton
+                      fields={editorialFields(
+                        openRecord ?? { kind: "page", id: "home" },
+                      )}
+                    />
+                  </VStack>
+                }
+              >
+                <HomeEditor
+                  pageTitle={
+                    openRecord?.kind === "writing" ||
+                    openRecord?.kind === "work"
+                      ? undefined
+                      : title
+                  }
+                  back={back}
+                  publicUrl={(path) =>
+                    themedUrl(new URL(path, comparisonSiteUrl).href, mode)
+                  }
+                  homepageWritingOptions={homepageWritingOptions}
+                  localPreview={localPreview}
+                  key={openRecord?.id ?? "home"}
+                  record={openRecord ?? { kind: "page", id: "home" }}
+                  autoFocus={Boolean(created)}
+                />
+              </React.Suspense>
+            )}
+            {review && !editHome && !editorRecord && (
+              <>
+                {review.publicUrl && (
+                  <Button
+                    label="View published page"
+                    href={themedUrl(review.publicUrl, mode)}
+                  />
+                )}
+                <MetadataList orientation="horizontal">
+                  <MetadataListItem label="Status">
+                    <RecordStatus status={review.status} />
+                  </MetadataListItem>
+                  {review.updated && (
+                    <MetadataListItem label="Updated">
+                      <Updated updated={review.updated} />
+                    </MetadataListItem>
+                  )}
+                </MetadataList>
+                {review.metadata?.filter(Boolean).map((value, i) => (
+                  <Text key={i} color="secondary">
+                    {value}
+                  </Text>
+                ))}
+                <Card padding={5} className="editorial-review-card">
+                  <VStack gap={5} className="editorial-prose">
+                    {review.summary && <Text as="p">{review.summary}</Text>}
+                    {review.media &&
+                      (review.media.kind === "video" ? (
+                        <video
+                          controls
+                          preload="metadata"
+                          src={review.media.src}
+                          aria-label={review.media.alt}
+                        />
+                      ) : (
+                        <img src={review.media.src} alt={review.media.alt} />
+                      ))}
+                    {review.sections?.map((section, i) => (
+                      <VStack gap={3} key={i}>
+                        {section.heading && (
+                          <Heading level={2}>{section.heading}</Heading>
+                        )}
+                        {section.paragraphs.map((paragraph, j) => (
+                          <Text as="p" key={j}>
+                            {paragraph}
+                          </Text>
+                        ))}
+                        {section.items && (
+                          <ul>
+                            {section.items.map((item, j) => (
+                              <li key={j}>{item}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </VStack>
+                    ))}
+                    {review.contentFields != null && (
+                      <Fields value={review.contentFields} />
+                    )}
+                    {children}
+                  </VStack>
+                </Card>
+                <CollapsibleGroup type="multiple" density="balanced">
+                  {review.claims != null && (
+                    <Collapsible value="claims" trigger="Claims to review">
+                      <Fields value={review.claims} />
+                    </Collapsible>
+                  )}
+                  {review.sources != null && (
+                    <Collapsible value="sources" trigger="Sources">
+                      <Fields value={review.sources} />
+                    </Collapsible>
+                  )}
+                  {review.fields != null && (
+                    <Collapsible value="details" trigger="Details">
+                      <Fields value={review.fields} />
+                    </Collapsible>
+                  )}
+                </CollapsibleGroup>
+              </>
+            )}
+            {!groups &&
+              !review &&
+              !newWriting &&
+              !newProject &&
+              !editorRecord &&
+              !editHome &&
+              (children || (
+                <EmptyState
+                  title={title}
+                  headingLevel={1}
+                  actions={
+                    <Button
+                      label={
+                        area === "newsletter" ? "Back to drafts" : back.label
+                      }
+                      href={libraryPaths[library]}
+                    />
+                  }
+                />
+              ))}
+          </VStack>
+        </AdminUIProvider>
       </EditorialWorkspaceShell>
     </Theme>
   );

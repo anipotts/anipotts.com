@@ -279,10 +279,29 @@ for (const job of ["deploy-www", "deploy-admin"]) {
   );
 }
 
-// A deploy job runs only after the release job succeeded. always() would let
-// admin deploy after a held migration, schema drift or a failed postcondition.
+// Every deploy requires a successful release. Admin also waits for the public
+// reader, allowing a skipped reader only when www was not selected.
 for (const [name, job] of Object.entries(deployJobs)) {
   if (!name.startsWith("deploy-")) continue;
+  if (name === "deploy-admin") {
+    assert.deepEqual(job.needs, ["release", "deploy-www"]);
+    assert.match(
+      job.if,
+      /^always\(\) &&\s*needs\.release\.result == 'success' &&/,
+    );
+    assert.match(job.if, /needs\.deploy-www\.result == 'success' \|\|/);
+    assert.match(job.if, /needs\.deploy-www\.result == 'skipped' &&/);
+    assert.match(
+      job.if,
+      /github\.event_name == 'push' && needs\.release\.outputs\.www != 'true'/,
+    );
+    assert.match(
+      job.if,
+      /github\.event_name == 'workflow_dispatch' && inputs\.www != 'true'/,
+    );
+    assert.doesNotMatch(job.if, /\b(?:failure|cancelled)\(\)/);
+    continue;
+  }
   assert.deepEqual(job.needs, ["release"], `${name} depends only on release`);
   assert.equal(
     /\b(?:always|failure|cancelled)\(\)/.test(job.if),
@@ -292,7 +311,7 @@ for (const [name, job] of Object.entries(deployJobs)) {
 }
 assert.match(
   deployJobs["deploy-admin"].if,
-  /^needs\.release\.result == 'success' &&/,
+  /^always\(\) &&\s*needs\.release\.result == 'success' &&/,
   "deploy-admin must require a successful release job",
 );
 

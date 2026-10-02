@@ -1,4 +1,5 @@
 import { parseEditorialSource } from "@anipotts/content/editorial/source";
+import { editableHomeSummary } from "./rich-text";
 import type { EditorialField } from "./editorial-fields";
 
 const labels: Record<string, string> = {
@@ -26,7 +27,53 @@ export function structuredReviewChanges(
   const previous = parseEditorialSource(before);
   const next = parseEditorialSource(after);
   const covered = new Set(fields.map((field) => JSON.stringify(field.path)));
-  const changes: { label: string; before: string; after: string }[] = [];
+  const changes: {
+    label: string;
+    before: string;
+    after: string;
+    presentation?: boolean;
+  }[] = [];
+  const previousData = (previous.data ?? {}) as Record<string, unknown>;
+  const nextData = (next.data ?? {}) as Record<string, unknown>;
+  const hasSections = previousData.sections || nextData.sections;
+  if (hasSections) {
+    const view = (data: Record<string, unknown>) => {
+      const sections = Object.fromEntries(
+        Object.entries(
+          (data.sections ?? {}) as Record<string, Record<string, unknown>>,
+        ).map(([id, section]) => {
+          const value = Object.fromEntries(
+            Object.entries(section).filter(
+              ([key]) => !key.endsWith("_format") && key !== "mention_keys",
+            ),
+          );
+          if (typeof section.subheading === "string")
+            value.subheading = editableHomeSummary(
+              section.subheading,
+              (section.mention_keys ?? []) as string[],
+              (data.mentions ?? {}) as Parameters<
+                typeof editableHomeSummary
+              >[2],
+              section.subheading_format === "markdown",
+            );
+          return [id, value];
+        }),
+      );
+      return JSON.stringify({
+        sections,
+        order: data.section_order ?? Object.keys(sections),
+      });
+    };
+    const oldView = view(previousData);
+    const newView = view(nextData);
+    if (oldView !== newView)
+      changes.push({
+        label: "Page sections",
+        before: oldView,
+        after: newView,
+        presentation: true,
+      });
+  }
   const display = (value: unknown): string =>
     value === undefined
       ? ""
@@ -37,6 +84,9 @@ export function structuredReviewChanges(
     value !== null && typeof value === "object" && !Array.isArray(value);
   function visit(old: unknown, current: unknown, path: string[]) {
     if (covered.has(JSON.stringify(path))) return;
+    if (hasSections && ["sections", "section_order"].includes(path[0] ?? ""))
+      return;
+    if (path.at(-1)?.endsWith("_format")) return;
     if (
       (object(old) || old === undefined) &&
       (object(current) || current === undefined) &&

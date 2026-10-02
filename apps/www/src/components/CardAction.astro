@@ -1,0 +1,84 @@
+---
+import { Icon } from "astro-icon/components";
+interface Props {
+  label: string;
+  logoSrc?: string;
+  icon?: string;
+  adaptive?: boolean;
+  largeMark?: boolean;
+  showMark?: boolean;
+}
+const {
+  label,
+  logoSrc,
+  icon,
+  adaptive = false,
+  largeMark = false,
+  showMark = true,
+} = Astro.props;
+---
+
+<span
+  class:list={[
+    "card-action",
+    "site-action",
+    {
+      "site-action--large-mark": largeMark,
+      "site-action--text-only": !showMark,
+    },
+  ]}
+>
+  {
+    showMark &&
+      (logoSrc ? (
+        <img
+          class:list={[
+            "site-action__mark",
+            { "site-action__mark--adaptive": adaptive },
+          ]}
+          src={logoSrc}
+          alt=""
+          width="16"
+          height="16"
+          loading="lazy"
+          decoding="async"
+        />
+      ) : (
+        <Icon
+          name={`ph:${icon ?? "globe"}`}
+          class="site-action__mark"
+          aria-hidden="true"
+        />
+      ))
+  }
+  <span>
+    {
+      label === "view project" ? (
+        <>
+          view<span class="action-project-word"> project</span>
+        </>
+      ) : (
+        label
+      )
+    }
+  </span>
+  <Icon name="ph:arrow-bend-right-up" aria-hidden="true" />
+</span>
+
+<style>
+  @media (max-width: 767px) {
+    .action-project-word {
+      display: none;
+    }
+  }
+  .site-action--text-only {
+    grid-template-columns: minmax(0, 1fr) var(--control-icon-size);
+  }
+  .site-action--large-mark {
+    grid-template-columns: 1.35rem minmax(0, 1fr) var(--control-icon-size);
+  }
+  .site-action--large-mark > :global(.site-action__mark) {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+</style>

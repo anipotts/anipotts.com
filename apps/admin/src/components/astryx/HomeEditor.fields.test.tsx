@@ -1,9 +1,12 @@
+import { jsonResponse } from "../../lib/test-json-response";
 // @vitest-environment jsdom
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { EditorialRecord } from "@anipotts/content/editorial/source";
+import { AdminUIProvider } from "../workspace/AdminUI";
 import { HomeEditor } from "./HomeEditor";
+import { parseEditorialSource } from "@anipotts/content/editorial/source";
 import { newWritingSource } from "../../lib/writing-draft";
 
 vi.mock("@astryxdesign/core/Toast", () => ({ useToast: () => () => {} }));
@@ -100,13 +103,17 @@ it.each([
       "fetch",
       vi.fn(async (url: string) =>
         url.includes("/csrf")
-          ? new Response(JSON.stringify({ csrf: "test-only" }))
-          : new Response(JSON.stringify(snapshot(source))),
+          ? jsonResponse(JSON.stringify({ csrf: "test-only" }))
+          : jsonResponse(JSON.stringify(snapshot(source))),
       ),
     );
     window.history.replaceState(null, "", `/content/${record.kind}/test`);
     await act(async () => {
-      root.render(<HomeEditor record={record} />);
+      root.render(
+        <AdminUIProvider enabled={record.kind === "writing"} mode="light">
+          <HomeEditor record={record} />
+        </AdminUIProvider>,
+      );
     });
     await act(async () => {
       await vi.waitFor(
@@ -154,17 +161,17 @@ it("saves homepage selection changes through the existing editor without replaci
     "fetch",
     vi.fn(async (url: string, options?: RequestInit) => {
       if (url.includes("/csrf"))
-        return new Response(JSON.stringify({ csrf: "test" }));
+        return jsonResponse(JSON.stringify({ csrf: "test" }));
       if (url.includes("/save?")) {
         saved = JSON.parse(String(options?.body)).source;
-        return new Response(
+        return jsonResponse(
           JSON.stringify({
             ok: true,
             draft: { ...snapshot(saved).draft, revision: 2 },
           }),
         );
       }
-      return new Response(JSON.stringify(snapshot(homeSource)));
+      return jsonResponse(JSON.stringify(snapshot(homeSource)));
     }),
   );
   window.history.replaceState(null, "", "/content/home/home");
@@ -208,7 +215,7 @@ it("retains malformed homepage selections instead of exposing destructive replac
   );
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => new Response(JSON.stringify(snapshot(source)))),
+    vi.fn(async () => jsonResponse(JSON.stringify(snapshot(source)))),
   );
   await act(async () =>
     root.render(<HomeEditor record={{ kind: "page", id: "home" }} />),
@@ -232,15 +239,12 @@ it("opens project properties directly from an invalid draft warning", async () =
   };
   vi.stubGlobal(
     "fetch",
-    vi.fn(
-      async (url: string) =>
-        new Response(
-          JSON.stringify(
-            url.includes("/csrf")
-              ? { csrf: "test-only" }
-              : snapshot(workSource),
-          ),
+    vi.fn(async (url: string) =>
+      jsonResponse(
+        JSON.stringify(
+          url.includes("/csrf") ? { csrf: "test-only" } : snapshot(workSource),
         ),
+      ),
     ),
   );
   window.history.replaceState(null, "", "/content/projects/test");
@@ -257,4 +261,62 @@ it("opens project properties directly from an invalid draft warning", async () =
   });
   expect(document.body.textContent).toContain("Category");
   expect(document.body.textContent).toContain("Role");
+});
+
+it("removes a project section beside its heading while preserving other sections and unknown content", async () => {
+  const source = workSource.replace(
+    "card_copy: A synthetic card",
+    `card_copy: A synthetic card
+story:
+  - title: Remove this test section
+    paragraphs: [A test paragraph]
+  - title: Keep this section
+    paragraphs: [Keep this paragraph]
+technical:
+  - title: Technical evidence
+    content: Keep the technical context
+custom: retained`,
+  );
+  let saved = "";
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, options?: RequestInit) => {
+      if (url.includes("/csrf"))
+        return jsonResponse(JSON.stringify({ csrf: "test" }));
+      if (url.includes("/save?")) {
+        saved = JSON.parse(String(options?.body)).source;
+        return jsonResponse(
+          JSON.stringify({
+            ok: true,
+            draft: { ...snapshot(saved).draft, revision: 2 },
+          }),
+        );
+      }
+      return jsonResponse(JSON.stringify(snapshot(source)));
+    }),
+  );
+  window.history.replaceState(null, "", "/content/projects/test");
+  await act(async () =>
+    root.render(<HomeEditor record={{ kind: "work", id: "test" }} />),
+  );
+  const remove = host.querySelector<HTMLButtonElement>(
+    'button[aria-label="Remove story section 1"]',
+  )!;
+  expect(remove).not.toBeNull();
+  expect(
+    host.querySelector('button[aria-label="Remove technical section 1"]'),
+  ).not.toBeNull();
+  await act(async () => remove.click());
+  await act(async () => {
+    await vi.waitFor(() => expect(saved).not.toBe(""), { timeout: 3000 });
+  });
+  const data = parseEditorialSource(saved).data as Record<string, any>;
+  expect(data.story).toEqual([
+    { title: "Keep this section", paragraphs: ["Keep this paragraph"] },
+  ]);
+  expect(data.technical).toEqual([
+    { title: "Technical evidence", content: "Keep the technical context" },
+  ]);
+  expect(data.custom).toBe("retained");
+  expect(data.title).toBe("Synthetic project");
 });

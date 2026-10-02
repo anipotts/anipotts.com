@@ -1,4 +1,7 @@
+import { RecordPanel } from "./RecordPanel";
+import { Button } from "./WritingControls";
 import React, { useEffect, useId, useState } from "react";
+import { PublicationIssues } from "./PublicationIssues";
 import { HStack } from "@astryxdesign/core/HStack";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Text } from "@astryxdesign/core/Text";
@@ -7,47 +10,6 @@ import { HomeAutosave, type SaveState } from "../../lib/home-autosave";
 import type { Draft, SaveResult } from "../../editorial/draft-store";
 import { ReviewChanges, ReviewHeading } from "./ReviewChanges";
 import { saveStatusFromController } from "./SaveStatus";
-import { ProjectSections } from "./ProjectSections";
-import { PublicationProgress } from "./PublicationProgress";
-import { ObservabilityWorkspace } from "./ObservabilityWorkspace";
-import opsSample from "../../fixtures/ops_v1.sample.json";
-import { newProjectSource } from "../../lib/project-draft";
-import { setEditorialField } from "@anipotts/content/editorial/source";
-import type { DirectPublicationStatus } from "../../lib/editorial-publication-status";
-
-// Two incidents, including a start observed only as a bound. Kept within the
-// development catalog so narrow layouts can be checked without a live reader.
-const alignmentEvents = {
-  version: "ops_events_v1",
-  items: [
-    {
-      seq: 1,
-      at: "2025-09-20T09:00:00Z",
-      from_state: null,
-      to_state: "failing",
-    },
-    {
-      seq: 2,
-      at: "2025-09-20T10:00:00Z",
-      from_state: "failing",
-      to_state: "ok",
-    },
-    {
-      seq: 3,
-      at: "2026-09-21T12:00:00Z",
-      from_state: "ok",
-      to_state: "failing",
-    },
-  ].map((event) => ({
-    ...event,
-    kind: "transition",
-    subject: "pc.inference",
-    status: null,
-    ms: null,
-    detail: "Synthetic incident",
-  })),
-  next_after: null,
-};
 
 const scenarios = [
   { value: "private", label: "Saved privately" },
@@ -69,58 +31,6 @@ const longCard = `${afterCard}\n研究ノート · café · ملاحظات\n${"U
 function source(subtitle: string, card: string) {
   return `---\nsubtitle: ${JSON.stringify(subtitle)}\ncard_copy: ${JSON.stringify(card)}\n---\n`;
 }
-
-const alignmentContext = Array.from(
-  { length: 12 },
-  (_, index) => `Unchanged line ${index + 1}.`,
-).join("\n");
-const alignmentBefore = `${alignmentContext}\n**Previous field notes.**`;
-const alignmentAfter = `${alignmentContext}\n*Revised field notes.*`;
-let alignmentProject = newProjectSource("alignment-example");
-for (const [key, value] of Object.entries({
-  story: [
-    {
-      title: "First story section",
-      paragraphs: ["First paragraph.", "Second paragraph."],
-    },
-    {
-      title:
-        "A longer story section name to check wrapping on a narrow viewport",
-      paragraphs: ["One paragraph."],
-    },
-  ],
-  technical: [
-    { title: "First technical section", paragraphs: ["Technical notes."] },
-    { title: "Second technical section", paragraphs: ["Further notes."] },
-  ],
-  roadmap: [
-    { text: "First roadmap item", status: "planned" },
-    { text: "A roadmap item with a validation error", status: "unknown" },
-    { text: "Final roadmap item", status: "done" },
-  ],
-}))
-  alignmentProject = setEditorialField(alignmentProject, [key], value);
-const alignmentPublication: DirectPublicationStatus = {
-  id: "synthetic-alignment",
-  phase: "verify",
-  blocked: "verification_incomplete",
-  version: 1,
-  attempts: 1,
-  dueAt: 0,
-  lease: null,
-  leaseUntil: 0,
-  checkpoint: {},
-  mode: "direct",
-  revision: 2,
-  sourceSha256: "a".repeat(64),
-  baselineSha256: "b".repeat(64),
-  publicationId: "synthetic-receipt",
-  inventoryVersion: 3,
-  verifiedAt: null,
-  superseded: false,
-  canCancel: false,
-  queue: { position: null, pending: 0, head: null, alarmAt: null },
-};
 
 const before = source(beforeSubtitle, beforeCard);
 const after = source(afterSubtitle, afterCard);
@@ -178,9 +88,14 @@ export function reviewCatalogScenario(
   };
 }
 
-export function DevReviewCatalog() {
+export function DevReviewCatalog({
+  publication = false,
+}: {
+  publication?: boolean;
+}) {
   const [scenario, setScenario] = useState<Scenario>("private");
   const [copy, setCopy] = useState("standard");
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [state, setState] = useState<SaveState>({
     source: after,
     revision: 1,
@@ -189,11 +104,7 @@ export function DevReviewCatalog() {
   });
   const headingId = useId();
   const noteId = useId();
-  const alignment = copy === "alignment";
   const card = copy === "long" ? longCard : afterCard;
-  const candidate =
-    source(afterSubtitle, card) + (alignment ? alignmentAfter : "");
-  const baseline = before + (alignment ? alignmentBefore : "");
   useEffect(() => {
     let active = true;
     const fixture = reviewCatalogScenario(
@@ -201,13 +112,75 @@ export function DevReviewCatalog() {
       (next) => {
         if (active) setState(next);
       },
-      candidate,
+      source(afterSubtitle, card),
     );
     return () => {
       active = false;
       fixture.dispose();
     };
-  }, [scenario, candidate]);
+  }, [scenario, card]);
+  const reviewContent = (
+    <ReviewChanges
+      labelledBy={headingId}
+      destination="example.test/work/field-notes"
+      before={before}
+      after={state.source}
+      changes={
+        scenario === "unchanged"
+          ? []
+          : [
+              {
+                label: "Subtitle",
+                before:
+                  copy === "icons"
+                    ? "[![YC](/images/brand/ycombinator-favicon.ico) before](https://example.test/)"
+                    : beforeSubtitle,
+                after:
+                  copy === "icons"
+                    ? '[![logo](/images/brand/structured-ai-mark.svg "white mark") after](https://example.test/)'
+                    : afterSubtitle,
+                rich: true,
+              },
+              ...(copy === "icons"
+                ? [
+                    {
+                      label: "Page sections",
+                      presentation: true,
+                      before: JSON.stringify({
+                        sections: {
+                          intro: {
+                            label: "Intro",
+                            heading: "Hello",
+                            subheading: "A short introduction.",
+                          },
+                          writing: {
+                            label: "Writing",
+                            writing_slugs: ["first-article", "second-article"],
+                          },
+                        },
+                        order: ["intro", "writing"],
+                      }),
+                      after: JSON.stringify({
+                        sections: {
+                          intro: {
+                            label: "Intro",
+                            heading: "Hello",
+                            subheading: "A short introduction.",
+                          },
+                          writing: {
+                            label: "Writing",
+                            writing_slugs: ["second-article", "first-article"],
+                          },
+                        },
+                        order: ["writing", "intro"],
+                      }),
+                    },
+                  ]
+                : [{ label: "Card copy", before: beforeCard, after: card }]),
+            ]
+      }
+    />
+  );
   return (
     <VStack gap={5}>
       <VStack gap={3} as="section" aria-label="Review catalog controls">
@@ -230,7 +203,7 @@ export function DevReviewCatalog() {
             options={[
               { value: "standard", label: "Standard fields" },
               { value: "long", label: "Long text and Unicode" },
-              { value: "alignment", label: "Alignment and wrapped states" },
+              { value: "icons", label: "Icons and section order" },
             ]}
             value={copy}
             onChange={setCopy}
@@ -249,62 +222,49 @@ export function DevReviewCatalog() {
             describedBy: noteId,
           }}
         />
-        <ReviewChanges
-          labelledBy={headingId}
-          destination="example.test/work/field-notes"
-          before={scenario === "unchanged" ? state.source : baseline}
-          after={state.source}
-          changes={
-            scenario === "unchanged"
-              ? []
-              : [
-                  {
-                    label: "Subtitle",
-                    before: beforeSubtitle,
-                    after: afterSubtitle,
-                    rich: true,
-                  },
-                  { label: "Card copy", before: beforeCard, after: card },
-                  ...(alignment
-                    ? [
-                        {
-                          label: "Rich field with unchanged context",
-                          before: alignmentBefore,
-                          after: alignmentAfter,
-                          rich: true,
-                          onEdit: () => {},
-                        },
-                      ]
-                    : []),
-                ]
-          }
+        {publication && (
+          <VStack
+            gap={2}
+            role="region"
+            aria-label="Synthetic publication refusal"
+          >
+            <PublicationIssues
+              recordTitle={(issue) =>
+                issue.record?.kind === "writing"
+                  ? "Synthetic field notes"
+                  : "Home"
+              }
+              issues={[
+                {
+                  record: { kind: "writing", id: "synthetic-field-notes" },
+                  field: "project",
+                  code: "unknown_project_reference",
+                },
+                {
+                  record: { kind: "page", id: "home" },
+                  field: "sections.latest_thoughts.writing_slugs.0",
+                  code: "featured_writing_unavailable",
+                },
+              ]}
+            />
+          </VStack>
+        )}
+        <Button
+          label="Open review dialog"
+          onClick={() => setReviewOpen(true)}
         />
+        {reviewOpen ? (
+          <RecordPanel
+            title="Review changes"
+            form="review"
+            onClose={() => setReviewOpen(false)}
+          >
+            {reviewContent}
+          </RecordPanel>
+        ) : (
+          reviewContent
+        )}
       </VStack>
-      {alignment && (
-        <VStack gap={5} as="section" aria-label="Alignment component examples">
-          <ProjectSections
-            source={alignmentProject}
-            errors={
-              new Map([
-                [
-                  "roadmap.1.status",
-                  "Choose a supported status before continuing with this roadmap item.",
-                ],
-              ])
-            }
-            onEdit={() => {}}
-          />
-          <PublicationProgress publication={alignmentPublication} compact />
-          <ObservabilityWorkspace
-            enabled={false}
-            fixture={opsSample}
-            eventsFixture={alignmentEvents}
-            now={Date.parse("2026-09-21T18:00:00Z")}
-            view="alerts"
-            alert="pc.inference"
-          />
-        </VStack>
-      )}
     </VStack>
   );
 }

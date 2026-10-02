@@ -20,8 +20,14 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-function Probe({ enabled }: { enabled: boolean }) {
-  const { state } = useOpsStatus({ enabled });
+function Probe({
+  enabled,
+  events = false,
+}: {
+  enabled: boolean;
+  events?: boolean;
+}) {
+  const { state } = useOpsStatus({ enabled, events });
   return (
     <output>
       {state.connection}:{state.snapshot ? "snapshot" : "none"}
@@ -83,4 +89,67 @@ describe("the ops session binding", () => {
     expect(host.textContent).toBe("connected:snapshot");
     await act(async () => root.unmount());
   });
+});
+
+it("shares one controller until the final consumer releases its session", async () => {
+  vi.useFakeTimers();
+  const issued = vi.fn();
+  const eventReads = vi.fn();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/editorial/csrf")
+        return Response.json({ csrf: "fixture" });
+      if (url === OPS_CREDENTIAL_ENDPOINT) {
+        issued();
+        return Response.json({
+          credential: "synthetic",
+          scope: ["ops:read"],
+          expiresAt: Math.floor(Date.now() / 1000) + 1800,
+        });
+      }
+      if (url.includes("events")) {
+        eventReads();
+        return Response.json({
+          version: "ops_events_v1",
+          items: [],
+          next_after: null,
+        });
+      }
+      return Response.json(sample);
+    }),
+  );
+  const a = createRoot(document.createElement("div"));
+  const b = createRoot(document.createElement("div"));
+  try {
+    await act(async () => {
+      a.render(<Probe enabled />);
+      b.render(<Probe enabled />);
+    });
+    await settle();
+    expect(issued).toHaveBeenCalledTimes(1);
+    expect(eventReads).not.toHaveBeenCalled();
+    await act(async () => b.render(<Probe enabled events />));
+    await settle();
+    expect(eventReads).toHaveBeenCalled();
+    expect(issued).toHaveBeenCalledTimes(1);
+    await act(async () => b.unmount());
+    const eventCount = eventReads.mock.calls.length;
+    await act(() => vi.advanceTimersByTimeAsync(OPS_POLL_MS));
+    await settle();
+    expect(eventReads).toHaveBeenCalledTimes(eventCount);
+    expect(issued).toHaveBeenCalledTimes(1);
+    await act(async () => a.unmount());
+    const reads = vi.mocked(fetch).mock.calls.length;
+    await act(async () => window.dispatchEvent(new Event("pointerdown")));
+    await act(() => vi.advanceTimersByTimeAsync(PRIVATE_SESSION_IDLE_MS));
+    await settle();
+    expect(vi.mocked(fetch).mock.calls.length).toBe(reads);
+  } finally {
+    await act(async () => {
+      a.unmount();
+      b.unmount();
+    });
+  }
 });

@@ -3,9 +3,8 @@ import React, { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { EditorActionBar } from "../astryx/EditorActionBar";
 import { RecordHeader } from "./RecordHeader";
-import { RecordDetails, WorkspacePage } from "./Workspace";
+import { RecordDetails } from "./Workspace";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -16,57 +15,6 @@ function markup(node: React.ReactElement) {
 }
 
 describe("shared action and record hierarchy", () => {
-  it("keeps one labelled primary step beside the page title and utilities", () => {
-    const host = markup(
-      <WorkspacePage
-        title="Writing"
-        primaryAction={{ label: "New article", href: "/content/new" }}
-        actions={<button>Lock session</button>}
-      />,
-    );
-    const primary = host.querySelectorAll('[data-variant="primary"]');
-    expect(primary).toHaveLength(1);
-    expect(primary[0]?.textContent).toContain("New article");
-    expect(primary[0]?.getAttribute("href")).toBe("/content/new");
-    expect(
-      primary[0]?.closest(".workspace-page-line")?.querySelector("h1")
-        ?.textContent,
-    ).toBe("Writing");
-  });
-
-  it("gives a read-only page no implied mutation action", () => {
-    const host = markup(<WorkspacePage title="Records" />);
-    expect(host.querySelector('[data-variant="primary"]')).toBeNull();
-  });
-
-  it("preserves editor navigation, save state, preview and the reviewed next step", () => {
-    const host = markup(
-      <EditorActionBar
-        title="Field notes"
-        back={{ href: "/content/writing?q=notes", label: "Back to Writing" }}
-        save="saved-privately"
-        preview={{ isPressed: false, onChange: () => {} }}
-        publish={{ label: "Review changes", onClick: () => {} }}
-      />,
-    );
-    expect(host.querySelector(".workspace-record-header h1")?.textContent).toBe(
-      "Field notes",
-    );
-    expect(
-      host
-        .querySelector('[aria-label="Back to Writing"]')
-        ?.getAttribute("href"),
-    ).toBe("/content/writing?q=notes");
-    expect(host.querySelector('[aria-label="Preview"]')).not.toBeNull();
-    expect(
-      host.querySelector('[data-variant="primary"]')?.textContent,
-    ).toContain("Review changes");
-    expect(
-      host.querySelector('[aria-label="Draft save status"]')?.textContent,
-    ).toContain("Saved privately");
-    expect(host.textContent).not.toContain("Verified");
-  });
-
   it("uses a page or panel heading without losing the full record name", () => {
     const host = markup(
       <RecordHeader

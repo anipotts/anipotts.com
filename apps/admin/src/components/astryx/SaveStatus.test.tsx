@@ -38,18 +38,29 @@ describe("draft save status", () => {
     ["conflict", "Resolve conflict"],
     ["session-expired", "Session expired"],
     ["discarded", "Draft discarded"],
-  ])("announces %s in words and names the dot on hover", (state, label) => {
+  ])("announces %s in visible words alongside the dot", (state, label) => {
     const status = render(state);
     expect(status.textContent).toBe(label);
     expect(status.getAttribute("aria-live")).toBe("polite");
     expect(status.getAttribute("aria-atomic")).toBe("true");
-    // The dot is a picture of the words, which are spoken and on hover.
-    expect(status.getAttribute("title")).toBe(label);
-    expect(status.querySelector(".sr-only")?.textContent).toBe(label);
+    // Persistence evidence stays readable without hovering.
+    expect(status.querySelector(".sr-only")).toBeNull();
     const dot = status.querySelector('[role="img"]');
     if (state === "unchanged") expect(dot).toBeNull();
     else expect(dot?.getAttribute("aria-hidden")).toBe("true");
     expect(container.querySelector("button, a")).toBeNull();
+  });
+
+  it("shows readable evidence by default and permits an explicitly compact caller", () => {
+    act(() => root.render(<SaveStatus state="saved-privately" showLabel />));
+    expect(container.querySelector(".sr-only")).toBeNull();
+    expect(container.textContent).toBe("Saved privately");
+    act(() =>
+      root.render(<SaveStatus state="saved-privately" showLabel={false} />),
+    );
+    expect(container.querySelector(".sr-only")?.textContent).toBe(
+      "Saved privately",
+    );
   });
 
   it("replaces an acknowledged save immediately when current contents change or saving fails", () => {

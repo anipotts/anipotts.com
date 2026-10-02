@@ -1,18 +1,19 @@
+import { jsonResponse } from "../../lib/test-json-response";
 // @vitest-environment jsdom
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { newProjectSource } from "../../lib/project-draft";
 import { newWritingSource } from "../../lib/writing-draft";
-import * as navigation from "../../lib/editorial-navigation";
-import { HomeEditor } from "./HomeEditor";
-import { useWorkspaceMemory } from "./EditorialWorkspaceShell";
+let navigation: typeof import("../../lib/editorial-navigation");
+let HomeEditor: (typeof import("./HomeEditor"))["HomeEditor"];
+let useWorkspaceMemory: (typeof import("./EditorialWorkspaceShell"))["useWorkspaceMemory"];
+let EditorialApp: (typeof import("./EditorialApp"))["EditorialApp"];
 
 function WorkspaceMemory() {
   useWorkspaceMemory("content");
   return null;
 }
-import { EditorialApp } from "./EditorialApp";
 import { recoveryKey, draftRecovery } from "../../lib/draft-recovery";
 import {
   versionedRecoveryKey,
@@ -66,8 +67,18 @@ vi.mock("./ArticleBody", () => ({
 }));
 vi.mock("./RichTextField", () => ({ RichTextField: () => <p>Subtitle</p> }));
 vi.mock("./SavedArticlePreview", () => ({
-  SavedArticlePreview: ({ revision }: any) => (
-    <p data-preview-revision={revision}>Article preview</p>
+  SavedArticlePreview: ({ src }: any) => (
+    <>
+      <iframe
+        title="Saved article preview"
+        src={src}
+        data-preview-revision={new URL(
+          src,
+          window.location.origin,
+        ).searchParams.get("revision")}
+      />
+      <p>Article preview</p>
+    </>
   ),
 }));
 vi.mock("./RecordPanel", () => ({
@@ -93,6 +104,28 @@ vi.mock("./ReviewChanges", async (importOriginal) => ({
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 let root: Root;
 let host: HTMLDivElement;
+let stopDocumentListeners: (() => void) | undefined;
+let discardDocumentListeners: (() => void) | undefined;
+let viewCreated = false;
+
+// Compile the real graph outside bounded per-document setup. Each fixture then
+// imports new module instances so logout authority never leaks between documents.
+await Promise.all([
+  import("./HomeEditor"),
+  import("./EditorialApp"),
+  import("../../lib/editorial-navigation"),
+  import("./EditorialWorkspaceShell"),
+]);
+async function loadDocumentModules() {
+  vi.resetModules();
+  [{ HomeEditor }, { EditorialApp }, navigation, { useWorkspaceMemory }] =
+    await Promise.all([
+      import("./HomeEditor"),
+      import("./EditorialApp"),
+      import("../../lib/editorial-navigation"),
+      import("./EditorialWorkspaceShell"),
+    ]);
+}
 // Already public, so the review's visibility preparation leaves it unchanged.
 const source =
   newWritingSource("Original title")
@@ -120,7 +153,7 @@ const snapshot = {
   publishing: "ready",
 };
 function response(data: unknown) {
-  return new Response(JSON.stringify(data));
+  return jsonResponse(JSON.stringify(data));
 }
 async function mount(search = "", localPreview = true, withIdentity = false) {
   window.history.replaceState(null, "", `/content/writing/test${search}`);
@@ -154,8 +187,9 @@ async function click(label: string) {
     button!.click();
   });
 }
-/** Opens the editor bar's overflow and chooses one of its items. */
+/** Frequent panels are direct actions; only secondary actions use overflow. */
 async function menuItem(label: string) {
+  if (label === "Properties" || label === "History") return click(label);
   await act(async () => {
     (
       host.querySelector(
@@ -169,7 +203,30 @@ async function menuItem(label: string) {
   expect(item, label).toBeTruthy();
   await act(async () => item!.click());
 }
-beforeEach(() => {
+beforeEach(async () => {
+  viewCreated = false;
+  localStorage.clear();
+  const listeners: [
+    string,
+    EventListenerOrEventListenerObject,
+    boolean | AddEventListenerOptions | undefined,
+  ][] = [];
+  const add = window.addEventListener.bind(window);
+  const remove = window.removeEventListener.bind(window);
+  const registration = vi
+    .spyOn(window, "addEventListener")
+    .mockImplementation((type, listener, options) => {
+      if (listener) listeners.push([type, listener, options]);
+      add(type, listener, options);
+    });
+  discardDocumentListeners = () => {
+    for (const [type, listener, options] of listeners.splice(0))
+      remove(type, listener, options);
+  };
+  stopDocumentListeners = () => {
+    discardDocumentListeners?.();
+    registration.mockRestore();
+  };
   vi.stubGlobal("React", React);
   vi.stubGlobal(
     "matchMedia",
@@ -199,16 +256,22 @@ beforeEach(() => {
       return response(snapshot);
     }),
   );
+  await loadDocumentModules();
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
+  viewCreated = true;
 });
-afterEach(() => {
-  act(() => root.unmount());
-  host.remove();
-  localStorage.clear();
-  vi.unstubAllGlobals();
-  vi.restoreAllMocks();
+afterEach(async () => {
+  try {
+    if (viewCreated) await act(async () => root.unmount());
+  } finally {
+    if (viewCreated) host.remove();
+    stopDocumentListeners?.();
+    localStorage.clear();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  }
 });
 it("deep-linked preview loads the saved revision and keeps the same document through popstate", async () => {
   await mount("?view=preview&theme=dark");
@@ -227,6 +290,58 @@ it("deep-linked preview loads the saved revision and keeps the same document thr
   expect(window.location.search).toContain("theme=dark");
   expect(window.location.search).toContain("view=preview");
 });
+it.each(["", "?view=preview"])(
+  "previews an untouched baseline without creating a private revision from %s",
+  async (search) => {
+    const baselineHash = "b".repeat(40);
+    const fetcher = vi.fn(async (url: string, options?: RequestInit) => {
+      if (options?.method === "POST")
+        throw new Error("A read-only preview must never write");
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      return response({
+        ...snapshot,
+        base: { ...snapshot.base, source, baseFileHash: baselineHash },
+        draft: null,
+        history: [],
+      });
+    });
+    vi.stubGlobal("fetch", fetcher);
+    await mount(search, false);
+    const preview = host.querySelector<HTMLButtonElement>(
+      'button[aria-label="Preview"]',
+    )!;
+    expect(preview.disabled).toBe(false);
+    if (!search) await click("Preview");
+    await act(async () => {
+      await vi.waitFor(() =>
+        expect(
+          host.querySelector('iframe[title="Saved article preview"]'),
+        ).not.toBeNull(),
+      );
+    });
+    const frame = host.querySelector<HTMLIFrameElement>(
+      'iframe[title="Saved article preview"]',
+    )!;
+    const url = new URL(frame.src);
+    expect(url.pathname).toBe("/preview/record");
+    expect(url.searchParams.get("kind")).toBe("writing");
+    expect(url.searchParams.get("id")).toBe("test");
+    expect(url.searchParams.get("revision")).toBe("0");
+    expect(url.searchParams.get("baseline")).toBe(baselineHash);
+    expect(
+      fetcher.mock.calls.filter(([, options]) => options?.method === "POST"),
+    ).toEqual([]);
+    expect(
+      fetcher.mock.calls.some(
+        ([url]) => url.includes("/save?") || url.includes("/publish"),
+      ),
+    ).toBe(false);
+    expect(
+      host.querySelector('[data-save-state="unchanged"]')?.textContent,
+    ).toBe("No changes");
+  },
+);
+
 it("deep-linked history opens one panel alongside the mounted document", async () => {
   await mount("?panel=history");
   expect(host.querySelector('aside[aria-label="History"]')).not.toBeNull();
@@ -722,6 +837,10 @@ it("does not replay recovery from before an old-tab logout when no event was rec
     recoveryLogoutGenerationKey,
     "logged-out-in-old-browser-tab",
   );
+  // This mount represents a fresh owner document after the other tab signed out.
+  // The stored envelope still carries the previous generation and must be refused.
+  discardDocumentListeners?.();
+  await loadDocumentModules();
   const raw = localStorage.getItem(versionedRecoveryKey(key));
   const fetcher = vi.fn(async () =>
     response({ ...snapshot, recoveryScope: "recovery-owner" }),
@@ -886,3 +1005,112 @@ it("loads older revisions with the server cursor and retains history through a f
     ).value,
   ).toBe(originalBody);
 });
+
+it("opens a valid record and history whose encoded responses exceed 2MiB", async () => {
+  // Each revision stays below the store's raw 512KiB source cap, and the
+  // serialized page stays below its separate 4MiB history budget.
+  const largeSource = source + "x".repeat(480 * 1024);
+  const history = Array.from({ length: 5 }, (_, index) => ({
+    ...draft,
+    source: largeSource,
+    revision: 5 - index,
+  }));
+  const page = { history, nextBeforeRevision: null };
+  const record = {
+    ...snapshot,
+    base: { ...snapshot.base, source: largeSource },
+    draft: { ...draft, source: largeSource, revision: 5 },
+    ...page,
+  };
+  expect(
+    new TextEncoder().encode(JSON.stringify(page)).byteLength,
+  ).toBeGreaterThan(2 * 1024 * 1024);
+  expect(
+    new TextEncoder().encode(JSON.stringify(page)).byteLength,
+  ).toBeLessThan(4 * 1024 * 1024);
+  expect(
+    new TextEncoder().encode(JSON.stringify(record)).byteLength,
+  ).toBeGreaterThan(2 * 1024 * 1024);
+  const fetcher = vi.fn(async (url: string) =>
+    response(url.includes("/history?") ? page : record),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  await mount("?panel=history");
+  expect(host.textContent).not.toContain("Couldn’t load history");
+  expect(host.textContent).not.toContain("Couldn’t load this record");
+  expect(host.textContent).toContain("r5");
+  expect(host.textContent).toContain("r1");
+  expect(
+    (
+      host.querySelector(
+        'textarea[aria-label="Test article body"]',
+      ) as HTMLTextAreaElement
+    ).value,
+  ).toContain("x".repeat(1024));
+  expect(fetcher.mock.calls.some(([url]) => url.includes("/record?"))).toBe(
+    true,
+  );
+  expect(fetcher.mock.calls.some(([url]) => url.includes("/history?"))).toBe(
+    true,
+  );
+});
+
+it.each(["record", "history"] as const)(
+  "rejects an over-cap %s response without mounting or replaying its plaintext",
+  async (action) => {
+    const {
+      MAX_EDITORIAL_RECORD_RESPONSE_BYTES,
+      MAX_EDITORIAL_HISTORY_RESPONSE_BYTES,
+    } = await import("../../lib/editorial-response-bounds");
+    const cap =
+      action === "record"
+        ? MAX_EDITORIAL_RECORD_RESPONSE_BYTES
+        : MAX_EDITORIAL_HISTORY_RESPONSE_BYTES;
+    const fetcher = vi.fn(async (url: string) =>
+      response(
+        url.includes(`/api/editorial/${action}?`)
+          ? { ...snapshot, padding: "x".repeat(cap) }
+          : snapshot,
+      ),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    if (action === "record") {
+      await act(async () =>
+        root.render(
+          <HomeEditor record={{ kind: "writing", id: "test" }} localPreview />,
+        ),
+      );
+      await act(async () => {
+        await vi.waitFor(() =>
+          expect(host.textContent).toContain("Couldn’t load this draft."),
+        );
+      });
+      expect(
+        host.querySelector('textarea[aria-label="Test article body"]'),
+      ).toBeNull();
+    } else {
+      await mount("?panel=history");
+      await act(async () => {
+        await vi.waitFor(() =>
+          expect(host.textContent).toContain("Couldn’t load history"),
+        );
+      });
+      expect(
+        (
+          host.querySelector(
+            'textarea[aria-label="Test article body"]',
+          ) as HTMLTextAreaElement
+        ).value,
+      ).toBe("\nOriginal body.");
+      expect(host.textContent).toContain("r1");
+    }
+    expect(
+      fetcher.mock.calls.filter(([url]) =>
+        url.includes(`/api/editorial/${action}?`),
+      ),
+    ).toHaveLength(1);
+    expect(fetcher.mock.calls.some(([url]) => url.includes("/save?"))).toBe(
+      false,
+    );
+  },
+);
