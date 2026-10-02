@@ -28,7 +28,6 @@ import {
 import { deviceName } from "../../lib/naming";
 import { sentenceCase } from "../../lib/sentence-case";
 import { SplitPanel } from "../astryx/SplitView";
-import { RecordHeader } from "../workspace/RecordHeader";
 import {
   DefinitionList,
   RecordDetails,
@@ -42,6 +41,7 @@ import {
   TechnicalSection,
   WordSafeText,
 } from "../workspace/Workspace";
+import { RecordHeader } from "../workspace/Workspace";
 import { secondsText } from "../workspace/format";
 import {
   AlertFor,

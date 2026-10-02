@@ -52,7 +52,7 @@ import {
   WorkspacePage,
   type Column,
 } from "../workspace/Workspace";
-import { RecordHeader } from "../workspace/RecordHeader";
+import { RecordHeader } from "../workspace/Workspace";
 import { ADMIN_TIME_ZONE } from "../workspace/format";
 import { kindGlyph } from "./data-model";
 import {

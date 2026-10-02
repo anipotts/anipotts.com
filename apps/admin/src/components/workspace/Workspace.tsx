@@ -2560,3 +2560,5 @@ export function CompactTimeline({
     </ol>
   );
 }
+
+export { RecordHeader } from "./RecordHeader";

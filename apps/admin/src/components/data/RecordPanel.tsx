@@ -24,7 +24,6 @@ import { deviceName, hostDevice } from "../../lib/naming";
 import { useNamedSource } from "./source-catalog";
 import { BrandTile } from "../BrandTile";
 import { SplitPanel, useSplitView } from "../astryx/SplitView";
-import { RecordHeader } from "../workspace/RecordHeader";
 import { ADMIN_TIME_ZONE, clockText, durationText } from "../workspace/format";
 import {
   CompactTimeline,
@@ -40,6 +39,7 @@ import {
   TierMark,
   ValueChips,
 } from "../workspace/Workspace";
+import { RecordHeader } from "../workspace/Workspace";
 import {
   effectiveDate,
   recordMark,

@@ -42,7 +42,7 @@
   flex: none;
 }
 .ops-success-fact > .ops-warning {
-  flex: 1 1 9rem;
+  flex: 1 1 calc(9 * var(--spacing-4));
 }
 /* A phone row's device, after its time: a 20px place of its own, kept
    empty for a host, so tiles line up down the rows. */
