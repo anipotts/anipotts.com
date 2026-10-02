@@ -58,6 +58,7 @@ const READING_CONTEXT = new Set([
   "day_state",
   "temporal_status",
   "temporal_warnings",
+  "source_modified_at",
   "current_as_of",
   "current_as_of_status",
   "omitted_fields",

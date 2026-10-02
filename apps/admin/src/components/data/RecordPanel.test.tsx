@@ -64,6 +64,17 @@ describe("the record panel", () => {
   });
 
   it("keeps reading caveats outside the optional details disclosure", () => {
+    const person = byKind("person");
+    const contact = panel({
+      ...person,
+      raw: {
+        ...person.raw,
+        source_modified_at: "2026-09-20T09:00:00.000Z",
+      },
+    });
+    const contactDetails = contact.querySelector('[aria-label="Details"]')!;
+    expect(contactDetails.textContent).toContain("Modified");
+    expect(contactDetails.closest(".astryx-collapsible")).toBeNull();
     const browsing = panel(byKind("browsing_day"));
     const summary = browsing.querySelector('[aria-label="Details"]')!;
     expect(summary.textContent).toContain("Complete");
