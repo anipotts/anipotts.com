@@ -2250,6 +2250,45 @@ export function DefinitionList({
   );
 }
 
+/** Essential facts remain visible. Optional populated attributes share one
+ * disclosure across Content, Data and Observability. Empty optional fields
+ * do not create a control; missing essential observations stay explicit. */
+export function RecordDetails({
+  summary,
+  details = [],
+  label = "Details",
+  children,
+}: {
+  summary?: ReadonlyArray<readonly [label: string, value: ReactNode]>;
+  details?: ReadonlyArray<readonly [label: string, value: ReactNode]>;
+  label?: string;
+  children?: ReactNode;
+}) {
+  const populated = details.filter(
+    ([, value]) => value !== null && value !== undefined && value !== "",
+  );
+  return (
+    <VStack gap={3} className="workspace-record-details">
+      {summary && <DefinitionList label={label} items={summary} />}
+      {(populated.length > 0 || children) && (
+        <Collapsible
+          value="record-details"
+          trigger="All details"
+          defaultIsOpen={false}
+        >
+          <VStack gap={3} paddingBlockStart={3}>
+            <DefinitionList
+              label={`All ${label.toLowerCase()}`}
+              items={populated}
+            />
+            {children}
+          </VStack>
+        </Collapsible>
+      )}
+    </VStack>
+  );
+}
+
 /** "Record ID" as a verb's object: "Copy record ID". */
 const lowerFirst = (text: string) =>
   text.charAt(0).toLowerCase() + text.slice(1);
@@ -2521,3 +2560,5 @@ export function CompactTimeline({
     </ol>
   );
 }
+
+export { RecordHeader } from "./RecordHeader";

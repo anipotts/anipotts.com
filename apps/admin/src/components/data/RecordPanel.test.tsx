@@ -63,6 +63,62 @@ describe("the record panel", () => {
     }
   });
 
+  it("keeps reading caveats outside the optional details disclosure", () => {
+    const person = byKind("person");
+    const contact = panel({
+      ...person,
+      raw: {
+        ...person.raw,
+        source_modified_at: "2026-09-20T09:00:00.000Z",
+      },
+    });
+    const contactDetails = contact.querySelector('[aria-label="Details"]')!;
+    expect(contactDetails.textContent).toContain("Modified");
+    expect(contactDetails.closest(".astryx-collapsible")).toBeNull();
+    const browsing = panel(byKind("browsing_day"));
+    const summary = browsing.querySelector('[aria-label="Details"]')!;
+    expect(summary.textContent).toContain("Complete");
+    expect(summary.closest(".astryx-collapsible")).toBeNull();
+    const health = panel(byKind("health_day"));
+    expect(
+      health.querySelector('[aria-label="Details"]')?.textContent,
+    ).toContain("No vitals collected");
+    for (const record of records.filter(
+      (record) => record.kind === "assertion",
+    )) {
+      const assertion = panel(record).querySelector('[aria-label="Details"]')!;
+      expect(assertion.textContent).toMatch(
+        /Authority(?:Direct statement|Agent inference)/,
+      );
+      expect(assertion.closest(".astryx-collapsible")).toBeNull();
+    }
+    const record = byKind("browsing_day");
+    const withWarnings = panel({
+      ...record,
+      raw: {
+        ...record.raw,
+        temporal_status: "stale",
+        temporal_warnings: ["Observation predates the current version"],
+        current_as_of: "2026-09-20T09:00:00.000Z",
+        current_as_of_status: "unverified",
+        omitted_fields: ["private_note"],
+      },
+    });
+    const visible = withWarnings.querySelector('[aria-label="Details"]')!;
+    for (const label of [
+      "Temporal status",
+      "Temporal warnings",
+      "Current as of",
+      "Verification",
+      "Omitted from view",
+    ])
+      expect(visible.textContent).toContain(label);
+    expect(visible.closest(".astryx-collapsible")).toBeNull();
+    expect(
+      withWarnings.querySelector('[aria-label="All details"]')?.textContent,
+    ).not.toContain("Temporal warnings");
+  });
+
   it("keeps technical fields collapsed and the history in view", () => {
     const host = panel(byKind("browsing_day"));
     const technical = host.querySelector(".workspace-technical")!;

@@ -9,6 +9,22 @@
    The list and detail split is a container query on the content area.
    Hover tints apply only under (hover: hover). */
 
+.workspace-record-header {
+  min-width: 0;
+  width: 100%;
+}
+.workspace-record-heading {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.workspace-record-heading > :is(h1, h2) {
+  min-width: 0;
+  margin-block: 0;
+}
+.workspace-record-header > .astryx-button {
+  flex: none;
+}
+
 /* Page. */
 .workspace-page {
   width: 100%;
