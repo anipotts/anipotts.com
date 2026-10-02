@@ -68,6 +68,6 @@
   "devDependencies": {
     "typescript": "^5",
     "vitest": "^4.1.11",
-    "@types/hast": "^3.0.4"
+    "@types/hast": "^3.0.5"
   }
 }
