@@ -61,6 +61,7 @@ const APPROVAL_PATHS = [
 ];
 
 const KNOWN_SAFE_ROOTS = [
+  /^\.codex\/environments\/environment\.toml$/,
   /^\.(?:gitignore|prettierignore)$/,
   /^patches\/@astryxdesign__core@0\.4\.6\.patch$/,
   /^\.coderabbit\.yaml$/,
