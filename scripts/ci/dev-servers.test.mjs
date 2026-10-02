@@ -129,7 +129,9 @@ assert.ok(actions.includes("pnpm_cmd dev:admin"));
 assert.ok(actions.includes("nvm use --silent"));
 assert.ok(!actions.includes("v22.22.3"));
 assert.deepEqual(
-  [...environment.matchAll(/^name = "([^"]+)"$/gm)].slice(1).map((match) => match[1]),
+  [...environment.matchAll(/^name = "([^"]+)"$/gm)]
+    .slice(1)
+    .map((match) => match[1]),
   ["start website", "start admin", "check changes", "install dependencies"],
   "Codex must expose exactly the four scoped checkout actions",
 );
