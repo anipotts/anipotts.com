@@ -1353,7 +1353,7 @@ const readerTransport: typeof fetch = async (input) => {
 
 /** Only the test drives these engines. The object's own alarm would run the
  * production dependencies, including the network, between steps. */
-const quiet = (store: Parameters<typeof runInDurableObject>[0]) =>
+const quiet = (store: DurableObjectStub<EditorialDraftStore>) =>
   runInDurableObject(store, async (_instance, state) => {
     await state.storage.deleteAlarm();
   });
