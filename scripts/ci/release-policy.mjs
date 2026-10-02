@@ -118,6 +118,9 @@ export function computeDeployTargets(paths) {
 
     if (
       astroBuildConfig ||
+      /^apps\/www\/src\/(?:components|layouts|styles|lib|scripts)\//.test(
+        path,
+      ) ||
       path === ADMIN_CORE_PATCH ||
       path.startsWith("apps/admin/") ||
       path.startsWith("content/public/") ||

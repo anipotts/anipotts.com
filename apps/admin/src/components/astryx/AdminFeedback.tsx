@@ -3,8 +3,8 @@ import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Skeleton } from "@astryxdesign/core/Skeleton";
 import { Text } from "@astryxdesign/core/Text";
-import { Banner } from "@astryxdesign/core/Banner";
-import { Button } from "@astryxdesign/core/Button";
+import { Banner } from "./WritingControls";
+import { Button } from "./WritingControls";
 
 type LoadingKind = "editor" | "history" | "records" | "record" | "preview";
 const loadingLabels: Record<LoadingKind, string> = {

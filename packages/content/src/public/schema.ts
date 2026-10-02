@@ -66,6 +66,15 @@ export const projectSchema = z.object({
     .transform((value) => (value === "making" ? ("work" as const) : value)),
   catalog_group: z.enum(["active", "past", "taken_down"]),
   homepage_order: z.number().default(0),
+  card_title: z.string().max(180).optional(),
+  card_copy_compact: z
+    .string()
+    .max(6000)
+    .refine(
+      (value) => inlinePlainText(value).length <= 180,
+      "Compact card copy must be 180 visible characters or fewer",
+    )
+    .optional(),
   card_copy: z
     .string()
     .min(1)

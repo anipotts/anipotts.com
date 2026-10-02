@@ -1,3 +1,4 @@
+import { ToggleButton } from "./WritingControls";
 import { EditorSelectionBookmark } from "../../lib/editor-selection-bookmark";
 import { SelectionOverlay } from "./SelectionOverlay";
 import {
@@ -16,18 +17,15 @@ import { Markdown } from "@tiptap/markdown";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Toolbar } from "@astryxdesign/core/Toolbar";
-import { DropdownMenu } from "@astryxdesign/core/DropdownMenu";
-import { Button } from "@astryxdesign/core/Button";
-import { TextInput } from "@astryxdesign/core/TextInput";
-import { TextArea } from "@astryxdesign/core/TextArea";
+import { DropdownMenu } from "./WritingControls";
+import { Button } from "./WritingControls";
+import { TextInput } from "./WritingControls";
+import { TextArea } from "./WritingControls";
 import { FormLayout } from "@astryxdesign/core/FormLayout";
 import { Text } from "@astryxdesign/core/Text";
 import { Field } from "@astryxdesign/core/Field";
-import { Banner } from "@astryxdesign/core/Banner";
-import {
-  ToggleButton,
-  ToggleButtonGroup,
-} from "@astryxdesign/core/ToggleButton";
+import { Banner } from "./WritingControls";
+import { ToggleButtonGroup } from "./WritingControls";
 import {
   TextBIcon,
   TextItalicIcon,
@@ -45,10 +43,9 @@ import {
   ArrowCounterClockwiseIcon,
   ArrowClockwiseIcon,
 } from "@phosphor-icons/react";
-import { useCaretAboveDock, useKeyboardInset } from "../../lib/keyboard-inset";
 import { safeInlineUrl } from "@anipotts/content/public/inline";
 import { ArticleImageUpload } from "./ArticleImageUpload";
-import { editorialImagePreview } from "../../lib/editorial-media";
+import { editorialImagePreviewUri } from "../../lib/editorial-media";
 
 const imageSelection = (selection: Selection): selection is NodeSelection =>
   selection instanceof NodeSelection && selection.node.type.name === "image";
@@ -136,11 +133,6 @@ function VisualArticleBody({
   const [imagePending, setImagePending] = useState(false);
   const [cropSrc, setCropSrc] = useState("");
   const [focused, setFocused] = useState(false);
-  useKeyboardInset(focused);
-  /** A Style or Insert menu is open: on a phone its toolbar stays docked
-   * while focus is in the menu, outside the composer. */
-  const [menuOpen, setMenuOpen] = useState(false);
-  const composer = useRef<HTMLDivElement>(null);
   const [commandsOpen, setCommandsOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [panelGeneration, setPanelGeneration] = useState(0);
@@ -342,7 +334,6 @@ function VisualArticleBody({
       run: () => editor?.chain().focus().toggleBlockquote().run(),
     },
   ];
-  useCaretAboveDock(editor, composer);
   function open(
     next: "link" | "image",
     mode: "insert" | "replace" | "crop" | "alt" = "insert",
@@ -405,9 +396,7 @@ function VisualArticleBody({
     <Field label="Article body" inputID={id}>
       <VStack
         gap={0}
-        ref={composer}
         className="article-composer"
-        data-toolbar-open={menuOpen || panel ? "true" : undefined}
         onFocusCapture={() => setFocused(true)}
         onBlurCapture={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget as Node | null))
@@ -430,7 +419,6 @@ function VisualArticleBody({
                   isDisabled: disabled || !editor,
                 }}
                 hasChevron={false}
-                onOpenChange={setMenuOpen}
                 items={[
                   {
                     label: "Paragraph",
@@ -498,7 +486,6 @@ function VisualArticleBody({
                   isDisabled: disabled || !editor,
                 }}
                 hasChevron={false}
-                onOpenChange={setMenuOpen}
                 items={[
                   {
                     label: "Image",
@@ -573,7 +560,7 @@ function VisualArticleBody({
               label="View full size"
               size="sm"
               variant="ghost"
-              href={editorialImagePreview(
+              href={editorialImagePreviewUri(
                 String(editor?.getAttributes("image").src ?? ""),
               )}
               target="_blank"
@@ -662,7 +649,7 @@ function VisualArticleBody({
                 safeInlineUrl(url, true) && (
                   <img
                     className="article-image-preview"
-                    src={editorialImagePreview(url)}
+                    src={editorialImagePreviewUri(url)}
                     alt={alt}
                   />
                 )}

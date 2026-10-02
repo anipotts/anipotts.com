@@ -215,11 +215,11 @@ const remainingLabel = remainingWords.join(" ");
   }
 
   @media (hover: hover) and (pointer: fine) {
-    a.inline-mention:hover {
+    :global(html:not([data-touch-input])) a.inline-mention:hover {
       color: var(--interactive);
     }
 
-    a.inline-mention:hover .text {
+    :global(html:not([data-touch-input])) a.inline-mention:hover .text {
       text-decoration-color: currentColor;
     }
   }

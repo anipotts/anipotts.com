@@ -6,7 +6,7 @@ import {
 } from "./source.js";
 import { projectSchema, writingSchema } from "../public/schema.js";
 import { homepageSchema } from "../public/pages.js";
-import { validateContentReferences } from "../public/references.js";
+import { contentReferenceIssues } from "../public/references.js";
 
 export type EditorialSourceRecord = { record: EditorialRecord; source: string };
 export type SnapshotIssue = {
@@ -15,8 +15,8 @@ export type SnapshotIssue = {
   code: string;
 };
 
-/** Validate a complete, pinned Git content inventory after applying selected
- * frozen revisions. The caller owns inventory completeness and Git integrity.
+/** Validate a complete content inventory after applying selected frozen revisions.
+ * The caller owns inventory completeness and integrity.
  * No draft source or arbitrary parser messages appear in returned diagnostics.
  */
 export function validateEditorialSnapshot(
@@ -75,17 +75,21 @@ export function validateEditorialSnapshot(
       });
   }
   if (!issues.length && home) {
-    try {
-      validateContentReferences(
-        projects,
-        writing,
-        home.sections.latest_thoughts.writing_slugs ?? [],
-      );
-    } catch {
+    for (const issue of contentReferenceIssues(
+      projects,
+      writing,
+      home.sections.latest_thoughts.writing_slugs ?? [],
+    )) {
       issues.push({
-        record: null,
-        field: "",
-        code: "invalid_content_reference",
+        record:
+          issue.collection === "home"
+            ? { kind: "page", id: "home" }
+            : {
+                kind: issue.collection === "project" ? "work" : "writing",
+                id: issue.id,
+              },
+        field: issue.field,
+        code: issue.code,
       });
     }
   }

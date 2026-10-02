@@ -80,6 +80,8 @@ const dist = join(root, "apps/admin/dist");
 let distFiles = 0;
 if (existsSync(dist)) {
   const leaks = [
+    /admin-openai-synthetic-article/,
+    /domain_pk_localhost_dev/,
     /ops_v1\.sample/,
     /ops_events_v1\.synthetic/,
     /data_v1\.synthetic/,

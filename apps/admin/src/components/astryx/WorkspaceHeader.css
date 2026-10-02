@@ -1,6 +1,6 @@
 /* The sidebar and its rail (EditorialWorkspaceShell, UnifiedSidebar). The
    sidebar exists from 641px (lib/admin-sidebar.ts); compact phones use the
-   top bar and page chips in styles/shell.css instead. "AP Structural" is
+   shared appbar and unified modal drawer in styles/shell.css instead. "AP Structural" is
    declared once, in styles/fonts.css.
 
    AppShell renders the inline sidebar on the server and removes it below its
@@ -171,6 +171,7 @@
     align-items: stretch;
   }
   .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    .astryx-app-shell-sidenav
     .editorial-workspace-nav
     .astryx-side-nav-item {
     width: var(--spacing-9);
@@ -194,6 +195,7 @@
 /* Symmetric rail targets. */
 @media (min-width: 641px) {
   .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    .astryx-app-shell-sidenav
     .editorial-workspace-nav
     .astryx-side-nav-item {
     height: var(--spacing-9);
@@ -204,6 +206,7 @@
      rail there are no labels: every control is a square with its icon in the
      middle. */
   .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    .astryx-app-shell-sidenav
     .editorial-workspace-nav
     .editorial-header-search {
     padding-inline: 0;
@@ -213,6 +216,7 @@
      do, so every square in the rail behaves alike. */
   @media (hover: hover) {
     .editorial-workspace-shell[data-sidebar-collapsed="true"]
+      .astryx-app-shell-sidenav
       .editorial-workspace-nav
       :is(.editorial-header-search, .admin-theme-cycle):hover {
       background-color: var(--color-background-muted);
@@ -221,6 +225,7 @@
   /* Astryx lays a button's content out in a row that fills the button, so
      centring the button alone leaves the icon at the start of that row. */
   .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    .astryx-app-shell-sidenav
     .editorial-workspace-nav
     .editorial-header-search
     > span:first-child {
@@ -247,6 +252,7 @@
 }
 @media (min-width: 641px) {
   .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    .astryx-app-shell-sidenav
     .editorial-workspace-nav
     .astryx-tooltip {
     position-area: right !important;
@@ -291,6 +297,7 @@
     width: var(--spacing-9);
   }
   .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    .astryx-app-shell-sidenav
     .editorial-workspace-nav
     > :has(> .editorial-workspace-utilities) {
     align-items: flex-start;
@@ -342,6 +349,7 @@
    Desktop pointer geometry keeps its own rules. */
 @media (min-width: 641px) and (pointer: coarse) {
   .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    .astryx-app-shell-sidenav
     .editorial-workspace-nav
     > :is(
       :has(> .approved-workspace-header),
@@ -352,6 +360,7 @@
     align-items: flex-start;
   }
   .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    .astryx-app-shell-sidenav
     .editorial-workspace-nav
     :is(.astryx-side-nav-item, .editorial-workspace-utilities) {
     box-sizing: border-box;
@@ -359,6 +368,7 @@
     min-width: var(--spacing-11);
   }
   .editorial-workspace-shell[data-sidebar-collapsed="true"]
+    .astryx-app-shell-sidenav
     .editorial-workspace-nav
     .astryx-side-nav-item {
     height: var(--spacing-11);

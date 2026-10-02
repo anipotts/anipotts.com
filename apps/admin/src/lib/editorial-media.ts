@@ -1,3 +1,5 @@
+import { safeInlineUrl } from "@anipotts/content/public/inline";
+
 export const editorialMediaId = /^[a-f0-9]{64}\.(?:jpg|png|webp)$/u;
 export const editorialMediaPrefix = "/images/editorial/";
 export const MAX_PUBLICATION_MEDIA_BYTES = 10 * 1024 * 1024;
@@ -17,10 +19,25 @@ export function referencedMediaIds(source: string): string[] {
 }
 
 export function editorialImagePreview(src: string): string {
+  if (!safeInlineUrl(src, true)) return "";
   const id = src.startsWith(editorialMediaPrefix)
     ? src.slice(editorialMediaPrefix.length)
     : "";
   return editorialMediaId.test(id) ? `/api/editorial/media?id=${id}` : src;
+}
+
+/** Attribute serialization for the editor's image preview, separate from
+ * source-path mapping used by public/private preview origin selection. */
+export function editorialImagePreviewUri(src: string): string {
+  const preview = editorialImagePreview(src);
+  try {
+    // URI-encode the DOM-bound value, preserving existing percent escapes
+    // and query separators. This affects previews, never the stored source.
+    return encodeURI(preview).replace(/%25([\da-f]{2})/giu, "%$1");
+  } catch {
+    // Malformed Unicode cannot be represented as an asset URI.
+    return "";
+  }
 }
 
 /** Normalize images copied from the private editor without leaking its API URL. */

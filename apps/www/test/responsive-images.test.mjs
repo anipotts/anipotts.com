@@ -106,9 +106,7 @@ test("detail stages request variants while enlarge keeps the full-size file", ()
 test("card marks carry dimensions and hero mention marks load eagerly", () => {
   for (const file of ["index.html", "work.html"]) {
     const marks = images(page(file)).filter((img) =>
-      /\b(work-card__mark|experience-feature__mark)\b/.test(
-        img.attributes.class ?? "",
-      ),
+      /\b(site-action__mark)\b/.test(img.attributes.class ?? ""),
     );
     assert.ok(marks.length > 0, file);
     for (const img of marks) {

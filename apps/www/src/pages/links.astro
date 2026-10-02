@@ -63,19 +63,22 @@ const links = [
   nav {
     max-width: 38rem;
     display: grid;
-    gap: var(--s-2);
+    gap: var(--control-group-gap);
   }
   nav a {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: var(--s-2);
+    gap: var(--control-group-gap);
     min-height: 44px;
-    padding: var(--s-3);
+    padding: var(--card-ui-padding);
     color: var(--ink);
     border: 1px solid var(--border);
-    border-radius: 0.8rem;
+    border-radius: var(--card-ui-radius);
     text-decoration: none;
+    font-size: var(--control-size);
+    font-weight: var(--control-weight);
+    line-height: var(--control-leading);
   }
   nav a:focus-visible {
     border-color: var(--interactive);
@@ -90,11 +93,11 @@ const links = [
     color: var(--interactive);
   }
   @media (hover: hover) and (pointer: fine) {
-    nav a:hover {
+    :global(html:not([data-touch-input])) nav a:hover {
       border-color: var(--interactive);
       color: var(--interactive);
     }
-    nav a:hover .links-affordance {
+    :global(html:not([data-touch-input])) nav a:hover .links-affordance {
       color: var(--interactive);
     }
   }

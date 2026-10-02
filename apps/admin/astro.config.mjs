@@ -1,10 +1,15 @@
 // @ts-check
+import { fileURLToPath } from "node:url";
+import { adminPreviewIdentity } from "../../scripts/dev/admin-preview-identity.mjs";
 import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
+import tailwindcss from "@tailwindcss/vite";
+import { openaiScope } from "./src/styles/openai-scope.mjs";
 import { unified } from "@astrojs/markdown-remark";
 import { publishedHeadingIds } from "../www/src/lib/published-heading-ids.mjs";
 import icon from "astro-icon";
+import { previewIcons } from "./src/lib/preview-icons.mjs";
 import astroAdvisoryGuard from "../../config/astro/advisory-guard.mjs";
 import { publicContentHotReload } from "../../scripts/dev/public-content-hot-reload.mjs";
 import { editorialPublicAssets } from "../../scripts/dev/editorial-public-assets.mjs";
@@ -43,7 +48,7 @@ export default defineConfig({
   integrations: [
     astroAdvisoryGuard(),
     react(),
-    icon({ include: { ph: ["*"] } }),
+    icon({ include: previewIcons }),
     // Retired URLs answer 308 through the middleware, like any other route.
     retiredRoutes(),
     // The component catalog exists only under astro dev. A build never
@@ -68,6 +73,9 @@ export default defineConfig({
     port: 3001,
   },
   vite: {
+    // SDK foundations are scoped after Tailwind expands their imports. Legacy
+    // Astryx surfaces never receive the SDK reset or its document tokens.
+    css: { postcss: { plugins: [openaiScope()] } },
     // Explicit loopback-only editor development. Production compilation ignores it.
     define: {
       "import.meta.env.EDITORIAL_LOCAL_PREVIEW": "true",
@@ -76,6 +84,8 @@ export default defineConfig({
       __LOCAL_OWNER_BUILD__: JSON.stringify(adminLocalOwner),
     },
     plugins: [
+      tailwindcss(),
+      adminPreviewIdentity(fileURLToPath(new URL("../..", import.meta.url))),
       {
         // astro dev renders in workerd, whose console.createTask throws "not
         // implemented". React's development build calls it while its modules

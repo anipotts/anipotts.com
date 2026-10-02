@@ -12,7 +12,11 @@ const content = page;
 ---
 
 <Shell title={content.title} description={content.description} path="/systems">
-  <PageHero title={content.hero_title} summary={content.hero_summary} />
+  <PageHero
+    title={content.hero_title}
+    summary={content.hero_summary}
+    summaryCompact={content.hero_summary_compact}
+  />
   <section class="stack" aria-label="Working with agents">
     <div class="intro">
       {

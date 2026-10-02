@@ -18,6 +18,8 @@ const section = z.object({
   heading: z.string(),
   subheading: text.optional(),
   subheading_format: z.literal("markdown").optional(),
+  subheading_compact: z.string().optional(),
+  subheading_compact_format: z.literal("markdown").optional(),
   mention_keys: z.array(text).optional(),
   links: z.array(link).optional(),
   limit: z.number().int().positive().optional(),
@@ -65,6 +67,7 @@ export const listingPageSchema = z.object({
   description: text,
   hero_title: text,
   hero_summary: text,
+  hero_summary_compact: z.string().optional(),
   section_label: text.optional(),
 });
 

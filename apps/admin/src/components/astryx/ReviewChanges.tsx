@@ -3,19 +3,15 @@ import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Grid } from "@astryxdesign/core/Grid";
 import { Text } from "@astryxdesign/core/Text";
-import { Button } from "@astryxdesign/core/Button";
+import { Button } from "./WritingControls";
 import {
   SegmentedControl,
   SegmentedControlItem,
 } from "@astryxdesign/core/SegmentedControl";
 import { Heading } from "@astryxdesign/core/Heading";
-import { ToggleButton } from "@astryxdesign/core/ToggleButton";
+import { ToggleButton } from "./WritingControls";
 import { CodeIcon } from "@phosphor-icons/react";
-import {
-  inlinePlainText,
-  parseInline,
-  type InlineNode,
-} from "@anipotts/content/public/inline";
+import { inlineHtml, safeInlineUrl } from "@anipotts/content/public/inline";
 import {
   reviewDiff,
   type ReviewDiffHunk,
@@ -29,17 +25,113 @@ type Change = {
   before: string;
   after: string;
   rich?: boolean;
+  presentation?: boolean;
   onEdit?: () => void;
 };
 
-function formattingNodes(nodes: InlineNode[]): unknown[] {
-  return nodes.map((node) =>
-    // Keep text positions without their wording, including inside nested marks.
-    node.type === "text"
-      ? { type: "text" }
-      : "children" in node
-        ? { ...node, children: formattingNodes(node.children) }
-        : node,
+function PresentationValue({ value }: { value: string }) {
+  const content = JSON.parse(value) as {
+    sections: Record<string, Record<string, unknown>>;
+    order: string[];
+  };
+  return (
+    <div className="editor-review-sections">
+      {content.order.map((id) => {
+        const section = content.sections[id];
+        if (!section) return null;
+        return (
+          <section key={id} className="editor-review-section">
+            <h3>{String(section.label || id.replaceAll("_", " "))}</h3>
+            {section.visible === false && <p>Hidden</p>}
+            {Object.entries(section)
+              .filter(
+                ([key]) =>
+                  key !== "label" &&
+                  key !== "visible" &&
+                  !key.endsWith("_format") &&
+                  key !== "mention_keys",
+              )
+              .map(([key, entry]) => (
+                <div key={key}>
+                  <small>
+                    {key === "writing_slugs"
+                      ? "Articles"
+                      : key === "limit"
+                        ? "Display limit"
+                        : key.replaceAll("_", " ")}
+                  </small>
+                  {Array.isArray(entry) ? (
+                    <ol>
+                      {entry.map((item, index) => (
+                        <li key={index}>
+                          {typeof item === "string" ? (
+                            item.replaceAll("-", " ")
+                          ) : item &&
+                            typeof item === "object" &&
+                            "href" in item &&
+                            typeof item.href === "string" &&
+                            safeInlineUrl(item.href) ? (
+                            <a href={item.href}>
+                              {String(item.label ?? item.href)}
+                            </a>
+                          ) : (
+                            String(item?.label ?? item?.title ?? "Item")
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p
+                      dangerouslySetInnerHTML={{
+                        __html: inlineHtml(String(entry ?? "")),
+                      }}
+                    />
+                  )}
+                </div>
+              ))}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function RenderedChange({
+  label,
+  before,
+  after,
+  presentation,
+  onEdit,
+}: Change) {
+  return (
+    <section className="editor-change" aria-label={label}>
+      <HStack gap={2}>
+        <Text weight="semibold">{label}</Text>
+        {onEdit && (
+          <Button
+            label="Edit"
+            aria-label={`Edit ${label}`}
+            variant="ghost"
+            size="sm"
+            onClick={onEdit}
+          />
+        )}
+      </HStack>
+      <div className="editor-rendered-comparison">
+        {([before, after] as const).map((value, index) => (
+          <div key={index} data-side={index ? "after" : "before"}>
+            <Text type="supporting">{index ? "After" : "Before"}</Text>
+            <div className="editor-rendered-value">
+              {presentation ? (
+                <PresentationValue value={value} />
+              ) : (
+                <p dangerouslySetInnerHTML={{ __html: inlineHtml(value) }} />
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -163,41 +255,15 @@ function FieldDiff({
   label,
   before,
   after,
-  rich,
   source = false,
   onEdit,
 }: Change & { source?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const headingId = useId();
-  const comparison = useMemo(() => {
-    const plainBefore = rich ? inlinePlainText(before) : before;
-    const plainAfter = rich ? inlinePlainText(after) : after;
-    const formatting = (value: string) =>
-      JSON.stringify(formattingNodes(parseInline(value)));
-    const formattingChanged = Boolean(
-      rich &&
-      (plainBefore === plainAfter || formatting(before) !== formatting(after)),
-    );
-    // inlinePlainText normalizes whitespace. Rich source is required when that
-    // would erase leading/trailing spaces, line breaks, tabs or repeated spaces.
-    const exactWhitespace = Boolean(
-      rich &&
-      [before, after].some((value) => /(?:^\s|\s$|[^\S ]| {2,})/u.test(value)),
-    );
-    const showSource = source || formattingChanged || exactWhitespace;
-    return {
-      hunks: reviewDiff(
-        showSource ? before : plainBefore,
-        showSource ? after : plainAfter,
-      ),
-      source: showSource,
-      detail: formattingChanged
-        ? "Formatting / links / images"
-        : exactWhitespace
-          ? "Whitespace / source detail"
-          : null,
-    };
-  }, [before, after, rich, source]);
+  const comparison = useMemo(
+    () => ({ hunks: reviewDiff(before, after), source }),
+    [before, after, source],
+  );
   const hasHiddenContext = comparison.hunks.some(
     (hunk) => hunk.kind === "equal" && hunk.before.length > 8,
   );
@@ -225,9 +291,6 @@ function FieldDiff({
             size="sm"
             onClick={onEdit}
           />
-        )}
-        {comparison.detail && (
-          <Text type="supporting">{comparison.detail}</Text>
         )}
         {hasHiddenContext && (
           <Button
@@ -333,7 +396,7 @@ export function ReviewHeading({
       </HStack>
       {saveStatus && (
         <HStack maxWidth="100%" style={{ marginInlineStart: "auto" }}>
-          <SaveStatus {...saveStatus} />
+          <SaveStatus {...saveStatus} showLabel />
         </HStack>
       )}
     </HStack>
@@ -445,13 +508,23 @@ export function ReviewChanges({
           </HStack>
         )}
       </HStack>
-      {/* With no diff the destination line's "No changes" says it all. */}
-      {sourceView || !changed.length ? (
+      {differs && !changed.length && !sourceView && (
+        <Text type="supporting">
+          Source diff includes changes without a rendered comparison.
+        </Text>
+      )}
+      {sourceView ? (
         before === after ? null : (
           <FieldDiff label="Source" before={before} after={after} source />
         )
       ) : (
-        changed.map((change) => <FieldDiff key={change.label} {...change} />)
+        changed.map((change) =>
+          change.rich || change.presentation ? (
+            <RenderedChange key={change.label} {...change} />
+          ) : (
+            <FieldDiff key={change.label} {...change} />
+          ),
+        )
       )}
     </VStack>
   );

@@ -283,6 +283,44 @@ export async function getPublishedInventory(
   };
 }
 
+/** One serialized identity read. Unrelated publications cannot break record proof. */
+export async function getPublishedRecord(
+  db: PublicationDatabase,
+  record: EditorialRecord,
+): Promise<{ version: number; publication: PublishedSnapshot | null }> {
+  const { kind, id } = editorialRecordSchema.parse(record);
+  const results = await db.batch<Row & { version: number }>([
+    db.prepare(
+      "SELECT version FROM editorial_published_inventory WHERE singleton = 1",
+    ),
+    db
+      .prepare(
+        `SELECT r.*, a.record_kind AS active_record_kind, a.record_id AS active_record_id
+      FROM editorial_published_active a LEFT JOIN editorial_published_revisions r
+      ON r.publication_id = a.publication_id WHERE a.record_kind = ? AND a.record_id = ?`,
+      )
+      .bind(kind, id),
+  ]);
+  const version = results[0]?.results[0]?.version;
+  if (
+    results.length !== 2 ||
+    results.some((result) => !result.success) ||
+    results[0]?.results.length !== 1 ||
+    results[1]!.results.length > 1 ||
+    !Number.isSafeInteger(version) ||
+    version! < 0
+  )
+    throw new Error("publication_read_failed");
+  const row = results[1]!.results[0];
+  const publication = row ? await snapshot(row) : null;
+  if (
+    publication &&
+    (publication.record.kind !== kind || publication.record.id !== id)
+  )
+    throw new PublicationContractError("invalid_published_snapshot");
+  return { version: version!, publication };
+}
+
 /** The inventory counter alone: one single-row read, no sources. Every
  * activation increments it, so a reader can answer a revalidation without
  * loading or rendering the publications behind it. */

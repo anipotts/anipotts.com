@@ -1,6 +1,6 @@
 ---
-import InlineText from "./InlineText.astro";
-import { Icon } from "astro-icon/components";
+import ResponsiveCopy from "./ResponsiveCopy.astro";
+import CardAction from "./CardAction.astro";
 import AmbientFlow from "./AmbientFlow.astro";
 import type { Project } from "../lib/content";
 import { phoneMedia, responsiveScreenshot } from "../lib/responsive-image";
@@ -17,7 +17,7 @@ const identity = d.identity;
 const slug = project.data.slug ?? project.id;
 const isPgi = slug === "pgi-research-platform";
 const treatment = slug === "structured-ai" ? "current" : "community";
-const displayTitle = isPgi ? "pgi research" : d.title;
+const displayTitle = d.card_title?.trim() || d.title;
 const shot =
   preview?.kind === "video"
     ? undefined
@@ -78,41 +78,21 @@ const shotSizes = "(max-width: 640px) 100vw, 27rem";
 
   <span class="experience-feature__body">
     <span class="experience-feature__heading">
-      <span class="experience-feature__identity">
-        <span class="experience-feature__name">{displayTitle}</span>
-        {
-          identity.logo_src ? (
-            <img
-              class:list={[
-                "experience-feature__mark",
-                {
-                  "experience-feature__mark--pgi": isPgi,
-                  "experience-feature__mark--adaptive":
-                    identity.logo_tone === "adaptive",
-                },
-              ]}
-              src={identity.logo_src}
-              alt={identity.logo_alt ?? ""}
-              width="24"
-              height="24"
-              loading="lazy"
-              decoding="async"
-            />
-          ) : identity.icon ? (
-            <Icon
-              name={`ph:${identity.icon}`}
-              class="experience-feature__mark experience-feature__glyph"
-              aria-hidden="true"
-            />
-          ) : null
-        }
-      </span>
-      <span class="experience-feature__action" aria-hidden="true">
-        <Icon name="ph:arrow-bend-right-up" />
-      </span>
+      <span class="experience-feature__name">{displayTitle}</span>
+      <CardAction
+        label="view project"
+        largeMark={isPgi}
+        logoSrc={identity.logo_src}
+        icon={identity.icon}
+        adaptive={identity.logo_tone === "adaptive" || isPgi}
+      />
     </span>
     <span class="experience-feature__copy"
-      ><InlineText text={d.card_copy} links={false} /></span
+      ><ResponsiveCopy
+        text={d.card_copy}
+        compact={d.card_copy_compact}
+        links={false}
+      /></span
     >
   </span>
 </a>
@@ -133,14 +113,15 @@ const shotSizes = "(max-width: 640px) 100vw, 27rem";
     color: var(--feature-ink);
     text-decoration: none;
     box-shadow: var(--paper-shadow);
-    transition: box-shadow 180ms ease;
+    transition: none;
   }
 
   .experience-feature__visual {
     position: relative;
     display: grid;
     place-items: center;
-    padding: clamp(0.8rem, 2.6vw, 1.35rem);
+    padding: var(--experience-card-padding);
+    padding-bottom: var(--s-2);
     overflow: hidden;
     isolation: isolate;
   }
@@ -153,7 +134,6 @@ const shotSizes = "(max-width: 640px) 100vw, 27rem";
     place-items: center;
     overflow: hidden;
     border-radius: var(--radius-desktop-ui-media);
-    box-shadow: 0 1.1rem 2.7rem rgb(7 32 93 / 28%);
   }
 
   .experience-feature__window picture {
@@ -178,126 +158,40 @@ const shotSizes = "(max-width: 640px) 100vw, 27rem";
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: var(--s-2);
-    min-height: 8.5rem;
-    padding: var(--s-4) var(--s-5) var(--s-5);
-  }
-
-  .experience-feature__heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--s-3);
-  }
-
-  .experience-feature__identity {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--s-2);
-    min-width: 0;
+    gap: var(--card-content-gap);
+    padding: var(--card-content-gap) var(--experience-card-padding)
+      var(--experience-card-padding);
   }
 
   .experience-feature__name {
     font-family: var(--display);
-    font-size: clamp(1rem, 2vw, var(--p-h2));
-    font-weight: 900;
-    line-height: 1;
-    white-space: nowrap;
-  }
-
-  .experience-feature__mark {
-    width: 1.5rem;
-    height: 1.5rem;
-    flex: 0 0 1.5rem;
-    object-fit: contain;
-    border-radius: 0.25rem;
-  }
-
-  .experience-feature__glyph {
-    color: var(--feature-muted);
-  }
-
-  .experience-feature__action {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.25rem;
-    height: 1.25rem;
-    flex: 0 0 1.25rem;
-    color: var(--paper-muted);
-    transition: color 180ms ease;
-  }
-
-  .experience-feature__action :global(svg) {
-    width: 1rem;
-    height: 1rem;
+    font-size: var(--card-title-size);
+    font-weight: var(--card-title-weight);
+    line-height: 1.12;
+    overflow-wrap: anywhere;
   }
 
   .experience-feature__copy {
     max-width: none;
     color: var(--feature-muted);
-    font-size: var(--p-small);
-    line-height: 1.45;
+    font-size: var(--card-copy-size);
+    font-weight: var(--card-copy-weight);
+    line-height: var(--card-copy-leading);
     text-wrap: pretty;
   }
 
   .experience-feature:focus-visible {
-    outline: 3px solid var(--feature-blue);
-    outline-offset: 3px;
-  }
-
-  @media (hover: hover) and (pointer: fine) {
-    .experience-feature:hover {
-      box-shadow: 0 1.35rem 3rem rgb(11 18 32 / 20%);
-    }
-
-    .experience-feature:hover .experience-feature__action {
-      color: var(--paper-accent);
-    }
-  }
-
-  /* Scoped so the press ring outranks the card's own resting box-shadow. */
-  @media (width < 880px), (pointer: coarse) {
-    .experience-feature:active {
-      background: var(--paper-surface-hover);
-      box-shadow: inset 0 0 0 2px var(--paper-accent);
-    }
-  }
-
-  .experience-feature:focus-visible .experience-feature__action {
-    color: var(--paper-accent);
-  }
-
-  .experience-feature__mark--pgi {
-    filter: brightness(0);
-  }
-
-  .experience-feature__mark--adaptive {
-    filter: brightness(0);
+    outline: var(--focus-width) solid var(--paper-ink);
+    outline-offset: var(--focus-offset);
   }
 
   :global(html[data-theme="dark"]) .experience-feature {
     --feature-control: color-mix(in srgb, #61abea 16%, #11151d);
   }
 
-  :global(html[data-theme="dark"]) .experience-feature__mark--pgi {
-    filter: brightness(0) invert(1);
-  }
-
-  :global(html[data-theme="dark"]) .experience-feature__mark--adaptive {
-    filter: brightness(0) invert(1);
-  }
-
   @media (max-width: 640px) {
     .experience-feature__body {
       min-height: auto;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .experience-feature,
-    .experience-feature__action {
-      transition: none;
     }
   }
 </style>

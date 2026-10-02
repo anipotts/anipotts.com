@@ -1,16 +1,19 @@
 ---
-import InlineText from "./InlineText.astro";
+import ResponsiveCopy from "./ResponsiveCopy.astro";
 interface Props {
   title: string;
   summary: string;
+  summaryCompact?: string;
 }
 
-const { title, summary } = Astro.props;
+const { title, summary, summaryCompact } = Astro.props;
 ---
 
 <section data-rise class="page-hero">
   <h1 class="page-hero__title">{title}</h1>
-  <p class="page-hero__summary"><InlineText text={summary} /></p>
+  <p class="page-hero__summary">
+    <ResponsiveCopy text={summary} compact={summaryCompact} />
+  </p>
 </section>
 
 <style>

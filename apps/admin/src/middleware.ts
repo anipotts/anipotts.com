@@ -10,7 +10,7 @@ import {
   PREVIEW_PATHS,
   STANDALONE_PREVIEW_PATH,
   isEmbeddedPreviewRequest,
-  previewResponse,
+  renderPreviewResponse,
   standalonePreviewUrl,
 } from "./lib/preview-html";
 import {
@@ -123,13 +123,10 @@ async function handleRequest(
         localOwner,
       );
     }
-    const response = await next();
-    return withPrivateHeaders(
-      PREVIEW_PATHS.has(pathname)
-        ? await previewResponse(response, context.url)
-        : response,
-      localOwner,
-    );
+    const response = PREVIEW_PATHS.has(pathname)
+      ? await renderPreviewResponse(next, context.url)
+      : await next();
+    return withPrivateHeaders(response, localOwner);
   }
   if (localOwner) return withPrivateHeaders(await next(), true);
   if (
