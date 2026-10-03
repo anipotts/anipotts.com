@@ -92,3 +92,7 @@ Exact changed paths at this checkpoint:
 - `apps/admin/src/lib/private-reader-fetch.test.tsx`
 - `apps/admin/src/styles/no-dividers.test.ts`
 - `docs/design/admin-workspace/table-standard.md`
+
+## Compact content rows
+
+Narrow content libraries place last activity beside the primary title and use one ellipsized summary line beneath it. Titles wrap freely; the record link retains a 44px touch target. Repeated activity labels are omitted visually while the column header and precise timestamp remain accessible. Desktop columns are unchanged. Browser verification at 320px and 390px confirmed no document overflow, including long titles and unpublished records.

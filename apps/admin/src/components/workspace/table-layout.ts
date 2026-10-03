@@ -256,14 +256,15 @@ const REFLOW_CSS = `.admin-data-table[data-narrow="true"] .openai-record-table t
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  padding-block: var(--spacing-2, 8px);
+  padding-block: 4px;
 }
 .admin-data-table[data-narrow="true"] .openai-record-table td[data-lead] {
   flex: 0 0 100%;
   box-sizing: border-box;
 }
 .admin-data-table[data-narrow="true"] .openai-record-table td {
-  padding-block: var(--spacing-1, 4px);
+  padding-block: 0;
+  overflow-wrap: anywhere;
   text-align: start;
 }
 .admin-data-table[data-narrow="true"]
@@ -301,16 +302,48 @@ const REFLOW_CSS = `.admin-data-table[data-narrow="true"] .openai-record-table t
 }
 .admin-data-table[data-narrow="true"] td[data-column="summary"] .openai-mobile-label { display: none; }
 .admin-data-table[data-narrow="true"] .editorial-record-summary {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  white-space: normal;
+  display: block;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  line-height: 20px;
   overflow: hidden;
 }
 .admin-data-table[data-narrow="true"] tr:has(.workspace-row-mark) td:not([data-lead]):not(.admin-table-select) {
   padding-inline-start: 40px;
 }
 
+.admin-data-table[data-narrow="true"] .workspace-row-link {
+  min-height: 44px;
+  box-sizing: border-box;
+  padding-block: 4px;
+  padding-inline: 0;
+  align-items: center;
+}
+.admin-data-table[data-narrow="true"] .workspace-row-mark {
+  margin-block-start: 12px;
+}
+.admin-data-table[data-narrow="true"] .openai-record-table tr[data-record-id]:has(td[data-column="summary"]):has(td[data-column="updated"]) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+.admin-data-table[data-narrow="true"] tr:has(td[data-column="summary"]):has(td[data-column="updated"]) td[data-lead] {
+  grid-column: 1;
+  grid-row: 1;
+}
+.admin-data-table[data-narrow="true"] tr:has(td[data-column="summary"]) td[data-column="updated"] {
+  grid-column: 2;
+  grid-row: 1;
+  padding-inline: 8px 12px;
+  font-size: var(--text-caption-size, 12px);
+  white-space: nowrap;
+}
+.admin-data-table[data-narrow="true"] td[data-column="updated"] .openai-mobile-label { display: none; }
+.admin-data-table[data-narrow="true"] tr:has(td[data-column="updated"]) td[data-column="summary"] {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  padding-block-end: 6px;
+}
 `;
 export function tableResponsiveRules(scope: string, threshold: number): string {
   const selector = `.admin-data-table .openai-table-frame[data-table-scope="${scope}"]`;
