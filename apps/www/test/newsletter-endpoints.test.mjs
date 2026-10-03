@@ -607,6 +607,65 @@ test("confirm GET renders a POST form and only POST confirms", async () => {
   assert.equal(invalid.status, 400);
 });
 
+test("unsubscribe rejects oversized bodies and skips database work for malformed tokens", async () => {
+  const db = database();
+  const { env } = environment(db);
+  const url = "https://news.anipotts.com/api/newsletter/unsubscribe";
+  const oversized = await unsubscribe.POST({
+    request: formPost(url, "x".repeat(newsletter.TOKEN_BODY_LIMIT_BYTES)),
+    locals: locals(env),
+  });
+  assert.equal(oversized.status, 413);
+
+  db.faults.fail = () => true;
+  for (const request of [
+    formPost(url, "invalid token"),
+    new Request(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: ["not", "a", "token"] }),
+    }),
+    new Request(`${url}?token=${"x".repeat(129)}`, { method: "POST" }),
+  ]) {
+    const response = await unsubscribe.POST({ request, locals: locals(env) });
+    assert.equal(response.status, 200);
+  }
+
+  const page = await unsubscribe.GET({
+    request: new Request(`${url}?token=${"x".repeat(10_000)}`),
+  });
+  assert.equal(page.status, 200);
+  assert.ok((await page.text()).length < 2_000);
+});
+
+test("unsubscribe still accepts a valid JSON token", async () => {
+  const db = database();
+  const { env } = environment(db);
+  const email = "json-unsubscribe@example.com";
+  const subscriberId = seedSubscriber(db, email, "confirmed");
+  const token = seedToken(db, subscriberId, email, "unsubscribe");
+  const page = await unsubscribe.GET({
+    request: new Request(
+      `https://news.anipotts.com/api/newsletter/unsubscribe?token=${token}`,
+    ),
+  });
+  assert.ok((await page.text()).includes(`name="token" value="${token}"`));
+  assert.equal(subscriber(db, email).status, "confirmed");
+  const response = await unsubscribe.POST({
+    request: new Request(
+      "https://news.anipotts.com/api/newsletter/unsubscribe",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token }),
+      },
+    ),
+    locals: locals(env),
+  });
+  assert.equal(response.status, 200);
+  assert.equal(subscriber(db, email).status, "unsubscribed");
+});
+
 async function unsubscribeWithToken(env, db, email, subscriberId) {
   const token = seedToken(db, subscriberId, email, "unsubscribe");
   const response = await unsubscribe.POST({
