@@ -515,6 +515,19 @@ assert.equal(Object.values(knipConfig.deploy_targets).some(Boolean), false);
 for (const path of ["knip.json", "knip.jsonc.bak", "config-knip.jsonc"]) {
   assert.equal(classifyRelease([`A\t${path}`], base).risk, "unknown", path);
 }
+for (const path of ["e2e.www.config.ts", "e2e.admin.config.ts"]) {
+  const release = classifyRelease([`A\t${path}`], base);
+  assert.equal(release.risk, "automatic", path);
+  assert.equal(
+    Object.values(release.deploy_targets).some(Boolean),
+    false,
+    path,
+  );
+}
+assert.equal(
+  classifyRelease(["A\te2e.production.config.ts"], base).risk,
+  "unknown",
+);
 const astryxPatch = classifyRelease(
   ["M\tpatches/@astryxdesign__core@0.4.6.patch"],
   base,
