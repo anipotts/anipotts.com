@@ -118,13 +118,15 @@ jobs:
           node-version: "24.19.0"
 
       - name: Verify exact main SHA
+        env:
+          APPROVED_SOURCE_SHA: ${{ inputs.source_sha }}
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${{ github.sha }}"
           test "${{ github.ref }}" = "refs/heads/main"
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             test "${{ github.actor }}" = "anipotts"
-            test "${{ inputs.source_sha }}" = "${{ github.sha }}"
+            test "$APPROVED_SOURCE_SHA" = "${{ github.sha }}"
           fi
 
       - name: Classify release

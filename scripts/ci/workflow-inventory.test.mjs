@@ -189,13 +189,19 @@ assert.ok(
 for (const manualGuard of [
   'test "${{ github.ref }}" = "refs/heads/main"',
   'test "${{ github.actor }}" = "anipotts"',
-  'test "${{ inputs.source_sha }}" = "${{ github.sha }}"',
+  "APPROVED_SOURCE_SHA: ${{ inputs.source_sha }}",
+  'test "$APPROVED_SOURCE_SHA" = "${{ github.sha }}"',
 ]) {
   assert.ok(
     deployWorkflow.includes(manualGuard),
     `manual deployment is missing exact authority guard ${manualGuard}`,
   );
 }
+assert.equal(
+  deployWorkflow.includes('test "${{ inputs.source_sha }}"'),
+  false,
+  "manual source SHA must not be interpolated into shell code",
+);
 assert.ok(
   deployWorkflow.includes("d1 time-travel info"),
   "migration releases must capture a Time Travel bookmark",
