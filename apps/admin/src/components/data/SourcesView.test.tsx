@@ -71,6 +71,7 @@ const settle = async () => {
     });
 };
 beforeEach(() => {
+  localStorage.clear();
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.stubGlobal(
     "ResizeObserver",
@@ -118,7 +119,7 @@ describe("Sources by connector", () => {
     // 28 rows over two fixture pages of 20.
     expect(onCount).toHaveBeenLastCalledWith(sources.length);
     const headings = [...host.querySelectorAll("th[scope=rowgroup]")].map(
-      (cell) => cell.textContent,
+      (cell) => cell.querySelector("button > span")?.textContent,
     );
     expect(headings.slice(0, 5)).toEqual([
       "Live",
@@ -130,8 +131,10 @@ describe("Sources by connector", () => {
       "Excluded",
     ]);
     expect(headings[5]).toContain("Discovered, not connected");
-    const fold = host.querySelector<HTMLButtonElement>(
-      ".workspace-group-toggle",
+    const fold = [
+      ...host.querySelectorAll<HTMLButtonElement>(".workspace-group-toggle"),
+    ].find((button) =>
+      button.textContent?.includes("Discovered, not connected"),
     )!;
     expect(fold.getAttribute("aria-expanded")).toBe("false");
     expect(host.textContent).not.toContain("Gmail");
@@ -168,13 +171,13 @@ describe("Sources by connector", () => {
   it("A-3: shows an excluded source apart, with nothing to open and System's own count", async () => {
     await render();
     const heading = [...host.querySelectorAll("th[scope=rowgroup]")].find(
-      (cell) => cell.textContent === "Excluded",
+      (cell) => cell.querySelector("button > span")?.textContent === "Excluded",
     )!;
     const row = heading.closest("tr")!.nextElementSibling!;
     expect(row.textContent).toContain("Excluded");
     // System's counts as served: no retrievable records, 92 revisions kept.
     const cells = [...row.querySelectorAll("td")].map(
-      (cell) => cell.textContent,
+      (cell) => cell.querySelector(".admin-table-value")?.textContent,
     );
     expect(cells).toContain("0");
     expect(cells).toContain("92");
@@ -235,7 +238,9 @@ describe("Sources by connector", () => {
     // The group follows the status: nothing Failed sits under Live, and
     // nothing here reads as not reported.
     const cells = [...host.querySelectorAll("th[scope=rowgroup]")];
-    const headings = cells.map((cell) => cell.textContent);
+    const headings = cells.map(
+      (cell) => cell.querySelector("button > span")?.textContent,
+    );
     expect(headings.slice(0, 5)).toEqual([
       "Live",
       "Needs attention",
@@ -288,7 +293,9 @@ describe("Sources by connector", () => {
     await act(async () => root.render(<SourcesExplorer reader={reader} />));
     await settle();
     const cells = [...host.querySelectorAll("th[scope=rowgroup]")];
-    const headings = cells.map((cell) => cell.textContent);
+    const headings = cells.map(
+      (cell) => cell.querySelector("button > span")?.textContent,
+    );
     expect(headings).toEqual(["Live", "Connected", "Imported once"]);
     const under = (heading: string) => {
       const rows: Element[] = [];

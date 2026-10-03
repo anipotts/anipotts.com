@@ -57,7 +57,6 @@ import type { DataSourceRow } from "./data-model";
 import { ReadNotice } from "./DataNotices";
 import { readSourceCatalog } from "./source-catalog";
 import {
-  DISCOVERED_GROUP,
   SOURCE_GROUPS,
   sourceGroup,
   sourceRows,
@@ -533,6 +532,7 @@ export function SourcesExplorer({
   const columns: Column<TableRow>[] = [
     {
       key: "source",
+      priority: 0,
       header: "Source",
       render: (row) =>
         row.kind === "family" ? (
@@ -549,6 +549,7 @@ export function SourcesExplorer({
       ? [
           {
             key: "device",
+            priority: 1,
             header: <span className="sr-only">Device</span>,
             width: CELL_WIDTHS.tile,
             hideBelow: "large" as const,
@@ -558,12 +559,14 @@ export function SourcesExplorer({
       : []),
     {
       key: "state",
+      priority: 1,
       header: "State",
       width: sourceStateWidth(rows),
       render: (row) => <SourceStateMark state={row.state} />,
     },
     {
       key: "records",
+      priority: 1,
       header: "Records",
       width: sourceFigureWidth("Records", counted("records")),
       numeric: true,
@@ -571,6 +574,7 @@ export function SourcesExplorer({
     },
     {
       key: "revisions",
+      priority: 1,
       header: "Revisions",
       width: sourceFigureWidth("Revisions", counted("revisions")),
       numeric: true,
@@ -588,6 +592,7 @@ export function SourcesExplorer({
       ? [
           {
             key: "sync",
+            priority: 0,
             header: "Last sync",
             width: CELL_WIDTHS.time,
             render: (row: TableRow) => timeCell(row, row.lastSync, "Last sync"),
@@ -596,6 +601,7 @@ export function SourcesExplorer({
       : []),
     {
       key: "last",
+      priority: 1,
       header: "Last seen",
       width: CELL_WIDTHS.time,
       // Beside a Last sync column it waits for the width of large, so a
@@ -608,14 +614,23 @@ export function SourcesExplorer({
     <VStack gap={3} aria-busy={busy} className="sources-view">
       {wantsJobs && ops && <JobStates ops={ops} onJobs={setJobs} />}
       <DataTable
+        tableId="data-sources"
+        loadedCount={sources.length}
+        totalCount={!failure ? total : undefined}
+        groupCounts={Object.fromEntries(
+          Object.keys(SOURCE_GROUPS).map((group) => [
+            group,
+            sources.filter((source) => sourceGroup(source) === group).length,
+          ]),
+        )}
         rows={tableRows(rows, open)}
         rowKey="key"
         label="Sources"
         noun={["source", "sources"]}
-        footer={false}
         columns={columns}
-        groupBy={(row) => SOURCE_GROUPS[row.group]}
-        foldGroup={DISCOVERED_GROUP}
+        groupBy={(row) => row.group}
+        groupLabel={(key) => SOURCE_GROUPS[key as keyof typeof SOURCE_GROUPS]}
+        foldGroup="discovered"
         foldCount={discovered}
       />
       {incomplete && (

@@ -253,6 +253,7 @@ function RecentContent({ records }: { records: CatalogRecord[] }) {
     <WorkspaceSection title="Recent content" href="/content/pages">
       {records.length ? (
         <DataTable
+          tableId="overview-content"
           rows={records}
           rowKey="href"
           label="Recently updated content"
@@ -261,6 +262,7 @@ function RecentContent({ records }: { records: CatalogRecord[] }) {
           columns={[
             {
               key: "title",
+              priority: 0,
               header: "Title",
               render: (item) => {
                 const [glyph, type] = contentType(item);
@@ -278,12 +280,14 @@ function RecentContent({ records }: { records: CatalogRecord[] }) {
             },
             {
               key: "status",
+              priority: 1,
               header: "State",
               width: CELL_WIDTHS.state,
               render: (item) => <ContentState record={item} />,
             },
             {
               key: "updated",
+              priority: 1,
               header: "Updated",
               width: CELL_WIDTHS.time,
               render: (item) => <RelativeTime value={item.updated?.at} />,
@@ -343,6 +347,7 @@ function RecentRecords({
       ) : items.length ? (
         <SourceNamesContext value={names}>
           <DataTable
+            tableId="overview-records"
             rows={items}
             rowKey="id"
             label="Recent records"

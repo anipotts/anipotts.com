@@ -89,7 +89,9 @@ describe("shared table geometry", () => {
         .querySelector('[data-column="updated"]')
         ?.hasAttribute("data-numeric"),
     ).toBe(true);
-    expect(sdk.querySelector("style")?.textContent).toContain("@container");
+    expect(
+      sdk.querySelector(".admin-data-table")?.getAttribute("data-responsive"),
+    ).toBe("reflow");
   });
   it("budgets selection width before splitting the remaining space", () => {
     const markup = host(
