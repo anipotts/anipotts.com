@@ -70,6 +70,9 @@ concurrency:
   group: production-release
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   release:
     name: Validate exact release
