@@ -220,6 +220,7 @@ function activityColumns(
   return [
     {
       key: "event",
+      priority: 0,
       header: "Event",
       render: (row) => {
         const { latest } = row;
@@ -296,6 +297,7 @@ function activityColumns(
     },
     {
       key: "change",
+      priority: 1,
       header: "Change",
       // What changed gives way before an entry's name: its detail drops
       // first (observability-workspace.css).
@@ -308,6 +310,7 @@ function activityColumns(
     },
     {
       key: "took",
+      priority: 1,
       header: "Took",
       width: CELL_WIDTHS.figure,
       numeric: true,
@@ -318,6 +321,7 @@ function activityColumns(
     },
     {
       key: "device",
+      priority: 1,
       header: <span className="sr-only">Device</span>,
       width: CELL_WIDTHS.tile,
       // Below large the tile rides in the When cell, so Event and Change
@@ -334,6 +338,7 @@ function activityColumns(
     },
     {
       key: "at",
+      priority: 1,
       header: "When",
       width: CELL_WIDTHS.time,
       render: (row) => {
@@ -507,12 +512,13 @@ export function ActivityView({ data }: { data: OpsData }) {
       {visible.length ? (
         <VStack gap={4}>
           <DataTable
+            tableId="ops-activity"
+            searchActive={source !== "all"}
             rows={visible}
             columns={columns}
             rowKey="key"
             label="Activity, newest first"
             noun={["event", "events"]}
-            footer={false}
             interactive={false}
             groupBy={(row) => row.day}
             groupLabel={(key) => <DayLabel day={key} now={today} />}

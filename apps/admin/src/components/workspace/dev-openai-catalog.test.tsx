@@ -145,7 +145,7 @@ describe("admin components catalog", () => {
   });
   it("keeps stable selection through paging and resets paging when filters change", () => {
     const checkbox = host.querySelector<HTMLInputElement>(
-      'tbody [role="checkbox"]',
+      'tbody input[type="checkbox"]',
     );
     expect(checkbox).not.toBeNull();
     act(() => checkbox!.click());

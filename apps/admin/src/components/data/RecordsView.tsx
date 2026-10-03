@@ -183,6 +183,7 @@ export function recordColumns({
   const columns: Column<DataRecord>[] = [
     {
       key: "record",
+      priority: 0,
       header: "Record",
       render: (record) => {
         const mark = recordMark(record);
@@ -207,18 +208,10 @@ export function recordColumns({
             }
             isPressed={onSelect ? selectedId === record.id : undefined}
             controls={controls}
-            mobile={
-              <>
-                <TierMark tier={record.tier} />
-                <StateBadge domain="record" state={record.status} />
-                {record.excerpt ? (
-                  <span className="data-record-excerpt">{record.excerpt}</span>
-                ) : (
-                  // The device keeps its place, empty or not, so source
-                  // names line up down a phone's rows too.
-                  !hideSource && <RecordSource record={record} slot />
-                )}
-              </>
+            secondary={
+              record.excerpt ? (
+                <span className="data-record-excerpt">{record.excerpt}</span>
+              ) : undefined
             }
             end={<OccurredTime record={record} />}
           />
@@ -229,6 +222,7 @@ export function recordColumns({
   if (!beside && !hideSource)
     columns.push({
       key: "source",
+      priority: 2,
       header: "Source",
       width: SOURCE_WIDTH,
       hideBelow: "large",
@@ -238,18 +232,21 @@ export function recordColumns({
     tiersOnly
       ? {
           key: "state",
+          priority: 1,
           header: <span className="sr-only">Tier</span>,
           width: CELL_WIDTHS.tile,
           render: (record) => <RecordState record={record} />,
         }
       : {
           key: "state",
+          priority: 1,
           header: "State",
           width: CELL_WIDTHS.state,
           render: (record) => <RecordState record={record} />,
         },
     {
       key: "occurred",
+      priority: 1,
       header: "Occurred",
       width: CELL_WIDTHS.time,
       render: (record) => <OccurredTime record={record} />,
@@ -277,6 +274,7 @@ function withMatch(
     lead!,
     {
       key: "match",
+      priority: 2,
       header: "Match",
       hideBelow: "large",
       render: (record) => (
@@ -700,12 +698,17 @@ export function RecordsExplorer({
             ) : list.items.length ? (
               <VStack gap={3} aria-busy={busy}>
                 <DataTable
+                  tableId="data-records"
+                  searchActive={filtered}
+                  totalCount={!filtered ? (list.total ?? undefined) : undefined}
+                  filteredCount={
+                    filtered ? (list.total ?? undefined) : undefined
+                  }
                   rows={list.items}
                   rowKey="id"
                   columns={withMatch(columns, list.items, beside)}
                   label={search.q ? "Search results" : "Recent records"}
                   noun={["record", "records"]}
-                  footer={false}
                 />
                 {list.failure && (
                   <InlineNotice
@@ -731,7 +734,7 @@ export function RecordsExplorer({
             ) : (
               <StateNotice
                 kind="empty"
-                title="No matching records"
+                title={filtered ? "No matching records" : "No records yet"}
                 action={
                   filtered ? (
                     <Button label="Clear filters" size="sm" onClick={reset} />

@@ -596,7 +596,7 @@ describe("revision history cap", () => {
     ).not.toBeNull();
     // The history is a compact timeline in view, never paged.
     const history = container.querySelector('[aria-label="Revision history"]')!;
-    expect(history.querySelectorAll("li")).toHaveLength(100);
+    expect(history.querySelectorAll("tr[data-record-id]")).toHaveLength(100);
     // Its only buttons copy each source version.
     const buttons = [...history.querySelectorAll("button")];
     expect(buttons).toHaveLength(100);
@@ -611,10 +611,10 @@ describe("revision history cap", () => {
     expect(text).not.toContain("100+");
     const history = container.querySelector('[aria-label="Revision history"]')!;
     // Newest first, numbered, each with its source version.
-    const items = [...history.querySelectorAll("li")];
+    const items = [...history.querySelectorAll("tr[data-record-id]")];
     expect(items.map((item) => item.textContent)).toEqual([
-      expect.stringMatching(/^Revision 2, .*v2$/),
-      expect.stringMatching(/^Revision 1, .*v1$/),
+      expect.stringMatching(/^Revision 2.*v2$/),
+      expect.stringMatching(/^Revision 1.*v1$/),
     ]);
     expect(items[0]!.querySelector('[aria-label="Current"]')).not.toBeNull();
     expect(items[1]!.querySelector('[aria-label="Current"]')).toBeNull();

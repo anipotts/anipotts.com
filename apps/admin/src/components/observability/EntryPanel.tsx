@@ -29,6 +29,7 @@ import { deviceName } from "../../lib/naming";
 import { sentenceCase } from "../../lib/sentence-case";
 import { SplitPanel } from "../astryx/SplitView";
 import {
+  DataTable,
   DefinitionList,
   RecordDetails,
   DetailText,
@@ -514,28 +515,46 @@ function RunHistory({
       ) : runs.length ? (
         <>
           {gap && <EventsGap text={gap} />}
-          <ol className="ops-list" aria-label={`${service.name} runs`}>
-            {runs.map((run) => (
-              <li key={run.key} className="ops-list-item">
-                <ClockTime at={run.at} now={now} />
-                <span className="ops-list-state">
-                  <RunResult
-                    exit={run.exit}
-                    trigger={service.trigger}
-                    labelled
-                  />
-                  {run.runs > 1 && (
-                    <span className="ops-muted workspace-figure">
-                      {run.runs} runs
-                    </span>
-                  )}
-                </span>
-                <span className="ops-list-figure">
-                  <Duration ms={run.ms} />
-                </span>
-              </li>
-            ))}
-          </ol>
+          <DataTable
+            rows={runs}
+            rowKey="key"
+            tableId={`ops-runs:${service.id}`}
+            label={`${service.name} runs`}
+            noun={["run", "runs"]}
+            footer={false}
+            interactive={false}
+            columns={[
+              {
+                key: "at",
+                header: "Time",
+                render: (run) => <ClockTime at={run.at} now={now} />,
+              },
+              {
+                key: "result",
+                header: "Result",
+                render: (run) => (
+                  <span className="ops-list-state">
+                    <RunResult
+                      exit={run.exit}
+                      trigger={service.trigger}
+                      labelled
+                    />
+                    {run.runs > 1 && (
+                      <span className="ops-muted workspace-figure">
+                        {run.runs} runs
+                      </span>
+                    )}
+                  </span>
+                ),
+              },
+              {
+                key: "duration",
+                header: "Duration",
+                numeric: true,
+                render: (run) => <Duration ms={run.ms} />,
+              },
+            ]}
+          />
         </>
       ) : gap ? (
         <EventsGap text={gap} />
@@ -557,20 +576,34 @@ export function ChangeList({
   label: string;
 }) {
   return (
-    <ol className="ops-list" aria-label={`${label} changes`}>
-      {events.map((event) => (
-        <li key={event.seq} className="ops-list-item" data-change="">
-          <ClockTime at={event.at} now={now} />
-          <span className="ops-list-state">
+    <DataTable
+      rows={[...events]}
+      rowKey="seq"
+      tableId={`ops-changes:${label}`}
+      label={`${label} changes`}
+      noun={["change", "changes"]}
+      footer={false}
+      interactive={false}
+      columns={[
+        {
+          key: "at",
+          header: "Time",
+          render: (event) => <ClockTime at={event.at} now={now} />,
+        },
+        {
+          key: "state",
+          header: "State",
+          render: (event) => (
             <StateTransition domain="ops" from={event.from} to={event.to} />
-          </span>
-          {event.detail && (
-            <span className="ops-list-detail">
-              <DetailText>{event.detail}</DetailText>
-            </span>
-          )}
-        </li>
-      ))}
-    </ol>
+          ),
+        },
+        {
+          key: "detail",
+          header: "Detail",
+          render: (event) =>
+            event.detail ? <DetailText>{event.detail}</DetailText> : null,
+        },
+      ]}
+    />
   );
 }

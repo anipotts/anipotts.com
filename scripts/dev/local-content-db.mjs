@@ -57,10 +57,10 @@ function wranglerCli() {
 
 export function ensureLocalContentDatabase({
   appDir,
+  persistTo = join(appDir, ".wrangler", "state"),
   log = (line) => console.log(line),
   run = spawnSync,
 } = {}) {
-  const persistTo = join(appDir, ".wrangler", "state");
   const temporary = mkdtempSync(join(tmpdir(), "local-content-db-"));
   const config = join(temporary, "wrangler.json");
   // No account and no routes: nothing in this config can address Cloudflare.

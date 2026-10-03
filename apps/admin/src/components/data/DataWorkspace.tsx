@@ -127,6 +127,11 @@ export function DataWorkspace({
       <WorkspacePage
         title={DATA_VIEW_TITLES[route.view]}
         count={ready ? count : undefined}
+        countNoun={
+          route.view === "sources"
+            ? ["source", "sources"]
+            : ["record", "records"]
+        }
         badge={
           session.fixture ? (
             // Records are always the samples; Sources can be a replay of

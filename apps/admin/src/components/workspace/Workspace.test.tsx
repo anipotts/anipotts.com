@@ -109,6 +109,9 @@ describe("the page title line", () => {
     host.innerHTML = markup;
     const line = host.querySelector(".workspace-page-line")!;
     expect(line.querySelector("h1")?.textContent).toBe("Records");
+    expect(line.querySelector(".workspace-count")?.textContent).toBe(
+      "3 records",
+    );
     expect(line.querySelector(".workspace-clock")?.textContent).toBe(
       "3:55:12 PM ET",
     );
@@ -180,7 +183,7 @@ describe("DataTable", () => {
     );
     // Astryx gets no widths, so it never writes a minimum of its own.
     expect(host.querySelector("table")!.style.minWidth).toBe("");
-    expect(host.querySelector("style")).toBeNull();
+    expect(host.querySelector("style")?.textContent).toContain("@container");
   });
 
   it("marks hidden columns by range and sizes the header cells itself", () => {
@@ -237,9 +240,9 @@ describe("DataTable", () => {
       />,
     );
     const count = host.querySelector('[role="status"]')!;
-    expect(count.getAttribute("aria-label")).toBe("2 records");
+    expect(count.textContent).toBe("2 loaded");
     expect(host.querySelector(".workspace-table-footer")!.textContent).toBe(
-      "2 records in view1 drafts",
+      "2 loaded1 drafts",
     );
   });
 });
@@ -273,13 +276,13 @@ describe("DataTable groups", () => {
     ]);
     const heading = body[0]!.querySelector("th")!;
     expect(heading.getAttribute("scope")).toBe("rowgroup");
-    // One cell: a span would count hidden columns and take their width.
-    expect(heading.hasAttribute("colspan")).toBe(false);
+    // Group heading spans the aligned columns.
+    expect(heading.getAttribute("colspan")).toBe("5");
     expect(body[0]!.children).toHaveLength(1);
-    expect(body[3]!.textContent).toBe("BACKUPS");
+    expect(body[3]!.textContent).toBe("BACKUPS1");
     // Group rows are not records: the count strip counts rows only.
     expect(host.querySelector(".workspace-table-count")?.textContent).toBe(
-      "3 rows in view",
+      "3 loaded",
     );
   });
   it("gathers a group's rows under one heading when they arrive apart", () => {
@@ -304,7 +307,13 @@ describe("DataTable groups", () => {
           ? `# ${row.textContent}`
           : row.querySelector(".workspace-row-title")!.textContent,
       ),
-    ).toEqual(["# Personal context", "First", "Third", "# Services", "Second"]);
+    ).toEqual([
+      "# Personal context2",
+      "First",
+      "Third",
+      "# Services1",
+      "Second",
+    ]);
   });
 });
 
@@ -669,20 +678,27 @@ describe("the table convention", () => {
         cells(id)[1]!.querySelector("[data-tone]")!.getAttribute("data-tone"),
     );
     expect(tones).toEqual(["critical", "rest", "neutral"]);
-    expect(cells("health.ingest")[1]!.textContent).toBe("Unknown");
+    expect(
+      cells("health.ingest")[1]!.querySelector(".admin-table-value")
+        ?.textContent,
+    ).toBe("Unknown");
     // Details truncate with their full text on hover.
     const detail = cells("content.d1-export")[2]!.querySelector(
       ".workspace-detail-text",
     )!;
     expect(detail.getAttribute("title")).toBe("keepalive export_failed");
     // Next due counts down, and overdue reads as overdue.
-    expect(cells("pc.writer")[4]!.textContent).toBe("in 44m");
+    expect(
+      cells("pc.writer")[4]!.querySelector(".admin-table-value")?.textContent,
+    ).toBe("in 44m");
     expect(
       cells("content.d1-export")[4]!.querySelector('[data-overdue="true"]')
         ?.textContent,
     ).toBe("31m overdue");
     // Durations are figures: right-aligned, header included.
-    expect(cells("pc.writer")[5]!.textContent).toBe("1m 24s");
+    expect(
+      cells("pc.writer")[5]!.querySelector(".admin-table-value")?.textContent,
+    ).toBe("1m 24s");
     expect(cells("pc.writer")[5]!.hasAttribute("data-numeric")).toBe(true);
     const header = [...host.querySelectorAll("thead th")].at(-1)!;
     expect(header.hasAttribute("data-numeric")).toBe(true);
@@ -936,18 +952,18 @@ describe("folded group", () => {
     const titles = () =>
       [...host.querySelectorAll("tbody tr")].map((row) => row.textContent);
     expect(titles()).toEqual([
-      "Live",
+      "Live2",
       "live-a",
       "live-b",
       "Discovered, not connected2",
     ]);
     const toggle = host.querySelector<HTMLButtonElement>(
-      ".workspace-group-toggle",
+      '.workspace-group-toggle[aria-expanded="false"]',
     )!;
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
     act(() => toggle.click());
     expect(titles()).toEqual([
-      "Live",
+      "Live2",
       "live-a",
       "live-b",
       "Discovered, not connected2",
@@ -956,7 +972,7 @@ describe("folded group", () => {
     ]);
     expect(
       host
-        .querySelector(".workspace-group-toggle")!
+        .querySelectorAll(".workspace-group-toggle")[1]!
         .getAttribute("aria-expanded"),
     ).toBe("true");
     act(() => root.unmount());

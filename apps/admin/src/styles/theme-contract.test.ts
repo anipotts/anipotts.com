@@ -500,7 +500,8 @@ describe("the one admin document", () => {
       declarations(".editorial-workspace-shell .astryx-app-shell-header"),
     ).toMatchObject({ position: "sticky", "inset-block-start": "0" });
     expect(declarations(".admin-phone-bar")).toMatchObject({
-      "padding-block-start": "env(safe-area-inset-top)",
+      "padding-block":
+        "calc(env(safe-area-inset-top) + var(--spacing-2)) var(--spacing-2)",
       "padding-inline": "var(--admin-gutter)",
     });
     // The inner scroller and its document lock start only with the sidebar.

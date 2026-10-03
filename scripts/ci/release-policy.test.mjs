@@ -515,6 +515,57 @@ assert.equal(Object.values(knipConfig.deploy_targets).some(Boolean), false);
 for (const path of ["knip.json", "knip.jsonc.bak", "config-knip.jsonc"]) {
   assert.equal(classifyRelease([`A\t${path}`], base).risk, "unknown", path);
 }
+for (const path of ["e2e.www.config.ts", "e2e.admin.config.ts"]) {
+  const release = classifyRelease([`A\t${path}`], base);
+  assert.equal(release.risk, "automatic", path);
+  assert.equal(
+    Object.values(release.deploy_targets).some(Boolean),
+    false,
+    path,
+  );
+  assert.equal(release.public_browser_changed, path === "e2e.www.config.ts");
+}
+for (const path of [
+  "scripts/ci/public-e2e-server.mjs",
+  "apps/www/test/e2e/public-journeys.e2e.ts",
+  "apps/admin/migrations/content-publication/0002_content_schema_version.sql",
+  "scripts/content/seed-content-d1.mjs",
+  "package.json",
+  "pnpm-lock.yaml",
+]) {
+  const release = classifyRelease([`M\t${path}`], base);
+  assert.equal(release.public_browser_changed, true, path);
+  if (!path.startsWith("apps/admin/migrations/"))
+    assert.equal(
+      release.deploy_targets.www,
+      path.startsWith("apps/www/"),
+      path,
+    );
+}
+assert.equal(
+  classifyRelease(["A\te2e.production.config.ts"], base).risk,
+  "unknown",
+);
+// The public CMS reader consumes these shared modules even when the change
+// does not otherwise select a www deployment. Exercise the browser gate for
+// changes to both its reader and source parsing dependencies.
+for (const path of [
+  "packages/content/src/editorial/direct-publication.ts",
+  "packages/content/src/editorial/publication-contract.ts",
+  "packages/content/src/editorial/source.ts",
+  "packages/content/src/editorial/markdown.ts",
+]) {
+  for (const status of ["A", "M", "D"]) {
+    const release = classifyRelease([`${status}\t${path}`], base);
+    assert.equal(release.public_browser_changed, true, `${status} ${path}`);
+  }
+}
+assert.equal(
+  classifyRelease(["M\tapps/admin/src/components/astryx/RecordPanel.tsx"], base)
+    .public_browser_changed,
+  false,
+  "admin-only UI changes do not select the public browser suite",
+);
 const astryxPatch = classifyRelease(
   ["M\tpatches/@astryxdesign__core@0.4.6.patch"],
   base,

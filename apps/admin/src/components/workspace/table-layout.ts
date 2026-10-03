@@ -217,3 +217,135 @@ export function tableFrameStyle<T>(
     ]),
   ) as CSSProperties;
 }
+
+/** Reflow the complete record before its title loses useful reading room. */
+export function tableReflowWidth<T>(
+  columns: readonly Column<T>[],
+  selectionWidth = 0,
+): number {
+  return Math.max(
+    560,
+    selectionWidth +
+      Math.max(240, columns[0]?.room ?? columns[0]?.reserve ?? 280) +
+      columns
+        .slice(1)
+        .reduce((sum, column) => sum + (column.width ?? column.min ?? 80), 0),
+  );
+}
+
+/** Scoped container queries provide correct geometry before hydration. */
+const REFLOW_CSS = `.admin-data-table[data-narrow="true"] .openai-record-table thead {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.admin-data-table[data-narrow="true"] .openai-record-table thead button {
+  visibility: hidden;
+}
+.admin-data-table[data-narrow="true"]
+  .openai-record-table
+  :is(tbody, tr, th, td) {
+  display: block;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+}
+.admin-data-table[data-narrow="true"] .openai-record-table tr[data-record-id] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  padding-block: 4px;
+}
+.admin-data-table[data-narrow="true"] .openai-record-table td[data-lead] {
+  flex: 0 0 100%;
+  box-sizing: border-box;
+}
+.admin-data-table[data-narrow="true"] .openai-record-table td {
+  padding-block: 0;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+.admin-data-table[data-narrow="true"]
+  .openai-record-table
+  td:not([data-lead]):not(.admin-table-select) {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-2, 8px);
+  padding-inline-start: 12px;
+}
+.admin-data-table[data-narrow="true"] .openai-mobile-label {
+  display: inline;
+  color: var(--color-text-secondary);
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.admin-data-table[data-narrow="true"]
+  .openai-record-table
+  tr:has(.admin-table-select) {
+  padding-inline-start: 44px;
+}
+.admin-data-table[data-narrow="true"]
+  .openai-record-table
+  td.admin-table-select {
+  position: absolute;
+  inset-inline-start: 0;
+  top: var(--spacing-2, 8px);
+  width: 44px;
+}
+.admin-data-table[data-narrow="true"] .openai-record-table td:not([data-lead]):not(.admin-table-select):has(.admin-table-value:empty),
+.admin-data-table[data-narrow="true"] td:has(> .admin-table-value > .sr-only:only-child) { display: none; }
+.admin-data-table[data-narrow="true"] td[data-column="summary"] {
+  flex: 0 0 100%;
+  box-sizing: border-box;
+}
+.admin-data-table[data-narrow="true"] td[data-column="summary"] .openai-mobile-label { display: none; }
+.admin-data-table[data-narrow="true"] .editorial-record-summary {
+  display: block;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  line-height: 20px;
+  overflow: hidden;
+}
+.admin-data-table[data-narrow="true"] tr:has(.workspace-row-mark) td:not([data-lead]):not(.admin-table-select) {
+  padding-inline-start: 40px;
+}
+
+.admin-data-table[data-narrow="true"] .workspace-row-link {
+  min-height: 44px;
+  box-sizing: border-box;
+  padding-block: 4px;
+  padding-inline: 0;
+  align-items: center;
+}
+.admin-data-table[data-narrow="true"] .workspace-row-mark {
+  margin-block-start: 12px;
+}
+.admin-data-table[data-narrow="true"] .openai-record-table tr[data-record-id]:has(td[data-column="summary"]):has(td[data-column="updated"]) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+.admin-data-table[data-narrow="true"] tr:has(td[data-column="summary"]):has(td[data-column="updated"]) td[data-lead] {
+  grid-column: 1;
+  grid-row: 1;
+}
+.admin-data-table[data-narrow="true"] tr:has(td[data-column="summary"]) td[data-column="updated"] {
+  grid-column: 2;
+  grid-row: 1;
+  padding-inline: 8px 12px;
+  font-size: var(--text-caption-size, 12px);
+  white-space: nowrap;
+}
+.admin-data-table[data-narrow="true"] td[data-column="updated"] .openai-mobile-label { display: none; }
+.admin-data-table[data-narrow="true"] tr:has(td[data-column="updated"]) td[data-column="summary"] {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  padding-block-end: 6px;
+}
+`;
+export function tableResponsiveRules(scope: string, threshold: number): string {
+  const selector = `.admin-data-table .openai-table-frame[data-table-scope="${scope}"]`;
+  return `@container (max-width: ${threshold - 0.5}px) { ${REFLOW_CSS.replaceAll('.admin-data-table[data-narrow="true"]', selector)} }`;
+}

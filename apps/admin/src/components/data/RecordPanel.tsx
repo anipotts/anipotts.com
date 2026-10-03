@@ -26,7 +26,8 @@ import { BrandTile } from "../BrandTile";
 import { SplitPanel, useSplitView } from "../astryx/SplitView";
 import { ADMIN_TIME_ZONE, clockText, durationText } from "../workspace/format";
 import {
-  CompactTimeline,
+  DataTable,
+  CopyValue,
   DefinitionList,
   RecordDetails,
   EasternClock,
@@ -319,10 +320,39 @@ function History({ record }: { record: DataRecord }) {
           {capped ? `${historyLimit}+` : revisions.length}
         </span>
       </Heading>
-      <CompactTimeline
+      <DataTable
+        rows={historyEntries(revisions, record.revisionId, capped)}
+        rowKey="id"
+        tableId={`data-history:${record.id}`}
         label="Revision history"
-        hashLabel="Source version"
-        items={historyEntries(revisions, record.revisionId, capped)}
+        noun={["revision", "revisions"]}
+        footer={false}
+        interactive={false}
+        columns={[
+          {
+            key: "title",
+            header: "Revision",
+            render: (entry) => (
+              <span>
+                {entry.title}
+                {entry.current && <span aria-label="Current"> (Current)</span>}
+              </span>
+            ),
+          },
+          {
+            key: "at",
+            header: "Saved",
+            render: (entry) => <RelativeTime value={entry.at} />,
+          },
+          {
+            key: "hash",
+            header: "Source version",
+            render: (entry) =>
+              entry.hash ? (
+                <CopyValue value={entry.hash} label="Source version" />
+              ) : null,
+          },
+        ]}
       />
     </VStack>
   );

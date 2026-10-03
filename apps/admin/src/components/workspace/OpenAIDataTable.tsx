@@ -1,21 +1,54 @@
-import { Fragment, useId, useState } from "react";
-import { Button } from "@openai/apps-sdk-ui/components/Button";
-import { Checkbox } from "@openai/apps-sdk-ui/components/Checkbox";
+import { Fragment, useEffect, useId, useRef, useState } from "react";
+import { CaretRightIcon } from "@phosphor-icons/react";
 import type { DataTableProps } from "./Workspace";
 import {
   tableColumnStyle,
   tableFrameStyle,
-  tableYieldRules,
+  tableReflowWidth,
+  tableResponsiveRules,
 } from "./table-layout";
 import "./openai-table.css";
 
-/** Application table composed with SDK controls. The SDK exports no table.
- * Data ordering and paging remain controlled by the owning workspace. */
+export function groupTableRows<T>(
+  rows: readonly T[],
+  groupBy?: (row: T) => string,
+  foldGroup?: string,
+) {
+  const groups = new Map<string, T[]>();
+  for (const row of rows) {
+    const key = groupBy?.(row) ?? "";
+    const members = groups.get(key);
+    if (members) members.push(row);
+    else groups.set(key, [row]);
+  }
+  if (foldGroup !== undefined && groups.has(foldGroup)) {
+    const last = groups.get(foldGroup)!;
+    groups.delete(foldGroup);
+    groups.set(foldGroup, last);
+  }
+  return groups;
+}
+export function tableCountText(
+  loaded: number,
+  total?: number,
+  filtered?: number,
+  noun: readonly [string, string] = ["record", "records"],
+) {
+  if (filtered !== undefined)
+    return loaded === filtered
+      ? `${filtered} matching${total !== undefined ? ` of ${total}` : ""}`
+      : `${loaded} loaded, ${filtered} matching${total !== undefined ? ` of ${total}` : ""}`;
+  if (total === loaded) return `${loaded} ${loaded === 1 ? noun[0] : noun[1]}`;
+  return `${loaded} loaded${total !== undefined ? ` of ${total} total` : ""}`;
+}
+
+/** One admin-owned semantic renderer. No SDK reset or provider is installed here. */
 export function OpenAIDataTable<T extends Record<string, unknown>>({
   rows,
   columns,
   rowKey,
   label,
+  tableId = label,
   noun,
   figures,
   footer = true,
@@ -29,35 +62,80 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
   selectedKeys,
   onSelectionChange,
   pagination,
+  responsive = "reflow",
+  renderExpanded,
+  totalCount,
+  loadedCount,
+  groupCounts,
+  filteredCount,
+  groupTotals,
+  loading = false,
+  error,
+  onRetry,
+  emptyMessage,
+  searchActive = false,
 }: DataTableProps<T>) {
-  const [foldOpen, setFoldOpen] = useState(false);
+  const scope = useId();
+  const frame = useRef<HTMLDivElement>(null);
+  const [narrow, setNarrow] = useState(false);
+  const scrollSurface = useRef<HTMLDivElement>(null);
+  const [overflowing, setOverflowing] = useState(false);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const storageKey = `admin:table-groups:v1:${tableId}`;
+  useEffect(() => {
+    if (!groupBy) {
+      setCollapsed({});
+      return;
+    }
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) ?? "{}");
+      setCollapsed(
+        saved && typeof saved === "object" && !Array.isArray(saved)
+          ? saved
+          : {},
+      );
+    } catch {
+      setCollapsed({});
+    }
+  }, [storageKey, Boolean(groupBy)]);
   const selection =
     selectedKeys !== undefined && onSelectionChange !== undefined;
-  const scope = useId();
-  const layoutColumns = selection
-    ? [
-        ...columns,
-        { key: "__selection", header: "", width: 44, render: () => null },
-      ]
-    : columns;
-  const frameStyle = tableFrameStyle(columns, selection ? 44 : 0);
-  const yieldRules = tableYieldRules(layoutColumns, scope);
-  const columnAttributes = (column: (typeof columns)[number]) => ({
-    "data-column": column.key,
-    "data-hide-below": column.hideBelow,
-    "data-numeric": column.numeric || undefined,
-    "data-align": column.numeric ? "end" : column.align,
-  });
-  const groups = new Map<string, T[]>();
-  for (const row of rows) {
-    const key = groupBy?.(row) ?? "";
-    groups.set(key, [...(groups.get(key) ?? []), row]);
-  }
-  const groupKeys = [...groups.keys()].sort((a, b) =>
-    a === foldGroup ? 1 : b === foldGroup ? -1 : 0,
-  );
-  const visibleRows = groupKeys.flatMap((key) =>
-    key === foldGroup && !foldOpen ? [] : groups.get(key)!,
+  const threshold = tableReflowWidth(columns, selection ? 44 : 0);
+  useEffect(() => {
+    const node = frame.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const measure = () =>
+      setNarrow(responsive === "reflow" && node.clientWidth < threshold);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [threshold, responsive]);
+  useEffect(() => {
+    const node = scrollSurface.current;
+    if (!node) return;
+    if (responsive !== "scroll") {
+      setOverflowing(false);
+      return;
+    }
+    const measure = () =>
+      setOverflowing(
+        responsive === "scroll" && node.scrollWidth > node.clientWidth,
+      );
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    if (node.firstElementChild) observer.observe(node.firstElementChild);
+    return () => observer.disconnect();
+  }, [responsive, rows, columns, collapsed]);
+  const groups = groupTableRows(rows, groupBy, foldGroup);
+  const isCollapsed = (key: string) =>
+    typeof collapsed[key] === "boolean" && Object.hasOwn(collapsed, key)
+      ? collapsed[key]
+      : key === foldGroup;
+  const visibleRows = [...groups].flatMap(([key, members]) =>
+    groupBy && isCollapsed(key) ? [] : members,
   );
   const allSelected =
     visibleRows.length > 0 &&
@@ -65,242 +143,305 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
   const someSelected = visibleRows.some((row) =>
     selectedKeys?.has(String(row[rowKey])),
   );
-  const changeSelection = (keys: string[], selected: boolean) => {
+  const changeSelection = (keys: string[], checked: boolean) => {
     const next = new Set(selectedKeys);
-    keys.forEach((key) => (selected ? next.add(key) : next.delete(key)));
+    keys.forEach((key) => (checked ? next.add(key) : next.delete(key)));
     onSelectionChange?.(next);
   };
+  const toggle = (key: string) => {
+    const next = { ...collapsed, [key]: !isCollapsed(key) };
+    setCollapsed(next);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(next));
+    } catch {
+      /* Storage restrictions must not disable controls. */
+    }
+  };
+  const sortColumn = (key: string) =>
+    onSortChange?.({
+      key,
+      direction: sort?.key === key && sort.direction === "asc" ? "desc" : "asc",
+    });
+  const checkbox = (record?: T) => (
+    <label className="admin-table-selection">
+      <input
+        type="checkbox"
+        aria-label={
+          record
+            ? `Select record ${String(record.title ?? record[rowKey])}`
+            : "Select visible records"
+        }
+        checked={
+          record
+            ? (selectedKeys?.has(String(record[rowKey])) ?? false)
+            : allSelected
+        }
+        ref={(node) => {
+          if (node && !record)
+            node.indeterminate = !allSelected && someSelected;
+        }}
+        disabled={!record && !visibleRows.length}
+        onChange={(event) =>
+          changeSelection(
+            record
+              ? [String(record[rowKey])]
+              : visibleRows.map((row) => String(row[rowKey])),
+            event.target.checked,
+          )
+        }
+      />
+    </label>
+  );
   const pages = pagination
     ? Math.max(1, Math.ceil(pagination.total / pagination.pageSize))
     : 1;
+  const cellAttributes = (column: (typeof columns)[number]) => ({
+    "data-column": column.key,
+    "data-hide-below": column.hideBelow,
+    "data-numeric": column.numeric || undefined,
+    "data-align": column.numeric ? "end" : column.align,
+  });
   return (
     <div
-      className="openai-table"
+      className="admin-data-table openai-table"
       data-interactive={interactive}
-      data-footer={footer}
+      data-table-id={tableId}
+      data-responsive={responsive}
+      data-narrow={narrow}
     >
-      {yieldRules && <style>{yieldRules}</style>}
-      {(onSortChange || selection) && (
-        <div className="openai-mobile-sort" aria-label="Record controls">
-          {selection && (
-            <Checkbox
-              label="Select visible records"
-              checked={
-                allSelected ? true : someSelected ? "indeterminate" : false
-              }
-              disabled={!visibleRows.length}
-              onCheckedChange={(checked) =>
-                changeSelection(
-                  visibleRows.map((row) => String(row[rowKey])),
-                  checked,
-                )
-              }
-            />
-          )}
-          {columns
-            .filter((column) => column.sortable && onSortChange)
-            .map((column) => (
-              <Button
-                pill={false}
-                key={column.key}
-                color="secondary"
-                variant="ghost"
-                size="lg"
-                aria-pressed={sort?.key === column.key}
-                onClick={() =>
-                  onSortChange?.({
-                    key: column.key,
-                    direction:
-                      sort?.key === column.key && sort.direction === "asc"
-                        ? "desc"
-                        : "asc",
-                  })
-                }
-              >
-                {column.header}
-                {sort?.key === column.key
-                  ? sort.direction === "asc"
-                    ? " ↑"
-                    : " ↓"
-                  : ""}
-              </Button>
-            ))}
-        </div>
+      {responsive === "reflow" && (
+        <style>{tableResponsiveRules(scope, threshold)}</style>
       )}
       <div
-        className="openai-table-frame"
-        style={frameStyle}
-        data-yield-scope={scope}
+        data-table-scope={scope}
+        className="openai-table-frame workspace-table-frame"
+        ref={frame}
+        style={tableFrameStyle(columns, selection ? 44 : 0)}
       >
-        <table role="table" aria-label={label} className="openai-record-table">
-          <thead role="rowgroup">
-            <tr role="row">
-              {selection && (
-                <th
-                  role="columnheader"
-                  scope="col"
-                  className="openai-table-select"
-                >
-                  <Checkbox
-                    label={
-                      <span className="sr-only">Select visible records</span>
-                    }
-                    checked={
-                      allSelected
-                        ? true
-                        : someSelected
-                          ? "indeterminate"
-                          : false
-                    }
-                    disabled={!visibleRows.length}
-                    onCheckedChange={(checked) =>
-                      changeSelection(
-                        visibleRows.map((row) => String(row[rowKey])),
-                        checked,
-                      )
-                    }
-                  />
-                </th>
-              )}
-              {columns.map((column) => (
-                <th
-                  role="columnheader"
+        {narrow && (selection || onSortChange) && (
+          <div className="admin-table-controls" aria-label="Record controls">
+            {selection && checkbox()}
+            {columns
+              .filter((column) => column.sortable && onSortChange)
+              .map((column) => (
+                <button
+                  type="button"
                   key={column.key}
-                  scope="col"
-                  {...columnAttributes(column)}
-                  style={tableColumnStyle(column, columns)}
-                  aria-sort={
-                    sort?.key === column.key
-                      ? sort.direction === "asc"
-                        ? "ascending"
-                        : "descending"
-                      : undefined
-                  }
+                  onClick={() => sortColumn(column.key)}
+                  aria-pressed={sort?.key === column.key}
                 >
-                  {column.sortable && onSortChange && (
-                    <span className="openai-mobile-column-name">
-                      {column.header}
-                    </span>
-                  )}
-                  {column.sortable && onSortChange ? (
-                    <Button
-                      pill={false}
-                      color="secondary"
-                      variant="ghost"
-                      size="lg"
-                      onClick={() =>
-                        onSortChange({
-                          key: column.key,
-                          direction:
-                            sort?.key === column.key && sort.direction === "asc"
-                              ? "desc"
-                              : "asc",
-                        })
-                      }
-                    >
-                      {column.header}
-                      {sort?.key === column.key
-                        ? sort.direction === "asc"
-                          ? " ↑"
-                          : " ↓"
-                        : ""}
-                    </Button>
-                  ) : (
-                    column.header
-                  )}
-                </th>
+                  {column.header}
+                  {sort?.key === column.key
+                    ? sort.direction === "asc"
+                      ? " ↑"
+                      : " ↓"
+                    : ""}
+                </button>
               ))}
-            </tr>
-          </thead>
-          <tbody role="rowgroup">
-            {groupKeys.map((key) => (
-              <Fragment key={key}>
-                {groupBy && (
-                  <tr role="row" className="openai-group-row">
-                    <th
-                      scope="rowgroup"
-                      colSpan={columns.length + Number(selection)}
-                    >
-                      {key === foldGroup ? (
-                        <Button
-                          pill={false}
-                          color="secondary"
-                          variant="ghost"
-                          size="lg"
-                          aria-expanded={foldOpen}
-                          onClick={() => setFoldOpen(!foldOpen)}
-                        >
-                          {groupLabel(key)} (
-                          {foldCount ?? groups.get(key)!.length})
-                        </Button>
-                      ) : (
-                        groupLabel(key)
-                      )}
-                    </th>
-                  </tr>
+          </div>
+        )}
+        <div
+          ref={scrollSurface}
+          className="admin-table-scroll astryx-table-scroll-wrapper"
+          tabIndex={overflowing ? 0 : undefined}
+          role={overflowing ? "region" : undefined}
+          aria-label={
+            overflowing ? `${label}, horizontally scrollable` : undefined
+          }
+        >
+          <table
+            className="openai-record-table"
+            role="table"
+            aria-label={label}
+            aria-busy={loading}
+          >
+            <thead role="rowgroup">
+              <tr role="row">
+                {selection && (
+                  <th scope="col" className="admin-table-select">
+                    {checkbox()}
+                  </th>
                 )}
-                {(key === foldGroup && !foldOpen ? [] : groups.get(key)!).map(
-                  (row) => (
+                {columns.map((column) => (
+                  <th
+                    role="columnheader"
+                    scope="col"
+                    key={column.key}
+                    {...cellAttributes(column)}
+                    style={tableColumnStyle(column, columns)}
+                    aria-sort={
+                      sort?.key === column.key
+                        ? sort.direction === "asc"
+                          ? "ascending"
+                          : "descending"
+                        : undefined
+                    }
+                  >
+                    {column.sortable && onSortChange ? (
+                      <button
+                        type="button"
+                        onClick={() => sortColumn(column.key)}
+                      >
+                        {column.header}
+                        {sort?.key === column.key
+                          ? sort.direction === "asc"
+                            ? " ↑"
+                            : " ↓"
+                          : ""}
+                      </button>
+                    ) : (
+                      column.header
+                    )}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            {[...groups].map(([key, members]) => {
+              const groupId = `${scope}-group-${encodeURIComponent(key)}`;
+              const groupCount =
+                groupCounts?.[key] ??
+                (key === foldGroup ? foldCount : undefined) ??
+                members.length;
+              return (
+                <tbody role="rowgroup" key={key} id={`${groupId}-records`}>
+                  {groupBy && (
                     <tr
                       role="row"
-                      key={String(row[rowKey])}
-                      data-record-id={String(row[rowKey])}
-                      data-selected={
-                        selectedKeys?.has(String(row[rowKey])) || undefined
-                      }
+                      className="openai-group-row"
+                      data-group-row=""
                     >
-                      {selection && (
-                        <td role="cell" className="openai-table-select">
-                          <Checkbox
-                            label={
-                              <span className="sr-only">
-                                Select record {String(row.title ?? row[rowKey])}
-                              </span>
-                            }
-                            checked={selectedKeys.has(String(row[rowKey]))}
-                            onCheckedChange={(checked) =>
-                              changeSelection([String(row[rowKey])], checked)
-                            }
-                          />
-                        </td>
-                      )}
-                      {columns.map((column, index) => (
-                        <td
-                          role="cell"
-                          key={column.key}
-                          {...columnAttributes(column)}
-                          data-lead={index === 0 || undefined}
+                      <th
+                        scope="rowgroup"
+                        colSpan={columns.length + Number(selection)}
+                      >
+                        <button
+                          type="button"
+                          className="workspace-group-toggle admin-table-group-toggle"
+                          aria-expanded={!isCollapsed(key)}
+                          aria-controls={`${groupId}-records`}
+                          onClick={() => toggle(key)}
                         >
-                          {index > 0 && (
-                            <span
-                              className="openai-mobile-label"
-                              aria-hidden="true"
-                            >
-                              {column.header}
-                            </span>
-                          )}
-                          {index === 0 ? (
-                            column.render(row)
-                          ) : (
-                            <span className="workspace-cell">
-                              {column.render(row)}
-                            </span>
-                          )}
-                        </td>
-                      ))}
+                          <CaretRightIcon aria-hidden="true" />
+                          <span>{groupLabel(key)}</span>
+                          <span
+                            className="admin-table-count"
+                            aria-label={`${groupCount} loaded ${noun[1]}${groupTotals?.[key] !== undefined ? ` of ${groupTotals[key]} total` : ""}`}
+                          >
+                            {groupCount}
+                            {groupTotals?.[key] !== undefined &&
+                            groupTotals[key] !== groupCount
+                              ? ` / ${groupTotals[key]}`
+                              : ""}
+                          </span>
+                        </button>
+                      </th>
                     </tr>
-                  ),
-                )}
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
+                  )}
+                  <Fragment>
+                    {(!groupBy || !isCollapsed(key)) &&
+                      members.map((row) => {
+                        const expanded = renderExpanded?.(row);
+                        return (
+                          <Fragment key={String(row[rowKey])}>
+                            <tr
+                              role="row"
+                              key={String(row[rowKey])}
+                              data-record-id={String(row[rowKey])}
+                              data-selected={
+                                selectedKeys?.has(String(row[rowKey])) ||
+                                undefined
+                              }
+                            >
+                              {selection && (
+                                <td role="cell" className="admin-table-select">
+                                  {checkbox(row)}
+                                </td>
+                              )}
+                              {columns.map((column, index) => (
+                                <td
+                                  role="cell"
+                                  key={column.key}
+                                  {...cellAttributes(column)}
+                                  data-lead={index === 0 || undefined}
+                                  style={{
+                                    order:
+                                      index === 0
+                                        ? -1
+                                        : (column.priority ?? index),
+                                  }}
+                                >
+                                  {index > 0 && (
+                                    <span
+                                      className="openai-mobile-label"
+                                      aria-hidden="true"
+                                    >
+                                      {column.header}
+                                    </span>
+                                  )}
+                                  <span
+                                    className={
+                                      index === 0
+                                        ? "admin-table-primary"
+                                        : "admin-table-value"
+                                    }
+                                  >
+                                    {column.render(row)}
+                                  </span>
+                                </td>
+                              ))}
+                            </tr>
+                            {expanded && (
+                              <tr className="admin-table-expanded">
+                                <td
+                                  colSpan={columns.length + Number(selection)}
+                                >
+                                  {expanded}
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        );
+                      })}
+                  </Fragment>
+                </tbody>
+              );
+            })}
+          </table>
+        </div>
+        {loading ? (
+          <div className="admin-table-state" role="status">
+            Loading {noun[1]}…
+          </div>
+        ) : error ? (
+          <div className="admin-table-state" role="alert">
+            {error}
+            {onRetry && (
+              <button type="button" onClick={onRetry}>
+                Retry
+              </button>
+            )}
+          </div>
+        ) : (
+          rows.length === 0 && (
+            <div className="admin-table-state" role="status">
+              {emptyMessage ??
+                (searchActive
+                  ? "No matching records. Try changing your search or filters."
+                  : `No ${noun[1]} yet.`)}
+            </div>
+          )
+        )}
       </div>
       {footer && (
-        <div className="openai-table-footer">
-          <span role="status">
-            {rows.length} {rows.length === 1 ? noun[0] : noun[1]} in view
-            {pagination ? ` of ${pagination.total}` : ""}
+        <div className="openai-table-footer workspace-table-footer">
+          <span role="status" className="workspace-table-count">
+            {tableCountText(
+              loadedCount ?? rows.length,
+              totalCount ??
+                (filteredCount === undefined ? pagination?.total : undefined),
+              filteredCount ?? (searchActive ? pagination?.total : undefined),
+              noun,
+            )}
           </span>
           {figures
             ?.filter(([, value]) => value > 0)
@@ -314,29 +455,23 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
       )}
       {pagination && (
         <nav className="openai-pagination" aria-label={`${label} pages`}>
-          <Button
-            pill={false}
-            color="secondary"
-            variant="outline"
-            size="lg"
-            disabled={pagination.page <= 0}
+          <button
+            type="button"
+            disabled={pagination.page <= 0 || loading}
             onClick={() => pagination.onPageChange(pagination.page - 1)}
           >
             Previous
-          </Button>
+          </button>
           <span>
             Page {pagination.page + 1} of {pages}
           </span>
-          <Button
-            pill={false}
-            color="secondary"
-            variant="outline"
-            size="lg"
-            disabled={pagination.page + 1 >= pages}
+          <button
+            type="button"
+            disabled={pagination.page + 1 >= pages || loading}
             onClick={() => pagination.onPageChange(pagination.page + 1)}
           >
             Next
-          </Button>
+          </button>
         </nav>
       )}
     </div>

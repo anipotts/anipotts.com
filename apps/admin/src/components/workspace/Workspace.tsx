@@ -67,11 +67,9 @@
 import React, {
   createContext,
   memo,
-  useCallback,
   useContext,
   useEffect,
   useId,
-  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -89,7 +87,6 @@ import {
 } from "@astryxdesign/core/MetadataList";
 import { Skeleton } from "@astryxdesign/core/Skeleton";
 import { StatusDot } from "@astryxdesign/core/StatusDot";
-import { Table, type TablePlugin } from "@astryxdesign/core/Table";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { Token } from "@astryxdesign/core/Token";
@@ -111,11 +108,6 @@ import {
   type Icon,
 } from "@phosphor-icons/react";
 import { brandMark } from "@anipotts/brand/marks";
-import {
-  tableColumnStyle,
-  tableFrameStyle,
-  tableYieldRules,
-} from "./table-layout";
 export {
   tableMinWidths,
   shareWidthAt,
@@ -166,6 +158,7 @@ const unpunctuated = (text: string) => text.replace(/\.\s*$/, "");
 export function WorkspacePage({
   title,
   count,
+  countNoun = ["record", "records"],
   meta,
   badge,
   actions,
@@ -176,6 +169,7 @@ export function WorkspacePage({
   title: string;
   /** How many records the page lists, beside the title. */
   count?: number;
+  countNoun?: readonly [string, string];
   /** A fixed clock for the page (a fixture read at its own moment, a test):
    * the Eastern clock shows it and never ticks, like the page's ages. */
   clock?: number;
@@ -203,7 +197,7 @@ export function WorkspacePage({
             <Heading level={1}>{title}</Heading>
             {count !== undefined && (
               <Text color="secondary" className="workspace-count">
-                {count}
+                {count} {countNoun[count === 1 ? 0 : 1]}
               </Text>
             )}
             {badge}
@@ -659,6 +653,8 @@ export type Column<T> = {
   /** On the lead: the width its longest title needs (leadWidth), which the
    * `yieldOrder` columns give way to. */
   room?: number;
+  /** Lower values remain earlier in narrow metadata. */
+  priority?: number;
   render: (row: T) => ReactNode;
 };
 
@@ -676,16 +672,6 @@ export const CELL_WIDTHS = {
   /** A lone 24px tile, such as a device. */
   tile: 56,
 } as const;
-
-/** Marks the heading row DataTable puts before each group, and the folded
- * group's row count and state. */
-const GROUP = Symbol("workspace-group");
-const FOLD = Symbol("workspace-fold");
-type GroupRow = {
-  [GROUP]: string;
-  [FOLD]?: { count: number; open: boolean };
-};
-const isGroupRow = (row: object): row is GroupRow => GROUP in row;
 
 /** The lead's inset, tile and gap around its title: 16px in, a 24px tile,
  * 12px to the title and 12px out. */
@@ -798,33 +784,22 @@ export function YieldOnly({
   );
 }
 
-/** The scroll wrapper is a tab stop only while its table overflows it. */
-function useOverflow() {
-  const [overflowing, setOverflowing] = useState(false);
-  const observer = useRef<ResizeObserver | null>(null);
-  const ref = useCallback((node: HTMLDivElement | null) => {
-    observer.current?.disconnect();
-    observer.current = null;
-    if (!node || typeof ResizeObserver === "undefined") return;
-    const measure = () =>
-      setOverflowing(node.scrollWidth > node.clientWidth + 1);
-    const next = new ResizeObserver(measure);
-    next.observe(node);
-    const table = node.querySelector("table");
-    if (table) next.observe(table);
-    observer.current = next;
-    measure();
-  }, []);
-  return [overflowing, ref] as const;
-}
-
-/**
- * The one table: a raised surface on wide screens and a full-bleed list at
- * compact, compact rows with no rules, and a count strip that screen readers
- * hear. Widths go on the header cells here rather than through Astryx, so
- * the table's minimum width counts only the columns each range shows.
- */
 export type DataTableProps<T extends Record<string, unknown>> = {
+  /** Stable across routes and renders. Defaults to the accessible label. */
+  tableId?: string;
+  responsive?: "reflow" | "scroll";
+  renderExpanded?: (row: T) => ReactNode;
+  /** Counts are caller-owned; omission never implies all records loaded. */
+  totalCount?: number;
+  loadedCount?: number;
+  groupCounts?: Readonly<Record<string, number>>;
+  filteredCount?: number;
+  groupTotals?: Readonly<Record<string, number>>;
+  loading?: boolean;
+  error?: ReactNode;
+  onRetry?: () => void;
+  emptyMessage?: ReactNode;
+  searchActive?: boolean;
   rows: T[];
   columns: Column<T>[];
   rowKey: keyof T & string;
@@ -862,250 +837,7 @@ export type DataTableProps<T extends Record<string, unknown>> = {
 export function DataTable<T extends Record<string, unknown>>(
   props: DataTableProps<T>,
 ) {
-  const openai = useOpenAIUI();
-  return openai ? (
-    <OpenAIDataTable {...props} />
-  ) : (
-    <LegacyDataTable {...props} />
-  );
-}
-
-function LegacyDataTable<T extends Record<string, unknown>>({
-  rows,
-  columns,
-  rowKey,
-  label,
-  noun,
-  figures,
-  footer = true,
-  interactive = true,
-  groupBy,
-  groupLabel = (key) => key,
-  foldGroup,
-  foldCount,
-}: DataTableProps<T>) {
-  const [overflowing, wrapperRef] = useOverflow();
-  const [foldOpen, setFoldOpen] = useState(false);
-  // Read at click time, so the plugin never rebuilds for the handler.
-  const toggleFold = useRef(() => setFoldOpen((open) => !open));
-  // The heading renderer is read at render time, so an inline one never
-  // rebuilds the plugin.
-  const labelFor = useRef(groupLabel);
-  labelFor.current = groupLabel;
-  const shape = columns
-    .map(
-      (column) =>
-        `${column.key}:${column.width}:${column.share}:${column.reserve}:${column.min}:${column.want}:${column.max}:${column.spread}:${column.hideBelow}:${column.numeric}`,
-    )
-    .join(",");
-  const plugin = useMemo((): TablePlugin<T> => {
-    const byKey = new Map(columns.map((column) => [column.key, column]));
-    const hiding = (key: string) => {
-      const column = byKey.get(key);
-      return {
-        // Names the column, so a page's own rules (a container query) can
-        // move it without reaching into cell order.
-        "data-column": key,
-        ...(column?.hideBelow ? { "data-hide-below": column.hideBelow } : {}),
-        ...(column?.numeric ? { "data-numeric": "" } : {}),
-      };
-    };
-    return {
-      transformBodyRow: (props, item) =>
-        isGroupRow(item)
-          ? {
-              ...props,
-              htmlProps: {
-                ...props.htmlProps,
-                "data-group-row": "",
-              } as typeof props.htmlProps,
-              // One cell in the lead column. A span would count the columns
-              // a range hides and hand them the spare width.
-              children: (
-                <th scope="rowgroup" className="workspace-group-row">
-                  {item[FOLD] ? (
-                    <button
-                      type="button"
-                      className="workspace-group-toggle"
-                      aria-expanded={item[FOLD].open}
-                      onClick={() => toggleFold.current()}
-                    >
-                      <CaretRightIcon
-                        weight="regular"
-                        aria-hidden="true"
-                        className="workspace-group-caret"
-                      />
-                      <span className="workspace-group-label">
-                        {labelFor.current(item[GROUP])}
-                      </span>
-                      <span className="workspace-count">
-                        {item[FOLD].count}
-                      </span>
-                    </button>
-                  ) : (
-                    labelFor.current(item[GROUP])
-                  )}
-                </th>
-              ),
-            }
-          : props,
-      transformHeaderCell: (props, column) => {
-        return {
-          ...props,
-          htmlProps: {
-            ...props.htmlProps,
-            ...hiding(column.key),
-            style: {
-              ...props.htmlProps.style,
-              ...tableColumnStyle(byKey.get(column.key)!, columns),
-            },
-          } as typeof props.htmlProps,
-        };
-      },
-      transformBodyCell: (props, column) => ({
-        ...props,
-        htmlProps: {
-          ...props.htmlProps,
-          ...hiding(column.key),
-        } as typeof props.htmlProps,
-      }),
-      transformScrollWrapper: (props) => ({
-        ...props,
-        htmlProps: {
-          ...props.htmlProps,
-          ref: wrapperRef,
-          tabIndex: overflowing ? 0 : undefined,
-          role: overflowing ? "group" : undefined,
-          "aria-label": overflowing ? label : undefined,
-        },
-      }),
-    };
-    // `shape` stands for the columns: consumers rebuild them every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shape, overflowing, label, wrapperRef]);
-  const data = groupBy
-    ? withGroupRows(
-        rows,
-        rowKey,
-        groupBy,
-        foldGroup === undefined
-          ? undefined
-          : { key: foldGroup, open: foldOpen, count: foldCount },
-      )
-    : rows;
-  const frameStyle = tableFrameStyle(columns);
-  const count = `${rows.length} ${rows.length === 1 ? noun[0] : noun[1]}`;
-  const scope = useId();
-  const yieldRules = tableYieldRules(columns, scope);
-  return (
-    <VStack
-      gap={0}
-      className="workspace-table"
-      data-footer={footer ? "true" : "false"}
-      data-interactive={interactive ? "true" : "false"}
-    >
-      {yieldRules && <style>{yieldRules}</style>}
-      <div
-        className="workspace-table-frame"
-        style={frameStyle}
-        data-yield-scope={yieldRules ? scope : undefined}
-      >
-        <Table
-          className="workspace-table-grid"
-          data={data}
-          idKey={rowKey}
-          density="compact"
-          dividers="none"
-          aria-label={label}
-          plugins={{ workspace: plugin }}
-          columns={columns.map((column, index) => ({
-            key: column.key,
-            header: column.header,
-            align: column.numeric ? "end" : column.align,
-            // Past the lead, a cell's content sits in a box of line 1's
-            // height, so where the lead carries a line 2 (medium) every
-            // column reads on line 1 (workspace.css).
-            renderCell: (row: T) =>
-              isGroupRow(row) ? null : index === 0 ? (
-                column.render(row)
-              ) : (
-                <span className="workspace-cell">{column.render(row)}</span>
-              ),
-          }))}
-        />
-      </div>
-      {footer && (
-        <HStack
-          gap={5}
-          wrap="wrap"
-          vAlign="center"
-          className="workspace-table-footer"
-        >
-          <Text
-            type="supporting"
-            color="secondary"
-            role="status"
-            aria-live="polite"
-            aria-label={count}
-            className="workspace-table-count"
-          >
-            {count} in view
-          </Text>
-          {figures
-            ?.filter(([, value]) => value > 0)
-            .map(([name, value]) => (
-              <Text
-                key={name}
-                type="supporting"
-                color="secondary"
-                className="workspace-table-figure"
-              >
-                <strong>{value}</strong> {name}
-              </Text>
-            ))}
-        </HStack>
-      )}
-    </VStack>
-  );
-}
-
-/** The rows under one heading row per group. Groups keep the order their
- * first row arrives in and gather every row that shares their key, rows
- * keeping their own order within it, so a group never heads the table twice.
- * A folded group moves after the others; while it is closed only its heading
- * shows. */
-function withGroupRows<T extends Record<string, unknown>>(
-  rows: T[],
-  rowKey: keyof T & string,
-  groupBy: (row: T) => string,
-  fold?: { key: string; open: boolean; count?: number },
-): T[] {
-  const groups = new Map<string, T[]>();
-  for (const row of rows) {
-    const key = groupBy(row);
-    const group = groups.get(key);
-    if (group) group.push(row);
-    else groups.set(key, [row]);
-  }
-  const order = [...groups.keys()];
-  if (fold && groups.has(fold.key))
-    order.push(...order.splice(order.indexOf(fold.key), 1));
-  const out: T[] = [];
-  for (const key of order) {
-    const members = groups.get(key)!;
-    const isFold = fold !== undefined && key === fold.key;
-    out.push({
-      [rowKey]: `group:${key}`,
-      [GROUP]: key,
-      ...(isFold
-        ? {
-            [FOLD]: { count: fold.count ?? members.length, open: fold.open },
-          }
-        : {}),
-    } as unknown as T);
-    if (!isFold || fold.open) out.push(...members);
-  }
-  return out;
+  return <OpenAIDataTable {...props} />;
 }
 
 /** A title that ends in an ellipsis, keeping `keep` (its end, ", ap-mini")
@@ -1793,12 +1525,14 @@ const NOTICE_ICONS: Record<NoticeKind, Icon> = {
 export function StateNotice({
   kind,
   title,
+  description,
   action,
   icon: Glyph = NOTICE_ICONS[kind],
   headingLevel,
 }: {
   kind: NoticeKind;
   title: string;
+  description?: string;
   action?: ReactNode;
   icon?: Icon;
   headingLevel?: 2 | 3;
@@ -1819,6 +1553,7 @@ export function StateNotice({
           <OpenAIEmptyMessage.Title>
             <Title>{unpunctuated(title)}</Title>
           </OpenAIEmptyMessage.Title>
+          {description && <p>{description}</p>}
           {action && (
             <OpenAIEmptyMessage.ActionRow>
               {action}
@@ -1840,6 +1575,7 @@ export function StateNotice({
         <Heading level={level} className="workspace-notice-title">
           {unpunctuated(title)}
         </Heading>
+        {description && <p>{description}</p>}
         {action && (
           <HStack gap={2} wrap="wrap" className="workspace-notice-action">
             {action}

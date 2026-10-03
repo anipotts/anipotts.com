@@ -35,6 +35,8 @@ const structuralEdges = new Set([
   // Approved outer workspace inset. Interior sections still use spacing.
   ".editorial-workspace-shell #astryx-app-shell-main border-top",
   ".editorial-workspace-shell #astryx-app-shell-main border-inline-start",
+  // October 2 table standard: restrained separators only inside the owned table.
+  ".admin-data-table .openai-record-table tbody tr[data-record-id] border-bottom",
   // markers on a single element
   ".publication-step border-block-end", // progress bar whose color is state
   ".article-composer .tiptap blockquote border-inline-start", // quote bar
