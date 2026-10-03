@@ -16,7 +16,6 @@ export const CARD_HEIGHT = 630;
 export const SAFE_LEFT = (CARD_WIDTH - CARD_HEIGHT) / 2;
 export const SAFE_RIGHT = SAFE_LEFT + CARD_HEIGHT;
 
-
 const BRAND_PACKET = "packages/brand/ap-structural-v0.2.0-candidate.1";
 const FONT_FILE = `${BRAND_PACKET}/fonts/APStructuralDisplayBlack-v0.2.0-candidate.1.ttf`;
 const MARK_FILE = `${BRAND_PACKET}/marks/ap-mark-on-dark.svg`;
@@ -248,10 +247,11 @@ function composeInk({ name }) {
   const bottom = Math.max(...points.map((point) => point.y));
   const dx = CARD_WIDTH - CARD_PADDING - right;
   const dy = CARD_HEIGHT - CARD_PADDING - bottom;
-  for (const contour of text) for (const point of contour) {
-    point.x += dx;
-    point.y += dy;
-  }
+  for (const contour of text)
+    for (const point of contour) {
+      point.x += dx;
+      point.y += dy;
+    }
   return [...ink, ...text];
 }
 
