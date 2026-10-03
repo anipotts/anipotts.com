@@ -484,6 +484,14 @@ html[data-theme="light"] .editor-inline-icon.inline-image-white {
 .editor-review-actions > .astryx-button {
   flex: 1 1 auto;
 }
+.record-review-dialog .editor-review-actions,
+.record-panel-sheet .editor-review-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding-block: var(--spacing-3);
+  background: var(--color-background-surface);
+}
 @media (min-width: 641px) {
   .editor-review-actions > .astryx-button {
     flex: 0 0 auto;
@@ -511,6 +519,14 @@ html[data-theme="light"] .editor-inline-icon.inline-image-white {
 }
 .editor-diff-columns {
   background: var(--color-background-surface);
+}
+.editor-change[data-single-side] .editor-diff-columns,
+.editor-change[data-single-side] .editor-diff-hunk {
+  grid-template-columns: minmax(0, 1fr);
+}
+.editor-change[data-single-side] .editor-diff-line {
+  grid-column: 1;
+  grid-row: auto;
 }
 .editor-diff-columns > .astryx-text {
   padding: var(--spacing-2) var(--spacing-3);
@@ -659,9 +675,19 @@ html[data-theme="light"] .editor-inline-icon.inline-image-white {
   border-radius: 0;
   margin: 0;
 }
+.record-panel-dialog.record-review-dialog {
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  inset-block-end: auto;
+  inset-inline-end: auto;
+  transform: translate(-50%, -50%);
+}
 .record-panel-dialog .astryx-layout-content {
   overflow-wrap: anywhere;
   min-width: 0;
+}
+.record-review-dialog .astryx-layout-content {
+  overscroll-behavior: contain;
 }
 .record-panel-sheet .astryx-heading {
   font-size: var(--text-body-size);
@@ -759,6 +785,9 @@ html[data-theme="light"] .editor-inline-icon.inline-image-white {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--spacing-4);
   margin-block-start: var(--spacing-3);
+}
+.editor-change[data-single-side] .editor-rendered-comparison {
+  grid-template-columns: minmax(0, 1fr);
 }
 .editor-rendered-value {
   padding: var(--spacing-4);

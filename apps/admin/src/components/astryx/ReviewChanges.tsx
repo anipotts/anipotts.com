@@ -103,8 +103,13 @@ function RenderedChange({
   presentation,
   onEdit,
 }: Change) {
+  const singleSide = before ? (after ? undefined : "before") : "after";
   return (
-    <section className="editor-change" aria-label={label}>
+    <section
+      className="editor-change"
+      aria-label={label}
+      data-single-side={singleSide}
+    >
       <HStack gap={2}>
         <Text weight="semibold">{label}</Text>
         {onEdit && (
@@ -118,18 +123,28 @@ function RenderedChange({
         )}
       </HStack>
       <div className="editor-rendered-comparison">
-        {([before, after] as const).map((value, index) => (
-          <div key={index} data-side={index ? "after" : "before"}>
-            <Text type="supporting">{index ? "After" : "Before"}</Text>
-            <div className="editor-rendered-value">
-              {presentation ? (
-                <PresentationValue value={value} />
-              ) : (
-                <p dangerouslySetInnerHTML={{ __html: inlineHtml(value) }} />
-              )}
+        {([before, after] as const).map((value, index) =>
+          singleSide && !value ? null : (
+            <div key={index} data-side={index ? "after" : "before"}>
+              <Text type="supporting">
+                {singleSide
+                  ? index
+                    ? "Added"
+                    : "Removed"
+                  : index
+                    ? "After"
+                    : "Before"}
+              </Text>
+              <div className="editor-rendered-value">
+                {presentation ? (
+                  <PresentationValue value={value} />
+                ) : (
+                  <p dangerouslySetInnerHTML={{ __html: inlineHtml(value) }} />
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          ),
+        )}
       </div>
     </section>
   );
@@ -264,6 +279,7 @@ function FieldDiff({
     () => ({ hunks: reviewDiff(before, after), source }),
     [before, after, source],
   );
+  const singleSide = before ? (after ? undefined : "before") : "after";
   const hasHiddenContext = comparison.hunks.some(
     (hunk) => hunk.kind === "equal" && hunk.before.length > 8,
   );
@@ -273,6 +289,7 @@ function FieldDiff({
       aria-labelledby={headingId}
       gap={2}
       className="editor-change"
+      data-single-side={singleSide}
     >
       <HStack
         gap={2}
@@ -310,8 +327,13 @@ function FieldDiff({
           className="editor-diff-columns"
           aria-hidden="true"
         >
-          <Text type="supporting">Before</Text>
-          <Text type="supporting">After</Text>
+          {!singleSide && <Text type="supporting">Before</Text>}
+          {!singleSide && <Text type="supporting">After</Text>}
+          {singleSide && (
+            <Text type="supporting">
+              {singleSide === "after" ? "Added" : "Removed"}
+            </Text>
+          )}
         </Grid>
         {comparison.hunks.map((hunk, index) => {
           if (expanded || hunk.kind !== "equal" || hunk.before.length <= 8) {
@@ -445,6 +467,9 @@ export function ReviewChanges({
   const headingId = labelledBy ?? ownHeadingId;
   const changed = changes.filter((change) => change.before !== change.after);
   const differs = before !== after;
+  const hasComparableSides = sourceView
+    ? Boolean(before && after)
+    : changed.some((change) => Boolean(change.before && change.after));
   return (
     <VStack
       as="section"
@@ -485,17 +510,19 @@ export function ReviewChanges({
             className="editor-diff-view-controls"
           >
             {label && <DiffLegend />}
-            <HStack className="editor-diff-layout">
-              <SegmentedControl
-                label="Diff layout"
-                value={layout}
-                onChange={setLayout}
-                size="sm"
-              >
-                <SegmentedControlItem value="split" label="Side by side" />
-                <SegmentedControlItem value="unified" label="Unified" />
-              </SegmentedControl>
-            </HStack>
+            {hasComparableSides && (
+              <HStack className="editor-diff-layout">
+                <SegmentedControl
+                  label="Diff layout"
+                  value={layout}
+                  onChange={setLayout}
+                  size="sm"
+                >
+                  <SegmentedControlItem value="split" label="Side by side" />
+                  <SegmentedControlItem value="unified" label="Unified" />
+                </SegmentedControl>
+              </HStack>
+            )}
             <ToggleButton
               label="Source diff"
               tooltip="Source diff"
