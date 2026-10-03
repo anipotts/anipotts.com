@@ -52,6 +52,7 @@ describe("Content library", () => {
       />,
     );
     expect(html).toContain("No matching records");
+    expect(html).toContain("0 matching of 2");
     expect(html).toContain('value="missing"');
     expect(html).not.toContain("/content/writing/b");
   });
@@ -109,8 +110,8 @@ describe("Quiet Precision library rows", () => {
     expect(html).toContain(
       "returnTo=%2Fcontent%2Fprojects%3Fq%3DChained%26sort%3Dupdated",
     );
-    expect(html).toContain("workspace-row-mark");
-    expect(html).toContain("editorial-record-state");
+    expect(html).not.toContain('class="workspace-row-mark"');
+    expect(html).toContain("editorial-record-exception");
     // The whole row opens the record: no separate action column.
     expect(html).not.toContain("editorial-record-action");
     expect(html).toContain("Shared context across models");
@@ -333,7 +334,7 @@ describe("table language", () => {
     },
     { title: "Quiet", href: "/content/writing/quiet", status: "hidden" },
   ];
-  it("tints only public states and counts the view beside the title", () => {
+  it("groups publication state without repeating it in row metadata", () => {
     const html = renderToStaticMarkup(
       <ContentLibrary
         groups={[
@@ -342,20 +343,13 @@ describe("table language", () => {
         selectedGroup="writing"
       />,
     );
-    // Published is the default: it draws no chip, only its spoken name. Every
-    // other state stays neutral. The State column names every row's state;
-    // the phone line appears only where it adds something, so the unchanged
-    // published row has none.
-    expect(html.match(/astryx-token green/g)).toBeNull();
-    expect(html.match(/astryx-token default/g)).toHaveLength(4);
-    expect(html.match(/<span class="sr-only">Published<\/span>/g)).toHaveLength(
-      3,
-    );
-    // The title keeps its view count; the shared footer distinguishes loaded and total.
-    expect(html).toMatch(
-      /<h1[^>]*>Writing<\/h1><span[^>]*workspace-count[^>]*>4<\/span>/,
-    );
-    expect(html).toContain("4 loaded, 4 total");
-    expect(html).not.toContain("in view");
+    expect(html).not.toContain('data-column="status"');
+    expect(html).not.toContain('class="workspace-row-mark"');
+    expect(html).toContain("Review changes");
+    expect(html).toContain("Published");
+    expect(html).toContain("Drafts");
+    expect(html).toMatch(/Published \/ saved|Last activity/);
+    expect(html).toContain("4 records");
+    expect(html).not.toContain("4 loaded, 4 total");
   });
 });

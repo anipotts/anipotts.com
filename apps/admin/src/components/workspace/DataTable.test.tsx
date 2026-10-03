@@ -123,7 +123,7 @@ describe("global table interactions", () => {
     });
     expect(host.querySelector(".admin-table-count")?.textContent).toBe("7 / 8");
     expect(host.querySelector(".workspace-table-count")?.textContent).toBe(
-      "9 loaded, 10 total",
+      "9 loaded of 10 total",
     );
   });
   it("selects visible records without deleting another page's selection", () => {
@@ -188,9 +188,10 @@ describe("global table interactions", () => {
   });
   it("distinguishes states and counts without inventing an inventory total", () => {
     expect(tableCountText(20)).toBe("20 loaded");
-    expect(tableCountText(20, 150, 41)).toBe(
-      "20 loaded, 41 matching, 150 total",
-    );
+    expect(tableCountText(7, 7)).toBe("7 records");
+    expect(tableCountText(0, 7, 0)).toBe("0 matching of 7");
+    expect(tableCountText(3, 7, 3)).toBe("3 matching of 7");
+    expect(tableCountText(20, 150, 41)).toBe("20 loaded, 41 matching of 150");
     draw({ rows: [], searchActive: true });
     expect(host.textContent).toContain("No matching records");
     draw({ rows: [], loading: true });

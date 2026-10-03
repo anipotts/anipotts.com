@@ -1523,12 +1523,14 @@ const NOTICE_ICONS: Record<NoticeKind, Icon> = {
 export function StateNotice({
   kind,
   title,
+  description,
   action,
   icon: Glyph = NOTICE_ICONS[kind],
   headingLevel,
 }: {
   kind: NoticeKind;
   title: string;
+  description?: string;
   action?: ReactNode;
   icon?: Icon;
   headingLevel?: 2 | 3;
@@ -1549,6 +1551,7 @@ export function StateNotice({
           <OpenAIEmptyMessage.Title>
             <Title>{unpunctuated(title)}</Title>
           </OpenAIEmptyMessage.Title>
+          {description && <p>{description}</p>}
           {action && (
             <OpenAIEmptyMessage.ActionRow>
               {action}
@@ -1570,6 +1573,7 @@ export function StateNotice({
         <Heading level={level} className="workspace-notice-title">
           {unpunctuated(title)}
         </Heading>
+        {description && <p>{description}</p>}
         {action && (
           <HStack gap={2} wrap="wrap" className="workspace-notice-action">
             {action}

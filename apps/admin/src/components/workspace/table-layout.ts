@@ -254,8 +254,13 @@ const REFLOW_CSS = `.admin-data-table[data-narrow="true"] .openai-record-table t
 }
 .admin-data-table[data-narrow="true"] .openai-record-table tr[data-record-id] {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  align-items: baseline;
   padding-block: var(--spacing-2, 8px);
+}
+.admin-data-table[data-narrow="true"] .openai-record-table td[data-lead] {
+  flex: 0 0 100%;
+  box-sizing: border-box;
 }
 .admin-data-table[data-narrow="true"] .openai-record-table td {
   padding-block: var(--spacing-1, 4px);
@@ -267,14 +272,13 @@ const REFLOW_CSS = `.admin-data-table[data-narrow="true"] .openai-record-table t
   display: flex;
   align-items: baseline;
   gap: var(--spacing-2, 8px);
-  padding-inline-start: var(--spacing-4, 16px);
+  padding-inline-start: 12px;
 }
 .admin-data-table[data-narrow="true"] .openai-mobile-label {
   display: inline;
   color: var(--color-text-secondary);
   flex: 0 0 auto;
-  max-inline-size: 45%;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
 }
 .admin-data-table[data-narrow="true"]
   .openai-record-table
@@ -289,6 +293,23 @@ const REFLOW_CSS = `.admin-data-table[data-narrow="true"] .openai-record-table t
   top: var(--spacing-2, 8px);
   width: 44px;
 }
+.admin-data-table[data-narrow="true"] td:has(.admin-table-value:empty) { display: none; }
+.admin-data-table[data-narrow="true"] td[data-column="summary"] {
+  flex: 0 0 100%;
+  box-sizing: border-box;
+}
+.admin-data-table[data-narrow="true"] td[data-column="summary"] .openai-mobile-label { display: none; }
+.admin-data-table[data-narrow="true"] .editorial-record-summary {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  overflow: hidden;
+}
+.admin-data-table[data-narrow="true"] tr:has(.workspace-row-mark) td:not([data-lead]):not(.admin-table-select) {
+  padding-inline-start: 40px;
+}
+
 `;
 export function tableResponsiveRules(scope: string, threshold: number): string {
   const selector = `.admin-data-table .openai-table-frame[data-table-scope="${scope}"]`;

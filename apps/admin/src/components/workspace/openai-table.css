@@ -52,7 +52,7 @@
 .admin-data-table .openai-record-table tbody tr[data-record-id] {
   position: relative;
   border-bottom: 1px solid
-    color-mix(in srgb, var(--color-text-secondary) 13%, transparent);
+    color-mix(in srgb, var(--color-text-secondary) 8%, transparent);
 }
 .admin-data-table .openai-record-table tbody tr[data-record-id]:last-child {
   border-bottom: 0;
@@ -61,7 +61,7 @@
   padding: 0;
   background: color-mix(
     in srgb,
-    var(--color-text-secondary) 6%,
+    var(--color-text-secondary) 3%,
     var(--color-background-surface)
   );
 }
@@ -192,5 +192,66 @@
   .admin-data-table * {
     animation: none;
     transition: none;
+  }
+}
+
+/* Table controls never inherit the legacy disclosure's negative gutter. */
+.admin-data-table .admin-table-group-toggle {
+  margin: 0;
+  padding-inline: 12px;
+  border-radius: 0;
+}
+.admin-data-table .openai-group-row:first-child .admin-table-group-toggle {
+  border-radius: 0;
+}
+.admin-data-table .workspace-row {
+  --row-mark-size: 20px;
+  --row-mark-glyph: 16px;
+  gap: 8px;
+  align-items: flex-start;
+}
+.admin-data-table .workspace-row-mark {
+  margin-top: 8px;
+  background: transparent;
+  border-radius: 0;
+}
+.admin-data-table .workspace-row-line {
+  align-items: flex-start;
+  min-height: 36px;
+}
+.admin-data-table .workspace-row-link {
+  align-items: flex-start;
+  padding-block: 6px;
+  margin: 0;
+  line-height: 24px;
+}
+.admin-data-table .workspace-row-text {
+  padding-block: 6px;
+  line-height: 24px;
+}
+.admin-data-table .openai-record-table td {
+  padding-block: 4px;
+}
+.admin-data-table .editorial-record-summary {
+  display: block;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.admin-data-table .openai-table-footer {
+  padding-block: 12px;
+}
+.admin-data-table .editorial-record-exception {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+@media (pointer: coarse) {
+  .admin-data-table .workspace-row-link {
+    padding-block: 10px;
+  }
+  .admin-data-table .workspace-row-mark {
+    margin-top: 12px;
   }
 }

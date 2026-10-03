@@ -32,10 +32,14 @@ export function tableCountText(
   loaded: number,
   total?: number,
   filtered?: number,
+  noun: readonly [string, string] = ["record", "records"],
 ) {
-  return filtered !== undefined
-    ? `${loaded} loaded, ${filtered} matching${total !== undefined ? `, ${total} total` : ""}`
-    : `${loaded} loaded${total !== undefined ? `, ${total} total` : ""}`;
+  if (filtered !== undefined)
+    return loaded === filtered
+      ? `${filtered} matching${total !== undefined ? ` of ${total}` : ""}`
+      : `${loaded} loaded, ${filtered} matching${total !== undefined ? ` of ${total}` : ""}`;
+  if (total === loaded) return `${loaded} ${loaded === 1 ? noun[0] : noun[1]}`;
+  return `${loaded} loaded${total !== undefined ? ` of ${total} total` : ""}`;
 }
 
 /** One admin-owned semantic renderer. No SDK reset or provider is installed here. */
@@ -293,7 +297,7 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
                       >
                         <button
                           type="button"
-                          className="admin-table-group-toggle workspace-group-toggle"
+                          className="admin-table-group-toggle"
                           aria-expanded={!isCollapsed(key)}
                           aria-controls={`${groupId}-records`}
                           onClick={() => toggle(key)}
@@ -417,6 +421,7 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
               totalCount ??
                 (filteredCount === undefined ? pagination?.total : undefined),
               filteredCount ?? (searchActive ? pagination?.total : undefined),
+              noun,
             )}
           </span>
           {figures
