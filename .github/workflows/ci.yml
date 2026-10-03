@@ -57,7 +57,7 @@ jobs:
     name: Build, lint, typecheck, test
     needs: [classify]
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
@@ -125,6 +125,20 @@ jobs:
       - name: Validate public contracts
         if: github.event.pull_request.draft == false && needs.classify.outputs.www == 'true'
         run: pnpm test:public-boundary && pnpm test:public-routes && pnpm test:public-copy:policy && pnpm content:check
+
+      - name: Install public browser targets
+        if: github.event.pull_request.draft == false && needs.classify.outputs.www == 'true'
+        run: pnpm exec playwright install --with-deps chromium webkit
+
+      - name: Validate local CMS runtime and public journeys
+        if: github.event.pull_request.draft == false && needs.classify.outputs.www == 'true'
+        env:
+          E2E_TELEMETRY_DISABLED: "1"
+        run: |
+          pnpm turbo build --filter=@anipotts/www... --output-logs=errors-only
+          pnpm --filter @anipotts/www test:runtime
+          pnpm --filter @anipotts/www test:cms-routes
+          pnpm test:e2e:www:ci
 
       - name: Validate Admin contracts
         if: github.event.pull_request.draft == false && needs.classify.outputs.admin == 'true'
