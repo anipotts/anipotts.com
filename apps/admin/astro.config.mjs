@@ -37,6 +37,23 @@ export default defineConfig({
   // Astro 7 defaults to JSX whitespace rules. Keep the lossless HTML
   // compression the admin has always shipped.
   compressHTML: true,
+  // Astro hashes the scripts it emits during a production render, including
+  // its React-island hydration code. Inline editor styles remain necessary.
+  security: {
+    csp: {
+      scriptDirective: {
+        resources: ["'self'"],
+        // React DOM 19.2.8's fixed streaming bootstrap scripts. The built
+        // response test rejects any new or changed inline script on editor pages.
+        hashes: [
+          "sha256-7mu4H06fwDCjmnxxr/xNHyuQC6pLTHr4M2E4jXw5WZs=",
+          "sha256-yi012Kn9/HuLERn0KDX7eURMXowcJeid3ivxwiNughw=",
+        ],
+      },
+      styleDirective: { resources: ["'self'", "'unsafe-inline'"] },
+      directives: ["object-src 'none'", "base-uri 'none'"],
+    },
+  },
   // Astro 7 defaults to Sätteri. Keep the remark/rehype pipeline.
   markdown: { processor: unified({ rehypePlugins: [publishedHeadingIds] }) },
   site: "https://admin.anipotts.com",
