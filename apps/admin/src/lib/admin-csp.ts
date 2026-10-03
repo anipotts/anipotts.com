@@ -18,7 +18,10 @@ export function withAdminScriptNonce(
     (_match, prefix: string, directive: string, sources: string) =>
       `${prefix}${directive}${sources.trimEnd()} 'nonce-${nonce}'`,
   );
-  if (updated !== policy)
+  if (updated !== policy) {
     response.headers.set("Content-Security-Policy", updated);
+    // A cached document would reuse its nonce across requests.
+    response.headers.set("Cache-Control", "private, no-store");
+  }
   return response;
 }

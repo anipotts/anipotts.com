@@ -60,6 +60,7 @@ it("renders the built public auth document with CSP and a fresh nonce", async ()
     { waitUntil() {} },
   );
   expect(response.status).toBe(200);
+  expect(response.headers.get("Cache-Control")).toBe("private, no-store");
   assertInlineScriptsAllowed(response, await response.text());
   const another = await worker.fetch(
     new Request("https://admin.anipotts.com/auth"),

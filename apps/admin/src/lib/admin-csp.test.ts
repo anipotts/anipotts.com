@@ -21,6 +21,7 @@ describe("admin script CSP", () => {
     expect(response.headers.get("Content-Security-Policy")).toBe(
       "object-src 'none'; script-src 'self' 'sha256-synthetic' 'nonce-syntheticNonce'; style-src 'self' 'unsafe-inline'",
     );
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
   });
 
   it("also updates an explicit script element policy if Astro emits one", () => {
