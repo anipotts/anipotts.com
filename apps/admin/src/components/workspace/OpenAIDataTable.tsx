@@ -78,6 +78,8 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
   const scope = useId();
   const frame = useRef<HTMLDivElement>(null);
   const [narrow, setNarrow] = useState(false);
+  const scrollSurface = useRef<HTMLDivElement>(null);
+  const [overflowing, setOverflowing] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const storageKey = `admin:table-groups:v1:${tableId}`;
   useEffect(() => {
@@ -109,6 +111,24 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
     observer.observe(node);
     return () => observer.disconnect();
   }, [threshold, responsive]);
+  useEffect(() => {
+    const node = scrollSurface.current;
+    if (!node) return;
+    if (responsive !== "scroll") {
+      setOverflowing(false);
+      return;
+    }
+    const measure = () =>
+      setOverflowing(
+        responsive === "scroll" && node.scrollWidth > node.clientWidth,
+      );
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    if (node.firstElementChild) observer.observe(node.firstElementChild);
+    return () => observer.disconnect();
+  }, [responsive, rows, columns, collapsed]);
   const groups = groupTableRows(rows, groupBy, foldGroup);
   const isCollapsed = (key: string) =>
     typeof collapsed[key] === "boolean" && Object.hasOwn(collapsed, key)
@@ -221,13 +241,12 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
           </div>
         )}
         <div
+          ref={scrollSurface}
           className="admin-table-scroll astryx-table-scroll-wrapper"
-          tabIndex={responsive === "scroll" ? 0 : undefined}
-          role={responsive === "scroll" ? "region" : undefined}
+          tabIndex={overflowing ? 0 : undefined}
+          role={overflowing ? "region" : undefined}
           aria-label={
-            responsive === "scroll"
-              ? `${label}, horizontally scrollable`
-              : undefined
+            overflowing ? `${label}, horizontally scrollable` : undefined
           }
         >
           <table

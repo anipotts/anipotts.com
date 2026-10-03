@@ -181,9 +181,29 @@ describe("global table interactions", () => {
       "Inspect",
     );
     draw({ responsive: "scroll" });
-    expect(
-      host.querySelector(".admin-table-scroll")?.getAttribute("tabindex"),
-    ).toBe("0");
+    const scroll = host.querySelector<HTMLDivElement>(".admin-table-scroll")!;
+    expect(scroll.getAttribute("tabindex")).toBeNull();
+    expect(scroll.getAttribute("role")).toBeNull();
+    Object.defineProperty(scroll, "clientWidth", {
+      configurable: true,
+      value: 390,
+    });
+    Object.defineProperty(scroll, "scrollWidth", {
+      configurable: true,
+      value: 700,
+    });
+    act(() => resize?.());
+    expect(scroll.getAttribute("tabindex")).toBe("0");
+    expect(scroll.getAttribute("aria-label")).toContain(
+      "horizontally scrollable",
+    );
+    Object.defineProperty(scroll, "scrollWidth", {
+      configurable: true,
+      value: 390,
+    });
+    act(() => resize?.());
+    expect(scroll.getAttribute("tabindex")).toBeNull();
+    expect(scroll.getAttribute("aria-label")).toBeNull();
     expect(tableReflowWidth(columns)).toBeGreaterThanOrEqual(560);
   });
   it("distinguishes states and counts without inventing an inventory total", () => {

@@ -2744,105 +2744,109 @@ function HomeEditorImpl({
                 {historyLoading && !snapshot.history.length && (
                   <AdminSkeleton kind="history" />
                 )}
-                <DataTable
-                  rows={snapshot.history}
-                  rowKey="revision"
-                  tableId={`editor-history:${record.kind}:${record.id}`}
-                  label="Saved revisions"
-                  noun={["revision", "revisions"]}
-                  footer={false}
-                  interactive={false}
-                  columns={[
-                    {
-                      key: "revision",
-                      header: "Revision",
-                      render: (revision) => (
-                        <button
-                          type="button"
-                          className="editor-history-compare"
-                          aria-label={`Compare revision ${revision.revision}`}
-                          aria-expanded={comparedRevision === revision.revision}
-                          onClick={() =>
-                            setComparedRevision(
+                {snapshot.history.length > 0 && (
+                  <DataTable
+                    rows={snapshot.history}
+                    rowKey="revision"
+                    tableId={`editor-history:${record.kind}:${record.id}`}
+                    label="Saved revisions"
+                    noun={["revision", "revisions"]}
+                    footer={false}
+                    interactive={false}
+                    columns={[
+                      {
+                        key: "revision",
+                        header: "Revision",
+                        render: (revision) => (
+                          <button
+                            type="button"
+                            className="editor-history-compare"
+                            aria-label={`Compare revision ${revision.revision}`}
+                            aria-expanded={
                               comparedRevision === revision.revision
-                                ? null
-                                : revision.revision,
-                            )
-                          }
-                        >
-                          <Text weight="semibold">r{revision.revision}</Text>
-                          <RelativeTime value={revision.updatedAt} />
-                        </button>
-                      ),
-                    },
-                    {
-                      key: "actions",
-                      header: "Actions",
-                      width: 104,
-                      render: (revision) => (
-                        <HStack gap={2} vAlign="center">
-                          <IconButton
-                            label={`Restore revision ${revision.revision}`}
-                            tooltip={`Restore revision ${revision.revision}`}
-                            variant="ghost"
-                            size="sm"
-                            icon={
-                              <ArrowCounterClockwiseIcon
-                                weight="regular"
-                                aria-hidden="true"
-                              />
-                            }
-                            isDisabled={discarded}
-                            onClick={() => {
-                              resetBuffers();
-                              editor.current!.edit(revision.source);
-                              setTab("edit");
-                              toast({
-                                body: `Revision ${revision.revision} restored as a draft.`,
-                                uniqueID: "draft-restore",
-                              });
-                            }}
-                          />
-                          <IconButton
-                            label={`Download revision ${revision.revision}`}
-                            tooltip={`Download revision ${revision.revision}`}
-                            variant="ghost"
-                            size="sm"
-                            icon={
-                              <DownloadSimpleIcon
-                                weight="regular"
-                                aria-hidden="true"
-                              />
                             }
                             onClick={() =>
-                              download(
-                                revision.source,
-                                `${record.id}-revision-${revision.revision}.md`,
+                              setComparedRevision(
+                                comparedRevision === revision.revision
+                                  ? null
+                                  : revision.revision,
                               )
                             }
-                          />
-                        </HStack>
-                      ),
-                    },
-                  ]}
-                  renderExpanded={(revision) =>
-                    comparedRevision === revision.revision ? (
-                      <ReviewChanges
-                        label={`Revision ${revision.revision} against your draft`}
-                        destination={`Revision ${revision.revision}`}
-                        before={state.source}
-                        after={revision.source}
-                        changes={[
-                          {
-                            label: "Document source",
-                            before: state.source,
-                            after: revision.source,
-                          },
-                        ]}
-                      />
-                    ) : null
-                  }
-                />
+                          >
+                            <Text weight="semibold">r{revision.revision}</Text>
+                            <RelativeTime value={revision.updatedAt} />
+                          </button>
+                        ),
+                      },
+                      {
+                        key: "actions",
+                        header: "Actions",
+                        width: 104,
+                        render: (revision) => (
+                          <HStack gap={2} vAlign="center">
+                            <IconButton
+                              label={`Restore revision ${revision.revision}`}
+                              tooltip={`Restore revision ${revision.revision}`}
+                              variant="ghost"
+                              size="sm"
+                              icon={
+                                <ArrowCounterClockwiseIcon
+                                  weight="regular"
+                                  aria-hidden="true"
+                                />
+                              }
+                              isDisabled={discarded}
+                              onClick={() => {
+                                resetBuffers();
+                                editor.current!.edit(revision.source);
+                                setTab("edit");
+                                toast({
+                                  body: `Revision ${revision.revision} restored as a draft.`,
+                                  uniqueID: "draft-restore",
+                                });
+                              }}
+                            />
+                            <IconButton
+                              label={`Download revision ${revision.revision}`}
+                              tooltip={`Download revision ${revision.revision}`}
+                              variant="ghost"
+                              size="sm"
+                              icon={
+                                <DownloadSimpleIcon
+                                  weight="regular"
+                                  aria-hidden="true"
+                                />
+                              }
+                              onClick={() =>
+                                download(
+                                  revision.source,
+                                  `${record.id}-revision-${revision.revision}.md`,
+                                )
+                              }
+                            />
+                          </HStack>
+                        ),
+                      },
+                    ]}
+                    renderExpanded={(revision) =>
+                      comparedRevision === revision.revision ? (
+                        <ReviewChanges
+                          label={`Revision ${revision.revision} against your draft`}
+                          destination={`Revision ${revision.revision}`}
+                          before={state.source}
+                          after={revision.source}
+                          changes={[
+                            {
+                              label: "Document source",
+                              before: state.source,
+                              after: revision.source,
+                            },
+                          ]}
+                        />
+                      ) : null
+                    }
+                  />
+                )}
                 {snapshot.nextBeforeRevision != null && (
                   <Button
                     label="Load older revisions"

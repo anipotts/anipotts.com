@@ -131,7 +131,7 @@ describe("Status view from System's fixture", () => {
       null,
     );
     expect(host.querySelector("h1")?.nextElementSibling?.textContent).toBe(
-      String(sample.catalog.length),
+      `${sample.catalog.length} services`,
     );
   });
 
@@ -1504,7 +1504,7 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
     // One run System reported twice is one row.
     expect(lines).toHaveLength(events.items.length - plumbing - 1);
     expect(host.querySelector("h1")?.nextElementSibling?.textContent).toBe(
-      String(lines.length),
+      `${lines.length} events`,
     );
     // The one chip that shows plumbing names how much it holds.
     const chip = host.querySelector(".ops-chip-toggle")!;
@@ -1783,7 +1783,7 @@ describe("Activity and Alerts from the synthetic events fixture", () => {
     );
     expect(bodyRows(host)).toHaveLength(100);
     expect(host.querySelector("h1")?.nextElementSibling?.textContent).toBe(
-      "150",
+      "150 events",
     );
     const more = [...host.querySelectorAll("button")].find(
       (button) => button.textContent === "Show more",
