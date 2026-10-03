@@ -310,41 +310,6 @@ function Reading({ metric, row }: { metric: Metric; row: Row }) {
   return <span className="workspace-figure">{metric.format(value)}</span>;
 }
 
-/** A phone row's figures: fixed slots, the glyph at a fixed place and the
- * figure right-aligned in a fixed width, so glyphs and figures each form a
- * column down the days whatever the figure's length. */
-function PhoneReadings({ row }: { row: Row }) {
-  if (!row.item || !arrived(row.item))
-    return <span className="health-none">Nothing arrived</span>;
-  return (
-    <span className="health-phone">
-      {COLLECTED.map((metric) => {
-        const value = row.item![metric.key];
-        const Glyph = metric.icon;
-        return (
-          <span
-            key={metric.key}
-            className="health-phone-slot"
-            title={metric.header}
-          >
-            {value === null ? (
-              <span className="sr-only">{metric.header}: nothing arrived</span>
-            ) : (
-              <>
-                <Glyph weight="regular" aria-hidden="true" />
-                <span className="health-phone-figure">
-                  <span className="sr-only">{metric.header} </span>
-                  {metric.format(value)}
-                </span>
-              </>
-            )}
-          </span>
-        );
-      })}
-    </span>
-  );
-}
-
 /** Every day of the range, newest first; a day System has nothing for
  * reads "Nothing arrived", never a zero or a dash. */
 function HealthTable({ data }: { data: HealthDaily }) {
@@ -364,14 +329,10 @@ function HealthTable({ data }: { data: HealthDaily }) {
   const columns: Column<Row>[] = [
     {
       key: "day",
+      priority: 0,
       header: "Day",
       render: (row) => (
-        <RowTitle
-          kind="Day"
-          title={row.label}
-          tooltip={row.date}
-          end={<PhoneReadings row={row} />}
-        />
+        <RowTitle kind="Day" title={row.label} tooltip={row.date} />
       ),
     },
     ...COLLECTED.map((metric): Column<Row> => ({
@@ -386,6 +347,8 @@ function HealthTable({ data }: { data: HealthDaily }) {
   return (
     <div className="health-table">
       <DataTable
+        tableId="data-health-days"
+        responsive="scroll"
         rows={rows}
         rowKey="date"
         label="Health by day"

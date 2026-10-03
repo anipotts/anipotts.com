@@ -32,6 +32,8 @@ const markupViolations = (text: string) =>
 // One-sided borders that frame or mark something rather than separate
 // siblings. Rows, columns and sections separate with spacing tokens.
 const structuralEdges = new Set([
+  // October 2 table standard: restrained separators only inside the owned table.
+  ".admin-data-table .openai-record-table tbody tr[data-record-id] border-bottom",
   // markers on a single element
   ".publication-step border-block-end", // progress bar whose color is state
   ".article-composer .tiptap blockquote border-inline-start", // quote bar

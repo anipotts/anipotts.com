@@ -86,7 +86,7 @@ describe("editorial catalog", () => {
     expect(html).not.toContain("?group=");
     expect(html).not.toContain('role="tree"');
     expect(html).toMatch(/<h1[^>]*>content<\/h1>/);
-    expect(html).toContain("Updated");
+    expect(html).toContain("Last activity");
     expect(html).not.toContain("recently updated first");
     expect(html).toContain(
       'href="/content/writing/music?returnTo=%2Fcontent%2Fpages"',

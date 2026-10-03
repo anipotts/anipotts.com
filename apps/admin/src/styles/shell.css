@@ -275,7 +275,7 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   }
 }
 
-/* Shared 44px phone appbar, including record, preview and review routes. */
+/* Shared phone appbar with inset 44px targets on every workspace route. */
 :root {
   --admin-appbar-height: 0px;
 }
@@ -286,7 +286,7 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   :root {
     --admin-appbar-height: var(
       --admin-phone-appbar-height,
-      calc(var(--spacing-11) + env(safe-area-inset-top))
+      calc(var(--spacing-11) + var(--spacing-2) * 2 + env(safe-area-inset-top))
     );
   }
   .editorial-workspace-shell .astryx-app-shell-header:has(.admin-phone-bar) {
@@ -300,7 +300,8 @@ body [data-astryx-theme]:not([data-astryx-media]) {
     align-items: center;
     box-sizing: border-box;
     min-height: var(--admin-appbar-height);
-    padding-block-start: env(safe-area-inset-top);
+    padding-block: calc(env(safe-area-inset-top) + var(--spacing-2))
+      var(--spacing-2);
     padding-inline: var(--admin-gutter);
     background: var(--color-background-body);
   }
