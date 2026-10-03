@@ -3,11 +3,12 @@
 // Serve the built public Worker against a seeded, temporary local D1. This
 // process is owned by the e2e runner and has no remote Cloudflare bindings.
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readPublicE2EMigrations } from "./public-e2e-migrations.mjs";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const port = Number(process.argv[2]);
@@ -78,14 +79,9 @@ try {
   const migrations = join(temporary, "migrations.sql");
   writeFileSync(
     migrations,
-    ["0001_published_snapshots.sql", "0002_content_schema_version.sql"]
-      .map((name) =>
-        readFileSync(
-          join(root, "apps/admin/migrations/content-publication", name),
-          "utf8",
-        ),
-      )
-      .join("\n"),
+    readPublicE2EMigrations(
+      join(root, "apps/admin/migrations/content-publication"),
+    ),
   );
   run([
     cli,
