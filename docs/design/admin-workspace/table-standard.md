@@ -45,19 +45,23 @@ Production deployment remains pending review. Verification evidence and the fina
 
 ## Implementation checkpoint
 
-Based on production main `8287446bc`; isolated branch `codex/admin-table-standard`.
+Integrated with production main `4247c2dbc`; isolated branch `codex/admin-table-standard`.
 
-- All 163 admin unit test files passed, 2,111 tests.
-- Supported admin typecheck and production build passed.
-- Admin lint passed with existing Astro hints.
-- Reference desktop and narrow layouts were inspected in the live demo.
-- Local browser verification and implementation screenshots remain pending. The existing listener on localhost:4311 belongs to the primary checkout but its manager metadata is stale; the isolated manager refused to replace it. A local preview switch approval was requested. No alternate port was started.
-- Production deployment remains pending review. No production content or reader permissions changed.
+- All 164 admin unit test files passed, 2,122 tests. Astro route tests passed (79), editorial runtime tests passed (86), and content package tests passed (160).
+- Supported admin typecheck, production build and affected-scope checks passed. Existing Astro hints remain.
+- Live reference desktop and narrow layouts were inspected. Implementation uses independent source.
+- Canonical managed preview now serves this branch at `http://localhost:4311/` with an isolated local seed database. Production records were not changed.
+- Browser review covered Writing, Pages and Projects, plus synthetic Data, operational and selection/pagination fixtures. Content widths checked at 320, 390, 768, 1032 and 1440 CSS pixels, light/dark themes and expanded/collapsed navigation. No horizontal document overflow was observed. Keyboard group disclosure, saved collapse preferences, zero-result counts and selection/pagination were exercised.
+- Fixed disclosure gutter overflow, icon/first-line alignment, excessive row chrome, redundant Writing icons/status cells, summary allocation, narrow metadata flow, orphan empty metadata labels and invisible checkboxes under SDK resets. Counts distinguish complete inventories from loaded/filtered subsets. Content's timestamp heading is Last activity.
+- Screenshots are retained in the task visualization directory `admin-table-standard/`, including desktop Writing, narrow Writing, tablet Projects and narrow operational tables.
+- The local seed bootstrap gives published records the same recent publication timestamp. This is fixture provenance, not a production timestamp change. Synthetic operational records supply varied dates. Physical-device and authenticated live reader data coverage are outside this local visual checkpoint.
+- Production deployment remains pending Ani's visual review and exact-head required checks. No production content or reader permissions changed.
 
 Exact changed paths at this checkpoint:
 
 - `apps/admin/src/components/astryx/ContentLibrary.test.tsx`
 - `apps/admin/src/components/astryx/ContentLibrary.tsx`
+- `apps/admin/src/components/astryx/EditorialApp.test.tsx`
 - `apps/admin/src/components/astryx/HomeEditor.tsx`
 - `apps/admin/src/components/astryx/HomepageWritingSelection.tsx`
 - `apps/admin/src/components/astryx/ObservabilityWorkspace.test.tsx`

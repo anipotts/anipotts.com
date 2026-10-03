@@ -110,7 +110,7 @@ describe("Quiet Precision library rows", () => {
     expect(html).toContain(
       "returnTo=%2Fcontent%2Fprojects%3Fq%3DChained%26sort%3Dupdated",
     );
-    expect(html).not.toContain('class="workspace-row-mark"');
+    expect(html).toContain('class="workspace-row-mark"');
     expect(html).toContain("editorial-record-exception");
     // The whole row opens the record: no separate action column.
     expect(html).not.toContain("editorial-record-action");

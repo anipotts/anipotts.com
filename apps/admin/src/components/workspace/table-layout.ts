@@ -293,7 +293,8 @@ const REFLOW_CSS = `.admin-data-table[data-narrow="true"] .openai-record-table t
   top: var(--spacing-2, 8px);
   width: 44px;
 }
-.admin-data-table[data-narrow="true"] td:has(.admin-table-value:empty) { display: none; }
+.admin-data-table[data-narrow="true"] .openai-record-table td:not([data-lead]):not(.admin-table-select):has(.admin-table-value:empty),
+.admin-data-table[data-narrow="true"] td:has(> .admin-table-value > .sr-only:only-child) { display: none; }
 .admin-data-table[data-narrow="true"] td[data-column="summary"] {
   flex: 0 0 100%;
   box-sizing: border-box;

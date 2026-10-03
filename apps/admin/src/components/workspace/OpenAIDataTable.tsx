@@ -297,7 +297,7 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
                       >
                         <button
                           type="button"
-                          className="admin-table-group-toggle"
+                          className="workspace-group-toggle admin-table-group-toggle"
                           aria-expanded={!isCollapsed(key)}
                           aria-controls={`${groupId}-records`}
                           onClick={() => toggle(key)}

@@ -120,8 +120,10 @@
   z-index: 2;
 }
 .admin-data-table .admin-table-selection input {
+  appearance: auto;
   width: 16px;
   height: 16px;
+  min-height: 0;
   accent-color: var(--color-text-accent);
 }
 .admin-data-table .admin-table-primary,
