@@ -16,6 +16,7 @@ import {
 } from "./ObservabilityWorkspace";
 import {
   badgeFor,
+  DataTable,
   easternClockText,
   leadWidth,
   figureWidth,
@@ -594,6 +595,30 @@ describe("Status layout with the longest live reason and name", () => {
       expect(width).toBeGreaterThanOrEqual(80);
     },
   );
+
+  it("keeps the failure reason visible beside an open detail panel", () => {
+    const services = opsView(parseOpsSnapshot(worst()), false).filter(
+      (service) => !opsIsHost(service),
+    );
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(
+      <DataTable
+        rows={services}
+        rowKey="id"
+        label="Services"
+        noun={["service", "services"]}
+        columns={statusColumns(
+          { narrow: true, names: new Map(), leadRoom: 280, reasonWant: 280 },
+          { selected: null, open: () => undefined },
+        )}
+      />,
+    );
+    const row = rowFor(host, "pc.inference")!;
+    const reason = row.querySelector(".ops-reason")!;
+    expect(reason.textContent).toContain(REASON);
+    expect(reason.closest('[data-compact-only="true"]')).toBeNull();
+    expect(row.querySelectorAll(".ops-reason")).toHaveLength(1);
+  });
 
   it("renders the reason on two lines, whole words, its full text on hover", () => {
     const host = render(worst());

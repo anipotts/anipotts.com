@@ -45,7 +45,6 @@ import {
   StateNotice,
   TitleText,
   WorkspaceSection,
-  YieldOnly,
   badgeFor,
   chipWidth,
   leadWidth,
@@ -188,17 +187,7 @@ export function statusColumns(
           isPressed={select.selected === row.id}
           controls={select.selected === row.id ? OPS_PANEL_ID : undefined}
           tooltip={naming.tooltip}
-          mobile={
-            exception ? (
-              <>
-                <YieldOnly column="state">
-                  <EntryState service={row} />
-                </YieldOnly>
-                <Reason service={row} />
-              </>
-            ) : undefined
-          }
-          mobileBelow="large"
+          secondary={narrow && exception ? <Reason service={row} /> : undefined}
           end={
             <>
               <LastSuccess service={row} now={now} />

@@ -202,14 +202,22 @@ describe("record rows", () => {
     );
   });
 
-  it("keeps the device's place on a phone's line 2, so sources line up", () => {
-    const host = table();
-    const lines = [
-      ...host.querySelectorAll(".workspace-row-meta .data-source"),
-    ];
-    expect(lines.length).toBeGreaterThan(1);
-    for (const line of lines)
-      expect(line.firstElementChild?.className).toBe("data-source-device");
+  it("keeps excerpts outside the table's hidden compact metadata", () => {
+    const record = { ...records[0]!, excerpt: "Unique synthetic excerpt" };
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(
+      <DataTable
+        rows={[record]}
+        rowKey="id"
+        label="Records"
+        noun={["record", "records"]}
+        columns={recordColumns({ href: (row) => `/r/${row.id}` })}
+      />,
+    );
+    const excerpt = host.querySelector(".data-record-excerpt")!;
+    expect(excerpt.textContent).toBe(record.excerpt);
+    expect(excerpt.closest('[data-compact-only="true"]')).toBeNull();
+    expect(host.querySelectorAll(".data-record-excerpt")).toHaveLength(1);
   });
 
   it("puts a state other than the default before the tier", () => {

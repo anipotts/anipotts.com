@@ -208,18 +208,10 @@ export function recordColumns({
             }
             isPressed={onSelect ? selectedId === record.id : undefined}
             controls={controls}
-            mobile={
-              <>
-                <TierMark tier={record.tier} />
-                <StateBadge domain="record" state={record.status} />
-                {record.excerpt ? (
-                  <span className="data-record-excerpt">{record.excerpt}</span>
-                ) : (
-                  // The device keeps its place, empty or not, so source
-                  // names line up down a phone's rows too.
-                  !hideSource && <RecordSource record={record} slot />
-                )}
-              </>
+            secondary={
+              record.excerpt ? (
+                <span className="data-record-excerpt">{record.excerpt}</span>
+              ) : undefined
             }
             end={<OccurredTime record={record} />}
           />
