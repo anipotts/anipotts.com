@@ -484,7 +484,8 @@ html[data-theme="light"] .editor-inline-icon.inline-image-white {
 .editor-review-actions > .astryx-button {
   flex: 1 1 auto;
 }
-.record-review-dialog .editor-review-actions {
+.record-review-dialog .editor-review-actions,
+.record-panel-sheet .editor-review-actions {
   position: sticky;
   bottom: 0;
   z-index: 1;
