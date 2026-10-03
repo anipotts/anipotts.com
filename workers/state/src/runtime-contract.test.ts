@@ -12,6 +12,7 @@ import {
 // Synthetic values stay short so the literal-secret scan keeps working here.
 const secrets = {
   STATE_PUBLISH_KEY: "synthetic-publish-39",
+  STATE_READ_KEY: "synthetic-read-41",
   CONTROL_PLANE_DEVICE_PUBLIC_JWK: "synthetic-jwk-40",
 };
 
@@ -39,6 +40,7 @@ const available = { state: "available", missing: [] };
 const allAvailable = {
   cors: available,
   publish: available,
+  private_read: available,
   control_connect: available,
 };
 
@@ -76,6 +78,7 @@ describe("state runtime contract evaluation", () => {
       features: {
         cors: available,
         publish: { state: "unavailable", missing: ["STATE_PUBLISH_KEY"] },
+        private_read: available,
         control_connect: {
           state: "unavailable",
           missing: ["CONTROL_PLANE_DEVICE_PUBLIC_JWK"],
@@ -111,6 +114,7 @@ describe("state runtime contract evaluation", () => {
         features: {
           cors: { state: "unavailable", missing: ["ALLOWED_ORIGINS"] },
           publish: { state: "unavailable", missing: ["STATE_PUBLISH_KEY"] },
+          private_read: { state: "unavailable", missing: ["STATE_READ_KEY"] },
           control_connect: {
             state: "unavailable",
             missing: ["COMMAND_RELAY", "CONTROL_PLANE_DEVICE_PUBLIC_JWK"],

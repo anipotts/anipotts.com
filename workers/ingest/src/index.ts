@@ -18,6 +18,9 @@ const CATEGORY_TABLE: Record<Category, string> = {
 };
 
 const VALID_CATEGORIES = new Set<Category>(["brands_email"]);
+const MAX_BODY_BYTES = 64 * 1024;
+const MAX_ROWS = 100;
+const MAX_FIELD_CHARS = 2048;
 
 /**
  * Categories writable with a scoped secret (BRANDS_INGEST_KEY).
@@ -70,6 +73,39 @@ interface IngestPayload {
   data: Record<string, unknown> | Record<string, unknown>[];
 }
 
+async function boundedBody(request: Request): Promise<string | null> {
+  const length = request.headers.get("content-length");
+  if (
+    length !== null &&
+    (!/^\d+$/.test(length) || Number(length) > MAX_BODY_BYTES)
+  ) {
+    return null;
+  }
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > MAX_BODY_BYTES) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+  const body = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(
+    body,
+  );
+}
+
 function jsonResponse(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -114,11 +150,19 @@ async function writeToTable(
   const statements = [];
 
   for (const row of rows) {
+    if (!row || typeof row !== "object" || Array.isArray(row)) {
+      throw new Error("Invalid row");
+    }
     // Filter to allowlisted columns only, add timestamp
     const record: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(row)) {
       if (allowedColumns.has(k)) {
-        record[k] = typeof v === "object" && v !== null ? JSON.stringify(v) : v;
+        const stored =
+          typeof v === "object" && v !== null ? JSON.stringify(v) : v;
+        if (typeof stored === "string" && stored.length > MAX_FIELD_CHARS) {
+          throw new Error("Field too long");
+        }
+        record[k] = stored;
       }
     }
     record[tsColumn] = ts;
@@ -276,20 +320,33 @@ export default {
     }
 
     const apiKey = request.headers.get("X-Ingest-Key");
-    if (!apiKey) {
+    const mainKeyOk = Boolean(
+      apiKey && env.MAC_MINI_INGEST_KEY && apiKey === env.MAC_MINI_INGEST_KEY,
+    );
+    const brandsKeyOk = Boolean(
+      apiKey && env.BRANDS_INGEST_KEY && apiKey === env.BRANDS_INGEST_KEY,
+    );
+    if (!mainKeyOk && !brandsKeyOk) {
       return jsonResponse({ error: "Unauthorized" }, 401);
     }
 
-    // Parse body (bounded by Worker request size limits)
+    // Authenticate before consuming attacker-controlled input, then cap it.
     let payload: IngestPayload;
     try {
-      payload = await request.json();
+      const body = await boundedBody(request);
+      if (body === null)
+        return jsonResponse({ error: "Payload too large" }, 413);
+      payload = JSON.parse(body) as IngestPayload;
     } catch {
       return jsonResponse({ error: "Invalid JSON" }, 400);
     }
 
     // Validate category
-    if (!payload.category || !VALID_CATEGORIES.has(payload.category)) {
+    if (
+      !payload ||
+      typeof payload !== "object" ||
+      !VALID_CATEGORIES.has(payload.category)
+    ) {
       return jsonResponse(
         {
           error: `Invalid category. Must be one of: ${[...VALID_CATEGORIES].join(", ")}`,
@@ -302,8 +359,6 @@ export default {
     //   - MAC_MINI_INGEST_KEY can write any category (superset)
     //   - BRANDS_INGEST_KEY can write only the "brands" scope (brands_email)
     const requiredScope = SCOPED_CATEGORIES[payload.category];
-    const mainKeyOk = apiKey === env.MAC_MINI_INGEST_KEY;
-    const brandsKeyOk = apiKey === env.BRANDS_INGEST_KEY;
     const authOk = mainKeyOk || (requiredScope === "brands" && brandsKeyOk);
     if (!authOk) {
       return jsonResponse({ error: "Unauthorized" }, 401);
@@ -317,13 +372,19 @@ export default {
     if (rows.length === 0) {
       return jsonResponse({ error: "Empty data array" }, 400);
     }
+    if (rows.length > MAX_ROWS) {
+      return jsonResponse({ error: "Too many rows" }, 413);
+    }
 
     try {
       const receipt = await writeToTable(env.DB, payload.category, rows);
       return jsonResponse({ success: true, ...receipt });
     } catch (e) {
       const isValidation =
-        e instanceof Error && e.message === "No valid columns in row";
+        e instanceof Error &&
+        ["No valid columns in row", "Invalid row", "Field too long"].includes(
+          e.message,
+        );
       return jsonResponse(
         { error: isValidation ? e.message : "Database write failed" },
         isValidation ? 400 : 500,

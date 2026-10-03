@@ -190,7 +190,7 @@ for (const directory of ["components", "layouts", "styles", "lib", "scripts"]) {
 }
 assert.match(
   deployWorkflow,
-  /deploy-admin:[\s\S]*?needs: \[release, deploy-www\]/,
+  /deploy-admin:[\s\S]*?needs: \[release, production-gate, deploy-www\]/,
 );
 assert.match(deployWorkflow, /needs\.deploy-www\.result == 'skipped' &&/);
 assert.match(deployWorkflow, /needs\.release\.outputs\.www != 'true'/);

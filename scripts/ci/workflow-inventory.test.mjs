@@ -200,6 +200,45 @@ assert.ok(
   deployWorkflow.includes("d1 time-travel info"),
   "migration releases must capture a Time Travel bookmark",
 );
+const releasePreflight = deployWorkflow
+  .split("  release:\n")[1]
+  ?.split("  production-gate:\n")[0];
+const gatedMigration = deployWorkflow
+  .split("  production-gate:\n")[1]
+  ?.split("  deploy-www:\n")[0];
+assert.ok(
+  releasePreflight && gatedMigration,
+  "production gate must follow release preflight",
+);
+assert.equal(
+  releasePreflight.includes("secrets."),
+  false,
+  "preflight must not read production secrets",
+);
+assert.equal(
+  releasePreflight.includes("--remote"),
+  false,
+  "preflight must not touch remote D1",
+);
+assert.ok(
+  gatedMigration.includes("environment: Production") &&
+    gatedMigration.includes("d1 migrations apply"),
+  "remote migrations require the Production environment",
+);
+for (const job of [
+  "deploy-www",
+  "deploy-admin",
+  "deploy-ingest",
+  "deploy-weekly-email",
+  "deploy-state",
+  "deploy-newsletter",
+]) {
+  const block = deployWorkflow.split(`  ${job}:\n`)[1]?.split("\n  deploy-")[0];
+  assert.ok(
+    block?.includes("production-gate"),
+    `${job} must depend on the production gate`,
+  );
+}
 assert.equal(
   /d1\s+time-travel\s+restore/.test(deployWorkflow),
   false,
@@ -279,17 +318,18 @@ for (const job of ["deploy-www", "deploy-admin"]) {
   );
 }
 
-// Every deploy requires a successful release. Admin also waits for the public
+// Every deploy requires the approved production gate. Admin also waits for the public
 // reader, allowing a skipped reader only when www was not selected.
 for (const [name, job] of Object.entries(deployJobs)) {
   if (!name.startsWith("deploy-")) continue;
   if (name === "deploy-admin") {
-    assert.deepEqual(job.needs, ["release", "deploy-www"]);
+    assert.deepEqual(job.needs, ["release", "production-gate", "deploy-www"]);
     assert.match(
       job.if,
       /^always\(\) &&\s*needs\.release\.result == 'success' &&/,
     );
     assert.match(job.if, /needs\.deploy-www\.result == 'success' \|\|/);
+    assert.match(job.if, /needs\.production-gate\.result == 'success'/);
     assert.match(job.if, /needs\.deploy-www\.result == 'skipped' &&/);
     assert.match(
       job.if,
@@ -302,7 +342,11 @@ for (const [name, job] of Object.entries(deployJobs)) {
     assert.doesNotMatch(job.if, /\b(?:failure|cancelled)\(\)/);
     continue;
   }
-  assert.deepEqual(job.needs, ["release"], `${name} depends only on release`);
+  assert.deepEqual(
+    job.needs,
+    ["release", "production-gate"],
+    `${name} depends on the approved release`,
+  );
   assert.equal(
     /\b(?:always|failure|cancelled)\(\)/.test(job.if),
     false,

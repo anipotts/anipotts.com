@@ -45,18 +45,26 @@ pnpm --filter @anipotts/state test:cli http://localhost:8787
 | ------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | GET    | `/`               | Service info: the links and commits endpoints, and the Durable Objects that can serve (`CommandRelay` only while a device key is set) |
 | GET    | `/health`         | Per-plane state; see [Health](#health)                                                                                                |
-| GET    | `/api/links`      | List saved links                                                                                                                      |
+| GET    | `/api/links`      | List saved links (private read key)                                                                                                   |
 | POST   | `/api/links`      | Save a link (publish key). Body: `{ url, title?, tag?, note?, source? }`                                                              |
 | DELETE | `/api/links/:id`  | Remove a link (publish key)                                                                                                           |
-| GET    | `/api/links/ws`   | WebSocket. Receives `snapshot` on connect, then `link.added` / `link.removed` on every mutation                                       |
-| GET    | `/api/commits`    | List held commits, newest first. `?limit=` caps the list (default 100)                                                                |
+| GET    | `/api/links/ws`   | WebSocket (private read key). Receives `snapshot` on connect, then `link.added` / `link.removed` on every mutation                    |
+| GET    | `/api/commits`    | List held commits (private read key), newest first. `?limit=` caps the list (default 100)                                             |
 | POST   | `/api/commits`    | Add one commit or `{ commits: [...] }` (publish key). The window keeps the newest 500                                                 |
-| GET    | `/api/commits/ws` | WebSocket. Receives `snapshot` on connect, then `commit.added`                                                                        |
+| GET    | `/api/commits/ws` | WebSocket (private read key). Receives `snapshot` on connect, then `commit.added`                                                     |
 
 Write routes require `Authorization: Bearer $STATE_PUBLISH_KEY` and answer 503
 when that secret is not configured. `POST /api/links` answers 400 unless the
 body is a JSON object whose `source`, when present, is `shortcut`, `admin` or
 `manual`. A link without one is stored as `manual`.
+
+Private GET and WebSocket routes require `Authorization: Bearer $STATE_READ_KEY`.
+They answer 503 when the read key is absent and 401 when it is wrong. The read
+key is separate from the publish key; provisioning it is required before an
+authorized reader can use these routes. Browser WebSocket clients cannot send
+an Authorization header, so a future browser reader needs a separate short-lived
+ticket flow. The CLI smoke checks denial and, when the key is available to the
+process, validates the authorized response shape without printing saved links.
 
 ## Health
 
