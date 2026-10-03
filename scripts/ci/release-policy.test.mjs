@@ -546,6 +546,26 @@ assert.equal(
   classifyRelease(["A\te2e.production.config.ts"], base).risk,
   "unknown",
 );
+// The public CMS reader consumes these shared modules even when the change
+// does not otherwise select a www deployment. Exercise the browser gate for
+// changes to both its reader and source parsing dependencies.
+for (const path of [
+  "packages/content/src/editorial/direct-publication.ts",
+  "packages/content/src/editorial/publication-contract.ts",
+  "packages/content/src/editorial/source.ts",
+  "packages/content/src/editorial/markdown.ts",
+]) {
+  for (const status of ["A", "M", "D"]) {
+    const release = classifyRelease([`${status}\t${path}`], base);
+    assert.equal(release.public_browser_changed, true, `${status} ${path}`);
+  }
+}
+assert.equal(
+  classifyRelease(["M\tapps/admin/src/components/astryx/RecordPanel.tsx"], base)
+    .public_browser_changed,
+  false,
+  "admin-only UI changes do not select the public browser suite",
+);
 const astryxPatch = classifyRelease(
   ["M\tpatches/@astryxdesign__core@0.4.6.patch"],
   base,
