@@ -62,6 +62,7 @@ test("a fresh local database is migrated and seeded, all locally", () => {
   const lines = [];
   const plan = ensureLocalContentDatabase({
     appDir: "/tmp/app",
+    persistTo: "/tmp/admin-e2e-example/state",
     run,
     log: (line) => lines.push(line),
   });
@@ -73,7 +74,7 @@ test("a fresh local database is migrated and seeded, all locally", () => {
     assert.equal(args.includes("--remote"), false, args.join(" "));
     assert.equal(
       args[args.indexOf("--persist-to") + 1],
-      "/tmp/app/.wrangler/state",
+      "/tmp/admin-e2e-example/state",
     );
   }
   assert.match(lines[0], /bootstrapping/);
@@ -91,6 +92,11 @@ test("a ready local database is only probed", () => {
     log: (line) => lines.push(line),
   });
   assert.equal(calls.length, 2);
+  for (const args of calls)
+    assert.equal(
+      args[args.indexOf("--persist-to") + 1],
+      "/tmp/app/.wrangler/state",
+    );
   assert.match(lines[0], /ready/);
 });
 

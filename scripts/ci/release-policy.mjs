@@ -39,6 +39,14 @@ const CI_POLICY_PATHS = [
   /^(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json)$/,
 ];
 
+const PUBLIC_BROWSER_PATHS = [
+  /^e2e\.www\.config\.ts$/,
+  /^scripts\/ci\/public-e2e-server\.mjs$/,
+  /^apps\/www\/test\/e2e\//,
+  /^scripts\/content\/(?:seed-content-d1|content-d1-seed)\.mjs$/,
+  /^(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml)$/,
+];
+
 const LOCAL_DEV_PATHS = [
   /^\.codex\//,
   /^\.nvmrc$/,
@@ -220,6 +228,9 @@ export function classifyRelease(changeLines, options = {}) {
     ci_policy_changed: paths.some((path) =>
       CI_POLICY_PATHS.some((pattern) => pattern.test(path)),
     ),
+    public_browser_changed: paths.some((path) =>
+      PUBLIC_BROWSER_PATHS.some((pattern) => pattern.test(path)),
+    ),
     local_dev_changed: paths.some((path) =>
       LOCAL_DEV_PATHS.some((pattern) => pattern.test(path)),
     ),
@@ -249,6 +260,7 @@ export function githubOutputs(release) {
     docs_only: String(release.docs_only),
     migration_preflight_required: String(release.migration_preflight_required),
     ci_policy_changed: String(release.ci_policy_changed),
+    public_browser_changed: String(release.public_browser_changed),
     local_dev_changed: String(release.local_dev_changed),
     d1_changed: String(release.d1_changed),
     migration_risk: release.migration_risk,

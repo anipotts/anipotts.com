@@ -37,6 +37,7 @@ jobs:
       migration_risk: ${{ steps.release.outputs.migration_risk }}
       migration_preflight_required: ${{ steps.release.outputs.migration_preflight_required }}
       ci_policy_changed: ${{ steps.release.outputs.ci_policy_changed }}
+      public_browser_changed: ${{ steps.release.outputs.public_browser_changed }}
       local_dev_changed: ${{ steps.release.outputs.local_dev_changed }}
     steps:
       - uses: actions/checkout@v7
@@ -127,11 +128,11 @@ jobs:
         run: pnpm test:public-boundary && pnpm test:public-routes && pnpm test:public-copy:policy && pnpm content:check
 
       - name: Install public browser targets
-        if: github.event.pull_request.draft == false && needs.classify.outputs.www == 'true'
+        if: github.event.pull_request.draft == false && (needs.classify.outputs.www == 'true' || needs.classify.outputs.public_browser_changed == 'true')
         run: pnpm exec playwright install --with-deps chromium webkit
 
       - name: Validate local CMS runtime and public journeys
-        if: github.event.pull_request.draft == false && needs.classify.outputs.www == 'true'
+        if: github.event.pull_request.draft == false && (needs.classify.outputs.www == 'true' || needs.classify.outputs.public_browser_changed == 'true')
         env:
           E2E_TELEMETRY_DISABLED: "1"
         run: |

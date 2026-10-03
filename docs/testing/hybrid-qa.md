@@ -31,10 +31,12 @@ pnpm test:e2e:admin:local
 
 the public e2e command builds the site, then starts a task-owned local Worker
 with a temporary seeded D1. it has no remote Cloudflare bindings. the admin
-command starts an Astro dev server on loopback with the existing local owner
-flag. that flag is rejected in GitHub Actions and never enters a deployable
-bundle. admin tests use committed synthetic fixtures and local state. they must
-not use private writing or a live provider.
+command starts a task-owned Astro dev server on loopback with the existing
+local owner flag and a fresh temporary D1 and Durable Object directory. the
+test server does not replace the managed port 4311 preview used for human
+review. the flag is rejected in GitHub Actions and never enters a deployable
+bundle. admin tests use committed synthetic fixtures. they must not use private
+writing or a live provider.
 
 for local agent goals, sign in through the framework's native ChatGPT flow,
 then run the relevant command. this sign-in is an account action and remains
@@ -96,8 +98,8 @@ browser or physical phone proof.
 | public, forced live                       | 2 passed | 30s     | 7           | 45.2k        | bypassed                  |
 | public, first normal                      | 2 passed | 31s     | 8           | 57.9k        | 2 misses                  |
 | public, second normal                     | 2 passed | 56s     | 7           | 55.2k        | 1 replay, 1 model handoff |
-| admin, first normal                       | 2 passed | 43s     | 6           | 49.2k        | 2 misses                  |
-| admin, second normal                      | 2 passed | 23s     | 0           | 0            | 2 replays                 |
+| admin, isolated first normal              | 2 passed | 43s     | 6           | 49.2k        | 2 misses                  |
+| admin, isolated second normal             | 2 passed | 27s     | 0           | 0            | 2 replays                 |
 
 all ten goal cases passed without a retry or site defect. the public mobile
 replay handed off because a recorded target was not found; its outcome still
@@ -107,6 +109,8 @@ or stable replay. the two first normal runs together used 14 model calls and
 days would be about 420 calls and 3.2 million reported tokens. cache hits can
 lower that sharply, but this pilot does not establish a reliable hit rate or a
 long-term flake rate. these token counts are framework usage, not a bill.
+admin recordings made before temporary state isolation were removed; the admin
+figures above come from fresh synthetic-only runs.
 
 keep model goals opt-in until repeated runs across changed builds show stable
 replay, bounded calls, and useful defects. deterministic browser and contract
