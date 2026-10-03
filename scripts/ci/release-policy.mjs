@@ -43,6 +43,7 @@ const PUBLIC_BROWSER_PATHS = [
   /^e2e\.www\.config\.ts$/,
   /^scripts\/ci\/public-e2e-server\.mjs$/,
   /^apps\/www\/test\/e2e\//,
+  /^apps\/admin\/migrations\/content-publication\//,
   /^scripts\/content\/(?:seed-content-d1|content-d1-seed)\.mjs$/,
   /^(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml)$/,
 ];

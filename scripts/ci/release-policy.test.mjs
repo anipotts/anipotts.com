@@ -528,13 +528,19 @@ for (const path of ["e2e.www.config.ts", "e2e.admin.config.ts"]) {
 for (const path of [
   "scripts/ci/public-e2e-server.mjs",
   "apps/www/test/e2e/public-journeys.e2e.ts",
+  "apps/admin/migrations/content-publication/0002_content_schema_version.sql",
   "scripts/content/seed-content-d1.mjs",
   "package.json",
   "pnpm-lock.yaml",
 ]) {
   const release = classifyRelease([`M\t${path}`], base);
   assert.equal(release.public_browser_changed, true, path);
-  assert.equal(release.deploy_targets.www, path.startsWith("apps/www/"), path);
+  if (!path.startsWith("apps/admin/migrations/"))
+    assert.equal(
+      release.deploy_targets.www,
+      path.startsWith("apps/www/"),
+      path,
+    );
 }
 assert.equal(
   classifyRelease(["A\te2e.production.config.ts"], base).risk,
