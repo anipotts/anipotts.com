@@ -66,6 +66,59 @@ function countLists(data: { ctx: { storage: { list: unknown } } }["ctx"]) {
   return () => lists;
 }
 
+describe("private WebSocket broadcasts", () => {
+  it("excludes untagged legacy LinkVault sockets", async () => {
+    const { object } = withCtx(new LinkVault({} as never, {} as never));
+    const legacy = { send: mock(() => {}) };
+    const authorized = { send: mock(() => {}) };
+    const ctx = (
+      object as unknown as {
+        ctx: { getWebSockets: (tag?: string) => unknown[] };
+      }
+    ).ctx;
+    const getWebSockets = mock((tag?: string) =>
+      tag === "private-read-v1" ? [authorized] : [legacy, authorized],
+    );
+    ctx.getWebSockets = getWebSockets;
+    await json(object, "/links", {
+      method: "POST",
+      body: JSON.stringify({
+        url: "https://synthetic.example",
+        source: "manual",
+      }),
+    });
+    expect(getWebSockets).toHaveBeenCalledWith("private-read-v1");
+    expect(authorized.send).toHaveBeenCalledTimes(1);
+    expect(legacy.send).not.toHaveBeenCalled();
+  });
+
+  it("excludes untagged legacy CodeStats sockets", async () => {
+    const { object } = withCtx(new CodeStats({} as never, {} as never));
+    const legacy = { send: mock(() => {}) };
+    const authorized = { send: mock(() => {}) };
+    const ctx = (
+      object as unknown as {
+        ctx: { getWebSockets: (tag?: string) => unknown[] };
+      }
+    ).ctx;
+    const getWebSockets = mock((tag?: string) =>
+      tag === "private-read-v1" ? [authorized] : [legacy, authorized],
+    );
+    ctx.getWebSockets = getWebSockets;
+    await json(object, "/commits", {
+      method: "POST",
+      body: JSON.stringify({
+        sha: "synthetic",
+        repo: "test",
+        ts: "2026-10-03T00:00:00Z",
+      }),
+    });
+    expect(getWebSockets).toHaveBeenCalledWith("private-read-v1");
+    expect(authorized.send).toHaveBeenCalledTimes(1);
+    expect(legacy.send).not.toHaveBeenCalled();
+  });
+});
+
 describe("A-32 LinkVault /summary", () => {
   it("counts links held before the counts were kept, once, and names the newest parseable savedAt", async () => {
     const { object, data } = withCtx(new LinkVault({} as never, {} as never));

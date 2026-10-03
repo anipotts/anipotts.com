@@ -17,6 +17,7 @@ export const RUNTIME_CONTRACT = {
   COMMAND_RELAY: { source: "durable_objects", check: "getByName" },
   ALLOWED_ORIGINS: { source: "vars", check: "text" },
   STATE_PUBLISH_KEY: { source: "secret", check: "text" },
+  STATE_READ_KEY: { source: "secret", check: "text" },
   CONTROL_PLANE_DEVICE_PUBLIC_JWK: { source: "secret", check: "text" },
 } as const satisfies Record<string, { source: Source; check: Check }>;
 
@@ -32,6 +33,7 @@ export const RUNTIME_REQUIRED = [
 export const RUNTIME_FEATURES = {
   cors: ["ALLOWED_ORIGINS"],
   publish: ["STATE_PUBLISH_KEY"],
+  private_read: ["STATE_READ_KEY"],
   control_connect: ["COMMAND_RELAY", "CONTROL_PLANE_DEVICE_PUBLIC_JWK"],
 } as const satisfies Record<string, readonly RuntimeName[]>;
 
@@ -56,7 +58,19 @@ function read(values: unknown, name: string): unknown {
   }
 }
 
+/** A read credential must not grant publish authority through key reuse. */
+export function hasDistinctStateReadKey(env: unknown): boolean {
+  const readKey = read(env, "STATE_READ_KEY");
+  const publishKey = read(env, "STATE_PUBLISH_KEY");
+  return (
+    typeof readKey === "string" &&
+    readKey.trim() !== "" &&
+    readKey !== publishKey
+  );
+}
+
 function satisfied(env: unknown, name: RuntimeName): boolean {
+  if (name === "STATE_READ_KEY") return hasDistinctStateReadKey(env);
   const { check } = RUNTIME_CONTRACT[name];
   const value = read(env, name);
   if (check === "text") return typeof value === "string" && !!value.trim();
