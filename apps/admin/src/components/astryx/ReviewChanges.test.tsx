@@ -35,6 +35,25 @@ function sideText(doc: Document | Element, side: string) {
 }
 
 describe("rich field review", () => {
+  it("uses the full width for a newly added field", () => {
+    const doc = review("", "new subtitle");
+    const change = doc.querySelector(".editor-change")!;
+    expect(change.getAttribute("data-single-side")).toBe("after");
+    expect(change.querySelector('[data-side="before"]')).toBeNull();
+    expect(change.querySelector('[data-side="after"]')?.textContent).toContain(
+      "new subtitle",
+    );
+    expect(doc.querySelector('[aria-label="Diff layout"]')).toBeNull();
+  });
+  it("uses the full width for a removed text field", () => {
+    const doc = review("old subtitle", "", false);
+    const change = doc.querySelector(".editor-change")!;
+    expect(change.getAttribute("data-single-side")).toBe("before");
+    expect(change.querySelector('[data-side="after"]')).toBeNull();
+    expect(change.querySelector('[data-side="before"]')?.textContent).toContain(
+      "old subtitle",
+    );
+  });
   it("renders links and formatting while retaining their changed destinations", () => {
     const doc = review(
       "**[old](https://before.example/)**",

@@ -512,6 +512,14 @@ html[data-theme="light"] .editor-inline-icon.inline-image-white {
 .editor-diff-columns {
   background: var(--color-background-surface);
 }
+.editor-change[data-single-side] .editor-diff-columns,
+.editor-change[data-single-side] .editor-diff-hunk {
+  grid-template-columns: minmax(0, 1fr);
+}
+.editor-change[data-single-side] .editor-diff-line {
+  grid-column: 1;
+  grid-row: auto;
+}
 .editor-diff-columns > .astryx-text {
   padding: var(--spacing-2) var(--spacing-3);
 }
@@ -759,6 +767,9 @@ html[data-theme="light"] .editor-inline-icon.inline-image-white {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--spacing-4);
   margin-block-start: var(--spacing-3);
+}
+.editor-change[data-single-side] .editor-rendered-comparison {
+  grid-template-columns: minmax(0, 1fr);
 }
 .editor-rendered-value {
   padding: var(--spacing-4);
