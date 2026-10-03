@@ -1,9 +1,8 @@
 /** Paints the site and per-essay social cards at build time.
  *
  * One composition: the site blue canvas, a restrained pass of the same wave
- * geometry the writing pages use, and the monogram and type set hard left in
- * white. Everything that has to survive a square thumbnail sits inside the
- * central 630 by 630 area, so a phone unfurl still reads the name.
+ * geometry the writing pages use, a top-left monogram and a single-line name
+ * at bottom right. All routes use identical ink, sizing and corner padding.
  */
 
 import { readFileSync } from "node:fs";
@@ -16,10 +15,6 @@ export const CARD_HEIGHT = 630;
 /** The square a chat client crops to; nothing that must be read leaves it. */
 export const SAFE_LEFT = (CARD_WIDTH - CARD_HEIGHT) / 2;
 export const SAFE_RIGHT = SAFE_LEFT + CARD_HEIGHT;
-
-const GUTTER = 3;
-const TEXT_LEFT = SAFE_LEFT + GUTTER;
-const TEXT_WIDTH = SAFE_RIGHT - GUTTER - TEXT_LEFT;
 
 const BRAND_PACKET = "packages/brand/ap-structural-v0.2.0-candidate.1";
 const FONT_FILE = `${BRAND_PACKET}/fonts/APStructuralDisplayBlack-v0.2.0-candidate.1.ttf`;
@@ -241,161 +236,36 @@ function wavePolygons(seed) {
   });
 }
 
-/** Greedy word wrap at a given size. A word too wide for the box at this size
- * is split on character boundaries, so no line can ever leave the safe area. */
-function wrap(text, size, maxWidth) {
-  const face = font();
-  const scale = size / face.unitsPerEm;
-  const widthOf = (value) => face.measure(value) * scale;
-  const lines = [];
-  let line = "";
-  const flush = () => {
-    if (line) lines.push(line);
-    line = "";
-  };
-  for (const word of text.split(/\s+/).filter(Boolean)) {
-    if (widthOf(word) > maxWidth) {
-      flush();
-      for (const character of word) {
-        if (line && widthOf(line + character) > maxWidth) flush();
-        line += character;
-      }
-      continue;
-    }
-    const candidate = line ? `${line} ${word}` : word;
-    if (widthOf(candidate) <= maxWidth) line = candidate;
-    else {
-      lines.push(line);
-      line = word;
-    }
-  }
-  flush();
-  return lines;
-}
-
-/** Largest size at which the text fits the box in at most maxLines lines. */
-function fitText(text, { maxWidth, maxHeight, maxLines, leading, from, to }) {
-  for (let size = from; size >= to; size -= 1) {
-    const lines = wrap(text, size, maxWidth);
-    if (lines.length > maxLines) continue;
-    const height = (lines.length - 1) * size * leading + size;
-    if (height <= maxHeight) return { size, lines, height };
-  }
-  // A title longer than any the site has published would need more lines than
-  // the block allows. Keep shrinking past the usual floor so the whole title
-  // still lands on the card rather than running off it: the copy is never cut.
-  for (let size = to - 1; size >= 20; size -= 1) {
-    const lines = wrap(text, size, maxWidth);
-    const height = (lines.length - 1) * size * leading + size;
-    if (height <= maxHeight) return { size, lines, height };
-  }
-  const lines = wrap(text, 20, maxWidth);
-  return {
-    size: 20,
-    lines,
-    height: (lines.length - 1) * 20 * leading + 20,
-  };
-}
-
-function linePolygons(lines, size, left, firstBaseline, leading) {
-  const face = font();
-  return lines.flatMap((line, index) =>
-    face.outline(line, size, left, firstBaseline + index * size * leading),
-  );
-}
-
-/** Centres the painted block on the card by its real ink, so descenders and
- * the monogram's own bearings cannot push type out of the safe area. */
-function centreVertically(polygons) {
-  let top = Infinity;
-  let bottom = -Infinity;
-  for (const contour of polygons)
+/** One canonical composition with equal optical corner padding. */
+export const CARD_PADDING = 48;
+export const NAME_SIZE = 110;
+function composeInk({ name }) {
+  const ink = markPolygons(82, CARD_PADDING, CARD_PADDING);
+  const text = font().outline(name, NAME_SIZE, 0, 0);
+  const points = text.flat();
+  const right = Math.max(...points.map((point) => point.x));
+  const bottom = Math.max(...points.map((point) => point.y));
+  const dx = CARD_WIDTH - CARD_PADDING - right;
+  const dy = CARD_HEIGHT - CARD_PADDING - bottom;
+  for (const contour of text)
     for (const point of contour) {
-      if (point.y < top) top = point.y;
-      if (point.y > bottom) bottom = point.y;
+      point.x += dx;
+      point.y += dy;
     }
-  const shift = (CARD_HEIGHT - (bottom - top)) / 2 - top;
-  for (const contour of polygons) for (const point of contour) point.y += shift;
-}
-
-/** A glyph like j or y carries ink to the left of its pen, so a title that
- * starts with one reaches past the left gutter. Nudge the whole block right
- * by that overhang, never far enough to push the right edge out. */
-function nudgeIntoSafeArea(polygons) {
-  let left = Infinity;
-  let right = -Infinity;
-  for (const contour of polygons)
-    for (const point of contour) {
-      if (point.x < left) left = point.x;
-      if (point.x > right) right = point.x;
-    }
-  if (left >= SAFE_LEFT) return;
-  const shift = Math.min(SAFE_LEFT - left, SAFE_RIGHT - right);
-  if (shift <= 0) return;
-  for (const contour of polygons) for (const point of contour) point.x += shift;
-}
-
-/** The monogram and type of one card, already centred on the canvas. */
-function composeInk({ title, name }) {
-  const markHeight = title ? 62 : 100;
-  const markGap = title ? 52 : 68;
-  const ink = markPolygons(markHeight, TEXT_LEFT, 0);
-  let cursor = markHeight + markGap;
-  if (title) {
-    const titleBlock = fitText(title, {
-      maxWidth: TEXT_WIDTH,
-      maxHeight: 316,
-      maxLines: 4,
-      leading: 1.08,
-      from: 92,
-      to: 44,
-    });
-    ink.push(
-      ...linePolygons(
-        titleBlock.lines,
-        titleBlock.size,
-        TEXT_LEFT,
-        cursor + titleBlock.size,
-        1.08,
-      ),
-    );
-    cursor += titleBlock.height + 50;
-    ink.push(...linePolygons([name], 38, TEXT_LEFT, cursor + 38, 1));
-  } else {
-    const nameBlock = fitText(name, {
-      maxWidth: TEXT_WIDTH,
-      maxHeight: 330,
-      maxLines: 2,
-      leading: 0.98,
-      from: 160,
-      to: 72,
-    });
-    ink.push(
-      ...linePolygons(
-        nameBlock.lines,
-        nameBlock.size,
-        TEXT_LEFT,
-        cursor + nameBlock.size,
-        0.98,
-      ),
-    );
-  }
-  centreVertically(ink);
-  nudgeIntoSafeArea(ink);
-  return ink;
+  return [...ink, ...text];
 }
 
 /** Renders one card. `title` is null for the site card. */
-export function renderCard({ title = null, name, seed }) {
+export function renderCard({ name }) {
   const canvas = createCanvas(CARD_WIDTH, CARD_HEIGHT, BLUE);
-  for (const [index, polygon] of wavePolygons(seed).entries())
+  for (const [index, polygon] of wavePolygons("site").entries())
     fillPolygons(
       canvas,
       [polygon],
       WAVE_LAYERS[index].color,
       WAVE_LAYERS[index].alpha,
     );
-  fillPolygons(canvas, composeInk({ title, name }), WHITE);
+  fillPolygons(canvas, composeInk({ name }), WHITE);
   return encodePng(canvas);
 }
 
@@ -406,7 +276,7 @@ export function cardInkBounds({ title = null, name }) {
   let top = Infinity;
   let right = -Infinity;
   let bottom = -Infinity;
-  for (const contour of composeInk({ title, name }))
+  for (const contour of composeInk({ name }))
     for (const point of contour) {
       left = Math.min(left, point.x);
       top = Math.min(top, point.y);

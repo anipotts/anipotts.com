@@ -54,5 +54,6 @@ export type Bindings = {
   COMMAND_RELAY: DurableObjectNamespace;
   ALLOWED_ORIGINS: string;
   STATE_PUBLISH_KEY?: string;
+  STATE_READ_KEY?: string;
   CONTROL_PLANE_DEVICE_PUBLIC_JWK?: string;
 };
