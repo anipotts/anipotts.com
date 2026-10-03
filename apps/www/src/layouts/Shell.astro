@@ -23,6 +23,7 @@ interface Props {
   robots?: string;
   canonicalUrl?: string;
   detail?: boolean;
+  adminEntry?: boolean;
   /** Card name under /social, from lib/social-card/routes. */
   socialCard?: string;
 }
@@ -36,6 +37,7 @@ const {
   canonicalUrl,
   robots,
   detail = false,
+  adminEntry = false,
 } = Astro.props;
 const description = inlinePlainText(rawDescription);
 const canonical =
@@ -61,6 +63,7 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
   class:list={{
     "editorial-detail": detail,
     "writing-detail": detail && ogType === "article",
+    "admin-entry-page": adminEntry,
   }}
 >
   <head>
@@ -191,21 +194,53 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     }
   </head>
   <body>
-    {!detail && <PageCurrent />}
+    {!detail && !adminEntry && <PageCurrent />}
     <Nav />
     <main
       class:list={[
-        "frame page",
-        { "page--listing": ["/systems", "/work", "/writing"].includes(path) },
+        adminEntry ? "admin-entry-mount" : "frame page",
+        {
+          "page--listing":
+            !adminEntry && ["/systems", "/work", "/writing"].includes(path),
+        },
       ]}
     >
       <slot />
     </main>
-    <Footer />
+    {!adminEntry && <Footer />}
     <script>
       import "../scripts/writing-transitions";
+      import "../scripts/admin-transitions";
       import { installPointerModality } from "../scripts/pointer-modality";
       installPointerModality(document);
     </script>
   </body>
 </html>
+
+<style is:global>
+  html.admin-entry-page,
+  html.admin-entry-page body {
+    background: #f4f5f7;
+  }
+
+  html.admin-entry-page[data-theme="dark"],
+  html.admin-entry-page[data-theme="dark"] body {
+    background: #090b0e;
+  }
+
+  html.admin-entry-page body {
+    padding: 0;
+  }
+
+  html.admin-entry-page header.nav {
+    display: none;
+  }
+
+  .admin-entry-mount {
+    position: relative;
+    width: 100%;
+    min-height: 100dvh;
+    margin: 0;
+    padding: 0;
+  }
+</style>

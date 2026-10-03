@@ -1,0 +1,18 @@
+---
+import Shell from "../layouts/Shell.astro";
+import AdminEntry from "../components/admin-entry/AdminEntry.astro";
+
+// This route contains presentation only. The protected admin app is entered
+// through its explicit continue link, after the public transition finishes.
+export const prerender = true;
+---
+
+<Shell
+  title="admin"
+  description="continue to your workspace."
+  path="/admin"
+  robots="noindex, nofollow"
+  adminEntry={true}
+>
+  <AdminEntry />
+</Shell>

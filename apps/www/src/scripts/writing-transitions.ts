@@ -372,6 +372,12 @@ document.addEventListener("astro:before-preparation", (raw) => {
   dispose(false);
   dropOutgoing();
   pending = undefined;
+  if (
+    [event.from.pathname, event.to.pathname].some(
+      (path) => path === "/admin" || path === "/admin/",
+    )
+  )
+    return;
   const involved =
     !!document.querySelector(article) || isArticlePath(event.to.pathname);
   if (!motionAllowed() || !involved) return;
@@ -390,6 +396,15 @@ document.addEventListener("astro:before-swap", (raw) => {
   next.documentElement.dataset.navigationSettled = "";
   void event.viewTransition.ready.catch(() => {});
   event.viewTransition.skipTransition();
+  if (
+    [event.from.pathname, event.to.pathname].some(
+      (path) => path === "/admin" || path === "/admin/",
+    )
+  ) {
+    pendingFocus = null;
+    dropOutgoing();
+    return;
+  }
   const fromArticle = !!document.querySelector(article);
   const toArticle = !!next.querySelector(article);
   // Focus lands in the same place whatever the theme or motion preference.
@@ -430,7 +445,9 @@ document.addEventListener("astro:page-load", () => {
     else link.removeAttribute("aria-current");
   });
   // Idle work waits for the motion, so it never lands in a motion frame.
-  if (document.documentElement.dataset.writingTransition)
+  if (document.documentElement.dataset.adminMotion)
+    document.addEventListener("admin:transition-end", warmUp, { once: true });
+  else if (document.documentElement.dataset.writingTransition)
     document.addEventListener("writing:transition-end", warmUp, { once: true });
   else warmUp();
 });

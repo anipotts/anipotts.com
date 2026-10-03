@@ -1,0 +1,430 @@
+---
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  preview?: boolean;
+}
+
+const { preview = false } = Astro.props;
+// Only an explicit navigation from this public screen enters Cloudflare Access.
+const protectedAdmin = "https://admin.anipotts.com/";
+const groups = [
+  {
+    title: "Content",
+    items: [
+      ["Pages", "browser"],
+      ["Writing", "pencil-simple"],
+      ["Projects", "briefcase"],
+      ["Newsletter", "envelope-simple"],
+    ],
+  },
+  {
+    title: "Data",
+    items: [
+      ["Records", "rows"],
+      ["Sources", "tree-structure"],
+      ["Health", "heartbeat"],
+      ["Knowledge", "brain"],
+    ],
+  },
+  {
+    title: "Observability",
+    items: [
+      ["Status", "pulse"],
+      ["Activity", "clock-counter-clockwise"],
+      ["Alerts", "bell-simple"],
+    ],
+  },
+];
+---
+
+<div
+  class="entry-shell"
+  data-admin-entry
+  inert={preview}
+  aria-hidden={preview ? "true" : undefined}
+>
+  <div class="entry-rail" data-admin-rail aria-hidden="true"></div>
+  <aside class="entry-sidebar" aria-label="admin workspace">
+    <div class="entry-identity">
+      <span class="entry-identity-end" data-admin-controls aria-hidden="true">
+        <Icon name="ph:sidebar-simple" />
+      </span>
+      <span class="entry-wordmark" data-admin-wordmark>
+        <span class="entry-bracket" data-admin-left aria-hidden="true">[</span>
+        <span data-admin-letters
+          >admin<span class="entry-baseline" data-admin-baseline></span></span
+        >
+        <span class="entry-bracket" data-admin-right aria-hidden="true">]</span>
+      </span>
+      <span class="entry-identity-end" aria-hidden="true"></span>
+    </div>
+    <div class="entry-search" data-admin-search aria-hidden="true">
+      <Icon name="ph:magnifying-glass" />
+      <span>Search</span>
+      <kbd>⌘K</kbd>
+    </div>
+    <div
+      class="entry-nav"
+      data-admin-nav
+      role="group"
+      aria-label="workspace preview"
+    >
+      <div class="entry-nav-row entry-current">
+        <Icon name="ph:squares-four" aria-hidden="true" />
+        <span>Overview</span>
+      </div>
+      {
+        groups.map(({ title, items }) => (
+          <section class="entry-nav-group" aria-label={title}>
+            <div class="entry-group-heading">
+              <span>{title}</span>
+              <Icon name="ph:caret-down" aria-hidden="true" />
+            </div>
+            {items.map(([label, icon]) => (
+              <div class="entry-nav-row">
+                <Icon name={`ph:${icon}`} aria-hidden="true" />
+                <span>{label}</span>
+              </div>
+            ))}
+          </section>
+        ))
+      }
+    </div>
+    <div class="entry-utilities" data-admin-controls>
+      <a
+        class="entry-return"
+        href="/"
+        data-admin-return
+        data-astro-prefetch="hover"
+      >
+        <Icon name="ph:arrow-left" aria-hidden="true" />
+        <span>back to www</span>
+      </a>
+      <button
+        class="entry-control"
+        type="button"
+        data-admin-theme
+        aria-label="toggle theme"
+        title="toggle theme"
+      >
+        <Icon name="ph:circle-half" aria-hidden="true" />
+      </button>
+    </div>
+  </aside>
+  <div class="entry-main-surface" data-admin-main-surface aria-hidden="true">
+  </div>
+  <section class="entry-main" data-admin-main aria-label="sign in">
+    <header class="entry-page-header">
+      <h1 data-admin-heading tabindex="-1">sign in</h1>
+    </header>
+    <div class="entry-sign-in">
+      <p data-admin-body>continue to your workspace.</p>
+      <a
+        class="entry-continue"
+        href={protectedAdmin}
+        data-admin-action
+        data-astro-reload
+        data-astro-prefetch="false">continue to admin</a
+      >
+    </div>
+  </section>
+</div>
+
+<style>
+  .entry-shell {
+    --entry-bg: #f4f5f7;
+    --entry-ink: #202631;
+    --entry-secondary: #586271;
+    --entry-accent: #245dbe;
+    --entry-rail: #f1f4fa;
+    --entry-panel-border: color-mix(in srgb, var(--entry-ink) 15%, transparent);
+    position: absolute;
+    inset: 0;
+    min-height: 100dvh;
+    isolation: isolate;
+    color: var(--entry-ink);
+    font-family: "Instrument Sans Variable", sans-serif;
+    font-size: 14px;
+    line-height: 1.4286;
+  }
+  :global(html[data-theme="dark"]) .entry-shell {
+    --entry-bg: #090b0e;
+    --entry-ink: #eef0f4;
+    --entry-secondary: #aab3c1;
+    --entry-accent: #90baff;
+    --entry-rail: #0d1015;
+  }
+  .entry-rail {
+    position: absolute;
+    inset: 0;
+    background: var(--entry-rail);
+    z-index: -2;
+  }
+  .entry-sidebar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 200px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+  }
+  .entry-identity {
+    height: 36px;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+  }
+  .entry-control,
+  .entry-identity-end {
+    width: 36px;
+    height: 36px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    color: var(--entry-secondary);
+  }
+  .entry-control {
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    cursor: pointer;
+  }
+  .entry-control :global(svg),
+  .entry-identity-end :global(svg) {
+    width: 18px;
+    height: 18px;
+  }
+  .entry-wordmark {
+    display: inline-flex;
+    flex: 1;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    font-family: "AP Structural", sans-serif;
+    font-weight: 900;
+    font-size: 20px;
+    line-height: 1;
+    letter-spacing: normal;
+    white-space: nowrap;
+    height: 36px;
+  }
+  .entry-bracket {
+    color: #61abea;
+  }
+  .entry-baseline {
+    display: inline-block;
+    width: 0;
+    height: 0;
+    padding: 0;
+    margin: 0;
+    vertical-align: baseline;
+  }
+  .entry-search {
+    height: 36px;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 8px;
+    color: var(--entry-secondary);
+  }
+  .entry-search :global(svg) {
+    width: 18px;
+    height: 18px;
+  }
+  .entry-search kbd {
+    margin-left: auto;
+    font:
+      11px "Instrument Sans Variable",
+      sans-serif;
+    opacity: 0.7;
+  }
+  .entry-nav {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+  .entry-nav-group {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .entry-group-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 36px;
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--entry-accent);
+  }
+  .entry-group-heading :global(svg) {
+    width: 12px;
+    height: 12px;
+  }
+  .entry-nav-row,
+  .entry-return {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 36px;
+    padding: 0 8px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--entry-secondary);
+    white-space: nowrap;
+    text-decoration: none;
+  }
+  .entry-nav-row :global(svg),
+  .entry-return :global(svg) {
+    width: 18px;
+    height: 18px;
+    flex: none;
+  }
+  .entry-current {
+    background: color-mix(in srgb, var(--entry-ink) 5%, transparent);
+    color: var(--entry-ink);
+  }
+  .entry-current :global(svg) {
+    color: var(--entry-accent);
+  }
+  .entry-return:hover,
+  .entry-control:hover {
+    background: color-mix(in srgb, var(--entry-ink) 6%, transparent);
+  }
+  .entry-utilities {
+    display: flex;
+    align-items: center;
+    min-height: 36px;
+  }
+  .entry-main-surface {
+    position: absolute;
+    inset: 12px 0 0 200px;
+    background: var(--entry-bg);
+    border-top: 1px solid var(--entry-panel-border);
+    border-left: 1px solid var(--entry-panel-border);
+    border-radius: 12px 0 0 0;
+    z-index: -1;
+  }
+  .entry-main {
+    position: absolute;
+    inset: 12px 0 0 200px;
+    padding: 24px clamp(16px, 3%, 48px);
+    min-width: 0;
+    overflow-y: auto;
+  }
+  .entry-page-header h1 {
+    font-family: "AP Structural", sans-serif;
+    font-weight: 900;
+    font-size: 24px;
+    line-height: 1.15;
+    letter-spacing: normal;
+    margin: 0;
+    color: var(--entry-ink);
+  }
+  .entry-sign-in {
+    margin-top: 32px;
+    max-width: 320px;
+  }
+  .entry-sign-in p {
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--entry-secondary);
+    margin: 0 0 24px;
+    max-width: 28ch;
+  }
+  .entry-continue {
+    display: flex;
+    align-items: center;
+    width: fit-content;
+    border-radius: 8px;
+    background: var(--entry-ink);
+    color: var(--entry-bg);
+    padding: 0 18px;
+    min-height: 36px;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .entry-continue:hover {
+    background: color-mix(in srgb, var(--entry-ink) 87%, var(--entry-bg));
+  }
+  .entry-account {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--entry-secondary);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, currentColor 30%, transparent);
+    text-underline-offset: 4px;
+  }
+  .entry-account:hover {
+    text-decoration-color: currentColor;
+  }
+  .entry-shell a:focus-visible,
+  .entry-shell button:focus-visible {
+    outline: 2px solid #61abea;
+    outline-offset: 3px;
+  }
+  @media (max-width: 640px) {
+    .entry-sidebar {
+      width: 100%;
+      height: 44px;
+      bottom: auto;
+      padding: 0 12px;
+      display: block;
+    }
+    .entry-identity {
+      height: 44px;
+    }
+    .entry-identity-end,
+    .entry-search,
+    .entry-nav,
+    .entry-control {
+      display: none;
+    }
+    .entry-wordmark {
+      flex: none;
+      justify-content: flex-start;
+      min-width: 44px;
+      height: 44px;
+    }
+    .entry-utilities {
+      position: absolute;
+      right: 12px;
+      top: 0;
+    }
+    .entry-return {
+      min-height: 44px;
+      font-size: 12px;
+    }
+    .entry-main-surface {
+      inset: 44px 0 0;
+      border-radius: 0;
+    }
+    .entry-main {
+      inset: 44px 0 0;
+      padding: 20px 12px;
+    }
+    .entry-page-header h1 {
+      font-size: 22px;
+    }
+    .entry-sign-in {
+      margin-top: 28px;
+    }
+    .entry-continue,
+    .entry-account {
+      min-height: 44px;
+    }
+  }
+</style>

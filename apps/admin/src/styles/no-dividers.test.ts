@@ -32,6 +32,9 @@ const markupViolations = (text: string) =>
 // One-sided borders that frame or mark something rather than separate
 // siblings. Rows, columns and sections separate with spacing tokens.
 const structuralEdges = new Set([
+  // Approved outer workspace inset. Interior sections still use spacing.
+  ".editorial-workspace-shell #astryx-app-shell-main border-top",
+  ".editorial-workspace-shell #astryx-app-shell-main border-inline-start",
   // October 2 table standard: restrained separators only inside the owned table.
   ".admin-data-table .openai-record-table tbody tr[data-record-id] border-bottom",
   // markers on a single element
