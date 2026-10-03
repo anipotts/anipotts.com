@@ -187,8 +187,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
   }
 
-  // /admin moved to the admin subdomain
-  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+  // The entry screen stays on the public origin until Continue is clicked.
+  // Existing deep links still resolve to the protected admin application.
+  if (pathname === "/admin/") {
+    return context.redirect(`/admin${search}`, 308);
+  }
+  if (pathname.startsWith("/admin/")) {
     const adminPath = pathname.replace(/^\/admin/, "") || "/";
     const origin = import.meta.env.DEV
       ? "http://localhost:4311"

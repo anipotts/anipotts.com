@@ -115,12 +115,19 @@ assert.deepEqual(
 for (const file of pageFiles) {
   const routePath = stripPageExtension(relative(WWW_PAGES, file));
   const firstSegment = routePath.split("/")[0];
+  // One public presentation screen precedes the protected application.
+  // This exception does not permit nested admin pages or any private reader.
+  const publicEntry = file === join(WWW_PAGES, "admin.astro");
   assert.equal(
-    FORBIDDEN_PAGE_SEGMENTS.has(firstSegment),
+    FORBIDDEN_PAGE_SEGMENTS.has(firstSegment) && !publicEntry,
     false,
     `${file} puts an admin/control segment under the public app`,
   );
 }
+
+const adminEntry = readFileSync(join(WWW_PAGES, "admin.astro"), "utf8");
+assert.match(adminEntry, /export const prerender = true;/);
+assert.match(adminEntry, /robots="noindex, nofollow"/);
 
 // The PostHog stack is gone: no key was ever set, so the snippet never ran
 // while /ingest still forwarded any path to PostHog. www keeps Cloudflare Web

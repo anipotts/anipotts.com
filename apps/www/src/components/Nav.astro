@@ -7,7 +7,7 @@ const current = Astro.url.pathname;
 ---
 
 <header class="frame nav" transition:persist="site-navigation">
-  <a href="/" class="wordmark" aria-label="home">
+  <a href="/" class="wordmark" aria-label="home" data-admin-header-logo>
     <BrandMark />
   </a>
   <nav
@@ -165,10 +165,15 @@ const current = Astro.url.pathname;
     text-decoration: none;
     margin-right: auto;
     min-height: 44px;
-    display: inline-flex;
-    align-items: center;
+    display: grid;
+    place-items: center;
     width: 4rem;
     height: 4rem;
+  }
+
+  .wordmark :global(.brand-mark) {
+    width: 29.696px;
+    height: 29.696px;
   }
 
   .primary-nav {
@@ -395,6 +400,7 @@ const current = Astro.url.pathname;
     );
   };
   sync();
+  document.addEventListener("astro:page-load", sync);
   btn?.addEventListener("click", () => {
     const next =
       document.documentElement.dataset.theme === "dark" ? "light" : "dark";
