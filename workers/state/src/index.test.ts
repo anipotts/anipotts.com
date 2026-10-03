@@ -7,6 +7,7 @@ mock.module("cloudflare:workers", () => ({ DurableObject: class {} }));
 // Synthetic values stay short so the literal-secret scan keeps working here.
 const secrets = {
   STATE_PUBLISH_KEY: "synthetic-publish-39",
+  STATE_READ_KEY: "synthetic-read-41",
   CONTROL_PLANE_DEVICE_PUBLIC_JWK: "synthetic-jwk-40",
 };
 const origin = "https://owner.example";
@@ -185,6 +186,120 @@ describe("state entry wiring", () => {
         publish: { state: "unavailable", missing: ["STATE_PUBLISH_KEY"] },
       },
     });
+  });
+});
+
+describe("private state reads", () => {
+  it("denies missing, wrong and publish-only credentials before Durable Object lookup", async () => {
+    const app = await freshApp("private-denial");
+    captureConsole();
+    const { env, vault, stats } = summaries({}, {});
+    for (const path of [
+      "/api/links",
+      "/api/links/ws",
+      "/api/commits",
+      "/api/commits/ws",
+    ]) {
+      for (const key of [
+        undefined,
+        "synthetic-wrong-00",
+        secrets.STATE_PUBLISH_KEY,
+      ]) {
+        const response = await app.fetch(
+          new Request(`https://api.test${path}`, {
+            headers: {
+              ...(path.endsWith("/ws") ? { Upgrade: "websocket" } : {}),
+              ...(key ? { Authorization: `Bearer ${key}` } : {}),
+            },
+          }),
+          env,
+        );
+        expect(response.status).toBe(401);
+      }
+    }
+    expect(vault.namespace.idFromName).not.toHaveBeenCalled();
+    expect(stats.namespace.idFromName).not.toHaveBeenCalled();
+
+    delete env.STATE_READ_KEY;
+    const unavailable = await app.fetch(
+      new Request("https://api.test/api/links"),
+      env,
+    );
+    expect(unavailable.status).toBe(503);
+    expect(vault.namespace.idFromName).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when read and publish bindings contain the same value", async () => {
+    const app = await freshApp("private-reused-key");
+    const logs = captureConsole();
+    const { env, vault, stats } = summaries({}, {});
+    env.STATE_READ_KEY = secrets.STATE_PUBLISH_KEY;
+    for (const path of [
+      "/api/links",
+      "/api/links/ws",
+      "/api/commits",
+      "/api/commits/ws",
+    ]) {
+      const response = await app.fetch(
+        new Request(`https://api.test${path}`, {
+          headers: {
+            Authorization: `Bearer ${secrets.STATE_PUBLISH_KEY}`,
+            ...(path.endsWith("/ws") ? { Upgrade: "websocket" } : {}),
+          },
+        }),
+        env,
+      );
+      expect(response.status).toBe(503);
+    }
+    expect(vault.namespace.idFromName).not.toHaveBeenCalled();
+    expect(stats.namespace.idFromName).not.toHaveBeenCalled();
+    expect(logs.text()).not.toContain(secrets.STATE_PUBLISH_KEY);
+  });
+
+  it("forwards authorized link and commit reads while health remains public", async () => {
+    const app = await freshApp("private-authorized");
+    captureConsole();
+    const { env, vault, stats } = summaries({}, {});
+    const headers = { Authorization: `Bearer ${secrets.STATE_READ_KEY}` };
+    const links = await app.fetch(
+      new Request("https://api.test/api/links", { headers }),
+      env,
+    );
+    const commits = await app.fetch(
+      new Request("https://api.test/api/commits?limit=2", { headers }),
+      env,
+    );
+    expect(links.status).toBe(200);
+    expect(commits.status).toBe(200);
+    expect(links.headers.get("cache-control")).toBe("private, no-store");
+    expect(commits.headers.get("cache-control")).toBe("private, no-store");
+    expect(vault.calls.at(-1)?.url).toBe("https://internal/links");
+    expect(stats.calls.at(-1)?.url).toBe("https://internal/commits?limit=2");
+    expect(
+      (await app.fetch(new Request("https://api.test/health"), env)).status,
+    ).toBe(503);
+  });
+
+  it("requires the read key before either WebSocket handoff", async () => {
+    const app = await freshApp("private-websocket");
+    captureConsole();
+    const { env, vault, stats } = summaries({}, {});
+    for (const [path, target] of [
+      ["/api/links/ws", vault],
+      ["/api/commits/ws", stats],
+    ] as const) {
+      const response = await app.fetch(
+        new Request(`https://api.test${path}`, {
+          headers: {
+            Upgrade: "websocket",
+            Authorization: `Bearer ${secrets.STATE_READ_KEY}`,
+          },
+        }),
+        env,
+      );
+      expect(response.status).toBe(200);
+      expect(target.calls.at(-1)?.headers.get("upgrade")).toBe("websocket");
+    }
   });
 });
 

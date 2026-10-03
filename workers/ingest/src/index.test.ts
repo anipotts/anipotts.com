@@ -313,6 +313,91 @@ describe("ingest health", () => {
 });
 
 describe("ingest writes", () => {
+  it("rejects a wrong key before reading its body", async () => {
+    const worker = await freshWorker("auth-before-body");
+    captureConsole();
+    const env = completeEnv();
+    const body = new ReadableStream<Uint8Array>({
+      pull() {
+        throw new Error("body must not be read");
+      },
+    });
+    const response = await worker.fetch(
+      new Request("https://ingest.test/", {
+        method: "POST",
+        headers: { "X-Ingest-Key": "synthetic-wrong-00" },
+        body,
+        duplex: "half",
+      } as RequestInit),
+      env,
+    );
+    expect(response.status).toBe(401);
+    expect(env.DB.batch).not.toHaveBeenCalled();
+  });
+
+  it("bounds request bytes, rows and stored fields before any D1 write", async () => {
+    const worker = await freshWorker("ingest-bounds");
+    captureConsole();
+    const env = completeEnv();
+    for (const [body, status] of [
+      [
+        { category: "brands_email", data: { subject: "x".repeat(70_000) } },
+        413,
+      ],
+      [
+        {
+          category: "brands_email",
+          data: Array.from({ length: 101 }, (_, i) => ({
+            message_id: `m-${i}`,
+          })),
+        },
+        413,
+      ],
+      [{ category: "brands_email", data: { subject: "x".repeat(2049) } }, 400],
+      [{ category: "brands_email", data: [null] }, 400],
+    ] as const) {
+      const response = await worker.fetch(
+        post(body, secrets.BRANDS_INGEST_KEY),
+        env,
+      );
+      expect(response.status).toBe(status);
+    }
+    expect(env.DB.batch).not.toHaveBeenCalled();
+    expect(env.DB.prepare).not.toHaveBeenCalled();
+  });
+
+  it("stops an unlengthened stream at the byte cap and accepts the field boundary", async () => {
+    const worker = await freshWorker("ingest-stream-cap");
+    captureConsole();
+    const env = completeEnv();
+    const oversized = new Request("https://ingest.test/", {
+      method: "POST",
+      headers: { "X-Ingest-Key": secrets.BRANDS_INGEST_KEY },
+      body: new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new Uint8Array(65 * 1024));
+          controller.close();
+        },
+      }),
+      duplex: "half",
+    } as RequestInit);
+    expect((await worker.fetch(oversized, env)).status).toBe(413);
+    expect(env.DB.batch).not.toHaveBeenCalled();
+
+    const boundary = await worker.fetch(
+      post(
+        {
+          category: "brands_email",
+          data: { message_id: "m-boundary", subject: "x".repeat(2048) },
+        },
+        secrets.BRANDS_INGEST_KEY,
+      ),
+      env,
+    );
+    expect(boundary.status).toBe(200);
+    expect(env.DB.batch).toHaveBeenCalledTimes(1);
+  });
+
   it("answers OPTIONS, rejects other methods and requires a key", async () => {
     const worker = await freshWorker("methods");
     captureConsole();

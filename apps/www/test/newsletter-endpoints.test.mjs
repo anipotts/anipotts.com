@@ -549,6 +549,11 @@ test("subscribe rejects malformed and oversized bodies with bounded errors", asy
   assert.equal(oversized.status, 413);
   assert.equal(messages.length, 0);
   assert.equal(
+    count(db, "SELECT COUNT(*) AS cnt FROM rate_limits"),
+    0,
+    "rejected bodies must not create rate-limit rows",
+  );
+  assert.equal(
     count(db, "SELECT COUNT(*) AS cnt FROM newsletter_subscribers"),
     0,
   );
