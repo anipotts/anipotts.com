@@ -171,6 +171,9 @@ jobs:
 
   production-gate:
     name: Approve production and apply eligible migrations
+    # Required reviewers approve this gate and each selected credential-bearing
+    # deploy job separately. Keep those jobs protected and plan for staged
+    # approvals when Production reviewer rules are enabled.
     needs: [release]
     if: >
       needs.release.outputs.production_enabled == 'true' &&
