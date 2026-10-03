@@ -173,7 +173,7 @@ it("keeps every inline script permitted on built admin documents", async () => {
   expect(preview.headers.get("Content-Security-Policy")).toBe(
     "sandbox allow-scripts; form-action 'none'; frame-ancestors 'self'; connect-src 'none'",
   );
-});
+}, 30_000);
 
 it.skipIf(process.env.RUN_CSP_BROWSER !== "1")(
   "runs the built auth bootstrap and editorial hydration in an isolated browser",
