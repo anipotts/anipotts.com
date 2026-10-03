@@ -32,6 +32,35 @@ const securityWorkflow = readFileSync(
   "utf8",
 );
 const smokeWorkflow = readFileSync(join(WORKFLOW_DIR, "smoke.yml"), "utf8");
+const smokeJob = parse(smokeWorkflow).jobs.smoke;
+assert.equal(smokeJob.env.EXPECTED_SHA, "${{ inputs.commit_sha }}");
+assert.equal(smokeJob.env.EXPECTED_SCHEMA, "${{ inputs.schema_version }}");
+assert.equal(smokeJob.env.SMOKE_MODE, "${{ inputs.mode }}");
+const smokeAuthority = smokeJob.steps.find(
+  (step) => step.name === "Verify manual smoke authority",
+);
+assert.ok(smokeAuthority, "manual smoke must verify actor and branch");
+assert.equal(smokeAuthority.env.EVENT_ACTOR, "${{ github.actor }}");
+assert.equal(smokeAuthority.env.EVENT_REF, "${{ github.ref }}");
+assert.ok(smokeAuthority.run.includes('test "$EVENT_ACTOR" = "anipotts"'));
+assert.ok(smokeAuthority.run.includes('test "$EVENT_REF" = "refs/heads/main"'));
+assert.ok(
+  smokeAuthority.run.includes('[[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]'),
+);
+assert.ok(
+  smokeJob.steps.indexOf(smokeAuthority) <
+    smokeJob.steps.findIndex((step) => step.uses === "actions/checkout@v7"),
+  "manual smoke authority must be checked before repository code runs",
+);
+for (const step of smokeJob.steps) {
+  if (typeof step.run === "string") {
+    assert.equal(
+      step.run.includes("${{ inputs."),
+      false,
+      `manual input must not be interpolated into shell code in ${step.name}`,
+    );
+  }
+}
 const codeRabbit = readFileSync(".coderabbit.yaml", "utf8");
 assert.match(ciWorkflow, /types:.*ready_for_review/);
 assert.match(
