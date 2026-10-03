@@ -49,9 +49,10 @@ private content.
    age. Use metadata and aggregate metrics. Do not fetch private records for
    diagnosis unless the authenticated owner has approved that route and scope.
 3. Assign severity and an incident owner. If account compromise is suspected,
-   use the provider's native account recovery and security controls with the
-   owner's approval. Preserve active sessions and logs until the owner decides
-   whether revocation is needed.
+   preserve relevant logs and session metadata, then promptly ask the owner to
+   authorize containment through the provider's native session revocation and
+   account recovery controls. Verify a revoked session or assertion is denied
+   on an approved inert route without opening private records.
 4. Choose the smallest containment action that preserves the public site's
    intended reading and unsubscribe functions. Account, credential, DNS,
    Access, destructive data, and production changes require their exact native
