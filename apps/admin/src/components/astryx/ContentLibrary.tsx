@@ -1,8 +1,8 @@
 import { contentDecision, decisionHref } from "../../lib/content-decision";
 import React, { memo, useEffect, useState } from "react";
 import type { CatalogRecord, CatalogGroup } from "./EditorialApp";
-import { Button } from "@astryxdesign/core/Button";
-import { IconButton } from "@astryxdesign/core/IconButton";
+import { Button } from "./WritingControls";
+import { IconButton } from "./WritingControls";
 import {
   ArticleIcon,
   BriefcaseIcon,
@@ -21,7 +21,7 @@ import { Text } from "@astryxdesign/core/Text";
 import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-} from "@astryxdesign/core/DropdownMenu";
+} from "./WritingControls";
 import {
   DataTable,
   FilterBar,

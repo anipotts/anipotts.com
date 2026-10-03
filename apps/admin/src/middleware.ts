@@ -10,7 +10,7 @@ import {
   PREVIEW_PATHS,
   STANDALONE_PREVIEW_PATH,
   isEmbeddedPreviewRequest,
-  previewResponse,
+  renderPreviewResponse,
   standalonePreviewUrl,
 } from "./lib/preview-html";
 import {
@@ -19,14 +19,13 @@ import {
   isLocalOwnerRequest,
   isPublicAdminPath,
 } from "./lib/admin-access-policy";
-import {
-  denyLocalOwnerFraming,
-  localOwnerPrincipal,
-} from "./lib/admin-local-owner";
+import { denyAdminFraming } from "./lib/admin-framing";
+import { localOwnerPrincipal } from "./lib/admin-local-owner";
 import { adminJson } from "./lib/admin-auth";
 import { PRIVATE_READER_CANARY_PATH } from "./lib/private-reader-canary";
 import { applyServerTiming, createServerTiming } from "./lib/server-timing";
 import { runtimeEnv } from "./lib/runtime-env";
+import { createAdminScriptNonce, withAdminScriptNonce } from "./lib/admin-csp";
 
 /** Content, the overview, the editorial APIs, the private reader and the
  * draft previews accept only the signed owner. */
@@ -44,13 +43,12 @@ function isEditorialPath(pathname: string): boolean {
   );
 }
 
-/** Owner responses are never cached or indexed, and a local owner is never framed. */
-function withPrivateHeaders(response: Response, localOwner: boolean) {
+/** Owner responses are never cached or indexed. */
+function withPrivateHeaders(response: Response) {
   response.headers.set("Cache-Control", "private, no-store");
   response.headers.set("CDN-Cache-Control", "no-store");
   response.headers.set("Cloudflare-CDN-Cache-Control", "no-store");
   response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
-  if (localOwner) denyLocalOwnerFraming(response.headers);
   return response;
 }
 
@@ -61,11 +59,11 @@ async function handleRequest(
   const { pathname } = context.url;
   // Sign out verifies the Access assertion itself.
   if (pathname === "/api/admin/logout" || pathname === "/auth/logout")
-    return withPrivateHeaders(await next(), false);
+    return withPrivateHeaders(await next());
   // The reader canary admits exactly one Access service token, which its
   // route verifies against its own Access application. No owner is involved.
   if (pathname === PRIVATE_READER_CANARY_PATH)
-    return withPrivateHeaders(await next(), false);
+    return withPrivateHeaders(await next());
   const env = runtimeEnv();
   // A build-time constant, never a runtime value. Deployable builds compile
   // it to false, which removes this whole path from the bundle.
@@ -105,7 +103,6 @@ async function handleRequest(
               `/auth?next=${encodeURIComponent(destination)}`,
               302,
             ),
-            false,
           );
         }
         return privateJson({ error: "owner_required" }, 401);
@@ -120,18 +117,14 @@ async function handleRequest(
     ) {
       return withPrivateHeaders(
         await context.rewrite(standalonePreviewUrl(context.url)),
-        localOwner,
       );
     }
-    const response = await next();
-    return withPrivateHeaders(
-      PREVIEW_PATHS.has(pathname)
-        ? await previewResponse(response, context.url)
-        : response,
-      localOwner,
-    );
+    const response = PREVIEW_PATHS.has(pathname)
+      ? await renderPreviewResponse(next, context.url)
+      : await next();
+    return withPrivateHeaders(response);
   }
-  if (localOwner) return withPrivateHeaders(await next(), true);
+  if (localOwner) return withPrivateHeaders(await next());
   if (
     isDevLoopbackPreviewRequest({
       isDev: import.meta.env.DEV,
@@ -139,7 +132,7 @@ async function handleRequest(
       url: context.url,
     })
   ) {
-    return withPrivateHeaders(await next(), false);
+    return withPrivateHeaders(await next());
   }
 
   if (isPublicAdminPath(pathname)) return next();
@@ -149,17 +142,14 @@ async function handleRequest(
   const principal = await retainedAccessPrincipal(context.request, env);
   if (principal) {
     context.locals.adminPrincipal = principal;
-    return withPrivateHeaders(await next(), false);
+    return withPrivateHeaders(await next());
   }
 
   if (pathname.startsWith("/api/"))
     return adminJson({ error: "admin_session_required" }, { status: 401 });
 
   const nextPath = encodeURIComponent(`${pathname}${context.url.search}`);
-  return withPrivateHeaders(
-    context.redirect(`/auth?next=${nextPath}`, 302),
-    false,
-  );
+  return withPrivateHeaders(context.redirect(`/auth?next=${nextPath}`, 302));
 }
 
 // Loaders record durations and counts on the request. The header is written
@@ -169,6 +159,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const started = performance.now();
   const timing = createServerTiming();
   context.locals.serverTiming = timing;
+  const nonce = createAdminScriptNonce();
+  context.locals.cspNonce = nonce;
   const response = await handleRequest(context, next);
-  return applyServerTiming(response, timing, performance.now() - started);
+  // Preserve the draft preview's same-origin frame policy while denying
+  // framing for every other admin response, including public sign-in pages.
+  denyAdminFraming(response.headers);
+  return applyServerTiming(
+    withAdminScriptNonce(response, nonce),
+    timing,
+    performance.now() - started,
+  );
 });

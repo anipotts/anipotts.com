@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useRef, type ComponentProps } from "react";
-import { TextArea } from "@astryxdesign/core/TextArea";
+import { TextArea } from "./WritingControls";
 
 /** Document fields grow with their text, including after a narrow-screen reflow. */
 export function AutoSizeTextArea(props: ComponentProps<typeof TextArea>) {

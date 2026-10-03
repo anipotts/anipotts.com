@@ -91,7 +91,7 @@
       "outputs": ["dist/**", "src/public/generated.ts"]
     },
     "@anipotts/admin#test": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["build"],
       "inputs": ["src/**", "test/**", "vitest*.config.ts", "package.json"],
       "outputs": []
     }

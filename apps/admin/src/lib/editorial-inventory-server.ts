@@ -37,14 +37,23 @@ export async function loadEditorialInventory(
   ];
   const values =
     env && typeof env === "object" ? (env as Record<string, unknown>) : {};
-  if (!values.CONTENT_DB) throw new Error("content_database_unavailable");
-  // Keep unavailable CMS state separate from a successfully empty inventory.
-  // A Git fallback here would falsely advertise obsolete published content.
-  entries = overlayPublishedInventory(
-    entries,
-    (await getPublishedInventory(values.CONTENT_DB as PublicationDatabase))
-      .publications,
-  );
+  let publicationUnavailable = false;
+  try {
+    if (!values.CONTENT_DB) throw new Error("content_database_unavailable");
+    entries = overlayPublishedInventory(
+      entries,
+      (await getPublishedInventory(values.CONTENT_DB as PublicationDatabase))
+        .publications,
+    );
+  } catch {
+    publicationUnavailable = true;
+    entries = entries.map((entry) => ({
+      ...entry,
+      published: null,
+      publishedAt: undefined,
+      publicationId: undefined,
+    }));
+  }
   let privateResult: Awaited<ReturnType<typeof readInventoryDrafts>> = {
     drafts: [],
     unavailable: true,
@@ -73,6 +82,6 @@ export async function loadEditorialInventory(
     records,
     groups: editorialInventoryGroups(records, newsletter),
     searchEntries: editorialInventorySearch([...records, ...newsletter]),
-    unavailable: privateResult.unavailable,
+    unavailable: publicationUnavailable || privateResult.unavailable,
   };
 }

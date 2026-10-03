@@ -113,7 +113,9 @@ it.each([
   });
   expect(rendered).toEqual(["/preview/standalone"]);
   expect(rewrites).toHaveLength(1);
-  expect(response.headers.get("Content-Security-Policy")).toBeNull();
+  expect(response.headers.get("Content-Security-Policy")).toBe(
+    "frame-ancestors 'none'",
+  );
   expect(response.headers.get("Cache-Control")).toBe("private, no-store");
   const frame = standalonePreviewFrameUrl(rewrites[0]!)!;
   expect(frame.pathname).toBe(new URL(origin + path).pathname);

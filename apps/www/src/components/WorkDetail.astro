@@ -1,5 +1,6 @@
 ---
 import InlineText from "./InlineText.astro";
+import ResponsiveCopy from "./ResponsiveCopy.astro";
 import WorkCard from "./WorkCard.astro";
 import { render } from "astro:content";
 import { Icon } from "astro-icon/components";
@@ -22,10 +23,14 @@ const { Content } = await render(project);
 
 const hasBody = Boolean(project.body?.trim());
 const d = project.data;
+const displayTitle =
+  (project.data.slug ?? project.id) === "agents"
+    ? "coding agent tips"
+    : d.title;
 ---
 
 <Shell
-  title={d.title}
+  title={displayTitle}
   description={d.description}
   path={`/work/${slug}`}
   detail
@@ -100,7 +105,8 @@ const d = project.data;
                 class:list={[
                   "project-mark",
                   d.identity.logo_tone === "light" && "project-mark--light",
-                  d.identity.logo_tone === "adaptive" &&
+                  (d.identity.logo_tone === "adaptive" ||
+                    slug === "pgi-research-platform") &&
                     "project-mark--adaptive",
                 ]}
               />
@@ -109,11 +115,14 @@ const d = project.data;
             ) : null
           }
           <h1 class="hero-title">
-            {d.title}
+            {displayTitle}
           </h1>
         </div>
         <p class="project-summary">
-          <InlineText text={d.card_copy || d.subtitle || d.description} />
+          <ResponsiveCopy
+            text={d.card_copy || d.subtitle || d.description}
+            compact={d.card_copy ? d.card_copy_compact : undefined}
+          />
         </p>
       </div>
 
@@ -125,7 +134,7 @@ const d = project.data;
         <section
           data-rise
           class="project-visual"
-          aria-label={`${d.title} preview`}
+          aria-label={`${displayTitle} preview`}
         >
           <ProjectMediaStage
             items={[d.preview_media]}
@@ -265,8 +274,10 @@ const d = project.data;
     min-height: 44px;
     display: inline-flex;
     align-items: center;
-    gap: 0.55rem;
-    font-size: 0.9rem;
+    gap: var(--control-icon-gap);
+    font-weight: var(--control-weight);
+    line-height: var(--control-leading);
+    font-size: var(--control-size);
     color: var(--paper-muted);
   }
 

@@ -2,9 +2,16 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "${CODEX_WORKTREE_PATH:-$repo_root}"
+cd "$repo_root"
 
-if [ -s "${NVM_DIR:-$HOME/.nvm}/nvm.sh" ]; then
+# Desktop action terminals do not necessarily inherit a login-shell runtime.
+pinned_node="$(cat "$repo_root/.nvmrc")"
+mise_node="${MISE_DATA_DIR:-$HOME/.local/share/mise}/installs/node/$pinned_node/bin"
+if [ -x "$mise_node/node" ]; then
+  export PATH="$mise_node:$PATH"
+fi
+
+if [ ! -x "$mise_node/node" ] && [ -s "${NVM_DIR:-$HOME/.nvm}/nvm.sh" ]; then
   # shellcheck disable=SC1090
   . "${NVM_DIR:-$HOME/.nvm}/nvm.sh"
   nvm use --silent "$(cat "$repo_root/.nvmrc")" >/dev/null
@@ -21,7 +28,7 @@ require_tool() {
 validate_toolchain() {
   require_tool node
   require_tool pnpm
-  node -e 'const [M,m,p]=process.versions.node.split(".").map(Number); if (!((M===24&&(m>19||(m===19&&p>=0)))||M===25)) { console.error(`anipotts.com requires Node >=24.19.0 <26; found ${process.version}. Run: nvm install && nvm use`); process.exit(1) }'
+  node -e 'const [M,m,p]=process.versions.node.split(".").map(Number); if (!((M===24&&(m>19||(m===19&&p>=0)))||M===25)) { console.error(`anipotts.com requires Node >=24.19.0 <26; found ${process.version}. Install the version in .nvmrc with your runtime manager`); process.exit(1) }'
 }
 
 require_dependencies() {

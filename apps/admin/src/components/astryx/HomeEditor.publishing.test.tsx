@@ -27,8 +27,18 @@ vi.mock("./ArticleBody", () => ({
 }));
 vi.mock("./RichTextField", () => ({ RichTextField: () => <p>Subtitle</p> }));
 vi.mock("./SavedArticlePreview", () => ({
-  SavedArticlePreview: ({ revision }: any) => (
-    <p data-preview-revision={revision}>Article preview</p>
+  SavedArticlePreview: ({ src }: any) => (
+    <>
+      <iframe
+        title="Saved article preview"
+        src={src}
+        data-preview-revision={new URL(
+          src,
+          window.location.origin,
+        ).searchParams.get("revision")}
+      />
+      <p>Article preview</p>
+    </>
   ),
 }));
 vi.mock("./RecordPanel", () => ({
@@ -112,8 +122,9 @@ async function click(label: string) {
     button!.click();
   });
 }
-/** Opens the editor bar's overflow and chooses one of its items. */
+/** Frequent panels are direct actions; only secondary actions use overflow. */
 async function menuItem(label: string) {
+  if (label === "Properties" || label === "History") return click(label);
   await act(async () => {
     (
       host.querySelector(
@@ -457,8 +468,9 @@ it("groups document actions under labeled menu sections, not dividers", async ()
         (item) => item.querySelector("span > span")?.textContent,
       ),
     ]);
-  // The record's own panels lead, untitled; Unpublish would close the menu.
-  const record = [null, ["Properties", "History"]];
+  // Frequent record panels stay directly accessible and do not duplicate in overflow.
+  expect(host.querySelector('button[aria-label="Properties"]')).not.toBeNull();
+  expect(host.querySelector('button[aria-label="History"]')).not.toBeNull();
   const inspect = ["Inspect", ["View source", "Compare with website"]];
   const draftActions = [
     "Open production editor",
@@ -466,8 +478,8 @@ it("groups document actions under labeled menu sections, not dividers", async ()
     "Import draft…",
   ];
   let menu = await openMenu();
-  expect(sections(menu)).toEqual([record, inspect, ["Draft", draftActions]]);
-  expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(7);
+  expect(sections(menu)).toEqual([inspect, ["Draft", draftActions]]);
+  expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(5);
   // Leaving the editor tab commits the buffered title, so Save now appears.
   const viewSource = [...menu.querySelectorAll('[role="menuitem"]')].find(
     (item) => item.textContent === "View source",
@@ -475,11 +487,10 @@ it("groups document actions under labeled menu sections, not dividers", async ()
   await act(async () => viewSource.click());
   menu = await openMenu();
   expect(sections(menu)).toEqual([
-    record,
     inspect,
     ["Draft", [...draftActions, "Save now"]],
   ]);
-  expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(8);
+  expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(6);
 });
 
 it("polls an unfinished publication only while the page is visible", async () => {
@@ -896,6 +907,80 @@ it("explains a known direct publisher refusal instead of claiming an ambiguous s
   expect(host.textContent).not.toContain("Couldn’t confirm publication");
 });
 
+it("shows actionable preflight diagnostics without claiming a publication started", async () => {
+  const publishedSource = source.replace(
+    "status: draft",
+    "status: published\npublished_at: 2026-09-20",
+  );
+  const cmsBase = {
+    ...snapshot.base,
+    source: publishedSource,
+    publicationId: null,
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      if (url.includes("/baseline")) return response({ base: cmsBase });
+      if (url.includes("/publish?"))
+        return jsonResponse(
+          JSON.stringify({
+            error: "invalid_snapshot",
+            issues: [
+              {
+                record: { kind: "writing", id: "test" },
+                field: "project",
+                code: "unknown_project_reference",
+              },
+            ],
+          }),
+          {
+            status: 409,
+          },
+        );
+      if (url.includes("/publication?")) return response({ publication: null });
+      return response({
+        ...snapshot,
+        base: cmsBase,
+        draft: {
+          ...draft,
+          source: publishedSource.replace("Original body.", "Changed body."),
+        },
+      });
+    }),
+  );
+  await mount("", false);
+  await click("Publish");
+  await click("Publish now");
+  await act(async () => {
+    await vi.waitFor(() =>
+      expect(
+        vi
+          .mocked(fetch)
+          .mock.calls.some(([url]) => String(url).includes("/publication?")),
+      ).toBe(true),
+    );
+  });
+  expect(host.textContent).toContain("Publication was not started.");
+  expect(host.textContent).not.toContain("Couldn’t confirm publication");
+  expect(host.textContent).toContain("Choose an existing project");
+  expect(
+    [...host.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "Publish now",
+    )?.disabled,
+  ).toBe(true);
+  expect(host.textContent).toContain("Review again");
+  await act(async () => {
+    (
+      host.querySelector(
+        '[aria-label="Publication issues"] a',
+      ) as HTMLAnchorElement
+    ).click();
+  });
+  expect(host.querySelector('[aria-label="Reviewed source"]')).toBeNull();
+  expect(host.textContent).toContain("Source");
+});
+
 it("blocks unsupported direct publication before submission while retaining the draft", async () => {
   const requests: string[] = [];
   vi.stubGlobal(
@@ -1100,4 +1185,58 @@ it("offers Publish again, not Unpublish, while a piece is hidden from the websit
   expect(labels).not.toContain("Publish");
   await click("Publish again");
   expect(host.textContent).toContain("Publish now");
+});
+
+it("allows unchanged seed source to be saved and reviewed for its first publication", async () => {
+  const seed = {
+    source,
+    baseCommit: "seed",
+    baseFileHash: "seed-hash",
+    publicationId: null,
+  };
+  const saved = {
+    ...draft,
+    source,
+    revision: 1,
+    baseCommit: "seed",
+    baseFileHash: "seed-hash",
+  };
+  const fetcher = vi.fn(async (url: string, options?: RequestInit) => {
+    if (url.includes("/csrf")) return response({ csrf: "test-only" });
+    if (url.includes("/baseline")) return response({ base: seed });
+    if (url.includes("/save")) {
+      expect(JSON.parse(options!.body as string).source).toBe(source);
+      return response({ ok: true, draft: saved });
+    }
+    return response({
+      ...snapshot,
+      base: seed,
+      draft: null,
+      history: [],
+      nextBeforeRevision: null,
+    });
+  });
+  vi.stubGlobal("fetch", fetcher);
+  await mount("", false);
+  const publish = [...host.querySelectorAll("button")].find(
+    (button) => button.textContent?.trim() === "Publish",
+  )!;
+  expect(publish.disabled).toBe(false);
+  expect(host.querySelector('[aria-label="Open on site"]')).toBeNull();
+  await click("Publish");
+  await act(async () => {
+    await vi.waitFor(() =>
+      expect(host.querySelector(".editor-review")?.textContent).not.toContain(
+        "Waiting for the latest saved revision",
+      ),
+    );
+  });
+  expect(
+    fetcher.mock.calls.filter(([url]) => url.includes("/save")),
+  ).toHaveLength(1);
+  const publishNow = [...host.querySelectorAll("button")].find(
+    (button) => button.textContent?.trim() === "Publish now",
+  )!;
+  expect(publishNow.disabled).toBe(false);
+  expect(host.textContent).not.toContain("There are no changes to publish.");
 });

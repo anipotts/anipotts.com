@@ -22,7 +22,7 @@ const { text, links = true } = Astro.props;
     color: var(--interactive);
   }
   @media (hover: hover) and (pointer: fine) {
-    .inline-copy a:hover {
+    :global(html:not([data-touch-input])) .inline-copy a:hover {
       color: var(--interactive);
     }
   }

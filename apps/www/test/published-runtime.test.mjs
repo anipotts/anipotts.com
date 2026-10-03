@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -13,7 +13,7 @@ import {
   worker,
 } from "./worker-runtime.mjs";
 import {
-  contentDatabase as database,
+  contentDatabase as emptyDatabase,
   contentEnv as cms,
   sha256 as hash,
 } from "./content-database.mjs";
@@ -25,31 +25,19 @@ const root = fileURLToPath(new URL("../../../", import.meta.url));
 const source = (kind, id) =>
   readFileSync(join(root, "content/public", kind, `${id}.md`), "utf8");
 const original = source("writing", "awareness-is-alpha");
-const bundledSourceSha256 = hash(
-  JSON.stringify(
-    ["pages", "projects", "writing"]
-      .flatMap((directory) =>
-        readdirSync(join(root, "content/public", directory))
-          .filter(
-            (file) =>
-              file.endsWith(".md") &&
-              (directory !== "pages" ||
-                [
-                  "home.md",
-                  "work.md",
-                  "writing.md",
-                  "systems.md",
-                  "newsletter.md",
-                ].includes(file)),
-          )
-          .map((file) => {
-            const path = `content/public/${directory}/${file}`;
-            return [path, readFileSync(join(root, path), "utf8")];
-          }),
-      )
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
-  ),
-);
+const seedFixture = await collectGitSeed(root);
+function database() {
+  const db = emptyDatabase();
+  for (const row of seedFixture.records)
+    db.publish({
+      kind: row.record.kind,
+      id: row.record.id,
+      text: row.source,
+      operation: `git-seed.${row.record.kind}.${row.record.id}`,
+    });
+  db.resetFixtureVersion();
+  return db;
+}
 function edit(raw, fields, body) {
   const front = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
   return `---\n${stringify({ ...parse(front[1]), ...fields })}---\n${body ?? raw.slice(front[0].length)}`;
@@ -174,7 +162,11 @@ test("one coherent read per request drives pages and discovery immediately", asy
       const response = await serve(path, cms(db, { ASSETS: staleAssets }));
       assert.equal(response.status, 200, path);
       version(response, 1, { cacheable: !uncached.has(path) });
-      assert.equal(db.reads - before, 1, `${path} reads one atomic inventory`);
+      assert.equal(
+        db.reads - before,
+        uncached.has(path) ? 0 : 1,
+        `${path} loads only its required inventory`,
+      );
       const result = await response.text();
       if (
         [
@@ -199,7 +191,7 @@ test("one coherent read per request drives pages and discovery immediately", asy
         assert.match(result, /<strong>still bold<\/strong>/);
         assert.doesNotMatch(result, /<script>alert/);
         // A CMS record keeps its bundled card by slug.
-        assert.match(result, /\/social\/writing-awareness-is-alpha\.png/);
+        assert.match(result, /\/social\/site\.png\?v=corner-1/);
         assert.doesNotMatch(result, /"dateModified"/);
         assert.equal(response.headers.get("x-content-sha256"), receipt.digest);
       }
@@ -209,10 +201,9 @@ test("one coherent read per request drives pages and discovery immediately", asy
       cms(db),
     );
     assert.deepEqual(await proof.json(), {
-      runtime: 1,
+      runtime: 2,
       contentSchemaVersion: 1,
       inventoryVersion: 1,
-      bundledSourceSha256,
       visible: true,
       publicationId: receipt.operation,
       sourceSha256: receipt.digest,
@@ -253,10 +244,9 @@ test("unpublication suppresses Git detail, listings, homepage, discovery and pri
         cms(db),
       );
       assert.deepEqual(await proof.json(), {
-        runtime: 1,
+        runtime: 2,
         contentSchemaVersion: 1,
         inventoryVersion: 1,
-        bundledSourceSha256,
         visible: false,
       });
     }
@@ -297,7 +287,8 @@ test("homepage essay attribution follows its published slug and withdrawal", asy
       text: edit(essay, { slug: renamedSlug, status: "draft" }),
     });
     attribution = coverage(await (await serve("/", cms(db))).text());
-    assert.doesNotMatch(attribution, /read the story|\/writing\/|<a\b/);
+    assert.doesNotMatch(attribution, /my essay|\/writing\//);
+    assert.match(attribution, /read the story/);
     assert.equal((await serve(`/writing/${renamedSlug}`, cms(db))).status, 404);
   } finally {
     db.close();
@@ -593,11 +584,7 @@ test("invalid schema, source, hash and storage errors never resurrect Git conten
     const db = database();
     try {
       db.publish(invalid);
-      for (const path of [
-        "/writing/awareness-is-alpha",
-        "/feed.xml",
-        "/api/content-version",
-      ]) {
+      for (const path of ["/writing/awareness-is-alpha", "/feed.xml"]) {
         const response = await serve(path, cms(db, { ASSETS: staleAssets }));
         assert.equal(response.status, 503);
         assert.equal(await response.text(), "Content unavailable");
@@ -753,47 +740,91 @@ test("Markdown text mentioning a private image is not a public media reference",
   }
 });
 
-test("a store seeded from Git renders every route exactly like the bundled defaults", async () => {
-  // The recovery seed must be a zero visible change: same status and body on
-  // every public route, with detail pages now answered from the store.
-  const seed = await collectGitSeed(root);
-  const empty = database();
-  const seeded = database();
+test("healthy empty CMS and partial CMS never resurrect bundled publications", async () => {
+  const db = emptyDatabase();
   try {
-    for (const record of seed.records)
-      seeded.publish({
-        kind: record.record.kind,
-        id: record.record.id,
-        text: record.source,
-        operation: record.publicationId,
-      });
-    const rendered = JSON.parse(
-      readFileSync(join(renderedDir, ".runtime-proof.json"), "utf8"),
-    ).paths;
-    assert.ok(rendered.length > 10, "the build rendered the public routes");
-    for (const path of rendered) {
-      const [before, after] = await Promise.all([
-        serve(path, cms(empty)),
-        serve(path, cms(seeded)),
-      ]);
-      assert.equal(before.status, 200, path);
-      assert.equal(after.status, 200, path);
-      assert.equal(
-        after.headers.get("x-content-version"),
-        String(seed.records.length),
-        path,
-      );
-      assert.equal(await after.text(), await before.text(), path);
-      if (/^\/(?:work|writing)\/./u.test(path))
-        assert.match(
-          after.headers.get("x-content-sha256") ?? "",
-          /^[a-f0-9]{64}$/u,
-          path,
-        );
+    for (const path of ["/", "/work", "/writing", "/systems"]) {
+      const response = await serve(path, cms(db, { ASSETS: staleAssets }));
+      assert.equal(response.status, 503, path);
+      assert.equal(response.headers.get("cache-control"), "no-store");
     }
+    for (const path of ["/writing/awareness-is-alpha", "/work/chainedchat"])
+      assert.equal((await serve(path, cms(db))).status, 404, path);
+    const proof = await serve(
+      "/api/content-version?kind=writing&id=awareness-is-alpha",
+      cms(db),
+    );
+    assert.deepEqual(await proof.json(), {
+      runtime: 2,
+      contentSchemaVersion: 1,
+      inventoryVersion: 0,
+      visible: false,
+    });
+    // Publish only required pages. Unactivated seed writing/projects stay absent.
+    for (const row of seedFixture.records.filter(
+      (row) => row.record.kind === "page",
+    ))
+      db.publish({
+        kind: row.record.kind,
+        id: row.record.id,
+        text: row.source,
+      });
+    for (const path of [
+      "/",
+      "/work",
+      "/writing",
+      "/systems",
+      "/feed.xml",
+      "/search-index.json",
+      "/sitemap.xml",
+    ]) {
+      const response = await serve(path, cms(db));
+      assert.equal(response.status, 200, path);
+      assert.doesNotMatch(
+        await response.text(),
+        /href="\/writing\/awareness-is-alpha|href="\/work\/chainedchat/,
+      );
+    }
+    for (const path of ["/writing/awareness-is-alpha", "/work/chainedchat"])
+      assert.equal((await serve(path, cms(db))).status, 404, path);
   } finally {
-    empty.close();
-    seeded.close();
+    db.close();
+  }
+});
+
+test("record verification pins one identity despite unrelated inventory corruption", async () => {
+  const db = database();
+  try {
+    db.publish({
+      id: "unrelated-corrupt",
+      text: original,
+      digest: "0".repeat(64),
+    });
+    const response = await serve(
+      "/api/content-version?kind=writing&id=awareness-is-alpha",
+      cms(db),
+    );
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      runtime: 2,
+      contentSchemaVersion: 1,
+      inventoryVersion: 1,
+      visible: true,
+      publicationId: "git-seed.writing.awareness-is-alpha",
+      sourceSha256: hash(original),
+    });
+    assert.equal(
+      (
+        await serve(
+          "/api/content-version?kind=writing&id=unrelated-corrupt",
+          cms(db),
+        )
+      ).status,
+      503,
+    );
+    assert.equal((await serve("/writing", cms(db))).status, 503);
+  } finally {
+    db.close();
   }
 });
 

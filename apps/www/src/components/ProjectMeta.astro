@@ -3,8 +3,9 @@ interface Props {
   status: string;
   year: string;
   role?: string;
+  inline?: boolean;
 }
-const { status, year, role } = Astro.props;
+const { status, year, role, inline = false } = Astro.props;
 const label = status === "wip" ? "in progress" : status;
 const timeframe = year
   .trim()
@@ -12,15 +13,19 @@ const timeframe = year
   .replace(/\s*[-–—]\s*/gu, " – ");
 ---
 
-<span class="project-meta-group">
+<span
+  class:list={["project-meta-group", { "project-meta-group--inline": inline }]}
+>
   <span class="project-meta-ui">
-    <span class="status"
-      ><span
-        class:list={["status-dot", `status-dot--${status}`]}
-        aria-hidden="true"></span><span class="sr-only">Status: </span>{
-        label
-      }<span class="sr-only">.</span></span
-    >
+    {
+      (!inline || status !== "live") && (
+        <span class="status">
+          <span class="sr-only">Status: </span>
+          {label}
+          <span class="sr-only">.</span>
+        </span>
+      )
+    }
     <span class="timeframe"
       ><span class="sr-only">Timeframe: </span>{timeframe}</span
     >
@@ -32,12 +37,12 @@ const timeframe = year
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.65rem 1rem;
+    gap: var(--control-group-gap);
   }
   .project-meta-ui {
     display: inline-flex;
     align-items: center;
-    gap: 0.8rem;
+    gap: var(--control-group-gap);
     width: fit-content;
     max-width: 100%;
     padding: var(--card-ui-padding);
@@ -45,47 +50,29 @@ const timeframe = year
     border-radius: var(--card-ui-radius);
     background: var(--card-ui-surface);
     color: var(--paper-muted);
-    font-size: 0.78rem;
-    line-height: 1.25;
+    font-size: var(--control-size);
+    font-weight: var(--card-copy-weight);
+    line-height: var(--control-leading);
+  }
+  .project-meta-group--inline .project-meta-ui {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    gap: 0.5rem;
   }
   .status {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    font-weight: 600;
+    gap: var(--control-icon-gap);
+    font-weight: var(--status-weight);
     white-space: nowrap;
-  }
-  .status-dot {
-    width: 0.375rem;
-    height: 0.375rem;
-    border-radius: 50%;
-    background: currentColor;
-    flex: none;
-  }
-  .status-dot--live {
-    background: #16834a;
-  }
-  :global(html[data-theme="dark"]) .status-dot--live {
-    background: #4ade80;
-  }
-  .status-dot--wip {
-    background: #a86708;
-  }
-  :global(html[data-theme="dark"]) .status-dot--wip {
-    background: #f5bd4f;
-  }
-  .status-dot--archived {
-    background: #7b8491;
-  }
-  :global(html[data-theme="dark"]) .status-dot--archived {
-    background: #8b96a6;
   }
   .timeframe {
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
   .role {
-    font-size: 0.82rem;
+    font-size: var(--control-size);
     color: var(--ink-muted);
   }
   /* Generic spans cannot carry a name, so field labels ride along as hidden text. */

@@ -54,6 +54,10 @@ const writingEntries = allWriting
 const workLabel = work.label || "work";
 const workHref = work.view_all ?? work.links?.[0]?.href ?? "/work";
 const summaryText = intro.subheading;
+const compactSummaryText = intro.subheading_compact?.trim()
+  ? intro.subheading_compact
+  : summaryText;
+const hasCompactSummary = compactSummaryText !== summaryText;
 const introMentionKeys = intro.mention_keys ?? [];
 const profileLd = {
   "@context": "https://schema.org",
@@ -78,18 +82,32 @@ const profileLd = {
     <h1 class="home-hero">
       {heading}
     </h1>
-    <p class="hero-summary hero-line">
-      {
-        (
+    <p
+      class:list={[
+        "hero-summary",
+        "hero-line",
+        { "hero-line--desktop": hasCompactSummary },
+      ]}
+    >
+      <HomepageRichSummary
+        text={summaryText}
+        format={intro.subheading_format}
+        mentionKeys={introMentionKeys}
+        mentions={mentionMap}
+      />
+    </p>
+    {
+      hasCompactSummary && (
+        <p class="hero-summary hero-line hero-line--compact">
           <HomepageRichSummary
-            text={summaryText}
-            format={intro.subheading_format}
+            text={compactSummaryText}
+            format={intro.subheading_compact_format}
             mentionKeys={introMentionKeys}
             mentions={mentionMap}
           />
-        )
-      }
-    </p>
+        </p>
+      )
+    }
     <PressMention
       essayHref={codingAgentEssay
         ? `/writing/${writingSlug(codingAgentEssay)}`
@@ -175,6 +193,18 @@ const profileLd = {
     text-wrap: pretty;
   }
 
+  .hero-line--compact {
+    display: none;
+  }
+  @media (width < 768px) {
+    .hero-line--desktop {
+      display: none;
+    }
+    .hero-line--compact {
+      display: block;
+    }
+  }
+
   .text-link {
     color: var(--ink);
     text-decoration: underline;
@@ -184,7 +214,7 @@ const profileLd = {
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .text-link:hover {
+    :global(html:not([data-touch-input])) .text-link:hover {
       color: var(--interactive);
       text-decoration-color: var(--interactive);
     }
@@ -212,8 +242,8 @@ const profileLd = {
   .view-all {
     display: inline-flex;
     align-items: center;
-    gap: 0.35em;
-    font-size: 0.85rem;
+    gap: var(--control-icon-gap);
+    font-size: var(--control-size);
   }
 
   .grid {

@@ -34,6 +34,9 @@ async function publishedResponse(
 ): Promise<Response> {
   const { pathname } = context.url;
   const { method } = context.request;
+  // The proof endpoint owns its counter/identity query and no-store headers.
+  // Loading unrelated publications here would defeat its atomic record proof.
+  if (pathname === "/api/content-version") return next();
   const content = publicContentContext(context.locals);
   const cacheable =
     (method === "GET" || method === "HEAD") && isCacheableContentPath(pathname);

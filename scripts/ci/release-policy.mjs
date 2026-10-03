@@ -61,6 +61,7 @@ const APPROVAL_PATHS = [
 ];
 
 const KNOWN_SAFE_ROOTS = [
+  /^\.codex\/environments\/environment\.toml$/,
   /^\.(?:gitignore|prettierignore)$/,
   /^patches\/@astryxdesign__core@0\.4\.6\.patch$/,
   /^\.coderabbit\.yaml$/,
@@ -117,6 +118,9 @@ export function computeDeployTargets(paths) {
 
     if (
       astroBuildConfig ||
+      /^apps\/www\/src\/(?:components|layouts|styles|lib|scripts)\//.test(
+        path,
+      ) ||
       path === ADMIN_CORE_PATCH ||
       path.startsWith("apps/admin/") ||
       path.startsWith("content/public/") ||

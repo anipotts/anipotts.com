@@ -122,3 +122,45 @@ describe("server-owned record paths", () => {
     ).toThrow();
   });
 });
+
+it("retains independent home rich fields and optional compact copy on a source round trip", () => {
+  const old = `---\n# preserve authored source\nsections:\n  intro: { visible: true, label: Intro, heading: Hello, subheading: Default summary }\n  past_work: { visible: true, label: Work, heading: Work }\n  latest_thoughts: { visible: true, label: Writing, heading: Writing }\nsection_order: [intro, past_work, latest_thoughts]\nmentions: {}\n---\nRetained body.\n`;
+  const record = { kind: "page", id: "home" } as const;
+  expect(validateEditorialSource(record, old).success).toBe(true);
+  let edited = setEditorialField(
+    old,
+    ["sections", "intro", "subheading_compact"],
+    "**Compact** summary",
+  );
+  edited = setEditorialField(
+    edited,
+    ["sections", "intro", "subheading_compact_format"],
+    "markdown",
+  );
+  const parsed = parseEditorialSource(edited);
+  expect(parsed.document.getIn(["sections", "intro", "subheading"])).toBe(
+    "Default summary",
+  );
+  expect(
+    parsed.document.getIn(["sections", "intro", "subheading_format"]),
+  ).toBeUndefined();
+  expect(
+    parsed.document.getIn(["sections", "intro", "subheading_compact_format"]),
+  ).toBe("markdown");
+  expect(validateEditorialSource(record, edited, parsed).success).toBe(true);
+  expect(edited).toContain("# preserve authored source");
+  expect(parsed.body).toBe("Retained body.\n");
+  expect(
+    setEditorialField(
+      edited,
+      ["sections", "intro", "subheading_compact"],
+      "**Compact** summary",
+    ),
+  ).toBe(edited);
+  const blank = setEditorialField(
+    edited,
+    ["sections", "intro", "subheading_compact"],
+    "",
+  );
+  expect(validateEditorialSource(record, blank).success).toBe(true);
+});

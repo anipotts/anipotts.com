@@ -31,6 +31,19 @@
   display: flex;
   min-height: var(--spacing-6);
 }
+/* The success age keeps its first line beside the label. A budget explanation
+   wraps below it when the value column cannot fit both, using its full width. */
+.workspace-definition > dd > .ops-success-fact {
+  align-items: baseline;
+  flex-wrap: wrap;
+  row-gap: 0;
+}
+.ops-success-fact > .ops-last {
+  flex: none;
+}
+.ops-success-fact > .ops-warning {
+  flex: 1 1 calc(9 * var(--spacing-4));
+}
 /* A phone row's device, after its time: a 20px place of its own, kept
    empty for a host, so tiles line up down the rows. */
 .ops-device-slot {
@@ -691,8 +704,8 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
 .ops-panel-gap > .ops-inline-glyph {
   color: var(--color-text-orange, var(--color-text-warning, currentColor));
 }
-/* Runs, changes and incidents: one line each, the time, the result, then a
-   figure or a detail that gives way first. */
+/* Runs, changes and incidents share a first baseline. Older dates and
+   details wrap within their columns while short rows remain centred. */
 .ops-list {
   display: flex;
   flex-direction: column;
@@ -704,14 +717,16 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
 .ops-list-item {
   display: grid;
   grid-template-columns: 7.5rem minmax(0, auto) minmax(0, 1fr);
-  align-items: center;
+  align-items: baseline;
+  align-content: center;
   column-gap: var(--spacing-3);
   min-width: 0;
   min-height: var(--spacing-9);
 }
 .ops-list-item > .workspace-time {
   color: var(--color-text-secondary);
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 /* A list with a start known only as a bound ("Before Sep 22, 17:26"). */
 .ops-list[data-bounded] > .ops-list-item:not(#\#) {
@@ -781,7 +796,8 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
   .ops-card[data-open="true"] > .ops-card-link {
     background-image: none;
   }
-  .ops-list-item {
+  .ops-list-item,
+  .ops-list[data-bounded] > .ops-list-item:not(#\#) {
     grid-template-columns: 6.5rem minmax(0, auto) minmax(0, 1fr);
     min-height: var(--spacing-11);
   }
@@ -801,10 +817,9 @@ html[data-astryx-theme] .ops-card-link:focus-visible {
     align-items: center;
     row-gap: var(--spacing-1);
   }
-  .ops-panel-title:not(#\#) {
+  .ops-panel-header > .workspace-record-heading {
     grid-row: 1;
     grid-column: 3;
-    white-space: normal;
   }
   .ops-panel-badge {
     grid-row: 2;

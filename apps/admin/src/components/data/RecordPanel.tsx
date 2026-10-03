@@ -28,6 +28,7 @@ import { ADMIN_TIME_ZONE, clockText, durationText } from "../workspace/format";
 import {
   CompactTimeline,
   DefinitionList,
+  RecordDetails,
   EasternClock,
   InlineNotice,
   LoadingSkeleton,
@@ -38,6 +39,7 @@ import {
   TierMark,
   ValueChips,
 } from "../workspace/Workspace";
+import { RecordHeader } from "../workspace/Workspace";
 import {
   effectiveDate,
   recordMark,
@@ -47,6 +49,23 @@ import {
 import { ReadNotice } from "./DataNotices";
 
 type Failure = Exclude<DataResult, { state: "ready" }>;
+
+// These fields qualify how a record may be read. Keep them visible even when
+// optional descriptive attributes are collapsed.
+const READING_CONTEXT = new Set([
+  "authority",
+  "current_as_of_authority",
+  "day_state",
+  "temporal_status",
+  "temporal_warnings",
+  "source_modified_at",
+  "current_as_of",
+  "current_as_of_status",
+  "omitted_fields",
+  "vitals",
+]);
+const isReadingContext = (detail: Detail) =>
+  READING_CONTEXT.has(detail.key.split(".").at(-1)!);
 
 const ABSOLUTE = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -348,9 +367,9 @@ function Body({
         <InlineNotice tone="warning" title="Next part unreadable" />
       )}
       <Facts record={record} mark={mark} />
-      <DefinitionList
-        label="Details"
-        items={[
+      <RecordDetails
+        key={record.id}
+        summary={[
           [
             "Kind",
             <span key="kind" className="data-inline">
@@ -359,14 +378,25 @@ function Body({
             </span>,
           ],
           ["Observed", <Observed key="observed" value={record.observedAt} />],
-          ...details.map(
+          ...details
+            .filter(isReadingContext)
+            .map(
+              (detail) =>
+                [
+                  detail.label,
+                  <DetailNode key={detail.key} detail={detail} />,
+                ] as const,
+            ),
+        ]}
+        details={details
+          .filter((detail) => !isReadingContext(detail))
+          .map(
             (detail) =>
               [
                 detail.label,
                 <DetailNode key={detail.key} detail={detail} />,
               ] as const,
-          ),
-        ]}
+          )}
       />
       <TechnicalSection items={technical.map(technicalItem)} />
       <History record={record} />
@@ -445,14 +475,14 @@ export function RecordPanel({
               <EasternClock />
             </div>
           )}
-          {mark && (
-            <div className="data-record-heading" title={record?.title ?? title}>
-              <Heading level={split ? 2 : 1} className="data-record-title">
-                {title}
-              </Heading>
-            </div>
-          )}
-          {split && close}
+          <RecordHeader
+            title={record?.title ?? title}
+            titleContent={title}
+            level={split ? 2 : 1}
+            titleClassName="data-record-heading"
+            headingClassName="data-record-title"
+            actions={split && close}
+          />
         </div>
       }
     >

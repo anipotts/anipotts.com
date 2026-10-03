@@ -8,6 +8,7 @@ import {
   mkdirSync,
   openSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -47,6 +48,11 @@ async function ensurePreview() {
   const health = await probeHealth();
 
   if (health.ok) {
+    if (health.identity?.checkout !== realpathSync(REPO_ROOT)) {
+      fail(
+        `preview checkout mismatch at ${origin}; expected ${REPO_ROOT}, found ${health.identity?.checkout ?? "unidentified"}; no process was stopped`,
+      );
+    }
     const ownership =
       metadata && processMatches(metadata) ? "managed" : "existing";
     printStatus("running", { ownership, pid: metadata?.pid ?? null });
@@ -137,6 +143,7 @@ async function reportStatus() {
   printStatus("running", {
     ownership: metadata && processMatches(metadata) ? "managed" : "existing",
     pid: metadata?.pid ?? null,
+    identity: health.identity,
   });
 }
 
@@ -237,7 +244,16 @@ async function probeHealth() {
     });
     if (response.status !== 200) return { ok: false };
     const payload = await response.json();
+    const identityResponse = await fetch(
+      `http://${BIND_HOST}:${port}/api/review-identity`,
+      {
+        redirect: "manual",
+        signal: AbortSignal.timeout(1_500),
+      },
+    );
+    const identity = identityResponse.ok ? await identityResponse.json() : null;
     return {
+      identity,
       ok:
         payload?.ok === true &&
         payload?.app === "admin-astro" &&

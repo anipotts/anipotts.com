@@ -35,7 +35,11 @@ const firstPreview = groups
 ---
 
 <Shell title={copy.title} description={copy.description} path="/work">
-  <PageHero title={copy.hero_title} summary={copy.hero_summary} />
+  <PageHero
+    title={copy.hero_title}
+    summary={copy.hero_summary}
+    summaryCompact={copy.hero_summary_compact}
+  />
   <div class="catalog">
     {
       groups

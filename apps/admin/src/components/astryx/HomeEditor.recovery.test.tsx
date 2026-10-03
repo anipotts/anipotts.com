@@ -4,6 +4,8 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { MAX_SOURCE_BYTES } from "@anipotts/content/editorial/source";
+// Transform the shared SDK/Astryx graph during collection, before timed setup.
+import "./HomeEditor";
 let HomeEditor: typeof import("./HomeEditor").HomeEditor;
 let navigation: typeof import("../../lib/editorial-navigation");
 import { adminNavigationEvent } from "../../lib/editorial-navigation";

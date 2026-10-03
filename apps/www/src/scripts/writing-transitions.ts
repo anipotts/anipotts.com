@@ -7,6 +7,7 @@ import * as wave from "../lib/wave-geometry";
 import * as timeline from "../lib/writing-timeline";
 import * as capture from "./writing-ghost";
 import { keyboardNavigation } from "./writing-input";
+import { syncPageCanvas } from "./page-canvas";
 
 type Focus = { h1: true } | { card: string } | null;
 const reduced = matchMedia("(prefers-reduced-motion: reduce)");
@@ -51,12 +52,9 @@ function applyArt() {
   else root.style.removeProperty("--detail-canvas");
 }
 function syncTheme() {
-  const root = document.documentElement;
-  root.style.colorScheme = theme() === "dark" ? "dark" : "light";
-  document
-    .querySelector('meta[name="theme-color"]')
-    ?.setAttribute("content", getComputedStyle(root).backgroundColor);
+  syncPageCanvas(document);
 }
+
 function applyFocus(intent: Focus) {
   pendingFocus = null;
   // Focus the visitor moved while the motion ran stays where they put it.

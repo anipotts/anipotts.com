@@ -1,6 +1,7 @@
 import { getViteConfig } from "astro/config";
 import react from "@astrojs/react";
 import icon from "astro-icon";
+import { previewIcons } from "./src/lib/preview-icons.mjs";
 import { fileURLToPath } from "node:url";
 
 // Real Astro compilation and rendering, without a dev server or provider proxy.
@@ -20,7 +21,7 @@ export default getViteConfig(
   },
   {
     configFile: false,
-    integrations: [react(), icon({ include: { ph: ["*"] } })],
+    integrations: [react(), icon({ include: previewIcons })],
     output: "server",
   },
 );

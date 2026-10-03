@@ -6,12 +6,12 @@ export declare const SAFE_LEFT: number;
 export declare const SAFE_RIGHT: number;
 
 export interface CardRequest {
-  /** The essay title, or null for the site card. */
+  /** Legacy input; all routes use the canonical brand composition. */
   title?: string | null;
   /** The site name, set as the card's byline. */
   name: string;
-  /** Chooses the wave composition; stable per route. */
-  seed: string;
+  /** Legacy route input; canonical wave composition is shared. */
+  seed?: string;
 }
 
 export declare function renderCard(request: CardRequest): Buffer;

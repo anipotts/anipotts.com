@@ -149,6 +149,11 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   .editorial-workspace-shell {
     --admin-main-block-size: 100dvh;
   }
+  /* A complete panel perimeter uses the theme's quiet border colour. The
+     inset stays visible in light mode and restrained on the dark canvas. */
+  .editorial-workspace-shell #astryx-app-shell-main {
+    border: var(--border-width) solid var(--color-border);
+  }
   .editorial-workspace-shell[data-sidebar-collapsed="false"] {
     --admin-main-block-size: calc(100dvh - var(--spacing-3));
   }
@@ -279,24 +284,50 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   }
 }
 
-/* The phone top bar (EditorialWorkspaceShell PhoneBar), one row: the [A]
-   monogram, the three workspaces beside it, search at the end. The server
-   writes it on every page in AppShell's banner slot and the width alone
-   decides whether it shows, so it never waits for hydration. The monogram's
-   bracket starts on the gutter and the search glyph ends on it. */
+/* Shared 44px phone appbar, including record, preview and review routes. */
+:root {
+  --admin-appbar-height: 0px;
+}
 .admin-phone-bar {
   display: none;
 }
 @media (max-width: 640px) {
+  :root {
+    --admin-appbar-height: var(
+      --admin-phone-appbar-height,
+      calc(var(--spacing-11) + env(safe-area-inset-top))
+    );
+  }
+  .editorial-workspace-shell .astryx-app-shell-header:has(.admin-phone-bar) {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-index-sticky, 10);
+  }
   .admin-phone-bar {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
     align-items: center;
     box-sizing: border-box;
-    min-height: calc(var(--spacing-11) + env(safe-area-inset-top));
+    min-height: var(--admin-appbar-height);
     padding-block-start: env(safe-area-inset-top);
     padding-inline: var(--admin-gutter);
     background: var(--color-background-body);
+  }
+  .admin-phone-bar button:not(#\#) {
+    height: var(--spacing-11);
+    width: var(--spacing-11);
+    min-height: var(--spacing-11);
+    min-width: var(--spacing-11);
+    padding: 0;
+    justify-content: center;
+  }
+  .admin-phone-identity {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: var(--font-weight-semibold);
+    padding-inline: var(--spacing-2);
   }
 }
 @media (min-width: 641px) {
@@ -304,114 +335,29 @@ body [data-astryx-theme]:not([data-astryx-media]) {
     display: none;
   }
 }
-/* A 44px target whose bracket stays on the gutter, so the first workspace
-   sits as far from it as the workspaces sit from each other. */
-.admin-phone-bar .admin-bracket-wordmark {
-  box-sizing: border-box;
+/* Astryx's native modal provides inert background, focus containment and
+   restoration. Its existing content panel owns vertical scrolling. */
+.admin-navigation-drawer > div:not(#\#) {
+  width: min(320px, calc(100vw - var(--spacing-8)));
+  max-width: min(320px, calc(100vw - var(--spacing-8)));
+  border: 0;
+  padding-block-start: env(safe-area-inset-top);
+  padding-block-end: env(safe-area-inset-bottom);
+}
+.admin-navigation-drawer > div > div:first-child {
+  border: 0;
+}
+.admin-navigation-drawer button:not(#\#),
+.admin-navigation-drawer .astryx-side-nav-item:not(#\#) {
+  min-height: var(--spacing-11);
   min-width: var(--spacing-11);
-  min-height: var(--spacing-11);
-  margin-inline-start: calc(-1 * var(--spacing-1));
-  padding-inline-start: var(--spacing-1);
 }
-/* The workspaces scroll sideways only when a narrow phone cannot hold
-   them. */
-.admin-phone-workspaces {
-  display: flex;
+.admin-drawer-nav:not(#\#) {
+  width: 100%;
   min-width: 0;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
 }
-/* The glyph, not the 44px target, lines up with the gutter: the target
-   ends on the gutter with its glyph at its end, as the copy and chevron
-   glyphs below do, so every trailing glyph shares one right edge. */
-.admin-phone-bar-search:not(#\#) {
-  margin-inline-end: 0;
-  justify-content: flex-end;
-  padding-inline-end: 0;
-}
-
-/* The current workspace's pages under the bar: a row that scrolls sideways
-   past the gutter to the screen edge, and with the page. */
-.admin-phone-pages {
-  display: none;
-}
-@media (max-width: 640px) {
-  .admin-phone-pages {
-    display: flex;
-    gap: var(--spacing-1);
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    margin-inline: calc(-1 * var(--admin-gutter));
-    padding-inline: var(--admin-gutter);
-    scroll-padding-inline: var(--admin-gutter);
-    /* A chip past the screen edge fades out across the gutter and a chip's
-       inset, so a row that scrolls reads as one. At rest, start and end,
-       every label sits inside that fade, so no whole label is ever faded. */
-    --admin-pages-fade: calc(var(--admin-gutter) + var(--spacing-3));
-    mask-image: linear-gradient(
-      to right,
-      transparent,
-      #000 var(--admin-pages-fade),
-      #000 calc(100% - var(--admin-pages-fade)),
-      transparent
-    );
-  }
-}
-.admin-phone-workspace,
-.admin-phone-page {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  box-sizing: border-box;
-  min-height: var(--spacing-11);
-  border-radius: var(--radius-element);
-  color: var(--color-text-secondary);
-  font-weight: var(--font-weight-semibold);
-  text-decoration: none;
-  white-space: nowrap;
-  -webkit-tap-highlight-color: transparent;
-}
-/* Full size from about 390px; narrower phones scale the labels down so the
-   three still fit one row. */
-.admin-phone-workspace {
-  padding-inline: var(--spacing-2);
-  font-size: clamp(var(--font-size-base), 4.4vw, var(--font-size-lg));
-}
-/* Below 360px the labels are at their least size and the three would
-   overflow, pushing "Observability" into the search target: the targets
-   narrow instead, so the row fits and the label keeps the gutter. */
-@media (max-width: 359px) {
-  .admin-phone-workspace {
-    padding-inline: var(--spacing-1);
-  }
-}
-.admin-phone-workspace[aria-current="true"] {
-  color: var(--color-text-primary);
-}
-/* Page chips read like the sidebar: only the current page carries a fill,
-   the sidebar's own selected fill, so keyboard focus (a tint) stays
-   distinct from it. Chip boxes start on the gutter. */
-.admin-phone-page {
-  position: relative;
-  min-height: var(--spacing-9);
-  margin-block: calc((var(--spacing-11) - var(--spacing-9)) / 2);
-  padding-inline: var(--spacing-3);
-  font-size: var(--text-body-size, var(--font-size-base));
-}
-/* The chip reads 36px; its target is the row's full 44px. */
-.admin-phone-page::before {
-  content: "";
-  position: absolute;
-  inset: calc((var(--spacing-9) - var(--spacing-11)) / 2) 0;
-}
-.admin-phone-page[aria-current="page"] {
-  background: var(--color-neutral);
-  color: var(--color-text-primary);
-}
-.admin-phone-bar .admin-bracket-wordmark:active,
-.admin-phone-workspace:active,
-.admin-phone-page:active {
-  background: var(--color-overlay-pressed);
+.admin-drawer-nav .admin-unified-nav {
+  margin-block-end: var(--spacing-5);
 }
 
 /* The [admin] wordmark. The brackets carry the workspace accent. */
@@ -482,5 +428,38 @@ body [data-astryx-theme]:not([data-astryx-media]) {
 @media (prefers-reduced-motion: reduce) {
   .editorial-workspace-shell #astryx-app-shell-main {
     transition: none;
+  }
+}
+
+/* In the collapsed rail every icon follows the same compact row rhythm,
+   including the in-flow machine mark immediately after Overview. */
+.editorial-workspace-nav .admin-unified-nav[data-rail="true"] {
+  gap: var(--spacing-0-5);
+}
+.admin-unified-nav[data-rail="true"] > .admin-local-owner {
+  width: var(--spacing-9);
+  height: var(--spacing-9);
+  align-self: center;
+}
+@media (pointer: coarse) {
+  .admin-unified-nav[data-rail="true"] > .admin-local-owner {
+    width: var(--spacing-11);
+    height: var(--spacing-11);
+  }
+}
+
+/* Tablets expand the desktop sidebar over content; the inline rail keeps
+   reserving its 52px. The sidebar owns its identity, search and footer. */
+@media (min-width: 641px) and (max-width: 1023px) {
+  .admin-tablet-sidebar > div:not(#\#) {
+    width: calc(var(--spacing-10) * 5);
+    max-width: calc(var(--spacing-10) * 5);
+    background: var(--color-workspace-sidebar, var(--color-background-body));
+  }
+  .admin-tablet-sidebar > div > div:first-child {
+    display: none;
+  }
+  .admin-tablet-sidebar > div > div:last-child {
+    padding: 0;
   }
 }

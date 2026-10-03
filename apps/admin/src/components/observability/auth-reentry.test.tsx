@@ -2,6 +2,9 @@
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+// Transform the shared UI graphs during collection, before timed setup.
+import "../astryx/ObservabilityWorkspace";
+import "../overview/AdminOverview";
 import snapshot from "../../fixtures/ops_v1.sample.json";
 import events from "../../fixtures/ops_events_v1.synthetic.json";
 
@@ -53,9 +56,9 @@ beforeEach(async () => {
   root = createRoot(host);
 });
 afterEach(async () => {
-  await act(async () => root.unmount());
-  host.remove();
-  stopDocumentListeners();
+  if (root) await act(async () => root.unmount());
+  host?.remove();
+  stopDocumentListeners?.();
   history.replaceState(null, "", "/");
 });
 
