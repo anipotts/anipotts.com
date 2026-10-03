@@ -275,6 +275,10 @@ export function ContentLibrary({
     groups.find((item) => item.name === selectedGroup) ??
     groups[0];
   const library = LIBRARIES[group?.name ?? ""] ?? LIBRARIES.website!;
+  const noun: [string, string] = [
+    library.kind.toLowerCase(),
+    `${library.kind.toLowerCase()}s`,
+  ];
   const heading = title ?? library.title;
   const create = area === "content" ? library.create : undefined;
   const actions = create && (
@@ -409,6 +413,7 @@ export function ContentLibrary({
     <WorkspacePage
       title={heading}
       count={group.records.length}
+      countNoun={noun}
       actions={actions}
     >
       <VStack gap={5} className="editorial-library">
@@ -511,7 +516,7 @@ export function ContentLibrary({
             columns={columns}
             rowKey="href"
             label={`${library.title} records`}
-            noun={["record", "records"]}
+            noun={noun}
           />
         ) : (
           <StateNotice

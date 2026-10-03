@@ -823,11 +823,9 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
    two lines at most, with the header kept for assistive technology and no
    count strip. */
 @media (max-width: 640px) {
-  /* A filter row's controls end their last glyph, not its
-     44px target, on the gutter, as the top bar's search does, so the glyphs
-     line up down the page. */
+  /* Filter and header commands share the same inset and centered targets. */
   .workspace-filters {
-    margin-inline-end: calc((var(--spacing-5) - var(--spacing-11)) / 2);
+    margin-inline-end: 0;
   }
   /* Header targets stay inside the shared gutter. Linked icon controls have
      the same square allocation as buttons, without a negative edge inset. */

@@ -109,6 +109,9 @@ describe("the page title line", () => {
     host.innerHTML = markup;
     const line = host.querySelector(".workspace-page-line")!;
     expect(line.querySelector("h1")?.textContent).toBe("Records");
+    expect(line.querySelector(".workspace-count")?.textContent).toBe(
+      "3 records",
+    );
     expect(line.querySelector(".workspace-clock")?.textContent).toBe(
       "3:55:12 PM ET",
     );

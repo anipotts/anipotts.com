@@ -563,6 +563,7 @@ function Page({
     <WorkspacePage
       title="Knowledge"
       count={count}
+      countNoun={["entity", "entities"]}
       badge={badge}
       actions={actions}
     >

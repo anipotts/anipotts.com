@@ -158,6 +158,7 @@ const unpunctuated = (text: string) => text.replace(/\.\s*$/, "");
 export function WorkspacePage({
   title,
   count,
+  countNoun = ["record", "records"],
   meta,
   badge,
   actions,
@@ -168,6 +169,7 @@ export function WorkspacePage({
   title: string;
   /** How many records the page lists, beside the title. */
   count?: number;
+  countNoun?: readonly [string, string];
   /** A fixed clock for the page (a fixture read at its own moment, a test):
    * the Eastern clock shows it and never ticks, like the page's ages. */
   clock?: number;
@@ -195,7 +197,7 @@ export function WorkspacePage({
             <Heading level={1}>{title}</Heading>
             {count !== undefined && (
               <Text color="secondary" className="workspace-count">
-                {count}
+                {count} {countNoun[count === 1 ? 0 : 1]}
               </Text>
             )}
             {badge}

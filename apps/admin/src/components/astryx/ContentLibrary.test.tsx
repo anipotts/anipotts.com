@@ -349,7 +349,7 @@ describe("table language", () => {
     expect(html).toContain("Published");
     expect(html).toContain("Drafts");
     expect(html).toMatch(/Published \/ saved|Last activity/);
-    expect(html).toContain("4 records");
+    expect(html).toContain("4 articles");
     expect(html).not.toContain("4 loaded, 4 total");
   });
 });

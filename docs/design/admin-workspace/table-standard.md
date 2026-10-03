@@ -96,3 +96,5 @@ Exact changed paths at this checkpoint:
 ## Compact content rows
 
 Narrow content libraries place last activity beside the primary title and use one ellipsized summary line beneath it. Titles wrap freely; the record link retains a 44px touch target. Repeated activity labels are omitted visually while the column header and precise timestamp remain accessible. Desktop columns are unchanged. Browser verification at 320px and 390px confirmed no document overflow, including long titles and unpublished records.
+
+Library headers and footers name their record type (articles, projects, pages or newsletter issues). Shared page headers accept a singular/plural `countNoun`; Data and Observability adapters supply source, entity, service, alert or event terminology. On phones, header actions and filter actions keep their complete 44px targets inside the same page gutter, aligning their trailing icon centers without negative margins.
