@@ -1,57 +1,34 @@
-/**
- * CLI smoke test for the deployed LinkVault DO. Runs against any URL.
- * Usage: bun run scripts/test-link-vault.ts https://anipotts-state.<acct>.workers.dev
- */
-
-import type { Link, LinkVaultEvent } from "../src/types";
+/** Read-only smoke for the private LinkVault boundary. No payload is printed. */
+export {};
 
 const base = process.argv[2] ?? "http://localhost:8787";
-const wsBase = base.replace(/^http/, "ws");
+const url = `${base.replace(/\/$/, "")}/api/links`;
 
-const log = (label: string, value: unknown) =>
-  console.log(
-    `[${label}] ${typeof value === "string" ? value : JSON.stringify(value)}`,
-  );
+const denied = await fetch(url);
+if (denied.status !== 401 && denied.status !== 503) {
+  throw new Error(`unauthenticated LinkVault read returned ${denied.status}`);
+}
+console.log(`unauthenticated read: ${denied.status}`);
 
-log("base", base);
+const readKey = process.env.STATE_READ_KEY;
+if (!readKey) {
+  console.log("authorized read: skipped (STATE_READ_KEY unavailable)");
+  process.exit(0);
+}
 
-// 1. Open WebSocket and listen for events.
-const ws = new WebSocket(`${wsBase}/api/links/ws`);
-ws.addEventListener("message", (event) => {
-  const data = JSON.parse(event.data as string) as LinkVaultEvent;
-  log(`ws:${data.type}`, data);
+const authorized = await fetch(url, {
+  headers: { Authorization: `Bearer ${readKey}` },
 });
-await new Promise<void>((resolve) =>
-  ws.addEventListener("open", () => resolve()),
-);
-log("ws", "open");
-
-// 2. POST a test link, expect snapshot + link.added on the WS.
-const post = await fetch(`${base}/api/links`, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    url: `https://example.com/cli-test-${Date.now()}`,
-    title: "CLI smoke test",
-    source: "manual",
-  }),
-});
-const { link } = (await post.json()) as { link: Link };
-log("post", link);
-
-// 3. GET the list, expect to see the new link.
-const list = await fetch(`${base}/api/links`);
-const { links } = (await list.json()) as { links: Link[] };
-log("list", `${links.length} link(s)`);
-
-// 4. DELETE the link.
-await fetch(`${base}/api/links/${encodeURIComponent(link.id)}`, {
-  method: "DELETE",
-});
-log("delete", link.id);
-
-// 5. Wait briefly for the broadcast, then exit.
-await new Promise((resolve) => setTimeout(resolve, 500));
-ws.close();
-log("done", "ok");
-process.exit(0);
+if (authorized.status !== 200) {
+  throw new Error(`authorized LinkVault read returned ${authorized.status}`);
+}
+const payload: unknown = await authorized.json();
+if (
+  !payload ||
+  typeof payload !== "object" ||
+  !("links" in payload) ||
+  !Array.isArray(payload.links)
+) {
+  throw new Error("authorized LinkVault response shape is invalid");
+}
+console.log("authorized read: 200 with links array");

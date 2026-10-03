@@ -3,7 +3,10 @@ import { cors } from "hono/cors";
 import { LINK_SOURCES, type Bindings } from "./types";
 import { verifyDeviceHandshake } from "./control-plane-auth";
 import { stateHealth } from "./health";
-import { createRuntimeContractReporter } from "./runtime-contract";
+import {
+  createRuntimeContractReporter,
+  hasDistinctStateReadKey,
+} from "./runtime-contract";
 
 export { LinkVault } from "./do/link-vault";
 export { CodeStats } from "./do/code-stats";
@@ -114,10 +117,37 @@ function requirePublishKey(c: {
   return null;
 }
 
+function requireReadKey(c: {
+  env: Bindings;
+  req: { header: (name: string) => string | undefined };
+}): Response | null {
+  const expected = c.env.STATE_READ_KEY;
+  if (!hasDistinctStateReadKey(c.env)) {
+    return Response.json(
+      { error: "private reads unavailable" },
+      { status: 503 },
+    );
+  }
+  const header = c.req.header("authorization") ?? "";
+  const provided = header.startsWith("Bearer ") ? header.slice(7) : "";
+  if (provided !== expected) {
+    return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
+  return null;
+}
+
+function privateReadResponse(response: Response): Response {
+  const wrapped = new Response(response.body, response);
+  wrapped.headers.set("Cache-Control", "private, no-store");
+  return wrapped;
+}
+
 app.get("/api/links", async (c) => {
+  const denied = requireReadKey(c);
+  if (denied) return denied;
   const stub = linkVaultStub(c.env);
   const res = await stub.fetch("https://internal/links");
-  return new Response(res.body, res);
+  return privateReadResponse(res);
 });
 
 const LINK_SOURCE_ERROR = `source must be one of ${LINK_SOURCES.join(", ")}`;
@@ -169,6 +199,8 @@ app.delete("/api/links/:id", async (c) => {
 });
 
 app.get("/api/links/ws", async (c) => {
+  const denied = requireReadKey(c);
+  if (denied) return denied;
   if (c.req.header("upgrade")?.toLowerCase() !== "websocket") {
     return c.text("expected websocket upgrade", 426);
   }
@@ -177,12 +209,14 @@ app.get("/api/links/ws", async (c) => {
 });
 
 app.get("/api/commits", async (c) => {
+  const denied = requireReadKey(c);
+  if (denied) return denied;
   const limit = c.req.query("limit") ?? "100";
   const stub = codeStatsStub(c.env);
   const res = await stub.fetch(
     `https://internal/commits?limit=${encodeURIComponent(limit)}`,
   );
-  return new Response(res.body, res);
+  return privateReadResponse(res);
 });
 
 app.post("/api/commits", async (c) => {
@@ -199,6 +233,8 @@ app.post("/api/commits", async (c) => {
 });
 
 app.get("/api/commits/ws", async (c) => {
+  const denied = requireReadKey(c);
+  if (denied) return denied;
   if (c.req.header("upgrade")?.toLowerCase() !== "websocket") {
     return c.text("expected websocket upgrade", 426);
   }
