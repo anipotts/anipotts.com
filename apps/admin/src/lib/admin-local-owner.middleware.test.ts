@@ -23,11 +23,8 @@ import {
   retainedAccessPrincipal,
   verifyEditorialOwner,
 } from "./access-identity";
-import {
-  LOCAL_OWNER_EMAIL,
-  denyLocalOwnerFraming,
-  localOwnerPrincipal,
-} from "./admin-local-owner";
+import { denyAdminFraming } from "./admin-framing";
+import { LOCAL_OWNER_EMAIL, localOwnerPrincipal } from "./admin-local-owner";
 
 const DENY_FRAMING = "frame-ancestors 'none'";
 const PREVIEW_POLICY =
@@ -119,7 +116,7 @@ describe("middleware without the build-time flag", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("adds no framing policy to a signed-in response", async () => {
+  it("denies framing on a signed-in response", async () => {
     vi.mocked(retainedAccessPrincipal).mockResolvedValueOnce({
       userId: "owner",
     } as never);
@@ -128,7 +125,7 @@ describe("middleware without the build-time flag", () => {
     );
     expect(response.status).toBe(200);
     expect(next).toHaveBeenCalledTimes(1);
-    expect(response.headers.get("Content-Security-Policy")).toBeNull();
+    expect(response.headers.get("Content-Security-Policy")).toBe(DENY_FRAMING);
     expect(response.headers.get("X-Frame-Options")).toBeNull();
   });
 
@@ -151,7 +148,7 @@ describe("middleware without the build-time flag", () => {
   });
 });
 
-describe("local owner framing policy", () => {
+describe("admin framing policy", () => {
   it.each([
     ["no policy", null, DENY_FRAMING],
     ["an empty policy", "  ", DENY_FRAMING],
@@ -179,7 +176,7 @@ describe("local owner framing policy", () => {
   ])("merges into %s", (_name, existing, expected) => {
     const headers = new Headers();
     if (existing !== null) headers.set("Content-Security-Policy", existing);
-    denyLocalOwnerFraming(headers);
+    denyAdminFraming(headers);
     expect(headers.get("Content-Security-Policy")).toBe(expected);
   });
 
@@ -187,7 +184,7 @@ describe("local owner framing policy", () => {
     const headers = new Headers({
       "Content-Security-Policy": "default-src https://frame-ancestors.example",
     });
-    denyLocalOwnerFraming(headers);
+    denyAdminFraming(headers);
     expect(headers.get("Content-Security-Policy")).toBe(
       `default-src https://frame-ancestors.example; ${DENY_FRAMING}`,
     );
@@ -249,6 +246,7 @@ describe("middleware with the build-time flag", () => {
     expect(next).toHaveBeenCalledTimes(1);
     expect(locals.adminPrincipal).toBeUndefined();
     expect(retainedAccessPrincipal).not.toHaveBeenCalled();
+    expect(response.headers.get("Content-Security-Policy")).toBe(DENY_FRAMING);
   });
 
   it.each([
@@ -295,12 +293,12 @@ describe("middleware with the build-time flag", () => {
     );
   });
 
-  it("adds no framing policy to a request it does not grant", async () => {
+  it("denies framing even on a request it does not grant", async () => {
     const { response } = await dispatch(
       "http://localhost:4321/api/admin/inbox",
       { headers: { "x-forwarded-for": "203.0.113.9" } },
     );
     expect(response.status).toBe(401);
-    expect(response.headers.get("Content-Security-Policy")).toBeNull();
+    expect(response.headers.get("Content-Security-Policy")).toBe(DENY_FRAMING);
   });
 });
