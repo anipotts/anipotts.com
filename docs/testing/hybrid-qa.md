@@ -84,9 +84,34 @@ browser targets and from any live production proof.
 
 the two public workerd smokes passed locally. `test:cms-routes` checked 84 of
 84 routes after its capability assertion was updated to runtime version 2;
-the current endpoint no longer returns a bundled digest. the local agent goal
-files were listed and typechecked, but no ChatGPT account was authenticated or
-model goal executed for this pilot.
+the current endpoint no longer returns a bundled digest.
+
+the ChatGPT subscription login completed locally. `e2e models openai` listed
+`gpt-6-luna`, the pinned goal model. no model credential is in CI. these are
+local observations on seeded content and synthetic admin data, not production
+browser or physical phone proof.
+
+| agent goal run, Chromium and 390px WebKit | outcome  | elapsed | model calls | model tokens | cache result              |
+| ----------------------------------------- | -------- | ------- | ----------- | ------------ | ------------------------- |
+| public, forced live                       | 2 passed | 30s     | 7           | 45.2k        | bypassed                  |
+| public, first normal                      | 2 passed | 31s     | 8           | 57.9k        | 2 misses                  |
+| public, second normal                     | 2 passed | 56s     | 7           | 55.2k        | 1 replay, 1 model handoff |
+| admin, first normal                       | 2 passed | 43s     | 6           | 49.2k        | 2 misses                  |
+| admin, second normal                      | 2 passed | 23s     | 0           | 0            | 2 replays                 |
+
+all ten goal cases passed without a retry or site defect. the public mobile
+replay handed off because a recorded target was not found; its outcome still
+passed after seven model calls. a passing goal therefore does not imply a cheap
+or stable replay. the two first normal runs together used 14 model calls and
+107.1k reported tokens. if both goals ran daily with that cold behavior, 30
+days would be about 420 calls and 3.2 million reported tokens. cache hits can
+lower that sharply, but this pilot does not establish a reliable hit rate or a
+long-term flake rate. these token counts are framework usage, not a bill.
+
+keep model goals opt-in until repeated runs across changed builds show stable
+replay, bounded calls, and useful defects. deterministic browser and contract
+checks remain the PR gate. record each later run's target, duration, calls,
+cache mode, failures and defect before considering a wider rollout.
 
 synthetic admin screenshots were captured and reviewed in light and dark at
 393, 768 and 1280px for the content library, Operations status and Data
