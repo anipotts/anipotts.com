@@ -4,34 +4,22 @@ A commit publisher for `ap-mini` that POSTs commits to the state worker
 (`api.anipotts.com`). It is not installed: on 2026-09-22 ap-mini had no loaded
 `com.anipotts.publisher.commits` job and the worker held 0 commits.
 
-## Install on Mini
+## Installation status and authority
 
-```bash
-# 1. Pull the repo on Mini (one time)
-ssh mini "cd ~/Code/projects && git clone https://github.com/anipotts/anipotts.com.git anipotts-com"
+The commit publisher is not installed. Activating it would create an outbound
+publisher and provision a credential, so it needs a reviewed owner decision and
+a separate credential handoff. Before installation, confirm the target state
+worker, enabled route, source scope, ap-mini job owner, log location, and
+rollback. Use a supported value-silent secret broker or native secret field for
+both the worker and ap-mini. Do not place a key in a shell command, argv,
+launchd plist, source file, Git, or logs. Do not reuse the read key as the
+publish key.
 
-# 2. Generate a publish key (any random string)
-KEY=$(openssl rand -hex 32)
-ssh mini "mkdir -p ~/.anipotts && echo '$KEY' > ~/.anipotts/state-publish.key && chmod 600 ~/.anipotts/state-publish.key"
-
-# 3. Set the matching wrangler secret on the state worker (run on MacBook)
-echo -n "$KEY" | wrangler secret put STATE_PUBLISH_KEY --config workers/state/wrangler.toml
-
-# 4. Symlink the plist into LaunchAgents on Mini
-ssh mini 'ln -sf ~/Code/projects/anipotts-com/scripts/mini/com.anipotts.publisher.commits.plist ~/Library/LaunchAgents/com.anipotts.publisher.commits.plist'
-
-# 5. Patch the launchd plist to source the key (one time)
-# launchd plists do not interpolate from files, so wrap the script in a
-# shell launcher OR add the key as an EnvironmentVariables entry. Easiest:
-ssh mini 'launchctl setenv STATE_PUBLISH_KEY "'$KEY'"'
-
-# 6. Bootstrap the agent
-ssh mini 'launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.anipotts.publisher.commits.plist'
-ssh mini 'launchctl kickstart -k gui/$(id -u)/com.anipotts.publisher.commits'
-
-# 7. Watch logs
-ssh mini 'tail -f ~/Library/Logs/anipotts/commit-publisher.*.log'
-```
+The launcher must read the publish credential through the approved protected
+runtime path and pass it to the publisher without printing it. Test the job
+with synthetic commits in an isolated environment before enabling the schedule
+on ap-mini. This document does not authorize a live publisher or credential
+change.
 
 ## How it works
 
@@ -44,14 +32,15 @@ $STATE_PUBLISH_KEY`
   broadcasts `commit.added` to open `/api/commits/ws` sockets. No admin view
   reads it.
 
-## Verify end-to-end
+## Verification after installation
 
-After install, the held commit count rises within 5 minutes (or right away
-after `kickstart -k`):
-
-```bash
-curl -s https://api.anipotts.com/api/commits | jq '.commits | length'
-```
+After an approved installation and the private-read release, inspect the public
+`/health` summary for a bounded commits count and receipt state. Compare it with
+the job's own synthetic delivery receipt. An authorized private commit read
+requires the separate `STATE_READ_KEY` through an approved server-side broker.
+Do not put either credential in a browser, URL, shell command, or transcript. A quiet
+repository may produce no new commit in five minutes, so elapsed time alone is
+not a failed delivery test.
 
 ## Filter by author
 

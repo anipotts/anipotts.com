@@ -221,8 +221,8 @@ describe("sidebar rail choice", () => {
       new URL("../layouts/AdminDocument.astro", import.meta.url),
       "utf8",
     );
-    expect(document).toContain(
-      "<script is:inline set:html={adminSidebarPrepaintScript} />",
+    expect(document).toMatch(
+      /<script\s+is:inline\s+nonce=\{scriptNonce\}\s+set:html=\{adminSidebarPrepaintScript\}/u,
     );
     for (const layout of ["EditorialLayout", "AdminLayout"])
       expect(
