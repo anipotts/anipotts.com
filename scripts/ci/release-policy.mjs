@@ -41,7 +41,7 @@ const CI_POLICY_PATHS = [
 
 const PUBLIC_BROWSER_PATHS = [
   /^e2e\.www\.config\.ts$/,
-  /^scripts\/ci\/public-e2e-server\.mjs$/,
+  /^scripts\/ci\/public-e2e-(?:server|migrations)\.mjs$/,
   /^apps\/www\/test\/e2e\//,
   /^packages\/content\/src\/editorial\//,
   /^apps\/admin\/migrations\/content-publication\//,
@@ -92,9 +92,17 @@ const KNOWN_SAFE_ROOTS = [
 
 function parseChange(line) {
   const parts = line.split("\t");
-  if (parts.length === 1) return { status: "M", path: parts[0] };
+  if (parts.length === 1) return [{ status: "M", path: parts[0] }];
   const status = parts[0];
-  return { status, path: parts.at(-1) };
+  if (/^[RC]\d*$/.test(status) && parts.length === 3) {
+    // Renames remove the old path; copies retain it. Both sides affect which
+    // contracts must run, even when the destination is outside the old scope.
+    return [
+      { status: status.startsWith("R") ? "D" : "M", path: parts[1] },
+      { status: "A", path: parts[2] },
+    ];
+  }
+  return [{ status, path: parts.at(-1) }];
 }
 
 export function isReleaseIgnored(path) {
@@ -165,7 +173,7 @@ function routeContractChanged(change) {
 
 export function classifyRelease(changeLines, options = {}) {
   const sourceSha = options.sourceSha || "unknown";
-  const changes = changeLines.filter(Boolean).map(parseChange);
+  const changes = changeLines.filter(Boolean).flatMap(parseChange);
   const paths = changes.map((change) => change.path);
   const deployTargets = computeDeployTargets(paths);
   const deletedMigrations = changes.filter(

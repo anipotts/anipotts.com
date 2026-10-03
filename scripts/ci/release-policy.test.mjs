@@ -657,3 +657,45 @@ assert.equal(
   classifyRelease(["M\t.codex/unrecognized.toml"], base).risk,
   "unknown",
 );
+
+// Moving a harness out of its exact matched path still changes that harness.
+for (const status of ["R100", "R075", "C100"]) {
+  for (const [from, to] of [
+    ["scripts/ci/public-e2e-server.mjs", "scripts/ci/renamed-server.mjs"],
+    [
+      "scripts/ci/public-e2e-migrations.mjs",
+      "scripts/ci/renamed-migrations.mjs",
+    ],
+    ["scripts/ci/renamed-server.mjs", "scripts/ci/public-e2e-server.mjs"],
+    ["e2e.www.config.ts", "docs/old-config.md"],
+  ]) {
+    const release = classifyRelease([`${status}\t${from}\t${to}`], base);
+    assert.equal(
+      release.public_browser_changed,
+      true,
+      `${status} ${from} -> ${to}`,
+    );
+    assert.equal(release.ci_policy_changed, true);
+    assert.equal(release.docs_only, false);
+  }
+}
+const movedPublicRoute = classifyRelease(
+  ["R100\tapps/www/src/pages/example.astro\tdocs/example.md"],
+  base,
+);
+assert.equal(movedPublicRoute.deploy_targets.www, true);
+assert.equal(movedPublicRoute.risk, "approval");
+assert.equal(movedPublicRoute.docs_only, false);
+const movedMigration = classifyRelease(
+  [
+    "R100\tdrizzle/migrations/0044_public_identity_systems.sql\tdocs/old-migration.sql",
+  ],
+  base,
+);
+assert.equal(movedMigration.migration_risk, "approval");
+assert.equal(movedMigration.remote_migration_allowed, false);
+assert.ok(
+  movedMigration.reasons.includes(
+    "0044_public_identity_systems.sql: removed migration",
+  ),
+);
