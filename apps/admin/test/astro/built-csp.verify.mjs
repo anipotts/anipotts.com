@@ -112,7 +112,16 @@ it("keeps every inline script permitted on built admin documents", async () => {
   });
   for (const path of [
     "/data/records",
+    "/data/sources",
+    "/data/health",
+    "/data/knowledge",
+    "/observability/status",
+    "/observability/activity",
+    "/observability/alerts",
+    "/content/pages",
     "/content/writing",
+    "/content/projects",
+    "/content/newsletter",
     "/content/home/home",
   ]) {
     const response = await worker.fetch(
@@ -215,6 +224,22 @@ it.skipIf(process.env.RUN_CSP_BROWSER !== "1")(
     );
     expect(editorial.status).toBe(200);
     const editorialHtml = await editorial.text();
+    const home = await worker.fetch(
+      new Request("https://admin.anipotts.com/content/home/home", {
+        headers: {
+          "cf-access-jwt-assertion": token,
+          "cf-access-authenticated-user-email": "hello@anipotts.com",
+        },
+      }),
+      {
+        ACCESS_TEAM_DOMAIN: issuer,
+        ACCESS_POLICY_AUD: audience,
+        ASSETS: { fetch: async () => new Response(null, { status: 404 }) },
+      },
+      { waitUntil() {} },
+    );
+    expect(home.status).toBe(200);
+    const homeHtml = await home.text();
     const browser = await chromium.launch({ headless: true });
     try {
       const context = await browser.newContext({ serviceWorkers: "block" });
@@ -244,7 +269,9 @@ it.skipIf(process.env.RUN_CSP_BROWSER !== "1")(
             ? { response, html }
             : url.pathname === "/content/writing"
               ? { response: editorial, html: editorialHtml }
-              : null;
+              : url.pathname === "/content/home/home"
+                ? { response: home, html: homeHtml }
+                : null;
         if (document)
           return route.fulfill({
             status: 200,
@@ -276,6 +303,14 @@ it.skipIf(process.env.RUN_CSP_BROWSER !== "1")(
         "dark",
       );
       await page.goto("https://admin.anipotts.com/content/writing", {
+        waitUntil: "networkidle",
+      });
+      await page.waitForFunction(() =>
+        [...document.querySelectorAll("astro-island")].some(
+          (island) => !island.hasAttribute("ssr"),
+        ),
+      );
+      await page.goto("https://admin.anipotts.com/content/home/home", {
         waitUntil: "networkidle",
       });
       await page.waitForFunction(() =>
