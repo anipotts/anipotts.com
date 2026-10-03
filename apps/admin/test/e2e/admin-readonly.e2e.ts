@@ -72,6 +72,9 @@ test("operations and data distinguish synthetic samples from disconnected reader
 }) => {
   await app.open("/observability/status?fixture=synthetic");
   await expect(screen.getByText("Sample data", { exact: true })).toBeVisible();
+  await expect(
+    screen.getByText("inference not ok", { exact: true }),
+  ).toBeVisible();
 
   await app.open("/observability/status?fixture=none");
   await expect(
@@ -80,6 +83,9 @@ test("operations and data distinguish synthetic samples from disconnected reader
 
   await app.open("/data/records?fixture=synthetic");
   await expect(screen.getByText("Sample data", { exact: true })).toBeVisible();
+  await expect(
+    screen.getByText("Sample person: Robin Example", { exact: true }),
+  ).toBeVisible();
 
   await app.open("/data/records?fixture=none");
   await expect(
