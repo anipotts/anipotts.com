@@ -18,6 +18,7 @@ const temporary = mkdtempSync(join(tmpdir(), "www-e2e-"));
 const state = join(temporary, "state");
 const config = join(temporary, "wrangler.json");
 const databaseId = "00000000-0000-0000-0000-000000000001";
+const mediaBucket = "synthetic-content-media";
 const cli = join(
   dirname(createRequire(import.meta.url).resolve("wrangler/package.json")),
   "bin/wrangler.js",
@@ -71,6 +72,7 @@ try {
           database_id: databaseId,
         },
       ],
+      r2_buckets: [{ binding: "CONTENT_MEDIA", bucket_name: mediaBucket }],
     }),
   );
   const migrations = join(temporary, "migrations.sql");
@@ -98,17 +100,24 @@ try {
     "--file",
     migrations,
   ]);
+  const seed = [
+    join(root, "scripts/content/seed-content-d1.mjs"),
+    "--database",
+    "synthetic-content",
+    "--database-id",
+    databaseId,
+    "--bucket",
+    mediaBucket,
+    "--local",
+    "--persist-to",
+    state,
+  ];
+  run([...seed, "--upload-media"], root);
   run(
     [
-      join(root, "scripts/content/seed-content-d1.mjs"),
-      "--database",
-      "synthetic-content",
-      "--database-id",
-      databaseId,
-      "--local",
-      "--persist-to",
-      state,
+      ...seed,
       "--apply",
+      "--media-ready",
       "--published-at",
       "2026-09-21T00:00:00.000Z",
     ],

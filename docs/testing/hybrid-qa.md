@@ -30,7 +30,8 @@ pnpm test:e2e:admin:local
 ```
 
 the public e2e command builds the site, then starts a task-owned local Worker
-with a temporary seeded D1. it has no remote Cloudflare bindings. the admin
+with a temporary seeded D1 and local editorial-media R2. it has no remote
+Cloudflare bindings. the admin
 command starts a task-owned Astro dev server on loopback with the existing
 local owner flag and a fresh temporary D1 and Durable Object directory. the
 test server does not replace the managed port 4311 preview used for human
