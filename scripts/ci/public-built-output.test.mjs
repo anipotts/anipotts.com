@@ -142,17 +142,11 @@ for (const path of pages) {
   );
   cards.set(path, image);
 }
-for (const { slug } of published) {
-  const card = cards.get(`/writing/${slug}`);
+for (const [path, card] of cards) {
   assert.equal(
     card,
-    `https://anipotts.com/social/writing-${slug}.png`,
-    `/writing/${slug} must carry its own card`,
-  );
-  assert.notEqual(
-    card,
-    cards.get("/"),
-    `/writing/${slug} reuses the site card`,
+    "https://anipotts.com/social/site.png?v=corner-1",
+    `${path} must use the canonical card`,
   );
 }
 

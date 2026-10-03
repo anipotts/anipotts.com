@@ -36,14 +36,13 @@ const {
   canonicalUrl,
   robots,
   detail = false,
-  socialCard = SITE_CARD,
 } = Astro.props;
 const description = inlinePlainText(rawDescription);
 const canonical =
   canonicalUrl ?? `${siteConfig.url}${path === "/" ? "" : path}`;
 const fullTitle = path === "/" ? title : `${title} / ${siteConfig.displayName}`;
-// Every route unfurls with a card built from its own strings at build time.
-const cardUrl = `${siteConfig.url}${cardPath(socialCard)}`;
+// Every route uses the approved canonical brand card.
+const cardUrl = `${siteConfig.url}${cardPath(SITE_CARD)}?v=corner-1`;
 
 const siteLd = {
   "@context": "https://schema.org",
