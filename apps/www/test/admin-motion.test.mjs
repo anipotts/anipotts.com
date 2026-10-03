@@ -8,6 +8,7 @@ import {
   sampleIdentity,
   sampleSurface,
   surfacePath,
+  surfaceInsetEdge,
 } from "../src/lib/admin-motion.ts";
 
 const widths = [320, 390, 768, 1440];
@@ -94,6 +95,9 @@ test("the surface keeps positive bounds and reaches exact native rectangles in e
     const mobile = width < 641;
     const g = {
       card: { left: 16, top: 120, right: width - 16, bottom: 680 },
+      button: { left: 32, top: 140, right: 180, bottom: 184 },
+      viewport: { left: 0, top: 0, right: width, bottom: 844 },
+      buttonRadii: [8, 8, 8, 8],
       main: {
         left: mobile ? 0 : 200,
         top: mobile ? 44 : 12,
@@ -104,14 +108,38 @@ test("the surface keeps positive bounds and reaches exact native rectangles in e
       mainRadii: [12, 0, 0, 0],
     };
     assert.deepEqual(sampleSurface(0, g).rect, g.card);
-    assert.deepEqual(sampleSurface(1, g).rect, g.main);
+    assert.deepEqual(sampleSurface(1, g).rect, g.viewport);
     assert.deepEqual(sampleSurface(0, g).radii, g.cardRadii);
-    assert.deepEqual(sampleSurface(1, g).radii, g.mainRadii);
+    assert.deepEqual(sampleSurface(1, g).radii, [0, 0, 0, 0]);
+    assert.deepEqual(sampleSurface(0, g).panel, g.button);
+    assert.deepEqual(sampleSurface(1, g).panel, g.main);
+    assert.deepEqual(sampleSurface(0, g).panelRadii, g.buttonRadii);
+    assert.deepEqual(sampleSurface(1, g).panelRadii, g.mainRadii);
+    // Both nested surfaces finish on the same frame, with no late edge/radius.
+    for (const direction of [1, -1]) {
+      const landed = sampleSurface(0.475, g, direction);
+      assert.deepEqual(landed.rect, g.viewport);
+      assert.deepEqual(landed.panel, g.main);
+      const moving = sampleSurface(0.47, g, direction);
+      assert.ok(moving.expansion < 1 && moving.panelExpansion < 1);
+    }
     const topology = surfacePath(g.card, g.cardRadii).match(/[A-Z]/g).join("");
     for (const direction of [1, -1]) {
       for (let ms = 0; ms <= duration; ms++) {
         const progress = direction === 1 ? ms / duration : 1 - ms / duration;
-        const frame = sampleSurface(progress, g);
+        const frame = sampleSurface(progress, g, direction);
+        assert.equal(frame.edge.left, frame.edge.right);
+        assert.equal(frame.edge.top, frame.edge.bottom);
+        assert.equal(
+          frame.edge.top,
+          frame.edge.left,
+          "all corners share a clock",
+        );
+        assert.equal(frame.wave, 1, "the underlying blue current never fades");
+        assert.ok(
+          frame.panel.right > frame.panel.left &&
+            frame.panel.bottom > frame.panel.top,
+        );
         assert.ok(
           frame.rect.right > frame.rect.left &&
             frame.rect.bottom > frame.rect.top,
@@ -138,7 +166,7 @@ test("the surface keeps positive bounds and reaches exact native rectangles in e
       "account",
     ])
       assert.equal(final[key], 1);
-    for (const key of ["wave", "editorial", "nav", "footer"])
+    for (const key of ["editorial", "nav", "footer"])
       assert.equal(final[key], 0);
   }
 });
@@ -156,4 +184,17 @@ test("corner paths tolerate small and square surfaces without invalid arc comman
       .map(Number);
     assert.ok(coordinates.every((value) => value >= 0 && value <= size));
   }
+});
+
+test("the expanded inset keeps only its top and left outline", () => {
+  const path = surfaceInsetEdge(
+    { left: 200, top: 12, right: 1440, bottom: 1000 },
+    [12, 0, 0, 0],
+  );
+  assert.ok(path.startsWith("M 200 1000 V 24 C"));
+  assert.ok(path.endsWith("H 1440"));
+  assert.ok(
+    !path.includes("Z"),
+    "the outline cannot close around bottom/right edges",
+  );
 });

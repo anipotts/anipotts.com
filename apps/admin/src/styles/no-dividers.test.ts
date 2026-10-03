@@ -32,6 +32,9 @@ const markupViolations = (text: string) =>
 // One-sided borders that frame or mark something rather than separate
 // siblings. Rows, columns and sections separate with spacing tokens.
 const structuralEdges = new Set([
+  // Approved outer workspace inset. Interior sections still use spacing.
+  ".editorial-workspace-shell #astryx-app-shell-main border-top",
+  ".editorial-workspace-shell #astryx-app-shell-main border-inline-start",
   // markers on a single element
   ".publication-step border-block-end", // progress bar whose color is state
   ".article-composer .tiptap blockquote border-inline-start", // quote bar

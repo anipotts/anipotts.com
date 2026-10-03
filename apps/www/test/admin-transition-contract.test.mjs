@@ -91,6 +91,15 @@ Object.assign(globalThis, {
   innerHeight: 900,
   matchMedia: () => media,
   localStorage: { getItem: () => "dark" },
+  history: {
+    state: null,
+    replaceState(_state, _title, url) {
+      const next = new URL(url);
+      location.href = next.href;
+      location.pathname = next.pathname;
+      location.search = next.search;
+    },
+  },
 });
 await import("../src/scripts/admin-transitions.ts");
 
@@ -119,7 +128,7 @@ test("loading and lifecycle warming never initiate admin authentication", () => 
   );
 });
 
-test("entry stays on the public origin and return retains the originating route and query", () => {
+test("entry stays on the public origin and return targets the homepage hero", () => {
   assert.ok(click("enter").defaultPrevented);
   const entry = new URL(navigation.at(-1).url);
   assert.equal(entry.origin, "https://anipotts.com");
@@ -131,8 +140,8 @@ test("entry stays on the public origin and return retains the originating route 
   assert.ok(click("return").defaultPrevented);
   const back = new URL(navigation.at(-1).url);
   assert.equal(back.origin, "https://anipotts.com");
-  assert.equal(back.pathname, "/writing");
-  assert.equal(back.searchParams.get("tag"), "craft");
+  assert.equal(back.pathname, "/");
+  assert.equal(back.searchParams.has("tag"), false);
 });
 
 test("modified lock clicks and the explicit auth link retain native browser navigation", () => {
@@ -187,5 +196,26 @@ test("an old navigation rejection cannot redirect or tear down a newer route", a
     "stale errors cannot force document navigation",
   );
   assert.equal(document.documentElement.dataset.adminMotion, "newer-route");
+  window.dispatchEvent(new Event("pagehide"));
+});
+
+test("a theme toggle after returning home survives the next lock click", async () => {
+  location.href = "https://anipotts.com/?theme=light";
+  location.pathname = "/";
+  location.search = "?theme=light";
+  document.dispatchEvent(new Event("astro:page-load"));
+  assert.equal(
+    location.search,
+    "",
+    "consume the incoming theme on the public page",
+  );
+  const { saveTheme } = await import("../../../packages/brand/src/theme.ts");
+  saveTheme("dark");
+  click("enter");
+  assert.equal(document.documentElement.dataset.theme, "dark");
+  assert.equal(
+    new URL(navigation.at(-1).url).searchParams.get("theme"),
+    "dark",
+  );
   window.dispatchEvent(new Event("pagehide"));
 });

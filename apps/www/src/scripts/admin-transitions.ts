@@ -17,6 +17,7 @@ import {
   sampleIdentity,
   sampleSurface,
   surfacePath,
+  surfaceInsetEdge,
   mix,
   type IdentityGeometry,
   type SurfaceGeometry,
@@ -59,20 +60,34 @@ const alpha = (el: Element | null, value: number) => {
 };
 const transform = (el: Element, value: string) =>
   el.setAttribute("transform", value);
+// Canvas resolves computed color-mix()/rgba values to sRGB once per color.
+const colors = new Map<string, number[]>();
+const rgba = (color: string) => {
+  let value = colors.get(color);
+  if (!value) {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 1;
+    const context = canvas.getContext("2d")!;
+    context.fillStyle = color;
+    context.fillRect(0, 0, 1, 1);
+    const pixel = context.getImageData(0, 0, 1, 1).data;
+    value = [pixel[0], pixel[1], pixel[2], pixel[3] / 255];
+    colors.set(color, value);
+  }
+  return value;
+};
 const blend = (a: string, b: string, t: number) => {
-  const rgb = (color: string) =>
-    color.startsWith("#")
-      ? color
-          .slice(1)
-          .match(/../g)!
-          .map((v) => parseInt(v, 16))
-      : color
-          .match(/[\d.]+/g)!
-          .slice(0, 3)
-          .map(Number);
-  const from = rgb(a),
-    to = rgb(b);
-  return `rgb(${from.map((v, i) => mix(v, to[i], t)).join(",")})`;
+  const from = rgba(a),
+    to = rgba(b);
+  return `rgba(${from.map((v, i) => mix(v, to[i], t)).join(",")})`;
+};
+const opaque = (color: string, background: string) => {
+  const front = rgba(color),
+    back = rgba(background);
+  return `rgb(${front
+    .slice(0, 3)
+    .map((v, i) => mix(back[i], v, front[3]))
+    .join(",")})`;
 };
 const reveal = (el: HTMLElement, value: number, distance = 6) => {
   alpha(el, value);
@@ -95,6 +110,10 @@ type PublicScene = {
   footer: ReturnType<typeof anchor>;
   card: Rect;
   radii: CornerRadii;
+  button: Rect;
+  buttonRadii: CornerRadii;
+  buttonFill: string;
+  buttonBorder: string;
   paper: string;
   ground: string;
   ink: string;
@@ -111,6 +130,7 @@ type AdminScene = {
   radii: CornerRadii;
   paper: string;
   rail: string;
+  border: string;
   ink: string;
 };
 type Intent = {
@@ -119,10 +139,11 @@ type Intent = {
   width: number;
   height: number;
   outgoing?: PublicScene | AdminScene;
+  stage?: HTMLDivElement;
 };
 let intent: Intent | undefined;
 let finish: (() => void) | undefined;
-let returnTo = "/";
+const returnTo = "/";
 const owned = new Set<Element>();
 const own = <T extends Element>(el: T): T => {
   owned.add(el);
@@ -130,11 +151,11 @@ const own = <T extends Element>(el: T): T => {
 };
 const scopeOf = (ghost: Ghost) => ghost.layer.shadowRoot || ghost.layer;
 function syncEntryTheme() {
+  // Consume an incoming theme once on either page. Leaving it on the public
+  // return URL would override the user's next theme toggle when entering again.
+  const theme = savedTheme();
   all("[data-admin-action]").forEach((link) => {
-    link.setAttribute(
-      "href",
-      themedUrl(link.getAttribute("href")!, savedTheme()),
-    );
+    link.setAttribute("href", themedUrl(link.getAttribute("href")!, theme));
   });
   all("[data-admin-theme]").forEach((button) =>
     button.setAttribute(
@@ -149,35 +170,51 @@ const pageGhost = () => {
   return ghost;
 };
 
-function publicScene(): PublicScene {
+class NoMotionSurface extends Error {}
+
+function publicScene(direction: Direction): PublicScene {
   const header = $("[data-admin-header-logo] svg")!;
   const footer = $("[data-admin-footer-logo] svg")!;
+  const mainWidth = $("body > main")!.getBoundingClientRect().width;
   const candidates = all(
     ".work-card, .writing-card, .experience-feature, .coding-agent-card, .press-mention, .editorial-card-preview",
-  );
+  ).filter((el) => $(".site-action", el));
   const visible = candidates
     .map((el) => ({ el, r: el.getBoundingClientRect() }))
     .filter(
-      ({ r }) => r.bottom > 24 && r.top < innerHeight - 40 && r.width > 160,
+      ({ r }) =>
+        r.bottom > 24 &&
+        r.top < innerHeight - 40 &&
+        r.width >= mainWidth * 0.85,
     );
-  // The visible paper nearest the footer expands. On return use the first card
-  // in the opening viewport; neither choice changes the real page's scroll.
   visible.sort((a, b) =>
-    intent?.direction === 1 ? b.r.bottom - a.r.bottom : a.r.top - b.r.top,
+    direction === 1 ? b.r.bottom - a.r.bottom : a.r.top - b.r.top,
   );
-  const paper = visible[0]?.el;
-  paper?.setAttribute("data-admin-motion-paper", "");
-  const ghost = pageGhost();
-  paper?.removeAttribute("data-admin-motion-paper");
+  const preferred =
+    location.pathname === "/"
+      ? visible.find(({ el }) =>
+          el.matches(direction === 1 ? ".coding-agent-card" : ".press-mention"),
+        )
+      : undefined;
+  const paper = (preferred || visible[0])?.el;
+  // A missing real nested pair uses the router's ordinary fallback. Never
+  // manufacture a rectangle or change another page's composition to animate it.
+  if (!paper)
+    throw new NoMotionSurface("No visible full-row card with an action");
+  const button = $(".site-action", paper)!;
+  paper.setAttribute("data-admin-motion-paper", "");
+  button.setAttribute("data-admin-motion-button", "");
+  let ghost: Ghost;
+  try {
+    ghost = pageGhost();
+  } finally {
+    paper.removeAttribute("data-admin-motion-paper");
+    button.removeAttribute("data-admin-motion-button");
+  }
   const scope = scopeOf(ghost);
-  const card = paper
-    ? rect(paper)
-    : {
-        left: 24,
-        top: Math.max(80, innerHeight * 0.22),
-        right: innerWidth - 24,
-        bottom: Math.max(160, innerHeight * 0.72),
-      };
+  const card = rect(paper);
+  const paperColor = getComputedStyle(paper).backgroundColor;
+  const buttonStyle = getComputedStyle(button);
   const ground = getComputedStyle(document.documentElement).backgroundColor;
   return {
     ghost,
@@ -185,8 +222,12 @@ function publicScene(): PublicScene {
     header: anchor(header),
     footer: anchor(footer),
     card,
-    radii: paper ? radii(paper) : [12, 12, 12, 12],
-    paper: paper ? getComputedStyle(paper).backgroundColor : ground,
+    radii: radii(paper),
+    button: rect(button),
+    buttonRadii: radii(button),
+    buttonFill: opaque(buttonStyle.backgroundColor, paperColor),
+    buttonBorder: buttonStyle.borderTopColor,
+    paper: opaque(paperColor, ground),
     ground,
     ink: getComputedStyle(header).color,
     a: $<SVGPathElement>(".brand-mark__half--left path", header)!.getAttribute(
@@ -244,6 +285,7 @@ function adminScene(): AdminScene {
     radii: radii(main),
     paper: style.getPropertyValue("--entry-bg").trim(),
     rail: style.getPropertyValue("--entry-rail").trim(),
+    border: getComputedStyle(main).borderTopColor,
     ink: style.color,
   };
 }
@@ -252,6 +294,7 @@ function run(
   publicView: PublicScene,
   adminView: AdminScene,
   direction: Direction,
+  backdrop: HTMLDivElement,
 ) {
   const geometry: IdentityGeometry = {
     header: publicView.header,
@@ -260,39 +303,56 @@ function run(
   };
   const surface: SurfaceGeometry = {
     card: publicView.card,
+    button: publicView.button,
+    viewport: { left: 0, top: 0, right: innerWidth, bottom: innerHeight },
+    buttonRadii: publicView.buttonRadii,
     main: adminView.main,
     cardRadii: publicView.radii,
     mainRadii: adminView.radii,
   };
-  const backdrop = own(document.createElement("div"));
-  backdrop.setAttribute("data-admin-motion-overlay", "");
-  backdrop.setAttribute("aria-hidden", "true");
-  backdrop.inert = true;
-  backdrop.style.cssText =
-    "position:fixed;inset:0;z-index:1000;overflow:hidden;pointer-events:none;contain:strict;";
+  backdrop.dataset.phase = "animating";
   const plane = svg("svg", {
     viewBox: `0 0 ${innerWidth} ${innerHeight}`,
     width: "100%",
     height: "100%",
   });
   plane.style.cssText = "position:absolute;inset:0;overflow:visible";
-  const rail = svg("rect", {
-    width: String(innerWidth),
-    height: String(innerHeight),
-    fill: adminView.rail,
+  const outer = svg("path", { "data-motion-outer": "" });
+  const clip = svg("clipPath", { id: "admin-surface-clip" });
+  const clipShape = svg("path");
+  clip.appendChild(clipShape);
+  const defs = svg("defs");
+  defs.appendChild(clip);
+  const paper = svg("path", {
+    "data-motion-panel": "",
+    "stroke-width": "1",
+    "clip-path": "url(#admin-surface-clip)",
   });
-  const paper = svg("path");
-  plane.appendChild(rail);
+  const outline = svg("path", {
+    fill: "none",
+    "stroke-width": "1",
+    "clip-path": "url(#admin-surface-clip)",
+  });
+  const insetEdge = svg("path", {
+    fill: "none",
+    "stroke-width": "1",
+    "clip-path": "url(#admin-surface-clip)",
+  });
+  plane.appendChild(defs);
+  plane.appendChild(outer);
   plane.appendChild(paper);
+  plane.appendChild(outline);
+  plane.appendChild(insetEdge);
   backdrop.appendChild(plane);
-  document.documentElement.appendChild(backdrop);
-  publicView.ghost.show(null, 1001);
-  adminView.ghost.show(null, 1002);
+  backdrop.appendChild(publicView.ghost.host);
+  backdrop.appendChild(adminView.ghost.host);
+  publicView.ghost.show(null, 1);
+  adminView.ghost.show(null, 2);
   const canvas = own(
     svg("svg", { viewBox: `0 0 ${innerWidth} ${innerHeight}` }),
   );
   canvas.style.cssText =
-    "position:fixed;inset:0;width:100%;height:100%;z-index:1003;pointer-events:none;overflow:visible";
+    "position:fixed;inset:0;width:100%;height:100%;z-index:3;pointer-events:none;overflow:visible";
   canvas.setAttribute("aria-hidden", "true");
   const word = svg("g");
   canvas.appendChild(word);
@@ -334,11 +394,17 @@ function run(
     return group;
   });
   word.style.fill = "currentColor";
-  document.documentElement.appendChild(canvas);
+  backdrop.appendChild(canvas);
   const www = publicView.scope,
     admin = adminView.scope;
   const main = $<HTMLElement>("main", www)!;
   const card = $<HTMLElement>("[data-admin-motion-paper]", www);
+  const button = $<HTMLElement>("[data-admin-motion-button]", www);
+  if (button && !reduced.matches) {
+    button.style.background = "transparent";
+    button.style.borderColor = "transparent";
+    button.style.boxShadow = "none";
+  }
   if (card && !reduced.matches) {
     card.style.background = "transparent";
     card.style.boxShadow = "none";
@@ -365,13 +431,10 @@ function run(
   alpha($("header.nav", admin), 0);
   let frame = 0;
   const body = document.body;
-  const oldVisibility = body.style.visibility,
-    oldInert = body.inert;
+  const oldInert = body.inert;
   body.style.visibility = "hidden";
   body.inert = true;
-  const cancelScroll = (event: Event) => event.preventDefault();
-  document.addEventListener("wheel", cancelScroll, { passive: false });
-  document.addEventListener("touchmove", cancelScroll, { passive: false });
+
   let done = false;
   finish = () => {
     if (done) return;
@@ -382,11 +445,11 @@ function run(
     backdrop.remove();
     canvas.remove();
     owned.clear();
-    body.style.visibility = oldVisibility;
+    body.style.removeProperty("visibility");
     body.inert = oldInert;
     delete document.documentElement.dataset.adminMotion;
-    document.removeEventListener("wheel", cancelScroll);
-    document.removeEventListener("touchmove", cancelScroll);
+    document.removeEventListener("wheel", blockScroll);
+    document.removeEventListener("touchmove", blockScroll);
     finish = undefined;
     const focus = $<HTMLElement>(
       direction === 1 ? "[data-admin-heading]" : "[data-admin-header-logo]",
@@ -408,19 +471,47 @@ function run(
       );
       return;
     }
-    const f = sampleSurface(t, surface),
+    const f = sampleSurface(t, surface, direction),
       logo = sampleIdentity(t, geometry, direction);
-    backdrop.style.background = blend(
-      publicView.ground,
-      adminView.paper,
-      f.field,
+    // Public blue is never color-tweened. Opaque card geometry covers it.
+    backdrop.style.background = publicView.ground;
+    const outerPath = surfacePath(f.rect, f.radii);
+    outer.setAttribute("d", outerPath);
+    clipShape.setAttribute("d", outerPath);
+    outer.setAttribute(
+      "fill",
+      blend(publicView.paper, adminView.rail, f.expansion),
     );
-    paper.setAttribute("d", surfacePath(f.rect, f.radii));
+    // SVG strokes straddle their path; inset by half a pixel to match CSS's
+    // inside border without shifting the measured button/panel outer bounds.
+    const panel = {
+      left: f.panel.left + 0.5,
+      top: f.panel.top + 0.5,
+      right: f.panel.right - 0.5,
+      bottom: f.panel.bottom - 0.5,
+    };
+    const panelRadii = f.panelRadii.map((r) => Math.max(0, r - 0.5)) as [
+      number,
+      number,
+      number,
+      number,
+    ];
+    paper.setAttribute("d", surfacePath(f.panel, f.panelRadii));
     paper.setAttribute(
       "fill",
-      blend(publicView.paper, adminView.paper, f.field),
+      blend(publicView.buttonFill, adminView.paper, f.panelExpansion),
     );
-    alpha(rail, f.rail);
+    outline.setAttribute("d", surfacePath(panel, panelRadii));
+    insetEdge.setAttribute("d", surfaceInsetEdge(panel, panelRadii));
+    const borderColor = blend(
+      publicView.buttonBorder,
+      adminView.border,
+      f.panelExpansion,
+    );
+    outline.setAttribute("stroke", borderColor);
+    insetEdge.setAttribute("stroke", borderColor);
+    alpha(outline, 1 - f.panelExpansion);
+    alpha(insetEdge, f.panelExpansion);
     reveal(main, f.editorial, -9);
     if (nav) reveal(nav, f.nav, -7);
     if (foot) reveal(foot, f.footer, 7);
@@ -483,12 +574,37 @@ function run(
   frame = requestAnimationFrame(tick);
 }
 
+const blockScroll = (event: Event) => event.preventDefault();
+
+function holdScene(current: Intent) {
+  const source = current.outgoing!;
+  const stage = own(document.createElement("div"));
+  stage.setAttribute("data-admin-motion-overlay", "");
+  stage.dataset.phase = "preparing";
+  stage.setAttribute("aria-hidden", "true");
+  stage.inert = true;
+  stage.style.cssText =
+    "position:fixed;inset:0;z-index:1000;overflow:hidden;pointer-events:none;contain:strict;";
+  stage.style.background =
+    current.direction === 1
+      ? (source as PublicScene).ground
+      : (source as AdminScene).rail;
+  document.documentElement.appendChild(stage);
+  stage.appendChild(source.ghost.host);
+  source.ghost.show(null, 1);
+  current.stage = stage;
+  document.addEventListener("wheel", blockScroll, { passive: false });
+  document.addEventListener("touchmove", blockScroll, { passive: false });
+}
+
 function cleanup() {
   finish?.();
   intent?.outgoing?.ghost.host.remove();
   owned.forEach((el) => el.remove());
   owned.clear();
   intent = undefined;
+  document.removeEventListener("wheel", blockScroll);
+  document.removeEventListener("touchmove", blockScroll);
   document.body.style.removeProperty("visibility");
   delete document.documentElement.dataset.adminMotion;
 }
@@ -520,7 +636,6 @@ document.addEventListener(
     const direction: Direction = target.hasAttribute("data-admin-enter")
       ? 1
       : -1;
-    if (direction === 1) returnTo = location.pathname + location.search;
     const destination = themedUrl(
       direction === 1 ? "/admin" : returnTo,
       savedTheme(),
@@ -576,7 +691,10 @@ document.addEventListener("astro:before-swap", (raw) => {
     return;
   }
   try {
-    intent.outgoing = intent.direction === 1 ? publicScene() : adminScene();
+    intent.outgoing = intent.direction === 1 ? publicScene(1) : adminScene();
+    // Own every paint before Astro can expose the destination root. This same
+    // opaque scene survives the swap and stays until its last animation frame.
+    holdScene(intent);
   } catch {
     cleanup();
     return;
@@ -602,18 +720,19 @@ document.addEventListener("astro:page-load", () => {
     el.style.opacity = "1";
     el.style.transform = "none";
   });
-  document.body.style.removeProperty("visibility");
   try {
-    const incoming = current.direction === 1 ? adminScene() : publicScene();
+    const incoming = current.direction === 1 ? adminScene() : publicScene(-1);
     run(
       (current.direction === 1 ? current.outgoing : incoming) as PublicScene,
       (current.direction === 1 ? incoming : current.outgoing) as AdminScene,
       current.direction,
+      current.stage!,
     );
   } catch (error) {
     current.outgoing.ghost.host.remove();
     cleanup();
-    console.error("Admin presentation transition failed", error);
+    if (!(error instanceof NoMotionSurface))
+      console.error("Admin presentation transition failed", error);
   }
 });
 document.addEventListener("click", (event) => {
@@ -630,12 +749,13 @@ document.addEventListener("click", (event) => {
 });
 window.addEventListener("resize", () => {
   if (finish) finish();
+  else if (intent?.stage) cleanup();
 });
 window.addEventListener("pagehide", cleanup);
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden) finish?.();
+  if (document.hidden) cleanup();
 });
-reduced.addEventListener("change", () => finish?.());
+reduced.addEventListener("change", cleanup);
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") finish?.();
+  if (event.key === "Escape") cleanup();
 });

@@ -51,16 +51,21 @@ export interface Rect {
 export type CornerRadii = readonly [number, number, number, number];
 export interface SurfaceGeometry {
   card: Rect;
+  button: Rect;
+  viewport: Rect;
   main: Rect;
   cardRadii: CornerRadii;
+  buttonRadii: CornerRadii;
   mainRadii: CornerRadii;
 }
 export interface SurfaceSample {
   rect: Rect;
   radii: CornerRadii;
+  panel: Rect;
+  panelRadii: CornerRadii;
+  expansion: number;
+  panelExpansion: number;
   edge: Rect;
-  field: number;
-  rail: number;
   wave: number;
   editorial: number;
   nav: number;
@@ -101,7 +106,7 @@ const travel = bezier(0.45, 0, 0.55, 1);
 const crisp = bezier(0.2, 0, 0.14, 1);
 const turn = bezier(0.42, 0, 0.18, 1);
 const reveal = bezier(0.2, 0.65, 0.18, 1);
-const open = bezier(0.38, 0, 0.18, 1);
+const open = bezier(0.42, 0, 0.2, 1);
 const settle = bezier(0.25, 0.65, 0.22, 1);
 
 export const segment = (
@@ -204,37 +209,50 @@ export function sampleIdentity(
   };
 }
 
-/** Surface edges move independently; typography never inherits a scale. */
+/** Two nested opaque surfaces. Every edge shares its surface's single clock. */
 export function sampleSurface(
   t: number,
   geometry: SurfaceGeometry,
+  direction: Direction = 1,
 ): SurfaceSample {
   t = clamp(t);
-  const from = geometry.card,
-    to = geometry.main;
+  // Use the same acceleration and settling in both directions, rather than
+  // reversing the asymmetric curve (which would give the return a hard stop).
+  const phase = (start: number, end: number) =>
+    direction === 1
+      ? segment(t, start, end, open)
+      : 1 - segment(1 - t, 1 - end, 1 - start, open);
+  const expansion = phase(0.025, 0.475);
+  const panelExpansion = phase(0.07, 0.475);
   const edge = {
-    top: segment(t, 0.025, 0.43, open),
-    left: segment(t, 0.055, 0.47, open),
-    right: segment(t, 0.075, 0.48, open),
-    bottom: segment(t, 0.085, 0.52, open),
+    top: expansion,
+    left: expansion,
+    right: expansion,
+    bottom: expansion,
   };
-  const rect = {
-    left: mix(from.left, to.left, edge.left),
-    top: mix(from.top, to.top, edge.top),
-    right: mix(from.right, to.right, edge.right),
-    bottom: mix(from.bottom, to.bottom, edge.bottom),
-  };
-  const round = segment(t, 0.12, 0.52, open);
-  const radii = geometry.cardRadii.map((radius, i) =>
-    mix(radius, geometry.mainRadii[i], round),
+  const rectangle = (from: Rect, to: Rect, progress: number): Rect => ({
+    left: mix(from.left, to.left, progress),
+    top: mix(from.top, to.top, progress),
+    right: mix(from.right, to.right, progress),
+    bottom: mix(from.bottom, to.bottom, progress),
+  });
+  const rect = rectangle(geometry.card, geometry.viewport, expansion);
+  const panel = rectangle(geometry.button, geometry.main, panelExpansion);
+  const radii = geometry.cardRadii.map((radius) =>
+    mix(radius, 0, expansion),
+  ) as [number, number, number, number];
+  const panelRadii = geometry.buttonRadii.map((radius, i) =>
+    mix(radius, geometry.mainRadii[i], panelExpansion),
   ) as [number, number, number, number];
   return {
     rect,
     radii,
+    panel,
+    panelRadii,
+    expansion,
+    panelExpansion,
     edge,
-    field: segment(t, 0.07, 0.6, travel),
-    rail: segment(t, 0.4, 0.6, travel),
-    wave: 1 - segment(t, 0.025, 0.27, open),
+    wave: 1,
     editorial: 1 - segment(t, 0.035, 0.22, settle),
     nav: 1 - segment(t, 0.045, 0.245, settle),
     footer: 1 - segment(t, 0.01, 0.185, settle),
@@ -248,6 +266,18 @@ export function sampleSurface(
 }
 
 /** Constant SVG topology permits rounded corners to settle exactly to zero. */
+export function surfaceInsetEdge(rect: Rect, radii: CornerRadii): string {
+  const { left: l, top: t, right: r, bottom: b } = rect;
+  const limit = Math.max(0, Math.min(r - l, b - t) / 2);
+  const [tl, tr, , bl] = radii.map((radius) =>
+    Math.min(limit, Math.max(0, radius)),
+  );
+  const k = 0.5522847498307936;
+  // The inset panel meets the viewport on its right and bottom. Its visible
+  // outline follows only the left edge, rounded top-left corner and top edge.
+  return `M ${l} ${b - bl} V ${t + tl} C ${l} ${t + tl - k * tl} ${l + tl - k * tl} ${t} ${l + tl} ${t} H ${r - tr}`;
+}
+
 export function surfacePath(rect: Rect, radii: CornerRadii): string {
   const { left: l, top: t, right: r, bottom: b } = rect;
   const limit = Math.max(0, Math.min(r - l, b - t) / 2);

@@ -36,11 +36,20 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   background: var(--color-workspace-sidebar, var(--color-background-body));
 }
 .editorial-workspace-shell #astryx-app-shell-main {
+  --admin-panel-border: color-mix(
+    in srgb,
+    var(--color-text-primary) 15%,
+    transparent
+  );
   box-sizing: border-box;
   min-height: 0;
   padding-inline: var(--admin-gutter);
   overscroll-behavior: contain;
   background: var(--color-background-body);
+  /* This outer panel inherits the fine edge of the public card action.
+     Interior rows and sections continue to separate with spacing. */
+  border-top: 1px solid var(--admin-panel-border);
+  border-inline-start: 1px solid var(--admin-panel-border);
   transition:
     margin-block-start var(--duration-fast) ease-out,
     border-start-start-radius var(--duration-fast) ease-out;

@@ -138,6 +138,7 @@ const groups = [
     --entry-secondary: #586271;
     --entry-accent: #245dbe;
     --entry-rail: #f1f4fa;
+    --entry-panel-border: color-mix(in srgb, var(--entry-ink) 15%, transparent);
     position: absolute;
     inset: 0;
     min-height: 100dvh;
@@ -308,6 +309,8 @@ const groups = [
     position: absolute;
     inset: 12px 0 0 200px;
     background: var(--entry-bg);
+    border-top: 1px solid var(--entry-panel-border);
+    border-left: 1px solid var(--entry-panel-border);
     border-radius: 12px 0 0 0;
     z-index: -1;
   }

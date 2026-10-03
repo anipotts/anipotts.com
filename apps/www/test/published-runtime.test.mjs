@@ -297,8 +297,7 @@ test("homepage essay attribution follows its published slug and withdrawal", asy
       text: edit(essay, { slug: renamedSlug, status: "draft" }),
     });
     attribution = coverage(await (await serve("/", cms(db))).text());
-    assert.doesNotMatch(attribution, /my essay|\/writing\//);
-    assert.match(attribution, /read the story/);
+    assert.doesNotMatch(attribution, /read the story|\/writing\/|<a\b/);
     assert.equal((await serve(`/writing/${renamedSlug}`, cms(db))).status, 404);
   } finally {
     db.close();

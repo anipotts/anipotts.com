@@ -329,11 +329,22 @@ for (const file of builtFiles(dist)) {
     )) {
       const reasons = dividerReasons(selector, body);
       const bare = selector.replace(/\[data-astro-cid-[\w-]+\]/g, "");
-      const allowed = bare
-        .split(",")
-        .every((part) =>
-          dividerAllowlist.some((pattern) => pattern.test(part.trim())),
+      // The admin inset inherits the card button's outline, but only on its
+      // exposed top and left. This is the approved outer frame, not a divider.
+      const insetFrame =
+        bare.trim() === ".entry-main-surface" &&
+        reasons.every((reason) =>
+          /^border-(top|left):1px solid var\(--entry-panel-border\)$/.test(
+            reason,
+          ),
         );
+      const allowed =
+        insetFrame ||
+        bare
+          .split(",")
+          .every((part) =>
+            dividerAllowlist.some((pattern) => pattern.test(part.trim())),
+          );
       if (reasons.length && !allowed)
         dividerViolations.add(`${bare} { ${reasons.join("; ")} }`);
       const accent = declaredToken(body, "--paper-accent");

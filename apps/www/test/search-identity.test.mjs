@@ -107,7 +107,7 @@ test("homepage keeps reporting attribution in its dedicated card", () => {
 });
 
 // Identity must be visible in search results as well as structured data.
-test("homepage uses the exact name and distinguishes reporting from the essay", () => {
+test("homepage uses the exact name and one branded link to the published essay", () => {
   assert.match(
     html,
     /<title>Ani Potts \| Software Engineer Building AI Systems<\/title>/,
@@ -116,11 +116,16 @@ test("homepage uses the exact name and distinguishes reporting from the essay", 
   assert.match(html, /hi, i(?:&#39;|')m ani potts!/);
   assert.match(
     html,
-    /href="https:\/\/www.businessinsider.com\/ai-usage-limits-causing-some-to-restructure-their-workday-2026-4"[^>]*>\s*<img[^>]*src="\/images\/brand\/business-insider-favicon\.svg"[^>]*>\s*<span[^>]*>read the story/,
+    /href="\/writing\/saturdays-are-for-claude-code"[^>]*>\s*<img[^>]*src="\/images\/brand\/business-insider-favicon\.svg"[^>]*>\s*<span[^>]*>read the story/,
   );
-  assert.match(
-    html,
-    /href="\/writing\/saturdays-are-for-claude-code"[^>]*>\s*<img[^>]*src="\/brand\/ap-favicon\.svg"[^>]*>\s*<span[^>]*>my essay/,
+  const press = html.match(
+    /<aside class="press-mention[^>]*>(.*?)<\/aside>/s,
+  )?.[1];
+  assert.ok(press);
+  assert.equal(press.match(/<a\b/g)?.length, 1);
+  assert.doesNotMatch(
+    press,
+    /my essay|href="https:\/\/www\.businessinsider\.com/,
   );
   const article = readFileSync(
     new URL(
