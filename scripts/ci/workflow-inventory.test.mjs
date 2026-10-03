@@ -311,6 +311,29 @@ for (const [file, workflow] of [
   }
 }
 const deployJobs = parse(deployWorkflow).jobs;
+assert.equal(
+  deployJobs["production-gate"].environment,
+  "Production",
+  "the first production effect must wait for the protected environment",
+);
+for (const [name, job] of Object.entries(deployJobs)) {
+  if (!JSON.stringify(job).includes("${{ secrets.")) continue;
+  assert.equal(
+    job.environment,
+    "Production",
+    `${name} must keep production credentials behind the protected environment`,
+  );
+  if (name === "production-gate") continue;
+  assert.ok(
+    job.needs?.includes("production-gate"),
+    `${name} must wait for the approved production gate`,
+  );
+}
+assert.equal(
+  smokeJob.environment,
+  "Production",
+  "manual smoke credentials must wait for the protected environment",
+);
 for (const job of ["deploy-www", "deploy-admin"]) {
   const forward = deployJobs[job].steps.filter(
     (step) =>
