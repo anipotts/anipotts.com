@@ -3,7 +3,10 @@ import { cors } from "hono/cors";
 import { LINK_SOURCES, type Bindings } from "./types";
 import { verifyDeviceHandshake } from "./control-plane-auth";
 import { stateHealth } from "./health";
-import { createRuntimeContractReporter } from "./runtime-contract";
+import {
+  createRuntimeContractReporter,
+  hasDistinctStateReadKey,
+} from "./runtime-contract";
 
 export { LinkVault } from "./do/link-vault";
 export { CodeStats } from "./do/code-stats";
@@ -119,7 +122,7 @@ function requireReadKey(c: {
   req: { header: (name: string) => string | undefined };
 }): Response | null {
   const expected = c.env.STATE_READ_KEY;
-  if (typeof expected !== "string" || expected.trim() === "") {
+  if (!hasDistinctStateReadKey(c.env)) {
     return Response.json(
       { error: "private reads unavailable" },
       { status: 503 },

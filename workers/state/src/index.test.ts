@@ -229,6 +229,33 @@ describe("private state reads", () => {
     expect(vault.namespace.idFromName).not.toHaveBeenCalled();
   });
 
+  it("fails closed when read and publish bindings contain the same value", async () => {
+    const app = await freshApp("private-reused-key");
+    const logs = captureConsole();
+    const { env, vault, stats } = summaries({}, {});
+    env.STATE_READ_KEY = secrets.STATE_PUBLISH_KEY;
+    for (const path of [
+      "/api/links",
+      "/api/links/ws",
+      "/api/commits",
+      "/api/commits/ws",
+    ]) {
+      const response = await app.fetch(
+        new Request(`https://api.test${path}`, {
+          headers: {
+            Authorization: `Bearer ${secrets.STATE_PUBLISH_KEY}`,
+            ...(path.endsWith("/ws") ? { Upgrade: "websocket" } : {}),
+          },
+        }),
+        env,
+      );
+      expect(response.status).toBe(503);
+    }
+    expect(vault.namespace.idFromName).not.toHaveBeenCalled();
+    expect(stats.namespace.idFromName).not.toHaveBeenCalled();
+    expect(logs.text()).not.toContain(secrets.STATE_PUBLISH_KEY);
+  });
+
   it("forwards authorized link and commit reads while health remains public", async () => {
     const app = await freshApp("private-authorized");
     captureConsole();

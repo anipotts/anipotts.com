@@ -58,7 +58,19 @@ function read(values: unknown, name: string): unknown {
   }
 }
 
+/** A read credential must not grant publish authority through key reuse. */
+export function hasDistinctStateReadKey(env: unknown): boolean {
+  const readKey = read(env, "STATE_READ_KEY");
+  const publishKey = read(env, "STATE_PUBLISH_KEY");
+  return (
+    typeof readKey === "string" &&
+    readKey.trim() !== "" &&
+    readKey !== publishKey
+  );
+}
+
 function satisfied(env: unknown, name: RuntimeName): boolean {
+  if (name === "STATE_READ_KEY") return hasDistinctStateReadKey(env);
   const { check } = RUNTIME_CONTRACT[name];
   const value = read(env, name);
   if (check === "text") return typeof value === "string" && !!value.trim();

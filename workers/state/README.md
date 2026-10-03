@@ -61,7 +61,8 @@ body is a JSON object whose `source`, when present, is `shortcut`, `admin` or
 Private GET and WebSocket routes require `Authorization: Bearer $STATE_READ_KEY`.
 They answer 503 when the read key is absent and 401 when it is wrong. The read
 key is separate from the publish key; provisioning it is required before an
-authorized reader can use these routes. Browser WebSocket clients cannot send
+authorized reader can use these routes. Reusing the publish-key value fails
+closed. Browser WebSocket clients cannot send
 an Authorization header, so a future browser reader needs a separate short-lived
 ticket flow. The CLI smoke checks denial and, when the key is available to the
 process, validates the authorized response shape without printing saved links.

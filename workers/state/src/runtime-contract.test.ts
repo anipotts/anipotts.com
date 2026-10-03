@@ -57,6 +57,17 @@ describe("state runtime contract evaluation", () => {
     });
   });
 
+  it("reports private reads unavailable when read and publish keys are reused", () => {
+    const env = completeEnv();
+    env.STATE_READ_KEY = env.STATE_PUBLISH_KEY;
+    const report = evaluateRuntimeContract(env);
+    expect(report.features.private_read).toEqual({
+      state: "unavailable",
+      missing: ["STATE_READ_KEY"],
+    });
+    expect(JSON.stringify(report)).not.toContain(secrets.STATE_PUBLISH_KEY);
+  });
+
   for (const name of RUNTIME_REQUIRED) {
     it(`names a missing required ${name}`, () => {
       const report = evaluateRuntimeContract(without(name));
