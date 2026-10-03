@@ -145,6 +145,9 @@ export default defineConfig({
   // wrangler.toml (src/worker.ts).
   adapter: cloudflare({
     imageService: "passthrough",
+    ...(process.env.ADMIN_E2E_STATE_DIR && adminLocalOwner
+      ? { persistState: { path: process.env.ADMIN_E2E_STATE_DIR } }
+      : {}),
     // astro dev runs the Worker with local-only bindings: its own EDITORIAL
     // Durable Object, local D1 and local R2 under .wrangler/state. Remote
     // bindings stay off even if a binding is ever marked `remote`.

@@ -27,6 +27,19 @@ const workflowFiles = readdirSync(WORKFLOW_DIR)
 
 const deployWorkflow = readFileSync(join(WORKFLOW_DIR, "deploy.yml"), "utf8");
 const ciWorkflow = readFileSync(join(WORKFLOW_DIR, "ci.yml"), "utf8");
+const ciJobs = parse(ciWorkflow).jobs;
+assert.equal(
+  ciJobs.classify.outputs.public_browser_changed,
+  "${{ steps.release.outputs.public_browser_changed }}",
+);
+for (const name of [
+  "Install public browser targets",
+  "Validate local CMS runtime and public journeys",
+]) {
+  const step = ciJobs.ci.steps.find((candidate) => candidate.name === name);
+  assert.ok(step, `${name} must exist`);
+  assert.match(step.if, /needs\.classify\.outputs\.public_browser_changed/);
+}
 const securityWorkflow = readFileSync(
   join(WORKFLOW_DIR, "security-review.yml"),
   "utf8",
