@@ -23,9 +23,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
   const url = new URL(request.url);
   let token = url.searchParams.get("token") ?? "";
+  const rawBody = await readBoundedText(request, TOKEN_BODY_LIMIT_BYTES);
+  if (rawBody === null) return new Response(null, { status: 413 });
   if (!token) {
-    const rawBody = await readBoundedText(request, TOKEN_BODY_LIMIT_BYTES);
-    if (rawBody === null) return new Response(null, { status: 413 });
     const contentType = request.headers.get("content-type") ?? "";
     if (contentType.includes("application/json")) {
       try {

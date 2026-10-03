@@ -622,6 +622,19 @@ test("unsubscribe rejects oversized bodies and skips database work for malformed
   });
   assert.equal(oversized.status, 413);
 
+  const email = "query-body-limit@example.com";
+  const subscriberId = seedSubscriber(db, email, "confirmed");
+  const validToken = seedToken(db, subscriberId, email, "unsubscribe");
+  const oversizedWithQueryToken = await unsubscribe.POST({
+    request: new Request(`${url}?token=${validToken}`, {
+      method: "POST",
+      body: "x".repeat(newsletter.TOKEN_BODY_LIMIT_BYTES + 1),
+    }),
+    locals: locals(env),
+  });
+  assert.equal(oversizedWithQueryToken.status, 413);
+  assert.equal(subscriber(db, email).status, "confirmed");
+
   db.faults.fail = () => true;
   for (const request of [
     formPost(url, "invalid token"),
@@ -664,6 +677,23 @@ test("unsubscribe still accepts a valid JSON token", async () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ token }),
       },
+    ),
+    locals: locals(env),
+  });
+  assert.equal(response.status, 200);
+  assert.equal(subscriber(db, email).status, "unsubscribed");
+});
+
+test("unsubscribe still accepts a valid query token without a body", async () => {
+  const db = database();
+  const { env } = environment(db);
+  const email = "query-unsubscribe@example.com";
+  const subscriberId = seedSubscriber(db, email, "confirmed");
+  const token = seedToken(db, subscriberId, email, "unsubscribe");
+  const response = await unsubscribe.POST({
+    request: new Request(
+      `https://news.anipotts.com/api/newsletter/unsubscribe?token=${token}`,
+      { method: "POST" },
     ),
     locals: locals(env),
   });
