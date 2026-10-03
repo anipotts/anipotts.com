@@ -15,9 +15,18 @@ afterEach(() => {
   delete workerEnv.ACCESS_POLICY_AUD;
 });
 
-function assertInlineScriptsAllowed(response, html) {
+function assertInlineScriptsAndStylesAllowed(response, html) {
   const policy = response.headers.get("Content-Security-Policy") ?? "";
   const directives = policy.split(";").map((part) => part.trim());
+  const stylePolicy =
+    directives.find((part) => part.startsWith("style-src ")) ?? "";
+  expect(stylePolicy).toBe("style-src 'self' 'unsafe-inline'");
+  expect(directives.some((part) => part.startsWith("style-src-elem "))).toBe(
+    false,
+  );
+  expect(directives.some((part) => part.startsWith("style-src-attr "))).toBe(
+    false,
+  );
   const defaultScriptPolicy =
     directives.find((part) => part.startsWith("script-src ")) ?? "";
   const scriptPolicy =
@@ -61,7 +70,7 @@ it("renders the built public auth document with CSP and a fresh nonce", async ()
   );
   expect(response.status).toBe(200);
   expect(response.headers.get("Cache-Control")).toBe("private, no-store");
-  assertInlineScriptsAllowed(response, await response.text());
+  assertInlineScriptsAndStylesAllowed(response, await response.text());
   const another = await worker.fetch(
     new Request("https://admin.anipotts.com/auth"),
     {
@@ -142,7 +151,7 @@ it("keeps every inline script permitted on built admin documents", async () => {
       response.status,
       `${path}: ${response.headers.get("location")} fetches=${fetchKeys.mock.calls.length}`,
     ).toBe(200);
-    assertInlineScriptsAllowed(response, await response.text());
+    assertInlineScriptsAndStylesAllowed(response, await response.text());
   }
   expect(fetchKeys).toHaveBeenCalled();
   const preview = await worker.fetch(
@@ -310,6 +319,28 @@ it.skipIf(process.env.RUN_CSP_BROWSER !== "1")(
           (island) => !island.hasAttribute("ssr"),
         ),
       );
+      const inlineStyles = await page.evaluate(() => {
+        const attribute = document.createElement("div");
+        attribute.setAttribute("style", "color: rgb(1, 2, 3)");
+        document.body.append(attribute);
+        const attributeColor = getComputedStyle(attribute).color;
+        attribute.remove();
+
+        const element = document.createElement("style");
+        element.textContent = ".csp-inline-probe { color: rgb(4, 5, 6) }";
+        document.head.append(element);
+        const target = document.createElement("div");
+        target.className = "csp-inline-probe";
+        document.body.append(target);
+        const elementColor = getComputedStyle(target).color;
+        target.remove();
+        element.remove();
+        return { attributeColor, elementColor };
+      });
+      expect(inlineStyles).toEqual({
+        attributeColor: "rgb(1, 2, 3)",
+        elementColor: "rgb(4, 5, 6)",
+      });
       await page.goto("https://admin.anipotts.com/content/home/home", {
         waitUntil: "networkidle",
       });
