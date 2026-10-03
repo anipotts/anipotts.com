@@ -27,6 +27,7 @@ import { adminJson } from "./lib/admin-auth";
 import { PRIVATE_READER_CANARY_PATH } from "./lib/private-reader-canary";
 import { applyServerTiming, createServerTiming } from "./lib/server-timing";
 import { runtimeEnv } from "./lib/runtime-env";
+import { createAdminScriptNonce, withAdminScriptNonce } from "./lib/admin-csp";
 
 /** Content, the overview, the editorial APIs, the private reader and the
  * draft previews accept only the signed owner. */
@@ -166,6 +167,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const started = performance.now();
   const timing = createServerTiming();
   context.locals.serverTiming = timing;
+  const nonce = createAdminScriptNonce();
+  context.locals.cspNonce = nonce;
   const response = await handleRequest(context, next);
-  return applyServerTiming(response, timing, performance.now() - started);
+  return applyServerTiming(
+    withAdminScriptNonce(response, nonce),
+    timing,
+    performance.now() - started,
+  );
 });
