@@ -34,7 +34,6 @@ import {
 import {
   MagnifyingGlassIcon,
   SidebarSimpleIcon,
-  SignOutIcon,
   ArrowLeftIcon,
 } from "@phosphor-icons/react";
 import { AdminCommandPalette, type PaletteAction } from "./AdminCommandPalette";
@@ -282,15 +281,8 @@ function WorkspaceIdentity({
   );
 }
 
-/** Sidebar footer: log out outside local previews, then the one theme
- * button, which cycles light, dark and system. */
-function WorkspaceUtilities({
-  rail,
-  localPreview,
-}: {
-  rail: boolean;
-  localPreview: boolean;
-}) {
+/** Website return and theme controls share the sidebar footer. */
+function WorkspaceUtilities({ rail }: { rail: boolean }) {
   const Stack = rail ? VStack : HStack;
   return (
     <Stack
@@ -303,13 +295,6 @@ function WorkspaceUtilities({
         href="https://anipotts.com/"
         icon={<ArrowLeftIcon size={18} aria-hidden="true" />}
       />
-      {!localPreview && (
-        <SideNavItem
-          label="Log out"
-          href="/auth/logout"
-          icon={<SignOutIcon size={18} aria-hidden="true" />}
-        />
-      )}
       <ThemeControl />
     </Stack>
   );
@@ -559,9 +544,7 @@ export function EditorialWorkspaceShell({
             header={
               <WorkspaceIdentity rail={rail} localOwner={showLocalOwner} />
             }
-            footer={
-              <WorkspaceUtilities rail={rail} localPreview={localPreview} />
-            }
+            footer={<WorkspaceUtilities rail={rail} />}
           >
             <UnifiedNavigation
               rail={rail}
@@ -606,10 +589,7 @@ export function EditorialWorkspaceShell({
               }
               footer={
                 tabletNavigation ? (
-                  <WorkspaceUtilities
-                    rail={false}
-                    localPreview={localPreview}
-                  />
+                  <WorkspaceUtilities rail={false} />
                 ) : undefined
               }
             >
@@ -620,9 +600,7 @@ export function EditorialWorkspaceShell({
                 contentHref={destination}
                 groupCounts={groupCounts}
               />
-              {!tabletNavigation && (
-                <WorkspaceUtilities rail={false} localPreview={localPreview} />
-              )}
+              {!tabletNavigation && <WorkspaceUtilities rail={false} />}
             </SideNav>
           </MobileNav>
         </NavigationIconScope>
