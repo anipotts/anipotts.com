@@ -35,6 +35,7 @@ import {
   MagnifyingGlassIcon,
   SidebarSimpleIcon,
   SignOutIcon,
+  ArrowLeftIcon,
 } from "@phosphor-icons/react";
 import { AdminCommandPalette, type PaletteAction } from "./AdminCommandPalette";
 import type { AdminSearchResult } from "../../data/admin-search";
@@ -292,20 +293,27 @@ function WorkspaceUtilities({
 }) {
   const Stack = rail ? VStack : HStack;
   return (
-    <Stack
+    <VStack
       className="editorial-workspace-utilities"
       data-collapsed={rail}
       gap={1}
     >
-      {!localPreview && (
-        <SideNavItem
-          label="Log out"
-          href="/auth/logout"
-          icon={<SignOutIcon size={18} aria-hidden="true" />}
-        />
-      )}
-      <ThemeControl />
-    </Stack>
+      <SideNavItem
+        label="Back to website"
+        href="https://anipotts.com/"
+        icon={<ArrowLeftIcon size={18} aria-hidden="true" />}
+      />
+      <Stack className="editorial-workspace-utility-controls" gap={1}>
+        {!localPreview && (
+          <SideNavItem
+            label="Log out"
+            href="/auth/logout"
+            icon={<SignOutIcon size={18} aria-hidden="true" />}
+          />
+        )}
+        <ThemeControl />
+      </Stack>
+    </VStack>
   );
 }
 
