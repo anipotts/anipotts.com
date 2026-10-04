@@ -19,11 +19,15 @@ test("sign-in sidebar collapses and expands without navigating", () => {
   toggleEntrySidebar(button);
   assert.equal(shell.dataset.sidebarCollapsed, "true");
   assert.equal(attributes["aria-expanded"], "false");
-  assert.equal(attributes["aria-label"], "expand sidebar");
+  assert.equal(
+    attributes["aria-label"],
+    undefined,
+    "the control keeps its static name",
+  );
   toggleEntrySidebar(button);
   assert.equal(shell.dataset.sidebarCollapsed, "false");
   assert.equal(attributes["aria-expanded"], "true");
-  assert.equal(button.title, "collapse sidebar");
+  assert.equal(button.title, undefined, "the control keeps its static tooltip");
 });
 
 test("transition previews remain inert", () => {
