@@ -115,4 +115,13 @@ const { essayHref } = Astro.props;
       font-size: 0.8rem;
     }
   }
+  @media (max-width: 359px) {
+    .press-mention {
+      grid-template-columns: auto minmax(0, 1fr);
+    }
+    .press-mention__links {
+      grid-column: 1 / -1;
+      grid-row: 3;
+    }
+  }
 </style>
