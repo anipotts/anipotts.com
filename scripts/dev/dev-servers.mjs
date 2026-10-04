@@ -21,11 +21,20 @@ import {
   isPortFree,
   parsePortOverride,
 } from "./dev-server-ports.mjs";
+import {
+  DEFAULT_WORKER_SLOTS,
+  isIntegrationCheckout,
+  otherWorkerPreviews,
+  parseCount,
+  runningPreviews,
+  slotError,
+} from "./preview-budget.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const WORKTREE_ROOT = realpathSync(resolve(SCRIPT_DIR, "../.."));
 const LOCAL_DIR = join(WORKTREE_ROOT, ".local", "dev-servers");
 const METADATA_PATH = join(LOCAL_DIR, "processes.json");
+const REAPER_PATH = join(LOCAL_DIR, "reaper.json");
 const REQUIRED_NODE = { major: 24, minor: 19, patch: 0 };
 // Opt-in synthetic owner for this worktree's Admin dev server only.
 const LOCAL_OWNER = process.argv.includes("--local-owner");
@@ -278,11 +287,48 @@ function upsert(records, record) {
   else records.splice(index, 1, record);
 }
 
+/** A worktree with nothing running claims one of the shared worker slots. */
+function assertWorkerSlot(integration) {
+  if (integration || runningPreviews(WORKTREE_ROOT).length > 0) return;
+  const slots = parseCount(
+    "ANIPOTTS_WORKER_PREVIEW_SLOTS",
+    process.env.ANIPOTTS_WORKER_PREVIEW_SLOTS,
+    DEFAULT_WORKER_SLOTS,
+  );
+  const error = slotError(otherWorkerPreviews(WORKTREE_ROOT), slots);
+  if (error) throw new Error(error);
+}
+
+/** One detached idle reaper per worker worktree; see preview-reaper.mjs. */
+function ensureReaper() {
+  const record = (() => {
+    try {
+      return JSON.parse(readFileSync(REAPER_PATH, "utf8"));
+    } catch {
+      return null;
+    }
+  })();
+  if (
+    record &&
+    !record.stoppedAt &&
+    processCommand(record.pid).includes("preview-reaper.mjs")
+  )
+    return;
+  const child = spawn(
+    process.execPath,
+    [join(SCRIPT_DIR, "preview-reaper.mjs"), WORKTREE_ROOT],
+    { cwd: WORKTREE_ROOT, env: childEnv(), detached: true, stdio: "ignore" },
+  );
+  child.unref();
+}
+
 async function ensure(surface) {
   if (LOCAL_OWNER && surface !== "admin") {
     throw new Error("local owner mode starts only the admin surface");
   }
   assertRuntime();
+  const integration = isIntegrationCheckout(WORKTREE_ROOT, process.env);
+  assertWorkerSlot(integration);
   if (surface === "admin" || surface === "all") await ensureFallbackAdmin();
 
   const previous = readMetadata();
@@ -324,6 +370,7 @@ async function ensure(surface) {
   }
 
   writeMetadata(ports, records);
+  if (!integration) ensureReaper();
   printStatus(records, ports);
 }
 
@@ -343,6 +390,17 @@ function printStatus(records, ports) {
   }
   if (records.some((record) => record.key === "admin" && !record.localOwner)) {
     console.log("admin-fallback=http://localhost:4311/");
+  }
+  if (existsSync(REAPER_PATH)) {
+    try {
+      const reaper = JSON.parse(readFileSync(REAPER_PATH, "utf8"));
+      if (!reaper.stoppedAt && reaper.limitMinutes > 0)
+        console.log(
+          `idle-stop=after ${reaper.limitMinutes}m idle (idle ${reaper.idleMinutes}m)`,
+        );
+    } catch {
+      // Advisory only.
+    }
   }
 }
 
