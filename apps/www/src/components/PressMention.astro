@@ -43,6 +43,7 @@ const { essayHref } = Astro.props;
 
 <style>
   .press-mention {
+    container-type: inline-size;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
@@ -67,10 +68,10 @@ const { essayHref } = Astro.props;
     grid-row: 2;
     text-align: center;
     margin: 0;
-    font-size: 0.95rem;
+    font-size: min(0.95rem, 3.5cqi);
     font-weight: 500;
     line-height: 1.4;
-    text-wrap: pretty;
+    white-space: nowrap;
   }
 
   .press-mention__links {
@@ -94,9 +95,7 @@ const { essayHref } = Astro.props;
       width: 5.5rem;
     }
     .press-mention__copy {
-      font-size: 0.75rem;
       line-height: 1.35;
-      text-wrap: balance;
     }
     .press-mention__links a {
       grid-template-columns: 1rem auto;
