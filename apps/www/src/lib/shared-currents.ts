@@ -48,11 +48,21 @@ export function mountSharedCurrents() {
     }
     return d;
   }
-  function geometry(band: number, layer: number) {
+  const sceneWidth = () => w;
+  const sceneHeight = () => h;
+  function geometry(
+    band: number,
+    layer: number,
+    w = sceneWidth(),
+    h = sceneHeight(),
+    local = false,
+  ) {
     const upper =
-      band === 0
-        ? [0.25, 0.18, 0.24, 0.32, 0.28, 0.18, 0.23]
-        : [0.81, 0.79, 0.69, 0.74, 0.82, 0.77, 0.83];
+      local && band === 0
+        ? [0.8, 0.65, 0.2, 0.3, 0.6, 0.25, 0.1]
+        : band === 0
+          ? [0.25, 0.18, 0.24, 0.32, 0.28, 0.18, 0.23]
+          : [0.81, 0.79, 0.69, 0.74, 0.82, 0.77, 0.83];
     const phase = state.composition;
     const top = [],
       bottom = [];
@@ -93,7 +103,13 @@ export function mountSharedCurrents() {
     hosts.forEach((host, index) => {
       // Offscreen crops keep their last shape until they scroll back in.
       if (!all && !visible.has(host)) return;
-      paths[index].forEach((path, i) => path.setAttribute("d", shapes[i]));
+      const local = host.hasAttribute("data-local-current");
+      paths[index].forEach((path, i) =>
+        path.setAttribute(
+          "d",
+          local ? geometry(i < 3 ? 0 : 1, i % 3, 600, 320, true) : shapes[i],
+        ),
+      );
       host.dataset.motionTime = time.toFixed(4);
     });
   }
@@ -117,7 +133,9 @@ export function mountSharedCurrents() {
     boxes.forEach((box, i) =>
       svgs[i].setAttribute(
         "viewBox",
-        `${box.left - left} ${box.top - top} ${box.width} ${box.height}`,
+        hosts[i].hasAttribute("data-local-current")
+          ? "0 0 600 320"
+          : `${box.left - left} ${box.top - top} ${box.width} ${box.height}`,
       ),
     );
     draw(true);
