@@ -455,6 +455,7 @@ export function mountSharedCurrents() {
   // Idle swell wakes once per drawn frame instead of once per display frame;
   // it moves a few px a second, so 30 frames is smooth. The entrance asks for
   // display frames while it lasts, and so does the scroll push on desktop.
+  let interval = IDLE;
   function schedule(now = performance.now()) {
     const fps = pouring(now)
       ? 60
@@ -462,6 +463,7 @@ export function mountSharedCurrents() {
         ? motion().activeFps
         : 30;
     const idle = visible.size ? IDLE : BANDS;
+    interval = fps > 30 ? 1000 / fps : idle;
     if (fps > 30) frame = requestAnimationFrame(tick);
     else timer = setTimeout(tick, Math.max(0, last + idle - now));
   }
@@ -485,6 +487,11 @@ export function mountSharedCurrents() {
     // hands back to the real card. Do not accumulate the paused time.
     if (document.documentElement?.hasAttribute("data-writing-transition")) {
       last = now;
+      schedule(now);
+      return;
+    }
+    // High-refresh displays still draw at the requested rate, not every RAF.
+    if (now - last < interval - 0.5) {
       schedule(now);
       return;
     }
@@ -546,7 +553,16 @@ export function mountSharedCurrents() {
   const main = document.querySelector("main");
   if (main) observer.observe(main);
   if (bandArt) observer.observe(bandArt);
-  media.addEventListener("change", sync);
+  function motionPreferenceChanged() {
+    if (media.matches) {
+      stop();
+      arrival?.disconnect();
+      hosts.forEach((host) => entered.set(host, -Infinity));
+      draw(true);
+      stillBands();
+    } else sync();
+  }
+  media.addEventListener("change", motionPreferenceChanged);
   compact.addEventListener("change", resize);
   document.addEventListener("visibilitychange", sync);
   window.addEventListener("scroll", scrolled, { passive: true });
@@ -589,7 +605,7 @@ export function mountSharedCurrents() {
     observer.disconnect();
     intersection.disconnect();
     arrival?.disconnect();
-    media.removeEventListener("change", sync);
+    media.removeEventListener("change", motionPreferenceChanged);
     compact.removeEventListener("change", resize);
     document.removeEventListener("visibilitychange", sync);
     window.removeEventListener("scroll", scrolled);
