@@ -200,6 +200,8 @@ export function statusColumns(
   };
   const state: Column<Row> = {
     key: "state",
+    compact: "inline",
+    compactLabel: false,
     priority: 1,
     header: "State",
     width: stateColumn,
@@ -237,6 +239,8 @@ export function statusColumns(
     state,
     {
       key: "detail",
+      compact: "detail",
+      compactLabel: false,
       priority: 2,
       header: "Detail",
       share: 0.5,
@@ -677,6 +681,8 @@ function SyncGrid({
           },
           {
             key: "state",
+            compact: "inline",
+            compactLabel: false,
             priority: 1,
             header: "State",
             width: CELL_WIDTHS.state,

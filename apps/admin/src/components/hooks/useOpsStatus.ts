@@ -18,6 +18,7 @@ const OFF: OpsStatusState = Object.freeze({
   checkedAt: null,
   events: null,
   eventsStale: false,
+  eventsInitial: "off",
 }) as OpsStatusState;
 const offStore = {
   getState: () => OFF,

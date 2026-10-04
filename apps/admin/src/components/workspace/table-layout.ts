@@ -255,7 +255,7 @@ const REFLOW_CSS = `.admin-data-table[data-narrow="true"] .openai-record-table t
 .admin-data-table[data-narrow="true"] .openai-record-table tr[data-record-id] {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: flex-start;
   padding-block: 4px;
 }
 .admin-data-table[data-narrow="true"] .openai-record-table td[data-lead] {
@@ -296,11 +296,6 @@ const REFLOW_CSS = `.admin-data-table[data-narrow="true"] .openai-record-table t
 }
 .admin-data-table[data-narrow="true"] .openai-record-table td:not([data-lead]):not(.admin-table-select):has(.admin-table-value:empty),
 .admin-data-table[data-narrow="true"] td:has(> .admin-table-value > .sr-only:only-child) { display: none; }
-.admin-data-table[data-narrow="true"] td[data-column="summary"] {
-  flex: 0 0 100%;
-  box-sizing: border-box;
-}
-.admin-data-table[data-narrow="true"] td[data-column="summary"] .openai-mobile-label { display: none; }
 .admin-data-table[data-narrow="true"] .editorial-record-summary {
   display: block;
   white-space: nowrap;
@@ -308,7 +303,7 @@ const REFLOW_CSS = `.admin-data-table[data-narrow="true"] .openai-record-table t
   line-height: 20px;
   overflow: hidden;
 }
-.admin-data-table[data-narrow="true"] tr:has(.workspace-row-mark) td:not([data-lead]):not(.admin-table-select) {
+.admin-data-table[data-narrow="true"] tr:has(.workspace-row-mark) td:not([data-lead]):not(.admin-table-select):not([data-compact="trailing"]) {
   padding-inline-start: 40px;
 }
 
@@ -322,26 +317,24 @@ const REFLOW_CSS = `.admin-data-table[data-narrow="true"] .openai-record-table t
 .admin-data-table[data-narrow="true"] .workspace-row-mark {
   margin-block-start: 12px;
 }
-.admin-data-table[data-narrow="true"] .openai-record-table tr[data-record-id]:has(td[data-column="summary"]):has(td[data-column="updated"]) {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+.admin-data-table[data-narrow="true"] .openai-record-table tr[data-record-id]::after {
+  content: "";
+  flex: 0 0 100%;
+  order: 1;
 }
-.admin-data-table[data-narrow="true"] tr:has(td[data-column="summary"]):has(td[data-column="updated"]) td[data-lead] {
-  grid-column: 1;
-  grid-row: 1;
+.admin-data-table[data-narrow="true"] .openai-record-table tr:has(td[data-compact="trailing"]) td[data-lead] {
+  flex: 1 1 0;
 }
-.admin-data-table[data-narrow="true"] tr:has(td[data-column="summary"]) td[data-column="updated"] {
-  grid-column: 2;
-  grid-row: 1;
-  padding-inline: 8px 12px;
+.admin-data-table[data-narrow="true"] .openai-record-table td[data-compact="trailing"]:not([data-lead]) {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  padding: 12px 12px 0 8px;
   font-size: var(--text-caption-size, 12px);
   white-space: nowrap;
 }
-.admin-data-table[data-narrow="true"] td[data-column="updated"] .openai-mobile-label { display: none; }
-.admin-data-table[data-narrow="true"] tr:has(td[data-column="updated"]) td[data-column="summary"] {
-  grid-column: 1 / -1;
-  grid-row: 2;
+.admin-data-table[data-narrow="true"] .openai-record-table td[data-compact="detail"]:not([data-lead]) {
+  flex: 0 0 100%;
+  box-sizing: border-box;
   padding-block-end: 6px;
 }
 `;

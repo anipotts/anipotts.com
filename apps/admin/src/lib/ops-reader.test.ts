@@ -312,6 +312,7 @@ describe("ops status polling", () => {
       checkedAt: null,
       events: null,
       eventsStale: false,
+      eventsInitial: "off",
     });
     await vi.advanceTimersByTimeAsync(OPS_POLL_MS * 2);
     expect(h.snapshotRequests).toHaveLength(1);
@@ -530,7 +531,9 @@ describe("ops events polling", () => {
     );
   function eventsHarness(
     pages: Record<number, () => Response | Promise<Response>>,
-    extra: { eventsWaitS?: number | null } = { eventsWaitS: null },
+    extra: { eventsWaitS?: number | null; snapshotReply?: () => Response } = {
+      eventsWaitS: null,
+    },
   ) {
     const afters: number[] = [];
     const waits: Array<string | null> = [];
@@ -550,6 +553,7 @@ describe("ops events polling", () => {
         if (url.pathname === OPS_SNAPSHOT_PATH) {
           const tag = init ? header(init, "If-None-Match") : undefined;
           snapshots.push(tag);
+          if (extra.snapshotReply) return extra.snapshotReply();
           return tag === '"v1"'
             ? new Response(null, { status: 304 })
             : new Response(body, {
@@ -594,6 +598,128 @@ describe("ops events polling", () => {
   };
   beforeEach(() => {
     hidden = false;
+  });
+
+  it("withholds initial history until its last page and never long-polls catch-up", async () => {
+    let finish!: (response: Response) => void;
+    const { controller, waits } = eventsHarness(
+      {
+        0: () => page([item(1)], 1),
+        1: () =>
+          new Promise<Response>((resolve) => {
+            finish = resolve;
+          }),
+        2: () => new Promise<Response>(() => {}),
+      },
+      { eventsWaitS: OPS_EVENTS_WAIT_S },
+    );
+    const cursors: number[] = [];
+    controller.subscribe(() =>
+      cursors.push(controller.getState().events?.cursor ?? 0),
+    );
+    controller.start();
+    await flush();
+    expect(controller.getState()).toMatchObject({
+      connection: "connected",
+      eventsInitial: "pending",
+    });
+    expect(controller.getState().events?.cursor).toBe(0);
+    expect(waits).toEqual([null, null]);
+    finish(page([item(2)], null));
+    await flush();
+    expect(controller.getState().eventsInitial).toBe("ready");
+    expect(controller.getState().events?.cursor).toBe(2);
+    expect(cursors).not.toContain(1);
+    expect(waits.at(-1)).toBe(String(OPS_EVENTS_WAIT_S));
+    controller.dispose();
+  });
+
+  it("exposes a bounded initial backlog as incomplete and resumes at its cursor", async () => {
+    const pages: Record<number, () => Response> = {};
+    for (let n = 0; n < 10; n++) pages[n] = () => page([item(n + 1)], n + 1);
+    pages[10] = () => page([item(11)], null);
+    const { controller, afters } = eventsHarness(pages);
+    controller.start();
+    await flush();
+    expect(controller.getState()).toMatchObject({
+      eventsInitial: "incomplete",
+      eventsStale: true,
+    });
+    expect(controller.getState().events?.cursor).toBe(10);
+    await vi.advanceTimersByTimeAsync(OPS_EVENTS_POLL_MS);
+    await flush();
+    expect(afters.at(-1)).toBe(10);
+    expect(controller.getState()).toMatchObject({
+      eventsInitial: "ready",
+      eventsStale: false,
+    });
+    controller.dispose();
+  });
+
+  it("settles a failed initial history read without claiming readiness", async () => {
+    const { controller } = eventsHarness({
+      0: () => new Response(null, { status: 503 }),
+    });
+    controller.start();
+    await flush();
+    expect(controller.getState()).toMatchObject({
+      eventsInitial: "failed",
+      eventsStale: true,
+    });
+    controller.dispose();
+  });
+
+  it("does not publish buffered history after the session ends", async () => {
+    let finish!: (response: Response) => void;
+    const { controller } = eventsHarness({
+      0: () => page([item(1)], 1),
+      1: () =>
+        new Promise<Response>((resolve) => {
+          finish = resolve;
+        }),
+    });
+    controller.start();
+    await flush();
+    controller.end();
+    finish(page([item(2)], null));
+    await flush();
+    expect(controller.getState().connection).toBe("ended");
+    expect(controller.getState().events?.cursor).toBe(0);
+    controller.dispose();
+  });
+
+  it("invalidates buffered history when the snapshot is rejected", async () => {
+    let snapshots = 0;
+    let finish!: (response: Response) => void;
+    const { controller } = eventsHarness(
+      {
+        0: () => page([item(1)], 1),
+        1: () =>
+          new Promise<Response>((resolve) => {
+            finish = resolve;
+          }),
+      },
+      {
+        eventsWaitS: null,
+        snapshotReply: () =>
+          ++snapshots === 1
+            ? Response.json(sample)
+            : Response.json({ invalid: true }),
+      },
+    );
+    controller.start();
+    await flush();
+    await vi.advanceTimersByTimeAsync(OPS_POLL_MS);
+    await flush();
+    expect(controller.getState().connection).toBe("rejected");
+    finish(page([item(2)], null));
+    await flush();
+    expect(controller.getState()).toMatchObject({
+      connection: "rejected",
+      eventsInitial: "pending",
+    });
+    expect(controller.getState().events?.cursor).toBe(0);
+    controller.dispose();
   });
 
   it("pages the feed with the after cursor until next_after is null", async () => {
@@ -754,6 +880,33 @@ describe("ops events polling", () => {
     controller.dispose();
   });
 
+  it("refills a rejected live history from zero without long-polling", async () => {
+    let firstRead = true;
+    const { controller, waits, afters } = eventsHarness(
+      {
+        0: () => {
+          if (firstRead) {
+            firstRead = false;
+            return page([item(1)], null);
+          }
+          return new Promise<Response>(() => {});
+        },
+        1: () => page([{ ...item(2), seq: "2" }], null),
+      },
+      { eventsWaitS: OPS_EVENTS_WAIT_S },
+    );
+    controller.start();
+    await flush();
+    await vi.advanceTimersByTimeAsync(1);
+    await flush();
+    expect(controller.getState().eventsInitial).toBe("failed");
+    await vi.advanceTimersByTimeAsync(OPS_EVENTS_POLL_MS);
+    await flush();
+    expect(afters.at(-1)).toBe(0);
+    expect(waits.at(-1)).toBeNull();
+    controller.dispose();
+  });
+
   it("marks events not current when most of a page is unreadable, and moves on", async () => {
     const bad = (seq: number) => ({ ...item(seq), at: "2026-09-22 10:00:00" });
     const { controller } = eventsHarness({
@@ -846,12 +999,13 @@ describe("ops events polling", () => {
       });
       controller.start();
       await flush();
-      expect(waits[0]).toBe(String(OPS_EVENTS_WAIT_S));
+      expect(waits[0]).toBeNull();
       expect(OPS_EVENTS_WAIT_S).toBe(25);
       await vi.advanceTimersByTimeAsync(3_000);
       await flush();
       await vi.advanceTimersByTimeAsync(3_000);
       await flush();
+      expect(waits[1]).toBe(String(OPS_EVENTS_WAIT_S));
       // No 5 s gap: each answer is followed at once by the next hold.
       expect(afters.slice(0, 3)).toEqual([0, 1, 2]);
       expect(controller.getState().events?.cursor).toBeGreaterThanOrEqual(2);

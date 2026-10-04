@@ -197,6 +197,7 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
     : 1;
   const cellAttributes = (column: (typeof columns)[number]) => ({
     "data-column": column.key,
+    "data-compact": column.compact ?? "inline",
     "data-hide-below": column.hideBelow,
     "data-numeric": column.numeric || undefined,
     "data-align": column.numeric ? "end" : column.align,
@@ -367,17 +368,20 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
                                     order:
                                       index === 0
                                         ? -1
-                                        : (column.priority ?? index),
+                                        : column.compact === "trailing"
+                                          ? 0
+                                          : 2 + (column.priority ?? index),
                                   }}
                                 >
-                                  {index > 0 && (
-                                    <span
-                                      className="openai-mobile-label"
-                                      aria-hidden="true"
-                                    >
-                                      {column.header}
-                                    </span>
-                                  )}
+                                  {index > 0 &&
+                                    column.compactLabel !== false && (
+                                      <span
+                                        className="openai-mobile-label"
+                                        aria-hidden="true"
+                                      >
+                                        {column.header}
+                                      </span>
+                                    )}
                                   <span
                                     className={
                                       index === 0

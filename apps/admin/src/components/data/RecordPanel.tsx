@@ -341,6 +341,8 @@ function History({ record }: { record: DataRecord }) {
           },
           {
             key: "at",
+            compact: "trailing",
+            compactLabel: false,
             header: "Saved",
             render: (entry) => <RelativeTime value={entry.at} />,
           },

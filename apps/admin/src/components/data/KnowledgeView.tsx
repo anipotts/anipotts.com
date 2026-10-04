@@ -216,6 +216,8 @@ function EntityList({
     },
     {
       key: "seen",
+      compact: "trailing",
+      compactLabel: false,
       priority: 1,
       header: "Last seen",
       width: CELL_WIDTHS.time,
@@ -402,6 +404,8 @@ function EntityBody({ entity }: { entity: Entity }) {
               },
               {
                 key: "date",
+                compact: "trailing",
+                compactLabel: false,
                 priority: 1,
                 header: "Date",
                 width: CELL_WIDTHS.time,
