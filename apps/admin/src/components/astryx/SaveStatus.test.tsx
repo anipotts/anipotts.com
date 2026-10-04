@@ -2,7 +2,11 @@
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SaveStatus, type SaveStatusState } from "./SaveStatus";
+import {
+  SaveStatus,
+  saveStatusFromController,
+  type SaveStatusState,
+} from "./SaveStatus";
 
 describe("draft save status", () => {
   let container: HTMLElement;
@@ -30,6 +34,7 @@ describe("draft save status", () => {
 
   it.each<[SaveStatusState, string]>([
     ["unchanged", "No changes"],
+    ["live", "Verified live"],
     ["changed", "Unsaved changes"],
     ["saving", "Saving…"],
     ["saved-locally", "Saved locally"],
@@ -100,5 +105,63 @@ describe("draft save status", () => {
     expect(render("saved-privately").hasAttribute("aria-describedby")).toBe(
       false,
     );
+  });
+});
+
+// The header may summarize publication only when the same saved revision was verified.
+describe("verified publication evidence", () => {
+  const state = {
+    source: "synthetic",
+    revision: 2,
+    status: "saved" as const,
+    conflict: null,
+  };
+  const publication = {
+    action: "publish" as const,
+    revision: 2,
+    phase: "live" as const,
+    publicationId: "receipt",
+    verifiedAt: 1000,
+    blocked: null,
+    superseded: false,
+  } as import("../../lib/editorial-publication-status").DirectPublicationStatus;
+  it("summarizes the current verified revision, then returns to private save evidence for later edits", () => {
+    expect(saveStatusFromController(state, { publication })).toBe("live");
+    expect(
+      saveStatusFromController({ ...state, revision: 3 }, { publication }),
+    ).toBe("saved-privately");
+    expect(
+      saveStatusFromController(
+        { ...state, status: "unsaved" },
+        { publication },
+      ),
+    ).toBe("changed");
+    expect(
+      saveStatusFromController(state, { publication, bodyDirty: true }),
+    ).toBe("changed");
+    expect(
+      saveStatusFromController({ ...state, saveFailed: true }, { publication }),
+    ).toBe("save-failed");
+  });
+  it("requires current, complete and fresh publish evidence", () => {
+    for (const patch of [
+      { phase: "verify" as const },
+      { verifiedAt: null },
+      { publicationId: null },
+      { blocked: "verification_failed" },
+      { superseded: true },
+      { action: "unpublish" as const },
+    ])
+      expect(
+        saveStatusFromController(state, {
+          publication: { ...publication, ...patch },
+        }),
+      ).toBe("saved-privately");
+    expect(
+      saveStatusFromController(state, { publication, publicationStale: true }),
+    ).toBe("saved-privately");
+    expect(
+      saveStatusFromController(state, { publication, localPreview: true }),
+    ).toBe("saved-locally");
   });
 });

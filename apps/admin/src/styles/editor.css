@@ -146,7 +146,8 @@
 }
 /* Astryx paints the field's frame on its wrapper with atomic classes, so
    the reset carries an id-weight chain to outrank them in every state. */
-.document-title .astryx-textarea:not(#\#):not(#\#) {
+.document-title
+  :is(.astryx-textarea, .document-auto-textarea):not(#\#):not(#\#) {
   border-color: transparent;
   box-shadow: none;
   outline: none;
@@ -167,8 +168,15 @@
   resize: none;
   overflow: hidden;
   min-height: var(--spacing-9);
+  /* The SDK caps rows independently of the measured inline height. */
+  max-height: none;
   border-radius: inherit;
   background: transparent;
+}
+@media (max-width: 640px), (pointer: coarse) {
+  .document-auto-textarea textarea {
+    min-height: var(--spacing-11);
+  }
 }
 .editor-address {
   min-width: 0;

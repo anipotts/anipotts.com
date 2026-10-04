@@ -366,7 +366,7 @@ function NewWritingForm({
         {back && (
           <EditorActionBar
             back={back}
-            title={title.trim() || (project ? "New project" : "New article")}
+            title={project ? "New project" : "New article"}
           />
         )}
         <VStack
