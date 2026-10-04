@@ -1,5 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { realpathSync } from "node:fs";
+import { join } from "node:path";
+import { readJson, syncHealth } from "./review-state.mjs";
 
 /** Development-only identity. Read the current revision, not a startup snapshot. */
 export function adminPreviewIdentity(root) {
@@ -26,6 +28,18 @@ export function adminPreviewIdentity(root) {
               revision: git("rev-parse", "HEAD"),
               branch: git("branch", "--show-current"),
               mode: "development",
+              dirty: Boolean(git("status", "--porcelain")),
+              sync: (() => {
+                const value = readJson(
+                  join(root, ".local/published-preview/status.json"),
+                );
+                return { ...value, ...syncHealth(value) };
+              })(),
+              approvals: {
+                code: "review in the integration queue",
+                content: "publish in production admin",
+                deployment: "approve the exact release separately",
+              },
             }),
           );
         } catch {

@@ -67,8 +67,7 @@
   --card-ui-surface: color-mix(in srgb, var(--paper-surface) 80%, transparent);
   --card-ui-border: color-mix(in srgb, var(--paper-ink) 15%, transparent);
   --card-inset: clamp(1rem, 2vw, 1.5rem);
-  --experience-card-padding: var(--card-inset);
-  --card-content-gap: 0.875rem;
+  --card-content-gap: 0.5rem;
   --card-header-gap: 0.75rem;
   --card-title-size: clamp(1.05rem, 2vw, 1.625rem);
   --card-title-weight: 900;
@@ -999,6 +998,9 @@ html[data-theme="dark"] .site-action__mark--adaptive {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--card-header-gap);
+}
+:is(.work-card__header, .experience-feature__heading) {
+  align-items: start;
 }
 :is(.work-card__body, .experience-feature__body) {
   row-gap: var(--card-content-gap);

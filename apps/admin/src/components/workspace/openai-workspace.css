@@ -95,6 +95,9 @@ html[data-astryx-theme="editorial"] {
   color: var(--color-text-secondary);
   font-size: var(--text-label-size);
 }
+[data-admin-ui="openai"] .writing-control-help[data-status="error"] {
+  color: var(--color-error);
+}
 [data-admin-ui="openai"] :is(.openai-toolbar, .writing-toolbar) {
   display: flex;
   flex-wrap: wrap;

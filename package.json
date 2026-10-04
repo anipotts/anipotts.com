@@ -78,7 +78,11 @@
     "prepare": "husky",
     "test:content-publication-migration": "node scripts/ci/content-publication-migration-proof.mjs",
     "test:content-d1-seed": "pnpm turbo build --filter=@anipotts/content... && node --test scripts/ci/content-d1-seed.test.mjs",
-    "content:seed-d1": "node scripts/content/seed-content-d1.mjs"
+    "content:seed-d1": "node scripts/content/seed-content-d1.mjs",
+    "review": "node scripts/dev/review.mjs",
+    "review:status": "node scripts/dev/review.mjs status",
+    "review:doctor": "node scripts/dev/review.mjs doctor",
+    "review:queue": "node scripts/dev/integration-queue.mjs list"
   },
   "lint-staged": {
     "apps/www/**/*.{astro,ts,tsx}": [

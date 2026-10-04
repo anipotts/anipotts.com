@@ -272,6 +272,7 @@ export function TextInput(props: ComponentProps<typeof LegacyInput>) {
         disabled={isDisabled}
         readOnly={isReadOnly}
         invalid={status?.type === "error"}
+        aria-invalid={status?.type === "error" || undefined}
         aria-describedby={help ? `${id}-help` : undefined}
         onChange={(event) => onChange?.(event.target.value, event)}
         onBlur={onBlur}
@@ -289,7 +290,11 @@ export function TextInput(props: ComponentProps<typeof LegacyInput>) {
         }}
       />
       {help && (
-        <small id={`${id}-help`} className="writing-control-help">
+        <small
+          id={`${id}-help`}
+          className="writing-control-help"
+          data-status={status?.type}
+        >
           {help}
         </small>
       )}
@@ -336,12 +341,17 @@ export function TextArea(props: ComponentProps<typeof LegacyTextarea>) {
         disabled={isDisabled}
         readOnly={isReadOnly}
         invalid={status?.type === "error"}
+        aria-invalid={status?.type === "error" || undefined}
         aria-describedby={status?.message ? `${id}-help` : undefined}
         onChange={(event) => onChange?.(event.target.value, event)}
         onBlur={onBlur}
       />
       {status?.message && (
-        <small id={`${id}-help`} className="writing-control-help">
+        <small
+          id={`${id}-help`}
+          className="writing-control-help"
+          data-status={status?.type}
+        >
           {status.message}
         </small>
       )}

@@ -1,4 +1,5 @@
 ---
+import PreviewIdentity from "../../../../scripts/dev/PreviewIdentity.astro";
 import { inlinePlainText } from "@anipotts/content/public/inline";
 import "../styles/global.css";
 import displayFont from "@anipotts/brand/ap-structural/fonts/APStructuralDisplayBlack-v0.2.0-candidate.1.woff2?url";
@@ -246,6 +247,7 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
       import { installPointerModality } from "../scripts/pointer-modality";
       installPointerModality(document);
     </script>
+    {import.meta.env.DEV && <PreviewIdentity />}
   </body>
 </html>
 

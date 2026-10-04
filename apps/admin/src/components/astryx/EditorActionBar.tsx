@@ -181,6 +181,10 @@ export function EditorActionBar({
   menu = [],
 }: EditorActionBarProps) {
   const compact = useCompact();
+  const sections = menu.filter((section) => section.items.length > 0);
+  const hasActions = Boolean(
+    properties || history || preview || publish || sections.length > 0,
+  );
   const barRef = useRef<HTMLElement>(null);
   const commandRef = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -196,8 +200,7 @@ export function EditorActionBar({
           ? commandRef.current
           : bar
         )?.getBoundingClientRect().height ?? 0;
-      if (height > 0)
-        workspace.style.setProperty("--editor-bar-height", `${height}px`);
+      workspace.style.setProperty("--editor-bar-height", `${height}px`);
     };
     const observer = new ResizeObserver(measure);
     observer.observe(bar);
@@ -209,9 +212,8 @@ export function EditorActionBar({
         workspace.style.setProperty("--editor-bar-height", previousHeight);
       else workspace.style.removeProperty("--editor-bar-height");
     };
-  }, []);
+  }, [hasActions]);
   const [sheet, setSheet] = useState(false);
-  const sections = menu.filter((section) => section.items.length > 0);
   return (
     <HStack
       className="editor-bar"
@@ -234,61 +236,68 @@ export function EditorActionBar({
           {save && <SaveStatus state={save} />}
         </VStack>
       </HStack>
-      <HStack
-        className="editor-bar-actions"
-        ref={commandRef}
-        gap={1}
-        vAlign="center"
-        wrap="wrap"
-      >
-        {properties && (
-          <EditorIconButton
-            label="Properties"
-            variant="ghost"
-            icon={<SlidersHorizontalIcon weight="regular" aria-hidden="true" />}
-            aria-pressed={properties.isPressed}
-            isDisabled={properties.isDisabled}
-            onClick={properties.onClick}
-          />
-        )}
-        {history && (
-          <EditorIconButton
-            label="History"
-            variant="ghost"
-            icon={
-              <ClockCounterClockwiseIcon weight="regular" aria-hidden="true" />
-            }
-            aria-pressed={history.isPressed}
-            isDisabled={history.isDisabled}
-            onClick={history.onClick}
-          />
-        )}
-        {preview && <PreviewButton {...preview} />}
-        {publish && (
-          <Button
-            label={publish.label}
-            variant="primary"
-            size="sm"
-            isLoading={publish.isLoading}
-            isDisabled={publish.isDisabled}
-            onClick={publish.onClick}
-          />
-        )}
-        {sections.length > 0 &&
-          (compact ? (
+      {hasActions && (
+        <HStack
+          className="editor-bar-actions"
+          ref={commandRef}
+          gap={1}
+          vAlign="center"
+          wrap="wrap"
+        >
+          {properties && (
             <EditorIconButton
-              label="More actions"
+              label="Properties"
               variant="ghost"
-              icon={<DotsThreeIcon weight="regular" aria-hidden="true" />}
-              aria-haspopup="dialog"
-              aria-expanded={sheet}
-              onClick={() => setSheet(true)}
+              icon={
+                <SlidersHorizontalIcon weight="regular" aria-hidden="true" />
+              }
+              aria-pressed={properties.isPressed}
+              isDisabled={properties.isDisabled}
+              onClick={properties.onClick}
             />
-          ) : (
-            <EditorMoreMenu sections={sections} />
-          ))}
-      </HStack>
-      {compact && (
+          )}
+          {history && (
+            <EditorIconButton
+              label="History"
+              variant="ghost"
+              icon={
+                <ClockCounterClockwiseIcon
+                  weight="regular"
+                  aria-hidden="true"
+                />
+              }
+              aria-pressed={history.isPressed}
+              isDisabled={history.isDisabled}
+              onClick={history.onClick}
+            />
+          )}
+          {preview && <PreviewButton {...preview} />}
+          {publish && (
+            <Button
+              label={publish.label}
+              variant="primary"
+              size="sm"
+              isLoading={publish.isLoading}
+              isDisabled={publish.isDisabled}
+              onClick={publish.onClick}
+            />
+          )}
+          {sections.length > 0 &&
+            (compact ? (
+              <EditorIconButton
+                label="More actions"
+                variant="ghost"
+                icon={<DotsThreeIcon weight="regular" aria-hidden="true" />}
+                aria-haspopup="dialog"
+                aria-expanded={sheet}
+                onClick={() => setSheet(true)}
+              />
+            ) : (
+              <EditorMoreMenu sections={sections} />
+            ))}
+        </HStack>
+      )}
+      {compact && sections.length > 0 && (
         <BottomSheet
           label="More actions"
           isOpen={sheet}

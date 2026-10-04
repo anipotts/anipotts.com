@@ -120,8 +120,8 @@ const shotSizes = "(max-width: 640px) 100vw, 27rem";
     position: relative;
     display: grid;
     place-items: center;
-    padding: var(--experience-card-padding);
-    padding-bottom: var(--s-2);
+    padding: var(--card-inset);
+    padding-bottom: 0;
     overflow: hidden;
     isolation: isolate;
   }
@@ -159,15 +159,14 @@ const shotSizes = "(max-width: 640px) 100vw, 27rem";
     display: flex;
     flex-direction: column;
     gap: var(--card-content-gap);
-    padding: var(--card-content-gap) var(--experience-card-padding)
-      var(--experience-card-padding);
+    padding: var(--card-inset);
   }
 
   .experience-feature__name {
     font-family: var(--display);
     font-size: var(--card-title-size);
     font-weight: var(--card-title-weight);
-    line-height: 1.12;
+    line-height: 1.2;
     overflow-wrap: anywhere;
   }
 

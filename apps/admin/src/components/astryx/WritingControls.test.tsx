@@ -456,3 +456,23 @@ it("forwards the dropdown trigger contract, alignment and scoped portal ownershi
   expect(select).toHaveBeenCalledOnce();
   expect(open).toHaveBeenCalledWith(false);
 });
+
+it.each([TextInput, TextArea])(
+  "keeps borderless field errors visible and announced",
+  (Control) => {
+    show(
+      <Control
+        label="Synthetic field"
+        value="Invalid"
+        status={{ type: "error", message: "Correct this field." }}
+      />,
+    );
+    const input = host.querySelector("input, textarea")!;
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    const help = document.getElementById(
+      input.getAttribute("aria-describedby")!,
+    );
+    expect(help?.textContent).toBe("Correct this field.");
+    expect(help?.getAttribute("data-status")).toBe("error");
+  },
+);

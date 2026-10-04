@@ -1,4 +1,5 @@
 ---
+import PreviewIdentity from "../../../../scripts/dev/PreviewIdentity.astro";
 /**
  * The one admin document: every page's html, head and body. It sets the
  * viewport to cover the whole screen (safe areas come from env()), writes one
@@ -143,5 +144,6 @@ const scriptNonce = Astro.locals.cspNonce;
         <slot />
       )
     }
+    {import.meta.env.DEV && <PreviewIdentity nonce={scriptNonce} />}
   </body>
 </html>

@@ -137,6 +137,21 @@ describe("shared editor action bar", () => {
     expect(host.style.getPropertyValue("--editor-bar-height")).toBe("44px");
   });
 
+  it("omits an empty command row and reserves no phone toolbar offset", () => {
+    compact = true;
+    render({ save: undefined, menu: [{ items: [] }] });
+    expect(host.querySelector(".editor-bar-actions")).toBeNull();
+    expect(host.querySelector("h1")).not.toBeNull();
+    expect(host.style.getPropertyValue("--editor-bar-height")).toBe("0px");
+    render({ history: { onClick: vi.fn() } });
+    expect(host.querySelector('button[aria-label="History"]')).not.toBeNull();
+    expect(
+      observations.some(({ node }) =>
+        node.classList.contains("editor-bar-actions"),
+      ),
+    ).toBe(true);
+  });
+
   it("exposes Properties and History without opening overflow and keeps their state", () => {
     const properties = vi.fn();
     const history = vi.fn();
