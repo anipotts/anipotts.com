@@ -106,10 +106,13 @@ class Events {
   }
 }
 
-function harness(hostCount = 3, reduced = false) {
+function harness(hostCount = 3, reduced = false, localHosts = []) {
   const main = {};
   const hosts = Array.from({ length: hostCount }, (_, index) => {
     const attributes = new Map();
+    const hostAttributes = new Set(
+      localHosts.includes(index) ? ["data-local-current"] : [],
+    );
     const paths = Array.from({ length: 6 }, () => ({
       attributes: new Map(),
       setAttribute(name, value) {
@@ -131,6 +134,9 @@ function harness(hostCount = 3, reduced = false) {
     };
     return {
       dataset: {},
+      hasAttribute(name) {
+        return hostAttributes.has(name);
+      },
       box: {
         left: 20 + (index % 2) * 324,
         top: 100 + Math.floor(index / 2) * 224,
@@ -154,6 +160,7 @@ function harness(hostCount = 3, reduced = false) {
   });
   const document = Object.assign(new Events(), {
     hidden: false,
+    fonts: { ready: Promise.resolve() },
     querySelectorAll(selector) {
       assert.equal(selector, "main:not([inert]) [data-shared-current]");
       return hosts;
@@ -290,6 +297,8 @@ function harness(hostCount = 3, reduced = false) {
   };
 }
 
+// refreshSharedCurrents mounts once document.fonts.ready resolves.
+const fontsSettled = () => new Promise((resolve) => setImmediate(resolve));
 const shapes = (host) => host.paths.map((path) => path.attributes.get("d"));
 const empty = harness(0);
 try {
@@ -311,8 +320,8 @@ try {
   const [first, second, third] = scene.hosts;
   assert.equal(
     scene.randomCalls,
-    1,
-    "choose one composition for the whole page",
+    0,
+    "the route, not chance, chooses one composition for the whole page",
   );
   assert.deepEqual(
     scene.hosts.map((host) => host.svg.attributes.get("viewBox")),
@@ -488,7 +497,7 @@ try {
   );
   assert.equal(
     scene.randomCalls,
-    1,
+    0,
     "resize, scroll, and visibility retain the chosen composition",
   );
 
@@ -523,25 +532,27 @@ try {
   scene.document.dispatch("writing:transition-end");
   assert.equal(
     scene.randomCalls,
-    1,
+    0,
     "returning to a page preserves its composition",
   );
   assert.deepEqual(shapes(first), previousMount);
   cleanup();
   location.pathname = "/work";
   cleanup = mountSharedCurrents();
-  assert.equal(
-    scene.randomCalls,
-    2,
+  assert.equal(scene.randomCalls, 0);
+  assert.notDeepEqual(
+    shapes(first),
+    previousMount,
     "another page chooses its own composition",
   );
-  assert.notDeepEqual(shapes(first), previousMount);
   cleanup();
   scene.document.body = {};
   const observerCount = scene.resizes.length;
   refreshSharedCurrents();
+  await fontsSettled();
   const stableShapes = shapes(first);
   refreshSharedCurrents();
+  await fontsSettled();
   assert.equal(
     scene.resizes.length,
     observerCount + 1,
@@ -552,6 +563,7 @@ try {
   pauseSharedCurrents();
   scene.document.body = {};
   refreshSharedCurrents();
+  await fontsSettled();
   assert.equal(scene.resizes.length, observerCount + 2);
   assert.deepEqual(
     shapes(first),
@@ -561,6 +573,20 @@ try {
   pauseSharedCurrents();
 } finally {
   scene.restore();
+}
+
+// A host marked data-local-current keeps its own full artwork instead of a
+// crop of the shared page-wide scene.
+const local = harness(2, true, [1]);
+try {
+  const cleanup = mountSharedCurrents();
+  assert.deepEqual(
+    local.hosts.map((host) => host.svg.attributes.get("viewBox")),
+    ["0 0 300 200", "0 0 600 320"],
+  );
+  cleanup();
+} finally {
+  local.restore();
 }
 
 console.log(
