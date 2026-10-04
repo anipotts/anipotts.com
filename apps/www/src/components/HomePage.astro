@@ -1,4 +1,5 @@
 ---
+import FittedDisplayHeading from "./FittedDisplayHeading.astro";
 import Shell from "../layouts/Shell.astro";
 import WorkCard from "../components/WorkCard.astro";
 import ExperienceFeatureCard from "../components/ExperienceFeatureCard.astro";
@@ -80,7 +81,7 @@ const profileLd = {
 >
   <section data-rise>
     <h1 class="home-hero">
-      {heading}
+      <FittedDisplayHeading text={heading} />
     </h1>
     <p
       class:list={[
@@ -190,7 +191,7 @@ const profileLd = {
     max-width: none;
     font-size: var(--d-lede);
     line-height: 1.52;
-    text-wrap: pretty;
+    text-wrap: wrap;
   }
 
   .hero-line--compact {
