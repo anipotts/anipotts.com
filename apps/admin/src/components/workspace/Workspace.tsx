@@ -606,9 +606,8 @@ export function FilterMenu({
   );
 }
 
-/** A column: the renderer, a width, and the range below which it hides. The
- * lead column always shows; at compact it is the only one, and the row
- * carries the rest through RowTitle's `mobile`, `end` and `time`. */
+/** A column's renderer and desktop sizing. Narrow tables retain each cell
+ * using explicit compact placement rather than duplicated RowTitle metadata. */
 export type Column<T> = {
   key: string;
   header: ReactNode;
@@ -655,6 +654,12 @@ export type Column<T> = {
   room?: number;
   /** Lower values remain earlier in narrow metadata. */
   priority?: number;
+  /** Narrow rows keep one trailing cell beside the title; inline metadata
+   * wraps beneath it, and detail cells take the full row width. */
+  compact?: "trailing" | "inline" | "detail";
+  /** Omit a repeated visual label for a self-describing badge or timestamp.
+   * Semantic table headers remain available to assistive technology. */
+  compactLabel?: boolean;
   render: (row: T) => ReactNode;
 };
 

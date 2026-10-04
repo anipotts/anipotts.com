@@ -24,6 +24,7 @@ import { VStack } from "@astryxdesign/core/VStack";
 import { Button } from "@astryxdesign/core/Button";
 import { Tooltip } from "@astryxdesign/core/Tooltip";
 import { AppShell } from "@astryxdesign/core/AppShell";
+import { NavigationIconScope } from "./adminThemeIcons";
 import { MobileNav } from "@astryxdesign/core/MobileNav";
 import {
   SideNav,
@@ -569,51 +570,56 @@ export function EditorialWorkspaceShell({
           </SideNav>
         }
       >
-        <MobileNav
-          id={navigationId}
-          className={`admin-navigation-drawer${tabletNavigation ? " admin-tablet-sidebar" : ""}`}
-          label="Admin navigation"
-          header="Navigation"
-          side="start"
-          width={320}
-          isOpen={navigationOpen}
-          onOpenChange={setNavigationOpen}
-        >
-          <SideNav
-            className="editorial-workspace-nav admin-drawer-nav"
-            aria-label="Admin"
-            collapsible={
-              tabletNavigation
-                ? {
-                    isCollapsed: false,
-                    onCollapsedChange: () => setNavigationOpen(false),
-                    hasButton: false,
-                  }
-                : undefined
-            }
-            header={
-              tabletNavigation ? (
-                <WorkspaceIdentity rail={false} localOwner={showLocalOwner} />
-              ) : undefined
-            }
-            footer={
-              tabletNavigation ? (
-                <WorkspaceUtilities rail={false} localPreview={localPreview} />
-              ) : undefined
-            }
+        <NavigationIconScope value>
+          <MobileNav
+            id={navigationId}
+            className={`admin-navigation-drawer${tabletNavigation ? " admin-tablet-sidebar" : ""}`}
+            label="Admin navigation"
+            header="Navigation"
+            side="start"
+            width={320}
+            isOpen={navigationOpen}
+            onOpenChange={setNavigationOpen}
           >
-            <UnifiedNavigation
-              rail={false}
-              activeGroup={workspace}
-              selected={selected}
-              contentHref={destination}
-              groupCounts={groupCounts}
-            />
-            {!tabletNavigation && (
-              <WorkspaceUtilities rail={false} localPreview={localPreview} />
-            )}
-          </SideNav>
-        </MobileNav>
+            <SideNav
+              className="editorial-workspace-nav admin-drawer-nav"
+              aria-label="Admin"
+              collapsible={
+                tabletNavigation
+                  ? {
+                      isCollapsed: false,
+                      onCollapsedChange: () => setNavigationOpen(false),
+                      hasButton: false,
+                    }
+                  : undefined
+              }
+              header={
+                tabletNavigation ? (
+                  <WorkspaceIdentity rail={false} localOwner={showLocalOwner} />
+                ) : undefined
+              }
+              footer={
+                tabletNavigation ? (
+                  <WorkspaceUtilities
+                    rail={false}
+                    localPreview={localPreview}
+                  />
+                ) : undefined
+              }
+            >
+              <UnifiedNavigation
+                rail={false}
+                activeGroup={workspace}
+                selected={selected}
+                contentHref={destination}
+                groupCounts={groupCounts}
+              />
+              {!tabletNavigation && (
+                <WorkspaceUtilities rail={false} localPreview={localPreview} />
+              )}
+            </SideNav>
+          </MobileNav>
+        </NavigationIconScope>
         {children}
       </AppShell>
     </AdminThemeControls.Provider>

@@ -222,6 +222,7 @@ export function recordColumns({
   if (!beside && !hideSource)
     columns.push({
       key: "source",
+      compactLabel: false,
       priority: 2,
       header: "Source",
       width: SOURCE_WIDTH,
@@ -232,6 +233,8 @@ export function recordColumns({
     tiersOnly
       ? {
           key: "state",
+          compact: "inline",
+          compactLabel: false,
           priority: 1,
           header: <span className="sr-only">Tier</span>,
           width: CELL_WIDTHS.tile,
@@ -239,6 +242,8 @@ export function recordColumns({
         }
       : {
           key: "state",
+          compact: "inline",
+          compactLabel: false,
           priority: 1,
           header: "State",
           width: CELL_WIDTHS.state,
@@ -246,6 +251,8 @@ export function recordColumns({
         },
     {
       key: "occurred",
+      compact: "trailing",
+      compactLabel: false,
       priority: 1,
       header: "Occurred",
       width: CELL_WIDTHS.time,
@@ -274,6 +281,8 @@ function withMatch(
     lead!,
     {
       key: "match",
+      compact: "detail",
+      compactLabel: true,
       priority: 2,
       header: "Match",
       hideBelow: "large",
