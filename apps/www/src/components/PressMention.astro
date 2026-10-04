@@ -98,14 +98,11 @@ const { essayHref } = Astro.props;
       line-height: 1.35;
     }
     .press-mention__links a {
-      grid-template-columns: 1rem auto;
+      grid-template-columns: 1rem auto 1rem;
       min-height: 44px;
       padding-inline: 0.5rem;
       column-gap: 0.375rem;
       font-size: 0.75rem;
-    }
-    .press-mention__links :global(svg) {
-      display: none;
     }
   }
   @media (max-width: 359px) {
