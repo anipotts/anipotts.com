@@ -69,68 +69,22 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
   }}
 >
   <head>
-    <link
-      rel="preload"
-      href={displayFont}
-      as="font"
-      type="font/woff2"
-      crossorigin
-    />
-    <link
-      rel="preload"
-      href={interfaceFont}
-      as="font"
-      type="font/woff2"
-      crossorigin
-    />
-    <ClientRouter fallback="swap" />
     <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover"
-    />
-    <title>{fullTitle}</title>
-    <meta name="description" content={description} />
-    {robots && <meta name="robots" content={robots} />}
-    <link rel="canonical" href={canonical} />
-    <link
-      rel="icon"
-      type="image/png"
-      sizes="96x96"
-      href="/brand/ap-favicon-96.png?v=20260929"
-    />
-    <link
-      rel="icon"
-      type="image/png"
-      sizes="32x32"
-      href="/brand/ap-favicon-32.png?v=20260929"
-    />
-    <link
-      rel="icon"
-      href="/brand/ap-favicon.svg?v=20260929"
-      type="image/svg+xml"
-      sizes="any"
-    />
-    <link
-      rel="apple-touch-icon"
-      sizes="180x180"
-      href="/brand/apple-touch-icon.png?v=20260929"
-    />
-    <link rel="alternate" type="application/rss+xml" href="/feed.xml" />
-    <meta name="theme-color" content="#61abea" />
-    <meta property="og:title" content={fullTitle} />
-    <meta property="og:description" content={description} />
-    <meta property="og:type" content={ogType} />
-    <meta property="og:url" content={canonical} />
-    <meta property="og:image" content={cardUrl} />
-    <meta property="og:image:width" content={String(CARD_WIDTH)} />
-    <meta property="og:image:height" content={String(CARD_HEIGHT)} />
-    <meta property="og:image:alt" content={fullTitle} />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={fullTitle} />
-    <meta name="twitter:description" content={description} />
-    <meta name="twitter:image" content={cardUrl} />
-    <meta name="twitter:image:alt" content={fullTitle} />
+    <style is:inline>
+      /* Paint the page canvas before external styles or fonts arrive. */
+      html {
+        background: #61abea;
+        color-scheme: light;
+      }
+      html[data-theme="dark"] {
+        background: #080b10;
+        color-scheme: dark;
+      }
+      body {
+        background: inherit;
+        margin: 0;
+      }
+    </style>
     <script is:inline>
       (() => {
         let stored;
@@ -194,6 +148,68 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
         window.addEventListener("pageshow", syncBrowserTheme);
       })();
     </script>
+    <link
+      rel="preload"
+      href={displayFont}
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href={interfaceFont}
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <ClientRouter fallback="swap" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    {robots && <meta name="robots" content={robots} />}
+    <link rel="canonical" href={canonical} />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="96x96"
+      href="/brand/ap-favicon-96.png?v=20260929"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="/brand/ap-favicon-32.png?v=20260929"
+    />
+    <link
+      rel="icon"
+      href="/brand/ap-favicon.svg?v=20260929"
+      type="image/svg+xml"
+      sizes="any"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="/brand/apple-touch-icon.png?v=20260929"
+    />
+    <link rel="alternate" type="application/rss+xml" href="/feed.xml" />
+    <meta name="theme-color" content="#61abea" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={cardUrl} />
+    <meta property="og:image:width" content={String(CARD_WIDTH)} />
+    <meta property="og:image:height" content={String(CARD_HEIGHT)} />
+    <meta property="og:image:alt" content={fullTitle} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={cardUrl} />
+    <meta name="twitter:image:alt" content={fullTitle} />
+
     <script
       is:inline
       type="application/ld+json"
