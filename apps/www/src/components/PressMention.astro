@@ -12,10 +12,10 @@ const { essayHref } = Astro.props;
   <AmbientFlow kind="work" seed="business-insider" localCrop />
   <img
     class="press-mention__logo"
-    src="/images/brand/business-insider-favicon.svg"
+    src="/images/brand/business-insider-wordmark.svg"
     alt="business insider"
-    width="40"
-    height="40"
+    width="930"
+    height="320"
     decoding="async"
   />
   <div class="press-mention__content">
@@ -62,10 +62,9 @@ const { essayHref } = Astro.props;
     border-radius: 0;
   }
   .press-mention__logo {
-    width: 2.5rem;
-    height: 2.5rem;
+    width: 6rem;
+    height: auto;
     object-fit: contain;
-    border-radius: var(--card-ui-radius);
   }
   .press-mention__content {
     display: grid;
@@ -87,14 +86,17 @@ const { essayHref } = Astro.props;
   .press-mention__links {
     justify-self: end;
   }
+  :global(html[data-theme="dark"]) .press-mention__logo {
+    filter: brightness(0) invert(1);
+  }
   @media (max-width: 640px) {
     .press-mention {
       gap: 0.625rem;
       padding: 1rem;
     }
     .press-mention__logo {
-      width: 2rem;
-      height: 2rem;
+      width: 4.5rem;
+      height: auto;
     }
     .press-mention__content {
       display: contents;
@@ -119,7 +121,7 @@ const { essayHref } = Astro.props;
       font-size: 0.8rem;
     }
   }
-  @media (max-width: 359px) {
+  @media (max-width: 480px) {
     .press-mention {
       grid-template-columns: auto minmax(0, 1fr);
     }
