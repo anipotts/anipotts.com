@@ -13,10 +13,15 @@ function git(...args) {
 }
 
 const base = process.env.CHANGED_SCOPE_BASE || "origin/main";
-const workingTree = process.argv.includes("--working-tree");
-const unknown = process.argv.slice(2).filter((arg) => arg !== "--working-tree");
+const args = process.argv.slice(2);
+const workingTree = !args.includes("--commits-only");
+const unknown = args.filter(
+  (arg) => !["--working-tree", "--commits-only"].includes(arg),
+);
 if (unknown.length)
   throw new Error(`unknown check:changed option: ${unknown.join(", ")}`);
+if (!workingTree && args.includes("--working-tree"))
+  throw new Error("choose either --working-tree or --commits-only");
 const changes = changedFiles({ base, workingTree });
 
 if (changes.length === 0) {
