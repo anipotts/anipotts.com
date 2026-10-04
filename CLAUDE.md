@@ -50,16 +50,30 @@ checks. Changed heads require refreshed checks and affected acceptance evidence.
 Do not enable auto-merge. Same-repository PRs, exact-head provider protection and
 scoped release gates still apply after Ani's review.
 
-### integration owner delegation, September 14, 2026
+### shared integration and resource policy, October 4, 2026
 
-Ani designated Claude Code as the single integration owner for the admin,
-public-site and docs lanes while Codex usage is paused, until Ani reassigns the
-lane. The Codex Quiet Precision heartbeats are paused so there is one owner. For
-this period Ani delegated PR review and serial merge to the integration owner:
-review the exact head, run the full relevant gates, merge one PR at a time after
-required checks pass and review threads are resolved, and accept the automatic
-production deploy. Record the review, merge SHA, deploy run, targets that ran,
-skipped targets and route proof for each merge. Auto-merge stays disabled.
+All Codex and Claude agents follow [the shared runtime policy](docs/shared-runtime-policy.md).
+Keep parallel editing in isolated worktrees. The integration owner alone combines
+worker commits into the persistent local candidate based on GitHub main and owns
+the canonical review servers. Use [the existing integration lane](docs/local-integration-preview.md)
+for the owner chat, checkout and URLs; this supersedes the September 14 temporary
+Claude-only integration delegation. Do not create a competing integration owner.
+
+The default runtime budget is the owner's two persistent previews (www and admin),
+one temporary worker preview when needed, and one heavy verification job at a time
+across this repo on this host. Workers hand off exact revisions and required checks;
+the owner schedules integration and expensive checks without limiting parallel edits.
+Only the owner runs `pnpm review` in the canonical checkout. Other worktrees do not
+start servers, publication watchers or browser sessions by default.
+
+Ani's approval of an identified, checked candidate for merge and production deploy
+is one approval covering both code review and the listed production targets.
+Record both scopes with the same approval evidence; do not ask again between merge
+and ordinary deploy. Approval does not cover later edits or reserved operations.
+Re-read live branch protection immediately before merging and check the exact PR
+head. Complete required release checks on the resulting release tree and record
+provider and route proof. Auto-merge stays disabled. Never infer Ani's approval
+from an integration owner's review, successful checks or local integration.
 
 Scoped approvals that sit inside the hard stops below, granted for this round:
 

@@ -1,0 +1,25 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "www (canonical integration)",
+      "runtimeExecutable": "/bin/zsh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=/Users/anipotts/.nvm/versions/node/v24.19.0/bin:$PATH; cd /Users/anipotts/.codex/worktrees/combined-public-review/anipotts-com && pnpm review && exec tail -n 40 -F .local/dev-servers/www.log"
+      ],
+      "port": 4580,
+      "url": "http://127.0.0.1:4580"
+    },
+    {
+      "name": "admin (canonical integration)",
+      "runtimeExecutable": "/bin/zsh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=/Users/anipotts/.nvm/versions/node/v24.19.0/bin:$PATH; cd /Users/anipotts/.codex/worktrees/combined-public-review/anipotts-com && pnpm review && exec tail -n 40 -F .local/admin-preview/server.log"
+      ],
+      "port": 4311,
+      "url": "http://localhost:4311"
+    }
+  ]
+}
