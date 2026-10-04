@@ -1,4 +1,4 @@
-import { getCollection, getEntry, type CollectionEntry } from "astro:content";
+import { getCollection, type CollectionEntry } from "astro:content";
 import { isPublicProject, isPublishedWriting } from "@anipotts/content/public";
 import { projectSchema, writingSchema } from "@anipotts/content/public/schema";
 import {
@@ -8,7 +8,6 @@ import {
   systemsPageSchema,
 } from "@anipotts/content/public/pages";
 import {
-  overlayByIdentity,
   publicationData,
   publicationHtml,
   type PublicContentContext,
@@ -35,13 +34,19 @@ function uniqueRoutes<T>(entries: T[], slug: (entry: T) => string): T[] {
   }
   return entries;
 }
+/** Bundled seed metadata is only for build-time assets, never runtime visibility. */
+export async function bundledWritingSeed(): Promise<Writing[]> {
+  return (await getCollection("writing")).filter((entry) =>
+    isPublishedWriting(entry.data),
+  );
+}
 export async function publishedWriting(
-  context?: PublicContentContext,
+  context: PublicContentContext,
 ): Promise<Writing[]> {
   const overrides: Writing[] = [];
-  for (const item of (await context?.inventory)?.publications ?? []) {
+  for (const item of (await context.inventory).publications) {
     if (item.record.kind !== "writing") continue;
-    const parsed = publicationData(context!, item);
+    const parsed = publicationData(context, item);
     overrides.push({
       id: item.record.id,
       collection: "writing",
@@ -52,10 +57,7 @@ export async function publishedWriting(
     });
   }
   return uniqueRoutes(
-    overlayByIdentity<Writing>(
-      await getCollection("writing"),
-      overrides,
-    ).filter((entry) => isPublishedWriting(entry.data)),
+    overrides.filter((entry) => isPublishedWriting(entry.data)),
     writingSlug,
   ).sort(
     byNewestThenSlug(
@@ -65,12 +67,12 @@ export async function publishedWriting(
   );
 }
 export async function visibleProjects(
-  context?: PublicContentContext,
+  context: PublicContentContext,
 ): Promise<Project[]> {
   const overrides: Project[] = [];
-  for (const item of (await context?.inventory)?.publications ?? []) {
+  for (const item of (await context.inventory).publications) {
     if (item.record.kind !== "work") continue;
-    const parsed = publicationData(context!, item);
+    const parsed = publicationData(context, item);
     overrides.push({
       id: item.record.id,
       collection: "projects",
@@ -81,10 +83,7 @@ export async function visibleProjects(
     });
   }
   return uniqueRoutes(
-    overlayByIdentity<Project>(
-      await getCollection("projects"),
-      overrides,
-    ).filter((entry) => isPublicProject(entry.data)),
+    overrides.filter((entry) => isPublicProject(entry.data)),
     projectSlug,
   ).sort(byRankThenSlug((entry) => entry.data.sort_order, projectSlug));
 }
@@ -108,15 +107,13 @@ const pageDefinitions = {
 } as const;
 export async function publicPage<K extends keyof typeof pageDefinitions>(
   id: K,
-  context?: PublicContentContext,
+  context: PublicContentContext,
 ) {
   const definition = pageDefinitions[id];
-  const override = ((await context?.inventory)?.publications ?? []).find(
+  const override = (await context.inventory).publications.find(
     (item) => item.record.kind === "page" && item.record.id === id,
   );
-  const data = override
-    ? publicationData(context!, override).data
-    : (await getEntry(definition.collection, id))?.data;
+  const data = override ? publicationData(context, override).data : undefined;
   if (!data) throw new Error("public_page_unavailable");
   return definition.schema.parse(data) as ReturnType<
     (typeof pageDefinitions)[K]["schema"]["parse"]

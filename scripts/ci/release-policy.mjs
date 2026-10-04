@@ -31,11 +31,22 @@ const CI_POLICY_PATHS = [
   /^patches\/@astryxdesign__core@0\.4\.6\.patch$/,
   /^\.github\/editorial-publisher\.pem$/,
   /^\.coderabbit\.yaml$/,
+  /^e2e\.(?:admin|www)\.config\.ts$/,
   /^knip\.jsonc$/,
   /^\.github\/workflows\//,
   /^config\//,
   /^scripts\/ci\//,
   /^(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json)$/,
+];
+
+const PUBLIC_BROWSER_PATHS = [
+  /^e2e\.www\.config\.ts$/,
+  /^scripts\/ci\/public-e2e-(?:server|migrations)\.mjs$/,
+  /^apps\/www\/test\/e2e\//,
+  /^packages\/content\/src\/editorial\//,
+  /^apps\/admin\/migrations\/content-publication\//,
+  /^scripts\/content\/(?:seed-content-d1|content-d1-seed)\.mjs$/,
+  /^(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml)$/,
 ];
 
 const LOCAL_DEV_PATHS = [
@@ -61,9 +72,11 @@ const APPROVAL_PATHS = [
 ];
 
 const KNOWN_SAFE_ROOTS = [
+  /^\.codex\/environments\/environment\.toml$/,
   /^\.(?:gitignore|prettierignore)$/,
   /^patches\/@astryxdesign__core@0\.4\.6\.patch$/,
   /^\.coderabbit\.yaml$/,
+  /^e2e\.(?:admin|www)\.config\.ts$/,
   /^knip\.jsonc$/,
   /^apps\/(?:admin|www)\//,
   /^packages\//,
@@ -79,9 +92,17 @@ const KNOWN_SAFE_ROOTS = [
 
 function parseChange(line) {
   const parts = line.split("\t");
-  if (parts.length === 1) return { status: "M", path: parts[0] };
+  if (parts.length === 1) return [{ status: "M", path: parts[0] }];
   const status = parts[0];
-  return { status, path: parts.at(-1) };
+  if (/^[RC]\d*$/.test(status) && parts.length === 3) {
+    // Renames remove the old path; copies retain it. Both sides affect which
+    // contracts must run, even when the destination is outside the old scope.
+    return [
+      { status: status.startsWith("R") ? "D" : "M", path: parts[1] },
+      { status: "A", path: parts[2] },
+    ];
+  }
+  return [{ status, path: parts.at(-1) }];
 }
 
 export function isReleaseIgnored(path) {
@@ -117,6 +138,9 @@ export function computeDeployTargets(paths) {
 
     if (
       astroBuildConfig ||
+      /^apps\/www\/src\/(?:components|layouts|styles|lib|scripts)\//.test(
+        path,
+      ) ||
       path === ADMIN_CORE_PATCH ||
       path.startsWith("apps/admin/") ||
       path.startsWith("content/public/") ||
@@ -149,7 +173,7 @@ function routeContractChanged(change) {
 
 export function classifyRelease(changeLines, options = {}) {
   const sourceSha = options.sourceSha || "unknown";
-  const changes = changeLines.filter(Boolean).map(parseChange);
+  const changes = changeLines.filter(Boolean).flatMap(parseChange);
   const paths = changes.map((change) => change.path);
   const deployTargets = computeDeployTargets(paths);
   const deletedMigrations = changes.filter(
@@ -214,6 +238,9 @@ export function classifyRelease(changeLines, options = {}) {
     ci_policy_changed: paths.some((path) =>
       CI_POLICY_PATHS.some((pattern) => pattern.test(path)),
     ),
+    public_browser_changed: paths.some((path) =>
+      PUBLIC_BROWSER_PATHS.some((pattern) => pattern.test(path)),
+    ),
     local_dev_changed: paths.some((path) =>
       LOCAL_DEV_PATHS.some((pattern) => pattern.test(path)),
     ),
@@ -243,6 +270,7 @@ export function githubOutputs(release) {
     docs_only: String(release.docs_only),
     migration_preflight_required: String(release.migration_preflight_required),
     ci_policy_changed: String(release.ci_policy_changed),
+    public_browser_changed: String(release.public_browser_changed),
     local_dev_changed: String(release.local_dev_changed),
     d1_changed: String(release.d1_changed),
     migration_risk: release.migration_risk,

@@ -260,6 +260,8 @@ export type OpsStatusState = {
   events: OpsEventLog | null;
   /** The last events read failed; what is held is the last good read. */
   eventsStale: boolean;
+  /** Initial event history catch-up; partial history is never presented as ready. */
+  eventsInitial: "off" | "pending" | "ready" | "failed" | "incomplete";
   /** While `unreachable`: the hop that failed (lib/reader-reach.ts). */
   hop?: Exclude<ReaderHop, "unissued">;
 };
@@ -292,7 +294,8 @@ export function createOpsStatusController(options: OpsStatusOptions) {
   const pollMs = options.pollMs ?? OPS_POLL_MS;
   const timeoutMs = options.timeoutMs ?? OPS_READ_TIMEOUT_MS;
   const listeners = new Set<() => void>();
-  const withEvents = options.events === true;
+  let withEvents = options.events === true;
+  let disposed = false;
   const eventsPollMs = options.eventsPollMs ?? OPS_EVENTS_POLL_MS;
   const eventsWait =
     options.eventsWaitS === undefined ? OPS_EVENTS_WAIT_S : options.eventsWaitS;
@@ -302,6 +305,7 @@ export function createOpsStatusController(options: OpsStatusOptions) {
     checkedAt: null,
     events: withEvents ? EMPTY_EVENT_LOG : null,
     eventsStale: false,
+    eventsInitial: withEvents ? "pending" : "off",
   };
   let etag: string | null = null;
   let timer: Timer | null = null;
@@ -322,6 +326,9 @@ export function createOpsStatusController(options: OpsStatusOptions) {
 
   /** Private data never outlives the credential that read it. */
   function drop(connection: OpsConnection) {
+    // Invalidate a buffered history read before resetting its cursor.
+    cancelEvents();
+    eventsRead = false;
     etag = null;
     set({
       connection,
@@ -329,6 +336,7 @@ export function createOpsStatusController(options: OpsStatusOptions) {
       checkedAt: null,
       events: withEvents ? EMPTY_EVENT_LOG : null,
       eventsStale: false,
+      eventsInitial: withEvents ? "pending" : "off",
     });
   }
 
@@ -370,7 +378,8 @@ export function createOpsStatusController(options: OpsStatusOptions) {
     eventsRead = true;
     const deadline = setTimer(
       () => controller.abort(),
-      timeoutMs + (eventsWait ?? 0) * 1000,
+      timeoutMs +
+        (state.eventsInitial === "ready" ? (eventsWait ?? 0) * 1000 : 0),
     );
     const current = () => eventsInflight === controller && running;
     const began = now();
@@ -398,7 +407,12 @@ export function createOpsStatusController(options: OpsStatusOptions) {
       )
         return stop("denied");
       // Expiry renews through the snapshot loop; anything else is stale.
-      set({ eventsStale: true });
+      set({
+        eventsStale: true,
+        ...(state.eventsInitial !== "ready"
+          ? { eventsInitial: "failed" as const }
+          : {}),
+      });
     } finally {
       clearTimer(deadline);
       if (eventsInflight === controller) {
@@ -544,9 +558,9 @@ export function createOpsStatusController(options: OpsStatusOptions) {
     }
   }
 
-  /** Pages after the held cursor. Each page is kept as it arrives, so a
-   * failure part way keeps what was read and the next poll continues. A
-   * page that breaks the contract clears the events and starts over. */
+  /** Initial history is buffered until catch-up settles; subsequent live
+   * pages publish as they arrive. A failure keeps the last valid cursor,
+   * while a page that breaks the contract clears history and starts over. */
   /** Returns whether any event arrived, and whether one moved the snapshot
    * after the first read (the first read's backlog is history the snapshot
    * already shows). Only the first page waits; later pages of a backlog
@@ -557,20 +571,26 @@ export function createOpsStatusController(options: OpsStatusOptions) {
   ): Promise<{ got: boolean; moved: boolean }> {
     let got = false;
     let moved = false;
+    const initial = state.eventsInitial !== "ready";
+    let log = state.events ?? EMPTY_EVENT_LOG;
+    let stale = false;
+    const publish = (phase: OpsStatusState["eventsInitial"]) =>
+      set({ events: log, eventsStale: stale, eventsInitial: phase });
     const result = () => ({ got, moved });
     for (let page = 0; page < OPS_EVENTS_PAGES_PER_READ; page++) {
-      const log = state.events ?? EMPTY_EVENT_LOG;
       let read: OpsEventsPage;
       try {
         read = await readOpsEvents(session, log.cursor, {
           fetch: options.fetch,
           signal,
-          wait: page === 0 ? eventsWait : null,
+          wait: page === 0 && !initial ? eventsWait : null,
         });
       } catch (error) {
         if (!current()) return result();
         if (error instanceof OpsSnapshotError) {
-          set({ events: EMPTY_EVENT_LOG, eventsStale: true });
+          log = EMPTY_EVENT_LOG;
+          stale = true;
+          publish("failed");
           return result();
         }
         // Credential failures end or renew the session, as for the snapshot.
@@ -580,29 +600,37 @@ export function createOpsStatusController(options: OpsStatusOptions) {
         )
           throw error;
         // Anything else leaves the snapshot alone: events are marked stale.
-        set({ eventsStale: true });
+        stale = true;
+        publish(initial ? "failed" : "ready");
         return result();
       }
       if (!current()) return result();
       got ||= read.items.length > 0;
       moved ||= log.cursor > 0 && opsEventsMoveSnapshot(read.items);
-      set({
-        events: appendOpsEvents(
-          log,
-          read.items,
-          read.unknownFields,
-          read.lastSeq,
-          read.skipped,
-        ),
-        // Mostly unreadable is drift: the cursor still moves past it, and
-        // the events read as not current until a readable page arrives.
-        eventsStale: opsEventsDrifted(
-          read.skipped,
-          read.items.length + read.skipped,
-        ),
-      });
-      if (read.nextAfter === null) return result();
+      log = appendOpsEvents(
+        log,
+        read.items,
+        read.unknownFields,
+        read.lastSeq,
+        read.skipped,
+      );
+      // Preserve evidence of drift anywhere in an initial backlog, rather
+      // than allowing its final readable page to erase it.
+      const drifted = opsEventsDrifted(
+        read.skipped,
+        read.items.length + read.skipped,
+      );
+      stale = initial ? stale || drifted : drifted;
+      if (read.nextAfter === null) {
+        publish(initial && stale ? "failed" : "ready");
+        return result();
+      }
+      if (!initial) publish("ready");
     }
+    // Preserve the cursor for the next bounded read, and make the partial
+    // result explicit instead of declaring the initial history complete.
+    stale = true;
+    publish(initial ? "incomplete" : "ready");
     return result();
   }
 
@@ -643,11 +671,13 @@ export function createOpsStatusController(options: OpsStatusOptions) {
     },
     /** Starts polling. Also the owner's "Try again". */
     start() {
+      if (disposed) return;
       running = true;
       if (!inflight) schedule(0);
     },
     /** Pauses on hide; on show, reads now if the last read is due. */
     visibilityChanged() {
+      if (disposed) return;
       if (isHidden()) {
         if (timer !== null) clearTimer(timer);
         timer = null;
@@ -666,10 +696,26 @@ export function createOpsStatusController(options: OpsStatusOptions) {
       session.logout();
       stop("ended");
     },
+    /** Event polling follows current consumer demand, using the same session. */
+    setEventsEnabled(enabled: boolean) {
+      if (disposed || withEvents === enabled) return;
+      withEvents = enabled;
+      cancelEvents();
+      eventsRead = false;
+      shortHolds = 0;
+      set({
+        events: enabled ? EMPTY_EVENT_LOG : null,
+        eventsStale: false,
+        eventsInitial: enabled ? "pending" : "off",
+      });
+      if (enabled) scheduleEvents(0);
+    },
     dispose() {
+      if (disposed) return;
+      disposed = true;
       unsubscribe();
-      running = false;
-      cancel();
+      stop("ended");
+      listeners.clear();
     },
   };
 }

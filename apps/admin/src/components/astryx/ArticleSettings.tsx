@@ -1,12 +1,12 @@
 import React from "react";
 import { ArticleDate } from "./ArticleDate";
 import { TagInput } from "./TagInput";
-import { Selector } from "@astryxdesign/core/Selector";
+import { Selector } from "./WritingControls";
 import { FormLayout } from "@astryxdesign/core/FormLayout";
 import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
-import { IconButton } from "@astryxdesign/core/IconButton";
+import { IconButton } from "./WritingControls";
 import { CopySimpleIcon, GlobeSimpleIcon } from "@phosphor-icons/react";
 import { Collapsible, CollapsibleGroup } from "@astryxdesign/core/Collapsible";
 import {

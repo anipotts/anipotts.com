@@ -138,7 +138,9 @@ export class LinkVault extends DurableObject {
   private async handleWebSocketUpgrade(): Promise<Response> {
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair) as [WebSocket, WebSocket];
-    this.ctx.acceptWebSocket(server);
+    // Only sockets opened through the authenticated worker route receive
+    // broadcasts. Untagged sockets from older deployments stay excluded.
+    this.ctx.acceptWebSocket(server, ["private-read-v1"]);
     const links = await this.list();
     server.send(this.serialize({ type: "snapshot", links }));
     return new Response(null, { status: 101, webSocket: client });
@@ -157,7 +159,7 @@ export class LinkVault extends DurableObject {
 
   private broadcast(event: LinkVaultEvent): void {
     const data = this.serialize(event);
-    for (const ws of this.ctx.getWebSockets()) {
+    for (const ws of this.ctx.getWebSockets("private-read-v1")) {
       try {
         ws.send(data);
       } catch {

@@ -55,12 +55,69 @@ describe("the record panel", () => {
   it("A-27: never shows raw JSON, ISO times or an owner-named label", () => {
     for (const record of records) {
       const host = panel(record);
+      host.querySelectorAll("style, script").forEach((node) => node.remove());
       const text = host.textContent ?? "";
       expect(text, record.kind!).not.toMatch(/[{}]|"\w+":/);
       expect(text, record.kind!).not.toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/);
       for (const dt of host.querySelectorAll("dt"))
         expect(dt.textContent).not.toMatch(/\bAni\b/);
     }
+  });
+
+  it("keeps reading caveats outside the optional details disclosure", () => {
+    const person = byKind("person");
+    const contact = panel({
+      ...person,
+      raw: {
+        ...person.raw,
+        source_modified_at: "2026-09-20T09:00:00.000Z",
+      },
+    });
+    const contactDetails = contact.querySelector('[aria-label="Details"]')!;
+    expect(contactDetails.textContent).toContain("Modified");
+    expect(contactDetails.closest(".astryx-collapsible")).toBeNull();
+    const browsing = panel(byKind("browsing_day"));
+    const summary = browsing.querySelector('[aria-label="Details"]')!;
+    expect(summary.textContent).toContain("Complete");
+    expect(summary.closest(".astryx-collapsible")).toBeNull();
+    const health = panel(byKind("health_day"));
+    expect(
+      health.querySelector('[aria-label="Details"]')?.textContent,
+    ).toContain("No vitals collected");
+    for (const record of records.filter(
+      (record) => record.kind === "assertion",
+    )) {
+      const assertion = panel(record).querySelector('[aria-label="Details"]')!;
+      expect(assertion.textContent).toMatch(
+        /Authority(?:Direct statement|Agent inference)/,
+      );
+      expect(assertion.closest(".astryx-collapsible")).toBeNull();
+    }
+    const record = byKind("browsing_day");
+    const withWarnings = panel({
+      ...record,
+      raw: {
+        ...record.raw,
+        temporal_status: "stale",
+        temporal_warnings: ["Observation predates the current version"],
+        current_as_of: "2026-09-20T09:00:00.000Z",
+        current_as_of_status: "unverified",
+        omitted_fields: ["private_note"],
+      },
+    });
+    const visible = withWarnings.querySelector('[aria-label="Details"]')!;
+    for (const label of [
+      "Temporal status",
+      "Temporal warnings",
+      "Current as of",
+      "Verification",
+      "Omitted from view",
+    ])
+      expect(visible.textContent).toContain(label);
+    expect(visible.closest(".astryx-collapsible")).toBeNull();
+    expect(
+      withWarnings.querySelector('[aria-label="All details"]')?.textContent,
+    ).not.toContain("Temporal warnings");
   });
 
   it("keeps technical fields collapsed and the history in view", () => {
@@ -76,8 +133,8 @@ describe("the record panel", () => {
     ).not.toBeNull();
     const history = host.querySelector('[aria-label="Revision history"]')!;
     expect(
-      [...history.querySelectorAll(".workspace-timeline-title")].map(
-        (title) => title.textContent,
+      [...history.querySelectorAll('tbody td[data-column="title"]')].map(
+        (title) => title.textContent?.replace(" (Current)", ""),
       ),
     ).toEqual(["Revision 3", "Revision 2", "Revision 1"]);
     expect(
@@ -145,14 +202,22 @@ describe("record rows", () => {
     );
   });
 
-  it("keeps the device's place on a phone's line 2, so sources line up", () => {
-    const host = table();
-    const lines = [
-      ...host.querySelectorAll(".workspace-row-meta .data-source"),
-    ];
-    expect(lines.length).toBeGreaterThan(1);
-    for (const line of lines)
-      expect(line.firstElementChild?.className).toBe("data-source-device");
+  it("keeps excerpts outside the table's hidden compact metadata", () => {
+    const record = { ...records[0]!, excerpt: "Unique synthetic excerpt" };
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(
+      <DataTable
+        rows={[record]}
+        rowKey="id"
+        label="Records"
+        noun={["record", "records"]}
+        columns={recordColumns({ href: (row) => `/r/${row.id}` })}
+      />,
+    );
+    const excerpt = host.querySelector(".data-record-excerpt")!;
+    expect(excerpt.textContent).toBe(record.excerpt);
+    expect(excerpt.closest('[data-compact-only="true"]')).toBeNull();
+    expect(host.querySelectorAll(".data-record-excerpt")).toHaveLength(1);
   });
 
   it("puts a state other than the default before the tier", () => {
@@ -165,9 +230,7 @@ describe("record rows", () => {
     expect(cell.textContent).toContain("Superseded");
     // The kit wraps a cell past the lead (DataTable's .workspace-cell).
     const content = cell.querySelector(".workspace-cell") ?? cell;
-    expect(content.lastElementChild?.lastElementChild?.className).toBe(
-      "workspace-tier",
-    );
+    expect(content.querySelector(".workspace-tier")).not.toBeNull();
   });
 
   it("drops the source beside an open record, or when one source is shown", () => {

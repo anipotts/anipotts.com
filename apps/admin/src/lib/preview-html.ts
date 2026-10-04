@@ -1,5 +1,28 @@
 import { publicSiteUrl } from "./editorial-content";
-import { editorialImagePreview } from "./editorial-media";
+import { previewMediaUrl, previewMediaSrcset } from "./preview-media";
+import { previewFailure } from "./preview-status";
+
+/** Rendering and response materialization must both report failure to the
+ * parent. An ordinary framework error page has no preview handshake. */
+export async function renderPreviewResponse(
+  render: () => Promise<Response>,
+  requestUrl: URL,
+): Promise<Response> {
+  try {
+    const response = await render();
+    return await previewResponse(
+      response.status >= 500
+        ? previewFailure(requestUrl, "unavailable", 503)
+        : response,
+      requestUrl,
+    );
+  } catch {
+    return previewResponse(
+      previewFailure(requestUrl, "unavailable", 503),
+      requestUrl,
+    );
+  }
+}
 
 /** The two draft preview frames the editor embeds. */
 export const PREVIEW_PATHS = new Set(["/preview/home", "/preview/record"]);
@@ -48,22 +71,33 @@ export async function previewResponse(
   requestUrl: URL,
 ): Promise<Response> {
   if (response.headers.get("Content-Type")?.includes("text/html")) {
+    const media = {
+      requestUrl,
+      publicSiteUrl,
+      localAssets: import.meta.env.DEV,
+    };
+    const attribute = (value: string) =>
+      value.replaceAll("&", "&amp;").replaceAll('"', "&quot;");
     const html = (await response.text())
+      // A self-sizing frame must follow content height, not its own viewport.
+      // Otherwise loading large images can permanently inflate the preview.
+      .replace("</head>", "<style>body{min-height:0}</style></head>")
       .replace(
-        /(src|poster)="(\/(?:images|media|fonts)\/[^"<>]*)"/g,
-        (_match, attribute, path) => {
-          const preview = editorialImagePreview(path);
-          const base =
-            preview !== path || import.meta.env.DEV
-              ? requestUrl
-              : publicSiteUrl;
-          return `${attribute}="${new URL(preview, base).href}"`;
-        },
+        /(src|poster)="([^"<>]*)"/gu,
+        (_match, name, source) =>
+          `${name}="${attribute(previewMediaUrl(source, media))}"`,
       )
       .replace(
-        /<a(\s[^>]*?)href="(\/(?!\/)[^"<>]*)"/g,
-        (_match, attributes, path) =>
-          `<a${attributes}href="${new URL(path, publicSiteUrl).href}"`,
+        /srcset="([^"<>]*)"/gu,
+        (_match, sources) =>
+          `srcset="${attribute(previewMediaSrcset(sources, media))}"`,
+      )
+      .replace(
+        /<a(\s[^>]*?)href="(\/(?!\/)[^"<>]*)"/gu,
+        (_match, attributes, path) => {
+          const resolved = previewMediaUrl(path, media);
+          return `<a${attributes}href="${attribute(resolved !== path ? resolved : new URL(path.replaceAll("&amp;", "&"), publicSiteUrl).href)}"`;
+        },
       );
     response = new Response(html, {
       status: response.status,

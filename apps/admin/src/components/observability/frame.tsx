@@ -493,6 +493,13 @@ export function OpsPage({
       <WorkspacePage
         title={OPS_VIEW_TITLES[view]}
         count={count}
+        countNoun={
+          view === "status"
+            ? ["service", "services"]
+            : view === "alerts"
+              ? ["alert", "alerts"]
+              : ["event", "events"]
+        }
         clock={data.fixedNow}
         meta={retained ? opsMeta(data, view) : undefined}
         badge={

@@ -1,0 +1,118 @@
+/* Resolve the canonical theme before the SDK's identically named tokens enter
+   the cascade. Portals inherit these aliases from the document, too. */
+html[data-astryx-theme="editorial"] {
+  --admin-ui-text: var(--color-text-primary);
+  --admin-ui-text-secondary: var(--color-text-secondary);
+  --admin-ui-canvas: var(--color-background-body);
+  --admin-ui-surface: var(--color-background-surface);
+  --admin-ui-popover: var(--color-background-popover);
+  --admin-ui-muted: var(--color-background-muted);
+  --admin-ui-border: var(--color-border);
+  --admin-ui-hover: var(--color-overlay-hover);
+}
+
+/* SDK controls share the application's visual vocabulary. The boundary is
+   content-only: it never owns the sidebar, document typography or page gutter. */
+[data-admin-ui="openai"] {
+  --font-sans: var(--font-interface);
+  --font-mono: var(--font-code);
+  --font-body: var(--font-interface);
+  --font-heading: var(--font-interface);
+  --font-family-body: var(--font-interface);
+  --font-family-heading: var(--font-interface);
+  --font-family-code: var(--font-code);
+  --color-text: var(--admin-ui-text);
+  --color-text-secondary: var(--admin-ui-text-secondary);
+  --color-text-tertiary: var(--admin-ui-text-secondary);
+  --color-text-muted: var(--admin-ui-text-secondary);
+  --color-surface: var(--admin-ui-canvas);
+  --color-surface-secondary: var(--admin-ui-surface);
+  --color-surface-elevated: var(--admin-ui-popover);
+  --color-surface-raised: var(--admin-ui-surface);
+  --color-border: var(--admin-ui-border);
+  --color-border-primary-outline: var(--admin-ui-border);
+  --color-border-secondary-outline: var(--admin-ui-border);
+  --color-background-primary-solid: var(--color-accent);
+  --color-background-primary-solid-hover: var(--color-accent);
+  --color-text-primary-solid: var(--color-on-accent);
+  --color-background-secondary-soft: var(--admin-ui-muted);
+  --color-background-secondary-soft-hover: var(--admin-ui-hover);
+  --color-background-secondary-ghost-hover: var(--admin-ui-hover);
+  --input-outline-background-color: var(--admin-ui-surface);
+  --input-outline-border-color: var(--admin-ui-border);
+  --control-font-size-lg: var(--text-supporting-size);
+  --control-size-lg: var(--spacing-9);
+  --control-radius-sm: var(--radius-inner);
+  --control-radius-md: var(--radius-element);
+  --control-radius-lg: var(--radius-element);
+  --control-radius-xl: var(--radius-element);
+  --alert-border-radius: var(--radius-container);
+  --menu-radius: var(--radius-container);
+  --popover-radius: var(--radius-container);
+  --composer-radius: var(--radius-container);
+  font-family: var(--font-interface);
+  font-size: var(--text-body-size);
+  color: var(--color-text);
+}
+.admin-openai-boundary {
+  min-width: 0;
+  width: 100%;
+  background: var(--color-surface);
+}
+[data-admin-ui="openai"][data-theme="light"] {
+  color-scheme: light;
+}
+[data-admin-ui="openai"][data-theme="dark"] {
+  color-scheme: dark;
+}
+[data-admin-ui="openai"] :is(h1, h2, h3, h4, p) {
+  font-family: inherit;
+}
+/* Keep a keyboard indicator without ringing the writing surface on pointer
+   focus. The shell's existing focus treatment remains outside this boundary. */
+[data-admin-ui="openai"] :is(button, a, input, textarea, select):focus-visible {
+  outline: var(--spacing-0-5) solid var(--color-accent);
+  outline-offset: var(--spacing-0-5);
+}
+[data-admin-ui="openai"] .openai-search {
+  flex: 1;
+  min-width: 0;
+  max-width: 28rem;
+}
+[data-admin-ui="openai"]
+  :is(.openai-field, .openai-control-stack, .writing-control-field) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1-5);
+  min-width: 0;
+}
+[data-admin-ui="openai"] :is(.openai-field label, .writing-control-label) {
+  font-size: var(--text-supporting-size);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+[data-admin-ui="openai"] :is(.openai-field-hint, .writing-control-help) {
+  color: var(--color-text-secondary);
+  font-size: var(--text-label-size);
+}
+[data-admin-ui="openai"] :is(.openai-toolbar, .writing-toolbar) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-1);
+  align-items: center;
+}
+[data-admin-ui="openai"] .editor-save-status {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  flex-shrink: 0;
+}
+@media (max-width: 640px), (pointer: coarse) {
+  [data-admin-ui="openai"] {
+    --control-size-lg: var(--spacing-11);
+  }
+  [data-admin-ui="openai"]
+    :is(button:not([role="checkbox"]), [role="button"], input, select) {
+    min-height: var(--spacing-11);
+  }
+}

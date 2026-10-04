@@ -27,11 +27,53 @@ const workflowFiles = readdirSync(WORKFLOW_DIR)
 
 const deployWorkflow = readFileSync(join(WORKFLOW_DIR, "deploy.yml"), "utf8");
 const ciWorkflow = readFileSync(join(WORKFLOW_DIR, "ci.yml"), "utf8");
+const ciJobs = parse(ciWorkflow).jobs;
+assert.equal(
+  ciJobs.classify.outputs.public_browser_changed,
+  "${{ steps.release.outputs.public_browser_changed }}",
+);
+for (const name of [
+  "Install public browser targets",
+  "Validate local CMS runtime and public journeys",
+]) {
+  const step = ciJobs.ci.steps.find((candidate) => candidate.name === name);
+  assert.ok(step, `${name} must exist`);
+  assert.match(step.if, /needs\.classify\.outputs\.public_browser_changed/);
+}
 const securityWorkflow = readFileSync(
   join(WORKFLOW_DIR, "security-review.yml"),
   "utf8",
 );
 const smokeWorkflow = readFileSync(join(WORKFLOW_DIR, "smoke.yml"), "utf8");
+const smokeJob = parse(smokeWorkflow).jobs.smoke;
+assert.equal(smokeJob.env.EXPECTED_SHA, "${{ inputs.commit_sha }}");
+assert.equal(smokeJob.env.EXPECTED_SCHEMA, "${{ inputs.schema_version }}");
+assert.equal(smokeJob.env.SMOKE_MODE, "${{ inputs.mode }}");
+const smokeAuthority = smokeJob.steps.find(
+  (step) => step.name === "Verify manual smoke authority",
+);
+assert.ok(smokeAuthority, "manual smoke must verify actor and branch");
+assert.equal(smokeAuthority.env.EVENT_ACTOR, "${{ github.actor }}");
+assert.equal(smokeAuthority.env.EVENT_REF, "${{ github.ref }}");
+assert.ok(smokeAuthority.run.includes('test "$EVENT_ACTOR" = "anipotts"'));
+assert.ok(smokeAuthority.run.includes('test "$EVENT_REF" = "refs/heads/main"'));
+assert.ok(
+  smokeAuthority.run.includes('[[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]'),
+);
+assert.ok(
+  smokeJob.steps.indexOf(smokeAuthority) <
+    smokeJob.steps.findIndex((step) => step.uses === "actions/checkout@v7"),
+  "manual smoke authority must be checked before repository code runs",
+);
+for (const step of smokeJob.steps) {
+  if (typeof step.run === "string") {
+    assert.equal(
+      step.run.includes("${{ inputs."),
+      false,
+      `manual input must not be interpolated into shell code in ${step.name}`,
+    );
+  }
+}
 const codeRabbit = readFileSync(".coderabbit.yaml", "utf8");
 assert.match(ciWorkflow, /types:.*ready_for_review/);
 assert.match(
@@ -189,17 +231,62 @@ assert.ok(
 for (const manualGuard of [
   'test "${{ github.ref }}" = "refs/heads/main"',
   'test "${{ github.actor }}" = "anipotts"',
-  'test "${{ inputs.source_sha }}" = "${{ github.sha }}"',
+  "APPROVED_SOURCE_SHA: ${{ inputs.source_sha }}",
+  'test "$APPROVED_SOURCE_SHA" = "${{ github.sha }}"',
 ]) {
   assert.ok(
     deployWorkflow.includes(manualGuard),
     `manual deployment is missing exact authority guard ${manualGuard}`,
   );
 }
+assert.equal(
+  deployWorkflow.includes('test "${{ inputs.source_sha }}"'),
+  false,
+  "manual source SHA must not be interpolated into shell code",
+);
 assert.ok(
   deployWorkflow.includes("d1 time-travel info"),
   "migration releases must capture a Time Travel bookmark",
 );
+const releasePreflight = deployWorkflow
+  .split("  release:\n")[1]
+  ?.split("  production-gate:\n")[0];
+const gatedMigration = deployWorkflow
+  .split("  production-gate:\n")[1]
+  ?.split("  deploy-www:\n")[0];
+assert.ok(
+  releasePreflight && gatedMigration,
+  "production gate must follow release preflight",
+);
+assert.equal(
+  releasePreflight.includes("secrets."),
+  false,
+  "preflight must not read production secrets",
+);
+assert.equal(
+  releasePreflight.includes("--remote"),
+  false,
+  "preflight must not touch remote D1",
+);
+assert.ok(
+  gatedMigration.includes("environment: Production") &&
+    gatedMigration.includes("d1 migrations apply"),
+  "remote migrations require the Production environment",
+);
+for (const job of [
+  "deploy-www",
+  "deploy-admin",
+  "deploy-ingest",
+  "deploy-weekly-email",
+  "deploy-state",
+  "deploy-newsletter",
+]) {
+  const block = deployWorkflow.split(`  ${job}:\n`)[1]?.split("\n  deploy-")[0];
+  assert.ok(
+    block?.includes("production-gate"),
+    `${job} must depend on the production gate`,
+  );
+}
 assert.equal(
   /d1\s+time-travel\s+restore/.test(deployWorkflow),
   false,
@@ -237,6 +324,29 @@ for (const [file, workflow] of [
   }
 }
 const deployJobs = parse(deployWorkflow).jobs;
+assert.equal(
+  deployJobs["production-gate"].environment,
+  "Production",
+  "the first production effect must wait for the protected environment",
+);
+for (const [name, job] of Object.entries(deployJobs)) {
+  if (!JSON.stringify(job).includes("${{ secrets.")) continue;
+  assert.equal(
+    job.environment,
+    "Production",
+    `${name} must keep production credentials behind the protected environment`,
+  );
+  if (name === "production-gate") continue;
+  assert.ok(
+    job.needs?.includes("production-gate"),
+    `${name} must wait for the approved production gate`,
+  );
+}
+assert.equal(
+  smokeJob.environment,
+  "Production",
+  "manual smoke credentials must wait for the protected environment",
+);
 for (const job of ["deploy-www", "deploy-admin"]) {
   const forward = deployJobs[job].steps.filter(
     (step) =>
@@ -279,11 +389,35 @@ for (const job of ["deploy-www", "deploy-admin"]) {
   );
 }
 
-// A deploy job runs only after the release job succeeded. always() would let
-// admin deploy after a held migration, schema drift or a failed postcondition.
+// Every deploy requires the approved production gate. Admin also waits for the public
+// reader, allowing a skipped reader only when www was not selected.
 for (const [name, job] of Object.entries(deployJobs)) {
   if (!name.startsWith("deploy-")) continue;
-  assert.deepEqual(job.needs, ["release"], `${name} depends only on release`);
+  if (name === "deploy-admin") {
+    assert.deepEqual(job.needs, ["release", "production-gate", "deploy-www"]);
+    assert.match(
+      job.if,
+      /^always\(\) &&\s*needs\.release\.result == 'success' &&/,
+    );
+    assert.match(job.if, /needs\.deploy-www\.result == 'success' \|\|/);
+    assert.match(job.if, /needs\.production-gate\.result == 'success'/);
+    assert.match(job.if, /needs\.deploy-www\.result == 'skipped' &&/);
+    assert.match(
+      job.if,
+      /github\.event_name == 'push' && needs\.release\.outputs\.www != 'true'/,
+    );
+    assert.match(
+      job.if,
+      /github\.event_name == 'workflow_dispatch' && inputs\.www != 'true'/,
+    );
+    assert.doesNotMatch(job.if, /\b(?:failure|cancelled)\(\)/);
+    continue;
+  }
+  assert.deepEqual(
+    job.needs,
+    ["release", "production-gate"],
+    `${name} depends on the approved release`,
+  );
   assert.equal(
     /\b(?:always|failure|cancelled)\(\)/.test(job.if),
     false,
@@ -292,7 +426,7 @@ for (const [name, job] of Object.entries(deployJobs)) {
 }
 assert.match(
   deployJobs["deploy-admin"].if,
-  /^needs\.release\.result == 'success' &&/,
+  /^always\(\) &&\s*needs\.release\.result == 'success' &&/,
   "deploy-admin must require a successful release job",
 );
 

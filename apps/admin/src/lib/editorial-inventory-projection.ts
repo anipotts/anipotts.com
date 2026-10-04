@@ -18,7 +18,7 @@ export type InventoryEntry = {
   body?: string;
   /** Set when the content store holds this record, so a hidden state there
    * means it was published and then taken off the site. */
-  published?: boolean;
+  published?: boolean | null;
   /** When the content store last published this record. */
   publishedAt?: string;
   /** The content store's id for that publication. The Git seed's are
@@ -73,36 +73,24 @@ function timestamp(value: number): string | undefined {
  * moment the seed ran, not a publish. */
 export const SEED_PUBLICATION_PREFIX = "git-seed.";
 
-/** Whether a publication is a real one: an edit or publish through the
- * editor, never the Git seed's copy. */
+/** Every active CMS identity counts, including explicitly activated Git seeds. */
 export function editorPublication(publicationId: string | undefined): boolean {
-  return (
-    typeof publicationId === "string" &&
-    publicationId !== "" &&
-    !publicationId.startsWith(SEED_PUBLICATION_PREFIX)
-  );
+  return typeof publicationId === "string" && publicationId !== "";
 }
 
 /** A record's public state that keeps it on the site. */
 const LIVE_STATES = new Set(["published", "featured", "listed"]);
 
-/**
- * The time a Content row reads: the newer of the content store's publish and
- * the last Git change. Only a real publication counts; a seeded revision
- * keeps its Git time, since the seed's stamp is when the seed ran. A real
- * publication that took the record off the site reads "Hidden from site",
- * never Published. An older publish never hides a newer commit.
- */
+/** Publication provenance belongs to CMS; Git file dates are authoring metadata. */
 export function latestPublishedUpdate(
   publication: { publishedAt?: string; publicationId?: string } | undefined,
-  git: CatalogRecord["updated"],
+  _git: CatalogRecord["updated"],
   status?: string,
 ): CatalogRecord["updated"] {
-  if (!publication || !editorPublication(publication.publicationId)) return git;
+  if (!publication || !editorPublication(publication.publicationId))
+    return undefined;
   const cms = Date.parse(publication.publishedAt ?? "");
-  if (!Number.isFinite(cms)) return git;
-  const gitAt = Date.parse(git?.at ?? "");
-  if (Number.isFinite(gitAt) && gitAt >= cms) return git;
+  if (!Number.isFinite(cms)) return undefined;
   return {
     at: new Date(cms).toISOString(),
     source: status !== undefined && !LIVE_STATES.has(status) ? "hidden" : "cms",
@@ -254,17 +242,21 @@ export function projectEditorialInventory(
     );
     const status = isPrivateOnly
       ? "draft"
-      : entry.collection === "projects"
-        ? (text(entry.data.public_state) ?? "hidden")
-        : entry.collection === "writing" && entry.published
-          ? // Unpublished writing keeps status draft in its hidden revision.
-            text(entry.data.status) === "published"
-            ? "published"
-            : "hidden"
-          : entry.collection === "writing" ||
-              entry.collection === "newsletterPage"
-            ? (text(entry.data.status) ?? "draft")
-            : "published";
+      : entry.published === null
+        ? "unknown"
+        : entry.published === false
+          ? "unpublished"
+          : entry.collection === "projects"
+            ? (text(entry.data.public_state) ?? "hidden")
+            : entry.collection === "writing" && entry.published
+              ? // Unpublished writing keeps status draft in its hidden revision.
+                text(entry.data.status) === "published"
+                ? "published"
+                : "hidden"
+              : entry.collection === "writing" ||
+                  entry.collection === "newsletterPage"
+                ? (text(entry.data.status) ?? "draft")
+                : "published";
     const publishedUpdated = isPrivateOnly
       ? undefined
       : latestPublishedUpdate(
@@ -286,7 +278,10 @@ export function projectEditorialInventory(
     records.set(`${entry.collection}:${entry.id}`, {
       collection: entry.collection,
       id: entry.id,
-      ...(entry.collection === "writing" && !isPrivateOnly
+      ...(entry.collection === "writing" &&
+      entry.published === true &&
+      status === "published" &&
+      !isPrivateOnly
         ? { publishedSlug: text(entry.data.slug) ?? entry.id }
         : {}),
       title: text(data.title) ?? text(entry.data.title) ?? entry.id,

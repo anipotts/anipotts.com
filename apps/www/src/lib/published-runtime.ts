@@ -82,15 +82,6 @@ export function publicationIsVisible(
   return publication.record.id !== "newsletter";
 }
 
-/** Overlay complete editable records before filtering public visibility. */
-export function overlayByIdentity<T extends { id: string }>(
-  base: T[],
-  overrides: T[],
-): T[] {
-  const entries = new Map(base.map((entry) => [entry.id, entry]));
-  for (const entry of overrides) entries.set(entry.id, entry);
-  return [...entries.values()];
-}
 export function publicationHtml(
   context: PublicContentContext,
   publication: PublishedSnapshot,
@@ -222,6 +213,8 @@ export function contentUnavailable() {
     status: 503,
     headers: {
       "Cache-Control": "no-store",
+      "CDN-Cache-Control": "no-store",
+      "Cloudflare-CDN-Cache-Control": "no-store",
       "Retry-After": "30",
       "Content-Type": "text/plain; charset=utf-8",
     },

@@ -15,6 +15,22 @@ export { EditorialDraftStore } from "./editorial/draft-store";
 
 type Handler = typeof handle;
 
+// Only existing, non-sensitive public files. Astro 7's dev route matcher selects
+// our custom 404 before the adapter can fall back to Vite's public directory.
+// Keep this separate from public route admission and out of production routing.
+const DEV_PUBLIC_ASSETS = new Set([
+  "/admin-bracket.svg",
+  "/apple-touch-icon.png",
+  "/favicon.svg",
+  "/favicon-light.svg",
+  "/favicon-dark.svg",
+  "/favicon-light-32.png",
+  "/favicon-dark-32.png",
+  "/favicon-16x16.png",
+  "/favicon-32x32.png",
+  "/manifest.webmanifest",
+]);
+
 /** Cloudflare Worker entry, named by `main` in wrangler.toml. It wraps the
  * adapter handler and exports the editorial Durable Object class. */
 const fetch: Handler = async (request, env, context) => {
@@ -26,8 +42,13 @@ const fetch: Handler = async (request, env, context) => {
     )
   )
     return deniedAdminOrigin();
-  // Development only: Vite's module and client URLs (see vite-dev-request).
-  if (import.meta.env.DEV && isViteDevRequest(request))
+  // Development only: Vite's module/client URLs and exact public files.
+  if (
+    import.meta.env.DEV &&
+    (isViteDevRequest(request) ||
+      ((request.method === "GET" || request.method === "HEAD") &&
+        DEV_PUBLIC_ASSETS.has(new URL(request.url).pathname)))
+  )
     return env.ASSETS.fetch(
       request as unknown as Parameters<typeof env.ASSETS.fetch>[0],
     );

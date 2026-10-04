@@ -21,10 +21,7 @@ import {
   MAX_PUBLICATION_MEDIA_BYTES,
   referencedMediaIds,
 } from "../lib/editorial-media";
-import {
-  validatePublishedCandidate,
-  bundledEditorialSourceHash,
-} from "../lib/editorial-published-base";
+import { validatePublishedCandidate } from "../lib/editorial-published-base";
 import type {
   DirectPublicationStatus,
   StartDirectPublication,
@@ -36,6 +33,8 @@ import {
 } from "../lib/editorial-visibility";
 import { drainBounded, readBoundedBytes } from "../lib/bounded-body";
 import { HEX64 } from "../lib/patterns";
+import { publicationIssues } from "../lib/publication-diagnostics";
+import type { SnapshotIssue } from "@anipotts/content/editorial/snapshot";
 import type { Draft } from "./draft-store";
 import type { EditorialMedia } from "./media-store";
 
@@ -85,6 +84,9 @@ export type DirectStartResult =
       code:
         | "invalid_request"
         | "invalid_source"
+        | "invalid_snapshot"
+        | "unsupported_slug_change"
+        | "preflight_unavailable"
         | "revision_conflict"
         | "idempotency_key_reused"
         | "unsupported_visibility_change"
@@ -92,6 +94,7 @@ export type DirectStartResult =
         | "already_hidden"
         | "baseline_changed"
         | "publication_in_progress";
+      issues?: SnapshotIssue[];
       publication?: DirectPublicationStatus;
     };
 const leaseMs = 60_000;
@@ -128,6 +131,7 @@ export class DirectPublisher {
       inventoryVersion INTEGER, publishedAt TEXT, activatedAt INTEGER, verifiedAt INTEGER,
       retryStartedAt INTEGER NOT NULL DEFAULT 0, superseded INTEGER NOT NULL DEFAULT 0
     );
+    CREATE TABLE IF NOT EXISTS direct_publication_diagnostics (id TEXT PRIMARY KEY, issues TEXT NOT NULL);
     CREATE INDEX IF NOT EXISTS direct_publication_record ON direct_publication_intents(key);
     CREATE INDEX IF NOT EXISTS direct_publication_due ON direct_publication_intents(dueAt,leaseUntil) WHERE phase NOT IN ('live','cancelled');
     CREATE TRIGGER IF NOT EXISTS direct_publication_intents_immutable
@@ -175,6 +179,16 @@ export class DirectPublisher {
       lease: row.lease ? "active" : null,
       leaseUntil: row.leaseUntil,
       blocked: row.blocked,
+      issues: publicationIssues(
+        JSON.parse(
+          this.storage.sql
+            .exec<{ issues: string }>(
+              "SELECT issues FROM direct_publication_diagnostics WHERE id = ?",
+              row.id,
+            )
+            .toArray()[0]?.issues ?? "[]",
+        ),
+      ),
       checkpoint: {},
       canCancel: row.phase === "validate" && row.lease === null,
       queue: { pending, position: null, head: null, alarmAt },
@@ -209,6 +223,9 @@ export class DirectPublisher {
   }
   async start(input: StartDirectPublication): Promise<DirectStartResult> {
     if (
+      (input.action !== undefined &&
+        input.action !== "publish" &&
+        input.action !== "unpublish") ||
       !editorialRecordSchema.safeParse(input.record).success ||
       !publicationOperationIdSchema.safeParse(input.operationId).success ||
       !publicationOperationIdSchema
@@ -220,6 +237,49 @@ export class DirectPublisher {
       !HEX64.test(input.expectedBaselineSha256)
     )
       return { ok: false, code: "invalid_request" };
+    // Replays return their original effect even if today's inventory differs.
+    const previous = this.get(input.operationId);
+    if (previous) {
+      if (!sameInput(JSON.parse(previous.intent) as Intent, input))
+        return { ok: false, code: "idempotency_key_reused" };
+      return {
+        ok: true,
+        publication: (await this.read(input.record, input.operationId))!,
+      };
+    }
+    const approved =
+      actionOf(input) === "unpublish"
+        ? this.hiddenRevision(input)
+        : this.draftRevision(input);
+    if (typeof approved !== "string") return { ok: false, ...approved };
+    let problem: {
+      code:
+        | "baseline_changed"
+        | "unsupported_slug_change"
+        | "invalid_snapshot"
+        | "preflight_unavailable";
+      issues?: SnapshotIssue[];
+    } | null;
+    try {
+      const candidate = await (
+        this.dependencies.validateCandidate ?? validatePublishedCandidate
+      )(this.dependencies.db, input.record, approved);
+      problem = this.candidateProblem(input, approved, candidate);
+    } catch {
+      problem = { code: "preflight_unavailable" };
+    }
+    // A concurrent replay may have accepted this operation during the read.
+    // Its persisted effect wins over a stale refusal, including storage failures.
+    const accepted = this.get(input.operationId);
+    if (accepted) {
+      if (!sameInput(JSON.parse(accepted.intent) as Intent, input))
+        return { ok: false, code: "idempotency_key_reused" };
+      return {
+        ok: true,
+        publication: (await this.read(input.record, input.operationId))!,
+      };
+    }
+    if (problem) return { ok: false, ...problem };
     // Persist the wake before accepting intent. A crash leaves either an empty
     // harmless alarm, or approved work that can continue without its browser.
     await this.storage.setAlarm(this.now() + 1000);
@@ -284,6 +344,46 @@ export class DirectPublisher {
       };
     return result;
   }
+  private candidateProblem(
+    intent: StartDirectPublication,
+    source: string,
+    candidate: Awaited<ReturnType<typeof validatePublishedCandidate>>,
+  ): {
+    code: "baseline_changed" | "unsupported_slug_change" | "invalid_snapshot";
+    issues?: SnapshotIssue[];
+  } | null {
+    if (
+      candidate.baseline.publicationId !== intent.expectedPublicationId ||
+      candidate.baseline.sourceSha256 !== intent.expectedBaselineSha256
+    )
+      return { code: "baseline_changed" };
+    if (
+      actionOf(intent) === "publish" &&
+      intent.record.kind !== "page" &&
+      candidate.baseline.publicationId !== null
+    ) {
+      const base = parseEditorialSource(candidate.baseline.source)
+        .data as Record<string, unknown>;
+      const next = parseEditorialSource(source).data as Record<string, unknown>;
+      if ((base.slug ?? intent.record.id) !== (next.slug ?? intent.record.id))
+        return {
+          code: "unsupported_slug_change",
+          issues: [
+            {
+              record: intent.record,
+              field: "slug",
+              code: "unsupported_slug_change",
+            },
+          ],
+        };
+    }
+    if (!candidate.valid)
+      return {
+        code: "invalid_snapshot",
+        issues: publicationIssues(candidate.issues),
+      };
+    return null;
+  }
   /** The exact reviewed private draft, which must stay publicly visible. */
   private draftRevision(input: StartDirectPublication) {
     const draft = this.dependencies.readDraft(input.record);
@@ -295,8 +395,18 @@ export class DirectPublisher {
     )
       return { code: "revision_conflict" as const };
     try {
-      if (!validateEditorialSource(input.record, draft.source).success)
-        return { code: "invalid_source" as const };
+      const validation = validateEditorialSource(input.record, draft.source);
+      if (!validation.success)
+        return {
+          code: "invalid_source" as const,
+          issues: publicationIssues(
+            validation.error.issues.map((issue) => ({
+              record: input.record,
+              field: issue.path.join("."),
+              code: "invalid_field",
+            })),
+          ),
+        };
     } catch {
       return { code: "invalid_source" as const };
     }
@@ -322,6 +432,8 @@ export class DirectPublisher {
   private hiddenRevision(input: StartDirectPublication) {
     if (!canUnpublish(input.record))
       return { code: "unpublish_unsupported" as const };
+    if (input.expectedPublicationId === null)
+      return { code: "already_hidden" as const };
     const base = input.baselineSource;
     if (typeof base !== "string" || hash(base) !== input.expectedBaselineSha256)
       return { code: "baseline_changed" as const };
@@ -361,6 +473,10 @@ export class DirectPublisher {
         this.now(),
         id,
       );
+      this.storage.sql.exec(
+        "DELETE FROM direct_publication_diagnostics WHERE id = ?",
+        id,
+      );
       return true;
     });
   }
@@ -380,6 +496,10 @@ export class DirectPublisher {
         return false;
       this.storage.sql.exec(
         "UPDATE direct_publication_intents SET phase = 'cancelled', blocked = NULL, version = version + 1 WHERE id = ?",
+        id,
+      );
+      this.storage.sql.exec(
+        "DELETE FROM direct_publication_diagnostics WHERE id = ?",
         id,
       );
       return true;
@@ -431,6 +551,7 @@ export class DirectPublisher {
         | "superseded"
       >
     >,
+    issues: SnapshotIssue[] = [],
   ) {
     return this.storage.transactionSync(() => {
       const current = this.get(claim.id);
@@ -442,6 +563,19 @@ export class DirectPublisher {
       )
         return false;
       const row = { ...current, ...changes };
+      if ("blocked" in changes) {
+        this.storage.sql.exec(
+          "DELETE FROM direct_publication_diagnostics WHERE id = ?",
+          row.id,
+        );
+        const safeIssues = publicationIssues(issues);
+        if (row.blocked && safeIssues.length)
+          this.storage.sql.exec(
+            "INSERT INTO direct_publication_diagnostics (id,issues) VALUES (?,?)",
+            row.id,
+            JSON.stringify(safeIssues),
+          );
+      }
       this.storage.sql.exec(
         `UPDATE direct_publication_intents SET phase=?,blocked=?,dueAt=?,failures=?,inventoryVersion=?,publishedAt=?,activatedAt=?,verifiedAt=?,superseded=?,lease=NULL,leaseUntil=0,version=version+1 WHERE id=?`,
         row.phase,
@@ -589,7 +723,7 @@ export class DirectPublisher {
     const unpublish = actionOf(intent) === "unpublish";
     if (
       !value ||
-      value.runtime !== 1 ||
+      value.runtime !== 2 ||
       value.contentSchemaVersion !== CONTENT_SCHEMA_VERSION ||
       !Number.isSafeInteger(value.inventoryVersion) ||
       Number(value.inventoryVersion) < version
@@ -601,7 +735,8 @@ export class DirectPublisher {
     if (
       unpublish
         ? value.visible !== false
-        : value.publicationId !== receipt.publicationId ||
+        : value.visible !== true ||
+          value.publicationId !== receipt.publicationId ||
           value.sourceSha256 !== receipt.sourceSha256
     )
       return false;
@@ -797,18 +932,46 @@ export class DirectPublisher {
       }
       if (
         !reader ||
-        reader.runtime !== 1 ||
+        reader.runtime !== 2 ||
         reader.contentSchemaVersion !== CONTENT_SCHEMA_VERSION ||
         !Number.isSafeInteger(reader.inventoryVersion)
       ) {
         this.settle(claim, { blocked: "public_reader_not_ready" });
         return;
       }
-      if (reader.bundledSourceSha256 !== (await bundledEditorialSourceHash())) {
-        this.settle(claim, { blocked: "public_baseline_mismatch" });
+      // Revalidate the frozen source on every activation attempt, including
+      // persisted commit intents created by an older release. CAS still pins
+      // the validated inventory through the eventual atomic write.
+      const candidate = await (
+        this.dependencies.validateCandidate ?? validatePublishedCandidate
+      )(this.dependencies.db, intent.record, intent.source);
+      const problem = this.candidateProblem(intent, intent.source, candidate);
+      const unpublish = actionOf(intent) === "unpublish";
+      if (
+        problem ||
+        (unpublish &&
+          (!candidate.baseline.publicationId ||
+            !canUnpublish(intent.record) ||
+            !sourceIsPublic(intent.record, candidate.baseline.source) ||
+            unpublishedSource(intent.record, candidate.baseline.source) !==
+              intent.source))
+      ) {
+        this.settle(
+          claim,
+          {
+            blocked:
+              problem?.code === "baseline_changed" || !problem
+                ? "publication_base_changed"
+                : problem.code,
+          },
+          problem?.issues,
+        );
         return;
       }
-      if (reader.inventoryVersion !== claim.inventoryVersion) {
+      if (
+        reader.inventoryVersion !== candidate.inventoryVersion ||
+        claim.inventoryVersion !== candidate.inventoryVersion
+      ) {
         this.settle(claim, { phase: "validate", dueAt: this.now() + 5000 });
         return;
       }
@@ -852,42 +1015,30 @@ export class DirectPublisher {
     const unpublish = actionOf(intent) === "unpublish";
     if (
       unpublish &&
-      (!canUnpublish(intent.record) ||
+      (!candidate.baseline.publicationId ||
+        !canUnpublish(intent.record) ||
+        !sourceIsPublic(intent.record, candidate.baseline.source) ||
         unpublishedSource(intent.record, candidate.baseline.source) !==
           intent.source)
     ) {
       this.settle(claim, { blocked: "publication_base_changed" });
       return;
     }
-    if (
-      intent.record.kind !== "page" &&
-      candidate.baseline.baseFileHash !== null
-    ) {
-      const baseData = parseEditorialSource(candidate.baseline.source)
-        .data as Record<string, unknown>;
-      const nextData = parseEditorialSource(intent.source).data as Record<
-        string,
-        unknown
-      >;
-      if (
-        (baseData.slug ?? intent.record.id) !==
-        (nextData.slug ?? intent.record.id)
-      ) {
-        this.settle(claim, { blocked: "unsupported_slug_change" });
-        return;
-      }
-    }
-    if (!candidate.valid) {
-      // Hiding a piece another record still points at (the homepage writing
-      // selection) would leave the site inconsistent, so it waits for that
-      // record to be published without it first.
-      this.settle(claim, {
-        blocked: unpublish ? "unpublish_breaks_reference" : "invalid_snapshot",
-      });
+    const problem = this.candidateProblem(intent, intent.source, candidate);
+    if (problem) {
+      this.settle(
+        claim,
+        {
+          blocked:
+            problem.code === "baseline_changed"
+              ? "publication_base_changed"
+              : problem.code,
+        },
+        problem.issues,
+      );
       return;
     }
-    // A hidden revision references only images its public revision already
-    // staged, and the reader stops serving them once nothing visible does.
+    // Hidden revisions retain only media already staged by their public source.
     const ids = unpublish ? [] : referencedMediaIds(intent.source);
     if (ids.length > MAX_PUBLICATION_IMAGES) {
       this.settle(claim, { blocked: "too_many_images" });

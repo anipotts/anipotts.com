@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { HStack } from "@astryxdesign/core/HStack";
-import { TextInput } from "@astryxdesign/core/TextInput";
+import { TextInput } from "./WritingControls";
 import { Token } from "@astryxdesign/core/Token";
 import { VStack } from "@astryxdesign/core/VStack";
 

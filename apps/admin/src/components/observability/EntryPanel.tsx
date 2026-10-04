@@ -29,7 +29,9 @@ import { deviceName } from "../../lib/naming";
 import { sentenceCase } from "../../lib/sentence-case";
 import { SplitPanel } from "../astryx/SplitView";
 import {
+  DataTable,
   DefinitionList,
+  RecordDetails,
   DetailText,
   Duration,
   Figure,
@@ -40,6 +42,7 @@ import {
   TechnicalSection,
   WordSafeText,
 } from "../workspace/Workspace";
+import { RecordHeader } from "../workspace/Workspace";
 import { secondsText } from "../workspace/format";
 import {
   AlertFor,
@@ -165,7 +168,7 @@ export function EntryPanel({
                   subject,
                 )}
                 size="sm"
-                variant="ghost"
+                variant="primary"
                 icon={
                   <BellSimpleRingingIcon weight="regular" aria-hidden="true" />
                 }
@@ -250,40 +253,40 @@ function PanelHeader({
   // written and the split view's container query shows one (styles/
   // shell.css), so the server's first paint is the browser's.
   return (
-    <div className="ops-panel-header">
-      <span className="admin-split-beside-only">
-        <Button
-          label="Close"
-          tooltip="Close"
-          isIconOnly
-          size="sm"
-          variant="ghost"
-          icon={<XIcon weight="regular" aria-hidden="true" />}
-          onClick={onClose}
-        />
-      </span>
-      <span className="admin-split-page-only">
-        <Button
-          label={backLabel}
-          tooltip={backLabel}
-          isIconOnly
-          size="sm"
-          variant="ghost"
-          icon={<ArrowBendUpLeftIcon weight="regular" aria-hidden="true" />}
-          onClick={onClose}
-        />
-      </span>
-      <EntryTile naming={naming} size={28} />
-      <Heading level={2} className="ops-panel-title">
-        {/* Two lines at most, ending after a whole word (the host a shared
-            name adds is one word, so it never splits); the full name and
-            id on hover. */}
-        <span title={`${name}\n${naming.tooltip}`}>
-          <WordSafeText lines={2}>{name}</WordSafeText>
-        </span>
-      </Heading>
-      {badge && <span className="ops-panel-badge">{badge}</span>}
-    </div>
+    <RecordHeader
+      title={`${name}\n${naming.tooltip}`}
+      titleContent={<WordSafeText lines={2}>{name}</WordSafeText>}
+      className="ops-panel-header"
+      headingClassName="ops-panel-title"
+      leading={
+        <>
+          <HStack className="admin-split-beside-only">
+            <Button
+              label="Close"
+              tooltip="Close"
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              icon={<XIcon weight="regular" aria-hidden="true" />}
+              onClick={onClose}
+            />
+          </HStack>
+          <HStack className="admin-split-page-only">
+            <Button
+              label={backLabel}
+              tooltip={backLabel}
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              icon={<ArrowBendUpLeftIcon weight="regular" aria-hidden="true" />}
+              onClick={onClose}
+            />
+          </HStack>
+          <EntryTile naming={naming} size={28} />
+        </>
+      }
+      status={badge && <HStack className="ops-panel-badge">{badge}</HStack>}
+    />
   );
 }
 
@@ -319,9 +322,9 @@ function EntryFacts({
   const freshness = opsFreshness(service, now ?? Date.now());
   const exit = status.last_exit;
   return (
-    <DefinitionList
+    <RecordDetails
       label="Facts"
-      items={[
+      summary={[
         // A host's detail is its disk figure, which the Disk row says.
         [
           "Detail",
@@ -350,7 +353,7 @@ function EntryFacts({
           : ([
               [
                 "Last success",
-                <span key="success" className="ops-inline">
+                <span key="success" className="ops-inline ops-success-fact">
                   <LastSuccess
                     service={service}
                     now={now}
@@ -390,6 +393,8 @@ function EntryFacts({
                 ) : null,
               ],
             ] as const)),
+      ]}
+      details={[
         ["Schedule", service.schedule],
         [
           "Trigger",
@@ -510,28 +515,46 @@ function RunHistory({
       ) : runs.length ? (
         <>
           {gap && <EventsGap text={gap} />}
-          <ol className="ops-list" aria-label={`${service.name} runs`}>
-            {runs.map((run) => (
-              <li key={run.key} className="ops-list-item">
-                <ClockTime at={run.at} now={now} />
-                <span className="ops-list-state">
-                  <RunResult
-                    exit={run.exit}
-                    trigger={service.trigger}
-                    labelled
-                  />
-                  {run.runs > 1 && (
-                    <span className="ops-muted workspace-figure">
-                      {run.runs} runs
-                    </span>
-                  )}
-                </span>
-                <span className="ops-list-figure">
-                  <Duration ms={run.ms} />
-                </span>
-              </li>
-            ))}
-          </ol>
+          <DataTable
+            rows={runs}
+            rowKey="key"
+            tableId={`ops-runs:${service.id}`}
+            label={`${service.name} runs`}
+            noun={["run", "runs"]}
+            footer={false}
+            interactive={false}
+            columns={[
+              {
+                key: "at",
+                header: "Time",
+                render: (run) => <ClockTime at={run.at} now={now} />,
+              },
+              {
+                key: "result",
+                header: "Result",
+                render: (run) => (
+                  <span className="ops-list-state">
+                    <RunResult
+                      exit={run.exit}
+                      trigger={service.trigger}
+                      labelled
+                    />
+                    {run.runs > 1 && (
+                      <span className="ops-muted workspace-figure">
+                        {run.runs} runs
+                      </span>
+                    )}
+                  </span>
+                ),
+              },
+              {
+                key: "duration",
+                header: "Duration",
+                numeric: true,
+                render: (run) => <Duration ms={run.ms} />,
+              },
+            ]}
+          />
         </>
       ) : gap ? (
         <EventsGap text={gap} />
@@ -553,20 +576,34 @@ export function ChangeList({
   label: string;
 }) {
   return (
-    <ol className="ops-list" aria-label={`${label} changes`}>
-      {events.map((event) => (
-        <li key={event.seq} className="ops-list-item" data-change="">
-          <ClockTime at={event.at} now={now} />
-          <span className="ops-list-state">
+    <DataTable
+      rows={[...events]}
+      rowKey="seq"
+      tableId={`ops-changes:${label}`}
+      label={`${label} changes`}
+      noun={["change", "changes"]}
+      footer={false}
+      interactive={false}
+      columns={[
+        {
+          key: "at",
+          header: "Time",
+          render: (event) => <ClockTime at={event.at} now={now} />,
+        },
+        {
+          key: "state",
+          header: "State",
+          render: (event) => (
             <StateTransition domain="ops" from={event.from} to={event.to} />
-          </span>
-          {event.detail && (
-            <span className="ops-list-detail">
-              <DetailText>{event.detail}</DetailText>
-            </span>
-          )}
-        </li>
-      ))}
-    </ol>
+          ),
+        },
+        {
+          key: "detail",
+          header: "Detail",
+          render: (event) =>
+            event.detail ? <DetailText>{event.detail}</DetailText> : null,
+        },
+      ]}
+    />
   );
 }

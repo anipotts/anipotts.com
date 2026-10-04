@@ -4,6 +4,7 @@ import { DevDataCatalog } from "../components/astryx/dev-data-catalog";
 import { DevReviewCatalog } from "../components/astryx/dev-review-catalog";
 import { DevSplitCatalog } from "../components/astryx/dev-split-catalog";
 import { DevMarksCatalog } from "../components/dev-marks-catalog";
+import { DevOpenAICatalog } from "../components/workspace/dev-openai-catalog";
 import { DevKitCatalog } from "../components/workspace/dev-kit-catalog";
 import { loadShellFixtures } from "../lib/shell-fixtures";
 
@@ -37,7 +38,9 @@ const kit = fixture === "kit" ? await loadShellFixtures(Astro.url) : undefined;
   inventoryProjection={inventoryProjection}
 >
   {
-    fixture === "data" ? (
+    fixture === "openai" ? (
+      <DevOpenAICatalog client:load />
+    ) : fixture === "data" ? (
       <DevDataCatalog client:load />
     ) : fixture === "marks" ? (
       <DevMarksCatalog />
@@ -51,7 +54,7 @@ const kit = fixture === "kit" ? await loadShellFixtures(Astro.url) : undefined;
         source={kit.replay ? "replay" : "sample"}
       />
     ) : (
-      <DevReviewCatalog client:load />
+      <DevReviewCatalog client:load publication={fixture === "publication"} />
     )
   }
 </EditorialLayout>

@@ -86,7 +86,7 @@ describe("editorial catalog", () => {
     expect(html).not.toContain("?group=");
     expect(html).not.toContain('role="tree"');
     expect(html).toMatch(/<h1[^>]*>content<\/h1>/);
-    expect(html).toContain("Updated");
+    expect(html).toContain("Last activity");
     expect(html).not.toContain("recently updated first");
     expect(html).toContain(
       'href="/content/writing/music?returnTo=%2Fcontent%2Fpages"',
@@ -146,10 +146,8 @@ describe("editorial catalog", () => {
         `>Writing</span><span[^>]*><span[^>]*aria-label="${records.length} records">${records.length}<`,
       ),
     );
-    // One theme button, and no outside link in the shell.
-    expect(
-      html.match(/aria-label="(?:Light|Dark|System) theme"/g),
-    ).toHaveLength(1);
+    // Desktop, controlled drawer and phone expose the same theme cycle.
+    expect(html.match(/aria-label="Light theme"/g)).toHaveLength(3);
     expect(html).not.toContain("Visit site");
     expect(html).not.toContain("Log out");
     expect(html).not.toContain("·");
@@ -306,7 +304,7 @@ it("titles each library page with its own name and no Overview heading", () => {
   }
 });
 
-it("gives a record page's editor bar the phone top in place of the shell's bar and tabs", () => {
+it("keeps shared phone navigation alongside record editor controls without retired tabs", () => {
   const page = (props: Partial<React.ComponentProps<typeof EditorialApp>>) =>
     renderToStaticMarkup(
       <EditorialApp
@@ -322,13 +320,18 @@ it("gives a record page's editor bar the phone top in place of the shell's bar a
     groups: [{ name: "writing", href: "/content/writing", records }],
   });
   expect(library).toContain("admin-phone-bar");
-  expect(library).toContain("admin-phone-pages");
+  expect(library).toContain("admin-navigation-drawer");
+  expect(library).not.toContain("admin-phone-pages");
+  expect(library).toContain('aria-label="Open navigation"');
   for (const record of [
     page({ newWriting: true }),
     page({ review: { back: "/content/writing", status: "draft" } }),
   ]) {
     expect(record).toContain("editor-bar");
-    expect(record).not.toContain("admin-phone-bar");
+    expect(record).toContain("admin-phone-bar");
+    expect(record).toContain("admin-navigation-drawer");
+    expect(record).toContain('data-record-page="true"');
+    expect(record).toContain('aria-label="Open navigation"');
     expect(record).not.toContain("admin-phone-pages");
   }
 });

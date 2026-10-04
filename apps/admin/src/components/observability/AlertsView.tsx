@@ -342,6 +342,7 @@ export function AlertsTable({
       };
   const lead: Column<AlertRow> = {
     key: "alert",
+    priority: 0,
     header: "Alert",
     // The incident columns give way to the name: State moves to line 2,
     // then Started goes (For still says how long).
@@ -429,6 +430,9 @@ export function AlertsTable({
   };
   const state: Column<AlertRow> = {
     key: "state",
+    compact: "inline",
+    compactLabel: false,
+    priority: 1,
     header: "State",
     width: widths.state,
     yieldOrder: full ? 1 : undefined,
@@ -440,6 +444,9 @@ export function AlertsTable({
   const bounded = rows.some((row) => !row.since && row.startedBefore);
   const since: Column<AlertRow> = {
     key: "since",
+    compact: !full && !resolved ? "trailing" : "inline",
+    compactLabel: full || resolved,
+    priority: 1,
     header: full ? "Started" : "Since",
     width: full
       ? widths.start
@@ -451,6 +458,7 @@ export function AlertsTable({
   };
   const resolvedAt: Column<AlertRow> = {
     key: "resolved",
+    priority: 1,
     header: "Resolved",
     width: widths.time,
     render: (row) =>
@@ -466,6 +474,7 @@ export function AlertsTable({
     lead,
     {
       key: "device",
+      priority: 1,
       header: <span className="sr-only">Device</span>,
       width: OPS_WIDTHS.tile,
       // Below large the tile leads line 2, so names keep the width.
@@ -494,6 +503,7 @@ export function AlertsTable({
     },
     {
       key: "incidents",
+      priority: 1,
       header: "Incidents",
       width: OPS_WIDTHS.figure + 16,
       numeric: true,
@@ -502,6 +512,7 @@ export function AlertsTable({
     },
     {
       key: "detail",
+      priority: 2,
       header: "Detail",
       share: 0.6,
       reserve: leadRoom,
@@ -514,6 +525,7 @@ export function AlertsTable({
     },
     {
       key: "runbook",
+      priority: 2,
       header: <span className="sr-only">Runbook</span>,
       width: RUNBOOK_WIDTH,
       render: (row) =>
@@ -529,6 +541,7 @@ export function AlertsTable({
     return (
       <div className={full ? "ops-alerts" : undefined}>
         <DataTable
+          tableId={resolved ? "ops-alerts-resolved" : "ops-alerts-firing"}
           rows={rows}
           columns={columns}
           rowKey="subject"

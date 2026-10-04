@@ -8,6 +8,7 @@
  * search indexes. Layouts put their page inside it; standalone pages (sign
  * in, sign out, not found) use it directly.
  */
+import "../styles/layers.css";
 import "@astryxdesign/core/reset.css";
 import "@astryxdesign/core/astryx.css";
 import "../styles/admin-interactions.css";
@@ -48,6 +49,8 @@ const workspace = shell ? workspaceForPath(Astro.url.pathname) : null;
 const reentry = workspace
   ? workspaceReturnPath(workspace, Astro.url.pathname + Astro.url.search)
   : "/";
+const bootstrapScript = shell ? adminDocumentBootstrap(reentry) : null;
+const scriptNonce = Astro.locals.cspNonce;
 ---
 
 <!doctype html>
@@ -60,7 +63,11 @@ const reentry = workspace
 >
   <head>
     <meta charset="utf-8" />
-    {shell && <script is:inline set:html={adminDocumentBootstrap(reentry)} />}
+    {
+      bootstrapScript && (
+        <script is:inline nonce={scriptNonce} set:html={bootstrapScript} />
+      )
+    }
     {
       shell && (
         <style
@@ -115,8 +122,16 @@ const reentry = workspace
       ))
     }
     <title>{title} | Admin</title>
-    <script is:inline set:html={adminThemePrepaintScript} />
-    {shell && <script is:inline set:html={adminSidebarPrepaintScript} />}
+    <script is:inline nonce={scriptNonce} set:html={adminThemePrepaintScript} />
+    {
+      shell && (
+        <script
+          is:inline
+          nonce={scriptNonce}
+          set:html={adminSidebarPrepaintScript}
+        />
+      )
+    }
   </head>
   <body>
     {

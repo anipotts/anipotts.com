@@ -51,6 +51,8 @@ declare namespace App {
     accessOwner?: import("./lib/access-identity").AccessOwner;
     /** Durations and counts only; see lib/server-timing.ts. */
     serverTiming?: import("./lib/server-timing").ServerTiming;
+    /** Per-response nonce for trusted AdminDocument inline scripts only. */
+    cspNonce?: string;
   }
 }
 

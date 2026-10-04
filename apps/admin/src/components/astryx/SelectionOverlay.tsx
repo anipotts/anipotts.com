@@ -1,3 +1,4 @@
+import { AdminPortalScope } from "../workspace/AdminUI";
 import React, { useEffect, useRef, type ReactNode } from "react";
 import type { Editor } from "@tiptap/react";
 import { VStack } from "@astryxdesign/core/VStack";
@@ -114,7 +115,7 @@ function LinkOverlay({
             if (!composing.current) onApply();
           }}
         >
-          {children}
+          <AdminPortalScope>{children}</AdminPortalScope>
         </form>,
         {
           placement: "below",

@@ -38,14 +38,13 @@ const {
   robots,
   detail = false,
   adminEntry = false,
-  socialCard = SITE_CARD,
 } = Astro.props;
 const description = inlinePlainText(rawDescription);
 const canonical =
   canonicalUrl ?? `${siteConfig.url}${path === "/" ? "" : path}`;
 const fullTitle = path === "/" ? title : `${title} / ${siteConfig.displayName}`;
-// Every route unfurls with a card built from its own strings at build time.
-const cardUrl = `${siteConfig.url}${cardPath(socialCard)}`;
+// Every route uses the approved canonical brand card.
+const cardUrl = `${siteConfig.url}${cardPath(SITE_CARD)}?v=corner-1`;
 
 const siteLd = {
   "@context": "https://schema.org",
@@ -150,6 +149,10 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
         // Safari's surrounding canvas and older theme-color consumers must use
         // the site's selected theme, even when it differs from the OS theme.
         const syncBrowserTheme = () => {
+          if (window.__apCanvasSync) {
+            window.__apCanvasSync();
+            return;
+          }
           root.style.colorScheme =
             root.dataset.theme === "dark" ? "dark" : "light";
           const background = getComputedStyle(root).backgroundColor;
@@ -208,6 +211,8 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     <script>
       import "../scripts/writing-transitions";
       import "../scripts/admin-transitions";
+      import { installPointerModality } from "../scripts/pointer-modality";
+      installPointerModality(document);
     </script>
   </body>
 </html>

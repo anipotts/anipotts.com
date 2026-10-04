@@ -1,5 +1,5 @@
 ---
-import InlineText from "./InlineText.astro";
+import ResponsiveCopy from "./ResponsiveCopy.astro";
 import AmbientFlow from "./AmbientFlow.astro";
 import CardAction from "./CardAction.astro";
 import type { Project } from "../lib/content";
@@ -14,77 +14,96 @@ const { project } = Astro.props;
   href={project.data.link_live ?? project.data.detail_path}
 >
   <AmbientFlow kind="work" seed={project.data.slug ?? project.id} />
+  <span class="guide-mark" aria-hidden="true"
+    ><img
+      src={project.data.identity.logo_src ?? "/brand/ap-favicon.svg"}
+      alt=""
+      width="40"
+      height="40"
+    /></span
+  >
   <span class="guide-content">
-    <span class="guide-identity">
-      <span class="guide-label">{project.data.title}</span>
-      <CardAction
-        label="read the guide"
-        logoSrc={project.data.identity.logo_src}
-        icon={project.data.identity.icon}
-        adaptive={project.data.identity.logo_tone === "adaptive"}
-      />
-    </span>
     <span class="guide-title"
-      ><InlineText text={project.data.subtitle ?? ""} links={false} /></span
+      >{project.data.card_title?.trim() || project.data.title}</span
+    >
+    <span class="guide-copy"
+      ><ResponsiveCopy
+        text={project.data.card_copy}
+        compact={project.data.card_copy_compact}
+        links={false}
+      /></span
     >
   </span>
+  <CardAction
+    label="read the guide"
+    logoSrc={project.data.identity.logo_src}
+    icon={project.data.identity.icon}
+    adaptive={project.data.identity.logo_tone === "adaptive"}
+  />
 </a>
 
 <style>
   .coding-agent-card {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    justify-content: space-between;
-    gap: var(--s-5);
-    padding: clamp(1.5rem, 3vw, 2rem);
-    border-radius: var(--paper-radius);
+    gap: var(--card-header-gap);
+    padding: var(--card-inset);
     color: var(--paper-ink);
     text-decoration: none;
-    box-shadow: var(--paper-shadow);
+  }
+  .coding-agent-card > :not(.ambient-flow) {
+    position: relative;
+    z-index: 1;
+  }
+  .coding-agent-card :global(.card-action) {
+    position: relative;
+    z-index: 1;
+  }
+  .coding-agent-card > :global(.ambient-flow) {
+    inset: -1px;
+    border-radius: 0;
+  }
+  .guide-mark {
+    display: grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--card-ui-radius);
+    background: var(--card-ui-surface);
+    color: var(--paper-ink);
+    font-size: 1.5rem;
+  }
+  .guide-mark img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: inherit;
   }
   .guide-content {
-    display: flex;
-    flex-direction: column;
+    display: grid;
     width: 100%;
-    gap: 1rem;
+    gap: 0.25rem;
     min-width: 0;
   }
-  .guide-identity img {
-    width: 2rem;
-    height: 2rem;
-    flex: none;
-    border-radius: 0.4rem;
-  }
-  .guide-label {
-    color: var(--paper-muted);
-    font-size: 0.8rem;
-    font-weight: 550;
-  }
   .guide-title {
-    max-width: none;
-    font-size: clamp(1.2rem, 2.3vw, 1.6rem);
-    font-weight: 650;
-    line-height: 1.3;
-    letter-spacing: -0.02em;
-    text-wrap: pretty;
+    font-family: var(--display);
+    font-size: 1.1rem;
+    font-weight: var(--card-title-weight);
+    line-height: 1.2;
   }
-
-  .coding-agent-card:focus-visible {
-    outline: 3px solid #1247e6;
-    outline-offset: 4px;
-  }
-  /* Scoped so the press ring outranks the card's own resting box-shadow. */
-  @media (width < 880px), (pointer: coarse) {
-    .coding-agent-card:active {
-      background: var(--paper-surface-hover);
-      box-shadow: inset 0 0 0 2px var(--paper-accent);
-    }
+  .guide-copy {
+    color: var(--paper-muted);
+    font-size: var(--control-size);
+    line-height: 1.4;
   }
   @media (max-width: 640px) {
     .coding-agent-card {
-      flex-direction: column;
-      align-items: stretch;
-      gap: 1.25rem;
+      grid-template-columns: auto minmax(0, 1fr);
+    }
+    .coding-agent-card :global(.card-action) {
+      grid-column: 1 / -1;
+      width: 100%;
     }
     .guide-content {
       display: grid;

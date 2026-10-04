@@ -57,20 +57,33 @@ export async function readSourceCatalog(
 
 /** One catalog read per reader: Records, the overview and a record's panel
  * share it. A failed read names sources from their ids instead. */
-const names = new WeakMap<DataReader, Promise<SourceNames>>();
+export type SourceNamesState = {
+  names: SourceNames;
+  status: "off" | "pending" | "ready" | "failed" | "incomplete";
+};
 
-function namesFor(reader: DataReader): Promise<SourceNames> {
+const names = new WeakMap<DataReader, Promise<SourceNamesState>>();
+
+function namesFor(reader: DataReader): Promise<SourceNamesState> {
   let pending = names.get(reader);
   if (!pending) {
     pending = readSourceCatalog(reader, new DataReadSession()).then(
-      (catalog) => {
-        // A failed read is tried again by the next view that asks.
-        if (!catalog || catalog.failure) names.delete(reader);
-        return sourceNames(catalog?.sources ?? []);
+      (catalog): SourceNamesState => {
+        if (!catalog || catalog.failure || catalog.incomplete)
+          names.delete(reader);
+        return {
+          names: sourceNames(catalog?.sources ?? []),
+          status:
+            !catalog || catalog.failure
+              ? "failed"
+              : catalog.incomplete
+                ? "incomplete"
+                : "ready",
+        };
       },
-      () => {
+      (): SourceNamesState => {
         names.delete(reader);
-        return sourceNames([]);
+        return { names: EMPTY, status: "failed" };
       },
     );
     names.set(reader, pending);
@@ -78,26 +91,36 @@ function namesFor(reader: DataReader): Promise<SourceNames> {
   return pending;
 }
 
-/**
- * The catalog's names for a reader, so a record's source reads the same on
- * Records, the overview and its panel as on Sources ("Contacts", not the
- * id's brand word). Empty until the catalog arrives; ids missing from it
- * fall back to their own naming (lib/naming.ts sourceNaming).
- */
-export function useSourceNames(reader: DataReader | null): SourceNames {
-  const [known, setKnown] = useState<SourceNames>(EMPTY);
+/** Readiness belongs to a reader identity. A new reader never borrows the
+ * previous reader's catalog, even for the render before its effect runs. */
+export function useSourceNamesState(
+  reader: DataReader | null,
+): SourceNamesState {
+  const [known, setKnown] = useState<{
+    reader: DataReader;
+    value: SourceNamesState;
+  } | null>(null);
   useEffect(() => {
     if (!reader) return;
     let live = true;
-    void namesFor(reader).then((next) => live && setKnown(next));
+    void namesFor(reader).then((value) => live && setKnown({ reader, value }));
     return () => {
       live = false;
     };
   }, [reader]);
-  return reader ? known : EMPTY;
+  if (!reader) return OFF;
+  return known?.reader === reader ? known.value : PENDING;
+}
+
+/** Existing consumers may progressively enhance source labels. Overview
+ * can instead await useSourceNamesState before revealing its first rows. */
+export function useSourceNames(reader: DataReader | null): SourceNames {
+  return useSourceNamesState(reader).names;
 }
 
 const EMPTY: SourceNames = new Map();
+const OFF: SourceNamesState = { names: EMPTY, status: "off" };
+const PENDING: SourceNamesState = { names: EMPTY, status: "pending" };
 
 /** The catalog's names for the rows below: Records and the overview provide
  * them once, and every source cell and filter chip reads them. */

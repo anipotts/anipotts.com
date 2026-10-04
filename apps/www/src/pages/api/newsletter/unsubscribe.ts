@@ -1,8 +1,11 @@
 import type { APIRoute } from "astro";
 import { siteConfig } from "@anipotts/content/public";
+import { readBoundedText } from "../../../lib/api";
 import {
   html,
+  isTokenShaped,
   missingDbResponse,
+  TOKEN_BODY_LIMIT_BYTES,
   unsubscribeByToken,
 } from "../../../lib/newsletter";
 import { runtimeEnv } from "../../../lib/runtime-env";
@@ -11,7 +14,7 @@ export const prerender = false;
 
 export const GET: APIRoute = async ({ request }) => {
   const token = new URL(request.url).searchParams.get("token") ?? "";
-  return html(render(token));
+  return html(render(isTokenShaped(token) ? token : ""));
 };
 
 export const POST: APIRoute = async ({ request, locals }) => {
@@ -20,20 +23,29 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
   const url = new URL(request.url);
   let token = url.searchParams.get("token") ?? "";
+  const rawBody = await readBoundedText(request, TOKEN_BODY_LIMIT_BYTES);
+  if (rawBody === null) return new Response(null, { status: 413 });
   if (!token) {
     const contentType = request.headers.get("content-type") ?? "";
     if (contentType.includes("application/json")) {
-      const body = (await request.json().catch(() => ({}))) as {
-        token?: string;
-      };
-      token = body.token ?? "";
+      try {
+        const body: unknown = JSON.parse(rawBody);
+        token =
+          body &&
+          typeof body === "object" &&
+          "token" in body &&
+          typeof body.token === "string"
+            ? body.token
+            : "";
+      } catch {
+        token = "";
+      }
     } else {
-      const body = await request.text();
-      token = new URLSearchParams(body).get("token") ?? "";
+      token = new URLSearchParams(rawBody).get("token") ?? "";
     }
   }
 
-  if (token) await unsubscribeByToken(env.DB, token);
+  if (isTokenShaped(token)) await unsubscribeByToken(env.DB, token);
   return new Response(null, { status: 200 });
 };
 

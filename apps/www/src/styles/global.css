@@ -31,7 +31,24 @@
   --card-ui-padding: 0.5rem 0.7rem;
   --card-ui-surface: color-mix(in srgb, var(--paper-surface) 80%, transparent);
   --card-ui-border: color-mix(in srgb, var(--paper-ink) 15%, transparent);
-  --experience-card-padding: clamp(0.8rem, 2.6vw, 1.35rem);
+  --card-inset: clamp(1rem, 2vw, 1.5rem);
+  --experience-card-padding: var(--card-inset);
+  --card-content-gap: 0.875rem;
+  --card-header-gap: 0.75rem;
+  --card-title-size: clamp(1.05rem, 2vw, 1.625rem);
+  --card-title-weight: 900;
+  --card-copy-size: var(--p-small);
+  --card-copy-weight: 400;
+  --card-copy-leading: 1.45;
+  --control-size: 0.8rem;
+  --control-weight: 500;
+  --control-leading: 1.25;
+  --control-icon-size: 1rem;
+  --control-icon-gap: 0.45rem;
+  --control-group-gap: var(--s-2);
+  --status-weight: 600;
+  --focus-width: 2px;
+  --focus-offset: 4px;
   --paper-surface: #ffffff;
   --paper-surface-hover: #f7faff;
   --paper-ink: #0b1220;
@@ -258,7 +275,7 @@ h2.section-label {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .accent-link:hover {
+  html:not([data-touch-input]) .accent-link:hover {
     text-decoration: underline;
     text-underline-offset: 0.18em;
     text-decoration-thickness: 0.06em;
@@ -276,7 +293,7 @@ h2.section-label {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .quiet-link:hover {
+  html:not([data-touch-input]) .quiet-link:hover {
     color: var(--interactive);
   }
 }
@@ -292,11 +309,11 @@ h2.section-label {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .row-link:hover {
+  html:not([data-touch-input]) .row-link:hover {
     background: var(--surface);
   }
 
-  .row-link:hover .row-title {
+  html:not([data-touch-input]) .row-link:hover .row-title {
     color: var(--ink);
   }
 }
@@ -315,7 +332,7 @@ h2.section-label {
   background: var(--paper-surface);
   color: var(--paper-ink);
   border-radius: var(--paper-radius);
-  padding: var(--s-5);
+  padding: var(--card-inset);
   box-shadow: var(--paper-shadow);
 }
 
@@ -330,17 +347,7 @@ h2.section-label {
   outline-offset: 4px;
 }
 
-/* The press ring for work, experience and agent cards lives in each component,
-   where it outranks that component's own resting box-shadow. The writing card
-   presses with a fill only: the later :active reset holds its resting shadow,
-   which the article morph depends on, so it never takes the ring. */
-@media (width < 880px), (pointer: coarse) {
-  .writing-card:active {
-    background: var(--paper-surface-hover);
-  }
-}
-
-/* Touch controls use their own press states, never the platform grey plate. */
+/* Scrolling over a touch target does not paint a press state. */
 a,
 button,
 summary {
@@ -663,6 +670,20 @@ html.editorial-detail body {
   background-image: linear-gradient(var(--bg), var(--bg));
 }
 
+/* Keep reading surfaces and the browser's bottom/overscroll canvas on
+   the same ground once the wave header has left the viewport. --bg and the
+   header's --detail-canvas remain unchanged for art and return-to-top. */
+html.editorial-detail[data-reading-canvas],
+html.editorial-detail[data-reading-canvas] body {
+  background-color: var(--reading-paper, var(--bg));
+}
+html.editorial-detail[data-reading-canvas] body {
+  background-image: linear-gradient(
+    var(--reading-paper, var(--bg)),
+    var(--reading-paper, var(--bg))
+  );
+}
+
 .editorial-detail .article-body {
   width: 100%;
   max-width: 65ch;
@@ -896,17 +917,20 @@ html.writing-detail:not([data-theme="dark"]) .article-body :not(pre) > code {
 /* Shared filled action treatment for press, experience and work cards. */
 .site-action {
   display: grid;
-  grid-template-columns: 1rem minmax(0, 1fr) 1rem;
+  grid-template-columns: var(--control-icon-size) minmax(0, 1fr) var(
+      --control-icon-size
+    );
   align-items: center;
-  gap: 0.35em;
-  min-height: 44px;
-  padding: var(--card-ui-padding);
+  gap: var(--control-icon-gap);
+  min-height: 36px;
+  padding: 0.35rem 0.65rem;
   border: 1px solid var(--card-ui-border);
   border-radius: var(--card-ui-radius);
   background: var(--card-ui-surface);
   color: var(--paper-ink);
-  font-size: 0.85rem;
-  line-height: 1.25;
+  font-size: var(--control-size);
+  font-weight: var(--control-weight);
+  line-height: var(--control-leading);
   text-decoration: none;
 }
 .site-action > span {
@@ -914,8 +938,8 @@ html.writing-detail:not([data-theme="dark"]) .article-body :not(pre) > code {
 }
 .site-action > :is(img, svg) {
   display: block;
-  width: 1rem;
-  height: 1rem;
+  width: var(--control-icon-size);
+  height: var(--control-icon-size);
   object-fit: contain;
   border-radius: 0.19em;
 }
@@ -931,23 +955,30 @@ html[data-theme="dark"] .site-action__mark--adaptive {
   width: fit-content;
   max-width: 100%;
   flex: none;
-  align-self: flex-start;
   margin: 0;
   align-self: center;
-  font-size: 0.78rem;
   white-space: nowrap;
 }
 :is(.work-card__header, .experience-feature__heading, .guide-identity) {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--s-3);
+  gap: var(--card-header-gap);
 }
 :is(.work-card__body, .experience-feature__body) {
-  row-gap: var(--s-3);
+  row-gap: var(--card-content-gap);
 }
-.site-action:hover,
-a:hover .card-action,
+@media (hover: hover) and (pointer: fine) {
+  html:not([data-touch-input]) .site-action:hover,
+  html:not([data-touch-input]) a:hover .card-action {
+    background: color-mix(
+      in srgb,
+      var(--paper-accent) 10%,
+      var(--paper-surface)
+    );
+    color: var(--paper-accent);
+  }
+}
 a:focus-visible .card-action {
   background: color-mix(in srgb, var(--paper-accent) 10%, var(--paper-surface));
   color: var(--paper-accent);
@@ -962,4 +993,76 @@ a.site-action:focus-visible {
   .experience-feature {
     transition: none;
   }
+}
+
+/* The same focus geometry applies to compact controls and whole-card links. */
+:is(
+  .site-action,
+  .work-card,
+  .experience-feature,
+  .writing-card,
+  .coding-agent-card,
+  .quiet-link,
+  .view-all,
+  .back,
+  .project-action
+):focus-visible {
+  outline: var(--focus-width) solid var(--paper-ink);
+  outline-offset: var(--focus-offset);
+}
+:is(.quiet-link, .view-all, .back, .project-action) {
+  gap: var(--control-icon-gap);
+  font-size: var(--control-size);
+  font-weight: var(--control-weight);
+  line-height: var(--control-leading);
+  min-height: 44px;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --card-title-size: clamp(1.5rem, 2vw, 1.625rem);
+  }
+}
+
+/* Crop the legacy Quantercise mark's empty canvas without enlarging its slot. */
+img[src="/images/brand/quantercise-legacy-icon.png"] {
+  transform: scale(1.5);
+  clip-path: inset(16.6667% round 0.12em);
+}
+
+/* Titles and dates share the left-hand identity tier on card headers. */
+.card-title-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.375rem var(--card-header-gap);
+  min-width: 0;
+}
+.card-title-group :is(.date, .project-meta-ui) {
+  font-size: var(--control-size);
+  font-weight: var(--card-copy-weight);
+  line-height: var(--control-leading);
+  font-variant-numeric: tabular-nums;
+  color: var(--paper-muted);
+}
+
+@media (min-width: 1024px) {
+  .work-card .card-title-group {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.375rem;
+  }
+}
+
+/* Touch scrolling may focus a link in embedded browsers. Keyboard input clears
+   this marker before focus moves; editable controls retain their focus feedback. */
+html[data-touch-input] :where(a, button, summary):focus-visible {
+  outline: none !important;
+}
+html[data-touch-input] a:focus-visible .card-action {
+  background: var(--paper-surface);
+  color: var(--paper-ink);
+}
+html[data-touch-input] .wordmark .brand-mark__half {
+  transform: none !important;
 }

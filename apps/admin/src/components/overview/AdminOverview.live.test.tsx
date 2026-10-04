@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import snapshot from "../../fixtures/ops_v1.sample.json";
 import events from "../../fixtures/ops_events_v1.synthetic.json";
+import data from "../../fixtures/data_v1.synthetic.json";
 import { AdminOverview } from "./AdminOverview";
 import { createPrivateReaderSession } from "../../lib/private-reader-client";
 import {
@@ -35,7 +36,156 @@ const transition = (seq: number, from: string, to: string, at: string) => ({
   detail: to === "ok" ? "last pass completed" : "last pass failed",
 });
 
+describe("initial recent records", () => {
+  it.each(["records", "sources"] as const)(
+    "waits for both reads when %s arrives first",
+    async (first) => {
+      vi.useFakeTimers();
+      const resolve: Partial<
+        Record<"records" | "sources", (reply: Response) => void>
+      > = {};
+      const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input) === "/api/private-reader/credential")
+          return Response.json({
+            credential: "synthetic",
+            scope: ["data:read"],
+            expiresAt: Math.floor(Date.now() / 1000) + 60,
+          });
+        const url = new URL(String(input), "https://admin.invalid");
+        return new Promise<Response>((done) => {
+          resolve[url.pathname.endsWith("/sources") ? "sources" : "records"] =
+            done;
+        });
+      }) as unknown as typeof fetch;
+      const session = createPrivateReaderSession({
+        fetch: fetcher,
+        csrf: async () => "csrf",
+      });
+      const host = document.createElement("div");
+      const root = createRoot(host);
+      await act(async () =>
+        root.render(
+          <AdminOverview
+            content={[]}
+            enabled={false}
+            dataEnabled
+            session={session}
+            fetch={fetcher}
+          />,
+        ),
+      );
+      await settle();
+      const answer = (kind: "records" | "sources") =>
+        Response.json({
+          schema: "personal_context_data_v1",
+          response_observed_at: new Date().toISOString(),
+          data: {
+            items: kind === "records" ? [data.records[0]] : data.sources,
+            total: kind === "records" ? 1 : data.sources.length,
+            next_offset: null,
+          },
+        });
+      await act(async () => resolve[first]!(answer(first)));
+      await settle();
+      expect(
+        host.querySelector('[aria-label="Loading recent records"]'),
+      ).not.toBeNull();
+      expect(host.textContent).not.toContain(data.records[0]!.title);
+      const second = first === "records" ? "sources" : "records";
+      await act(async () => resolve[second]!(answer(second)));
+      await settle();
+      expect(
+        host.querySelector('[aria-label="Loading recent records"]'),
+      ).toBeNull();
+      expect(host.textContent).toContain(data.records[0]!.title);
+      await act(async () => root.unmount());
+      session.logout();
+    },
+  );
+});
+
 describe("live alerts on the overview", () => {
+  it("keeps initial alerts loading until delayed history pages settle", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-21T18:00:10Z"));
+    const quiet = structuredClone(snapshot);
+    quiet.generated_at = "2026-09-21T18:00:00Z";
+    for (const row of quiet.status) Object.assign(row, { state: "ok" });
+    let first!: (reply: Response) => void;
+    let last!: (reply: Response) => void;
+    const waits: Array<string | null> = [];
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === OPS_CREDENTIAL_ENDPOINT)
+        return Response.json({
+          credential: "synthetic",
+          scope: ["ops:read"],
+          expiresAt: Math.floor(Date.now() / 1000) + 60,
+        });
+      const url = new URL(String(input), "https://admin.invalid");
+      if (url.pathname === "/v1/ops/snapshot") return Response.json(quiet);
+      waits.push(url.searchParams.get("wait"));
+      return new Promise<Response>((resolve) => {
+        if (url.searchParams.get("after") === "0") first = resolve;
+        else last = resolve;
+      });
+    }) as unknown as typeof fetch;
+    const controller = createOpsStatusController({
+      session: createPrivateReaderSession({
+        fetch: fetcher,
+        csrf: async () => "csrf",
+        endpoint: OPS_CREDENTIAL_ENDPOINT,
+      }),
+      fetch: fetcher,
+      isHidden: () => false,
+      events: true,
+    });
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    await act(async () =>
+      root.render(
+        <AdminOverview
+          content={[]}
+          dataEnabled={false}
+          enabled
+          controller={controller}
+        />,
+      ),
+    );
+    await settle();
+    expect(host.querySelector('[aria-label="Loading alerts"]')).not.toBeNull();
+    expect(host.querySelector('table[aria-label="Firing alerts"]')).toBeNull();
+    await act(async () =>
+      first(
+        Response.json({
+          version: "ops_events_v1",
+          items: [transition(1, "ok", "failing", "2026-09-21T18:00:01Z")],
+          next_after: 1,
+        }),
+      ),
+    );
+    await settle();
+    expect(host.querySelector('[aria-label="Loading alerts"]')).not.toBeNull();
+    expect(host.querySelector('table[aria-label="Firing alerts"]')).toBeNull();
+    expect(waits).toEqual([null, null]);
+    await act(async () =>
+      last(
+        Response.json({
+          version: "ops_events_v1",
+          items: [transition(2, "failing", "ok", "2026-09-21T18:00:02Z")],
+          next_after: null,
+        }),
+      ),
+    );
+    await settle();
+    expect(controller.getState().eventsInitial).toBe("ready");
+    expect(host.querySelector('[aria-label="Loading alerts"]')).toBeNull();
+    expect(host.querySelector('table[aria-label="Firing alerts"]')).toBeNull();
+    await act(async () => root.unmount());
+    controller.dispose();
+    host.remove();
+  });
+
   it("shows a new firing alert on the next poll and drops it when it resolves, with no reload", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-21T18:00:10Z"));

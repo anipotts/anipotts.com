@@ -54,3 +54,54 @@ it("includes nested additions, removed unknown fields and body changes", () => {
   ]);
   expect(changes[0]).toMatchObject({ before: "true", after: "" });
 });
+
+it("groups section order and selections into one presentation review, excluding serialization markers", () => {
+  const before = {
+    sections: {
+      intro: { subheading: "Hello" },
+      writing: { writing_slugs: ["a", "b"] },
+    },
+    section_order: ["intro", "writing"],
+  };
+  const after = {
+    sections: {
+      intro: { subheading: "Hello", subheading_format: "markdown" },
+      writing: { writing_slugs: ["b", "a"] },
+    },
+    section_order: ["writing", "intro"],
+  };
+  const changes = structuredReviewChanges(source(before), source(after), []);
+  expect(changes).toHaveLength(1);
+  expect(changes[0]).toMatchObject({
+    label: "Page sections",
+    presentation: true,
+  });
+  expect(changes[0]!.after).not.toContain("subheading_format");
+  expect(JSON.parse(changes[0]!.after).order).toEqual(["writing", "intro"]);
+});
+
+it("renders legacy mention icons consistently across a Markdown migration", () => {
+  const mentions = {
+    logo: {
+      label: "company",
+      href: "https://example.test/",
+      logoSrc: "/images/logo.svg",
+    },
+  };
+  const before = {
+    sections: { intro: { subheading: "company", mention_keys: ["logo"] } },
+    mentions,
+  };
+  const after = {
+    sections: {
+      intro: {
+        subheading: "[![](/images/logo.svg)company](https://example.test/)",
+        subheading_format: "markdown",
+      },
+    },
+    mentions,
+  };
+  expect(structuredReviewChanges(source(before), source(after), [])).toEqual(
+    [],
+  );
+});

@@ -1,8 +1,8 @@
 import { contentDecision, decisionHref } from "../../lib/content-decision";
 import React, { memo, useEffect, useState } from "react";
 import type { CatalogRecord, CatalogGroup } from "./EditorialApp";
-import { Button } from "@astryxdesign/core/Button";
-import { IconButton } from "@astryxdesign/core/IconButton";
+import { Button } from "./WritingControls";
+import { IconButton } from "./WritingControls";
 import {
   ArticleIcon,
   BriefcaseIcon,
@@ -21,7 +21,7 @@ import { Text } from "@astryxdesign/core/Text";
 import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-} from "@astryxdesign/core/DropdownMenu";
+} from "./WritingControls";
 import {
   DataTable,
   FilterBar,
@@ -30,12 +30,9 @@ import {
   RowTitle,
   StateBadge,
   StateNotice,
-  WordSafeText,
   WorkspacePage,
   badgeFor,
-  chipWidth,
   leadWidth,
-  titleWidth,
   type Column,
 } from "../workspace/Workspace";
 import {
@@ -216,67 +213,6 @@ function UnavailableMark() {
   );
 }
 
-/** The state chip, then a line only when it says something the chip does
- * not. A default state (Published, Listed) shows nothing at all. */
-function RecordState({
-  record,
-  inventoryError,
-}: {
-  record: CatalogRecord;
-  inventoryError: boolean;
-}) {
-  const decision = contentDecision(record, !inventoryError);
-  return (
-    <HStack gap={2} vAlign="center" className="editorial-record-state">
-      <StateBadge domain="content" state={record.status} />
-      {decision.unavailable && <UnavailableMark />}
-      {decision.detail && (
-        <Text
-          type="supporting"
-          color="secondary"
-          className="editorial-record-state-detail"
-        >
-          {decision.detail}
-        </Text>
-      )}
-    </HStack>
-  );
-}
-
-/** The State column's width: its widest cell, a chip, the unavailable mark
- * and a detail with their 8px gaps, so a column of short chips gives the
- * titles the room. Never narrower than its header. */
-function contentStateWidth(
-  records: readonly CatalogRecord[],
-  inventoryError: boolean,
-): number {
-  let widest = titleWidth("State");
-  for (const record of records) {
-    const decision = contentDecision(record, !inventoryError);
-    const badge = badgeFor("content", record.status);
-    const parts = [
-      badge.isDefault ? 0 : chipWidth(badge.label),
-      decision.unavailable ? 16 : 0,
-      decision.detail ? (titleWidth(decision.detail) * 13) / 14 : 0,
-    ].filter(Boolean);
-    widest = Math.max(
-      widest,
-      parts.reduce((sum, part) => sum + part, 0) + 8 * (parts.length - 1),
-    );
-  }
-  return Math.ceil(24 + widest);
-}
-
-/** Whether a row's state says anything beyond the default. */
-function stateIsNews(record: CatalogRecord, inventoryError: boolean) {
-  const decision = contentDecision(record, !inventoryError);
-  return (
-    !badgeFor("content", record.status).isDefault ||
-    Boolean(decision.detail) ||
-    Boolean(decision.unavailable)
-  );
-}
-
 export function ContentLibrary({
   groups,
   selectedGroup,
@@ -339,6 +275,10 @@ export function ContentLibrary({
     groups.find((item) => item.name === selectedGroup) ??
     groups[0];
   const library = LIBRARIES[group?.name ?? ""] ?? LIBRARIES.website!;
+  const noun: [string, string] = [
+    library.kind.toLowerCase(),
+    `${library.kind.toLowerCase()}s`,
+  ];
   const heading = title ?? library.title;
   const create = area === "content" ? library.create : undefined;
   const actions = create && (
@@ -404,6 +344,7 @@ export function ContentLibrary({
   const columns: Column<CatalogRecord>[] = [
     {
       key: "title",
+      priority: 0,
       header: "Title",
       render: (item) => {
         const decision = decisions.get(item)!;
@@ -414,15 +355,18 @@ export function ContentLibrary({
             : undefined;
         return (
           <RowTitle
-            icon={recordGlyph(item)[0]}
+            icon={group.name === "writing" ? undefined : recordGlyph(item)[0]}
             kind={recordGlyph(item)[1]}
             title={item.title}
             href={rowHref(item)}
             linkLabel={rowName(item)}
             tooltip={changed ? `${rowName(item)} (${changed})` : rowName(item)}
-            mobile={
-              stateIsNews(item, inventoryError) ? (
-                <RecordState record={item} inventoryError={inventoryError} />
+            secondary={
+              decision.detail || decision.unavailable ? (
+                <span className="editorial-record-exception">
+                  {decision.unavailable && <UnavailableMark />}
+                  {decision.detail}
+                </span>
               ) : undefined
             }
             time={item.updated?.at}
@@ -432,6 +376,10 @@ export function ContentLibrary({
     },
     {
       key: "summary",
+      compact: "detail",
+      compactLabel: false,
+      priority: 1,
+      min: 200,
       header: "Summary",
       hideBelow: "large",
       // The summary is a teaser and gives way first: the titles keep room
@@ -451,27 +399,27 @@ export function ContentLibrary({
             className="editorial-record-summary"
           >
             {/* A teaser gives way first, but after a whole word. */}
-            <WordSafeText title={item.summary}>{item.summary}</WordSafeText>
+            <span title={item.summary}>{item.summary}</span>
           </Text>
         ) : null,
     },
     {
-      key: "status",
-      header: "State",
-      width: contentStateWidth(group.records, inventoryError),
-      render: (item) => (
-        <RecordState record={item} inventoryError={inventoryError} />
-      ),
-    },
-    {
       key: "updated",
-      header: "Updated",
-      width: 112,
+      compact: "trailing",
+      compactLabel: false,
+      priority: 2,
+      header: "Last activity",
+      width: 120,
       render: (item) => <Updated updated={item.updated} column />,
     },
   ];
   return (
-    <WorkspacePage title={heading} count={records.length} actions={actions}>
+    <WorkspacePage
+      title={heading}
+      count={group.records.length}
+      countNoun={noun}
+      actions={actions}
+    >
       <VStack gap={5} className="editorial-library">
         <FilterBar
           search={{
@@ -543,12 +491,36 @@ export function ContentLibrary({
         </FilterBar>
         {records.length ? (
           <DataTable
+            tableId={`content-${group.name}`}
+            totalCount={group.records.length}
+            filteredCount={
+              query || status !== "all" ? matched.length : undefined
+            }
+            groupTotals={Object.fromEntries(
+              [...new Set(group.records.map((record) => record.status))].map(
+                (status) => [
+                  status,
+                  group.records.filter((record) => record.status === status)
+                    .length,
+                ],
+              ),
+            )}
+            searchActive={Boolean(query || status !== "all")}
+            groupBy={(row) => row.status}
+            groupLabel={(key) =>
+              key === "published"
+                ? "Published"
+                : key === "draft"
+                  ? "Drafts"
+                  : key === "unpublished"
+                    ? "Unpublished"
+                    : badgeFor("content", key).label
+            }
             rows={records}
             columns={columns}
             rowKey="href"
             label={`${library.title} records`}
-            noun={["record", "records"]}
-            footer={false}
+            noun={noun}
           />
         ) : (
           <StateNotice
@@ -561,10 +533,15 @@ export function ContentLibrary({
                   ? "No records yet"
                   : "No matching records"
             }
+            description={
+              !inventoryError && group.records.length > 0
+                ? `0 matching of ${group.records.length}`
+                : undefined
+            }
             action={
               !inventoryError &&
               group.records.length > 0 &&
-              status !== "all" && (
+              (query || status !== "all") && (
                 <Button
                   label="Clear filters"
                   onClick={() => change({ q: "", status: "all" })}

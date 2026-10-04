@@ -58,7 +58,7 @@ describe("editorial inventory projection", () => {
       intendedVisibility: "draft",
       changesPending: true,
       privateRevision: 2,
-      publishedUpdated: published,
+      publishedUpdated: undefined,
       updated: { source: "private" },
       href: "/content/writing/post",
     });
@@ -69,11 +69,9 @@ describe("editorial inventory projection", () => {
     expect(JSON.stringify(records)).not.toContain("baseCommit");
     expect(JSON.stringify(records)).not.toContain("---");
   });
-  // A-8: only a real publication through the editor moves Updated. The Git
-  // seed (scripts/content/content-d1-seed.mjs) stamped 19 records with the
-  // moment it ran, 2026-09-21T17:09:31.683Z, which was never a publish.
+  // A seed activation is a real CMS publication with exact source provenance.
   const SEEDED_AT = "2026-09-21T17:09:31.683Z";
-  it("keeps the Git time for a seeded revision newer than the last Git change", () => {
+  it("uses the active CMS seed publication time", () => {
     const git = { at: "2026-09-08T12:00:00Z", source: "git" as const };
     const [record] = projectEditorialInventory(
       [
@@ -87,8 +85,8 @@ describe("editorial inventory projection", () => {
       [],
       () => git,
     );
-    expect(record!.updated).toEqual(git);
-    expect(record!.publishedUpdated).toEqual(git);
+    expect(record!.updated).toEqual({ at: SEEDED_AT, source: "cms" });
+    expect(record!.publishedUpdated).toEqual({ at: SEEDED_AT, source: "cms" });
   });
   it("reads an edited record's publish time when it is newer than the last Git change", () => {
     const git = { at: "2026-09-08T12:00:00Z", source: "git" as const };
@@ -154,9 +152,9 @@ describe("editorial inventory projection", () => {
       [],
       () => git,
     );
-    expect(record!.updated).toEqual(git);
+    expect(record!.updated).toBeUndefined();
   });
-  it("keeps a newer Git change over an older publish", () => {
+  it("uses CMS provenance even when a Git edit is newer", () => {
     const git = { at: "2026-09-21T16:00:00Z", source: "git" as const };
     const [record] = projectEditorialInventory(
       [
@@ -170,7 +168,10 @@ describe("editorial inventory projection", () => {
       [],
       () => git,
     );
-    expect(record!.updated).toEqual(git);
+    expect(record!.updated).toEqual({
+      at: "2026-09-08T12:00:00.000Z",
+      source: "cms",
+    });
   });
   it("keeps the private draft time while changes are pending over a newer publish", () => {
     const [record] = projectEditorialInventory(
@@ -591,11 +592,13 @@ it("keeps homepage picker slugs tied to the public baseline rather than a privat
     [
       {
         collection: "writing",
+        published: true,
         id: "post",
         data: { title: "Post", status: "published", slug: "public-address" },
       },
       {
         collection: "writing",
+        published: true,
         id: "default-address",
         data: { title: "Default", status: "published" },
       },
@@ -611,4 +614,32 @@ it("keeps homepage picker slugs tied to the public baseline rather than a privat
   expect(records[1]!.publishedSlug).toBe("default-address");
   const privateOnly = projectEditorialInventory([], [draft()]);
   expect(privateOnly[0]!.publishedSlug).toBeUndefined();
+});
+
+it("keeps authorable seed content unpublished without CMS evidence and unknown on failure", () => {
+  const unpublished = projectEditorialInventory(
+    entries.map((entry) => ({ ...entry, published: false })),
+    [],
+    () => ({ at: "2026-10-01T00:00:00Z", source: "git" }),
+  );
+  expect(
+    unpublished.every(
+      (entry) =>
+        entry.status === "unpublished" &&
+        !entry.publishedUpdated &&
+        !entry.publishedSlug,
+    ),
+  ).toBe(true);
+  const unknown = projectEditorialInventory(
+    entries.map((entry) => ({ ...entry, published: null })),
+    [],
+  );
+  expect(
+    unknown.every(
+      (entry) =>
+        entry.status === "unknown" &&
+        !entry.publishedUpdated &&
+        !entry.publishedSlug,
+    ),
+  ).toBe(true);
 });

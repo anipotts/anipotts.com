@@ -112,3 +112,49 @@ it("adds a published article as soon as it is chosen and disables all edits", as
   ).toEqual([""]);
   await act(async () => root.unmount());
 });
+it("prevents adding beyond the selection limit while leaving removals available", async () => {
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  const onChange = vi.fn();
+  await act(async () =>
+    root.render(
+      <HomepageWritingSelection
+        value={["missing"]}
+        options={options}
+        limit={1}
+        onChange={onChange}
+      />,
+    ),
+  );
+  expect(host.querySelector("select")!.disabled).toBe(true);
+  act(() => {
+    const select = host.querySelector("select")!;
+    select.value = "live";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  expect(onChange).not.toHaveBeenCalled();
+  act(() =>
+    host
+      .querySelector<HTMLButtonElement>('[aria-label="Remove selection 1"]')!
+      .click(),
+  );
+  expect(onChange).toHaveBeenLastCalledWith([]);
+  await act(async () => root.unmount());
+});
+
+it("shows one empty selection message without an empty table", async () => {
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  await act(async () =>
+    root.render(
+      <HomepageWritingSelection
+        value={[]}
+        options={options}
+        onChange={() => {}}
+      />,
+    ),
+  );
+  expect(host.textContent?.match(/No articles selected\./g)).toHaveLength(1);
+  expect(host.querySelector("table")).toBeNull();
+  await act(async () => root.unmount());
+});

@@ -45,7 +45,6 @@ import {
   StateNotice,
   TitleText,
   WorkspaceSection,
-  YieldOnly,
   badgeFor,
   chipWidth,
   leadWidth,
@@ -166,6 +165,7 @@ export function statusColumns(
 ): Column<Row>[] {
   const lead: Column<Row> = {
     key: "name",
+    priority: 0,
     header: "Service",
     // Where the table is too narrow for its longest name, Next run gives
     // way first, then State moves to line 2.
@@ -187,17 +187,7 @@ export function statusColumns(
           isPressed={select.selected === row.id}
           controls={select.selected === row.id ? OPS_PANEL_ID : undefined}
           tooltip={naming.tooltip}
-          mobile={
-            exception ? (
-              <>
-                <YieldOnly column="state">
-                  <EntryState service={row} />
-                </YieldOnly>
-                <Reason service={row} />
-              </>
-            ) : undefined
-          }
-          mobileBelow="large"
+          secondary={narrow && exception ? <Reason service={row} /> : undefined}
           end={
             <>
               <LastSuccess service={row} now={now} />
@@ -210,6 +200,9 @@ export function statusColumns(
   };
   const state: Column<Row> = {
     key: "state",
+    compact: "inline",
+    compactLabel: false,
+    priority: 1,
     header: "State",
     width: stateColumn,
     yieldOrder: narrow ? undefined : 2,
@@ -217,12 +210,14 @@ export function statusColumns(
   };
   const lastSuccess: Column<Row> = {
     key: "last_success",
+    priority: 1,
     header: "Last success",
     width: CELL_WIDTHS.time,
     render: (row) => <LastSuccess service={row} now={now} />,
   };
   const next: Column<Row> = {
     key: "next",
+    priority: 1,
     header: "Next run",
     width: CELL_WIDTHS.time,
     yieldOrder: 1,
@@ -235,6 +230,7 @@ export function statusColumns(
     // Kept at medium too: two services can share a name on two Macs.
     {
       key: "device",
+      priority: 1,
       header: <span className="sr-only">Device</span>,
       width: OPS_WIDTHS.tile,
       render: (row) =>
@@ -243,6 +239,9 @@ export function statusColumns(
     state,
     {
       key: "detail",
+      compact: "detail",
+      compactLabel: false,
+      priority: 2,
       header: "Detail",
       share: 0.5,
       // Names never give way to a reason: the reason wraps and clamps.
@@ -254,6 +253,7 @@ export function statusColumns(
     lastSuccess,
     {
       key: "last_run",
+      priority: 1,
       header: "Last run",
       width: CELL_WIDTHS.time,
       hideBelow: "wide",
@@ -261,6 +261,7 @@ export function statusColumns(
     },
     {
       key: "duration",
+      priority: 1,
       header: "Took",
       width: OPS_WIDTHS.figure,
       numeric: true,
@@ -270,6 +271,7 @@ export function statusColumns(
     next,
     {
       key: "runs",
+      priority: 1,
       header: "Runs",
       width: OPS_WIDTHS.figure,
       numeric: true,
@@ -278,6 +280,7 @@ export function statusColumns(
     },
     {
       key: "trigger",
+      priority: 1,
       header: <span className="sr-only">Trigger</span>,
       width: OPS_WIDTHS.lastTile,
       hideBelow: "large",
@@ -632,90 +635,92 @@ function SyncGrid({
   if (!rows.length) return null;
   return (
     <WorkspaceSection title="Syncs" meta={String(rows.length)}>
-      <ul className="ops-cards ops-syncs" aria-label="Syncs">
-        {rows.map((row) => {
-          const { service } = row;
-          const naming = entryNaming(service, names);
-          // The device tile names the host, so a name two Macs share drops
-          // its ", ap-mini" beside it; the tooltip keeps the full name.
-          const bare = entryNaming(service);
-          const device = naming.device ? service.host : null;
-          const budget = service.freshness_budget_s;
-          const budgetText =
-            budget === null
-              ? "No freshness budget"
-              : `Budget ${secondsText(budget)}`;
-          const state = <SyncState service={service} now={now} />;
-          if (row.app === null)
-            // A multi-app pass: its own job, in job words, with no app mark
-            // borrowing its freshness.
-            return (
-              <Card
-                key={row.key}
-                id={service.id}
-                select={select}
-                tile={<EntryTile naming={naming} size={28} />}
-                // The device beside it names the host, so the bare name.
-                title={device ? bare.name : naming.name}
-                tooltip={`${naming.name}\n${budgetText}\n${service.id}`}
-                state={state}
-                meta={
-                  device ? (
-                    <SyncWhere device={device} name={deviceName(device)} />
-                  ) : undefined
-                }
-                end={
-                  <span className="ops-inline">
-                    Last pass
-                    <LastSuccess
-                      service={service}
-                      now={now}
-                      empty="Not recorded"
-                    />
-                  </span>
-                }
-              />
-            );
-          const app = brandMark(row.app)?.label ?? sentenceCase(row.app);
-          // One tile per thing: an entry the table draws with another mark
-          // (Session transcripts to R2 is Cloudflare's, where it lands) keeps
-          // that mark and its name here, the app it carries in the tooltip.
-          const own = naming.tile.id !== row.app;
-          return (
-            <Card
-              key={row.key}
-              id={service.id}
-              select={select}
-              tile={
-                own ? (
-                  <EntryTile naming={naming} size={28} />
-                ) : (
-                  <BrandTile id={row.app} size={28} />
-                )
-              }
-              // The device beside it names the host, so the bare name.
-              title={own ? (device ? bare.name : naming.name) : app}
-              tooltip={`${app} via ${naming.name}\n${budgetText}\n${service.id}`}
-              state={state}
-              meta={
-                own ? (
-                  device ? (
-                    <SyncWhere device={device} name={deviceName(device)} />
-                  ) : undefined
-                ) : (
-                  <SyncWhere
-                    device={device}
-                    name={device ? bare.name : naming.name}
-                  />
-                )
-              }
-              end={
-                <LastSuccess service={service} now={now} empty="Not recorded" />
-              }
-            />
-          );
-        })}
-      </ul>
+      <DataTable
+        tableId="ops-syncs"
+        rows={rows}
+        rowKey="key"
+        label="Syncs"
+        noun={["sync", "syncs"]}
+        footer={false}
+        columns={[
+          {
+            key: "sync",
+            priority: 0,
+            header: "Sync",
+            render: ({ app, service }) => {
+              const naming = entryNaming(service, names);
+              const bare = entryNaming(service);
+              const own = app === null || naming.tile.id !== app;
+              const title = own
+                ? naming.device
+                  ? bare.name
+                  : naming.name
+                : (brandMark(app!)?.label ?? sentenceCase(app!));
+              const budget = service.freshness_budget_s;
+              return (
+                <RowTitle
+                  mark={
+                    own ? (
+                      <EntryTile naming={naming} size={28} />
+                    ) : (
+                      <BrandTile id={app!} size={28} />
+                    )
+                  }
+                  kind="Sync"
+                  title={title}
+                  tooltip={`${app === null ? naming.name : `${brandMark(app)?.label ?? sentenceCase(app)} via ${naming.name}`}\n${budget === null ? "No freshness budget" : `Budget ${secondsText(budget)}`}\n${service.id}`}
+                  href={opsEntryHref(service.id)}
+                  onSelect={(trigger) => select.open(service.id, trigger)}
+                  isPressed={select.selected === service.id}
+                  controls={
+                    select.selected === service.id ? OPS_PANEL_ID : undefined
+                  }
+                />
+              );
+            },
+          },
+          {
+            key: "state",
+            compact: "inline",
+            compactLabel: false,
+            priority: 1,
+            header: "State",
+            width: CELL_WIDTHS.state,
+            render: ({ service }) => <SyncState service={service} now={now} />,
+          },
+          {
+            key: "where",
+            priority: 2,
+            header: "Source",
+            width: 200,
+            render: ({ app, service }) => {
+              const naming = entryNaming(service, names);
+              const bare = entryNaming(service);
+              const device = naming.device ? service.host : null;
+              const own = app === null || naming.tile.id !== app;
+              return own ? (
+                device ? (
+                  <SyncWhere device={device} name={deviceName(device)} />
+                ) : null
+              ) : (
+                <SyncWhere
+                  device={device}
+                  name={device ? bare.name : naming.name}
+                />
+              );
+            },
+          },
+          {
+            key: "last",
+            priority: 1,
+            header: "Last successful pass",
+            width: CELL_WIDTHS.time,
+            render: ({ service }) => (
+              <LastSuccess service={service} now={now} empty="Not recorded" />
+            ),
+          },
+        ]}
+      />
     </WorkspaceSection>
   );
 }
@@ -791,6 +796,7 @@ function StatusList({
       <HostStrip hosts={hosts} now={now} select={select} />
       {rows.length ? (
         <DataTable
+          tableId="ops-status"
           rows={rows}
           columns={columns}
           rowKey="id"

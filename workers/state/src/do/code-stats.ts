@@ -124,7 +124,8 @@ export class CodeStats extends DurableObject {
   private async handleWebSocketUpgrade(): Promise<Response> {
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair) as [WebSocket, WebSocket];
-    this.ctx.acceptWebSocket(server);
+    // The tag excludes unauthenticated sockets left by older deployments.
+    this.ctx.acceptWebSocket(server, ["private-read-v1"]);
     const commits = await this.list(100);
     server.send(this.serialize({ type: "snapshot", commits }));
     return new Response(null, { status: 101, webSocket: client });
@@ -142,7 +143,7 @@ export class CodeStats extends DurableObject {
 
   private broadcast(event: CodeStatsEvent): void {
     const data = this.serialize(event);
-    for (const ws of this.ctx.getWebSockets()) {
+    for (const ws of this.ctx.getWebSockets("private-read-v1")) {
       try {
         ws.send(data);
       } catch {

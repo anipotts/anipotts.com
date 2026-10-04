@@ -407,6 +407,7 @@ export function DevKitCatalog({
       <WorkspacePage title="Kit" meta={`Ops values: ${source}`} />
       <WorkspaceSection title="Status">
         <DataTable
+          tableId="catalog-status"
           rows={status}
           columns={statusColumns}
           rowKey="id"
@@ -418,6 +419,7 @@ export function DevKitCatalog({
       </WorkspaceSection>
       <WorkspaceSection title="Activity">
         <DataTable
+          tableId="catalog-activity"
           rows={activity}
           columns={activityColumns(snapshot)}
           rowKey="id"
@@ -430,6 +432,7 @@ export function DevKitCatalog({
       </WorkspaceSection>
       <WorkspaceSection title="Sources">
         <DataTable
+          tableId="catalog-sources"
           rows={SOURCES}
           columns={sourceColumns}
           rowKey="id"

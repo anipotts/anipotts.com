@@ -684,7 +684,9 @@ describe("Health and Knowledge", () => {
         knowledge: dataFixture.knowledge,
       },
     });
-    expect(host.querySelector(".workspace-count")?.textContent).toBe("8");
+    expect(host.querySelector(".workspace-count")?.textContent).toBe(
+      "8 entities",
+    );
     const table = () => host.querySelector('table[aria-label="Entities"]')!;
     expect(table().textContent).toContain("Robin Example");
     const places = [...host.querySelectorAll("button")].find(
@@ -751,7 +753,9 @@ describe("Records paging and the split", () => {
     await settle();
     const rows = () => host.querySelectorAll("tbody tr");
     expect(rows()).toHaveLength(20);
-    expect(host.querySelector(".workspace-count")?.textContent).toBe("25");
+    expect(host.querySelector(".workspace-count")?.textContent).toBe(
+      "25 records",
+    );
     // The listed records are what the palette finds under Data.
     const found = () =>
       providedSearchEntries().filter((row) => row.domain === "data");

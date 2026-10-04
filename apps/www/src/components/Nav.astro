@@ -127,7 +127,18 @@ const current = Astro.url.pathname;
       mark.setAttribute("data-hover-restored", "");
     }
     const track = (event) => {
-      if (!finePointer.matches || event.pointerType === "touch") return;
+      if (event.pointerType === "touch" || event.pointerType === "pen") {
+        pointer = null;
+        mark.removeAttribute("data-hover-restored");
+        show(false);
+        try {
+          sessionStorage.removeItem(key);
+        } catch {
+          /* Storage is optional. */
+        }
+        return;
+      }
+      if (!finePointer.matches) return;
       pointer = { x: event.clientX, y: event.clientY };
       mark.removeAttribute("data-hover-restored");
       const next = contains(pointer);
@@ -201,7 +212,7 @@ const current = Astro.url.pathname;
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .nav-link:hover {
+    :global(html:not([data-touch-input])) .nav-link:hover {
       color: var(--interactive);
     }
   }
@@ -228,7 +239,7 @@ const current = Astro.url.pathname;
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .theme-toggle:hover {
+    :global(html:not([data-touch-input])) .theme-toggle:hover {
       color: var(--interactive);
     }
   }
@@ -242,7 +253,7 @@ const current = Astro.url.pathname;
     flex-direction: column;
     gap: 0.36rem;
     border: 0;
-    border-radius: 0.5rem;
+    border-radius: var(--card-ui-radius);
     background: transparent;
     color: var(--ink-muted);
     cursor: pointer;
@@ -259,15 +270,15 @@ const current = Astro.url.pathname;
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .nav-toggle:hover {
+    :global(html:not([data-touch-input])) .nav-toggle:hover {
       color: var(--interactive);
     }
   }
 
   :is(.wordmark, .theme-toggle, .nav-toggle, .nav-link):focus-visible {
-    outline: 2px solid var(--interactive);
-    outline-offset: 4px;
-    border-radius: 0.5rem;
+    outline: var(--focus-width) solid var(--ink);
+    outline-offset: var(--focus-offset);
+    border-radius: var(--card-ui-radius);
   }
 
   @media (max-width: 720px) {
@@ -291,12 +302,7 @@ const current = Astro.url.pathname;
 
     .theme-toggle {
       margin-left: 0;
-      border-radius: 0.5rem;
-    }
-
-    :is(.theme-toggle, .nav-toggle):active {
-      color: var(--ink);
-      background: color-mix(in srgb, var(--ink) 10%, transparent);
+      border-radius: var(--card-ui-radius);
     }
 
     .nav-toggle {
@@ -342,11 +348,10 @@ const current = Astro.url.pathname;
     .nav-link {
       min-height: 52px;
       padding-inline: var(--s-3);
-      border-radius: 0.5rem;
+      border-radius: var(--card-ui-radius);
     }
 
-    .nav-link[aria-current="page"],
-    .nav-link:active {
+    .nav-link[aria-current="page"] {
       background: color-mix(in srgb, var(--ink) 7%, transparent);
     }
 

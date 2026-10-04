@@ -231,11 +231,11 @@ try {
   );
   report.contentVersion = JSON.parse(version.body);
   const problems = [];
-  if (report.contentVersion.runtime !== 1) problems.push("reader not ready");
+  if (report.contentVersion.runtime !== 2) problems.push("reader not ready");
+  if (report.contentVersion.contentSchemaVersion !== 1)
+    problems.push("reader content schema differs from the seed");
   if (report.contentVersion.inventoryVersion !== 1)
     problems.push("seed is not one activation");
-  if (report.contentVersion.bundledSourceSha256 !== seed.bundledSourceSha256)
-    problems.push("reader baseline differs from the seed's bundled digest");
   for (const host of hosts)
     for (const [path, status] of expected) {
       const response = await get(worker.origin, host, path);

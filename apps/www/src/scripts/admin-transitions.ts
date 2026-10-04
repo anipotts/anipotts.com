@@ -203,7 +203,8 @@ function publicScene(direction: Direction): PublicScene {
   // manufacture a rectangle or change another page's composition to animate it.
   if (!paper)
     throw new NoMotionSurface("No visible full-row card with an action");
-  const button = $(".site-action", paper)!;
+  const button =
+    $("[data-admin-motion-action]", paper) || $(".site-action", paper)!;
   paper.setAttribute("data-admin-motion-paper", "");
   button.setAttribute("data-admin-motion-button", "");
   let ghost: Ghost;

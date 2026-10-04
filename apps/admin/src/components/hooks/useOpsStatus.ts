@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPrivateReaderSession } from "../../lib/private-reader-client";
 import {
   OPS_CREDENTIAL_ENDPOINT,
@@ -7,7 +7,10 @@ import {
   type OpsStatusState,
 } from "../../lib/ops-reader";
 import { readEditorialCsrf } from "../../lib/editorial-client";
-import { trackPrivateSession } from "../../lib/private-session-store";
+import {
+  releasePrivateSession,
+  trackPrivateSession,
+} from "../../lib/private-session-store";
 
 const OFF: OpsStatusState = Object.freeze({
   connection: "off",
@@ -15,6 +18,7 @@ const OFF: OpsStatusState = Object.freeze({
   checkedAt: null,
   events: null,
   eventsStale: false,
+  eventsInitial: "off",
 }) as OpsStatusState;
 const offStore = {
   getState: () => OFF,
@@ -28,15 +32,71 @@ const idleStore = {
   subscribe: () => () => undefined,
 };
 
-/** A fresh ops session, under the same idle rule as the Data session. */
-function opsController(events: boolean): OpsStatusController {
-  const session = createPrivateReaderSession({
-    fetch: (...args) => globalThis.fetch(...args),
-    csrf: readEditorialCsrf,
-    endpoint: OPS_CREDENTIAL_ENDPOINT,
-  });
-  trackPrivateSession(session);
-  return createOpsStatusController({ session, events });
+type OpsLease = {
+  controller: OpsStatusController;
+  events: (enabled: boolean) => void;
+  release: () => void;
+};
+type OwnedOps = {
+  controller: OpsStatusController;
+  consumers: number;
+  events: number;
+  retire: () => void;
+};
+let shared: OwnedOps | null = null;
+
+/** One browser-document controller, created only by committed consumers. */
+function acquireOps(events: boolean): OpsLease {
+  if (!shared) {
+    const session = createPrivateReaderSession({
+      fetch: (...args) => globalThis.fetch(...args),
+      csrf: readEditorialCsrf,
+      endpoint: OPS_CREDENTIAL_ENDPOINT,
+    });
+    trackPrivateSession(session);
+    const controller = createOpsStatusController({ session });
+    const visibility = () => controller.visibilityChanged();
+    const hide = () => controller.end();
+    document.addEventListener("visibilitychange", visibility);
+    window.addEventListener("pagehide", hide);
+    shared = {
+      controller,
+      consumers: 0,
+      events: 0,
+      retire() {
+        document.removeEventListener("visibilitychange", visibility);
+        window.removeEventListener("pagehide", hide);
+        controller.dispose();
+        releasePrivateSession(session);
+      },
+    };
+  }
+  const entry = shared;
+  entry.consumers++;
+  if (events) entry.events++;
+  entry.controller.setEventsEnabled(entry.events > 0);
+  if (entry.consumers === 1) entry.controller.start();
+  let active = true;
+  let wantsEvents = events;
+  return {
+    controller: entry.controller,
+    events(enabled) {
+      if (!active || wantsEvents === enabled) return;
+      entry.events += enabled ? 1 : -1;
+      wantsEvents = enabled;
+      entry.controller.setEventsEnabled(entry.events > 0);
+    },
+    release() {
+      if (!active) return;
+      active = false;
+      entry.consumers--;
+      if (wantsEvents) entry.events--;
+      if (entry.consumers === 0) {
+        if (shared === entry) shared = null;
+        entry.retire();
+      } else entry.controller.setEventsEnabled(entry.events > 0);
+    },
+  };
 }
 
 /**
@@ -55,28 +115,38 @@ export function useOpsStatus({
   /** Also read the events feed. */
   events?: boolean;
 }): { state: OpsStatusState; controller: OpsStatusController | null } {
-  // The session and its listeners are browser-only; the server renders the
-  // idle state the controller starts in.
-  const [controller] = useState<OpsStatusController | null>(() =>
-    !enabled || (typeof window === "undefined" && !injected)
-      ? null
-      : (injected ?? opsController(events)),
+  const [controller, setController] = useState<OpsStatusController | null>(
+    null,
   );
+  const lease = useRef<OpsLease | null>(null);
   useEffect(() => {
-    if (!controller) return;
-    const visibility = () => controller.visibilityChanged();
-    const end = () => controller.end();
-    document.addEventListener("visibilitychange", visibility);
-    window.addEventListener("pagehide", end);
-    controller.start();
+    if (!enabled) {
+      setController(null);
+      return;
+    }
+    if (injected) {
+      // An injected controller has an external owner; release only our listeners.
+      const visibility = () => injected.visibilityChanged();
+      const hide = () => injected.end();
+      document.addEventListener("visibilitychange", visibility);
+      window.addEventListener("pagehide", hide);
+      injected.start();
+      setController(injected);
+      return () => {
+        document.removeEventListener("visibilitychange", visibility);
+        window.removeEventListener("pagehide", hide);
+      };
+    }
+    const owned = acquireOps(events);
+    lease.current = owned;
+    setController(owned.controller);
     return () => {
-      document.removeEventListener("visibilitychange", visibility);
-      window.removeEventListener("pagehide", end);
-      // End, not dispose: a remount (Strict Mode) starts the same controller.
-      controller.end();
+      lease.current = null;
+      owned.release();
     };
-  }, [controller]);
-  const store = controller ?? (enabled ? idleStore : offStore);
+  }, [enabled, injected]);
+  useEffect(() => lease.current?.events(events), [events]);
+  const store = enabled ? (controller ?? idleStore) : offStore;
   const state = useSyncExternalStore(
     store.subscribe,
     store.getState,

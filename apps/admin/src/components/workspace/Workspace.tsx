@@ -67,13 +67,12 @@
 import React, {
   createContext,
   memo,
-  useCallback,
   useContext,
   useEffect,
   useId,
-  useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { Banner } from "@astryxdesign/core/Banner";
@@ -88,7 +87,6 @@ import {
 } from "@astryxdesign/core/MetadataList";
 import { Skeleton } from "@astryxdesign/core/Skeleton";
 import { StatusDot } from "@astryxdesign/core/StatusDot";
-import { Table, type TablePlugin } from "@astryxdesign/core/Table";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { Token } from "@astryxdesign/core/Token";
@@ -110,7 +108,14 @@ import {
   type Icon,
 } from "@phosphor-icons/react";
 import { brandMark } from "@anipotts/brand/marks";
-import { BREAKPOINTS, isBelow, type Breakpoint } from "../../lib/breakpoints";
+export {
+  tableMinWidths,
+  shareWidthAt,
+  tableFixedWidths,
+  yieldThresholds,
+  columnsAt,
+  tableYieldRules,
+} from "./table-layout";
 import { relativeAgo, useLiveText } from "../../lib/live-clock";
 import { appMark, countNoun, keyLabel } from "../../lib/naming";
 import { sentenceCase } from "../../lib/sentence-case";
@@ -125,6 +130,21 @@ import {
   shortValue,
 } from "./format";
 import "./workspace.css";
+import { useOpenAIUI, AdminMenuContent } from "./AdminUI";
+import { Menu as OpenAIMenu } from "@openai/apps-sdk-ui/components/Menu";
+import { Button as OpenAIButton } from "@openai/apps-sdk-ui/components/Button";
+import { OpenAIDataTable } from "./OpenAIDataTable";
+import { Badge as OpenAIBadge } from "@openai/apps-sdk-ui/components/Badge";
+import { Input as OpenAIInput } from "@openai/apps-sdk-ui/components/Input";
+import { Alert as OpenAIAlert } from "@openai/apps-sdk-ui/components/Alert";
+import { EmptyMessage as OpenAIEmptyMessage } from "@openai/apps-sdk-ui/components/EmptyMessage";
+export {
+  AdminUIProvider,
+  useOpenAIUI,
+  AdminMenuContent,
+  AdminPortalScope,
+} from "./AdminUI";
+export { WorkspaceMarkdown, PersistenceStatus } from "./OpenAIContent";
 
 /** Notice and chip copy never ends on a period. */
 const unpunctuated = (text: string) => text.replace(/\.\s*$/, "");
@@ -138,6 +158,7 @@ const unpunctuated = (text: string) => text.replace(/\.\s*$/, "");
 export function WorkspacePage({
   title,
   count,
+  countNoun = ["record", "records"],
   meta,
   badge,
   actions,
@@ -148,6 +169,7 @@ export function WorkspacePage({
   title: string;
   /** How many records the page lists, beside the title. */
   count?: number;
+  countNoun?: readonly [string, string];
   /** A fixed clock for the page (a fixture read at its own moment, a test):
    * the Eastern clock shows it and never ticks, like the page's ages. */
   clock?: number;
@@ -175,7 +197,7 @@ export function WorkspacePage({
             <Heading level={1}>{title}</Heading>
             {count !== undefined && (
               <Text color="secondary" className="workspace-count">
-                {count}
+                {count} {countNoun[count === 1 ? 0 : 1]}
               </Text>
             )}
             {badge}
@@ -271,7 +293,30 @@ export function easternClockTitle(ms: number): string {
  * tabular figures, the full date and UTC offset as its tooltip. The server
  * writes its own second; the browser's replaces it on hydration.
  */
+const AMBIENT_CLOCK_QUERY = "(min-width: 1024px)";
+const subscribeClockViewport = (listener: () => void) => {
+  if (typeof window.matchMedia !== "function") return () => {};
+  const query = window.matchMedia(AMBIENT_CLOCK_QUERY);
+  query.addEventListener("change", listener);
+  return () => query.removeEventListener("change", listener);
+};
+const clockViewport = () =>
+  typeof window.matchMedia !== "function" ||
+  window.matchMedia(AMBIENT_CLOCK_QUERY).matches;
+const serverClockViewport = () => true;
+
+/** Remove ambient clock subscriptions on small screens. Freshness ages use
+ * their own shared-clock subscriptions and continue updating. */
 export function EasternClock({ now }: { now?: number }) {
+  const visible = useSyncExternalStore(
+    subscribeClockViewport,
+    clockViewport,
+    serverClockViewport,
+  );
+  return visible ? <LiveEasternClock now={now} /> : null;
+}
+
+function LiveEasternClock({ now }: { now?: number }) {
   const text = useLiveText(easternClockText, Date.now(), now);
   const title = useLiveText((live) => easternClockTitle(live), Date.now(), now);
   return (
@@ -408,6 +453,7 @@ function LiveSearch({
   isBusy,
   isDisabled,
 }: SearchProps) {
+  const openai = useOpenAIUI();
   const [draft, setDraft] = useState(value);
   const sent = useRef(value);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -434,6 +480,41 @@ function LiveSearch({
     setDraft(value);
   }, [value]);
   useEffect(() => cancel, []);
+  if (openai)
+    return (
+      <div className="openai-search">
+        <OpenAIInput
+          pill={false}
+          type="search"
+          aria-label={label}
+          placeholder={label}
+          value={draft}
+          size="lg"
+          disabled={isDisabled}
+          aria-busy={isBusy}
+          autoComplete="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          onChange={(event) => {
+            const next = event.target.value;
+            setDraft(next);
+            cancel();
+            if (!next) {
+              sent.current = "";
+              if (onClear) onClear();
+              else onChange("");
+            } else
+              timer.current = setTimeout(() => send(next), SEARCH_DEBOUNCE_MS);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              send(draft, true);
+            }
+          }}
+        />
+      </div>
+    );
   return (
     <TextInput
       className="workspace-search"
@@ -481,7 +562,30 @@ export function FilterMenu({
   isActive?: boolean;
   children: ReactNode;
 }) {
+  const openai = useOpenAIUI();
   const name = `${label}: ${value}`;
+  if (openai)
+    return (
+      <div className="workspace-filter-menu" data-active={isActive}>
+        <OpenAIMenu>
+          <OpenAIMenu.Trigger>
+            <OpenAIButton
+              pill={false}
+              color="secondary"
+              variant="ghost"
+              size="lg"
+              uniform
+              aria-label={name}
+              title={name}
+              selected={isActive}
+            >
+              <Glyph weight="regular" aria-hidden="true" />
+            </OpenAIButton>
+          </OpenAIMenu.Trigger>
+          <AdminMenuContent align="end">{children}</AdminMenuContent>
+        </OpenAIMenu>
+      </div>
+    );
   return (
     <div className="workspace-filter-menu" data-active={isActive}>
       <DropdownMenu
@@ -502,12 +606,13 @@ export function FilterMenu({
   );
 }
 
-/** A column: the renderer, a width, and the range below which it hides. The
- * lead column always shows; at compact it is the only one, and the row
- * carries the rest through RowTitle's `mobile`, `end` and `time`. */
+/** A column's renderer and desktop sizing. Narrow tables retain each cell
+ * using explicit compact placement rather than duplicated RowTitle metadata. */
 export type Column<T> = {
   key: string;
   header: ReactNode;
+  /** Controlled sorting is implemented by the caller. */
+  sortable?: boolean;
   /** Pixels (a CELL_WIDTHS width for a standard cell), or omitted to share
    * the remaining width. */
   width?: number;
@@ -547,6 +652,14 @@ export type Column<T> = {
   /** On the lead: the width its longest title needs (leadWidth), which the
    * `yieldOrder` columns give way to. */
   room?: number;
+  /** Lower values remain earlier in narrow metadata. */
+  priority?: number;
+  /** Narrow rows keep one trailing cell beside the title; inline metadata
+   * wraps beneath it, and detail cells take the full row width. */
+  compact?: "trailing" | "inline" | "detail";
+  /** Omit a repeated visual label for a self-describing badge or timestamp.
+   * Semantic table headers remain available to assistive technology. */
+  compactLabel?: boolean;
   render: (row: T) => ReactNode;
 };
 
@@ -564,76 +677,6 @@ export const CELL_WIDTHS = {
   /** A lone 24px tile, such as a device. */
   tile: 56,
 } as const;
-
-/** The least a flexible column is given before the table scrolls. */
-const FLEX_MIN_WIDTH = 80;
-
-/** Marks the heading row DataTable puts before each group, and the folded
- * group's row count and state. */
-const GROUP = Symbol("workspace-group");
-const FOLD = Symbol("workspace-fold");
-type GroupRow = {
-  [GROUP]: string;
-  [FOLD]?: { count: number; open: boolean };
-};
-const isGroupRow = (row: object): row is GroupRow => GROUP in row;
-
-/** The columns a range shows. */
-const shownIn = <T,>(columns: readonly Column<T>[], range: Breakpoint) =>
-  columns.filter(
-    (column) =>
-      column.hideBelow === undefined || !isBelow(range, column.hideBelow),
-  );
-
-/** The table's minimum width in each range, from its visible columns only. */
-export function tableMinWidths<T>(
-  columns: readonly Column<T>[],
-): Record<Breakpoint, number> {
-  const at = (range: Breakpoint) =>
-    range === "compact"
-      ? 0
-      : shownIn(columns, range).reduce(
-          (sum, column) => sum + (column.width ?? column.min ?? FLEX_MIN_WIDTH),
-          0,
-        );
-  return Object.fromEntries(
-    BREAKPOINTS.map((range) => [range, at(range)]),
-  ) as Record<Breakpoint, number>;
-}
-
-/** A shared column's width. The frame is a size container, so 100cqw is the
- * width the table has: a length, which a fixed layout honours. Header cells
- * carry max-width 0 (for their ellipsis), so the width is the minimum too. */
-function shareWidth(
-  share: number,
-  reserve = 0,
-  min = FLEX_MIN_WIDTH,
-  want?: number,
-): React.CSSProperties {
-  const room = "(100cqw - var(--workspace-table-fixed, 0px))";
-  const even = `${room} * ${share}`;
-  const part = want ? `max(${even}, ${want}px)` : even;
-  const kept = reserve ? `min(${part}, ${room} - ${reserve}px)` : part;
-  const width = `max(${min}px, ${kept})`;
-  return { width, minWidth: width };
-}
-
-/**
- * A shared column's width in pixels for a table `frame` wide whose shown
- * fixed columns take `fixed`: the arithmetic shareWidth writes in CSS, for
- * tests that pin a layout at a given width.
- */
-export function shareWidthAt(
-  column: Pick<Column<unknown>, "share" | "reserve" | "min" | "want">,
-  frame: number,
-  fixed: number,
-): number {
-  const room = frame - fixed;
-  const even = room * (column.share ?? 1);
-  const part = column.want ? Math.max(even, column.want) : even;
-  const kept = column.reserve ? Math.min(part, room - column.reserve) : part;
-  return Math.max(column.min ?? FLEX_MIN_WIDTH, kept);
-}
 
 /** The lead's inset, tile and gap around its title: 16px in, a 24px tile,
  * 12px to the title and 12px out. */
@@ -730,123 +773,6 @@ export function leadWidth(
   return Math.min(max, Math.max(min, width));
 }
 
-/** How many `spread` columns each range shows, for their even part. */
-function tableSpreadCounts<T>(
-  columns: readonly Column<T>[],
-): Record<Breakpoint, number> {
-  return Object.fromEntries(
-    BREAKPOINTS.map((range) => [
-      range,
-      shownIn(columns, range).filter((column) => column.spread).length,
-    ]),
-  ) as Record<Breakpoint, number>;
-}
-
-/** A spread column's width: its own, and an even part of what the lead
- * leaves past `leadMax` in the range (the frame is a size container, and
- * the range's fixed columns, spread ones included, are
- * --workspace-table-fixed). */
-function spreadWidth(width: number, leadMax: number): React.CSSProperties {
-  const extra = `max(0px, 100cqw - var(--workspace-table-fixed, 0px) - ${leadMax}px)`;
-  // Header cells carry max-width 0, so the width is the minimum too.
-  const spread = `calc(${width}px + ${extra} / var(--workspace-table-spread, 1))`;
-  return { width: spread, minWidth: spread };
-}
-
-/** What each range's fixed columns take, for a flexible column's `share`. */
-export function tableFixedWidths<T>(
-  columns: readonly Column<T>[],
-): Record<Breakpoint, number> {
-  return Object.fromEntries(
-    BREAKPOINTS.map((range) => [
-      range,
-      shownIn(columns, range).reduce(
-        (sum, column) => sum + (column.width ?? 0),
-        0,
-      ),
-    ]),
-  ) as Record<Breakpoint, number>;
-}
-
-/** The media query for each range above compact, as the kit's stylesheet
- * writes it. */
-const RANGE_MEDIA: Record<Exclude<Breakpoint, "compact">, string> = {
-  medium: "(min-width: 641px) and (max-width: 1023px)",
-  large: "(min-width: 1024px) and (max-width: 1439px)",
-  wide: "(min-width: 1440px)",
-};
-
-/**
- * Where each `yieldOrder` column gives way in a range: below the lead's
- * `room` plus every shown fixed column (a shared column at its least), the
- * lowest order first, and each next one below that less what the earlier
- * ones gave back. Frame widths in px; a column hides where the table frame
- * is narrower than its `below`.
- */
-export function yieldThresholds<T>(
-  columns: readonly Column<T>[],
-  range: Exclude<Breakpoint, "compact">,
-): Array<{ key: string; below: number }> {
-  const room = columns[0]?.room;
-  if (!room) return [];
-  const shown = shownIn(columns, range).slice(1);
-  let need =
-    room +
-    shown.reduce(
-      (sum, column) =>
-        sum +
-        (column.width ??
-          (column.share !== undefined ? (column.min ?? FLEX_MIN_WIDTH) : 0)),
-      0,
-    );
-  const out: Array<{ key: string; below: number }> = [];
-  for (const column of shown
-    .filter((item) => item.yieldOrder !== undefined)
-    .sort((a, b) => a.yieldOrder! - b.yieldOrder!)) {
-    out.push({ key: column.key, below: need });
-    need -= column.width ?? 0;
-  }
-  return out;
-}
-
-/** The columns a table `frame` px wide shows in a range once its
- * `yieldOrder` columns have given way: what the CSS below draws. */
-export function columnsAt<T>(
-  columns: readonly Column<T>[],
-  range: Exclude<Breakpoint, "compact">,
-  frame: number,
-): Column<T>[] {
-  const hidden = new Set(
-    yieldThresholds(columns, range)
-      .filter(({ below }) => frame < below)
-      .map(({ key }) => key),
-  );
-  return shownIn(columns, range).filter((column) => !hidden.has(column.key));
-}
-
-/**
- * The container queries that hide `yieldOrder` columns where the table is
- * too narrow for the lead's `room` beside them (yieldThresholds), one range
- * at a time. A column's YieldOnly parts show where it hides. Empty when no
- * column yields.
- */
-export function tableYieldRules<T>(
-  columns: readonly Column<T>[],
-  scope: string,
-): string {
-  const at = `[data-yield-scope="${scope}"]`;
-  const rules: string[] = [];
-  for (const range of ["medium", "large", "wide"] as const) {
-    const queries = yieldThresholds(columns, range).map(
-      ({ key, below }) =>
-        `@container (max-width: ${below - 0.5}px) { ${at} [data-column="${key}"] { display: none; } ${at} [data-yield-for="${key}"] { display: contents; } }`,
-    );
-    if (queries.length)
-      rules.push(`@media ${RANGE_MEDIA[range]} { ${queries.join(" ")} }`);
-  }
-  return rules.join("\n");
-}
-
 /** What a `yieldOrder` column holds, on the lead's line 2 where the column
  * gives way (and on phones, where no column but the lead shows). */
 export function YieldOnly({
@@ -863,46 +789,22 @@ export function YieldOnly({
   );
 }
 
-/** The scroll wrapper is a tab stop only while its table overflows it. */
-function useOverflow() {
-  const [overflowing, setOverflowing] = useState(false);
-  const observer = useRef<ResizeObserver | null>(null);
-  const ref = useCallback((node: HTMLDivElement | null) => {
-    observer.current?.disconnect();
-    observer.current = null;
-    if (!node || typeof ResizeObserver === "undefined") return;
-    const measure = () =>
-      setOverflowing(node.scrollWidth > node.clientWidth + 1);
-    const next = new ResizeObserver(measure);
-    next.observe(node);
-    const table = node.querySelector("table");
-    if (table) next.observe(table);
-    observer.current = next;
-    measure();
-  }, []);
-  return [overflowing, ref] as const;
-}
-
-/**
- * The one table: a raised surface on wide screens and a full-bleed list at
- * compact, compact rows with no rules, and a count strip that screen readers
- * hear. Widths go on the header cells here rather than through Astryx, so
- * the table's minimum width counts only the columns each range shows.
- */
-export function DataTable<T extends Record<string, unknown>>({
-  rows,
-  columns,
-  rowKey,
-  label,
-  noun,
-  figures,
-  footer = true,
-  interactive = true,
-  groupBy,
-  groupLabel = (key) => key,
-  foldGroup,
-  foldCount,
-}: {
+export type DataTableProps<T extends Record<string, unknown>> = {
+  /** Stable across routes and renders. Defaults to the accessible label. */
+  tableId?: string;
+  responsive?: "reflow" | "scroll";
+  renderExpanded?: (row: T) => ReactNode;
+  /** Counts are caller-owned; omission never implies all records loaded. */
+  totalCount?: number;
+  loadedCount?: number;
+  groupCounts?: Readonly<Record<string, number>>;
+  filteredCount?: number;
+  groupTotals?: Readonly<Record<string, number>>;
+  loading?: boolean;
+  error?: ReactNode;
+  onRetry?: () => void;
+  emptyMessage?: ReactNode;
+  searchActive?: boolean;
   rows: T[];
   columns: Column<T>[];
   rowKey: keyof T & string;
@@ -925,258 +827,22 @@ export function DataTable<T extends Record<string, unknown>>({
   /** What the folded heading counts when its rows are not the things it
    * holds (a family row folds several sources); its row count otherwise. */
   foldCount?: number;
-}) {
-  const [overflowing, wrapperRef] = useOverflow();
-  const [foldOpen, setFoldOpen] = useState(false);
-  // Read at click time, so the plugin never rebuilds for the handler.
-  const toggleFold = useRef(() => setFoldOpen((open) => !open));
-  // The heading renderer is read at render time, so an inline one never
-  // rebuilds the plugin.
-  const labelFor = useRef(groupLabel);
-  labelFor.current = groupLabel;
-  const shape = columns
-    .map(
-      (column) =>
-        `${column.key}:${column.width}:${column.share}:${column.reserve}:${column.min}:${column.want}:${column.max}:${column.spread}:${column.hideBelow}:${column.numeric}`,
-    )
-    .join(",");
-  const plugin = useMemo((): TablePlugin<T> => {
-    const byKey = new Map(columns.map((column) => [column.key, column]));
-    const leadMax = columns.find(
-      (column) => column.width === undefined && column.max !== undefined,
-    )?.max;
-    const hiding = (key: string) => {
-      const column = byKey.get(key);
-      return {
-        // Names the column, so a page's own rules (a container query) can
-        // move it without reaching into cell order.
-        "data-column": key,
-        ...(column?.hideBelow ? { "data-hide-below": column.hideBelow } : {}),
-        ...(column?.numeric ? { "data-numeric": "" } : {}),
-      };
-    };
-    return {
-      transformBodyRow: (props, item) =>
-        isGroupRow(item)
-          ? {
-              ...props,
-              htmlProps: {
-                ...props.htmlProps,
-                "data-group-row": "",
-              } as typeof props.htmlProps,
-              // One cell in the lead column. A span would count the columns
-              // a range hides and hand them the spare width.
-              children: (
-                <th scope="rowgroup" className="workspace-group-row">
-                  {item[FOLD] ? (
-                    <button
-                      type="button"
-                      className="workspace-group-toggle"
-                      aria-expanded={item[FOLD].open}
-                      onClick={() => toggleFold.current()}
-                    >
-                      <CaretRightIcon
-                        weight="regular"
-                        aria-hidden="true"
-                        className="workspace-group-caret"
-                      />
-                      <span className="workspace-group-label">
-                        {labelFor.current(item[GROUP])}
-                      </span>
-                      <span className="workspace-count">
-                        {item[FOLD].count}
-                      </span>
-                    </button>
-                  ) : (
-                    labelFor.current(item[GROUP])
-                  )}
-                </th>
-              ),
-            }
-          : props,
-      transformHeaderCell: (props, column) => {
-        const { width, share, reserve, min, want, spread } =
-          byKey.get(column.key) ?? {};
-        return {
-          ...props,
-          htmlProps: {
-            ...props.htmlProps,
-            ...hiding(column.key),
-            style: {
-              ...props.htmlProps.style,
-              ...(width !== undefined
-                ? spread && leadMax !== undefined
-                  ? spreadWidth(width, leadMax)
-                  : { width, minWidth: width }
-                : share !== undefined
-                  ? shareWidth(share, reserve, min, want)
-                  : { width: "auto", minWidth: FLEX_MIN_WIDTH }),
-            },
-          } as typeof props.htmlProps,
-        };
-      },
-      transformBodyCell: (props, column) => ({
-        ...props,
-        htmlProps: {
-          ...props.htmlProps,
-          ...hiding(column.key),
-        } as typeof props.htmlProps,
-      }),
-      transformScrollWrapper: (props) => ({
-        ...props,
-        htmlProps: {
-          ...props.htmlProps,
-          ref: wrapperRef,
-          tabIndex: overflowing ? 0 : undefined,
-          role: overflowing ? "group" : undefined,
-          "aria-label": overflowing ? label : undefined,
-        },
-      }),
-    };
-    // `shape` stands for the columns: consumers rebuild them every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shape, overflowing, label, wrapperRef]);
-  const data = groupBy
-    ? withGroupRows(
-        rows,
-        rowKey,
-        groupBy,
-        foldGroup === undefined
-          ? undefined
-          : { key: foldGroup, open: foldOpen, count: foldCount },
-      )
-    : rows;
-  const minimum = tableMinWidths(columns);
-  const spreads = columns.some((column) => column.spread)
-    ? tableSpreadCounts(columns)
-    : null;
-  const fixed =
-    spreads || columns.some((column) => column.share !== undefined)
-      ? tableFixedWidths(columns)
-      : null;
-  const frameStyle = Object.fromEntries(
-    BREAKPOINTS.flatMap((range) => [
-      [`--workspace-table-min-${range}`, `${minimum[range]}px`],
-      ...(fixed
-        ? [[`--workspace-table-fixed-${range}`, `${fixed[range]}px`]]
-        : []),
-      ...(spreads
-        ? [[`--workspace-table-spread-${range}`, String(spreads[range] || 1)]]
-        : []),
-    ]),
-  ) as React.CSSProperties;
-  const count = `${rows.length} ${rows.length === 1 ? noun[0] : noun[1]}`;
-  const scope = useId();
-  const yieldRules = tableYieldRules(columns, scope);
-  return (
-    <VStack
-      gap={0}
-      className="workspace-table"
-      data-footer={footer ? "true" : "false"}
-      data-interactive={interactive ? "true" : "false"}
-    >
-      {yieldRules && <style>{yieldRules}</style>}
-      <div
-        className="workspace-table-frame"
-        style={frameStyle}
-        data-yield-scope={yieldRules ? scope : undefined}
-      >
-        <Table
-          className="workspace-table-grid"
-          data={data}
-          idKey={rowKey}
-          density="compact"
-          dividers="none"
-          aria-label={label}
-          plugins={{ workspace: plugin }}
-          columns={columns.map((column, index) => ({
-            key: column.key,
-            header: column.header,
-            align: column.numeric ? "end" : column.align,
-            // Past the lead, a cell's content sits in a box of line 1's
-            // height, so where the lead carries a line 2 (medium) every
-            // column reads on line 1 (workspace.css).
-            renderCell: (row: T) =>
-              isGroupRow(row) ? null : index === 0 ? (
-                column.render(row)
-              ) : (
-                <span className="workspace-cell">{column.render(row)}</span>
-              ),
-          }))}
-        />
-      </div>
-      {footer && (
-        <HStack
-          gap={5}
-          wrap="wrap"
-          vAlign="center"
-          className="workspace-table-footer"
-        >
-          <Text
-            type="supporting"
-            color="secondary"
-            role="status"
-            aria-live="polite"
-            aria-label={count}
-            className="workspace-table-count"
-          >
-            {count} in view
-          </Text>
-          {figures
-            ?.filter(([, value]) => value > 0)
-            .map(([name, value]) => (
-              <Text
-                key={name}
-                type="supporting"
-                color="secondary"
-                className="workspace-table-figure"
-              >
-                <strong>{value}</strong> {name}
-              </Text>
-            ))}
-        </HStack>
-      )}
-    </VStack>
-  );
-}
-
-/** The rows under one heading row per group. Groups keep the order their
- * first row arrives in and gather every row that shares their key, rows
- * keeping their own order within it, so a group never heads the table twice.
- * A folded group moves after the others; while it is closed only its heading
- * shows. */
-function withGroupRows<T extends Record<string, unknown>>(
-  rows: T[],
-  rowKey: keyof T & string,
-  groupBy: (row: T) => string,
-  fold?: { key: string; open: boolean; count?: number },
-): T[] {
-  const groups = new Map<string, T[]>();
-  for (const row of rows) {
-    const key = groupBy(row);
-    const group = groups.get(key);
-    if (group) group.push(row);
-    else groups.set(key, [row]);
-  }
-  const order = [...groups.keys()];
-  if (fold && groups.has(fold.key))
-    order.push(...order.splice(order.indexOf(fold.key), 1));
-  const out: T[] = [];
-  for (const key of order) {
-    const members = groups.get(key)!;
-    const isFold = fold !== undefined && key === fold.key;
-    out.push({
-      [rowKey]: `group:${key}`,
-      [GROUP]: key,
-      ...(isFold
-        ? {
-            [FOLD]: { count: fold.count ?? members.length, open: fold.open },
-          }
-        : {}),
-    } as unknown as T);
-    if (!isFold || fold.open) out.push(...members);
-  }
-  return out;
+  sort?: { key: string; direction: "asc" | "desc" };
+  onSortChange?: (sort: { key: string; direction: "asc" | "desc" }) => void;
+  selectedKeys?: ReadonlySet<string>;
+  onSelectionChange?: (keys: Set<string>) => void;
+  /** Rows are already paged by the caller. Page indexes start at zero. */
+  pagination?: {
+    page: number;
+    pageSize: number;
+    total: number;
+    onPageChange: (page: number) => void;
+  };
+};
+export function DataTable<T extends Record<string, unknown>>(
+  props: DataTableProps<T>,
+) {
+  return <OpenAIDataTable {...props} />;
 }
 
 /** A title that ends in an ellipsis, keeping `keep` (its end, ", ap-mini")
@@ -1481,6 +1147,25 @@ export function badgeFor(domain: BadgeDomain, state: string): Badge {
  * The mark carries the tone (`data-tone`), since the chip takes no data
  * attributes of its own. */
 function Chip({ badge, icon }: { badge: Badge; icon?: ReactNode }) {
+  const openai = useOpenAIUI();
+  const tones = {
+    neutral: "secondary",
+    positive: "success",
+    warning: "warning",
+    critical: "danger",
+    calm: "info",
+    rest: "info",
+  } as const;
+  if (openai)
+    return (
+      <OpenAIBadge
+        color={tones[badge.tone as keyof typeof tones] ?? "secondary"}
+        size="md"
+      >
+        {icon}
+        {badge.label}
+      </OpenAIBadge>
+    );
   const { color, dot } = TONES[badge.tone];
   const Glyph = badge.icon;
   return (
@@ -1845,18 +1530,43 @@ const NOTICE_ICONS: Record<NoticeKind, Icon> = {
 export function StateNotice({
   kind,
   title,
+  description,
   action,
   icon: Glyph = NOTICE_ICONS[kind],
   headingLevel,
 }: {
   kind: NoticeKind;
   title: string;
+  description?: string;
   action?: ReactNode;
   icon?: Icon;
   headingLevel?: 2 | 3;
 }) {
   const sectionLevel = useContext(SectionLevel);
+  const openai = useOpenAIUI();
   const level = headingLevel ?? sectionLevel;
+  const Title = `h${level}` as "h2" | "h3";
+  if (openai)
+    return (
+      <div role={kind === "error" ? "alert" : undefined}>
+        <OpenAIEmptyMessage fill="static">
+          <OpenAIEmptyMessage.Icon
+            color={kind === "error" ? "danger" : "secondary"}
+          >
+            <Glyph weight="regular" size={24} aria-hidden="true" />
+          </OpenAIEmptyMessage.Icon>
+          <OpenAIEmptyMessage.Title>
+            <Title>{unpunctuated(title)}</Title>
+          </OpenAIEmptyMessage.Title>
+          {description && <p>{description}</p>}
+          {action && (
+            <OpenAIEmptyMessage.ActionRow>
+              {action}
+            </OpenAIEmptyMessage.ActionRow>
+          )}
+        </OpenAIEmptyMessage>
+      </div>
+    );
   return (
     <div
       className="workspace-notice"
@@ -1870,6 +1580,7 @@ export function StateNotice({
         <Heading level={level} className="workspace-notice-title">
           {unpunctuated(title)}
         </Heading>
+        {description && <p>{description}</p>}
         {action && (
           <HStack gap={2} wrap="wrap" className="workspace-notice-action">
             {action}
@@ -1892,6 +1603,18 @@ export function InlineNotice({
   action?: ReactNode;
   icon?: Icon;
 }) {
+  const openai = useOpenAIUI();
+  if (openai)
+    return (
+      <div role={tone === "error" ? "alert" : "status"}>
+        <OpenAIAlert
+          color={tone === "error" ? "danger" : tone}
+          title={unpunctuated(title)}
+          actions={action}
+          indicator={<Glyph weight="regular" />}
+        />
+      </div>
+    );
   return (
     <Banner
       status={tone}
@@ -2268,6 +1991,45 @@ export function DefinitionList({
   );
 }
 
+/** Essential facts remain visible. Optional populated attributes share one
+ * disclosure across Content, Data and Observability. Empty optional fields
+ * do not create a control; missing essential observations stay explicit. */
+export function RecordDetails({
+  summary,
+  details = [],
+  label = "Details",
+  children,
+}: {
+  summary?: ReadonlyArray<readonly [label: string, value: ReactNode]>;
+  details?: ReadonlyArray<readonly [label: string, value: ReactNode]>;
+  label?: string;
+  children?: ReactNode;
+}) {
+  const populated = details.filter(
+    ([, value]) => value !== null && value !== undefined && value !== "",
+  );
+  return (
+    <VStack gap={3} className="workspace-record-details">
+      {summary && <DefinitionList label={label} items={summary} />}
+      {(populated.length > 0 || children) && (
+        <Collapsible
+          value="record-details"
+          trigger="All details"
+          defaultIsOpen={false}
+        >
+          <VStack gap={3} paddingBlockStart={3}>
+            <DefinitionList
+              label={`All ${label.toLowerCase()}`}
+              items={populated}
+            />
+            {children}
+          </VStack>
+        </Collapsible>
+      )}
+    </VStack>
+  );
+}
+
 /** "Record ID" as a verb's object: "Copy record ID". */
 const lowerFirst = (text: string) =>
   text.charAt(0).toLowerCase() + text.slice(1);
@@ -2539,3 +2301,5 @@ export function CompactTimeline({
     </ol>
   );
 }
+
+export { RecordHeader } from "./RecordHeader";

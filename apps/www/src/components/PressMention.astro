@@ -6,6 +6,8 @@ interface Props {
   essayHref?: string;
 }
 const { essayHref } = Astro.props;
+const reportingHref =
+  "https://www.businessinsider.com/ai-usage-limits-causing-some-to-restructure-their-workday-2026-4";
 ---
 
 <aside class="press-mention" aria-label="press coverage">
@@ -22,18 +24,30 @@ const { essayHref } = Astro.props;
     read my feature in a story about coding agent limits
   </p>
   <div class="press-mention__links">
+    <a class="site-action" href={reportingHref}>
+      <img
+        class="press-mention__link-mark"
+        src="/images/brand/business-insider-favicon.svg"
+        alt=""
+        width="16"
+        height="16"
+        decoding="async"
+      />
+      <span>read the story</span>
+      <Icon name="ph:arrow-bend-right-up" aria-hidden="true" />
+    </a>
     {
       essayHref && (
-        <a class="site-action" href={essayHref}>
+        <a class="site-action" href={essayHref} data-admin-motion-action>
           <img
             class="press-mention__link-mark"
-            src="/images/brand/business-insider-favicon.svg"
+            src="/brand/ap-favicon.svg"
             alt=""
             width="16"
             height="16"
             decoding="async"
           />
-          <span>read the story</span>
+          <span>my essay</span>
           <Icon name="ph:arrow-bend-right-up" aria-hidden="true" />
         </a>
       )
@@ -44,7 +58,7 @@ const { essayHref } = Astro.props;
 <style>
   .press-mention {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) minmax(9rem, 11rem);
+    grid-template-columns: auto minmax(0, 1fr) 20rem;
     align-items: center;
     gap: var(--s-4);
     margin-top: var(--s-5);
@@ -72,6 +86,12 @@ const { essayHref } = Astro.props;
 
   .press-mention__links {
     display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-3);
+  }
+
+  .press-mention__links:has(a:only-child) {
+    grid-template-columns: 1fr;
   }
 
   :global(html[data-theme="dark"]) .press-mention__logo {

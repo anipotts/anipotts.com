@@ -54,7 +54,10 @@ import { useDataSession } from "../data/useDataSession";
 import { ReadNotice, SessionNotice } from "../data/DataNotices";
 import { recordColumns, recordTiersOnly } from "../data/RecordsView";
 import { parseItems, parseRecord } from "../data/data-model";
-import { SourceNamesContext, useSourceNames } from "../data/source-catalog";
+import {
+  SourceNamesContext,
+  useSourceNamesState,
+} from "../data/source-catalog";
 import "./overview.css";
 
 /** A Content record's type, with the glyph its sidebar library uses. */
@@ -144,7 +147,10 @@ function FiringAlerts(props: OpsViewProps) {
       : // Events that failed to read, or a page that was rejected, are not
         // all clear: the Alerts page says "Events not current", and so
         // does this.
-        ((!data.fixtureMode && data.state.eventsStale
+        ((!data.fixtureMode &&
+        (data.state.eventsStale ||
+          data.state.eventsInitial === "failed" ||
+          data.state.eventsInitial === "incomplete")
           ? { title: "Events not current", kind: "error" }
           : undefined) ??
         // An unread event may have been a failure, so no silence reads as
@@ -176,6 +182,22 @@ function FiringAlerts(props: OpsViewProps) {
             />
           }
         />
+      </WorkspaceSection>
+    );
+  }
+  const initialPending =
+    !data.fixtureMode &&
+    props.enabled &&
+    !unconnected &&
+    (data.state.eventsInitial === "pending" || !data.snapshot);
+  if (initialPending) {
+    return (
+      <WorkspaceSection
+        title="Alerts"
+        href="/observability/alerts"
+        meta={OPS_ALERTS_SOURCE}
+      >
+        <LoadingSkeleton label="alerts" rows={3} columns={3} />
       </WorkspaceSection>
     );
   }
@@ -231,6 +253,8 @@ function FiringAlerts(props: OpsViewProps) {
  * as a record's tier is. Both fit the state column whole at every width
  * (ledger A-29): "Draft" and "Changes pending" as two chips did not. */
 function ContentState({ record }: { record: CatalogRecord }) {
+  if (!record.changesPending)
+    return <StateBadge domain="content" state={record.status} />;
   return (
     <span className="overview-state">
       <StateBadge domain="content" state={record.status} />
@@ -253,6 +277,7 @@ function RecentContent({ records }: { records: CatalogRecord[] }) {
     <WorkspaceSection title="Recent content" href="/content/pages">
       {records.length ? (
         <DataTable
+          tableId="overview-content"
           rows={records}
           rowKey="href"
           label="Recently updated content"
@@ -261,6 +286,7 @@ function RecentContent({ records }: { records: CatalogRecord[] }) {
           columns={[
             {
               key: "title",
+              priority: 0,
               header: "Title",
               render: (item) => {
                 const [glyph, type] = contentType(item);
@@ -278,12 +304,18 @@ function RecentContent({ records }: { records: CatalogRecord[] }) {
             },
             {
               key: "status",
+              compact: "inline",
+              compactLabel: false,
+              priority: 1,
               header: "State",
               width: CELL_WIDTHS.state,
               render: (item) => <ContentState record={item} />,
             },
             {
               key: "updated",
+              compact: "trailing",
+              compactLabel: false,
+              priority: 1,
               header: "Updated",
               width: CELL_WIDTHS.time,
               render: (item) => <RelativeTime value={item.updated?.at} />,
@@ -316,16 +348,22 @@ function RecentRecords({
     session: injected,
     fetch: fetcher,
   });
-  const [result, setResult] = useState<DataResult | null>(null);
-  const names = useSourceNames(session.reader);
+  const [loaded, setLoaded] = useState<{
+    reader: typeof session.reader;
+    result: DataResult;
+  } | null>(null);
+  const result = loaded?.reader === session.reader ? loaded.result : null;
+  const catalog = useSourceNamesState(session.reader);
   const read = useRef(new DataReadSession());
   useEffect(() => {
-    setResult(null);
+    setLoaded(null);
     if (!session.reader) return;
     const current = read.current;
     void current
       .run(session.reader, { method: "search", q: "", offset: 0 })
-      .then((next) => next && setResult(next));
+      .then(
+        (next) => next && setLoaded({ reader: session.reader, result: next }),
+      );
     return () => current.invalidate();
   }, [session.reader]);
   const items =
@@ -336,13 +374,15 @@ function RecentRecords({
     <WorkspaceSection title="Recent records" href="/data/records">
       {session.status !== "ready" ? (
         <SessionNotice session={session} label="recent records" />
-      ) : !result ? (
+      ) : !result ||
+        (result.state === "ready" && catalog.status === "pending") ? (
         <LoadingSkeleton label="recent records" rows={3} columns={3} />
       ) : result.state !== "ready" ? (
         <ReadNotice result={result} />
       ) : items.length ? (
-        <SourceNamesContext value={names}>
+        <SourceNamesContext value={catalog.names}>
           <DataTable
+            tableId="overview-records"
             rows={items}
             rowKey="id"
             label="Recent records"

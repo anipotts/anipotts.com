@@ -515,6 +515,57 @@ assert.equal(Object.values(knipConfig.deploy_targets).some(Boolean), false);
 for (const path of ["knip.json", "knip.jsonc.bak", "config-knip.jsonc"]) {
   assert.equal(classifyRelease([`A\t${path}`], base).risk, "unknown", path);
 }
+for (const path of ["e2e.www.config.ts", "e2e.admin.config.ts"]) {
+  const release = classifyRelease([`A\t${path}`], base);
+  assert.equal(release.risk, "automatic", path);
+  assert.equal(
+    Object.values(release.deploy_targets).some(Boolean),
+    false,
+    path,
+  );
+  assert.equal(release.public_browser_changed, path === "e2e.www.config.ts");
+}
+for (const path of [
+  "scripts/ci/public-e2e-server.mjs",
+  "apps/www/test/e2e/public-journeys.e2e.ts",
+  "apps/admin/migrations/content-publication/0002_content_schema_version.sql",
+  "scripts/content/seed-content-d1.mjs",
+  "package.json",
+  "pnpm-lock.yaml",
+]) {
+  const release = classifyRelease([`M\t${path}`], base);
+  assert.equal(release.public_browser_changed, true, path);
+  if (!path.startsWith("apps/admin/migrations/"))
+    assert.equal(
+      release.deploy_targets.www,
+      path.startsWith("apps/www/"),
+      path,
+    );
+}
+assert.equal(
+  classifyRelease(["A\te2e.production.config.ts"], base).risk,
+  "unknown",
+);
+// The public CMS reader consumes these shared modules even when the change
+// does not otherwise select a www deployment. Exercise the browser gate for
+// changes to both its reader and source parsing dependencies.
+for (const path of [
+  "packages/content/src/editorial/direct-publication.ts",
+  "packages/content/src/editorial/publication-contract.ts",
+  "packages/content/src/editorial/source.ts",
+  "packages/content/src/editorial/markdown.ts",
+]) {
+  for (const status of ["A", "M", "D"]) {
+    const release = classifyRelease([`${status}\t${path}`], base);
+    assert.equal(release.public_browser_changed, true, `${status} ${path}`);
+  }
+}
+assert.equal(
+  classifyRelease(["M\tapps/admin/src/components/astryx/RecordPanel.tsx"], base)
+    .public_browser_changed,
+  false,
+  "admin-only UI changes do not select the public browser suite",
+);
 const astryxPatch = classifyRelease(
   ["M\tpatches/@astryxdesign__core@0.4.6.patch"],
   base,
@@ -585,3 +636,66 @@ for (const path of [
   assert.equal(publication.remote_migration_allowed, false, path);
   assert.deepEqual(publication.migration_consumers, [], path);
 }
+
+const localEnvironment = classifyRelease(
+  ["M\t.codex/environments/environment.toml"],
+  base,
+);
+assert.equal(localEnvironment.risk, "automatic");
+assert.equal(localEnvironment.local_dev_changed, true);
+assert.ok(
+  Object.values(localEnvironment.deploy_targets).every(
+    (value) => value === false,
+  ),
+);
+assert.equal(
+  classifyRelease(["M\t.codex/secrets.toml"], base).risk,
+  "approval",
+);
+
+assert.equal(
+  classifyRelease(["M\t.codex/unrecognized.toml"], base).risk,
+  "unknown",
+);
+
+// Moving a harness out of its exact matched path still changes that harness.
+for (const status of ["R100", "R075", "C100"]) {
+  for (const [from, to] of [
+    ["scripts/ci/public-e2e-server.mjs", "scripts/ci/renamed-server.mjs"],
+    [
+      "scripts/ci/public-e2e-migrations.mjs",
+      "scripts/ci/renamed-migrations.mjs",
+    ],
+    ["scripts/ci/renamed-server.mjs", "scripts/ci/public-e2e-server.mjs"],
+    ["e2e.www.config.ts", "docs/old-config.md"],
+  ]) {
+    const release = classifyRelease([`${status}\t${from}\t${to}`], base);
+    assert.equal(
+      release.public_browser_changed,
+      true,
+      `${status} ${from} -> ${to}`,
+    );
+    assert.equal(release.ci_policy_changed, true);
+    assert.equal(release.docs_only, false);
+  }
+}
+const movedPublicRoute = classifyRelease(
+  ["R100\tapps/www/src/pages/example.astro\tdocs/example.md"],
+  base,
+);
+assert.equal(movedPublicRoute.deploy_targets.www, true);
+assert.equal(movedPublicRoute.risk, "approval");
+assert.equal(movedPublicRoute.docs_only, false);
+const movedMigration = classifyRelease(
+  [
+    "R100\tdrizzle/migrations/0044_public_identity_systems.sql\tdocs/old-migration.sql",
+  ],
+  base,
+);
+assert.equal(movedMigration.migration_risk, "approval");
+assert.equal(movedMigration.remote_migration_allowed, false);
+assert.ok(
+  movedMigration.reasons.includes(
+    "0044_public_identity_systems.sql: removed migration",
+  ),
+);

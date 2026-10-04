@@ -65,3 +65,25 @@ it("pagehide clears custody and BFCache resume cannot reuse a late credential", 
   await session.start();
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
+
+it("retiring an idle session removes its ability to reopen", async () => {
+  const fetcher = vi.fn<typeof fetch>(async () =>
+    json({
+      credential: "synthetic",
+      scope: ["ops:read"],
+      expiresAt: Math.floor(Date.now() / 1000) + 3600,
+    }),
+  );
+  const session = create({ fetch: fetcher, csrf: async () => "fixture" });
+  const policy = track(session);
+  await session.start();
+  const { PRIVATE_SESSION_IDLE_MS, releasePrivateSession } =
+    await import("./private-session-store");
+  await vi.advanceTimersByTimeAsync(PRIVATE_SESSION_IDLE_MS);
+  expect(policy.idle).toBe(true);
+  releasePrivateSession(session);
+  window.dispatchEvent(new Event("pointerdown"));
+  await vi.advanceTimersByTimeAsync(PRIVATE_SESSION_IDLE_MS);
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(session.bearer()).toBeNull();
+});

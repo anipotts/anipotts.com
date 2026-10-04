@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
-import test from "node:test";
+import test, { after } from "node:test";
+import { fileURLToPath } from "node:url";
+import { collectGitSeed } from "../../../scripts/content/content-d1-seed.mjs";
 import {
   SECURITY_HEADERS,
   withSecurityHeaders,
@@ -92,9 +94,22 @@ function immutable(response) {
 }
 
 const ctx = { waitUntil() {}, passThroughOnException() {} };
-// The deployed vars over an empty content store: content routes render the
-// bundled defaults through the reader, everything else is served as built.
-const env = { ASSETS, ...contentEnv(contentDatabase()) };
+// Successful content responses require explicit active CMS publications.
+// Publish the public recovery seed into this synthetic store; an empty store
+// remains unavailable under the runtime-2 contract.
+const database = contentDatabase();
+const seed = await collectGitSeed(
+  fileURLToPath(new URL("../../../", import.meta.url)),
+);
+for (const row of seed.records)
+  database.publish({
+    kind: row.record.kind,
+    id: row.record.id,
+    text: row.source,
+    operation: `security-headers.${row.record.kind}.${row.record.id}`,
+  });
+after(() => database.close());
+const env = { ASSETS, ...contentEnv(database) };
 const serve = (url, init) => worker.fetch(new Request(url, init), env, ctx);
 
 function assertSecured(response, label) {
@@ -170,6 +185,26 @@ const CONTENT_PATHS = [
   "/sitemap.xml",
   "/search-index.json",
 ];
+
+test("an unseeded CMS fails closed with the security header set", async () => {
+  const empty = contentDatabase();
+  try {
+    for (const path of ["/", "/systems"]) {
+      const response = await worker.fetch(
+        new Request(`https://anipotts.com${path}`),
+        { ASSETS, ...contentEnv(empty) },
+        ctx,
+      );
+      assert.equal(response.status, 503, path);
+      assert.equal(response.headers.get("cache-control"), "no-store", path);
+      assert.equal(response.headers.get("etag"), null, path);
+      assert.equal(await response.text(), "Content unavailable", path);
+      assertSecured(response, `${path} unseeded CMS`);
+    }
+  } finally {
+    empty.close();
+  }
+});
 
 test("the header values are pinned to the reviewed policy", () => {
   assert.deepEqual({ ...SECURITY_HEADERS }, { ...EXPECTED });
