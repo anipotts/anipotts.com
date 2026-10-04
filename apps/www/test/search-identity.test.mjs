@@ -103,7 +103,7 @@ test("homepage keeps reporting attribution in its dedicated card", () => {
   assert.ok(intro);
   assert.doesNotMatch(intro, /business insider|business-insider/i);
   assert.match(
-    html,
+    html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " "),
     /read my feature in a story about claude code usage limits/,
   );
   assert.match(html, /src="\/images\/brand\/business-insider-wordmark\.svg"/);

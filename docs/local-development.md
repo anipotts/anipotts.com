@@ -267,3 +267,7 @@ The shared `.codex/environments/environment.toml` exposes four local actions:
 Use Codex’s built-in Git controls for diffs and pull requests. Run `pnpm validate`
 in the terminal when shared changes require full-workspace validation. Setup stays
 lightweight; missing dependencies produce an explicit install instruction.
+
+## Canonical integration review
+
+All website work integrates into the [canonical local preview](local-integration-preview.md) before Ani approves production integration.

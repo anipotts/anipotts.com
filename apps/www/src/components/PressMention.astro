@@ -19,7 +19,9 @@ const { essayHref } = Astro.props;
     decoding="async"
   />
   <p class="press-mention__copy">
-    read my feature in a story about claude code usage limits
+    <span>read my feature in a story about</span>{" "}<span
+      >claude code usage limits</span
+    >
   </p>
   <div class="press-mention__links">
     {
@@ -49,7 +51,7 @@ const { essayHref } = Astro.props;
     align-items: center;
     gap: 0.75rem var(--s-4);
     margin-top: var(--s-5);
-    padding: var(--experience-card-padding);
+    padding: var(--card-inset);
     border-radius: var(--paper-radius);
     background: var(--paper-surface);
     color: var(--paper-ink);
@@ -82,6 +84,10 @@ const { essayHref } = Astro.props;
     grid-template-columns: auto;
   }
 
+  .press-mention__links a {
+    min-height: 44px;
+  }
+
   :global(html[data-theme="dark"]) .press-mention__logo {
     filter: brightness(0) invert(1);
   }
@@ -89,7 +95,6 @@ const { essayHref } = Astro.props;
   @media (max-width: 767px) {
     .press-mention {
       gap: 0.625rem;
-      padding: 1rem;
     }
     .press-mention__logo {
       width: 5.5rem;
@@ -105,10 +110,27 @@ const { essayHref } = Astro.props;
       font-size: 0.75rem;
     }
   }
+  @media (min-width: 641px) {
+    .press-mention {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: var(--card-header-gap);
+    }
+    .press-mention__copy {
+      grid-column: 2;
+      grid-row: 1;
+      font-size: 0.875rem;
+      line-height: 1.4;
+    }
+    .press-mention__copy span {
+      display: block;
+    }
+    .press-mention__links {
+      grid-column: 3;
+    }
+  }
   @media (max-width: 359px) {
     .press-mention {
       gap: 0.5rem;
-      padding: 0.75rem;
     }
     .press-mention__logo {
       width: 4.75rem;
