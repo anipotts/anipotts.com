@@ -51,6 +51,15 @@
       "approvals": {},
       "note": "Locally integrated. Both typechecks/builds, 13 focused tests, watcher restart and duplicate startup, browser identity, and read-only doctor passed. Browser publish-recovery suite not rerun. Production unchanged.",
       "updatedAt": "2026-10-04T22:02:46.850Z"
+    },
+    {
+      "id": "press-card-followup",
+      "title": "Business Insider card and stable flowing artwork",
+      "revision": "e44374f4a406847b382402d3ba29107eaa18078a",
+      "lane": "code",
+      "state": "awaiting-review",
+      "approvals": {},
+      "note": "Design owner commits integrated locally. Public typecheck/build and identity tests passed. User visual review pending; unfinished motion changes excluded."
     }
   ]
 }
