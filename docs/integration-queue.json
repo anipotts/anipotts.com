@@ -38,7 +38,7 @@
       "deployment": {
         "revision": "1ca0eb0e7f1b6b8155d0e93528b068641f45952f",
         "target": "www and admin",
-        "evidence": "Verified successful deployment run https://github.com/anipotts/anipotts-com/actions/runs/37236186913 at release 1ca0eb0e7f1b6b8155d0e93528b068641f45952f."
+        "evidence": "Verified successful deployment run https://github.com/anipotts/anipotts.com/actions/runs/37236186913 at release 1ca0eb0e7f1b6b8155d0e93528b068641f45952f."
       },
       "note": "www and paired admin deployed; production content was unchanged."
     },
