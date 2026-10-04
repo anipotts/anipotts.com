@@ -13,6 +13,8 @@ import {
 import { captureGhost, prepareGhostSheets, type Ghost } from "./writing-ghost";
 import {
   duration,
+  compactDuration,
+  motionLayout,
   reducedDuration,
   sampleIdentity,
   sampleSurface,
@@ -297,12 +299,15 @@ function run(
   direction: Direction,
   backdrop: HTMLDivElement,
 ) {
+  const layout = motionLayout(innerWidth);
   const geometry: IdentityGeometry = {
+    layout,
     header: publicView.header,
     footer: publicView.footer,
     ...adminView.identity,
   };
   const surface: SurfaceGeometry = {
+    layout,
     card: publicView.card,
     button: publicView.button,
     viewport: { left: 0, top: 0, right: innerWidth, bottom: innerHeight },
@@ -399,7 +404,7 @@ function run(
   const www = publicView.scope,
     admin = adminView.scope;
   const main = $<HTMLElement>("main", www)!;
-  const card = $<HTMLElement>("[data-admin-motion-paper]", www);
+  let card = $<HTMLElement>("[data-admin-motion-paper]", www);
   const button = $<HTMLElement>("[data-admin-motion-button]", www);
   if (button && !reduced.matches) {
     button.style.background = "transparent";
@@ -422,7 +427,32 @@ function run(
   [main, nav, foot].forEach((el) => {
     if (el) el.style.zIndex = "2";
   });
+  if (layout === "compact" && card) {
+    // Let the incoming page emerge from behind the opaque paper. Lift just
+    // its source card's content above it so the nested-card identity remains
+    // visible without letting unrelated prose paint through the workspace.
+    main.style.zIndex = "0";
+    const lifted = card.cloneNode(true) as HTMLElement;
+    const r = surface.card;
+    Object.assign(lifted.style, {
+      position: "fixed",
+      left: `${r.left}px`,
+      top: `${r.top}px`,
+      width: `${r.right - r.left}px`,
+      height: `${r.bottom - r.top}px`,
+      margin: "0",
+      boxSizing: "border-box",
+      transform: "none",
+      zIndex: "2",
+      pointerEvents: "none",
+    });
+    alpha(card, 0);
+    paperScope.appendChild(lifted);
+    card = lifted;
+  }
   const native = $("[data-admin-wordmark]", admin);
+  const adminShell = $<HTMLElement>("[data-admin-entry]", admin)!;
+  const adminMain = $<HTMLElement>("[data-admin-main]", admin)!;
   const publicHeader = $("[data-admin-header-logo] svg", www),
     publicFooter = $("[data-admin-footer-logo] svg", www);
   all("[data-admin-rail], [data-admin-main-surface]", admin).forEach((el) =>
@@ -477,6 +507,13 @@ function run(
     // Public blue is never color-tweened. Opaque card geometry covers it.
     backdrop.style.background = publicView.ground;
     const outerPath = surfacePath(f.rect, f.radii);
+    if (layout === "compact") {
+      // Text stays at native size, revealed only inside the moving surfaces.
+      // Earlier content can overlap the expansion without floating over blue.
+      adminShell.style.clipPath = `path('${outerPath}')`;
+      const target = surface.main;
+      adminMain.style.clipPath = `inset(${Math.max(0, f.panel.top - target.top)}px ${Math.max(0, target.right - f.panel.right)}px ${Math.max(0, target.bottom - f.panel.bottom)}px ${Math.max(0, f.panel.left - target.left)}px)`;
+    }
     outer.setAttribute("d", outerPath);
     clipShape.setAttribute("d", outerPath);
     outer.setAttribute(
@@ -518,6 +555,7 @@ function run(
     if (foot) reveal(foot, f.footer, 7);
     alpha(wave, waveOpacity * f.wave);
     if (card) {
+      if (layout === "compact") alpha(card, f.editorial);
       const r = f.rect,
         s = surface.card;
       card.style.clipPath = `inset(${Math.max(0, r.top - s.top)}px ${Math.max(0, s.right - r.right)}px ${Math.max(0, s.bottom - r.bottom)}px ${Math.max(0, r.left - s.left)}px)`;
@@ -562,7 +600,11 @@ function run(
     alpha(publicFooter, logo.footer);
   };
   const started = performance.now();
-  const length = reduced.matches ? reducedDuration : duration;
+  const length = reduced.matches
+    ? reducedDuration
+    : layout === "compact"
+      ? compactDuration
+      : duration;
   render(0);
   const tick = (now: number) => {
     // A callback registered during a frame can receive that frame's earlier
