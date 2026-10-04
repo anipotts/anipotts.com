@@ -648,6 +648,15 @@ assert.ok(
     (value) => value === false,
   ),
 );
+const localLauncher = classifyRelease(["M\t.claude/launch.json"], base);
+assert.equal(localLauncher.risk, "automatic");
+assert.equal(localLauncher.local_dev_changed, true);
+assert.equal(localLauncher.ci_policy_changed, false);
+assert.ok(Object.values(localLauncher.deploy_targets).every((value) => !value));
+assert.equal(
+  classifyRelease(["M\t.claude/unrecognized.json"], base).risk,
+  "unknown",
+);
 assert.equal(
   classifyRelease(["M\t.codex/secrets.toml"], base).risk,
   "approval",
