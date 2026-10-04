@@ -23,3 +23,19 @@ and public card spacing/BI changes. #487 remains a draft upstream. Its red
 release check requires ready status, rather than demonstrating a source failure.
 Production CMS records are separate from the local seed database; this preview
 does not publish private drafts or change live content.
+
+## Production publication mirror
+
+Run `node scripts/dev/sync-published-preview.mjs --watch` in this checkout.
+The watcher polls the public inventory version every five seconds, then reads
+one coherent snapshot of active production publications using existing
+Cloudflare authorization. It refreshes local published tables in both apps.
+It never writes remotely or imports production private drafts. Local drafts,
+publish jobs and receipts remain intact. Reload a local page after sync; an
+open editor retains its current private editing state. The mirror is for
+production-content layout review; stop it for independent local publication
+experiments. It is a development script, not part of deployable app bundles.
+
+Backups and sync status live under ignored `.local/published-preview/`.
+The watcher keeps the last snapshot if production cannot be read and logs a
+failure rather than silently replacing content with Git seeds.
