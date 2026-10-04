@@ -121,27 +121,15 @@ test("homepage uses the exact name and separates original reporting from its ess
   const links = [
     ...press.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>(.*?)<\/a>/gs),
   ];
-  assert.equal(
-    links.length,
-    2,
-    "reporting and personal essay remain distinct actions",
-  );
-  const reporting = links.find((link) => link[2].includes("read the story"));
-  const essay = links.find((link) => link[2].includes("my essay"));
-  assert.ok(reporting, "original reporting action is rendered");
-  assert.ok(essay, "personal essay action is rendered");
-  assert.equal(
-    reporting[1],
-    "https://www.businessinsider.com/ai-usage-limits-causing-some-to-restructure-their-workday-2026-4",
-  );
-  assert.match(
-    reporting[2],
-    /src="\/images\/brand\/business-insider-favicon\.svg"/,
-  );
+  assert.equal(links.length, 1, "one action opens the local essay");
+  const essay = links[0];
   assert.equal(essay[1], "/writing/saturdays-are-for-claude-code");
   assert.match(essay[0], /data-admin-motion-action/);
-  assert.doesNotMatch(reporting[0], /data-admin-motion-action/);
-  assert.match(essay[2], /src="\/brand\/ap-favicon\.svg"/);
+  assert.match(essay[2], /read the story/);
+  assert.match(
+    essay[2],
+    /src="\/images\/brand\/business-insider-favicon\.svg"/,
+  );
   const article = readFileSync(
     new URL(
       "../.local/public-rendered/writing/saturdays-are-for-claude-code.html",

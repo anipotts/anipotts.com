@@ -99,29 +99,33 @@ const { project } = Astro.props;
   }
   @media (max-width: 640px) {
     .coding-agent-card {
-      grid-template-columns: auto minmax(0, 1fr);
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 0.625rem;
+      padding: 1rem;
     }
-    .coding-agent-card :global(.card-action) {
-      grid-column: 1 / -1;
-      width: 100%;
+    .guide-mark {
+      width: 2rem;
+      height: 2rem;
     }
     .guide-content {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr);
-    }
-    .guide-identity {
       display: contents;
     }
-    .guide-label {
-      grid-row: 1;
-    }
     .guide-title {
+      grid-column: 2;
+      grid-row: 1;
+      font-size: 1rem;
+    }
+    .guide-copy {
+      grid-column: 1 / -1;
       grid-row: 2;
     }
-    .guide-identity :global(.site-action) {
-      grid-row: 3;
-      width: 100%;
+    .coding-agent-card :global(.card-action) {
+      grid-column: 3;
+      grid-row: 1;
+      width: auto;
       min-height: 44px;
+      padding-inline: 0.5rem;
+      font-size: 0.8rem;
       box-sizing: border-box;
     }
   }
