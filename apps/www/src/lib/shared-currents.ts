@@ -172,6 +172,7 @@ export function mountSharedCurrents() {
     timer: ReturnType<typeof setTimeout> | undefined,
     frame = 0,
     last = 0;
+  let cadence = 0;
   const svgs = hosts.map((host) => host.querySelector("svg")!);
   const paths = svgs.map((svg) => [...svg.querySelectorAll("path")]);
   const local = hosts.map((host) => host.hasAttribute("data-local-current"));
@@ -487,11 +488,12 @@ export function mountSharedCurrents() {
     // hands back to the real card. Do not accumulate the paused time.
     if (document.documentElement?.hasAttribute("data-writing-transition")) {
       last = now;
+      cadence = now;
       schedule(now);
       return;
     }
     // High-refresh displays still draw at the requested rate, not every RAF.
-    if (now - last < interval - 0.5) {
+    if (now - cadence < interval - 0.5) {
       schedule(now);
       return;
     }
@@ -499,6 +501,9 @@ export function mountSharedCurrents() {
     time += dt * motion().speed;
     flow += (pushed() - flow) * (1 - Math.exp(-dt * 3.2));
     last = now;
+    // Keep the fractional RAF remainder so 90/144 Hz screens average 60 fps.
+    cadence +=
+      Math.max(1, Math.floor((now - cadence + 0.5) / interval)) * interval;
     draw(false, now);
     drawBands(now);
     schedule(now);
@@ -508,6 +513,7 @@ export function mountSharedCurrents() {
     if (media.matches) stillBands();
     if (running()) {
       last = performance.now();
+      cadence = last;
       schedule(last);
     }
   }

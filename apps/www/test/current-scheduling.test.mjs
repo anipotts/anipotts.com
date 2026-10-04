@@ -17,38 +17,42 @@ function fn(name) {
   }
   throw new Error(`missing ${name}`);
 }
-test("120Hz callbacks cap entrance drawing at 60Hz", () => {
-  let now = 0,
-    draws = 0,
-    callback;
-  const context = vm.createContext({
-    performance: { now: () => now },
-    pouring: () => true,
-    pushed: () => 0,
-    motion: () => ({ speed: 2, activeFps: 60 }),
-    media: { matches: false },
-    document: { hidden: false, documentElement: { hasAttribute: () => false } },
-    visible: { size: 1 },
-    draw: () => draws++,
-    requestAnimationFrame: (fn) => {
-      callback = fn;
-      return 1;
-    },
-    setTimeout,
-    running: () => true,
-    drawBands: () => {},
-    BANDS: 1000 / 15,
+for (const refreshRate of [60, 90, 120, 144])
+  test(`${refreshRate}Hz callbacks sustain 60Hz entrance drawing`, () => {
+    let now = 0,
+      draws = 0,
+      callback;
+    const context = vm.createContext({
+      performance: { now: () => now },
+      pouring: () => true,
+      pushed: () => 0,
+      motion: () => ({ speed: 2, activeFps: 60 }),
+      media: { matches: false },
+      document: {
+        hidden: false,
+        documentElement: { hasAttribute: () => false },
+      },
+      visible: { size: 1 },
+      draw: () => draws++,
+      requestAnimationFrame: (fn) => {
+        callback = fn;
+        return 1;
+      },
+      setTimeout,
+      running: () => true,
+      drawBands: () => {},
+      BANDS: 1000 / 15,
+    });
+    vm.runInContext(
+      `let interval=1000/30, IDLE=1000/30, last=0, cadence=0, time=0, flow=0, timer, frame; ${fn("schedule")} ${fn("tick")} schedule();`,
+      context,
+    );
+    for (let i = 1; i <= refreshRate; i++) {
+      now = (i * 1000) / refreshRate;
+      callback();
+    }
+    assert.equal(draws, 60);
   });
-  vm.runInContext(
-    `let interval=1000/30, IDLE=1000/30, last=0, time=0, flow=0, timer, frame; ${fn("schedule")} ${fn("tick")} schedule();`,
-    context,
-  );
-  for (let i = 1; i <= 120; i++) {
-    now = (i * 1000) / 120;
-    callback();
-  }
-  assert.equal(draws, 60);
-});
 test("reduced motion settles every card and disconnects pending entrances", () => {
   const hosts = [{}, {}],
     entered = new Map();
