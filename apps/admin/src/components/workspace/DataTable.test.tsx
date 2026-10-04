@@ -206,6 +206,50 @@ describe("global table interactions", () => {
     expect(scroll.getAttribute("aria-label")).toBeNull();
     expect(tableReflowWidth(columns)).toBeGreaterThanOrEqual(560);
   });
+  it("places trailing and detail cells by explicit contract, independent of column names", () => {
+    draw({
+      columns: [
+        columns[0]!,
+        { ...columns[1]!, compact: "inline", compactLabel: false },
+        {
+          key: "description",
+          header: "Description",
+          compact: "detail",
+          render: () => "An excerpt",
+        },
+        {
+          key: "observed_at",
+          header: "Observed",
+          compact: "trailing",
+          compactLabel: false,
+          render: () => <time>2h ago</time>,
+        },
+      ],
+    });
+    const row = host.querySelector('[data-record-id="a"]')!;
+    const trailing = row.querySelector<HTMLElement>(
+      '[data-column="observed_at"]',
+    )!;
+    expect(trailing.dataset.compact).toBe("trailing");
+    expect(trailing.style.order).toBe("0");
+    expect(trailing.querySelector(".openai-mobile-label")).toBeNull();
+    expect(
+      host.querySelector('thead [data-column="observed_at"]')?.textContent,
+    ).toBe("Observed");
+    const state = row.querySelector('[data-column="status"]')!;
+    expect(state.querySelector(".openai-mobile-label")).toBeNull();
+    expect(state.textContent).toBe("live");
+    expect(
+      row
+        .querySelector('[data-column="description"]')
+        ?.getAttribute("data-compact"),
+    ).toBe("detail");
+    const rules = host.querySelector("style")!.textContent!;
+    expect(rules).toContain('td[data-compact="trailing"]');
+    expect(rules).not.toContain('data-column="summary"');
+    expect(rules).not.toContain('data-column="updated"');
+  });
+
   it("distinguishes states and counts without inventing an inventory total", () => {
     expect(tableCountText(20)).toBe("20 loaded");
     expect(tableCountText(7, 7)).toBe("7 records");

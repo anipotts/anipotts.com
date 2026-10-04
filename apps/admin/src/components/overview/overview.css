@@ -40,3 +40,25 @@
     min-block-size: 44px;
   }
 }
+
+/* The phone appbar already names Overview; retain the document heading
+   for assistive technology, and keep the fixture badge when present. */
+@media (max-width: 640px) {
+  .admin-overview .workspace-page-title > h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    min-height: 0;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .admin-overview .workspace-page-header {
+    --workspace-page-line: 0px;
+  }
+  .admin-overview .workspace-page:has(.workspace-page-title > h1:only-child) {
+    row-gap: 0;
+  }
+}

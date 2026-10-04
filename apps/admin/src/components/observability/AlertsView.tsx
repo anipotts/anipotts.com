@@ -430,6 +430,8 @@ export function AlertsTable({
   };
   const state: Column<AlertRow> = {
     key: "state",
+    compact: "inline",
+    compactLabel: false,
     priority: 1,
     header: "State",
     width: widths.state,
@@ -442,6 +444,8 @@ export function AlertsTable({
   const bounded = rows.some((row) => !row.since && row.startedBefore);
   const since: Column<AlertRow> = {
     key: "since",
+    compact: !full && !resolved ? "trailing" : "inline",
+    compactLabel: full || resolved,
     priority: 1,
     header: full ? "Started" : "Since",
     width: full

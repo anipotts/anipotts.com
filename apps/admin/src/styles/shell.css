@@ -464,3 +464,12 @@ body [data-astryx-theme]:not([data-astryx-media]) {
     padding: 0;
   }
 }
+
+/* On phones the navigation sheet continues the document and safe area. */
+@media (max-width: 640px) {
+  .admin-navigation-drawer > div:not(#\#),
+  .admin-navigation-drawer > div > div:first-child,
+  .admin-navigation-drawer .admin-drawer-nav:not(#\#) {
+    background: var(--color-background-body);
+  }
+}

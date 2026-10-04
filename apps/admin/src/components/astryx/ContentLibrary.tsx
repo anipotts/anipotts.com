@@ -376,6 +376,8 @@ export function ContentLibrary({
     },
     {
       key: "summary",
+      compact: "detail",
+      compactLabel: false,
       priority: 1,
       min: 200,
       header: "Summary",
@@ -403,6 +405,8 @@ export function ContentLibrary({
     },
     {
       key: "updated",
+      compact: "trailing",
+      compactLabel: false,
       priority: 2,
       header: "Last activity",
       width: 120,

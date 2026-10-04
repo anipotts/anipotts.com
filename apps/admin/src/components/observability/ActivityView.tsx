@@ -338,6 +338,8 @@ function activityColumns(
     },
     {
       key: "at",
+      compact: "trailing",
+      compactLabel: false,
       priority: 1,
       header: "When",
       width: CELL_WIDTHS.time,
