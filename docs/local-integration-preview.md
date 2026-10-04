@@ -26,7 +26,26 @@ does not publish private drafts or change live content.
 
 ## Production publication mirror
 
-Run `node scripts/dev/sync-published-preview.mjs --watch` in this checkout.
+Run `pnpm review` in this checkout. It ensures both previews and one owned
+publication watcher. Repeating it reuses healthy processes and restores a stopped
+watcher. Its supervisor checks ownership every five seconds and automatically
+restarts a stopped watcher. `pnpm review:status` prints the exact branch, revision, dirty state, URLs
+and freshness blockers. `pnpm review:doctor` additionally verifies read-only
+production authorization without displaying credential values. Use
+`pnpm review:doctor --offline` to skip that provider check.
+
+The small local-only badge expands to show identity and content freshness.
+A stale or failed check is amber; old publication timestamps alone are not stale.
+The badge and identity endpoint are development-only.
+
+`pnpm review:queue` shows the maintained integration queue. See
+[integration-queue.md](integration-queue.md) for exact-revision transitions. Code
+approval happens here, article/page publication happens in production Content,
+and deployment approval applies to a checked code revision. None implies either
+of the others.
+
+Reusable synthetic editorial records live in `apps/admin/test/support/`.
+
 The watcher polls the public inventory version every five seconds, then reads
 one coherent snapshot of active production publications using existing
 Cloudflare authorization. It refreshes local published tables in both apps.

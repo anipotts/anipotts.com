@@ -1,7 +1,7 @@
 // Development-only mirror. Remote access is a fixed SELECT of active publications.
 // Local draft, job and receipt tables are never read or written.
 import { spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
@@ -137,8 +137,67 @@ async function sync() {
   );
   return snapshot.version;
 }
+function heartbeat(extra) {
+  let previous = {};
+  try {
+    previous = JSON.parse(readFileSync(join(state, "status.json"), "utf8"));
+  } catch {}
+  mkdirSync(state, { recursive: true, mode: 0o700 });
+  writeFileSync(
+    join(state, "status.json"),
+    JSON.stringify({ ...previous, ...extra }),
+    { mode: 0o600 },
+  );
+}
+function claimWatcher() {
+  mkdirSync(state, { recursive: true, mode: 0o700 });
+  const lock = join(state, "watcher.lock");
+  try {
+    mkdirSync(lock);
+  } catch {
+    let pid;
+    try {
+      pid = Number(readFileSync(join(lock, "pid"), "utf8"));
+    } catch {
+      throw Error("watcher_lock_unidentified");
+    }
+    try {
+      process.kill(pid, 0);
+      throw Error("publication_watcher_already_running");
+    } catch (error) {
+      if (error.code !== "ESRCH") throw error;
+    }
+    rmSync(lock, { recursive: true });
+    mkdirSync(lock);
+  }
+  writeFileSync(join(lock, "pid"), String(process.pid));
+  const owner = join(root, ".local/review");
+  mkdirSync(owner, { recursive: true, mode: 0o700 });
+  writeFileSync(
+    join(owner, "watcher.json"),
+    JSON.stringify({
+      pid: process.pid,
+      checkout: root,
+      command: fileURLToPath(import.meta.url),
+      startedAt: new Date().toISOString(),
+    }),
+    { mode: 0o600 },
+  );
+  const release = () => rmSync(lock, { recursive: true, force: true });
+  process.on("exit", release);
+  process.on("SIGTERM", () => process.exit(0));
+  process.on("SIGINT", () => process.exit(0));
+}
 async function main() {
-  let version = await sync();
+  if (process.argv.includes("--watch")) claimWatcher();
+  let version;
+  try {
+    version = await sync();
+    heartbeat({ checkedAt: new Date().toISOString(), error: null });
+  } catch (error) {
+    heartbeat({ error: error.message });
+    throw error;
+  }
   if (!process.argv.includes("--watch")) return;
   for (;;) {
     await new Promise((resolve) => setTimeout(resolve, 5000));
@@ -155,9 +214,16 @@ async function main() {
       );
       if (result.status !== 0) throw Error("production_version_unavailable");
       const next = JSON.parse(result.stdout).inventoryVersion;
-      if (Number.isSafeInteger(next) && next !== version)
-        version = await sync();
+      if (!Number.isSafeInteger(next))
+        throw Error("production_version_invalid");
+      if (next !== version) version = await sync();
+      heartbeat({
+        checkedAt: new Date().toISOString(),
+        productionVersion: next,
+        error: null,
+      });
     } catch (error) {
+      heartbeat({ error: error.message });
       console.error(error.message);
     }
   }

@@ -1,5 +1,7 @@
 // @ts-check
 import { randomUUID } from "node:crypto";
+import { fileURLToPath } from "node:url";
+import { adminPreviewIdentity } from "../../scripts/dev/admin-preview-identity.mjs";
 import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import { unified } from "@astrojs/markdown-remark";
@@ -43,7 +45,10 @@ export default defineConfig({
   trailingSlash: "never",
   build: { format: "file" },
   vite: {
-    plugins: [prerenderWorkerEnv],
+    plugins: [
+      prerenderWorkerEnv,
+      adminPreviewIdentity(fileURLToPath(new URL("../..", import.meta.url))),
+    ],
     // Fixed per build. The published reader folds it into every content
     // validator so a deploy never revalidates against another build's body.
     define: { __WWW_BUILD_ID__: JSON.stringify(randomUUID()) },
