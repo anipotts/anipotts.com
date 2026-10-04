@@ -1,6 +1,10 @@
 /** Normalized, reversible choreography shared by the public admin entry surface. */
 export const duration = 2000;
+export const compactDuration = 1600;
 export const reducedDuration = 160;
+export type MotionLayout = "desktop" | "compact";
+export const motionLayout = (width: number): MotionLayout =>
+  width <= 1024 ? "compact" : "desktop";
 export type Direction = 1 | -1;
 export type Curve = (progress: number) => number;
 export interface Pose {
@@ -11,6 +15,7 @@ export interface Pose {
 /** Center of the native AP artwork and its SVG units-to-CSS-pixels ratio. */
 export interface LogoAnchor extends Pose {}
 export interface IdentityGeometry {
+  layout?: MotionLayout;
   header: LogoAnchor;
   footer: LogoAnchor;
   origin: number;
@@ -50,6 +55,7 @@ export interface Rect {
 }
 export type CornerRadii = readonly [number, number, number, number];
 export interface SurfaceGeometry {
+  layout?: MotionLayout;
   card: Rect;
   button: Rect;
   viewport: Rect;
@@ -137,6 +143,26 @@ export function logoPose(
     direction === -1 ? geometry.header : geometry.footer,
   );
   const end = endPose(geometry);
+  if (geometry.layout === "compact") {
+    // Resolve the small horizontal offset first. The long rise then follows
+    // the card's vertical expansion without a sideways jog at the destination.
+    const axisTime = (distance: number) =>
+      Math.max(0.02, Math.min(0.08, Math.abs(distance) / 800));
+    const align = axisTime(end.x - start.x);
+    if (direction === 1)
+      return {
+        x: mix(start.x, end.x, segment(t, 0, align, travel)),
+        y: mix(start.y, end.y, segment(t, align, 0.42, open)),
+        scale: start.scale,
+      };
+    const elapsed = 1 - t;
+    const riseEnd = 0.32 + align + axisTime(end.y - start.y);
+    return {
+      x: mix(end.x, start.x, segment(elapsed, 0.32, 0.32 + align, travel)),
+      y: mix(end.y, start.y, segment(elapsed, 0.32 + align, riseEnd, travel)),
+      scale: start.scale,
+    };
+  }
   return {
     x: mix(start.x, end.x, segment(t, 0.285, 0.35, travel)),
     y: mix(start.y, end.y, segment(t, 0, 0.285, travel)),
@@ -173,19 +199,48 @@ export function sampleIdentity(
 ): IdentitySample {
   t = clamp(t);
   const pose = reroutedPose(t, geometry, direction, route);
-  const spread = segment(t, 0.35, 0.4);
-  const rotation = segment(t, 0.4, 0.575, turn);
-  const dock = segment(t, 0.4, 0.565);
-  const min = [0, 1, 2].map((i) =>
-    segment(t, 0.525 + i * 0.03, 0.64 + i * 0.03, reveal),
+  const compact = geometry.layout === "compact";
+  // Returning unfolds the page while the wordmark unwinds, rather than
+  // spending the first half of the transition waiting on the identity.
+  const identityTime =
+    compact && direction === -1 ? clamp(1 - (1 - t) / 0.55) : t;
+  const spread = segment(
+    identityTime,
+    compact ? 0.43 : 0.35,
+    compact ? 0.47 : 0.4,
   );
-  const bracket = segment(t, 0.675, 0.8);
-  const native = segment(t, 0.805, 0.845);
-  const handoff = direction === -1 ? segment(t, 0, 0.018) : 1;
+  const spinStart = compact ? 0.47 : 0.4;
+  const spinEnd = compact ? 0.65 : 0.575;
+  const rotation = segment(identityTime, spinStart, spinEnd, turn);
+  const dock = segment(identityTime, spinStart, compact ? 0.64 : 0.565);
+  const min = [0, 1, 2].map((i) =>
+    segment(
+      identityTime,
+      (compact ? 0.6 : 0.525) + i * 0.03,
+      (compact ? 0.71 : 0.64) + i * 0.03,
+      reveal,
+    ),
+  );
+  const bracket = segment(
+    identityTime,
+    compact ? 0.75 : 0.675,
+    compact ? 0.83 : 0.8,
+  );
+  const native = segment(
+    identityTime,
+    compact ? 0.84 : 0.805,
+    compact ? 0.88 : 0.845,
+  );
+  const handoff =
+    direction === -1
+      ? compact
+        ? 1 - segment(1 - t, 0.52, 0.54)
+        : segment(t, 0, 0.018)
+      : 1;
   const angularVelocity =
     Math.abs(
-      segment(t + 0.0005, 0.4, 0.575, turn) -
-        segment(t - 0.0005, 0.4, 0.575, turn),
+      segment(identityTime + 0.0005, spinStart, spinEnd, turn) -
+        segment(identityTime - 0.0005, spinStart, spinEnd, turn),
     ) / 0.001;
   return {
     pose,
@@ -205,7 +260,7 @@ export function sampleIdentity(
     word: (1 - native) * handoff,
     header: direction === -1 ? 1 - handoff : 1,
     footer: direction === -1 ? 1 : 0,
-    ink: segment(t, 0.1, 0.34),
+    ink: segment(identityTime, 0.1, 0.34),
   };
 }
 
@@ -216,14 +271,23 @@ export function sampleSurface(
   direction: Direction = 1,
 ): SurfaceSample {
   t = clamp(t);
+  const compact = geometry.layout === "compact";
   // Use the same acceleration and settling in both directions, rather than
   // reversing the asymmetric curve (which would give the return a hard stop).
   const phase = (start: number, end: number) =>
     direction === 1
       ? segment(t, start, end, open)
       : 1 - segment(1 - t, 1 - end, 1 - start, open);
-  const expansion = phase(0.025, 0.475);
-  const panelExpansion = phase(0.07, 0.475);
+  const expansion = compact
+    ? direction === 1
+      ? segment(t, 0.015, 0.52, open)
+      : 1 - segment(1 - t, 0.08, 0.68, open)
+    : phase(0.025, 0.475);
+  const panelExpansion = compact
+    ? direction === 1
+      ? segment(t, 0.04, 0.52, open)
+      : expansion
+    : phase(0.07, 0.475);
   const edge = {
     top: expansion,
     left: expansion,
@@ -244,6 +308,31 @@ export function sampleSurface(
   const panelRadii = geometry.buttonRadii.map((radius, i) =>
     mix(radius, geometry.mainRadii[i], panelExpansion),
   ) as [number, number, number, number];
+  const compactContent = !compact
+    ? {}
+    : direction === 1
+      ? {
+          editorial: 1 - segment(t, 0.04, 0.26, settle),
+          nav: 1 - segment(t, 0.03, 0.25, settle),
+          footer: 1 - segment(t, 0.02, 0.21, settle),
+          sidebar: segment(t, 0.38, 0.67, settle),
+          controls: segment(t, 0.44, 0.72, settle),
+          heading: segment(t, 0.42, 0.67, settle),
+          body: segment(t, 0.46, 0.72, settle),
+          action: segment(t, 0.52, 0.9, settle),
+          account: segment(t, 0.6, 0.95, settle),
+        }
+      : {
+          editorial: segment(1 - t, 0.38, 0.92, settle),
+          nav: segment(1 - t, 0.25, 0.5, settle),
+          footer: segment(1 - t, 0.4, 0.85, settle),
+          sidebar: 1 - segment(1 - t, 0.04, 0.25, settle),
+          controls: 1 - segment(1 - t, 0.03, 0.22, settle),
+          heading: 1 - segment(1 - t, 0.04, 0.28, settle),
+          body: 1 - segment(1 - t, 0.02, 0.24, settle),
+          action: 1 - segment(1 - t, 0, 0.18, settle),
+          account: 1 - segment(1 - t, 0, 0.18, settle),
+        };
   return {
     rect,
     radii,
@@ -262,6 +351,7 @@ export function sampleSurface(
     body: segment(t, 0.63, 0.875, settle),
     action: segment(t, 0.7, 0.93, settle),
     account: segment(t, 0.75, 0.985, settle),
+    ...compactContent,
   };
 }
 

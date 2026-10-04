@@ -80,11 +80,30 @@ const { project } = Astro.props;
       box-shadow: inset 0 0 0 2px var(--paper-accent);
     }
   }
-  @media (max-width: 600px) {
+  @media (max-width: 640px) {
     .coding-agent-card {
       flex-direction: column;
       align-items: stretch;
       gap: 1.25rem;
+    }
+    .guide-content {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .guide-identity {
+      display: contents;
+    }
+    .guide-label {
+      grid-row: 1;
+    }
+    .guide-title {
+      grid-row: 2;
+    }
+    .guide-identity :global(.site-action) {
+      grid-row: 3;
+      width: 100%;
+      min-height: 44px;
+      box-sizing: border-box;
     }
   }
 </style>

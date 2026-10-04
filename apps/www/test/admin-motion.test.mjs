@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   duration,
+  compactDuration,
+  motionLayout,
   reducedDuration,
   sourcePose,
   endPose,
@@ -12,6 +14,26 @@ import {
 } from "../src/lib/admin-motion.ts";
 
 const widths = [320, 390, 768, 1440];
+test("responsive timing is bounded and desktop keeps the original profile", () => {
+  assert.equal(compactDuration, 1600);
+  assert.equal(duration, 2000);
+  for (const width of [320, 390, 640, 768, 1024])
+    assert.equal(motionLayout(width), "compact");
+  for (const width of [1025, 1280, 1440, 1920]) {
+    assert.equal(motionLayout(width), "desktop");
+    const g = geometry(width);
+    for (const direction of [1, -1])
+      for (let step = 0; step <= 100; step++)
+        assert.deepEqual(
+          sampleIdentity(
+            step / 100,
+            { ...g, layout: motionLayout(width) },
+            direction,
+          ),
+          sampleIdentity(step / 100, g, direction),
+        );
+  }
+});
 function geometry(width) {
   return {
     header: { x: width < 641 ? 37 : 63, y: 55, scale: 0.1 },
@@ -197,4 +219,112 @@ test("the expanded inset keeps only its top and left outline", () => {
     !path.includes("Z"),
     "the outline cannot close around bottom/right edges",
   );
+});
+
+test("compact identity aligns first, rises without scaling, and returns during the collapse", () => {
+  for (const width of [320, 390, 640, 768, 1024]) {
+    const g = { ...geometry(width), layout: "compact" };
+    for (const direction of [1, -1]) {
+      let previous = sampleIdentity(direction === 1 ? 0 : 1, g, direction);
+      assert.deepEqual(
+        previous.pose,
+        direction === 1 ? sourcePose(g.footer) : endPose(g),
+      );
+      for (let step = 1; step <= 1600; step++) {
+        const t = direction === 1 ? step / 1600 : 1 - step / 1600;
+        const frame = sampleIdentity(t, g, direction);
+        const dx = Math.abs(frame.pose.x - previous.pose.x);
+        const dy = Math.abs(frame.pose.y - previous.pose.y);
+        assert.ok(dx < 1e-7 || dy < 1e-7, "compact travel remains axis-only");
+        assert.equal(frame.pose.scale, g.header.scale);
+        if (dx > 1e-7 || dy > 1e-7)
+          assert.equal(frame.rotation, 0, "the p only rotates at its dock");
+        if (frame.native > 0) {
+          assert.equal(frame.rotation, 1);
+          assert.equal(frame.bracket, 1);
+          assert.ok(frame.min.every((value) => value === 1));
+        }
+        if (direction === 1 && t > 0.08)
+          assert.equal(
+            frame.pose.x,
+            endPose(g).x,
+            "no sideways jog after the rise",
+          );
+        previous = frame;
+      }
+      const expected = direction === 1 ? endPose(g) : sourcePose(g.header);
+      for (const key of ["x", "y", "scale"])
+        assert.ok(Math.abs(previous.pose[key] - expected[key]) < 1e-9);
+      if (direction === -1) {
+        assert.equal(previous.header, 1);
+        assert.equal(previous.word, 0);
+        assert.equal(
+          sampleIdentity(0.45, g, -1).header,
+          1,
+          "header handoff completes before the return finishes",
+        );
+      }
+    }
+  }
+});
+
+test("compact nested surfaces share their landing and begin returning before the wordmark finishes", () => {
+  for (const width of [320, 390, 640, 768, 1024]) {
+    const g = {
+      layout: "compact",
+      card: { left: 20, top: 430, right: width - 20, bottom: 630 },
+      button: { left: 44, top: 554, right: width - 44, bottom: 598 },
+      viewport: { left: 0, top: 0, right: width, bottom: 844 },
+      main: {
+        left: width <= 640 ? 0 : 200,
+        top: width <= 640 ? 44 : 12,
+        right: width,
+        bottom: 844,
+      },
+      cardRadii: [12, 12, 12, 12],
+      buttonRadii: [8, 8, 8, 8],
+      mainRadii: [0, 0, 0, 0],
+    };
+    const landed = sampleSurface(0.52, g);
+    assert.deepEqual(landed.rect, g.viewport);
+    assert.deepEqual(landed.panel, g.main);
+    assert.ok(sampleSurface(0.51, g).expansion < 1);
+    const returning = sampleSurface(0.85, g, -1);
+    assert.ok(returning.expansion < 1);
+    assert.ok(
+      sampleIdentity(
+        0.85,
+        { ...geometry(width), layout: "compact" },
+        -1,
+      ).min.some((value) => value > 0),
+    );
+    for (const direction of [1, -1]) {
+      for (let step = 0; step <= 1600; step++) {
+        const t = direction === 1 ? step / 1600 : 1 - step / 1600;
+        const frame = sampleSurface(t, g, direction);
+        assert.equal(frame.edge.top, frame.edge.left);
+        assert.equal(frame.edge.left, frame.edge.right);
+        assert.equal(frame.edge.right, frame.edge.bottom);
+        assert.equal(frame.wave, 1);
+        assert.ok(
+          frame.rect.right > frame.rect.left &&
+            frame.rect.bottom > frame.rect.top,
+        );
+        assert.ok(
+          frame.panel.right > frame.panel.left &&
+            frame.panel.bottom > frame.panel.top,
+        );
+        assert.ok(
+          frame.panel.left >= frame.rect.left - 1e-7 &&
+            frame.panel.right <= frame.rect.right + 1e-7,
+        );
+        assert.ok(
+          frame.panel.top >= frame.rect.top - 1e-7 &&
+            frame.panel.bottom <= frame.rect.bottom + 1e-7,
+        );
+      }
+    }
+    assert.deepEqual(sampleSurface(0, g, -1).rect, g.card);
+    assert.deepEqual(sampleSurface(0, g, -1).panel, g.button);
+  }
 });
