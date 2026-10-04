@@ -53,6 +53,11 @@ const { text, links = true } = Astro.props;
     height: 1.08em;
     border-radius: 0;
   }
+  html[data-theme="dark"]
+    .inline-copy
+    .inline-image[src="/images/brand/structured-ai-mark.svg"] {
+    filter: brightness(0) invert(1);
+  }
   .inline-copy .inline-image-white {
     filter: brightness(0) invert(1);
   }
