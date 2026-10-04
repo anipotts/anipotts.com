@@ -6,6 +6,8 @@ import {
   pauseSharedCurrents,
 } from "../../apps/www/src/lib/shared-currents.ts";
 
+// Importing the scene module must not touch the document; Shell wires it.
+
 const component = (name) =>
   readFileSync(`apps/www/src/components/${name}.astro`, "utf8");
 const flow = component("AmbientFlow");
@@ -36,10 +38,22 @@ for (const color of [
 }
 assert.match(flow, /--flow-opacity:\s*0\.64/);
 assert.match(flow, /--flow-opacity:\s*0\.38/);
-assert.ok(flow.includes("refreshSharedCurrents()"));
-assert.ok(flow.includes('"astro:before-preparation", pauseSharedCurrents'));
-assert.ok(flow.includes('"astro:page-load"'));
-assert.ok(flow.includes("import.meta.hot.dispose(pauseSharedCurrents)"));
+const shell = readFileSync("apps/www/src/layouts/Shell.astro", "utf8");
+const currents = readFileSync("apps/www/src/lib/shared-currents.ts", "utf8");
+assert.ok(
+  shell.includes("installSharedCurrents()"),
+  "every page wires the scene, including pages with only page bands",
+);
+assert.equal(
+  flow.includes("<script"),
+  false,
+  "cards carry no wiring of their own",
+);
+assert.ok(currents.includes('"astro:before-preparation", pauseSharedCurrents'));
+assert.ok(currents.includes('"astro:page-load", refreshSharedCurrents'));
+assert.ok(
+  currents.includes("import.meta.hot.dispose(uninstallSharedCurrents)"),
+);
 
 const page = component("PageCurrent");
 assert.ok(page.includes('preserveAspectRatio="xMidYMid slice"'));
@@ -51,7 +65,7 @@ assert.match(
 assert.equal(
   /position:\s*fixed|<script|@keyframes|animation:/.test(page),
   false,
-  "page artwork remains static for every motion preference",
+  "page artwork is static markup; only the shared scene moves it",
 );
 assert.ok(page.includes('aria-hidden="true"'));
 assert.ok(page.includes("pointer-events: none"));
@@ -106,8 +120,26 @@ class Events {
   }
 }
 
-function harness(hostCount = 3, reduced = false) {
+function harness(hostCount = 3, reduced = false, bandSources = []) {
   const main = {};
+  const bandPaths = bandSources.map((source) => ({
+    attributes: new Map([["d", source]]),
+    getAttribute(name) {
+      return this.attributes.get(name) ?? null;
+    },
+    setAttribute(name, value) {
+      this.attributes.set(name, value);
+    },
+  }));
+  const bandArt = bandSources.length
+    ? {
+        getBoundingClientRect: () => ({ width: 1280, height: 3000 }),
+        querySelectorAll(selector) {
+          assert.equal(selector, "path");
+          return bandPaths;
+        },
+      }
+    : null;
   const hosts = Array.from({ length: hostCount }, (_, index) => {
     const attributes = new Map();
     const paths = Array.from({ length: 6 }, () => ({
@@ -131,6 +163,7 @@ function harness(hostCount = 3, reduced = false) {
     };
     return {
       dataset: {},
+      hasAttribute: () => false,
       box: {
         left: 20 + (index % 2) * 324,
         top: 100 + Math.floor(index / 2) * 224,
@@ -159,12 +192,15 @@ function harness(hostCount = 3, reduced = false) {
       return hosts;
     },
     querySelector(selector) {
+      if (selector === "body > .page-current svg") return bandArt;
       assert.equal(selector, "main");
       return main;
     },
+    fonts: { ready: { then: (callback) => callback() } },
   });
-  const window = new Events();
+  const window = Object.assign(new Events(), { scrollY: 0, innerWidth: 1280 });
   const media = Object.assign(new Events(), { matches: reduced });
+  const compact = Object.assign(new Events(), { matches: false });
   const intersections = [],
     resizes = [],
     frames = new Map(),
@@ -187,8 +223,13 @@ function harness(hostCount = 3, reduced = false) {
   install("document", document);
   install("window", window);
   install("location", { pathname: "/writing" });
-  install("performance", { now: () => clock });
+  install("performance", {
+    now: () => clock,
+    // A reload, so the fixture starts settled instead of pouring.
+    getEntriesByType: () => [{ type: "reload" }],
+  });
   install("matchMedia", (query) => {
+    if (query === "(max-width: 1023px)") return compact;
     assert.equal(query, "(prefers-reduced-motion: reduce)");
     return media;
   });
@@ -236,9 +277,11 @@ function harness(hostCount = 3, reduced = false) {
   );
   return {
     hosts,
+    bandPaths,
     document,
     window,
     media,
+    compact,
     frames,
     timers,
     get wakeups() {
@@ -311,8 +354,8 @@ try {
   const [first, second, third] = scene.hosts;
   assert.equal(
     scene.randomCalls,
-    1,
-    "choose one composition for the whole page",
+    0,
+    "the route seeds one composition for the whole page",
   );
   assert.deepEqual(
     scene.hosts.map((host) => host.svg.attributes.get("viewBox")),
@@ -374,8 +417,8 @@ try {
   );
   assert.equal(
     first.dataset.motionTime,
-    "0.0200",
-    "40ms advances the approved half-speed clock by 20ms",
+    "0.0880",
+    "40ms advances the desktop tide clock (2.2x) by 88ms",
   );
   assert.deepEqual(shapes(first), shapes(second));
   // One wakeup per drawn frame: a second of drift costs 30, not 60.
@@ -409,7 +452,7 @@ try {
   scene.step(40);
   assert.equal(
     Number(first.dataset.motionTime).toFixed(4),
-    (Number(handoffTime) + 0.02).toFixed(4),
+    (Number(handoffTime) + 0.088).toFixed(4),
     "resume without advancing through the transition",
   );
 
@@ -452,7 +495,7 @@ try {
   scene.step(40);
   assert.equal(
     Number(first.dataset.motionTime).toFixed(4),
-    (pausedTime + 0.02).toFixed(4),
+    (pausedTime + 0.088).toFixed(4),
     "resume without jumping through background time",
   );
 
@@ -488,7 +531,7 @@ try {
   );
   assert.equal(
     scene.randomCalls,
-    1,
+    0,
     "resize, scroll, and visibility retain the chosen composition",
   );
 
@@ -503,7 +546,8 @@ try {
   assert.equal(
     scene.document.listenerCount +
       scene.window.listenerCount +
-      scene.media.listenerCount,
+      scene.media.listenerCount +
+      scene.compact.listenerCount,
     0,
     "unmount removes every observer, event listener, and pending frame",
   );
@@ -523,18 +567,14 @@ try {
   scene.document.dispatch("writing:transition-end");
   assert.equal(
     scene.randomCalls,
-    1,
+    0,
     "returning to a page preserves its composition",
   );
   assert.deepEqual(shapes(first), previousMount);
   cleanup();
   location.pathname = "/work";
   cleanup = mountSharedCurrents();
-  assert.equal(
-    scene.randomCalls,
-    2,
-    "another page chooses its own composition",
-  );
+  assert.equal(scene.randomCalls, 0, "compositions never use Math.random");
   assert.notDeepEqual(shapes(first), previousMount);
   cleanup();
   scene.document.body = {};
@@ -563,6 +603,66 @@ try {
   scene.restore();
 }
 
+// The page bands drift on the cards' clock, even on a page with no cards.
+const authoredBands = [...page.matchAll(/\sd="([^"]+)"/g)].map((m) => m[1]);
+assert.equal(authoredBands.length, 3);
+const bandScene = harness(0, false, authoredBands);
+try {
+  const cleanup = mountSharedCurrents();
+  const bandShapes = () =>
+    bandScene.bandPaths.map((path) => path.attributes.get("d"));
+  assert.deepEqual(
+    bandShapes(),
+    authoredBands,
+    "the first frame is the authored art",
+  );
+  assert.equal(bandScene.wakeups, 1, "page bands alone keep one loop");
+  const requested = bandScene.wakeupsRequested;
+  for (let i = 0; i < 60; i++) bandScene.step(1000 / 60);
+  const perSecond = bandScene.wakeupsRequested - requested;
+  // The fixture clock steps 16.7ms, so a 66.7ms timer can land a step late.
+  assert.ok(
+    perSecond >= 12 && perSecond <= 16,
+    `a page with no cards wakes about 15 times a second, got ${perSecond}`,
+  );
+  assert.equal(bandScene.framesRequested, 0, "and never an animation frame");
+  for (let i = 0; i < 4; i++) bandScene.step(1000);
+  const drifted = bandShapes();
+  assert.notDeepEqual(drifted, authoredBands, "page bands drift");
+  const numbers = (d) => (d.match(/-?\d+\.?\d*/g) ?? []).map(Number);
+  for (const [i, d] of drifted.entries()) {
+    assert.match(d, /^M[-\d. CSLZ]+$/);
+    assert.equal(/NaN|Infinity/.test(d), false);
+    // Every x stays put and every y moves by at most the swell, in art units
+    // (24px at a 2.5 slice scale, plus the second harmonic).
+    const before = numbers(
+      authoredBands[i].replace(/V(-?[\d.]+)/g, (_, y) => `L0 ${y}`),
+    );
+    const after = numbers(d);
+    assert.equal(after.length, before.length);
+    for (let k = 1; k < after.length; k += 2)
+      assert.ok(Math.abs(after[k] - before[k]) <= (24 * 1.35) / 2.5 + 0.1);
+  }
+  bandScene.media.matches = true;
+  bandScene.media.dispatch("change");
+  assert.deepEqual(
+    bandShapes(),
+    authoredBands,
+    "reduced motion returns the authored art",
+  );
+  assert.equal(bandScene.wakeups, 0);
+  cleanup();
+  assert.equal(
+    bandScene.document.listenerCount +
+      bandScene.window.listenerCount +
+      bandScene.media.listenerCount +
+      bandScene.compact.listenerCount,
+    0,
+  );
+} finally {
+  bandScene.restore();
+}
+
 console.log(
-  "landscape: shared artwork, palettes, static fallback, motion lifecycle, and steady content passed",
+  "landscape: shared artwork, palettes, static fallback, motion lifecycle, page bands, and steady content passed",
 );
