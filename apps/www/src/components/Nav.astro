@@ -177,14 +177,16 @@ const current = Astro.url.pathname;
     margin-right: auto;
     min-height: 44px;
     display: grid;
-    place-items: center;
+    place-items: center start;
     width: 4rem;
     height: 4rem;
   }
 
   .wordmark :global(.brand-mark) {
-    width: 29.696px;
-    height: 29.696px;
+    width: 44px;
+    height: 44px;
+    /* Align the ink, accounting for the shared SVG's internal left margin. */
+    transform: translateX(-13.8671875%);
   }
 
   .primary-nav {
