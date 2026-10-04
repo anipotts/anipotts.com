@@ -85,7 +85,7 @@ const externalProfiles = [
 
   .footer-wordmark {
     display: grid;
-    place-items: center;
+    place-items: center start;
     width: 52px;
     height: 52px;
     flex: 0 0 52px;
@@ -96,6 +96,8 @@ const externalProfiles = [
   .footer-wordmark :global(.brand-mark) {
     width: 29.696px;
     height: 29.696px;
+    /* Match the content edge rather than the SVG's transparent margin. */
+    transform: translateX(-13.8671875%);
   }
 
   .contact-copy {
