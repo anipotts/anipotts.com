@@ -24,6 +24,8 @@ type Motion = {
   /** Frame rate while the scroll push coasts; the entrance always gets display
    * frames and the idle swell always draws at 30. */
   activeFps: number;
+  /** Page band drift as a share of the card swell. */
+  page: number;
 };
 // Below the desktop layout the cards stack into one tall column, so the same
 // scroll covers far more of the scene. Phones and tablets get a calmer current.
@@ -37,6 +39,7 @@ const DESKTOP: Motion = {
   bandDelay: 140,
   cardDelay: 90,
   activeFps: 60,
+  page: 1,
 };
 const COMPACT: Motion = {
   speed: 1.6,
@@ -48,9 +51,62 @@ const COMPACT: Motion = {
   bandDelay: 100,
   cardDelay: 70,
   activeFps: 30,
+  page: 1,
 };
 type Point = { x: number; y: number };
 type Box = { x: number; y: number; width: number; height: number };
+type Segment = { command: string; values: number[] };
+const ARITY: Record<string, number> = { M: 2, L: 2, C: 6, S: 4, V: 1, H: 1 };
+/** Splits the page bands' authored path data into explicit commands, or null
+ * for anything else (relative commands, arcs), which then stays still. */
+function parseBand(d: string): Segment[] | null {
+  const tokens = d.match(/[A-Za-z]|[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/g);
+  if (!tokens) return null;
+  const segments: Segment[] = [];
+  let command = "";
+  for (let i = 0; i < tokens.length;) {
+    if (/[A-Za-z]/.test(tokens[i])) {
+      command = tokens[i++];
+      if (command === "Z") {
+        segments.push({ command, values: [] });
+        continue;
+      }
+      if (!(command in ARITY)) return null;
+    } else if (!command || command === "Z") return null;
+    const arity = ARITY[command];
+    const values = tokens.slice(i, i + arity).map(Number);
+    if (values.length < arity || !values.every(Number.isFinite)) return null;
+    i += arity;
+    segments.push({ command, values });
+    // Further pairs after a move are lines.
+    if (command === "M") command = "L";
+  }
+  return segments;
+}
+/** The segments with every point raised by `lift(x)`. Vertical and horizontal
+ * lines become plain lines, since their ends no longer share a coordinate. */
+function displaced(segments: Segment[], lift: (x: number) => number) {
+  const n = (value: number) => value.toFixed(1);
+  let x = 0,
+    y = 0,
+    d = "";
+  for (const { command, values } of segments) {
+    if (command === "Z") {
+      d += "Z";
+      continue;
+    }
+    const axis = command === "V" || command === "H";
+    if (command === "V") y = values[0];
+    if (command === "H") x = values[0];
+    const points = axis ? [x, y] : values;
+    d += axis ? "L" : command;
+    for (let k = 0; k < points.length; k += 2)
+      d += `${k ? " " : ""}${n(points[k])} ${n(points[k + 1] + lift(points[k]))}`;
+    x = points[points.length - 2];
+    y = points[points.length - 1];
+  }
+  return d;
+}
 const pageCurrents = new Map<string, Scene>();
 /** Live values for the dev-only tuner. Production code never writes them. */
 export const currentTuning = { desktop: DESKTOP, compact: COMPACT };
@@ -58,24 +114,39 @@ let replayEntrance = false;
 // The client router reports how it arrived; the first document reports it
 // through the navigation timing entry.
 let routerNavigation: string | undefined;
-document.addEventListener("astro:before-preparation", (event) => {
+function noteNavigation(event: Event) {
   routerNavigation = (event as Event & { navigationType?: string })
     .navigationType;
-});
+}
 function freshArrival() {
   if (routerNavigation) return routerNavigation !== "traverse";
   const entry = performance.getEntriesByType("navigation")[0] as
     PerformanceNavigationTiming | undefined;
   return !entry || entry.type === "navigate" || entry.type === "prerender";
 }
-// One document-space composition, cropped by each card. No per-card animation clocks.
+// One document-space composition, cropped by each card. No per-card animation
+// clocks. The faint page bands behind the content drift on the same clock.
 export function mountSharedCurrents() {
   const hosts = [
     ...document.querySelectorAll<HTMLElement>(
       "main:not([inert]) [data-shared-current]",
     ),
   ];
-  if (!hosts.length) return () => {};
+  const bandArt = document.querySelector<SVGSVGElement>(
+    "body > .page-current svg",
+  );
+  // The authored shape stays on the path, so a remount or a still frame
+  // starts from the original art.
+  const bands = (bandArt ? [...bandArt.querySelectorAll("path")] : []).flatMap(
+    (path) => {
+      const source =
+        path.getAttribute("data-source") ?? path.getAttribute("d") ?? "";
+      path.setAttribute("data-source", source);
+      const segments = parseBand(source);
+      return segments ? [{ path, source, segments }] : [];
+    },
+  );
+  if (!hosts.length && !bands.length) return () => {};
   // Choose once per page mount; scrolling, resizing, and theme changes retain it.
   const key = location.pathname;
   const previous = pageCurrents.get(key);
@@ -92,6 +163,9 @@ export function mountSharedCurrents() {
   const motion = () => (compact.matches ? COMPACT : DESKTOP);
   const visible = new Set<HTMLElement>();
   const IDLE = 1000 / 30;
+  // The page bands move a few px a second at low opacity, so 15 frames is
+  // smooth, and a page with no card in view only wakes that often.
+  const BANDS = 1000 / 15;
   let w = 1,
     h = 1,
     time = previous?.time ?? 0,
@@ -116,7 +190,8 @@ export function mountSharedCurrents() {
   // Scrolling moves the large crests, eased so the current coasts to rest.
   // The rate follows the scene height, so an edge moves `push` px per px
   // scrolled on a short homepage and a long listing alike.
-  const pushed = () => (window.scrollY * motion().push) / Math.max(1, h * 0.09);
+  const pushed = () =>
+    hosts.length ? (window.scrollY * motion().push) / Math.max(1, h * 0.09) : 0;
   let flow = 0;
   // One decimal is finer than a device pixel at these sizes and cuts the string
   // each frame rewrites by about a fifth.
@@ -260,6 +335,47 @@ export function mountSharedCurrents() {
     });
   }
 
+  // Slice geometry of the page band artwork, which spans the whole page.
+  const page = { scale: 1, left: 0, width: 1 };
+  function measureBands() {
+    if (!bandArt) return;
+    const box = bandArt.getBoundingClientRect();
+    page.scale = Math.max(box.width / 1600, box.height / 1200) || 1;
+    page.left = (box.width - 1600 * page.scale) / 2;
+    page.width = box.width || 1;
+  }
+  let bandsSince: number | undefined,
+    bandsDrawn = -Infinity;
+  /** The cards' drift, applied to the page bands by screen position. */
+  function drawBands(now: number) {
+    if (!bands.length || now - bandsDrawn < BANDS - 2) return;
+    bandsDrawn = now;
+    bandsSince ??= now;
+    // Ease in from the authored shapes instead of jumping to the swell.
+    const ramp = Math.min(1, (now - bandsSince) / 2500);
+    const tune = motion();
+    const gain =
+      (ramp * ramp * (3 - 2 * ramp) * tune.amount * tune.page) / page.scale;
+    bands.forEach(({ path, segments }, band) =>
+      path.setAttribute(
+        "d",
+        displaced(segments, (x) => {
+          const i = (page.left + x * page.scale) / (0.2 * page.width) + 0.5;
+          return (
+            (Math.sin(time * 0.11 + i * 0.8 + band * 2.4) +
+              0.35 * Math.sin(time * 0.073 - i * 0.61 + band)) *
+            gain
+          );
+        }),
+      ),
+    );
+  }
+  function stillBands() {
+    bandsSince = undefined;
+    bandsDrawn = -Infinity;
+    bands.forEach(({ path, source }) => path.setAttribute("d", source));
+  }
+
   function draw(all = false, now = performance.now()) {
     const shapes = Array.from({ length: 6 }, (_, i) =>
       geometry(i < 3 ? 0 : 1, i % 3),
@@ -294,6 +410,8 @@ export function mountSharedCurrents() {
   function resize() {
     if (document.documentElement?.hasAttribute("data-writing-transition"))
       return;
+    measureBands();
+    if (!hosts.length) return;
     const boxes = hosts.map((host) => host.getBoundingClientRect());
     const left = Math.min(...boxes.map((b) => b.left));
     const top = Math.min(...boxes.map((b) => b.top));
@@ -343,9 +461,15 @@ export function mountSharedCurrents() {
       : Math.abs(pushed() - flow) > 1e-4
         ? motion().activeFps
         : 30;
+    const idle = visible.size ? IDLE : BANDS;
     if (fps > 30) frame = requestAnimationFrame(tick);
-    else timer = setTimeout(tick, Math.max(0, last + IDLE - now));
+    else timer = setTimeout(tick, Math.max(0, last + idle - now));
   }
+  // Cards only count while in view; the page bands are always on screen.
+  const running = () =>
+    !media.matches &&
+    !document.hidden &&
+    (visible.size > 0 || bands.length > 0);
   function stop() {
     if (timer !== undefined) clearTimeout(timer);
     if (frame) cancelAnimationFrame(frame);
@@ -355,7 +479,7 @@ export function mountSharedCurrents() {
   function tick() {
     timer = undefined;
     frame = 0;
-    if (media.matches || document.hidden || !visible.size) return;
+    if (!running()) return;
     const now = performance.now();
     // Hold the destination artwork at the captured phase until its overlay
     // hands back to the real card. Do not accumulate the paused time.
@@ -369,11 +493,13 @@ export function mountSharedCurrents() {
     flow += (pushed() - flow) * (1 - Math.exp(-dt * 3.2));
     last = now;
     draw(false, now);
+    drawBands(now);
     schedule(now);
   }
   function sync() {
     stop();
-    if (!media.matches && !document.hidden && visible.size) {
+    if (media.matches) stillBands();
+    if (running()) {
       last = performance.now();
       schedule(last);
     }
@@ -419,6 +545,7 @@ export function mountSharedCurrents() {
   });
   const main = document.querySelector("main");
   if (main) observer.observe(main);
+  if (bandArt) observer.observe(bandArt);
   media.addEventListener("change", sync);
   compact.addEventListener("change", resize);
   document.addEventListener("visibilitychange", sync);
@@ -426,6 +553,7 @@ export function mountSharedCurrents() {
   window.addEventListener("resize", resize);
   document.addEventListener("writing:transition-end", resize);
   document.addEventListener("astro:page-load", resize);
+  measureBands();
   // Restore the known layout before painting. Incoming styles can briefly
   // report fallback font metrics during the document swap.
   if (
@@ -440,6 +568,8 @@ export function mountSharedCurrents() {
     previous.crops.forEach((crop, i) => svgs[i].setAttribute("viewBox", crop));
     draw(true);
   } else resize();
+  // Page bands have no observer to start the loop, so start it here.
+  sync();
   return () => {
     // Settle any entrance, then let offscreen cards catch up before capture,
     // preserving one shared phase.
@@ -496,3 +626,24 @@ export function replaySharedCurrents() {
   replayEntrance = true;
   refreshSharedCurrents();
 }
+// Wires the scene to the client router once per document; Shell calls it on
+// every page, since the page bands appear on pages without cards.
+let installed = false;
+export function installSharedCurrents() {
+  if (installed) return;
+  installed = true;
+  document.addEventListener("astro:before-preparation", noteNavigation);
+  document.addEventListener("astro:before-preparation", pauseSharedCurrents);
+  document.addEventListener("astro:after-swap", refreshSharedCurrents);
+  document.addEventListener("astro:page-load", refreshSharedCurrents);
+  refreshSharedCurrents();
+}
+function uninstallSharedCurrents() {
+  document.removeEventListener("astro:before-preparation", noteNavigation);
+  document.removeEventListener("astro:before-preparation", pauseSharedCurrents);
+  document.removeEventListener("astro:after-swap", refreshSharedCurrents);
+  document.removeEventListener("astro:page-load", refreshSharedCurrents);
+  pauseSharedCurrents();
+  installed = false;
+}
+if (import.meta.hot) import.meta.hot.dispose(uninstallSharedCurrents);

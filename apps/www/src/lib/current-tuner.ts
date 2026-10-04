@@ -20,6 +20,7 @@ const FIELDS: [Field, string, number, number, number][] = [
   ["bandDelay", "band stagger ms", 0, 400, 10],
   ["cardDelay", "card stagger ms", 0, 300, 10],
   ["activeFps", "scroll fps", 30, 60, 30],
+  ["page", "page bands × swell", 0, 2, 0.05],
 ];
 const STORE = "current-tuner";
 const defaults = structuredClone(currentTuning);
@@ -51,6 +52,7 @@ function save() {
 
 // Surfaces that carry the moving currents, and the still geometry around them.
 const MOVING: [string, string][] = [
+  [".page-current", "page bands: tide drift"],
   [".press-mention", "press feature"],
   [".experience-feature", "featured work"],
   [".work-card", "work card"],
@@ -58,7 +60,6 @@ const MOVING: [string, string][] = [
   [".coding-agent-card", "guide card"],
 ];
 const STILL: [string, string][] = [
-  [".page-current", "page bands: still"],
   [".detail-waves", "article header waves: still, morph on open"],
 ];
 
@@ -82,8 +83,20 @@ function outline() {
   };
   for (const [selector, label] of MOVING)
     document
-      .querySelectorAll(`${selector}:has(> [data-shared-current])`)
-      .forEach((el) => mark(el, `${label}: pours, swells, pushed`, false));
+      .querySelectorAll(
+        selector === ".page-current"
+          ? selector
+          : `${selector}:has(> [data-shared-current])`,
+      )
+      .forEach((el) =>
+        mark(
+          el,
+          selector === ".page-current"
+            ? label
+            : `${label}: pours, swells, pushed`,
+          false,
+        ),
+      );
   for (const [selector, label] of STILL)
     document.querySelectorAll(selector).forEach((el) => mark(el, label, true));
   document.body.appendChild(layer);
