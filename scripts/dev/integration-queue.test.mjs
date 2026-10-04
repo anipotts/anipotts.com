@@ -33,7 +33,7 @@ test("maintained queue is valid and distinguishes historical deployment targets"
     queue.items.find((item) => item.id === "pr-488-www").deployment.target,
     "www and admin",
   );
-  assert.match(listQueue(queue), /awaiting-review/);
+  for (const item of queue.items) assert.ok(listQueue(queue).includes(item.id));
 });
 test("code approval does not approve content or production deployment", () => {
   const args = {
