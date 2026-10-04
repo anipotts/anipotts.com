@@ -3,10 +3,17 @@ interface Props {
   kind: "work" | "writing";
   seed: string;
   variant?: number;
+  localCrop?: boolean;
 }
+const { localCrop = false } = Astro.props;
 ---
 
-<span class="ambient-flow" data-shared-current aria-hidden="true">
+<span
+  class="ambient-flow"
+  data-shared-current
+  data-local-current={localCrop || undefined}
+  aria-hidden="true"
+>
   <svg
     viewBox="0 0 600 320"
     preserveAspectRatio="xMidYMid slice"

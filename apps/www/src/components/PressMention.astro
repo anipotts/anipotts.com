@@ -9,18 +9,21 @@ const { essayHref } = Astro.props;
 ---
 
 <aside class="press-mention" aria-label="press coverage">
-  <AmbientFlow kind="work" seed="business-insider" />
+  <AmbientFlow kind="work" seed="business-insider" localCrop />
   <img
     class="press-mention__logo"
-    src="/images/brand/business-insider-wordmark.svg"
+    src="/images/brand/business-insider-favicon.svg"
     alt="business insider"
-    width="930"
-    height="320"
+    width="40"
+    height="40"
     decoding="async"
   />
-  <p class="press-mention__copy">
-    read my feature in a story about claude code usage limits
-  </p>
+  <div class="press-mention__content">
+    <span class="press-mention__title">saturdays are for claude code</span>
+    <p class="press-mention__copy">
+      my feature in a story about coding agent usage limits
+    </p>
+  </div>
   <div class="press-mention__links">
     {
       essayHref && (
@@ -43,75 +46,73 @@ const { essayHref } = Astro.props;
 
 <style>
   .press-mention {
-    container-type: inline-size;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    gap: 0.75rem var(--s-4);
+    gap: var(--card-header-gap);
     margin-top: var(--s-5);
-    padding: var(--experience-card-padding);
+    padding: var(--card-inset);
     border-radius: var(--paper-radius);
     background: var(--paper-surface);
     color: var(--paper-ink);
     box-shadow: var(--paper-shadow);
   }
-
   .press-mention__logo {
-    grid-column: 1;
-    width: 6rem;
-    height: auto;
-    display: block;
+    width: 2.5rem;
+    height: 2.5rem;
+    object-fit: contain;
+    border-radius: var(--card-ui-radius);
   }
-
-  .press-mention__copy {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    text-align: center;
-    margin: 0;
-    font-size: min(0.95rem, 3.5cqi);
-    font-weight: 500;
-    line-height: 1.4;
-    white-space: nowrap;
-  }
-
-  .press-mention__links {
-    grid-column: 2;
-    grid-row: 1;
-    justify-self: end;
+  .press-mention__content {
     display: grid;
-    grid-template-columns: auto;
+    gap: 0.25rem;
+    min-width: 0;
   }
-
-  :global(html[data-theme="dark"]) .press-mention__logo {
-    filter: brightness(0) invert(1);
+  .press-mention__title {
+    font-family: var(--display);
+    font-size: 1.1rem;
+    font-weight: var(--card-title-weight);
+    line-height: 1.2;
   }
-
-  @media (max-width: 767px) {
+  .press-mention__copy {
+    margin: 0;
+    color: var(--paper-muted);
+    font-size: var(--control-size);
+    line-height: 1.4;
+  }
+  .press-mention__links {
+    justify-self: end;
+  }
+  @media (max-width: 640px) {
     .press-mention {
       gap: 0.625rem;
       padding: 1rem;
     }
     .press-mention__logo {
-      width: 5.5rem;
+      width: 2rem;
+      height: 2rem;
+    }
+    .press-mention__content {
+      display: contents;
+    }
+    .press-mention__title {
+      grid-column: 2;
+      grid-row: 1;
+      font-size: 1rem;
     }
     .press-mention__copy {
-      line-height: 1.35;
+      grid-column: 1 / -1;
+      grid-row: 2;
+    }
+    .press-mention__links {
+      grid-column: 3;
+      grid-row: 1;
     }
     .press-mention__links a {
-      grid-template-columns: 1rem auto 1rem;
       min-height: 44px;
       padding-inline: 0.5rem;
       column-gap: 0.375rem;
-      font-size: 0.75rem;
-    }
-  }
-  @media (max-width: 359px) {
-    .press-mention {
-      gap: 0.5rem;
-      padding: 0.75rem;
-    }
-    .press-mention__logo {
-      width: 4.75rem;
+      font-size: 0.8rem;
     }
   }
 </style>
