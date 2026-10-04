@@ -45,11 +45,12 @@
     {
       "id": "local-review-dx",
       "title": "Unified review workflow and health",
-      "revision": null,
+      "revision": "30cc76c15d28de299b0d02fc79e240ed53245341",
       "lane": "code",
-      "state": "implementing",
+      "state": "awaiting-review",
       "approvals": {},
-      "note": "Implementation in progress; no deployment inferred."
+      "note": "Locally integrated. Both typechecks/builds, 13 focused tests, watcher restart and duplicate startup, browser identity, and read-only doctor passed. Browser publish-recovery suite not rerun. Production unchanged.",
+      "updatedAt": "2026-10-04T22:02:46.850Z"
     }
   ]
 }
