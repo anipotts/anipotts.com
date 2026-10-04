@@ -99,3 +99,17 @@ test("critical faces block fallback painting during font loading", () => {
     assert.match(face.body, /font-display:\s*block/);
   }
 });
+
+test("homepage headline paints font outlines while retaining accessible text", () => {
+  const home = pages.find(({ path }) => path === "/index.html");
+  assert.ok(home);
+  const heading = /<h1\b[^>]*class="home-hero"[^>]*>(.*?)<\/h1>/s.exec(
+    home.html,
+  )?.[1];
+  assert.ok(heading);
+  assert.match(heading, /class="heading-text"/);
+  assert.match(heading, /hi, i(?:&#39;|')m ani potts!/);
+  assert.match(heading, /<svg\b[^>]*viewBox="[^"]+"[^>]*aria-hidden="true"/);
+  assert.match(heading, /<path\b[^>]*d="M/);
+  assert.doesNotMatch(heading, /<text\b|<image\b/);
+});
