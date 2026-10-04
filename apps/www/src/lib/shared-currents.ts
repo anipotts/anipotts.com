@@ -18,11 +18,15 @@ export function mountSharedCurrents() {
   // Choose once per page mount; scrolling, resizing, and theme changes retain it.
   const key = location.pathname;
   const previous = pageCurrents.get(key);
+  // A route keeps its composition across reloads as well as client navigation.
+  let seed = 2166136261;
+  for (const char of key) seed = Math.imul(seed ^ char.charCodeAt(0), 16777619);
+  const composition = ((seed >>> 0) / 4294967296) * Math.PI * 2;
   const state = {
     speed: 0.5,
     amount: 10,
     coverage: 1,
-    composition: previous?.composition ?? Math.random() * Math.PI * 2,
+    composition: previous?.composition ?? composition,
   };
   const media = matchMedia("(prefers-reduced-motion: reduce)");
   const visible = new Set<HTMLElement>();
@@ -111,6 +115,7 @@ export function mountSharedCurrents() {
         ),
       );
       host.dataset.motionTime = time.toFixed(4);
+      host.dataset.currentReady = "true";
     });
   }
   let layout = "";
@@ -244,6 +249,11 @@ export function pauseSharedCurrents() {
 export function refreshSharedCurrents() {
   if (activeBody === document.body) return;
   pauseSharedCurrents();
-  activeBody = document.body;
-  stopScene = mountSharedCurrents();
+  const body = document.body;
+  activeBody = body;
+  // Measure once the type has settled, before revealing the first real crop.
+  void document.fonts.ready.then(() => {
+    if (activeBody !== body || document.body !== body || stopScene) return;
+    stopScene = mountSharedCurrents();
+  });
 }
