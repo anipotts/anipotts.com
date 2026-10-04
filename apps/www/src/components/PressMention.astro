@@ -121,6 +121,18 @@ const { essayHref } = Astro.props;
       font-size: 0.8rem;
     }
   }
+  @media (min-width: 641px) and (max-width: 1024px) {
+    .press-mention__content {
+      display: grid;
+      grid-column: 2;
+      grid-row: 1;
+    }
+    .press-mention__title,
+    .press-mention__copy {
+      grid-column: auto;
+      grid-row: auto;
+    }
+  }
   @media (max-width: 640px) {
     .press-mention {
       grid-template-columns: minmax(0, 1fr) auto;
