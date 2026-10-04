@@ -2,10 +2,10 @@
 title: structured ai
 subtitle: helping people follow an agent's work as it happens
 description: Worked on the real-time interaction layer for an agent product that turned architectural source material into cited answers and visible work.
-year: "2025"
+year: "2026"
 category: ai
 role: Member of Technical Staff
-duration: "2025"
+duration: "Feb 2026 - Apr 2026"
 status: archived
 kind: experience
 public_state: featured

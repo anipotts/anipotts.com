@@ -3,10 +3,17 @@ interface Props {
   kind: "work" | "writing";
   seed: string;
   variant?: number;
+  localCrop?: boolean;
 }
+const { localCrop = false } = Astro.props;
 ---
 
-<span class="ambient-flow" data-shared-current aria-hidden="true">
+<span
+  class="ambient-flow"
+  data-shared-current
+  data-local-current={localCrop || undefined}
+  aria-hidden="true"
+>
   <svg
     viewBox="0 0 600 320"
     preserveAspectRatio="xMidYMid slice"
@@ -103,11 +110,23 @@ interface Props {
   .ambient-flow {
     position: absolute;
     inset: 0;
-    z-index: 0;
+    /* The isolated card keeps this above its background but below every text
+       node, including children of responsive display: contents wrappers. */
+    z-index: -1;
     overflow: hidden;
     border-radius: inherit;
     pointer-events: none;
     contain: strict;
+    opacity: 0;
+    transition: opacity 180ms ease-out;
+  }
+  .ambient-flow[data-current-ready="true"] {
+    opacity: 1;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ambient-flow {
+      transition: none;
+    }
   }
   .ambient-flow svg {
     width: 100%;

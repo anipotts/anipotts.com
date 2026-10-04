@@ -102,11 +102,8 @@ test("homepage keeps reporting attribution in its dedicated card", () => {
   const intro = html.match(/<p class="hero-summary[^>]*>(.*?)<\/p>/s)?.[1];
   assert.ok(intro);
   assert.doesNotMatch(intro, /business insider|business-insider/i);
-  assert.match(
-    html,
-    /read my feature in a story about claude code usage limits/,
-  );
-  assert.match(html, /src="\/images\/brand\/business-insider-wordmark\.svg"/);
+  assert.match(html, /my feature in a story about coding agent usage limits/);
+  assert.match(html, /src="\/images\/brand\/business-insider-favicon\.svg"/);
 });
 
 // Identity must be visible in search results as well as structured data.

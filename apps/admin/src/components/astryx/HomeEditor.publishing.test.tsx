@@ -1240,3 +1240,85 @@ it("allows unchanged seed source to be saved and reviewed for its first publicat
   expect(publishNow.disabled).toBe(false);
   expect(host.textContent).not.toContain("There are no changes to publish.");
 });
+
+it.each([
+  {
+    mode: "current",
+    revision: 1,
+    verifiedAt: 1000,
+    blocked: null,
+    label: "Verified live",
+    quiet: true,
+  },
+  {
+    mode: "older",
+    revision: 0,
+    verifiedAt: 1000,
+    blocked: null,
+    label: "Saved privately",
+    quiet: true,
+  },
+  {
+    mode: "unverified",
+    revision: 1,
+    verifiedAt: null,
+    blocked: null,
+    label: "Saved privately",
+    quiet: false,
+  },
+  {
+    mode: "blocked",
+    revision: 1,
+    verifiedAt: 1000,
+    blocked: "verification_failed",
+    label: "Saved privately",
+    quiet: false,
+  },
+])(
+  "keeps one calm editor status without hiding $mode publication problems",
+  async (scenario) => {
+    const publication = {
+      mode: "direct",
+      action: "publish",
+      id: "verified-synthetic",
+      phase: "live",
+      revision: scenario.revision,
+      publicationId: "receipt",
+      verifiedAt: scenario.verifiedAt,
+      blocked: scenario.blocked,
+      superseded: false,
+      attempts: 1,
+      version: 1,
+      dueAt: 0,
+      lease: null,
+      leaseUntil: 0,
+      checkpoint: {},
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("/csrf")) return response({ csrf: "test-only" });
+        return response({ ...snapshot, publication });
+      }),
+    );
+    await mount("", false);
+    expect(host.querySelector(".editor-save-status")?.textContent).toBe(
+      scenario.label,
+    );
+    expect(
+      host.textContent?.includes(
+        "Your changes were verified on the live website.",
+      ),
+    ).toBe(false);
+    if (!scenario.quiet) {
+      expect(host.querySelectorAll('[role="status"]').length).toBeGreaterThan(
+        1,
+      );
+      expect(host.textContent).toContain("verification");
+    }
+    await menuItem("Publication details");
+    expect(host.textContent).toContain("Prepare");
+    expect(host.textContent).toContain("Publish");
+    expect(host.textContent).toContain("Verify");
+  },
+);

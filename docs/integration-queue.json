@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "pr-483",
+      "title": "Admin editor fixes",
+      "revision": "0a8245d5840a9751cebe105ec871fd5984739e80",
+      "lane": "code",
+      "state": "awaiting-review",
+      "approvals": {},
+      "note": "Locally integrated; combined candidate awaits visual review and refreshed checks."
+    },
+    {
+      "id": "pr-486",
+      "title": "Structured AI seed dates",
+      "revision": "57f52532c9c7d2a074e584f9c43e9177537725c8",
+      "lane": "code",
+      "state": "awaiting-review",
+      "approvals": {},
+      "note": "Locally integrated; seed dates do not update live CMS records."
+    },
+    {
+      "id": "pr-487",
+      "title": "Header/footer refinements",
+      "revision": "df6473950fee079237afbf804e56161770179cb1",
+      "lane": "code",
+      "state": "awaiting-review",
+      "approvals": {},
+      "note": "Locally integrated; upstream draft readiness and required checks remain separate."
+    },
+    {
+      "id": "pr-488-www",
+      "title": "Structured AI dark logo",
+      "revision": "1ca0eb0e7f1b6b8155d0e93528b068641f45952f",
+      "lane": "code",
+      "state": "deployed",
+      "approvals": {},
+      "deployment": {
+        "revision": "1ca0eb0e7f1b6b8155d0e93528b068641f45952f",
+        "target": "www and admin",
+        "evidence": "Verified successful deployment run https://github.com/anipotts/anipotts.com/actions/runs/37236186913 at release 1ca0eb0e7f1b6b8155d0e93528b068641f45952f."
+      },
+      "note": "www and paired admin deployed; production content was unchanged."
+    },
+    {
+      "id": "local-review-dx",
+      "title": "Unified review workflow and health",
+      "revision": "30cc76c15d28de299b0d02fc79e240ed53245341",
+      "lane": "code",
+      "state": "awaiting-review",
+      "approvals": {},
+      "note": "Locally integrated. Both typechecks/builds, 13 focused tests, watcher restart and duplicate startup, browser identity, and read-only doctor passed. Browser publish-recovery suite not rerun. Production unchanged.",
+      "updatedAt": "2026-10-04T22:02:46.850Z"
+    },
+    {
+      "id": "press-card-followup",
+      "title": "Business Insider card and stable flowing artwork",
+      "revision": "e44374f4a406847b382402d3ba29107eaa18078a",
+      "lane": "code",
+      "state": "awaiting-review",
+      "approvals": {},
+      "note": "Design owner commits integrated locally. Public typecheck/build and identity tests passed. User visual review pending; unfinished motion changes excluded."
+    }
+  ]
+}

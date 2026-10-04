@@ -268,7 +268,7 @@ export function PublicationProgress({
         <PublicationIssues issues={publication.issues} onEdit={onEditIssue} />
       )}
       <HStack gap={3} wrap="wrap" vAlign="center" hAlign="between">
-        <HStack gap={2} vAlign="start">
+        <HStack gap={2} vAlign="center">
           {compact && (
             <StatusDot
               variant={progress.variant}

@@ -1,5 +1,6 @@
 import { test } from "@e2e-dev/web";
 import { expect } from "e2e";
+import { editorialFixtures } from "../support/editorial-fixtures";
 
 // Run only with `pnpm dev:admin:owner` on loopback. A network route refuses
 // save requests before they reach the local Durable Object, so this exercises
@@ -11,17 +12,19 @@ test("an interrupted project edit is recovered for review", async ({
 }) => {
   await browser.route(/\/api\/editorial\/save\?/, async (route) => {
     await route.fulfill({
-      status: 503,
-      json: { error: "synthetic_save_failure" },
+      status: editorialFixtures.saveRecovery.failedSaveStatus,
+      json: editorialFixtures.saveRecovery.failedSaveBody,
     });
   });
   await app.open("/content/projects/chainedchat");
 
   const title = screen.getByRole("textbox", "Title");
   await expect(title).toBeVisible({ timeout: 20_000 });
-  await title.fill("e2e interrupted project edit");
+  await title.fill(editorialFixtures.saveRecovery.title);
   await expect(
-    screen.getByRole("heading", "e2e interrupted project edit", { level: 1 }),
+    screen.getByRole("heading", editorialFixtures.saveRecovery.title, {
+      level: 1,
+    }),
   ).toBeVisible();
   await expect
     .poll(() =>
@@ -42,6 +45,6 @@ test("an interrupted project edit is recovered for review", async ({
     screen.getByText("Recovered edits are ready to review"),
   ).toBeVisible();
   await expect(screen.getByRole("textbox", "Title")).toHaveValue(
-    "e2e interrupted project edit",
+    editorialFixtures.saveRecovery.title,
   );
 });

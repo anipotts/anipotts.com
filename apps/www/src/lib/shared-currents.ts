@@ -18,11 +18,15 @@ export function mountSharedCurrents() {
   // Choose once per page mount; scrolling, resizing, and theme changes retain it.
   const key = location.pathname;
   const previous = pageCurrents.get(key);
+  // A route keeps its composition across reloads as well as client navigation.
+  let seed = 2166136261;
+  for (const char of key) seed = Math.imul(seed ^ char.charCodeAt(0), 16777619);
+  const composition = ((seed >>> 0) / 4294967296) * Math.PI * 2;
   const state = {
     speed: 0.5,
     amount: 10,
     coverage: 1,
-    composition: previous?.composition ?? Math.random() * Math.PI * 2,
+    composition: previous?.composition ?? composition,
   };
   const media = matchMedia("(prefers-reduced-motion: reduce)");
   const visible = new Set<HTMLElement>();
@@ -48,11 +52,21 @@ export function mountSharedCurrents() {
     }
     return d;
   }
-  function geometry(band: number, layer: number) {
+  const sceneWidth = () => w;
+  const sceneHeight = () => h;
+  function geometry(
+    band: number,
+    layer: number,
+    w = sceneWidth(),
+    h = sceneHeight(),
+    local = false,
+  ) {
     const upper =
-      band === 0
-        ? [0.25, 0.18, 0.24, 0.32, 0.28, 0.18, 0.23]
-        : [0.81, 0.79, 0.69, 0.74, 0.82, 0.77, 0.83];
+      local && band === 0
+        ? [0.8, 0.65, 0.2, 0.3, 0.6, 0.25, 0.1]
+        : band === 0
+          ? [0.25, 0.18, 0.24, 0.32, 0.28, 0.18, 0.23]
+          : [0.81, 0.79, 0.69, 0.74, 0.82, 0.77, 0.83];
     const phase = state.composition;
     const top = [],
       bottom = [];
@@ -93,8 +107,15 @@ export function mountSharedCurrents() {
     hosts.forEach((host, index) => {
       // Offscreen crops keep their last shape until they scroll back in.
       if (!all && !visible.has(host)) return;
-      paths[index].forEach((path, i) => path.setAttribute("d", shapes[i]));
+      const local = host.hasAttribute("data-local-current");
+      paths[index].forEach((path, i) =>
+        path.setAttribute(
+          "d",
+          local ? geometry(i < 3 ? 0 : 1, i % 3, 600, 320, true) : shapes[i],
+        ),
+      );
       host.dataset.motionTime = time.toFixed(4);
+      host.dataset.currentReady = "true";
     });
   }
   let layout = "";
@@ -117,7 +138,9 @@ export function mountSharedCurrents() {
     boxes.forEach((box, i) =>
       svgs[i].setAttribute(
         "viewBox",
-        `${box.left - left} ${box.top - top} ${box.width} ${box.height}`,
+        hosts[i].hasAttribute("data-local-current")
+          ? "0 0 600 320"
+          : `${box.left - left} ${box.top - top} ${box.width} ${box.height}`,
       ),
     );
     draw(true);
@@ -226,6 +249,11 @@ export function pauseSharedCurrents() {
 export function refreshSharedCurrents() {
   if (activeBody === document.body) return;
   pauseSharedCurrents();
-  activeBody = document.body;
-  stopScene = mountSharedCurrents();
+  const body = document.body;
+  activeBody = body;
+  // Measure once the type has settled, before revealing the first real crop.
+  void document.fonts.ready.then(() => {
+    if (activeBody !== body || document.body !== body || stopScene) return;
+    stopScene = mountSharedCurrents();
+  });
 }

@@ -103,3 +103,34 @@ it("disconnects resize observation when removed", () => {
   act(() => root.render(null));
   expect(observer.disconnect).toHaveBeenCalledOnce();
 });
+
+it("includes borders for border-box fields and removes padding for content-box fields", () => {
+  const field = render("Some text");
+  field.style.boxSizing = "border-box";
+  field.style.borderStyle = "solid";
+  field.style.borderTopWidth = "1px";
+  field.style.borderBottomWidth = "1px";
+  height = 72;
+  render("Changed text");
+  expect(field.style.height).toBe("74px");
+  field.style.boxSizing = "content-box";
+  field.style.paddingTop = "4px";
+  field.style.paddingBottom = "4px";
+  render("Another change");
+  expect(field.style.height).toBe("64px");
+});
+it("refits when fonts arrive and removes the font listener on disposal", async () => {
+  const fonts = Object.assign(new EventTarget(), { ready: Promise.resolve() });
+  const remove = vi.spyOn(fonts, "removeEventListener");
+  Object.defineProperty(document, "fonts", {
+    configurable: true,
+    value: fonts,
+  });
+  const field = render("Some text");
+  height = 72;
+  fonts.dispatchEvent(new Event("loadingdone"));
+  expect(field.style.height).toBe("72px");
+  act(() => root.render(null));
+  expect(remove).toHaveBeenCalledWith("loadingdone", expect.any(Function));
+  Reflect.deleteProperty(document, "fonts");
+});
