@@ -120,7 +120,12 @@ class Events {
   }
 }
 
-function harness(hostCount = 3, reduced = false, bandSources = []) {
+function harness(
+  hostCount = 3,
+  reduced = false,
+  bandSources = [],
+  localHosts = [],
+) {
   const main = {};
   const bandPaths = bandSources.map((source) => ({
     attributes: new Map([["d", source]]),
@@ -142,6 +147,9 @@ function harness(hostCount = 3, reduced = false, bandSources = []) {
     : null;
   const hosts = Array.from({ length: hostCount }, (_, index) => {
     const attributes = new Map();
+    const hostAttributes = new Set(
+      localHosts.includes(index) ? ["data-local-current"] : [],
+    );
     const paths = Array.from({ length: 6 }, () => ({
       attributes: new Map(),
       setAttribute(name, value) {
@@ -163,7 +171,9 @@ function harness(hostCount = 3, reduced = false, bandSources = []) {
     };
     return {
       dataset: {},
-      hasAttribute: () => false,
+      hasAttribute(name) {
+        return hostAttributes.has(name);
+      },
       box: {
         left: 20 + (index % 2) * 324,
         top: 100 + Math.floor(index / 2) * 224,
@@ -187,6 +197,7 @@ function harness(hostCount = 3, reduced = false, bandSources = []) {
   });
   const document = Object.assign(new Events(), {
     hidden: false,
+    fonts: { ready: Promise.resolve() },
     querySelectorAll(selector) {
       assert.equal(selector, "main:not([inert]) [data-shared-current]");
       return hosts;
@@ -333,6 +344,8 @@ function harness(hostCount = 3, reduced = false, bandSources = []) {
   };
 }
 
+// refreshSharedCurrents mounts once document.fonts.ready resolves.
+const fontsSettled = () => new Promise((resolve) => setImmediate(resolve));
 const shapes = (host) => host.paths.map((path) => path.attributes.get("d"));
 const empty = harness(0);
 try {
@@ -580,8 +593,10 @@ try {
   scene.document.body = {};
   const observerCount = scene.resizes.length;
   refreshSharedCurrents();
+  await fontsSettled();
   const stableShapes = shapes(first);
   refreshSharedCurrents();
+  await fontsSettled();
   assert.equal(
     scene.resizes.length,
     observerCount + 1,
@@ -592,6 +607,7 @@ try {
   pauseSharedCurrents();
   scene.document.body = {};
   refreshSharedCurrents();
+  await fontsSettled();
   assert.equal(scene.resizes.length, observerCount + 2);
   assert.deepEqual(
     shapes(first),
@@ -661,6 +677,20 @@ try {
   );
 } finally {
   bandScene.restore();
+}
+
+// A host marked data-local-current keeps its own full artwork instead of a
+// crop of the shared page-wide scene.
+const local = harness(2, true, [], [1]);
+try {
+  const cleanup = mountSharedCurrents();
+  assert.deepEqual(
+    local.hosts.map((host) => host.svg.attributes.get("viewBox")),
+    ["0 0 300 200", "0 0 600 320"],
+  );
+  cleanup();
+} finally {
+  local.restore();
 }
 
 console.log(
