@@ -61,7 +61,7 @@ const externalProfiles = [
     position: relative;
     margin-top: 0;
     padding-block: var(--s-5)
-      calc(var(--s-5) + env(safe-area-inset-bottom, 0px));
+      calc(var(--s-3) + env(safe-area-inset-bottom, 0px));
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
@@ -85,7 +85,7 @@ const externalProfiles = [
 
   .footer-wordmark {
     display: grid;
-    place-items: center;
+    place-items: center start;
     width: 52px;
     height: 52px;
     flex: 0 0 52px;
@@ -96,6 +96,8 @@ const externalProfiles = [
   .footer-wordmark :global(.brand-mark) {
     width: 29.696px;
     height: 29.696px;
+    /* Match the content edge rather than the SVG's transparent margin. */
+    transform: translateX(-13.8671875%);
   }
 
   .contact-copy {
@@ -111,7 +113,8 @@ const externalProfiles = [
 
   .contact-email {
     display: inline-flex;
-    align-items: center;
+    align-items: flex-start;
+    padding-top: 2px;
     min-height: 44px;
     max-width: 100%;
     color: var(--ink);
@@ -172,11 +175,16 @@ const externalProfiles = [
     .foot {
       grid-template-columns: minmax(0, 1fr);
       align-items: start;
-      gap: var(--s-3);
+      row-gap: 0;
     }
     .glyphs {
-      justify-content: flex-start;
-      column-gap: clamp(0px, 1vw, 8px);
+      justify-content: space-between;
+      column-gap: 0;
+    }
+    .contact-copy {
+      margin-left: auto;
+      justify-items: end;
+      text-align: right;
     }
   }
 

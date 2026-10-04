@@ -103,7 +103,9 @@ interface Props {
   .ambient-flow {
     position: absolute;
     inset: 0;
-    z-index: 0;
+    /* The isolated card keeps this above its background but below every text
+       node, including children of responsive display: contents wrappers. */
+    z-index: -1;
     overflow: hidden;
     border-radius: inherit;
     pointer-events: none;
