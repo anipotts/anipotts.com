@@ -43,7 +43,7 @@ describe("Website workspace navigation", () => {
       "Newsletter",
     ]);
   });
-  it("renders one workspace shell with navigation, preserves private logout boundary", () => {
+  it("renders website return beside theme controls in local and production shells", () => {
     const render = (localPreview: boolean) =>
       renderToStaticMarkup(
         <EditorialApp
@@ -58,7 +58,15 @@ describe("Website workspace navigation", () => {
     expect(local).toContain('data-sidebar-group="content"');
     expect(local).toContain("Pages");
     expect(local).not.toContain("/auth/logout");
-    expect(render(false)).toContain("/auth/logout");
+    const production = render(false);
+    expect(production).not.toContain("/auth/logout");
+    for (const shell of [local, production]) {
+      expect(shell).toContain('href="https://anipotts.com/"');
+      expect(shell).toContain("www");
+      expect(shell).toContain(
+        "editorial-workspace-utilities editorial-workspace-utility-controls",
+      );
+    }
     expect(local).not.toContain('class="editorial-nav-actions"');
   });
 });

@@ -35,6 +35,7 @@ import {
   MagnifyingGlassIcon,
   SidebarSimpleIcon,
   ArrowLeftIcon,
+  SignOutIcon,
 } from "@phosphor-icons/react";
 import { AdminCommandPalette, type PaletteAction } from "./AdminCommandPalette";
 import type { AdminSearchResult } from "../../data/admin-search";
