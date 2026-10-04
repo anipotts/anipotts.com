@@ -61,7 +61,7 @@ const externalProfiles = [
     position: relative;
     margin-top: 0;
     padding-block: var(--s-5)
-      calc(var(--s-5) + env(safe-area-inset-bottom, 0px));
+      calc(var(--s-3) + env(safe-area-inset-bottom, 0px));
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
@@ -111,7 +111,8 @@ const externalProfiles = [
 
   .contact-email {
     display: inline-flex;
-    align-items: center;
+    align-items: flex-start;
+    padding-top: 2px;
     min-height: 44px;
     max-width: 100%;
     color: var(--ink);
@@ -172,11 +173,17 @@ const externalProfiles = [
     .foot {
       grid-template-columns: minmax(0, 1fr);
       align-items: start;
-      gap: var(--s-3);
+      row-gap: 0;
     }
     .glyphs {
       justify-content: flex-start;
-      column-gap: clamp(0px, 1vw, 8px);
+      column-gap: 0;
+    }
+  }
+
+  @media (min-width: 360px) and (max-width: 720px) {
+    .glyphs {
+      margin-left: calc(52px + var(--s-3) - 12px);
     }
   }
 
