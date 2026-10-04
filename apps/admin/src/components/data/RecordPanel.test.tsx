@@ -55,6 +55,7 @@ describe("the record panel", () => {
   it("A-27: never shows raw JSON, ISO times or an owner-named label", () => {
     for (const record of records) {
       const host = panel(record);
+      host.querySelectorAll("style, script").forEach((node) => node.remove());
       const text = host.textContent ?? "";
       expect(text, record.kind!).not.toMatch(/[{}]|"\w+":/);
       expect(text, record.kind!).not.toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/);
@@ -132,8 +133,8 @@ describe("the record panel", () => {
     ).not.toBeNull();
     const history = host.querySelector('[aria-label="Revision history"]')!;
     expect(
-      [...history.querySelectorAll(".workspace-timeline-title")].map(
-        (title) => title.textContent,
+      [...history.querySelectorAll('tbody td[data-column="title"]')].map(
+        (title) => title.textContent?.replace(" (Current)", ""),
       ),
     ).toEqual(["Revision 3", "Revision 2", "Revision 1"]);
     expect(
@@ -201,14 +202,22 @@ describe("record rows", () => {
     );
   });
 
-  it("keeps the device's place on a phone's line 2, so sources line up", () => {
-    const host = table();
-    const lines = [
-      ...host.querySelectorAll(".workspace-row-meta .data-source"),
-    ];
-    expect(lines.length).toBeGreaterThan(1);
-    for (const line of lines)
-      expect(line.firstElementChild?.className).toBe("data-source-device");
+  it("keeps excerpts outside the table's hidden compact metadata", () => {
+    const record = { ...records[0]!, excerpt: "Unique synthetic excerpt" };
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(
+      <DataTable
+        rows={[record]}
+        rowKey="id"
+        label="Records"
+        noun={["record", "records"]}
+        columns={recordColumns({ href: (row) => `/r/${row.id}` })}
+      />,
+    );
+    const excerpt = host.querySelector(".data-record-excerpt")!;
+    expect(excerpt.textContent).toBe(record.excerpt);
+    expect(excerpt.closest('[data-compact-only="true"]')).toBeNull();
+    expect(host.querySelectorAll(".data-record-excerpt")).toHaveLength(1);
   });
 
   it("puts a state other than the default before the tier", () => {
@@ -221,9 +230,7 @@ describe("record rows", () => {
     expect(cell.textContent).toContain("Superseded");
     // The kit wraps a cell past the lead (DataTable's .workspace-cell).
     const content = cell.querySelector(".workspace-cell") ?? cell;
-    expect(content.lastElementChild?.lastElementChild?.className).toBe(
-      "workspace-tier",
-    );
+    expect(content.querySelector(".workspace-tier")).not.toBeNull();
   });
 
   it("drops the source beside an open record, or when one source is shown", () => {

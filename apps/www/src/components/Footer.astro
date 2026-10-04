@@ -2,6 +2,7 @@
 import { Icon } from "astro-icon/components";
 import { siteConfig, siteLinks } from "@anipotts/content/public";
 import { creatorLinks } from "../lib/identity";
+import BrandMark from "@anipotts/brand/BrandMark.astro";
 const links = { ...siteLinks, ...creatorLinks };
 const footerLinks = (
   ["github", "x", "linkedin", "instagram", "tiktok", "rss", "admin"] as const
@@ -15,9 +16,20 @@ const externalProfiles = [
 ---
 
 <footer id="contact" class="frame foot">
-  <div class="contact-copy">
-    <span>have a question?</span>
-    <a href={siteLinks.email.href} class="contact-email">{siteConfig.email}</a>
+  <div class="footer-identity">
+    <a
+      href="/"
+      class="wordmark footer-wordmark"
+      aria-label="home"
+      data-admin-footer-logo
+    >
+      <BrandMark />
+    </a>
+    <div class="contact-copy">
+      <span>have a question?</span>
+      <a href={siteLinks.email.href} class="contact-email">{siteConfig.email}</a
+      >
+    </div>
   </div>
   <nav class="glyphs" aria-label="Social and site links">
     {
@@ -30,6 +42,8 @@ const externalProfiles = [
           ]}
           aria-label={link.label}
           title={link.title}
+          data-admin-enter={key === "admin" ? "" : undefined}
+          data-astro-prefetch={key === "admin" ? "hover" : undefined}
           target={externalProfiles.includes(key) ? "_blank" : undefined}
           rel={
             externalProfiles.includes(key) ? "noopener noreferrer" : undefined
@@ -60,6 +74,28 @@ const externalProfiles = [
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: var(--s-2);
+  }
+
+  .footer-identity {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    min-width: 0;
+  }
+
+  .footer-wordmark {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    flex: 0 0 52px;
+    color: var(--ink);
+    text-decoration: none;
+  }
+
+  .footer-wordmark :global(.brand-mark) {
+    width: 29.696px;
+    height: 29.696px;
   }
 
   .contact-copy {
@@ -118,7 +154,7 @@ const externalProfiles = [
     }
   }
 
-  :is(.glyph, .contact-email):focus-visible {
+  :is(.glyph, .contact-email, .footer-wordmark):focus-visible {
     outline: var(--focus-width) solid var(--ink);
     outline-offset: var(--focus-offset);
     border-radius: var(--card-ui-radius);
@@ -140,6 +176,7 @@ const externalProfiles = [
     }
     .glyphs {
       justify-content: flex-start;
+      column-gap: clamp(0px, 1vw, 8px);
     }
   }
 

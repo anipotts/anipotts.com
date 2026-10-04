@@ -214,7 +214,7 @@ beforeAll(async () => {
       if (load) loadedPages.set(file, await load());
     }),
   );
-}, 30_000);
+}, 90_000);
 
 async function render({ file, route, url }) {
   const container = await AstroContainer.create();

@@ -139,6 +139,8 @@ test("homepage uses the exact name and separates original reporting from its ess
     /src="\/images\/brand\/business-insider-favicon\.svg"/,
   );
   assert.equal(essay[1], "/writing/saturdays-are-for-claude-code");
+  assert.match(essay[0], /data-admin-motion-action/);
+  assert.doesNotMatch(reporting[0], /data-admin-motion-action/);
   assert.match(essay[2], /src="\/brand\/ap-favicon\.svg"/);
   const article = readFileSync(
     new URL(

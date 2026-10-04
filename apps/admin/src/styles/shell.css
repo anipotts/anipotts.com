@@ -36,11 +36,20 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   background: var(--color-workspace-sidebar, var(--color-background-body));
 }
 .editorial-workspace-shell #astryx-app-shell-main {
+  --admin-panel-border: color-mix(
+    in srgb,
+    var(--color-text-primary) 15%,
+    transparent
+  );
   box-sizing: border-box;
   min-height: 0;
   padding-inline: var(--admin-gutter);
   overscroll-behavior: contain;
   background: var(--color-background-body);
+  /* This outer panel inherits the fine edge of the public card action.
+     Interior rows and sections continue to separate with spacing. */
+  border-top: 1px solid var(--admin-panel-border);
+  border-inline-start: 1px solid var(--admin-panel-border);
   transition:
     margin-block-start var(--duration-fast) ease-out,
     border-start-start-radius var(--duration-fast) ease-out;
@@ -275,7 +284,7 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   }
 }
 
-/* Shared 44px phone appbar, including record, preview and review routes. */
+/* Shared phone appbar with inset 44px targets on every workspace route. */
 :root {
   --admin-appbar-height: 0px;
 }
@@ -286,7 +295,7 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   :root {
     --admin-appbar-height: var(
       --admin-phone-appbar-height,
-      calc(var(--spacing-11) + env(safe-area-inset-top))
+      calc(var(--spacing-11) + var(--spacing-2) * 2 + env(safe-area-inset-top))
     );
   }
   .editorial-workspace-shell .astryx-app-shell-header:has(.admin-phone-bar) {
@@ -300,7 +309,8 @@ body [data-astryx-theme]:not([data-astryx-media]) {
     align-items: center;
     box-sizing: border-box;
     min-height: var(--admin-appbar-height);
-    padding-block-start: env(safe-area-inset-top);
+    padding-block: calc(env(safe-area-inset-top) + var(--spacing-2))
+      var(--spacing-2);
     padding-inline: var(--admin-gutter);
     background: var(--color-background-body);
   }
