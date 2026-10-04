@@ -7,9 +7,22 @@ export function AutoSizeTextArea(props: ComponentProps<typeof TextArea>) {
   useLayoutEffect(() => {
     const field = ref.current;
     if (!field) return;
+    let disposed = false;
     const fit = () => {
+      if (disposed) return;
       field.style.height = "auto";
-      field.style.height = `${field.scrollHeight}px`;
+      const style = getComputedStyle(field);
+      const borders =
+        style.boxSizing === "border-box"
+          ? (parseFloat(style.borderTopWidth) || 0) +
+            (parseFloat(style.borderBottomWidth) || 0)
+          : 0;
+      const padding =
+        style.boxSizing === "border-box"
+          ? 0
+          : (parseFloat(style.paddingTop) || 0) +
+            (parseFloat(style.paddingBottom) || 0);
+      field.style.height = `${field.scrollHeight + borders - padding}px`;
     };
     fit();
     let width = field.clientWidth;
@@ -19,7 +32,14 @@ export function AutoSizeTextArea(props: ComponentProps<typeof TextArea>) {
       fit();
     });
     observer.observe(field);
-    return () => observer.disconnect();
+    // Font arrival can change wrapping without changing the field width.
+    void document.fonts?.ready.then(fit);
+    document.fonts?.addEventListener("loadingdone", fit);
+    return () => {
+      disposed = true;
+      observer.disconnect();
+      document.fonts?.removeEventListener("loadingdone", fit);
+    };
   }, [props.value]);
   return (
     <TextArea

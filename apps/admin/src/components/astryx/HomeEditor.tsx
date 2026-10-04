@@ -89,7 +89,10 @@ import { RichTextField } from "./RichTextField";
 import { editableHomeSummary } from "../../lib/rich-text";
 import { editorialFields } from "../../lib/editorial-fields";
 import { ReviewChanges } from "./ReviewChanges";
-import { PublicationProgress } from "./PublicationProgress";
+import {
+  PublicationProgress,
+  publicationProgress,
+} from "./PublicationProgress";
 import { PublicationIssues } from "./PublicationIssues";
 import {
   publicationIssues,
@@ -1423,7 +1426,14 @@ function HomeEditorImpl({
     discarded: Boolean(snapshot.draft?.discardedAt),
     bodyDirty,
     localPreview,
+    publication,
+    publicationStale,
   });
+  const quietPublication = Boolean(
+    publication &&
+    publication.action !== "unpublish" &&
+    publicationProgress(publication, publicationStale).variant === "success",
+  );
   const publicationActive = Boolean(
     publication &&
     !["live", "cancelled"].includes(publication.phase) &&
@@ -1950,7 +1960,7 @@ function HomeEditorImpl({
           }
         />
       )}
-      {publication && panel !== "publication" && (
+      {publication && !quietPublication && panel !== "publication" && (
         <PublicationProgress
           onEditIssue={editPublicationIssue}
           publication={publication}
@@ -2361,7 +2371,8 @@ function HomeEditorImpl({
                   >
                     {record.kind === "page" &&
                       record.id === "home" &&
-                      (index === 0 || index === 2) && (
+                      (index === 0 ||
+                        fieldKey(field) === "sections.past_work.label") && (
                         <Text weight="semibold">
                           {index === 0 ? "Introduction" : "Section labels"}
                         </Text>
@@ -2457,7 +2468,7 @@ function HomeEditorImpl({
                         }}
                       />
                     ) : (
-                      <TextInput
+                      <AutoSizeTextArea
                         key={fieldKey(field)}
                         label={field.label}
                         status={

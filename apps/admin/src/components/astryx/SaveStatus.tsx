@@ -1,10 +1,12 @@
 import React from "react";
+import type { DirectPublicationStatus } from "../../lib/editorial-publication-status";
 import type { SaveState } from "../../lib/home-autosave";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { StatusDot } from "@astryxdesign/core/StatusDot";
 
 export type SaveStatusState =
+  | "live"
   | "unchanged"
   | "changed"
   | "saving"
@@ -16,6 +18,7 @@ export type SaveStatusState =
   | "discarded";
 
 const states = {
+  live: { label: "Verified live", variant: "success" },
   unchanged: { label: "No changes", variant: "neutral" },
   changed: { label: "Unsaved changes", variant: "neutral" },
   saving: { label: "Saving…", variant: "neutral" },
@@ -47,7 +50,15 @@ export function saveStatusFromController(
     discarded = false,
     bodyDirty = false,
     localPreview = false,
-  }: { discarded?: boolean; bodyDirty?: boolean; localPreview?: boolean } = {},
+    publication,
+    publicationStale = false,
+  }: {
+    discarded?: boolean;
+    bodyDirty?: boolean;
+    localPreview?: boolean;
+    publication?: DirectPublicationStatus | null;
+    publicationStale?: boolean;
+  } = {},
 ): SaveStatusState {
   if (discarded) return "discarded";
   if (state.status === "conflict") return "conflict";
@@ -55,6 +66,20 @@ export function saveStatusFromController(
   if (bodyDirty) return "changed";
   if (state.status === "saving") return "saving";
   if (state.status !== "saved") return "changed";
+  // Only the current acknowledged revision may replace private save evidence
+  // with live verification. Later edits and uncertain receipts stay distinct.
+  if (
+    !localPreview &&
+    !publicationStale &&
+    publication?.action !== "unpublish" &&
+    publication?.revision === state.revision &&
+    publication.phase === "live" &&
+    publication.publicationId &&
+    publication.verifiedAt != null &&
+    !publication.blocked &&
+    !publication.superseded
+  )
+    return "live";
   if (state.revision === 0) return "unchanged";
   return localPreview ? "saved-locally" : "saved-privately";
 }
@@ -70,7 +95,7 @@ export function SaveStatus({
   return (
     <HStack
       role="status"
-      aria-label="Draft save status"
+      aria-label={state === "live" ? "Publication status" : "Draft save status"}
       aria-live="polite"
       aria-atomic="true"
       aria-describedby={describedBy}
