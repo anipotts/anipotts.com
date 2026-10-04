@@ -31,20 +31,6 @@ const { localCrop = false } = Astro.props;
     </g>
   </svg>
 </span>
-<script>
-  import {
-    refreshSharedCurrents,
-    pauseSharedCurrents,
-  } from "../lib/shared-currents";
-  refreshSharedCurrents();
-  document.addEventListener("astro:before-preparation", pauseSharedCurrents);
-  document.addEventListener("astro:after-swap", refreshSharedCurrents);
-  document.addEventListener("astro:page-load", refreshSharedCurrents);
-  if (import.meta.hot) import.meta.hot.dispose(pauseSharedCurrents);
-  // The motion tuner exists only in `astro dev`; production builds drop it.
-  if (import.meta.env.DEV)
-    void import("../lib/current-tuner").then((tuner) => tuner.installTuner());
-</script>
 <style is:global>
   :is(
     .work-card,

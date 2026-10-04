@@ -215,6 +215,37 @@
         }
       },
       "note": "Held for confirmed ownership/concurrency review findings: fail-open lock, stale reclaim races, non-atomic preview claims, idle-review preservation and descendant cancellation. Approval does not establish correctness. Merge after495 only once resolved; content changes need renewed review."
+    },
+    {
+      "id": "pr-493",
+      "title": "Public card currents and page-band drift",
+      "revision": "c584464d5c0843d4df4ed444cb8924192a632e62",
+      "lane": "code",
+      "state": "approved",
+      "note": "Ani waived further visual preview and approved final tuning, review, merge and live deployment. Main update preserves approved motion source; only fixture reconciliation changed. Await exact-head full CI. Classifier selects www and admin because admin reuses public components; additional app-target approval requested before merge.",
+      "approvals": {
+        "code": {
+          "revision": "c584464d5c0843d4df4ed444cb8924192a632e62",
+          "by": "Ani",
+          "at": "2026-10-04T23:41:33.851717+00:00",
+          "evidence": "Website chat 2026-10-04: i approve i dont need rto see, 493 is good to review and merge and deploy live continue. Approved source f0e502e138028692927f30ad598e3c392187c71f; current main update preserves motion source."
+        },
+        "production": {
+          "revision": "c584464d5c0843d4df4ed444cb8924192a632e62",
+          "by": "Ani",
+          "at": "2026-10-04T23:41:33.852081+00:00",
+          "evidence": "Website chat 2026-10-04: i approve i dont need rto see, 493 is good to review and merge and deploy live continue. Approved source f0e502e138028692927f30ad598e3c392187c71f; current main update preserves motion source."
+        }
+      }
+    },
+    {
+      "id": "admin-publishing-redesign",
+      "title": "Continuous publishing review with responsive side panel",
+      "revision": null,
+      "lane": "code",
+      "state": "implementing",
+      "note": "Plan complete only. No source implementation, PR, merge or deployment. Plan: /Users/anipotts/.codex/visualizations/2026/10/04/01a108cd-5713-7131-a18e-89284afdf84f/admin-publishing-redesign-plan.md. Existing main uses review dialog. Planned first step: immutable activation acknowledgement/revision reconciliation before continuous panel UI.",
+      "approvals": {}
     }
   ]
 }

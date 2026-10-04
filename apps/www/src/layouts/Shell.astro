@@ -244,7 +244,13 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
       import "../scripts/writing-transitions";
       import "../scripts/admin-transitions";
       import { installPointerModality } from "../scripts/pointer-modality";
+      import { installSharedCurrents } from "../lib/shared-currents";
       installPointerModality(document);
+      installSharedCurrents();
+      if (import.meta.env.DEV)
+        void import("../lib/current-tuner").then((tuner) =>
+          tuner.installTuner(),
+        );
     </script>
   </body>
 </html>
