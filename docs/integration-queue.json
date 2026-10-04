@@ -4,29 +4,80 @@
     {
       "id": "pr-483",
       "title": "Admin editor fixes",
-      "revision": "0a8245d5840a9751cebe105ec871fd5984739e80",
+      "revision": "f559cac906950a1c6bff83703cc1773150eef9c2",
       "lane": "code",
-      "state": "awaiting-review",
-      "approvals": {},
-      "note": "Locally integrated; combined candidate awaits visual review and refreshed checks."
+      "state": "deployed",
+      "approvals": {
+        "code": {
+          "revision": "f559cac906950a1c6bff83703cc1773150eef9c2",
+          "by": "Ani",
+          "evidence": "Website chat: lets deploy whats ready; exact-head protected release checks passed."
+        },
+        "production": {
+          "revision": "f559cac906950a1c6bff83703cc1773150eef9c2",
+          "by": "Ani",
+          "evidence": "Website chat: lets deploy whats ready; exact-head protected release checks passed."
+        }
+      },
+      "note": "Recorded source revision shipped in #489. Later motion/footer work excluded. Private CMS drafts unchanged.",
+      "sourceRevision": "0a8245d5840a9751cebe105ec871fd5984739e80",
+      "deployment": {
+        "revision": "f559cac906950a1c6bff83703cc1773150eef9c2",
+        "target": "www and admin",
+        "evidence": "https://github.com/anipotts/anipotts.com/actions/runs/37239795549"
+      }
     },
     {
       "id": "pr-486",
       "title": "Structured AI seed dates",
-      "revision": "57f52532c9c7d2a074e584f9c43e9177537725c8",
+      "revision": "f559cac906950a1c6bff83703cc1773150eef9c2",
       "lane": "code",
-      "state": "awaiting-review",
-      "approvals": {},
-      "note": "Locally integrated; seed dates do not update live CMS records."
+      "state": "deployed",
+      "approvals": {
+        "code": {
+          "revision": "f559cac906950a1c6bff83703cc1773150eef9c2",
+          "by": "Ani",
+          "evidence": "Website chat: lets deploy whats ready; exact-head protected release checks passed."
+        },
+        "production": {
+          "revision": "f559cac906950a1c6bff83703cc1773150eef9c2",
+          "by": "Ani",
+          "evidence": "Website chat: lets deploy whats ready; exact-head protected release checks passed."
+        }
+      },
+      "note": "Recorded source revision shipped in #489. Later motion/footer work excluded. Private CMS drafts unchanged.",
+      "sourceRevision": "57f52532c9c7d2a074e584f9c43e9177537725c8",
+      "deployment": {
+        "revision": "f559cac906950a1c6bff83703cc1773150eef9c2",
+        "target": "www and admin",
+        "evidence": "https://github.com/anipotts/anipotts.com/actions/runs/37239795549"
+      }
     },
     {
       "id": "pr-487",
       "title": "Header/footer refinements",
-      "revision": "df6473950fee079237afbf804e56161770179cb1",
+      "revision": "f559cac906950a1c6bff83703cc1773150eef9c2",
       "lane": "code",
-      "state": "awaiting-review",
-      "approvals": {},
-      "note": "Locally integrated; upstream draft readiness and required checks remain separate."
+      "state": "deployed",
+      "approvals": {
+        "code": {
+          "revision": "f559cac906950a1c6bff83703cc1773150eef9c2",
+          "by": "Ani",
+          "evidence": "Website chat: lets deploy whats ready; exact-head protected release checks passed."
+        },
+        "production": {
+          "revision": "f559cac906950a1c6bff83703cc1773150eef9c2",
+          "by": "Ani",
+          "evidence": "Website chat: lets deploy whats ready; exact-head protected release checks passed."
+        }
+      },
+      "note": "Recorded source revision shipped in #489. Later motion/footer work excluded. Private CMS drafts unchanged.",
+      "sourceRevision": "df6473950fee079237afbf804e56161770179cb1",
+      "deployment": {
+        "revision": "f559cac906950a1c6bff83703cc1773150eef9c2",
+        "target": "www and admin",
+        "evidence": "https://github.com/anipotts/anipotts.com/actions/runs/37239795549"
+      }
     },
     {
       "id": "pr-488-www",
@@ -45,21 +96,81 @@
     {
       "id": "local-review-dx",
       "title": "Unified review workflow and health",
-      "revision": "30cc76c15d28de299b0d02fc79e240ed53245341",
+      "revision": "f559cac906950a1c6bff83703cc1773150eef9c2",
       "lane": "code",
-      "state": "awaiting-review",
-      "approvals": {},
-      "note": "Locally integrated. Both typechecks/builds, 13 focused tests, watcher restart and duplicate startup, browser identity, and read-only doctor passed. Browser publish-recovery suite not rerun. Production unchanged.",
-      "updatedAt": "2026-10-04T22:02:46.850Z"
+      "state": "deployed",
+      "approvals": {
+        "code": {
+          "revision": "f559cac906950a1c6bff83703cc1773150eef9c2",
+          "by": "Ani",
+          "evidence": "Website chat: lets deploy whats ready; exact-head protected release checks passed."
+        },
+        "production": {
+          "revision": "f559cac906950a1c6bff83703cc1773150eef9c2",
+          "by": "Ani",
+          "evidence": "Website chat: lets deploy whats ready; exact-head protected release checks passed."
+        }
+      },
+      "note": "Recorded source revision shipped in #489. Later motion/footer work excluded. Private CMS drafts unchanged.",
+      "updatedAt": "2026-10-04T22:02:46.850Z",
+      "sourceRevision": "30cc76c15d28de299b0d02fc79e240ed53245341",
+      "deployment": {
+        "revision": "f559cac906950a1c6bff83703cc1773150eef9c2",
+        "target": "www and admin",
+        "evidence": "https://github.com/anipotts/anipotts.com/actions/runs/37239795549"
+      }
     },
     {
       "id": "press-card-followup",
       "title": "Business Insider card and stable flowing artwork",
-      "revision": "e44374f4a406847b382402d3ba29107eaa18078a",
+      "revision": "f559cac906950a1c6bff83703cc1773150eef9c2",
       "lane": "code",
-      "state": "awaiting-review",
-      "approvals": {},
-      "note": "Design owner commits integrated locally. Public typecheck/build and identity tests passed. User visual review pending; unfinished motion changes excluded."
+      "state": "deployed",
+      "approvals": {
+        "code": {
+          "revision": "f559cac906950a1c6bff83703cc1773150eef9c2",
+          "by": "Ani",
+          "evidence": "Website chat: lets deploy whats ready; exact-head protected release checks passed."
+        },
+        "production": {
+          "revision": "f559cac906950a1c6bff83703cc1773150eef9c2",
+          "by": "Ani",
+          "evidence": "Website chat: lets deploy whats ready; exact-head protected release checks passed."
+        }
+      },
+      "note": "Recorded source revision shipped in #489. Later motion/footer work excluded. Private CMS drafts unchanged.",
+      "sourceRevision": "e44374f4a406847b382402d3ba29107eaa18078a",
+      "deployment": {
+        "revision": "f559cac906950a1c6bff83703cc1773150eef9c2",
+        "target": "www and admin",
+        "evidence": "https://github.com/anipotts/anipotts.com/actions/runs/37239795549"
+      }
+    },
+    {
+      "id": "font-hero-followup",
+      "title": "Public fonts, fitted hero and initial canvas",
+      "revision": "6acf57bb1936054aad28ebf2c2ac331fee9348c3",
+      "lane": "code",
+      "sourceRevision": "9ec5da5a02983ff4e0cd3d5d3b5af9281228ae81",
+      "state": "deployed",
+      "approvals": {
+        "code": {
+          "revision": "6acf57bb1936054aad28ebf2c2ac331fee9348c3",
+          "by": "Ani",
+          "evidence": "Website chat: lets deploy whats ready; exact-head protected release checks passed."
+        },
+        "production": {
+          "revision": "6acf57bb1936054aad28ebf2c2ac331fee9348c3",
+          "by": "Ani",
+          "evidence": "Website chat: lets deploy whats ready; exact-head protected release checks passed."
+        }
+      },
+      "deployment": {
+        "revision": "6acf57bb1936054aad28ebf2c2ac331fee9348c3",
+        "target": "www and admin",
+        "evidence": "https://github.com/anipotts/anipotts.com/actions/runs/37240464499"
+      },
+      "note": "#490 required CI and www/admin deployments passed; live www health matches release. Canvas-flash frame-by-frame browser acceptance remains incomplete. Extra local admin suite had timing failures; isolated Node24 auth tests passed."
     }
   ]
 }
