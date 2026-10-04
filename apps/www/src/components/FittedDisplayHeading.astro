@@ -1,0 +1,60 @@
+---
+import fontData from "@anipotts/brand/ap-structural/fonts/APStructuralDisplayBlack-v0.2.0-candidate.1.ttf?inline";
+import { readFont } from "../lib/social-card/truetype.mjs";
+
+interface Props {
+  text: string;
+}
+const { text } = Astro.props;
+// Outlines are rendered on the server. The browser never substitutes a font,
+// and the tight ink bounds fit both edges without stretching the letterforms.
+const bytes = Uint8Array.from(atob(fontData.split(",")[1]), (c) =>
+  c.charCodeAt(0),
+);
+const font = readFont(bytes);
+const polygons = font.outline(text, 100, 0, 0);
+const points = polygons.flat();
+const xs = points.map((p: { x: number }) => p.x);
+const ys = points.map((p: { y: number }) => p.y);
+const left = Math.min(...xs);
+const top = Math.min(...ys);
+const width = Math.max(...xs) - left;
+const height = Math.max(...ys) - top;
+const path = polygons
+  .map(
+    (polygon: { x: number; y: number }[]) =>
+      polygon
+        .map((p, i) => `${i ? "L" : "M"}${p.x.toFixed(3)} ${p.y.toFixed(3)}`)
+        .join("") + "Z",
+  )
+  .join("");
+---
+
+<span class="heading-text">{text}</span>
+<svg
+  viewBox={`${left} ${top} ${width} ${height}`}
+  width={width}
+  height={height}
+  aria-hidden="true"
+  focusable="false"
+>
+  <path d={path} fill="currentColor"></path>
+</svg>
+<style>
+  svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+  .heading-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+</style>

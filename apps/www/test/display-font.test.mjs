@@ -4,9 +4,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { builtPages, dist, startTags } from "./built-html.mjs";
 
-// Run after the www build; the display face swaps in over a local stand-in
-// that keeps the headline width, and it is never preloaded (a preload delays
-// Chromium first paint on a slow connection, measured at 64 to 108ms).
+// Critical faces are discovered in the head before stylesheet parsing.
 const pages = builtPages();
 const css = readdirSync(join(dist, "_astro"))
   .filter((file) => file.endsWith(".css"))
@@ -20,7 +18,7 @@ const faces = [...css.matchAll(/@font-face\s*\{([^}]*)\}/g)].map(
   }),
 );
 
-test("no font is preloaded, so nothing blocks first paint", () => {
+test("public pages preload both critical typography faces", () => {
   for (const { path, html } of pages) {
     const preloads = startTags(html).filter(
       ({ name, attributes }) =>
@@ -28,11 +26,22 @@ test("no font is preloaded, so nothing blocks first paint", () => {
         attributes.rel === "preload" &&
         attributes.as === "font",
     );
-    assert.deepEqual(
-      preloads.map(({ attributes }) => attributes.href),
-      [],
-      `${path} preloads no font`,
+    assert.equal(
+      preloads.length,
+      2,
+      `${path} preloads exactly two critical fonts`,
     );
+    assert.ok(
+      preloads.some(({ attributes }) =>
+        /APStructuralDisplayBlack/.test(attributes.href),
+      ),
+    );
+    assert.ok(
+      preloads.some(({ attributes }) =>
+        /instrument-sans-latin-wght-normal/.test(attributes.href),
+      ),
+    );
+    assert.ok(preloads.every(({ attributes }) => "crossorigin" in attributes));
   }
 });
 
@@ -79,4 +88,28 @@ test("the display stack falls back to metric-matched local faces first", () => {
       `${family} descent-override matches AP Structural at its size-adjust`,
     );
   }
+});
+
+test("critical faces block fallback painting during font loading", () => {
+  for (const family of ["AP Structural", "Instrument Sans Variable"]) {
+    const face = faces
+      .filter((candidate) => candidate.family === family)
+      .at(-1);
+    assert.ok(face, `${family} exists`);
+    assert.match(face.body, /font-display:\s*block/);
+  }
+});
+
+test("homepage headline paints font outlines while retaining accessible text", () => {
+  const home = pages.find(({ path }) => path === "/index.html");
+  assert.ok(home);
+  const heading = /<h1\b[^>]*class="home-hero"[^>]*>(.*?)<\/h1>/s.exec(
+    home.html,
+  )?.[1];
+  assert.ok(heading);
+  assert.match(heading, /class="heading-text"/);
+  assert.match(heading, /hi, i(?:&#39;|')m ani potts!/);
+  assert.match(heading, /<svg\b[^>]*viewBox="[^"]+"[^>]*aria-hidden="true"/);
+  assert.match(heading, /<path\b[^>]*d="M/);
+  assert.doesNotMatch(heading, /<text\b|<image\b/);
 });
