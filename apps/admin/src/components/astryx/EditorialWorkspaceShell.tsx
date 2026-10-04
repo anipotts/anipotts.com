@@ -293,27 +293,25 @@ function WorkspaceUtilities({
 }) {
   const Stack = rail ? VStack : HStack;
   return (
-    <VStack
-      className="editorial-workspace-utilities"
+    <Stack
+      className="editorial-workspace-utilities editorial-workspace-utility-controls"
       data-collapsed={rail}
       gap={1}
     >
       <SideNavItem
-        label="Back to website"
+        label="www"
         href="https://anipotts.com/"
         icon={<ArrowLeftIcon size={18} aria-hidden="true" />}
       />
-      <Stack className="editorial-workspace-utility-controls" gap={1}>
-        {!localPreview && (
-          <SideNavItem
-            label="Log out"
-            href="/auth/logout"
-            icon={<SignOutIcon size={18} aria-hidden="true" />}
-          />
-        )}
-        <ThemeControl />
-      </Stack>
-    </VStack>
+      {!localPreview && (
+        <SideNavItem
+          label="Log out"
+          href="/auth/logout"
+          icon={<SignOutIcon size={18} aria-hidden="true" />}
+        />
+      )}
+      <ThemeControl />
+    </Stack>
   );
 }
 
