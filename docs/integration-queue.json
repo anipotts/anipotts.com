@@ -183,6 +183,38 @@
         "evidence": "https://github.com/anipotts/anipotts.com/actions/runs/37240464499"
       },
       "note": "#490 required CI and www/admin deployments passed; live www health matches release. Canvas-flash frame-by-frame browser acceptance remains incomplete. Extra local admin suite had timing failures; isolated Node24 auth tests passed."
+    },
+    {
+      "id": "pr-495",
+      "title": "Landscape invariants and guidance symlink",
+      "revision": "f0b5647630e675493a24e7b4187257a1dec40c1e",
+      "lane": "code",
+      "state": "approved",
+      "approvals": {
+        "code": {
+          "revision": "f0b5647630e675493a24e7b4187257a1dec40c1e",
+          "by": "Ani",
+          "evidence": "Website chat on 2026-10-04: Ani explicitly approved merging PR495 at f0b5647630e675493a24e7b4187257a1dec40c1e and PR494 at 99b51a7f910b357637819f9c217c78e07224a34e. Docs/tooling only; stop if classifier selects any app deploy target.",
+          "at": "2026-10-04T20:00:00-04:00"
+        }
+      },
+      "note": "Full CI running; merge first. Local path classifier selects no targets."
+    },
+    {
+      "id": "pr-494",
+      "title": "Shared preview and heavy-job runtime controls",
+      "revision": "99b51a7f910b357637819f9c217c78e07224a34e",
+      "lane": "code",
+      "state": "approved",
+      "approvals": {
+        "code": {
+          "revision": "99b51a7f910b357637819f9c217c78e07224a34e",
+          "by": "Ani",
+          "evidence": "Website chat on 2026-10-04: Ani explicitly approved merging PR495 at f0b5647630e675493a24e7b4187257a1dec40c1e and PR494 at 99b51a7f910b357637819f9c217c78e07224a34e. Docs/tooling only; stop if classifier selects any app deploy target.",
+          "at": "2026-10-04T20:00:00-04:00"
+        }
+      },
+      "note": "Held for confirmed ownership/concurrency review findings: fail-open lock, stale reclaim races, non-atomic preview claims, idle-review preservation and descendant cancellation. Approval does not establish correctness. Merge after495 only once resolved; content changes need renewed review."
     }
   ]
 }
