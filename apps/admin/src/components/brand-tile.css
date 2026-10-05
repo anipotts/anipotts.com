@@ -96,3 +96,23 @@
   inline-size: calc(var(--brand-tile-size) * 0.78);
   block-size: calc(var(--brand-tile-size) * 0.78);
 }
+
+/* Apply the editor's authored treatment to the same logo in compact rows. */
+.brand-tile[data-artwork-tone="light"] .brand-tile-art {
+  filter: brightness(0) invert(1);
+}
+.brand-tile[data-artwork-tone="adaptive"] .brand-tile-art {
+  filter: brightness(0) invert(1);
+}
+html[data-theme="light"]
+  .brand-tile[data-artwork-tone="adaptive"]
+  .brand-tile-art {
+  filter: brightness(0);
+}
+@media (prefers-color-scheme: light) {
+  html:not([data-theme="dark"])
+    .brand-tile[data-artwork-tone="adaptive"]
+    .brand-tile-art {
+    filter: brightness(0);
+  }
+}

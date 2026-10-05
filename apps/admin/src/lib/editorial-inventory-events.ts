@@ -1,3 +1,7 @@
+import {
+  projectRecordIdentity,
+  type ProjectRecordIdentity,
+} from "./project-media";
 import type {
   CatalogGroup,
   CatalogRecord,
@@ -17,6 +21,7 @@ export type EditorialRecordSaved = {
   revision: number;
   updatedAt: string;
   changesPending: boolean;
+  projectIdentity?: ProjectRecordIdentity;
   intendedVisibility?: string;
   /** Set when this revision reached the website. The row stops showing
    * pending changes and takes the published time. */
@@ -76,6 +81,13 @@ export function parseEditorialRecordSaved(
     revision: item.revision as number,
     updatedAt: new Date(item.updatedAt).toISOString(),
     changesPending: item.changesPending,
+    ...(item.projectIdentity !== undefined
+      ? {
+          projectIdentity: projectRecordIdentity({
+            identity: item.projectIdentity,
+          }),
+        }
+      : {}),
     ...(typeof item.intendedVisibility === "string"
       ? { intendedVisibility: item.intendedVisibility }
       : {}),
@@ -212,6 +224,9 @@ export function applyEditorialRecordSaved(
             : {}),
           title: saved.title,
           summary: saved.summary,
+          ...(saved.projectIdentity !== undefined
+            ? { projectIdentity: saved.projectIdentity }
+            : {}),
           changesPending: saved.changesPending,
           // Field-level comparisons are recomputed by the server projection.
           changedFields: undefined,
@@ -235,6 +250,9 @@ export function applyEditorialRecordSaved(
         ? {
             ...item,
             label: saved.title,
+            ...(saved.projectIdentity !== undefined
+              ? { projectIdentity: saved.projectIdentity }
+              : {}),
             currentFact: `${published ? status({ status: item.currentFact.split(";")[0]! }) : item.currentFact.split(";")[0]}${saved.changesPending ? "; changes pending" : ""}`,
             freshness: saved.updatedAt,
             source: "private and published content inventory",

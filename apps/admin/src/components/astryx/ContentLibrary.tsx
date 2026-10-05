@@ -214,6 +214,7 @@ export function ContentLibrary({
   selectedGroup,
   initialSearch = "",
   inventoryError = false,
+  siteUrl,
   area = "content",
   title,
 }: {
@@ -221,6 +222,7 @@ export function ContentLibrary({
   selectedGroup?: string;
   initialSearch?: string;
   inventoryError?: boolean;
+  siteUrl?: string;
   area?: "content" | "newsletter";
   /** The page's H1. Defaults to the library's name. */
   title?: string;
@@ -354,7 +356,7 @@ export function ContentLibrary({
             icon={group.name === "writing" ? undefined : recordGlyph(item)[0]}
             mark={
               group.name === "work" ? (
-                <ContentRecordMark record={item} />
+                <ContentRecordMark record={item} siteUrl={siteUrl} />
               ) : undefined
             }
             kind={recordGlyph(item)[1]}

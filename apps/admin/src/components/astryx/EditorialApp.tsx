@@ -77,6 +77,7 @@ export type CatalogRecord = {
   collection?: string;
   id?: string;
   publishedSlug?: string;
+  projectIdentity?: import("../../lib/project-media").ProjectRecordIdentity;
   changesPending?: boolean;
   changedFields?: string[];
   privateRevision?: number;
@@ -420,6 +421,7 @@ export function EditorialApp({
             )}
             {groups && (
               <ContentLibrary
+                siteUrl={siteUrl}
                 title={title}
                 groups={inventoryView.groups ?? groups}
                 selectedGroup={selectedGroup}

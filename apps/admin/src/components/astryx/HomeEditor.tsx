@@ -1,3 +1,4 @@
+import { projectRecordIdentity } from "../../lib/project-media";
 import { AuthReentry } from "./AuthReentry";
 import { editorialReturnPath } from "../../lib/editorial-return-path";
 import {
@@ -234,6 +235,9 @@ function announceRecordFreshness(
       record,
       title: metadata.title,
       summary: editorialRecordSummary(record, metadata) ?? "",
+      ...(record.kind === "work"
+        ? { projectIdentity: projectRecordIdentity(metadata) }
+        : {}),
       revision: draft.revision,
       updatedAt: new Date(draft.updatedAt).toISOString(),
       changesPending: bufferedChanges || draft.source !== baseSource,

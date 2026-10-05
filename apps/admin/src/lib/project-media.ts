@@ -155,3 +155,22 @@ export function editProjectMedia(
   }
   return `${parsed.opening}${parsed.document.toString({ lineWidth: 0 }).replace(/\r?\n/gu, parsed.newline)}${parsed.closing}${parsed.body}`;
 }
+
+/** Safe, minimal identity metadata shared by editor, inventory and search. */
+export type ProjectRecordIdentity = {
+  logo_src?: string;
+  logo_tone?: "default" | "light" | "adaptive";
+  icon?: string;
+};
+export function projectRecordIdentity(
+  data: Record<string, unknown>,
+): ProjectRecordIdentity {
+  const parsed = projectSchema.shape.identity.safeParse(data.identity ?? {});
+  if (!parsed.success) return {};
+  const { logo_src, logo_tone, icon } = parsed.data;
+  return {
+    ...(logo_src ? { logo_src } : {}),
+    logo_tone,
+    ...(icon ? { icon } : {}),
+  };
+}

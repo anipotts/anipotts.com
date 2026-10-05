@@ -530,7 +530,7 @@ export function EditorialWorkspaceShell({
   const showLocalOwner = __LOCAL_OWNER_BUILD__ && localOwner;
   return (
     <AdminThemeControls.Provider value={{ mode, changeTheme }}>
-      <AdminCommandPalette actions={actions} />
+      <AdminCommandPalette actions={actions} siteUrl={siteUrl} />
       <AppShell
         className="editorial-workspace-shell"
         data-sidebar-collapsed={rail}

@@ -1,29 +1,64 @@
+import { publicSiteUrl } from "../../lib/public-site-url";
 import React from "react";
-import { projectMark } from "@anipotts/brand/project-marks";
+import {
+  projectMark,
+  ownedProjectArtwork,
+} from "@anipotts/brand/project-marks";
 import { BrandTile } from "../BrandTile";
 import {
   BriefcaseIcon,
   ChartLineUpIcon,
+  DesktopTowerIcon,
+  HardDrivesIcon,
+  BookOpenTextIcon,
+  ActivityIcon,
+  type Icon,
   WaveformIcon,
 } from "@phosphor-icons/react";
+import { projectMediaPreview } from "../../lib/project-media";
 import type { CatalogRecord } from "../astryx/EditorialApp";
 /** One project identity renderer for library rows and other catalog surfaces. */
 export function ContentRecordMark({
   record,
   className,
+  siteUrl = publicSiteUrl,
 }: {
-  record: Pick<CatalogRecord, "id" | "href">;
+  record: Pick<CatalogRecord, "id" | "href" | "projectIdentity">;
   className?: string;
+  siteUrl?: string;
 }) {
   const id = record.id ?? record.href.split("?")[0].split("/").at(-1);
-  const artwork = projectMark(id);
+  const identity = record.projectIdentity;
+  const artwork = identity
+    ? (ownedProjectArtwork(identity.logo_src) ??
+      projectMediaPreview(identity.logo_src, siteUrl))
+    : projectMark(id);
   if (artwork)
-    return <BrandTile id={id} artwork={artwork} className={className} />;
+    return (
+      <BrandTile
+        id={id}
+        artwork={artwork}
+        artworkTone={identity?.logo_tone}
+        className={className}
+      />
+    );
+  const configuredGlyph = (
+    {
+      briefcase: BriefcaseIcon,
+      "chart-line-up": ChartLineUpIcon,
+      "desktop-tower": DesktopTowerIcon,
+      "hard-drives": HardDrivesIcon,
+      "book-open-text": BookOpenTextIcon,
+      waveform: WaveformIcon,
+      activity: ActivityIcon,
+    } as Record<string, Icon>
+  )[identity?.icon ?? ""];
   const Glyph =
-    id === "options-pricing-sensitivity"
+    configuredGlyph ??
+    (id === "options-pricing-sensitivity"
       ? ChartLineUpIcon
       : id === "range-media-partners" || id === "saeshify"
         ? WaveformIcon
-        : BriefcaseIcon;
+        : BriefcaseIcon);
   return <BrandTile glyph={Glyph} className={className} />;
 }

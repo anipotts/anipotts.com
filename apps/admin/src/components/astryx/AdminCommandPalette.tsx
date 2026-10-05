@@ -130,9 +130,11 @@ function HighlightFirstResult() {
 export function AdminCommandPalette({
   entries,
   actions = [],
+  siteUrl,
 }: {
   /** Rows beyond the sidebar destinations and the provided sources. */
   entries?: readonly AdminSearchResult[];
+  siteUrl?: string;
   actions?: readonly PaletteAction[];
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -381,7 +383,11 @@ export function AdminCommandPalette({
           <HStack gap={3} vAlign="center" className="admin-palette-result">
             {project ? (
               <ContentRecordMark
-                record={{ href }}
+                siteUrl={siteUrl}
+                record={{
+                  href,
+                  projectIdentity: item.auxiliaryData?.projectIdentity,
+                }}
                 className="admin-palette-tile"
               />
             ) : (

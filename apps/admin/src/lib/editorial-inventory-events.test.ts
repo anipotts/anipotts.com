@@ -305,3 +305,41 @@ it.each(["published", "draft"])(
     ).toBeNull();
   },
 );
+
+it("relays logo saves and removals to inventory and search without stale revision overwrite", () => {
+  const href = "/content/projects/demo";
+  const before = createInventoryView(
+    [
+      {
+        name: "work",
+        href: "/content/projects",
+        records: [{ ...row, id: "demo", collection: "projects", href }],
+      },
+    ],
+    [{ ...search, id: "content:projects:demo", kind: "projects", href }],
+  );
+  const saved = {
+    ...event,
+    record: { kind: "work" as const, id: "demo" },
+    projectIdentity: {
+      logo_src: "/images/brand/new.png",
+      logo_tone: "adaptive" as const,
+    },
+  };
+  const updated = applyEditorialRecordSaved(before, saved);
+  expect(updated.groups![0].records[0].projectIdentity).toEqual(
+    saved.projectIdentity,
+  );
+  expect(updated.searchEntries![0].projectIdentity).toEqual(
+    saved.projectIdentity,
+  );
+  const removed = applyEditorialRecordSaved(updated, {
+    ...saved,
+    revision: 6,
+    projectIdentity: {},
+  });
+  expect(removed.groups![0].records[0].projectIdentity).not.toHaveProperty(
+    "logo_src",
+  );
+  expect(applyEditorialRecordSaved(removed, saved)).toBe(removed);
+});
