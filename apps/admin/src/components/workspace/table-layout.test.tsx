@@ -10,6 +10,7 @@ import {
   tableColumnStyle,
   tableFrameStyle,
   tableYieldRules,
+  tableFitRules,
 } from "./table-layout";
 
 type Row = { id: string; title: string };
@@ -91,7 +92,7 @@ describe("shared table geometry", () => {
     ).toBe(true);
     expect(
       sdk.querySelector(".admin-data-table")?.getAttribute("data-responsive"),
-    ).toBe("reflow");
+    ).toBe("fit");
   });
   it("budgets selection width before splitting the remaining space", () => {
     const markup = host(

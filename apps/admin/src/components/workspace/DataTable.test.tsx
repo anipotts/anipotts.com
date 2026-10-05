@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DataTable, type Column } from "./Workspace";
 import { groupTableRows, tableCountText } from "./OpenAIDataTable";
-import { tableReflowWidth } from "./table-layout";
+
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 type RecordRow = { id: string; title: string; group: string };
 const rows = [
@@ -122,9 +122,7 @@ describe("global table interactions", () => {
       totalCount: 10,
     });
     expect(host.querySelector(".admin-table-count")?.textContent).toBe("7 / 8");
-    expect(host.querySelector(".workspace-table-count")?.textContent).toBe(
-      "9 loaded of 10 total",
-    );
+    expect(host.querySelector(".workspace-table-footer")).toBeNull();
   });
   it("selects visible records without deleting another page's selection", () => {
     const change = vi.fn();
@@ -157,97 +155,74 @@ describe("global table interactions", () => {
       ),
     ).toEqual(["a", "b", "c"]);
   });
-  it("reflows all secondary metadata from container size, with separate link and action controls", () => {
-    draw();
+  it("keeps narrow tables in aligned columns with one set of header controls", () => {
+    const onSortChange = vi.fn();
+    const onSelectionChange = vi.fn();
+    draw({
+      columns: [
+        columns[0]!,
+        {
+          key: "summary",
+          header: "Summary",
+          compact: "detail",
+          render: () => "An excerpt",
+        },
+        {
+          key: "updated",
+          header: "Last activity",
+          compact: "trailing",
+          render: () => "2h ago",
+        },
+      ],
+      onSortChange,
+      onSelectionChange,
+      selectedKeys: new Set(),
+    });
     const frame = host.querySelector<HTMLDivElement>(".openai-table-frame")!;
     Object.defineProperty(frame, "clientWidth", {
       configurable: true,
       value: 390,
     });
     act(() => resize?.());
+
     expect(
-      host.querySelector(".admin-data-table")?.getAttribute("data-narrow"),
-    ).toBe("true");
-    expect(host.querySelectorAll('[data-record-id="a"] td')).toHaveLength(3);
+      host.querySelector(".admin-data-table")?.getAttribute("data-responsive"),
+    ).toBe("fit");
+    const header = host.querySelector("thead")!;
     expect(
-      host.querySelector(
-        '[data-record-id="a"] [data-column="status"] .openai-mobile-label',
-      )?.textContent,
-    ).toBe("Status");
-    expect(
-      host.querySelector('[data-record-id="a"] a')?.getAttribute("href"),
-    ).toBe("/a");
-    expect(host.querySelector('[data-record-id="a"] button')?.textContent).toBe(
-      "Inspect",
+      [...header.querySelectorAll("[data-column]")].map(
+        (cell) => cell.textContent,
+      ),
+    ).toEqual(["Title", "Summary", "Last activity"]);
+    expect(host.querySelector(".admin-table-controls")).toBeNull();
+    expect(host.querySelectorAll('input[type="checkbox"]')).toHaveLength(
+      rows.length + 1,
     );
-    draw({ responsive: "scroll" });
-    const scroll = host.querySelector<HTMLDivElement>(".admin-table-scroll")!;
-    expect(scroll.getAttribute("tabindex")).toBeNull();
-    expect(scroll.getAttribute("role")).toBeNull();
-    Object.defineProperty(scroll, "clientWidth", {
-      configurable: true,
-      value: 390,
+    act(() => header.querySelector<HTMLButtonElement>("button")!.click());
+    expect(onSortChange).toHaveBeenCalledWith({
+      key: "title",
+      direction: "asc",
     });
-    Object.defineProperty(scroll, "scrollWidth", {
-      configurable: true,
-      value: 700,
-    });
-    act(() => resize?.());
-    expect(scroll.getAttribute("tabindex")).toBe("0");
-    expect(scroll.getAttribute("aria-label")).toContain(
-      "horizontally scrollable",
+    act(() => header.querySelector<HTMLInputElement>("input")!.click());
+    expect(onSelectionChange).toHaveBeenCalledWith(new Set(["a", "b", "c"]));
+    expect(host.querySelector("style")?.textContent).toContain(
+      "display: table-cell",
     );
-    Object.defineProperty(scroll, "scrollWidth", {
-      configurable: true,
-      value: 390,
-    });
-    act(() => resize?.());
-    expect(scroll.getAttribute("tabindex")).toBeNull();
-    expect(scroll.getAttribute("aria-label")).toBeNull();
-    expect(tableReflowWidth(columns)).toBeGreaterThanOrEqual(560);
   });
-  it("places trailing and detail cells by explicit contract, independent of column names", () => {
-    draw({
-      columns: [
-        columns[0]!,
-        { ...columns[1]!, compact: "inline", compactLabel: false },
-        {
-          key: "description",
-          header: "Description",
-          compact: "detail",
-          render: () => "An excerpt",
-        },
-        {
-          key: "observed_at",
-          header: "Observed",
-          compact: "trailing",
-          compactLabel: false,
-          render: () => <time>2h ago</time>,
-        },
-      ],
-    });
-    const row = host.querySelector('[data-record-id="a"]')!;
-    const trailing = row.querySelector<HTMLElement>(
-      '[data-column="observed_at"]',
-    )!;
-    expect(trailing.dataset.compact).toBe("trailing");
-    expect(trailing.style.order).toBe("0");
-    expect(trailing.querySelector(".openai-mobile-label")).toBeNull();
-    expect(
-      host.querySelector('thead [data-column="observed_at"]')?.textContent,
-    ).toBe("Observed");
-    const state = row.querySelector('[data-column="status"]')!;
-    expect(state.querySelector(".openai-mobile-label")).toBeNull();
-    expect(state.textContent).toBe("live");
-    expect(
-      row
-        .querySelector('[data-column="description"]')
-        ?.getAttribute("data-compact"),
-    ).toBe("detail");
-    const rules = host.querySelector("style")!.textContent!;
-    expect(rules).toContain('td[data-compact="trailing"]');
-    expect(rules).not.toContain('data-column="summary"');
-    expect(rules).not.toContain('data-column="updated"');
+
+  it("never emits stacked layouts even for legacy responsive callers", () => {
+    for (const responsive of ["reflow", "scroll"] as const) {
+      draw({ responsive });
+      expect(
+        host
+          .querySelector(".admin-data-table")
+          ?.getAttribute("data-responsive"),
+      ).toBe("fit");
+      const css = host.querySelector("style")?.textContent ?? "";
+      expect(css).not.toContain("flex-wrap");
+      expect(css).not.toContain("clip-path");
+      expect(host.querySelectorAll('[data-record-id="a"] td')).toHaveLength(3);
+    }
   });
 
   it("keeps the real header and cell layout while loading, including future columns", () => {
@@ -309,15 +284,12 @@ describe("global table interactions", () => {
       host.querySelectorAll('[data-loading-row] [data-column="added"]'),
     ).toHaveLength(6);
   });
-  it("reserves the count footer without announcing a false zero while empty and loading", () => {
+  it("omits redundant count footers in loading and loaded states", () => {
     draw({ rows: [], loading: true });
-    const footer = host.querySelector(".workspace-table-count")!;
-    expect(footer.getAttribute("aria-hidden")).toBe("true");
-    expect(footer.textContent).not.toContain("0 loaded");
+    expect(host.querySelector(".workspace-table-footer")).toBeNull();
     draw();
-    expect(host.querySelector(".workspace-table-count")).toBe(footer);
-    expect(footer.getAttribute("aria-hidden")).toBeNull();
-    expect(footer.textContent).toContain("3 loaded");
+    expect(host.querySelector(".workspace-table-footer")).toBeNull();
+    expect(host.querySelectorAll("[data-record-id]")).toHaveLength(3);
   });
   it("retains loaded rows during refresh instead of collapsing them into placeholders", () => {
     draw({ loading: true, footer: false });

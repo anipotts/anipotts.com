@@ -2,10 +2,7 @@ import React, { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@astryxdesign/core/Button";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
-import {
-  ToggleButton,
-  ToggleButtonGroup,
-} from "@astryxdesign/core/ToggleButton";
+import { ToggleButton } from "@astryxdesign/core/ToggleButton";
 import { VStack } from "@astryxdesign/core/VStack";
 import { XIcon } from "@phosphor-icons/react";
 import { nextDataOffset, type DataResult } from "../../data/personal-context";
@@ -25,6 +22,7 @@ import {
 import { deviceName } from "../../lib/naming";
 import { effectiveDate, occurredText } from "../../lib/data-record";
 import { useLiveText } from "../../lib/live-clock";
+import { KindFilters } from "../workspace/KindFilters";
 import { BrandTile } from "../BrandTile";
 import { SplitView, useSplitView } from "../astryx/SplitView";
 import {
@@ -366,25 +364,28 @@ export function RecordsToolbar({
             </span>
           </ToggleButton>
         )}
-        <ToggleButtonGroup
+        <KindFilters
           label="Record kind"
-          size="sm"
-          isDisabled={disabled}
+          disabled={disabled}
           value={route.kind === "all" ? null : route.kind}
           onChange={(value) => filter({ kind: dataKind(value) })}
-        >
-          {KIND_CHIPS.map((kind) => {
+          options={(
+            [
+              "message",
+              "browsing_day",
+              ...KIND_CHIPS.filter(
+                (kind) => !["message", "browsing_day"].includes(kind),
+              ),
+            ] as DataKind[]
+          ).map((kind) => {
             const [Glyph] = kindGlyph(DATA_KINDS[kind].reader);
-            return (
-              <ToggleButton
-                key={kind}
-                value={kind}
-                label={DATA_KINDS[kind].label}
-                icon={<Glyph weight="regular" aria-hidden="true" />}
-              />
-            );
+            return {
+              value: kind,
+              label: DATA_KINDS[kind].label,
+              icon: <Glyph weight="regular" aria-hidden="true" />,
+            };
           })}
-        </ToggleButtonGroup>
+        />
       </div>
     </div>
   );
