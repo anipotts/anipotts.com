@@ -7,9 +7,34 @@ import { readJson, syncHealth } from "./review-state.mjs";
 export function adminPreviewIdentity(root) {
   return {
     name: "admin-preview-identity",
+    enforce: "pre",
     apply: "serve",
     configureServer(server) {
       server.middlewares.use((request, response, next) => {
+        // Astro's non-runnable dev renderer can emit filesystem-rooted script
+        // URLs. Vite serves these components relative to its application root.
+        const appPrefix = `${join(root, "apps", "www")}/`;
+        const dependencyPrefix = `${join(root, "node_modules", ".pnpm")}/`;
+        const [pathname = "", query = ""] = (request.url ?? "").split("?");
+        const params = new URLSearchParams(query);
+        if (
+          pathname.endsWith(".astro") &&
+          params.has("astro") &&
+          params.get("type") === "script"
+        ) {
+          const target = pathname.startsWith(appPrefix)
+            ? `/${pathname.slice(appPrefix.length)}?${query}`
+            : pathname.startsWith(dependencyPrefix) && pathname.endsWith("/node_modules/astro/components/ClientRouter.astro")
+              ? `/@fs${pathname}?${query}`
+              : null;
+          if (target) {
+            response.statusCode = 302;
+            response.setHeader("Location", target);
+            response.setHeader("Cache-Control", "no-store");
+            response.end();
+            return;
+          }
+        }
         if (request.url?.split("?")[0] !== "/api/review-identity")
           return next();
         if (request.method !== "GET") return next();
