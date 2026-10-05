@@ -306,7 +306,7 @@
       "state": "awaiting-review",
       "approvals": {},
       "updatedAt": "2026-10-05T02:26:53.849523+00:00",
-      "note": "Draft PR500 at453565308a077707b6e372e428498aed433fcd54. Canonical4311 has static headers and matching row/column geometry, Records/Sources/Knowledge footer reservation. Synthetic replay /content/dev-catalog?fixture=table-loading. Focused131 tests and build/lint/typecheck passed. Default full suite startup import timeouts; bounded4-worker equivalent unit run in progress. No production approval."
+      "note": "PR500 ready for review at453565308a077707b6e372e428498aed433fcd54; required CI starting after draft gate. Canonical4311 exactly matches all12 source files. Browser synthetic replay identical heights/columns/positions; real static headers and reserved rows/footer. Local build/lint/typecheck passed; admin2163 unit (maxWorkers4), Astro79, editorial86 and CSP2 passed,1 existing CSP skip. Default unbounded tests timed out importing two auth hooks; bounded suite passed all assertions. Ani review required before admin-only merge/deploy."
     }
   ]
 }
