@@ -354,6 +354,7 @@ export function EditorialApp({
   return (
     <Theme theme={theme} mode={mode}>
       <EditorialWorkspaceShell
+        siteUrl={siteUrl}
         area={area}
         selectedGroup={selectedGroup}
         recordKind={recordKind}

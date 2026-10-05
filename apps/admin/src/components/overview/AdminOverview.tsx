@@ -1,3 +1,4 @@
+import { ContentRecordMark } from "../workspace/Workspace";
 import { AuthReentry } from "../astryx/AuthReentry";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { workspaceReturnPath } from "../../lib/workspace-navigation";
@@ -52,7 +53,7 @@ import {
 } from "../workspace/Workspace";
 import { useDataSession } from "../data/useDataSession";
 import { ReadNotice, SessionNotice } from "../data/DataNotices";
-import { recordColumns, recordTiersOnly } from "../data/RecordsView";
+import { recordColumns } from "../data/RecordsView";
 import { parseItems, parseRecord } from "../data/data-model";
 import {
   SourceNamesContext,
@@ -197,7 +198,7 @@ function FiringAlerts(props: OpsViewProps) {
         href="/observability/alerts"
         meta={OPS_ALERTS_SOURCE}
       >
-        <LoadingSkeleton label="alerts" rows={3} columns={3} />
+        <AlertsTable rows={[]} loading loadingRows={3} now={props.now} />
       </WorkspaceSection>
     );
   }
@@ -272,56 +273,76 @@ function ContentState({ record }: { record: CatalogRecord }) {
   );
 }
 
+/** Shared by the overview and its synthetic loading replay. */
+export function RecentContentTable({
+  records,
+  loading = false,
+}: {
+  records: CatalogRecord[];
+  loading?: boolean;
+}) {
+  return (
+    <DataTable
+      tableId="overview-content"
+      rows={records}
+      loading={loading}
+      loadingRows={5}
+      rowKey="href"
+      label="Recently updated content"
+      noun={["record", "records"]}
+      footer={false}
+      columns={[
+        {
+          key: "title",
+          priority: 0,
+          header: "Title",
+          render: (item) => {
+            const [glyph, type] = contentType(item);
+            return (
+              <RowTitle
+                icon={glyph}
+                mark={
+                  type === "Project" ? (
+                    <ContentRecordMark record={item} />
+                  ) : undefined
+                }
+                kind={type}
+                title={item.title}
+                href={item.href}
+                mobile={<ContentState record={item} />}
+                time={item.updated?.at}
+              />
+            );
+          },
+        },
+        {
+          key: "status",
+          compact: "inline",
+          compactLabel: false,
+          priority: 1,
+          header: "State",
+          width: CELL_WIDTHS.state,
+          render: (item) => <ContentState record={item} />,
+        },
+        {
+          key: "updated",
+          compact: "trailing",
+          compactLabel: false,
+          priority: 1,
+          header: "Updated",
+          width: CELL_WIDTHS.time,
+          render: (item) => <RelativeTime value={item.updated?.at} />,
+        },
+      ]}
+    />
+  );
+}
+
 function RecentContent({ records }: { records: CatalogRecord[] }) {
   return (
     <WorkspaceSection title="Recent content" href="/content/pages">
       {records.length ? (
-        <DataTable
-          tableId="overview-content"
-          rows={records}
-          rowKey="href"
-          label="Recently updated content"
-          noun={["record", "records"]}
-          footer={false}
-          columns={[
-            {
-              key: "title",
-              priority: 0,
-              header: "Title",
-              render: (item) => {
-                const [glyph, type] = contentType(item);
-                return (
-                  <RowTitle
-                    icon={glyph}
-                    kind={type}
-                    title={item.title}
-                    href={item.href}
-                    mobile={<ContentState record={item} />}
-                    time={item.updated?.at}
-                  />
-                );
-              },
-            },
-            {
-              key: "status",
-              compact: "inline",
-              compactLabel: false,
-              priority: 1,
-              header: "State",
-              width: CELL_WIDTHS.state,
-              render: (item) => <ContentState record={item} />,
-            },
-            {
-              key: "updated",
-              compact: "trailing",
-              compactLabel: false,
-              priority: 1,
-              header: "Updated",
-              width: CELL_WIDTHS.time,
-              render: (item) => <RelativeTime value={item.updated?.at} />,
-            },
-          ]}
-        />
+        <RecentContentTable records={records} />
       ) : (
         <StateNotice kind="empty" title="No content yet" />
       )}
@@ -372,12 +393,21 @@ function RecentRecords({
       : [];
   return (
     <WorkspaceSection title="Recent records" href="/data/records">
-      {session.status !== "ready" ? (
+      {session.status === "opening" ||
+      (session.status === "ready" &&
+        (!result ||
+          (result.state === "ready" && catalog.status === "pending"))) ? (
+        <LoadingSkeleton
+          label="recent records"
+          rows={RECENT}
+          columns={recordColumns({
+            href: (item) => dataRecordHref(item.id),
+            tiersOnly: false,
+          })}
+        />
+      ) : session.status !== "ready" ? (
         <SessionNotice session={session} label="recent records" />
-      ) : !result ||
-        (result.state === "ready" && catalog.status === "pending") ? (
-        <LoadingSkeleton label="recent records" rows={3} columns={3} />
-      ) : result.state !== "ready" ? (
+      ) : !result ? null : result.state !== "ready" ? (
         <ReadNotice result={result} />
       ) : items.length ? (
         <SourceNamesContext value={catalog.names}>
@@ -390,7 +420,7 @@ function RecentRecords({
             footer={false}
             columns={recordColumns({
               href: (item) => dataRecordHref(item.id),
-              tiersOnly: recordTiersOnly(items),
+              tiersOnly: false,
             })}
           />
         </SourceNamesContext>
