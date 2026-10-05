@@ -8,6 +8,7 @@ import { newWritingSource } from "../../lib/writing-draft";
 let navigation: typeof import("../../lib/editorial-navigation");
 let HomeEditor: (typeof import("./HomeEditor"))["HomeEditor"];
 let useWorkspaceMemory: (typeof import("./EditorialWorkspaceShell"))["useWorkspaceMemory"];
+let EditorialWorkspaceShell: (typeof import("./EditorialWorkspaceShell"))["EditorialWorkspaceShell"];
 let EditorialApp: (typeof import("./EditorialApp"))["EditorialApp"];
 
 function WorkspaceMemory() {
@@ -118,13 +119,17 @@ await Promise.all([
 ]);
 async function loadDocumentModules() {
   vi.resetModules();
-  [{ HomeEditor }, { EditorialApp }, navigation, { useWorkspaceMemory }] =
-    await Promise.all([
-      import("./HomeEditor"),
-      import("./EditorialApp"),
-      import("../../lib/editorial-navigation"),
-      import("./EditorialWorkspaceShell"),
-    ]);
+  [
+    { HomeEditor },
+    { EditorialApp },
+    navigation,
+    { useWorkspaceMemory, EditorialWorkspaceShell },
+  ] = await Promise.all([
+    import("./HomeEditor"),
+    import("./EditorialApp"),
+    import("../../lib/editorial-navigation"),
+    import("./EditorialWorkspaceShell"),
+  ]);
 }
 // Already public, so the review's visibility preparation leaves it unchanged.
 const source =
@@ -155,17 +160,37 @@ const snapshot = {
 function response(data: unknown) {
   return jsonResponse(JSON.stringify(data));
 }
-async function mount(search = "", localPreview = true, withIdentity = false) {
+async function mount(
+  search = "",
+  localPreview = true,
+  withIdentity = false,
+  withSidebar = false,
+) {
   window.history.replaceState(null, "", `/content/writing/test${search}`);
   await act(async () => {
-    root.render(
+    const editor = (
       <>
         {withIdentity && <WorkspaceMemory />}
         <HomeEditor
           record={{ kind: "writing", id: "test" }}
           localPreview={localPreview}
         />
-      </>,
+      </>
+    );
+    root.render(
+      withSidebar ? (
+        <EditorialWorkspaceShell
+          area="content"
+          mode="light"
+          localPreview={localPreview}
+          changeTheme={() => {}}
+          siteUrl="http://127.0.0.1:4580/"
+        >
+          {editor}
+        </EditorialWorkspaceShell>
+      ) : (
+        editor
+      ),
     );
   });
   await act(async () => {
@@ -438,7 +463,7 @@ async function editBody(value: string) {
   });
 }
 
-it.each(["/life", "/cdn-cgi/access/logout"])(
+it.each(["/life", "/cdn-cgi/access/logout", "http://127.0.0.1:4580/"])(
   "links flush buffered edits once before navigating: %s",
   async (href) => {
     const commit = vi
@@ -458,11 +483,16 @@ it.each(["/life", "/cdn-cgi/access/logout"])(
       return response(snapshot);
     });
     vi.stubGlobal("fetch", fetcher);
-    await mount();
+    const website = href.startsWith("http://127.0.0.1:4580");
+    await mount("", true, false, website);
     await editBody("Buffered private edit.");
-    const link = document.createElement("a");
-    link.href = href;
-    host.append(link);
+    const link = website
+      ? host.querySelector<HTMLAnchorElement>(`a[href="${href}"]`)!
+      : document.createElement("a");
+    if (!website) {
+      link.href = href;
+      host.append(link);
+    }
     await act(async () => {
       link.click();
       link.click();
@@ -488,7 +518,7 @@ it.each(["/life", "/cdn-cgi/access/logout"])(
   },
 );
 
-it.each(["palette", "logout"])(
+it.each(["palette", "logout", "www"])(
   "%s navigation stays in the editor when its save fails",
   async (action) => {
     const commit = vi
@@ -502,11 +532,15 @@ it.each(["palette", "logout"])(
         return response(snapshot);
       }),
     );
-    await mount();
+    await mount("", true, false, action === "www");
     await editBody("Retain this offline edit.");
     await act(async () => {
       if (action === "palette")
         navigation.navigateAdmin("/operations/observability");
+      else if (action === "www")
+        host
+          .querySelector<HTMLAnchorElement>('a[href="http://127.0.0.1:4580/"]')!
+          .click();
       else {
         const link = document.createElement("a");
         link.href = "/cdn-cgi/access/logout";

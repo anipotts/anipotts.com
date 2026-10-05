@@ -243,6 +243,10 @@ function publicScene(direction: Direction): PublicScene {
   };
 }
 function adminScene(): AdminScene {
+  // A collapsed rail has no visible identity to morph. Keep native navigation
+  // rather than measuring hidden text as an identity at the viewport origin.
+  if ($<HTMLElement>("[data-admin-entry]")?.dataset.sidebarCollapsed === "true")
+    throw new NoMotionSurface();
   const letters = $("[data-admin-letters]")!;
   const text = letters.firstChild!;
   const canvas = document.createElement("canvas").getContext("2d")!;

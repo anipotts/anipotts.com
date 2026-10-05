@@ -4,6 +4,7 @@ import { join } from "node:path";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { AdminShell } from "./AdminShell";
 import { EditorialApp } from "./EditorialApp";
 import {
   EditorialWorkspaceShell,
@@ -212,5 +213,30 @@ it("confines collapsed geometry to the inline sidebar, excluding the modal drawe
         ".astryx-app-shell-sidenav .editorial-workspace-nav",
       );
     }
+  }
+});
+
+it("returns every workspace to its configured website preview", () => {
+  for (const shell of [
+    <EditorialApp
+      title="Content"
+      area="content"
+      localPreview
+      siteUrl="http://127.0.0.1:4580/"
+    />,
+    <AdminShell
+      currentRoute="/observability/status"
+      localPreview
+      siteUrl="http://127.0.0.1:4580/"
+    >
+      Content
+    </AdminShell>,
+  ]) {
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(shell);
+    const links = host.querySelectorAll(".editorial-workspace-utilities a");
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links)
+      expect(link.getAttribute("href")).toBe("http://127.0.0.1:4580/");
   }
 });
