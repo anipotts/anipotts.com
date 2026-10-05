@@ -257,9 +257,22 @@
       "title": "Sidebar www return and public sign-in collapse",
       "revision": "661d02efe627c7f5ea3716b52ded5fd14d313e2a",
       "lane": "code",
-      "state": "awaiting-review",
-      "approvals": {},
-      "note": "Head 661d02efe627c7f5ea3716b52ded5fd14d313e2a: required CI37250946251 and Security Review37250946229 passed; all four review threads resolved. Local canonical preview verified click/Enter/Space collapse and collapsed return to www; 58 focused tests and admin typecheck pass. Native automatic approval review rejected merge because the changed head needs direct Ani approval. No production deployment. Approval question pending in website chat."
+      "state": "approved",
+      "approvals": {
+        "code": {
+          "revision": "661d02efe627c7f5ea3716b52ded5fd14d313e2a",
+          "by": "Ani",
+          "evidence": "Website chat direct approved merge to prod and annotation approved exact PR #496 at 661d02ef.",
+          "at": "2026-10-05T02:06:56Z"
+        },
+        "production": {
+          "revision": "661d02efe627c7f5ea3716b52ded5fd14d313e2a",
+          "by": "Ani",
+          "evidence": "Website chat direct approved merge to prod and annotation approved exact PR #496 at 661d02ef.",
+          "at": "2026-10-05T02:06:56Z"
+        }
+      },
+      "note": "Merged as d74c1d839611bca0595589ba2c7c943a2493b632 after exact-head CI and live strict protection verification. Deploy37254088173 running for www and admin, with worker targets and migrations skipped. Configured Production gates approved for the authorized release. Live proof pending."
     },
     {
       "id": "preview-module-urls",
@@ -269,6 +282,15 @@
       "state": "awaiting-review",
       "approvals": {},
       "note": "Separate pushed codex/preview-module-urls branch; developer-only redirects for known public components and installed Astro ClientRouter. Three focused tests pass; canonical controls verified. Classifier selects no targets. Native review blocked opening its PR without immediate send approval; approval requested."
+    },
+    {
+      "id": "admin-inset-edges",
+      "title": "Admin inset top and left edges",
+      "revision": "a1b103e6",
+      "lane": "code",
+      "state": "awaiting-review",
+      "approvals": {},
+      "note": "Requested inset CSS fix is on origin/codex/admin-inset-edges and applied in canonical preview. 33 existing shell/frame checks passed. Browser computed top/left1px and bottom/right0px. Native approval review blocked PR creation because the earlier approval covered #496 only. No PR, merge or deployment for this followup."
     }
   ]
 }
