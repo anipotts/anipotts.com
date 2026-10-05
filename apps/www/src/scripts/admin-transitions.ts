@@ -1,5 +1,6 @@
 import "./admin-entry.ts";
 /** Public presentation only. Authentication starts at the explicit continue link. */
+import "./admin-entry.ts";
 import {
   navigate,
   type TransitionBeforePreparationEvent,
