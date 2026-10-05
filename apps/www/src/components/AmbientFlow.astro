@@ -31,17 +31,6 @@ const { localCrop = false } = Astro.props;
     </g>
   </svg>
 </span>
-<script>
-  import {
-    refreshSharedCurrents,
-    pauseSharedCurrents,
-  } from "../lib/shared-currents";
-  refreshSharedCurrents();
-  document.addEventListener("astro:before-preparation", pauseSharedCurrents);
-  document.addEventListener("astro:after-swap", refreshSharedCurrents);
-  document.addEventListener("astro:page-load", refreshSharedCurrents);
-  if (import.meta.hot) import.meta.hot.dispose(pauseSharedCurrents);
-</script>
 <style is:global>
   :is(
     .work-card,
@@ -117,16 +106,13 @@ const { localCrop = false } = Astro.props;
     border-radius: inherit;
     pointer-events: none;
     contain: strict;
+    /* Hidden until the first real crop is drawn, then shown at once. On a
+       first visit that crop is lowered out of view and pours up; there is
+       no fade. */
     opacity: 0;
-    transition: opacity 180ms ease-out;
   }
   .ambient-flow[data-current-ready="true"] {
     opacity: 1;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .ambient-flow {
-      transition: none;
-    }
   }
   .ambient-flow svg {
     width: 100%;
