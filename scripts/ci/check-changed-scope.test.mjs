@@ -197,6 +197,36 @@ test("dirty documentation performs formatting without application checks", () =>
   });
 });
 
+for (const path of [
+  "AGENTS.md",
+  "CLAUDE.md",
+  "README.md",
+  "docs/platform-architecture.md",
+  "docs/design/admin-workspace/quiet-precision-delivery.md",
+]) {
+  test(`dirty guidance input ${path} selects validation with guidance invariants`, () => {
+    fixture(({ write, run }) => {
+      write(path, "edited guidance\n");
+      const result = run();
+      assert.equal(result.status, 0, result.stderr);
+      assert.deepEqual(result.commands, [["validate"]]);
+    });
+  });
+}
+
+test("committed guidance changes select invariants in both scope modes", () => {
+  fixture(({ git, write, run }) => {
+    write("CLAUDE.md", "committed guidance\n");
+    git("add", "CLAUDE.md");
+    git("commit", "-m", "synthetic guidance change");
+    for (const args of [[], ["--commits-only"]]) {
+      const result = run(args);
+      assert.equal(result.status, 0, result.stderr);
+      assert.deepEqual(result.commands, [["validate"]]);
+    }
+  });
+});
+
 test("failed validation of dirty work propagates a failure", () => {
   fixture(({ write, run }) => {
     write("apps/www/src/pages/index.astro", "unstaged\n");

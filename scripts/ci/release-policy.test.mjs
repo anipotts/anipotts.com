@@ -12,11 +12,37 @@ import {
   selectedConditions,
 } from "./d1-migration-conditions.mjs";
 import { classifySql, loadManifest, sha256 } from "./migration-policy.mjs";
-import { classifyRelease } from "./release-policy.mjs";
+import { classifyRelease, githubOutputs } from "./release-policy.mjs";
 
 const base = { sourceSha: "a".repeat(40), eventName: "pull_request" };
 
 assert.equal(classifyRelease(["docs/release.md"], base).docs_only, true);
+for (const path of [
+  "AGENTS.md",
+  "CLAUDE.md",
+  "README.md",
+  "docs/platform-architecture.md",
+  "docs/design/admin-workspace/quiet-precision-delivery.md",
+]) {
+  const release = classifyRelease([`M\t${path}`], base);
+  assert.equal(
+    release.ci_policy_changed,
+    true,
+    `${path} must run guidance invariants`,
+  );
+  assert.match(githubOutputs(release), /^ci_policy_changed=true$/m, path);
+  assert.equal(release.docs_only, true, path);
+  assert.equal(release.risk, "none", path);
+  assert.equal(
+    Object.values(release.deploy_targets).some(Boolean),
+    false,
+    path,
+  );
+}
+assert.equal(
+  classifyRelease(["M\tdocs/release.md"], base).ci_policy_changed,
+  false,
+);
 const canonicalContentRelease = classifyRelease(
   ["M\tcontent/public/pages/home.md", "A\tcontent/publication.json"],
   base,

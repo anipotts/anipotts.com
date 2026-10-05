@@ -51,6 +51,7 @@ const broad = changes.some((line) =>
 
 if (
   broad ||
+  release.ci_policy_changed ||
   release.d1_changed ||
   targets.some((target) => target !== "www" && target !== "admin")
 ) {
