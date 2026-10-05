@@ -24,3 +24,17 @@ const PROJECT_MARKS: Readonly<Record<string, string>> = {
 export function projectMark(id: string | undefined): string | null {
   return id && Object.hasOwn(PROJECT_MARKS, id) ? PROJECT_MARKS[id] : null;
 }
+
+/** Resolve configured owned artwork to this app's hashed asset, preserving
+ * identity choices while avoiding a cross-origin request or a copied file. */
+const OWNED_ARTWORK = import.meta.glob<string>(
+  "../../../apps/www/public/images/brand/*.{png,svg}",
+  { eager: true, query: "?url&no-inline", import: "default" },
+);
+export function ownedProjectArtwork(src: string | undefined): string | null {
+  const prefix = "/images/brand/";
+  if (!src?.startsWith(prefix)) return null;
+  const key =
+    "../../../apps/www/public/images/brand/" + src.slice(prefix.length);
+  return Object.hasOwn(OWNED_ARTWORK, key) ? OWNED_ARTWORK[key] : null;
+}

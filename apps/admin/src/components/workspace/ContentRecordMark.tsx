@@ -1,5 +1,8 @@
 import React from "react";
-import { projectMark } from "@anipotts/brand/project-marks";
+import {
+  projectMark,
+  ownedProjectArtwork,
+} from "@anipotts/brand/project-marks";
 import { BrandTile } from "../BrandTile";
 import {
   BriefcaseIcon,
@@ -24,7 +27,8 @@ export function ContentRecordMark({
   const id = record.id ?? record.href.split("?")[0].split("/").at(-1);
   const identity = record.projectIdentity;
   const artwork = identity
-    ? projectMediaPreview(identity.logo_src, "https://anipotts.com")
+    ? (ownedProjectArtwork(identity.logo_src) ??
+      projectMediaPreview(identity.logo_src, "https://anipotts.com"))
     : projectMark(id);
   if (artwork)
     return (

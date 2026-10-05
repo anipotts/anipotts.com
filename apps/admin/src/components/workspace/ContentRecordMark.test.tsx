@@ -65,7 +65,8 @@ it("uses the saved project logo ahead of a slug mapping and resolves private med
       }}
     />,
   );
-  expect(html).toContain(`src="https://anipotts.com${logo}"`);
+  expect(html).toContain("chainedchat-logo.png");
+  expect(html).not.toContain("https://anipotts.com");
   expect(html).toContain('data-artwork-tone="adaptive"');
   expect(html).not.toContain("chainedchat-favicon");
   const id = "a".repeat(64) + ".png";
