@@ -315,3 +315,7 @@ Worker preview startup holds a shared repository lock across the budget scan,
 server start and metadata write, so concurrent worktrees cannot both claim the
 last slot. A missing startup lock stops the launch and asks the owner to
 coordinate it. Restarted server groups begin a fresh idle window.
+
+The preview startup lock also serializes the canonical owner's startup, while
+its previews remain exempt from worker-slot accounting. The separate heavy-job
+lock coordinates validation; a preview startup does not consume that slot.
