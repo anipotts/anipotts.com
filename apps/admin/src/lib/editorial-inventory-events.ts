@@ -21,6 +21,8 @@ export type EditorialRecordSaved = {
   /** Set when this revision reached the website. The row stops showing
    * pending changes and takes the published time. */
   publishedAt?: string;
+  /** Confirmed public visibility, separate from a newer private draft. */
+  publishedVisibility?: string;
 };
 export type EditorialRecordCreated = {
   record: Extract<EditorialRecord, { kind: "writing" | "work" }>;
@@ -58,7 +60,13 @@ export function parseEditorialRecordSaved(
       (typeof item.intendedVisibility !== "string" ||
         item.intendedVisibility.length > 64)) ||
     (item.publishedAt !== undefined &&
-      (!isoTime(item.publishedAt) || item.changesPending))
+      (!isoTime(item.publishedAt) ||
+        (item.changesPending && item.publishedVisibility === undefined))) ||
+    (item.publishedVisibility !== undefined &&
+      (item.publishedAt === undefined ||
+        typeof item.publishedVisibility !== "string" ||
+        !item.publishedVisibility ||
+        item.publishedVisibility.length > 64))
   )
     return null;
   return {
@@ -70,6 +78,9 @@ export function parseEditorialRecordSaved(
     changesPending: item.changesPending,
     ...(typeof item.intendedVisibility === "string"
       ? { intendedVisibility: item.intendedVisibility }
+      : {}),
+    ...(typeof item.publishedVisibility === "string"
+      ? { publishedVisibility: item.publishedVisibility }
       : {}),
     ...(typeof item.publishedAt === "string"
       ? { publishedAt: new Date(item.publishedAt).toISOString() }
@@ -170,14 +181,16 @@ export function applyEditorialRecordSaved(
     })
   )
     return current;
+  const publicVisibility =
+    saved.publishedVisibility ?? saved.intendedVisibility;
   const visibilityIsStatus =
     saved.record.kind === "writing" || saved.record.kind === "work";
   // A publish that took the record off the site reads as that, never as
   // Published (lib/editorial-inventory-projection.ts latestPublishedUpdate).
   const hidden =
     visibilityIsStatus &&
-    saved.intendedVisibility !== undefined &&
-    !["published", "featured", "listed"].includes(saved.intendedVisibility);
+    publicVisibility !== undefined &&
+    !["published", "featured", "listed"].includes(publicVisibility);
   const publishedUpdated = published
     ? {
         at: saved.publishedAt!,
@@ -187,8 +200,8 @@ export function applyEditorialRecordSaved(
   const revisions = { ...current.revisions };
   for (const href of matched) revisions[href] = saved.revision;
   const status = (item: { status: string }) =>
-    published && visibilityIsStatus && saved.intendedVisibility
-      ? saved.intendedVisibility
+    published && visibilityIsStatus && publicVisibility
+      ? publicVisibility
       : item.status;
   const update = (item: CatalogRecord): CatalogRecord =>
     matched.has(item.href)

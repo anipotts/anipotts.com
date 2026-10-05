@@ -33,10 +33,15 @@ Hidden work and unpublished writing have no successful public detail route.
 ## Checks and release
 
 ```bash
-pnpm check:changed --working-tree # includes committed, staged, unstaged and untracked changes
-pnpm check:changed                # exact committed diff, as used by CI
+pnpm check:changed                # includes committed, staged, unstaged and untracked changes
+pnpm check:changed --commits-only # committed branch diff only
 pnpm validate                     # full workspace checks and builds
 ```
+
+Ignored files stay excluded. `--working-tree` remains a compatible alias for the
+default local scope. Use `--commits-only` when intentionally checking a committed
+tree; it omits uncommitted work. The shared CI file collector retains its
+committed-tree default.
 
 Deployable changes use a same-repository PR and exact-head protected checks.
 Deploy only affected targets and verify the released SHA.

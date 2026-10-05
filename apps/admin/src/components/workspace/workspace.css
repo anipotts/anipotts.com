@@ -1223,3 +1223,19 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
     min-height: 0;
   }
 }
+
+/* Pending evidence stays beside the title, with a stable non-wrapping slot. */
+.workspace-pending-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  align-self: center;
+  width: var(--spacing-4);
+  margin-inline-start: var(--spacing-1);
+}
+.workspace-pending-dot {
+  width: var(--spacing-2);
+  height: var(--spacing-2);
+  border-radius: 50%;
+}

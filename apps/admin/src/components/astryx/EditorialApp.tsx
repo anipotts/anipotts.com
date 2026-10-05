@@ -69,8 +69,6 @@ const LIBRARY_NAMES = {
 const theme = { ...editorialTheme, icons: adminThemeIcons };
 
 export type CatalogRecord = {
-  logoSrc?: string;
-  logoAlt?: string;
   title: string;
   href: string;
   status: string;

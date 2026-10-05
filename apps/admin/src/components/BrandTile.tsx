@@ -76,15 +76,20 @@ export function plateTone(hex: string): "dark" | "light" {
 
 export function BrandTile({
   id,
+  artwork,
   kind = "unknown",
+  glyph,
   size,
   label,
   className,
 }: {
   /** A registry mark id. Anything else draws the glyph for `kind`. */
   id?: string | null;
+  /** Existing local project artwork, emitted as a cached asset URL. */
+  artwork?: string | null;
   /** The Phosphor fallback when `id` has no mark. */
   kind?: GlyphKind;
+  glyph?: Icon;
   /** Omit inside RowTitle's mark slot to follow `--row-mark-size`. */
   size?: BrandTileSize;
   /** The accessible name and tooltip. Omit when text beside the tile already
@@ -94,6 +99,10 @@ export function BrandTile({
 }) {
   const mark = brandMark(id);
   const style = {
+    // Transparent project artwork keeps its authored dark ink readable in both themes.
+    ...(artwork
+      ? { backgroundColor: "var(--color-project-artwork-plate)" }
+      : {}),
     ...(size ? { "--brand-tile-size": `${size}px` } : {}),
     ...(mark?.plate && mark.color
       ? { "--brand-plate": mark.plate, "--brand-mark-color": mark.color }
@@ -102,19 +111,27 @@ export function BrandTile({
   const naming = label
     ? { role: "img", "aria-label": label, title: label }
     : { "aria-hidden": true as const };
-  const Glyph = TILE_GLYPHS[kind] ?? QuestionIcon;
+  const Glyph = glyph ?? TILE_GLYPHS[kind] ?? QuestionIcon;
 
   return (
     <span
       className={className ? `brand-tile ${className}` : "brand-tile"}
       data-mark={mark?.id ?? kind}
       data-kind={mark?.kind}
-      data-fit={mark ? mark.fit : "glyph"}
+      data-fit={artwork ? "fill" : mark ? mark.fit : "glyph"}
       data-plate={mark?.plate ? plateTone(mark.plate) : undefined}
       style={style}
       {...naming}
     >
-      {!mark ? (
+      {artwork ? (
+        <img
+          className="brand-tile-art"
+          src={artwork}
+          alt=""
+          loading="lazy"
+          decoding="async"
+        />
+      ) : !mark ? (
         <Glyph className="brand-tile-glyph" weight="regular" aria-hidden />
       ) : mark.art.type === "symbol" ? (
         <svg className="brand-tile-art" aria-hidden="true" focusable="false">

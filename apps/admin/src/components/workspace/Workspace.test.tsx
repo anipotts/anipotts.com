@@ -36,6 +36,7 @@ import {
   easternClockText,
   easternClockTitle,
   leadWidth,
+  figureWidth,
   shareWidthAt,
   tableMinWidths,
   titleWidth,
@@ -225,7 +226,7 @@ describe("DataTable", () => {
     expect(wrapper.hasAttribute("role")).toBe(false);
   });
 
-  it("speaks the count in the strip under the table", () => {
+  it("keeps counts out of the table footer", () => {
     const host = html(
       <DataTable
         rows={rows}
@@ -239,11 +240,7 @@ describe("DataTable", () => {
         ]}
       />,
     );
-    const count = host.querySelector('[role="status"]')!;
-    expect(count.textContent).toBe("2 loaded");
-    expect(host.querySelector(".workspace-table-footer")!.textContent).toBe(
-      "2 loaded1 drafts",
-    );
+    expect(host.querySelector(".workspace-table-footer")).toBeNull();
   });
 });
 
@@ -281,9 +278,7 @@ describe("DataTable groups", () => {
     expect(body[0]!.children).toHaveLength(1);
     expect(body[3]!.textContent).toBe("BACKUPS1");
     // Group rows are not records: the count strip counts rows only.
-    expect(host.querySelector(".workspace-table-count")?.textContent).toBe(
-      "3 loaded",
-    );
+    expect(host.querySelector(".workspace-table-count")).toBeNull();
   });
   it("gathers a group's rows under one heading when they arrive apart", () => {
     const apart = [
@@ -1012,6 +1007,33 @@ describe("cells", () => {
     expect(
       html(<DueTime value="2026-09-22T17:59:30Z" now={NOW} />).textContent,
     ).toBe("due now");
+  });
+
+  it("compact counts fit the fixed figure cell while exposing every exact digit", () => {
+    for (const value of [
+      999,
+      1000,
+      999_949,
+      1_234_567,
+      999_949_999_999_999,
+      Number.MAX_SAFE_INTEGER,
+    ]) {
+      const host = html(<Figure compact value={value} />);
+      expect(
+        figureWidth(
+          host.querySelector('[aria-hidden="true"]')?.textContent ??
+            host.textContent ??
+            "",
+        ) + 24,
+      ).toBeLessThanOrEqual(CELL_WIDTHS.figure);
+      if (value >= 1000) {
+        const cell = host.querySelector(".workspace-figure")!;
+        expect(cell.getAttribute("title")).toBe(value.toLocaleString("en-US"));
+        expect(cell.querySelector(".sr-only")?.textContent).toBe(
+          value.toLocaleString("en-US"),
+        );
+      }
+    }
   });
 
   it("heads day groups live, and as a heading outside tables", () => {

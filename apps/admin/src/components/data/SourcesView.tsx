@@ -525,7 +525,9 @@ export function SourcesExplorer({
       header: "Records",
       width: CELL_WIDTHS.figure,
       numeric: true,
-      render: (row) => <Figure value={showsCounts(row) ? row.records : null} />,
+      render: (row) => (
+        <Figure compact value={showsCounts(row) ? row.records : null} />
+      ),
     },
     {
       key: "revisions",
@@ -535,7 +537,7 @@ export function SourcesExplorer({
       numeric: true,
       hideBelow: "large",
       render: (row) => (
-        <Figure value={showsCounts(row) ? row.revisions : null} />
+        <Figure compact value={showsCounts(row) ? row.revisions : null} />
       ),
     },
     // Only System's success time is a sync; newest record time is Last seen.

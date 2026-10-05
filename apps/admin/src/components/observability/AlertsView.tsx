@@ -445,18 +445,14 @@ export function AlertsTable({
   // The short columns (the overview's, and the list beside a panel) say a
   // bound as "Seen 7h ago", which an age's width cannot hold: the widest it
   // can read, at tabular digits, with the last column's 12px and 16px insets.
-  const bounded = rows.some((row) => !row.since && row.startedBefore);
+  // Reserve it even before rows arrive, so snapshot-only alerts do not shift loading columns.
   const since: Column<AlertRow> = {
     key: "since",
     compact: !full && !resolved ? "trailing" : "inline",
     compactLabel: full || resolved,
     priority: 1,
     header: full ? "Started" : "Since",
-    width: full
-      ? widths.start
-      : bounded
-        ? Math.max(widths.time, SEEN_WIDTH)
-        : widths.time,
+    width: full ? widths.start : Math.max(widths.time, SEEN_WIDTH),
     yieldOrder: full ? 2 : undefined,
     render: (row) => <AlertStart alert={row} now={now} seen={!full} />,
   };

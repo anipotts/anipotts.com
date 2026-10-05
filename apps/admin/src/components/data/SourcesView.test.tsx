@@ -393,6 +393,34 @@ describe("Sources by connector", () => {
     expect(contacts?.textContent).toContain("30m ago");
   });
 
+  it("keeps large reader counts compact without losing the exact accessible value", async () => {
+    const reader = createFixtureReader({
+      status: {},
+      records: [],
+      sources: [
+        source("ani-browsing", {
+          record_count: 1_234_567,
+          revision_count: Number.MAX_SAFE_INTEGER,
+        }),
+      ] as typeof sources,
+    });
+    await act(async () => root.render(<SourcesExplorer reader={reader} />));
+    await settle();
+    for (const value of [1_234_567, Number.MAX_SAFE_INTEGER]) {
+      const cell = host.querySelector(
+        `.workspace-figure[title="${value.toLocaleString("en-US")}"]`,
+      )!;
+      expect(cell).not.toBeNull();
+      expect(cell.getAttribute("title")).toBe(value.toLocaleString("en-US"));
+      expect(
+        cell.querySelector('[aria-hidden="true"]')!.textContent!.length,
+      ).toBeLessThanOrEqual(6);
+      expect(cell.querySelector(".sr-only")?.textContent).toBe(
+        value.toLocaleString("en-US"),
+      );
+    }
+  });
+
   it("opens Records filtered to a source from its row", async () => {
     await render();
     const link = host.querySelector<HTMLAnchorElement>(

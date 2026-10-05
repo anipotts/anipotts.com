@@ -271,3 +271,37 @@ it("inserts newly created projects into Projects and overview with a private edi
     applyEditorialRecordCreated(result, created).groups?.[1]?.records,
   ).toHaveLength(1);
 });
+
+it.each(["published", "draft"])(
+  "relays confirmed %s visibility while newer private changes remain pending",
+  (visibility) => {
+    const saved = applyEditorialRecordSaved(initial(), {
+      ...event,
+      revision: 6,
+      intendedVisibility: visibility === "draft" ? "published" : "draft",
+    });
+    const next = applyEditorialRecordSaved(saved, {
+      ...event,
+      revision: 6,
+      intendedVisibility: visibility === "draft" ? "published" : "draft",
+      publishedVisibility: visibility,
+      publishedAt: "2026-09-12T02:00:00Z",
+    });
+    expect(next.groups![0].records[0]).toMatchObject({
+      status: visibility,
+      privateRevision: 6,
+      changesPending: true,
+      publishedUpdated: {
+        at: "2026-09-12T02:00:00.000Z",
+        source: visibility === "draft" ? "hidden" : "cms",
+      },
+      updated: { source: "private" },
+    });
+    expect(next.searchEntries![0].currentFact).toBe(
+      `${visibility}; changes pending`,
+    );
+    expect(
+      parseEditorialRecordSaved({ ...event, publishedVisibility: visibility }),
+    ).toBeNull();
+  },
+);

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import snapshot from "../../fixtures/ops_v1.sample.json";
 import events from "../../fixtures/ops_events_v1.synthetic.json";
 import data from "../../fixtures/data_v1.synthetic.json";
+import { AlertsTable } from "../astryx/ObservabilityWorkspace";
 import { AdminOverview } from "./AdminOverview";
 
 const NOW = Date.parse("2026-09-21T18:00:00Z");
@@ -203,8 +204,44 @@ describe("the one overview", () => {
       [...host.querySelectorAll(`table[aria-label="${label}"] thead th`)]
         .slice(-2)
         .map((th) => (th as HTMLElement).style.width);
-    expect(tail("Firing alerts")).toEqual(["144px", "116px"]);
+    expect(tail("Firing alerts")[0]).toBe("144px");
+    expect(parseFloat(tail("Firing alerts")[1]!)).toBeGreaterThanOrEqual(116);
     expect(tail("Recently updated content")).toEqual(["144px", "116px"]);
+  });
+
+  it("keeps the overview Since width when loading settles to a bounded alert", () => {
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(
+      <AlertsTable rows={[]} loading now={NOW} />,
+    );
+    // Astryx's header carries the same column position as the response table.
+    const sinceWidth = () =>
+      (host.querySelectorAll("thead th")[2] as HTMLElement).style.width;
+    const loading = sinceWidth();
+    host.innerHTML = renderToStaticMarkup(
+      <AlertsTable
+        now={NOW}
+        rows={[
+          {
+            subject: "pc.inference",
+            name: "Inference",
+            kind: null,
+            host: null,
+            runbook: null,
+            status: "firing",
+            state: "failing",
+            peak: "failing",
+            since: null,
+            startedBefore: "2026-09-20T12:00:00Z",
+            resolvedAt: null,
+            detail: null,
+            incidents: 1,
+          },
+        ]}
+      />,
+    );
+    expect(sinceWidth()).toBe(loading);
+    expect(host.textContent).toContain("Seen");
   });
 
   it("shows each recent record as one row: tile, title, source, state and time", async () => {

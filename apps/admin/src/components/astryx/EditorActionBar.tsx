@@ -157,6 +157,7 @@ export type EditorActionBarProps = {
     onClick: () => void;
     isLoading?: boolean;
     isDisabled?: boolean;
+    isPublished?: boolean;
   };
   /** Frequent inspectors remain directly accessible at every width. */
   properties?: EditorPanelAction;
@@ -275,7 +276,12 @@ export function EditorActionBar({
           {publish && (
             <Button
               label={publish.label}
-              variant="primary"
+              className={
+                publish.isPublished
+                  ? "editor-published-action"
+                  : "editor-publish-action"
+              }
+              variant={publish.isDisabled ? "secondary" : "primary"}
               size="sm"
               isLoading={publish.isLoading}
               isDisabled={publish.isDisabled}

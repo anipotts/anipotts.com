@@ -27,6 +27,9 @@ const MIGRATION_PREFLIGHT_PATHS = [
 const ADMIN_CORE_PATCH = "patches/@astryxdesign__core@0.4.6.patch";
 
 const CI_POLICY_PATHS = [
+  // These documents are inputs to the guidance invariants in test:workspace.
+  /^(?:AGENTS|CLAUDE|README)\.md$/,
+  /^docs\/(?:platform-architecture\.md|design\/admin-workspace\/quiet-precision-delivery\.md)$/,
   /^\.(?:gitignore|prettierignore)$/,
   /^patches\/@astryxdesign__core@0\.4\.6\.patch$/,
   /^\.github\/editorial-publisher\.pem$/,

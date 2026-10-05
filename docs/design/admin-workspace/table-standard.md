@@ -27,13 +27,13 @@ Admin retains Instrument Sans and its existing theme, spacing and control tokens
 
 ## Exceptions
 
-Keep narrative authored lists, facts/definition lists, navigation, menus, chips, editable project/story sections, media controls, publication issue messages and source recovery comparisons in their appropriate semantics. Publication before/after previews describe content, rather than record datasets. Host health summaries include disk meters and related facts and remain status summaries. Health's day/metric comparison retains horizontal scrolling because stacking would lose its relationships.
+Keep narrative authored lists, facts/definition lists, navigation, menus, chips, editable project/story sections, media controls, publication issue messages and source recovery comparisons in their appropriate semantics. Publication before/after previews describe content, rather than record datasets. Host health summaries include disk meters and related facts and remain status summaries. Health comparisons use the same aligned adaptive columns.
 
 ## Adoption
 
 Use `DataTable` and `Column<T>` from `components/workspace/Workspace`. Keep fetches, permissions, URLs, filters, ordering and mutations in the adapter. Supply stable record IDs and a table ID independent of headings, translations, searches or selected records. Group keys must be model identifiers; `groupLabel` provides readable text. Use grouping only where it aids scanning.
 
-Set column sizing and responsive priorities explicitly. Primary labels retain readable space; secondary fields reflow beneath them in their meaningful order at narrow container widths. Genuine comparison tables opt into scrolling. Cell renderers retain real links/buttons rather than binding navigation to a row click; embedded actions therefore remain independent.
+Set column sizing and responsive priorities explicitly. Primary labels retain readable space; secondary columns and their headers yield together when they no longer fit. Tables retain native aligned cells at every size and never scroll horizontally. Cell renderers retain real links/buttons rather than binding navigation to a row click; embedded actions therefore remain independent.
 
 The adapter owns complete versus partial dataset knowledge. Supply authoritative totals only when the server provides them. Filtered counts are separate from totals; loaded counts never imply a full inventory. Shared loading, error, empty-dataset and zero-result presentations are available without replacing domain-specific session or authorization notices.
 
@@ -95,9 +95,9 @@ Exact changed paths at this checkpoint:
 
 ## Compact content rows
 
-Narrow content libraries place last activity beside the primary title and use one ellipsized summary line beneath it. Titles wrap freely; the record link retains a 44px touch target. Repeated activity labels are omitted visually while the column header and precise timestamp remain accessible. Desktop columns are unchanged. Browser verification at 320px and 390px confirmed no document overflow, including long titles and unpublished records.
+Content libraries retain a single-line title, with summary and last activity in their own columns when space permits. Narrow tables yield secondary columns without stacking. Full titles remain available on the record control and complete records open through their links. Touch targets remain at least 44px.
 
-Library headers and footers name their record type (articles, projects, pages or newsletter issues). Shared page headers accept a singular/plural `countNoun`; Data and Observability adapters supply source, entity, service, alert or event terminology. On phones, header actions and filter actions keep their complete 44px targets inside the same page gutter, aligning their trailing icon centers without negative margins.
+Library headers name their record type (articles, projects, pages or newsletter issues). Shared page headers accept a singular/plural `countNoun`; Data and Observability adapters supply source, entity, service, alert or event terminology. On phones, header actions and filter actions keep their complete 44px targets inside the same page gutter, aligning their trailing icon centers without negative margins.
 
 ## October 5 refinement
 

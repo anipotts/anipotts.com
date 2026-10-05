@@ -3,10 +3,7 @@ import { Button } from "@astryxdesign/core/Button";
 import { Heading } from "@astryxdesign/core/Heading";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
-import {
-  ToggleButton,
-  ToggleButtonGroup,
-} from "@astryxdesign/core/ToggleButton";
+import { KindFilters } from "../workspace/KindFilters";
 import { VStack } from "@astryxdesign/core/VStack";
 import {
   ArrowBendUpLeftIcon,
@@ -109,27 +106,22 @@ function KindChips({
 }) {
   return (
     <div className="data-chips">
-      <ToggleButtonGroup
+      <KindFilters
         label="Entity kind"
-        size="sm"
-        isDisabled={disabled}
+        disabled={disabled}
         value={route.kind}
         onChange={(value) =>
           navigate(knowledgeHref(entityKind(value)), { replace: true })
         }
-      >
-        {ENTITY_KINDS.map((kind) => {
+        options={ENTITY_KINDS.map((kind) => {
           const [Glyph] = kindGlyph(kind);
-          return (
-            <ToggleButton
-              key={kind}
-              value={kind}
-              label={KNOWLEDGE_KINDS[kind].label}
-              icon={<Glyph weight="regular" aria-hidden="true" />}
-            />
-          );
+          return {
+            value: kind,
+            label: KNOWLEDGE_KINDS[kind].label,
+            icon: <Glyph weight="regular" aria-hidden="true" />,
+          };
         })}
-      </ToggleButtonGroup>
+      />
     </div>
   );
 }

@@ -1,9 +1,10 @@
 # Quiet Precision delivery contract
 
 Approved September 13, 2026. This is the implementation ledger for Ani's amended
-product, architecture, recovery and operating plan. It supersedes the older
-automatic merge, Git-only CMS, article-only creation and staging assumptions.
-It records targets separately from demonstrated behavior.
+product, architecture and recovery plan. It supersedes the older Git-only CMS,
+article-only creation and staging assumptions. Current working authority and
+integration ownership follow `CLAUDE.md` and the global Working with Ani agreement.
+This ledger records targets separately from demonstrated behavior.
 
 ## Product and review contract
 
@@ -19,10 +20,10 @@ It records targets separately from demonstrated behavior.
 - Operations shows real read-only machine, loop and service observations. Life
   reads authorized canonical knowledge with provenance; it has no persistent
   cloud replica. Unavailable sources are not empty sources.
-- Every PR waits for review before merge. From September 14 Ani delegated review and
-  serial merge to the single integration owner; see `CLAUDE.md`. Drafts are incomplete
-  work; ready checkpoints run relevant full checks. New heads refresh affected
-  checks and acceptance. No auto-merge or docs bypass.
+- The active integration owner reviews and serially integrates protected exact
+  heads under the current standing authority in `CLAUDE.md`. Drafts are incomplete
+  work; ready checkpoints run relevant required checks. New heads refresh affected
+  checks and acceptance. Documentation uses the same protected PR path.
 - Preserve the canonical dirty checkout, private drafts, old worktree refs and
   managed port 4311 preview. Never use Ani's private writing as test fixtures.
 
@@ -52,11 +53,14 @@ wrapping is deliberate; the token does not stretch to a fixed width. Field-level
 editing uses one editor/save/undo session and invalidates approval on first edit.
 Saved changes never imply review approval.
 
-Catalog fixtures must render real components with synthetic data. Required
-acceptance includes 320/390/768/792/1280/1440 widths, sidebar modes, light/dark/
-system, reduced motion, 200% zoom, text enlargement, accessible names/order/live
-regions, IME/paste/undo, two tabs, mobile keyboard/suspension, navigation/reload,
-long/Unicode/invalid metadata, startup boundaries and stale/aborted requests.
+Catalog fixtures must render real components with synthetic data. Choose
+acceptance cases proportional to the changed behavior and affected contracts.
+The catalog's full coverage includes 320/390/768/792/1280/1440 widths, sidebar
+modes, light/dark/system, reduced motion, 200% zoom, text enlargement, accessible
+names/order/live regions, IME/paste/undo, two tabs, mobile keyboard/suspension,
+navigation/reload, long/Unicode/invalid metadata, startup boundaries and
+stale/aborted requests. Instruction and tooling changes use representative
+non-mutating tasks and focused tests; they do not require this browser matrix.
 
 ## Evidence baseline, September 13
 
@@ -77,9 +81,10 @@ URL safety and review fixtures. The shared `anipotts-db`, newsletter queues,
 ingest/send Workers, state relay and their resources are not test targets.
 `staging.anipotts.com` currently shares the public Worker; it is not isolated.
 
-The existing `admin-integration-progress` heartbeat was updated at kickoff to
-require Ani's PR review and preserve the preview. Operations/Life automations
-remain paused. No competing maintenance task was created.
+At the September 13 kickoff, the existing `admin-integration-progress` heartbeat
+was updated for Ani's PR review and preview preservation; Operations/Life
+automations were paused. This is historical scheduler state, not current working
+authority. Check the live scheduler before relying on those recorded states.
 
 ## Safety contracts before activation
 
@@ -153,7 +158,7 @@ input and requires owner unlock; logout clears plaintext and late responses.
 
 | Increment | Deliverable                                                                           | Required predecessor / gate                        |
 | --------- | ------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| R0a       | Source-preserving CI, exact-head security coverage, review policy and evidence ledger | Current main; Ani review                           |
+| R0a       | Source-preserving CI, exact-head security coverage, review policy and evidence ledger | Current main; active integration review            |
 | R0b       | Isolated resource assertions and publication migration pre-merge harness              | Concrete R3 schema/config; no production mutations |
 | R1        | Actual-component catalog, review header, representative workspace fixtures            | R0; visual review                                  |
 | R2a       | Durable save retry identity, retained history and restoration                         | R0; real store tests                               |
@@ -202,8 +207,8 @@ billing changes are authorized by this ceiling. Measure query/CPU/memory/bundle
 and autosave costs before caching or new dependencies. No hidden polling; start
 Operations at 60-second visible refresh with backoff and coalesced manual reads.
 
-Every completed increment reports **implementation, tests, Ani's review, merge,
-deployment, live verification and remaining work separately**. The final handoff
+Every completed increment reports **implementation, tests, requested review,
+merge, deployment, live verification and remaining work separately**. The final handoff
 includes resource ownership, rollback floor, schema/protocol window, backup age,
 last restore drill, publication reconciliation, reader custody and cost evidence.
 
