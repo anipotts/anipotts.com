@@ -458,11 +458,15 @@ export function mountSharedCurrents() {
   // display frames while it lasts, and so does the scroll push on desktop.
   let interval = IDLE;
   function schedule(now = performance.now()) {
-    const fps = pouring(now)
-      ? 60
-      : Math.abs(pushed() - flow) > 1e-4
-        ? motion().activeFps
-        : 30;
+    // Page bands do not consume scroll push. Snap hidden cards so their return
+    // starts at the current scroll position without an offscreen coast.
+    if (!visible.size) flow = pushed();
+    const fps =
+      visible.size && pouring(now)
+        ? 60
+        : visible.size && Math.abs(pushed() - flow) > 1e-4
+          ? motion().activeFps
+          : 30;
     const idle = visible.size ? IDLE : BANDS;
     interval = fps > 30 ? 1000 / fps : idle;
     if (fps > 30) frame = requestAnimationFrame(tick);
@@ -519,7 +523,7 @@ export function mountSharedCurrents() {
   }
   // Leave the idle wait as soon as scrolling starts.
   function scrolled() {
-    if (timer !== undefined && motion().activeFps > 30) sync();
+    if (visible.size && timer !== undefined && motion().activeFps > 30) sync();
   }
   const intersection = new IntersectionObserver(
     (entries) => {

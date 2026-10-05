@@ -83,3 +83,46 @@ test("reduced motion settles every card and disconnects pending entrances", () =
   assert.equal(still, 1, "page bands return to their authored shapes");
   assert.deepEqual([...entered.values()], [-Infinity, -Infinity]);
 });
+
+test("offscreen scroll keeps bands at 15Hz and cards return at the current push", () => {
+  let push = 8,
+    frames = 0,
+    wakes = 0,
+    delay;
+  const visible = { size: 0 };
+  const context = vm.createContext({
+    tick: () => {},
+    performance: { now: () => 0 },
+    pouring: () => true,
+    pushed: () => push,
+    visible,
+    motion: () => ({ activeFps: 60 }),
+    BANDS: 1000 / 15,
+    requestAnimationFrame: () => {
+      frames++;
+      return 1;
+    },
+    setTimeout: (_, wait) => {
+      wakes++;
+      delay = wait;
+      return 1;
+    },
+    sync: () => assert.fail("offscreen scroll must not restart the band timer"),
+  });
+  vm.runInContext(
+    `let flow=0, interval, IDLE=1000/30, last=0, frame, timer;
+    ${fn("schedule")} ${fn("scrolled")} schedule(); scrolled();`,
+    context,
+  );
+  assert.equal(frames, 0);
+  assert.equal(wakes, 1);
+  assert.equal(delay, 1000 / 15);
+  assert.equal(vm.runInContext("flow", context), push);
+  push = 20;
+  vm.runInContext("schedule();", context);
+  assert.equal(vm.runInContext("flow", context), push);
+  visible.size = 1;
+  vm.runInContext("schedule();", context);
+  assert.equal(frames, 1, "visible entrance resumes its 60Hz cadence");
+  assert.equal(vm.runInContext("flow", context), push);
+});
