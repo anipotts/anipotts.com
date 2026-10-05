@@ -149,10 +149,13 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   .editorial-workspace-shell {
     --admin-main-block-size: 100dvh;
   }
-  /* A complete panel perimeter uses the theme's quiet border colour. The
-     inset stays visible in light mode and restrained on the dark canvas. */
+  /* Frame the inset against the sidebar and top gutter. The content reaches
+     the viewport at the bottom and end without a second perimeter. */
   .editorial-workspace-shell #astryx-app-shell-main {
-    border: var(--border-width) solid var(--color-border);
+    border-top: var(--border-width) solid var(--color-border);
+    border-inline-start: var(--border-width) solid var(--color-border);
+    border-bottom: 0;
+    border-inline-end: 0;
   }
   .editorial-workspace-shell[data-sidebar-collapsed="false"] {
     --admin-main-block-size: calc(100dvh - var(--spacing-3));
