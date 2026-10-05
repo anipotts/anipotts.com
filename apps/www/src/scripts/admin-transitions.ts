@@ -174,6 +174,8 @@ const pageGhost = () => {
   return ghost;
 };
 
+class NoMotionSurface extends Error {}
+
 function publicScene(direction: Direction): PublicScene {
   const header = $("[data-admin-header-logo] svg")!;
   const footer = $("[data-admin-footer-logo] svg")!;
@@ -792,7 +794,8 @@ document.addEventListener("astro:page-load", () => {
   } catch (error) {
     current.outgoing.ghost.host.remove();
     cleanup();
-    console.error("Admin presentation transition failed", error);
+    if (!(error instanceof NoMotionSurface))
+      console.error("Admin presentation transition failed", error);
   }
 });
 document.addEventListener("click", (event) => {
