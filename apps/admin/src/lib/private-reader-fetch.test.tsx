@@ -764,7 +764,9 @@ describe("private Data workspace", () => {
     ).toEqual(["?q=&limit=30&offset=0&kind=contact"]);
     const entries = window.history.length;
     await click("More types: Contacts");
-    const notes = [...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]')].find((item) => item.textContent?.trim() === "Notes");
+    const notes = [
+      ...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
+    ].find((item) => item.textContent?.trim() === "Notes");
     expect(notes).toBeTruthy();
     await act(async () => notes!.click());
     await settle();
