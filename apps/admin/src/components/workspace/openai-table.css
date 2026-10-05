@@ -257,3 +257,32 @@
     margin-top: 12px;
   }
 }
+
+.admin-table-loading-primary {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  gap: var(--spacing-3);
+  min-width: 0;
+}
+.admin-data-table [data-loading-row] .admin-table-value {
+  display: flex;
+  align-items: center;
+  max-width: 100%;
+}
+.admin-data-table [data-loading-row] .astryx-skeleton {
+  max-width: 100%;
+  flex-shrink: 1;
+}
+
+@media (pointer: coarse) {
+  .admin-table-loading-primary {
+    min-height: 44px;
+  }
+}
+
+.admin-data-table .workspace-table-count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+}

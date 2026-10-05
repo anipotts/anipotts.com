@@ -698,7 +698,7 @@ export function RecordsExplorer({
               busy={busy}
             />
             {!list ? (
-              <LoadingSkeleton label="records" columns={4} />
+              <LoadingSkeleton label="records" columns={columns} footer />
             ) : list.failure && !list.items.length ? (
               <ReadNotice
                 result={list.failure}

@@ -501,10 +501,10 @@ export function SourcesExplorer({
         .length ?? 0,
     [sources],
   );
-  if (!sources) return <LoadingSkeleton label="sources" columns={4} />;
-  if (failure && !sources.length)
+  if (failure && sources && !sources.length)
     return <ReadNotice result={failure} onRetry={() => void read()} />;
-  if (!rows.length) return <StateNotice kind="empty" title="No sources yet" />;
+  if (sources && !rows.length)
+    return <StateNotice kind="empty" title="No sources yet" />;
   const toggle = (key: string) =>
     setOpen((current) => {
       const next = new Set(current);
@@ -610,6 +610,8 @@ export function SourcesExplorer({
       render: (row) => timeCell(row, row.lastSeen, "Last seen"),
     },
   ];
+  if (!sources)
+    return <LoadingSkeleton label="sources" columns={columns} footer />;
   return (
     <VStack gap={3} aria-busy={busy} className="sources-view">
       {wantsJobs && ops && <JobStates ops={ops} onJobs={setJobs} />}
