@@ -225,7 +225,7 @@ describe("DataTable", () => {
     expect(wrapper.hasAttribute("role")).toBe(false);
   });
 
-  it("speaks the count in the strip under the table", () => {
+  it("keeps counts out of the table footer", () => {
     const host = html(
       <DataTable
         rows={rows}
@@ -239,11 +239,7 @@ describe("DataTable", () => {
         ]}
       />,
     );
-    const count = host.querySelector('[role="status"]')!;
-    expect(count.textContent).toBe("2 loaded");
-    expect(host.querySelector(".workspace-table-footer")!.textContent).toBe(
-      "2 loaded1 drafts",
-    );
+    expect(host.querySelector(".workspace-table-footer")).toBeNull();
   });
 });
 
@@ -281,9 +277,7 @@ describe("DataTable groups", () => {
     expect(body[0]!.children).toHaveLength(1);
     expect(body[3]!.textContent).toBe("BACKUPS1");
     // Group rows are not records: the count strip counts rows only.
-    expect(host.querySelector(".workspace-table-count")?.textContent).toBe(
-      "3 loaded",
-    );
+    expect(host.querySelector(".workspace-table-count")).toBeNull();
   });
   it("gathers a group's rows under one heading when they arrive apart", () => {
     const apart = [

@@ -348,7 +348,7 @@ function HealthTable({ data }: { data: HealthDaily }) {
     <div className="health-table">
       <DataTable
         tableId="data-health-days"
-        responsive="scroll"
+        responsive="fit"
         rows={rows}
         rowKey="date"
         label="Health by day"

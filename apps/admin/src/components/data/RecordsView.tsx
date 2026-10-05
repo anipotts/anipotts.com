@@ -6,8 +6,12 @@ import {
   ToggleButton,
   ToggleButtonGroup,
 } from "@astryxdesign/core/ToggleButton";
+import {
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "@astryxdesign/core/DropdownMenu";
 import { VStack } from "@astryxdesign/core/VStack";
-import { XIcon } from "@phosphor-icons/react";
+import { DotsThreeIcon, XIcon } from "@phosphor-icons/react";
 import { nextDataOffset, type DataResult } from "../../data/personal-context";
 import {
   DataReadSession,
@@ -33,6 +37,7 @@ import {
   DataTable,
   DetailText,
   FilterBar,
+  FilterMenu,
   InlineNotice,
   LoadingSkeleton,
   RelativeTime,
@@ -373,7 +378,7 @@ export function RecordsToolbar({
           value={route.kind === "all" ? null : route.kind}
           onChange={(value) => filter({ kind: dataKind(value) })}
         >
-          {KIND_CHIPS.map((kind) => {
+          {(["message", "browsing_day"] as DataKind[]).map((kind) => {
             const [Glyph] = kindGlyph(DATA_KINDS[kind].reader);
             return (
               <ToggleButton
@@ -385,6 +390,36 @@ export function RecordsToolbar({
             );
           })}
         </ToggleButtonGroup>
+        <div inert={disabled || undefined}>
+          <FilterMenu
+            label="More types"
+            icon={DotsThreeIcon}
+            value={
+              route.kind !== "all" &&
+              !["message", "browsing_day"].includes(route.kind)
+                ? DATA_KINDS[route.kind].label
+                : "All kinds"
+            }
+            isActive={
+              route.kind !== "all" &&
+              !["message", "browsing_day"].includes(route.kind)
+            }
+          >
+            <DropdownMenuRadioGroup
+              label="Record kind"
+              value={route.kind}
+              onChange={(value) => filter({ kind: dataKind(value) })}
+            >
+              {["all", ...KIND_CHIPS].map((kind) => (
+                <DropdownMenuRadioItem
+                  key={kind}
+                  value={kind}
+                  label={DATA_KINDS[kind as DataKind].label}
+                />
+              ))}
+            </DropdownMenuRadioGroup>
+          </FilterMenu>
+        </div>
       </div>
     </div>
   );

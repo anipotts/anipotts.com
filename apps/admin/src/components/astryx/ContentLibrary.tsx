@@ -355,7 +355,20 @@ export function ContentLibrary({
             : undefined;
         return (
           <RowTitle
-            icon={group.name === "writing" ? undefined : recordGlyph(item)[0]}
+            mark={
+              item.logoSrc ? (
+                <img
+                  className="editorial-project-logo"
+                  src={new URL(item.logoSrc, "https://anipotts.com").href}
+                  alt={item.logoAlt ?? ""}
+                />
+              ) : undefined
+            }
+            icon={
+              item.logoSrc || group.name === "writing"
+                ? undefined
+                : recordGlyph(item)[0]
+            }
             kind={recordGlyph(item)[1]}
             title={item.title}
             href={rowHref(item)}

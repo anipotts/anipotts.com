@@ -23,6 +23,32 @@ const rows = [
   },
 ];
 describe("Content library", () => {
+  it("uses project identity artwork instead of a generic briefcase", () => {
+    const html = renderToStaticMarkup(
+      <ContentLibrary
+        groups={[
+          {
+            name: "projects",
+            href: "/content/projects",
+            records: [
+              {
+                ...rows[0],
+                collection: "projects",
+                logoSrc: "/images/brand/studio.png",
+                logoAlt: "Studio",
+              },
+            ],
+          },
+        ]}
+        selectedGroup="projects"
+      />,
+    );
+    expect(html).toContain('class="editorial-project-logo"');
+    expect(html).toContain(
+      'src="https://anipotts.com/images/brand/studio.png"',
+    );
+  });
+
   it("keeps publication state while showing private changes", () => {
     const html = renderToStaticMarkup(
       <ContentLibrary

@@ -17,12 +17,6 @@
 .admin-data-table .admin-table-scroll {
   min-width: 0;
 }
-.admin-data-table[data-responsive="scroll"] .admin-table-scroll {
-  overflow-x: auto;
-}
-.admin-data-table[data-responsive="scroll"] table {
-  min-width: var(--workspace-table-min-wide);
-}
 .admin-data-table .openai-record-table {
   width: 100%;
   table-layout: fixed;
@@ -290,4 +284,69 @@
   display: inline-flex;
   align-items: center;
   min-height: var(--spacing-6);
+}
+
+/* The surface owns clipping so hovered final rows respect all four corners. */
+.admin-data-table {
+  overflow: clip;
+}
+.admin-data-table[data-responsive="fit"] .admin-table-scroll {
+  overflow-x: clip;
+}
+.admin-data-table[data-responsive="fit"] .openai-record-table {
+  min-width: 0;
+}
+.admin-data-table[data-responsive="fit"] :is(th, td) {
+  overflow: hidden;
+}
+.admin-data-table[data-responsive="fit"] .workspace-row-meta {
+  display: none !important;
+}
+.admin-data-table[data-responsive="fit"] .workspace-row-title,
+.admin-data-table[data-responsive="fit"] .workspace-row-link,
+.admin-data-table[data-responsive="fit"] .workspace-row-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.admin-data-table[data-responsive="fit"] .workspace-row-line {
+  align-items: center;
+}
+.admin-data-table[data-responsive="fit"] .workspace-row-title {
+  display: block;
+}
+.admin-data-table[data-responsive="fit"] .workspace-row-title * {
+  white-space: nowrap;
+}
+.admin-data-table[data-responsive="fit"] .workspace-row-link {
+  max-width: 100%;
+}
+.admin-data-table[data-responsive="fit"]
+  :is(.admin-table-value, .openai-record-table th) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.admin-data-table[data-responsive="fit"] .admin-table-value > * {
+  max-width: 100%;
+}
+
+.admin-data-table .editorial-project-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius-control);
+}
+.admin-data-table .workspace-row-body {
+  min-width: 0;
+}
+.admin-data-table[data-responsive="fit"] .workspace-row-line > :first-child {
+  flex: 1;
+}
+.admin-data-table[data-responsive="fit"] th button {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

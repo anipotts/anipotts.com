@@ -43,6 +43,32 @@ function draft(overrides: Partial<Draft> = {}): Draft {
   };
 }
 describe("editorial inventory projection", () => {
+  it("carries safe project identity artwork into library rows", () => {
+    const entry = {
+      ...entries[2]!,
+      data: {
+        title: "Studio",
+        identity: { logo_src: "/images/brand/studio.png", logo_alt: "Studio" },
+      },
+    };
+    expect(projectEditorialInventory([entry], [])[0]).toMatchObject({
+      logoSrc: "/images/brand/studio.png",
+      logoAlt: "Studio",
+    });
+    for (const logo_src of [
+      "https://other.test/tracking.png",
+      "//other.test/logo.png",
+      "/api/private",
+    ]) {
+      expect(
+        projectEditorialInventory(
+          [{ ...entry, data: { ...entry.data, identity: { logo_src } } }],
+          [],
+        )[0]?.logoSrc,
+      ).toBeUndefined();
+    }
+  });
+
   it("overlays a private title without replacing published state/provenance or duplicating records", () => {
     const published = { at: "2025-01-01T00:00:00Z", source: "git" as const };
     const records = projectEditorialInventory(
