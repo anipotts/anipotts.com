@@ -5,6 +5,7 @@ import { DevReviewCatalog } from "../components/astryx/dev-review-catalog";
 import { DevSplitCatalog } from "../components/astryx/dev-split-catalog";
 import { DevMarksCatalog } from "../components/dev-marks-catalog";
 import { DevOpenAICatalog } from "../components/workspace/dev-openai-catalog";
+import { DevTableLoadingCatalog } from "../components/workspace/dev-table-loading-catalog";
 import { DevKitCatalog } from "../components/workspace/dev-kit-catalog";
 import { loadShellFixtures } from "../lib/shell-fixtures";
 
@@ -38,7 +39,9 @@ const kit = fixture === "kit" ? await loadShellFixtures(Astro.url) : undefined;
   inventoryProjection={inventoryProjection}
 >
   {
-    fixture === "openai" ? (
+    fixture === "table-loading" ? (
+      <DevTableLoadingCatalog client:load />
+    ) : fixture === "openai" ? (
       <DevOpenAICatalog client:load />
     ) : fixture === "data" ? (
       <DevDataCatalog client:load />
